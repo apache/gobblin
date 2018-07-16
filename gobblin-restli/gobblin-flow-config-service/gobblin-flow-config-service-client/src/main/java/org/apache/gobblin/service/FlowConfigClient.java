@@ -20,6 +20,8 @@ package org.apache.gobblin.service;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,6 +50,8 @@ import com.linkedin.restli.common.IdResponse;
  */
 public class FlowConfigClient implements Closeable {
   private static final Logger LOG = LoggerFactory.getLogger(FlowConfigClient.class);
+  private static final Pattern flowExecutionIdInlocationHeader = Pattern.compile(".*flowExecutionId:(?<flowExecutionId>\\d+)");
+
 
   private Optional<HttpClientFactory> _httpClientFactory;
   private Optional<RestClient> _restClient;
@@ -86,17 +90,17 @@ public class FlowConfigClient implements Closeable {
    * @param flowConfig flow configuration attributes
    * @throws RemoteInvocationException
    */
-  public void createFlowConfig(FlowConfig flowConfig)
+  public String createFlowConfig(FlowConfig flowConfig)
       throws RemoteInvocationException {
     LOG.debug("createFlowConfig with groupName " + flowConfig.getId().getFlowGroup() + " flowName " +
         flowConfig.getId().getFlowName());
 
-    CreateIdRequest<ComplexResourceKey<FlowId, EmptyRecord>, FlowConfig> request =
+    CreateIdRequest<ComplexResourceKey<FlowId, FlowStatusId>, FlowConfig> request =
         _flowconfigsRequestBuilders.create().input(flowConfig).build();
-    ResponseFuture<IdResponse<ComplexResourceKey<FlowId, EmptyRecord>>> flowConfigResponseFuture =
+    ResponseFuture<IdResponse<ComplexResourceKey<FlowId, FlowStatusId>>> flowConfigResponseFuture =
         _restClient.get().sendRequest(request);
 
-    flowConfigResponseFuture.getResponse();
+    return parseFlowExecutionId(flowConfigResponseFuture.getResponse());
   }
 
   /**
@@ -113,7 +117,7 @@ public class FlowConfigClient implements Closeable {
         .setFlowName(flowConfig.getId().getFlowName());
 
     UpdateRequest<FlowConfig> updateRequest =
-        _flowconfigsRequestBuilders.update().id(new ComplexResourceKey<>(flowId, new EmptyRecord()))
+        _flowconfigsRequestBuilders.update().id(new ComplexResourceKey<>(flowId, new FlowStatusId()))
             .input(flowConfig).build();
 
     ResponseFuture<EmptyRecord> response = _restClient.get().sendRequest(updateRequest);
@@ -133,7 +137,7 @@ public class FlowConfigClient implements Closeable {
         flowId.getFlowName());
 
     GetRequest<FlowConfig> getRequest = _flowconfigsRequestBuilders.get()
-        .id(new ComplexResourceKey<>(flowId, new EmptyRecord())).build();
+        .id(new ComplexResourceKey<>(flowId, new FlowStatusId())).build();
 
     Response<FlowConfig> response =
         _restClient.get().sendRequest(getRequest).getResponse();
@@ -151,7 +155,7 @@ public class FlowConfigClient implements Closeable {
         flowId.getFlowName());
 
     DeleteRequest<FlowConfig> deleteRequest = _flowconfigsRequestBuilders.delete()
-        .id(new ComplexResourceKey<>(flowId, new EmptyRecord())).build();
+        .id(new ComplexResourceKey<>(flowId, new FlowStatusId())).build();
     ResponseFuture<EmptyRecord> response = _restClient.get().sendRequest(deleteRequest);
 
     response.getResponse();
@@ -168,10 +172,20 @@ public class FlowConfigClient implements Closeable {
         flowId.getFlowName());
 
     DeleteRequest<FlowConfig> deleteRequest = _flowconfigsRequestBuilders.delete()
-        .id(new ComplexResourceKey<>(flowId, new EmptyRecord())).setHeader(DELETE_STATE_STORE_KEY, Boolean.TRUE.toString()).build();
+        .id(new ComplexResourceKey<>(flowId, new FlowStatusId())).setHeader(DELETE_STATE_STORE_KEY, Boolean.TRUE.toString()).build();
     ResponseFuture<EmptyRecord> response = _restClient.get().sendRequest(deleteRequest);
 
     response.getResponse();
+  }
+
+  private static String parseFlowExecutionId(Response<IdResponse<ComplexResourceKey<FlowId, FlowStatusId>>> response) {
+    Matcher matcher = flowExecutionIdInlocationHeader.matcher(response.getHeader("Location"));
+    matcher.find();
+    try {
+      return matcher.group("flowExecutionId");
+    } catch (IllegalStateException e) {
+      return null;
+    }
   }
 
   @Override

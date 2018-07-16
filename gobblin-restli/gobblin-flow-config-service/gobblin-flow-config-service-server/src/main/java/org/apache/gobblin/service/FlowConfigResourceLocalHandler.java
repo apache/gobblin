@@ -110,7 +110,13 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
     log.info("[GAAS-REST] Create called with flowGroup " + flowConfig.getId().getFlowGroup() + " flowName " + flowConfig.getId().getFlowName());
     FlowSpec flowSpec = createFlowSpecForConfig(flowConfig);
     this.flowCatalog.put(flowSpec, triggerListener);
-    return new CreateResponse(new ComplexResourceKey<>(flowConfig.getId(), new EmptyRecord()), HttpStatus.S_201_CREATED);
+    FlowStatusId flowStatusId = new FlowStatusId().setFlowGroup(flowSpec.getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_GROUP_KEY))
+        .setFlowName(flowSpec.getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_NAME_KEY));
+    if (flowSpec.getConfigAsProperties().containsKey(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
+      flowStatusId.setFlowExecutionId(
+          Long.parseLong(flowSpec.getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)));
+    }
+    return new CreateResponse(new ComplexResourceKey<>(flowConfig.getId(), flowStatusId), HttpStatus.S_201_CREATED);
   }
 
   /**
@@ -187,6 +193,10 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
       Schedule schedule = flowConfig.getSchedule();
       configBuilder.addPrimitive(ConfigurationKeys.JOB_SCHEDULE_KEY, schedule.getCronSchedule());
       configBuilder.addPrimitive(ConfigurationKeys.FLOW_RUN_IMMEDIATELY, schedule.isRunImmediately());
+
+      if (schedule.isRunImmediately()) {
+        configBuilder.addPrimitive(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, System.currentTimeMillis());
+      }
     }
 
     Config config = configBuilder.build();

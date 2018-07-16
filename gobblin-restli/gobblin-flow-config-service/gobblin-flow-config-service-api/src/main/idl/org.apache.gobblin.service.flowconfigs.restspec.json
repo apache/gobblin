@@ -8,7 +8,7 @@
     "identifier" : {
       "name" : "id",
       "type" : "org.apache.gobblin.service.FlowId",
-      "params" : "com.linkedin.restli.common.EmptyRecord"
+      "params" : "org.apache.gobblin.service.FlowStatusId"
     },
     "supports" : [ "create", "delete", "get", "update" ],
     "methods" : [ {

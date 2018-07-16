@@ -159,6 +159,27 @@ public class FlowConfigTest {
     _client.createFlowConfig(flowConfig);
   }
 
+  @Test
+  public void testCheckFlowExecutionId() throws Exception {
+    Map<String, String> flowProperties = Maps.newHashMap();
+    flowProperties.put("param1", "value1");
+
+    FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME))
+        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).
+            setRunImmediately(true))
+        .setProperties(new StringMap(flowProperties));
+
+    Long.parseLong(_client.createFlowConfig(flowConfig));
+
+    flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME))
+        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).
+            setRunImmediately(false))
+        .setProperties(new StringMap(flowProperties));
+
+    Assert.assertNull(_client.createFlowConfig(flowConfig));
+
+  }
+
   @Test (dependsOnMethods = "testCreate")
   public void testCreateAgain() throws Exception {
     Map<String, String> flowProperties = Maps.newHashMap();
