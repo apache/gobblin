@@ -113,6 +113,7 @@ public class HelixUtils {
     log.info("[DELETE] workflow {} in the beginning", workFlowName);
     // If the queue is present, but in delete state then wait for cleanup before recreating the queue
     if (workflowConfig != null && workflowConfig.getTargetState() == TargetState.DELETE) {
+      // We want synchronous delete otherwise state can be deleted due to race condition after we create it below.
       new TaskDriver(helixManager).deleteAndWaitForCompletion(workFlowName, jobQueueDeleteTimeoutSeconds);
       // if we get here then the workflow was successfully deleted
       workflowConfig = null;
