@@ -199,7 +199,7 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
    */
   private void submitJobToHelix(String jobName, String jobId, JobConfig.Builder jobConfigBuilder) throws Exception {
     TaskDriver taskDriver = new TaskDriver(this.helixManager);
-    HelixUtils.submitJobToQueue(jobConfigBuilder,
+    HelixUtils.submitJobToWorkFlow(jobConfigBuilder,
         jobName,
         jobId,
         taskDriver,
@@ -243,7 +243,7 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
           GobblinHelixDistributeJobExecutionLauncher.this.helixManager,
           planningName,
           planningId,
-          timeoutEnabled? Optional.of(timeoutInSeconds) : Optional.empty());
+          timeoutEnabled ? Optional.of(timeoutInSeconds) : Optional.empty());
       return getResultFromUserContent();
     } catch (TimeoutException te) {
       helixTaskDriver.waitToStop(planningName, 10L);

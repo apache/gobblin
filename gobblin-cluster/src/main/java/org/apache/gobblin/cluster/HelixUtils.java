@@ -24,10 +24,10 @@ import org.apache.helix.HelixManager;
 import org.apache.helix.manager.zk.ZKHelixManager;
 import org.apache.helix.model.HelixConfigScope;
 import org.apache.helix.task.JobConfig;
-import org.apache.helix.task.JobQueue;
 import org.apache.helix.task.TargetState;
 import org.apache.helix.task.TaskDriver;
 import org.apache.helix.task.TaskUtil;
+import org.apache.helix.task.Workflow;
 import org.apache.helix.task.WorkflowConfig;
 import org.apache.helix.task.WorkflowContext;
 import org.apache.helix.tools.ClusterSetup;
@@ -89,6 +89,8 @@ public class HelixUtils {
     return namePrefix + "_" + instanceId;
   }
 
+  // We have switched from Helix JobQueue to WorkFlow based job execution.
+  @Deprecated
   public static void submitJobToQueue(
       JobConfig.Builder jobConfigBuilder,
       String queueName,
@@ -96,33 +98,42 @@ public class HelixUtils {
       TaskDriver helixTaskDriver,
       HelixManager helixManager,
       long jobQueueDeleteTimeoutSeconds) throws Exception {
+    submitJobToWorkFlow(jobConfigBuilder, queueName, jobName, helixTaskDriver, helixManager, jobQueueDeleteTimeoutSeconds);
+  }
 
-    WorkflowConfig workflowConfig = helixTaskDriver.getWorkflowConfig(helixManager, queueName);
+  public static void submitJobToWorkFlow(JobConfig.Builder jobConfigBuilder,
+      String workFlowName,
+      String jobName,
+      TaskDriver helixTaskDriver,
+      HelixManager helixManager,
+      long jobQueueDeleteTimeoutSeconds) throws Exception {
 
-    log.info("[DELETE] workflow {} in the beginning", queueName);
+    WorkflowConfig workflowConfig = helixTaskDriver.getWorkflowConfig(helixManager, workFlowName);
+
+    log.info("[DELETE] workflow {} in the beginning", workFlowName);
     // If the queue is present, but in delete state then wait for cleanup before recreating the queue
     if (workflowConfig != null && workflowConfig.getTargetState() == TargetState.DELETE) {
-      new TaskDriver(helixManager).deleteAndWaitForCompletion(queueName, jobQueueDeleteTimeoutSeconds);
+      // We want synchronous delete otherwise state can be deleted after we create it below due to race condition.
+      new TaskDriver(helixManager).deleteAndWaitForCompletion(workFlowName, jobQueueDeleteTimeoutSeconds);
       // if we get here then the workflow was successfully deleted
       workflowConfig = null;
     }
 
-    // Create one queue for each job with the job name being the queue name
+    // Create a work flow for each job with the name being the queue name
     if (workflowConfig == null) {
-      JobQueue jobQueue = new JobQueue.Builder(queueName).build();
-      helixTaskDriver.createQueue(jobQueue);
-      log.info("Created job queue {}", queueName);
+      // Create a workflow and add the job
+      Workflow workflow = new Workflow.Builder(workFlowName).addJob(jobName, jobConfigBuilder).build();
+      // start the workflow
+      helixTaskDriver.start(workflow);
+      log.info("Created a work flow {}", workFlowName);
     } else {
-      log.info("Job queue {} already exists", queueName);
+      log.info("Work flow {} already exists", workFlowName);
     }
-
-    // Put the job into the queue
-    helixTaskDriver.enqueueJob(queueName, jobName, jobConfigBuilder);
   }
 
   public static void waitJobCompletion(
       HelixManager helixManager,
-      String queueName,
+      String workFlowName,
       String jobName,
       Optional<Long> timeoutInSeconds) throws InterruptedException, TimeoutException {
 
@@ -133,9 +144,9 @@ public class HelixUtils {
     }
 
     while (!timeoutInSeconds.isPresent() || System.currentTimeMillis() <= endTime) {
-      WorkflowContext workflowContext = TaskDriver.getWorkflowContext(helixManager, queueName);
+      WorkflowContext workflowContext = TaskDriver.getWorkflowContext(helixManager, workFlowName);
       if (workflowContext != null) {
-        org.apache.helix.task.TaskState helixJobState = workflowContext.getJobState(TaskUtil.getNamespacedJobName(queueName, jobName));
+        org.apache.helix.task.TaskState helixJobState = workflowContext.getJobState(TaskUtil.getNamespacedJobName(workFlowName, jobName));
         if (helixJobState == org.apache.helix.task.TaskState.COMPLETED ||
             helixJobState == org.apache.helix.task.TaskState.FAILED ||
             helixJobState == org.apache.helix.task.TaskState.STOPPED) {
