@@ -106,7 +106,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
   private final HelixManager helixManager;
   private final TaskDriver helixTaskDriver;
-  private final String helixworkFlowName;
+  private final String helixWorkFlowName;
   private final String jobResourceName;
   private JobListener jobListener;
 
@@ -141,8 +141,8 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     this.outputTaskStateDir = new Path(this.appWorkDir, GobblinClusterConfigurationKeys.OUTPUT_TASK_STATE_DIR_NAME
         + Path.SEPARATOR + this.jobContext.getJobId());
 
-    this.helixworkFlowName = this.jobContext.getJobName();
-    this.jobResourceName = TaskUtil.getNamespacedJobName(this.helixworkFlowName, this.jobContext.getJobId());
+    this.helixWorkFlowName = this.jobContext.getJobName();
+    this.jobResourceName = TaskUtil.getNamespacedJobName(this.helixWorkFlowName, this.jobContext.getJobId());
 
     this.jobContext.getJobState().setJobLauncherType(LauncherTypeEnum.CLUSTER);
 
@@ -214,8 +214,8 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   protected void executeCancellation() {
     if (this.jobSubmitted) {
       try {
-        log.info("[DELETE] workflow {}", this.helixworkFlowName);
-        this.helixTaskDriver.delete(this.helixworkFlowName);
+        log.info("[DELETE] workflow {}", this.helixWorkFlowName);
+        this.helixTaskDriver.delete(this.helixWorkFlowName);
       } catch (IllegalArgumentException e) {
         LOGGER.warn("Failed to cancel job {} in Helix", this.jobContext.getJobId(), e);
       }
@@ -282,7 +282,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
    * Submit a job to run.
    */
   private void submitJobToHelix(JobConfig.Builder jobConfigBuilder) throws Exception {
-    HelixUtils.submitJobToWorkFlow(jobConfigBuilder, this.helixworkFlowName, this.jobContext.getJobId(),
+    HelixUtils.submitJobToWorkFlow(jobConfigBuilder, this.helixWorkFlowName, this.jobContext.getJobId(),
         this.helixTaskDriver, this.helixManager, this.jobQueueDeleteTimeoutSeconds);
   }
 
@@ -368,17 +368,17 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     try {
       HelixUtils.waitJobCompletion(
           this.helixManager,
-          this.helixworkFlowName,
+          this.helixWorkFlowName,
           this.jobContext.getJobId(),
           timeoutEnabled? Optional.of(timeoutInSeconds) : Optional.empty());
     } catch (TimeoutException te) {
-      helixTaskDriver.waitToStop(helixworkFlowName, 10L);
+      helixTaskDriver.waitToStop(helixWorkFlowName, 10L);
       try {
         cancelJob(this.jobListener);
       } catch (JobException e) {
         throw new RuntimeException("Unable to cancel job " + jobContext.getJobName() + ": ", e);
       }
-      this.helixTaskDriver.resume(this.helixworkFlowName);
+      this.helixTaskDriver.resume(this.helixWorkFlowName);
       LOGGER.info("stopped the queue, deleted the job");
     }
   }

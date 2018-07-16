@@ -18,7 +18,6 @@
 package org.apache.gobblin.cluster;
 
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import org.apache.helix.HelixManager;
@@ -108,12 +107,13 @@ public class HelixUtils {
       TaskDriver helixTaskDriver,
       HelixManager helixManager,
       long jobQueueDeleteTimeoutSeconds) throws Exception {
+
     WorkflowConfig workflowConfig = helixTaskDriver.getWorkflowConfig(helixManager, workFlowName);
 
     log.info("[DELETE] workflow {} in the beginning", workFlowName);
     // If the queue is present, but in delete state then wait for cleanup before recreating the queue
     if (workflowConfig != null && workflowConfig.getTargetState() == TargetState.DELETE) {
-      // We want synchronous delete otherwise state can be deleted due to race condition after we create it below.
+      // We want synchronous delete otherwise state can be deleted after we create it below due to race condition.
       new TaskDriver(helixManager).deleteAndWaitForCompletion(workFlowName, jobQueueDeleteTimeoutSeconds);
       // if we get here then the workflow was successfully deleted
       workflowConfig = null;
