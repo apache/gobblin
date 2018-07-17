@@ -99,7 +99,7 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
 
   protected static final String JOB_PROPS_PREFIX = "gobblin.jobProps.";
 
-  private final long jobQueueDeleteTimeoutSeconds;
+  private final long workFlowExpiryTimeSeconds;
 
   private boolean jobSubmitted;
 
@@ -122,9 +122,9 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
         builder.appWorkDir, PLANNING_WORK_UNIT_DIR_NAME,
         builder.appWorkDir, PLANNING_JOB_STATE_DIR_NAME);
 
-    this.jobQueueDeleteTimeoutSeconds = ConfigUtils.getLong(combined,
-        GobblinClusterConfigurationKeys.HELIX_JOB_QUEUE_DELETE_TIMEOUT_SECONDS,
-        GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_QUEUE_DELETE_TIMEOUT_SECONDS);
+    this.workFlowExpiryTimeSeconds = ConfigUtils.getLong(combined,
+        GobblinClusterConfigurationKeys.HELIX_WORKFLOW_EXPIRY_TIME_SECONDS,
+        GobblinClusterConfigurationKeys.DEFAULT_HELIX_WORKFLOW_EXPIRY_TIME_SECONDS);
   }
 
   @Override
@@ -204,7 +204,7 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
         jobId,
         taskDriver,
         this.helixManager,
-        this.jobQueueDeleteTimeoutSeconds);
+        this.workFlowExpiryTimeSeconds);
     this.jobSubmitted = true;
   }
 
