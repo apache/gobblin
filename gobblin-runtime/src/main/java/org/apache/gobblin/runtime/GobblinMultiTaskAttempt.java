@@ -421,6 +421,13 @@ public class GobblinMultiTaskAttempt {
       StateStore<TaskState> taskStateStore,
       CommitPolicy multiTaskAttemptCommitPolicy, SharedResourcesBroker<GobblinScopeTypes> jobBroker)
       throws IOException, InterruptedException {
+
+    // dump the work unit if tracking logs are enabled
+    if (jobState.getPropAsBoolean(ConfigurationKeys.WORK_UNIT_ENABLE_TRACKING_LOGS)) {
+      Logger log = LoggerFactory.getLogger(GobblinMultiTaskAttempt.class.getName());
+      log.info("Work unit tracking log: {}", workUnits);
+    }
+
     GobblinMultiTaskAttempt multiTaskAttempt =
         new GobblinMultiTaskAttempt(workUnits.iterator(), jobId, jobState, taskStateTracker, taskExecutor,
             Optional.of(containerId), Optional.of(taskStateStore), jobBroker);
