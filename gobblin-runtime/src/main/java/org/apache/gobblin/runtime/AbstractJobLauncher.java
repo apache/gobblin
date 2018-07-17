@@ -433,6 +433,19 @@ public abstract class AbstractJobLauncher implements JobLauncher {
               jobState.addTaskState(new TaskState(new WorkUnitState(workUnit, jobState)));
             }
           });
+
+          // dump the work unit if tracking logs are enabled
+          if (jobState.getPropAsBoolean(ConfigurationKeys.WORK_UNIT_ENABLE_TRACKING_LOGS)) {
+            workUnitStream = workUnitStream.transform(new Function<WorkUnit, WorkUnit>() {
+              @Nullable
+              @Override
+              public WorkUnit apply(@Nullable WorkUnit input) {
+                LOG.info("Work unit tracking log: {}", input);
+                return input;
+              }
+            });
+          }
+
           workUnitsPreparationTimer.stop(this.eventMetadataGenerator.getMetadata(this.jobContext,
               EventName.WORK_UNITS_PREPARATION));
 

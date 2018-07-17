@@ -45,7 +45,7 @@ import lombok.ToString;
  *
  * @author kgoodhop
  */
-@ToString
+@ToString(callSuper=true)
 public class WorkUnit extends State {
 
   private Extract extract;
