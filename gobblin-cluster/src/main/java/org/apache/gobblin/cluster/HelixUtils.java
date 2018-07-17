@@ -18,6 +18,7 @@
 package org.apache.gobblin.cluster;
 
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import org.apache.helix.HelixManager;
@@ -106,29 +107,14 @@ public class HelixUtils {
       String jobName,
       TaskDriver helixTaskDriver,
       HelixManager helixManager,
-      long jobQueueDeleteTimeoutSeconds) throws Exception {
+      long workFlowExpiryTime) throws Exception {
 
-    WorkflowConfig workflowConfig = helixTaskDriver.getWorkflowConfig(helixManager, workFlowName);
-
-    log.info("[DELETE] workflow {} in the beginning", workFlowName);
-    // If the queue is present, but in delete state then wait for cleanup before recreating the queue
-    if (workflowConfig != null && workflowConfig.getTargetState() == TargetState.DELETE) {
-      // We want synchronous delete otherwise state can be deleted after we create it below due to race condition.
-      new TaskDriver(helixManager).deleteAndWaitForCompletion(workFlowName, jobQueueDeleteTimeoutSeconds);
-      // if we get here then the workflow was successfully deleted
-      workflowConfig = null;
-    }
-
+    WorkflowConfig workFlowConfig = new WorkflowConfig.Builder().setExpiry(workFlowExpiryTime, TimeUnit.SECONDS).build();
     // Create a work flow for each job with the name being the queue name
-    if (workflowConfig == null) {
-      // Create a workflow and add the job
-      Workflow workflow = new Workflow.Builder(workFlowName).addJob(jobName, jobConfigBuilder).build();
-      // start the workflow
-      helixTaskDriver.start(workflow);
-      log.info("Created a work flow {}", workFlowName);
-    } else {
-      log.info("Work flow {} already exists", workFlowName);
-    }
+    Workflow workFlow = new Workflow.Builder(workFlowName).setWorkflowConfig(workFlowConfig).addJob(jobName, jobConfigBuilder).build();
+    // start the workflow
+    helixTaskDriver.start(workFlow);
+    log.info("Created a work flow {}", workFlowName);
   }
 
   public static void waitJobCompletion(
