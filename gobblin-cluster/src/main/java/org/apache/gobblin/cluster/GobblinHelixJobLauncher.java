@@ -216,6 +216,9 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
       try {
         log.info("[DELETE] workflow {}", this.helixWorkFlowName);
         if (this.cancellationRequested) {
+          // TODO : fix this when HELIX-1180 is completed
+          // work flow should never be deleted explicitly because it has a expiry time
+          // If cancellation is requested, we should set the job state to CANCELLED/ABORT
           this.helixTaskDriver.delete(this.helixWorkFlowName);
         }
       } catch (IllegalArgumentException e) {
