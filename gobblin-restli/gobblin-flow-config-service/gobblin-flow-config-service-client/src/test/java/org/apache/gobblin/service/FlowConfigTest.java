@@ -169,15 +169,16 @@ public class FlowConfigTest {
             setRunImmediately(true))
         .setProperties(new StringMap(flowProperties));
 
-    Long.parseLong(_client.createFlowConfig(flowConfig));
+    Assert.assertEquals(TEST_GROUP_NAME, _client.createFlowConfig(flowConfig).getFlowGroup());
+    Assert.assertEquals(TEST_FLOW_NAME, _client.createFlowConfig(flowConfig).getFlowName());
+    Assert.assertTrue(_client.createFlowConfig(flowConfig).hasFlowExecutionId());
 
     flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME))
         .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).
             setRunImmediately(false))
         .setProperties(new StringMap(flowProperties));
 
-    Assert.assertNull(_client.createFlowConfig(flowConfig));
-
+    Assert.assertFalse(_client.createFlowConfig(flowConfig).hasFlowExecutionId());
   }
 
   @Test (dependsOnMethods = "testCreate")

@@ -20,6 +20,8 @@ package org.apache.gobblin.service;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -50,8 +52,7 @@ import com.linkedin.restli.common.IdResponse;
  */
 public class FlowConfigClient implements Closeable {
   private static final Logger LOG = LoggerFactory.getLogger(FlowConfigClient.class);
-  private static final Pattern flowExecutionIdInlocationHeader = Pattern.compile(".*flowExecutionId:(?<flowExecutionId>\\d+)");
-
+  private static final Pattern flowStatusIdParams = Pattern.compile(".*params:\\((?<flowStatusIdParams>.*?)\\)");
 
   private Optional<HttpClientFactory> _httpClientFactory;
   private Optional<RestClient> _restClient;
@@ -90,7 +91,7 @@ public class FlowConfigClient implements Closeable {
    * @param flowConfig flow configuration attributes
    * @throws RemoteInvocationException
    */
-  public String createFlowConfig(FlowConfig flowConfig)
+  public FlowStatusId createFlowConfig(FlowConfig flowConfig)
       throws RemoteInvocationException {
     LOG.debug("createFlowConfig with groupName " + flowConfig.getId().getFlowGroup() + " flowName " +
         flowConfig.getId().getFlowName());
@@ -100,7 +101,7 @@ public class FlowConfigClient implements Closeable {
     ResponseFuture<IdResponse<ComplexResourceKey<FlowId, FlowStatusId>>> flowConfigResponseFuture =
         _restClient.get().sendRequest(request);
 
-    return parseFlowExecutionId(flowConfigResponseFuture.getResponse());
+    return createFlowStatusId(flowConfigResponseFuture.getResponse());
   }
 
   /**
@@ -178,14 +179,27 @@ public class FlowConfigClient implements Closeable {
     response.getResponse();
   }
 
-  private static String parseFlowExecutionId(Response<IdResponse<ComplexResourceKey<FlowId, FlowStatusId>>> response) {
-    Matcher matcher = flowExecutionIdInlocationHeader.matcher(response.getHeader("Location"));
+  private FlowStatusId createFlowStatusId(Response<IdResponse<ComplexResourceKey<FlowId, FlowStatusId>>> response) {
+    Matcher matcher = flowStatusIdParams.matcher(response.getHeader("location"));
     matcher.find();
-    try {
-      return matcher.group("flowExecutionId");
-    } catch (IllegalStateException e) {
-      return null;
+    String allFields = matcher.group("flowStatusIdParams");
+
+    String[] flowStatusIdParams = allFields.split(",");
+    Map<String, String> paramsMap = new HashMap<>();
+
+    for (String flowStatusIdParam : flowStatusIdParams) {
+      paramsMap.put(flowStatusIdParam.split(":")[0], flowStatusIdParam.split(":")[1]);
     }
+
+    FlowStatusId flowStatusId = new FlowStatusId()
+        .setFlowName(paramsMap.get("flowName"))
+        .setFlowGroup(paramsMap.get("flowGroup"));
+
+    if (paramsMap.containsKey("flowExecutionId")) {
+      flowStatusId.setFlowExecutionId(Long.parseLong(paramsMap.get("flowExecutionId")));
+    }
+
+    return flowStatusId;
   }
 
   @Override
