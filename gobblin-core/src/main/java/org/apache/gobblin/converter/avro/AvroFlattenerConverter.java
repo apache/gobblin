@@ -22,6 +22,7 @@ import org.apache.avro.Schema.Field;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.log4j.Logger;
 
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.converter.Converter;
@@ -43,6 +44,8 @@ import org.apache.gobblin.util.AvroUtils;
 public class AvroFlattenerConverter extends Converter<Schema, Schema, GenericRecord, GenericRecord> {
   private static AvroFlattener AVRO_FLATTENER = new AvroFlattener();
 
+  private static final Logger LOG = Logger.getLogger(AvroFlattenerConverter.class);
+
   @Override
   public Schema convertSchema(Schema inputSchema, WorkUnitState workUnit)
       throws SchemaConversionException {
@@ -61,7 +64,7 @@ public class AvroFlattenerConverter extends Converter<Schema, Schema, GenericRec
         flattenSource = field.name();
       }
 
-      outputRecord.put(field.name(), AvroUtils.getFieldValue(inputRecord, flattenSource).get());
+      outputRecord.put(field.name(), AvroUtils.getFieldValue(inputRecord, flattenSource).orNull());
     }
 
     return new SingleRecordIterable<>(outputRecord);
