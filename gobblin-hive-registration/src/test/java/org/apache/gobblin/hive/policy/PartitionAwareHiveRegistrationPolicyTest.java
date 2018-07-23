@@ -39,7 +39,7 @@ public class PartitionAwareHiveRegistrationPolicyTest {
       throws Exception {
 
     State state = new State();
-    state.appendToListProp(HIVE_PARTITION_REGEX,"(s3://testbucket/myawesomelogs/compacted/)dt=(.*)/hr=(.*)");
+    state.appendToListProp(HIVE_PARTITION_REGEX,"(.*)/test-(.*)-(.*)");
     state.appendToListProp(HIVE_TABLE_PARTITION_KEYS, "dt,hr");
     this.path = new Path(getClass().getResource("/test-hive-table").toString());
 
@@ -54,6 +54,29 @@ public class PartitionAwareHiveRegistrationPolicyTest {
   }
 
   @Test
+  public void testGetTableWithIntPartition()
+      throws Exception {
+
+    State state = new State();
+    state.appendToListProp(HIVE_PARTITION_REGEX,"(.*)/test-(.*)-(.*)");
+    state.appendToListProp(HIVE_TABLE_PARTITION_KEYS, "dt:int,hr,min:int");
+    this.path = new Path(getClass().getResource("/test-hive-table").toString());
+
+    PartitionAwareHiveRegistrationPolicy policy = new PartitionAwareHiveRegistrationPolicy(state);
+    HiveTable table = policy.getTable(path, "testDb", "testTable");
+
+    Assert.assertEquals(table.getPartitionKeys().size(), 3);
+    Assert.assertEquals(table.getPartitionKeys().get(0).getName(), "dt");
+    Assert.assertEquals(table.getPartitionKeys().get(0).getType(), "int");
+    Assert.assertEquals(table.getPartitionKeys().get(1).getName(), "hr");
+    Assert.assertEquals(table.getPartitionKeys().get(1).getType(), "string");
+    Assert.assertEquals(table.getPartitionKeys().get(2).getName(), "min");
+    Assert.assertEquals(table.getPartitionKeys().get(2).getType(), "int");
+
+  }
+
+
+  @Test
   public void testGetPartition()
       throws Exception {
 
@@ -62,6 +85,7 @@ public class PartitionAwareHiveRegistrationPolicyTest {
     HiveTable table = new HiveTable.Builder().withDbName("test").withTableName("test").withSerdeManaager(mockHiveSerDeManager).build();
     State state = new State();
     state.appendToListProp(HIVE_PARTITION_REGEX,"(s3://testbucket/myawesomelogs/compacted/)dt=(.*)/hr=(.*)");
+    state.appendToListProp(HIVE_TABLE_PARTITION_KEYS, "dt,hr");
 
     this.path = new Path("s3://testbucket/myawesomelogs/compacted/dt=20170101/hr=22/");
 
@@ -74,12 +98,53 @@ public class PartitionAwareHiveRegistrationPolicyTest {
     Assert.assertEquals(partition.getValues().get(1), "22");
   }
 
+  @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Failed to match on all of the partitions.*")
+  public void testGetPartitionWithLessPartitionKeyShouldThrewError()
+      throws Exception {
+
+    HiveSerDeManager mockHiveSerDeManager = mock(HiveSerDeManager.class);
+
+    HiveTable table = new HiveTable.Builder().withDbName("test").withTableName("test").withSerdeManaager(mockHiveSerDeManager).build();
+    State state = new State();
+    state.appendToListProp(HIVE_PARTITION_REGEX,"(s3://testbucket/myawesomelogs/compacted/)dt=(.*)/hr=(.*)");
+    state.appendToListProp(HIVE_TABLE_PARTITION_KEYS, "hr");
+
+    this.path = new Path("s3://testbucket/myawesomelogs/compacted/dt=20170101/hr=22/");
+
+    PartitionAwareHiveRegistrationPolicy policy = new PartitionAwareHiveRegistrationPolicy(state);
+
+    HivePartition partition = policy.getPartition(path, table).orNull();
+
+    Assert.assertEquals(partition.getValues().size(), 2);
+    Assert.assertEquals(partition.getValues().get(0), "20170101");
+    Assert.assertEquals(partition.getValues().get(1), "22");
+  }
+
+
   @Test
   public void testGetTableLocationWithTableRegexp()
       throws Exception {
 
     State state = new State();
     state.appendToListProp(HIVE_PARTITION_REGEX,"(s3://testbucket/myawesomelogs/compacted/)dt=(.*)/hr=(.*)");
+    state.appendToListProp(HIVE_TABLE_PARTITION_KEYS, "dt,hr");
+
+    this.path = new Path("s3://testbucket/myawesomelogs/compacted/dt=20170101/hr=22/");
+
+    PartitionAwareHiveRegistrationPolicy policy = new PartitionAwareHiveRegistrationPolicy(state);
+
+    Path tableLocation = policy.getTableLocation(path);
+
+    Assert.assertEquals(tableLocation, new Path("s3://testbucket/myawesomelogs/compacted/"));
+  }
+
+  @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = ".*fails to match on path.*")
+  public void testGetTableLocationWithInvalidTableRegexpShouldThrewError()
+      throws Exception {
+
+    State state = new State();
+    state.appendToListProp(HIVE_PARTITION_REGEX,"(s3://testbucket/myawesomelogs/compacted/)dt1=(.*)/hr=(.*)");
+    state.appendToListProp(HIVE_TABLE_PARTITION_KEYS, "dt,hr");
 
     this.path = new Path("s3://testbucket/myawesomelogs/compacted/dt=20170101/hr=22/");
 

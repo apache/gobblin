@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,9 +45,10 @@ import org.apache.gobblin.hive.HiveTable;
  * The order of the partition names should match the order of regexp matches in the hive.partition.regexp expression.
  *
  * For example in the case of path: s3://testbucket/myawesomlogs/compacted/dt=20170101/hr=22/
- * The hive.partition.regexp would look like: hive.partition.regex=(s3://testbucket/myawesomelogs/compacted/)dt=(.*)/hr=(.*)
+ * The hive.partition.regex would look like: hive.partition.regex=(s3://testbucket/myawesomelogs/compacted/)dt=(.*)/hr=(.*)
  * and the hive.table.partition.keys=dt,hr
- *
+ * By default the partitions keys will be string but you can override this by defining the type after a : like:
+ * hive.table.partition.keys=dt,hr:int
  * @author Tamas Nemeth
  */
 
@@ -55,6 +57,8 @@ public class PartitionAwareHiveRegistrationPolicy extends HiveRegistrationPolicy
 
   public static final String HIVE_PARTITION_REGEX = "hive.partition.regex";
   public static final String HIVE_TABLE_PARTITION_KEYS = "hive.table.partition.keys";
+  private static final String COLUMN_TYPE_SEPARATOR = ":";
+  private static final String DEFAULT_COLUMN_TYPE = "string";
 
   public PartitionAwareHiveRegistrationPolicy(State props)
       throws IOException {
@@ -72,7 +76,15 @@ public class PartitionAwareHiveRegistrationPolicy extends HiveRegistrationPolicy
 
       for (String key : this.props.getPropAsList(HIVE_TABLE_PARTITION_KEYS)) {
         LOG.debug("Setting partition key {} for table {}", key, tableName);
-        partitionKeyColumns.add(new HiveRegistrationUnit.Column(key , "string", null));
+        String type = DEFAULT_COLUMN_TYPE;
+        String columnName = key;
+
+        if (StringUtils.contains(key, COLUMN_TYPE_SEPARATOR)){
+          type = StringUtils.substringAfterLast(key, COLUMN_TYPE_SEPARATOR);
+          columnName = StringUtils.substringBeforeLast(key, COLUMN_TYPE_SEPARATOR);
+        }
+
+        partitionKeyColumns.add(new HiveRegistrationUnit.Column(columnName , type, null));
       }
 
       table.setPartitionKeys(partitionKeyColumns);
@@ -81,13 +93,13 @@ public class PartitionAwareHiveRegistrationPolicy extends HiveRegistrationPolicy
     return table;
   }
 
-
   protected Optional<HivePartition> getPartition(Path path, HiveTable table) throws IOException {
+
+    int expectedNumberOfPartitionKey = this.props.getPropAsList(HIVE_TABLE_PARTITION_KEYS, "").size();
 
     if (this.props.contains(HIVE_PARTITION_REGEX)) {
       Pattern pattern = Pattern.compile(this.props.getProp(HIVE_PARTITION_REGEX));
       List<String> partitionValues = Lists.newArrayList();
-
       Matcher matcher = pattern.matcher(path.toString());
       if (matcher.matches() && matcher.groupCount() >=2){
         for (int i = 2; i <= matcher.groupCount(); i++) {
@@ -95,6 +107,11 @@ public class PartitionAwareHiveRegistrationPolicy extends HiveRegistrationPolicy
         }
       } else {
         return Optional.<HivePartition> absent();
+      }
+
+      if (partitionValues.size() != expectedNumberOfPartitionKey) {
+        throw new IllegalArgumentException("Failed to match on all of the partitions in the path string: "+path+". Expected: "
+            + expectedNumberOfPartitionKey +" Got:"+partitionValues.size());
       }
 
       HivePartition.Builder builder = new HivePartition.Builder();
@@ -112,6 +129,10 @@ public class PartitionAwareHiveRegistrationPolicy extends HiveRegistrationPolicy
 
       return Optional.of(partition);
     }else {
+      if (expectedNumberOfPartitionKey != 0) {
+        throw new IllegalArgumentException("Failed to match on all of the partitions in the path string: "+path+". Expected: "
+            + expectedNumberOfPartitionKey +" Got: 0");
+      }
       return Optional.<HivePartition> absent();
     }
   }
@@ -125,7 +146,7 @@ public class PartitionAwareHiveRegistrationPolicy extends HiveRegistrationPolicy
         String location = matcher.group(1);
         return new Path(location);
       }else {
-        return path;
+        throw new IllegalArgumentException("Hive Partition regular expression"+locationRegex.get()+" fails to match on path:"+path);
       }
     } else {
       return path;
