@@ -61,7 +61,7 @@ public class AsyncRequest<D, RQ> implements Request<RQ> {
   /**
    * Get all records information in the request
    */
-  public List<Thunk<D>> getThunksCopy() {
+  public List<Thunk<D>> getThunks() {
     return ImmutableList.copyOf(thunks);
   }
 
