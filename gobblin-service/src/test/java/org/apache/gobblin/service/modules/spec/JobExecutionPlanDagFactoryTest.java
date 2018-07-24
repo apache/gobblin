@@ -48,7 +48,7 @@ import org.apache.gobblin.service.modules.template_catalog.FSFlowCatalog;
 import org.apache.gobblin.util.ConfigUtils;
 
 
-public class JobSpecDagFactoryTest {
+public class JobExecutionPlanDagFactoryTest {
   private static final String TEST_TEMPLATE_NAME = "flowEdgeTemplate";
   private static final String TEST_TEMPLATE_URI = "FS:///" + TEST_TEMPLATE_NAME;
   private SpecExecutor specExecutor;
@@ -77,37 +77,37 @@ public class JobSpecDagFactoryTest {
   }
 
   @Test
-  public void testCreateDagFromJobSpecs() throws Exception {
-    //Create a list of JobSpecs
-    List<JobSpecWithExecutor> jobSpecs = new ArrayList<>();
+  public void testCreateDag() throws Exception {
+    //Create a list of JobExecutionPlans
+    List<JobExecutionPlan> jobExecutionPlans = new ArrayList<>();
     for (JobTemplate jobTemplate: this.jobTemplates) {
       String jobSpecUri = Files.getNameWithoutExtension(new Path(jobTemplate.getUri()).getName());
-      jobSpecs.add(new JobSpecWithExecutor(JobSpec.builder(jobSpecUri).withConfig(jobTemplate.getRawTemplateConfig()).
+      jobExecutionPlans.add(new JobExecutionPlan(JobSpec.builder(jobSpecUri).withConfig(jobTemplate.getRawTemplateConfig()).
           withVersion("1").withTemplate(jobTemplate.getUri()).build(), specExecutor));
     }
 
-    //Create a DAG from job specs.
-    Dag<JobSpecWithExecutor> jobSpecDag = JobSpecDagFactory.createDagFromJobSpecs(jobSpecs);
+    //Create a DAG from job execution plans.
+    Dag<JobExecutionPlan> dag = new JobExecutionPlanDagFactory().createDag(jobExecutionPlans);
 
     //Test DAG properties
-    Assert.assertEquals(jobSpecDag.getStartNodes().size(), 1);
-    Assert.assertEquals(jobSpecDag.getEndNodes().size(), 1);
-    Assert.assertEquals(jobSpecDag.getNodes().size(), 4);
-    String startNodeName = new Path(jobSpecDag.getStartNodes().get(0).getValue().getJobSpec().getUri()).getName();
+    Assert.assertEquals(dag.getStartNodes().size(), 1);
+    Assert.assertEquals(dag.getEndNodes().size(), 1);
+    Assert.assertEquals(dag.getNodes().size(), 4);
+    String startNodeName = new Path(dag.getStartNodes().get(0).getValue().getJobSpec().getUri()).getName();
     Assert.assertEquals(startNodeName, "job1");
-    String templateUri = new Path(jobSpecDag.getStartNodes().get(0).getValue().getJobSpec().getTemplateURI().get()).getName();
+    String templateUri = new Path(dag.getStartNodes().get(0).getValue().getJobSpec().getTemplateURI().get()).getName();
     Assert.assertEquals(templateUri, "job1.job");
-    String endNodeName = new Path(jobSpecDag.getEndNodes().get(0).getValue().getJobSpec().getUri()).getName();
+    String endNodeName = new Path(dag.getEndNodes().get(0).getValue().getJobSpec().getUri()).getName();
     Assert.assertEquals(endNodeName, "job4");
-    templateUri = new Path(jobSpecDag.getEndNodes().get(0).getValue().getJobSpec().getTemplateURI().get()).getName();
+    templateUri = new Path(dag.getEndNodes().get(0).getValue().getJobSpec().getTemplateURI().get()).getName();
     Assert.assertEquals(templateUri, "job4.job");
 
-    Dag.DagNode<JobSpecWithExecutor> startNode = jobSpecDag.getStartNodes().get(0);
-    List<Dag.DagNode<JobSpecWithExecutor>> nextNodes = jobSpecDag.getChildren(startNode);
+    Dag.DagNode<JobExecutionPlan> startNode = dag.getStartNodes().get(0);
+    List<Dag.DagNode<JobExecutionPlan>> nextNodes = dag.getChildren(startNode);
     Set<String> nodeSet = new HashSet<>();
-    for (Dag.DagNode<JobSpecWithExecutor> node: nextNodes) {
+    for (Dag.DagNode<JobExecutionPlan> node: nextNodes) {
       nodeSet.add(new Path(node.getValue().getJobSpec().getUri()).getName());
-      Dag.DagNode<JobSpecWithExecutor> nextNode = jobSpecDag.getChildren(node).get(0);
+      Dag.DagNode<JobExecutionPlan> nextNode = dag.getChildren(node).get(0);
       Assert.assertEquals(new Path(nextNode.getValue().getJobSpec().getUri()).getName(), "job4");
     }
     Assert.assertTrue(nodeSet.contains("job2"));

@@ -41,9 +41,15 @@ import org.apache.gobblin.service.modules.template.FlowTemplate;
 public interface FlowEdge {
   /**
    *
-   * @return the {@link DataNode} ids that are the end points of the edge.
+   * @return the source {@link DataNode} id of the edge.
    */
-  List<String> getEndPoints();
+  String getSrc();
+
+  /**
+   *
+   * @return the destination {@link DataNode} id of the edge.
+   */
+  String getDest();
 
   /**
    *

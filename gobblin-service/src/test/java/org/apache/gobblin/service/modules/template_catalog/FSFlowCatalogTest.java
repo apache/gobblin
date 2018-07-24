@@ -31,10 +31,10 @@ import org.testng.annotations.Test;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.gobblin.service.modules.dataset.DatasetDescriptor;
-import org.apache.gobblin.service.modules.dataset.HdfsDatasetDescriptor;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.service.modules.dataset.FSDatasetDescriptor;
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
 import org.apache.gobblin.service.modules.template.FlowTemplate;
 import org.testng.collections.Lists;
@@ -78,21 +78,21 @@ public class FSFlowCatalogTest {
     List<String> dirs = Lists.newArrayList("inbound", "outbound");
     for (int i = 0; i < 2; i++) {
       for (int j = 0; j < 2; j++) {
-        HdfsDatasetDescriptor datasetDescriptor;
+        FSDatasetDescriptor datasetDescriptor;
         if (j == 0) {
-          datasetDescriptor = (HdfsDatasetDescriptor) inputOutputDescriptors.get(i).getLeft();
+          datasetDescriptor = (FSDatasetDescriptor) inputOutputDescriptors.get(i).getLeft();
         } else {
-          datasetDescriptor = (HdfsDatasetDescriptor) inputOutputDescriptors.get(i).getRight();
+          datasetDescriptor = (FSDatasetDescriptor) inputOutputDescriptors.get(i).getRight();
         }
         Assert.assertEquals(datasetDescriptor.getPlatform(), "hdfs");
-        Assert.assertEquals(datasetDescriptor.getFormat(), "avro");
+        Assert.assertEquals(datasetDescriptor.getFormatDescriptor().getFormat(), "avro");
         Assert.assertEquals(datasetDescriptor.getPath(), "/data/" + dirs.get(i) + "/test-team/test-dataset");
       }
     }
     Config flowTemplateConfig = flowTemplate.getRawTemplateConfig();
     Assert.assertEquals(flowTemplateConfig.getString(DatasetDescriptorConfigKeys.FLOW_EDGE_INPUT_DATASET_DESCRIPTOR_PREFIX + ".0."
-        + DatasetDescriptorConfigKeys.CLASS_KEY), HdfsDatasetDescriptor.class.getCanonicalName());
+        + DatasetDescriptorConfigKeys.CLASS_KEY), FSDatasetDescriptor.class.getCanonicalName());
     Assert.assertEquals(flowTemplateConfig.getString(DatasetDescriptorConfigKeys.FLOW_EDGE_OUTPUT_DATASET_DESCRIPTOR_PREFIX
-        + ".0." + DatasetDescriptorConfigKeys.CLASS_KEY), HdfsDatasetDescriptor.class.getCanonicalName());
+        + ".0." + DatasetDescriptorConfigKeys.CLASS_KEY), FSDatasetDescriptor.class.getCanonicalName());
   }
 }

@@ -42,7 +42,7 @@ import org.apache.gobblin.service.modules.core.GitFlowGraphMonitor;
 import org.apache.gobblin.service.modules.flowgraph.BaseFlowGraph;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraph;
-import org.apache.gobblin.service.modules.spec.JobSpecWithExecutor;
+import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.modules.template_catalog.FSFlowCatalog;
 
 
@@ -52,26 +52,26 @@ import org.apache.gobblin.service.modules.template_catalog.FSFlowCatalog;
  */
 @Alpha
 @Slf4j
-public class MultiHopFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
+public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
   @Getter
   private FlowGraph flowGraph;
   private GitFlowGraphMonitor gitFlowGraphMonitor;
   @Getter
   private boolean active;
 
-  public MultiHopFlowToJobSpecCompiler(Config config) {
+  public MultiHopFlowCompiler(Config config) {
     this(config, true);
   }
 
-  public MultiHopFlowToJobSpecCompiler(Config config, boolean instrumentationEnabled) {
+  public MultiHopFlowCompiler(Config config, boolean instrumentationEnabled) {
     this(config, Optional.<Logger>absent(), instrumentationEnabled);
   }
 
-  public MultiHopFlowToJobSpecCompiler(Config config, Optional<Logger> log) {
+  public MultiHopFlowCompiler(Config config, Optional<Logger> log) {
     this(config, log, true);
   }
 
-  public MultiHopFlowToJobSpecCompiler(Config config, Optional<Logger> log, boolean instrumentationEnabled) {
+  public MultiHopFlowCompiler(Config config, Optional<Logger> log, boolean instrumentationEnabled) {
     super(config, log, instrumentationEnabled);
     Config templateCatalogCfg = config
         .withValue(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY,
@@ -107,12 +107,12 @@ public class MultiHopFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
 
     FlowGraphPathFinder pathFinder = new FlowGraphPathFinder(this.flowGraph, (FlowSpec) spec);
     try {
-      Dag<JobSpecWithExecutor> jobSpecDag = pathFinder.findPath();
+      Dag<JobExecutionPlan> jobExecutionPlanDag = pathFinder.findPath();
       //TODO: Just a dummy return value for now. compileFlow() signature needs to be modified to return a Dag instead
       // of a Map. For now just add all specs into the map.
-      for (Dag.DagNode<JobSpecWithExecutor> node: jobSpecDag.getNodes()) {
-        JobSpecWithExecutor specWithExecutor = node.getValue();
-        specExecutorMap.put(specWithExecutor.getJobSpec(), specWithExecutor.getSpecExecutor());
+      for (Dag.DagNode<JobExecutionPlan> node: jobExecutionPlanDag.getNodes()) {
+        JobExecutionPlan jobExecutionPlan = node.getValue();
+        specExecutorMap.put(jobExecutionPlan.getJobSpec(), jobExecutionPlan.getSpecExecutor());
       }
     } catch (FlowGraphPathFinder.PathFinderException e) {
       Instrumented.markMeter(this.flowCompilationFailedMeter);

@@ -19,10 +19,10 @@ gobblin.copy.abortOnSingleDatasetFailure=true
 #gobblin.copy.preserved.attributes=p
 
 #Job properties to be resolved from source and dest data node config.
-fs.uri=${data.node.source.fs.uri}
+fs.uri=${source.data.node.fs.uri}
 source.filebased.fs.uri=${fs.uri}
 state.store.fs.uri=${fs.uri}
-target.filebased.fs.uri=${data.node.destination.fs.uri}
+target.filebased.fs.uri=${destination.data.node.fs.uri}
 writer.fs.uri=${target.filebased.fs.uri}
 
 #ADL parameters

@@ -29,6 +29,7 @@ public class DatasetDescriptorConfigKeys {
   public static final String FLOW_EDGE_OUTPUT_DATASET_DESCRIPTOR_PREFIX = "gobblin.flow.edge.output.dataset.descriptor";
 
   public static final String CLASS_KEY = "class";
+  public static final String PLATFORM_KEY = "platform";
   public static final String PATH_KEY = "path";
   public static final String FORMAT_KEY = "format";
   public static final String CODEC_KEY = "codec";

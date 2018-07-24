@@ -44,7 +44,10 @@ import org.apache.gobblin.util.ConfigUtils;
 @Alpha
 public class BaseFlowEdge implements FlowEdge {
   @Getter
-  protected List<String> endPoints;
+  protected String src;
+
+  @Getter
+  protected String dest;
 
   @Getter
   protected FlowTemplate flowTemplate;
@@ -63,7 +66,8 @@ public class BaseFlowEdge implements FlowEdge {
 
   //Constructor
   public BaseFlowEdge(List<String> endPoints, String edgeId, FlowTemplate flowTemplate, List<SpecExecutor> executors, Config properties, boolean active) {
-    this.endPoints = endPoints;
+    this.src = endPoints.get(0);
+    this.dest = endPoints.get(1);
     this.flowTemplate = flowTemplate;
     this.executors = executors;
     this.active = active;
@@ -91,7 +95,7 @@ public class BaseFlowEdge implements FlowEdge {
 
     FlowEdge that = (FlowEdge) o;
 
-    if (!(this.getEndPoints().get(0).equals(that.getEndPoints().get(0))) && ((this.getEndPoints().get(1)).equals(that.getEndPoints().get(1)))) {
+    if (!(this.getSrc().equals(that.getSrc())) && ((this.getDest()).equals(that.getDest()))) {
       return false;
     }
 

@@ -58,7 +58,7 @@ import org.apache.gobblin.service.modules.flowgraph.FlowEdge;
 import org.apache.gobblin.service.modules.flowgraph.FlowEdgeFactory;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraph;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraphConfigurationKeys;
-import org.apache.gobblin.service.modules.spec.JobSpecWithExecutor;
+import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.modules.template_catalog.FSFlowCatalog;
 import org.apache.gobblin.util.CompletedFuture;
 import org.apache.gobblin.util.ConfigUtils;
@@ -152,19 +152,19 @@ public class FlowGraphPathFinderTest {
 
   @Test
   public void testFindPath() throws FlowGraphPathFinder.PathFinderException {
-    Dag<JobSpecWithExecutor> jobSpecWithExecutorDag = pathFinder.findPath();
-    Assert.assertEquals(jobSpecWithExecutorDag.getNodes().size(), 4);
-    Assert.assertEquals(jobSpecWithExecutorDag.getStartNodes().size(), 1);
-    Assert.assertEquals(jobSpecWithExecutorDag.getEndNodes().size(), 1);
+    Dag<JobExecutionPlan> jobDag = pathFinder.findPath();
+    Assert.assertEquals(jobDag.getNodes().size(), 4);
+    Assert.assertEquals(jobDag.getStartNodes().size(), 1);
+    Assert.assertEquals(jobDag.getEndNodes().size(), 1);
 
     //Get the 1st hop - Distcp from "LocalFS-1" to "HDFS-1"
-    Dag.DagNode<JobSpecWithExecutor> startNode = jobSpecWithExecutorDag.getStartNodes().get(0);
-    JobSpecWithExecutor jobSpecWithExecutor = startNode.getValue();
+    Dag.DagNode<JobExecutionPlan> startNode = jobDag.getStartNodes().get(0);
+    JobExecutionPlan jobSpecWithExecutor = startNode.getValue();
     JobSpec jobSpec = jobSpecWithExecutor.getJobSpec();
 
     //Ensure the resolved job config for the first hop has the correct substitutions.
     Config jobConfig = jobSpec.getConfig();
-    Assert.assertEquals(jobConfig.getString("job.name"), "testFlowGroup:testFlowName:Distcp-HDFS-HDFS:HDFS-1");
+    Assert.assertEquals(jobConfig.getString("job.name"), "testFlowGroup:testFlowName:Distcp-HDFS-HDFS");
     String from = jobConfig.getString("from");
     String to = jobConfig.getString("to");
     Assert.assertEquals(from, "/data/out/testTeam/testDataset");
@@ -187,11 +187,11 @@ public class FlowGraphPathFinderTest {
     Assert.assertEquals(specExecutor.getClass().getCanonicalName(), "org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutor");
 
     //Get the 2nd hop - "HDFS-1 to HDFS-1 : convert avro to json and encrypt"
-    Assert.assertEquals(jobSpecWithExecutorDag.getChildren(startNode).size(), 1);
-    Dag.DagNode<JobSpecWithExecutor> secondHopNode = jobSpecWithExecutorDag.getChildren(startNode).get(0);
+    Assert.assertEquals(jobDag.getChildren(startNode).size(), 1);
+    Dag.DagNode<JobExecutionPlan> secondHopNode = jobDag.getChildren(startNode).get(0);
     jobSpecWithExecutor = secondHopNode.getValue();
     jobConfig = jobSpecWithExecutor.getJobSpec().getConfig();
-    Assert.assertEquals(jobConfig.getString("job.name"), "testFlowGroup:testFlowName:convert-to-json-and-encrypt:HDFS-1");
+    Assert.assertEquals(jobConfig.getString("job.name"), "testFlowGroup:testFlowName:convert-to-json-and-encrypt");
     from = jobConfig.getString("from");
     to = jobConfig.getString("to");
     Assert.assertEquals(from, "/data/out/testTeam/testDataset");
@@ -203,11 +203,11 @@ public class FlowGraphPathFinderTest {
     Assert.assertEquals(specExecutor.getClass().getCanonicalName(), "org.apache.gobblin.service.modules.flow.FlowGraphPathFinderTest.TestAzkabanSpecExecutor");
 
     //Get the 3rd hop - "Distcp HDFS-1 to HDFS-3"
-    Assert.assertEquals(jobSpecWithExecutorDag.getChildren(secondHopNode).size(), 1);
-    Dag.DagNode<JobSpecWithExecutor> thirdHopNode = jobSpecWithExecutorDag.getChildren(secondHopNode).get(0);
+    Assert.assertEquals(jobDag.getChildren(secondHopNode).size(), 1);
+    Dag.DagNode<JobExecutionPlan> thirdHopNode = jobDag.getChildren(secondHopNode).get(0);
     jobSpecWithExecutor = thirdHopNode.getValue();
     jobConfig = jobSpecWithExecutor.getJobSpec().getConfig();
-    Assert.assertEquals(jobConfig.getString("job.name"), "testFlowGroup:testFlowName:Distcp-HDFS-HDFS:HDFS-3");
+    Assert.assertEquals(jobConfig.getString("job.name"), "testFlowGroup:testFlowName:Distcp-HDFS-HDFS");
     from = jobConfig.getString("from");
     to = jobConfig.getString("to");
     Assert.assertEquals(from, "/data/encrypted/testTeam/testDataset");
@@ -223,11 +223,11 @@ public class FlowGraphPathFinderTest {
     Assert.assertEquals(specExecutor.getClass().getCanonicalName(), "org.apache.gobblin.service.modules.flow.FlowGraphPathFinderTest.TestAzkabanSpecExecutor");
 
     //Get the 4th hop - "Distcp from HDFS3 to ADLS-1"
-    Assert.assertEquals(jobSpecWithExecutorDag.getChildren(thirdHopNode).size(), 1);
-    Dag.DagNode<JobSpecWithExecutor> fourthHopNode = jobSpecWithExecutorDag.getChildren(thirdHopNode).get(0);
+    Assert.assertEquals(jobDag.getChildren(thirdHopNode).size(), 1);
+    Dag.DagNode<JobExecutionPlan> fourthHopNode = jobDag.getChildren(thirdHopNode).get(0);
     jobSpecWithExecutor = fourthHopNode.getValue();
     jobConfig = jobSpecWithExecutor.getJobSpec().getConfig();
-    Assert.assertEquals(jobConfig.getString("job.name"), "testFlowGroup:testFlowName:Distcp-HDFS-ADL:ADLS-1");
+    Assert.assertEquals(jobConfig.getString("job.name"), "testFlowGroup:testFlowName:Distcp-HDFS-ADL");
     from = jobConfig.getString("from");
     to = jobConfig.getString("to");
     Assert.assertEquals(from, "/data/encrypted/testTeam/testDataset");
@@ -246,7 +246,7 @@ public class FlowGraphPathFinderTest {
     Assert.assertEquals(specExecutor.getClass().getCanonicalName(), "org.apache.gobblin.service.modules.flow.FlowGraphPathFinderTest.TestAzkabanSpecExecutor");
 
     //Ensure the fourth hop is the last
-    Assert.assertEquals(jobSpecWithExecutorDag.getEndNodes().get(0), fourthHopNode);
+    Assert.assertEquals(jobDag.getEndNodes().get(0), fourthHopNode);
   }
 
   @Test (dependsOnMethods = "testFindPath")
@@ -254,19 +254,19 @@ public class FlowGraphPathFinderTest {
     //Delete the self edge on HDFS-1 that performs convert-to-json-and-encrypt.
     this.flowGraph.deleteFlowEdge("HDFS-1:HDFS-1:hdfsConvertToJsonAndEncrypt");
 
-    Dag<JobSpecWithExecutor> jobSpecWithExecutorDag = pathFinder.findPath();
-    Assert.assertEquals(jobSpecWithExecutorDag.getNodes().size(), 4);
-    Assert.assertEquals(jobSpecWithExecutorDag.getStartNodes().size(), 1);
-    Assert.assertEquals(jobSpecWithExecutorDag.getEndNodes().size(), 1);
+    Dag<JobExecutionPlan> jobDag = pathFinder.findPath();
+    Assert.assertEquals(jobDag.getNodes().size(), 4);
+    Assert.assertEquals(jobDag.getStartNodes().size(), 1);
+    Assert.assertEquals(jobDag.getEndNodes().size(), 1);
 
     //Get the 1st hop - Distcp from "LocalFS-1" to "HDFS-2"
-    Dag.DagNode<JobSpecWithExecutor> startNode = jobSpecWithExecutorDag.getStartNodes().get(0);
-    JobSpecWithExecutor jobSpecWithExecutor = startNode.getValue();
-    JobSpec jobSpec = jobSpecWithExecutor.getJobSpec();
+    Dag.DagNode<JobExecutionPlan> startNode = jobDag.getStartNodes().get(0);
+    JobExecutionPlan jobExecutionPlan = startNode.getValue();
+    JobSpec jobSpec = jobExecutionPlan.getJobSpec();
 
     //Ensure the resolved job config for the first hop has the correct substitutions.
     Config jobConfig = jobSpec.getConfig();
-    Assert.assertEquals(jobConfig.getString("job.name"), "testFlowGroup:testFlowName:Distcp-HDFS-HDFS:HDFS-2");
+    Assert.assertEquals(jobConfig.getString("job.name"), "testFlowGroup:testFlowName:Distcp-HDFS-HDFS");
     String from = jobConfig.getString("from");
     String to = jobConfig.getString("to");
     Assert.assertEquals(from, "/data/out/testTeam/testDataset");
@@ -284,32 +284,32 @@ public class FlowGraphPathFinderTest {
     Assert.assertEquals(jobConfig.getString("job.class"), "org.apache.gobblin.runtime.local.LocalJobLauncher");
     Assert.assertEquals(jobConfig.getString("launcher.type"), "LOCAL");
     //Ensure the spec executor has the correct configurations
-    SpecExecutor specExecutor = jobSpecWithExecutor.getSpecExecutor();
+    SpecExecutor specExecutor = jobExecutionPlan.getSpecExecutor();
     Assert.assertEquals(specExecutor.getUri().toString(), "fs:///");
     Assert.assertEquals(specExecutor.getClass().getCanonicalName(), "org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutor");
 
     //Get the 2nd hop - "HDFS-2 to HDFS-2 : convert avro to json and encrypt"
-    Assert.assertEquals(jobSpecWithExecutorDag.getChildren(startNode).size(), 1);
-    Dag.DagNode<JobSpecWithExecutor> secondHopNode = jobSpecWithExecutorDag.getChildren(startNode).get(0);
-    jobSpecWithExecutor = secondHopNode.getValue();
-    jobConfig = jobSpecWithExecutor.getJobSpec().getConfig();
-    Assert.assertEquals(jobConfig.getString("job.name"), "testFlowGroup:testFlowName:convert-to-json-and-encrypt:HDFS-2");
+    Assert.assertEquals(jobDag.getChildren(startNode).size(), 1);
+    Dag.DagNode<JobExecutionPlan> secondHopNode = jobDag.getChildren(startNode).get(0);
+    jobExecutionPlan = secondHopNode.getValue();
+    jobConfig = jobExecutionPlan.getJobSpec().getConfig();
+    Assert.assertEquals(jobConfig.getString("job.name"), "testFlowGroup:testFlowName:convert-to-json-and-encrypt");
     from = jobConfig.getString("from");
     to = jobConfig.getString("to");
     Assert.assertEquals(from, "/data/out/testTeam/testDataset");
     Assert.assertEquals(to, "/data/encrypted/testTeam/testDataset");
     Assert.assertEquals(jobConfig.getString("source.filebased.data.directory"), from);
     Assert.assertEquals(jobConfig.getString("data.publisher.final.dir"), to);
-    specExecutor = jobSpecWithExecutor.getSpecExecutor();
+    specExecutor = jobExecutionPlan.getSpecExecutor();
     Assert.assertEquals(specExecutor.getUri().toString(), "https://azkaban02.gobblin.net:8443");
     Assert.assertEquals(specExecutor.getClass().getCanonicalName(), "org.apache.gobblin.service.modules.flow.FlowGraphPathFinderTest.TestAzkabanSpecExecutor");
 
     //Get the 3rd hop - "Distcp HDFS-2 to HDFS-4"
-    Assert.assertEquals(jobSpecWithExecutorDag.getChildren(secondHopNode).size(), 1);
-    Dag.DagNode<JobSpecWithExecutor> thirdHopNode = jobSpecWithExecutorDag.getChildren(secondHopNode).get(0);
-    jobSpecWithExecutor = thirdHopNode.getValue();
-    jobConfig = jobSpecWithExecutor.getJobSpec().getConfig();
-    Assert.assertEquals(jobConfig.getString("job.name"), "testFlowGroup:testFlowName:Distcp-HDFS-HDFS:HDFS-4");
+    Assert.assertEquals(jobDag.getChildren(secondHopNode).size(), 1);
+    Dag.DagNode<JobExecutionPlan> thirdHopNode = jobDag.getChildren(secondHopNode).get(0);
+    jobExecutionPlan = thirdHopNode.getValue();
+    jobConfig = jobExecutionPlan.getJobSpec().getConfig();
+    Assert.assertEquals(jobConfig.getString("job.name"), "testFlowGroup:testFlowName:Distcp-HDFS-HDFS");
     from = jobConfig.getString("from");
     to = jobConfig.getString("to");
     Assert.assertEquals(from, "/data/encrypted/testTeam/testDataset");
@@ -320,16 +320,16 @@ public class FlowGraphPathFinderTest {
     Assert.assertEquals(jobConfig.getString("job.class"), "org.apache.gobblin.azkaban.AzkabanJobLauncher");
     Assert.assertEquals(jobConfig.getString("launcher.type"), "MAPREDUCE");
     //Ensure the spec executor has the correct configurations
-    specExecutor = jobSpecWithExecutor.getSpecExecutor();
+    specExecutor = jobExecutionPlan.getSpecExecutor();
     Assert.assertEquals(specExecutor.getUri().toString(), "https://azkaban02.gobblin.net:8443");
     Assert.assertEquals(specExecutor.getClass().getCanonicalName(), "org.apache.gobblin.service.modules.flow.FlowGraphPathFinderTest.TestAzkabanSpecExecutor");
 
     //Get the 4th hop - "Distcp from HDFS4 to ADLS-1"
-    Assert.assertEquals(jobSpecWithExecutorDag.getChildren(thirdHopNode).size(), 1);
-    Dag.DagNode<JobSpecWithExecutor> fourthHopNode = jobSpecWithExecutorDag.getChildren(thirdHopNode).get(0);
-    jobSpecWithExecutor = fourthHopNode.getValue();
-    jobConfig = jobSpecWithExecutor.getJobSpec().getConfig();
-    Assert.assertEquals(jobConfig.getString("job.name"), "testFlowGroup:testFlowName:Distcp-HDFS-ADL:ADLS-1");
+    Assert.assertEquals(jobDag.getChildren(thirdHopNode).size(), 1);
+    Dag.DagNode<JobExecutionPlan> fourthHopNode = jobDag.getChildren(thirdHopNode).get(0);
+    jobExecutionPlan = fourthHopNode.getValue();
+    jobConfig = jobExecutionPlan.getJobSpec().getConfig();
+    Assert.assertEquals(jobConfig.getString("job.name"), "testFlowGroup:testFlowName:Distcp-HDFS-ADL");
     from = jobConfig.getString("from");
     to = jobConfig.getString("to");
     Assert.assertEquals(from, "/data/encrypted/testTeam/testDataset");
@@ -343,12 +343,12 @@ public class FlowGraphPathFinderTest {
     Assert.assertEquals(jobConfig.getString("writer.encrypted.dfs.adls.oauth2.credential"), "credential");
     Assert.assertEquals(jobConfig.getString("encrypt.key.loc"), "/user/testUser/master.password");
     //Ensure the spec executor has the correct configurations
-    specExecutor = jobSpecWithExecutor.getSpecExecutor();
+    specExecutor = jobExecutionPlan.getSpecExecutor();
     Assert.assertEquals(specExecutor.getUri().toString(), "https://azkaban04.gobblin.net:8443");
     Assert.assertEquals(specExecutor.getClass().getCanonicalName(), "org.apache.gobblin.service.modules.flow.FlowGraphPathFinderTest.TestAzkabanSpecExecutor");
 
     //Ensure the fourth hop is the last
-    Assert.assertEquals(jobSpecWithExecutorDag.getEndNodes().get(0), fourthHopNode);
+    Assert.assertEquals(jobDag.getEndNodes().get(0), fourthHopNode);
   }
 
   @Test (dependsOnMethods = "testFindPathAfterFirstEdgeDeletion")
@@ -356,7 +356,7 @@ public class FlowGraphPathFinderTest {
     //Delete the self edge on HDFS-2 that performs convert-to-json-and-encrypt.
     this.flowGraph.deleteFlowEdge("HDFS-2:HDFS-2:hdfsConvertToJsonAndEncrypt");
 
-    Dag<JobSpecWithExecutor> jobSpecWithExecutorDag = pathFinder.findPath();
+    Dag<JobExecutionPlan> jobSpecWithExecutorDag = pathFinder.findPath();
 
     //Ensure no path to destination.
     Assert.assertTrue(jobSpecWithExecutorDag.isEmpty());

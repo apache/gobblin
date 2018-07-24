@@ -62,8 +62,8 @@ public class BaseFlowEdgeFactoryTest {
     FSFlowCatalog catalog = new FSFlowCatalog(templateCatalogCfg);
     Config edgeProps = ConfigUtils.propertiesToConfig(properties);
     FlowEdge flowEdge = flowEdgeFactory.createFlowEdge(edgeProps, catalog);
-    Assert.assertEquals(flowEdge.getEndPoints().get(0), "node1");
-    Assert.assertEquals(flowEdge.getEndPoints().get(1), "node2");
+    Assert.assertEquals(flowEdge.getSrc(), "node1");
+    Assert.assertEquals(flowEdge.getDest(), "node2");
     Assert.assertEquals(flowEdge.getExecutors().get(0).getConfig().get().getString("specStore.fs.dir"),"/tmp1");
     Assert.assertEquals(flowEdge.getExecutors().get(0).getConfig().get().getString("specExecInstance.capabilities"),"s1:d1");
     Assert.assertEquals(flowEdge.getExecutors().get(1).getConfig().get().getString("specStore.fs.dir"),"/tmp2");

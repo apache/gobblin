@@ -179,8 +179,8 @@ public class GitFlowGraphMonitorTest {
     Set<FlowEdge> edgeSet = this.flowGraph.getEdges("node1");
     Assert.assertEquals(edgeSet.size(), 1);
     FlowEdge flowEdge = edgeSet.iterator().next();
-    Assert.assertEquals(flowEdge.getEndPoints().get(0), "node1");
-    Assert.assertEquals(flowEdge.getEndPoints().get(1), "node2");
+    Assert.assertEquals(flowEdge.getSrc(), "node1");
+    Assert.assertEquals(flowEdge.getDest(), "node2");
     Assert.assertEquals(flowEdge.getExecutors().get(0).getConfig().get().getString("specStore.fs.dir"), "/tmp1");
     Assert.assertEquals(flowEdge.getExecutors().get(0).getConfig().get().getString("specExecInstance.capabilities"), "s1:d1");
     Assert.assertEquals(flowEdge.getExecutors().get(0).getClass().getSimpleName(), "InMemorySpecExecutor");
@@ -219,8 +219,8 @@ public class GitFlowGraphMonitorTest {
     Set<FlowEdge> edgeSet = this.flowGraph.getEdges("node1");
     Assert.assertEquals(edgeSet.size(), 1);
     FlowEdge flowEdge = edgeSet.iterator().next();
-    Assert.assertEquals(flowEdge.getEndPoints().get(0), "node1");
-    Assert.assertEquals(flowEdge.getEndPoints().get(1), "node2");
+    Assert.assertEquals(flowEdge.getSrc(), "node1");
+    Assert.assertEquals(flowEdge.getDest(), "node2");
     Assert.assertEquals(flowEdge.getExecutors().get(0).getConfig().get().getString("specStore.fs.dir"), "/tmp1");
     Assert.assertEquals(flowEdge.getExecutors().get(0).getConfig().get().getString("specExecInstance.capabilities"), "s1:d1");
     Assert.assertEquals(flowEdge.getExecutors().get(0).getClass().getSimpleName(), "InMemorySpecExecutor");

@@ -40,10 +40,6 @@ public class BaseDataNode implements DataNode {
   @Getter
   private Config rawConfig;
   @Getter
-  private Config srcConfig;
-  @Getter
-  private Config destConfig;
-  @Getter
   private boolean active = true;
 
   public BaseDataNode(Config nodeProps) throws DataNodeCreationException {
@@ -55,14 +51,6 @@ public class BaseDataNode implements DataNode {
         this.active = nodeProps.getBoolean(FlowGraphConfigurationKeys.DATA_NODE_IS_ACTIVE_KEY);
       }
       this.rawConfig = nodeProps;
-
-      //Get node config independent of its properties as a source or destination of a flow edge.
-      Config baseNodeConfig = nodeProps.withoutPath(FlowGraphConfigurationKeys.DATA_NODE_SOURCE_PREFIX).
-          withoutPath(FlowGraphConfigurationKeys.DATA_NODE_DESTINATION_PREFIX);
-      this.srcConfig = ConfigUtils.getConfig(nodeProps, FlowGraphConfigurationKeys.DATA_NODE_SOURCE_PREFIX,
-          ConfigFactory.empty()).withFallback(baseNodeConfig).atPath(FlowGraphConfigurationKeys.DATA_NODE_SOURCE_PREFIX);
-      this.destConfig = ConfigUtils.getConfig(nodeProps, FlowGraphConfigurationKeys.DATA_NODE_DESTINATION_PREFIX,
-          ConfigFactory.empty().withFallback(baseNodeConfig)).atPath(FlowGraphConfigurationKeys.DATA_NODE_DESTINATION_PREFIX);
     } catch (Exception e) {
       throw new DataNodeCreationException(e);
     }

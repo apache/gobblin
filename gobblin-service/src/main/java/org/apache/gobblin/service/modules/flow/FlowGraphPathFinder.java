@@ -29,12 +29,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
 import lombok.AllArgsConstructor;
@@ -56,8 +56,9 @@ import org.apache.gobblin.service.modules.flowgraph.DataNode;
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.FlowEdge;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraph;
-import org.apache.gobblin.service.modules.spec.JobSpecDagFactory;
-import org.apache.gobblin.service.modules.spec.JobSpecWithExecutor;
+import org.apache.gobblin.service.modules.flowgraph.FlowGraphConfigurationKeys;
+import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+import org.apache.gobblin.service.modules.spec.JobExecutionPlanDagFactory;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
@@ -65,12 +66,12 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 @Alpha
 @Slf4j
 public class FlowGraphPathFinder {
+  private static final String SOURCE_PREFIX = "source";
+  private static final String DESTINATION_PREFIX = "destination";
+
   private FlowGraph flowGraph;
   private FlowSpec flowSpec;
   private Config flowConfig;
-
-  private String srcNodeId;
-  private String destNodeId;
 
   private DataNode srcNode;
   private DataNode destNode;
@@ -99,8 +100,8 @@ public class FlowGraphPathFinder {
     this.flowConfig = flowSpec.getConfig();
 
     //Get src/dest DataNodes from the flow config
-    this.srcNodeId = ConfigUtils.getString(flowConfig, ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, "");
-    this.destNodeId = ConfigUtils.getString(flowConfig, ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, "");
+    String srcNodeId = ConfigUtils.getString(flowConfig, ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, "");
+    String destNodeId = ConfigUtils.getString(flowConfig, ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, "");
     this.srcNode = this.flowGraph.getNode(srcNodeId);
     Preconditions.checkArgument(srcNode != null, "Flowgraph does not have a node with id " + srcNodeId);
     this.destNode = this.flowGraph.getNode(destNodeId);
@@ -128,10 +129,10 @@ public class FlowGraphPathFinder {
 
   /**
    * A helper class used to maintain additional context associated with each {@link FlowEdge} during path
-   * computation while the edge is explored for its eligibility. The additional context includes the parent
-   * {@link FlowEdge}, the input {@link DatasetDescriptor} of this edge which is compatible with the parent's output
-   * {@link DatasetDescriptor}, and the corresponding output dataset
-   * descriptor of this edge. Whether or not a {@link FlowEdge} is added to the edge queue depends on whether
+   * computation while the edge is explored for its eligibility. The additional context includes the input
+   * {@link DatasetDescriptor} of this edge which is compatible with the previous {@link FlowEdge}'s output
+   * {@link DatasetDescriptor} (where "previous" means the immediately preceding {@link FlowEdge} visited before
+   * the current {@link FlowEdge}), and the corresponding output dataset descriptor of the current {@link FlowEdge}.
    */
   @Data
   @AllArgsConstructor
@@ -148,7 +149,7 @@ public class FlowGraphPathFinder {
    * added first to the queue. This ensures that dataset transformations are always performed closest to the source.
    * @return a list of {@link FlowEdge}s starting at the srcNode and ending at the destNode.
    */
-  public Dag<JobSpecWithExecutor> findPath() throws PathFinderException {
+  public Dag<JobExecutionPlan> findPath() throws PathFinderException {
     try {
       //Initialization of auxiliary data structures used for path computation
       this.pathMap = new HashMap<>();
@@ -165,13 +166,13 @@ public class FlowGraphPathFinder {
       synchronized (this.flowGraph) {
         //Base condition 1: Source Node or Dest Node is inactive; return null
         if (!srcNode.isActive() || !destNode.isActive()) {
-          log.warn("Either source node {} or destination node {} is inactive; skipping path computation.", srcNodeId,
-              destNodeId);
+          log.warn("Either source node {} or destination node {} is inactive; skipping path computation.", this.srcNode.getId(),
+              this.destNode.getId());
           return null;
         }
 
         //Base condition 2: Check if we are already at the target. If so, return an empty dag.
-        if ((srcNode.equals(destNode)) && srcDatasetDescriptor.isCompatibleWith(destDatasetDescriptor)) {
+        if ((srcNode.equals(destNode)) && destDatasetDescriptor.contains(srcDatasetDescriptor)) {
           return new Dag<>(new ArrayList<>());
         }
 
@@ -190,7 +191,7 @@ public class FlowGraphPathFinder {
         while (!edgeQueue.isEmpty()) {
           FlowEdgeContext flowEdgeContext = edgeQueue.pop();
 
-          DataNode currentNode = this.flowGraph.getNode(flowEdgeContext.getEdge().getEndPoints().get(1));
+          DataNode currentNode = this.flowGraph.getNode(flowEdgeContext.getEdge().getDest());
           DatasetDescriptor currentOutputDatasetDescriptor = flowEdgeContext.getOutputDatasetDescriptor();
 
           //Are we done?
@@ -215,7 +216,7 @@ public class FlowGraphPathFinder {
       return new Dag<>(new ArrayList<>());
     } catch (SpecNotFoundException | JobTemplate.TemplateException | IOException | URISyntaxException e) {
       throw new PathFinderException(
-          "Exception encountered when computing path from src: " + srcNodeId + " to dest: " + destNodeId, e);
+          "Exception encountered when computing path from src: " + this.srcNode.getId() + " to dest: " + this.destNode.getId(), e);
     }
   }
 
@@ -240,7 +241,7 @@ public class FlowGraphPathFinder {
     List<FlowEdgeContext> prioritizedEdgeList = new LinkedList<>();
     for (FlowEdge flowEdge : this.flowGraph.getEdges(dataNode)) {
       try {
-        DataNode edgeDestination = this.flowGraph.getNode(flowEdge.getEndPoints().get(1));
+        DataNode edgeDestination = this.flowGraph.getNode(flowEdge.getDest());
         //Should we skip this edge from any further consideration?
         if (!edgeDestination.isActive() || !flowEdge.isActive()) {
           continue;
@@ -249,7 +250,7 @@ public class FlowGraphPathFinder {
             .getInputOutputDatasetDescriptors(userConfig)) {
           DatasetDescriptor inputDatasetDescriptor = datasetDescriptorPair.getLeft();
           DatasetDescriptor outputDatasetDescriptor = datasetDescriptorPair.getRight();
-          if (currentDatasetDescriptor.isCompatibleWith(inputDatasetDescriptor)) {
+          if (inputDatasetDescriptor.contains(currentDatasetDescriptor)) {
             Config inputDatasetDescriptorConfig = inputDatasetDescriptor.getRawConfig()
                 .atPath(DatasetDescriptorConfigKeys.FLOW_EDGE_INPUT_DATASET_DESCRIPTOR_PREFIX);
             Config outputDatasetDescriptorConfig = outputDatasetDescriptor.getRawConfig()
@@ -259,7 +260,7 @@ public class FlowGraphPathFinder {
               continue;
             }
             FlowEdgeContext flowEdgeContext;
-            if (currentDatasetDescriptor.isCompatibleWith(outputDatasetDescriptor)) {
+            if (outputDatasetDescriptor.contains(currentDatasetDescriptor)) {
               //If datasets described by the currentDatasetDescriptor is a subset of the datasets described
               // by the outputDatasetDescriptor (i.e. currentDatasetDescriptor is more "specific" than outputDatasetDescriptor, e.g.
               // as in the case of a "distcp" edge), we propagate the more "specific" dataset descriptor forward.
@@ -268,7 +269,7 @@ public class FlowGraphPathFinder {
               //outputDatasetDescriptor is more specific (e.g. if it is a dataset transformation edge)
               flowEdgeContext = new FlowEdgeContext(flowEdge, currentDatasetDescriptor, outputDatasetDescriptor);
             }
-            if (outputDatasetDescriptor.isPropertyCompatibleWith(destDatasetDescriptor)) {
+            if (destDatasetDescriptor.getFormatDescriptor().contains(outputDatasetDescriptor.getFormatDescriptor())) {
               //Add to the front of the edge list if platform-independent properties of the output descriptor is compatible
               // with those of destination dataset descriptor.
               // In other words, we prioritize edges that perform data transformations as close to the source as possible.
@@ -289,8 +290,8 @@ public class FlowGraphPathFinder {
 
   private boolean isFlowTemplateResolvable(FlowEdge flowEdge, Config userConfig)
       throws SpecNotFoundException, JobTemplate.TemplateException, ExecutionException, InterruptedException {
-    Config srcNodeConfig = this.flowGraph.getNode(flowEdge.getEndPoints().get(0)).getSrcConfig();
-    Config destNodeConfig = this.flowGraph.getNode(flowEdge.getEndPoints().get(1)).getDestConfig();
+    Config srcNodeConfig = this.flowGraph.getNode(flowEdge.getSrc()).getRawConfig().atPath(SOURCE_PREFIX);
+    Config destNodeConfig = this.flowGraph.getNode(flowEdge.getDest()).getRawConfig().atPath(DESTINATION_PREFIX);
     for (SpecExecutor specExecutor : flowEdge.getExecutors()) {
       // Build the "merged" config for each FlowEdge, which is a combination of (in the precedence described below):
       // 1. the user provided flow config,
@@ -312,7 +313,16 @@ public class FlowGraphPathFinder {
     return false;
   }
 
-  private Dag<JobSpecWithExecutor> buildDag(FlowEdgeContext flowEdgeContext)
+  /**
+   *
+   * @param flowEdgeContext of the last {@link FlowEdge} in the path.
+   * @return a {@link Dag} of {@link JobExecutionPlan}s for the input {@link FlowSpec}.
+   * @throws IOException
+   * @throws SpecNotFoundException
+   * @throws JobTemplate.TemplateException
+   * @throws URISyntaxException
+   */
+  private Dag<JobExecutionPlan> buildDag(FlowEdgeContext flowEdgeContext)
       throws IOException, SpecNotFoundException, JobTemplate.TemplateException, URISyntaxException {
     //Backtrace from the last edge using the path map and push each edge into a LIFO data structure.
     Deque<FlowEdge> path = new ArrayDeque<>();
@@ -328,92 +338,39 @@ public class FlowGraphPathFinder {
     }
     //Build a DAG for each edge popped out of the LIFO data structure and concatenate it with the DAG generated from
     // the previously popped edges.
-    Dag<JobSpecWithExecutor> jobSpecDag = new Dag<>(new ArrayList<>());
+    Dag<JobExecutionPlan> flowDag = new Dag<>(new ArrayList<>());
     while (!path.isEmpty()) {
-      Dag<JobSpecWithExecutor> flowEdgeDag = convertHopToJobSpecDag(path.pop());
-      jobSpecDag = jobSpecDag.concatenate(flowEdgeDag);
+      FlowEdge flowEdge = path.pop();
+      Config resolvedConfig = this.flowEdgeToMergedConfig.get(flowEdge);
+      SpecExecutor specExecutor = this.flowEdgeToSpecExecutorMap.get(flowEdge);
+      Dag<JobExecutionPlan> flowEdgeDag = convertHopToDag(flowEdge, flowSpec, resolvedConfig, specExecutor, flowExecutionId);
+      flowDag = flowDag.concatenate(flowEdgeDag);
     }
-    return jobSpecDag;
+    return flowDag;
   }
 
   /**
-   * Given an instance of {@link FlowEdge}, this helper method returns a {@link Dag<JobSpec>} that moves data
+   * Given an instance of {@link FlowEdge}, this method returns a {@link Dag < JobExecutionPlan >} that moves data
    * from the source of the {@link FlowEdge} to the destination of the {@link FlowEdge}.
    * @param flowEdge an instance of {@link FlowEdge}.
-   * @return a {@link Dag} of {@link JobSpec}s associated with the {@link FlowEdge}.
+   * @return a {@link Dag} of {@link JobExecutionPlan}s associated with the {@link FlowEdge}.
    */
-  private Dag<JobSpecWithExecutor> convertHopToJobSpecDag(FlowEdge flowEdge)
+  private Dag<JobExecutionPlan> convertHopToDag(FlowEdge flowEdge, FlowSpec flowSpec, Config resolvedConfig, SpecExecutor specExecutor, Long flowExecutionId)
       throws SpecNotFoundException, JobTemplate.TemplateException, URISyntaxException {
-    List<JobSpecWithExecutor> jobSpecs = new ArrayList<>();
-    Config mergedConfig = this.flowEdgeToMergedConfig.get(flowEdge);
-    //Get the SpecExecutor for this flow edge.
-    SpecExecutor specExecutor = this.flowEdgeToSpecExecutorMap.get(flowEdge);
-
+    List<JobExecutionPlan> jobExecutionPlans = new ArrayList<>();
     //Iterate over each JobTemplate in the FlowEdge definition and convert the JobTemplate to a JobSpec by
     //resolving the JobTemplate config against the merged config.
     for (JobTemplate jobTemplate : flowEdge.getFlowTemplate().getJobTemplates()) {
-      Config jobConfig = jobTemplate.getResolvedConfig(mergedConfig).resolve();
-      URI templateUri = jobTemplate.getUri();
-      jobSpecs.add(buildJobSpec(jobConfig, flowEdge.getEndPoints().get(0), flowEdge.getEndPoints().get(1), specExecutor,
-          templateUri));
+      //Add job template to the resolved job config
+      Config jobConfig = jobTemplate.getResolvedConfig(resolvedConfig).resolve().withValue(
+          ConfigurationKeys.JOB_TEMPLATE_PATH, ConfigValueFactory.fromAnyRef(jobTemplate.getUri().toString()));
+      //Add flow execution id to job config
+      jobConfig = jobConfig.withValue(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, ConfigValueFactory.fromAnyRef(flowExecutionId));
+      jobExecutionPlans.add(new JobExecutionPlan.Factory().createPlan(flowSpec, jobConfig, specExecutor));
     }
-    return JobSpecDagFactory.createDagFromJobSpecs(jobSpecs);
+    return new JobExecutionPlanDagFactory().createDag(jobExecutionPlans);
   }
 
-  /**
-   * Given a resolved job config, this helper method converts the config to a {@link JobSpec}.
-   * @param resolvedJobConfig
-   * @param srcNodeId Source Node Id for the Job.
-   * @param destNodeId Dest Node Id for the Job.
-   * @return a {@link JobSpec} corresponding to the resolvedJobConfig.
-   */
-  private JobSpecWithExecutor buildJobSpec(Config resolvedJobConfig, String srcNodeId, String destNodeId,
-      SpecExecutor specExecutor, URI templateUri)
-      throws URISyntaxException {
-    String flowName = ConfigUtils.getString(flowConfig, ConfigurationKeys.FLOW_NAME_KEY, "");
-    String flowGroup = ConfigUtils.getString(flowConfig, ConfigurationKeys.FLOW_GROUP_KEY, "");
-    String jobName = ConfigUtils.getString(resolvedJobConfig, ConfigurationKeys.JOB_NAME_KEY, "");
-
-    //Modify the job name to include the flow group:flow name as well as the destination of the edge.
-    jobName = Joiner.on(":").join(flowGroup, flowName, jobName, destNodeId);
-
-    JobSpec.Builder jobSpecBuilder = JobSpec.builder(jobSpecURIGenerator(flowGroup, jobName)).withConfig(resolvedJobConfig)
-        .withDescription(flowSpec.getDescription()).withVersion(flowSpec.getVersion());
-
-    JobSpec jobSpec = jobSpecBuilder.withTemplate(templateUri).build();
-
-    //Add flowName to job spec
-    jobSpec.setConfig(jobSpec.getConfig().withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName)));
-
-    // Remove schedule
-    jobSpec.setConfig(jobSpec.getConfig().withoutPath(ConfigurationKeys.JOB_SCHEDULE_KEY));
-
-    // Add job.name and job.group
-    jobSpec.setConfig(jobSpec.getConfig().withValue(ConfigurationKeys.JOB_NAME_KEY, ConfigValueFactory.fromAnyRef(jobName)));
-    jobSpec.setConfig(jobSpec.getConfig().withValue(ConfigurationKeys.JOB_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup)));
-
-    //Add Flow Execution Id into the
-    jobSpec.setConfig(jobSpec.getConfig()
-        .withValue(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, ConfigValueFactory.fromAnyRef(flowExecutionId)));
-
-    //Enable job lock for each job to prevent concurrent executions.
-    jobSpec.setConfig(jobSpec.getConfig().withValue(ConfigurationKeys.JOB_LOCK_ENABLED_KEY, ConfigValueFactory.fromAnyRef(true)));
-
-    // Reset properties in Spec from Config
-    jobSpec.setConfigAsProperties(ConfigUtils.configToProperties(jobSpec.getConfig()));
-    return new JobSpecWithExecutor(jobSpec, specExecutor);
-  }
-
-  /**
-   * A naive implementation of generating a jobSpec's URI within a multi-hop flow that follows the convention:
-   * <JOB_CATALOG_SCHEME>/{@link ConfigurationKeys#JOB_GROUP_KEY}/{@link ConfigurationKeys#JOB_NAME_KEY}.
-   */
-  public URI jobSpecURIGenerator(String jobGroup, String jobName)
-      throws URISyntaxException {
-    return new URI(JobSpec.Builder.DEFAULT_JOB_CATALOG_SCHEME, flowSpec.getUri().getAuthority(),
-        StringUtils.appendIfMissing(StringUtils.prependIfMissing(flowSpec.getUri().getPath(), "/"), "/") + jobGroup
-            + "/" + jobName, null);
-  }
 
   public static class PathFinderException extends Exception {
     public PathFinderException(String message, Throwable cause) {

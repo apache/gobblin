@@ -43,7 +43,7 @@ public class EncryptionConfig {
         DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY);
   }
 
-  public boolean isCompatibleWith(EncryptionConfig other) {
+  public boolean contains(EncryptionConfig other) {
     if (other == null) {
       return false;
     }
@@ -52,11 +52,12 @@ public class EncryptionConfig {
     String otherKeystoreType = other.getKeystoreType();
     String otherKeystoreEncoding = other.getKeystoreEncoding();
 
-    return (DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equals(otherEncryptionAlgorithm)
-        || this.encryptionAlgorithm.equals(otherEncryptionAlgorithm))
-        && (DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equals(otherKeystoreType)
-        || this.keystoreType.equals(otherKeystoreType)) && (DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equals(otherKeystoreEncoding)
-        || this.keystoreEncoding.equals(otherKeystoreEncoding));
+    return (DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equals(this.getEncryptionAlgorithm())
+        || this.encryptionAlgorithm.equalsIgnoreCase(otherEncryptionAlgorithm))
+        && (DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equals(this.getKeystoreType())
+        || this.keystoreType.equalsIgnoreCase(otherKeystoreType))
+        && (DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equals(this.getKeystoreEncoding())
+        || this.keystoreEncoding.equalsIgnoreCase(otherKeystoreEncoding));
   }
 
   @Override
@@ -80,7 +81,10 @@ public class EncryptionConfig {
 
   @Override
   public int hashCode() {
-    return this.toString().hashCode();
+    int result = 17;
+    result = 31 * result + encryptionAlgorithm.toLowerCase().hashCode();
+    result = 31 * result + keystoreType.toLowerCase().hashCode();
+    result = 31 * result + keystoreEncoding.toLowerCase().hashCode();
+    return result;
   }
-
 }

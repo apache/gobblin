@@ -27,6 +27,7 @@ import java.util.Map;
 
 import org.apache.hadoop.fs.Path;
 
+import com.google.common.base.Optional;
 import com.google.common.io.Files;
 import com.typesafe.config.Config;
 
@@ -39,25 +40,28 @@ import org.apache.gobblin.service.modules.flowgraph.Dag;
 
 
 /**
- * A Factory class used for constructing a {@link Dag} of {@link JobSpec}s from
- * a {@link List} of {@link JobSpec}s.
+ * A Factory class used for constructing a {@link Dag} of {@link JobExecutionPlan}s from
+ * a {@link List} of {@link JobExecutionPlan}s.
  */
 @Alpha
 @Slf4j
-public class JobSpecDagFactory {
+public class JobExecutionPlanDagFactory {
 
-  public static Dag<JobSpecWithExecutor> createDagFromJobSpecs(List<JobSpecWithExecutor> jobSpecs) {
-    //Maintain a mapping between jobspec name and the
-    Map<String, Dag.DagNode<JobSpecWithExecutor>> jobSpecMap = new HashMap<>();
-    List<Dag.DagNode<JobSpecWithExecutor>> dagNodeList = new ArrayList<>();
+  public Dag<JobExecutionPlan> createDag(List<JobExecutionPlan> jobExecutionPlans) {
+    //Maintain a mapping between job name and the corresponding JobExecutionPlan.
+    Map<String, Dag.DagNode<JobExecutionPlan>> JobExecutionPlanMap = new HashMap<>();
+    List<Dag.DagNode<JobExecutionPlan>> dagNodeList = new ArrayList<>();
     /**
-     * Create a {@link Dag.DagNode<JobSpecWithExecutor>} for every {@link JobSpec} in the flow. Add this node
+     * Create a {@link Dag.DagNode<JobExecutionPlan>} for every {@link JobSpec} in the flow. Add this node
      * to a HashMap.
      */
-    for (JobSpecWithExecutor jobSpecWithExecutor : jobSpecs) {
-      Dag.DagNode<JobSpecWithExecutor> dagNode = new Dag.DagNode<>(jobSpecWithExecutor);
+    for (JobExecutionPlan jobExecutionPlan : jobExecutionPlans) {
+      Dag.DagNode<JobExecutionPlan> dagNode = new Dag.DagNode<>(jobExecutionPlan);
       dagNodeList.add(dagNode);
-      jobSpecMap.put(getJobFileNameFromJobSpec(jobSpecWithExecutor), dagNode);
+      String jobName = getJobName(jobExecutionPlan);
+      if (jobName != null) {
+        JobExecutionPlanMap.put(jobName, dagNode);
+      }
     }
 
     /**
@@ -67,15 +71,19 @@ public class JobSpecDagFactory {
      *
      * TODO: we likely do not need 2 for loops and we can do this in 1 pass.
      */
-    for (JobSpecWithExecutor jobSpecWithExecutor : jobSpecs) {
-      Dag.DagNode<JobSpecWithExecutor> node = jobSpecMap.get(getJobFileNameFromJobSpec(jobSpecWithExecutor));
-      Collection<String> dependencies = getDependencies(jobSpecWithExecutor.getJobSpec().getConfig());
+    for (JobExecutionPlan jobExecutionPlan : jobExecutionPlans) {
+      String jobName = getJobName(jobExecutionPlan);
+      if (jobName == null) {
+        continue;
+      }
+      Dag.DagNode<JobExecutionPlan> node = JobExecutionPlanMap.get(jobName);
+      Collection<String> dependencies = getDependencies(jobExecutionPlan.getJobSpec().getConfig());
       for (String dependency : dependencies) {
-        Dag.DagNode<JobSpecWithExecutor> parentNode = jobSpecMap.get(dependency);
+        Dag.DagNode<JobExecutionPlan> parentNode = JobExecutionPlanMap.get(dependency);
         node.addParentNode(parentNode);
       }
     }
-    Dag<JobSpecWithExecutor> dag = new Dag<>(dagNodeList);
+    Dag<JobExecutionPlan> dag = new Dag<>(dagNodeList);
     return dag;
   }
 
@@ -90,13 +98,17 @@ public class JobSpecDagFactory {
   }
 
   /**
-   * Extract the filename (without extensions) of job properties file from the {@link JobSpec}. The properties filename
-   * is derived from the {@link org.apache.gobblin.runtime.api.JobTemplate} URI.
-   * @param jobSpec
-   * @return the file name without extension of the properties file from which the JobSpec is derived.
+   * The job name is derived from the {@link org.apache.gobblin.runtime.api.JobTemplate} URI. It is the
+   * simple name of the path component of the URI.
+   * @param jobExecutionPlan
+   * @return the simple name from the URI path.
    */
-  private static String getJobFileNameFromJobSpec(JobSpecWithExecutor jobSpec) {
-    URI jobTemplateUri = jobSpec.getJobSpec().getTemplateURI().get();
-    return Files.getNameWithoutExtension(new Path(jobTemplateUri).getName());
+  private static String getJobName(JobExecutionPlan jobExecutionPlan) {
+    Optional<URI> jobTemplateUri = jobExecutionPlan.getJobSpec().getTemplateURI();
+    if (jobTemplateUri.isPresent()) {
+      return Files.getNameWithoutExtension(new Path(jobTemplateUri.get()).getName());
+    } else {
+      return null;
+    }
   }
 }

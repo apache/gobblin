@@ -30,18 +30,6 @@ public class FlowGraphConfigurationKeys {
   public static final String DATA_NODE_IS_ACTIVE_KEY = DATA_NODE_PREFIX + "isActive";
 
   /**
-   * {@link DataNode} related configuration keys when it is a source of a {@link FlowEdge}.
-   */
-  public static final String SOURCE_KEY = "source";
-  public static final String DATA_NODE_SOURCE_PREFIX = DATA_NODE_PREFIX + SOURCE_KEY;
-
-  /**
-   * {@link DataNode} related configuration keys when it is a destination of a {@link FlowEdge}.
-   */
-  public static final String DESTINATION_KEY = "destination";
-  public static final String DATA_NODE_DESTINATION_PREFIX = DATA_NODE_PREFIX + DESTINATION_KEY;
-
-  /**
    * {@link FlowEdge} related configuration keys.
    */
   public static final String FLOW_EDGE_FACTORY_CLASS = FLOW_EDGE_PREFIX + "factory.class";

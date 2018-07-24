@@ -39,14 +39,10 @@ import lombok.Getter;
  */
 @Alpha
 public abstract class FileSystemDataNode extends BaseDataNode {
-  public static final String FS_URI_KEY = "fs.uri";
-  public static final String SOURCE_FS_URI_KEY = FlowGraphConfigurationKeys.DATA_NODE_SOURCE_PREFIX + "." + FS_URI_KEY;
-  public static final String DESTINATION_FS_URI_KEY = FlowGraphConfigurationKeys.DATA_NODE_DESTINATION_PREFIX + "." + FS_URI_KEY;
+  public static final String FS_URI_KEY = FlowGraphConfigurationKeys.DATA_NODE_PREFIX + "fs.uri";
 
   @Getter
-  private String srcFsUri;
-  @Getter
-  private String destFsUri;
+  private String fsUri;
 
   /**
    * Constructor. An HDFS DataNode must have fs.uri property specified in addition to a node Id.
@@ -54,17 +50,12 @@ public abstract class FileSystemDataNode extends BaseDataNode {
   public FileSystemDataNode(Config nodeProps) throws DataNodeCreationException {
     super(nodeProps);
     try {
-      this.srcFsUri = ConfigUtils.getString(this.getSrcConfig(), SOURCE_FS_URI_KEY, "");
-      this.destFsUri = ConfigUtils.getString(this.getDestConfig(), DESTINATION_FS_URI_KEY, "");
-      Preconditions.checkArgument(!Strings.isNullOrEmpty(this.srcFsUri) || !Strings.isNullOrEmpty(this.destFsUri),
-          "Both src/dest fs.uri cannot be null or empty.");
+      this.fsUri = ConfigUtils.getString(nodeProps, FS_URI_KEY, "");
+      Preconditions.checkArgument(!Strings.isNullOrEmpty(this.fsUri), "fs.uri cannot be null or empty.");
 
       //Validate the srcFsUri and destFsUri of the DataNode.
-      if (!Strings.isNullOrEmpty(this.srcFsUri) && !isUriValid(new URI(this.srcFsUri))) {
-        throw new IOException("Invalid FS URI " + this.srcFsUri);
-      }
-      if (!Strings.isNullOrEmpty(this.destFsUri) && !isUriValid(new URI(this.destFsUri))) {
-        throw new IOException("Invalid FS URI " + this.destFsUri);
+      if (!isUriValid(new URI(this.fsUri))) {
+        throw new IOException("Invalid FS URI " + this.fsUri);
       }
     } catch (Exception e) {
       throw new DataNodeCreationException(e);
@@ -86,11 +77,11 @@ public abstract class FileSystemDataNode extends BaseDataNode {
 
     FileSystemDataNode that = (FileSystemDataNode) o;
 
-    return this.getId().equals(that.getId()) && srcFsUri.equals(that.getSrcFsUri()) && destFsUri.equals(that.getDestFsUri());
+    return this.getId().equals(that.getId()) && this.fsUri.equals(that.getFsUri());
   }
 
   @Override
   public int hashCode() {
-    return Joiner.on("-").join(this.getId(), this.srcFsUri, this.destFsUri).hashCode();
+    return Joiner.on("-").join(this.getId(), this.fsUri).hashCode();
   }
 }

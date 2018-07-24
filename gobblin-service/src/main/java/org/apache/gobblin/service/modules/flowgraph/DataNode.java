@@ -39,16 +39,6 @@ public interface DataNode {
   Config getRawConfig();
 
   /**
-   * @return the attributes of a {@link DataNode} as a source of a {@link FlowEdge}.
-   */
-  Config getSrcConfig();
-
-  /**
-   * @return the attributes of a {@link DataNode} as a destination of a {@link FlowEdge}.
-   */
-  Config getDestConfig();
-
-  /**
    * @return true if the {@link DataNode} is active
    */
   boolean isActive();

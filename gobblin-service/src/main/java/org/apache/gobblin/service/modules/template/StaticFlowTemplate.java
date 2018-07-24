@@ -94,12 +94,11 @@ public class StaticFlowTemplate implements FlowTemplate {
   /**
    * Generate the input/output dataset descriptors for the {@link FlowTemplate}.
    * @param userConfig
-   * @param options Config resolve options.
    * @return a List of Input/Output DatasetDescriptors associated with this {@link org.apache.gobblin.service.modules.flowgraph.FlowEdge}.
    */
-  private List<Pair<DatasetDescriptor, DatasetDescriptor>> buildInputOutputDescriptors(Config userConfig, ConfigResolveOptions options)
+  private List<Pair<DatasetDescriptor, DatasetDescriptor>> buildInputOutputDescriptors(Config userConfig)
       throws IOException, ReflectiveOperationException {
-    Config config = this.getResolvedFlowConfig(userConfig).resolve(options);
+    Config config = this.getResolvedFlowConfig(userConfig).resolve(ConfigResolveOptions.defaults());
 
     if (!config.hasPath(DatasetDescriptorConfigKeys.FLOW_EDGE_INPUT_DATASET_DESCRIPTOR_PREFIX)
         || !config.hasPath(DatasetDescriptorConfigKeys.FLOW_EDGE_OUTPUT_DATASET_DESCRIPTOR_PREFIX)) {
@@ -140,15 +139,6 @@ public class StaticFlowTemplate implements FlowTemplate {
     return userConfig.withFallback(this.rawConfig);
   }
 
-  @Override
-  public List<Config> getResolvedJobTemplates(Config userConfig) throws SpecNotFoundException, JobTemplate.TemplateException {
-    List<Config> resolvedJobTemplates = new ArrayList<>();
-    for (JobTemplate jobTemplate: this.jobTemplates) {
-      resolvedJobTemplates.add(userConfig.withFallback(jobTemplate.getRawTemplateConfig()));
-    }
-    return resolvedJobTemplates;
-  }
-
   /**
    * Checks if the {@link FlowTemplate} is resolvable using the provided {@link Config} object. A {@link FlowTemplate}
    * is resolvable only if each of the {@link JobTemplate}s in the flow is resolvable
@@ -163,7 +153,6 @@ public class StaticFlowTemplate implements FlowTemplate {
     }
 
     for (JobTemplate template: this.jobTemplates) {
-      Config tmpConfig = template.getResolvedConfig(userConfig).resolve(resolveOptions);
       if (!template.getResolvedConfig(userConfig).resolve(resolveOptions).isResolved()) {
         return false;
       }
@@ -176,21 +165,8 @@ public class StaticFlowTemplate implements FlowTemplate {
    * @return list of input/output {@link DatasetDescriptor}s for the {@link FlowTemplate}.
    */
   @Override
-  public List<Pair<DatasetDescriptor, DatasetDescriptor>> getInputOutputDatasetDescriptors(Config userConfig, ConfigResolveOptions options)
-      throws IOException, ReflectiveOperationException {
-      if (this.inputOutputDatasetDescriptors == null) {
-        this.inputOutputDatasetDescriptors = buildInputOutputDescriptors(userConfig, options);
-      }
-      return this.inputOutputDatasetDescriptors;
-  }
-
-  /**
-   * @param userConfig a list of user customized attributes.
-   * @return list of input/output {@link DatasetDescriptor}s for the {@link FlowTemplate}.
-   */
-  @Override
   public List<Pair<DatasetDescriptor, DatasetDescriptor>> getInputOutputDatasetDescriptors(Config userConfig)
       throws IOException, ReflectiveOperationException {
-    return getInputOutputDatasetDescriptors(userConfig, ConfigResolveOptions.defaults());
+    return buildInputOutputDescriptors(userConfig);
   }
 }

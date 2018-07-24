@@ -50,22 +50,12 @@ public interface FlowTemplate extends Spec {
   Config getRawTemplateConfig();
 
   /**
-   * Return the combine configuration of template and user customized attributes.
-   * @return a list of resolved {@link JobTemplate}s.
-   */
-  List<Config> getResolvedJobTemplates(Config userConfig) throws SpecNotFoundException, JobTemplate.TemplateException;
-
-  /**
    * Checks if the {@link FlowTemplate} is resolvable using the provided {@link Config} object. A {@link FlowTemplate}
    * is resolvable only if each of the {@link JobTemplate}s in the flow is resolvable
    * @param userConfig User supplied Config
    * @return true if the {@link FlowTemplate} is resolvable
    */
   boolean isResolvable(Config userConfig) throws SpecNotFoundException, JobTemplate.TemplateException;
-
-  List<Pair<DatasetDescriptor, DatasetDescriptor>> getInputOutputDatasetDescriptors(Config userConfig,
-      ConfigResolveOptions options)
-      throws IOException, ReflectiveOperationException;
 
   /**
    * @param userConfig a list of user customized attributes.
