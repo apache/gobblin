@@ -163,22 +163,42 @@ public class FlowConfigTest {
   public void testCheckFlowExecutionId() throws Exception {
     Map<String, String> flowProperties = Maps.newHashMap();
     flowProperties.put("param1", "value1");
+    flowProperties.put(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, "1234567890");
 
     FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME))
-        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).
-            setRunImmediately(true))
-        .setProperties(new StringMap(flowProperties));
+        .setTemplateUris(TEST_TEMPLATE_URI).setProperties(new StringMap(flowProperties))
+        .setSchedule(new Schedule().setCronSchedule("").setRunImmediately(true));
 
     Assert.assertEquals(TEST_GROUP_NAME, _client.createFlowConfig(flowConfig).getFlowGroup());
     Assert.assertEquals(TEST_FLOW_NAME, _client.createFlowConfig(flowConfig).getFlowName());
-    Assert.assertTrue(_client.createFlowConfig(flowConfig).hasFlowExecutionId());
+    Assert.assertEquals(_client.createFlowConfig(flowConfig).getFlowExecutionId().longValue(), 1234567890L);
 
     flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME))
-        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).
-            setRunImmediately(false))
-        .setProperties(new StringMap(flowProperties));
+        .setTemplateUris(TEST_TEMPLATE_URI).setProperties(new StringMap(flowProperties))
+        .setSchedule(new Schedule().setCronSchedule("").setRunImmediately(false));
 
     Assert.assertFalse(_client.createFlowConfig(flowConfig).hasFlowExecutionId());
+
+    flowProperties.remove(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
+    flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME))
+        .setTemplateUris(TEST_TEMPLATE_URI).setProperties(new StringMap(flowProperties))
+        .setSchedule(new Schedule().setCronSchedule("").setRunImmediately(true));
+
+    Assert.assertFalse(_client.createFlowConfig(flowConfig).hasFlowExecutionId());
+
+    flowProperties.put(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, "1234567890");
+    flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME))
+        .setTemplateUris(TEST_TEMPLATE_URI).setProperties(new StringMap(flowProperties))
+        .setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE));
+
+    try {
+      _client.createFlowConfig(flowConfig);
+    } catch (RestLiResponseException e) {
+      Assert.assertEquals(e.getStatus(), HttpStatus.S_400_BAD_REQUEST.getCode());
+      return;
+    }
+
+    Assert.fail();
   }
 
   @Test (dependsOnMethods = "testCreate")

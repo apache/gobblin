@@ -97,15 +97,20 @@ public class GobblinServiceFlowConfigResourceHandler implements FlowConfigsResou
 
     try {
       if (!jobScheduler.isActive() && helixManager.isPresent()) {
+        CreateResponse createResponse = null;
         if (this.flowCatalogLocalCommit) {
           // We will handle FS I/O locally for load balance before forwarding to remote node.
-          this.localHandler.createFlowConfig(flowConfig, false);
+          createResponse = this.localHandler.createFlowConfig(flowConfig, false);
         }
 
         forwardMessage(ServiceConfigKeys.HELIX_FLOWSPEC_ADD, FlowConfigUtils.serializeFlowConfig(flowConfig), flowName, flowGroup);
 
         // Do actual work on remote node, directly return success
-        return new CreateResponse(new ComplexResourceKey<>(flowConfig.getId(), new EmptyRecord()), HttpStatus.S_201_CREATED);
+        if (this.flowCatalogLocalCommit) {
+          return createResponse;
+        } else {
+          return this.localHandler.createFlowConfig(flowConfig, false);
+        }
       } else {
         return this.localHandler.createFlowConfig(flowConfig);
       }
