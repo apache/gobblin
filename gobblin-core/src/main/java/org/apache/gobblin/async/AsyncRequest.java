@@ -37,8 +37,8 @@ import org.apache.gobblin.net.Request;
  */
 public class AsyncRequest<D, RQ> implements Request<RQ> {
   @Getter @Setter
-  private RQ rawRequest;
-  private final List<Thunk<D>> thunks = new ArrayList<>();
+  protected RQ rawRequest;
+  protected final List<Thunk<D>> thunks = new ArrayList<>();
 
   /**
    * Get the total number of records processed in the request
