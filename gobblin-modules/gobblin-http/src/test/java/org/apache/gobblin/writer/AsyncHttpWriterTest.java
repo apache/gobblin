@@ -300,7 +300,7 @@ public class AsyncHttpWriterTest {
       if (request instanceof AsyncRequest) {
         AsyncRequest asyncRequest = (AsyncRequest) request;
         recordsInLastRequest = new ArrayList<>();
-        asyncRequest.getThunks().forEach( thunk -> recordsInLastRequest.add(thunk));
+        asyncRequest.getThunksCopy().forEach( thunk -> recordsInLastRequest.add(thunk));
       }
       attempts++;
       switch (type) {

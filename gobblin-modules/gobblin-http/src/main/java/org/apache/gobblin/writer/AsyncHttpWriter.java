@@ -138,7 +138,7 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
    */
   protected void onSuccess(AsyncRequest<D, RQ> asyncRequest, ResponseStatus status) {
     final WriteResponse response = WriteResponse.EMPTY;
-    for (final AsyncRequest.Thunk thunk: asyncRequest.getThunks()) {
+    for (final AsyncRequest.Thunk thunk: asyncRequest.getThunksCopy()) {
       WriteCallback callback = (WriteCallback) thunk.callback;
       callback.onSuccess(new WriteResponse() {
         @Override
@@ -166,7 +166,7 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
    */
   @Deprecated
   protected void onFailure(AsyncRequest<D, RQ> asyncRequest, Throwable throwable) {
-    for (AsyncRequest.Thunk thunk: asyncRequest.getThunks()) {
+    for (AsyncRequest.Thunk thunk: asyncRequest.getThunksCopy()) {
       thunk.callback.onFailure(throwable);
     }
   }
@@ -179,7 +179,7 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
       failureEvent.addMetadata(ASYNC_REQUEST, asyncRequest.toString());
       failureEvent.submit(context);
     }
-    for (AsyncRequest.Thunk thunk : asyncRequest.getThunks()) {
+    for (AsyncRequest.Thunk thunk : asyncRequest.getThunksCopy()) {
       thunk.callback.onFailure(exception);
     }
   }
