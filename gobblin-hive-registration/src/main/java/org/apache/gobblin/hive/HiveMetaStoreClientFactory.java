@@ -18,11 +18,15 @@
 package org.apache.gobblin.hive;
 
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.pool2.BasePooledObjectFactory;
 import org.apache.commons.pool2.PooledObject;
 import org.apache.commons.pool2.impl.DefaultPooledObject;
+import org.apache.gobblin.broker.EmptyKey;
+import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
+import org.apache.gobblin.broker.iface.NotConfiguredException;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.HiveMetaHook;
 import org.apache.hadoop.hive.metastore.HiveMetaHookLoader;
@@ -45,6 +49,7 @@ import static org.apache.hadoop.hive.metastore.api.hive_metastoreConstants.META_
 /**
  * An implementation of {@link BasePooledObjectFactory} for {@link IMetaStoreClient}.
  */
+@Slf4j
 public class HiveMetaStoreClientFactory extends BasePooledObjectFactory<IMetaStoreClient> {
 
   private static final Logger LOG = LoggerFactory.getLogger(HiveMetaStoreClientFactory.class);
@@ -58,12 +63,18 @@ public class HiveMetaStoreClientFactory extends BasePooledObjectFactory<IMetaSto
   }
 
   private static HiveConf getHiveConf(Optional<String> hcatURI) {
-    HiveConf hiveConf = new HiveConf();
-    if (hcatURI.isPresent() && StringUtils.isNotBlank(hcatURI.get())) {
-      hiveConf.setVar(HiveConf.ConfVars.METASTOREURIS, hcatURI.get());
-      hiveConf.set(HIVE_METASTORE_TOKEN_SIGNATURE, hcatURI.get());
+    try {
+      HiveConf hiveConf = SharedResourcesBrokerFactory.getImplicitBroker()
+          .getSharedResource(new HiveConfFactory<>(), EmptyKey.INSTANCE);
+      if (hcatURI.isPresent() && StringUtils.isNotBlank(hcatURI.get())) {
+        hiveConf.setVar(HiveConf.ConfVars.METASTOREURIS, hcatURI.get());
+        hiveConf.set(HIVE_METASTORE_TOKEN_SIGNATURE, hcatURI.get());
+      }
+      return hiveConf;
+    } catch (NotConfiguredException nce) {
+      log.error("Implicit broker is not correctly configured, failed to fetch a HiveConf object", nce);
+      return null;
     }
-    return hiveConf;
   }
 
   public HiveMetaStoreClientFactory(HiveConf hiveConf) {

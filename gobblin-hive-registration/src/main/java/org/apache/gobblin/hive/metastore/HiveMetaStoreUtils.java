@@ -18,6 +18,8 @@
 package org.apache.gobblin.hive.metastore;
 
 import com.google.common.base.Splitter;
+
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -27,6 +29,11 @@ import java.util.Properties;
 
 import org.apache.avro.SchemaParseException;
 import org.apache.commons.lang.reflect.MethodUtils;
+import org.apache.gobblin.broker.EmptyKey;
+import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
+import org.apache.gobblin.broker.iface.NotConfiguredException;
+import org.apache.gobblin.hive.HiveConfFactory;
+import org.apache.gobblin.metrics.broker.LineageInfoFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.MetaStoreUtils;
@@ -370,14 +377,18 @@ public class HiveMetaStoreUtils {
     }
 
     String serde = serdeClass.get();
-    HiveConf hiveConf = new HiveConf();
-
+    HiveConf hiveConf;
     Deserializer deserializer;
     try {
+      hiveConf = SharedResourcesBrokerFactory
+        .getImplicitBroker().getSharedResource(new HiveConfFactory<>(), EmptyKey.INSTANCE);
       deserializer =
           ReflectionUtils.newInstance(hiveConf.getClassByName(serde).asSubclass(Deserializer.class), hiveConf);
     } catch (ClassNotFoundException e) {
       LOG.warn("Serde class " + serde + " not found!", e);
+      return null;
+    } catch (NotConfiguredException nce) {
+      LOG.error("Implicit broker is not configured properly", nce);
       return null;
     }
 
