@@ -122,5 +122,25 @@ public class NonObservingFSJobCatalog extends FSJobCatalog {
       LOGGER.warn("No file with URI:" + jobURI + " is found. Deletion failed.");
     }
   }
+
+  @Override
+  public synchronized void remove(JobSpec jobSpec) {
+    Preconditions.checkState(state() == State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
+    try {
+      long startTime = System.currentTimeMillis();
+      Path jobSpecPath = getPathForURI(this.jobConfDirPath, jobSpec.getUri());
+
+      if (fs.exists(jobSpecPath)) {
+        fs.delete(jobSpecPath, false);
+        this.mutableMetrics.updateRemoveJobTime(startTime);
+      } else {
+        LOGGER.warn("No file with URI:" + jobSpecPath + " is found. Deletion failed.");
+      }
+
+      this.listeners.onDeleteJob(jobSpec);
+    } catch (IOException e) {
+      throw new RuntimeException("When removing a JobConf. file, issues unexpected happen:" + e.getMessage());
+    }
+  }
 }
 

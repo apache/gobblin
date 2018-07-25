@@ -24,6 +24,7 @@ import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.lang.exception.ExceptionUtils;
+import org.apache.gobblin.runtime.JobException;
 import org.apache.hadoop.fs.Path;
 import org.apache.helix.HelixManager;
 import org.apache.helix.task.Task;
@@ -133,7 +134,11 @@ public class GobblinHelixJobTask implements Task {
   public void cancel() {
     log.info("Cancelling planning job {}", this.planningJobId);
     if (launcher != null) {
-      launcher.executeCancellation();
+      try {
+        launcher.cancelJob(launcher.getJobListener());
+      } catch (JobException e) {
+        throw new RuntimeException("Unable to cancel planning job " + this.planningJobId + ": ", e);
+      }
     }
   }
 }

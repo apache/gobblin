@@ -21,6 +21,10 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import org.apache.gobblin.runtime.JobException;
+import org.apache.gobblin.runtime.JobLauncher;
+import org.apache.gobblin.runtime.listeners.JobListener;
+import org.apache.gobblin.util.Either;
 import org.apache.helix.HelixManager;
 import org.apache.helix.manager.zk.ZKHelixManager;
 import org.apache.helix.model.HelixConfigScope;
@@ -36,6 +40,9 @@ import org.apache.helix.tools.ClusterSetup;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
+
+import static org.apache.helix.task.TaskState.STOPPED;
+
 
 /**
  * A utility class for working with Gobblin on Helix.
@@ -123,7 +130,7 @@ public class HelixUtils {
       String jobName,
       Optional<Long> timeoutInSeconds) throws InterruptedException, TimeoutException {
 
-    log.info("Waiting for job to complete...");
+    log.info("Waiting for job {} to complete...", jobName);
     long endTime = 0;
     if (timeoutInSeconds.isPresent()) {
       endTime = System.currentTimeMillis() + timeoutInSeconds.get() * 1000;
@@ -132,21 +139,64 @@ public class HelixUtils {
     while (!timeoutInSeconds.isPresent() || System.currentTimeMillis() <= endTime) {
       WorkflowContext workflowContext = TaskDriver.getWorkflowContext(helixManager, workFlowName);
       if (workflowContext != null) {
-        org.apache.helix.task.TaskState helixJobState = workflowContext.getJobState(TaskUtil.getNamespacedJobName(workFlowName, jobName));
-        if (helixJobState == org.apache.helix.task.TaskState.COMPLETED ||
-            helixJobState == org.apache.helix.task.TaskState.FAILED ||
-            helixJobState == org.apache.helix.task.TaskState.STOPPED) {
-          return;
+        switch (workflowContext.getJobState(TaskUtil.getNamespacedJobName(workFlowName, jobName))) {
+          case STOPPED:
+            // user requested cancellation, which is executed by executeCancellation()
+            log.info("Job {} is cancelled, it will be deleted now.", jobName);
+            new TaskDriver(helixManager).deleteAndWaitForCompletion(workFlowName, 10000L);
+            return;
+          case FAILED:
+          case COMPLETED:
+            return;
         }
-      } else {
-        // We have waited for WorkflowContext to get initialized,
-        // so it is found null here, it must have been deleted in job cancellation process.
-        log.info("WorkflowContext not found. Job is probably cancelled.");
-        return;
       }
+      log.info("Waiting for job {} to complete...", jobName);
       Thread.sleep(1000);
     }
 
     throw new TimeoutException("task driver wait time [" + timeoutInSeconds + " sec] is expired.");
+  }
+
+  public static void handleJobTimeout(String workFlowName, String jobName, HelixManager helixManager,
+      Either<GobblinHelixJobLauncher, GobblinHelixDistributeJobExecutionLauncher> jobLauncher,
+      JobListener jobListener) throws InterruptedException {
+    new TaskDriver(helixManager).waitToStop(workFlowName, 10000L);
+    try {
+      if (jobLauncher instanceof Either.Left) {
+        ((Either.Left<GobblinHelixJobLauncher, GobblinHelixDistributeJobExecutionLauncher>) jobLauncher).getLeft()
+            .cancelJob(jobListener);
+      } else if (jobLauncher instanceof Either.Right) {
+        ((Either.Right<GobblinHelixJobLauncher, GobblinHelixDistributeJobExecutionLauncher>) jobLauncher).getRight()
+            .getJobMonitor().cancel(true);
+      }
+    } catch (JobException e) {
+      throw new RuntimeException("Unable to cancel job " + jobName + ": ", e);
+    }
+    // TODO : fix this when HELIX-1180 is completed
+    // We should not be deleting a workflow explicitly.
+    // Workflow state should be set to a final state, which will remove it automatically because expiry time is set.
+    // After that, all delete calls can be replaced by something like HelixUtils.setStateToFinal();
+    HelixUtils.deleteStoppedHelixJob(helixManager, workFlowName, jobName);
+    log.info("Stopped and deleted the workflow {}", workFlowName);
+  }
+  /**
+   * Deletes the stopped Helix Workflow.
+   * Caller should stop the Workflow before calling this method.
+   * @param helixManager helix manager
+   * @param workFlowName workflow needed to be deleted
+   * @param jobName helix job name
+   * @throws InterruptedException
+   */
+  public static void deleteStoppedHelixJob(HelixManager helixManager, String workFlowName, String jobName)
+  throws InterruptedException {
+    WorkflowContext workflowContext = TaskDriver.getWorkflowContext(helixManager, workFlowName);
+    while (workflowContext.getJobState(TaskUtil.getNamespacedJobName(workFlowName, jobName)) != STOPPED) {
+      log.info("Waiting for job {} to stop...", jobName);
+      workflowContext = TaskDriver.getWorkflowContext(helixManager, workFlowName);
+      Thread.sleep(1000);
+    }
+    // deleting the entire workflow, as one workflow contains only one job
+    new TaskDriver(helixManager).deleteAndWaitForCompletion(workFlowName, 10000L);
+    log.info("Workflow deleted.");
   }
 }

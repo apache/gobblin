@@ -19,7 +19,6 @@ package org.apache.gobblin.cluster;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -31,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.apache.gobblin.util.Either;
 import org.apache.hadoop.fs.Path;
 import org.apache.helix.HelixManager;
 import org.slf4j.Logger;
@@ -90,7 +90,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
   private final Metrics metrics;
   private boolean startServicesCompleted;
   @Getter
-  private Map<String, GobblinHelixJobLauncher> jobLaunchers;
+  private Map<String, Either<GobblinHelixJobLauncher, GobblinHelixDistributeJobExecutionLauncher>> jobLaunchers;
   public static final String JOB_URI = "job.uri";
 
   public GobblinHelixJobScheduler(Properties properties, HelixManager helixManager, EventBus eventBus,
@@ -124,6 +124,16 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
   @Override
   public StandardMetrics getStandardMetrics() {
     return metrics;
+  }
+
+  public void addJobLauncherToRunningJobs(
+      Either<GobblinHelixJobLauncher, GobblinHelixDistributeJobExecutionLauncher> jobLauncher, Properties jobProps) {
+    // Adding a reference of the job launcher to the map
+    // caller should remove the reference after use
+    if (jobProps.containsKey(JOB_URI) && !jobLaunchers.containsKey(jobProps.getProperty("job.uri"))) {
+      this.jobLaunchers.put(jobProps.getProperty(JOB_URI), jobLauncher);
+      LOGGER.info("Added job launcher for " + jobProps.getProperty(JOB_URI));
+    }
   }
 
   private class Metrics extends StandardMetrics {
@@ -291,15 +301,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     combinedProps.putAll(properties);
     combinedProps.putAll(jobProps);
 
-    GobblinHelixJobLauncher jobLauncher = new GobblinHelixJobLauncher(combinedProps, this.helixManager, this.appWorkDir, this.metadataTags, this.jobRunningMap);
-
-    // Adding a reference to job launcher to the map
-    // caller should remove the reference after use
-    if (combinedProps.containsKey(JOB_URI) && !jobLaunchers.containsKey(combinedProps.getProperty("job.uri"))) {
-      jobLaunchers.put(combinedProps.getProperty(JOB_URI), jobLauncher);
-      LOGGER.info("Added job launcher for " + combinedProps.getProperty(JOB_URI));
-    }
-    return jobLauncher;
+    return new GobblinHelixJobLauncher(combinedProps, this.helixManager, this.appWorkDir, this.metadataTags, this.jobRunningMap);
   }
 
   public Future<?> scheduleJobImmediately(Properties jobProps, JobListener jobListener) {
@@ -397,16 +399,28 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     try {
       unscheduleJob(deleteJobArrival.getJobName());
       if (Boolean.parseBoolean(deleteJobArrival.getJobConfig().getProperty(ConfigurationKeys.CANCEL_RUNNING_JOB, "false"))) {
-        if (this.jobLaunchers.containsKey(deleteJobArrival.getJobName())) {
-          GobblinHelixJobLauncher jobLauncher = this.jobLaunchers.get(deleteJobArrival.getJobName());
-          jobLauncher.cancelJob(jobLauncher.getJobListener());
-        } else {
-          LOGGER.info("jobLauncher not found for job " + deleteJobArrival.getJobName());
-        }
+        cancelJob(deleteJobArrival);
       }
-
     } catch (JobException je) {
       LOGGER.error("Failed to unschedule job " + deleteJobArrival.getJobName());
+    }
+  }
+
+  private void cancelJob(DeleteJobConfigArrivalEvent deleteJobArrival) throws JobException {
+    if (this.jobLaunchers.containsKey(deleteJobArrival.getJobName())) {
+      Either<GobblinHelixJobLauncher, GobblinHelixDistributeJobExecutionLauncher> jobLauncher = this.jobLaunchers.get(deleteJobArrival.getJobName());
+      if (jobLauncher instanceof Either.Left) {
+        ((Either.Left<GobblinHelixJobLauncher, GobblinHelixDistributeJobExecutionLauncher>) jobLauncher).getLeft()
+            .cancelJob(((Either.Left<GobblinHelixJobLauncher, GobblinHelixDistributeJobExecutionLauncher>) jobLauncher).getLeft().getJobListener());
+      } else if (jobLauncher instanceof Either.Right) {
+        ((Either.Right<GobblinHelixJobLauncher, GobblinHelixDistributeJobExecutionLauncher>) jobLauncher).getRight()
+            .getJobMonitor().cancel(true);
+      }
+      else {
+        LOGGER.info("JobLauncher of type {} found for job {}.", jobLauncher.getClass(), deleteJobArrival.getJobName());
+      }
+    } else {
+      LOGGER.info("JobLauncher not found for job {}. It might not be running.", deleteJobArrival.getJobName());
     }
   }
 

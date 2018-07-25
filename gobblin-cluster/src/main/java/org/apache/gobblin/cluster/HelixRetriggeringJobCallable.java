@@ -20,6 +20,7 @@ package org.apache.gobblin.cluster;
 import java.util.Properties;
 import java.util.concurrent.Callable;
 
+import org.apache.gobblin.util.Either;
 import org.apache.hadoop.fs.Path;
 import org.apache.helix.HelixManager;
 
@@ -30,7 +31,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.JobException;
-import org.apache.gobblin.runtime.JobLauncher;
 import org.apache.gobblin.runtime.api.ExecutionResult;
 import org.apache.gobblin.runtime.api.JobExecutionMonitor;
 import org.apache.gobblin.runtime.listeners.JobListener;
@@ -73,7 +73,7 @@ class HelixRetriggeringJobCallable implements Callable {
   private Properties sysProps;
   private Properties jobProps;
   private JobListener jobListener;
-  private JobLauncher currentJobLauncher = null;
+  private GobblinHelixJobLauncher currentJobLauncher = null;
   private JobExecutionMonitor currentJobMonitor = null;
   private Path appWorkDir;
   private HelixManager helixManager;
@@ -122,6 +122,7 @@ class HelixRetriggeringJobCallable implements Callable {
     try {
       while (true) {
         currentJobLauncher = this.jobScheduler.buildJobLauncher(jobProps);
+        this.jobScheduler.addJobLauncherToRunningJobs(Either.left(currentJobLauncher), jobProps);
         boolean isEarlyStopped = this.jobScheduler.runJob(jobProps, jobListener, currentJobLauncher);
         boolean isRetriggerEnabled = this.isRetriggeringEnabled();
         if (isEarlyStopped && isRetriggerEnabled) {
@@ -154,6 +155,7 @@ class HelixRetriggeringJobCallable implements Callable {
         try (Closer closer = Closer.create()) {
           GobblinHelixDistributeJobExecutionLauncher launcher = builder.build();
           closer.register(launcher);
+          this.jobScheduler.addJobLauncherToRunningJobs(Either.right(launcher), jobProps);
           this.currentJobMonitor = launcher.launchJob(null);
           ExecutionResult result = this.currentJobMonitor.get();
           boolean isEarlyStopped = ((GobblinHelixDistributeJobExecutionLauncher.DistributeJobResult) result).isEarlyStopped();
@@ -166,6 +168,8 @@ class HelixRetriggeringJobCallable implements Callable {
           currentJobMonitor = null;
         } catch (Throwable t) {
           throw new JobException("Failed to launch and run job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), t);
+        } finally {
+          this.jobScheduler.getJobLaunchers().remove(jobProps.getProperty(GobblinHelixJobScheduler.JOB_URI));
         }
       }
     } catch (Exception e) {
