@@ -105,7 +105,12 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
     long startTime = System.nanoTime();
     Map<Spec, SpecExecutor> specExecutorMap = Maps.newLinkedHashMap();
 
-    FlowGraphPathFinder pathFinder = new FlowGraphPathFinder(this.flowGraph, (FlowSpec) spec);
+    FlowSpec flowSpec = (FlowSpec) spec;
+    String source = flowSpec.getConfig().getString(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY);
+    String destination = flowSpec.getConfig().getString(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY);
+    log.info(String.format("Compiling flow for source: %s and destination: %s", source, destination));
+
+    FlowGraphPathFinder pathFinder = new FlowGraphPathFinder(this.flowGraph, flowSpec);
     try {
       Dag<JobExecutionPlan> jobExecutionPlanDag = pathFinder.findPath();
       //TODO: Just a dummy return value for now. compileFlow() signature needs to be modified to return a Dag instead
@@ -116,7 +121,7 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
       }
     } catch (FlowGraphPathFinder.PathFinderException e) {
       Instrumented.markMeter(this.flowCompilationFailedMeter);
-      log.error("Exception encountered while compiling flow spec", e);
+      log.error(String.format("Exception encountered while compiling flow for source: %s and destination: %s", source, destination), e);
       return null;
     }
     Instrumented.markMeter(this.flowCompilationSuccessFulMeter);
