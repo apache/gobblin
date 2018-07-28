@@ -52,6 +52,7 @@ import com.linkedin.restli.server.validation.RestLiValidationFilter;
 
 import lombok.Builder;
 import lombok.Getter;
+import lombok.Setter;
 
 
 /**
@@ -76,8 +77,8 @@ public class EmbeddedRestliServer extends AbstractIdleService {
 
   @Getter
   private final URI serverUri;
-  @Getter
-  private final int port;
+  @Getter @Setter
+  private int port;
   @Getter
   private final Injector injector;
   private final Logger log;

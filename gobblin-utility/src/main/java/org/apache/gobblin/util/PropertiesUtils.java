@@ -61,6 +61,10 @@ public class PropertiesUtils {
     return Boolean.valueOf(properties.getProperty(key, defaultValue));
   }
 
+  public static long getPropAsLong(Properties properties, String key, long defaultValue) {
+    return Long.parseLong(properties.getProperty(key, Long.toString(defaultValue)));
+  }
+
   /**
    * Extract all the keys that start with a <code>prefix</code> in {@link Properties} to a new {@link Properties}
    * instance.

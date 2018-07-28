@@ -43,6 +43,9 @@ import com.google.common.io.Files;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.crypto.EncryptionConfigParser;
+import org.apache.gobblin.crypto.GPGFileDecryptor;
+import org.apache.gobblin.crypto.GPGFileEncryptor;
+import org.apache.gobblin.crypto.GPGFileEncryptorTest;
 import org.apache.gobblin.data.management.copy.CopyConfiguration;
 import org.apache.gobblin.data.management.copy.CopySource;
 import org.apache.gobblin.data.management.copy.CopyableDatasetMetadata;
@@ -132,6 +135,105 @@ public class FileAwareInputStreamDataWriterTest {
     Assert.assertTrue(writtenFilePath.getName().endsWith("insecure_shift"),
         "Expected encryption name to be appended to destination");
     Assert.assertEquals(IOUtils.toByteArray(new FileInputStream(writtenFilePath.toString())), expectedContents);
+  }
+
+  @Test
+  public void testWriteWithGPGSymmetricEncryption() throws Exception {
+    byte[] streamString = "testEncryptedContents".getBytes("UTF-8");
+
+    FileStatus status = fs.getFileStatus(testTempPath);
+    OwnerAndPermission ownerAndPermission =
+        new OwnerAndPermission(status.getOwner(), status.getGroup(), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
+    CopyableFile cf = CopyableFileUtils.getTestCopyableFile(ownerAndPermission);
+
+    CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(new TestCopyableDataset(new Path("/source")));
+
+    WorkUnitState state = TestUtils.createTestWorkUnitState();
+    state.setProp(ConfigurationKeys.WRITER_STAGING_DIR, new Path(testTempPath, "staging").toString());
+    state.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, new Path(testTempPath, "output").toString());
+    state.setProp(ConfigurationKeys.WRITER_FILE_PATH, RandomStringUtils.randomAlphabetic(5));
+    state.setProp("writer.encrypt." + EncryptionConfigParser.ENCRYPTION_ALGORITHM_KEY, "gpg");
+    state.setProp("writer.encrypt." + EncryptionConfigParser.ENCRYPTION_KEYSTORE_PASSWORD_KEY, "testPassword");
+
+    CopySource.serializeCopyEntity(state, cf);
+    CopySource.serializeCopyableDataset(state, metadata);
+
+    FileAwareInputStreamDataWriter dataWriter = new FileAwareInputStreamDataWriter(state, 1, 0);
+
+    FileAwareInputStream fileAwareInputStream = new FileAwareInputStream(cf, StreamUtils.convertStream(
+        new ByteArrayInputStream(streamString)));
+    dataWriter.write(fileAwareInputStream);
+    dataWriter.commit();
+
+    Path writtenFilePath = new Path(new Path(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR),
+        cf.getDatasetAndPartition(metadata).identifier()), cf.getDestination());
+    Assert.assertTrue(writtenFilePath.getName().endsWith("gpg"),
+        "Expected encryption name to be appended to destination");
+    byte[] encryptedContent = IOUtils.toByteArray(new FileInputStream(writtenFilePath.toString()));
+    byte[] decryptedContent = new byte[streamString.length];
+    IOUtils.readFully(GPGFileDecryptor.decryptFile(new FileInputStream(writtenFilePath.toString()), "testPassword"),
+        decryptedContent);
+
+
+    // encrypted string should not be the same as the plaintext
+    Assert.assertNotEquals(encryptedContent, streamString);
+
+    // decrypted string should be the same as the plaintext
+    Assert.assertEquals(decryptedContent, streamString);
+
+  }
+
+  @Test
+  public void testWriteWithGPGAsymmetricEncryption() throws Exception {
+    byte[] streamString = "testEncryptedContents".getBytes("UTF-8");
+
+    FileStatus status = fs.getFileStatus(testTempPath);
+    OwnerAndPermission ownerAndPermission =
+        new OwnerAndPermission(status.getOwner(), status.getGroup(), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
+    CopyableFile cf = CopyableFileUtils.getTestCopyableFile(ownerAndPermission);
+
+    CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(new TestCopyableDataset(new Path("/source")));
+
+    WorkUnitState state = TestUtils.createTestWorkUnitState();
+    state.setProp(ConfigurationKeys.WRITER_STAGING_DIR, new Path(testTempPath, "staging").toString());
+    state.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, new Path(testTempPath, "output").toString());
+    state.setProp(ConfigurationKeys.WRITER_FILE_PATH, RandomStringUtils.randomAlphabetic(5));
+    state.setProp("writer.encrypt." + EncryptionConfigParser.ENCRYPTION_ALGORITHM_KEY, "gpg");
+    state.setProp("writer.encrypt." + EncryptionConfigParser.ENCRYPTION_KEYSTORE_PATH_KEY,
+        GPGFileEncryptor.class.getResource(
+            GPGFileEncryptorTest.PUBLIC_KEY).toString());
+    state.setProp("writer.encrypt." + EncryptionConfigParser.ENCRYPTION_KEYSTORE_PASSWORD_KEY,
+        GPGFileEncryptorTest.PASSPHRASE);
+    state.setProp("writer.encrypt." + EncryptionConfigParser.ENCRYPTION_KEY_NAME,
+        GPGFileEncryptorTest.KEY_ID);
+
+    CopySource.serializeCopyEntity(state, cf);
+    CopySource.serializeCopyableDataset(state, metadata);
+
+    FileAwareInputStreamDataWriter dataWriter = new FileAwareInputStreamDataWriter(state, 1, 0);
+
+    FileAwareInputStream fileAwareInputStream = new FileAwareInputStream(cf, StreamUtils.convertStream(
+        new ByteArrayInputStream(streamString)));
+    dataWriter.write(fileAwareInputStream);
+    dataWriter.commit();
+
+    Path writtenFilePath = new Path(new Path(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR),
+        cf.getDatasetAndPartition(metadata).identifier()), cf.getDestination());
+    Assert.assertTrue(writtenFilePath.getName().endsWith("gpg"),
+        "Expected encryption name to be appended to destination");
+    byte[] encryptedContent = IOUtils.toByteArray(new FileInputStream(writtenFilePath.toString()));
+    byte[] decryptedContent = new byte[streamString.length];
+    IOUtils.readFully(GPGFileDecryptor.decryptFile(new FileInputStream(writtenFilePath.toString()),
+        GPGFileEncryptor.class.getResourceAsStream(GPGFileEncryptorTest.PRIVATE_KEY),
+        GPGFileEncryptorTest.PASSPHRASE), decryptedContent);
+
+
+    // encrypted string should not be the same as the plaintext
+    Assert.assertNotEquals(encryptedContent, streamString);
+
+    // decrypted string should be the same as the plaintext
+    Assert.assertEquals(decryptedContent, streamString);
+
   }
 
   @Test

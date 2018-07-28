@@ -53,6 +53,7 @@ public class CloudInitScriptBuilder {
   private static final String NFS_SERVER_START_CMD = "/etc/init.d/nfs start";
   private static final String NFS_EXPORT_FS_CMD = "exportfs -a";
   private static final String NFS_TYPE_4 = "nfs4";
+  public static final String BASH = "#!/bin/bash";
 
   /***
    * This method generates the script that would be executed by cloud-init module in EC2 instance
@@ -87,7 +88,7 @@ public class CloudInitScriptBuilder {
       String masterS3ConfUri, String masterS3ConfFiles,
       String masterS3JarsUri, String masterS3JarsFiles, String masterJarsDir,
       String masterJvmMemory, Optional<String> masterJvmArgs, Optional<String> gobblinVersion) {
-    final StringBuilder cloudInitCmds = new StringBuilder().append("#!/bin/bash").append("\n");
+    final StringBuilder cloudInitCmds = new StringBuilder().append(BASH).append("\n");
 
     final String clusterMasterClassName = GobblinAWSClusterManager.class.getSimpleName();
 
@@ -196,7 +197,7 @@ public class CloudInitScriptBuilder {
       String workerS3ConfUri, String workerS3ConfFiles,
       String workerS3JarsUri, String workerS3JarsFiles, String workerJarsDir,
       String workerJvmMemory, Optional<String> workerJvmArgs, Optional<String> gobblinVersion) {
-    final StringBuilder cloudInitCmds = new StringBuilder().append("#!/bin/bash").append("\n");
+    final StringBuilder cloudInitCmds = new StringBuilder().append(BASH).append("\n");
 
     final String clusterWorkerClassName = GobblinAWSTaskRunner.class.getSimpleName();
 
@@ -262,7 +263,7 @@ public class CloudInitScriptBuilder {
         .append(clusterWorkerClassName).append(".")
         .append("$pi").append(".")
         .append(CloudInitScriptBuilder.STDERR);
-    cloudInitCmds.append(launchGobblinClusterWorkerCmd);
+    cloudInitCmds.append(launchGobblinClusterWorkerCmd).append("\n");
 
     final String cloudInitScript = cloudInitCmds.toString();
     LOGGER.info("Cloud-init script for worker node: " + cloudInitScript);

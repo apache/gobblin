@@ -21,9 +21,11 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeoutException;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -31,12 +33,9 @@ import org.apache.hadoop.fs.Path;
 import org.apache.helix.HelixManager;
 import org.apache.helix.task.JobConfig;
 import org.apache.helix.task.JobQueue;
-import org.apache.helix.task.TargetState;
 import org.apache.helix.task.TaskConfig;
 import org.apache.helix.task.TaskDriver;
 import org.apache.helix.task.TaskUtil;
-import org.apache.helix.task.WorkflowConfig;
-import org.apache.helix.task.WorkflowContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,6 +45,7 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
 
 import javax.annotation.Nullable;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -97,6 +97,7 @@ import org.apache.gobblin.util.SerializationUtils;
  * @author Yinan Li
  */
 @Alpha
+@Slf4j
 public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinHelixJobLauncher.class);
@@ -105,7 +106,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
   private final HelixManager helixManager;
   private final TaskDriver helixTaskDriver;
-  private final String helixQueueName;
+  private final String helixWorkFlowName;
   private final String jobResourceName;
   private JobListener jobListener;
 
@@ -124,7 +125,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   private final ConcurrentHashMap<String, Boolean> runningMap;
   private final StateStores stateStores;
   private final Config jobConfig;
-  private final long jobQueueDeleteTimeoutSeconds;
+  private final long workFlowExpiryTimeSeconds;
 
   public GobblinHelixJobLauncher(Properties jobProps, final HelixManager helixManager, Path appWorkDir,
       List<? extends Tag<?>> metadataTags, ConcurrentHashMap<String, Boolean> runningMap)
@@ -137,11 +138,11 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     this.runningMap = runningMap;
     this.appWorkDir = appWorkDir;
     this.inputWorkUnitDir = new Path(appWorkDir, GobblinClusterConfigurationKeys.INPUT_WORK_UNIT_DIR_NAME);
-    this.outputTaskStateDir = new Path(this.appWorkDir, GobblinClusterConfigurationKeys.OUTPUT_TASK_STATE_DIR_NAME +
-        Path.SEPARATOR + this.jobContext.getJobId());
+    this.outputTaskStateDir = new Path(this.appWorkDir, GobblinClusterConfigurationKeys.OUTPUT_TASK_STATE_DIR_NAME
+        + Path.SEPARATOR + this.jobContext.getJobId());
 
-    this.helixQueueName = this.jobContext.getJobName();
-    this.jobResourceName = TaskUtil.getNamespacedJobName(this.helixQueueName, this.jobContext.getJobId());
+    this.helixWorkFlowName = this.jobContext.getJobId();
+    this.jobResourceName = TaskUtil.getNamespacedJobName(this.helixWorkFlowName, this.jobContext.getJobId());
 
     this.jobContext.getJobState().setJobLauncherType(LauncherTypeEnum.CLUSTER);
 
@@ -150,8 +151,9 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
     jobConfig = ConfigUtils.propertiesToConfig(jobProps);
 
-    this.jobQueueDeleteTimeoutSeconds = ConfigUtils.getLong(jobConfig, GobblinClusterConfigurationKeys.HELIX_JOB_QUEUE_DELETE_TIMEOUT_SECONDS,
-        GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_QUEUE_DELETE_TIMEOUT_SECONDS);
+    this.workFlowExpiryTimeSeconds = ConfigUtils.getLong(jobConfig,
+        GobblinClusterConfigurationKeys.HELIX_WORKFLOW_EXPIRY_TIME_SECONDS,
+        GobblinClusterConfigurationKeys.DEFAULT_HELIX_WORKFLOW_EXPIRY_TIME_SECONDS);
 
     Config stateStoreJobConfig = ConfigUtils.propertiesToConfig(jobProps)
         .withValue(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigValueFactory.fromAnyRef(
@@ -212,7 +214,13 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   protected void executeCancellation() {
     if (this.jobSubmitted) {
       try {
-        this.helixTaskDriver.delete(this.helixQueueName);
+        log.info("[DELETE] workflow {}", this.helixWorkFlowName);
+        if (this.cancellationRequested) {
+          // TODO : fix this when HELIX-1180 is completed
+          // work flow should never be deleted explicitly because it has a expiry time
+          // If cancellation is requested, we should set the job state to CANCELLED/ABORT
+          this.helixTaskDriver.delete(this.helixWorkFlowName);
+        }
       } catch (IllegalArgumentException e) {
         LOGGER.warn("Failed to cancel job {} in Helix", this.jobContext.getJobId(), e);
       }
@@ -272,6 +280,9 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
       jobConfigBuilder.setRebalanceRunningTask(true);
     }
 
+    jobConfigBuilder.setExpiry(this.jobContext.getJobState().getPropAsLong(
+        GobblinClusterConfigurationKeys.HELIX_WORKFLOW_EXPIRY_TIME_SECONDS, GobblinClusterConfigurationKeys.DEFAULT_HELIX_WORKFLOW_EXPIRY_TIME_SECONDS));
+
     return jobConfigBuilder;
   }
 
@@ -279,27 +290,8 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
    * Submit a job to run.
    */
   private void submitJobToHelix(JobConfig.Builder jobConfigBuilder) throws Exception {
-    WorkflowConfig workflowConfig = this.helixTaskDriver.getWorkflowConfig(this.helixManager, this.helixQueueName);
-
-    // If the queue is present, but in delete state then wait for cleanup before recreating the queue
-    if (workflowConfig != null && workflowConfig.getTargetState() == TargetState.DELETE) {
-      GobblinHelixTaskDriver gobblinHelixTaskDriver = new GobblinHelixTaskDriver(this.helixManager);
-      gobblinHelixTaskDriver.deleteWorkflow(this.helixQueueName, this.jobQueueDeleteTimeoutSeconds);
-      // if we get here then the workflow was successfully deleted
-      workflowConfig = null;
-    }
-
-    // Create one queue for each job with the job name being the queue name
-    if (workflowConfig == null) {
-        JobQueue jobQueue = new JobQueue.Builder(this.helixQueueName).build();
-        this.helixTaskDriver.createQueue(jobQueue);
-        LOGGER.info("Created job queue {}", this.helixQueueName);
-    } else {
-      LOGGER.info("Job queue {} already exists", this.helixQueueName);
-    }
-
-    // Put the job into the queue
-    this.helixTaskDriver.enqueueJob(this.jobContext.getJobName(), this.jobContext.getJobId(), jobConfigBuilder);
+    HelixUtils.submitJobToWorkFlow(jobConfigBuilder, this.helixWorkFlowName, this.jobContext.getJobId(),
+        this.helixTaskDriver, this.helixManager, this.workFlowExpiryTimeSeconds);
   }
 
   public void launchJob(@Nullable JobListener jobListener)
@@ -380,45 +372,22 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
         ConfigurationKeys.DEFAULT_HELIX_JOB_TIMEOUT_ENABLED));
     long timeoutInSeconds = Long.parseLong(this.jobProps.getProperty(ConfigurationKeys.HELIX_JOB_TIMEOUT_SECONDS,
         ConfigurationKeys.DEFAULT_HELIX_JOB_TIMEOUT_SECONDS));
-    long endTime = System.currentTimeMillis() + timeoutInSeconds*1000;
-    while (!timeoutEnabled || System.currentTimeMillis() <= endTime) {
-      WorkflowContext workflowContext = TaskDriver.getWorkflowContext(this.helixManager, this.helixQueueName);
-      if (workflowContext != null) {
-        org.apache.helix.task.TaskState helixJobState = workflowContext.getJobState(this.jobResourceName);
-        if (helixJobState == org.apache.helix.task.TaskState.COMPLETED ||
-            helixJobState == org.apache.helix.task.TaskState.FAILED ||
-            helixJobState == org.apache.helix.task.TaskState.STOPPED) {
-          return;
-        }
-      }
-      Thread.sleep(1000);
-    }
-    helixTaskDriverWaitToStop(this.helixQueueName, 10L);
-    try {
-      cancelJob(this.jobListener);
-    } catch (JobException e) {
-      throw new RuntimeException("Unable to cancel job " + jobContext.getJobName() + ": ", e);
-    }
-    this.helixTaskDriver.resume(this.helixQueueName);
-    LOGGER.info("stopped the queue, deleted the job");
-  }
 
-  /**
-   * Because fix https://github.com/apache/helix/commit/ae8e8e2ef37f48d782fc12f85ca97728cf2b70c4
-   * is not available in currently used version 0.6.9
-   */
-  private void helixTaskDriverWaitToStop(String workflow, long timeoutInSeconds) throws InterruptedException {
-    this.helixTaskDriver.stop(workflow);
-    long endTime = System.currentTimeMillis() + timeoutInSeconds*1000;
-    while (System.currentTimeMillis() <= endTime) {
-      WorkflowContext workflowContext = TaskDriver.getWorkflowContext(this.helixManager, this.helixQueueName);
-      if (workflowContext == null || workflowContext.getWorkflowState()
-          .equals(org.apache.helix.task.TaskState.IN_PROGRESS)) {
-        Thread.sleep(1000);
-      } else {
-        LOGGER.info("Successfully stopped the queue");
-        return;
+    try {
+      HelixUtils.waitJobCompletion(
+          this.helixManager,
+          this.helixWorkFlowName,
+          this.jobContext.getJobId(),
+          timeoutEnabled? Optional.of(timeoutInSeconds) : Optional.empty());
+    } catch (TimeoutException te) {
+      helixTaskDriver.waitToStop(helixWorkFlowName, 10L);
+      try {
+        cancelJob(this.jobListener);
+      } catch (JobException e) {
+        throw new RuntimeException("Unable to cancel job " + jobContext.getJobName() + ": ", e);
       }
+      this.helixTaskDriver.resume(this.helixWorkFlowName);
+      LOGGER.info("stopped the queue, deleted the job");
     }
   }
 

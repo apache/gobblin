@@ -59,7 +59,6 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.Service;
@@ -90,9 +89,10 @@ import static org.apache.gobblin.cluster.GobblinClusterConfigurationKeys.CLUSTER
  * {@link org.apache.gobblin.source.workunit.WorkUnit}s.
  *
  * <p>
- *   This class serves as a Helix participant and it uses a {@link HelixManager} to work with Helix.
- *   This class also uses the Helix task execution framework and {@link GobblinHelixTaskFactory} class
- *   for creating {@link GobblinHelixTask}s that Helix manages to run Gobblin data ingestion tasks.
+ *   This class presents a Helix participant and uses a {@link HelixManager} to communicate with Helix.
+ *   It also uses Helix task execution framework and {@link GobblinHelixTaskFactory} class to generate
+ *   {@link GobblinHelixTask}s which handles real Gobblin tasks. All the Helix related task framework is
+ *   encapsulated in {@link TaskRunnerSuiteBase}.
  * </p>
  *
  * <p>
@@ -116,6 +116,8 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
   static final java.nio.file.Path CLUSTER_CONF_PATH = Paths.get("generated-gobblin-cluster.conf");
 
   static final String GOBBLIN_TASK_FACTORY_NAME = "GobblinTaskFactory";
+
+  static final String GOBBLIN_JOB_FACTORY_NAME = "GobblinJobFactory";
 
   private final String helixInstanceName;
 
@@ -173,9 +175,12 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
     TaskRunnerSuiteBase suite = builder.setAppWorkPath(this.appWorkPath)
         .setContainerMetrics(this.containerMetrics)
         .setFileSystem(this.fs)
-        .setHelixManager(this.helixManager).build();
+        .setHelixManager(this.helixManager)
+        .setApplicationId(applicationId)
+        .setApplicationName(applicationName)
+        .build();
 
-    this.taskStateModelFactory = createTaskStateModelFactory(suite.getTaskFactory());
+    this.taskStateModelFactory = createTaskStateModelFactory(suite.getTaskFactoryMap());
     this.metrics = suite.getTaskMetrics();
     this.metricContext = suite.getMetricContext();
     this.services.addAll(suite.getServices());
@@ -205,10 +210,7 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
         this.clusterName, this.helixInstanceName, InstanceType.PARTICIPANT, zkConnectionString);
   }
 
-  private TaskStateModelFactory createTaskStateModelFactory(TaskFactory factory) {
-    Map<String, TaskFactory> taskFactoryMap = Maps.newHashMap();
-
-    taskFactoryMap.put(GOBBLIN_TASK_FACTORY_NAME, factory);
+  private TaskStateModelFactory createTaskStateModelFactory(Map<String, TaskFactory> taskFactoryMap) {
     TaskStateModelFactory taskStateModelFactory =
         new TaskStateModelFactory(this.helixManager, taskFactoryMap);
     this.helixManager.getStateMachineEngine()

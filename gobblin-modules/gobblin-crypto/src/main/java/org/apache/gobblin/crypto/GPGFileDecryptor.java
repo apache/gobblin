@@ -81,9 +81,9 @@ public class GPGFileDecryptor {
   /**
    * Taking in a file inputstream, keyring inputstream and a passPhrase, generate a decrypted file inputstream.
    * @param inputStream file inputstream
-   * @param keyIn keyring inputstream
+   * @param keyIn keyring inputstream. This InputStream is owned by the caller.
    * @param passPhrase passPhrase
-   * @return
+   * @return an {@link InputStream} for the decrypted content
    * @throws IOException
    */
   public InputStream decryptFile(InputStream inputStream, InputStream keyIn, String passPhrase)

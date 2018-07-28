@@ -47,6 +47,12 @@ public interface JobTemplate extends Spec {
   Collection<String> getRequiredConfigList() throws SpecNotFoundException, TemplateException;
 
   /**
+   * Retrieve all job names that this job depends on. Useful for building a dag of
+   * JobTemplates.
+   */
+  Collection<String> getDependencies();
+
+  /**
    * Return the combine configuration of template and user customized attributes.
    * @return
    */

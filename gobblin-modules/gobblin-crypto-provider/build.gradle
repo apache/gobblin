@@ -24,6 +24,7 @@ dependencies {
 
   testCompile project(":gobblin-test-utils")
   testCompile externalDependency.testng
+  testCompile project(path: ":gobblin-modules:gobblin-crypto", configuration: "tests")
 }
 
 ext.classification="library"

@@ -22,4 +22,6 @@ package org.apache.gobblin.broker;
  */
 public class BrokerConstants {
   public static final String GOBBLIN_BROKER_CONFIG_PREFIX = "gobblin.broker";
+
+  public static final String GOBBLIN_BROKER_CONFIG_NAMESPACES = "gobblin.brokerNamespaces";
 }

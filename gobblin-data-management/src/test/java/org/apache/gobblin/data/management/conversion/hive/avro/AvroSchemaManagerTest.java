@@ -20,6 +20,11 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
+import org.apache.avro.Schema;
+import org.apache.avro.SchemaParseException;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.util.AvroUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -36,9 +41,6 @@ import org.testng.annotations.Test;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.configuration.State;
-
 
 public class AvroSchemaManagerTest {
   @Test
@@ -53,10 +55,27 @@ public class AvroSchemaManagerTest {
     Partition partition = getTestPartition(new Table("testDb", "testTable"));
     Path schemaPath = asm.getSchemaUrl(partition);
 
-    String actualSchema = fs.open(schemaPath).readUTF();
+    Schema actualSchema = AvroUtils.parseSchemaFromFile(schemaPath, fs);
     String expectedSchema = new String(Files.readAllBytes(
         Paths.get(getClass().getClassLoader().getResource("avroSchemaManagerTest/expectedSchema.avsc").getFile())));
-    Assert.assertEquals(actualSchema, expectedSchema);
+    Assert.assertEquals(actualSchema.toString(), expectedSchema);
+  }
+
+  @Test(expectedExceptions = SchemaParseException.class)
+  public void testExceptionWhenReadingSchemaUsingParser()
+      throws IOException, HiveException {
+    FileSystem fs = FileSystem.getLocal(new Configuration());
+
+    String jobId = "123";
+    State state = new State();
+    state.setProp(ConfigurationKeys.JOB_ID_KEY, jobId);
+
+    AvroSchemaManager asm = new AvroSchemaManager(fs, state);
+    Partition partition = getTestPartition(new Table("testDb", "testTable"));
+    Path schemaPath = asm.getSchemaUrl(partition);
+    // parse operation tries to read using UTF-8 encoding and fails
+    // because schema is written using modified UTF-8 encoding
+    new Schema.Parser().parse(fs.open(schemaPath));
   }
 
   private Partition getTestPartition(Table table) throws HiveException {

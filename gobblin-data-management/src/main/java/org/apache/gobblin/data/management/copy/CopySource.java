@@ -46,6 +46,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Multimaps;
 import com.google.common.collect.SetMultimap;
 
+import org.apache.gobblin.annotation.Alias;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.State;
@@ -78,6 +79,7 @@ import org.apache.gobblin.source.extractor.extract.AbstractSource;
 import org.apache.gobblin.source.workunit.Extract;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnitWeighter;
+import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.WriterUtils;
@@ -86,6 +88,7 @@ import org.apache.gobblin.util.binpacking.WorstFitDecreasingBinPacking;
 import org.apache.gobblin.util.deprecation.DeprecationUtils;
 import org.apache.gobblin.util.executors.IteratorExecutor;
 import org.apache.gobblin.util.guid.Guid;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.apache.gobblin.util.request_allocation.GreedyAllocator;
 import org.apache.gobblin.util.request_allocation.HierarchicalAllocator;
 import org.apache.gobblin.util.request_allocation.HierarchicalPrioritizer;
@@ -205,13 +208,19 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
       //Submit alertable events for unfulfilled requests
       submitUnfulfilledRequestEvents(allocator);
 
+      String filesetWuGeneratorAlias = state.getProp(ConfigurationKeys.COPY_SOURCE_FILESET_WU_GENERATOR_CLASS, FileSetWorkUnitGenerator.class.getName());
       Iterator<Callable<Void>> callableIterator =
           Iterators.transform(prioritizedFileSets, new Function<FileSet<CopyEntity>, Callable<Void>>() {
             @Nullable
             @Override
             public Callable<Void> apply(FileSet<CopyEntity> input) {
-              return new FileSetWorkUnitGenerator((CopyableDatasetBase) input.getDataset(), input, state, workUnitsMap,
-                  watermarkGenerator, minWorkUnitWeight);
+              try {
+                return GobblinConstructorUtils.<FileSetWorkUnitGenerator>invokeLongestConstructor(
+                    new ClassAliasResolver(FileSetWorkUnitGenerator.class).resolveClass(filesetWuGeneratorAlias),
+                    input.getDataset(), input, state, workUnitsMap, watermarkGenerator, minWorkUnitWeight, lineageInfo);
+              } catch (Exception e) {
+                throw new RuntimeException("Cannot create workunits generator", e);
+              }
             }
           });
 
@@ -242,8 +251,12 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
           log.info(String.format("Actions for dataset %s file set %s.", entry.getKey().getDataset().datasetURN(),
               entry.getKey().getName()));
           for (WorkUnit workUnit : entry.getValue()) {
-            CopyEntity copyEntity = deserializeCopyEntity(workUnit);
-            log.info(copyEntity.explain());
+            try {
+              CopyEntity copyEntity = deserializeCopyEntity(workUnit);
+              log.info(copyEntity.explain());
+            } catch (Exception e) {
+              log.info("Cannot deserialize CopyEntity from wu : {}", workUnit.toString());
+            }
           }
         }
         return Lists.newArrayList();
@@ -315,15 +328,17 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   /**
    * {@link Runnable} to generate copy listing for one {@link CopyableDataset}.
    */
+  @Alias("FileSetWorkUnitGenerator")
   @AllArgsConstructor
-  private class FileSetWorkUnitGenerator implements Callable<Void> {
+  public static class FileSetWorkUnitGenerator implements Callable<Void> {
 
-    private final CopyableDatasetBase copyableDataset;
-    private final FileSet<CopyEntity> fileSet;
-    private final State state;
-    private final SetMultimap<FileSet<CopyEntity>, WorkUnit> workUnitList;
-    private final Optional<CopyableFileWatermarkGenerator> watermarkGenerator;
-    private final long minWorkUnitWeight;
+    protected final CopyableDatasetBase copyableDataset;
+    protected final FileSet<CopyEntity> fileSet;
+    protected final State state;
+    protected final SetMultimap<FileSet<CopyEntity>, WorkUnit> workUnitList;
+    protected final Optional<CopyableFileWatermarkGenerator> watermarkGenerator;
+    protected final long minWorkUnitWeight;
+    protected final Optional<LineageInfo> lineageInfo;
 
     @Override
     public Void call() {
@@ -362,19 +377,31 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
             ioe);
       }
     }
-  }
 
-  private void addLineageInfo(CopyEntity copyEntity, WorkUnit workUnit) {
-    if (copyEntity instanceof CopyableFile) {
-      CopyableFile copyableFile = (CopyableFile) copyEntity;
+    private void setWorkUnitWatermark(WorkUnit workUnit, Optional<CopyableFileWatermarkGenerator> watermarkGenerator,
+        CopyEntity copyEntity)
+        throws IOException {
+      if (copyEntity instanceof CopyableFile) {
+        Optional<WatermarkInterval> watermarkIntervalOptional =
+            CopyableFileWatermarkHelper.getCopyableFileWatermark((CopyableFile) copyEntity, watermarkGenerator);
+        if (watermarkIntervalOptional.isPresent()) {
+          workUnit.setWatermarkInterval(watermarkIntervalOptional.get());
+        }
+      }
+    }
+
+    private void addLineageInfo(CopyEntity copyEntity, WorkUnit workUnit) {
+      if (copyEntity instanceof CopyableFile) {
+        CopyableFile copyableFile = (CopyableFile) copyEntity;
       /*
        * In Gobblin Distcp, the source and target path info of a CopyableFile are determined by its dataset found by
        * a DatasetFinder. Consequently, the source and destination dataset for the CopyableFile lineage are expected
        * to be set by the same logic
        */
-      if (lineageInfo.isPresent() && copyableFile.getSourceDataset() != null
-          && copyableFile.getDestinationDataset() != null) {
-        lineageInfo.get().setSource(copyableFile.getSourceDataset(), workUnit);
+        if (lineageInfo.isPresent() && copyableFile.getSourceDataset() != null
+            && copyableFile.getDestinationDataset() != null) {
+          lineageInfo.get().setSource(copyableFile.getSourceDataset(), workUnit);
+        }
       }
     }
   }
@@ -504,17 +531,5 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
    */
   public static CopyableDatasetMetadata deserializeCopyableDataset(State state) {
     return CopyableDatasetMetadata.deserialize(state.getProp(SERIALIZED_COPYABLE_DATASET));
-  }
-
-  private void setWorkUnitWatermark(WorkUnit workUnit, Optional<CopyableFileWatermarkGenerator> watermarkGenerator,
-      CopyEntity copyEntity)
-      throws IOException {
-    if (copyEntity instanceof CopyableFile) {
-      Optional<WatermarkInterval> watermarkIntervalOptional =
-          CopyableFileWatermarkHelper.getCopyableFileWatermark((CopyableFile) copyEntity, watermarkGenerator);
-      if (watermarkIntervalOptional.isPresent()) {
-        workUnit.setWatermarkInterval(watermarkIntervalOptional.get());
-      }
-    }
   }
 }

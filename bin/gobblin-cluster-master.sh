@@ -1,5 +1,22 @@
 #!/usr/bin/env bash
 
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 # Print an error message and exit
 function die() {
   echo -e "\nError: $@\n" 1>&2
@@ -29,12 +46,13 @@ function start() {
   fi
 
   LOG_ARGS="1>${FWDIR_LOGS}/GobblinCluster.master.stdout 2>${FWDIR_LOGS}/GobblinCluster.master.stderr"
-
-  COMMAND="$JAVA_HOME/bin/java -cp $CLASSPATH $JVM_FLAGS org.apache.gobblin.cluster.GobblinClusterManager --standalone_cluster true --app_name $CLUSTER_NAME $LOG_ARGS"
+  
+  LOG4J_PATH=file://${FWDIR_CONF}/log4j-cluster.properties
+  COMMAND="$JAVA_HOME/bin/java -Dlog4j.configuration=$LOG4J_PATH -cp $CLASSPATH $JVM_FLAGS org.apache.gobblin.cluster.GobblinClusterManager --standalone_cluster true --app_name $CLUSTER_NAME $LOG_ARGS"
 
   echo "Running command:"
   echo "$COMMAND"
-  nohup $COMMAND >master.out 2>&1 & echo $! > $PID
+  nohup $COMMAND >clustermaster.out 2>&1 & echo $! > $PID
 }
 
 function stop() {
@@ -52,7 +70,7 @@ function stop() {
 
 FWDIR="$(cd `dirname $0`/..; pwd)"
 FWDIR_LIB=${FWDIR}/lib
-FWDIR_CONF=${FWDIR}/conf/standalone
+FWDIR_CONF=${FWDIR}/conf/standalone/master
 FWDIR_BIN=${FWDIR}/bin
 FWDIR_LOGS=${FWDIR}/logs
 CLUSTER_NAME="standalone_cluster"

@@ -103,7 +103,7 @@ public class ConfigurationKeys {
   public static final String JOB_CONFIG_FILE_DIR_KEY = "jobconf.dir";
 
   // Path where all job configuration files stored
-  public static final String JOB_CONFIG_FILE_GENERAL_PATH_KEY = "jobconf.fullyQualifiedPath" ;
+  public static final String JOB_CONFIG_FILE_GENERAL_PATH_KEY = "jobconf.fullyQualifiedPath";
   // Job configuration file extensions
   public static final String JOB_CONFIG_FILE_EXTENSIONS_KEY = "jobconf.extensions";
   public static final String DEFAULT_JOB_CONFIG_FILE_EXTENSIONS = "pull,job";
@@ -178,6 +178,7 @@ public class ConfigurationKeys {
   public static final String WORK_UNIT_RETRY_ENABLED_KEY = "workunit.retry.enabled";
   public static final String WORK_UNIT_CREATION_TIME_IN_MILLIS = "workunit.creation.time.in.millis";
   public static final String WORK_UNIT_CREATION_AND_RUN_INTERVAL = "workunit.creation.and.run.interval";
+  public static final String WORK_UNIT_ENABLE_TRACKING_LOGS = "workunit.enableTrackingLogs";
 
   public static final String JOB_RUN_ONCE_KEY = "job.runonce";
   public static final String JOB_DISABLED_KEY = "job.disabled";
@@ -208,12 +209,13 @@ public class ConfigurationKeys {
   public static final long DEFAULT_QUEUED_TASK_TIME_MAX_AGE = TimeUnit.HOURS.toMillis(1);
 
   /** Optional, for user to specified which template to use, inside .job file */
-  public static final String JOB_TEMPLATE_PATH = "job.template" ;
+  public static final String JOB_TEMPLATE_PATH = "job.template";
 
   /**
    * Configuration property used only for job configuration file's tempalte, inside .template file
    */
   public static final String REQUIRED_ATRRIBUTES_LIST = "gobblin.template.required_attributes";
+  public static final String JOB_DEPENDENCIES = "dependencies";
 
   /**
    * Configuration for emitting job events
@@ -249,7 +251,7 @@ public class ConfigurationKeys {
    */
   // This property is used to specify the URN of a dataset a job or WorkUnit extracts data for
   public static final String DATASET_URN_KEY = "dataset.urn";
-  public static final String GLOBAL_WATERMARK_DATASET_URN="__globalDatasetWatermark";
+  public static final String GLOBAL_WATERMARK_DATASET_URN = "__globalDatasetWatermark";
   public static final String DEFAULT_DATASET_URN = "";
 
   /**
@@ -527,6 +529,11 @@ public class ConfigurationKeys {
   public static final String SQL_SERVER_CONNECTION_PARAMETERS = "source.querybased.sqlserver.connectionParameters";
 
   /**
+   * Configuration properties used by the CopySource.
+   */
+  public static final String COPY_SOURCE_FILESET_WU_GENERATOR_CLASS = "copy.source.fileset.wu.generator.class";
+
+  /**
    * Configuration properties used by the FileBasedExtractor
    */
   public static final String SOURCE_FILEBASED_DATA_DIRECTORY = "source.filebased.data.directory";
@@ -570,6 +577,7 @@ public class ConfigurationKeys {
   public static final String SOURCE_CONN_HOST_NAME = SOURCE_CONN_PREFIX + "host";
   public static final String SOURCE_CONN_VERSION = SOURCE_CONN_PREFIX + "version";
   public static final String SOURCE_CONN_TIMEOUT = SOURCE_CONN_PREFIX + "timeout";
+  public static final String SOURCE_CONN_PROPERTIES = SOURCE_CONN_PREFIX + "properties";
   public static final String SOURCE_CONN_REST_URL = SOURCE_CONN_PREFIX + "rest.url";
   public static final String SOURCE_CONN_USE_PROXY_URL = SOURCE_CONN_PREFIX + "use.proxy.url";
   public static final String SOURCE_CONN_USE_PROXY_PORT = SOURCE_CONN_PREFIX + "use.proxy.port";
@@ -899,16 +907,11 @@ public class ConfigurationKeys {
   public static final String CONFIG_BASED_PREFIX = "gobblin.configBased";
 
   /**
-   * Configuration related to the git flow config monitoring service
+   * Configuration related to the Git based monitoring service
    */
-  public static final String GIT_CONFIG_MONITOR_PREFIX = "gitConfigMonitor.";
-  public static final String GIT_CONFIG_MONITOR_REPO_URI = GIT_CONFIG_MONITOR_PREFIX + "repositoryUri";
-  public static final String GIT_CONFIG_MONITOR_REPO_DIR = GIT_CONFIG_MONITOR_PREFIX + "repositoryDirectory";
-  public static final String DEFAULT_GIT_CONFIG_MONITOR_REPO_DIR = "git-flow-config";
-  public static final String GIT_CONFIG_MONITOR_CONFIG_DIR = GIT_CONFIG_MONITOR_PREFIX + "configDirectory";
-  public static final String DEFAULT_GIT_CONFIG_MONITOR_CONFIG_DIR = "gobblin-config";
-  public static final String GIT_CONFIG_MONITOR_POLLING_INTERVAL = GIT_CONFIG_MONITOR_PREFIX + "pollingInterval";
-  public static final String GIT_CONFIG_MONITOR_BRANCH_NAME = GIT_CONFIG_MONITOR_PREFIX + "branchName";
-  public static final String DEFAULT_GIT_CONFIG_MONITOR_BRANCH_NAME = "master";
-  public static final int DEFAULT_GIT_CONFIG_MONITOR_POLLING_INTERVAL = 60;
+  public static final String GIT_MONITOR_REPO_URI = "repositoryUri";
+  public static final String GIT_MONITOR_REPO_DIR = "repositoryDirectory";
+  public static final String GIT_MONITOR_CONFIG_BASE_DIR = "configBaseDirectory";
+  public static final String GIT_MONITOR_POLLING_INTERVAL = "pollingInterval";
+  public static final String GIT_MONITOR_BRANCH_NAME = "branchName";
 }

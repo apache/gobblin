@@ -29,7 +29,7 @@ import lombok.Getter;
  */
 @AllArgsConstructor(access=AccessLevel.PROTECTED)
 @Getter
-public class JobExecutionResult {
+public class JobExecutionResult implements ExecutionResult {
   private final RunningState finalState;
   private final Throwable errorCause;
   // TODO add TaskExecutionResults

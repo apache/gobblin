@@ -20,6 +20,8 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.hadoop.fs.Path;
+
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
 
@@ -83,9 +85,20 @@ public class GobblinEncryptionProvider implements CredentialStoreProvider, Encry
         return new RotatingAESCodec(cs);
       case GPGCodec.TAG:
         String password = EncryptionConfigParser.getKeystorePassword(parameters);
-        Preconditions.checkNotNull(password, "Must specify an en/decryption password for GPGCodec!");
-        return new GPGCodec(password);
+        String keystorePathStr = EncryptionConfigParser.getKeystorePath(parameters);
+        String keyName = EncryptionConfigParser.getKeyName(parameters);
+        String cipherName = EncryptionConfigParser.getCipher(parameters);
 
+        // if not using a keystore then use password based encryption
+        if (keystorePathStr == null) {
+          Preconditions.checkNotNull(password, "Must specify an en/decryption password for GPGCodec!");
+          return new GPGCodec(password, cipherName);
+        }
+
+        // if a key name is not present then use a key id of 0. A GPGCodec may be configured without a key name
+        // when used only for decryption where the key name is retrieved from the encrypted file
+        return new GPGCodec(new Path(keystorePathStr), password,
+            keyName == null ? 0 : Long.parseUnsignedLong(keyName, 16), cipherName);
       default:
         log.debug("Do not support encryption type {}", algorithm);
         return null;
