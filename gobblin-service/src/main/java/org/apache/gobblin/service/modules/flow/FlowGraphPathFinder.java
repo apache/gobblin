@@ -160,7 +160,7 @@ public class FlowGraphPathFinder {
 
           //Are we done?
           if (isPathFound(currentNode, destNode, currentOutputDatasetDescriptor, destDatasetDescriptor)) {
-            return buildDag(flowEdgeContext);
+            return constructPathAsDag(flowEdgeContext);
           }
 
           //Expand the currentNode to its adjacent edges and add them to the queue.
@@ -289,7 +289,7 @@ public class FlowGraphPathFinder {
    * @throws JobTemplate.TemplateException
    * @throws URISyntaxException
    */
-  private Dag<JobExecutionPlan> buildDag(FlowEdgeContext flowEdgeContext)
+  private Dag<JobExecutionPlan> constructPathAsDag(FlowEdgeContext flowEdgeContext)
       throws IOException, SpecNotFoundException, JobTemplate.TemplateException, URISyntaxException {
     //Backtrace from the last edge using the path map and push each edge into a LIFO data structure.
     List<FlowEdgeContext> path = new LinkedList<>();
