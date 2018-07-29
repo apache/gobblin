@@ -49,7 +49,7 @@ public interface DatasetDescriptor {
    *
    * @return storage format of the dataset.
    */
-  public FormatDescriptor getFormatDescriptor();
+  public FormatConfig getFormatConfig();
 
   /**
    * @return a human-readable description of the dataset.

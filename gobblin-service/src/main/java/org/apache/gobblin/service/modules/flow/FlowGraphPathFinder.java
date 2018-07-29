@@ -19,9 +19,7 @@ package org.apache.gobblin.service.modules.flow;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Deque;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -32,15 +30,10 @@ import org.apache.commons.lang3.tuple.Pair;
 
 import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
-import com.typesafe.config.ConfigValueFactory;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.JobTemplate;
 import org.apache.gobblin.runtime.api.SpecExecutor;
@@ -53,7 +46,6 @@ import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.FlowEdge;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraph;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
-import org.apache.gobblin.service.modules.spec.JobExecutionPlanDagFactory;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
@@ -76,11 +68,6 @@ public class FlowGraphPathFinder {
 
   //Maintain path of FlowEdges as parent-child map
   private Map<FlowEdgeContext, FlowEdgeContext> pathMap;
-
-  //Maintain a map from FlowEdge to SpecExecutor
-  private Map<FlowEdge, SpecExecutor> flowEdgeToSpecExecutorMap;
-
-  private Map<FlowEdge, Config> flowEdgeToMergedConfig;
 
   //Flow Execution Id
   private Long flowExecutionId;
@@ -123,22 +110,6 @@ public class FlowGraphPathFinder {
   }
 
   /**
-   * A helper class used to maintain additional context associated with each {@link FlowEdge} during path
-   * computation while the edge is explored for its eligibility. The additional context includes the input
-   * {@link DatasetDescriptor} of this edge which is compatible with the previous {@link FlowEdge}'s output
-   * {@link DatasetDescriptor} (where "previous" means the immediately preceding {@link FlowEdge} visited before
-   * the current {@link FlowEdge}), and the corresponding output dataset descriptor of the current {@link FlowEdge}.
-   */
-  @Data
-  @AllArgsConstructor
-  @Getter
-  public static class FlowEdgeContext {
-    private FlowEdge edge;
-    private DatasetDescriptor inputDatasetDescriptor;
-    private DatasetDescriptor outputDatasetDescriptor;
-  }
-
-  /**
    * A simple path finding algorithm based on Breadth-First Search. At every step the algorithm adds the adjacent {@link FlowEdge}s
    * to a queue. The {@link FlowEdge}s whose output {@link DatasetDescriptor} matches the destDatasetDescriptor are
    * added first to the queue. This ensures that dataset transformations are always performed closest to the source.
@@ -148,8 +119,6 @@ public class FlowGraphPathFinder {
     try {
       //Initialization of auxiliary data structures used for path computation
       this.pathMap = new HashMap<>();
-      this.flowEdgeToSpecExecutorMap = new HashMap<>();
-      this.flowEdgeToMergedConfig = new HashMap<>();
 
       // Generate flow execution id for this compilation
       this.flowExecutionId = System.currentTimeMillis();
@@ -172,7 +141,7 @@ public class FlowGraphPathFinder {
         }
 
         LinkedList<FlowEdgeContext> edgeQueue = new LinkedList<>();
-        edgeQueue.addAll(getNextEdges(srcNode, srcDatasetDescriptor, destDatasetDescriptor, flowConfig));
+        edgeQueue.addAll(getNextEdges(srcNode, srcDatasetDescriptor, destDatasetDescriptor));
         for (FlowEdgeContext flowEdgeContext : edgeQueue) {
           this.pathMap.put(flowEdgeContext, flowEdgeContext);
         }
@@ -196,7 +165,7 @@ public class FlowGraphPathFinder {
 
           //Expand the currentNode to its adjacent edges and add them to the queue.
           List<FlowEdgeContext> nextEdges =
-              getNextEdges(currentNode, currentOutputDatasetDescriptor, destDatasetDescriptor, flowConfig);
+              getNextEdges(currentNode, currentOutputDatasetDescriptor, destDatasetDescriptor);
           for (FlowEdgeContext childFlowEdgeContext : nextEdges) {
             //Add a pointer from the child edge to the parent edge, if the child edge is not already in the
             // queue.
@@ -232,80 +201,83 @@ public class FlowGraphPathFinder {
    * @return prioritized list of {@link FlowEdge}s to be added to the edge queue for expansion.
    */
   private List<FlowEdgeContext> getNextEdges(DataNode dataNode, DatasetDescriptor currentDatasetDescriptor,
-      DatasetDescriptor destDatasetDescriptor, Config userConfig) {
+      DatasetDescriptor destDatasetDescriptor) {
     List<FlowEdgeContext> prioritizedEdgeList = new LinkedList<>();
     for (FlowEdge flowEdge : this.flowGraph.getEdges(dataNode)) {
       try {
         DataNode edgeDestination = this.flowGraph.getNode(flowEdge.getDest());
-        //Should we skip this edge from any further consideration?
+        //Base condition: Skip this FLowEdge, if it is inactive or if the destination of this edge is inactive.
         if (!edgeDestination.isActive() || !flowEdge.isActive()) {
           continue;
         }
-        for (Pair<DatasetDescriptor, DatasetDescriptor> datasetDescriptorPair : flowEdge.getFlowTemplate()
-            .getInputOutputDatasetDescriptors(userConfig)) {
-          DatasetDescriptor inputDatasetDescriptor = datasetDescriptorPair.getLeft();
-          DatasetDescriptor outputDatasetDescriptor = datasetDescriptorPair.getRight();
-          if (inputDatasetDescriptor.contains(currentDatasetDescriptor)) {
-            Config inputDatasetDescriptorConfig = inputDatasetDescriptor.getRawConfig()
-                .atPath(DatasetDescriptorConfigKeys.FLOW_EDGE_INPUT_DATASET_DESCRIPTOR_PREFIX);
-            Config outputDatasetDescriptorConfig = outputDatasetDescriptor.getRawConfig()
-                .atPath(DatasetDescriptorConfigKeys.FLOW_EDGE_OUTPUT_DATASET_DESCRIPTOR_PREFIX);
-            userConfig = userConfig.withFallback(inputDatasetDescriptorConfig).withFallback(outputDatasetDescriptorConfig);
-            if (!isFlowTemplateResolvable(flowEdge, userConfig)) {
-              continue;
-            }
-            FlowEdgeContext flowEdgeContext;
-            if (outputDatasetDescriptor.contains(currentDatasetDescriptor)) {
-              //If datasets described by the currentDatasetDescriptor is a subset of the datasets described
-              // by the outputDatasetDescriptor (i.e. currentDatasetDescriptor is more "specific" than outputDatasetDescriptor, e.g.
-              // as in the case of a "distcp" edge), we propagate the more "specific" dataset descriptor forward.
-              flowEdgeContext = new FlowEdgeContext(flowEdge, currentDatasetDescriptor, currentDatasetDescriptor);
-            } else {
-              //outputDatasetDescriptor is more specific (e.g. if it is a dataset transformation edge)
-              flowEdgeContext = new FlowEdgeContext(flowEdge, currentDatasetDescriptor, outputDatasetDescriptor);
-            }
-            if (destDatasetDescriptor.getFormatDescriptor().contains(outputDatasetDescriptor.getFormatDescriptor())) {
-              //Add to the front of the edge list if platform-independent properties of the output descriptor is compatible
-              // with those of destination dataset descriptor.
-              // In other words, we prioritize edges that perform data transformations as close to the source as possible.
-              prioritizedEdgeList.add(0, flowEdgeContext);
-            } else {
-              prioritizedEdgeList.add(flowEdgeContext);
+
+        boolean foundExecutor = false;
+        //Iterate over all executors for this edge. Find the first one that resolves the underlying flow template.
+        for (SpecExecutor specExecutor: flowEdge.getExecutors()) {
+          Config mergedConfig = getMergedConfig(flowEdge, specExecutor);
+          List<Pair<DatasetDescriptor, DatasetDescriptor>> datasetDescriptorPairs =
+              flowEdge.getFlowTemplate().getResolvingDatasetDescriptors(mergedConfig);
+          for (Pair<DatasetDescriptor, DatasetDescriptor> datasetDescriptorPair : datasetDescriptorPairs) {
+            DatasetDescriptor inputDatasetDescriptor = datasetDescriptorPair.getLeft();
+            DatasetDescriptor outputDatasetDescriptor = datasetDescriptorPair.getRight();
+            if (inputDatasetDescriptor.contains(currentDatasetDescriptor)) {
+              FlowEdgeContext flowEdgeContext;
+              if (outputDatasetDescriptor.contains(currentDatasetDescriptor)) {
+                //If datasets described by the currentDatasetDescriptor is a subset of the datasets described
+                // by the outputDatasetDescriptor (i.e. currentDatasetDescriptor is more "specific" than outputDatasetDescriptor, e.g.
+                // as in the case of a "distcp" edge), we propagate the more "specific" dataset descriptor forward.
+                flowEdgeContext = new FlowEdgeContext(flowEdge, currentDatasetDescriptor, currentDatasetDescriptor, mergedConfig, specExecutor);
+              } else {
+                //outputDatasetDescriptor is more specific (e.g. if it is a dataset transformation edge)
+                flowEdgeContext = new FlowEdgeContext(flowEdge, currentDatasetDescriptor, outputDatasetDescriptor, mergedConfig, specExecutor);
+              }
+              if (destDatasetDescriptor.getFormatConfig().contains(outputDatasetDescriptor.getFormatConfig())) {
+                //Add to the front of the edge list if platform-independent properties of the output descriptor is compatible
+                // with those of destination dataset descriptor.
+                // In other words, we prioritize edges that perform data transformations as close to the source as possible.
+                prioritizedEdgeList.add(0, flowEdgeContext);
+              } else {
+                prioritizedEdgeList.add(flowEdgeContext);
+              }
+              foundExecutor = true;
             }
           }
+          // Found a SpecExecutor. Proceed to the next FlowEdge.
+          // TODO: Choose the min-cost executor for the FlowEdge as opposed to the first one that resolves.
+          if (foundExecutor) {
+            break;
+          }
         }
-      } catch (JobTemplate.TemplateException | SpecNotFoundException | IOException | ReflectiveOperationException
-          | InterruptedException | ExecutionException e) {
+      } catch (IOException | ReflectiveOperationException | InterruptedException | ExecutionException | SpecNotFoundException
+          | JobTemplate.TemplateException e) {
         //Skip the edge; and continue
-        log.warn("Skipping edge {} with config {} due to exception: {}", flowEdge.getId(), userConfig.toString(), e);
+        log.warn("Skipping edge {} with config {} due to exception: {}", flowEdge.getId(), flowConfig.toString(), e);
       }
     }
     return prioritizedEdgeList;
   }
 
-  private boolean isFlowTemplateResolvable(FlowEdge flowEdge, Config userConfig)
-      throws SpecNotFoundException, JobTemplate.TemplateException, ExecutionException, InterruptedException {
+  /**
+   * Build the merged config for each {@link FlowEdge}, which is a combination of (in the precedence described below):
+   * <ul>
+   *   <p> the user provided flow config </p>
+   *   <p> edge specific properties/overrides </p>
+   *   <p> spec executor config/overrides </p>
+   *   <p> source node config </p>
+   *   <p> destination node config </p>
+   * </ul>
+   * Each {@link JobTemplate}'s config will eventually be resolved against this merged config.
+   * @param flowEdge An instance of {@link FlowEdge}.
+   * @param specExecutor A {@link SpecExecutor}.
+   * @return the merged config derived as described above.
+   */
+  private Config getMergedConfig(FlowEdge flowEdge, SpecExecutor specExecutor)
+      throws ExecutionException, InterruptedException {
     Config srcNodeConfig = this.flowGraph.getNode(flowEdge.getSrc()).getRawConfig().atPath(SOURCE_PREFIX);
     Config destNodeConfig = this.flowGraph.getNode(flowEdge.getDest()).getRawConfig().atPath(DESTINATION_PREFIX);
-    for (SpecExecutor specExecutor : flowEdge.getExecutors()) {
-      // Build the "merged" config for each FlowEdge, which is a combination of (in the precedence described below):
-      // 1. the user provided flow config,
-      // 2. edge specific properties/overrides,
-      // 3. SpecExecutor config/overrides,
-      // 4. Source Node config, and
-      // 5. Destination Node config.
-      // Each JobTemplate's config will eventually be resolved against this merged config.
-      Config mergedConfig = userConfig.withFallback(specExecutor.getConfig().get()).withFallback(flowEdge.getConfig())
-          .withFallback(srcNodeConfig).withFallback(destNodeConfig);
-      if (flowEdge.getFlowTemplate().isResolvable(mergedConfig)) {
-        //Add the spec executor to the spec executor map.
-        //TODO: Add the lowest-cost specExecutor instead of the first one that resolves the FlowTemplate.
-        this.flowEdgeToSpecExecutorMap.put(flowEdge, specExecutor);
-        this.flowEdgeToMergedConfig.put(flowEdge, mergedConfig);
-        return true;
-      }
-    }
-    return false;
+    Config mergedConfig = flowConfig.withFallback(specExecutor.getConfig().get()).withFallback(flowEdge.getConfig())
+        .withFallback(srcNodeConfig).withFallback(destNodeConfig);
+    return mergedConfig;
   }
 
   /**
@@ -320,52 +292,20 @@ public class FlowGraphPathFinder {
   private Dag<JobExecutionPlan> buildDag(FlowEdgeContext flowEdgeContext)
       throws IOException, SpecNotFoundException, JobTemplate.TemplateException, URISyntaxException {
     //Backtrace from the last edge using the path map and push each edge into a LIFO data structure.
-    Deque<FlowEdge> path = new ArrayDeque<>();
-    path.push(flowEdgeContext.getEdge());
+    List<FlowEdgeContext> path = new LinkedList<>();
+    path.add(flowEdgeContext);
     FlowEdgeContext currentFlowEdgeContext = flowEdgeContext;
     while (true) {
-      path.push(this.pathMap.get(currentFlowEdgeContext).getEdge());
+      path.add(0, this.pathMap.get(currentFlowEdgeContext));
       currentFlowEdgeContext = this.pathMap.get(currentFlowEdgeContext);
       //Are we at the first edge in the path?
       if (this.pathMap.get(currentFlowEdgeContext).equals(currentFlowEdgeContext)) {
         break;
       }
     }
-    //Build a DAG for each edge popped out of the LIFO data structure and concatenate it with the DAG generated from
-    // the previously popped edges.
-    Dag<JobExecutionPlan> flowDag = new Dag<>(new ArrayList<>());
-    while (!path.isEmpty()) {
-      FlowEdge flowEdge = path.pop();
-      Config resolvedConfig = this.flowEdgeToMergedConfig.get(flowEdge);
-      SpecExecutor specExecutor = this.flowEdgeToSpecExecutorMap.get(flowEdge);
-      Dag<JobExecutionPlan> flowEdgeDag = convertHopToDag(flowEdge, flowSpec, resolvedConfig, specExecutor, flowExecutionId);
-      flowDag = flowDag.concatenate(flowEdgeDag);
-    }
-    return flowDag;
+    FlowGraphPath flowGraphPath = new FlowGraphPath(path, flowSpec, flowExecutionId);
+    return flowGraphPath.asDag();
   }
-
-  /**
-   * Given an instance of {@link FlowEdge}, this method returns a {@link Dag < JobExecutionPlan >} that moves data
-   * from the source of the {@link FlowEdge} to the destination of the {@link FlowEdge}.
-   * @param flowEdge an instance of {@link FlowEdge}.
-   * @return a {@link Dag} of {@link JobExecutionPlan}s associated with the {@link FlowEdge}.
-   */
-  private Dag<JobExecutionPlan> convertHopToDag(FlowEdge flowEdge, FlowSpec flowSpec, Config resolvedConfig, SpecExecutor specExecutor, Long flowExecutionId)
-      throws SpecNotFoundException, JobTemplate.TemplateException, URISyntaxException {
-    List<JobExecutionPlan> jobExecutionPlans = new ArrayList<>();
-    //Iterate over each JobTemplate in the FlowEdge definition and convert the JobTemplate to a JobSpec by
-    //resolving the JobTemplate config against the merged config.
-    for (JobTemplate jobTemplate : flowEdge.getFlowTemplate().getJobTemplates()) {
-      //Add job template to the resolved job config
-      Config jobConfig = jobTemplate.getResolvedConfig(resolvedConfig).resolve().withValue(
-          ConfigurationKeys.JOB_TEMPLATE_PATH, ConfigValueFactory.fromAnyRef(jobTemplate.getUri().toString()));
-      //Add flow execution id to job config
-      jobConfig = jobConfig.withValue(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, ConfigValueFactory.fromAnyRef(flowExecutionId));
-      jobExecutionPlans.add(new JobExecutionPlan.Factory().createPlan(flowSpec, jobConfig, specExecutor));
-    }
-    return new JobExecutionPlanDagFactory().createDag(jobExecutionPlans);
-  }
-
 
   public static class PathFinderException extends Exception {
     public PathFinderException(String message, Throwable cause) {

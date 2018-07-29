@@ -42,7 +42,7 @@ public class FSDatasetDescriptor implements DatasetDescriptor {
   @Getter
   private final String path;
   @Getter
-  private final FormatDescriptor formatDescriptor;
+  private final FormatConfig formatConfig;
   @Getter
   private final String description;
   @Getter
@@ -53,7 +53,7 @@ public class FSDatasetDescriptor implements DatasetDescriptor {
     this.platform = config.getString(DatasetDescriptorConfigKeys.PLATFORM_KEY);
     this.path = PathUtils.getPathWithoutSchemeAndAuthority(new Path(ConfigUtils.getString(config, DatasetDescriptorConfigKeys.PATH_KEY,
         DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY))).toString();
-    this.formatDescriptor = new FormatDescriptor(config);
+    this.formatConfig = new FormatConfig(config);
     this.description = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.DESCRIPTION_KEY, "");
     this.rawConfig = config;
   }
@@ -97,7 +97,7 @@ public class FSDatasetDescriptor implements DatasetDescriptor {
       return false;
     }
 
-    return getFormatDescriptor().contains(other.getFormatDescriptor()) && isPathContaining(other.getPath());
+    return getFormatConfig().contains(other.getFormatConfig()) && isPathContaining(other.getPath());
   }
 
   /**
@@ -118,12 +118,12 @@ public class FSDatasetDescriptor implements DatasetDescriptor {
     if (this.getPlatform() == null || other.getPlatform() == null || !this.getPlatform().equalsIgnoreCase(other.getPlatform())) {
       return false;
     }
-    return this.getPath().equals(other.getPath()) && this.getFormatDescriptor().equals(other.getFormatDescriptor());
+    return this.getPath().equals(other.getPath()) && this.getFormatConfig().equals(other.getFormatConfig());
   }
 
   @Override
   public String toString() {
-     return "(" + Joiner.on(",").join(this.getPlatform(), this.getPath(), this.getFormatDescriptor().toString()) + ")";
+     return "(" + Joiner.on(",").join(this.getPlatform(), this.getPath(), this.getFormatConfig().toString()) + ")";
   }
 
   @Override
@@ -131,7 +131,7 @@ public class FSDatasetDescriptor implements DatasetDescriptor {
     int result = 17;
     result = 31 * result + platform.toLowerCase().hashCode();
     result = 31 * result + path.hashCode();
-    result = 31 * result + formatDescriptor.hashCode();
+    result = 31 * result + getFormatConfig().hashCode();
     return result;
   }
 

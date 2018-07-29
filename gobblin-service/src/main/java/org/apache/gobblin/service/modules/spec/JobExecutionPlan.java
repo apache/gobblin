@@ -47,9 +47,10 @@ public class JobExecutionPlan {
   private SpecExecutor specExecutor;
 
   public static class Factory {
-    public JobExecutionPlan createPlan(FlowSpec flowSpec, Config jobConfig, SpecExecutor specExecutor)
+
+    public JobExecutionPlan createPlan(FlowSpec flowSpec, Config jobConfig, SpecExecutor specExecutor, Long flowExecutionId)
         throws URISyntaxException {
-        JobSpec jobSpec = buildJobSpec(flowSpec, jobConfig);
+        JobSpec jobSpec = buildJobSpec(flowSpec, jobConfig, flowExecutionId);
         return new JobExecutionPlan(jobSpec, specExecutor);
     }
 
@@ -59,7 +60,7 @@ public class JobExecutionPlan {
      * @param flowSpec input FlowSpec.
      * @return a {@link JobSpec} corresponding to the resolved job config.
      */
-    private static JobSpec buildJobSpec(FlowSpec flowSpec, Config jobConfig) throws URISyntaxException {
+    private static JobSpec buildJobSpec(FlowSpec flowSpec, Config jobConfig, Long flowExecutionId) throws URISyntaxException {
       Config flowConfig = flowSpec.getConfig();
 
       String flowName = ConfigUtils.getString(flowConfig, ConfigurationKeys.FLOW_NAME_KEY, "");
@@ -82,17 +83,15 @@ public class JobExecutionPlan {
       //Add job name
       jobSpec.setConfig(jobSpec.getConfig().withValue(ConfigurationKeys.JOB_NAME_KEY, ConfigValueFactory.fromAnyRef(jobName)));
 
+      //Add flow execution id
+      jobSpec.setConfig(jobSpec.getConfig().withValue(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, ConfigValueFactory.fromAnyRef(flowExecutionId)));
+
       // Remove schedule
       jobSpec.setConfig(jobSpec.getConfig().withoutPath(ConfigurationKeys.JOB_SCHEDULE_KEY));
 
       // Add job.name and job.group
       jobSpec.setConfig(jobSpec.getConfig().withValue(ConfigurationKeys.JOB_NAME_KEY, ConfigValueFactory.fromAnyRef(jobName)));
       jobSpec.setConfig(jobSpec.getConfig().withValue(ConfigurationKeys.JOB_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup)));
-
-      //Add Flow Execution Id into the job config. Used to map a job execution to a flow execution.
-      Long flowExecutionId = jobConfig.getLong(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
-      jobSpec.setConfig(jobSpec.getConfig()
-          .withValue(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, ConfigValueFactory.fromAnyRef(flowExecutionId)));
 
       //Enable job lock for each job to prevent concurrent executions.
       jobSpec.setConfig(jobSpec.getConfig().withValue(ConfigurationKeys.JOB_LOCK_ENABLED_KEY, ConfigValueFactory.fromAnyRef(true)));

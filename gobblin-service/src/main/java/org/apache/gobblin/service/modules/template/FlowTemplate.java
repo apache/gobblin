@@ -21,10 +21,10 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigResolveOptions;
-
 import org.apache.commons.lang3.tuple.Pair;
+
+import com.typesafe.config.Config;
+
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.runtime.api.JobTemplate;
 import org.apache.gobblin.runtime.api.Spec;
@@ -50,17 +50,32 @@ public interface FlowTemplate extends Spec {
   Config getRawTemplateConfig();
 
   /**
+   * @param userConfig a list of user customized attributes.
+   * @return list of input/output {@link DatasetDescriptor}s that fully resolve the {@link FlowTemplate} using the
+   * provided userConfig.
+   */
+  List<Pair<DatasetDescriptor, DatasetDescriptor>> getResolvingDatasetDescriptors(Config userConfig)
+      throws IOException, ReflectiveOperationException, SpecNotFoundException, JobTemplate.TemplateException;
+
+  /**
    * Checks if the {@link FlowTemplate} is resolvable using the provided {@link Config} object. A {@link FlowTemplate}
    * is resolvable only if each of the {@link JobTemplate}s in the flow is resolvable
    * @param userConfig User supplied Config
+   * @param inputDescriptor input {@link DatasetDescriptor}
+   * @param outputDescriptor output {@link DatasetDescriptor}
    * @return true if the {@link FlowTemplate} is resolvable
    */
-  boolean isResolvable(Config userConfig) throws SpecNotFoundException, JobTemplate.TemplateException;
+  boolean isResolvable(Config userConfig, DatasetDescriptor inputDescriptor, DatasetDescriptor outputDescriptor)
+      throws SpecNotFoundException, JobTemplate.TemplateException;
 
   /**
-   * @param userConfig a list of user customized attributes.
-   * @return list of input/output {@link DatasetDescriptor}s for the {@link FlowTemplate}.
+   * Resolves the {@link JobTemplate}s underlying this {@link FlowTemplate} and returns a {@link List} of resolved
+   * job {@link Config}s.
+   * @param userConfig User supplied Config
+   * @param inputDescriptor input {@link DatasetDescriptor}
+   * @param outputDescriptor output {@link DatasetDescriptor}
+   * @return a list of resolved job {@link Config}s.
    */
-  List<Pair<DatasetDescriptor, DatasetDescriptor>> getInputOutputDatasetDescriptors(Config userConfig)
-      throws IOException, ReflectiveOperationException;
+  List<Config> getResolvedJobConfigs(Config userConfig, DatasetDescriptor inputDescriptor, DatasetDescriptor outputDescriptor)
+      throws SpecNotFoundException, JobTemplate.TemplateException;
 }

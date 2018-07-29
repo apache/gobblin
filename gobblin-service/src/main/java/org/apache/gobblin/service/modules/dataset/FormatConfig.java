@@ -38,7 +38,7 @@ import org.apache.gobblin.util.ConfigUtils;
  *  </ul>
  */
 @Alpha
-public class FormatDescriptor {
+public class FormatConfig {
   @Getter
   private final String format;
   @Getter
@@ -46,14 +46,14 @@ public class FormatDescriptor {
   @Getter
   private final EncryptionConfig encryptionConfig;
 
-  public FormatDescriptor(Config config) {
+  public FormatConfig(Config config) {
     this.format = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.FORMAT_KEY, DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY);
     this.codecType = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.CODEC_KEY, DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY);
     this.encryptionConfig = new EncryptionConfig(ConfigUtils.getConfig(config, DatasetDescriptorConfigKeys.ENCYPTION_PREFIX, ConfigFactory
         .empty()));
   }
 
-  public boolean contains(FormatDescriptor other) {
+  public boolean contains(FormatConfig other) {
     return containsFormat(other.getFormat()) && containsCodec(other.getCodecType())
         && containsEncryptionConfig(other.getEncryptionConfig());
   }
@@ -78,10 +78,10 @@ public class FormatDescriptor {
       return true;
     }
 
-    if (!(o instanceof FormatDescriptor)) {
+    if (!(o instanceof FormatConfig)) {
       return false;
     }
-    FormatDescriptor other = (FormatDescriptor) o;
+    FormatConfig other = (FormatConfig) o;
     return this.getFormat().equalsIgnoreCase(other.getFormat()) && this.getCodecType().equalsIgnoreCase(other.getCodecType())
         && this.getEncryptionConfig().equals(other.getEncryptionConfig());
   }

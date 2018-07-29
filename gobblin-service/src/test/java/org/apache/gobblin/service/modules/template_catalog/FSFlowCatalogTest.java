@@ -23,6 +23,7 @@ import java.util.Properties;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 
 import org.apache.gobblin.runtime.api.JobTemplate;
 import org.apache.hadoop.fs.Path;
@@ -73,7 +74,10 @@ public class FSFlowCatalogTest {
       }
     }
 
-    List<Pair<DatasetDescriptor, DatasetDescriptor>> inputOutputDescriptors = flowTemplate.getInputOutputDatasetDescriptors(ConfigFactory.empty());
+    Config flowConfig = ConfigFactory.empty().withValue("team.name", ConfigValueFactory.fromAnyRef("test-team"))
+        .withValue("dataset.name", ConfigValueFactory.fromAnyRef("test-dataset"));
+
+    List<Pair<DatasetDescriptor, DatasetDescriptor>> inputOutputDescriptors = flowTemplate.getResolvingDatasetDescriptors(flowConfig);
     Assert.assertTrue(inputOutputDescriptors.size() == 2);
     List<String> dirs = Lists.newArrayList("inbound", "outbound");
     for (int i = 0; i < 2; i++) {
@@ -85,7 +89,7 @@ public class FSFlowCatalogTest {
           datasetDescriptor = (FSDatasetDescriptor) inputOutputDescriptors.get(i).getRight();
         }
         Assert.assertEquals(datasetDescriptor.getPlatform(), "hdfs");
-        Assert.assertEquals(datasetDescriptor.getFormatDescriptor().getFormat(), "avro");
+        Assert.assertEquals(datasetDescriptor.getFormatConfig().getFormat(), "avro");
         Assert.assertEquals(datasetDescriptor.getPath(), "/data/" + dirs.get(i) + "/test-team/test-dataset");
       }
     }
