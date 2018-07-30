@@ -41,9 +41,15 @@ import org.apache.gobblin.service.modules.template.FlowTemplate;
 public interface FlowEdge {
   /**
    *
-   * @return the {@link DataNode} ids that are the end points of the edge.
+   * @return the source {@link DataNode} id of the edge.
    */
-  List<String> getEndPoints();
+  String getSrc();
+
+  /**
+   *
+   * @return the destination {@link DataNode} id of the edge.
+   */
+  String getDest();
 
   /**
    *
@@ -62,7 +68,7 @@ public interface FlowEdge {
    * is instantiated. It also includes properties needed for resolving a {@link org.apache.gobblin.runtime.api.JobTemplate}.
    * @return the properties of this edge as a {@link Config} object.
    */
-  Config getProps();
+  Config getConfig();
 
   /**
    * A string uniquely identifying the edge.

@@ -22,7 +22,7 @@ public class FlowGraphConfigurationKeys {
   public static final String FLOW_EDGE_PREFIX = "flow.edge.";
 
   /**
-   *   {@link DataNode} configuration keys.
+   *   {@link DataNode} related configuration keys.
    */
   public static final String DATA_NODE_CLASS = DATA_NODE_PREFIX + "class";
   public static final String DEFAULT_DATA_NODE_CLASS = "org.apache.gobblin.service.modules.flowgraph.BaseDataNode";
@@ -30,7 +30,7 @@ public class FlowGraphConfigurationKeys {
   public static final String DATA_NODE_IS_ACTIVE_KEY = DATA_NODE_PREFIX + "isActive";
 
   /**
-   * {@link FlowEdge} configuration keys.
+   * {@link FlowEdge} related configuration keys.
    */
   public static final String FLOW_EDGE_FACTORY_CLASS = FLOW_EDGE_PREFIX + "factory.class";
   public static final String DEFAULT_FLOW_EDGE_FACTORY_CLASS = "org.apache.gobblin.service.modules.flowgraph.BaseFlowEdge$Factory";
@@ -39,7 +39,7 @@ public class FlowGraphConfigurationKeys {
   public static final String FLOW_EDGE_ID_KEY = FLOW_EDGE_PREFIX + "id";
   public static final String FLOW_EDGE_NAME_KEY = FLOW_EDGE_PREFIX + "name";
   public static final String FLOW_EDGE_IS_ACTIVE_KEY = FLOW_EDGE_PREFIX + "isActive";
-  public static final String FLOW_EDGE_TEMPLATE_URI_KEY = FLOW_EDGE_PREFIX + "flowTemplateUri";
+  public static final String FLOW_EDGE_TEMPLATE_DIR_URI_KEY = FLOW_EDGE_PREFIX + "flowTemplateDirUri";
   public static final String FLOW_EDGE_SPEC_EXECUTORS_KEY = FLOW_EDGE_PREFIX + "specExecutors";
-  public static final String FLOW_EDGE_SPEC_EXECUTOR_CLASS_KEY = "specExecutorClass";
+  public static final String FLOW_EDGE_SPEC_EXECUTOR_CLASS_KEY = "specExecInstance.class";
 }

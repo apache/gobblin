@@ -22,7 +22,25 @@ package org.apache.gobblin.service.modules.flowgraph;
  */
 public class DatasetDescriptorConfigKeys {
   //Gobblin Service Dataset Descriptor related keys
+  public static final String FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX = "gobblin.flow.input.dataset.descriptor";
+  public static final String FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX = "gobblin.flow.output.dataset.descriptor";
+
+  public static final String FLOW_EDGE_INPUT_DATASET_DESCRIPTOR_PREFIX = "gobblin.flow.edge.input.dataset.descriptor";
+  public static final String FLOW_EDGE_OUTPUT_DATASET_DESCRIPTOR_PREFIX = "gobblin.flow.edge.output.dataset.descriptor";
+
+  public static final String CLASS_KEY = "class";
+  public static final String PLATFORM_KEY = "platform";
   public static final String PATH_KEY = "path";
   public static final String FORMAT_KEY = "format";
+  public static final String CODEC_KEY = "codec";
   public static final String DESCRIPTION_KEY = "description";
+
+  //Dataset encryption related keys
+  public static final String ENCYPTION_PREFIX = "encrypt";
+  public static final String ENCRYPTION_ALGORITHM_KEY = "algorithm";
+  public static final String ENCRYPTION_KEYSTORE_TYPE_KEY = "keystore_type";
+  public static final String ENCRYPTION_KEYSTORE_ENCODING_KEY = "keystore_encoding";
+
+  public static final String DATASET_DESCRIPTOR_CONFIG_ANY = "any";
+
 }

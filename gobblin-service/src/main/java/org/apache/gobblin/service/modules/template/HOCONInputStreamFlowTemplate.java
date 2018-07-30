@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URI;
+import java.net.URISyntaxException;
 
 import com.google.common.base.Charsets;
 import com.typesafe.config.Config;
@@ -43,15 +44,15 @@ public class HOCONInputStreamFlowTemplate extends StaticFlowTemplate {
   public static final String VERSION_KEY = "gobblin.flow.template.version";
   private static final String DEFAULT_VERSION = "1";
 
-  public HOCONInputStreamFlowTemplate(InputStream inputStream, URI uri, FlowCatalogWithTemplates catalog)
-      throws SpecNotFoundException, IOException, ReflectiveOperationException, JobTemplate.TemplateException {
+  public HOCONInputStreamFlowTemplate(InputStream inputStream, URI flowTemplateDirUri, FlowCatalogWithTemplates catalog)
+      throws SpecNotFoundException, IOException, JobTemplate.TemplateException, URISyntaxException {
     this(ConfigFactory.parseReader(new InputStreamReader(inputStream, Charsets.UTF_8)).resolve(
-        ConfigResolveOptions.defaults().setAllowUnresolved(true)), uri, catalog);
+        ConfigResolveOptions.defaults().setAllowUnresolved(true)), flowTemplateDirUri, catalog);
   }
 
-  public HOCONInputStreamFlowTemplate(Config config, URI uri, FlowCatalogWithTemplates catalog)
-      throws SpecNotFoundException, IOException, ReflectiveOperationException, JobTemplate.TemplateException {
-    super(uri, ConfigUtils.getString(config, VERSION_KEY, DEFAULT_VERSION),
+  public HOCONInputStreamFlowTemplate(Config config, URI flowTemplateDirUri, FlowCatalogWithTemplates catalog)
+      throws SpecNotFoundException, IOException, JobTemplate.TemplateException, URISyntaxException {
+    super(flowTemplateDirUri, config.hasPath(VERSION_KEY) ? config.getString(VERSION_KEY) : DEFAULT_VERSION,
         config.hasPath(ConfigurationKeys.FLOW_DESCRIPTION_KEY) ? config
             .getString(ConfigurationKeys.FLOW_DESCRIPTION_KEY) : "", config, catalog);
   }

@@ -44,7 +44,10 @@ import org.apache.gobblin.util.ConfigUtils;
 @Alpha
 public class BaseFlowEdge implements FlowEdge {
   @Getter
-  protected List<String> endPoints;
+  protected String src;
+
+  @Getter
+  protected String dest;
 
   @Getter
   protected FlowTemplate flowTemplate;
@@ -53,7 +56,7 @@ public class BaseFlowEdge implements FlowEdge {
   private List<SpecExecutor> executors;
 
   @Getter
-  private Config props;
+  private Config config;
 
   @Getter
   private String id;
@@ -63,11 +66,12 @@ public class BaseFlowEdge implements FlowEdge {
 
   //Constructor
   public BaseFlowEdge(List<String> endPoints, String edgeId, FlowTemplate flowTemplate, List<SpecExecutor> executors, Config properties, boolean active) {
-    this.endPoints = endPoints;
+    this.src = endPoints.get(0);
+    this.dest = endPoints.get(1);
     this.flowTemplate = flowTemplate;
     this.executors = executors;
     this.active = active;
-    this.props = properties;
+    this.config = properties;
     this.id = edgeId;
   }
 
@@ -91,7 +95,7 @@ public class BaseFlowEdge implements FlowEdge {
 
     FlowEdge that = (FlowEdge) o;
 
-    if (!(this.getEndPoints().get(0).equals(that.getEndPoints().get(0))) && ((this.getEndPoints().get(1)).equals(that.getEndPoints().get(1)))) {
+    if (!(this.getSrc().equals(that.getSrc())) && ((this.getDest()).equals(that.getDest()))) {
       return false;
     }
 
@@ -140,14 +144,14 @@ public class BaseFlowEdge implements FlowEdge {
           specExecutorConfigList.add(edgeProps.getConfig(FlowGraphConfigurationKeys.FLOW_EDGE_SPEC_EXECUTORS_KEY + "." + i));
         }
 
-        String flowTemplateUri = ConfigUtils.getString(edgeProps, FlowGraphConfigurationKeys.FLOW_EDGE_TEMPLATE_URI_KEY, "");
+        String flowTemplateDirUri = ConfigUtils.getString(edgeProps, FlowGraphConfigurationKeys.FLOW_EDGE_TEMPLATE_DIR_URI_KEY, "");
 
         //Perform basic validation
         Preconditions.checkArgument(endPoints.size() == 2, "A FlowEdge must have 2 end points");
         Preconditions
             .checkArgument(specExecutorConfigList.size() > 0, "A FlowEdge must have at least one SpecExecutor");
         Preconditions
-            .checkArgument(!Strings.isNullOrEmpty(flowTemplateUri), "FlowTemplate URI must be not null or empty");
+            .checkArgument(!Strings.isNullOrEmpty(flowTemplateDirUri), "FlowTemplate URI must be not null or empty");
         boolean isActive = ConfigUtils.getBoolean(edgeProps, FlowGraphConfigurationKeys.FLOW_EDGE_IS_ACTIVE_KEY, true);
 
         //Build SpecExecutor from config
@@ -158,7 +162,7 @@ public class BaseFlowEdge implements FlowEdge {
           SpecExecutor executor = (SpecExecutor) GobblinConstructorUtils.invokeLongestConstructor(executorClass, specExecutorConfig);
           specExecutors.add(executor);
         }
-        FlowTemplate flowTemplate = flowCatalog.getFlowTemplate(new URI(flowTemplateUri));
+        FlowTemplate flowTemplate = flowCatalog.getFlowTemplate(new URI(flowTemplateDirUri));
         return new BaseFlowEdge(endPoints, edgeId, flowTemplate, specExecutors, edgeProps, isActive);
       } catch (RuntimeException e) {
         throw e;

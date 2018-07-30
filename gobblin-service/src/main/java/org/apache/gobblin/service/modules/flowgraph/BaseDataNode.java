@@ -19,9 +19,9 @@ package org.apache.gobblin.service.modules.flowgraph;
 
 import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.service.modules.dataset.DatasetDescriptor;
 import org.apache.gobblin.util.ConfigUtils;
 
 import joptsimple.internal.Strings;
@@ -38,7 +38,7 @@ public class BaseDataNode implements DataNode {
   @Getter
   private String id;
   @Getter
-  private Config props;
+  private Config rawConfig;
   @Getter
   private boolean active = true;
 
@@ -50,8 +50,8 @@ public class BaseDataNode implements DataNode {
       if (nodeProps.hasPath(FlowGraphConfigurationKeys.DATA_NODE_IS_ACTIVE_KEY)) {
         this.active = nodeProps.getBoolean(FlowGraphConfigurationKeys.DATA_NODE_IS_ACTIVE_KEY);
       }
-      this.props = nodeProps;
-    } catch(Exception e) {
+      this.rawConfig = nodeProps;
+    } catch (Exception e) {
       throw new DataNodeCreationException(e);
     }
   }

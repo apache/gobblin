@@ -51,7 +51,7 @@ public class HOCONInputStreamJobTemplate extends StaticJobTemplate {
     this(ConfigFactory.parseReader(new InputStreamReader(inputStream, Charsets.UTF_8)), uri, catalog);
   }
 
-  private HOCONInputStreamJobTemplate(Config config, URI uri, JobCatalogWithTemplates catalog)
+  public HOCONInputStreamJobTemplate(Config config, URI uri, JobCatalogWithTemplates catalog)
       throws SpecNotFoundException, TemplateException {
     super(uri, config.hasPath(VERSION_KEY) ? config.getString(VERSION_KEY) : DEFAULT_VERSION,
         config.hasPath(ConfigurationKeys.JOB_DESCRIPTION_KEY) ? config.getString(ConfigurationKeys.JOB_DESCRIPTION_KEY) : "",

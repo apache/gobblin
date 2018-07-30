@@ -20,16 +20,16 @@ package org.apache.gobblin.service.modules.template;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
+
+import org.apache.commons.lang3.tuple.Pair;
 
 import com.typesafe.config.Config;
 
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.runtime.api.JobTemplate;
 import org.apache.gobblin.runtime.api.Spec;
+import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.service.modules.dataset.DatasetDescriptor;
-import org.apache.gobblin.service.modules.flowgraph.Dag;
 
 /**
  * An interface primarily for representing a flow of {@link JobTemplate}s. It also has
@@ -45,18 +45,37 @@ public interface FlowTemplate extends Spec {
 
   /**
    *
-   * @return the {@link Dag<JobTemplate>} that backs the {@link FlowTemplate}.
-   */
-  Dag<JobTemplate> getDag() throws IOException;
-
-  /**
-   *
    * @return all configuration inside pre-written template.
    */
   Config getRawTemplateConfig();
 
   /**
-   * @return list of input/output {@link DatasetDescriptor}s for the {@link FlowTemplate}.
+   * @param userConfig a list of user customized attributes.
+   * @return list of input/output {@link DatasetDescriptor}s that fully resolve the {@link FlowTemplate} using the
+   * provided userConfig.
    */
-  List<Pair<DatasetDescriptor, DatasetDescriptor>> getInputOutputDatasetDescriptors();
+  List<Pair<DatasetDescriptor, DatasetDescriptor>> getResolvingDatasetDescriptors(Config userConfig)
+      throws IOException, ReflectiveOperationException, SpecNotFoundException, JobTemplate.TemplateException;
+
+  /**
+   * Checks if the {@link FlowTemplate} is resolvable using the provided {@link Config} object. A {@link FlowTemplate}
+   * is resolvable only if each of the {@link JobTemplate}s in the flow is resolvable
+   * @param userConfig User supplied Config
+   * @param inputDescriptor input {@link DatasetDescriptor}
+   * @param outputDescriptor output {@link DatasetDescriptor}
+   * @return true if the {@link FlowTemplate} is resolvable
+   */
+  boolean isResolvable(Config userConfig, DatasetDescriptor inputDescriptor, DatasetDescriptor outputDescriptor)
+      throws SpecNotFoundException, JobTemplate.TemplateException;
+
+  /**
+   * Resolves the {@link JobTemplate}s underlying this {@link FlowTemplate} and returns a {@link List} of resolved
+   * job {@link Config}s.
+   * @param userConfig User supplied Config
+   * @param inputDescriptor input {@link DatasetDescriptor}
+   * @param outputDescriptor output {@link DatasetDescriptor}
+   * @return a list of resolved job {@link Config}s.
+   */
+  List<Config> getResolvedJobConfigs(Config userConfig, DatasetDescriptor inputDescriptor, DatasetDescriptor outputDescriptor)
+      throws SpecNotFoundException, JobTemplate.TemplateException;
 }
