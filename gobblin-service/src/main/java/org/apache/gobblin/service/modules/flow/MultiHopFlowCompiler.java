@@ -18,6 +18,8 @@
 package org.apache.gobblin.service.modules.flow;
 
 import java.io.IOException;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -35,8 +37,10 @@ import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.runtime.api.FlowSpec;
+import org.apache.gobblin.runtime.api.JobTemplate;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecExecutor;
+import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.core.GitFlowGraphMonitor;
 import org.apache.gobblin.service.modules.flowgraph.BaseFlowGraph;
@@ -112,14 +116,27 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
 
     FlowGraphPathFinder pathFinder = new FlowGraphPathFinder(this.flowGraph, flowSpec);
     try {
-      Dag<JobExecutionPlan> jobExecutionPlanDag = pathFinder.findPath();
+      //Compute the path from source to destination.
+      FlowGraphPath flowGraphPath = pathFinder.findPath();
+
+      //Convert the path into a Dag of JobExecutionPlans.
+      Dag<JobExecutionPlan> jobExecutionPlanDag;
+      if (flowGraphPath != null) {
+        jobExecutionPlanDag = flowGraphPath.asDag();
+      } else {
+        Instrumented.markMeter(this.flowCompilationFailedMeter);
+        log.info(String.format("No path found from source: %s and destination: %s", source, destination));
+        return null;
+      }
+
       //TODO: Just a dummy return value for now. compileFlow() signature needs to be modified to return a Dag instead
       // of a Map. For now just add all specs into the map.
       for (Dag.DagNode<JobExecutionPlan> node: jobExecutionPlanDag.getNodes()) {
         JobExecutionPlan jobExecutionPlan = node.getValue();
         specExecutorMap.put(jobExecutionPlan.getJobSpec(), jobExecutionPlan.getSpecExecutor());
       }
-    } catch (FlowGraphPathFinder.PathFinderException e) {
+    } catch (FlowGraphPathFinder.PathFinderException | SpecNotFoundException | JobTemplate.TemplateException | IOException
+        | URISyntaxException e) {
       Instrumented.markMeter(this.flowCompilationFailedMeter);
       log.error(String.format("Exception encountered while compiling flow for source: %s and destination: %s", source, destination), e);
       return null;

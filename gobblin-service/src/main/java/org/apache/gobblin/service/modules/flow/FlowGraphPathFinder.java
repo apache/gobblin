@@ -113,9 +113,9 @@ public class FlowGraphPathFinder {
    * A simple path finding algorithm based on Breadth-First Search. At every step the algorithm adds the adjacent {@link FlowEdge}s
    * to a queue. The {@link FlowEdge}s whose output {@link DatasetDescriptor} matches the destDatasetDescriptor are
    * added first to the queue. This ensures that dataset transformations are always performed closest to the source.
-   * @return a list of {@link FlowEdge}s starting at the srcNode and ending at the destNode.
+   * @return a path of {@link FlowEdgeContext}s starting at the srcNode and ending at the destNode.
    */
-  public Dag<JobExecutionPlan> findPath() throws PathFinderException {
+  public FlowGraphPath findPath() throws PathFinderException {
     try {
       //Initialization of auxiliary data structures used for path computation
       this.pathMap = new HashMap<>();
@@ -135,9 +135,9 @@ public class FlowGraphPathFinder {
           return null;
         }
 
-        //Base condition 2: Check if we are already at the target. If so, return an empty dag.
+        //Base condition 2: Check if we are already at the target. If so, return an empty path.
         if ((srcNode.equals(destNode)) && destDatasetDescriptor.contains(srcDatasetDescriptor)) {
-          return new Dag<>(new ArrayList<>());
+          return new FlowGraphPath(new ArrayList<>(), flowSpec, flowExecutionId);
         }
 
         LinkedList<FlowEdgeContext> edgeQueue = new LinkedList<>();
@@ -160,7 +160,7 @@ public class FlowGraphPathFinder {
 
           //Are we done?
           if (isPathFound(currentNode, destNode, currentOutputDatasetDescriptor, destDatasetDescriptor)) {
-            return constructPathAsDag(flowEdgeContext);
+            return constructPath(flowEdgeContext);
           }
 
           //Expand the currentNode to its adjacent edges and add them to the queue.
@@ -176,8 +176,8 @@ public class FlowGraphPathFinder {
           }
         }
       }
-      //No path found. Return an empty dag.
-      return new Dag<>(new ArrayList<>());
+      //No path found. Return null.
+      return null;
     } catch (SpecNotFoundException | JobTemplate.TemplateException | IOException | URISyntaxException e) {
       throw new PathFinderException(
           "Exception encountered when computing path from src: " + this.srcNode.getId() + " to dest: " + this.destNode.getId(), e);
@@ -289,7 +289,7 @@ public class FlowGraphPathFinder {
    * @throws JobTemplate.TemplateException
    * @throws URISyntaxException
    */
-  private Dag<JobExecutionPlan> constructPathAsDag(FlowEdgeContext flowEdgeContext)
+  private FlowGraphPath constructPath(FlowEdgeContext flowEdgeContext)
       throws IOException, SpecNotFoundException, JobTemplate.TemplateException, URISyntaxException {
     //Backtrace from the last edge using the path map and push each edge into a LIFO data structure.
     List<FlowEdgeContext> path = new LinkedList<>();
@@ -304,7 +304,7 @@ public class FlowGraphPathFinder {
       }
     }
     FlowGraphPath flowGraphPath = new FlowGraphPath(path, flowSpec, flowExecutionId);
-    return flowGraphPath.asDag();
+    return flowGraphPath;
   }
 
   public static class PathFinderException extends Exception {

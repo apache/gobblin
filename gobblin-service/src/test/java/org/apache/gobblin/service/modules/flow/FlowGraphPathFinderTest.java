@@ -46,8 +46,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.api.JobTemplate;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecExecutor;
+import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.runtime.spec_executorInstance.AbstractSpecExecutor;
 import org.apache.gobblin.service.ServiceConfigKeys;
@@ -151,8 +153,10 @@ public class FlowGraphPathFinderTest {
   }
 
   @Test
-  public void testFindPath() throws FlowGraphPathFinder.PathFinderException {
-    Dag<JobExecutionPlan> jobDag = pathFinder.findPath();
+  public void testFindPath()
+      throws FlowGraphPathFinder.PathFinderException, URISyntaxException, JobTemplate.TemplateException,
+             SpecNotFoundException, IOException {
+    Dag<JobExecutionPlan> jobDag = pathFinder.findPath().asDag();
     Assert.assertEquals(jobDag.getNodes().size(), 4);
     Assert.assertEquals(jobDag.getStartNodes().size(), 1);
     Assert.assertEquals(jobDag.getEndNodes().size(), 1);
@@ -250,11 +254,13 @@ public class FlowGraphPathFinderTest {
   }
 
   @Test (dependsOnMethods = "testFindPath")
-  public void testFindPathAfterFirstEdgeDeletion() throws FlowGraphPathFinder.PathFinderException {
+  public void testFindPathAfterFirstEdgeDeletion()
+      throws FlowGraphPathFinder.PathFinderException, URISyntaxException, JobTemplate.TemplateException,
+             SpecNotFoundException, IOException {
     //Delete the self edge on HDFS-1 that performs convert-to-json-and-encrypt.
     this.flowGraph.deleteFlowEdge("HDFS-1:HDFS-1:hdfsConvertToJsonAndEncrypt");
 
-    Dag<JobExecutionPlan> jobDag = pathFinder.findPath();
+    Dag<JobExecutionPlan> jobDag = pathFinder.findPath().asDag();
     Assert.assertEquals(jobDag.getNodes().size(), 4);
     Assert.assertEquals(jobDag.getStartNodes().size(), 1);
     Assert.assertEquals(jobDag.getEndNodes().size(), 1);
@@ -352,14 +358,14 @@ public class FlowGraphPathFinderTest {
   }
 
   @Test (dependsOnMethods = "testFindPathAfterFirstEdgeDeletion")
-  public void testFindPathAfterSecondEdgeDeletion() throws FlowGraphPathFinder.PathFinderException {
+  public void testFindPathAfterSecondEdgeDeletion()
+      throws FlowGraphPathFinder.PathFinderException, URISyntaxException, JobTemplate.TemplateException,
+             SpecNotFoundException, IOException {
     //Delete the self edge on HDFS-2 that performs convert-to-json-and-encrypt.
     this.flowGraph.deleteFlowEdge("HDFS-2:HDFS-2:hdfsConvertToJsonAndEncrypt");
 
-    Dag<JobExecutionPlan> jobSpecWithExecutorDag = pathFinder.findPath();
-
     //Ensure no path to destination.
-    Assert.assertTrue(jobSpecWithExecutorDag.isEmpty());
+    Assert.assertNull(pathFinder.findPath());
   }
 
   @AfterClass
