@@ -107,7 +107,7 @@ public abstract class GitMonitoringService extends AbstractIdleService {
         ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("FetchGitConfExecutor")));
   }
 
-  synchronized void setActive(boolean isActive) {
+  public synchronized void setActive(boolean isActive) {
     if (this.isActive == isActive) {
       // No-op if already in correct state
       return;

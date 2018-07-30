@@ -87,6 +87,10 @@ public class Dag<T> {
     return node.parentNodes;
   }
 
+  public boolean isEmpty() {
+    return this.nodes.isEmpty();
+  }
+
   /**
    * Concatenate two dags together. Join the "other" dag to "this" dag and return "this" dag.
    * The concatenate method ensures that all the jobs of "this" dag (which may have multiple end nodes)
@@ -97,8 +101,11 @@ public class Dag<T> {
    * @return the concatenated dag
    */
   public Dag<T> concatenate(Dag<T> other) throws IOException {
-    if (other == null) {
+    if (other == null || other.isEmpty()) {
       return this;
+    }
+    if (this.isEmpty()) {
+      return other;
     }
     for (DagNode node : this.endNodes) {
       this.parentChildMap.put(node, Lists.newArrayList());
@@ -108,6 +115,7 @@ public class Dag<T> {
       }
       this.endNodes = other.endNodes;
     }
+    this.nodes.addAll(other.nodes);
     return this;
   }
 

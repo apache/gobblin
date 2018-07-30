@@ -75,8 +75,8 @@ public class BaseFlowGraph implements FlowGraph {
    */
   @Override
   public synchronized boolean addFlowEdge(FlowEdge edge) {
-    String srcNode = edge.getEndPoints().get(0);
-    String dstNode = edge.getEndPoints().get(1);
+    String srcNode = edge.getSrc();
+    String dstNode = edge.getDest();
     if(!dataNodeMap.containsKey(srcNode) || !dataNodeMap.containsKey(dstNode)) {
       return false;
     }
@@ -153,10 +153,10 @@ public class BaseFlowGraph implements FlowGraph {
    * if the {@link FlowEdge} is not in the graph, return false.
    */
   public synchronized boolean deleteFlowEdge(FlowEdge edge) {
-    if(!dataNodeMap.containsKey(edge.getEndPoints().get(0))) {
+    if(!dataNodeMap.containsKey(edge.getSrc())) {
       return false;
     }
-    DataNode node = dataNodeMap.get(edge.getEndPoints().get(0));
+    DataNode node = dataNodeMap.get(edge.getSrc());
     if(!nodesToEdges.get(node).contains(edge)) {
       return false;
     }

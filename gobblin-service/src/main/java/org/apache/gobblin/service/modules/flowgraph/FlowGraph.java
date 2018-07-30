@@ -32,6 +32,13 @@ import org.apache.gobblin.annotation.Alpha;
 public interface FlowGraph {
 
   /**
+   * Get a {@link DataNode} from the node identifier
+   * @param nodeId {@link DataNode} identifier.
+   * @return the {@link DataNode} object if the node is present in the {@link FlowGraph}.
+   */
+  public DataNode getNode(String nodeId);
+
+  /**
    * Add a {@link DataNode} to the {@link FlowGraph}
    * @param node {@link DataNode} to be added
    * @return true if {@link DataNode} is added to the {@link FlowGraph} successfully.

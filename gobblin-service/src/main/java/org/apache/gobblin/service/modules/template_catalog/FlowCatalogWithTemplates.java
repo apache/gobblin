@@ -19,6 +19,7 @@ package org.apache.gobblin.service.modules.template_catalog;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.List;
 
 import org.apache.gobblin.runtime.api.JobTemplate;
@@ -34,16 +35,18 @@ public interface FlowCatalogWithTemplates {
    * Get {@link FlowTemplate} with given {@link URI}.
    * @throws SpecNotFoundException if a {@link JobTemplate} with given {@link URI} cannot be found.
    */
-  FlowTemplate getFlowTemplate(URI uri) throws SpecNotFoundException, IOException, JobTemplate.TemplateException;
+  FlowTemplate getFlowTemplate(URI uri)
+      throws SpecNotFoundException, IOException, JobTemplate.TemplateException, URISyntaxException;
 
   /**
    *
-   * @param flowUri
+   * @param flowTemplateDirURI URI of the flow template directory.
    * @return a list of {@link JobTemplate}s for a given flow identified by its {@link URI}.
    * @throws IOException
    * @throws SpecNotFoundException
    * @throws JobTemplate.TemplateException
    */
-  public List<JobTemplate> getJobTemplatesForFlow(URI flowUri) throws IOException, SpecNotFoundException, JobTemplate.TemplateException;
+  public List<JobTemplate> getJobTemplatesForFlow(URI flowTemplateDirURI)
+      throws IOException, SpecNotFoundException, JobTemplate.TemplateException, URISyntaxException;
 
 }
