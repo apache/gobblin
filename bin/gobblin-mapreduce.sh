@@ -172,12 +172,13 @@ LIBJARS=(
   $FWDIR_LIB/kafka_2.11-0.8.2.2.jar
   $FWDIR_LIB/kafka-clients-0.8.2.2.jar
   $FWDIR_LIB/metrics-core-2.2.0.jar
-  $FWDIR_LIB/metrics-core-3.1.0.jar
-  $FWDIR_LIB/metrics-graphite-3.1.0.jar
+  $FWDIR_LIB/metrics-core-3.2.3.jar
+  $FWDIR_LIB/metrics-graphite-3.2.3.jar
   $FWDIR_LIB/scala-library-2.11.8.jar
   $FWDIR_LIB/influxdb-java-2.1.jar
   $FWDIR_LIB/okhttp-2.4.0.jar
   $FWDIR_LIB/okio-1.4.0.jar
+  $FWDIR_LIB/reactive-streams-1.0.0.jar
   $FWDIR_LIB/retrofit-1.9.0.jar
   $FWDIR_LIB/reflections-0.9.10.jar
 )
