@@ -37,8 +37,9 @@ import org.apache.gobblin.net.Request;
  */
 public class AsyncRequest<D, RQ> implements Request<RQ> {
   @Getter @Setter
-  protected RQ rawRequest;
+  private RQ rawRequest;
   protected final List<Thunk<D>> thunks = new ArrayList<>();
+  private long byteSize = 0;
 
   /**
    * Get the total number of records processed in the request
@@ -51,11 +52,7 @@ public class AsyncRequest<D, RQ> implements Request<RQ> {
    * Get the total bytes processed in the request
    */
   public long getBytesWritten() {
-    long bytesWritten = 0;
-    for (Thunk thunk : thunks) {
-      bytesWritten += thunk.sizeInBytes;
-    }
-    return bytesWritten;
+    return this.byteSize;
   }
 
   /**
@@ -72,7 +69,10 @@ public class AsyncRequest<D, RQ> implements Request<RQ> {
    * @param bytesWritten bytes of the record written into the request
    */
   public void markRecord(BufferedRecord<D> record, int bytesWritten) {
-    thunks.add(new Thunk<>(record, bytesWritten));
+    synchronized (this) {
+      thunks.add(new Thunk<>(record, bytesWritten));
+      byteSize += bytesWritten;
+    }
   }
 
   /**
