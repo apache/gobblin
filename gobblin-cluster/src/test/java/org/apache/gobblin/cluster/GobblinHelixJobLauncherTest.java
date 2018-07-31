@@ -186,6 +186,8 @@ public class GobblinHelixJobLauncherTest {
 
     properties.setProperty(ConfigurationKeys.WRITER_FILE_PATH, jobName);
 
+    properties.setProperty(GobblinClusterConfigurationKeys.HELIX_WORKFLOW_EXPIRY_TIME_SECONDS, "2");
+
     return properties;
   }
 
@@ -295,59 +297,62 @@ public class GobblinHelixJobLauncherTest {
 
     final TaskDriver taskDriver = new TaskDriver(this.helixManager);
 
-    final String jobName = properties.getProperty(ConfigurationKeys.JOB_NAME_KEY);
-    final String jobIdKey = properties.getProperty(ConfigurationKeys.JOB_ID_KEY);
-    final String jobContextName = jobName + "_" + jobIdKey;
-    final String jobName2 = properties2.getProperty(ConfigurationKeys.JOB_NAME_KEY);
+    final String jobIdKey1 = properties.getProperty(ConfigurationKeys.JOB_ID_KEY);
+    final String jobIdKey2 = properties2.getProperty(ConfigurationKeys.JOB_ID_KEY);
+    org.apache.helix.task.JobContext jobContext1 = taskDriver.getJobContext(jobIdKey1);
+    org.apache.helix.task.JobContext jobContext2 = taskDriver.getJobContext(jobIdKey2);
 
-    org.apache.helix.task.JobContext jobContext = taskDriver.getJobContext(jobContextName);
+
+
+    waitForStartup(taskDriver, jobIdKey1);
+    waitForStartup(taskDriver, jobIdKey2);
 
     // job context should be present until close
-    Assert.assertNotNull(jobContext);
+    Assert.assertNotNull(jobContext1);
 
     gobblinHelixJobLauncher.close();
 
     // job queue deleted asynchronously after close
-    waitForQueueCleanup(taskDriver, jobName);
+    waitForQueueCleanup(taskDriver, jobIdKey1);
 
-    jobContext = taskDriver.getJobContext(jobContextName);
+    jobContext1 = taskDriver.getJobContext(jobIdKey1);
 
     // job context should have been deleted
-    Assert.assertNull(jobContext);
+    Assert.assertNull(jobContext1);
 
     // job queue should have been deleted
-    WorkflowConfig workflowConfig  = taskDriver.getWorkflowConfig(jobName);
+    WorkflowConfig workflowConfig  = taskDriver.getWorkflowConfig(jobIdKey1);
     Assert.assertNull(workflowConfig);
 
-    WorkflowContext workflowContext = taskDriver.getWorkflowContext(jobName);
+    WorkflowContext workflowContext = taskDriver.getWorkflowContext(jobIdKey1);
     Assert.assertNull(workflowContext);
 
     // second job queue with shared prefix should not be deleted when the first job queue is cleaned up
-    workflowConfig  = taskDriver.getWorkflowConfig(jobName2);
+    workflowConfig  = taskDriver.getWorkflowConfig(jobIdKey2);
     Assert.assertNotNull(workflowConfig);
 
     gobblinHelixJobLauncher2.close();
 
     // job queue deleted asynchronously after close
-    waitForQueueCleanup(taskDriver, jobName2);
+    waitForQueueCleanup(taskDriver, jobIdKey2);
 
-    workflowConfig  = taskDriver.getWorkflowConfig(jobName2);
+    workflowConfig  = taskDriver.getWorkflowConfig(jobIdKey2);
     Assert.assertNull(workflowConfig);
 
     // check that workunit and taskstate directory for the job are cleaned up
     final File workunitsDir =
         new File(this.appWorkDir + File.separator + GobblinClusterConfigurationKeys.INPUT_WORK_UNIT_DIR_NAME
-        + File.separator + jobIdKey);
+        + File.separator + jobIdKey1);
 
     final File taskstatesDir =
         new File(this.appWorkDir + File.separator + GobblinClusterConfigurationKeys.OUTPUT_TASK_STATE_DIR_NAME
-            + File.separator + jobIdKey);
+            + File.separator + jobIdKey1);
 
     Assert.assertFalse(workunitsDir.exists());
     Assert.assertFalse(taskstatesDir.exists());
 
     // check that job.state file is cleaned up
-    final File jobStateFile = new File(GobblinClusterUtils.getJobStateFilePath(true, this.appWorkDir, jobIdKey).toString());
+    final File jobStateFile = new File(GobblinClusterUtils.getJobStateFilePath(true, this.appWorkDir, jobIdKey1).toString());
 
     Assert.assertFalse(jobStateFile.exists());
   }
@@ -377,5 +382,20 @@ public class GobblinHelixJobLauncherTest {
        } catch (InterruptedException e) {
        }
      }
+  }
+
+  private void waitForStartup(TaskDriver taskDriver, String queueName) {
+    for (int i = 0; i < 5; i++) {
+      WorkflowConfig workflowConfig  = taskDriver.getWorkflowConfig(queueName);
+
+      if (workflowConfig != null) {
+        break;
+      }
+
+      try {
+        Thread.sleep(1000);
+      } catch (InterruptedException e) {
+      }
+    }
   }
 }
