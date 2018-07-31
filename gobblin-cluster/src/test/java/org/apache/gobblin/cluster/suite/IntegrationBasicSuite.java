@@ -36,11 +36,11 @@ import java.util.Map;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.curator.test.TestingServer;
-import org.assertj.core.util.Lists;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.google.common.io.Resources;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
