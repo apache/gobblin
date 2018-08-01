@@ -402,8 +402,20 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
       this.creationTimeInMillis = System.currentTimeMillis();
     }
 
+    private void deleteJobSpec(boolean alwaysDelete, boolean isDeleted) {
+      if (alwaysDelete && !isDeleted) {
+        try {
+          GobblinHelixJobScheduler.this.jobCatalog.remove(new URI(jobUri));
+        } catch (URISyntaxException e) {
+          LOGGER.error("Always delete " + jobUri + ". Failed to remove job with bad uri " + jobUri, e);
+        }
+      }
+    }
+
     @Override
     public void run() {
+      boolean alwaysDelete = PropertiesUtils
+          .getPropAsBoolean(this.jobConfig, GobblinClusterConfigurationKeys.JOB_ALWAYS_DELETE, "false");
       boolean isDeleted = false;
       try {
         ((MetricsTrackingListener)jobListener).metrics.updateTimeBeforeJobLaunching(this.jobConfig);
@@ -420,16 +432,11 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
           }
         }
       } catch (JobException je) {
-        boolean alwaysDelete = PropertiesUtils
-            .getPropAsBoolean(this.jobConfig, GobblinClusterConfigurationKeys.JOB_ALWAYS_DELETE, "false");
-        if (alwaysDelete && !isDeleted) {
-          try {
-            GobblinHelixJobScheduler.this.jobCatalog.remove(new URI(jobUri));
-          } catch (URISyntaxException e) {
-            LOGGER.error("Always delete " + jobUri + ". Failed to remove job with bad uri " + jobUri, e);
-          }
-        }
+        deleteJobSpec(alwaysDelete, isDeleted);
         LOGGER.error("Failed to run job " + this.jobConfig.getProperty(ConfigurationKeys.JOB_NAME_KEY), je);
+      } catch (Exception e) {
+        deleteJobSpec(alwaysDelete, isDeleted);
+        throw e;
       }
     }
   }
