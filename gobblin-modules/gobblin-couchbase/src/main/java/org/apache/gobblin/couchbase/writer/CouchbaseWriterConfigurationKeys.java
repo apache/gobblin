@@ -41,7 +41,16 @@ public class CouchbaseWriterConfigurationKeys {
   public static final String SSL_TRUSTSTORE_PASSWORD = prefix("sslTruststorePassword");
   public static final String CERT_AUTH_ENABLED = prefix("certAuthEnabled");
 
-  public static final String OPERATION_TIMEOUT_MILLIS = "operationTimeoutMillis";
+  public static final String OPERATION_TIMEOUT_MILLIS = prefix("operationTimeoutMillis");
   public static final long OPERATION_TIMEOUT_DEFAULT = 10000; // 10 second default timeout
+
+  public static final String RETRIES_ENABLED = prefix("retriesEnabled");
+  public static final boolean RETRIES_ENABLED_DEFAULT = false;
+
+  public static final String MAX_RETRIES = prefix("maxRetries");
+  public static final int MAX_RETRIES_DEFAULT = 5;
+
+  static final String FAILURE_ALLOWANCE_PCT_CONFIG = prefix("failureAllowancePercentage");
+  static final double FAILURE_ALLOWANCE_PCT_DEFAULT = 0.0;
 
 }
