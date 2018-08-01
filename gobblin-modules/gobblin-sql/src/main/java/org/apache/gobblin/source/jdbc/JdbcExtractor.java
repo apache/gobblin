@@ -655,7 +655,9 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     ResultSet resultSet = null;
     try {
       this.jdbcSource = createJdbcSource();
-      this.dataConnection = this.jdbcSource.getConnection();
+      if(this.dataConnection == null) {
+        this.dataConnection = this.jdbcSource.getConnection();
+      }
       Statement statement = this.dataConnection.createStatement();
 
       if (fetchSize != 0 && this.getExpectedRecordCount() > 2000) {
@@ -712,7 +714,9 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     ResultSet resultSet = null;
     try {
       this.jdbcSource = createJdbcSource();
-      this.dataConnection = this.jdbcSource.getConnection();
+      if(this.dataConnection == null) {
+        this.dataConnection = this.jdbcSource.getConnection();
+      }
 
       PreparedStatement statement =
           this.dataConnection.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
