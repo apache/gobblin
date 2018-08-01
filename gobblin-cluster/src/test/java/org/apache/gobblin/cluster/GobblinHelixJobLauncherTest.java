@@ -302,39 +302,38 @@ public class GobblinHelixJobLauncherTest {
     org.apache.helix.task.JobContext jobContext1 = taskDriver.getJobContext(jobIdKey1);
     org.apache.helix.task.JobContext jobContext2 = taskDriver.getJobContext(jobIdKey2);
 
-
-
-    waitForStartup(taskDriver, jobIdKey1);
-    waitForStartup(taskDriver, jobIdKey2);
+    waitForWorkFlowStartup(taskDriver, jobIdKey1);
+    waitForWorkFlowStartup(taskDriver, jobIdKey2);
 
     // job context should be present until close
     Assert.assertNotNull(jobContext1);
+    Assert.assertNotNull(jobContext2);
 
     gobblinHelixJobLauncher.close();
 
-    // job queue deleted asynchronously after close
-    waitForQueueCleanup(taskDriver, jobIdKey1);
+    // workflow deleted asynchronously after close
+    waitForWorkFlowCleanup(taskDriver, jobIdKey1);
 
     jobContext1 = taskDriver.getJobContext(jobIdKey1);
 
     // job context should have been deleted
     Assert.assertNull(jobContext1);
 
-    // job queue should have been deleted
+    // workflow should have been deleted
     WorkflowConfig workflowConfig  = taskDriver.getWorkflowConfig(jobIdKey1);
     Assert.assertNull(workflowConfig);
 
     WorkflowContext workflowContext = taskDriver.getWorkflowContext(jobIdKey1);
     Assert.assertNull(workflowContext);
 
-    // second job queue with shared prefix should not be deleted when the first job queue is cleaned up
+    // second workflow with shared prefix should not be deleted when the first workflow is cleaned up
     workflowConfig  = taskDriver.getWorkflowConfig(jobIdKey2);
     Assert.assertNotNull(workflowConfig);
 
     gobblinHelixJobLauncher2.close();
 
-    // job queue deleted asynchronously after close
-    waitForQueueCleanup(taskDriver, jobIdKey2);
+    // workflow deleted asynchronously after close
+    waitForWorkFlowCleanup(taskDriver, jobIdKey2);
 
     workflowConfig  = taskDriver.getWorkflowConfig(jobIdKey2);
     Assert.assertNull(workflowConfig);
@@ -369,7 +368,7 @@ public class GobblinHelixJobLauncherTest {
     }
   }
 
-   private void waitForQueueCleanup(TaskDriver taskDriver, String queueName) {
+   private void waitForWorkFlowCleanup(TaskDriver taskDriver, String queueName) {
      for (int i = 0; i < 60; i++) {
        WorkflowConfig workflowConfig  = taskDriver.getWorkflowConfig(queueName);
 
@@ -384,9 +383,9 @@ public class GobblinHelixJobLauncherTest {
      }
   }
 
-  private void waitForStartup(TaskDriver taskDriver, String queueName) {
+  private void waitForWorkFlowStartup(TaskDriver taskDriver, String workflow) {
     for (int i = 0; i < 5; i++) {
-      WorkflowConfig workflowConfig  = taskDriver.getWorkflowConfig(queueName);
+      WorkflowConfig workflowConfig  = taskDriver.getWorkflowConfig(workflow);
 
       if (workflowConfig != null) {
         break;
