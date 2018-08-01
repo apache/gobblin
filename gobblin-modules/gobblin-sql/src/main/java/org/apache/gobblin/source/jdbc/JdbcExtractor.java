@@ -655,7 +655,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     ResultSet resultSet = null;
     try {
       this.jdbcSource = createJdbcSource();
-      if(this.dataConnection == null) {
+      if (this.dataConnection == null) {
         this.dataConnection = this.jdbcSource.getConnection();
       }
       Statement statement = this.dataConnection.createStatement();
@@ -714,7 +714,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     ResultSet resultSet = null;
     try {
       this.jdbcSource = createJdbcSource();
-      if(this.dataConnection == null) {
+      if (this.dataConnection == null) {
         this.dataConnection = this.jdbcSource.getConnection();
       }
 
