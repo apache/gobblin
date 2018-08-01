@@ -43,14 +43,16 @@ import org.apache.gobblin.util.ConfigUtils;
  * keeps in the deque until a TTL is expired.
  */
 
-public abstract class SequentialBasedBatchAccumulator<D> extends BatchAccumulator<D> {
+public class SequentialBasedBatchAccumulator<D> extends BatchAccumulator<D> {
 
+  private static final LargeMessagePolicy DEFAULT_LARGE_MESSAGE_POLICY = LargeMessagePolicy.FAIL;
   private Deque<BytesBoundedBatch<D>> dq = new LinkedList<>();
   private IncompleteRecordBatches incomplete = new IncompleteRecordBatches();
   private final long batchSizeLimit;
   private final long memSizeLimit;
   private final double tolerance = 0.95;
   private final long expireInMilliSecond;
+  private final LargeMessagePolicy largeMessagePolicy;
   private static final Logger LOG = LoggerFactory.getLogger(SequentialBasedBatchAccumulator.class);
 
   private final ReentrantLock dqLock = new ReentrantLock();
@@ -63,24 +65,31 @@ public abstract class SequentialBasedBatchAccumulator<D> extends BatchAccumulato
   }
 
   public SequentialBasedBatchAccumulator(Properties properties) {
-    Config config = ConfigUtils.propertiesToConfig(properties);
-    this.batchSizeLimit = ConfigUtils.getLong(config, Batch.BATCH_SIZE,
-            Batch.BATCH_SIZE_DEFAULT);
+    this(ConfigUtils.propertiesToConfig(properties));
+  }
 
-    this.expireInMilliSecond = ConfigUtils.getLong(config, Batch.BATCH_TTL,
-            Batch.BATCH_TTL_DEFAULT);
-
-    this.capacity = ConfigUtils.getLong(config, Batch.BATCH_QUEUE_CAPACITY,
-            Batch.BATCH_QUEUE_CAPACITY_DEFAULT);
-
-    this.memSizeLimit = (long) (this.tolerance * this.batchSizeLimit);
+  public SequentialBasedBatchAccumulator(Config config) {
+    this(ConfigUtils.getLong(config, Batch.BATCH_SIZE,
+            Batch.BATCH_SIZE_DEFAULT),
+        ConfigUtils.getLong(config, Batch.BATCH_TTL,
+            Batch.BATCH_TTL_DEFAULT),
+        ConfigUtils.getLong(config, Batch.BATCH_QUEUE_CAPACITY,
+            Batch.BATCH_QUEUE_CAPACITY_DEFAULT));
   }
 
   public SequentialBasedBatchAccumulator(long batchSizeLimit, long expireInMilliSecond, long capacity) {
+    this(batchSizeLimit, expireInMilliSecond, capacity, DEFAULT_LARGE_MESSAGE_POLICY);
+  }
+
+  public SequentialBasedBatchAccumulator(long batchSizeLimit,
+      long expireInMilliSecond,
+      long capacity,
+      LargeMessagePolicy largeMessagePolicy) {
     this.batchSizeLimit = batchSizeLimit;
     this.expireInMilliSecond = expireInMilliSecond;
     this.capacity = capacity;
     this.memSizeLimit = (long) (this.tolerance * this.batchSizeLimit);
+    this.largeMessagePolicy = largeMessagePolicy;
   }
 
   public long getNumOfBatches () {
@@ -101,7 +110,12 @@ public abstract class SequentialBasedBatchAccumulator<D> extends BatchAccumulato
     try {
       BytesBoundedBatch last = dq.peekLast();
       if (last != null) {
-        Future<RecordMetadata> future = last.tryAppend(record, callback);
+        Future<RecordMetadata> future = null;
+        try {
+          future = last.tryAppend(record, callback, this.largeMessagePolicy);
+        } catch (RecordTooLargeException e) {
+          // Ok if the record was too large for the current batch
+        }
         if (future != null) {
           return future;
         }
@@ -110,12 +124,18 @@ public abstract class SequentialBasedBatchAccumulator<D> extends BatchAccumulato
       // Create a new batch because previous one has no space
       BytesBoundedBatch batch = new BytesBoundedBatch(this.memSizeLimit, this.expireInMilliSecond);
       LOG.debug("Batch " + batch.getId() + " is generated");
-      Future<RecordMetadata> future = batch.tryAppend(record, callback);
+      Future<RecordMetadata> future = null;
+      try {
+        future = batch.tryAppend(record, callback, this.largeMessagePolicy);
+      } catch (RecordTooLargeException e) {
+        // If a new batch also wasn't able to accomodate the new message
+        throw new RuntimeException("Failed due to a message that was too large", e);
+      }
 
-      // Even single record can exceed the batch size limit
-      // Ignore the record because Eventhub can only accept payload less than 256KB
+      // The future might be null, since the largeMessagePolicy might be set to DROP
       if (future == null) {
-        LOG.error("Batch " + batch.getId() + " is marked as complete because it contains a huge record: "
+        assert largeMessagePolicy.equals(LargeMessagePolicy.DROP);
+        LOG.error("Batch " + batch.getId() + " is silently marked as complete, dropping a huge record: "
                 + record);
         future = Futures.immediateFuture(new RecordMetadata(0));
         callback.onSuccess(WriteResponse.EMPTY);
@@ -124,6 +144,7 @@ public abstract class SequentialBasedBatchAccumulator<D> extends BatchAccumulato
 
       // if queue is full, we should not add more
       while (dq.size() >= this.capacity) {
+        LOG.debug("Accumulator size {} is greater than capacity {}, waiting", dq.size(), this.capacity);
         this.notFull.await();
       }
       dq.addLast(batch);
@@ -187,7 +208,7 @@ public abstract class SequentialBasedBatchAccumulator<D> extends BatchAccumulato
         return dq.poll();
       } else {
           while (dq.size() == 0) {
-            LOG.info ("ready to sleep because of queue is empty");
+            LOG.debug ("ready to sleep because of queue is empty");
             SequentialBasedBatchAccumulator.this.notEmpty.await();
             if (SequentialBasedBatchAccumulator.this.isClosed()) {
               return dq.poll();
@@ -203,7 +224,7 @@ public abstract class SequentialBasedBatchAccumulator<D> extends BatchAccumulato
 
           if (dq.size() == 1) {
             if (dq.peekFirst().isTTLExpire()) {
-              LOG.info ("Batch " + dq.peekFirst().getId() + " is expired");
+              LOG.debug ("Batch " + dq.peekFirst().getId() + " is expired");
               BytesBoundedBatch candidate = dq.poll();
               SequentialBasedBatchAccumulator.this.notFull.signal();
               return candidate;
@@ -240,12 +261,16 @@ public abstract class SequentialBasedBatchAccumulator<D> extends BatchAccumulato
   public void flush() {
     try {
       ArrayList<Batch> batches = this.incomplete.all();
-      LOG.info ("flush on {} batches", batches.size());
+      int numOutstandingRecords = 0;
+      for (Batch batch: batches) {
+        numOutstandingRecords += batch.getRecords().size();
+      }
+      LOG.debug ("Flush called on {} batches with {} records total", batches.size(), numOutstandingRecords);
       for (Batch batch: batches) {
         batch.await();
       }
     } catch (Exception e) {
-      LOG.info ("Error happens when flushing");
+      LOG.error ("Error happened while flushing batches");
     }
   }
 

@@ -39,7 +39,7 @@ import org.apache.gobblin.annotation.Alpha;
  * @param <D> data record type
  */
 @Alpha
-public abstract class BufferedAsyncDataWriter<D> implements AsyncDataWriter<D> {
+public class BufferedAsyncDataWriter<D> implements AsyncDataWriter<D> {
 
   private RecordProcessor<D> processor;
   private BatchAccumulator<D> accumulator;
@@ -136,7 +136,7 @@ public abstract class BufferedAsyncDataWriter<D> implements AsyncDataWriter<D> {
       return new WriteCallback<Object>() {
         @Override
         public void onSuccess(WriteResponse writeResponse) {
-          LOG.info ("Batch " + batch.getId() + " is on success with size " + batch.getCurrentSizeInByte() + " num of record " + batch.getRecords().size());
+          LOG.debug ("Batch " + batch.getId() + " is on success with size " + batch.getCurrentSizeInByte() + " num of record " + batch.getRecords().size());
           batch.onSuccess(writeResponse);
           batch.done();
           accumulator.deallocate(batch);

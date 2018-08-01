@@ -15,11 +15,36 @@
  * limitations under the License.
  */
 
-dependencies {
-  compile project(':gobblin-example')
-  compile project(':gobblin-modules:gobblin-azkaban')
-  compile project(':gobblin-modules:gobblin-crypto-provider')
-  compile project(':gobblin-modules:gobblin-kafka-08')
-  compile project(':gobblin-modules:google-ingestion')
-  compile project(':gobblin-modules:gobblin-elasticsearch') 
+
+buildscript {
+    repositories {
+        jcenter()
+    }
+    dependencies {
+        classpath 'com.github.jengelman.gradle.plugins:shadow:2.0.4'
+    }
 }
+
+apply plugin: 'com.github.johnrengelman.shadow'
+apply plugin: 'java'
+
+dependencies {
+  compile "org.elasticsearch.client:transport:5.6.8"
+  compile "org.elasticsearch.client:elasticsearch-rest-high-level-client:5.6.8"
+  compile "com.google.guava:guava:18.0"
+}
+
+
+configurations {
+ compile {
+    exclude group: "org.apache.hadoop"
+    exclude group: "com.sun.jersey.contribs"
+  }
+}
+
+shadowJar {
+  zip64 true
+  relocate 'com.google.common', 'shadow.gobblin.elasticsearch.com.google.common'
+}
+
+ext.classification="library"
