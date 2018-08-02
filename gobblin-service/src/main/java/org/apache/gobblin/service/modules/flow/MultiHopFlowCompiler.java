@@ -136,7 +136,7 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
         log.info(String.format("No path found from source: %s and destination: %s", source, destination));
         return new JobExecutionPlanDagFactory().createDag(new ArrayList<>());
       }
-    } catch (FlowGraphPathFinder.PathFinderException | SpecNotFoundException | JobTemplate.TemplateException | URISyntaxException | IOException e) {
+    } catch (FlowGraphPathFinder.PathFinderException | SpecNotFoundException | JobTemplate.TemplateException | URISyntaxException e) {
       Instrumented.markMeter(this.flowCompilationFailedMeter);
       log.error(String.format("Exception encountered while compiling flow for source: %s and destination: %s", source, destination), e);
       return null;

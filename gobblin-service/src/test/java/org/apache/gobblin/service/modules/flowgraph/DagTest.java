@@ -23,12 +23,16 @@ import java.util.Set;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
-import org.testng.collections.Lists;
+
+import com.google.common.collect.Lists;
+
+import lombok.extern.slf4j.Slf4j;
 
 
+@Slf4j
 public class DagTest {
   @Test
-  public void testInitialize() throws Exception {
+  public void testInitialize() {
     Dag.DagNode<String> dagNode1 = new Dag.DagNode<>("val1");
     Dag.DagNode<String> dagNode2 = new Dag.DagNode<>("val2");
     Dag.DagNode<String> dagNode3 = new Dag.DagNode<>("val3");
@@ -44,7 +48,7 @@ public class DagTest {
     List<Dag.DagNode<String>> dagNodeList = Lists.newArrayList(dagNode1, dagNode2, dagNode3, dagNode4, dagNode5);
     Dag<String> dag = new Dag<>(dagNodeList);
     //Test startNodes and endNodes
-    Assert.assertEquals(dag.getStartNodes().size(),1);
+    Assert.assertEquals(dag.getStartNodes().size(), 1);
     Assert.assertEquals(dag.getStartNodes().get(0).getValue(), "val1");
     Assert.assertEquals(dag.getEndNodes().size(), 2);
     Assert.assertEquals(dag.getEndNodes().get(0).getValue(), "val4");
@@ -52,9 +56,9 @@ public class DagTest {
 
 
     Dag.DagNode startNode = dag.getStartNodes().get(0);
-    Assert.assertEquals(dag.getChildren(startNode).size(),2);
+    Assert.assertEquals(dag.getChildren(startNode).size(), 2);
     Set<String> childSet = new HashSet<>();
-    for(Dag.DagNode<String> node: dag.getChildren(startNode)) {
+    for (Dag.DagNode<String> node: dag.getChildren(startNode)) {
       childSet.add(node.getValue());
     }
     Assert.assertTrue(childSet.contains("val2"));
@@ -66,7 +70,7 @@ public class DagTest {
     Assert.assertEquals(dag.getChildren(dagNode2).size(), 1);
     Assert.assertEquals(dag.getChildren(dagNode2).get(0).getValue(), "val4");
 
-    for(Dag.DagNode<String> node: dag.getChildren(dagNode3)) {
+    for (Dag.DagNode<String> node: dag.getChildren(dagNode3)) {
       childSet.add(node.getValue());
     }
     Assert.assertTrue(childSet.contains("val4"));
@@ -78,7 +82,7 @@ public class DagTest {
   }
 
   @Test
-  public void testConcatenate() throws Exception {
+  public void testConcatenate() {
     Dag.DagNode<String> dagNode1 = new Dag.DagNode<>("val1");
     Dag.DagNode<String> dagNode2 = new Dag.DagNode<>("val2");
     Dag.DagNode<String> dagNode3 = new Dag.DagNode<>("val3");
@@ -105,7 +109,7 @@ public class DagTest {
     Dag<String> dagNew = dag1.concatenate(dag2);
 
     //Ensure end nodes of first dag are no longer end nodes
-    for(Dag.DagNode<String> dagNode: Lists.newArrayList(dagNode6, dagNode7)) {
+    for (Dag.DagNode<String> dagNode: Lists.newArrayList(dagNode6, dagNode7)) {
       Assert.assertEquals(dagNew.getParents(dagNode).size(), 2);
       Set<String> set = new HashSet<>();
       set.add(dagNew.getParents(dagNode).get(0).getValue());
@@ -114,7 +118,7 @@ public class DagTest {
       Assert.assertTrue(set.contains("val5"));
     }
 
-    for(Dag.DagNode<String> dagNode: Lists.newArrayList(dagNode4, dagNode5)) {
+    for (Dag.DagNode<String> dagNode: Lists.newArrayList(dagNode4, dagNode5)) {
       Assert.assertEquals(dagNew.getChildren(dagNode).size(), 2);
       Set<String> set = new HashSet<>();
       set.add(dagNew.getChildren(dagNode).get(0).getValue());
@@ -123,11 +127,88 @@ public class DagTest {
       Assert.assertTrue(set.contains("val7"));
     }
 
+    for (Dag.DagNode<String> dagNode: Lists.newArrayList(dagNode6, dagNode7)) {
+      List<Dag.DagNode<String>> nextNodes = dagNew.getChildren(dagNode);
+      Assert.assertEquals(nextNodes.size(), 1);
+      Assert.assertEquals(nextNodes.get(0).getValue(), "val8");
+    }
+
     //Test new start and end nodes.
-    Assert.assertEquals(dagNew.getStartNodes().size(),1);
+    Assert.assertEquals(dagNew.getStartNodes().size(), 1);
     Assert.assertEquals(dagNew.getStartNodes().get(0).getValue(), "val1");
 
     Assert.assertEquals(dagNew.getEndNodes().size(), 1);
     Assert.assertEquals(dagNew.getEndNodes().get(0).getValue(), "val8");
+  }
+
+  @Test
+  public void testMerge() {
+    Dag.DagNode<String> dagNode1 = new Dag.DagNode<>("val1");
+    Dag.DagNode<String> dagNode2 = new Dag.DagNode<>("val2");
+    Dag.DagNode<String> dagNode3 = new Dag.DagNode<>("val3");
+    Dag.DagNode<String> dagNode4 = new Dag.DagNode<>("val4");
+    Dag.DagNode<String> dagNode5 = new Dag.DagNode<>("val5");
+
+    dagNode2.addParentNode(dagNode1);
+    dagNode3.addParentNode(dagNode1);
+    dagNode4.addParentNode(dagNode2);
+    dagNode4.addParentNode(dagNode3);
+    dagNode5.addParentNode(dagNode3);
+
+    List<Dag.DagNode<String>> dagNodeList = Lists.newArrayList(dagNode1, dagNode2, dagNode3, dagNode4, dagNode5);
+    Dag<String> dag1 = new Dag<>(dagNodeList);
+
+    Dag.DagNode<String> dagNode6 = new Dag.DagNode<>("val6");
+    Dag.DagNode<String> dagNode7 = new Dag.DagNode<>("val7");
+    Dag.DagNode<String> dagNode8 = new Dag.DagNode<>("val8");
+    dagNode8.addParentNode(dagNode6);
+    dagNode8.addParentNode(dagNode7);
+    Dag<String> dag2 = new Dag<>(Lists.newArrayList(dagNode6, dagNode7, dagNode8));
+
+    //Merge the two dags
+    Dag<String> dagNew = dag1.merge(dag2);
+
+    //Test the startNodes
+    Assert.assertEquals(dagNew.getStartNodes().size(), 3);
+    for (Dag.DagNode<String> dagNode: Lists.newArrayList(dagNode1, dagNode6, dagNode7)) {
+      Assert.assertTrue(dagNew.getStartNodes().contains(dagNode));
+      Assert.assertNull(dagNew.getParents(dagNode));
+      if (dagNode == dagNode1) {
+        List<Dag.DagNode<String>> nextNodes = dagNew.getChildren(dagNode);
+        Assert.assertEquals(nextNodes.size(), 2);
+        Assert.assertTrue(nextNodes.contains(dagNode2));
+        Assert.assertTrue(nextNodes.contains(dagNode3));
+      } else {
+        Assert.assertEquals(dagNew.getChildren(dagNode).size(), 1);
+        Assert.assertTrue(dagNew.getChildren(dagNode).contains(dagNode8));
+      }
+    }
+
+    //Test the endNodes
+    Assert.assertEquals(dagNew.getEndNodes().size(), 3);
+    for (Dag.DagNode<String> dagNode: Lists.newArrayList(dagNode4, dagNode5, dagNode8)) {
+      Assert.assertTrue(dagNew.getEndNodes().contains(dagNode));
+      Assert.assertNull(dagNew.getChildren(dagNode));
+      if (dagNode == dagNode8) {
+        Assert.assertEquals(dagNew.getParents(dagNode).size(), 2);
+        Assert.assertTrue(dagNew.getParents(dagNode).contains(dagNode6));
+        Assert.assertTrue(dagNew.getParents(dagNode).contains(dagNode7));
+      } else {
+        Assert.assertTrue(dagNew.getParents(dagNode).contains(dagNode3));
+        if (dagNode == dagNode4) {
+          Assert.assertEquals(dagNew.getParents(dagNode).size(), 2);
+          Assert.assertTrue(dagNew.getParents(dagNode).contains(dagNode2));
+        } else {
+          Assert.assertEquals(dagNew.getParents(dagNode).size(), 1);
+        }
+      }
+    }
+
+    //Test the other nodes
+    Assert.assertEquals(dagNew.getChildren(dagNode2).size(), 1);
+    Assert.assertTrue(dagNew.getChildren(dagNode2).contains(dagNode4));
+    Assert.assertEquals(dagNew.getChildren(dagNode3).size(), 2);
+    Assert.assertTrue(dagNew.getChildren(dagNode3).contains(dagNode4));
+    Assert.assertTrue(dagNew.getChildren(dagNode3).contains(dagNode5));
   }
 }

@@ -23,6 +23,7 @@ import java.io.InputStreamReader;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
+import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.Future;
 
@@ -121,7 +122,6 @@ public class MultiHopFlowCompilerTest {
         this.flowGraph.addFlowEdge(edge);
       }
     }
-
     this.specCompiler = new MultiHopFlowCompiler(config, this.flowGraph);
   }
 
@@ -153,7 +153,6 @@ public class MultiHopFlowCompilerTest {
     FlowSpec spec = flowSpecBuilder.build();
     return spec;
   }
-
   @Test
   public void testCompileFlow() throws URISyntaxException, IOException {
     FlowSpec spec = createFlowSpec("flow/flow.conf", "LocalFS-1", "ADLS-1");
@@ -368,6 +367,37 @@ public class MultiHopFlowCompilerTest {
 
     //Ensure no path to destination.
     Assert.assertTrue(jobDag.isEmpty());
+  }
+
+  @Test (dependsOnMethods = "testCompileFlowAfterSecondEdgeDeletion")
+  public void testMulticastPath() throws IOException, URISyntaxException {
+    FlowSpec spec = createFlowSpec("flow/multicastFlow.conf", "LocalFS-1", "HDFS-3,HDFS-4");
+    Dag<JobExecutionPlan> jobDag = this.specCompiler.compileFlow(spec);
+
+    Assert.assertEquals(jobDag.getNodes().size(), 4);
+    Assert.assertEquals(jobDag.getEndNodes().size(), 2);
+    Assert.assertEquals(jobDag.getStartNodes().size(), 2);
+
+    int i = 1;
+    //First hop must be from LocalFS to HDFS-1 and HDFS-2
+    for (Dag.DagNode<JobExecutionPlan> dagNode : jobDag.getStartNodes()) {
+      JobExecutionPlan jobExecutionPlan = dagNode.getValue();
+      Config jobConfig = jobExecutionPlan.getJobSpec().getConfig();
+      Assert.assertEquals(jobConfig.getString("source.filebased.fs.uri"), "file:///");
+      Assert.assertEquals(jobConfig.getString("target.filebased.fs.uri"), "hdfs://hadoopnn0" + i++ + ".grid.linkedin.com:8888/");
+    }
+
+    i = 1;
+    //Second hop must be from HDFS-1/HDFS-2 to HDFS-3/HDFS-4 respectively.
+    for (Dag.DagNode<JobExecutionPlan> dagNode : jobDag.getStartNodes()) {
+      List<Dag.DagNode<JobExecutionPlan>> nextNodes = jobDag.getChildren(dagNode);
+      Assert.assertEquals(nextNodes.size(), 1);
+      JobExecutionPlan jobExecutionPlan = nextNodes.get(0).getValue();
+      Config jobConfig = jobExecutionPlan.getJobSpec().getConfig();
+      Assert.assertEquals(jobConfig.getString("source.filebased.fs.uri"), "hdfs://hadoopnn0" + i + ".grid.linkedin.com:8888/");
+      Assert.assertEquals(jobConfig.getString("target.filebased.fs.uri"), "hdfs://hadoopnn0" + (i + 2) + ".grid.linkedin.com:8888/");
+      i += 1;
+    }
   }
 
   @AfterClass
