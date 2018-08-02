@@ -190,7 +190,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     if (spec instanceof FlowSpec) {
       Dag<JobExecutionPlan> jobExecutionPlanDag = specCompiler.compileFlow(spec);
 
-      if (jobExecutionPlanDag.isEmpty()) {
+      if (jobExecutionPlanDag == null || jobExecutionPlanDag.isEmpty()) {
         _log.warn("Cannot determine an executor to run on for Spec: " + spec);
         return;
       }
