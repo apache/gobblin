@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.RandomStringUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -199,9 +200,13 @@ public class FileAwareInputStreamDataWriterTest {
     state.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, new Path(testTempPath, "output").toString());
     state.setProp(ConfigurationKeys.WRITER_FILE_PATH, RandomStringUtils.randomAlphabetic(5));
     state.setProp("writer.encrypt." + EncryptionConfigParser.ENCRYPTION_ALGORITHM_KEY, "gpg");
-    state.setProp("writer.encrypt." + EncryptionConfigParser.ENCRYPTION_KEYSTORE_PATH_KEY,
-        GPGFileEncryptor.class.getResource(
-            GPGFileEncryptorTest.PUBLIC_KEY).toString());
+
+    File publicKeyFile = new File(testTempPath.toString(), "public.key");
+
+    FileUtils.copyInputStreamToFile(GPGFileEncryptor.class.getResourceAsStream(GPGFileEncryptorTest.PUBLIC_KEY),
+        publicKeyFile);
+
+    state.setProp("writer.encrypt." + EncryptionConfigParser.ENCRYPTION_KEYSTORE_PATH_KEY, publicKeyFile.getAbsolutePath());
     state.setProp("writer.encrypt." + EncryptionConfigParser.ENCRYPTION_KEYSTORE_PASSWORD_KEY,
         GPGFileEncryptorTest.PASSPHRASE);
     state.setProp("writer.encrypt." + EncryptionConfigParser.ENCRYPTION_KEY_NAME,
