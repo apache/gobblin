@@ -104,7 +104,7 @@ public class StateStoreBasedWatermarkStorageCli implements CliApplication {
 
     log.info("Using zk address : {}", zkAddress);
 
-    taskState.setProp(StateStoreBasedWatermarkStorage.WATERMARK_STORAGE_TYPE_KEY, "zk");
+    taskState.setProp(StateStoreBasedWatermarkStorage.WATERMARK_STORAGE_TYPE_KEY, "org.apache.gobblin.runtime.FsDatasetStateStoreFactory");
     taskState.setProp("state.store.zk.connectString", zkAddress);
 
     if (cli.hasOption(ROOT_DIR.getOpt())) {
