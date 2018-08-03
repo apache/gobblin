@@ -381,7 +381,7 @@ public class AvroUtils {
     Preconditions.checkArgument(fs.exists(filePath), filePath + " does not exist");
 
     try (FSDataInputStream in = fs.open(filePath)) {
-      return new Schema.Parser().parse(in.readUTF());
+      return new Schema.Parser().parse(in);
     }
   }
 
@@ -399,7 +399,7 @@ public class AvroUtils {
     }
 
     try (DataOutputStream dos = fs.create(filePath)) {
-      dos.writeUTF(schema.toString());
+      dos.writeChars(schema.toString());
     }
     fs.setPermission(filePath, perm);
   }
