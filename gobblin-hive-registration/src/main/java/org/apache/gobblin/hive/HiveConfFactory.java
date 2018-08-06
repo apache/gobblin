@@ -17,6 +17,8 @@
 
 package org.apache.gobblin.hive;
 
+import org.apache.hadoop.hive.conf.HiveConf;
+
 import org.apache.gobblin.broker.EmptyKey;
 import org.apache.gobblin.broker.ResourceInstance;
 import org.apache.gobblin.broker.iface.ConfigView;
@@ -26,7 +28,6 @@ import org.apache.gobblin.broker.iface.ScopedConfigView;
 import org.apache.gobblin.broker.iface.SharedResourceFactory;
 import org.apache.gobblin.broker.iface.SharedResourceFactoryResponse;
 import org.apache.gobblin.broker.iface.SharedResourcesBroker;
-import org.apache.hadoop.hive.conf.HiveConf;
 
 
 /**

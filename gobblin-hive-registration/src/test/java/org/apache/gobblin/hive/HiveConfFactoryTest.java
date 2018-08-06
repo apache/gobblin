@@ -17,11 +17,12 @@
 
 package org.apache.gobblin.hive;
 
-import org.apache.gobblin.broker.EmptyKey;
-import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import org.apache.gobblin.broker.EmptyKey;
+import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
 
 
 public class HiveConfFactoryTest {

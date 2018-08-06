@@ -17,9 +17,6 @@
 
 package org.apache.gobblin.hive.metastore;
 
-import com.google.common.base.Splitter;
-
-import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -29,11 +26,6 @@ import java.util.Properties;
 
 import org.apache.avro.SchemaParseException;
 import org.apache.commons.lang.reflect.MethodUtils;
-import org.apache.gobblin.broker.EmptyKey;
-import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
-import org.apache.gobblin.broker.iface.NotConfiguredException;
-import org.apache.gobblin.hive.HiveConfFactory;
-import org.apache.gobblin.metrics.broker.LineageInfoFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.MetaStoreUtils;
@@ -56,12 +48,17 @@ import org.slf4j.LoggerFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
 
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.broker.EmptyKey;
+import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
+import org.apache.gobblin.broker.iface.NotConfiguredException;
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.hive.HiveConfFactory;
 import org.apache.gobblin.hive.HiveConstants;
 import org.apache.gobblin.hive.HivePartition;
 import org.apache.gobblin.hive.HiveRegistrationUnit;
