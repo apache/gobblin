@@ -20,6 +20,7 @@ package org.apache.gobblin.service.modules.flow;
 import com.google.common.base.Splitter;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -35,7 +36,10 @@ import com.typesafe.config.ConfigValueFactory;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutor;
+import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.policy.ServicePolicy;
+import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+import org.apache.gobblin.service.modules.spec.JobExecutionPlanDagFactory;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 import org.jgrapht.graph.DirectedWeightedMultigraph;
@@ -132,11 +136,16 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
   }
 
   @Override
-  public Map<Spec, SpecExecutor> compileFlow(Spec spec) {
+  public Dag<JobExecutionPlan> compileFlow(Spec spec) {
     // A Map from JobSpec to SpexExecutor, as the output of Flow Compiler.
     Map<Spec, SpecExecutor> specExecutorInstanceMap = Maps.newLinkedHashMap();
     findPath(specExecutorInstanceMap, spec);
-    return specExecutorInstanceMap;
+    List<JobExecutionPlan> jobExecutionPlans = new ArrayList<>();
+    for (Map.Entry<Spec, SpecExecutor> entry: specExecutorInstanceMap.entrySet()) {
+      JobExecutionPlan jobExecutionPlan = new JobExecutionPlan((JobSpec) entry.getKey(), entry.getValue());
+      jobExecutionPlans.add(jobExecutionPlan);
+    }
+    return new JobExecutionPlanDagFactory().createDag(jobExecutionPlans);
   }
 
   /**

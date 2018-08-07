@@ -25,6 +25,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
@@ -41,12 +42,14 @@ import org.apache.gobblin.runtime.api.JobTemplate;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
+import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.core.GitFlowGraphMonitor;
 import org.apache.gobblin.service.modules.flowgraph.BaseFlowGraph;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraph;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+import org.apache.gobblin.service.modules.spec.JobExecutionPlanDagFactory;
 import org.apache.gobblin.service.modules.template_catalog.FSFlowCatalog;
 
 
@@ -90,53 +93,50 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
     this.gitFlowGraphMonitor = new GitFlowGraphMonitor(this.config, flowCatalog, this.flowGraph);
   }
 
+  @VisibleForTesting
+  MultiHopFlowCompiler(Config config, FlowGraph flowGraph) {
+    super(config, Optional.absent(), true);
+    this.flowGraph = flowGraph;
+  }
+
   public void setActive(boolean active) {
     this.active = active;
     this.gitFlowGraphMonitor.setActive(active);
   }
 
   /**
-   * TODO: We need to change signature of compileFlow to return a Dag instead of a HashMap to capture
-   * job dependencies.
-   * @param spec
-   * @return
+   * j
+   * @param spec an instance of {@link FlowSpec}.
+   * @return A DAG of {@link JobExecutionPlan}s, which encapsulates the compiled {@link org.apache.gobblin.runtime.api.JobSpec}s
+   * together with the {@link SpecExecutor} where the job can be executed.
    */
   @Override
-  public Map<Spec, SpecExecutor> compileFlow(Spec spec) {
+  public Dag<JobExecutionPlan> compileFlow(Spec spec) {
     Preconditions.checkNotNull(spec);
-    Preconditions.checkArgument(spec instanceof FlowSpec, "MultiHopFlowToJobSpecCompiler only accepts FlowSpecs");
+    Preconditions.checkArgument(spec instanceof FlowSpec, "MultiHopFlowCompiler only accepts FlowSpecs");
 
     long startTime = System.nanoTime();
-    Map<Spec, SpecExecutor> specExecutorMap = Maps.newLinkedHashMap();
 
     FlowSpec flowSpec = (FlowSpec) spec;
     String source = flowSpec.getConfig().getString(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY);
     String destination = flowSpec.getConfig().getString(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY);
     log.info(String.format("Compiling flow for source: %s and destination: %s", source, destination));
 
+    Dag<JobExecutionPlan> jobExecutionPlanDag;
     FlowGraphPathFinder pathFinder = new FlowGraphPathFinder(this.flowGraph, flowSpec);
     try {
       //Compute the path from source to destination.
       FlowGraphPath flowGraphPath = pathFinder.findPath();
 
       //Convert the path into a Dag of JobExecutionPlans.
-      Dag<JobExecutionPlan> jobExecutionPlanDag;
       if (flowGraphPath != null) {
         jobExecutionPlanDag = flowGraphPath.asDag();
       } else {
         Instrumented.markMeter(this.flowCompilationFailedMeter);
         log.info(String.format("No path found from source: %s and destination: %s", source, destination));
-        return null;
+        return new JobExecutionPlanDagFactory().createDag(new ArrayList<>());
       }
-
-      //TODO: Just a dummy return value for now. compileFlow() signature needs to be modified to return a Dag instead
-      // of a Map. For now just add all specs into the map.
-      for (Dag.DagNode<JobExecutionPlan> node: jobExecutionPlanDag.getNodes()) {
-        JobExecutionPlan jobExecutionPlan = node.getValue();
-        specExecutorMap.put(jobExecutionPlan.getJobSpec(), jobExecutionPlan.getSpecExecutor());
-      }
-    } catch (FlowGraphPathFinder.PathFinderException | SpecNotFoundException | JobTemplate.TemplateException | IOException
-        | URISyntaxException e) {
+    } catch (FlowGraphPathFinder.PathFinderException | SpecNotFoundException | JobTemplate.TemplateException | URISyntaxException | IOException e) {
       Instrumented.markMeter(this.flowCompilationFailedMeter);
       log.error(String.format("Exception encountered while compiling flow for source: %s and destination: %s", source, destination), e);
       return null;
@@ -144,7 +144,7 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
     Instrumented.markMeter(this.flowCompilationSuccessFulMeter);
     Instrumented.updateTimer(this.flowCompilationTimer, System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
 
-    return specExecutorMap;
+    return jobExecutionPlanDag;
   }
 
   @Override
@@ -152,6 +152,5 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
     log.warn("No population of templates based on edge happen in this implementation");
     return;
   }
-
 
 }

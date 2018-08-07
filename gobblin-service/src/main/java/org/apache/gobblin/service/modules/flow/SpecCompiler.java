@@ -15,12 +15,19 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.runtime.api;
+package org.apache.gobblin.service.modules.flow;
 
 import java.net.URI;
 import java.util.Map;
 
 import org.apache.gobblin.instrumented.Instrumentable;
+import org.apache.gobblin.runtime.api.Spec;
+import org.apache.gobblin.runtime.api.SpecCatalogListener;
+import org.apache.gobblin.runtime.api.SpecExecutor;
+import org.apache.gobblin.runtime.api.TopologySpec;
+import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+
 
 /***
  * Take in a logical {@link Spec} and compile corresponding materialized {@link Spec}s
@@ -33,7 +40,7 @@ public interface SpecCompiler extends SpecCatalogListener, Instrumentable {
    * @param spec {@link Spec} to compile.
    * @return Map of materialized physical {@link Spec} and {@link SpecExecutor}.
    */
-  Map<Spec, SpecExecutor> compileFlow(Spec spec);
+  Dag<JobExecutionPlan> compileFlow(Spec spec);
 
   /***
    * Map of {@link Spec} URI and {@link TopologySpec} the {@link SpecCompiler}
