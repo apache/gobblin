@@ -25,7 +25,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
-import avro.shaded.com.google.common.collect.Maps;
+import com.google.common.collect.Maps;
 import javax.annotation.Nonnull;
 
 import com.codahale.metrics.Meter;
