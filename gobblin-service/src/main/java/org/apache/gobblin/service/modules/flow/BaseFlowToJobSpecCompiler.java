@@ -40,20 +40,20 @@ import org.slf4j.LoggerFactory;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.runtime.api.Spec;
-import org.apache.gobblin.runtime.api.SpecCompiler;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.runtime.job_catalog.FSJobCatalog;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.ServiceMetricNames;
+import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.JobTemplate;
 import org.apache.gobblin.runtime.api.SpecExecutor;
-import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.job_spec.ResolvedJobSpec;
 
@@ -207,7 +207,7 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
     return this.topologySpecMap;
   }
 
-  public abstract Map<Spec, SpecExecutor> compileFlow(Spec spec);
+  public abstract Dag<JobExecutionPlan> compileFlow(Spec spec);
 
   /**
    * Naive implementation of generating jobSpec, which fetch the first available template,

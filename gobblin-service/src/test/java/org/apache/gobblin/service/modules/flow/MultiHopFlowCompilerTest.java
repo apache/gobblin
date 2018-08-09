@@ -46,10 +46,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.JobSpec;
-import org.apache.gobblin.runtime.api.JobTemplate;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecExecutor;
-import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.runtime.spec_executorInstance.AbstractSpecExecutor;
 import org.apache.gobblin.service.ServiceConfigKeys;
@@ -68,9 +66,9 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 @Slf4j
-public class FlowGraphPathFinderTest {
+public class MultiHopFlowCompilerTest {
   private FlowGraph flowGraph;
-  private FlowGraphPathFinder pathFinder;
+  private SpecCompiler specCompiler;
 
   @BeforeClass
   public void setUp()
@@ -79,7 +77,7 @@ public class FlowGraphPathFinderTest {
     this.flowGraph = new BaseFlowGraph();
 
     //Add DataNodes to the graph from the node properties files
-    URI dataNodesUri = FlowGraphPathFinderTest.class.getClassLoader().getResource("flowgraph/datanodes").toURI();
+    URI dataNodesUri = MultiHopFlowCompilerTest.class.getClassLoader().getResource("flowgraph/datanodes").toURI();
     FileSystem fs = FileSystem.get(dataNodesUri, new Configuration());
     Path dataNodesPath = new Path(dataNodesUri);
     ConfigParseOptions options = ConfigParseOptions.defaults()
@@ -109,7 +107,7 @@ public class FlowGraphPathFinderTest {
 
 
     //Add FlowEdges from the edge properties files
-    URI flowEdgesURI = FlowGraphPathFinderTest.class.getClassLoader().getResource("flowgraph/flowedges").toURI();
+    URI flowEdgesURI = MultiHopFlowCompilerTest.class.getClassLoader().getResource("flowgraph/flowedges").toURI();
     fs = FileSystem.get(flowEdgesURI, new Configuration());
     Path flowEdgesPath = new Path(flowEdgesURI);
     for (FileStatus fileStatus: fs.listStatus(flowEdgesPath)) {
@@ -124,17 +122,21 @@ public class FlowGraphPathFinderTest {
       }
     }
 
+    this.specCompiler = new MultiHopFlowCompiler(config, this.flowGraph);
+  }
+
+  private FlowSpec createFlowSpec(String flowConfigResource, String source, String destination) throws IOException, URISyntaxException {
     //Create a flow spec
     Properties flowProperties = new Properties();
     flowProperties.put(ConfigurationKeys.JOB_SCHEDULE_KEY, "* * * * *");
     flowProperties.put(ConfigurationKeys.FLOW_GROUP_KEY, "testFlowGroup");
     flowProperties.put(ConfigurationKeys.FLOW_NAME_KEY, "testFlowName");
-    flowProperties.put(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, "LocalFS-1");
-    flowProperties.put(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, "ADLS-1");
+    flowProperties.put(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, source);
+    flowProperties.put(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, destination);
     Config flowConfig = ConfigUtils.propertiesToConfig(flowProperties);
 
     //Get the input/output dataset config from a file
-    URI flowConfigUri = FlowGraphPathFinderTest.class.getClassLoader().getResource("flow/flow.conf").toURI();
+    URI flowConfigUri = MultiHopFlowCompilerTest.class.getClassLoader().getResource(flowConfigResource).toURI();
     Path flowConfigPath = new Path(flowConfigUri);
     FileSystem fs1 = FileSystem.get(flowConfigUri, new Configuration());
     try (InputStream is = fs1.open(flowConfigPath)) {
@@ -149,14 +151,13 @@ public class FlowGraphPathFinderTest {
         .withVersion(FlowSpec.Builder.DEFAULT_VERSION);
 
     FlowSpec spec = flowSpecBuilder.build();
-    this.pathFinder = new FlowGraphPathFinder(this.flowGraph, spec);
+    return spec;
   }
 
   @Test
-  public void testFindPath()
-      throws FlowGraphPathFinder.PathFinderException, URISyntaxException, JobTemplate.TemplateException,
-             SpecNotFoundException, IOException {
-    Dag<JobExecutionPlan> jobDag = pathFinder.findPath().asDag();
+  public void testCompileFlow() throws URISyntaxException, IOException {
+    FlowSpec spec = createFlowSpec("flow/flow.conf", "LocalFS-1", "ADLS-1");
+    Dag<JobExecutionPlan> jobDag = this.specCompiler.compileFlow(spec);
     Assert.assertEquals(jobDag.getNodes().size(), 4);
     Assert.assertEquals(jobDag.getStartNodes().size(), 1);
     Assert.assertEquals(jobDag.getEndNodes().size(), 1);
@@ -204,7 +205,7 @@ public class FlowGraphPathFinderTest {
     Assert.assertEquals(jobConfig.getString("data.publisher.final.dir"), to);
     specExecutor = jobSpecWithExecutor.getSpecExecutor();
     Assert.assertEquals(specExecutor.getUri().toString(), "https://azkaban01.gobblin.net:8443");
-    Assert.assertEquals(specExecutor.getClass().getCanonicalName(), "org.apache.gobblin.service.modules.flow.FlowGraphPathFinderTest.TestAzkabanSpecExecutor");
+    Assert.assertEquals(specExecutor.getClass().getCanonicalName(), "org.apache.gobblin.service.modules.flow.MultiHopFlowCompilerTest.TestAzkabanSpecExecutor");
 
     //Get the 3rd hop - "Distcp HDFS-1 to HDFS-3"
     Assert.assertEquals(jobDag.getChildren(secondHopNode).size(), 1);
@@ -224,7 +225,7 @@ public class FlowGraphPathFinderTest {
     //Ensure the spec executor has the correct configurations
     specExecutor = jobSpecWithExecutor.getSpecExecutor();
     Assert.assertEquals(specExecutor.getUri().toString(), "https://azkaban01.gobblin.net:8443");
-    Assert.assertEquals(specExecutor.getClass().getCanonicalName(), "org.apache.gobblin.service.modules.flow.FlowGraphPathFinderTest.TestAzkabanSpecExecutor");
+    Assert.assertEquals(specExecutor.getClass().getCanonicalName(), "org.apache.gobblin.service.modules.flow.MultiHopFlowCompilerTest.TestAzkabanSpecExecutor");
 
     //Get the 4th hop - "Distcp from HDFS3 to ADLS-1"
     Assert.assertEquals(jobDag.getChildren(thirdHopNode).size(), 1);
@@ -247,20 +248,20 @@ public class FlowGraphPathFinderTest {
     //Ensure the spec executor has the correct configurations
     specExecutor = jobSpecWithExecutor.getSpecExecutor();
     Assert.assertEquals(specExecutor.getUri().toString(), "https://azkaban03.gobblin.net:8443");
-    Assert.assertEquals(specExecutor.getClass().getCanonicalName(), "org.apache.gobblin.service.modules.flow.FlowGraphPathFinderTest.TestAzkabanSpecExecutor");
+    Assert.assertEquals(specExecutor.getClass().getCanonicalName(), "org.apache.gobblin.service.modules.flow.MultiHopFlowCompilerTest.TestAzkabanSpecExecutor");
 
     //Ensure the fourth hop is the last
     Assert.assertEquals(jobDag.getEndNodes().get(0), fourthHopNode);
   }
 
-  @Test (dependsOnMethods = "testFindPath")
-  public void testFindPathAfterFirstEdgeDeletion()
-      throws FlowGraphPathFinder.PathFinderException, URISyntaxException, JobTemplate.TemplateException,
-             SpecNotFoundException, IOException {
+  @Test (dependsOnMethods = "testCompileFlow")
+  public void testCompileFlowAfterFirstEdgeDeletion() throws URISyntaxException, IOException {
     //Delete the self edge on HDFS-1 that performs convert-to-json-and-encrypt.
     this.flowGraph.deleteFlowEdge("HDFS-1:HDFS-1:hdfsConvertToJsonAndEncrypt");
 
-    Dag<JobExecutionPlan> jobDag = pathFinder.findPath().asDag();
+    FlowSpec spec = createFlowSpec("flow/flow.conf", "LocalFS-1", "ADLS-1");
+    Dag<JobExecutionPlan> jobDag = this.specCompiler.compileFlow(spec);
+
     Assert.assertEquals(jobDag.getNodes().size(), 4);
     Assert.assertEquals(jobDag.getStartNodes().size(), 1);
     Assert.assertEquals(jobDag.getEndNodes().size(), 1);
@@ -308,7 +309,7 @@ public class FlowGraphPathFinderTest {
     Assert.assertEquals(jobConfig.getString("data.publisher.final.dir"), to);
     specExecutor = jobExecutionPlan.getSpecExecutor();
     Assert.assertEquals(specExecutor.getUri().toString(), "https://azkaban02.gobblin.net:8443");
-    Assert.assertEquals(specExecutor.getClass().getCanonicalName(), "org.apache.gobblin.service.modules.flow.FlowGraphPathFinderTest.TestAzkabanSpecExecutor");
+    Assert.assertEquals(specExecutor.getClass().getCanonicalName(), "org.apache.gobblin.service.modules.flow.MultiHopFlowCompilerTest.TestAzkabanSpecExecutor");
 
     //Get the 3rd hop - "Distcp HDFS-2 to HDFS-4"
     Assert.assertEquals(jobDag.getChildren(secondHopNode).size(), 1);
@@ -328,7 +329,7 @@ public class FlowGraphPathFinderTest {
     //Ensure the spec executor has the correct configurations
     specExecutor = jobExecutionPlan.getSpecExecutor();
     Assert.assertEquals(specExecutor.getUri().toString(), "https://azkaban02.gobblin.net:8443");
-    Assert.assertEquals(specExecutor.getClass().getCanonicalName(), "org.apache.gobblin.service.modules.flow.FlowGraphPathFinderTest.TestAzkabanSpecExecutor");
+    Assert.assertEquals(specExecutor.getClass().getCanonicalName(), "org.apache.gobblin.service.modules.flow.MultiHopFlowCompilerTest.TestAzkabanSpecExecutor");
 
     //Get the 4th hop - "Distcp from HDFS4 to ADLS-1"
     Assert.assertEquals(jobDag.getChildren(thirdHopNode).size(), 1);
@@ -351,21 +352,22 @@ public class FlowGraphPathFinderTest {
     //Ensure the spec executor has the correct configurations
     specExecutor = jobExecutionPlan.getSpecExecutor();
     Assert.assertEquals(specExecutor.getUri().toString(), "https://azkaban04.gobblin.net:8443");
-    Assert.assertEquals(specExecutor.getClass().getCanonicalName(), "org.apache.gobblin.service.modules.flow.FlowGraphPathFinderTest.TestAzkabanSpecExecutor");
+    Assert.assertEquals(specExecutor.getClass().getCanonicalName(), "org.apache.gobblin.service.modules.flow.MultiHopFlowCompilerTest.TestAzkabanSpecExecutor");
 
     //Ensure the fourth hop is the last
     Assert.assertEquals(jobDag.getEndNodes().get(0), fourthHopNode);
   }
 
-  @Test (dependsOnMethods = "testFindPathAfterFirstEdgeDeletion")
-  public void testFindPathAfterSecondEdgeDeletion()
-      throws FlowGraphPathFinder.PathFinderException, URISyntaxException, JobTemplate.TemplateException,
-             SpecNotFoundException, IOException {
+  @Test (dependsOnMethods = "testCompileFlowAfterFirstEdgeDeletion")
+  public void testCompileFlowAfterSecondEdgeDeletion() throws URISyntaxException, IOException {
     //Delete the self edge on HDFS-2 that performs convert-to-json-and-encrypt.
     this.flowGraph.deleteFlowEdge("HDFS-2:HDFS-2:hdfsConvertToJsonAndEncrypt");
 
+    FlowSpec spec = createFlowSpec("flow/flow.conf", "LocalFS-1", "ADLS-1");
+    Dag<JobExecutionPlan> jobDag = this.specCompiler.compileFlow(spec);
+
     //Ensure no path to destination.
-    Assert.assertNull(pathFinder.findPath());
+    Assert.assertTrue(jobDag.isEmpty());
   }
 
   @AfterClass
