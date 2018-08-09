@@ -220,7 +220,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   protected void executeCancellation() {
     if (this.jobSubmitted) {
       try {
-        if (this.cancellationRequested) {
+        if (this.cancellationRequested && !this.cancellationExecuted) {
           // TODO : fix this when HELIX-1180 is completed
           // work flow should never be deleted explicitly because it has a expiry time
           // If cancellation is requested, we should set the job state to CANCELLED/ABORT

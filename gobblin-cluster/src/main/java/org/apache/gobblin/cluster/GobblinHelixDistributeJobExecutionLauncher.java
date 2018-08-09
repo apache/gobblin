@@ -98,7 +98,7 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
   protected static final String PLANNING_TASK_STATE_DIR_NAME = "_plan_taskstates";
   protected static final String PLANNING_JOB_STATE_DIR_NAME = "_plan_jobstates";
 
-  protected static final String JOB_PROPS_PREFIX = "gobblin.jobProps.";
+  protected static final String JOB_PROPS_PREFgobblinhIX = "gobblin.jobProps.";
 
   private final long workFlowExpiryTimeSeconds;
 
@@ -227,7 +227,8 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
 
   @Override
   public DistributeJobMonitor launchJob(JobSpec jobSpec) {
-    return new DistributeJobMonitor(new DistributeJobCallable(this.jobProperties));
+    this.jobMonitor = new DistributeJobMonitor(new DistributeJobCallable(this.jobProperties));
+    return this.jobMonitor;
   }
 
   @AllArgsConstructor
