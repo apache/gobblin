@@ -23,7 +23,10 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
+
+import lombok.Getter;
 
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.JobTemplate;
@@ -38,27 +41,37 @@ import org.apache.gobblin.service.modules.template.FlowTemplate;
 
 
 /**
- * A class that returns a {@link Dag} of {@link JobExecutionPlan}s from a sequence of edges
- * represented as a {@link List} of {@link FlowEdgeContext}s.
+ * A class that encapsulates a path in the {@link org.apache.gobblin.service.modules.flowgraph.FlowGraph}.
  */
 public class FlowGraphPath {
-  private List<FlowEdgeContext> path;
+  @Getter
+  private List<List<FlowEdgeContext>> paths;
   private FlowSpec flowSpec;
   private Long flowExecutionId;
 
-  public FlowGraphPath(List<FlowEdgeContext> path, FlowSpec flowSpec, Long flowExecutionId) {
-    this.path = path;
+  public FlowGraphPath(FlowSpec flowSpec, Long flowExecutionId) {
     this.flowSpec = flowSpec;
     this.flowExecutionId = flowExecutionId;
   }
 
-  public Dag<JobExecutionPlan> asDag()
-      throws IOException, SpecNotFoundException, JobTemplate.TemplateException, URISyntaxException {
+  public void addPath(List<FlowEdgeContext> path) {
+    if (this.paths == null) {
+      this.paths = new ArrayList<>();
+    }
+    this.paths.add(path);
+  }
+
+  public Dag<JobExecutionPlan> asDag() throws SpecNotFoundException, JobTemplate.TemplateException, URISyntaxException {
     Dag<JobExecutionPlan> flowDag = new Dag<>(new ArrayList<>());
-    Iterator<FlowEdgeContext> pathIterator = path.iterator();
-    while (pathIterator.hasNext()) {
-      Dag<JobExecutionPlan> flowEdgeDag = convertHopToDag(pathIterator.next());
-      flowDag = flowDag.concatenate(flowEdgeDag);
+
+    for(List<FlowEdgeContext> path: paths) {
+      Dag<JobExecutionPlan> pathDag = new Dag<>(new ArrayList<>());
+      Iterator<FlowEdgeContext> pathIterator = path.iterator();
+      while (pathIterator.hasNext()) {
+        Dag<JobExecutionPlan> flowEdgeDag = convertHopToDag(pathIterator.next());
+        pathDag = pathDag.concatenate(flowEdgeDag);
+      }
+      flowDag = flowDag.merge(pathDag);
     }
     return flowDag;
   }
