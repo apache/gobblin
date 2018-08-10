@@ -20,6 +20,7 @@ import java.util.Map;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.codec.GzipCodec;
+import org.apache.gobblin.codec.HadoopSnappyCodec;
 import org.apache.gobblin.codec.StreamCodec;
 
 
@@ -34,6 +35,8 @@ public class CompressionFactory {
     switch (type) {
       case GzipCodec.TAG:
         return new GzipCodec();
+      case HadoopSnappyCodec.TAG:
+        return new HadoopSnappyCodec();
       default:
         throw new IllegalArgumentException("Can't build compressor of type " + type);
     }
