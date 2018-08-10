@@ -98,14 +98,21 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
   protected static final String PLANNING_TASK_STATE_DIR_NAME = "_plan_taskstates";
   protected static final String PLANNING_JOB_STATE_DIR_NAME = "_plan_jobstates";
 
-  protected static final String JOB_PROPS_PREFgobblinhIX = "gobblin.jobProps.";
+  protected static final String JOB_PROPS_PREFIX = "gobblin.jobProps.";
 
   private final long workFlowExpiryTimeSeconds;
 
   private boolean jobSubmitted;
 
+  // A conditional variable for which the condition is satisfied if a cancellation is requested
+  private final Object cancellationRequest = new Object();
+
   // A flag indicating whether a cancellation has been requested or not
   private volatile boolean cancellationRequested = false;
+
+  // A flag indicating whether a cancellation has been executed or not
+  private volatile boolean cancellationExecuted = false;
+
   @Getter
   private DistributeJobMonitor jobMonitor;
 
@@ -138,11 +145,11 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
     executeCancellation();
   }
 
-  protected void executeCancellation() {
+  private void executeCancellation() {
     String planningName = getPlanningJobId(this.jobProperties);
     if (this.jobSubmitted) {
       try {
-        if (this.cancellationRequested) {
+        if (this.cancellationRequested && !this.cancellationExecuted) {
           // TODO : fix this when HELIX-1180 is completed
           // work flow should never be deleted explicitly because it has a expiry time
           // If cancellation is requested, we should set the job state to CANCELLED/ABORT
@@ -296,9 +303,9 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
     }
   }
 
-  protected class DistributeJobMonitor extends FutureTask<ExecutionResult> implements JobExecutionMonitor {
+  private class DistributeJobMonitor extends FutureTask<ExecutionResult> implements JobExecutionMonitor {
     private ExecutorService executor = Executors.newSingleThreadExecutor();
-    public DistributeJobMonitor (Callable<ExecutionResult> c) {
+    DistributeJobMonitor(Callable<ExecutionResult> c) {
       super(c);
       this.executor.execute(this);
     }
@@ -308,11 +315,37 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
       throw new UnsupportedOperationException();
     }
 
+    /**
+     * We override Future's cancel method, which means we do not send the interrupt to the underlying thread.
+     * Instead of that, we submit a STOP request to handle, and the underlying thread is supposed to gracefully accept
+     * the STOPPED state and exit in {@link #waitForJobCompletion} method.
+     * @param mayInterruptIfRunning this is ignored.
+     * @return true always
+     */
     @Override
     public boolean cancel(boolean mayInterruptIfRunning) {
-      GobblinHelixDistributeJobExecutionLauncher.this.cancellationRequested = true;
       GobblinHelixDistributeJobExecutionLauncher.this.executeCancellation();
       return true;
+    }
+  }
+
+  /**
+   * This method calls the underlying {@link DistributeJobMonitor}'s cancel method.
+   * It uses a conditional variable {@link cancellationRequest}
+   * and a flag {@link cancellationRequested} to avoid double cancellation.
+   */
+  public void cancel() {
+    DistributeJobMonitor jobMonitor = getJobMonitor();
+    if (jobMonitor != null) {
+      synchronized (GobblinHelixDistributeJobExecutionLauncher.this.cancellationRequest) {
+        if (GobblinHelixDistributeJobExecutionLauncher.this.cancellationRequested) {
+          // Return immediately if a cancellation has already been requested
+          return;
+        }
+        GobblinHelixDistributeJobExecutionLauncher.this.cancellationRequested = true;
+      }
+      jobMonitor.cancel(true);
+      GobblinHelixDistributeJobExecutionLauncher.this.cancellationExecuted = true;
     }
   }
 

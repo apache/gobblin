@@ -167,7 +167,7 @@ public class HelixUtils {
             .cancelJob(jobListener);
       } else if (jobLauncher instanceof Either.Right) {
         ((Either.Right<GobblinHelixJobLauncher, GobblinHelixDistributeJobExecutionLauncher>) jobLauncher).getRight()
-            .getJobMonitor().cancel(true);
+            .cancel();
       }
     } catch (JobException e) {
       throw new RuntimeException("Unable to cancel job " + jobName + ": ", e);

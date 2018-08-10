@@ -414,7 +414,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
             .cancelJob(((Either.Left<GobblinHelixJobLauncher, GobblinHelixDistributeJobExecutionLauncher>) jobLauncher).getLeft().getJobListener());
       } else if (jobLauncher instanceof Either.Right) {
         ((Either.Right<GobblinHelixJobLauncher, GobblinHelixDistributeJobExecutionLauncher>) jobLauncher).getRight()
-            .getJobMonitor().cancel(true);
+            .cancel();
       }
       else {
         LOGGER.info("JobLauncher of type {} found for job {}.", jobLauncher.getClass(), deleteJobArrival.getJobName());
