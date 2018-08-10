@@ -227,7 +227,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
           Spec jobSpec = jobExecutionPlan.getJobSpec();
 
           if (!((JobSpec)jobSpec).getConfig().hasPath(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
-            _log.warn("JobSpec does not contain flowExecutionId. 1");
+            _log.warn("JobSpec does not contain flowExecutionId.");
           }
 
           Map<String, String> jobMetadata = getJobMetadata(flowMetadata, jobExecutionPlan);
@@ -258,10 +258,10 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   private Map<String,String> getFlowMetadata(FlowSpec flowSpec) {
     Map<String, String> metadata = Maps.newHashMap();
 
-    metadata.put("flowName", flowSpec.getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY));
-    metadata.put("flowGroup", flowSpec.getConfig().getString(ConfigurationKeys.FLOW_GROUP_KEY));
-    if (metadata.containsKey("flowExecutionId")) {
-      metadata.put("flowExecutionId", flowSpec.getConfig().getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY));
+    metadata.put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, flowSpec.getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY));
+    metadata.put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, flowSpec.getConfig().getString(ConfigurationKeys.FLOW_GROUP_KEY));
+    if (metadata.containsKey(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD)) {
+      metadata.put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, flowSpec.getConfig().getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY));
     }
 
     return metadata;
@@ -273,12 +273,12 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     SpecExecutor specExecutor = jobExecutionPlan.getSpecExecutor();
 
     jobMetadata.putAll(flowMetadata);
-    jobMetadata.put("flowName", jobSpec.getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY));
-    jobMetadata.put("flowGroup", jobSpec.getConfig().getString(ConfigurationKeys.FLOW_GROUP_KEY));
-    jobMetadata.put("flowExecutionId", jobSpec.getConfig().getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY));
-    jobMetadata.put("jobName", jobSpec.getConfig().getString(ConfigurationKeys.JOB_NAME_KEY));
-    jobMetadata.put("jobGroup", jobSpec.getConfig().getString(ConfigurationKeys.JOB_GROUP_KEY));
-    jobMetadata.put("specExecutor", specExecutor.getClass().getCanonicalName());
+    jobMetadata.put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, jobSpec.getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY));
+    jobMetadata.put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, jobSpec.getConfig().getString(ConfigurationKeys.FLOW_GROUP_KEY));
+    jobMetadata.put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, jobSpec.getConfig().getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY));
+    jobMetadata.put(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, jobSpec.getConfig().getString(ConfigurationKeys.JOB_NAME_KEY));
+    jobMetadata.put(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, jobSpec.getConfig().getString(ConfigurationKeys.JOB_GROUP_KEY));
+    jobMetadata.put(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD, specExecutor.getClass().getCanonicalName());
 
     return jobMetadata;
   }

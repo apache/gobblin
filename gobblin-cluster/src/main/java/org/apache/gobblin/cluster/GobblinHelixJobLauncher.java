@@ -433,21 +433,21 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
     // only inject flow tags if a flow name is defined
     if (jobProps.containsKey(ConfigurationKeys.FLOW_NAME_KEY)) {
-      metadataTags.add(new Tag<>(GobblinClusterMetricTagNames.FLOW_GROUP,
+      metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD,
           jobProps.getProperty(ConfigurationKeys.FLOW_GROUP_KEY, "")));
       metadataTags.add(
-          new Tag<>(GobblinClusterMetricTagNames.FLOW_NAME, jobProps.getProperty(ConfigurationKeys.FLOW_NAME_KEY)));
+          new Tag<>(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, jobProps.getProperty(ConfigurationKeys.FLOW_NAME_KEY)));
 
       // use job execution id if flow execution id is not present
-      metadataTags.add(new Tag<>(GobblinClusterMetricTagNames.FLOW_EXECUTION_ID,
+      metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD,
           jobProps.getProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, jobExecutionId)));
     }
 
-    metadataTags.add(new Tag<>(GobblinClusterMetricTagNames.JOB_GROUP,
+    metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD,
         jobProps.getProperty(ConfigurationKeys.JOB_GROUP_KEY, "")));
-    metadataTags.add(new Tag<>(GobblinClusterMetricTagNames.JOB_NAME,
+    metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.JOB_NAME_FIELD,
         jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY, "")));
-    metadataTags.add(new Tag<>(GobblinClusterMetricTagNames.JOB_EXECUTION_ID, jobExecutionId));
+    metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.JOB_EXECUTION_ID_FIELD, jobExecutionId));
 
     LOGGER.debug("GobblinHelixJobLauncher.addAdditionalMetadataTags: metadataTags {}", metadataTags);
 

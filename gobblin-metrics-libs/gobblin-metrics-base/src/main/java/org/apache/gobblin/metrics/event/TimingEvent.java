@@ -58,6 +58,16 @@ public class TimingEvent {
     public static final String FLOW_COMPILED = "FlowCompiled";
   }
 
+  public static class FlowEventConstants {
+    public static final String FLOW_NAME_FIELD = "flowName";
+    public static final String FLOW_GROUP_FIELD = "flowGroup";
+    public static final String FLOW_EXECUTION_ID_FIELD = "flowExecutionId";
+    public static final String JOB_NAME_FIELD = "jobName";
+    public static final String JOB_GROUP_FIELD = "jobGroup";
+    public static final String JOB_EXECUTION_ID_FIELD = "jobExecutionId";
+    public static final String SPEC_EXECUTOR_FIELD = "specExecutor";
+  }
+
   public static final String METADATA_START_TIME = "startTime";
   public static final String METADATA_END_TIME = "endTime";
   public static final String METADATA_DURATION = "durationMillis";
