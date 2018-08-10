@@ -91,13 +91,12 @@ public class IdentityFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
     return new JobExecutionPlanDagFactory().createDag(jobExecutionPlans);
   }
 
-  private List<JobExecutionPlan> getJobExecutionPlans(String source, String destination, JobSpec jobSpec)
+  protected List<JobExecutionPlan> getJobExecutionPlans(String source, String destination, JobSpec jobSpec)
       throws ExecutionException, InterruptedException {
     List<JobExecutionPlan> jobExecutionPlans = new ArrayList<>();
 
     for (TopologySpec topologySpec : topologySpecMap.values()) {
-      Map<ServiceNode, ServiceNode> capabilities =
-          (Map<ServiceNode, ServiceNode>) topologySpec.getSpecExecutor().getCapabilities().get();
+      Map<ServiceNode, ServiceNode> capabilities = topologySpec.getSpecExecutor().getCapabilities().get();
       for (Map.Entry<ServiceNode, ServiceNode> capability : capabilities.entrySet()) {
         log.info(String.format("Evaluating current JobSpec: %s against TopologySpec: %s with "
                 + "capability of source: %s and destination: %s ", jobSpec.getUri(), topologySpec.getUri(),

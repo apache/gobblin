@@ -17,19 +17,26 @@
 
 package org.apache.gobblin.service.modules.flow;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.ExecutionException;
 
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutor;
+import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+import org.apache.gobblin.service.modules.spec.JobExecutionPlanDagFactory;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -46,10 +53,9 @@ public class MockedSpecCompiler extends IdentityFlowToJobSpecCompiler {
   }
 
   @Override
-  public Map<Spec, SpecExecutor> compileFlow(Spec spec) {
-    Map<Spec, SpecExecutor> specExecutorMap = Maps.newLinkedHashMap();
+  public Dag<JobExecutionPlan> compileFlow(Spec spec) {
+    List<JobExecutionPlan> jobExecutionPlans = new ArrayList<>();
 
-    SpecExecutor specExecutor = new InMemorySpecExecutor(ConfigFactory.empty());
     long flowExecutionId = System.currentTimeMillis();
 
     int i = 0;
@@ -61,14 +67,19 @@ public class MockedSpecCompiler extends IdentityFlowToJobSpecCompiler {
       properties.put(ConfigurationKeys.JOB_NAME_KEY, ((FlowSpec)spec).getConfigAsProperties().get(ConfigurationKeys.FLOW_NAME_KEY) + "_" + i);
       properties.put(ConfigurationKeys.JOB_GROUP_KEY, ((FlowSpec)spec).getConfigAsProperties().get(ConfigurationKeys.FLOW_GROUP_KEY) + "_" + i);
       properties.put(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, flowExecutionId);
-      Spec jobSpec = JobSpec.builder(specUri)
+      JobSpec jobSpec = JobSpec.builder(specUri)
           .withConfig(ConfigUtils.propertiesToConfig(properties))
           .withVersion("1")
           .withDescription("Spec Description")
           .build();
-      specExecutorMap.put(jobSpec, specExecutor);
+      try {
+        jobExecutionPlans = getJobExecutionPlans("source", "destination", jobSpec);
+      } catch (InterruptedException | ExecutionException e) {
+        Instrumented.markMeter(this.flowCompilationFailedMeter);
+        throw new RuntimeException("Cannot determine topology capabilities", e);
+      }
     }
 
-    return specExecutorMap;
+    return new JobExecutionPlanDagFactory().createDag(jobExecutionPlans);
   }
 }
