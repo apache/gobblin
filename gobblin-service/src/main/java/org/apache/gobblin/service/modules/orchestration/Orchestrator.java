@@ -209,7 +209,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
         return;
       }
 
-      flowMetadata.putIfAbsent("flowExecutionId",
+      flowMetadata.putIfAbsent(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD,
           jobExecutionPlanDag.getNodes().get(0).getValue().getJobSpec().getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY));
 
       if (flowCompilationTimer != null) {
