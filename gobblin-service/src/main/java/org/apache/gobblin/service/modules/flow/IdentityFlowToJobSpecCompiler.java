@@ -91,7 +91,7 @@ public class IdentityFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
     return new JobExecutionPlanDagFactory().createDag(jobExecutionPlans);
   }
 
-  protected List<JobExecutionPlan> getJobExecutionPlans(String source, String destination, JobSpec jobSpec)
+  private List<JobExecutionPlan> getJobExecutionPlans(String source, String destination, JobSpec jobSpec)
       throws ExecutionException, InterruptedException {
     List<JobExecutionPlan> jobExecutionPlans = new ArrayList<>();
 

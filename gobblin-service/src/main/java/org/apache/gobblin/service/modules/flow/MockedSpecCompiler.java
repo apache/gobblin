@@ -20,12 +20,11 @@ package org.apache.gobblin.service.modules.flow;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.ExecutionException;
 
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
@@ -68,12 +67,7 @@ public class MockedSpecCompiler extends IdentityFlowToJobSpecCompiler {
           .withVersion("1")
           .withDescription("Spec Description")
           .build();
-      try {
-        jobExecutionPlans = getJobExecutionPlans("source", "destination", jobSpec);
-      } catch (InterruptedException | ExecutionException e) {
-        Instrumented.markMeter(this.flowCompilationFailedMeter);
-        throw new RuntimeException("Cannot determine topology capabilities", e);
-      }
+      jobExecutionPlans.add(new JobExecutionPlan(jobSpec, new InMemorySpecExecutor(ConfigFactory.empty())));
     }
 
     return new JobExecutionPlanDagFactory().createDag(jobExecutionPlans);
