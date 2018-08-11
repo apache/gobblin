@@ -16,8 +16,12 @@
  */
 package org.apache.gobblin.partitioner;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
 import org.apache.avro.Schema;
-import org.apache.avro.SchemaBuilder;
+import org.apache.avro.Schema.Field;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.gobblin.configuration.State;
@@ -26,7 +30,10 @@ import org.apache.gobblin.writer.partitioner.WriterPartitioner;
 
 import parquet.example.data.Group;
 import parquet.io.InvalidRecordException;
+import parquet.schema.GroupType;
 
+import static org.apache.avro.Schema.Field.Order.IGNORE;
+import static org.apache.avro.Schema.Type.STRING;
 import static org.apache.gobblin.configuration.ConfigurationKeys.WRITER_PREFIX;
 import static org.apache.gobblin.util.ForkOperatorUtils.getPropertyNameForBranch;
 
@@ -43,46 +50,50 @@ public class ParquetPartitioner implements WriterPartitioner<ParquetGroup> {
   public static final String WRITER_PARQUET_PARTITION_KEY = WRITER_PREFIX + ".partitioner.parquet.key";
   public static final String WRITER_PARQUET_PARTITION_KEY_DEFAULT = WRITER_PREFIX + ".partitioner.parquet.key.default";
   public static final String DEFAULT_WRITER_PARQUET_PARTITION_KEY_DEFAULT = "NON_PARTITIONED";
-  private final String partitionKey;
+  private final String[] partitionKey;
   private final String partitionKeyForNonMatchedRecords;
 
   public ParquetPartitioner(State state, int numBranches, int branchId) {
     String partKeyName = getPropertyNameForBranch(WRITER_PARQUET_PARTITION_KEY, numBranches, branchId);
     String defPartKeyName = getPropertyNameForBranch(WRITER_PARQUET_PARTITION_KEY_DEFAULT, numBranches, branchId);
-    this.partitionKey = state.getProp(partKeyName);
+    String delimetedPartKey = state.getProp(partKeyName);
+    this.partitionKey =
+        Optional.ofNullable(delimetedPartKey).map(e -> e.replaceAll("\\s*,\\s*", ",").split(",")).orElseGet(() -> {
+          throw new RuntimeException(
+              String.format("Partition key not found in property %s", WRITER_PARQUET_PARTITION_KEY));
+        });
     this.partitionKeyForNonMatchedRecords = state.getProp(defPartKeyName, DEFAULT_WRITER_PARQUET_PARTITION_KEY_DEFAULT);
   }
 
   @Override
   public Schema partitionSchema() {
-    return SchemaBuilder.record("ParquetPartitionerSchema").namespace("gobblin.partitioner").fields().name(partitionKey)
-        .type(Schema.create(Schema.Type.STRING)).noDefault().endRecord();
+    List<Field> primitiveTypes = new ArrayList<>(partitionKey.length);
+    for (String e : partitionKey) {
+      Field field = new Field(e.trim(), Schema.create(STRING), "", null, IGNORE);
+      primitiveTypes.add(field);
+    }
+    return Schema.createRecord("ParquetPartitionerSchema", "", "gobblin.partitioner", false, primitiveTypes);
   }
 
   @Override
   public GenericRecord partitionForRecord(ParquetGroup record) {
-    Integer fieldIndex;
-    try {
-      fieldIndex = record.getSchema().getFieldIndex(partitionKey);
-    } catch (InvalidRecordException e) {
-      String schema = record.getSchema().toString();
-      String errMsg = String.format("Partition key '%s' not found in the parquet schema %s", partitionKey, schema);
-      throw new RuntimeException(errMsg);
-    }
-
-    try {
-      String partitionValue = record.getValueToString(fieldIndex, 0);
-      GenericRecord partition = new GenericData.Record(partitionSchema());
-      partition.put(partitionKey, partitionValue);
-      return partition;
-    } catch (RuntimeException e) {
-      return defaultPartition();
-    }
-  }
-
-  private GenericRecord defaultPartition() {
     GenericRecord partition = new GenericData.Record(partitionSchema());
-    partition.put(partitionKey, partitionKeyForNonMatchedRecords);
+    GroupType groupType = record.getSchema();
+    for (String partKey : partitionKey) {
+      try {
+        Integer index = groupType.getFieldIndex(partKey);
+        try {
+          String partitionValue = record.getValueToString(index, 0);
+          partition.put(partKey, partitionValue);
+        } catch (RuntimeException e) {
+          partition.put(partKey, partitionKeyForNonMatchedRecords);
+        }
+      } catch (InvalidRecordException e) {
+        String schema = record.getSchema().toString();
+        String errMsg = String.format("Partition key '%s' not found in the parquet schema %s", partKey, schema);
+        throw new RuntimeException(errMsg);
+      }
+    }
     return partition;
   }
 }
