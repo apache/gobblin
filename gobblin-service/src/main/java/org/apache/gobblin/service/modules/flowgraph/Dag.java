@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.service.modules.flowgraph;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -25,9 +24,9 @@ import java.util.Map;
 
 import com.google.common.collect.Lists;
 
-import org.apache.gobblin.annotation.Alpha;
-
 import lombok.Getter;
+
+import org.apache.gobblin.annotation.Alpha;
 
 
 /**
@@ -100,7 +99,7 @@ public class Dag<T> {
    * @param other dag to concatenate to this dag
    * @return the concatenated dag
    */
-  public Dag<T> concatenate(Dag<T> other) throws IOException {
+  public Dag<T> concatenate(Dag<T> other) {
     if (other == null || other.isEmpty()) {
       return this;
     }
@@ -115,6 +114,36 @@ public class Dag<T> {
       }
       this.endNodes = other.endNodes;
     }
+    //Append all the entries from the other dag's parentChildMap to this dag's parentChildMap
+    for (Map.Entry<DagNode, List<DagNode<T>>> entry: other.parentChildMap.entrySet()) {
+      this.parentChildMap.put(entry.getKey(), entry.getValue());
+    }
+    this.nodes.addAll(other.nodes);
+    return this;
+  }
+
+  /**
+   * Merge the "other" dag to "this" dag and return "this" dag as a forest of the two dags.
+   * More specifically, the merge() operation takes two dags and returns a disjoint union of the two dags.
+   *
+   * @param other dag to merge to this dag
+   * @return the disjoint union of the two dags
+   */
+
+  public Dag<T> merge(Dag<T> other) {
+    if (other == null || other.isEmpty()) {
+      return this;
+    }
+    if (this.isEmpty()) {
+      return other;
+    }
+    //Append all the entries from the other dag's parentChildMap to this dag's parentChildMap
+    for (Map.Entry<DagNode, List<DagNode<T>>> entry: other.parentChildMap.entrySet()) {
+      this.parentChildMap.put(entry.getKey(), entry.getValue());
+    }
+    //Append the startNodes, endNodes and nodes from the other dag to this dag.
+    this.startNodes.addAll(other.startNodes);
+    this.endNodes.addAll(other.endNodes);
     this.nodes.addAll(other.nodes);
     return this;
   }

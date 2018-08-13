@@ -26,7 +26,6 @@ target.filebased.fs.uri=${destination.data.node.fs.uri}
 writer.fs.uri=${target.filebased.fs.uri}
 
 work.dir=/tmp/${user.to.proxy}
-writer.user.to.proxy=${adls.user.to.proxy}
 
 # ====================================================================
 # Distcp configurations
