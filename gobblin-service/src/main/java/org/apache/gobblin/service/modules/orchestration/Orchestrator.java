@@ -24,6 +24,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
+
+import com.google.common.collect.Maps;
 import javax.annotation.Nonnull;
 
 import com.codahale.metrics.Meter;
@@ -33,12 +35,16 @@ import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.instrumented.Instrumentable;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.service.modules.flow.SpecCompiler;
+import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecCatalogListener;
@@ -71,6 +77,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   protected final Optional<TopologyCatalog> topologyCatalog;
 
   protected final MetricContext metricContext;
+  protected final Optional<EventSubmitter> eventSubmitter;
   @Getter
   private Optional<Meter> flowOrchestrationSuccessFulMeter;
   @Getter
@@ -86,13 +93,15 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), IdentityFlowToJobSpecCompiler.class);
       this.flowOrchestrationSuccessFulMeter = Optional.of(this.metricContext.meter(ServiceMetricNames.FLOW_ORCHESTRATION_SUCCESSFUL_METER));
       this.flowOrchestrationFailedMeter = Optional.of(this.metricContext.meter(ServiceMetricNames.FLOW_ORCHESTRATION_FAILED_METER));
-      this.flowOrchestrationTimer = Optional.<Timer>of(this.metricContext.timer(ServiceMetricNames.FLOW_ORCHESTRATION_TIMER));
+      this.flowOrchestrationTimer = Optional.of(this.metricContext.timer(ServiceMetricNames.FLOW_ORCHESTRATION_TIMER));
+      this.eventSubmitter = Optional.of(new EventSubmitter.Builder(this.metricContext, "org.apache.gobblin.service").build());
     }
     else {
       this.metricContext = null;
       this.flowOrchestrationSuccessFulMeter = Optional.absent();
       this.flowOrchestrationFailedMeter = Optional.absent();
       this.flowOrchestrationTimer = Optional.absent();
+      this.eventSubmitter = Optional.absent();
     }
 
     this.aliasResolver = new ClassAliasResolver<>(SpecCompiler.class);
@@ -188,11 +197,23 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
     long startTime = System.nanoTime();
     if (spec instanceof FlowSpec) {
+      Map<String, String> flowMetadata = getFlowMetadata((FlowSpec) spec);
+      TimingEvent flowCompilationTimer = this.eventSubmitter.isPresent()
+          ? this.eventSubmitter.get().getTimingEvent(TimingEvent.FlowTimings.FLOW_COMPILED)
+          : null;
       Dag<JobExecutionPlan> jobExecutionPlanDag = specCompiler.compileFlow(spec);
 
       if (jobExecutionPlanDag == null || jobExecutionPlanDag.isEmpty()) {
+        Instrumented.markMeter(this.flowOrchestrationFailedMeter);
         _log.warn("Cannot determine an executor to run on for Spec: " + spec);
         return;
+      }
+
+      flowMetadata.putIfAbsent(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD,
+          jobExecutionPlanDag.getNodes().get(0).getValue().getJobSpec().getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY));
+
+      if (flowCompilationTimer != null) {
+        flowCompilationTimer.stop(flowMetadata);
       }
 
       // Schedule all compiled JobSpecs on their respective Executor
@@ -205,8 +226,22 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
           producer = jobExecutionPlan.getSpecExecutor().getProducer().get();
           Spec jobSpec = jobExecutionPlan.getJobSpec();
 
+          if (!((JobSpec)jobSpec).getConfig().hasPath(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
+            _log.warn("JobSpec does not contain flowExecutionId.");
+          }
+
+          Map<String, String> jobMetadata = getJobMetadata(flowMetadata, jobExecutionPlan);
           _log.info(String.format("Going to orchestrate JobSpec: %s on Executor: %s", jobSpec, producer));
+
+          TimingEvent jobOrchestrationTimer = this.eventSubmitter.isPresent()
+              ? this.eventSubmitter.get().getTimingEvent(TimingEvent.LauncherTimings.JOB_ORCHESTRATED)
+              : null;
+
           producer.addSpec(jobSpec);
+
+          if (jobOrchestrationTimer != null) {
+            jobOrchestrationTimer.stop(jobMetadata);
+          }
         } catch(Exception e) {
           _log.error("Cannot successfully setup spec: " + jobExecutionPlan.getJobSpec() + " on executor: " + producer +
               " for flow: " + spec, e);
@@ -218,6 +253,34 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     }
     Instrumented.markMeter(this.flowOrchestrationSuccessFulMeter);
     Instrumented.updateTimer(this.flowOrchestrationTimer, System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
+  }
+
+  private Map<String,String> getFlowMetadata(FlowSpec flowSpec) {
+    Map<String, String> metadata = Maps.newHashMap();
+
+    metadata.put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, flowSpec.getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY));
+    metadata.put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, flowSpec.getConfig().getString(ConfigurationKeys.FLOW_GROUP_KEY));
+    if (metadata.containsKey(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD)) {
+      metadata.put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, flowSpec.getConfig().getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY));
+    }
+
+    return metadata;
+  }
+
+  private Map<String,String> getJobMetadata(Map<String,String> flowMetadata, JobExecutionPlan jobExecutionPlan) {
+    Map<String, String> jobMetadata = Maps.newHashMap();
+    JobSpec jobSpec = jobExecutionPlan.getJobSpec();
+    SpecExecutor specExecutor = jobExecutionPlan.getSpecExecutor();
+
+    jobMetadata.putAll(flowMetadata);
+    jobMetadata.put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, jobSpec.getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY));
+    jobMetadata.put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, jobSpec.getConfig().getString(ConfigurationKeys.FLOW_GROUP_KEY));
+    jobMetadata.put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, jobSpec.getConfig().getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY));
+    jobMetadata.put(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, jobSpec.getConfig().getString(ConfigurationKeys.JOB_NAME_KEY));
+    jobMetadata.put(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, jobSpec.getConfig().getString(ConfigurationKeys.JOB_GROUP_KEY));
+    jobMetadata.put(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD, specExecutor.getClass().getCanonicalName());
+
+    return jobMetadata;
   }
 
   public void remove(Spec spec, Properties headers) {

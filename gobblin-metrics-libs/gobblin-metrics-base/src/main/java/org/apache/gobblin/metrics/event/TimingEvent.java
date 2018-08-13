@@ -31,6 +31,7 @@ public class TimingEvent {
     public static final String FULL_JOB_EXECUTION = "FullJobExecutionTimer";
     public static final String WORK_UNITS_CREATION = "WorkUnitsCreationTimer";
     public static final String WORK_UNITS_PREPARATION = "WorkUnitsPreparationTimer";
+    public static final String JOB_ORCHESTRATED = "JobOrchestrated";
     public static final String JOB_PREPARE = "JobPrepareTimer";
     public static final String JOB_START = "JobStartTimer";
     public static final String JOB_RUN = "JobRunTimer";
@@ -51,6 +52,20 @@ public class TimingEvent {
     public static final String MR_JOB_RUN = "JobMrRunTimer";
     public static final String HELIX_JOB_SUBMISSION= "JobHelixSubmissionTimer";
     public static final String HELIX_JOB_RUN = "JobHelixRunTimer";
+  }
+
+  public static class FlowTimings {
+    public static final String FLOW_COMPILED = "FlowCompiled";
+  }
+
+  public static class FlowEventConstants {
+    public static final String FLOW_NAME_FIELD = "flowName";
+    public static final String FLOW_GROUP_FIELD = "flowGroup";
+    public static final String FLOW_EXECUTION_ID_FIELD = "flowExecutionId";
+    public static final String JOB_NAME_FIELD = "jobName";
+    public static final String JOB_GROUP_FIELD = "jobGroup";
+    public static final String JOB_EXECUTION_ID_FIELD = "jobExecutionId";
+    public static final String SPEC_EXECUTOR_FIELD = "specExecutor";
   }
 
   public static final String METADATA_START_TIME = "startTime";
