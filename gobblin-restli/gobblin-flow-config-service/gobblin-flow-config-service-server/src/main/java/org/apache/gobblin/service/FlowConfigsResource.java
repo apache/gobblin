@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,7 +42,8 @@ import com.linkedin.restli.server.resources.ComplexKeyResourceTemplate;
 @RestLiCollection(name = "flowconfigs", namespace = "org.apache.gobblin.service", keyName = "id")
 public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, EmptyRecord, FlowConfig> {
   private static final Logger LOG = LoggerFactory.getLogger(FlowConfigsResource.class);
-  private static final Set<String> ALLOWED_METADATA = ImmutableSet.of("delete.state.store");
+  private static final Set<String> ALLOWED_METADATA =
+      ImmutableSet.of(ConfigurationKeys.DELETE_STATE_STORE, ConfigurationKeys.CANCEL_RUNNING_JOB);
 
 
   @edu.umd.cs.findbugs.annotations.SuppressWarnings("MS_SHOULD_BE_FINAL")

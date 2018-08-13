@@ -30,6 +30,7 @@ import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.reporter.util.FixedSchemaVersionWriter;
 import org.apache.gobblin.metrics.reporter.util.SchemaVersionWriter;
 import org.apache.gobblin.runtime.api.GobblinInstanceDriver;
@@ -57,7 +58,6 @@ public class AvroJobSpecKafkaJobMonitor extends KafkaAvroJobMonitor<AvroJobSpec>
   public static final String CONFIG_PREFIX = "gobblin.jobMonitor.avroJobSpec";
   public static final String TOPIC_KEY = "topic";
   public static final String SCHEMA_VERSION_READER_CLASS = "versionReaderClass";
-  public static final String DELETE_STATE_STORE_KEY = "delete.state.store";
 
   private static final Config DEFAULTS = ConfigFactory.parseMap(ImmutableMap.of(
       SCHEMA_VERSION_READER_CLASS, FixedSchemaVersionWriter.class.getName()));
@@ -143,12 +143,12 @@ public class AvroJobSpecKafkaJobMonitor extends KafkaAvroJobMonitor<AvroJobSpec>
         if (jobSpec.getMetadata().get(JobSpec.VERB_KEY).equalsIgnoreCase(SpecExecutor.Verb.DELETE.name())) {
           this.removedSpecs.inc();
           URI jobSpecUri = jobSpec.getUri();
-          this.jobCatalog.remove(jobSpecUri);
+          this.jobCatalog.remove(jobSpec);
 
           // Refer FlowConfigsResources:delete to understand the pattern of flow URI
           // FlowToJobSpec Compilers use the flowSpecURI to derive jobSpecURI
-          if (jobSpec.getConfig().hasPath(DELETE_STATE_STORE_KEY) &&
-              Boolean.parseBoolean(jobSpec.getConfig().getString(DELETE_STATE_STORE_KEY))) {
+          if (jobSpec.getConfig().hasPath(ConfigurationKeys.DELETE_STATE_STORE) &&
+              Boolean.parseBoolean(jobSpec.getConfig().getString(ConfigurationKeys.DELETE_STATE_STORE))) {
             // Delete the job state if it is a delete spec request
             String[] uriTokens = jobSpecUri.getPath().split("/");
             if (null == this.datasetStateStore) {

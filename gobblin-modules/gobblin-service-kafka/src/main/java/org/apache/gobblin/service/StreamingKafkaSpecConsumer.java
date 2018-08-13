@@ -21,7 +21,6 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
@@ -33,18 +32,13 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
-import org.apache.gobblin.metrics.ContextAwareGauge;
-import org.apache.gobblin.metrics.ContextAwareMetric;
 import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.metrics.MetricContext;
-import org.apache.gobblin.metrics.Tag;
 
 import org.slf4j.Logger;
 
 import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -181,6 +175,16 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
         jobSpecBuilder.withVersion(deletedJobVersion).withConfigAsProperties(props);
 
         _jobSpecQueue.put(new ImmutablePair<SpecExecutor.Verb, Spec>(SpecExecutor.Verb.DELETE, jobSpecBuilder.build()));
+        _metrics.jobSpecEnqCount.incrementAndGet();
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+    }
+
+    @Override public void onDeleteJob(JobSpec deletedJob) {
+      super.onDeleteJob(deletedJob.getUri(), deletedJob.getVersion());
+      try {
+        _jobSpecQueue.put(new ImmutablePair<SpecExecutor.Verb, Spec>(SpecExecutor.Verb.DELETE, deletedJob));
         _metrics.jobSpecEnqCount.incrementAndGet();
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
