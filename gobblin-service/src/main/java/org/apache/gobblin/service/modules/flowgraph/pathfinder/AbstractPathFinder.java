@@ -15,12 +15,11 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.service.modules.flow;
+package org.apache.gobblin.service.modules.flowgraph.pathfinder;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -40,6 +39,8 @@ import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.dataset.DatasetDescriptor;
+import org.apache.gobblin.service.modules.flow.FlowEdgeContext;
+import org.apache.gobblin.service.modules.flow.FlowGraphPath;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.DataNode;
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
@@ -52,31 +53,28 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 @Alpha
 @Slf4j
-public class FlowGraphPathFinder {
+public abstract class AbstractPathFinder implements PathFinder {
   private static final String SOURCE_PREFIX = "source";
   private static final String DESTINATION_PREFIX = "destination";
 
-  private FlowGraph flowGraph;
-  private FlowSpec flowSpec;
-  private Config flowConfig;
+  protected FlowGraph flowGraph;
+  protected FlowSpec flowSpec;
+  protected Config flowConfig;
 
-  private DataNode srcNode;
-  private List<DataNode> destNodes;
+  protected DataNode srcNode;
+  protected List<DataNode> destNodes;
 
-  private DatasetDescriptor srcDatasetDescriptor;
-  private DatasetDescriptor destDatasetDescriptor;
+  protected DatasetDescriptor srcDatasetDescriptor;
+  protected DatasetDescriptor destDatasetDescriptor;
 
   //Maintain path of FlowEdges as parent-child map
-  private Map<FlowEdgeContext, FlowEdgeContext> pathMap;
+  protected Map<FlowEdgeContext, FlowEdgeContext> pathMap;
 
   //Flow Execution Id
-  private Long flowExecutionId;
+  protected Long flowExecutionId;
 
-  /**
-   * Constructor.
-   * @param flowGraph
-   */
-  public FlowGraphPathFinder(FlowGraph flowGraph, FlowSpec flowSpec) {
+  public AbstractPathFinder(FlowGraph flowGraph, FlowSpec flowSpec)
+      throws ReflectiveOperationException {
     this.flowGraph = flowGraph;
     this.flowSpec = flowSpec;
     this.flowConfig = flowSpec.getConfig();
@@ -101,112 +99,17 @@ public class FlowGraphPathFinder {
     Config destDatasetDescriptorConfig =
         flowConfig.getConfig(DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX);
 
-    try {
-      Class srcdatasetDescriptorClass =
-          Class.forName(srcDatasetDescriptorConfig.getString(DatasetDescriptorConfigKeys.CLASS_KEY));
-      this.srcDatasetDescriptor = (DatasetDescriptor) GobblinConstructorUtils
-          .invokeLongestConstructor(srcdatasetDescriptorClass, srcDatasetDescriptorConfig);
-      Class destDatasetDescriptorClass =
-          Class.forName(destDatasetDescriptorConfig.getString(DatasetDescriptorConfigKeys.CLASS_KEY));
-      this.destDatasetDescriptor = (DatasetDescriptor) GobblinConstructorUtils
-          .invokeLongestConstructor(destDatasetDescriptorClass, destDatasetDescriptorConfig);
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+    Class srcdatasetDescriptorClass =
+        Class.forName(srcDatasetDescriptorConfig.getString(DatasetDescriptorConfigKeys.CLASS_KEY));
+    this.srcDatasetDescriptor = (DatasetDescriptor) GobblinConstructorUtils
+        .invokeLongestConstructor(srcdatasetDescriptorClass, srcDatasetDescriptorConfig);
+    Class destDatasetDescriptorClass =
+        Class.forName(destDatasetDescriptorConfig.getString(DatasetDescriptorConfigKeys.CLASS_KEY));
+    this.destDatasetDescriptor = (DatasetDescriptor) GobblinConstructorUtils
+        .invokeLongestConstructor(destDatasetDescriptorClass, destDatasetDescriptorConfig);
   }
 
-  public FlowGraphPath findPath() throws PathFinderException {
-    // Generate flow execution id for this compilation
-    this.flowExecutionId = System.currentTimeMillis();
-
-    FlowGraphPath flowGraphPath = new FlowGraphPath(flowSpec, flowExecutionId);
-    //Path computation must be thread-safe to guarantee read consistency. In other words, we prevent concurrent read/write access to the
-    // flow graph.
-    // TODO: we can easily improve the performance by using a ReentrantReadWriteLock associated with the FlowGraph. This will
-    // allow multiple concurrent readers to not be blocked on each other, as long as there are no writers.
-    synchronized (this.flowGraph) {
-      for (DataNode destNode : this.destNodes) {
-        List<FlowEdgeContext> path = findPathBFS(destNode);
-        if (path != null) {
-          flowGraphPath.addPath(path);
-        } else {
-          //No path to at least one of the destination nodes.
-          return null;
-        }
-      }
-    }
-    return flowGraphPath;
-  }
-
-  /**
-   * A simple path finding algorithm based on Breadth-First Search. At every step the algorithm adds the adjacent {@link FlowEdge}s
-   * to a queue. The {@link FlowEdge}s whose output {@link DatasetDescriptor} matches the destDatasetDescriptor are
-   * added first to the queue. This ensures that dataset transformations are always performed closest to the source.
-   * @return a path of {@link FlowEdgeContext}s starting at the srcNode and ending at the destNode.
-   */
-  private List<FlowEdgeContext> findPathBFS(DataNode destNode)
-      throws PathFinderException {
-    try {
-      //Initialization of auxiliary data structures used for path computation
-      this.pathMap = new HashMap<>();
-
-      //Base condition 1: Source Node or Dest Node is inactive; return null
-      if (!srcNode.isActive() || !destNode.isActive()) {
-        log.warn("Either source node {} or destination node {} is inactive; skipping path computation.",
-            this.srcNode.getId(), destNode.getId());
-        return null;
-      }
-
-      //Base condition 2: Check if we are already at the target. If so, return an empty path.
-      if ((srcNode.equals(destNode)) && destDatasetDescriptor.contains(srcDatasetDescriptor)) {
-        return new ArrayList<>();
-      }
-
-      LinkedList<FlowEdgeContext> edgeQueue = new LinkedList<>();
-      edgeQueue.addAll(getNextEdges(srcNode, srcDatasetDescriptor, destDatasetDescriptor));
-      for (FlowEdgeContext flowEdgeContext : edgeQueue) {
-        this.pathMap.put(flowEdgeContext, flowEdgeContext);
-      }
-
-      //At every step, pop an edge E from the edge queue. Mark the edge E as visited. Generate the list of adjacent edges
-      // to the edge E. For each adjacent edge E', do the following:
-      //    1. check if the FlowTemplate described by E' is resolvable using the flowConfig, and
-      //    2. check if the output dataset descriptor of edge E is compatible with the input dataset descriptor of the
-      //       edge E'. If yes, add the edge E' to the edge queue.
-      // If the edge E' satisfies 1 and 2, add it to the edge queue for further consideration.
-      while (!edgeQueue.isEmpty()) {
-        FlowEdgeContext flowEdgeContext = edgeQueue.pop();
-
-        DataNode currentNode = this.flowGraph.getNode(flowEdgeContext.getEdge().getDest());
-        DatasetDescriptor currentOutputDatasetDescriptor = flowEdgeContext.getOutputDatasetDescriptor();
-
-        //Are we done?
-        if (isPathFound(currentNode, destNode, currentOutputDatasetDescriptor, destDatasetDescriptor)) {
-          return constructPath(flowEdgeContext);
-        }
-
-        //Expand the currentNode to its adjacent edges and add them to the queue.
-        List<FlowEdgeContext> nextEdges =
-            getNextEdges(currentNode, currentOutputDatasetDescriptor, destDatasetDescriptor);
-        for (FlowEdgeContext childFlowEdgeContext : nextEdges) {
-          //Add a pointer from the child edge to the parent edge, if the child edge is not already in the
-          // queue.
-          if (!this.pathMap.containsKey(childFlowEdgeContext)) {
-            edgeQueue.add(childFlowEdgeContext);
-            this.pathMap.put(childFlowEdgeContext, flowEdgeContext);
-          }
-        }
-      }
-      //No path found. Return null.
-      return null;
-    } catch (SpecNotFoundException | JobTemplate.TemplateException | IOException | URISyntaxException e) {
-      throw new PathFinderException(
-          "Exception encountered when computing path from src: " + this.srcNode.getId() + " to dest: " + destNode
-              .getId(), e);
-    }
-  }
-
-  private boolean isPathFound(DataNode currentNode, DataNode destNode, DatasetDescriptor currentDatasetDescriptor,
+  protected boolean isPathFound(DataNode currentNode, DataNode destNode, DatasetDescriptor currentDatasetDescriptor,
       DatasetDescriptor destDatasetDescriptor) {
     if ((currentNode.equals(destNode)) && (currentDatasetDescriptor.equals(destDatasetDescriptor))) {
       return true;
@@ -222,7 +125,7 @@ public class FlowGraphPathFinder {
    * @param destDatasetDescriptor Target {@link DatasetDescriptor}.
    * @return prioritized list of {@link FlowEdge}s to be added to the edge queue for expansion.
    */
-  private List<FlowEdgeContext> getNextEdges(DataNode dataNode, DatasetDescriptor currentDatasetDescriptor,
+  protected List<FlowEdgeContext> getNextEdges(DataNode dataNode, DatasetDescriptor currentDatasetDescriptor,
       DatasetDescriptor destDatasetDescriptor) {
     List<FlowEdgeContext> prioritizedEdgeList = new LinkedList<>();
     for (FlowEdge flowEdge : this.flowGraph.getEdges(dataNode)) {
@@ -315,7 +218,7 @@ public class FlowGraphPathFinder {
    * @throws JobTemplate.TemplateException
    * @throws URISyntaxException
    */
-  private List<FlowEdgeContext> constructPath(FlowEdgeContext flowEdgeContext)
+  protected List<FlowEdgeContext> constructPath(FlowEdgeContext flowEdgeContext)
       throws IOException, SpecNotFoundException, JobTemplate.TemplateException, URISyntaxException {
     //Backtrace from the last edge using the path map and push each edge into a LIFO data structure.
     List<FlowEdgeContext> path = new LinkedList<>();
@@ -332,14 +235,25 @@ public class FlowGraphPathFinder {
     return path;
   }
 
-  public static class PathFinderException extends Exception {
-    public PathFinderException(String message, Throwable cause) {
-      super(message, cause);
-    }
+  @Override
+  public FlowGraphPath findPath() throws PathFinderException {
+    // Generate flow execution id for this compilation
+    this.flowExecutionId = System.currentTimeMillis();
 
-    public PathFinderException(String message) {
-      super(message);
+    FlowGraphPath flowGraphPath = new FlowGraphPath(flowSpec, flowExecutionId);
+    //Path computation must be thread-safe to guarantee read consistency. In other words, we prevent concurrent read/write access to the
+    // flow graph.
+    for (DataNode destNode : this.destNodes) {
+      List<FlowEdgeContext> path = findPathUnicast(destNode);
+      if (path != null) {
+        flowGraphPath.addPath(path);
+      } else {
+        //No path to at least one of the destination nodes.
+        return null;
+      }
     }
+    return flowGraphPath;
   }
-}
 
+  public abstract List<FlowEdgeContext> findPathUnicast(DataNode destNode) throws PathFinderException;
+}
