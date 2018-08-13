@@ -37,6 +37,8 @@ public interface SpecCompiler extends SpecCatalogListener, Instrumentable {
   /***
    * Take in a logical {@link Spec} and compile corresponding materialized {@link Spec}s
    * and the mapping to {@link SpecExecutor} that they can be run on.
+   * All the specs generated from the compileFlow must have a
+   * {@link org.apache.gobblin.configuration.ConfigurationKeys.FLOW_EXECUTION_ID_KEY}
    * @param spec {@link Spec} to compile.
    * @return Map of materialized physical {@link Spec} and {@link SpecExecutor}.
    */

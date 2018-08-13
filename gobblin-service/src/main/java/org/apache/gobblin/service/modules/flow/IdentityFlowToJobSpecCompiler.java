@@ -96,8 +96,7 @@ public class IdentityFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
     List<JobExecutionPlan> jobExecutionPlans = new ArrayList<>();
 
     for (TopologySpec topologySpec : topologySpecMap.values()) {
-      Map<ServiceNode, ServiceNode> capabilities =
-          (Map<ServiceNode, ServiceNode>) topologySpec.getSpecExecutor().getCapabilities().get();
+      Map<ServiceNode, ServiceNode> capabilities = topologySpec.getSpecExecutor().getCapabilities().get();
       for (Map.Entry<ServiceNode, ServiceNode> capability : capabilities.entrySet()) {
         log.info(String.format("Evaluating current JobSpec: %s against TopologySpec: %s with "
                 + "capability of source: %s and destination: %s ", jobSpec.getUri(), topologySpec.getUri(),
