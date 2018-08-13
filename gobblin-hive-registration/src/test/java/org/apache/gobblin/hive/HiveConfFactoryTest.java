@@ -21,18 +21,25 @@ import org.apache.hadoop.hive.conf.HiveConf;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.google.common.base.Optional;
+
 import org.apache.gobblin.broker.EmptyKey;
 import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
 
 
 public class HiveConfFactoryTest {
   @Test
-  public void testSameKey() throws Exception {
-    HiveConf hiveConf = SharedResourcesBrokerFactory
-        .getImplicitBroker().getSharedResource(new HiveConfFactory<>(), EmptyKey.INSTANCE);
-    HiveConf hiveConf1 = SharedResourcesBrokerFactory
-        .getImplicitBroker().getSharedResource(new HiveConfFactory<>(), EmptyKey.INSTANCE);
-
+  public void testHiveConfFactory() throws Exception {
+    HiveConf hiveConf = HiveConfFactory.get(Optional.absent(), SharedResourcesBrokerFactory.getImplicitBroker());
+    HiveConf hiveConf1 = HiveConfFactory.get(Optional.absent(), SharedResourcesBrokerFactory.getImplicitBroker());
     Assert.assertEquals(hiveConf, hiveConf1);
+
+    HiveConf hiveConf2 = HiveConfFactory.get(Optional.of("hcat1"), SharedResourcesBrokerFactory.getImplicitBroker());
+    HiveConf hiveConf3 = HiveConfFactory.get(Optional.of("hcat1"), SharedResourcesBrokerFactory.getImplicitBroker());
+    Assert.assertEquals(hiveConf2, hiveConf3);
+
+    HiveConf hiveConf4 = HiveConfFactory.get(Optional.of("hcat11"), SharedResourcesBrokerFactory.getImplicitBroker());
+    Assert.assertNotEquals(hiveConf3, hiveConf4);
+    Assert.assertNotEquals(hiveConf4, hiveConf);
   }
 }

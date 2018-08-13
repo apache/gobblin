@@ -17,7 +17,12 @@
 
 package org.apache.gobblin.hive;
 
+import java.io.IOException;
+
+import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.hive.conf.HiveConf;
+
+import com.google.common.base.Optional;
 
 import org.apache.gobblin.broker.EmptyKey;
 import org.apache.gobblin.broker.ResourceInstance;
@@ -29,13 +34,15 @@ import org.apache.gobblin.broker.iface.SharedResourceFactory;
 import org.apache.gobblin.broker.iface.SharedResourceFactoryResponse;
 import org.apache.gobblin.broker.iface.SharedResourcesBroker;
 
+import static org.apache.gobblin.hive.HiveMetaStoreClientFactory.HIVE_METASTORE_TOKEN_SIGNATURE;
+
 
 /**
  * The factory that creates a {@link HiveConf} as shared resource.
  * {@link EmptyKey} is fair since {@link HiveConf} seems to be read-only.
  */
-public class HiveConfFactory<S extends ScopeType<S>> implements SharedResourceFactory<HiveConf, EmptyKey, S> {
-  public static final String FACTORY_NAME = "hiveConfFactory";
+public class HiveConfFactory<S extends ScopeType<S>> implements SharedResourceFactory<HiveConf, SharedHiveConfKey, S> {
+  static final String FACTORY_NAME = "hiveConfFactory";
 
   @Override
   public String getName() {
@@ -44,14 +51,36 @@ public class HiveConfFactory<S extends ScopeType<S>> implements SharedResourceFa
 
   @Override
   public SharedResourceFactoryResponse<HiveConf> createResource(SharedResourcesBroker<S> broker,
-      ScopedConfigView<S, EmptyKey> config)
+      ScopedConfigView<S, SharedHiveConfKey> config)
       throws NotConfiguredException {
-    // We could extend the constructor of HiveConf to accept arguments in the future.
-    return new ResourceInstance<>(new HiveConf());
+    SharedHiveConfKey sharedHiveConfKey = config.getKey();
+    HiveConf rawConf = new HiveConf();
+    rawConf.setVar(HiveConf.ConfVars.METASTOREURIS, sharedHiveConfKey.hiveConfUri);
+    rawConf.set(HIVE_METASTORE_TOKEN_SIGNATURE, sharedHiveConfKey.hiveConfUri);
+
+    return new ResourceInstance<>(rawConf);
+  }
+
+  /**
+   *
+   * @param hcatURI User specified hcatURI.
+   * @param broker A shared resource broker
+   * @return a {@link HiveConf} with specified hcatURI if any.
+   * @throws IOException
+   */
+  public static <S extends ScopeType<S>> HiveConf get(Optional<String> hcatURI, SharedResourcesBroker<S> broker)
+      throws IOException {
+    try {
+      SharedHiveConfKey confKey =
+          hcatURI.isPresent() && StringUtils.isNotBlank(hcatURI.get()) ? new SharedHiveConfKey(hcatURI.get()) : SharedHiveConfKey.INSTANCE;
+      return broker.getSharedResource(new HiveConfFactory<>(), confKey);
+    } catch (NotConfiguredException nce) {
+      throw new IOException(nce);
+    }
   }
 
   @Override
-  public S getAutoScope(SharedResourcesBroker<S> broker, ConfigView<S, EmptyKey> config) {
+  public S getAutoScope(SharedResourcesBroker<S> broker, ConfigView<S, SharedHiveConfKey> config) {
     return broker.selfScope().getType().rootScope();
   }
 }

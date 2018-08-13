@@ -17,6 +17,8 @@
 
 package org.apache.gobblin.hive;
 
+import java.io.IOException;
+
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.pool2.BasePooledObjectFactory;
 import org.apache.commons.pool2.PooledObject;
@@ -65,14 +67,8 @@ public class HiveMetaStoreClientFactory extends BasePooledObjectFactory<IMetaSto
 
   private static HiveConf getHiveConf(Optional<String> hcatURI) {
     try {
-      HiveConf hiveConf = SharedResourcesBrokerFactory.getImplicitBroker()
-          .getSharedResource(new HiveConfFactory<>(), EmptyKey.INSTANCE);
-      if (hcatURI.isPresent() && StringUtils.isNotBlank(hcatURI.get())) {
-        hiveConf.setVar(HiveConf.ConfVars.METASTOREURIS, hcatURI.get());
-        hiveConf.set(HIVE_METASTORE_TOKEN_SIGNATURE, hcatURI.get());
-      }
-      return hiveConf;
-    } catch (NotConfiguredException nce) {
+      return HiveConfFactory.get(hcatURI, SharedResourcesBrokerFactory.getImplicitBroker());
+    } catch (IOException nce) {
       throw new RuntimeException("Implicit broker is not correctly configured, failed to fetch a HiveConf object", nce);
     }
   }
