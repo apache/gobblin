@@ -196,10 +196,17 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
       TimingEvent jobSubmissionTimer =
           this.eventSubmitter.getTimingEvent(TimingEvent.RunJobTimings.HELIX_JOB_SUBMISSION);
-      submitJobToHelix(createJob(workUnits));
-      jobSubmissionTimer.stop();
-      LOGGER.info(String.format("Submitted job %s to Helix", this.jobContext.getJobId()));
-      this.jobSubmitted = true;
+
+      synchronized (this.cancellationExecution) {
+        if (!this.cancellationRequested) {
+          submitJobToHelix(createJob(workUnits));
+          jobSubmissionTimer.stop();
+          LOGGER.info(String.format("Submitted job %s to Helix", this.jobContext.getJobId()));
+          this.jobSubmitted = true;
+        } else {
+          LOGGER.warn("Job {} not submitted to Helix as it was requested to be cancelled.", this.jobContext.getJobId());
+        }
+      }
 
       TimingEvent jobRunTimer = this.eventSubmitter.getTimingEvent(TimingEvent.RunJobTimings.HELIX_JOB_RUN);
       waitForJobCompletion();

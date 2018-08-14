@@ -174,6 +174,8 @@ public class HelixUtils {
         ((GobblinHelixJobLauncher) jobLauncher).cancelJob(jobListener);
       } else if (jobLauncher instanceof GobblinHelixDistributeJobExecutionLauncher) {
         ((GobblinHelixDistributeJobExecutionLauncher) jobLauncher).cancel();
+      } else {
+        log.warn("Timeout occured for unknown job launcher {}", jobLauncher.getClass());
       }
     } catch (JobException e) {
       throw new RuntimeException("Unable to cancel job " + jobName + ": ", e);
