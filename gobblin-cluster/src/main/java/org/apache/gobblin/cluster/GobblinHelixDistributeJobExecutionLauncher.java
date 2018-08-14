@@ -138,7 +138,6 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
 
   @Override
   public void close()  throws IOException {
-    executeCancellation();
   }
 
   private void executeCancellation() {
