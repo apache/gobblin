@@ -197,7 +197,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
       TimingEvent jobSubmissionTimer =
           this.eventSubmitter.getTimingEvent(TimingEvent.RunJobTimings.HELIX_JOB_SUBMISSION);
 
-      synchronized (this.cancellationExecution) {
+      synchronized (this.cancellationRequest) {
         if (!this.cancellationRequested) {
           submitJobToHelix(createJob(workUnits));
           jobSubmissionTimer.stop();
