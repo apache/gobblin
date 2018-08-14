@@ -45,6 +45,7 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
 
 import javax.annotation.Nullable;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
@@ -66,6 +67,7 @@ import org.apache.gobblin.runtime.util.StateStores;
 import org.apache.gobblin.source.workunit.MultiWorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.Either;
 import org.apache.gobblin.util.Id;
 import org.apache.gobblin.util.JobLauncherUtils;
 import org.apache.gobblin.util.ParallelRunner;
@@ -108,6 +110,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   private final TaskDriver helixTaskDriver;
   private final String helixWorkFlowName;
   private final String jobResourceName;
+  @Getter
   private JobListener jobListener;
 
   private final FileSystem fs;
@@ -170,6 +173,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
     this.taskStateCollectorService = new TaskStateCollectorService(jobProps, this.jobContext.getJobState(),
         this.eventBus, this.stateStores.getTaskStateStore(), outputTaskStateDir);
+
     startCancellationExecutor();
   }
 
@@ -214,15 +218,15 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   protected void executeCancellation() {
     if (this.jobSubmitted) {
       try {
-        log.info("[DELETE] workflow {}", this.helixWorkFlowName);
-        if (this.cancellationRequested) {
+        if (this.cancellationRequested && !this.cancellationExecuted) {
           // TODO : fix this when HELIX-1180 is completed
           // work flow should never be deleted explicitly because it has a expiry time
           // If cancellation is requested, we should set the job state to CANCELLED/ABORT
-          this.helixTaskDriver.delete(this.helixWorkFlowName);
+          this.helixTaskDriver.waitToStop(this.helixWorkFlowName, 10000L);
+          log.info("stopped the workflow ", this.helixWorkFlowName);
         }
-      } catch (IllegalArgumentException e) {
-        LOGGER.warn("Failed to cancel job {} in Helix", this.jobContext.getJobId(), e);
+      } catch (InterruptedException e) {
+        throw new RuntimeException("Failed to stop workflow " + helixWorkFlowName + " in Helix", e);
       }
     }
   }
@@ -367,7 +371,6 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   }
 
   private void waitForJobCompletion()  throws InterruptedException {
-    LOGGER.info("Waiting for job to complete...");
     boolean timeoutEnabled = Boolean.parseBoolean(this.jobProps.getProperty(ConfigurationKeys.HELIX_JOB_TIMEOUT_ENABLED_KEY,
         ConfigurationKeys.DEFAULT_HELIX_JOB_TIMEOUT_ENABLED));
     long timeoutInSeconds = Long.parseLong(this.jobProps.getProperty(ConfigurationKeys.HELIX_JOB_TIMEOUT_SECONDS,
@@ -380,14 +383,8 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
           this.jobContext.getJobId(),
           timeoutEnabled? Optional.of(timeoutInSeconds) : Optional.empty());
     } catch (TimeoutException te) {
-      helixTaskDriver.waitToStop(helixWorkFlowName, 10L);
-      try {
-        cancelJob(this.jobListener);
-      } catch (JobException e) {
-        throw new RuntimeException("Unable to cancel job " + jobContext.getJobName() + ": ", e);
-      }
-      this.helixTaskDriver.resume(this.helixWorkFlowName);
-      LOGGER.info("stopped the queue, deleted the job");
+      HelixUtils.handleJobTimeout(helixWorkFlowName, jobContext.getJobId(),
+          helixManager, Either.left(this), this.jobListener);
     }
   }
 

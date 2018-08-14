@@ -41,6 +41,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.runtime.JobException;
 import org.apache.gobblin.runtime.TaskState;
 import org.apache.gobblin.runtime.util.StateStores;
 import org.apache.gobblin.source.extractor.partition.Partitioner;
@@ -133,7 +134,11 @@ public class GobblinHelixJobTask implements Task {
   public void cancel() {
     log.info("Cancelling planning job {}", this.planningJobId);
     if (launcher != null) {
-      launcher.executeCancellation();
+      try {
+        launcher.cancelJob(launcher.getJobListener());
+      } catch (JobException e) {
+        throw new RuntimeException("Unable to cancel planning job " + this.planningJobId + ": ", e);
+      }
     }
   }
 }
