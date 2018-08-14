@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+
+<configuration>
+  <property>
+    <name>hive.metastore.uris</name>
+    <value>file:///test</value>
+  </property>
+
+  <property>
+    <name>hive.metastore.token.signature</name>
+    <value>file:///test</value>
+  </property>
+</configuration>

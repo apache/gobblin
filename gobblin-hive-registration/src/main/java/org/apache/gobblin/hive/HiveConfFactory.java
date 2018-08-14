@@ -55,8 +55,11 @@ public class HiveConfFactory<S extends ScopeType<S>> implements SharedResourceFa
       throws NotConfiguredException {
     SharedHiveConfKey sharedHiveConfKey = config.getKey();
     HiveConf rawConf = new HiveConf();
-    rawConf.setVar(HiveConf.ConfVars.METASTOREURIS, sharedHiveConfKey.hiveConfUri);
-    rawConf.set(HIVE_METASTORE_TOKEN_SIGNATURE, sharedHiveConfKey.hiveConfUri);
+    if (!sharedHiveConfKey.hiveConfUri.equals(SharedHiveConfKey.INSTANCE.toConfigurationKey()) && StringUtils
+        .isNotEmpty(sharedHiveConfKey.hiveConfUri)) {
+      rawConf.setVar(HiveConf.ConfVars.METASTOREURIS, sharedHiveConfKey.hiveConfUri);
+      rawConf.set(HIVE_METASTORE_TOKEN_SIGNATURE, sharedHiveConfKey.hiveConfUri);
+    }
 
     return new ResourceInstance<>(rawConf);
   }
@@ -72,7 +75,8 @@ public class HiveConfFactory<S extends ScopeType<S>> implements SharedResourceFa
       throws IOException {
     try {
       SharedHiveConfKey confKey =
-          hcatURI.isPresent() && StringUtils.isNotBlank(hcatURI.get()) ? new SharedHiveConfKey(hcatURI.get()) : SharedHiveConfKey.INSTANCE;
+          hcatURI.isPresent() && StringUtils.isNotBlank(hcatURI.get()) ? new SharedHiveConfKey(hcatURI.get())
+              : SharedHiveConfKey.INSTANCE;
       return broker.getSharedResource(new HiveConfFactory<>(), confKey);
     } catch (NotConfiguredException nce) {
       throw new IOException(nce);
