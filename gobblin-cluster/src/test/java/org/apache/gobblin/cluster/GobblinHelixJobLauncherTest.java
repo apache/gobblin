@@ -186,7 +186,9 @@ public class GobblinHelixJobLauncherTest {
 
     properties.setProperty(ConfigurationKeys.WRITER_FILE_PATH, jobName);
 
-    properties.setProperty(GobblinClusterConfigurationKeys.HELIX_WORKFLOW_EXPIRY_TIME_SECONDS, "2");
+    // expiry time should be more than the time needed for the job to complete
+    // otherwise JobContext will become null. This is how Helix work flow works.
+    properties.setProperty(GobblinClusterConfigurationKeys.HELIX_WORKFLOW_EXPIRY_TIME_SECONDS, "5");
 
     return properties;
   }
@@ -299,6 +301,7 @@ public class GobblinHelixJobLauncherTest {
 
     final String jobIdKey1 = properties.getProperty(ConfigurationKeys.JOB_ID_KEY);
     final String jobIdKey2 = properties2.getProperty(ConfigurationKeys.JOB_ID_KEY);
+
     org.apache.helix.task.JobContext jobContext1 = taskDriver.getJobContext(jobIdKey1);
     org.apache.helix.task.JobContext jobContext2 = taskDriver.getJobContext(jobIdKey2);
 
