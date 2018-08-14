@@ -67,7 +67,6 @@ import org.apache.gobblin.runtime.util.StateStores;
 import org.apache.gobblin.source.workunit.MultiWorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.util.Either;
 import org.apache.gobblin.util.Id;
 import org.apache.gobblin.util.JobLauncherUtils;
 import org.apache.gobblin.util.ParallelRunner;
@@ -384,7 +383,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
           timeoutEnabled? Optional.of(timeoutInSeconds) : Optional.empty());
     } catch (TimeoutException te) {
       HelixUtils.handleJobTimeout(helixWorkFlowName, jobContext.getJobId(),
-          helixManager, Either.left(this), this.jobListener);
+          helixManager, this, this.jobListener);
     }
   }
 

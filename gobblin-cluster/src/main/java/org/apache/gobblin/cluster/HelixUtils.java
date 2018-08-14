@@ -25,7 +25,6 @@ import org.apache.helix.HelixManager;
 import org.apache.helix.manager.zk.ZKHelixManager;
 import org.apache.helix.model.HelixConfigScope;
 import org.apache.helix.task.JobConfig;
-import org.apache.helix.task.TargetState;
 import org.apache.helix.task.TaskDriver;
 import org.apache.helix.task.TaskUtil;
 import org.apache.helix.task.Workflow;
@@ -38,7 +37,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.runtime.JobException;
 import org.apache.gobblin.runtime.listeners.JobListener;
-import org.apache.gobblin.util.Either;
 
 import static org.apache.helix.task.TaskState.STOPPED;
 
@@ -146,7 +144,6 @@ public class HelixUtils {
     while (!timeoutInSeconds.isPresent() || System.currentTimeMillis() <= endTime) {
       WorkflowContext workflowContext = TaskDriver.getWorkflowContext(helixManager, workFlowName);
       if (workflowContext != null) {
-        log.info("workflowContext is {}", workflowContext.getJobState(TaskUtil.getNamespacedJobName(workFlowName, jobName)));
         switch (workflowContext.getJobState(TaskUtil.getNamespacedJobName(workFlowName, jobName))) {
           case STOPPED:
             // user requested cancellation, which is executed by executeCancellation()
@@ -171,16 +168,12 @@ public class HelixUtils {
   }
 
   public static void handleJobTimeout(String workFlowName, String jobName, HelixManager helixManager,
-      Either<GobblinHelixJobLauncher, GobblinHelixDistributeJobExecutionLauncher> jobLauncher,
-      JobListener jobListener) throws InterruptedException {
-    new TaskDriver(helixManager).waitToStop(workFlowName, 10000L);
+      Object jobLauncher, JobListener jobListener) throws InterruptedException {
     try {
-      if (jobLauncher instanceof Either.Left) {
-        ((Either.Left<GobblinHelixJobLauncher, GobblinHelixDistributeJobExecutionLauncher>) jobLauncher).getLeft()
-            .cancelJob(jobListener);
-      } else if (jobLauncher instanceof Either.Right) {
-        ((Either.Right<GobblinHelixJobLauncher, GobblinHelixDistributeJobExecutionLauncher>) jobLauncher).getRight()
-            .cancel();
+      if (jobLauncher instanceof GobblinHelixJobLauncher) {
+        ((GobblinHelixJobLauncher) jobLauncher).cancelJob(jobListener);
+      } else if (jobLauncher instanceof GobblinHelixDistributeJobExecutionLauncher) {
+        ((GobblinHelixDistributeJobExecutionLauncher) jobLauncher).cancel();
       }
     } catch (JobException e) {
       throw new RuntimeException("Unable to cancel job " + jobName + ": ", e);

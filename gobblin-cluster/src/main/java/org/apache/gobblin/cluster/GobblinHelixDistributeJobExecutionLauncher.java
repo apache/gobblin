@@ -63,7 +63,6 @@ import org.apache.gobblin.runtime.api.MonitoredObject;
 import org.apache.gobblin.runtime.util.StateStores;
 import org.apache.gobblin.source.extractor.partition.Partitioner;
 import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.util.Either;
 import org.apache.gobblin.util.JobLauncherUtils;
 import org.apache.gobblin.util.PropertiesUtils;
 
@@ -268,7 +267,7 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
       return getResultFromUserContent();
     } catch (TimeoutException te) {
       HelixUtils.handleJobTimeout(workFlowName, jobName,
-          helixManager, Either.right(this), null);
+          helixManager, this, null);
       return new DistributeJobResult(Optional.empty(), Optional.of(te));
     }
   }
@@ -328,8 +327,8 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
 
   /**
    * This method calls the underlying {@link DistributeJobMonitor}'s cancel method.
-   * It uses a conditional variable {@link cancellationRequest}
-   * and a flag {@link cancellationRequested} to avoid double cancellation.
+   * It uses a conditional variable {@link GobblinHelixDistributeJobExecutionLauncher#cancellationRequest}
+   * and a flag {@link GobblinHelixDistributeJobExecutionLauncher#cancellationRequested} to avoid double cancellation.
    */
   public void cancel() {
     DistributeJobMonitor jobMonitor = getJobMonitor();
