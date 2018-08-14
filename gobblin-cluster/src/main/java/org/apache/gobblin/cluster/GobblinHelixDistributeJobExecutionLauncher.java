@@ -103,6 +103,15 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
 
   private boolean jobSubmitted;
 
+  // A conditional variable for which the condition is satisfied if a cancellation is requested
+  private final Object cancellationRequest = new Object();
+  // A flag indicating whether a cancellation has been requested or not
+  private volatile boolean cancellationRequested = false;
+  // A flag indicating whether a cancellation has been executed or not
+  private volatile boolean cancellationExecuted = false;
+  @Getter
+  private DistributeJobMonitor jobMonitor;
+
   public GobblinHelixDistributeJobExecutionLauncher(Builder builder) throws Exception {
     this.helixManager = builder.manager;
     this.helixTaskDriver = new TaskDriver(this.helixManager);
@@ -128,13 +137,23 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
   }
 
   @Override
-  public void close()
-      throws IOException {
-    // we should delete the planning job at the end.
+  public void close()  throws IOException {
+  }
+
+  private void executeCancellation() {
+    String planningName = getPlanningJobId(this.jobProperties);
     if (this.jobSubmitted) {
-      String planningName = getPlanningJobName(this.jobProperties);
-      log.info("[DELETE] workflow {} in the close.", planningName);
-      this.helixTaskDriver.delete(planningName);
+      try {
+        if (this.cancellationRequested && !this.cancellationExecuted) {
+          // TODO : fix this when HELIX-1180 is completed
+          // work flow should never be deleted explicitly because it has a expiry time
+          // If cancellation is requested, we should set the job state to CANCELLED/ABORT
+          this.helixTaskDriver.waitToStop(planningName, 10000L);
+          log.info("Stopped the workflow ", planningName);
+        }
+      } catch (InterruptedException e) {
+        throw new RuntimeException("Failed to stop workflow " + planningName + " in Helix", e);
+      }
     }
   }
 
@@ -210,7 +229,8 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
 
   @Override
   public DistributeJobMonitor launchJob(JobSpec jobSpec) {
-    return new DistributeJobMonitor(new DistributeJobCallable(this.jobProperties));
+    this.jobMonitor = new DistributeJobMonitor(new DistributeJobCallable(this.jobProperties));
+    return this.jobMonitor;
   }
 
   @AllArgsConstructor
@@ -219,20 +239,19 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
     @Override
     public DistributeJobResult call()
         throws Exception {
-      String planningName = getPlanningJobName(this.jobProps);
       String planningId = getPlanningJobId(this.jobProps);
       JobConfig.Builder builder = createPlanningJob(this.jobProps);
       try {
-        submitJobToHelix(planningName, planningId, builder);
-        return waitForJobCompletion(planningName, planningId);
+        submitJobToHelix(planningId, planningId, builder);
+        return waitForJobCompletion(planningId, planningId);
       } catch (Exception e) {
-        log.error(planningName + " is not able to submit.");
+        log.error(planningId + " is not able to submit.");
         return new DistributeJobResult(Optional.empty(), Optional.of(e));
       }
     }
   }
 
-  private DistributeJobResult waitForJobCompletion(String planningName, String planningId) throws InterruptedException {
+  private DistributeJobResult waitForJobCompletion(String workFlowName, String jobName) throws InterruptedException {
     boolean timeoutEnabled = Boolean.parseBoolean(this.jobProperties.getProperty(ConfigurationKeys.HELIX_JOB_TIMEOUT_ENABLED_KEY,
         ConfigurationKeys.DEFAULT_HELIX_JOB_TIMEOUT_ENABLED));
     long timeoutInSeconds = Long.parseLong(this.jobProperties.getProperty(ConfigurationKeys.HELIX_JOB_TIMEOUT_SECONDS,
@@ -241,16 +260,13 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
     try {
       HelixUtils.waitJobCompletion(
           GobblinHelixDistributeJobExecutionLauncher.this.helixManager,
-          planningName,
-          planningId,
+          workFlowName,
+          jobName,
           timeoutEnabled ? Optional.of(timeoutInSeconds) : Optional.empty());
       return getResultFromUserContent();
     } catch (TimeoutException te) {
-      helixTaskDriver.waitToStop(planningName, 10L);
-      log.info("[DELETE] workflow {} timeout.", planningName);
-      this.helixTaskDriver.delete(planningName);
-      this.helixTaskDriver.resume(planningName);
-      log.info("stopped the queue, deleted the job");
+      HelixUtils.handleJobTimeout(workFlowName, jobName,
+          helixManager, this, null);
       return new DistributeJobResult(Optional.empty(), Optional.of(te));
     }
   }
@@ -282,9 +298,9 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
     }
   }
 
-  static class DistributeJobMonitor extends FutureTask<ExecutionResult> implements JobExecutionMonitor {
+  private class DistributeJobMonitor extends FutureTask<ExecutionResult> implements JobExecutionMonitor {
     private ExecutorService executor = Executors.newSingleThreadExecutor();
-    public DistributeJobMonitor (Callable<ExecutionResult> c) {
+    DistributeJobMonitor (Callable<ExecutionResult> c) {
       super(c);
       this.executor.execute(this);
     }
@@ -292,6 +308,39 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
     @Override
     public MonitoredObject getRunningState() {
       throw new UnsupportedOperationException();
+    }
+
+    /**
+     * We override Future's cancel method, which means we do not send the interrupt to the underlying thread.
+     * Instead of that, we submit a STOP request to handle, and the underlying thread is supposed to gracefully accept
+     * the STOPPED state and exit in {@link #waitForJobCompletion} method.
+     * @param mayInterruptIfRunning this is ignored.
+     * @return true always
+     */
+    @Override
+    public boolean cancel(boolean mayInterruptIfRunning) {
+      GobblinHelixDistributeJobExecutionLauncher.this.executeCancellation();
+      return true;
+    }
+  }
+
+  /**
+   * This method calls the underlying {@link DistributeJobMonitor}'s cancel method.
+   * It uses a conditional variable {@link GobblinHelixDistributeJobExecutionLauncher#cancellationRequest}
+   * and a flag {@link GobblinHelixDistributeJobExecutionLauncher#cancellationRequested} to avoid double cancellation.
+   */
+  public void cancel() {
+    DistributeJobMonitor jobMonitor = getJobMonitor();
+    if (jobMonitor != null) {
+      synchronized (GobblinHelixDistributeJobExecutionLauncher.this.cancellationRequest) {
+        if (GobblinHelixDistributeJobExecutionLauncher.this.cancellationRequested) {
+          // Return immediately if a cancellation has already been requested
+          return;
+        }
+        GobblinHelixDistributeJobExecutionLauncher.this.cancellationRequested = true;
+      }
+      jobMonitor.cancel(true);
+      GobblinHelixDistributeJobExecutionLauncher.this.cancellationExecuted = true;
     }
   }
 
