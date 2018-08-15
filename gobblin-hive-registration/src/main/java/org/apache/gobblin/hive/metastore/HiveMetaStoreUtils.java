@@ -64,6 +64,7 @@ import org.apache.gobblin.hive.HivePartition;
 import org.apache.gobblin.hive.HiveRegistrationUnit;
 import org.apache.gobblin.hive.HiveRegistrationUnit.Column;
 import org.apache.gobblin.hive.HiveTable;
+import org.apache.gobblin.hive.SharedHiveConfKey;
 
 
 /**
@@ -378,7 +379,7 @@ public class HiveMetaStoreUtils {
     Deserializer deserializer;
     try {
       hiveConf = SharedResourcesBrokerFactory
-        .getImplicitBroker().getSharedResource(new HiveConfFactory<>(), EmptyKey.INSTANCE);
+        .getImplicitBroker().getSharedResource(new HiveConfFactory<>(), SharedHiveConfKey.INSTANCE);
       deserializer =
           ReflectionUtils.newInstance(hiveConf.getClassByName(serde).asSubclass(Deserializer.class), hiveConf);
     } catch (ClassNotFoundException e) {

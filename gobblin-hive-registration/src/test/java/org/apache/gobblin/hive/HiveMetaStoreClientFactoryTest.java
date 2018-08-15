@@ -23,12 +23,19 @@ import org.apache.thrift.TException;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import static org.apache.gobblin.hive.HiveMetaStoreClientFactory.HIVE_METASTORE_TOKEN_SIGNATURE;
+
 
 public class HiveMetaStoreClientFactoryTest {
   @Test
   public void testCreate() throws TException {
     HiveConf hiveConf = new HiveConf();
     HiveMetaStoreClientFactory factory = new HiveMetaStoreClientFactory(hiveConf);
+
+    // Since we havE a specified hive-site in the classpath, so have to null it out here to proceed the test
+    // The original value it will get if no local hive-site is placed, will be an empty string. 
+    hiveConf.setVar(HiveConf.ConfVars.METASTOREURIS, "");
+    hiveConf.set(HIVE_METASTORE_TOKEN_SIGNATURE, "");
     IMetaStoreClient msc = factory.create();
 
     String dbName = "test_db";
