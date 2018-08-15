@@ -115,6 +115,7 @@ public class GobblinMultiTaskAttempt {
     this.log = LoggerFactory.getLogger(GobblinMultiTaskAttempt.class.getName() + "-" +
                containerIdOptional.or("noattempt"));
     this.jobBroker = jobBroker;
+    this.tasks = new ArrayList<>();
   }
 
   /**
@@ -126,7 +127,6 @@ public class GobblinMultiTaskAttempt {
       throws IOException, InterruptedException {
     if (!this.workUnits.hasNext()) {
       log.warn("No work units to run in container " + containerIdOptional.or(""));
-      this.tasks = new ArrayList<>();
       return;
     }
 
