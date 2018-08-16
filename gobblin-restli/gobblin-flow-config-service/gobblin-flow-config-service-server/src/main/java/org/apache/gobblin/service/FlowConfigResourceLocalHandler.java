@@ -173,6 +173,11 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
     return flowUri;
   }
 
+  /**
+   * Build a {@link FlowSpec} from a {@link FlowConfig}
+   * @param flowConfig flow configuration
+   * @return {@link FlowSpec} created with attributes from flowConfig
+   */
   public static FlowSpec createFlowSpecForConfig(FlowConfig flowConfig) {
     ConfigBuilder configBuilder = ConfigBuilder.create()
         .addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, flowConfig.getId().getFlowGroup())
@@ -182,8 +187,7 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
       Schedule schedule = flowConfig.getSchedule();
       configBuilder.addPrimitive(ConfigurationKeys.JOB_SCHEDULE_KEY, schedule.getCronSchedule());
       configBuilder.addPrimitive(ConfigurationKeys.FLOW_RUN_IMMEDIATELY, schedule.isRunImmediately());
-      if (flowConfig.getSchedule().isRunImmediately() &&
-          StringUtils.isEmpty(flowConfig.getSchedule().getCronSchedule())) {
+      if (isRunOnceFlow(flowConfig)) {
         configBuilder.addPrimitive(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, String.valueOf(System.currentTimeMillis()));
       }
     }
@@ -197,5 +201,13 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
     } catch (URISyntaxException e) {
       throw new FlowConfigLoggedException(HttpStatus.S_400_BAD_REQUEST, "bad URI " + flowConfig.getTemplateUris(), e);
     }
+  }
+
+  /**
+   * @param flowConfig flowConfig
+   * @return returns true if it is a runOnce flow, i.e. runImmediately is true and cron schedule is empty
+   */
+  private static boolean isRunOnceFlow(FlowConfig flowConfig) {
+    return flowConfig.getSchedule().isRunImmediately() && StringUtils.isEmpty(flowConfig.getSchedule().getCronSchedule());
   }
 }
