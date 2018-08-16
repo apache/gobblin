@@ -78,6 +78,7 @@ import org.apache.gobblin.scheduler.SchedulerService;
 import org.apache.gobblin.service.FlowConfig;
 import org.apache.gobblin.service.FlowConfigClient;
 import org.apache.gobblin.service.FlowConfigResourceLocalHandler;
+import org.apache.gobblin.service.FlowConfigV2resourceLocalHandler;
 import org.apache.gobblin.service.FlowConfigsResource;
 import org.apache.gobblin.service.FlowConfigsResourceHandler;
 import org.apache.gobblin.service.FlowId;
@@ -122,6 +123,8 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
   protected GobblinServiceJobScheduler scheduler;
   @Getter
   protected GobblinServiceFlowConfigResourceHandler resourceHandler;
+  @Getter
+  protected GobblinServiceFlowConfigResourceHandler v2ResourceHandler;
 
   protected boolean flowCatalogLocalCommit;
   protected Orchestrator orchestrator;
@@ -216,6 +219,12 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     this.resourceHandler = new GobblinServiceFlowConfigResourceHandler(serviceName,
         this.flowCatalogLocalCommit,
         new FlowConfigResourceLocalHandler(this.flowCatalog),
+        this.helixManager,
+        this.scheduler);
+
+    this.v2ResourceHandler = new GobblinServiceFlowConfigResourceHandler(serviceName,
+        this.flowCatalogLocalCommit,
+        new FlowConfigV2ResourceLocalHandler(this.flowCatalog),
         this.helixManager,
         this.scheduler);
 
