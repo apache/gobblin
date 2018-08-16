@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.service.validator;
 
+import org.apache.commons.lang.StringUtils;
 import org.quartz.CronExpression;
 
 import com.linkedin.data.DataMap;
@@ -43,7 +44,7 @@ public class CronValidator extends AbstractValidator
     Object value = element.getValue();
     String str = String.valueOf(value);
 
-    if (!CronExpression.isValidExpression(str))
+    if (!StringUtils.isEmpty(str) && !CronExpression.isValidExpression(str))
     {
       ctx.addResult(new Message(element.path(), "\"%1$s\" is not in Cron format", str));
     }

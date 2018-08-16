@@ -108,9 +108,31 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
    */
   public CreateResponse createFlowConfig(FlowConfig flowConfig, boolean triggerListener) throws FlowConfigLoggedException {
     log.info("[GAAS-REST] Create called with flowGroup " + flowConfig.getId().getFlowGroup() + " flowName " + flowConfig.getId().getFlowName());
-    FlowSpec flowSpec = createFlowSpecForConfig(flowConfig);
-    this.flowCatalog.put(flowSpec, triggerListener);
-    return new CreateResponse(new ComplexResourceKey<>(flowConfig.getId(), new EmptyRecord()), HttpStatus.S_201_CREATED);
+    FlowSpec flowSpec;
+    if (!isValidFlowConfig(flowConfig)) {
+      throw new FlowConfigLoggedException(HttpStatus.S_400_BAD_REQUEST,
+          "FlowExecutionId cannot be passed for a scheduled job", null);
+    } else if (flowConfig.hasSchedule() && flowConfig.getSchedule().isRunImmediately() &&
+        flowConfig.getProperties().containsKey(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
+      flowSpec = createFlowSpecForConfig(flowConfig, flowConfig.getProperties().get(ConfigurationKeys.FLOW_EXECUTION_ID_KEY));
+      this.flowCatalog.put(flowSpec, triggerListener);
+      FlowStatusId flowStatusId = new FlowStatusId()
+          .setFlowName(flowSpec.getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_NAME_KEY))
+          .setFlowGroup(flowSpec.getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_GROUP_KEY))
+          .setFlowExecutionId(Long.parseLong(flowSpec.getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)));
+      return new CreateResponse(new ComplexResourceKey<>(flowStatusId, new EmptyRecord()), HttpStatus.S_201_CREATED);
+    } else {
+      flowSpec = createFlowSpecForConfig(flowConfig);
+      this.flowCatalog.put(flowSpec, triggerListener);
+      FlowStatusId flowStatusId = new FlowStatusId().setFlowGroup(flowSpec.getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_GROUP_KEY))
+          .setFlowName(flowSpec.getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_NAME_KEY));
+      return new CreateResponse(new ComplexResourceKey<>(flowStatusId, new EmptyRecord()), HttpStatus.S_202_ACCEPTED);
+    }
+  }
+
+  private static boolean isValidFlowConfig(FlowConfig flowConfig) {
+    return !flowConfig.hasSchedule() || StringUtils.isEmpty(flowConfig.getSchedule().getCronSchedule()) ||
+        !flowConfig.getProperties().containsKey(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
   }
 
   /**
@@ -179,6 +201,10 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
    * @return {@link FlowSpec} created with attributes from flowConfig
    */
   public static FlowSpec createFlowSpecForConfig(FlowConfig flowConfig) {
+    return createFlowSpecForConfig(flowConfig, null);
+  }
+
+  private static FlowSpec createFlowSpecForConfig(FlowConfig flowConfig, String flowExecutionId) {
     ConfigBuilder configBuilder = ConfigBuilder.create()
         .addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, flowConfig.getId().getFlowGroup())
         .addPrimitive(ConfigurationKeys.FLOW_NAME_KEY, flowConfig.getId().getFlowName());
@@ -187,6 +213,9 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
       Schedule schedule = flowConfig.getSchedule();
       configBuilder.addPrimitive(ConfigurationKeys.JOB_SCHEDULE_KEY, schedule.getCronSchedule());
       configBuilder.addPrimitive(ConfigurationKeys.FLOW_RUN_IMMEDIATELY, schedule.isRunImmediately());
+      if (flowExecutionId != null) {
+        configBuilder.addPrimitive(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, flowExecutionId);
+      }
     }
 
     Config config = configBuilder.build();
