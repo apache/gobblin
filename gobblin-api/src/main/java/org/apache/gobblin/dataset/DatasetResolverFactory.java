@@ -19,10 +19,15 @@ package org.apache.gobblin.dataset;
 
 import com.typesafe.config.Config;
 
+
 /**
  * A factory that creates an instance of {@link DatasetResolver}
+ *
+ * @deprecated use {@link DescriptorResolverFactory} as {@link DatasetResolver} is deprecated
+ * with {@link DescriptorResolver}
  */
-public interface DatasetResolverFactory {
+@Deprecated
+public interface DatasetResolverFactory extends DescriptorResolverFactory {
   /**
    * Create a {@link DatasetResolver} instance
    */

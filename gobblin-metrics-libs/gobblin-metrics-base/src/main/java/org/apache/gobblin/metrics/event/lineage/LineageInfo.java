@@ -42,6 +42,8 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.gobblin.dataset.DatasetResolver;
 import org.apache.gobblin.dataset.DatasetResolverFactory;
+import org.apache.gobblin.dataset.Descriptor;
+import org.apache.gobblin.dataset.DescriptorResolver;
 import org.apache.gobblin.dataset.NoopDatasetResolver;
 import org.apache.gobblin.metrics.broker.LineageInfoFactory;
 import org.apache.gobblin.util.ConfigUtils;
@@ -86,7 +88,7 @@ public final class LineageInfo {
           .put(DATASET_RESOLVER_FACTORY, NoopDatasetResolver.FACTORY)
           .build());
 
-  private final DatasetResolver resolver;
+  private final DescriptorResolver resolver;
 
   public LineageInfo(Config config) {
     resolver = getResolver(config.withFallback(FALLBACK));
@@ -103,14 +105,14 @@ public final class LineageInfo {
    * @param state state about a {@link org.apache.gobblin.source.workunit.WorkUnit}
    *
    */
-  public void setSource(DatasetDescriptor source, State state) {
-    DatasetDescriptor descriptor = resolver.resolve(source, state);
+  public void setSource(Descriptor source, State state) {
+    Descriptor descriptor = resolver.resolve(source, state);
     if (descriptor == null) {
       return;
     }
 
     state.setProp(getKey(NAME_KEY), descriptor.getName());
-    state.setProp(getKey(LineageEventBuilder.SOURCE), GSON.toJson(descriptor));
+    state.setProp(getKey(LineageEventBuilder.SOURCE), Descriptor.serialize(descriptor));
   }
 
   /**
@@ -122,19 +124,19 @@ public final class LineageInfo {
    *   the method is implemented to be threadsafe
    * </p>
    */
-  public void putDestination(DatasetDescriptor destination, int branchId, State state) {
+  public void putDestination(Descriptor destination, int branchId, State state) {
     if (!hasLineageInfo(state)) {
       log.warn("State has no lineage info but branch " + branchId + " puts a destination: " + GSON.toJson(destination));
       return;
     }
     log.debug(String.format("Put destination %s for branch %d", GSON.toJson(destination), branchId));
     synchronized (state.getProp(getKey(NAME_KEY))) {
-      DatasetDescriptor descriptor = resolver.resolve(destination, state);
+      Descriptor descriptor = resolver.resolve(destination, state);
       if (descriptor == null) {
         return;
       }
 
-      state.setProp(getKey(BRANCH, branchId, LineageEventBuilder.DESTINATION), GSON.toJson(descriptor));
+      state.setProp(getKey(BRANCH, branchId, LineageEventBuilder.DESTINATION), Descriptor.serialize(descriptor));
     }
   }
 
@@ -161,10 +163,14 @@ public final class LineageInfo {
    */
   static Map<String, LineageEventBuilder> load(State state) {
     String name = state.getProp(getKey(NAME_KEY));
-    DatasetDescriptor source = GSON.fromJson(state.getProp(getKey(LineageEventBuilder.SOURCE)), DatasetDescriptor.class);
+    Descriptor source = Descriptor.deserialize(state.getProp(getKey(LineageEventBuilder.SOURCE)));
 
     String branchedPrefix = getKey(BRANCH, "");
     Map<String, LineageEventBuilder> events = Maps.newHashMap();
+    if (source == null) {
+      return events;
+    }
+
     for (Map.Entry<Object, Object> entry : state.getProperties().entrySet()) {
       String key = entry.getKey().toString();
       if (!key.startsWith(branchedPrefix)) {
@@ -177,12 +183,12 @@ public final class LineageInfo {
       LineageEventBuilder event = events.get(branchId);
       if (event == null) {
         event = new LineageEventBuilder(name);
-        event.setSource(new DatasetDescriptor(source));
+        event.setSource(source.copy());
         events.put(parts[0], event);
       }
       switch (parts[1]) {
         case LineageEventBuilder.DESTINATION:
-          DatasetDescriptor destination = GSON.fromJson(entry.getValue().toString(), DatasetDescriptor.class);
+          Descriptor destination = Descriptor.deserialize(entry.getValue().toString());
           event.setDestination(destination);
           break;
         default:
@@ -237,8 +243,10 @@ public final class LineageInfo {
    * Get the configured {@link DatasetResolver} from {@link State}
    */
   public static DatasetResolver getResolver(Config config) {
+    // ConfigException.Missing will throw if DATASET_RESOLVER_FACTORY is absent
     String resolverFactory = config.getString(DATASET_RESOLVER_FACTORY);
-    if (resolverFactory.equals(NoopDatasetResolver.FACTORY)) {
+
+    if (resolverFactory.toUpperCase().equals(NoopDatasetResolver.FACTORY)) {
       return NoopDatasetResolver.INSTANCE;
     }
 

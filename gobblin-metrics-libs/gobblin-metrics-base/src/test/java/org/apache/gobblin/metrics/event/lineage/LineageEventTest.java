@@ -29,6 +29,9 @@ import org.apache.gobblin.broker.iface.SharedResourcesBroker;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.dataset.DatasetConstants;
 import org.apache.gobblin.dataset.DatasetDescriptor;
+import org.apache.gobblin.dataset.Descriptor;
+import org.apache.gobblin.dataset.PartitionDescriptor;
+import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.event.GobblinEventBuilder;
 
 import org.testng.Assert;
@@ -42,6 +45,7 @@ import com.typesafe.config.ConfigFactory;
  * Test for loading linage events from state
  */
 public class LineageEventTest {
+
   @Test
   public void testEvent() {
     final String topic = "testTopic";
@@ -54,7 +58,7 @@ public class LineageEventTest {
     LineageInfo lineageInfo = getLineageInfo();
     DatasetDescriptor source = new DatasetDescriptor(kafka, topic);
     lineageInfo.setSource(source, state0);
-    DatasetDescriptor destination00 = new DatasetDescriptor(hdfs, "/data/dbchanges");
+    DatasetDescriptor destination00 = new DatasetDescriptor(hdfs, "/data/tracking");
     destination00.addMetadata(branch, "0");
     lineageInfo.putDestination(destination00, 0, state0);
     DatasetDescriptor destination01 = new DatasetDescriptor(mysql, "kafka.testTopic");
@@ -107,10 +111,37 @@ public class LineageEventTest {
     verify(getLineageEvent(eventsList, 1, "hive"), topic, source, destination11);
   }
 
+  @Test
+  public void testEventForPartitionedDataset() {
+    final String topic = "testTopic";
+    final String kafka = "kafka";
+    final String hdfs = "hdfs";
+    final String path = "/data/tracking/PageViewEvent";
+    final String partitionName = "hourly/2018/08/15/15";
+
+    State state = new State();
+    LineageInfo lineageInfo = getLineageInfo();
+    DatasetDescriptor source = new DatasetDescriptor(kafka, topic);
+    lineageInfo.setSource(source, state);
+    DatasetDescriptor destinationDataset = new DatasetDescriptor(hdfs, path);
+    PartitionDescriptor destination = new PartitionDescriptor(partitionName, destinationDataset);
+    lineageInfo.putDestination(destination, 0, state);
+
+    Map<String, LineageEventBuilder> events = LineageInfo.load(state);
+    LineageEventBuilder event = events.get("0");
+    verify(event, topic, source, destination);
+
+    // Verify gobblin tracking event
+    GobblinTrackingEvent trackingEvent = event.build();
+    Assert.assertEquals(LineageEventBuilder.isLineageEvent(trackingEvent), true);
+    Assert.assertEquals(LineageEventBuilder.fromEvent(trackingEvent), event);
+  }
+
   private LineageEventBuilder getLineageEvent(Collection<LineageEventBuilder> events, int branchId, String destinationPlatform) {
     for (LineageEventBuilder event : events) {
-      if (event.getDestination().getPlatform().equals(destinationPlatform) &&
-          event.getDestination().getMetadata().get(DatasetConstants.BRANCH).equals(String.valueOf(branchId))) {
+      DatasetDescriptor descriptor = (DatasetDescriptor) event.getDestination();
+      if (descriptor.getPlatform().equals(destinationPlatform) &&
+          descriptor.getMetadata().get(DatasetConstants.BRANCH).equals(String.valueOf(branchId))) {
         return event;
       }
     }
@@ -132,7 +163,7 @@ public class LineageEventTest {
     return obj2;
   }
 
-  private void verify(LineageEventBuilder event, String name, DatasetDescriptor source, DatasetDescriptor destination) {
+  private void verify(LineageEventBuilder event, String name, Descriptor source, Descriptor destination) {
     Assert.assertEquals(event.getName(), name);
     Assert.assertEquals(event.getNamespace(), LineageEventBuilder.LIENAGE_EVENT_NAMESPACE);
     Assert.assertEquals(event.getMetadata().get(GobblinEventBuilder.EVENT_TYPE), LineageEventBuilder.LINEAGE_EVENT_TYPE);

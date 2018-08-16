@@ -33,4 +33,9 @@ public class NoopDatasetResolver implements DatasetResolver {
   public DatasetDescriptor resolve(DatasetDescriptor raw, State state) {
     return raw;
   }
+
+  @Override
+  public Descriptor resolve(Descriptor raw, State state) {
+    return raw;
+  }
 }
