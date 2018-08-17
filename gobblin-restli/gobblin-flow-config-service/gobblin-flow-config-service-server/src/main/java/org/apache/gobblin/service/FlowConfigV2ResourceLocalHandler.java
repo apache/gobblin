@@ -21,9 +21,7 @@ import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
 import com.linkedin.restli.common.HttpStatus;
 import com.linkedin.restli.server.CreateResponse;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
@@ -34,7 +32,6 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
   public FlowConfigV2ResourceLocalHandler(FlowCatalog flowCatalog) {
     super(flowCatalog);
   }
-
   @Override
   /**
    * Add flowConfig locally and trigger all listeners iff @param triggerListener is set to true
@@ -46,11 +43,9 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
     FlowStatusId flowStatusId = new FlowStatusId()
         .setFlowName(flowSpec.getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_NAME_KEY))
         .setFlowGroup(flowSpec.getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_GROUP_KEY));
-
     if (flowSpec.getConfigAsProperties().containsKey(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
       flowStatusId.setFlowExecutionId(Long.valueOf(flowSpec.getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)));
     }
-
     return new CreateResponse(new ComplexResourceKey<>(flowStatusId, new EmptyRecord()), HttpStatus.S_201_CREATED);
   }
 }
