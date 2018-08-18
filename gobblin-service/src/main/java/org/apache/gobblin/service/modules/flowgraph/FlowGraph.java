@@ -19,7 +19,13 @@ package org.apache.gobblin.service.modules.flowgraph;
 
 import java.util.Collection;
 
+import com.typesafe.config.Config;
+
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.runtime.api.FlowSpec;
+import org.apache.gobblin.runtime.api.Spec;
+import org.apache.gobblin.service.modules.flow.FlowGraphPath;
+import org.apache.gobblin.service.modules.flowgraph.pathfinder.PathFinder;
 
 
 /**
@@ -80,4 +86,17 @@ public interface FlowGraph {
    * @return a collection of edges adjacent to the {@link DataNode}
    */
   public Collection<FlowEdge> getEdges(DataNode node);
+
+  /**
+   * A method that takes a {@link FlowSpec} containing the source and destination {@link DataNode}s, as well as the
+   * source and target {@link org.apache.gobblin.service.modules.dataset.DatasetDescriptor}s, and returns a sequence
+   * of fully resolved {@link org.apache.gobblin.runtime.api.JobSpec}s that will move the source dataset
+   * from the source datanode, perform any necessary transformations and land the dataset at the destination node
+   * in the format described by the target {@link org.apache.gobblin.service.modules.dataset.DatasetDescriptor}.
+   *
+   * @param flowSpec a {@link org.apache.gobblin.runtime.api.Spec} containing a high-level description of input flow.
+   * @return an instance of {@link FlowGraphPath} that encapsulates a sequence of {@link org.apache.gobblin.runtime.api.JobSpec}s
+   * satisfying flowSpec.
+   */
+  public FlowGraphPath findPath(FlowSpec flowSpec) throws PathFinder.PathFinderException, ReflectiveOperationException;
 }
