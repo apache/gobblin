@@ -151,20 +151,23 @@ public class CompactionAuditCountVerifier implements CompactionVerifier<FileSyst
    */
   private Result passed (String datasetName, Map<String, Long> countsByTier, String referenceTier) {
     if (!countsByTier.containsKey(this.gobblinTier)) {
-      return new Result(false, String.format("Failed to get audit count for topic %s, tier %s", datasetName, this.gobblinTier));
+      log.info("Missing entry for dataset: " + datasetName + " in gobblin tier: " + this.gobblinTier + "; setting count to 0.");
     }
     if (!countsByTier.containsKey(referenceTier)) {
-      return new Result(false, String.format("Failed to get audit count for topic %s, tier %s", datasetName, referenceTier));
+      log.info("Missing entry for dataset: " + datasetName + " in reference tier: " + referenceTier + "; setting count to 0.");
     }
 
-    long refCount = countsByTier.get(referenceTier);
-    long gobblinCount = countsByTier.get(this.gobblinTier);
+    long refCount = countsByTier.getOrDefault(referenceTier, 0L);
+    long gobblinCount = countsByTier.getOrDefault(this.gobblinTier, 0L);
+
+    if (refCount == 0) {
+      return new Result(true, "");
+    }
 
     if ((double) gobblinCount / (double) refCount < this.threshold) {
       return new Result (false, String.format("%s failed for %s : gobblin count = %d, %s count = %d (%f < threshold %f)",
               this.getName(), datasetName, gobblinCount, referenceTier, refCount, (double) gobblinCount / (double) refCount, this.threshold));
     }
-
     return new Result(true, "");
   }
 

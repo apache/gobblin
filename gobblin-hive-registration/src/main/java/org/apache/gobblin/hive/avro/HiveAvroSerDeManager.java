@@ -103,6 +103,11 @@ public class HiveAvroSerDeManager extends HiveSerDeManager {
    */
   @Override
   public void addSerDeProperties(Path path, HiveRegistrationUnit hiveUnit) throws IOException {
+    Preconditions.checkArgument(this.fs.getFileStatus(path).isDirectory(), path + " is not a directory.");
+
+    if (getDirectorySchema(path) == null) {
+      return;
+    }
     hiveUnit.setSerDeType(this.serDeWrapper.getSerDe().getClass().getName());
     hiveUnit.setInputFormat(this.serDeWrapper.getInputFormatClassName());
     hiveUnit.setOutputFormat(this.serDeWrapper.getOutputFormatClassName());
@@ -130,8 +135,6 @@ public class HiveAvroSerDeManager extends HiveSerDeManager {
   }
 
   private void addSchemaProperties(Path path, HiveRegistrationUnit hiveUnit) throws IOException {
-    Preconditions.checkArgument(this.fs.getFileStatus(path).isDirectory(), path + " is not a directory.");
-
     Path schemaFile = new Path(path, this.schemaFileName);
     if (this.useSchemaFile) {
       hiveUnit.setSerDeProp(SCHEMA_URL, schemaFile.toString());
