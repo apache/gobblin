@@ -20,7 +20,6 @@ package org.apache.gobblin.service.modules.flow;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
@@ -28,7 +27,6 @@ import org.slf4j.Logger;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 
 import lombok.Getter;
@@ -42,15 +40,16 @@ import org.apache.gobblin.runtime.api.JobTemplate;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
-import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.core.GitFlowGraphMonitor;
 import org.apache.gobblin.service.modules.flowgraph.BaseFlowGraph;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraph;
+import org.apache.gobblin.service.modules.flowgraph.pathfinder.PathFinder;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlanDagFactory;
 import org.apache.gobblin.service.modules.template_catalog.FSFlowCatalog;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /***
@@ -60,8 +59,9 @@ import org.apache.gobblin.service.modules.template_catalog.FSFlowCatalog;
 @Alpha
 @Slf4j
 public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
+
   @Getter
-  private FlowGraph flowGraph;
+  private final FlowGraph flowGraph;
   private GitFlowGraphMonitor gitFlowGraphMonitor;
   @Getter
   private boolean active;
@@ -80,9 +80,8 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
 
   public MultiHopFlowCompiler(Config config, Optional<Logger> log, boolean instrumentationEnabled) {
     super(config, log, instrumentationEnabled);
-    Config templateCatalogCfg = config
-        .withValue(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY,
-            config.getValue(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY));
+    Config templateCatalogCfg = config.withValue(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY,
+        config.getValue(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY));
     FSFlowCatalog flowCatalog;
     try {
       flowCatalog = new FSFlowCatalog(templateCatalogCfg);
@@ -118,32 +117,32 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
     long startTime = System.nanoTime();
 
     FlowSpec flowSpec = (FlowSpec) spec;
-    String source = flowSpec.getConfig().getString(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY);
-    String destination = flowSpec.getConfig().getString(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY);
+    String source = ConfigUtils.getString(flowSpec.getConfig(), ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, "");
+    String destination =
+        ConfigUtils.getString(flowSpec.getConfig(), ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, "");
     log.info(String.format("Compiling flow for source: %s and destination: %s", source, destination));
 
     Dag<JobExecutionPlan> jobExecutionPlanDag;
-    FlowGraphPathFinder pathFinder = new FlowGraphPathFinder(this.flowGraph, flowSpec);
     try {
       //Compute the path from source to destination.
-      FlowGraphPath flowGraphPath = pathFinder.findPath();
-
+      FlowGraphPath flowGraphPath = flowGraph.findPath(flowSpec);
       //Convert the path into a Dag of JobExecutionPlans.
       if (flowGraphPath != null) {
         jobExecutionPlanDag = flowGraphPath.asDag();
       } else {
-        Instrumented.markMeter(this.flowCompilationFailedMeter);
+        Instrumented.markMeter(flowCompilationFailedMeter);
         log.info(String.format("No path found from source: %s and destination: %s", source, destination));
         return new JobExecutionPlanDagFactory().createDag(new ArrayList<>());
       }
-    } catch (FlowGraphPathFinder.PathFinderException | SpecNotFoundException | JobTemplate.TemplateException | URISyntaxException e) {
-      Instrumented.markMeter(this.flowCompilationFailedMeter);
-      log.error(String.format("Exception encountered while compiling flow for source: %s and destination: %s", source, destination), e);
+    } catch (PathFinder.PathFinderException | SpecNotFoundException | JobTemplate.TemplateException | URISyntaxException | ReflectiveOperationException e) {
+      Instrumented.markMeter(flowCompilationFailedMeter);
+      log.error(String
+              .format("Exception encountered while compiling flow for source: %s and destination: %s", source, destination),
+          e);
       return null;
     }
-    Instrumented.markMeter(this.flowCompilationSuccessFulMeter);
-    Instrumented.updateTimer(this.flowCompilationTimer, System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
-
+    Instrumented.markMeter(flowCompilationSuccessFulMeter);
+    Instrumented.updateTimer(flowCompilationTimer, System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
     return jobExecutionPlanDag;
   }
 
@@ -152,5 +151,4 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
     log.warn("No population of templates based on edge happen in this implementation");
     return;
   }
-
 }
