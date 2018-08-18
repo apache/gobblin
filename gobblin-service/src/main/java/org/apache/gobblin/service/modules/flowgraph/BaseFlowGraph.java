@@ -99,19 +99,18 @@ public class BaseFlowGraph implements FlowGraph {
         return false;
       }
       DataNode dataNode = getNode(srcNode);
-      if (dataNode != null) {
-        Set<FlowEdge> adjacentEdges = this.nodesToEdges.get(dataNode);
-        if (!adjacentEdges.add(edge)) {
-          adjacentEdges.remove(edge);
-          adjacentEdges.add(edge);
-        }
-        this.nodesToEdges.put(dataNode, adjacentEdges);
-        String edgeId = edge.getId();
-        this.flowEdgeMap.put(edgeId, edge);
-        return true;
-      } else {
+      if (dataNode == null) {
         return false;
       }
+      Set<FlowEdge> adjacentEdges = this.nodesToEdges.get(dataNode);
+      if (!adjacentEdges.add(edge)) {
+        adjacentEdges.remove(edge);
+        adjacentEdges.add(edge);
+      }
+      this.nodesToEdges.put(dataNode, adjacentEdges);
+      String edgeId = edge.getId();
+      this.flowEdgeMap.put(edgeId, edge);
+      return true;
     } finally {
       rwLock.writeLock().unlock();
     }
@@ -140,20 +139,20 @@ public class BaseFlowGraph implements FlowGraph {
   public boolean deleteDataNode(DataNode node) {
     try {
       rwLock.writeLock().lock();
-      if (dataNodeMap.containsKey(node.getId())) {
-        //Delete node from dataNodeMap
-        dataNodeMap.remove(node.getId());
-
-        //Delete all the edges adjacent to the node. First, delete edges from flowEdgeMap and next, remove the edges
-        // from nodesToEdges
-        for (FlowEdge edge : nodesToEdges.get(node)) {
-          flowEdgeMap.remove(edge.getId());
-        }
-        nodesToEdges.remove(node);
-        return true;
-      } else {
+      if (!dataNodeMap.containsKey(node.getId())) {
         return false;
       }
+      //Delete node from dataNodeMap
+      dataNodeMap.remove(node.getId());
+
+      //Delete all the edges adjacent to the node. First, delete edges from flowEdgeMap and next, remove the edges
+      // from nodesToEdges
+      for (FlowEdge edge : nodesToEdges.get(node)) {
+        flowEdgeMap.remove(edge.getId());
+      }
+      nodesToEdges.remove(node);
+      return true;
+
     } finally {
       rwLock.writeLock().unlock();
     }
