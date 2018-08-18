@@ -17,19 +17,16 @@
 
 package org.apache.gobblin.dataset;
 
-
 import java.util.Map;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
-import sun.security.krb5.internal.crypto.Des;
 
 
 /**
- * A {@link DatasetDescriptor} identifies and provides metadata to describe a dataset
+ * A {@link Descriptor} identifies and provides metadata to describe a dataset
  */
 public class DatasetDescriptor extends Descriptor {
   private static final String PLATFORM_KEY = "platform";
