@@ -104,15 +104,18 @@ public class HiveAvroSerDeManager extends HiveSerDeManager {
   @Override
   public void addSerDeProperties(Path path, HiveRegistrationUnit hiveUnit) throws IOException {
     Preconditions.checkArgument(this.fs.getFileStatus(path).isDirectory(), path + " is not a directory.");
-
-    if (getDirectorySchema(path) == null) {
+    Schema schema;
+    try (Timer.Context context = metricContext.timer(HIVE_SPEC_SCHEMA_READING_TIMER).time()) {
+      schema = getDirectorySchema(path);
+    }
+    if (schema == null) {
       return;
     }
     hiveUnit.setSerDeType(this.serDeWrapper.getSerDe().getClass().getName());
     hiveUnit.setInputFormat(this.serDeWrapper.getInputFormatClassName());
     hiveUnit.setOutputFormat(this.serDeWrapper.getOutputFormatClassName());
 
-    addSchemaProperties(path, hiveUnit);
+    addSchemaProperties(path, hiveUnit, schema);
   }
 
   @Override
@@ -134,15 +137,11 @@ public class HiveAvroSerDeManager extends HiveSerDeManager {
     }
   }
 
-  private void addSchemaProperties(Path path, HiveRegistrationUnit hiveUnit) throws IOException {
+  private void addSchemaProperties(Path path, HiveRegistrationUnit hiveUnit, Schema schema) throws IOException {
     Path schemaFile = new Path(path, this.schemaFileName);
     if (this.useSchemaFile) {
       hiveUnit.setSerDeProp(SCHEMA_URL, schemaFile.toString());
     } else {
-      Schema schema ;
-      try (Timer.Context context = metricContext.timer(HIVE_SPEC_SCHEMA_READING_TIMER).time()) {
-        schema = getDirectorySchema(path);
-      }
       try (Timer.Context context = metricContext.timer(HIVE_SPEC_SCHEMA_WRITING_TIMER).time()) {
         addSchemaFromAvroFile(schema, schemaFile, hiveUnit);
       }
