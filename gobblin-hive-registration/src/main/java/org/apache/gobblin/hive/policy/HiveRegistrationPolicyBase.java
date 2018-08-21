@@ -84,6 +84,7 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
   // {@value PRIMARY_TABLE_TOKEN} if present in {@value ADDITIONAL_HIVE_TABLE_NAMES} or dbPrefix.{@value HIVE_TABLE_NAME}
   // .. will be replaced by the table name determined via {@link #getTableName(Path)}
   public static final String PRIMARY_TABLE_TOKEN = "$PRIMARY_TABLE";
+
   protected static final ConfigClient configClient =
       org.apache.gobblin.config.client.ConfigClient.createConfigClient(VersionStabilityPolicy.WEAK_LOCAL_STABILITY);
 
@@ -108,6 +109,7 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
   protected final String dbNameSuffix;
   protected final String tableNamePrefix;
   protected final String tableNameSuffix;
+  protected final boolean emptyInputPathFlag;
 
   protected final MetricContext metricContext;
 
@@ -128,7 +130,7 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
     this.dbNameSuffix = props.getProp(HIVE_DATABASE_NAME_SUFFIX, StringUtils.EMPTY);
     this.tableNamePrefix = props.getProp(HIVE_TABLE_NAME_PREFIX, StringUtils.EMPTY);
     this.tableNameSuffix = props.getProp(HIVE_TABLE_NAME_SUFFIX, StringUtils.EMPTY);
-
+    this.emptyInputPathFlag = props.getPropAsBoolean(MAPREDUCE_JOB_INPUT_PATH_EMPTY_KEY, false);
     this.metricContext = Instrumented.getMetricContext(props, HiveRegister.class);
   }
 
@@ -341,11 +343,18 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
    * @throws IOException
    */
   protected HiveTable getTable(Path path, String dbName, String tableName) throws IOException {
-    HiveTable table = new HiveTable.Builder().withDbName(dbName).withTableName(tableName)
-        .withSerdeManaager(HiveSerDeManager.get(this.props)).build();
 
+    HiveTable.Builder tableBuilder = new HiveTable.Builder().withDbName(dbName).withTableName(tableName);
+
+    if (!this.emptyInputPathFlag) {
+      tableBuilder = tableBuilder.withSerdeManaager(HiveSerDeManager.get(this.props));
+    }
+    HiveTable table = tableBuilder.build();
     table.setLocation(this.fs.makeQualified(getTableLocation(path)).toString());
-    table.setSerDeProps(path);
+
+    if (!this.emptyInputPathFlag) {
+      table.setSerDeProps(path);
+    }
 
     // Setting table-level props.
     State tableProps = new State(this.props.getTablePartitionProps());

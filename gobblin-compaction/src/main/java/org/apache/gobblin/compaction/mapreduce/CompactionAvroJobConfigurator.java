@@ -64,6 +64,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.dataset.Dataset;
 import org.apache.gobblin.dataset.FileSystemDataset;
+import org.apache.gobblin.hive.policy.HiveRegistrationPolicy;
 import org.apache.gobblin.util.AvroUtils;
 import org.apache.gobblin.util.FileListUtils;
 import org.apache.gobblin.util.HadoopUtils;
@@ -157,12 +158,14 @@ public class CompactionAvroJobConfigurator {
 
   private void configureSchema(Job job) throws IOException {
     Schema newestSchema = MRCompactorAvroKeyDedupJobRunner.getNewestSchemaFromSource(job, this.fs);
-    if (this.state.getPropAsBoolean(MRCompactorAvroKeyDedupJobRunner.COMPACTION_JOB_AVRO_SINGLE_INPUT_SCHEMA, true)) {
-      AvroJob.setInputKeySchema(job, newestSchema);
+    if (newestSchema != null) {
+      if (this.state.getPropAsBoolean(MRCompactorAvroKeyDedupJobRunner.COMPACTION_JOB_AVRO_SINGLE_INPUT_SCHEMA, true)) {
+        AvroJob.setInputKeySchema(job, newestSchema);
+      }
+      AvroJob.setMapOutputKeySchema(job, this.shouldDeduplicate ? getKeySchema(job, newestSchema) : newestSchema);
+      AvroJob.setMapOutputValueSchema(job, newestSchema);
+      AvroJob.setOutputKeySchema(job, newestSchema);
     }
-    AvroJob.setMapOutputKeySchema(job, this.shouldDeduplicate ? getKeySchema(job, newestSchema) : newestSchema);
-    AvroJob.setMapOutputValueSchema(job, newestSchema);
-    AvroJob.setOutputKeySchema(job, newestSchema);
   }
 
   protected void configureMapper(Job job) {
@@ -228,14 +231,13 @@ public class CompactionAvroJobConfigurator {
   }
 
   /**
-   * Refer to {@link MRCompactorAvroKeyDedupJobRunner#configureInputAndOutputPaths(Job)}
+   * Refer to {@link MRCompactorAvroKeyDedupJobRunner#configureInputAndOutputPaths(Job)}.
+   * @return false if no valid input paths present for MR job to process,  where a path is valid if it is
+   * a directory containing one or more files.
+   *
    */
-  protected void configureInputAndOutputPaths(Job job, FileSystemDataset dataset) throws IOException {
-
-    this.mapReduceInputPaths = getGranularInputPaths(dataset.datasetRoot());
-    for (Path path: mapReduceInputPaths) {
-      FileInputFormat.addInputPath(job, path);
-    }
+  protected boolean configureInputAndOutputPaths(Job job, FileSystemDataset dataset) throws IOException {
+    boolean emptyDirectoryFlag = false;
 
     String mrOutputBase = this.state.getProp(MRCompactor.COMPACTION_JOB_DIR);
     CompactionPathParser parser = new CompactionPathParser(this.state);
@@ -244,7 +246,19 @@ public class CompactionAvroJobConfigurator {
 
     log.info ("Cleaning temporary MR output directory: " + mrOutputPath);
     this.fs.delete(mrOutputPath, true);
+
+    this.mapReduceInputPaths = getGranularInputPaths(dataset.datasetRoot());
+    if (this.mapReduceInputPaths.isEmpty()) {
+      this.mapReduceInputPaths.add(dataset.datasetRoot());
+      emptyDirectoryFlag = true;
+    }
+
+    for (Path path: mapReduceInputPaths) {
+      FileInputFormat.addInputPath(job, path);
+    }
+
     FileOutputFormat.setOutputPath(job, mrOutputPath);
+    return emptyDirectoryFlag;
   }
 
   /**
@@ -270,14 +284,15 @@ public class CompactionAvroJobConfigurator {
     addJars(conf);
     Job job = Job.getInstance(conf);
     job.setJobName(MRCompactorJobRunner.HADOOP_JOB_NAME);
-    this.configureInputAndOutputPaths(job, dataset);
+    boolean emptyDirectoryFlag = this.configureInputAndOutputPaths(job, dataset);
+    if (emptyDirectoryFlag) {
+      this.state.setProp(HiveRegistrationPolicy.MAPREDUCE_JOB_INPUT_PATH_EMPTY_KEY, true);
+    }
     this.configureMapper(job);
     this.configureReducer(job);
-
-    if (!this.shouldDeduplicate) {
+    if (emptyDirectoryFlag || !this.shouldDeduplicate) {
       job.setNumReduceTasks(0);
     }
-
     // Configure schema at the last step because FilesInputFormat will be used internally
     this.configureSchema(job);
     this.isJobCreated = true;
@@ -332,7 +347,7 @@ public class CompactionAvroJobConfigurator {
         }
         total.add(fileStatus.getPath().getParent());
       } else {
-        uncompacted.add(fileStatus.getPath().getParent());
+          uncompacted.add(fileStatus.getPath().getParent());
       }
     }
 
