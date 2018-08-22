@@ -48,7 +48,7 @@ import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 @Slf4j
 public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandler {
   @Getter
-  private FlowCatalog flowCatalog;
+  protected FlowCatalog flowCatalog;
   public FlowConfigResourceLocalHandler(FlowCatalog flowCatalog) {
     this.flowCatalog = flowCatalog;
   }
@@ -187,6 +187,9 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
       Schedule schedule = flowConfig.getSchedule();
       configBuilder.addPrimitive(ConfigurationKeys.JOB_SCHEDULE_KEY, schedule.getCronSchedule());
       configBuilder.addPrimitive(ConfigurationKeys.FLOW_RUN_IMMEDIATELY, schedule.isRunImmediately());
+      if (isRunOnceFlow(flowConfig)) {
+        configBuilder.addPrimitive(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, String.valueOf(System.currentTimeMillis()));
+      }
     }
 
     Config config = configBuilder.build();
@@ -198,5 +201,13 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
     } catch (URISyntaxException e) {
       throw new FlowConfigLoggedException(HttpStatus.S_400_BAD_REQUEST, "bad URI " + flowConfig.getTemplateUris(), e);
     }
+  }
+
+  /**
+   * @param flowConfig flowConfig
+   * @return returns true if it is a runOnce flow, i.e. runImmediately is true and cron schedule is empty
+   */
+  private static boolean isRunOnceFlow(FlowConfig flowConfig) {
+    return flowConfig.getSchedule().isRunImmediately() && StringUtils.isEmpty(flowConfig.getSchedule().getCronSchedule());
   }
 }

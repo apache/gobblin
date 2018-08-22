@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.service.modules.flow;
 
-import com.google.common.base.Splitter;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -28,41 +27,43 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.StringUtils;
+import org.jgrapht.graph.DirectedWeightedMultigraph;
+import org.slf4j.Logger;
+
 import com.google.common.base.Optional;
+import com.google.common.base.Splitter;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
 
-import org.apache.commons.lang3.StringUtils;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.runtime.api.FlowEdge;
+import org.apache.gobblin.runtime.api.FlowSpec;
+import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.api.JobTemplate;
+import org.apache.gobblin.runtime.api.ServiceNode;
+import org.apache.gobblin.runtime.api.Spec;
+import org.apache.gobblin.runtime.api.SpecExecutor;
+import org.apache.gobblin.runtime.api.SpecNotFoundException;
+import org.apache.gobblin.runtime.api.TopologySpec;
+import org.apache.gobblin.runtime.job_spec.ResolvedJobSpec;
+import org.apache.gobblin.runtime.spec_executorInstance.BaseServiceNodeImpl;
 import org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutor;
+import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.policy.ServicePolicy;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlanDagFactory;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
-import org.jgrapht.graph.DirectedWeightedMultigraph;
-import org.slf4j.Logger;
-import org.apache.gobblin.runtime.api.FlowEdge;
-import org.apache.gobblin.runtime.api.ServiceNode;
-import org.apache.gobblin.runtime.api.FlowSpec;
-import org.apache.gobblin.instrumented.Instrumented;
-import org.apache.gobblin.runtime.api.Spec;
-import org.apache.gobblin.runtime.api.TopologySpec;
-import org.apache.gobblin.service.ServiceConfigKeys;
-import org.apache.gobblin.runtime.spec_executorInstance.BaseServiceNodeImpl;
-import org.apache.gobblin.runtime.api.JobSpec;
-import org.apache.gobblin.runtime.api.JobTemplate;
-import org.apache.gobblin.runtime.api.SpecExecutor;
-import org.apache.gobblin.runtime.api.SpecNotFoundException;
-import org.apache.gobblin.runtime.job_spec.ResolvedJobSpec;
 
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
-
-import static org.apache.gobblin.service.ServiceConfigKeys.*;
-import static org.apache.gobblin.service.modules.utils.FindPathUtils.*;
+import static org.apache.gobblin.service.ServiceConfigKeys.SERVICE_POLICY_NAME;
+import static org.apache.gobblin.service.modules.utils.FindPathUtils.dijkstraBasedPathFindingHelper;
 
 // Users are capable to inject hints/prioritization into route selection, in two forms:
 // 1. PolicyBasedBlockedConnection: Define some undesired routes
@@ -309,7 +310,7 @@ public class MultiHopsFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
     }
 
     // Add flow execution id for this compilation
-    long flowExecutionId = System.currentTimeMillis();
+    long flowExecutionId = FlowUtils.getOrCreateFlowExecutionId(flowSpec);
     jobSpec.setConfig(jobSpec.getConfig().withValue(ConfigurationKeys.FLOW_EXECUTION_ID_KEY,
         ConfigValueFactory.fromAnyRef(flowExecutionId)));
 
