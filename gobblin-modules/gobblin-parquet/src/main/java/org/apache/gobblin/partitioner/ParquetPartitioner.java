@@ -16,12 +16,11 @@
  */
 package org.apache.gobblin.partitioner;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 
 import org.apache.avro.Schema;
-import org.apache.avro.Schema.Field;
+import org.apache.avro.SchemaBuilder;
+import org.apache.avro.SchemaBuilder.FieldAssembler;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.gobblin.configuration.State;
@@ -32,7 +31,6 @@ import parquet.example.data.Group;
 import parquet.io.InvalidRecordException;
 import parquet.schema.GroupType;
 
-import static org.apache.avro.Schema.Field.Order.IGNORE;
 import static org.apache.avro.Schema.Type.STRING;
 import static org.apache.gobblin.configuration.ConfigurationKeys.WRITER_PREFIX;
 import static org.apache.gobblin.util.ForkOperatorUtils.getPropertyNameForBranch;
@@ -48,7 +46,8 @@ import static org.apache.gobblin.util.ForkOperatorUtils.getPropertyNameForBranch
  */
 public class ParquetPartitioner implements WriterPartitioner<ParquetGroup> {
   public static final String WRITER_PARQUET_PARTITION_KEY = WRITER_PREFIX + ".partitioner.parquet.key";
-  public static final String WRITER_PARQUET_PARTITION_KEY_DEFAULT = WRITER_PREFIX + ".partitioner.parquet.key.defaultKey";
+  public static final String WRITER_PARQUET_PARTITION_KEY_DEFAULT =
+      WRITER_PREFIX + ".partitioner.parquet.key.defaultKey";
   public static final String DEFAULT_WRITER_PARQUET_PARTITION_KEY_DEFAULT = "NON_PARTITIONED";
   private final String[] partitionKey;
   private final String partitionKeyForNonMatchedRecords;
@@ -67,12 +66,12 @@ public class ParquetPartitioner implements WriterPartitioner<ParquetGroup> {
 
   @Override
   public Schema partitionSchema() {
-    List<Field> primitiveTypes = new ArrayList<>(partitionKey.length);
-    for (String e : partitionKey) {
-      Field field = new Field(e.trim(), Schema.create(STRING), "", null, IGNORE);
-      primitiveTypes.add(field);
+    FieldAssembler<Schema> fieldAssembler =
+        SchemaBuilder.record("Schema").namespace("gobblin.writer.partitioner").fields();
+    for (String aPartitionKey : partitionKey) {
+      fieldAssembler = fieldAssembler.name(aPartitionKey).type(Schema.create(STRING)).noDefault();
     }
-    return Schema.createRecord("ParquetPartitionerSchema", "", "gobblin.partitioner", false, primitiveTypes);
+    return fieldAssembler.endRecord();
   }
 
   @Override
