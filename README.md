@@ -12,9 +12,11 @@ If building the distribution with tests turned on:
 # Instructions to download gradle wrapper
 Run the following command for downloading the gradle-wrapper.jar from Gobblin git repository to gradle/wrapper directory.
 
-wget --no-check-certificate -P gradle/wrapper https://github.com/apache/incubator-gobblin/raw/0.12.0/gradle/wrapper/gradle-wrapper.jar
+    wget --no-check-certificate -P gradle/wrapper https://github.com/apache/incubator-gobblin/raw/0.12.0/gradle/wrapper/gradle-wrapper.jar
+    
 (or)
-curl --insecure -L https://github.com/apache/incubator-gobblin/raw/0.12.0/gradle/wrapper/gradle-wrapper.jar > gradle/wrapper/gradle-wrapper.jar
+
+    curl --insecure -L https://github.com/apache/incubator-gobblin/raw/0.12.0/gradle/wrapper/gradle-wrapper.jar > gradle/wrapper/gradle-wrapper.jar
 
 Alternatively, you can download it manually from: 
 https://github.com/apache/incubator-gobblin/blob/0.12.0/gradle/wrapper/gradle-wrapper.jar
