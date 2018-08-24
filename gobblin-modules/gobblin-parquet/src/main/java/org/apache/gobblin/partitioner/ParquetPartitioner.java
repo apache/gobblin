@@ -48,7 +48,7 @@ import static org.apache.gobblin.util.ForkOperatorUtils.getPropertyNameForBranch
  */
 public class ParquetPartitioner implements WriterPartitioner<ParquetGroup> {
   public static final String WRITER_PARQUET_PARTITION_KEY = WRITER_PREFIX + ".partitioner.parquet.key";
-  public static final String WRITER_PARQUET_PARTITION_KEY_DEFAULT = WRITER_PREFIX + ".partitioner.parquet.key.default";
+  public static final String WRITER_PARQUET_PARTITION_KEY_DEFAULT = WRITER_PREFIX + ".partitioner.parquet.key.defaultKey";
   public static final String DEFAULT_WRITER_PARQUET_PARTITION_KEY_DEFAULT = "NON_PARTITIONED";
   private final String[] partitionKey;
   private final String partitionKeyForNonMatchedRecords;
