@@ -24,7 +24,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import parquet.example.data.Group;
-import parquet.hadoop.ParquetWriter;
 
 
 /**
@@ -42,24 +41,22 @@ public class ParquetMultipleFilesHdfsDataWriter extends MultipleFilesFsDataWrite
 
   private static final Logger LOG = LoggerFactory.getLogger(ParquetMultipleFilesHdfsDataWriter.class);
 
-  public ParquetMultipleFilesHdfsDataWriter(MultipleFilesFsDataWriterBuilder<?, ?> builder, State state)
+  public ParquetMultipleFilesHdfsDataWriter(MultipleFilesFsDataWriterBuilder<?, Group> builder, State state)
       throws IOException {
     super(builder, state);
   }
 
   @Override
-  public void writeWithCurrentWriter(Object writer, Group record)
+  public void writeWithCurrentWriter(FileFormatWriter<Group> writer, Group record)
       throws IOException {
-    ParquetWriter<Group> parquetWriter = (ParquetWriter<Group>) writer;
-    parquetWriter.write(record);
+    writer.write(record);
   }
 
   @Override
-  public void closeCurrentWriter(Object writer)
+  public void closeCurrentWriter(FileFormatWriter<Group> writer)
       throws IOException {
-    ParquetWriter<Group> parquetWriter = (ParquetWriter<Group>) writer;
     try {
-      parquetWriter.close();
+      writer.close();
     } finally {
       super.close();
     }

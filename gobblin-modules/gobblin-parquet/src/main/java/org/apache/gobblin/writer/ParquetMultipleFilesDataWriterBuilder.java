@@ -56,9 +56,25 @@ public class ParquetMultipleFilesDataWriterBuilder extends MultipleFilesFsDataWr
    * @throws IOException
    */
   @Override
-  public Object getNewWriter(int blockSize, Path stagingFile)
+  public FileFormatWriter<Group> getNewWriter(int blockSize, Path stagingFile)
       throws IOException {
-    return buildParquetWriter(this.destination.getProperties(), this.schema, this.branches, this.branch, stagingFile,
-        blockSize);
+    ParquetWriter<Group> groupParquetWriter =
+        buildParquetWriter(this.destination.getProperties(), this.schema, this.branches, this.branch, stagingFile,
+            blockSize);
+
+    return new FileFormatWriter<Group>() {
+
+      @Override
+      public void write(Group record)
+          throws IOException {
+        groupParquetWriter.write(record);
+      }
+
+      @Override
+      public void close()
+          throws IOException {
+        groupParquetWriter.close();
+      }
+    };
   }
 }

@@ -52,13 +52,13 @@ public abstract class MultipleFilesFsDataWriter<D> extends FsDataWriter<D> {
   private final AtomicLong recordsWritten = new AtomicLong(0);
   private final AtomicLong recordsWrittenInCurrentWriter = new AtomicLong(0);
   private final AtomicLong currentWriterNumber = new AtomicLong(0);
-  private final MultipleFilesFsDataWriterBuilder<?, ?> builder;
+  private final MultipleFilesFsDataWriterBuilder<?, D> builder;
   @Getter
   public Path currentFilePath;
   private Long recordsWrittenThreshold;
-  private Object currentWriter;
+  private FileFormatWriter<D> currentWriter;
 
-  public MultipleFilesFsDataWriter(MultipleFilesFsDataWriterBuilder<?, ?> builder, State properties)
+  public MultipleFilesFsDataWriter(MultipleFilesFsDataWriterBuilder<?, D> builder, State properties)
       throws IOException {
     super(builder, properties);
     this.recordsWrittenThreshold = properties.getPropAsLong(ForkOperatorUtils
@@ -153,17 +153,17 @@ public abstract class MultipleFilesFsDataWriter<D> extends FsDataWriter<D> {
     return this.recordsWritten.get();
   }
 
-  public abstract void writeWithCurrentWriter(Object writer, D record)
+  public abstract void writeWithCurrentWriter(FileFormatWriter<D> writer, D record)
       throws IOException;
 
-  public abstract void closeCurrentWriter(Object writer)
+  public abstract void closeCurrentWriter(FileFormatWriter<D> writer)
       throws IOException;
 
   private List<WrittenFile> writtenFiles() {
     return LongStream.range(1, this.currentWriterNumber.get()).mapToObj(WrittenFile::new).collect(toList());
   }
 
-  private Object getNewWriter()
+  private FileFormatWriter<D> getNewWriter()
       throws IOException {
     this.currentWriterNumber.incrementAndGet();
     this.recordsWrittenInCurrentWriter.set(0);

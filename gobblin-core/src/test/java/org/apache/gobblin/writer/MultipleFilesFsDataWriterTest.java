@@ -26,6 +26,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
 import org.mockito.Mockito;
+import org.mockito.stubbing.Answer;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -54,24 +55,21 @@ public class MultipleFilesFsDataWriterTest {
       throws IOException {
     builder = mock(MultipleFilesFsDataWriterBuilder.class);
     state = createStateWithConfig();
-    when(builder.getNewWriter(anyInt(), any(Path.class))).thenReturn(new Object());
+    Answer<Object> buildIntWriterWithProvidedPath = i -> new FileFormatIntWriter((Path) i.getArguments()[1]);
+    when(builder.getNewWriter(anyInt(), any(Path.class))).thenAnswer(buildIntWriterWithProvidedPath);
     when(builder.getFileName(any(State.class))).thenReturn(TestConstants.TEST_FILE_NAME);
     writer = new MultipleFilesFsDataWriter<Integer>(builder, state) {
 
       @Override
-      public void writeWithCurrentWriter(Object writer, Integer record) {
-        java.nio.file.Path path = Paths.get(this.getCurrentFilePath().toString());
-        try {
-          File file = new File(path.toString());
-          file.createNewFile();
-          Files.write(path, record.toString().getBytes(), StandardOpenOption.APPEND);
-        } catch (IOException ignored) {
-        }
+      public void writeWithCurrentWriter(FileFormatWriter<Integer> writer, Integer record)
+          throws IOException {
+        writer.write(record);
       }
 
       @Override
-      public void closeCurrentWriter(Object writer) {
-
+      public void closeCurrentWriter(FileFormatWriter<Integer> writer)
+          throws IOException {
+        writer.close();
       }
     };
 
@@ -148,5 +146,27 @@ public class MultipleFilesFsDataWriterTest {
   private String getFilePath() {
     return TestConstants.TEST_EXTRACT_NAMESPACE.replaceAll("\\.", "/") + "/" + TestConstants.TEST_EXTRACT_TABLE + "/"
         + TestConstants.TEST_EXTRACT_ID + "_" + TestConstants.TEST_EXTRACT_PULL_TYPE;
+  }
+
+  private class FileFormatIntWriter implements FileFormatWriter<Integer> {
+    private final Path filePath;
+
+    private FileFormatIntWriter(Path filePath) {
+      this.filePath = filePath;
+    }
+
+    @Override
+    public void write(Integer record)
+        throws IOException {
+      java.nio.file.Path path = Paths.get(this.filePath.toString());
+      File file = new File(path.toString());
+      file.createNewFile();
+      Files.write(path, record.toString().getBytes(), StandardOpenOption.APPEND);
+    }
+
+    @Override
+    public void close() {
+
+    }
   }
 }

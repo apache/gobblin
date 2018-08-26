@@ -16,11 +16,15 @@
  */
 package org.apache.gobblin.writer;
 
+import java.io.Closeable;
 import java.io.IOException;
 
-import org.apache.hadoop.fs.Path;
 
+/**
+ * Represents a generic file writer of file format type <T>.
+ * @author tilakpatidar@gmail.com
+ */
+interface FileFormatWriter<T> extends Closeable {
 
-public abstract class MultipleFilesFsDataWriterBuilder<S, D> extends FsDataWriterBuilder<S, D> {
-  protected abstract FileFormatWriter<D> getNewWriter(int blockSize, Path stagingFile) throws IOException;
+  void write(T object) throws IOException;
 }
