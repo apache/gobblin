@@ -18,9 +18,9 @@ package org.apache.gobblin.writer;
 
 import java.io.IOException;
 import java.util.Optional;
+import java.util.function.Function;
 
 import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.util.ForkOperatorUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 
@@ -38,6 +38,7 @@ import static org.apache.gobblin.configuration.ConfigurationKeys.LOCAL_FS_URI;
 import static org.apache.gobblin.configuration.ConfigurationKeys.WRITER_CODEC_TYPE;
 import static org.apache.gobblin.configuration.ConfigurationKeys.WRITER_FILE_SYSTEM_URI;
 import static org.apache.gobblin.configuration.ConfigurationKeys.WRITER_PREFIX;
+import static org.apache.gobblin.util.ForkOperatorUtils.getPropertyNameForBranch;
 import static parquet.hadoop.ParquetWriter.DEFAULT_BLOCK_SIZE;
 import static parquet.hadoop.ParquetWriter.DEFAULT_IS_DICTIONARY_ENABLED;
 import static parquet.hadoop.ParquetWriter.DEFAULT_IS_VALIDATING_ENABLED;
@@ -77,36 +78,40 @@ public class ParquetDataWriterBuilder extends FsDataWriterBuilder<MessageType, G
    */
   public ParquetWriter<Group> getWriter(int blockSize, Path stagingFile)
       throws IOException {
-    State state = this.destination.getProperties();
-    int pageSize = state.getPropAsInt(getProperty(WRITER_PARQUET_PAGE_SIZE), DEFAULT_PAGE_SIZE);
-    int dictPageSize = state.getPropAsInt(getProperty(WRITER_PARQUET_DICTIONARY_PAGE_SIZE), DEFAULT_BLOCK_SIZE);
+    return buildParquetWriter(this.destination.getProperties(), this.schema, this.branches, this.branch, stagingFile,
+        blockSize);
+  }
+
+  public static ParquetWriter<Group> buildParquetWriter(State state, MessageType schema, int branches, int branch,
+      Path stagingFile, int blockSize)
+      throws IOException {
+    Function<String, String> getProperty = (key) -> getPropertyNameForBranch(key, branches, branch);
+    int pageSize = state.getPropAsInt(getProperty.apply(WRITER_PARQUET_PAGE_SIZE), DEFAULT_PAGE_SIZE);
+    int dictPageSize = state.getPropAsInt(getProperty.apply(WRITER_PARQUET_DICTIONARY_PAGE_SIZE), DEFAULT_BLOCK_SIZE);
     boolean enableDictionary =
-        state.getPropAsBoolean(getProperty(WRITER_PARQUET_DICTIONARY), DEFAULT_IS_DICTIONARY_ENABLED);
-    boolean validate = state.getPropAsBoolean(getProperty(WRITER_PARQUET_VALIDATE), DEFAULT_IS_VALIDATING_ENABLED);
+        state.getPropAsBoolean(getProperty.apply(WRITER_PARQUET_DICTIONARY), DEFAULT_IS_DICTIONARY_ENABLED);
+    boolean validate =
+        state.getPropAsBoolean(getProperty.apply(WRITER_PARQUET_VALIDATE), DEFAULT_IS_VALIDATING_ENABLED);
     String rootURI = state.getProp(WRITER_FILE_SYSTEM_URI, LOCAL_FS_URI);
     Path absoluteStagingFile = new Path(rootURI, stagingFile);
-    CompressionCodecName codec = getCodecFromConfig();
+    CompressionCodecName codec = getCodecFromConfig(state, branches, branch);
     GroupWriteSupport support = new GroupWriteSupport();
     Configuration conf = new Configuration();
-    GroupWriteSupport.setSchema(this.schema, conf);
-    ParquetProperties.WriterVersion writerVersion = getWriterVersion();
+    GroupWriteSupport.setSchema(schema, conf);
+    ParquetProperties.WriterVersion writerVersion = getWriterVersion(state, branches, branch);
     return new ParquetWriter<>(absoluteStagingFile, support, codec, blockSize, pageSize, dictPageSize, enableDictionary,
         validate, writerVersion, conf);
   }
 
-  private ParquetProperties.WriterVersion getWriterVersion() {
+  private static ParquetProperties.WriterVersion getWriterVersion(State state, int branches, int branch) {
     return ParquetProperties.WriterVersion.fromString(
-        this.destination.getProperties().getProp(getProperty(WRITER_PARQUET_VERSION), DEFAULT_PARQUET_WRITER));
+        state.getProp(getPropertyNameForBranch(WRITER_PARQUET_VERSION, branches, branch), DEFAULT_PARQUET_WRITER));
   }
 
-  private CompressionCodecName getCodecFromConfig() {
-    State state = this.destination.getProperties();
-    String codecValue = Optional.ofNullable(state.getProp(getProperty(WRITER_CODEC_TYPE)))
-        .orElse(CompressionCodecName.SNAPPY.toString());
+  private static CompressionCodecName getCodecFromConfig(State state, int branches, int branch) {
+    String codecValue =
+        Optional.ofNullable(state.getProp(getPropertyNameForBranch(WRITER_CODEC_TYPE, branches, branch)))
+            .orElse(CompressionCodecName.SNAPPY.toString());
     return CompressionCodecName.valueOf(codecValue.toUpperCase());
-  }
-
-  private String getProperty(String key) {
-    return ForkOperatorUtils.getPropertyNameForBranch(key, this.getBranches(), this.getBranch());
   }
 }
