@@ -21,6 +21,7 @@ import org.apache.gobblin.source.extractor.schema.Schema;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 
 import parquet.schema.Type.Repetition;
 
@@ -108,14 +109,16 @@ public class JsonSchema extends Schema {
   /**
    * Builds a {@link JsonSchema} object for a given {@link InputType} object.
    * @param type
+   * @param isNullable
    * @return
    */
-  public static JsonSchema buildBaseSchema(InputType type) {
+  public static JsonSchema buildBaseSchema(InputType type, boolean isNullable) {
     JsonObject jsonObject = new JsonObject();
     JsonObject dataType = new JsonObject();
     jsonObject.addProperty(COLUMN_NAME_KEY, DEFAULT_RECORD_COLUMN_NAME);
     dataType.addProperty(TYPE_KEY, type.toString());
     jsonObject.add(DATA_TYPE_KEY, dataType);
+    jsonObject.add(IS_NULLABLE_KEY, new JsonPrimitive(isNullable));
     return new JsonSchema(jsonObject);
   }
 
