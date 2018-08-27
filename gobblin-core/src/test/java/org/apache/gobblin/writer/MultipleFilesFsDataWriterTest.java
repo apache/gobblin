@@ -42,10 +42,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-
 @Test(groups = {"gobblin.writer"})
 public class MultipleFilesFsDataWriterTest {
-
   private MultipleFilesFsDataWriterBuilder<Object, Integer> builder;
   private MultipleFilesFsDataWriter<Integer> writer;
   private State state;
@@ -55,6 +53,7 @@ public class MultipleFilesFsDataWriterTest {
       throws IOException {
     builder = mock(MultipleFilesFsDataWriterBuilder.class);
     state = createStateWithConfig();
+    System.out.println(state);
     Answer<Object> buildIntWriterWithProvidedPath = i -> new FileFormatIntWriter((Path) i.getArguments()[1]);
     when(builder.getNewWriter(anyInt(), any(Path.class))).thenAnswer(buildIntWriterWithProvidedPath);
     when(builder.getFileName(any(State.class))).thenReturn(TestConstants.TEST_FILE_NAME);
@@ -76,18 +75,18 @@ public class MultipleFilesFsDataWriterTest {
     // Making the staging and/or output dirs if necessary
     File stagingDir = new File(buildAbsolutePath(TestConstants.TEST_STAGING_DIR));
     File outputDir = new File(buildAbsolutePath(TestConstants.TEST_OUTPUT_DIR));
-    File writerPath = new File(buildAbsolutePath(TestConstants.TEST_STAGING_DIR + Path.SEPARATOR + getFilePath()));
+    File writerPath = new File(buildAbsolutePath(Paths.get(TestConstants.TEST_STAGING_DIR, getFilePath()).toString()));
     if (!stagingDir.exists()) {
       boolean mkdirs = stagingDir.mkdirs();
-      assert mkdirs;
+      assertAndLog(mkdirs, stagingDir);
     }
     if (!outputDir.exists()) {
       boolean mkdirs = outputDir.mkdirs();
-      assert mkdirs;
+      assertAndLog(mkdirs, outputDir);
     }
     if (!writerPath.exists()) {
       boolean mkdirs = writerPath.mkdirs();
-      assert mkdirs;
+      assertAndLog(mkdirs, writerPath);
     }
   }
 
@@ -140,7 +139,7 @@ public class MultipleFilesFsDataWriterTest {
   }
 
   private String buildAbsolutePath(String path) {
-    return System.getProperty("java.io.tmpdir") + path;
+    return Paths.get(System.getProperty("java.io.tmpdir"), path).toAbsolutePath().toString();
   }
 
   private String getFilePath() {
@@ -168,5 +167,9 @@ public class MultipleFilesFsDataWriterTest {
     public void close() {
 
     }
+  }
+
+  private void assertAndLog(boolean mkdirs, File file) {
+    assert(mkdirs): "Could not create directory " + file.toPath().toString();
   }
 }
