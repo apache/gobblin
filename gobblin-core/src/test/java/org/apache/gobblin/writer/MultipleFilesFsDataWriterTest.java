@@ -42,6 +42,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+
 @Test(groups = {"gobblin.writer"})
 public class MultipleFilesFsDataWriterTest {
   private MultipleFilesFsDataWriterBuilder<Object, Integer> builder;
@@ -121,7 +122,8 @@ public class MultipleFilesFsDataWriterTest {
   @AfterMethod
   public void tearDown() {
     // Clean up the staging and/or output directories if necessary
-    File testRootDir = new File(System.getProperty("java.io.tmpdir"));
+    String testDir = buildAbsolutePath(TestConstants.TEST_ROOT_DIR);
+    File testRootDir = new File(testDir);
     if (testRootDir.exists()) {
       FileUtil.fullyDelete(testRootDir);
     }
@@ -170,6 +172,6 @@ public class MultipleFilesFsDataWriterTest {
   }
 
   private void assertAndLog(boolean mkdirs, File file) {
-    assert(mkdirs): "Could not create directory " + file.toPath().toString();
+    assert (mkdirs) : "Could not create directory " + file.toPath().toString();
   }
 }
