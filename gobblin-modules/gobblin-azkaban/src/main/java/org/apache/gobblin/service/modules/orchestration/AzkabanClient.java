@@ -60,29 +60,42 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import lombok.Builder;
+
 
 /**
  * A simple client that uses Ajax API to communicate with Azkaban server.
  *
- * Please note that this class can only be instantiated via {@link AzkabanClientBuilder}.
+ * Lombok will not consider fields from the superclass in the generated builder class. For a workaround, we put
+ * @Builder in constructors to allow Builder inheritance.
  *
+ * @see {@linktourl https://blog.codecentric.de/en/2016/05/reducing-boilerplate-code-project-lombok/}
  * @see {@linktourl https://azkaban.github.io/azkaban/docs/latest/#ajax-api}
  */
 public class AzkabanClient implements Closeable {
   protected final String username;
+  protected final String password;
   protected final String url;
-  protected String password;
+  protected final long sessionExpireInMin; // default value is 12h.
+
   protected String sessionId;
-  protected long sessionExpireInMin; // default value is 12h.
   protected long sessionCreationTime = 0;
   protected CloseableHttpClient client;
   private static Logger log = LoggerFactory.getLogger(AzkabanClient.class);
 
-  protected AzkabanClient(AzkabanClientBuilder builder) throws AzkabanClientException {
-    this.url = builder.getUrl();
-    this.username = builder.getUsername();
-    this.password = builder.getPassword();
-    this.sessionExpireInMin = builder.getSessionExpireInMin();
+  /**
+   * Child class should have a different builderMethodName.
+   */
+  @Builder
+  protected AzkabanClient(String username,
+                          String password,
+                          String url,
+                          long sessionExpireInMin)
+      throws AzkabanClientException {
+    this.username = username;
+    this.password = password;
+    this.url = url;
+    this.sessionExpireInMin = sessionExpireInMin;
     this.client = getClient();
     this.initializeSession();
   }
@@ -106,7 +119,6 @@ public class AzkabanClient implements Closeable {
         // retrieve session id from entity
         String jsonResponseString = IOUtils.toString(entity.getContent(), "UTF-8");
         this.sessionId = parseResponse(jsonResponseString).get(AzkabanClientParams.SESSION_ID);
-        log.info("Session id : {}", this.sessionId);
         EntityUtils.consume(entity);
       } finally {
         response.close();
@@ -275,7 +287,7 @@ public class AzkabanClient implements Closeable {
     try {
       refreshSession();
       List<NameValuePair> nvps = new ArrayList<>();
-      nvps.add(new BasicNameValuePair("delete", "true"));
+      nvps.add(new BasicNameValuePair(AzkabanClientParams.DELETE, "true"));
       nvps.add(new BasicNameValuePair(AzkabanClientParams.SESSION_ID, this.sessionId));
       nvps.add(new BasicNameValuePair(AzkabanClientParams.PROJECT, projectName));
 

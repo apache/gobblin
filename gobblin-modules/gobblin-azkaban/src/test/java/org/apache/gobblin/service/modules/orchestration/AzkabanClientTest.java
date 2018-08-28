@@ -62,11 +62,11 @@ public class AzkabanClientTest {
     String userName = azkConfig.getString(ServiceAzkabanConfigKeys.AZKABAN_USERNAME_KEY);
     String password = azkConfig.getString(ServiceAzkabanConfigKeys.AZKABAN_PASSWORD_KEY);
     String url = azkConfig.getString(ServiceAzkabanConfigKeys.AZKABAN_SERVER_URL_KEY);
-    this.client = AzkabanClientBuilder.create()
-        .setUserName(userName)
-        .setPassword(password)
-        .setUrl(url)
-        .setSessionExpireInMin(sessionExpireInMin)
+    this.client = AzkabanClient.builder()
+        .username(userName)
+        .password(password)
+        .url(url)
+        .sessionExpireInMin(sessionExpireInMin)
         .build();
     String uri = ConfigurationKeys.LOCAL_FS_URI;
     this.fs = FileSystem.get(URI.create(uri), new Configuration());

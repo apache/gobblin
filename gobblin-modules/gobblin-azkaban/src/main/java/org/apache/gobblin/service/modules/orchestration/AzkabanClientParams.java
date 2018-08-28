@@ -29,6 +29,7 @@ public class AzkabanClientParams {
   public static final String SESSION_ID = "session.id";
 
   public static final String NAME = "name";
+  public static final String DELETE = "delete";
   public static final String DESCRIPTION = "description";
   public static final String PROJECT = "project";
   public static final String FLOW = "flow";
