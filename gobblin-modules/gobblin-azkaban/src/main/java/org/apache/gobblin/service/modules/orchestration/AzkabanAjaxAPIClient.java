@@ -18,23 +18,17 @@ package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
-import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
-
 import org.apache.commons.codec.EncoderException;
 import org.apache.commons.codec.net.URLCodec;
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -54,12 +48,16 @@ import org.apache.http.ssl.TrustStrategy;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Maps;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+
+import lombok.Cleanup;
+import lombok.extern.slf4j.Slf4j;
 
 
 @Slf4j
+@Deprecated
+/**
+ * This format of azkaban client is obsolete. Please use {@link AzkabanClient} as the new alternative.
+ */
 public class AzkabanAjaxAPIClient {
   private static Splitter SPLIT_ON_COMMA = Splitter.on(",").omitEmptyStrings().trimResults();
 
@@ -367,7 +365,7 @@ public class AzkabanAjaxAPIClient {
     // Make the call, get response
     @Cleanup CloseableHttpClient httpClient = getHttpClient();
     HttpResponse response = httpClient.execute(getRequest);
-    return handleResponse(response);
+    return AzkabanClient.handleResponse(response);
   }
 
   @VisibleForTesting
@@ -375,7 +373,7 @@ public class AzkabanAjaxAPIClient {
     // Make the call, get response
     @Cleanup CloseableHttpClient httpClient = getHttpClient();
     HttpResponse response = httpClient.execute(postRequest);
-    return handleResponse(response);
+    return AzkabanClient.handleResponse(response);
   }
 
   private static String uploadZipFileToAzkaban(String sessionId, String azkabanServerUrl, String azkabanProjectName,
@@ -399,7 +397,7 @@ public class AzkabanAjaxAPIClient {
     HttpResponse response = httpClient.execute(postRequest);
 
     // Obtaining projectId is hard. Uploading zip file is one avenue to get it from Azkaban
-    return handleResponse(response, "projectId").get("projectId");
+    return AzkabanClient.handleResponse(response).get("projectId");
   }
 
   private static CloseableHttpClient getHttpClient()
@@ -414,50 +412,6 @@ public class AzkabanAjaxAPIClient {
       return HttpClients.custom().setSSLSocketFactory(sslsf).setDefaultCookieStore(new BasicCookieStore()).build();
     } catch (NoSuchAlgorithmException | KeyManagementException | KeyStoreException e) {
       throw new IOException("Issue with creating http client", e);
-    }
-  }
-
-  private static Map<String, String> handleResponse(HttpResponse response, String... responseKeys)
-      throws IOException {
-    if (response.getStatusLine().getStatusCode() != 201 && response.getStatusLine().getStatusCode()!= 200) {
-      log.error("Failed : HTTP error code : " + response.getStatusLine().getStatusCode());
-      throw new RuntimeException("Failed : HTTP error code : " + response.getStatusLine().getStatusCode());
-    }
-
-    // Get response in string
-    InputStream in = response.getEntity().getContent();
-    String jsonResponseString = IOUtils.toString(in, "UTF-8");
-    log.info("Response string: " + jsonResponseString);
-
-    // Parse Json
-    Map<String, String> responseMap = new HashMap<>();
-    if (StringUtils.isNotBlank(jsonResponseString)) {
-      JsonObject jsonObject = new JsonParser().parse(jsonResponseString).getAsJsonObject();
-
-      // Handle error if any
-      handleResponseError(jsonObject);
-
-      // Get all responseKeys
-      for(Map.Entry<String, JsonElement> entry : jsonObject.entrySet()) {
-        responseMap.put(entry.getKey(), entry.getValue().toString().replaceAll("\"", ""));
-      }
-    }
-
-    return responseMap;
-  }
-
-  private static void handleResponseError(JsonObject jsonObject) throws IOException {
-    // Azkaban does not has a standard for error messages tag
-    if (null != jsonObject.get("status") && "error".equalsIgnoreCase(jsonObject.get("status").toString()
-        .replaceAll("\"", ""))) {
-      String message = (null != jsonObject.get("message")) ?
-          jsonObject.get("message").toString().replaceAll("\"", "") : "Issue in creating project";
-      throw new IOException(message);
-    }
-
-    if (null != jsonObject.get("error")) {
-      String error = jsonObject.get("error").toString().replaceAll("\"", "");
-      throw new IOException(error);
     }
   }
 
