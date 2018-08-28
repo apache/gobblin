@@ -35,17 +35,23 @@ import com.linkedin.restli.server.resources.ComplexKeyResourceTemplate;
 public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, FlowStatusId, FlowConfig> {
   private static final Logger LOG = LoggerFactory.getLogger(FlowConfigsV2Resource.class);
   private static final Set<String> ALLOWED_METADATA = ImmutableSet.of("delete.state.store");
+
+
   @edu.umd.cs.findbugs.annotations.SuppressWarnings("MS_SHOULD_BE_FINAL")
   public static FlowConfigsResourceHandler global_flowConfigsResourceHandler = null;
+
   @Inject
-  @Named("flowConfigsResourceHandler")
+  @Named("flowConfigsV2ResourceHandler")
   private FlowConfigsResourceHandler flowConfigsResourceHandler;
+
   // For blocking use of this resource until it is ready
   @Inject
   @Named("readyToUse")
   private Boolean readyToUse = Boolean.FALSE;
+
   public FlowConfigsV2Resource() {
   }
+
   /**
    * Retrieve the flow configuration with the given key
    * @param key flow config id key containing group name and flow name
@@ -58,6 +64,7 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
     FlowId flowId = new FlowId().setFlowGroup(flowGroup).setFlowName(flowName);
     return this.getFlowConfigResourceHandler().getFlowConfig(flowId);
   }
+
   /**
    * Create a flow configuration that the service will forward to execution instances for execution
    * @param flowConfig flow configuration
@@ -67,6 +74,7 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
   public CreateResponse create(FlowConfig flowConfig) {
     return this.getFlowConfigResourceHandler().createFlowConfig(flowConfig);
   }
+
   /**
    * Update the flow configuration with the specified key. Running flows are not affected.
    * An error is raised if the flow configuration does not exist.
@@ -81,6 +89,7 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
     FlowId flowId = new FlowId().setFlowGroup(flowGroup).setFlowName(flowName);
     return this.getFlowConfigResourceHandler().updateFlowConfig(flowId, flowConfig);
   }
+
   /**
    * Delete a configured flow. Running flows are not affected. The schedule will be removed for scheduled flows.
    * @param key composite key containing flow group and flow name that identifies the flow to remove from the flow catalog
@@ -93,12 +102,14 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
     FlowId flowId = new FlowId().setFlowGroup(flowGroup).setFlowName(flowName);
     return this.getFlowConfigResourceHandler().deleteFlowConfig(flowId, getHeaders());
   }
+
   private FlowConfigsResourceHandler getFlowConfigResourceHandler() {
     if (global_flowConfigsResourceHandler != null) {
       return global_flowConfigsResourceHandler;
     }
     return flowConfigsResourceHandler;
   }
+
   private Properties getHeaders() {
     Properties headerProperties = new Properties();
     for (Map.Entry<String, String> entry : getContext().getRequestHeaders().entrySet()) {

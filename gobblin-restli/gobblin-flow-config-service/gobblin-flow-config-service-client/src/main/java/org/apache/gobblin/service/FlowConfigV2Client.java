@@ -20,6 +20,10 @@ package org.apache.gobblin.service;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,6 +57,7 @@ public class FlowConfigV2Client implements Closeable {
   private Optional<RestClient> _restClient;
   private final FlowconfigsV2RequestBuilders _flowconfigsV2RequestBuilders;
   public static final String DELETE_STATE_STORE_KEY = "delete.state.store";
+  private static final Pattern flowStatusIdParams = Pattern.compile(".*params:\\((?<flowStatusIdParams>.*?)\\)");
 
   /**
    * Construct a {@link FlowConfigV2Client} to communicate with http flow config server at URI serverUri
@@ -73,7 +78,7 @@ public class FlowConfigV2Client implements Closeable {
    * @param restClient restClient to send restli request
    */
   public FlowConfigV2Client(RestClient restClient) {
-    LOG.debug("FlowConfigClient with restClient " + restClient);
+    LOG.debug("FlowConfigV2Client with restClient " + restClient);
 
     _httpClientFactory = Optional.absent();
     _restClient = Optional.of(restClient);
@@ -83,10 +88,13 @@ public class FlowConfigV2Client implements Closeable {
 
   /**
    * Create a flow configuration
-   * @param flowConfig flow configuration attributes
+   * It differs from {@link FlowConfigClient} in a way that it returns FlowStatusId,
+   * which can be used to find the FlowExecutionId
+   * @param flowConfig FlowConfig to be used to create the flow
+   * @return FlowStatusId
    * @throws RemoteInvocationException
    */
-  public void createFlowConfig(FlowConfig flowConfig)
+  public FlowStatusId createFlowConfig(FlowConfig flowConfig)
       throws RemoteInvocationException {
     LOG.debug("createFlowConfig with groupName " + flowConfig.getId().getFlowGroup() + " flowName " +
         flowConfig.getId().getFlowName());
@@ -96,7 +104,25 @@ public class FlowConfigV2Client implements Closeable {
     ResponseFuture<IdResponse<ComplexResourceKey<FlowId, FlowStatusId>>> flowConfigResponseFuture =
         _restClient.get().sendRequest(request);
 
-    flowConfigResponseFuture.getResponse();
+    return createFlowStatusId(flowConfigResponseFuture.getResponse().getLocation().toString());
+  }
+
+  private FlowStatusId createFlowStatusId(String locationHeader) {
+    Matcher matcher = flowStatusIdParams.matcher(locationHeader);
+    matcher.find();
+    String allFields = matcher.group("flowStatusIdParams");
+    String[] flowStatusIdParams = allFields.split(",");
+    Map<String, String> paramsMap = new HashMap<>();
+    for (String flowStatusIdParam : flowStatusIdParams) {
+      paramsMap.put(flowStatusIdParam.split(":")[0], flowStatusIdParam.split(":")[1]);
+    }
+    FlowStatusId flowStatusId = new FlowStatusId()
+        .setFlowName(paramsMap.get("flowName"))
+        .setFlowGroup(paramsMap.get("flowGroup"));
+    if (paramsMap.containsKey("flowExecutionId")) {
+      flowStatusId.setFlowExecutionId(Long.parseLong(paramsMap.get("flowExecutionId")));
+    }
+    return flowStatusId;
   }
 
   /**
