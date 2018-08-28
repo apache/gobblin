@@ -20,6 +20,7 @@ package org.apache.gobblin.service.modules.orchestration;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -54,6 +55,7 @@ import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Preconditions;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -71,6 +73,8 @@ public class AzkabanClient implements Closeable {
   protected final String url;
   protected String password;
   protected String sessionId;
+  protected long sessionExpireInMin; // default value is 12h.
+  protected long sessionCreationTime = 0;
   protected CloseableHttpClient client;
   private static Logger log = LoggerFactory.getLogger(AzkabanClient.class);
 
@@ -78,6 +82,7 @@ public class AzkabanClient implements Closeable {
     this.url = builder.getUrl();
     this.username = builder.getUsername();
     this.password = builder.getPassword();
+    this.sessionExpireInMin = builder.getSessionExpireInMin();
     this.client = getClient();
     this.initializeSession();
   }
@@ -106,6 +111,7 @@ public class AzkabanClient implements Closeable {
       } finally {
         response.close();
       }
+      this.sessionCreationTime = System.nanoTime();
     } catch (Exception e) {
       throw new AzkabanClientException("Azkaban client cannot initialize session.", e);
     }
@@ -141,6 +147,14 @@ public class AzkabanClient implements Closeable {
       return builder.build();
     } catch (Exception e) {
       throw new AzkabanClientException("HttpClient cannot be created", e);
+    }
+  }
+
+  private void refreshSession() throws AzkabanClientException {
+    Preconditions.checkArgument(this.sessionCreationTime != 0);
+    if ((System.nanoTime() - this.sessionCreationTime) > Duration.ofMinutes(this.sessionExpireInMin).toNanos()) {
+      log.info("Session expired. Generating a new session.");
+      this.initializeSession();
     }
   }
 
@@ -223,6 +237,7 @@ public class AzkabanClient implements Closeable {
       String projectName,
       String description) {
     try {
+      refreshSession();
       HttpPost httpPost = new HttpPost(this.url + "/manager");
       List<NameValuePair> nvps = new ArrayList<>();
       nvps.add(new BasicNameValuePair(AzkabanClientParams.ACTION, "create"));
@@ -258,6 +273,7 @@ public class AzkabanClient implements Closeable {
    */
   public AzkabanClientStatus deleteProject(String projectName) {
     try {
+      refreshSession();
       List<NameValuePair> nvps = new ArrayList<>();
       nvps.add(new BasicNameValuePair("delete", "true"));
       nvps.add(new BasicNameValuePair(AzkabanClientParams.SESSION_ID, this.sessionId));
@@ -292,8 +308,8 @@ public class AzkabanClient implements Closeable {
       String projectName,
       File zipFile) {
     try {
+      refreshSession();
       HttpPost httpPost = new HttpPost(this.url + "/manager");
-
       HttpEntity entity = MultipartEntityBuilder.create()
           .addTextBody(AzkabanClientParams.SESSION_ID, sessionId)
           .addTextBody(AzkabanClientParams.AJAX, "upload")
@@ -332,7 +348,9 @@ public class AzkabanClient implements Closeable {
       String flowName,
       Map<String, String> flowOptions,
       Map<String, String> flowParameters) {
+
     try {
+      refreshSession();
       HttpPost httpPost = new HttpPost(this.url + "/executor");
       List<NameValuePair> nvps = new ArrayList<>();
       nvps.add(new BasicNameValuePair(AzkabanClientParams.AJAX, "executeFlow"));
@@ -390,6 +408,7 @@ public class AzkabanClient implements Closeable {
    */
   public AzkabanFetchExecuteFlowStatus fetchFlowExecution (String execId) {
     try {
+      refreshSession();
       List<NameValuePair> nvps = new ArrayList<>();
       nvps.add(new BasicNameValuePair(AzkabanClientParams.AJAX, "fetchexecflow"));
       nvps.add(new BasicNameValuePair(AzkabanClientParams.SESSION_ID, this.sessionId));

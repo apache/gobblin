@@ -55,7 +55,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 public class AzkabanClientTest {
   private AzkabanClient client = null;
   private FileSystem fs = null;
-
+  private long sessionExpireInMin = 1;
   @BeforeClass
   public void setup() throws Exception {
     Config azkConfig = ConfigFactory.load("local-azkaban-service.conf");
@@ -66,6 +66,7 @@ public class AzkabanClientTest {
         .setUserName(userName)
         .setPassword(password)
         .setUrl(url)
+        .setSessionExpireInMin(sessionExpireInMin)
         .build();
     String uri = ConfigurationKeys.LOCAL_FS_URI;
     this.fs = FileSystem.get(URI.create(uri), new Configuration());
@@ -221,6 +222,14 @@ public class AzkabanClientTest {
     // job should fail
     AzkabanFetchExecuteFlowStatus fetchExecuteFlowStatus = this.client.fetchFlowExecution(execStatus.getResponse().execId);
     Assert.assertTrue(fetchExecuteFlowStatus.isSuccess());
+  }
+
+  @Test(enabled = false)
+  public void testSessionExpiration() throws Exception {
+    String projectName = "project-session-expiration-test";
+    String description = "This is a session expiration test.";
+    Thread.sleep(sessionExpireInMin * 60 * 1000);
+    ensureProjectExist(projectName, description);
   }
 
   private File createAzkabanZip(String flowName) throws IOException {

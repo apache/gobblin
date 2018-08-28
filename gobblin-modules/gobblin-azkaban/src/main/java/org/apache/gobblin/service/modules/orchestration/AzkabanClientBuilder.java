@@ -37,6 +37,7 @@ public class AzkabanClientBuilder {
   private String url = null;
   private String username = null;
   private String password = null;
+  private long sessionExpireInMin = 12 * 60; // default is 12h
 
   protected AzkabanClientBuilder() {
     super();
@@ -58,6 +59,11 @@ public class AzkabanClientBuilder {
 
   public final AzkabanClientBuilder setUrl (String url) {
     this.url = url;
+    return this;
+  }
+
+  public final AzkabanClientBuilder setSessionExpireInMin(long minutes) {
+    this.sessionExpireInMin = minutes;
     return this;
   }
 
