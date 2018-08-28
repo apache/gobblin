@@ -49,9 +49,10 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 /**
  * This test is disabled by default because it assumes the Azkaban-solo-server is setup on localhost:8081.
  *
- * Please check https://azkaban.github.io/azkaban/docs/latest/ for more information about Azkaban-solo-server.
+ * Please check https://azkaban.github.io/azkaban/docs/latest/ for more details about how to setup Azkaban-solo-server.
  */
 @Slf4j
+@Test(enabled=false)
 public class AzkabanClientTest {
   private AzkabanClient client = null;
   private FileSystem fs = null;
