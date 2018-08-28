@@ -429,9 +429,9 @@ public class AzkabanClient implements Closeable {
 
   private void addFlowOptions(List<NameValuePair> nvps, Map<String, String> flowOptions) {
     if (flowOptions != null) {
-      for (String option : flowOptions.keySet()) {
-        log.debug("New flow option added:" + option + "-->" + flowOptions.get(option));
-        nvps.add(new BasicNameValuePair(option, flowOptions.get(option)));
+      for (Map.Entry<String, String> option : flowOptions.entrySet()) {
+        log.debug("New flow option added:" + option .getKey()+ "-->" + option.getValue());
+        nvps.add(new BasicNameValuePair(option.getKey(), option.getValue()));
       }
     }
   }
