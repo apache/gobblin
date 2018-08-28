@@ -49,10 +49,9 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 /**
  * This test is disabled by default because it assumes the Azkaban-solo-server is setup on localhost:8081.
  *
- * Please check https://azkaban.github.io/azkaban/docs/latest/ for more details about how to setup Azkaban-solo-server.
+ * Please check https://azkaban.github.io/azkaban/docs/latest/ for how to setup Azkaban-solo-server.
  */
 @Slf4j
-@Test(enabled=false)
 public class AzkabanClientTest {
   private AzkabanClient client = null;
   private FileSystem fs = null;
@@ -88,7 +87,7 @@ public class AzkabanClientTest {
     Assert.assertTrue(status.isSuccess());
   }
 
-  @Test
+  @Test(enabled = false)
   public void testCreateProject() {
     String projectName = "project-create";
     String description = "This is a create project test.";
@@ -101,7 +100,7 @@ public class AzkabanClientTest {
     Assert.assertFalse(status.isSuccess());
   }
 
-  @Test
+  @Test(enabled = false)
   public void testDeleteProject() {
     String projectName = "project-delete";
     String description = "This is a delete project test.";
@@ -114,7 +113,7 @@ public class AzkabanClientTest {
     Assert.assertTrue(status.isSuccess());
   }
 
-  @Test
+  @Test(enabled = false)
   public void testUploadZip() throws IOException {
     String projectName = "project-upload";
     String description = "This is a upload project test.";
@@ -133,7 +132,7 @@ public class AzkabanClientTest {
     Assert.assertFalse(status.isSuccess());
   }
 
-  @Test
+  @Test(enabled = false)
   public void testExecuteFlow() throws IOException {
     String projectName = "project-execFlow";
     String description = "This is a flow execution test.";
@@ -152,7 +151,7 @@ public class AzkabanClientTest {
     log.info("Execid: {}", execStatus.getResponse().execId);
   }
 
-  @Test
+  @Test(enabled = false)
   public void testExecuteFlowWithParams() throws IOException {
     String projectName = "project-execFlow-Param";
     String description = "This is a flow execution test.";
@@ -175,7 +174,7 @@ public class AzkabanClientTest {
     log.info("Execid: {}", execStatus.getResponse().execId);
   }
 
-  @Test
+  @Test(enabled = false)
   public void testExecuteFlowWithOptions() throws IOException {
     String projectName = "project-execFlow-Option";
     String description = "This is a flow execution test.";
@@ -196,7 +195,7 @@ public class AzkabanClientTest {
     log.info("Execid: {}", execStatus.getResponse().execId);
   }
 
-  @Test
+  @Test(enabled = false)
   public void testFetchFlowExecution() throws Exception {
     String projectName = "project-fetch-flow-exec";
     String description = "This is a flow execution fetch test.";
