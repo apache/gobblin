@@ -33,14 +33,14 @@ import org.apache.hadoop.fs.PathFilter;
 public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset {
   private static final String CONFIG_PREFIX = CopyConfiguration.COPY_PREFIX + ".recursive";
   public static final String DATE_PATTERN_KEY = CONFIG_PREFIX + ".date.pattern";
-  public static final String LOOKBACK_DAYS_KEY = CONFIG_PREFIX + ".lookback.days";
+  public static final String LOOKBACK_TIME_KEY = CONFIG_PREFIX + ".lookback.time";
 
-  private final Integer lookbackDays;
+  private final String lookbackTime;
   private final String datePattern;
 
   public TimeAwareRecursiveCopyableDataset(FileSystem fs, Path rootPath, Properties properties, Path glob) {
     super(fs, rootPath, properties, glob);
-    this.lookbackDays = Integer.parseInt(properties.getProperty(LOOKBACK_DAYS_KEY));
+    this.lookbackTime = properties.getProperty(LOOKBACK_TIME_KEY);
     this.datePattern = properties.getProperty(DATE_PATTERN_KEY);
   }
 
@@ -86,7 +86,14 @@ public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset 
   protected List<FileStatus> getFilesAtPath(FileSystem fs, Path path, PathFilter fileFilter) throws IOException {
     DateTimeFormatter formatter = DateTimeFormatter.ofPattern(datePattern);
     LocalDateTime endDate = LocalDateTime.now();
-    LocalDateTime startDate = endDate.minusDays(lookbackDays);
+    LocalDateTime startDate;
+    if (this.lookbackTime.endsWith("d")) {
+      startDate = endDate.minusDays(Long.parseLong(lookbackTime.substring(0, lookbackTime.length() - 1)));
+    } else if (this.lookbackTime.endsWith("h")) {
+      startDate = endDate.minusHours(Long.parseLong(lookbackTime.substring(0, lookbackTime.length() - 1)));
+    } else {
+      startDate = endDate.minusDays(Long.parseLong(lookbackTime));
+    }
     DateRangeIterator dateRangeIterator = new DateRangeIterator(startDate, endDate, datePattern);
     List<FileStatus> fileStatuses = Lists.newArrayList();
     while (dateRangeIterator.hasNext()) {
