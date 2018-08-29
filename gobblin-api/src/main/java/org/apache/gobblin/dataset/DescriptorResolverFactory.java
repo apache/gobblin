@@ -21,15 +21,11 @@ import com.typesafe.config.Config;
 
 
 /**
- * A factory that creates an instance of {@link DatasetResolver}
- *
- * @deprecated use {@link DescriptorResolverFactory} as {@link DatasetResolver} is deprecated
- * with {@link DescriptorResolver}
+ * Factory to create a {@link DescriptorResolver} instance
  */
-@Deprecated
-public interface DatasetResolverFactory extends DescriptorResolverFactory {
+public interface DescriptorResolverFactory {
   /**
-   * Create a {@link DatasetResolver} instance
+   * @param config configurations only about {@link DescriptorResolver}
    */
-  DatasetResolver createResolver(Config config);
+  DescriptorResolver createResolver(Config config);
 }
