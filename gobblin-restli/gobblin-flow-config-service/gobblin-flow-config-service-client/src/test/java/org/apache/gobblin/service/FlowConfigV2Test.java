@@ -110,12 +110,12 @@ public class FlowConfigV2Test {
     FlowStatusId flowStatusId =_client.createFlowConfig(flowConfig);
     Assert.assertEquals(TEST_GROUP_NAME, flowStatusId.getFlowGroup());
     Assert.assertEquals(TEST_FLOW_NAME, flowStatusId.getFlowName());
-    Assert.assertTrue(flowStatusId.hasFlowExecutionId());
+    Assert.assertTrue(flowStatusId.getFlowExecutionId() != -1);
 
     flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME))
         .setTemplateUris(TEST_TEMPLATE_URI).setProperties(new StringMap(flowProperties))
         .setSchedule(new Schedule().setCronSchedule("").setRunImmediately(false));
-    Assert.assertFalse(_client.createFlowConfig(flowConfig).hasFlowExecutionId());
+    Assert.assertEquals(_client.createFlowConfig(flowConfig).getFlowExecutionId().longValue(), -1L);
   }
 
 

@@ -42,6 +42,8 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
         .setFlowGroup(flowSpec.getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_GROUP_KEY));
     if (flowSpec.getConfigAsProperties().containsKey(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
       flowStatusId.setFlowExecutionId(Long.valueOf(flowSpec.getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)));
+    } else {
+      flowStatusId.setFlowExecutionId(-1L);
     }
     return new CreateResponse(new ComplexResourceKey<>(flowConfig.getId(), flowStatusId), HttpStatus.S_201_CREATED);
   }
