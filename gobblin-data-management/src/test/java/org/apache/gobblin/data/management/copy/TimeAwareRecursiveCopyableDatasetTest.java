@@ -20,8 +20,10 @@ package org.apache.gobblin.data.management.copy;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -33,18 +35,26 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import lombok.extern.slf4j.Slf4j;
-
+import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.filters.HiddenFilter;
 
-@Slf4j
 public class TimeAwareRecursiveCopyableDatasetTest {
   private FileSystem fs;
   private Path baseDir1;
   private Path baseDir2;
 
+  private static final String NUM_LOOKBACK_DAYS_STR = "2d";
+  private static final Integer NUM_LOOKBACK_DAYS = 2;
+  private static final String NUM_LOOKBACK_HOURS_STR = "4h";
+  private static final Integer NUM_LOOKBACK_HOURS = 4;
+  private static final Integer MAX_NUM_DAILY_DIRS = 4;
+  private static final Integer MAX_NUM_HOURLY_DIRS = 24;
+
   @BeforeClass
   public void setUp() throws IOException {
+    Assert.assertTrue(NUM_LOOKBACK_DAYS < MAX_NUM_DAILY_DIRS);
+    Assert.assertTrue(NUM_LOOKBACK_HOURS < MAX_NUM_HOURLY_DIRS);
+
     this.fs = FileSystem.getLocal(new Configuration());
 
     baseDir1 = new Path("/tmp/src/ds1/hourly");
@@ -67,15 +77,20 @@ public class TimeAwareRecursiveCopyableDatasetTest {
 
     LocalDateTime endDate = LocalDateTime.now();
 
-    for (int i = 0; i < 24; i++) {
+    Set<String> candidateFiles = new HashSet<>();
+    for (int i = 0; i < MAX_NUM_HOURLY_DIRS; i++) {
       String startDate = endDate.minusHours(i).format(formatter);
       Path subDirPath = new Path(baseDir1, new Path(startDate));
       fs.mkdirs(subDirPath);
-      fs.create(new Path(subDirPath, i + ".avro"));
+      Path filePath = new Path(subDirPath, i + ".avro");
+      fs.create(filePath);
+      if (i < (NUM_LOOKBACK_HOURS + 1)) {
+        candidateFiles.add(filePath.toString());
+      }
     }
 
     Properties properties = new Properties();
-    properties.setProperty(TimeAwareRecursiveCopyableDataset.LOOKBACK_TIME_KEY, "4h");
+    properties.setProperty(TimeAwareRecursiveCopyableDataset.LOOKBACK_TIME_KEY, NUM_LOOKBACK_HOURS_STR);
     properties.setProperty(TimeAwareRecursiveCopyableDataset.DATE_PATTERN_KEY, "yyyy/MM/dd/HH");
 
     PathFilter pathFilter = new HiddenFilter();
@@ -83,28 +98,41 @@ public class TimeAwareRecursiveCopyableDatasetTest {
         new Path("/tmp/src/*/hourly"));
     List<FileStatus> fileStatusList = dataset.getFilesAtPath(fs, baseDir1, pathFilter);
 
-    Assert.assertEquals(fileStatusList.size(), 5);
+    Assert.assertEquals(fileStatusList.size(), NUM_LOOKBACK_HOURS + 1);
+
+    for (FileStatus fileStatus: fileStatusList) {
+      Assert.assertTrue(candidateFiles.contains(PathUtils.getPathWithoutSchemeAndAuthority(fileStatus.getPath()).toString()));
+    }
 
     datePattern = "yyyy/MM/dd";
     formatter = DateTimeFormatter.ofPattern(datePattern);
     endDate = LocalDateTime.now();
 
-    for (int i = 0; i < 3; i++) {
+    candidateFiles = new HashSet<>();
+    for (int i = 0; i < MAX_NUM_DAILY_DIRS; i++) {
       String startDate = endDate.minusDays(i).format(formatter);
       Path subDirPath = new Path(baseDir2, new Path(startDate));
       fs.mkdirs(subDirPath);
-      fs.create(new Path(subDirPath, i + ".avro"));
+      Path filePath = new Path(subDirPath, i + ".avro");
+      fs.create(filePath);
+      if (i < (NUM_LOOKBACK_DAYS + 1)) {
+        candidateFiles.add(filePath.toString());
+      }
     }
 
     properties = new Properties();
-    properties.setProperty(TimeAwareRecursiveCopyableDataset.LOOKBACK_TIME_KEY, "2d");
+    properties.setProperty(TimeAwareRecursiveCopyableDataset.LOOKBACK_TIME_KEY, NUM_LOOKBACK_DAYS_STR);
     properties.setProperty(TimeAwareRecursiveCopyableDataset.DATE_PATTERN_KEY, "yyyy/MM/dd");
 
     dataset = new TimeAwareRecursiveCopyableDataset(fs, baseDir2, properties,
         new Path("/tmp/src/*/daily"));
     fileStatusList = dataset.getFilesAtPath(fs, baseDir2, pathFilter);
 
-    Assert.assertEquals(fileStatusList.size(), 3);
+    Assert.assertEquals(fileStatusList.size(), NUM_LOOKBACK_DAYS + 1);
+    for (FileStatus fileStatus: fileStatusList) {
+      Assert.assertTrue(candidateFiles.contains(PathUtils.getPathWithoutSchemeAndAuthority(fileStatus.getPath()).toString()));
+    }
+
   }
 
   @AfterClass
