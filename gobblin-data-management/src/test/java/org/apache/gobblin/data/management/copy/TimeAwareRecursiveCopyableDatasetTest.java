@@ -39,6 +39,8 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import scala.sys.Prop;
+
 import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.filters.HiddenFilter;
 
@@ -167,6 +169,17 @@ public class TimeAwareRecursiveCopyableDatasetTest {
     for (FileStatus fileStatus: fileStatusList) {
       Assert.assertTrue(candidateFiles.contains(PathUtils.getPathWithoutSchemeAndAuthority(fileStatus.getPath()).toString()));
     }
+  }
+
+  @Test (expectedExceptions = AssertionError.class)
+  public void testInstantiationError() {
+    //Daily directories, but look back time has days and hours. We should expect an assertion error.
+    Properties properties = new Properties();
+    properties.setProperty(TimeAwareRecursiveCopyableDataset.LOOKBACK_TIME_KEY, NUM_LOOKBACK_DAYS_HOURS_STR);
+    properties.setProperty(TimeAwareRecursiveCopyableDataset.DATE_PATTERN_KEY, "yyyy/MM/dd");
+
+    TimeAwareRecursiveCopyableDataset dataset = new TimeAwareRecursiveCopyableDataset(fs, baseDir2, properties,
+        new Path("/tmp/src/*/daily"));
   }
 
   @AfterClass

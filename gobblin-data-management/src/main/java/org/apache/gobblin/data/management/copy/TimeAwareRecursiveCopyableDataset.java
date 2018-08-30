@@ -53,8 +53,9 @@ public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset 
     this.lookbackPeriod = periodFormatter.parsePeriod(lookbackTime);
     this.datePattern = properties.getProperty(DATE_PATTERN_KEY);
     this.isPatternHourly = isDatePatternHourly(datePattern);
-    Assert.assertEquals(isLookbackTimeStringHourly(this.lookbackTime), this.isPatternHourly,
-        LOOKBACK_TIME_KEY + " is incompatible with " + DATE_PATTERN_KEY);
+    if (!this.isPatternHourly) {
+      Assert.assertTrue(isLookbackTimeStringDaily(this.lookbackTime), "Expected day format for lookback time; found hourly format");
+    }
   }
 
   public static class DateRangeIterator implements Iterator {
@@ -95,13 +96,13 @@ public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset 
     return !refDateTimeString.equals(refDateTimeStringAtStartOfDay);
   }
 
-  private boolean isLookbackTimeStringHourly(String lookbackTime) {
+  private boolean isLookbackTimeStringDaily(String lookbackTime) {
     PeriodFormatter periodFormatter = new PeriodFormatterBuilder().appendDays().appendSuffix("d").toFormatter();
     try {
       periodFormatter.parsePeriod(lookbackTime);
-      return false;
-    } catch (Exception e) {
       return true;
+    } catch (Exception e) {
+      return false;
     }
   }
 
