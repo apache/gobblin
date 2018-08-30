@@ -53,6 +53,8 @@ public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset 
     this.lookbackPeriod = periodFormatter.parsePeriod(lookbackTime);
     this.datePattern = properties.getProperty(DATE_PATTERN_KEY);
     this.isPatternHourly = isDatePatternHourly(datePattern);
+
+    //Daily directories cannot have a "hourly" lookback pattern. But hourly directories can accept lookback pattern with days.
     if (!this.isPatternHourly) {
       Assert.assertTrue(isLookbackTimeStringDaily(this.lookbackTime), "Expected day format for lookback time; found hourly format");
     }
