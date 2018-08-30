@@ -17,25 +17,43 @@
 
 package org.apache.gobblin.dataset;
 
-import org.apache.gobblin.configuration.State;
+import lombok.Getter;
 
 
 /**
- * The default {@link DatasetResolver} that directly uses Gobblin raw dataset as job dataset
+ * A {@link Descriptor} to identifies a partition of a dataset
  */
-public class NoopDatasetResolver implements DatasetResolver {
-  public static final NoopDatasetResolver INSTANCE = new NoopDatasetResolver();
-  public static final String FACTORY = "NOOP";
+public class PartitionDescriptor extends Descriptor {
+  @Getter
+  private final DatasetDescriptor dataset;
 
-  private NoopDatasetResolver() {}
-
-  @Override
-  public DatasetDescriptor resolve(DatasetDescriptor raw, State state) {
-    return raw;
+  public PartitionDescriptor(String name, DatasetDescriptor dataset) {
+    super(name);
+    this.dataset = dataset;
   }
 
   @Override
-  public Descriptor resolve(Descriptor raw, State state) {
-    return raw;
+  public PartitionDescriptor copy() {
+    return new PartitionDescriptor(getName(), dataset);
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+
+    PartitionDescriptor that = (PartitionDescriptor) o;
+    return dataset.equals(that.dataset) && getName().equals(that.getName());
+  }
+
+  @Override
+  public int hashCode() {
+    int result = dataset.hashCode();
+    result = 31 * result + getName().hashCode();
+    return result;
   }
 }

@@ -35,6 +35,7 @@ import org.apache.gobblin.data.management.conversion.hive.source.HiveAvroToOrcSo
 import org.apache.gobblin.data.management.conversion.hive.source.HiveWorkUnit;
 import org.apache.gobblin.data.management.conversion.hive.utils.LineageUtils;
 import org.apache.gobblin.dataset.DatasetDescriptor;
+import org.apache.gobblin.dataset.Descriptor;
 import org.apache.gobblin.dataset.HiveToHdfsDatasetResolver;
 import org.apache.gobblin.dataset.HiveToHdfsDatasetResolverFactory;
 import org.apache.gobblin.metrics.event.lineage.LineageEventBuilder;
@@ -103,7 +104,7 @@ public class ConvertibleHiveDatasetTest {
     // Assert that source is correct for lineage event
     Assert.assertTrue(props.containsKey("gobblin.event.lineage.source"));
     DatasetDescriptor sourceDD =
-        GSON.fromJson(props.getProperty("gobblin.event.lineage.source"), DatasetDescriptor.class);
+        (DatasetDescriptor) Descriptor.deserialize(props.getProperty("gobblin.event.lineage.source"));
     Assert.assertEquals(sourceDD.getPlatform(), "file");
     Assert.assertEquals(sourceDD.getName(), "/tmp/test");
     Assert.assertEquals(sourceDD.getMetadata().get(HiveToHdfsDatasetResolver.HIVE_TABLE), "db1.tb1");
@@ -111,7 +112,7 @@ public class ConvertibleHiveDatasetTest {
     // Assert that first dest is correct for lineage event
     Assert.assertTrue(props.containsKey("gobblin.event.lineage.branch.1.destination"));
     DatasetDescriptor destDD1 =
-        GSON.fromJson(props.getProperty("gobblin.event.lineage.branch.1.destination"), DatasetDescriptor.class);
+        (DatasetDescriptor) Descriptor.deserialize(props.getProperty("gobblin.event.lineage.branch.1.destination"));
     Assert.assertEquals(destDD1.getPlatform(), "file");
     Assert.assertEquals(destDD1.getName(), "/tmp/data_nestedOrc/db1/tb1/final");
     Assert.assertEquals(destDD1.getMetadata().get(HiveToHdfsDatasetResolver.HIVE_TABLE),
@@ -120,7 +121,7 @@ public class ConvertibleHiveDatasetTest {
     // Assert that second dest is correct for lineage event
     Assert.assertTrue(props.containsKey("gobblin.event.lineage.branch.2.destination"));
     DatasetDescriptor destDD2 =
-        GSON.fromJson(props.getProperty("gobblin.event.lineage.branch.2.destination"), DatasetDescriptor.class);
+        (DatasetDescriptor) Descriptor.deserialize(props.getProperty("gobblin.event.lineage.branch.2.destination"));
     Assert.assertEquals(destDD2.getPlatform(), "file");
     Assert.assertEquals(destDD2.getName(), "/tmp/data_flattenedOrc/db1/tb1/final");
     Assert.assertEquals(destDD2.getMetadata().get(HiveToHdfsDatasetResolver.HIVE_TABLE),

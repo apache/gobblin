@@ -21,34 +21,15 @@ import org.apache.gobblin.configuration.State;
 
 
 /**
- * A {@link DatasetResolver} resolves job specific dataset
- *
- * @deprecated use the more general {@link DescriptorResolver}
+ * A resolver transforms an existing {@link Descriptor} to a new one
  */
-@Deprecated
-public interface DatasetResolver extends DescriptorResolver {
+public interface DescriptorResolver {
   /**
-   * Given raw Gobblin dataset, resolve job specific dataset
+   * Given raw Gobblin descriptor, resolve a job specific descriptor
    *
-   * @param raw a dataset in terms of Gobblin
-   * @param state configuration that helps resolve job specific dataset
-   * @return resolved dataset for the job
+   * @param raw the original descriptor
+   * @param state configuration that helps resolve job specific descriptor
+   * @return resolved descriptor for the job or {@code null} if failed to resolve
    */
-  DatasetDescriptor resolve(DatasetDescriptor raw, State state);
-
-  @Override
-  default Descriptor resolve(Descriptor raw, State state) {
-    DatasetDescriptor rawDataset;
-
-    if (raw instanceof DatasetDescriptor) {
-      rawDataset = (DatasetDescriptor) raw;
-    } else if (raw instanceof PartitionDescriptor) {
-      rawDataset = ((PartitionDescriptor) raw).getDataset();
-    } else {
-      // type not supported
-      return null;
-    }
-
-    return resolve(rawDataset, state);
-  }
+  Descriptor resolve(Descriptor raw, State state);
 }

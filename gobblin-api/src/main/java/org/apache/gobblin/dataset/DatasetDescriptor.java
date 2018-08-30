@@ -17,21 +17,18 @@
 
 package org.apache.gobblin.dataset;
 
-
 import java.util.Map;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 
 
 /**
- * A {@link DatasetDescriptor} identifies and provides metadata to describe a dataset
+ * A {@link Descriptor} identifies and provides metadata to describe a dataset
  */
-@RequiredArgsConstructor
-public final class DatasetDescriptor {
+public class DatasetDescriptor extends Descriptor {
   private static final String PLATFORM_KEY = "platform";
   private static final String NAME_KEY = "name";
 
@@ -40,20 +37,24 @@ public final class DatasetDescriptor {
    */
   @Getter
   private final String platform;
-  /**
-   * name of the dataset
-   */
-  @Getter
-  private final String name;
 
   /**
    * metadata about the dataset
    */
   private final Map<String, String> metadata = Maps.newHashMap();
 
+  public DatasetDescriptor(String platform, String name) {
+    super(name);
+    this.platform = platform;
+  }
+
+  /**
+   * @deprecated use {@link #copy()}
+   */
+  @Deprecated
   public DatasetDescriptor(DatasetDescriptor copy) {
+    super(copy.getName());
     platform = copy.getPlatform();
-    name = copy.getName();
     metadata.putAll(copy.getMetadata());
   }
 
@@ -63,17 +64,25 @@ public final class DatasetDescriptor {
         .build();
   }
 
+  @Override
+  public DatasetDescriptor copy() {
+    return new DatasetDescriptor(this);
+  }
+
   public void addMetadata(String key, String value) {
     metadata.put(key, value);
   }
 
   /**
    * Serialize to a string map
+   *
+   * @deprecated use {@link Descriptor#serialize(Descriptor)}
    */
+  @Deprecated
   public Map<String, String> toDataMap() {
     Map<String, String> map = Maps.newHashMap();
     map.put(PLATFORM_KEY, platform);
-    map.put(NAME_KEY, name);
+    map.put(NAME_KEY, getName());
     map.putAll(metadata);
     return map;
   }
@@ -88,20 +97,23 @@ public final class DatasetDescriptor {
     }
 
     DatasetDescriptor that = (DatasetDescriptor) o;
-    return platform.equals(that.platform) && name.equals(that.name) && metadata.equals(that.metadata);
+    return platform.equals(that.platform) && getName().equals(that.getName()) && metadata.equals(that.metadata);
   }
 
   @Override
   public int hashCode() {
     int result = platform.hashCode();
-    result = 31 * result + name.hashCode();
+    result = 31 * result + getName().hashCode();
     result = 31 * result + metadata.hashCode();
     return result;
   }
 
   /**
    * Deserialize a {@link DatasetDescriptor} from a string map
+   *
+   * @deprecated use {@link Descriptor#deserialize(String)}
    */
+  @Deprecated
   public static DatasetDescriptor fromDataMap(Map<String, String> dataMap) {
     DatasetDescriptor descriptor = new DatasetDescriptor(dataMap.get(PLATFORM_KEY), dataMap.get(NAME_KEY));
     dataMap.forEach((key, value) -> {

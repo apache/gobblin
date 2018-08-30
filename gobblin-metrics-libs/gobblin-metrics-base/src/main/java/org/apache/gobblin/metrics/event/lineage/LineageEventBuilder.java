@@ -23,6 +23,7 @@ import java.util.Map;
 import org.apache.commons.lang.StringUtils;
 
 import org.apache.gobblin.dataset.DatasetDescriptor;
+import org.apache.gobblin.dataset.Descriptor;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.event.GobblinEventBuilder;
 
@@ -52,9 +53,9 @@ public final class LineageEventBuilder extends GobblinEventBuilder {
   private static final Gson GSON = new Gson();
 
   @Getter @Setter
-  private DatasetDescriptor source;
+  private Descriptor source;
   @Getter @Setter
-  private DatasetDescriptor destination;
+  private Descriptor destination;
 
   public LineageEventBuilder(String name) {
     super(name, LIENAGE_EVENT_NAMESPACE);
@@ -63,9 +64,10 @@ public final class LineageEventBuilder extends GobblinEventBuilder {
 
   @Override
   public GobblinTrackingEvent build() {
-    source.toDataMap().forEach((key, value) -> metadata.put(getKey(SOURCE, key), value));
-    destination.toDataMap().forEach((key, value) -> metadata.put(getKey(DESTINATION, key), value));
-    return new GobblinTrackingEvent(0L, namespace, name, metadata);
+    Map<String, String> dataMap = Maps.newHashMap(metadata);
+    dataMap.put(SOURCE, Descriptor.serialize(source));
+    dataMap.put(DESTINATION, Descriptor.serialize(destination));
+    return new GobblinTrackingEvent(0L, namespace, name, dataMap);
   }
 
   @Override
@@ -121,23 +123,20 @@ public final class LineageEventBuilder extends GobblinEventBuilder {
     Map<String, String> metadata = event.getMetadata();
     LineageEventBuilder lineageEvent = new LineageEventBuilder(event.getName());
 
-    String sourcePrefix = getKey(SOURCE, "");
-    Map<String, String> sourceDataMap = Maps.newHashMap();
-    String destinationPrefix = getKey(DESTINATION, "");
-    Map<String, String> destinationDataMap = Maps.newHashMap();
-
     metadata.forEach((key, value) -> {
-      if (key.startsWith(sourcePrefix)) {
-        sourceDataMap.put(key.substring(sourcePrefix.length()), value);
-      } else if (key.startsWith(destinationPrefix)) {
-        destinationDataMap.put(key.substring(destinationPrefix.length()), value);
-      } else {
-        lineageEvent.addMetadata(key, value);
+      switch (key) {
+        case SOURCE:
+          lineageEvent.setSource(Descriptor.deserialize(value));
+          break;
+        case DESTINATION:
+          lineageEvent.setDestination(Descriptor.deserialize(value));
+          break;
+        default:
+          lineageEvent.addMetadata(key, value);
+          break;
       }
     });
 
-    lineageEvent.setSource(DatasetDescriptor.fromDataMap(sourceDataMap));
-    lineageEvent.setDestination(DatasetDescriptor.fromDataMap(destinationDataMap));
     return lineageEvent;
   }
 
