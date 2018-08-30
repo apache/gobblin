@@ -53,7 +53,8 @@ public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset 
     this.lookbackPeriod = periodFormatter.parsePeriod(lookbackTime);
     this.datePattern = properties.getProperty(DATE_PATTERN_KEY);
     this.isPatternHourly = isDatePatternHourly(datePattern);
-    Assert.assertEquals(this.isPatternHourly, isLookbackTimeStringHourly(this.lookbackTime));
+    Assert.assertEquals(isLookbackTimeStringHourly(this.lookbackTime), this.isPatternHourly,
+        LOOKBACK_TIME_KEY + " is incompatible with " + DATE_PATTERN_KEY);
   }
 
   public static class DateRangeIterator implements Iterator {
