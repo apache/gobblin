@@ -33,6 +33,9 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
   public abstract Iterator<JobStatus> getJobStatusesForFlowExecution(String flowName, String flowGroup,
       long flowExecutionId);
 
+  public abstract JobStatus getJobStatusForFlowExecution(String flowName, String flowGroup,
+      long flowExecutionId, String jobGroup, String jobName);
+
   /**
    * Get the latest {@link JobStatus}es that belongs to the same latest flow execution. Currently, latest flow execution
    * is decided by comparing {@link JobStatus#getFlowExecutionId()}.

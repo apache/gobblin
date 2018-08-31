@@ -55,6 +55,19 @@ public class FlowStatusTest {
     }
 
     @Override
+    public org.apache.gobblin.service.monitoring.JobStatus getJobStatusForFlowExecution(String flowName, String flowGroup,
+        long flowExecutionId, String jobGroup, String jobName) {
+      Iterator<org.apache.gobblin.service.monitoring.JobStatus> jobStatusIterator = getJobStatusesForFlowExecution(flowName, flowGroup, flowExecutionId);
+      while (jobStatusIterator.hasNext()) {
+        org.apache.gobblin.service.monitoring.JobStatus jobStatus = jobStatusIterator.next();
+        if (jobStatus.getJobGroup().equals(jobGroup) && jobStatus.getJobName().equals(jobName)) {
+          return jobStatus;
+        }
+      }
+      return null;
+    }
+
+    @Override
     public long getLatestExecutionIdForFlow(String flowName, String flowGroup) {
       return _listOfJobStatusLists.size() - 1;
     }
