@@ -127,17 +127,18 @@ public abstract class Batch<D>{
   /**
    * A method to check if the batch has the room to add a new record
    *  @param record: record needs to be added
+   *  @param largeMessagePolicy: the policy that is in effect for large messages
    *  @return Indicates if this batch still have enough space to hold a new record
    */
-  public abstract boolean hasRoom (D record);
+  public abstract boolean hasRoom (D record, LargeMessagePolicy largeMessagePolicy);
 
   /**
    * Add a record to this batch
    * <p>
    *   Implementation of this method should always ensure the record can be added successfully
-   *   The contract between {@link Batch#tryAppend(Object, WriteCallback)} and this method is this method
+   *   The contract between {@link Batch#tryAppend(Object, WriteCallback, LargeMessagePolicy)} and this method is this method
    *   is responsible for adding record to internal batch memory and the check for the room space is performed
-   *   by {@link Batch#hasRoom(Object)}. All the potential issues for adding a record should
+   *   by {@link Batch#hasRoom(Object, LargeMessagePolicy)}. All the potential issues for adding a record should
    *   already be resolved before this method is invoked.
    * </p>
    *
@@ -162,14 +163,19 @@ public abstract class Batch<D>{
    *
    *   @param record : record needs to be added
    *   @param callback : A callback which will be invoked when the whole batch gets sent and acknowledged
+   *   @param largeMessagePolicy : the {@link LargeMessagePolicy} that is in effect for this batch
    *   @return A future object which contains {@link RecordMetadata}
    */
-  public Future<RecordMetadata> tryAppend(D record, WriteCallback callback) {
-    if (!hasRoom(record)) {
-      LOG.debug ("Cannot add " + record + " to previous batch because the batch already has " + getCurrentSizeInByte() + " bytes");
+  public Future<RecordMetadata> tryAppend(D record, WriteCallback callback, LargeMessagePolicy largeMessagePolicy)
+      throws RecordTooLargeException {
+    if (!hasRoom(record, largeMessagePolicy)) {
+      LOG.debug ("Cannot add {} to previous batch because the batch already has {} bytes",
+          record.toString(), getCurrentSizeInByte());
+      if (largeMessagePolicy == LargeMessagePolicy.FAIL) {
+        throw new RecordTooLargeException();
+      }
       return null;
     }
-
     this.append(record);
     thunks.add(new Thunk(callback, getRecordSizeInByte(record)));
     RecordFuture future = new RecordFuture(latch, recordCount);
@@ -178,7 +184,9 @@ public abstract class Batch<D>{
   }
 
   public void await() throws InterruptedException{
+    LOG.debug("Batch {} waiting for {} records", this.id, this.recordCount);
     this.latch.await();
+    LOG.debug("Batch {} done with {} records", this.id, this.recordCount);
   }
 
 }

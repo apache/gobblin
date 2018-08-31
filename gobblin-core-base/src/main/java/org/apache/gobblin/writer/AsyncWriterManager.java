@@ -340,6 +340,8 @@ public class AsyncWriterManager<D> implements WatermarkAwareWriter<D>, DataWrite
               .update(currTime - attempt.getPrevAttemptTimestampNanos(), TimeUnit.NANOSECONDS);
         }
         if (attempt.attemptNum <= AsyncWriterManager.this.numRetries) { // attempts must == numRetries + 1
+          log.debug("Attempt {} had failure: {}; re-enqueueing record: {}", attempt.attemptNum, throwable.getMessage(),
+              attempt.getRecord().toString());
           attempt.incAttempt();
           attempt.setPrevAttemptFailure(throwable);
           AsyncWriterManager.this.retryQueue.get().add(attempt);
@@ -391,6 +393,7 @@ public class AsyncWriterManager<D> implements WatermarkAwareWriter<D>, DataWrite
           Attempt attempt = this.retryQueue.take();
           if (attempt != null) {
             maybeSleep(attempt.getPrevAttemptTimestampNanos());
+            log.debug("Retry thread will retry record: {}", attempt.getRecord().toString());
             attemptWrite(attempt);
           }
         } catch (InterruptedException e) {

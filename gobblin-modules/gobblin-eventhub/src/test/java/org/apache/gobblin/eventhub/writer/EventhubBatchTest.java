@@ -19,6 +19,8 @@ package org.apache.gobblin.eventhub.writer;
 import java.io.IOException;
 
 import org.apache.gobblin.writer.BytesBoundedBatch;
+import org.apache.gobblin.writer.LargeMessagePolicy;
+import org.apache.gobblin.writer.RecordTooLargeException;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -28,41 +30,44 @@ import org.apache.gobblin.writer.WriteCallback;
 public class EventhubBatchTest {
 
   @Test
-  public void testBatchWithLargeRecord() throws IOException {
+  public void testBatchWithLargeRecord()
+      throws IOException, RecordTooLargeException {
     // Assume memory size has only 2 bytes
     BytesBoundedBatch batch = new BytesBoundedBatch(8, 3000);
 
     String record = "abcdefgh";
 
     // Record is larger than the memory size limit, the first append should fail
-    Assert.assertNull(batch.tryAppend(record, WriteCallback.EMPTY));
+    Assert.assertNull(batch.tryAppend(record, WriteCallback.EMPTY, LargeMessagePolicy.DROP));
 
     // The second append should still fail
-    Assert.assertNull(batch.tryAppend(record, WriteCallback.EMPTY));
+    Assert.assertNull(batch.tryAppend(record, WriteCallback.EMPTY, LargeMessagePolicy.DROP));
   }
 
   @Test
-  public void testBatch() throws IOException {
+  public void testBatch()
+      throws IOException, RecordTooLargeException {
     // Assume memory size has only 200 bytes
     BytesBoundedBatch batch = new BytesBoundedBatch(200, 3000);
 
     // Add additional 15 bytes overhead, total size is 27 bytes
     String record = "abcdefgh";
 
-    Assert.assertNotNull(batch.tryAppend(record, WriteCallback.EMPTY));
-    Assert.assertNotNull(batch.tryAppend(record, WriteCallback.EMPTY));
-    Assert.assertNotNull(batch.tryAppend(record, WriteCallback.EMPTY));
-    Assert.assertNotNull(batch.tryAppend(record, WriteCallback.EMPTY));
-    Assert.assertNotNull(batch.tryAppend(record, WriteCallback.EMPTY));
-    Assert.assertNotNull(batch.tryAppend(record, WriteCallback.EMPTY));
-    Assert.assertNotNull(batch.tryAppend(record, WriteCallback.EMPTY));
+    LargeMessagePolicy policy = LargeMessagePolicy.DROP;
+    Assert.assertNotNull(batch.tryAppend(record, WriteCallback.EMPTY, policy));
+    Assert.assertNotNull(batch.tryAppend(record, WriteCallback.EMPTY, policy));
+    Assert.assertNotNull(batch.tryAppend(record, WriteCallback.EMPTY, policy));
+    Assert.assertNotNull(batch.tryAppend(record, WriteCallback.EMPTY, policy));
+    Assert.assertNotNull(batch.tryAppend(record, WriteCallback.EMPTY, policy));
+    Assert.assertNotNull(batch.tryAppend(record, WriteCallback.EMPTY, policy));
+    Assert.assertNotNull(batch.tryAppend(record, WriteCallback.EMPTY, policy));
 
     // Batch has room for 8th record
-    Assert.assertEquals(batch.hasRoom(record), true);
-    Assert.assertNotNull(batch.tryAppend(record, WriteCallback.EMPTY));
+    Assert.assertEquals(batch.hasRoom(record, policy), true);
+    Assert.assertNotNull(batch.tryAppend(record, WriteCallback.EMPTY, policy));
 
     // Batch has no room for 9th record
-    Assert.assertEquals(batch.hasRoom(record), false);
-    Assert.assertNull(batch.tryAppend(record, WriteCallback.EMPTY));
+    Assert.assertEquals(batch.hasRoom(record, policy), false);
+    Assert.assertNull(batch.tryAppend(record, WriteCallback.EMPTY, policy));
   }
 }
