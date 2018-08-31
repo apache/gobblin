@@ -126,6 +126,7 @@ public class PartitionAwareHiveRegistrationPolicy extends HiveRegistrationPolicy
 
       HivePartition partition = builder.build();
       partition.setSerDeProps(path);
+      partition.setLocation(path.toString());
 
       return Optional.of(partition);
     }else {
