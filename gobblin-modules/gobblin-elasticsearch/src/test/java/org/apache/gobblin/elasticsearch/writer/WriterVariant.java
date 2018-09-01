@@ -14,12 +14,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.gobblin.elasticsearch.writer;
 
-dependencies {
-  compile project(':gobblin-example')
-  compile project(':gobblin-modules:gobblin-azkaban')
-  compile project(':gobblin-modules:gobblin-crypto-provider')
-  compile project(':gobblin-modules:gobblin-kafka-08')
-  compile project(':gobblin-modules:google-ingestion')
-  compile project(':gobblin-modules:gobblin-elasticsearch') 
+import java.io.IOException;
+
+import org.apache.gobblin.writer.BatchAsyncDataWriter;
+
+import com.typesafe.config.Config;
+
+
+/**
+ * An interface to implement Writer variants to enable generic testing
+ */
+public interface WriterVariant {
+
+  String getName();
+
+  ConfigBuilder getConfigBuilder();
+
+  BatchAsyncDataWriter getBatchAsyncDataWriter(Config config)
+      throws IOException;
+
+  TestClient getTestClient(Config config)
+      throws IOException;
 }

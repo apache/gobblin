@@ -14,12 +14,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.gobblin.elasticsearch.typemapping;
 
-dependencies {
-  compile project(':gobblin-example')
-  compile project(':gobblin-modules:gobblin-azkaban')
-  compile project(':gobblin-modules:gobblin-crypto-provider')
-  compile project(':gobblin-modules:gobblin-kafka-08')
-  compile project(':gobblin-modules:google-ingestion')
-  compile project(':gobblin-modules:gobblin-elasticsearch') 
+import java.io.Closeable;
+
+import com.typesafe.config.Config;
+
+
+/**
+ * An interface that enables the ElasticSearch writer to work with different types of records.
+ * Supports serialization and id-getter capabilities
+ */
+public interface TypeMapper<T> extends Closeable {
+
+  void configure(Config config);
+
+  JsonSerializer<T> getSerializer();
+
+  String getValue(String fieldName, T record) throws FieldMappingException;
+
 }

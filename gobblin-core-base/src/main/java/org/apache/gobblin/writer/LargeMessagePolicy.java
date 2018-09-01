@@ -14,12 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.gobblin.writer;
 
-dependencies {
-  compile project(':gobblin-example')
-  compile project(':gobblin-modules:gobblin-azkaban')
-  compile project(':gobblin-modules:gobblin-crypto-provider')
-  compile project(':gobblin-modules:gobblin-kafka-08')
-  compile project(':gobblin-modules:google-ingestion')
-  compile project(':gobblin-modules:gobblin-elasticsearch') 
+/**
+ * Describes how single messages that are larger than a batch message limit should be treated
+ */
+public enum LargeMessagePolicy {
+  DROP, // drop (and log) messages that exceed the threshold
+  ATTEMPT, // attempt to deliver messages that exceed the threshold
+  FAIL // throw an error when this happens
 }

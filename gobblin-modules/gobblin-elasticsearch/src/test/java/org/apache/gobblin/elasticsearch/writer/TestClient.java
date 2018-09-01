@@ -14,12 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.gobblin.elasticsearch.writer;
 
-dependencies {
-  compile project(':gobblin-example')
-  compile project(':gobblin-modules:gobblin-azkaban')
-  compile project(':gobblin-modules:gobblin-crypto-provider')
-  compile project(':gobblin-modules:gobblin-kafka-08')
-  compile project(':gobblin-modules:google-ingestion')
-  compile project(':gobblin-modules:gobblin-elasticsearch') 
+import java.io.Closeable;
+import java.io.IOException;
+
+import org.elasticsearch.action.get.GetRequest;
+import org.elasticsearch.action.get.GetResponse;
+
+
+/**
+ * An interface to describe a functional Elasticsearch client to aid in verification
+ * of test results
+ */
+
+public interface TestClient extends Closeable {
+  GetResponse get(GetRequest getRequest)
+      throws IOException;
+
+  void recreateIndex(String indexName)
+      throws IOException;
 }
