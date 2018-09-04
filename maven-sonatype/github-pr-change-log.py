@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+# pylint: disable=line-too-long
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -33,10 +34,10 @@
 # The script should be run as follows "./pull-requests-change-log.py [github-username] [github-password] [starting-pr-number] [ending-pr-number]
 # For example, to produce the above output the command run was "./pull-requests-change-log.py sahilTakiar [my-password] 900 905"
 
-import requests
 import sys
+import requests
 
 for prNumber in range(int(sys.argv[3]), int(sys.argv[4])):
-	pr = requests.get("https://api.github.com/repos/linkedin/gobblin/pulls/" + str(prNumber), auth=(sys.argv[1], sys.argv[2])).json();
-	if "state" in pr.keys() and  pr["state"] == "closed" and pr["merged"]:
-		print "* [] [PR " + str(pr["number"]) + "] " + pr["title"]
+    pr = requests.get("https://api.github.com/repos/linkedin/gobblin/pulls/" + str(prNumber), auth=(sys.argv[1], sys.argv[2])).json()
+    if "state" in pr.keys() and  pr["state"] == "closed" and pr["merged"]:
+        print "* [] [PR " + str(pr["number"]) + "] " + pr["title"]
