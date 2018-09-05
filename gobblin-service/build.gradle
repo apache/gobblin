@@ -66,7 +66,6 @@ dependencies {
   compile externalDependency.metricsJvm
   compile externalDependency.pegasus.data
   compile externalDependency.quartz
-  compile externalDependency.scala
   compile externalDependency.slf4j
   compile externalDependency.typesafeConfig
   compile externalDependency.zkClient

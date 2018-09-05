@@ -77,7 +77,6 @@ dependencies {
   compile externalDependency.slf4j
   compile externalDependency.typesafeConfig
   compile externalDependency.kafka08
-  compile externalDependency.scala
   compile externalDependency.guavaretrying
   compile externalDependency.hiveExec
   compile externalDependency.parquet
