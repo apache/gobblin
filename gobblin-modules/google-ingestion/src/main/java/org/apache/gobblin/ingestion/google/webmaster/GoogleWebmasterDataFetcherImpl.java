@@ -171,13 +171,7 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
               return totalPages;
             } catch (IOException e) {
               log.info(String.format("Getting page size from %s failed due to %s. Retrying...", start, e.getMessage()));
-              int milliSeconds = 60000 + (r / 10) * 60000;
-              log.info(String.format("Sleeping for %s seconds", milliSeconds / 1000));
-              try {
-                Thread.sleep(milliSeconds);
-              } catch (InterruptedException e1) {
-                throw new RuntimeException(e1);
-              }
+              coolDown(r);
             }
           }
           throw new RuntimeException(String.format(
@@ -205,6 +199,16 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
       }
 
       results.clear();
+    }
+  }
+
+  private void coolDown(int r) {
+    int milliSeconds = 30000 + (r / 5) * 30000;
+    log.info(String.format("Sleeping for %s seconds", milliSeconds / 1000));
+    try {
+      Thread.sleep(milliSeconds);
+    } catch (InterruptedException e1) {
+      throw new RuntimeException(e1);
     }
   }
 
@@ -245,6 +249,7 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
         break;
       }
       toProcess = nextRound;
+      coolDown(r);
     }
     if (r == GET_PAGES_RETRIES + 1) {
       throw new RuntimeException(
