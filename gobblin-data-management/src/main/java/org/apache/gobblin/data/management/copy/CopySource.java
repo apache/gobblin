@@ -398,9 +398,9 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
        * a DatasetFinder. Consequently, the source and destination dataset for the CopyableFile lineage are expected
        * to be set by the same logic
        */
-        if (lineageInfo.isPresent() && copyableFile.getSourceDataset() != null
-            && copyableFile.getDestinationDataset() != null) {
-          lineageInfo.get().setSource(copyableFile.getSourceDataset(), workUnit);
+        if (lineageInfo.isPresent() && copyableFile.getSourceData() != null
+            && copyableFile.getDestinationData() != null) {
+          lineageInfo.get().setSource(copyableFile.getSourceData(), workUnit);
         }
       }
     }

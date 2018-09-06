@@ -21,6 +21,7 @@ import org.apache.gobblin.data.management.partition.File;
 import org.apache.gobblin.data.management.copy.PreserveAttributes.Option;
 import org.apache.gobblin.dataset.DatasetConstants;
 import org.apache.gobblin.dataset.DatasetDescriptor;
+import org.apache.gobblin.dataset.Descriptor;
 import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.guid.Guid;
 
@@ -54,16 +55,16 @@ import com.google.common.collect.Lists;
 @EqualsAndHashCode(callSuper = true)
 public class CopyableFile extends CopyEntity implements File {
   /**
-   * The source dataset the file belongs to. For now, since it's only used before copying, set it to be
+   * The source data the file belongs to. For now, since it's only used before copying, set it to be
    * transient so that it won't be serialized, avoid unnecessary data transfer
    */
-  private transient DatasetDescriptor sourceDataset;
+  private transient Descriptor sourceData;
 
   /** {@link FileStatus} of the existing origin file. */
   private FileStatus origin;
 
-  /** The destination dataset the file will be copied to */
-  private DatasetDescriptor destinationDataset;
+  /** The destination data the file will be copied to */
+  private Descriptor destinationData;
 
   /** Complete destination {@link Path} of the file. */
   private Path destination;
@@ -131,13 +132,15 @@ public class CopyableFile extends CopyEntity implements File {
 
     Path fullSourcePath = Path.getPathWithoutSchemeAndAuthority(origin.getPath());
     String sourceDatasetName = isDir ? fullSourcePath.toString() : fullSourcePath.getParent().toString();
-    sourceDataset = new DatasetDescriptor(originFs.getScheme(), sourceDatasetName);
+    DatasetDescriptor sourceDataset = new DatasetDescriptor(originFs.getScheme(), sourceDatasetName);
     sourceDataset.addMetadata(DatasetConstants.FS_URI, originFs.getUri().toString());
+    sourceData = sourceDataset;
 
     Path fullDestinationPath = Path.getPathWithoutSchemeAndAuthority(destination);
     String destinationDatasetName = isDir ? fullDestinationPath.toString() : fullDestinationPath.getParent().toString();
-    destinationDataset = new DatasetDescriptor(targetFs.getScheme(), destinationDatasetName);
+    DatasetDescriptor destinationDataset = new DatasetDescriptor(targetFs.getScheme(), destinationDatasetName);
     destinationDataset.addMetadata(DatasetConstants.FS_URI, targetFs.getUri().toString());
+    destinationData = destinationDataset;
   }
 
   /**

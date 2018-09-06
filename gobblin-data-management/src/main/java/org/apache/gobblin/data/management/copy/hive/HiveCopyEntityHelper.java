@@ -765,18 +765,13 @@ public class HiveCopyEntityHelper {
     return this.targetFs;
   }
 
-  /**
-   * Set the source and destination datasets of a copyable file
-   */
-  void setCopyableFileDatasets(CopyableFile copyableFile) {
+  DatasetDescriptor getSourceDataset() {
     String sourceTable = dataset.getTable().getDbName() + "." + dataset.getTable().getTableName();
-    DatasetDescriptor source = new DatasetDescriptor(DatasetConstants.PLATFORM_HIVE, sourceTable);
-    source.addMetadata(DatasetConstants.FS_URI, dataset.getFs().getUri().toString());
-    copyableFile.setSourceDataset(source);
+    return new DatasetDescriptor(DatasetConstants.PLATFORM_HIVE, sourceTable);
+  }
 
+  DatasetDescriptor getDestinationDataset() {
     String destinationTable = this.getTargetDatabase() + "." + this.getTargetTable();
-    DatasetDescriptor destination = new DatasetDescriptor(DatasetConstants.PLATFORM_HIVE, destinationTable);
-    destination.addMetadata(DatasetConstants.FS_URI, this.getTargetFs().getUri().toString());
-    copyableFile.setDestinationDataset(destination);
+    return new DatasetDescriptor(DatasetConstants.PLATFORM_HIVE, destinationTable);
   }
 }
