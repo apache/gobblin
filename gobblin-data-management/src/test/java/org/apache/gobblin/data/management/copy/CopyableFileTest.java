@@ -36,11 +36,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
-import javax.xml.crypto.Data;
-
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.dataset.DatasetDescriptor;
-import org.apache.gobblin.dataset.Descriptor;
 import org.apache.gobblin.dataset.PartitionDescriptor;
 import org.apache.gobblin.util.PathUtils;
 
