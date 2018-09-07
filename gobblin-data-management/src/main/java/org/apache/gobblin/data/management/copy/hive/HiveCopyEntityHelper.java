@@ -767,11 +767,15 @@ public class HiveCopyEntityHelper {
 
   DatasetDescriptor getSourceDataset() {
     String sourceTable = dataset.getTable().getDbName() + "." + dataset.getTable().getTableName();
-    return new DatasetDescriptor(DatasetConstants.PLATFORM_HIVE, sourceTable);
+    DatasetDescriptor sourceDataset = new DatasetDescriptor(DatasetConstants.PLATFORM_HIVE, sourceTable);
+    sourceDataset.addMetadata(DatasetConstants.FS_URI, dataset.getFs().getUri().toString());
+    return sourceDataset;
   }
 
   DatasetDescriptor getDestinationDataset() {
     String destinationTable = this.getTargetDatabase() + "." + this.getTargetTable();
-    return new DatasetDescriptor(DatasetConstants.PLATFORM_HIVE, destinationTable);
+    DatasetDescriptor destinationDataset = new DatasetDescriptor(DatasetConstants.PLATFORM_HIVE, destinationTable);
+    destinationDataset.addMetadata(DatasetConstants.FS_URI, this.getTargetFs().getUri().toString());
+    return destinationDataset;
   }
 }
