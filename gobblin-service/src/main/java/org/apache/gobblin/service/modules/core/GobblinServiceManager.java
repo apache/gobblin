@@ -78,6 +78,7 @@ import org.apache.gobblin.scheduler.SchedulerService;
 import org.apache.gobblin.service.FlowConfig;
 import org.apache.gobblin.service.FlowConfigClient;
 import org.apache.gobblin.service.FlowConfigResourceLocalHandler;
+import org.apache.gobblin.service.FlowConfigV2ResourceLocalHandler;
 import org.apache.gobblin.service.FlowConfigsResource;
 import org.apache.gobblin.service.FlowConfigsResourceHandler;
 import org.apache.gobblin.service.FlowId;
@@ -122,6 +123,8 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
   protected GobblinServiceJobScheduler scheduler;
   @Getter
   protected GobblinServiceFlowConfigResourceHandler resourceHandler;
+  @Getter
+  protected GobblinServiceFlowConfigResourceHandler v2ResourceHandler;
 
   protected boolean flowCatalogLocalCommit;
   protected Orchestrator orchestrator;
@@ -219,13 +222,21 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
         this.helixManager,
         this.scheduler);
 
+    this.v2ResourceHandler = new GobblinServiceFlowConfigResourceHandler(serviceName,
+        this.flowCatalogLocalCommit,
+        new FlowConfigV2ResourceLocalHandler(this.flowCatalog),
+        this.helixManager,
+        this.scheduler);
+
     this.isRestLIServerEnabled = ConfigUtils.getBoolean(config,
         ServiceConfigKeys.GOBBLIN_SERVICE_RESTLI_SERVER_ENABLED_KEY, true);
+
     if (isRestLIServerEnabled) {
       Injector injector = Guice.createInjector(new Module() {
         @Override
         public void configure(Binder binder) {
           binder.bind(FlowConfigsResourceHandler.class).annotatedWith(Names.named("flowConfigsResourceHandler")).toInstance(GobblinServiceManager.this.resourceHandler);
+          binder.bind(FlowConfigsResourceHandler.class).annotatedWith(Names.named("flowConfigsV2ResourceHandler")).toInstance(GobblinServiceManager.this.v2ResourceHandler);
           binder.bindConstant().annotatedWith(Names.named("readyToUse")).to(Boolean.TRUE);
         }
       });

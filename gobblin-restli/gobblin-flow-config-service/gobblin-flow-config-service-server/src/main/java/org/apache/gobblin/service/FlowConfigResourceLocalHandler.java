@@ -48,7 +48,7 @@ import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 @Slf4j
 public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandler {
   @Getter
-  private FlowCatalog flowCatalog;
+  protected FlowCatalog flowCatalog;
   public FlowConfigResourceLocalHandler(FlowCatalog flowCatalog) {
     this.flowCatalog = flowCatalog;
   }
@@ -187,6 +187,14 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
       Schedule schedule = flowConfig.getSchedule();
       configBuilder.addPrimitive(ConfigurationKeys.JOB_SCHEDULE_KEY, schedule.getCronSchedule());
       configBuilder.addPrimitive(ConfigurationKeys.FLOW_RUN_IMMEDIATELY, schedule.isRunImmediately());
+    } else {
+      // If the job does not have schedule, it is a run-once job.
+      // In this case, we add flow execution id to the flow spec now to be able to send this id back to the user for
+      // flow status tracking purpose.
+      // If it is not a run-once job, we should not add flow execution id here,
+      // because execution id is generated for every scheduled execution of the flow and cannot be materialized to
+      // the flow catalog. In this case, this id is added during flow compilation.
+      configBuilder.addPrimitive(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, String.valueOf(System.currentTimeMillis()));
     }
 
     Config config = configBuilder.build();
