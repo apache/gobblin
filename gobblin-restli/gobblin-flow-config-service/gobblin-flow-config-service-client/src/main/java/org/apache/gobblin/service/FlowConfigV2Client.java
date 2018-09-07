@@ -173,8 +173,7 @@ public class FlowConfigV2Client implements Closeable {
    */
   public void deleteFlowConfig(FlowId flowId)
       throws RemoteInvocationException {
-    LOG.debug("deleteFlowConfig with groupName " + flowId.getFlowGroup() + " flowName " +
-        flowId.getFlowName());
+    LOG.debug("deleteFlowConfig with groupName {}, flowName {}", flowId.getFlowGroup(), flowId.getFlowName());
 
     DeleteRequest<FlowConfig> deleteRequest = _flowconfigsV2RequestBuilders.delete()
         .id(new ComplexResourceKey<>(flowId, new FlowStatusId())).build();

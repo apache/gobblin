@@ -187,13 +187,14 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
       Schedule schedule = flowConfig.getSchedule();
       configBuilder.addPrimitive(ConfigurationKeys.JOB_SCHEDULE_KEY, schedule.getCronSchedule());
       configBuilder.addPrimitive(ConfigurationKeys.FLOW_RUN_IMMEDIATELY, schedule.isRunImmediately());
-      // If it is a run-once job, we add flow execution id here to be able to send this id back to the user for
-      // easy flow-tracking purpose. If it is not a run-once job, we should not add flow execution id here,
+    } else {
+      // If the job does not have schedule, it is a run-once job.
+      // In this case, we add flow execution id to the flow spec now to be able to send this id back to the user for
+      // flow status tracking purpose.
+      // If it is not a run-once job, we should not add flow execution id here,
       // because execution id is generated for every scheduled execution of the flow and cannot be materialized to
-      // the flow catalog. In the later case, this id is added during flow compilation.
-      if (isRunOnceFlow(flowConfig)) {
-        configBuilder.addPrimitive(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, String.valueOf(System.currentTimeMillis()));
-      }
+      // the flow catalog. In this case, this id is added during flow compilation.
+      configBuilder.addPrimitive(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, String.valueOf(System.currentTimeMillis()));
     }
 
     Config config = configBuilder.build();
@@ -205,13 +206,5 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
     } catch (URISyntaxException e) {
       throw new FlowConfigLoggedException(HttpStatus.S_400_BAD_REQUEST, "bad URI " + flowConfig.getTemplateUris(), e);
     }
-  }
-
-  /**
-   * @param flowConfig flowConfig
-   * @return returns true if it is a runOnce flow, i.e. runImmediately is true and cron schedule is empty
-   */
-  private static boolean isRunOnceFlow(FlowConfig flowConfig) {
-    return flowConfig.getSchedule().isRunImmediately() && StringUtils.isEmpty(flowConfig.getSchedule().getCronSchedule());
   }
 }

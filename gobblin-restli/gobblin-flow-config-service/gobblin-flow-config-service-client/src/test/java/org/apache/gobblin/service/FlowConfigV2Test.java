@@ -53,6 +53,7 @@ public class FlowConfigV2Test {
   private static final String TEST_SPEC_STORE_DIR = "/tmp/flowConfigTest/";
   private static final String TEST_GROUP_NAME = "testGroup1";
   private static final String TEST_FLOW_NAME = "testFlow1";
+  private static final String TEST_SCHEDULE = "0 1/0 * ? * *";
   private static final String TEST_TEMPLATE_URI = "FS:///templates/test.template";
 
   @BeforeClass
@@ -105,8 +106,7 @@ public class FlowConfigV2Test {
     flowProperties.put("param1", "value1");
 
     FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME))
-        .setTemplateUris(TEST_TEMPLATE_URI).setProperties(new StringMap(flowProperties))
-        .setSchedule(new Schedule().setCronSchedule("").setRunImmediately(true));
+        .setTemplateUris(TEST_TEMPLATE_URI).setProperties(new StringMap(flowProperties));
     FlowStatusId flowStatusId =_client.createFlowConfig(flowConfig);
     Assert.assertEquals(TEST_GROUP_NAME, flowStatusId.getFlowGroup());
     Assert.assertEquals(TEST_FLOW_NAME, flowStatusId.getFlowName());
@@ -114,7 +114,7 @@ public class FlowConfigV2Test {
 
     flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME))
         .setTemplateUris(TEST_TEMPLATE_URI).setProperties(new StringMap(flowProperties))
-        .setSchedule(new Schedule().setCronSchedule("").setRunImmediately(false));
+        .setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).setRunImmediately(true));
     Assert.assertEquals(_client.createFlowConfig(flowConfig).getFlowExecutionId().longValue(), -1L);
   }
 
