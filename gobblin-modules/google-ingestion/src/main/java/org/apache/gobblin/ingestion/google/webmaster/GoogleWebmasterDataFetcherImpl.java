@@ -51,7 +51,8 @@ import static org.apache.gobblin.ingestion.google.webmaster.GoogleWebmasterFilte
 public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
   private final double API_REQUESTS_PER_SECOND;
   private final RateBasedLimiter LIMITER;
-  private final int GET_PAGE_SIZE_TIME_OUT;
+  private final int PAGES_COUNT_COOLDOWN_TIME; //In seconds
+  private final int PAGES_GET_COOLDOWN_TIME; //In seconds
   private final int GET_PAGES_RETRIES;
 
   private final String _siteProperty;
@@ -64,7 +65,8 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
     _client = client;
     _jobs = getHotStartJobs(wuState);
     API_REQUESTS_PER_SECOND = wuState.getPropAsDouble(GoogleWebMasterSource.KEY_PAGES_TUNING_REQUESTS_PER_SECOND, 4.5);
-    GET_PAGE_SIZE_TIME_OUT = wuState.getPropAsInt(GoogleWebMasterSource.KEY_PAGES_TUNING_TIME_OUT, 2);
+    PAGES_COUNT_COOLDOWN_TIME = wuState.getPropAsInt(GoogleWebMasterSource.KEY_PAGES_COUNT_TUNING_COOLDOWN_TIME, 30);
+    PAGES_GET_COOLDOWN_TIME = wuState.getPropAsInt(GoogleWebMasterSource.KEY_PAGES_GET_TUNING_COOLDOWN_TIME, 5);
     LIMITER = new RateBasedLimiter(API_REQUESTS_PER_SECOND, TimeUnit.SECONDS);
     GET_PAGES_RETRIES = wuState.getPropAsInt(GoogleWebMasterSource.KEY_PAGES_TUNING_MAX_RETRIES, 120);
   }
@@ -171,7 +173,7 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
               return totalPages;
             } catch (IOException e) {
               log.info(String.format("Getting page size from %s failed due to %s. Retrying...", start, e.getMessage()));
-              coolDown(r);
+              coolDown(r, PAGES_COUNT_COOLDOWN_TIME);
             }
           }
           throw new RuntimeException(String.format(
@@ -202,8 +204,9 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
     }
   }
 
-  private void coolDown(int r) {
-    int milliSeconds = 30000 + (r / 5) * 30000;
+  private void coolDown(int r, int secondsInterval) {
+    int milliSeconds = secondsInterval + (r / 5) * secondsInterval;
+    milliSeconds *= 1000;
     log.info(String.format("Sleeping for %s seconds", milliSeconds / 1000));
     try {
       Thread.sleep(milliSeconds);
@@ -249,7 +252,7 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
         break;
       }
       toProcess = nextRound;
-      coolDown(r);
+      coolDown(r, PAGES_GET_COOLDOWN_TIME);
     }
     if (r == GET_PAGES_RETRIES + 1) {
       throw new RuntimeException(
