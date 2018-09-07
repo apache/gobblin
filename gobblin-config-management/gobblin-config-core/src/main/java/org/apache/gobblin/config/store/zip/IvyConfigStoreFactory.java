@@ -38,7 +38,7 @@ import org.apache.http.client.utils.URLEncodedUtils;
 
 /**
  * {@link ConfigStoreFactory} that downloads a jar file containing the config store paths through ivy and creates a
- * {@link ZipFileConfigStore} with it.
+ * {@link ZipFileConfigStore} with it. May be useful to avoid making many HDFS calls for large config stores.
  *
  * An ivy settings file must be present on the classpath named {@link DownloadUtils#IVY_SETTINGS_FILE_NAME}
  */
