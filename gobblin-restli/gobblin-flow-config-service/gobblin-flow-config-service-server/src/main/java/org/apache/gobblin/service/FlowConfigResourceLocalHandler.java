@@ -187,6 +187,10 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
       Schedule schedule = flowConfig.getSchedule();
       configBuilder.addPrimitive(ConfigurationKeys.JOB_SCHEDULE_KEY, schedule.getCronSchedule());
       configBuilder.addPrimitive(ConfigurationKeys.FLOW_RUN_IMMEDIATELY, schedule.isRunImmediately());
+      // If it is a run-once job, we add flow execution id here to be able to send this id back to the user for
+      // easy flow-tracking purpose. If it is not a run-once job, we should not add flow execution id here,
+      // because execution id is generated for every scheduled execution of the flow and cannot be materialized to
+      // the flow catalog. In the later case, this id is added during flow compilation.
       if (isRunOnceFlow(flowConfig)) {
         configBuilder.addPrimitive(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, String.valueOf(System.currentTimeMillis()));
       }
