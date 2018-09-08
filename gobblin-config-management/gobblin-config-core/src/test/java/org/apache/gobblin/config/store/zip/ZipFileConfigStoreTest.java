@@ -16,7 +16,6 @@
  */
 package org.apache.gobblin.config.store.zip;
 
-import com.sun.nio.zipfs.ZipFileSystem;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.FileSystem;
@@ -25,14 +24,16 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collection;
 
-import org.apache.gobblin.config.common.impl.SingleLinkedListConfigKeyPath;
-import org.apache.gobblin.config.store.api.ConfigKeyPath;
-import org.apache.gobblin.config.store.api.ConfigStoreCreationException;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import com.sun.nio.zipfs.ZipFileSystem;
 import com.typesafe.config.Config;
+
+import org.apache.gobblin.config.common.impl.SingleLinkedListConfigKeyPath;
+import org.apache.gobblin.config.store.api.ConfigKeyPath;
+import org.apache.gobblin.config.store.api.ConfigStoreCreationException;
 
 
 /**
