@@ -41,6 +41,7 @@ import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.dataset.DatasetDescriptor;
 import org.apache.gobblin.service.modules.flow.FlowEdgeContext;
 import org.apache.gobblin.service.modules.flow.FlowGraphPath;
+import org.apache.gobblin.service.modules.flow.FlowUtils;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.DataNode;
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
@@ -78,6 +79,7 @@ public abstract class AbstractPathFinder implements PathFinder {
     this.flowGraph = flowGraph;
     this.flowSpec = flowSpec;
     this.flowConfig = flowSpec.getConfig();
+    this.flowExecutionId = FlowUtils.getOrCreateFlowExecutionId(flowSpec);
 
     //Get src/dest DataNodes from the flow config
     String srcNodeId = ConfigUtils.getString(flowConfig, ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, "");
@@ -237,8 +239,6 @@ public abstract class AbstractPathFinder implements PathFinder {
 
   @Override
   public FlowGraphPath findPath() throws PathFinderException {
-    // Generate flow execution id for this compilation
-    this.flowExecutionId = System.currentTimeMillis();
 
     FlowGraphPath flowGraphPath = new FlowGraphPath(flowSpec, flowExecutionId);
     //Path computation must be thread-safe to guarantee read consistency. In other words, we prevent concurrent read/write access to the
