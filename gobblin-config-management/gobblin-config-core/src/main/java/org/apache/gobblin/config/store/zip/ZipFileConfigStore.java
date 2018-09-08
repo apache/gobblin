@@ -30,17 +30,19 @@ import java.util.List;
 import java.util.stream.Stream;
 
 import org.apache.commons.lang.StringUtils;
+
+import com.google.common.base.Charsets;
+import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
+import com.sun.nio.zipfs.ZipFileSystem;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+
 import org.apache.gobblin.config.common.impl.SingleLinkedListConfigKeyPath;
 import org.apache.gobblin.config.store.api.ConfigKeyPath;
 import org.apache.gobblin.config.store.api.ConfigStore;
 import org.apache.gobblin.config.store.api.VersionDoesNotExistException;
 import org.apache.gobblin.config.store.hdfs.SimpleHadoopFilesystemConfigStore;
-
-import com.google.common.base.Charsets;
-import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -61,7 +63,15 @@ public class ZipFileConfigStore implements ConfigStore {
   private String version;
   private String storePrefix;
 
-  public ZipFileConfigStore(FileSystem fs, URI logicalStoreRoot, String version, String storePrefix) {
+  /**
+   * Construct a ZipFileConfigStore
+   *
+   * @param fs A {@link ZipFileSystem} created using the zip file or jar containing the config store
+   * @param logicalStoreRoot URI of this config store's root
+   * @param version Config store version to use (only version allowed for lookups is the version passed here)
+   * @param storePrefix Prefix to use if all paths in config store are under a parent directory
+   */
+  public ZipFileConfigStore(ZipFileSystem fs, URI logicalStoreRoot, String version, String storePrefix) {
     Preconditions.checkNotNull(fs);
     Preconditions.checkNotNull(logicalStoreRoot);
     Preconditions.checkNotNull(version);

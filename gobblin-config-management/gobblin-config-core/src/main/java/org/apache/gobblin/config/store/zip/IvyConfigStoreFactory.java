@@ -35,6 +35,8 @@ import org.apache.hadoop.fs.Path;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
 
+import com.sun.nio.zipfs.ZipFileSystem;
+
 
 /**
  * {@link ConfigStoreFactory} that downloads a jar file containing the config store paths through ivy and creates a
@@ -100,7 +102,11 @@ public class IvyConfigStoreFactory implements ConfigStoreFactory<ZipFileConfigSt
 
       FileSystem zipFs = FileSystems.newFileSystem(Paths.get(uris[0].getPath()), null);
 
-      return new ZipFileConfigStore(zipFs, configKey, currentVersion, factoryProps.getProperty(STORE_PREFIX_KEY, ""));
+      if (!(zipFs instanceof ZipFileSystem)) {
+        throw new ConfigStoreCreationException(configKey, "Downloaded file must be a zip or jar file");
+      }
+
+      return new ZipFileConfigStore((ZipFileSystem) zipFs, configKey, currentVersion, factoryProps.getProperty(STORE_PREFIX_KEY, ""));
     } catch (IOException e) {
       throw new ConfigStoreCreationException(configKey, e);
     }

@@ -16,6 +16,7 @@
  */
 package org.apache.gobblin.config.store.zip;
 
+import com.sun.nio.zipfs.ZipFileSystem;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.file.FileSystem;
@@ -52,7 +53,7 @@ public class ZipFileConfigStoreTest {
     Path path = Paths.get(this.getClass().getClassLoader().getResource("zipStoreTest.zip").getPath());
     FileSystem fs = FileSystems.newFileSystem(path, null);
 
-    this.store = new ZipFileConfigStore(fs, path.toUri(), this.version, "_CONFIG_STORE");
+    this.store = new ZipFileConfigStore((ZipFileSystem) fs, path.toUri(), this.version, "_CONFIG_STORE");
   }
 
   @Test
