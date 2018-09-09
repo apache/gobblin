@@ -126,7 +126,7 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
   /**
    * @return the size of all pages data set
    */
-  private int getPagesSize(final String startDate, final String endDate, final String country,
+  int getPagesSize(final String startDate, final String endDate, final String country,
       final List<Dimension> requestedDimensions, final List<ApiDimensionFilter> apiDimensionFilters) {
     final ExecutorService es = Executors.newCachedThreadPool(
         ExecutorsUtils.newDaemonThreadFactory(Optional.of(log), Optional.of(this.getClass().getSimpleName())));
