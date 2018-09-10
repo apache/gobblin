@@ -23,18 +23,10 @@
 #
 
 from __future__ import print_function
-import json
 import os
 import re
-import subprocess
 import sys
-import textwrap
 
-# Python 3 compatibility
-try:
-    import urllib2 as urllib
-except ImportError:
-    import urllib.request as urllib
 if sys.version_info[0] == 3:
     raw_input = input
 
