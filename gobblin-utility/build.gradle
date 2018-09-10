@@ -46,6 +46,7 @@ dependencies {
   compile externalDependency.gson
   compile externalDependency.opencsv
   compile externalDependency.hadoopHdfs
+  compile externalDependency.groovy
 
   runtime externalDependency.hadoopCommon
   runtime externalDependency.hadoopClientCore
