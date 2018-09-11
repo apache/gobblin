@@ -980,7 +980,7 @@ public class MRCompactor implements Compactor {
    */
   private void submitVerificationSuccessSlaEvent(Results.Result result) {
     try {
-      CompactionSlaEventHelper.getEventSubmitterBuilder(result.dataset(), Optional.<Job> absent(), this.fs)
+      CompactionSlaEventHelper.getEventSubmitterBuilder(result.dataset(), Optional.<Job> absent())
       .eventSubmitter(this.eventSubmitter).eventName(CompactionSlaEventHelper.COMPLETION_VERIFICATION_SUCCESS_EVENT_NAME)
       .additionalMetadata(Maps.transformValues(result.verificationContext(), Functions.toStringFunction())).build()
       .submit();
@@ -994,7 +994,7 @@ public class MRCompactor implements Compactor {
    */
   private void submitFailureSlaEvent(Dataset dataset, String eventName) {
     try {
-      CompactionSlaEventHelper.getEventSubmitterBuilder(dataset, Optional.<Job> absent(), this.fs)
+      CompactionSlaEventHelper.getEventSubmitterBuilder(dataset, Optional.<Job> absent())
       .eventSubmitter(this.eventSubmitter).eventName(eventName).build().submit();
     } catch (Throwable t) {
       LOG.warn("Failed to submit failure sla event:" + t, t);
