@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -156,7 +157,8 @@ public class MRCompactorJobPropCreator {
 
   private boolean latePathsFound(Dataset dataset) throws IOException, FileNotFoundException {
     for (Path lateInputPath : dataset.inputLatePaths()) {
-      if ((this.fs.exists(lateInputPath)) && (this.fs.listStatus(lateInputPath).length > 0)) {
+      FileSystem fs = lateInputPath.getFileSystem(new Configuration());
+      if ((fs.exists(lateInputPath)) && (fs.listStatus(lateInputPath).length > 0)) {
         return true;
       }
     }
@@ -288,10 +290,11 @@ public class MRCompactorJobPropCreator {
   }
 
   private boolean isOutputLateDataExists (Dataset dataset) throws IOException {
-    if (!this.fs.exists(dataset.outputLatePath())) {
+    FileSystem fs = dataset.outputLatePath().getFileSystem(new Configuration());
+    if (!fs.exists(dataset.outputLatePath())) {
       return false;
     }
-    return this.fs.listStatus(dataset.outputLatePath()).length > 0;
+    return fs.listStatus(dataset.outputLatePath()).length > 0;
   }
 
   private Set<Path> getNewDataInFolder(Set<Path> inputFolders, Path outputFolder) throws IOException {
@@ -309,13 +312,16 @@ public class MRCompactorJobPropCreator {
    */
   private Set<Path> getNewDataInFolder(Path inputFolder, Path outputFolder) throws IOException {
     Set<Path> newFiles = Sets.newHashSet();
+    FileSystem inputFs = inputFolder.getFileSystem(new Configuration());
+    FileSystem outputFs = outputFolder.getFileSystem(new Configuration());
 
-    if (!this.fs.exists(inputFolder) || !this.fs.exists(outputFolder)) {
+
+    if (!inputFs.exists(inputFolder) || !outputFs.exists(outputFolder)) {
       return newFiles;
     }
 
-    DateTime lastCompactionTime = new DateTime(MRCompactor.readCompactionTimestamp(this.fs, outputFolder));
-    for (FileStatus fstat : FileListUtils.listFilesRecursively(this.fs, inputFolder)) {
+    DateTime lastCompactionTime = new DateTime(MRCompactor.readCompactionTimestamp(outputFs, outputFolder));
+    for (FileStatus fstat : FileListUtils.listFilesRecursively(inputFs, inputFolder)) {
       DateTime fileModificationTime = new DateTime(fstat.getModificationTime());
       if (fileModificationTime.isAfter(lastCompactionTime)) {
         LOG.info ("[" + fileModificationTime.getMillis() + "] " + fstat.getPath() + " is after " + lastCompactionTime.getMillis());
