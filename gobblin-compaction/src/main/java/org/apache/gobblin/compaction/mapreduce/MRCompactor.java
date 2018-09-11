@@ -603,7 +603,7 @@ public class MRCompactor implements Compactor {
     if (renameSourceEnable) {
       return checkAlreadyCompactedBasedOnSourceDirName (fs, dataset);
     } else {
-      return checkAlreadyCompactedBasedOnCompletionFile(fs, dataset);
+      return checkAlreadyCompactedBasedOnCompletionFile(dataset);
     }
   }
 
@@ -626,9 +626,11 @@ public class MRCompactor implements Compactor {
   *  When completion file strategy is used, a compaction completion means there is a file named
   *    {@link MRCompactor#COMPACTION_COMPLETE_FILE_NAME} in its {@link Dataset#outputPath()}.
   */
-  private static boolean checkAlreadyCompactedBasedOnCompletionFile(FileSystem fs, Dataset dataset) {
+  private static boolean checkAlreadyCompactedBasedOnCompletionFile(Dataset dataset) {
     Path filePath = new Path(dataset.outputPath(), MRCompactor.COMPACTION_COMPLETE_FILE_NAME);
+
     try {
+      FileSystem fs = filePath.getFileSystem(new Configuration());
       return fs.exists(filePath);
     } catch (IOException e) {
       LOG.error("Failed to verify the existence of file " + filePath, e);
@@ -980,7 +982,7 @@ public class MRCompactor implements Compactor {
    */
   private void submitVerificationSuccessSlaEvent(Results.Result result) {
     try {
-      CompactionSlaEventHelper.getEventSubmitterBuilder(result.dataset(), Optional.<Job> absent(), this.fs)
+      CompactionSlaEventHelper.getEventSubmitterBuilder(result.dataset(), Optional.<Job> absent())
       .eventSubmitter(this.eventSubmitter).eventName(CompactionSlaEventHelper.COMPLETION_VERIFICATION_SUCCESS_EVENT_NAME)
       .additionalMetadata(Maps.transformValues(result.verificationContext(), Functions.toStringFunction())).build()
       .submit();
@@ -994,7 +996,7 @@ public class MRCompactor implements Compactor {
    */
   private void submitFailureSlaEvent(Dataset dataset, String eventName) {
     try {
-      CompactionSlaEventHelper.getEventSubmitterBuilder(dataset, Optional.<Job> absent(), this.fs)
+      CompactionSlaEventHelper.getEventSubmitterBuilder(dataset, Optional.<Job> absent())
       .eventSubmitter(this.eventSubmitter).eventName(eventName).build().submit();
     } catch (Throwable t) {
       LOG.warn("Failed to submit failure sla event:" + t, t);

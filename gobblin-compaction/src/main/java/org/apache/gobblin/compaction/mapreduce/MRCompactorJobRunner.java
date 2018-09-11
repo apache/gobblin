@@ -690,7 +690,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
   private void submitSlaEvent(Job job) {
     try {
       CompactionSlaEventHelper
-          .getEventSubmitterBuilder(this.dataset, Optional.of(job), this.fs)
+          .getEventSubmitterBuilder(this.dataset, Optional.of(job))
           .eventSubmitter(this.eventSubmitter)
           .eventName(CompactionSlaEventHelper.COMPACTION_COMPLETED_EVENT_NAME)
           .additionalMetadata(
@@ -717,7 +717,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
 
     try {
       CompactionSlaEventHelper
-          .getEventSubmitterBuilder(this.dataset, Optional.<Job> absent(), this.fs)
+          .getEventSubmitterBuilder(this.dataset, Optional.<Job> absent())
           .eventSubmitter(this.eventSubmitter)
           .eventName(CompactionSlaEventHelper.COMPACTION_RECORD_COUNT_EVENT)
           .additionalMetadata(CompactionSlaEventHelper.DATASET_OUTPUT_PATH, this.dataset.outputPath().toString())

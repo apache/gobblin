@@ -19,6 +19,7 @@ package org.apache.gobblin.compaction.event;
 
 import java.io.IOException;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.Counter;
@@ -71,13 +72,13 @@ public class CompactionSlaEventHelper {
    * and dedupe status set.
    * The caller MUST set eventSubmitter, eventname before submitting.
    */
-  public static SlaEventSubmitterBuilder getEventSubmitterBuilder(Dataset dataset, Optional<Job> job, FileSystem fs) {
+  public static SlaEventSubmitterBuilder getEventSubmitterBuilder(Dataset dataset, Optional<Job> job) {
     SlaEventSubmitterBuilder builder =
         SlaEventSubmitter.builder().datasetUrn(dataset.getUrn())
             .partition(dataset.jobProps().getProp(MRCompactor.COMPACTION_JOB_DEST_PARTITION, ""))
             .dedupeStatus(getOutputDedupeStatus(dataset.jobProps()));
 
-    long previousPublishTime = getPreviousPublishTime(dataset, fs);
+    long previousPublishTime = getPreviousPublishTime(dataset);
     long upstreamTime = dataset.jobProps().getPropAsLong(SlaEventKeys.UPSTREAM_TS_IN_MILLI_SECS_KEY, -1l);
     long recordCount = getRecordCount(job);
 
@@ -96,7 +97,7 @@ public class CompactionSlaEventHelper {
   }
 
   /**
-   * {@link Deprecated} use {@link #getEventSubmitterBuilder(Dataset, Optional, FileSystem)}
+   * {@link Deprecated} use {@link #getEventSubmitterBuilder(Dataset, Optional)}
    */
   @Deprecated
   public static void populateState(Dataset dataset, Optional<Job> job, FileSystem fs) {
@@ -104,7 +105,7 @@ public class CompactionSlaEventHelper {
     dataset.jobProps().setProp(SlaEventKeys.PARTITION_KEY,
         dataset.jobProps().getProp(MRCompactor.COMPACTION_JOB_DEST_PARTITION, ""));
     dataset.jobProps().setProp(SlaEventKeys.DEDUPE_STATUS_KEY, getOutputDedupeStatus(dataset.jobProps()));
-    dataset.jobProps().setProp(SlaEventKeys.PREVIOUS_PUBLISH_TS_IN_MILLI_SECS_KEY, getPreviousPublishTime(dataset, fs));
+    dataset.jobProps().setProp(SlaEventKeys.PREVIOUS_PUBLISH_TS_IN_MILLI_SECS_KEY, getPreviousPublishTime(dataset));
     dataset.jobProps().setProp(SlaEventKeys.RECORD_COUNT_KEY, getRecordCount(job));
   }
 
@@ -112,9 +113,10 @@ public class CompactionSlaEventHelper {
     state.setProp(SlaEventKeys.UPSTREAM_TS_IN_MILLI_SECS_KEY, Long.toString(time));
   }
 
-  private static long getPreviousPublishTime(Dataset dataset, FileSystem fs) {
+  private static long getPreviousPublishTime(Dataset dataset){
     Path compactionCompletePath = new Path(dataset.outputPath(), MRCompactor.COMPACTION_COMPLETE_FILE_NAME);
     try {
+      FileSystem fs = dataset.outputPath().getFileSystem(new Configuration());
       return fs.getFileStatus(compactionCompletePath).getModificationTime();
     } catch (IOException e) {
       LOG.debug("Failed to get previous publish time.", e);
