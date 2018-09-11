@@ -603,7 +603,7 @@ public class MRCompactor implements Compactor {
     if (renameSourceEnable) {
       return checkAlreadyCompactedBasedOnSourceDirName (fs, dataset);
     } else {
-      return checkAlreadyCompactedBasedOnCompletionFile(fs, dataset);
+      return checkAlreadyCompactedBasedOnCompletionFile(dataset);
     }
   }
 
@@ -626,9 +626,11 @@ public class MRCompactor implements Compactor {
   *  When completion file strategy is used, a compaction completion means there is a file named
   *    {@link MRCompactor#COMPACTION_COMPLETE_FILE_NAME} in its {@link Dataset#outputPath()}.
   */
-  private static boolean checkAlreadyCompactedBasedOnCompletionFile(FileSystem fs, Dataset dataset) {
+  private static boolean checkAlreadyCompactedBasedOnCompletionFile(Dataset dataset) {
     Path filePath = new Path(dataset.outputPath(), MRCompactor.COMPACTION_COMPLETE_FILE_NAME);
+
     try {
+      FileSystem fs = filePath.getFileSystem(new Configuration());
       return fs.exists(filePath);
     } catch (IOException e) {
       LOG.error("Failed to verify the existence of file " + filePath, e);
