@@ -27,6 +27,8 @@ import java.util.Properties;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.lang3.reflect.ConstructorUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.util.WriterUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -42,6 +44,7 @@ import org.apache.gobblin.config.client.api.ConfigStoreFactoryDoesNotExistsExcep
 import org.apache.gobblin.config.client.api.VersionStabilityPolicy;
 import org.apache.gobblin.config.store.api.ConfigStoreCreationException;
 import org.apache.gobblin.config.store.api.VersionDoesNotExistException;
+import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.dataset.Dataset;
 import org.apache.gobblin.dataset.DatasetsFinder;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
@@ -100,13 +103,23 @@ public abstract class MultiDatasetFinder implements DatasetsFinder<Dataset> {
           importedBys.addAll(client.getImportedBy(new URI(tag), false));
         }
 
+        FileSystem targetFs;
+        if(this.jobProps.containsKey(ConfigurationKeys.WRITER_FILE_SYSTEM_URI)) {
+          State state = new State(jobProps);
+          targetFs = WriterUtils.getWriterFs(state);
+        } else {
+          targetFs = fs;
+        }
+
+        log.info("Derived Target FS - {}", targetFs.getUri());
+
         for (URI importedBy : importedBys) {
           Config datasetClassConfig = client.getConfig(importedBy);
 
           try {
             this.datasetFinders.add((DatasetsFinder) GobblinConstructorUtils.invokeFirstConstructor(
-                Class.forName(datasetClassConfig.getString(datasetFinderClassKey())), ImmutableList.of(fs, jobProps,
-                    datasetClassConfig), ImmutableList.of(fs, jobProps)));
+                Class.forName(datasetClassConfig.getString(datasetFinderClassKey())), ImmutableList.of(targetFs, jobProps,
+                    datasetClassConfig), ImmutableList.of(targetFs, jobProps)));
             log.info(String.format("Instantiated datasetfinder %s for %s.",
                 datasetClassConfig.getString(datasetFinderClassKey()), importedBy));
           } catch (InstantiationException | IllegalAccessException | IllegalArgumentException
@@ -123,7 +136,7 @@ public abstract class MultiDatasetFinder implements DatasetsFinder<Dataset> {
       }
 
     } catch (IllegalArgumentException | VersionDoesNotExistException | ConfigStoreFactoryDoesNotExistsException
-        | ConfigStoreCreationException | URISyntaxException e) {
+        | ConfigStoreCreationException | URISyntaxException | IOException e) {
       Throwables.propagate(e);
     }
   }
