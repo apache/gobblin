@@ -38,20 +38,15 @@ public class DescriptorTest {
 
   @Test
   public void testPartitionDescriptor() {
-    // Test serialization
-    String partitionJson = "{\"clazz\":\"org.apache.gobblin.dataset.PartitionDescriptor\",\"data\":{\"dataset\":{\"platform\":\"hdfs\",\"metadata\":{},\"name\":\"/data/tracking/PageViewEvent\"},\"name\":\"hourly/2018/08/14/18\"}}";
-
     DatasetDescriptor dataset = new DatasetDescriptor("hdfs", "/data/tracking/PageViewEvent");
     String partitionName = "hourly/2018/08/14/18";
     PartitionDescriptor partition = new PartitionDescriptor(partitionName, dataset);
-    Assert.assertEquals(Descriptor.serialize(partition), partitionJson);
-    System.out.println(partitionJson);
 
-    Descriptor partition2 = Descriptor.deserialize(partitionJson);
+    // Test copy to new dataset
+    DatasetDescriptor dataset2 = new DatasetDescriptor("hive", "/data/tracking/PageViewEvent");
+    Descriptor partition2 = partition.copy(dataset2);
     Assert.assertEquals(partition2.getName(), partition.getName());
-    Assert.assertEquals(((PartitionDescriptor)partition2).getDataset(), partition.getDataset());
-    Assert.assertEquals(partition, partition2);
-    Assert.assertEquals(partition.hashCode(), partition2.hashCode());
+    Assert.assertEquals(((PartitionDescriptor)partition2).getDataset(), dataset2);
 
     // Test copy
     PartitionDescriptor partition3 = partition.copy();

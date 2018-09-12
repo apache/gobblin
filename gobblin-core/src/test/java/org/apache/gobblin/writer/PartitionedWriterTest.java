@@ -19,14 +19,18 @@ package org.apache.gobblin.writer;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.gobblin.ack.BasicAckableForTesting;
+import org.apache.gobblin.dataset.DatasetDescriptor;
+import org.apache.gobblin.dataset.PartitionDescriptor;
 import org.apache.gobblin.stream.FlushControlMessage;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+import org.testng.util.Strings;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
@@ -107,12 +111,26 @@ public class PartitionedWriterTest {
     action = builder.actions.poll();
     Assert.assertEquals(action.getType(), TestPartitionAwareWriterBuilder.Actions.CLEANUP);
 
+    // Before close, partitions info is not serialized
+    String partitionsKey = "writer.0.partitions";
+    Assert.assertTrue(state.getProp(partitionsKey) == null);
+
     writer.close();
     Assert.assertEquals(builder.actions.size(), 2);
     action = builder.actions.poll();
     Assert.assertEquals(action.getType(), TestPartitionAwareWriterBuilder.Actions.CLOSE);
     action = builder.actions.poll();
     Assert.assertEquals(action.getType(), TestPartitionAwareWriterBuilder.Actions.CLOSE);
+
+    // After close, partitions info is available
+    Assert.assertFalse(Strings.isNullOrEmpty(state.getProp(partitionsKey)));
+    List<PartitionDescriptor> partitions = PartitionedDataWriter.getPartitionsAndClean(state, 0);
+    Assert.assertTrue(state.getProp(partitionsKey) == null);
+    Assert.assertEquals(partitions.size(), 2);
+
+    DatasetDescriptor dataset = new DatasetDescriptor("testPlatform", "testDataset");
+    Assert.assertEquals(partitions.get(0), new PartitionDescriptor("a", dataset));
+    Assert.assertEquals(partitions.get(1), new PartitionDescriptor("1", dataset));
 
     writer.commit();
     Assert.assertEquals(builder.actions.size(), 2);

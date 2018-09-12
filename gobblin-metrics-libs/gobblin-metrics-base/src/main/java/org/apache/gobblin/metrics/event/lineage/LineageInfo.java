@@ -17,7 +17,11 @@
 
 package org.apache.gobblin.metrics.event.lineage;
 
+import java.lang.reflect.Type;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -25,9 +29,12 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
@@ -47,6 +54,7 @@ import org.apache.gobblin.dataset.DescriptorResolver;
 import org.apache.gobblin.dataset.NoopDatasetResolver;
 import org.apache.gobblin.metrics.broker.LineageInfoFactory;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.io.GsonInterfaceAdapter;
 
 
 /**
@@ -80,13 +88,16 @@ public final class LineageInfo {
   private static final String DATASET_RESOLVER_CONFIG_NAMESPACE = "datasetResolver";
 
   private static final String BRANCH = "branch";
-  private static final Gson GSON = new Gson();
   private static final String NAME_KEY = "name";
 
   private static final Config FALLBACK =
       ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
           .put(DATASET_RESOLVER_FACTORY, NoopDatasetResolver.FACTORY)
           .build());
+  private static final Type DESCRIPTOR_LIST_TYPE = new TypeToken<ArrayList<Descriptor>>(){}.getType();
+  private static final Gson GSON =
+      new GsonBuilder().registerTypeAdapterFactory(new GsonInterfaceAdapter(Descriptor.class)).create();
+
 
   private final DescriptorResolver resolver;
 
@@ -112,7 +123,7 @@ public final class LineageInfo {
     }
 
     state.setProp(getKey(NAME_KEY), descriptor.getName());
-    state.setProp(getKey(LineageEventBuilder.SOURCE), Descriptor.serialize(descriptor));
+    state.setProp(getKey(LineageEventBuilder.SOURCE), GSON.toJson(descriptor));
   }
 
   /**
@@ -123,20 +134,41 @@ public final class LineageInfo {
    *   is supposed to put the destination dataset information. Since different branches may concurrently put,
    *   the method is implemented to be threadsafe
    * </p>
+   *
+   * @deprecated Use {@link #putDestination(List, int, State)}
    */
+  @Deprecated
   public void putDestination(Descriptor destination, int branchId, State state) {
+    putDestination(Lists.newArrayList(destination), branchId, state);
+  }
+
+  /**
+   * Put data {@link Descriptor}s of a destination dataset to a state
+   *
+   * @param descriptors It can be a single item list which just has the dataset descriptor or a list
+   *                    of dataset partition descriptors
+   */
+  public void putDestination(List<Descriptor> descriptors, int branchId, State state) {
+
     if (!hasLineageInfo(state)) {
-      log.warn("State has no lineage info but branch " + branchId + " puts a destination: " + GSON.toJson(destination));
+      log.warn("State has no lineage info but branch " + branchId + " puts {} descriptors", descriptors.size());
       return;
     }
-    log.debug(String.format("Put destination %s for branch %d", GSON.toJson(destination), branchId));
+
+    log.info(String.format("Put destination %s for branch %d", GSON.toJson(descriptors), branchId));
+
     synchronized (state.getProp(getKey(NAME_KEY))) {
-      Descriptor descriptor = resolver.resolve(destination, state);
-      if (descriptor == null) {
-        return;
+      List<Descriptor> resolvedDescriptors = new ArrayList<>();
+      for (Descriptor descriptor : descriptors) {
+        Descriptor resolvedDescriptor = resolver.resolve(descriptor, state);
+        if (resolvedDescriptor == null) {
+          continue;
+        }
+        resolvedDescriptors.add(resolvedDescriptor);
       }
 
-      state.setProp(getKey(BRANCH, branchId, LineageEventBuilder.DESTINATION), Descriptor.serialize(descriptor));
+      state.setProp(getKey(BRANCH, branchId, LineageEventBuilder.DESTINATION),
+          GSON.toJson(resolvedDescriptors, DESCRIPTOR_LIST_TYPE));
     }
   }
 
@@ -150,8 +182,8 @@ public final class LineageInfo {
     Preconditions.checkArgument(states != null && !states.isEmpty());
     Set<LineageEventBuilder> allEvents = Sets.newHashSet();
     for (State state : states) {
-      Map<String, LineageEventBuilder> branchedEvents = load(state);
-      allEvents.addAll(branchedEvents.values());
+      Map<String, Set<LineageEventBuilder>> branchedEvents = load(state);
+      branchedEvents.values().forEach(allEvents::addAll);
     }
     return allEvents;
   }
@@ -161,12 +193,12 @@ public final class LineageInfo {
    *
    * @return A map from branch to its lineage info. If there is no destination info, return an empty map
    */
-  static Map<String, LineageEventBuilder> load(State state) {
+  static Map<String, Set<LineageEventBuilder>> load(State state) {
     String name = state.getProp(getKey(NAME_KEY));
-    Descriptor source = Descriptor.deserialize(state.getProp(getKey(LineageEventBuilder.SOURCE)));
+    Descriptor source = GSON.fromJson(state.getProp(getKey(LineageEventBuilder.SOURCE)), Descriptor.class);
 
     String branchedPrefix = getKey(BRANCH, "");
-    Map<String, LineageEventBuilder> events = Maps.newHashMap();
+    Map<String, Set<LineageEventBuilder>> events = Maps.newHashMap();
     if (source == null) {
       return events;
     }
@@ -180,16 +212,17 @@ public final class LineageInfo {
       String[] parts = key.substring(branchedPrefix.length()).split("\\.");
       assert parts.length == 2;
       String branchId = parts[0];
-      LineageEventBuilder event = events.get(branchId);
-      if (event == null) {
-        event = new LineageEventBuilder(name);
-        event.setSource(source.copy());
-        events.put(parts[0], event);
-      }
+      Set<LineageEventBuilder> branchEvents = events.computeIfAbsent(branchId, k -> new HashSet<>());
+
       switch (parts[1]) {
         case LineageEventBuilder.DESTINATION:
-          Descriptor destination = Descriptor.deserialize(entry.getValue().toString());
-          event.setDestination(destination);
+          List<Descriptor> descriptors = GSON.fromJson(entry.getValue().toString(), DESCRIPTOR_LIST_TYPE);
+          for (Descriptor descriptor : descriptors) {
+            LineageEventBuilder event = new LineageEventBuilder(name);
+            event.setSource(source);
+            event.setDestination(descriptor);
+            branchEvents.add(event);
+          }
           break;
         default:
           throw new RuntimeException("Unsupported lineage key: " + key);

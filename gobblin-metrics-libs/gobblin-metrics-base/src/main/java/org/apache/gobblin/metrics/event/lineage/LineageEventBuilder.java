@@ -22,14 +22,15 @@ import java.util.Map;
 
 import org.apache.commons.lang.StringUtils;
 
-import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.gobblin.dataset.Descriptor;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.event.GobblinEventBuilder;
+import org.apache.gobblin.util.io.GsonInterfaceAdapter;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.Maps;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -50,7 +51,8 @@ public final class LineageEventBuilder extends GobblinEventBuilder {
   static final String DESTINATION = "destination";
   static final String LINEAGE_EVENT_TYPE = "LineageEvent";
 
-  private static final Gson GSON = new Gson();
+  private static final Gson GSON =
+      new GsonBuilder().registerTypeAdapterFactory(new GsonInterfaceAdapter(Descriptor.class)).create();
 
   @Getter @Setter
   private Descriptor source;
@@ -65,8 +67,8 @@ public final class LineageEventBuilder extends GobblinEventBuilder {
   @Override
   public GobblinTrackingEvent build() {
     Map<String, String> dataMap = Maps.newHashMap(metadata);
-    dataMap.put(SOURCE, Descriptor.serialize(source));
-    dataMap.put(DESTINATION, Descriptor.serialize(destination));
+    dataMap.put(SOURCE, GSON.toJson(source));
+    dataMap.put(DESTINATION, GSON.toJson(destination));
     return new GobblinTrackingEvent(0L, namespace, name, dataMap);
   }
 
@@ -126,10 +128,10 @@ public final class LineageEventBuilder extends GobblinEventBuilder {
     metadata.forEach((key, value) -> {
       switch (key) {
         case SOURCE:
-          lineageEvent.setSource(Descriptor.deserialize(value));
+          lineageEvent.setSource(GSON.fromJson(value, Descriptor.class));
           break;
         case DESTINATION:
-          lineageEvent.setDestination(Descriptor.deserialize(value));
+          lineageEvent.setDestination(GSON.fromJson(value, Descriptor.class));
           break;
         default:
           lineageEvent.addMetadata(key, value);

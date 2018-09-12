@@ -37,6 +37,13 @@ public class PartitionDescriptor extends Descriptor {
     return new PartitionDescriptor(getName(), dataset);
   }
 
+  /**
+   * Create a copy of partition descriptor under a new dataset
+   */
+  public PartitionDescriptor copy(DatasetDescriptor dataset) {
+    return new PartitionDescriptor(getName(), dataset);
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
