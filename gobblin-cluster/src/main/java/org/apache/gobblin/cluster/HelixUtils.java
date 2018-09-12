@@ -176,12 +176,11 @@ public class HelixUtils {
   static void handleJobTimeout(String workFlowName, String jobName, HelixManager helixManager, Object jobLauncher,
       JobListener jobListener) throws InterruptedException {
     try {
+      log.warn("Timeout occurred for job launcher {} with job {}", jobLauncher.getClass(), jobName);
       if (jobLauncher instanceof GobblinHelixJobLauncher) {
         ((GobblinHelixJobLauncher) jobLauncher).cancelJob(jobListener);
       } else if (jobLauncher instanceof GobblinHelixDistributeJobExecutionLauncher) {
         ((GobblinHelixDistributeJobExecutionLauncher) jobLauncher).cancel();
-      } else {
-        log.warn("Timeout occured for unknown job launcher {}", jobLauncher.getClass());
       }
     } catch (JobException e) {
       throw new RuntimeException("Unable to cancel job " + jobName + ": ", e);

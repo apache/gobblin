@@ -269,12 +269,20 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     }
 
     JobConfig.Builder jobConfigBuilder = new JobConfig.Builder();
-    jobConfigBuilder.setMaxAttemptsPerTask(this.jobContext.getJobState().getPropAsInt(
-        ConfigurationKeys.MAX_TASK_RETRIES_KEY, ConfigurationKeys.DEFAULT_MAX_TASK_RETRIES));
 
+    // Helix task attempts = retries + 1 (fallback to general task retry for backward compatibility)
+    jobConfigBuilder.setMaxAttemptsPerTask(this.jobContext.getJobState().getPropAsInt(
+        GobblinClusterConfigurationKeys.HELIX_MAX_TASK_RETRIES_KEY,
+        this.jobContext.getJobState().getPropAsInt(
+            ConfigurationKeys.MAX_TASK_RETRIES_KEY,
+            ConfigurationKeys.DEFAULT_MAX_TASK_RETRIES)) + 1);
+
+    // Helix task timeout (fallback to general task timeout for backward compatibility)
     jobConfigBuilder.setTimeoutPerTask(this.jobContext.getJobState().getPropAsLong(
-        ConfigurationKeys.HELIX_TASK_TIMEOUT_SECONDS,
-        ConfigurationKeys.DEFAULT_HELIX_TASK_TIMEOUT_SECONDS) * 1000);
+        GobblinClusterConfigurationKeys.HELIX_TASK_TIMEOUT_SECONDS,
+        this.jobContext.getJobState().getPropAsLong(
+            ConfigurationKeys.TASK_TIMEOUT_SECONDS,
+            ConfigurationKeys.DEFAULT_TASK_TIMEOUT_SECONDS)) * 1000);
 
     jobConfigBuilder.setFailureThreshold(workUnits.size());
     jobConfigBuilder.addTaskConfigMap(taskConfigMap).setCommand(GobblinTaskRunner.GOBBLIN_TASK_FACTORY_NAME);
@@ -377,10 +385,12 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   }
 
   private void waitForJobCompletion()  throws InterruptedException {
-    boolean timeoutEnabled = Boolean.parseBoolean(this.jobProps.getProperty(ConfigurationKeys.HELIX_JOB_TIMEOUT_ENABLED_KEY,
-        ConfigurationKeys.DEFAULT_HELIX_JOB_TIMEOUT_ENABLED));
-    long timeoutInSeconds = Long.parseLong(this.jobProps.getProperty(ConfigurationKeys.HELIX_JOB_TIMEOUT_SECONDS,
-        ConfigurationKeys.DEFAULT_HELIX_JOB_TIMEOUT_SECONDS));
+    boolean timeoutEnabled = Boolean.parseBoolean(this.jobProps.getProperty(
+        GobblinClusterConfigurationKeys.HELIX_JOB_TIMEOUT_ENABLED_KEY,
+        GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_TIMEOUT_ENABLED));
+    long timeoutInSeconds = Long.parseLong(this.jobProps.getProperty(
+        GobblinClusterConfigurationKeys.HELIX_JOB_TIMEOUT_SECONDS,
+        GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_TIMEOUT_SECONDS));
 
     try {
       HelixUtils.waitJobCompletion(
