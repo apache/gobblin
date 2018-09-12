@@ -90,9 +90,12 @@ public class FileAwareInputStreamExtractor implements Extractor<String, FileAwar
     return null;
   }
 
+  /**
+   * Each {@link FileAwareInputStreamExtractor} processes exactly one record.
+   */
   @Override
   public long getExpectedRecordCount() {
-    return 0;
+    return 1;
   }
 
   @Override
