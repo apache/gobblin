@@ -184,6 +184,14 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
 
   /**
    * Create a job config builder which has a single task that wraps the original jobProps.
+   *
+   * The planning job (which runs the original {@link GobblinHelixJobLauncher}) will be
+   * executed on one of the Helix participants.
+   *
+   * We rely on the underlying {@link GobblinHelixJobLauncher} to correctly handle the task
+   * execution timeout so that the planning job itself is relieved of the timeout constrain.
+   *
+   * In short, the planning job will run once and requires no timeout.
    */
   private JobConfig.Builder createPlanningJob (Properties jobProps) {
     // Create a single task for job planning
@@ -199,10 +207,15 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
     taskConfigMap.put(planningId, TaskConfig.Builder.from(rawConfigMap));
     JobConfig.Builder jobConfigBuilder = new JobConfig.Builder();
 
-    jobConfigBuilder.setTimeoutPerTask(PropertiesUtils.getPropAsLong(
-        jobProps,
-        ConfigurationKeys.HELIX_TASK_TIMEOUT_SECONDS,
-        ConfigurationKeys.DEFAULT_HELIX_TASK_TIMEOUT_SECONDS) * 1000);
+    // We want GobblinHelixJobLauncher only run once.
+    jobConfigBuilder.setMaxAttemptsPerTask(1);
+
+    // Planning job never timeout (Helix defaults 1h timeout, set a large number '1 month')
+    jobConfigBuilder.setTimeoutPerTask(JobConfig.DEFAULT_TIMEOUT_PER_TASK * 24 * 30);
+
+    jobConfigBuilder.setNumConcurrentTasksPerInstance(PropertiesUtils.getPropAsInt(jobProps,
+        GobblinClusterConfigurationKeys.HELIX_CLUSTER_TASK_CONCURRENCY,
+        GobblinClusterConfigurationKeys.HELIX_CLUSTER_TASK_CONCURRENCY_DEFAULT));
 
     jobConfigBuilder.setFailureThreshold(1);
     jobConfigBuilder.addTaskConfigMap(taskConfigMap).setCommand(GobblinTaskRunner.GOBBLIN_JOB_FACTORY_NAME);
@@ -252,10 +265,10 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
   }
 
   private DistributeJobResult waitForJobCompletion(String workFlowName, String jobName) throws InterruptedException {
-    boolean timeoutEnabled = Boolean.parseBoolean(this.jobProperties.getProperty(ConfigurationKeys.HELIX_JOB_TIMEOUT_ENABLED_KEY,
-        ConfigurationKeys.DEFAULT_HELIX_JOB_TIMEOUT_ENABLED));
-    long timeoutInSeconds = Long.parseLong(this.jobProperties.getProperty(ConfigurationKeys.HELIX_JOB_TIMEOUT_SECONDS,
-        ConfigurationKeys.DEFAULT_HELIX_JOB_TIMEOUT_SECONDS));
+    boolean timeoutEnabled = Boolean.parseBoolean(this.jobProperties.getProperty(GobblinClusterConfigurationKeys.HELIX_JOB_TIMEOUT_ENABLED_KEY,
+        GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_TIMEOUT_ENABLED));
+    long timeoutInSeconds = Long.parseLong(this.jobProperties.getProperty(GobblinClusterConfigurationKeys.HELIX_JOB_TIMEOUT_SECONDS,
+        GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_TIMEOUT_SECONDS));
 
     try {
       HelixUtils.waitJobCompletion(
