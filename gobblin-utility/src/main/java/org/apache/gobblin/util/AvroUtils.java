@@ -387,21 +387,63 @@ public class AvroUtils {
 
   public static void writeSchemaToFile(Schema schema, Path filePath, FileSystem fs, boolean overwrite)
       throws IOException {
-    writeSchemaToFile(schema, filePath, fs, overwrite, new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.READ));
+    writeSchemaToFile(schema, filePath, null, fs, overwrite);
+  }
+
+  public static void writeSchemaToFile(Schema schema, Path filePath, Path tempFilePath, FileSystem fs, boolean overwrite)
+      throws IOException {
+    writeSchemaToFile(schema, filePath, tempFilePath, fs, overwrite, new FsPermission(FsAction.ALL, FsAction.ALL,
+        FsAction.READ));
   }
 
   public static void writeSchemaToFile(Schema schema, Path filePath, FileSystem fs, boolean overwrite, FsPermission perm)
     throws IOException {
+    writeSchemaToFile(schema, filePath, null, fs, overwrite, perm);
+  }
+
+  /**
+   * Write a schema to a file
+   * @param schema the schema
+   * @param filePath the target file
+   * @param tempFilePath if not null then this path is used for a temporary file used to stage the write
+   * @param fs a {@link FileSystem}
+   * @param overwrite should any existing target file be overwritten?
+   * @param perm permissions
+   * @throws IOException
+   */
+  public static void writeSchemaToFile(Schema schema, Path filePath, Path tempFilePath, FileSystem fs, boolean overwrite,
+      FsPermission perm)
+      throws IOException {
+    boolean fileExists = fs.exists(filePath);
+
     if (!overwrite) {
-      Preconditions.checkState(!fs.exists(filePath), filePath + " already exists");
+      Preconditions.checkState(!fileExists, filePath + " already exists");
     } else {
-      HadoopUtils.deletePath(fs, filePath, true);
+      // delete the target file now if not using a staging file
+      if (fileExists && null == tempFilePath) {
+        HadoopUtils.deletePath(fs, filePath, true);
+        // file has been removed
+        fileExists = false;
+      }
     }
 
-    try (DataOutputStream dos = fs.create(filePath)) {
+    // If the file exists then write to a temp file to make the replacement as close to atomic as possible
+    Path writeFilePath = fileExists ? tempFilePath : filePath;
+
+    try (DataOutputStream dos = fs.create(writeFilePath)) {
       dos.writeChars(schema.toString());
     }
-    fs.setPermission(filePath, perm);
+    fs.setPermission(writeFilePath, perm);
+
+    // Replace existing file with the staged file
+    if (fileExists) {
+      if (!fs.delete(filePath, true)) {
+        throw new IOException(
+            String.format("Failed to delete %s while renaming %s to %s", filePath, tempFilePath, filePath));
+      }
+
+      HadoopUtils.movePath(fs, tempFilePath, fs, filePath, true, fs.getConf());
+    }
   }
 
   /**
