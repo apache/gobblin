@@ -52,17 +52,16 @@ public class DatasetCleanerJob extends AbstractJob implements Tool {
     super(id, Logger.getLogger(DatasetCleanerJob.class));
     this.conf = new Configuration();
     State state = new State(props.toProperties());
-    if(props.toProperties().containsKey(ConfigurationKeys.WRITER_FILE_SYSTEM_URI)) {
-      this.datasetCleaner = new DatasetCleaner(WriterUtils.getWriterFs(state), props.toProperties());
-    } else {
-      this.datasetCleaner = new DatasetCleaner(FileSystem.get(getConf()), props.toProperties());
-    }
+    this.datasetCleaner =
+        props.toProperties().containsKey(ConfigurationKeys.WRITER_FILE_SYSTEM_URI) ? new DatasetCleaner(
+            WriterUtils.getWriterFs(state), props.toProperties())
+            : new DatasetCleaner(FileSystem.get(getConf()), props.toProperties());
   }
 
   @Override
   public void run() throws Exception {
     if (this.datasetCleaner != null) {
-        this.datasetCleaner.clean();
+      this.datasetCleaner.clean();
     }
   }
 
