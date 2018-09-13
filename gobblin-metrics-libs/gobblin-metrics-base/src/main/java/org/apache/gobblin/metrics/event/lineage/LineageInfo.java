@@ -94,6 +94,7 @@ public final class LineageInfo {
       ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
           .put(DATASET_RESOLVER_FACTORY, NoopDatasetResolver.FACTORY)
           .build());
+
   private static final Type DESCRIPTOR_LIST_TYPE = new TypeToken<ArrayList<Descriptor>>(){}.getType();
   private static final Gson GSON =
       new GsonBuilder().registerTypeAdapterFactory(new GsonInterfaceAdapter(Descriptor.class)).create();
