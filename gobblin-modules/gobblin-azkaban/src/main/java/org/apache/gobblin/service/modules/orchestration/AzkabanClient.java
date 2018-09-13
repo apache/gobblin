@@ -74,10 +74,10 @@ import lombok.Builder;
  */
 public class AzkabanClient implements Closeable {
   protected final String username;
-  protected final String password;
   protected final String url;
   protected final long sessionExpireInMin; // default value is 12h.
 
+  protected String password;
   protected String sessionId;
   protected long sessionCreationTime = 0;
   protected CloseableHttpClient client;

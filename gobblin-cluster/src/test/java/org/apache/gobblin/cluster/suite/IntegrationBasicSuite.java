@@ -194,7 +194,7 @@ public class IntegrationBasicSuite {
   }
 
   public void waitForAndVerifyOutputFiles() throws Exception {
-    AssertWithBackoff asserter = AssertWithBackoff.create().logger(log).timeoutMs(60_000)
+    AssertWithBackoff asserter = AssertWithBackoff.create().logger(log).timeoutMs(120_000)
         .maxSleepMs(100).backoffFactor(1.5);
 
     asserter.assertTrue(this::hasExpectedFilesBeenCreated, "Waiting for job-completion");
