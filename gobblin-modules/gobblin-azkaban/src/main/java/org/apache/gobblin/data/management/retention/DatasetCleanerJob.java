@@ -19,6 +19,9 @@ package org.apache.gobblin.data.management.retention;
 
 import java.io.IOException;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.util.WriterUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.util.Tool;
@@ -48,7 +51,12 @@ public class DatasetCleanerJob extends AbstractJob implements Tool {
   public DatasetCleanerJob(String id, Props props) throws IOException {
     super(id, Logger.getLogger(DatasetCleanerJob.class));
     this.conf = new Configuration();
-    this.datasetCleaner = new DatasetCleaner(FileSystem.get(getConf()), props.toProperties());
+    State state = new State(props.toProperties());
+    if(props.toProperties().containsKey(ConfigurationKeys.WRITER_FILE_SYSTEM_URI)) {
+      this.datasetCleaner = new DatasetCleaner(WriterUtils.getWriterFs(state), props.toProperties());
+    } else {
+      this.datasetCleaner = new DatasetCleaner(FileSystem.get(getConf()), props.toProperties());
+    }
   }
 
   @Override

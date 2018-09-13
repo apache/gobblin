@@ -103,23 +103,13 @@ public abstract class MultiDatasetFinder implements DatasetsFinder<Dataset> {
           importedBys.addAll(client.getImportedBy(new URI(tag), false));
         }
 
-        FileSystem targetFs;
-        if(this.jobProps.containsKey(ConfigurationKeys.WRITER_FILE_SYSTEM_URI)) {
-          State state = new State(jobProps);
-          targetFs = WriterUtils.getWriterFs(state);
-        } else {
-          targetFs = fs;
-        }
-
-        log.info("Derived Target FS - {}", targetFs.getUri());
-
         for (URI importedBy : importedBys) {
           Config datasetClassConfig = client.getConfig(importedBy);
 
           try {
             this.datasetFinders.add((DatasetsFinder) GobblinConstructorUtils.invokeFirstConstructor(
-                Class.forName(datasetClassConfig.getString(datasetFinderClassKey())), ImmutableList.of(targetFs, jobProps,
-                    datasetClassConfig), ImmutableList.of(targetFs, jobProps)));
+                Class.forName(datasetClassConfig.getString(datasetFinderClassKey())), ImmutableList.of(fs, jobProps,
+                    datasetClassConfig), ImmutableList.of(fs, jobProps)));
             log.info(String.format("Instantiated datasetfinder %s for %s.",
                 datasetClassConfig.getString(datasetFinderClassKey()), importedBy));
           } catch (InstantiationException | IllegalAccessException | IllegalArgumentException
@@ -136,7 +126,7 @@ public abstract class MultiDatasetFinder implements DatasetsFinder<Dataset> {
       }
 
     } catch (IllegalArgumentException | VersionDoesNotExistException | ConfigStoreFactoryDoesNotExistsException
-        | ConfigStoreCreationException | URISyntaxException | IOException e) {
+        | ConfigStoreCreationException | URISyntaxException e) {
       Throwables.propagate(e);
     }
   }
