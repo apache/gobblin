@@ -312,7 +312,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
     } else {
       // Report as partition level lineage
       for (PartitionDescriptor partition : partitions) {
-        descriptors.add(partition.copy(datasetDescriptor));
+        descriptors.add(partition.copyWithNewDataset(datasetDescriptor));
       }
     }
     this.lineageInfo.get().putDestination(descriptors, branchId, state);

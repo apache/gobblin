@@ -42,9 +42,9 @@ public class DescriptorTest {
     String partitionName = "hourly/2018/08/14/18";
     PartitionDescriptor partition = new PartitionDescriptor(partitionName, dataset);
 
-    // Test copy to new dataset
+    // Test copy with new dataset
     DatasetDescriptor dataset2 = new DatasetDescriptor("hive", "/data/tracking/PageViewEvent");
-    Descriptor partition2 = partition.copy(dataset2);
+    Descriptor partition2 = partition.copyWithNewDataset(dataset2);
     Assert.assertEquals(partition2.getName(), partition.getName());
     Assert.assertEquals(((PartitionDescriptor)partition2).getDataset(), dataset2);
 

@@ -47,10 +47,7 @@ public class PartitionDescriptor extends Descriptor {
     return new PartitionDescriptor(getName(), dataset);
   }
 
-  /**
-   * Move partition descriptor to a new dataset. It will copy all fields except {@link #dataset}
-   */
-  public PartitionDescriptor copy(DatasetDescriptor dataset) {
+  public PartitionDescriptor copyWithNewDataset(DatasetDescriptor dataset) {
     return new PartitionDescriptor(getName(), dataset);
   }
 
