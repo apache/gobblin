@@ -20,6 +20,7 @@ package org.apache.gobblin.metrics.event.lineage;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
 import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
@@ -65,9 +66,9 @@ public class LineageEventTest {
     destination01.addMetadata(branch, "1");
     lineageInfo.putDestination(destination01, 1, state0);
 
-    Map<String, LineageEventBuilder> events = LineageInfo.load(state0);
-    verify(events.get("0"), topic, source, destination00);
-    verify(events.get("1"), topic, source, destination01);
+    Map<String, Set<LineageEventBuilder>> events = LineageInfo.load(state0);
+    verify(first(events.get("0")), topic, source, destination00);
+    verify(first(events.get("1")), topic, source, destination01);
 
     State state1 = new State();
     lineageInfo.setSource(source, state1);
@@ -78,8 +79,8 @@ public class LineageEventTest {
     // Test only full fledged lineage events are loaded
     Collection<LineageEventBuilder> eventsList = LineageInfo.load(states);
     Assert.assertTrue(eventsList.size() == 2);
-    Assert.assertEquals(getLineageEvent(eventsList, 0, hdfs), events.get("0"));
-    Assert.assertEquals(getLineageEvent(eventsList, 1, mysql), events.get("1"));
+    Assert.assertEquals(getLineageEvent(eventsList, 0, hdfs), first(events.get("0")));
+    Assert.assertEquals(getLineageEvent(eventsList, 1, mysql), first(events.get("1")));
 
     // There are 3 full fledged lineage events
     DatasetDescriptor destination12 = new DatasetDescriptor(mysql, "kafka.testTopic2");
@@ -87,8 +88,8 @@ public class LineageEventTest {
     lineageInfo.putDestination(destination12, 2, state1);
     eventsList = LineageInfo.load(states);
     Assert.assertTrue(eventsList.size() == 3);
-    Assert.assertEquals(getLineageEvent(eventsList, 0, hdfs), events.get("0"));
-    Assert.assertEquals(getLineageEvent(eventsList, 1, mysql), events.get("1"));
+    Assert.assertEquals(getLineageEvent(eventsList, 0, hdfs), first(events.get("0")));
+    Assert.assertEquals(getLineageEvent(eventsList, 1, mysql), first(events.get("1")));
     verify(getLineageEvent(eventsList, 2, mysql), topic, source, destination12);
 
 
@@ -100,8 +101,8 @@ public class LineageEventTest {
     lineageInfo.putDestination(destination11, 1, state1);
     eventsList = LineageInfo.load(states);
     Assert.assertTrue(eventsList.size() == 4);
-    Assert.assertEquals(getLineageEvent(eventsList, 0, hdfs), events.get("0"));
-    Assert.assertEquals(getLineageEvent(eventsList, 1, mysql), events.get("1"));
+    Assert.assertEquals(getLineageEvent(eventsList, 0, hdfs), first(events.get("0")));
+    Assert.assertEquals(getLineageEvent(eventsList, 1, mysql), first(events.get("1")));
     // Either branch 0 or 2 of state 1 is selected
     LineageEventBuilder event12 = getLineageEvent(eventsList, 0, mysql);
     if (event12 == null) {
@@ -127,8 +128,8 @@ public class LineageEventTest {
     PartitionDescriptor destination = new PartitionDescriptor(partitionName, destinationDataset);
     lineageInfo.putDestination(destination, 0, state);
 
-    Map<String, LineageEventBuilder> events = LineageInfo.load(state);
-    LineageEventBuilder event = events.get("0");
+    Map<String, Set<LineageEventBuilder>> events = LineageInfo.load(state);
+    LineageEventBuilder event = first(events.get("0"));
     verify(event, topic, source, destination);
 
     // Verify gobblin tracking event
@@ -169,5 +170,9 @@ public class LineageEventTest {
     Assert.assertEquals(event.getMetadata().get(GobblinEventBuilder.EVENT_TYPE), LineageEventBuilder.LINEAGE_EVENT_TYPE);
     Assert.assertTrue(event.getSource().equals(source));
     Assert.assertTrue(event.getDestination().equals(destination));
+  }
+
+  private <T> T first(Collection<T> collection) {
+    return collection.iterator().next();
   }
 }

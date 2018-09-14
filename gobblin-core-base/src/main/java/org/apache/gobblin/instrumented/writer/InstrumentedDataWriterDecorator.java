@@ -24,6 +24,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.dataset.Descriptor;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.records.ControlMessageHandler;
@@ -124,6 +125,11 @@ public class InstrumentedDataWriterDecorator<D> extends InstrumentedDataWriterBa
       return ((FinalState) this.embeddedWriter).getFinalState();
     }
     return super.getFinalState();
+  }
+
+  @Override
+  public Descriptor getDataDescriptor() {
+    return this.embeddedWriter.getDataDescriptor();
   }
 
   @Override

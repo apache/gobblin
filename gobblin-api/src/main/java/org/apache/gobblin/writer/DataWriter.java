@@ -21,13 +21,18 @@ import java.io.Closeable;
 import java.io.Flushable;
 import java.io.IOException;
 
+import org.apache.gobblin.dataset.Descriptor;
 import org.apache.gobblin.records.ControlMessageHandler;
 import org.apache.gobblin.records.FlushControlMessageHandler;
 import org.apache.gobblin.stream.RecordEnvelope;
 
 
 /**
- * An interface for data writers.
+ * An interface for data writers
+ *
+ * <p>
+ *   Generally, one work unit has a dedicated {@link DataWriter} instance, which processes only one dataset
+ * </p>
  *
  * @param <D> data record type
  *
@@ -75,6 +80,22 @@ public interface DataWriter<D> extends Closeable, Flushable {
    */
   public long bytesWritten()
       throws IOException;
+
+  /**
+   * The method should return a {@link Descriptor} that represents what the writer is writing
+   *
+   * <p>
+   *   Note that, this information might be useless and discarded by a
+   *   {@link org.apache.gobblin.publisher.DataPublisher}, which determines the final form of dataset or partition
+   * </p>
+   *
+   * @return a {@link org.apache.gobblin.dataset.DatasetDescriptor} if it writes files of a dataset or
+   *         a {@link org.apache.gobblin.dataset.PartitionDescriptor} if it writes files of a dataset partition or
+   *         {@code null} if it is useless
+   */
+  default Descriptor getDataDescriptor() {
+    return null;
+  }
 
   /**
    * Write the input {@link RecordEnvelope}. By default, just call {@link #write(Object)}.
