@@ -17,10 +17,18 @@
 
 package org.apache.gobblin.dataset;
 
+import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.List;
+
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+
+import org.apache.gobblin.util.io.GsonInterfaceAdapter;
 
 
 /**
@@ -44,7 +52,10 @@ import lombok.RequiredArgsConstructor;
 public class Descriptor {
 
   /** Use gson for ser/de */
-  private static final Gson GSON = new Gson();
+  public static final Gson GSON =
+      new GsonBuilder().registerTypeAdapterFactory(new GsonInterfaceAdapter(Descriptor.class)).create();
+  /** Type token for ser/de descriptor list */
+  private static final Type DESCRIPTOR_LIST_TYPE = new TypeToken<ArrayList<Descriptor>>(){}.getType();
 
   /** Name of the resource */
   @Getter
@@ -57,5 +68,44 @@ public class Descriptor {
 
   public Descriptor copy() {
     return new Descriptor(name);
+  }
+
+  /**
+   * Serialize any {@link Descriptor} object as json string
+   *
+   * <p>
+   *   Note: it can serialize subclasses
+   * </p>
+   */
+  public static String toJson(Descriptor descriptor) {
+    return GSON.toJson(descriptor);
+  }
+
+  /**
+   * Deserialize the json string to the a {@link Descriptor} object
+   */
+  public static Descriptor fromJson(String json) {
+    return fromJson(json, Descriptor.class);
+  }
+
+  /**
+   * Deserialize the json string to the specified {@link Descriptor} object
+   */
+  public static <T extends Descriptor> T fromJson(String json, Class<T> clazz) {
+    return GSON.fromJson(json, clazz);
+  }
+
+  /**
+   * Serialize a list of descriptors as json string
+   */
+  public static String toJson(List<Descriptor> descriptors) {
+    return GSON.toJson(descriptors, DESCRIPTOR_LIST_TYPE);
+  }
+
+  /**
+   * Deserialize the string, resulted from {@link #toJson(List)}, to a list of descriptors
+   */
+  public static List<Descriptor> fromJsonList(String jsonList) {
+    return GSON.fromJson(jsonList, DESCRIPTOR_LIST_TYPE);
   }
 }

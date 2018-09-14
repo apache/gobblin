@@ -18,7 +18,6 @@
 package org.apache.gobblin.writer;
 
 import java.io.IOException;
-import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -38,9 +37,6 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.reflect.TypeToken;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -59,7 +55,6 @@ import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.stream.StreamEntity;
 import org.apache.gobblin.util.AvroUtils;
 import org.apache.gobblin.util.FinalState;
-import org.apache.gobblin.util.io.GsonInterfaceAdapter;
 import org.apache.gobblin.writer.partitioner.WriterPartitioner;
 
 
@@ -74,10 +69,6 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
 
   private static final GenericRecord NON_PARTITIONED_WRITER_KEY =
       new GenericData.Record(SchemaBuilder.record("Dummy").fields().endRecord());
-
-  private static final Type PARTITION_LIST_TYPE = new TypeToken<ArrayList<PartitionDescriptor>>(){}.getType();
-  private static final Gson GSON =
-      new GsonBuilder().registerTypeAdapterFactory(new GsonInterfaceAdapter(Descriptor.class)).create();
 
   private int writerIdSuffix = 0;
   private final String baseWriterId;
@@ -249,7 +240,7 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
   public void close()
       throws IOException {
     try {
-      maySerializePartitions();
+      serializePartitionInfoToState();
     } finally {
       this.closer.close();
     }
@@ -388,7 +379,7 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
   /**
    * Serialize partitions info to {@link #state} if they are any
    */
-  private void maySerializePartitions() {
+  private void serializePartitionInfoToState() {
     List<PartitionDescriptor> descriptors = new ArrayList<>();
 
     for (DataWriter writer : partitionWriters.asMap().values()) {
@@ -407,28 +398,28 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
     }
 
     if (descriptors.size() > 0) {
-      state.setProp(getPartitionsKey(branchId), GSON.toJson(descriptors, PARTITION_LIST_TYPE));
+      state.setProp(getPartitionsKey(branchId), PartitionDescriptor.toPartitionJsonList(descriptors));
     } else {
       log.info("Partitions info not available. Will not serialize partitions");
     }
   }
 
   /**
-   * Get the partitions info of a work unit from the {@code state}. Then partitions info will be removed from the
-   * {@code state}. A
+   * Get the partition info of a work unit from the {@code state}. Then partition info will be removed from the
+   * {@code state} to avoid persisting useless information
    *
    * <p>
    *   In Gobblin, only the {@link PartitionedDataWriter} knows all partitions written for a work unit. Each partition
    *   {@link DataWriter} decides the actual form of a dataset partition
    * </p>
    */
-  public static List<PartitionDescriptor> getPartitionsAndClean(State state, int branchId) {
+  public static List<PartitionDescriptor> getPartitionInfoAndClean(State state, int branchId) {
     String partitionsKey = getPartitionsKey(branchId);
     String json = state.getProp(partitionsKey);
     if (Strings.isNullOrEmpty(json)) {
       return Lists.newArrayList();
     }
     state.removeProp(partitionsKey);
-    return GSON.fromJson(json, PARTITION_LIST_TYPE);
+    return PartitionDescriptor.fromPartitionJsonList(json);
   }
 }

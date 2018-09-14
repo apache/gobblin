@@ -17,6 +17,12 @@
 
 package org.apache.gobblin.dataset;
 
+import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.List;
+
+import com.google.gson.reflect.TypeToken;
+
 import lombok.Getter;
 
 
@@ -24,6 +30,10 @@ import lombok.Getter;
  * A {@link Descriptor} to identifies a partition of a dataset
  */
 public class PartitionDescriptor extends Descriptor {
+
+  /** Type token for ser/de partition descriptor list */
+  private static final Type DESCRIPTOR_LIST_TYPE = new TypeToken<ArrayList<PartitionDescriptor>>(){}.getType();
+
   @Getter
   private final DatasetDescriptor dataset;
 
@@ -38,7 +48,7 @@ public class PartitionDescriptor extends Descriptor {
   }
 
   /**
-   * Create a copy of partition descriptor under a new dataset
+   * Move partition descriptor to a new dataset. It will copy all fields except {@link #dataset}
    */
   public PartitionDescriptor copy(DatasetDescriptor dataset) {
     return new PartitionDescriptor(getName(), dataset);
@@ -62,5 +72,19 @@ public class PartitionDescriptor extends Descriptor {
     int result = dataset.hashCode();
     result = 31 * result + getName().hashCode();
     return result;
+  }
+
+  /**
+   * Serialize a list of partition descriptors as json string
+   */
+  public static String toPartitionJsonList(List<PartitionDescriptor> descriptors) {
+    return Descriptor.GSON.toJson(descriptors, DESCRIPTOR_LIST_TYPE);
+  }
+
+  /**
+   * Deserialize the string, resulted from {@link #toPartitionJsonList(List)}, to a list of partition descriptors
+   */
+  public static List<PartitionDescriptor> fromPartitionJsonList(String jsonList) {
+    return Descriptor.GSON.fromJson(jsonList, DESCRIPTOR_LIST_TYPE);
   }
 }

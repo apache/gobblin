@@ -17,24 +17,21 @@
 
 package org.apache.gobblin.metrics.event.lineage;
 
-
 import java.util.Map;
 
 import org.apache.commons.lang.StringUtils;
 
-import org.apache.gobblin.dataset.Descriptor;
-import org.apache.gobblin.metrics.GobblinTrackingEvent;
-import org.apache.gobblin.metrics.event.GobblinEventBuilder;
-import org.apache.gobblin.util.io.GsonInterfaceAdapter;
-
 import com.google.common.base.Joiner;
 import com.google.common.collect.Maps;
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.dataset.Descriptor;
+import org.apache.gobblin.metrics.GobblinTrackingEvent;
+import org.apache.gobblin.metrics.event.GobblinEventBuilder;
 
 
 /**
@@ -51,8 +48,7 @@ public final class LineageEventBuilder extends GobblinEventBuilder {
   static final String DESTINATION = "destination";
   static final String LINEAGE_EVENT_TYPE = "LineageEvent";
 
-  private static final Gson GSON =
-      new GsonBuilder().registerTypeAdapterFactory(new GsonInterfaceAdapter(Descriptor.class)).create();
+  private static final Gson GSON = new Gson();
 
   @Getter @Setter
   private Descriptor source;
@@ -67,8 +63,8 @@ public final class LineageEventBuilder extends GobblinEventBuilder {
   @Override
   public GobblinTrackingEvent build() {
     Map<String, String> dataMap = Maps.newHashMap(metadata);
-    dataMap.put(SOURCE, GSON.toJson(source));
-    dataMap.put(DESTINATION, GSON.toJson(destination));
+    dataMap.put(SOURCE, Descriptor.toJson(source));
+    dataMap.put(DESTINATION, Descriptor.toJson(destination));
     return new GobblinTrackingEvent(0L, namespace, name, dataMap);
   }
 
@@ -128,10 +124,10 @@ public final class LineageEventBuilder extends GobblinEventBuilder {
     metadata.forEach((key, value) -> {
       switch (key) {
         case SOURCE:
-          lineageEvent.setSource(GSON.fromJson(value, Descriptor.class));
+          lineageEvent.setSource(Descriptor.fromJson(value));
           break;
         case DESTINATION:
-          lineageEvent.setDestination(GSON.fromJson(value, Descriptor.class));
+          lineageEvent.setDestination(Descriptor.fromJson(value));
           break;
         default:
           lineageEvent.addMetadata(key, value);

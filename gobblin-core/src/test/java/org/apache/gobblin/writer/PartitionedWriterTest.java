@@ -124,7 +124,7 @@ public class PartitionedWriterTest {
 
     // After close, partitions info is available
     Assert.assertFalse(Strings.isNullOrEmpty(state.getProp(partitionsKey)));
-    List<PartitionDescriptor> partitions = PartitionedDataWriter.getPartitionsAndClean(state, 0);
+    List<PartitionDescriptor> partitions = PartitionedDataWriter.getPartitionInfoAndClean(state, 0);
     Assert.assertTrue(state.getProp(partitionsKey) == null);
     Assert.assertEquals(partitions.size(), 2);
 

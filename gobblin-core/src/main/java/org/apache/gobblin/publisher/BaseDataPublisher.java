@@ -304,7 +304,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
     // Final dataset descriptor
     DatasetDescriptor datasetDescriptor = createDestinationDescriptor(state, branchId);
 
-    List<PartitionDescriptor> partitions = PartitionedDataWriter.getPartitionsAndClean(state, branchId);
+    List<PartitionDescriptor> partitions = PartitionedDataWriter.getPartitionInfoAndClean(state, branchId);
     List<Descriptor> descriptors = new ArrayList<>();
     if (partitions.size() == 0) {
       // Report as dataset level lineage
