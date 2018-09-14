@@ -130,6 +130,11 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
 
     HadoopUtils.addGobblinSite();
 
+    // Configure root metric context
+    List<Tag<?>> tags = Lists.newArrayList();
+    tags.addAll(Tag.fromMap(AzkabanTags.getAzkabanTags()));
+    RootMetricContext.get(tags);
+
     if (props.containsKey(GOBBLIN_LOG_LEVEL_KEY)) {
       Level logLevel = Level.toLevel(props.getProperty(GOBBLIN_LOG_LEVEL_KEY), Level.INFO);
       Logger.getLogger("org.apache.gobblin").setLevel(logLevel);
@@ -198,9 +203,6 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
       jobProps = ConfigUtils.configToProperties(resolvedJob);
     }
 
-    List<Tag<?>> tags = Lists.newArrayList();
-    tags.addAll(Tag.fromMap(AzkabanTags.getAzkabanTags()));
-    RootMetricContext.get(tags);
     GobblinMetrics.addCustomTagsToProperties(jobProps, tags);
 
     // If the job launcher type is not specified in the job configuration,

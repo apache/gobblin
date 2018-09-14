@@ -20,6 +20,7 @@ package org.apache.gobblin.publisher;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -59,19 +60,20 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.dataset.DatasetConstants;
 import org.apache.gobblin.dataset.DatasetDescriptor;
+import org.apache.gobblin.dataset.Descriptor;
+import org.apache.gobblin.dataset.PartitionDescriptor;
 import org.apache.gobblin.metadata.MetadataMerger;
 import org.apache.gobblin.metadata.types.StaticStringMetadataMerger;
 import org.apache.gobblin.metrics.event.lineage.LineageInfo;
-import org.apache.gobblin.util.FileListUtils;
 import org.apache.gobblin.util.ForkOperatorUtils;
 import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.ParallelRunner;
-import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.WriterUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.apache.gobblin.writer.FsDataWriter;
 import org.apache.gobblin.writer.FsWriterMetrics;
 import org.apache.gobblin.writer.PartitionIdentifier;
+import org.apache.gobblin.writer.PartitionedDataWriter;
 
 import static org.apache.gobblin.util.retry.RetryerFactory.*;
 
@@ -294,12 +296,31 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
   }
 
   private void addLineageInfo(WorkUnitState state, int branchId) {
-    DatasetDescriptor destination = createDestinationDescriptor(state, branchId);
-    if (this.lineageInfo.isPresent()) {
-      this.lineageInfo.get().putDestination(destination, branchId, state);
+    if (!this.lineageInfo.isPresent()) {
+      LOG.info("Will not add lineage info");
+      return;
     }
+
+    // Final dataset descriptor
+    DatasetDescriptor datasetDescriptor = createDestinationDescriptor(state, branchId);
+
+    List<PartitionDescriptor> partitions = PartitionedDataWriter.getPartitionInfoAndClean(state, branchId);
+    List<Descriptor> descriptors = new ArrayList<>();
+    if (partitions.size() == 0) {
+      // Report as dataset level lineage
+      descriptors.add(datasetDescriptor);
+    } else {
+      // Report as partition level lineage
+      for (PartitionDescriptor partition : partitions) {
+        descriptors.add(partition.copyWithNewDataset(datasetDescriptor));
+      }
+    }
+    this.lineageInfo.get().putDestination(descriptors, branchId, state);
   }
 
+  /**
+   * Create destination dataset descriptor
+   */
   protected DatasetDescriptor createDestinationDescriptor(WorkUnitState state, int branchId) {
     Path publisherOutputDir = getPublisherOutputDir(state, branchId);
     FileSystem fs = this.publisherFileSystemByBranches.get(branchId);

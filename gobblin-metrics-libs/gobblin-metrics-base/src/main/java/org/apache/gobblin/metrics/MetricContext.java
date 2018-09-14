@@ -733,7 +733,7 @@ public class MetricContext extends MetricRegistry implements ReportableContext, 
      */
     public MetricContext buildStrict() throws NameConflictException {
       if(this.parent == null) {
-        this.parent = RootMetricContext.get();
+        hasParent(RootMetricContext.get());
       }
       return new MetricContext(this.name, this.parent, this.tags, false);
     }

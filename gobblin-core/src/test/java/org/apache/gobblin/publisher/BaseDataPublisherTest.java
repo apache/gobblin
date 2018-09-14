@@ -21,25 +21,27 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.mapreduce.v2.api.records.TaskState;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Files;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
 import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
@@ -47,16 +49,19 @@ import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import org.apache.gobblin.broker.gobblin_scopes.JobScopeInstance;
 import org.apache.gobblin.broker.gobblin_scopes.TaskScopeInstance;
 import org.apache.gobblin.broker.iface.SharedResourcesBroker;
-import org.apache.gobblin.broker.iface.SubscopedBrokerBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.dataset.DatasetDescriptor;
+import org.apache.gobblin.dataset.Descriptor;
+import org.apache.gobblin.dataset.PartitionDescriptor;
 import org.apache.gobblin.metadata.MetadataMerger;
 import org.apache.gobblin.metadata.types.GlobalMetadata;
+import org.apache.gobblin.metrics.event.lineage.LineageEventBuilder;
 import org.apache.gobblin.metrics.event.lineage.LineageInfo;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.ForkOperatorUtils;
+import org.apache.gobblin.util.io.GsonInterfaceAdapter;
 import org.apache.gobblin.writer.FsDataWriter;
 import org.apache.gobblin.writer.FsWriterMetrics;
 import org.apache.gobblin.writer.PartitionIdentifier;
@@ -66,6 +71,10 @@ import org.apache.gobblin.writer.PartitionIdentifier;
  * Tests for BaseDataPublisher
  */
 public class BaseDataPublisherTest {
+  private static final Type PARTITION_LIST_TYPE = new TypeToken<ArrayList<PartitionDescriptor>>(){}.getType();
+  private static final Gson GSON =
+      new GsonBuilder().registerTypeAdapterFactory(new GsonInterfaceAdapter(Descriptor.class)).create();
+
   /**
    * Test DATA_PUBLISHER_METADATA_STR: a user should be able to put an arbitrary metadata string in job configuration
    * and have that written out.
@@ -532,6 +541,9 @@ public class BaseDataPublisherTest {
     }
   }
 
+  /**
+   * Test lineage info is set on publishing single task
+   */
   @Test
   public void testPublishSingleTask()
       throws IOException {
@@ -545,6 +557,9 @@ public class BaseDataPublisherTest {
     Assert.assertFalse(state.contains("gobblin.event.lineage.branch.1.destination"));
   }
 
+  /**
+   * Test lineage info is set on publishing multiple tasks
+   */
   @Test
   public void testPublishMultiTasks()
       throws IOException {
@@ -560,6 +575,69 @@ public class BaseDataPublisherTest {
     Assert.assertTrue(state1.contains("gobblin.event.lineage.branch.1.destination"));
     Assert.assertTrue(state2.contains("gobblin.event.lineage.branch.0.destination"));
     Assert.assertTrue(state2.contains("gobblin.event.lineage.branch.1.destination"));
+  }
+
+  /**
+   * Test partition level lineages are set
+   */
+  @Test
+  public void testPublishedPartitionsLineage()
+      throws IOException {
+    int numBranches = 2;
+    int numPartitionsPerBranch = 2;
+
+    WorkUnitState state = buildTaskState(numBranches);
+    LineageInfo lineageInfo = LineageInfo.getLineageInfo(state.getTaskBroker()).get();
+    DatasetDescriptor source = new DatasetDescriptor("kafka", "testTopic");
+    lineageInfo.setSource(source, state);
+    BaseDataPublisher publisher = new BaseDataPublisher(state);
+
+    // Set up writer partition descriptors
+    DatasetDescriptor datasetAtWriter = new DatasetDescriptor("dummy", "dummy");
+    for (int i = 0; i < numBranches; i++) {
+      List<PartitionDescriptor> partitions = new ArrayList<>();
+      for (int j = 0; j < numPartitionsPerBranch; j++) {
+        // Dummy dataset descriptor will be discarded by publisher
+        partitions.add(new PartitionDescriptor("partition" + i + j, datasetAtWriter));
+      }
+      String partitionsKey = "writer." + i + ".partitions";
+      state.setProp(partitionsKey, GSON.toJson(partitions, PARTITION_LIST_TYPE));
+    }
+
+    publisher.publish(ImmutableList.of(state));
+
+    Assert.assertTrue(state.contains("gobblin.event.lineage.branch.0.destination"));
+    Assert.assertTrue(state.contains("gobblin.event.lineage.branch.1.destination"));
+
+    Collection<LineageEventBuilder> events = LineageInfo.load(ImmutableList.of(state));
+    Assert.assertTrue(events.size() == 4);
+
+    // Find the partition lineage and assert
+    for (int i = 0; i < numBranches; i++) {
+      String outputPath = String.format("/data/output/branch%d/namespace/table", i);
+      DatasetDescriptor destinationDataset = new DatasetDescriptor("file", outputPath);
+      destinationDataset.addMetadata("fsUri", "file:///");
+      destinationDataset.addMetadata("branch", "" + i);
+
+      for (int j = 0; j < numPartitionsPerBranch; j++) {
+        LineageEventBuilder event = find(events, "partition" + i + j);
+        Assert.assertTrue(null != event);
+        Assert.assertEquals(event.getSource(), source);
+        Assert.assertEquals(event.getDestination(),
+            // Dataset written by the writer is discarded
+            new PartitionDescriptor("partition" + i + j, destinationDataset));
+      }
+    }
+  }
+
+  private static LineageEventBuilder find(Collection<LineageEventBuilder> events, String partitionName) {
+    for (LineageEventBuilder event : events) {
+      if (event.getDestination().getName().equals(partitionName)) {
+        return event;
+      }
+    }
+
+    return null;
   }
 
   public static class TestAdditionMerger implements MetadataMerger<String> {

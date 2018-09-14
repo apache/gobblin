@@ -39,6 +39,10 @@ import org.apache.gobblin.codec.StreamCodec;
 import org.apache.gobblin.commit.SpeculativeAttemptAwareConstruct;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.dataset.DatasetConstants;
+import org.apache.gobblin.dataset.DatasetDescriptor;
+import org.apache.gobblin.dataset.Descriptor;
+import org.apache.gobblin.dataset.PartitionDescriptor;
 import org.apache.gobblin.metadata.types.GlobalMetadata;
 import org.apache.gobblin.util.FinalState;
 import org.apache.gobblin.util.ForkOperatorUtils;
@@ -153,6 +157,19 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
     if (builder.getPartitionPath(properties) != null) {
       properties.setProp(ConfigurationKeys.WRITER_PARTITION_PATH_KEY + "_" + builder.getWriterId(), partitionKey);
     }
+  }
+
+  @Override
+  public Descriptor getDataDescriptor() {
+    // Dataset is resulted from WriterUtils.getWriterOutputDir(properties, this.numBranches, this.branchId)
+    // The writer dataset might not be same as the published dataset
+    DatasetDescriptor datasetDescriptor = new DatasetDescriptor(fs.getScheme(), outputFile.getParent().toString());
+
+    if (partitionKey == null) {
+      return datasetDescriptor;
+    }
+
+    return new PartitionDescriptor(partitionKey, datasetDescriptor);
   }
 
   /**
