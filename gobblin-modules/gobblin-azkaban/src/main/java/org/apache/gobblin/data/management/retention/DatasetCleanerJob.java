@@ -51,11 +51,7 @@ public class DatasetCleanerJob extends AbstractJob implements Tool {
   public DatasetCleanerJob(String id, Props props) throws IOException {
     super(id, Logger.getLogger(DatasetCleanerJob.class));
     this.conf = new Configuration();
-    State state = new State(props.toProperties());
-    this.datasetCleaner =
-        props.toProperties().containsKey(ConfigurationKeys.WRITER_FILE_SYSTEM_URI) ? new DatasetCleaner(
-            WriterUtils.getWriterFs(state), props.toProperties())
-            : new DatasetCleaner(FileSystem.get(getConf()), props.toProperties());
+    this.datasetCleaner = new DatasetCleaner(FileSystem.get(getConf()), props.toProperties());
   }
 
   @Override
