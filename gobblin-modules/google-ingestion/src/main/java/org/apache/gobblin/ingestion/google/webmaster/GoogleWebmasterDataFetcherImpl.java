@@ -156,11 +156,6 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
               return -1;
             }
 
-            if (Thread.interrupted()) {
-              log.error(interruptedMsg);
-              return -1;
-            }
-
             try {
               List<String> pages =
                   _client.getPages(_siteProperty, startDate, endDate, country, GoogleWebmasterClient.API_ROW_LIMIT,
@@ -240,9 +235,8 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
         boolean terminated = es.awaitTermination(5, TimeUnit.MINUTES);
         if (!terminated) {
           es.shutdownNow();
-          log.warn(
-              String.format("Timed out while getting all pages for country-%s at round %d. Next round now has size %d.",
-                  country, r, nextRound.size()));
+          log.warn("Timed out while getting all pages for country-{} at round {}. Next round now has size {}.", country,
+              r, nextRound.size());
         }
       } catch (InterruptedException e) {
         throw new RuntimeException(e);
