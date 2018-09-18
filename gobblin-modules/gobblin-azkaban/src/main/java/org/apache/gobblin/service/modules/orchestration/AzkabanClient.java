@@ -66,9 +66,6 @@ import lombok.Builder;
 /**
  * A simple client that uses Ajax API to communicate with Azkaban server.
  *
- * Lombok will not consider fields from the superclass in the generated builder class. For a workaround, we put
- * @Builder in constructors to allow Builder inheritance.
- *
  * @see {@linktourl https://blog.codecentric.de/en/2016/05/reducing-boilerplate-code-project-lombok/}
  * @see {@linktourl https://azkaban.github.io/azkaban/docs/latest/#ajax-api}
  */
