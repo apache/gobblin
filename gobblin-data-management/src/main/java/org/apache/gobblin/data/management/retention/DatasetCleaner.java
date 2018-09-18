@@ -42,6 +42,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 
 import org.apache.gobblin.util.AzkabanTags;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.data.management.retention.dataset.CleanableDataset;
 import org.apache.gobblin.data.management.retention.profile.MultiCleanableDatasetFinder;
@@ -56,6 +57,7 @@ import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.RateControlledFileSystem;
 import org.apache.gobblin.util.executors.ScalingThreadPoolExecutor;
+import org.apache.gobblin.util.WriterUtils;
 
 
 /**
@@ -86,11 +88,14 @@ public class DatasetCleaner implements Instrumentable, Closeable {
 
   public DatasetCleaner(FileSystem fs, Properties props) throws IOException {
 
+    State state = new State(props);
+    FileSystem targetFs =
+        props.containsKey(ConfigurationKeys.WRITER_FILE_SYSTEM_URI) ? WriterUtils.getWriterFs(state) : fs;
     this.closer = Closer.create();
     try {
-      FileSystem optionalRateControlledFs = fs;
+      FileSystem optionalRateControlledFs = targetFs;
       if (props.contains(DATASET_CLEAN_HDFS_CALLS_PER_SECOND_LIMIT)) {
-        optionalRateControlledFs = this.closer.register(new RateControlledFileSystem(fs,
+        optionalRateControlledFs = this.closer.register(new RateControlledFileSystem(targetFs,
             Long.parseLong(props.getProperty(DATASET_CLEAN_HDFS_CALLS_PER_SECOND_LIMIT))));
         ((RateControlledFileSystem) optionalRateControlledFs).startRateControl();
       }
@@ -152,7 +157,6 @@ public class DatasetCleaner implements Instrumentable, Closeable {
           LOG.info("Successfully cleaned: " + dataset.datasetURN());
           Instrumented.markMeter(DatasetCleaner.this.datasetsCleanSuccessMeter);
         }
-
       });
     }
   }
@@ -196,8 +200,8 @@ public class DatasetCleaner implements Instrumentable, Closeable {
 
   @Override
   public void switchMetricContext(List<Tag<?>> tags) {
-    this.metricContext = this.closer
-        .register(Instrumented.newContextFromReferenceContext(this.metricContext, tags, Optional.<String> absent()));
+    this.metricContext = this.closer.register(
+        Instrumented.newContextFromReferenceContext(this.metricContext, tags, Optional.<String>absent()));
     this.regenerateMetrics();
   }
 
