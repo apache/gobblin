@@ -81,6 +81,8 @@ public class AzkabanClient implements Closeable {
   protected String sessionId;
   protected long sessionCreationTime = 0;
   protected CloseableHttpClient client;
+
+  private boolean httpClientProvided = true;
   private static Logger log = LoggerFactory.getLogger(AzkabanClient.class);
 
   /**
@@ -90,14 +92,24 @@ public class AzkabanClient implements Closeable {
   protected AzkabanClient(String username,
                           String password,
                           String url,
-                          long sessionExpireInMin)
+                          long sessionExpireInMin,
+                          CloseableHttpClient httpClient)
       throws AzkabanClientException {
     this.username = username;
     this.password = password;
     this.url = url;
     this.sessionExpireInMin = sessionExpireInMin;
-    this.client = getClient();
+    this.client = httpClient;
+
+    this.initializeClient();
     this.initializeSession();
+  }
+
+  private void initializeClient() throws AzkabanClientException {
+    if (this.client == null) {
+      this.client = getClient();
+      this.httpClientProvided = false;
+    }
   }
 
   /**
@@ -155,7 +167,7 @@ public class AzkabanClient implements Closeable {
           .setDefaultRequestConfig(requestConfig)
           .setConnectionManager(new BasicHttpClientConnectionManager())
           .setSSLSocketFactory(sslsf);
-
+      this.httpClientProvided = true;
       return builder.build();
     } catch (Exception e) {
       throw new AzkabanClientException("HttpClient cannot be created", e);
@@ -470,6 +482,8 @@ public class AzkabanClient implements Closeable {
   @Override
   public void close()
       throws IOException {
-    this.client.close();
+    if (!httpClientProvided) {
+      this.client.close();
+    }
   }
 }

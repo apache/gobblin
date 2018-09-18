@@ -23,15 +23,12 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.net.URI;
 import java.util.Map;
 import java.util.Properties;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
+import org.apache.commons.io.FileUtils;
 import org.junit.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -43,7 +40,6 @@ import com.typesafe.config.ConfigFactory;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.gobblin.configuration.ConfigurationKeys;
 
 
 /**
@@ -54,7 +50,6 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 @Slf4j
 public class AzkabanClientTest {
   private AzkabanClient client = null;
-  private FileSystem fs = null;
   private long sessionExpireInMin = 1;
   @BeforeClass
   public void setup() throws Exception {
@@ -68,8 +63,6 @@ public class AzkabanClientTest {
         .url(url)
         .sessionExpireInMin(sessionExpireInMin)
         .build();
-    String uri = ConfigurationKeys.LOCAL_FS_URI;
-    this.fs = FileSystem.get(URI.create(uri), new Configuration());
   }
 
   @AfterClass
@@ -238,7 +231,7 @@ public class AzkabanClientTest {
         getResourceAsStream("azkakaban-job-basic.properties"));
 
     String basePath = "/tmp/testAzkabanZip";
-    this.fs.delete(new Path(basePath), true);
+    FileUtils.deleteDirectory(new File(basePath));
 
     // create testAzkabanZip/test dir
     File jobDir = new File(basePath, flowName);
