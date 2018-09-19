@@ -30,6 +30,7 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeoutException;
 
 import org.apache.hadoop.fs.Path;
+import org.apache.helix.HelixException;
 import org.apache.helix.HelixManager;
 import org.apache.helix.task.JobConfig;
 import org.apache.helix.task.TaskConfig;
@@ -134,7 +135,8 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
   public void close()  throws IOException {
   }
 
-  private void executeCancellation() {
+  private void executeCancellation() throws InterruptedException {
+    String planningName = getPlanningJobId(this.jobProperties);
     if (this.jobSubmitted) {
       String planningJobId = getPlanningJobId(this.jobPlanningProps);
       try {
@@ -145,8 +147,10 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
           this.helixTaskDriver.waitToStop(planningJobId, 10000L);
           log.info("Stopped the workflow ", planningJobId);
         }
-      } catch (InterruptedException e) {
-        throw new RuntimeException("Failed to stop workflow " + planningJobId + " in Helix", e);
+      } catch (HelixException e) {
+        // Cancellation may throw an exception, but Helix set the job state to STOP and it should eventually stop
+        // We will keep this.cancellationExecuted and this.cancellationRequested to true and not propagate the exception
+        log.error("Failed to stop workflow " + planningName + " in Helix", e);
       }
     }
   }
@@ -320,7 +324,11 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
      */
     @Override
     public boolean cancel(boolean mayInterruptIfRunning) {
-      GobblinHelixDistributeJobExecutionLauncher.this.executeCancellation();
+      try {
+        GobblinHelixDistributeJobExecutionLauncher.this.executeCancellation();
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
       return true;
     }
   }

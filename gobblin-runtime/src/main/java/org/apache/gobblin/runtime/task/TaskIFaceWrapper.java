@@ -42,7 +42,6 @@ public class TaskIFaceWrapper extends Task {
   private final String jobId;
   private final String taskId;
   private final CountDownLatch countDownLatch;
-  private final TaskStateTracker taskStateTracker;
   private int retryCount = 0;
 
   public TaskIFaceWrapper(TaskIFace underlyingTask, TaskContext taskContext, CountDownLatch countDownLatch,
@@ -54,6 +53,7 @@ public class TaskIFaceWrapper extends Task {
     this.taskId = taskContext.getTaskState().getTaskId();
     this.countDownLatch = countDownLatch;
     this.taskStateTracker = taskStateTracker;
+    this.shutdownLatch = new CountDownLatch(1);
   }
 
   @Override

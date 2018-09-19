@@ -45,7 +45,6 @@ import com.google.common.io.Closer;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import javax.annotation.Nullable;
 import lombok.NoArgsConstructor;
 
 import org.apache.gobblin.Constructs;
@@ -138,7 +137,7 @@ public class Task implements TaskIFace {
 
   private final TaskContext taskContext;
   private final TaskState taskState;
-  private final TaskStateTracker taskStateTracker;
+  protected TaskStateTracker taskStateTracker;
   private final TaskExecutor taskExecutor;
   private final Optional<CountDownLatch> countDownLatch;
   private final Map<Optional<Fork>, Optional<Future<?>>> forks = Maps.newLinkedHashMap();
@@ -164,7 +163,7 @@ public class Task implements TaskIFace {
 
   private final AtomicBoolean shutdownRequested;
   private volatile long shutdownRequestedTime = Long.MAX_VALUE;
-  private final CountDownLatch shutdownLatch;
+  protected CountDownLatch shutdownLatch;
   private Future<?> taskFuture;
 
   /**

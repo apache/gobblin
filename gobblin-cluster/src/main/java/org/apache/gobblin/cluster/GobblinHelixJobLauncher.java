@@ -30,6 +30,7 @@ import java.util.concurrent.TimeoutException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.helix.HelixException;
 import org.apache.helix.HelixManager;
 import org.apache.helix.task.JobConfig;
 import org.apache.helix.task.JobQueue;
@@ -180,6 +181,8 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   public void close() throws IOException {
     try {
       executeCancellation();
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
     } finally {
       super.close();
     }
@@ -235,7 +238,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   }
 
   @Override
-  protected void executeCancellation() {
+  protected void executeCancellation() throws InterruptedException {
     if (this.jobSubmitted) {
       try {
         if (this.cancellationRequested && !this.cancellationExecuted) {
@@ -245,8 +248,10 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
           this.helixTaskDriver.waitToStop(this.helixWorkFlowName, 10000L);
           log.info("stopped the workflow ", this.helixWorkFlowName);
         }
-      } catch (InterruptedException e) {
-        throw new RuntimeException("Failed to stop workflow " + helixWorkFlowName + " in Helix", e);
+      } catch (HelixException e) {
+        // Cancellation may throw an exception, but Helix set the job state to STOP and it should eventually stop
+        // We will keep this.cancellationExecuted and this.cancellationRequested to true and not propagate the exception
+        log.error("Failed to stop workflow " + helixWorkFlowName + " in Helix", e);
       }
     }
   }

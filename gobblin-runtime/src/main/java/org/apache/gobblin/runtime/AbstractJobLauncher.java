@@ -18,8 +18,6 @@
 package org.apache.gobblin.runtime;
 
 import java.io.IOException;
-import java.net.URI;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -28,10 +26,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import org.apache.commons.lang.StringUtils;
-import org.apache.gobblin.util.HadoopUtils;
-import org.apache.gobblin.util.WriterUtils;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -48,12 +42,11 @@ import com.google.common.eventbus.EventBus;
 import com.google.common.io.Closer;
 import com.typesafe.config.ConfigFactory;
 
-import org.apache.gobblin.source.Source;
-import org.apache.gobblin.source.WorkUnitStreamSource;
-import org.apache.gobblin.source.workunit.BasicWorkUnitStream;
-import org.apache.gobblin.source.workunit.WorkUnitStream;
-import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import javax.annotation.Nullable;
+import lombok.RequiredArgsConstructor;
+
 import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
+import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import org.apache.gobblin.broker.iface.SharedResourcesBroker;
 import org.apache.gobblin.commit.CommitSequence;
 import org.apache.gobblin.commit.CommitSequenceStore;
@@ -79,9 +72,13 @@ import org.apache.gobblin.runtime.locks.JobLockEventListener;
 import org.apache.gobblin.runtime.locks.JobLockException;
 import org.apache.gobblin.runtime.locks.LegacyJobLockFactoryManager;
 import org.apache.gobblin.runtime.util.JobMetrics;
+import org.apache.gobblin.source.Source;
+import org.apache.gobblin.source.WorkUnitStreamSource;
 import org.apache.gobblin.source.extractor.JobCommitPolicy;
+import org.apache.gobblin.source.workunit.BasicWorkUnitStream;
 import org.apache.gobblin.source.workunit.MultiWorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.source.workunit.WorkUnitStream;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ClusterNameTags;
 import org.apache.gobblin.util.ExecutorsUtils;
@@ -89,9 +86,6 @@ import org.apache.gobblin.util.Id;
 import org.apache.gobblin.util.JobLauncherUtils;
 import org.apache.gobblin.util.ParallelRunner;
 import org.apache.gobblin.writer.initializer.WriterInitializerFactory;
-
-import javax.annotation.Nullable;
-import lombok.RequiredArgsConstructor;
 
 
 /**
@@ -656,7 +650,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   /**
    * Execute the job cancellation.
    */
-  protected abstract void executeCancellation();
+  protected abstract void executeCancellation() throws InterruptedException;
 
   /**
    * Start the scheduled executor for executing job cancellation.
@@ -750,7 +744,11 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         this.jobLockOptional = Optional.of(getJobLock(properties, new JobLockEventListener() {
           @Override
           public void onLost() {
-            executeCancellation();
+            try {
+              executeCancellation();
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+            }
           }
         }));
       }
