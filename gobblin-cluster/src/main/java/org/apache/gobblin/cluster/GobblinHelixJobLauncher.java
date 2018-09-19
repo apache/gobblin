@@ -124,6 +124,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   private final StateStores stateStores;
   private final Config jobConfig;
   private final long workFlowExpiryTimeSeconds;
+  private final long helixJobStopTimeoutSeconds;
 
   public GobblinHelixJobLauncher (Properties jobProps,
                                   final HelixManager helixManager,
@@ -154,6 +155,10 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
         GobblinClusterConfigurationKeys.HELIX_WORKFLOW_EXPIRY_TIME_SECONDS,
         GobblinClusterConfigurationKeys.DEFAULT_HELIX_WORKFLOW_EXPIRY_TIME_SECONDS);
 
+    this.helixJobStopTimeoutSeconds = ConfigUtils.getLong(jobConfig,
+        GobblinClusterConfigurationKeys.HELIX_JOB_STOP_TIME_SECONDS,
+        GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_STOP_TIME_SECONDS);
+
     Config stateStoreJobConfig = ConfigUtils.propertiesToConfig(jobProps)
         .withValue(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigValueFactory.fromAnyRef(
             new URI(appWorkDir.toUri().getScheme(), null, appWorkDir.toUri().getHost(),
@@ -181,8 +186,6 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   public void close() throws IOException {
     try {
       executeCancellation();
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
     } finally {
       super.close();
     }
@@ -238,20 +241,23 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   }
 
   @Override
-  protected void executeCancellation() throws InterruptedException {
+  protected void executeCancellation() {
     if (this.jobSubmitted) {
       try {
         if (this.cancellationRequested && !this.cancellationExecuted) {
           // TODO : fix this when HELIX-1180 is completed
           // work flow should never be deleted explicitly because it has a expiry time
           // If cancellation is requested, we should set the job state to CANCELLED/ABORT
-          this.helixTaskDriver.waitToStop(this.helixWorkFlowName, 10000L);
+          this.helixTaskDriver.waitToStop(this.helixWorkFlowName, this.helixJobStopTimeoutSeconds);
           log.info("stopped the workflow ", this.helixWorkFlowName);
         }
       } catch (HelixException e) {
         // Cancellation may throw an exception, but Helix set the job state to STOP and it should eventually stop
         // We will keep this.cancellationExecuted and this.cancellationRequested to true and not propagate the exception
         log.error("Failed to stop workflow " + helixWorkFlowName + " in Helix", e);
+      } catch (InterruptedException e) {
+        log.error("Thread interrupted while trying to stop the workflow {} in Helix", helixWorkFlowName);
+        Thread.currentThread().interrupt();
       }
     }
   }

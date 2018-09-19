@@ -130,16 +130,14 @@ public class Task implements TaskIFace {
   private static final String TASK_STATE = "taskState";
   private static final String FAILED_TASK_EVENT = "failedTask";
 
-  private final String jobId;
-  private final String taskId;
+  protected String jobId;
+  protected String taskId;
   private final String taskKey;
-  private final boolean isIgnoreCloseFailures;
-
-  private final TaskContext taskContext;
+  protected TaskContext taskContext;
   private final TaskState taskState;
   protected TaskStateTracker taskStateTracker;
   private final TaskExecutor taskExecutor;
-  private final Optional<CountDownLatch> countDownLatch;
+  protected Optional<CountDownLatch> countDownLatch;
   private final Map<Optional<Fork>, Optional<Future<?>>> forks = Maps.newLinkedHashMap();
 
   // Number of task retries

@@ -650,7 +650,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   /**
    * Execute the job cancellation.
    */
-  protected abstract void executeCancellation() throws InterruptedException;
+  protected abstract void executeCancellation();
 
   /**
    * Start the scheduled executor for executing job cancellation.
@@ -744,11 +744,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         this.jobLockOptional = Optional.of(getJobLock(properties, new JobLockEventListener() {
           @Override
           public void onLost() {
-            try {
-              executeCancellation();
-            } catch (InterruptedException e) {
-              Thread.currentThread().interrupt();
-            }
+            executeCancellation();
           }
         }));
       }

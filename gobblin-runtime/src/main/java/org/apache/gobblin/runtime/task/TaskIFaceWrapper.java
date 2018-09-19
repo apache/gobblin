@@ -38,10 +38,6 @@ import org.apache.gobblin.runtime.fork.Fork;
 public class TaskIFaceWrapper extends Task {
 
   private final TaskIFace underlyingTask;
-  private final TaskContext taskContext;
-  private final String jobId;
-  private final String taskId;
-  private final CountDownLatch countDownLatch;
   private int retryCount = 0;
 
   public TaskIFaceWrapper(TaskIFace underlyingTask, TaskContext taskContext, CountDownLatch countDownLatch,
@@ -51,7 +47,7 @@ public class TaskIFaceWrapper extends Task {
     this.taskContext = taskContext;
     this.jobId = taskContext.getTaskState().getJobId();
     this.taskId = taskContext.getTaskState().getTaskId();
-    this.countDownLatch = countDownLatch;
+    this.countDownLatch = Optional.of(countDownLatch);
     this.taskStateTracker = taskStateTracker;
     this.shutdownLatch = new CountDownLatch(1);
   }
@@ -146,8 +142,8 @@ public class TaskIFaceWrapper extends Task {
 
   @Override
   public void markTaskCompletion() {
-    if (this.countDownLatch != null) {
-      this.countDownLatch.countDown();
+    if (this.countDownLatch.isPresent()) {
+      this.countDownLatch.get().countDown();
     }
   }
 
