@@ -17,62 +17,56 @@
 
 package org.apache.gobblin.ingestion.google.webmaster;
 
-import java.io.IOException;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Queue;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-
-import org.apache.commons.lang3.tuple.Pair;
-
 import com.google.api.client.googleapis.batch.BatchRequest;
 import com.google.api.client.googleapis.batch.json.JsonBatchCallback;
 import com.google.api.client.repackaged.com.google.common.base.Preconditions;
 import com.google.api.services.webmasters.model.ApiDimensionFilter;
 import com.google.api.services.webmasters.model.SearchAnalyticsQueryResponse;
 import com.google.common.base.Optional;
-
+import java.io.IOException;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
-
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.limiter.RateBasedLimiter;
 
-import static org.apache.gobblin.ingestion.google.webmaster.GoogleWebmasterFilter.Dimension;
-import static org.apache.gobblin.ingestion.google.webmaster.GoogleWebmasterFilter.FilterOperator;
-import static org.apache.gobblin.ingestion.google.webmaster.GoogleWebmasterFilter.countryFilterToString;
+import static org.apache.gobblin.ingestion.google.webmaster.GoogleWebmasterFilter.*;
 
 
 @Slf4j
 public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
   private final double API_REQUESTS_PER_SECOND;
   private final RateBasedLimiter LIMITER;
-  private final int GET_PAGE_SIZE_TIME_OUT;
+  private final int PAGES_COUNT_COOLDOWN_TIME; //In seconds
+  private final int PAGES_GET_COOLDOWN_TIME; //In seconds
   private final int GET_PAGES_RETRIES;
 
   private final String _siteProperty;
   private final GoogleWebmasterClient _client;
   private final List<ProducerJob> _jobs;
 
-  GoogleWebmasterDataFetcherImpl(String siteProperty, GoogleWebmasterClient client, State wuState)
-      throws IOException {
+  GoogleWebmasterDataFetcherImpl(String siteProperty, GoogleWebmasterClient client, State wuState) throws IOException {
     _siteProperty = siteProperty;
     Preconditions.checkArgument(_siteProperty.endsWith("/"), "The site property must end in \"/\"");
     _client = client;
     _jobs = getHotStartJobs(wuState);
     API_REQUESTS_PER_SECOND = wuState.getPropAsDouble(GoogleWebMasterSource.KEY_PAGES_TUNING_REQUESTS_PER_SECOND, 4.5);
-    GET_PAGE_SIZE_TIME_OUT = wuState.getPropAsInt(GoogleWebMasterSource.KEY_PAGES_TUNING_TIME_OUT, 2);
+    PAGES_COUNT_COOLDOWN_TIME = wuState.getPropAsInt(GoogleWebMasterSource.KEY_PAGES_COUNT_TUNING_COOLDOWN_TIME, 30);
+    PAGES_GET_COOLDOWN_TIME = wuState.getPropAsInt(GoogleWebMasterSource.KEY_PAGES_GET_TUNING_COOLDOWN_TIME, 5);
     LIMITER = new RateBasedLimiter(API_REQUESTS_PER_SECOND, TimeUnit.SECONDS);
     GET_PAGES_RETRIES = wuState.getPropAsInt(GoogleWebMasterSource.KEY_PAGES_TUNING_MAX_RETRIES, 120);
   }
@@ -115,9 +109,8 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
     Collection<String> allPages = getPages(startDate, endDate, requestedDimensions, countryFilter, jobs,
         Math.min(rowLimit, GoogleWebmasterClient.API_ROW_LIMIT));
     int actualSize = allPages.size();
-    log.info(String
-        .format("A total of %d pages fetched for property %s at country-%s from %s to %s", actualSize, _siteProperty,
-            country, startDate, endDate));
+    log.info(String.format("A total of %d pages fetched for property %s at country-%s from %s to %s", actualSize,
+        _siteProperty, country, startDate, endDate));
 
     if (expectedSize != -1 && actualSize != expectedSize) {
       log.warn(String.format("Expected page size is %d, but only able to get %d", expectedSize, actualSize));
@@ -133,9 +126,8 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
   /**
    * @return the size of all pages data set
    */
-  private int getPagesSize(final String startDate, final String endDate, final String country,
-      final List<Dimension> requestedDimensions, final List<ApiDimensionFilter> apiDimensionFilters)
-      throws IOException {
+  int getPagesSize(final String startDate, final String endDate, final String country,
+      final List<Dimension> requestedDimensions, final List<ApiDimensionFilter> apiDimensionFilters) {
     final ExecutorService es = Executors.newCachedThreadPool(
         ExecutorsUtils.newDaemonThreadFactory(Optional.of(log), Optional.of(this.getClass().getSimpleName())));
 
@@ -143,65 +135,78 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
     long groupSize = Math.max(1, Math.round(API_REQUESTS_PER_SECOND));
     List<Future<Integer>> results = new ArrayList<>((int) groupSize);
 
+    int max = -1;
     while (true) {
       for (int i = 0; i < groupSize; ++i) {
         final int start = startRow;
         startRow += GoogleWebmasterClient.API_ROW_LIMIT;
 
-        Future<Integer> submit = es.submit(new Callable<Integer>() {
-          @Override
-          public Integer call() {
-            log.info(String.format("Getting page size from %s...", start));
-            String interruptedMsg = String
-                .format("Interrupted while trying to get the size of all pages for %s. Current start row is %d.",
-                    country, start);
-            while (true) {
-              try {
-                LIMITER.acquirePermits(1);
-              } catch (InterruptedException e) {
-                log.error("RateBasedLimiter: " + interruptedMsg, e);
-                return -1;
-              }
+        Future<Integer> submit = es.submit(() -> {
+          log.info(String.format("Getting page size from %s...", start));
+          String interruptedMsg =
+              String.format("Interrupted while trying to get the size of all pages for %s. Current start row is %d.",
+                  country, start);
+          int r = 0;
+          while (r <= GET_PAGES_RETRIES) {
+            ++r;
+            try {
+              LIMITER.acquirePermits(1);
+            } catch (InterruptedException e) {
+              log.error("RateBasedLimiter: " + interruptedMsg, e);
+              return -1;
+            }
 
-              if (Thread.interrupted()) {
-                log.error(interruptedMsg);
-                return -1;
+            try {
+              List<String> pages =
+                  _client.getPages(_siteProperty, startDate, endDate, country, GoogleWebmasterClient.API_ROW_LIMIT,
+                      requestedDimensions, apiDimensionFilters, start);
+              if (pages.size() == 0) {
+                return 0;
               }
-
-              try {
-                List<String> pages = _client
-                    .getPages(_siteProperty, startDate, endDate, country, GoogleWebmasterClient.API_ROW_LIMIT,
-                        requestedDimensions, apiDimensionFilters, start);
-                if (pages.size() < GoogleWebmasterClient.API_ROW_LIMIT) {
-                  return pages.size() + start;  //Figured out the size
-                } else {
-                  return -1;
-                }
-              } catch (IOException e) {
-                log.info(String.format("Getting page size from %s failed. Retrying...", start));
-              }
+              int totalPages = pages.size() + start;
+              log.info(String.format("At least %s pages exist. Continuing...", totalPages));
+              return totalPages;
+            } catch (IOException e) {
+              log.info(String.format("Getting page size from %s failed due to %s. Retrying...", start, e.getMessage()));
+              coolDown(r, PAGES_COUNT_COOLDOWN_TIME);
             }
           }
+          throw new RuntimeException(String.format(
+              "Getting all pages reaches the maximum number of retires %d. Date range: %s ~ %s. Country: %s.",
+              GET_PAGES_RETRIES, startDate, endDate, country));
         });
         results.add(submit);
       }
-      //Check the results group in order. The first non-negative count indicates the size of total pages.
+
+      List<Integer> pagesCount = new ArrayList<>();
       for (Future<Integer> result : results) {
         try {
-          Integer integer = result.get(GET_PAGE_SIZE_TIME_OUT, TimeUnit.MINUTES);
-          if (integer >= 0) {
-            es.shutdownNow();
-            return integer;
-          }
+          pagesCount.add(result.get());
         } catch (InterruptedException | ExecutionException e) {
           throw new RuntimeException(e);
-        } catch (TimeoutException e) {
-          throw new RuntimeException(String
-              .format("Exceeding the timeout of %d minutes while getting the total size of all pages.",
-                  GET_PAGE_SIZE_TIME_OUT), e);
         }
       }
+
+      if (pagesCount.stream().allMatch(x -> x == 0)) {
+        return max;
+      }
+      max = Math.max(max, Collections.max(pagesCount));
+      if (max % GoogleWebmasterClient.API_ROW_LIMIT != 0) {
+        return max;
+      }
+
       results.clear();
+    }
+  }
+
+  private void coolDown(int r, int secondsInterval) {
+    int milliSeconds = secondsInterval + (r / 5) * secondsInterval;
+    milliSeconds *= 1000;
+    log.info(String.format("Sleeping for %s seconds", milliSeconds / 1000));
+    try {
+      Thread.sleep(milliSeconds);
+    } catch (InterruptedException e1) {
+      throw new RuntimeException(e1);
     }
   }
 
@@ -209,8 +214,7 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
    * Get all pages in an async mode.
    */
   private Collection<String> getPages(String startDate, String endDate, List<Dimension> dimensions,
-      ApiDimensionFilter countryFilter, Queue<Pair<String, FilterOperator>> toProcess, int rowLimit)
-      throws IOException {
+      ApiDimensionFilter countryFilter, Queue<Pair<String, FilterOperator>> toProcess, int rowLimit) {
     String country = GoogleWebmasterFilter.countryFilterToString(countryFilter);
 
     ConcurrentLinkedDeque<String> allPages = new ConcurrentLinkedDeque<>();
@@ -231,9 +235,8 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
         boolean terminated = es.awaitTermination(5, TimeUnit.MINUTES);
         if (!terminated) {
           es.shutdownNow();
-          log.warn(String
-              .format("Timed out while getting all pages for country-%s at round %d. Next round now has size %d.",
-                  country, r, nextRound.size()));
+          log.warn("Timed out while getting all pages for country-{} at round {}. Next round now has size {}.", country,
+              r, nextRound.size());
         }
       } catch (InterruptedException e) {
         throw new RuntimeException(e);
@@ -243,10 +246,11 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
         break;
       }
       toProcess = nextRound;
+      coolDown(r, PAGES_GET_COOLDOWN_TIME);
     }
-    if (r == GET_PAGES_RETRIES) {
-      throw new RuntimeException(String
-          .format("Getting all pages reaches the maximum number of retires %d. Date range: %s ~ %s. Country: %s.",
+    if (r == GET_PAGES_RETRIES + 1) {
+      throw new RuntimeException(
+          String.format("Getting all pages reaches the maximum number of retires %d. Date range: %s ~ %s. Country: %s.",
               GET_PAGES_RETRIES, startDate, endDate, country));
     }
     return allPages;
@@ -276,8 +280,8 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
         List<String> pages;
         try {
           pages = _client.getPages(_siteProperty, startDate, endDate, countryString, rowLimit, dimensions, filters, 0);
-          log.debug(String
-              .format("%d pages fetched for %s market-%s from %s to %s.", pages.size(), jobString, countryString,
+          log.debug(
+              String.format("%d pages fetched for %s market-%s from %s to %s.", pages.size(), jobString, countryString,
                   startDate, endDate));
         } catch (IOException e) {
           log.debug(String.format("%s failed due to %s. Retrying...", jobString, e.getMessage()));
@@ -350,8 +354,8 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
   public List<String[]> performSearchAnalyticsQuery(String startDate, String endDate, int rowLimit,
       List<Dimension> requestedDimensions, List<Metric> requestedMetrics, Collection<ApiDimensionFilter> filters)
       throws IOException {
-    SearchAnalyticsQueryResponse response = _client
-        .createSearchAnalyticsQuery(_siteProperty, startDate, endDate, requestedDimensions,
+    SearchAnalyticsQueryResponse response =
+        _client.createSearchAnalyticsQuery(_siteProperty, startDate, endDate, requestedDimensions,
             GoogleWebmasterFilter.andGroupFilters(filters), rowLimit, 0).execute();
     return convertResponse(requestedMetrics, response);
   }
@@ -359,8 +363,7 @@ public class GoogleWebmasterDataFetcherImpl extends GoogleWebmasterDataFetcher {
   @Override
   public void performSearchAnalyticsQueryInBatch(List<ProducerJob> jobs, List<ArrayList<ApiDimensionFilter>> filterList,
       List<JsonBatchCallback<SearchAnalyticsQueryResponse>> callbackList, List<Dimension> requestedDimensions,
-      int rowLimit)
-      throws IOException {
+      int rowLimit) throws IOException {
     BatchRequest batchRequest = _client.createBatch();
 
     for (int i = 0; i < jobs.size(); ++i) {
