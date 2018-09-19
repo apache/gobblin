@@ -372,7 +372,7 @@ class GoogleWebmasterExtractorIterator extends AsyncIteratorWithDataSink<String[
                 public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders)
                     throws IOException {
                   producer.onFailure(e.getMessage(), job, retries);
-                  log.debug(job.getPage() + " failed");
+                  log.info(job.getPage() + " failed");
                 }
 
                 @Override
