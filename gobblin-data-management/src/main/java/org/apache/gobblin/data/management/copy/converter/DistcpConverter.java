@@ -85,7 +85,7 @@ public abstract class DistcpConverter extends Converter<String, String, FileAwar
     modifyExtensionAtDestination(fileAwareInputStream.getFile());
     try {
       InputStream newInputStream = inputStreamTransformation().apply(fileAwareInputStream.getInputStream());
-      return new SingleRecordIterable<>(new FileAwareInputStream(fileAwareInputStream.getFile(), newInputStream));
+      return new SingleRecordIterable<>(fileAwareInputStream.toBuilder().inputStream(newInputStream).build());
     } catch (RuntimeException re) {
       throw new DataConversionException(re);
     }

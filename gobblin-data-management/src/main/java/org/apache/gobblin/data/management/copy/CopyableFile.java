@@ -352,6 +352,22 @@ public class CopyableFile extends CopyEntity implements File {
   }
 
   /**
+   * @return desired block size for destination file.
+   */
+  public long getBlockSize(FileSystem targetFs) {
+    return getPreserve().preserve(PreserveAttributes.Option.BLOCK_SIZE) ?
+        getOrigin().getBlockSize() : targetFs.getDefaultBlockSize(this.destination);
+  }
+
+  /**
+   * @return desired replication for destination file.
+   */
+  public short getReplication(FileSystem targetFs) {
+    return getPreserve().preserve(PreserveAttributes.Option.REPLICATION) ?
+        getOrigin().getReplication() : targetFs.getDefaultReplication(this.destination);
+  }
+
+  /**
    * Generates a replicable guid to uniquely identify the origin of this {@link CopyableFile}.
    * @return a guid uniquely identifying the origin file.
    */

@@ -17,10 +17,6 @@
 
 package org.apache.gobblin.data.management.copy.publisher;
 
-
-import org.apache.gobblin.configuration.SourceState;
-import org.apache.gobblin.metrics.event.lineage.LineageInfo;
-import org.apache.gobblin.metrics.event.sla.SlaEventKeys;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
@@ -28,6 +24,8 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -41,6 +39,7 @@ import com.google.common.collect.Multimap;
 
 import org.apache.gobblin.commit.CommitStep;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.configuration.WorkUnitState.WorkingState;
@@ -53,18 +52,20 @@ import org.apache.gobblin.data.management.copy.entities.CommitStepCopyEntity;
 import org.apache.gobblin.data.management.copy.entities.PostPublishStep;
 import org.apache.gobblin.data.management.copy.entities.PrePublishStep;
 import org.apache.gobblin.data.management.copy.recovery.RecoveryHelper;
+import org.apache.gobblin.data.management.copy.splitter.DistcpFileSplitter;
 import org.apache.gobblin.data.management.copy.writer.FileAwareInputStreamDataWriter;
 import org.apache.gobblin.data.management.copy.writer.FileAwareInputStreamDataWriterBuilder;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.metrics.event.lineage.LineageInfo;
+import org.apache.gobblin.metrics.event.sla.SlaEventKeys;
 import org.apache.gobblin.publisher.DataPublisher;
 import org.apache.gobblin.publisher.UnpublishedHandling;
 import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.WriterUtils;
 
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * A {@link DataPublisher} to {@link org.apache.gobblin.data.management.copy.CopyEntity}s from task output to final destination.
@@ -184,6 +185,9 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
     CopyableDatasetMetadata metadata = CopyableDatasetMetadata
         .deserialize(datasetWorkUnitStates.iterator().next().getProp(CopySource.SERIALIZED_COPYABLE_DATASET));
     Path datasetWriterOutputPath = new Path(this.writerOutputDir, datasetAndPartition.identifier());
+
+    log.info("Merging all split work units.");
+    DistcpFileSplitter.mergeAllSplitWorkUnits(this.fs, datasetWorkUnitStates);
 
     log.info(String.format("[%s] Publishing fileSet from %s for dataset %s", datasetAndPartition.identifier(),
         datasetWriterOutputPath, metadata.getDatasetURN()));
