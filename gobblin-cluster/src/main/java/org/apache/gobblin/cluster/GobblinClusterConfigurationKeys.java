@@ -125,8 +125,8 @@ public class GobblinClusterConfigurationKeys {
   public static final String HELIX_WORKFLOW_EXPIRY_TIME_SECONDS = GOBBLIN_CLUSTER_PREFIX + "workflow.expirySeconds";
   public static final long DEFAULT_HELIX_WORKFLOW_EXPIRY_TIME_SECONDS = 6 * 60 * 60;
 
-  public static final String HELIX_JOB_STOP_TIME_SECONDS = GOBBLIN_CLUSTER_PREFIX + "helix.job.stop.timeoutSeconds";
-  public static final long DEFAULT_HELIX_JOB_STOP_TIME_SECONDS = 10L;
+  public static final String HELIX_JOB_STOP_TIMEOUT_SECONDS = GOBBLIN_CLUSTER_PREFIX + "helix.job.stopTimeoutSeconds";
+  public static final long DEFAULT_HELIX_JOB_STOP_TIMEOUT_SECONDS = 10L;
   public static final String TASK_RUNNER_SUITE_BUILDER = GOBBLIN_CLUSTER_PREFIX + "taskRunnerSuite.builder";
 
   public static final String HELIX_JOB_TIMEOUT_ENABLED_KEY = "helix.job.timeout.enabled";

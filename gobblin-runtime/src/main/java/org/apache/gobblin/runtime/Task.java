@@ -130,14 +130,14 @@ public class Task implements TaskIFace {
   private static final String TASK_STATE = "taskState";
   private static final String FAILED_TASK_EVENT = "failedTask";
 
-  protected final String jobId;
-  protected final String taskId;
+  private final String jobId;
+  private final String taskId;
   private final String taskKey;
-  protected final TaskContext taskContext;
+  private final TaskContext taskContext;
   private final TaskState taskState;
-  protected final TaskStateTracker taskStateTracker;
+  private final TaskStateTracker taskStateTracker;
   private final TaskExecutor taskExecutor;
-  protected final Optional<CountDownLatch> countDownLatch;
+  private final Optional<CountDownLatch> countDownLatch;
   private final Map<Optional<Fork>, Optional<Future<?>>> forks = Maps.newLinkedHashMap();
 
   // Number of task retries
@@ -162,7 +162,7 @@ public class Task implements TaskIFace {
   private final AtomicBoolean shutdownRequested;
   private volatile long shutdownRequestedTime = Long.MAX_VALUE;
   private final CountDownLatch shutdownLatch;
-  private Future<?> taskFuture;
+  protected Future<?> taskFuture;
 
   /**
    * Instantiate a new {@link Task}.
@@ -313,7 +313,7 @@ public class Task implements TaskIFace {
     return this.shutdownLatch.await(timeoutInMillis, TimeUnit.MILLISECONDS);
   }
 
-  private void completeShutdown() {
+  protected void completeShutdown() {
     this.shutdownLatch.countDown();
   }
 

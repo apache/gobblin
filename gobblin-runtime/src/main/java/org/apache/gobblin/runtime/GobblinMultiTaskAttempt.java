@@ -387,7 +387,7 @@ public class GobblinMultiTaskAttempt {
     Optional<TaskFactory> taskFactoryOpt = TaskUtils.getTaskFactory(workUnitState);
     if (taskFactoryOpt.isPresent()) {
       return new TaskIFaceWrapper(taskFactoryOpt.get().createTask(new TaskContext(workUnitState)), new TaskContext(workUnitState),
-          Optional.of(countDownLatch), this.taskStateTracker);
+          countDownLatch, this.taskStateTracker);
     } else {
       return new Task(new TaskContext(workUnitState), this.taskStateTracker, this.taskExecutor,
           Optional.of(countDownLatch));

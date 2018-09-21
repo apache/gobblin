@@ -156,8 +156,8 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
         GobblinClusterConfigurationKeys.DEFAULT_HELIX_WORKFLOW_EXPIRY_TIME_SECONDS);
 
     this.helixJobStopTimeoutSeconds = ConfigUtils.getLong(jobConfig,
-        GobblinClusterConfigurationKeys.HELIX_JOB_STOP_TIME_SECONDS,
-        GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_STOP_TIME_SECONDS);
+        GobblinClusterConfigurationKeys.HELIX_JOB_STOP_TIMEOUT_SECONDS,
+        GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_STOP_TIMEOUT_SECONDS);
 
     Config stateStoreJobConfig = ConfigUtils.propertiesToConfig(jobProps)
         .withValue(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigValueFactory.fromAnyRef(
@@ -254,7 +254,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
       } catch (HelixException e) {
         // Cancellation may throw an exception, but Helix set the job state to STOP and it should eventually stop
         // We will keep this.cancellationExecuted and this.cancellationRequested to true and not propagate the exception
-        log.error("Failed to stop workflow " + helixWorkFlowName + " in Helix", e);
+        log.error("Failed to stop workflow {} in Helix", helixWorkFlowName, e);
       } catch (InterruptedException e) {
         log.error("Thread interrupted while trying to stop the workflow {} in Helix", helixWorkFlowName);
         Thread.currentThread().interrupt();

@@ -133,8 +133,8 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
     this.helixMetrics = builder.helixMetrics;
 
     this.helixJobStopTimeoutSeconds = ConfigUtils.getLong(combined,
-        GobblinClusterConfigurationKeys.HELIX_JOB_STOP_TIME_SECONDS,
-        GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_STOP_TIME_SECONDS);
+        GobblinClusterConfigurationKeys.HELIX_JOB_STOP_TIMEOUT_SECONDS,
+        GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_STOP_TIMEOUT_SECONDS);
   }
 
   @Override
@@ -155,7 +155,7 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
       } catch (HelixException e) {
         // Cancellation may throw an exception, but Helix set the job state to STOP and it should eventually stop
         // We will keep this.cancellationExecuted and this.cancellationRequested to true and not propagate the exception
-        log.error("Failed to stop workflow " + planningJobId + " in Helix", e);
+        log.error("Failed to stop workflow {} in Helix", planningJobId, e);
       } catch (InterruptedException e) {
         log.error("Thread interrupted while trying to stop the workflow {} in Helix", planningJobId);
         Thread.currentThread().interrupt();
