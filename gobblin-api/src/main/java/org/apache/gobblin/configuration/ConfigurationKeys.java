@@ -658,6 +658,8 @@ public class ConfigurationKeys {
   public static final String METRICS_LOG_DIR_KEY = METRICS_CONFIGURATIONS_PREFIX + "log.dir";
   public static final String METRICS_FILE_SUFFIX = METRICS_CONFIGURATIONS_PREFIX + "reporting.file.suffix";
   public static final String DEFAULT_METRICS_FILE_SUFFIX = "";
+  public static final String FAILURE_REPORTING_FILE_ENABLED_KEY = "failure.reporting.file.enabled";
+  public static final String DEFAULT_FAILURE_REPORTING_FILE_ENABLED = Boolean.toString(true);
   public static final String FAILURE_LOG_DIR_KEY =  "failure.log.dir";
 
   // JMX-based reporting
