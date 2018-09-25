@@ -524,6 +524,12 @@ public class GobblinMetrics {
   }
 
   private void buildFileFailureEventReporter(Properties properties) {
+    if (!Boolean.valueOf(properties.getProperty(ConfigurationKeys.FAILURE_REPORTING_FILE_ENABLED_KEY,
+        ConfigurationKeys.DEFAULT_FAILURE_REPORTING_FILE_ENABLED))) {
+      return;
+    }
+    LOGGER.info("Reporting failure to log files");
+
     if (!properties.containsKey(ConfigurationKeys.FAILURE_LOG_DIR_KEY)) {
       LOGGER.error(
           "Not reporting failure to log files because " + ConfigurationKeys.FAILURE_LOG_DIR_KEY + " is undefined");
