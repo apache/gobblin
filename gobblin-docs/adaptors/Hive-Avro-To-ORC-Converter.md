@@ -74,7 +74,7 @@ By default publishing happens per dataset (dataset = table in this context). If 
 
 # Job Config Properties
 
-These are some of the job config properties used by `KafkaSource` and `KafkaExtractor`.
+These are some of the job config properties used by `HiveAvroToOrcSource` and `HiveConvertExtractor`.
 
 <table style="table-layout: fixed; width: 100%">
   <col width="20%">
