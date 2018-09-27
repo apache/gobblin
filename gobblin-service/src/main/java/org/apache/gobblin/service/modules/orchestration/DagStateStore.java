@@ -49,12 +49,5 @@ public interface DagStateStore {
    * takes over or on restart of service.
    * @return a {@link List} of currently running {@link Dag}s.
    */
-  public List<Dag<JobExecutionPlan>> getRunningDags() throws IOException;
-
-  /**
-   * Generate a dagId from the given {@link Dag} instance.
-   * @param dag instance of a {@link Dag}.
-   * @return a String id associated corresponding to the {@link Dag} instance.
-   */
-  public String generateDagId(Dag<JobExecutionPlan> dag);
+  public List<Dag<JobExecutionPlan>> getDags() throws IOException;
 }

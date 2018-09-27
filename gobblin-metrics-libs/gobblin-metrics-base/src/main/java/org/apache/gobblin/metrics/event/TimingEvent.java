@@ -58,6 +58,11 @@ public class TimingEvent {
     public static final String FLOW_COMPILED = "FlowCompiled";
   }
 
+  public static class JobStatusTimings {
+    public static final String JOB_STATUS_POLLED = "JobStatusPolled";
+    public static final String ALL_JOB_STATUSES_POLLED = "AllJobStatusesPolled";
+  }
+
   public static class FlowEventConstants {
     public static final String FLOW_NAME_FIELD = "flowName";
     public static final String FLOW_GROUP_FIELD = "flowGroup";

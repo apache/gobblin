@@ -18,6 +18,7 @@
 package org.apache.gobblin.service.modules.flowgraph;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -79,11 +80,11 @@ public class Dag<T> {
   }
 
   public List<DagNode<T>> getChildren(DagNode node) {
-    return parentChildMap.getOrDefault(node, null);
+    return parentChildMap.getOrDefault(node, Collections.EMPTY_LIST);
   }
 
   public List<DagNode<T>> getParents(DagNode node) {
-    return node.parentNodes;
+    return (node.parentNodes != null)? node.parentNodes : Collections.EMPTY_LIST;
   }
 
   public boolean isEmpty() {

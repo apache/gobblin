@@ -27,6 +27,7 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.FlowSpec;
@@ -41,10 +42,11 @@ import org.apache.gobblin.util.ConfigUtils;
  * where the {@link JobSpec} will be executed.
  */
 @Data
+@EqualsAndHashCode (exclude = {"executionStatus"})
 public class JobExecutionPlan {
   private final JobSpec jobSpec;
   private final SpecExecutor specExecutor;
-  private transient ExecutionStatus executionStatus = ExecutionStatus.$UNKNOWN;
+  private ExecutionStatus executionStatus = ExecutionStatus.$UNKNOWN;
 
   public static class Factory {
 

@@ -18,10 +18,12 @@
 package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -29,9 +31,11 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -40,6 +44,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecProducer;
@@ -73,50 +78,45 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 @Alpha
 @Slf4j
 public class DagManager extends AbstractIdleService {
-  private static final String WORKFLOW_MANAGER_NUM_THREADS_KEY = "gobblin.service.workflow.manager.num.threads";
-  private static final Integer DEFAULT_WORKFLOW_MANAGER_NUM_THREADS = 3;
-  private static final String JOB_STATUS_POLLING_INTERVAL_KEY = "gobblin.service.workflow.manager.polling.interval";
   private static final Integer DEFAULT_JOB_STATUS_POLLING_INTERVAL = 10;
+  private static final Integer DEFAULT_NUM_THREADS = 3;
   private static final Integer TERMINATION_TIMEOUT = 30;
-  private static final String JOB_STATUS_RETRIEVER_KEY = "gobblin.service.workflow.manager.job.status.retriever";
-  private static final String DAG_STORE_CLASS_KEY = "gobblin.service.workflow.manager.dag.state.store.class";
+
+  public static final String NUM_THREADS_KEY = "gobblin.service.dagManager.numThreads";
+  public static final String JOB_STATUS_POLLING_INTERVAL_KEY = "gobblin.service.dagManager.pollingInterval";
+  public static final String JOB_STATUS_RETRIEVER_KEY = "gobblin.service.dagManager.jobStatusRetriever";
+  public static final String DAG_STORE_CLASS_KEY = "gobblin.service.dagManager.dagStateStoreClass";
+  public static final String DAG_STATESTORE_DIR = "gobblin.service.dagManager.dagStateStoreDir";
 
   private BlockingQueue<Dag<JobExecutionPlan>> queue;
   private ScheduledExecutorService scheduledExecutorPool;
+  private boolean instrumentationEnabled = true;
 
   private final Integer numThreads;
   private final Integer pollingInterval;
   private final JobStatusRetriever jobStatusRetriever;
   private final DagStateStore dagStateStore;
-  private final MetricContext metricContext;
-  private final Optional<EventSubmitter> eventSubmitter;
   private volatile boolean isActive = false;
 
-
-  public DagManager(Config config, boolean instrumentationEnabled) throws ReflectiveOperationException {
-    if (instrumentationEnabled) {
-      this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), getClass());
-      this.eventSubmitter = Optional.of(new EventSubmitter.Builder(this.metricContext, "org.apache.gobblin.service").build());
-    }
-    else {
-      this.metricContext = null;
-      this.eventSubmitter = Optional.absent();
-    }
-
+  public DagManager(Config config, boolean instrumentationEnabled) {
     this.queue = new LinkedBlockingDeque<>();
-    this.numThreads = ConfigUtils.getInt(config,
-        WORKFLOW_MANAGER_NUM_THREADS_KEY, DEFAULT_WORKFLOW_MANAGER_NUM_THREADS);
+    this.numThreads = ConfigUtils.getInt(config, NUM_THREADS_KEY, DEFAULT_NUM_THREADS);
     this.scheduledExecutorPool = Executors.newScheduledThreadPool(numThreads);
     this.pollingInterval = ConfigUtils.getInt(config, JOB_STATUS_POLLING_INTERVAL_KEY, DEFAULT_JOB_STATUS_POLLING_INTERVAL);
+    this.instrumentationEnabled = instrumentationEnabled;
 
-
-    Class jobStatusRetrieverClass = Class.forName(config.getString(JOB_STATUS_RETRIEVER_KEY));
-    this.jobStatusRetriever = (JobStatusRetriever) GobblinConstructorUtils.invokeLongestConstructor(jobStatusRetrieverClass, config);
-    Class dagStateStoreClass = Class.forName(config.getString(DAG_STORE_CLASS_KEY));
-    this.dagStateStore = (DagStateStore) GobblinConstructorUtils.invokeLongestConstructor(dagStateStoreClass, config);
+    try {
+      Class jobStatusRetrieverClass = Class.forName(config.getString(JOB_STATUS_RETRIEVER_KEY));
+      this.jobStatusRetriever =
+          (JobStatusRetriever) GobblinConstructorUtils.invokeLongestConstructor(jobStatusRetrieverClass);
+      Class dagStateStoreClass = Class.forName(config.getString(DAG_STORE_CLASS_KEY));
+      this.dagStateStore = (DagStateStore) GobblinConstructorUtils.invokeLongestConstructor(dagStateStoreClass, config);
+    } catch (ReflectiveOperationException e) {
+      throw new RuntimeException("Exception encountered during DagManager initialization", e);
+    }
   }
 
-  public DagManager(Config config) throws ReflectiveOperationException {
+  public DagManager(Config config) {
     this(config, true);
   }
 
@@ -124,10 +124,10 @@ public class DagManager extends AbstractIdleService {
    * fixed intervals. The service also loads any {@link Dag}s
    */
   @Override
-  protected void startUp() throws Exception {
+  protected void startUp() {
     //On startup, the service creates tasks that are scheduled at a fixed rate.
     for (int i = 0; i < numThreads; i++) {
-      this.scheduledExecutorPool.scheduleAtFixedRate(new DagManagerThread(jobStatusRetriever, dagStateStore), 0, this.pollingInterval,
+      this.scheduledExecutorPool.scheduleAtFixedRate(new DagManagerThread(jobStatusRetriever, dagStateStore, queue, instrumentationEnabled), 0, this.pollingInterval,
           TimeUnit.SECONDS);
     }
   }
@@ -136,13 +136,13 @@ public class DagManager extends AbstractIdleService {
    * Method to submit a {@link Dag} to the {@link DagManager}. The {@link DagManager} first persists the
    * submitted dag to the {@link DagStateStore} and then adds the dag to a {@link BlockingQueue} to be picked up
    * by one of the {@link DagManagerThread}s.
-   * @param dag
-   * @throws IOException
    */
-  public void offer(Dag<JobExecutionPlan> dag) throws IOException {
+  public synchronized void offer(Dag<JobExecutionPlan> dag) throws IOException {
+    //Persist the dag
     this.dagStateStore.writeCheckpoint(dag);
+    //Add it to the queue of dags
     if (!this.queue.offer(dag)) {
-      throw new IOException("Could not add dag" + this.dagStateStore.generateDagId(dag) + "to queue");
+      throw new IOException("Could not add dag" + DagManagerUtils.generateDagId(dag) + "to queue");
     }
   }
 
@@ -151,13 +151,12 @@ public class DagManager extends AbstractIdleService {
    * from the checkpoint directory, deserializes the {@link Dag}s and adds them to a queue to be consumed by
    * the {@link DagManagerThread}s.
    * @param active a boolean to indicate if the {@link DagManager} is the leader.
-   * @throws IOException
    */
   public synchronized void setActive(boolean active) {
     this.isActive = active;
     try {
       if (this.isActive) {
-        for (Dag dag : dagStateStore.getRunningDags()) {
+        for (Dag<JobExecutionPlan> dag : dagStateStore.getDags()) {
           offer(dag);
         }
       }
@@ -174,19 +173,32 @@ public class DagManager extends AbstractIdleService {
    *   <li> Polls the job status store for the current job statuses of all the running jobs it manages.</li>
    * </ol>
    */
-  public class DagManagerThread implements Runnable {
-    private Map<Dag.DagNode<JobExecutionPlan>, Dag<JobExecutionPlan>> runningJobs = new HashMap<>();
-    private Map<String, Dag<JobExecutionPlan>> runningDags = new HashMap<>();
+  public static class DagManagerThread implements Runnable {
+    private Map<Dag.DagNode<JobExecutionPlan>, Dag<JobExecutionPlan>> jobToDag = new HashMap<>();
+    private Map<String, Dag<JobExecutionPlan>> dags = new HashMap<>();
+    private Map<String, LinkedList<Dag.DagNode<JobExecutionPlan>>> dagToJobs = new HashMap<>();
+    private Set<String> failedDagIds = new HashSet<>();
     private JobStatusRetriever jobStatusRetriever;
     private DagStateStore dagStateStore;
+    private BlockingQueue<Dag<JobExecutionPlan>> queue;
+    private final MetricContext metricContext;
+    private final Optional<EventSubmitter> eventSubmitter;
 
     /**
      * Constructor.
-     * @param jobStatusRetriever
      */
-    public DagManagerThread(JobStatusRetriever jobStatusRetriever, DagStateStore dagStateStore) {
+    public DagManagerThread(JobStatusRetriever jobStatusRetriever, DagStateStore dagStateStore, BlockingQueue<Dag<JobExecutionPlan>> queue,
+        boolean instrumentationEnaled) {
       this.jobStatusRetriever = jobStatusRetriever;
       this.dagStateStore = dagStateStore;
+      this.queue = queue;
+      if (instrumentationEnaled) {
+        this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
+        this.eventSubmitter = Optional.of(new EventSubmitter.Builder(this.metricContext, "org.apache.gobblin.service").build());
+      } else {
+        this.metricContext = null;
+        this.eventSubmitter = Optional.absent();
+      }
     }
 
     /**
@@ -203,203 +215,223 @@ public class DagManager extends AbstractIdleService {
           //Initialize dag.
           initialize(dag);
         }
+        log.info("Polling job statuses..");
+        TimingEvent jobStatusPollTimer = this.eventSubmitter.isPresent()
+            ? eventSubmitter.get().getTimingEvent(TimingEvent.JobStatusTimings.ALL_JOB_STATUSES_POLLED)
+            : null;
         //Poll and update the job statuses of running jobs.
         pollJobStatuses();
+        log.info("Poll done.");
+        if (jobStatusPollTimer != null) {
+          jobStatusPollTimer.stop();
+        }
+        //Clean up any finished dags
+        log.info("Cleaning up finished dags..");
+        cleanUp();
+        log.info("Clean up done");
       } catch (Exception e) {
         log.error("Exception encountered in {}", getClass().getName(), e);
       }
     }
 
     /**
-     * Traverse the dag to determine the next set of nodes to be executed. It starts with the startNodes of the dag and
-     * identifies each node yet to be executed and for which each of its parent nodes is in the {@link ExecutionStatus#COMPLETE}
-     * state.
-     * @param dag
-     * @return
-     */
-    private List<Dag.DagNode<JobExecutionPlan>> getNext(Dag<JobExecutionPlan> dag) {
-      List<Dag.DagNode<JobExecutionPlan>> nextNodes = new ArrayList<>();
-      List<Dag.DagNode<JobExecutionPlan>> nodesToExpand = Lists.newArrayList();
-      nodesToExpand.addAll(dag.getStartNodes());
-      for (Dag.DagNode<JobExecutionPlan> node: nodesToExpand) {
-        if (node.getValue().getExecutionStatus() == ExecutionStatus.$UNKNOWN) {
-          List<Dag.DagNode<JobExecutionPlan>> parentNodes = node.getParentNodes();
-          for (Dag.DagNode<JobExecutionPlan> parentNode: parentNodes) {
-            if (parentNode.getValue().getExecutionStatus() != ExecutionStatus.COMPLETE) {
-              continue;
-            }
-          }
-          nextNodes.add(node);
-        } else if (node.getValue().getExecutionStatus() == ExecutionStatus.COMPLETE) {
-          nodesToExpand.add(node);
-        } else {
-          return new ArrayList<>();
-        }
-      }
-      return nextNodes;
-    }
-
-    /**
      * This method determines the next set of jobs to execute from the dag and submits them for execution.
      * This method updates internal data structures tracking currently running Dags and jobs.
-     * @param dag
-     * @throws IOException
      */
-    private void initialize(Dag<JobExecutionPlan> dag) throws IOException {
+    private void initialize(Dag<JobExecutionPlan> dag)
+        throws IOException {
       //Add Dag to the map of running dags
-      String dagId = this.dagStateStore.generateDagId(dag);
-      if (this.runningDags.containsKey(dagId)) {
+      String dagId = DagManagerUtils.generateDagId(dag);
+      log.info("Initializing Dag {}", dagId);
+      if (this.dags.containsKey(dagId)) {
         log.warn("Already tracking a dag with dagId {}, skipping.", dagId);
         return;
       }
 
-      this.runningDags.put(dagId, dag);
-
+      this.dags.put(dagId, dag);
+      log.info("Dag {} - determining if any jobs are already running.");
       //Are there any jobs already in the running state? This check is for Dags already running
       //before a leadership change occurs.
-      for(Dag.DagNode<JobExecutionPlan> dagNode: dag.getNodes()) {
-        if (dagNode.getValue().getExecutionStatus() == ExecutionStatus.RUNNING) {
-          this.runningJobs.put(dagNode, dag);
+      for (Dag.DagNode<JobExecutionPlan> dagNode : dag.getNodes()) {
+        if (DagManagerUtils.getExecutionStatus(dagNode) == ExecutionStatus.RUNNING) {
+          addJobState(dagId, dagNode);
         }
       }
-
-      //Determine the next set of jobs to run
-      for (Dag.DagNode<JobExecutionPlan> dagNode : getNext(dag)) {
-        submitJob(dagNode, dag);
-      }
-
-      //Checkpoint the dag state
-      this.dagStateStore.writeCheckpoint(dag);
-    }
-
-    /**
-     * A helper method to submit a job for execution and update internal state.
-     * @param dagNode
-     * @param dag
-     */
-    private void submitJob(Dag.DagNode<JobExecutionPlan> dagNode, Dag<JobExecutionPlan> dag) {
-      JobExecutionPlan plan = dagNode.getValue();
-      plan.setExecutionStatus(ExecutionStatus.RUNNING);
-      submitJobToSpecExecutor(plan);
-      //Add the jobs to the list of running jobs to be monitored.
-      this.runningJobs.put(dagNode, dag);
-    }
-
-    /**
-     * Submits a {@link JobSpec} to a {@link org.apache.gobblin.runtime.api.SpecExecutor}.
-     * @param jobExecutionPlan
-     */
-    private void submitJobToSpecExecutor(JobExecutionPlan jobExecutionPlan) {
-      // Run this spec on selected executor
-      SpecProducer producer = null;
-      try {
-        producer = jobExecutionPlan.getSpecExecutor().getProducer().get();
-        JobSpec jobSpec = jobExecutionPlan.getJobSpec();
-
-        if (!jobSpec.getConfig().hasPath(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
-          log.warn("JobSpec does not contain flowExecutionId.");
-        }
-        producer.addSpec(jobSpec);
-      } catch (Exception e) {
-        log.error("Cannot submit job: {}, on executor: ", jobExecutionPlan.getJobSpec(), producer, e);
-      }
+      log.info("Dag {} submitting jobs ready for execution.");
+      //Determine the next set of jobs to run and submit them for execution
+      submitNext(dagId);
+      log.info("Dag {} Initialization complete.");
     }
 
     /**
      * Poll the statuses of running jobs.
      * @return List of {@link JobStatus}es.
      */
-    private void pollJobStatuses() throws IOException {
-      for (Dag.DagNode<JobExecutionPlan> node : this.runningJobs.keySet()) {
-        JobExecutionPlan plan = node.getValue();
-        JobStatus jobStatus = getJobStatus(plan);
-
+    private void pollJobStatuses()
+        throws IOException {
+      this.failedDagIds = new HashSet<>();
+      for (Dag.DagNode<JobExecutionPlan> node : this.jobToDag.keySet()) {
+        TimingEvent jobStatusPollTimer = this.eventSubmitter.isPresent()
+            ? eventSubmitter.get().getTimingEvent(TimingEvent.JobStatusTimings.JOB_STATUS_POLLED)
+            : null;
+        JobStatus jobStatus = pollJobStatus(node);
+        if (jobStatusPollTimer != null) {
+          jobStatusPollTimer.stop();
+        }
+        Preconditions.checkNotNull(jobStatus, "Received null job status for a running job " + DagManagerUtils.getJobName(node));
+        JobExecutionPlan jobExecutionPlan = DagManagerUtils.getJobExecutionPlan(node);
         //TODO: This will be updated when JobStatus schema provides the correct execution status.
         //Currently, it is a placeholder.
-        switch (jobStatus.getMessage()) {
-          case "COMPLETE":
-            plan.setExecutionStatus(ExecutionStatus.COMPLETE);
+        switch (jobStatus.getEventName()) {
+          case TimingEvent.LauncherTimings.JOB_COMPLETE:
+            jobExecutionPlan.setExecutionStatus(ExecutionStatus.COMPLETE);
             onJobFinish(node);
             break;
-          case "FAILED":
-            plan.setExecutionStatus(ExecutionStatus.FAILED);
+          case TimingEvent.LauncherTimings.JOB_FAILED:
+            jobExecutionPlan.setExecutionStatus(ExecutionStatus.FAILED);
             onJobFinish(node);
-            break;
-          case "RUNNING":
-            plan.setExecutionStatus(ExecutionStatus.RUNNING);
             break;
           default:
-            plan.setExecutionStatus(ExecutionStatus.$UNKNOWN);
+            jobExecutionPlan.setExecutionStatus(ExecutionStatus.RUNNING);
             break;
         }
+      }
+    }
+
+    /**
+     * Retrieve the {@link JobStatus} from the {@link JobExecutionPlan}.
+     */
+    private JobStatus pollJobStatus(Dag.DagNode<JobExecutionPlan> dagNode) {
+      Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
+      String flowGroup = jobConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
+      String flowName = jobConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
+      long flowExecutionId = jobConfig.getLong(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
+      String jobGroup = jobConfig.getString(ConfigurationKeys.JOB_GROUP_KEY);
+      String jobName = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
+
+      Iterator<JobStatus> jobStatusIterator =
+          this.jobStatusRetriever.getJobStatusForFlowExecution(flowGroup, flowName, flowExecutionId, jobGroup, jobName);
+      if (jobStatusIterator.hasNext()) {
+        return jobStatusIterator.next();
+      } else {
+        return null;
+      }
+    }
+
+    public void submitNext(String dagId)
+        throws IOException {
+      Dag<JobExecutionPlan> dag = this.dags.get(dagId);
+      //Submit jobs from the dag ready for execution.
+      for (Dag.DagNode<JobExecutionPlan> dagNode : DagManagerUtils.getNext(dag)) {
+        submitJob(dagNode);
+        addJobState(dagId, dagNode);
+      }
+      //Checkpoint the dag state
+      this.dagStateStore.writeCheckpoint(dag);
+    }
+
+    /**
+     * Submits a {@link JobSpec} to a {@link org.apache.gobblin.runtime.api.SpecExecutor}.
+     */
+    private void submitJob(Dag.DagNode<JobExecutionPlan> dagNode) {
+      JobExecutionPlan jobExecutionPlan = DagManagerUtils.getJobExecutionPlan(dagNode);
+      jobExecutionPlan.setExecutionStatus(ExecutionStatus.RUNNING);
+      JobSpec jobSpec = DagManagerUtils.getJobSpec(dagNode);
+
+      // Run this spec on selected executor
+      SpecProducer producer = null;
+      try {
+        producer = DagManagerUtils.getSpecProducer(dagNode);
+        Config jobConfig = DagManagerUtils.getJobConfig(dagNode);
+        if (!jobConfig.hasPath(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
+          log.warn("JobSpec does not contain flowExecutionId.");
+        }
+        log.info("Submitting job: {} on executor: {}", jobSpec, producer);
+        producer.addSpec(jobSpec);
+      } catch (Exception e) {
+        log.error("Cannot submit job: {} on executor: {}", jobSpec, producer, e);
       }
     }
 
     /**
      * Method that defines the actions to be performed when a job finishes either successfully or with failure.
      * This method updates the state of the dag and performs clean up actions as necessary.
-     * @param dagNode
-     * @throws IOException
      */
-    private void onJobFinish(Dag.DagNode<JobExecutionPlan> dagNode) throws IOException {
-      JobExecutionPlan plan = dagNode.getValue();
-      if (plan.getExecutionStatus() == ExecutionStatus.COMPLETE) {
-        Dag<JobExecutionPlan> dag = this.runningJobs.get(dagNode);
-        List<Dag.DagNode<JobExecutionPlan>> nextNodes = getNext(dag);
-        if (!nextNodes.isEmpty()) {
-          this.dagStateStore.writeCheckpoint(dag);
-          //Get next set of jobs to execute
-          for (Dag.DagNode<JobExecutionPlan> nextNode : nextNodes) {
-            submitJob(nextNode, dag);
-          }
+    private void onJobFinish(Dag.DagNode<JobExecutionPlan> dagNode)
+        throws IOException {
+      Dag<JobExecutionPlan> dag = this.jobToDag.get(dagNode);
+      String dagId = DagManagerUtils.generateDagId(dag);
+      String jobName = DagManagerUtils.getJobName(dagNode);
+      ExecutionStatus jobStatus = DagManagerUtils.getExecutionStatus(dagNode);
+      log.info("Job {} of Dag {} has finished with status {}", jobName, dagId, jobStatus.name());
+
+      deleteJobState(dagId, dagNode);
+
+      if (jobStatus == ExecutionStatus.COMPLETE) {
+        submitNext(dagId);
+      } else if (jobStatus == ExecutionStatus.FAILED) {
+        this.failedDagIds.add(dagId);
+      }
+    }
+
+    private void deleteJobState(String dagId, Dag.DagNode<JobExecutionPlan> dagNode) {
+      this.jobToDag.remove(dagNode);
+      this.dagToJobs.get(dagId).remove(dagNode);
+    }
+
+    private void addJobState(String dagId, Dag.DagNode<JobExecutionPlan> dagNode) {
+      Dag<JobExecutionPlan> dag = this.dags.get(dagId);
+      this.jobToDag.put(dagNode, dag);
+      if (this.dagToJobs.containsKey(dagId)) {
+        this.dagToJobs.get(dagId).add(dagNode);
+      } else {
+        LinkedList<Dag.DagNode<JobExecutionPlan>> dagNodeList = Lists.newLinkedList();
+        dagNodeList.add(dagNode);
+        this.dagToJobs.put(dagId, dagNodeList);
+      }
+    }
+
+    private boolean hasRunningJobs(String dagId) {
+      return !this.dagToJobs.get(dagId).isEmpty();
+    }
+
+    /**
+     * Perform clean up. Remove a dag from the dagstore if the dag is complete and update internal state.
+     */
+    private void cleanUp() {
+      //Clean up failed dags
+      for (String dagId : this.failedDagIds) {
+        //Skip monitoring of any other jobs of the failed dag.
+        LinkedList<Dag.DagNode<JobExecutionPlan>> dagNodeList = this.dagToJobs.get(dagId);
+        while (!dagNodeList.isEmpty()) {
+          Dag.DagNode<JobExecutionPlan> dagNode = dagNodeList.poll();
+          deleteJobState(dagId, dagNode);
+        }
+        log.info("Dag {} has finished with status FAILED; Cleaning up dag from the state store.", dagId);
+        cleanUpDag(dagId);
+      }
+
+      //Clean up successfully completed dags
+      for (String dagId : this.dags.keySet()) {
+        if (!hasRunningJobs(dagId)) {
+          log.info("Dag {} has finished with status COMPLETE; Cleaning up dag from the state store.", dagId);
+          cleanUpDag(dagId);
         }
       }
-      cleanUp(dagNode);
     }
 
-    private boolean isJobFinished(JobExecutionPlan jobExecutionPlan) {
-      return jobExecutionPlan.getExecutionStatus() == ExecutionStatus.COMPLETE ||
-          jobExecutionPlan.getExecutionStatus() == ExecutionStatus.FAILED;
-    }
-
-    /**
-     * Clean up
-     * @param dagNode
-     */
-    private void cleanUp(Dag.DagNode<JobExecutionPlan> dagNode) {
-      Dag<JobExecutionPlan> dag = this.runningJobs.get(dagNode);
-      this.runningJobs.remove(dagNode);
-
-      //Check if any other node in the dag is not finished
-      for (Dag.DagNode<JobExecutionPlan> node: dag.getNodes()) {
-        if (!isJobFinished(node.getValue()))
-          return;
-      }
-
-      this.runningDags.remove(this.dagStateStore.generateDagId(dag));
+    private void cleanUpDag(String dagId) {
+      Dag<JobExecutionPlan> dag = this.dags.get(dagId);
+      this.dagToJobs.remove(dagId);
+      this.dags.remove(dagId);
       this.dagStateStore.cleanUp(dag);
-    }
-
-    /**
-     * Retrieve the {@link JobStatus} from the {@link JobExecutionPlan}.
-     * @param jobExecutionPlan
-     * @return {@link JobStatus}.
-     */
-    private JobStatus getJobStatus(JobExecutionPlan jobExecutionPlan) {
-      Config jobConfig = jobExecutionPlan.getJobSpec().getConfig();
-      String flowGroup = jobConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
-      String flowName = jobConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
-      Long flowExecutionId = jobConfig.getLong(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
-      String jobGroup = jobConfig.getString(ConfigurationKeys.JOB_GROUP_KEY);
-      String jobName = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
-
-      return this.jobStatusRetriever.getJobStatusForFlowExecution(flowGroup, flowName, flowExecutionId, jobGroup, jobName);
     }
   }
 
   /** Stop the service. */
   @Override
-  protected void shutDown() throws Exception {
+  protected void shutDown()
+      throws Exception {
     this.scheduledExecutorPool.shutdown();
     this.scheduledExecutorPool.awaitTermination(TERMINATION_TIMEOUT, TimeUnit.SECONDS);
   }
