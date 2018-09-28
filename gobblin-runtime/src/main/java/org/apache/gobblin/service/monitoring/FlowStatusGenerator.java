@@ -18,15 +18,10 @@
 package org.apache.gobblin.service.monitoring;
 
 import java.util.Iterator;
-import java.util.List;
-
-import org.apache.commons.lang.StringUtils;
-
-import com.google.common.collect.Lists;
-
-import org.apache.gobblin.annotation.Alpha;
 
 import lombok.Builder;
+
+import org.apache.gobblin.annotation.Alpha;
 
 
 /**
@@ -47,7 +42,7 @@ public class FlowStatusGenerator {
     FlowStatus flowStatus = null;
     long latestExecutionId = jobStatusRetriever.getLatestExecutionIdForFlow(flowName, flowGroup);
 
-    if (latestExecutionId != -1l) {
+    if (latestExecutionId != -1L) {
       flowStatus = getFlowStatus(flowName, flowGroup, latestExecutionId);
     }
 

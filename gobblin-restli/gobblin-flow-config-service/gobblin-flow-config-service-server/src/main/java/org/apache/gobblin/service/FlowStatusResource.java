@@ -17,14 +17,10 @@
 
 package org.apache.gobblin.service;
 
-import com.linkedin.restli.server.PagingContext;
-import com.linkedin.restli.server.annotations.Context;
-import com.linkedin.restli.server.annotations.Finder;
-import com.linkedin.restli.server.annotations.QueryParam;
 import java.util.Collections;
 import java.util.Iterator;
-
 import java.util.List;
+
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,10 +28,13 @@ import org.slf4j.LoggerFactory;
 import com.google.inject.Inject;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
+import com.linkedin.restli.server.PagingContext;
+import com.linkedin.restli.server.annotations.Context;
+import com.linkedin.restli.server.annotations.Finder;
+import com.linkedin.restli.server.annotations.QueryParam;
 import com.linkedin.restli.server.annotations.RestLiCollection;
 import com.linkedin.restli.server.resources.ComplexKeyResourceTemplate;
 
-import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 
 
@@ -120,7 +119,7 @@ public class FlowStatusResource extends ComplexKeyResourceTemplate<FlowStatusId,
               .setExecutionStartTime(queriedJobStatus.getStartTime())
               .setExecutionEndTime(queriedJobStatus.getEndTime())
               .setProcessedCount(queriedJobStatus.getProcessedCount()))
-          .setExecutionStatus(timingEventToStatus(queriedJobStatus.getEventName()))
+          .setExecutionStatus(ExecutionStatus.valueOf(queriedJobStatus.getEventName()))
           .setMessage(queriedJobStatus.getMessage())
           .setJobState(new JobState().setLowWatermark(queriedJobStatus.getLowWatermark()).
               setHighWatermark(queriedJobStatus.getHighWatermark()));
@@ -157,29 +156,6 @@ public class FlowStatusResource extends ComplexKeyResourceTemplate<FlowStatusId,
         .setMessage(flowMessages)
         .setExecutionStatus(flowExecutionStatus)
         .setJobStatuses(jobStatusArray);
-  }
-
-  /**
-   * Maps a timing event name to a flow/job ExecutionStatus
-   * @param timingEvent timing event name
-   * @return status string
-   */
-  private ExecutionStatus timingEventToStatus(String timingEvent) {
-    ExecutionStatus status;
-
-    switch (timingEvent) {
-      case TimingEvent.LauncherTimings.JOB_FAILED:
-      case TimingEvent.LauncherTimings.JOB_CANCEL:
-        status = ExecutionStatus.FAILED;
-        break;
-      case TimingEvent.LauncherTimings.JOB_COMPLETE:
-        status = ExecutionStatus.COMPLETE;
-        break;
-      default:
-        status = ExecutionStatus.RUNNING;
-    }
-
-    return status;
   }
 
   /**

@@ -29,10 +29,15 @@ import com.google.inject.Inject;
 import com.google.inject.name.Named;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
+import com.linkedin.restli.common.HttpStatus;
 import com.linkedin.restli.server.CreateResponse;
 import com.linkedin.restli.server.UpdateResponse;
 import com.linkedin.restli.server.annotations.RestLiCollection;
 import com.linkedin.restli.server.resources.ComplexKeyResourceTemplate;
+
+import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
+
+import static org.apache.gobblin.service.FlowStatusResource.FLOW_STATUS_GENERATOR_INJECT_NAME;
 
 
 /**
@@ -42,6 +47,9 @@ import com.linkedin.restli.server.resources.ComplexKeyResourceTemplate;
 public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, EmptyRecord, FlowConfig> {
   private static final Logger LOG = LoggerFactory.getLogger(FlowConfigsResource.class);
   private static final Set<String> ALLOWED_METADATA = ImmutableSet.of("delete.state.store");
+
+  @Inject @javax.inject.Inject @javax.inject.Named(FLOW_STATUS_GENERATOR_INJECT_NAME)
+  FlowStatusGenerator _flowStatusGenerator;
 
 
   @edu.umd.cs.findbugs.annotations.SuppressWarnings("MS_SHOULD_BE_FINAL")
@@ -79,7 +87,21 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, Empt
    */
   @Override
   public CreateResponse create(FlowConfig flowConfig) {
-    return this.getFlowConfigResourceHandler().createFlowConfig(flowConfig);
+    if (ExecutionStatus.RUNNING == getLatestExecutionStatus(flowConfig)) {
+      return new CreateResponse(new ComplexResourceKey<>(flowConfig.getId(), new EmptyRecord()), HttpStatus.S_409_CONFLICT);
+    } else {
+      return this.getFlowConfigResourceHandler().createFlowConfig(flowConfig);
+    }
+  }
+
+  private ExecutionStatus getLatestExecutionStatus(FlowConfig flowConfig) {
+    org.apache.gobblin.service.monitoring.FlowStatus latestFlowStatus =
+        _flowStatusGenerator.getLatestFlowStatus(flowConfig.getId().getFlowName(), flowConfig.getId().getFlowGroup());
+    if (latestFlowStatus != null && latestFlowStatus.getJobStatusIterator().hasNext()) {
+      return ExecutionStatus.valueOf(latestFlowStatus.getJobStatusIterator().next().getEventName());
+    } else {
+      return ExecutionStatus.$UNKNOWN;
+    }
   }
 
   /**
