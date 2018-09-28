@@ -56,7 +56,7 @@ public class FlowStatusTest {
     }
 
     @Override
-    public Iterator<org.apache.gobblin.service.monitoring.JobStatus> getJobStatusForFlowExecution(String flowName, String flowGroup,
+    public Iterator<org.apache.gobblin.service.monitoring.JobStatus> getJobStatusesForFlowExecution(String flowName, String flowGroup,
         long flowExecutionId, String jobGroup, String jobName) {
       Iterator<org.apache.gobblin.service.monitoring.JobStatus> jobStatusIterator = getJobStatusesForFlowExecution(flowName, flowGroup, flowExecutionId);
       List<org.apache.gobblin.service.monitoring.JobStatus> jobStatusList = new ArrayList<>();

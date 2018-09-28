@@ -33,7 +33,7 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
   public abstract Iterator<JobStatus> getJobStatusesForFlowExecution(String flowName, String flowGroup,
       long flowExecutionId);
 
-  public abstract Iterator<JobStatus> getJobStatusForFlowExecution(String flowName, String flowGroup,
+  public abstract Iterator<JobStatus> getJobStatusesForFlowExecution(String flowName, String flowGroup,
       long flowExecutionId, String jobGroup, String jobName);
 
   /**

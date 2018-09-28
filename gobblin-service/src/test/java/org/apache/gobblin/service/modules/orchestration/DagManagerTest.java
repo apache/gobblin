@@ -142,7 +142,7 @@ public class DagManagerTest {
     Iterator<JobStatus> jobStatusIterator6 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobGroup, jobName2, TimingEvent.LauncherTimings.JOB_COMPLETE);
     Iterator<JobStatus> jobStatusIterator7 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobGroup, jobName2, TimingEvent.LauncherTimings.JOB_COMPLETE);
 
-    Mockito.when(_jobStatusRetriever.getJobStatusForFlowExecution(Mockito.anyString(), Mockito.anyString(),
+    Mockito.when(_jobStatusRetriever.getJobStatusesForFlowExecution(Mockito.anyString(), Mockito.anyString(),
         Mockito.anyLong(), Mockito.anyString(), Mockito.anyString())).
         thenReturn(jobStatusIterator1).
         thenReturn(jobStatusIterator2).
@@ -222,7 +222,7 @@ public class DagManagerTest {
     Iterator<JobStatus> jobStatusIterator5 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobGroup, jobName1, TimingEvent.LauncherTimings.JOB_RUN);
     Iterator<JobStatus> jobStatusIterator6 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobGroup, jobName2, TimingEvent.LauncherTimings.JOB_FAILED);
 
-    Mockito.when(_jobStatusRetriever.getJobStatusForFlowExecution(Mockito.anyString(), Mockito.anyString(),
+    Mockito.when(_jobStatusRetriever.getJobStatusesForFlowExecution(Mockito.anyString(), Mockito.anyString(),
         Mockito.anyLong(), Mockito.anyString(), Mockito.anyString())).
         thenReturn(jobStatusIterator1).
         thenReturn(jobStatusIterator2).
