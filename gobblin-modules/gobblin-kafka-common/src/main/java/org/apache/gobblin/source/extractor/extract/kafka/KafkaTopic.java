@@ -20,7 +20,10 @@ package org.apache.gobblin.source.extractor.extract.kafka;
 import java.util.Collections;
 import java.util.List;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
+
+import org.apache.gobblin.configuration.State;
 
 
 /**
@@ -32,13 +35,19 @@ import com.google.common.collect.Lists;
 public final class KafkaTopic {
   private final String name;
   private final List<KafkaPartition> partitions;
+  private Optional<State> topicSpecificState;
 
   public KafkaTopic(String name, List<KafkaPartition> partitions) {
+    this(name, partitions, Optional.absent());
+  }
+
+  public KafkaTopic(String name, List<KafkaPartition> partitions, Optional<State> topicSpecificState) {
     this.name = name;
     this.partitions = Lists.newArrayList();
     for (KafkaPartition partition : partitions) {
       this.partitions.add(new KafkaPartition(partition));
     }
+    this.topicSpecificState = topicSpecificState;
   }
 
   public String getName() {
@@ -49,4 +58,7 @@ public final class KafkaTopic {
     return Collections.unmodifiableList(this.partitions);
   }
 
+  public Optional<State> getTopicSpecificState() {
+    return this.topicSpecificState;
+  }
 }

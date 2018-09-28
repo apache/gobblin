@@ -221,6 +221,13 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
             }
           }), state);
 
+      for (KafkaTopic topic : topics) {
+        if (topic.getTopicSpecificState().isPresent()) {
+          topicSpecificStateMap.computeIfAbsent(topic.getName(), k -> new State())
+              .addAllIfNotExist(topic.getTopicSpecificState().get());
+        }
+      }
+
       int numOfThreads = state.getPropAsInt(ConfigurationKeys.KAFKA_SOURCE_WORK_UNITS_CREATION_THREADS,
           ConfigurationKeys.KAFKA_SOURCE_WORK_UNITS_CREATION_DEFAULT_THREAD_COUNT);
       ExecutorService threadPool =
