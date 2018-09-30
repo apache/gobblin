@@ -33,13 +33,20 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
+import com.google.inject.Module;
+import com.google.inject.name.Names;
 import com.linkedin.data.template.StringMap;
 import com.linkedin.restli.client.RestLiResponseException;
+import com.linkedin.restli.server.resources.BaseResource;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.restli.EmbeddedRestliServer;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
@@ -47,11 +54,17 @@ import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
 import org.apache.gobblin.service.FlowConfig;
 import org.apache.gobblin.service.FlowConfigClient;
+import org.apache.gobblin.service.FlowConfigTest;
+import org.apache.gobblin.service.FlowConfigsResource;
+import org.apache.gobblin.service.FlowConfigsResourceHandler;
+import org.apache.gobblin.service.FlowConfigsV2Resource;
 import org.apache.gobblin.service.FlowId;
+import org.apache.gobblin.service.FlowStatusResource;
 import org.apache.gobblin.service.Schedule;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.service.modules.utils.HelixUtils;
+import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.util.ConfigUtils;
 
 @Test
@@ -152,6 +165,7 @@ public class GobblinServiceHATest {
     node1ServiceCoreProperties.put(ConfigurationKeys.FLOWSPEC_STORE_DIR_KEY, NODE_1_FLOW_SPEC_STORE_DIR);
     node1ServiceCoreProperties.put(QUARTZ_INSTANCE_NAME, "QuartzScheduler1");
     node1ServiceCoreProperties.put(QUARTZ_THREAD_POOL_COUNT, 3);
+    node1ServiceCoreProperties.put(ServiceConfigKeys.GOBBLIN_SERVICE_RESTLI_SERVER_ENABLED_KEY, false);
 
     Properties node2ServiceCoreProperties = new Properties();
     node2ServiceCoreProperties.putAll(commonServiceCoreProperties);
@@ -159,15 +173,28 @@ public class GobblinServiceHATest {
     node2ServiceCoreProperties.put(ConfigurationKeys.FLOWSPEC_STORE_DIR_KEY, NODE_2_FLOW_SPEC_STORE_DIR);
     node2ServiceCoreProperties.put(QUARTZ_INSTANCE_NAME, "QuartzScheduler2");
     node2ServiceCoreProperties.put(QUARTZ_THREAD_POOL_COUNT, 3);
+    node2ServiceCoreProperties.put(ServiceConfigKeys.GOBBLIN_SERVICE_RESTLI_SERVER_ENABLED_KEY, false);
 
     // Start Node 1
     this.node1GobblinServiceManager = new GobblinServiceManager("CoreService1", "1",
         ConfigUtils.propertiesToConfig(node1ServiceCoreProperties), Optional.of(new Path(NODE_1_SERVICE_WORK_DIR)));
+    Injector injector1 = getInjectorForGobblinServiceManager(this.node1GobblinServiceManager);
+    this.node1GobblinServiceManager.restliServer = EmbeddedRestliServer.builder()
+        .resources(Lists.<Class<? extends BaseResource>>newArrayList(FlowConfigsResource.class))
+        .injector(injector1)
+        .build();
+    this.node1GobblinServiceManager.serviceLauncher.addService(this.node1GobblinServiceManager.restliServer);
     this.node1GobblinServiceManager.start();
 
     // Start Node 2
     this.node2GobblinServiceManager = new GobblinServiceManager("CoreService2", "2",
         ConfigUtils.propertiesToConfig(node2ServiceCoreProperties), Optional.of(new Path(NODE_2_SERVICE_WORK_DIR)));
+    Injector injector2 = getInjectorForGobblinServiceManager(this.node2GobblinServiceManager);
+    this.node2GobblinServiceManager.restliServer = EmbeddedRestliServer.builder()
+        .resources(Lists.<Class<? extends BaseResource>>newArrayList(FlowConfigsResource.class))
+        .injector(injector2)
+        .build();
+    this.node2GobblinServiceManager.serviceLauncher.addService(this.node2GobblinServiceManager.restliServer);
     this.node2GobblinServiceManager.start();
 
     // Initialize Node 1 Client
@@ -177,6 +204,15 @@ public class GobblinServiceHATest {
     // Initialize Node 2 Client
     this.node2FlowConfigClient = new FlowConfigClient(String.format("http://localhost:%s/",
         this.node2GobblinServiceManager.restliServer.getPort()));
+  }
+
+  static Injector getInjectorForGobblinServiceManager(GobblinServiceManager gobblinServiceManager) {
+    return Guice.createInjector((Module) binder -> {
+      binder.bind(FlowStatusGenerator.class).annotatedWith(Names.named(FlowStatusResource.FLOW_STATUS_GENERATOR_INJECT_NAME)).toInstance(FlowConfigTest.flowStatusGenerator);
+      binder.bind(FlowConfigsResourceHandler.class).annotatedWith(Names.named(FlowConfigsResource.FLOW_CONFIG_GENERATOR_INJECT_NAME)).toInstance(gobblinServiceManager.resourceHandler);
+      binder.bind(FlowConfigsResourceHandler.class).annotatedWith(Names.named(FlowConfigsV2Resource.FLOW_CONFIG_GENERATOR_INJECT_NAME)).toInstance(gobblinServiceManager.v2ResourceHandler);
+      binder.bindConstant().annotatedWith(Names.named("readyToUse")).to(Boolean.TRUE);
+    });
   }
 
   private void cleanUpDir(String dir) throws Exception {

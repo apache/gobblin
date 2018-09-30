@@ -40,18 +40,23 @@ import org.testng.annotations.Test;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.Files;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.inject.Injector;
 import com.linkedin.data.template.StringMap;
 import com.linkedin.restli.client.RestLiResponseException;
+import com.linkedin.restli.server.resources.BaseResource;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.restli.EmbeddedRestliServer;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.service.FlowConfig;
 import org.apache.gobblin.service.FlowConfigClient;
+import org.apache.gobblin.service.FlowConfigsResource;
 import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.Schedule;
 import org.apache.gobblin.service.ServiceConfigKeys;
@@ -111,6 +116,7 @@ public class GobblinServiceManagerTest {
     serviceCoreProperties.put(GitConfigMonitor.GIT_CONFIG_MONITOR_PREFIX + "." + ConfigurationKeys.GIT_MONITOR_REPO_URI, GIT_REMOTE_REPO_DIR);
     serviceCoreProperties.put(GitConfigMonitor.GIT_CONFIG_MONITOR_PREFIX + "." + ConfigurationKeys.GIT_MONITOR_REPO_DIR, GIT_LOCAL_REPO_DIR);
     serviceCoreProperties.put(GitConfigMonitor.GIT_CONFIG_MONITOR_PREFIX + "." + ConfigurationKeys.GIT_MONITOR_POLLING_INTERVAL, 5);
+    serviceCoreProperties.put(ServiceConfigKeys.GOBBLIN_SERVICE_RESTLI_SERVER_ENABLED_KEY, false);
 
     // Create a bare repository
     RepositoryCache.FileKey fileKey = RepositoryCache.FileKey.exact(new File(GIT_REMOTE_REPO_DIR), FS.DETECTED);
@@ -124,6 +130,16 @@ public class GobblinServiceManagerTest {
 
     this.gobblinServiceManager = new GobblinServiceManager("CoreService", "1",
         ConfigUtils.propertiesToConfig(serviceCoreProperties), Optional.of(new Path(SERVICE_WORK_DIR)));
+
+    Injector injector = GobblinServiceHATest.getInjectorForGobblinServiceManager(this.gobblinServiceManager);
+
+    this.gobblinServiceManager.restliServer = EmbeddedRestliServer.builder()
+        .resources(Lists.<Class<? extends BaseResource>>newArrayList(FlowConfigsResource.class))
+        .injector(injector)
+        .build();
+
+    this.gobblinServiceManager.serviceLauncher.addService(this.gobblinServiceManager.restliServer);
+
     this.gobblinServiceManager.start();
 
     this.flowConfigClient = new FlowConfigClient(String.format("http://localhost:%s/",

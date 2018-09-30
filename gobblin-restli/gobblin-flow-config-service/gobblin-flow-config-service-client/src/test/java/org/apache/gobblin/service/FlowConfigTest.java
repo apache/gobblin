@@ -20,6 +20,7 @@ package org.apache.gobblin.service;
 import java.io.File;
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.util.Iterator;
 import java.util.Map;
 
 import org.apache.commons.io.FileUtils;
@@ -28,6 +29,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.Files;
@@ -46,6 +48,9 @@ import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.restli.EmbeddedRestliServer;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
+import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
+import org.apache.gobblin.service.monitoring.JobStatus;
+import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 
 
 @Test(groups = { "gobblin.service" })
@@ -53,6 +58,23 @@ public class FlowConfigTest {
   private FlowConfigClient _client;
   private EmbeddedRestliServer _server;
   private File _testDirectory;
+
+  static class TestJobStatusRetriever extends JobStatusRetriever {
+    @Override
+    public Iterator<JobStatus> getJobStatusesForFlowExecution(String flowName,
+        String flowGroup, long flowExecutionId) {
+      return Iterators.emptyIterator();
+    }
+
+    @Override
+    public long getLatestExecutionIdForFlow(String flowName, String flowGroup) {
+      return -1L;
+    }
+  }
+
+  private static JobStatusRetriever jobStatusRetriever = new TestJobStatusRetriever();
+  public static FlowStatusGenerator flowStatusGenerator =
+      FlowStatusGenerator.builder().jobStatusRetriever(jobStatusRetriever).build();
 
   private static final String TEST_SPEC_STORE_DIR = "/tmp/flowConfigTest/";
   private static final String TEST_GROUP_NAME = "testGroup1";
@@ -82,7 +104,8 @@ public class FlowConfigTest {
     Injector injector = Guice.createInjector(new Module() {
        @Override
        public void configure(Binder binder) {
-         binder.bind(FlowConfigsResourceHandler.class).annotatedWith(Names.named("flowConfigsResourceHandler")).toInstance(new FlowConfigResourceLocalHandler(flowCatalog));
+         binder.bind(FlowStatusGenerator.class).annotatedWith(Names.named(FlowStatusResource.FLOW_STATUS_GENERATOR_INJECT_NAME)).toInstance(FlowConfigTest.this.flowStatusGenerator);
+         binder.bind(FlowConfigsResourceHandler.class).annotatedWith(Names.named(FlowConfigsResource.FLOW_CONFIG_GENERATOR_INJECT_NAME)).toInstance(new FlowConfigResourceLocalHandler(flowCatalog));
          // indicate that we are in unit testing since the resource is being blocked until flow catalog changes have
          // been made
          binder.bindConstant().annotatedWith(Names.named("readyToUse")).to(Boolean.TRUE);

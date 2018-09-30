@@ -46,6 +46,7 @@ import static org.apache.gobblin.service.FlowStatusResource.FLOW_STATUS_GENERATO
 @RestLiCollection(name = "flowconfigs", namespace = "org.apache.gobblin.service", keyName = "id")
 public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, EmptyRecord, FlowConfig> {
   private static final Logger LOG = LoggerFactory.getLogger(FlowConfigsResource.class);
+  public static final String FLOW_CONFIG_GENERATOR_INJECT_NAME = "flowConfigsResourceHandler";
   private static final Set<String> ALLOWED_METADATA = ImmutableSet.of("delete.state.store");
 
   @Inject @javax.inject.Inject @javax.inject.Named(FLOW_STATUS_GENERATOR_INJECT_NAME)
@@ -56,7 +57,7 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, Empt
   public static FlowConfigsResourceHandler global_flowConfigsResourceHandler = null;
 
   @Inject
-  @Named("flowConfigsResourceHandler")
+  @Named(FLOW_CONFIG_GENERATOR_INJECT_NAME)
   private FlowConfigsResourceHandler flowConfigsResourceHandler;
 
   // For blocking use of this resource until it is ready
