@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.service;
 
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -88,7 +89,9 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, Empt
    */
   @Override
   public CreateResponse create(FlowConfig flowConfig) {
-    if (ExecutionStatus.RUNNING == getLatestExecutionStatus(flowConfig)) {
+    ExecutionStatus latestFlowExecutionStatus = getLatestExecutionStatus(flowConfig);
+    if (latestFlowExecutionStatus == ExecutionStatus.RUNNING) {
+      LOG.warn("Last execution of this flow is still running, not submitting this flow config.");
       return new CreateResponse(new ComplexResourceKey<>(flowConfig.getId(), new EmptyRecord()), HttpStatus.S_409_CONFLICT);
     } else {
       return this.getFlowConfigResourceHandler().createFlowConfig(flowConfig);
@@ -98,11 +101,21 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, Empt
   private ExecutionStatus getLatestExecutionStatus(FlowConfig flowConfig) {
     org.apache.gobblin.service.monitoring.FlowStatus latestFlowStatus =
         _flowStatusGenerator.getLatestFlowStatus(flowConfig.getId().getFlowName(), flowConfig.getId().getFlowGroup());
-    if (latestFlowStatus != null && latestFlowStatus.getJobStatusIterator().hasNext()) {
-      return ExecutionStatus.valueOf(latestFlowStatus.getJobStatusIterator().next().getEventName());
-    } else {
+
+    if (latestFlowStatus == null) {
       return ExecutionStatus.$UNKNOWN;
     }
+
+    Iterator<org.apache.gobblin.service.monitoring.JobStatus> jobStatusIterator = latestFlowStatus.getJobStatusIterator();
+
+    ExecutionStatus latestFlowExecutionStatus = ExecutionStatus.COMPLETE;
+
+    while(jobStatusIterator.hasNext()) {
+      latestFlowExecutionStatus = FlowStatusResource.updatedFlowExecutionStatus
+          (ExecutionStatus.valueOf(jobStatusIterator.next().getEventName()), latestFlowExecutionStatus);
+    }
+
+    return latestFlowExecutionStatus;
   }
 
   /**

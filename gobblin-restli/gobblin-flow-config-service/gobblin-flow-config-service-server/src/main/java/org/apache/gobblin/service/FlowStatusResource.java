@@ -164,7 +164,7 @@ public class FlowStatusResource extends ComplexKeyResourceTemplate<FlowStatusId,
    * @param currentFlowExecutionStatus current flow status
    * @return updated flow status
    */
-  private ExecutionStatus updatedFlowExecutionStatus(ExecutionStatus jobExecutionStatus,
+  static ExecutionStatus updatedFlowExecutionStatus(ExecutionStatus jobExecutionStatus,
       ExecutionStatus currentFlowExecutionStatus) {
 
     // if any job failed or flow has failed then return failed status
@@ -173,8 +173,16 @@ public class FlowStatusResource extends ComplexKeyResourceTemplate<FlowStatusId,
       return ExecutionStatus.FAILED;
     }
 
-    // if job still running then flow is still running
-    if (jobExecutionStatus == ExecutionStatus.RUNNING) {
+    // if any job is cancelled or flow has failed then return failed status
+    if (currentFlowExecutionStatus == ExecutionStatus.CANCELLED ||
+        jobExecutionStatus == ExecutionStatus.CANCELLED) {
+      return ExecutionStatus.CANCELLED;
+    }
+
+    if (currentFlowExecutionStatus == ExecutionStatus.RUNNING ||
+        jobExecutionStatus == ExecutionStatus.RUNNING ||
+        jobExecutionStatus == ExecutionStatus.ORCHESTRATED ||
+        jobExecutionStatus == ExecutionStatus.COMPILED) {
       return ExecutionStatus.RUNNING;
     }
 
