@@ -82,15 +82,16 @@ public class DagManager extends AbstractIdleService {
   private static final Integer DEFAULT_NUM_THREADS = 3;
   private static final Integer TERMINATION_TIMEOUT = 30;
 
-  public static final String NUM_THREADS_KEY = "gobblin.service.dagManager.numThreads";
-  public static final String JOB_STATUS_POLLING_INTERVAL_KEY = "gobblin.service.dagManager.pollingInterval";
-  public static final String JOB_STATUS_RETRIEVER_KEY = "gobblin.service.dagManager.jobStatusRetriever";
-  public static final String DAG_STORE_CLASS_KEY = "gobblin.service.dagManager.dagStateStoreClass";
-  public static final String DAG_STATESTORE_DIR = "gobblin.service.dagManager.dagStateStoreDir";
+  public static final String DAG_MANAGER_PREFIX = "gobblin.service.dagManager.";
+  public static final String NUM_THREADS_KEY = DAG_MANAGER_PREFIX + "numThreads";
+  public static final String JOB_STATUS_POLLING_INTERVAL_KEY = DAG_MANAGER_PREFIX + "pollingInterval";
+  public static final String JOB_STATUS_RETRIEVER_KEY = DAG_MANAGER_PREFIX + "jobStatusRetriever";
+  public static final String DAG_STORE_CLASS_KEY = DAG_MANAGER_PREFIX + "dagStateStoreClass";
+  public static final String DAG_STATESTORE_DIR = DAG_MANAGER_PREFIX + "dagStateStoreDir";
 
   private BlockingQueue<Dag<JobExecutionPlan>> queue;
   private ScheduledExecutorService scheduledExecutorPool;
-  private boolean instrumentationEnabled = true;
+  private boolean instrumentationEnabled;
 
   private final Integer numThreads;
   private final Integer pollingInterval;
@@ -174,25 +175,26 @@ public class DagManager extends AbstractIdleService {
    * </ol>
    */
   public static class DagManagerThread implements Runnable {
-    private Map<Dag.DagNode<JobExecutionPlan>, Dag<JobExecutionPlan>> jobToDag = new HashMap<>();
-    private Map<String, Dag<JobExecutionPlan>> dags = new HashMap<>();
-    private Map<String, LinkedList<Dag.DagNode<JobExecutionPlan>>> dagToJobs = new HashMap<>();
-    private Set<String> failedDagIds = new HashSet<>();
+    private final Map<Dag.DagNode<JobExecutionPlan>, Dag<JobExecutionPlan>> jobToDag = new HashMap<>();
+    private final Map<String, Dag<JobExecutionPlan>> dags = new HashMap<>();
+    private final Map<String, LinkedList<Dag.DagNode<JobExecutionPlan>>> dagToJobs = new HashMap<>();
+    private final Set<String> failedDagIds = new HashSet<>();
+    private final MetricContext metricContext;
+    private final Optional<EventSubmitter> eventSubmitter;
+
     private JobStatusRetriever jobStatusRetriever;
     private DagStateStore dagStateStore;
     private BlockingQueue<Dag<JobExecutionPlan>> queue;
-    private final MetricContext metricContext;
-    private final Optional<EventSubmitter> eventSubmitter;
 
     /**
      * Constructor.
      */
     public DagManagerThread(JobStatusRetriever jobStatusRetriever, DagStateStore dagStateStore, BlockingQueue<Dag<JobExecutionPlan>> queue,
-        boolean instrumentationEnaled) {
+        boolean instrumentationEnabled) {
       this.jobStatusRetriever = jobStatusRetriever;
       this.dagStateStore = dagStateStore;
       this.queue = queue;
-      if (instrumentationEnaled) {
+      if (instrumentationEnabled) {
         this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
         this.eventSubmitter = Optional.of(new EventSubmitter.Builder(this.metricContext, "org.apache.gobblin.service").build());
       } else {
@@ -269,7 +271,7 @@ public class DagManager extends AbstractIdleService {
      */
     private void pollJobStatuses()
         throws IOException {
-      this.failedDagIds = new HashSet<>();
+      this.failedDagIds.clear();
       for (Dag.DagNode<JobExecutionPlan> node : this.jobToDag.keySet()) {
         TimingEvent jobStatusPollTimer = this.eventSubmitter.isPresent()
             ? eventSubmitter.get().getTimingEvent(TimingEvent.JobStatusTimings.JOB_STATUS_POLLED)
