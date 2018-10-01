@@ -42,7 +42,7 @@ public class FlowStatusGenerator {
     FlowStatus flowStatus = null;
     long latestExecutionId = jobStatusRetriever.getLatestExecutionIdForFlow(flowName, flowGroup);
 
-    if (latestExecutionId != -1L) {
+    if (latestExecutionId != -1l) {
       flowStatus = getFlowStatus(flowName, flowGroup, latestExecutionId);
     }
 

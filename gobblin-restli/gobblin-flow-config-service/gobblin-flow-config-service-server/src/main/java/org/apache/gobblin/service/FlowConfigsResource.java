@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.service;
 
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -30,15 +29,10 @@ import com.google.inject.Inject;
 import com.google.inject.name.Named;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
-import com.linkedin.restli.common.HttpStatus;
 import com.linkedin.restli.server.CreateResponse;
 import com.linkedin.restli.server.UpdateResponse;
 import com.linkedin.restli.server.annotations.RestLiCollection;
 import com.linkedin.restli.server.resources.ComplexKeyResourceTemplate;
-
-import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
-
-import static org.apache.gobblin.service.FlowStatusResource.FLOW_STATUS_GENERATOR_INJECT_NAME;
 
 
 /**
@@ -49,9 +43,6 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, Empt
   private static final Logger LOG = LoggerFactory.getLogger(FlowConfigsResource.class);
   public static final String FLOW_CONFIG_GENERATOR_INJECT_NAME = "flowConfigsResourceHandler";
   private static final Set<String> ALLOWED_METADATA = ImmutableSet.of("delete.state.store");
-
-  @Inject @javax.inject.Inject @javax.inject.Named(FLOW_STATUS_GENERATOR_INJECT_NAME)
-  FlowStatusGenerator _flowStatusGenerator;
 
 
   @edu.umd.cs.findbugs.annotations.SuppressWarnings("MS_SHOULD_BE_FINAL")
@@ -89,33 +80,7 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, Empt
    */
   @Override
   public CreateResponse create(FlowConfig flowConfig) {
-    ExecutionStatus latestFlowExecutionStatus = getLatestExecutionStatus(flowConfig);
-    if (latestFlowExecutionStatus == ExecutionStatus.RUNNING) {
-      LOG.warn("Last execution of this flow is still running, not submitting this flow config.");
-      return new CreateResponse(new ComplexResourceKey<>(flowConfig.getId(), new EmptyRecord()), HttpStatus.S_409_CONFLICT);
-    } else {
-      return this.getFlowConfigResourceHandler().createFlowConfig(flowConfig);
-    }
-  }
-
-  private ExecutionStatus getLatestExecutionStatus(FlowConfig flowConfig) {
-    org.apache.gobblin.service.monitoring.FlowStatus latestFlowStatus =
-        _flowStatusGenerator.getLatestFlowStatus(flowConfig.getId().getFlowName(), flowConfig.getId().getFlowGroup());
-
-    if (latestFlowStatus == null) {
-      return ExecutionStatus.$UNKNOWN;
-    }
-
-    Iterator<org.apache.gobblin.service.monitoring.JobStatus> jobStatusIterator = latestFlowStatus.getJobStatusIterator();
-
-    ExecutionStatus latestFlowExecutionStatus = ExecutionStatus.COMPLETE;
-
-    while(jobStatusIterator.hasNext()) {
-      latestFlowExecutionStatus = FlowStatusResource.updatedFlowExecutionStatus
-          (ExecutionStatus.valueOf(jobStatusIterator.next().getEventName()), latestFlowExecutionStatus);
-    }
-
-    return latestFlowExecutionStatus;
+    return this.getFlowConfigResourceHandler().createFlowConfig(flowConfig);
   }
 
   /**
