@@ -131,12 +131,14 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
 
     this.writerAttemptIdOptional = Optional.fromNullable(writerAttemptId);
 
-    String uri = this.state.getProp(
+    String uriStr = this.state.getProp(
         ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, numBranches, branchId),
         ConfigurationKeys.LOCAL_FS_URI);
 
-    this.fs = FileSystem.get(URI.create(uri), WriterUtils.getFsConfiguration(state));
-    this.fileContext = FileContext.getFileContext(URI.create(uri), WriterUtils.getFsConfiguration(state));
+    Configuration conf = WriterUtils.getFsConfiguration(state);
+    URI uri = URI.create(uriStr);
+    this.fs = FileSystem.get(uri, conf);
+    this.fileContext = FileContext.getFileContext(uri, conf);
 
     this.stagingDir = this.writerAttemptIdOptional.isPresent() ? WriterUtils
         .getWriterStagingDir(state, numBranches, branchId, this.writerAttemptIdOptional.get())
