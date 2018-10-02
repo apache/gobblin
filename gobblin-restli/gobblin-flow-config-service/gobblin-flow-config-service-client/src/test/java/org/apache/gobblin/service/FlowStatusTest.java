@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.service;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
@@ -40,7 +41,7 @@ import org.apache.gobblin.restli.EmbeddedRestliServer;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 
-@Test(groups = { "gobblin.service" }, singleThreaded=true)
+@Test(groups = { "gobblin.service" }, singleThreaded = true)
 public class FlowStatusTest {
   private FlowStatusClient _client;
   private EmbeddedRestliServer _server;
@@ -51,7 +52,21 @@ public class FlowStatusTest {
     @Override
     public Iterator<org.apache.gobblin.service.monitoring.JobStatus> getJobStatusesForFlowExecution(String flowName,
         String flowGroup, long flowExecutionId) {
-      return _listOfJobStatusLists.get((int)flowExecutionId).iterator();
+      return _listOfJobStatusLists.get((int) flowExecutionId).iterator();
+    }
+
+    @Override
+    public Iterator<org.apache.gobblin.service.monitoring.JobStatus> getJobStatusesForFlowExecution(String flowName, String flowGroup,
+        long flowExecutionId, String jobGroup, String jobName) {
+      Iterator<org.apache.gobblin.service.monitoring.JobStatus> jobStatusIterator = getJobStatusesForFlowExecution(flowName, flowGroup, flowExecutionId);
+      List<org.apache.gobblin.service.monitoring.JobStatus> jobStatusList = new ArrayList<>();
+      while (jobStatusIterator.hasNext()) {
+        org.apache.gobblin.service.monitoring.JobStatus jobStatus = jobStatusIterator.next();
+        if (jobStatus.getJobGroup().equals(jobGroup) && jobStatus.getJobName().equals(jobName)) {
+          jobStatusList.add(jobStatus);
+        }
+      }
+      return jobStatusList.iterator();
     }
 
     @Override

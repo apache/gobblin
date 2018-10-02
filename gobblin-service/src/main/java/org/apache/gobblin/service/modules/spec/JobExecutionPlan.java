@@ -26,13 +26,14 @@ import com.google.common.base.Joiner;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
 
-import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.SpecExecutor;
+import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -41,10 +42,11 @@ import org.apache.gobblin.util.ConfigUtils;
  * where the {@link JobSpec} will be executed.
  */
 @Data
-@AllArgsConstructor
+@EqualsAndHashCode (exclude = {"executionStatus"})
 public class JobExecutionPlan {
-  private JobSpec jobSpec;
-  private SpecExecutor specExecutor;
+  private final JobSpec jobSpec;
+  private final SpecExecutor specExecutor;
+  private ExecutionStatus executionStatus = ExecutionStatus.$UNKNOWN;
 
   public static class Factory {
 

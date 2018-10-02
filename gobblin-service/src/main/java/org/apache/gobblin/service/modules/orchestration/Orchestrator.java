@@ -75,6 +75,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   protected final Logger _log;
   protected final SpecCompiler specCompiler;
   protected final Optional<TopologyCatalog> topologyCatalog;
+  protected final Optional<DagManager> dagManager;
 
   protected final MetricContext metricContext;
   protected final Optional<EventSubmitter> eventSubmitter;
@@ -87,7 +88,8 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
   private final ClassAliasResolver<SpecCompiler> aliasResolver;
 
-  public Orchestrator(Config config, Optional<TopologyCatalog> topologyCatalog, Optional<Logger> log, boolean instrumentationEnabled) {
+  public Orchestrator(Config config, Optional<TopologyCatalog> topologyCatalog, Optional<DagManager> dagManager, Optional<Logger> log,
+      boolean instrumentationEnabled) {
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
     if (instrumentationEnabled) {
       this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), IdentityFlowToJobSpecCompiler.class);
@@ -95,8 +97,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       this.flowOrchestrationFailedMeter = Optional.of(this.metricContext.meter(ServiceMetricNames.FLOW_ORCHESTRATION_FAILED_METER));
       this.flowOrchestrationTimer = Optional.of(this.metricContext.timer(ServiceMetricNames.FLOW_ORCHESTRATION_TIMER));
       this.eventSubmitter = Optional.of(new EventSubmitter.Builder(this.metricContext, "org.apache.gobblin.service").build());
-    }
-    else {
+    } else {
       this.metricContext = null;
       this.flowOrchestrationSuccessFulMeter = Optional.absent();
       this.flowOrchestrationFailedMeter = Optional.absent();
@@ -106,6 +107,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
     this.aliasResolver = new ClassAliasResolver<>(SpecCompiler.class);
     this.topologyCatalog = topologyCatalog;
+    this.dagManager = dagManager;
     try {
       String specCompilerClassName = ServiceConfigKeys.DEFAULT_GOBBLIN_SERVICE_FLOWCOMPILER_CLASS;
       if (config.hasPath(ServiceConfigKeys.GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY)) {
@@ -121,25 +123,25 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     }
   }
 
-  public Orchestrator(Config config, Optional<TopologyCatalog> topologyCatalog, Optional<Logger> log) {
-    this(config, topologyCatalog, log, true);
+  public Orchestrator(Config config, Optional<TopologyCatalog> topologyCatalog, Optional<DagManager> dagManager, Optional<Logger> log) {
+    this(config, topologyCatalog, dagManager, log, true);
   }
 
-  public Orchestrator(Config config, Optional<TopologyCatalog> topologyCatalog, Logger log) {
-    this(config, topologyCatalog, Optional.of(log));
+  public Orchestrator(Config config, Optional<TopologyCatalog> topologyCatalog, Optional<DagManager> dagManager, Logger log) {
+    this(config, topologyCatalog, dagManager, Optional.of(log));
   }
 
   public Orchestrator(Config config, Logger log) {
-    this(config, Optional.<TopologyCatalog>absent(), Optional.of(log));
+    this(config, Optional.<TopologyCatalog>absent(), Optional.<DagManager>absent(), Optional.of(log));
   }
 
   /** Constructor with no logging */
   public Orchestrator(Config config, Optional<TopologyCatalog> topologyCatalog) {
-    this(config, topologyCatalog, Optional.<Logger>absent());
+    this(config, topologyCatalog, Optional.<DagManager>absent(), Optional.<Logger>absent());
   }
 
   public Orchestrator(Config config) {
-    this(config, Optional.<TopologyCatalog>absent(), Optional.<Logger>absent());
+    this(config, Optional.<TopologyCatalog>absent(), Optional.<DagManager>absent(), Optional.<Logger>absent());
   }
 
   @VisibleForTesting
@@ -216,35 +218,39 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
         flowCompilationTimer.stop(flowMetadata);
       }
 
-      // Schedule all compiled JobSpecs on their respective Executor
-      for (Dag.DagNode<JobExecutionPlan> dagNode: jobExecutionPlanDag.getNodes()) {
-        JobExecutionPlan jobExecutionPlan = dagNode.getValue();
+      if (this.dagManager.isPresent()) {
+        //Send the dag to the DagManager.
+        this.dagManager.get().offer(jobExecutionPlanDag);
+      } else {
+        // Schedule all compiled JobSpecs on their respective Executor
+        for (Dag.DagNode<JobExecutionPlan> dagNode : jobExecutionPlanDag.getNodes()) {
+          JobExecutionPlan jobExecutionPlan = dagNode.getValue();
 
-        // Run this spec on selected executor
-        SpecProducer producer = null;
-        try {
-          producer = jobExecutionPlan.getSpecExecutor().getProducer().get();
-          Spec jobSpec = jobExecutionPlan.getJobSpec();
+          // Run this spec on selected executor
+          SpecProducer producer = null;
+          try {
+            producer = jobExecutionPlan.getSpecExecutor().getProducer().get();
+            Spec jobSpec = jobExecutionPlan.getJobSpec();
 
-          if (!((JobSpec)jobSpec).getConfig().hasPath(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
-            _log.warn("JobSpec does not contain flowExecutionId.");
+            if (!((JobSpec) jobSpec).getConfig().hasPath(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
+              _log.warn("JobSpec does not contain flowExecutionId.");
+            }
+
+            Map<String, String> jobMetadata = getJobMetadata(flowMetadata, jobExecutionPlan);
+            _log.info(String.format("Going to orchestrate JobSpec: %s on Executor: %s", jobSpec, producer));
+
+            TimingEvent jobOrchestrationTimer = this.eventSubmitter.isPresent() ? this.eventSubmitter.get().
+                getTimingEvent(TimingEvent.LauncherTimings.JOB_ORCHESTRATED) : null;
+
+            producer.addSpec(jobSpec);
+
+            if (jobOrchestrationTimer != null) {
+              jobOrchestrationTimer.stop(jobMetadata);
+            }
+          } catch (Exception e) {
+            _log.error("Cannot successfully setup spec: " + jobExecutionPlan.getJobSpec() + " on executor: " + producer
+                + " for flow: " + spec, e);
           }
-
-          Map<String, String> jobMetadata = getJobMetadata(flowMetadata, jobExecutionPlan);
-          _log.info(String.format("Going to orchestrate JobSpec: %s on Executor: %s", jobSpec, producer));
-
-          TimingEvent jobOrchestrationTimer = this.eventSubmitter.isPresent()
-              ? this.eventSubmitter.get().getTimingEvent(TimingEvent.LauncherTimings.JOB_ORCHESTRATED)
-              : null;
-
-          producer.addSpec(jobSpec);
-
-          if (jobOrchestrationTimer != null) {
-            jobOrchestrationTimer.stop(jobMetadata);
-          }
-        } catch(Exception e) {
-          _log.error("Cannot successfully setup spec: " + jobExecutionPlan.getJobSpec() + " on executor: " + producer +
-              " for flow: " + spec, e);
         }
       }
     } else {
@@ -255,7 +261,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     Instrumented.updateTimer(this.flowOrchestrationTimer, System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
   }
 
-  private Map<String,String> getFlowMetadata(FlowSpec flowSpec) {
+  private Map<String, String> getFlowMetadata(FlowSpec flowSpec) {
     Map<String, String> metadata = Maps.newHashMap();
 
     metadata.put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, flowSpec.getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY));
@@ -267,7 +273,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     return metadata;
   }
 
-  private Map<String,String> getJobMetadata(Map<String,String> flowMetadata, JobExecutionPlan jobExecutionPlan) {
+  private Map<String, String> getJobMetadata(Map<String, String> flowMetadata, JobExecutionPlan jobExecutionPlan) {
     Map<String, String> jobMetadata = Maps.newHashMap();
     JobSpec jobSpec = jobExecutionPlan.getJobSpec();
     SpecExecutor specExecutor = jobExecutionPlan.getSpecExecutor();
@@ -306,9 +312,9 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
           _log.info(String.format("Going to delete JobSpec: %s on Executor: %s", jobSpec, producer));
           producer.deleteSpec(jobSpec.getUri(), headers);
-        } catch(Exception e) {
-          _log.error("Cannot successfully delete spec: " + jobExecutionPlan.getJobSpec() + " on executor: " + producer +
-              " for flow: " + spec, e);
+        } catch (Exception e) {
+          _log.error("Cannot successfully delete spec: " + jobExecutionPlan.getJobSpec() + " on executor: " + producer
+              + " for flow: " + spec, e);
         }
       }
     } else {
