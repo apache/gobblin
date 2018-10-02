@@ -41,6 +41,7 @@ import com.linkedin.restli.server.resources.ComplexKeyResourceTemplate;
 @RestLiCollection(name = "flowconfigs", namespace = "org.apache.gobblin.service", keyName = "id")
 public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, EmptyRecord, FlowConfig> {
   private static final Logger LOG = LoggerFactory.getLogger(FlowConfigsResource.class);
+  public static final String FLOW_CONFIG_GENERATOR_INJECT_NAME = "flowConfigsResourceHandler";
   private static final Set<String> ALLOWED_METADATA = ImmutableSet.of("delete.state.store");
 
 
@@ -48,7 +49,7 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, Empt
   public static FlowConfigsResourceHandler global_flowConfigsResourceHandler = null;
 
   @Inject
-  @Named("flowConfigsResourceHandler")
+  @Named(FLOW_CONFIG_GENERATOR_INJECT_NAME)
   private FlowConfigsResourceHandler flowConfigsResourceHandler;
 
   // For blocking use of this resource until it is ready
