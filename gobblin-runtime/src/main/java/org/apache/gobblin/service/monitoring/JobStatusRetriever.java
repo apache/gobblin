@@ -19,8 +19,6 @@ package org.apache.gobblin.service.monitoring;
 
 import java.util.Iterator;
 
-import org.apache.commons.lang3.NotImplementedException;
-
 import com.google.common.collect.Iterators;
 
 import org.apache.gobblin.annotation.Alpha;
@@ -35,10 +33,8 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
   public abstract Iterator<JobStatus> getJobStatusesForFlowExecution(String flowName, String flowGroup,
       long flowExecutionId);
 
-  public Iterator<JobStatus> getJobStatusesForFlowExecution(String flowName, String flowGroup,
-      long flowExecutionId, String jobGroup, String jobName) {
-    throw new NotImplementedException("getJobStatusesForFlowExecution is not implemented by this JobStatusRetriever.");
-  }
+  public abstract Iterator<JobStatus> getJobStatusesForFlowExecution(String flowName, String flowGroup,
+      long flowExecutionId, String jobGroup, String jobName);
 
   /**
    * Get the latest {@link JobStatus}es that belongs to the same latest flow execution. Currently, latest flow execution
