@@ -211,7 +211,7 @@ public class IdentityFlowToJobSpecCompilerTest {
     Assert.assertTrue(jobSpec.getConfig().hasPath(ConfigurationKeys.FLOW_EXECUTION_ID_KEY));
 
     //Assert the start node has no children.
-    Assert.assertNull(jobExecutionPlanDag.getChildren(dagNode));
+    Assert.assertEquals(jobExecutionPlanDag.getChildren(dagNode).size(), 0);
   }
 
   @Test
@@ -245,7 +245,7 @@ public class IdentityFlowToJobSpecCompilerTest {
     Assert.assertTrue(jobSpec.getConfig().hasPath(ConfigurationKeys.FLOW_EXECUTION_ID_KEY));
 
     //Assert the start node has no children.
-    Assert.assertNull(jobExecutionPlanDag.getChildren(dagNode));
+    Assert.assertEquals(jobExecutionPlanDag.getChildren(dagNode).size(), 0);
   }
 
   @Test

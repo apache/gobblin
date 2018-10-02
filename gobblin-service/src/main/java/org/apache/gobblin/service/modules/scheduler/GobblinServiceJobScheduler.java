@@ -21,8 +21,6 @@ import java.net.URI;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Properties;
-import java.util.concurrent.Callable;
-import java.util.concurrent.Future;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.helix.HelixManager;
@@ -57,6 +55,7 @@ import org.apache.gobblin.scheduler.BaseGobblinJob;
 import org.apache.gobblin.scheduler.JobScheduler;
 import org.apache.gobblin.scheduler.SchedulerService;
 import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PropertiesUtils;
@@ -95,10 +94,10 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   }
 
   public GobblinServiceJobScheduler(String serviceName, Config config, Optional<HelixManager> helixManager,
-      Optional<FlowCatalog> flowCatalog, Optional<TopologyCatalog> topologyCatalog, SchedulerService schedulerService,
-      Optional<Logger> log)
+      Optional<FlowCatalog> flowCatalog, Optional<TopologyCatalog> topologyCatalog, Optional<DagManager> dagManager,
+      SchedulerService schedulerService, Optional<Logger> log)
       throws Exception {
-    this(serviceName, config, helixManager, flowCatalog, topologyCatalog, new Orchestrator(config, topologyCatalog, log),
+    this(serviceName, config, helixManager, flowCatalog, topologyCatalog, new Orchestrator(config, topologyCatalog, dagManager, log),
         schedulerService, log);
   }
 
@@ -124,9 +123,8 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
           }
         }
       }
-    }
-    // Since we are going to change status to isActive=false, unschedule all flows
-    else {
+    } else {
+      // Since we are going to change status to isActive=false, unschedule all flows
       for (Spec spec : this.scheduledFlowSpecs.values()) {
         onDeleteSpec(spec.getUri(), spec.getVersion());
       }

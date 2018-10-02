@@ -95,7 +95,7 @@ public class OrchestratorTest {
     this.serviceLauncher.addService(flowCatalog);
 
     this.orchestrator = new Orchestrator(ConfigUtils.propertiesToConfig(orchestratorProperties),
-        Optional.of(this.topologyCatalog), Optional.of(logger));
+        Optional.of(this.topologyCatalog), Optional.<DagManager>absent(), Optional.of(logger));
     this.topologyCatalog.addListener(orchestrator);
     this.flowCatalog.addListener(orchestrator);
 
