@@ -367,12 +367,12 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
           setWorkUnitWeight(workUnit, copyEntity, minWorkUnitWeight);
           setWorkUnitWatermark(workUnit, watermarkGenerator, copyEntity);
           computeAndSetWorkUnitGuid(workUnit);
+          addLineageInfo(copyEntity, workUnit);
           if (copyEntity instanceof CopyableFile && DistcpFileSplitter.allowSplit(this.state)) {
             workUnitsForPartition.addAll(DistcpFileSplitter.splitFile((CopyableFile) copyEntity, workUnit, this.targetFs));
           } else {
             workUnitsForPartition.add(workUnit);
           }
-          addLineageInfo(copyEntity, workUnit);
         }
 
         this.workUnitList.putAll(this.fileSet, workUnitsForPartition);

@@ -161,6 +161,8 @@ public class DistcpFileSplitter {
       WorkUnitState newWorkUnit = mergeSplits(fs, file, splitWorkUnitsMap.get(file), parentPath);
 
       for (WorkUnitState wu : splitWorkUnitsMap.get(file)) {
+        // Set to committed so that task states will not fail
+        wu.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
         workUnits.remove(wu);
       }
       workUnits.add(newWorkUnit);
