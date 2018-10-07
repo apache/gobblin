@@ -72,7 +72,7 @@ public class JobExecutionPlan {
       String flowGroup = ConfigUtils.getString(flowConfig, ConfigurationKeys.FLOW_GROUP_KEY, "");
       String jobName = ConfigUtils.getString(jobConfig, ConfigurationKeys.JOB_NAME_KEY, "");
 
-      //Modify the job name to include the flow group, flow name and a randomly generated uuid to make the job name unique.
+      //Modify the job name to include the flow group, flow name and a randomly generated integer to make the job name unique.
       jobName = Joiner.on(JOB_NAME_COMPONENT_SEPARATION_CHAR).join(flowGroup, flowName, jobName, random.nextInt());
 
       JobSpec.Builder jobSpecBuilder = JobSpec.builder(jobSpecURIGenerator(flowGroup, jobName, flowSpec)).withConfig(jobConfig)
