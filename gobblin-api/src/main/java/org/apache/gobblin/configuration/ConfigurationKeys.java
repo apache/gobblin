@@ -175,6 +175,7 @@ public class ConfigurationKeys {
   public static final String WORK_UNIT_CREATION_AND_RUN_INTERVAL = "workunit.creation.and.run.interval";
   public static final String WORK_UNIT_ENABLE_TRACKING_LOGS = "workunit.enableTrackingLogs";
 
+  public static final String JOB_DEPENDENCIES = "job.dependencies";
   public static final String JOB_RUN_ONCE_KEY = "job.runonce";
   public static final String JOB_DISABLED_KEY = "job.disabled";
   public static final String JOB_JAR_FILES_KEY = "job.jars";
@@ -207,10 +208,9 @@ public class ConfigurationKeys {
   public static final String JOB_TEMPLATE_PATH = "job.template";
 
   /**
-   * Configuration property used only for job configuration file's tempalte, inside .template file
+   * Configuration property used only for job configuration file's template
    */
   public static final String REQUIRED_ATRRIBUTES_LIST = "gobblin.template.required_attributes";
-  public static final String JOB_DEPENDENCIES = "dependencies";
 
   /**
    * Configuration for emitting job events

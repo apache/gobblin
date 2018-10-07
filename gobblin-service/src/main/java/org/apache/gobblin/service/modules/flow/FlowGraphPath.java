@@ -17,16 +17,27 @@
 
 package org.apache.gobblin.service.modules.flow;
 
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
+import org.apache.hadoop.fs.Path;
+
+import com.google.common.base.Joiner;
+import com.google.common.base.Optional;
+import com.google.common.io.Files;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigValueFactory;
 
 import lombok.Getter;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.FlowSpec;
+import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.JobTemplate;
 import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
@@ -62,7 +73,7 @@ public class FlowGraphPath {
   public Dag<JobExecutionPlan> asDag() throws SpecNotFoundException, JobTemplate.TemplateException, URISyntaxException {
     Dag<JobExecutionPlan> flowDag = new Dag<>(new ArrayList<>());
 
-    for(List<FlowEdgeContext> path: paths) {
+    for (List<FlowEdgeContext> path: paths) {
       Dag<JobExecutionPlan> pathDag = new Dag<>(new ArrayList<>());
       Iterator<FlowEdgeContext> pathIterator = path.iterator();
       while (pathIterator.hasNext()) {
@@ -89,13 +100,59 @@ public class FlowGraphPath {
     SpecExecutor specExecutor = flowEdgeContext.getSpecExecutor();
 
     List<JobExecutionPlan> jobExecutionPlans = new ArrayList<>();
+    Map<String, String> templateToJobNameMap = new HashMap<>();
 
     //Get resolved job configs from the flow template
     List<Config> resolvedJobConfigs = flowTemplate.getResolvedJobConfigs(mergedConfig, inputDatasetDescriptor, outputDatasetDescriptor);
     //Iterate over each resolved job config and convert the config to a JobSpec.
     for (Config resolvedJobConfig : resolvedJobConfigs) {
-      jobExecutionPlans.add(new JobExecutionPlan.Factory().createPlan(flowSpec, resolvedJobConfig, specExecutor, flowExecutionId));
+      JobExecutionPlan jobExecutionPlan = new JobExecutionPlan.Factory().createPlan(flowSpec, resolvedJobConfig, specExecutor, flowExecutionId);
+      jobExecutionPlans.add(jobExecutionPlan);
+      templateToJobNameMap.put(getJobTemplateName(jobExecutionPlan), jobExecutionPlan.getJobSpec().getConfig().getString(
+          ConfigurationKeys.JOB_NAME_KEY));
     }
+    updateJobDependencies(jobExecutionPlans, templateToJobNameMap);
     return new JobExecutionPlanDagFactory().createDag(jobExecutionPlans);
+  }
+
+  /**
+   * The job template name is derived from the {@link org.apache.gobblin.runtime.api.JobTemplate} URI. It is the
+   * simple name of the path component of the URI.
+   * @param jobExecutionPlan
+   * @return the simple name of the job template from the URI of its path.
+   */
+  private static String getJobTemplateName(JobExecutionPlan jobExecutionPlan) {
+    Optional<URI> jobTemplateUri = jobExecutionPlan.getJobSpec().getTemplateURI();
+    if (jobTemplateUri.isPresent()) {
+      return Files.getNameWithoutExtension(new Path(jobTemplateUri.get()).getName());
+    } else {
+      return null;
+    }
+  }
+
+  /**
+   * A method to modify the {@link ConfigurationKeys#JOB_DEPENDENCIES} specified in a {@link JobTemplate} to those
+   * which are usable in a {@link JobSpec}.
+   * The {@link ConfigurationKeys#JOB_DEPENDENCIES} specified in a JobTemplate use the JobTemplate names
+   * (i.e. the file names of the templates without the extension). However, the same {@link FlowTemplate} may be used
+   * across multiple {@link FlowEdge}s. To ensure that we capture dependencies between jobs correctly as Dags from
+   * successive hops are merged, we translate the {@link JobTemplate} name specified in the dependencies config to
+   * {@link ConfigurationKeys#JOB_NAME_KEY} from the corresponding {@link JobSpec}, which is guaranteed to be globally unique.
+   * @param jobExecutionPlans a list of {@link JobExecutionPlan}s
+   * @param templateToJobNameMap a HashMap that has the mapping from the {@link JobTemplate} names to job.name in corresponding
+   * {@link JobSpec}
+   */
+  private void updateJobDependencies(List<JobExecutionPlan> jobExecutionPlans, Map<String, String> templateToJobNameMap) {
+    for (JobExecutionPlan jobExecutionPlan: jobExecutionPlans) {
+      JobSpec jobSpec = jobExecutionPlan.getJobSpec();
+      List<String> updatedDependenciesList = new ArrayList<>();
+      if (jobSpec.getConfig().hasPath(ConfigurationKeys.JOB_DEPENDENCIES)) {
+        for (String dependency : jobSpec.getConfig().getStringList(ConfigurationKeys.JOB_DEPENDENCIES)) {
+          updatedDependenciesList.add(templateToJobNameMap.get(dependency));
+        }
+        String updatedDependencies = Joiner.on(",").join(updatedDependenciesList);
+        jobSpec.setConfig(jobSpec.getConfig().withValue(ConfigurationKeys.JOB_DEPENDENCIES, ConfigValueFactory.fromAnyRef(updatedDependencies)));
+      }
+    }
   }
 }
