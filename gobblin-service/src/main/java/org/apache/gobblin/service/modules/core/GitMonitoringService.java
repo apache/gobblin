@@ -120,8 +120,8 @@ public abstract class GitMonitoringService extends AbstractIdleService {
   /** Start the service. */
   @Override
   protected void startUp() throws Exception {
-    log.info("Starting the " + GitConfigMonitor.class.getSimpleName());
-    log.info("Polling git with inteval {} ", this.pollingInterval);
+    log.info("Starting the " + getClass().getSimpleName());
+    log.info("Polling git with interval {} ", this.pollingInterval);
 
     // Schedule the job config fetch task
     this.scheduledExecutor.scheduleAtFixedRate(new Runnable() {

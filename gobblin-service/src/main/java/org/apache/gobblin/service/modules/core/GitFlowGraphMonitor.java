@@ -91,7 +91,7 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
    */
   @Override
   public boolean shouldPollGit() {
-    return this.isActive;
+    return true;
   }
 
   /**
