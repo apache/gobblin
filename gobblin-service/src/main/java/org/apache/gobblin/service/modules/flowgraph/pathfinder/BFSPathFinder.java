@@ -75,9 +75,6 @@ public class BFSPathFinder extends AbstractPathFinder {
       //Initialization of auxiliary data structures used for path computation
       this.pathMap = new HashMap<>();
 
-      // Generate flow execution id for this compilation
-      this.flowExecutionId = System.currentTimeMillis();
-
       //Path computation must be thread-safe to guarantee read consistency. In other words, we prevent concurrent read/write access to the
       // flow graph.
         //Base condition 1: Source Node or Dest Node is inactive; return null
