@@ -29,6 +29,7 @@ import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
@@ -47,6 +48,7 @@ import org.apache.gobblin.service.modules.flowgraph.FlowEdge;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlanDagFactory;
 import org.apache.gobblin.service.modules.template.FlowTemplate;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
@@ -78,7 +80,7 @@ public class FlowGraphPath {
       Iterator<FlowEdgeContext> pathIterator = path.iterator();
       while (pathIterator.hasNext()) {
         Dag<JobExecutionPlan> flowEdgeDag = convertHopToDag(pathIterator.next());
-        pathDag = pathDag.concatenate(flowEdgeDag);
+        pathDag = concatenate(pathDag, flowEdgeDag);
       }
       flowDag = flowDag.merge(pathDag);
     }
@@ -86,12 +88,35 @@ public class FlowGraphPath {
   }
 
   /**
+   * Concatenate two {@link Dag}s. Modify the {@link ConfigurationKeys#JOB_DEPENDENCIES} in the {@link JobSpec}s of the child
+   * {@link Dag} to reflect the concatenation operation.
+   * @param dagLeft The parent dag.
+   * @param dagRight The child dag.
+   * @return The concatenated dag with modified {@link ConfigurationKeys#JOB_DEPENDENCIES}.
+   */
+  private Dag<JobExecutionPlan> concatenate(Dag<JobExecutionPlan> dagLeft, Dag<JobExecutionPlan> dagRight) {
+    List<Dag.DagNode<JobExecutionPlan>> endNodes = dagLeft.getEndNodes();
+    List<Dag.DagNode<JobExecutionPlan>> startNodes = dagRight.getStartNodes();
+    List<String> dependenciesList = Lists.newArrayList();
+    for (Dag.DagNode<JobExecutionPlan> dagNode: endNodes) {
+      dependenciesList.add(dagNode.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.JOB_NAME_KEY));
+    }
+    String dependencies = Joiner.on(",").join(dependenciesList);
+
+    for (Dag.DagNode<JobExecutionPlan> childNode: startNodes) {
+      JobSpec jobSpec = childNode.getValue().getJobSpec();
+      jobSpec.setConfig(jobSpec.getConfig().withValue(ConfigurationKeys.JOB_DEPENDENCIES, ConfigValueFactory.fromAnyRef(dependencies)));
+    }
+
+    return dagLeft.concatenate(dagRight);
+  }
+  /**
    * Given an instance of {@link FlowEdge}, this method returns a {@link Dag < JobExecutionPlan >} that moves data
    * from the source of the {@link FlowEdge} to the destination of the {@link FlowEdge}.
    * @param flowEdgeContext an instance of {@link FlowEdgeContext}.
    * @return a {@link Dag} of {@link JobExecutionPlan}s associated with the {@link FlowEdge}.
    */
-  private Dag<JobExecutionPlan> convertHopToDag(FlowEdgeContext flowEdgeContext)
+   private Dag<JobExecutionPlan> convertHopToDag(FlowEdgeContext flowEdgeContext)
       throws SpecNotFoundException, JobTemplate.TemplateException, URISyntaxException {
     FlowTemplate flowTemplate = flowEdgeContext.getEdge().getFlowTemplate();
     DatasetDescriptor inputDatasetDescriptor = flowEdgeContext.getInputDatasetDescriptor();
@@ -147,7 +172,7 @@ public class FlowGraphPath {
       JobSpec jobSpec = jobExecutionPlan.getJobSpec();
       List<String> updatedDependenciesList = new ArrayList<>();
       if (jobSpec.getConfig().hasPath(ConfigurationKeys.JOB_DEPENDENCIES)) {
-        for (String dependency : jobSpec.getConfig().getStringList(ConfigurationKeys.JOB_DEPENDENCIES)) {
+        for (String dependency : ConfigUtils.getStringList(jobSpec.getConfig(), ConfigurationKeys.JOB_DEPENDENCIES)) {
           updatedDependenciesList.add(templateToJobNameMap.get(dependency));
         }
         String updatedDependencies = Joiner.on(",").join(updatedDependenciesList);

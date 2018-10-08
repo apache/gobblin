@@ -169,6 +169,7 @@ public class MultiHopFlowCompilerTest {
     FlowSpec spec = flowSpecBuilder.build();
     return spec;
   }
+
   @Test
   public void testCompileFlow() throws URISyntaxException, IOException {
     FlowSpec spec = createFlowSpec("flow/flow.conf", "LocalFS-1", "ADLS-1");
@@ -188,7 +189,8 @@ public class MultiHopFlowCompilerTest {
     String flowName = "testFlowName";
     String expectedJobName1 = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
         join(flowGroup, flowName, "Distcp-HDFS-HDFS");
-    Assert.assertTrue(jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY).startsWith(expectedJobName1));
+    String jobName1 = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
+    Assert.assertTrue(jobName1.startsWith(expectedJobName1));
     String from = jobConfig.getString("from");
     String to = jobConfig.getString("to");
     Assert.assertEquals(from, "/data/out/testTeam/testDataset");
@@ -217,7 +219,9 @@ public class MultiHopFlowCompilerTest {
     jobConfig = jobSpecWithExecutor.getJobSpec().getConfig();
     String expectedJobName2 = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
         join(flowGroup, flowName, "convert-to-json-and-encrypt");
-    Assert.assertTrue(jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY).startsWith(expectedJobName2));
+    String jobName2 = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
+    Assert.assertTrue(jobName2.startsWith(expectedJobName2));
+    Assert.assertEquals(jobConfig.getString(ConfigurationKeys.JOB_DEPENDENCIES), jobName1);
     from = jobConfig.getString("from");
     to = jobConfig.getString("to");
     Assert.assertEquals(from, "/data/out/testTeam/testDataset");
@@ -235,7 +239,9 @@ public class MultiHopFlowCompilerTest {
     jobConfig = jobSpecWithExecutor.getJobSpec().getConfig();
     String expectedJobName3 = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
         join(flowGroup, flowName, "Distcp-HDFS-HDFS");
-    Assert.assertTrue(jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY).startsWith(expectedJobName3));
+    String jobName3 = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
+    Assert.assertTrue(jobName3.startsWith(expectedJobName3));
+    Assert.assertEquals(jobConfig.getString(ConfigurationKeys.JOB_DEPENDENCIES), jobName2);
     from = jobConfig.getString("from");
     to = jobConfig.getString("to");
     Assert.assertEquals(from, "/data/encrypted/testTeam/testDataset");
@@ -257,7 +263,9 @@ public class MultiHopFlowCompilerTest {
     jobConfig = jobSpecWithExecutor.getJobSpec().getConfig();
     String expectedJobName4 = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
         join(flowGroup, flowName, "Distcp-HDFS-ADL");
-    Assert.assertTrue(jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY).startsWith(expectedJobName4));
+    String jobName4 = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
+    Assert.assertTrue(jobName4.startsWith(expectedJobName4));
+    Assert.assertEquals(jobConfig.getString(ConfigurationKeys.JOB_DEPENDENCIES), jobName3);
     from = jobConfig.getString("from");
     to = jobConfig.getString("to");
     Assert.assertEquals(from, "/data/encrypted/testTeam/testDataset");
@@ -302,7 +310,8 @@ public class MultiHopFlowCompilerTest {
     String flowName = "testFlowName";
     String expectedJobName1 = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
         join(flowGroup, flowName, "Distcp-HDFS-HDFS");
-    Assert.assertTrue(jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY).startsWith(expectedJobName1));
+    String jobName1 = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
+    Assert.assertTrue(jobName1.startsWith(expectedJobName1));
     String from = jobConfig.getString("from");
     String to = jobConfig.getString("to");
     Assert.assertEquals(from, "/data/out/testTeam/testDataset");
@@ -331,7 +340,9 @@ public class MultiHopFlowCompilerTest {
     jobConfig = jobExecutionPlan.getJobSpec().getConfig();
     String expectedJobName2 = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
         join(flowGroup, flowName, "convert-to-json-and-encrypt");
-    Assert.assertTrue(jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY).startsWith(expectedJobName2));
+    String jobName2 = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
+    Assert.assertTrue(jobName2.startsWith(expectedJobName2));
+    Assert.assertEquals(jobConfig.getString(ConfigurationKeys.JOB_DEPENDENCIES), jobName1);
     from = jobConfig.getString("from");
     to = jobConfig.getString("to");
     Assert.assertEquals(from, "/data/out/testTeam/testDataset");
@@ -349,7 +360,9 @@ public class MultiHopFlowCompilerTest {
     jobConfig = jobExecutionPlan.getJobSpec().getConfig();
     String expectedJobName3 = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
         join(flowGroup, flowName, "Distcp-HDFS-HDFS");
-    Assert.assertTrue(jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY).startsWith(expectedJobName3));
+    String jobName3 = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
+    Assert.assertTrue(jobName3.startsWith(expectedJobName3));
+    Assert.assertEquals(jobConfig.getString(ConfigurationKeys.JOB_DEPENDENCIES), jobName2);
     from = jobConfig.getString("from");
     to = jobConfig.getString("to");
     Assert.assertEquals(from, "/data/encrypted/testTeam/testDataset");
@@ -372,7 +385,9 @@ public class MultiHopFlowCompilerTest {
 
     String expectedJobName4 = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
         join(flowGroup, flowName, "Distcp-HDFS-ADL");
-    Assert.assertTrue(jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY).startsWith(expectedJobName4));
+    String jobName4 = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
+    Assert.assertTrue(jobName4.startsWith(expectedJobName4));
+    Assert.assertEquals(jobConfig.getString(ConfigurationKeys.JOB_DEPENDENCIES), jobName3);
     from = jobConfig.getString("from");
     to = jobConfig.getString("to");
     Assert.assertEquals(from, "/data/encrypted/testTeam/testDataset");
