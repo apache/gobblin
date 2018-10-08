@@ -421,6 +421,36 @@ public class AzkabanClient implements Closeable {
   }
 
   /**
+   * Cancel a flow by execution id.
+   */
+  public AzkabanClientStatus cancelFlow(int execId) {
+    try {
+      refreshSession();
+      List<NameValuePair> nvps = new ArrayList<>();
+      nvps.add(new BasicNameValuePair(AzkabanClientParams.AJAX, "cancelFlow"));
+      nvps.add(new BasicNameValuePair(AzkabanClientParams.SESSION_ID, this.sessionId));
+      nvps.add(new BasicNameValuePair(AzkabanClientParams.EXECID, String.valueOf(execId)));
+
+      Header contentType = new BasicHeader(HttpHeaders.CONTENT_TYPE, "application/x-www-form-urlencoded");
+      Header requestType = new BasicHeader("X-Requested-With", "XMLHttpRequest");
+
+      HttpGet httpGet = new HttpGet(url + "/executor?" + URLEncodedUtils.format(nvps, "UTF-8"));
+      httpGet.setHeaders(new Header[]{contentType, requestType});
+
+      CloseableHttpResponse response = this.httpClient.execute(httpGet);
+      try {
+        handleResponse(response);
+        return new AzkabanClientStatus.SUCCESS();
+      } finally {
+        response.close();
+      }
+    } catch (Exception e) {
+      return new AzkabanClientStatus.FAIL("", e);
+    }
+  }
+
+
+  /**
    * Given an execution id, fetches all the detailed information of that execution, including a list of all the job executions.
    *
    * @param execId execution id to be fetched.
