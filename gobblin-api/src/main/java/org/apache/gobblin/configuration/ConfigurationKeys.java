@@ -330,6 +330,8 @@ public class ConfigurationKeys {
   public static final long DEFAULT_FORK_RECORD_QUEUE_TIMEOUT = 1000;
   public static final String FORK_RECORD_QUEUE_TIMEOUT_UNIT_KEY = "fork.record.queue.timeout.unit";
   public static final String DEFAULT_FORK_RECORD_QUEUE_TIMEOUT_UNIT = TimeUnit.MILLISECONDS.name();
+  public static final String FORK_MAX_WAIT_MININUTES = "fork.max.wait.minutes";
+  public static final long DEFAULT_FORK_MAX_WAIT_MININUTES = 60;
 
   /**
    * Writer configuration properties.

@@ -75,6 +75,8 @@ public class StreamModelTaskRunner {
   private final String watermarkingStrategy;
 
   protected void run() throws Exception {
+    long maxWaitInMinute = taskState.getPropAsLong(ConfigurationKeys.FORK_MAX_WAIT_MININUTES, ConfigurationKeys.DEFAULT_FORK_MAX_WAIT_MININUTES);
+
     // Get the fork operator. By default IdentityForkOperator is used with a single branch.
     ForkOperator forkOperator = closer.register(this.taskContext.getForkOperator());
 
@@ -145,7 +147,7 @@ public class StreamModelTaskRunner {
     connectableStream.connect();
 
     if (!ExponentialBackoff.awaitCondition().callable(() -> this.forks.keySet().stream().map(Optional::get).allMatch(Fork::isDone)).
-        initialDelay(1000L).maxDelay(1000L).maxWait(TimeUnit.MINUTES.toMillis(60)).await()) {
+        initialDelay(1000L).maxDelay(1000L).maxWait(TimeUnit.MINUTES.toMillis(maxWaitInMinute)).await()) {
       throw new TimeoutException("Forks did not finish withing specified timeout.");
     }
   }
