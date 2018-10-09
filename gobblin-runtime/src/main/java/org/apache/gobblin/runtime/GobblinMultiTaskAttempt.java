@@ -338,7 +338,6 @@ public class GobblinMultiTaskAttempt {
         continue;
       }
 
-      countDownLatch.countUp();
       SubscopedBrokerBuilder<GobblinScopeTypes, ?> taskBrokerBuilder =
           this.jobBroker.newSubscopedBuilder(new TaskScopeInstance(taskId));
       WorkUnitState workUnitState = new WorkUnitState(workUnit, this.jobState, taskBrokerBuilder);
@@ -348,11 +347,25 @@ public class GobblinMultiTaskAttempt {
       if (this.containerIdOptional.isPresent()) {
         workUnitState.setProp(ConfigurationKeys.TASK_ATTEMPT_ID_KEY, this.containerIdOptional.get());
       }
-      // Create a new task from the work unit and submit the task to run
-      Task task = createTaskRunnable(workUnitState, countDownLatch);
-      this.taskStateTracker.registerNewTask(task);
-      task.setTaskFuture(this.taskExecutor.submit(task));
-      tasks.add(task);
+
+      // Create a new task from the work unit and submit the task to run.
+      // If an exception occurs here then the count down latch is not incremented
+      // to avoid being stuck waiting for a task that was not created and submitted successfully.
+      Task task = null;
+      try {
+        countDownLatch.countUp();
+        task = createTaskRunnable(workUnitState, countDownLatch);
+        this.taskStateTracker.registerNewTask(task);
+        task.setTaskFuture(this.taskExecutor.submit(task));
+        tasks.add(task);
+      } catch (Exception e) {
+        if (task == null) {
+          countDownLatch.countDown();
+          log.error("Could not create task for workunit {}", workUnit, e);
+        } else {
+          log.error("Could not submit task for workunit {}", workUnit, e);
+        }
+      }
     }
 
     new EventSubmitter.Builder(JobMetrics.get(this.jobId).getMetricContext(), "gobblin.runtime").build()
