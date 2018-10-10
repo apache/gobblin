@@ -19,6 +19,7 @@ package org.apache.gobblin.config.store.zip;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Paths;
@@ -50,6 +51,7 @@ public class IvyConfigStoreFactory implements ConfigStoreFactory<ZipFileConfigSt
   private static final String IVY_SCHEME_PREFIX = "ivy-";
   private static final String ORG_KEY = "org";
   private static final String MODULE_KEY = "module";
+  private static final String STORE_PATH_KEY = "storePath";
   private static final String STORE_PREFIX_KEY = "storePrefix";
 
   @Override
@@ -64,11 +66,12 @@ public class IvyConfigStoreFactory implements ConfigStoreFactory<ZipFileConfigSt
   /**
    * Example configKey URI (configuration is passed as part of the query)
    *
-   * ivy-hdfs://<hdfsURI>/path/to/config/store?org=<jarOrg>&module=<jarModule>&storePrefix=_CONFIG_STORE
+   * ivy-hdfs:/<relativePath>?org=<jarOrg>&module=<jarModule>&storePath=/path/to/hdfs/store&storePrefix=_CONFIG_STORE
    *
    * ivy-hdfs: scheme for this factory
-   * hdfsURI/path/to/config/store: location of HDFS config store (used for getting current version)
+   * relativePath: config key path within the jar
    * org/module: org and module of jar containing config store
+   * storePath: location of HDFS config store (used for getting current version)
    * storePrefix: prefix to paths in config store
    */
   @Override
@@ -84,14 +87,15 @@ public class IvyConfigStoreFactory implements ConfigStoreFactory<ZipFileConfigSt
 
     String jarOrg = factoryProps.getProperty(ORG_KEY);
     String jarModule = factoryProps.getProperty(MODULE_KEY);
+    String storePath = factoryProps.getProperty(STORE_PATH_KEY);
 
-    if (jarOrg == null || jarModule == null) {
-      throw new ConfigStoreCreationException(configKey, "Config key URI must contain org and module to download from");
+    if (jarOrg == null || jarModule == null || storePath == null) {
+      throw new ConfigStoreCreationException(configKey, "Config key URI must contain org, module, and storePath");
     }
 
     try {
       SimpleHDFSStoreMetadata metadata = new SimpleHDFSStoreMetadata(
-          org.apache.hadoop.fs.FileSystem.get(new Configuration()), new Path(configKey.getPath(),
+          org.apache.hadoop.fs.FileSystem.get(new Configuration()), new Path(storePath,
           SimpleHadoopFilesystemConfigStore.CONFIG_STORE_NAME));
       String currentVersion = metadata.getCurrentVersion();
 
@@ -107,10 +111,17 @@ public class IvyConfigStoreFactory implements ConfigStoreFactory<ZipFileConfigSt
         throw new ConfigStoreCreationException(configKey, "Downloaded file must be a zip or jar file");
       }
 
-      return new ZipFileConfigStore((ZipFileSystem) zipFs, configKey, currentVersion, factoryProps.getProperty(STORE_PREFIX_KEY, ""));
-    } catch (IOException e) {
+      return new ZipFileConfigStore((ZipFileSystem) zipFs, getBaseURI(configKey), currentVersion, factoryProps.getProperty(STORE_PREFIX_KEY, ""));
+    } catch (IOException | URISyntaxException e) {
       throw new ConfigStoreCreationException(configKey, e);
     }
+  }
+
+  /**
+   * Base URI for a config store should be root of the zip file, so change path part of URI to be null
+   */
+  private URI getBaseURI(URI configKey) throws URISyntaxException {
+    return new URI(configKey.getScheme(), configKey.getAuthority(), null, configKey.getQuery(), configKey.getFragment());
   }
 }
 
