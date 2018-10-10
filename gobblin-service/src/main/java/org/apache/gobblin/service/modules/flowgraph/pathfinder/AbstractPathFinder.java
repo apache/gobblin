@@ -18,7 +18,6 @@
 package org.apache.gobblin.service.modules.flowgraph.pathfinder;
 
 import java.io.IOException;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -215,24 +214,16 @@ public abstract class AbstractPathFinder implements PathFinder {
    *
    * @param flowEdgeContext of the last {@link FlowEdge} in the path.
    * @return a {@link Dag} of {@link JobExecutionPlan}s for the input {@link FlowSpec}.
-   * @throws IOException
-   * @throws SpecNotFoundException
-   * @throws JobTemplate.TemplateException
-   * @throws URISyntaxException
    */
-  protected List<FlowEdgeContext> constructPath(FlowEdgeContext flowEdgeContext)
-      throws IOException, SpecNotFoundException, JobTemplate.TemplateException, URISyntaxException {
+  List<FlowEdgeContext> constructPath(FlowEdgeContext flowEdgeContext) {
     //Backtrace from the last edge using the path map and push each edge into a LIFO data structure.
     List<FlowEdgeContext> path = new LinkedList<>();
     path.add(flowEdgeContext);
     FlowEdgeContext currentFlowEdgeContext = flowEdgeContext;
-    while (true) {
+    //While we are not at the first edge in the path, add the edge to the path
+    while (!this.pathMap.get(currentFlowEdgeContext).equals(currentFlowEdgeContext)) {
       path.add(0, this.pathMap.get(currentFlowEdgeContext));
       currentFlowEdgeContext = this.pathMap.get(currentFlowEdgeContext);
-      //Are we at the first edge in the path?
-      if (this.pathMap.get(currentFlowEdgeContext).equals(currentFlowEdgeContext)) {
-        break;
-      }
     }
     return path;
   }
