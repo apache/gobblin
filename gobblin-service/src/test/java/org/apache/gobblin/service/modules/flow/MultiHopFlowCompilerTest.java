@@ -168,9 +168,10 @@ public class MultiHopFlowCompilerTest {
     FlowSpec spec = flowSpecBuilder.build();
     return spec;
   }
+
   @Test
   public void testCompileFlow() throws URISyntaxException, IOException {
-    FlowSpec spec = createFlowSpec("flow/flow.conf", "LocalFS-1", "ADLS-1");
+    FlowSpec spec = createFlowSpec("flow/flow1.conf", "LocalFS-1", "ADLS-1");
     Dag<JobExecutionPlan> jobDag = this.specCompiler.compileFlow(spec);
     Assert.assertEquals(jobDag.getNodes().size(), 4);
     Assert.assertEquals(jobDag.getStartNodes().size(), 1);
@@ -273,7 +274,7 @@ public class MultiHopFlowCompilerTest {
     //Delete the self edge on HDFS-1 that performs convert-to-json-and-encrypt.
     this.flowGraph.deleteFlowEdge("HDFS-1:HDFS-1:hdfsConvertToJsonAndEncrypt");
 
-    FlowSpec spec = createFlowSpec("flow/flow.conf", "LocalFS-1", "ADLS-1");
+    FlowSpec spec = createFlowSpec("flow/flow1.conf", "LocalFS-1", "ADLS-1");
     Dag<JobExecutionPlan> jobDag = this.specCompiler.compileFlow(spec);
 
     Assert.assertEquals(jobDag.getNodes().size(), 4);
@@ -377,7 +378,7 @@ public class MultiHopFlowCompilerTest {
     //Delete the self edge on HDFS-2 that performs convert-to-json-and-encrypt.
     this.flowGraph.deleteFlowEdge("HDFS-2:HDFS-2:hdfsConvertToJsonAndEncrypt");
 
-    FlowSpec spec = createFlowSpec("flow/flow.conf", "LocalFS-1", "ADLS-1");
+    FlowSpec spec = createFlowSpec("flow/flow1.conf", "LocalFS-1", "ADLS-1");
     Dag<JobExecutionPlan> jobDag = this.specCompiler.compileFlow(spec);
 
     //Ensure no path to destination.
@@ -385,8 +386,26 @@ public class MultiHopFlowCompilerTest {
   }
 
   @Test (dependsOnMethods = "testCompileFlowAfterSecondEdgeDeletion")
+  public void testCompileFlowSingleHop() throws IOException, URISyntaxException {
+    FlowSpec spec = createFlowSpec("flow/flow2.conf", "HDFS-1", "HDFS-3");
+    Dag<JobExecutionPlan> jobDag = this.specCompiler.compileFlow(spec);
+    Assert.assertEquals(jobDag.getNodes().size(), 1);
+    Assert.assertEquals(jobDag.getStartNodes().size(), 1);
+    Assert.assertEquals(jobDag.getEndNodes().size(), 1);
+    Assert.assertEquals(jobDag.getStartNodes().get(0), jobDag.getEndNodes().get(0));
+
+    //Ensure hop is from HDFS-1 to HDFS-3.
+    Dag.DagNode<JobExecutionPlan> dagNode = jobDag.getStartNodes().get(0);
+    JobExecutionPlan jobExecutionPlan = dagNode.getValue();
+    Config jobConfig = jobExecutionPlan.getJobSpec().getConfig();
+    Assert.assertEquals(jobConfig.getString("source.filebased.fs.uri"), "hdfs://hadoopnn01.grid.linkedin.com:8888/");
+    Assert.assertEquals(jobConfig.getString("target.filebased.fs.uri"), "hdfs://hadoopnn03.grid.linkedin.com:8888/");
+  }
+
+
+  @Test (dependsOnMethods = "testCompileFlowSingleHop")
   public void testMulticastPath() throws IOException, URISyntaxException {
-    FlowSpec spec = createFlowSpec("flow/multicastFlow.conf", "LocalFS-1", "HDFS-3,HDFS-4");
+    FlowSpec spec = createFlowSpec("flow/flow2.conf", "LocalFS-1", "HDFS-3,HDFS-4");
     Dag<JobExecutionPlan> jobDag = this.specCompiler.compileFlow(spec);
 
     Assert.assertEquals(jobDag.getNodes().size(), 4);
