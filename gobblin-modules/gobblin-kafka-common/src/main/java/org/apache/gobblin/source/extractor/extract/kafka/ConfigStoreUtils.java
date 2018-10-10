@@ -81,10 +81,11 @@ public class ConfigStoreUtils {
 
   public static URI getUriStringForTopic(String topicName, String commonPath, String configStoreUri)
       throws URISyntaxException {
-    Path path =
-        PathUtils.mergePaths(new Path(configStoreUri), PathUtils.mergePaths(new Path(commonPath), new Path(topicName)));
-    log.info("URI for topic is : " + path.toString());
-    return new URI(path.toString());
+    URI storeUri = new URI(configStoreUri);
+    Path path = PathUtils.mergePaths(new Path(storeUri.getPath()), PathUtils.mergePaths(new Path(commonPath), new Path(topicName)));
+    URI topicUri = new URI(storeUri.getScheme(), storeUri.getAuthority(), path.toString(), storeUri.getQuery(), storeUri.getFragment());
+    log.info("URI for topic is : " + topicUri.toString());
+    return topicUri;
   }
 
   public static Optional<Config> getConfigForTopic(Properties properties, String topicKey, ConfigClient configClient) {
