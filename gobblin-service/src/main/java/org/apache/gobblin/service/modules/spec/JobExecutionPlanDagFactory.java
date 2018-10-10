@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.service.modules.spec;
 
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -25,10 +24,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.hadoop.fs.Path;
-
-import com.google.common.base.Optional;
-import com.google.common.io.Files;
 import com.typesafe.config.Config;
 
 import lombok.extern.slf4j.Slf4j;
@@ -49,7 +44,7 @@ public class JobExecutionPlanDagFactory {
 
   public Dag<JobExecutionPlan> createDag(List<JobExecutionPlan> jobExecutionPlans) {
     //Maintain a mapping between job name and the corresponding JobExecutionPlan.
-    Map<String, Dag.DagNode<JobExecutionPlan>> JobExecutionPlanMap = new HashMap<>();
+    Map<String, Dag.DagNode<JobExecutionPlan>> jobExecutionPlanMap = new HashMap<>();
     List<Dag.DagNode<JobExecutionPlan>> dagNodeList = new ArrayList<>();
     /**
      * Create a {@link Dag.DagNode<JobExecutionPlan>} for every {@link JobSpec} in the flow. Add this node
@@ -60,7 +55,7 @@ public class JobExecutionPlanDagFactory {
       dagNodeList.add(dagNode);
       String jobName = getJobName(jobExecutionPlan);
       if (jobName != null) {
-        JobExecutionPlanMap.put(jobName, dagNode);
+        jobExecutionPlanMap.put(jobName, dagNode);
       }
     }
 
@@ -76,10 +71,10 @@ public class JobExecutionPlanDagFactory {
       if (jobName == null) {
         continue;
       }
-      Dag.DagNode<JobExecutionPlan> node = JobExecutionPlanMap.get(jobName);
+      Dag.DagNode<JobExecutionPlan> node = jobExecutionPlanMap.get(jobName);
       Collection<String> dependencies = getDependencies(jobExecutionPlan.getJobSpec().getConfig());
       for (String dependency : dependencies) {
-        Dag.DagNode<JobExecutionPlan> parentNode = JobExecutionPlanMap.get(dependency);
+        Dag.DagNode<JobExecutionPlan> parentNode = jobExecutionPlanMap.get(dependency);
         node.addParentNode(parentNode);
       }
     }
@@ -98,17 +93,12 @@ public class JobExecutionPlanDagFactory {
   }
 
   /**
-   * The job name is derived from the {@link org.apache.gobblin.runtime.api.JobTemplate} URI. It is the
-   * simple name of the path component of the URI.
+   * The job name is derived from the {@link ConfigurationKeys#JOB_NAME_KEY} config. It is assumed to be unique
+   * across all jobs in a {@link Dag}.
    * @param jobExecutionPlan
-   * @return the simple name from the URI path.
+   * @return the name of the job.
    */
   private static String getJobName(JobExecutionPlan jobExecutionPlan) {
-    Optional<URI> jobTemplateUri = jobExecutionPlan.getJobSpec().getTemplateURI();
-    if (jobTemplateUri.isPresent()) {
-      return Files.getNameWithoutExtension(new Path(jobTemplateUri.get()).getName());
-    } else {
-      return null;
-    }
+    return jobExecutionPlan.getJobSpec().getConfig().getString(ConfigurationKeys.JOB_NAME_KEY);
   }
 }
