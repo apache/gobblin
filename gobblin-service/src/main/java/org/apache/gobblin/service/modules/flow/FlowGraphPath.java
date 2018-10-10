@@ -29,6 +29,7 @@ import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 import com.typesafe.config.Config;
@@ -163,6 +164,10 @@ public class FlowGraphPath {
    * across multiple {@link FlowEdge}s. To ensure that we capture dependencies between jobs correctly as Dags from
    * successive hops are merged, we translate the {@link JobTemplate} name specified in the dependencies config to
    * {@link ConfigurationKeys#JOB_NAME_KEY} from the corresponding {@link JobSpec}, which is guaranteed to be globally unique.
+   * For example, consider a {@link JobTemplate} with URI job1.job which has "job.dependencies=job2,job3" (where job2.job and job3.job are
+   * URIs of other {@link JobTemplate}s). Also, let the job.name config for the three jobs (after {@link JobSpec} is compiled) be as follows:
+   *  "job.name=flowgrp1_flowName1_jobName1_1111", "job.name=flowgrp1_flowName1_jobName2_1121", and "job.name=flowgrp1_flowName1_jobName3_1131". Then,
+   *  for job1, this method will set "job.dependencies=flowgrp1_flowName1_jobName2_1121, flowgrp1_flowName1_jobName3_1131".
    * @param jobExecutionPlans a list of {@link JobExecutionPlan}s
    * @param templateToJobNameMap a HashMap that has the mapping from the {@link JobTemplate} names to job.name in corresponding
    * {@link JobSpec}
@@ -173,6 +178,10 @@ public class FlowGraphPath {
       List<String> updatedDependenciesList = new ArrayList<>();
       if (jobSpec.getConfig().hasPath(ConfigurationKeys.JOB_DEPENDENCIES)) {
         for (String dependency : ConfigUtils.getStringList(jobSpec.getConfig(), ConfigurationKeys.JOB_DEPENDENCIES)) {
+          if (!templateToJobNameMap.containsKey(dependency)) {
+            //We should never hit this condition. The logic here is a safety check.
+            throw new RuntimeException("TemplateToJobNameMap does not contain dependency " + dependency);
+          }
           updatedDependenciesList.add(templateToJobNameMap.get(dependency));
         }
         String updatedDependencies = Joiner.on(",").join(updatedDependenciesList);
