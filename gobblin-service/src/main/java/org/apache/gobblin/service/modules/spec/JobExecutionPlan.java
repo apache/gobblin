@@ -19,6 +19,7 @@ package org.apache.gobblin.service.modules.spec;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Random;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -49,6 +50,8 @@ public class JobExecutionPlan {
   private ExecutionStatus executionStatus = ExecutionStatus.$UNKNOWN;
 
   public static class Factory {
+    public static final String JOB_NAME_COMPONENT_SEPARATION_CHAR = "_";
+    private static final Random random = new Random();
 
     public JobExecutionPlan createPlan(FlowSpec flowSpec, Config jobConfig, SpecExecutor specExecutor, Long flowExecutionId)
         throws URISyntaxException {
@@ -69,8 +72,8 @@ public class JobExecutionPlan {
       String flowGroup = ConfigUtils.getString(flowConfig, ConfigurationKeys.FLOW_GROUP_KEY, "");
       String jobName = ConfigUtils.getString(jobConfig, ConfigurationKeys.JOB_NAME_KEY, "");
 
-      //Modify the job name to include the flow group:flow name.
-      jobName = Joiner.on(":").join(flowGroup, flowName, jobName);
+      //Modify the job name to include the flow group, flow name and a randomly generated integer to make the job name unique.
+      jobName = Joiner.on(JOB_NAME_COMPONENT_SEPARATION_CHAR).join(flowGroup, flowName, jobName, random.nextInt(Integer.MAX_VALUE));
 
       JobSpec.Builder jobSpecBuilder = JobSpec.builder(jobSpecURIGenerator(flowGroup, jobName, flowSpec)).withConfig(jobConfig)
           .withDescription(flowSpec.getDescription()).withVersion(flowSpec.getVersion());
@@ -78,6 +81,9 @@ public class JobExecutionPlan {
       //Get job template uri
       URI jobTemplateUri = new URI(jobConfig.getString(ConfigurationKeys.JOB_TEMPLATE_PATH));
       JobSpec jobSpec = jobSpecBuilder.withTemplate(jobTemplateUri).build();
+
+      //Add flowGroup to job spec
+      jobSpec.setConfig(jobSpec.getConfig().withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup)));
 
       //Add flowName to job spec
       jobSpec.setConfig(jobSpec.getConfig().withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName)));
@@ -109,7 +115,7 @@ public class JobExecutionPlan {
      * A naive implementation of generating a jobSpec's URI within a multi-hop flow that follows the convention:
      * <JOB_CATALOG_SCHEME>/{@link ConfigurationKeys#JOB_GROUP_KEY}/{@link ConfigurationKeys#JOB_NAME_KEY}.
      */
-    public static URI jobSpecURIGenerator(String jobGroup, String jobName, FlowSpec flowSpec)
+    private static URI jobSpecURIGenerator(String jobGroup, String jobName, FlowSpec flowSpec)
         throws URISyntaxException {
       return new URI(JobSpec.Builder.DEFAULT_JOB_CATALOG_SCHEME, flowSpec.getUri().getAuthority(),
           StringUtils.appendIfMissing(StringUtils.prependIfMissing(flowSpec.getUri().getPath(), "/"), "/") + jobGroup

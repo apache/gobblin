@@ -47,6 +47,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Charsets;
+import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.io.Files;
 import com.typesafe.config.Config;
@@ -184,7 +185,12 @@ public class MultiHopFlowCompilerTest {
 
     //Ensure the resolved job config for the first hop has the correct substitutions.
     Config jobConfig = jobSpec.getConfig();
-    Assert.assertEquals(jobConfig.getString("job.name"), "testFlowGroup:testFlowName:Distcp-HDFS-HDFS");
+    String flowGroup = "testFlowGroup";
+    String flowName = "testFlowName";
+    String expectedJobName1 = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
+        join(flowGroup, flowName, "Distcp-HDFS-HDFS");
+    String jobName1 = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
+    Assert.assertTrue(jobName1.startsWith(expectedJobName1));
     String from = jobConfig.getString("from");
     String to = jobConfig.getString("to");
     Assert.assertEquals(from, "/data/out/testTeam/testDataset");
@@ -211,7 +217,11 @@ public class MultiHopFlowCompilerTest {
     Dag.DagNode<JobExecutionPlan> secondHopNode = jobDag.getChildren(startNode).get(0);
     jobSpecWithExecutor = secondHopNode.getValue();
     jobConfig = jobSpecWithExecutor.getJobSpec().getConfig();
-    Assert.assertEquals(jobConfig.getString("job.name"), "testFlowGroup:testFlowName:convert-to-json-and-encrypt");
+    String expectedJobName2 = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
+        join(flowGroup, flowName, "convert-to-json-and-encrypt");
+    String jobName2 = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
+    Assert.assertTrue(jobName2.startsWith(expectedJobName2));
+    Assert.assertEquals(jobConfig.getString(ConfigurationKeys.JOB_DEPENDENCIES), jobName1);
     from = jobConfig.getString("from");
     to = jobConfig.getString("to");
     Assert.assertEquals(from, "/data/out/testTeam/testDataset");
@@ -227,7 +237,11 @@ public class MultiHopFlowCompilerTest {
     Dag.DagNode<JobExecutionPlan> thirdHopNode = jobDag.getChildren(secondHopNode).get(0);
     jobSpecWithExecutor = thirdHopNode.getValue();
     jobConfig = jobSpecWithExecutor.getJobSpec().getConfig();
-    Assert.assertEquals(jobConfig.getString("job.name"), "testFlowGroup:testFlowName:Distcp-HDFS-HDFS");
+    String expectedJobName3 = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
+        join(flowGroup, flowName, "Distcp-HDFS-HDFS");
+    String jobName3 = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
+    Assert.assertTrue(jobName3.startsWith(expectedJobName3));
+    Assert.assertEquals(jobConfig.getString(ConfigurationKeys.JOB_DEPENDENCIES), jobName2);
     from = jobConfig.getString("from");
     to = jobConfig.getString("to");
     Assert.assertEquals(from, "/data/encrypted/testTeam/testDataset");
@@ -247,7 +261,11 @@ public class MultiHopFlowCompilerTest {
     Dag.DagNode<JobExecutionPlan> fourthHopNode = jobDag.getChildren(thirdHopNode).get(0);
     jobSpecWithExecutor = fourthHopNode.getValue();
     jobConfig = jobSpecWithExecutor.getJobSpec().getConfig();
-    Assert.assertEquals(jobConfig.getString("job.name"), "testFlowGroup:testFlowName:Distcp-HDFS-ADL");
+    String expectedJobName4 = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
+        join(flowGroup, flowName, "Distcp-HDFS-ADL");
+    String jobName4 = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
+    Assert.assertTrue(jobName4.startsWith(expectedJobName4));
+    Assert.assertEquals(jobConfig.getString(ConfigurationKeys.JOB_DEPENDENCIES), jobName3);
     from = jobConfig.getString("from");
     to = jobConfig.getString("to");
     Assert.assertEquals(from, "/data/encrypted/testTeam/testDataset");
@@ -288,7 +306,12 @@ public class MultiHopFlowCompilerTest {
 
     //Ensure the resolved job config for the first hop has the correct substitutions.
     Config jobConfig = jobSpec.getConfig();
-    Assert.assertEquals(jobConfig.getString("job.name"), "testFlowGroup:testFlowName:Distcp-HDFS-HDFS");
+    String flowGroup = "testFlowGroup";
+    String flowName = "testFlowName";
+    String expectedJobName1 = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
+        join(flowGroup, flowName, "Distcp-HDFS-HDFS");
+    String jobName1 = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
+    Assert.assertTrue(jobName1.startsWith(expectedJobName1));
     String from = jobConfig.getString("from");
     String to = jobConfig.getString("to");
     Assert.assertEquals(from, "/data/out/testTeam/testDataset");
@@ -315,7 +338,11 @@ public class MultiHopFlowCompilerTest {
     Dag.DagNode<JobExecutionPlan> secondHopNode = jobDag.getChildren(startNode).get(0);
     jobExecutionPlan = secondHopNode.getValue();
     jobConfig = jobExecutionPlan.getJobSpec().getConfig();
-    Assert.assertEquals(jobConfig.getString("job.name"), "testFlowGroup:testFlowName:convert-to-json-and-encrypt");
+    String expectedJobName2 = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
+        join(flowGroup, flowName, "convert-to-json-and-encrypt");
+    String jobName2 = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
+    Assert.assertTrue(jobName2.startsWith(expectedJobName2));
+    Assert.assertEquals(jobConfig.getString(ConfigurationKeys.JOB_DEPENDENCIES), jobName1);
     from = jobConfig.getString("from");
     to = jobConfig.getString("to");
     Assert.assertEquals(from, "/data/out/testTeam/testDataset");
@@ -331,7 +358,11 @@ public class MultiHopFlowCompilerTest {
     Dag.DagNode<JobExecutionPlan> thirdHopNode = jobDag.getChildren(secondHopNode).get(0);
     jobExecutionPlan = thirdHopNode.getValue();
     jobConfig = jobExecutionPlan.getJobSpec().getConfig();
-    Assert.assertEquals(jobConfig.getString("job.name"), "testFlowGroup:testFlowName:Distcp-HDFS-HDFS");
+    String expectedJobName3 = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
+        join(flowGroup, flowName, "Distcp-HDFS-HDFS");
+    String jobName3 = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
+    Assert.assertTrue(jobName3.startsWith(expectedJobName3));
+    Assert.assertEquals(jobConfig.getString(ConfigurationKeys.JOB_DEPENDENCIES), jobName2);
     from = jobConfig.getString("from");
     to = jobConfig.getString("to");
     Assert.assertEquals(from, "/data/encrypted/testTeam/testDataset");
@@ -351,7 +382,12 @@ public class MultiHopFlowCompilerTest {
     Dag.DagNode<JobExecutionPlan> fourthHopNode = jobDag.getChildren(thirdHopNode).get(0);
     jobExecutionPlan = fourthHopNode.getValue();
     jobConfig = jobExecutionPlan.getJobSpec().getConfig();
-    Assert.assertEquals(jobConfig.getString("job.name"), "testFlowGroup:testFlowName:Distcp-HDFS-ADL");
+
+    String expectedJobName4 = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
+        join(flowGroup, flowName, "Distcp-HDFS-ADL");
+    String jobName4 = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
+    Assert.assertTrue(jobName4.startsWith(expectedJobName4));
+    Assert.assertEquals(jobConfig.getString(ConfigurationKeys.JOB_DEPENDENCIES), jobName3);
     from = jobConfig.getString("from");
     to = jobConfig.getString("to");
     Assert.assertEquals(from, "/data/encrypted/testTeam/testDataset");
