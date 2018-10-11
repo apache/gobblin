@@ -31,6 +31,9 @@ import org.apache.gobblin.data.management.copy.splitter.DistcpFileSplitter;
 /**
  * A wrapper to {@link InputStream} that represents an entity to be copied. The enclosed {@link CopyableFile} instance
  * contains file Metadata like permission, destination path etc. required by the writers and converters.
+ * The enclosed {@link DistcpFileSplitter.Split} object indicates whether the {@link InputStream} to be copied is a
+ * block of the {@link CopyableFile} or not. If it is present, the {@link InputStream} should already be at the start
+ * position of the specified split/block.
  */
 @Getter
 public class FileAwareInputStream {

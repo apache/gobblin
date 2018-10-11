@@ -91,17 +91,23 @@ public class DistcpFileSplitterTest {
     Assert.assertEquals(splitWorkUnits.size(), expectedSplits);
 
     Set<Integer> splitNums = new HashSet<>();
+    boolean hasLastSplit = false;
     for (WorkUnit wu : splitWorkUnits) {
       Optional<DistcpFileSplitter.Split> split = DistcpFileSplitter.getSplit(wu);
       Assert.assertTrue(split.isPresent());
       Assert.assertEquals(split.get().getTotalSplits(), expectedSplits);
-
       int splitNum = split.get().getSplitNumber();
       Assert.assertFalse(splitNums.contains(splitNum));
       splitNums.add(splitNum);
       Assert.assertEquals(split.get().getLowPosition(), expectedSplitSize * splitNum);
-      Assert.assertEquals(split.get().getHighPosition(), expectedSplitSize * (splitNum + 1));
+      if (split.get().isLastSplit()) {
+        hasLastSplit = true;
+        Assert.assertEquals(split.get().getHighPosition(), mockFileLen);
+      } else {
+        Assert.assertEquals(split.get().getHighPosition(), expectedSplitSize * (splitNum + 1));
+      }
     }
+    Assert.assertTrue(hasLastSplit);
   }
 
   private Collection<WorkUnit> createMockSplitWorkUnits(FileSystem fs, long fileLen, long blockSize, long maxSplitSize)

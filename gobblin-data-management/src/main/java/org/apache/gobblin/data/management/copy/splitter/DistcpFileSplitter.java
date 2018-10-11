@@ -47,7 +47,9 @@ import org.apache.gobblin.util.guid.Guid;
 
 
 /**
- * Helper class for splitting files for distcp.
+ * Helper class for splitting files for distcp. The property flag gobblin.copy.split.enabled should be used to enable
+ * splitting of files (which is disabled by default). Splitting should only be used if the distcp job uses only the
+ * IdentityConverter and should not be used for distcp jobs that require decryption/ungzipping.
  */
 @Slf4j
 public class DistcpFileSplitter {
@@ -59,7 +61,7 @@ public class DistcpFileSplitter {
   public static final Set<String> KNOWN_SCHEMES_SUPPORTING_CONCAT = Sets.newHashSet("hdfs");
 
   /**
-   * A split for a distcp file. Represents a section of a file, aligned to block boundaries.
+   * A split for a distcp file. Represents a section of a file; split should be aligned to block boundaries.
    */
   @Data
   public static class Split {
@@ -114,7 +116,7 @@ public class DistcpFileSplitter {
       WorkUnit newWorkUnit = WorkUnit.copyOf(workUnit);
 
       long lowPos = lengthPerSplit * i;
-      long highPos = lengthPerSplit * (i + 1);
+      long highPos = Math.min(lengthPerSplit * (i + 1), len);
 
       Split split = new Split(lowPos, highPos, i, splits,
           String.format("%s.__PART%d__", file.getDestination().getName(), i));
@@ -172,6 +174,7 @@ public class DistcpFileSplitter {
 
   /**
    * Merges all the splits for a given file.
+   * Should be called on the target/destination file system (after blocks have been copied to targetFs).
    * @param fs {@link FileSystem} where file parts exist.
    * @param file {@link CopyableFile} to merge.
    * @param workUnits {@link WorkUnitState}s for all parts of this file.

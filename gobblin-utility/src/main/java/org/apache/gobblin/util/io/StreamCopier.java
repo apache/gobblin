@@ -95,7 +95,8 @@ public class StreamCopier {
   }
 
   /**
-   * Execute the copy of bytes from the input to the output stream.
+   * Execute the copy of bytes from the input to the output stream. If maxBytes is specified, limits the number of
+   * bytes copied to maxBytes.
    * Note: this method should only be called once. Further calls will throw a {@link IllegalStateException}.
    * @return Number of bytes copied.
    */
@@ -111,6 +112,7 @@ public class StreamCopier {
       long totalBytes = 0;
 
       final ByteBuffer buffer = ByteBuffer.allocateDirect(this.bufferSize);
+      // Only keep copying if we've read less than maxBytes (if maxBytes exists)
       while ((this.maxBytes == null || this.maxBytes > totalBytes) &&
           (numBytes = fillBufferFromInputChannel(buffer)) != -1) {
         totalBytes += numBytes;
