@@ -17,9 +17,12 @@
 
 package org.apache.gobblin.converter.initializer;
 
+import com.google.common.base.Joiner;
 import java.sql.Connection;
+import java.sql.JDBCType;
 import java.sql.SQLException;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 
 import javax.sql.DataSource;
@@ -33,7 +36,6 @@ import com.google.gson.Gson;
 
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.converter.jdbc.AvroToJdbcEntryConverter;
-import org.apache.gobblin.converter.jdbc.JdbcType;
 import org.apache.gobblin.publisher.JdbcPublisher;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.ForkOperatorUtils;
@@ -85,13 +87,19 @@ public class AvroToJdbcEntryConverterInitializer implements ConverterInitializer
         .getPropertyNameForBranch(JdbcPublisher.JDBC_PUBLISHER_DATABASE_NAME, this.branches, this.branchId)));
     try (Connection conn = createConnection()) {
       JdbcWriterCommands commands = this.jdbcWriterCommandsFactory.newInstance(this.state, conn);
-      Map<String, JdbcType> dateColumnMapping = commands.retrieveDateColumns(db, table);
-      LOG.info("Date column mapping: " + dateColumnMapping);
+      Map<String, JDBCType> columnMapping = commands.retrieveColumnTypes(db, table);
+      LOG.info("Column types mapping: " + columnMapping);
+      List<String> primaryKeysRaw = commands.retrievePrimaryKeys(db, table);
+      String primaryKeys = (primaryKeysRaw == null || primaryKeysRaw.isEmpty()) ? "" : Joiner.on(",").join(primaryKeysRaw);
+      LOG.info("Primary keys: " + primaryKeys);
 
       final String dateFieldsKey = ForkOperatorUtils.getPropertyNameForBranch(
-          AvroToJdbcEntryConverter.CONVERTER_AVRO_JDBC_DATE_FIELDS, this.branches, this.branchId);
+          AvroToJdbcEntryConverter.CONVERTER_AVRO_JDBC_FIELD_TYPES, this.branches, this.branchId);
+      final String primaryKeysKey = ForkOperatorUtils.getPropertyNameForBranch(
+          AvroToJdbcEntryConverter.CONVERTER_AVRO_PKEYS, this.branches, this.branchId);
       for (WorkUnit wu : this.workUnits) {
-        wu.setProp(dateFieldsKey, new Gson().toJson(dateColumnMapping));
+        wu.setProp(dateFieldsKey, new Gson().toJson(columnMapping));
+        wu.setProp(primaryKeysKey, primaryKeys);
       }
     } catch (SQLException e) {
       throw new RuntimeException(e);

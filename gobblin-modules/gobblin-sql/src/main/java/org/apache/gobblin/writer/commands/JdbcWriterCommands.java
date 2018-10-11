@@ -16,7 +16,9 @@
  */
 package org.apache.gobblin.writer.commands;
 
-import org.apache.gobblin.converter.jdbc.JdbcType;
+import java.sql.JDBCType;
+import java.util.List;
+import org.apache.gobblin.converter.jdbc.JdbcEntryData;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -29,6 +31,23 @@ import java.util.Properties;
  * and having this interface decouples JdbcWriter with any syntax difference each RDBMS might have.
  */
 public interface JdbcWriterCommands extends JdbcBufferedInserter {
+
+  /**
+   * Dispatches a record to the correct operation.
+   * @param databaseName
+   * @param table
+   * @param jdbcEntryData
+   * @throws SQLException
+   */
+  default void dispatch(String databaseName, String table, JdbcEntryData jdbcEntryData) throws SQLException {
+    switch (jdbcEntryData.getOperation()) {
+      case INSERT:
+        insert(databaseName, table, jdbcEntryData);
+        break;
+      default:
+        throw new UnsupportedOperationException();
+    }
+  }
 
   /**
    * Sets writer specific connection parameters, e.g transaction handling
@@ -77,13 +96,38 @@ public interface JdbcWriterCommands extends JdbcBufferedInserter {
   public void drop(String database, String table) throws SQLException;
 
   /**
-   * Retrieves date related column such as Date, Time, DateTime, Timestamp etc.
+   * Retrieves column types in the remote schema
    * @param database
    * @param table
    * @return Map of column name and JdbcType that is date related.
    * @throws SQLException
    */
-  public Map<String, JdbcType> retrieveDateColumns(String database, String table) throws SQLException;
+  default Map<String, JDBCType> retrieveColumnTypes(String database, String table) throws SQLException {
+    return retrieveDateColumns(database, table);
+  }
+
+  /**
+   * Retrieves date related column such as Date, Time, DateTime, Timestamp etc.
+   * @param database
+   * @param table
+   * @return Map of column name and JdbcType that is date related.
+   * @throws SQLException
+   * @deprecated use {@link #retrieveColumnTypes(String, String)} instead.
+   */
+  default Map<String, JDBCType> retrieveDateColumns(String database, String table) throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  /**
+   * Retrieves primary keys of a table.
+   * @param database
+   * @param table
+   * @return List of primary keys of table
+   * @throws SQLException
+   */
+  default List<String> retrievePrimaryKeys(String database, String table) throws SQLException {
+    return null;
+  }
 
   /**
    * Copy all the contents from one table to another. Both table should be in same structure.
