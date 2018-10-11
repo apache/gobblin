@@ -55,6 +55,7 @@ public class GitConfigMonitor extends GitMonitoringService {
   private static final String DEFAULT_GIT_CONFIG_MONITOR_REPO_DIR = "git-flow-config";
   private static final String DEFAULT_GIT_CONFIG_MONITOR_CONFIG_DIR = "gobblin-config";
   private static final String DEFAULT_GIT_CONFIG_MONITOR_BRANCH_NAME = "master";
+  private static final String DEFAULT_GIT_CONFIG_MONITOR_ENCRYPT_KEY_LOC = "/export/home/app/configMonitorMasterKey";
 
   private static final int CONFIG_FILE_DEPTH = 3;
   private static final int DEFAULT_GIT_CONFIG_MONITOR_POLLING_INTERVAL = 60;
@@ -65,6 +66,7 @@ public class GitConfigMonitor extends GitMonitoringService {
           .put(ConfigurationKeys.GIT_MONITOR_CONFIG_BASE_DIR, DEFAULT_GIT_CONFIG_MONITOR_CONFIG_DIR)
           .put(ConfigurationKeys.GIT_MONITOR_BRANCH_NAME, DEFAULT_GIT_CONFIG_MONITOR_BRANCH_NAME)
           .put(ConfigurationKeys.GIT_MONITOR_POLLING_INTERVAL, DEFAULT_GIT_CONFIG_MONITOR_POLLING_INTERVAL)
+          .put(ConfigurationKeys.ENCRYPT_KEY_LOC, DEFAULT_GIT_CONFIG_MONITOR_ENCRYPT_KEY_LOC)
           .put(GitMonitoringService.JAVA_PROPS_EXTENSIONS, PROPERTIES_EXTENSIONS)
           .put(GitMonitoringService.HOCON_FILE_EXTENSIONS, CONF_EXTENSIONS)
           .build());

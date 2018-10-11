@@ -64,6 +64,7 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
   private static final String DEFAULT_GIT_FLOWGRAPH_MONITOR_REPO_DIR = "git-flowgraph";
   private static final String DEFAULT_GIT_FLOWGRAPH_MONITOR_FLOWGRAPH_DIR = "gobblin-flowgraph";
   private static final String DEFAULT_GIT_FLOWGRAPH_MONITOR_BRANCH_NAME = "master";
+  private static final String DEFAULT_GIT_FLOWGRAPH_MONITOR_ENCRYPT_KEY_LOC = "/export/home/app/flowGraphMonitorMasterKey";
 
   private static final int NODE_FILE_DEPTH = 3;
   private static final int EDGE_FILE_DEPTH = 4;
@@ -75,6 +76,7 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
           .put(ConfigurationKeys.GIT_MONITOR_CONFIG_BASE_DIR, DEFAULT_GIT_FLOWGRAPH_MONITOR_FLOWGRAPH_DIR)
           .put(ConfigurationKeys.GIT_MONITOR_BRANCH_NAME, DEFAULT_GIT_FLOWGRAPH_MONITOR_BRANCH_NAME)
           .put(ConfigurationKeys.GIT_MONITOR_POLLING_INTERVAL, DEFAULT_GIT_FLOWGRAPH_MONITOR_POLLING_INTERVAL)
+          .put(ConfigurationKeys.ENCRYPT_KEY_LOC, DEFAULT_GIT_FLOWGRAPH_MONITOR_ENCRYPT_KEY_LOC)
           .put(JAVA_PROPS_EXTENSIONS, PROPERTIES_EXTENSIONS)
           .put(HOCON_FILE_EXTENSIONS, CONF_EXTENSIONS)
           .put(SHOULD_CHECKPOINT_HASHES, false)
