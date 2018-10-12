@@ -52,7 +52,6 @@ import com.typesafe.config.Config;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.PullFileLoader;
 
@@ -140,14 +139,24 @@ public abstract class GitMonitoringService extends AbstractIdleService {
   }
 
   /**
-   * Fetch the list of changes since the last refresh of the repository and apply the changes to the {@link FlowCatalog}
+   * Fetch the list of changes since the last refresh of the repository
    * @throws GitAPIException
    * @throws IOException
    */
   @VisibleForTesting
-  public void processGitConfigChanges() throws GitAPIException, IOException {
+  void processGitConfigChanges() throws GitAPIException, IOException {
     List<DiffEntry> changes = this.gitRepo.getChanges();
+    if (!changes.isEmpty()) {
+      processGitConfigChangesHelper(changes);
+    }
+  }
 
+  /**
+   * A helper method where actual processing of the list of changes since the last refresh of the repository takes place
+   * and the changes applied.
+   * @throws IOException
+   */
+  void processGitConfigChangesHelper(List<DiffEntry> changes) throws IOException {
     for (DiffEntry change : changes) {
       switch (change.getChangeType()) {
         case ADD:
