@@ -77,6 +77,7 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
           .put(ConfigurationKeys.GIT_MONITOR_POLLING_INTERVAL, DEFAULT_GIT_FLOWGRAPH_MONITOR_POLLING_INTERVAL)
           .put(JAVA_PROPS_EXTENSIONS, PROPERTIES_EXTENSIONS)
           .put(HOCON_FILE_EXTENSIONS, CONF_EXTENSIONS)
+          .put(SHOULD_CHECKPOINT_HASHES, false)
           .build());
 
   private FSFlowCatalog flowCatalog;
@@ -90,7 +91,8 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
   }
 
   /**
-   * Determine if the service should poll Git.
+   * Determine if the service should poll Git. Current behavior is both master and slave(s) will poll Git for
+   * changes to {@link FlowGraph}.
    */
   @Override
   public boolean shouldPollGit() {
