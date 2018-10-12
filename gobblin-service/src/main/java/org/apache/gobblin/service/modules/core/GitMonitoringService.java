@@ -52,6 +52,7 @@ import com.typesafe.config.Config;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.PullFileLoader;
 
@@ -63,6 +64,7 @@ public abstract class GitMonitoringService extends AbstractIdleService {
 
   public static final String JAVA_PROPS_EXTENSIONS = "javaPropsExtensions";
   public static final String HOCON_FILE_EXTENSIONS = "hoconFileExtensions";
+  public static final String SHOULD_CHECKPOINT_HASHES = "shouldCheckpointHashes";
 
   private Integer pollingInterval;
   protected final ScheduledExecutorService scheduledExecutor;
@@ -73,6 +75,7 @@ public abstract class GitMonitoringService extends AbstractIdleService {
   protected final PullFileLoader pullFileLoader;
   protected final Set<String> javaPropsExtensions;
   protected final Set<String> hoconFileExtensions;
+  private final boolean shouldCheckpointHashes;
   protected volatile boolean isActive = false;
 
   public GitMonitoringService(Config config) {
@@ -84,9 +87,10 @@ public abstract class GitMonitoringService extends AbstractIdleService {
     String branchName = config.getString(ConfigurationKeys.GIT_MONITOR_BRANCH_NAME);
     this.pollingInterval = config.getInt(ConfigurationKeys.GIT_MONITOR_POLLING_INTERVAL);
     this.folderName = config.getString(ConfigurationKeys.GIT_MONITOR_CONFIG_BASE_DIR);
-
+    this.shouldCheckpointHashes = ConfigUtils.getBoolean(config, SHOULD_CHECKPOINT_HASHES, true);
     try {
-      this.gitRepo = new GitMonitoringService.GitRepository(repositoryUri, repositoryDir, branchName);
+      this.gitRepo =
+          new GitMonitoringService.GitRepository(repositoryUri, repositoryDir, branchName, shouldCheckpointHashes);
     } catch (GitAPIException | IOException e) {
       throw new RuntimeException("Could not open git repository", e);
     }
@@ -115,10 +119,9 @@ public abstract class GitMonitoringService extends AbstractIdleService {
     this.isActive = isActive;
   }
 
-
   /** Start the service. */
   @Override
-  protected void startUp() throws Exception {
+  protected void startUp() {
     log.info("Starting the " + getClass().getSimpleName());
     log.info("Polling git with interval {} ", this.pollingInterval);
 
@@ -195,6 +198,7 @@ public abstract class GitMonitoringService extends AbstractIdleService {
     private final String repoUri;
     private final String repoDir;
     private final String branchName;
+    private final boolean shouldCheckpointHashes;
     private Git git;
     private String lastProcessedGitHash;
     private String latestGitHash;
@@ -207,10 +211,11 @@ public abstract class GitMonitoringService extends AbstractIdleService {
      * @throws GitAPIException
      * @throws IOException
      */
-    GitRepository(String repoUri, String repoDir, String branchName) throws GitAPIException, IOException {
+    GitRepository(String repoUri, String repoDir, String branchName, boolean shouldCheckpointHashes) throws GitAPIException, IOException {
       this.repoUri = repoUri;
       this.repoDir = repoDir;
       this.branchName = branchName;
+      this.shouldCheckpointHashes = shouldCheckpointHashes;
 
       initRepository();
     }
@@ -287,8 +292,9 @@ public abstract class GitMonitoringService extends AbstractIdleService {
 
     void moveCheckpointAndHashesForward() throws IOException {
       this.lastProcessedGitHash = this.latestGitHash;
-
-      writeCheckpoint(this.latestGitHash);
+      if (this.shouldCheckpointHashes) {
+        writeCheckpoint(this.latestGitHash);
+      }
     }
 
     /**
@@ -331,5 +337,4 @@ public abstract class GitMonitoringService extends AbstractIdleService {
   public abstract void addChange(DiffEntry change);
 
   public abstract void removeChange(DiffEntry change);
-
 }
