@@ -56,7 +56,7 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
  */
 @Slf4j
 public class GitFlowGraphMonitor extends GitMonitoringService {
-  public static final String GIT_FLOWGRAPH_MONITOR_PREFIX = "gitFlowGraphMonitor";
+  public static final String GIT_FLOWGRAPH_MONITOR_PREFIX = "gobblin.service.gitFlowGraphMonitor";
 
   private static final String PROPERTIES_EXTENSIONS = "properties";
   private static final String CONF_EXTENSIONS = StringUtils.EMPTY;

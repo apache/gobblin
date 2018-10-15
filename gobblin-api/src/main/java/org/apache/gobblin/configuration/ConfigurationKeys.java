@@ -913,4 +913,12 @@ public class ConfigurationKeys {
   public static final String GIT_MONITOR_CONFIG_BASE_DIR = "configBaseDirectory";
   public static final String GIT_MONITOR_POLLING_INTERVAL = "pollingInterval";
   public static final String GIT_MONITOR_BRANCH_NAME = "branchName";
+  //Configuration keys for authentication using HTTPS
+  public static final String GIT_MONITOR_USERNAME = "username";
+  public static final String GIT_MONITOR_PASSWORD = "password";
+  //Configuration keys for authentication using SSH with Public Key
+  public static final String GIT_MONITOR_SSH_WITH_PUBLIC_KEY_ENABLED = "isSshWithPublicKeyEnabled";
+  public static final String GIT_MONITOR_PRIVATE_KEY_PATH = "privateKeyPath";
+  public static final String GIT_MONITOR_SSH_PASSPHRASE = "passphrase";
+  public static final String GIT_MONITOR_JSCH_LOGGER_ENABLED = "isJschLoggerEnabled";
 }

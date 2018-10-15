@@ -46,7 +46,7 @@ import org.apache.gobblin.util.PullFileLoader;
  */
 @Slf4j
 public class GitConfigMonitor extends GitMonitoringService {
-  public static final String GIT_CONFIG_MONITOR_PREFIX = "gitConfigMonitor";
+  public static final String GIT_CONFIG_MONITOR_PREFIX = "gobblin.service.gitConfigMonitor";
 
   private static final String SPEC_DESCRIPTION = "Git-based flow config";
   private static final String SPEC_VERSION = FlowSpec.Builder.DEFAULT_VERSION;
