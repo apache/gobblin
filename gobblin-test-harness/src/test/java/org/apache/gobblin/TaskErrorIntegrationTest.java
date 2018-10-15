@@ -28,6 +28,8 @@ import org.apache.log4j.AppenderSkeleton;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 import org.apache.log4j.spi.LoggingEvent;
+import org.jboss.byteman.contrib.bmunit.BMNGRunner;
+import org.jboss.byteman.contrib.bmunit.BMRule;
 import org.testng.Assert;
 import org.testng.annotations.AfterTest;
 import org.testng.annotations.BeforeTest;
@@ -44,8 +46,8 @@ import org.apache.gobblin.source.extractor.Extractor;
 import org.apache.gobblin.source.workunit.WorkUnit;
 
 
-@Test(enabled=false)
-public class TaskErrorIntegrationTest {
+@Test (singleThreaded = true)
+public class TaskErrorIntegrationTest extends BMNGRunner {
   private static String EXCEPTION_MESSAGE = "test exception";
 
   @BeforeTest
@@ -57,6 +59,7 @@ public class TaskErrorIntegrationTest {
 
   /**
    * Test that an extractor that raises an error on creation results in a log message from {@link GobblinMultiTaskAttempt}
+   * and does not hang
    * @throws Exception
    */
   @Test
@@ -70,22 +73,57 @@ public class TaskErrorIntegrationTest {
         GobblinLocalJobLauncherUtils.getJobProperties("runtime_test/skip_workunits_test.properties");
 
     jobProperties.setProperty(ConfigurationKeys.SOURCE_CLASS_KEY, TestSource.class.getName());
+    jobProperties.setProperty(TestExtractor.RAISE_ERROR, "true");
 
     GobblinLocalJobLauncherUtils.invokeLocalJobLauncher(jobProperties);
 
     Assert.assertTrue(testAppender.events.stream().anyMatch(e -> e.getRenderedMessage()
         .startsWith("Could not create task for workunit")));
+
+    logger.removeAppender(testAppender);
   }
 
   /**
-   * Test extractor that raises an exception on construction
+   * Test that a task submission error results in a log message from {@link GobblinMultiTaskAttempt}
+   * and does not hang
+   * @throws Exception
+   */
+  @Test
+  @BMRule(name = "testErrorDuringSubmission", targetClass = "org.apache.gobblin.runtime.TaskExecutor",
+      targetMethod = "submit(Task)", targetLocation = "AT ENTRY", condition = "true",
+      action = "throw new RuntimeException(\"Exception for testErrorDuringSubmission\")")
+  public void testErrorDuringSubmission()
+      throws Exception {
+    TestAppender testAppender = new TestAppender();
+    Logger logger = LogManager.getLogger(GobblinMultiTaskAttempt.class.getName() + "-noattempt");
+    logger.addAppender(testAppender);
+
+    Properties jobProperties =
+        GobblinLocalJobLauncherUtils.getJobProperties("runtime_test/skip_workunits_test.properties");
+
+    jobProperties.setProperty(ConfigurationKeys.SOURCE_CLASS_KEY, TestSource.class.getName());
+    jobProperties.setProperty(TestExtractor.RAISE_ERROR, "false");
+
+    GobblinLocalJobLauncherUtils.invokeLocalJobLauncher(jobProperties);
+
+    Assert.assertTrue(testAppender.events.stream().anyMatch(e -> e.getRenderedMessage()
+        .startsWith("Could not submit task for workunit")));
+
+    logger.removeAppender(testAppender);
+  }
+
+  /**
+   * Test extractor that can be configured to raise an exception on construction
    */
   public static class TestExtractor<S, D> extends InstrumentedExtractor<S, D> {
+    private static final String RAISE_ERROR = "raiseError";
 
     public TestExtractor(WorkUnitState workUnitState) {
       super(workUnitState);
 
-      throw new RuntimeException(EXCEPTION_MESSAGE);
+      if (workUnitState.getPropAsBoolean(RAISE_ERROR, false)) {
+        throw new RuntimeException(EXCEPTION_MESSAGE);
+      }
     }
 
     @Override

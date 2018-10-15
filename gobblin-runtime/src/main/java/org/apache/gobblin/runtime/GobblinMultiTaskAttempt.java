@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
@@ -349,7 +350,7 @@ public class GobblinMultiTaskAttempt {
       }
 
       // Create a new task from the work unit and submit the task to run.
-      // If an exception occurs here then the count down latch is not incremented
+      // If an exception occurs here then the count down latch is decremented
       // to avoid being stuck waiting for a task that was not created and submitted successfully.
       Task task = null;
       try {
@@ -360,10 +361,18 @@ public class GobblinMultiTaskAttempt {
         tasks.add(task);
       } catch (Exception e) {
         if (task == null) {
+          // task could not be created, so directly count down
           countDownLatch.countDown();
           log.error("Could not create task for workunit {}", workUnit, e);
-        } else {
+        } else if (!task.hasTaskFuture()) {
+          // Task was created and may have been registered, but not submitted, so call the
+          // task state tracker task run completion directly since the task cancel does nothing if not submitted
+          this.taskStateTracker.onTaskRunCompletion(task);
           log.error("Could not submit task for workunit {}", workUnit, e);
+        } else {
+          // task was created and submitted, but failed later, so cancel the task to decrement the CountDownLatch
+          task.cancel();
+          log.error("Failure after task submitted for workunit {}", workUnit, e);
         }
       }
     }
