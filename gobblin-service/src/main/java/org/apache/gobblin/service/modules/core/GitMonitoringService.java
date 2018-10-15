@@ -298,13 +298,13 @@ public abstract class GitMonitoringService extends AbstractIdleService {
         }
       } catch (RepositoryNotFoundException e) {
         // if the repository was not found then clone a new one
-        CloneCommand cloneCommand = Git.cloneRepository()
+        this.git = Git.cloneRepository()
             .setDirectory(repoDirFile)
             .setURI(this.repoUri)
-            .setBranch(this.branchName);
-        cloneCommand = (this.providerSessionFactoryEither instanceof Either.Left) ? cloneCommand.setCredentialsProvider(getCredentialsProvider())
-                : cloneCommand.setTransportConfigCallback(buildTransportConfigCallback());
-            this.git = cloneCommand.call();
+            .setBranch(this.branchName)
+            .setTransportConfigCallback(buildTransportConfigCallback())
+            .setCredentialsProvider(getCredentialsProvider())
+            .call();
       }
 
       try {
@@ -369,10 +369,11 @@ public abstract class GitMonitoringService extends AbstractIdleService {
       ObjectId oldHeadTree = git.getRepository().resolve(this.lastProcessedGitHash + "^{tree}");
 
       // refresh to latest and reset hard to handle forced pushes
-      FetchCommand fetchCommand = this.git.fetch().setRemote(REMOTE_NAME);
-      fetchCommand = (this.providerSessionFactoryEither instanceof Either.Left) ? fetchCommand.setCredentialsProvider(getCredentialsProvider())
-          : fetchCommand.setTransportConfigCallback(buildTransportConfigCallback());
-      fetchCommand.call();
+      this.git.fetch()
+          .setRemote(REMOTE_NAME)
+          .setCredentialsProvider(getCredentialsProvider())
+          .setTransportConfigCallback(buildTransportConfigCallback())
+          .call();
       // reset hard to get a clean working set since pull --rebase may leave files around
       this.git.reset().setMode(ResetCommand.ResetType.HARD).setRef(REMOTE_NAME + "/" + this.branchName).call();
 
@@ -397,10 +398,13 @@ public abstract class GitMonitoringService extends AbstractIdleService {
     }
 
     private CredentialsProvider getCredentialsProvider() {
-      return ((Either.Left<CredentialsProvider, SshSessionFactory>) this.providerSessionFactoryEither).getLeft();
+      return (this.providerSessionFactoryEither instanceof Either.Right)? null :
+          ((Either.Left<CredentialsProvider, SshSessionFactory>) this.providerSessionFactoryEither).getLeft();
     }
 
     private TransportConfigCallback buildTransportConfigCallback() {
+      if (this.providerSessionFactoryEither instanceof Either.Left) return null;
+
       SshSessionFactory sshSessionFactory = ((Either.Right<CredentialsProvider, SshSessionFactory>) this.providerSessionFactoryEither).getRight();
       return transport -> {
         SshTransport sshTransport = (SshTransport) transport;
