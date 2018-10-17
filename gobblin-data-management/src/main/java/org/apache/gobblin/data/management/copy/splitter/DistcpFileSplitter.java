@@ -20,11 +20,13 @@ package org.apache.gobblin.data.management.copy.splitter;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Set;
 
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.commons.math3.util.ArithmeticUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -35,13 +37,16 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.gson.Gson;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.IdentityConverter;
 import org.apache.gobblin.data.management.copy.CopyableFile;
 import org.apache.gobblin.data.management.copy.CopyConfiguration;
 import org.apache.gobblin.data.management.copy.CopyEntity;
 import org.apache.gobblin.data.management.copy.CopySource;
 import org.apache.gobblin.data.management.copy.writer.FileAwareInputStreamDataWriter;
+import org.apache.gobblin.data.management.copy.writer.FileAwareInputStreamDataWriterBuilder;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.guid.Guid;
 
@@ -58,7 +63,7 @@ public class DistcpFileSplitter {
   public static final String MAX_SPLIT_SIZE_KEY = CopyConfiguration.COPY_PREFIX + ".file.max.split.size";
 
   public static final long DEFAULT_MAX_SPLIT_SIZE = Long.MAX_VALUE;
-  public static final Set<String> KNOWN_SCHEMES_SUPPORTING_CONCAT = Sets.newHashSet("hdfs");
+  public static final Set<String> KNOWN_SCHEMES_SUPPORTING_CONCAT = Sets.newHashSet("hdfs", "adl");
 
   /**
    * A split for a distcp file. Represents a section of a file; split should be aligned to block boundaries.
@@ -91,7 +96,8 @@ public class DistcpFileSplitter {
   public static Collection<WorkUnit> splitFile(CopyableFile file, WorkUnit workUnit, FileSystem targetFs)
       throws IOException {
     long len = file.getFileStatus().getLen();
-    long blockSize = file.getBlockSize(targetFs);
+    // get lcm of source and target block size so that split aligns with block boundaries for both extract and write
+    long blockSize = ArithmeticUtils.lcm(file.getFileStatus().getBlockSize(), file.getBlockSize(targetFs));
     long maxSplitSize = workUnit.getPropAsLong(MAX_SPLIT_SIZE_KEY, DEFAULT_MAX_SPLIT_SIZE);
 
     if (maxSplitSize < blockSize) {
@@ -99,11 +105,6 @@ public class DistcpFileSplitter {
       maxSplitSize = blockSize;
     }
     if (len < maxSplitSize) {
-      return Lists.newArrayList(workUnit);
-    }
-    if (!KNOWN_SCHEMES_SUPPORTING_CONCAT.contains(targetFs.getUri().getScheme())) {
-      log.warn(String.format("File %s with size %d should be split, however file system with scheme %s does "
-          + "not appear to support concat. Will not split.", file.getDestination(), len, targetFs.getUri().getScheme()));
       return Lists.newArrayList(workUnit);
     }
 
@@ -221,10 +222,22 @@ public class DistcpFileSplitter {
   }
 
   /**
-   * @return whether the state allows for splitting of work units
+   * @param state {@link State} containing properties for a job.
+   * @param targetFs destination {@link FileSystem} where file is to be copied
+   * @return whether to allow for splitting of work units based on the filesystem, state, converter/writer config.
    */
-  public static boolean allowSplit(State state) {
-    return state.contains(SPLIT_ENABLED) && state.getPropAsBoolean(SPLIT_ENABLED);
+  public static boolean allowSplit(State state, FileSystem targetFs) {
+    // Don't allow distcp jobs that use decrypt/ungzip converters or tararchive/encrypt writers to split work units
+    Collection<String> converterClassNames = Collections.emptyList();
+    if (state.contains(ConfigurationKeys.CONVERTER_CLASSES_KEY)) {
+      converterClassNames = state.getPropAsList(ConfigurationKeys.CONVERTER_CLASSES_KEY);
+    }
+
+    return state.getPropAsBoolean(SPLIT_ENABLED, false) &&
+        KNOWN_SCHEMES_SUPPORTING_CONCAT.contains(targetFs.getUri().getScheme()) &&
+        state.getProp(ConfigurationKeys.WRITER_BUILDER_CLASS, "")
+            .equals(FileAwareInputStreamDataWriterBuilder.class.getName()) &&
+        converterClassNames.stream().noneMatch(s -> !s.equals(IdentityConverter.class.getName()));
   }
 
 }

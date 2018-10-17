@@ -114,6 +114,7 @@ public class DistcpFileSplitterTest {
       throws Exception {
     FileStatus file = mock(FileStatus.class);
     when(file.getLen()).thenReturn(fileLen);
+    when(file.getBlockSize()).thenReturn(blockSize);
 
     URI uri = new URI("hdfs", "dummyhost", "/test", "test");
     Path path = new Path(uri);
