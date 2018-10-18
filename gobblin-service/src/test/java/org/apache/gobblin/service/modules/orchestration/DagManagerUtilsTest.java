@@ -19,6 +19,7 @@ package org.apache.gobblin.service.modules.orchestration;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
@@ -35,30 +36,36 @@ import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutor;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.flowgraph.Dag.DagNode;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlanDagFactory;
-
-import static org.testng.Assert.*;
 
 
 public class DagManagerUtilsTest {
 
   /**
-   * Create a {@link Dag <JobExecutionPlan>} with 2 parents and 1 child (i.e. a V-shaped dag).
+   * Create a {@link Dag <JobExecutionPlan>}.
    * @return a Dag.
    */
-  public Dag<JobExecutionPlan> buildDag() throws URISyntaxException {
+  private Dag<JobExecutionPlan> buildDag(String dagFailureOption) throws URISyntaxException {
     List<JobExecutionPlan> jobExecutionPlans = new ArrayList<>();
     Config baseConfig = ConfigBuilder.create().
         addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, "group0").
         addPrimitive(ConfigurationKeys.FLOW_NAME_KEY, "flow0").
         addPrimitive(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, System.currentTimeMillis()).
-        addPrimitive(ConfigurationKeys.JOB_GROUP_KEY, "group0").build();
-    for (int i = 0; i < 3; i++) {
+        addPrimitive(ConfigurationKeys.JOB_GROUP_KEY, "group0").
+        addPrimitive(ConfigurationKeys.FLOW_FAILURE_OPTION, dagFailureOption).build();
+    for (int i = 0; i < 5; i++) {
       String suffix = Integer.toString(i);
       Config jobConfig = baseConfig.withValue(ConfigurationKeys.JOB_NAME_KEY, ConfigValueFactory.fromAnyRef("job" + suffix));
-      if (i == 2) {
-        jobConfig = jobConfig.withValue(ConfigurationKeys.JOB_DEPENDENCIES, ConfigValueFactory.fromAnyRef("job0,job1"));
+      if (i == 1 || i == 2) {
+        jobConfig = jobConfig.withValue(ConfigurationKeys.JOB_DEPENDENCIES, ConfigValueFactory.fromAnyRef("job0"));
+      }
+      if (i == 3) {
+        jobConfig = jobConfig.withValue(ConfigurationKeys.JOB_DEPENDENCIES, ConfigValueFactory.fromAnyRef("job1,job2"));
+      }
+      if (i == 4) {
+        jobConfig = jobConfig.withValue(ConfigurationKeys.JOB_DEPENDENCIES, ConfigValueFactory.fromAnyRef("job2"));
       }
       JobSpec js = JobSpec.builder("test_job" + suffix).withVersion(suffix).withConfig(jobConfig).
           withTemplate(new URI("job" + suffix)).build();
@@ -70,48 +77,60 @@ public class DagManagerUtilsTest {
   }
 
   @Test
-  public void testGetNext() throws URISyntaxException {
-    Dag<JobExecutionPlan> dag = buildDag();
+  public void testGetNextFinishAllPossible() throws URISyntaxException {
+    Dag<JobExecutionPlan> dag = buildDag(ConfigurationKeys.DEFAULT_FLOW_FAILURE_OPTION);
+    testGetNextHelper(dag, ConfigurationKeys.DEFAULT_FLOW_FAILURE_OPTION);
+  }
 
-    Set<Dag.DagNode<JobExecutionPlan>> dagNodeSet = DagManagerUtils.getNext(dag);
-    Assert.assertEquals(dagNodeSet.size(), 2);
+  @Test (dependsOnMethods = "testGetNextFinishAllPossible")
+  public void testGetNextFinishRunning() throws URISyntaxException {
+    String failureOption = "FINISH_RUNNING";
+    Dag<JobExecutionPlan> dag = buildDag(failureOption);
+    testGetNextHelper(dag, failureOption);
+  }
 
-    //Set 1st job to complete and 2nd job running state
+  private void testGetNextHelper(Dag<JobExecutionPlan> dag, String flowFailureOption) {
+    Set<DagNode<JobExecutionPlan>> dagNodeSet = DagManagerUtils.getNext(dag);
+    Assert.assertEquals(dagNodeSet.size(), 1);
+
+    //Set the execution status of job to ExecutionStatus.RUNNING.
     JobExecutionPlan jobExecutionPlan1 = dag.getNodes().get(0).getValue();
-    jobExecutionPlan1.setExecutionStatus(ExecutionStatus.COMPLETE);
-    JobExecutionPlan jobExecutionPlan2 = dag.getNodes().get(1).getValue();
-    jobExecutionPlan2.setExecutionStatus(ExecutionStatus.RUNNING);
+    jobExecutionPlan1.setExecutionStatus(ExecutionStatus.RUNNING);
 
     //No new job to run
     dagNodeSet = DagManagerUtils.getNext(dag);
     Assert.assertEquals(dagNodeSet.size(), 0);
 
-    //Set 2nd job to complete; we must have 3rd job to run next
-    jobExecutionPlan2.setExecutionStatus(ExecutionStatus.COMPLETE);
-    dagNodeSet = DagManagerUtils.getNext(dag);
-    Assert.assertEquals(dagNodeSet.size(), 1);
-
-    //Set the 3rd job to running state, no new jobs to run
-    JobExecutionPlan jobExecutionPlan3 = dag.getNodes().get(2).getValue();
-    jobExecutionPlan3.setExecutionStatus(ExecutionStatus.RUNNING);
-    dagNodeSet = DagManagerUtils.getNext(dag);
-    Assert.assertEquals(dagNodeSet.size(), 0);
-
-    //Set the 3rd job to complete; no new jobs to run
-    jobExecutionPlan3.setExecutionStatus(ExecutionStatus.COMPLETE);
-    dagNodeSet = DagManagerUtils.getNext(dag);
-    Assert.assertEquals(dagNodeSet.size(), 0);
-
-
-    dag = buildDag();
+    //Set execution status to complete. 2 new jobs ready to run
+    jobExecutionPlan1.setExecutionStatus(ExecutionStatus.COMPLETE);
     dagNodeSet = DagManagerUtils.getNext(dag);
     Assert.assertEquals(dagNodeSet.size(), 2);
-    //Set 1st job to failed; no new jobs to run
-    jobExecutionPlan1 = dag.getNodes().get(0).getValue();
-    jobExecutionPlan1.setExecutionStatus(ExecutionStatus.FAILED);
+
+    //Set the jobstatuses of the next jobs to running.
+    for (DagNode<JobExecutionPlan> dagNode: dagNodeSet) {
+      JobExecutionPlan jobExecutionPlan = dagNode.getValue();
+      jobExecutionPlan.setExecutionStatus(ExecutionStatus.RUNNING);
+    }
+    Assert.assertEquals(DagManagerUtils.getNext(dag).size(), 0);
+
+    //Set the one of the jobs to FAILED while the other to COMPLETE.
+    Iterator<DagNode<JobExecutionPlan>> dagNodeIterator = dagNodeSet.iterator();
+    while (dagNodeIterator.hasNext()) {
+      DagNode<JobExecutionPlan> dagNode = dagNodeIterator.next();
+      JobExecutionPlan jobExecutionPlan = dagNode.getValue();
+      String jobName = DagManagerUtils.getJobName(dagNode);
+      if ("job1".equals(jobName)) {
+        jobExecutionPlan.setExecutionStatus(ExecutionStatus.FAILED);
+      } else {
+        jobExecutionPlan.setExecutionStatus(ExecutionStatus.COMPLETE);
+      }
+    }
+
     dagNodeSet = DagManagerUtils.getNext(dag);
-    Assert.assertEquals(dagNodeSet.size(), 0);
+    if (ConfigurationKeys.DEFAULT_FLOW_FAILURE_OPTION.equals(flowFailureOption)) {
+      Assert.assertEquals(dagNodeSet.size(), 1);
+    } else {
+      Assert.assertEquals(dagNodeSet.size(), 0);
+    }
   }
-
-
 }
