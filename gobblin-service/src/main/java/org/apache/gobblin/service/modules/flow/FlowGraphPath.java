@@ -29,6 +29,7 @@ import java.util.Set;
 
 import org.apache.hadoop.fs.Path;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
@@ -97,32 +98,44 @@ public class FlowGraphPath {
    * @param dagRight The child dag.
    * @return The concatenated dag with modified {@link ConfigurationKeys#JOB_DEPENDENCIES}.
    */
-  private Dag<JobExecutionPlan> concatenate(Dag<JobExecutionPlan> dagLeft, Dag<JobExecutionPlan> dagRight) {
+  @VisibleForTesting
+  static Dag<JobExecutionPlan> concatenate(Dag<JobExecutionPlan> dagLeft, Dag<JobExecutionPlan> dagRight) {
     List<DagNode<JobExecutionPlan>> endNodes = dagLeft.getEndNodes();
     List<DagNode<JobExecutionPlan>> startNodes = dagRight.getStartNodes();
     List<String> dependenciesList = Lists.newArrayList();
-    for (DagNode<JobExecutionPlan> dagNode: endNodes) {
-      dependenciesList.add(dagNode.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.JOB_NAME_KEY));
-    }
-    String dependencies = Joiner.on(",").join(dependenciesList);
+    //List of nodes with no dependents in the concatenated dag.
+    Set<DagNode<JobExecutionPlan>> forkNodes = new HashSet<>();
 
-    for (DagNode<JobExecutionPlan> childNode: startNodes) {
-      JobSpec jobSpec = childNode.getValue().getJobSpec();
-      jobSpec.setConfig(jobSpec.getConfig().withValue(ConfigurationKeys.JOB_DEPENDENCIES, ConfigValueFactory.fromAnyRef(dependencies)));
-    }
-
-    //Build the list of leaf nodes i.e. nodes which have no dependents in the concatenated dag.
-    Set<DagNode<JobExecutionPlan>> leafNodes = new HashSet<>();
     for (DagNode<JobExecutionPlan> dagNode: endNodes) {
-      Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
-      boolean isLeaf = ConfigUtils.getBoolean(jobConfig, ConfigurationKeys.JOB_ISLEAF, false);
-      if (isLeaf) {
-        leafNodes.add(dagNode);
+      if (isNodeForkable(dagNode)) {
+        //If node is forkable, then add its parents (if any) to the dependencies list.
+        forkNodes.add(dagNode);
+        List<DagNode<JobExecutionPlan>> parentNodes = dagLeft.getParents(dagNode);
+        for (DagNode<JobExecutionPlan> parentNode: parentNodes) {
+          dependenciesList.add(parentNode.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.JOB_NAME_KEY));
+        }
+      } else {
+        dependenciesList.add(dagNode.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.JOB_NAME_KEY));
       }
     }
 
-    return dagLeft.concatenate(dagRight, leafNodes);
+    if (!dependenciesList.isEmpty()) {
+      String dependencies = Joiner.on(",").join(dependenciesList);
+
+      for (DagNode<JobExecutionPlan> childNode : startNodes) {
+        JobSpec jobSpec = childNode.getValue().getJobSpec();
+        jobSpec.setConfig(jobSpec.getConfig().withValue(ConfigurationKeys.JOB_DEPENDENCIES, ConfigValueFactory.fromAnyRef(dependencies)));
+      }
+    }
+
+    return dagLeft.concatenate(dagRight, forkNodes);
   }
+
+  private static boolean isNodeForkable(DagNode<JobExecutionPlan> dagNode) {
+    Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
+    return ConfigUtils.getBoolean(jobConfig, ConfigurationKeys.JOB_FORK_ON_CONCAT, false);
+  }
+
   /**
    * Given an instance of {@link FlowEdge}, this method returns a {@link Dag < JobExecutionPlan >} that moves data
    * from the source of the {@link FlowEdge} to the destination of the {@link FlowEdge}.

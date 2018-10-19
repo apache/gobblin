@@ -30,7 +30,6 @@ import com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.service.modules.flowgraph.Dag.DagNode;
-import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 
 
 @Slf4j
@@ -145,7 +144,7 @@ public class DagTest {
   }
 
   @Test
-  public void testConcatenateLeafNodes() {
+  public void testConcatenateForkNodes() {
     DagNode<String> dagNode1 = new DagNode<>("val1");
     DagNode<String> dagNode2 = new DagNode<>("val2");
     DagNode<String> dagNode3 = new DagNode<>("val3");
@@ -157,9 +156,9 @@ public class DagTest {
     DagNode<String> dagNode4 = new DagNode<>("val4");
     Dag<String> dag2 = new Dag<>(Lists.newArrayList(dagNode4));
 
-    Set<DagNode<String>> leafNodes = Sets.newHashSet();
-    leafNodes.add(dagNode3);
-    Dag<String> dagNew = dag1.concatenate(dag2, leafNodes);
+    Set<DagNode<String>> forkNodes = Sets.newHashSet();
+    forkNodes.add(dagNode3);
+    Dag<String> dagNew = dag1.concatenate(dag2, forkNodes);
 
     Assert.assertEquals(dagNew.getEndNodes().size(), 2);
     Assert.assertEquals(dagNew.getEndNodes().get(0).getValue(), "val4");
