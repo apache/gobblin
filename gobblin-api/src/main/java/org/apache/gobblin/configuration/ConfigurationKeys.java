@@ -176,6 +176,7 @@ public class ConfigurationKeys {
   public static final String WORK_UNIT_ENABLE_TRACKING_LOGS = "workunit.enableTrackingLogs";
 
   public static final String JOB_DEPENDENCIES = "job.dependencies";
+  public static final String JOB_ISLEAF = "job.isLeaf";
   public static final String JOB_RUN_ONCE_KEY = "job.runonce";
   public static final String JOB_DISABLED_KEY = "job.disabled";
   public static final String JOB_JAR_FILES_KEY = "job.jars";

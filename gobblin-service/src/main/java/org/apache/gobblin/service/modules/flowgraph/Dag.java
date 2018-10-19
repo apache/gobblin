@@ -20,8 +20,10 @@ package org.apache.gobblin.service.modules.flowgraph;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import com.google.common.collect.Lists;
 
@@ -101,6 +103,21 @@ public class Dag<T> {
    * @return the concatenated dag
    */
   public Dag<T> concatenate(Dag<T> other) {
+    return concatenate(other, new HashSet<>());
+  }
+
+  /**
+   * Concatenate two dags together. Join the "other" dag to "this" dag and return "this" dag.
+   * The concatenate method ensures that all the jobs of "this" dag (which may have multiple end nodes)
+   * are completed before starting any job of the "other" dag. This is done by adding each endNode of this dag as
+   * a parent of every startNode of the other dag.
+   *
+   * @param other dag to concatenate to this dag
+   * @param leafNodes a set of nodes from this dag which are marked as leaf nodes. Each of these nodes will be added
+   *                  to the list of end nodes of the concatenated dag.
+   * @return the concatenated dag
+   */
+  public Dag<T> concatenate(Dag<T> other, Set<DagNode<T>> leafNodes) {
     if (other == null || other.isEmpty()) {
       return this;
     }
@@ -108,13 +125,18 @@ public class Dag<T> {
       return other;
     }
     for (DagNode node : this.endNodes) {
-      this.parentChildMap.put(node, Lists.newArrayList());
-      for (DagNode otherNode : other.startNodes) {
-        this.parentChildMap.get(node).add(otherNode);
-        otherNode.addParentNode(node);
+      if (!leafNodes.contains(node)) {
+        this.parentChildMap.put(node, Lists.newArrayList());
+        for (DagNode otherNode : other.startNodes) {
+          this.parentChildMap.get(node).add(otherNode);
+          otherNode.addParentNode(node);
+        }
+        this.endNodes = other.endNodes;
       }
-      this.endNodes = other.endNodes;
     }
+
+    //Each node which is a leaf node is added to list of end nodes
+    other.endNodes.addAll(leafNodes);
     //Append all the entries from the other dag's parentChildMap to this dag's parentChildMap
     for (Map.Entry<DagNode, List<DagNode<T>>> entry: other.parentChildMap.entrySet()) {
       this.parentChildMap.put(entry.getKey(), entry.getValue());
@@ -177,10 +199,7 @@ public class Dag<T> {
         return false;
       }
       DagNode that = (DagNode) o;
-      if (!this.getValue().equals(that.getValue())) {
-        return false;
-      }
-      return true;
+      return this.getValue().equals(that.getValue());
     }
 
     @Override

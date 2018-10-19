@@ -21,15 +21,16 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 import com.typesafe.config.Config;
@@ -45,6 +46,7 @@ import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.service.modules.dataset.DatasetDescriptor;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.flowgraph.Dag.DagNode;
 import org.apache.gobblin.service.modules.flowgraph.FlowEdge;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlanDagFactory;
@@ -96,20 +98,30 @@ public class FlowGraphPath {
    * @return The concatenated dag with modified {@link ConfigurationKeys#JOB_DEPENDENCIES}.
    */
   private Dag<JobExecutionPlan> concatenate(Dag<JobExecutionPlan> dagLeft, Dag<JobExecutionPlan> dagRight) {
-    List<Dag.DagNode<JobExecutionPlan>> endNodes = dagLeft.getEndNodes();
-    List<Dag.DagNode<JobExecutionPlan>> startNodes = dagRight.getStartNodes();
+    List<DagNode<JobExecutionPlan>> endNodes = dagLeft.getEndNodes();
+    List<DagNode<JobExecutionPlan>> startNodes = dagRight.getStartNodes();
     List<String> dependenciesList = Lists.newArrayList();
-    for (Dag.DagNode<JobExecutionPlan> dagNode: endNodes) {
+    for (DagNode<JobExecutionPlan> dagNode: endNodes) {
       dependenciesList.add(dagNode.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.JOB_NAME_KEY));
     }
     String dependencies = Joiner.on(",").join(dependenciesList);
 
-    for (Dag.DagNode<JobExecutionPlan> childNode: startNodes) {
+    for (DagNode<JobExecutionPlan> childNode: startNodes) {
       JobSpec jobSpec = childNode.getValue().getJobSpec();
       jobSpec.setConfig(jobSpec.getConfig().withValue(ConfigurationKeys.JOB_DEPENDENCIES, ConfigValueFactory.fromAnyRef(dependencies)));
     }
 
-    return dagLeft.concatenate(dagRight);
+    //Build the list of leaf nodes i.e. nodes which have no dependents in the concatenated dag.
+    Set<DagNode<JobExecutionPlan>> leafNodes = new HashSet<>();
+    for (DagNode<JobExecutionPlan> dagNode: endNodes) {
+      Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
+      boolean isLeaf = ConfigUtils.getBoolean(jobConfig, ConfigurationKeys.JOB_ISLEAF, false);
+      if (isLeaf) {
+        leafNodes.add(dagNode);
+      }
+    }
+
+    return dagLeft.concatenate(dagRight, leafNodes);
   }
   /**
    * Given an instance of {@link FlowEdge}, this method returns a {@link Dag < JobExecutionPlan >} that moves data
