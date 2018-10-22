@@ -26,7 +26,9 @@ import java.util.Properties;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.RandomStringUtils;
+import org.apache.gobblin.data.management.copy.splitter.DistcpFileSplitter;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -92,12 +94,52 @@ public class FileAwareInputStreamDataWriterTest {
 
     FileAwareInputStreamDataWriter dataWriter = new FileAwareInputStreamDataWriter(state, 1, 0);
 
-    FileAwareInputStream fileAwareInputStream = new FileAwareInputStream(cf, StreamUtils.convertStream(IOUtils.toInputStream(streamString)));
+    FileAwareInputStream fileAwareInputStream = FileAwareInputStream.builder().file(cf)
+        .inputStream(StreamUtils.convertStream(IOUtils.toInputStream(streamString))).build();
     dataWriter.write(fileAwareInputStream);
     dataWriter.commit();
     Path writtenFilePath = new Path(new Path(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR),
         cf.getDatasetAndPartition(metadata).identifier()), cf.getDestination());
     Assert.assertEquals(IOUtils.toString(new FileInputStream(writtenFilePath.toString())), streamString);
+  }
+
+  @Test
+  public void testBlockWrite() throws Exception {
+    String streamString = "testContents";
+
+    FileStatus status = fs.getFileStatus(testTempPath);
+    OwnerAndPermission ownerAndPermission =
+        new OwnerAndPermission(status.getOwner(), status.getGroup(), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
+    CopyableFile cf = CopyableFileUtils.getTestCopyableFile(ownerAndPermission);
+
+    CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(new TestCopyableDataset(new Path("/source")));
+
+    WorkUnitState state = TestUtils.createTestWorkUnitState();
+    state.setProp(ConfigurationKeys.WRITER_STAGING_DIR, new Path(testTempPath, "staging").toString());
+    state.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, new Path(testTempPath, "output").toString());
+    state.setProp(ConfigurationKeys.WRITER_FILE_PATH, RandomStringUtils.randomAlphabetic(5));
+    state.setProp(DistcpFileSplitter.SPLIT_ENABLED, true);
+    CopySource.serializeCopyEntity(state, cf);
+    CopySource.serializeCopyableDataset(state, metadata);
+
+    FileAwareInputStreamDataWriter dataWriter = new FileAwareInputStreamDataWriter(state, 1, 0);
+
+    long splitLen = 4;
+    int splits = (int) (streamString.length() / splitLen + 1);
+    DistcpFileSplitter.Split split = new DistcpFileSplitter.Split(0, splitLen, 0, splits,
+        String.format("%s.__PART%d__", cf.getDestination().getName(), 0));
+    FSDataInputStream dataInputStream = StreamUtils.convertStream(IOUtils.toInputStream(streamString));
+    dataInputStream.seek(split.getLowPosition());
+    FileAwareInputStream fileAwareInputStream = FileAwareInputStream.builder().file(cf)
+        .inputStream(dataInputStream)
+        .split(Optional.of(split))
+        .build();
+    dataWriter.write(fileAwareInputStream);
+    dataWriter.commit();
+    Path writtenFilePath = new Path(new Path(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR),
+        cf.getDatasetAndPartition(metadata).identifier()), cf.getDestination());
+    Assert.assertEquals(IOUtils.toString(new FileInputStream(writtenFilePath.toString())),
+        streamString.substring(0, (int) splitLen));
   }
 
   @Test
@@ -126,8 +168,8 @@ public class FileAwareInputStreamDataWriterTest {
 
     FileAwareInputStreamDataWriter dataWriter = new FileAwareInputStreamDataWriter(state, 1, 0);
 
-    FileAwareInputStream fileAwareInputStream = new FileAwareInputStream(cf, StreamUtils.convertStream(
-        new ByteArrayInputStream(streamString)));
+    FileAwareInputStream fileAwareInputStream = FileAwareInputStream.builder().file(cf)
+        .inputStream(StreamUtils.convertStream(new ByteArrayInputStream(streamString))).build();
     dataWriter.write(fileAwareInputStream);
     dataWriter.commit();
 
@@ -161,8 +203,8 @@ public class FileAwareInputStreamDataWriterTest {
 
     FileAwareInputStreamDataWriter dataWriter = new FileAwareInputStreamDataWriter(state, 1, 0);
 
-    FileAwareInputStream fileAwareInputStream = new FileAwareInputStream(cf, StreamUtils.convertStream(
-        new ByteArrayInputStream(streamString)));
+    FileAwareInputStream fileAwareInputStream = FileAwareInputStream.builder().file(cf)
+        .inputStream(StreamUtils.convertStream(new ByteArrayInputStream(streamString))).build();
     dataWriter.write(fileAwareInputStream);
     dataWriter.commit();
 
@@ -217,8 +259,8 @@ public class FileAwareInputStreamDataWriterTest {
 
     FileAwareInputStreamDataWriter dataWriter = new FileAwareInputStreamDataWriter(state, 1, 0);
 
-    FileAwareInputStream fileAwareInputStream = new FileAwareInputStream(cf, StreamUtils.convertStream(
-        new ByteArrayInputStream(streamString)));
+    FileAwareInputStream fileAwareInputStream = FileAwareInputStream.builder().file(cf)
+        .inputStream(StreamUtils.convertStream(new ByteArrayInputStream(streamString))).build();
     dataWriter.write(fileAwareInputStream);
     dataWriter.commit();
 
