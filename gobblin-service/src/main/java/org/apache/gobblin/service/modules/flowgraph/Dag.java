@@ -21,7 +21,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -148,11 +147,7 @@ public class Dag<T> {
     this.endNodes = other.endNodes;
 
     //Append all the entries from the other dag's parentChildMap to this dag's parentChildMap
-    for (Iterator<Map.Entry<DagNode, List<DagNode<T>>>> iterator = other.parentChildMap.entrySet().iterator();
-        iterator.hasNext(); ) {
-      Map.Entry<DagNode, List<DagNode<T>>> entry = iterator.next();
-      this.parentChildMap.put(entry.getKey(), entry.getValue());
-    }
+    this.parentChildMap.putAll(other.parentChildMap);
 
     //If there exists a node in the other dag with no parent nodes, add it to the list of start nodes of the
     // concatenated dag.
