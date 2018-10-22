@@ -21,15 +21,17 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.hadoop.fs.Path;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 import com.typesafe.config.Config;
@@ -45,6 +47,7 @@ import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.service.modules.dataset.DatasetDescriptor;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.flowgraph.Dag.DagNode;
 import org.apache.gobblin.service.modules.flowgraph.FlowEdge;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlanDagFactory;
@@ -95,22 +98,44 @@ public class FlowGraphPath {
    * @param dagRight The child dag.
    * @return The concatenated dag with modified {@link ConfigurationKeys#JOB_DEPENDENCIES}.
    */
-  private Dag<JobExecutionPlan> concatenate(Dag<JobExecutionPlan> dagLeft, Dag<JobExecutionPlan> dagRight) {
-    List<Dag.DagNode<JobExecutionPlan>> endNodes = dagLeft.getEndNodes();
-    List<Dag.DagNode<JobExecutionPlan>> startNodes = dagRight.getStartNodes();
+  @VisibleForTesting
+  static Dag<JobExecutionPlan> concatenate(Dag<JobExecutionPlan> dagLeft, Dag<JobExecutionPlan> dagRight) {
+    List<DagNode<JobExecutionPlan>> endNodes = dagLeft.getEndNodes();
+    List<DagNode<JobExecutionPlan>> startNodes = dagRight.getStartNodes();
     List<String> dependenciesList = Lists.newArrayList();
-    for (Dag.DagNode<JobExecutionPlan> dagNode: endNodes) {
-      dependenciesList.add(dagNode.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.JOB_NAME_KEY));
-    }
-    String dependencies = Joiner.on(",").join(dependenciesList);
+    //List of nodes with no dependents in the concatenated dag.
+    Set<DagNode<JobExecutionPlan>> forkNodes = new HashSet<>();
 
-    for (Dag.DagNode<JobExecutionPlan> childNode: startNodes) {
-      JobSpec jobSpec = childNode.getValue().getJobSpec();
-      jobSpec.setConfig(jobSpec.getConfig().withValue(ConfigurationKeys.JOB_DEPENDENCIES, ConfigValueFactory.fromAnyRef(dependencies)));
+    for (DagNode<JobExecutionPlan> dagNode: endNodes) {
+      if (isNodeForkable(dagNode)) {
+        //If node is forkable, then add its parents (if any) to the dependencies list.
+        forkNodes.add(dagNode);
+        List<DagNode<JobExecutionPlan>> parentNodes = dagLeft.getParents(dagNode);
+        for (DagNode<JobExecutionPlan> parentNode: parentNodes) {
+          dependenciesList.add(parentNode.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.JOB_NAME_KEY));
+        }
+      } else {
+        dependenciesList.add(dagNode.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.JOB_NAME_KEY));
+      }
     }
 
-    return dagLeft.concatenate(dagRight);
+    if (!dependenciesList.isEmpty()) {
+      String dependencies = Joiner.on(",").join(dependenciesList);
+
+      for (DagNode<JobExecutionPlan> childNode : startNodes) {
+        JobSpec jobSpec = childNode.getValue().getJobSpec();
+        jobSpec.setConfig(jobSpec.getConfig().withValue(ConfigurationKeys.JOB_DEPENDENCIES, ConfigValueFactory.fromAnyRef(dependencies)));
+      }
+    }
+
+    return dagLeft.concatenate(dagRight, forkNodes);
   }
+
+  private static boolean isNodeForkable(DagNode<JobExecutionPlan> dagNode) {
+    Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
+    return ConfigUtils.getBoolean(jobConfig, ConfigurationKeys.JOB_FORK_ON_CONCAT, false);
+  }
+
   /**
    * Given an instance of {@link FlowEdge}, this method returns a {@link Dag < JobExecutionPlan >} that moves data
    * from the source of the {@link FlowEdge} to the destination of the {@link FlowEdge}.
