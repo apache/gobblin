@@ -54,6 +54,7 @@ public class Partitioner {
   public static final String HAS_USER_SPECIFIED_PARTITIONS = "partitioner.hasUserSpecifiedPartitions";
   public static final String USER_SPECIFIED_PARTITIONS = "partitioner.userSpecifiedPartitions";
   public static final String IS_EARLY_STOPPED = "partitioner.isEarlyStopped";
+  public static final String ALLOW_EQUAL_WATERMARK_BOUNDARY = "partitioner.allowEqualWatermarkBoundary";
 
   public static final Comparator<Partition> ascendingComparator = new Comparator<Partition>() {
     @Override
@@ -175,6 +176,26 @@ public class Partitioner {
      * logic will be put here.
      */
     HashMap<Long, Long> partitionMap = getPartitions(previousWatermark);
+
+    if (partitionMap.size() == 0) {
+      return partitions;
+    }
+
+    if (partitionMap.size() == 1) {
+      Map.Entry<Long, Long> entry = partitionMap.entrySet().iterator().next();
+      Long lwm = entry.getKey();
+      Long hwm = entry.getValue();
+
+      if (lwm == hwm) {
+        if (lwm != -1) { // we always allow [-1, -1] interval due to some test cases relies on this logic.
+          boolean allowEqualBoundary = state.getPropAsBoolean(ALLOW_EQUAL_WATERMARK_BOUNDARY, false);
+          LOG.info("Single partition with LWM = HWM and allowEqualBoundary=" + allowEqualBoundary);
+          if (!allowEqualBoundary) {
+            return partitions;
+          }
+        }
+      }
+    }
 
     /*
      * Can't use highWatermark directly, as the partitionMap may have different precision. For example, highWatermark
