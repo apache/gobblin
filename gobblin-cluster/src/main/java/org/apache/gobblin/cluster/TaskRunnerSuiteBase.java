@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.cluster;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -51,11 +52,10 @@ import org.apache.gobblin.util.ConfigUtils;
 @Alpha
 public abstract class TaskRunnerSuiteBase {
   protected TaskFactory taskFactory;
-  protected TaskFactory jobFactory;
+  protected GobblinHelixJobFactory jobFactory;
   protected MetricContext metricContext;
   protected String applicationId;
   protected String applicationName;
-  protected StandardMetricsBridge.StandardMetrics taskMetrics;
   protected List<Service> services = Lists.newArrayList();
 
   protected TaskRunnerSuiteBase(Builder builder) {
@@ -68,7 +68,7 @@ public abstract class TaskRunnerSuiteBase {
     return this.metricContext;
   }
 
-  protected abstract StandardMetricsBridge.StandardMetrics getTaskMetrics();
+  protected abstract Collection<StandardMetricsBridge.StandardMetrics> getMetricsCollection();
 
   protected abstract Map<String, TaskFactory> getTaskFactoryMap();
 

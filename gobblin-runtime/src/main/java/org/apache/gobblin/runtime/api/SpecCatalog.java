@@ -24,8 +24,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
+
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.GobblinMetricsKeys;
@@ -36,9 +40,6 @@ import org.apache.gobblin.metrics.ContextAwareTimer;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.util.ConfigUtils;
-
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 
 
 public interface SpecCatalog extends SpecCatalogListenersContainer, StandardMetricsBridge {
@@ -51,6 +52,10 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, StandardMetr
 
   default StandardMetricsBridge.StandardMetrics getStandardMetrics() {
     return this.getMetrics();
+  }
+
+  default Collection<StandardMetricsBridge.StandardMetrics> getStandardMetricsCollection() {
+    return ImmutableList.of(this.getMetrics());
   }
 
   /**

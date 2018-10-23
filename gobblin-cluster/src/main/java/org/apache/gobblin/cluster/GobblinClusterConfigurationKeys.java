@@ -77,6 +77,7 @@ public class GobblinClusterConfigurationKeys {
   public static final String PLANNING_JOB_NAME_PREFIX = "PlanningJob";
   public static final String PLANNING_CONF_PREFIX = GOBBLIN_CLUSTER_PREFIX + "planning.";
   public static final String PLANNING_ID_KEY = PLANNING_CONF_PREFIX + "idKey";
+  public static final String PLANNING_JOB_CREATE_TIME = PLANNING_CONF_PREFIX + "createTime";
 
   // job spec operation
   public static final String JOB_ALWAYS_DELETE = GOBBLIN_CLUSTER_PREFIX + "job.alwaysDelete";

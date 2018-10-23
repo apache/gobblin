@@ -20,6 +20,8 @@ package org.apache.gobblin.cluster;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
@@ -54,7 +56,6 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
-import javax.annotation.Nonnull;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -105,9 +106,6 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinClusterManager.class);
 
-  @VisibleForTesting
-  protected GobblinHelixMultiManager multiManager;
-
   private StopStatus stopStatus = new StopStatus(false);
 
   protected ServiceBasedAppLauncher applicationLauncher;
@@ -127,11 +125,10 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
   // set to true to stop the idle process thread
   private volatile boolean stopIdleProcessThread = false;
 
-  // flag to keep track of leader and avoid processing duplicate leadership change notifications
-  private boolean isLeader = false;
-
   private final boolean isStandaloneMode;
 
+  @Getter
+  protected GobblinHelixMultiManager multiManager;
   @Getter
   private MutableJobCatalog jobCatalog;
   @Getter
@@ -142,14 +139,12 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
   private final String clusterName;
   private final Config config;
   private final MetricContext metricContext;
-  private final StandardMetrics metrics;
 
   public GobblinClusterManager(String clusterName, String applicationId, Config config,
       Optional<Path> appWorkDirOptional) throws Exception {
     this.clusterName = clusterName;
     this.config = config;
     this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), this.getClass());
-    this.metrics = new StandardMetrics();
     this.isStandaloneMode = ConfigUtils.getBoolean(config, GobblinClusterConfigurationKeys.STANDALONE_CLUSTER_MODE_KEY,
         GobblinClusterConfigurationKeys.DEFAULT_STANDALONE_CLUSTER_MODE);
 
@@ -446,11 +441,14 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
   }
 
   @Override
-  public StandardMetrics getStandardMetrics() {
-    return this.metrics;
+  public Collection<StandardMetrics> getStandardMetricsCollection() {
+    List<StandardMetrics> list = new ArrayList();
+    list.addAll(this.jobScheduler.getStandardMetricsCollection());
+    list.addAll(this.multiManager.getStandardMetricsCollection());
+    list.addAll(this.jobCatalog.getStandardMetricsCollection());
+    return list;
   }
 
-  @Nonnull
   @Override
   public MetricContext getMetricContext() {
     return this.metricContext;
