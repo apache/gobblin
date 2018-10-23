@@ -31,7 +31,11 @@ import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.flowgraph.Dag.DagNode;
+import org.apache.gobblin.service.modules.orchestration.DagManager.FailureOption;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+import org.apache.gobblin.util.ConfigUtils;
+
 
 public class DagManagerUtils {
   /**
@@ -39,7 +43,7 @@ public class DagManagerUtils {
    * @param dag instance of a {@link Dag}.
    * @return a String id associated corresponding to the {@link Dag} instance.
    */
-  public static String generateDagId(Dag<JobExecutionPlan> dag) {
+  static String generateDagId(Dag<JobExecutionPlan> dag) {
     Config jobConfig = dag.getStartNodes().get(0).getValue().getJobSpec().getConfig();
     String flowGroup = jobConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
     String flowName = jobConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
@@ -47,28 +51,28 @@ public class DagManagerUtils {
     return Joiner.on("_").join(flowGroup, flowName, flowExecutionId);
   }
 
-  public static String getJobName(Dag.DagNode<JobExecutionPlan> dagNode) {
+  static String getJobName(DagNode<JobExecutionPlan> dagNode) {
     return dagNode.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.JOB_NAME_KEY);
   }
 
-  public static JobExecutionPlan getJobExecutionPlan(Dag.DagNode<JobExecutionPlan> dagNode) {
+  static JobExecutionPlan getJobExecutionPlan(DagNode<JobExecutionPlan> dagNode) {
     return dagNode.getValue();
   }
 
-  public static JobSpec getJobSpec(Dag.DagNode<JobExecutionPlan> dagNode) {
+  public static JobSpec getJobSpec(DagNode<JobExecutionPlan> dagNode) {
     return dagNode.getValue().getJobSpec();
   }
 
-  public static Config getJobConfig(Dag.DagNode<JobExecutionPlan> dagNode) {
+  static Config getJobConfig(DagNode<JobExecutionPlan> dagNode) {
     return dagNode.getValue().getJobSpec().getConfig();
   }
 
-  public static SpecProducer getSpecProducer(Dag.DagNode<JobExecutionPlan> dagNode)
+  static SpecProducer getSpecProducer(DagNode<JobExecutionPlan> dagNode)
       throws ExecutionException, InterruptedException {
     return dagNode.getValue().getSpecExecutor().getProducer().get();
   }
 
-  public static ExecutionStatus getExecutionStatus(Dag.DagNode<JobExecutionPlan> dagNode) {
+  static ExecutionStatus getExecutionStatus(DagNode<JobExecutionPlan> dagNode) {
     return dagNode.getValue().getExecutionStatus();
   }
 
@@ -77,17 +81,19 @@ public class DagManagerUtils {
    * identifies each node yet to be executed and for which each of its parent nodes is in the {@link ExecutionStatus#COMPLETE}
    * state.
    */
-  public static Set<Dag.DagNode<JobExecutionPlan>> getNext(Dag<JobExecutionPlan> dag) {
-    Set<Dag.DagNode<JobExecutionPlan>> nextNodesToExecute = new HashSet<>();
-    LinkedList<Dag.DagNode<JobExecutionPlan>> nodesToExpand = Lists.newLinkedList(dag.getStartNodes());
+  static Set<DagNode<JobExecutionPlan>> getNext(Dag<JobExecutionPlan> dag) {
+    Set<DagNode<JobExecutionPlan>> nextNodesToExecute = new HashSet<>();
+    LinkedList<DagNode<JobExecutionPlan>> nodesToExpand = Lists.newLinkedList(dag.getStartNodes());
+    FailureOption failureOption = getFailureOption(dag);
 
     while (!nodesToExpand.isEmpty()) {
-      Dag.DagNode<JobExecutionPlan> node = nodesToExpand.poll();
+      DagNode<JobExecutionPlan> node = nodesToExpand.poll();
+      ExecutionStatus executionStatus = getExecutionStatus(node);
       boolean addFlag = true;
-      if (getExecutionStatus(node) == ExecutionStatus.$UNKNOWN) {
+      if (executionStatus == ExecutionStatus.$UNKNOWN) {
         //Add a node to be executed next, only if all of its parent nodes are COMPLETE.
-        List<Dag.DagNode<JobExecutionPlan>> parentNodes = dag.getParents(node);
-        for (Dag.DagNode<JobExecutionPlan> parentNode : parentNodes) {
+        List<DagNode<JobExecutionPlan>> parentNodes = dag.getParents(node);
+        for (DagNode<JobExecutionPlan> parentNode : parentNodes) {
           if (getExecutionStatus(parentNode) != ExecutionStatus.COMPLETE) {
             addFlag = false;
             break;
@@ -96,14 +102,28 @@ public class DagManagerUtils {
         if (addFlag) {
           nextNodesToExecute.add(node);
         }
-      } else if (getExecutionStatus(node) == ExecutionStatus.COMPLETE) {
+      } else if (executionStatus == ExecutionStatus.COMPLETE) {
         //Explore the children of COMPLETED node as next candidates for execution.
         nodesToExpand.addAll(dag.getChildren(node));
-      } else {
-        return new HashSet<>();
+      } else if ((executionStatus == ExecutionStatus.FAILED) || (executionStatus == ExecutionStatus.CANCELLED)) {
+        switch (failureOption) {
+          case FINISH_RUNNING:
+            return new HashSet<>();
+          case FINISH_ALL_POSSIBLE:
+          default:
+            break;
+        }
       }
     }
     return nextNodesToExecute;
   }
 
+  static FailureOption getFailureOption(Dag<JobExecutionPlan> dag) {
+    if (dag.isEmpty()) {
+      return null;
+    }
+    DagNode<JobExecutionPlan> dagNode = dag.getStartNodes().get(0);
+    String failureOption = ConfigUtils.getString(getJobConfig(dagNode), ConfigurationKeys.FLOW_FAILURE_OPTION, DagManager.DEFAULT_FLOW_FAILURE_OPTION);
+    return FailureOption.valueOf(failureOption);
+  }
 }
