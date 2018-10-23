@@ -84,7 +84,7 @@ import static org.apache.gobblin.service.ExecutionStatus.valueOf;
 @Alpha
 @Slf4j
 public class DagManager extends AbstractIdleService {
-  public static final String DEFAULT_FLOW_FAILURE_OPTION = "FINISH_ALL_POSSIBLE";
+  public static final String DEFAULT_FLOW_FAILURE_OPTION = FailureOption.FINISH_ALL_POSSIBLE.name();
 
   private static final Integer DEFAULT_JOB_STATUS_POLLING_INTERVAL = 10;
   private static final Integer DEFAULT_NUM_THREADS = 3;
@@ -108,7 +108,7 @@ public class DagManager extends AbstractIdleService {
   public enum FailureOption {
     FINISH_RUNNING("FINISH_RUNNING"),
     CANCEL("CANCEL"),
-    FINISH_ALL_POSSIBLE(DEFAULT_FLOW_FAILURE_OPTION);
+    FINISH_ALL_POSSIBLE("FINISH_ALL_POSSIBLE");
 
     private final String failureOption;
 
