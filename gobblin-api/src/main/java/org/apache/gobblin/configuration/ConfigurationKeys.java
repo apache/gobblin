@@ -133,7 +133,6 @@ public class ConfigurationKeys {
   public static final String FLOW_DESCRIPTION_KEY = "flow.description";
   public static final String FLOW_EXECUTION_ID_KEY = "flow.executionId";
   public static final String FLOW_FAILURE_OPTION = "flow.failureOption";
-  public static final String DEFAULT_FLOW_FAILURE_OPTION = "FINISH_ALL_POSSIBLE";
 
   /**
    * Common topology configuration properties.
