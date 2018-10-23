@@ -28,8 +28,6 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.ImmutableMap;
-
 import org.apache.gobblin.configuration.WorkUnitState;
 
 
@@ -109,11 +107,6 @@ public class TimestampWatermarkTest {
     Map<Long, Long> intervals = new HashMap<Long, Long>();
     if (lowWatermarkValue > highWatermarkValue || partitionInterval <= 0)
       return intervals;
-
-    if (lowWatermarkValue == highWatermarkValue) {
-      return ImmutableMap.of(lowWatermarkValue, highWatermarkValue);
-    }
-
     final SimpleDateFormat inputFormat = new SimpleDateFormat(this.watermarkFormat);
     Date startTime = inputFormat.parse(String.valueOf(lowWatermarkValue));
     Date endTime = inputFormat.parse(String.valueOf(highWatermarkValue));

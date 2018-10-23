@@ -24,8 +24,6 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.ImmutableMap;
-
 import org.apache.gobblin.source.extractor.extract.QueryBasedExtractor;
 
 
@@ -150,11 +148,6 @@ public class SimpleWatermarkTest {
     Map<Long, Long> intervals = new HashMap<Long, Long>();
     if (lowWatermarkValue > highWatermarkValue || partitionInterval <= 0)
       return intervals;
-
-    if (lowWatermarkValue == highWatermarkValue) {
-      return ImmutableMap.of(lowWatermarkValue, highWatermarkValue);
-    }
-
     boolean overflow = false;
     for (Long i = lowWatermarkValue; i < highWatermarkValue && !overflow;) {
       overflow = (Long.MAX_VALUE - partitionInterval < i);
