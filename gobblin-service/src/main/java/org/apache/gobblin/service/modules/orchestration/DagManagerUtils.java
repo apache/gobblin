@@ -123,7 +123,7 @@ public class DagManagerUtils {
       return null;
     }
     DagNode<JobExecutionPlan> dagNode = dag.getStartNodes().get(0);
-    String failureOption = ConfigUtils.getString(getJobConfig(dagNode), ConfigurationKeys.FLOW_FAILURE_OPTION, DagManager.DEFAULT_FLOW_FAILURE_OPTION);
+    String failureOption = ConfigUtils.getString(getJobConfig(dagNode), ConfigurationKeys.FLOW_FAILURE_OPTION, ConfigurationKeys.DEFAULT_FLOW_FAILURE_OPTION);
     return FailureOption.valueOf(failureOption);
   }
 }
