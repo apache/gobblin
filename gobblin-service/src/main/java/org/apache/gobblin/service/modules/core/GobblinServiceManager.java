@@ -44,6 +44,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.eventbus.EventBus;
@@ -493,6 +494,11 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
   @Override
   public StandardMetrics getStandardMetrics() {
     return this.metrics;
+  }
+
+  @Override
+  public Collection<StandardMetrics> getStandardMetricsCollection() {
+    return ImmutableList.of(this.metrics);
   }
 
   @Nonnull

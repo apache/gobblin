@@ -25,7 +25,10 @@ import org.apache.gobblin.runtime.TaskExecutor;
 
 public class GobblinTaskRunnerMetrics {
 
-  static class InProcessTaskRunnerMetrics extends StandardMetricsBridge.StandardMetrics {
+  /**
+   * This metrics shows the task execution that correlates to a work unit.
+   */
+  static class TaskExecutionMetrics extends StandardMetricsBridge.StandardMetrics {
     private TaskExecutor taskExecutor;
     private static String CURRENT_QUEUED_TASK_COUNT = "currentQueuedTaskCount";
     private static String HISTORICAL_QUEUED_TASK_COUNT = "historicalQueuedTaskCount";
@@ -37,7 +40,7 @@ public class GobblinTaskRunnerMetrics {
     private static String SUCCESSFUL_TASK_COUNT = "successfulTaskCount";
     private static String RUNNING_TASK_COUNT = "runningTaskCount";
 
-    public InProcessTaskRunnerMetrics (TaskExecutor executor, MetricContext context) {
+    public TaskExecutionMetrics (TaskExecutor executor, MetricContext context) {
       taskExecutor = executor;
       contextAwareMetrics.add(context.newContextAwareGauge(CURRENT_QUEUED_TASK_COUNT, ()->this.taskExecutor.getCurrentQueuedTaskCount().longValue()));
       contextAwareMetrics.add(context.newContextAwareGauge(CURRENT_QUEUED_TASK_TOTAL_TIME, ()->this.taskExecutor.getCurrentQueuedTaskTotalTime().longValue()));
@@ -48,21 +51,20 @@ public class GobblinTaskRunnerMetrics {
       contextAwareMetrics.add(context.newContextAwareGauge(FAILED_TASK_COUNT, ()->this.taskExecutor.getFailedTaskCount().getCount()));
       contextAwareMetrics.add(context.newContextAwareGauge(SUCCESSFUL_TASK_COUNT, ()->this.taskExecutor.getSuccessfulTaskCount().getCount()));
       contextAwareMetrics.add(context.newContextAwareGauge(RUNNING_TASK_COUNT, ()->this.taskExecutor.getRunningTaskCount().getCount()));
-
       this.rawMetrics.put(ConfigurationKeys.WORK_UNIT_CREATION_AND_RUN_INTERVAL, this.taskExecutor.getTaskCreateAndRunTimer());
     }
 
     @Override
     public String getName() {
-      return InProcessTaskRunnerMetrics.class.getName();
+      return TaskExecutionMetrics.class.getName();
     }
   }
 
-  static class JvmTaskRunnerMetrics extends StandardMetricsBridge.StandardMetrics {
+  static class JvmTaskMetrics extends StandardMetricsBridge.StandardMetrics {
     //TODO: add metrics to monitor the process execution status (will be revisited after process isolation work is done)
     @Override
     public String getName() {
-      return JvmTaskRunnerMetrics.class.getName();
+      return JvmTaskMetrics.class.getName();
     }
 
   }

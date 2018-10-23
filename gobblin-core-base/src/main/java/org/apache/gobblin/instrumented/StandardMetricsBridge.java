@@ -36,7 +36,21 @@ import org.apache.gobblin.metrics.Tag;
  */
 public interface StandardMetricsBridge extends Instrumentable {
 
-  StandardMetrics getStandardMetrics();
+  /**
+   * Get a single standard metrics.
+   * Also see {@link #getStandardMetricsCollection}.
+   */
+  @Deprecated
+  default StandardMetrics getStandardMetrics() {
+    throw new UnsupportedOperationException("Deprecated API. Please use getStandardMetricsCollection.");
+  }
+
+  /**
+   * Get multiple standard metrics.
+   */
+  default Collection<StandardMetrics> getStandardMetricsCollection() {
+    return ImmutableList.of();
+  }
 
   default void switchMetricContext(MetricContext context) {
     throw new UnsupportedOperationException();
