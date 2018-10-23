@@ -121,8 +121,7 @@ public class TarArchiveInputStreamDataWriterTest {
         CopyableFileUtils.getTestCopyableFile(filePath, new Path(testTempPath, newFileName).toString(), newFileName,
             ownerAndPermission);
 
-    FileAwareInputStream fileAwareInputStream = FileAwareInputStream.builder().file(cf)
-        .inputStream(fs.open(new Path(fullPath))).build();
+    FileAwareInputStream fileAwareInputStream = new FileAwareInputStream(cf, fs.open(new Path(fullPath)));
 
     Iterable<FileAwareInputStream> iterable =
         converter.convertRecord("outputSchema", fileAwareInputStream, new WorkUnitState());

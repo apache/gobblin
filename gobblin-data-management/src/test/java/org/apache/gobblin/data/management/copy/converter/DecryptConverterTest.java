@@ -71,8 +71,8 @@ public class DecryptConverterTest {
 
       String gpgFilePath = url.getFile();
       try (FSDataInputStream gpgFileInput = fs.open(new Path(gpgFilePath))) {
-	      FileAwareInputStream fileAwareInputStream = FileAwareInputStream.builder()
-            .file(CopyableFileUtils.getTestCopyableFile()).inputStream(gpgFileInput).build();
+	      FileAwareInputStream fileAwareInputStream =
+	          new FileAwareInputStream(CopyableFileUtils.getTestCopyableFile(), gpgFileInput);
 
 	      Iterable<FileAwareInputStream> iterable =
 	          converter.convertRecord("outputSchema", fileAwareInputStream, workUnitState);
@@ -106,8 +106,8 @@ public class DecryptConverterTest {
 
       String testFilePath = url.getFile();
       try (FSDataInputStream testFileInput = fs.open(new Path(testFilePath))) {
-        FileAwareInputStream fileAwareInputStream = FileAwareInputStream.builder()
-            .file(CopyableFileUtils.getTestCopyableFile()).inputStream(testFileInput).build();
+        FileAwareInputStream fileAwareInputStream =
+            new FileAwareInputStream(CopyableFileUtils.getTestCopyableFile(), testFileInput);
         fileAwareInputStream.getFile().setDestination(new Path("file:///tmp/decrypt-test.txt.insecure_shift"));
         Iterable<FileAwareInputStream> iterable =
             converter.convertRecord("outputSchema", fileAwareInputStream, workUnitState);

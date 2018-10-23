@@ -27,8 +27,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
-import lombok.extern.slf4j.Slf4j;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileContext;
@@ -44,6 +42,8 @@ import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.collect.Iterators;
+
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.broker.EmptyKey;
 import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
@@ -62,8 +62,8 @@ import org.apache.gobblin.data.management.copy.CopyableDatasetMetadata;
 import org.apache.gobblin.data.management.copy.CopyableFile;
 import org.apache.gobblin.data.management.copy.FileAwareInputStream;
 import org.apache.gobblin.data.management.copy.OwnerAndPermission;
+import org.apache.gobblin.data.management.copy.PreserveAttributes;
 import org.apache.gobblin.data.management.copy.recovery.RecoveryHelper;
-import org.apache.gobblin.data.management.copy.splitter.DistcpFileSplitter;
 import org.apache.gobblin.instrumented.writer.InstrumentedDataWriter;
 import org.apache.gobblin.state.ConstructState;
 import org.apache.gobblin.util.FileListUtils;
@@ -183,7 +183,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     }
     this.actualProcessedCopyableFile = Optional.of(copyableFile);
     this.fs.mkdirs(stagingFile.getParent());
-    writeImpl(fileAwareInputStream.getInputStream(), stagingFile, copyableFile, fileAwareInputStream);
+    writeImpl(fileAwareInputStream.getInputStream(), stagingFile, copyableFile);
     this.filesWritten.incrementAndGet();
   }
 
@@ -200,31 +200,17 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
    * @param inputStream {@link FSDataInputStream} whose contents should be written to staging path.
    * @param writeAt {@link Path} at which contents should be written.
    * @param copyableFile {@link org.apache.gobblin.data.management.copy.CopyEntity} that generated this copy operation.
-   * @param record The actual {@link FileAwareInputStream} passed to the write method.
    * @throws IOException
    */
-  protected void writeImpl(InputStream inputStream, Path writeAt, CopyableFile copyableFile,
-      FileAwareInputStream record) throws IOException {
+  protected void writeImpl(InputStream inputStream, Path writeAt, CopyableFile copyableFile)
+      throws IOException {
 
-    final short replication = copyableFile.getReplication(this.fs);
-    final long blockSize = copyableFile.getBlockSize(this.fs);
-    final long fileSize = copyableFile.getFileStatus().getLen();
-
-    long expectedBytes = fileSize;
-    Long maxBytes = null;
-    // Whether writer must write EXACTLY maxBytes.
-    boolean mustMatchMaxBytes = false;
-
-    if (record.getSplit().isPresent()) {
-      maxBytes = record.getSplit().get().getHighPosition() - record.getSplit().get().getLowPosition();
-      if (record.getSplit().get().isLastSplit()) {
-        expectedBytes = fileSize % blockSize;
-        mustMatchMaxBytes = false;
-      } else {
-        expectedBytes = maxBytes;
-        mustMatchMaxBytes = true;
-      }
-    }
+    final short replication =
+        copyableFile.getPreserve().preserve(PreserveAttributes.Option.REPLICATION) ? copyableFile.getOrigin()
+            .getReplication() : this.fs.getDefaultReplication(writeAt);
+    final long blockSize =
+        copyableFile.getPreserve().preserve(PreserveAttributes.Option.BLOCK_SIZE) ? copyableFile.getOrigin()
+            .getBlockSize() : this.fs.getDefaultBlockSize(writeAt);
 
     Predicate<FileStatus> fileStatusAttributesFilter = new Predicate<FileStatus>() {
       @Override
@@ -257,7 +243,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
         ThrottledInputStream throttledInputStream = throttler.throttleInputStream().inputStream(inputStream)
             .sourceURI(copyableFile.getOrigin().getPath().makeQualified(defaultFS.getUri(), defaultFS.getWorkingDirectory()).toUri())
             .targetURI(this.fs.makeQualified(writeAt).toUri()).build();
-        StreamCopier copier = new StreamCopier(throttledInputStream, os, maxBytes).withBufferSize(this.bufferSize);
+        StreamCopier copier = new StreamCopier(throttledInputStream, os).withBufferSize(this.bufferSize);
 
         log.info("File {}: Starting copy", copyableFile.getOrigin().getPath());
 
@@ -265,9 +251,10 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
           copier.withCopySpeedMeter(this.copySpeedMeter);
         }
         long numBytes = copier.copy();
-        if ((this.checkFileSize || mustMatchMaxBytes) && numBytes != expectedBytes) {
-          throw new IOException(String.format("Incomplete write: expected %d, wrote %d bytes.",
-              expectedBytes, numBytes));
+        long fileSize = copyableFile.getFileStatus().getLen();
+        if (this.checkFileSize && numBytes != fileSize) {
+          throw new IOException(String.format("Number of bytes copied doesn't match filesize for file %s.",
+              copyableFile.getOrigin().getPath()));
         }
         this.bytesWritten.addAndGet(numBytes);
         if (isInstrumentationEnabled()) {
@@ -294,9 +281,6 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
   }
 
   protected Path getStagingFilePath(CopyableFile file) {
-    if (DistcpFileSplitter.isSplitWorkUnit(this.state)) {
-      return new Path(this.stagingDir, DistcpFileSplitter.getSplit(this.state).get().getPartName());
-    }
     return new Path(this.stagingDir, file.getDestination().getName());
   }
 
@@ -309,16 +293,6 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     Path destinationWithoutSchemeAndAuthority = PathUtils.getPathWithoutSchemeAndAuthority(file.getDestination());
     return new Path(getPartitionOutputRoot(outputDir, datasetAndPartition),
         PathUtils.withoutLeadingSeparator(destinationWithoutSchemeAndAuthority));
-  }
-
-  public static Path getSplitOutputFilePath(CopyableFile file, Path outputDir,
-      CopyableFile.DatasetAndPartition datasetAndPartition, State workUnit) {
-    if (DistcpFileSplitter.isSplitWorkUnit(workUnit)) {
-      return new Path(getOutputFilePath(file, outputDir, datasetAndPartition).getParent(),
-          DistcpFileSplitter.getSplit(workUnit).get().getPartName());
-    } else {
-      return getOutputFilePath(file, outputDir, datasetAndPartition);
-    }
   }
 
   public static Path getOutputDir(State state) {
@@ -421,8 +395,8 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
 
     CopyableFile copyableFile = this.actualProcessedCopyableFile.get();
     Path stagingFilePath = getStagingFilePath(copyableFile);
-    Path outputFilePath = getSplitOutputFilePath(copyableFile, this.outputDir,
-        copyableFile.getDatasetAndPartition(this.copyableDatasetMetadata), this.state);
+    Path outputFilePath = getOutputFilePath(copyableFile, this.outputDir,
+        copyableFile.getDatasetAndPartition(this.copyableDatasetMetadata));
 
     log.info(String.format("Committing data from %s to %s", stagingFilePath, outputFilePath));
     try {

@@ -26,11 +26,11 @@ import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 
-import javax.annotation.concurrent.NotThreadSafe;
-
 import com.codahale.metrics.Meter;
 
 import org.apache.gobblin.util.limiter.Limiter;
+
+import javax.annotation.concurrent.NotThreadSafe;
 
 
 /**
@@ -44,8 +44,6 @@ public class StreamCopier {
 
   private final ReadableByteChannel inputChannel;
   private final WritableByteChannel outputChannel;
-
-  private final Long maxBytes;
   private int bufferSize = DEFAULT_BUFFER_SIZE;
   private Meter copySpeedMeter;
 
@@ -53,21 +51,12 @@ public class StreamCopier {
   private volatile boolean copied = false;
 
   public StreamCopier(InputStream inputStream, OutputStream outputStream) {
-    this(inputStream, outputStream, null);
-  }
-
-  public StreamCopier(InputStream inputStream, OutputStream outputStream, Long maxBytes) {
-    this(Channels.newChannel(inputStream), Channels.newChannel(outputStream), maxBytes);
+    this(Channels.newChannel(inputStream), Channels.newChannel(outputStream));
   }
 
   public StreamCopier(ReadableByteChannel inputChannel, WritableByteChannel outputChannel) {
-    this(inputChannel, outputChannel, null);
-  }
-
-  public StreamCopier(ReadableByteChannel inputChannel, WritableByteChannel outputChannel, Long maxBytes) {
     this.inputChannel = inputChannel;
     this.outputChannel = outputChannel;
-    this.maxBytes = maxBytes;
   }
 
   /**
@@ -95,8 +84,7 @@ public class StreamCopier {
   }
 
   /**
-   * Execute the copy of bytes from the input to the output stream. If maxBytes is specified, limits the number of
-   * bytes copied to maxBytes.
+   * Execute the copy of bytes from the input to the output stream.
    * Note: this method should only be called once. Further calls will throw a {@link IllegalStateException}.
    * @return Number of bytes copied.
    */
@@ -108,28 +96,19 @@ public class StreamCopier {
     this.copied = true;
 
     try {
-      long numBytes = 0;
-      long totalBytes = 0;
+      long bytesRead = 0;
+      long totalBytesRead = 0;
 
       final ByteBuffer buffer = ByteBuffer.allocateDirect(this.bufferSize);
-      // Only keep copying if we've read less than maxBytes (if maxBytes exists)
-      while ((this.maxBytes == null || this.maxBytes > totalBytes) &&
-          (numBytes = fillBufferFromInputChannel(buffer)) != -1) {
-        totalBytes += numBytes;
+      while ((bytesRead = fillBufferFromInputChannel(buffer)) != -1) {
+        totalBytesRead += bytesRead;
         // flip the buffer to be written
         buffer.flip();
-
-        // If we've read more than maxBytes, discard enough bytes to only write maxBytes.
-        if (this.maxBytes != null && totalBytes > this.maxBytes) {
-          buffer.limit(buffer.limit() - (int) (totalBytes - this.maxBytes));
-          totalBytes = this.maxBytes;
-        }
-
         this.outputChannel.write(buffer);
         // Clear if empty
         buffer.compact();
         if (this.copySpeedMeter != null) {
-          this.copySpeedMeter.mark(numBytes);
+          this.copySpeedMeter.mark(bytesRead);
         }
       }
       // Done writing, now flip to read again
@@ -139,7 +118,7 @@ public class StreamCopier {
         this.outputChannel.write(buffer);
       }
 
-      return totalBytes;
+      return totalBytesRead;
     } finally {
       if (this.closeChannelsOnComplete) {
         this.inputChannel.close();
