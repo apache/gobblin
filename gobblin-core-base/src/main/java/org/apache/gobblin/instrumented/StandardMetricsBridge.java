@@ -28,39 +28,15 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 import org.apache.gobblin.metrics.ContextAwareMetric;
-import org.apache.gobblin.metrics.MetricContext;
-import org.apache.gobblin.metrics.Tag;
 
 /**
  * This interface indicates a class will expose its metrics to some external systems.
  */
-public interface StandardMetricsBridge extends Instrumentable {
-
-  /**
-   * Get a single standard metrics.
-   * Also see {@link #getStandardMetricsCollection}.
-   */
-  @Deprecated
-  default StandardMetrics getStandardMetrics() {
-    throw new UnsupportedOperationException("Deprecated API. Please use getStandardMetricsCollection.");
-  }
-
+public interface StandardMetricsBridge {
   /**
    * Get multiple standard metrics.
    */
   default Collection<StandardMetrics> getStandardMetricsCollection() {
-    return ImmutableList.of();
-  }
-
-  default void switchMetricContext(MetricContext context) {
-    throw new UnsupportedOperationException();
-  }
-
-  default void switchMetricContext(List<Tag<?>> tags) {
-    throw new UnsupportedOperationException();
-  }
-
-  default List<Tag<?>> generateTags(org.apache.gobblin.configuration.State state) {
     return ImmutableList.of();
   }
 

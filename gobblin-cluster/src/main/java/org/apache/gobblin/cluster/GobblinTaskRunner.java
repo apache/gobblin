@@ -68,13 +68,10 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
-import javax.annotation.Nonnull;
-
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
 import org.apache.gobblin.metrics.GobblinMetrics;
-import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.FileUtils;
@@ -148,7 +145,6 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
   private final String applicationId;
   private final Path appWorkPath;
 
-  private final MetricContext metricContext;
   private final Collection<StandardMetricsBridge.StandardMetrics> metricsCollection;
 
   public GobblinTaskRunner(String applicationName,
@@ -191,7 +187,6 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
 
     this.taskStateModelFactory = createTaskStateModelFactory(suite.getTaskFactoryMap());
     this.metricsCollection = suite.getMetricsCollection();
-    this.metricContext = suite.getMetricContext();
     this.services.addAll(suite.getServices());
 
     this.services.addAll(getServices());
@@ -344,6 +339,9 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
       List<String> tags = ConfigUtils.getStringList(this.config, GobblinClusterConfigurationKeys.HELIX_INSTANCE_TAGS_KEY);
       logger.info("Adding tags binding " + tags);
       tags.forEach(tag -> helixManager.getClusterManagmentTool().addInstanceTag(this.clusterName, this.helixInstanceName, tag));
+
+      List<String> tagsOnHelix = helixManager.getClusterManagmentTool().getInstanceConfig(this.clusterName, this.helixInstanceName).getTags();
+      tags.forEach(tag -> Preconditions.checkArgument(tagsOnHelix.contains(tag)));
     }
   }
 
@@ -395,17 +393,6 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
   @Override
   public Collection<StandardMetrics> getStandardMetricsCollection() {
     return this.metricsCollection;
-  }
-
-  @Nonnull
-  @Override
-  public MetricContext getMetricContext() {
-    return this.metricContext;
-  }
-
-  @Override
-  public boolean isInstrumentationEnabled() {
-    return GobblinMetrics.isEnabled(this.config);
   }
 
   /**

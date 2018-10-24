@@ -54,10 +54,6 @@ public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable
    * ({@link #isInstrumentationEnabled()}) is false. */
   JobCatalog.StandardMetrics getMetrics();
 
-  default StandardMetricsBridge.StandardMetrics getStandardMetrics() {
-    return getMetrics();
-  }
-
   default Collection<StandardMetricsBridge.StandardMetrics> getStandardMetricsCollection() {
     return ImmutableList.of(getMetrics());
   }

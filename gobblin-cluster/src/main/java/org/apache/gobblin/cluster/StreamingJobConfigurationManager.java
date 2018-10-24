@@ -18,6 +18,7 @@
 package org.apache.gobblin.cluster;
 
 import java.lang.reflect.InvocationTargetException;
+import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
@@ -38,6 +39,7 @@ import com.typesafe.config.Config;
 import lombok.Getter;
 
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.instrumented.StandardMetricsBridge;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
 import org.apache.gobblin.runtime.api.Spec;
@@ -92,6 +94,15 @@ public class StreamingJobConfigurationManager extends JobConfigurationManager {
         | ClassNotFoundException e) {
       throw new RuntimeException("Could not construct SpecConsumer " +
           specExecutorInstanceConsumerClassName, e);
+    }
+  }
+
+  @Override
+  public Collection<StandardMetrics> getStandardMetricsCollection() {
+    if (this.specConsumer instanceof StandardMetricsBridge) {
+      return ((StandardMetricsBridge)specConsumer).getStandardMetricsCollection();
+    } else {
+      return ImmutableList.of();
     }
   }
 
