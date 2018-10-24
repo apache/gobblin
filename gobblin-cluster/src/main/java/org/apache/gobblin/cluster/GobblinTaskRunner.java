@@ -339,6 +339,8 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
       List<String> tags = ConfigUtils.getStringList(this.config, GobblinClusterConfigurationKeys.HELIX_INSTANCE_TAGS_KEY);
       logger.info("Adding tags binding " + tags);
       tags.forEach(tag -> helixManager.getClusterManagmentTool().addInstanceTag(this.clusterName, this.helixInstanceName, tag));
+      logger.info("Actual tags binding " + helixManager.getClusterManagmentTool()
+          .getInstanceConfig(this.clusterName, this.helixInstanceName).getTags());
     }
   }
 
