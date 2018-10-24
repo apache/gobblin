@@ -63,10 +63,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.cluster.event.ClusterManagerShutdownRequest;
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
-import org.apache.gobblin.metrics.GobblinMetrics;
-import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
 import org.apache.gobblin.runtime.app.ApplicationException;
@@ -138,13 +135,11 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
 
   private final String clusterName;
   private final Config config;
-  private final MetricContext metricContext;
 
   public GobblinClusterManager(String clusterName, String applicationId, Config config,
       Optional<Path> appWorkDirOptional) throws Exception {
     this.clusterName = clusterName;
     this.config = config;
-    this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), this.getClass());
     this.isStandaloneMode = ConfigUtils.getBoolean(config, GobblinClusterConfigurationKeys.STANDALONE_CLUSTER_MODE_KEY,
         GobblinClusterConfigurationKeys.DEFAULT_STANDALONE_CLUSTER_MODE);
 
@@ -446,17 +441,8 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
     list.addAll(this.jobScheduler.getStandardMetricsCollection());
     list.addAll(this.multiManager.getStandardMetricsCollection());
     list.addAll(this.jobCatalog.getStandardMetricsCollection());
+    list.addAll(this.jobConfigurationManager.getStandardMetricsCollection());
     return list;
-  }
-
-  @Override
-  public MetricContext getMetricContext() {
-    return this.metricContext;
-  }
-
-  @Override
-  public boolean isInstrumentationEnabled() {
-    return GobblinMetrics.isEnabled(ConfigUtils.configToProperties(this.config));
   }
 
   /**

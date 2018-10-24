@@ -59,7 +59,6 @@ import com.linkedin.restli.server.resources.BaseResource;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import javax.annotation.Nonnull;
 import lombok.Getter;
 
 import org.apache.gobblin.annotation.Alpha;
@@ -492,24 +491,8 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
   }
 
   @Override
-  public StandardMetrics getStandardMetrics() {
-    return this.metrics;
-  }
-
-  @Override
   public Collection<StandardMetrics> getStandardMetricsCollection() {
     return ImmutableList.of(this.metrics);
-  }
-
-  @Nonnull
-  @Override
-  public MetricContext getMetricContext() {
-    return this.metricContext;
-  }
-
-  @Override
-  public boolean isInstrumentationEnabled() {
-    return false;
   }
 
   private class Metrics extends StandardMetrics {

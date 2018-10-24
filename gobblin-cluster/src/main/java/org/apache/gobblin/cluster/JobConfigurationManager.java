@@ -36,6 +36,7 @@ import org.apache.gobblin.cluster.event.DeleteJobConfigArrivalEvent;
 import org.apache.gobblin.cluster.event.NewJobConfigArrivalEvent;
 import org.apache.gobblin.cluster.event.UpdateJobConfigArrivalEvent;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.instrumented.StandardMetricsBridge;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.SchedulerUtils;
 
@@ -58,7 +59,7 @@ import org.apache.gobblin.util.SchedulerUtils;
  * @author Yinan Li
  */
 @Alpha
-public class JobConfigurationManager extends AbstractIdleService {
+public class JobConfigurationManager extends AbstractIdleService implements StandardMetricsBridge {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(JobConfigurationManager.class);
 

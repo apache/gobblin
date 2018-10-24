@@ -54,7 +54,6 @@ import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.typesafe.config.Config;
 
-import javax.annotation.Nonnull;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -476,17 +475,6 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
     public String getName() {
       return GobblinClusterManager.class.getName();
     }
-  }
-
-  @Nonnull
-  @Override
-  public MetricContext getMetricContext() {
-    return this.metricContext;
-  }
-
-  @Override
-  public boolean isInstrumentationEnabled() {
-    return true;
   }
 
   @Override
