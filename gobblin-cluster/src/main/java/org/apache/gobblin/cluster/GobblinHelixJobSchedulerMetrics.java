@@ -35,7 +35,7 @@ import org.apache.gobblin.runtime.api.JobExecutionLauncher;
 
 class GobblinHelixJobSchedulerMetrics extends StandardMetricsBridge.StandardMetrics {
   public static final String SCHEDULE_CANCELLATION_START = "scheduleCancellationStart";
-  public static final String SCHEDULE_CANCELLATION_END = "scheduleCancellationStart";
+  public static final String SCHEDULE_CANCELLATION_END = "scheduleCancellationEnd";
   public static final String TIMER_BEFORE_JOB_SCHEDULING = "timerBeforeJobScheduling";
   public static final String TIMER_BEFORE_JOB_LAUNCHING = "timerBeforeJobLaunching";
   public static final String TIMER_BETWEEN_JOB_SCHEDULING_AND_LAUNCHING = "timerBetwenJobSchedulingAndLaunching";
