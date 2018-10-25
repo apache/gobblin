@@ -52,7 +52,8 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, Instrumentab
   SpecCatalog.StandardMetrics getMetrics();
 
   default Collection<StandardMetricsBridge.StandardMetrics> getStandardMetricsCollection() {
-    return ImmutableList.of(this.getMetrics());
+    SpecCatalog.StandardMetrics standardMetrics = getMetrics();
+    return standardMetrics == null? ImmutableList.of() : ImmutableList.of(standardMetrics);
   }
 
   /**
