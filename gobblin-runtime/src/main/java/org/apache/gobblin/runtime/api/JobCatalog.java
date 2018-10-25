@@ -55,7 +55,8 @@ public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable
   JobCatalog.StandardMetrics getMetrics();
 
   default Collection<StandardMetricsBridge.StandardMetrics> getStandardMetricsCollection() {
-    return ImmutableList.of(getMetrics());
+    JobCatalog.StandardMetrics standardMetrics = getMetrics();
+    return standardMetrics == null? ImmutableList.of() : ImmutableList.of(standardMetrics);
   }
 
   /**
