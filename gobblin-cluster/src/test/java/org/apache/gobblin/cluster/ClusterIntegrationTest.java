@@ -53,7 +53,7 @@ public class ClusterIntegrationTest {
     runAndVerify();
   }
 
-  @Test
+  @Test(enabled = false)
   public void testJobWithTag()
       throws Exception {
     this.suite = new IntegrationJobTagSuite();
