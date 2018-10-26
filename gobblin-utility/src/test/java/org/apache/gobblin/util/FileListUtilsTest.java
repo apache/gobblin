@@ -252,7 +252,7 @@ public class FileListUtilsTest {
   }
 
   @Test
-  public void testFindAnyFile() throws IOException {
+  public void testGetAnyNonHiddenFile() throws IOException {
     final String file1 = "test1";
 
     FileSystem localFs = FileSystem.getLocal(new Configuration());
