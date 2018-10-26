@@ -1,0 +1,19 @@
+{
+  "name":"data",
+  "namespace":"org.apache.gobblin.test",
+  "type":"record",
+  "fields":[
+    {
+      "name":"string1",
+      "type":"string"
+    },
+    {
+      "name":"long1",
+      "type":"long"
+    },
+    {
+      "name":"double1",
+      "type":"double"
+    }
+  ]
+}
