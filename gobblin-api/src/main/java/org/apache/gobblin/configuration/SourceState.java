@@ -301,7 +301,7 @@ public class SourceState extends State {
   @Override
   public void write(DataOutput out)
       throws IOException {
-    write(out, false);
+    write(out, true);
   }
 
   public void write(DataOutput out, boolean writePreviousWorkUnitStates)
