@@ -119,6 +119,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
   static final String INPUT_DIR_NAME = "input";
   private static final String OUTPUT_DIR_NAME = "output";
   private static final String WORK_UNIT_LIST_FILE_EXTENSION = ".wulist";
+  private static final String SERIALIZE_PREVIOUS_WORKUNIT_STATES_KEY = "MRJobLauncher.serializePreviousWorkunitStates";
+  private static final boolean DEFAULT_SERIALIZE_PREVIOUS_WORKUNIT_STATES = true;
 
   // Configuration that make uploading of jar files more reliable,
   // since multiple Gobblin Jobs are sharing the same jar directory.
@@ -384,7 +386,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
     Path jobStateFilePath = new Path(mrJobDir, JOB_STATE_FILE_NAME);
     // Write the job state with an empty task set (work units are read by the mapper from a different file)
     try (DataOutputStream dataOutputStream = new DataOutputStream(fs.create(jobStateFilePath))) {
-      jobState.write(dataOutputStream, false);
+      jobState.write(dataOutputStream, false,
+          conf.getBoolean(SERIALIZE_PREVIOUS_WORKUNIT_STATES_KEY, DEFAULT_SERIALIZE_PREVIOUS_WORKUNIT_STATES));
     }
 
     job.getConfiguration().set(ConfigurationKeys.JOB_STATE_FILE_PATH_KEY, jobStateFilePath.toString());

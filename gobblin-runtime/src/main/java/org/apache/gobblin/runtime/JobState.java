@@ -523,10 +523,10 @@ public class JobState extends SourceState {
   @Override
   public void write(DataOutput out)
       throws IOException {
-    write(out, true);
+    write(out, true, true);
   }
 
-  public void write(DataOutput out, boolean writeTasks)
+  public void write(DataOutput out, boolean writeTasks, boolean writePreviousWorkUnitStates)
       throws IOException {
     Text text = new Text();
     text.set(this.jobName);
@@ -550,7 +550,7 @@ public class JobState extends SourceState {
     } else {
       out.writeInt(0);
     }
-    super.write(out);
+    super.write(out, writePreviousWorkUnitStates);
   }
 
   /**
