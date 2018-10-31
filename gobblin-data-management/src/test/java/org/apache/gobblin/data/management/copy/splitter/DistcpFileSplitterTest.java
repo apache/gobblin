@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.apache.hadoop.fs.BlockLocation;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -120,6 +121,9 @@ public class DistcpFileSplitterTest {
     Path path = new Path(uri);
     when(fs.getUri()).thenReturn(uri);
 
+    BlockLocation[] emptyLocations = new BlockLocation[0];
+    when(fs.getFileBlockLocations(any(FileStatus.class), any(Long.class), any(Long.class))).thenReturn(emptyLocations);
+
     CopyableDatasetMetadata cdm = new CopyableDatasetMetadata(new TestCopyableDataset(path));
 
     CopyableFile cf = CopyableFileUtils.getTestCopyableFile();
@@ -136,7 +140,7 @@ public class DistcpFileSplitterTest {
     CopySource.serializeCopyEntity(wu, cf);
     CopySource.serializeCopyableDataset(wu, cdm);
 
-    return DistcpFileSplitter.splitFile(spy, wu, fs);
+    return DistcpFileSplitter.splitFile(spy, wu, fs, fs);
   }
 
 }

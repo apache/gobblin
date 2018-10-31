@@ -534,6 +534,8 @@ public class ConfigurationKeys {
    * Configuration properties used by the CopySource.
    */
   public static final String COPY_SOURCE_FILESET_WU_GENERATOR_CLASS = "copy.source.fileset.wu.generator.class";
+  public static final String GOBBLIN_COPY_PREFIX = "gobblin.copy";
+  public static final String GOBBLIN_COPY_WORK_UNIT_WEIGHT = GOBBLIN_COPY_PREFIX + ".workUnitWeight";
 
   /**
    * Configuration properties used by the FileBasedExtractor
@@ -546,6 +548,7 @@ public class ConfigurationKeys {
   public static final String SOURCE_FILEBASED_PRESERVE_FILE_NAME = "source.filebased.preserve.file.name";
   public static final String SOURCE_FILEBASED_OPTIONAL_DOWNLOADER_CLASS = "source.filebased.downloader.class";
   public static final String SOURCE_FILEBASED_ENCRYPTED_CONFIG_PATH = "source.filebased.encrypted";
+  public static final String SOURCE_FILEBASED_BLOCK_LOCATIONS = "source.filebased.block.locations";
 
   public static final String SOURCE_FILEBASED_FS_PRIOR_SNAPSHOT_REQUIRED = "source.filebased.fs.prior.snapshot.required";
   public static final boolean DEFAULT_SOURCE_FILEBASED_FS_PRIOR_SNAPSHOT_REQUIRED = false;

@@ -22,6 +22,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.OutputStream;
 import java.net.URI;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
@@ -76,9 +77,12 @@ public class GobblinWorkUnitsInputFormatTest {
 
     FileSystemTestUtils.addFileSystemForTest(baseUri, configuration, fs);
 
-    GobblinWorkUnitsInputFormat inputFormat = new GobblinWorkUnitsInputFormat();
+    GobblinWorkUnitsInputFormat inputFormat = Mockito.spy(new GobblinWorkUnitsInputFormat());
     Job job = Job.getInstance(configuration);
     FileInputFormat.addInputPath(job, workUnitsDir);
+
+    Mockito.when(inputFormat.getBlockLocationNamesFromDeserializeWorkUnitFile(Mockito.any(FileSystem.class), Mockito.any(Path.class)))
+        .thenReturn(Collections.emptyList());
 
     List<InputSplit> splits = inputFormat.getSplits(job);
 
@@ -108,10 +112,13 @@ public class GobblinWorkUnitsInputFormatTest {
 
     FileSystemTestUtils.addFileSystemForTest(baseUri, configuration, fs);
 
-    GobblinWorkUnitsInputFormat inputFormat = new GobblinWorkUnitsInputFormat();
+    GobblinWorkUnitsInputFormat inputFormat = Mockito.spy(new GobblinWorkUnitsInputFormat());
     Job job = Job.getInstance(configuration);
     FileInputFormat.addInputPath(job, workUnitsDir);
     GobblinWorkUnitsInputFormat.setMaxMappers(job, 6);
+
+    Mockito.when(inputFormat.getBlockLocationNamesFromDeserializeWorkUnitFile(Mockito.any(FileSystem.class), Mockito.any(Path.class)))
+        .thenReturn(Collections.emptyList());
 
     List<InputSplit> splits = inputFormat.getSplits(job);
 
@@ -122,7 +129,8 @@ public class GobblinWorkUnitsInputFormatTest {
   @Test
   public void testSplit() throws Exception {
     List<String> paths = Lists.newArrayList("/path1", "/path2");
-    GobblinWorkUnitsInputFormat.GobblinSplit split = new GobblinWorkUnitsInputFormat.GobblinSplit(paths);
+    List<String> locations = Lists.newArrayList("nodename1", "nodename2");
+    GobblinWorkUnitsInputFormat.GobblinSplit split = new GobblinWorkUnitsInputFormat.GobblinSplit(paths, locations);
 
     ByteArrayOutputStream os = new ByteArrayOutputStream();
     split.write(new DataOutputStream(os));
@@ -139,7 +147,8 @@ public class GobblinWorkUnitsInputFormatTest {
       throws Exception {
 
     List<String> paths = Lists.newArrayList("/path1", "/path2");
-    GobblinWorkUnitsInputFormat.GobblinSplit split = new GobblinWorkUnitsInputFormat.GobblinSplit(paths);
+    List<String> locations = Lists.newArrayList("nodename1", "nodename2");
+    GobblinWorkUnitsInputFormat.GobblinSplit split = new GobblinWorkUnitsInputFormat.GobblinSplit(paths, locations);
 
     GobblinWorkUnitsInputFormat inputFormat = new GobblinWorkUnitsInputFormat();
     RecordReader<LongWritable, Text> recordReader =

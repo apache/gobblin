@@ -17,12 +17,15 @@
 
 package org.apache.gobblin.runtime.mapreduce;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -41,6 +44,7 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -49,6 +53,12 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Singular;
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.AbstractJobLauncher;
+import org.apache.gobblin.source.workunit.MultiWorkUnit;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.util.SerializationUtils;
 
 
 /**
@@ -80,6 +90,7 @@ public class GobblinWorkUnitsInputFormat extends InputFormat<LongWritable, Text>
     }
 
     List<String> allPaths = Lists.newArrayList();
+    Map<String, List<String>> blockLocationNamesForWorkUnitPaths = Maps.newHashMap();
 
     for (Path path : inputPaths) {
       // path is a single work unit / multi work unit
@@ -89,9 +100,13 @@ public class GobblinWorkUnitsInputFormat extends InputFormat<LongWritable, Text>
       if (inputs == null) {
         throw new IOException(String.format("Path %s does not exist.", path));
       }
+
       log.info(String.format("Found %d input files at %s: %s", inputs.length, path, Arrays.toString(inputs)));
+
       for (FileStatus input : inputs) {
         allPaths.add(input.getPath().toString());
+        blockLocationNamesForWorkUnitPaths.put(input.getPath().toString(),
+            getBlockLocationNamesFromDeserializeWorkUnitFile(fs, input.getPath()));
       }
     }
 
@@ -103,10 +118,47 @@ public class GobblinWorkUnitsInputFormat extends InputFormat<LongWritable, Text>
     Iterator<String> pathsIt = allPaths.iterator();
     while (pathsIt.hasNext()) {
       Iterator<String> limitedIterator = Iterators.limit(pathsIt, numTasksPerMapper);
-      splits.add(new GobblinSplit(Lists.newArrayList(limitedIterator)));
+
+      List<String> splitPaths = Lists.newArrayList();
+      List<String> splitBlockLocationNames = Lists.newArrayList();
+
+      while (limitedIterator.hasNext()) {
+        String path = limitedIterator.next();
+        splitPaths.add(path);
+        splitBlockLocationNames.addAll(blockLocationNamesForWorkUnitPaths.get(path));
+      }
+
+      splits.add(new GobblinSplit(splitPaths, splitBlockLocationNames));
     }
 
     return splits;
+  }
+
+  @VisibleForTesting
+  List<String> getBlockLocationNamesFromDeserializeWorkUnitFile(FileSystem fs, Path workUnitFile)
+      throws IOException {
+    if (fs == null || workUnitFile == null) {
+      return Collections.emptyList();
+    }
+
+    WorkUnit tmpWorkUnit = (workUnitFile.toString().endsWith(AbstractJobLauncher.MULTI_WORK_UNIT_FILE_EXTENSION) ?
+        MultiWorkUnit.createEmpty() : WorkUnit.createEmpty());
+    SerializationUtils.deserializeState(fs, workUnitFile, tmpWorkUnit);
+
+    List<WorkUnit> workUnits;
+    if (tmpWorkUnit instanceof MultiWorkUnit) {
+      workUnits = ((MultiWorkUnit) tmpWorkUnit).getWorkUnits();
+    } else {
+      workUnits = Lists.newArrayList(tmpWorkUnit);
+    }
+
+    List<String> blockLocationNames = Lists.newArrayList();
+    for (WorkUnit workUnit : workUnits) {
+      if (workUnit.contains(ConfigurationKeys.SOURCE_FILEBASED_BLOCK_LOCATIONS)) {
+        blockLocationNames.addAll(workUnit.getPropAsList(ConfigurationKeys.SOURCE_FILEBASED_BLOCK_LOCATIONS));
+      }
+    }
+    return blockLocationNames;
   }
 
   @Override
@@ -131,6 +183,11 @@ public class GobblinWorkUnitsInputFormat extends InputFormat<LongWritable, Text>
     @Singular
     private List<String> paths;
 
+    /**
+     * Locations (names of nodes) of blocks of files specified in the split's work unit files defined by paths
+     */
+    private List<String> blockLocationNames;
+
     @Override
     public void write(DataOutput out)
         throws IOException {
@@ -138,15 +195,24 @@ public class GobblinWorkUnitsInputFormat extends InputFormat<LongWritable, Text>
       for (String path : this.paths) {
         out.writeUTF(path);
       }
+      out.writeInt(this.blockLocationNames.size());
+      for (String blockLocationName : this.blockLocationNames) {
+        out.writeUTF(blockLocationName);
+      }
     }
 
     @Override
     public void readFields(DataInput in)
         throws IOException {
       int numPaths = in.readInt();
-      this.paths = Lists.newArrayList();
+      this.paths = Lists.newArrayListWithExpectedSize(numPaths);
       for (int i = 0; i < numPaths; i++) {
         this.paths.add(in.readUTF());
+      }
+      int numBlockLocationNames = in.readInt();
+      this.blockLocationNames = Lists.newArrayListWithExpectedSize(numBlockLocationNames);
+      for (int i = 0; i < numBlockLocationNames; ++i) {
+        this.blockLocationNames.add(in.readUTF());
       }
     }
 
@@ -159,7 +225,11 @@ public class GobblinWorkUnitsInputFormat extends InputFormat<LongWritable, Text>
     @Override
     public String[] getLocations()
         throws IOException, InterruptedException {
-      return new String[0];
+      if (blockLocationNames == null) {
+        return new String[0];
+      } else {
+        return blockLocationNames.toArray(new String[blockLocationNames.size()]);
+      }
     }
   }
 
