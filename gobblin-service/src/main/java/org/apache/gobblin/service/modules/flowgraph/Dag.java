@@ -21,11 +21,13 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 
 import lombok.Getter;
 
@@ -86,7 +88,66 @@ public class Dag<T> {
   }
 
   public List<DagNode<T>> getParents(DagNode node) {
-    return (node.parentNodes != null)? node.parentNodes : Collections.EMPTY_LIST;
+    return (node.parentNodes != null) ? node.parentNodes : Collections.EMPTY_LIST;
+  }
+
+  /**
+   * Get the ancestors of a given set of {@link DagNode}s in the {@link Dag}.
+   * @param dagNodes set of nodes in the {@link Dag}.
+   * @return the union of all ancestors of dagNodes in the dag.
+   */
+  private Set<DagNode<T>> getAncestorNodes(Set<DagNode<T>> dagNodes) {
+    Set<DagNode<T>> ancestorNodes = new HashSet<>();
+    for (DagNode<T> dagNode : dagNodes) {
+      LinkedList<DagNode<T>> nodesToExpand = Lists.newLinkedList(this.getParents(dagNode));
+      while (!nodesToExpand.isEmpty()) {
+        DagNode<T> nextNode = nodesToExpand.poll();
+        ancestorNodes.add(nextNode);
+        nodesToExpand.addAll(this.getParents(nextNode));
+      }
+    }
+    return ancestorNodes;
+  }
+
+  /**
+   * This method computes a set of {@link DagNode}s which are the dependency nodes for concatenating this {@link Dag}
+   * with any other {@link Dag}. The set of dependency nodes is the union of:
+   * <p><ul>
+   *   <li> The endNodes of this dag which are not forkable, and </li>
+   *   <li> The parents of forkable nodes, such that no parent is an ancestor of another parent.</li>
+   * </ul></p>
+   *
+   * @param forkNodes set of nodes of this {@link Dag} which are forkable
+   * @return set of dependency nodes of this dag for concatenation with any other dag.
+   */
+  public Set<DagNode<T>> getDependencyNodes(Set<DagNode<T>> forkNodes) {
+    Set<DagNode<T>> dependencyNodes = new HashSet<>();
+    for (DagNode<T> endNode : endNodes) {
+      if (!forkNodes.contains(endNode)) {
+        dependencyNodes.add(endNode);
+      }
+    }
+
+    //Get all ancestors of non-forkable nodes
+    Set<DagNode<T>> ancestorNodes = this.getAncestorNodes(dependencyNodes);
+
+    //Add ancestors of the parents of forkable nodes
+    for (DagNode<T> dagNode: forkNodes) {
+      List<DagNode<T>> parentNodes = this.getParents(dagNode);
+      ancestorNodes.addAll(this.getAncestorNodes(Sets.newHashSet(parentNodes)));
+    }
+
+    for (DagNode<T> dagNode: forkNodes) {
+      List<DagNode<T>> parentNodes = this.getParents(dagNode);
+      for (DagNode<T> parentNode : parentNodes) {
+        //Add parent node of a forkable node as a dependency, only if it is not already an ancestor of another
+        // dependency.
+        if (!ancestorNodes.contains(parentNode)) {
+          dependencyNodes.add(parentNode);
+        }
+      }
+    }
+    return dependencyNodes;
   }
 
   public boolean isEmpty() {
@@ -126,20 +187,13 @@ public class Dag<T> {
       return other;
     }
 
-    for (DagNode node : this.endNodes) {
-      //Create a dependency for non-forkable nodes
-      if (!forkNodes.contains(node)) {
+    for (DagNode node : getDependencyNodes(forkNodes)) {
+      if (!this.parentChildMap.containsKey(node)) {
         this.parentChildMap.put(node, Lists.newArrayList());
-        for (DagNode otherNode : other.startNodes) {
-          this.parentChildMap.get(node).add(otherNode);
-          otherNode.addParentNode(node);
-        }
-      } else {
-        for (DagNode otherNode: other.startNodes) {
-          List<DagNode<T>> parentNodes = this.getParents(node);
-          parentNodes.forEach(parentNode -> this.parentChildMap.get(parentNode).add(otherNode));
-          parentNodes.forEach(otherNode::addParentNode);
-        }
+      }
+      for (DagNode otherNode : other.startNodes) {
+        this.parentChildMap.get(node).add(otherNode);
+        otherNode.addParentNode(node);
       }
     }
     //Each node which is a forkable node is added to list of end nodes of the concatenated dag
@@ -174,7 +228,7 @@ public class Dag<T> {
       return other;
     }
     //Append all the entries from the other dag's parentChildMap to this dag's parentChildMap
-    for (Map.Entry<DagNode, List<DagNode<T>>> entry: other.parentChildMap.entrySet()) {
+    for (Map.Entry<DagNode, List<DagNode<T>>> entry : other.parentChildMap.entrySet()) {
       this.parentChildMap.put(entry.getKey(), entry.getValue());
     }
     //Append the startNodes, endNodes and nodes from the other dag to this dag.

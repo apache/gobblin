@@ -101,7 +101,7 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
     try {
       this.serviceManager.startAsync().awaitHealthy(5, TimeUnit.SECONDS);
     } catch (TimeoutException te) {
-      this.log.error("Timed out while waiting for the service manager to start up", te);
+      MultiHopFlowCompiler.log.error("Timed out while waiting for the service manager to start up", te);
       throw new RuntimeException(te);
     }
   }
@@ -163,7 +163,6 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
   @Override
   protected void populateEdgeTemplateMap() {
     log.warn("No population of templates based on edge happen in this implementation");
-    return;
   }
 
   /**

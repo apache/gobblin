@@ -18,10 +18,15 @@
 package org.apache.gobblin.service.modules.dataset;
 
 import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 
 import lombok.Getter;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.service.modules.core.GitMonitoringService;
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
 import org.apache.gobblin.util.ConfigUtils;
 
@@ -33,14 +38,29 @@ public class EncryptionConfig {
   private final String keystoreType;
   @Getter
   private final String keystoreEncoding;
+  @Getter
+  private final Config rawConfig;
+
+  private static final Config DEFAULT_FALLBACK =
+      ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
+          .put(DatasetDescriptorConfigKeys.ENCRYPTION_ALGORITHM_KEY, DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY)
+          .put(DatasetDescriptorConfigKeys.ENCRYPTION_KEYSTORE_TYPE_KEY, DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY)
+          .put(DatasetDescriptorConfigKeys.ENCRYPTION_KEYSTORE_ENCODING_KEY, DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY)
+          .build());
 
   public EncryptionConfig(Config encryptionConfig) {
     this.encryptionAlgorithm = ConfigUtils.getString(encryptionConfig, DatasetDescriptorConfigKeys.ENCRYPTION_ALGORITHM_KEY,
         DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY);
-    this.keystoreType = ConfigUtils.getString(encryptionConfig, DatasetDescriptorConfigKeys.ENCRYPTION_KEYSTORE_TYPE_KEY,
-        DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY);
-    this.keystoreEncoding = ConfigUtils.getString(encryptionConfig, DatasetDescriptorConfigKeys.ENCRYPTION_KEYSTORE_ENCODING_KEY,
-        DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY);
+    if (this.encryptionAlgorithm.equalsIgnoreCase(DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_NONE)) {
+      this.keystoreType = DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_NONE;
+      this.keystoreEncoding = DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_NONE;
+    } else {
+      this.keystoreType = ConfigUtils.getString(encryptionConfig, DatasetDescriptorConfigKeys.ENCRYPTION_KEYSTORE_TYPE_KEY,
+          DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY);
+      this.keystoreEncoding = ConfigUtils.getString(encryptionConfig, DatasetDescriptorConfigKeys.ENCRYPTION_KEYSTORE_ENCODING_KEY,
+          DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY);
+    }
+    this.rawConfig = encryptionConfig.withFallback(DEFAULT_FALLBACK);
   }
 
   public boolean contains(EncryptionConfig other) {

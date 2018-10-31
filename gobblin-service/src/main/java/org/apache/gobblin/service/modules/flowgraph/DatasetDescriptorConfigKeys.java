@@ -34,6 +34,7 @@ public class DatasetDescriptorConfigKeys {
   public static final String FORMAT_KEY = "format";
   public static final String CODEC_KEY = "codec";
   public static final String DESCRIPTION_KEY = "description";
+  public static final String IS_RETENTION_APPLIED_KEY = "isRetentionApplied";
 
   //Dataset encryption related keys
   public static final String ENCYPTION_PREFIX = "encrypt";
@@ -42,5 +43,5 @@ public class DatasetDescriptorConfigKeys {
   public static final String ENCRYPTION_KEYSTORE_ENCODING_KEY = "keystore_encoding";
 
   public static final String DATASET_DESCRIPTOR_CONFIG_ANY = "any";
-
+  public static final String DATASET_DESCRIPTOR_CONFIG_NONE = "none";
 }
