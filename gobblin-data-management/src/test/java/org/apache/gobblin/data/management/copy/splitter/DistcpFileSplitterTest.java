@@ -63,7 +63,7 @@ public class DistcpFileSplitterTest {
     long mockBlockSize = 4L;
     long mockMaxSplitSize = 4L;
     long expectedSplitSize = (mockMaxSplitSize / mockBlockSize) * mockBlockSize;
-    int expectedSplits = (int) (mockFileLen / expectedSplitSize + 1);
+    int expectedSplits = 3;
 
     FileSystem fs = mock(FileSystem.class);
 
@@ -84,7 +84,7 @@ public class DistcpFileSplitterTest {
     long mockBlockSize = 4L;
     long mockMaxSplitSize = 4L;
     long expectedSplitSize = (mockMaxSplitSize / mockBlockSize) * mockBlockSize;
-    int expectedSplits = (int) (mockFileLen / expectedSplitSize + 1);
+    int expectedSplits = 3;
 
     FileSystem fs = mock(FileSystem.class);
 
