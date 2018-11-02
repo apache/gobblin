@@ -121,9 +121,19 @@ public abstract class AbstractPathFinder implements PathFinder {
 
     //Add retention config for source and destination dataset descriptors.
     if (shouldApplyRetentionOnInput) {
+      // We should run retention on source dataset. To ensure a retention is run, set
+      // isRetentionApplied=false for source dataset. 
       srcDatasetDescriptorConfig = srcDatasetDescriptorConfig
           .withValue(DatasetDescriptorConfigKeys.IS_RETENTION_APPLIED_KEY, ConfigValueFactory.fromAnyRef(false));
     } else {
+      // Don't apply retention on source dataset. Two
+      //
+      // If ConfigurationKeys.FLOW_APPLY_RETENTION is true, isRetentionApplied is set to true for the source dataset.
+      // The PathFinder will therefore treat the source dataset as one on which retention has already been
+      // applied, preventing retention from running on the source dataset.
+      //
+      // On the other hand, if ConfigurationKeys.FLOW_APPLY_RETENTION is false
+      // we do not apply retention - neither on the source dataset nor anywhere along the path to the destination.
       srcDatasetDescriptorConfig = srcDatasetDescriptorConfig
           .withValue(DatasetDescriptorConfigKeys.IS_RETENTION_APPLIED_KEY, ConfigValueFactory.fromAnyRef(shouldApplyRetention));
     }
