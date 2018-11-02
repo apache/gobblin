@@ -81,8 +81,8 @@ public class GobblinWorkUnitsInputFormatTest {
     Job job = Job.getInstance(configuration);
     FileInputFormat.addInputPath(job, workUnitsDir);
 
-    Mockito.when(inputFormat.getBlockLocationNamesFromDeserializeWorkUnitFile(Mockito.any(FileSystem.class), Mockito.any(Path.class)))
-        .thenReturn(Collections.emptyList());
+    Mockito.when(inputFormat.getWorkUnitListFromDeserializeWorkUnitFile(Mockito.any(FileSystem.class),
+        Mockito.any(Path.class))).thenReturn(Collections.emptyList());
 
     List<InputSplit> splits = inputFormat.getSplits(job);
 
@@ -117,8 +117,8 @@ public class GobblinWorkUnitsInputFormatTest {
     FileInputFormat.addInputPath(job, workUnitsDir);
     GobblinWorkUnitsInputFormat.setMaxMappers(job, 6);
 
-    Mockito.when(inputFormat.getBlockLocationNamesFromDeserializeWorkUnitFile(Mockito.any(FileSystem.class), Mockito.any(Path.class)))
-        .thenReturn(Collections.emptyList());
+    Mockito.when(inputFormat.getWorkUnitListFromDeserializeWorkUnitFile(Mockito.any(FileSystem.class),
+        Mockito.any(Path.class))).thenReturn(Collections.emptyList());
 
     List<InputSplit> splits = inputFormat.getSplits(job);
 
@@ -129,7 +129,7 @@ public class GobblinWorkUnitsInputFormatTest {
   @Test
   public void testSplit() throws Exception {
     List<String> paths = Lists.newArrayList("/path1", "/path2");
-    List<String> locations = Lists.newArrayList("nodename1", "nodename2");
+    String[] locations = new String[] {"nodename1", "nodename2"};
     GobblinWorkUnitsInputFormat.GobblinSplit split = new GobblinWorkUnitsInputFormat.GobblinSplit(paths, locations);
 
     ByteArrayOutputStream os = new ByteArrayOutputStream();
@@ -147,7 +147,7 @@ public class GobblinWorkUnitsInputFormatTest {
       throws Exception {
 
     List<String> paths = Lists.newArrayList("/path1", "/path2");
-    List<String> locations = Lists.newArrayList("nodename1", "nodename2");
+    String[] locations = new String[] {"nodename1", "nodename2"};
     GobblinWorkUnitsInputFormat.GobblinSplit split = new GobblinWorkUnitsInputFormat.GobblinSplit(paths, locations);
 
     GobblinWorkUnitsInputFormat inputFormat = new GobblinWorkUnitsInputFormat();

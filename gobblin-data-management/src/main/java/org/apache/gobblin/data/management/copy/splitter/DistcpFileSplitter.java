@@ -21,15 +21,12 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 import java.util.Set;
 
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.math3.util.ArithmeticUtils;
-import org.apache.hadoop.fs.BlockLocation;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -98,7 +95,7 @@ public class DistcpFileSplitter {
    * @return a list of {@link WorkUnit}, each for a split of this file.
    * @throws IOException
    */
-  public static Collection<WorkUnit> splitFile(CopyableFile file, WorkUnit workUnit, FileSystem sourceFs, FileSystem targetFs)
+  public static Collection<WorkUnit> splitFile(CopyableFile file, WorkUnit workUnit, FileSystem targetFs)
       throws IOException {
     long len = file.getFileStatus().getLen();
     // get lcm of source and target block size so that split aligns with block boundaries for both extract and write
@@ -135,9 +132,10 @@ public class DistcpFileSplitter {
       String serializedSplit = GSON.toJson(split);
 
       newWorkUnit.setProp(SPLIT_KEY, serializedSplit);
-      newWorkUnit.setProp(ConfigurationKeys.GOBBLIN_COPY_WORK_UNIT_WEIGHT,
+      newWorkUnit.setProp(ConfigurationKeys.GOBBLIN_SPLIT_FILE_LOW_POSITION, lowPos);
+      newWorkUnit.setProp(ConfigurationKeys.GOBBLIN_SPLIT_FILE_HIGH_POSITION, highPos);
+      newWorkUnit.setProp(CopySource.WORK_UNIT_WEIGHT,
           Math.max(highPos - lowPos, Math.max(1, maxSizePerBin / maxWorkUnitsPerMultiWorkUnit)));
-      CopySource.setWorkUnitBlockLocations(newWorkUnit, sourceFs, file, lowPos, highPos - lowPos);
 
       Guid oldGuid = CopySource.getWorkUnitGuid(newWorkUnit).get();
       Guid newGuid = oldGuid.append(Guid.fromStrings(serializedSplit));

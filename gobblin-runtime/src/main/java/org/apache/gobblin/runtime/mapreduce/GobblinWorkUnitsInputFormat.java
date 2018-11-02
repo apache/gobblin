@@ -17,17 +17,20 @@
 
 package org.apache.gobblin.runtime.mapreduce;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.BlockLocation;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -42,9 +45,11 @@ import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.TreeMultimap;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -90,7 +95,7 @@ public class GobblinWorkUnitsInputFormat extends InputFormat<LongWritable, Text>
     }
 
     List<String> allPaths = Lists.newArrayList();
-    Map<String, List<String>> blockLocationNamesForWorkUnitPaths = Maps.newHashMap();
+    Map<String, Collection<String>> blockLocationNamesForWorkUnitPaths = Maps.newHashMap();
 
     for (Path path : inputPaths) {
       // path is a single work unit / multi work unit
@@ -106,7 +111,7 @@ public class GobblinWorkUnitsInputFormat extends InputFormat<LongWritable, Text>
       for (FileStatus input : inputs) {
         allPaths.add(input.getPath().toString());
         blockLocationNamesForWorkUnitPaths.put(input.getPath().toString(),
-            getBlockLocationNamesFromDeserializeWorkUnitFile(fs, input.getPath()));
+            getBlockLocationsForWorkUnits(fs, getWorkUnitListFromDeserializeWorkUnitFile(fs, input.getPath())));
       }
     }
 
@@ -128,14 +133,15 @@ public class GobblinWorkUnitsInputFormat extends InputFormat<LongWritable, Text>
         splitBlockLocationNames.addAll(blockLocationNamesForWorkUnitPaths.get(path));
       }
 
-      splits.add(new GobblinSplit(splitPaths, splitBlockLocationNames));
+      splits.add(new GobblinSplit(splitPaths,
+          splitBlockLocationNames.toArray(new String[splitBlockLocationNames.size()])));
     }
 
     return splits;
   }
 
   @VisibleForTesting
-  List<String> getBlockLocationNamesFromDeserializeWorkUnitFile(FileSystem fs, Path workUnitFile)
+  List<WorkUnit> getWorkUnitListFromDeserializeWorkUnitFile(FileSystem fs, Path workUnitFile)
       throws IOException {
     if (fs == null || workUnitFile == null) {
       return Collections.emptyList();
@@ -151,14 +157,46 @@ public class GobblinWorkUnitsInputFormat extends InputFormat<LongWritable, Text>
     } else {
       workUnits = Lists.newArrayList(tmpWorkUnit);
     }
+    return workUnits;
+  }
 
-    List<String> blockLocationNames = Lists.newArrayList();
+  @VisibleForTesting
+  Collection<String> getBlockLocationsForWorkUnits(FileSystem fs, List<WorkUnit> workUnits)
+      throws IOException {
+    TreeMultimap<Long, String> blockLocationNamesOrderedByLength =
+        TreeMultimap.create(Collections.reverseOrder(), Comparator.naturalOrder());
+    HashMap<String, Long> lengthsForBlockLocationNames = Maps.newHashMap();
+
     for (WorkUnit workUnit : workUnits) {
-      if (workUnit.contains(ConfigurationKeys.SOURCE_FILEBASED_BLOCK_LOCATIONS)) {
-        blockLocationNames.addAll(workUnit.getPropAsList(ConfigurationKeys.SOURCE_FILEBASED_BLOCK_LOCATIONS));
+      if (!workUnit.contains(ConfigurationKeys.GOBBLIN_SPLIT_FILE_PATH)) {
+        continue;
+      }
+
+      Path filePath = new Path(workUnit.getProp(ConfigurationKeys.GOBBLIN_SPLIT_FILE_PATH));
+
+      long splitOffset = workUnit.getPropAsLong(ConfigurationKeys.GOBBLIN_SPLIT_FILE_LOW_POSITION, 0);
+      long splitLength = (workUnit.contains(ConfigurationKeys.GOBBLIN_SPLIT_FILE_HIGH_POSITION) ?
+          workUnit.getPropAsLong(ConfigurationKeys.GOBBLIN_SPLIT_FILE_HIGH_POSITION) :
+          fs.getFileStatus(filePath).getLen()) - splitOffset;
+
+      for (BlockLocation bl : fs.getFileBlockLocations(filePath, splitOffset, splitLength)) {
+        for (String blockLocationName : bl.getHosts()) {
+          if (lengthsForBlockLocationNames.containsKey(blockLocationName)) {
+            long totalLength = lengthsForBlockLocationNames.get(blockLocationName);
+            blockLocationNamesOrderedByLength.remove(totalLength, blockLocationName);
+            totalLength += bl.getLength();
+            lengthsForBlockLocationNames.put(blockLocationName, totalLength);
+            blockLocationNamesOrderedByLength.put(totalLength, blockLocationName);
+          } else {
+            long totalLength = bl.getLength();
+            lengthsForBlockLocationNames.put(blockLocationName, totalLength);
+            blockLocationNamesOrderedByLength.put(totalLength, blockLocationName);
+          }
+        }
       }
     }
-    return blockLocationNames;
+
+    return blockLocationNamesOrderedByLength.values();
   }
 
   @Override
@@ -186,7 +224,7 @@ public class GobblinWorkUnitsInputFormat extends InputFormat<LongWritable, Text>
     /**
      * Locations (names of nodes) of blocks of files specified in the split's work unit files defined by paths
      */
-    private List<String> blockLocationNames;
+    private String[] blockLocationNames;
 
     @Override
     public void write(DataOutput out)
@@ -195,7 +233,7 @@ public class GobblinWorkUnitsInputFormat extends InputFormat<LongWritable, Text>
       for (String path : this.paths) {
         out.writeUTF(path);
       }
-      out.writeInt(this.blockLocationNames.size());
+      out.writeInt(this.blockLocationNames.length);
       for (String blockLocationName : this.blockLocationNames) {
         out.writeUTF(blockLocationName);
       }
@@ -210,9 +248,9 @@ public class GobblinWorkUnitsInputFormat extends InputFormat<LongWritable, Text>
         this.paths.add(in.readUTF());
       }
       int numBlockLocationNames = in.readInt();
-      this.blockLocationNames = Lists.newArrayListWithExpectedSize(numBlockLocationNames);
+      this.blockLocationNames = new String[numBlockLocationNames];
       for (int i = 0; i < numBlockLocationNames; ++i) {
-        this.blockLocationNames.add(in.readUTF());
+        this.blockLocationNames[i] = in.readUTF();
       }
     }
 
@@ -228,7 +266,7 @@ public class GobblinWorkUnitsInputFormat extends InputFormat<LongWritable, Text>
       if (blockLocationNames == null) {
         return new String[0];
       } else {
-        return blockLocationNames.toArray(new String[blockLocationNames.size()]);
+        return blockLocationNames;
       }
     }
   }

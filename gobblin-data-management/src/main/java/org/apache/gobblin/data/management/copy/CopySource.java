@@ -17,15 +17,12 @@
 
 package org.apache.gobblin.data.management.copy;
 
-import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.net.URI;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -35,9 +32,7 @@ import javax.annotation.Nullable;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.BlockLocation;
 import org.apache.hadoop.fs.FileSystem;
 
 import com.google.common.base.Function;
@@ -134,7 +129,8 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   public static final String FILESET_TOTAL_ENTITIES = "fileset.total.entities";
   public static final String FILESET_TOTAL_SIZE_IN_BYTES = "fileset.total.size";
 
-  private final WorkUnitWeighter weighter = new FieldWeighter(ConfigurationKeys.GOBBLIN_COPY_WORK_UNIT_WEIGHT);
+  public static final String WORK_UNIT_WEIGHT = CopyConfiguration.COPY_PREFIX + ".workUnitWeight";
+  private final WorkUnitWeighter weighter = new FieldWeighter(WORK_UNIT_WEIGHT);
 
   public MetricContext metricContext;
   public EventSubmitter eventSubmitter;
@@ -222,7 +218,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
               try {
                 return GobblinConstructorUtils.<FileSetWorkUnitGenerator>invokeLongestConstructor(
                     new ClassAliasResolver(FileSetWorkUnitGenerator.class).resolveClass(filesetWuGeneratorAlias),
-                    input.getDataset(), input, state, sourceFs, targetFs, workUnitsMap, watermarkGenerator, minWorkUnitWeight, lineageInfo);
+                    input.getDataset(), input, state, targetFs, workUnitsMap, watermarkGenerator, minWorkUnitWeight, lineageInfo);
               } catch (Exception e) {
                 throw new RuntimeException("Cannot create workunits generator", e);
               }
@@ -340,7 +336,6 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
     protected final CopyableDatasetBase copyableDataset;
     protected final FileSet<CopyEntity> fileSet;
     protected final State state;
-    protected final FileSystem sourceFs;
     protected final FileSystem targetFs;
     protected final SetMultimap<FileSet<CopyEntity>, WorkUnit> workUnitList;
     protected final Optional<CopyableFileWatermarkGenerator> watermarkGenerator;
@@ -362,6 +357,10 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
           WorkUnit workUnit = new WorkUnit(extract);
           workUnit.addAll(this.state);
+          if (copyEntity instanceof CopyableFile) {
+            workUnit.setProp(ConfigurationKeys.GOBBLIN_SPLIT_FILE_PATH,
+                ((CopyableFile) copyEntity).getOrigin().getPath());
+          }
           serializeCopyEntity(workUnit, copyEntity);
           serializeCopyableDataset(workUnit, metadata);
           GobblinMetrics.addCustomTagToState(workUnit,
@@ -375,12 +374,8 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
           if (copyEntity instanceof CopyableFile && ((CopyableFile) copyEntity).getOrigin().getLen() > 0 &&
               DistcpFileSplitter.allowSplit(this.state, this.targetFs)) {
             workUnitsForPartition.addAll(DistcpFileSplitter.splitFile((CopyableFile) copyEntity,
-                workUnit, this.sourceFs, this.targetFs));
+                workUnit, this.targetFs));
           } else {
-            if (copyEntity instanceof CopyableFile) {
-              setWorkUnitBlockLocations(workUnit, this.sourceFs, (CopyableFile) copyEntity, 0,
-                  ((CopyableFile) copyEntity).getOrigin().getLen());
-            }
             setWorkUnitWeight(workUnit, copyEntity, minWorkUnitWeight);
             workUnitsForPartition.add(workUnit);
           }
@@ -479,17 +474,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
       weight = ((CopyableFile) copyEntity).getOrigin().getLen();
     }
     weight = Math.max(weight, minWeight);
-    workUnit.setProp(ConfigurationKeys.GOBBLIN_COPY_WORK_UNIT_WEIGHT, Long.toString(weight));
-  }
-
-  public static void setWorkUnitBlockLocations(WorkUnit workUnit, FileSystem sourceFs, CopyableFile file,
-      long startPos, long len) throws IOException {
-    Set<String> blockLocationsNames = Sets.newHashSet();
-    for (BlockLocation bl : sourceFs.getFileBlockLocations(file.getFileStatus(), startPos, len)) {
-      blockLocationsNames.addAll(Arrays.asList(bl.getHosts()));
-    }
-    workUnit.setProp(ConfigurationKeys.SOURCE_FILEBASED_BLOCK_LOCATIONS,
-        StringUtils.join(blockLocationsNames, ","));
+    workUnit.setProp(WORK_UNIT_WEIGHT, Long.toString(weight));
   }
 
   private static void computeAndSetWorkUnitGuid(WorkUnit workUnit)
