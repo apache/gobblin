@@ -209,6 +209,13 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
     // Planning job never timeout (Helix defaults 1h timeout, set a large number '1 month')
     jobConfigBuilder.setTimeoutPerTask(JobConfig.DEFAULT_TIMEOUT_PER_TASK * 24 * 30);
 
+    // Planning job should have its own tag support
+    if (jobProps.containsKey(GobblinClusterConfigurationKeys.HELIX_PLANNING_JOB_TAG_KEY)) {
+      String jobTag = jobProps.getProperty(GobblinClusterConfigurationKeys.HELIX_JOB_TAG_KEY);
+      log.info("PlanningJob {} has tags associated : {}", planningId, jobTag);
+      jobConfigBuilder.setInstanceGroupTag(jobTag);
+    }
+
     jobConfigBuilder.setNumConcurrentTasksPerInstance(PropertiesUtils.getPropAsInt(jobProps,
         GobblinClusterConfigurationKeys.HELIX_CLUSTER_TASK_CONCURRENCY,
         GobblinClusterConfigurationKeys.HELIX_CLUSTER_TASK_CONCURRENCY_DEFAULT));
