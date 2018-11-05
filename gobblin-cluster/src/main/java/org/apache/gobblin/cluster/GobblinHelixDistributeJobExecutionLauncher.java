@@ -211,9 +211,9 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
 
     // Planning job should have its own tag support
     if (jobProps.containsKey(GobblinClusterConfigurationKeys.HELIX_PLANNING_JOB_TAG_KEY)) {
-      String jobTag = jobProps.getProperty(GobblinClusterConfigurationKeys.HELIX_JOB_TAG_KEY);
-      log.info("PlanningJob {} has tags associated : {}", planningId, jobTag);
-      jobConfigBuilder.setInstanceGroupTag(jobTag);
+      String jobPlanningTag = jobProps.getProperty(GobblinClusterConfigurationKeys.HELIX_PLANNING_JOB_TAG_KEY);
+      log.info("PlanningJob {} has tags associated : {}", planningId, jobPlanningTag);
+      jobConfigBuilder.setInstanceGroupTag(jobPlanningTag);
     }
 
     jobConfigBuilder.setNumConcurrentTasksPerInstance(PropertiesUtils.getPropAsInt(jobProps,
