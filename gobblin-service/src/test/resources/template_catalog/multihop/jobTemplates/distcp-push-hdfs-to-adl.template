@@ -1,7 +1,7 @@
 # ====================================================================
 # Job configurations
 # ====================================================================
-job.name=Distcp-HDFS-ADL
+job.name=DistcpToADL
 
 #team.name and dataset.name to be supplied via flowConfig
 from=/data/encrypted/${team.name}/${dataset.name}

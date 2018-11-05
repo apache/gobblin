@@ -160,6 +160,10 @@ public class DagTest {
     forkNodes.add(dagNode3);
     Dag<String> dagNew = dag1.concatenate(dag2, forkNodes);
 
+    Assert.assertEquals(dagNew.getChildren(dagNode2).size(), 1);
+    Assert.assertEquals(dagNew.getChildren(dagNode2).get(0), dagNode4);
+    Assert.assertEquals(dagNew.getParents(dagNode4).size(), 1);
+    Assert.assertEquals(dagNew.getParents(dagNode4).get(0), dagNode2);
     Assert.assertEquals(dagNew.getEndNodes().size(), 2);
     Assert.assertEquals(dagNew.getEndNodes().get(0).getValue(), "val4");
     Assert.assertEquals(dagNew.getEndNodes().get(1).getValue(), "val3");

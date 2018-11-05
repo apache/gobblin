@@ -21,18 +21,17 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.hadoop.fs.Path;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
-import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
@@ -100,31 +99,20 @@ public class FlowGraphPath {
    */
   @VisibleForTesting
   static Dag<JobExecutionPlan> concatenate(Dag<JobExecutionPlan> dagLeft, Dag<JobExecutionPlan> dagRight) {
-    List<DagNode<JobExecutionPlan>> endNodes = dagLeft.getEndNodes();
-    List<DagNode<JobExecutionPlan>> startNodes = dagRight.getStartNodes();
-    List<String> dependenciesList = Lists.newArrayList();
-    //List of nodes with no dependents in the concatenated dag.
-    Set<DagNode<JobExecutionPlan>> forkNodes = new HashSet<>();
+    //Compute the fork nodes - set of nodes with no dependents in the concatenated dag.
+    Set<DagNode<JobExecutionPlan>> forkNodes = dagLeft.getEndNodes().stream().
+        filter(endNode -> isNodeForkable(endNode)).collect(Collectors.toSet());
+    Set<DagNode<JobExecutionPlan>> dependencyNodes = dagLeft.getDependencyNodes(forkNodes);
 
-    for (DagNode<JobExecutionPlan> dagNode: endNodes) {
-      if (isNodeForkable(dagNode)) {
-        //If node is forkable, then add its parents (if any) to the dependencies list.
-        forkNodes.add(dagNode);
-        List<DagNode<JobExecutionPlan>> parentNodes = dagLeft.getParents(dagNode);
-        for (DagNode<JobExecutionPlan> parentNode: parentNodes) {
-          dependenciesList.add(parentNode.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.JOB_NAME_KEY));
-        }
-      } else {
-        dependenciesList.add(dagNode.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.JOB_NAME_KEY));
-      }
-    }
-
-    if (!dependenciesList.isEmpty()) {
+    if (!dependencyNodes.isEmpty()) {
+      List<String> dependenciesList = dependencyNodes.stream()
+          .map(dagNode -> dagNode.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.JOB_NAME_KEY))
+          .collect(Collectors.toList());
       String dependencies = Joiner.on(",").join(dependenciesList);
-
-      for (DagNode<JobExecutionPlan> childNode : startNodes) {
+      for (DagNode<JobExecutionPlan> childNode : dagRight.getStartNodes()) {
         JobSpec jobSpec = childNode.getValue().getJobSpec();
-        jobSpec.setConfig(jobSpec.getConfig().withValue(ConfigurationKeys.JOB_DEPENDENCIES, ConfigValueFactory.fromAnyRef(dependencies)));
+        jobSpec.setConfig(jobSpec.getConfig().withValue(ConfigurationKeys.JOB_DEPENDENCIES,
+            ConfigValueFactory.fromAnyRef(dependencies)));
       }
     }
 
@@ -135,6 +123,7 @@ public class FlowGraphPath {
     Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
     return ConfigUtils.getBoolean(jobConfig, ConfigurationKeys.JOB_FORK_ON_CONCAT, false);
   }
+
 
   /**
    * Given an instance of {@link FlowEdge}, this method returns a {@link Dag < JobExecutionPlan >} that moves data
