@@ -182,7 +182,7 @@ public class Task implements TaskIFace {
     this.jobId = this.taskState.getJobId();
     this.taskId = this.taskState.getTaskId();
     this.taskKey = this.taskState.getTaskKey();
-    this.isIgnoreCloseFailures = this.taskState.isIgnoreCloseFailures();
+    this.isIgnoreCloseFailures = this.taskState.getJobState().getPropAsBoolean(ConfigurationKeys.TASK_IGNORE_CLOSE_FAILURES, false);
     this.taskStateTracker = taskStateTracker;
     this.taskExecutor = taskExecutor;
     this.countDownLatch = countDownLatch;
