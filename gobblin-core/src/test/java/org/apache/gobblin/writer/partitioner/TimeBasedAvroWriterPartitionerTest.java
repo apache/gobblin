@@ -35,8 +35,8 @@ import org.apache.gobblin.writer.PartitionedDataWriter;
 import org.apache.gobblin.writer.WriterOutputFormat;
 import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
 
 
@@ -69,7 +69,7 @@ public class TimeBasedAvroWriterPartitionerTest {
   private State properties;
   private DataWriterBuilder<Schema, GenericRecord> builder;
 
-  @BeforeClass
+  @BeforeTest
   public void setUp()
       throws IOException {
     File stagingDir = new File(STAGING_DIR);
@@ -193,7 +193,7 @@ public class TimeBasedAvroWriterPartitionerTest {
     Assert.assertTrue(outputDir20150103.exists());
   }
 
-  @AfterClass
+  @AfterTest
   public void tearDown()
       throws IOException {
     this.writer.close();
