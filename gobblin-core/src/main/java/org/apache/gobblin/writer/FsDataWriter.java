@@ -22,6 +22,7 @@ import java.io.OutputStream;
 import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileContext;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -72,6 +73,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
   protected final int branchId;
   protected final String fileName;
   protected final FileSystem fs;
+  protected final FileContext fileContext;
   protected final Path stagingFile;
   protected final String partitionKey;
   private final GlobalMetadata defaultMetadata;
@@ -102,6 +104,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
     // Add all job configuration properties so they are picked up by Hadoop
     JobConfigurationUtils.putStateIntoConfiguration(properties, conf);
     this.fs = WriterUtils.getWriterFS(properties, this.numBranches, this.branchId);
+    this.fileContext = FileContext.getFileContext(conf);
 
     // Initialize staging/output directory
     Path writerStagingDir = this.writerAttemptIdOptional.isPresent() ? WriterUtils
@@ -255,15 +258,9 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
     this.bytesWritten = Optional.of(Long.valueOf(stagingFileStatus.getLen()));
 
     LOG.info(String.format("Moving data from %s to %s", this.stagingFile, this.outputFile));
-    // For the same reason as deleting the staging file if it already exists, deleting
-    // the output file if it already exists prevents task retry from being blocked.
-    if (this.fs.exists(this.outputFile)) {
-      LOG.warn(String.format("Task output file %s already exists", this.outputFile));
-      HadoopUtils.deletePath(this.fs, this.outputFile, false);
-    }
-
-    HadoopUtils.renamePath(this.fs, this.stagingFile, this.outputFile);
-
+    // For the same reason as deleting the staging file if it already exists, overwrite
+    // the output file if it already exists to prevent task retry from being blocked.
+    HadoopUtils.renamePath(this.fileContext, this.stagingFile, this.outputFile, true);
  }
 
   /**
@@ -309,7 +306,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
     String filePath = getOutputFilePath();
     String filePathWithRecordCount = IngestionRecordCountProvider.constructFilePath(filePath, recordsWritten());
     LOG.info("Renaming " + filePath + " to " + filePathWithRecordCount);
-    HadoopUtils.renamePath(this.fs, new Path(filePath), new Path(filePathWithRecordCount));
+    HadoopUtils.renamePath(this.fileContext, new Path(filePath), new Path(filePathWithRecordCount), true);
     this.outputFile = new Path(filePathWithRecordCount);
     return filePathWithRecordCount;
   }

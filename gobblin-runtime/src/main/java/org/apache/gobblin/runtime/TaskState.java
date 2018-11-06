@@ -88,6 +88,7 @@ public class TaskState extends WorkUnitState {
   private String taskKey;
   @Getter
   private Optional<String> taskAttemptId;
+
   private long startTime = 0;
   private long endTime = 0;
   private long duration;
