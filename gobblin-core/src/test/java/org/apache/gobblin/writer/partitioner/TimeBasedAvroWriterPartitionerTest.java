@@ -35,8 +35,8 @@ import org.apache.gobblin.writer.PartitionedDataWriter;
 import org.apache.gobblin.writer.WriterOutputFormat;
 import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
-import org.testng.annotations.AfterTest;
-import org.testng.annotations.BeforeTest;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 
@@ -69,23 +69,18 @@ public class TimeBasedAvroWriterPartitionerTest {
   private State properties;
   private DataWriterBuilder<Schema, GenericRecord> builder;
 
-  @BeforeTest
+  @BeforeMethod
   public void setUp()
       throws IOException {
     File stagingDir = new File(STAGING_DIR);
     File outputDir = new File(OUTPUT_DIR);
 
-    if (!stagingDir.exists()) {
-      stagingDir.mkdirs();
-    } else {
-      FileUtils.deleteDirectory(stagingDir);
-    }
-
-    if (!outputDir.exists()) {
-      outputDir.mkdirs();
-    } else {
-      FileUtils.deleteDirectory(outputDir);
-    }
+    FileUtils.deleteDirectory(stagingDir);
+    Assert.assertFalse(stagingDir.exists());
+    stagingDir.mkdirs();
+    FileUtils.deleteDirectory(outputDir);
+    Assert.assertFalse(outputDir.exists());
+    outputDir.mkdirs();
 
     this.schema = new Schema.Parser().parse(AVRO_SCHEMA);
 
@@ -116,8 +111,8 @@ public class TimeBasedAvroWriterPartitionerTest {
     // Check that the writer reports that 3 records have been written
     Assert.assertEquals(this.writer.recordsWritten(), 3);
 
-    this.writer.close();
     this.writer.commit();
+    this.writer.close();
 
     assertFileCreations();
   }
@@ -143,7 +138,7 @@ public class TimeBasedAvroWriterPartitionerTest {
 
     // This timestamp corresponds to 2015/01/03
     genericRecordBuilder.set(PARTITION_COLUMN_NAME, 1420272000000l);
-    genericRecordBuilder.set(PARTITION_DATE_TIME_COLUMN_NAME, "2015-01-02 08:00:00");
+    genericRecordBuilder.set(PARTITION_DATE_TIME_COLUMN_NAME, "2015-01-03 08:00:00");
     this.writer.writeEnvelope(new RecordEnvelope<>(genericRecordBuilder.build()));
   }
 
@@ -151,6 +146,7 @@ public class TimeBasedAvroWriterPartitionerTest {
   public void testWriterWithFormatter()
       throws IOException {
 
+    properties.setProp(TimeBasedAvroWriterPartitioner.WRITER_PARTITION_COLUMNS, PARTITION_DATE_TIME_COLUMN_NAME);
     properties
         .setProp(TimeBasedAvroWriterPartitioner.WRITER_PARTITION_COLUMNS_PATTERN, WRITER_PARTITION_COLUMNS_PATTERN);
     properties
@@ -163,8 +159,8 @@ public class TimeBasedAvroWriterPartitionerTest {
     // Check that the writer reports that 3 records have been written
     Assert.assertEquals(this.writer.recordsWritten(), 3);
 
-    this.writer.close();
     this.writer.commit();
+    this.writer.close();
 
     this.assertFileCreations();
   }
@@ -193,10 +189,9 @@ public class TimeBasedAvroWriterPartitionerTest {
     Assert.assertTrue(outputDir20150103.exists());
   }
 
-  @AfterTest
+  @AfterMethod
   public void tearDown()
       throws IOException {
-    this.writer.close();
     FileUtils.deleteDirectory(new File(TEST_ROOT_DIR));
   }
 }
