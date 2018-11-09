@@ -20,7 +20,6 @@ package org.apache.gobblin.runtime.mapreduce;
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.io.OutputStream;
 import java.net.URI;
 import java.util.Collections;
 import java.util.List;
@@ -36,7 +35,6 @@ import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.Job;
-import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.TaskType;
@@ -50,8 +48,6 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-
-import static org.testng.Assert.*;
 
 
 public class GobblinWorkUnitsInputFormatTest {
@@ -81,7 +77,7 @@ public class GobblinWorkUnitsInputFormatTest {
     Job job = Job.getInstance(configuration);
     FileInputFormat.addInputPath(job, workUnitsDir);
 
-    Mockito.when(inputFormat.getWorkUnitListFromDeserializeWorkUnitFile(Mockito.any(FileSystem.class),
+    Mockito.when(inputFormat.getFlattenedWorkUnitList(Mockito.any(FileSystem.class),
         Mockito.any(Path.class))).thenReturn(Collections.emptyList());
 
     List<InputSplit> splits = inputFormat.getSplits(job);
@@ -117,7 +113,7 @@ public class GobblinWorkUnitsInputFormatTest {
     FileInputFormat.addInputPath(job, workUnitsDir);
     GobblinWorkUnitsInputFormat.setMaxMappers(job, 6);
 
-    Mockito.when(inputFormat.getWorkUnitListFromDeserializeWorkUnitFile(Mockito.any(FileSystem.class),
+    Mockito.when(inputFormat.getFlattenedWorkUnitList(Mockito.any(FileSystem.class),
         Mockito.any(Path.class))).thenReturn(Collections.emptyList());
 
     List<InputSplit> splits = inputFormat.getSplits(job);
