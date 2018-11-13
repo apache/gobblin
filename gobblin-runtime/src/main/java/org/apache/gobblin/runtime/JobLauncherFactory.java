@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.runtime;
 
+import java.util.List;
 import java.util.Properties;
 
 import javax.annotation.Nonnull;
@@ -24,10 +25,12 @@ import lombok.extern.slf4j.Slf4j;
 
 import com.google.common.base.Enums;
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
 
 import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import org.apache.gobblin.broker.iface.SharedResourcesBroker;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.runtime.local.LocalJobLauncher;
 import org.apache.gobblin.runtime.mapreduce.MRJobLauncher;
 import org.apache.gobblin.util.JobConfigurationUtils;
@@ -79,10 +82,29 @@ public class JobLauncherFactory {
    */
   public static @Nonnull JobLauncher newJobLauncher(Properties sysProps, Properties jobProps,
       SharedResourcesBroker<GobblinScopeTypes> instanceBroker) throws Exception {
+    return newJobLauncher(sysProps, jobProps, instanceBroker, ImmutableList.of());
+  }
+
+
+  /**
+   * Create a new {@link JobLauncher}.
+   *
+   * <p>
+   *   This method will never return a {@code null}.
+   * </p>
+   *
+   * @param sysProps system configuration properties
+   * @param jobProps job configuration properties
+   * @param instanceBroker
+   * @param metadataTags
+   * @return newly created {@link JobLauncher}
+   */
+  public static @Nonnull JobLauncher newJobLauncher(Properties sysProps, Properties jobProps,
+      SharedResourcesBroker<GobblinScopeTypes> instanceBroker, List<? extends Tag<?>> metadataTags) throws Exception {
 
     String launcherTypeValue =
         sysProps.getProperty(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY, JobLauncherType.LOCAL.name());
-    return newJobLauncher(sysProps, jobProps, launcherTypeValue, instanceBroker);
+    return newJobLauncher(sysProps, jobProps, launcherTypeValue, instanceBroker, metadataTags);
   }
 
   /**
@@ -97,15 +119,31 @@ public class JobLauncherFactory {
    */
   public static JobLauncher newJobLauncher(Properties sysProps, Properties jobProps,
       String launcherTypeValue, SharedResourcesBroker<GobblinScopeTypes> instanceBroker) {
+    return newJobLauncher(sysProps, jobProps, launcherTypeValue, instanceBroker, ImmutableList.of());
+  }
+
+  /**
+   * Creates a new instance for a JobLauncher with a given type
+   * @param sysProps          the system/environment properties
+   * @param jobProps          the job properties
+   * @param launcherTypeValue the type of the launcher; either a {@link JobLauncherType} value or
+   *        the name of the class that extends {@link AbstractJobLauncher} and has a constructor
+   *        that has a single Properties parameter..
+   * @param metadataTags additional metadata to be added to timing events
+   * @return the JobLauncher instance
+   * @throws RuntimeException if the instantiation fails
+   */
+  public static JobLauncher newJobLauncher(Properties sysProps, Properties jobProps,
+      String launcherTypeValue, SharedResourcesBroker<GobblinScopeTypes> instanceBroker, List<? extends Tag<?>> metadataTags) {
     Optional<JobLauncherType> launcherType = Enums.getIfPresent(JobLauncherType.class, launcherTypeValue);
 
     try {
       if (launcherType.isPresent()) {
         switch (launcherType.get()) {
           case LOCAL:
-              return new LocalJobLauncher(JobConfigurationUtils.combineSysAndJobProperties(sysProps, jobProps), instanceBroker);
+              return new LocalJobLauncher(JobConfigurationUtils.combineSysAndJobProperties(sysProps, jobProps), instanceBroker, metadataTags);
           case MAPREDUCE:
-            return new MRJobLauncher(JobConfigurationUtils.combineSysAndJobProperties(sysProps, jobProps), instanceBroker);
+            return new MRJobLauncher(JobConfigurationUtils.combineSysAndJobProperties(sysProps, jobProps), instanceBroker, metadataTags);
           default:
             throw new RuntimeException("Unsupported job launcher type: " + launcherType.get().name());
         }

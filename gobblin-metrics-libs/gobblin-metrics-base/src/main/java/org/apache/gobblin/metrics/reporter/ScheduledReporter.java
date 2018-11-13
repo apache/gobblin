@@ -147,7 +147,9 @@ public abstract class ScheduledReporter extends ContextAwareReporter {
 
   @Override
   public void stopImpl() {
-    this.scheduledTask.get().cancel(false);
+    if (this.scheduledTask.isPresent()) {
+      this.scheduledTask.get().cancel(false);
+    }
     this.scheduledTask = Optional.absent();
     ExecutorsUtils.shutdownExecutorService(this.executor, Optional.of(log), 10, TimeUnit.SECONDS);
 

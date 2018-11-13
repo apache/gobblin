@@ -70,11 +70,15 @@ public class LocalJobLauncher extends AbstractJobLauncher {
   private final ServiceManager serviceManager;
 
   public LocalJobLauncher(Properties jobProps) throws Exception {
-    this(jobProps, null);
+    this(jobProps, null, ImmutableList.of());
   }
 
   public LocalJobLauncher(Properties jobProps, SharedResourcesBroker<GobblinScopeTypes> instanceBroker) throws Exception {
-    super(jobProps, ImmutableList.<Tag<?>> of(), instanceBroker);
+    this(jobProps, instanceBroker, ImmutableList.of());
+  }
+
+  public LocalJobLauncher(Properties jobProps, SharedResourcesBroker<GobblinScopeTypes> instanceBroker, List<? extends Tag<?>> metadataTags) throws Exception {
+    super(jobProps, metadataTags, instanceBroker);
     log.debug("Local job launched with properties: {}", jobProps);
 
     TimingEvent jobLocalSetupTimer = this.eventSubmitter.getTimingEvent(TimingEvent.RunJobTimings.JOB_LOCAL_SETUP);

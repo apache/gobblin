@@ -77,6 +77,7 @@ public class TimingEvent {
   public static final String METADATA_END_TIME = "endTime";
   public static final String METADATA_DURATION = "durationMillis";
   public static final String METADATA_TIMING_EVENT = "timingEvent";
+  public static final String METADATA_MESSAGE = "message";
 
   private final String name;
   private final Long startTime;
