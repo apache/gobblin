@@ -22,6 +22,7 @@ import java.util.Map;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 
 
@@ -58,7 +59,7 @@ public class DateWatermarkTest {
     int partition = 30;
     int maxInterval = 4;
     Map<Long, Long> results = datewm.getIntervals(lwm, hwm, partition, maxInterval);
-    Map<Long, Long> expected = Maps.newHashMap();
+    Map<Long, Long> expected = ImmutableMap.of(lwm, hwm);
     Assert.assertEquals(results, expected);
   }
 

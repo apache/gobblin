@@ -30,11 +30,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.JobException;
-import org.apache.gobblin.runtime.JobLauncher;
+import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.runtime.api.ExecutionResult;
 import org.apache.gobblin.runtime.api.JobExecutionMonitor;
 import org.apache.gobblin.runtime.listeners.JobListener;
 import org.apache.gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.util.JobLauncherUtils;
 import org.apache.gobblin.util.PropertiesUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
@@ -44,39 +45,48 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
  *  1) Re-triggering is enabled and
  *  2) Job stops early.
  *
- * Moreover based on the job properties, a job can be processed immediately (non-distributed) or forwarded to a remote
- * node (distributed) for handling. Details are illustrated as follows:
+ * Based on the job properties, a job can be processed immediately (non-distribution mode) or forwarded to a remote
+ * node (distribution mode). Details are as follows:
  *
- * <p>
- *   If {@link GobblinClusterConfigurationKeys#DISTRIBUTED_JOB_LAUNCHER_ENABLED} is false, the job will be handled
- *   by {@link HelixRetriggeringJobCallable#launchJobLauncherLoop()}, which simply submits the job to Helix for execution.
+ * <p> Non-Distribution Mode:
+ *    If {@link GobblinClusterConfigurationKeys#DISTRIBUTED_JOB_LAUNCHER_ENABLED} is false, the job will be handled
+ *    by {@link HelixRetriggeringJobCallable#launchJobLauncherLoop()}, which simply launches {@link GobblinHelixJobLauncher}
+ *    and submit the work units to Helix. Helix will dispatch the work units to different worker nodes. The worker node will
+ *    handle the work units by {@link GobblinHelixTask}.
  *
- *   See {@link GobblinHelixJobLauncher} for job launcher details.
+ *    See {@link GobblinHelixJobLauncher} for job launcher details.
+ *    See {@link GobblinHelixTask} for work unit handling details.
  * </p>
  *
- * <p>
+ * <p> Distribution Mode:
  *   If {@link GobblinClusterConfigurationKeys#DISTRIBUTED_JOB_LAUNCHER_ENABLED} is true, the job will be handled
- *   by {@link HelixRetriggeringJobCallable#launchJobExecutionLauncherLoop()}}. It will first create a planning job with
- *   {@link GobblinTaskRunner#GOBBLIN_JOB_FACTORY_NAME} pre-configured, so that Helix can forward this planning job to
- *   any nodes that has implemented the Helix task factory model matching the same name. See {@link TaskRunnerSuiteThreadModel}
- *   implementation of how task factory model is setup.
+ *   by {@link HelixRetriggeringJobCallable#launchJobExecutionLauncherLoop()}}, which simply launches
+ *   {@link GobblinHelixDistributeJobExecutionLauncher} and submit a planning job to Helix. Helix will dispatch this
+ *   planning job to a worker node. The worker node will handle this planning job by {@link GobblinHelixJobTask}.
  *
- *   Once the planning job reaches to the remote end, it will be handled by {@link GobblinHelixJobTask} which is
- *   created by {@link GobblinHelixJobTask}. The actual handling is similar to the non-distributed mode, where
- *   {@link GobblinHelixJobLauncher} is invoked.
+ *   The {@link GobblinHelixJobTask} will launch {@link GobblinHelixJobLauncher} and it will again submit the actual
+ *   work units to Helix. Helix will dispatch the work units to other worker nodes. Similar to Non-Distribution Node,
+ *   some worker nodes will handle those work units by {@link GobblinHelixTask}.
+ *
+ *    See {@link GobblinHelixDistributeJobExecutionLauncher} for planning job launcher details.
+ *    See {@link GobblinHelixJobTask} for planning job handling details.
+ *    See {@link GobblinHelixJobLauncher} for job launcher details.
+ *    See {@link GobblinHelixTask} for work unit handling details.
  * </p>
  */
 @Slf4j
 @Alpha
 class HelixRetriggeringJobCallable implements Callable {
-  private GobblinHelixJobScheduler jobScheduler;
-  private Properties sysProps;
-  private Properties jobProps;
-  private JobListener jobListener;
-  private JobLauncher currentJobLauncher = null;
+  private final GobblinHelixJobScheduler jobScheduler;
+  private final Properties sysProps;
+  private final Properties jobProps;
+  private final JobListener jobListener;
+  private final Path appWorkDir;
+  private final HelixManager helixManager;
+
+  private GobblinHelixJobLauncher currentJobLauncher = null;
   private JobExecutionMonitor currentJobMonitor = null;
-  private Path appWorkDir;
-  private HelixManager helixManager;
+  private boolean isDistributeJobEnabled = false;
 
   public HelixRetriggeringJobCallable(
       GobblinHelixJobScheduler jobScheduler,
@@ -91,6 +101,7 @@ class HelixRetriggeringJobCallable implements Callable {
     this.jobListener = jobListener;
     this.appWorkDir = appWorkDir;
     this.helixManager = helixManager;
+    this.isDistributeJobEnabled = isDistributeJobEnabled();
   }
 
   private boolean isRetriggeringEnabled() {
@@ -109,7 +120,7 @@ class HelixRetriggeringJobCallable implements Callable {
 
   @Override
   public Void call() throws JobException {
-    if (isDistributeJobEnabled()) {
+    if (this.isDistributeJobEnabled) {
       launchJobExecutionLauncherLoop();
     } else {
       launchJobLauncherLoop();
@@ -140,12 +151,25 @@ class HelixRetriggeringJobCallable implements Callable {
   private void launchJobExecutionLauncherLoop() throws JobException {
     try {
       while (true) {
-        String builderStr = jobProps.getProperty(GobblinClusterConfigurationKeys.DISTRIBUTED_JOB_LAUNCHER_BUILDER, GobblinHelixDistributeJobExecutionLauncher.Builder.class.getName());
-        GobblinHelixDistributeJobExecutionLauncher.Builder builder = GobblinConstructorUtils.<GobblinHelixDistributeJobExecutionLauncher.Builder>invokeLongestConstructor(
-            new ClassAliasResolver(GobblinHelixDistributeJobExecutionLauncher.Builder.class).resolveClass(builderStr));
+        String builderStr = jobProps.getProperty(GobblinClusterConfigurationKeys.DISTRIBUTED_JOB_LAUNCHER_BUILDER,
+            GobblinHelixDistributeJobExecutionLauncher.Builder.class.getName());
 
-        builder.setSysProperties(this.sysProps);
-        builder.setJobProperties(this.jobProps);
+        GobblinHelixDistributeJobExecutionLauncher.Builder builder = GobblinConstructorUtils
+            .<GobblinHelixDistributeJobExecutionLauncher.Builder>invokeLongestConstructor(new ClassAliasResolver(
+                GobblinHelixDistributeJobExecutionLauncher.Builder.class).resolveClass(builderStr));
+
+        // Make a separate copy because we could update some of attributes in job properties (like adding planning id).
+        Properties jobPlanningProps = new Properties();
+        jobPlanningProps.putAll(this.jobProps);
+
+        // Inject planning id and start time
+        String planningId = JobLauncherUtils.newJobId(GobblinClusterConfigurationKeys.PLANNING_JOB_NAME_PREFIX
+            + JobState.getJobNameFromProps(jobPlanningProps));
+        jobPlanningProps.setProperty(GobblinClusterConfigurationKeys.PLANNING_ID_KEY, planningId);
+        jobPlanningProps.setProperty(GobblinClusterConfigurationKeys.PLANNING_JOB_CREATE_TIME, String.valueOf(System.currentTimeMillis()));
+
+        builder.setSysProps(this.sysProps);
+        builder.setJobPlanningProps(jobPlanningProps);
         builder.setManager(this.helixManager);
         builder.setAppWorkDir(this.appWorkDir);
 
@@ -172,11 +196,19 @@ class HelixRetriggeringJobCallable implements Callable {
     }
   }
 
-  public void cancel() throws JobException {
-    if (currentJobLauncher != null) {
-      currentJobLauncher.cancelJob(this.jobListener);
-    } else if (currentJobMonitor != null) {
-      currentJobMonitor.cancel(false);
+  void cancel() throws JobException {
+    this.jobScheduler.jobSchedulerMetrics.numCancellationStart.incrementAndGet();
+
+    if (isDistributeJobEnabled) {
+      if (currentJobMonitor != null) {
+        currentJobMonitor.cancel(false);
+      }
+    } else {
+      if (currentJobLauncher != null) {
+        currentJobLauncher.cancelJob(this.jobListener);
+      }
     }
+
+    this.jobScheduler.jobSchedulerMetrics.numCancellationComplete.incrementAndGet();
   }
 }

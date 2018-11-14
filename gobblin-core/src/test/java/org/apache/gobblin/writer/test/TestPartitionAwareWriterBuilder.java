@@ -25,6 +25,9 @@ import org.apache.avro.Schema;
 import com.google.common.collect.Queues;
 
 import org.apache.gobblin.commit.SpeculativeAttemptAwareConstruct;
+import org.apache.gobblin.dataset.DatasetDescriptor;
+import org.apache.gobblin.dataset.Descriptor;
+import org.apache.gobblin.dataset.PartitionDescriptor;
 import org.apache.gobblin.writer.DataWriter;
 import org.apache.gobblin.writer.PartitionAwareDataWriterBuilder;
 
@@ -117,6 +120,12 @@ public class TestPartitionAwareWriterBuilder extends PartitionAwareDataWriterBui
     @Override
     public boolean isSpeculativeAttemptSafe() {
       return true;
+    }
+
+    @Override
+    public Descriptor getDataDescriptor() {
+      DatasetDescriptor dataset = new DatasetDescriptor("testPlatform", "testDataset");
+      return new PartitionDescriptor(this.partition, dataset);
     }
   }
 

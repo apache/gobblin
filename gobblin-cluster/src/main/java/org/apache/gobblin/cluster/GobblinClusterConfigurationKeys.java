@@ -71,12 +71,14 @@ public class GobblinClusterConfigurationKeys {
 
   // Helix related tagging
   public static final String HELIX_JOB_TAG_KEY = GOBBLIN_CLUSTER_PREFIX + "helixJobTag";
+  public static final String HELIX_PLANNING_JOB_TAG_KEY = GOBBLIN_CLUSTER_PREFIX + "helixPlanningJobTag";
   public static final String HELIX_INSTANCE_TAGS_KEY = GOBBLIN_CLUSTER_PREFIX + "helixInstanceTags";
 
   // Planning job properties
   public static final String PLANNING_JOB_NAME_PREFIX = "PlanningJob";
   public static final String PLANNING_CONF_PREFIX = GOBBLIN_CLUSTER_PREFIX + "planning.";
   public static final String PLANNING_ID_KEY = PLANNING_CONF_PREFIX + "idKey";
+  public static final String PLANNING_JOB_CREATE_TIME = PLANNING_CONF_PREFIX + "createTime";
 
   // job spec operation
   public static final String JOB_ALWAYS_DELETE = GOBBLIN_CLUSTER_PREFIX + "job.alwaysDelete";
@@ -118,4 +120,11 @@ public class GobblinClusterConfigurationKeys {
   public static final long DEFAULT_HELIX_WORKFLOW_EXPIRY_TIME_SECONDS = 6 * 60 * 60;
 
   public static final String TASK_RUNNER_SUITE_BUILDER = GOBBLIN_CLUSTER_PREFIX + "taskRunnerSuite.builder";
+
+  public static final String HELIX_JOB_TIMEOUT_ENABLED_KEY = "helix.job.timeout.enabled";
+  public static final String DEFAULT_HELIX_JOB_TIMEOUT_ENABLED = "false";
+  public static final String HELIX_JOB_TIMEOUT_SECONDS = "helix.job.timeout.seconds";
+  public static final String DEFAULT_HELIX_JOB_TIMEOUT_SECONDS = "10800";
+  public static final String HELIX_TASK_TIMEOUT_SECONDS = "helix.task.timeout.seconds";
+  public static final String HELIX_MAX_TASK_RETRIES_KEY = "helix.task.maxretries";
 }

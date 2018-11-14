@@ -22,7 +22,9 @@ import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
 import lombok.Getter;
 
@@ -44,9 +46,17 @@ public class FSDatasetDescriptor implements DatasetDescriptor {
   @Getter
   private final FormatConfig formatConfig;
   @Getter
+  private final boolean isRetentionApplied;
+  @Getter
   private final String description;
   @Getter
   private final Config rawConfig;
+
+  private static final Config DEFAULT_FALLBACK =
+      ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
+          .put(DatasetDescriptorConfigKeys.PATH_KEY, DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY)
+          .put(DatasetDescriptorConfigKeys.IS_RETENTION_APPLIED_KEY, false)
+          .build());
 
   public FSDatasetDescriptor(Config config) {
     Preconditions.checkArgument(config.hasPath(DatasetDescriptorConfigKeys.PLATFORM_KEY), "Dataset descriptor config must specify platform");
@@ -54,8 +64,9 @@ public class FSDatasetDescriptor implements DatasetDescriptor {
     this.path = PathUtils.getPathWithoutSchemeAndAuthority(new Path(ConfigUtils.getString(config, DatasetDescriptorConfigKeys.PATH_KEY,
         DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY))).toString();
     this.formatConfig = new FormatConfig(config);
+    this.isRetentionApplied = ConfigUtils.getBoolean(config, DatasetDescriptorConfigKeys.IS_RETENTION_APPLIED_KEY, false);
     this.description = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.DESCRIPTION_KEY, "");
-    this.rawConfig = config;
+    this.rawConfig = config.withFallback(this.formatConfig.getRawConfig()).withFallback(DEFAULT_FALLBACK);
   }
 
   /**
@@ -66,7 +77,7 @@ public class FSDatasetDescriptor implements DatasetDescriptor {
    * @param otherPath a glob pattern that describes a set of paths.
    * @return true if the glob pattern described by the otherPath matches the path in this {@link DatasetDescriptor}.
    */
-  public boolean isPathContaining(String otherPath) {
+  private boolean isPathContaining(String otherPath) {
     if (otherPath == null) {
       return false;
     }
@@ -97,12 +108,16 @@ public class FSDatasetDescriptor implements DatasetDescriptor {
       return false;
     }
 
+    if (this.isRetentionApplied() != other.isRetentionApplied()) {
+      return false;
+    }
+
     return getFormatConfig().contains(other.getFormatConfig()) && isPathContaining(other.getPath());
   }
 
   /**
    *
-   * @param o
+   * @param o the other {@link FSDatasetDescriptor} to compare "this" {@link FSDatasetDescriptor} with.
    * @return true iff  "this" dataset descriptor is compatible with the "other" and the "other" dataset descriptor is
    * compatible with this dataset descriptor.
    */
@@ -116,6 +131,9 @@ public class FSDatasetDescriptor implements DatasetDescriptor {
     }
     FSDatasetDescriptor other = (FSDatasetDescriptor) o;
     if (this.getPlatform() == null || other.getPlatform() == null || !this.getPlatform().equalsIgnoreCase(other.getPlatform())) {
+      return false;
+    }
+    if (this.isRetentionApplied() != other.isRetentionApplied()) {
       return false;
     }
     return this.getPath().equals(other.getPath()) && this.getFormatConfig().equals(other.getFormatConfig());

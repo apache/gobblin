@@ -18,23 +18,23 @@
 package org.apache.gobblin.dataset;
 
 import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.List;
 
 import com.google.gson.Gson;
-import com.google.gson.JsonObject;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+
+import org.apache.gobblin.util.io.GsonInterfaceAdapter;
 
 
 /**
  * A descriptor is a simplified representation of a resource, which could be a dataset, dataset partition, file, etc.
  * It is a digest or abstract, which contains identification properties of the actual resource object, such as ID, name
  * primary keys, version, etc
- *
- * <p>
- *   The class provides {@link #serialize(Descriptor)} and {@link #deserialize(String)} util methods pair to send
- *   a descriptor object over the wire
- * </p>
  *
  * <p>
  *   When the original object has complicated inner structure and there is a requirement to send it over the wire,
@@ -52,7 +52,10 @@ import lombok.RequiredArgsConstructor;
 public class Descriptor {
 
   /** Use gson for ser/de */
-  private static final Gson GSON = new Gson();
+  public static final Gson GSON =
+      new GsonBuilder().registerTypeAdapterFactory(new GsonInterfaceAdapter(Descriptor.class)).create();
+  /** Type token for ser/de descriptor list */
+  private static final Type DESCRIPTOR_LIST_TYPE = new TypeToken<ArrayList<Descriptor>>(){}.getType();
 
   /** Name of the resource */
   @Getter
@@ -68,41 +71,41 @@ public class Descriptor {
   }
 
   /**
-   * A helper class for ser/de of a {@link Descriptor}
+   * Serialize any {@link Descriptor} object as json string
+   *
+   * <p>
+   *   Note: it can serialize subclasses
+   * </p>
    */
-  @RequiredArgsConstructor
-  private static class Wrap {
-    /** The actual class name of the {@link Descriptor} */
-    private final String clazz;
-    /** A json representation of the {@link Descriptor}*/
-    private final JsonObject data;
+  public static String toJson(Descriptor descriptor) {
+    return GSON.toJson(descriptor);
   }
 
   /**
-   * Serialize any {@link Descriptor} object to a string
+   * Deserialize the json string to the a {@link Descriptor} object
    */
-  public static String serialize(Descriptor descriptor) {
-    if (descriptor == null) {
-      return GSON.toJson(null);
-    }
-    JsonObject data = GSON.toJsonTree(descriptor).getAsJsonObject();
-    return GSON.toJson(new Wrap(descriptor.getClass().getName(), data));
+  public static Descriptor fromJson(String json) {
+    return fromJson(json, Descriptor.class);
   }
 
   /**
-   * Deserialize a string, which results from {@link #serialize(Descriptor)}, into the original
-   * {@link Descriptor} object
+   * Deserialize the json string to the specified {@link Descriptor} object
    */
-  public static Descriptor deserialize(String serialized) {
-    Wrap wrap = GSON.fromJson(serialized, Wrap.class);
-    if (wrap == null) {
-      return null;
-    }
+  public static <T extends Descriptor> T fromJson(String json, Class<T> clazz) {
+    return GSON.fromJson(json, clazz);
+  }
 
-    try {
-      return GSON.fromJson(wrap.data, (Type) Class.forName(wrap.clazz));
-    } catch (ClassNotFoundException e) {
-      return null;
-    }
+  /**
+   * Serialize a list of descriptors as json string
+   */
+  public static String toJson(List<Descriptor> descriptors) {
+    return GSON.toJson(descriptors, DESCRIPTOR_LIST_TYPE);
+  }
+
+  /**
+   * Deserialize the string, resulted from {@link #toJson(List)}, to a list of descriptors
+   */
+  public static List<Descriptor> fromJsonList(String jsonList) {
+    return GSON.fromJson(jsonList, DESCRIPTOR_LIST_TYPE);
   }
 }

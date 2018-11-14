@@ -1,7 +1,7 @@
 # ====================================================================
 # Job configurations
 # ====================================================================
-job.name=Distcp-HDFS-HDFS
+job.name=Distcp
 
 # Source and destination paths to be obtained from flow config.
 from=${gobblin.flow.edge.input.dataset.descriptor.path}

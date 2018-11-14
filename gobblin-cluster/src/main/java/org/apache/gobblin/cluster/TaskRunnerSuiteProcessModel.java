@@ -17,12 +17,14 @@
 
 package org.apache.gobblin.cluster;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.helix.task.TaskCallbackContext;
 import org.apache.helix.task.TaskFactory;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.Service;
 
@@ -44,12 +46,11 @@ class TaskRunnerSuiteProcessModel extends TaskRunnerSuiteBase {
     taskFactory = new HelixTaskFactory(builder.getContainerMetrics(),
         GobblinTaskRunner.CLUSTER_CONF_PATH,
         builder.getConfig());
-    taskMetrics = new GobblinTaskRunnerMetrics.JvmTaskRunnerMetrics();
   }
 
   @Override
-  protected StandardMetricsBridge.StandardMetrics getTaskMetrics() {
-    return this.taskMetrics;
+  protected Collection<StandardMetricsBridge.StandardMetrics> getMetricsCollection() {
+    return ImmutableList.of(new GobblinTaskRunnerMetrics.JvmTaskMetrics());
   }
 
   @Override

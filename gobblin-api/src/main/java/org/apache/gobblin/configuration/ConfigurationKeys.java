@@ -112,13 +112,8 @@ public class ConfigurationKeys {
   public static final String SCHEDULER_WAIT_FOR_JOB_COMPLETION_KEY = "scheduler.wait.for.job.completion";
   public static final String DEFAULT_SCHEDULER_WAIT_FOR_JOB_COMPLETION = Boolean.TRUE.toString();
 
-  public static final String HELIX_JOB_TIMEOUT_ENABLED_KEY = "job.timeout.enabled";
-  public static final String DEFAULT_HELIX_JOB_TIMEOUT_ENABLED = "false";
-  public static final String HELIX_JOB_TIMEOUT_SECONDS = "job.timeout.seconds";
-  public static final String DEFAULT_HELIX_JOB_TIMEOUT_SECONDS = "10800";
-
-  public static final String HELIX_TASK_TIMEOUT_SECONDS = "task.timeout.seconds";
-  public static final long DEFAULT_HELIX_TASK_TIMEOUT_SECONDS = 60 * 60;
+  public static final String TASK_TIMEOUT_SECONDS = "task.timeout.seconds";
+  public static final long DEFAULT_TASK_TIMEOUT_SECONDS = 60 * 60;
 
   /**
    * Task executor and state tracker configuration properties.
@@ -137,6 +132,9 @@ public class ConfigurationKeys {
   public static final String FLOW_GROUP_KEY = "flow.group";
   public static final String FLOW_DESCRIPTION_KEY = "flow.description";
   public static final String FLOW_EXECUTION_ID_KEY = "flow.executionId";
+  public static final String FLOW_FAILURE_OPTION = "flow.failureOption";
+  public static final String FLOW_APPLY_RETENTION = "flow.applyRetention";
+  public static final String FLOW_APPLY_INPUT_RETENTION = "flow.applyInputRetention";
 
   /**
    * Common topology configuration properties.
@@ -180,6 +178,8 @@ public class ConfigurationKeys {
   public static final String WORK_UNIT_CREATION_AND_RUN_INTERVAL = "workunit.creation.and.run.interval";
   public static final String WORK_UNIT_ENABLE_TRACKING_LOGS = "workunit.enableTrackingLogs";
 
+  public static final String JOB_DEPENDENCIES = "job.dependencies";
+  public static final String JOB_FORK_ON_CONCAT = "job.forkOnConcat";
   public static final String JOB_RUN_ONCE_KEY = "job.runonce";
   public static final String JOB_DISABLED_KEY = "job.disabled";
   public static final String JOB_JAR_FILES_KEY = "job.jars";
@@ -212,10 +212,9 @@ public class ConfigurationKeys {
   public static final String JOB_TEMPLATE_PATH = "job.template";
 
   /**
-   * Configuration property used only for job configuration file's tempalte, inside .template file
+   * Configuration property used only for job configuration file's template
    */
   public static final String REQUIRED_ATRRIBUTES_LIST = "gobblin.template.required_attributes";
-  public static final String JOB_DEPENDENCIES = "dependencies";
 
   /**
    * Configuration for emitting job events
@@ -240,6 +239,7 @@ public class ConfigurationKeys {
   public static final String JOB_CONFIG_FILE_PATH_KEY = "job.config.path";
   public static final String TASK_FAILURE_EXCEPTION_KEY = "task.failure.exception";
   public static final String TASK_RETRIES_KEY = "task.retries";
+  public static final String TASK_IGNORE_CLOSE_FAILURES = "task.ignoreCloseFailures";
   public static final String JOB_FAILURES_KEY = "job.failures";
   public static final String JOB_TRACKING_URL_KEY = "job.tracking.url";
   public static final String FORK_STATE_KEY = "fork.state";
@@ -335,6 +335,8 @@ public class ConfigurationKeys {
   public static final long DEFAULT_FORK_RECORD_QUEUE_TIMEOUT = 1000;
   public static final String FORK_RECORD_QUEUE_TIMEOUT_UNIT_KEY = "fork.record.queue.timeout.unit";
   public static final String DEFAULT_FORK_RECORD_QUEUE_TIMEOUT_UNIT = TimeUnit.MILLISECONDS.name();
+  public static final String FORK_MAX_WAIT_MININUTES = "fork.max.wait.minutes";
+  public static final long DEFAULT_FORK_MAX_WAIT_MININUTES = 60;
 
   /**
    * Writer configuration properties.
@@ -663,6 +665,8 @@ public class ConfigurationKeys {
   public static final String METRICS_LOG_DIR_KEY = METRICS_CONFIGURATIONS_PREFIX + "log.dir";
   public static final String METRICS_FILE_SUFFIX = METRICS_CONFIGURATIONS_PREFIX + "reporting.file.suffix";
   public static final String DEFAULT_METRICS_FILE_SUFFIX = "";
+  public static final String FAILURE_REPORTING_FILE_ENABLED_KEY = "failure.reporting.file.enabled";
+  public static final String DEFAULT_FAILURE_REPORTING_FILE_ENABLED = Boolean.toString(true);
   public static final String FAILURE_LOG_DIR_KEY =  "failure.log.dir";
 
   // JMX-based reporting
@@ -914,4 +918,12 @@ public class ConfigurationKeys {
   public static final String GIT_MONITOR_CONFIG_BASE_DIR = "configBaseDirectory";
   public static final String GIT_MONITOR_POLLING_INTERVAL = "pollingInterval";
   public static final String GIT_MONITOR_BRANCH_NAME = "branchName";
+  //Configuration keys for authentication using HTTPS
+  public static final String GIT_MONITOR_USERNAME = "username";
+  public static final String GIT_MONITOR_PASSWORD = "password";
+  //Configuration keys for authentication using SSH with Public Key
+  public static final String GIT_MONITOR_SSH_WITH_PUBLIC_KEY_ENABLED = "isSshWithPublicKeyEnabled";
+  public static final String GIT_MONITOR_PRIVATE_KEY_PATH = "privateKeyPath";
+  public static final String GIT_MONITOR_SSH_PASSPHRASE = "passphrase";
+  public static final String GIT_MONITOR_JSCH_LOGGER_ENABLED = "isJschLoggerEnabled";
 }

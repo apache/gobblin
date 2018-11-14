@@ -24,11 +24,16 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.GobblinMetricsKeys;
+import org.apache.gobblin.instrumented.Instrumentable;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
 import org.apache.gobblin.metrics.ContextAwareGauge;
@@ -37,11 +42,8 @@ import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.util.ConfigUtils;
 
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 
-
-public interface SpecCatalog extends SpecCatalogListenersContainer, StandardMetricsBridge {
+public interface SpecCatalog extends SpecCatalogListenersContainer, Instrumentable, StandardMetricsBridge {
   /** Returns an immutable {@link Collection} of {@link Spec}s that are known to the catalog. */
   Collection<Spec> getSpecs();
 
@@ -49,8 +51,9 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, StandardMetr
    * ({@link #isInstrumentationEnabled()}) is false. */
   SpecCatalog.StandardMetrics getMetrics();
 
-  default StandardMetricsBridge.StandardMetrics getStandardMetrics() {
-    return this.getMetrics();
+  default Collection<StandardMetricsBridge.StandardMetrics> getStandardMetricsCollection() {
+    SpecCatalog.StandardMetrics standardMetrics = getMetrics();
+    return standardMetrics == null? ImmutableList.of() : ImmutableList.of(standardMetrics);
   }
 
   /**
@@ -60,7 +63,7 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, StandardMetr
   Spec getSpec(URI uri) throws SpecNotFoundException;
 
   @Slf4j
-  public static class StandardMetrics extends StandardMetricsBridge.StandardMetrics implements SpecCatalogListener {
+  class StandardMetrics extends StandardMetricsBridge.StandardMetrics implements SpecCatalogListener {
     public static final String NUM_ACTIVE_SPECS_NAME = "numActiveSpecs";
     public static final String TOTAL_ADD_CALLS = "totalAddCalls";
     public static final String TOTAL_DELETE_CALLS = "totalDeleteCalls";

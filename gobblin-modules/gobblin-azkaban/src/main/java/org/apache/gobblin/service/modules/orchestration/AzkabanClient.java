@@ -66,21 +66,20 @@ import lombok.Builder;
 /**
  * A simple client that uses Ajax API to communicate with Azkaban server.
  *
- * Lombok will not consider fields from the superclass in the generated builder class. For a workaround, we put
- * @Builder in constructors to allow Builder inheritance.
- *
  * @see {@linktourl https://blog.codecentric.de/en/2016/05/reducing-boilerplate-code-project-lombok/}
  * @see {@linktourl https://azkaban.github.io/azkaban/docs/latest/#ajax-api}
  */
 public class AzkabanClient implements Closeable {
   protected final String username;
-  protected final String password;
   protected final String url;
   protected final long sessionExpireInMin; // default value is 12h.
 
+  protected String password;
   protected String sessionId;
   protected long sessionCreationTime = 0;
-  protected CloseableHttpClient client;
+  protected CloseableHttpClient httpClient;
+
+  private boolean httpClientProvided = true;
   private static Logger log = LoggerFactory.getLogger(AzkabanClient.class);
 
   /**
@@ -90,14 +89,24 @@ public class AzkabanClient implements Closeable {
   protected AzkabanClient(String username,
                           String password,
                           String url,
-                          long sessionExpireInMin)
+                          long sessionExpireInMin,
+                          CloseableHttpClient httpClient)
       throws AzkabanClientException {
     this.username = username;
     this.password = password;
     this.url = url;
     this.sessionExpireInMin = sessionExpireInMin;
-    this.client = getClient();
+    this.httpClient = httpClient;
+
+    this.initializeClient();
     this.initializeSession();
+  }
+
+  private void initializeClient() throws AzkabanClientException {
+    if (this.httpClient == null) {
+      this.httpClient = createHttpClient();
+      this.httpClientProvided = false;
+    }
   }
 
   /**
@@ -111,7 +120,7 @@ public class AzkabanClient implements Closeable {
       nvps.add(new BasicNameValuePair(AzkabanClientParams.USERNAME, this.username));
       nvps.add(new BasicNameValuePair(AzkabanClientParams.PASSWORD, this.password));
       httpPost.setEntity(new UrlEncodedFormEntity(nvps));
-      CloseableHttpResponse response = this.client.execute(httpPost);
+      CloseableHttpResponse response = this.httpClient.execute(httpPost);
 
       try {
         HttpEntity entity = response.getEntity();
@@ -135,7 +144,7 @@ public class AzkabanClient implements Closeable {
    *
    * @return A closeable http client.
    */
-  protected CloseableHttpClient getClient() throws AzkabanClientException {
+  private CloseableHttpClient createHttpClient() throws AzkabanClientException {
     try {
     // SSLSocketFactory using custom TrustStrategy that ignores warnings about untrusted certificates
     // Self sign SSL
@@ -262,7 +271,7 @@ public class AzkabanClient implements Closeable {
       Header requestType = new BasicHeader("X-Requested-With", "XMLHttpRequest");
       httpPost.setHeaders(new Header[]{contentType, requestType});
 
-      CloseableHttpResponse response = this.client.execute(httpPost);
+      CloseableHttpResponse response = this.httpClient.execute(httpPost);
 
       try {
         handleResponse(response);
@@ -297,7 +306,7 @@ public class AzkabanClient implements Closeable {
       HttpGet httpGet = new HttpGet(url + "/manager?" + URLEncodedUtils.format(nvps, "UTF-8"));
       httpGet.setHeaders(new Header[]{contentType, requestType});
 
-      CloseableHttpResponse response = this.client.execute(httpGet);
+      CloseableHttpResponse response = this.httpClient.execute(httpGet);
       response.close();
       return new AzkabanClientStatus.SUCCESS();
 
@@ -331,7 +340,7 @@ public class AzkabanClient implements Closeable {
           .build();
       httpPost.setEntity(entity);
 
-      CloseableHttpResponse response = this.client.execute(httpPost);
+      CloseableHttpResponse response = this.httpClient.execute(httpPost);
 
       try {
         handleResponse(response);
@@ -380,7 +389,7 @@ public class AzkabanClient implements Closeable {
       Header requestType = new BasicHeader("X-Requested-With", "XMLHttpRequest");
       httpPost.setHeaders(new Header[]{contentType, requestType});
 
-      CloseableHttpResponse response = this.client.execute(httpPost);
+      CloseableHttpResponse response = this.httpClient.execute(httpPost);
 
       try {
         Map<String, String> map = handleResponse(response);
@@ -412,6 +421,36 @@ public class AzkabanClient implements Closeable {
   }
 
   /**
+   * Cancel a flow by execution id.
+   */
+  public AzkabanClientStatus cancelFlow(int execId) {
+    try {
+      refreshSession();
+      List<NameValuePair> nvps = new ArrayList<>();
+      nvps.add(new BasicNameValuePair(AzkabanClientParams.AJAX, "cancelFlow"));
+      nvps.add(new BasicNameValuePair(AzkabanClientParams.SESSION_ID, this.sessionId));
+      nvps.add(new BasicNameValuePair(AzkabanClientParams.EXECID, String.valueOf(execId)));
+
+      Header contentType = new BasicHeader(HttpHeaders.CONTENT_TYPE, "application/x-www-form-urlencoded");
+      Header requestType = new BasicHeader("X-Requested-With", "XMLHttpRequest");
+
+      HttpGet httpGet = new HttpGet(url + "/executor?" + URLEncodedUtils.format(nvps, "UTF-8"));
+      httpGet.setHeaders(new Header[]{contentType, requestType});
+
+      CloseableHttpResponse response = this.httpClient.execute(httpGet);
+      try {
+        handleResponse(response);
+        return new AzkabanClientStatus.SUCCESS();
+      } finally {
+        response.close();
+      }
+    } catch (Exception e) {
+      return new AzkabanClientStatus.FAIL("", e);
+    }
+  }
+
+
+  /**
    * Given an execution id, fetches all the detailed information of that execution, including a list of all the job executions.
    *
    * @param execId execution id to be fetched.
@@ -432,7 +471,7 @@ public class AzkabanClient implements Closeable {
       HttpGet httpGet = new HttpGet(url + "/executor?" + URLEncodedUtils.format(nvps, "UTF-8"));
       httpGet.setHeaders(new Header[]{contentType, requestType});
 
-      CloseableHttpResponse response = this.client.execute(httpGet);
+      CloseableHttpResponse response = this.httpClient.execute(httpGet);
       try {
         Map<String, String> map = handleResponse(response);
         return new AzkabanFetchExecuteFlowStatus(new AzkabanFetchExecuteFlowStatus.Execution(map));
@@ -470,6 +509,8 @@ public class AzkabanClient implements Closeable {
   @Override
   public void close()
       throws IOException {
-    this.client.close();
+    if (!httpClientProvided) {
+      this.httpClient.close();
+    }
   }
 }

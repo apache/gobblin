@@ -21,6 +21,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Stack;
 
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.hadoop.fs.FileStatus;
@@ -32,6 +33,8 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Longs;
+
+import org.apache.gobblin.util.filters.HiddenFilter;
 
 
 /**
@@ -226,5 +229,38 @@ public class FileListUtils {
       }
     }
     return files;
+  }
+
+  /**
+   * Get any data file, which is not hidden or a directory, from the given path
+   */
+  public static FileStatus getAnyNonHiddenFile(FileSystem fs, Path path)
+      throws IOException {
+    HiddenFilter hiddenFilter = new HiddenFilter();
+
+    FileStatus root = fs.getFileStatus(path);
+    if (!root.isDirectory()) {
+      return hiddenFilter.accept(path) ? root : null;
+    }
+
+    // DFS to get the first data file
+    Stack<FileStatus> folders = new Stack<>();
+    folders.push(root);
+    while (!folders.empty()) {
+      FileStatus curFolder = folders.pop();
+      try {
+        for (FileStatus status : fs.listStatus(curFolder.getPath(), hiddenFilter)) {
+          if (status.isDirectory()) {
+            folders.push(status);
+          } else {
+            return status;
+          }
+        }
+      } catch (FileNotFoundException exc) {
+        // continue
+      }
+    }
+
+    return null;
   }
 }

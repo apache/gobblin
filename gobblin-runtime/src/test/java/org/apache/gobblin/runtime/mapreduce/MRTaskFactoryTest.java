@@ -48,6 +48,7 @@ import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.log4j.AppenderSkeleton;
+import org.apache.log4j.Level;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 import org.apache.log4j.spi.LoggingEvent;
@@ -77,6 +78,7 @@ public class MRTaskFactoryTest {
 
     TestAppender testAppender = new TestAppender();
     Logger logger = LogManager.getLogger(MRTask.class.getName());
+    logger.setLevel(Level.INFO);
     logger.addAppender(testAppender);
 
     EmbeddedGobblin embeddedGobblin = new EmbeddedGobblin("WordCounter")

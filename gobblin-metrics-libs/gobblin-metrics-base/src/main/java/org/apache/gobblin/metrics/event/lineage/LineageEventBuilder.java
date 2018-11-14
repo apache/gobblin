@@ -17,15 +17,9 @@
 
 package org.apache.gobblin.metrics.event.lineage;
 
-
 import java.util.Map;
 
 import org.apache.commons.lang.StringUtils;
-
-import org.apache.gobblin.dataset.DatasetDescriptor;
-import org.apache.gobblin.dataset.Descriptor;
-import org.apache.gobblin.metrics.GobblinTrackingEvent;
-import org.apache.gobblin.metrics.event.GobblinEventBuilder;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.Maps;
@@ -34,6 +28,10 @@ import com.google.gson.Gson;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.dataset.Descriptor;
+import org.apache.gobblin.metrics.GobblinTrackingEvent;
+import org.apache.gobblin.metrics.event.GobblinEventBuilder;
 
 
 /**
@@ -65,8 +63,8 @@ public final class LineageEventBuilder extends GobblinEventBuilder {
   @Override
   public GobblinTrackingEvent build() {
     Map<String, String> dataMap = Maps.newHashMap(metadata);
-    dataMap.put(SOURCE, Descriptor.serialize(source));
-    dataMap.put(DESTINATION, Descriptor.serialize(destination));
+    dataMap.put(SOURCE, Descriptor.toJson(source));
+    dataMap.put(DESTINATION, Descriptor.toJson(destination));
     return new GobblinTrackingEvent(0L, namespace, name, dataMap);
   }
 
@@ -126,10 +124,10 @@ public final class LineageEventBuilder extends GobblinEventBuilder {
     metadata.forEach((key, value) -> {
       switch (key) {
         case SOURCE:
-          lineageEvent.setSource(Descriptor.deserialize(value));
+          lineageEvent.setSource(Descriptor.fromJson(value));
           break;
         case DESTINATION:
-          lineageEvent.setDestination(Descriptor.deserialize(value));
+          lineageEvent.setDestination(Descriptor.fromJson(value));
           break;
         default:
           lineageEvent.addMetadata(key, value);

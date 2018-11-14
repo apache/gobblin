@@ -27,8 +27,6 @@ import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
 import com.google.common.base.Charsets;
 
-import org.apache.gobblin.util.limiter.CountBasedLimiter;
-
 
 public class StreamCopierTest {
 
@@ -56,6 +54,19 @@ public class StreamCopierTest {
     new StreamCopier(inputStream, outputStream).withBufferSize(100).copy();
 
     Assert.assertEquals(testString, new String(outputStream.toByteArray(), Charsets.UTF_8));
+  }
+
+  @Test
+  public void testBlockCopy() throws Exception {
+    String testString = "This is a string";
+    ByteArrayInputStream inputStream = new ByteArrayInputStream(testString.getBytes(Charsets.UTF_8));
+    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+
+    long maxBytes = 4L;
+    new StreamCopier(inputStream, outputStream, maxBytes).copy();
+
+    Assert.assertEquals(new String(outputStream.toByteArray(), Charsets.UTF_8),
+        testString.substring(0, (int) maxBytes));
   }
 
   @Test

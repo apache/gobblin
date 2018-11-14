@@ -32,6 +32,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alias;
 import org.apache.gobblin.cluster.suite.IntegrationJobFactorySuite;
+import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.runtime.util.StateStores;
 import org.apache.gobblin.source.extractor.partition.Partitioner;
 import org.apache.gobblin.util.PropertiesUtils;
@@ -41,7 +42,7 @@ public class TaskRunnerSuiteForJobFactoryTest extends TaskRunnerSuiteThreadModel
   private TaskFactory testJobFactory;
   public TaskRunnerSuiteForJobFactoryTest(IntegrationJobFactorySuite.TestJobFactorySuiteBuilder builder) {
     super(builder);
-    this.testJobFactory = new TestJobFactory(builder);
+    this.testJobFactory = new TestJobFactory(builder, this.metricContext);
   }
 
   @Override
@@ -53,22 +54,32 @@ public class TaskRunnerSuiteForJobFactoryTest extends TaskRunnerSuiteThreadModel
   }
 
   public class TestJobFactory extends GobblinHelixJobFactory {
-    public TestJobFactory(IntegrationJobFactorySuite.TestJobFactorySuiteBuilder builder) {
-      super (builder);
+    public TestJobFactory(IntegrationJobFactorySuite.TestJobFactorySuiteBuilder builder, MetricContext metricContext) {
+      super (builder, metricContext);
       this.builder = builder;
     }
 
     @Override
     public Task createNewTask(TaskCallbackContext context) {
-      return new TestHelixJobTask(context, stateStores, builder);
+      return new TestHelixJobTask(context,
+          stateStores,
+          builder,
+          new GobblinHelixJobLauncherMetrics("launcherInJobFactory", metricContext, 5),
+          new GobblinHelixJobTask.GobblinHelixJobTaskMetrics(metricContext, 5));
     }
   }
 
   public class TestHelixJobTask extends GobblinHelixJobTask {
     public TestHelixJobTask(TaskCallbackContext context,
-        StateStores stateStores,
-        TaskRunnerSuiteBase.Builder builder) {
-      super(context, stateStores, builder);
+                            StateStores stateStores,
+                            TaskRunnerSuiteBase.Builder builder,
+                            GobblinHelixJobLauncherMetrics launcherMetrics,
+                            GobblinHelixJobTaskMetrics jobTaskMetrics) {
+      super(context,
+            stateStores,
+            builder,
+            launcherMetrics,
+            jobTaskMetrics);
     }
 
     //TODO: change below to Helix UserConentStore

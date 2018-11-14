@@ -20,12 +20,12 @@ import java.util.concurrent.Future;
 
 import com.codahale.metrics.Gauge;
 
+import lombok.Getter;
+
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.instrumented.Instrumentable;
 import org.apache.gobblin.metrics.ContextAwareCounter;
 import org.apache.gobblin.metrics.ContextAwareGauge;
-
-import lombok.Getter;
 
 /**
  * A factory for {@link JobExecutionDriver}s.
@@ -59,28 +59,15 @@ public interface JobExecutionLauncher extends Instrumentable {
     public static final String NUM_JOBS_FAILED = "numJobsFailed";
     public static final String NUM_JOBS_CANCELLED = "numJobsCancelled";
     public static final String NUM_JOBS_RUNNING = "numJobsRunning";
-
     public static final String TIMER_FOR_COMPLETED_JOBS = "timeForCompletedJobs";
     public static final String TIMER_FOR_FAILED_JOBS = "timeForFailedJobs";
     public static final String TIMER_FOR_COMMITTED_JOBS = "timerForCommittedJobs";
-    public static final String TIMER_BEFORE_JOB_SCHEDULING = "timerBeforeJobScheduling";
-    public static final String TIMER_BEFORE_JOB_LAUNCHING = "timerBeforeJobLaunching";
-    public static final String TIMER_BETWEEN_JOB_SCHEDULING_AND_LAUNCHING = "timerBetwenJobSchedulingAndLaunching";
 
     public static final String EXECUTOR_ACTIVE_COUNT = "executorActiveCount";
     public static final String EXECUTOR_MAX_POOL_SIZE = "executorMaximumPoolSize";
     public static final String EXECUTOR_POOL_SIZE = "executorPoolSize";
     public static final String EXECUTOR_CORE_POOL_SIZE = "executorCorePoolSize";
     public static final String EXECUTOR_QUEUE_SIZE = "executorQueueSize";
-
-    public static final String TRACKING_EVENT_NAME = "JobExecutionLauncherEvent";
-    public static final String JOB_EXECID_META = "jobExecId";
-    public static final String JOB_LAUNCHED_OPERATION_TYPE = "JobLaunched";
-    public static final String JOB_COMPLETED_OPERATION_TYPE = "JobCompleted";
-    public static final String JOB_COMMITED_OPERATION_TYPE = "JobCommitted";
-    public static final String JOB_FAILED_OPERATION_TYPE = "JobFailed";
-    public static final String JOB_CANCELLED_OPERATION_TYPE = "JobCancelled";
-
     @Getter private final ContextAwareCounter numJobsLaunched;
     @Getter private final ContextAwareCounter numJobsCompleted;
     @Getter private final ContextAwareCounter numJobsCommitted;

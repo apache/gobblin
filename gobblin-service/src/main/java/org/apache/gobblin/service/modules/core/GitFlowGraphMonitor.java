@@ -18,9 +18,12 @@
 package org.apache.gobblin.service.modules.core;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.Path;
+import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.diff.DiffEntry;
 
 import com.google.common.base.Joiner;
@@ -53,7 +56,7 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
  */
 @Slf4j
 public class GitFlowGraphMonitor extends GitMonitoringService {
-  public static final String GIT_FLOWGRAPH_MONITOR_PREFIX = "gitFlowGraphMonitor";
+  public static final String GIT_FLOWGRAPH_MONITOR_PREFIX = "gobblin.service.gitFlowGraphMonitor";
 
   private static final String PROPERTIES_EXTENSIONS = "properties";
   private static final String CONF_EXTENSIONS = StringUtils.EMPTY;
@@ -74,6 +77,7 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
           .put(ConfigurationKeys.GIT_MONITOR_POLLING_INTERVAL, DEFAULT_GIT_FLOWGRAPH_MONITOR_POLLING_INTERVAL)
           .put(JAVA_PROPS_EXTENSIONS, PROPERTIES_EXTENSIONS)
           .put(HOCON_FILE_EXTENSIONS, CONF_EXTENSIONS)
+          .put(SHOULD_CHECKPOINT_HASHES, false)
           .build());
 
   private FSFlowCatalog flowCatalog;
@@ -87,13 +91,37 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
   }
 
   /**
-   * Determine if the service should poll Git.
+   * Determine if the service should poll Git. Current behavior is both master and slave(s) will poll Git for
+   * changes to {@link FlowGraph}.
    */
   @Override
   public boolean shouldPollGit() {
-    return this.isActive;
+    return true;
   }
 
+  /**
+   * Sort the changes in a commit so that changes to node files appear before changes to edge files. This is done so that
+   * node related changes are applied to the FlowGraph before edge related changes. An example where the order matters
+   * is the case when a commit adds a new node n2 as well as adds an edge from an existing node n1 to n2. To ensure that the
+   * addition of edge n1->n2 is successful, node n2 must exist in the graph and so needs to be added first. For deletions,
+   * the order does not matter and ordering the changes in the commit will result in the same FlowGraph state as if the changes
+   * were unordered. In other words, deletion of a node deletes all its incident edges from the FlowGraph. So processing an
+   * edge deletion later results in a no-op. Note that node and edge files do not change depth in case of modifications.
+   *
+   * If there are multiple commits between successive polls to Git, the re-ordering of changes across commits should not
+   * affect the final state of the FlowGraph. This is because, the order of changes for a given file type (i.e. node or edge)
+   * is preserved.
+   */
+  @Override
+  void processGitConfigChanges() throws GitAPIException, IOException {
+    List<DiffEntry> changes = this.gitRepo.getChanges();
+    Collections.sort(changes, (o1, o2) -> {
+      Integer o1Depth = (o1.getNewPath() != null) ? (new Path(o1.getNewPath())).depth() : (new Path(o1.getOldPath())).depth();
+      Integer o2Depth = (o2.getNewPath() != null) ? (new Path(o2.getNewPath())).depth() : (new Path(o2.getOldPath())).depth();
+      return o1Depth.compareTo(o2Depth);
+    });
+    processGitConfigChangesHelper(changes);
+  }
   /**
    * Add an element (i.e., a {@link DataNode}, or a {@link FlowEdge} to
    * the {@link FlowGraph} for an added, updated or modified node or edge file.
@@ -139,6 +167,8 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
         DataNode dataNode = (DataNode) GobblinConstructorUtils.invokeLongestConstructor(dataNodeClass, config);
         if (!this.flowGraph.addDataNode(dataNode)) {
           log.warn("Could not add DataNode {} to FlowGraph; skipping", dataNode.getId());
+        } else {
+          log.info("Added Datanode {} to FlowGraph", dataNode.getId());
         }
       } catch (Exception e) {
         log.warn("Could not add DataNode defined in {} due to exception {}", change.getNewPath(), e.getMessage());
@@ -158,6 +188,8 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
       String nodeId = config.getString(FlowGraphConfigurationKeys.DATA_NODE_ID_KEY);
       if (!this.flowGraph.deleteDataNode(nodeId)) {
         log.warn("Could not remove DataNode {} from FlowGraph; skipping", nodeId);
+      } else {
+        log.info("Removed DataNode {} from FlowGraph", nodeId);
       }
     }
   }
@@ -178,6 +210,8 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
         FlowEdge edge = flowEdgeFactory.createFlowEdge(config, flowCatalog);
         if (!this.flowGraph.addFlowEdge(edge)) {
           log.warn("Could not add edge {} to FlowGraph; skipping", edge.getId());
+        } else {
+          log.info("Added edge {} to FlowGraph", edge.getId());
         }
       } catch (Exception e) {
         log.warn("Could not add edge defined in {} due to exception {}", change.getNewPath(), e.getMessage());
@@ -198,7 +232,9 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
         Config config = getEdgeConfigWithOverrides(ConfigFactory.empty(), edgeFilePath);
         String edgeId = config.getString(FlowGraphConfigurationKeys.FLOW_EDGE_ID_KEY);
         if (!this.flowGraph.deleteFlowEdge(edgeId)) {
-          log.warn("Could not remove FlowEdge {} from FlowGraph; skipping", edgeId);
+          log.warn("Could not remove edge {} from FlowGraph; skipping", edgeId);
+        } else {
+          log.info("Removed edge {} from FlowGraph", edgeId);
         }
       } catch (Exception e) {
         log.warn("Could not remove edge defined in {} due to exception {}", edgeFilePath, e.getMessage());
@@ -234,7 +270,7 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
    * @return true if the file conforms to the expected hierarchy
    */
   private boolean checkFileLevelRelativeToRoot(Path filePath, int depth) {
-    if(filePath == null) {
+    if (filePath == null) {
       return false;
     }
     Path path = filePath;

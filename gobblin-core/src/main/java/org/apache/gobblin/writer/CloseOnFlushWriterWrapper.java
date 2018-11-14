@@ -27,6 +27,7 @@ import com.google.common.base.Preconditions;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.dataset.Descriptor;
 import org.apache.gobblin.records.ControlMessageHandler;
 import org.apache.gobblin.records.FlushControlMessageHandler;
 import org.apache.gobblin.stream.ControlMessage;
@@ -141,6 +142,11 @@ public class CloseOnFlushWriterWrapper<D> extends WriterWrapper<D> implements De
     }
 
     return state;
+  }
+
+  @Override
+  public Descriptor getDataDescriptor() {
+    return writer.getDataDescriptor();
   }
 
   @Override

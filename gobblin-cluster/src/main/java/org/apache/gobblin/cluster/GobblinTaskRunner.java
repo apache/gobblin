@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -67,13 +68,10 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
-import javax.annotation.Nonnull;
-
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
 import org.apache.gobblin.metrics.GobblinMetrics;
-import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.FileUtils;
@@ -147,12 +145,15 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
   private final String applicationId;
   private final Path appWorkPath;
 
-  private final MetricContext metricContext;
-  private final StandardMetricsBridge.StandardMetrics metrics;
+  private final Collection<StandardMetricsBridge.StandardMetrics> metricsCollection;
 
-  public GobblinTaskRunner(String applicationName, String helixInstanceName, String applicationId,
-      String taskRunnerId, Config config, Optional<Path> appWorkDirOptional)
-      throws Exception {
+  public GobblinTaskRunner(String applicationName,
+      String helixInstanceName,
+      String applicationId,
+      String taskRunnerId,
+      Config config,
+      Optional<Path> appWorkDirOptional) throws Exception {
+
     this.helixInstanceName = helixInstanceName;
     this.taskRunnerId = taskRunnerId;
     this.applicationName = applicationName;
@@ -168,9 +169,13 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
 
     this.containerMetrics = buildContainerMetrics();
 
-    String builderStr = ConfigUtils.getString(this.config, GobblinClusterConfigurationKeys.TASK_RUNNER_SUITE_BUILDER, TaskRunnerSuiteBase.Builder.class.getName());
+    String builderStr = ConfigUtils.getString(this.config,
+        GobblinClusterConfigurationKeys.TASK_RUNNER_SUITE_BUILDER,
+        TaskRunnerSuiteBase.Builder.class.getName());
+
     TaskRunnerSuiteBase.Builder builder = GobblinConstructorUtils.<TaskRunnerSuiteBase.Builder>invokeLongestConstructor(
-          new ClassAliasResolver(TaskRunnerSuiteBase.Builder.class).resolveClass(builderStr), this.config);
+          new ClassAliasResolver(TaskRunnerSuiteBase.Builder.class)
+              .resolveClass(builderStr), this.config);
 
     TaskRunnerSuiteBase suite = builder.setAppWorkPath(this.appWorkPath)
         .setContainerMetrics(this.containerMetrics)
@@ -181,8 +186,7 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
         .build();
 
     this.taskStateModelFactory = createTaskStateModelFactory(suite.getTaskFactoryMap());
-    this.metrics = suite.getTaskMetrics();
-    this.metricContext = suite.getMetricContext();
+    this.metricsCollection = suite.getMetricsCollection();
     this.services.addAll(suite.getServices());
 
     this.services.addAll(getServices());
@@ -193,7 +197,12 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
     }
 
     logger.debug("GobblinTaskRunner: applicationName {}, helixInstanceName {}, applicationId {}, taskRunnerId {}, config {}, appWorkDir {}",
-        applicationName, helixInstanceName, applicationId, taskRunnerId, config, appWorkDirOptional);
+        applicationName,
+        helixInstanceName,
+        applicationId,
+        taskRunnerId,
+        config,
+        appWorkDirOptional);
   }
 
   private Path initAppWorkDir(Config config, Optional<Path> appWorkDirOptional) {
@@ -231,8 +240,7 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
    * Start this {@link GobblinTaskRunner} instance.
    */
   public void start() {
-    logger.info(
-        String.format("Starting %s in container %s", this.helixInstanceName, this.taskRunnerId));
+    logger.info(String.format("Starting %s in container %s", this.helixInstanceName, this.taskRunnerId));
 
     // Add a shutdown hook so the task scheduler gets properly shutdown
     addShutdownHook();
@@ -329,7 +337,10 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
   private void addInstanceTags() {
     if (this.helixManager.isConnected()) {
       List<String> tags = ConfigUtils.getStringList(this.config, GobblinClusterConfigurationKeys.HELIX_INSTANCE_TAGS_KEY);
+      logger.info("Adding tags binding " + tags);
       tags.forEach(tag -> helixManager.getClusterManagmentTool().addInstanceTag(this.clusterName, this.helixInstanceName, tag));
+      logger.info("Actual tags binding " + helixManager.getClusterManagmentTool()
+          .getInstanceConfig(this.clusterName, this.helixInstanceName).getTags());
     }
   }
 
@@ -379,19 +390,8 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
   }
 
   @Override
-  public StandardMetrics getStandardMetrics() {
-    return this.metrics;
-  }
-
-  @Nonnull
-  @Override
-  public MetricContext getMetricContext() {
-    return this.metricContext;
-  }
-
-  @Override
-  public boolean isInstrumentationEnabled() {
-    return GobblinMetrics.isEnabled(this.config);
+  public Collection<StandardMetrics> getStandardMetricsCollection() {
+    return this.metricsCollection;
   }
 
   /**

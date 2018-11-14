@@ -34,6 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
@@ -133,6 +134,8 @@ public class Task implements TaskIFace {
   private final String jobId;
   private final String taskId;
   private final String taskKey;
+  private final boolean isIgnoreCloseFailures;
+
   private final TaskContext taskContext;
   private final TaskState taskState;
   private final TaskStateTracker taskStateTracker;
@@ -179,6 +182,7 @@ public class Task implements TaskIFace {
     this.jobId = this.taskState.getJobId();
     this.taskId = this.taskState.getTaskId();
     this.taskKey = this.taskState.getTaskKey();
+    this.isIgnoreCloseFailures = this.taskState.getJobState().getPropAsBoolean(ConfigurationKeys.TASK_IGNORE_CLOSE_FAILURES, false);
     this.taskStateTracker = taskStateTracker;
     this.taskExecutor = taskExecutor;
     this.countDownLatch = countDownLatch;
@@ -882,6 +886,8 @@ public class Task implements TaskIFace {
    * 3. Check whether to publish data in task.
    */
   public void commit() {
+    boolean isTaskFailed = false;
+
     try {
       // Check if all forks succeeded
       List<Integer> failedForkIds = new ArrayList<>();
@@ -915,6 +921,7 @@ public class Task implements TaskIFace {
       }
     } catch (Throwable t) {
       failTask(t);
+      isTaskFailed = true;
     } finally {
       addConstructsFinalStateToTaskState(extractor, converter, rowChecker);
 
@@ -927,6 +934,10 @@ public class Task implements TaskIFace {
         closer.close();
       } catch (Throwable t) {
         LOG.error("Failed to close all open resources", t);
+        if ((!isIgnoreCloseFailures) && (!isTaskFailed)) {
+          LOG.error("Setting the task state to failed.");
+          failTask(t);
+        }
       }
 
       for (Map.Entry<Optional<Fork>, Optional<Future<?>>> forkAndFuture : this.forks.entrySet()) {
@@ -993,6 +1004,11 @@ public class Task implements TaskIFace {
 
   public synchronized void setTaskFuture(Future<?> taskFuture) {
     this.taskFuture = taskFuture;
+  }
+
+  @VisibleForTesting
+  boolean hasTaskFuture() {
+    return this.taskFuture != null;
   }
 
   /**

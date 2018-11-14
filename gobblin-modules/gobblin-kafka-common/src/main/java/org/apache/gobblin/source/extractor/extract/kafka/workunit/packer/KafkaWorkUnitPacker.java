@@ -225,6 +225,14 @@ public abstract class KafkaWorkUnitPacker {
     // (current latest offset - previous latest offset)/(current epoch time - previous epoch time).
     int index = 0;
     for (WorkUnit wu : multiWorkUnit.getWorkUnits()) {
+      workUnit.setProp(KafkaUtils.getPartitionPropName(KafkaSource.PREVIOUS_START_FETCH_EPOCH_TIME, index),
+          wu.getProp(KafkaSource.PREVIOUS_START_FETCH_EPOCH_TIME));
+      workUnit.setProp(KafkaUtils.getPartitionPropName(KafkaSource.PREVIOUS_STOP_FETCH_EPOCH_TIME, index),
+          wu.getProp(KafkaSource.PREVIOUS_STOP_FETCH_EPOCH_TIME));
+      workUnit.setProp(KafkaUtils.getPartitionPropName(KafkaSource.PREVIOUS_LOW_WATERMARK, index),
+          wu.getProp(KafkaSource.PREVIOUS_LOW_WATERMARK));
+      workUnit.setProp(KafkaUtils.getPartitionPropName(KafkaSource.PREVIOUS_HIGH_WATERMARK, index),
+          wu.getProp(KafkaSource.PREVIOUS_HIGH_WATERMARK));
       workUnit.setProp(KafkaUtils.getPartitionPropName(KafkaSource.PREVIOUS_OFFSET_FETCH_EPOCH_TIME, index),
           wu.getProp(KafkaSource.PREVIOUS_OFFSET_FETCH_EPOCH_TIME));
       workUnit.setProp(KafkaUtils.getPartitionPropName(KafkaSource.OFFSET_FETCH_EPOCH_TIME, index),
@@ -233,6 +241,10 @@ public abstract class KafkaWorkUnitPacker {
           wu.getProp(KafkaSource.PREVIOUS_LATEST_OFFSET));
       index++;
     }
+    workUnit.removeProp(KafkaSource.PREVIOUS_START_FETCH_EPOCH_TIME);
+    workUnit.removeProp(KafkaSource.PREVIOUS_STOP_FETCH_EPOCH_TIME);
+    workUnit.removeProp(KafkaSource.PREVIOUS_LOW_WATERMARK);
+    workUnit.removeProp(KafkaSource.PREVIOUS_HIGH_WATERMARK);
     workUnit.removeProp(KafkaSource.PREVIOUS_OFFSET_FETCH_EPOCH_TIME);
     workUnit.removeProp(KafkaSource.OFFSET_FETCH_EPOCH_TIME);
     workUnit.removeProp(KafkaSource.PREVIOUS_LATEST_OFFSET);

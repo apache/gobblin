@@ -17,26 +17,43 @@
 
 package org.apache.gobblin.service.modules.flow;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.SystemUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.lib.Repository;
+import org.eclipse.jgit.lib.RepositoryCache;
+import org.eclipse.jgit.transport.RefSpec;
+import org.eclipse.jgit.util.FS;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Charsets;
+import com.google.common.base.Joiner;
+import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
+import com.google.common.io.Files;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigParseOptions;
@@ -44,6 +61,7 @@ import com.typesafe.config.ConfigSyntax;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.JobSpec;
@@ -52,8 +70,10 @@ import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.runtime.spec_executorInstance.AbstractSpecExecutor;
 import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.service.modules.core.GitFlowGraphMonitor;
 import org.apache.gobblin.service.modules.flowgraph.BaseFlowGraph;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.flowgraph.Dag.DagNode;
 import org.apache.gobblin.service.modules.flowgraph.DataNode;
 import org.apache.gobblin.service.modules.flowgraph.FlowEdge;
 import org.apache.gobblin.service.modules.flowgraph.FlowEdgeFactory;
@@ -69,7 +89,8 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 @Slf4j
 public class MultiHopFlowCompilerTest {
   private FlowGraph flowGraph;
-  private SpecCompiler specCompiler;
+  private MultiHopFlowCompiler specCompiler;
+  private final String TESTDIR = "/tmp/mhCompiler/gitFlowGraphTestDir";
 
   @BeforeClass
   public void setUp()
@@ -125,7 +146,8 @@ public class MultiHopFlowCompilerTest {
     this.specCompiler = new MultiHopFlowCompiler(config, this.flowGraph);
   }
 
-  private FlowSpec createFlowSpec(String flowConfigResource, String source, String destination) throws IOException, URISyntaxException {
+  private FlowSpec createFlowSpec(String flowConfigResource, String source, String destination, boolean applyRetention, boolean applyRetentionOnInput)
+      throws IOException, URISyntaxException {
     //Create a flow spec
     Properties flowProperties = new Properties();
     flowProperties.put(ConfigurationKeys.JOB_SCHEDULE_KEY, "* * * * *");
@@ -133,6 +155,8 @@ public class MultiHopFlowCompilerTest {
     flowProperties.put(ConfigurationKeys.FLOW_NAME_KEY, "testFlowName");
     flowProperties.put(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, source);
     flowProperties.put(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, destination);
+    flowProperties.put(ConfigurationKeys.FLOW_APPLY_RETENTION, Boolean.toString(applyRetention));
+    flowProperties.put(ConfigurationKeys.FLOW_APPLY_INPUT_RETENTION, Boolean.toString(applyRetentionOnInput));
     Config flowConfig = ConfigUtils.propertiesToConfig(flowProperties);
 
     //Get the input/output dataset config from a file
@@ -153,22 +177,28 @@ public class MultiHopFlowCompilerTest {
     FlowSpec spec = flowSpecBuilder.build();
     return spec;
   }
+
   @Test
   public void testCompileFlow() throws URISyntaxException, IOException {
-    FlowSpec spec = createFlowSpec("flow/flow.conf", "LocalFS-1", "ADLS-1");
+    FlowSpec spec = createFlowSpec("flow/flow1.conf", "LocalFS-1", "ADLS-1", false, false);
     Dag<JobExecutionPlan> jobDag = this.specCompiler.compileFlow(spec);
     Assert.assertEquals(jobDag.getNodes().size(), 4);
     Assert.assertEquals(jobDag.getStartNodes().size(), 1);
     Assert.assertEquals(jobDag.getEndNodes().size(), 1);
 
     //Get the 1st hop - Distcp from "LocalFS-1" to "HDFS-1"
-    Dag.DagNode<JobExecutionPlan> startNode = jobDag.getStartNodes().get(0);
+    DagNode<JobExecutionPlan> startNode = jobDag.getStartNodes().get(0);
     JobExecutionPlan jobSpecWithExecutor = startNode.getValue();
     JobSpec jobSpec = jobSpecWithExecutor.getJobSpec();
 
     //Ensure the resolved job config for the first hop has the correct substitutions.
     Config jobConfig = jobSpec.getConfig();
-    Assert.assertEquals(jobConfig.getString("job.name"), "testFlowGroup:testFlowName:Distcp-HDFS-HDFS");
+    String flowGroup = "testFlowGroup";
+    String flowName = "testFlowName";
+    String expectedJobName1 = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
+        join(flowGroup, flowName, "Distcp", "LocalFS-1", "HDFS-1");
+    String jobName1 = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
+    Assert.assertEquals(jobName1, expectedJobName1);
     String from = jobConfig.getString("from");
     String to = jobConfig.getString("to");
     Assert.assertEquals(from, "/data/out/testTeam/testDataset");
@@ -190,12 +220,16 @@ public class MultiHopFlowCompilerTest {
     Assert.assertEquals(specExecutor.getUri().toString(), "fs:///");
     Assert.assertEquals(specExecutor.getClass().getCanonicalName(), "org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutor");
 
-    //Get the 2nd hop - "HDFS-1 to HDFS-1 : convert avro to json and encrypt"
+    //Get the 2nd hop - "HDFS-1 to HDFS-1 : convert avro to json and encrypt". Ensure config has correct substitutions.
     Assert.assertEquals(jobDag.getChildren(startNode).size(), 1);
-    Dag.DagNode<JobExecutionPlan> secondHopNode = jobDag.getChildren(startNode).get(0);
+    DagNode<JobExecutionPlan> secondHopNode = jobDag.getChildren(startNode).get(0);
     jobSpecWithExecutor = secondHopNode.getValue();
     jobConfig = jobSpecWithExecutor.getJobSpec().getConfig();
-    Assert.assertEquals(jobConfig.getString("job.name"), "testFlowGroup:testFlowName:convert-to-json-and-encrypt");
+    String expectedJobName2 = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
+        join(flowGroup, flowName, "ConvertToJsonAndEncrypt", "HDFS-1", "HDFS-1");
+    String jobName2 = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
+    Assert.assertEquals(jobName2, expectedJobName2);
+    Assert.assertEquals(jobConfig.getString(ConfigurationKeys.JOB_DEPENDENCIES), jobName1);
     from = jobConfig.getString("from");
     to = jobConfig.getString("to");
     Assert.assertEquals(from, "/data/out/testTeam/testDataset");
@@ -208,10 +242,14 @@ public class MultiHopFlowCompilerTest {
 
     //Get the 3rd hop - "Distcp HDFS-1 to HDFS-3"
     Assert.assertEquals(jobDag.getChildren(secondHopNode).size(), 1);
-    Dag.DagNode<JobExecutionPlan> thirdHopNode = jobDag.getChildren(secondHopNode).get(0);
+    DagNode<JobExecutionPlan> thirdHopNode = jobDag.getChildren(secondHopNode).get(0);
     jobSpecWithExecutor = thirdHopNode.getValue();
     jobConfig = jobSpecWithExecutor.getJobSpec().getConfig();
-    Assert.assertEquals(jobConfig.getString("job.name"), "testFlowGroup:testFlowName:Distcp-HDFS-HDFS");
+    String expectedJobName3 = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
+        join(flowGroup, flowName, "Distcp", "HDFS-1", "HDFS-3");
+    String jobName3 = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
+    Assert.assertEquals(jobName3, expectedJobName3);
+    Assert.assertEquals(jobConfig.getString(ConfigurationKeys.JOB_DEPENDENCIES), jobName2);
     from = jobConfig.getString("from");
     to = jobConfig.getString("to");
     Assert.assertEquals(from, "/data/encrypted/testTeam/testDataset");
@@ -226,12 +264,16 @@ public class MultiHopFlowCompilerTest {
     Assert.assertEquals(specExecutor.getUri().toString(), "https://azkaban01.gobblin.net:8443");
     Assert.assertEquals(specExecutor.getClass().getCanonicalName(), "org.apache.gobblin.service.modules.flow.MultiHopFlowCompilerTest.TestAzkabanSpecExecutor");
 
-    //Get the 4th hop - "Distcp from HDFS3 to ADLS-1"
+    //Get the 4th hop - "Distcp from HDFS-3 to ADLS-1"
     Assert.assertEquals(jobDag.getChildren(thirdHopNode).size(), 1);
-    Dag.DagNode<JobExecutionPlan> fourthHopNode = jobDag.getChildren(thirdHopNode).get(0);
+    DagNode<JobExecutionPlan> fourthHopNode = jobDag.getChildren(thirdHopNode).get(0);
     jobSpecWithExecutor = fourthHopNode.getValue();
     jobConfig = jobSpecWithExecutor.getJobSpec().getConfig();
-    Assert.assertEquals(jobConfig.getString("job.name"), "testFlowGroup:testFlowName:Distcp-HDFS-ADL");
+    String expectedJobName4 = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
+        join(flowGroup, flowName, "DistcpToADL", "HDFS-3", "ADLS-1");
+    String jobName4 = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
+    Assert.assertEquals(jobName4, expectedJobName4);
+    Assert.assertEquals(jobConfig.getString(ConfigurationKeys.JOB_DEPENDENCIES), jobName3);
     from = jobConfig.getString("from");
     to = jobConfig.getString("to");
     Assert.assertEquals(from, "/data/encrypted/testTeam/testDataset");
@@ -253,12 +295,62 @@ public class MultiHopFlowCompilerTest {
     Assert.assertEquals(jobDag.getEndNodes().get(0), fourthHopNode);
   }
 
+
   @Test (dependsOnMethods = "testCompileFlow")
+  public void testCompileFlowWithRetention() throws URISyntaxException, IOException {
+    FlowSpec spec = createFlowSpec("flow/flow1.conf", "LocalFS-1", "ADLS-1", true,
+        true);
+    Dag<JobExecutionPlan> jobDag = this.specCompiler.compileFlow(spec);
+    Assert.assertEquals(jobDag.getNodes().size(), 9);
+    Assert.assertEquals(jobDag.getStartNodes().size(), 2);
+    Assert.assertEquals(jobDag.getEndNodes().size(), 5);
+
+    String flowGroup = "testFlowGroup";
+    String flowName = "testFlowName";
+
+    List<DagNode<JobExecutionPlan>> currentHopNodes = jobDag.getStartNodes();
+
+    List<String> expectedJobNames = Lists.newArrayList("SnapshotRetention", "Distcp", "SnapshotRetention", "ConvertToJsonAndEncrypt", "SnapshotRetention" ,
+        "Distcp", "SnapshotRetention", "DistcpToADL", "SnapshotRetention");
+    List<String> sourceNodes = Lists.newArrayList("LocalFS-1", "LocalFS-1", "HDFS-1", "HDFS-1", "HDFS-1", "HDFS-1", "HDFS-3", "HDFS-3", "ADLS-1");
+    List<String> destinationNodes = Lists.newArrayList("LocalFS-1", "HDFS-1", "HDFS-1", "HDFS-1", "HDFS-1", "HDFS-3", "HDFS-3", "ADLS-1", "ADLS-1");
+
+    List<DagNode<JobExecutionPlan>> nextHopNodes = new ArrayList<>();
+    for (int i = 0; i < 9; i += 2) {
+      if (i < 8) {
+        Assert.assertEquals(currentHopNodes.size(), 2);
+      } else {
+        Assert.assertEquals(currentHopNodes.size(), 1);
+      }
+      Set<String> jobNames = new HashSet<>();
+      jobNames.add(Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
+          join(flowGroup, flowName, expectedJobNames.get(i), sourceNodes.get(i), destinationNodes.get(i)));
+      if (i < 8) {
+        jobNames.add(Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
+            join(flowGroup, flowName, expectedJobNames.get(i + 1), sourceNodes.get(i + 1), destinationNodes.get(i + 1)));
+      }
+
+      for (DagNode<JobExecutionPlan> dagNode : currentHopNodes) {
+        Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
+        String jobName = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
+        Assert.assertTrue(jobNames.contains(jobName));
+        log.warn(jobName);
+        nextHopNodes.addAll(jobDag.getChildren(dagNode));
+      }
+
+      currentHopNodes = nextHopNodes;
+      nextHopNodes = new ArrayList<>();
+    }
+    Assert.assertEquals(nextHopNodes.size(), 0);
+
+  }
+
+  @Test (dependsOnMethods = "testCompileFlowWithRetention")
   public void testCompileFlowAfterFirstEdgeDeletion() throws URISyntaxException, IOException {
     //Delete the self edge on HDFS-1 that performs convert-to-json-and-encrypt.
     this.flowGraph.deleteFlowEdge("HDFS-1:HDFS-1:hdfsConvertToJsonAndEncrypt");
 
-    FlowSpec spec = createFlowSpec("flow/flow.conf", "LocalFS-1", "ADLS-1");
+    FlowSpec spec = createFlowSpec("flow/flow1.conf", "LocalFS-1", "ADLS-1", false, false);
     Dag<JobExecutionPlan> jobDag = this.specCompiler.compileFlow(spec);
 
     Assert.assertEquals(jobDag.getNodes().size(), 4);
@@ -266,13 +358,18 @@ public class MultiHopFlowCompilerTest {
     Assert.assertEquals(jobDag.getEndNodes().size(), 1);
 
     //Get the 1st hop - Distcp from "LocalFS-1" to "HDFS-2"
-    Dag.DagNode<JobExecutionPlan> startNode = jobDag.getStartNodes().get(0);
+    DagNode<JobExecutionPlan> startNode = jobDag.getStartNodes().get(0);
     JobExecutionPlan jobExecutionPlan = startNode.getValue();
     JobSpec jobSpec = jobExecutionPlan.getJobSpec();
 
     //Ensure the resolved job config for the first hop has the correct substitutions.
     Config jobConfig = jobSpec.getConfig();
-    Assert.assertEquals(jobConfig.getString("job.name"), "testFlowGroup:testFlowName:Distcp-HDFS-HDFS");
+    String flowGroup = "testFlowGroup";
+    String flowName = "testFlowName";
+    String expectedJobName1 = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
+        join(flowGroup, flowName, "Distcp", "LocalFS-1", "HDFS-2");
+    String jobName1 = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
+    Assert.assertEquals(jobName1, expectedJobName1);
     String from = jobConfig.getString("from");
     String to = jobConfig.getString("to");
     Assert.assertEquals(from, "/data/out/testTeam/testDataset");
@@ -296,10 +393,14 @@ public class MultiHopFlowCompilerTest {
 
     //Get the 2nd hop - "HDFS-2 to HDFS-2 : convert avro to json and encrypt"
     Assert.assertEquals(jobDag.getChildren(startNode).size(), 1);
-    Dag.DagNode<JobExecutionPlan> secondHopNode = jobDag.getChildren(startNode).get(0);
+    DagNode<JobExecutionPlan> secondHopNode = jobDag.getChildren(startNode).get(0);
     jobExecutionPlan = secondHopNode.getValue();
     jobConfig = jobExecutionPlan.getJobSpec().getConfig();
-    Assert.assertEquals(jobConfig.getString("job.name"), "testFlowGroup:testFlowName:convert-to-json-and-encrypt");
+    String expectedJobName2 = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
+        join(flowGroup, flowName, "ConvertToJsonAndEncrypt", "HDFS-2", "HDFS-2");
+    String jobName2 = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
+    Assert.assertEquals(jobName2, expectedJobName2);
+    Assert.assertEquals(jobConfig.getString(ConfigurationKeys.JOB_DEPENDENCIES), jobName1);
     from = jobConfig.getString("from");
     to = jobConfig.getString("to");
     Assert.assertEquals(from, "/data/out/testTeam/testDataset");
@@ -312,10 +413,14 @@ public class MultiHopFlowCompilerTest {
 
     //Get the 3rd hop - "Distcp HDFS-2 to HDFS-4"
     Assert.assertEquals(jobDag.getChildren(secondHopNode).size(), 1);
-    Dag.DagNode<JobExecutionPlan> thirdHopNode = jobDag.getChildren(secondHopNode).get(0);
+    DagNode<JobExecutionPlan> thirdHopNode = jobDag.getChildren(secondHopNode).get(0);
     jobExecutionPlan = thirdHopNode.getValue();
     jobConfig = jobExecutionPlan.getJobSpec().getConfig();
-    Assert.assertEquals(jobConfig.getString("job.name"), "testFlowGroup:testFlowName:Distcp-HDFS-HDFS");
+    String expectedJobName3 = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
+        join(flowGroup, flowName, "Distcp", "HDFS-2", "HDFS-4");
+    String jobName3 = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
+    Assert.assertEquals(jobName3, expectedJobName3);
+    Assert.assertEquals(jobConfig.getString(ConfigurationKeys.JOB_DEPENDENCIES), jobName2);
     from = jobConfig.getString("from");
     to = jobConfig.getString("to");
     Assert.assertEquals(from, "/data/encrypted/testTeam/testDataset");
@@ -330,12 +435,17 @@ public class MultiHopFlowCompilerTest {
     Assert.assertEquals(specExecutor.getUri().toString(), "https://azkaban02.gobblin.net:8443");
     Assert.assertEquals(specExecutor.getClass().getCanonicalName(), "org.apache.gobblin.service.modules.flow.MultiHopFlowCompilerTest.TestAzkabanSpecExecutor");
 
-    //Get the 4th hop - "Distcp from HDFS4 to ADLS-1"
+    //Get the 4th hop - "Distcp from HDFS-4 to ADLS-1"
     Assert.assertEquals(jobDag.getChildren(thirdHopNode).size(), 1);
-    Dag.DagNode<JobExecutionPlan> fourthHopNode = jobDag.getChildren(thirdHopNode).get(0);
+    DagNode<JobExecutionPlan> fourthHopNode = jobDag.getChildren(thirdHopNode).get(0);
     jobExecutionPlan = fourthHopNode.getValue();
     jobConfig = jobExecutionPlan.getJobSpec().getConfig();
-    Assert.assertEquals(jobConfig.getString("job.name"), "testFlowGroup:testFlowName:Distcp-HDFS-ADL");
+
+    String expectedJobName4 = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
+        join(flowGroup, flowName, "DistcpToADL", "HDFS-4", "ADLS-1");
+    String jobName4 = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
+    Assert.assertEquals(jobName4, expectedJobName4);
+    Assert.assertEquals(jobConfig.getString(ConfigurationKeys.JOB_DEPENDENCIES), jobName3);
     from = jobConfig.getString("from");
     to = jobConfig.getString("to");
     Assert.assertEquals(from, "/data/encrypted/testTeam/testDataset");
@@ -362,7 +472,7 @@ public class MultiHopFlowCompilerTest {
     //Delete the self edge on HDFS-2 that performs convert-to-json-and-encrypt.
     this.flowGraph.deleteFlowEdge("HDFS-2:HDFS-2:hdfsConvertToJsonAndEncrypt");
 
-    FlowSpec spec = createFlowSpec("flow/flow.conf", "LocalFS-1", "ADLS-1");
+    FlowSpec spec = createFlowSpec("flow/flow1.conf", "LocalFS-1", "ADLS-1", false, false);
     Dag<JobExecutionPlan> jobDag = this.specCompiler.compileFlow(spec);
 
     //Ensure no path to destination.
@@ -370,38 +480,139 @@ public class MultiHopFlowCompilerTest {
   }
 
   @Test (dependsOnMethods = "testCompileFlowAfterSecondEdgeDeletion")
+  public void testCompileFlowSingleHop() throws IOException, URISyntaxException {
+    FlowSpec spec = createFlowSpec("flow/flow2.conf", "HDFS-1", "HDFS-3", false, false);
+    Dag<JobExecutionPlan> jobDag = this.specCompiler.compileFlow(spec);
+    Assert.assertEquals(jobDag.getNodes().size(), 1);
+    Assert.assertEquals(jobDag.getStartNodes().size(), 1);
+    Assert.assertEquals(jobDag.getEndNodes().size(), 1);
+    Assert.assertEquals(jobDag.getStartNodes().get(0), jobDag.getEndNodes().get(0));
+
+    //Ensure hop is from HDFS-1 to HDFS-3 i.e. jobName == "testFlowGroup_testFlowName_Distcp_HDFS-1_HDFS-3".
+    DagNode<JobExecutionPlan> dagNode = jobDag.getStartNodes().get(0);
+    Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
+    String expectedJobName = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
+        join("testFlowGroup", "testFlowName", "Distcp", "HDFS-1", "HDFS-3");
+    String jobName = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
+    Assert.assertEquals(jobName, expectedJobName);
+  }
+
+
+  @Test (dependsOnMethods = "testCompileFlowSingleHop")
   public void testMulticastPath() throws IOException, URISyntaxException {
-    FlowSpec spec = createFlowSpec("flow/multicastFlow.conf", "LocalFS-1", "HDFS-3,HDFS-4");
+    FlowSpec spec = createFlowSpec("flow/flow2.conf", "LocalFS-1", "HDFS-3,HDFS-4", false, false);
     Dag<JobExecutionPlan> jobDag = this.specCompiler.compileFlow(spec);
 
     Assert.assertEquals(jobDag.getNodes().size(), 4);
     Assert.assertEquals(jobDag.getEndNodes().size(), 2);
     Assert.assertEquals(jobDag.getStartNodes().size(), 2);
 
-    int i = 1;
     //First hop must be from LocalFS to HDFS-1 and HDFS-2
-    for (Dag.DagNode<JobExecutionPlan> dagNode : jobDag.getStartNodes()) {
-      JobExecutionPlan jobExecutionPlan = dagNode.getValue();
-      Config jobConfig = jobExecutionPlan.getJobSpec().getConfig();
-      Assert.assertEquals(jobConfig.getString("source.filebased.fs.uri"), "file:///");
-      Assert.assertEquals(jobConfig.getString("target.filebased.fs.uri"), "hdfs://hadoopnn0" + i++ + ".grid.linkedin.com:8888/");
+    Set<String> jobNames = new HashSet<>();
+    jobNames.add(Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
+        join("testFlowGroup", "testFlowName", "Distcp", "LocalFS-1", "HDFS-1"));
+    jobNames.add(Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
+        join("testFlowGroup", "testFlowName", "Distcp", "LocalFS-1", "HDFS-2"));
+
+    for (DagNode<JobExecutionPlan> dagNode : jobDag.getStartNodes()) {
+      Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
+      String jobName = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
+      Assert.assertTrue(jobNames.contains(jobName));
     }
 
-    i = 1;
     //Second hop must be from HDFS-1/HDFS-2 to HDFS-3/HDFS-4 respectively.
-    for (Dag.DagNode<JobExecutionPlan> dagNode : jobDag.getStartNodes()) {
-      List<Dag.DagNode<JobExecutionPlan>> nextNodes = jobDag.getChildren(dagNode);
+    jobNames = new HashSet<>();
+    jobNames.add(Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
+        join("testFlowGroup", "testFlowName", "Distcp", "HDFS-1", "HDFS-3"));
+    jobNames.add(Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
+        join("testFlowGroup", "testFlowName", "Distcp", "HDFS-2", "HDFS-4"));
+    for (DagNode<JobExecutionPlan> dagNode : jobDag.getStartNodes()) {
+      List<DagNode<JobExecutionPlan>> nextNodes = jobDag.getChildren(dagNode);
       Assert.assertEquals(nextNodes.size(), 1);
-      JobExecutionPlan jobExecutionPlan = nextNodes.get(0).getValue();
-      Config jobConfig = jobExecutionPlan.getJobSpec().getConfig();
-      Assert.assertEquals(jobConfig.getString("source.filebased.fs.uri"), "hdfs://hadoopnn0" + i + ".grid.linkedin.com:8888/");
-      Assert.assertEquals(jobConfig.getString("target.filebased.fs.uri"), "hdfs://hadoopnn0" + (i + 2) + ".grid.linkedin.com:8888/");
-      i += 1;
+      Config jobConfig = nextNodes.get(0).getValue().getJobSpec().getConfig();
+      String jobName = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
+      Assert.assertTrue(jobNames.contains(jobName));
+    }
+  }
+
+  @Test (dependsOnMethods = "testMulticastPath")
+  public void testGitFlowGraphMonitorService()
+      throws IOException, GitAPIException, URISyntaxException, InterruptedException {
+    File remoteDir = new File(TESTDIR + "/remote");
+    File cloneDir = new File(TESTDIR + "/clone");
+    File flowGraphDir = new File(cloneDir, "/gobblin-flowgraph");
+
+    //Clean up
+    cleanUpDir(TESTDIR);
+
+    // Create a bare repository
+    RepositoryCache.FileKey fileKey = RepositoryCache.FileKey.exact(remoteDir, FS.DETECTED);
+    Repository remoteRepo = fileKey.open(false);
+    remoteRepo.create(true);
+
+    Git gitForPush = Git.cloneRepository().setURI(remoteRepo.getDirectory().getAbsolutePath()).setDirectory(cloneDir).call();
+
+    // push an empty commit as a base for detecting changes
+    gitForPush.commit().setMessage("First commit").call();
+    RefSpec masterRefSpec = new RefSpec("master");
+    gitForPush.push().setRemote("origin").setRefSpecs(masterRefSpec).call();
+
+    URI flowTemplateCatalogUri = this.getClass().getClassLoader().getResource("template_catalog").toURI();
+
+    Config config = ConfigBuilder.create()
+        .addPrimitive(GitFlowGraphMonitor.GIT_FLOWGRAPH_MONITOR_PREFIX + "."
+            + ConfigurationKeys.GIT_MONITOR_REPO_URI, remoteRepo.getDirectory().getAbsolutePath())
+        .addPrimitive(GitFlowGraphMonitor.GIT_FLOWGRAPH_MONITOR_PREFIX + "." + ConfigurationKeys.GIT_MONITOR_REPO_DIR, TESTDIR + "/git-flowgraph")
+        .addPrimitive(GitFlowGraphMonitor.GIT_FLOWGRAPH_MONITOR_PREFIX + "." + ConfigurationKeys.GIT_MONITOR_POLLING_INTERVAL, 5)
+        .addPrimitive(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY, flowTemplateCatalogUri.toString())
+        .build();
+
+    //Create a MultiHopFlowCompiler instance
+    specCompiler = new MultiHopFlowCompiler(config, Optional.absent(), false);
+
+    //Ensure node1 is not present in the graph
+    Assert.assertNull(specCompiler.getFlowGraph().getNode("node1"));
+
+    // push a new node file
+    File nodeDir = new File(flowGraphDir, "node1");
+    File nodeFile = new File(nodeDir, "node1.properties");
+    nodeDir.mkdirs();
+    nodeFile.createNewFile();
+    Files.write(FlowGraphConfigurationKeys.DATA_NODE_IS_ACTIVE_KEY + "=true\nparam1=val1" + "\n", nodeFile, Charsets.UTF_8);
+
+    // add, commit, push node
+    gitForPush.add().addFilepattern(formNodeFilePath(flowGraphDir, nodeDir.getName(), nodeFile.getName())).call();
+    gitForPush.commit().setMessage("Node commit").call();
+    gitForPush.push().setRemote("origin").setRefSpecs(masterRefSpec).call();
+
+    // polling is every 5 seconds, so wait twice as long and check
+    TimeUnit.SECONDS.sleep(10);
+
+    //Test that a DataNode is added to FlowGraph
+    DataNode dataNode = specCompiler.getFlowGraph().getNode("node1");
+    Assert.assertEquals(dataNode.getId(), "node1");
+    Assert.assertEquals(dataNode.getRawConfig().getString("param1"), "val1");
+  }
+
+  private String formNodeFilePath(File flowGraphDir, String groupDir, String fileName) {
+    return flowGraphDir.getName() + SystemUtils.FILE_SEPARATOR + groupDir + SystemUtils.FILE_SEPARATOR + fileName;
+  }
+
+  private void cleanUpDir(String dir) throws IOException {
+    File dirToDelete = new File(dir);
+    if (dirToDelete.exists()) {
+      FileUtils.deleteDirectory(new File(dir));
     }
   }
 
   @AfterClass
-  public void tearDown() {
+  public void tearDown() throws IOException {
+    cleanUpDir(TESTDIR);
+    try {
+      this.specCompiler.getServiceManager().stopAsync().awaitStopped(5, TimeUnit.SECONDS);
+    } catch (Exception e) {
+      log.warn("Could not stop Service Manager");
+    }
   }
 
   public static class TestAzkabanSpecExecutor extends AbstractSpecExecutor {

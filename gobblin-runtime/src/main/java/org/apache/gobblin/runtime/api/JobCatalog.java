@@ -18,14 +18,16 @@ package org.apache.gobblin.runtime.api;
 
 import java.net.URI;
 import java.util.Collection;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
+
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -34,14 +36,10 @@ import org.apache.gobblin.instrumented.Instrumentable;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
 import org.apache.gobblin.metrics.ContextAwareGauge;
-import org.apache.gobblin.metrics.ContextAwareMetric;
 import org.apache.gobblin.metrics.ContextAwareTimer;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.util.ConfigUtils;
-
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -56,8 +54,9 @@ public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable
    * ({@link #isInstrumentationEnabled()}) is false. */
   JobCatalog.StandardMetrics getMetrics();
 
-  default StandardMetricsBridge.StandardMetrics getStandardMetrics() {
-    return getMetrics();
+  default Collection<StandardMetricsBridge.StandardMetrics> getStandardMetricsCollection() {
+    JobCatalog.StandardMetrics standardMetrics = getMetrics();
+    return standardMetrics == null? ImmutableList.of() : ImmutableList.of(standardMetrics);
   }
 
   /**
