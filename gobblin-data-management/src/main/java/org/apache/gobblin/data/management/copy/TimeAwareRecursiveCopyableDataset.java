@@ -43,8 +43,8 @@ public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset 
   private static final String CONFIG_PREFIX = CopyConfiguration.COPY_PREFIX + ".recursive";
   public static final String DATE_PATTERN_KEY = CONFIG_PREFIX + ".date.pattern";
   public static final String LOOKBACK_TIME_KEY = CONFIG_PREFIX + ".lookback.time";
-  public static final String DEFAULT_DATE_TIME_PATTERN_TIMEZONE = ConfigurationKeys.PST_TIMEZONE_NAME;
-  public static final String DATE_TIME_PATTERN_TIMEZONE_KEY = CONFIG_PREFIX + ".datetime.timezone";
+  public static final String DEFAULT_DATE_PATTERN_TIMEZONE = ConfigurationKeys.PST_TIMEZONE_NAME;
+  public static final String DATE_PATTERN_TIMEZONE_KEY = CONFIG_PREFIX + ".datetime.timezone";
 
   private final String lookbackTime;
   private final String datePattern;
@@ -59,9 +59,9 @@ public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset 
     this.lookbackPeriod = periodFormatter.parsePeriod(lookbackTime);
     this.datePattern = properties.getProperty(DATE_PATTERN_KEY);
     this.isPatternHourly = isDatePatternHourly(datePattern);
-    this.currentTime = properties.containsKey(DATE_TIME_PATTERN_TIMEZONE_KEY) ? LocalDateTime.now(
-        DateTimeZone.forID(DATE_TIME_PATTERN_TIMEZONE_KEY))
-        : LocalDateTime.now(DateTimeZone.forID(DEFAULT_DATE_TIME_PATTERN_TIMEZONE));
+    this.currentTime = properties.containsKey(DATE_PATTERN_TIMEZONE_KEY) ? LocalDateTime.now(
+        DateTimeZone.forID(DATE_PATTERN_TIMEZONE_KEY))
+        : LocalDateTime.now(DateTimeZone.forID(DEFAULT_DATE_PATTERN_TIMEZONE));
 
     //Daily directories cannot have a "hourly" lookback pattern. But hourly directories can accept lookback pattern with days.
     if (!this.isPatternHourly) {
