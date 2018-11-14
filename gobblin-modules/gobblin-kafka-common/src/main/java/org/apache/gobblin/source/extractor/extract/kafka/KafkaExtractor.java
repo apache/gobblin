@@ -370,8 +370,9 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
 
   @Override
   public void close() throws IOException {
-
-    updateStatisticsForCurrentPartition();
+    if (currentPartitionIdx != INITIAL_PARTITION_IDX) {
+      updateStatisticsForCurrentPartition();
+    }
 
     Map<KafkaPartition, Map<String, String>> tagsForPartitionsMap = Maps.newHashMap();
 
