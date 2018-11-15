@@ -21,13 +21,10 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.BlockLocation;
@@ -73,8 +70,7 @@ public class GobblinWorkUnitsInputFormat extends InputFormat<LongWritable, Text>
 
   private static final String MAX_MAPPERS = GobblinWorkUnitsInputFormat.class.getName() + ".maxMappers";
 
-  private static final int MIN_LOCATION_NAMES = 3;
-  private static final double LOCALITY_THRESHOLD = 0.75;
+  private static final double LOCALITY_THRESHOLD = 0.8;
 
   /**
    * Set max mappers used in MR job.
@@ -97,7 +93,8 @@ public class GobblinWorkUnitsInputFormat extends InputFormat<LongWritable, Text>
     }
 
     List<String> allPaths = Lists.newArrayList();
-    Map<String, Collection<String>> blockLocationNamesForWorkUnitPaths = Maps.newHashMap();
+    Map<String, Long> workUnitLengths = Maps.newHashMap();
+    Map<String, Map<String, Long>> workUnitBlkLocationsMap = Maps.newHashMap();
 
     for (Path path : inputPaths) {
       // path is a single work unit / multi work unit
@@ -112,8 +109,8 @@ public class GobblinWorkUnitsInputFormat extends InputFormat<LongWritable, Text>
 
       for (FileStatus input : inputs) {
         allPaths.add(input.getPath().toString());
-        blockLocationNamesForWorkUnitPaths.put(input.getPath().toString(),
-            getSplitHosts(fs, getFlattenedWorkUnitList(fs, input.getPath())));
+        workUnitLengths.put(input.getPath().toString(),
+            getBlockHostsAndLengths(fs, input.getPath(), workUnitBlkLocationsMap));
       }
     }
 
@@ -127,23 +124,51 @@ public class GobblinWorkUnitsInputFormat extends InputFormat<LongWritable, Text>
       Iterator<String> limitedIterator = Iterators.limit(pathsIt, numTasksPerMapper);
 
       List<String> splitPaths = Lists.newArrayList();
-      List<String> splitBlockLocationNames = Lists.newArrayList();
+      Long splitLength = 0L;
+      Map<String, Long> splitBlkLocationNamesAndLengths = Maps.newHashMap();
 
       while (limitedIterator.hasNext()) {
         String path = limitedIterator.next();
         splitPaths.add(path);
-        splitBlockLocationNames.addAll(blockLocationNamesForWorkUnitPaths.get(path));
+        splitLength += workUnitLengths.get(path);
+
+        for (Map.Entry<String, Long> entry : workUnitBlkLocationsMap.get(path).entrySet()) {
+          splitBlkLocationNamesAndLengths.put(entry.getKey(),
+              splitBlkLocationNamesAndLengths.getOrDefault(entry.getKey(), 0L) + entry.getValue());
+        }
       }
 
-      splits.add(new GobblinSplit(splitPaths,
-          splitBlockLocationNames.toArray(new String[splitBlockLocationNames.size()])));
+      // Sort list of block location names for split, then choose top locations to use for split, based on amount of
+      // relevant data in the node
+      List<Map.Entry<String, Long>> splitBlkLocationNamesOrderedByLength =
+          Lists.newArrayList(splitBlkLocationNamesAndLengths.entrySet());
+      splitBlkLocationNamesOrderedByLength.sort((e1, e2) -> Long.compare(e2.getValue(), e1.getValue()));
+
+      int endIdx = 0;
+      while (endIdx < splitBlkLocationNamesOrderedByLength.size() &&
+          (double) splitBlkLocationNamesOrderedByLength.get(endIdx).getValue() / splitLength >= LOCALITY_THRESHOLD) {
+        endIdx += 1;
+      }
+
+      // Should add at least one node name, if available, even if no nodes contain amount greater than threshold
+      if (endIdx == 0 && splitBlkLocationNamesOrderedByLength.size() > 0) {
+        endIdx = 1;
+        long maxLen = splitBlkLocationNamesOrderedByLength.get(0).getValue();
+        while (endIdx < splitBlkLocationNamesOrderedByLength.size() &&
+            splitBlkLocationNamesOrderedByLength.get(endIdx).getValue() == maxLen) {
+          endIdx += 1;
+        }
+      }
+
+      splits.add(new GobblinSplit(splitPaths, splitLength, splitBlkLocationNamesOrderedByLength.subList(0, endIdx)
+          .stream().map(Map.Entry::getKey).toArray(String[]::new)));
     }
 
     return splits;
   }
 
   /**
-   * Deserializes the work unit file from the {@link Path} and if it is a multi work unit file, flattens it into a list.
+   * Deserializes the work unit file and if it is a multi work unit, flattens the work units contained into a list.
    * @param fs {@link FileSystem} where the work unit file is located
    * @param workUnitFile {@link Path} to the work unit file
    * @return list of {@link WorkUnit}s represented by the work unit file
@@ -169,21 +194,20 @@ public class GobblinWorkUnitsInputFormat extends InputFormat<LongWritable, Text>
   }
 
   /**
-   * To allow for data locality in the MR framework, the InputSplits created need to provide a String[] of block
-   * location names in the getLocations method. This can be done by passing in the locations when creating the split.
-   * This method calculates the block location names to use from the list of {@link WorkUnit}s to be processed by a split.
-   * We identify and return a collection containing the top block location names that contribute the most to the split.
-   * @param fs {@link FileSystem} where the files to be read by the work units in workUnits are located.
-   * @param workUnits {@link WorkUnit}s to be processed by a split
-   * @return Collection of location names to be used to create the split for the list of work units passed in.
+   * Deserializes the work unit given and determines the block locations and lengths of the data represented by the
+   * work unit, which is used to update the map passed in as an argument.
+   * @param fs {@link FileSystem} where the work unit is located
+   * @param workUnitPath {@link Path} of a work unit file to get block locations for
+   * @param workUnitBlkLocationsMap {@link Map} of work unit paths to node name and length maps, updated by this method
+   * @return total length of data to be processed for the work unit
    * @throws IOException
    */
-  @VisibleForTesting
-  Collection<String> getSplitHosts(FileSystem fs, List<WorkUnit> workUnits) throws IOException {
+  private long getBlockHostsAndLengths(FileSystem fs, Path workUnitPath,
+      Map<String, Map<String, Long>> workUnitBlkLocationsMap) throws IOException {
     long totalWorkUnitLength = 0L;
-    HashMap<String, Long> lengthsForBlkLocationNames = Maps.newHashMap();
+    Map<String, Long> lengthsForBlkLocationNames = Maps.newHashMap();
 
-    for (WorkUnit workUnit : workUnits) {
+    for (WorkUnit workUnit : getFlattenedWorkUnitList(fs, workUnitPath)) {
       if (!workUnit.contains(ConfigurationKeys.GOBBLIN_SPLIT_FILE_PATH)) {
         log.warn(String.format("Skipping block location retrieval for work unit with missing split file path - %s",
             workUnit.toString()));
@@ -195,44 +219,28 @@ public class GobblinWorkUnitsInputFormat extends InputFormat<LongWritable, Text>
       long splitLength = (workUnit.contains(ConfigurationKeys.GOBBLIN_SPLIT_FILE_HIGH_POSITION) ?
           workUnit.getPropAsLong(ConfigurationKeys.GOBBLIN_SPLIT_FILE_HIGH_POSITION) :
           fs.getFileStatus(filePath).getLen()) - splitOffset;
-
       totalWorkUnitLength += splitLength;
+
       BlockLocation[] blkLocations = fs.getFileBlockLocations(filePath, splitOffset, splitLength);
+      if (blkLocations != null) {
+        for (int i = 0; i < blkLocations.length; ++i) {
+          long bytesInThisBlock = blkLocations[i].getLength();
+          if (i == 0) {
+            bytesInThisBlock += blkLocations[i].getOffset() - splitOffset;
+          } else if (i == blkLocations.length - 1) {
+            bytesInThisBlock = splitOffset + splitLength - blkLocations[i].getOffset();
+          }
 
-      for (int i = 0; i < blkLocations.length; ++i) {
-        long bytesInThisBlock = blkLocations[i].getLength();
-        if (i == 0) {
-          bytesInThisBlock += blkLocations[i].getOffset() - splitOffset;
-        } else if (i == blkLocations.length - 1) {
-          bytesInThisBlock = splitOffset + splitLength - blkLocations[i].getOffset();
-        }
-
-        for (String blkLocationName : blkLocations[i].getHosts()) {
-          lengthsForBlkLocationNames.put(blkLocationName,
-              lengthsForBlkLocationNames.getOrDefault(blkLocationName, 0L) + bytesInThisBlock);
+          for (String blkLocationName : blkLocations[i].getHosts()) {
+            lengthsForBlkLocationNames.put(blkLocationName,
+                lengthsForBlkLocationNames.getOrDefault(blkLocationName, 0L) + bytesInThisBlock);
+          }
         }
       }
     }
 
-    List<Map.Entry<String, Long>> blkLocationNamesOrderedByLength =
-        Lists.newArrayList(lengthsForBlkLocationNames.entrySet());
-    blkLocationNamesOrderedByLength.sort((e1, e2) -> {
-      long test = e2.getValue() - e1.getValue();
-      return (test != 0 ? (test > 0 ? 1 : -1) : 0);
-    });
-
-    long minLength = Long.MAX_VALUE;
-    int endIdx = 0;
-
-    while (endIdx < blkLocationNamesOrderedByLength.size() && (endIdx < MIN_LOCATION_NAMES ||
-        blkLocationNamesOrderedByLength.get(endIdx).getValue() == minLength ||
-        (double) blkLocationNamesOrderedByLength.get(endIdx).getValue() / totalWorkUnitLength >= LOCALITY_THRESHOLD)) {
-      minLength = blkLocationNamesOrderedByLength.get(endIdx).getValue();
-      endIdx += 1;
-    }
-
-    return blkLocationNamesOrderedByLength.subList(0, endIdx).stream()
-        .map(Map.Entry::getKey).collect(Collectors.toList());
+    workUnitBlkLocationsMap.put(workUnitPath.toString(), lengthsForBlkLocationNames);
+    return totalWorkUnitLength;
   }
 
   @Override
@@ -258,6 +266,11 @@ public class GobblinWorkUnitsInputFormat extends InputFormat<LongWritable, Text>
     private List<String> paths;
 
     /**
+     * Total length of the data to be processed represented by the work units
+     */
+    private long totalLength;
+
+    /**
      * Locations (names of nodes) of blocks of files specified in the split's work unit files defined by paths
      */
     private String[] blockLocationNames;
@@ -265,19 +278,23 @@ public class GobblinWorkUnitsInputFormat extends InputFormat<LongWritable, Text>
     @Override
     public void write(DataOutput out)
         throws IOException {
+      out.writeLong(this.totalLength);
       out.writeInt(this.paths.size());
       for (String path : this.paths) {
         out.writeUTF(path);
       }
-      out.writeInt(this.blockLocationNames.length);
-      for (String blockLocationName : this.blockLocationNames) {
-        out.writeUTF(blockLocationName);
+      out.writeInt(this.blockLocationNames == null ? 0 : this.blockLocationNames.length);
+      if (this.blockLocationNames != null) {
+        for (String blockLocationName : this.blockLocationNames) {
+          out.writeUTF(blockLocationName);
+        }
       }
     }
 
     @Override
     public void readFields(DataInput in)
         throws IOException {
+      this.totalLength = in.readLong();
       int numPaths = in.readInt();
       this.paths = Lists.newArrayListWithExpectedSize(numPaths);
       for (int i = 0; i < numPaths; i++) {
@@ -293,7 +310,7 @@ public class GobblinWorkUnitsInputFormat extends InputFormat<LongWritable, Text>
     @Override
     public long getLength()
         throws IOException, InterruptedException {
-      return 0;
+      return totalLength;
     }
 
     @Override
