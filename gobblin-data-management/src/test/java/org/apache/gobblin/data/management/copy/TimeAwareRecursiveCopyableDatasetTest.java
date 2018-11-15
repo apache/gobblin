@@ -142,7 +142,7 @@ public class TimeAwareRecursiveCopyableDatasetTest {
     //Lookback time = "2d"
     datePattern = "yyyy/MM/dd";
     formatter = DateTimeFormat.forPattern(datePattern);
-    endDate = LocalDateTime.now();
+    endDate = LocalDateTime.now(DateTimeZone.forID(TimeAwareRecursiveCopyableDataset.DEFAULT_DATE_PATTERN_TIMEZONE));
 
     candidateFiles = new HashSet<>();
     for (int i = 0; i < MAX_NUM_DAILY_DIRS; i++) {
