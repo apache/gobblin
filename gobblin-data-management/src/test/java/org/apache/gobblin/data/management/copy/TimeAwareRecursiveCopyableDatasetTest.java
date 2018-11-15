@@ -28,6 +28,7 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
+import org.joda.time.DateTimeZone;
 import org.joda.time.LocalDateTime;
 import org.joda.time.Period;
 import org.joda.time.format.DateTimeFormat;
@@ -83,7 +84,7 @@ public class TimeAwareRecursiveCopyableDatasetTest {
     String datePattern = "yyyy/MM/dd/HH";
     DateTimeFormatter formatter = DateTimeFormat.forPattern(datePattern);
 
-    LocalDateTime endDate = LocalDateTime.now();
+    LocalDateTime endDate = LocalDateTime.now(DateTimeZone.forID(TimeAwareRecursiveCopyableDataset.DEFAULT_DATE_PATTERN_TIMEZONE));
 
     Set<String> candidateFiles = new HashSet<>();
     for (int i = 0; i < MAX_NUM_HOURLY_DIRS; i++) {
@@ -141,7 +142,7 @@ public class TimeAwareRecursiveCopyableDatasetTest {
     //Lookback time = "2d"
     datePattern = "yyyy/MM/dd";
     formatter = DateTimeFormat.forPattern(datePattern);
-    endDate = LocalDateTime.now();
+    endDate = LocalDateTime.now(DateTimeZone.forID(TimeAwareRecursiveCopyableDataset.DEFAULT_DATE_PATTERN_TIMEZONE));
 
     candidateFiles = new HashSet<>();
     for (int i = 0; i < MAX_NUM_DAILY_DIRS; i++) {

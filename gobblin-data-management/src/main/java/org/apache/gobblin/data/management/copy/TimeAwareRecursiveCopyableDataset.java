@@ -26,6 +26,7 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
+import org.joda.time.DateTimeZone;
 import org.joda.time.LocalDateTime;
 import org.joda.time.Period;
 import org.joda.time.format.DateTimeFormat;
@@ -36,15 +37,20 @@ import org.testng.Assert;
 
 import com.google.common.collect.Lists;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
+
 public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset {
   private static final String CONFIG_PREFIX = CopyConfiguration.COPY_PREFIX + ".recursive";
   public static final String DATE_PATTERN_KEY = CONFIG_PREFIX + ".date.pattern";
   public static final String LOOKBACK_TIME_KEY = CONFIG_PREFIX + ".lookback.time";
+  public static final String DEFAULT_DATE_PATTERN_TIMEZONE = ConfigurationKeys.PST_TIMEZONE_NAME;
+  public static final String DATE_PATTERN_TIMEZONE_KEY = CONFIG_PREFIX + ".datetime.timezone";
 
   private final String lookbackTime;
   private final String datePattern;
   private final Period lookbackPeriod;
   private final boolean isPatternHourly;
+  private final LocalDateTime currentTime;
 
   public TimeAwareRecursiveCopyableDataset(FileSystem fs, Path rootPath, Properties properties, Path glob) {
     super(fs, rootPath, properties, glob);
@@ -53,6 +59,9 @@ public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset 
     this.lookbackPeriod = periodFormatter.parsePeriod(lookbackTime);
     this.datePattern = properties.getProperty(DATE_PATTERN_KEY);
     this.isPatternHourly = isDatePatternHourly(datePattern);
+    this.currentTime = properties.containsKey(DATE_PATTERN_TIMEZONE_KEY) ? LocalDateTime.now(
+        DateTimeZone.forID(DATE_PATTERN_TIMEZONE_KEY))
+        : LocalDateTime.now(DateTimeZone.forID(DEFAULT_DATE_PATTERN_TIMEZONE));
 
     //Daily directories cannot have a "hourly" lookback pattern. But hourly directories can accept lookback pattern with days.
     if (!this.isPatternHourly) {
@@ -111,7 +120,7 @@ public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset 
   @Override
   protected List<FileStatus> getFilesAtPath(FileSystem fs, Path path, PathFilter fileFilter) throws IOException {
     DateTimeFormatter formatter = DateTimeFormat.forPattern(datePattern);
-    LocalDateTime endDate = LocalDateTime.now();
+    LocalDateTime endDate = currentTime;
     LocalDateTime startDate = endDate.minus(this.lookbackPeriod);
 
     DateRangeIterator dateRangeIterator = new DateRangeIterator(startDate, endDate, isPatternHourly);
