@@ -19,6 +19,7 @@ package org.apache.gobblin.service;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Collections;
 import java.util.Properties;
 
 import org.apache.commons.lang.StringUtils;
@@ -205,8 +206,9 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
     }
 
     Config config = configBuilder.build();
-    Config configWithFallback = config.withFallback(ConfigFactory.parseMap(flowConfig.getProperties()));
-
+    //We allow for flowConfig to be in HOCON format. We first convert the StringMap object to a String object and
+    // then use ConfigFactory#parseString() to parse the HOCON string.
+    Config configWithFallback = config.withFallback(ConfigFactory.parseString(flowConfig.getProperties().toString()).resolve());
     try {
       URI templateURI = new URI(flowConfig.getTemplateUris());
       return FlowSpec.builder().withConfig(configWithFallback).withTemplate(templateURI).build();
