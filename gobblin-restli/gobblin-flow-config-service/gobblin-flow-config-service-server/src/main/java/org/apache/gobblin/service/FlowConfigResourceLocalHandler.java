@@ -19,7 +19,6 @@ package org.apache.gobblin.service;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Collections;
 import java.util.Properties;
 
 import org.apache.commons.lang.StringUtils;
