@@ -30,6 +30,7 @@ import com.typesafe.config.ConfigValueFactory;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
+import org.apache.gobblin.azkaban.AzkabanJobLauncher;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.JobSpec;
@@ -102,6 +103,9 @@ public class JobExecutionPlan {
 
       // Remove schedule
       jobSpec.setConfig(jobSpec.getConfig().withoutPath(ConfigurationKeys.JOB_SCHEDULE_KEY));
+
+      //Remove template uri
+      jobSpec.setConfig(jobSpec.getConfig().withoutPath(AzkabanJobLauncher.TEMPLATE_KEY));
 
       // Add job.name and job.group
       jobSpec.setConfig(jobSpec.getConfig().withValue(ConfigurationKeys.JOB_NAME_KEY, ConfigValueFactory.fromAnyRef(jobName)));
