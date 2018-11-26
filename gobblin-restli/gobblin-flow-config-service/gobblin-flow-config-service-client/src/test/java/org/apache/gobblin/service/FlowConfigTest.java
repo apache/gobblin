@@ -82,10 +82,15 @@ public class FlowConfigTest {
     Injector injector = Guice.createInjector(new Module() {
        @Override
        public void configure(Binder binder) {
-         binder.bind(FlowConfigsResourceHandler.class).annotatedWith(Names.named(FlowConfigsResource.FLOW_CONFIG_GENERATOR_INJECT_NAME)).toInstance(new FlowConfigResourceLocalHandler(flowCatalog));
+         binder.bind(FlowConfigsResourceHandler.class)
+             .annotatedWith(Names.named(FlowConfigsResource.INJECT_FLOW_CONFIG_RESOURCE_HANDLER))
+             .toInstance(new FlowConfigResourceLocalHandler(flowCatalog));
+
          // indicate that we are in unit testing since the resource is being blocked until flow catalog changes have
          // been made
-         binder.bindConstant().annotatedWith(Names.named("readyToUse")).to(Boolean.TRUE);
+         binder.bindConstant().annotatedWith(Names.named(FlowConfigsResource.INJECT_READY_TO_USE)).to(Boolean.TRUE);
+         binder.bind(RequesterService.class)
+             .annotatedWith(Names.named(FlowConfigsResource.INJECT_REQUESTER_SERVICE)).toInstance(new NoopRequesterService(config));
        }
     });
 

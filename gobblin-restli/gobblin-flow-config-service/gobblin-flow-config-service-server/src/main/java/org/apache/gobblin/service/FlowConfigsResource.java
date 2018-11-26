@@ -17,6 +17,8 @@
 
 package org.apache.gobblin.service;
 
+import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -25,15 +27,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableSet;
-import com.google.inject.Inject;
-import com.google.inject.name.Named;
+import javax.inject.Inject;
+import javax.inject.Named;
+
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
+import com.linkedin.restli.common.HttpStatus;
 import com.linkedin.restli.server.CreateResponse;
 import com.linkedin.restli.server.UpdateResponse;
 import com.linkedin.restli.server.annotations.RestLiCollection;
 import com.linkedin.restli.server.resources.ComplexKeyResourceTemplate;
-
 
 /**
  * Resource for handling flow configuration requests
@@ -41,21 +44,26 @@ import com.linkedin.restli.server.resources.ComplexKeyResourceTemplate;
 @RestLiCollection(name = "flowconfigs", namespace = "org.apache.gobblin.service", keyName = "id")
 public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, EmptyRecord, FlowConfig> {
   private static final Logger LOG = LoggerFactory.getLogger(FlowConfigsResource.class);
-  public static final String FLOW_CONFIG_GENERATOR_INJECT_NAME = "flowConfigsResourceHandler";
+
+  public static final String INJECT_FLOW_CONFIG_RESOURCE_HANDLER = "flowConfigsResourceHandler";
+  public static final String INJECT_REQUESTER_SERVICE = "requesterService";
+  public static final String INJECT_READY_TO_USE = "readToUse";
+
   private static final Set<String> ALLOWED_METADATA = ImmutableSet.of("delete.state.store");
 
-
-  @edu.umd.cs.findbugs.annotations.SuppressWarnings("MS_SHOULD_BE_FINAL")
-  public static FlowConfigsResourceHandler global_flowConfigsResourceHandler = null;
-
   @Inject
-  @Named(FLOW_CONFIG_GENERATOR_INJECT_NAME)
+  @Named(INJECT_FLOW_CONFIG_RESOURCE_HANDLER)
   private FlowConfigsResourceHandler flowConfigsResourceHandler;
+
+  // For getting who sends the request
+  @Inject
+  @Named(INJECT_REQUESTER_SERVICE)
+  private RequesterService requesterService;
 
   // For blocking use of this resource until it is ready
   @Inject
-  @Named("readyToUse")
-  private Boolean readyToUse = Boolean.FALSE;
+  @Named(INJECT_READY_TO_USE)
+  private Boolean readyToUse;
 
   public FlowConfigsResource() {
   }
@@ -70,7 +78,7 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, Empt
     String flowGroup = key.getKey().getFlowGroup();
     String flowName = key.getKey().getFlowName();
     FlowId flowId = new FlowId().setFlowGroup(flowGroup).setFlowName(flowName);
-    return this.getFlowConfigResourceHandler().getFlowConfig(flowId);
+    return this.flowConfigsResourceHandler.getFlowConfig(flowId);
   }
 
   /**
@@ -80,7 +88,17 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, Empt
    */
   @Override
   public CreateResponse create(FlowConfig flowConfig) {
-    return this.getFlowConfigResourceHandler().createFlowConfig(flowConfig);
+    List<ServiceRequester> requestorList = this.requesterService.findRequesters(this);
+
+    try {
+      String serialized = this.requesterService.serialize(requestorList);
+      flowConfig.getProperties().put(RequesterService.REQUESTER_LIST, serialized);
+      LOG.info("Rest requester list is " + serialized);
+    } catch (IOException e) {
+      throw new FlowConfigLoggedException(HttpStatus.S_401_UNAUTHORIZED,
+          "cannot get who is the requester", e);
+    }
+    return this.flowConfigsResourceHandler.createFlowConfig(flowConfig);
   }
 
   /**
@@ -95,7 +113,7 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, Empt
     String flowGroup = key.getKey().getFlowGroup();
     String flowName = key.getKey().getFlowName();
     FlowId flowId = new FlowId().setFlowGroup(flowGroup).setFlowName(flowName);
-    return this.getFlowConfigResourceHandler().updateFlowConfig(flowId, flowConfig);
+    return this.flowConfigsResourceHandler.updateFlowConfig(flowId, flowConfig);
   }
 
   /**
@@ -108,15 +126,7 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, Empt
     String flowGroup = key.getKey().getFlowGroup();
     String flowName = key.getKey().getFlowName();
     FlowId flowId = new FlowId().setFlowGroup(flowGroup).setFlowName(flowName);
-    return this.getFlowConfigResourceHandler().deleteFlowConfig(flowId, getHeaders());
-  }
-
-  private FlowConfigsResourceHandler getFlowConfigResourceHandler() {
-    if (global_flowConfigsResourceHandler != null) {
-      return global_flowConfigsResourceHandler;
-    }
-
-    return flowConfigsResourceHandler;
+    return this.flowConfigsResourceHandler.deleteFlowConfig(flowId, getHeaders());
   }
 
   private Properties getHeaders() {
