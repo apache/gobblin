@@ -157,9 +157,18 @@ public class MRJobLauncher extends AbstractJobLauncher {
     this(jobProps, new Configuration(), instanceBroker);
   }
 
-  public MRJobLauncher(Properties jobProps, Configuration conf, SharedResourcesBroker<GobblinScopeTypes> instanceBroker)
+  public MRJobLauncher(Properties jobProps, Configuration conf, SharedResourcesBroker<GobblinScopeTypes> instanceBroker) throws Exception {
+    this(jobProps, conf, instanceBroker, ImmutableList.of());
+  }
+
+  public MRJobLauncher(Properties jobProps, SharedResourcesBroker<GobblinScopeTypes> instanceBroker, List<? extends Tag<?>> metadataTags) throws Exception {
+    this(jobProps, new Configuration(), instanceBroker, metadataTags);
+  }
+
+
+  public MRJobLauncher(Properties jobProps, Configuration conf, SharedResourcesBroker<GobblinScopeTypes> instanceBroker,List<? extends Tag<?>> metadataTags)
       throws Exception {
-    super(jobProps, ImmutableList.<Tag<?>>of());
+    super(jobProps, metadataTags);
 
     this.conf = conf;
     // Put job configuration properties into the Hadoop configuration so they are available in the mappers
