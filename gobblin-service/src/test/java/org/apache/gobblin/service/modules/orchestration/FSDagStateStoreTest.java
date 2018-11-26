@@ -52,11 +52,11 @@ public class FSDagStateStoreTest {
 
   @BeforeClass
   public void setUp() throws IOException {
+    this.checkpointDir = new File(dagStateStoreDir);
+    FileUtils.deleteDirectory(this.checkpointDir);
     Config config = ConfigFactory.empty().withValue(DagManager.DAG_STATESTORE_DIR, ConfigValueFactory.fromAnyRef(
         this.dagStateStoreDir));
     this._dagStateStore = new FSDagStateStore(config);
-    this.checkpointDir = new File(dagStateStoreDir);
-    FileUtils.deleteDirectory(this.checkpointDir);
   }
 
   /**
@@ -128,8 +128,8 @@ public class FSDagStateStoreTest {
 
   @Test (dependsOnMethods = "testCleanUp")
   public void testGetDags() throws IOException, URISyntaxException {
-    //Delete dag checkpoint dir
-    FileUtils.deleteDirectory(this.checkpointDir);
+    //Set up a new FSDagStateStore instance.
+    setUp();
     List<Long> flowExecutionIds = Lists.newArrayList(System.currentTimeMillis(), System.currentTimeMillis() + 1);
     for (int i = 0; i < 2; i++) {
       String flowGroupId = Integer.toString(i);
