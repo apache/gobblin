@@ -57,8 +57,15 @@ public class FSDagStateStore implements DagStateStore {
   private final String dagCheckpointDir;
   private final Gson gson;
 
-  public FSDagStateStore(Config config) {
+  public FSDagStateStore(Config config) throws IOException {
     this.dagCheckpointDir = config.getString(DagManager.DAG_STATESTORE_DIR);
+    File checkpointDir = new File(this.dagCheckpointDir);
+    if (!checkpointDir.exists()) {
+      if (!checkpointDir.mkdirs()) {
+        throw new IOException("Could not create dag state store dir - " + this.dagCheckpointDir);
+      }
+    }
+
     JsonSerializer<List<JobExecutionPlan>> serializer = new JobExecutionPlanListSerializer();
     JsonDeserializer<List<JobExecutionPlan>> deserializer = new JobExecutionPlanListDeserializer();
     this.gson = new GsonBuilder().registerTypeAdapter(LIST_JOBEXECUTIONPLAN_TYPE, serializer)
@@ -74,13 +81,6 @@ public class FSDagStateStore implements DagStateStore {
     // replaced
     String fileName = DagManagerUtils.generateDagId(dag) + DAG_FILE_EXTENSION;
     String serializedDag = serializeDag(dag);
-
-    File checkpointDir = new File(this.dagCheckpointDir);
-    if (!checkpointDir.exists()) {
-      if (!checkpointDir.mkdirs()) {
-        throw new IOException("Could not create dir - " + this.dagCheckpointDir);
-      }
-    }
 
     File tmpCheckpointFile = new File(this.dagCheckpointDir, fileName + ".tmp");
     File checkpointFile = new File(this.dagCheckpointDir, fileName);
@@ -110,8 +110,9 @@ public class FSDagStateStore implements DagStateStore {
   public List<Dag<JobExecutionPlan>> getDags() throws IOException {
     List<Dag<JobExecutionPlan>> runningDags = Lists.newArrayList();
     File dagCheckpointFolder = new File(this.dagCheckpointDir);
+
     for (File file : dagCheckpointFolder.listFiles((dir, name) -> name.endsWith(DAG_FILE_EXTENSION))) {
-        runningDags.add(getDag(file));
+      runningDags.add(getDag(file));
     }
     return runningDags;
   }
