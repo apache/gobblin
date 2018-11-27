@@ -30,9 +30,11 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import com.codahale.metrics.Timer;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -49,6 +51,7 @@ import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.service.ExecutionStatus;
+import org.apache.gobblin.service.ServiceMetricNames;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.Dag.DagNode;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
@@ -142,7 +145,7 @@ public class DagManager extends AbstractIdleService {
     try {
       Class jobStatusRetrieverClass = Class.forName(config.getString(JOB_STATUS_RETRIEVER_KEY));
       this.jobStatusRetriever =
-          (JobStatusRetriever) GobblinConstructorUtils.invokeLongestConstructor(jobStatusRetrieverClass);
+          (JobStatusRetriever) GobblinConstructorUtils.invokeLongestConstructor(jobStatusRetrieverClass, config);
       Class dagStateStoreClass = Class.forName(config.getString(DAG_STORE_CLASS_KEY));
       this.dagStateStore = (DagStateStore) GobblinConstructorUtils.invokeLongestConstructor(dagStateStoreClass, config);
     } catch (ReflectiveOperationException e) {
@@ -215,6 +218,7 @@ public class DagManager extends AbstractIdleService {
     private final Set<String> failedDagIdsFinishAllPossible = new HashSet<>();
     private final MetricContext metricContext;
     private final Optional<EventSubmitter> eventSubmitter;
+    private final Optional<Timer> jobStatusPolledTimer;
 
     private JobStatusRetriever jobStatusRetriever;
     private DagStateStore dagStateStore;
@@ -231,9 +235,12 @@ public class DagManager extends AbstractIdleService {
       if (instrumentationEnabled) {
         this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
         this.eventSubmitter = Optional.of(new EventSubmitter.Builder(this.metricContext, "org.apache.gobblin.service").build());
+        this.jobStatusPolledTimer = Optional.of(this.metricContext.timer(ServiceMetricNames.JOB_STATUS_POLLED_TIMER));
+
       } else {
         this.metricContext = null;
         this.eventSubmitter = Optional.absent();
+        this.jobStatusPolledTimer = Optional.absent();
       }
     }
 
@@ -255,15 +262,9 @@ public class DagManager extends AbstractIdleService {
           initialize(dag);
         }
         log.info("Polling job statuses..");
-        TimingEvent jobStatusPollTimer = this.eventSubmitter.isPresent()
-            ? eventSubmitter.get().getTimingEvent(TimingEvent.JobStatusTimings.ALL_JOB_STATUSES_POLLED)
-            : null;
         //Poll and update the job statuses of running jobs.
         pollJobStatuses();
         log.info("Poll done.");
-        if (jobStatusPollTimer != null) {
-          jobStatusPollTimer.stop();
-        }
         //Clean up any finished dags
         log.info("Cleaning up finished dags..");
         cleanUp();
@@ -310,13 +311,10 @@ public class DagManager extends AbstractIdleService {
         throws IOException {
       this.failedDagIdsFinishRunning.clear();
       for (DagNode<JobExecutionPlan> node : this.jobToDag.keySet()) {
-        TimingEvent jobStatusPollTimer = this.eventSubmitter.isPresent()
-            ? eventSubmitter.get().getTimingEvent(TimingEvent.JobStatusTimings.JOB_STATUS_POLLED)
-            : null;
+        long pollStartTime = System.nanoTime();
         JobStatus jobStatus = pollJobStatus(node);
-        if (jobStatusPollTimer != null) {
-          jobStatusPollTimer.stop();
-        }
+        Instrumented.updateTimer(this.jobStatusPolledTimer, System.nanoTime() - pollStartTime, TimeUnit.NANOSECONDS);
+
         Preconditions.checkNotNull(jobStatus, "Received null job status for a running job " + DagManagerUtils.getJobName(node));
         JobExecutionPlan jobExecutionPlan = DagManagerUtils.getJobExecutionPlan(node);
 
@@ -388,7 +386,20 @@ public class DagManager extends AbstractIdleService {
           log.warn("JobSpec does not contain flowExecutionId.");
         }
         log.info("Submitting job: {} on executor: {}", jobSpec, producer);
+
+        Map<String, String> jobMetadata = TimingEventUtils.getJobMetadata(Maps.newHashMap(), jobExecutionPlan);
+        log.info("Going to orchestrate JobSpec: {} on Executor: {}", jobSpec, producer);
+
+        TimingEvent jobOrchestrationTimer = this.eventSubmitter.isPresent() ? this.eventSubmitter.get().
+            getTimingEvent(TimingEvent.LauncherTimings.JOB_ORCHESTRATED) : null;
+
         producer.addSpec(jobSpec);
+
+        if (jobOrchestrationTimer != null) {
+          jobOrchestrationTimer.stop(jobMetadata);
+        }
+
+        log.info("Orchestrated JobSpec: {} on Executor: {}", jobSpec, producer);
       } catch (Exception e) {
         log.error("Cannot submit job: {} on executor: {}", jobSpec, producer, e);
       }
