@@ -199,16 +199,21 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
     long startTime = System.nanoTime();
     if (spec instanceof FlowSpec) {
-      Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata((FlowSpec) spec);
       TimingEvent flowCompilationTimer = this.eventSubmitter.isPresent()
           ? this.eventSubmitter.get().getTimingEvent(TimingEvent.FlowTimings.FLOW_COMPILED)
           : null;
+
       Dag<JobExecutionPlan> jobExecutionPlanDag = specCompiler.compileFlow(spec);
 
+      Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata((FlowSpec) spec);
       if (jobExecutionPlanDag == null || jobExecutionPlanDag.isEmpty()) {
-        TimingEvent flowCompileFailedTimer = this.eventSubmitter.isPresent()
-            ? this.eventSubmitter.get().getTimingEvent(TimingEvent.FlowTimings.FLOW_COMPILE_FAILED)
-            : null;
+        // For scheduled flows, we do not insert the flowExecutionId into the FlowSpec. As a result, if the flow
+        // compilation fails (i.e. we are unable to find a path), the metadata will not have flowExecutionId.
+        // In this case, the current time is used as the flow executionId.
+        flowMetadata.putIfAbsent(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD,
+            Long.toString(System.currentTimeMillis()));
+        TimingEvent flowCompileFailedTimer = this.eventSubmitter.isPresent() ? this.eventSubmitter.get()
+            .getTimingEvent(TimingEvent.FlowTimings.FLOW_COMPILE_FAILED) : null;
         Instrumented.markMeter(this.flowOrchestrationFailedMeter);
         _log.warn("Cannot determine an executor to run on for Spec: " + spec);
         if (flowCompileFailedTimer != null) {
@@ -217,6 +222,8 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
         return;
       }
 
+      //If it is a scheduled flow (and hence, does not have flowExecutionId in the FlowSpec) and the flow compilation is successful,
+      // retrieve the flowExecutionId from the JobSpec.
       flowMetadata.putIfAbsent(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD,
           jobExecutionPlanDag.getNodes().get(0).getValue().getJobSpec().getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY));
 

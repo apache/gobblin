@@ -19,6 +19,7 @@ package org.apache.gobblin.service.modules.orchestration;
 import java.util.Map;
 
 import com.google.common.collect.Maps;
+import com.typesafe.config.Config;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.event.TimingEvent;
@@ -28,20 +29,21 @@ import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 
 
-public class TimingEventUtils {
-  public static Map<String, String> getFlowMetadata(FlowSpec flowSpec) {
+class TimingEventUtils {
+  static Map<String, String> getFlowMetadata(FlowSpec flowSpec) {
     Map<String, String> metadata = Maps.newHashMap();
 
     metadata.put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, flowSpec.getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY));
     metadata.put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, flowSpec.getConfig().getString(ConfigurationKeys.FLOW_GROUP_KEY));
-    if (metadata.containsKey(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD)) {
-      metadata.put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, flowSpec.getConfig().getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY));
-    }
 
+    Config flowConfig = flowSpec.getConfig();
+    if (flowConfig.hasPath(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
+      metadata.put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, flowConfig.getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY));
+    }
     return metadata;
   }
 
-  public static Map<String, String> getJobMetadata(Map<String, String> flowMetadata, JobExecutionPlan jobExecutionPlan) {
+  static Map<String, String> getJobMetadata(Map<String, String> flowMetadata, JobExecutionPlan jobExecutionPlan) {
     Map<String, String> jobMetadata = Maps.newHashMap();
     JobSpec jobSpec = jobExecutionPlan.getJobSpec();
     SpecExecutor specExecutor = jobExecutionPlan.getSpecExecutor();
