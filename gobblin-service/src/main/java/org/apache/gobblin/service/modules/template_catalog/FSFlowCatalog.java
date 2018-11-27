@@ -107,7 +107,7 @@ public class FSFlowCatalog extends FSJobCatalog implements FlowCatalogWithTempla
 
   /**
    *
-   * @param flowTemplateDirURI URI of the flow template directory
+   * @param flowTemplateDirURI Relative URI of the flow template directory
    * @return a list of {@link JobTemplate}s for a given flow identified by its {@link URI}.
    * @throws IOException
    * @throws SpecNotFoundException
@@ -135,21 +135,27 @@ public class FSFlowCatalog extends FSJobCatalog implements FlowCatalogWithTempla
     List<JobTemplate> jobTemplates = new ArrayList<>();
 
     String templateCatalogDir = this.sysConfig.getString(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY);
-    Path templateDirPath = PathUtils.mergePaths(new Path(templateCatalogDir), new Path(flowTemplateDirURI));
-    Path jobTemplatePath = new Path(templateDirPath, JOBS_DIR_NAME);
-    FileSystem fs = FileSystem.get(jobTemplatePath.toUri(), new Configuration());
 
-    for (FileStatus fileStatus : fs.listStatus(jobTemplatePath, extensionFilter)) {
-      Config templateConfig = loadHoconFileAtPath(fileStatus.getPath(), true);
-      if (templateConfig.hasPath(JOB_TEMPLATE_KEY)) {
-        URI templateUri = new URI(templateConfig.getString(JOB_TEMPLATE_KEY));
-        //Strip out the initial "/"
-        URI actualResourceUri = new URI(templateUri.getPath().substring(1));
-        Path fullTemplatePath =
-            new Path(FSFlowCatalog.class.getClassLoader().getResource(actualResourceUri.getPath()).toURI());
-        templateConfig = templateConfig.withFallback(loadHoconFileAtPath(fullTemplatePath, true));
+    //Flow templates are located under templateCatalogDir/flowEdgeTemplates
+    Path flowTemplateDirPath = PathUtils.mergePaths(new Path(templateCatalogDir), new Path(flowTemplateDirURI));
+    //Job files (with extension .job) are located under templateCatalogDir/flowEdgeTemplates/jobs directory.
+    Path jobFilePath = new Path(flowTemplateDirPath, JOBS_DIR_NAME);
+
+    FileSystem fs = FileSystem.get(jobFilePath.toUri(), new Configuration());
+
+    for (FileStatus fileStatus : fs.listStatus(jobFilePath, extensionFilter)) {
+      Config jobConfig = loadHoconFileAtPath(fileStatus.getPath(), true);
+      //Check if the .job file has an underlying job template
+      if (jobConfig.hasPath(JOB_TEMPLATE_KEY)) {
+        URI jobTemplateRelativeUri = new URI(jobConfig.getString(JOB_TEMPLATE_KEY));
+        if (!jobTemplateRelativeUri.getScheme().equals(FS_SCHEME)) {
+          throw new RuntimeException(
+              "Expected scheme " + FS_SCHEME + " got unsupported scheme " + flowTemplateDirURI.getScheme());
+        }
+        Path fullJobTemplatePath = PathUtils.mergePaths(new Path(templateCatalogDir), new Path(jobTemplateRelativeUri));
+        jobConfig = jobConfig.withFallback(loadHoconFileAtPath(fullJobTemplatePath, true));
       }
-      jobTemplates.add(new HOCONInputStreamJobTemplate(templateConfig, fileStatus.getPath().toUri(), this));
+      jobTemplates.add(new HOCONInputStreamJobTemplate(jobConfig, fileStatus.getPath().toUri(), this));
     }
     return jobTemplates;
   }

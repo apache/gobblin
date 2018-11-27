@@ -37,6 +37,7 @@ import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraphConfigurationKeys;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
+import org.apache.gobblin.service.modules.template_catalog.FSFlowCatalog;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -102,6 +103,9 @@ public class JobExecutionPlan {
 
       // Remove schedule
       jobSpec.setConfig(jobSpec.getConfig().withoutPath(ConfigurationKeys.JOB_SCHEDULE_KEY));
+
+      //Remove template uri
+      jobSpec.setConfig(jobSpec.getConfig().withoutPath(FSFlowCatalog.JOB_TEMPLATE_KEY));
 
       // Add job.name and job.group
       jobSpec.setConfig(jobSpec.getConfig().withValue(ConfigurationKeys.JOB_NAME_KEY, ConfigValueFactory.fromAnyRef(jobName)));
