@@ -388,7 +388,7 @@ public class DagManager extends AbstractIdleService {
         log.info("Submitting job: {} on executor: {}", jobSpec, producer);
 
         Map<String, String> jobMetadata = TimingEventUtils.getJobMetadata(Maps.newHashMap(), jobExecutionPlan);
-        log.info(String.format("Going to orchestrate JobSpec: {} on Executor: {}", jobSpec, producer));
+        log.info("Going to orchestrate JobSpec: {} on Executor: {}", jobSpec, producer);
 
         TimingEvent jobOrchestrationTimer = this.eventSubmitter.isPresent() ? this.eventSubmitter.get().
             getTimingEvent(TimingEvent.LauncherTimings.JOB_ORCHESTRATED) : null;
@@ -399,7 +399,7 @@ public class DagManager extends AbstractIdleService {
           jobOrchestrationTimer.stop(jobMetadata);
         }
 
-        log.info(String.format("Orchestrated JobSpec: {} on Executor: {}", jobSpec, producer));
+        log.info("Orchestrated JobSpec: {} on Executor: {}", jobSpec, producer);
       } catch (Exception e) {
         log.error("Cannot submit job: {} on executor: {}", jobSpec, producer, e);
       }
