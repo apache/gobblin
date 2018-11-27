@@ -50,7 +50,7 @@ public abstract class RequesterService {
    */
   public String serialize(List<ServiceRequester> requestersList) throws IOException {
     String arrayToJson = objectMapper.writeValueAsString(requestersList);
-    String encodedString = Base64.getEncoder().encodeToString(arrayToJson.getBytes());
+    String encodedString = Base64.getEncoder().encodeToString(arrayToJson.getBytes("UTF-8"));
     return URLEncoder.encode(encodedString, "UTF-8");
   }
 
@@ -61,7 +61,7 @@ public abstract class RequesterService {
   public List<ServiceRequester> deserialize(String encodedString) throws IOException {
     String urlDecoded = URLDecoder.decode(encodedString, "UTF-8");
     byte[] decodedBytes = Base64.getDecoder().decode(urlDecoded);
-    String serialized = new String(decodedBytes);
+    String serialized = new String(decodedBytes, "UTF-8");
     TypeReference<List<ServiceRequester>> mapType = new TypeReference<List<ServiceRequester>>() {};
     List<ServiceRequester> jsonToPersonList = objectMapper.readValue(serialized, mapType);
     return jsonToPersonList;
