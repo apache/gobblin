@@ -56,11 +56,7 @@ public class TimingEvent {
 
   public static class FlowTimings {
     public static final String FLOW_COMPILED = "FlowCompiled";
-  }
-
-  public static class JobStatusTimings {
-    public static final String JOB_STATUS_POLLED = "JobStatusPolled";
-    public static final String ALL_JOB_STATUSES_POLLED = "AllJobStatusesPolled";
+    public static final String FLOW_COMPILE_FAILED = "FlowCompileFailed";
   }
 
   public static class FlowEventConstants {
@@ -77,6 +73,7 @@ public class TimingEvent {
   public static final String METADATA_END_TIME = "endTime";
   public static final String METADATA_DURATION = "durationMillis";
   public static final String METADATA_TIMING_EVENT = "timingEvent";
+  public static final String METADATA_MESSAGE = "message";
 
   private final String name;
   private final Long startTime;
