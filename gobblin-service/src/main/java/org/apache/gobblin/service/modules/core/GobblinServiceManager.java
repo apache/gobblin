@@ -83,6 +83,8 @@ import org.apache.gobblin.service.FlowConfigsResource;
 import org.apache.gobblin.service.FlowConfigsResourceHandler;
 import org.apache.gobblin.service.FlowConfigsV2Resource;
 import org.apache.gobblin.service.FlowId;
+import org.apache.gobblin.service.NoopRequesterService;
+import org.apache.gobblin.service.RequesterService;
 import org.apache.gobblin.service.Schedule;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
@@ -250,9 +252,18 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
       Injector injector = Guice.createInjector(new Module() {
         @Override
         public void configure(Binder binder) {
-          binder.bind(FlowConfigsResourceHandler.class).annotatedWith(Names.named(FlowConfigsResource.FLOW_CONFIG_GENERATOR_INJECT_NAME)).toInstance(GobblinServiceManager.this.resourceHandler);
-          binder.bind(FlowConfigsResourceHandler.class).annotatedWith(Names.named(FlowConfigsV2Resource.FLOW_CONFIG_GENERATOR_INJECT_NAME)).toInstance(GobblinServiceManager.this.v2ResourceHandler);
-          binder.bindConstant().annotatedWith(Names.named("readyToUse")).to(Boolean.TRUE);
+          binder.bind(FlowConfigsResourceHandler.class)
+              .annotatedWith(Names.named(FlowConfigsResource.INJECT_FLOW_CONFIG_RESOURCE_HANDLER))
+              .toInstance(GobblinServiceManager.this.resourceHandler);
+          binder.bind(FlowConfigsResourceHandler.class)
+              .annotatedWith(Names.named(FlowConfigsV2Resource.FLOW_CONFIG_GENERATOR_INJECT_NAME))
+              .toInstance(GobblinServiceManager.this.v2ResourceHandler);
+          binder.bindConstant()
+              .annotatedWith(Names.named(FlowConfigsResource.INJECT_READY_TO_USE))
+              .to(Boolean.TRUE);
+          binder.bind(RequesterService.class)
+              .annotatedWith(Names.named(FlowConfigsResource.INJECT_REQUESTER_SERVICE))
+              .toInstance(new NoopRequesterService(config));
         }
       });
       this.restliServer = EmbeddedRestliServer.builder()
