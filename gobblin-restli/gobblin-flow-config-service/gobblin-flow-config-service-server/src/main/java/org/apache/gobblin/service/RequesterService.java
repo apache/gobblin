@@ -48,23 +48,23 @@ public abstract class RequesterService {
    * {@link Config}, we first use Base64 to encode the json string,
    * then use URL encoding to remove characters like '+,/,='.
    */
-  public String serialize(List<ServiceRequester> requestersList) throws IOException {
-    String arrayToJson = objectMapper.writeValueAsString(requestersList);
-    String encodedString = Base64.getEncoder().encodeToString(arrayToJson.getBytes("UTF-8"));
-    return URLEncoder.encode(encodedString, "UTF-8");
+  public static String serialize(List<ServiceRequester> requesterList) throws IOException {
+    String jsonList = objectMapper.writeValueAsString(requesterList);
+    String base64Str = Base64.getEncoder().encodeToString(jsonList.getBytes("UTF-8"));
+    return URLEncoder.encode(base64Str, "UTF-8");
   }
 
   /**
    * <p> This implementation decode a given string encoded by
    * {@link #serialize(List)}.
    */
-  public List<ServiceRequester> deserialize(String encodedString) throws IOException {
-    String urlDecoded = URLDecoder.decode(encodedString, "UTF-8");
-    byte[] decodedBytes = Base64.getDecoder().decode(urlDecoded);
-    String serialized = new String(decodedBytes, "UTF-8");
+  public static List<ServiceRequester> deserialize(String encodedString) throws IOException {
+    String base64Str = URLDecoder.decode(encodedString, "UTF-8");
+    byte[] decodedBytes = Base64.getDecoder().decode(base64Str);
+    String jsonList = new String(decodedBytes, "UTF-8");
     TypeReference<List<ServiceRequester>> mapType = new TypeReference<List<ServiceRequester>>() {};
-    List<ServiceRequester> jsonToPersonList = objectMapper.readValue(serialized, mapType);
-    return jsonToPersonList;
+    List<ServiceRequester> requesterList = objectMapper.readValue(jsonList, mapType);
+    return requesterList;
   }
 
   protected abstract List<ServiceRequester> findRequesters(BaseResource resource);
