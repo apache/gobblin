@@ -95,7 +95,7 @@ public class KafkaAvroEventReporter extends KafkaEventReporter {
 
     private Optional<KafkaAvroSchemaRegistry> registry = Optional.absent();
 
-    private Builder(MetricContext context) {
+    protected Builder(MetricContext context) {
       super(context);
     }
 

@@ -40,7 +40,7 @@ import org.apache.gobblin.metrics.reporter.util.SchemaVersionWriter;
 public class KafkaEventReporter extends EventReporter {
 
   protected final AvroSerializer<GobblinTrackingEvent> serializer;
-  private final Pusher kafkaPusher;
+  protected final Pusher kafkaPusher;
 
   public KafkaEventReporter(Builder<?> builder) throws IOException {
     super(builder);

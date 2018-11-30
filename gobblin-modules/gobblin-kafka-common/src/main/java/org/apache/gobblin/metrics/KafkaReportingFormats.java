@@ -20,11 +20,13 @@ package org.apache.gobblin.metrics;
 import java.util.Properties;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metrics.kafka.KafkaAvroEventKeyValueReporter;
 import org.apache.gobblin.metrics.kafka.KafkaAvroEventReporter;
 import org.apache.gobblin.metrics.kafka.KafkaAvroReporter;
 import org.apache.gobblin.metrics.kafka.KafkaAvroSchemaRegistry;
 import org.apache.gobblin.metrics.kafka.KafkaEventReporter;
 import org.apache.gobblin.metrics.kafka.KafkaReporter;
+import org.apache.gobblin.metrics.kafka.PusherUtils;
 
 
 /**
@@ -68,6 +70,10 @@ public enum KafkaReportingFormats {
     switch (this) {
       case AVRO:
         KafkaAvroEventReporter.Builder<?> builder = KafkaAvroEventReporter.Factory.forContext(context);
+        if (properties.getProperty(PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY,
+                PusherUtils.DEFAULT_KAFKA_PUSHER_CLASS_NAME).equals(PusherUtils.KAFKA_KEY_VALUE_PUSHER_CLASS_NAME)) {
+          builder = new KafkaAvroEventKeyValueReporter.BuilderImpl(context, properties);
+        }
         if (Boolean.valueOf(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY,
             ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY))) {
           builder.withSchemaRegistry(new KafkaAvroSchemaRegistry(properties));
