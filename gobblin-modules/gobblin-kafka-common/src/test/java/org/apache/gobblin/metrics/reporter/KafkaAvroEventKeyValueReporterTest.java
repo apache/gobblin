@@ -118,4 +118,9 @@ public class KafkaAvroEventKeyValueReporterTest extends KafkaAvroEventReporterTe
     retrievedEvent = nextKVEvent(pusher.messageIterator());
     Assert.assertEquals(retrievedEvent.getKey(), "v1v2v3");
   }
+
+  @Test (enabled=false)
+  public void testTagInjection() throws IOException {
+    // This test is not applicable for testing KafkaAvroEventKeyValueReporter
+  }
 }

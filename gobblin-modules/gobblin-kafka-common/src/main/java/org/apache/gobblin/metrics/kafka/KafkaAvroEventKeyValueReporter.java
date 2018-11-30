@@ -89,6 +89,8 @@ public class KafkaAvroEventKeyValueReporter extends KafkaAvroEventReporter {
       super(context);
       if (properties.containsKey(keyPropertyName)) {
          this.keyName = COMMA_SEPARATOR.splitToList(properties.getProperty(keyPropertyName));
+      } else {
+        log.warn("Keys for KafkaAvroEventKeyValueReporter are not provided. Without keys, it will act like a KafkaAvroEventReporter.");
       }
     }
 
@@ -105,7 +107,7 @@ public class KafkaAvroEventKeyValueReporter extends KafkaAvroEventReporter {
     }
   }
 
-  private class KeyPartNotFoundException extends IllegalArgumentException {
+  private static class KeyPartNotFoundException extends IllegalArgumentException {
     private final String expectedKey;
     KeyPartNotFoundException(String key) {
       this.expectedKey = key;
