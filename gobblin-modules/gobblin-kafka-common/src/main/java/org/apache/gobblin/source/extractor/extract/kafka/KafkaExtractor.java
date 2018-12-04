@@ -435,12 +435,12 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
         Long.toString(KafkaUtils.getPropAsLongFromSingleOrMultiWorkUnitState(this.workUnitState,
             KafkaSource.PREVIOUS_STOP_FETCH_EPOCH_TIME, partitionId)));
 
-    tagsForPartition.put(KafkaSource.START_FETCH_EPOCH_TIME, Long.toString(this.startFetchEpochTime.get(partition)));
-    tagsForPartition.put(KafkaSource.STOP_FETCH_EPOCH_TIME, Long.toString(this.stopFetchEpochTime.get(partition)));
+    tagsForPartition.put(KafkaSource.START_FETCH_EPOCH_TIME, Long.toString(this.startFetchEpochTime.getOrDefault(partition, 0L)));
+    tagsForPartition.put(KafkaSource.STOP_FETCH_EPOCH_TIME, Long.toString(this.stopFetchEpochTime.getOrDefault(partition, 0L)));
     this.workUnitState.setProp(KafkaUtils.getPartitionPropName(KafkaSource.START_FETCH_EPOCH_TIME, partitionId),
-        Long.toString(this.startFetchEpochTime.get(partition)));
+        Long.toString(this.startFetchEpochTime.getOrDefault(partition, 0L)));
     this.workUnitState.setProp(KafkaUtils.getPartitionPropName(KafkaSource.STOP_FETCH_EPOCH_TIME, partitionId),
-        Long.toString(this.stopFetchEpochTime.get(partition)));
+        Long.toString(this.stopFetchEpochTime.getOrDefault(partition, 0L)));
 
     if (this.processedRecordCount.containsKey(partition)) {
       tagsForPartition.put(PROCESSED_RECORD_COUNT, Long.toString(this.processedRecordCount.get(partition)));
