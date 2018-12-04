@@ -89,9 +89,24 @@ public class KafkaReporterFactory implements CustomCodahaleReporterFactory {
       }
     }
 
+    KafkaReportingFormats eventFormatEnum;
+    if (properties.containsKey(ConfigurationKeys.METRICS_EVENTS_REPORTING_KAFKA_FORMAT)) {
+      String eventsReportingFormat = properties.getProperty(ConfigurationKeys.METRICS_EVENTS_REPORTING_KAFKA_FORMAT,
+          ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_FORMAT);
+      try {
+        eventFormatEnum = KafkaReportingFormats.valueOf(eventsReportingFormat.toUpperCase());
+      } catch (IllegalArgumentException exception) {
+        log.warn("Kafka events reporting format " + reportingFormat + " not recognized. Will report in json format.",
+            exception);
+        eventFormatEnum = KafkaReportingFormats.JSON;
+      }
+    } else {
+      eventFormatEnum = formatEnum;
+    }
+
     if (eventsEnabled) {
       try {
-        KafkaEventReporter.Builder<?> builder = formatEnum.eventReporterBuilder(RootMetricContext.get(),
+        KafkaEventReporter.Builder<?> builder = eventFormatEnum.eventReporterBuilder(RootMetricContext.get(),
             properties);
 
         Config allConfig = ConfigUtils.propertiesToConfig(properties);

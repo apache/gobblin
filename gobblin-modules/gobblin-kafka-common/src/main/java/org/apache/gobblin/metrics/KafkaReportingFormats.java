@@ -35,6 +35,7 @@ import org.apache.gobblin.metrics.kafka.PusherUtils;
 public enum KafkaReportingFormats {
 
   AVRO,
+  AVRO_KEY_VALUE,
   JSON;
 
   /**
@@ -45,6 +46,7 @@ public enum KafkaReportingFormats {
    */
   public KafkaReporter.Builder<?> metricReporterBuilder(Properties properties) {
     switch (this) {
+      case AVRO_KEY_VALUE:
       case AVRO:
         KafkaAvroReporter.Builder<?> builder = KafkaAvroReporter.BuilderFactory.newBuilder();
         if (Boolean.valueOf(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY,
@@ -69,18 +71,19 @@ public enum KafkaReportingFormats {
   public KafkaEventReporter.Builder<?> eventReporterBuilder(MetricContext context, Properties properties) {
     switch (this) {
       case AVRO:
-        KafkaAvroEventReporter.Builder<?> builder = KafkaAvroEventReporter.Factory.forContext(context);
-        if (properties.getProperty(PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY,
-                PusherUtils.DEFAULT_KAFKA_PUSHER_CLASS_NAME).equals(PusherUtils.KAFKA_KEY_VALUE_PUSHER_CLASS_NAME)) {
-          builder = new KafkaAvroEventKeyValueReporter.BuilderImpl(context, properties);
-        }
+        KafkaAvroEventReporter.Builder<?> builder = new KafkaAvroEventReporter.BuilderImpl(context);
         if (Boolean.valueOf(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY,
             ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY))) {
           builder.withSchemaRegistry(new KafkaAvroSchemaRegistry(properties));
         }
         return builder;
+
+      case AVRO_KEY_VALUE:
+        return new KafkaAvroEventKeyValueReporter.BuilderImpl(context, properties);
+
       case JSON:
-        return KafkaEventReporter.Factory.forContext(context);
+        return new KafkaEventReporter.BuilderImpl(context);
+
       default:
         // This should never happen.
         throw new IllegalArgumentException("KafkaReportingFormat not recognized.");

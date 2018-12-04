@@ -681,6 +681,7 @@ public class ConfigurationKeys {
   public static final String DEFAULT_METRICS_REPORTING_KAFKA_ENABLED = Boolean.toString(false);
   public static final String DEFAULT_METRICS_REPORTING_KAFKA_REPORTER_CLASS = "org.apache.gobblin.metrics.kafka.KafkaReporterFactory";
   public static final String METRICS_REPORTING_KAFKA_FORMAT = METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.format";
+  public static final String METRICS_EVENTS_REPORTING_KAFKA_FORMAT = METRICS_CONFIGURATIONS_PREFIX + "events.reporting.kafka.format";
   public static final String DEFAULT_METRICS_REPORTING_KAFKA_FORMAT = "json";
   public static final String METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY =
       METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.avro.use.schema.registry";
