@@ -27,6 +27,9 @@ import org.apache.gobblin.metrics.reporter.util.SchemaVersionWriter;
 import java.io.IOException;
 import java.util.Properties;
 
+import com.google.common.base.Optional;
+
+
 /**
  * {@link org.apache.gobblin.metrics.reporter.EventReporter} that emits events to Kafka as serialized Avro records with a key.
  * Key for these kafka messages is obtained from values of properties provided via {@link #keyPropertyName}.
@@ -47,6 +50,8 @@ public class KafkaAvroEventKeyValueReporter extends KafkaEventKeyValueReporter {
   }
 
   public static class BuilderImpl extends KafkaEventKeyValueReporter.BuilderImpl {
+    private Optional<KafkaAvroSchemaRegistry> registry = Optional.absent();
+
     public BuilderImpl(MetricContext context, Properties properties) {
       super(context, properties);
     }
@@ -61,6 +66,11 @@ public class KafkaAvroEventKeyValueReporter extends KafkaEventKeyValueReporter {
     @Override
     protected KafkaAvroEventKeyValueReporter.BuilderImpl self() {
       return this;
+    }
+
+    public BuilderImpl withSchemaRegistry(KafkaAvroSchemaRegistry registry) {
+      this.registry = Optional.of(registry);
+      return self();
     }
   }
 }
