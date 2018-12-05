@@ -38,6 +38,7 @@ import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.service.ExecutionStatus;
+import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraphConfigurationKeys;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.template_catalog.FSFlowCatalog;
@@ -57,7 +58,6 @@ public class JobExecutionPlan {
 
   public static class Factory {
     public static final String JOB_NAME_COMPONENT_SEPARATION_CHAR = "_";
-    public static final String METRICS_REPORTING_CONFIG_PREFIX = "metrics.reporting";
 
     public JobExecutionPlan createPlan(FlowSpec flowSpec, Config jobConfig, SpecExecutor specExecutor, Long flowExecutionId, Config sysConfig)
         throws URISyntaxException {
@@ -135,9 +135,9 @@ public class JobExecutionPlan {
      * @param jobSpec representing a fully resolved {@link JobSpec}.
      */
     private static void addTrackingEventConfig(JobSpec jobSpec, Config sysConfig) {
-      Config reportingConfig = ConfigUtils.getConfig(sysConfig, METRICS_REPORTING_CONFIG_PREFIX, ConfigFactory.empty());
+      Config reportingConfig = ConfigUtils.getConfig(sysConfig, ServiceConfigKeys.METRICS_REPORTING_CONFIG_PREFIX, ConfigFactory.empty());
       if (!reportingConfig.isEmpty()) {
-        Config jobConfig = jobSpec.getConfig().withFallback(reportingConfig.atPath(METRICS_REPORTING_CONFIG_PREFIX));
+        Config jobConfig = jobSpec.getConfig().withFallback(reportingConfig.atPath(ServiceConfigKeys.METRICS_REPORTING_CONFIG_PREFIX));
         boolean isSchemaRegistryEnabled = ConfigUtils.getBoolean(sysConfig, ConfigurationKeys.METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY, false);
         if (isSchemaRegistryEnabled) {
           String schemaRegistryUrl = ConfigUtils.getString(sysConfig, KafkaSchemaRegistry.KAFKA_SCHEMA_REGISTRY_URL, "");
