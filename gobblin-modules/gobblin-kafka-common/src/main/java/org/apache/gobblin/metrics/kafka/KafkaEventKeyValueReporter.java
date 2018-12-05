@@ -75,32 +75,22 @@ public abstract class KafkaEventKeyValueReporter extends KafkaEventReporter {
       StringBuilder sb = new StringBuilder();
       String key = null;
       if (keyName.isPresent()) {
-        try {
-          for (String keyPart : keyName.get()) {
-            if (nextEvent.getMetadata().containsKey(keyPart)) {
-              sb.append(nextEvent.getMetadata().get(keyPart));
-            } else {
-              throw new KafkaEventKeyValueReporter.KeyPartNotFoundException(keyPart);
-            }
+        for (String keyPart : keyName.get()) {
+          if (nextEvent.getMetadata().containsKey(keyPart)) {
+            sb.append(nextEvent.getMetadata().get(keyPart));
+          } else {
+            log.error("{} not found in the GobblinTrackingEvent. Setting key to null.", keyPart);
+            sb = null;
+            break;
           }
-          key = sb.toString();
-        } catch (KafkaEventKeyValueReporter.KeyPartNotFoundException e) {
-          log.error("{} not found in the GobblinTrackingEvent. Setting key to null.", e.expectedKey);
-          key = null;
         }
+        key = sb == null ? null : sb.toString();
       }
       events.add(Pair.of(key, this.serializer.serializeRecord(nextEvent)));
     }
 
     if (!events.isEmpty()) {
       this.kafkaPusher.pushMessages(events);
-    }
-  }
-
-  private static class KeyPartNotFoundException extends IllegalArgumentException {
-    private final String expectedKey;
-    KeyPartNotFoundException(String key) {
-      this.expectedKey = key;
     }
   }
 }

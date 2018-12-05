@@ -19,6 +19,8 @@ package org.apache.gobblin.metrics.reporter;
 
 import com.google.common.collect.Maps;
 import org.apache.commons.lang3.tuple.Pair;
+
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.kafka.KafkaAvroEventKeyValueReporter;
@@ -40,7 +42,7 @@ public class KafkaAvroEventKeyValueReporterTest extends KafkaAvroEventReporterTe
   @BeforeClass
   public void setup() {
     properties = new Properties();
-    properties.setProperty(KafkaAvroEventKeyValueReporter.keyPropertyName, "k1,k2,k3");
+    properties.setProperty(ConfigurationKeys.METRICS_REPORTING_EVENTS_KAFKAPUSHERKEYS, "k1,k2,k3");
   }
 
   @Override
