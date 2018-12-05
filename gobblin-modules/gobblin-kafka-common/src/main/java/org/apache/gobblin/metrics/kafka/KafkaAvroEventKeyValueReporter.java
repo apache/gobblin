@@ -22,10 +22,13 @@ import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.reporter.util.AvroBinarySerializer;
 import org.apache.gobblin.metrics.reporter.util.AvroSerializer;
+import org.apache.gobblin.metrics.reporter.util.SchemaRegistryVersionWriter;
 import org.apache.gobblin.metrics.reporter.util.SchemaVersionWriter;
 
 import java.io.IOException;
 import java.util.Properties;
+
+import org.apache.avro.Schema;
 
 import com.google.common.base.Optional;
 
@@ -41,6 +44,12 @@ public class KafkaAvroEventKeyValueReporter extends KafkaEventKeyValueReporter {
 
   protected KafkaAvroEventKeyValueReporter(BuilderImpl builder) throws IOException {
     super(builder);
+    if(builder.registry.isPresent()) {
+      Schema schema =
+          new Schema.Parser().parse(getClass().getClassLoader().getResourceAsStream("GobblinTrackingEvent.avsc"));
+      this.serializer.setSchemaVersionWriter(new SchemaRegistryVersionWriter(builder.registry.get(), builder.topic,
+          Optional.of(schema)));
+    }
   }
 
   @Override

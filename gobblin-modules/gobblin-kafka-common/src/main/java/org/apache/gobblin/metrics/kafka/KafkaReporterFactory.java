@@ -68,14 +68,14 @@ public class KafkaReporterFactory implements CustomCodahaleReporterFactory {
 
     String brokers = properties.getProperty(ConfigurationKeys.METRICS_KAFKA_BROKERS);
 
-    String reportingFormat = properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_FORMAT,
+    String metricsReportingFormat = properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_FORMAT,
         ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_FORMAT);
 
     KafkaReportingFormats formatEnum;
     try {
-      formatEnum = KafkaReportingFormats.valueOf(reportingFormat.toUpperCase());
+      formatEnum = KafkaReportingFormats.valueOf(metricsReportingFormat.toUpperCase());
     } catch (IllegalArgumentException exception) {
-      log.warn("Kafka metrics reporting format " + reportingFormat +
+      log.warn("Kafka metrics reporting format " + metricsReportingFormat +
           " not recognized. Will report in json format.", exception);
       formatEnum = KafkaReportingFormats.JSON;
     }
@@ -96,7 +96,7 @@ public class KafkaReporterFactory implements CustomCodahaleReporterFactory {
       try {
         eventFormatEnum = KafkaReportingFormats.valueOf(eventsReportingFormat.toUpperCase());
       } catch (IllegalArgumentException exception) {
-        log.warn("Kafka events reporting format " + reportingFormat + " not recognized. Will report in json format.",
+        log.warn("Kafka events reporting format " + eventsReportingFormat + " not recognized. Will report in json format.",
             exception);
         eventFormatEnum = KafkaReportingFormats.JSON;
       }
@@ -118,7 +118,7 @@ public class KafkaReporterFactory implements CustomCodahaleReporterFactory {
 
         builder.withConfig(kafkaConfig);
 
-        builder.withPusherClassName(properties.getProperty(PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY,
+        builder.withPusherClassName(properties.getProperty(PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY_FOR_EVENTS,
             PusherUtils.DEFAULT_KAFKA_PUSHER_CLASS_NAME));
 
         return builder.build(brokers, eventsTopic.or(defaultTopic).get());

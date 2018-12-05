@@ -24,8 +24,8 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 public class PusherUtils {
   public static final String METRICS_REPORTING_KAFKA_CONFIG_PREFIX = "metrics.reporting.kafka.config";
   public static final String KAFKA_PUSHER_CLASS_NAME_KEY = "metrics.reporting.kafkaPusherClass";
+  public static final String KAFKA_PUSHER_CLASS_NAME_KEY_FOR_EVENTS = "metrics.events.reporting.kafkaPusherClass";
   public static final String DEFAULT_KAFKA_PUSHER_CLASS_NAME = "org.apache.gobblin.metrics.kafka.KafkaPusher";
-  public static final String KAFKA_KEY_VALUE_PUSHER_CLASS_NAME = "org.apache.gobblin.metrics.kafka.KafkaKeyValueProducerPusher";
 
   /**
    * Create a {@link Pusher}

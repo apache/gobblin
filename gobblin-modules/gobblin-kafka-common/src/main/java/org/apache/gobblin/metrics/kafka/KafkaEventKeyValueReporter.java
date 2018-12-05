@@ -35,7 +35,7 @@ import org.apache.gobblin.metrics.MetricContext;
 public abstract class KafkaEventKeyValueReporter extends KafkaEventReporter {
   private static final Splitter COMMA_SEPARATOR = Splitter.on(",").omitEmptyStrings().trimResults();
   private Optional<List<String>> keyName = Optional.absent();
-  public static final String keyPropertyName = "metrics.reporting.kafkaPusherKeys";
+  public static final String keyPropertyName = "metrics.events.reporting.kafkaPusherKeys";
 
   public KafkaEventKeyValueReporter(BuilderImpl builder) throws IOException {
     super(builder);

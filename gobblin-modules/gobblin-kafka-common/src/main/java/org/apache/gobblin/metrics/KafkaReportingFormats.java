@@ -46,7 +46,6 @@ public enum KafkaReportingFormats {
    */
   public KafkaReporter.Builder<?> metricReporterBuilder(Properties properties) {
     switch (this) {
-      case AVRO_KEY_VALUE:
       case AVRO:
         KafkaAvroReporter.Builder<?> builder = KafkaAvroReporter.BuilderFactory.newBuilder();
         if (Boolean.valueOf(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY,
@@ -79,12 +78,12 @@ public enum KafkaReportingFormats {
         return kafkaAvroEventReporterBuilder;
 
       case AVRO_KEY_VALUE:
-        KafkaAvroEventKeyValueReporter.BuilderImpl kafkaAvroEventKeyValueReporter = new KafkaAvroEventKeyValueReporter.BuilderImpl(context, properties);
+        KafkaAvroEventKeyValueReporter.BuilderImpl kafkaAvroEventKeyValueReporterBuilder = new KafkaAvroEventKeyValueReporter.BuilderImpl(context, properties);
         if (Boolean.valueOf(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY,
             ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY))) {
-          kafkaAvroEventKeyValueReporter.withSchemaRegistry(new KafkaAvroSchemaRegistry(properties));
+          kafkaAvroEventKeyValueReporterBuilder.withSchemaRegistry(new KafkaAvroSchemaRegistry(properties));
         }
-        return kafkaAvroEventKeyValueReporter;
+        return kafkaAvroEventKeyValueReporterBuilder;
 
       case JSON:
         return new KafkaEventReporter.BuilderImpl(context);
