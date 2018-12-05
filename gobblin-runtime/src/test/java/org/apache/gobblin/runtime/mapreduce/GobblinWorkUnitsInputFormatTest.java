@@ -45,6 +45,7 @@ import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
@@ -52,8 +53,13 @@ import com.google.common.collect.Sets;
 
 
 public class GobblinWorkUnitsInputFormatTest {
-  @Test
-  public void testGetSplits()
+  @DataProvider
+  public Object[][] getInputFormat() {
+    return new Object[][] { { new GobblinWorkUnitsInputFormat() }, { new RackLocalGobblinWorkUnitsInputFormat() } };
+  }
+
+  @Test(dataProvider = "getInputFormat")
+  public void testGetSplits(GobblinWorkUnitsInputFormat inputFormat)
       throws Exception {
 
     URI baseUri = new URI(GobblinWorkUnitsInputFormatTest.class.getSimpleName() + "://testGetSplits");
@@ -74,21 +80,21 @@ public class GobblinWorkUnitsInputFormatTest {
 
     FileSystemTestUtils.addFileSystemForTest(baseUri, configuration, fs);
 
-    GobblinWorkUnitsInputFormat inputFormat = Mockito.spy(new GobblinWorkUnitsInputFormat());
+    GobblinWorkUnitsInputFormat inputFormatSpy = Mockito.spy(inputFormat);
     Job job = Job.getInstance(configuration);
     FileInputFormat.addInputPath(job, workUnitsDir);
 
-    Mockito.when(inputFormat.deserializeWorkUnitWrapper(Mockito.any(Path.class), Mockito.any(FileSystem.class)))
+    Mockito.when(inputFormatSpy.deserializeWorkUnitWrapper(Mockito.any(Path.class), Mockito.any(FileSystem.class)))
         .thenReturn(WorkUnit.createEmpty());
 
-    List<InputSplit> splits = inputFormat.getSplits(job);
+    List<InputSplit> splits = inputFormatSpy.getSplits(job);
 
     Assert.assertEquals(splits.size(), 20);
     verifyPaths(splits, statuses);
   }
 
-  @Test
-  public void testGetSplitsMaxSize()
+  @Test(dataProvider = "getInputFormat")
+  public void testGetSplitsMaxSize(GobblinWorkUnitsInputFormat inputFormat)
       throws Exception {
 
     URI baseUri = new URI(GobblinWorkUnitsInputFormatTest.class.getSimpleName() + "://testGetSplitsMaxSize");
@@ -109,15 +115,15 @@ public class GobblinWorkUnitsInputFormatTest {
 
     FileSystemTestUtils.addFileSystemForTest(baseUri, configuration, fs);
 
-    GobblinWorkUnitsInputFormat inputFormat = Mockito.spy(new GobblinWorkUnitsInputFormat());
+    GobblinWorkUnitsInputFormat inputFormatSpy = Mockito.spy(inputFormat);
     Job job = Job.getInstance(configuration);
     FileInputFormat.addInputPath(job, workUnitsDir);
     GobblinWorkUnitsInputFormat.setMaxMappers(job, 6);
 
-    Mockito.when(inputFormat.deserializeWorkUnitWrapper(Mockito.any(Path.class), Mockito.any(FileSystem.class)))
+    Mockito.when(inputFormatSpy.deserializeWorkUnitWrapper(Mockito.any(Path.class), Mockito.any(FileSystem.class)))
         .thenReturn(WorkUnit.createEmpty());
 
-    List<InputSplit> splits = inputFormat.getSplits(job);
+    List<InputSplit> splits = inputFormatSpy.getSplits(job);
 
     Assert.assertTrue(splits.size() < 6);
     verifyPaths(splits, statuses);

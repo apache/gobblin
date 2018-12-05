@@ -50,6 +50,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -121,6 +122,9 @@ public class MRJobLauncher extends AbstractJobLauncher {
   private static final String WORK_UNIT_LIST_FILE_EXTENSION = ".wulist";
   private static final String SERIALIZE_PREVIOUS_WORKUNIT_STATES_KEY = "MRJobLauncher.serializePreviousWorkunitStates";
   private static final boolean DEFAULT_SERIALIZE_PREVIOUS_WORKUNIT_STATES = true;
+
+  public static final String INPUT_FORMAT_CLASS_KEY = "gobblin.mapreduce.inputformat.class";
+  public static final String DEFAULT_INPUT_FORMAT_CLASS = GobblinWorkUnitsInputFormat.class.getCanonicalName();
 
   // Configuration that make uploading of jar files more reliable,
   // since multiple Gobblin Jobs are sharing the same jar directory.
@@ -341,7 +345,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
   /**
    * Prepare the Hadoop MR job, including configuring the job and setting up the input/output paths.
    */
-  private void prepareHadoopJob(List<WorkUnit> workUnits) throws IOException {
+  @SuppressWarnings("unchecked")
+  private void prepareHadoopJob(List<WorkUnit> workUnits) throws IOException, ClassNotFoundException {
     TimingEvent mrJobSetupTimer = this.eventSubmitter.getTimingEvent(TimingEvent.RunJobTimings.MR_JOB_SETUP);
 
     // Add dependent jars/files
@@ -353,7 +358,16 @@ public class MRJobLauncher extends AbstractJobLauncher {
     // The job is mapper-only
     this.job.setNumReduceTasks(0);
 
-    this.job.setInputFormatClass(GobblinWorkUnitsInputFormat.class);
+    String inputFormatClassName = DEFAULT_INPUT_FORMAT_CLASS;
+    if (this.jobProps.containsKey(INPUT_FORMAT_CLASS_KEY)) {
+      inputFormatClassName = this.jobProps.getProperty(INPUT_FORMAT_CLASS_KEY);
+      if (Strings.isNullOrEmpty(inputFormatClassName)) {
+        inputFormatClassName = DEFAULT_INPUT_FORMAT_CLASS;
+      }
+    }
+    Class inputFormatClass = Class.forName(inputFormatClassName);
+
+    this.job.setInputFormatClass(inputFormatClass);
     this.job.setOutputFormatClass(GobblinOutputFormat.class);
     this.job.setMapOutputKeyClass(NullWritable.class);
     this.job.setMapOutputValueClass(NullWritable.class);

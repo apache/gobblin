@@ -64,7 +64,9 @@ import org.apache.gobblin.util.binpacking.WorstFitDecreasingBinPacking;
 
 
 /**
- * An input format for reading Gobblin inputs (work unit and multi work unit files).
+ * An input format (default) for reading Gobblin inputs (work unit and multi work unit files).
+ * Using the gobblin.inputsplit related properties allows for some leveraging of data locality.
+ * Also, see {@link RackLocalGobblinWorkUnitsInputFormat}
  */
 @Slf4j
 public class GobblinWorkUnitsInputFormat extends InputFormat<LongWritable, Text> {

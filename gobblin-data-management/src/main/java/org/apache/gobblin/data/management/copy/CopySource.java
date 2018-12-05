@@ -75,6 +75,7 @@ import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.lineage.LineageInfo;
 import org.apache.gobblin.metrics.event.sla.SlaEventKeys;
 import org.apache.gobblin.runtime.mapreduce.GobblinWorkUnitsInputFormat;
+import org.apache.gobblin.runtime.mapreduce.MRJobLauncher;
 import org.apache.gobblin.source.extractor.Extractor;
 import org.apache.gobblin.source.extractor.WatermarkInterval;
 import org.apache.gobblin.source.extractor.extract.AbstractSource;
@@ -263,13 +264,18 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
         return Lists.newArrayList();
       }
 
-      List<? extends WorkUnit> workUnits = new WorstFitDecreasingBinPacking(maxSizePerBin)
-          .pack(Lists.newArrayList(workUnitsMap.values()), this.weighter);
-      log.info(String.format(
-          "Bin packed work units. Initial work units: %d, packed work units: %d, max weight per bin: %d, "
-              + "max work units per bin: %d.", workUnitsMap.size(), workUnits.size(), maxSizePerBin,
-          maxWorkUnitsPerMultiWorkUnit));
-      return ImmutableList.copyOf(workUnits);
+      if (state.contains(MRJobLauncher.INPUT_FORMAT_CLASS_KEY) &&
+          !state.getProp(MRJobLauncher.INPUT_FORMAT_CLASS_KEY).equals(MRJobLauncher.DEFAULT_INPUT_FORMAT_CLASS)) {
+        return ImmutableList.copyOf(workUnitsMap.values());
+      } else {
+        List<? extends WorkUnit> workUnits = new WorstFitDecreasingBinPacking(maxSizePerBin)
+            .pack(Lists.newArrayList(workUnitsMap.values()), this.weighter);
+        log.info(String.format(
+            "Bin packed work units. Initial work units: %d, packed work units: %d, max weight per bin: %d, "
+                + "max work units per bin: %d.", workUnitsMap.size(), workUnits.size(), maxSizePerBin,
+            maxWorkUnitsPerMultiWorkUnit));
+        return ImmutableList.copyOf(workUnits);
+      }
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
