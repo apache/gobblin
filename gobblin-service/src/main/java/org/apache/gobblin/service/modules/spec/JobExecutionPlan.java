@@ -19,18 +19,21 @@ package org.apache.gobblin.service.modules.spec;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Random;
 
 import org.apache.commons.lang3.StringUtils;
 
 import com.google.common.base.Joiner;
+import com.google.common.base.Strings;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.kafka.schemareg.KafkaSchemaRegistryConfigurationKeys;
+import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistry;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.SpecExecutor;
@@ -54,11 +57,11 @@ public class JobExecutionPlan {
 
   public static class Factory {
     public static final String JOB_NAME_COMPONENT_SEPARATION_CHAR = "_";
-    private static final Random random = new Random();
+    public static final String METRICS_REPORTING_CONFIG_PREFIX = "metrics.reporting";
 
-    public JobExecutionPlan createPlan(FlowSpec flowSpec, Config jobConfig, SpecExecutor specExecutor, Long flowExecutionId)
+    public JobExecutionPlan createPlan(FlowSpec flowSpec, Config jobConfig, SpecExecutor specExecutor, Long flowExecutionId, Config sysConfig)
         throws URISyntaxException {
-        JobSpec jobSpec = buildJobSpec(flowSpec, jobConfig, flowExecutionId);
+        JobSpec jobSpec = buildJobSpec(flowSpec, jobConfig, flowExecutionId, sysConfig);
         return new JobExecutionPlan(jobSpec, specExecutor);
     }
 
@@ -68,7 +71,7 @@ public class JobExecutionPlan {
      * @param flowSpec input FlowSpec.
      * @return a {@link JobSpec} corresponding to the resolved job config.
      */
-    private static JobSpec buildJobSpec(FlowSpec flowSpec, Config jobConfig, Long flowExecutionId) throws URISyntaxException {
+    private static JobSpec buildJobSpec(FlowSpec flowSpec, Config jobConfig, Long flowExecutionId, Config sysConfig) throws URISyntaxException {
       Config flowConfig = flowSpec.getConfig();
 
       String flowName = ConfigUtils.getString(flowConfig, ConfigurationKeys.FLOW_NAME_KEY, "");
@@ -115,12 +118,42 @@ public class JobExecutionPlan {
       jobSpec.setConfig(jobSpec.getConfig().withValue(ConfigurationKeys.FLOW_FAILURE_OPTION,
           ConfigValueFactory.fromAnyRef(flowFailureOption)));
 
+      //Add tracking config to JobSpec.
+      addTrackingEventConfig(jobSpec, sysConfig);
+
       // Reset properties in Spec from Config
       jobSpec.setConfigAsProperties(ConfigUtils.configToProperties(jobSpec.getConfig()));
 
       return jobSpec;
     }
 
+    /**
+     * A method to add tracking event configurations to a JobSpec.
+     * This enables {@link org.apache.gobblin.metrics.GobblinTrackingEvent}s
+     * to be emitted from each Gobblin job orchestrated by Gobblin-as-a-Service, which will then be used for tracking the
+     * execution status of the job.
+     * @param jobSpec representing a fully resolved {@link JobSpec}.
+     */
+    private static void addTrackingEventConfig(JobSpec jobSpec, Config sysConfig) {
+      Config reportingConfig = ConfigUtils.getConfig(sysConfig, METRICS_REPORTING_CONFIG_PREFIX, ConfigFactory.empty());
+      if (!reportingConfig.isEmpty()) {
+        Config jobConfig = jobSpec.getConfig().withFallback(reportingConfig.atPath(METRICS_REPORTING_CONFIG_PREFIX));
+        boolean isSchemaRegistryEnabled = ConfigUtils.getBoolean(sysConfig, ConfigurationKeys.METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY, false);
+        if (isSchemaRegistryEnabled) {
+          String schemaRegistryUrl = ConfigUtils.getString(sysConfig, KafkaSchemaRegistry.KAFKA_SCHEMA_REGISTRY_URL, "");
+          if (!Strings.isNullOrEmpty(schemaRegistryUrl)) {
+            jobConfig = jobConfig.withValue(KafkaSchemaRegistry.KAFKA_SCHEMA_REGISTRY_URL, ConfigValueFactory.fromAnyRef(schemaRegistryUrl));
+          }
+          String schemaOverrideNamespace = ConfigUtils
+              .getString(sysConfig, KafkaSchemaRegistryConfigurationKeys.KAFKA_SCHEMA_REGISTRY_OVERRIDE_NAMESPACE, "");
+          if (!Strings.isNullOrEmpty(schemaOverrideNamespace)) {
+            jobConfig = jobConfig.withValue(KafkaSchemaRegistryConfigurationKeys.KAFKA_SCHEMA_REGISTRY_OVERRIDE_NAMESPACE,
+                ConfigValueFactory.fromAnyRef(schemaOverrideNamespace));
+          }
+        }
+        jobSpec.setConfig(jobConfig);
+      }
+    }
 
     /**
      * A naive implementation of generating a jobSpec's URI within a multi-hop flow that follows the convention:
