@@ -531,14 +531,6 @@ public class ConfigurationKeys {
   public static final String SQL_SERVER_CONNECTION_PARAMETERS = "source.querybased.sqlserver.connectionParameters";
 
   /**
-   * Configuration properties used internally by Gobblin Splits to determine block locations
-   */
-  public static final String GOBBLIN_SPLIT_PREFIX = "gobblin.split";
-  public static final String GOBBLIN_SPLIT_FILE_PATH = GOBBLIN_SPLIT_PREFIX + ".file.path";
-  public static final String GOBBLIN_SPLIT_FILE_LOW_POSITION = GOBBLIN_SPLIT_PREFIX + ".file.low.position";
-  public static final String GOBBLIN_SPLIT_FILE_HIGH_POSITION = GOBBLIN_SPLIT_PREFIX + ".file.high.position";
-
-  /**
    * Configuration properties used by the CopySource.
    */
   public static final String COPY_SOURCE_FILESET_WU_GENERATOR_CLASS = "copy.source.fileset.wu.generator.class";

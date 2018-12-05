@@ -74,6 +74,7 @@ import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.lineage.LineageInfo;
 import org.apache.gobblin.metrics.event.sla.SlaEventKeys;
+import org.apache.gobblin.runtime.mapreduce.GobblinWorkUnitsInputFormat;
 import org.apache.gobblin.source.extractor.Extractor;
 import org.apache.gobblin.source.extractor.WatermarkInterval;
 import org.apache.gobblin.source.extractor.extract.AbstractSource;
@@ -129,8 +130,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   public static final String FILESET_TOTAL_ENTITIES = "fileset.total.entities";
   public static final String FILESET_TOTAL_SIZE_IN_BYTES = "fileset.total.size";
 
-  public static final String WORK_UNIT_WEIGHT = CopyConfiguration.COPY_PREFIX + ".workUnitWeight";
-  private final WorkUnitWeighter weighter = new FieldWeighter(WORK_UNIT_WEIGHT);
+  private final WorkUnitWeighter weighter = new FieldWeighter(GobblinWorkUnitsInputFormat.WORK_UNIT_WEIGHT);
 
   public MetricContext metricContext;
   public EventSubmitter eventSubmitter;
@@ -357,10 +357,6 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
           WorkUnit workUnit = new WorkUnit(extract);
           workUnit.addAll(this.state);
-          if (copyEntity instanceof CopyableFile) {
-            workUnit.setProp(ConfigurationKeys.GOBBLIN_SPLIT_FILE_PATH,
-                ((CopyableFile) copyEntity).getOrigin().getPath());
-          }
           serializeCopyEntity(workUnit, copyEntity);
           serializeCopyableDataset(workUnit, metadata);
           GobblinMetrics.addCustomTagToState(workUnit,
@@ -374,7 +370,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
           if (copyEntity instanceof CopyableFile && ((CopyableFile) copyEntity).getOrigin().getLen() > 0 &&
               DistcpFileSplitter.allowSplit(this.state, this.targetFs)) {
             workUnitsForPartition.addAll(DistcpFileSplitter.splitFile((CopyableFile) copyEntity,
-                workUnit, this.targetFs));
+                workUnit, this.targetFs, minWorkUnitWeight));
           } else {
             setWorkUnitWeight(workUnit, copyEntity, minWorkUnitWeight);
             workUnitsForPartition.add(workUnit);
@@ -474,7 +470,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
       weight = ((CopyableFile) copyEntity).getOrigin().getLen();
     }
     weight = Math.max(weight, minWeight);
-    workUnit.setProp(WORK_UNIT_WEIGHT, Long.toString(weight));
+    workUnit.setProp(GobblinWorkUnitsInputFormat.WORK_UNIT_WEIGHT, Long.toString(weight));
   }
 
   private static void computeAndSetWorkUnitGuid(WorkUnit workUnit)

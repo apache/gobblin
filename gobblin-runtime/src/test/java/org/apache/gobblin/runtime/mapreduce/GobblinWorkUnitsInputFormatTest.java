@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Set;
 
 import org.apache.commons.io.output.ByteArrayOutputStream;
+import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -77,8 +78,8 @@ public class GobblinWorkUnitsInputFormatTest {
     Job job = Job.getInstance(configuration);
     FileInputFormat.addInputPath(job, workUnitsDir);
 
-    Mockito.when(inputFormat.getFlattenedWorkUnitList(Mockito.any(FileSystem.class),
-        Mockito.any(Path.class))).thenReturn(Collections.emptyList());
+    Mockito.when(inputFormat.deserializeWorkUnitWrapper(Mockito.any(Path.class), Mockito.any(FileSystem.class)))
+        .thenReturn(WorkUnit.createEmpty());
 
     List<InputSplit> splits = inputFormat.getSplits(job);
 
@@ -113,8 +114,8 @@ public class GobblinWorkUnitsInputFormatTest {
     FileInputFormat.addInputPath(job, workUnitsDir);
     GobblinWorkUnitsInputFormat.setMaxMappers(job, 6);
 
-    Mockito.when(inputFormat.getFlattenedWorkUnitList(Mockito.any(FileSystem.class),
-        Mockito.any(Path.class))).thenReturn(Collections.emptyList());
+    Mockito.when(inputFormat.deserializeWorkUnitWrapper(Mockito.any(Path.class), Mockito.any(FileSystem.class)))
+        .thenReturn(WorkUnit.createEmpty());
 
     List<InputSplit> splits = inputFormat.getSplits(job);
 

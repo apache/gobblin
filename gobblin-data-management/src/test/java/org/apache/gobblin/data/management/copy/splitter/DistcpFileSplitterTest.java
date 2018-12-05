@@ -140,7 +140,7 @@ public class DistcpFileSplitterTest {
     CopySource.serializeCopyEntity(wu, cf);
     CopySource.serializeCopyableDataset(wu, cdm);
 
-    return DistcpFileSplitter.splitFile(spy, wu, fs);
+    return DistcpFileSplitter.splitFile(spy, wu, fs, 1L);
   }
 
 }

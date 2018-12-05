@@ -47,6 +47,7 @@ import org.apache.gobblin.data.management.copy.CopyEntity;
 import org.apache.gobblin.data.management.copy.CopySource;
 import org.apache.gobblin.data.management.copy.writer.FileAwareInputStreamDataWriter;
 import org.apache.gobblin.data.management.copy.writer.FileAwareInputStreamDataWriterBuilder;
+import org.apache.gobblin.runtime.mapreduce.GobblinWorkUnitsInputFormat;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.guid.Guid;
 
@@ -95,15 +96,12 @@ public class DistcpFileSplitter {
    * @return a list of {@link WorkUnit}, each for a split of this file.
    * @throws IOException
    */
-  public static Collection<WorkUnit> splitFile(CopyableFile file, WorkUnit workUnit, FileSystem targetFs)
-      throws IOException {
+  public static Collection<WorkUnit> splitFile(CopyableFile file, WorkUnit workUnit, FileSystem targetFs,
+      long minWorkUnitWeight) throws IOException {
     long len = file.getFileStatus().getLen();
     // get lcm of source and target block size so that split aligns with block boundaries for both extract and write
     long blockSize = ArithmeticUtils.lcm(file.getFileStatus().getBlockSize(), file.getBlockSize(targetFs));
     long maxSplitSize = workUnit.getPropAsLong(MAX_SPLIT_SIZE_KEY, DEFAULT_MAX_SPLIT_SIZE);
-
-    long maxSizePerBin = workUnit.getPropAsLong(CopySource.MAX_SIZE_MULTI_WORKUNITS, 0);
-    long maxWorkUnitsPerMultiWorkUnit = workUnit.getPropAsLong(CopySource.MAX_WORK_UNITS_PER_BIN, 50);
 
     if (maxSplitSize < blockSize) {
       log.warn(String.format("Max split size must be at least block size. Adjusting to %d.", blockSize));
@@ -132,10 +130,10 @@ public class DistcpFileSplitter {
       String serializedSplit = GSON.toJson(split);
 
       newWorkUnit.setProp(SPLIT_KEY, serializedSplit);
-      newWorkUnit.setProp(ConfigurationKeys.GOBBLIN_SPLIT_FILE_LOW_POSITION, lowPos);
-      newWorkUnit.setProp(ConfigurationKeys.GOBBLIN_SPLIT_FILE_HIGH_POSITION, highPos);
-      newWorkUnit.setProp(CopySource.WORK_UNIT_WEIGHT,
-          Math.max(highPos - lowPos, Math.max(1, maxSizePerBin / maxWorkUnitsPerMultiWorkUnit)));
+      newWorkUnit.setProp(GobblinWorkUnitsInputFormat.GOBBLIN_SPLIT_FILE_PATH, file.getOrigin().getPath());
+      newWorkUnit.setProp(GobblinWorkUnitsInputFormat.GOBBLIN_SPLIT_FILE_LOW_POSITION, lowPos);
+      newWorkUnit.setProp(GobblinWorkUnitsInputFormat.GOBBLIN_SPLIT_FILE_HIGH_POSITION, highPos);
+      newWorkUnit.setProp(GobblinWorkUnitsInputFormat.WORK_UNIT_WEIGHT, Math.max(highPos - lowPos, minWorkUnitWeight));
 
       Guid oldGuid = CopySource.getWorkUnitGuid(newWorkUnit).get();
       Guid newGuid = oldGuid.append(Guid.fromStrings(serializedSplit));
