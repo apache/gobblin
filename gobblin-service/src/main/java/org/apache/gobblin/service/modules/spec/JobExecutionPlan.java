@@ -135,9 +135,9 @@ public class JobExecutionPlan {
      * @param jobSpec representing a fully resolved {@link JobSpec}.
      */
     private static void addTrackingEventConfig(JobSpec jobSpec, Config sysConfig) {
-      Config reportingConfig = ConfigUtils.getConfig(sysConfig, ServiceConfigKeys.METRICS_REPORTING_CONFIG_PREFIX, ConfigFactory.empty());
+      Config reportingConfig = ConfigUtils.getConfig(sysConfig, ConfigurationKeys.METRICS_REPORTING_CONFIGURATIONS_PREFIX, ConfigFactory.empty());
       if (!reportingConfig.isEmpty()) {
-        Config jobConfig = jobSpec.getConfig().withFallback(reportingConfig.atPath(ServiceConfigKeys.METRICS_REPORTING_CONFIG_PREFIX));
+        Config jobConfig = jobSpec.getConfig().withFallback(reportingConfig.atPath(ConfigurationKeys.METRICS_REPORTING_CONFIGURATIONS_PREFIX));
         boolean isSchemaRegistryEnabled = ConfigUtils.getBoolean(sysConfig, ConfigurationKeys.METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY, false);
         if (isSchemaRegistryEnabled) {
           String schemaRegistryUrl = ConfigUtils.getString(sysConfig, KafkaSchemaRegistry.KAFKA_SCHEMA_REGISTRY_URL, "");

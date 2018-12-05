@@ -114,8 +114,4 @@ public class ServiceConfigKeys {
   public static final String GOBBLIN_SERVICE_LOG4J_CONFIGURATION_FILE = "log4j-service.properties";
   // GAAS Listerning Port
   public static final String SERVICE_PORT = GOBBLIN_SERVICE_PREFIX + "port";
-
-  //Metrics reporting config keys for Gobblin Service
-  public static final String METRICS_REPORTING_CONFIG_PREFIX = "metrics.reporting";
-
 }
