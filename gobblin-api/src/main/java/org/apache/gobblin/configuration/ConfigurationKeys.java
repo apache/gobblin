@@ -657,6 +657,7 @@ public class ConfigurationKeys {
   public static final String METRIC_CONTEXT_NAME_KEY = "metrics.context.name";
   public static final String METRIC_TIMER_WINDOW_SIZE_IN_MINUTES = METRICS_CONFIGURATIONS_PREFIX + "timer.window.size.in.minutes";
   public static final int DEFAULT_METRIC_TIMER_WINDOW_SIZE_IN_MINUTES = 15;
+  public static final String METRICS_REPORTING_CONFIGURATIONS_PREFIX = "metrics.reporting";
 
   // File-based reporting
   public static final String METRICS_REPORTING_FILE_ENABLED_KEY =

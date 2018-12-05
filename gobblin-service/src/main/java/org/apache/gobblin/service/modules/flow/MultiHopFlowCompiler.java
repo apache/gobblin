@@ -142,7 +142,7 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
       FlowGraphPath flowGraphPath = flowGraph.findPath(flowSpec);
       //Convert the path into a Dag of JobExecutionPlans.
       if (flowGraphPath != null) {
-        jobExecutionPlanDag = flowGraphPath.asDag();
+        jobExecutionPlanDag = flowGraphPath.asDag(this.config);
       } else {
         Instrumented.markMeter(flowCompilationFailedMeter);
         log.info(String.format("No path found from source: %s and destination: %s", source, destination));

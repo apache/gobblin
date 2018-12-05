@@ -75,14 +75,22 @@ public class FlowGraphPath {
     this.paths.add(path);
   }
 
-  public Dag<JobExecutionPlan> asDag() throws SpecNotFoundException, JobTemplate.TemplateException, URISyntaxException {
+  /**
+   * A method to convert a path of {@link FlowEdgeContext}s into a {@link Dag<JobExecutionPlan>}.
+   * @param sysConfig containing environment config (e.g. metric/tracking event config) to be added to each {@link JobSpec}.
+   * @return a {@link Dag<JobExecutionPlan>}
+   * @throws SpecNotFoundException
+   * @throws JobTemplate.TemplateException
+   * @throws URISyntaxException
+   */
+  public Dag<JobExecutionPlan> asDag(Config sysConfig) throws SpecNotFoundException, JobTemplate.TemplateException, URISyntaxException {
     Dag<JobExecutionPlan> flowDag = new Dag<>(new ArrayList<>());
 
     for (List<FlowEdgeContext> path: paths) {
       Dag<JobExecutionPlan> pathDag = new Dag<>(new ArrayList<>());
       Iterator<FlowEdgeContext> pathIterator = path.iterator();
       while (pathIterator.hasNext()) {
-        Dag<JobExecutionPlan> flowEdgeDag = convertHopToDag(pathIterator.next());
+        Dag<JobExecutionPlan> flowEdgeDag = convertHopToDag(pathIterator.next(), sysConfig);
         pathDag = concatenate(pathDag, flowEdgeDag);
       }
       flowDag = flowDag.merge(pathDag);
@@ -129,9 +137,10 @@ public class FlowGraphPath {
    * Given an instance of {@link FlowEdge}, this method returns a {@link Dag < JobExecutionPlan >} that moves data
    * from the source of the {@link FlowEdge} to the destination of the {@link FlowEdge}.
    * @param flowEdgeContext an instance of {@link FlowEdgeContext}.
+   * @param sysConfig environment config.
    * @return a {@link Dag} of {@link JobExecutionPlan}s associated with the {@link FlowEdge}.
    */
-   private Dag<JobExecutionPlan> convertHopToDag(FlowEdgeContext flowEdgeContext)
+   private Dag<JobExecutionPlan> convertHopToDag(FlowEdgeContext flowEdgeContext, Config sysConfig)
       throws SpecNotFoundException, JobTemplate.TemplateException, URISyntaxException {
     FlowTemplate flowTemplate = flowEdgeContext.getEdge().getFlowTemplate();
     DatasetDescriptor inputDatasetDescriptor = flowEdgeContext.getInputDatasetDescriptor();
@@ -146,7 +155,7 @@ public class FlowGraphPath {
     List<Config> resolvedJobConfigs = flowTemplate.getResolvedJobConfigs(mergedConfig, inputDatasetDescriptor, outputDatasetDescriptor);
     //Iterate over each resolved job config and convert the config to a JobSpec.
     for (Config resolvedJobConfig : resolvedJobConfigs) {
-      JobExecutionPlan jobExecutionPlan = new JobExecutionPlan.Factory().createPlan(flowSpec, resolvedJobConfig, specExecutor, flowExecutionId);
+      JobExecutionPlan jobExecutionPlan = new JobExecutionPlan.Factory().createPlan(flowSpec, resolvedJobConfig, specExecutor, flowExecutionId, sysConfig);
       jobExecutionPlans.add(jobExecutionPlan);
       templateToJobNameMap.put(getJobTemplateName(jobExecutionPlan), jobExecutionPlan.getJobSpec().getConfig().getString(
           ConfigurationKeys.JOB_NAME_KEY));
