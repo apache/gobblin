@@ -27,6 +27,7 @@ import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
 
@@ -35,7 +36,6 @@ import org.apache.gobblin.metrics.MetricContext;
 public abstract class KafkaEventKeyValueReporter extends KafkaEventReporter {
   private static final Splitter COMMA_SEPARATOR = Splitter.on(",").omitEmptyStrings().trimResults();
   private Optional<List<String>> keyName = Optional.absent();
-  public static final String keyPropertyName = "metrics.events.reporting.kafkaPusherKeys";
 
   public KafkaEventKeyValueReporter(BuilderImpl builder) throws IOException {
     super(builder);
@@ -49,8 +49,8 @@ public abstract class KafkaEventKeyValueReporter extends KafkaEventReporter {
 
     public BuilderImpl(MetricContext context, Properties properties) {
       super(context);
-      if (properties.containsKey(keyPropertyName)) {
-        this.keyName = COMMA_SEPARATOR.splitToList(properties.getProperty(keyPropertyName));
+      if (properties.containsKey(ConfigurationKeys.METRICS_REPORTING_EVENTS_KAFKAPUSHERKEYS)) {
+        this.keyName = COMMA_SEPARATOR.splitToList(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_EVENTS_KAFKAPUSHERKEYS));
       } else {
         log.warn("Keys for KafkaEventKeyValueReporter are not provided. Without keys, it will act like a KafkaAvroEventReporter.");
       }

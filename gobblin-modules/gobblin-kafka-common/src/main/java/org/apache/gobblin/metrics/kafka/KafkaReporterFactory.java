@@ -90,8 +90,8 @@ public class KafkaReporterFactory implements CustomCodahaleReporterFactory {
     }
 
     KafkaReportingFormats eventFormatEnum;
-    if (properties.containsKey(ConfigurationKeys.METRICS_EVENTS_REPORTING_KAFKA_FORMAT)) {
-      String eventsReportingFormat = properties.getProperty(ConfigurationKeys.METRICS_EVENTS_REPORTING_KAFKA_FORMAT,
+    if (properties.containsKey(ConfigurationKeys.METRICS_REPORTING_EVENTS_KAFKA_FORMAT)) {
+      String eventsReportingFormat = properties.getProperty(ConfigurationKeys.METRICS_REPORTING_EVENTS_KAFKA_FORMAT,
           ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_FORMAT);
       try {
         eventFormatEnum = KafkaReportingFormats.valueOf(eventsReportingFormat.toUpperCase());
