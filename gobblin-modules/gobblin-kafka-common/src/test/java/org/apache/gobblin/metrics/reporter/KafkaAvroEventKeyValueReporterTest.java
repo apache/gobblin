@@ -76,19 +76,7 @@ public class KafkaAvroEventKeyValueReporterTest extends KafkaAvroEventReporterTe
     event.setMetadata(metadata);
     context.submitEvent(event);
 
-    try {
-      Thread.sleep(100);
-    } catch(InterruptedException ex) {
-      Thread.currentThread().interrupt();
-    }
-
     kafkaReporter.report();
-
-    try {
-      Thread.sleep(100);
-    } catch(InterruptedException ex) {
-      Thread.currentThread().interrupt();
-    }
 
     Pair<String, GobblinTrackingEvent> retrievedEvent = nextKVEvent(pusher.messageIterator());
     Assert.assertNull(retrievedEvent.getKey());
