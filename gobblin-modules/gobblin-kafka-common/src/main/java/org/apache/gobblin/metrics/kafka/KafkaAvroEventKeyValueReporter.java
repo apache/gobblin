@@ -26,23 +26,22 @@ import org.apache.gobblin.metrics.reporter.util.SchemaRegistryVersionWriter;
 import org.apache.gobblin.metrics.reporter.util.SchemaVersionWriter;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Properties;
 
 import org.apache.avro.Schema;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
 
 
 /**
- * {@link org.apache.gobblin.metrics.reporter.EventReporter} that emits events to Kafka as serialized Avro records with a key.
- * Key for these kafka messages is obtained from values of properties provided via {@link #keyPropertyName}.
- * If the GobblinTrackingEvent does not contain any of the required property, key is set to null. In that case, this reporter
- * will act like a {@link org.apache.gobblin.metrics.kafka.KafkaAvroEventReporter}
+ * Implement of {@link KafkaEventKeyValueReporter} for avro records.
  */
 @Slf4j
 public class KafkaAvroEventKeyValueReporter extends KafkaEventKeyValueReporter {
 
-  protected KafkaAvroEventKeyValueReporter(BuilderImpl builder) throws IOException {
+  protected KafkaAvroEventKeyValueReporter(Builder<?> builder) throws IOException {
     super(builder);
     if(builder.registry.isPresent()) {
       Schema schema =
@@ -58,28 +57,56 @@ public class KafkaAvroEventKeyValueReporter extends KafkaEventKeyValueReporter {
     return new AvroBinarySerializer<>(GobblinTrackingEvent.SCHEMA$, schemaVersionWriter);
   }
 
-  public static class BuilderImpl extends KafkaEventKeyValueReporter.BuilderImpl {
-    private Optional<KafkaAvroSchemaRegistry> registry = Optional.absent();
-
-    public BuilderImpl(MetricContext context, Properties properties) {
-      super(context, properties);
+  private static class BuilderImpl extends Builder<BuilderImpl> {
+    private BuilderImpl(MetricContext context) {
+      super(context);
     }
 
     @Override
-    public KafkaEventReporter build(String brokers, String topic) throws IOException {
+    protected BuilderImpl self() {
+      return this;
+    }
+  }
+
+  public static abstract class Factory {
+    /**
+     * Returns a new {@link Builder} for {@link KafkaAvroEventKeyValueReporter}.
+     *
+     * @param context the {@link MetricContext} to report
+     * @return KafkaAvroReporter builder
+     */
+    public static BuilderImpl forContext(MetricContext context) {
+      return new BuilderImpl(context);
+    }
+  }
+
+  /**
+   * Builder for {@link KafkaAvroEventKeyValueReporter}.
+   * Defaults to no filter, reporting rates in seconds and times in milliseconds.
+   */
+  public static abstract class Builder<T extends Builder<T>> extends KafkaEventKeyValueReporter.Builder<T> {
+    private Optional<KafkaAvroSchemaRegistry> registry = Optional.absent();
+
+    private Builder(MetricContext context) {
+      super(context);
+    }
+
+    public T withSchemaRegistry(KafkaAvroSchemaRegistry registry) {
+      this.registry = Optional.of(registry);
+      return self();
+    }
+
+    /**
+     * Builds and returns {@link KafkaAvroEventReporter}.
+     *
+     * @param brokers string of Kafka brokers
+     * @param topic topic to send metrics to
+     * @return KafkaAvroReporter
+     */
+    public KafkaAvroEventKeyValueReporter build(String brokers, String topic) throws IOException {
       this.brokers = brokers;
       this.topic = topic;
       return new KafkaAvroEventKeyValueReporter(this);
-    }
-
-    @Override
-    protected KafkaAvroEventKeyValueReporter.BuilderImpl self() {
-      return this;
-    }
-
-    public BuilderImpl withSchemaRegistry(KafkaAvroSchemaRegistry registry) {
-      this.registry = Optional.of(registry);
-      return self();
     }
   }
 }

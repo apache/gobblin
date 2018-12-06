@@ -90,7 +90,7 @@ public class KafkaEventReporter extends EventReporter {
   }
 
   public static class BuilderImpl extends Builder<BuilderImpl> {
-    public BuilderImpl(MetricContext context) {
+    private BuilderImpl(MetricContext context) {
       super(context);
     }
 

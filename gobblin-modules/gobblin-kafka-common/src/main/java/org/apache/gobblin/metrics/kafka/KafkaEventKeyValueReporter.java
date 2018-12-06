@@ -19,7 +19,6 @@ package org.apache.gobblin.metrics.kafka;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Properties;
 import java.util.Queue;
 import org.apache.commons.lang3.tuple.Pair;
 import com.google.common.base.Splitter;
@@ -31,51 +30,36 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
 
-
+/**
+ * {@link org.apache.gobblin.metrics.reporter.EventReporter} that emits events to Kafka as serialized Avro records with a key.
+ * Key for these kafka messages is obtained from values of properties provided via {@link ConfigurationKeys#METRICS_REPORTING_EVENTS_KAFKAPUSHERKEYS}.
+ * If the GobblinTrackingEvent does not contain any of the required property, key is set to null. In that case, this reporter
+ * will act like a {@link org.apache.gobblin.metrics.kafka.KafkaAvroEventReporter}
+ */
 @Slf4j
-public abstract class KafkaEventKeyValueReporter extends KafkaEventReporter {
-  private static final Splitter COMMA_SEPARATOR = Splitter.on(",").omitEmptyStrings().trimResults();
-  private Optional<List<String>> keyName = Optional.absent();
+public class KafkaEventKeyValueReporter extends KafkaEventReporter {
+  private Optional<List<String>> keys = Optional.absent();
 
-  public KafkaEventKeyValueReporter(BuilderImpl builder) throws IOException {
+  protected KafkaEventKeyValueReporter(Builder<?> builder) throws IOException {
     super(builder);
-    if (builder.keyName.size() > 0) {
-      this.keyName = Optional.of(builder.keyName);
+    if (builder.keys.size() > 0) {
+      this.keys = Optional.of(builder.keys);
+    } else {
+      log.warn("Cannot find keys for key-value reporter. Please set it with property {}",
+          ConfigurationKeys.METRICS_REPORTING_EVENTS_KAFKAPUSHERKEYS);
     }
   }
-
-  public static abstract class BuilderImpl extends KafkaEventReporter.BuilderImpl {
-    protected List<String> keyName = Lists.newArrayList();
-
-    public BuilderImpl(MetricContext context, Properties properties) {
-      super(context);
-      if (properties.containsKey(ConfigurationKeys.METRICS_REPORTING_EVENTS_KAFKAPUSHERKEYS)) {
-        this.keyName = COMMA_SEPARATOR.splitToList(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_EVENTS_KAFKAPUSHERKEYS));
-      } else {
-        log.warn("Keys for KafkaEventKeyValueReporter are not provided. Without keys, it will act like a KafkaAvroEventReporter.");
-      }
-    }
-
-    @Override
-    public abstract KafkaEventReporter build(String brokers, String topic) throws IOException;
-
-    @Override
-    protected KafkaEventKeyValueReporter.BuilderImpl self() {
-      return this;
-    }
-  }
-
 
   @Override
   public void reportEventQueue(Queue<GobblinTrackingEvent> queue) {
     GobblinTrackingEvent nextEvent;
-    List<Pair<String, byte[]>> events = com.google.common.collect.Lists.newArrayList();
+    List<Pair<String, byte[]>> events = Lists.newArrayList();
 
     while(null != (nextEvent = queue.poll())) {
       StringBuilder sb = new StringBuilder();
       String key = null;
-      if (keyName.isPresent()) {
-        for (String keyPart : keyName.get()) {
+      if (keys.isPresent()) {
+        for (String keyPart : keys.get()) {
           if (nextEvent.getMetadata().containsKey(keyPart)) {
             sb.append(nextEvent.getMetadata().get(keyPart));
           } else {
@@ -84,13 +68,66 @@ public abstract class KafkaEventKeyValueReporter extends KafkaEventReporter {
             break;
           }
         }
-        key = sb == null ? null : sb.toString();
+        key = (sb == null) ? null : sb.toString();
       }
       events.add(Pair.of(key, this.serializer.serializeRecord(nextEvent)));
     }
 
     if (!events.isEmpty()) {
       this.kafkaPusher.pushMessages(events);
+    }
+  }
+
+  private static class BuilderImpl extends Builder<BuilderImpl> {
+    private BuilderImpl(MetricContext context) {
+      super(context);
+    }
+
+    @Override
+    protected BuilderImpl self() {
+      return this;
+    }
+  }
+
+  public static abstract class Factory {
+    /**
+     * Returns a new {@link Builder} for {@link KafkaEventKeyValueReporter}.
+     *
+     * @param context the {@link MetricContext} to report
+     * @return KafkaAvroReporter builder
+     */
+    public static BuilderImpl forContext(MetricContext context) {
+      return new BuilderImpl(context);
+    }
+  }
+
+  /**
+   * Builder for {@link KafkaEventKeyValueReporter}.
+   * Defaults to no filter, reporting rates in seconds and times in milliseconds.
+   */
+  public static abstract class Builder<T extends Builder<T>> extends KafkaEventReporter.Builder<T> {
+    private List<String> keys = Lists.newArrayList();
+
+    protected Builder(MetricContext context) {
+      super(context);
+    }
+
+    public T withKeys(List<String> keys) {
+      this.keys = keys;
+      return self();
+    }
+
+    /**
+     * Builds and returns {@link KafkaAvroEventReporter}.
+     *
+     * @param brokers string of Kafka brokers
+     * @param topic topic to send metrics to
+     * @return KafkaAvroReporter
+     */
+    public KafkaEventKeyValueReporter build(String brokers, String topic) throws IOException {
+      this.brokers = brokers;
+      this.topic = topic;
+      return new KafkaEventKeyValueReporter(this);
     }
   }
 }

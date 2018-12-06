@@ -18,7 +18,6 @@
 package org.apache.gobblin.metrics.kafka;
 
 import java.io.IOException;
-import java.util.Properties;
 
 import org.apache.avro.Schema;
 
@@ -58,15 +57,15 @@ public class KafkaAvroEventReporter extends KafkaEventReporter {
    *
    * @param context the {@link MetricContext} to report
    * @return KafkaAvroReporter builder
-   * @deprecated this method is bugged. Use {@link KafkaEventReporter.Factory#forContext} instead.
+   * @deprecated this method is bugged. Use {@link Factory#forContext} instead.
    */
   @Deprecated
   public static Builder<? extends Builder<?>> forContext(MetricContext context) {
     return new BuilderImpl(context);
   }
 
-  public static class BuilderImpl extends Builder<BuilderImpl> {
-    public BuilderImpl(MetricContext context) {
+  private static class BuilderImpl extends Builder<BuilderImpl> {
+    private BuilderImpl(MetricContext context) {
       super(context);
     }
 
@@ -76,11 +75,6 @@ public class KafkaAvroEventReporter extends KafkaEventReporter {
     }
   }
 
-  /**
-   * @deprecated this class serves no purpose, and exists only for backward compatibility.
-   * It will be removed in next release.
-   */
-  @Deprecated
   public static abstract class Factory {
     /**
      * Returns a new {@link Builder} for {@link KafkaAvroEventReporter}.
@@ -88,7 +82,6 @@ public class KafkaAvroEventReporter extends KafkaEventReporter {
      * @param context the {@link MetricContext} to report
      * @return KafkaAvroReporter builder
      */
-    @Deprecated
     public static BuilderImpl forContext(MetricContext context) {
       return new BuilderImpl(context);
     }
@@ -102,7 +95,7 @@ public class KafkaAvroEventReporter extends KafkaEventReporter {
 
     private Optional<KafkaAvroSchemaRegistry> registry = Optional.absent();
 
-    protected Builder(MetricContext context) {
+    private Builder(MetricContext context) {
       super(context);
     }
 
