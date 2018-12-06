@@ -38,7 +38,6 @@ import com.google.common.collect.Sets;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.source.workunit.WorkUnit;
 
 
@@ -47,7 +46,7 @@ import org.apache.gobblin.source.workunit.WorkUnit;
  * assigns work units to input splits based on rack locality.
  * Uses the gobblin.inputsplit related properties in {@link GobblinWorkUnitsInputFormat}.
  * To use this input format, instead of the default {@link GobblinWorkUnitsInputFormat},
- * use the {@link MRJobLauncher} INPUT_FORMAT_CLASS_KEY property
+ * use the {@link MRJobLauncher#INPUT_FORMAT_CLASS_KEY} property
  */
 @Slf4j
 public class RackLocalGobblinWorkUnitsInputFormat extends GobblinWorkUnitsInputFormat {
@@ -57,7 +56,7 @@ public class RackLocalGobblinWorkUnitsInputFormat extends GobblinWorkUnitsInputF
   // mapping from a node to the set of relevant block-level work units that it contains
   Map<String, Set<String>> nodesToWorkUnits = Maps.newHashMap();
   // mapping from a rack name to the list of relevant block-level work units it contains
-  Map<String, List<String>> racksToWorkUnits = Maps.newHashMap();
+  Map<String, Set<String>> racksToWorkUnits = Maps.newHashMap();
 
   @Override
   protected void clearWorkUnitPathsInfo() {
@@ -109,7 +108,7 @@ public class RackLocalGobblinWorkUnitsInputFormat extends GobblinWorkUnitsInputF
 
         for (int i = 0; i < topos.length; ++i) {
           String rack = (new NodeBase(topos[i])).getNetworkLocation();
-          racksToWorkUnits.computeIfAbsent(rack, r -> Lists.newArrayList()).add(workUnitPath.toString());
+          racksToWorkUnits.computeIfAbsent(rack, r -> Sets.newHashSet()).add(workUnitPath.toString());
 
           if (!rack.equals(NetworkTopology.DEFAULT_RACK)) {
             racksToNodes.computeIfAbsent(rack, r -> Sets.newHashSet()).add(hosts[i]);
@@ -138,17 +137,17 @@ public class RackLocalGobblinWorkUnitsInputFormat extends GobblinWorkUnitsInputF
    * keys already and it is still possible to create a split for a key where a split has already been created.
    */
   private void iterateAndCreateSplits(List<InputSplit> splits, int numTasksPerMapper,
-      Map<String, ? extends Collection<String>> reverseWorkUnitsMap) {
+      Map<String, Set<String>> reverseWorkUnitsMap) {
     Set<String> completed = Sets.newHashSet();
     while (completed.size() < reverseWorkUnitsMap.size()) {
-      for (Map.Entry<String, ? extends Collection<String>> workUnitsEntry : reverseWorkUnitsMap.entrySet()) {
+      for (Map.Entry<String, Set<String>> workUnitsEntry : reverseWorkUnitsMap.entrySet()) {
         String key = workUnitsEntry.getKey();
         if (completed.contains(key)) {
           continue;
         }
 
-        List<String> validWorkUnits = Lists.newArrayList();
-        Collection<String> workUnits = workUnitsEntry.getValue();
+        Set<String> validWorkUnits = Sets.newHashSet();
+        Set<String> workUnits = workUnitsEntry.getValue();
         Iterator<String> workUnitsIter = workUnits.iterator();
         while (workUnitsIter.hasNext()) {
           String workUnit = workUnitsIter.next();
@@ -166,9 +165,7 @@ public class RackLocalGobblinWorkUnitsInputFormat extends GobblinWorkUnitsInputF
             splits.add(createSplit(validWorkUnits, getHosts(key)));
 
             workUnits.removeAll(validWorkUnits);
-            for (String addedWorkUnit : validWorkUnits) {
-              workUnitPaths.remove(addedWorkUnit);
-            }
+            workUnitPaths.removeAll(validWorkUnits);
 
             validWorkUnits.clear();
 
@@ -183,7 +180,7 @@ public class RackLocalGobblinWorkUnitsInputFormat extends GobblinWorkUnitsInputF
     }
   }
 
-  private GobblinSplit createSplit(List<String> workUnitsToAdd, String[] locations) {
+  private GobblinSplit createSplit(Set<String> workUnitsToAdd, String[] locations) {
     List<String> splitPaths = Lists.newArrayListWithExpectedSize(workUnitsToAdd.size());
     long splitLength = 0L;
     for (String workUnit : workUnitsToAdd) {
