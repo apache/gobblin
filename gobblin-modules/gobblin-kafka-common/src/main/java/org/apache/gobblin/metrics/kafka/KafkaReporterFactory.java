@@ -118,8 +118,11 @@ public class KafkaReporterFactory implements CustomCodahaleReporterFactory {
 
         builder.withConfig(kafkaConfig);
 
-        builder.withPusherClassName(properties.getProperty(PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY_FOR_EVENTS,
-            PusherUtils.DEFAULT_KAFKA_PUSHER_CLASS_NAME));
+        String pusherClassName = properties.containsKey(PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY_FOR_EVENTS)
+            ? properties.getProperty(PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY_FOR_EVENTS)
+            : properties.getProperty(PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY,
+                PusherUtils.DEFAULT_KAFKA_PUSHER_CLASS_NAME);
+        builder.withPusherClassName(pusherClassName);
 
         return builder.build(brokers, eventsTopic.or(defaultTopic).get());
       } catch (IOException exception) {

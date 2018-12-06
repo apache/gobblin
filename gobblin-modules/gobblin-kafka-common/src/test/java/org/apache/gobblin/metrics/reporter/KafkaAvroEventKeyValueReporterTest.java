@@ -36,19 +36,16 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
 
-public class KafkaAvroEventKeyValueReporterTest extends KafkaAvroEventReporterTest {
-  Properties properties;
+import com.google.common.collect.Lists;
 
-  @BeforeClass
-  public void setup() {
-    properties = new Properties();
-    properties.setProperty(ConfigurationKeys.METRICS_REPORTING_EVENTS_KAFKAPUSHERKEYS, "k1,k2,k3");
-  }
+
+public class KafkaAvroEventKeyValueReporterTest extends KafkaAvroEventReporterTest {
 
   @Override
   public KafkaEventReporter.Builder<? extends KafkaEventReporter.Builder> getBuilder(MetricContext context,
                                                                                      Pusher pusher) {
-    return new KafkaAvroEventKeyValueReporter.BuilderImpl(context, properties).withKafkaPusher(pusher);
+    KafkaAvroEventKeyValueReporter.Builder<?> builder = KafkaAvroEventKeyValueReporter.Factory.forContext(context);
+    return builder.withKafkaPusher(pusher).withKeys(Lists.newArrayList("k1", "k2", "k3"));
   }
 
   private Pair<String, GobblinTrackingEvent> nextKVEvent(Iterator<Pair<String, byte[]>> it) throws IOException {
@@ -91,19 +88,7 @@ public class KafkaAvroEventKeyValueReporterTest extends KafkaAvroEventReporterTe
     event.setMetadata(metadata);
     context.submitEvent(event);
 
-    try {
-      Thread.sleep(100);
-    } catch(InterruptedException ex) {
-      Thread.currentThread().interrupt();
-    }
-
     kafkaReporter.report();
-
-    try {
-      Thread.sleep(100);
-    } catch(InterruptedException ex) {
-      Thread.currentThread().interrupt();
-    }
 
     retrievedEvent = nextKVEvent(pusher.messageIterator());
     Assert.assertEquals(retrievedEvent.getKey(), "v1v2v3");
