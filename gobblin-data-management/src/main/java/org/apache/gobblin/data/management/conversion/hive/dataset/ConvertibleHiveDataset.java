@@ -122,7 +122,7 @@ public class ConvertibleHiveDataset extends HiveDataset {
 
     for (String format : this.destFormats) {
       if (this.datasetConfig.hasPath(format)) {
-        log.debug("Found desination format: " + format);
+        log.debug("Found destination format: " + format);
         this.destConversionConfigs.put(format, new ConversionConfig(this.datasetConfig.getConfig(format), table, format));
 
       }
@@ -154,6 +154,7 @@ public class ConvertibleHiveDataset extends HiveDataset {
       String sourceTable = getTable().getDbName() + "." + getTable().getTableName();
       DatasetDescriptor source = new DatasetDescriptor(DatasetConstants.PLATFORM_HIVE, sourceTable);
       Path sourcePath = getTable().getDataLocation();
+      log.info(String.format("[%s]Source path %s being used in conversion", this.getClass().getName(), sourcePath));
       String sourceLocation = Path.getPathWithoutSchemeAndAuthority(sourcePath).toString();
       FileSystem sourceFs = sourcePath.getFileSystem(new Configuration());
       source.addMetadata(DatasetConstants.FS_SCHEME, sourceFs.getScheme());
