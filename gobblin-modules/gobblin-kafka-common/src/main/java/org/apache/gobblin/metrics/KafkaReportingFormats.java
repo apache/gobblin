@@ -17,9 +17,13 @@
 
 package org.apache.gobblin.metrics;
 
+import java.util.List;
 import java.util.Properties;
 
+import com.google.common.base.Splitter;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metrics.kafka.KafkaAvroEventKeyValueReporter;
 import org.apache.gobblin.metrics.kafka.KafkaAvroEventReporter;
 import org.apache.gobblin.metrics.kafka.KafkaAvroReporter;
 import org.apache.gobblin.metrics.kafka.KafkaAvroSchemaRegistry;
@@ -33,6 +37,7 @@ import org.apache.gobblin.metrics.kafka.KafkaReporter;
 public enum KafkaReportingFormats {
 
   AVRO,
+  AVRO_KEY_VALUE,
   JSON;
 
   /**
@@ -67,14 +72,29 @@ public enum KafkaReportingFormats {
   public KafkaEventReporter.Builder<?> eventReporterBuilder(MetricContext context, Properties properties) {
     switch (this) {
       case AVRO:
-        KafkaAvroEventReporter.Builder<?> builder = KafkaAvroEventReporter.Factory.forContext(context);
+        KafkaAvroEventReporter.Builder<?> kafkaAvroEventReporterBuilder = KafkaAvroEventReporter.Factory.forContext(context);
         if (Boolean.valueOf(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY,
             ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY))) {
-          builder.withSchemaRegistry(new KafkaAvroSchemaRegistry(properties));
+          kafkaAvroEventReporterBuilder.withSchemaRegistry(new KafkaAvroSchemaRegistry(properties));
         }
-        return builder;
+        return kafkaAvroEventReporterBuilder;
+
+      case AVRO_KEY_VALUE:
+        KafkaAvroEventKeyValueReporter.Builder<?> kafkaAvroEventKeyValueReporterBuilder = KafkaAvroEventKeyValueReporter.Factory.forContext(context);
+        if (properties.containsKey(ConfigurationKeys.METRICS_REPORTING_EVENTS_KAFKAPUSHERKEYS)) {
+          List<String> keys = Splitter.on(",").omitEmptyStrings().trimResults()
+              .splitToList(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_EVENTS_KAFKAPUSHERKEYS));
+          kafkaAvroEventKeyValueReporterBuilder.withKeys(keys);
+        }
+        if (Boolean.valueOf(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY,
+            ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY))) {
+          kafkaAvroEventKeyValueReporterBuilder.withSchemaRegistry(new KafkaAvroSchemaRegistry(properties));
+        }
+        return kafkaAvroEventKeyValueReporterBuilder;
+
       case JSON:
         return KafkaEventReporter.Factory.forContext(context);
+
       default:
         // This should never happen.
         throw new IllegalArgumentException("KafkaReportingFormat not recognized.");
