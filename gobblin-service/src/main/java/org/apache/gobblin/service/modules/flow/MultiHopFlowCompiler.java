@@ -94,7 +94,7 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
       throw new RuntimeException("Cannot instantiate " + getClass().getName(), e);
     }
     this.flowGraph = new BaseFlowGraph();
-    this.gitFlowGraphMonitor = new GitFlowGraphMonitor(this.config, flowCatalog, this.flowGraph);
+    this.gitFlowGraphMonitor = new GitFlowGraphMonitor(this.config, flowCatalog, this.flowGraph, this.topologySpecMap);
     this.serviceManager = new ServiceManager(Lists.newArrayList(this.gitFlowGraphMonitor));
     addShutdownHook();
     //Start the git flow graph monitor

@@ -25,8 +25,10 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.Future;
@@ -38,6 +40,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.PathFilter;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.lib.Repository;
@@ -68,6 +71,7 @@ import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.api.SpecProducer;
+import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.runtime.spec_executorInstance.AbstractSpecExecutor;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.core.GitFlowGraphMonitor;
@@ -83,6 +87,7 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.modules.template_catalog.FSFlowCatalog;
 import org.apache.gobblin.util.CompletedFuture;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
@@ -116,9 +121,11 @@ public class MultiHopFlowCompilerTest {
       }
     }
 
+    URI specExecutorCatalogUri = this.getClass().getClassLoader().getResource("topologyspec_catalog").toURI();
+    Map<URI, TopologySpec> topologySpecMap = buildTopologySpecMap(specExecutorCatalogUri);
+
     //Create a FSFlowCatalog instance
     URI flowTemplateCatalogUri = this.getClass().getClassLoader().getResource("template_catalog").toURI();
-    // Create a FSFlowCatalog instance
     Properties properties = new Properties();
     properties.put(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY, flowTemplateCatalogUri.toString());
     Config config = ConfigFactory.parseProperties(properties);
@@ -126,7 +133,6 @@ public class MultiHopFlowCompilerTest {
         .withValue(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY,
             config.getValue(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY));
     FSFlowCatalog flowCatalog = new FSFlowCatalog(templateCatalogCfg);
-
 
     //Add FlowEdges from the edge properties files
     URI flowEdgesURI = MultiHopFlowCompilerTest.class.getClassLoader().getResource("flowgraph/flowedges").toURI();
@@ -139,11 +145,53 @@ public class MultiHopFlowCompilerTest {
         Class flowEdgeFactoryClass = Class.forName(ConfigUtils.getString(flowEdgeConfig, FlowGraphConfigurationKeys.FLOW_EDGE_FACTORY_CLASS,
             FlowGraphConfigurationKeys.DEFAULT_FLOW_EDGE_FACTORY_CLASS));
         FlowEdgeFactory flowEdgeFactory = (FlowEdgeFactory) GobblinConstructorUtils.invokeLongestConstructor(flowEdgeFactoryClass, config);
-        FlowEdge edge = flowEdgeFactory.createFlowEdge(flowEdgeConfig, flowCatalog);
+        List<String> specExecutorNames = ConfigUtils.getStringList(flowEdgeConfig, FlowGraphConfigurationKeys.FLOW_EDGE_SPEC_EXECUTORS_KEY);
+        List<SpecExecutor> specExecutors = new ArrayList<>();
+        for (String specExecutorName: specExecutorNames) {
+          specExecutors.add(topologySpecMap.get(new URI(specExecutorName)).getSpecExecutor());
+        }
+        FlowEdge edge = flowEdgeFactory.createFlowEdge(flowEdgeConfig, flowCatalog, specExecutors);
         this.flowGraph.addFlowEdge(edge);
       }
     }
     this.specCompiler = new MultiHopFlowCompiler(config, this.flowGraph);
+  }
+
+  /**
+   * A helper method to return a {@link TopologySpec} map, given a {@link org.apache.gobblin.runtime.spec_catalog.TopologyCatalog}.
+   * @param topologyCatalogUri pointing to the location of the {@link org.apache.gobblin.runtime.spec_catalog.TopologyCatalog}
+   * @return a {@link TopologySpec} map.
+   */
+  public static Map<URI, TopologySpec> buildTopologySpecMap(URI topologyCatalogUri)
+      throws IOException, URISyntaxException, ReflectiveOperationException {
+    FileSystem fs = FileSystem.get(topologyCatalogUri, new Configuration());
+    PathFilter extensionFilter = file -> {
+      for (String extension : Lists.newArrayList(".properties")) {
+        if (file.getName().endsWith(extension)) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+    Map<URI, TopologySpec> topologySpecMap = new HashMap<>();
+    for (FileStatus fileStatus : fs.listStatus(new Path(topologyCatalogUri.getPath()), extensionFilter)) {
+      URI topologySpecUri = new URI(Files.getNameWithoutExtension(fileStatus.getPath().getName()));
+      Config topologyConfig = ConfigFactory.parseFile(new File(PathUtils.getPathWithoutSchemeAndAuthority(fileStatus.getPath()).toString()));
+      Class specExecutorClass = Class.forName(topologyConfig.getString(ServiceConfigKeys.SPEC_EXECUTOR_KEY));
+      SpecExecutor specExecutor = (SpecExecutor) GobblinConstructorUtils.invokeLongestConstructor(specExecutorClass, topologyConfig);
+
+      TopologySpec.Builder topologySpecBuilder = TopologySpec
+          .builder(topologySpecUri)
+          .withConfig(topologyConfig)
+          .withDescription("")
+          .withVersion("1")
+          .withSpecExecutor(specExecutor);
+
+      TopologySpec topologySpec = topologySpecBuilder.build();
+      topologySpecMap.put(topologySpecUri, topologySpec);
+    }
+    return topologySpecMap;
   }
 
   private FlowSpec createFlowSpec(String flowConfigResource, String source, String destination, boolean applyRetention, boolean applyRetentionOnInput)

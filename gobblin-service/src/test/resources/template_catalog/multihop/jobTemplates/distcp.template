@@ -43,14 +43,5 @@ source.class="org.apache.gobblin.data.management.copy.CopySource"
 writer.builder.class="org.apache.gobblin.data.management.copy.writer.FileAwareInputStreamDataWriterBuilder"
 converter.classes="org.apache.gobblin.converter.IdentityConverter"
 
-# =======================================
-# Job Parameters to be resolved using SpecExecutor properties
-# =======================================
-type=${specExecInstance.job.type}
-
 job.jars="lib/*"
 job.lock.enabled=false
-job.class=${specExecInstance.job.launcher.class}
-
-# Gobblin Hadoop Parameters
-launcher.type=${specExecInstance.job.launcher.type}

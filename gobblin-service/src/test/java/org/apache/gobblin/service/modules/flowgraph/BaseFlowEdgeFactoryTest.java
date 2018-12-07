@@ -18,14 +18,19 @@
 package org.apache.gobblin.service.modules.flowgraph;
 
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 
+import org.apache.gobblin.runtime.api.SpecExecutor;
+import org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutor;
 import org.apache.gobblin.util.ConfigUtils;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.service.ServiceConfigKeys;
@@ -43,12 +48,14 @@ public class BaseFlowEdgeFactoryTest {
     properties.put(FlowGraphConfigurationKeys.FLOW_EDGE_NAME_KEY, "edge1");
     properties.put(FlowGraphConfigurationKeys.FLOW_EDGE_ID_KEY, "node1:node2:edge1");
     properties.put(FlowGraphConfigurationKeys.FLOW_EDGE_TEMPLATE_DIR_URI_KEY, "FS:///flowEdgeTemplate");
-    properties.put(FlowGraphConfigurationKeys.FLOW_EDGE_SPEC_EXECUTORS_KEY+".0."+FlowGraphConfigurationKeys.FLOW_EDGE_SPEC_EXECUTOR_CLASS_KEY,"org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutor");
-    properties.put(FlowGraphConfigurationKeys.FLOW_EDGE_SPEC_EXECUTORS_KEY+".0.specStore.fs.dir", "/tmp1");
-    properties.put(FlowGraphConfigurationKeys.FLOW_EDGE_SPEC_EXECUTORS_KEY+".0.specExecInstance.capabilities", "s1:d1");
-    properties.put(FlowGraphConfigurationKeys.FLOW_EDGE_SPEC_EXECUTORS_KEY+".1."+FlowGraphConfigurationKeys.FLOW_EDGE_SPEC_EXECUTOR_CLASS_KEY,"org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutor");
-    properties.put(FlowGraphConfigurationKeys.FLOW_EDGE_SPEC_EXECUTORS_KEY+".1.specStore.fs.dir", "/tmp2");
-    properties.put(FlowGraphConfigurationKeys.FLOW_EDGE_SPEC_EXECUTORS_KEY+".1.specExecInstance.capabilities", "s2:d2");
+
+    List<SpecExecutor> specExecutorList = new ArrayList<>();
+    Config config1 = ConfigFactory.empty().withValue("specStore.fs.dir", ConfigValueFactory.fromAnyRef("/tmp1")).
+        withValue("specExecInstance.capabilities", ConfigValueFactory.fromAnyRef("s1:d1"));
+    specExecutorList.add(new InMemorySpecExecutor(config1));
+    Config config2 = ConfigFactory.empty().withValue("specStore.fs.dir", ConfigValueFactory.fromAnyRef("/tmp2")).
+        withValue("specExecInstance.capabilities", ConfigValueFactory.fromAnyRef("s2:d2"));
+    specExecutorList.add(new InMemorySpecExecutor(config2));
 
     FlowEdgeFactory flowEdgeFactory = new BaseFlowEdge.Factory();
 
@@ -61,7 +68,7 @@ public class BaseFlowEdgeFactoryTest {
             config.getValue(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY));
     FSFlowCatalog catalog = new FSFlowCatalog(templateCatalogCfg);
     Config edgeProps = ConfigUtils.propertiesToConfig(properties);
-    FlowEdge flowEdge = flowEdgeFactory.createFlowEdge(edgeProps, catalog);
+    FlowEdge flowEdge = flowEdgeFactory.createFlowEdge(edgeProps, catalog, specExecutorList);
     Assert.assertEquals(flowEdge.getSrc(), "node1");
     Assert.assertEquals(flowEdge.getDest(), "node2");
     Assert.assertEquals(flowEdge.getExecutors().get(0).getConfig().get().getString("specStore.fs.dir"),"/tmp1");
