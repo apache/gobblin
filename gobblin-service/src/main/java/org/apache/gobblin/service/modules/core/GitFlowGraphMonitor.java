@@ -18,8 +18,12 @@
 package org.apache.gobblin.service.modules.core;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.Path;
@@ -36,6 +40,8 @@ import com.typesafe.config.ConfigValueFactory;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.api.SpecExecutor;
+import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.service.modules.flowgraph.DataNode;
 import org.apache.gobblin.service.modules.flowgraph.FlowEdge;
 import org.apache.gobblin.service.modules.flowgraph.FlowEdgeFactory;
@@ -82,12 +88,14 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
 
   private FSFlowCatalog flowCatalog;
   private FlowGraph flowGraph;
+  private final Map<URI, TopologySpec> topologySpecMap;
   private final Config emptyConfig = ConfigFactory.empty();
 
-  public GitFlowGraphMonitor(Config config, FSFlowCatalog flowCatalog, FlowGraph graph) {
+  public GitFlowGraphMonitor(Config config, FSFlowCatalog flowCatalog, FlowGraph graph, Map<URI, TopologySpec> topologySpecMap) {
     super(config.getConfig(GIT_FLOWGRAPH_MONITOR_PREFIX).withFallback(DEFAULT_FALLBACK));
     this.flowCatalog = flowCatalog;
     this.flowGraph = graph;
+    this.topologySpecMap = topologySpecMap;
   }
 
   /**
@@ -203,11 +211,12 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
     if (checkFilePath(change.getNewPath(), EDGE_FILE_DEPTH)) {
       Path edgeFilePath = new Path(this.repositoryDir, change.getNewPath());
       try {
-        Config config = loadEdgeFileWithOverrides(edgeFilePath);
-        Class flowEdgeFactoryClass = Class.forName(ConfigUtils.getString(config, FlowGraphConfigurationKeys.FLOW_EDGE_FACTORY_CLASS,
+        Config edgeConfig = loadEdgeFileWithOverrides(edgeFilePath);
+        List<SpecExecutor> specExecutors = getSpecExecutors(edgeConfig);
+        Class flowEdgeFactoryClass = Class.forName(ConfigUtils.getString(edgeConfig, FlowGraphConfigurationKeys.FLOW_EDGE_FACTORY_CLASS,
             FlowGraphConfigurationKeys.DEFAULT_FLOW_EDGE_FACTORY_CLASS));
-        FlowEdgeFactory flowEdgeFactory = (FlowEdgeFactory) GobblinConstructorUtils.invokeLongestConstructor(flowEdgeFactoryClass, config);
-        FlowEdge edge = flowEdgeFactory.createFlowEdge(config, flowCatalog);
+        FlowEdgeFactory flowEdgeFactory = (FlowEdgeFactory) GobblinConstructorUtils.invokeLongestConstructor(flowEdgeFactoryClass, edgeConfig);
+        FlowEdge edge = flowEdgeFactory.createFlowEdge(edgeConfig, flowCatalog, specExecutors);
         if (!this.flowGraph.addFlowEdge(edge)) {
           log.warn("Could not add edge {} to FlowGraph; skipping", edge.getId());
         } else {
@@ -304,9 +313,29 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
     String source = edgeFilePath.getParent().getParent().getName();
     String destination = edgeFilePath.getParent().getName();
     String edgeName = Files.getNameWithoutExtension(edgeFilePath.getName());
+
     return edgeConfig.withValue(FlowGraphConfigurationKeys.FLOW_EDGE_SOURCE_KEY, ConfigValueFactory.fromAnyRef(source))
         .withValue(FlowGraphConfigurationKeys.FLOW_EDGE_DESTINATION_KEY, ConfigValueFactory.fromAnyRef(destination))
         .withValue(FlowGraphConfigurationKeys.FLOW_EDGE_ID_KEY, ConfigValueFactory.fromAnyRef(getEdgeId(source, destination, edgeName)));
+  }
+
+  /**
+   * This method first retrieves  the logical names of all the {@link org.apache.gobblin.runtime.api.SpecExecutor}s
+   * for this edge and returns the SpecExecutors from the {@link TopologySpec} map.
+   * @param edgeConfig containing the logical names of SpecExecutors for this edge.
+   * @return a {@link List<SpecExecutor>}s for this edge.
+   */
+  private List<SpecExecutor> getSpecExecutors(Config edgeConfig)
+      throws URISyntaxException {
+    //Get the logical names of SpecExecutors where the FlowEdge can be executed.
+    List<String> specExecutorNames = ConfigUtils.getStringList(edgeConfig, FlowGraphConfigurationKeys.FLOW_EDGE_SPEC_EXECUTORS_KEY);
+    //Load all the SpecExecutor configurations for this FlowEdge from the SpecExecutor Catalog.
+    List<SpecExecutor> specExecutors = new ArrayList<>();
+    for (String specExecutorName: specExecutorNames) {
+      URI specExecutorUri = new URI(specExecutorName);
+      specExecutors.add(this.topologySpecMap.get(specExecutorUri).getSpecExecutor());
+    }
+    return specExecutors;
   }
 
   /**

@@ -181,7 +181,7 @@ public abstract class AbstractPathFinder implements PathFinder {
         boolean foundExecutor = false;
         //Iterate over all executors for this edge. Find the first one that resolves the underlying flow template.
         for (SpecExecutor specExecutor : flowEdge.getExecutors()) {
-          Config mergedConfig = getMergedConfig(flowEdge, specExecutor);
+          Config mergedConfig = getMergedConfig(flowEdge);
           List<Pair<DatasetDescriptor, DatasetDescriptor>> datasetDescriptorPairs =
               flowEdge.getFlowTemplate().getResolvingDatasetDescriptors(mergedConfig);
           for (Pair<DatasetDescriptor, DatasetDescriptor> datasetDescriptorPair : datasetDescriptorPairs) {
@@ -285,21 +285,18 @@ public abstract class AbstractPathFinder implements PathFinder {
    * <ul>
    *   <p> the user provided flow config </p>
    *   <p> edge specific properties/overrides </p>
-   *   <p> spec executor config/overrides </p>
    *   <p> source node config </p>
    *   <p> destination node config </p>
    * </ul>
    * Each {@link JobTemplate}'s config will eventually be resolved against this merged config.
    * @param flowEdge An instance of {@link FlowEdge}.
-   * @param specExecutor A {@link SpecExecutor}.
    * @return the merged config derived as described above.
    */
-  private Config getMergedConfig(FlowEdge flowEdge, SpecExecutor specExecutor)
+  private Config getMergedConfig(FlowEdge flowEdge)
       throws ExecutionException, InterruptedException {
     Config srcNodeConfig = this.flowGraph.getNode(flowEdge.getSrc()).getRawConfig().atPath(SOURCE_PREFIX);
     Config destNodeConfig = this.flowGraph.getNode(flowEdge.getDest()).getRawConfig().atPath(DESTINATION_PREFIX);
-    Config mergedConfig = flowConfig.withFallback(specExecutor.getConfig().get()).withFallback(flowEdge.getConfig())
-        .withFallback(srcNodeConfig).withFallback(destNodeConfig);
+    Config mergedConfig = flowConfig.withFallback(flowEdge.getConfig()).withFallback(srcNodeConfig).withFallback(destNodeConfig);
     return mergedConfig;
   }
 
