@@ -17,23 +17,22 @@
 
 package org.apache.gobblin.cluster;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.hadoop.fs.Path;
+import org.apache.helix.HelixException;
 import org.apache.helix.HelixManager;
 import org.apache.helix.task.Task;
 import org.apache.helix.task.TaskCallbackContext;
 import org.apache.helix.task.TaskConfig;
 import org.apache.helix.task.TaskResult;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Closer;
 import com.typesafe.config.Config;
@@ -41,17 +40,15 @@ import com.typesafe.config.Config;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
 import org.apache.gobblin.metrics.ContextAwareTimer;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.runtime.JobException;
-import org.apache.gobblin.runtime.TaskState;
-import org.apache.gobblin.runtime.util.StateStores;
-import org.apache.gobblin.source.extractor.partition.Partitioner;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.PropertiesUtils;
+
 
 /**
  * An implementation of Helix's {@link org.apache.helix.task.Task} that runs original {@link GobblinHelixJobLauncher}.
@@ -62,7 +59,7 @@ class GobblinHelixJobTask implements Task {
   private final TaskConfig taskConfig;
   private final Config sysConfig;
   private final Properties jobPlusSysConfig;
-  private final StateStores stateStores;
+  private final HelixJobsMapping jobsMapping;
   private final String planningJobId;
   private final HelixManager helixManager;
   private final Path appWorkDir;
@@ -72,7 +69,7 @@ class GobblinHelixJobTask implements Task {
   private GobblinHelixJobLauncherListener jobLauncherListener;
 
   public GobblinHelixJobTask (TaskCallbackContext context,
-                              StateStores stateStores,
+                              HelixJobsMapping jobsMapping,
                               TaskRunnerSuiteBase.Builder builder,
                               GobblinHelixJobLauncherMetrics launcherMetrics,
                               GobblinHelixJobTaskMetrics jobTaskMetrics) {
@@ -96,7 +93,7 @@ class GobblinHelixJobTask implements Task {
     }
 
     this.planningJobId = jobPlusSysConfig.getProperty(GobblinClusterConfigurationKeys.PLANNING_ID_KEY);
-    this.stateStores = stateStores;
+    this.jobsMapping = jobsMapping;
     this.appWorkDir = builder.getAppWorkPath();
     this.metadataTags = Tag.fromMap(new ImmutableMap.Builder<String, Object>()
         .put(GobblinClusterMetricTagNames.APPLICATION_NAME, builder.getApplicationName())
@@ -117,7 +114,7 @@ class GobblinHelixJobTask implements Task {
     public void updateTimeBetweenJobSubmissionAndExecution(Properties jobProps) {
       long jobSubmitTime = Long.parseLong(jobProps.getProperty(GobblinClusterConfigurationKeys.PLANNING_JOB_CREATE_TIME, "0"));
       if (jobSubmitTime != 0) {
-        Instrumented.updateTimer(Optional.of(this.timeBetweenJobSubmissionAndExecution),
+        Instrumented.updateTimer(com.google.common.base.Optional.of(this.timeBetweenJobSubmissionAndExecution),
             System.currentTimeMillis() - jobSubmitTime,
             TimeUnit.MILLISECONDS);
       }
@@ -140,28 +137,57 @@ class GobblinHelixJobTask implements Task {
   public TaskResult run() {
     log.info("Running planning job {}", this.planningJobId);
     this.jobTaskMetrics.updateTimeBetweenJobSubmissionAndExecution(this.jobPlusSysConfig);
+
     try (Closer closer = Closer.create()) {
-      this.launcher = createJobLauncher();
-      closer.register(launcher).launchJob(this.jobLauncherListener);
-      setResultToUserContent(ImmutableMap.of(Partitioner.IS_EARLY_STOPPED, "false"));
+      String jobName = jobPlusSysConfig.getProperty(ConfigurationKeys.JOB_NAME_KEY);
+
+      Optional<String> planningIdFromStateStore = this.jobsMapping.getPlanningJobId(jobName);
+
+      long timeOut = PropertiesUtils.getPropAsLong(jobPlusSysConfig,
+                                         GobblinClusterConfigurationKeys.HELIX_WORKFLOW_DELETE_TIMEOUT_SECONDS,
+                                         GobblinClusterConfigurationKeys.DEFAULT_HELIX_WORKFLOW_DELETE_TIMEOUT_SECONDS) * 1000;
+
+      if (planningIdFromStateStore.isPresent() && !planningIdFromStateStore.get().equals(this.planningJobId)) {
+        return new TaskResult(TaskResult.Status.FAILED, "Exception occurred for job " + planningJobId
+            + ": because planning job in state store has different id (" + planningIdFromStateStore.get() + ")");
+      }
+
+      while (true) {
+        Optional<String> actualJobIdFromStateStore = this.jobsMapping.getActualJobId(jobName);
+        if (actualJobIdFromStateStore.isPresent()) {
+          String previousActualJobId = actualJobIdFromStateStore.get();
+          if (HelixUtils.isJobFinished(previousActualJobId, previousActualJobId, this.helixManager)) {
+            log.info("Previous actual job {} [plan: {}] finished, will launch a new job.", previousActualJobId, this.planningJobId);
+          } else {
+            log.info("Previous actual job {} [plan: {}] not finished, kill it now.", previousActualJobId, this.planningJobId);
+            try {
+              HelixUtils.deleteWorkflow(previousActualJobId, this.helixManager, timeOut);
+            } catch (HelixException e) {
+              log.error("Helix cannot delete previous actual job id {} within 5 min.", previousActualJobId);
+              return new TaskResult(TaskResult.Status.FAILED, ExceptionUtils.getFullStackTrace(e));
+            }
+          }
+        } else {
+          log.info("Actual job {} does not exist. First time run.", this.planningJobId);
+        }
+
+        this.launcher = createJobLauncher();
+
+        this.jobsMapping.setActualJobId(jobName, this.planningJobId, this.launcher.getJobId());
+
+        closer.register(launcher).launchJob(this.jobLauncherListener);
+
+        if (!this.launcher.isEarlyStopped()) {
+          break;
+        } else {
+          log.info("Planning job {} has more runs due to early stop.", this.planningJobId);
+        }
+      }
     } catch (Exception e) {
       return new TaskResult(TaskResult.Status.FAILED, "Exception occurred for job " + planningJobId + ":" + ExceptionUtils
           .getFullStackTrace(e));
     }
     return new TaskResult(TaskResult.Status.COMPLETED, "");
-  }
-
-  //TODO: change below to Helix UserConentStore
-  @VisibleForTesting
-  protected void setResultToUserContent(Map<String, String> keyValues) throws IOException {
-    WorkUnitState wus = new WorkUnitState();
-    wus.setProp(ConfigurationKeys.JOB_ID_KEY, this.planningJobId);
-    wus.setProp(ConfigurationKeys.TASK_ID_KEY, this.planningJobId);
-    wus.setProp(ConfigurationKeys.TASK_KEY_KEY, this.planningJobId);
-    keyValues.forEach((key, value)->wus.setProp(key, value));
-    TaskState taskState = new TaskState(wus);
-
-    this.stateStores.getTaskStateStore().put(this.planningJobId, this.planningJobId, taskState);
   }
 
   @Override

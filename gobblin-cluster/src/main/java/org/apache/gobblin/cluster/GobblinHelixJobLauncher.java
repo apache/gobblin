@@ -184,6 +184,10 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     }
   }
 
+  public String getJobId() {
+    return this.jobContext.getJobId();
+  }
+
   @Override
   protected void runWorkUnits(List<WorkUnit> workUnits) throws Exception {
     try {

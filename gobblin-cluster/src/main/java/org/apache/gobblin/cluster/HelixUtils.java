@@ -173,6 +173,31 @@ public class HelixUtils {
     throw new TimeoutException("task driver wait time [" + timeoutInSeconds + " sec] is expired.");
   }
 
+  static boolean isJobFinished(String workflowName, String jobName, HelixManager helixManager) {
+    WorkflowContext workflowContext = TaskDriver.getWorkflowContext(helixManager, workflowName);
+    if (workflowContext == null) {
+      // this workflow context doesn't exist, considered as finished.
+      return true;
+    }
+
+    TaskState jobState = workflowContext.getJobState(TaskUtil.getNamespacedJobName(workflowName, jobName));
+    switch (jobState) {
+      case STOPPED:
+      case FAILED:
+      case COMPLETED:
+      case ABORTED:
+      case TIMED_OUT:
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  static void deleteWorkflow (String workflowName, HelixManager helixManager, long timeOut) throws InterruptedException {
+    TaskDriver taskDriver = new TaskDriver(helixManager);
+    taskDriver.deleteAndWaitForCompletion(workflowName, timeOut);
+  }
+
   static void handleJobTimeout(String workFlowName, String jobName, HelixManager helixManager, Object jobLauncher,
       JobListener jobListener) throws InterruptedException {
     try {

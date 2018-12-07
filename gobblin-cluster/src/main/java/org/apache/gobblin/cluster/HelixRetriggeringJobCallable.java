@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.cluster;
 
+import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.Callable;
 
@@ -31,11 +32,12 @@ import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.JobException;
 import org.apache.gobblin.runtime.JobState;
-import org.apache.gobblin.runtime.api.ExecutionResult;
 import org.apache.gobblin.runtime.api.JobExecutionMonitor;
 import org.apache.gobblin.runtime.listeners.JobListener;
 import org.apache.gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.JobLauncherUtils;
+import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.PropertiesUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
@@ -50,9 +52,9 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
  *
  * <p> Non-Distribution Mode:
  *    If {@link GobblinClusterConfigurationKeys#DISTRIBUTED_JOB_LAUNCHER_ENABLED} is false, the job will be handled
- *    by {@link HelixRetriggeringJobCallable#launchJobLauncherLoop()}, which simply launches {@link GobblinHelixJobLauncher}
+ *    by {@link HelixRetriggeringJobCallable#runJobLauncherLoop()}, which simply launches {@link GobblinHelixJobLauncher}
  *    and submit the work units to Helix. Helix will dispatch the work units to different worker nodes. The worker node will
- *    handle the work units by {@link GobblinHelixTask}.
+ *    handle the work units via launching {@link GobblinHelixTask}.
  *
  *    See {@link GobblinHelixJobLauncher} for job launcher details.
  *    See {@link GobblinHelixTask} for work unit handling details.
@@ -60,13 +62,14 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
  *
  * <p> Distribution Mode:
  *   If {@link GobblinClusterConfigurationKeys#DISTRIBUTED_JOB_LAUNCHER_ENABLED} is true, the job will be handled
- *   by {@link HelixRetriggeringJobCallable#launchJobExecutionLauncherLoop()}}, which simply launches
+ *   by {@link HelixRetriggeringJobCallable#runJobExecutionLauncher()}, which simply launches
  *   {@link GobblinHelixDistributeJobExecutionLauncher} and submit a planning job to Helix. Helix will dispatch this
- *   planning job to a worker node. The worker node will handle this planning job by {@link GobblinHelixJobTask}.
+ *   planning job to a task-driver node. The task-driver node will handle this planning job via launching
+ *   {@link GobblinHelixJobTask}.
  *
- *   The {@link GobblinHelixJobTask} will launch {@link GobblinHelixJobLauncher} and it will again submit the actual
- *   work units to Helix. Helix will dispatch the work units to other worker nodes. Similar to Non-Distribution Node,
- *   some worker nodes will handle those work units by {@link GobblinHelixTask}.
+ *   The {@link GobblinHelixJobTask} will again launch {@link GobblinHelixJobLauncher} to submit the actual job
+ *   to Helix. Helix will dispatch the work units to other worker nodes. Similar to Non-Distribution Node,
+ *   some worker nodes will handle those work units by launching {@link GobblinHelixTask}.
  *
  *    See {@link GobblinHelixDistributeJobExecutionLauncher} for planning job launcher details.
  *    See {@link GobblinHelixJobTask} for planning job handling details.
@@ -83,7 +86,7 @@ class HelixRetriggeringJobCallable implements Callable {
   private final JobListener jobListener;
   private final Path appWorkDir;
   private final HelixManager helixManager;
-
+  protected HelixJobsMapping jobsMapping;
   private GobblinHelixJobLauncher currentJobLauncher = null;
   private JobExecutionMonitor currentJobMonitor = null;
   private boolean isDistributeJobEnabled = false;
@@ -102,6 +105,9 @@ class HelixRetriggeringJobCallable implements Callable {
     this.appWorkDir = appWorkDir;
     this.helixManager = helixManager;
     this.isDistributeJobEnabled = isDistributeJobEnabled();
+    this.jobsMapping = new HelixJobsMapping(ConfigUtils.propertiesToConfig(sysProps),
+                                            PathUtils.getRootPath(appWorkDir).toUri(),
+                                            appWorkDir.toString());
   }
 
   private boolean isRetriggeringEnabled() {
@@ -121,18 +127,25 @@ class HelixRetriggeringJobCallable implements Callable {
   @Override
   public Void call() throws JobException {
     if (this.isDistributeJobEnabled) {
-      launchJobExecutionLauncherLoop();
+      runJobExecutionLauncher();
     } else {
-      launchJobLauncherLoop();
+      runJobLauncherLoop();
     }
 
     return null;
   }
 
-  private void launchJobLauncherLoop() throws JobException {
+  /**
+   * <p> In some cases, the job launcher will be early stopped.
+   * It can be due to the large volume of input source data.
+   * In such case, we need to re-launch the same job until
+   * the job launcher determines it is safe to stop.
+   */
+  private void runJobLauncherLoop() throws JobException {
     try {
       while (true) {
         currentJobLauncher = this.jobScheduler.buildJobLauncher(jobProps);
+        // in "run once" case, job scheduler will remove current job from the scheduler
         boolean isEarlyStopped = this.jobScheduler.runJob(jobProps, jobListener, currentJobLauncher);
         boolean isRetriggerEnabled = this.isRetriggeringEnabled();
         if (isEarlyStopped && isRetriggerEnabled) {
@@ -148,47 +161,62 @@ class HelixRetriggeringJobCallable implements Callable {
     }
   }
 
-  private void launchJobExecutionLauncherLoop() throws JobException {
+  /**
+   * <p> Launch a planning job. The actual job will be launched
+   * on task driver instance, which will handle the early-stop case
+   * by a single while-loop.
+   *
+   * @see {@link GobblinHelixJobTask#run()} for the task driver logic.
+   */
+  private void runJobExecutionLauncher() throws JobException {
     try {
-      while (true) {
-        String builderStr = jobProps.getProperty(GobblinClusterConfigurationKeys.DISTRIBUTED_JOB_LAUNCHER_BUILDER,
-            GobblinHelixDistributeJobExecutionLauncher.Builder.class.getName());
+      String builderStr = jobProps.getProperty(GobblinClusterConfigurationKeys.DISTRIBUTED_JOB_LAUNCHER_BUILDER,
+          GobblinHelixDistributeJobExecutionLauncher.Builder.class.getName());
 
-        GobblinHelixDistributeJobExecutionLauncher.Builder builder = GobblinConstructorUtils
-            .<GobblinHelixDistributeJobExecutionLauncher.Builder>invokeLongestConstructor(new ClassAliasResolver(
-                GobblinHelixDistributeJobExecutionLauncher.Builder.class).resolveClass(builderStr));
+      // Check if any existing planning job is running
+      String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
+      Optional<String> planningJobIdFromStore = jobsMapping.getPlanningJobId(jobName);
 
-        // Make a separate copy because we could update some of attributes in job properties (like adding planning id).
-        Properties jobPlanningProps = new Properties();
-        jobPlanningProps.putAll(this.jobProps);
-
-        // Inject planning id and start time
-        String planningId = JobLauncherUtils.newJobId(GobblinClusterConfigurationKeys.PLANNING_JOB_NAME_PREFIX
-            + JobState.getJobNameFromProps(jobPlanningProps));
-        jobPlanningProps.setProperty(GobblinClusterConfigurationKeys.PLANNING_ID_KEY, planningId);
-        jobPlanningProps.setProperty(GobblinClusterConfigurationKeys.PLANNING_JOB_CREATE_TIME, String.valueOf(System.currentTimeMillis()));
-
-        builder.setSysProps(this.sysProps);
-        builder.setJobPlanningProps(jobPlanningProps);
-        builder.setManager(this.helixManager);
-        builder.setAppWorkDir(this.appWorkDir);
-
-        try (Closer closer = Closer.create()) {
-          GobblinHelixDistributeJobExecutionLauncher launcher = builder.build();
-          closer.register(launcher);
-          this.currentJobMonitor = launcher.launchJob(null);
-          ExecutionResult result = this.currentJobMonitor.get();
-          boolean isEarlyStopped = ((GobblinHelixDistributeJobExecutionLauncher.DistributeJobResult) result).isEarlyStopped();
-          boolean isRetriggerEnabled = this.isRetriggeringEnabled();
-          if (isEarlyStopped && isRetriggerEnabled) {
-            log.info("DistributeJob {} will be re-triggered.", jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
-          } else {
-            break;
-          }
-          currentJobMonitor = null;
-        } catch (Throwable t) {
-          throw new JobException("Failed to launch and run job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), t);
+      if (planningJobIdFromStore.isPresent()) {
+        String previousPlanningJobId = planningJobIdFromStore.get();
+        if (HelixUtils.isJobFinished(previousPlanningJobId, previousPlanningJobId, this.helixManager)) {
+          log.info("Previous planning job {} has reached to the final state. Start a new one.", previousPlanningJobId);
+        } else {
+          log.info("Previous planning job {} has not finished yet. Skip it.", previousPlanningJobId);
+          return;
         }
+      } else {
+        log.info("Planning job for {} does not exist. First time run.", jobName);
+      }
+
+      GobblinHelixDistributeJobExecutionLauncher.Builder builder = GobblinConstructorUtils
+          .<GobblinHelixDistributeJobExecutionLauncher.Builder>invokeLongestConstructor(new ClassAliasResolver(
+              GobblinHelixDistributeJobExecutionLauncher.Builder.class).resolveClass(builderStr));
+
+      // Make a separate copy because we could update some of attributes in job properties (like adding planning id).
+      Properties jobPlanningProps = new Properties();
+      jobPlanningProps.putAll(this.jobProps);
+
+      // Inject planning id and start time
+      String planningId = JobLauncherUtils.newJobId(GobblinClusterConfigurationKeys.PLANNING_JOB_NAME_PREFIX
+          + JobState.getJobNameFromProps(jobPlanningProps));
+      jobPlanningProps.setProperty(GobblinClusterConfigurationKeys.PLANNING_ID_KEY, planningId);
+      jobPlanningProps.setProperty(GobblinClusterConfigurationKeys.PLANNING_JOB_CREATE_TIME, String.valueOf(System.currentTimeMillis()));
+
+      builder.setSysProps(this.sysProps);
+      builder.setJobPlanningProps(jobPlanningProps);
+      builder.setManager(this.helixManager);
+      builder.setAppWorkDir(this.appWorkDir);
+
+      try (Closer closer = Closer.create()) {
+        GobblinHelixDistributeJobExecutionLauncher launcher = builder.build();
+        closer.register(launcher);
+        this.jobsMapping.setPlanningJobId(jobName, planningId);
+        this.currentJobMonitor = launcher.launchJob(null);
+        this.currentJobMonitor.get();
+        this.currentJobMonitor = null;
+      } catch (Throwable t) {
+        throw new JobException("Failed to launch and run job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), t);
       }
     } catch (Exception e) {
       log.error("Failed to run job {}", jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
