@@ -126,5 +126,9 @@ public class GobblinClusterConfigurationKeys {
   public static final String HELIX_JOB_TIMEOUT_SECONDS = "helix.job.timeout.seconds";
   public static final String DEFAULT_HELIX_JOB_TIMEOUT_SECONDS = "10800";
   public static final String HELIX_TASK_TIMEOUT_SECONDS = "helix.task.timeout.seconds";
-  public static final String HELIX_MAX_TASK_RETRIES_KEY = "helix.task.maxretries";
+  public static final String HELIX_TASK_MAX_ATTEMPTS_KEY = "helix.task.maxAttempts";
+
+  public static final String HELIX_WORKFLOW_DELETE_TIMEOUT_SECONDS = GOBBLIN_CLUSTER_PREFIX + "workflowDeleteTimeoutSeconds";
+  public static final long DEFAULT_HELIX_WORKFLOW_DELETE_TIMEOUT_SECONDS = 300;
+
 }

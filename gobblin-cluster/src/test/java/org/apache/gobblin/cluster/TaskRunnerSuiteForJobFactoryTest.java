@@ -17,9 +17,7 @@
 
 package org.apache.gobblin.cluster;
 
-import java.io.IOException;
 import java.util.Map;
-import java.util.Properties;
 
 import org.apache.helix.task.Task;
 import org.apache.helix.task.TaskCallbackContext;
@@ -32,14 +30,14 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alias;
 import org.apache.gobblin.cluster.suite.IntegrationJobFactorySuite;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.MetricContext;
-import org.apache.gobblin.runtime.util.StateStores;
-import org.apache.gobblin.source.extractor.partition.Partitioner;
-import org.apache.gobblin.util.PropertiesUtils;
 
 
 public class TaskRunnerSuiteForJobFactoryTest extends TaskRunnerSuiteThreadModel {
+
   private TaskFactory testJobFactory;
+
   public TaskRunnerSuiteForJobFactoryTest(IntegrationJobFactorySuite.TestJobFactorySuiteBuilder builder) {
     super(builder);
     this.testJobFactory = new TestJobFactory(builder, this.metricContext);
@@ -62,7 +60,7 @@ public class TaskRunnerSuiteForJobFactoryTest extends TaskRunnerSuiteThreadModel
     @Override
     public Task createNewTask(TaskCallbackContext context) {
       return new TestHelixJobTask(context,
-          stateStores,
+          jobsMapping,
           builder,
           new GobblinHelixJobLauncherMetrics("launcherInJobFactory", metricContext, 5),
           new GobblinHelixJobTask.GobblinHelixJobTaskMetrics(metricContext, 5));
@@ -71,24 +69,15 @@ public class TaskRunnerSuiteForJobFactoryTest extends TaskRunnerSuiteThreadModel
 
   public class TestHelixJobTask extends GobblinHelixJobTask {
     public TestHelixJobTask(TaskCallbackContext context,
-                            StateStores stateStores,
+                            HelixJobsMapping jobsMapping,
                             TaskRunnerSuiteBase.Builder builder,
                             GobblinHelixJobLauncherMetrics launcherMetrics,
                             GobblinHelixJobTaskMetrics jobTaskMetrics) {
       super(context,
-            stateStores,
+            jobsMapping,
             builder,
             launcherMetrics,
             jobTaskMetrics);
-    }
-
-    //TODO: change below to Helix UserConentStore
-    protected void setResultToUserContent(Map<String, String> keyValues) throws IOException {
-      Map<String, String> customizedKVs = Maps.newHashMap(keyValues);
-      customizedKVs.put("customizedKey_1", "customizedVal_1");
-      customizedKVs.put("customizedKey_2", "customizedVal_2");
-      customizedKVs.put("customizedKey_3", "customizedVal_3");
-      super.setResultToUserContent(customizedKVs);
     }
   }
 
@@ -99,20 +88,22 @@ public class TaskRunnerSuiteForJobFactoryTest extends TaskRunnerSuiteThreadModel
       super(builder);
     }
 
-    //TODO: change below to Helix UserConentStore
     protected DistributeJobResult getResultFromUserContent() {
       DistributeJobResult rst = super.getResultFromUserContent();
-      Properties properties = rst.getProperties().get();
-      Assert.assertTrue(properties.containsKey(Partitioner.IS_EARLY_STOPPED));
-      Assert.assertFalse(PropertiesUtils.getPropAsBoolean(properties, Partitioner.IS_EARLY_STOPPED, "false"));
+      Assert.assertTrue(!rst.isEarlyStopped());
+      String jobName = this.jobPlanningProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
+      String planningJobId = this.jobPlanningProps.getProperty(GobblinClusterConfigurationKeys.PLANNING_ID_KEY);
 
-      Assert.assertTrue(properties.getProperty("customizedKey_1").equals("customizedVal_1"));
-      Assert.assertTrue(properties.getProperty("customizedKey_2").equals("customizedVal_2"));
-      Assert.assertTrue(properties.getProperty("customizedKey_3").equals("customizedVal_3"));
+      try {
+        String planningJobFromStore = this.jobsMapping.getPlanningJobId(jobName).get();
+        Assert.assertTrue(planningJobFromStore.equals(planningJobId));
+
+      } catch (Exception e) {
+        Assert.fail(e.toString());
+      }
       IntegrationJobFactorySuite.completed.set(true);
       return rst;
     }
-
 
     @Alias("TestDistributedExecutionLauncherBuilder")
     public static class Builder extends GobblinHelixDistributeJobExecutionLauncher.Builder {

@@ -19,7 +19,6 @@ package org.apache.gobblin.cluster;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -36,11 +35,9 @@ import org.apache.helix.task.JobConfig;
 import org.apache.helix.task.TaskConfig;
 import org.apache.helix.task.TaskDriver;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
-import com.typesafe.config.ConfigValueFactory;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -50,19 +47,16 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
-import org.apache.gobblin.runtime.TaskState;
 import org.apache.gobblin.runtime.api.ExecutionResult;
 import org.apache.gobblin.runtime.api.JobExecutionLauncher;
 import org.apache.gobblin.runtime.api.JobExecutionMonitor;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.MonitoredObject;
-import org.apache.gobblin.runtime.util.StateStores;
-import org.apache.gobblin.source.extractor.partition.Partitioner;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.PropertiesUtils;
 
 
@@ -92,11 +86,7 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
   protected TaskDriver helixTaskDriver;
   protected Properties sysProps;
   protected Properties jobPlanningProps;
-  protected StateStores stateStores;
-
-  protected static final String PLANNING_WORK_UNIT_DIR_NAME = "_plan_workunits";
-  protected static final String PLANNING_TASK_STATE_DIR_NAME = "_plan_taskstates";
-  protected static final String PLANNING_JOB_STATE_DIR_NAME = "_plan_jobstates";
+  protected HelixJobsMapping jobsMapping;
 
   protected static final String JOB_PROPS_PREFIX = "gobblin.jobProps.";
 
@@ -123,15 +113,9 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
     Config combined = ConfigUtils.propertiesToConfig(jobPlanningProps)
         .withFallback(ConfigUtils.propertiesToConfig(sysProps));
 
-    Config stateStoreJobConfig = combined
-        .withValue(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigValueFactory.fromAnyRef(
-            new URI(builder.appWorkDir.toUri().getScheme(), null, builder.appWorkDir.toUri().getHost(),
-                builder.appWorkDir.toUri().getPort(), null, null, null).toString()));
-
-    this.stateStores = new StateStores(stateStoreJobConfig,
-        builder.appWorkDir, PLANNING_TASK_STATE_DIR_NAME,
-        builder.appWorkDir, PLANNING_WORK_UNIT_DIR_NAME,
-        builder.appWorkDir, PLANNING_JOB_STATE_DIR_NAME);
+    this.jobsMapping = new HelixJobsMapping(combined,
+                                            PathUtils.getRootPath(builder.appWorkDir).toUri(),
+                                            builder.appWorkDir.toString());
 
     this.workFlowExpiryTimeSeconds = ConfigUtils.getLong(combined,
         GobblinClusterConfigurationKeys.HELIX_WORKFLOW_EXPIRY_TIME_SECONDS,
@@ -144,17 +128,17 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
 
   private void executeCancellation() {
     if (this.jobSubmitted) {
-      String planningName = getPlanningJobId(this.jobPlanningProps);
+      String planningJobId = getPlanningJobId(this.jobPlanningProps);
       try {
         if (this.cancellationRequested && !this.cancellationExecuted) {
           // TODO : fix this when HELIX-1180 is completed
           // work flow should never be deleted explicitly because it has a expiry time
           // If cancellation is requested, we should set the job state to CANCELLED/ABORT
-          this.helixTaskDriver.waitToStop(planningName, 10000L);
-          log.info("Stopped the workflow ", planningName);
+          this.helixTaskDriver.waitToStop(planningJobId, 10000L);
+          log.info("Stopped the workflow ", planningJobId);
         }
       } catch (InterruptedException e) {
-        throw new RuntimeException("Failed to stop workflow " + planningName + " in Helix", e);
+        throw new RuntimeException("Failed to stop workflow " + planningJobId + " in Helix", e);
       }
     }
   }
@@ -262,7 +246,7 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
         return waitForJobCompletion(planningId, planningId);
       } catch (Exception e) {
         log.error(planningId + " is not able to submit.");
-        return new DistributeJobResult(Optional.empty(), Optional.of(e));
+        return new DistributeJobResult(false);
       }
     }
   }
@@ -283,35 +267,19 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
     } catch (TimeoutException te) {
       HelixUtils.handleJobTimeout(workFlowName, jobName,
           helixManager, this, null);
-      return new DistributeJobResult(Optional.empty(), Optional.of(te));
+      return new DistributeJobResult(false);
     }
   }
 
-  //TODO: change below to Helix UserConentStore
-  @VisibleForTesting
+  //TODO: we will remove this logic after we change to polling model.
   protected DistributeJobResult getResultFromUserContent() {
-    String planningId = getPlanningJobId(this.jobPlanningProps);
-    try {
-      TaskState taskState = this.stateStores.getTaskStateStore().get(planningId, planningId, planningId);
-      return new DistributeJobResult(Optional.of(taskState.getProperties()), Optional.empty());
-    } catch (IOException e) {
-      return new DistributeJobResult(Optional.empty(), Optional.of(e));
-    }
+    return new DistributeJobResult(false);
   }
 
   @Getter
   @AllArgsConstructor
   static class DistributeJobResult implements ExecutionResult {
     boolean isEarlyStopped = false;
-    Optional<Properties> properties;
-    Optional<Throwable> throwable;
-    public DistributeJobResult(Optional<Properties> properties, Optional<Throwable> throwable) {
-      this.properties = properties;
-      this.throwable = throwable;
-      if (properties.isPresent()) {
-        isEarlyStopped = PropertiesUtils.getPropAsBoolean(this.properties.get(), Partitioner.IS_EARLY_STOPPED, "false");
-      }
-    }
   }
 
   private class DistributeJobMonitor extends FutureTask<ExecutionResult> implements JobExecutionMonitor {
