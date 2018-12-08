@@ -28,6 +28,7 @@ import javax.annotation.Nullable;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.metastore.FsStateStore;
 import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
@@ -52,14 +53,21 @@ import org.apache.gobblin.util.ConfigUtils;
  */
 public class HelixJobsMapping {
 
-  public static final String DB_TABLE_KEY = "JobsMapping";
+  public static final String JOBS_MAPPING_DB_TABLE_KEY = "jobs.mapping.db.table.key";
+  public static final String DEFAULT_JOBS_MAPPING_DB_TABLE_KEY_NAME = "JobsMapping";
 
+  public static final String DISTRIBUTED_STATE_STORE_NAME_KEY = "jobs.mapping.distributed.state.store.name";
+  public static final String DEFAULT_DISTRIBUTED_STATE_STORE_NAME = "distributedState";
+ 
   private StateStore stateStore;
+  private String distributedStateStoreName;
 
   public HelixJobsMapping(Config sysConfig, URI fsUri, String rootDir) {
-    String stateStoreType = ConfigUtils.getString(sysConfig, ConfigurationKeys.INTERMEDIATE_STATE_STORE_TYPE_KEY,
-        ConfigUtils.getString(sysConfig, ConfigurationKeys.STATE_STORE_TYPE_KEY,
-            ConfigurationKeys.DEFAULT_STATE_STORE_TYPE));
+    String stateStoreType = ConfigUtils.getString(sysConfig,
+                                                  ConfigurationKeys.INTERMEDIATE_STATE_STORE_TYPE_KEY,
+                                                  ConfigUtils.getString(sysConfig,
+                                                                        ConfigurationKeys.STATE_STORE_TYPE_KEY,
+                                                                        ConfigurationKeys.DEFAULT_STATE_STORE_TYPE));
 
     ClassAliasResolver<StateStore.Factory> resolver =
         new ClassAliasResolver<>(StateStore.Factory.class);
@@ -75,39 +83,54 @@ public class HelixJobsMapping {
       throw new RuntimeException(iae);
     }
 
+    String dbTableKey = ConfigUtils.getString(sysConfig, JOBS_MAPPING_DB_TABLE_KEY, DEFAULT_JOBS_MAPPING_DB_TABLE_KEY_NAME);
+    this.distributedStateStoreName = ConfigUtils.getString(sysConfig, DISTRIBUTED_STATE_STORE_NAME_KEY, DEFAULT_DISTRIBUTED_STATE_STORE_NAME);
+
     Config stateStoreJobConfig = sysConfig
         .withValue(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigValueFactory.fromAnyRef(fsUri.toString()))
         .withValue(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, ConfigValueFactory.fromAnyRef(rootDir))
-        .withValue(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY, ConfigValueFactory.fromAnyRef(DB_TABLE_KEY));
+        .withValue(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY, ConfigValueFactory.fromAnyRef(dbTableKey));
 
     this.stateStore = stateStoreFactory.createStateStore(stateStoreJobConfig, State.class);
   }
 
   @Nullable
-  private State getOrCreate (String jobName) throws IOException {
-    if (this.stateStore.exists(jobName, jobName)) {
-      return this.stateStore.get(jobName, jobName, jobName);
+  private State getOrCreate (String storeName, String jobName) throws IOException {
+    if (this.stateStore.exists(storeName, jobName)) {
+      return this.stateStore.get(storeName, jobName, jobName);
     }
     return new State();
   }
 
+  private void delete (String storeName, String jobName) throws IOException {
+    this.stateStore.delete(storeName, jobName);
+  }
+
   public void setPlanningJobId (String jobName, String planningJobId) throws IOException {
-    State state = getOrCreate(jobName);
+    State state = getOrCreate(distributedStateStoreName, jobName);
     state.setId(jobName);
     state.setProp(GobblinClusterConfigurationKeys.PLANNING_ID_KEY, planningJobId);
-    this.stateStore.put(jobName, jobName, state);
+    // fs state store use hdfs rename, which assumes the target file doesn't exist.
+    if (stateStore instanceof FsStateStore) {
+      this.delete(distributedStateStoreName, jobName);
+    }
+    this.stateStore.put(distributedStateStoreName, jobName, state);
   }
 
   public void setActualJobId (String jobName, String planningJobId, String actualJobId) throws IOException {
-    State state = getOrCreate(jobName);
+    State state = getOrCreate(distributedStateStoreName, jobName);
     state.setId(jobName);
     state.setProp(GobblinClusterConfigurationKeys.PLANNING_ID_KEY, planningJobId);
     state.setProp(ConfigurationKeys.JOB_ID_KEY, actualJobId);
-    this.stateStore.put(jobName, jobName, state);
+    // fs state store use hdfs rename, which assumes the target file doesn't exist.
+    if (stateStore instanceof FsStateStore) {
+      this.delete(distributedStateStoreName, jobName);
+    }
+    this.stateStore.put(distributedStateStoreName, jobName, state);
   }
 
   private Optional<String> getId (String jobName, String idName) throws IOException {
-    State state = this.stateStore.get(jobName, jobName, jobName);
+    State state = this.stateStore.get(distributedStateStoreName, jobName, jobName);
     if (state == null) {
       return Optional.empty();
     }

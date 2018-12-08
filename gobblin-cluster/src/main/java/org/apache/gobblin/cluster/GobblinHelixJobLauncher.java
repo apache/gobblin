@@ -274,7 +274,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
     // Helix task attempts = retries + 1 (fallback to general task retry for backward compatibility)
     jobConfigBuilder.setMaxAttemptsPerTask(this.jobContext.getJobState().getPropAsInt(
-        GobblinClusterConfigurationKeys.HELIX_MAX_TASK_RETRIES_KEY,
+        GobblinClusterConfigurationKeys.HELIX_TASK_MAX_ATTEMPTS_KEY,
         this.jobContext.getJobState().getPropAsInt(
             ConfigurationKeys.MAX_TASK_RETRIES_KEY,
             ConfigurationKeys.DEFAULT_MAX_TASK_RETRIES)) + 1);

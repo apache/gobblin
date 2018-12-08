@@ -88,10 +88,6 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
   protected Properties jobPlanningProps;
   protected HelixJobsMapping jobsMapping;
 
-  protected static final String PLANNING_WORK_UNIT_DIR_NAME = "_plan_workunits";
-  protected static final String PLANNING_TASK_STATE_DIR_NAME = "_plan_taskstates";
-  protected static final String PLANNING_JOB_STATE_DIR_NAME = "_plan_jobstates";
-
   protected static final String JOB_PROPS_PREFIX = "gobblin.jobProps.";
 
   private final long workFlowExpiryTimeSeconds;
