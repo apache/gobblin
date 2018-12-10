@@ -51,12 +51,18 @@ public class GobblinClusterConfigurationKeys {
   public static final boolean DEFAULT_DISTRIBUTED_JOB_LAUNCHER_ENABLED = false;
   public static final String DISTRIBUTED_JOB_LAUNCHER_BUILDER = GOBBLIN_CLUSTER_PREFIX + "distributedJobLauncherBuilder";
 
-
   // Helix configuration properties.
+  public static final String DEDICATED_JOB_CLUSTER_CONTROLLER_ENABLED = GOBBLIN_CLUSTER_PREFIX + "dedicatedJobClusterController.enabled";
   public static final String HELIX_CLUSTER_NAME_KEY = GOBBLIN_CLUSTER_PREFIX + "helix.cluster.name";
+
   public static final String MANAGER_CLUSTER_NAME_KEY = GOBBLIN_CLUSTER_PREFIX + "manager.cluster.name";
   public static final String DEDICATED_MANAGER_CLUSTER_ENABLED = GOBBLIN_CLUSTER_PREFIX + "dedicatedManagerCluster.enabled";
-  public static final String DEDICATED_JOB_CLUSTER_CONTROLLER_ENABLED = GOBBLIN_CLUSTER_PREFIX + "dedicatedJobClusterController.enabled";
+
+  public static final String DEDICATED_TASK_DRIVER_CLUSTER_CONTROLLER_ENABLED = GOBBLIN_CLUSTER_PREFIX + "dedicatedTaskDriverClusterController.enabled";
+  public static final String TASK_DRIVER_CLUSTER_NAME_KEY = GOBBLIN_CLUSTER_PREFIX + "taskDriver.cluster.name";
+  public static final String DEDICATED_TASK_DRIVER_CLUSTER_ENABLED = GOBBLIN_CLUSTER_PREFIX + "dedicatedTaskDriverCluster.enabled";
+  public static final String TASK_DRIVER_ENABLED = GOBBLIN_CLUSTER_PREFIX + "taskDriver.enabled";
+
   public static final String ZK_CONNECTION_STRING_KEY = GOBBLIN_CLUSTER_PREFIX + "zk.connection.string";
   public static final String WORK_UNIT_FILE_PATH = GOBBLIN_CLUSTER_PREFIX + "work.unit.file.path";
   public static final String HELIX_INSTANCE_NAME_OPTION_NAME = "helix_instance_name";

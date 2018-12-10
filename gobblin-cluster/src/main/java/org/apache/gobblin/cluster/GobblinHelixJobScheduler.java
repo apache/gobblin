@@ -21,6 +21,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
@@ -77,7 +78,8 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinHelixJobScheduler.class);
 
   private final Properties properties;
-  private final HelixManager helixManager;
+  private final HelixManager jobHelixManager;
+  private final Optional<HelixManager> taskDriverHelixManager;
   private final EventBus eventBus;
   private final Path appWorkDir;
   private final List<? extends Tag<?>> metadataTags;
@@ -87,11 +89,13 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
 
   final GobblinHelixJobSchedulerMetrics jobSchedulerMetrics;
   final GobblinHelixJobLauncherMetrics launcherMetrics;
+  final GobblinHelixPlanningJobLauncherMetrics planningJobLauncherMetrics;
 
   private boolean startServicesCompleted;
 
   public GobblinHelixJobScheduler(Properties properties,
-                                  HelixManager helixManager,
+                                  HelixManager jobHelixManager,
+                                  Optional<HelixManager> taskDriverHelixManager,
                                   EventBus eventBus,
                                   Path appWorkDir, List<? extends Tag<?>> metadataTags,
                                   SchedulerService schedulerService,
@@ -99,7 +103,8 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
 
     super(properties, schedulerService);
     this.properties = properties;
-    this.helixManager = helixManager;
+    this.jobHelixManager = jobHelixManager;
+    this.taskDriverHelixManager = taskDriverHelixManager;
     this.eventBus = eventBus;
     this.jobRunningMap = new ConcurrentHashMap<>();
     this.appWorkDir = appWorkDir;
@@ -119,12 +124,16 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
                                                                    this.metricContext,
                                                                    metricsWindowSizeInMin);
 
+    this.planningJobLauncherMetrics = new GobblinHelixPlanningJobLauncherMetrics("planningLauncherInScheduler",
+                                                                          this.metricContext,
+                                                                          metricsWindowSizeInMin);
+
     this.startServicesCompleted = false;
   }
 
   @Override
   public Collection<StandardMetrics> getStandardMetricsCollection() {
-    return ImmutableList.of(this.launcherMetrics, this.jobSchedulerMetrics);
+    return ImmutableList.of(this.launcherMetrics, this.jobSchedulerMetrics, this.planningJobLauncherMetrics);
   }
 
   @Override
@@ -162,8 +171,10 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
         this.properties,
         jobProps,
         jobListener,
+        this.planningJobLauncherMetrics,
         this.appWorkDir,
-        this.helixManager).call();
+        this.jobHelixManager,
+        this.taskDriverHelixManager).call();
   }
 
   @Override
@@ -173,7 +184,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     combinedProps.putAll(properties);
     combinedProps.putAll(jobProps);
 
-    return new GobblinHelixJobLauncher(combinedProps, this.helixManager, this.appWorkDir, this.metadataTags, this.jobRunningMap);
+    return new GobblinHelixJobLauncher(combinedProps, this.jobHelixManager, this.appWorkDir, this.metadataTags, this.jobRunningMap);
   }
 
   public Future<?> scheduleJobImmediately(Properties jobProps, JobListener jobListener) {
@@ -181,8 +192,10 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
         this.properties,
         jobProps,
         jobListener,
+        this.planningJobLauncherMetrics,
         this.appWorkDir,
-        this.helixManager);
+        this.jobHelixManager,
+        this.taskDriverHelixManager);
 
     final Future<?> future = this.jobExecutor.submit(retriggeringJob);
     return new Future() {

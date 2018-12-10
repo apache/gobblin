@@ -60,8 +60,10 @@ class GobblinHelixJobTask implements Task {
   private final Config sysConfig;
   private final Properties jobPlusSysConfig;
   private final HelixJobsMapping jobsMapping;
+  private final String applicationName;
+  private final String instanceName;
   private final String planningJobId;
-  private final HelixManager helixManager;
+  private final HelixManager jobHelixManager;
   private final Path appWorkDir;
   private final List<? extends Tag<?>> metadataTags;
   private GobblinHelixJobLauncher launcher;
@@ -73,10 +75,12 @@ class GobblinHelixJobTask implements Task {
                               TaskRunnerSuiteBase.Builder builder,
                               GobblinHelixJobLauncherMetrics launcherMetrics,
                               GobblinHelixJobTaskMetrics jobTaskMetrics) {
+    this.applicationName = builder.getApplicationName();
+    this.instanceName = builder.getInstanceName();
     this.jobTaskMetrics = jobTaskMetrics;
     this.taskConfig = context.getTaskConfig();
     this.sysConfig = builder.getConfig();
-    this.helixManager = builder.getHelixManager();
+    this.jobHelixManager = builder.getJobHelixManager();
     this.jobPlusSysConfig = ConfigUtils.configToProperties(sysConfig);
     this.jobLauncherListener = new GobblinHelixJobLauncherListener(launcherMetrics);
 
@@ -124,7 +128,7 @@ class GobblinHelixJobTask implements Task {
   private GobblinHelixJobLauncher createJobLauncher()
       throws Exception {
     return new GobblinHelixJobLauncher(jobPlusSysConfig,
-        this.helixManager,
+        this.jobHelixManager,
         this.appWorkDir,
         this.metadataTags,
         new ConcurrentHashMap<>());
@@ -135,7 +139,7 @@ class GobblinHelixJobTask implements Task {
    */
   @Override
   public TaskResult run() {
-    log.info("Running planning job {}", this.planningJobId);
+    log.info("Running planning job {} [{} {}]", this.planningJobId, this.applicationName, this.instanceName);
     this.jobTaskMetrics.updateTimeBetweenJobSubmissionAndExecution(this.jobPlusSysConfig);
 
     try (Closer closer = Closer.create()) {
@@ -156,12 +160,12 @@ class GobblinHelixJobTask implements Task {
         Optional<String> actualJobIdFromStateStore = this.jobsMapping.getActualJobId(jobName);
         if (actualJobIdFromStateStore.isPresent()) {
           String previousActualJobId = actualJobIdFromStateStore.get();
-          if (HelixUtils.isJobFinished(previousActualJobId, previousActualJobId, this.helixManager)) {
+          if (HelixUtils.isJobFinished(previousActualJobId, previousActualJobId, this.jobHelixManager)) {
             log.info("Previous actual job {} [plan: {}] finished, will launch a new job.", previousActualJobId, this.planningJobId);
           } else {
             log.info("Previous actual job {} [plan: {}] not finished, kill it now.", previousActualJobId, this.planningJobId);
             try {
-              HelixUtils.deleteWorkflow(previousActualJobId, this.helixManager, timeOut);
+              HelixUtils.deleteWorkflow(previousActualJobId, this.jobHelixManager, timeOut);
             } catch (HelixException e) {
               log.error("Helix cannot delete previous actual job id {} within 5 min.", previousActualJobId);
               return new TaskResult(TaskResult.Status.FAILED, ExceptionUtils.getFullStackTrace(e));
@@ -184,9 +188,11 @@ class GobblinHelixJobTask implements Task {
         }
       }
     } catch (Exception e) {
+      log.info("Failing planning job {}", this.planningJobId);
       return new TaskResult(TaskResult.Status.FAILED, "Exception occurred for job " + planningJobId + ":" + ExceptionUtils
           .getFullStackTrace(e));
     }
+    log.info("Completing planning job {}", this.planningJobId);
     return new TaskResult(TaskResult.Status.COMPLETED, "");
   }
 

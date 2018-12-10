@@ -48,8 +48,10 @@ import org.apache.gobblin.runtime.AbstractJobLauncher;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.runtime.TaskExecutor;
 import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.Id;
 import org.apache.gobblin.util.SerializationUtils;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.apache.gobblin.writer.AvroDataWriterBuilder;
 import org.apache.gobblin.writer.Destination;
 import org.apache.gobblin.writer.WriterOutputFormat;
@@ -140,9 +142,23 @@ public class GobblinHelixTaskTest {
     Mockito.when(taskCallbackContext.getTaskConfig()).thenReturn(taskConfig);
     Mockito.when(taskCallbackContext.getManager()).thenReturn(this.helixManager);
 
+
+    TaskRunnerSuiteBase.Builder builder = new TaskRunnerSuiteBase.Builder(ConfigFactory.empty());
+    builder.setInstanceName("TestInstance")
+        .setApplicationName("TestApplication")
+        .setAppWorkPath(appWorkDir)
+        .setContainerMetrics(Optional.absent())
+        .setFileSystem(localFs)
+        .setJobHelixManager(this.helixManager)
+        .setApplicationId("TestApplication-1")
+        .build();
+
     GobblinHelixTaskFactory gobblinHelixTaskFactory =
-        new GobblinHelixTaskFactory(Optional.<ContainerMetrics>absent(), this.taskExecutor, this.taskStateTracker,
-            this.localFs, this.appWorkDir, ConfigFactory.empty(), this.helixManager);
+        new GobblinHelixTaskFactory(builder,
+                                    this.taskExecutor,
+                                    this.taskStateTracker,
+                                    ConfigFactory.empty());
+
     this.gobblinHelixTask = (GobblinHelixTask) gobblinHelixTaskFactory.createNewTask(taskCallbackContext);
   }
 

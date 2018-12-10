@@ -82,7 +82,7 @@ import org.apache.gobblin.util.PropertiesUtils;
 @Slf4j
 class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher, Closeable {
 
-  protected HelixManager helixManager;
+  protected HelixManager planningJobHelixManager;
   protected TaskDriver helixTaskDriver;
   protected Properties sysProps;
   protected Properties jobPlanningProps;
@@ -104,8 +104,12 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
   private DistributeJobMonitor jobMonitor;
 
   public GobblinHelixDistributeJobExecutionLauncher(Builder builder) throws Exception {
-    this.helixManager = builder.manager;
-    this.helixTaskDriver = new TaskDriver(this.helixManager);
+    if (builder.taskDriverHelixManager.isPresent()) {
+      this.planningJobHelixManager = builder.taskDriverHelixManager.get();
+    } else {
+      this.planningJobHelixManager = builder.jobHelixManager;
+    }
+    this.helixTaskDriver = new TaskDriver(this.planningJobHelixManager);
     this.sysProps = builder.sysProps;
     this.jobPlanningProps = builder.jobPlanningProps;
     this.jobSubmitted = false;
@@ -147,7 +151,8 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
   public static class Builder {
     Properties sysProps;
     Properties jobPlanningProps;
-    HelixManager manager;
+    HelixManager jobHelixManager;
+    Optional<HelixManager> taskDriverHelixManager;
     Path appWorkDir;
     public GobblinHelixDistributeJobExecutionLauncher build() throws Exception {
       return new GobblinHelixDistributeJobExecutionLauncher(this);
@@ -217,12 +222,12 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
    * @param jobConfigBuilder A job config builder which contains a single task.
    */
   private void submitJobToHelix(String jobName, String jobId, JobConfig.Builder jobConfigBuilder) throws Exception {
-    TaskDriver taskDriver = new TaskDriver(this.helixManager);
+    TaskDriver taskDriver = new TaskDriver(this.planningJobHelixManager);
     HelixUtils.submitJobToWorkFlow(jobConfigBuilder,
         jobName,
         jobId,
         taskDriver,
-        this.helixManager,
+        this.planningJobHelixManager,
         this.workFlowExpiryTimeSeconds);
     this.jobSubmitted = true;
   }
@@ -259,14 +264,14 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
 
     try {
       HelixUtils.waitJobCompletion(
-          GobblinHelixDistributeJobExecutionLauncher.this.helixManager,
+          GobblinHelixDistributeJobExecutionLauncher.this.planningJobHelixManager,
           workFlowName,
           jobName,
           timeoutEnabled ? Optional.of(timeoutInSeconds) : Optional.empty());
       return getResultFromUserContent();
     } catch (TimeoutException te) {
       HelixUtils.handleJobTimeout(workFlowName, jobName,
-          helixManager, this, null);
+          planningJobHelixManager, this, null);
       return new DistributeJobResult(false);
     }
   }

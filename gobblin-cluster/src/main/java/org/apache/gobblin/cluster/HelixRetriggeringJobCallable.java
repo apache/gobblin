@@ -20,6 +20,7 @@ package org.apache.gobblin.cluster;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.helix.HelixManager;
@@ -30,6 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.runtime.JobException;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.runtime.api.JobExecutionMonitor;
@@ -84,8 +86,10 @@ class HelixRetriggeringJobCallable implements Callable {
   private final Properties sysProps;
   private final Properties jobProps;
   private final JobListener jobListener;
+  private final GobblinHelixPlanningJobLauncherMetrics planningJobLauncherMetrics;
   private final Path appWorkDir;
-  private final HelixManager helixManager;
+  private final HelixManager jobHelixManager;
+  private final Optional<HelixManager> taskDriverHelixManager;
   protected HelixJobsMapping jobsMapping;
   private GobblinHelixJobLauncher currentJobLauncher = null;
   private JobExecutionMonitor currentJobMonitor = null;
@@ -96,14 +100,18 @@ class HelixRetriggeringJobCallable implements Callable {
       Properties sysProps,
       Properties jobProps,
       JobListener jobListener,
+      GobblinHelixPlanningJobLauncherMetrics planningJobLauncherMetrics,
       Path appWorkDir,
-      HelixManager helixManager) {
+      HelixManager jobHelixManager,
+      Optional<HelixManager> taskDriverHelixManager) {
     this.jobScheduler = jobScheduler;
     this.sysProps = sysProps;
     this.jobProps = jobProps;
     this.jobListener = jobListener;
+    this.planningJobLauncherMetrics = planningJobLauncherMetrics;
     this.appWorkDir = appWorkDir;
-    this.helixManager = helixManager;
+    this.jobHelixManager = jobHelixManager;
+    this.taskDriverHelixManager = taskDriverHelixManager;
     this.isDistributeJobEnabled = isDistributeJobEnabled();
     this.jobsMapping = new HelixJobsMapping(ConfigUtils.propertiesToConfig(sysProps),
                                             PathUtils.getRootPath(appWorkDir).toUri(),
@@ -169,6 +177,7 @@ class HelixRetriggeringJobCallable implements Callable {
    * @see {@link GobblinHelixJobTask#run()} for the task driver logic.
    */
   private void runJobExecutionLauncher() throws JobException {
+    long startTime = 0;
     try {
       String builderStr = jobProps.getProperty(GobblinClusterConfigurationKeys.DISTRIBUTED_JOB_LAUNCHER_BUILDER,
           GobblinHelixDistributeJobExecutionLauncher.Builder.class.getName());
@@ -179,7 +188,10 @@ class HelixRetriggeringJobCallable implements Callable {
 
       if (planningJobIdFromStore.isPresent()) {
         String previousPlanningJobId = planningJobIdFromStore.get();
-        if (HelixUtils.isJobFinished(previousPlanningJobId, previousPlanningJobId, this.helixManager)) {
+        HelixManager planningJobManager = this.taskDriverHelixManager.isPresent()?
+            this.taskDriverHelixManager.get() : this.jobHelixManager;
+
+        if (HelixUtils.isJobFinished(previousPlanningJobId, previousPlanningJobId, planningJobManager)) {
           log.info("Previous planning job {} has reached to the final state. Start a new one.", previousPlanningJobId);
         } else {
           log.info("Previous planning job {} has not finished yet. Skip it.", previousPlanningJobId);
@@ -205,22 +217,39 @@ class HelixRetriggeringJobCallable implements Callable {
 
       builder.setSysProps(this.sysProps);
       builder.setJobPlanningProps(jobPlanningProps);
-      builder.setManager(this.helixManager);
+      builder.setJobHelixManager(this.jobHelixManager);
+      builder.setTaskDriverHelixManager(this.taskDriverHelixManager);
       builder.setAppWorkDir(this.appWorkDir);
 
       try (Closer closer = Closer.create()) {
+        log.info("Planning job {} started.", planningId);
         GobblinHelixDistributeJobExecutionLauncher launcher = builder.build();
         closer.register(launcher);
         this.jobsMapping.setPlanningJobId(jobName, planningId);
+        startTime = System.currentTimeMillis();
         this.currentJobMonitor = launcher.launchJob(null);
         this.currentJobMonitor.get();
         this.currentJobMonitor = null;
+        log.info("Planning job {} finished.", planningId);
+        Instrumented.updateTimer(
+            com.google.common.base.Optional.of(this.planningJobLauncherMetrics.timeForCompletedPlanningJobs),
+            System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
       } catch (Throwable t) {
-        throw new JobException("Failed to launch and run job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), t);
+        if (startTime != 0) {
+          Instrumented.updateTimer(
+              com.google.common.base.Optional.of(this.planningJobLauncherMetrics.timeForFailedPlanningJobs),
+              System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
+        }
+        throw new JobException("Failed to launch and run planning job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), t);
       }
     } catch (Exception e) {
-      log.error("Failed to run job {}", jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
-      throw new JobException("Failed to run job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
+      if (startTime != 0) {
+        Instrumented.updateTimer(
+            com.google.common.base.Optional.of(this.planningJobLauncherMetrics.timeForFailedPlanningJobs),
+            System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
+      }
+      log.error("Failed to run planning job {}", jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
+      throw new JobException("Failed to run planning job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
     }
   }
 

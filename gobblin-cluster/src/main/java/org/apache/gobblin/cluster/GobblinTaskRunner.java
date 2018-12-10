@@ -121,7 +121,9 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
 
   private final String clusterName;
 
-  private HelixManager helixManager;
+  private HelixManager jobHelixManager;
+
+  private Optional<HelixManager> taskDriverHelixManager = Optional.absent();
 
   private final ServiceManager serviceManager;
 
@@ -144,6 +146,8 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
   private final String applicationName;
   private final String applicationId;
   private final Path appWorkPath;
+  private boolean isTaskDriver;
+  private boolean dedicatedTaskDriverCluster;
 
   private final Collection<StandardMetricsBridge.StandardMetrics> metricsCollection;
 
@@ -153,12 +157,13 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
       String taskRunnerId,
       Config config,
       Optional<Path> appWorkDirOptional) throws Exception {
-
+    this.isTaskDriver = ConfigUtils.getBoolean(config, GobblinClusterConfigurationKeys.TASK_DRIVER_ENABLED,false);
     this.helixInstanceName = helixInstanceName;
     this.taskRunnerId = taskRunnerId;
     this.applicationName = applicationName;
     this.applicationId = applicationId;
-
+    this.dedicatedTaskDriverCluster = ConfigUtils.getBoolean(config,
+        GobblinClusterConfigurationKeys.DEDICATED_TASK_DRIVER_CLUSTER_ENABLED, false);
     Configuration conf = HadoopUtils.newConfiguration();
     this.fs = buildFileSystem(config, conf);
     this.appWorkPath = initAppWorkDir(config, appWorkDirOptional);
@@ -180,9 +185,10 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
     TaskRunnerSuiteBase suite = builder.setAppWorkPath(this.appWorkPath)
         .setContainerMetrics(this.containerMetrics)
         .setFileSystem(this.fs)
-        .setHelixManager(this.helixManager)
+        .setJobHelixManager(this.jobHelixManager)
         .setApplicationId(applicationId)
         .setApplicationName(applicationName)
+        .setInstanceName(helixInstanceName)
         .build();
 
     this.taskStateModelFactory = createTaskStateModelFactory(suite.getTaskFactoryMap());
@@ -196,7 +202,8 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
       this.serviceManager = new ServiceManager(services);
     }
 
-    logger.debug("GobblinTaskRunner: applicationName {}, helixInstanceName {}, applicationId {}, taskRunnerId {}, config {}, appWorkDir {}",
+    logger.info("GobblinTaskRunner({}): applicationName {}, helixInstanceName {}, applicationId {}, taskRunnerId {}, config {}, appWorkDir {}",
+        this.isTaskDriver?"taskDriver" : "worker",
         applicationName,
         helixInstanceName,
         applicationId,
@@ -215,14 +222,33 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
         this.config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
     logger.info("Using ZooKeeper connection string: " + zkConnectionString);
 
-    this.helixManager = HelixManagerFactory.getZKHelixManager(
-        this.clusterName, this.helixInstanceName, InstanceType.PARTICIPANT, zkConnectionString);
+    if (this.isTaskDriver && this.dedicatedTaskDriverCluster) {
+      // This will create a Helix manager to receive the planning job
+      this.taskDriverHelixManager = Optional.of(HelixManagerFactory.getZKHelixManager(
+          ConfigUtils.getString(this.config, GobblinClusterConfigurationKeys.TASK_DRIVER_CLUSTER_NAME_KEY, ""),
+          this.helixInstanceName,
+          InstanceType.PARTICIPANT,
+          zkConnectionString));
+      this.jobHelixManager = HelixManagerFactory.getZKHelixManager(
+          this.clusterName,
+          this.helixInstanceName,
+          InstanceType.ADMINISTRATOR,
+          zkConnectionString);
+    } else {
+      this.jobHelixManager = HelixManagerFactory.getZKHelixManager(
+          this.clusterName,
+          this.helixInstanceName,
+          InstanceType.PARTICIPANT,
+          zkConnectionString);
+    }
   }
 
   private TaskStateModelFactory createTaskStateModelFactory(Map<String, TaskFactory> taskFactoryMap) {
+    HelixManager receiverManager = taskDriverHelixManager.isPresent()?taskDriverHelixManager.get()
+        : this.jobHelixManager;
     TaskStateModelFactory taskStateModelFactory =
-        new TaskStateModelFactory(this.helixManager, taskFactoryMap);
-    this.helixManager.getStateMachineEngine()
+        new TaskStateModelFactory(receiverManager, taskFactoryMap);
+    receiverManager.getStateMachineEngine()
         .registerStateModelFactory("Task", taskStateModelFactory);
     return taskStateModelFactory;
   }
@@ -316,13 +342,16 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
   @VisibleForTesting
   void connectHelixManager() {
     try {
-      this.helixManager.connect();
-      this.helixManager.getMessagingService()
+      this.jobHelixManager.connect();
+      this.jobHelixManager.getMessagingService()
           .registerMessageHandlerFactory(GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE,
               new ParticipantShutdownMessageHandlerFactory());
-      this.helixManager.getMessagingService()
+      this.jobHelixManager.getMessagingService()
           .registerMessageHandlerFactory(Message.MessageType.USER_DEFINE_MSG.toString(),
               getUserDefinedMessageHandlerFactory());
+      if (this.taskDriverHelixManager.isPresent()) {
+        this.taskDriverHelixManager.get().connect();
+      }
     } catch (Exception e) {
       logger.error("HelixManager failed to connect", e);
       throw Throwables.propagate(e);
@@ -335,12 +364,17 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
    * the job with EXAMPLE_INSTANCE_TAG will remain in the ZK until an instance with EXAMPLE_INSTANCE_TAG was found.
    */
   private void addInstanceTags() {
-    if (this.helixManager.isConnected()) {
-      List<String> tags = ConfigUtils.getStringList(this.config, GobblinClusterConfigurationKeys.HELIX_INSTANCE_TAGS_KEY);
-      logger.info("Adding tags binding " + tags);
-      tags.forEach(tag -> helixManager.getClusterManagmentTool().addInstanceTag(this.clusterName, this.helixInstanceName, tag));
-      logger.info("Actual tags binding " + helixManager.getClusterManagmentTool()
-          .getInstanceConfig(this.clusterName, this.helixInstanceName).getTags());
+    List<String> tags = ConfigUtils.getStringList(this.config, GobblinClusterConfigurationKeys.HELIX_INSTANCE_TAGS_KEY);
+    HelixManager receiverManager = taskDriverHelixManager.isPresent()?taskDriverHelixManager.get()
+        : this.jobHelixManager;
+    if (receiverManager.isConnected()) {
+      if (!tags.isEmpty()) {
+        logger.info("Adding tags binding " + tags);
+        tags.forEach(tag -> receiverManager.getClusterManagmentTool()
+            .addInstanceTag(this.clusterName, this.helixInstanceName, tag));
+        logger.info("Actual tags binding " + receiverManager.getClusterManagmentTool()
+            .getInstanceConfig(this.clusterName, this.helixInstanceName).getTags());
+      }
     }
   }
 
@@ -356,8 +390,12 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
 
   @VisibleForTesting
   void disconnectHelixManager() {
-    if (this.helixManager.isConnected()) {
-      this.helixManager.disconnect();
+    if (this.jobHelixManager.isConnected()) {
+      this.jobHelixManager.disconnect();
+    }
+
+    if (this.taskDriverHelixManager.isPresent()) {
+      this.taskDriverHelixManager.get().disconnect();
     }
   }
 
