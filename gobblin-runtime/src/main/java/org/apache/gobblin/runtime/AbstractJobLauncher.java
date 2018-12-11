@@ -333,6 +333,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       throws JobException {
     String jobId = this.jobContext.getJobId();
     final JobState jobState = this.jobContext.getJobState();
+    boolean isWorkUnitsEmpty = false;
 
     try {
       MDC.put(ConfigurationKeys.JOB_NAME_KEY, this.jobContext.getJobName());
@@ -380,14 +381,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           this.eventSubmitter.submit(JobEvent.WORK_UNITS_EMPTY);
           LOG.warn("No work units have been created for job " + jobId);
           jobState.setState(JobState.RunningState.COMMITTED);
-          notifyListeners(this.jobContext, jobListener, TimingEvent.LauncherTimings.JOB_COMPLETE,
-              new JobListenerAction() {
-                @Override
-                public void apply(JobListener jobListener, JobContext jobContext)
-                    throws Exception {
-                  jobListener.onJobCompletion(jobContext);
-                }
-              });
+          isWorkUnitsEmpty = true;
           return;
         }
 
@@ -485,11 +479,28 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           TimingEvent jobCleanupTimer = this.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.JOB_CLEANUP);
           cleanupStagingData(jobState);
           jobCleanupTimer.stop(this.eventMetadataGenerator.getMetadata(this.jobContext, EventName.JOB_CLEANUP));
-
           // Write job execution info to the job history store upon job termination
           this.jobContext.storeJobExecutionInfo();
         } finally {
           launchJobTimer.stop(this.eventMetadataGenerator.getMetadata(this.jobContext, EventName.FULL_JOB_EXECUTION));
+          if (isWorkUnitsEmpty) {
+            //If no WorkUnits are created, first send the JobCompleteTimer event.
+            notifyListeners(this.jobContext, jobListener, TimingEvent.LauncherTimings.JOB_COMPLETE, new JobListenerAction() {
+              @Override
+              public void apply(JobListener jobListener, JobContext jobContext)
+                  throws Exception {
+                jobListener.onJobCompletion(jobContext);
+              }
+            });
+            //Next, send the JobSucceededTimer event.
+            notifyListeners(this.jobContext, jobListener, TimingEvent.LauncherTimings.JOB_SUCCEEDED, new JobListenerAction() {
+              @Override
+              public void apply(JobListener jobListener, JobContext jobContext)
+                  throws Exception {
+                jobListener.onJobFailure(jobContext);
+              }
+            });
+          }
         }
       }
 
@@ -519,6 +530,14 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           }
         });
         throw new JobException(String.format("Job %s failed", jobId));
+      } else {
+        notifyListeners(this.jobContext, jobListener, TimingEvent.LauncherTimings.JOB_SUCCEEDED, new JobListenerAction() {
+          @Override
+          public void apply(JobListener jobListener, JobContext jobContext)
+              throws Exception {
+            jobListener.onJobFailure(jobContext);
+          }
+        });
       }
     } finally {
       // Stop metrics reporting

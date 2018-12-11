@@ -40,6 +40,7 @@ public class TimingEvent {
     public static final String JOB_CANCEL = "JobCancelTimer";
     public static final String JOB_COMPLETE = "JobCompleteTimer";
     public static final String JOB_FAILED = "JobFailedTimer";
+    public static final String JOB_SUCCEEDED = "JobSucceededTimer";
   }
 
   public static class RunJobTimings {
