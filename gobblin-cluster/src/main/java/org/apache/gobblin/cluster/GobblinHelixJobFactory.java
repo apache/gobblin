@@ -48,6 +48,8 @@ class GobblinHelixJobFactory implements TaskFactory {
   protected GobblinHelixJobLauncherMetrics launcherMetrics;
   @Getter
   protected GobblinHelixJobTask.GobblinHelixJobTaskMetrics jobTaskMetrics;
+  @Getter
+  protected GobblinHelixMetrics helixMetrics;
 
   private void initJobMapping(TaskRunnerSuiteBase.Builder builder) {
     Config sysConfig = builder.getConfig();
@@ -73,6 +75,9 @@ class GobblinHelixJobFactory implements TaskFactory {
         metricsWindowSizeInMin);
     this.jobTaskMetrics = new GobblinHelixJobTask.GobblinHelixJobTaskMetrics(metricContext,
         metricsWindowSizeInMin);
+    this.helixMetrics = new GobblinHelixMetrics("helixMetricsInJobFactory",
+        metricContext,
+        metricsWindowSizeInMin);
   }
 
   @Override
@@ -81,6 +86,7 @@ class GobblinHelixJobFactory implements TaskFactory {
         this.jobsMapping,
         this.builder,
         this.launcherMetrics,
-        this.jobTaskMetrics);
+        this.jobTaskMetrics,
+        this.helixMetrics);
   }
 }

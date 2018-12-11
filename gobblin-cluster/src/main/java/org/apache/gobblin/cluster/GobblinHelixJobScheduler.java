@@ -87,6 +87,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
   private final MutableJobCatalog jobCatalog;
   private final MetricContext metricContext;
 
+  final GobblinHelixMetrics helixMetrics;
   final GobblinHelixJobSchedulerMetrics jobSchedulerMetrics;
   final GobblinHelixJobLauncherMetrics launcherMetrics;
   final GobblinHelixPlanningJobLauncherMetrics planningJobLauncherMetrics;
@@ -128,12 +129,19 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
                                                                           this.metricContext,
                                                                           metricsWindowSizeInMin);
 
+    this.helixMetrics = new GobblinHelixMetrics("helixMetricsInJobScheduler",
+                                                  this.metricContext,
+                                                  metricsWindowSizeInMin);
+
     this.startServicesCompleted = false;
   }
 
   @Override
   public Collection<StandardMetrics> getStandardMetricsCollection() {
-    return ImmutableList.of(this.launcherMetrics, this.jobSchedulerMetrics, this.planningJobLauncherMetrics);
+    return ImmutableList.of(this.launcherMetrics,
+                            this.jobSchedulerMetrics,
+                            this.planningJobLauncherMetrics,
+                            this.helixMetrics);
   }
 
   @Override
@@ -172,6 +180,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
         jobProps,
         jobListener,
         this.planningJobLauncherMetrics,
+        this.helixMetrics,
         this.appWorkDir,
         this.jobHelixManager,
         this.taskDriverHelixManager).call();
@@ -184,7 +193,12 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     combinedProps.putAll(properties);
     combinedProps.putAll(jobProps);
 
-    return new GobblinHelixJobLauncher(combinedProps, this.jobHelixManager, this.appWorkDir, this.metadataTags, this.jobRunningMap);
+    return new GobblinHelixJobLauncher(combinedProps,
+        this.jobHelixManager,
+        this.appWorkDir,
+        this.metadataTags,
+        this.jobRunningMap,
+        Optional.of(this.helixMetrics));
   }
 
   public Future<?> scheduleJobImmediately(Properties jobProps, JobListener jobListener) {
@@ -193,6 +207,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
         jobProps,
         jobListener,
         this.planningJobLauncherMetrics,
+        this.helixMetrics,
         this.appWorkDir,
         this.jobHelixManager,
         this.taskDriverHelixManager);

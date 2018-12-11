@@ -59,7 +59,10 @@ class TaskRunnerSuiteThreadModel extends TaskRunnerSuiteBase {
 
   @Override
   protected Collection<StandardMetricsBridge.StandardMetrics> getMetricsCollection() {
-    return ImmutableList.of(this.taskExecutionMetrics, this.jobFactory.getJobTaskMetrics(), this.jobFactory.getLauncherMetrics());
+    return ImmutableList.of(this.taskExecutionMetrics,
+                            this.jobFactory.getJobTaskMetrics(),
+                            this.jobFactory.getLauncherMetrics(),
+                            this.jobFactory.getHelixMetrics());
   }
 
   @Override

@@ -21,41 +21,39 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
+import org.apache.gobblin.metrics.ContextAwareMeter;
 import org.apache.gobblin.metrics.ContextAwareTimer;
 import org.apache.gobblin.metrics.MetricContext;
 
 
-public class GobblinHelixPlanningJobLauncherMetrics extends StandardMetricsBridge.StandardMetrics {
-  private final String metricsName;
+public class GobblinHelixMetrics extends StandardMetricsBridge.StandardMetrics {
+  public static final String TIMER_FOR_HELIX_WAIT = "timeForHelixWait";
+  public static final String TIMER_FOR_HELIX_SUBMIT = "timeForHelixSubmit";
+  public static final String METER_FOR_HELIX_SUBMIT = "meterForHelixSubmit";
+  final String metricsName;
+  final ContextAwareTimer timeForHelixWait;
+  final ContextAwareTimer timeForHelixSubmit;
+  final ContextAwareMeter submitMeter;
 
-  public static final String TIMER_FOR_COMPLETED_PLANNING_JOBS = "timeForCompletedPlanningJobs";
-  public static final String TIMER_FOR_FAILED_PLANNING_JOBS = "timeForFailedPlanningJobs";
-
-  final ContextAwareTimer timeForCompletedPlanningJobs;
-  final ContextAwareTimer timeForFailedPlanningJobs;
-
-  public GobblinHelixPlanningJobLauncherMetrics(String metricsName,
-      final MetricContext metricContext,
-      int windowSizeInMin) {
-
+  public GobblinHelixMetrics(String metricsName, final MetricContext metricContext, int windowSizeInMin) {
     this.metricsName = metricsName;
-
-    this.timeForCompletedPlanningJobs = metricContext.contextAwareTimer(TIMER_FOR_COMPLETED_PLANNING_JOBS, windowSizeInMin, TimeUnit.MINUTES);
-    this.timeForFailedPlanningJobs = metricContext.contextAwareTimer(TIMER_FOR_FAILED_PLANNING_JOBS, windowSizeInMin, TimeUnit.MINUTES);
-
-    this.contextAwareMetrics.add(timeForCompletedPlanningJobs);
-    this.contextAwareMetrics.add(timeForFailedPlanningJobs);
+    this.timeForHelixWait = metricContext.contextAwareTimer(TIMER_FOR_HELIX_WAIT, windowSizeInMin, TimeUnit.MINUTES);
+    this.timeForHelixSubmit = metricContext.contextAwareTimer(TIMER_FOR_HELIX_SUBMIT, windowSizeInMin, TimeUnit.MINUTES);
+    this.submitMeter = metricContext.contextAwareMeter(METER_FOR_HELIX_SUBMIT);
+    this.contextAwareMetrics.add(timeForHelixWait);
+    this.contextAwareMetrics.add(timeForHelixSubmit);
+    this.contextAwareMetrics.add(submitMeter);
   }
 
-  public void updateTimeForCompletedPlanningJobs(long startTime) {
+  public void updateTimeForHelixSubmit(long startTime) {
     Instrumented.updateTimer(
-        com.google.common.base.Optional.of(this.timeForCompletedPlanningJobs),
+        com.google.common.base.Optional.of(this.timeForHelixSubmit),
         System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
   }
 
-  public void updateTimeForFailedPlanningJobs(long startTime) {
+  public void updateTimeForHelixWait(long startTime) {
     Instrumented.updateTimer(
-        com.google.common.base.Optional.of(this.timeForFailedPlanningJobs),
+        com.google.common.base.Optional.of(this.timeForHelixWait),
         System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
   }
 
