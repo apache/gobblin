@@ -24,15 +24,25 @@ import java.util.Map;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
 import com.google.common.io.Resources;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import org.apache.gobblin.cluster.ClusterIntegrationTest;
 import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
 import org.apache.gobblin.cluster.HelixUtils;
 
-
+/**
+ * <p> A test suite used for {@link ClusterIntegrationTest#testDedicatedTaskDriverCluster()} ()}
+ *
+ * <p> We will have two separate clusters, one for planning job, one for actual job.
+ *
+ * <p> Each planning job is submitted by manager instance and reaches to task driver
+ * instance via 'task driver cluster (or planning job cluster)'.
+ *
+ * <p> Each actual job is submitted by task driver instance and reaches to the worker
+ * instance via 'job cluster'.
+ */
 public class IntegrationDedicatedTaskDriverClusterSuite extends IntegrationBasicSuite {
 
   @Override
@@ -90,5 +100,4 @@ public class IntegrationDedicatedTaskDriverClusterSuite extends IntegrationBasic
     Config workerConfig1 = addInstanceName(baseConfig, "Worker1");
     return ImmutableList.of(workerConfig1);
   }
-
 }

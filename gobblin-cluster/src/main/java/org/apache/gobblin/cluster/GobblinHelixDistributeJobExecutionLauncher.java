@@ -87,6 +87,7 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
   protected Properties sysProps;
   protected Properties jobPlanningProps;
   protected HelixJobsMapping jobsMapping;
+  protected GobblinHelixPlanningJobLauncherMetrics planningJobLauncherMetrics;
 
   protected static final String JOB_PROPS_PREFIX = "gobblin.jobProps.";
 
@@ -154,6 +155,7 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
     HelixManager jobHelixManager;
     Optional<HelixManager> taskDriverHelixManager;
     Path appWorkDir;
+    GobblinHelixPlanningJobLauncherMetrics planningJobLauncherMetrics;
     public GobblinHelixDistributeJobExecutionLauncher build() throws Exception {
       return new GobblinHelixDistributeJobExecutionLauncher(this);
     }
@@ -248,7 +250,10 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
       JobConfig.Builder builder = createJobBuilder(this.jobPlanningProps);
       try {
         submitJobToHelix(planningId, planningId, builder);
-        return waitForJobCompletion(planningId, planningId);
+        long startTime = System.currentTimeMillis();
+        DistributeJobResult rst = waitForJobCompletion(planningId, planningId);
+        GobblinHelixDistributeJobExecutionLauncher.this.planningJobLauncherMetrics.updateTimeForHelixWait(startTime);
+        return rst;
       } catch (Exception e) {
         log.error(planningId + " is not able to submit.");
         return new DistributeJobResult(false);

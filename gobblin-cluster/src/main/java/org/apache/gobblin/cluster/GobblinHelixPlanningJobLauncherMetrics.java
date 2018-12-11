@@ -19,6 +19,7 @@ package org.apache.gobblin.cluster;
 
 import java.util.concurrent.TimeUnit;
 
+import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
 import org.apache.gobblin.metrics.ContextAwareTimer;
 import org.apache.gobblin.metrics.MetricContext;
@@ -29,9 +30,11 @@ public class GobblinHelixPlanningJobLauncherMetrics extends StandardMetricsBridg
 
   public static final String TIMER_FOR_COMPLETED_PLANNING_JOBS = "timeForCompletedPlanningJobs";
   public static final String TIMER_FOR_FAILED_PLANNING_JOBS = "timeForFailedPlanningJobs";
+  public static final String TIMER_FOR_HELIX_WAIT = "timeForHelixWait";
 
   final ContextAwareTimer timeForCompletedPlanningJobs;
   final ContextAwareTimer timeForFailedPlanningJobs;
+  final ContextAwareTimer timeForHelixWait;
 
   public GobblinHelixPlanningJobLauncherMetrics(String metricsName,
       final MetricContext metricContext,
@@ -41,9 +44,29 @@ public class GobblinHelixPlanningJobLauncherMetrics extends StandardMetricsBridg
 
     this.timeForCompletedPlanningJobs = metricContext.contextAwareTimer(TIMER_FOR_COMPLETED_PLANNING_JOBS, windowSizeInMin, TimeUnit.MINUTES);
     this.timeForFailedPlanningJobs = metricContext.contextAwareTimer(TIMER_FOR_FAILED_PLANNING_JOBS, windowSizeInMin, TimeUnit.MINUTES);
+    this.timeForHelixWait = metricContext.contextAwareTimer(TIMER_FOR_HELIX_WAIT, windowSizeInMin, TimeUnit.MINUTES);
 
     this.contextAwareMetrics.add(timeForCompletedPlanningJobs);
     this.contextAwareMetrics.add(timeForFailedPlanningJobs);
+    this.contextAwareMetrics.add(timeForHelixWait);
+  }
+
+  public void updateTimeForCompletedPlanningJobs(long startTime) {
+    Instrumented.updateTimer(
+        com.google.common.base.Optional.of(this.timeForCompletedPlanningJobs),
+        System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
+  }
+
+  public void updateTimeForFailedPlanningJobs(long startTime) {
+    Instrumented.updateTimer(
+        com.google.common.base.Optional.of(this.timeForFailedPlanningJobs),
+        System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
+  }
+
+  public void updateTimeForHelixWait(long startTime) {
+    Instrumented.updateTimer(
+        com.google.common.base.Optional.of(this.timeForHelixWait),
+        System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
   }
 
   @Override

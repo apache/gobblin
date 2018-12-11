@@ -243,9 +243,13 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
     }
   }
 
-  private TaskStateModelFactory createTaskStateModelFactory(Map<String, TaskFactory> taskFactoryMap) {
-    HelixManager receiverManager = taskDriverHelixManager.isPresent()?taskDriverHelixManager.get()
+  private HelixManager getReceiverManager() {
+    return taskDriverHelixManager.isPresent()?taskDriverHelixManager.get()
         : this.jobHelixManager;
+  }
+
+  private TaskStateModelFactory createTaskStateModelFactory(Map<String, TaskFactory> taskFactoryMap) {
+    HelixManager receiverManager = getReceiverManager();
     TaskStateModelFactory taskStateModelFactory =
         new TaskStateModelFactory(receiverManager, taskFactoryMap);
     receiverManager.getStateMachineEngine()
@@ -365,8 +369,7 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
    */
   private void addInstanceTags() {
     List<String> tags = ConfigUtils.getStringList(this.config, GobblinClusterConfigurationKeys.HELIX_INSTANCE_TAGS_KEY);
-    HelixManager receiverManager = taskDriverHelixManager.isPresent()?taskDriverHelixManager.get()
-        : this.jobHelixManager;
+    HelixManager receiverManager = getReceiverManager();
     if (receiverManager.isConnected()) {
       if (!tags.isEmpty()) {
         logger.info("Adding tags binding " + tags);

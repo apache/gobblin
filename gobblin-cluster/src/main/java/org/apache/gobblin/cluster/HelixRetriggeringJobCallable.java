@@ -220,6 +220,7 @@ class HelixRetriggeringJobCallable implements Callable {
       builder.setJobHelixManager(this.jobHelixManager);
       builder.setTaskDriverHelixManager(this.taskDriverHelixManager);
       builder.setAppWorkDir(this.appWorkDir);
+      builder.setPlanningJobLauncherMetrics(this.planningJobLauncherMetrics);
 
       try (Closer closer = Closer.create()) {
         log.info("Planning job {} started.", planningId);
@@ -231,22 +232,16 @@ class HelixRetriggeringJobCallable implements Callable {
         this.currentJobMonitor.get();
         this.currentJobMonitor = null;
         log.info("Planning job {} finished.", planningId);
-        Instrumented.updateTimer(
-            com.google.common.base.Optional.of(this.planningJobLauncherMetrics.timeForCompletedPlanningJobs),
-            System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
+        this.planningJobLauncherMetrics.updateTimeForCompletedPlanningJobs(startTime);
       } catch (Throwable t) {
         if (startTime != 0) {
-          Instrumented.updateTimer(
-              com.google.common.base.Optional.of(this.planningJobLauncherMetrics.timeForFailedPlanningJobs),
-              System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
+          this.planningJobLauncherMetrics.updateTimeForFailedPlanningJobs(startTime);
         }
         throw new JobException("Failed to launch and run planning job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), t);
       }
     } catch (Exception e) {
       if (startTime != 0) {
-        Instrumented.updateTimer(
-            com.google.common.base.Optional.of(this.planningJobLauncherMetrics.timeForFailedPlanningJobs),
-            System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
+        this.planningJobLauncherMetrics.updateTimeForFailedPlanningJobs(startTime);
       }
       log.error("Failed to run planning job {}", jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
       throw new JobException("Failed to run planning job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
