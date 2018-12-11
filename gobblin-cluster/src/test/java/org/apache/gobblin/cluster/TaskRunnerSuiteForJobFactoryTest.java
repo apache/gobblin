@@ -63,7 +63,8 @@ public class TaskRunnerSuiteForJobFactoryTest extends TaskRunnerSuiteThreadModel
           jobsMapping,
           builder,
           new GobblinHelixJobLauncherMetrics("launcherInJobFactory", metricContext, 5),
-          new GobblinHelixJobTask.GobblinHelixJobTaskMetrics(metricContext, 5));
+          new GobblinHelixJobTask.GobblinHelixJobTaskMetrics(metricContext, 5),
+          new GobblinHelixMetrics("helixMetricsInJobFactory", metricContext, 5));
     }
   }
 
@@ -72,12 +73,14 @@ public class TaskRunnerSuiteForJobFactoryTest extends TaskRunnerSuiteThreadModel
                             HelixJobsMapping jobsMapping,
                             TaskRunnerSuiteBase.Builder builder,
                             GobblinHelixJobLauncherMetrics launcherMetrics,
-                            GobblinHelixJobTaskMetrics jobTaskMetrics) {
+                            GobblinHelixJobTaskMetrics jobTaskMetrics,
+                            GobblinHelixMetrics helixMetrics) {
       super(context,
             jobsMapping,
             builder,
             launcherMetrics,
-            jobTaskMetrics);
+            jobTaskMetrics,
+            helixMetrics);
     }
   }
 

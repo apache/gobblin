@@ -117,7 +117,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   private final int stateSerDeRunnerThreads;
 
   private final TaskStateCollectorService taskStateCollectorService;
-
+  private final Optional<GobblinHelixMetrics> helixMetrics;
   private volatile boolean jobSubmitted = false;
   private final ConcurrentHashMap<String, Boolean> runningMap;
   private final StateStores stateStores;
@@ -128,11 +128,11 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
                                   final HelixManager helixManager,
                                   Path appWorkDir,
                                   List<? extends Tag<?>> metadataTags,
-                                  ConcurrentHashMap<String, Boolean> runningMap) throws Exception {
+                                  ConcurrentHashMap<String, Boolean> runningMap,
+                                  Optional<GobblinHelixMetrics> helixMetrics) throws Exception {
 
     super(jobProps, addAdditionalMetadataTags(jobProps, metadataTags));
     LOGGER.debug("GobblinHelixJobLauncher: jobProps {}, appWorkDir {}", jobProps, appWorkDir);
-
     this.helixManager = helixManager;
     this.helixTaskDriver = new TaskDriver(this.helixManager);
     this.runningMap = runningMap;
@@ -172,6 +172,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
         this.stateStores.getTaskStateStore(),
         this.outputTaskStateDir);
 
+    this.helixMetrics = helixMetrics;
     startCancellationExecutor();
   }
 
@@ -202,7 +203,14 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
       synchronized (this.cancellationRequest) {
         if (!this.cancellationRequested) {
+          long submitStart = System.currentTimeMillis();
+          if (helixMetrics.isPresent()) {
+            helixMetrics.get().submitMeter.mark();
+          }
           submitJobToHelix(createJob(workUnits));
+          if (helixMetrics.isPresent()) {
+            this.helixMetrics.get().updateTimeForHelixSubmit(submitStart);
+          }
           jobSubmissionTimer.stop();
           LOGGER.info(String.format("Submitted job %s to Helix", this.jobContext.getJobId()));
           this.jobSubmitted = true;
@@ -212,7 +220,11 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
       }
 
       TimingEvent jobRunTimer = this.eventSubmitter.getTimingEvent(TimingEvent.RunJobTimings.HELIX_JOB_RUN);
+      long waitStart = System.currentTimeMillis();
       waitForJobCompletion();
+      if (helixMetrics.isPresent()) {
+        this.helixMetrics.get().updateTimeForHelixWait(waitStart);
+      }
       jobRunTimer.stop();
       LOGGER.info(String.format("Job %s completed", this.jobContext.getJobId()));
     } finally {

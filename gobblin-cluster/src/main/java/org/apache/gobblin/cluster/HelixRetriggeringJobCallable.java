@@ -87,6 +87,7 @@ class HelixRetriggeringJobCallable implements Callable {
   private final Properties jobProps;
   private final JobListener jobListener;
   private final GobblinHelixPlanningJobLauncherMetrics planningJobLauncherMetrics;
+  private final GobblinHelixMetrics helixMetrics;
   private final Path appWorkDir;
   private final HelixManager jobHelixManager;
   private final Optional<HelixManager> taskDriverHelixManager;
@@ -101,6 +102,7 @@ class HelixRetriggeringJobCallable implements Callable {
       Properties jobProps,
       JobListener jobListener,
       GobblinHelixPlanningJobLauncherMetrics planningJobLauncherMetrics,
+      GobblinHelixMetrics helixMetrics,
       Path appWorkDir,
       HelixManager jobHelixManager,
       Optional<HelixManager> taskDriverHelixManager) {
@@ -109,6 +111,7 @@ class HelixRetriggeringJobCallable implements Callable {
     this.jobProps = jobProps;
     this.jobListener = jobListener;
     this.planningJobLauncherMetrics = planningJobLauncherMetrics;
+    this.helixMetrics = helixMetrics;
     this.appWorkDir = appWorkDir;
     this.jobHelixManager = jobHelixManager;
     this.taskDriverHelixManager = taskDriverHelixManager;
@@ -221,6 +224,7 @@ class HelixRetriggeringJobCallable implements Callable {
       builder.setTaskDriverHelixManager(this.taskDriverHelixManager);
       builder.setAppWorkDir(this.appWorkDir);
       builder.setPlanningJobLauncherMetrics(this.planningJobLauncherMetrics);
+      builder.setHelixMetrics(this.helixMetrics);
 
       try (Closer closer = Closer.create()) {
         log.info("Planning job {} started.", planningId);

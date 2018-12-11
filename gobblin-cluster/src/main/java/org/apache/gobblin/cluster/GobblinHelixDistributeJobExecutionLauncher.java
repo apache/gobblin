@@ -63,7 +63,7 @@ import org.apache.gobblin.util.PropertiesUtils;
 /**
  * To avoid all the task driver logic ({@link GobblinHelixJobLauncher}) runs on the same
  * instance (manager), this {@link JobExecutionLauncher} will distribute the original job
- * to one of the worker (participant) node. The original job will be launched there.
+ * to one of the task driver instance. The original task driver logic will be launched there.
  *
  * <p>
  *   For job submission, the Helix workflow name will be the original job name with prefix
@@ -88,6 +88,7 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
   protected Properties jobPlanningProps;
   protected HelixJobsMapping jobsMapping;
   protected GobblinHelixPlanningJobLauncherMetrics planningJobLauncherMetrics;
+  protected GobblinHelixMetrics helixMetrics;
 
   protected static final String JOB_PROPS_PREFIX = "gobblin.jobProps.";
 
@@ -125,6 +126,8 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
     this.workFlowExpiryTimeSeconds = ConfigUtils.getLong(combined,
         GobblinClusterConfigurationKeys.HELIX_WORKFLOW_EXPIRY_TIME_SECONDS,
         GobblinClusterConfigurationKeys.DEFAULT_HELIX_WORKFLOW_EXPIRY_TIME_SECONDS);
+    this.planningJobLauncherMetrics = builder.planningJobLauncherMetrics;
+    this.helixMetrics = builder.helixMetrics;
   }
 
   @Override
@@ -156,6 +159,7 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
     Optional<HelixManager> taskDriverHelixManager;
     Path appWorkDir;
     GobblinHelixPlanningJobLauncherMetrics planningJobLauncherMetrics;
+    GobblinHelixMetrics helixMetrics;
     public GobblinHelixDistributeJobExecutionLauncher build() throws Exception {
       return new GobblinHelixDistributeJobExecutionLauncher(this);
     }
@@ -249,10 +253,13 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
       String planningId = getPlanningJobId(this.jobPlanningProps);
       JobConfig.Builder builder = createJobBuilder(this.jobPlanningProps);
       try {
+        long submitStartTime = System.currentTimeMillis();
+        GobblinHelixDistributeJobExecutionLauncher.this.helixMetrics.submitMeter.mark();
         submitJobToHelix(planningId, planningId, builder);
-        long startTime = System.currentTimeMillis();
+        GobblinHelixDistributeJobExecutionLauncher.this.helixMetrics.updateTimeForHelixSubmit(submitStartTime);
+        long waitStartTime = System.currentTimeMillis();
         DistributeJobResult rst = waitForJobCompletion(planningId, planningId);
-        GobblinHelixDistributeJobExecutionLauncher.this.planningJobLauncherMetrics.updateTimeForHelixWait(startTime);
+        GobblinHelixDistributeJobExecutionLauncher.this.helixMetrics.updateTimeForHelixWait(waitStartTime);
         return rst;
       } catch (Exception e) {
         log.error(planningId + " is not able to submit.");

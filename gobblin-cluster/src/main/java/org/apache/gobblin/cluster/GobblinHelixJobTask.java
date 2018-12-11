@@ -68,16 +68,19 @@ class GobblinHelixJobTask implements Task {
   private final List<? extends Tag<?>> metadataTags;
   private GobblinHelixJobLauncher launcher;
   private GobblinHelixJobTaskMetrics jobTaskMetrics;
+  private GobblinHelixMetrics helixMetrics;
   private GobblinHelixJobLauncherListener jobLauncherListener;
 
   public GobblinHelixJobTask (TaskCallbackContext context,
                               HelixJobsMapping jobsMapping,
                               TaskRunnerSuiteBase.Builder builder,
                               GobblinHelixJobLauncherMetrics launcherMetrics,
-                              GobblinHelixJobTaskMetrics jobTaskMetrics) {
+                              GobblinHelixJobTaskMetrics jobTaskMetrics,
+                              GobblinHelixMetrics helixMetrics) {
     this.applicationName = builder.getApplicationName();
     this.instanceName = builder.getInstanceName();
     this.jobTaskMetrics = jobTaskMetrics;
+    this.helixMetrics = helixMetrics;
     this.taskConfig = context.getTaskConfig();
     this.sysConfig = builder.getConfig();
     this.jobHelixManager = builder.getJobHelixManager();
@@ -131,7 +134,8 @@ class GobblinHelixJobTask implements Task {
         this.jobHelixManager,
         this.appWorkDir,
         this.metadataTags,
-        new ConcurrentHashMap<>());
+        new ConcurrentHashMap<>(),
+        Optional.of(this.helixMetrics));
   }
 
   /**
