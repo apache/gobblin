@@ -89,12 +89,9 @@ class TaskRunnerSuiteThreadModel extends TaskRunnerSuiteBase {
     services.add(new JMXReportingService(
         ImmutableMap.of("task.executor", taskExecutor.getTaskExecutorQueueMetricSet())));
 
-    return new GobblinHelixTaskFactory(builder.getContainerMetrics(),
-            taskExecutor,
-            taskStateTracker,
-            builder.getFs(),
-            builder.getAppWorkPath(),
-            stateStoreJobConfig,
-            builder.getHelixManager());
+    return new GobblinHelixTaskFactory(builder,
+                                       taskExecutor,
+                                       taskStateTracker,
+                                       stateStoreJobConfig);
   }
 }

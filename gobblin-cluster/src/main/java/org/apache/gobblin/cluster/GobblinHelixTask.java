@@ -62,6 +62,9 @@ import org.apache.gobblin.util.Id;
 public class GobblinHelixTask implements Task {
 
   private final TaskConfig taskConfig;
+  private final String applicationName;
+  private final String instanceName;
+
   private String jobName;
   private String jobId;
   private String jobKey;
@@ -70,19 +73,27 @@ public class GobblinHelixTask implements Task {
 
   private SingleTask task;
 
-  public GobblinHelixTask(TaskCallbackContext taskCallbackContext, FileSystem fs, Path appWorkDir,
-      TaskAttemptBuilder taskAttemptBuilder, StateStores stateStores)
-      throws IOException {
+  public GobblinHelixTask(TaskRunnerSuiteBase.Builder builder,
+                          TaskCallbackContext taskCallbackContext,
+                          TaskAttemptBuilder taskAttemptBuilder,
+                          StateStores stateStores)  throws IOException {
 
     this.taskConfig = taskCallbackContext.getTaskConfig();
+    this.applicationName = builder.getApplicationName();
+    this.instanceName = builder.getInstanceName();
     getInfoFromTaskConfig();
 
-    Path jobStateFilePath =
-        GobblinClusterUtils.getJobStateFilePath(stateStores.haveJobStateStore(), appWorkDir, this.jobId);
+    Path jobStateFilePath = GobblinClusterUtils
+        .getJobStateFilePath(stateStores.haveJobStateStore(),
+                             builder.getAppWorkPath(),
+                             this.jobId);
 
-    this.task =
-        new SingleTask(this.jobId, workUnitFilePath, jobStateFilePath, fs, taskAttemptBuilder,
-            stateStores);
+    this.task = new SingleTask(this.jobId,
+                               this.workUnitFilePath,
+                               jobStateFilePath,
+                               builder.getFs(),
+                               taskAttemptBuilder,
+                               stateStores);
   }
 
   private void getInfoFromTaskConfig() {
@@ -97,18 +108,19 @@ public class GobblinHelixTask implements Task {
 
   @Override
   public TaskResult run() {
-    log.info("Actual task {} started.", this.taskId);
+    log.info("Actual task {} started. [{} {}]", this.taskId, this.applicationName, this.instanceName);
     try (Closer closer = Closer.create()) {
       closer.register(MDC.putCloseable(ConfigurationKeys.JOB_NAME_KEY, this.jobName));
       closer.register(MDC.putCloseable(ConfigurationKeys.JOB_KEY_KEY, this.jobKey));
       this.task.run();
-      log.info("Actual task {} finished.", this.taskId);
+      log.info("Actual task {} completed.", this.taskId);
       return new TaskResult(TaskResult.Status.COMPLETED, "");
     } catch (InterruptedException ie) {
       Thread.currentThread().interrupt();
+      log.error("Actual task {} interrupted.", this.taskId);
       return new TaskResult(TaskResult.Status.CANCELED, "");
     } catch (Throwable t) {
-      log.error("GobblinHelixTask " + taskId + " failed due to " + t.getMessage(), t);
+      log.error("Actual task {} failed due to {}", this.taskId, t.getMessage());
       return new TaskResult(TaskResult.Status.FAILED, Throwables.getStackTraceAsString(t));
     }
   }

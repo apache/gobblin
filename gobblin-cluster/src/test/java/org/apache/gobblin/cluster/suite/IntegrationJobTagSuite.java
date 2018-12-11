@@ -54,7 +54,6 @@ import org.apache.gobblin.testing.AssertWithBackoff;
  */
 @Slf4j
 public class IntegrationJobTagSuite extends IntegrationBasicSuite {
-  private static final String WORKER_INSTANCE_NAME_KEY = "worker.instance.name";
   private static final String WORKER_INSTANCE_1 = "WorkerInstance_1";
   private static final String WORKER_INSTANCE_2 = "WorkerInstance_2";
   private static final String WORKER_INSTANCE_3 = "WorkerInstance_3";
@@ -84,7 +83,7 @@ public class IntegrationJobTagSuite extends IntegrationBasicSuite {
     Map<String, String> configMap = new HashMap<>();
     if (tags!= null && tags.size() > 0) {
       configMap.put(GobblinClusterConfigurationKeys.HELIX_INSTANCE_TAGS_KEY, Joiner.on(',').join(tags));
-      configMap.put(WORKER_INSTANCE_NAME_KEY, instanceName);
+      configMap.put(IntegrationBasicSuite.TEST_INSTANCE_NAME_KEY, instanceName);
     }
     return ConfigFactory.parseMap(configMap).withFallback(workerConfig);
   }
@@ -103,22 +102,6 @@ public class IntegrationJobTagSuite extends IntegrationBasicSuite {
 
   private Config addTaskRunnerSuiteBuilder(Config workerConfig) {
     return ConfigFactory.parseMap(ImmutableMap.of(GobblinClusterConfigurationKeys.TASK_RUNNER_SUITE_BUILDER, "JobTagTaskRunnerSuiteBuilder")).withFallback(workerConfig);
-  }
-
-  @Override
-  protected void startWorker() throws Exception {
-    // Each workerConfig corresponds to a worker instance
-    for (Config workerConfig: this.workerConfigs) {
-      GobblinTaskRunner runner = new GobblinTaskRunner(TestHelper.TEST_APPLICATION_NAME, workerConfig.getString(WORKER_INSTANCE_NAME_KEY),
-          TestHelper.TEST_APPLICATION_ID, "1",
-          workerConfig, Optional.absent());
-      this.workers.add(runner);
-
-      // Need to run in another thread since the start call will not return until the stop method
-      // is called.
-      Thread workerThread = new Thread(runner::start);
-      workerThread.start();
-    }
   }
 
   /**
@@ -163,7 +146,7 @@ public class IntegrationJobTagSuite extends IntegrationBasicSuite {
     private String instanceName;
     public JobTagTaskRunnerSuiteBuilder(Config config) {
       super(config);
-      this.instanceName = config.getString(IntegrationJobTagSuite.WORKER_INSTANCE_NAME_KEY);
+      this.instanceName = config.getString(IntegrationJobTagSuite.TEST_INSTANCE_NAME_KEY);
     }
 
     @Override

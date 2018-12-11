@@ -315,8 +315,14 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
   private GobblinHelixJobScheduler buildGobblinHelixJobScheduler(Config config, Path appWorkDir,
       List<? extends Tag<?>> metadataTags, SchedulerService schedulerService) throws Exception {
     Properties properties = ConfigUtils.configToProperties(config);
-    return new GobblinHelixJobScheduler(properties, this.multiManager.getJobClusterHelixManager(), this.eventBus, appWorkDir, metadataTags,
-        schedulerService, this.jobCatalog);
+    return new GobblinHelixJobScheduler(properties,
+        this.multiManager.getJobClusterHelixManager(),
+        this.multiManager.getTaskDriverHelixManager(),
+        this.eventBus,
+        appWorkDir,
+        metadataTags,
+        schedulerService,
+        this.jobCatalog);
   }
 
   /**

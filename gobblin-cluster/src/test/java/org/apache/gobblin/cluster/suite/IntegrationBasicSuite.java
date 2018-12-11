@@ -30,6 +30,7 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -39,6 +40,7 @@ import org.apache.curator.test.TestingServer;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.io.Resources;
@@ -69,11 +71,14 @@ import org.apache.gobblin.testing.AssertWithBackoff;
 public class IntegrationBasicSuite {
   public static final String JOB_CONF_NAME = "HelloWorldJob.conf";
   public static final String WORKER_INSTANCE_0 = "WorkerInstance_0";
+  public static final String TEST_INSTANCE_NAME_KEY = "worker.instance.name";
 
   // manager and workers
   protected Config managerConfig;
+  protected Collection<Config> taskDriverConfigs = Lists.newArrayList();
   protected Collection<Config> workerConfigs = Lists.newArrayList();
   protected Collection<GobblinTaskRunner> workers = Lists.newArrayList();
+  protected Collection<GobblinTaskRunner> taskDrivers = Lists.newArrayList();
   protected GobblinClusterManager manager;
 
   protected Path workPath;
@@ -96,6 +101,7 @@ public class IntegrationBasicSuite {
 
   private void initConfig() {
     this.managerConfig = this.getManagerConfig();
+    this.taskDriverConfigs = this.getTaskDriverConfigs();
     this.workerConfigs = this.getWorkerConfigs();
   }
 
@@ -164,7 +170,7 @@ public class IntegrationBasicSuite {
     }
   }
 
-  private Config getClusterConfig() {
+  protected Config getClusterConfig() {
     URL url = Resources.getResource("BasicCluster.conf");
     Config config = ConfigFactory.parseURL(url);
 
@@ -185,12 +191,23 @@ public class IntegrationBasicSuite {
     return managerConfig.resolve();
   }
 
+  protected Collection<Config> getTaskDriverConfigs() {
+    return new ArrayList<>();
+  }
+
   protected Collection<Config> getWorkerConfigs() {
     // worker config initialization
     URL url = Resources.getResource("BasicWorker.conf");
     Config workerConfig = ConfigFactory.parseURL(url);
     workerConfig = workerConfig.withFallback(getClusterConfig());
     return Lists.newArrayList(workerConfig.resolve());
+  }
+
+  protected Config addInstanceName(Config baseConfig, String instanceName) {
+    Map<String, String> configMap = new HashMap<>();
+    configMap.put(IntegrationBasicSuite.TEST_INSTANCE_NAME_KEY, instanceName);
+    Config instanceConfig = ConfigFactory.parseMap(configMap);
+    return instanceConfig.withFallback(baseConfig).resolve();
   }
 
   public void waitForAndVerifyOutputFiles() throws Exception {
@@ -215,6 +232,7 @@ public class IntegrationBasicSuite {
     this.testingZKServer.start();
     createHelixCluster();
     startWorker();
+    startTaskDriver();
     startManager();
   }
 
@@ -226,19 +244,51 @@ public class IntegrationBasicSuite {
     this.manager.start();
   }
 
-  protected void startWorker() throws Exception {
-    this.workers.add(new GobblinTaskRunner(TestHelper.TEST_APPLICATION_NAME, WORKER_INSTANCE_0,
-        TestHelper.TEST_APPLICATION_ID, "1",
-        this.workerConfigs.iterator().next(), Optional.absent()));
+  private void startTaskDriver() throws Exception {
+    for (Config taskDriverConfig: this.taskDriverConfigs) {
+      GobblinTaskRunner runner = new GobblinTaskRunner(TestHelper.TEST_APPLICATION_NAME,
+          taskDriverConfig.getString(TEST_INSTANCE_NAME_KEY),
+          TestHelper.TEST_APPLICATION_ID, "1",
+          taskDriverConfig, Optional.absent());
+      this.taskDrivers.add(runner);
 
-    // Need to run in another thread since the start call will not return until the stop method
-    // is called.
-    Thread workerThread = new Thread(this.workers.iterator().next()::start);
-    workerThread.start();
+      // Need to run in another thread since the start call will not return until the stop method
+      // is called.
+      Thread workerThread = new Thread(runner::start);
+      workerThread.start();
+    }
+  }
+
+  private void startWorker() throws Exception {
+    if (workerConfigs.size() == 1) {
+      this.workers.add(new GobblinTaskRunner(TestHelper.TEST_APPLICATION_NAME, WORKER_INSTANCE_0,
+          TestHelper.TEST_APPLICATION_ID, "1",
+          this.workerConfigs.iterator().next(), Optional.absent()));
+
+      // Need to run in another thread since the start call will not return until the stop method
+      // is called.
+      Thread workerThread = new Thread(this.workers.iterator().next()::start);
+      workerThread.start();
+    } else {
+      // Each workerConfig corresponds to a worker instance
+      for (Config workerConfig: this.workerConfigs) {
+        GobblinTaskRunner runner = new GobblinTaskRunner(TestHelper.TEST_APPLICATION_NAME,
+            workerConfig.getString(TEST_INSTANCE_NAME_KEY),
+            TestHelper.TEST_APPLICATION_ID, "1",
+            workerConfig, Optional.absent());
+        this.workers.add(runner);
+
+        // Need to run in another thread since the start call will not return until the stop method
+        // is called.
+        Thread workerThread = new Thread(runner::start);
+        workerThread.start();
+      }
+    }
   }
 
   public void shutdownCluster() throws InterruptedException, IOException {
-    workers.forEach(runner->runner.stop());
+    this.workers.forEach(runner->runner.stop());
+    this.taskDrivers.forEach(runner->runner.stop());
     this.manager.stop();
     this.testingZKServer.close();
   }

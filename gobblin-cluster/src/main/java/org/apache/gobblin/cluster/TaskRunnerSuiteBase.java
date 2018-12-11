@@ -85,24 +85,30 @@ public abstract class TaskRunnerSuiteBase {
   @Getter
   public static class Builder {
     private Config config;
-    private HelixManager helixManager;
+    private HelixManager jobHelixManager;
     private Optional<ContainerMetrics> containerMetrics;
     private FileSystem fs;
     private Path appWorkPath;
     private String applicationId;
     private String applicationName;
+    private String instanceName;
 
     public Builder(Config config) {
       this.config = config;
     }
 
-    public Builder setHelixManager(HelixManager manager) {
-      this.helixManager = manager;
+    public Builder setJobHelixManager(HelixManager jobHelixManager) {
+      this.jobHelixManager = jobHelixManager;
       return this;
     }
 
     public Builder setApplicationName(String applicationName) {
       this.applicationName = applicationName;
+      return this;
+    }
+
+    public Builder setInstanceName(String instanceName) {
+      this.instanceName = instanceName;
       return this;
     }
 

@@ -24,6 +24,7 @@ import org.testng.annotations.Test;
 
 import org.apache.gobblin.cluster.suite.IntegrationBasicSuite;
 import org.apache.gobblin.cluster.suite.IntegrationDedicatedManagerClusterSuite;
+import org.apache.gobblin.cluster.suite.IntegrationDedicatedTaskDriverClusterSuite;
 import org.apache.gobblin.cluster.suite.IntegrationJobFactorySuite;
 import org.apache.gobblin.cluster.suite.IntegrationJobTagSuite;
 import org.apache.gobblin.cluster.suite.IntegrationSeparateProcessSuite;
@@ -34,7 +35,8 @@ public class ClusterIntegrationTest {
   private IntegrationBasicSuite suite;
 
   @Test
-  public void testJobShouldComplete() throws Exception {
+  public void testJobShouldComplete()
+      throws Exception {
     this.suite = new IntegrationBasicSuite();
     runAndVerify();
   }
@@ -50,6 +52,13 @@ public class ClusterIntegrationTest {
   public void testDedicatedManagerCluster()
       throws Exception {
     this.suite = new IntegrationDedicatedManagerClusterSuite();
+    runAndVerify();
+  }
+
+  @Test(enabled = false)
+  public void testDedicatedTaskDriverCluster()
+      throws Exception {
+    this.suite = new IntegrationDedicatedTaskDriverClusterSuite();
     runAndVerify();
   }
 
