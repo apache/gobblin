@@ -98,14 +98,9 @@ public class GobblinHelixTaskFactory implements TaskFactory {
 
   @Override
   public Task createNewTask(TaskCallbackContext context) {
-    try {
-      if (this.newTasksCounter.isPresent()) {
-        this.newTasksCounter.get().inc();
-      }
-      return new GobblinHelixTask(builder, context, this.taskAttemptBuilder, this.stateStores);
-    } catch (IOException ioe) {
-      LOGGER.error("Failed to create a new GobblinHelixTask", ioe);
-      throw Throwables.propagate(ioe);
+    if (this.newTasksCounter.isPresent()) {
+      this.newTasksCounter.get().inc();
     }
+    return new GobblinHelixTask(builder, context, this.taskAttemptBuilder, this.stateStores);
   }
 }

@@ -35,8 +35,6 @@ import com.google.common.base.Optional;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 
-import javax.annotation.Nullable;
-
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import org.apache.gobblin.broker.gobblin_scopes.TaskScopeInstance;
@@ -56,6 +54,8 @@ import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.Either;
 import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.executors.IteratorExecutor;
+
+import javax.annotation.Nullable;
 
 
 /**

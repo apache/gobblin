@@ -159,7 +159,7 @@ public class HelixUtils {
           case COMPLETED:
           return;
           default:
-            log.info("Waiting for job {} to complete...", jobName);
+            log.info("Waiting for job {} to complete... State - {}", jobName, jobState);
             Thread.sleep(1000);
         }
       } else {

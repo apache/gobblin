@@ -133,6 +133,8 @@ public class Task implements TaskIFace {
   private final String jobId;
   private final String taskId;
   private final String taskKey;
+  private final boolean isIgnoreCloseFailures;
+
   private final TaskContext taskContext;
   private final TaskState taskState;
   private final TaskStateTracker taskStateTracker;
