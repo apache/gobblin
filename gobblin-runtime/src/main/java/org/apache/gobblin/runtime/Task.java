@@ -315,7 +315,7 @@ public class Task implements TaskIFace {
     return this.shutdownLatch.await(timeoutInMillis, TimeUnit.MILLISECONDS);
   }
 
-  protected void completeShutdown() {
+  private void completeShutdown() {
     this.shutdownLatch.countDown();
   }
 

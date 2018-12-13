@@ -44,7 +44,6 @@ public class TaskIFaceWrapper extends Task {
   private final CountDownLatch countDownLatch;
   private final TaskStateTracker taskStateTracker;
   private int retryCount = 0;
-  private final CountDownLatch shutdownLatch;
 
   public TaskIFaceWrapper(TaskIFace underlyingTask, TaskContext taskContext, CountDownLatch countDownLatch,
       TaskStateTracker taskStateTracker) {
@@ -55,7 +54,6 @@ public class TaskIFaceWrapper extends Task {
     this.taskId = taskContext.getTaskState().getTaskId();
     this.countDownLatch = countDownLatch;
     this.taskStateTracker = taskStateTracker;
-    this.shutdownLatch = new CountDownLatch(1);
   }
 
   @Override
@@ -79,7 +77,6 @@ public class TaskIFaceWrapper extends Task {
       this.underlyingTask.run();
     } finally {
       this.taskStateTracker.onTaskRunCompletion(this);
-      completeShutdown();
     }
   }
 
@@ -184,19 +181,9 @@ public class TaskIFaceWrapper extends Task {
   public synchronized boolean cancel() {
     if (this.taskFuture != null && this.taskFuture.cancel(true)) {
       this.taskStateTracker.onTaskRunCompletion(this);
-      this.completeShutdown();
       return true;
     } else {
       return false;
     }
-  }
-
-  /**
-   * This method is a copy of the method in parent class.
-   * We need this copy so TaskIFaceWrapper variables are not shared between this class and its parent class
-   */
-  @Override
-  protected void completeShutdown() {
-    this.shutdownLatch.countDown();
   }
 }
