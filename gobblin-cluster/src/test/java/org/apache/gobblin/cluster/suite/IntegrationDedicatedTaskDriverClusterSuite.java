@@ -59,7 +59,7 @@ public class IntegrationDedicatedTaskDriverClusterSuite extends IntegrationBasic
   }
 
   @Override
-  protected Config getManagerConfig() {
+  public Config getManagerConfig() {
     Map<String, String> configMap = new HashMap<>();
     configMap.put(GobblinClusterConfigurationKeys.DEDICATED_MANAGER_CLUSTER_ENABLED, "true");
     configMap.put(GobblinClusterConfigurationKeys.MANAGER_CLUSTER_NAME_KEY, "ManagerCluster");
