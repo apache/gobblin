@@ -76,8 +76,7 @@ public class GobblinHelixTask implements Task {
   public GobblinHelixTask(TaskRunnerSuiteBase.Builder builder,
                           TaskCallbackContext taskCallbackContext,
                           TaskAttemptBuilder taskAttemptBuilder,
-                          StateStores stateStores)  throws IOException {
-
+                          StateStores stateStores) {
     this.taskConfig = taskCallbackContext.getTaskConfig();
     this.applicationName = builder.getApplicationName();
     this.instanceName = builder.getInstanceName();
@@ -127,6 +126,7 @@ public class GobblinHelixTask implements Task {
 
   @Override
   public void cancel() {
+    log.warn("Gobblin helix task cancellation invoked.");
     this.task.cancel();
   }
 }

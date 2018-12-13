@@ -19,17 +19,27 @@ package org.apache.gobblin.cluster;
 
 import java.io.IOException;
 
+import org.apache.helix.HelixManager;
+import org.apache.helix.HelixManagerFactory;
+import org.apache.helix.InstanceType;
+import org.apache.helix.task.TaskDriver;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
+
+import com.typesafe.config.Config;
+
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.cluster.suite.IntegrationBasicSuite;
 import org.apache.gobblin.cluster.suite.IntegrationDedicatedManagerClusterSuite;
 import org.apache.gobblin.cluster.suite.IntegrationDedicatedTaskDriverClusterSuite;
+import org.apache.gobblin.cluster.suite.IntegrationJobCancelSuite;
 import org.apache.gobblin.cluster.suite.IntegrationJobFactorySuite;
 import org.apache.gobblin.cluster.suite.IntegrationJobTagSuite;
 import org.apache.gobblin.cluster.suite.IntegrationSeparateProcessSuite;
+import org.apache.gobblin.util.ConfigUtils;
 
-
+@Slf4j
 public class ClusterIntegrationTest {
 
   private IntegrationBasicSuite suite;
@@ -39,6 +49,37 @@ public class ClusterIntegrationTest {
       throws Exception {
     this.suite = new IntegrationBasicSuite();
     runAndVerify();
+  }
+
+  @Test void testJobShouldGetCancelled() throws Exception {
+    this.suite =new IntegrationJobCancelSuite();
+    Config helixConfig = this.suite.getManagerConfig();
+    String clusterName = helixConfig.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
+    String instanceName = ConfigUtils.getString(helixConfig, GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_KEY,
+        GobblinClusterManager.class.getSimpleName());
+    String zkConnectString = helixConfig.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
+    HelixManager helixManager = HelixManagerFactory.getZKHelixManager(clusterName, instanceName, InstanceType.CONTROLLER, zkConnectString);
+
+    suite.startCluster();
+
+    helixManager.connect();
+
+    TaskDriver taskDriver = new TaskDriver(helixManager);
+
+    while (TaskDriver.getWorkflowContext(helixManager, IntegrationJobCancelSuite.JOB_ID) == null) {
+      log.warn("Waiting for the job to start...");
+      Thread.sleep(1000L);
+    }
+
+    // Give the job some time to reach writer, where it sleeps
+    Thread.sleep(2000L);
+
+    log.info("Stopping the job");
+    taskDriver.stop(IntegrationJobCancelSuite.JOB_ID);
+
+    suite.shutdownCluster();
+
+    suite.waitForAndVerifyOutputFiles();
   }
 
   @Test

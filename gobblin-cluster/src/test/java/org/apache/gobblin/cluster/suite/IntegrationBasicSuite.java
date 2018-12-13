@@ -34,6 +34,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Scanner;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.curator.test.TestingServer;
@@ -50,6 +51,7 @@ import com.typesafe.config.ConfigParseOptions;
 import com.typesafe.config.ConfigRenderOptions;
 import com.typesafe.config.ConfigSyntax;
 
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.cluster.ClusterIntegrationTest;
@@ -81,6 +83,8 @@ public class IntegrationBasicSuite {
   protected Collection<GobblinTaskRunner> taskDrivers = Lists.newArrayList();
   protected GobblinClusterManager manager;
 
+  // This filename should match the log file specified in log4j.xml
+  public static Path jobLogOutputFile = Paths.get("gobblin-integration-test-log-dir/gobblin-cluster-test.log");;
   protected Path workPath;
   protected Path jobConfigPath;
   protected Path jobOutputBasePath;
@@ -183,7 +187,7 @@ public class IntegrationBasicSuite {
     return overrideConfig.withFallback(config);
   }
 
-  protected Config getManagerConfig() {
+  public Config getManagerConfig() {
     // manager config initialization
     URL url = Resources.getResource("BasicManager.conf");
     Config managerConfig = ConfigFactory.parseURL(url);
@@ -215,6 +219,18 @@ public class IntegrationBasicSuite {
         .maxSleepMs(100).backoffFactor(1.5);
 
     asserter.assertTrue(this::hasExpectedFilesBeenCreated, "Waiting for job-completion");
+  }
+
+  /**
+   * verify if the file containts the provided message
+   * @param logFile file to be looked inside
+   * @param message string to look for
+   * @return true if the file contains the message
+   * @throws IOException
+   */
+  static boolean verifyFileForMessage(Path logFile, String message) throws IOException {
+    String content = new String(Files.readAllBytes(logFile));
+    return content.contains(message);
   }
 
   protected boolean hasExpectedFilesBeenCreated(Void input) {

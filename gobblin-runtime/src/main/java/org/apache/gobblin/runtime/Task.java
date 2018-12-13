@@ -45,7 +45,6 @@ import com.google.common.io.Closer;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import javax.annotation.Nullable;
 import lombok.NoArgsConstructor;
 
 import org.apache.gobblin.Constructs;
@@ -165,7 +164,7 @@ public class Task implements TaskIFace {
   private final AtomicBoolean shutdownRequested;
   private volatile long shutdownRequestedTime = Long.MAX_VALUE;
   private final CountDownLatch shutdownLatch;
-  private Future<?> taskFuture;
+  protected Future<?> taskFuture;
 
   /**
    * Instantiate a new {@link Task}.

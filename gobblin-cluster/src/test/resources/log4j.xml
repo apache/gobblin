@@ -27,8 +27,20 @@
     </layout>
   </appender>
 
+  <appender name="file" class="org.apache.log4j.RollingFileAppender">
+    <param name="append" value="false" />
+    <param name="maxFileSize" value="1MB" />
+    <param name="maxBackupIndex" value="5" />
+    <param name="file" value="gobblin-integration-test-log-dir/gobblin-cluster-test.log" />
+    <layout class="org.apache.log4j.PatternLayout">
+      <param name="ConversionPattern"
+             value="%d{yyyy-MM-dd HH:mm:ss z} %-5p [%t] %C %L - %m%n" />
+    </layout>
+  </appender>
+
   <root>
     <level value="info" />
+    <appender-ref ref="file" />
     <appender-ref ref="console" />
   </root>
 

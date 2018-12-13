@@ -30,6 +30,7 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeoutException;
 
 import org.apache.hadoop.fs.Path;
+import org.apache.helix.HelixException;
 import org.apache.helix.HelixManager;
 import org.apache.helix.task.JobConfig;
 import org.apache.helix.task.TaskConfig;
@@ -94,6 +95,8 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
 
   private final long workFlowExpiryTimeSeconds;
 
+  private final long helixJobStopTimeoutSeconds;
+
   private boolean jobSubmitted;
 
   // A conditional variable for which the condition is satisfied if a cancellation is requested
@@ -128,6 +131,10 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
         GobblinClusterConfigurationKeys.DEFAULT_HELIX_WORKFLOW_EXPIRY_TIME_SECONDS);
     this.planningJobLauncherMetrics = builder.planningJobLauncherMetrics;
     this.helixMetrics = builder.helixMetrics;
+
+    this.helixJobStopTimeoutSeconds = ConfigUtils.getLong(combined,
+        GobblinClusterConfigurationKeys.HELIX_JOB_STOP_TIMEOUT_SECONDS,
+        GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_STOP_TIMEOUT_SECONDS);
   }
 
   @Override
@@ -142,11 +149,16 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
           // TODO : fix this when HELIX-1180 is completed
           // work flow should never be deleted explicitly because it has a expiry time
           // If cancellation is requested, we should set the job state to CANCELLED/ABORT
-          this.helixTaskDriver.waitToStop(planningJobId, 10000L);
+          this.helixTaskDriver.waitToStop(planningJobId, this.helixJobStopTimeoutSeconds);
           log.info("Stopped the workflow ", planningJobId);
         }
+      } catch (HelixException e) {
+        // Cancellation may throw an exception, but Helix set the job state to STOP and it should eventually stop
+        // We will keep this.cancellationExecuted and this.cancellationRequested to true and not propagate the exception
+        log.error("Failed to stop workflow {} in Helix", planningJobId, e);
       } catch (InterruptedException e) {
-        throw new RuntimeException("Failed to stop workflow " + planningJobId + " in Helix", e);
+        log.error("Thread interrupted while trying to stop the workflow {} in Helix", planningJobId);
+        Thread.currentThread().interrupt();
       }
     }
   }
