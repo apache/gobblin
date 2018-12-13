@@ -125,8 +125,10 @@ public class RackLocalGobblinWorkUnitsInputFormat extends GobblinWorkUnitsInputF
 
   @Override
   protected void createSplits(List<InputSplit> splits, int numTasksPerMapper) {
-    iterateAndCreateSplits(splits, numTasksPerMapper, nodesToWorkUnits);
-    iterateAndCreateSplits(splits, numTasksPerMapper, racksToWorkUnits);
+    log.info(String.format("Created %d node/data-local splits",
+        iterateAndCreateSplits(splits, numTasksPerMapper, nodesToWorkUnits)));
+    log.info(String.format("Created %d rack-local splits",
+        iterateAndCreateSplits(splits, numTasksPerMapper, racksToWorkUnits)));
     super.createSplits(splits, numTasksPerMapper);
   }
 
@@ -135,10 +137,16 @@ public class RackLocalGobblinWorkUnitsInputFormat extends GobblinWorkUnitsInputF
    * per key iteration, so that splits can be better distributed amongst the constructs that the keys represent,
    * but we potentially touch keys multiple times from different iterations if we've iterated through all the
    * keys already and it is still possible to create a split for a key where a split has already been created.
+   * @param splits The list of {@link InputSplit}s to add newly created splits to
+   * @param numTasksPerMapper
+   * @param reverseWorkUnitsMap {@link Map} of a String key representing nodes or racks to the work units located on it
+   * @return the number of splits created
    */
-  private void iterateAndCreateSplits(List<InputSplit> splits, int numTasksPerMapper,
+  private long iterateAndCreateSplits(List<InputSplit> splits, int numTasksPerMapper,
       Map<String, Set<String>> reverseWorkUnitsMap) {
+    long count = 0L;
     Set<String> completed = Sets.newHashSet();
+
     while (completed.size() < reverseWorkUnitsMap.size()) {
       for (Map.Entry<String, Set<String>> workUnitsEntry : reverseWorkUnitsMap.entrySet()) {
         String key = workUnitsEntry.getKey();
@@ -163,6 +171,7 @@ public class RackLocalGobblinWorkUnitsInputFormat extends GobblinWorkUnitsInputF
             // use the rackstonodes map to get a list of nodes, if the key is a node itself, the method
             // will return a singleton list
             splits.add(createSplit(validWorkUnits, getHosts(key)));
+            count += 1;
 
             workUnits.removeAll(validWorkUnits);
             workUnitPaths.removeAll(validWorkUnits);
@@ -178,6 +187,8 @@ public class RackLocalGobblinWorkUnitsInputFormat extends GobblinWorkUnitsInputF
         }
       }
     }
+
+    return count;
   }
 
   private GobblinSplit createSplit(Set<String> workUnitsToAdd, String[] locations) {
