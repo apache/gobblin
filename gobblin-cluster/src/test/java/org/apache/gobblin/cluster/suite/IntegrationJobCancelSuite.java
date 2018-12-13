@@ -46,7 +46,7 @@ public class IntegrationJobCancelSuite extends IntegrationBasicSuite {
   @Override
   public void waitForAndVerifyOutputFiles() throws Exception {
     // If the job is cancelled, it should not have been able to write 'Hello World!'
-    Assert.assertFalse(verifyFileForException(this.jobLogOutputFile, "Hello World!"));
-    Assert.assertFalse(verifyFileForException(this.jobLogOutputFile, "java.lang.NullPointerException"));
+    Assert.assertFalse(verifyFileForMessage(this.jobLogOutputFile, "Hello World!"));
+    Assert.assertFalse(verifyFileForMessage(this.jobLogOutputFile, "java.lang.NullPointerException"));
   }
 }

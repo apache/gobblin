@@ -221,9 +221,16 @@ public class IntegrationBasicSuite {
     asserter.assertTrue(this::hasExpectedFilesBeenCreated, "Waiting for job-completion");
   }
 
-  static boolean verifyFileForException(Path logFile, String exception) throws IOException {
+  /**
+   * verify if the file containts the provided message
+   * @param logFile file to be looked inside
+   * @param message string to look for
+   * @return true if the file contains the message
+   * @throws IOException
+   */
+  static boolean verifyFileForMessage(Path logFile, String message) throws IOException {
     String content = new String(Files.readAllBytes(logFile));
-    return content.contains(exception);
+    return content.contains(message);
   }
 
   protected boolean hasExpectedFilesBeenCreated(Void input) {
