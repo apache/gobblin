@@ -223,6 +223,13 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
       jobConfigBuilder.setInstanceGroupTag(jobPlanningTag);
     }
 
+    // Planning job should have its own type support
+    if (jobProps.containsKey(GobblinClusterConfigurationKeys.HELIX_PLANNING_JOB_TYPE_KEY)) {
+      String jobType = jobProps.getProperty(GobblinClusterConfigurationKeys.HELIX_PLANNING_JOB_TYPE_KEY);
+      log.info("PlanningJob {} has types associated : {}", planningId, jobType);
+      jobConfigBuilder.setJobType(jobType);
+    }
+
     jobConfigBuilder.setNumConcurrentTasksPerInstance(PropertiesUtils.getPropAsInt(jobProps,
         GobblinClusterConfigurationKeys.HELIX_CLUSTER_TASK_CONCURRENCY,
         GobblinClusterConfigurationKeys.HELIX_CLUSTER_TASK_CONCURRENCY_DEFAULT));

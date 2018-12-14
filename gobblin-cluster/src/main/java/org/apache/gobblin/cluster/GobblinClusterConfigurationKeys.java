@@ -75,10 +75,14 @@ public class GobblinClusterConfigurationKeys {
   public static final String JOB_EXECUTE_IN_SCHEDULING_THREAD = GOBBLIN_CLUSTER_PREFIX + "job.executeInSchedulingThread";
   public static final boolean JOB_EXECUTE_IN_SCHEDULING_THREAD_DEFAULT = true;
 
-  // Helix related tagging
+  // Helix tagging
   public static final String HELIX_JOB_TAG_KEY = GOBBLIN_CLUSTER_PREFIX + "helixJobTag";
   public static final String HELIX_PLANNING_JOB_TAG_KEY = GOBBLIN_CLUSTER_PREFIX + "helixPlanningJobTag";
   public static final String HELIX_INSTANCE_TAGS_KEY = GOBBLIN_CLUSTER_PREFIX + "helixInstanceTags";
+
+  // Helix job quota
+  public static final String HELIX_JOB_TYPE_KEY = GOBBLIN_CLUSTER_PREFIX + "helixJobType";
+  public static final String HELIX_PLANNING_JOB_TYPE_KEY = GOBBLIN_CLUSTER_PREFIX + "helixPlanningJobType";
 
   // Planning job properties
   public static final String PLANNING_JOB_NAME_PREFIX = "PlanningJob";

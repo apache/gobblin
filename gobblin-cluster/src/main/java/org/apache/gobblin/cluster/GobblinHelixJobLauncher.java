@@ -321,6 +321,12 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
       jobConfigBuilder.setInstanceGroupTag(jobTag);
     }
 
+    if (this.jobConfig.hasPath(GobblinClusterConfigurationKeys.HELIX_JOB_TYPE_KEY)) {
+      String jobType = this.jobConfig.getString(this.jobConfig.getString(GobblinClusterConfigurationKeys.HELIX_JOB_TYPE_KEY));
+      log.info("Job {} has types associated : {}", this.jobContext.getJobId(), jobType);
+      jobConfigBuilder.setJobType(jobType);
+    }
+
     if (Task.getExecutionModel(ConfigUtils.configToState(jobConfig)).equals(ExecutionModel.STREAMING)) {
       jobConfigBuilder.setRebalanceRunningTask(true);
     }
@@ -335,8 +341,12 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
    * Submit a job to run.
    */
   private void submitJobToHelix(JobConfig.Builder jobConfigBuilder) throws Exception {
-    HelixUtils.submitJobToWorkFlow(jobConfigBuilder, this.helixWorkFlowName, this.jobContext.getJobId(),
-        this.helixTaskDriver, this.helixManager, this.workFlowExpiryTimeSeconds);
+    HelixUtils.submitJobToWorkFlow(jobConfigBuilder,
+        this.helixWorkFlowName,
+        this.jobContext.getJobId(),
+        this.helixTaskDriver,
+        this.helixManager,
+        this.workFlowExpiryTimeSeconds);
   }
 
   public void launchJob(@Nullable JobListener jobListener)
