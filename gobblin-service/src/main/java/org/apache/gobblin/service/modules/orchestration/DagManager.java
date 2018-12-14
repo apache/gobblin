@@ -349,7 +349,7 @@ public class DagManager extends AbstractIdleService {
       String jobName = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
 
       Iterator<JobStatus> jobStatusIterator =
-          this.jobStatusRetriever.getJobStatusesForFlowExecution(flowGroup, flowName, flowExecutionId, jobGroup, jobName);
+          this.jobStatusRetriever.getJobStatusesForFlowExecution(flowName, flowGroup, flowExecutionId, jobName, jobGroup);
       if (jobStatusIterator.hasNext()) {
         return jobStatusIterator.next();
       } else {
