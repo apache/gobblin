@@ -246,6 +246,12 @@ public interface DatasetsFinder<T extends Dataset> {
     * If the publish steps fail, the write-ahead log is preserved, and Gobblin will attempt to run them on the next execution. Relevant directories will not be deleted on exit.
 * Eventually, write step should also use exactly-once feature.
 
+## Splitting files into block level granularity work units
+
+Gobblin Distcp has an option to enable splitting of files into block level granularity work units, which involves the use of a helper class, `DistcpFileSplitter`, which has methods for:
+* Splitting of files into block level work units, which is done at the `CopySource`; the block level granularity is represented by an additional `Split` construct within each work unit that contains offset and ordering information.
+* Merging of block level work units/splits, which is done at the `CopyDataPublisher`; this uses calls to the `FileSystem#concat` API to append the separately copied entities of each file back together.
+
 # Leverage
 
 Gobblin Distcp leverages Gobblin as its running framework, and most features available to Gobblin:
@@ -262,7 +268,7 @@ Gobblin Distcp leverages Gobblin as its running framework, and most features ava
 There are two components in the flow:
 
 * File listing and work unit generation: slow if there are too many files. Dataset aware optimizations are possible, as well as using services other than Hadoop ls call (like lsr or HDFS edit log), so this can be improved and should scale with the correct optimizations. Work unit generation is currently a serial process handled by Gobblin and could be a bottleneck. If we find it is a bottleneck, that process is parallelizable.
-* Actual copy tasks: massively parallel using MR or many containers in YARN. Generally, it is the most expensive part of the flow. Although inputs can be split, HDFS does not support parallel writing to the same file, so large files will be a bottleneck (but this is true with distcp2 as well). This issue will be alleviated with the YARN executing model, where WorkUnits are allocated dynamically to containers (multiple small files can be copied in one container will another container copies a large file), and datasets can be publishes as soon as they are ready (remove impact from slow datasets). In direct byte copies, we have observed speeds that saturate the available network speed. Byte level transformations slow down the process (e.g. decrypting).
+* Actual copy tasks: massively parallel using MR or many containers in YARN. Generally, it is the most expensive part of the flow. Although inputs can be split, HDFS does not support parallel writing to the same file, so large files will be a bottleneck (but this is true with distcp2 as well). This issue will be alleviated with the YARN executing model, where WorkUnits are allocated dynamically to containers (multiple small files can be copied in one container will another container copies a large file), and datasets can be publishes as soon as they are ready (remove impact from slow datasets). If this is an issue for a job in MR/with HDFS, Gobblin Distcp provides an option to enable splitting of files into block level granularity work units to be copied independently, then merged back together before publishing, which may help to reduce the mapper skew and alleviate the bottleneck. In direct byte copies, we have observed speeds that saturate the available network speed. Byte level transformations (e.g. decrypting) slow down the process, and also cannot be used with jobs that enable splitting.
 
 # Monitoring and Alerting
 
