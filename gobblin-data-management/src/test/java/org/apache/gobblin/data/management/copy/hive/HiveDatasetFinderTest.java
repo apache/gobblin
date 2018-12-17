@@ -24,6 +24,7 @@ import java.util.Properties;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
+import org.apache.hadoop.hive.metastore.api.SerDeInfo;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.mockito.Mockito;
@@ -38,6 +39,9 @@ import com.typesafe.config.Config;
 
 import org.apache.gobblin.hive.HiveMetastoreClientPool;
 import org.apache.gobblin.util.AutoReturnableObject;
+
+import static org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder.DB_KEY;
+import static org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder.REJECTED_DATA_FORMAT_KEY;
 
 
 public class HiveDatasetFinderTest {
@@ -125,6 +129,44 @@ public class HiveDatasetFinderTest {
   }
 
   @Test
+  public void testTableFormatWhitelist() throws Exception {
+    HiveMetastoreClientPool pool = Mockito.mock(HiveMetastoreClientPool.class);
+    IMetaStoreClient client = Mockito.mock(IMetaStoreClient.class);
+
+    StorageDescriptor sd_avro = new StorageDescriptor();
+    SerDeInfo serDeInfo = new SerDeInfo();
+    serDeInfo.setSerializationLib("org.apache.hadoop.hive.serde2.avro.AvroSerDe");
+    sd_avro.setSerdeInfo(serDeInfo);
+
+    StorageDescriptor sd_orc = new StorageDescriptor();
+    SerDeInfo serDeInfo_orc = new SerDeInfo();
+    serDeInfo_orc.setSerializationLib("org.apache.hadoop.hive.ql.io.orc.OrcSerde");
+    sd_orc.setSerdeInfo(serDeInfo_orc);
+    Table table = createSimpleHiveTable(sd_avro, "dbname", "tablename");
+    Table table1 = createSimpleHiveTable(sd_orc, "dbname", "tablename1");
+
+    Mockito.doReturn(Lists.newArrayList("dbname")).when(client).getAllDatabases();
+    Mockito.doReturn(Lists.newArrayList("tablename", "tablename1")).when(client).getAllTables("dbname");
+
+    Mockito.doReturn(table).when(client).getTable("dbname", "tablename");
+    Mockito.doReturn(table1).when(client).getTable("dbname", "tablename1");
+
+    AutoReturnableObject<IMetaStoreClient> aro = Mockito.mock(AutoReturnableObject.class);
+    Mockito.when(aro.get()).thenReturn(client);
+
+    Mockito.when(pool.getHiveRegProps()).thenReturn(null);
+    Mockito.when(pool.getClient()).thenReturn(aro);
+
+    Properties properties = new Properties();
+    properties.setProperty(DB_KEY, "dbname");
+    properties.setProperty(REJECTED_DATA_FORMAT_KEY, "orc");
+
+    HiveDatasetFinder finder = new TestHiveDatasetFinder(FileSystem.getLocal(new Configuration()), properties, pool);
+    List<HiveDataset> datasets = Lists.newArrayList(finder.getDatasetsIterator());
+    Assert.assertEquals(datasets.size(), 1);
+  }
+
+  @Test
   public void testTableList() throws Exception {
     List<HiveDatasetFinder.DbAndTable> dbAndTables = Lists.newArrayList();
     dbAndTables.add(new HiveDatasetFinder.DbAndTable("db1", "table1"));
@@ -183,6 +225,16 @@ public class HiveDatasetFinderTest {
 
   }
 
+  private Table createSimpleHiveTable(StorageDescriptor storageDescriptor, String dbName, String tableName) {
+    Table table = new Table();
+    table.setDbName(dbName);
+    table.setTableName(tableName);
+    StorageDescriptor sd = storageDescriptor == null ? new StorageDescriptor() : storageDescriptor;
+    sd.setLocation("/tmp/test");
+    table.setSd(sd);
+    return table;
+  }
+
   private HiveMetastoreClientPool getTestPool(List<HiveDatasetFinder.DbAndTable> dbAndTables) throws Exception {
 
     SetMultimap<String, String> entities = HashMultimap.create();
@@ -198,12 +250,7 @@ public class HiveDatasetFinderTest {
       Mockito.doReturn(Lists.newArrayList(entities.get(db))).when(client).getAllTables(db);
     }
     for (HiveDatasetFinder.DbAndTable dbAndTable : dbAndTables) {
-      Table table = new Table();
-      table.setDbName(dbAndTable.getDb());
-      table.setTableName(dbAndTable.getTable());
-      StorageDescriptor sd = new StorageDescriptor();
-      sd.setLocation("/tmp/test");
-      table.setSd(sd);
+      Table table = createSimpleHiveTable(null, dbAndTable.getDb(), dbAndTable.getTable());
       Mockito.doReturn(table).when(client).getTable(dbAndTable.getDb(), dbAndTable.getTable());
     }
 
