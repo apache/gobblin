@@ -22,6 +22,10 @@ Gobblin also allows you to specify a global configuration file that contains com
 * [Email Alert Properties](#Email-Alert-Properties)  
 * [Source Properties](#Source-Properties)  
   * [Common Source Properties](#Common-Source-Properties)  
+  * [Distcp CopySource Properties](#Distcp-CopySource-Properties)
+    * [RecursiveCopyableDataset Properties](#RecursiveCopyableDataset-Properties)
+    * [WorkUnitBinPacker Properties](#WorkUnitBinPacker-Properties)
+    * [DistcpFileSplitter Properties](#DistcpFileSplitter-Properties)
   * [QueryBasedExtractor Properties](#QueryBasedExtractor-Properties) 
     * [JdbcExtractor Properties](#JdbcExtractor-Properties)  
   * [FileBasedExtractor Properties](#FileBasedExtractor-Properties)  
@@ -592,6 +596,73 @@ No
 
 ###### Required
 
+## Distcp CopySource Properties <a name="Distcp-CopySource-Properties"></a>
+#### gobblin.copy.simulate
+###### Description
+Will perform copy file listing but doesn't execute actual copy.
+###### Default Value
+False
+###### Required
+No
+#### gobblin.copy.includeEmptyDirectories
+###### Description
+Whether to include empty directories from the source in the copy.
+###### Default Value
+False
+###### Required
+No
+### RecursiveCopyableDataset Properties <a name="RecursiveCopyableDataset-Properties"></a>
+#### gobblin.copy.recursive.deleteEmptyDirectories
+###### Description
+Whether to delete newly empty directories found, up to the dataset root.
+###### Default Value
+False
+###### Required
+No
+#### gobblin.copy.recursive.delete
+###### Description
+Whether to delete files in the target that don't exist in the source.
+###### Default Value
+False
+###### Required
+No
+#### gobblin.copy.recursive.update
+###### Description
+Will update files that are different between the source and target, and skip files already in the target.
+###### Default Value
+False
+###### Required
+No
+### DistcpFileSplitter Properties <a name="DistcpFileSplitter-Properties"></a>
+#### gobblin.copy.split.enabled
+###### Description
+Will split files into block level granularity work units, which can be copied independently, then merged back together before publishing. To actually achieve splitting, the max split size property also needs to be set.
+###### Default Value
+False
+###### Required
+No
+#### gobblin.copy.file.max.split.size
+###### Description
+If splitting is enabled, the split size (in bytes) for the block level work units is calculated based on rounding down the value of this property to the nearest integer multiple of the block size. If the value of this property is less than the block size, it gets adjusted up.
+###### Default Value
+Long.MAX_VALUE
+###### Required
+No
+### WorkUnitBinPacker Properties <a name="WorkUnitBinPacker-Properties"></a>
+#### gobblin.copy.binPacking.maxSizePerBin
+###### Description
+Limits the maximum weight that can be packed into a multi work unit produced from bin packing. A value of 0 means packing is not done.
+###### Default Value
+0
+###### Required
+No
+#### gobblin.copy.binPacking.maxWorkUnitsPerBin
+###### Description
+Limits the maximum number/amount of work units that can be packed into a multi work unit produced from bin packing.
+###### Default Value
+50
+###### Required
+No
 ## QueryBasedExtractor Properties <a name="QueryBasedExtractor-Properties"></a>
 The following table lists the query based extractor configuration properties.
 #### source.querybased.watermark.type 
