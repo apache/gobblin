@@ -1,0 +1,35 @@
+{
+  "type": "record",
+  "name": "StandardManifestRecord",
+  "namespace": "org.apache.gobblin.model",
+  "fields": [
+    {
+      "name": "action",
+      "type": "string",
+      "doc": "The action that will be taken for the record, e.g. insert, based on the grammar defined by the service."
+    },
+    {
+      "name": "resource",
+      "type": "string",
+      "doc":"The resource within a service, which a record will be sent to. "
+    },
+    {
+      "name": "record",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "doc": "Changes in KV pairs to be applied, with resource field name as key",
+      "default": {}
+    },
+    {
+      "name": "metadata",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "doc": "Contains metadata for the record, e.g. primaryKeyName, timestamp, etc, based on the grammar defined by the service.",
+      "default": {}
+    }
+  ]
+}
