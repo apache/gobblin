@@ -376,6 +376,7 @@ public class DagManager extends AbstractIdleService {
       JobExecutionPlan jobExecutionPlan = DagManagerUtils.getJobExecutionPlan(dagNode);
       jobExecutionPlan.setExecutionStatus(RUNNING);
       JobSpec jobSpec = DagManagerUtils.getJobSpec(dagNode);
+      Map<String, String> jobMetadata = TimingEventUtils.getJobMetadata(Maps.newHashMap(), jobExecutionPlan);
 
       // Run this spec on selected executor
       SpecProducer producer = null;
@@ -387,7 +388,6 @@ public class DagManager extends AbstractIdleService {
         }
         log.info("Submitting job: {} on executor: {}", jobSpec, producer);
 
-        Map<String, String> jobMetadata = TimingEventUtils.getJobMetadata(Maps.newHashMap(), jobExecutionPlan);
         log.info("Going to orchestrate JobSpec: {} on Executor: {}", jobSpec, producer);
 
         TimingEvent jobOrchestrationTimer = this.eventSubmitter.isPresent() ? this.eventSubmitter.get().
@@ -401,7 +401,12 @@ public class DagManager extends AbstractIdleService {
 
         log.info("Orchestrated JobSpec: {} on Executor: {}", jobSpec, producer);
       } catch (Exception e) {
+        TimingEvent jobFailedTimer = this.eventSubmitter.isPresent() ? this.eventSubmitter.get().
+            getTimingEvent(TimingEvent.LauncherTimings.JOB_FAILED) : null;
         log.error("Cannot submit job: {} on executor: {}", jobSpec, producer, e);
+        if (jobFailedTimer != null) {
+          jobFailedTimer.stop(jobMetadata);
+        }
       }
     }
 
