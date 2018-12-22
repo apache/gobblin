@@ -197,6 +197,9 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     // Add below waiting because TopologyCatalog and FlowCatalog service can be launched at the same time
     this.topologyCatalog.get().getInitComplete().await();
 
+    //Wait for the SpecCompiler to become healthy.
+    this.getSpecCompiler().awaitHealthy();
+
     long startTime = System.nanoTime();
     if (spec instanceof FlowSpec) {
       TimingEvent flowCompilationTimer = this.eventSubmitter.isPresent()

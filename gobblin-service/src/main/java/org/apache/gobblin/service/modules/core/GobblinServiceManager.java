@@ -87,6 +87,7 @@ import org.apache.gobblin.service.NoopRequesterService;
 import org.apache.gobblin.service.RequesterService;
 import org.apache.gobblin.service.Schedule;
 import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.service.modules.flow.MultiHopFlowCompiler;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.service.modules.restli.GobblinServiceFlowConfigResourceHandler;
@@ -447,6 +448,9 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
 
     // Notify now topologyCatalog has the right information
     this.topologyCatalog.getInitComplete().countDown();
+
+    //Activate the SpecCompiler, after the topologyCatalog has been initialized.
+    this.orchestrator.getSpecCompiler().setActive(true);
   }
 
   @Override

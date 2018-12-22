@@ -24,6 +24,7 @@ import java.net.URISyntaxException;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 
 import org.apache.commons.io.FileUtils;
@@ -122,7 +123,7 @@ public class GitFlowGraphMonitorTest {
     //Create a FlowGraph instance with defaults
     this.flowGraph = new BaseFlowGraph();
 
-    this.gitFlowGraphMonitor = new GitFlowGraphMonitor(this.config, this.flowCatalog, this.flowGraph, topologySpecMap);
+    this.gitFlowGraphMonitor = new GitFlowGraphMonitor(this.config, this.flowCatalog, this.flowGraph, topologySpecMap, new CountDownLatch(1));
     this.gitFlowGraphMonitor.setActive(true);
   }
 
