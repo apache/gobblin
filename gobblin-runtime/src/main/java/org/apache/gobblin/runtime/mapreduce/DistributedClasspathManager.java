@@ -215,7 +215,7 @@ public class DistributedClasspathManager {
         } else {
           // Copy the file from local file system to HDFS
           this.fs.copyFromLocalFile(file, destFilePath);
-          this.fs.setPermission(destFilePath, new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
+          this.fs.setPermission(destFilePath, new FsPermission(FsAction.ALL, FsAction.READ_EXECUTE, FsAction.NONE));
           log.info("Copied {}", destFilePath);
           break;
         }
