@@ -38,7 +38,7 @@ public interface SpecCompiler extends SpecCatalogListener, Instrumentable {
    * Take in a logical {@link Spec} and compile corresponding materialized {@link Spec}s
    * and the mapping to {@link SpecExecutor} that they can be run on.
    * All the specs generated from the compileFlow must have a
-   * {@link org.apache.gobblin.configuration.ConfigurationKeys.FLOW_EXECUTION_ID_KEY}
+   * {@value org.apache.gobblin.configuration.ConfigurationKeys#FLOW_EXECUTION_ID_KEY}
    * @param spec {@link Spec} to compile.
    * @return Map of materialized physical {@link Spec} and {@link SpecExecutor}.
    */
@@ -50,4 +50,21 @@ public interface SpecCompiler extends SpecCatalogListener, Instrumentable {
    * @return Map of {@link Spec} URI and {@link TopologySpec}
    */
   Map<URI, TopologySpec> getTopologySpecMap();
+
+  /**
+   * Mark the {@link SpecCompiler} active/inactive. Useful to trigger the initialization of {@link SpecCompiler}, if
+   * necessary, before it can start compiling {@link org.apache.gobblin.runtime.api.FlowSpec}s.
+   * @param active
+   */
+  void setActive(boolean active);
+
+  /**
+   * Waits for the {@link SpecCompiler} to become healthy. A {@link SpecCompiler} is healthy when all the component
+   * services it depends on have been successfully initialized. For instance, the {@link MultiHopFlowCompiler} is healthy
+   * when the {@link org.apache.gobblin.service.modules.flowgraph.DataNode}s and {@link org.apache.gobblin.service.modules.flowgraph.FlowEdge}s
+   * can be added to the {@link org.apache.gobblin.service.modules.flowgraph.FlowGraph}. The {@link org.apache.gobblin.service.modules.flowgraph.FlowEdge}
+   * instantiation in turn depends on the successful initialization of {@link org.apache.gobblin.runtime.spec_catalog.TopologyCatalog}, which
+   * instantiates all the configured {@link SpecExecutor}s.
+   */
+  public void awaitHealthy() throws InterruptedException;
 }

@@ -95,6 +95,9 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
   protected Optional<Meter> flowCompilationFailedMeter;
   @Getter
   protected Optional<Timer> flowCompilationTimer;
+  @Getter
+  @Setter
+  protected boolean active;
 
   public BaseFlowToJobSpecCompiler(Config config){
     this(config,true);
@@ -147,6 +150,12 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
       throw new RuntimeException("Could not initialize FlowCompiler because of "
           + "TemplateCatalog initialization failure", e);
     }
+  }
+
+  @Override
+  public void awaitHealthy() throws InterruptedException {
+    //Do nothing
+    return;
   }
 
   @Override

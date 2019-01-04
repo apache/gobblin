@@ -618,6 +618,8 @@ public class MultiHopFlowCompilerTest {
     //Create a MultiHopFlowCompiler instance
     specCompiler = new MultiHopFlowCompiler(config, Optional.absent(), false);
 
+    specCompiler.setActive(true);
+
     //Ensure node1 is not present in the graph
     Assert.assertNull(specCompiler.getFlowGraph().getNode("node1"));
 

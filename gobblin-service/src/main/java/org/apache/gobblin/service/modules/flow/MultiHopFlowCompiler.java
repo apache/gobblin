@@ -20,6 +20,7 @@ package org.apache.gobblin.service.modules.flow;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -67,7 +68,7 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
   @Getter
   private ServiceManager serviceManager;
   @Getter
-  private boolean active;
+  private CountDownLatch initComplete = new CountDownLatch(1);
 
   private GitFlowGraphMonitor gitFlowGraphMonitor;
 
@@ -94,7 +95,7 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
       throw new RuntimeException("Cannot instantiate " + getClass().getName(), e);
     }
     this.flowGraph = new BaseFlowGraph();
-    this.gitFlowGraphMonitor = new GitFlowGraphMonitor(this.config, flowCatalog, this.flowGraph, this.topologySpecMap);
+    this.gitFlowGraphMonitor = new GitFlowGraphMonitor(this.config, flowCatalog, this.flowGraph, this.topologySpecMap, this.getInitComplete());
     this.serviceManager = new ServiceManager(Lists.newArrayList(this.gitFlowGraphMonitor));
     addShutdownHook();
     //Start the git flow graph monitor
@@ -112,9 +113,25 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
     this.flowGraph = flowGraph;
   }
 
+  /**
+   * Mark the {@link SpecCompiler} as active. This in turn activates the {@link GitFlowGraphMonitor}, allowing to start polling
+   * and processing changes
+   * @param active
+   */
+  @Override
   public void setActive(boolean active) {
-    this.active = active;
+    super.setActive(active);
     this.gitFlowGraphMonitor.setActive(active);
+  }
+
+  @Override
+  public void awaitHealthy() throws InterruptedException {
+    if (this.getInitComplete().getCount() > 0) {
+      log.info("Waiting for the MultiHopFlowCompiler to become healthy..");
+      this.getInitComplete().await();
+      log.info("The MultihopFlowCompiler is healthy and ready to orchestrate flows.");
+    }
+    return;
   }
 
   /**

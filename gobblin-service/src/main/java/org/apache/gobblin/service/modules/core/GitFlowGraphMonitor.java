@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.Path;
@@ -90,12 +91,14 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
   private FlowGraph flowGraph;
   private final Map<URI, TopologySpec> topologySpecMap;
   private final Config emptyConfig = ConfigFactory.empty();
+  private final CountDownLatch initComplete;
 
-  public GitFlowGraphMonitor(Config config, FSFlowCatalog flowCatalog, FlowGraph graph, Map<URI, TopologySpec> topologySpecMap) {
+  public GitFlowGraphMonitor(Config config, FSFlowCatalog flowCatalog, FlowGraph graph, Map<URI, TopologySpec> topologySpecMap, CountDownLatch initComplete) {
     super(config.getConfig(GIT_FLOWGRAPH_MONITOR_PREFIX).withFallback(DEFAULT_FALLBACK));
     this.flowCatalog = flowCatalog;
     this.flowGraph = graph;
     this.topologySpecMap = topologySpecMap;
+    this.initComplete = initComplete;
   }
 
   /**
@@ -104,7 +107,7 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
    */
   @Override
   public boolean shouldPollGit() {
-    return true;
+    return this.isActive;
   }
 
   /**
@@ -129,7 +132,11 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
       return o1Depth.compareTo(o2Depth);
     });
     processGitConfigChangesHelper(changes);
+    //Decrements the latch count. The countdown latch is initialized to 1. So after the first time the latch is decremented,
+    // the following operation should be a no-op.
+    this.initComplete.countDown();
   }
+
   /**
    * Add an element (i.e., a {@link DataNode}, or a {@link FlowEdge} to
    * the {@link FlowGraph} for an added, updated or modified node or edge file.
