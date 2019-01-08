@@ -69,18 +69,17 @@ public class OracleExtractorTest {
   }
 
   @Test
-  public void testConstructSampleClause() throws Exception {
+  public void testConstructSampleClause() {
     String sClause = oracleExtractor.constructSampleClause();
     assertEquals(sClause.trim(), (" rownum <= " + oracleExtractor.getSampleRecordCount()).trim());
   }
 
   @Test
-  public void testRemoveSampleClauseFromQuery() throws Exception {
+  public void testRemoveSampleClauseFromQuery() {
     String q1Expected = "SELECT * FROM x WHERE 1=1";
     String q2Expected = "SELECT * FROM x WHERE 1=1 AND x.a < 10";
     String q3Expected = "SELECT * FROM x WHERE x.a < 10 AND 1=1";
     String q4Expected = "SELECT * FROM x WHERE x.a < 10 AND 1=1 AND x.b = 20";
-    String qEmptyClean = "";
 
     String q1Parsed = oracleExtractor.removeSampleClauseFromQuery(QUERY_1);
     String q2Parsed = oracleExtractor.removeSampleClauseFromQuery(QUERY_2);
@@ -94,7 +93,7 @@ public class OracleExtractorTest {
   }
 
   @Test
-  public void testExractSampleRecordCountFromQuery() throws Exception {
+  public void testExractSampleRecordCountFromQuery() {
     long res1 = oracleExtractor.exractSampleRecordCountFromQuery(QUERY_1);
     long res2 = oracleExtractor.exractSampleRecordCountFromQuery(QUERY_2);
     long res3 = oracleExtractor.exractSampleRecordCountFromQuery(QUERY_3);
@@ -113,7 +112,7 @@ public class OracleExtractorTest {
   /**
    * Build a mock implementation of Result using Mockito
    */
-  private ResultSet buildMockResultSet() throws Exception {
+  private ResultSet buildMockResultSet() {
 
     MockResultSet mrs = new MockResultSet(StringUtils.EMPTY);
     for (MockJdbcColumn column : COLUMNS) {

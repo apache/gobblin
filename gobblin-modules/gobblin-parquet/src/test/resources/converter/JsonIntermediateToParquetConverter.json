@@ -5,7 +5,9 @@
       "b": 5.0,
       "c": 8.0,
       "d": true,
-      "e": "somestring"
+      "e": "somestring",
+      "f": "2018-01-01",
+      "g": 1545083047
     },
     "schema": [
       {
@@ -37,10 +39,22 @@
         "dataType": {
           "type": "string"
         }
+      },
+      {
+        "columnName": "f",
+        "dataType": {
+          "type": "date"
+        }
+      },
+      {
+        "columnName": "g",
+        "dataType": {
+          "type": "timestamp"
+        }
       }
     ],
-    "expectedRecord": "a: 5 ; b: 5.0 ; c: 8.0 ; d: true ; e: somestring ; ",
-    "expectedSchema": "message test_table{ ; required int32 a ;  ; required float b ;  ; required double c ;  ; required boolean d ;  ; required binary e (UTF8) ;  ; } ; "
+    "expectedRecord": "a: 5 ; b: 5.0 ; c: 8.0 ; d: true ; e: somestring ; f: 2018-01-01 ; g: 1545083047 ;",
+    "expectedSchema": "message test_table{ ; required int32 a ;  ; required float b ;  ; required double c ;  ; required boolean d ;  ; required binary e (UTF8) ;  ; required binary f (UTF8) ;  ; required binary g (UTF8) ;  ; } ; "
   },
   "array": {
     "record": {
