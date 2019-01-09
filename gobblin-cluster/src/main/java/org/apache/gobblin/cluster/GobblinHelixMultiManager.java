@@ -344,14 +344,19 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
         Map<String, WorkflowConfig> workflows = taskDriver.getWorkflows();
 
         for (Map.Entry<String, WorkflowConfig> entry : workflows.entrySet()) {
-          String queueName = entry.getKey();
-          WorkflowConfig workflowConfig = entry.getValue();
+          String workflowName = entry.getKey();
+          if (workflowName.contains(GobblinClusterConfigurationKeys.PLANNING_CONF_PREFIX)
+              || workflowName.contains(GobblinClusterConfigurationKeys.ACTUAL_JOB_NAME_PREFIX)) {
+            log.info("Distributed job {} won't be deleted.", workflowName);
+          } else {
+            WorkflowConfig workflowConfig = entry.getValue();
 
-          // request delete if not already requested
-          if (workflowConfig.getTargetState() != TargetState.DELETE) {
-            taskDriver.delete(queueName);
+            // request delete if not already requested
+            if (workflowConfig.getTargetState() != TargetState.DELETE) {
+              taskDriver.delete(workflowName);
 
-            log.info("Requested delete of queue {}", queueName);
+              log.info("Requested delete of workflowName {}", workflowName);
+            }
           }
         }
 

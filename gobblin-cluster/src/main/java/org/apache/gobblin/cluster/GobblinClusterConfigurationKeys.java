@@ -90,6 +90,9 @@ public class GobblinClusterConfigurationKeys {
   public static final String PLANNING_ID_KEY = PLANNING_CONF_PREFIX + "idKey";
   public static final String PLANNING_JOB_CREATE_TIME = PLANNING_CONF_PREFIX + "createTime";
 
+  // Actual job properties
+  public static final String ACTUAL_JOB_NAME_PREFIX = "ActualJob";
+
   // job spec operation
   public static final String JOB_ALWAYS_DELETE = GOBBLIN_CLUSTER_PREFIX + "job.alwaysDelete";
 
@@ -114,6 +117,8 @@ public class GobblinClusterConfigurationKeys {
   public static final String JOB_CONFIGURATION_MANAGER_KEY = GOBBLIN_CLUSTER_PREFIX + "job.configuration.manager";
 
   public static final String JOB_SPEC_REFRESH_INTERVAL = GOBBLIN_CLUSTER_PREFIX + "job.spec.refresh.interval";
+  public static final String JOB_SPEC_URI = GOBBLIN_CLUSTER_PREFIX + "job.spec.uri";
+
   public static final String SPEC_CONSUMER_CLASS_KEY = GOBBLIN_CLUSTER_PREFIX + "specConsumer.class";
   public static final String DEFAULT_SPEC_CONSUMER_CLASS =
       "org.apache.gobblin.service.SimpleKafkaSpecConsumer";

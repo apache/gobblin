@@ -145,10 +145,9 @@ class GobblinHelixJobTask implements Task {
   public TaskResult run() {
     log.info("Running planning job {} [{} {}]", this.planningJobId, this.applicationName, this.instanceName);
     this.jobTaskMetrics.updateTimeBetweenJobSubmissionAndExecution(this.jobPlusSysConfig);
+    String jobName = jobPlusSysConfig.getProperty(ConfigurationKeys.JOB_NAME_KEY);
 
     try (Closer closer = Closer.create()) {
-      String jobName = jobPlusSysConfig.getProperty(ConfigurationKeys.JOB_NAME_KEY);
-
       Optional<String> planningIdFromStateStore = this.jobsMapping.getPlanningJobId(jobName);
 
       long timeOut = PropertiesUtils.getPropAsLong(jobPlusSysConfig,
@@ -176,8 +175,13 @@ class GobblinHelixJobTask implements Task {
             }
           }
         } else {
-          log.info("Actual job {} does not exist. First time run.", this.planningJobId);
+          log.info("No previous actual job [plan: {}]. First time run.", this.planningJobId);
         }
+
+        String actualJobId = HelixJobsMapping.createActualJobId(jobPlusSysConfig);
+        log.info("Planning job {} creates actual job {}", this.planningJobId, actualJobId);
+
+        this.jobPlusSysConfig.setProperty(ConfigurationKeys.JOB_ID_KEY, actualJobId);
 
         this.launcher = createJobLauncher();
 
@@ -191,13 +195,20 @@ class GobblinHelixJobTask implements Task {
           log.info("Planning job {} has more runs due to early stop.", this.planningJobId);
         }
       }
+      log.info("Completing planning job {}", this.planningJobId);
+      return new TaskResult(TaskResult.Status.COMPLETED, "");
     } catch (Exception e) {
       log.info("Failing planning job {}", this.planningJobId);
       return new TaskResult(TaskResult.Status.FAILED, "Exception occurred for job " + planningJobId + ":" + ExceptionUtils
           .getFullStackTrace(e));
+    } finally {
+      // always cleanup the job mapping for current job name.
+      try {
+        this.jobsMapping.deleteMapping(jobName);
+      } catch (Exception e) {
+        return new TaskResult(TaskResult.Status.FAILED,"Cannot delete jobs mapping for job : " + jobName);
+      }
     }
-    log.info("Completing planning job {}", this.planningJobId);
-    return new TaskResult(TaskResult.Status.COMPLETED, "");
   }
 
   @Override

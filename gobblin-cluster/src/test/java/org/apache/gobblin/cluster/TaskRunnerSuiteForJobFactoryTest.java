@@ -95,12 +95,8 @@ public class TaskRunnerSuiteForJobFactoryTest extends TaskRunnerSuiteThreadModel
       DistributeJobResult rst = super.getResultFromUserContent();
       Assert.assertTrue(!rst.isEarlyStopped());
       String jobName = this.jobPlanningProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
-      String planningJobId = this.jobPlanningProps.getProperty(GobblinClusterConfigurationKeys.PLANNING_ID_KEY);
-
       try {
-        String planningJobFromStore = this.jobsMapping.getPlanningJobId(jobName).get();
-        Assert.assertTrue(planningJobFromStore.equals(planningJobId));
-
+        Assert.assertFalse(this.jobsMapping.getPlanningJobId(jobName).isPresent());
       } catch (Exception e) {
         Assert.fail(e.toString());
       }

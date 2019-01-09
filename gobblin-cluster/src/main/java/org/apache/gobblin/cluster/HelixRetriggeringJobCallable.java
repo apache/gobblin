@@ -17,29 +17,28 @@
 
 package org.apache.gobblin.cluster;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.Callable;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.helix.HelixManager;
 
 import com.google.common.io.Closer;
+import com.google.common.util.concurrent.Striped;
 
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.runtime.JobException;
-import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.runtime.api.JobExecutionMonitor;
+import org.apache.gobblin.runtime.api.MutableJobCatalog;
 import org.apache.gobblin.runtime.listeners.JobListener;
 import org.apache.gobblin.util.ClassAliasResolver;
-import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.util.JobLauncherUtils;
-import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.PropertiesUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
@@ -83,6 +82,7 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 @Alpha
 class HelixRetriggeringJobCallable implements Callable {
   private final GobblinHelixJobScheduler jobScheduler;
+  private final MutableJobCatalog jobCatalog;
   private final Properties sysProps;
   private final Properties jobProps;
   private final JobListener jobListener;
@@ -95,9 +95,13 @@ class HelixRetriggeringJobCallable implements Callable {
   private GobblinHelixJobLauncher currentJobLauncher = null;
   private JobExecutionMonitor currentJobMonitor = null;
   private boolean isDistributeJobEnabled = false;
+  private final String jobUri;
+  private boolean jobDeleteAttempted = false;
+  private final Striped<Lock> locks;
 
   public HelixRetriggeringJobCallable(
       GobblinHelixJobScheduler jobScheduler,
+      MutableJobCatalog jobCatalog,
       Properties sysProps,
       Properties jobProps,
       JobListener jobListener,
@@ -105,8 +109,11 @@ class HelixRetriggeringJobCallable implements Callable {
       GobblinHelixMetrics helixMetrics,
       Path appWorkDir,
       HelixManager jobHelixManager,
-      Optional<HelixManager> taskDriverHelixManager) {
+      Optional<HelixManager> taskDriverHelixManager,
+      HelixJobsMapping jobsMapping,
+      Striped<Lock> locks) {
     this.jobScheduler = jobScheduler;
+    this.jobCatalog = jobCatalog;
     this.sysProps = sysProps;
     this.jobProps = jobProps;
     this.jobListener = jobListener;
@@ -116,9 +123,9 @@ class HelixRetriggeringJobCallable implements Callable {
     this.jobHelixManager = jobHelixManager;
     this.taskDriverHelixManager = taskDriverHelixManager;
     this.isDistributeJobEnabled = isDistributeJobEnabled();
-    this.jobsMapping = new HelixJobsMapping(ConfigUtils.propertiesToConfig(sysProps),
-                                            PathUtils.getRootPath(appWorkDir).toUri(),
-                                            appWorkDir.toString());
+    this.jobUri = jobProps.getProperty(GobblinClusterConfigurationKeys.JOB_SPEC_URI);
+    this.jobsMapping = jobsMapping;
+    this.locks = locks;
   }
 
   private boolean isRetriggeringEnabled() {
@@ -137,13 +144,45 @@ class HelixRetriggeringJobCallable implements Callable {
 
   @Override
   public Void call() throws JobException {
-    if (this.isDistributeJobEnabled) {
-      runJobExecutionLauncher();
-    } else {
-      runJobLauncherLoop();
+    boolean deleteJobWhenException = PropertiesUtils.getPropAsBoolean(this.jobProps,
+        GobblinClusterConfigurationKeys.JOB_ALWAYS_DELETE,
+        "false");
+
+    try {
+      if (this.isDistributeJobEnabled) {
+        runJobExecutionLauncher();
+      } else {
+        runJobLauncherLoop();
+      }
+
+      deleteJobSpec();
+    } catch (Exception e) { // delete job spec when exception occurred
+      if (deleteJobWhenException) {
+        deleteJobSpec();
+      }
+      throw e;
     }
 
     return null;
+  }
+
+  private void deleteJobSpec() throws JobException {
+    boolean runOnce = Boolean.valueOf(jobProps.getProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
+    boolean hasScheduler = jobProps.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY);
+    if (runOnce || !hasScheduler) {
+      if (this.jobCatalog != null) {
+        try {
+          if (!this.jobDeleteAttempted) {
+            log.info("Deleting job spec on {}", this.jobUri);
+            this.jobScheduler.unscheduleJob(this.jobUri);
+            this.jobCatalog.remove(new URI(jobUri));
+            this.jobDeleteAttempted = true;
+          }
+        } catch (URISyntaxException e) {
+          log.error("Failed to remove job with bad uri " + jobUri, e);
+        }
+      }
+    }
   }
 
   /**
@@ -181,18 +220,26 @@ class HelixRetriggeringJobCallable implements Callable {
    */
   private void runJobExecutionLauncher() throws JobException {
     long startTime = 0;
+    String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
+    Lock jobLock = locks.get(jobName);
+    boolean locked = false;
+
     try {
+      HelixManager planningJobManager = this.taskDriverHelixManager.isPresent()?
+          this.taskDriverHelixManager.get() : this.jobHelixManager;
+
       String builderStr = jobProps.getProperty(GobblinClusterConfigurationKeys.DISTRIBUTED_JOB_LAUNCHER_BUILDER,
           GobblinHelixDistributeJobExecutionLauncher.Builder.class.getName());
 
       // Check if any existing planning job is running
-      String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
       Optional<String> planningJobIdFromStore = jobsMapping.getPlanningJobId(jobName);
+
+      // start of critical section to check if a job with same job name is running
+      jobLock.lock();
+      locked = true;
 
       if (planningJobIdFromStore.isPresent()) {
         String previousPlanningJobId = planningJobIdFromStore.get();
-        HelixManager planningJobManager = this.taskDriverHelixManager.isPresent()?
-            this.taskDriverHelixManager.get() : this.jobHelixManager;
 
         if (HelixUtils.isJobFinished(previousPlanningJobId, previousPlanningJobId, planningJobManager)) {
           log.info("Previous planning job {} has reached to the final state. Start a new one.", previousPlanningJobId);
@@ -213,8 +260,7 @@ class HelixRetriggeringJobCallable implements Callable {
       jobPlanningProps.putAll(this.jobProps);
 
       // Inject planning id and start time
-      String planningId = JobLauncherUtils.newJobId(GobblinClusterConfigurationKeys.PLANNING_JOB_NAME_PREFIX
-          + JobState.getJobNameFromProps(jobPlanningProps));
+      String planningId = HelixJobsMapping.createPlanningJobId(jobPlanningProps);
       jobPlanningProps.setProperty(GobblinClusterConfigurationKeys.PLANNING_ID_KEY, planningId);
       jobPlanningProps.setProperty(GobblinClusterConfigurationKeys.PLANNING_JOB_CREATE_TIME, String.valueOf(System.currentTimeMillis()));
 
@@ -223,6 +269,7 @@ class HelixRetriggeringJobCallable implements Callable {
       builder.setJobHelixManager(this.jobHelixManager);
       builder.setTaskDriverHelixManager(this.taskDriverHelixManager);
       builder.setAppWorkDir(this.appWorkDir);
+      builder.setJobsMapping(this.jobsMapping);
       builder.setPlanningJobLauncherMetrics(this.planningJobLauncherMetrics);
       builder.setHelixMetrics(this.helixMetrics);
 
@@ -233,6 +280,19 @@ class HelixRetriggeringJobCallable implements Callable {
         this.jobsMapping.setPlanningJobId(jobName, planningId);
         startTime = System.currentTimeMillis();
         this.currentJobMonitor = launcher.launchJob(null);
+
+        // make sure the planning job will be visible to other parallel running threads,
+        // so that the same critical section check (querying Helix for job completeness)
+        // can be applied.
+        HelixUtils.waitJobInitialization(planningJobManager, planningId, planningId, 300_000);
+
+        // end of the critical section to check if a job with same job name is running
+        jobLock.unlock();
+        locked = false;
+
+        // we can remove the job spec from the catalog because Helix will drive this job to the end.
+        this.deleteJobSpec();
+
         this.currentJobMonitor.get();
         this.currentJobMonitor = null;
         log.info("Planning job {} finished.", planningId);
@@ -249,6 +309,10 @@ class HelixRetriggeringJobCallable implements Callable {
       }
       log.error("Failed to run planning job {}", jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
       throw new JobException("Failed to run planning job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
+    } finally {
+      if (locked) {
+        jobLock.unlock();
+      }
     }
   }
 
