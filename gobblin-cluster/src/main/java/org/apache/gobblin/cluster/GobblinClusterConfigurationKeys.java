@@ -148,4 +148,10 @@ public class GobblinClusterConfigurationKeys {
   public static final String HELIX_WORKFLOW_DELETE_TIMEOUT_SECONDS = GOBBLIN_CLUSTER_PREFIX + "workflowDeleteTimeoutSeconds";
   public static final long DEFAULT_HELIX_WORKFLOW_DELETE_TIMEOUT_SECONDS = 300;
 
+  public static final String CLEAN_ALL_DIST_JOBS = GOBBLIN_CLUSTER_PREFIX + "bootup.clean.dist.jobs";
+  public static final boolean DEFAULT_CLEAN_ALL_DIST_JOBS = false;
+
+  public static final String KILL_DUPLICATE_PLANNING_JOB = GOBBLIN_CLUSTER_PREFIX + "kill.duplicate.planningJob";
+  public static final boolean DEFAULT_KILL_DUPLICATE_PLANNING_JOB = true;
+
 }

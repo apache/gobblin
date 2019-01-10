@@ -65,6 +65,7 @@ class GobblinHelixJobTask implements Task {
   private final String planningJobId;
   private final HelixManager jobHelixManager;
   private final Path appWorkDir;
+  private final String jobName;
   private final List<? extends Tag<?>> metadataTags;
   private GobblinHelixJobLauncher launcher;
   private GobblinHelixJobTaskMetrics jobTaskMetrics;
@@ -99,6 +100,7 @@ class GobblinHelixJobTask implements Task {
       throw new RuntimeException("Job doesn't have planning ID");
     }
 
+    this.jobName = jobPlusSysConfig.getProperty(ConfigurationKeys.JOB_NAME_KEY);
     this.planningJobId = jobPlusSysConfig.getProperty(GobblinClusterConfigurationKeys.PLANNING_ID_KEY);
     this.jobsMapping = jobsMapping;
     this.appWorkDir = builder.getAppWorkPath();
@@ -145,7 +147,6 @@ class GobblinHelixJobTask implements Task {
   public TaskResult run() {
     log.info("Running planning job {} [{} {}]", this.planningJobId, this.applicationName, this.instanceName);
     this.jobTaskMetrics.updateTimeBetweenJobSubmissionAndExecution(this.jobPlusSysConfig);
-    String jobName = jobPlusSysConfig.getProperty(ConfigurationKeys.JOB_NAME_KEY);
 
     try (Closer closer = Closer.create()) {
       Optional<String> planningIdFromStateStore = this.jobsMapping.getPlanningJobId(jobName);
@@ -170,7 +171,7 @@ class GobblinHelixJobTask implements Task {
             try {
               HelixUtils.deleteWorkflow(previousActualJobId, this.jobHelixManager, timeOut);
             } catch (HelixException e) {
-              log.error("Helix cannot delete previous actual job id {} within 5 min.", previousActualJobId);
+              log.error("Helix cannot delete previous actual job id {} within {} seconds.", previousActualJobId, timeOut / 1000);
               return new TaskResult(TaskResult.Status.FAILED, ExceptionUtils.getFullStackTrace(e));
             }
           }
@@ -219,6 +220,13 @@ class GobblinHelixJobTask implements Task {
         launcher.cancelJob(this.jobLauncherListener);
       } catch (JobException e) {
         throw new RuntimeException("Unable to cancel planning job " + this.planningJobId + ": ", e);
+      } finally {
+        // always cleanup the job mapping for current job name.
+        try {
+          this.jobsMapping.deleteMapping(jobName);
+        } catch (Exception e) {
+          throw new RuntimeException("Cannot delete jobs mapping for job : " + jobName);
+        }
       }
     }
   }

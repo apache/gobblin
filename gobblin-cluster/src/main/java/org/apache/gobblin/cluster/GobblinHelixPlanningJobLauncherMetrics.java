@@ -54,7 +54,7 @@ public class GobblinHelixPlanningJobLauncherMetrics extends StandardMetricsBridg
 
   private int getNumOfMappings() {
     try {
-      return this.jobsMapping.getNumOfMappings();
+      return this.jobsMapping.getAllStates().size();
     } catch (IOException e) {
       return 0;
     }

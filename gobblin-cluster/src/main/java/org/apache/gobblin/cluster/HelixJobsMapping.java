@@ -19,6 +19,7 @@ package org.apache.gobblin.cluster;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 
@@ -62,7 +63,7 @@ public class HelixJobsMapping {
   public static final String DISTRIBUTED_STATE_STORE_NAME_KEY = "jobs.mapping.distributed.state.store.name";
   public static final String DEFAULT_DISTRIBUTED_STATE_STORE_NAME = "distributedState";
 
-  private StateStore stateStore;
+  private StateStore<State> stateStore;
   private String distributedStateStoreName;
 
   public HelixJobsMapping(Config sysConfig, URI fsUri, String rootDir) {
@@ -153,8 +154,8 @@ public class HelixJobsMapping {
     return id == null? Optional.empty() : Optional.of(id);
   }
 
-  public int getNumOfMappings() throws IOException {
-    return this.stateStore.getAll(distributedStateStoreName).size();
+  public List<State> getAllStates() throws IOException {
+    return this.stateStore.getAll(distributedStateStoreName);
   }
 
   public Optional<String> getActualJobId (String jobName) throws IOException {

@@ -205,7 +205,6 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
                 InstanceType.CONTROLLER));
       }
 
-      // This will creat a dedicated controller for planning job distribution
       if (this.dedicatedTaskDriverCluster) {
         // This will create a Helix administrator to dispatch jobs to ZooKeeper
         this.taskDriverHelixManager = Optional.of(buildHelixManager(this.config,
@@ -218,6 +217,7 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
             GobblinClusterConfigurationKeys.DEDICATED_TASK_DRIVER_CLUSTER_CONTROLLER_ENABLED,
             true);
 
+        // This will creat a dedicated controller for planning job distribution
         if (this.dedicatedTaskDriverClusterController) {
           this.taskDriverClusterController = Optional.of(GobblinHelixMultiManager
               .buildHelixManager(this.config, zkConnectionString, GobblinClusterConfigurationKeys.TASK_DRIVER_CLUSTER_NAME_KEY,
@@ -339,25 +339,10 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
       if (!isLeader) {
         log.info("New Helix Controller leader {}", this.managerClusterHelixManager.getInstanceName());
 
-        // Clean up existing jobs
-        TaskDriver taskDriver = new TaskDriver(this.jobClusterHelixManager);
-        Map<String, WorkflowConfig> workflows = taskDriver.getWorkflows();
+        cleanUpJobs(this.jobClusterHelixManager);
 
-        for (Map.Entry<String, WorkflowConfig> entry : workflows.entrySet()) {
-          String workflowName = entry.getKey();
-          if (workflowName.contains(GobblinClusterConfigurationKeys.PLANNING_CONF_PREFIX)
-              || workflowName.contains(GobblinClusterConfigurationKeys.ACTUAL_JOB_NAME_PREFIX)) {
-            log.info("Distributed job {} won't be deleted.", workflowName);
-          } else {
-            WorkflowConfig workflowConfig = entry.getValue();
-
-            // request delete if not already requested
-            if (workflowConfig.getTargetState() != TargetState.DELETE) {
-              taskDriver.delete(workflowName);
-
-              log.info("Requested delete of workflowName {}", workflowName);
-            }
-          }
+        if (this.taskDriverHelixManager.isPresent()) {
+          cleanUpJobs(this.taskDriverHelixManager.get());
         }
 
         for (LeadershipChangeAwareComponent c: this.leadershipChangeAwareComponents) {
@@ -378,6 +363,37 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
     }
   }
 
+  private void cleanUpJobs(HelixManager helixManager) {
+    // Clean up existing jobs
+    TaskDriver taskDriver = new TaskDriver(helixManager);
+
+    Map<String, WorkflowConfig> workflows = taskDriver.getWorkflows();
+
+    boolean cleanupDistJobs = ConfigUtils.getBoolean(this.config,
+        GobblinClusterConfigurationKeys.CLEAN_ALL_DIST_JOBS,
+        GobblinClusterConfigurationKeys.DEFAULT_CLEAN_ALL_DIST_JOBS);
+
+    for (Map.Entry<String, WorkflowConfig> entry : workflows.entrySet()) {
+      String workflowName = entry.getKey();
+
+      if (workflowName.contains(GobblinClusterConfigurationKeys.PLANNING_CONF_PREFIX)
+          || workflowName.contains(GobblinClusterConfigurationKeys.ACTUAL_JOB_NAME_PREFIX)) {
+        if (!cleanupDistJobs) {
+          log.info("Distributed job {} won't be deleted.", workflowName);
+          continue;
+        }
+      }
+
+      WorkflowConfig workflowConfig = entry.getValue();
+
+      // request delete if not already requested
+      if (workflowConfig.getTargetState() != TargetState.DELETE) {
+        taskDriver.delete(workflowName);
+
+        log.info("Requested delete of workflowName {}", workflowName);
+      }
+    }
+  }
 
   /**
    * A custom {@link MessageHandlerFactory} for {@link MessageHandler}s that handle messages of type

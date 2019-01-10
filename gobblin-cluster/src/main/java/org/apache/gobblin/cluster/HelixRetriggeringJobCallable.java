@@ -25,6 +25,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.locks.Lock;
 
 import org.apache.hadoop.fs.Path;
+import org.apache.helix.HelixException;
 import org.apache.helix.HelixManager;
 
 import com.google.common.io.Closer;
@@ -244,8 +245,24 @@ class HelixRetriggeringJobCallable implements Callable {
         if (HelixUtils.isJobFinished(previousPlanningJobId, previousPlanningJobId, planningJobManager)) {
           log.info("Previous planning job {} has reached to the final state. Start a new one.", previousPlanningJobId);
         } else {
-          log.info("Previous planning job {} has not finished yet. Skip it.", previousPlanningJobId);
-          return;
+          boolean killDuplicateJob = PropertiesUtils.getPropAsBoolean(this.jobProps, GobblinClusterConfigurationKeys.KILL_DUPLICATE_PLANNING_JOB,
+              String.valueOf(GobblinClusterConfigurationKeys.DEFAULT_KILL_DUPLICATE_PLANNING_JOB));
+
+          if (!killDuplicateJob) {
+            log.info("Previous planning job {} has not finished yet. Skip this job.", previousPlanningJobId);
+            return;
+          } else {
+            log.info("Previous planning job {} has not finished yet. Kill it.", previousPlanningJobId);
+            long timeOut = PropertiesUtils.getPropAsLong(sysProps,
+                GobblinClusterConfigurationKeys.HELIX_WORKFLOW_DELETE_TIMEOUT_SECONDS,
+                GobblinClusterConfigurationKeys.DEFAULT_HELIX_WORKFLOW_DELETE_TIMEOUT_SECONDS) * 1000;
+            try {
+              HelixUtils.deleteWorkflow(previousPlanningJobId, planningJobManager, timeOut);
+            } catch (HelixException e) {
+              log.info("Helix cannot delete previous planning job id {} within {} seconds.", previousPlanningJobId, timeOut / 1000);
+              throw new JobException("Helix cannot delete previous planning job id " + previousPlanningJobId, e);
+            }
+          }
         }
       } else {
         log.info("Planning job for {} does not exist. First time run.", jobName);

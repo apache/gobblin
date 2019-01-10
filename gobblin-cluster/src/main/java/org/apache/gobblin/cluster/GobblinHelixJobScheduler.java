@@ -17,8 +17,6 @@
 
 package org.apache.gobblin.cluster;
 
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -57,6 +55,8 @@ import org.apache.gobblin.scheduler.JobScheduler;
 import org.apache.gobblin.scheduler.SchedulerService;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PathUtils;
+import org.apache.gobblin.util.PropertiesUtils;
+
 
 /**
  * An extension to {@link JobScheduler} that schedules and runs
@@ -178,6 +178,18 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
 
   @Override
   protected void startServices() throws Exception {
+
+    boolean cleanAllDistJobs = PropertiesUtils.getPropAsBoolean(this.properties,
+        GobblinClusterConfigurationKeys.CLEAN_ALL_DIST_JOBS,
+        String.valueOf(GobblinClusterConfigurationKeys.DEFAULT_CLEAN_ALL_DIST_JOBS));
+
+    if (cleanAllDistJobs) {
+      for (org.apache.gobblin.configuration.State state : this.jobsMapping.getAllStates()) {
+        String jobName = state.getId();
+        LOGGER.info("Delete mapping for job " + jobName);
+        this.jobsMapping.deleteMapping(jobName);
+      }
+    }
   }
 
   @Override
