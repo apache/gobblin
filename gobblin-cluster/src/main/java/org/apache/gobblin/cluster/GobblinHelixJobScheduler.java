@@ -93,7 +93,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
   final GobblinHelixJobLauncherMetrics launcherMetrics;
   final GobblinHelixPlanningJobLauncherMetrics planningJobLauncherMetrics;
   final HelixJobsMapping jobsMapping;
-  final Striped<Lock> locks = Striped.lazyWeakLock(Integer.MAX_VALUE);
+  final Striped<Lock> locks = Striped.lazyWeakLock(256);
 
   private boolean startServicesCompleted;
 

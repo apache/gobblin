@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.cluster;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Optional;
@@ -169,8 +170,8 @@ class HelixRetriggeringJobCallable implements Callable {
 
   private void deleteJobSpec() throws JobException {
     boolean runOnce = Boolean.valueOf(jobProps.getProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
-    boolean hasScheduler = jobProps.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY);
-    if (runOnce || !hasScheduler) {
+    boolean hasSchedule = jobProps.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY);
+    if (runOnce || !hasSchedule) {
       if (this.jobCatalog != null) {
         try {
           if (!this.jobDeleteAttempted) {
@@ -221,10 +222,9 @@ class HelixRetriggeringJobCallable implements Callable {
    */
   private void runJobExecutionLauncher() throws JobException {
     long startTime = 0;
+    String newPlanningId;
     String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
-    Lock jobLock = locks.get(jobName);
-    boolean locked = false;
-
+    Closer closer = Closer.create();
     try {
       HelixManager planningJobManager = this.taskDriverHelixManager.isPresent()?
           this.taskDriverHelixManager.get() : this.jobHelixManager;
@@ -236,99 +236,96 @@ class HelixRetriggeringJobCallable implements Callable {
       Optional<String> planningJobIdFromStore = jobsMapping.getPlanningJobId(jobName);
 
       // start of critical section to check if a job with same job name is running
+      Lock jobLock = locks.get(jobName);
       jobLock.lock();
-      locked = true;
 
-      if (planningJobIdFromStore.isPresent()) {
-        String previousPlanningJobId = planningJobIdFromStore.get();
+      try {
+        if (planningJobIdFromStore.isPresent()) {
+          String previousPlanningJobId = planningJobIdFromStore.get();
 
-        if (HelixUtils.isJobFinished(previousPlanningJobId, previousPlanningJobId, planningJobManager)) {
-          log.info("Previous planning job {} has reached to the final state. Start a new one.", previousPlanningJobId);
-        } else {
-          boolean killDuplicateJob = PropertiesUtils.getPropAsBoolean(this.jobProps, GobblinClusterConfigurationKeys.KILL_DUPLICATE_PLANNING_JOB,
-              String.valueOf(GobblinClusterConfigurationKeys.DEFAULT_KILL_DUPLICATE_PLANNING_JOB));
-
-          if (!killDuplicateJob) {
-            log.info("Previous planning job {} has not finished yet. Skip this job.", previousPlanningJobId);
-            return;
+          if (HelixUtils.isJobFinished(previousPlanningJobId, previousPlanningJobId, planningJobManager)) {
+            log.info("Previous planning job {} has reached to the final state. Start a new one.", previousPlanningJobId);
           } else {
-            log.info("Previous planning job {} has not finished yet. Kill it.", previousPlanningJobId);
-            long timeOut = PropertiesUtils.getPropAsLong(sysProps,
-                GobblinClusterConfigurationKeys.HELIX_WORKFLOW_DELETE_TIMEOUT_SECONDS,
-                GobblinClusterConfigurationKeys.DEFAULT_HELIX_WORKFLOW_DELETE_TIMEOUT_SECONDS) * 1000;
-            try {
-              HelixUtils.deleteWorkflow(previousPlanningJobId, planningJobManager, timeOut);
-            } catch (HelixException e) {
-              log.info("Helix cannot delete previous planning job id {} within {} seconds.", previousPlanningJobId, timeOut / 1000);
-              throw new JobException("Helix cannot delete previous planning job id " + previousPlanningJobId, e);
+            boolean killDuplicateJob = PropertiesUtils
+                .getPropAsBoolean(this.jobProps, GobblinClusterConfigurationKeys.KILL_DUPLICATE_PLANNING_JOB, String.valueOf(GobblinClusterConfigurationKeys.DEFAULT_KILL_DUPLICATE_PLANNING_JOB));
+
+            if (!killDuplicateJob) {
+              log.info("Previous planning job {} has not finished yet. Skip this job.", previousPlanningJobId);
+              return;
+            } else {
+              log.info("Previous planning job {} has not finished yet. Kill it.", previousPlanningJobId);
+              long timeOut = PropertiesUtils.getPropAsLong(sysProps, GobblinClusterConfigurationKeys.HELIX_WORKFLOW_DELETE_TIMEOUT_SECONDS,
+                  GobblinClusterConfigurationKeys.DEFAULT_HELIX_WORKFLOW_DELETE_TIMEOUT_SECONDS) * 1000;
+              try {
+                HelixUtils.deleteWorkflow(previousPlanningJobId, planningJobManager, timeOut);
+              } catch (HelixException e) {
+                log.info("Helix cannot delete previous planning job id {} within {} seconds.", previousPlanningJobId,
+                    timeOut / 1000);
+                throw new JobException("Helix cannot delete previous planning job id " + previousPlanningJobId, e);
+              }
             }
           }
+        } else {
+          log.info("Planning job for {} does not exist. First time run.", jobName);
         }
-      } else {
-        log.info("Planning job for {} does not exist. First time run.", jobName);
-      }
 
-      GobblinHelixDistributeJobExecutionLauncher.Builder builder = GobblinConstructorUtils
-          .<GobblinHelixDistributeJobExecutionLauncher.Builder>invokeLongestConstructor(new ClassAliasResolver(
-              GobblinHelixDistributeJobExecutionLauncher.Builder.class).resolveClass(builderStr));
+        GobblinHelixDistributeJobExecutionLauncher.Builder builder = GobblinConstructorUtils.<GobblinHelixDistributeJobExecutionLauncher.Builder>invokeLongestConstructor(
+            new ClassAliasResolver(GobblinHelixDistributeJobExecutionLauncher.Builder.class).resolveClass(builderStr));
 
-      // Make a separate copy because we could update some of attributes in job properties (like adding planning id).
-      Properties jobPlanningProps = new Properties();
-      jobPlanningProps.putAll(this.jobProps);
+        // Make a separate copy because we could update some of attributes in job properties (like adding planning id).
+        Properties jobPlanningProps = new Properties();
+        jobPlanningProps.putAll(this.jobProps);
 
-      // Inject planning id and start time
-      String planningId = HelixJobsMapping.createPlanningJobId(jobPlanningProps);
-      jobPlanningProps.setProperty(GobblinClusterConfigurationKeys.PLANNING_ID_KEY, planningId);
-      jobPlanningProps.setProperty(GobblinClusterConfigurationKeys.PLANNING_JOB_CREATE_TIME, String.valueOf(System.currentTimeMillis()));
+        // Inject planning id and start time
+        newPlanningId = HelixJobsMapping.createPlanningJobId(jobPlanningProps);
+        jobPlanningProps.setProperty(GobblinClusterConfigurationKeys.PLANNING_ID_KEY, newPlanningId);
+        jobPlanningProps.setProperty(GobblinClusterConfigurationKeys.PLANNING_JOB_CREATE_TIME, String.valueOf(System.currentTimeMillis()));
 
-      builder.setSysProps(this.sysProps);
-      builder.setJobPlanningProps(jobPlanningProps);
-      builder.setJobHelixManager(this.jobHelixManager);
-      builder.setTaskDriverHelixManager(this.taskDriverHelixManager);
-      builder.setAppWorkDir(this.appWorkDir);
-      builder.setJobsMapping(this.jobsMapping);
-      builder.setPlanningJobLauncherMetrics(this.planningJobLauncherMetrics);
-      builder.setHelixMetrics(this.helixMetrics);
+        builder.setSysProps(this.sysProps);
+        builder.setJobPlanningProps(jobPlanningProps);
+        builder.setJobHelixManager(this.jobHelixManager);
+        builder.setTaskDriverHelixManager(this.taskDriverHelixManager);
+        builder.setAppWorkDir(this.appWorkDir);
+        builder.setJobsMapping(this.jobsMapping);
+        builder.setPlanningJobLauncherMetrics(this.planningJobLauncherMetrics);
+        builder.setHelixMetrics(this.helixMetrics);
 
-      try (Closer closer = Closer.create()) {
-        log.info("Planning job {} started.", planningId);
+        log.info("Planning job {} started.", newPlanningId);
         GobblinHelixDistributeJobExecutionLauncher launcher = builder.build();
         closer.register(launcher);
-        this.jobsMapping.setPlanningJobId(jobName, planningId);
+        this.jobsMapping.setPlanningJobId(jobName, newPlanningId);
         startTime = System.currentTimeMillis();
         this.currentJobMonitor = launcher.launchJob(null);
 
         // make sure the planning job will be visible to other parallel running threads,
         // so that the same critical section check (querying Helix for job completeness)
         // can be applied.
-        HelixUtils.waitJobInitialization(planningJobManager, planningId, planningId, 300_000);
+        HelixUtils.waitJobInitialization(planningJobManager, newPlanningId, newPlanningId, 300_000);
 
+      } finally {
         // end of the critical section to check if a job with same job name is running
         jobLock.unlock();
-        locked = false;
-
-        // we can remove the job spec from the catalog because Helix will drive this job to the end.
-        this.deleteJobSpec();
-
-        this.currentJobMonitor.get();
-        this.currentJobMonitor = null;
-        log.info("Planning job {} finished.", planningId);
-        this.planningJobLauncherMetrics.updateTimeForCompletedPlanningJobs(startTime);
-      } catch (Throwable t) {
-        if (startTime != 0) {
-          this.planningJobLauncherMetrics.updateTimeForFailedPlanningJobs(startTime);
-        }
-        throw new JobException("Failed to launch and run planning job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), t);
       }
+
+      // we can remove the job spec from the catalog because Helix will drive this job to the end.
+      this.deleteJobSpec();
+
+      this.currentJobMonitor.get();
+      this.currentJobMonitor = null;
+      log.info("Planning job {} finished.", newPlanningId);
+      this.planningJobLauncherMetrics.updateTimeForCompletedPlanningJobs(startTime);
+
     } catch (Exception e) {
       if (startTime != 0) {
         this.planningJobLauncherMetrics.updateTimeForFailedPlanningJobs(startTime);
       }
-      log.error("Failed to run planning job {}", jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
-      throw new JobException("Failed to run planning job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
+      log.error("Failed to run planning job {}", jobName, e);
+      throw new JobException("Failed to run planning job " + jobName, e);
     } finally {
-      if (locked) {
-        jobLock.unlock();
+      try {
+        closer.close();
+      } catch (IOException e) {
+        throw new JobException("Cannot properly close planning job " + jobName, e);
       }
     }
   }
