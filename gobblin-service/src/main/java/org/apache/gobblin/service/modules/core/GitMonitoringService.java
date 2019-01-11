@@ -90,7 +90,6 @@ public abstract class GitMonitoringService extends AbstractIdleService {
 
   private String privateKeyPath;
   private byte[] privateKey;
-  private byte[] publicKey;
   private String passphrase;
   private boolean isJschLoggerEnabled;
   private boolean strictHostKeyCheckingEnabled;
@@ -122,15 +121,13 @@ public abstract class GitMonitoringService extends AbstractIdleService {
     if (isSshWithPublicKeyEnabled) {
       this.privateKeyPath = ConfigUtils.getString(config, ConfigurationKeys.GIT_MONITOR_SSH_PRIVATE_KEY_PATH, null);
       String privateKeyBase64Encoded = ConfigUtils.getString(config, ConfigurationKeys.GIT_MONITOR_SSH_PRIVATE_KEY_BASE64_ENCODED, null);
-      String publicKeyBase64Encoded = ConfigUtils.getString(config, ConfigurationKeys.GIT_MONITOR_SSH_PUBLIC_KEY_BASE64_ENCODED, null);
 
-      if ((Strings.isNullOrEmpty(this.privateKeyPath)) && ((Strings.isNullOrEmpty(privateKeyBase64Encoded)) || (Strings.isNullOrEmpty(publicKeyBase64Encoded)))) {
-        throw new RuntimeException("Path to private key or private/public key strings must be provided");
+      if ((Strings.isNullOrEmpty(this.privateKeyPath)) && ((Strings.isNullOrEmpty(privateKeyBase64Encoded)))) {
+        throw new RuntimeException("Path to private key or private key string must be provided");
       }
 
       if (!Strings.isNullOrEmpty(privateKeyBase64Encoded)) {
         this.privateKey = Base64.decodeBase64(privateKeyBase64Encoded);
-        this.publicKey = Base64.decodeBase64(publicKeyBase64Encoded);
       }
 
       String passPhraseEnc = ConfigUtils.getString(config, ConfigurationKeys.GIT_MONITOR_SSH_PASSPHRASE, null);
@@ -454,7 +451,7 @@ public abstract class GitMonitoringService extends AbstractIdleService {
         if (GitMonitoringService.this.privateKeyPath != null) {
           defaultJSch.addIdentity(GitMonitoringService.this.privateKeyPath, GitMonitoringService.this.passphrase);
         } else {
-          defaultJSch.addIdentity("gaas-git", GitMonitoringService.this.privateKey, GitMonitoringService.this.publicKey,
+          defaultJSch.addIdentity("gaas-git", GitMonitoringService.this.privateKey, null,
               GitMonitoringService.this.passphrase.getBytes(Charset.forName("UTF-8")));
         }
         if (!Strings.isNullOrEmpty(GitMonitoringService.this.knownHosts)) {

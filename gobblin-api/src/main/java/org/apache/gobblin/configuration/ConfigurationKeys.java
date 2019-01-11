@@ -928,7 +928,6 @@ public class ConfigurationKeys {
   public static final String GIT_MONITOR_SSH_WITH_PUBLIC_KEY_ENABLED = "isSshWithPublicKeyEnabled";
   public static final String GIT_MONITOR_SSH_PRIVATE_KEY_PATH = "privateKeyPath";
   public static final String GIT_MONITOR_SSH_PRIVATE_KEY_BASE64_ENCODED = "privateKeyBase64";
-  public static final String GIT_MONITOR_SSH_PUBLIC_KEY_BASE64_ENCODED = "publicKeyBase64";
   public static final String GIT_MONITOR_SSH_PASSPHRASE = "passphrase";
   public static final String GIT_MONITOR_SSH_STRICT_HOST_KEY_CHECKING_ENABLED = "isStrictHostKeyCheckingEnabled";
   public static final String GIT_MONITOR_SSH_KNOWN_HOSTS = "knownHosts";
