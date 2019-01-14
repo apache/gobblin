@@ -205,9 +205,19 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
     }
 
     Config config = configBuilder.build();
-    //We allow for flowConfig to be in HOCON format. We first convert the StringMap object to a String object and
-    // then use ConfigFactory#parseString() to parse the HOCON string.
-    Config configWithFallback = config.withFallback(ConfigFactory.parseString(flowConfig.getProperties().toString()).resolve());
+
+    Config configWithFallback;
+    //We first attempt to process the REST.li request as a HOCON string. If the request is not a valid HOCON string
+    // (e.g. when certain special characters such as ":" or "*" are not properly escaped), we catch the Typesafe ConfigException and
+    // fallback to assuming that values are literal strings.
+    try {
+      // We first convert the StringMap object to a String object and then use ConfigFactory#parseString() to parse the
+      // HOCON string.
+      configWithFallback = config.withFallback(ConfigFactory.parseString(flowConfig.getProperties().toString()).resolve());
+    } catch (Exception e) {
+      configWithFallback = config.withFallback(ConfigFactory.parseMap(flowConfig.getProperties()));
+    }
+
     try {
       URI templateURI = new URI(flowConfig.getTemplateUris());
       return FlowSpec.builder().withConfig(configWithFallback).withTemplate(templateURI).build();
