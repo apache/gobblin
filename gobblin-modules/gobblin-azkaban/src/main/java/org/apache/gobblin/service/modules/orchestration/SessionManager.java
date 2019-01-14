@@ -17,6 +17,16 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
+/**
+ * Implements a session manager to periodically refresh the session id.
+ *
+ * {@link AzkabanClient} needs this class when current session was expired.
+ */
 public interface SessionManager {
+
+  /**
+   * Get session id using Azkaban authentication mechanism.
+   * @return session id
+   */
   String fetchSession() throws AzkabanClientException;
 }

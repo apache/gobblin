@@ -64,10 +64,11 @@ import lombok.Builder;
 
 
 /**
- * A simple client that uses Ajax API to communicate with Azkaban server.
+ * A simple http based client that uses Ajax API to communicate with Azkaban server.
  *
- * @see {@linktourl https://blog.codecentric.de/en/2016/05/reducing-boilerplate-code-project-lombok/}
- * @see {@linktourl https://azkaban.github.io/azkaban/docs/latest/#ajax-api}
+ * @see <a href="https://azkaban.github.io/azkaban/docs/latest/#ajax-api">
+ *   https://azkaban.github.io/azkaban/docs/latest/#ajax-api
+ * </a>
  */
 public class AzkabanClient implements Closeable {
   protected final String username;

@@ -19,7 +19,10 @@ package org.apache.gobblin.service.modules.orchestration;
 
 import org.apache.http.impl.client.CloseableHttpClient;
 
-
+/**
+ * A {@link SessionManager} that implements session refreshing logic
+ * used by {@link AzkabanClient}.
+ */
 public class AzkabanSessionManager implements SessionManager {
   private CloseableHttpClient httpClient;
   private String url;
@@ -38,6 +41,7 @@ public class AzkabanSessionManager implements SessionManager {
 
   /**
    * Fetch a session id that can be used in the future to communicate with Azkaban server.
+   * @return session id
    */
   public String fetchSession() throws AzkabanClientException {
     return SessionHelper.getSessionId(this.httpClient, this.url, this.username, this.password);

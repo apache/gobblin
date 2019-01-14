@@ -30,9 +30,29 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
 
-
+/**
+ * A helper class which can get session id using Azkaban authentication mechanism.
+ *
+ * @see <a href="https://azkaban.github.io/azkaban/docs/latest/#api-authenticate">
+ *   https://azkaban.github.io/azkaban/docs/latest/#api-authenticate
+ *  </a>
+ */
 public class SessionHelper {
 
+  /**
+   * <p>Use Azkaban ajax api to fetch the session id. Required http request parameters are:
+   *   <br>action=login	The fixed parameter indicating the login action.
+   *   <br>username	The Azkaban username.
+   *   <br>password	The corresponding password.
+   * </pr>
+   *
+   * @param httpClient An apache http client
+   * @param url Azkaban ajax endpoint
+   * @param username username for Azkaban login
+   * @param password password for Azkaban login
+   *
+   * @return session id
+   */
   public static String getSessionId(CloseableHttpClient httpClient, String url, String username, String password)
       throws AzkabanClientException {
     try {
