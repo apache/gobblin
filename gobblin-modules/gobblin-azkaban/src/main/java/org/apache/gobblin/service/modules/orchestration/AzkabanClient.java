@@ -64,22 +64,23 @@ import lombok.Builder;
 
 
 /**
- * A simple client that uses Ajax API to communicate with Azkaban server.
+ * A simple http based client that uses Ajax API to communicate with Azkaban server.
  *
- * @see {@linktourl https://blog.codecentric.de/en/2016/05/reducing-boilerplate-code-project-lombok/}
- * @see {@linktourl https://azkaban.github.io/azkaban/docs/latest/#ajax-api}
+ * @see <a href="https://azkaban.github.io/azkaban/docs/latest/#ajax-api">
+ *   https://azkaban.github.io/azkaban/docs/latest/#ajax-api
+ * </a>
  */
 public class AzkabanClient implements Closeable {
   protected final String username;
   protected final String url;
   protected final long sessionExpireInMin; // default value is 12h.
-
+  protected SessionManager sessionManager;
   protected String password;
   protected String sessionId;
   protected long sessionCreationTime = 0;
   protected CloseableHttpClient httpClient;
 
-  private boolean httpClientProvided = true;
+  private boolean customHttpClientProvided = true;
   private static Logger log = LoggerFactory.getLogger(AzkabanClient.class);
 
   /**
@@ -90,51 +91,35 @@ public class AzkabanClient implements Closeable {
                           String password,
                           String url,
                           long sessionExpireInMin,
-                          CloseableHttpClient httpClient)
+                          CloseableHttpClient httpClient,
+                          SessionManager sessionManager)
       throws AzkabanClientException {
     this.username = username;
     this.password = password;
     this.url = url;
     this.sessionExpireInMin = sessionExpireInMin;
     this.httpClient = httpClient;
-
+    this.sessionManager = sessionManager;
     this.initializeClient();
-    this.initializeSession();
+    this.initializeSessionManager();
+
+    this.sessionId = this.sessionManager.fetchSession();
+    this.sessionCreationTime = System.nanoTime();
   }
 
   private void initializeClient() throws AzkabanClientException {
     if (this.httpClient == null) {
       this.httpClient = createHttpClient();
-      this.httpClientProvided = false;
+      this.customHttpClientProvided = false;
     }
   }
 
-  /**
-   * Create a session id that can be used in the future to communicate with Azkaban server.
-   */
-  protected void initializeSession() throws AzkabanClientException {
-    try {
-      HttpPost httpPost = new HttpPost(this.url);
-      List<NameValuePair> nvps = new ArrayList<>();
-      nvps.add(new BasicNameValuePair(AzkabanClientParams.ACTION, "login"));
-      nvps.add(new BasicNameValuePair(AzkabanClientParams.USERNAME, this.username));
-      nvps.add(new BasicNameValuePair(AzkabanClientParams.PASSWORD, this.password));
-      httpPost.setEntity(new UrlEncodedFormEntity(nvps));
-      CloseableHttpResponse response = this.httpClient.execute(httpPost);
-
-      try {
-        HttpEntity entity = response.getEntity();
-
-        // retrieve session id from entity
-        String jsonResponseString = IOUtils.toString(entity.getContent(), "UTF-8");
-        this.sessionId = parseResponse(jsonResponseString).get(AzkabanClientParams.SESSION_ID);
-        EntityUtils.consume(entity);
-      } finally {
-        response.close();
-      }
-      this.sessionCreationTime = System.nanoTime();
-    } catch (Exception e) {
-      throw new AzkabanClientException("Azkaban client cannot initialize session.", e);
+  private void initializeSessionManager() throws AzkabanClientException {
+    if (sessionManager == null) {
+      this.sessionManager = new AzkabanSessionManager(this.httpClient,
+                                                      this.url,
+                                                      this.username,
+                                                      this.password);
     }
   }
 
@@ -171,11 +156,15 @@ public class AzkabanClient implements Closeable {
     }
   }
 
+  /**
+   * When current session expired, use {@link SessionManager} to refresh the session id.
+   */
   private void refreshSession() throws AzkabanClientException {
     Preconditions.checkArgument(this.sessionCreationTime != 0);
     if ((System.nanoTime() - this.sessionCreationTime) > Duration.ofMinutes(this.sessionExpireInMin).toNanos()) {
       log.info("Session expired. Generating a new session.");
-      this.initializeSession();
+      this.sessionId = this.sessionManager.fetchSession();
+      this.sessionCreationTime = System.nanoTime();
     }
   }
 
@@ -213,7 +202,7 @@ public class AzkabanClient implements Closeable {
     return AzkabanClient.parseResponse(jsonResponseString);
   }
 
-  private static Map<String, String> parseResponse(String jsonResponseString) throws IOException {
+  static Map<String, String> parseResponse(String jsonResponseString) throws IOException {
     // Parse Json
     Map<String, String> responseMap = new HashMap<>();
     if (StringUtils.isNotBlank(jsonResponseString)) {
@@ -509,7 +498,7 @@ public class AzkabanClient implements Closeable {
   @Override
   public void close()
       throws IOException {
-    if (!httpClientProvided) {
+    if (!customHttpClientProvided) {
       this.httpClient.close();
     }
   }
