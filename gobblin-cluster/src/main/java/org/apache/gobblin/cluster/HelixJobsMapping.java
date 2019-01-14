@@ -19,7 +19,9 @@ package org.apache.gobblin.cluster;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.List;
 import java.util.Optional;
+import java.util.Properties;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
@@ -30,8 +32,10 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metastore.FsStateStore;
 import org.apache.gobblin.metastore.StateStore;
+import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.JobLauncherUtils;
 
 
 /**
@@ -58,8 +62,8 @@ public class HelixJobsMapping {
 
   public static final String DISTRIBUTED_STATE_STORE_NAME_KEY = "jobs.mapping.distributed.state.store.name";
   public static final String DEFAULT_DISTRIBUTED_STATE_STORE_NAME = "distributedState";
- 
-  private StateStore stateStore;
+
+  private StateStore<State> stateStore;
   private String distributedStateStoreName;
 
   public HelixJobsMapping(Config sysConfig, URI fsUri, String rootDir) {
@@ -94,6 +98,16 @@ public class HelixJobsMapping {
     this.stateStore = stateStoreFactory.createStateStore(stateStoreJobConfig, State.class);
   }
 
+  public static String createPlanningJobId (Properties jobPlanningProps) {
+    return JobLauncherUtils.newJobId(GobblinClusterConfigurationKeys.PLANNING_JOB_NAME_PREFIX
+        + JobState.getJobNameFromProps(jobPlanningProps));
+  }
+
+  public static String createActualJobId (Properties jobProps) {
+    return JobLauncherUtils.newJobId(GobblinClusterConfigurationKeys.ACTUAL_JOB_NAME_PREFIX
+        + JobState.getJobNameFromProps(jobProps));
+  }
+
   @Nullable
   private State getOrCreate (String storeName, String jobName) throws IOException {
     if (this.stateStore.exists(storeName, jobName)) {
@@ -102,8 +116,8 @@ public class HelixJobsMapping {
     return new State();
   }
 
-  private void delete (String storeName, String jobName) throws IOException {
-    this.stateStore.delete(storeName, jobName);
+  public void deleteMapping (String jobName) throws IOException {
+    this.stateStore.delete(this.distributedStateStoreName, jobName);
   }
 
   public void setPlanningJobId (String jobName, String planningJobId) throws IOException {
@@ -112,7 +126,7 @@ public class HelixJobsMapping {
     state.setProp(GobblinClusterConfigurationKeys.PLANNING_ID_KEY, planningJobId);
     // fs state store use hdfs rename, which assumes the target file doesn't exist.
     if (stateStore instanceof FsStateStore) {
-      this.delete(distributedStateStoreName, jobName);
+      this.deleteMapping(jobName);
     }
     this.stateStore.put(distributedStateStoreName, jobName, state);
   }
@@ -124,7 +138,7 @@ public class HelixJobsMapping {
     state.setProp(ConfigurationKeys.JOB_ID_KEY, actualJobId);
     // fs state store use hdfs rename, which assumes the target file doesn't exist.
     if (stateStore instanceof FsStateStore) {
-      this.delete(distributedStateStoreName, jobName);
+      this.deleteMapping(jobName);
     }
     this.stateStore.put(distributedStateStoreName, jobName, state);
   }
@@ -138,6 +152,10 @@ public class HelixJobsMapping {
     String id = state.getProp(idName);
 
     return id == null? Optional.empty() : Optional.of(id);
+  }
+
+  public List<State> getAllStates() throws IOException {
+    return this.stateStore.getAll(distributedStateStoreName);
   }
 
   public Optional<String> getActualJobId (String jobName) throws IOException {

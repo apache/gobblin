@@ -122,16 +122,12 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
     Config combined = ConfigUtils.propertiesToConfig(jobPlanningProps)
         .withFallback(ConfigUtils.propertiesToConfig(sysProps));
 
-    this.jobsMapping = new HelixJobsMapping(combined,
-                                            PathUtils.getRootPath(builder.appWorkDir).toUri(),
-                                            builder.appWorkDir.toString());
-
     this.workFlowExpiryTimeSeconds = ConfigUtils.getLong(combined,
         GobblinClusterConfigurationKeys.HELIX_WORKFLOW_EXPIRY_TIME_SECONDS,
         GobblinClusterConfigurationKeys.DEFAULT_HELIX_WORKFLOW_EXPIRY_TIME_SECONDS);
     this.planningJobLauncherMetrics = builder.planningJobLauncherMetrics;
     this.helixMetrics = builder.helixMetrics;
-
+    this.jobsMapping = builder.jobsMapping;
     this.helixJobStopTimeoutSeconds = ConfigUtils.getLong(combined,
         GobblinClusterConfigurationKeys.HELIX_JOB_STOP_TIMEOUT_SECONDS,
         GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_STOP_TIMEOUT_SECONDS);
@@ -172,6 +168,7 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
     Path appWorkDir;
     GobblinHelixPlanningJobLauncherMetrics planningJobLauncherMetrics;
     GobblinHelixMetrics helixMetrics;
+    HelixJobsMapping jobsMapping;
     public GobblinHelixDistributeJobExecutionLauncher build() throws Exception {
       return new GobblinHelixDistributeJobExecutionLauncher(this);
     }
@@ -288,9 +285,11 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
   }
 
   private DistributeJobResult waitForJobCompletion(String workFlowName, String jobName) throws InterruptedException {
-    boolean timeoutEnabled = Boolean.parseBoolean(this.jobPlanningProps.getProperty(GobblinClusterConfigurationKeys.HELIX_JOB_TIMEOUT_ENABLED_KEY,
+    boolean timeoutEnabled = Boolean.parseBoolean(this.jobPlanningProps.getProperty(
+        GobblinClusterConfigurationKeys.HELIX_JOB_TIMEOUT_ENABLED_KEY,
         GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_TIMEOUT_ENABLED));
-    long timeoutInSeconds = Long.parseLong(this.jobPlanningProps.getProperty(GobblinClusterConfigurationKeys.HELIX_JOB_TIMEOUT_SECONDS,
+    long timeoutInSeconds = Long.parseLong(this.jobPlanningProps.getProperty(
+        GobblinClusterConfigurationKeys.HELIX_JOB_TIMEOUT_SECONDS,
         GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_TIMEOUT_SECONDS));
 
     try {

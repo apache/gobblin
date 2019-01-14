@@ -17,34 +17,47 @@
 
 package org.apache.gobblin.cluster;
 
+import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
+import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.ContextAwareTimer;
 import org.apache.gobblin.metrics.MetricContext;
 
 
 public class GobblinHelixPlanningJobLauncherMetrics extends StandardMetricsBridge.StandardMetrics {
   private final String metricsName;
-
+  private final HelixJobsMapping jobsMapping;
   public static final String TIMER_FOR_COMPLETED_PLANNING_JOBS = "timeForCompletedPlanningJobs";
   public static final String TIMER_FOR_FAILED_PLANNING_JOBS = "timeForFailedPlanningJobs";
-
+  public static final String NUM_ACTIVE_PLANNING_JOBS = "numActivePlanningJobs";
   final ContextAwareTimer timeForCompletedPlanningJobs;
   final ContextAwareTimer timeForFailedPlanningJobs;
+  final ContextAwareGauge<Integer> numActivePlanningJobs;
 
   public GobblinHelixPlanningJobLauncherMetrics(String metricsName,
       final MetricContext metricContext,
-      int windowSizeInMin) {
+      int windowSizeInMin,
+      HelixJobsMapping jobsMapping) {
 
     this.metricsName = metricsName;
-
+    this.jobsMapping = jobsMapping;
     this.timeForCompletedPlanningJobs = metricContext.contextAwareTimer(TIMER_FOR_COMPLETED_PLANNING_JOBS, windowSizeInMin, TimeUnit.MINUTES);
     this.timeForFailedPlanningJobs = metricContext.contextAwareTimer(TIMER_FOR_FAILED_PLANNING_JOBS, windowSizeInMin, TimeUnit.MINUTES);
-
+    this.numActivePlanningJobs =  metricContext.newContextAwareGauge(NUM_ACTIVE_PLANNING_JOBS, ()->getNumOfMappings());
     this.contextAwareMetrics.add(timeForCompletedPlanningJobs);
     this.contextAwareMetrics.add(timeForFailedPlanningJobs);
+    this.contextAwareMetrics.add(numActivePlanningJobs);
+  }
+
+  private int getNumOfMappings() {
+    try {
+      return this.jobsMapping.getAllStates().size();
+    } catch (IOException e) {
+      return 0;
+    }
   }
 
   public void updateTimeForCompletedPlanningJobs(long startTime) {

@@ -111,11 +111,10 @@ public class NonObservingFSJobCatalog extends FSJobCatalog {
       if (fs.exists(jobSpecPath)) {
         fs.delete(jobSpecPath, false);
         this.mutableMetrics.updateRemoveJobTime(startTime);
+        this.listeners.onDeleteJob(jobURI, jobSpec.getVersion());
       } else {
         LOGGER.warn("No file with URI:" + jobSpecPath + " is found. Deletion failed.");
       }
-
-      this.listeners.onDeleteJob(jobURI, jobSpec.getVersion());
     } catch (IOException e) {
       throw new RuntimeException("When removing a JobConf. file, issues unexpected happen:" + e.getMessage());
     } catch (SpecNotFoundException e) {

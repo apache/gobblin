@@ -107,6 +107,32 @@ public class HelixUtils {
     submitJobToWorkFlow(jobConfigBuilder, queueName, jobName, helixTaskDriver, helixManager, jobQueueDeleteTimeoutSeconds);
   }
 
+  static void waitJobInitialization(
+      HelixManager helixManager,
+      String workFlowName,
+      String jobName,
+      long timeoutMillis) throws Exception {
+    WorkflowContext workflowContext = TaskDriver.getWorkflowContext(helixManager, workFlowName);
+
+    // If the helix job is deleted from some other thread or a completely external process,
+    // method waitJobCompletion() needs to differentiate between the cases where
+    // 1) workflowContext did not get initialized ever, in which case we need to keep waiting, or
+    // 2) it did get initialized but deleted soon after, in which case we should stop waiting
+    // To overcome this issue, we wait here till workflowContext gets initialized
+    long start = System.currentTimeMillis();
+    while (workflowContext == null || workflowContext.getJobState(TaskUtil.getNamespacedJobName(workFlowName, jobName)) == null) {
+      if (System.currentTimeMillis() - start > timeoutMillis) {
+        log.error("Job cannot be initialized within {} milliseconds, considered as an error", timeoutMillis);
+        throw new JobException("Job cannot be initialized within {} milliseconds, considered as an error");
+      }
+      workflowContext = TaskDriver.getWorkflowContext(helixManager, workFlowName);
+      Thread.sleep(1000);
+      log.info("Waiting for work flow initialization.");
+    }
+
+    log.info("Work flow {} initialized", workFlowName);
+  }
+
   public static void submitJobToWorkFlow(JobConfig.Builder jobConfigBuilder,
       String workFlowName,
       String jobName,
@@ -120,20 +146,8 @@ public class HelixUtils {
     // start the workflow
     helixTaskDriver.start(workFlow);
     log.info("Created a work flow {}", workFlowName);
-    WorkflowContext workflowContext = TaskDriver.getWorkflowContext(helixManager, workFlowName);
 
-    // If the helix job is deleted from some other thread or a completely external process,
-    // method waitJobCompletion() needs to differentiate between the cases where
-    // 1) workflowContext did not get initialized ever, in which case we need to keep waiting, or
-    // 2) it did get initialized but deleted soon after, in which case we should stop waiting
-    // To overcome this issue, we wait here till workflowContext gets initialized
-
-    while (workflowContext == null || workflowContext.getJobState(TaskUtil.getNamespacedJobName(workFlowName, jobName)) == null) {
-      workflowContext = TaskDriver.getWorkflowContext(helixManager, workFlowName);
-      Thread.sleep(1000);
-      log.info("Waiting for work flow initialization.");
-    }
-    log.info("Work flow {} initialized", workFlowName);
+    waitJobInitialization(helixManager, workFlowName, jobName, Long.MAX_VALUE);
   }
 
   static void waitJobCompletion(HelixManager helixManager, String workFlowName, String jobName,

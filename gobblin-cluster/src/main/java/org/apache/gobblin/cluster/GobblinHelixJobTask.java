@@ -65,6 +65,7 @@ class GobblinHelixJobTask implements Task {
   private final String planningJobId;
   private final HelixManager jobHelixManager;
   private final Path appWorkDir;
+  private final String jobName;
   private final List<? extends Tag<?>> metadataTags;
   private GobblinHelixJobLauncher launcher;
   private GobblinHelixJobTaskMetrics jobTaskMetrics;
@@ -99,6 +100,7 @@ class GobblinHelixJobTask implements Task {
       throw new RuntimeException("Job doesn't have planning ID");
     }
 
+    this.jobName = jobPlusSysConfig.getProperty(ConfigurationKeys.JOB_NAME_KEY);
     this.planningJobId = jobPlusSysConfig.getProperty(GobblinClusterConfigurationKeys.PLANNING_ID_KEY);
     this.jobsMapping = jobsMapping;
     this.appWorkDir = builder.getAppWorkPath();
@@ -147,8 +149,6 @@ class GobblinHelixJobTask implements Task {
     this.jobTaskMetrics.updateTimeBetweenJobSubmissionAndExecution(this.jobPlusSysConfig);
 
     try (Closer closer = Closer.create()) {
-      String jobName = jobPlusSysConfig.getProperty(ConfigurationKeys.JOB_NAME_KEY);
-
       Optional<String> planningIdFromStateStore = this.jobsMapping.getPlanningJobId(jobName);
 
       long timeOut = PropertiesUtils.getPropAsLong(jobPlusSysConfig,
@@ -171,13 +171,18 @@ class GobblinHelixJobTask implements Task {
             try {
               HelixUtils.deleteWorkflow(previousActualJobId, this.jobHelixManager, timeOut);
             } catch (HelixException e) {
-              log.error("Helix cannot delete previous actual job id {} within 5 min.", previousActualJobId);
+              log.error("Helix cannot delete previous actual job id {} within {} seconds.", previousActualJobId, timeOut / 1000);
               return new TaskResult(TaskResult.Status.FAILED, ExceptionUtils.getFullStackTrace(e));
             }
           }
         } else {
-          log.info("Actual job {} does not exist. First time run.", this.planningJobId);
+          log.info("No previous actual job [plan: {}]. First time run.", this.planningJobId);
         }
+
+        String actualJobId = HelixJobsMapping.createActualJobId(jobPlusSysConfig);
+        log.info("Planning job {} creates actual job {}", this.planningJobId, actualJobId);
+
+        this.jobPlusSysConfig.setProperty(ConfigurationKeys.JOB_ID_KEY, actualJobId);
 
         this.launcher = createJobLauncher();
 
@@ -191,13 +196,20 @@ class GobblinHelixJobTask implements Task {
           log.info("Planning job {} has more runs due to early stop.", this.planningJobId);
         }
       }
+      log.info("Completing planning job {}", this.planningJobId);
+      return new TaskResult(TaskResult.Status.COMPLETED, "");
     } catch (Exception e) {
       log.info("Failing planning job {}", this.planningJobId);
       return new TaskResult(TaskResult.Status.FAILED, "Exception occurred for job " + planningJobId + ":" + ExceptionUtils
           .getFullStackTrace(e));
+    } finally {
+      // always cleanup the job mapping for current job name.
+      try {
+        this.jobsMapping.deleteMapping(jobName);
+      } catch (Exception e) {
+        return new TaskResult(TaskResult.Status.FAILED,"Cannot delete jobs mapping for job : " + jobName);
+      }
     }
-    log.info("Completing planning job {}", this.planningJobId);
-    return new TaskResult(TaskResult.Status.COMPLETED, "");
   }
 
   @Override
@@ -208,6 +220,13 @@ class GobblinHelixJobTask implements Task {
         launcher.cancelJob(this.jobLauncherListener);
       } catch (JobException e) {
         throw new RuntimeException("Unable to cancel planning job " + this.planningJobId + ": ", e);
+      } finally {
+        // always cleanup the job mapping for current job name.
+        try {
+          this.jobsMapping.deleteMapping(jobName);
+        } catch (Exception e) {
+          throw new RuntimeException("Cannot delete jobs mapping for job : " + jobName);
+        }
       }
     }
   }
