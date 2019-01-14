@@ -18,9 +18,11 @@
 package org.apache.gobblin.service.modules.orchestration;
 
 /**
- * Implements a session manager to periodically refresh the session id.
+ * Implements a session manager to refresh the session id.
  *
- * {@link AzkabanClient} needs this class when current session was expired.
+ * {@link AzkabanClient} needs this class to periodically refresh
+ * the seesion id when current session was expired. Please refer
+ * to {@link AzkabanClient#refreshSession}.
  */
 public interface SessionManager {
 

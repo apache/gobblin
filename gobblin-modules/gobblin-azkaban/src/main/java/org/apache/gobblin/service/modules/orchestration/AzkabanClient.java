@@ -156,6 +156,9 @@ public class AzkabanClient implements Closeable {
     }
   }
 
+  /**
+   * When current session expired, use {@link SessionManager} to refresh the session id.
+   */
   private void refreshSession() throws AzkabanClientException {
     Preconditions.checkArgument(this.sessionCreationTime != 0);
     if ((System.nanoTime() - this.sessionCreationTime) > Duration.ofMinutes(this.sessionExpireInMin).toNanos()) {
