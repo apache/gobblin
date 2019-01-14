@@ -926,7 +926,11 @@ public class ConfigurationKeys {
   public static final String GIT_MONITOR_PASSWORD = "password";
   //Configuration keys for authentication using SSH with Public Key
   public static final String GIT_MONITOR_SSH_WITH_PUBLIC_KEY_ENABLED = "isSshWithPublicKeyEnabled";
-  public static final String GIT_MONITOR_PRIVATE_KEY_PATH = "privateKeyPath";
+  public static final String GIT_MONITOR_SSH_PRIVATE_KEY_PATH = "privateKeyPath";
+  public static final String GIT_MONITOR_SSH_PRIVATE_KEY_BASE64_ENCODED = "privateKeyBase64";
   public static final String GIT_MONITOR_SSH_PASSPHRASE = "passphrase";
+  public static final String GIT_MONITOR_SSH_STRICT_HOST_KEY_CHECKING_ENABLED = "isStrictHostKeyCheckingEnabled";
+  public static final String GIT_MONITOR_SSH_KNOWN_HOSTS = "knownHosts";
+  public static final String GIT_MONITOR_SSH_KNOWN_HOSTS_FILE = "knownHostsFile";
   public static final String GIT_MONITOR_JSCH_LOGGER_ENABLED = "isJschLoggerEnabled";
 }

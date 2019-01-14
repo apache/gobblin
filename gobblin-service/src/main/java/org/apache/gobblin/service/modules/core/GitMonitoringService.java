@@ -17,10 +17,12 @@
 
 package org.apache.gobblin.service.modules.core;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,11 +31,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.codec.binary.Base64;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.eclipse.jgit.api.CloneCommand;
-import org.eclipse.jgit.api.FetchCommand;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.ResetCommand;
 import org.eclipse.jgit.api.TransportConfigCallback;
@@ -88,8 +89,12 @@ public abstract class GitMonitoringService extends AbstractIdleService {
   private final ScheduledExecutorService scheduledExecutor;
 
   private String privateKeyPath;
+  private byte[] privateKey;
   private String passphrase;
   private boolean isJschLoggerEnabled;
+  private boolean strictHostKeyCheckingEnabled;
+  private String knownHosts;
+  private String knownHostsFile;
 
   final GitMonitoringService.GitRepository gitRepo;
   final String repositoryDir;
@@ -114,16 +119,30 @@ public abstract class GitMonitoringService extends AbstractIdleService {
     Either<CredentialsProvider, SshSessionFactory> providerSessionFactoryEither;
     boolean isSshWithPublicKeyEnabled = ConfigUtils.getBoolean(config, ConfigurationKeys.GIT_MONITOR_SSH_WITH_PUBLIC_KEY_ENABLED, false);
     if (isSshWithPublicKeyEnabled) {
-      this.privateKeyPath = ConfigUtils.getString(config, ConfigurationKeys.GIT_MONITOR_PRIVATE_KEY_PATH, null);
-      if (Strings.isNullOrEmpty(this.privateKeyPath)) {
-        throw new RuntimeException("Path to private key must be provided");
+      this.privateKeyPath = ConfigUtils.getString(config, ConfigurationKeys.GIT_MONITOR_SSH_PRIVATE_KEY_PATH, null);
+      String privateKeyBase64Encoded = ConfigUtils.getString(config, ConfigurationKeys.GIT_MONITOR_SSH_PRIVATE_KEY_BASE64_ENCODED, null);
+
+      if ((Strings.isNullOrEmpty(this.privateKeyPath)) && ((Strings.isNullOrEmpty(privateKeyBase64Encoded)))) {
+        throw new RuntimeException("Path to private key or private key string must be provided");
       }
+
+      if (!Strings.isNullOrEmpty(privateKeyBase64Encoded)) {
+        this.privateKey = Base64.decodeBase64(privateKeyBase64Encoded);
+      }
+
       String passPhraseEnc = ConfigUtils.getString(config, ConfigurationKeys.GIT_MONITOR_SSH_PASSPHRASE, null);
-      if (passPhraseEnc != null) {
+      if (!Strings.isNullOrEmpty(passPhraseEnc)) {
         this.passphrase = passwordManager.readPassword(passPhraseEnc);
       }
       providerSessionFactoryEither = Either.right(getSshSessionFactory());
       this.isJschLoggerEnabled = ConfigUtils.getBoolean(config, ConfigurationKeys.GIT_MONITOR_JSCH_LOGGER_ENABLED, false);
+      this.strictHostKeyCheckingEnabled = ConfigUtils.getBoolean(config, ConfigurationKeys.GIT_MONITOR_SSH_STRICT_HOST_KEY_CHECKING_ENABLED,
+          true);
+      this.knownHosts = ConfigUtils.getString(config, ConfigurationKeys.GIT_MONITOR_SSH_KNOWN_HOSTS, null);
+      this.knownHostsFile = ConfigUtils.getString(config, ConfigurationKeys.GIT_MONITOR_SSH_KNOWN_HOSTS_FILE, null);
+      if (strictHostKeyCheckingEnabled && Strings.isNullOrEmpty(knownHostsFile) && Strings.isNullOrEmpty(knownHosts)) {
+        throw new RuntimeException("Either StrictHostKeyChecking should be disabled or a knownHostFile or knownHosts string must be provided");
+      }
     } else { //Use CredentialsProvider
       String username = ConfigUtils.getString(config, ConfigurationKeys.GIT_MONITOR_USERNAME, null);
       String passwordEnc = ConfigUtils.getString(config, ConfigurationKeys.GIT_MONITOR_PASSWORD, null);
@@ -417,7 +436,9 @@ public abstract class GitMonitoringService extends AbstractIdleService {
     JschConfigSessionFactory sessionFactory = new JschConfigSessionFactory() {
       @Override
       protected void configure(OpenSshConfig.Host hc, Session session) {
-        //Do nothing.
+        if (!GitMonitoringService.this.strictHostKeyCheckingEnabled) {
+          session.setConfig("StrictHostKeyChecking", "no");
+        }
       }
 
       @Override
@@ -426,7 +447,18 @@ public abstract class GitMonitoringService extends AbstractIdleService {
           JSch.setLogger(new JschLogger());
         }
         JSch defaultJSch = super.createDefaultJSch(fs);
-        defaultJSch.addIdentity(GitMonitoringService.this.privateKeyPath, GitMonitoringService.this.passphrase);
+        defaultJSch.getIdentityRepository().removeAll();
+        if (GitMonitoringService.this.privateKeyPath != null) {
+          defaultJSch.addIdentity(GitMonitoringService.this.privateKeyPath, GitMonitoringService.this.passphrase);
+        } else {
+          defaultJSch.addIdentity("gaas-git", GitMonitoringService.this.privateKey, null,
+              GitMonitoringService.this.passphrase.getBytes(Charset.forName("UTF-8")));
+        }
+        if (!Strings.isNullOrEmpty(GitMonitoringService.this.knownHosts)) {
+          defaultJSch.setKnownHosts(new ByteArrayInputStream(GitMonitoringService.this.knownHosts.getBytes(Charset.forName("UTF-8"))));
+        } else if (!Strings.isNullOrEmpty(GitMonitoringService.this.knownHostsFile)) {
+          defaultJSch.setKnownHosts(GitMonitoringService.this.knownHostsFile);
+        }
         return defaultJSch;
       }
     };
