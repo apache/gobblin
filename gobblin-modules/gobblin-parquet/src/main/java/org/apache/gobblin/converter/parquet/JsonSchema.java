@@ -55,7 +55,7 @@ public class JsonSchema extends Schema {
   private final InputType type;
 
   public enum InputType {
-    STRING, INT, LONG, FLOAT, DOUBLE, BOOLEAN, ARRAY, ENUM, RECORD, MAP
+    STRING, INT, LONG, FLOAT, DOUBLE, BOOLEAN, ARRAY, ENUM, RECORD, MAP, DATE, TIMESTAMP
   }
 
   public JsonSchema(JsonArray jsonArray) {
