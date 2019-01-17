@@ -15,5 +15,5 @@
 --  limitations under the License.
 --
 
-ALTER TABLE `gobblin_task_properties` MODIFY `property_key` VARCHAR(256);
-ALTER TABLE `gobblin_job_properties` MODIFY `property_key` VARCHAR(256);
+ALTER TABLE `gobblin_task_properties` MODIFY `property_key` VARCHAR(191);
+ALTER TABLE `gobblin_job_properties` MODIFY `property_key` VARCHAR(191);
