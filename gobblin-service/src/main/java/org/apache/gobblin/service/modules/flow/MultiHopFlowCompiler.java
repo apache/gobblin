@@ -95,7 +95,13 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
       throw new RuntimeException("Cannot instantiate " + getClass().getName(), e);
     }
     this.flowGraph = new BaseFlowGraph();
-    this.gitFlowGraphMonitor = new GitFlowGraphMonitor(this.config, flowCatalog, this.flowGraph, this.topologySpecMap, this.getInitComplete());
+    Config gitFlowGraphConfig = this.config;
+    if (this.config.hasPath(ConfigurationKeys.ENCRYPT_KEY_LOC)) {
+      //Add encrypt.key.loc config to the config passed to GitFlowGraphMonitor
+      gitFlowGraphConfig = this.config
+          .withValue(GitFlowGraphMonitor.GIT_FLOWGRAPH_MONITOR_PREFIX + "." + ConfigurationKeys.ENCRYPT_KEY_LOC, config.getValue(ConfigurationKeys.ENCRYPT_KEY_LOC));
+    }
+    this.gitFlowGraphMonitor = new GitFlowGraphMonitor(gitFlowGraphConfig, flowCatalog, this.flowGraph, this.topologySpecMap, this.getInitComplete());
     this.serviceManager = new ServiceManager(Lists.newArrayList(this.gitFlowGraphMonitor));
     addShutdownHook();
     //Start the git flow graph monitor
