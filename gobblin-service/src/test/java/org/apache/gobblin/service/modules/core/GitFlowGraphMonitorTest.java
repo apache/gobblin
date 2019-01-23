@@ -46,6 +46,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
+import com.google.common.base.Optional;
 import com.google.common.io.Files;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -80,7 +81,7 @@ public class GitFlowGraphMonitorTest {
   private final File edge1File = new File(edge1Dir, "edge1.properties");
 
   private RefSpec masterRefSpec = new RefSpec("master");
-  private FSFlowCatalog flowCatalog;
+  private Optional<FSFlowCatalog> flowCatalog;
   private Config config;
   private BaseFlowGraph flowGraph;
   private GitFlowGraphMonitor gitFlowGraphMonitor;
@@ -118,7 +119,7 @@ public class GitFlowGraphMonitorTest {
     Config templateCatalogCfg = config
         .withValue(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY,
             config.getValue(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY));
-    this.flowCatalog = new FSFlowCatalog(templateCatalogCfg);
+    this.flowCatalog = Optional.of(new FSFlowCatalog(templateCatalogCfg));
 
     //Create a FlowGraph instance with defaults
     this.flowGraph = new BaseFlowGraph();
