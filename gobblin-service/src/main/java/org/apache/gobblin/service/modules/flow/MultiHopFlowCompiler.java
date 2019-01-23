@@ -24,6 +24,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -86,13 +87,16 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
 
   public MultiHopFlowCompiler(Config config, Optional<Logger> log, boolean instrumentationEnabled) {
     super(config, log, instrumentationEnabled);
-    Config templateCatalogCfg = config.withValue(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY,
-        config.getValue(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY));
-    FSFlowCatalog flowCatalog;
-    try {
-      flowCatalog = new FSFlowCatalog(templateCatalogCfg);
-    } catch (IOException e) {
-      throw new RuntimeException("Cannot instantiate " + getClass().getName(), e);
+    Optional<FSFlowCatalog> flowCatalog;
+    if (config.hasPath(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY)
+        && StringUtils.isNotBlank(config.getString(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY))) {
+      try {
+        flowCatalog = Optional.of(new FSFlowCatalog(config));
+      } catch (IOException e) {
+        throw new RuntimeException("Cannot instantiate " + getClass().getName(), e);
+      }
+    } else {
+      flowCatalog = Optional.absent();
     }
     this.flowGraph = new BaseFlowGraph();
     Config gitFlowGraphConfig = this.config;

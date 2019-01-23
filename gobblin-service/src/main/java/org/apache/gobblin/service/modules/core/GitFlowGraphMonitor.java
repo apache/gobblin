@@ -32,6 +32,7 @@ import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.diff.DiffEntry;
 
 import com.google.common.base.Joiner;
+import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Files;
 import com.typesafe.config.Config;
@@ -87,13 +88,13 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
           .put(SHOULD_CHECKPOINT_HASHES, false)
           .build());
 
-  private FSFlowCatalog flowCatalog;
+  private Optional<FSFlowCatalog> flowCatalog;
   private FlowGraph flowGraph;
   private final Map<URI, TopologySpec> topologySpecMap;
   private final Config emptyConfig = ConfigFactory.empty();
   private final CountDownLatch initComplete;
 
-  public GitFlowGraphMonitor(Config config, FSFlowCatalog flowCatalog, FlowGraph graph, Map<URI, TopologySpec> topologySpecMap, CountDownLatch initComplete) {
+  public GitFlowGraphMonitor(Config config, Optional<FSFlowCatalog> flowCatalog, FlowGraph graph, Map<URI, TopologySpec> topologySpecMap, CountDownLatch initComplete) {
     super(config.getConfig(GIT_FLOWGRAPH_MONITOR_PREFIX).withFallback(DEFAULT_FALLBACK));
     this.flowCatalog = flowCatalog;
     this.flowGraph = graph;
@@ -223,11 +224,15 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
         Class flowEdgeFactoryClass = Class.forName(ConfigUtils.getString(edgeConfig, FlowGraphConfigurationKeys.FLOW_EDGE_FACTORY_CLASS,
             FlowGraphConfigurationKeys.DEFAULT_FLOW_EDGE_FACTORY_CLASS));
         FlowEdgeFactory flowEdgeFactory = (FlowEdgeFactory) GobblinConstructorUtils.invokeLongestConstructor(flowEdgeFactoryClass, edgeConfig);
-        FlowEdge edge = flowEdgeFactory.createFlowEdge(edgeConfig, flowCatalog, specExecutors);
-        if (!this.flowGraph.addFlowEdge(edge)) {
-          log.warn("Could not add edge {} to FlowGraph; skipping", edge.getId());
+        if (flowCatalog.isPresent()) {
+          FlowEdge edge = flowEdgeFactory.createFlowEdge(edgeConfig, flowCatalog.get(), specExecutors);
+          if (!this.flowGraph.addFlowEdge(edge)) {
+            log.warn("Could not add edge {} to FlowGraph; skipping", edge.getId());
+          } else {
+            log.info("Added edge {} to FlowGraph", edge.getId());
+          }
         } else {
-          log.info("Added edge {} to FlowGraph", edge.getId());
+          log.warn("Could not add edge defined in {} to FlowGraph as FlowCatalog is absent", change.getNewPath());
         }
       } catch (Exception e) {
         log.warn("Could not add edge defined in {} due to exception {}", change.getNewPath(), e.getMessage());
