@@ -19,6 +19,7 @@ package org.apache.gobblin.converter.parquet;
 import java.util.ArrayList;
 import java.util.List;
 
+import lombok.Getter;
 import parquet.example.data.Group;
 import parquet.example.data.simple.BinaryValue;
 import parquet.example.data.simple.BooleanValue;
@@ -45,6 +46,7 @@ import static parquet.schema.Type.Repetition.REPEATED;
  */
 public class ParquetGroup extends Group {
 
+  @Getter
   private final GroupType schema;
   //each item represents data of a field, which is indexed by the fieldIndex of the schema
   private final List<Object>[] data;

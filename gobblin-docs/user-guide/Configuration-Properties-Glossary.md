@@ -1188,6 +1188,28 @@ Version of parquet writer to use. Available versions are v1 and v2.
 v1
 ###### Required
 No
+#### writer.partitioner.parquet.key
+###### Description
+Used by `org.apache.gobblin.partitioner.ParquetPartitioner`.
+
+Key name present in the Parquet record using which the records should be partitioned.
+
+Multiple partition keys can be set by comma separated. 
+Nested partition keys should be dot separated.
+Example `writer.partitioner.parquet.key="type,payload.pusher_type"`
+###### Default Value
+null
+###### Required
+Yes
+#### writer.partitioner.parquet.key.defaultKey
+###### Description
+Used by `org.apache.gobblin.partitioner.ParquetPartitioner`.
+
+If the `writer.partitioner.parquet.key` specified is not present in the Parquet record then the default partition value to use instead.
+###### Default Value
+NON_PARTITIONED
+###### Required
+No
 # Data Publisher Properties <a name="Data-Publisher-Properties"></a>
 #### data.publisher.type 
 ###### Description
