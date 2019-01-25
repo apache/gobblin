@@ -261,6 +261,21 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
     // For the same reason as deleting the staging file if it already exists, overwrite
     // the output file if it already exists to prevent task retry from being blocked.
     HadoopUtils.renamePath(this.fileContext, this.stagingFile, this.outputFile, true);
+
+    // The staging file is moved to the output path in commit, so rename to add record count after that
+    if (this.shouldIncludeRecordCountInFileName) {
+      String filePathWithRecordCount = addRecordCountToFileName();
+      this.properties.appendToSetProp(this.allOutputFilesPropName, filePathWithRecordCount);
+    } else {
+      this.properties.appendToSetProp(this.allOutputFilesPropName, getOutputFilePath());
+    }
+
+    FsWriterMetrics metrics = new FsWriterMetrics(
+        this.id,
+        new PartitionIdentifier(this.partitionKey, this.branchId),
+        ImmutableSet.of(new FsWriterMetrics.FileInfo(this.outputFile.getName(), recordsWritten()))
+    );
+    this.properties.setProp(FS_WRITER_METRICS_KEY, metrics.toJson());
  }
 
   /**
@@ -285,20 +300,6 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
   public void close()
       throws IOException {
     this.closer.close();
-
-    if (this.shouldIncludeRecordCountInFileName) {
-      String filePathWithRecordCount = addRecordCountToFileName();
-      this.properties.appendToSetProp(this.allOutputFilesPropName, filePathWithRecordCount);
-    } else {
-      this.properties.appendToSetProp(this.allOutputFilesPropName, getOutputFilePath());
-    }
-
-    FsWriterMetrics metrics = new FsWriterMetrics(
-        this.id,
-        new PartitionIdentifier(this.partitionKey, this.branchId),
-        ImmutableSet.of(new FsWriterMetrics.FileInfo(this.outputFile.getName(), recordsWritten()))
-    );
-    this.properties.setProp(FS_WRITER_METRICS_KEY, metrics.toJson());
   }
 
   private synchronized String addRecordCountToFileName()
