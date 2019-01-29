@@ -87,7 +87,8 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
 
   public MultiHopFlowCompiler(Config config, Optional<Logger> log, boolean instrumentationEnabled) {
     super(config, log, instrumentationEnabled);
-    Optional<FSFlowCatalog> flowCatalog;
+    this.flowGraph = new BaseFlowGraph();
+    Optional<FSFlowCatalog> flowCatalog = Optional.absent();
     if (config.hasPath(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY)
         && StringUtils.isNotBlank(config.getString(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY))) {
       try {
@@ -96,9 +97,8 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
         throw new RuntimeException("Cannot instantiate " + getClass().getName(), e);
       }
     } else {
-      flowCatalog = Optional.absent();
+      return;
     }
-    this.flowGraph = new BaseFlowGraph();
     Config gitFlowGraphConfig = this.config;
     if (this.config.hasPath(ConfigurationKeys.ENCRYPT_KEY_LOC)) {
       //Add encrypt.key.loc config to the config passed to GitFlowGraphMonitor
@@ -131,7 +131,9 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
   @Override
   public void setActive(boolean active) {
     super.setActive(active);
-    this.gitFlowGraphMonitor.setActive(active);
+    if (this.gitFlowGraphMonitor != null) {
+      this.gitFlowGraphMonitor.setActive(active);
+    }
   }
 
   @Override
