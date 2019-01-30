@@ -34,6 +34,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.MoreExecutors;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
@@ -132,14 +133,27 @@ public class GobblinMultiTaskAttempt {
     }
 
     CountUpAndDownLatch countDownLatch = new CountUpAndDownLatch(0);
-    this.tasks = runWorkUnits(countDownLatch);
+    this.tasks = scheduleWorkUnits(countDownLatch);
     log.info("Waiting for submitted tasks of job {} to complete in container {}...", jobId,
         containerIdOptional.or(""));
-    while (countDownLatch.getCount() > 0) {
-      log.info(String.format("%d out of %d tasks of job %s are running in container %s", countDownLatch.getCount(),
-          countDownLatch.getRegisteredParties(), jobId, containerIdOptional.or("")));
-      if (countDownLatch.await(10, TimeUnit.SECONDS)) {
-        break;
+    try {
+      while (countDownLatch.getCount() > 0) {
+        log.info(String.format("%d out of %d tasks of job %s are running in container %s", countDownLatch.getCount(),
+            countDownLatch.getRegisteredParties(), jobId, containerIdOptional.or("")));
+        if (countDownLatch.await(10, TimeUnit.SECONDS)) {
+          break;
+        }
+      }
+    } catch (InterruptedException interrupt) {
+      log.info("Job interrupted. Attempting a graceful shutdown of the job.");
+      this.tasks.forEach(Task::shutdown);
+      if (!countDownLatch.await(5, TimeUnit.SECONDS)) {
+        log.warn("Graceful shutdown of job timed out. Killing all outstanding tasks.");
+        try {
+          this.taskExecutor.shutDown();
+        } catch (Throwable t) {
+          throw new RuntimeException("Failed to shutdown task executor.", t);
+        }
       }
     }
     log.info("All assigned tasks of job {} have completed in container {}", jobId, containerIdOptional.or(""));
@@ -327,7 +341,7 @@ public class GobblinMultiTaskAttempt {
    * @param countDownLatch a {@link java.util.concurrent.CountDownLatch} waited on for job completion
    * @return a list of {@link Task}s from the {@link WorkUnit}s
    */
-  private List<Task> runWorkUnits(CountUpAndDownLatch countDownLatch) {
+  private List<Task> scheduleWorkUnits(CountUpAndDownLatch countDownLatch) {
 
     List<Task> tasks = Lists.newArrayList();
     while (this.workUnits.hasNext()) {

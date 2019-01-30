@@ -28,6 +28,8 @@ import java.util.Map;
 import java.util.Properties;
 
 import org.apache.gobblin.metastore.DatasetStateStore;
+import org.apache.gobblin.runtime.job.JobProgress;
+import org.apache.gobblin.runtime.job.TaskProgress;
 import org.apache.hadoop.io.Text;
 
 import com.codahale.metrics.Counter;
@@ -67,7 +69,7 @@ import org.apache.gobblin.util.ImmutableProperties;
  *
  * @author Yinan Li
  */
-public class JobState extends SourceState {
+public class JobState extends SourceState implements JobProgress {
 
   /**
    * An enumeration of possible job states, which are identical to
@@ -248,6 +250,20 @@ public class JobState extends SourceState {
   }
 
   /**
+   * Get the currently elapsed time for this job.
+   * @return
+   */
+  public long getElapsedTime() {
+    if (this.endTime > 0) {
+      return  this.endTime - this.startTime;
+    }
+    if (this.startTime > 0) {
+      return System.currentTimeMillis() - this.startTime;
+    }
+    return 0;
+  }
+
+  /**
    * Set job end time.
    *
    * @param endTime job end time
@@ -391,6 +407,11 @@ public class JobState extends SourceState {
    */
   public List<TaskState> getTaskStates() {
     return ImmutableList.<TaskState>builder().addAll(this.taskStates.values()).build();
+  }
+
+  @Override
+  public List<TaskState> getTaskProgress() {
+    return getTaskStates();
   }
 
   /**

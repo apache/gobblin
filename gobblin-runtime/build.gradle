@@ -49,6 +49,8 @@ dependencies {
 
   compile externalDependency.avro
   compile externalDependency.avroMapredH2
+  compile externalDependency.calciteCore
+  //compile externalDependency.calciteAvatica
   compile externalDependency.commonsCli
   compile externalDependency.commonsConfiguration
   compile externalDependency.commonsEmail
@@ -83,8 +85,6 @@ dependencies {
   compile externalDependency.kryo
 
   testCompile project(path: ":gobblin-metastore", configuration: "testFixtures")
-  testCompile externalDependency.calciteCore
-  testCompile externalDependency.calciteAvatica
   testCompile externalDependency.jhyde
   testCompile externalDependency.testng
   testCompile externalDependency.hamcrest

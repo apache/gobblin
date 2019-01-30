@@ -22,6 +22,7 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.util.Map;
 
+import org.apache.gobblin.runtime.job.TaskProgress;
 import org.apache.hadoop.io.Text;
 
 import com.codahale.metrics.Counter;
@@ -59,7 +60,7 @@ import lombok.Getter;
  *
  * @author Yinan Li
  */
-public class TaskState extends WorkUnitState {
+public class TaskState extends WorkUnitState implements TaskProgress {
 
   // Built-in metric names
 

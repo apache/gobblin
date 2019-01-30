@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -54,6 +55,8 @@ public class EmbeddedGobblinDistcpTest {
 
     EmbeddedGobblinDistcp embedded = new EmbeddedGobblinDistcp(new Path(tmpSource.getAbsolutePath()),
         new Path(tmpTarget.getAbsolutePath()));
+    embedded.setConfiguration(ConfigurationKeys.STATE_STORE_ENABLED, "true");
+    embedded.mrMode();
     embedded.setLaunchTimeout(30, TimeUnit.SECONDS);
     embedded.run();
 

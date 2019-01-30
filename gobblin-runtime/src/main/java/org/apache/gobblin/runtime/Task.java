@@ -462,7 +462,7 @@ public class Task implements TaskIFace {
 
       RecordEnvelope recordEnvelope;
       // Extract, convert, and fork one source record at a time.
-      while (!shutdownRequested() && (recordEnvelope = extractor.readRecordEnvelope()) != null) {
+      while ((recordEnvelope = extractor.readRecordEnvelope()) != null) {
         onRecordExtract();
         AcknowledgableWatermark ackableWatermark = new AcknowledgableWatermark(recordEnvelope.getWatermark());
         if (watermarkTracker.isPresent()) {
@@ -473,6 +473,9 @@ public class Task implements TaskIFace {
               ackableWatermark.incrementAck());
         }
         ackableWatermark.ack();
+        if (shutdownRequested()) {
+          extractor.shutdown();
+        }
       }
     } else {
       RecordEnvelope record;
@@ -494,6 +497,9 @@ public class Task implements TaskIFace {
               TaskConfigurationKeys.DEFAULT_TASK_SKIP_ERROR_RECORDS)) {
             throw new RuntimeException(e);
           }
+        }
+        if (shutdownRequested()) {
+          extractor.shutdown();
         }
       }
     }
