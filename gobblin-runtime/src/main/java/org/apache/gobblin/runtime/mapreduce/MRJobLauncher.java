@@ -27,6 +27,7 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import org.apache.gobblin.runtime.job.JobInterruptionPredicate;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -50,6 +51,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -255,6 +257,14 @@ public class MRJobLauncher extends AbstractJobLauncher {
       this.job.submit();
       this.hadoopJobSubmitted = true;
 
+      JobInterruptionPredicate jobInterruptionPredicate = new JobInterruptionPredicate(jobState, () -> {
+        try {
+          this.job.killJob();
+        } catch (IOException ioe) {
+          LOG.warn("Failed to kill job.", ioe);
+          throw Throwables.propagate(ioe);
+        }
+      }, true);
       // Set job tracking URL to the Hadoop job tracking URL if it is not set yet
       if (!jobState.contains(ConfigurationKeys.JOB_TRACKING_URL_KEY)) {
         jobState.setProp(ConfigurationKeys.JOB_TRACKING_URL_KEY, this.job.getTrackingURL());
@@ -262,7 +272,11 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
       TimingEvent mrJobRunTimer = this.eventSubmitter.getTimingEvent(TimingEvent.RunJobTimings.MR_JOB_RUN);
       LOG.info(String.format("Waiting for Hadoop MR job %s to complete", this.job.getJobID()));
+
+
       this.job.waitForCompletion(true);
+      jobInterruptionPredicate.stopAsync();
+
       mrJobRunTimer.stop(ImmutableMap.of("hadoopMRJobId", this.job.getJobID().toString()));
 
       if (this.cancellationRequested) {

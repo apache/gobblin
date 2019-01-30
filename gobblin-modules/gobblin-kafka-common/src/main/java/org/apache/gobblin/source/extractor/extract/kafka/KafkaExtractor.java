@@ -23,7 +23,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.gobblin.runtime.JobShutdownException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -112,6 +114,8 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
   private long currentPartitionReadRecordTime = 0;
   protected D currentPartitionLastSuccessfulRecord = null;
 
+  private final AtomicBoolean shutdownRequested = new AtomicBoolean(false);
+
   public KafkaExtractor(WorkUnitState state) {
     super(state);
     this.workUnitState = state;
@@ -164,6 +168,10 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
   @SuppressWarnings("unchecked")
   @Override
   public D readRecordImpl(D reuse) throws DataRecordException, IOException {
+    if (this.shutdownRequested.get()) {
+      return null;
+    }
+
     long readStartTime = System.nanoTime();
 
     while (!allPartitionsFinished()) {
@@ -243,6 +251,12 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
 
     this.currentPartitionReadRecordTime += System.nanoTime() - readStartTime;
     return null;
+  }
+
+  @Override
+  public void shutdown()
+      throws JobShutdownException {
+    this.shutdownRequested.set(true);
   }
 
   private boolean allPartitionsFinished() {
