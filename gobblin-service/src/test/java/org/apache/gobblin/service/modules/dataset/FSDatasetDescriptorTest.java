@@ -86,6 +86,7 @@ public class FSDatasetDescriptorTest {
 
     Assert.assertTrue(descriptor1.equals(descriptor2));
     Assert.assertTrue(descriptor2.equals(descriptor1));
+    Assert.assertEquals(descriptor1.hashCode(), descriptor2.hashCode());
 
     Config config3 = ConfigFactory.empty().withValue(DatasetDescriptorConfigKeys.PATH_KEY, ConfigValueFactory.fromAnyRef("/a/b/c/*"))
         .withValue(DatasetDescriptorConfigKeys.PLATFORM_KEY, ConfigValueFactory.fromAnyRef("hdfs"))
@@ -93,6 +94,7 @@ public class FSDatasetDescriptorTest {
         .withValue(DatasetDescriptorConfigKeys.IS_RETENTION_APPLIED_KEY, ConfigValueFactory.fromAnyRef("false"));
     FSDatasetDescriptor descriptor3 = new FSDatasetDescriptor(config3);
     Assert.assertTrue(descriptor1.equals(descriptor3));
+    Assert.assertEquals(descriptor1.hashCode(), descriptor3.hashCode());
 
     //Ensure switching booleans between 2 boolean member variables does not produce the same hashcode.
     Config config4 = ConfigFactory.empty().withValue(DatasetDescriptorConfigKeys.PATH_KEY, ConfigValueFactory.fromAnyRef("/a/b/c/*"))
@@ -110,6 +112,7 @@ public class FSDatasetDescriptorTest {
     FSDatasetDescriptor descriptor5 = new FSDatasetDescriptor(config5);
 
     Assert.assertFalse(descriptor4.equals(descriptor5));
+    Assert.assertNotEquals(descriptor4.hashCode(), descriptor5.hashCode());
   }
 
   @Test
@@ -143,5 +146,18 @@ public class FSDatasetDescriptorTest {
         .atPath(DatasetDescriptorConfigKeys.ENCYPTION_PREFIX);
     Config config4 = config.withFallback(encryptionConfig);
     Assert.assertThrows(IOException.class, () -> new FSDatasetDescriptor(config4));
+
+    encryptionConfig = ConfigFactory.empty().withValue(DatasetDescriptorConfigKeys.ENCRYPTION_LEVEL_KEY, ConfigValueFactory.fromAnyRef("field"))
+        .atPath(DatasetDescriptorConfigKeys.ENCYPTION_PREFIX);
+    Config config5 = config.withFallback(encryptionConfig);
+    Assert.assertThrows(IOException.class, () -> new FSDatasetDescriptor(config5));
+
+    encryptionConfig = ConfigFactory.empty().withValue(DatasetDescriptorConfigKeys.ENCRYPTION_LEVEL_KEY, ConfigValueFactory.fromAnyRef("none"))
+        .withValue(DatasetDescriptorConfigKeys.ENCRYPTED_FIELDS, ConfigValueFactory.fromAnyRef("field1")).atPath(DatasetDescriptorConfigKeys.ENCYPTION_PREFIX);
+    Config config6 = config.withFallback(encryptionConfig);
+    Assert.assertThrows(IOException.class, () -> new FSDatasetDescriptor(config6));
+
+
+
   }
 }

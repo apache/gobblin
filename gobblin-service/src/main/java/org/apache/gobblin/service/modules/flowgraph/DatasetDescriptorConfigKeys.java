@@ -44,6 +44,7 @@ public class DatasetDescriptorConfigKeys {
   public static final String ENCRYPTION_KEYSTORE_TYPE_KEY = "keystore_type";
   public static final String ENCRYPTION_KEYSTORE_ENCODING_KEY = "keystore_encoding";
   public static final String ENCRYPTION_LEVEL_KEY = "level";
+  public static final String ENCRYPTED_FIELDS = "encryptedFields";
 
   //Dataset partition related keys
   public static final String PARTITION_PREFIX = "partition";

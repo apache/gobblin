@@ -87,7 +87,7 @@ public class FsDatasetPartitionConfig {
     this.rawConfig = config.withFallback(DEFAULT_FALLBACK);
   }
 
-  public void validatePartitionConfig(String partitionType, String partitionPattern)
+  private void validatePartitionConfig(String partitionType, String partitionPattern)
       throws IOException {
     if (!Enums.getIfPresent(PartitionType.class, partitionType.toUpperCase()).isPresent()) {
       log.error("Invalid partition type {}", partitionType);
@@ -130,9 +130,9 @@ public class FsDatasetPartitionConfig {
       return false;
     }
 
-    return ((DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equals(getPartitionType())
+    return ((DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(getPartitionType())
         || this.getPartitionType().equalsIgnoreCase(partitionType)))
-        && ((DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equals(getPartitionPattern())
+        && ((DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(getPartitionPattern())
         || this.getPartitionPattern().equalsIgnoreCase(other.getPartitionPattern())));
   }
 
