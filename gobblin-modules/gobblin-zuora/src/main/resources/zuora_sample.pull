@@ -1,0 +1,54 @@
+job.group=Zuora_Sample
+extract.namespace=Zuora_Sample
+source.class=org.apache.gobblin.zuora.ZuoraSource
+converter.classes=org.apache.gobblin.converter.avro.JsonIntermediateToAvroConverter
+
+writer.destination.type=HDFS
+writer.output.format=AVRO
+writer.fs.uri=file://localhost/
+data.publisher.type=org.apache.gobblin.publisher.BaseDataPublisher
+
+source.querybased.extract.type=snapshot
+source.querybased.low.watermark.backup.secs=300
+source.max.number.of.partitions=1
+source.querybased.partition.interval=1
+source.querybased.fetch.size=10000
+source.querybased.schema=Zuora
+source.querybased.watermark.type=timestamp
+source.querybased.skip.high.watermark.calc=true
+source.querybased.start.value=CURRENTDAY-3
+# source.querybased.append.max.watermark.limit=CURRENTDATE
+
+source.conn.username=<USERNAME>
+source.conn.password=<PASSWORD RAW OR ENCRYPTED>
+encrypt.key.loc=<PASSWORD KEY FILE PATH>
+source.conn.host=https://www.zuora.com/apps/api/
+source.conn.version=1.2
+source.conn.timeout=30000
+
+zuora.output.format=gzip
+zuora.api.name=<ZUORA API NAME>
+zuora.partner=<ZUORA PARTNER>
+zuora.project=<ZUORA PROJECT>
+zuora.timestamp.columns=CreatedDate,UpdatedDate
+zuora.deleted.column=IsDeleted
+
+extract.table.type=snapshot_append
+extract.delta.fields=UpdatedDate
+extract.primary.key.fields=Id
+
+converter.avro.timestamp.format=yyyy-MM-dd'T'HH:mm:ssZ,yyyy-MM-dd'T'HH:mm:ss
+converter.avro.date.format=yyyy-MM-dd
+converter.avro.time.format=HH:mm:ss
+converter.avro.date.timezone=America/Los_Angeles
+converter.is.epoch.time.in.seconds=true
+source.timezone=America/Los_Angeles
+workunit.retry.enabled=true
+task.retry.intervalinsec=20
+task.maxretries=10
+
+writer.include.record.count.in.file.names=true
+
+# Proxy settings
+source.conn.use.proxy.url=<PROXY URL if any>
+source.conn.use.proxy.port=<PROXY PORT if any>
