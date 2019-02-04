@@ -18,20 +18,13 @@
 package org.apache.gobblin.metastore;
 
 import java.io.IOException;
-import java.util.Collection;
+import java.net.URI;
 
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileContext;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Options;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.UnsupportedFileSystemException;
-import org.apache.hadoop.io.SequenceFile;
-import org.apache.hadoop.io.Text;
-import org.apache.hadoop.io.compress.DefaultCodec;
-
-import com.google.common.base.Strings;
-import com.google.common.io.Closer;
 
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.util.HadoopUtils;
@@ -59,19 +52,19 @@ public class FileContextBasedFsStateStore<T extends State> extends FsStateStore<
   public FileContextBasedFsStateStore(String fsUri, String storeRootDir, Class stateClass)
       throws IOException {
     super(fsUri, storeRootDir, stateClass);
-    this.fc = FileContext.getFileContext(new Configuration());
+    this.fc = FileContext.getFileContext(URI.create(fsUri));
   }
 
   public FileContextBasedFsStateStore(FileSystem fs, String storeRootDir, Class<T> stateClass)
       throws UnsupportedFileSystemException {
     super(fs, storeRootDir, stateClass);
-    this.fc = FileContext.getFileContext(fs.getUri());
+    this.fc = FileContext.getFileContext(this.fs.getUri());
   }
 
   public FileContextBasedFsStateStore(String storeUrl, Class<T> stateClass)
       throws IOException {
     super(storeUrl, stateClass);
-    this.fc = FileContext.getFileContext(new Configuration());
+    this.fc = FileContext.getFileContext(this.fs.getUri());
   }
 
   /**
@@ -84,67 +77,7 @@ public class FileContextBasedFsStateStore<T extends State> extends FsStateStore<
    * </p>
    */
   @Override
-  public void put(String storeName, String tableName, T state) throws IOException {
-    String tmpTableName = this.useTmpFileForPut ? TMP_FILE_PREFIX + tableName : tableName;
-    Path tmpTablePath = new Path(new Path(this.storeRootDir, storeName), tmpTableName);
-
-    if (!this.fs.exists(tmpTablePath) && !create(storeName, tmpTableName)) {
-      throw new IOException("Failed to create a state file for table " + tmpTableName);
-    }
-
-    Closer closer = Closer.create();
-    try {
-      @SuppressWarnings("deprecation")
-      SequenceFile.Writer writer = closer.register(SequenceFile.createWriter(this.fs, this.conf, tmpTablePath,
-          Text.class, this.stateClass, SequenceFile.CompressionType.BLOCK, new DefaultCodec()));
-      writer.append(new Text(Strings.nullToEmpty(state.getId())), state);
-    } catch (Throwable t) {
-      throw closer.rethrow(t);
-    } finally {
-      closer.close();
-    }
-
-    if (this.useTmpFileForPut) {
-      Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
-      HadoopUtils.renamePath(this.fc, tmpTablePath, tablePath, true);
-    }
-  }
-
-  /**
-   * See {@link StateStore#put(String, String, T)}.
-   *
-   * <p>
-   *   This implementation uses {@link FileContext#rename(Path, Path, Options.Rename...)}, with
-   *   {@link org.apache.hadoop.fs.Options.Rename#OVERWRITE} set to true, to write the
-   *   state to the underlying state store.
-   * </p>
-   */
-  @Override
-  public void putAll(String storeName, String tableName, Collection<T> states) throws IOException {
-    String tmpTableName = this.useTmpFileForPut ? TMP_FILE_PREFIX + tableName : tableName;
-    Path tmpTablePath = new Path(new Path(this.storeRootDir, storeName), tmpTableName);
-
-    if (!this.fs.exists(tmpTablePath) && !create(storeName, tmpTableName)) {
-      throw new IOException("Failed to create a state file for table " + tmpTableName);
-    }
-
-    Closer closer = Closer.create();
-    try {
-      @SuppressWarnings("deprecation")
-      SequenceFile.Writer writer = closer.register(SequenceFile.createWriter(this.fs, this.conf, tmpTablePath,
-          Text.class, this.stateClass, SequenceFile.CompressionType.BLOCK, new DefaultCodec()));
-      for (T state : states) {
-        writer.append(new Text(Strings.nullToEmpty(state.getId())), state);
-      }
-    } catch (Throwable t) {
-      throw closer.rethrow(t);
-    } finally {
-      closer.close();
-    }
-
-    if (this.useTmpFileForPut) {
-      Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
-      HadoopUtils.renamePath(this.fc, tmpTablePath, tablePath, true);
-    }
+  protected void renamePath(Path tmpTablePath, Path tablePath) throws IOException {
+    HadoopUtils.renamePath(this.fc, tmpTablePath, tablePath, true);
   }
 }

@@ -158,7 +158,7 @@ public class DagManager extends AbstractIdleService {
         jobStatusRetrieverClass = Class.forName(DEFAULT_JOB_STATUS_RETRIEVER_CLASS);
         this.jobStatusMonitor = new KafkaJobStatusMonitorFactory().createJobStatusMonitor(config);
       } else {
-        jobStatusRetrieverClass = Class.forName(JOB_STATUS_RETRIEVER_CLASS_KEY);
+        jobStatusRetrieverClass = Class.forName(config.getString(JOB_STATUS_RETRIEVER_CLASS_KEY));
         this.jobStatusMonitor = null;
       }
       this.jobStatusRetriever =

@@ -175,7 +175,7 @@ public class FsStateStore<T extends State> implements StateStore<T> {
 
     if (this.useTmpFileForPut) {
       Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
-      HadoopUtils.renamePath(this.fs, tmpTablePath, tablePath);
+      renamePath(tmpTablePath, tablePath);
     }
   }
 
@@ -212,8 +212,12 @@ public class FsStateStore<T extends State> implements StateStore<T> {
 
     if (this.useTmpFileForPut) {
       Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
-      HadoopUtils.renamePath(this.fs, tmpTablePath, tablePath);
+      renamePath(tmpTablePath, tablePath);
     }
+  }
+
+  protected void renamePath(Path tmpTablePath, Path tablePath) throws IOException {
+    HadoopUtils.renamePath(this.fs, tmpTablePath, tablePath);
   }
 
   @Override

@@ -50,16 +50,12 @@ import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.metrics.kafka.KafkaAvroEventKeyValueReporter;
 import org.apache.gobblin.metrics.kafka.KafkaEventReporter;
 import org.apache.gobblin.metrics.kafka.KafkaKeyValueProducerPusher;
-import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistry;
 import org.apache.gobblin.metrics.kafka.Pusher;
 import org.apache.gobblin.service.ExecutionStatus;
-
-import static org.mockito.Mockito.mock;
 
 
 public class KafkaAvroJobStatusMonitorTest {
   public static final String TOPIC = KafkaAvroJobStatusMonitorTest.class.getSimpleName();
-  private static final KafkaSchemaRegistry mockRegistry = mock(KafkaSchemaRegistry.class);
 
   private KafkaTestBase kafkaTestHelper;
   private String flowGroup = "myFlowGroup";
@@ -119,7 +115,7 @@ public class KafkaAvroJobStatusMonitorTest {
   }
 
   @Test
-  public void testProcessMessage() throws IOException {
+  public void testProcessMessage() throws IOException, ReflectiveOperationException {
     Config config = ConfigFactory.empty().withValue(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, ConfigValueFactory.fromAnyRef(stateStoreDir))
         .withValue("zookeeper.connect", ConfigValueFactory.fromAnyRef("localhost:2121"));
     KafkaJobStatusMonitor jobStatusMonitor =  new KafkaAvroJobStatusMonitor("test",config, 1);

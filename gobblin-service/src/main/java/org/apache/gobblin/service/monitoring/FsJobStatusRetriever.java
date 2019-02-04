@@ -43,7 +43,7 @@ import org.apache.gobblin.metrics.event.TimingEvent;
 /**
  * A FileSystem based implementation of {@link JobStatusRetriever}. This implementation stores the job statuses
  * as {@link org.apache.gobblin.configuration.State} objects in a {@link FsStateStore}.
- * The store name is set to flowGroup.flowName, while the table name is set to flowExecutionId.jobName.
+ * The store name is set to flowGroup.flowName, while the table name is set to flowExecutionId.jobGroup.jobName.
  */
 @Slf4j
 public class FsJobStatusRetriever extends JobStatusRetriever {
@@ -59,7 +59,7 @@ public class FsJobStatusRetriever extends JobStatusRetriever {
     Preconditions.checkArgument(flowName != null, "FlowName cannot be null");
     Preconditions.checkArgument(flowGroup != null, "FlowGroup cannot be null");
 
-    Predicate<String> flowExecutionIdPredicate = input -> input.startsWith(String.valueOf(flowExecutionId));
+    Predicate<String> flowExecutionIdPredicate = input -> input.startsWith(String.valueOf(flowExecutionId) + ".");
     String storeName = Joiner.on(JobStatusRetriever.STATE_STORE_KEY_SEPARATION_CHARACTER).join(flowGroup, flowName);
     try {
       List<JobStatus> jobStatuses = new ArrayList<>();
@@ -156,6 +156,13 @@ public class FsJobStatusRetriever extends JobStatusRetriever {
     return Long.parseLong(Splitter.on(JobStatusRetriever.STATE_STORE_KEY_SEPARATION_CHARACTER).splitToList(tableName).get(0));
   }
 
+  /**
+   * A helper method to determine if {@link JobStatus}es for jobs without a jobGroup/jobName should be filtered out.
+   * Once a job has been orchestrated, {@link JobStatus}es without a jobGroup/jobName can be filtered out.
+   * @param tableNames
+   * @param tableName
+   * @return
+   */
   private boolean shouldFilterJobStatus(List<String> tableNames, String tableName) {
     return tableNames.size() > 1 && JobStatusRetriever.NA_KEY
         .equals(Splitter.on(JobStatusRetriever.STATE_STORE_KEY_SEPARATION_CHARACTER).splitToList(tableName).get(1));

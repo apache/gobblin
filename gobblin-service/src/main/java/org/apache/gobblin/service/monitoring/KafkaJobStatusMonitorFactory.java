@@ -35,7 +35,8 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
  */
 @Slf4j
 public class KafkaJobStatusMonitorFactory {
-  private static final String METRICS_REPORTING_KAFKA_SSL_CONFIG_PREFIX = "metrics.reporting.kafka.config";
+  private static final String KAFKA_SSL_CONFIG_PREFIX_KEY = "jobStatusMonitor.kafka.config";
+  private static final String DEFAULT_KAFKA_SSL_CONFIG_PREFIX = "metrics.reporting.kafka.config";
 
   public KafkaJobStatusMonitor createJobStatusMonitor(Config config)
       throws ReflectiveOperationException {
@@ -46,7 +47,8 @@ public class KafkaJobStatusMonitorFactory {
     Class jobStatusMonitorClass = Class.forName(ConfigUtils.getString(jobStatusConfig, KafkaJobStatusMonitor.JOB_STATUS_MONITOR_CLASS_KEY,
         KafkaJobStatusMonitor.DEFAULT_JOB_STATUS_MONITOR_CLASS));
 
-    Config kafkaSslConfig = config.getConfig(METRICS_REPORTING_KAFKA_SSL_CONFIG_PREFIX);
+    Config kafkaSslConfig = ConfigUtils.getConfigOrEmpty(config, KAFKA_SSL_CONFIG_PREFIX_KEY).
+        withFallback(ConfigUtils.getConfigOrEmpty(config, DEFAULT_KAFKA_SSL_CONFIG_PREFIX));
 
     boolean useSchemaRegistry = ConfigUtils.getBoolean(config, ConfigurationKeys.METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY,
         false);

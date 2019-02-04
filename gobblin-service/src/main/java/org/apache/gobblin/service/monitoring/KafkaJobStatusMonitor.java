@@ -38,6 +38,7 @@ import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.metastore.util.StateStoreCleanerRunnable;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.kafka.HighLevelConsumer;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
@@ -49,28 +50,33 @@ import org.apache.gobblin.runtime.kafka.HighLevelConsumer;
 public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], byte[]> {
   static final String JOB_STATUS_MONITOR_PREFIX = "jobStatusMonitor";
   public static final String JOB_STATUS_MONITOR_ENABLED_KEY =  JOB_STATUS_MONITOR_PREFIX + ".enabled";
-  public static final String STATE_STORE_TABLE_SUFFIX = "jst";
+  //We use table suffix that is different from the Gobblin job state store suffix of jst to avoid confusion.
+  //gst refers to the state store suffix for GaaS-orchestrated Gobblin jobs.
+  public static final String STATE_STORE_TABLE_SUFFIX = "gst";
 
   static final String JOB_STATUS_MONITOR_TOPIC_KEY = "topic";
   static final String JOB_STATUS_MONITOR_NUM_THREADS_KEY = "numThreads";
   static final String JOB_STATUS_MONITOR_CLASS_KEY = "class";
   static final String DEFAULT_JOB_STATUS_MONITOR_CLASS = KafkaAvroJobStatusMonitor.class.getName();
+  static final String STATE_STORE_FACTORY_CLASS_KEY = "stateStoreFactoryClass";
 
   private static final String KAFKA_AUTO_OFFSET_RESET_KEY = "auto.offset.reset";
   private static final String KAFKA_AUTO_OFFSET_RESET_SMALLEST = "smallest";
   private static final String KAFKA_AUTO_OFFSET_RESET_LARGEST = "largest";
 
   @Getter
-  private final FileContextBasedFsStateStore<org.apache.gobblin.configuration.State> stateStore;
+  private final StateStore<org.apache.gobblin.configuration.State> stateStore;
   private final ScheduledExecutorService scheduledExecutorService;
   private static final Config DEFAULTS = ConfigFactory.parseMap(ImmutableMap.of(
       KAFKA_AUTO_OFFSET_RESET_KEY, KAFKA_AUTO_OFFSET_RESET_SMALLEST));
 
-  public KafkaJobStatusMonitor(String topic, Config config, int numThreads) {
+  public KafkaJobStatusMonitor(String topic, Config config, int numThreads)
+      throws ReflectiveOperationException {
     super(topic, config.withFallback(DEFAULTS), numThreads);
+    String stateStoreFactoryClass = ConfigUtils.getString(config, STATE_STORE_FACTORY_CLASS_KEY, FileContextBasedFsStateStoreFactory.class.getName());
+
     this.stateStore =
-        (FileContextBasedFsStateStore<org.apache.gobblin.configuration.State>) new FileContextBasedFsStateStoreFactory().createStateStore(config,
-            org.apache.gobblin.configuration.State.class);
+        ((StateStore.Factory) Class.forName(stateStoreFactoryClass).newInstance()).createStateStore(config, org.apache.gobblin.configuration.State.class);
     this.scheduledExecutorService = Executors.newScheduledThreadPool(1);
   }
 

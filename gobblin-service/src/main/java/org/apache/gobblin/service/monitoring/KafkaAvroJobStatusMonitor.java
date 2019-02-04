@@ -64,7 +64,7 @@ public class KafkaAvroJobStatusMonitor extends KafkaJobStatusMonitor {
   private Meter messageParseFailures;
 
   public KafkaAvroJobStatusMonitor(String topic, Config config, int numThreads)
-      throws IOException {
+      throws IOException, ReflectiveOperationException {
     super(topic, config, numThreads);
     if (ConfigUtils.getBoolean(config, ConfigurationKeys.METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY, false)) {
       KafkaAvroSchemaRegistry schemaRegistry = (KafkaAvroSchemaRegistry) new KafkaAvroSchemaRegistryFactory().

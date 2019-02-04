@@ -42,7 +42,7 @@ public class StateStoreCleanerRunnable implements Runnable {
   public void run() {
     Closer closer = Closer.create();
     try {
-      log.info("Attempting to clean job status state store..");
+      log.info("Attempting to clean state store..");
       closer.register(new StateStoreCleaner(properties)).run();
       log.info("State store clean up successful.");
     } catch (IOException | ExecutionException e) {
