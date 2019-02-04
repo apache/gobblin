@@ -29,6 +29,9 @@ import org.apache.gobblin.annotation.Alpha;
  */
 @Alpha
 public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker {
+  public static final String EVENT_NAME_FIELD = "eventName";
+  public static final String NA_KEY = "NA";
+  public static final String STATE_STORE_KEY_SEPARATION_CHARACTER = ".";
 
   public abstract Iterator<JobStatus> getJobStatusesForFlowExecution(String flowName, String flowGroup,
       long flowExecutionId);
