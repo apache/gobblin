@@ -71,6 +71,8 @@ dependencies {
   compile externalDependency.zkClient
 
   testCompile project(":gobblin-example")
+  testCompile project(path: ":gobblin-modules:gobblin-kafka-08:", configuration: "tests")
+  testCompile project(":gobblin-test-utils")
   testCompile externalDependency.byteman
   testCompile externalDependency.bytemanBmunit
   testCompile externalDependency.calciteCore
@@ -81,6 +83,7 @@ dependencies {
   testCompile externalDependency.hamcrest
   testCompile externalDependency.jhyde
   testCompile externalDependency.mockito
+  testCompile externalDependency.kafka08Test
 }
 
 // Begin HACK to get around POM being depenendent on the (empty) gobblin-rest-api instead of gobblin-rest-api-rest-client

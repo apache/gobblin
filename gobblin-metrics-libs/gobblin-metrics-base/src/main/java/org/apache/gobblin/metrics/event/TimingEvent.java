@@ -68,6 +68,9 @@ public class TimingEvent {
     public static final String JOB_GROUP_FIELD = "jobGroup";
     public static final String JOB_EXECUTION_ID_FIELD = "jobExecutionId";
     public static final String SPEC_EXECUTOR_FIELD = "specExecutor";
+    public static final String LOW_WATERMARK_FIELD = "lowWatermark";
+    public static final String HIGH_WATERMARK_FIELD = "highWatermark";
+    public static final String PROCESSED_COUNT_FIELD = "processedCount";
   }
 
   public static final String METADATA_START_TIME = "startTime";
