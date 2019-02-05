@@ -17,6 +17,8 @@
 
 package org.apache.gobblin.service.modules.dataset;
 
+import java.io.IOException;
+
 import org.apache.hadoop.fs.GlobPattern;
 import org.apache.hadoop.fs.Path;
 
@@ -46,7 +48,13 @@ public class FSDatasetDescriptor implements DatasetDescriptor {
   @Getter
   private final FormatConfig formatConfig;
   @Getter
+  private final FsDatasetPartitionConfig partitionConfig;
+  @Getter
   private final boolean isRetentionApplied;
+  @Getter
+  private final boolean isCompacted;
+  @Getter
+  private final boolean isCompactedAndDeduped;
   @Getter
   private final String description;
   @Getter
@@ -56,17 +64,22 @@ public class FSDatasetDescriptor implements DatasetDescriptor {
       ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
           .put(DatasetDescriptorConfigKeys.PATH_KEY, DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY)
           .put(DatasetDescriptorConfigKeys.IS_RETENTION_APPLIED_KEY, false)
+          .put(DatasetDescriptorConfigKeys.IS_COMPACTED_KEY, false)
+          .put(DatasetDescriptorConfigKeys.IS_COMPACTED_AND_DEDUPED_KEY, false)
           .build());
 
-  public FSDatasetDescriptor(Config config) {
+  public FSDatasetDescriptor(Config config) throws IOException {
     Preconditions.checkArgument(config.hasPath(DatasetDescriptorConfigKeys.PLATFORM_KEY), "Dataset descriptor config must specify platform");
     this.platform = config.getString(DatasetDescriptorConfigKeys.PLATFORM_KEY);
     this.path = PathUtils.getPathWithoutSchemeAndAuthority(new Path(ConfigUtils.getString(config, DatasetDescriptorConfigKeys.PATH_KEY,
         DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY))).toString();
     this.formatConfig = new FormatConfig(config);
+    this.partitionConfig = new FsDatasetPartitionConfig(ConfigUtils.getConfigOrEmpty(config, DatasetDescriptorConfigKeys.PARTITION_PREFIX));
     this.isRetentionApplied = ConfigUtils.getBoolean(config, DatasetDescriptorConfigKeys.IS_RETENTION_APPLIED_KEY, false);
+    this.isCompacted = ConfigUtils.getBoolean(config, DatasetDescriptorConfigKeys.IS_COMPACTED_KEY, false);
+    this.isCompactedAndDeduped = ConfigUtils.getBoolean(config, DatasetDescriptorConfigKeys.IS_COMPACTED_AND_DEDUPED_KEY, false);
     this.description = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.DESCRIPTION_KEY, "");
-    this.rawConfig = config.withFallback(this.formatConfig.getRawConfig()).withFallback(DEFAULT_FALLBACK);
+    this.rawConfig = config.withFallback(this.formatConfig.getRawConfig()).withFallback(this.partitionConfig.getRawConfig()).withFallback(DEFAULT_FALLBACK);
   }
 
   /**
@@ -108,11 +121,13 @@ public class FSDatasetDescriptor implements DatasetDescriptor {
       return false;
     }
 
-    if (this.isRetentionApplied() != other.isRetentionApplied()) {
+    if ((this.isRetentionApplied() != other.isRetentionApplied()) || (this.isCompacted() != other.isCompacted()) ||
+        (this.isCompactedAndDeduped() != other.isCompactedAndDeduped())) {
       return false;
     }
 
-    return getFormatConfig().contains(other.getFormatConfig()) && isPathContaining(other.getPath());
+    return getFormatConfig().contains(other.getFormatConfig()) && getPartitionConfig().contains(other.getPartitionConfig())
+        && isPathContaining(other.getPath());
   }
 
   /**
@@ -133,15 +148,19 @@ public class FSDatasetDescriptor implements DatasetDescriptor {
     if (this.getPlatform() == null || other.getPlatform() == null || !this.getPlatform().equalsIgnoreCase(other.getPlatform())) {
       return false;
     }
-    if (this.isRetentionApplied() != other.isRetentionApplied()) {
+    if ((this.isRetentionApplied() != other.isRetentionApplied()) || (this.isCompacted() != other.isCompacted()) ||
+        (this.isCompactedAndDeduped() != other.isCompactedAndDeduped())) {
       return false;
     }
-    return this.getPath().equals(other.getPath()) && this.getFormatConfig().equals(other.getFormatConfig());
+    return this.getPath().equals(other.getPath()) && this.getPartitionConfig().equals(other.getPartitionConfig()) &&
+        this.getFormatConfig().equals(other.getFormatConfig());
   }
 
   @Override
   public String toString() {
-     return "(" + Joiner.on(",").join(this.getPlatform(), this.getPath(), this.getFormatConfig().toString()) + ")";
+     return "(" + Joiner.on(",").join(this.getPlatform(), this.getPath(), this.getFormatConfig().toString(), this.getPartitionConfig().toString(),
+         String.valueOf(isRetentionApplied()), String.valueOf(isCompacted()), String.valueOf(isCompactedAndDeduped()))
+         + ")";
   }
 
   @Override
@@ -149,7 +168,11 @@ public class FSDatasetDescriptor implements DatasetDescriptor {
     int result = 17;
     result = 31 * result + platform.toLowerCase().hashCode();
     result = 31 * result + path.hashCode();
+    result = 31 * result + Boolean.hashCode(isRetentionApplied);
+    result = 31 * result + Boolean.hashCode(isCompacted);
+    result = 31 * result + Boolean.hashCode(isCompactedAndDeduped);
     result = 31 * result + getFormatConfig().hashCode();
+    result = 31 * result + getPartitionConfig().hashCode();
     return result;
   }
 
