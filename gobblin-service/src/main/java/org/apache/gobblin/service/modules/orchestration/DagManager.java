@@ -18,10 +18,12 @@
 package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
@@ -32,7 +34,6 @@ import java.util.concurrent.TimeUnit;
 
 import com.codahale.metrics.Timer;
 import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.AbstractIdleService;
@@ -55,8 +56,11 @@ import org.apache.gobblin.service.ServiceMetricNames;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.Dag.DagNode;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+import org.apache.gobblin.service.monitoring.FsJobStatusRetriever;
 import org.apache.gobblin.service.monitoring.JobStatus;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
+import org.apache.gobblin.service.monitoring.KafkaJobStatusMonitor;
+import org.apache.gobblin.service.monitoring.KafkaJobStatusMonitorFactory;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
@@ -89,14 +93,16 @@ import static org.apache.gobblin.service.ExecutionStatus.valueOf;
 public class DagManager extends AbstractIdleService {
   public static final String DEFAULT_FLOW_FAILURE_OPTION = FailureOption.FINISH_ALL_POSSIBLE.name();
 
+  private static final String DAG_MANAGER_PREFIX = "gobblin.service.dagManager.";
+  private static final String JOB_STATUS_RETRIEVER_KEY = DAG_MANAGER_PREFIX + "jobStatusRetriever";
   private static final Integer DEFAULT_JOB_STATUS_POLLING_INTERVAL = 10;
   private static final Integer DEFAULT_NUM_THREADS = 3;
   private static final Integer TERMINATION_TIMEOUT = 30;
-  private static final String DAG_MANAGER_PREFIX = "gobblin.service.dagManager.";
   private static final String NUM_THREADS_KEY = DAG_MANAGER_PREFIX + "numThreads";
   private static final String JOB_STATUS_POLLING_INTERVAL_KEY = DAG_MANAGER_PREFIX + "pollingInterval";
-  private static final String JOB_STATUS_RETRIEVER_KEY = DAG_MANAGER_PREFIX + "jobStatusRetriever";
-  private static final String DAG_STORE_CLASS_KEY = DAG_MANAGER_PREFIX + "dagStateStoreClass";
+  private static final String JOB_STATUS_RETRIEVER_CLASS_KEY = JOB_STATUS_RETRIEVER_KEY + ".class";
+  private static final String DEFAULT_JOB_STATUS_RETRIEVER_CLASS = FsJobStatusRetriever.class.getName();
+  private static final String DAG_STATESTORE_CLASS_KEY = DAG_MANAGER_PREFIX + "dagStateStoreClass";
 
   static final String DAG_STATESTORE_DIR = DAG_MANAGER_PREFIX + "dagStateStoreDir";
 
@@ -132,7 +138,9 @@ public class DagManager extends AbstractIdleService {
   private final Integer numThreads;
   private final Integer pollingInterval;
   private final JobStatusRetriever jobStatusRetriever;
+  private final KafkaJobStatusMonitor jobStatusMonitor;
   private final DagStateStore dagStateStore;
+
   private volatile boolean isActive = false;
 
   public DagManager(Config config, boolean instrumentationEnabled) {
@@ -141,12 +149,22 @@ public class DagManager extends AbstractIdleService {
     this.scheduledExecutorPool = Executors.newScheduledThreadPool(numThreads);
     this.pollingInterval = ConfigUtils.getInt(config, JOB_STATUS_POLLING_INTERVAL_KEY, DEFAULT_JOB_STATUS_POLLING_INTERVAL);
     this.instrumentationEnabled = instrumentationEnabled;
+    boolean jobStatusMonitorEnabled =
+        ConfigUtils.getBoolean(config, KafkaJobStatusMonitor.JOB_STATUS_MONITOR_ENABLED_KEY, true);
 
     try {
-      Class jobStatusRetrieverClass = Class.forName(config.getString(JOB_STATUS_RETRIEVER_KEY));
+      Class jobStatusRetrieverClass;
+      if (jobStatusMonitorEnabled) {
+        jobStatusRetrieverClass = Class.forName(DEFAULT_JOB_STATUS_RETRIEVER_CLASS);
+        this.jobStatusMonitor = new KafkaJobStatusMonitorFactory().createJobStatusMonitor(config);
+      } else {
+        jobStatusRetrieverClass = Class.forName(config.getString(JOB_STATUS_RETRIEVER_CLASS_KEY));
+        this.jobStatusMonitor = null;
+      }
       this.jobStatusRetriever =
-          (JobStatusRetriever) GobblinConstructorUtils.invokeLongestConstructor(jobStatusRetrieverClass, config);
-      Class dagStateStoreClass = Class.forName(config.getString(DAG_STORE_CLASS_KEY));
+          (JobStatusRetriever) GobblinConstructorUtils.invokeLongestConstructor(jobStatusRetrieverClass,
+              ConfigUtils.getConfigOrEmpty(config, JOB_STATUS_RETRIEVER_KEY));
+      Class dagStateStoreClass = Class.forName(config.getString(DAG_STATESTORE_CLASS_KEY));
       this.dagStateStore = (DagStateStore) GobblinConstructorUtils.invokeLongestConstructor(dagStateStoreClass, config);
     } catch (ReflectiveOperationException e) {
       throw new RuntimeException("Exception encountered during DagManager initialization", e);
@@ -162,11 +180,7 @@ public class DagManager extends AbstractIdleService {
    */
   @Override
   protected void startUp() {
-    //On startup, the service creates tasks that are scheduled at a fixed rate.
-    for (int i = 0; i < numThreads; i++) {
-      this.scheduledExecutorPool.scheduleAtFixedRate(new DagManagerThread(jobStatusRetriever, dagStateStore, queue, instrumentationEnabled), 0, this.pollingInterval,
-          TimeUnit.SECONDS);
-    }
+    //Do nothing.
   }
 
   /**
@@ -190,15 +204,40 @@ public class DagManager extends AbstractIdleService {
    * @param active a boolean to indicate if the {@link DagManager} is the leader.
    */
   public synchronized void setActive(boolean active) {
+    if (this.isActive == active) {
+      log.info("DagManager already {}, skipping further actions.", (!active) ? "inactive" : "active");
+      return;
+    }
     this.isActive = active;
     try {
       if (this.isActive) {
+        log.info("Scheduling {} DagManager threads", numThreads);
+        //On startup, the service creates DagManagerThreads that are scheduled at a fixed rate.
+        for (int i = 0; i < numThreads; i++) {
+          this.scheduledExecutorPool.scheduleAtFixedRate(new DagManagerThread(jobStatusRetriever, dagStateStore, queue, instrumentationEnabled), 0, this.pollingInterval,
+              TimeUnit.SECONDS);
+        }
+        if ((this.jobStatusMonitor != null) && (!this.jobStatusMonitor.isRunning())) {
+          log.info("Starting job status monitor");
+          jobStatusMonitor.startAsync().awaitRunning();
+        }
         for (Dag<JobExecutionPlan> dag : dagStateStore.getDags()) {
           offer(dag);
         }
+      } else { //Mark the DagManager inactive.
+        log.info("Inactivating the DagManager. Shutting down all DagManager threads");
+        this.scheduledExecutorPool.shutdown();
+        try {
+          this.scheduledExecutorPool.awaitTermination(TERMINATION_TIMEOUT, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+          log.error("Exception {} encountered when shutting down DagManager threads.", e);
+        }
+        log.info("Shutting down JobStatusMonitor");
+        this.jobStatusMonitor.shutDown();
       }
     } catch (IOException e) {
-      throw new RuntimeException("Exception encountered when activating the new DagManager", e);
+      log.error("Exception encountered when activating the new DagManager", e);
+      throw new RuntimeException(e);
     }
   }
 
@@ -299,7 +338,10 @@ public class DagManager extends AbstractIdleService {
       }
       log.info("Dag {} submitting jobs ready for execution.", dagId);
       //Determine the next set of jobs to run and submit them for execution
-      submitNext(dagId);
+      Map<String, Set<DagNode<JobExecutionPlan>>> nextSubmitted = submitNext(dagId);
+      for (DagNode dagNode: nextSubmitted.get(dagId)) {
+        addJobState(dagId, dagNode);
+      }
       log.info("Dag {} Initialization complete.", dagId);
     }
 
@@ -310,30 +352,48 @@ public class DagManager extends AbstractIdleService {
     private void pollJobStatuses()
         throws IOException {
       this.failedDagIdsFinishRunning.clear();
-      for (DagNode<JobExecutionPlan> node : this.jobToDag.keySet()) {
+
+      Map<String, Set<DagNode<JobExecutionPlan>>> nextSubmitted = Maps.newHashMap();
+      List<DagNode<JobExecutionPlan>> nodesToCleanUp = Lists.newArrayList();
+      for (DagNode<JobExecutionPlan> node: this.jobToDag.keySet()) {
         long pollStartTime = System.nanoTime();
         JobStatus jobStatus = pollJobStatus(node);
         Instrumented.updateTimer(this.jobStatusPolledTimer, System.nanoTime() - pollStartTime, TimeUnit.NANOSECONDS);
-
-        Preconditions.checkNotNull(jobStatus, "Received null job status for a running job " + DagManagerUtils.getJobName(node));
+        if (jobStatus == null) {
+          continue;
+        }
         JobExecutionPlan jobExecutionPlan = DagManagerUtils.getJobExecutionPlan(node);
 
         ExecutionStatus status = valueOf(jobStatus.getEventName());
-
         switch (status) {
           case COMPLETE:
             jobExecutionPlan.setExecutionStatus(COMPLETE);
-            onJobFinish(node);
+            nextSubmitted.putAll(onJobFinish(node));
+            nodesToCleanUp.add(node);
             break;
           case FAILED:
           case CANCELLED:
             jobExecutionPlan.setExecutionStatus(FAILED);
-            onJobFinish(node);
+            nextSubmitted.putAll(onJobFinish(node));
+            nodesToCleanUp.add(node);
             break;
           default:
             jobExecutionPlan.setExecutionStatus(RUNNING);
             break;
         }
+      }
+
+      for (Map.Entry<String, Set<DagNode<JobExecutionPlan>>> entry: nextSubmitted.entrySet()) {
+        String dagId = entry.getKey();
+        Set<DagNode<JobExecutionPlan>> dagNodes = entry.getValue();
+        for (DagNode dagNode: dagNodes) {
+          addJobState(dagId, dagNode);
+        }
+      }
+
+      for (DagNode<JobExecutionPlan> dagNode: nodesToCleanUp) {
+        String dagId = DagManagerUtils.generateDagId(this.jobToDag.get(dagNode));
+        deleteJobState(dagId, dagNode);
       }
     }
 
@@ -357,16 +417,18 @@ public class DagManager extends AbstractIdleService {
       }
     }
 
-    void submitNext(String dagId) throws IOException {
+    Map<String, Set<DagNode<JobExecutionPlan>>> submitNext(String dagId) throws IOException {
       Dag<JobExecutionPlan> dag = this.dags.get(dagId);
       Set<DagNode<JobExecutionPlan>> nextNodes = DagManagerUtils.getNext(dag);
       //Submit jobs from the dag ready for execution.
       for (DagNode<JobExecutionPlan> dagNode : nextNodes) {
         submitJob(dagNode);
-        addJobState(dagId, dagNode);
       }
       //Checkpoint the dag state
       this.dagStateStore.writeCheckpoint(dag);
+      Map<String, Set<DagNode<JobExecutionPlan>>> dagIdToNextJobs = Maps.newHashMap();
+      dagIdToNextJobs.put(dagId, nextNodes);
+      return dagIdToNextJobs;
     }
 
     /**
@@ -418,7 +480,7 @@ public class DagManager extends AbstractIdleService {
      * Method that defines the actions to be performed when a job finishes either successfully or with failure.
      * This method updates the state of the dag and performs clean up actions as necessary.
      */
-    private void onJobFinish(DagNode<JobExecutionPlan> dagNode)
+    private Map<String, Set<DagNode<JobExecutionPlan>>> onJobFinish(DagNode<JobExecutionPlan> dagNode)
         throws IOException {
       Dag<JobExecutionPlan> dag = this.jobToDag.get(dagNode);
       String dagId = DagManagerUtils.generateDagId(dag);
@@ -426,10 +488,8 @@ public class DagManager extends AbstractIdleService {
       ExecutionStatus jobStatus = DagManagerUtils.getExecutionStatus(dagNode);
       log.info("Job {} of Dag {} has finished with status {}", jobName, dagId, jobStatus.name());
 
-      deleteJobState(dagId, dagNode);
-
       if (jobStatus == COMPLETE) {
-        submitNext(dagId);
+        return submitNext(dagId);
       } else if (jobStatus == FAILED) {
         if (DagManagerUtils.getFailureOption(dag) == FailureOption.FINISH_RUNNING) {
           this.failedDagIdsFinishRunning.add(dagId);
@@ -437,6 +497,7 @@ public class DagManager extends AbstractIdleService {
           this.failedDagIdsFinishAllPossible.add(dagId);
         }
       }
+      return Maps.newHashMap();
     }
 
     private void deleteJobState(String dagId, DagNode<JobExecutionPlan> dagNode) {
@@ -464,6 +525,7 @@ public class DagManager extends AbstractIdleService {
      * Perform clean up. Remove a dag from the dagstore if the dag is complete and update internal state.
      */
     private void cleanUp() {
+      List<String> dagIdstoClean = new ArrayList<>();
       //Clean up failed dags
       for (String dagId : this.failedDagIdsFinishRunning) {
         //Skip monitoring of any other jobs of the failed dag.
@@ -473,7 +535,7 @@ public class DagManager extends AbstractIdleService {
           deleteJobState(dagId, dagNode);
         }
         log.info("Dag {} has finished with status FAILED; Cleaning up dag from the state store.", dagId);
-        cleanUpDag(dagId);
+        dagIdstoClean.add(dagId);
       }
 
       //Clean up completed dags
@@ -485,16 +547,20 @@ public class DagManager extends AbstractIdleService {
             this.failedDagIdsFinishAllPossible.remove(dagId);
           }
           log.info("Dag {} has finished with status {}; Cleaning up dag from the state store.", dagId, status);
-          cleanUpDag(dagId);
+          dagIdstoClean.add(dagId);
         }
+      }
+
+      for (String dagId: dagIdstoClean) {
+        cleanUpDag(dagId);
       }
     }
 
     private void cleanUpDag(String dagId) {
       Dag<JobExecutionPlan> dag = this.dags.get(dagId);
       this.dagToJobs.remove(dagId);
-      this.dags.remove(dagId);
       this.dagStateStore.cleanUp(dag);
+      this.dags.remove(dagId);
     }
   }
 
@@ -504,5 +570,6 @@ public class DagManager extends AbstractIdleService {
       throws Exception {
     this.scheduledExecutorPool.shutdown();
     this.scheduledExecutorPool.awaitTermination(TERMINATION_TIMEOUT, TimeUnit.SECONDS);
+    this.jobStatusMonitor.shutDown();
   }
 }

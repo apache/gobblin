@@ -17,14 +17,11 @@
 
 package org.apache.gobblin.metastore;
 
-import static org.apache.gobblin.util.HadoopUtils.FS_SCHEMES_NON_ATOMIC;
-
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
 import java.util.List;
 
-import org.apache.gobblin.util.hadoop.GobblinSequenceFileReader;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -33,14 +30,18 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.compress.DefaultCodec;
-import org.apache.gobblin.util.HadoopUtils;
-import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.util.WritableShimSerialization;
 
+import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
-import com.google.common.base.Predicate;
+
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.util.HadoopUtils;
+import org.apache.gobblin.util.WritableShimSerialization;
+import org.apache.gobblin.util.hadoop.GobblinSequenceFileReader;
+
+import static org.apache.gobblin.util.HadoopUtils.FS_SCHEMES_NON_ATOMIC;
 
 
 
@@ -73,7 +74,7 @@ public class FsStateStore<T extends State> implements StateStore<T> {
   protected final String storeRootDir;
 
   // Class of the state objects to be put into the store
-  private final Class<T> stateClass;
+  protected final Class<T> stateClass;
 
   public FsStateStore(String fsUri, String storeRootDir, Class<T> stateClass) throws IOException {
     this.conf = getConf(null);
@@ -174,7 +175,7 @@ public class FsStateStore<T extends State> implements StateStore<T> {
 
     if (this.useTmpFileForPut) {
       Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
-      HadoopUtils.renamePath(this.fs, tmpTablePath, tablePath);
+      renamePath(tmpTablePath, tablePath);
     }
   }
 
@@ -211,8 +212,12 @@ public class FsStateStore<T extends State> implements StateStore<T> {
 
     if (this.useTmpFileForPut) {
       Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
-      HadoopUtils.renamePath(this.fs, tmpTablePath, tablePath);
+      renamePath(tmpTablePath, tablePath);
     }
+  }
+
+  protected void renamePath(Path tmpTablePath, Path tablePath) throws IOException {
+    HadoopUtils.renamePath(this.fs, tmpTablePath, tablePath);
   }
 
   @Override

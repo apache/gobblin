@@ -137,7 +137,8 @@ public class StateStoreCleaner implements Closeable {
     public boolean accept(Path path) {
       String fileName = path.getName();
       String extension = Files.getFileExtension(fileName);
-      return isStateMetaFile(fileName) || extension.equalsIgnoreCase("jst") || extension.equalsIgnoreCase("tst");
+      return isStateMetaFile(fileName) || extension.equalsIgnoreCase("jst") || extension.equalsIgnoreCase("tst") ||
+          (extension.equalsIgnoreCase("gst"));
     }
 
     boolean isStateMetaFile(String fileName) {
