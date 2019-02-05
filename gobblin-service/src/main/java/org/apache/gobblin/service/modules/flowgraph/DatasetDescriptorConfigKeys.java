@@ -35,12 +35,21 @@ public class DatasetDescriptorConfigKeys {
   public static final String CODEC_KEY = "codec";
   public static final String DESCRIPTION_KEY = "description";
   public static final String IS_RETENTION_APPLIED_KEY = "isRetentionApplied";
+  public static final String IS_COMPACTED_KEY = "isCompacted";
+  public static final String IS_COMPACTED_AND_DEDUPED_KEY = "isCompatedAndDeduped";
 
   //Dataset encryption related keys
   public static final String ENCYPTION_PREFIX = "encrypt";
   public static final String ENCRYPTION_ALGORITHM_KEY = "algorithm";
   public static final String ENCRYPTION_KEYSTORE_TYPE_KEY = "keystore_type";
   public static final String ENCRYPTION_KEYSTORE_ENCODING_KEY = "keystore_encoding";
+  public static final String ENCRYPTION_LEVEL_KEY = "level";
+  public static final String ENCRYPTED_FIELDS = "encryptedFields";
+
+  //Dataset partition related keys
+  public static final String PARTITION_PREFIX = "partition";
+  public static final String PARTITION_TYPE_KEY = "type";
+  public static final String PARTITION_PATTERN_KEY = "pattern";
 
   public static final String DATASET_DESCRIPTOR_CONFIG_ANY = "any";
   public static final String DATASET_DESCRIPTOR_CONFIG_NONE = "none";
