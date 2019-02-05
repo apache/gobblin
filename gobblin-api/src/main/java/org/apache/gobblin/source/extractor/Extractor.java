@@ -103,8 +103,9 @@ public interface Extractor<S, D> extends Closeable {
   default void shutdown() throws JobShutdownException {
     if (this instanceof Decorator && ((Decorator) this).getDecoratedObject() instanceof Extractor) {
       ((Extractor) ((Decorator) this).getDecoratedObject()).shutdown();
+    } else {
+      throw new JobShutdownException(this.getClass().getName() + ": Extractor does not support shutdown.");
     }
-    throw new JobShutdownException("Extractor does not support shutdown.");
   }
 
   /**

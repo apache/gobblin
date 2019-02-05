@@ -27,6 +27,7 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import org.apache.gobblin.fsm.FiniteStateMachine;
 import org.apache.gobblin.runtime.job.JobInterruptionPredicate;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -51,7 +52,6 @@ import org.slf4j.LoggerFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
-import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -112,6 +112,13 @@ import org.apache.gobblin.util.SerializationUtils;
  */
 public class MRJobLauncher extends AbstractJobLauncher {
 
+  private static final String INTERRUPT_JOB_FILE_NAME = "_INTERRUPT_JOB";
+  private static final String GOBBLIN_JOB_INTERRUPT_PATH_KEY = "gobblin.jobInterruptPath";
+
+  private enum MRJobLauncherState {
+    PREPARING, RUNNING, INTERRUPTED, CANCELLED, SUCCESS, FAILED
+  }
+
   private static final Logger LOG = LoggerFactory.getLogger(MRJobLauncher.class);
 
   private static final String JOB_NAME_PREFIX = "Gobblin-";
@@ -150,6 +157,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
   private final StateStore<TaskState> taskStateStore;
 
   private final int jarFileMaximumRetry;
+  private final Path interruptPath;
+  private final FiniteStateMachine<MRJobLauncherState> fsm;
 
   public MRJobLauncher(Properties jobProps) throws Exception {
     this(jobProps, null);
@@ -172,6 +181,12 @@ public class MRJobLauncher extends AbstractJobLauncher {
       throws Exception {
     super(jobProps, metadataTags);
 
+    this.fsm = new FiniteStateMachine.Builder<MRJobLauncherState>()
+        .addTransition(MRJobLauncherState.PREPARING, MRJobLauncherState.RUNNING).addTransition(MRJobLauncherState.RUNNING, MRJobLauncherState.SUCCESS).addTransition(
+            MRJobLauncherState.RUNNING, MRJobLauncherState.FAILED)
+        .addTransition(MRJobLauncherState.PREPARING, MRJobLauncherState.INTERRUPTED).addTransition(MRJobLauncherState.RUNNING, MRJobLauncherState.INTERRUPTED)
+        .addUniversalEnd(MRJobLauncherState.CANCELLED).build(MRJobLauncherState.PREPARING);
+
     this.conf = conf;
     // Put job configuration properties into the Hadoop configuration so they are available in the mappers
     JobConfigurationUtils.putPropertiesIntoConfiguration(this.jobProps, this.conf);
@@ -187,6 +202,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
     this.mrJobDir = new Path(
         new Path(this.jobProps.getProperty(ConfigurationKeys.MR_JOB_ROOT_DIR_KEY), this.jobContext.getJobName()),
         this.jobContext.getJobId());
+    this.interruptPath = new Path(this.mrJobDir, INTERRUPT_JOB_FILE_NAME);
     if (this.fs.exists(this.mrJobDir)) {
       LOG.warn("Job working directory already exists for job " + this.jobContext.getJobName());
       this.fs.delete(this.mrJobDir, true);
@@ -254,38 +270,38 @@ public class MRJobLauncher extends AbstractJobLauncher {
       this.taskStateCollectorService.startAsync().awaitRunning();
 
       LOG.info("Launching Hadoop MR job " + this.job.getJobName());
-      this.job.submit();
-      this.hadoopJobSubmitted = true;
-
-      JobInterruptionPredicate jobInterruptionPredicate = new JobInterruptionPredicate(jobState, () -> {
+      try (FiniteStateMachine<MRJobLauncherState>.Transition t = this.fsm.startTransition(MRJobLauncherState.RUNNING)) {
         try {
-          this.job.killJob();
-        } catch (IOException ioe) {
-          LOG.warn("Failed to kill job.", ioe);
-          throw Throwables.propagate(ioe);
+          this.job.submit();
+        } catch (Throwable exc) {
+          t.changeEndState(MRJobLauncherState.FAILED);
+          throw exc;
         }
-      }, true);
-      // Set job tracking URL to the Hadoop job tracking URL if it is not set yet
-      if (!jobState.contains(ConfigurationKeys.JOB_TRACKING_URL_KEY)) {
-        jobState.setProp(ConfigurationKeys.JOB_TRACKING_URL_KEY, this.job.getTrackingURL());
+        this.hadoopJobSubmitted = true;
+
+        // Set job tracking URL to the Hadoop job tracking URL if it is not set yet
+        if (!jobState.contains(ConfigurationKeys.JOB_TRACKING_URL_KEY)) {
+          jobState.setProp(ConfigurationKeys.JOB_TRACKING_URL_KEY, this.job.getTrackingURL());
+        }
+      } catch (FiniteStateMachine.UnallowedTransitionException unallowed) {
+        LOG.info("Cannot start MR job.", unallowed);
       }
 
-      TimingEvent mrJobRunTimer = this.eventSubmitter.getTimingEvent(TimingEvent.RunJobTimings.MR_JOB_RUN);
-      LOG.info(String.format("Waiting for Hadoop MR job %s to complete", this.job.getJobID()));
+      if (this.fsm.getCurrentState().equals(MRJobLauncherState.RUNNING)) {
+        JobInterruptionPredicate jobInterruptionPredicate = new JobInterruptionPredicate(jobState, this::interruptJob, true);
 
+        TimingEvent mrJobRunTimer = this.eventSubmitter.getTimingEvent(TimingEvent.RunJobTimings.MR_JOB_RUN);
+        LOG.info(String.format("Waiting for Hadoop MR job %s to complete", this.job.getJobID()));
 
-      this.job.waitForCompletion(true);
-      jobInterruptionPredicate.stopAsync();
+        this.job.waitForCompletion(true);
+        this.fsm.transitionIfAllowed(MRJobLauncherState.SUCCESS);
 
-      mrJobRunTimer.stop(ImmutableMap.of("hadoopMRJobId", this.job.getJobID().toString()));
+        jobInterruptionPredicate.stopAsync();
+        mrJobRunTimer.stop(ImmutableMap.of("hadoopMRJobId", this.job.getJobID().toString()));
+      }
 
-      if (this.cancellationRequested) {
-        // Wait for the cancellation execution if it has been requested
-        synchronized (this.cancellationExecution) {
-          if (this.cancellationExecuted) {
-            return;
-          }
-        }
+      if (this.fsm.getCurrentState() == MRJobLauncherState.CANCELLED) {
+        return;
       }
 
       // Create a metrics set for this job run from the Hadoop counters.
@@ -300,17 +316,57 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
   @Override
   protected void executeCancellation() {
-    try {
-      if (this.hadoopJobSubmitted && !this.job.isComplete()) {
-        LOG.info("Killing the Hadoop MR job for job " + this.jobContext.getJobId());
-        this.job.killJob();
-        // Collect final task states.
-        this.taskStateCollectorService.stopAsync().awaitTerminated();
+    try (FiniteStateMachine<MRJobLauncherState>.Transition transition = this.fsm.startTransition(MRJobLauncherState.CANCELLED)) {
+      if (transition.getStartState() == MRJobLauncherState.RUNNING) {
+        try {
+          LOG.info("Killing the Hadoop MR job for job " + this.jobContext.getJobId());
+          this.job.killJob();
+          // Collect final task states.
+          this.taskStateCollectorService.stopAsync().awaitTerminated();
+        } catch (IOException ioe) {
+          LOG.error("Failed to kill the Hadoop MR job for job " + this.jobContext.getJobId());
+          transition.changeEndState(MRJobLauncherState.FAILED);
+        }
       }
-    } catch (IllegalStateException ise) {
-      LOG.error("The Hadoop MR job has not started for job " + this.jobContext.getJobId());
-    } catch (IOException ioe) {
-      LOG.error("Failed to kill the Hadoop MR job for job " + this.jobContext.getJobId());
+    } catch (FiniteStateMachine.UnallowedTransitionException | InterruptedException exc) {
+      LOG.error("Failed to cancel job " + this.jobContext.getJobId(), exc);
+    }
+  }
+
+  /**
+   * Attempt a gracious interruptiong of the running job
+   */
+  protected void interruptJob() {
+    LOG.info("Interrupting job execution.");
+    try (FiniteStateMachine<MRJobLauncherState>.Transition transition = this.fsm.startTransition(MRJobLauncherState.INTERRUPTED)) {
+      if (transition.getStartState() == MRJobLauncherState.RUNNING) {
+        try {
+          this.fs.createNewFile(this.interruptPath);
+
+          long waitTimeStart = System.currentTimeMillis();
+          while (!this.job.isComplete() && System.currentTimeMillis() < waitTimeStart + 30 * 1000) {
+            Thread.sleep(1000);
+          }
+
+          if (!this.job.isComplete()) {
+            LOG.info("Interrupted job did not shut itself down after timeout. Killing job.");
+            this.job.killJob();
+          }
+        } catch (IOException ioe) {
+          transition.changeEndState(MRJobLauncherState.FAILED);
+        }
+      }
+    } catch (FiniteStateMachine.UnallowedTransitionException exc) {
+      LOG.error("Cannot interrupt job.", exc);
+    } catch (InterruptedException exc) {
+      LOG.error("Cannot finish graceful job interruption. Cancelling job.");
+      if (this.job != null) {
+        try {
+          this.job.killJob();
+        } catch (IOException ioe) {
+          LOG.error("Failed to kill job.", ioe);
+        }
+      }
     }
   }
 
@@ -394,6 +450,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
       GobblinWorkUnitsInputFormat.setMaxMappers(this.job,
           Integer.parseInt(this.jobProps.getProperty(ConfigurationKeys.MR_JOB_MAX_MAPPERS_KEY)));
     }
+
+    this.job.getConfiguration().set(GOBBLIN_JOB_INTERRUPT_PATH_KEY, this.interruptPath.toString());
 
     mrJobSetupTimer.stop();
   }
@@ -693,6 +751,12 @@ public class MRJobLauncher extends AbstractJobLauncher {
     @Override
     public void run(Context context) throws IOException, InterruptedException {
       this.setup(context);
+
+      Path interruptPath = new Path(context.getConfiguration().get(GOBBLIN_JOB_INTERRUPT_PATH_KEY));
+      if (this.fs.exists(interruptPath)) {
+        return;
+      }
+
       GobblinMultiTaskAttempt gobblinMultiTaskAttempt = null;
       try {
         // De-serialize and collect the list of WorkUnits to run
@@ -715,7 +779,13 @@ public class MRJobLauncher extends AbstractJobLauncher {
         gobblinMultiTaskAttempt =
             GobblinMultiTaskAttempt.runWorkUnits(this.jobState.getJobId(), context.getTaskAttemptID().toString(),
                 this.jobState, this.workUnits, this.taskStateTracker, this.taskExecutor, this.taskStateStore,
-                multiTaskAttemptCommitPolicy, jobBroker);
+                multiTaskAttemptCommitPolicy, jobBroker, (gmta) -> {
+                  try {
+                    return this.fs.exists(interruptPath);
+                  } catch (IOException ioe) {
+                    return false;
+                  }
+                });
 
         if (this.isSpeculativeEnabled) {
           LOG.info("will not commit in task attempt");
