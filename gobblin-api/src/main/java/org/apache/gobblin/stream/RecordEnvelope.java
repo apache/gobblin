@@ -17,6 +17,9 @@
 
 package org.apache.gobblin.stream;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.fork.CopyHelper;
 import org.apache.gobblin.fork.CopyNotSupportedException;
@@ -52,6 +55,12 @@ public class RecordEnvelope<D> extends StreamEntity<D> {
   private final D _record;
   @Nullable
   private final CheckpointableWatermark _watermark;
+  /**
+   * The container is lazily created when the first entry is set. Copies of the {@link RecordEnvelope} will copy the
+   * top-level entries into a new container, but the values will not be cloned. So adding new entries has no effect on
+   * copies, but values should not be modified in-place if the intention is to not affect the copies.
+   */
+  private Map<String, Object> _recordMetadata;
 
   public RecordEnvelope(D record) {
     this(record, (CheckpointableWatermark) null);
@@ -61,12 +70,22 @@ public class RecordEnvelope<D> extends StreamEntity<D> {
     super(parentRecord, copyCallbacks);
     _record = record;
     _watermark = parentRecord._watermark;
+
+    if (parentRecord._recordMetadata != null) {
+      _recordMetadata = new HashMap<>();
+      _recordMetadata.putAll(parentRecord._recordMetadata);
+    }
   }
 
   private RecordEnvelope(D record, RecordEnvelope<?>.ForkRecordBuilder<D> forkRecordBuilder, boolean copyCallbacks) {
     super(forkRecordBuilder, copyCallbacks);
     _record = record;
     _watermark = forkRecordBuilder.getRecordEnvelope()._watermark;
+
+    if (forkRecordBuilder.getRecordEnvelope()._recordMetadata != null) {
+      _recordMetadata = new HashMap<>();
+      _recordMetadata.putAll(forkRecordBuilder.getRecordEnvelope()._recordMetadata);
+    }
   }
 
   public RecordEnvelope(D record, CheckpointableWatermark watermark) {
@@ -77,6 +96,7 @@ public class RecordEnvelope<D> extends StreamEntity<D> {
 
     _record = record;
     _watermark = watermark;
+    _recordMetadata = null;
   }
 
   /**
@@ -98,6 +118,32 @@ public class RecordEnvelope<D> extends StreamEntity<D> {
    */
   @Nullable public CheckpointableWatermark getWatermark() {
     return _watermark;
+  }
+
+  /**
+   * @return The record metadata with the given key or null if not present
+   */
+  public Object getRecordMetadata(String key) {
+    if (_recordMetadata != null) {
+      return _recordMetadata.get(key);
+    }
+
+    return null;
+  }
+
+  /**
+   * Set the record metadata
+   * @param key key for the metadata
+   * @param value value of the metadata
+   *
+   * @implNote should not be called concurrently
+   */
+  public void setRecordMetadata(String key, Object value) {
+    if (_recordMetadata == null) {
+      _recordMetadata = new HashMap<>();
+    }
+
+    _recordMetadata.put(key, value);
   }
 
   @Override
