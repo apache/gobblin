@@ -119,7 +119,7 @@ public abstract class Converter<SI, SO, DI, DO> implements Closeable, FinalState
    * @return a {@link Flowable} emitting the converted {@link RecordEnvelope}s
    * @throws DataConversionException
    */
-  public Flowable<RecordEnvelope<DO>> convertRecordEnvelope(SO outputSchema, RecordEnvelope<DI> inputRecordEnvelope,
+  protected Flowable<RecordEnvelope<DO>> convertRecordEnvelope(SO outputSchema, RecordEnvelope<DI> inputRecordEnvelope,
       WorkUnitState workUnitState) throws DataConversionException {
     Iterator<DO> convertedIterable = convertRecord(outputSchema,
         inputRecordEnvelope.getRecord(), workUnitState).iterator();
