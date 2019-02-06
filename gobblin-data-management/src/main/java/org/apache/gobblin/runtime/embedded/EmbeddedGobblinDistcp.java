@@ -82,7 +82,7 @@ public class EmbeddedGobblinDistcp extends EmbeddedGobblin {
     this.setConfiguration(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, to.getFileSystem(new Configuration()).getUri().toString());
 
     // add gobblin-data-management jar to distributed jars
-    this.distributeJar(ClassUtil.findContainingJar(CopySource.class));
+    this.distributeJarByClassWithPriority(CopySource.class, 0);
   }
 
   /**
