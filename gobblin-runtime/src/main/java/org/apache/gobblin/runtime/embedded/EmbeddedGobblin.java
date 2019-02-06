@@ -194,7 +194,12 @@ public class EmbeddedGobblin {
    * will appear first in the classpath. Default priority is 0.
    */
   public EmbeddedGobblin distributeJarByClassWithPriority(Class<?> klazz, int priority) {
-    return distributeJarWithPriority(ClassUtil.findContainingJar(klazz), priority);
+    String jar = ClassUtil.findContainingJar(klazz);
+    if (jar == null) {
+      log.warn(String.format("Could not find jar for class %s. This is normal in test runs.", klazz));
+      return this;
+    }
+    return distributeJarWithPriority(jar, priority);
   }
 
   /**
