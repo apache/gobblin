@@ -55,8 +55,6 @@ public class EmbeddedGobblinDistcpTest {
 
     EmbeddedGobblinDistcp embedded = new EmbeddedGobblinDistcp(new Path(tmpSource.getAbsolutePath()),
         new Path(tmpTarget.getAbsolutePath()));
-    embedded.setConfiguration(ConfigurationKeys.STATE_STORE_ENABLED, "true");
-    embedded.mrMode();
     embedded.setLaunchTimeout(30, TimeUnit.SECONDS);
     embedded.run();
 
