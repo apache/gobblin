@@ -135,7 +135,7 @@ public class GobblinMultiTaskAttempt {
     }
 
     CountUpAndDownLatch countDownLatch = new CountUpAndDownLatch(0);
-    this.tasks = scheduleWorkUnits(countDownLatch);
+    this.tasks = runWorkUnits(countDownLatch);
     log.info("Waiting for submitted tasks of job {} to complete in container {}...", jobId,
         containerIdOptional.or(""));
     try {
@@ -353,7 +353,7 @@ public class GobblinMultiTaskAttempt {
    * @param countDownLatch a {@link java.util.concurrent.CountDownLatch} waited on for job completion
    * @return a list of {@link Task}s from the {@link WorkUnit}s
    */
-  private List<Task> scheduleWorkUnits(CountUpAndDownLatch countDownLatch) {
+  private List<Task> runWorkUnits(CountUpAndDownLatch countDownLatch) {
 
     List<Task> tasks = Lists.newArrayList();
     while (this.workUnits.hasNext()) {
