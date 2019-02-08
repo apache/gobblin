@@ -17,8 +17,6 @@
 
 package org.apache.gobblin.cluster;
 
-import java.io.IOException;
-
 import org.apache.hadoop.fs.Path;
 import org.apache.helix.HelixManager;
 import org.apache.helix.task.Task;
@@ -29,13 +27,17 @@ import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.Counter;
 import com.google.common.base.Optional;
-import com.google.common.base.Throwables;
 import com.typesafe.config.Config;
 
+import lombok.Getter;
+
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.runtime.TaskExecutor;
 import org.apache.gobblin.runtime.TaskStateTracker;
 import org.apache.gobblin.runtime.util.StateStores;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
@@ -58,16 +60,27 @@ public class GobblinHelixTaskFactory implements TaskFactory {
    * A {@link Counter} to count the number of new {@link GobblinHelixTask}s that are created.
    */
   private final Optional<Counter> newTasksCounter;
+  @Getter
   private final TaskExecutor taskExecutor;
+  @Getter
+  private final GobblinHelixTaskMetrics taskMetrics;
   private final TaskStateTracker taskStateTracker;
   private final Path appWorkDir;
   private final StateStores stateStores;
   private final TaskAttemptBuilder taskAttemptBuilder;
 
   public GobblinHelixTaskFactory(TaskRunnerSuiteBase.Builder builder,
-                                 TaskExecutor taskExecutor,
+                                 MetricContext metricContext,
                                  TaskStateTracker taskStateTracker,
                                  Config stateStoreConfig) {
+
+    // initialize task related metrics
+    int windowSizeInMin = ConfigUtils.getInt(builder.getConfig(),
+        ConfigurationKeys.METRIC_TIMER_WINDOW_SIZE_IN_MINUTES,
+        ConfigurationKeys.DEFAULT_METRIC_TIMER_WINDOW_SIZE_IN_MINUTES);
+    this.taskExecutor = new TaskExecutor(ConfigUtils.configToProperties(builder.getConfig()));
+    this.taskMetrics = new GobblinHelixTaskMetrics(taskExecutor, metricContext, windowSizeInMin);
+
     this.builder = builder;
     this.containerMetrics = builder.getContainerMetrics();
     this.helixManager = builder.getJobHelixManager();
@@ -76,7 +89,6 @@ public class GobblinHelixTaskFactory implements TaskFactory {
     } else {
       this.newTasksCounter = Optional.absent();
     }
-    this.taskExecutor = taskExecutor;
     this.taskStateTracker = taskStateTracker;
 
     this.appWorkDir = builder.getAppWorkPath();
@@ -101,6 +113,6 @@ public class GobblinHelixTaskFactory implements TaskFactory {
     if (this.newTasksCounter.isPresent()) {
       this.newTasksCounter.get().inc();
     }
-    return new GobblinHelixTask(builder, context, this.taskAttemptBuilder, this.stateStores);
+    return new GobblinHelixTask(builder, context, this.taskAttemptBuilder, this.stateStores, this.taskMetrics);
   }
 }

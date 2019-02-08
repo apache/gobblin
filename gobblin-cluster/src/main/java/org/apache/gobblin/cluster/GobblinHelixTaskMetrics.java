@@ -17,18 +17,19 @@
 
 package org.apache.gobblin.cluster;
 
+import java.util.concurrent.TimeUnit;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
+import org.apache.gobblin.metrics.ContextAwareTimer;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.runtime.TaskExecutor;
+import org.apache.gobblin.runtime.api.JobExecutionLauncher;
 
 
-public class GobblinTaskRunnerMetrics {
+public class GobblinHelixTaskMetrics extends StandardMetricsBridge.StandardMetrics {
 
-  /**
-   * This metrics shows the task execution that correlates to a work unit.
-   */
-  static class TaskExecutionMetrics extends StandardMetricsBridge.StandardMetrics {
     private TaskExecutor taskExecutor;
     private static String CURRENT_QUEUED_TASK_COUNT = "currentQueuedTaskCount";
     private static String HISTORICAL_QUEUED_TASK_COUNT = "historicalQueuedTaskCount";
@@ -39,8 +40,11 @@ public class GobblinTaskRunnerMetrics {
     private static String FAILED_TASK_COUNT = "failedTaskCount";
     private static String SUCCESSFUL_TASK_COUNT = "successfulTaskCount";
     private static String RUNNING_TASK_COUNT = "runningTaskCount";
+    private static String TIMER_FOR_TASK_EXEC = "timeForTaskExec";
 
-    public TaskExecutionMetrics (TaskExecutor executor, MetricContext context) {
+    private final ContextAwareTimer timeForTaskExecution;
+
+    public GobblinHelixTaskMetrics (TaskExecutor executor, MetricContext context, int windowSizeInMin) {
       taskExecutor = executor;
       contextAwareMetrics.add(context.newContextAwareGauge(CURRENT_QUEUED_TASK_COUNT, ()->this.taskExecutor.getCurrentQueuedTaskCount().longValue()));
       contextAwareMetrics.add(context.newContextAwareGauge(CURRENT_QUEUED_TASK_TOTAL_TIME, ()->this.taskExecutor.getCurrentQueuedTaskTotalTime().longValue()));
@@ -52,20 +56,19 @@ public class GobblinTaskRunnerMetrics {
       contextAwareMetrics.add(context.newContextAwareGauge(SUCCESSFUL_TASK_COUNT, ()->this.taskExecutor.getSuccessfulTaskCount().getCount()));
       contextAwareMetrics.add(context.newContextAwareGauge(RUNNING_TASK_COUNT, ()->this.taskExecutor.getRunningTaskCount().getCount()));
       this.rawMetrics.put(ConfigurationKeys.WORK_UNIT_CREATION_AND_RUN_INTERVAL, this.taskExecutor.getTaskCreateAndRunTimer());
+      this.timeForTaskExecution = context.contextAwareTimer(TIMER_FOR_TASK_EXEC, windowSizeInMin, TimeUnit.MINUTES);
+
+      contextAwareMetrics.add(timeForTaskExecution);
     }
 
-    @Override
-    public String getName() {
-      return TaskExecutionMetrics.class.getName();
-    }
+  public void updateTimeForTaskExecution(long startTime) {
+    Instrumented.updateTimer(
+        com.google.common.base.Optional.of(this.timeForTaskExecution),
+        System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
   }
 
-  static class JvmTaskMetrics extends StandardMetricsBridge.StandardMetrics {
-    //TODO: add metrics to monitor the process execution status (will be revisited after process isolation work is done)
-    @Override
+  @Override
     public String getName() {
-      return JvmTaskMetrics.class.getName();
+      return GobblinHelixTaskMetrics.class.getName();
     }
-
-  }
 }

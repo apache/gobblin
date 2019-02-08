@@ -70,16 +70,18 @@ public class GobblinHelixTask implements Task {
   private String jobKey;
   private String taskId;
   private Path workUnitFilePath;
-
+  private GobblinHelixTaskMetrics taskMetrics;
   private SingleTask task;
 
   public GobblinHelixTask(TaskRunnerSuiteBase.Builder builder,
                           TaskCallbackContext taskCallbackContext,
                           TaskAttemptBuilder taskAttemptBuilder,
-                          StateStores stateStores) {
+                          StateStores stateStores,
+                          GobblinHelixTaskMetrics taskMetrics) {
     this.taskConfig = taskCallbackContext.getTaskConfig();
     this.applicationName = builder.getApplicationName();
     this.instanceName = builder.getInstanceName();
+    this.taskMetrics = taskMetrics;
     getInfoFromTaskConfig();
 
     Path jobStateFilePath = GobblinClusterUtils
@@ -107,6 +109,7 @@ public class GobblinHelixTask implements Task {
 
   @Override
   public TaskResult run() {
+    long startTime = System.currentTimeMillis();
     log.info("Actual task {} started. [{} {}]", this.taskId, this.applicationName, this.instanceName);
     try (Closer closer = Closer.create()) {
       closer.register(MDC.putCloseable(ConfigurationKeys.JOB_NAME_KEY, this.jobName));
@@ -121,6 +124,8 @@ public class GobblinHelixTask implements Task {
     } catch (Throwable t) {
       log.error("Actual task {} failed due to {}", this.taskId, t.getMessage());
       return new TaskResult(TaskResult.Status.FAILED, Throwables.getStackTraceAsString(t));
+    } finally {
+      this.taskMetrics.updateTimeForTaskExecution(startTime);
     }
   }
 
