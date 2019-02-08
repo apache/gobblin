@@ -18,6 +18,10 @@
 package org.apache.gobblin.runtime;
 
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryMXBean;
+import java.lang.management.MemoryUsage;
+import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -359,7 +363,12 @@ public class GobblinMultiTaskAttempt {
         this.taskStateTracker.registerNewTask(task);
         task.setTaskFuture(this.taskExecutor.submit(task));
         tasks.add(task);
-      } catch (Exception e) {
+      } catch (Throwable e) {
+        if (e instanceof OutOfMemoryError) {
+          log.error("Encountering memory error in task creation/execution stage, please investigate memory usage:", e);
+          printMemoryUsage();
+        }
+
         if (task == null) {
           // task could not be created, so directly count down
           countDownLatch.countDown();
@@ -382,6 +391,24 @@ public class GobblinMultiTaskAttempt {
 
     return tasks;
   }
+
+  private void printMemoryUsage() {
+    MemoryMXBean memoryBean = ManagementFactory.getMemoryMXBean();
+    MemoryUsage heapMemory = memoryBean.getHeapMemoryUsage();
+    MemoryUsage nonHeapMemory = memoryBean.getNonHeapMemoryUsage();
+    String format = "%-15s%-15s%-15s%-15s";
+
+    this.log.info("Heap Memory");
+    this.log.info(String.format(format, "init", "used", "Committed", "max"));
+    this.log.info(String.format(format, heapMemory.getInit(), heapMemory.getUsed(),
+        heapMemory.getCommitted(), heapMemory.getMax()));
+
+    this.log.info("Non-heap Memory");
+    this.log.info(String.format(format, "init", "used", "Committed", "max"));
+    this.log.info(String.format(format, nonHeapMemory.getInit(), nonHeapMemory.getUsed(),
+        nonHeapMemory.getCommitted(), nonHeapMemory.getMax()));
+  }
+
 
   private Task createTaskRunnable(WorkUnitState workUnitState, CountDownLatch countDownLatch) {
     Optional<TaskFactory> taskFactoryOpt = TaskUtils.getTaskFactory(workUnitState);

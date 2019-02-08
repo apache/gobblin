@@ -24,6 +24,14 @@ import java.util.Properties;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.gobblin.publisher.DataPublisher;
+import org.apache.gobblin.publisher.NoopPublisher;
+import org.apache.gobblin.runtime.JobState;
+import org.apache.gobblin.runtime.TaskContext;
+import org.apache.gobblin.runtime.task.BaseAbstractTask;
+import org.apache.gobblin.runtime.task.TaskFactory;
+import org.apache.gobblin.runtime.task.TaskIFace;
+import org.apache.gobblin.runtime.task.TaskUtils;
 import org.apache.log4j.AppenderSkeleton;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
@@ -44,6 +52,8 @@ import org.apache.gobblin.source.Source;
 import org.apache.gobblin.source.extractor.DataRecordException;
 import org.apache.gobblin.source.extractor.Extractor;
 import org.apache.gobblin.source.workunit.WorkUnit;
+
+import static org.apache.gobblin.runtime.task.TaskUtils.*;
 
 
 @Test (singleThreaded = true)
@@ -72,7 +82,7 @@ public class TaskErrorIntegrationTest extends BMNGRunner {
     Properties jobProperties =
         GobblinLocalJobLauncherUtils.getJobProperties("runtime_test/skip_workunits_test.properties");
 
-    jobProperties.setProperty(ConfigurationKeys.SOURCE_CLASS_KEY, TestSource.class.getName());
+    jobProperties.setProperty(ConfigurationKeys.SOURCE_CLASS_KEY, BaseTestSource.class.getName());
     jobProperties.setProperty(TestExtractor.RAISE_ERROR, "true");
 
     GobblinLocalJobLauncherUtils.invokeLocalJobLauncher(jobProperties);
@@ -101,7 +111,7 @@ public class TaskErrorIntegrationTest extends BMNGRunner {
     Properties jobProperties =
         GobblinLocalJobLauncherUtils.getJobProperties("runtime_test/skip_workunits_test.properties");
 
-    jobProperties.setProperty(ConfigurationKeys.SOURCE_CLASS_KEY, TestSource.class.getName());
+    jobProperties.setProperty(ConfigurationKeys.SOURCE_CLASS_KEY, BaseTestSource.class.getName());
     jobProperties.setProperty(TestExtractor.RAISE_ERROR, "false");
 
     GobblinLocalJobLauncherUtils.invokeLocalJobLauncher(jobProperties);
@@ -111,6 +121,24 @@ public class TaskErrorIntegrationTest extends BMNGRunner {
 
     logger.removeAppender(testAppender);
   }
+
+  @Test
+  public void testCustomizedTaskFrameworkFailureInTaskCreation() throws Exception {
+    TestAppender testAppender = new TestAppender();
+    Logger logger = LogManager.getLogger(GobblinMultiTaskAttempt.class.getName() + "-noattempt");
+    logger.addAppender(testAppender);
+
+    Properties jobProperties =
+        GobblinLocalJobLauncherUtils.getJobProperties("runtime_test/skip_workunits_test.properties");
+    jobProperties.setProperty(ConfigurationKeys.SOURCE_CLASS_KEY, CustomizedTaskTestSource.class.getName());
+
+    GobblinLocalJobLauncherUtils.invokeLocalJobLauncher(jobProperties);
+    Assert.assertTrue(testAppender.events.stream().anyMatch(e -> e.getRenderedMessage()
+        .startsWith("Encountering memory error")));
+
+    logger.removeAppender(testAppender);
+  }
+
 
   /**
    * Test extractor that can be configured to raise an exception on construction
@@ -148,9 +176,45 @@ public class TaskErrorIntegrationTest extends BMNGRunner {
   }
 
   /**
+   * Testing task and factory implementation for Customized Task implementation.
+   */
+  public static class TestCustomizedTask extends BaseAbstractTask {
+    public TestCustomizedTask(TaskContext taskContext) {
+      super(taskContext);
+
+      // trigger OutOfMemoryError on purpose during creation phase.
+      throw new OutOfMemoryError();
+    }
+  }
+
+  public static class TestTaskFactory implements TaskFactory {
+
+    @Override
+    public TaskIFace createTask(TaskContext taskContext) {
+      return new TestCustomizedTask(taskContext);
+    }
+
+    @Override
+    public DataPublisher createDataPublisher(JobState.DatasetState datasetState) {
+      return new NoopPublisher(datasetState);
+    }
+  }
+
+  public static class CustomizedTaskTestSource extends BaseTestSource {
+    @Override
+    public List<WorkUnit> getWorkunits(SourceState state) {
+      WorkUnit workUnit = new WorkUnit();
+      TaskUtils.setTaskFactoryClass(workUnit, TestTaskFactory.class);
+      workUnit.addAll(state);
+      return Collections.singletonList(workUnit);
+    }
+  }
+
+
+  /**
    * Test source that creates a {@link TestExtractor}
    */
-  public static class TestSource implements Source<Schema, GenericRecord> {
+  public static class BaseTestSource implements Source<Schema, GenericRecord> {
 
     @Override
     public List<WorkUnit> getWorkunits(SourceState state) {
