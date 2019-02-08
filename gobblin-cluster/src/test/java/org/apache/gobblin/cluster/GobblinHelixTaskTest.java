@@ -144,7 +144,7 @@ public class GobblinHelixTaskTest {
 
 
     TaskRunnerSuiteBase.Builder builder = new TaskRunnerSuiteBase.Builder(ConfigFactory.empty());
-    builder.setInstanceName("TestInstance")
+    TaskRunnerSuiteBase sb = builder.setInstanceName("TestInstance")
         .setApplicationName("TestApplication")
         .setAppWorkPath(appWorkDir)
         .setContainerMetrics(Optional.absent())
@@ -155,7 +155,7 @@ public class GobblinHelixTaskTest {
 
     GobblinHelixTaskFactory gobblinHelixTaskFactory =
         new GobblinHelixTaskFactory(builder,
-                                    this.taskExecutor,
+                                    sb.metricContext,
                                     this.taskStateTracker,
                                     ConfigFactory.empty());
 

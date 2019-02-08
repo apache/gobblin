@@ -73,7 +73,8 @@ class GobblinHelixJobFactory implements TaskFactory {
     this.launcherMetrics = new GobblinHelixJobLauncherMetrics("launcherInJobFactory",
         metricContext,
         metricsWindowSizeInMin);
-    this.jobTaskMetrics = new GobblinHelixJobTask.GobblinHelixJobTaskMetrics(metricContext,
+    this.jobTaskMetrics = new GobblinHelixJobTask.GobblinHelixJobTaskMetrics(
+        metricContext,
         metricsWindowSizeInMin);
     this.helixMetrics = new GobblinHelixMetrics("helixMetricsInJobFactory",
         metricContext,
