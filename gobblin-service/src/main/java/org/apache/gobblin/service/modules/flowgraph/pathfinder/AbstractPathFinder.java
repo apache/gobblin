@@ -84,8 +84,8 @@ public abstract class AbstractPathFinder implements PathFinder {
       throws ReflectiveOperationException {
     this.flowGraph = flowGraph;
     this.flowSpec = flowSpec;
-    this.flowConfig = flowSpec.getConfig();
     this.flowExecutionId = FlowUtils.getOrCreateFlowExecutionId(flowSpec);
+    this.flowConfig = flowSpec.getConfig().withValue(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, ConfigValueFactory.fromAnyRef(flowExecutionId));
 
     //Get src/dest DataNodes from the flow config
     String srcNodeId = ConfigUtils.getString(flowConfig, ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, "");
