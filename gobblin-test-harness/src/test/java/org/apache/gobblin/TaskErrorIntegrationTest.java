@@ -53,8 +53,6 @@ import org.apache.gobblin.source.extractor.DataRecordException;
 import org.apache.gobblin.source.extractor.Extractor;
 import org.apache.gobblin.source.workunit.WorkUnit;
 
-import static org.apache.gobblin.runtime.task.TaskUtils.*;
-
 
 @Test (singleThreaded = true)
 public class TaskErrorIntegrationTest extends BMNGRunner {
