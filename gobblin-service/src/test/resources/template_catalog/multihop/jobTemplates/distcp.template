@@ -25,7 +25,7 @@ state.store.fs.uri=${fs.uri}
 target.filebased.fs.uri=${destination.data.node.fs.uri}
 writer.fs.uri=${target.filebased.fs.uri}
 
-work.dir=/tmp/${user.to.proxy}
+work.dir=/tmp/${user.to.proxy}/${flow.executionId}
 
 # ====================================================================
 # Distcp configurations
