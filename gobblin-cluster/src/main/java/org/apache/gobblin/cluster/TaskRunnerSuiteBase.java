@@ -51,8 +51,6 @@ import org.apache.gobblin.util.ConfigUtils;
 @Slf4j
 @Alpha
 public abstract class TaskRunnerSuiteBase {
-  protected TaskFactory taskFactory;
-  protected GobblinHelixJobFactory jobFactory;
   protected MetricContext metricContext;
   protected String applicationId;
   protected String applicationName;

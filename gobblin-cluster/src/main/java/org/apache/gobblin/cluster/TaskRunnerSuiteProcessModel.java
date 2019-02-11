@@ -39,7 +39,7 @@ import org.apache.gobblin.instrumented.StandardMetricsBridge;
  */
 @Slf4j
 class TaskRunnerSuiteProcessModel extends TaskRunnerSuiteBase {
-
+  private final HelixTaskFactory taskFactory;
   TaskRunnerSuiteProcessModel(TaskRunnerSuiteBase.Builder builder) {
     super(builder);
     log.info("Running a task in a separate process is enabled.");
@@ -50,7 +50,7 @@ class TaskRunnerSuiteProcessModel extends TaskRunnerSuiteBase {
 
   @Override
   protected Collection<StandardMetricsBridge.StandardMetrics> getMetricsCollection() {
-    return ImmutableList.of(new GobblinTaskRunnerMetrics.JvmTaskMetrics());
+    return ImmutableList.of();
   }
 
   @Override
