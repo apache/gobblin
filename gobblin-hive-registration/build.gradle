@@ -43,6 +43,8 @@ dependencies {
   compile externalDependency.avroMapredH2
 
   testCompile externalDependency.testng
+  testCompile externalDependency.mockito
+
 }
 
 ext.classification="library"
