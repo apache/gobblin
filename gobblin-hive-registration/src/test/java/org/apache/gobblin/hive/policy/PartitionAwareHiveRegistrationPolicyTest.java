@@ -26,7 +26,9 @@ import org.apache.gobblin.hive.HivePartition;
 import org.apache.gobblin.hive.HiveSerDeManager;
 import org.apache.gobblin.hive.HiveTable;
 
+import static org.apache.gobblin.hive.avro.HiveAvroSerDeManager.USE_SCHEMA_FILE;
 import static org.apache.gobblin.hive.policy.PartitionAwareHiveRegistrationPolicy.HIVE_PARTITION_REGEX;
+import static org.apache.gobblin.hive.policy.PartitionAwareHiveRegistrationPolicy.HIVE_PARTITION_SCHEMA_SET;
 import static org.apache.gobblin.hive.policy.PartitionAwareHiveRegistrationPolicy.HIVE_TABLE_PARTITION_KEYS;
 import static org.mockito.Mockito.mock;
 
@@ -80,14 +82,16 @@ public class PartitionAwareHiveRegistrationPolicyTest {
   public void testGetPartition()
       throws Exception {
 
+    String testDir = getClass().getResource("/test-partition/compacted/").getPath();
     HiveSerDeManager mockHiveSerDeManager = mock(HiveSerDeManager.class);
 
     HiveTable table = new HiveTable.Builder().withDbName("test").withTableName("test").withSerdeManaager(mockHiveSerDeManager).build();
     State state = new State();
-    state.appendToListProp(HIVE_PARTITION_REGEX,"(s3://testbucket/myawesomelogs/compacted/)dt=(.*)/hr=(.*)");
+    state.appendToListProp(HIVE_PARTITION_REGEX,"(file://"+testDir+")dt=(.*)\\/hr=(.*)");
     state.appendToListProp(HIVE_TABLE_PARTITION_KEYS, "dt,hr");
 
-    this.path = new Path("s3://testbucket/myawesomelogs/compacted/dt=20170101/hr=22/");
+    //this.path = new Path("s3:///testbucket/myawesomelogs/compacted/dt=20170101/hr=22/");
+    this.path = new Path("file://"+testDir+"dt=20170101/hr=22/");
 
     PartitionAwareHiveRegistrationPolicy policy = new PartitionAwareHiveRegistrationPolicy(state);
 
@@ -97,6 +101,63 @@ public class PartitionAwareHiveRegistrationPolicyTest {
     Assert.assertEquals(partition.getValues().get(0), "20170101");
     Assert.assertEquals(partition.getValues().get(1), "22");
   }
+
+  @Test
+  public void testGetPartitionWithEnabledSerdePropertiesSet()
+      throws Exception {
+    String testDir = getClass().getResource("/test-partition/compacted/").getPath();
+
+    this.path = new Path("file://"+testDir+"dt=20170101/hr=22/");
+
+    HiveSerDeManager mockHiveSerDeManager = mock(HiveSerDeManager.class);
+
+    State serdeProps = new State();
+    serdeProps.setProp("avro.schema.url", this.path+"/_table_schema.avsc");
+
+    HiveTable table = new HiveTable.Builder().withDbName("test").withSerdeProps(serdeProps).withTableName("test").withSerdeManaager(mockHiveSerDeManager).build();
+    State state = new State();
+    state.appendToListProp(HIVE_PARTITION_REGEX,"(file://"+testDir+")dt=(.*)/hr=(.*)");
+    state.appendToListProp(HIVE_TABLE_PARTITION_KEYS, "dt,hr");
+    state.appendToListProp(HIVE_PARTITION_SCHEMA_SET, "true");
+    state.appendToListProp(USE_SCHEMA_FILE, "true");
+
+    PartitionAwareHiveRegistrationPolicy policy = new PartitionAwareHiveRegistrationPolicy(state);
+    HivePartition partition = policy.getPartition(path, table).orNull();
+
+    Assert.assertEquals(partition.getValues().size(), 2);
+    Assert.assertEquals(partition.getValues().get(0), "20170101");
+    Assert.assertEquals(partition.getValues().get(1), "22");
+    Assert.assertEquals(partition.getSerDeProps().getProp("avro.schema.url"), this.path+"/_schema.avsc");
+  }
+
+  @Test
+  public void testGetPartitionWithDisabledSerdePropertiesSet()
+      throws Exception {
+    String testDir = getClass().getResource("/test-partition/compacted/").getPath();
+
+    this.path = new Path("file://"+testDir+"dt=20170101/hr=22/");
+
+    HiveSerDeManager mockHiveSerDeManager = mock(HiveSerDeManager.class);
+
+    State serdeProps = new State();
+    serdeProps.setProp("avro.schema.url", this.path+"/_schema.avsc");
+
+    HiveTable table = new HiveTable.Builder().withDbName("test").withSerdeProps(serdeProps).withTableName("test").withSerdeManaager(mockHiveSerDeManager).build();
+    State state = new State();
+    state.appendToListProp(HIVE_PARTITION_REGEX,"(file://"+testDir+")dt=(.*)/hr=(.*)");
+    state.appendToListProp(HIVE_TABLE_PARTITION_KEYS, "dt,hr");
+    state.appendToListProp(HIVE_PARTITION_SCHEMA_SET, "true");
+
+    PartitionAwareHiveRegistrationPolicy policy = new PartitionAwareHiveRegistrationPolicy(state);
+
+    HivePartition partition = policy.getPartition(path, table).orNull();
+
+    Assert.assertEquals(partition.getValues().size(), 2);
+    Assert.assertEquals(partition.getValues().get(0), "20170101");
+    Assert.assertEquals(partition.getValues().get(1), "22");
+    Assert.assertNull(partition.getSerDeProps().getProp("avro.schema.url"));
+  }
+
 
   @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Failed to match on all of the partitions.*")
   public void testGetPartitionWithLessPartitionKeyShouldThrewError()

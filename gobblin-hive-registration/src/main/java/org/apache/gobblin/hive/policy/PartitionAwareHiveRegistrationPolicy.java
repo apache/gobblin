@@ -33,7 +33,9 @@ import com.google.common.collect.Lists;
 
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.hive.HivePartition;
+import org.apache.gobblin.hive.HiveRegProps;
 import org.apache.gobblin.hive.HiveRegistrationUnit;
+import org.apache.gobblin.hive.HiveSerDeManager;
 import org.apache.gobblin.hive.HiveTable;
 
 
@@ -57,8 +59,14 @@ public class PartitionAwareHiveRegistrationPolicy extends HiveRegistrationPolicy
 
   public static final String HIVE_PARTITION_REGEX = "hive.partition.regex";
   public static final String HIVE_TABLE_PARTITION_KEYS = "hive.table.partition.keys";
+
   private static final String COLUMN_TYPE_SEPARATOR = ":";
   private static final String DEFAULT_COLUMN_TYPE = "string";
+
+  public static final String HIVE_PARTITION_SCHEMA_SET = "hive.partition.schema.set";
+  public static final boolean DEFAULT_HIVE_PARTITION_SCHEMA_SET = true;
+  public static final String SCHEMA_SET = "schema.set";
+
 
   public PartitionAwareHiveRegistrationPolicy(State props)
       throws IOException {
@@ -94,13 +102,12 @@ public class PartitionAwareHiveRegistrationPolicy extends HiveRegistrationPolicy
   }
 
   protected Optional<HivePartition> getPartition(Path path, HiveTable table) throws IOException {
-
     int expectedNumberOfPartitionKey = this.props.getPropAsList(HIVE_TABLE_PARTITION_KEYS, "").size();
 
     if (this.props.contains(HIVE_PARTITION_REGEX)) {
       Pattern pattern = Pattern.compile(this.props.getProp(HIVE_PARTITION_REGEX));
       List<String> partitionValues = Lists.newArrayList();
-      Matcher matcher = pattern.matcher(path.toString());
+      Matcher matcher = pattern.matcher(path.toUri().toString());
       if (matcher.matches() && matcher.groupCount() >=2){
         for (int i = 2; i <= matcher.groupCount(); i++) {
           partitionValues.add(matcher.group(i));
@@ -121,11 +128,18 @@ public class PartitionAwareHiveRegistrationPolicy extends HiveRegistrationPolicy
       builder.withPartitionValues(partitionValues);
       builder.withProps(table.getProps());
       builder.withStorageProps(table.getStorageProps());
-      builder.withSerdeProps(table.getSerDeProps());
-      builder.withSerdeManaager(table.getSerDeManager().orNull());
+
+      HiveRegProps partitionProps = new HiveRegProps(this.props);
+
+      if (!this.props.getPropAsBoolean(HIVE_PARTITION_SCHEMA_SET, DEFAULT_HIVE_PARTITION_SCHEMA_SET)){
+        partitionProps.setProp(SCHEMA_SET, "false");
+      }
+
+      builder.withSerdeManaager(HiveSerDeManager.get(partitionProps));
 
       HivePartition partition = builder.build();
       partition.setSerDeProps(path);
+
       partition.setLocation(path.toString());
 
       return Optional.of(partition);
