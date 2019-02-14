@@ -33,10 +33,6 @@ public class AzkabanFetchExecuteFlowStatus extends AzkabanClientStatus<AzkabanFe
     super(exec);
   }
 
-  public AzkabanFetchExecuteFlowStatus(String failMsg, Throwable throwable) {
-    super(failMsg, throwable);
-  }
-
   @Getter
   @AllArgsConstructor
   public static class Execution {

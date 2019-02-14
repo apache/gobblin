@@ -17,22 +17,15 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-
-
 /**
- * This status captures execution id returned by {@link AzkabanClient#executeFlowWithOptions}
+ * A successful status for {@link AzkabanClient}.
  */
-public class AzkabanExecuteFlowStatus extends AzkabanClientStatus<AzkabanExecuteFlowStatus.ExecuteId> {
-  public AzkabanExecuteFlowStatus(ExecuteId executeId) {
-    super(executeId);
+public class AzkabanSuccess extends AzkabanClientStatus<String> {
+  public AzkabanSuccess() {
+    this("");
   }
 
-  @Getter
-  @AllArgsConstructor
-  public static class ExecuteId {
-    String execId;
+  public AzkabanSuccess(String response) {
+    super(response);
   }
 }
-

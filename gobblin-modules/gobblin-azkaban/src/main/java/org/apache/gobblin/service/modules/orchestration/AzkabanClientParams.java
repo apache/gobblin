@@ -39,5 +39,8 @@ public class AzkabanClientParams {
   public static final String STATUS = "status";
   public static final String ERROR = "error";
   public static final String EXECID = "execid";
-
+  public static final String JOBID = "jobId";
+  public static final String DATA = "data";
+  public static final String OFFSET = "offset";
+  public static final String LENGTH = "length";
 }

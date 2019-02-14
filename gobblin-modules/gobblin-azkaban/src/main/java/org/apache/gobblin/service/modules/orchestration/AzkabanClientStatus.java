@@ -21,10 +21,6 @@ import lombok.Getter;
 
 @Getter
 public abstract class AzkabanClientStatus<RS> {
-  private boolean success = true;
-  private String failMsg = "";
-  private Throwable throwable = null;
-
   private RS response = null;
 
   public AzkabanClientStatus() {
@@ -32,29 +28,5 @@ public abstract class AzkabanClientStatus<RS> {
 
   public AzkabanClientStatus(RS response) {
     this.response = response;
-  }
-
-  public AzkabanClientStatus(String failMsg, Throwable throwable) {
-    this.success = false;
-    this.failMsg = failMsg;
-    this.throwable = throwable;
-  }
-
-  /**
-   * This status captures basic success.
-   */
-  public static class SUCCESS extends AzkabanClientStatus<Object> {
-    public SUCCESS() {
-      super();
-    }
-  }
-
-  /**
-   * This status captures basic failure (fail message and throwable).
-   */
-  public static class FAIL extends AzkabanClientStatus<Object> {
-    public FAIL(String failMsg, Throwable throwable) {
-      super(failMsg, throwable);
-    }
   }
 }
