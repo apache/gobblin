@@ -20,11 +20,15 @@ package org.apache.gobblin.metrics.kafka;
 import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
+import java.util.Queue;
+import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingDeque;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 
@@ -47,6 +51,9 @@ public class KafkaKeyValueProducerPusher<K, V> implements Pusher<Pair<K, V>> {
   private final String topic;
   private final KafkaProducer<K, V> producer;
   private final Closer closer;
+  private final Queue<Future<RecordMetadata>> futures = new LinkedBlockingDeque<>();
+
+  private static final long MAX_NUM_FUTURES_TO_BUFFER = 1000L;
 
   public KafkaKeyValueProducerPusher(String brokers, String topic, Optional<Config> kafkaConfig) {
     this.closer = Closer.create();
@@ -61,6 +68,7 @@ public class KafkaKeyValueProducerPusher<K, V> implements Pusher<Pair<K, V>> {
     props.put(ProducerConfig.RETRIES_CONFIG, 3);
     //To guarantee ordered delivery, the maximum in flight requests must be set to 1.
     props.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 1);
+    props.put(ProducerConfig.BLOCK_ON_BUFFER_FULL_CONFIG, true);
 
     // add the kafka scoped config. if any of the above are specified then they are overridden
     if (kafkaConfig.isPresent()) {
@@ -80,17 +88,46 @@ public class KafkaKeyValueProducerPusher<K, V> implements Pusher<Pair<K, V>> {
    */
   public void pushMessages(List<Pair<K, V>> messages) {
     for (Pair<K, V> message: messages) {
-      this.producer.send(new ProducerRecord<>(topic, message.getKey(), message.getValue()), (recordMetadata, e) -> {
+      this.futures.offer(this.producer.send(new ProducerRecord<>(topic, message.getKey(), message.getValue()), (recordMetadata, e) -> {
         if (e != null) {
           log.error("Failed to send message to topic {} due to exception: ", topic, e);
         }
-      });
+      }));
     }
+
+    //Accumulate futures returned from send() into a buffer; will be used to simulate flush by calling get() on
+    // each of the accumulated futures.
+    if (this.futures.size() >= MAX_NUM_FUTURES_TO_BUFFER) {
+      flush(MAX_NUM_FUTURES_TO_BUFFER);
+      this.futures.clear();
+    }
+  }
+
+  /**
+   * Flush any records that may be present in the producer buffer upto a maximum of <code>numRecordsToFlush</code>.
+   * This method is needed since Kafka 0.8 producer does not have a flush() API. In the absence of the flush()
+   * implementation, records which are present in the buffer but not in-flight may not be delivered at all when close()
+   * is called, leading to data loss.
+   * @param numRecordsToFlush
+   */
+  private void flush(long numRecordsToFlush) {
+    log.info("Flushing records from producer buffer");
+    Future future;
+    long numRecordsFlushed = 0L;
+    while (((future = futures.poll()) != null) && (numRecordsFlushed++ < numRecordsToFlush)) {
+      try {
+        future.get();
+      } catch (Exception e) {
+        log.error("Exception encountered when flushing record", e);
+      }
+    }
+    log.info("Flushed {} records from producer buffer", numRecordsFlushed);
   }
 
   @Override
   public void close()
       throws IOException {
+    flush(Long.MAX_VALUE);
     this.closer.close();
   }
 

@@ -20,10 +20,14 @@ package org.apache.gobblin.metrics.kafka;
 import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
+import java.util.Queue;
+import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingDeque;
 
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 
@@ -45,6 +49,9 @@ public class KafkaProducerPusher implements Pusher<byte[]> {
   private final String topic;
   private final KafkaProducer<String, byte[]> producer;
   private final Closer closer;
+  private final Queue<Future<RecordMetadata>> futures = new LinkedBlockingDeque<>();
+
+  private static final long MAX_NUM_FUTURES_TO_BUFFER = 1000L;
 
   public KafkaProducerPusher(String brokers, String topic, Optional<Config> kafkaConfig) {
     this.closer = Closer.create();
@@ -76,17 +83,46 @@ public class KafkaProducerPusher implements Pusher<byte[]> {
    */
   public void pushMessages(List<byte[]> messages) {
     for (byte[] message: messages) {
-      producer.send(new ProducerRecord<>(topic, message), (recordMetadata, e) -> {
+      this.futures.offer(producer.send(new ProducerRecord<>(topic, message), (recordMetadata, e) -> {
         if (e != null) {
           log.error("Failed to send message to topic {} due to exception: ", topic, e);
         }
-      });
+      }));
     }
+
+    //Accumulate futures returned from send() into a buffer; will be used to simulate flush by calling get() on
+    // each of the accumulated futures.
+    if (this.futures.size() >= MAX_NUM_FUTURES_TO_BUFFER) {
+      flush(MAX_NUM_FUTURES_TO_BUFFER);
+      this.futures.clear();
+    }
+  }
+
+  /**
+   * Flush any records that may be present in the producer buffer upto a maximum of <code>numRecordsToFlush</code>.
+   * This method is needed since Kafka 0.8 producer does not have a flush() API. In the absence of the flush()
+   * implementation, records which are present in the buffer but not in-flight may not be delivered at all when close()
+   * is called, leading to data loss.
+   * @param numRecordsToFlush
+   */
+  private void flush(long numRecordsToFlush) {
+    log.info("Flushing records from producer buffer");
+    Future future;
+    long numRecordsFlushed = 0L;
+    while (((future = futures.poll()) != null) && (numRecordsFlushed++ < numRecordsToFlush)) {
+      try {
+        future.get();
+      } catch (Exception e) {
+        log.error("Exception encountered when flushing record", e);
+      }
+    }
+    log.info("Flushed {} records from producer buffer", numRecordsFlushed);
   }
 
   @Override
   public void close()
       throws IOException {
+    flush(Long.MAX_VALUE);
     this.closer.close();
   }
 
