@@ -184,7 +184,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       this.eventBus.register(this.jobContext);
 
       this.cancellationExecutor = Executors.newSingleThreadExecutor(
-          ExecutorsUtils.newThreadFactory(Optional.of(LOG), Optional.of("CancellationExecutor")));
+          ExecutorsUtils.newDaemonThreadFactory(Optional.of(LOG), Optional.of("CancellationExecutor")));
 
       this.runtimeMetricContext =
           this.jobContext.getJobMetricsOptional().transform(new Function<JobMetrics, MetricContext>() {
