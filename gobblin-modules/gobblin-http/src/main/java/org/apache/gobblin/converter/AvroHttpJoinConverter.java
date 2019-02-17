@@ -59,7 +59,7 @@ public abstract class AvroHttpJoinConverter<RQ, RP> extends AsyncHttpJoinConvert
       throw new SchemaConversionException("input schema is empty");
     }
 
-    List<Schema.Field> fields = AvroUtils.getSchemaFields(inputSchema);
+    List<Schema.Field> fields = AvroUtils.deepCopySchemaFields(inputSchema);
 
     Schema.Field requestResponseField = new Schema.Field(HTTP_REQUEST_RESPONSE_FIELD, HttpRequestResponseRecord.getClassSchema(), "http output schema contains request url and return result", null);
     fields.add(requestResponseField);
