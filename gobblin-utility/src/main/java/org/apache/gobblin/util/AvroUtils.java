@@ -96,7 +96,7 @@ public class AvroUtils {
    */
   public static boolean checkReaderWriterCompatibility(Schema readerSchema, Schema writerSchema, boolean ignoreNamespace) {
     if (ignoreNamespace) {
-      List<Schema.Field> fields = getSchemaFields(readerSchema);
+      List<Schema.Field> fields = deepCopySchemaFields(readerSchema);
       readerSchema = Schema.createRecord(writerSchema.getName(), writerSchema.getDoc(), writerSchema.getNamespace(),
           readerSchema.isError());
       readerSchema.setFields(fields);
@@ -105,7 +105,7 @@ public class AvroUtils {
     return SchemaCompatibility.checkReaderWriterCompatibility(readerSchema, writerSchema).getType().equals(SchemaCompatibility.SchemaCompatibilityType.COMPATIBLE);
   }
 
-  public static List<Field> getSchemaFields(Schema readerSchema) {
+  public static List<Field> deepCopySchemaFields(Schema readerSchema) {
     List<Schema.Field> fields = Lists.newArrayList();
 
     for (Schema.Field field : readerSchema.getFields()) {
