@@ -33,6 +33,7 @@ import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 import org.apache.avro.Schema.Type;
+import org.apache.avro.SchemaCompatibility;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.file.SeekableInput;
 import org.apache.avro.generic.GenericData.Record;
@@ -84,6 +85,36 @@ public class AvroUtils {
   public static final String FIELD_LOCATION_DELIMITER = ".";
 
   private static final String AVRO_SUFFIX = ".avro";
+
+  /**
+   * Validates that the provided reader schema can be used to decode avro data written with the
+   * provided writer schema.
+   * @param readerSchema schema to check.
+   * @param writerSchema schema to check.
+   * @param ignoreNamespace whether name and namespace should be ignored in validation
+   * @return true if validation passes
+   */
+  public static boolean checkReaderWriterCompatibility(Schema readerSchema, Schema writerSchema, boolean ignoreNamespace) {
+    List<Schema.Field> fields = getSchemaFields(readerSchema);
+
+    if (ignoreNamespace) {
+      readerSchema = Schema.createRecord(writerSchema.getName(), writerSchema.getDoc(), writerSchema.getNamespace(),
+          readerSchema.isError());
+      readerSchema.setFields(fields);
+    }
+
+    return SchemaCompatibility.checkReaderWriterCompatibility(readerSchema, writerSchema).getType().equals(SchemaCompatibility.SchemaCompatibilityType.COMPATIBLE);
+  }
+
+  public static List<Field> getSchemaFields(Schema readerSchema) {
+    List<Schema.Field> fields = Lists.newArrayList();
+
+    for (Schema.Field field : readerSchema.getFields()) {
+      Schema.Field newField = new Schema.Field(field.name(), field.schema(), field.doc(), field.defaultValue(), field.order());
+      fields.add(newField);
+    }
+    return fields;
+  }
 
   public static class AvroPathFilter implements PathFilter {
     @Override
