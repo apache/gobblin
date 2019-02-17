@@ -96,9 +96,10 @@ public class AvroUtils {
    */
   public static boolean checkReaderWriterCompatibility(Schema readerSchema, Schema writerSchema, boolean ignoreNamespace) {
     if (ignoreNamespace) {
+      List<Schema.Field> fields = getSchemaFields(readerSchema);
       readerSchema = Schema.createRecord(writerSchema.getName(), writerSchema.getDoc(), writerSchema.getNamespace(),
           readerSchema.isError());
-      readerSchema.setFields(getSchemaFields(readerSchema));
+      readerSchema.setFields(fields);
     }
 
     return SchemaCompatibility.checkReaderWriterCompatibility(readerSchema, writerSchema).getType().equals(SchemaCompatibility.SchemaCompatibilityType.COMPATIBLE);
