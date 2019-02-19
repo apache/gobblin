@@ -85,23 +85,23 @@ public class ReflectivePredicateEvaluatorTest {
 		}
 	}
 
-	public interface MyInterface {
+	private interface MyInterface {
 		int getAnInt();
 		String getAString();
 	}
 
 	@Data
-	public static class MyImplementation implements MyInterface {
+	private static class MyImplementation implements MyInterface {
 		private final int anInt;
 		private final String aString;
 	}
 
-	public interface MyInterface2 {
+	private interface MyInterface2 {
 		int getAnInt();
 	}
 
 	@Data
-	public static class MyImplementation2 implements MyInterface2 {
+	private static class MyImplementation2 implements MyInterface2 {
 		private final int anInt;
 	}
 

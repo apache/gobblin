@@ -18,11 +18,12 @@
 package org.apache.gobblin.fsm;
 
 import java.io.Closeable;
+import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.HashMultimap;
@@ -68,6 +69,9 @@ import lombok.extern.slf4j.Slf4j;
  *   // Another thread initiated a transition and became inactive ending the transition
  * } catch (InterruptedException exc) {
  *   // Could not start transition because thread got interrupted while waiting for a non-transitioning state
+ * } catch (FailedTransitionCallbackException exc) {
+ *   // A callback in the transition start or end states has failed.
+ *   exc.getTransition().changeEndState(MY_ERROR).closeWithoutCallbacks(); // example handling
  * }
  *
  * @param <T>
@@ -81,8 +85,9 @@ public class FiniteStateMachine<T> {
 	public static class Builder<T> {
 		private final SetMultimap<T, T> allowedTransitions;
 		private final Set<T> universalEnds;
+    private T errorState;
 
-		public Builder() {
+    public Builder() {
 			this.allowedTransitions = HashMultimap.create();
 			this.universalEnds = new HashSet<>();
 		}
@@ -104,32 +109,47 @@ public class FiniteStateMachine<T> {
 			return this;
 		}
 
+    /**
+     * Specify the error state to which this machine can transition if nothing else is possible. Note the error state
+     * is always an allowed end state.
+     */
+		public Builder<T> errorState(T state) {
+		  this.errorState = state;
+		  return this;
+    }
+
 		/**
 		 * Build a {@link FiniteStateMachine} starting at the given initial state.
 		 */
 		public FiniteStateMachine<T> build(T initialState) {
-			return new FiniteStateMachine<>(this.allowedTransitions, this.universalEnds, initialState);
+			return new FiniteStateMachine<>(this.allowedTransitions, this.universalEnds, this.errorState, initialState);
 		}
 	}
 
 	private final SetMultimap<T, T> allowedTransitions;
 	private final Set<T> universalEnds;
+	private final T errorState;
 
-	private final ReentrantLock lock;
+	private final ReentrantReadWriteLock lock;
 	private final Condition condition;
 	private final T initialState;
 
 	private volatile T currentState;
 	private volatile Transition currentTransition;
 
-	private FiniteStateMachine(SetMultimap<T, T> allowedTransitions, Set<T> universalEnds, T initialState) {
+	protected FiniteStateMachine(SetMultimap<T, T> allowedTransitions, Set<T> universalEnds, T errorState, T initialState) {
 		this.allowedTransitions = allowedTransitions;
 		this.universalEnds = universalEnds;
+		this.errorState = errorState;
 
-		this.lock = new ReentrantLock();
-		this.condition = this.lock.newCondition();
+		this.lock = new ReentrantReadWriteLock();
+		this.condition = this.lock.writeLock().newCondition();
 		this.initialState = initialState;
 		this.currentState = initialState;
+
+		if (this.currentTransition instanceof StateWithCallbacks) {
+		  ((StateWithCallbacks) this.currentTransition).onEnterState(null);
+    }
 	}
 
 	/**
@@ -143,7 +163,7 @@ public class FiniteStateMachine<T> {
 	 */
 	public Transition startTransition(T endState) throws UnallowedTransitionException, InterruptedException {
 		try {
-			this.lock.lock();
+			this.lock.writeLock().lock();
 			while (isTransitioning()) {
 				this.condition.await(1, TimeUnit.SECONDS);
 			}
@@ -154,7 +174,7 @@ public class FiniteStateMachine<T> {
 			this.currentTransition = transition;
 			return transition;
 		} finally {
-			this.lock.unlock();
+			this.lock.writeLock().unlock();
 		}
 	}
 
@@ -165,7 +185,7 @@ public class FiniteStateMachine<T> {
 	 * @throws UnallowedTransitionException if the transition is not allowed.
 	 * @throws InterruptedException if the thread got interrupted while waiting for a non-transitioning state.
 	 */
-	public void transitionImmediately(T endState) throws UnallowedTransitionException, InterruptedException {
+	public void transitionImmediately(T endState) throws UnallowedTransitionException, InterruptedException, FailedTransitionCallbackException {
 		Transition transition = startTransition(endState);
 		transition.close();
 	}
@@ -176,7 +196,7 @@ public class FiniteStateMachine<T> {
 	 * @return true if the transition happened.
 	 * @throws InterruptedException if the thread got interrupted while waiting for a non-transitioning state.
 	 */
-	public boolean transitionIfAllowed(T endState) throws InterruptedException {
+	public boolean transitionIfAllowed(T endState) throws InterruptedException, FailedTransitionCallbackException {
 		try {
 			transitionImmediately(endState);
 		} catch (UnallowedTransitionException exc) {
@@ -192,31 +212,27 @@ public class FiniteStateMachine<T> {
 	 */
 	public T getCurrentState() throws InterruptedException {
 		try {
-			this.lock.lock();
-			while (isTransitioning()) {
-				this.condition.await(1, TimeUnit.SECONDS);
-			}
+		  // Need to get lock to make sure we're not in transitioning state.
+			this.lock.readLock().lock();
+
+			waitForNonTransitioningReadLock();
+
 			return this.currentState;
 		} finally {
-			this.lock.unlock();
+			this.lock.readLock().unlock();
 		}
 	}
 
 	@VisibleForTesting
 	T getCurrentStateEvenIfTransitioning() {
-		try {
-			this.lock.lock();
-			return this.currentState;
-		} finally {
-			this.lock.unlock();
-		}
+		return this.currentState;
 	}
 
 	/**
 	 * @return A clone of this FSM starting at the initial state of the FSM.
 	 */
 	public FiniteStateMachine<T> cloneAtInitialState() {
-		return new FiniteStateMachine<>(this.allowedTransitions, this.universalEnds, this.initialState);
+		return new FiniteStateMachine<>(this.allowedTransitions, this.universalEnds, this.errorState, this.initialState);
 	}
 
 	/**
@@ -224,20 +240,38 @@ public class FiniteStateMachine<T> {
 	 */
 	public FiniteStateMachine<T> cloneAtCurrentState() throws InterruptedException {
 		try {
-			this.lock.lock();
-			while (isTransitioning()) {
-				this.condition.await(1, TimeUnit.SECONDS);
-			}
-			return new FiniteStateMachine<>(this.allowedTransitions, this.universalEnds, this.currentState);
+			this.lock.readLock().lock();
+
+			waitForNonTransitioningReadLock();
+
+			return new FiniteStateMachine<>(this.allowedTransitions, this.universalEnds, this.errorState, this.currentState);
 		} finally {
-			this.lock.unlock();
+			this.lock.readLock().unlock();
+		}
+	}
+
+	/**
+	 * Waits for a read lock in a non-transitioning state. The caller MUST hold the read lock before calling this method.
+	 * @throws InterruptedException
+	 */
+	private void waitForNonTransitioningReadLock() throws InterruptedException {
+		if (isTransitioning()) {
+			this.lock.readLock().unlock();
+			// To use the condition, need to upgrade to a write lock
+			this.lock.writeLock().lock();
+			try {
+				while (isTransitioning()) {
+					this.condition.await(1, TimeUnit.SECONDS);
+				}
+				// After non-transitioning state, downgrade again to read-lock
+				this.lock.readLock().lock();
+			} finally {
+				this.lock.writeLock().unlock();
+			}
 		}
 	}
 
 	private boolean isTransitioning() {
-		if (!this.lock.isHeldByCurrentThread()) {
-			throw new IllegalStateException("Must hold the lock to check for transitioning state. This is an error in code.");
-		}
 		if (this.currentTransition != null && Thread.currentThread().equals(this.currentTransition.ownerThread)) {
 			throw new ReentrantStableStateWait(
 					"Tried to check for non-transitioning state from a thread that had already initiated a transition, "
@@ -249,7 +283,10 @@ public class FiniteStateMachine<T> {
 		return this.currentTransition != null;
 	}
 
-	private boolean isAllowedTransition(T startState, T endState) {
+	protected boolean isAllowedTransition(T startState, T endState) {
+	  if (endState.equals(this.errorState)) {
+	    return true;
+    }
 		if (this.universalEnds.contains(endState)) {
 			return true;
 		}
@@ -298,24 +335,71 @@ public class FiniteStateMachine<T> {
 			this.endState = endState;
 		}
 
+    /**
+     * Change the end state of the transition to the FSM error state.
+     */
+		public synchronized void switchEndStateToErrorState() {
+		  this.endState = FiniteStateMachine.this.errorState;
+    }
+
 		/**
 		 * Close the current transition moving the {@link FiniteStateMachine} to the end state and releasing all locks.
+     *
+     * @throws FailedTransitionCallbackException when start or end state callbacks fail. Note if this exception is thrown
+     * the transition is not complete and the error must be handled to complete it.
 		 */
 		@Override
-		public synchronized void close() {
-			if (this.closed) {
-				return;
-			}
-			this.closed = true;
-			try {
-				FiniteStateMachine.this.lock.lock();
-				FiniteStateMachine.this.currentState = this.endState;
-				FiniteStateMachine.this.currentTransition = null;
-				FiniteStateMachine.this.condition.signalAll();
-			} finally {
-				FiniteStateMachine.this.lock.unlock();
-			}
+		public void close() throws FailedTransitionCallbackException {
+			doClose(true);
 		}
+
+    /**
+     * Close the current transition moving the {@link FiniteStateMachine} to the end state and releasing all locks without
+     * calling any callbacks. This method should only be called after a {@link #close()} has failed and the failure
+     * cannot be handled.
+     */
+		public void closeWithoutCallbacks() {
+		  try {
+        doClose(false);
+      } catch (FailedTransitionCallbackException exc) {
+		    throw new IllegalStateException(String.format("Close without callbacks threw a %s. This is an error in code.",
+            FailedTransitionCallbackException.class), exc);
+      }
+    }
+
+		private synchronized void doClose(boolean withCallbacks) throws FailedTransitionCallbackException {
+      if (this.closed) {
+        return;
+      }
+
+      try {
+        FiniteStateMachine.this.lock.writeLock().lock();
+
+        try {
+          if (withCallbacks && getStartState() instanceof StateWithCallbacks) {
+            ((StateWithCallbacks<T>) getStartState()).onLeaveState(this.endState);
+          }
+        } catch (Throwable t) {
+          throw new FailedTransitionCallbackException(this, FailedCallback.START_STATE, t);
+        }
+
+        try {
+          if (withCallbacks && this.endState instanceof StateWithCallbacks) {
+            ((StateWithCallbacks) this.endState).onEnterState(getStartState());
+          }
+        } catch (Throwable t) {
+          throw new FailedTransitionCallbackException(this, FailedCallback.END_STATE, t);
+        }
+
+        this.closed = true;
+
+        FiniteStateMachine.this.currentState = this.endState;
+        FiniteStateMachine.this.currentTransition = null;
+        FiniteStateMachine.this.condition.signalAll();
+      } finally {
+        FiniteStateMachine.this.lock.writeLock().unlock();
+      }
+    }
 	}
 
 	/**
@@ -354,4 +438,26 @@ public class FiniteStateMachine<T> {
 			this.startingThread = startingThread;
 		}
 	}
+
+	public enum FailedCallback {
+	  START_STATE, END_STATE
+  }
+
+  /**
+   * Thrown when the callbacks when closing a transition fail.
+   */
+  @Getter
+	public static class FailedTransitionCallbackException extends IOException {
+	  private final FiniteStateMachine.Transition transition;
+	  private final FailedCallback failedCallback;
+	  private final Throwable originalException;
+
+    public FailedTransitionCallbackException(FiniteStateMachine<?>.Transition transition, FailedCallback failedCallback,
+        Throwable originalException) {
+      super("Failed callbacks when ending transition.", originalException);
+      this.transition = transition;
+      this.failedCallback = failedCallback;
+      this.originalException = originalException;
+    }
+  }
 }

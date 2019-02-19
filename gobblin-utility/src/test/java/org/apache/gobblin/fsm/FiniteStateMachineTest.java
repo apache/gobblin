@@ -21,13 +21,18 @@ import java.util.Set;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Function;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Sets;
 
+import javax.annotation.Nullable;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -115,14 +120,75 @@ public class FiniteStateMachineTest {
 		Assert.assertEquals(fsm.getCurrentState(), MyStates.ERROR);
 	}
 
+	@Test
+	public void callbackTest() throws Exception {
+	  NamedStateWithCallback stateA = new NamedStateWithCallback("a");
+    NamedStateWithCallback stateB = new NamedStateWithCallback("b");
+    NamedStateWithCallback stateC = new NamedStateWithCallback("c", null, s -> {
+      throw new RuntimeException("leave");
+    });
+    NamedStateWithCallback stateD = new NamedStateWithCallback("d");
+
+    FiniteStateMachine<NamedStateWithCallback> fsm = new FiniteStateMachine.Builder<NamedStateWithCallback>()
+        .addTransition(new NamedStateWithCallback("a"), new NamedStateWithCallback("b"))
+        .addTransition(new NamedStateWithCallback("b"), new NamedStateWithCallback("c"))
+        .addTransition(new NamedStateWithCallback("c"), new NamedStateWithCallback("d"))
+        .addUniversalEnd(new NamedStateWithCallback("ERROR"))
+        .build(stateA);
+
+    fsm.transitionImmediately(stateB);
+
+    Assert.assertEquals(fsm.getCurrentState(), stateB);
+    Assert.assertEquals(stateA.lastTransition, "leave:a->b");
+    stateA.lastTransition = "";
+    Assert.assertEquals(stateB.lastTransition, "enter:a->b");
+    stateB.lastTransition = "";
+
+    try {
+      // State that will error on enter
+      fsm.transitionImmediately(new NamedStateWithCallback("c", s -> {
+        throw new RuntimeException("enter");
+      }, s -> {
+        throw new RuntimeException("leave");
+      }));
+      Assert.fail("Expected excpetion");
+    } catch (FiniteStateMachine.FailedTransitionCallbackException exc) {
+      Assert.assertEquals(exc.getFailedCallback(), FiniteStateMachine.FailedCallback.END_STATE);
+      Assert.assertEquals(exc.getOriginalException().getMessage(), "enter");
+      // switch state to one that will only error on leave
+      exc.getTransition().changeEndState(stateC);
+      exc.getTransition().close();
+    }
+
+    Assert.assertEquals(fsm.getCurrentState(), stateC);
+    Assert.assertEquals(stateB.lastTransition, "leave:b->c");
+    stateB.lastTransition = "";
+    Assert.assertEquals(stateC.lastTransition, "enter:b->c");
+    stateC.lastTransition = "";
+
+    try {
+      fsm.transitionImmediately(stateD);
+      Assert.fail("Expected exception");
+    } catch (FiniteStateMachine.FailedTransitionCallbackException exc) {
+      Assert.assertEquals(exc.getFailedCallback(), FiniteStateMachine.FailedCallback.START_STATE);
+      Assert.assertEquals(exc.getOriginalException().getMessage(), "leave");
+      // switch state to one that will only error on leave
+      exc.getTransition().changeEndState(new NamedStateWithCallback("ERROR"));
+      exc.getTransition().closeWithoutCallbacks();
+    }
+
+    Assert.assertEquals(fsm.getCurrentState(), new NamedStateWithCallback("ERROR"));
+    Assert.assertEquals(stateD.lastTransition, "");
+  }
+
 	@Test(timeOut = 5000)
 	public void multiThreadTest() throws Exception {
 		FiniteStateMachine<MyStates> fsm = refFsm.cloneAtInitialState();
 
 		Assert.assertEquals(fsm.getCurrentState(), MyStates.PENDING);
 
-		Transitioner t1 = new Transitioner(fsm, MyStates.RUNNING);
-		Transitioner t2 = new Transitioner(fsm, MyStates.ERROR);
+		Transitioner<MyStates> t1 = new Transitioner<>(fsm, MyStates.RUNNING);
+		Transitioner<MyStates> t2 = new Transitioner<>(fsm, MyStates.ERROR);
 
 		Thread t1Thread = new Thread(null, t1, "t1");
 		t1Thread.start();
@@ -179,9 +245,9 @@ public class FiniteStateMachineTest {
 	}
 
 	@Data
-	private class Transitioner implements Runnable {
-		private final FiniteStateMachine<MyStates> fsm;
-		private final MyStates endState;
+	private class Transitioner<T> implements Runnable {
+		private final FiniteStateMachine<T> fsm;
+		private final T endState;
 
 		private final Lock lock = new ReentrantLock();
 		private final Condition condition = lock.newCondition();
@@ -205,6 +271,9 @@ public class FiniteStateMachineTest {
 				return;
 			} catch (FiniteStateMachine.UnallowedTransitionException exc) {
 				goToState(TransitionState.UNALLOWED);
+				return;
+			} catch (FiniteStateMachine.FailedTransitionCallbackException exc) {
+				goToState(TransitionState.CALLBACK_ERROR);
 				return;
 			}
 			goToState(TransitionState.COMPLETED);
@@ -233,6 +302,43 @@ public class FiniteStateMachineTest {
 	}
 
 	enum TransitionState {
-		STARTING, TRANSITIONING, COMPLETED, INTERRUPTED, UNALLOWED, TIMEOUT
+		STARTING, TRANSITIONING, COMPLETED, INTERRUPTED, UNALLOWED, TIMEOUT, CALLBACK_ERROR
 	}
+
+	@RequiredArgsConstructor
+  @EqualsAndHashCode(of = "name")
+	public static class NamedStateWithCallback implements StateWithCallbacks<NamedStateWithCallback> {
+	  @Getter
+	  private final String name;
+	  private final Function<NamedStateWithCallback, Void> enterCallback;
+	  private final Function<NamedStateWithCallback, Void> leaveCallback;
+
+	  String lastTransition = "";
+
+    public NamedStateWithCallback(String name) {
+      this(name, null, null);
+    }
+
+    private void setLastTransition(String callback, NamedStateWithCallback start, NamedStateWithCallback end) {
+      this.lastTransition = String.format("%s:%s->%s", callback, start.name, end.name);
+    }
+
+    @Override
+    public void onEnterState(@Nullable NamedStateWithCallback previousState) {
+      if (this.enterCallback == null) {
+        setLastTransition("enter", previousState, this);
+      } else {
+        this.enterCallback.apply(previousState);
+      }
+    }
+
+    @Override
+    public void onLeaveState(NamedStateWithCallback nextState) {
+      if (this.leaveCallback == null) {
+        setLastTransition("leave", this, nextState);
+      } else {
+        this.leaveCallback.apply(nextState);
+      }
+    }
+  }
 }
