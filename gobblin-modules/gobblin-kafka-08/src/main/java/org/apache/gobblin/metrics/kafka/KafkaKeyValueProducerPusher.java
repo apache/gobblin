@@ -51,8 +51,15 @@ public class KafkaKeyValueProducerPusher<K, V> implements Pusher<Pair<K, V>> {
   private final String topic;
   private final KafkaProducer<K, V> producer;
   private final Closer closer;
+  //Queue to keep track of the futures returned by the Kafka asynchronous send() call. The futures queue is used
+  // to mimic the functionality of flush() call (available in Kafka 09 and later). Currently, there are no
+  // capacity limits on the size of the futures queue. In general, if queue capacity is enforced, a safe lower bound for queue
+  // capacity is MAX_NUM_FUTURES_TO_BUFFER + (numThreads * maxNumMessagesPerInterval), where numThreads equals the number of
+  // threads sharing the producer instance and maxNumMessagesPerInterval is the estimated maximum number of messages
+  // emitted by a thread per reporting interval.
   private final Queue<Future<RecordMetadata>> futures = new LinkedBlockingDeque<>();
 
+  //Low watermark for the size of the futures queue, to trigger flushing of messages.
   private static final long MAX_NUM_FUTURES_TO_BUFFER = 1000L;
 
   public KafkaKeyValueProducerPusher(String brokers, String topic, Optional<Config> kafkaConfig) {
@@ -87,6 +94,7 @@ public class KafkaKeyValueProducerPusher<K, V> implements Pusher<Pair<K, V>> {
    * @param messages List of keyed messages to push to Kakfa.
    */
   public void pushMessages(List<Pair<K, V>> messages) {
+    long numMessagesToFlush = this.futures.size();
     for (Pair<K, V> message: messages) {
       this.futures.offer(this.producer.send(new ProducerRecord<>(topic, message.getKey(), message.getValue()), (recordMetadata, e) -> {
         if (e != null) {
@@ -95,11 +103,12 @@ public class KafkaKeyValueProducerPusher<K, V> implements Pusher<Pair<K, V>> {
       }));
     }
 
-    //Accumulate futures returned from send() into a buffer; will be used to simulate flush by calling get() on
-    // each of the accumulated futures.
+    //Once the low watermark of MAX_NUM_FUTURES_TO_BUFFER is hit, start flushing messages from the futures
+    // buffer. In order to avoid blocking on newest messages, we only invoke future.get() on messages other than
+    // the ones added in this call. Since the "older" messages have a greater probability of already being delivered,
+    // future.get() on those messages should return immediately.
     if (this.futures.size() >= MAX_NUM_FUTURES_TO_BUFFER) {
-      flush(MAX_NUM_FUTURES_TO_BUFFER);
-      this.futures.clear();
+      flush(numMessagesToFlush);
     }
   }
 
