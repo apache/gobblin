@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.Schema;
@@ -106,13 +107,9 @@ public class AvroUtils {
   }
 
   public static List<Field> deepCopySchemaFields(Schema readerSchema) {
-    List<Schema.Field> fields = Lists.newArrayList();
-
-    for (Schema.Field field : readerSchema.getFields()) {
-      Schema.Field newField = new Schema.Field(field.name(), field.schema(), field.doc(), field.defaultValue(), field.order());
-      fields.add(newField);
-    }
-    return fields;
+    return readerSchema.getFields().stream()
+        .map(field -> new Field(field.name(), field.schema(), field.doc(), field.defaultValue(), field.order()))
+        .collect(Collectors.toList());
   }
 
   public static class AvroPathFilter implements PathFilter {
