@@ -99,9 +99,10 @@ public class KafkaProducerPusher implements Pusher<byte[]> {
     }
 
     //Once the low watermark of MAX_NUM_FUTURES_TO_BUFFER is hit, start flushing messages from the futures
-    // buffer. In order to avoid blocking on newest messages, we only invoke future.get() on messages other than
-    // the ones added in this call. Since the "older" messages have a greater probability of already being delivered,
-    // future.get() on those messages should return immediately.
+    // buffer. In order to avoid blocking on newest messages added to futures queue, we only invoke future.get() on
+    // messages other than the ones added in this call. Since the "older" messages are likely already delivered,
+    // future.get() on those messages should return immediately. Note this does not completely avoid calling
+    // future.get() on the newest messages e.g. when multiple threads enter the if{} block concurrently, and invoke flush().
     if (this.futures.size() >= MAX_NUM_FUTURES_TO_BUFFER) {
       flush(numMessagesToFlush);
     }
