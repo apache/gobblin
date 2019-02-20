@@ -113,7 +113,7 @@ public class AzkabanClient implements Closeable {
         .retryIfExceptionOfType(InvalidSessionException.class)
         .withAttemptTimeLimiter(AttemptTimeLimiters.fixedTimeLimit(10, TimeUnit.SECONDS, this.executorService))
         .withWaitStrategy(WaitStrategies.exponentialWait(60, TimeUnit.SECONDS))
-        .withStopStrategy(StopStrategies.stopAfterAttempt(5))
+        .withStopStrategy(StopStrategies.stopAfterAttempt(3))
         .build();
     this.sessionId = this.sessionManager.fetchSession();
     this.sessionCreationTime = System.nanoTime();
@@ -137,7 +137,7 @@ public class AzkabanClient implements Closeable {
 
   private void intializeExecutorService() {
     if (this.executorService == null) {
-      this.executorService = Executors.newFixedThreadPool(300);
+      this.executorService = Executors.newFixedThreadPool(30);
     }
   }
 
