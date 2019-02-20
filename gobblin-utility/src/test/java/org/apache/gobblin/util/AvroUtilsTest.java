@@ -46,6 +46,17 @@ public class AvroUtilsTest {
   private static final String AVRO_DIR = "gobblin-utility/src/test/resources/avroDirParent/";
 
   @Test
+  public void testSchemaCompatiability() {
+    Schema readerSchema = new Schema.Parser().parse("{\"type\":\"record\",\"name\":\"GobblinTrackingEvent_GaaS2\",\"namespace\":\"gobblin.metrics\",\"fields\":[{\"name\":\"timestamp\",\"type\":\"long\",\"doc\":\"Time at which event was created.\",\"default\":0},{\"name\":\"namespace\",\"type\":[{\"type\":\"string\",\"avro.java.string\":\"String\"},\"null\"],\"doc\":\"Namespace used for filtering of events.\"},{\"name\":\"name\",\"type\":{\"type\":\"string\",\"avro.java.string\":\"String\"},\"doc\":\"Event name.\"},{\"name\":\"metadata\",\"type\":{\"type\":\"map\",\"values\":{\"type\":\"string\",\"avro.java.string\":\"String\"},\"avro.java.string\":\"String\"},\"doc\":\"Event metadata.\",\"default\":{}}]}");
+    Schema writerSchema1 = new Schema.Parser().parse("{\"type\":\"record\",\"name\":\"GobblinTrackingEvent\",\"namespace\":\"org.apache.gobblin.metrics\",\"fields\":[{\"name\":\"timestamp\",\"type\":\"long\",\"doc\":\"Time at which event was created.\",\"default\":0},{\"name\":\"namespace\",\"type\":[\"string\",\"null\"],\"doc\":\"Namespace used for filtering of events.\"},{\"name\":\"name\",\"type\":\"string\",\"doc\":\"Event name.\"},{\"name\":\"metadata\",\"type\":{\"type\":\"map\",\"values\":\"string\"},\"doc\":\"Event metadata.\",\"default\":{}}]}");
+    Schema writerSchema2 = new Schema.Parser().parse("{\"type\":\"record\",\"name\":\"GobblinTrackingEvent\",\"namespace\":\"org.apache.gobblin.metrics\",\"fields\":[{\"name\":\"timestamp\",\"type\":\"long\",\"doc\":\"Time at which event was created.\",\"default\":0},{\"name\":\"namespace\",\"type\":[\"string\",\"null\"],\"doc\":\"Namespace used for filtering of events.\"},{\"name\":\"name2\",\"type\":\"string\",\"doc\":\"Event name.\"},{\"name\":\"metadata\",\"type\":{\"type\":\"map\",\"values\":\"string\"},\"doc\":\"Event metadata.\",\"default\":{}}]}");
+
+    Assert.assertTrue(AvroUtils.checkReaderWriterCompatibility(readerSchema, writerSchema1, true));
+    Assert.assertFalse(AvroUtils.checkReaderWriterCompatibility(readerSchema, writerSchema1, false));
+    Assert.assertFalse(AvroUtils.checkReaderWriterCompatibility(readerSchema, writerSchema2, true));
+  }
+
+  @Test
   public void testGetDirectorySchema() throws IOException {
     Configuration conf = new Configuration();
     conf.set("fs.default.name", "file:///");

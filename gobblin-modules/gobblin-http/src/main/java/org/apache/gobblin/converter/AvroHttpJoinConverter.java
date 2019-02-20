@@ -34,6 +34,7 @@ import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.http.HttpOperation;
 import org.apache.gobblin.http.HttpRequestResponseRecord;
 import org.apache.gobblin.http.ResponseStatus;
+import org.apache.gobblin.util.AvroUtils;
 import org.apache.gobblin.utils.HttpUtils;
 
 
@@ -58,11 +59,7 @@ public abstract class AvroHttpJoinConverter<RQ, RP> extends AsyncHttpJoinConvert
       throw new SchemaConversionException("input schema is empty");
     }
 
-    List<Schema.Field> fields = Lists.newArrayList();
-    for (Schema.Field field : inputSchema.getFields()) {
-      Schema.Field newField = new Schema.Field(field.name(), field.schema(), field.doc(), field.defaultValue(), field.order());
-      fields.add(newField);
-    }
+    List<Schema.Field> fields = AvroUtils.deepCopySchemaFields(inputSchema);
 
     Schema.Field requestResponseField = new Schema.Field(HTTP_REQUEST_RESPONSE_FIELD, HttpRequestResponseRecord.getClassSchema(), "http output schema contains request url and return result", null);
     fields.add(requestResponseField);
