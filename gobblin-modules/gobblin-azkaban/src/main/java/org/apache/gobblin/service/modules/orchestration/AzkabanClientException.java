@@ -25,7 +25,7 @@ import java.io.IOException;
 public class AzkabanClientException extends IOException {
   private static final long serialVersionUID = 11324144L;
 
-  public AzkabanClientException(String message, Exception e) {
+  public AzkabanClientException(String message, Throwable e) {
     super(message, e);
   }
 

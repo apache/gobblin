@@ -21,46 +21,49 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.http.Header;
 import org.apache.http.HttpEntity;
-import org.apache.http.HttpHeaders;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
-import org.apache.http.NameValuePair;
 import org.apache.http.client.config.RequestConfig;
-import org.apache.http.client.entity.UrlEncodedFormEntity;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.client.utils.URLEncodedUtils;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
-import org.apache.http.entity.ContentType;
-import org.apache.http.entity.mime.MultipartEntityBuilder;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.conn.BasicHttpClientConnectionManager;
-import org.apache.http.message.BasicHeader;
-import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.ssl.TrustStrategy;
 import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.github.rholder.retry.AttemptTimeLimiters;
+import com.github.rholder.retry.RetryException;
+import com.github.rholder.retry.Retryer;
+import com.github.rholder.retry.RetryerBuilder;
+import com.github.rholder.retry.StopStrategies;
+import com.github.rholder.retry.WaitStrategies;
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
+import com.google.common.io.Closer;
+import com.google.common.util.concurrent.SimpleTimeLimiter;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 import lombok.Builder;
+
+import org.apache.gobblin.util.ExecutorsUtils;
 
 
 /**
@@ -72,15 +75,16 @@ import lombok.Builder;
  */
 public class AzkabanClient implements Closeable {
   protected final String username;
+  protected final String password;
   protected final String url;
   protected final long sessionExpireInMin; // default value is 12h.
   protected SessionManager sessionManager;
-  protected String password;
   protected String sessionId;
   protected long sessionCreationTime = 0;
   protected CloseableHttpClient httpClient;
-
-  private boolean customHttpClientProvided = true;
+  private ExecutorService executorService;
+  private Closer closer = Closer.create();
+  private Retryer<AzkabanClientStatus> retryer;
   private static Logger log = LoggerFactory.getLogger(AzkabanClient.class);
 
   /**
@@ -92,7 +96,8 @@ public class AzkabanClient implements Closeable {
                           String url,
                           long sessionExpireInMin,
                           CloseableHttpClient httpClient,
-                          SessionManager sessionManager)
+                          SessionManager sessionManager,
+                          ExecutorService executorService)
       throws AzkabanClientException {
     this.username = username;
     this.password = password;
@@ -100,9 +105,16 @@ public class AzkabanClient implements Closeable {
     this.sessionExpireInMin = sessionExpireInMin;
     this.httpClient = httpClient;
     this.sessionManager = sessionManager;
+    this.executorService = executorService;
     this.initializeClient();
     this.initializeSessionManager();
-
+    this.intializeExecutorService();
+    this.retryer = RetryerBuilder.<AzkabanClientStatus>newBuilder()
+        .retryIfExceptionOfType(InvalidSessionException.class)
+        .withAttemptTimeLimiter(AttemptTimeLimiters.fixedTimeLimit(10, TimeUnit.SECONDS, this.executorService))
+        .withWaitStrategy(WaitStrategies.exponentialWait(60, TimeUnit.SECONDS))
+        .withStopStrategy(StopStrategies.stopAfterAttempt(3))
+        .build();
     this.sessionId = this.sessionManager.fetchSession();
     this.sessionCreationTime = System.nanoTime();
   }
@@ -110,7 +122,7 @@ public class AzkabanClient implements Closeable {
   private void initializeClient() throws AzkabanClientException {
     if (this.httpClient == null) {
       this.httpClient = createHttpClient();
-      this.customHttpClientProvided = false;
+      this.closer.register(this.httpClient);
     }
   }
 
@@ -120,6 +132,12 @@ public class AzkabanClient implements Closeable {
                                                       this.url,
                                                       this.username,
                                                       this.password);
+    }
+  }
+
+  private void intializeExecutorService() {
+    if (this.executorService == null) {
+      this.executorService = Executors.newFixedThreadPool(30);
     }
   }
 
@@ -159,10 +177,19 @@ public class AzkabanClient implements Closeable {
   /**
    * When current session expired, use {@link SessionManager} to refresh the session id.
    */
-  private void refreshSession() throws AzkabanClientException {
+  void refreshSession(boolean forceRefresh) throws AzkabanClientException {
     Preconditions.checkArgument(this.sessionCreationTime != 0);
-    if ((System.nanoTime() - this.sessionCreationTime) > Duration.ofMinutes(this.sessionExpireInMin).toNanos()) {
+    boolean expired = (System.nanoTime() - this.sessionCreationTime) > Duration
+        .ofMinutes(this.sessionExpireInMin)
+        .toNanos();
+
+    if (expired) {
       log.info("Session expired. Generating a new session.");
+    } else if (forceRefresh) {
+      log.info("Force to refresh session. Generating a new session.");
+    }
+
+    if (expired || forceRefresh) {
       this.sessionId = this.sessionManager.fetchSession();
       this.sessionCreationTime = System.nanoTime();
     }
@@ -226,6 +253,11 @@ public class AzkabanClient implements Closeable {
         .replaceAll("\"", ""))) {
       String message = (null != jsonObject.get(AzkabanClientParams.MESSAGE)) ? jsonObject.get(AzkabanClientParams.MESSAGE).toString()
           .replaceAll("\"", "") : "Unknown issue";
+
+      if (message.contains("Invalid Session")) {
+        throw new InvalidSessionException(message);
+      }
+
       throw new IOException(message);
     }
 
@@ -243,34 +275,16 @@ public class AzkabanClient implements Closeable {
    *
    * @return A status object indicating if AJAX request is successful.
    */
-  public AzkabanClientStatus createProject(
-      String projectName,
-      String description) {
-    try {
-      refreshSession();
-      HttpPost httpPost = new HttpPost(this.url + "/manager");
-      List<NameValuePair> nvps = new ArrayList<>();
-      nvps.add(new BasicNameValuePair(AzkabanClientParams.ACTION, "create"));
-      nvps.add(new BasicNameValuePair(AzkabanClientParams.SESSION_ID, this.sessionId));
-      nvps.add(new BasicNameValuePair(AzkabanClientParams.NAME, projectName));
-      nvps.add(new BasicNameValuePair(AzkabanClientParams.DESCRIPTION, description));
-      httpPost.setEntity(new UrlEncodedFormEntity(nvps));
+  public AzkabanClientStatus createProject(String projectName,
+                                           String description) throws AzkabanClientException {
+    AzkabanMultiCallables.CreateProjectCallable callable =
+       AzkabanMultiCallables.CreateProjectCallable.builder()
+           .client(this)
+           .projectName(projectName)
+           .description(description)
+           .build();
 
-      Header contentType = new BasicHeader(HttpHeaders.CONTENT_TYPE, "application/x-www-form-urlencoded");
-      Header requestType = new BasicHeader("X-Requested-With", "XMLHttpRequest");
-      httpPost.setHeaders(new Header[]{contentType, requestType});
-
-      CloseableHttpResponse response = this.httpClient.execute(httpPost);
-
-      try {
-        handleResponse(response);
-        return new AzkabanClientStatus.SUCCESS();
-      } finally {
-        response.close();
-      }
-    } catch (Exception e) {
-      return new AzkabanClientStatus.FAIL("Azkaban client cannot create project.", e);
-    }
+    return runWithRetry(callable, AzkabanClientStatus.class);
   }
 
   /**
@@ -281,28 +295,15 @@ public class AzkabanClient implements Closeable {
    *
    * @return A status object indicating if AJAX request is successful.
    */
-  public AzkabanClientStatus deleteProject(String projectName) {
-    try {
-      refreshSession();
-      List<NameValuePair> nvps = new ArrayList<>();
-      nvps.add(new BasicNameValuePair(AzkabanClientParams.DELETE, "true"));
-      nvps.add(new BasicNameValuePair(AzkabanClientParams.SESSION_ID, this.sessionId));
-      nvps.add(new BasicNameValuePair(AzkabanClientParams.PROJECT, projectName));
+  public AzkabanClientStatus deleteProject(String projectName) throws AzkabanClientException {
 
-      Header contentType = new BasicHeader(HttpHeaders.CONTENT_TYPE, "application/x-www-form-urlencoded");
-      Header requestType = new BasicHeader("X-Requested-With", "XMLHttpRequest");
+    AzkabanMultiCallables.DeleteProjectCallable callable =
+        AzkabanMultiCallables.DeleteProjectCallable.builder()
+            .client(this)
+            .projectName(projectName)
+            .build();
 
-      HttpGet httpGet = new HttpGet(url + "/manager?" + URLEncodedUtils.format(nvps, "UTF-8"));
-      httpGet.setHeaders(new Header[]{contentType, requestType});
-
-      CloseableHttpResponse response = this.httpClient.execute(httpGet);
-      response.close();
-      return new AzkabanClientStatus.SUCCESS();
-
-    } catch (Exception e) {
-      return new AzkabanClientStatus.FAIL("Azkaban client cannot delete project = "
-          + projectName, e);
-    }
+    return runWithRetry(callable, AzkabanClientStatus.class);
   }
 
   /**
@@ -314,33 +315,17 @@ public class AzkabanClient implements Closeable {
    *
    * @return A status object indicating if AJAX request is successful.
    */
-  public AzkabanClientStatus uploadProjectZip(
-      String projectName,
-      File zipFile) {
-    try {
-      refreshSession();
-      HttpPost httpPost = new HttpPost(this.url + "/manager");
-      HttpEntity entity = MultipartEntityBuilder.create()
-          .addTextBody(AzkabanClientParams.SESSION_ID, sessionId)
-          .addTextBody(AzkabanClientParams.AJAX, "upload")
-          .addTextBody(AzkabanClientParams.PROJECT, projectName)
-          .addBinaryBody("file", zipFile,
-              ContentType.create("application/zip"), zipFile.getName())
-          .build();
-      httpPost.setEntity(entity);
+  public AzkabanClientStatus uploadProjectZip(String projectName,
+                                              File zipFile) throws AzkabanClientException {
 
-      CloseableHttpResponse response = this.httpClient.execute(httpPost);
+    AzkabanMultiCallables.UploadProjectCallable callable =
+        AzkabanMultiCallables.UploadProjectCallable.builder()
+            .client(this)
+            .projectName(projectName)
+            .zipFile(zipFile)
+            .build();
 
-      try {
-        handleResponse(response);
-        return new AzkabanClientStatus.SUCCESS();
-      } finally {
-        response.close();
-      }
-    } catch (Exception e) {
-      return new AzkabanClientStatus.FAIL("Azkaban client cannot upload zip to project = "
-          + projectName, e);
-    }
+    return runWithRetry(callable, AzkabanClientStatus.class);
   }
 
   /**
@@ -353,44 +338,20 @@ public class AzkabanClient implements Closeable {
    *
    * @return The status object which contains success status and execution id.
    */
-  public AzkabanExecuteFlowStatus executeFlowWithOptions(
-      String projectName,
-      String flowName,
-      Map<String, String> flowOptions,
-      Map<String, String> flowParameters) {
+  public AzkabanExecuteFlowStatus executeFlowWithOptions(String projectName,
+                                                         String flowName,
+                                                         Map<String, String> flowOptions,
+                                                         Map<String, String> flowParameters) throws AzkabanClientException {
+    AzkabanMultiCallables.ExecuteFlowCallable callable =
+        AzkabanMultiCallables.ExecuteFlowCallable.builder()
+            .client(this)
+            .projectName(projectName)
+            .flowName(flowName)
+            .flowOptions(flowOptions)
+            .flowParameters(flowParameters)
+            .build();
 
-    try {
-      refreshSession();
-      HttpPost httpPost = new HttpPost(this.url + "/executor");
-      List<NameValuePair> nvps = new ArrayList<>();
-      nvps.add(new BasicNameValuePair(AzkabanClientParams.AJAX, "executeFlow"));
-      nvps.add(new BasicNameValuePair(AzkabanClientParams.SESSION_ID, this.sessionId));
-      nvps.add(new BasicNameValuePair(AzkabanClientParams.PROJECT, projectName));
-      nvps.add(new BasicNameValuePair(AzkabanClientParams.FLOW, flowName));
-      nvps.add(new BasicNameValuePair(AzkabanClientParams.CONCURRENT_OPTION, "ignore"));
-
-      addFlowOptions(nvps, flowOptions);
-      addFlowParameters(nvps, flowParameters);
-
-      httpPost.setEntity(new UrlEncodedFormEntity(nvps));
-
-      Header contentType = new BasicHeader(HttpHeaders.CONTENT_TYPE, "application/x-www-form-urlencoded");
-      Header requestType = new BasicHeader("X-Requested-With", "XMLHttpRequest");
-      httpPost.setHeaders(new Header[]{contentType, requestType});
-
-      CloseableHttpResponse response = this.httpClient.execute(httpPost);
-
-      try {
-        Map<String, String> map = handleResponse(response);
-        return new AzkabanExecuteFlowStatus(
-            new AzkabanExecuteFlowStatus.ExecuteId(map.get(AzkabanClientParams.EXECID)));
-      } finally {
-        response.close();
-      }
-    } catch (Exception e) {
-      return new AzkabanExecuteFlowStatus("Azkaban client cannot execute flow = "
-          + flowName, e);
-    }
+    return runWithRetry(callable, AzkabanExecuteFlowStatus.class);
   }
 
   /**
@@ -402,104 +363,83 @@ public class AzkabanClient implements Closeable {
    *
    * @return The status object which contains success status and execution id.
    */
-  public AzkabanExecuteFlowStatus executeFlow(
-      String projectName,
-      String flowName,
-      Map<String, String> flowParameters) {
+  public AzkabanExecuteFlowStatus executeFlow(String projectName,
+                                              String flowName,
+                                              Map<String, String> flowParameters) throws AzkabanClientException {
     return executeFlowWithOptions(projectName, flowName, null, flowParameters);
   }
 
   /**
    * Cancel a flow by execution id.
    */
-  public AzkabanClientStatus cancelFlow(int execId) {
-    try {
-      refreshSession();
-      List<NameValuePair> nvps = new ArrayList<>();
-      nvps.add(new BasicNameValuePair(AzkabanClientParams.AJAX, "cancelFlow"));
-      nvps.add(new BasicNameValuePair(AzkabanClientParams.SESSION_ID, this.sessionId));
-      nvps.add(new BasicNameValuePair(AzkabanClientParams.EXECID, String.valueOf(execId)));
+  public AzkabanClientStatus cancelFlow(String execId) throws AzkabanClientException {
+    AzkabanMultiCallables.CancelFlowCallable callable =
+        AzkabanMultiCallables.CancelFlowCallable.builder()
+            .client(this)
+            .execId(execId)
+            .build();
 
-      Header contentType = new BasicHeader(HttpHeaders.CONTENT_TYPE, "application/x-www-form-urlencoded");
-      Header requestType = new BasicHeader("X-Requested-With", "XMLHttpRequest");
-
-      HttpGet httpGet = new HttpGet(url + "/executor?" + URLEncodedUtils.format(nvps, "UTF-8"));
-      httpGet.setHeaders(new Header[]{contentType, requestType});
-
-      CloseableHttpResponse response = this.httpClient.execute(httpGet);
-      try {
-        handleResponse(response);
-        return new AzkabanClientStatus.SUCCESS();
-      } finally {
-        response.close();
-      }
-    } catch (Exception e) {
-      return new AzkabanClientStatus.FAIL("", e);
-    }
+    return runWithRetry(callable, AzkabanClientStatus.class);
   }
 
+  /**
+   * Fetch an execution log.
+   */
+  public AzkabanClientStatus fetchExecutionLog(String execId,
+                                               String jobId,
+                                               String offset,
+                                               String length,
+                                               File ouf) throws AzkabanClientException {
+    AzkabanMultiCallables.FetchExecLogCallable callable =
+        AzkabanMultiCallables.FetchExecLogCallable.builder()
+            .client(this)
+            .execId(execId)
+            .jobId(jobId)
+            .offset(offset)
+            .length(length)
+            .output(ouf)
+            .build();
+
+    return runWithRetry(callable, AzkabanClientStatus.class);
+  }
 
   /**
-   * Given an execution id, fetches all the detailed information of that execution, including a list of all the job executions.
+   * Given an execution id, fetches all the detailed information of that execution,
+   * including a list of all the job executions.
    *
    * @param execId execution id to be fetched.
    *
-   * @return The status object which contains success status and all the detailed information of that execution.
+   * @return The status object which contains success status and all the detailed
+   *         information of that execution.
    */
-  public AzkabanFetchExecuteFlowStatus fetchFlowExecution (String execId) {
+  public AzkabanFetchExecuteFlowStatus fetchFlowExecution(String execId) throws AzkabanClientException {
+    AzkabanMultiCallables.FetchFlowExecCallable callable =
+        AzkabanMultiCallables.FetchFlowExecCallable.builder()
+            .client(this)
+            .execId(execId)
+            .build();
+
+    return runWithRetry(callable, AzkabanFetchExecuteFlowStatus.class);
+  }
+
+  private <T> T runWithRetry(Callable callable, Class<T> cls) throws AzkabanClientException {
     try {
-      refreshSession();
-      List<NameValuePair> nvps = new ArrayList<>();
-      nvps.add(new BasicNameValuePair(AzkabanClientParams.AJAX, "fetchexecflow"));
-      nvps.add(new BasicNameValuePair(AzkabanClientParams.SESSION_ID, this.sessionId));
-      nvps.add(new BasicNameValuePair(AzkabanClientParams.EXECID, execId));
-
-      Header contentType = new BasicHeader(HttpHeaders.CONTENT_TYPE, "application/x-www-form-urlencoded");
-      Header requestType = new BasicHeader("X-Requested-With", "XMLHttpRequest");
-
-      HttpGet httpGet = new HttpGet(url + "/executor?" + URLEncodedUtils.format(nvps, "UTF-8"));
-      httpGet.setHeaders(new Header[]{contentType, requestType});
-
-      CloseableHttpResponse response = this.httpClient.execute(httpGet);
-      try {
-        Map<String, String> map = handleResponse(response);
-        return new AzkabanFetchExecuteFlowStatus(new AzkabanFetchExecuteFlowStatus.Execution(map));
-      } finally {
-        response.close();
+      AzkabanClientStatus status = this.retryer.call(callable);
+      if (status.getClass().equals(cls)) {
+        return ((T)status);
       }
-    } catch (Exception e) {
-      return new AzkabanFetchExecuteFlowStatus("Azkaban client cannot "
-          + "fetch execId " + execId, e);
+    } catch (ExecutionException e) {
+      Throwables.propagateIfPossible(e.getCause(), AzkabanClientException.class);
+    } catch (RetryException e) {
+      throw new AzkabanClientException("RetryException occurred ", e);
     }
-  }
-
-  private void addFlowParameters(List<NameValuePair> nvps, Map<String, String> flowParams) {
-    if (flowParams != null) {
-      for (Map.Entry<String, String> entry : flowParams.entrySet()) {
-        String key = entry.getKey();
-        String value = entry.getValue();
-        if (StringUtils.isNotBlank(key) && StringUtils.isNotBlank(value)) {
-          log.debug("New flow parameter added:" + key + "-->" + value);
-          nvps.add(new BasicNameValuePair("flowOverride[" + key + "]", value));
-        }
-      }
-    }
-  }
-
-  private void addFlowOptions(List<NameValuePair> nvps, Map<String, String> flowOptions) {
-    if (flowOptions != null) {
-      for (Map.Entry<String, String> option : flowOptions.entrySet()) {
-        log.debug("New flow option added:" + option .getKey()+ "-->" + option.getValue());
-        nvps.add(new BasicNameValuePair(option.getKey(), option.getValue()));
-      }
-    }
+    // should never reach to here.
+    throw new UnreachableStatementException("Cannot reach here.");
   }
 
   @Override
   public void close()
       throws IOException {
-    if (!customHttpClientProvided) {
-      this.httpClient.close();
-    }
+    this.closer.close();
   }
 }

@@ -17,22 +17,15 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-
-
 /**
- * This status captures execution id returned by {@link AzkabanClient#executeFlowWithOptions}
+ * Used by {@link AzkabanClient} to indicate an unreachable code block.
  */
-public class AzkabanExecuteFlowStatus extends AzkabanClientStatus<AzkabanExecuteFlowStatus.ExecuteId> {
-  public AzkabanExecuteFlowStatus(ExecuteId executeId) {
-    super(executeId);
+public class UnreachableStatementException extends AzkabanClientException {
+  public UnreachableStatementException(String message, Exception e) {
+    super(message, e);
   }
 
-  @Getter
-  @AllArgsConstructor
-  public static class ExecuteId {
-    String execId;
+  public UnreachableStatementException(String message) {
+    super(message);
   }
 }
-

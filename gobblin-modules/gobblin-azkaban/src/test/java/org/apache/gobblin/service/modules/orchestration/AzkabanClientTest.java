@@ -70,41 +70,44 @@ public class AzkabanClientTest {
     this.client.close();
   }
 
-  private void ensureProjectExist(String projectName, String description) {
-    AzkabanClientStatus status;
+  private void ensureProjectExist(String projectName, String description) throws AzkabanClientException {
     // make sure it is in a clean state
-    status = this.client.deleteProject(projectName);
-    Assert.assertTrue(status.isSuccess());
+    this.client.deleteProject(projectName);
 
     // make sure the project is created successfully
-    status = this.client.createProject(projectName, description);
-    Assert.assertTrue(status.isSuccess());
+    this.client.createProject(projectName, description);
   }
 
   @Test(enabled = false)
-  public void testCreateProject() {
+  public void testFetchLog() throws AzkabanClientException {
+    String execId = "11211956";
+    String jobId = "tracking-hourly-bucket1";
+
+    // fetch log
+    this.client.fetchExecutionLog(execId, jobId, "0", "100000000", new File("/tmp/sample.log"));
+  }
+
+
+  @Test(enabled = false)
+  public void testCreateProject() throws AzkabanClientException {
     String projectName = "project-create";
     String description = "This is a create project test.";
-    AzkabanClientStatus status;
 
     ensureProjectExist(projectName, description);
 
     // the second time creation should fail
-    status = this.client.createProject(projectName, description);
-    Assert.assertFalse(status.isSuccess());
+    this.client.createProject(projectName, description);
   }
 
   @Test(enabled = false)
-  public void testDeleteProject() {
+  public void testDeleteProject() throws AzkabanClientException {
     String projectName = "project-delete";
     String description = "This is a delete project test.";
-    AzkabanClientStatus status;
 
     ensureProjectExist(projectName, description);
 
     // delete the new project
-    status = this.client.deleteProject(projectName);
-    Assert.assertTrue(status.isSuccess());
+    this.client.deleteProject(projectName);
   }
 
   @Test(enabled = false)
@@ -112,18 +115,20 @@ public class AzkabanClientTest {
     String projectName = "project-upload";
     String description = "This is a upload project test.";
     String flowName = "test-upload";
-    AzkabanClientStatus status;
 
     ensureProjectExist(projectName, description);
 
     // upload Zip to project
     File zipFile = createAzkabanZip(flowName);
-    status = this.client.uploadProjectZip(projectName, zipFile);
-    Assert.assertTrue(status.isSuccess());
+    this.client.uploadProjectZip(projectName, zipFile);
 
     // upload Zip to an non-existed project
-    status = this.client.uploadProjectZip("Non-existed-project", zipFile);
-    Assert.assertFalse(status.isSuccess());
+    try {
+      this.client.uploadProjectZip("Non-existed-project", zipFile);
+      Assert.fail();
+    } catch (Exception e) {
+      log.info("Expected exception " + e.toString());
+    }
   }
 
   @Test(enabled = false)
@@ -136,12 +141,10 @@ public class AzkabanClientTest {
 
     // upload Zip to project
     File zipFile = createAzkabanZip(flowName);
-    AzkabanClientStatus status = this.client.uploadProjectZip(projectName, zipFile);
-    Assert.assertTrue(status.isSuccess());
+    this.client.uploadProjectZip(projectName, zipFile);
 
     // execute a flow
     AzkabanExecuteFlowStatus execStatus = this.client.executeFlow(projectName, flowName, Maps.newHashMap());
-    Assert.assertTrue(execStatus.isSuccess());
     log.info("Execid: {}", execStatus.getResponse().execId);
   }
 
@@ -155,8 +158,7 @@ public class AzkabanClientTest {
 
     // upload Zip to project
     File zipFile = createAzkabanZip(flowName);
-    AzkabanClientStatus status = this.client.uploadProjectZip(projectName, zipFile);
-    Assert.assertTrue(status.isSuccess());
+    this.client.uploadProjectZip(projectName, zipFile);
 
     Map<String, String> flowParams = Maps.newHashMap();
     flowParams.put("gobblin.source", "DummySource");
@@ -164,7 +166,6 @@ public class AzkabanClientTest {
 
     // execute a flow
     AzkabanExecuteFlowStatus execStatus = this.client.executeFlow(projectName, flowName, flowParams);
-    Assert.assertTrue(execStatus.isSuccess());
     log.info("Execid: {}", execStatus.getResponse().execId);
   }
 
@@ -178,14 +179,12 @@ public class AzkabanClientTest {
 
     // upload Zip to project
     File zipFile = createAzkabanZip(flowName);
-    AzkabanClientStatus status = this.client.uploadProjectZip(projectName, zipFile);
-    Assert.assertTrue(status.isSuccess());
+    this.client.uploadProjectZip(projectName, zipFile);
 
     Map<String, String> flowOptions = Maps.newHashMap();
 
     // execute a flow
     AzkabanExecuteFlowStatus execStatus = this.client.executeFlowWithOptions(projectName, flowName, flowOptions, Maps.newHashMap());
-    Assert.assertTrue(execStatus.isSuccess());
     log.info("Execid: {}", execStatus.getResponse().execId);
   }
 
@@ -199,14 +198,12 @@ public class AzkabanClientTest {
 
     // upload Zip to project
     File zipFile = createAzkabanZip(flowName);
-    AzkabanClientStatus status = this.client.uploadProjectZip(projectName, zipFile);
-    Assert.assertTrue(status.isSuccess());
+    this.client.uploadProjectZip(projectName, zipFile);
 
     Map<String, String> flowOptions = Maps.newHashMap();
 
     // execute a flow
     AzkabanExecuteFlowStatus execStatus = this.client.executeFlowWithOptions(projectName, flowName, flowOptions, Maps.newHashMap());
-    Assert.assertTrue(execStatus.isSuccess());
     log.info("Execid: {}", execStatus.getResponse().execId);
 
     // wait for the job started and failed
@@ -214,7 +211,9 @@ public class AzkabanClientTest {
 
     // job should fail
     AzkabanFetchExecuteFlowStatus fetchExecuteFlowStatus = this.client.fetchFlowExecution(execStatus.getResponse().execId);
-    Assert.assertTrue(fetchExecuteFlowStatus.isSuccess());
+    for (Map.Entry<String, String> entry : fetchExecuteFlowStatus.getResponse().getMap().entrySet()) {
+      log.info(entry.getKey() + " -> " + entry.getValue());
+    }
   }
 
   @Test(enabled = false)

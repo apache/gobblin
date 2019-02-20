@@ -17,22 +17,15 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-
-
 /**
- * This status captures execution id returned by {@link AzkabanClient#executeFlowWithOptions}
+ * Used by {@link AzkabanClient} to indicate current session is invalid.
  */
-public class AzkabanExecuteFlowStatus extends AzkabanClientStatus<AzkabanExecuteFlowStatus.ExecuteId> {
-  public AzkabanExecuteFlowStatus(ExecuteId executeId) {
-    super(executeId);
+public class InvalidSessionException extends AzkabanClientException {
+  public InvalidSessionException(String message, Exception e) {
+    super(message, e);
   }
 
-  @Getter
-  @AllArgsConstructor
-  public static class ExecuteId {
-    String execId;
+  public InvalidSessionException(String message) {
+    super(message);
   }
 }
-
