@@ -22,6 +22,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonDeserializationContext;
@@ -36,12 +37,18 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.SpecExecutor;
+import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.service.ExecutionStatus;
-import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 @Slf4j
 public class JobExecutionPlanListDeserializer implements JsonDeserializer<List<JobExecutionPlan>> {
+  private final Map<URI,TopologySpec> topologySpecMap;
+
+  public JobExecutionPlanListDeserializer(Map<URI, TopologySpec> topologySpecMap) {
+    this.topologySpecMap = topologySpecMap;
+  }
+
   /**
    * Gson invokes this call-back method during deserialization when it encounters a field of the
    * specified type.
@@ -89,13 +96,12 @@ public class JobExecutionPlanListDeserializer implements JsonDeserializer<List<J
       }
 
       Config specExecutorConfig = ConfigFactory.parseString(specExecutorJson.get(SerializationConstants.SPEC_EXECUTOR_CONFIG_KEY).getAsString());
-      String className = specExecutorJson.get(SerializationConstants.SPEC_EXECUTOR_CLASS_KEY).getAsString();
       SpecExecutor specExecutor;
       try {
-        specExecutor =
-            (SpecExecutor) GobblinConstructorUtils.invokeLongestConstructor(Class.forName(className), specExecutorConfig);
-      } catch (ReflectiveOperationException e) {
-        log.error("Error deserializing specExecuor {}", specExecutorConfig);
+        URI specExecutorUri = new URI(specExecutorConfig.getString(SerializationConstants.SPEC_EXECUTOR_URI_KEY));
+        specExecutor = this.topologySpecMap.get(specExecutorUri).getSpecExecutor();
+      } catch (Exception e) {
+        log.error("Error deserializing specExecutor {}", specExecutorConfig);
         throw new RuntimeException(e);
       }
 

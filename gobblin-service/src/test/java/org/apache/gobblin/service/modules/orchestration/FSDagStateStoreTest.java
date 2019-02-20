@@ -21,9 +21,13 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Properties;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.hadoop.fs.Path;
 import org.junit.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -38,25 +42,52 @@ import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.SpecExecutor;
+import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutor;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlanDagFactory;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 public class FSDagStateStoreTest {
   private DagStateStore _dagStateStore;
   private final String dagStateStoreDir = "/tmp/fsDagStateStoreTest/dagStateStore";
   private File checkpointDir;
+  private Map<URI, TopologySpec> topologySpecMap;
+  private TopologySpec topologySpec;
+  private URI specExecURI;
 
   @BeforeClass
-  public void setUp() throws IOException {
+  public void setUp()
+      throws IOException, URISyntaxException {
     this.checkpointDir = new File(dagStateStoreDir);
     FileUtils.deleteDirectory(this.checkpointDir);
     Config config = ConfigFactory.empty().withValue(DagManager.DAG_STATESTORE_DIR, ConfigValueFactory.fromAnyRef(
         this.dagStateStoreDir));
-    this._dagStateStore = new FSDagStateStore(config);
+    this.topologySpecMap = new HashMap<>();
+
+    String specStoreDir = "/tmp/specStoreDir";
+    String specExecInstance = "mySpecExecutor";
+    Properties properties = new Properties();
+    properties.put("specStore.fs.dir", specStoreDir);
+    properties.put("specExecInstance.capabilities", "source:destination");
+    properties.put("specExecInstance.uri", specExecInstance);
+    properties.put("uri",specExecInstance);
+
+    Config specExecConfig = ConfigUtils.propertiesToConfig(properties);
+    SpecExecutor specExecutorInstanceProducer = new InMemorySpecExecutor(specExecConfig);
+    TopologySpec.Builder topologySpecBuilder = TopologySpec.builder(new Path(specStoreDir).toUri())
+        .withConfig(specExecConfig)
+        .withDescription("test")
+        .withVersion("1")
+        .withSpecExecutor(specExecutorInstanceProducer);
+    this.topologySpec = topologySpecBuilder.build();
+    this.specExecURI = new URI(specExecInstance);
+    this.topologySpecMap.put(this.specExecURI, topologySpec);
+
+    this._dagStateStore = new FSDagStateStore(config, this.topologySpecMap);
   }
 
   /**
@@ -77,7 +108,7 @@ public class FSDagStateStoreTest {
       }
       JobSpec js = JobSpec.builder("test_job" + suffix).withVersion(suffix).withConfig(jobConfig).
           withTemplate(new URI("job" + suffix)).build();
-      SpecExecutor specExecutor = new InMemorySpecExecutor(ConfigFactory.empty());
+      SpecExecutor specExecutor = this.topologySpec.getSpecExecutor();
       JobExecutionPlan jobExecutionPlan = new JobExecutionPlan(js, specExecutor);
       jobExecutionPlan.setExecutionStatus(ExecutionStatus.RUNNING);
       jobExecutionPlans.add(jobExecutionPlan);
@@ -144,6 +175,8 @@ public class FSDagStateStoreTest {
       Assert.assertEquals(dag.getStartNodes().size(), 1);
       Assert.assertEquals(dag.getEndNodes().size(), 1);
       Assert.assertEquals(dag.getParentChildMap().size(), 1);
+      Assert.assertEquals(dag.getNodes().get(0).getValue().getSpecExecutor().getUri(), specExecURI);
+      Assert.assertEquals(dag.getNodes().get(1).getValue().getSpecExecutor().getUri(), specExecURI);
     }
   }
 

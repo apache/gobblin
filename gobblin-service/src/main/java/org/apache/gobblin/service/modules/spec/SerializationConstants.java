@@ -28,6 +28,7 @@ public class SerializationConstants {
   public static final String SPEC_EXECUTOR_CONFIG_KEY = "config";
   public static final String SPEC_EXECUTOR_CLASS_KEY = "class";
   public static final String SPEC_EXECUTOR_KEY = "specExecutor";
+  public static final String SPEC_EXECUTOR_URI_KEY = "uri";
 
   public static final String EXECUTION_STATUS_KEY = "executionStatus";
 }

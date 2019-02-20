@@ -20,7 +20,9 @@ package org.apache.gobblin.service.modules.orchestration;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Type;
+import java.net.URI;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -37,6 +39,7 @@ import com.typesafe.config.Config;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlanDagFactory;
@@ -48,8 +51,6 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlanListSerializer;
 @Slf4j
 public class FSDagStateStore implements DagStateStore {
   public static final String DAG_FILE_EXTENSION = ".dag";
-  /** Use gson for ser/de */
-  //private static final Gson GSON = GsonInterfaceAdapter.getGson(Object.class);
 
   /** Type token for ser/de JobExecutionPlan list */
   private static final Type LIST_JOBEXECUTIONPLAN_TYPE = new TypeToken<List<JobExecutionPlan>>(){}.getType();
@@ -57,7 +58,7 @@ public class FSDagStateStore implements DagStateStore {
   private final String dagCheckpointDir;
   private final Gson gson;
 
-  public FSDagStateStore(Config config) throws IOException {
+  public FSDagStateStore(Config config, Map<URI, TopologySpec> topologySpecMap) throws IOException {
     this.dagCheckpointDir = config.getString(DagManager.DAG_STATESTORE_DIR);
     File checkpointDir = new File(this.dagCheckpointDir);
     if (!checkpointDir.exists()) {
@@ -67,7 +68,7 @@ public class FSDagStateStore implements DagStateStore {
     }
 
     JsonSerializer<List<JobExecutionPlan>> serializer = new JobExecutionPlanListSerializer();
-    JsonDeserializer<List<JobExecutionPlan>> deserializer = new JobExecutionPlanListDeserializer();
+    JsonDeserializer<List<JobExecutionPlan>> deserializer = new JobExecutionPlanListDeserializer(topologySpecMap);
     this.gson = new GsonBuilder().registerTypeAdapter(LIST_JOBEXECUTIONPLAN_TYPE, serializer)
         .registerTypeAdapter(LIST_JOBEXECUTIONPLAN_TYPE, deserializer).create();
   }
