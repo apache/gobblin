@@ -55,7 +55,8 @@ public class FsJobStatusRetrieverTest {
   @BeforeClass
   public void setUp() throws Exception {
     cleanUpDir(stateStoreDir);
-    Config config = ConfigFactory.empty().withValue(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, ConfigValueFactory.fromAnyRef(stateStoreDir));
+    Config config = ConfigFactory.empty().withValue(FsJobStatusRetriever.CONF_PREFIX + "." + ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY,
+        ConfigValueFactory.fromAnyRef(stateStoreDir));
     this.jobStatusRetriever = new FsJobStatusRetriever(config);
     this.fsStateStore = this.jobStatusRetriever.getStateStore();
   }
