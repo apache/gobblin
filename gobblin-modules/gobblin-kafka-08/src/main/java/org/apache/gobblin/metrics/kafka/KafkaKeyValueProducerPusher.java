@@ -123,7 +123,7 @@ public class KafkaKeyValueProducerPusher<K, V> implements Pusher<Pair<K, V>> {
    * @param numRecordsToFlush
    */
   private void flush(long numRecordsToFlush) {
-    log.info("Flushing records from producer buffer");
+    log.debug("Flushing records from producer buffer");
     Future future;
     long numRecordsFlushed = 0L;
     while (((future = futures.poll()) != null) && (numRecordsFlushed++ < numRecordsToFlush)) {
@@ -133,12 +133,13 @@ public class KafkaKeyValueProducerPusher<K, V> implements Pusher<Pair<K, V>> {
         log.error("Exception encountered when flushing record", e);
       }
     }
-    log.info("Flushed {} records from producer buffer", numRecordsFlushed);
+    log.debug("Flushed {} records from producer buffer", numRecordsFlushed);
   }
 
   @Override
   public void close()
       throws IOException {
+    log.info("Flushing records before close");
     flush(Long.MAX_VALUE);
     this.closer.close();
   }
