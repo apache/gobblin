@@ -188,15 +188,12 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
       this.isGitConfigMonitorEnabled = ConfigUtils.getBoolean(config,
           ServiceConfigKeys.GOBBLIN_SERVICE_GIT_CONFIG_MONITOR_ENABLED_KEY, false);
 
-      this.isDagManagerEnabled = ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_DAG_MANAGER_ENABLED_KEY, false);
-
       if (this.isGitConfigMonitorEnabled) {
         this.gitConfigMonitor = new GitConfigMonitor(config, this.flowCatalog);
         this.serviceLauncher.addService(this.gitConfigMonitor);
       }
     } else {
       this.isGitConfigMonitorEnabled = false;
-      this.isDagManagerEnabled = false;
     }
 
     // Initialize Helix
@@ -211,6 +208,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
       this.helixManager = Optional.absent();
     }
 
+    this.isDagManagerEnabled = ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_DAG_MANAGER_ENABLED_KEY, false);
     // Initialize DagManager
     if (this.isDagManagerEnabled) {
       this.dagManager = new DagManager(config);
@@ -230,7 +228,6 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
       this.serviceLauncher.addService(schedulerService);
       this.serviceLauncher.addService(this.scheduler);
     }
-
 
     // Initialize RestLI
     this.resourceHandler = new GobblinServiceFlowConfigResourceHandler(serviceName,
@@ -355,7 +352,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
 
       if (this.isDagManagerEnabled) {
         //Activate DagManager only if TopologyCatalog is initialized. If not; skip activation.
-        if (this.topologyCatalog.getInitComplete().getCount() <= 0) {
+        if (this.topologyCatalog.getInitComplete().getCount() == 0) {
           this.dagManager.setActive(true);
         }
       }

@@ -104,7 +104,8 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
         | ClassNotFoundException e) {
       throw new RuntimeException(e);
     }
-    //Pass the topologySpecMap to the DagManager
+
+    //At this point, the TopologySpecMap is initialized by the SpecCompiler. Pass the TopologySpecMap to the DagManager.
     if (this.dagManager.isPresent()) {
       this.dagManager.get().setTopologySpecMap(getSpecCompiler().getTopologySpecMap());
     }
