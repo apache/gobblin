@@ -25,6 +25,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.io.IOUtils;
@@ -44,18 +46,24 @@ import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.github.rholder.retry.AttemptTimeLimiters;
 import com.github.rholder.retry.RetryException;
 import com.github.rholder.retry.Retryer;
 import com.github.rholder.retry.RetryerBuilder;
 import com.github.rholder.retry.StopStrategies;
 import com.github.rholder.retry.WaitStrategies;
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+import com.google.common.io.Closer;
+import com.google.common.util.concurrent.SimpleTimeLimiter;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 import lombok.Builder;
+
+import org.apache.gobblin.util.ExecutorsUtils;
 
 
 /**
@@ -74,9 +82,9 @@ public class AzkabanClient implements Closeable {
   protected String sessionId;
   protected long sessionCreationTime = 0;
   protected CloseableHttpClient httpClient;
-
+  private ExecutorService executorService;
+  private Closer closer = Closer.create();
   private Retryer<AzkabanClientStatus> retryer;
-  private boolean customHttpClientProvided = true;
   private static Logger log = LoggerFactory.getLogger(AzkabanClient.class);
 
   /**
@@ -88,7 +96,8 @@ public class AzkabanClient implements Closeable {
                           String url,
                           long sessionExpireInMin,
                           CloseableHttpClient httpClient,
-                          SessionManager sessionManager)
+                          SessionManager sessionManager,
+                          ExecutorService executorService)
       throws AzkabanClientException {
     this.username = username;
     this.password = password;
@@ -96,11 +105,14 @@ public class AzkabanClient implements Closeable {
     this.sessionExpireInMin = sessionExpireInMin;
     this.httpClient = httpClient;
     this.sessionManager = sessionManager;
+    this.executorService = executorService;
     this.initializeClient();
     this.initializeSessionManager();
+    this.intializeExecutorService();
     this.retryer = RetryerBuilder.<AzkabanClientStatus>newBuilder()
         .retryIfExceptionOfType(InvalidSessionException.class)
-        .withWaitStrategy(WaitStrategies.exponentialWait(10, TimeUnit.SECONDS))
+        .withAttemptTimeLimiter(AttemptTimeLimiters.fixedTimeLimit(10, TimeUnit.SECONDS, this.executorService))
+        .withWaitStrategy(WaitStrategies.exponentialWait(60, TimeUnit.SECONDS))
         .withStopStrategy(StopStrategies.stopAfterAttempt(5))
         .build();
     this.sessionId = this.sessionManager.fetchSession();
@@ -110,7 +122,7 @@ public class AzkabanClient implements Closeable {
   private void initializeClient() throws AzkabanClientException {
     if (this.httpClient == null) {
       this.httpClient = createHttpClient();
-      this.customHttpClientProvided = false;
+      this.closer.register(this.httpClient);
     }
   }
 
@@ -120,6 +132,12 @@ public class AzkabanClient implements Closeable {
                                                       this.url,
                                                       this.username,
                                                       this.password);
+    }
+  }
+
+  private void intializeExecutorService() {
+    if (this.executorService == null) {
+      this.executorService = Executors.newFixedThreadPool(300);
     }
   }
 
@@ -159,12 +177,19 @@ public class AzkabanClient implements Closeable {
   /**
    * When current session expired, use {@link SessionManager} to refresh the session id.
    */
-  void refreshSession() throws AzkabanClientException {
+  void refreshSession(boolean forceRefresh) throws AzkabanClientException {
     Preconditions.checkArgument(this.sessionCreationTime != 0);
-    if ((System.nanoTime() - this.sessionCreationTime) > Duration
+    boolean expired = (System.nanoTime() - this.sessionCreationTime) > Duration
         .ofMinutes(this.sessionExpireInMin)
-        .toNanos()) {
+        .toNanos();
+
+    if (expired) {
       log.info("Session expired. Generating a new session.");
+    } else if (forceRefresh) {
+      log.info("Force to refresh session. Generating a new session.");
+    }
+
+    if (expired || forceRefresh) {
       this.sessionId = this.sessionManager.fetchSession();
       this.sessionCreationTime = System.nanoTime();
     }
@@ -253,9 +278,11 @@ public class AzkabanClient implements Closeable {
   public AzkabanClientStatus createProject(String projectName,
                                            String description) throws AzkabanClientException {
     AzkabanMultiCallables.CreateProjectCallable callable =
-        new AzkabanMultiCallables.CreateProjectCallable(this,
-            projectName,
-            description);
+       AzkabanMultiCallables.CreateProjectCallable.builder()
+           .client(this)
+           .projectName(projectName)
+           .description(description)
+           .build();
 
     return runWithRetry(callable, AzkabanClientStatus.class);
   }
@@ -271,8 +298,10 @@ public class AzkabanClient implements Closeable {
   public AzkabanClientStatus deleteProject(String projectName) throws AzkabanClientException {
 
     AzkabanMultiCallables.DeleteProjectCallable callable =
-        new AzkabanMultiCallables.DeleteProjectCallable(this,
-            projectName);
+        AzkabanMultiCallables.DeleteProjectCallable.builder()
+            .client(this)
+            .projectName(projectName)
+            .build();
 
     return runWithRetry(callable, AzkabanClientStatus.class);
   }
@@ -290,9 +319,11 @@ public class AzkabanClient implements Closeable {
                                               File zipFile) throws AzkabanClientException {
 
     AzkabanMultiCallables.UploadProjectCallable callable =
-        new AzkabanMultiCallables.UploadProjectCallable(this,
-            projectName,
-            zipFile);
+        AzkabanMultiCallables.UploadProjectCallable.builder()
+            .client(this)
+            .projectName(projectName)
+            .zipFile(zipFile)
+            .build();
 
     return runWithRetry(callable, AzkabanClientStatus.class);
   }
@@ -311,11 +342,14 @@ public class AzkabanClient implements Closeable {
                                                          String flowName,
                                                          Map<String, String> flowOptions,
                                                          Map<String, String> flowParameters) throws AzkabanClientException {
-    AzkabanMultiCallables.ExecuteFlowCallable callable = new AzkabanMultiCallables.ExecuteFlowCallable(this,
-        projectName,
-        flowName,
-        flowOptions,
-        flowParameters);
+    AzkabanMultiCallables.ExecuteFlowCallable callable =
+        AzkabanMultiCallables.ExecuteFlowCallable.builder()
+            .client(this)
+            .projectName(projectName)
+            .flowName(flowName)
+            .flowOptions(flowOptions)
+            .flowParameters(flowParameters)
+            .build();
 
     return runWithRetry(callable, AzkabanExecuteFlowStatus.class);
   }
@@ -340,8 +374,10 @@ public class AzkabanClient implements Closeable {
    */
   public AzkabanClientStatus cancelFlow(String execId) throws AzkabanClientException {
     AzkabanMultiCallables.CancelFlowCallable callable =
-        new AzkabanMultiCallables.CancelFlowCallable(this,
-            execId);
+        AzkabanMultiCallables.CancelFlowCallable.builder()
+            .client(this)
+            .execId(execId)
+            .build();
 
     return runWithRetry(callable, AzkabanClientStatus.class);
   }
@@ -355,12 +391,14 @@ public class AzkabanClient implements Closeable {
                                                String length,
                                                File ouf) throws AzkabanClientException {
     AzkabanMultiCallables.FetchExecLogCallable callable =
-        new AzkabanMultiCallables.FetchExecLogCallable(this,
-            execId,
-            jobId,
-            offset,
-            length,
-            ouf);
+        AzkabanMultiCallables.FetchExecLogCallable.builder()
+            .client(this)
+            .execId(execId)
+            .jobId(jobId)
+            .offset(offset)
+            .length(length)
+            .output(ouf)
+            .build();
 
     return runWithRetry(callable, AzkabanClientStatus.class);
   }
@@ -376,7 +414,10 @@ public class AzkabanClient implements Closeable {
    */
   public AzkabanFetchExecuteFlowStatus fetchFlowExecution(String execId) throws AzkabanClientException {
     AzkabanMultiCallables.FetchFlowExecCallable callable =
-        new AzkabanMultiCallables.FetchFlowExecCallable(this, execId);
+        AzkabanMultiCallables.FetchFlowExecCallable.builder()
+            .client(this)
+            .execId(execId)
+            .build();
 
     return runWithRetry(callable, AzkabanFetchExecuteFlowStatus.class);
   }
@@ -399,8 +440,6 @@ public class AzkabanClient implements Closeable {
   @Override
   public void close()
       throws IOException {
-    if (!customHttpClientProvided) {
-      this.httpClient.close();
-    }
+    this.closer.close();
   }
 }

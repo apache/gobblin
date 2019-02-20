@@ -43,6 +43,11 @@ import com.google.common.base.Charsets;
 import com.google.common.io.Closer;
 
 import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
+
 
 /**
  * This class encapsulates all the operations an {@link AzkabanClient} can do.
@@ -58,17 +63,19 @@ class AzkabanMultiCallables {
   /**
    * A callable that will create a project on Azkaban.
    */
-  @AllArgsConstructor
+  @Builder
   static class CreateProjectCallable implements Callable<AzkabanClientStatus> {
     private AzkabanClient client;
     private String projectName;
     private String description;
+    private boolean invalidSession = false;
+
     @Override
     public AzkabanClientStatus call()
         throws AzkabanClientException {
 
       try (Closer closer = Closer.create()) {
-        client.refreshSession();
+        client.refreshSession(this.invalidSession);
         HttpPost httpPost = new HttpPost(client.url + "/manager");
         List<NameValuePair> nvps = new ArrayList<>();
         nvps.add(new BasicNameValuePair(AzkabanClientParams.ACTION, "create"));
@@ -86,6 +93,7 @@ class AzkabanMultiCallables {
         client.handleResponse(response);
         return new AzkabanSuccess();
       } catch (InvalidSessionException e) {
+        this.invalidSession = true;
         throw e;
       } catch (Throwable e) {
         throw new AzkabanClientException("Azkaban client cannot create project = "
@@ -97,16 +105,18 @@ class AzkabanMultiCallables {
   /**
    * A callable that will delete a project on Azkaban.
    */
-  @AllArgsConstructor
+  @Builder
   static class DeleteProjectCallable implements Callable<AzkabanClientStatus> {
     private AzkabanClient client;
     private String projectName;
+    private boolean invalidSession = false;
+
     @Override
     public AzkabanClientStatus call()
         throws AzkabanClientException {
 
       try (Closer closer = Closer.create()) {
-        client.refreshSession();
+        client.refreshSession(this.invalidSession);
         List<NameValuePair> nvps = new ArrayList<>();
         nvps.add(new BasicNameValuePair(AzkabanClientParams.DELETE, "true"));
         nvps.add(new BasicNameValuePair(AzkabanClientParams.SESSION_ID, client.sessionId));
@@ -123,6 +133,7 @@ class AzkabanMultiCallables {
         client.handleResponse(response);
         return new AzkabanSuccess();
       } catch (InvalidSessionException e) {
+        this.invalidSession = true;
         throw e;
       } catch (Throwable e) {
         throw new AzkabanClientException("Azkaban client cannot delete project = "
@@ -134,17 +145,19 @@ class AzkabanMultiCallables {
   /**
    * A callable that will execute a flow on Azkaban.
    */
-  @AllArgsConstructor
+  @Builder
   static class UploadProjectCallable implements Callable<AzkabanClientStatus> {
     private AzkabanClient client;
     private String projectName;
     private File zipFile;
+    private boolean invalidSession = false;
+
     @Override
     public AzkabanClientStatus call()
         throws AzkabanClientException {
 
       try (Closer closer = Closer.create()) {
-        client.refreshSession();
+        client.refreshSession(this.invalidSession);
         HttpPost httpPost = new HttpPost(client.url + "/manager");
         HttpEntity entity = MultipartEntityBuilder.create()
             .addTextBody(AzkabanClientParams.SESSION_ID, client.sessionId)
@@ -160,6 +173,7 @@ class AzkabanMultiCallables {
         client.handleResponse(response);
         return new AzkabanSuccess();
       } catch (InvalidSessionException e) {
+        this.invalidSession = true;
         throw e;
       } catch (Throwable e) {
         throw new AzkabanClientException("Azkaban client cannot upload zip to project = "
@@ -171,19 +185,20 @@ class AzkabanMultiCallables {
   /**
    * A callable that will execute a flow on Azkaban.
    */
-  @AllArgsConstructor
+  @Builder
   static class ExecuteFlowCallable implements Callable<AzkabanClientStatus> {
     private AzkabanClient client;
     private String projectName;
     private String flowName;
     private Map<String, String> flowOptions;
     private Map<String, String> flowParameters;
+    private boolean invalidSession = false;
 
     @Override
     public AzkabanExecuteFlowStatus call()
         throws AzkabanClientException {
       try (Closer closer = Closer.create()) {
-        client.refreshSession();
+        client.refreshSession(this.invalidSession);
         HttpPost httpPost = new HttpPost(client.url + "/executor");
         List<NameValuePair> nvps = new ArrayList<>();
         nvps.add(new BasicNameValuePair(AzkabanClientParams.AJAX, "executeFlow"));
@@ -207,6 +222,7 @@ class AzkabanMultiCallables {
         return new AzkabanExecuteFlowStatus(
             new AzkabanExecuteFlowStatus.ExecuteId(map.get(AzkabanClientParams.EXECID)));
       } catch (InvalidSessionException e) {
+        this.invalidSession = true;
         throw e;
       } catch (Exception e) {
         throw new AzkabanClientException("Azkaban client cannot execute flow = "
@@ -238,16 +254,17 @@ class AzkabanMultiCallables {
   /**
    * A callable that will cancel a flow on Azkaban.
    */
-  @AllArgsConstructor
+  @Builder
   static class CancelFlowCallable implements Callable<AzkabanClientStatus> {
     private AzkabanClient client;
     private String execId;
+    private boolean invalidSession = false;
 
     @Override
     public AzkabanClientStatus call()
         throws AzkabanClientException {
       try (Closer closer = Closer.create()) {
-        client.refreshSession();
+        client.refreshSession(this.invalidSession);
         List<NameValuePair> nvps = new ArrayList<>();
         nvps.add(new BasicNameValuePair(AzkabanClientParams.AJAX, "cancelFlow"));
         nvps.add(new BasicNameValuePair(AzkabanClientParams.SESSION_ID, client.sessionId));
@@ -264,6 +281,7 @@ class AzkabanMultiCallables {
         client.handleResponse(response);
         return new AzkabanSuccess();
       } catch (InvalidSessionException e) {
+        this.invalidSession = true;
         throw e;
       } catch (Exception e) {
         throw new AzkabanClientException("Azkaban client cannot cancel flow execId = "
@@ -275,16 +293,17 @@ class AzkabanMultiCallables {
   /**
    * A callable that will fetch a flow status on Azkaban.
    */
-  @AllArgsConstructor
+  @Builder
   static class FetchFlowExecCallable implements Callable<AzkabanClientStatus> {
     private AzkabanClient client;
     private String execId;
+    private boolean invalidSession = false;
 
     @Override
     public AzkabanFetchExecuteFlowStatus call()
         throws AzkabanClientException {
       try (Closer closer = Closer.create()) {
-        client.refreshSession();
+        client.refreshSession(this.invalidSession);
         List<NameValuePair> nvps = new ArrayList<>();
         nvps.add(new BasicNameValuePair(AzkabanClientParams.AJAX, "fetchexecflow"));
         nvps.add(new BasicNameValuePair(AzkabanClientParams.SESSION_ID, client.sessionId));
@@ -301,6 +320,7 @@ class AzkabanMultiCallables {
         Map<String, String> map = client.handleResponse(response);
         return new AzkabanFetchExecuteFlowStatus(new AzkabanFetchExecuteFlowStatus.Execution(map));
       } catch (InvalidSessionException e) {
+        this.invalidSession = true;
         throw e;
       } catch (Exception e) {
         throw new AzkabanClientException("Azkaban client cannot "
@@ -312,7 +332,7 @@ class AzkabanMultiCallables {
   /**
    * A callable that will fetch a flow log on Azkaban.
    */
-  @AllArgsConstructor
+  @Builder
   static class FetchExecLogCallable implements Callable<AzkabanClientStatus> {
     private AzkabanClient client;
     private String execId;
@@ -320,12 +340,13 @@ class AzkabanMultiCallables {
     private String offset;
     private String length;
     private File output;
+    private boolean invalidSession = false;
 
     @Override
     public AzkabanClientStatus call()
         throws AzkabanClientException {
       try (Closer closer = Closer.create()) {
-        client.refreshSession();
+        client.refreshSession(this.invalidSession);
         List<NameValuePair> nvps = new ArrayList<>();
         nvps.add(new BasicNameValuePair(AzkabanClientParams.AJAX, "fetchExecJobLogs"));
         nvps.add(new BasicNameValuePair(AzkabanClientParams.SESSION_ID, client.sessionId));
@@ -346,6 +367,7 @@ class AzkabanMultiCallables {
         FileUtils.writeStringToFile(output, map.get(AzkabanClientParams.DATA), Charsets.UTF_8);
         return new AzkabanSuccess();
       } catch (InvalidSessionException e) {
+        this.invalidSession = true;
         throw e;
       } catch (Exception e) {
         throw new AzkabanClientException("Azkaban client cannot "
