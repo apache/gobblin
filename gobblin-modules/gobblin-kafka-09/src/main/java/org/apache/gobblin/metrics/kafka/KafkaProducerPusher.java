@@ -87,6 +87,10 @@ public class KafkaProducerPusher implements Pusher<byte[]> {
   @Override
   public void close()
       throws IOException {
+    //Call flush() before invoking close() to ensure any buffered messages are immediately sent. This is required
+    //since close() only guarantees delivery of in-flight messages.
+    log.info("Flushing records from producer buffer");
+    this.producer.flush();
     this.closer.close();
   }
 

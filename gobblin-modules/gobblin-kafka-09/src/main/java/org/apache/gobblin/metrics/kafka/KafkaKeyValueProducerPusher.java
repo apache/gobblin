@@ -32,9 +32,9 @@ import com.google.common.base.Optional;
 import com.google.common.io.Closer;
 import com.typesafe.config.Config;
 
-import org.apache.gobblin.util.ConfigUtils;
-
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
@@ -91,6 +91,10 @@ public class KafkaKeyValueProducerPusher<K, V> implements Pusher<Pair<K, V>> {
   @Override
   public void close()
       throws IOException {
+    //Call flush() before invoking close() to ensure any buffered messages are immediately sent. This is required
+    //since close() only guarantees delivery of in-flight messages.
+    log.info("Flushing records from producer buffer");
+    this.producer.flush();
     this.closer.close();
   }
 
