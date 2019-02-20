@@ -18,6 +18,7 @@
 package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.IOException;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -51,6 +52,7 @@ import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecProducer;
+import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.ServiceMetricNames;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
@@ -134,16 +136,19 @@ public class DagManager extends AbstractIdleService {
   private BlockingQueue<Dag<JobExecutionPlan>> queue;
   private ScheduledExecutorService scheduledExecutorPool;
   private boolean instrumentationEnabled;
+  private DagStateStore dagStateStore;
+  private Map<URI, TopologySpec> topologySpecMap;
 
   private final Integer numThreads;
   private final Integer pollingInterval;
   private final JobStatusRetriever jobStatusRetriever;
   private final KafkaJobStatusMonitor jobStatusMonitor;
-  private final DagStateStore dagStateStore;
+  private final Config config;
 
   private volatile boolean isActive = false;
 
   public DagManager(Config config, boolean instrumentationEnabled) {
+    this.config = config;
     this.queue = new LinkedBlockingDeque<>();
     this.numThreads = ConfigUtils.getInt(config, NUM_THREADS_KEY, DEFAULT_NUM_THREADS);
     this.scheduledExecutorPool = Executors.newScheduledThreadPool(numThreads);
@@ -162,10 +167,7 @@ public class DagManager extends AbstractIdleService {
         this.jobStatusMonitor = null;
       }
       this.jobStatusRetriever =
-          (JobStatusRetriever) GobblinConstructorUtils.invokeLongestConstructor(jobStatusRetrieverClass,
-              ConfigUtils.getConfigOrEmpty(config, JOB_STATUS_RETRIEVER_KEY));
-      Class dagStateStoreClass = Class.forName(config.getString(DAG_STATESTORE_CLASS_KEY));
-      this.dagStateStore = (DagStateStore) GobblinConstructorUtils.invokeLongestConstructor(dagStateStoreClass, config);
+          (JobStatusRetriever) GobblinConstructorUtils.invokeLongestConstructor(jobStatusRetrieverClass, config);
     } catch (ReflectiveOperationException e) {
       throw new RuntimeException("Exception encountered during DagManager initialization", e);
     }
@@ -197,6 +199,10 @@ public class DagManager extends AbstractIdleService {
     }
   }
 
+  public synchronized void setTopologySpecMap(Map<URI, TopologySpec> topologySpecMap) {
+    this.topologySpecMap = topologySpecMap;
+  }
+
   /**
    * When a {@link DagManager} becomes active, it loads the serialized representations of the currently running {@link Dag}s
    * from the checkpoint directory, deserializes the {@link Dag}s and adds them to a queue to be consumed by
@@ -211,7 +217,12 @@ public class DagManager extends AbstractIdleService {
     this.isActive = active;
     try {
       if (this.isActive) {
+        log.info("Activating DagManager.");
         log.info("Scheduling {} DagManager threads", numThreads);
+        //Initializing state store for persisting Dags.
+        Class dagStateStoreClass = Class.forName(ConfigUtils.getString(config, DAG_STATESTORE_CLASS_KEY, FSDagStateStore.class.getName()));
+        this.dagStateStore = (DagStateStore) GobblinConstructorUtils.invokeLongestConstructor(dagStateStoreClass, config, topologySpecMap);
+
         //On startup, the service creates DagManagerThreads that are scheduled at a fixed rate.
         for (int i = 0; i < numThreads; i++) {
           this.scheduledExecutorPool.scheduleAtFixedRate(new DagManagerThread(jobStatusRetriever, dagStateStore, queue, instrumentationEnabled), 0, this.pollingInterval,
@@ -235,7 +246,7 @@ public class DagManager extends AbstractIdleService {
         log.info("Shutting down JobStatusMonitor");
         this.jobStatusMonitor.shutDown();
       }
-    } catch (IOException e) {
+    } catch (IOException | ReflectiveOperationException e) {
       log.error("Exception encountered when activating the new DagManager", e);
       throw new RuntimeException(e);
     }
@@ -300,14 +311,14 @@ public class DagManager extends AbstractIdleService {
           //Initialize dag.
           initialize(dag);
         }
-        log.info("Polling job statuses..");
+        log.debug("Polling job statuses..");
         //Poll and update the job statuses of running jobs.
         pollJobStatuses();
-        log.info("Poll done.");
+        log.debug("Poll done.");
         //Clean up any finished dags
-        log.info("Cleaning up finished dags..");
+        log.debug("Cleaning up finished dags..");
         cleanUp();
-        log.info("Clean up done");
+        log.debug("Clean up done");
       } catch (Exception e) {
         log.error("Exception encountered in {}", getClass().getName(), e);
       }

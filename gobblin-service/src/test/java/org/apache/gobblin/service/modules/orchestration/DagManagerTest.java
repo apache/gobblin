@@ -22,6 +22,7 @@ import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -70,7 +71,8 @@ public class DagManagerTest {
     FileUtils.deleteDirectory(new File(this.dagStateStoreDir));
     Config config = ConfigFactory.empty()
         .withValue(DagManager.DAG_STATESTORE_DIR, ConfigValueFactory.fromAnyRef(this.dagStateStoreDir));
-    this._dagStateStore = new FSDagStateStore(config);
+
+    this._dagStateStore = new FSDagStateStore(config, new HashMap<>());
     this._jobStatusRetriever = Mockito.mock(JobStatusRetriever.class);
     this.queue = new LinkedBlockingQueue<>();
     this._dagManagerThread = new DagManager.DagManagerThread(_jobStatusRetriever, _dagStateStore, queue, true);

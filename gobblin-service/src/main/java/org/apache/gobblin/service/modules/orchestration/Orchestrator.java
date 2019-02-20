@@ -25,8 +25,9 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
-import com.google.common.collect.Maps;
-import javax.annotation.Nonnull;
+import org.apache.commons.lang3.reflect.ConstructorUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
@@ -34,36 +35,32 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 
+import javax.annotation.Nonnull;
+import lombok.Getter;
+
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.instrumented.Instrumentable;
+import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.api.FlowSpec;
-import org.apache.gobblin.service.modules.flow.SpecCompiler;
 import org.apache.gobblin.runtime.api.JobSpec;
-import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecCatalogListener;
+import org.apache.gobblin.runtime.api.SpecProducer;
+import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.ServiceMetricNames;
-import org.apache.gobblin.service.modules.flow.IdentityFlowToJobSpecCompiler;
+import org.apache.gobblin.service.modules.flow.SpecCompiler;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
-import org.slf4j.LoggerFactory;
-import org.apache.gobblin.runtime.api.SpecExecutor;
-import org.apache.gobblin.runtime.api.SpecProducer;
-import org.apache.commons.lang3.reflect.ConstructorUtils;
-import org.apache.gobblin.configuration.State;
-import org.slf4j.Logger;
-
-import lombok.Getter;
 
 
 /**
@@ -106,6 +103,10 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
         | ClassNotFoundException e) {
       throw new RuntimeException(e);
+    }
+    //Pass the topologySpecMap to the DagManager
+    if (this.dagManager.isPresent()) {
+      this.dagManager.get().setTopologySpecMap(getSpecCompiler().getTopologySpecMap());
     }
 
     if (instrumentationEnabled) {
