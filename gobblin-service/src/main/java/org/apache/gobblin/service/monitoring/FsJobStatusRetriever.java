@@ -47,11 +47,14 @@ import org.apache.gobblin.metrics.event.TimingEvent;
  */
 @Slf4j
 public class FsJobStatusRetriever extends JobStatusRetriever {
+  public static final String CONF_PREFIX = "fsJobStatusRetriever";
+
   @Getter
   private final FileContextBasedFsStateStore<State> stateStore;
 
   public FsJobStatusRetriever(Config config) {
-    this.stateStore = (FileContextBasedFsStateStore<State>) new FileContextBasedFsStateStoreFactory().createStateStore(config, State.class);
+    this.stateStore = (FileContextBasedFsStateStore<State>) new FileContextBasedFsStateStoreFactory().
+        createStateStore(config.getConfig(CONF_PREFIX), State.class);
   }
 
   @Override
