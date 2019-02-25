@@ -376,7 +376,7 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
     for (Map.Entry<String, WorkflowConfig> entry : workflows.entrySet()) {
       String workflowName = entry.getKey();
 
-      if (workflowName.contains(GobblinClusterConfigurationKeys.PLANNING_CONF_PREFIX)
+      if (workflowName.contains(GobblinClusterConfigurationKeys.PLANNING_JOB_NAME_PREFIX)
           || workflowName.contains(GobblinClusterConfigurationKeys.ACTUAL_JOB_NAME_PREFIX)) {
         if (!cleanupDistJobs) {
           log.info("Distributed job {} won't be deleted.", workflowName);
