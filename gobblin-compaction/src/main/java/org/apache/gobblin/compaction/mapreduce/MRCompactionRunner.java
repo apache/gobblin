@@ -45,8 +45,10 @@ import org.apache.gobblin.metrics.Tag;
  * A class for launching a Gobblin MR job for compaction through command line.
  *
  * @author Lorand Bendig
+ * @deprecated Suggested to use CompactionSource + MRCompactionTask to implement MR compaction job.
  *
  */
+@Deprecated
 public class MRCompactionRunner {
 
   private static final Logger LOG = LoggerFactory.getLogger(MRCompactionRunner.class);

@@ -93,8 +93,10 @@ import static org.apache.gobblin.compaction.mapreduce.MRCompactorJobRunner.Statu
  * under {@link #COMPACTION_INPUT_DIR}.
  *
  * @author Ziyang Liu
+ * @deprecated Suggested to use {@link MRCompactionTask} instead.
  */
 
+@Deprecated
 public class MRCompactor implements Compactor {
 
   private static final Logger LOG = LoggerFactory.getLogger(MRCompactor.class);

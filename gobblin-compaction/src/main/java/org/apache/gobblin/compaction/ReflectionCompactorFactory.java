@@ -31,6 +31,7 @@ import org.apache.gobblin.metrics.Tag;
 
 /**
  * Implementation of {@link CompactorFactory} that creates a {@link Compactor} using reflection.
+ * @deprecated
  */
 public class ReflectionCompactorFactory implements CompactorFactory {
 

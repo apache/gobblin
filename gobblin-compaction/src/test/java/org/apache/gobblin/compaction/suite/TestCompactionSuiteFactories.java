@@ -27,7 +27,7 @@ public class TestCompactionSuiteFactories {
    * Test hive registration failure
    */
   @Alias("HiveRegistrationFailureFactory")
-  public static class HiveRegistrationFailureFactory extends CompactionAvroSuiteFactory {
+  public static class HiveRegistrationFailureFactory implements CompactionSuiteFactory {
     public TestCompactionSuites.HiveRegistrationCompactionSuite createSuite (State state) {
       return new TestCompactionSuites.HiveRegistrationCompactionSuite(state);
     }

@@ -69,7 +69,7 @@ public class CompactionThresholdVerifier implements CompactionVerifier<FileSyste
 
     CompactionPathParser.CompactionParserResult result = new CompactionPathParser(state).parse(dataset);
 
-    double threshold = RecompactionConditionBasedOnRatio.getRatioThresholdByDatasetName (result.getDatasetName(), thresholdMap);
+    double threshold = RecompactionConditionBasedOnRatio.getRatioThresholdByDatasetName(result.getDatasetName(), thresholdMap);
     log.debug ("Threshold is {} for dataset {}", threshold, result.getDatasetName());
 
     InputRecordCountHelper helper = new InputRecordCountHelper(state);

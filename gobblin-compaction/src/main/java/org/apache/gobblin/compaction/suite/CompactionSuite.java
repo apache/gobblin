@@ -41,6 +41,10 @@ import org.apache.gobblin.dataset.Dataset;
  *
  * The class also handles how to create a map-reduce job and how to serialized and deserialize a {@link Dataset}
  * to and from a {@link org.apache.gobblin.source.workunit.WorkUnit} properly.
+ *
+ * CompactionSuite should only be aware of verification methods and different definition of datasets,
+ * but unaware of data format, which is handled by different implementation of
+ * {@link org.apache.gobblin.compaction.mapreduce.CompactionJobConfigurator}
  */
 
 public interface CompactionSuite<D extends Dataset> {

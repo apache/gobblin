@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.gobblin.compaction.mapreduce.CompactionJobConfigurator;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
@@ -49,18 +50,19 @@ import org.apache.gobblin.util.WriterUtils;
 
 /**
  * A type of post action {@link CompactionCompleteAction} which focus on the file operations
+ *
  */
 @Slf4j
 @AllArgsConstructor
 public class CompactionCompleteFileOperationAction implements CompactionCompleteAction<FileSystemDataset> {
 
   protected WorkUnitState state;
-  private CompactionAvroJobConfigurator configurator;
+  private CompactionJobConfigurator configurator;
   private InputRecordCountHelper helper;
   private EventSubmitter eventSubmitter;
   private FileSystem fs;
 
-  public CompactionCompleteFileOperationAction (State state, CompactionAvroJobConfigurator configurator) {
+  public CompactionCompleteFileOperationAction (State state, CompactionJobConfigurator configurator) {
     if (!(state instanceof WorkUnitState)) {
       throw new UnsupportedOperationException(this.getClass().getName() + " only supports workunit state");
     }
@@ -90,7 +92,7 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
       long oldTotalRecords = helper.readRecordCount(new Path (result.getDstAbsoluteDir()));
       long executeCount = helper.readExecutionCount (new Path (result.getDstAbsoluteDir()));
 
-      List<Path> goodPaths = CompactionAvroJobConfigurator.getGoodFiles(job, tmpPath, this.fs);
+      List<Path> goodPaths = CompactionJobConfigurator.getGoodFiles(job, tmpPath, this.fs);
 
       if (appendDeltaOutput) {
         FsPermission permission = HadoopUtils.deserializeFsPermission(this.state,

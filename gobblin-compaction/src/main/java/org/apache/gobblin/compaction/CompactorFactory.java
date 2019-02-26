@@ -29,6 +29,7 @@ import org.apache.gobblin.metrics.Tag;
 
 /**
  * A factory responsible for creating {@link Compactor}s.
+ * @deprecated
  */
 @Alpha
 public interface CompactorFactory {

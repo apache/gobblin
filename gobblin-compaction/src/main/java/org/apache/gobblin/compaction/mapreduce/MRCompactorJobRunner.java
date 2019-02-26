@@ -95,6 +95,7 @@ import static org.apache.gobblin.util.retry.RetryerFactory.*;
  * the output directory.
  *
  * @author Ziyang Liu
+ * @deprecated Suggested to use {@link MRCompactionTask} + {@link org.apache.gobblin.compaction.source.CompactionSource}
  */
 @SuppressWarnings("deprecation")
 public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCompactorJobRunner> {
@@ -322,7 +323,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
         this.submitAndWait(job);
         if (shouldPublishData(compactionTimestamp)) {
           // remove all invalid empty files due to speculative task execution
-          List<Path> goodPaths = CompactionAvroJobConfigurator.getGoodFiles(job, this.dataset.outputTmpPath(), this.tmpFs);
+          List<Path> goodPaths = CompactionJobConfigurator.getGoodFiles(job, this.dataset.outputTmpPath(), this.tmpFs);
 
           if (!this.recompactAllData && this.recompactFromDestPaths) {
             // append new files without deleting output directory

@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.apache.gobblin.compaction.mapreduce.CompactionJobConfigurator;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.Job;
 
@@ -31,7 +32,6 @@ import org.apache.gobblin.compaction.action.CompactionCompleteAction;
 import org.apache.gobblin.compaction.action.CompactionCompleteFileOperationAction;
 import org.apache.gobblin.compaction.action.CompactionHiveRegistrationAction;
 import org.apache.gobblin.compaction.action.CompactionMarkDirectoryAction;
-import org.apache.gobblin.compaction.mapreduce.CompactionAvroJobConfigurator;
 import org.apache.gobblin.compaction.verify.CompactionAuditCountVerifier;
 import org.apache.gobblin.compaction.verify.CompactionThresholdVerifier;
 import org.apache.gobblin.compaction.verify.CompactionTimeRangeVerifier;
@@ -40,18 +40,19 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.dataset.FileSystemDataset;
 
 /**
- * A type of {@link CompactionSuite} which implements all components needed for avro file compaction.
+ * A type of {@link CompactionSuite} which implements all components needed for file compaction.
+ * The format-specific implementation is contained in the impl. of {@link CompactionJobConfigurator}
  */
 @Slf4j
-public class CompactionAvroSuite implements CompactionSuite<FileSystemDataset> {
+public class CompactionSuiteBase implements CompactionSuite<FileSystemDataset> {
   public static final String SERIALIZE_COMPACTION_FILE_PATH_NAME = "compaction-file-path-name";
   private State state;
-  private CompactionAvroJobConfigurator configurator = null;
+  private CompactionJobConfigurator configurator = null;
 
   /**
    * Constructor
    */
-  public CompactionAvroSuite (State state) {
+  public CompactionSuiteBase(State state) {
     this.state = state;
   }
 
@@ -75,8 +76,7 @@ public class CompactionAvroSuite implements CompactionSuite<FileSystemDataset> {
    *         {@link org.apache.gobblin.compaction.mapreduce.MRCompactionTask} starts the map-reduce job
    */
   public List<CompactionVerifier<FileSystemDataset>> getMapReduceVerifiers() {
-    List<CompactionVerifier<FileSystemDataset>> list = new ArrayList<>();
-    return list;
+    return new ArrayList<>();
   }
 
   /**
@@ -123,14 +123,14 @@ public class CompactionAvroSuite implements CompactionSuite<FileSystemDataset> {
   }
 
   /**
-   * Constructs a map-reduce job suitable for avro compaction. The detailed configuration
-   * work is delegated to {@link CompactionAvroJobConfigurator#createJob(FileSystemDataset)}
+   * Constructs a map-reduce job suitable for compaction. The detailed format-specific configuration
+   * work is delegated to {@link CompactionJobConfigurator#createJob(FileSystemDataset)}
    *
-   * @param  dataset a top level input path which contains all avro files those need to be compacted
-   * @return a map-reduce job which will compact avro files against {@link org.apache.gobblin.dataset.Dataset}
+   * @param  dataset a top level input path which contains all files those need to be compacted
+   * @return a map-reduce job which will compact files against {@link org.apache.gobblin.dataset.Dataset}
    */
   public Job createJob (FileSystemDataset dataset) throws IOException {
-    configurator = new CompactionAvroJobConfigurator(this.state);
+    configurator = CompactionJobConfigurator.instantiateConfigurator(this.state);
     return configurator.createJob(dataset);
   }
 }

@@ -21,11 +21,11 @@ import org.apache.gobblin.annotation.Alias;
 import org.apache.gobblin.configuration.State;
 
 /**
- * A {@link CompactionSuiteFactory} that handles {@link CompactionAvroSuite} creation logic.
+ * A {@link CompactionSuiteFactory} that handles {@link CompactionSuiteBase} creation logic.
  */
-@Alias("CompactionAvroSuiteFactory")
-public class CompactionAvroSuiteFactory implements CompactionSuiteFactory {
-  public CompactionAvroSuite createSuite (State state) {
-    return new CompactionAvroSuite (state);
+@Alias("CompactionSuiteBaseFactory")
+public class CompactionSuiteBaseFactory implements CompactionSuiteFactory {
+  public CompactionSuiteBase createSuite (State state) {
+    return new CompactionSuiteBase(state);
   }
 }

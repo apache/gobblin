@@ -50,6 +50,7 @@ import org.apache.gobblin.util.FileListUtils;
  * compaction.topic, compaction.job.input.dir, compaction.job.dest.dir, compaction.job.dest.dir.
  *
  * @author Ziyang Liu
+ * @deprecated Suggested to use {@link MRCompactionTask} + {@link org.apache.gobblin.compaction.source.CompactionSource}
  */
 public class MRCompactorJobPropCreator {
   private static final Logger LOG = LoggerFactory.getLogger(MRCompactorJobPropCreator.class);
