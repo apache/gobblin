@@ -18,6 +18,8 @@
 package org.apache.gobblin.service.monitoring;
 
 import java.util.Iterator;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import lombok.Builder;
 
@@ -33,20 +35,23 @@ public class FlowStatusGenerator {
   private final JobStatusRetriever jobStatusRetriever;
 
   /**
-   * Get the latest flow status.
+   * Get the flow statuses of last <code>count</code> (or fewer) executions
    * @param flowName
    * @param flowGroup
-   * @return the latest {@link FlowStatus}. null is returned if there is no flow execution found.
+   * @param count
+   * @return the latest <code>count</code>{@link FlowStatus}es. null is returned if there is no flow execution found.
    */
-  public FlowStatus getLatestFlowStatus(String flowName, String flowGroup) {
-    FlowStatus flowStatus = null;
-    long latestExecutionId = jobStatusRetriever.getLatestExecutionIdForFlow(flowName, flowGroup);
+  public List<FlowStatus> getLatestFlowStatus(String flowName, String flowGroup, int count) {
+    List<Long> flowExecutionIds = jobStatusRetriever.getLatestExecutionIdsForFlow(flowName, flowGroup, count);
 
-    if (latestExecutionId != -1l) {
-      flowStatus = getFlowStatus(flowName, flowGroup, latestExecutionId);
+    if (flowExecutionIds == null || flowExecutionIds.isEmpty()) {
+      return null;
     }
+    List<FlowStatus> flowStatuses =
+        flowExecutionIds.stream().map(flowExecutionId -> getFlowStatus(flowName, flowGroup, flowExecutionId))
+            .collect(Collectors.toList());
 
-    return flowStatus;
+    return flowStatuses;
   }
 
   /**
