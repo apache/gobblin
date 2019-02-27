@@ -17,9 +17,11 @@
 
 package org.apache.gobblin.service;
 
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -27,8 +29,8 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Joiner;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Iterators;
+import com.google.common.collect.Lists;
 import com.google.inject.Binder;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
@@ -62,8 +64,15 @@ public class FlowStatusTest {
     }
 
     @Override
-    public long getLatestExecutionIdForFlow(String flowName, String flowGroup) {
-      return _listOfJobStatusLists.size() - 1;
+    public List<Long> getLatestExecutionIdsForFlow(String flowName, String flowGroup, int count) {
+      if (_listOfJobStatusLists == null) {
+        return null;
+      }
+      int startIndex = (_listOfJobStatusLists.size() >= count) ? _listOfJobStatusLists.size() - count : 0;
+      List<Long> flowExecutionIds = IntStream.range(startIndex, _listOfJobStatusLists.size()).mapToObj(i -> (long) i)
+          .collect(Collectors.toList());
+      Collections.reverse(flowExecutionIds);
+      return flowExecutionIds;
     }
   }
 
@@ -135,6 +144,11 @@ public class FlowStatusTest {
 
       compareJobStatus(js, mjs);
     }
+
+    List<FlowStatus> flowStatusList = _client.getLatestFlowStatus(flowId, 2);
+    Assert.assertEquals(flowStatusList.size(), 2);
+    Assert.assertEquals(flowStatusList.get(0).getId().getFlowExecutionId(), (Long) 1L);
+    Assert.assertEquals(flowStatusList.get(1).getId().getFlowExecutionId(), (Long) 0L);
   }
 
   /**

@@ -20,6 +20,7 @@ package org.apache.gobblin.service.monitoring;
 import java.io.File;
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Properties;
 
 import org.apache.commons.io.FileUtils;
@@ -143,17 +144,26 @@ public class FsJobStatusRetrieverTest {
   }
 
   @Test (dependsOnMethods = "testGetJobStatusesForFlowExecution1")
-  public void testGetLatestExecutionIdForFlow() throws Exception {
+  public void testGetLatestExecutionIdsForFlow() throws Exception {
     //Add new flow execution to state store
-    long flowExecutionId = 1235L;
-    addJobStatusToStateStore(flowExecutionId, "myJobName1");
+    long flowExecutionId1 = 1235L;
+    addJobStatusToStateStore(flowExecutionId1, "myJobName1");
     long latestExecutionIdForFlow = this.jobStatusRetriever.getLatestExecutionIdForFlow(flowName, flowGroup);
-    Assert.assertEquals(latestExecutionIdForFlow, flowExecutionId);
+    Assert.assertEquals(latestExecutionIdForFlow, flowExecutionId1);
+
+    long flowExecutionId2 = 1236L;
+    addJobStatusToStateStore(flowExecutionId2, "myJobName1");
+
+    //State store now has 3 flow executions - 1234, 1235, 1236. Get the latest 2 executions i.e. 1235 and 1236.
+    List<Long> latestFlowExecutionIds = this.jobStatusRetriever.getLatestExecutionIdsForFlow(flowName, flowGroup, 2);
+    Assert.assertEquals(latestFlowExecutionIds.size(), 2);
+    Assert.assertEquals(latestFlowExecutionIds.get(0), (Long) flowExecutionId2);
+    Assert.assertEquals(latestFlowExecutionIds.get(1), (Long) flowExecutionId1);
 
     //Remove all flow executions from state store
     cleanUpDir(stateStoreDir);
-    latestExecutionIdForFlow = this.jobStatusRetriever.getLatestExecutionIdForFlow(flowName, flowGroup);
-    Assert.assertEquals(latestExecutionIdForFlow, -1L);
+    Assert.assertNull(this.jobStatusRetriever.getLatestExecutionIdsForFlow(flowName, flowGroup, 1));
+    Assert.assertEquals(this.jobStatusRetriever.getLatestExecutionIdForFlow(flowName, flowGroup), -1L);
   }
 
   private void cleanUpDir(String dir) throws Exception {

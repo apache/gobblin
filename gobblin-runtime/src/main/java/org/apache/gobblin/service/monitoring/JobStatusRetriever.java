@@ -18,6 +18,7 @@
 package org.apache.gobblin.service.monitoring;
 
 import java.util.Iterator;
+import java.util.List;
 
 import com.google.common.collect.Iterators;
 
@@ -38,6 +39,11 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
 
   public abstract Iterator<JobStatus> getJobStatusesForFlowExecution(String flowName, String flowGroup,
       long flowExecutionId, String jobName, String jobGroup);
+
+  public long getLatestExecutionIdForFlow(String flowName, String flowGroup) {
+    List<Long> lastKExecutionIds = getLatestExecutionIdsForFlow(flowName, flowGroup, 1);
+    return lastKExecutionIds != null && !lastKExecutionIds.isEmpty() ? lastKExecutionIds.get(0) : -1L;
+  }
 
   /**
    * Get the latest {@link JobStatus}es that belongs to the same latest flow execution. Currently, latest flow execution

@@ -17,9 +17,9 @@
 
 package org.apache.gobblin.service;
 
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
@@ -31,6 +31,7 @@ import com.linkedin.restli.common.EmptyRecord;
 import com.linkedin.restli.server.PagingContext;
 import com.linkedin.restli.server.annotations.Context;
 import com.linkedin.restli.server.annotations.Finder;
+import com.linkedin.restli.server.annotations.Optional;
 import com.linkedin.restli.server.annotations.QueryParam;
 import com.linkedin.restli.server.annotations.RestLiCollection;
 import com.linkedin.restli.server.resources.ComplexKeyResourceTemplate;
@@ -74,14 +75,17 @@ public class FlowStatusResource extends ComplexKeyResourceTemplate<FlowStatusId,
 
   @Finder("latestFlowStatus")
   public List<FlowStatus> getLatestFlowStatus(@Context PagingContext context,
-      @QueryParam("flowId") FlowId flowId) {
-    LOG.info("getLatestFlowStatus called with flowGroup " + flowId.getFlowGroup() + " flowName " + flowId.getFlowName());
+      @QueryParam("flowId") FlowId flowId, @Optional @QueryParam("count") Integer count) {
+    if (count == null) {
+      count = 1;
+    }
+    LOG.info("getLatestFlowStatus called with flowGroup " + flowId.getFlowGroup() + " flowName " + flowId.getFlowName() + " count " + count);
 
-    org.apache.gobblin.service.monitoring.FlowStatus latestFlowStatus =
-        _flowStatusGenerator.getLatestFlowStatus(flowId.getFlowName(), flowId.getFlowGroup());
+    List<org.apache.gobblin.service.monitoring.FlowStatus> flowStatuses =
+        _flowStatusGenerator.getLatestFlowStatus(flowId.getFlowName(), flowId.getFlowGroup(), count);
 
-    if (latestFlowStatus != null) {
-      return Collections.singletonList(convertFlowStatus(latestFlowStatus));
+    if (flowStatuses != null) {
+      return flowStatuses.stream().map(this::convertFlowStatus).collect(Collectors.toList());
     }
 
     // will return 404 status code

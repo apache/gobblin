@@ -19,14 +19,18 @@ package org.apache.gobblin.service.monitoring;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.typesafe.config.Config;
 
@@ -110,22 +114,24 @@ public class FsJobStatusRetriever extends JobStatusRetriever {
   /**
    * @param flowName
    * @param flowGroup
-   * @return the latest flow execution id with the given flowName and flowGroup. -1 will be returned if no such execution found.
+   * @return the last <code>count</code> flow execution ids with the given flowName and flowGroup. -1 will be returned if no such execution found.
    */
   @Override
-  public long getLatestExecutionIdForFlow(String flowName, String flowGroup) {
+  public List<Long> getLatestExecutionIdsForFlow(String flowName, String flowGroup, int count) {
     Preconditions.checkArgument(flowName != null, "flowName cannot be null");
     Preconditions.checkArgument(flowGroup != null, "flowGroup cannot be null");
+    Preconditions.checkArgument(count > 0, "Number of execution ids must be at least 1.");
     try {
       String storeName = Joiner.on(JobStatusRetriever.STATE_STORE_KEY_SEPARATION_CHARACTER).join(flowGroup, flowName);
       List<String> tableNames = this.stateStore.getTableNames(storeName, input -> true);
       if (tableNames.isEmpty()) {
-        return -1L;
+        return null;
       }
-      Collections.sort(tableNames);
-      return getExecutionIdFromTableName(tableNames.get(tableNames.size() - 1));
+      Set<Long> flowExecutionIds =
+          new TreeSet<>(tableNames.stream().map(this::getExecutionIdFromTableName).collect(Collectors.toList())).descendingSet();
+      return ImmutableList.copyOf(Iterables.limit(flowExecutionIds, count));
     } catch (Exception e) {
-      return -1L;
+      return null;
     }
   }
 
