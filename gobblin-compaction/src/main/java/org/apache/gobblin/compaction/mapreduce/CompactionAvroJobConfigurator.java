@@ -30,9 +30,7 @@ import org.apache.gobblin.compaction.mapreduce.avro.AvroKeyDedupReducer;
 import org.apache.gobblin.compaction.mapreduce.avro.AvroKeyMapper;
 import org.apache.gobblin.compaction.mapreduce.avro.AvroKeyRecursiveCombineFileInputFormat;
 import org.apache.gobblin.compaction.mapreduce.avro.MRCompactorAvroKeyDedupJobRunner;
-import org.apache.gobblin.compaction.suite.CompactionSuiteBase;
 import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.dataset.Dataset;
 import org.apache.gobblin.dataset.FileSystemDataset;
 import org.apache.gobblin.hive.policy.HiveRegistrationPolicy;
 import org.apache.gobblin.util.AvroUtils;
@@ -85,7 +83,7 @@ public class CompactionAvroJobConfigurator extends CompactionJobConfigurator {
   /**
    * Refer to MRCompactorAvroKeyDedupJobRunner#getKeySchema(Job, Schema)
    */
-  private Schema getKeySchema(Job job, Schema topicSchema) throws IOException {
+  private Schema getDedupKeySchema(Schema topicSchema) {
 
     boolean keySchemaFileSpecified =
         this.state.contains(MRCompactorAvroKeyDedupJobRunner.COMPACTION_JOB_AVRO_KEY_SCHEMA_LOC);
@@ -133,7 +131,7 @@ public class CompactionAvroJobConfigurator extends CompactionJobConfigurator {
       if (this.state.getPropAsBoolean(MRCompactorAvroKeyDedupJobRunner.COMPACTION_JOB_AVRO_SINGLE_INPUT_SCHEMA, true)) {
         AvroJob.setInputKeySchema(job, newestSchema);
       }
-      AvroJob.setMapOutputKeySchema(job, this.shouldDeduplicate ? getKeySchema(job, newestSchema) : newestSchema);
+      AvroJob.setMapOutputKeySchema(job, this.shouldDeduplicate ? getDedupKeySchema(newestSchema) : newestSchema);
       AvroJob.setMapOutputValueSchema(job, newestSchema);
       AvroJob.setOutputKeySchema(job, newestSchema);
     }
