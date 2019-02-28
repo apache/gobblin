@@ -17,16 +17,11 @@
 
 package org.apache.gobblin.hive.metastore;
 
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
-
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
-import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.apache.hadoop.fs.Path;
@@ -42,17 +37,23 @@ import org.joda.time.DateTime;
 import com.codahale.metrics.Timer;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
 import com.google.common.primitives.Ints;
+
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.hive.HiveMetaStoreClientFactory;
 import org.apache.gobblin.hive.HiveLock;
+import org.apache.gobblin.hive.HiveMetaStoreClientFactory;
 import org.apache.gobblin.hive.HiveMetastoreClientPool;
 import org.apache.gobblin.hive.HivePartition;
 import org.apache.gobblin.hive.HiveRegProps;
 import org.apache.gobblin.hive.HiveRegister;
 import org.apache.gobblin.hive.HiveRegistrationUnit.Column;
+import org.apache.gobblin.hive.HiveSerDeManager;
 import org.apache.gobblin.hive.HiveTable;
 import org.apache.gobblin.hive.spec.HiveSpec;
 import org.apache.gobblin.metrics.GobblinMetrics;
@@ -177,7 +178,8 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
    * Or will create the table thru. RPC and return retVal from remote MetaStore.
    */
   private boolean ensureHiveTableExistenceBeforeAlternation(String tableName, String dbName, IMetaStoreClient client,
-      Table table, HiveSpec spec) throws TException{
+      Table table, HiveSpec spec)
+      throws TException, IOException {
     try (AutoCloseableLock lock = this.locks.getTableLock(dbName, tableName)) {
       try {
         try (Timer.Context context = this.metricContext.timer(CREATE_HIVE_TABLE).time()) {
@@ -200,7 +202,9 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
         }
         if (needToUpdateTable(existingTable, spec.getTable())) {
           try (Timer.Context context = this.metricContext.timer(ALTER_TABLE).time()) {
-            client.alter_table(dbName, tableName, getTableWithCreateTime(table, existingTable));
+            HiveSerDeManager.get(this.props).updateSchema(existingTable, spec.getTable());
+            log.info(String.format("Updating Hive table %s in db %s with %s", tableName, dbName, existingTable));
+            client.alter_table(dbName, tableName, getTableWithCreateTime(HiveMetaStoreUtils.getTable(existingTable), existingTable));
           }
           log.info(String.format("updated Hive table %s in db %s", tableName, dbName));
         }
