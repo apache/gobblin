@@ -56,6 +56,11 @@ public class CompactionAvroJobConfigurator extends CompactionJobConfigurator {
     }
   }
 
+  @Override
+  public String getFileExtension(){
+    return EXTENSION.AVRO.getExtensionString();
+  }
+
   /**
    * Constructor
    * @param  state  A task level state
@@ -121,7 +126,7 @@ public class CompactionAvroJobConfigurator extends CompactionJobConfigurator {
     return keySchema;
   }
 
-  private void configureSchema(Job job) throws IOException {
+  protected void configureSchema(Job job) throws IOException {
     Schema newestSchema = MRCompactorAvroKeyDedupJobRunner.getNewestSchemaFromSource(job, this.fs);
     if (newestSchema != null) {
       if (this.state.getPropAsBoolean(MRCompactorAvroKeyDedupJobRunner.COMPACTION_JOB_AVRO_SINGLE_INPUT_SCHEMA, true)) {
@@ -146,45 +151,6 @@ public class CompactionAvroJobConfigurator extends CompactionJobConfigurator {
     job.setOutputKeyClass(AvroKey.class);
     job.setOutputValueClass(NullWritable.class);
     setNumberOfReducers(job);
-  }
-
-  /**
-   * Customized MR job creation for Avro.
-   *
-   * @param  dataset  A path or directory which needs compaction
-   * @return A configured map-reduce job for avro compaction
-   */
-  @Override
-  public Job createJob(FileSystemDataset dataset) throws IOException {
-    Configuration conf = HadoopUtils.getConfFromState(state);
-
-    // Turn on mapreduce output compression by default
-    if (conf.get("mapreduce.output.fileoutputformat.compress") == null && conf.get("mapred.output.compress") == null) {
-      conf.setBoolean("mapreduce.output.fileoutputformat.compress", true);
-    }
-
-    // Disable delegation token cancellation by default
-    if (conf.get("mapreduce.job.complete.cancel.delegation.tokens") == null) {
-      conf.setBoolean("mapreduce.job.complete.cancel.delegation.tokens", false);
-    }
-
-    addJars(conf, this.state, fs);
-    Job job = Job.getInstance(conf);
-    job.setJobName(MRCompactorJobRunner.HADOOP_JOB_NAME);
-    boolean emptyDirectoryFlag = this.configureInputAndOutputPaths(job, dataset);
-    if (emptyDirectoryFlag) {
-      this.state.setProp(HiveRegistrationPolicy.MAPREDUCE_JOB_INPUT_PATH_EMPTY_KEY, true);
-    }
-    this.configureMapper(job);
-    this.configureReducer(job);
-    if (emptyDirectoryFlag || !this.shouldDeduplicate) {
-      job.setNumReduceTasks(0);
-    }
-    // Configure schema at the last step because FilesInputFormat will be used internally
-    this.configureSchema(job);
-    this.isJobCreated = true;
-    this.configuredJob = job;
-    return job;
   }
 }
 

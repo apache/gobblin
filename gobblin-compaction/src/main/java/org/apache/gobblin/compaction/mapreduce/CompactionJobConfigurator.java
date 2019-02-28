@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.compaction.mapreduce;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
@@ -29,6 +30,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.math3.primes.Primes;
@@ -39,6 +41,7 @@ import org.apache.gobblin.compaction.verify.InputRecordCountHelper;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.dataset.FileSystemDataset;
+import org.apache.gobblin.hive.policy.HiveRegistrationPolicy;
 import org.apache.gobblin.util.FileListUtils;
 import org.apache.gobblin.util.HadoopUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -63,6 +66,15 @@ public abstract class CompactionJobConfigurator {
   public static final String COMPACTION_JOB_CONFIGURATOR_FACTORY_CLASS_KEY = "compaction.jobConfiguratorFactory.class";
   public static final String DEFAULT_COMPACTION_JOB_CONFIGURATOR_FACTORY_CLASS =
       "org.apache.gobblin.compaction.mapreduce.CompactionAvroJobConfigurator$Factory";
+
+
+  @Getter
+  @AllArgsConstructor
+  protected enum EXTENSION {
+    AVRO("avro"), ORC("orc");
+
+    private String extensionString;
+  }
 
   protected final State state;
 
@@ -106,7 +118,51 @@ public abstract class CompactionJobConfigurator {
     }
   }
 
-  public abstract Job createJob(FileSystemDataset dataset) throws IOException;
+  public abstract String getFileExtension();
+
+  /**
+   * Customized MR job creation for Avro.
+   *
+   * @param  dataset  A path or directory which needs compaction
+   * @return A configured map-reduce job for avro compaction
+   */
+  public Job createJob(FileSystemDataset dataset) throws IOException {
+    Configuration conf = HadoopUtils.getConfFromState(state);
+
+    // Turn on mapreduce output compression by default
+    if (conf.get("mapreduce.output.fileoutputformat.compress") == null && conf.get("mapred.output.compress") == null) {
+      conf.setBoolean("mapreduce.output.fileoutputformat.compress", true);
+    }
+
+    // Disable delegation token cancellation by default
+    if (conf.get("mapreduce.job.complete.cancel.delegation.tokens") == null) {
+      conf.setBoolean("mapreduce.job.complete.cancel.delegation.tokens", false);
+    }
+
+    addJars(conf, this.state, fs);
+    Job job = Job.getInstance(conf);
+    job.setJobName(MRCompactorJobRunner.HADOOP_JOB_NAME);
+    boolean emptyDirectoryFlag = this.configureInputAndOutputPaths(job, dataset);
+    if (emptyDirectoryFlag) {
+      this.state.setProp(HiveRegistrationPolicy.MAPREDUCE_JOB_INPUT_PATH_EMPTY_KEY, true);
+    }
+    this.configureMapper(job);
+    this.configureReducer(job);
+    if (emptyDirectoryFlag || !this.shouldDeduplicate) {
+      job.setNumReduceTasks(0);
+    }
+    // Configure schema at the last step because FilesInputFormat will be used internally
+    this.configureSchema(job);
+    this.isJobCreated = true;
+    this.configuredJob = job;
+    return job;
+  }
+
+  protected abstract void configureSchema(Job job) throws IOException;
+
+  protected abstract void configureMapper(Job job);
+
+  protected abstract void configureReducer(Job job) throws IOException;
 
   protected FileSystem getFileSystem(State state) throws IOException {
     Configuration conf = HadoopUtils.getConfFromState(state);
@@ -285,12 +341,14 @@ public abstract class CompactionJobConfigurator {
    *
    * @param job Completed MR job
    * @param fs File system that can handle file system
+   * @param acceptableExtension file extension acceptable as "good files".
    * @return all successful files that has been committed
    */
-  public static List<Path> getGoodFiles(Job job, Path tmpPath, FileSystem fs) throws IOException {
+  public static List<Path> getGoodFiles(Job job, Path tmpPath, FileSystem fs, List<String> acceptableExtension)
+      throws IOException {
     List<TaskCompletionEvent> failedEvents = getUnsuccessfulTaskCompletionEvent(job);
 
-    List<Path> allFilePaths = DatasetHelper.getApplicableFilePaths(fs, tmpPath, Lists.newArrayList("avro"));
+    List<Path> allFilePaths = DatasetHelper.getApplicableFilePaths(fs, tmpPath, acceptableExtension);
     List<Path> goodPaths = new ArrayList<>();
     for (Path filePath: allFilePaths) {
       if (isFailedPath(filePath, failedEvents)) {
