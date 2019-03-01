@@ -96,7 +96,10 @@ import static org.apache.gobblin.util.retry.RetryerFactory.*;
  * the output directory.
  *
  * @author Ziyang Liu
- * @deprecated Suggested to use {@link MRCompactionTask} + {@link org.apache.gobblin.compaction.source.CompactionSource}
+ * @deprecated Please use {@link org.apache.gobblin.compaction.mapreduce.MRCompactionTask}
+ *  and {@link org.apache.gobblin.compaction.source.CompactionSource} to launch MR instead.
+ *  The new way enjoys simpler logic to trigger the compaction flow and more reliable verification criteria,
+ *  instead of using timestamp only before.
  */
 @SuppressWarnings("deprecation")
 public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCompactorJobRunner> {

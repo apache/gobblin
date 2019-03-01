@@ -45,7 +45,10 @@ import org.apache.gobblin.metrics.Tag;
  * A class for launching a Gobblin MR job for compaction through command line.
  *
  * @author Lorand Bendig
- * @deprecated Suggested to use CompactionSource + MRCompactionTask to implement MR compaction job.
+ * @deprecated Please use {@link org.apache.gobblin.compaction.mapreduce.MRCompactionTask}
+ *  and {@link org.apache.gobblin.compaction.source.CompactionSource} to launch MR instead.
+ *  The new way enjoys simpler logic to trigger the compaction flow and more reliable verification criteria,
+ *  instead of using timestamp only before.
  *
  */
 @Deprecated

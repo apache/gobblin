@@ -126,6 +126,7 @@ public class CompactionAvroJobConfigurator extends CompactionJobConfigurator {
     return keySchema;
   }
 
+  @Override
   protected void configureSchema(Job job) throws IOException {
     Schema newestSchema = MRCompactorAvroKeyDedupJobRunner.getNewestSchemaFromSource(job, this.fs);
     if (newestSchema != null) {

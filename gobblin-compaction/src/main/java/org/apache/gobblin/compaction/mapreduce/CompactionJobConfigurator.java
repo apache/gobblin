@@ -158,10 +158,24 @@ public abstract class CompactionJobConfigurator {
     return job;
   }
 
+  /**
+   * Configuring Mapper/Reducer's input/output schema for compaction MR job.
+   * The input schema for Mapper should be obtained from to-be-compacted file.
+   * The output schema for Mapper is for dedup.
+   * The output schema for Reducer should be identical to input schema of Mapper.
+   * @param job The compaction jobConf.
+   * @throws IOException
+   */
   protected abstract void configureSchema(Job job) throws IOException;
 
+  /**
+   * Configuring Mapper class, specific to data format.
+   */
   protected abstract void configureMapper(Job job);
 
+  /**
+   * Configuring Reducer class, specific to data format.
+   */
   protected abstract void configureReducer(Job job) throws IOException;
 
   protected FileSystem getFileSystem(State state) throws IOException {
