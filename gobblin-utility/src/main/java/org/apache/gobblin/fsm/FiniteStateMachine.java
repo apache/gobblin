@@ -147,8 +147,8 @@ public class FiniteStateMachine<T> {
 		this.initialState = initialState;
 		this.currentState = initialState;
 
-		if (this.currentTransition instanceof StateWithCallbacks) {
-		  ((StateWithCallbacks) this.currentTransition).onEnterState(null);
+		if (this.currentState instanceof StateWithCallbacks) {
+		  ((StateWithCallbacks) this.currentState).onEnterState(null);
     }
 	}
 
@@ -165,7 +165,7 @@ public class FiniteStateMachine<T> {
 		try {
 			this.lock.writeLock().lock();
 			while (isTransitioning()) {
-				this.condition.await(1, TimeUnit.SECONDS);
+				this.condition.await();
 			}
 			if (!isAllowedTransition(this.currentState, endState)) {
 				throw new UnallowedTransitionException(this.currentState, endState);
@@ -261,7 +261,7 @@ public class FiniteStateMachine<T> {
 			this.lock.writeLock().lock();
 			try {
 				while (isTransitioning()) {
-					this.condition.await(1, TimeUnit.SECONDS);
+					this.condition.await();
 				}
 				// After non-transitioning state, downgrade again to read-lock
 				this.lock.readLock().lock();

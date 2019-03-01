@@ -320,7 +320,7 @@ public class FiniteStateMachineTest {
     }
 
     private void setLastTransition(String callback, NamedStateWithCallback start, NamedStateWithCallback end) {
-      this.lastTransition = String.format("%s:%s->%s", callback, start.name, end.name);
+      this.lastTransition = String.format("%s:%s->%s", callback, start == null ? "null" : start.name, end.name);
     }
 
     @Override
