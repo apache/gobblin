@@ -28,8 +28,8 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,6 +60,7 @@ import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.executors.IteratorExecutor;
 
 import javax.annotation.Nullable;
+import lombok.Setter;
 
 
 /**
@@ -93,6 +94,8 @@ public class GobblinMultiTaskAttempt {
   private final Optional<String> containerIdOptional;
   private final Optional<StateStore<TaskState>> taskStateStoreOptional;
   private final SharedResourcesBroker<GobblinScopeTypes> jobBroker;
+  @Setter
+  private Predicate<GobblinMultiTaskAttempt> interruptionPredicate = (gmta) -> false;
   private List<Task> tasks;
 
   /**
@@ -139,14 +142,37 @@ public class GobblinMultiTaskAttempt {
     this.tasks = runWorkUnits(countDownLatch);
     log.info("Waiting for submitted tasks of job {} to complete in container {}...", jobId,
         containerIdOptional.or(""));
-    while (countDownLatch.getCount() > 0) {
-      log.info(String.format("%d out of %d tasks of job %s are running in container %s", countDownLatch.getCount(),
-          countDownLatch.getRegisteredParties(), jobId, containerIdOptional.or("")));
-      if (countDownLatch.await(10, TimeUnit.SECONDS)) {
-        break;
+    try {
+      while (countDownLatch.getCount() > 0) {
+        if (this.interruptionPredicate.test(this)) {
+          log.info("Interrupting task execution due to satisfied predicate.");
+          interruptTaskExecution(countDownLatch);
+          break;
+        }
+        log.info(String.format("%d out of %d tasks of job %s are running in container %s", countDownLatch.getCount(),
+            countDownLatch.getRegisteredParties(), jobId, containerIdOptional.or("")));
+        if (countDownLatch.await(10, TimeUnit.SECONDS)) {
+          break;
+        }
       }
+    } catch (InterruptedException interrupt) {
+      log.info("Job interrupted by InterrupedException.");
+      interruptTaskExecution(countDownLatch);
     }
     log.info("All assigned tasks of job {} have completed in container {}", jobId, containerIdOptional.or(""));
+  }
+
+  private void interruptTaskExecution(CountDownLatch countDownLatch) throws InterruptedException {
+    log.info("Job interrupted. Attempting a graceful shutdown of the job.");
+    this.tasks.forEach(Task::shutdown);
+    if (!countDownLatch.await(5, TimeUnit.SECONDS)) {
+      log.warn("Graceful shutdown of job timed out. Killing all outstanding tasks.");
+      try {
+        this.taskExecutor.shutDown();
+      } catch (Throwable t) {
+        throw new RuntimeException("Failed to shutdown task executor.", t);
+      }
+    }
   }
 
   /**
@@ -468,7 +494,8 @@ public class GobblinMultiTaskAttempt {
   public static GobblinMultiTaskAttempt runWorkUnits(String jobId, String containerId, JobState jobState,
       List<WorkUnit> workUnits, TaskStateTracker taskStateTracker, TaskExecutor taskExecutor,
       StateStore<TaskState> taskStateStore,
-      CommitPolicy multiTaskAttemptCommitPolicy, SharedResourcesBroker<GobblinScopeTypes> jobBroker)
+      CommitPolicy multiTaskAttemptCommitPolicy, SharedResourcesBroker<GobblinScopeTypes> jobBroker,
+      Predicate<GobblinMultiTaskAttempt> interruptionPredicate)
       throws IOException, InterruptedException {
 
     // dump the work unit if tracking logs are enabled
@@ -480,6 +507,7 @@ public class GobblinMultiTaskAttempt {
     GobblinMultiTaskAttempt multiTaskAttempt =
         new GobblinMultiTaskAttempt(workUnits.iterator(), jobId, jobState, taskStateTracker, taskExecutor,
             Optional.of(containerId), Optional.of(taskStateStore), jobBroker);
+    multiTaskAttempt.setInterruptionPredicate(interruptionPredicate);
 
     multiTaskAttempt.runAndOptionallyCommitTaskAttempt(multiTaskAttemptCommitPolicy);
     return multiTaskAttempt;
