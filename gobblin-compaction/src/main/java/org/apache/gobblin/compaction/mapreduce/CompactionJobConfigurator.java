@@ -335,13 +335,15 @@ public abstract class CompactionJobConfigurator {
   }
 
   private static List<TaskCompletionEvent> getUnsuccessfulTaskCompletionEvent(Job completedJob) {
-    return getAllTaskCompletionEvent(completedJob).stream().filter(te->te.getStatus() != TaskCompletionEvent.Status.SUCCEEDED).collect(
-        Collectors.toList());
+    return getAllTaskCompletionEvent(completedJob).stream()
+        .filter(te -> te.getStatus() != TaskCompletionEvent.Status.SUCCEEDED)
+        .collect(Collectors.toList());
   }
 
   private static boolean isFailedPath(Path path, List<TaskCompletionEvent> failedEvents) {
     return path.toString().contains("_temporary") || failedEvents.stream()
-        .anyMatch(event -> path.toString().contains(Path.SEPARATOR + event.getTaskAttemptId().toString() + Path.SEPARATOR));
+        .anyMatch(
+            event -> path.toString().contains(Path.SEPARATOR + event.getTaskAttemptId().toString() + Path.SEPARATOR));
   }
 
   /**
@@ -362,7 +364,7 @@ public abstract class CompactionJobConfigurator {
 
     List<Path> allFilePaths = DatasetHelper.getApplicableFilePaths(fs, tmpPath, acceptableExtension);
     List<Path> goodPaths = new ArrayList<>();
-    for (Path filePath: allFilePaths) {
+    for (Path filePath : allFilePaths) {
       if (isFailedPath(filePath, failedEvents)) {
         fs.delete(filePath, false);
         log.error("{} is a bad path so it was deleted", filePath);

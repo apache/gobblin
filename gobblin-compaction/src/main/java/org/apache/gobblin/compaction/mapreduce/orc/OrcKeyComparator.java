@@ -1,0 +1,70 @@
+package org.apache.gobblin.compaction.mapreduce.orc;
+
+import java.io.DataInput;
+import java.io.IOException;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.conf.Configured;
+import org.apache.hadoop.io.DataInputBuffer;
+import org.apache.hadoop.io.RawComparator;
+import org.apache.orc.OrcConf;
+import org.apache.orc.TypeDescription;
+import org.apache.orc.mapred.OrcKey;
+import org.apache.orc.mapred.OrcStruct;
+
+
+/**
+ * Delegate byte decoding to underlying {@link OrcStruct#readFields(DataInput)} method.
+ */
+public class OrcKeyComparator extends Configured implements RawComparator<OrcKey> {
+  private TypeDescription schema;
+  private OrcKey key1;
+  private OrcKey key2;
+  private DataInputBuffer buffer;
+
+  @Override
+  public void setConf(Configuration conf) {
+    super.setConf(conf);
+    if (null != conf) {
+      // The MapReduce framework will be using this comparator to sort OrcKey objects
+      // output from the map phase, so use the schema defined for the map output key
+      // and the data model non-raw compare() implementation.
+      schema = TypeDescription.fromString(conf.get(OrcConf.MAPRED_SHUFFLE_KEY_SCHEMA.getAttribute()));
+      OrcStruct orcRecordModel = (OrcStruct) OrcStruct.createValue(schema);
+
+      if (key1 == null) {
+        key1 = new OrcKey();
+      }
+      if (key2 == null) {
+        key2 = new OrcKey();
+      }
+      if (buffer == null) {
+        buffer = new DataInputBuffer();
+      }
+
+      key1.key = orcRecordModel;
+      key2.key = orcRecordModel;
+    }
+  }
+
+  @Override
+  public int compare(byte[] b1, int s1, int l1, byte[] b2, int s2, int l2) {
+    try {
+      buffer.reset(b1, s1, l1);                   // parse key1
+      key1.readFields(buffer);
+
+      buffer.reset(b2, s2, l2);                   // parse key2
+      key2.readFields(buffer);
+
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+
+    return compare(key1, key2);                   // compare them
+  }
+
+  // TODO: Change this.
+  @Override
+  public int compare(OrcKey o1, OrcKey o2) {
+    return 0;
+  }
+}

@@ -52,7 +52,7 @@ import org.apache.gobblin.runtime.embedded.EmbeddedGobblin;
 
 
 @Slf4j
-public class MRCompactionTaskTest {
+public class AvroCompactionTaskTest {
 
   protected FileSystem getFileSystem()
       throws IOException {

@@ -33,9 +33,10 @@ dependencies {
   compile externalDependency.avro
   compile externalDependency.commonsLang
   compile externalDependency.commonsMath
-  compile externalDependency.hiveExec
+//  compile externalDependency.hiveExec
   compile externalDependency.mockito
   compile externalDependency.testng
+  compile externalDependency.orcMapreduce
 
   runtime externalDependency.hadoopCommon
   runtime externalDependency.hadoopClientCore
