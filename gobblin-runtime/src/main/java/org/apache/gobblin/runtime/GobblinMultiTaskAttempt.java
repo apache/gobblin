@@ -455,7 +455,7 @@ public class GobblinMultiTaskAttempt {
       commit();
     } else if (!isSpeculativeExecutionSafe()) {
       throw new RuntimeException(
-          "Specualtive execution is enabled. However, the task context is not safe for speculative execution.");
+          "Speculative execution is enabled. However, the task context is not safe for speculative execution.");
     }
   }
 

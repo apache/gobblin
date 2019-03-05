@@ -902,7 +902,7 @@ public class ConfigurationKeys {
    */
   public static final String COMPACTION_PREFIX = "compaction.";
   public static final String COMPACTION_SUITE_FACTORY = COMPACTION_PREFIX + "suite.factory";
-  public static final String DEFAULT_COMPACTION_SUITE_FACTORY = "CompactionAvroSuiteFactory";
+  public static final String DEFAULT_COMPACTION_SUITE_FACTORY = "CompactionSuiteBaseFactory";
 
   public static final String COMPACTION_PRIORITIZATION_PREFIX = COMPACTION_PREFIX + "prioritization.";
   public static final String COMPACTION_PRIORITIZER_ALIAS = COMPACTION_PRIORITIZATION_PREFIX + "prioritizerAlias";

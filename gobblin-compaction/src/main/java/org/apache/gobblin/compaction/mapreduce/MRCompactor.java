@@ -93,8 +93,13 @@ import static org.apache.gobblin.compaction.mapreduce.MRCompactorJobRunner.Statu
  * under {@link #COMPACTION_INPUT_DIR}.
  *
  * @author Ziyang Liu
+ * @deprecated Please use {@link org.apache.gobblin.compaction.mapreduce.MRCompactionTask}
+ *  and {@link org.apache.gobblin.compaction.source.CompactionSource} to launch MR instead.
+ *  The new way enjoys simpler logic to trigger the compaction flow and more reliable verification criteria,
+ *  instead of using timestamp only before.
  */
 
+@Deprecated
 public class MRCompactor implements Compactor {
 
   private static final Logger LOG = LoggerFactory.getLogger(MRCompactor.class);

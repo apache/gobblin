@@ -50,6 +50,10 @@ import org.apache.gobblin.util.FileListUtils;
  * compaction.topic, compaction.job.input.dir, compaction.job.dest.dir, compaction.job.dest.dir.
  *
  * @author Ziyang Liu
+ * @deprecated Please use {@link org.apache.gobblin.compaction.mapreduce.MRCompactionTask}
+ *  and {@link org.apache.gobblin.compaction.source.CompactionSource} to launch MR instead.
+ *  The new way enjoys simpler logic to trigger the compaction flow and more reliable verification criteria,
+ *  instead of using timestamp only before.
  */
 public class MRCompactorJobPropCreator {
   private static final Logger LOG = LoggerFactory.getLogger(MRCompactorJobPropCreator.class);

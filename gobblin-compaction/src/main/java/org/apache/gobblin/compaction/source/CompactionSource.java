@@ -403,14 +403,14 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
   protected WorkUnit createWorkUnit (Dataset dataset) throws IOException {
     WorkUnit workUnit = new WorkUnit();
     TaskUtils.setTaskFactoryClass(workUnit, MRCompactionTaskFactory.class);
-    suite.save (dataset, workUnit);
+    suite.save(dataset, workUnit);
     return workUnit;
   }
 
   protected WorkUnit createWorkUnitForFailure (Dataset dataset) throws IOException {
     WorkUnit workUnit = new FailedTask.FailedWorkUnit();
     TaskUtils.setTaskFactoryClass(workUnit, CompactionFailedTask.CompactionFailedTaskFactory.class);
-    suite.save (dataset, workUnit);
+    suite.save(dataset, workUnit);
     return workUnit;
   }
 
@@ -418,7 +418,7 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
     WorkUnit workUnit = new FailedTask.FailedWorkUnit();
     workUnit.setProp(CompactionVerifier.COMPACTION_VERIFICATION_FAIL_REASON, reason);
     TaskUtils.setTaskFactoryClass(workUnit, CompactionFailedTask.CompactionFailedTaskFactory.class);
-    suite.save (dataset, workUnit);
+    suite.save(dataset, workUnit);
     return workUnit;
   }
 
@@ -479,7 +479,7 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
     LocalFileSystem lfs = FileSystem.getLocal(HadoopUtils.getConfFromState(state));
     Path tmpJarFileDir = new Path(this.tmpJobDir, MRCompactor.COMPACTION_JAR_SUBDIR);
     this.fs.mkdirs(tmpJarFileDir);
-    state.setProp (MRCompactor.COMPACTION_JARS, tmpJarFileDir.toString());
+    state.setProp(MRCompactor.COMPACTION_JARS, tmpJarFileDir.toString());
 
     // copy jar files to hdfs
     for (String jarFile : state.getPropAsList(ConfigurationKeys.JOB_JAR_FILES_KEY)) {
