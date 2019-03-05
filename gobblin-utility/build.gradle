@@ -41,6 +41,7 @@ dependencies {
   compile externalDependency.typesafeConfig
   compile externalDependency.commonsPool
   compile externalDependency.hadoopClientCommon
+  compile externalDependency.hiveExec
   compile externalDependency.avroMapredH2
   compile externalDependency.commonsLang3
   compile externalDependency.gson
