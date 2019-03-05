@@ -23,6 +23,7 @@ import java.net.URI;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 import org.apache.commons.lang3.SerializationUtils;
@@ -53,10 +54,13 @@ import org.apache.gobblin.runtime.api.SpecSerDe;
 import org.apache.gobblin.runtime.api.SpecStore;
 import org.apache.gobblin.runtime.spec_store.FSSpecStore;
 import org.apache.gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.util.callbacks.CallbackResult;
+import org.apache.gobblin.util.callbacks.CallbacksDispatcher;
 
 
 @Alpha
-public class FlowCatalog extends AbstractIdleService implements SpecCatalog, MutableSpecCatalog, SpecSerDe {
+public class FlowCatalog extends AbstractIdleService implements SpecCatalog, MutableSpecCatalog<String>, SpecSerDe {
+  private static final String GOBBLIN_SERVICE_JOB_SCHEDULER = "org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler";
 
   public static final String DEFAULT_FLOWSPEC_STORE_CLASS = FSSpecStore.class.getCanonicalName();
 
@@ -147,7 +151,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
 
     if (state() == State.RUNNING) {
       for (Spec spec : getSpecsWithTimeUpdate()) {
-        SpecCatalogListener.AddSpecCallback addJobCallback = new SpecCatalogListener.AddSpecCallback(spec);
+        SpecCatalogListener.AddSpecCallback<Object> addJobCallback = new SpecCatalogListener.AddSpecCallback<>(spec);
         this.listeners.callbackOneListener(addJobCallback, specListener);
       }
     }
@@ -239,7 +243,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     }
   }
 
-  public void put(Spec spec, boolean triggerListener) {
+  public String put(Spec spec, boolean triggerListener) {
     try {
       Preconditions.checkState(state() == State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
       Preconditions.checkNotNull(spec);
@@ -250,16 +254,22 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
       specStore.addSpec(spec);
       metrics.updatePutSpecTime(startTime);
       if (triggerListener) {
-        this.listeners.onAddSpec(spec);
+        CallbacksDispatcher.CallbackResults<SpecCatalogListener<Object>, Object> callbackResults = this.listeners.onAddSpec(spec);
+        for (Map.Entry<SpecCatalogListener<Object>, CallbackResult<Object>> entry: callbackResults.getSuccesses().entrySet()) {
+          if (entry.getKey().getName().equalsIgnoreCase(GOBBLIN_SERVICE_JOB_SCHEDULER)) {
+            return (String) entry.getValue().getResult();
+          }
+        }
       }
     } catch (IOException e) {
       throw new RuntimeException("Cannot add Spec to Spec store: " + spec, e);
     }
+    return null;
   }
 
   @Override
-  public void put(Spec spec) {
-    put(spec, true);
+  public String put(Spec spec) {
+    return put(spec, true);
   }
 
   public void remove(URI uri) {

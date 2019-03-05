@@ -15,9 +15,12 @@
  * limitations under the License.
  */
 package org.apache.gobblin.service;
+import org.apache.commons.lang3.StringEscapeUtils;
+
+import com.linkedin.data.template.StringMap;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.HttpStatus;
-import com.linkedin.restli.server.CreateResponse;
+import com.linkedin.restli.server.CreateKVResponse;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -33,10 +36,10 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
   /**
    * Add flowConfig locally and trigger all listeners iff @param triggerListener is set to true
    */
-  public CreateResponse createFlowConfig(FlowConfig flowConfig, boolean triggerListener) throws FlowConfigLoggedException {
+  public CreateKVResponse createFlowConfig(FlowConfig flowConfig, boolean triggerListener) throws FlowConfigLoggedException {
     log.info("[GAAS-REST] Create called with flowGroup " + flowConfig.getId().getFlowGroup() + " flowName " + flowConfig.getId().getFlowName());
     FlowSpec flowSpec = createFlowSpecForConfig(flowConfig);
-    this.flowCatalog.put(flowSpec, triggerListener);
+    String compiledFlow = this.flowCatalog.put(flowSpec, triggerListener);
     FlowStatusId flowStatusId = new FlowStatusId()
         .setFlowName(flowSpec.getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_NAME_KEY))
         .setFlowGroup(flowSpec.getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_GROUP_KEY));
@@ -45,6 +48,17 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
     } else {
       flowStatusId.setFlowExecutionId(-1L);
     }
-    return new CreateResponse(new ComplexResourceKey<>(flowConfig.getId(), flowStatusId), HttpStatus.S_201_CREATED);
+    HttpStatus httpStatus = HttpStatus.S_201_CREATED;
+
+    if (flowConfig.hasExplain() && flowConfig.isExplain()) {
+      //This is an Explain request. So no resource is actually created.
+      //Enrich original FlowConfig entity by adding the compiledFlow to the properties map.
+      StringMap props = flowConfig.getProperties();
+      props.put("gobblin.flow.compiled", StringEscapeUtils.escapeJson(compiledFlow));
+      flowConfig.setProperties(props);
+      //Return response with 200 status code, since no resource is actually created.
+      httpStatus = HttpStatus.S_200_OK;
+    }
+    return new CreateKVResponse(new ComplexResourceKey<>(flowConfig.getId(), flowStatusId), flowConfig, httpStatus);
   }
 }

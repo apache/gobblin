@@ -63,7 +63,7 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, Instrumentab
   Spec getSpec(URI uri) throws SpecNotFoundException;
 
   @Slf4j
-  class StandardMetrics extends StandardMetricsBridge.StandardMetrics implements SpecCatalogListener {
+  class StandardMetrics extends StandardMetricsBridge.StandardMetrics implements SpecCatalogListener<Void> {
     public static final String NUM_ACTIVE_SPECS_NAME = "numActiveSpecs";
     public static final String TOTAL_ADD_CALLS = "totalAddCalls";
     public static final String TOTAL_DELETE_CALLS = "totalDeleteCalls";
@@ -119,9 +119,10 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, Instrumentab
       Instrumented.updateTimer(Optional.of(this.timeForSpecCatalogGet), System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
     }
 
-    @Override public void onAddSpec(Spec addedSpec) {
+    @Override public Void onAddSpec(Spec addedSpec) {
       this.totalAddedSpecs.incrementAndGet();
       submitTrackingEvent(addedSpec, SPEC_ADDED_OPERATION_TYPE);
+      return null;
     }
 
     private void submitTrackingEvent(Spec spec, String operType) {

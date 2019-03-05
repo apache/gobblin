@@ -36,22 +36,22 @@ import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.util.callbacks.CallbacksDispatcher;
 
 
-public class SpecCatalogListenersList implements SpecCatalogListener, SpecCatalogListenersContainer, Closeable {
-  private final CallbacksDispatcher<SpecCatalogListener> _disp;
+public class SpecCatalogListenersList implements SpecCatalogListener<CallbacksDispatcher.CallbackResults<SpecCatalogListener<Object>, Object>>, SpecCatalogListenersContainer, Closeable {
+  private final CallbacksDispatcher<SpecCatalogListener<Object>> _disp;
 
   public SpecCatalogListenersList() {
     this(Optional.<Logger>absent());
   }
 
   public SpecCatalogListenersList(Optional<Logger> log) {
-    _disp = new CallbacksDispatcher<SpecCatalogListener>(Optional.<ExecutorService>absent(), log);
+    _disp = new CallbacksDispatcher<>(Optional.<ExecutorService>absent(), log);
   }
 
   public Logger getLog() {
     return _disp.getLog();
   }
 
-  public synchronized List<SpecCatalogListener> getListeners() {
+  public synchronized List<SpecCatalogListener<Object>> getListeners() {
     return _disp.getListeners();
   }
 
@@ -66,13 +66,14 @@ public class SpecCatalogListenersList implements SpecCatalogListener, SpecCatalo
   }
 
   @Override
-  public synchronized void onAddSpec(Spec addedSpec) {
+  public synchronized CallbacksDispatcher.CallbackResults<SpecCatalogListener<Object>, Object> onAddSpec(Spec addedSpec) {
     Preconditions.checkNotNull(addedSpec);
     try {
-      _disp.execCallbacks(new SpecCatalogListener.AddSpecCallback(addedSpec));
+      return _disp.execCallbacks(new AddSpecCallback<>(addedSpec));
     } catch (InterruptedException e) {
       getLog().warn("onAddSpec interrupted.");
     }
+    return null;
   }
 
   @Override
@@ -102,7 +103,7 @@ public class SpecCatalogListenersList implements SpecCatalogListener, SpecCatalo
     _disp.close();
   }
 
-  public void callbackOneListener(Function<SpecCatalogListener, Void> callback,
+  public void callbackOneListener(Function<SpecCatalogListener<Object>, Object> callback,
       SpecCatalogListener listener) {
     try {
       _disp.execCallbacks(callback, listener);

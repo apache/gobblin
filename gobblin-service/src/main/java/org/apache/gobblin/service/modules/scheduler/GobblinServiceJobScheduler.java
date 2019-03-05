@@ -55,8 +55,10 @@ import org.apache.gobblin.scheduler.BaseGobblinJob;
 import org.apache.gobblin.scheduler.JobScheduler;
 import org.apache.gobblin.scheduler.SchedulerService;
 import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
+import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PropertiesUtils;
 
@@ -67,7 +69,7 @@ import org.apache.gobblin.util.PropertiesUtils;
  * and runs them via {@link Orchestrator}.
  */
 @Alpha
-public class GobblinServiceJobScheduler extends JobScheduler implements SpecCatalogListener {
+public class GobblinServiceJobScheduler extends JobScheduler implements SpecCatalogListener<String> {
   protected final Logger _log;
 
   protected final Optional<FlowCatalog> flowCatalog;
@@ -179,12 +181,12 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
 
   /** {@inheritDoc} */
   @Override
-  public void onAddSpec(Spec addedSpec) {
+  public String onAddSpec(Spec addedSpec) {
     if (this.helixManager.isPresent() && !this.helixManager.get().isConnected()) {
       // Specs in store will be notified when Scheduler is added as listener to FlowCatalog, so ignore
       // .. Specs if in cluster mode and Helix is not yet initialized
       _log.info("System not yet initialized. Skipping Spec Addition: " + addedSpec);
-      return;
+      return null;
     }
 
     _log.info("New Flow Spec detected: " + addedSpec);
@@ -205,24 +207,46 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
           jobConfig.setProperty(ConfigurationKeys.JOB_SCHEDULE_KEY,
               flowSpecProperties.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY));
         }
+        boolean isExplain = ConfigUtils.getBoolean(flowSpec.getConfig(), ConfigurationKeys.FLOW_EXPLAIN_KEY, false);
+        String compiledFlow = null;
+        if (!isExplain) {
+          this.scheduledFlowSpecs.put(addedSpec.getUri().toString(), addedSpec);
 
-        this.scheduledFlowSpecs.put(addedSpec.getUri().toString(), addedSpec);
-
-        if (jobConfig.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
-          _log.info("{} Scheduling flow spec: {} ", this.serviceName, addedSpec);
-          scheduleJob(jobConfig, null);
-          if (PropertiesUtils.getPropAsBoolean(jobConfig, ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false")) {
-            _log.info("RunImmediately requested, hence executing FlowSpec: " + addedSpec);
-            this.jobExecutor.execute(new NonScheduledJobRunner(flowSpec.getUri(), false, jobConfig, null));
+          if (jobConfig.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
+            _log.info("{} Scheduling flow spec: {} ", this.serviceName, addedSpec);
+            scheduleJob(jobConfig, null);
+            if (PropertiesUtils.getPropAsBoolean(jobConfig, ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false")) {
+              _log.info("RunImmediately requested, hence executing FlowSpec: " + addedSpec);
+              this.jobExecutor.execute(new NonScheduledJobRunner(flowSpec.getUri(), false, jobConfig, null));
+            }
+          } else {
+            _log.info("No FlowSpec schedule found, so running FlowSpec: " + addedSpec);
+            this.jobExecutor.execute(new NonScheduledJobRunner(flowSpec.getUri(), true, jobConfig, null));
           }
         } else {
-          _log.info("No FlowSpec schedule found, so running FlowSpec: " + addedSpec);
-          this.jobExecutor.execute(new NonScheduledJobRunner(flowSpec.getUri(), true, jobConfig, null));
+          //Return a compiled flow.
+          try {
+            this.orchestrator.getSpecCompiler().awaitHealthy();
+          } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+          }
+          Dag<JobExecutionPlan> dag = this.orchestrator.getSpecCompiler().compileFlow(flowSpec);
+          if (dag != null && !dag.isEmpty()) {
+            compiledFlow = dag.toString();
+          }
+          _log.info("{} Skipping adding flow spec: {}, since it is an EXPLAIN request", this.serviceName, addedSpec);
+
+          if (this.flowCatalog.isPresent()) {
+            _log.debug("{} Removing flow spec from FlowCatalog: {}", this.serviceName, flowSpec);
+            this.flowCatalog.get().remove(flowSpec.getUri(), new Properties(), false);
+          }
         }
+        return compiledFlow;
       } catch (JobException je) {
         _log.error("{} Failed to schedule or run FlowSpec {}", serviceName,  addedSpec, je);
       }
     }
+    return null;
   }
 
   public void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion) {

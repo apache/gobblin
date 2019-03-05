@@ -26,6 +26,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigRenderOptions;
 import com.typesafe.config.ConfigValueFactory;
 
 import lombok.Data;
@@ -38,7 +39,6 @@ import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.service.ExecutionStatus;
-import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraphConfigurationKeys;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.template_catalog.FSFlowCatalog;
@@ -165,5 +165,14 @@ public class JobExecutionPlan {
           StringUtils.appendIfMissing(StringUtils.prependIfMissing(flowSpec.getUri().getPath(), "/"), "/") + jobGroup
               + "/" + jobName, null);
     }
+  }
+
+  /**
+   * Render the JobSpec into a JSON string.
+   * @return a valid JSON string representation of the JobSpec.
+   */
+  @Override
+  public String toString() {
+    return jobSpec.getConfig().root().render(ConfigRenderOptions.concise());
   }
 }

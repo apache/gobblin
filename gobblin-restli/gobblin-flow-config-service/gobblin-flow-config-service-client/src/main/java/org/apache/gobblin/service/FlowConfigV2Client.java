@@ -35,7 +35,7 @@ import com.linkedin.r2.RemoteInvocationException;
 import com.linkedin.r2.transport.common.Client;
 import com.linkedin.r2.transport.common.bridge.client.TransportClientAdapter;
 import com.linkedin.r2.transport.http.client.HttpClientFactory;
-import com.linkedin.restli.client.CreateIdRequest;
+import com.linkedin.restli.client.CreateIdEntityRequest;
 import com.linkedin.restli.client.DeleteRequest;
 import com.linkedin.restli.client.GetRequest;
 import com.linkedin.restli.client.Response;
@@ -44,7 +44,7 @@ import com.linkedin.restli.client.RestClient;
 import com.linkedin.restli.client.UpdateRequest;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
-import com.linkedin.restli.common.IdResponse;
+import com.linkedin.restli.common.IdEntityResponse;
 
 
 /**
@@ -99,9 +99,9 @@ public class FlowConfigV2Client implements Closeable {
     LOG.debug("createFlowConfig with groupName " + flowConfig.getId().getFlowGroup() + " flowName " +
         flowConfig.getId().getFlowName());
 
-    CreateIdRequest<ComplexResourceKey<FlowId, FlowStatusId>, FlowConfig> request =
-        _flowconfigsV2RequestBuilders.create().input(flowConfig).build();
-    ResponseFuture<IdResponse<ComplexResourceKey<FlowId, FlowStatusId>>> flowConfigResponseFuture =
+    CreateIdEntityRequest<ComplexResourceKey<FlowId, FlowStatusId>, FlowConfig> request =
+        _flowconfigsV2RequestBuilders.createAndGet().input(flowConfig).build();
+    ResponseFuture<IdEntityResponse<ComplexResourceKey<FlowId, FlowStatusId>, FlowConfig>> flowConfigResponseFuture =
         _restClient.get().sendRequest(request);
 
     return createFlowStatusId(flowConfigResponseFuture.getResponse().getLocation().toString());

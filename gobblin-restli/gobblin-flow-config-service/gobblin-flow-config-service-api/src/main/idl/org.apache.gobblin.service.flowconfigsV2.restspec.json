@@ -12,6 +12,9 @@
     },
     "supports" : [ "create", "delete", "get", "update" ],
     "methods" : [ {
+      "annotations" : {
+        "returnEntity" : { }
+      },
       "method" : "create",
       "doc" : "Create a flow configuration that the service will forward to execution instances for execution"
     }, {

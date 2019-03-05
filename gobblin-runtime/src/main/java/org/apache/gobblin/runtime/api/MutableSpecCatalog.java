@@ -22,14 +22,14 @@ import java.util.Collection;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.gobblin.instrumented.Instrumented;
-import org.apache.gobblin.metrics.ContextAwareTimer;
-
 import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.ContextAwareTimer;
 
 
 /**
@@ -37,12 +37,12 @@ import lombok.extern.slf4j.Slf4j;
  * programmatically. Note that specs in a spec catalog can change from the outside. This is covered
  * by the base SpecCatalog interface.
  */
-public interface MutableSpecCatalog extends SpecCatalog {
+public interface MutableSpecCatalog<T> extends SpecCatalog {
   /**
    * Registers a new {@link Spec}. If a {@link Spec} with the same {@link Spec#getUri()} exists,
    * it will be replaced.
    * */
-  public void put(Spec spec);
+  public T put(Spec spec);
 
   /**
    * Removes an existing {@link Spec} with the given URI.

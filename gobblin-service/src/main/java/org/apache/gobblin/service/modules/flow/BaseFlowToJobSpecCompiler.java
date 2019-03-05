@@ -159,7 +159,7 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
   }
 
   @Override
-  public synchronized void onAddSpec(Spec addedSpec) {
+  public synchronized Void onAddSpec(Spec addedSpec) {
     TopologySpec spec = (TopologySpec) addedSpec;
     log.info ("Loading topology {}", spec.toLongString());
     for (Map.Entry entry: spec.getConfigAsProperties().entrySet()) {
@@ -167,6 +167,7 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
     }
 
     topologySpecMap.put(addedSpec.getUri(), (TopologySpec) addedSpec);
+    return null;
   }
 
   public void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion) {

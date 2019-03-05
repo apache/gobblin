@@ -274,4 +274,20 @@ public class Dag<T> {
       return this.getValue().hashCode();
     }
   }
+
+  /**
+   * @return A string representation of the Dag as a JSON Array.
+   */
+  @Override
+  public String toString() {
+    StringBuffer sb = new StringBuffer();
+    sb.append("[");
+    for (DagNode node: this.getNodes()) {
+      sb.append(node.getValue().toString());
+      sb.append(",");
+    }
+    sb.delete(sb.length()-1, sb.length());
+    sb.append("]");
+    return sb.toString();
+  }
 }

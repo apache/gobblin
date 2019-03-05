@@ -15,19 +15,29 @@
  * limitations under the License.
  */
 package org.apache.gobblin.service;
+import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import com.google.common.collect.ImmutableSet;
-import com.google.inject.Inject;
-import com.google.inject.name.Named;
 import com.linkedin.restli.common.ComplexResourceKey;
+import com.linkedin.restli.common.HttpStatus;
+import com.linkedin.restli.server.CreateKVResponse;
 import com.linkedin.restli.server.CreateResponse;
 import com.linkedin.restli.server.UpdateResponse;
 import com.linkedin.restli.server.annotations.RestLiCollection;
+import com.linkedin.restli.server.annotations.ReturnEntity;
 import com.linkedin.restli.server.resources.ComplexKeyResourceTemplate;
+
+import javax.inject.Inject;
+import javax.inject.Named;
+
+
 /**
  * Resource for handling flow configuration requests
  */
@@ -35,6 +45,9 @@ import com.linkedin.restli.server.resources.ComplexKeyResourceTemplate;
 public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, FlowStatusId, FlowConfig> {
   private static final Logger LOG = LoggerFactory.getLogger(FlowConfigsV2Resource.class);
   public static final String FLOW_CONFIG_GENERATOR_INJECT_NAME = "flowConfigsV2ResourceHandler";
+  public static final String INJECT_REQUESTER_SERVICE = "v2RequesterService";
+  public static final String INJECT_READY_TO_USE = "v2ReadyToUse";
+
   private static final Set<String> ALLOWED_METADATA = ImmutableSet.of("delete.state.store");
 
 
@@ -45,10 +58,15 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
   @Named(FLOW_CONFIG_GENERATOR_INJECT_NAME)
   private FlowConfigsResourceHandler flowConfigsResourceHandler;
 
+  // For getting who sends the request
+  @Inject
+  @Named(INJECT_REQUESTER_SERVICE)
+  private RequesterService requesterService;
+
   // For blocking use of this resource until it is ready
   @Inject
-  @Named("readyToUse")
-  private Boolean readyToUse = Boolean.FALSE;
+  @Named(INJECT_READY_TO_USE)
+  private Boolean readyToUse;
 
   public FlowConfigsV2Resource() {
   }
@@ -71,9 +89,19 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
    * @param flowConfig flow configuration
    * @return {@link CreateResponse}
    */
+  @ReturnEntity
   @Override
-  public CreateResponse create(FlowConfig flowConfig) {
-    return this.getFlowConfigResourceHandler().createFlowConfig(flowConfig);
+  public CreateKVResponse create(FlowConfig flowConfig) {
+    List<ServiceRequester> requestorList = this.requesterService.findRequesters(this);
+    try {
+      String serialized = this.requesterService.serialize(requestorList);
+      flowConfig.getProperties().put(RequesterService.REQUESTER_LIST, serialized);
+      LOG.info("Rest requester list is " + serialized);
+    } catch (IOException e) {
+      throw new FlowConfigLoggedException(HttpStatus.S_401_UNAUTHORIZED,
+          "cannot get who is the requester", e);
+    }
+    return (CreateKVResponse) this.getFlowConfigResourceHandler().createFlowConfig(flowConfig);
   }
 
   /**

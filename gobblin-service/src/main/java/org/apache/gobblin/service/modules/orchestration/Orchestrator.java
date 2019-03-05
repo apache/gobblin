@@ -68,7 +68,7 @@ import org.apache.gobblin.util.ConfigUtils;
  * to {@link TopologyCatalog} and updates {@link SpecCompiler} state.
  */
 @Alpha
-public class Orchestrator implements SpecCatalogListener, Instrumentable {
+public class Orchestrator implements SpecCatalogListener<Void>, Instrumentable {
   protected final Logger _log;
   protected final SpecCompiler specCompiler;
   protected final Optional<TopologyCatalog> topologyCatalog;
@@ -153,11 +153,12 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
   /** {@inheritDoc} */
   @Override
-  public void onAddSpec(Spec addedSpec) {
+  public Void onAddSpec(Spec addedSpec) {
     if (addedSpec instanceof TopologySpec) {
       _log.info("New Spec detected of type TopologySpec: " + addedSpec);
       this.specCompiler.onAddSpec(addedSpec);
     }
+    return null;
   }
 
   public void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion) {
@@ -193,6 +194,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     } catch (Exception e) {
       _log.error("Failed to update Spec: " + updatedSpec, e);
     }
+
   }
 
   public void orchestrate(Spec spec) throws Exception {

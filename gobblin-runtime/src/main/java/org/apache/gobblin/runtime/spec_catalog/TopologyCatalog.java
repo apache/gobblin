@@ -26,12 +26,8 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 
-import javax.annotation.Nonnull;
-import lombok.Getter;
-
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
-import org.apache.gobblin.runtime.api.FlowSpec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,11 +37,15 @@ import com.google.common.util.concurrent.AbstractIdleService;
 import com.google.common.util.concurrent.Service;
 import com.typesafe.config.Config;
 
+import javax.annotation.Nonnull;
+import lombok.Getter;
+
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.GobblinInstanceEnvironment;
 import org.apache.gobblin.runtime.api.MutableSpecCatalog;
 import org.apache.gobblin.runtime.api.Spec;
@@ -60,7 +60,7 @@ import org.apache.gobblin.util.ClassAliasResolver;
 
 
 @Alpha
-public class TopologyCatalog extends AbstractIdleService implements SpecCatalog, MutableSpecCatalog, SpecSerDe {
+public class TopologyCatalog extends AbstractIdleService implements SpecCatalog, MutableSpecCatalog<Void>, SpecSerDe {
 
   public static final String DEFAULT_TOPOLOGYSPEC_STORE_CLASS = FSSpecStore.class.getCanonicalName();
 
@@ -154,7 +154,7 @@ public class TopologyCatalog extends AbstractIdleService implements SpecCatalog,
 
     if (state() == Service.State.RUNNING) {
       for (Spec spec : getSpecs()) {
-        SpecCatalogListener.AddSpecCallback addJobCallback = new SpecCatalogListener.AddSpecCallback(spec);
+        SpecCatalogListener.AddSpecCallback<Object> addJobCallback = new SpecCatalogListener.AddSpecCallback<>(spec);
         this.listeners.callbackOneListener(addJobCallback, specListener);
       }
     }
@@ -228,7 +228,7 @@ public class TopologyCatalog extends AbstractIdleService implements SpecCatalog,
   }
 
   @Override
-  public void put(Spec spec) {
+  public Void put(Spec spec) {
     try {
       Preconditions.checkState(state() == Service.State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
       Preconditions.checkNotNull(spec);
@@ -240,6 +240,7 @@ public class TopologyCatalog extends AbstractIdleService implements SpecCatalog,
     } catch (IOException e) {
       throw new RuntimeException("Cannot add Spec to Spec store: " + spec, e);
     }
+    return null;
   }
 
   public void remove(URI uri) {

@@ -258,8 +258,14 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
           binder.bindConstant()
               .annotatedWith(Names.named(FlowConfigsResource.INJECT_READY_TO_USE))
               .to(Boolean.TRUE);
+          binder.bindConstant()
+              .annotatedWith(Names.named(FlowConfigsV2Resource.INJECT_READY_TO_USE))
+              .to(Boolean.TRUE);
           binder.bind(RequesterService.class)
               .annotatedWith(Names.named(FlowConfigsResource.INJECT_REQUESTER_SERVICE))
+              .toInstance(new NoopRequesterService(config));
+          binder.bind(RequesterService.class)
+              .annotatedWith(Names.named(FlowConfigsV2Resource.INJECT_REQUESTER_SERVICE))
               .toInstance(new NoopRequesterService(config));
         }
       });
