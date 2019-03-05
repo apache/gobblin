@@ -27,6 +27,9 @@ import java.util.Map;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.data.management.copy.PreserveAttributes;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.filesystem.DataFileVersion;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -36,6 +39,7 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
+import com.typesafe.config.Config;
 
 import org.apache.gobblin.commit.CommitStep;
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -84,6 +88,8 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
   protected final EventSubmitter eventSubmitter;
   protected final RecoveryHelper recoveryHelper;
   protected final Optional<LineageInfo> lineageInfo;
+  protected final DataFileVersion srcDataFileVersion;
+  protected final DataFileVersion dstDataFileVersion;
 
   /**
    * Build a new {@link CopyDataPublisher} from {@link State}. The constructor expects the following to be set in the
@@ -119,6 +125,11 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
 
     this.recoveryHelper = new RecoveryHelper(this.fs, state);
     this.recoveryHelper.purgeOldPersistedFile();
+
+    Config config = ConfigUtils.propertiesToConfig(state.getProperties());
+
+    this.srcDataFileVersion = DataFileVersion.instantiateDataFileVersion(HadoopUtils.getSourceFileSystem(state), config);
+    this.dstDataFileVersion = DataFileVersion.instantiateDataFileVersion(this.fs, config);
   }
 
   @Override
@@ -219,6 +230,13 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
       CopyEntity copyEntity = CopySource.deserializeCopyEntity(wus);
       if (copyEntity instanceof CopyableFile) {
         CopyableFile copyableFile = (CopyableFile) copyEntity;
+
+        if (copyableFile.getPreserve().preserve(PreserveAttributes.Option.VERSION)
+            && this.dstDataFileVersion.hasCharacteristic(DataFileVersion.Characteristic.SETTABLE)) {
+          this.dstDataFileVersion.setVersion(copyableFile.getDestination(),
+              this.srcDataFileVersion.getVersion(copyableFile.getOrigin().getPath()));
+        }
+
         if (wus.getWorkingState() == WorkingState.COMMITTED) {
           CopyEventSubmitterHelper.submitSuccessfulFilePublish(this.eventSubmitter, copyableFile, wus);
           // Dataset Output path is injected in each copyableFile.
