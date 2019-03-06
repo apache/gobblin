@@ -488,9 +488,9 @@ public class DagManager extends AbstractIdleService {
         throws IOException {
       Dag<JobExecutionPlan> dag = this.jobToDag.get(dagNode);
       String dagId = DagManagerUtils.generateDagId(dag);
-      String jobName = DagManagerUtils.getJobName(dagNode);
+      String jobName = DagManagerUtils.getFullyQualifiedJobName(dagNode);
       ExecutionStatus jobStatus = DagManagerUtils.getExecutionStatus(dagNode);
-      log.info("Job {} of Dag {} has finished with status {}", DagManagerUtils.getFullyQualifiedJobName(dagNode), dagId, jobStatus.name());
+      log.info("Job {} of Dag {} has finished with status {}", jobName, dagId, jobStatus.name());
 
       if (jobStatus == COMPLETE) {
         return submitNext(dagId);
