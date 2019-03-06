@@ -51,8 +51,38 @@ public class DagManagerUtils {
     return Joiner.on("_").join(flowGroup, flowName, flowExecutionId);
   }
 
+  /**
+   * Returns a fully-qualified {@link Dag} name that includes: (flowGroup, flowName, flowExecutionId).
+   * @param dag
+   * @return fully qualified name of the underlying {@link Dag}.
+   */
+  static String getFullyQualifiedDagName(Dag<JobExecutionPlan> dag) {
+    Config jobConfig = dag.getStartNodes().get(0).getValue().getJobSpec().getConfig();
+    String flowGroup = ConfigUtils.getString(jobConfig, ConfigurationKeys.FLOW_GROUP_KEY, "");
+    String flowName = ConfigUtils.getString(jobConfig, ConfigurationKeys.FLOW_NAME_KEY, "");
+    Long flowExecutionId = ConfigUtils.getLong(jobConfig, ConfigurationKeys.FLOW_EXECUTION_ID_KEY, 0L);
+
+    return "(flowGroup: " + flowGroup + ", flowName: " + flowName + ", flowExecutionId: " + flowExecutionId + ")";
+  }
+
   static String getJobName(DagNode<JobExecutionPlan> dagNode) {
     return dagNode.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.JOB_NAME_KEY);
+  }
+
+  /**
+   * Returns a fully-qualified job name that includes: (flowGroup, flowName, flowExecutionId, jobName).
+   * @param dagNode
+   * @return a fully qualified name of the underlying job.
+   */
+  static String getFullyQualifiedJobName(DagNode<JobExecutionPlan> dagNode) {
+    Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
+
+    String flowGroup = ConfigUtils.getString(jobConfig, ConfigurationKeys.FLOW_GROUP_KEY, "");
+    String flowName = ConfigUtils.getString(jobConfig, ConfigurationKeys.FLOW_NAME_KEY, "");
+    Long flowExecutionId = ConfigUtils.getLong(jobConfig, ConfigurationKeys.FLOW_EXECUTION_ID_KEY, 0L);
+    String jobName = ConfigUtils.getString(jobConfig, ConfigurationKeys.JOB_NAME_KEY, "");
+
+    return "(flowGroup: " + flowGroup + ", flowName: " + flowName + ", flowExecutionId: " + flowExecutionId + ", jobName: " + jobName + ")";
   }
 
   static JobExecutionPlan getJobExecutionPlan(DagNode<JobExecutionPlan> dagNode) {
