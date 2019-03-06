@@ -19,7 +19,10 @@ package org.apache.gobblin.binary_creation;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.TreeMap;
+import java.util.function.BiFunction;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -35,6 +38,7 @@ import org.apache.hadoop.fs.Path;
  *           e.g. {@link org.apache.avro.generic.GenericRecord} for Avro.
  * @param <S> Schema type of a specific data format.
  */
+@Slf4j
 public abstract class DataTestTools<T, S> {
   /**
    * Verify that the two inputs contain the same records in the same file names. Any fields listed in
@@ -79,4 +83,33 @@ public abstract class DataTestTools<T, S> {
    * @throws IOException
    */
   public abstract TreeMap<String, T> readAllRecordsInBinaryDirectory(FileSystem fs, Path path) throws IOException;
+
+  /**
+   * Compare two iterators in T type.
+   */
+  <T> boolean compareIterators(Iterator<T> expected, Iterator<T> observed, BiFunction<T, T, Boolean> comparator) {
+    while (expected.hasNext()) {
+      if (!observed.hasNext()) {
+        log.error("Expected has more elements than observed.");
+        return false;
+      }
+
+      T t1 = expected.next();
+      T t2 = observed.next();
+
+      boolean equals = comparator == null ? t1.equals(t2) : comparator.apply(t1, t2);
+
+      if (!equals) {
+        log.error(String.format("Mismatch: %s does not equal %s.", t1, t2));
+        return false;
+      }
+    }
+
+    if (observed.hasNext()) {
+      log.error("Observed has more elements than expected.");
+      return false;
+    }
+
+    return true;
+  }
 }

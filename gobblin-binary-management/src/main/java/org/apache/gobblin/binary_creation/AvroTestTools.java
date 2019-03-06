@@ -124,32 +124,6 @@ public class AvroTestTools extends DataTestTools<AvroTestTools.RecordIterator, S
     }).collect(Collectors.toSet());
   }
 
-  static <T> boolean compareIterators(Iterator<T> expected, Iterator<T> observed, BiFunction<T, T, Boolean> comparator) {
-    while (expected.hasNext()) {
-      if (!observed.hasNext()) {
-        log.error("Expected has more elements than observed.");
-        return false;
-      }
-
-      T t1 = expected.next();
-      T t2 = observed.next();
-
-      boolean equals = comparator == null ? t1.equals(t2) : comparator.apply(t1, t2);
-
-      if (!equals) {
-        log.error(String.format("Mismatch: %s does not equal %s.", t1, t2));
-        return false;
-      }
-    }
-
-    if (observed.hasNext()) {
-      log.error("Observed has more elements than expected.");
-      return false;
-    }
-
-    return true;
-  }
-
   /**
    * Read all avro records in an HDFS location into a map from file name to {@link RecordIterator}.
    */
@@ -207,8 +181,10 @@ public class AvroTestTools extends DataTestTools<AvroTestTools.RecordIterator, S
       Schema thisSchema = readAvscSchema(schemaResourceName, AvroTestTools.class);
       Schema actualSchema = thisSchema == null ? schema : thisSchema;
 
-      InputStream is = AvroTestTools.class.getClassLoader().getResourceAsStream(file);
-      output.put(name, readRecordsFromJsonInputStream(actualSchema, is, DecoderFactory.get().jsonDecoder(actualSchema, is)));
+      try (InputStream is = AvroTestTools.class.getClassLoader().getResourceAsStream(file)) {
+        output.put(name,
+            readRecordsFromJsonInputStream(actualSchema, is, DecoderFactory.get().jsonDecoder(actualSchema, is)));
+      }
     }
     return output;
   }
@@ -264,13 +240,12 @@ public class AvroTestTools extends DataTestTools<AvroTestTools.RecordIterator, S
    * Read schema from an avsc resource file.
    */
   public static Schema readAvscSchema(String resource, Class loadedClass) throws IOException {
-    InputStream is = loadedClass.getClassLoader().getResourceAsStream(resource);
-    if (is == null) {
-      return null;
+    try (InputStream is = loadedClass.getClassLoader().getResourceAsStream(resource)) {
+      if (is == null) {
+        return null;
+      }
+      return new Schema.Parser().parse(is);
     }
-    Schema schema = new Schema.Parser().parse(is);
-    is.close();
-    return schema;
   }
 
   private void writeAsAvroBinary(Iterator<GenericRecord> input, Schema schema, FileSystem fs,

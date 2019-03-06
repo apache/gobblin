@@ -109,11 +109,10 @@ public class OrcTestTools extends DataTestTools<OrcTestTools.OrcRowIterator, Typ
 
       boolean result = true;
       while (it1.hasNext()) {
-        if (!it2.hasNext()) {
+        if (!it2.hasNext() || !result) {
           return false;
         }
-
-        result &= compareJavaRowAndOrcStruct(((AvroRow) it1.next()).getRow(), (OrcStruct) it2.next());
+        result = compareJavaRowAndOrcStruct(((AvroRow) it1.next()).getRow(), (OrcStruct) it2.next());
       }
       return result;
     });
@@ -137,9 +136,9 @@ public class OrcTestTools extends DataTestTools<OrcTestTools.OrcRowIterator, Typ
       int index = 0;
       for (Object dataField : dataArr) {
         if (dataField instanceof OrcStruct) {
-          isIdentical &= compareJavaRowAndOrcStruct(javaObjRow.get(index), (OrcStruct) dataField);
+          isIdentical = isIdentical && compareJavaRowAndOrcStruct(javaObjRow.get(index), (OrcStruct) dataField);
         } else {
-          isIdentical &= objCastHelper(javaObjRow.get(index), (Writable) dataField);
+          isIdentical = isIdentical && objCastHelper(javaObjRow.get(index), (Writable) dataField);
         }
         index++;
       }
