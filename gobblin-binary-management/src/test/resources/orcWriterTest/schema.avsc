@@ -1,0 +1,15 @@
+{
+  "namespace": "com.linkedin.compliance.test",
+  "type": "record",
+  "name": "SimpleTest",
+  "fields": [
+    {
+      "name": "memberId",
+      "type": "int"
+    },
+    {
+      "name": "name",
+      "type": "string"
+    }
+  ]
+}
