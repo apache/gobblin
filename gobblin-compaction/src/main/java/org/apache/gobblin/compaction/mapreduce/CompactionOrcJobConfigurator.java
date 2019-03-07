@@ -45,6 +45,11 @@ public class CompactionOrcJobConfigurator extends CompactionJobConfigurator {
     super(state);
   }
 
+  @Override
+  public String getFileExtension() {
+    return EXTENSION.ORC.getExtensionString();
+  }
+
   protected void configureSchema(Job job) throws IOException {
     TypeDescription schema = OrcUtils.getNewestSchemaFromSource(job, this.fs);
 
