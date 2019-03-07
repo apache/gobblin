@@ -19,7 +19,6 @@ package org.apache.gobblin.compaction.mapreduce.orc;
 
 import java.io.IOException;
 import java.lang.reflect.Method;
-import org.apache.commons.io.FilenameUtils;
 import org.apache.gobblin.compaction.mapreduce.avro.AvroKeyCompactorOutputCommitter;
 import org.apache.gobblin.compaction.mapreduce.avro.AvroKeyDedupReducer;
 import org.apache.gobblin.compaction.mapreduce.avro.AvroKeyMapper;
@@ -27,7 +26,6 @@ import org.apache.gobblin.util.recordcount.CompactionRecordCountProvider;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.mapreduce.Counter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter;
