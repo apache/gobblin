@@ -241,10 +241,7 @@ public class AvroTestTools extends DataTestTools<AvroTestTools.RecordIterator, S
    */
   public static Schema readAvscSchema(String resource, Class loadedClass) throws IOException {
     try (InputStream is = loadedClass.getClassLoader().getResourceAsStream(resource)) {
-      if (is == null) {
-        return null;
-      }
-      return new Schema.Parser().parse(is);
+      return is != null ? new Schema.Parser().parse(is) : null;
     }
   }
 
@@ -274,7 +271,9 @@ public class AvroTestTools extends DataTestTools<AvroTestTools.RecordIterator, S
     private final Iterator<GenericRecord> it;
   }
 
-
+  /**
+   * A wrapper of {@link GenericRecord} when schema of record is not important in comparison.
+   */
   @AllArgsConstructor
   public static class GenericRecordWrapper {
     public GenericRecord record;
@@ -304,7 +303,7 @@ public class AvroTestTools extends DataTestTools<AvroTestTools.RecordIterator, S
 
     /**
      * Compare two {@link GenericRecord} instance without considering their schema.
-     * Useful when we want to compare two records by disgarding some of fields like header.
+     * Useful when we want to compare two records by discarding some of fields like header.
      */
     static boolean compareGenericRecordRegardlessOfSchema(GenericRecord r1, GenericRecord r2) {
       List<Schema.Field> listOfFields1 = r1.getSchema().getFields();
@@ -316,7 +315,7 @@ public class AvroTestTools extends DataTestTools<AvroTestTools.RecordIterator, S
 
       boolean result = true;
       for (int i = 0; i < listOfFields1.size(); i++) {
-        result &= (
+        result = result && (
             ((r1.get(i) == null && r2.get(i) == null)
                 || (listOfFields1.get(i).name().equals(listOfFields2.get(i).name())
                 && (r1.get(i).equals(r2.get(i)))))
