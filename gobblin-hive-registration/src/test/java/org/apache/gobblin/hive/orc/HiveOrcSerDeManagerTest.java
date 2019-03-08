@@ -19,40 +19,50 @@ package org.apache.gobblin.hive.orc;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.io.orc.OrcSerde;
+import org.apache.hadoop.hive.serde2.SerDeException;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import org.apache.gobblin.binary_creation.AvroTestTools;
+import org.apache.gobblin.binary_creation.OrcTestTools;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.hive.HiveRegistrationUnit;
 import org.apache.gobblin.hive.HiveTable;
+import org.apache.gobblin.util.HadoopUtils;
+
 
 @Test(singleThreaded = true)
 public class HiveOrcSerDeManagerTest {
   private static String TEST_DB = "testDB";
   private static String TEST_TABLE = "testTable";
   private Path testBasePath;
+  private Path testRegisterPath;
 
   @BeforeClass
-  public void setUp() throws IOException {
+  public void setUp() throws IOException, SerDeException {
     FileSystem fs = FileSystem.getLocal(new Configuration());
     this.testBasePath = new Path("orctestdir");
+    this.testRegisterPath = new Path(this.testBasePath, "register");
     fs.delete(this.testBasePath, true);
-    fs.mkdirs(this.testBasePath);
+    fs.mkdirs(this.testRegisterPath);
 
-    Files.copy(this.getClass().getResourceAsStream("/orc_input/input.orc"),
-        Paths.get(this.testBasePath.toString(), "prefix-hive-test.orc"), StandardCopyOption.REPLACE_EXISTING);
-    Files.copy(this.getClass().getResourceAsStream("/avro_input/input.avro"),
-        Paths.get(this.testBasePath.toString(), "hive-test.notOrc"), StandardCopyOption.REPLACE_EXISTING);
+    OrcTestTools orcTestTools = new OrcTestTools();
+
+    orcTestTools.writeJsonResourceRecordsAsBinary("avro_input", fs, this.testBasePath, null);
+    HadoopUtils.copyFile(fs, new Path(this.testBasePath, "input"), fs, new Path(this.testRegisterPath,
+        "prefix-hive-test.orc"), true, new Configuration());
+
+    AvroTestTools avroTestTools = new AvroTestTools();
+
+    avroTestTools.writeJsonResourceRecordsAsBinary("avro_input", fs, this.testBasePath, null);
+    HadoopUtils.copyFile(fs, new Path(this.testBasePath, "input.avro"), fs, new Path(this.testRegisterPath, "hive-test.notOrc"), true, new Configuration());
   }
 
   /**
@@ -64,7 +74,7 @@ public class HiveOrcSerDeManagerTest {
     HiveOrcSerDeManager manager = new HiveOrcSerDeManager(state);
     HiveRegistrationUnit registrationUnit = (new HiveTable.Builder()).withDbName(TEST_DB).withTableName(TEST_TABLE).build();
 
-    manager.addSerDeProperties(this.testBasePath, registrationUnit);
+    manager.addSerDeProperties(this.testRegisterPath, registrationUnit);
 
     Assert.assertTrue(registrationUnit.getSerDeProps().getProp(HiveOrcSerDeManager.SCHEMA_LITERAL).contains(
         "name:string,timestamp:bigint"));
@@ -80,7 +90,7 @@ public class HiveOrcSerDeManagerTest {
     HiveOrcSerDeManager manager = new HiveOrcSerDeManager(state);
     HiveRegistrationUnit registrationUnit = (new HiveTable.Builder()).withDbName(TEST_DB).withTableName(TEST_TABLE).build();
 
-    manager.addSerDeProperties(this.testBasePath, registrationUnit);
+    manager.addSerDeProperties(this.testRegisterPath, registrationUnit);
 
     Assert.assertTrue(registrationUnit.getSerDeProps().getProp(HiveOrcSerDeManager.SCHEMA_LITERAL).contains(
         "name:string,timestamp:bigint"));
@@ -99,7 +109,7 @@ public class HiveOrcSerDeManagerTest {
     HiveOrcSerDeManager manager = new HiveOrcSerDeManager(state);
     HiveRegistrationUnit registrationUnit = (new HiveTable.Builder()).withDbName(TEST_DB).withTableName(TEST_TABLE).build();
 
-    manager.addSerDeProperties(this.testBasePath, registrationUnit);
+    manager.addSerDeProperties(this.testRegisterPath, registrationUnit);
 
     Assert.assertTrue(registrationUnit.getSerDeProps().getProp(HiveOrcSerDeManager.SCHEMA_LITERAL).contains(
         "name:string,timestamp:bigint"));
@@ -111,27 +121,27 @@ public class HiveOrcSerDeManagerTest {
   /**
    * Test that error is raised if no orc files found during schema retrieval
    */
-  @Test(expectedExceptions = FileNotFoundException.class, expectedExceptionsMessageRegExp = "No files in Dataset:orctestdir found for schema retrieval")
+  @Test(expectedExceptions = FileNotFoundException.class, expectedExceptionsMessageRegExp = "No files in Dataset:orctestdir/register found for schema retrieval")
   public void testNoOrcFiles() throws IOException {
     State state = new State();
     state.setProp(HiveOrcSerDeManager.FILE_EXTENSIONS_KEY, ".notOrc");
     HiveOrcSerDeManager manager = new HiveOrcSerDeManager(state);
     HiveRegistrationUnit registrationUnit = (new HiveTable.Builder()).withDbName(TEST_DB).withTableName(TEST_TABLE).build();
 
-    manager.addSerDeProperties(this.testBasePath, registrationUnit);
+    manager.addSerDeProperties(this.testRegisterPath, registrationUnit);
   }
 
   /**
    * Test prefix filter
    */
-  @Test(expectedExceptions = FileNotFoundException.class, expectedExceptionsMessageRegExp = "No files in Dataset:orctestdir found for schema retrieval")
+  @Test(expectedExceptions = FileNotFoundException.class, expectedExceptionsMessageRegExp = "No files in Dataset:orctestdir/register found for schema retrieval")
   public void testPrefixFilter() throws IOException {
     State state = new State();
     state.setProp(HiveOrcSerDeManager.IGNORED_FILE_PREFIXES_KEY, "prefix-");
     HiveOrcSerDeManager manager = new HiveOrcSerDeManager(state);
     HiveRegistrationUnit registrationUnit = (new HiveTable.Builder()).withDbName(TEST_DB).withTableName(TEST_TABLE).build();
 
-    manager.addSerDeProperties(this.testBasePath, registrationUnit);
+    manager.addSerDeProperties(this.testRegisterPath, registrationUnit);
   }
 
   @AfterClass

@@ -43,6 +43,7 @@ dependencies {
   compile externalDependency.avroMapredH2
 
   testCompile externalDependency.testng
+  testCompile project(":gobblin-binary-management")
 }
 
 ext.classification="library"
