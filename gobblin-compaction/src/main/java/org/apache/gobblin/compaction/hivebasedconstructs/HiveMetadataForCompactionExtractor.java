@@ -24,7 +24,6 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.Table;
-import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.thrift.TException;
 
 import com.google.common.base.Splitter;
@@ -52,7 +51,7 @@ public class HiveMetadataForCompactionExtractor extends HiveBaseExtractor<Void, 
   private MRCompactionEntity compactionEntity;
   private boolean extracted = false;
 
-  public HiveMetadataForCompactionExtractor(WorkUnitState state, FileSystem fs) throws IOException, TException, HiveException {
+  public HiveMetadataForCompactionExtractor(WorkUnitState state, FileSystem fs) throws IOException, TException {
     super(state);
 
     if (Boolean.valueOf(state.getPropAsBoolean(PartitionLevelWatermarker.IS_WATERMARK_WORKUNIT_KEY))) {

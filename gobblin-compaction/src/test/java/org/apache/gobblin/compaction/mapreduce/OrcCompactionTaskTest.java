@@ -22,6 +22,7 @@ import com.google.common.io.Files;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.List;
 import org.apache.gobblin.compaction.dataset.TimeBasedSubDirDatasetsFinder;
 import org.apache.gobblin.compaction.source.CompactionSource;
@@ -37,9 +38,12 @@ import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
 import org.apache.orc.OrcFile;
+import org.apache.orc.Reader;
 import org.apache.orc.TypeDescription;
 import org.apache.orc.Writer;
+import org.apache.orc.impl.ReaderImpl;
 import org.apache.orc.mapred.OrcStruct;
+import org.apache.orc.mapreduce.OrcMapreduceRecordReader;
 import org.apache.orc.mapreduce.OrcMapreduceRecordWriter;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -59,7 +63,9 @@ public class OrcCompactionTaskTest {
     File basePath = Files.createTempDir();
     basePath.deleteOnExit();
 
-    File jobDir = new File(basePath, "Identity/MemberAccount/minutely/2017/04/03/10/20_30/run_2017-04-03-10-20");
+    String minutelyPath = "Identity/MemberAccount/minutely/2017/04/03/10/20_30/run_2017-04-03-10-20";
+    String hourlyPath = "Identity/MemberAccount/hourly/2017/04/03/10/";
+    File jobDir = new File(basePath, minutelyPath);
     Assert.assertTrue(jobDir.mkdirs());
 
     // Write some ORC file for compaction here.
@@ -77,9 +83,36 @@ public class OrcCompactionTaskTest {
     writeOrcRecordsInFile(new Path(file_0.getAbsolutePath()), schema, ImmutableList.of(orcStruct_0));
     writeOrcRecordsInFile(new Path(file_1.getAbsolutePath()), schema, ImmutableList.of(orcStruct_1));
 
+    // Verify execution
     EmbeddedGobblin embeddedGobblin = createEmbeddedGobblin("basic", basePath.getAbsolutePath().toString());
-    JobExecutionResult result = embeddedGobblin.run();
-    Assert.assertTrue(result.isSuccessful());
+    JobExecutionResult execution = embeddedGobblin.run();
+    Assert.assertTrue(execution.isSuccessful());
+
+    // Result verification
+    File outputDir = new File(basePath, hourlyPath);
+    List<OrcStruct> result = readOrcFile(new Path(outputDir.getAbsolutePath()), "part-r-00000.orc");
+    Assert.assertEquals(result.size(), 1);
+    Assert.assertEquals(result.get(0).getFieldValue("i"), new IntWritable(1));
+    Assert.assertEquals(result.get(0).getFieldValue("j"), new IntWritable(2));
+  }
+
+  /**
+   * Read a output ORC compacted file into memory.
+   */
+  public List<OrcStruct> readOrcFile(Path orcFileDir, String filename)
+      throws IOException, InterruptedException {
+    Path orcFilePath = new Path(orcFileDir, filename);
+    ReaderImpl orcReader = new ReaderImpl(orcFilePath, new OrcFile.ReaderOptions(new Configuration()));
+
+    Reader.Options options = new Reader.Options().schema(orcReader.getSchema());
+    OrcMapreduceRecordReader recordReader = new OrcMapreduceRecordReader(orcReader, options);
+    List<OrcStruct> result = new ArrayList<>();
+
+    while (recordReader.nextKeyValue()) {
+      result.add((OrcStruct) recordReader.getCurrentValue());
+    }
+
+    return result;
   }
 
   public void writeOrcRecordsInFile(Path path, TypeDescription schema, List<OrcStruct> orcStructs) throws Exception {
@@ -92,11 +125,6 @@ public class OrcCompactionTaskTest {
       recordWriter.write(NullWritable.get(), orcRecord);
     }
     recordWriter.close(new TaskAttemptContextImpl(configuration, new TaskAttemptID()));
-  }
-
-  public void writeOrcFile(Configuration configuration, TypeDescription schema, Path outputPath) throws IOException {
-    OrcFile.WriterOptions options = OrcFile.writerOptions(configuration).setSchema(schema);
-    Writer writer = OrcFile.createWriter(outputPath, options);
   }
 
   // TODO: Code repeatedness

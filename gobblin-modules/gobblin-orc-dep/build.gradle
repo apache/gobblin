@@ -15,24 +15,41 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.compaction.hivebasedconstructs;
-
-import java.io.IOException;
-
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.thrift.TException;
-
-import org.apache.gobblin.configuration.WorkUnitState;
-import org.apache.gobblin.data.management.conversion.hive.extractor.HiveBaseExtractor;
-import org.apache.gobblin.data.management.conversion.hive.extractor.HiveBaseExtractorFactory;
-
-
 /**
- * Factory for {@link HiveMetadataForCompactionExtractor}
+ * The motivation of having separated dependency module for orc-mapreduce is due to
+ * standalone orc-core libaray depends on much higher version of hive which could conflict
+ * with very lower version of hive-exec-core used by gobblin.
  */
-public class HiveMetadataForCompactionExtractorFactory implements HiveBaseExtractorFactory {
-  public HiveBaseExtractor createExtractor(WorkUnitState state, FileSystem sourceFs)
-      throws IOException, TException {
-    return new HiveMetadataForCompactionExtractor(state, sourceFs);
+
+buildscript {
+    repositories {
+        jcenter()
+    }
+    dependencies {
+        classpath 'com.github.jengelman.gradle.plugins:shadow:2.0.4'
+    }
+}
+
+apply plugin: 'com.github.johnrengelman.shadow'
+apply plugin: 'java'
+tasks.remove(tasks.uploadShadow)
+
+dependencies {
+  compile externalDependency.orcMapreduce
+}
+
+configurations {
+  compile {
+    transitive = true
+  }
+  compile {
+    exclude group: "commons-cli"
   }
 }
+
+shadowJar {
+  zip64 true
+  relocate 'org.apache.hadoop.hive', 'shadow.gobblin.orc.org.apache.hadoop.hive'
+}
+
+ext.classification="library"

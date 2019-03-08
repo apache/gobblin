@@ -43,6 +43,7 @@ public class OrcKeyDedupReducer extends Reducer<OrcKey, OrcValue, NullWritable, 
 
     for (OrcValue orcRecord : values) {
       valueToRetain = orcRecord;
+      numVal += 1 ;
     }
 
     outValue = valueToRetain;

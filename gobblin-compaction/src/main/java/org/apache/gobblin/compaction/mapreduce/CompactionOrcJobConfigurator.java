@@ -73,7 +73,6 @@ public class CompactionOrcJobConfigurator extends CompactionJobConfigurator {
     job.setOutputFormatClass(OrcOutputFormat.class);
     job.setOutputKeyClass(NullWritable.class);
     job.setOutputValueClass(OrcValue.class);
-    // TODO: Hardcoded for now.
-    job.setNumReduceTasks(2);
+    job.setNumReduceTasks(1);
   }
 }
