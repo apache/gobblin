@@ -29,7 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.data.management.copy.PreserveAttributes;
 import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.util.filesystem.DataFileVersion;
+import org.apache.gobblin.util.filesystem.DataFileVersionStrategy;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -88,8 +88,8 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
   protected final EventSubmitter eventSubmitter;
   protected final RecoveryHelper recoveryHelper;
   protected final Optional<LineageInfo> lineageInfo;
-  protected final DataFileVersion srcDataFileVersion;
-  protected final DataFileVersion dstDataFileVersion;
+  protected final DataFileVersionStrategy srcDataFileVersion;
+  protected final DataFileVersionStrategy dstDataFileVersion;
 
   /**
    * Build a new {@link CopyDataPublisher} from {@link State}. The constructor expects the following to be set in the
@@ -128,8 +128,9 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
 
     Config config = ConfigUtils.propertiesToConfig(state.getProperties());
 
-    this.srcDataFileVersion = DataFileVersion.instantiateDataFileVersion(HadoopUtils.getSourceFileSystem(state), config);
-    this.dstDataFileVersion = DataFileVersion.instantiateDataFileVersion(this.fs, config);
+    this.srcDataFileVersion = DataFileVersionStrategy
+        .instantiateDataFileVersion(HadoopUtils.getSourceFileSystem(state), config);
+    this.dstDataFileVersion = DataFileVersionStrategy.instantiateDataFileVersion(this.fs, config);
   }
 
   @Override
@@ -232,7 +233,7 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
         CopyableFile copyableFile = (CopyableFile) copyEntity;
 
         if (copyableFile.getPreserve().preserve(PreserveAttributes.Option.VERSION)
-            && this.dstDataFileVersion.hasCharacteristic(DataFileVersion.Characteristic.SETTABLE)) {
+            && this.dstDataFileVersion.hasCharacteristic(DataFileVersionStrategy.Characteristic.SETTABLE)) {
           this.dstDataFileVersion.setVersion(copyableFile.getDestination(),
               this.srcDataFileVersion.getVersion(copyableFile.getOrigin().getPath()));
         }

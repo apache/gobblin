@@ -30,15 +30,17 @@ import lombok.Data;
 
 
 /**
- * An implementation of {@link DataFileVersion} that uses modtime as the file version.
+ * An implementation of {@link DataFileVersionStrategy} that uses modtime as the file version.
+ *
+ * This is the default implementation and does data comparisons purely based on modification time.
  */
 @Data
-public class ModTimeDataFileVersion implements DataFileVersion<Long> {
+public class ModTimeDataFileVersionStrategy implements DataFileVersionStrategy<Long> {
 
-	public static class Factory implements DataFileVersion.DataFileVersionFactory<Long> {
+	public static class Factory implements DataFileVersionStrategy.DataFileVersionFactory<Long> {
 		@Override
-		public DataFileVersion<Long> createDataFileVersionStrategy(FileSystem fs, Config config) {
-			return new ModTimeDataFileVersion(fs);
+		public DataFileVersionStrategy<Long> createDataFileVersionStrategy(FileSystem fs, Config config) {
+			return new ModTimeDataFileVersionStrategy(fs);
 		}
 	}
 

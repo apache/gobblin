@@ -50,10 +50,10 @@ import org.apache.hadoop.fs.Path;
  *
  * @param <T> the type for the version objects. Must be comparable and serializable.
  */
-public interface DataFileVersion<T extends Comparable<T> & Serializable> {
+public interface DataFileVersionStrategy<T extends Comparable<T> & Serializable> {
 
   /**
-   * Characteristics a {@link DataFileVersion} may have.
+   * Characteristics a {@link DataFileVersionStrategy} may have.
    */
   enum Characteristic {
     /** The default version for a data file is the modtime of the file. Versions can in general be compared against modtimes. */
@@ -67,10 +67,10 @@ public interface DataFileVersion<T extends Comparable<T> & Serializable> {
   String DATA_FILE_VERSION_KEY = "org.apache.gobblin.dataFileVersionStrategy";
 
   /**
-   * Instantiate a {@link DataFileVersion} according to input configuration.
+   * Instantiate a {@link DataFileVersionStrategy} according to input configuration.
    */
-  static DataFileVersion instantiateDataFileVersion(FileSystem fs, Config config) throws IOException {
-    String versionStrategy = ConfigUtils.getString(config, DATA_FILE_VERSION_KEY, ModTimeDataFileVersion.Factory.class.getName());
+  static DataFileVersionStrategy instantiateDataFileVersion(FileSystem fs, Config config) throws IOException {
+    String versionStrategy = ConfigUtils.getString(config, DATA_FILE_VERSION_KEY, ModTimeDataFileVersionStrategy.Factory.class.getName());
 
     ClassAliasResolver resolver = new ClassAliasResolver(DataFileVersionFactory.class);
 
@@ -83,13 +83,13 @@ public interface DataFileVersion<T extends Comparable<T> & Serializable> {
   }
 
   /**
-   * A Factory for {@link DataFileVersion}s.
+   * A Factory for {@link DataFileVersionStrategy}s.
    */
   interface DataFileVersionFactory<T extends Comparable<T> & Serializable> {
     /**
-     * Build a {@link DataFileVersion} with the input configuration.
+     * Build a {@link DataFileVersionStrategy} with the input configuration.
      */
-    DataFileVersion<T> createDataFileVersionStrategy(FileSystem fs, Config config);
+    DataFileVersionStrategy<T> createDataFileVersionStrategy(FileSystem fs, Config config);
   }
 
   /**
@@ -100,7 +100,8 @@ public interface DataFileVersion<T extends Comparable<T> & Serializable> {
   /**
    * Set the version of a path to a specific version (generally replicated from another path).
    *
-   * @return whether the version was set successfully
+   * @return false if the version is not settable.
+   * @throws IOException if the version is settable but could not be set successfully.
    */
   boolean setVersion(Path path, T version) throws IOException;
 
@@ -108,12 +109,13 @@ public interface DataFileVersion<T extends Comparable<T> & Serializable> {
    * Set the version of a path to a value automatically set by the versioning system. Note this call must respect the
    * monotonicity requirement.
    *
-   * @return whether the version was set successfully
+   * @return false if the version is not settable.
+   * @throws IOException if the version is settable but could not be set successfully.
    */
   boolean setDefaultVersion(Path path) throws IOException;
 
   /**
-   * @return The list of optional characteristics this {@link DataFileVersion} satisfies.
+   * @return The list of optional characteristics this {@link DataFileVersionStrategy} satisfies.
    */
   Set<Characteristic> applicableCharacteristics();
 

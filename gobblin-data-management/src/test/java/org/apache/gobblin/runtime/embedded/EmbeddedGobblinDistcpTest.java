@@ -27,7 +27,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.gobblin.data.management.copy.CopyConfiguration;
 import org.apache.gobblin.util.PathUtils;
-import org.apache.gobblin.util.filesystem.DataFileVersion;
+import org.apache.gobblin.util.filesystem.DataFileVersionStrategy;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
@@ -98,7 +98,7 @@ public class EmbeddedGobblinDistcpTest {
     EmbeddedGobblinDistcp embedded = new EmbeddedGobblinDistcp(new Path(tmpSource.getAbsolutePath()),
         new Path(tmpTarget.getAbsolutePath()));
     embedded.setLaunchTimeout(30, TimeUnit.SECONDS);
-    embedded.setConfiguration(DataFileVersion.DATA_FILE_VERSION_KEY, MyDataFileVersion.class.getName());
+    embedded.setConfiguration(DataFileVersionStrategy.DATA_FILE_VERSION_KEY, MyDataFileVersion.class.getName());
     embedded.setConfiguration(CopyConfiguration.PRESERVE_ATTRIBUTES_KEY, "v");
     embedded.run();
 
@@ -107,11 +107,11 @@ public class EmbeddedGobblinDistcpTest {
     Assert.assertEquals((long) versionStrategy.getVersion(new Path(tmpTarget.getAbsolutePath(), fileName)), 123l);
   }
 
-  public static class MyDataFileVersion implements DataFileVersion<Long>, DataFileVersion.DataFileVersionFactory<Long> {
+  public static class MyDataFileVersion implements DataFileVersionStrategy<Long>, DataFileVersionStrategy.DataFileVersionFactory<Long> {
     private static final Map<Path, Long> versions = new HashMap<>();
 
     @Override
-    public DataFileVersion<Long> createDataFileVersionStrategy(FileSystem fs, Config config) {
+    public DataFileVersionStrategy<Long> createDataFileVersionStrategy(FileSystem fs, Config config) {
       return this;
     }
 
