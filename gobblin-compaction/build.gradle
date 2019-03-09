@@ -61,7 +61,8 @@ dependencies {
 
 
 configurations {
-    compile { transitive = true }
+  compile { transitive = true }
+  all*.exclude group: "org.apache.hadoop", module: 'hive-exec'
 }
 
 ext.classification="library"

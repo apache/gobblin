@@ -30,7 +30,8 @@ import org.apache.orc.mapred.OrcStruct;
 
 
 /**
- * Delegate byte decoding to underlying {@link OrcStruct#readFields(DataInput)} method.
+ * Compare {@link OrcKey} in shuffle of MapReduce.
+ * Delegate byte decoding to underlying {@link OrcStruct#readFields(DataInput)} method to simplify comparison.
  */
 public class OrcKeyComparator extends Configured implements RawComparator<OrcKey> {
   private TypeDescription schema;
@@ -79,9 +80,11 @@ public class OrcKeyComparator extends Configured implements RawComparator<OrcKey
     return compare(key1, key2);                   // compare them
   }
 
-  // TODO: Change this.
   @Override
   public int compare(OrcKey o1, OrcKey o2) {
-    return 0;
+    if (!(o1.key instanceof OrcStruct) || !(o2.key instanceof OrcStruct)) {
+      throw new IllegalStateException("OrcKey should have its key value be instance of OrcStruct");
+    }
+    return ((OrcStruct) o1.key).compareTo((OrcStruct) o2.key);
   }
 }

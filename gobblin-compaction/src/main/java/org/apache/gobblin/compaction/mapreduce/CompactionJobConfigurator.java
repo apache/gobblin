@@ -184,6 +184,7 @@ public abstract class CompactionJobConfigurator {
 
   /**
    * Refer to {@link MRCompactorAvroKeyDedupJobRunner#setNumberOfReducers(Job)}
+   * Note that this method is not format specific.
    */
   protected void setNumberOfReducers(Job job) throws IOException {
 

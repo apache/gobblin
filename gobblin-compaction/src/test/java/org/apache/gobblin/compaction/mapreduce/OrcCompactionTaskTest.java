@@ -27,6 +27,7 @@ import java.util.List;
 import org.apache.gobblin.compaction.dataset.TimeBasedSubDirDatasetsFinder;
 import org.apache.gobblin.compaction.source.CompactionSource;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.data.management.retention.profile.ConfigurableGlobDatasetFinder;
 import org.apache.gobblin.runtime.api.JobExecutionResult;
 import org.apache.gobblin.runtime.embedded.EmbeddedGobblin;
@@ -35,6 +36,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.NullWritable;
+import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
 import org.apache.orc.OrcFile;
@@ -127,6 +129,24 @@ public class OrcCompactionTaskTest {
     recordWriter.close(new TaskAttemptContextImpl(configuration, new TaskAttemptID()));
   }
 
+  private static class TestCompactionOrcJobConfigurator extends CompactionOrcJobConfigurator {
+    public static class Factory implements CompactionJobConfigurator.ConfiguratorFactory {
+      @Override
+      public TestCompactionOrcJobConfigurator createConfigurator(State state) throws IOException {
+        return new TestCompactionOrcJobConfigurator(state);
+      }
+    }
+
+    @Override
+    protected void setNumberOfReducers(Job job) throws IOException {
+      job.setNumReduceTasks(1);
+    }
+
+    public TestCompactionOrcJobConfigurator(State state) throws IOException {
+      super(state);
+    }
+  }
+
   // TODO: Code repeatedness
   private EmbeddedGobblin createEmbeddedGobblin(String name, String basePath) {
     String pattern = new Path(basePath, "*/*/minutely/*/*/*/*").toString();
@@ -134,7 +154,7 @@ public class OrcCompactionTaskTest {
     return new EmbeddedGobblin(name).setConfiguration(ConfigurationKeys.SOURCE_CLASS_KEY,
         CompactionSource.class.getName())
         .setConfiguration(CompactionJobConfigurator.COMPACTION_JOB_CONFIGURATOR_FACTORY_CLASS_KEY,
-            CompactionOrcJobConfigurator.Factory.class.getName())
+            TestCompactionOrcJobConfigurator.Factory.class.getName())
         .setConfiguration(ConfigurableGlobDatasetFinder.DATASET_FINDER_PATTERN_KEY, pattern)
         .setConfiguration(MRCompactor.COMPACTION_INPUT_DIR, basePath.toString())
         .setConfiguration(MRCompactor.COMPACTION_INPUT_SUBDIR, "minutely")

@@ -68,11 +68,11 @@ public class CompactionOrcJobConfigurator extends CompactionJobConfigurator {
     job.setSortComparatorClass(OrcKeyComparator.class);
   }
 
-  protected void configureReducer(Job job) {
+  protected void configureReducer(Job job) throws IOException {
     job.setReducerClass(OrcKeyDedupReducer.class);
     job.setOutputFormatClass(OrcOutputFormat.class);
     job.setOutputKeyClass(NullWritable.class);
     job.setOutputValueClass(OrcValue.class);
-    job.setNumReduceTasks(1);
+    setNumberOfReducers(job);
   }
 }
