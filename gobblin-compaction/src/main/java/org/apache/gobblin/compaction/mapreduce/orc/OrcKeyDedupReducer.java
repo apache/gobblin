@@ -24,7 +24,6 @@ import org.apache.orc.mapred.OrcKey;
 import org.apache.orc.mapred.OrcValue;
 
 
-// TODO: Implement the real deduplication here.
 public class OrcKeyDedupReducer extends Reducer<OrcKey, OrcValue, NullWritable, OrcValue> {
 
   // Reusable output record object.

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.compaction.mapreduce.avro;
+package org.apache.gobblin.compaction.mapreduce;
 
 import java.io.IOException;
 import java.util.List;
@@ -25,6 +25,8 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.avro.mapred.AvroKey;
 import org.apache.avro.mapred.AvroValue;
+import org.apache.gobblin.compaction.mapreduce.avro.AvroKeyDedupReducer;
+import org.apache.gobblin.compaction.mapreduce.avro.FieldAttributeBasedDeltaFieldsProvider;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.Counter;
@@ -42,17 +44,18 @@ import static org.mockito.Mockito.when;
 
 
 /**
- * Test class for {@link AvroKeyDedupReducer}.
+ * Test class for {@link org.apache.gobblin.compaction.mapreduce.RecordKeyDedupReducerBase}.
+ * Will have test separately in both avro and orc.
  */
-public class AvroKeyDedupReducerTest {
-  private static final String KEY_SCHEMA =
+public class KeyDedupReducerTest {
+  private static final String AVRO_KEY_SCHEMA =
       "{ \"type\" : \"record\",  \"name\" : \"etl\",\"namespace\" : \"reducerTest\",  \"fields\" : [ { \"name\" : "
           + "\"key\", \"type\" : {\"type\" : \"record\", \"name\" : \"key_name\", \"namespace\" : \"key_namespace\",  "
           + "\"fields\" : [ {\"name\" : \"partitionKey\", \"type\" : \"long\", \"doc\" : \"\"}, { \"name\" : \"environment"
           + "\", \"type\" : \"string\",\"doc\" : \"\"}, {\"name\" : \"subKey\",\"type\" : \"string\", \"doc\" : \"\"} ]}, "
           + "\"doc\" : \"\", \"attributes_json\" : \"{\\\"delta\\\":false,\\\"pk\\\":true}\" }]}";
 
-  private static final String FULL_SCHEMA =
+  private static final String AVRO_FULL_SCHEMA =
       "{ \"type\" : \"record\",  \"name\" : \"etl\",\"namespace\" : \"reducerTest\",  \"fields\" : [ { \"name\" : "
           + "\"key\", \"type\" : {\"type\" : \"record\", \"name\" : \"key_name\", \"namespace\" : \"key_namespace\",  "
           + "\"fields\" : [ {\"name\" : \"partitionKey\", \"type\" : \"long\", \"doc\" : \"\"}, { \"name\" : \"environment"
@@ -63,7 +66,7 @@ public class AvroKeyDedupReducerTest {
           + " , {\"name\" : \"scn\", \"type\": \"long\", \"doc\" : \"\", \"attributes_json\" : \"{\\\"nullable\\\":false,\\\"delta"
           + "\\\":true,\\\"pk\\\":false,\\\"type\\\":\\\"NUMBER\\\"}\"}]}";
 
-  private static final String FULL_SCHEMA_WITH_TWO_DELTA_FIELDS =
+  private static final String AVRO_FULL_SCHEMA_WITH_TWO_DELTA_FIELDS =
       "{ \"type\" : \"record\",  \"name\" : \"etl\",\"namespace\" : \"reducerTest\",  \"fields\" : [ { \"name\" : "
           + "\"key\", \"type\" : {\"type\" : \"record\", \"name\" : \"key_name\", \"namespace\" : \"key_namespace\",  "
           + "\"fields\" : [ {\"name\" : \"partitionKey\", \"type\" : \"long\", \"doc\" : \"\"}, { \"name\" : \"environment"
@@ -75,9 +78,9 @@ public class AvroKeyDedupReducerTest {
           + "\\\":true,\\\"pk\\\":false,\\\"type\\\":\\\"NUMBER\\\"}\"}]}";
 
   @Test
-  public void testReduce()
+  public void testAvroReduce()
       throws IOException, InterruptedException {
-    Schema keySchema = new Schema.Parser().parse(KEY_SCHEMA);
+    Schema keySchema = new Schema.Parser().parse(AVRO_KEY_SCHEMA);
     GenericRecordBuilder keyRecordBuilder = new GenericRecordBuilder(keySchema.getField("key").schema());
     keyRecordBuilder.set("partitionKey", 1);
     keyRecordBuilder.set("environment", "test");
@@ -88,7 +91,7 @@ public class AvroKeyDedupReducerTest {
     GenericRecord keyRecord = keyRecordBuilder.build();
 
     // Test reducer with delta field "scn"
-    Schema fullSchema = new Schema.Parser().parse(FULL_SCHEMA);
+    Schema fullSchema = new Schema.Parser().parse(AVRO_FULL_SCHEMA);
     AvroValue<GenericRecord> fullRecord1 = new AvroValue<>();
     AvroValue<GenericRecord> fullRecord2 = new AvroValue<>();
     AvroValue<GenericRecord> fullRecord3 = new AvroValue<>();
@@ -117,7 +120,7 @@ public class AvroKeyDedupReducerTest {
     when(conf.get(FieldAttributeBasedDeltaFieldsProvider.DELTA_PROP_NAME,
         FieldAttributeBasedDeltaFieldsProvider.DEFAULT_DELTA_PROP_NAME))
         .thenReturn(FieldAttributeBasedDeltaFieldsProvider.DEFAULT_DELTA_PROP_NAME);
-    AvroKeyDedupReducer reducer = new AvroKeyDedupReducer();
+    RecordKeyDedupReducerBase<AvroKey<GenericRecord>, AvroValue<GenericRecord>> reducer = new AvroKeyDedupReducer();
 
     WrappedReducer.Context reducerContext = mock(WrappedReducer.Context.class);
     when(reducerContext.getConfiguration()).thenReturn(conf);
@@ -144,13 +147,13 @@ public class AvroKeyDedupReducerTest {
     Configuration conf2 = mock(Configuration.class);
     when(conf2.get(AvroKeyDedupReducer.DELTA_SCHEMA_PROVIDER)).thenReturn(null);
     when(reducerContext.getConfiguration()).thenReturn(conf2);
-    AvroKeyDedupReducer reducer2 = new AvroKeyDedupReducer();
+    RecordKeyDedupReducerBase<AvroKey<GenericRecord>, AvroValue<GenericRecord>> reducer2 = new AvroKeyDedupReducer();
     reducer2.setup(reducerContext);
     reducer2.reduce(key, valueIterable, reducerContext);
     Assert.assertEquals(reducer2.getOutKey().datum(), fullRecord1.datum());
 
     // Test reducer with compound delta key.
-    Schema fullSchema2 = new Schema.Parser().parse(FULL_SCHEMA_WITH_TWO_DELTA_FIELDS);
+    Schema fullSchema2 = new Schema.Parser().parse(AVRO_FULL_SCHEMA_WITH_TWO_DELTA_FIELDS);
     GenericRecordBuilder fullRecordBuilder2 = new GenericRecordBuilder(fullSchema2);
     fullRecordBuilder2.set("key", record);
     fullRecordBuilder2.set("scn", 123);
@@ -169,8 +172,6 @@ public class AvroKeyDedupReducerTest {
         Lists.newArrayList(fullRecord1, fullRecord2, fullRecord3, fullRecord4);
     reducer.reduce(key, valueIterable2, reducerContext);
     Assert.assertEquals(reducer.getOutKey().datum(), fullRecord3.datum());
-
-
 
   }
 }

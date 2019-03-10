@@ -61,6 +61,7 @@ public class AvroCompactionTaskTest {
     return fs;
   }
 
+  @Test
   public void testDedup() throws Exception {
 
     File basePath = Files.createTempDir();
@@ -79,6 +80,7 @@ public class AvroCompactionTaskTest {
     Assert.assertTrue(result.isSuccessful());
   }
 
+  @Test
   public void testNonDedup() throws Exception {
     File basePath = Files.createTempDir();
     basePath.deleteOnExit();
@@ -96,6 +98,7 @@ public class AvroCompactionTaskTest {
     Assert.assertTrue(result.isSuccessful());
   }
 
+  @Test
   public void testRecompaction () throws Exception {
     FileSystem fs = getFileSystem();
     String basePath = "/tmp/testRecompaction";
@@ -198,6 +201,7 @@ public class AvroCompactionTaskTest {
         .setConfiguration(SimpleDatasetHierarchicalPrioritizer.TIER_KEY + ".2", "BizProfile");
   }
 
+  @Test
    public void testWorkUnitStream () throws Exception {
      File basePath = Files.createTempDir();
      basePath.deleteOnExit();
@@ -217,6 +221,7 @@ public class AvroCompactionTaskTest {
      Assert.assertTrue(result.isSuccessful());
    }
 
+   @Test
   public void testWorkUnitStreamForAllFailures () throws Exception {
     File basePath = Files.createTempDir();
     basePath.deleteOnExit();
@@ -236,6 +241,7 @@ public class AvroCompactionTaskTest {
     Assert.assertFalse(result.isSuccessful());
   }
 
+  @Test
   public void testHiveRegistrationFailure () throws Exception {
     File basePath = Files.createTempDir();
     basePath.deleteOnExit();
@@ -259,6 +265,7 @@ public class AvroCompactionTaskTest {
     Assert.assertFalse(result.isSuccessful());
   }
 
+  @Test
   public void testPrioritization () throws Exception {
     File basePath = Files.createTempDir();
     basePath.deleteOnExit();
