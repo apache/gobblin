@@ -120,7 +120,8 @@ public class KeyDedupReducerTest {
     when(conf.get(FieldAttributeBasedDeltaFieldsProvider.DELTA_PROP_NAME,
         FieldAttributeBasedDeltaFieldsProvider.DEFAULT_DELTA_PROP_NAME))
         .thenReturn(FieldAttributeBasedDeltaFieldsProvider.DEFAULT_DELTA_PROP_NAME);
-    RecordKeyDedupReducerBase<AvroKey<GenericRecord>, AvroValue<GenericRecord>> reducer = new AvroKeyDedupReducer();
+    RecordKeyDedupReducerBase<AvroKey<GenericRecord>, AvroValue<GenericRecord>,
+        AvroKey<GenericRecord>, NullWritable> reducer = new AvroKeyDedupReducer();
 
     WrappedReducer.Context reducerContext = mock(WrappedReducer.Context.class);
     when(reducerContext.getConfiguration()).thenReturn(conf);
@@ -147,7 +148,8 @@ public class KeyDedupReducerTest {
     Configuration conf2 = mock(Configuration.class);
     when(conf2.get(AvroKeyDedupReducer.DELTA_SCHEMA_PROVIDER)).thenReturn(null);
     when(reducerContext.getConfiguration()).thenReturn(conf2);
-    RecordKeyDedupReducerBase<AvroKey<GenericRecord>, AvroValue<GenericRecord>> reducer2 = new AvroKeyDedupReducer();
+    RecordKeyDedupReducerBase<AvroKey<GenericRecord>, AvroValue<GenericRecord>,
+        AvroKey<GenericRecord>, NullWritable> reducer2 = new AvroKeyDedupReducer();
     reducer2.setup(reducerContext);
     reducer2.reduce(key, valueIterable, reducerContext);
     Assert.assertEquals(reducer2.getOutKey().datum(), fullRecord1.datum());

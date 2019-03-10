@@ -28,49 +28,59 @@ import org.apache.hadoop.mapreduce.Reducer;
 
 /**
  * A base implementation of deduplication reducer that is format-unaware.
- * @param <K> Type of input key, e.g AvroKey for Avro
- *           The output value will have the same type as the output value
- *           is usually {@link NullWritable}.
- * @param <V> Type of input value.
  */
-public abstract class RecordKeyDedupReducerBase<K, V> extends Reducer<K, V, K, NullWritable> {
+public abstract class RecordKeyDedupReducerBase<KI, VI, KO, VO> extends Reducer<KI, VI, KO, VO> {
   public enum EVENT_COUNTER {
     MORE_THAN_1,
     DEDUPED,
     RECORD_COUNT
   }
 
+  /**
+   * In most of cases, one of following will be {@link NullWritable}
+   */
   @Getter
-  protected K outKey;
+  protected KO outKey;
 
-  protected Optional<Comparator<V>> deltaComparatorOptional;
+  @Getter
+  protected VO outValue;
 
 
-  protected abstract void initOutKey();
+  protected Optional<Comparator<VI>> deltaComparatorOptional;
+
+
+  // TODO: Rename it to, and do both key and value.
+  protected abstract void initReusableObject();
 
   /**
    * Assign output value to reusable object.
    * @param valueToRetain the output value determined after dedup process.
    */
-  protected abstract void setOutKey(V valueToRetain);
+  protected abstract void setOutKey(VI valueToRetain);
+
+  /**
+   * Added to avoid loss of flexibility to put output value in key/value.
+   * Usually for compaction job, either implement {@link #setOutKey} or this.
+   */
+  protected abstract void setOutValue(VI valueToRetain);
 
   protected abstract void initDeltaComparator(Configuration conf);
 
 
   @Override
   protected void setup(Context context) {
-    initOutKey();
+    initReusableObject();
     initDeltaComparator(context.getConfiguration());
   }
 
   @Override
-  protected void reduce(K key, Iterable<V> values, Context context)
+  protected void reduce(KI key, Iterable<VI> values, Context context)
       throws IOException, InterruptedException {
     int numVals = 0;
 
-    V valueToRetain = null;
+    VI valueToRetain = null;
 
-    for (V value : values) {
+    for (VI value : values) {
       if (valueToRetain == null) {
         valueToRetain = value;
       } else if (deltaComparatorOptional.isPresent()) {
@@ -80,6 +90,7 @@ public abstract class RecordKeyDedupReducerBase<K, V> extends Reducer<K, V, K, N
     }
 
     setOutKey(valueToRetain);
+    setOutValue(valueToRetain);
 
     if (numVals > 1) {
       context.getCounter(EVENT_COUNTER.MORE_THAN_1).increment(1);
@@ -88,6 +99,11 @@ public abstract class RecordKeyDedupReducerBase<K, V> extends Reducer<K, V, K, N
 
     context.getCounter(EVENT_COUNTER.RECORD_COUNT).increment(1);
 
-    context.write(this.outKey, NullWritable.get());
+    // Safety check
+    if (outKey == null || outValue == null) {
+      throw new IllegalStateException("Either outKey or outValue is not being properly initialized");
+    }
+
+    context.write(this.outKey, this.outValue);
   }
 }

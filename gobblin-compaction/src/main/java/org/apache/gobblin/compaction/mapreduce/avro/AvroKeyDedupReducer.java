@@ -26,6 +26,8 @@ import org.apache.avro.mapred.AvroValue;
 import org.apache.gobblin.compaction.mapreduce.RecordKeyDedupReducerBase;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.NullWritable;
+
 
 /**
  * Reducer class for compaction MR job for Avro data.
@@ -34,19 +36,26 @@ import org.apache.hadoop.conf.Configuration;
  *
  * @author Ziyang Liu
  */
-public class AvroKeyDedupReducer extends RecordKeyDedupReducerBase<AvroKey<GenericRecord>, AvroValue<GenericRecord>> {
+public class AvroKeyDedupReducer extends RecordKeyDedupReducerBase<AvroKey<GenericRecord>, AvroValue<GenericRecord>,
+    AvroKey<GenericRecord>, NullWritable> {
 
   public static final String DELTA_SCHEMA_PROVIDER =
       "org.apache.gobblin.compaction." + AvroKeyDedupReducer.class.getSimpleName() + ".deltaFieldsProvider";
 
   @Override
-  protected void initOutKey() {
+  protected void initReusableObject() {
     outKey = new AvroKey<>();
+    outValue = NullWritable.get();
   }
 
   @Override
   protected void setOutKey(AvroValue<GenericRecord> valueToRetain) {
     outKey.datum(valueToRetain.datum());
+  }
+
+  @Override
+  protected void setOutValue(AvroValue<GenericRecord> valueToRetain) {
+    // do nothing since initReusableObject has assigned value for outValue.
   }
 
   @Override

@@ -17,35 +17,34 @@
 
 package org.apache.gobblin.compaction.mapreduce.orc;
 
-import java.io.IOException;
+import com.google.common.base.Optional;
+import org.apache.gobblin.compaction.mapreduce.RecordKeyDedupReducerBase;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
-import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.orc.mapred.OrcKey;
 import org.apache.orc.mapred.OrcValue;
 
 
-public class OrcKeyDedupReducer extends Reducer<OrcKey, OrcValue, NullWritable, OrcValue> {
-
-  // Reusable output record object.
-  private OrcValue outValue = new OrcValue();
-
+public class OrcKeyDedupReducer extends RecordKeyDedupReducerBase<OrcKey, OrcValue, NullWritable, OrcValue> {
   @Override
-  protected void setup(Context context) throws IOException, InterruptedException {
-    super.setup(context);
+  protected void setOutValue(OrcValue valueToRetain) {
+    // Better to copy instead reassigning reference.
+    outValue.value = valueToRetain.value;
   }
 
   @Override
-  protected void reduce(OrcKey key, Iterable<OrcValue> values, Context context)
-      throws IOException, InterruptedException {
-    int numVal = 0;
-    OrcValue valueToRetain = null;
+  protected void setOutKey(OrcValue valueToRetain) {
+    // do nothing since initReusableObject has assigned value for outKey.
+  }
 
-    for (OrcValue orcRecord : values) {
-      valueToRetain = orcRecord;
-      numVal += 1 ;
-    }
+  @Override
+  protected void initDeltaComparator(Configuration conf) {
+    deltaComparatorOptional = Optional.absent();
+  }
 
-    outValue = valueToRetain;
-    context.write(NullWritable.get(), outValue);
+  @Override
+  protected void initReusableObject() {
+    outKey = NullWritable.get();
+    outValue = new OrcValue();
   }
 }
