@@ -28,7 +28,7 @@ import org.apache.gobblin.compaction.event.CompactionSlaEventHelper;
 import org.apache.gobblin.compaction.mapreduce.CompactionJobConfigurator;
 import org.apache.gobblin.compaction.mapreduce.MRCompactor;
 import org.apache.gobblin.compaction.mapreduce.MRCompactorJobRunner;
-import org.apache.gobblin.compaction.mapreduce.avro.AvroKeyMapper;
+import org.apache.gobblin.compaction.mapreduce.RecordKeyMapperBase;
 import org.apache.gobblin.compaction.parser.CompactionPathParser;
 import org.apache.gobblin.compaction.verify.InputRecordCountHelper;
 import org.apache.gobblin.configuration.State;
@@ -130,7 +130,7 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
         // We don't get record count from file name because tracking which files are actually involved in the MR execution can
         // be hard. This is due to new minutely data is rolled up to hourly folder but from daily compaction perspective we are not
         // able to tell which file are newly added (because we simply pass all hourly folders to MR job instead of individual files).
-        Counter counter = job.getCounters().findCounter(AvroKeyMapper.EVENT_COUNTER.RECORD_COUNT);
+        Counter counter = job.getCounters().findCounter(RecordKeyMapperBase.EVENT_COUNTER.RECORD_COUNT);
         newTotalRecords = counter.getValue();
       }
 

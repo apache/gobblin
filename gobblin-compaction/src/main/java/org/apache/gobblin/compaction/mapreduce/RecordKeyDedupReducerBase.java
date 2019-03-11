@@ -49,7 +49,6 @@ public abstract class RecordKeyDedupReducerBase<KI, VI, KO, VO> extends Reducer<
   protected Optional<Comparator<VI>> deltaComparatorOptional;
 
 
-  // TODO: Rename it to, and do both key and value.
   protected abstract void initReusableObject();
 
   /**

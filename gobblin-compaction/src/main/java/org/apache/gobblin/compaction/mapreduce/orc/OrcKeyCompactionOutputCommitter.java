@@ -19,9 +19,9 @@ package org.apache.gobblin.compaction.mapreduce.orc;
 
 import java.io.IOException;
 import java.lang.reflect.Method;
+import org.apache.gobblin.compaction.mapreduce.RecordKeyDedupReducerBase;
+import org.apache.gobblin.compaction.mapreduce.RecordKeyMapperBase;
 import org.apache.gobblin.compaction.mapreduce.avro.AvroKeyCompactorOutputCommitter;
-import org.apache.gobblin.compaction.mapreduce.avro.AvroKeyDedupReducer;
-import org.apache.gobblin.compaction.mapreduce.avro.AvroKeyMapper;
 import org.apache.gobblin.util.recordcount.CompactionRecordCountProvider;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -32,6 +32,7 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+// TODO: Change this code redundancy
 public class OrcKeyCompactionOutputCommitter extends FileOutputCommitter {
 
   private static final Logger LOG = LoggerFactory.getLogger(AvroKeyCompactorOutputCommitter.class);
@@ -53,14 +54,14 @@ public class OrcKeyCompactionOutputCommitter extends FileOutputCommitter {
     FileSystem fs = workPath.getFileSystem(context.getConfiguration());
 
     if (fs.exists(workPath)) {
-      long recordCount = getRecordCountFromCounter(context, AvroKeyDedupReducer.EVENT_COUNTER.RECORD_COUNT);
+      long recordCount = getRecordCountFromCounter(context, RecordKeyDedupReducerBase.EVENT_COUNTER.RECORD_COUNT);
       String fileNamePrefix;
       if (recordCount == 0) {
 
         // recordCount == 0 indicates that it is a map-only, non-dedup job, and thus record count should
         // be obtained from mapper counter.
         fileNamePrefix = CompactionRecordCountProvider.M_OUTPUT_FILE_PREFIX;
-        recordCount = getRecordCountFromCounter(context, AvroKeyMapper.EVENT_COUNTER.RECORD_COUNT);
+        recordCount = getRecordCountFromCounter(context, RecordKeyMapperBase.EVENT_COUNTER.RECORD_COUNT);
       } else {
         fileNamePrefix = CompactionRecordCountProvider.MR_OUTPUT_FILE_PREFIX;
       }

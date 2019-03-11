@@ -18,6 +18,7 @@
 package org.apache.gobblin.compaction.mapreduce.orc;
 
 import java.io.IOException;
+import org.apache.gobblin.compaction.mapreduce.RecordKeyMapperBase;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.WritableComparable;
@@ -33,9 +34,9 @@ import org.apache.orc.mapreduce.OrcMapreduceRecordReader;
 /**
  * To keep consistent with {@link OrcMapreduceRecordReader}'s decision on implementing
  * {@link RecordReader} with {@link NullWritable} as the key and generic type of value, the ORC Mapper will
- * read in the record as the input value,
+ * read in the record as the input value.
  */
-public class OrcValueMapper extends Mapper<NullWritable, OrcStruct, OrcKey, Object> {
+public class OrcValueMapper extends RecordKeyMapperBase<NullWritable, OrcStruct, OrcKey, Object> {
 
   private OrcKey outKey;
   private OrcValue outValue;
@@ -53,14 +54,19 @@ public class OrcValueMapper extends Mapper<NullWritable, OrcStruct, OrcKey, Obje
       this.outKey.key = orcStruct;
       context.write(this.outKey, NullWritable.get());
     } else {
-      // TODO: Start with the whole record for dedup now.
       this.outValue.value = orcStruct;
       context.write(getDedupKey(orcStruct), this.outValue);
     }
+
+    context.getCounter(EVENT_COUNTER.RECORD_COUNT).increment(1);
   }
 
-  // TODO: Extend this method.
-  private OrcKey getDedupKey(OrcStruct originalRecord) {
+  /**
+   * By default, dedup key contains the whole ORC record.
+   * Verified in OrcKeyComparatorTest, unlike Avro where complex types including MAP, ARRAY, ENUM and UNIONS containing
+   * these fields are not comparable, ORC has all types comparable.
+   */
+  protected OrcKey getDedupKey(OrcStruct originalRecord) {
     return convertOrcStructToOrcKey(originalRecord);
   }
 

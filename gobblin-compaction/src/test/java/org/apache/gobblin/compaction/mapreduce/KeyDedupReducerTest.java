@@ -126,13 +126,13 @@ public class KeyDedupReducerTest {
     WrappedReducer.Context reducerContext = mock(WrappedReducer.Context.class);
     when(reducerContext.getConfiguration()).thenReturn(conf);
     Counter moreThan1Counter = new GenericCounter();
-    when(reducerContext.getCounter(AvroKeyDedupReducer.EVENT_COUNTER.MORE_THAN_1)).thenReturn(moreThan1Counter);
+    when(reducerContext.getCounter(RecordKeyDedupReducerBase.EVENT_COUNTER.MORE_THAN_1)).thenReturn(moreThan1Counter);
 
     Counter dedupedCounter = new GenericCounter();
-    when(reducerContext.getCounter(AvroKeyDedupReducer.EVENT_COUNTER.DEDUPED)).thenReturn(dedupedCounter);
+    when(reducerContext.getCounter(RecordKeyDedupReducerBase.EVENT_COUNTER.DEDUPED)).thenReturn(dedupedCounter);
 
     Counter recordCounter = new GenericCounter();
-    when(reducerContext.getCounter(AvroKeyDedupReducer.EVENT_COUNTER.RECORD_COUNT)).thenReturn(recordCounter);
+    when(reducerContext.getCounter(RecordKeyDedupReducerBase.EVENT_COUNTER.RECORD_COUNT)).thenReturn(recordCounter);
     reducer.setup(reducerContext);
 
     doNothing().when(reducerContext).write(any(AvroKey.class), any(NullWritable.class));
