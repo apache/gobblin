@@ -21,6 +21,7 @@ import java.util.TreeMap;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.WritableComparable;
 import org.apache.orc.OrcConf;
 import org.apache.orc.TypeDescription;
 import org.apache.orc.mapred.OrcKey;
@@ -32,6 +33,12 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 
+/**
+ * Mainly to test {@link OrcKeyComparator} is behaving as expected when it is comparing two {@link OrcStruct}.
+ * It covers basic(primitive) type of {@link OrcStruct} and those contain complex type (MAP, LIST, UNION, Struct)
+ *
+ * Reference: https://orc.apache.org/docs/types.html
+ */
 public class OrcKeyComparatorTest {
   @Test
   public void testSimpleComparator() throws Exception {
@@ -43,17 +50,9 @@ public class OrcKeyComparatorTest {
     Assert.assertEquals(conf.get(OrcConf.MAPRED_SHUFFLE_KEY_SCHEMA.getAttribute()), orcSchema);
     comparator.setConf(conf);
 
-    OrcStruct record0 = (OrcStruct) OrcStruct.createValue(schema);
-    record0.setFieldValue("i", new IntWritable(1));
-    record0.setFieldValue("j", new IntWritable(2));
-
-    OrcStruct record1 = (OrcStruct) OrcStruct.createValue(schema);
-    record1.setFieldValue("i", new IntWritable(3));
-    record1.setFieldValue("j", new IntWritable(4));
-
-    OrcStruct record2 = (OrcStruct) OrcStruct.createValue(schema);
-    record2.setFieldValue("i", new IntWritable(3));
-    record2.setFieldValue("j", new IntWritable(4));
+    OrcStruct record0 = createSimpleOrcStruct(schema, 1, 2);
+    OrcStruct record1 = createSimpleOrcStruct(schema, 3, 4);
+    OrcStruct record2 = createSimpleOrcStruct(schema, 3, 4);
 
     OrcKey orcKey0 = new OrcKey();
     orcKey0.key = record0;
@@ -68,14 +67,13 @@ public class OrcKeyComparatorTest {
   }
 
   @Test
-  public void testComplextRecord_array() throws Exception {
+  public void testComplexRecordArray() throws Exception {
     OrcKeyComparator comparator = new OrcKeyComparator();
     Configuration conf = new Configuration();
 
     TypeDescription listSchema = TypeDescription.createList(TypeDescription.createString());
-    TypeDescription schema = TypeDescription.createStruct()
-        .addField("a", TypeDescription.createInt())
-        .addField("b", listSchema);
+    TypeDescription schema =
+        TypeDescription.createStruct().addField("a", TypeDescription.createInt()).addField("b", listSchema);
 
     conf.set(OrcConf.MAPRED_SHUFFLE_KEY_SCHEMA.getAttribute(), schema.toString());
     Assert.assertEquals(conf.get(OrcConf.MAPRED_SHUFFLE_KEY_SCHEMA.getAttribute()), schema.toString());
@@ -111,7 +109,6 @@ public class OrcKeyComparatorTest {
     OrcList orcList4 = createOrcList(4, listSchema, 3);
     record4.setFieldValue("b", orcList4);
 
-
     OrcKey orcKey0 = new OrcKey();
     orcKey0.key = record0;
     OrcKey orcKey1 = new OrcKey();
@@ -130,7 +127,7 @@ public class OrcKeyComparatorTest {
   }
 
   @Test
-  public void testComplexRecord_map() throws Exception {
+  public void testComplexRecordMap() throws Exception {
     OrcKeyComparator comparator = new OrcKeyComparator();
     Configuration conf = new Configuration();
     TypeDescription mapFieldSchema =
@@ -189,6 +186,101 @@ public class OrcKeyComparatorTest {
     Assert.assertTrue(comparator.compare(orcKey0, orcKey4) < 0);
   }
 
+  // Test comparison for union containing complex types and nested record inside.
+  // Schema: struct<a:int,
+  //                b:uniontype<int,
+  //                            array<string>,
+  //                            struct<x:int,y:int>
+  //                            >
+  //                >
+  @Test
+  public void testComplexRecordUnion() throws Exception {
+    OrcKeyComparator comparator = new OrcKeyComparator();
+    Configuration conf = new Configuration();
+
+    TypeDescription listSchema = TypeDescription.createList(TypeDescription.createString());
+
+    TypeDescription nestedRecordSchema = TypeDescription.createStruct()
+        .addField("x", TypeDescription.createInt())
+        .addField("y", TypeDescription.createInt());
+
+    TypeDescription unionSchema = TypeDescription.createUnion()
+        .addUnionChild(TypeDescription.createInt())
+        .addUnionChild(listSchema)
+        .addUnionChild(nestedRecordSchema);
+
+    TypeDescription schema =
+        TypeDescription.createStruct()
+            .addField("a", TypeDescription.createInt())
+            .addField("b", unionSchema);
+
+    conf.set(OrcConf.MAPRED_SHUFFLE_KEY_SCHEMA.getAttribute(), schema.toString());
+    Assert.assertEquals(conf.get(OrcConf.MAPRED_SHUFFLE_KEY_SCHEMA.getAttribute()), schema.toString());
+    comparator.setConf(conf);
+
+    // base record
+    OrcStruct record0 = (OrcStruct) OrcStruct.createValue(schema);
+    record0.setFieldValue("a", new IntWritable(1));
+    OrcStruct nestedRecord0 = createSimpleOrcStruct(nestedRecordSchema, 1, 2);
+    OrcUnion orcUnion0 = createOrcUnion(unionSchema, nestedRecord0);
+    record0.setFieldValue("b", orcUnion0);
+
+    // same content as base record in diff objects.
+    OrcStruct record1 = (OrcStruct) OrcStruct.createValue(schema);
+    record1.setFieldValue("a", new IntWritable(1));
+    OrcStruct nestedRecord1 = createSimpleOrcStruct(nestedRecordSchema, 1, 2);
+    OrcUnion orcUnion1 = createOrcUnion(unionSchema, nestedRecord1);
+    record1.setFieldValue("b", orcUnion1);
+
+    // diff records inside union, record0 == record1 < 2
+    OrcStruct record2 = (OrcStruct) OrcStruct.createValue(schema);
+    record2.setFieldValue("a", new IntWritable(1));
+    OrcStruct nestedRecord2 = createSimpleOrcStruct(nestedRecordSchema, 2, 2);
+    OrcUnion orcUnion2 = createOrcUnion(unionSchema, nestedRecord2);
+    record2.setFieldValue("b", orcUnion2);
+
+
+    // differ in list inside union, record3 < record4 == record5
+    OrcStruct record3 = (OrcStruct) OrcStruct.createValue(schema);
+    record3.setFieldValue("a", new IntWritable(1));
+    OrcList orcList3 = createOrcList(5, listSchema, 2);
+    OrcUnion orcUnion3 = createOrcUnion(unionSchema, orcList3);
+    record3.setFieldValue("b", orcUnion3);
+
+    OrcStruct record4 = (OrcStruct) OrcStruct.createValue(schema);
+    record4.setFieldValue("a", new IntWritable(1));
+    OrcList orcList4 = createOrcList(6, listSchema, 2);
+    OrcUnion orcUnion4 = createOrcUnion(unionSchema, orcList4);
+    record4.setFieldValue("b", orcUnion4);
+
+    OrcStruct record5 = (OrcStruct) OrcStruct.createValue(schema);
+    record5.setFieldValue("a", new IntWritable(1));
+    OrcList orcList5 = createOrcList(6, listSchema, 2);
+    OrcUnion orcUnion5 = createOrcUnion(unionSchema, orcList5);
+    record5.setFieldValue("b", orcUnion5);
+
+
+    OrcKey orcKey0 = new OrcKey();
+    orcKey0.key = record0;
+    OrcKey orcKey1 = new OrcKey();
+    orcKey1.key = record1;
+    OrcKey orcKey2 = new OrcKey();
+    orcKey2.key = record2;
+    OrcKey orcKey3 = new OrcKey();
+    orcKey3.key = record3;
+    OrcKey orcKey4 = new OrcKey();
+    orcKey4.key = record4;
+    OrcKey orcKey5 = new OrcKey();
+    orcKey5.key = record5;
+
+    Assert.assertEquals(orcUnion0, orcUnion1);
+    // Int value in orcKey2 is larger
+    Assert.assertTrue(comparator.compare(orcKey0, orcKey2) < 0);
+    Assert.assertTrue(comparator.compare(orcKey3, orcKey4) < 0 );
+    Assert.assertTrue(comparator.compare(orcKey3, orcKey5) < 0);
+    Assert.assertTrue(comparator.compare(orcKey4, orcKey5) == 0);
+  }
+
   private OrcMap createOrcMap(Text key, Text value, TypeDescription schema) {
     TreeMap map = new TreeMap<Text, Text>();
     map.put(key, value);
@@ -208,5 +300,16 @@ public class OrcKeyComparatorTest {
     return result;
   }
 
-  private OrcUnion createOrcUnion()
+  private OrcUnion createOrcUnion(TypeDescription schema, WritableComparable value) {
+    OrcUnion result = new OrcUnion(schema);
+    result.set(0, value);
+    return result;
+  }
+
+  private OrcStruct createSimpleOrcStruct(TypeDescription structSchema, int value1, int value2) {
+    OrcStruct result = new OrcStruct(structSchema);
+    result.setFieldValue(0, new IntWritable(value1));
+    result.setFieldValue(1, new IntWritable(value2));
+    return result;
+  }
 }
