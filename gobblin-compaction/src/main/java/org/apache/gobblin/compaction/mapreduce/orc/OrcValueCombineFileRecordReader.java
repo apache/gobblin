@@ -59,6 +59,6 @@ public class OrcValueCombineFileRecordReader extends OrcMapreduceRecordReader {
   private static RecordReader getRecordReaderFromFile(CombineFileSplit split, TaskAttemptContext context, Integer idx)
       throws IOException {
     Path path = split.getPath(idx);
-    return OrcUtils.getRecordReaderFromFile(context.getConfiguration(), path);
+    return OrcUtils.getRecordReaderFromFile(context.getConfiguration(), path).rows();
   }
 }

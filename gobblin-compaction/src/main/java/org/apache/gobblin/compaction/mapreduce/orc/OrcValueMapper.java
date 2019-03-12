@@ -19,11 +19,7 @@ package org.apache.gobblin.compaction.mapreduce.orc;
 
 import java.io.IOException;
 import org.apache.gobblin.compaction.mapreduce.RecordKeyMapperBase;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
-import org.apache.hadoop.io.WritableComparable;
-import org.apache.hadoop.mapred.JobConf;
-import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.orc.mapred.OrcKey;
 import org.apache.orc.mapred.OrcStruct;

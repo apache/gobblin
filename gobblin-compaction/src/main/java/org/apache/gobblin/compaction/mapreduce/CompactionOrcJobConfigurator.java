@@ -18,6 +18,7 @@
 package org.apache.gobblin.compaction.mapreduce;
 
 import java.io.IOException;
+import org.apache.gobblin.compaction.mapreduce.orc.OrcKeyCompactorOutputFormat;
 import org.apache.gobblin.compaction.mapreduce.orc.OrcKeyComparator;
 import org.apache.gobblin.compaction.mapreduce.orc.OrcKeyDedupReducer;
 import org.apache.gobblin.compaction.mapreduce.orc.OrcUtils;
@@ -70,7 +71,7 @@ public class CompactionOrcJobConfigurator extends CompactionJobConfigurator {
 
   protected void configureReducer(Job job) throws IOException {
     job.setReducerClass(OrcKeyDedupReducer.class);
-    job.setOutputFormatClass(OrcOutputFormat.class);
+    job.setOutputFormatClass(OrcKeyCompactorOutputFormat.class);
     job.setOutputKeyClass(NullWritable.class);
     job.setOutputValueClass(OrcValue.class);
     setNumberOfReducers(job);

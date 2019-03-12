@@ -38,7 +38,7 @@ public class AvroKeyCompactorOutputFormat<T> extends AvroKeyOutputFormat<T> {
   @Override
   public synchronized OutputCommitter getOutputCommitter(TaskAttemptContext context) throws IOException {
     if (this.committer == null) {
-      this.committer = new AvroKeyCompactorOutputCommitter(FileOutputFormat.getOutputPath(context), context);
+      this.committer = new CompactorOutputCommitter(FileOutputFormat.getOutputPath(context), context);
     }
     return this.committer;
   }

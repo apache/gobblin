@@ -163,7 +163,7 @@ public class AvroCompactionTaskTest {
       writer.close();
   }
 
-  private EmbeddedGobblin createEmbeddedGobblin (String name, String basePath) {
+  static EmbeddedGobblin createEmbeddedGobblin (String name, String basePath) {
     String pattern = new Path(basePath, "*/*/minutely/*/*/*/*").toString();
 
     return new EmbeddedGobblin(name)

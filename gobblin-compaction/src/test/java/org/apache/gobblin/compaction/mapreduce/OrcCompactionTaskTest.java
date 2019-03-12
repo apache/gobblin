@@ -21,19 +21,17 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.io.Files;
 import java.io.File;
 import java.io.IOException;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.gobblin.compaction.dataset.TimeBasedSubDirDatasetsFinder;
-import org.apache.gobblin.compaction.source.CompactionSource;
-import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.commons.io.FilenameUtils;
 import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.data.management.retention.profile.ConfigurableGlobDatasetFinder;
 import org.apache.gobblin.runtime.api.JobExecutionResult;
 import org.apache.gobblin.runtime.embedded.EmbeddedGobblin;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.Job;
@@ -50,15 +48,11 @@ import org.apache.orc.mapreduce.OrcMapreduceRecordWriter;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import static org.apache.gobblin.compaction.mapreduce.AvroCompactionTaskTest.*;
+import static org.apache.gobblin.compaction.mapreduce.avro.CompactorOutputCommitter.*;
+
 
 public class OrcCompactionTaskTest {
-
-  // TODO: Repeated code
-  protected FileSystem getFileSystem() throws IOException {
-    String uri = ConfigurationKeys.LOCAL_FS_URI;
-    FileSystem fs = FileSystem.get(URI.create(uri), new Configuration());
-    return fs;
-  }
 
   @Test
   public void basicTest() throws Exception {
@@ -86,13 +80,30 @@ public class OrcCompactionTaskTest {
     writeOrcRecordsInFile(new Path(file_1.getAbsolutePath()), schema, ImmutableList.of(orcStruct_1));
 
     // Verify execution
-    EmbeddedGobblin embeddedGobblin = createEmbeddedGobblin("basic", basePath.getAbsolutePath().toString());
+
+    // Overwrite the job configurator factory key.
+    EmbeddedGobblin embeddedGobblin = createEmbeddedGobblin("basic", basePath.getAbsolutePath().toString())
+        .setConfiguration(CompactionJobConfigurator.COMPACTION_JOB_CONFIGURATOR_FACTORY_CLASS_KEY,
+        TestCompactionOrcJobConfigurator.Factory.class.getName())
+        .setConfiguration(COMPACTION_OUTPUT_EXTENSION, "orc");
     JobExecutionResult execution = embeddedGobblin.run();
     Assert.assertTrue(execution.isSuccessful());
 
     // Result verification
     File outputDir = new File(basePath, hourlyPath);
-    List<OrcStruct> result = readOrcFile(new Path(outputDir.getAbsolutePath()), "part-r-00000.orc");
+    FileSystem fs = FileSystem.getLocal(new Configuration());
+    List<FileStatus> statuses = new ArrayList<>();
+    for (FileStatus status : fs.listStatus(new Path(outputDir.getAbsolutePath()), new PathFilter() {
+      @Override
+      public boolean accept(Path path) {
+        return FilenameUtils.isExtension(path.getName(), "orc");
+      }
+    })) {
+      statuses.add(status);
+    }
+
+    Assert.assertTrue(statuses.size() == 1);
+    List<OrcStruct> result = readOrcFile(statuses.get(0).getPath());
     Assert.assertEquals(result.size(), 1);
     Assert.assertEquals(result.get(0).getFieldValue("i"), new IntWritable(1));
     Assert.assertEquals(result.get(0).getFieldValue("j"), new IntWritable(2));
@@ -101,9 +112,8 @@ public class OrcCompactionTaskTest {
   /**
    * Read a output ORC compacted file into memory.
    */
-  public List<OrcStruct> readOrcFile(Path orcFileDir, String filename)
+  public List<OrcStruct> readOrcFile(Path orcFilePath)
       throws IOException, InterruptedException {
-    Path orcFilePath = new Path(orcFileDir, filename);
     ReaderImpl orcReader = new ReaderImpl(orcFilePath, new OrcFile.ReaderOptions(new Configuration()));
 
     Reader.Options options = new Reader.Options().schema(orcReader.getSchema());
@@ -145,24 +155,5 @@ public class OrcCompactionTaskTest {
     public TestCompactionOrcJobConfigurator(State state) throws IOException {
       super(state);
     }
-  }
-
-  // TODO: Code repeatedness
-  private EmbeddedGobblin createEmbeddedGobblin(String name, String basePath) {
-    String pattern = new Path(basePath, "*/*/minutely/*/*/*/*").toString();
-
-    return new EmbeddedGobblin(name).setConfiguration(ConfigurationKeys.SOURCE_CLASS_KEY,
-        CompactionSource.class.getName())
-        .setConfiguration(CompactionJobConfigurator.COMPACTION_JOB_CONFIGURATOR_FACTORY_CLASS_KEY,
-            TestCompactionOrcJobConfigurator.Factory.class.getName())
-        .setConfiguration(ConfigurableGlobDatasetFinder.DATASET_FINDER_PATTERN_KEY, pattern)
-        .setConfiguration(MRCompactor.COMPACTION_INPUT_DIR, basePath.toString())
-        .setConfiguration(MRCompactor.COMPACTION_INPUT_SUBDIR, "minutely")
-        .setConfiguration(MRCompactor.COMPACTION_DEST_DIR, basePath.toString())
-        .setConfiguration(MRCompactor.COMPACTION_DEST_SUBDIR, "hourly")
-        .setConfiguration(MRCompactor.COMPACTION_TMP_DEST_DIR, "/tmp/compaction/" + name)
-        .setConfiguration(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MAX_TIME_AGO, "3000d")
-        .setConfiguration(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MIN_TIME_AGO, "1d")
-        .setConfiguration(ConfigurationKeys.MAX_TASK_RETRIES_KEY, "0");
   }
 }

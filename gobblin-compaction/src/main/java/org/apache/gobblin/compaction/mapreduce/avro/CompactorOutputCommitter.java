@@ -15,30 +15,46 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.compaction.mapreduce.orc;
+package org.apache.gobblin.compaction.mapreduce.avro;
 
 import java.io.IOException;
 import java.lang.reflect.Method;
+
+import org.apache.commons.io.FilenameUtils;
 import org.apache.gobblin.compaction.mapreduce.RecordKeyDedupReducerBase;
 import org.apache.gobblin.compaction.mapreduce.RecordKeyMapperBase;
-import org.apache.gobblin.compaction.mapreduce.avro.AvroKeyCompactorOutputCommitter;
-import org.apache.gobblin.util.recordcount.CompactionRecordCountProvider;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.mapreduce.Counter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// TODO: Change this code redundancy
-public class OrcKeyCompactionOutputCommitter extends FileOutputCommitter {
+import org.apache.gobblin.util.recordcount.CompactionRecordCountProvider;
 
-  private static final Logger LOG = LoggerFactory.getLogger(AvroKeyCompactorOutputCommitter.class);
 
-  public OrcKeyCompactionOutputCommitter(Path output, TaskAttemptContext context) throws IOException {
+/**
+ * Class used with {@link MRCompactorAvroKeyDedupJobRunner} to rename files as they
+ * are being committed. In addition to moving files from their working directory to
+ * the commit output directory, the files are named to include a timestamp and a
+ * count of how many records the file contains, in the format
+ * {recordCount}.{timestamp}.<extensionName>(avro, orc, etc.).
+ */
+public class CompactorOutputCommitter extends FileOutputCommitter {
+  public static final String COMPACTION_OUTPUT_EXTENSION = "compaction.output.extension";
+  public static final String DEFAULT_COMPACTION_OUTPUT_EXTENSION = "avro";
+
+  private static final Logger LOG = LoggerFactory.getLogger(CompactorOutputCommitter.class);
+
+  private final String compactionFileExtension;
+
+  public CompactorOutputCommitter(Path output, TaskAttemptContext context) throws IOException {
     super(output, context);
+    compactionFileExtension = context.getConfiguration().get(COMPACTION_OUTPUT_EXTENSION,
+        DEFAULT_COMPACTION_OUTPUT_EXTENSION);
   }
 
   /**
@@ -65,9 +81,15 @@ public class OrcKeyCompactionOutputCommitter extends FileOutputCommitter {
       } else {
         fileNamePrefix = CompactionRecordCountProvider.MR_OUTPUT_FILE_PREFIX;
       }
-      String fileName = CompactionRecordCountProvider.constructFileName(fileNamePrefix, recordCount);
+      String fileName = CompactionRecordCountProvider.constructFileName(fileNamePrefix,
+          "." + compactionFileExtension, recordCount);
 
-      for (FileStatus status : fs.listStatus(workPath)) {
+      for (FileStatus status : fs.listStatus(workPath, new PathFilter() {
+        @Override
+        public boolean accept(Path path) {
+          return FilenameUtils.isExtension(path.getName(), compactionFileExtension);
+        }
+      })) {
         Path newPath = new Path(status.getPath().getParent(), fileName);
         LOG.info(String.format("Renaming %s to %s", status.getPath(), newPath));
         fs.rename(status.getPath(), newPath);
