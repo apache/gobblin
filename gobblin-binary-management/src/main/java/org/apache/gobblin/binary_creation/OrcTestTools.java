@@ -184,7 +184,7 @@ public class OrcTestTools extends DataTestTools<OrcTestTools.OrcRowIterator, Typ
   @Override
   public TypeInfo writeJsonResourceRecordsAsBinary(String baseResource, @Nullable FileSystem fs, Path targetPath,
       @Nullable TypeInfo schema) throws IOException {
-    TreeMap<String, OrcRowIterator> recordMap = readAllRecordsInJsonResource(baseResource, null);
+    TreeMap<String, OrcRowIterator> recordMap = readAllRecordsInJsonResource(baseResource, schema);
 
     TypeInfo outputSchema = recordMap.lastEntry().getValue().getTypeInfo();
     for (Map.Entry<String, OrcRowIterator> entry : recordMap.entrySet()) {
@@ -229,9 +229,13 @@ public class OrcTestTools extends DataTestTools<OrcTestTools.OrcRowIterator, Typ
       @Nullable TypeInfo schema) throws IOException {
     TypeInfo orcSchema;
     try {
-      File schemaFile = new File(baseResource, "schema.avsc");
-      String schemaResource = schemaFile.toString();
-      orcSchema = convertAvroSchemaToOrcSchema(readAvscSchema(schemaResource, OrcTestTools.class));
+      if (schema == null) {
+        File schemaFile = new File(baseResource, "schema.avsc");
+        String schemaResource = schemaFile.toString();
+        orcSchema = convertAvroSchemaToOrcSchema(readAvscSchema(schemaResource, OrcTestTools.class));
+      } else {
+        orcSchema = schema;
+      }
     } catch (SerDeException se) {
       throw new RuntimeException("Provided Avro Schema cannot be transformed to ORC schema", se);
     }

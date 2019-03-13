@@ -28,6 +28,7 @@ import com.google.common.base.Optional;
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.hive.avro.HiveAvroSerDeManager;
+import org.apache.gobblin.hive.orc.HiveOrcSerDeManager;
 
 
 /**
@@ -79,7 +80,8 @@ public abstract class HiveSerDeManager {
   public abstract boolean haveSameSchema(HiveRegistrationUnit unit1, HiveRegistrationUnit unit2) throws IOException;
 
   public enum Implementation {
-    AVRO(HiveAvroSerDeManager.class.getName());
+    AVRO(HiveAvroSerDeManager.class.getName()),
+    ORC(HiveOrcSerDeManager.class.getName());
 
     private final String schemaManagerClassName;
 
@@ -96,11 +98,8 @@ public abstract class HiveSerDeManager {
   /**
    * Get an instance of {@link HiveSerDeManager}.
    *
-   * @param type The {@link HiveSerDeManager} type. It should be either AVRO, or the name of a class that implements
-   * {@link HiveSerDeManager}. The specified {@link HiveSerDeManager} type must have a constructor that takes a
-   * {@link State} object.
    * @param props A {@link State} object. To get a specific implementation of {@link HiveSerDeManager}, specify either
-   * one of the values in {@link Implementation} (e.g., AVRO) or the name of a class that implements
+   * one of the values in {@link Implementation} (e.g., AVRO or ORC) or the name of a class that implements
    * {@link HiveSerDeManager} in property {@link #HIVE_ROW_FORMAT}. The {@link State} object is also used to
    * instantiate the {@link HiveSerDeManager}.
    */

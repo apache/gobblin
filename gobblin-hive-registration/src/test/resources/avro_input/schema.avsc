@@ -1,0 +1,10 @@
+{
+ "namespace": "DB",
+ "type": "record",
+ "name": "TABLE",
+ "fields": [
+     {"name": "name", "type": "string"},
+     {"name": "timestamp",  "type": "long"},
+     {"name": "favorite_number",  "type": "int"}
+ ]
+}
