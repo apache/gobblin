@@ -67,6 +67,6 @@ public class OrcUtils {
     }
 
     throw new IllegalStateException(
-        String.format("There's no file carring orc file schema in %s list", sourceDirs.toString()));
+        String.format("There's no file carrying orc file schema in %s list", sourceDirs));
   }
 }

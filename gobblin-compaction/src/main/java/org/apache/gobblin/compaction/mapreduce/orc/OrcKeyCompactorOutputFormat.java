@@ -18,7 +18,7 @@
 package org.apache.gobblin.compaction.mapreduce.orc;
 
 import java.io.IOException;
-import org.apache.gobblin.compaction.mapreduce.avro.CompactorOutputCommitter;
+import org.apache.gobblin.compaction.mapreduce.CompactorOutputCommitter;
 import org.apache.hadoop.mapreduce.OutputCommitter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter;

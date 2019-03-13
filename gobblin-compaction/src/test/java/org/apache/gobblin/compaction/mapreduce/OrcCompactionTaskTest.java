@@ -49,7 +49,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import static org.apache.gobblin.compaction.mapreduce.AvroCompactionTaskTest.*;
-import static org.apache.gobblin.compaction.mapreduce.avro.CompactorOutputCommitter.*;
+import static org.apache.gobblin.compaction.mapreduce.CompactorOutputCommitter.*;
 
 
 public class OrcCompactionTaskTest {

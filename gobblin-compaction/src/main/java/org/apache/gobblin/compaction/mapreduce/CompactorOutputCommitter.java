@@ -15,14 +15,13 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.compaction.mapreduce.avro;
+package org.apache.gobblin.compaction.mapreduce;
 
 import java.io.IOException;
 import java.lang.reflect.Method;
-
 import org.apache.commons.io.FilenameUtils;
-import org.apache.gobblin.compaction.mapreduce.RecordKeyDedupReducerBase;
-import org.apache.gobblin.compaction.mapreduce.RecordKeyMapperBase;
+import org.apache.gobblin.compaction.mapreduce.avro.MRCompactorAvroKeyDedupJobRunner;
+import org.apache.gobblin.util.recordcount.CompactionRecordCountProvider;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -32,8 +31,6 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import org.apache.gobblin.util.recordcount.CompactionRecordCountProvider;
 
 
 /**

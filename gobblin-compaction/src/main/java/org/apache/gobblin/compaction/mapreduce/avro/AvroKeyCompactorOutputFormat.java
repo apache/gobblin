@@ -20,6 +20,7 @@ package org.apache.gobblin.compaction.mapreduce.avro;
 import java.io.IOException;
 
 import org.apache.avro.mapreduce.AvroKeyOutputFormat;
+import org.apache.gobblin.compaction.mapreduce.CompactorOutputCommitter;
 import org.apache.hadoop.mapreduce.OutputCommitter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter;
