@@ -44,10 +44,18 @@ public class ResolvedJobSpec extends JobSpec {
   @Getter
   private final JobSpec originalJobSpec;
 
+  /**
+   * @deprecated Use {@link JobSpecResolver}
+   */
+  @Deprecated
   public ResolvedJobSpec(JobSpec other) throws SpecNotFoundException, JobTemplate.TemplateException {
     this(other, new InMemoryJobCatalog());
   }
 
+  /**
+   * @deprecated Use {@link JobSpecResolver}
+   */
+  @Deprecated
   public ResolvedJobSpec(JobSpec other, GobblinInstanceDriver driver)
       throws SpecNotFoundException, JobTemplate.TemplateException {
     this(other, driver.getJobCatalog());
@@ -55,11 +63,19 @@ public class ResolvedJobSpec extends JobSpec {
 
   /**
    * Resolve the job spec using classpath templates as well as any templates available in the input {@link JobCatalog}.
+   * @deprecated Use {@link JobSpecResolver}
    */
+  @Deprecated
   public ResolvedJobSpec(JobSpec other, JobCatalog catalog)
       throws SpecNotFoundException, JobTemplate.TemplateException {
     super(other.getUri(), other.getVersion(), other.getDescription(), resolveConfig(other, catalog),
-        ConfigUtils.configToProperties(resolveConfig(other, catalog)), other.getTemplateURI(), other.getMetadata());
+        ConfigUtils.configToProperties(resolveConfig(other, catalog)), other.getTemplateURI(), other.getJobTemplate(), other.getMetadata());
+    this.originalJobSpec = other;
+  }
+
+  ResolvedJobSpec(JobSpec other, Config resolvedConfig) {
+    super(other.getUri(), other.getVersion(), other.getDescription(), resolvedConfig,
+        ConfigUtils.configToProperties(resolvedConfig), other.getTemplateURI(), other.getJobTemplate(), other.getMetadata());
     this.originalJobSpec = other;
   }
 

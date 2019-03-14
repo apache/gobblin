@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.Properties;
 
 import org.apache.commons.configuration.ConfigurationException;
+import org.apache.gobblin.runtime.job_spec.JobSpecResolver;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
@@ -51,11 +52,13 @@ public class PathAlterationListenerAdaptorForMonitor extends PathAlterationListe
   JobScheduler jobScheduler;
   /** Store path to job mappings. Required for correctly unscheduling. */
   private final Map<Path, String> jobNameMap;
+  private final JobSpecResolver jobSpecResolver;
 
   PathAlterationListenerAdaptorForMonitor(Path jobConfigFileDirPath, JobScheduler jobScheduler) {
     this.jobConfigFileDirPath = jobConfigFileDirPath;
     this.jobScheduler = jobScheduler;
     this.jobNameMap = Maps.newConcurrentMap();
+    this.jobSpecResolver = jobScheduler.getJobSpecResolver();
   }
 
   private Path getJobPath(Properties jobProps) {
@@ -73,7 +76,7 @@ public class PathAlterationListenerAdaptorForMonitor extends PathAlterationListe
     String customizedInfo = "";
     try {
       Properties jobProps =
-          SchedulerUtils.loadGenericJobConfig(this.jobScheduler.properties, path, jobConfigFileDirPath);
+          SchedulerUtils.loadGenericJobConfig(this.jobScheduler.properties, path, jobConfigFileDirPath, this.jobSpecResolver);
       LOG.debug("Loaded job properties: {}", jobProps);
       switch (action) {
         case SCHEDULE:
@@ -103,7 +106,7 @@ public class PathAlterationListenerAdaptorForMonitor extends PathAlterationListe
     String customizedInfoResult = "";
     try {
       for (Properties jobProps : SchedulerUtils.loadGenericJobConfigs(jobScheduler.properties, path,
-          jobConfigFileDirPath)) {
+          jobConfigFileDirPath, this.jobSpecResolver)) {
         try {
           switch (action) {
             case SCHEDULE:

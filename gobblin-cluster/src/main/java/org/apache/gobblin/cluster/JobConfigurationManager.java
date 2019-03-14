@@ -18,9 +18,11 @@
 package org.apache.gobblin.cluster;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
 
+import org.apache.gobblin.runtime.job_spec.JobSpecResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,6 +68,7 @@ public class JobConfigurationManager extends AbstractIdleService implements Stan
   protected final EventBus eventBus;
   protected final Config config;
   protected Optional<String> jobConfDirPath;
+  protected final JobSpecResolver jobSpecResolver;
 
   public JobConfigurationManager(EventBus eventBus, Config config) {
     this.eventBus = eventBus;
@@ -74,6 +77,11 @@ public class JobConfigurationManager extends AbstractIdleService implements Stan
     this.jobConfDirPath =
         config.hasPath(GobblinClusterConfigurationKeys.JOB_CONF_PATH_KEY) ? Optional
             .of(config.getString(GobblinClusterConfigurationKeys.JOB_CONF_PATH_KEY)) : Optional.<String>absent();
+    try {
+      this.jobSpecResolver = JobSpecResolver.builder(config).build();
+    } catch (IOException ioe) {
+      throw new RuntimeException(ioe);
+    }
   }
 
   @Override
@@ -94,7 +102,7 @@ public class JobConfigurationManager extends AbstractIdleService implements Stan
         LOGGER.info("Loading job configurations from " + jobConfigDir);
         Properties properties = ConfigUtils.configToProperties(this.config);
         properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, "file://" + jobConfigDir.getAbsolutePath());
-        List<Properties> jobConfigs = SchedulerUtils.loadGenericJobConfigs(properties);
+        List<Properties> jobConfigs = SchedulerUtils.loadGenericJobConfigs(properties, this.jobSpecResolver);
         LOGGER.info("Loaded " + jobConfigs.size() + " job configuration(s)");
         for (Properties config : jobConfigs) {
           postNewJobConfigArrival(config.getProperty(ConfigurationKeys.JOB_NAME_KEY), config);

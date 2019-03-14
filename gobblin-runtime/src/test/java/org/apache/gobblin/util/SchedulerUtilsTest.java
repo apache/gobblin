@@ -19,6 +19,9 @@ package org.apache.gobblin.util;
 
 import com.google.common.collect.Sets;
 import com.google.common.io.Files;
+import com.typesafe.config.ConfigFactory;
+
+import org.apache.gobblin.runtime.job_spec.JobSpecResolver;
 import org.apache.gobblin.util.filesystem.PathAlterationListener;
 import org.apache.gobblin.util.filesystem.PathAlterationListenerAdaptor;
 import org.apache.gobblin.util.filesystem.PathAlterationObserverScheduler;
@@ -118,7 +121,7 @@ public class SchedulerUtilsTest {
       throws ConfigurationException, IOException {
     Properties properties = new Properties();
     properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, this.jobConfigDir.getAbsolutePath());
-    List<Properties> jobConfigs = SchedulerUtils.loadGenericJobConfigs(properties);
+    List<Properties> jobConfigs = SchedulerUtils.loadGenericJobConfigs(properties, JobSpecResolver.mock());
     Assert.assertEquals(jobConfigs.size(), 4);
 
     // test-job-conf-dir/test1/test11/test111.pull
@@ -174,7 +177,7 @@ public class SchedulerUtilsTest {
     Properties properties = new Properties();
     properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, this.jobConfigDir.getAbsolutePath());
     List<Properties> jobConfigs = SchedulerUtils.loadGenericJobConfigs(properties, commonPropsPath,
-        new Path(this.jobConfigDir.getAbsolutePath()));
+        new Path(this.jobConfigDir.getAbsolutePath()), JobSpecResolver.mock());
     Assert.assertEquals(jobConfigs.size(), 3);
 
     // test-job-conf-dir/test1/test11/test111.pull
@@ -210,7 +213,8 @@ public class SchedulerUtilsTest {
     Properties properties = new Properties();
     properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, this.jobConfigDir.getAbsolutePath());
     Properties jobProps =
-        SchedulerUtils.loadGenericJobConfig(properties, jobConfigPath, new Path(this.jobConfigDir.getAbsolutePath()));
+        SchedulerUtils.loadGenericJobConfig(properties, jobConfigPath, new Path(this.jobConfigDir.getAbsolutePath()),
+            JobSpecResolver.builder(ConfigFactory.empty()).build());
 
     Assert.assertEquals(jobProps.stringPropertyNames().size(), 7);
     Assert.assertTrue(jobProps.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY) || jobProps.containsKey(
@@ -275,12 +279,14 @@ public class SchedulerUtilsTest {
     Path path = new Path(getClass().getClassLoader().getResource("schedulerUtilsTest").getFile());
 
     Properties pullFile =
-        SchedulerUtils.loadGenericJobConfig(new Properties(), new Path(path, "templated.pull"), path);
+        SchedulerUtils.loadGenericJobConfig(new Properties(), new Path(path, "templated.pull"), path,
+            JobSpecResolver.builder(ConfigFactory.empty()).build());
 
     Assert.assertEquals(pullFile.getProperty("gobblin.dataset.pattern"), "pattern");
     Assert.assertEquals(pullFile.getProperty("job.name"), "GobblinDatabaseCopyTest");
 
-    List<Properties> jobConfigs = SchedulerUtils.loadGenericJobConfigs(new Properties(), new Path(path, "templated.pull"), path);
+    List<Properties> jobConfigs = SchedulerUtils.loadGenericJobConfigs(new Properties(), new Path(path, "templated.pull"),
+        path, JobSpecResolver.mock());
     Properties pullFile2 = getJobConfigForFile(jobConfigs, "templated.pull");
 
     Assert.assertEquals(pullFile2.getProperty("gobblin.dataset.pattern"), "pattern");
@@ -288,7 +294,7 @@ public class SchedulerUtilsTest {
 
     Properties props = new Properties();
     props.put(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, path.toString());
-    List<Properties> jobConfigs3 = SchedulerUtils.loadGenericJobConfigs(props);
+    List<Properties> jobConfigs3 = SchedulerUtils.loadGenericJobConfigs(props, JobSpecResolver.mock());
     Properties pullFile3 = getJobConfigForFile(jobConfigs3, "templated.pull");
 
     Assert.assertEquals(pullFile3.getProperty("gobblin.dataset.pattern"), "pattern");

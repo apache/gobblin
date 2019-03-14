@@ -38,6 +38,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.avro.SchemaBuilder;
 import org.apache.commons.lang3.ClassUtils;
+import org.apache.gobblin.runtime.job_spec.JobSpecResolver;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -439,19 +440,16 @@ public class EmbeddedGobblin {
     } else {
       Config finalConfig = userConfig.withFallback(sysProps);
       if (this.template != null) {
-        try {
-          finalConfig = this.template.getResolvedConfig(finalConfig);
-        } catch (SpecNotFoundException | JobTemplate.TemplateException exc) {
-          throw new RuntimeException(exc);
-        }
+        this.specBuilder.withTemplate(this.template);
       }
       jobSpec = this.specBuilder.withConfig(finalConfig).build();
     }
 
     ResolvedJobSpec resolvedJobSpec;
     try {
-      resolvedJobSpec = new ResolvedJobSpec(jobSpec);
-    } catch (SpecNotFoundException | JobTemplate.TemplateException exc) {
+      JobSpecResolver resolver = JobSpecResolver.builder(sysProps).build();
+      resolvedJobSpec = resolver.resolveJobSpec(jobSpec);
+    } catch (SpecNotFoundException | JobTemplate.TemplateException | IOException exc) {
       throw new RuntimeException("Failed to resolved template.", exc);
     }
     final JobCatalog jobCatalog = new StaticJobCatalog(Optional.of(this.useLog), Lists.<JobSpec>newArrayList(resolvedJobSpec));

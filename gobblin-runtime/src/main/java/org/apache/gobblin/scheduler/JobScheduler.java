@@ -33,7 +33,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import org.apache.commons.configuration.ConfigurationException;
+import org.apache.gobblin.runtime.job_spec.JobSpecResolver;
 import org.apache.gobblin.source.Source;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.hadoop.fs.Path;
 
 import org.quartz.CronScheduleBuilder;
@@ -137,6 +139,9 @@ public class JobScheduler extends AbstractIdleService {
   private final Closer closer = Closer.create();
 
   @Getter
+  private final JobSpecResolver jobSpecResolver;
+
+  @Getter
   private volatile boolean cancelRequested = false;
 
   public JobScheduler(Properties properties, SchedulerService scheduler)
@@ -171,6 +176,8 @@ public class JobScheduler extends AbstractIdleService {
       this.jobConfigFileDirPath = null;
       this.listener = null;
     }
+
+    this.jobSpecResolver = JobSpecResolver.builder(ConfigUtils.propertiesToConfig(properties)).build();
   }
 
   @Override
@@ -523,7 +530,7 @@ public class JobScheduler extends AbstractIdleService {
    */
   private List<Properties> loadGeneralJobConfigs()
       throws ConfigurationException, IOException {
-    List<Properties> jobConfigs = SchedulerUtils.loadGenericJobConfigs(this.properties);
+    List<Properties> jobConfigs = SchedulerUtils.loadGenericJobConfigs(this.properties, this.jobSpecResolver);
     LOG.info(String.format("Loaded %d job configurations", jobConfigs.size()));
     return jobConfigs;
   }

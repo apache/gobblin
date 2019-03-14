@@ -74,4 +74,29 @@ public class StaticJobTemplateTest {
     Assert.assertEquals(resolved.getString("required2"), "r2");
   }
 
+  @Test
+  public void testSecure() throws Exception {
+    Map<String, Object> confMap = Maps.newHashMap();
+    confMap.put("nonOverridableKey", "value1");
+    confMap.put("overridableKey", "value1");
+    confMap.put(StaticJobTemplate.IS_SECURE_KEY, true);
+    confMap.put(StaticJobTemplate.SECURE_OVERRIDABLE_PROPERTIES_KEYS, "overridableKey, overridableKey2");
+
+    StaticJobTemplate template = new StaticJobTemplate(URI.create("my://template"), "1", "desc", ConfigFactory.parseMap(confMap), null);
+
+    Config userConfig = ConfigFactory.parseMap(ImmutableMap.of(
+        "overridableKey", "override",
+        "overridableKey2", "override2",
+        "nonOverridableKey", "override",
+        "somethingElse", "override"));
+    Config resolved = template.getResolvedConfig(userConfig);
+
+    Assert.assertEquals(resolved.entrySet().size(), 5);
+    Assert.assertEquals(resolved.getString("nonOverridableKey"), "value1");
+    Assert.assertEquals(resolved.getString("overridableKey"), "override");
+    Assert.assertEquals(resolved.getString("overridableKey2"), "override2");
+    Assert.assertFalse(resolved.hasPath("somethingElse"));
+
+  }
+
 }
