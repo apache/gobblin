@@ -49,6 +49,7 @@ import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecCatalogListener;
 import org.apache.gobblin.runtime.listeners.JobListener;
+import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
 import org.apache.gobblin.scheduler.BaseGobblinJob;
@@ -69,7 +70,7 @@ import org.apache.gobblin.util.PropertiesUtils;
  * and runs them via {@link Orchestrator}.
  */
 @Alpha
-public class GobblinServiceJobScheduler extends JobScheduler implements SpecCatalogListener<String> {
+public class GobblinServiceJobScheduler extends JobScheduler implements SpecCatalogListener {
   protected final Logger _log;
 
   protected final Optional<FlowCatalog> flowCatalog;
@@ -181,7 +182,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
 
   /** {@inheritDoc} */
   @Override
-  public String onAddSpec(Spec addedSpec) {
+  public AddSpecResponse onAddSpec(Spec addedSpec) {
     if (this.helixManager.isPresent() && !this.helixManager.get().isConnected()) {
       // Specs in store will be notified when Scheduler is added as listener to FlowCatalog, so ignore
       // .. Specs if in cluster mode and Helix is not yet initialized
@@ -241,7 +242,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
             this.flowCatalog.get().remove(flowSpec.getUri(), new Properties(), false);
           }
         }
-        return compiledFlow;
+        return new AddSpecResponse(compiledFlow);
       } catch (JobException je) {
         _log.error("{} Failed to schedule or run FlowSpec {}", serviceName,  addedSpec, je);
       }

@@ -36,8 +36,8 @@ import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.util.callbacks.CallbacksDispatcher;
 
 
-public class SpecCatalogListenersList implements SpecCatalogListener<CallbacksDispatcher.CallbackResults<SpecCatalogListener<Object>, Object>>, SpecCatalogListenersContainer, Closeable {
-  private final CallbacksDispatcher<SpecCatalogListener<Object>> _disp;
+public class SpecCatalogListenersList implements SpecCatalogListener, SpecCatalogListenersContainer, Closeable {
+  private final CallbacksDispatcher<SpecCatalogListener> _disp;
 
   public SpecCatalogListenersList() {
     this(Optional.<Logger>absent());
@@ -51,7 +51,7 @@ public class SpecCatalogListenersList implements SpecCatalogListener<CallbacksDi
     return _disp.getLog();
   }
 
-  public synchronized List<SpecCatalogListener<Object>> getListeners() {
+  public synchronized List<SpecCatalogListener> getListeners() {
     return _disp.getListeners();
   }
 
@@ -66,10 +66,10 @@ public class SpecCatalogListenersList implements SpecCatalogListener<CallbacksDi
   }
 
   @Override
-  public synchronized CallbacksDispatcher.CallbackResults<SpecCatalogListener<Object>, Object> onAddSpec(Spec addedSpec) {
+  public synchronized AddSpecResponse onAddSpec(Spec addedSpec) {
     Preconditions.checkNotNull(addedSpec);
     try {
-      return _disp.execCallbacks(new AddSpecCallback<>(addedSpec));
+      return new AddSpecResponse<>(_disp.execCallbacks(new AddSpecCallback(addedSpec)));
     } catch (InterruptedException e) {
       getLog().warn("onAddSpec interrupted.");
     }
@@ -103,7 +103,7 @@ public class SpecCatalogListenersList implements SpecCatalogListener<CallbacksDi
     _disp.close();
   }
 
-  public void callbackOneListener(Function<SpecCatalogListener<Object>, Object> callback,
+  public void callbackOneListener(Function<SpecCatalogListener, AddSpecResponse> callback,
       SpecCatalogListener listener) {
     try {
       _disp.execCallbacks(callback, listener);

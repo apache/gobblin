@@ -40,6 +40,7 @@ import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.ContextAwareTimer;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -63,7 +64,7 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, Instrumentab
   Spec getSpec(URI uri) throws SpecNotFoundException;
 
   @Slf4j
-  class StandardMetrics extends StandardMetricsBridge.StandardMetrics implements SpecCatalogListener<Void> {
+  class StandardMetrics extends StandardMetricsBridge.StandardMetrics implements SpecCatalogListener {
     public static final String NUM_ACTIVE_SPECS_NAME = "numActiveSpecs";
     public static final String TOTAL_ADD_CALLS = "totalAddCalls";
     public static final String TOTAL_DELETE_CALLS = "totalDeleteCalls";
@@ -119,10 +120,10 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, Instrumentab
       Instrumented.updateTimer(Optional.of(this.timeForSpecCatalogGet), System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
     }
 
-    @Override public Void onAddSpec(Spec addedSpec) {
+    @Override public AddSpecResponse onAddSpec(Spec addedSpec) {
       this.totalAddedSpecs.incrementAndGet();
       submitTrackingEvent(addedSpec, SPEC_ADDED_OPERATION_TYPE);
-      return null;
+      return new AddSpecResponse(null);
     }
 
     private void submitTrackingEvent(Spec spec, String operType) {

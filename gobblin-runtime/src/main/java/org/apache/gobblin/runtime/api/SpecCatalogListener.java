@@ -22,12 +22,13 @@ import java.util.Properties;
 
 import com.google.common.base.Objects;
 
+import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.apache.gobblin.util.callbacks.Callback;
 
-public interface SpecCatalogListener<T> {
+public interface SpecCatalogListener {
   /** Invoked when a new {@link Spec} is added to the catalog and for all pre-existing specs on registration
    * of the listener.*/
-  T onAddSpec(Spec addedSpec);
+  AddSpecResponse onAddSpec(Spec addedSpec);
 
   /**
    * Invoked when a {@link Spec} gets removed from the catalog.
@@ -40,14 +41,14 @@ public interface SpecCatalogListener<T> {
   public void onUpdateSpec(Spec updatedSpec);
 
   /** A standard implementation of onAddSpec as a functional object */
-  public static class AddSpecCallback<T> extends Callback<SpecCatalogListener<T>, T> {
+  public static class AddSpecCallback extends Callback<SpecCatalogListener, AddSpecResponse> {
     private final Spec _addedSpec;
     public AddSpecCallback(Spec addedSpec) {
       super(Objects.toStringHelper("onAddSpec").add("addedSpec", addedSpec).toString());
       _addedSpec = addedSpec;
     }
 
-    @Override public T apply(SpecCatalogListener<T> listener) {
+    @Override public AddSpecResponse apply(SpecCatalogListener listener) {
       return listener.onAddSpec(_addedSpec);
     }
   }

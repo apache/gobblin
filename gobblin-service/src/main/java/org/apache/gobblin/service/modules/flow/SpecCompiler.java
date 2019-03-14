@@ -33,7 +33,7 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
  * Take in a logical {@link Spec} and compile corresponding materialized {@link Spec}s
  * and the mapping to {@link SpecExecutor} that they can be run on.
  */
-public interface SpecCompiler extends SpecCatalogListener<Void>, Instrumentable {
+public interface SpecCompiler extends SpecCatalogListener, Instrumentable {
   /***
    * Take in a logical {@link Spec} and compile corresponding materialized {@link Spec}s
    * and the mapping to {@link SpecExecutor} that they can be run on.
