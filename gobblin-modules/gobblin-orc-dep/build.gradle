@@ -45,6 +45,7 @@ configurations {
   compile {
     exclude group: "commons-cli"
     exclude group: "org.apache.avro"
+    exclude group: "org.apache.httpcomponents"
   }
 }
 
