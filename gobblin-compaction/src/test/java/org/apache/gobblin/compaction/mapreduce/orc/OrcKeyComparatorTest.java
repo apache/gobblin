@@ -142,31 +142,44 @@ public class OrcKeyComparatorTest {
     // base record
     OrcStruct record0 = (OrcStruct) OrcStruct.createValue(schema);
     record0.setFieldValue("a", new IntWritable(1));
-    OrcMap orcMap = createOrcMap(new Text("key"), new Text("value"), mapFieldSchema);
+    OrcMap orcMap = createSimpleOrcMap(new Text("key"), new Text("value"), mapFieldSchema);
     record0.setFieldValue("b", orcMap);
 
     // key value both differ
     OrcStruct record1 = (OrcStruct) OrcStruct.createValue(schema);
     record1.setFieldValue("a", new IntWritable(1));
-    OrcMap orcMap1 = createOrcMap(new Text("key_key"), new Text("value_value"), mapFieldSchema);
+    OrcMap orcMap1 = createSimpleOrcMap(new Text("key_key"), new Text("value_value"), mapFieldSchema);
     record1.setFieldValue("b", orcMap1);
 
     // Key same, value differ
     OrcStruct record2 = (OrcStruct) OrcStruct.createValue(schema);
     record2.setFieldValue("a", new IntWritable(1));
-    OrcMap orcMap2 = createOrcMap(new Text("key"), new Text("value_value"), mapFieldSchema);
+    OrcMap orcMap2 = createSimpleOrcMap(new Text("key"), new Text("value_value"), mapFieldSchema);
     record2.setFieldValue("b", orcMap2);
 
     // Same as base
     OrcStruct record3 = (OrcStruct) OrcStruct.createValue(schema);
     record3.setFieldValue("a", new IntWritable(1));
-    OrcMap orcMap3 = createOrcMap(new Text("key"), new Text("value"), mapFieldSchema);
+    OrcMap orcMap3 = createSimpleOrcMap(new Text("key"), new Text("value"), mapFieldSchema);
     record3.setFieldValue("b", orcMap3);
 
     // Differ in other field.
     OrcStruct record4 = (OrcStruct) OrcStruct.createValue(schema);
     record4.setFieldValue("a", new IntWritable(2));
     record4.setFieldValue("b", orcMap);
+
+    // Record with map containing multiple entries but inserted in different order.
+    OrcStruct record6 = (OrcStruct) OrcStruct.createValue(schema);
+    record6.setFieldValue("a", new IntWritable(1));
+    OrcMap orcMap6 = createSimpleOrcMap(new Text("key"), new Text("value"), mapFieldSchema);
+    orcMap6.put(new Text("keyLater"), new Text("valueLater"));
+    record6.setFieldValue("b", orcMap6);
+
+    OrcStruct record7 = (OrcStruct) OrcStruct.createValue(schema);
+    record7.setFieldValue("a", new IntWritable(1));
+    OrcMap orcMap7 = createSimpleOrcMap(new Text("keyLater"), new Text("valueLater"), mapFieldSchema);
+    orcMap7.put(new Text("key"), new Text("value"));
+    record7.setFieldValue("b", orcMap7);
 
     OrcKey orcKey0 = new OrcKey();
     orcKey0.key = record0;
@@ -179,11 +192,17 @@ public class OrcKeyComparatorTest {
     OrcKey orcKey4 = new OrcKey();
     orcKey4.key = record4;
 
+    OrcKey orcKey6 = new OrcKey();
+    orcKey6.key = record6;
+    OrcKey orcKey7 = new OrcKey();
+    orcKey7.key = record7;
+
     Assert.assertTrue(comparator.compare(orcKey0, orcKey1) < 0);
     Assert.assertTrue(comparator.compare(orcKey1, orcKey2) > 0);
     Assert.assertTrue(comparator.compare(orcKey2, orcKey3) > 0);
     Assert.assertTrue(comparator.compare(orcKey0, orcKey3) == 0);
     Assert.assertTrue(comparator.compare(orcKey0, orcKey4) < 0);
+    Assert.assertTrue(comparator.compare(orcKey6, orcKey7) == 0);
   }
 
   // Test comparison for union containing complex types and nested record inside.
@@ -281,7 +300,7 @@ public class OrcKeyComparatorTest {
     Assert.assertTrue(comparator.compare(orcKey4, orcKey5) == 0);
   }
 
-  private OrcMap createOrcMap(Text key, Text value, TypeDescription schema) {
+  private OrcMap createSimpleOrcMap(Text key, Text value, TypeDescription schema) {
     TreeMap map = new TreeMap<Text, Text>();
     map.put(key, value);
     OrcMap result = new OrcMap(schema);

@@ -27,8 +27,8 @@ import org.apache.hadoop.mapreduce.lib.input.CombineFileRecordReader;
 import org.apache.hadoop.mapreduce.lib.input.CombineFileSplit;
 import org.apache.orc.mapred.OrcValue;
 
-public class OrcValueRecursiveCombineFileInputFormat extends CompactionCombineFileInputFormat<NullWritable, OrcValue> {
-  
+public class OrcValueCombineFileInputFormat extends CompactionCombineFileInputFormat<NullWritable, OrcValue> {
+
   @Override
   public RecordReader<NullWritable, OrcValue> createRecordReader(InputSplit split, TaskAttemptContext context)
       throws IOException {

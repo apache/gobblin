@@ -23,7 +23,7 @@ import org.apache.gobblin.compaction.mapreduce.orc.OrcKeyComparator;
 import org.apache.gobblin.compaction.mapreduce.orc.OrcKeyDedupReducer;
 import org.apache.gobblin.compaction.mapreduce.orc.OrcUtils;
 import org.apache.gobblin.compaction.mapreduce.orc.OrcValueMapper;
-import org.apache.gobblin.compaction.mapreduce.orc.OrcValueRecursiveCombineFileInputFormat;
+import org.apache.gobblin.compaction.mapreduce.orc.OrcValueCombineFileInputFormat;
 import org.apache.gobblin.configuration.State;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.Job;
@@ -31,7 +31,6 @@ import org.apache.orc.OrcConf;
 import org.apache.orc.TypeDescription;
 import org.apache.orc.mapred.OrcKey;
 import org.apache.orc.mapred.OrcValue;
-import org.apache.orc.mapreduce.OrcOutputFormat;
 
 import static org.apache.gobblin.compaction.mapreduce.CompactorOutputCommitter.*;
 
@@ -63,7 +62,7 @@ public class CompactionOrcJobConfigurator extends CompactionJobConfigurator {
   }
 
   protected void configureMapper(Job job) {
-    job.setInputFormatClass(OrcValueRecursiveCombineFileInputFormat.class);
+    job.setInputFormatClass(OrcValueCombineFileInputFormat.class);
     job.setMapperClass(OrcValueMapper.class);
     job.setMapOutputKeyClass(OrcKey.class);
     job.setMapOutputValueClass(OrcValue.class);

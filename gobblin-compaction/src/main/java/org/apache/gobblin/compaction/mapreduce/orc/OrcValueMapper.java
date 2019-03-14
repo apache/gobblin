@@ -58,9 +58,8 @@ public class OrcValueMapper extends RecordKeyMapperBase<NullWritable, OrcStruct,
   }
 
   /**
-   * By default, dedup key contains the whole ORC record.
-   * Verified in OrcKeyComparatorTest, unlike Avro where complex types including MAP, ARRAY, ENUM and UNIONS containing
-   * these fields are not comparable, ORC has all types comparable.
+   * By default, dedup key contains the whole ORC record, except MAP since {@link org.apache.orc.mapred.OrcMap} is
+   * an implementation of {@link java.util.TreeMap} which doesn't accept difference of records within the map in comparison.
    */
   protected OrcKey getDedupKey(OrcStruct originalRecord) {
     return convertOrcStructToOrcKey(originalRecord);
@@ -70,7 +69,7 @@ public class OrcValueMapper extends RecordKeyMapperBase<NullWritable, OrcStruct,
    * The output key of mapper needs to be comparable. In the scenarios that we need the orc record itself
    * to be the output key, this conversion will be necessary.
    */
-  private OrcKey convertOrcStructToOrcKey(OrcStruct struct) {
+  protected OrcKey convertOrcStructToOrcKey(OrcStruct struct) {
     OrcKey orcKey = new OrcKey();
     orcKey.key = struct;
     return orcKey;
