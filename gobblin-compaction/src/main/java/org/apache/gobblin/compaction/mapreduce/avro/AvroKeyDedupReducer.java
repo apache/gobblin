@@ -17,20 +17,16 @@
 
 package org.apache.gobblin.compaction.mapreduce.avro;
 
-import java.io.IOException;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
 import java.util.Comparator;
-
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.mapred.AvroKey;
 import org.apache.avro.mapred.AvroValue;
+import org.apache.gobblin.compaction.mapreduce.RecordKeyDedupReducerBase;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
-import org.apache.hadoop.mapreduce.Reducer;
-
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
-
-import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**
@@ -40,60 +36,39 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
  *
  * @author Ziyang Liu
  */
-public class AvroKeyDedupReducer extends Reducer<AvroKey<GenericRecord>, AvroValue<GenericRecord>, AvroKey<GenericRecord>, NullWritable> {
-
-  public enum EVENT_COUNTER {
-    MORE_THAN_1,
-    DEDUPED,
-    RECORD_COUNT
-  }
+public class AvroKeyDedupReducer extends RecordKeyDedupReducerBase<AvroKey<GenericRecord>, AvroValue<GenericRecord>,
+    AvroKey<GenericRecord>, NullWritable> {
 
   public static final String DELTA_SCHEMA_PROVIDER =
       "org.apache.gobblin.compaction." + AvroKeyDedupReducer.class.getSimpleName() + ".deltaFieldsProvider";
-  private AvroKey<GenericRecord> outKey;
-  private Optional<AvroValueDeltaSchemaComparator> deltaComparatorOptional;
-  private AvroDeltaFieldNameProvider deltaFieldNamesProvider;
 
   @Override
-  protected void setup(Context context)
-      throws IOException, InterruptedException {
-    this.outKey = new AvroKey<>();
-    this.deltaComparatorOptional = Optional.absent();
-    Configuration conf = context.getConfiguration();
+  protected void initReusableObject() {
+    outKey = new AvroKey<>();
+    outValue = NullWritable.get();
+  }
+
+  @Override
+  protected void setOutKey(AvroValue<GenericRecord> valueToRetain) {
+    outKey.datum(valueToRetain.datum());
+  }
+
+  @Override
+  protected void setOutValue(AvroValue<GenericRecord> valueToRetain) {
+    // do nothing since initReusableObject has assigned value for outValue.
+  }
+
+  @Override
+  protected void initDeltaComparator(Configuration conf) {
+    deltaComparatorOptional = Optional.absent();
     String deltaSchemaProviderClassName = conf.get(DELTA_SCHEMA_PROVIDER);
     if (deltaSchemaProviderClassName != null) {
-      this.deltaFieldNamesProvider =
-          GobblinConstructorUtils.invokeConstructor(AvroDeltaFieldNameProvider.class, deltaSchemaProviderClassName, conf);
-      this.deltaComparatorOptional = Optional.of(new AvroValueDeltaSchemaComparator(deltaFieldNamesProvider));
+      deltaComparatorOptional = Optional.of(new AvroValueDeltaSchemaComparator(
+          GobblinConstructorUtils.invokeConstructor(AvroDeltaFieldNameProvider.class, deltaSchemaProviderClassName,
+              conf)));
     }
   }
 
-  @Override
-  protected void reduce(AvroKey<GenericRecord> key, Iterable<AvroValue<GenericRecord>> values, Context context)
-      throws IOException, InterruptedException {
-    int numVals = 0;
-
-    AvroValue<GenericRecord> valueToRetain = null;
-
-    for (AvroValue<GenericRecord> value : values) {
-      if (valueToRetain == null) {
-        valueToRetain = value;
-      } else if (this.deltaComparatorOptional.isPresent()) {
-        valueToRetain = this.deltaComparatorOptional.get().compare(valueToRetain, value) >= 0 ? valueToRetain : value;
-      }
-      numVals++;
-    }
-    this.outKey.datum(valueToRetain.datum());
-
-    if (numVals > 1) {
-      context.getCounter(EVENT_COUNTER.MORE_THAN_1).increment(1);
-      context.getCounter(EVENT_COUNTER.DEDUPED).increment(numVals - 1);
-    }
-
-    context.getCounter(EVENT_COUNTER.RECORD_COUNT).increment(1);
-
-    context.write(this.outKey, NullWritable.get());
-  }
 
   @VisibleForTesting
   protected static class AvroValueDeltaSchemaComparator implements Comparator<AvroValue<GenericRecord>> {
@@ -105,21 +80,16 @@ public class AvroKeyDedupReducer extends Reducer<AvroKey<GenericRecord>, AvroVal
 
     @Override
     public int compare(AvroValue<GenericRecord> o1, AvroValue<GenericRecord> o2) {
-      GenericRecord record1= o1.datum();
+      GenericRecord record1 = o1.datum();
       GenericRecord record2 = o2.datum();
       for (String deltaFieldName : this.deltaSchemaProvider.getDeltaFieldNames(record1)) {
         if (record1.get(deltaFieldName).equals(record2.get(deltaFieldName))) {
           continue;
         }
-        return ((Comparable)record1.get(deltaFieldName)).compareTo(record2.get(deltaFieldName));
+        return ((Comparable) record1.get(deltaFieldName)).compareTo(record2.get(deltaFieldName));
       }
 
       return 0;
     }
-  }
-
-  @VisibleForTesting
-  protected AvroKey<GenericRecord> getOutKey() {
-    return this.outKey;
   }
 }

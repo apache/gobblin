@@ -387,7 +387,7 @@ public class OrcTestTools extends DataTestTools<OrcTestTools.OrcRowIterator, Typ
   }
 
   /**
-   * An iterator over {@link GenericRecord} which is also aware of schema.
+   * An iterator over {@link OrcStruct} which is also aware of schema( Represented in {@link TypeInfo}).
    */
   @AllArgsConstructor
   public static class OrcRowIterator implements Iterator<Writable> {

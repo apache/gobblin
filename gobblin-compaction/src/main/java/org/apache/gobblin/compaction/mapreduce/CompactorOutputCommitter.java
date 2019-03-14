@@ -15,12 +15,13 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.compaction.mapreduce.avro;
+package org.apache.gobblin.compaction.mapreduce;
 
 import java.io.IOException;
 import java.lang.reflect.Method;
-
 import org.apache.commons.io.FilenameUtils;
+import org.apache.gobblin.compaction.mapreduce.avro.MRCompactorAvroKeyDedupJobRunner;
+import org.apache.gobblin.util.recordcount.CompactionRecordCountProvider;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -31,22 +32,29 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.gobblin.util.recordcount.CompactionRecordCountProvider;
-
 
 /**
  * Class used with {@link MRCompactorAvroKeyDedupJobRunner} to rename files as they
  * are being committed. In addition to moving files from their working directory to
  * the commit output directory, the files are named to include a timestamp and a
  * count of how many records the file contains, in the format
- * {recordCount}.{timestamp}.avro.
+ * {recordCount}.{timestamp}.<extensionName>(avro, orc, etc.).
  */
-public class AvroKeyCompactorOutputCommitter extends FileOutputCommitter {
+public class CompactorOutputCommitter extends FileOutputCommitter {
+  /**
+   * Note that the value of this key doesn't have dot.
+   */
+  public static final String COMPACTION_OUTPUT_EXTENSION = "compaction.output.extension";
+  public static final String DEFAULT_COMPACTION_OUTPUT_EXTENSION = "avro";
 
-  private static final Logger LOG = LoggerFactory.getLogger(AvroKeyCompactorOutputCommitter.class);
+  private static final Logger LOG = LoggerFactory.getLogger(CompactorOutputCommitter.class);
 
-  public AvroKeyCompactorOutputCommitter(Path output, TaskAttemptContext context) throws IOException {
+  private final String compactionFileExtension;
+
+  public CompactorOutputCommitter(Path output, TaskAttemptContext context) throws IOException {
     super(output, context);
+    compactionFileExtension = context.getConfiguration().get(COMPACTION_OUTPUT_EXTENSION,
+        DEFAULT_COMPACTION_OUTPUT_EXTENSION);
   }
 
   /**
@@ -62,23 +70,24 @@ public class AvroKeyCompactorOutputCommitter extends FileOutputCommitter {
     FileSystem fs = workPath.getFileSystem(context.getConfiguration());
 
     if (fs.exists(workPath)) {
-      long recordCount = getRecordCountFromCounter(context, AvroKeyDedupReducer.EVENT_COUNTER.RECORD_COUNT);
+      long recordCount = getRecordCountFromCounter(context, RecordKeyDedupReducerBase.EVENT_COUNTER.RECORD_COUNT);
       String fileNamePrefix;
       if (recordCount == 0) {
 
         // recordCount == 0 indicates that it is a map-only, non-dedup job, and thus record count should
         // be obtained from mapper counter.
         fileNamePrefix = CompactionRecordCountProvider.M_OUTPUT_FILE_PREFIX;
-        recordCount = getRecordCountFromCounter(context, AvroKeyMapper.EVENT_COUNTER.RECORD_COUNT);
+        recordCount = getRecordCountFromCounter(context, RecordKeyMapperBase.EVENT_COUNTER.RECORD_COUNT);
       } else {
         fileNamePrefix = CompactionRecordCountProvider.MR_OUTPUT_FILE_PREFIX;
       }
-      String fileName = CompactionRecordCountProvider.constructFileName(fileNamePrefix, recordCount);
+      String fileName = CompactionRecordCountProvider.constructFileName(fileNamePrefix,
+          "." + compactionFileExtension, recordCount);
 
       for (FileStatus status : fs.listStatus(workPath, new PathFilter() {
         @Override
         public boolean accept(Path path) {
-          return FilenameUtils.isExtension(path.getName(), "avro");
+          return FilenameUtils.isExtension(path.getName(), compactionFileExtension);
         }
       })) {
         Path newPath = new Path(status.getPath().getParent(), fileName);

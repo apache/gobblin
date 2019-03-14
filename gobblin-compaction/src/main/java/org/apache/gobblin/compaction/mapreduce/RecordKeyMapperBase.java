@@ -15,26 +15,13 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.util.recordcount;
+package org.apache.gobblin.compaction.mapreduce;
 
-import java.util.regex.Pattern;
-
-import org.apache.hadoop.fs.Path;
-import org.testng.Assert;
-import org.testng.annotations.Test;
+import org.apache.hadoop.mapreduce.Mapper;
 
 
-/**
- * Tests for {@link CompactionRecordCountProvider}.
- */
-@Test(groups = { "gobblin.util.recordcount" })
-public class CompactionRecordCountProviderTest {
-  @Test
-  public void testFileNameRecordCountProvider() {
-    CompactionRecordCountProvider filenameRecordCountProvider = new CompactionRecordCountProvider();
-
-    Pattern pattern = Pattern.compile("part\\-r\\-123\\.[\\d]*\\.[\\d]*\\.avro");
-    Assert.assertTrue(pattern.matcher(CompactionRecordCountProvider.constructFileName("part-r-", ".avro", 123)).matches());
-    Assert.assertEquals(filenameRecordCountProvider.getRecordCount(new Path("part-r-123.1.2.avro")), 123);
+public abstract class RecordKeyMapperBase<KI, VI, KO, VO> extends Mapper<KI, VI, KO, VO> {
+  public enum EVENT_COUNTER {
+    RECORD_COUNT
   }
 }

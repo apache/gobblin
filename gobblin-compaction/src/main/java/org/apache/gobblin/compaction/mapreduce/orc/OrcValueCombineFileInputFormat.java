@@ -15,11 +15,9 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.compaction.mapreduce.avro;
+package org.apache.gobblin.compaction.mapreduce.orc;
 
 import java.io.IOException;
-import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.mapred.AvroKey;
 import org.apache.gobblin.compaction.mapreduce.CompactionCombineFileInputFormat;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.InputSplit;
@@ -27,21 +25,13 @@ import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.input.CombineFileRecordReader;
 import org.apache.hadoop.mapreduce.lib.input.CombineFileSplit;
+import org.apache.orc.mapred.OrcValue;
 
-
-/**
- * A subclass of {@link org.apache.hadoop.mapreduce.lib.input.CombineFileInputFormat} for Avro inputfiles.
- * This class is able to handle the case where the input path has subdirs which contain data files, which
- * is not the case with {@link org.apache.hadoop.mapreduce.lib.input.CombineFileInputFormat}.
- *
- * @author Ziyang Liu
- */
-public class AvroKeyRecursiveCombineFileInputFormat
-    extends CompactionCombineFileInputFormat<AvroKey<GenericRecord>, NullWritable> {
+public class OrcValueCombineFileInputFormat extends CompactionCombineFileInputFormat<NullWritable, OrcValue> {
 
   @Override
-  public RecordReader<AvroKey<GenericRecord>, NullWritable> createRecordReader(InputSplit split, TaskAttemptContext cx)
+  public RecordReader<NullWritable, OrcValue> createRecordReader(InputSplit split, TaskAttemptContext context)
       throws IOException {
-    return new CombineFileRecordReader<>((CombineFileSplit) split, cx, AvroKeyCombineFileRecordReader.class);
+    return new CombineFileRecordReader((CombineFileSplit) split, context, OrcValueCombineFileRecordReader.class);
   }
 }

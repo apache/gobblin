@@ -20,6 +20,7 @@ package org.apache.gobblin.compaction.mapreduce.avro;
 import java.io.IOException;
 
 import org.apache.avro.mapreduce.AvroKeyOutputFormat;
+import org.apache.gobblin.compaction.mapreduce.CompactorOutputCommitter;
 import org.apache.hadoop.mapreduce.OutputCommitter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter;
@@ -38,7 +39,7 @@ public class AvroKeyCompactorOutputFormat<T> extends AvroKeyOutputFormat<T> {
   @Override
   public synchronized OutputCommitter getOutputCommitter(TaskAttemptContext context) throws IOException {
     if (this.committer == null) {
-      this.committer = new AvroKeyCompactorOutputCommitter(FileOutputFormat.getOutputPath(context), context);
+      this.committer = new CompactorOutputCommitter(FileOutputFormat.getOutputPath(context), context);
     }
     return this.committer;
   }

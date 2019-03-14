@@ -17,8 +17,6 @@
 
 package org.apache.gobblin.compaction.mapreduce;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 import java.io.IOException;
@@ -66,7 +64,6 @@ public abstract class CompactionJobConfigurator {
   public static final String COMPACTION_JOB_CONFIGURATOR_FACTORY_CLASS_KEY = "compaction.jobConfiguratorFactory.class";
   public static final String DEFAULT_COMPACTION_JOB_CONFIGURATOR_FACTORY_CLASS =
       "org.apache.gobblin.compaction.mapreduce.CompactionAvroJobConfigurator$Factory";
-
 
   @Getter
   @AllArgsConstructor
@@ -119,7 +116,6 @@ public abstract class CompactionJobConfigurator {
   }
 
   public abstract String getFileExtension();
-
   /**
    * Customized MR job creation for Avro.
    *
@@ -186,6 +182,7 @@ public abstract class CompactionJobConfigurator {
 
   /**
    * Refer to {@link MRCompactorAvroKeyDedupJobRunner#setNumberOfReducers(Job)}
+   * Note that this method is not format specific.
    */
   protected void setNumberOfReducers(Job job) throws IOException {
 
@@ -337,13 +334,15 @@ public abstract class CompactionJobConfigurator {
   }
 
   private static List<TaskCompletionEvent> getUnsuccessfulTaskCompletionEvent(Job completedJob) {
-    return getAllTaskCompletionEvent(completedJob).stream().filter(te->te.getStatus() != TaskCompletionEvent.Status.SUCCEEDED).collect(
-        Collectors.toList());
+    return getAllTaskCompletionEvent(completedJob).stream()
+        .filter(te -> te.getStatus() != TaskCompletionEvent.Status.SUCCEEDED)
+        .collect(Collectors.toList());
   }
 
   private static boolean isFailedPath(Path path, List<TaskCompletionEvent> failedEvents) {
     return path.toString().contains("_temporary") || failedEvents.stream()
-        .anyMatch(event -> path.toString().contains(Path.SEPARATOR + event.getTaskAttemptId().toString() + Path.SEPARATOR));
+        .anyMatch(
+            event -> path.toString().contains(Path.SEPARATOR + event.getTaskAttemptId().toString() + Path.SEPARATOR));
   }
 
   /**
@@ -364,7 +363,7 @@ public abstract class CompactionJobConfigurator {
 
     List<Path> allFilePaths = DatasetHelper.getApplicableFilePaths(fs, tmpPath, acceptableExtension);
     List<Path> goodPaths = new ArrayList<>();
-    for (Path filePath: allFilePaths) {
+    for (Path filePath : allFilePaths) {
       if (isFailedPath(filePath, failedEvents)) {
         fs.delete(filePath, false);
         log.error("{} is a bad path so it was deleted", filePath);

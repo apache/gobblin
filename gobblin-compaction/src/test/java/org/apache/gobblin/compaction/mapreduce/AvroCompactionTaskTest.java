@@ -52,7 +52,7 @@ import org.apache.gobblin.runtime.embedded.EmbeddedGobblin;
 
 
 @Slf4j
-public class MRCompactionTaskTest {
+public class AvroCompactionTaskTest {
 
   protected FileSystem getFileSystem()
       throws IOException {
@@ -163,7 +163,7 @@ public class MRCompactionTaskTest {
       writer.close();
   }
 
-  private EmbeddedGobblin createEmbeddedGobblin (String name, String basePath) {
+  static EmbeddedGobblin createEmbeddedGobblin (String name, String basePath) {
     String pattern = new Path(basePath, "*/*/minutely/*/*/*/*").toString();
 
     return new EmbeddedGobblin(name)
@@ -201,7 +201,7 @@ public class MRCompactionTaskTest {
         .setConfiguration(SimpleDatasetHierarchicalPrioritizer.TIER_KEY + ".2", "BizProfile");
   }
 
-   @Test
+  @Test
    public void testWorkUnitStream () throws Exception {
      File basePath = Files.createTempDir();
      basePath.deleteOnExit();
@@ -221,7 +221,7 @@ public class MRCompactionTaskTest {
      Assert.assertTrue(result.isSuccessful());
    }
 
-  @Test
+   @Test
   public void testWorkUnitStreamForAllFailures () throws Exception {
     File basePath = Files.createTempDir();
     basePath.deleteOnExit();
