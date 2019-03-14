@@ -41,6 +41,9 @@ import org.slf4j.LoggerFactory;
  * {recordCount}.{timestamp}.<extensionName>(avro, orc, etc.).
  */
 public class CompactorOutputCommitter extends FileOutputCommitter {
+  /**
+   * Note that the value of this key doesn't have dot.
+   */
   public static final String COMPACTION_OUTPUT_EXTENSION = "compaction.output.extension";
   public static final String DEFAULT_COMPACTION_OUTPUT_EXTENSION = "avro";
 

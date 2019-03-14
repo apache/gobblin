@@ -82,10 +82,11 @@ public class OrcCompactionTaskTest {
     // Verify execution
 
     // Overwrite the job configurator factory key.
+    String extensionFileName = "orcavro";
     EmbeddedGobblin embeddedGobblin = createEmbeddedGobblin("basic", basePath.getAbsolutePath().toString())
         .setConfiguration(CompactionJobConfigurator.COMPACTION_JOB_CONFIGURATOR_FACTORY_CLASS_KEY,
         TestCompactionOrcJobConfigurator.Factory.class.getName())
-        .setConfiguration(COMPACTION_OUTPUT_EXTENSION, "orc");
+        .setConfiguration(COMPACTION_OUTPUT_EXTENSION, extensionFileName);
     JobExecutionResult execution = embeddedGobblin.run();
     Assert.assertTrue(execution.isSuccessful());
 
@@ -96,7 +97,7 @@ public class OrcCompactionTaskTest {
     for (FileStatus status : fs.listStatus(new Path(outputDir.getAbsolutePath()), new PathFilter() {
       @Override
       public boolean accept(Path path) {
-        return FilenameUtils.isExtension(path.getName(), "orc");
+        return FilenameUtils.isExtension(path.getName(), extensionFileName);
       }
     })) {
       statuses.add(status);

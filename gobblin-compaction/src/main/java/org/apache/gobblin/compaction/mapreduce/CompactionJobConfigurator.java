@@ -65,7 +65,6 @@ public abstract class CompactionJobConfigurator {
   public static final String DEFAULT_COMPACTION_JOB_CONFIGURATOR_FACTORY_CLASS =
       "org.apache.gobblin.compaction.mapreduce.CompactionAvroJobConfigurator$Factory";
 
-
   @Getter
   @AllArgsConstructor
   protected enum EXTENSION {
@@ -117,7 +116,6 @@ public abstract class CompactionJobConfigurator {
   }
 
   public abstract String getFileExtension();
-
   /**
    * Customized MR job creation for Avro.
    *

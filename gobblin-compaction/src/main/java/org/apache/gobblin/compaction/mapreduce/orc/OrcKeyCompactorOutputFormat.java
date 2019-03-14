@@ -18,18 +18,28 @@
 package org.apache.gobblin.compaction.mapreduce.orc;
 
 import java.io.IOException;
+import org.apache.gobblin.compaction.mapreduce.CompactionJobConfigurator;
 import org.apache.gobblin.compaction.mapreduce.CompactorOutputCommitter;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.OutputCommitter;
+import org.apache.hadoop.mapreduce.RecordWriter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.orc.OrcFile;
+import org.apache.orc.Writer;
+import org.apache.orc.mapreduce.OrcMapreduceRecordWriter;
 import org.apache.orc.mapreduce.OrcOutputFormat;
+
+import static org.apache.gobblin.compaction.mapreduce.CompactorOutputCommitter.*;
 
 
 /**
  * Extension of {@link OrcOutputFormat} for customized {@link CompactorOutputCommitter}
  */
 public class OrcKeyCompactorOutputFormat extends OrcOutputFormat {
+
   private FileOutputCommitter committer = null;
 
   @Override
@@ -38,5 +48,23 @@ public class OrcKeyCompactorOutputFormat extends OrcOutputFormat {
       this.committer = new CompactorOutputCommitter(FileOutputFormat.getOutputPath(context), context);
     }
     return this.committer;
+  }
+
+  /**
+   * Required for extension since super method hard-coded file extension as ".orc". To keep flexibility
+   * of extension name, we made it configuration driven.
+   * @param taskAttemptContext The source of configuration that determines the file extension
+   * @return The {@link RecordWriter} that write out Orc object.
+   * @throws IOException
+   */
+  @Override
+  public RecordWriter getRecordWriter(TaskAttemptContext taskAttemptContext) throws IOException {
+    Configuration conf = taskAttemptContext.getConfiguration();
+    String extension = "." + conf.get(COMPACTION_OUTPUT_EXTENSION, "orc" );
+
+    Path filename = getDefaultWorkFile(taskAttemptContext, extension);
+    Writer writer = OrcFile.createWriter(filename,
+        org.apache.orc.mapred.OrcOutputFormat.buildOptions(conf));
+    return new OrcMapreduceRecordWriter(writer);
   }
 }

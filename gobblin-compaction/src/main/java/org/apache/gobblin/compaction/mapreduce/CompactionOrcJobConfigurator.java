@@ -33,6 +33,8 @@ import org.apache.orc.mapred.OrcKey;
 import org.apache.orc.mapred.OrcValue;
 import org.apache.orc.mapreduce.OrcOutputFormat;
 
+import static org.apache.gobblin.compaction.mapreduce.CompactorOutputCommitter.*;
+
 
 public class CompactionOrcJobConfigurator extends CompactionJobConfigurator {
   public static class Factory implements CompactionJobConfigurator.ConfiguratorFactory {
@@ -48,7 +50,7 @@ public class CompactionOrcJobConfigurator extends CompactionJobConfigurator {
 
   @Override
   public String getFileExtension() {
-    return EXTENSION.ORC.getExtensionString();
+    return this.state.getProp(COMPACTION_OUTPUT_EXTENSION, EXTENSION.ORC.getExtensionString());
   }
 
   protected void configureSchema(Job job) throws IOException {
