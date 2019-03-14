@@ -88,8 +88,8 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
   protected final EventSubmitter eventSubmitter;
   protected final RecoveryHelper recoveryHelper;
   protected final Optional<LineageInfo> lineageInfo;
-  protected final DataFileVersionStrategy srcDataFileVersion;
-  protected final DataFileVersionStrategy dstDataFileVersion;
+  protected final DataFileVersionStrategy srcDataFileVersionStrategy;
+  protected final DataFileVersionStrategy dstDataFileVersionStrategy;
 
   /**
    * Build a new {@link CopyDataPublisher} from {@link State}. The constructor expects the following to be set in the
@@ -128,9 +128,9 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
 
     Config config = ConfigUtils.propertiesToConfig(state.getProperties());
 
-    this.srcDataFileVersion = DataFileVersionStrategy
-        .instantiateDataFileVersion(HadoopUtils.getSourceFileSystem(state), config);
-    this.dstDataFileVersion = DataFileVersionStrategy.instantiateDataFileVersion(this.fs, config);
+    this.srcDataFileVersionStrategy = DataFileVersionStrategy
+        .instantiateDataFileVersionStrategy(HadoopUtils.getSourceFileSystem(state), config);
+    this.dstDataFileVersionStrategy = DataFileVersionStrategy.instantiateDataFileVersionStrategy(this.fs, config);
   }
 
   @Override
@@ -233,9 +233,9 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
         CopyableFile copyableFile = (CopyableFile) copyEntity;
 
         if (copyableFile.getPreserve().preserve(PreserveAttributes.Option.VERSION)
-            && this.dstDataFileVersion.hasCharacteristic(DataFileVersionStrategy.Characteristic.SETTABLE)) {
-          this.dstDataFileVersion.setVersion(copyableFile.getDestination(),
-              this.srcDataFileVersion.getVersion(copyableFile.getOrigin().getPath()));
+            && this.dstDataFileVersionStrategy.hasCharacteristic(DataFileVersionStrategy.Characteristic.SETTABLE)) {
+          this.dstDataFileVersionStrategy.setVersion(copyableFile.getDestination(),
+              this.srcDataFileVersionStrategy.getVersion(copyableFile.getOrigin().getPath()));
         }
 
         if (wus.getWorkingState() == WorkingState.COMMITTED) {

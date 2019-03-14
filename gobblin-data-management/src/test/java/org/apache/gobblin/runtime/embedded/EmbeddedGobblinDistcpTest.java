@@ -98,7 +98,7 @@ public class EmbeddedGobblinDistcpTest {
     EmbeddedGobblinDistcp embedded = new EmbeddedGobblinDistcp(new Path(tmpSource.getAbsolutePath()),
         new Path(tmpTarget.getAbsolutePath()));
     embedded.setLaunchTimeout(30, TimeUnit.SECONDS);
-    embedded.setConfiguration(DataFileVersionStrategy.DATA_FILE_VERSION_KEY, MyDataFileVersion.class.getName());
+    embedded.setConfiguration(DataFileVersionStrategy.DATA_FILE_VERSION_STRATEGY_KEY, MyDataFileVersion.class.getName());
     embedded.setConfiguration(CopyConfiguration.PRESERVE_ATTRIBUTES_KEY, "v");
     embedded.run();
 
