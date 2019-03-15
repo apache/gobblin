@@ -354,9 +354,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     List<WorkUnit> workUnits = Lists.newArrayList();
     for (KafkaPartition partition : topic.getPartitions()) {
       WorkUnit workUnit = getWorkUnitForTopicPartition(partition, state, topicSpecificState);
-      this.partitionsToBeProcessed.add(partition);
       if (workUnit != null) {
-
         // For disqualified topics, for each of its workunits set the high watermark to be the same
         // as the low watermark, so that it will be skipped.
         if (!topicQualified) {
@@ -365,6 +363,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
         workUnits.add(workUnit);
       }
     }
+    this.partitionsToBeProcessed.addAll(topic.getPartitions());
     return workUnits;
   }
 
@@ -393,8 +392,9 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       offsets.setOffsetFetchEpochTime(System.currentTimeMillis());
       offsets.setEarliestOffset(this.kafkaConsumerClient.get().getEarliestOffset(partition));
       offsets.setLatestOffset(this.kafkaConsumerClient.get().getLatestOffset(partition));
-    } catch (KafkaOffsetRetrievalFailureException e) {
+    } catch (Throwable t) {
       failedToGetKafkaOffsets = true;
+      LOG.error("Caught error in creating work unit for {}", partition, t);
     }
 
     long previousOffset = 0;
