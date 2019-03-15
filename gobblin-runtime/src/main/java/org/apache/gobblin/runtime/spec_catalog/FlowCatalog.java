@@ -60,7 +60,7 @@ import org.apache.gobblin.util.callbacks.CallbacksDispatcher;
 
 
 @Alpha
-public class FlowCatalog extends AbstractIdleService implements SpecCatalog, MutableSpecCatalog<Map<String, AddSpecResponse>>, SpecSerDe {
+public class FlowCatalog extends AbstractIdleService implements SpecCatalog, MutableSpecCatalog, SpecSerDe {
   public static final String DEFAULT_FLOWSPEC_STORE_CLASS = FSSpecStore.class.getCanonicalName();
 
   protected final SpecCatalogListenersList listeners;
@@ -256,7 +256,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
       if (triggerListener) {
         AddSpecResponse<CallbacksDispatcher.CallbackResults<SpecCatalogListener, AddSpecResponse>> response = this.listeners.onAddSpec(spec);
         for (Map.Entry<SpecCatalogListener, CallbackResult<AddSpecResponse>> entry: response.getValue().getSuccesses().entrySet()) {
-          responseMap.put(entry.getKey().getName(), (AddSpecResponse) entry.getValue().getResult());
+          responseMap.put(entry.getKey().getName(), entry.getValue().getResult());
         }
       }
     } catch (IOException e) {
