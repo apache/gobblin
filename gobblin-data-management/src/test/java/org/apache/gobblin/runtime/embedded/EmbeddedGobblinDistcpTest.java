@@ -19,15 +19,24 @@ package org.apache.gobblin.runtime.embedded;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.data.management.copy.CopyConfiguration;
+import org.apache.gobblin.util.PathUtils;
+import org.apache.gobblin.util.filesystem.DataFileVersionStrategy;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.api.client.util.Charsets;
+import com.google.common.collect.Sets;
 import com.google.common.io.Files;
+import com.typesafe.config.Config;
 
 
 public class EmbeddedGobblinDistcpTest {
@@ -60,6 +69,75 @@ public class EmbeddedGobblinDistcpTest {
 
     Assert.assertTrue(new File(tmpSource, fileName).exists());
     Assert.assertTrue(new File(tmpTarget, fileName).exists());
+  }
+
+  @Test
+  public void testWithVersionPreserve() throws Exception {
+    String fileName = "file";
+
+    File tmpSource = Files.createTempDir();
+    tmpSource.deleteOnExit();
+    File tmpTarget = Files.createTempDir();
+    tmpTarget.deleteOnExit();
+
+    File tmpFile = new File(tmpSource, fileName);
+    tmpFile.createNewFile();
+
+    FileOutputStream os = new FileOutputStream(tmpFile);
+    for (int i = 0; i < 100; i++) {
+      os.write("myString".getBytes(Charsets.UTF_8));
+    }
+    os.close();
+
+    MyDataFileVersion versionStrategy = new MyDataFileVersion();
+    versionStrategy.setVersion(new Path(tmpFile.getAbsolutePath()), 123L);
+
+    Assert.assertTrue(new File(tmpSource, fileName).exists());
+    Assert.assertFalse(new File(tmpTarget, fileName).exists());
+
+    EmbeddedGobblinDistcp embedded = new EmbeddedGobblinDistcp(new Path(tmpSource.getAbsolutePath()),
+        new Path(tmpTarget.getAbsolutePath()));
+    embedded.setLaunchTimeout(30, TimeUnit.SECONDS);
+    embedded.setConfiguration(DataFileVersionStrategy.DATA_FILE_VERSION_STRATEGY_KEY, MyDataFileVersion.class.getName());
+    embedded.setConfiguration(CopyConfiguration.PRESERVE_ATTRIBUTES_KEY, "v");
+    embedded.run();
+
+    Assert.assertTrue(new File(tmpSource, fileName).exists());
+    Assert.assertTrue(new File(tmpTarget, fileName).exists());
+    Assert.assertEquals((long) versionStrategy.getVersion(new Path(tmpTarget.getAbsolutePath(), fileName)), 123l);
+  }
+
+  public static class MyDataFileVersion implements DataFileVersionStrategy<Long>, DataFileVersionStrategy.DataFileVersionFactory<Long> {
+    private static final Map<Path, Long> versions = new HashMap<>();
+
+    @Override
+    public DataFileVersionStrategy<Long> createDataFileVersionStrategy(FileSystem fs, Config config) {
+      return this;
+    }
+
+    @Override
+    public Long getVersion(Path path)
+        throws IOException {
+      return versions.get(PathUtils.getPathWithoutSchemeAndAuthority(path));
+    }
+
+    @Override
+    public boolean setVersion(Path path, Long version)
+        throws IOException {
+      versions.put(PathUtils.getPathWithoutSchemeAndAuthority(path), version);
+      return true;
+    }
+
+    @Override
+    public boolean setDefaultVersion(Path path)
+        throws IOException {
+      return false;
+    }
+
+    @Override
+    public Set<Characteristic> applicableCharacteristics() {
+      return Sets.newHashSet(Characteristic.SETTABLE);
+    }
   }
 
 }
