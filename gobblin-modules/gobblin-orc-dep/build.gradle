@@ -46,6 +46,7 @@ configurations {
     exclude group: "commons-cli"
     exclude group: "org.apache.avro"
     exclude group: "org.apache.httpcomponents"
+    exclude group: "org.apache.hadoop"
   }
 }
 

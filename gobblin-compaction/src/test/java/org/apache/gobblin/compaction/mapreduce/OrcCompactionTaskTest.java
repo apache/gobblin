@@ -74,10 +74,18 @@ public class OrcCompactionTaskTest {
     orcStruct_1.setFieldValue("i", new IntWritable(1));
     orcStruct_1.setFieldValue("j", new IntWritable(2));
 
+    OrcStruct orcStruct_2 = (OrcStruct) OrcStruct.createValue(schema);
+    orcStruct_2.setFieldValue("i", new IntWritable(2));
+    orcStruct_2.setFieldValue("j", new IntWritable(3));
+
+    OrcStruct orcStruct_3 = (OrcStruct) OrcStruct.createValue(schema);
+    orcStruct_3.setFieldValue("i", new IntWritable(4));
+    orcStruct_3.setFieldValue("j", new IntWritable(5));
+
     File file_0 = new File(jobDir, "file_0");
     File file_1 = new File(jobDir, "file_1");
-    writeOrcRecordsInFile(new Path(file_0.getAbsolutePath()), schema, ImmutableList.of(orcStruct_0));
-    writeOrcRecordsInFile(new Path(file_1.getAbsolutePath()), schema, ImmutableList.of(orcStruct_1));
+    writeOrcRecordsInFile(new Path(file_0.getAbsolutePath()), schema, ImmutableList.of(orcStruct_0, orcStruct_2));
+    writeOrcRecordsInFile(new Path(file_1.getAbsolutePath()), schema, ImmutableList.of(orcStruct_1, orcStruct_3));
 
     // Verify execution
 
@@ -105,9 +113,13 @@ public class OrcCompactionTaskTest {
 
     Assert.assertTrue(statuses.size() == 1);
     List<OrcStruct> result = readOrcFile(statuses.get(0).getPath());
-    Assert.assertEquals(result.size(), 1);
+    Assert.assertEquals(result.size(), 3);
     Assert.assertEquals(result.get(0).getFieldValue("i"), new IntWritable(1));
     Assert.assertEquals(result.get(0).getFieldValue("j"), new IntWritable(2));
+    Assert.assertEquals(result.get(1).getFieldValue("i"), new IntWritable(2));
+    Assert.assertEquals(result.get(1).getFieldValue("j"), new IntWritable(3));
+    Assert.assertEquals(result.get(2).getFieldValue("i"), new IntWritable(4));
+    Assert.assertEquals(result.get(2).getFieldValue("j"), new IntWritable(5));
   }
 
   /**
@@ -122,9 +134,18 @@ public class OrcCompactionTaskTest {
     List<OrcStruct> result = new ArrayList<>();
 
     while (recordReader.nextKeyValue()) {
-      result.add((OrcStruct) recordReader.getCurrentValue());
+      result.add(copyIntOrcStruct((OrcStruct) recordReader.getCurrentValue()));
     }
 
+    return result;
+  }
+
+  private OrcStruct copyIntOrcStruct(OrcStruct record) {
+    OrcStruct result = new OrcStruct(record.getSchema());
+    for (int i = 0 ; i < record.getNumFields() ; i ++ ) {
+      IntWritable newCopy = new IntWritable(((IntWritable) record.getFieldValue(i)).get());
+      result.setFieldValue(i, newCopy);
+    }
     return result;
   }
 
