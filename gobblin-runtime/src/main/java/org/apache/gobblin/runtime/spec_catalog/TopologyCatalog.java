@@ -22,16 +22,14 @@ import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 
-import javax.annotation.Nonnull;
-import lombok.Getter;
-
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
-import org.apache.gobblin.runtime.api.FlowSpec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,11 +39,15 @@ import com.google.common.util.concurrent.AbstractIdleService;
 import com.google.common.util.concurrent.Service;
 import com.typesafe.config.Config;
 
+import javax.annotation.Nonnull;
+import lombok.Getter;
+
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.GobblinInstanceEnvironment;
 import org.apache.gobblin.runtime.api.MutableSpecCatalog;
 import org.apache.gobblin.runtime.api.Spec;
@@ -57,6 +59,8 @@ import org.apache.gobblin.runtime.api.SpecStore;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.runtime.spec_store.FSSpecStore;
 import org.apache.gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.util.callbacks.CallbackResult;
+import org.apache.gobblin.util.callbacks.CallbacksDispatcher;
 
 
 @Alpha
@@ -228,7 +232,9 @@ public class TopologyCatalog extends AbstractIdleService implements SpecCatalog,
   }
 
   @Override
-  public void put(Spec spec) {
+  public Map<String, AddSpecResponse> put(Spec spec) {
+    Map<String, AddSpecResponse> responseMap = new HashMap<>();
+
     try {
       Preconditions.checkState(state() == Service.State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
       Preconditions.checkNotNull(spec);
@@ -236,17 +242,21 @@ public class TopologyCatalog extends AbstractIdleService implements SpecCatalog,
       log.info(String.format("Adding TopologySpec with URI: %s and Config: %s", spec.getUri(),
           ((TopologySpec) spec).getConfigAsProperties()));
         specStore.addSpec(spec);
-        this.listeners.onAddSpec(spec);
+      AddSpecResponse<CallbacksDispatcher.CallbackResults<SpecCatalogListener, AddSpecResponse>> response = this.listeners.onAddSpec(spec);
+      for (Map.Entry<SpecCatalogListener, CallbackResult<AddSpecResponse>> entry: response.getValue().getSuccesses().entrySet()) {
+        responseMap.put(entry.getKey().getName(), entry.getValue().getResult());
+      }
     } catch (IOException e) {
       throw new RuntimeException("Cannot add Spec to Spec store: " + spec, e);
     }
+    return responseMap;
   }
 
   public void remove(URI uri) {
     remove(uri, new Properties());
   }
 
-    @Override
+  @Override
   public void remove(URI uri, Properties headers) {
     try {
       Preconditions.checkState(state() == Service.State.RUNNING, String.format("%s is not running.", this.getClass().getName()));

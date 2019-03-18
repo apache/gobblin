@@ -54,6 +54,7 @@ import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.runtime.job_catalog.FSJobCatalog;
 import org.apache.gobblin.runtime.job_spec.ResolvedJobSpec;
+import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.ServiceMetricNames;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
@@ -159,7 +160,7 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
   }
 
   @Override
-  public synchronized void onAddSpec(Spec addedSpec) {
+  public synchronized AddSpecResponse onAddSpec(Spec addedSpec) {
     TopologySpec spec = (TopologySpec) addedSpec;
     log.info ("Loading topology {}", spec.toLongString());
     for (Map.Entry entry: spec.getConfigAsProperties().entrySet()) {
@@ -167,6 +168,7 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
     }
 
     topologySpecMap.put(addedSpec.getUri(), (TopologySpec) addedSpec);
+    return new AddSpecResponse(null);
   }
 
   public void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion) {

@@ -15,17 +15,25 @@
  * limitations under the License.
  */
 package org.apache.gobblin.service;
+import java.util.Map;
+
+import org.apache.commons.lang3.StringEscapeUtils;
+
+import com.linkedin.data.template.StringMap;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.HttpStatus;
-import com.linkedin.restli.server.CreateResponse;
+import com.linkedin.restli.server.CreateKVResponse;
 
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.FlowSpec;
+import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 @Slf4j
 public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHandler implements FlowConfigsResourceHandler {
+  public static final String GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS = "org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler";
+
   public FlowConfigV2ResourceLocalHandler(FlowCatalog flowCatalog) {
     super(flowCatalog);
   }
@@ -33,10 +41,14 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
   /**
    * Add flowConfig locally and trigger all listeners iff @param triggerListener is set to true
    */
-  public CreateResponse createFlowConfig(FlowConfig flowConfig, boolean triggerListener) throws FlowConfigLoggedException {
-    log.info("[GAAS-REST] Create called with flowGroup " + flowConfig.getId().getFlowGroup() + " flowName " + flowConfig.getId().getFlowName());
+  public CreateKVResponse createFlowConfig(FlowConfig flowConfig, boolean triggerListener) throws FlowConfigLoggedException {
+    String createLog = "[GAAS-REST] Create called with flowGroup " + flowConfig.getId().getFlowGroup() + " flowName " + flowConfig.getId().getFlowName();
+    if (flowConfig.hasExplain()) {
+      createLog += " explain " + Boolean.toString(flowConfig.isExplain());
+    }
+    log.info(createLog);
     FlowSpec flowSpec = createFlowSpecForConfig(flowConfig);
-    this.flowCatalog.put(flowSpec, triggerListener);
+    Map<String, AddSpecResponse> responseMap = this.flowCatalog.put(flowSpec, triggerListener);
     FlowStatusId flowStatusId = new FlowStatusId()
         .setFlowName(flowSpec.getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_NAME_KEY))
         .setFlowGroup(flowSpec.getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_GROUP_KEY));
@@ -45,6 +57,19 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
     } else {
       flowStatusId.setFlowExecutionId(-1L);
     }
-    return new CreateResponse(new ComplexResourceKey<>(flowConfig.getId(), flowStatusId), HttpStatus.S_201_CREATED);
+    HttpStatus httpStatus = HttpStatus.S_201_CREATED;
+
+    if (flowConfig.hasExplain() && flowConfig.isExplain()) {
+      //This is an Explain request. So no resource is actually created.
+      //Enrich original FlowConfig entity by adding the compiledFlow to the properties map.
+      StringMap props = flowConfig.getProperties();
+      AddSpecResponse<String> addSpecResponse = responseMap.getOrDefault(GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS, null);
+      props.put("gobblin.flow.compiled",
+          addSpecResponse != null ? StringEscapeUtils.escapeJson(addSpecResponse.getValue()) : "");
+      flowConfig.setProperties(props);
+      //Return response with 200 status code, since no resource is actually created.
+      httpStatus = HttpStatus.S_200_OK;
+    }
+    return new CreateKVResponse(new ComplexResourceKey<>(flowConfig.getId(), flowStatusId), flowConfig, httpStatus);
   }
 }

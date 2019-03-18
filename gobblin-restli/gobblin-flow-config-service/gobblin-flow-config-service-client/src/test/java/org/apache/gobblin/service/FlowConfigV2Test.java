@@ -37,6 +37,7 @@ import com.google.inject.name.Names;
 import com.linkedin.data.template.StringMap;
 import com.linkedin.restli.server.resources.BaseResource;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -76,10 +77,12 @@ public class FlowConfigV2Test {
     Injector injector = Guice.createInjector(new Module() {
       @Override
       public void configure(Binder binder) {
-        binder.bind(FlowConfigsResourceHandler.class).annotatedWith(Names.named("flowConfigsV2ResourceHandler")).toInstance(new FlowConfigV2ResourceLocalHandler(flowCatalog));
+        binder.bind(FlowConfigsResourceHandler.class).annotatedWith(Names.named(FlowConfigsV2Resource.FLOW_CONFIG_GENERATOR_INJECT_NAME)).toInstance(new FlowConfigV2ResourceLocalHandler(flowCatalog));
         // indicate that we are in unit testing since the resource is being blocked until flow catalog changes have
         // been made
-        binder.bindConstant().annotatedWith(Names.named("readyToUse")).to(Boolean.TRUE);
+        binder.bindConstant().annotatedWith(Names.named(FlowConfigsV2Resource.INJECT_READY_TO_USE)).to(Boolean.TRUE);
+        binder.bind(RequesterService.class).annotatedWith(Names.named(FlowConfigsV2Resource.INJECT_REQUESTER_SERVICE)).toInstance(new NoopRequesterService(
+            ConfigFactory.empty()));
       }
     });
 

@@ -29,6 +29,7 @@ import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
 import com.linkedin.restli.common.HttpStatus;
 import com.linkedin.restli.server.CreateResponse;
+import com.linkedin.restli.server.RestLiServiceException;
 import com.linkedin.restli.server.UpdateResponse;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -108,6 +109,12 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
    */
   public CreateResponse createFlowConfig(FlowConfig flowConfig, boolean triggerListener) throws FlowConfigLoggedException {
     log.info("[GAAS-REST] Create called with flowGroup " + flowConfig.getId().getFlowGroup() + " flowName " + flowConfig.getId().getFlowName());
+
+    if (flowConfig.hasExplain()) {
+      //Return Error if FlowConfig has explain set. Explain request is only valid for v2 FlowConfig.
+      return new CreateResponse(new RestLiServiceException(HttpStatus.S_400_BAD_REQUEST, "FlowConfig with explain not supported."));
+    }
+
     FlowSpec flowSpec = createFlowSpecForConfig(flowConfig);
     // Existence of a flow spec in the flow catalog implies that the flow is currently running.
     // If the new flow spec has a schedule we should allow submission of the new flow to accept the new schedule.
@@ -202,6 +209,10 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
       // because execution id is generated for every scheduled execution of the flow and cannot be materialized to
       // the flow catalog. In this case, this id is added during flow compilation.
       configBuilder.addPrimitive(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, String.valueOf(System.currentTimeMillis()));
+    }
+
+    if (flowConfig.hasExplain()) {
+      configBuilder.addPrimitive(ConfigurationKeys.FLOW_EXPLAIN_KEY, flowConfig.isExplain());
     }
 
     Config config = configBuilder.build();

@@ -22,7 +22,9 @@ import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 import org.apache.commons.lang3.SerializationUtils;
@@ -53,11 +55,12 @@ import org.apache.gobblin.runtime.api.SpecSerDe;
 import org.apache.gobblin.runtime.api.SpecStore;
 import org.apache.gobblin.runtime.spec_store.FSSpecStore;
 import org.apache.gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.util.callbacks.CallbackResult;
+import org.apache.gobblin.util.callbacks.CallbacksDispatcher;
 
 
 @Alpha
 public class FlowCatalog extends AbstractIdleService implements SpecCatalog, MutableSpecCatalog, SpecSerDe {
-
   public static final String DEFAULT_FLOWSPEC_STORE_CLASS = FSSpecStore.class.getCanonicalName();
 
   protected final SpecCatalogListenersList listeners;
@@ -239,7 +242,8 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     }
   }
 
-  public void put(Spec spec, boolean triggerListener) {
+  public Map<String, AddSpecResponse> put(Spec spec, boolean triggerListener) {
+    Map<String, AddSpecResponse> responseMap = new HashMap<>();
     try {
       Preconditions.checkState(state() == State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
       Preconditions.checkNotNull(spec);
@@ -250,16 +254,20 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
       specStore.addSpec(spec);
       metrics.updatePutSpecTime(startTime);
       if (triggerListener) {
-        this.listeners.onAddSpec(spec);
+        AddSpecResponse<CallbacksDispatcher.CallbackResults<SpecCatalogListener, AddSpecResponse>> response = this.listeners.onAddSpec(spec);
+        for (Map.Entry<SpecCatalogListener, CallbackResult<AddSpecResponse>> entry: response.getValue().getSuccesses().entrySet()) {
+          responseMap.put(entry.getKey().getName(), entry.getValue().getResult());
+        }
       }
     } catch (IOException e) {
       throw new RuntimeException("Cannot add Spec to Spec store: " + spec, e);
     }
+    return responseMap;
   }
 
   @Override
-  public void put(Spec spec) {
-    put(spec, true);
+  public Map<String, AddSpecResponse> put(Spec spec) {
+    return put(spec, true);
   }
 
   public void remove(URI uri) {

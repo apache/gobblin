@@ -44,7 +44,7 @@ public class SpecCatalogListenersList implements SpecCatalogListener, SpecCatalo
   }
 
   public SpecCatalogListenersList(Optional<Logger> log) {
-    _disp = new CallbacksDispatcher<SpecCatalogListener>(Optional.<ExecutorService>absent(), log);
+    _disp = new CallbacksDispatcher<>(Optional.<ExecutorService>absent(), log);
   }
 
   public Logger getLog() {
@@ -66,13 +66,14 @@ public class SpecCatalogListenersList implements SpecCatalogListener, SpecCatalo
   }
 
   @Override
-  public synchronized void onAddSpec(Spec addedSpec) {
+  public synchronized AddSpecResponse onAddSpec(Spec addedSpec) {
     Preconditions.checkNotNull(addedSpec);
     try {
-      _disp.execCallbacks(new SpecCatalogListener.AddSpecCallback(addedSpec));
+      return new AddSpecResponse<>(_disp.execCallbacks(new AddSpecCallback(addedSpec)));
     } catch (InterruptedException e) {
       getLog().warn("onAddSpec interrupted.");
     }
+    return null;
   }
 
   @Override
@@ -102,7 +103,7 @@ public class SpecCatalogListenersList implements SpecCatalogListener, SpecCatalo
     _disp.close();
   }
 
-  public void callbackOneListener(Function<SpecCatalogListener, Void> callback,
+  public void callbackOneListener(Function<SpecCatalogListener, AddSpecResponse> callback,
       SpecCatalogListener listener) {
     try {
       _disp.execCallbacks(callback, listener);

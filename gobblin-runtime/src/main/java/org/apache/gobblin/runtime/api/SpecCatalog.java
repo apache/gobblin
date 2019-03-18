@@ -40,6 +40,7 @@ import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.ContextAwareTimer;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -119,9 +120,10 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, Instrumentab
       Instrumented.updateTimer(Optional.of(this.timeForSpecCatalogGet), System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
     }
 
-    @Override public void onAddSpec(Spec addedSpec) {
+    @Override public AddSpecResponse onAddSpec(Spec addedSpec) {
       this.totalAddedSpecs.incrementAndGet();
       submitTrackingEvent(addedSpec, SPEC_ADDED_OPERATION_TYPE);
+      return new AddSpecResponse(null);
     }
 
     private void submitTrackingEvent(Spec spec, String operType) {
