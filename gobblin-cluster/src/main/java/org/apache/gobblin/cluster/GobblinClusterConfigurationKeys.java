@@ -151,6 +151,8 @@ public class GobblinClusterConfigurationKeys {
   public static final String CLEAN_ALL_DIST_JOBS = GOBBLIN_CLUSTER_PREFIX + "bootup.clean.dist.jobs";
   public static final boolean DEFAULT_CLEAN_ALL_DIST_JOBS = false;
 
+  public static final String NON_BLOCKING_PLANNING_JOB_ENABLED = GOBBLIN_CLUSTER_PREFIX + "nonBlocking.planningJob.enabled";
+  public static final boolean DEFAULT_NON_BLOCKING_PLANNING_JOB_ENABLED = false;
   public static final String KILL_DUPLICATE_PLANNING_JOB = GOBBLIN_CLUSTER_PREFIX + "kill.duplicate.planningJob";
   public static final boolean DEFAULT_KILL_DUPLICATE_PLANNING_JOB = true;
 
