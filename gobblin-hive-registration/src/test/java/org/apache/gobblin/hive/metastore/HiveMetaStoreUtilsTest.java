@@ -26,6 +26,9 @@ import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.io.avro.AvroContainerInputFormat;
 import org.apache.hadoop.hive.ql.io.avro.AvroContainerOutputFormat;
+import org.apache.hadoop.hive.ql.io.orc.OrcInputFormat;
+import org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat;
+import org.apache.hadoop.hive.ql.io.orc.OrcSerde;
 import org.apache.hadoop.hive.serde2.avro.AvroSerDe;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -69,6 +72,57 @@ public class HiveMetaStoreUtilsTest {
     FieldSchema fieldA = fields.get(0);
     Assert.assertEquals(fieldA.getName(), "a");
     Assert.assertEquals(fieldA.getType(), "int");
+  }
+
+  @Test
+  public void testGetTableOrc() {
+    final String databaseName = "db";
+    final String tableName = "tbl";
+    HiveTable.Builder builder = new HiveTable.Builder();
+    builder.withDbName(databaseName).withTableName(tableName);
+
+    HiveTable hiveTable = builder.build();
+
+    // SerDe props are
+    State serdeProps = new State();
+    serdeProps.setProp("columns", "timestamp,namespace,name,metadata");
+    serdeProps.setProp("columns.types", "bigint,string,string,map<string,string>");
+
+    hiveTable.getProps().addAll(serdeProps);
+
+    hiveTable.setInputFormat(OrcInputFormat.class.getName());
+    hiveTable.setOutputFormat(OrcOutputFormat.class.getName());
+    hiveTable.setSerDeType(OrcSerde.class.getName());
+
+    Table table = HiveMetaStoreUtils.getTable(hiveTable);
+    Assert.assertEquals(table.getDbName(), databaseName);
+    Assert.assertEquals(table.getTableName(), tableName);
+
+    StorageDescriptor sd = table.getSd();
+    Assert.assertEquals(sd.getInputFormat(), OrcInputFormat.class.getName());
+    Assert.assertEquals(sd.getOutputFormat(), OrcOutputFormat.class.getName());
+    Assert.assertNotNull(sd.getSerdeInfo());
+    Assert.assertEquals(sd.getSerdeInfo().getSerializationLib(), OrcSerde.class.getName());
+
+    // verify column name
+    List<FieldSchema> fields = sd.getCols();
+    Assert.assertTrue(fields != null && fields.size() == 4);
+    FieldSchema fieldA = fields.get(0);
+    Assert.assertEquals(fieldA.getName(), "timestamp");
+    Assert.assertEquals(fieldA.getType(), "bigint");
+
+    FieldSchema fieldB = fields.get(1);
+    Assert.assertEquals(fieldB.getName(), "namespace");
+    Assert.assertEquals(fieldB.getType(), "string");
+
+    FieldSchema fieldC = fields.get(2);
+    Assert.assertEquals(fieldC.getName(), "name");
+    Assert.assertEquals(fieldC.getType(), "string");
+
+
+    FieldSchema fieldD = fields.get(3);
+    Assert.assertEquals(fieldD.getName(), "metadata");
+    Assert.assertEquals(fieldD.getType(), "map<string,string>");
   }
 
   @Test

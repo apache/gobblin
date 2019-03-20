@@ -23,6 +23,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import java.util.stream.Collectors;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -31,11 +32,14 @@ import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.hive.ql.io.orc.OrcFile;
 import org.apache.hadoop.hive.ql.io.orc.OrcInputFormat;
 import org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat;
+import org.apache.hadoop.hive.serde.serdeConstants;
+import org.apache.hadoop.hive.serde2.typeinfo.StructTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 
 import com.codahale.metrics.Timer;
 import com.google.common.base.Charsets;
+import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -236,9 +240,36 @@ public class HiveOrcSerDeManager extends HiveSerDeManager {
   private void addSchemaProperties(Path path, HiveRegistrationUnit hiveUnit)
       throws IOException {
     Preconditions.checkArgument(this.fs.getFileStatus(path).isDirectory(), path + " is not a directory.");
-
     try (Timer.Context context = metricContext.timer(HIVE_SPEC_SCHEMA_READING_TIMER).time()) {
-      hiveUnit.setSerDeProp(SCHEMA_LITERAL, getSchemaFromLatestFile(path, this.fs).toString());
+      addSchemaPropertiesHelper(path, hiveUnit);
+    }
+  }
+
+  /**
+   * Extensible if there's other source-of-truth for fetching schema instead of interacting with HDFS.
+   *
+   * For purpose of initializing {@link org.apache.hadoop.hive.ql.io.orc.OrcSerde} object, it will require:
+   * org.apache.hadoop.hive.serde.serdeConstants#LIST_COLUMNS and
+   * org.apache.hadoop.hive.serde.serdeConstants#LIST_COLUMN_TYPES
+   *
+   * Keeping {@link #SCHEMA_LITERAL} will be a nice-to-have thing but not actually necessary in terms of functionality.
+   */
+  protected void addSchemaPropertiesHelper(Path path, HiveRegistrationUnit hiveUnit) throws IOException {
+    TypeInfo schema = getSchemaFromLatestFile(path, this.fs);
+    if (schema instanceof StructTypeInfo) {
+      StructTypeInfo structTypeInfo = (StructTypeInfo) schema;
+
+      hiveUnit.setSerDeProp(SCHEMA_LITERAL, schema);
+      hiveUnit.setSerDeProp(serdeConstants.LIST_COLUMNS,
+          Joiner.on(",").join(structTypeInfo.getAllStructFieldNames()));
+      hiveUnit.setSerDeProp(serdeConstants.LIST_COLUMN_TYPES,
+          Joiner.on(",").join(
+              structTypeInfo.getAllStructFieldTypeInfos().stream().map(x -> x.getTypeName())
+                  .collect(Collectors.toList())));
+    } else {
+      // Hive always uses a struct with a field for each of the top-level columns as the root object type.
+      // So for here we assume to-be-registered ORC files follow this pattern.
+      throw new IllegalStateException("A valid ORC schema should be an instance of struct");
     }
   }
 }

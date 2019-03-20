@@ -69,7 +69,7 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
   }
 
   /**
-   * Replace or append the destination folder with new avro files from map-reduce job
+   * Replace or append the destination folder with new files from map-reduce job
    * Create a record count file containing the number of records that have been processed .
    */
   public void onCompactionJobComplete (FileSystemDataset dataset) throws IOException {
