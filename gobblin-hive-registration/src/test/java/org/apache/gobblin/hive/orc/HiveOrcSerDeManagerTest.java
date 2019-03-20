@@ -20,10 +20,13 @@ package org.apache.gobblin.hive.orc;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 
+import java.util.Arrays;
+import java.util.List;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.io.orc.OrcSerde;
+import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.SerDeException;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -66,7 +69,7 @@ public class HiveOrcSerDeManagerTest {
   }
 
   /**
-   * Test that the schema is written to the schema literal
+   * Test that the schema is written to the schema literal and attributes required for initializing orc serde object.
    */
   @Test
   public void testOrcSchemaLiteral() throws IOException {
@@ -78,6 +81,13 @@ public class HiveOrcSerDeManagerTest {
 
     Assert.assertTrue(registrationUnit.getSerDeProps().getProp(HiveOrcSerDeManager.SCHEMA_LITERAL).contains(
         "name:string,timestamp:bigint"));
+
+    List<String> columns = Arrays.asList(registrationUnit.getSerDeProps().getProp(serdeConstants.LIST_COLUMNS).split(","));
+    Assert.assertTrue(columns.get(0).equals("name"));
+    Assert.assertTrue(columns.get(1).equals("timestamp"));
+    List<String> columnTypes = Arrays.asList(registrationUnit.getSerDeProps().getProp(serdeConstants.LIST_COLUMN_TYPES).split(","));
+    Assert.assertTrue(columnTypes.get(0).equals("string"));
+    Assert.assertTrue(columnTypes.get(1).equals("bigint"));
   }
 
   /**

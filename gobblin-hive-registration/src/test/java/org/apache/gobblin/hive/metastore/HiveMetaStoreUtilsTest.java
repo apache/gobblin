@@ -82,7 +82,8 @@ public class HiveMetaStoreUtilsTest {
     builder.withDbName(databaseName).withTableName(tableName);
 
     HiveTable hiveTable = builder.build();
-    // Adding configuration afterwards
+
+    // SerDe props are
     State serdeProps = new State();
     serdeProps.setProp("columns", "timestamp,namespace,name,metadata");
     serdeProps.setProp("columns.types", "bigint,string,string,map<string,string>");
