@@ -16,7 +16,6 @@
  */
 package org.apache.gobblin.hive.orc;
 
-import com.google.common.base.Joiner;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -40,6 +39,7 @@ import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 
 import com.codahale.metrics.Timer;
 import com.google.common.base.Charsets;
+import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
