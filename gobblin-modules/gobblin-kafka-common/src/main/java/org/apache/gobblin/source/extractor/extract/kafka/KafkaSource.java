@@ -122,7 +122,6 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       "gobblin.kafka.shouldEnableDatasetStateStore";
   public static final boolean DEFAULT_GOBBLIN_KAFKA_SHOULD_ENABLE_DATASET_STATESTORE = false;
   public static final String OFFSET_FETCH_TIMER = "offsetFetchTimer";
-  public static final String TARGET_MAPPER_SIZE = "target.mapper.size";
 
   private final Set<String> moveToLatestTopics = Sets.newTreeSet(String.CASE_INSENSITIVE_ORDER);
   private final Map<KafkaPartition, Long> previousOffsets = Maps.newConcurrentMap();
@@ -259,6 +258,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       // Create empty WorkUnits for skipped partitions (i.e., partitions that have previous offsets,
       // but aren't processed).
       createEmptyWorkUnitsForSkippedPartitions(workUnits, topicSpecificStateMap, state);
+      //determine the number of mappers
       int numOfMultiWorkunits =
           state.getPropAsInt(ConfigurationKeys.MR_JOB_MAX_MAPPERS_KEY, ConfigurationKeys.DEFAULT_MR_JOB_MAX_MAPPERS);
       if(state.contains(ConfigurationKeys.TARGET_MAPPER_SIZE)) {
