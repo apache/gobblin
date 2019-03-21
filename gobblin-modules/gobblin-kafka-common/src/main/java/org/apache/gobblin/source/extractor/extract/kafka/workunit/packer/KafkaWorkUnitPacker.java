@@ -362,6 +362,16 @@ public abstract class KafkaWorkUnitPacker {
         throw new IllegalArgumentException("WorkUnit packer type " + packerType + " not found");
     }
   }
+  public double getWorkUnitEstSizes(Map<String, List<WorkUnit>> workUnitsByTopic){
+    double totalEstDataSize = 0;
+    for (List<WorkUnit> workUnitsForTopic : workUnitsByTopic.values()) {
+      for (WorkUnit workUnit : workUnitsForTopic) {
+        totalEstDataSize += this.sizeEstimator.calcEstimatedSize(workUnit);
+      }
+    }
+    return totalEstDataSize;
+    //return setWorkUnitEstSizes(workUnitsByTopic);
+  }
 
   /**
    * Group {@link WorkUnit}s into {@link MultiWorkUnit}s. Each input {@link WorkUnit} corresponds to

@@ -122,6 +122,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       "gobblin.kafka.shouldEnableDatasetStateStore";
   public static final boolean DEFAULT_GOBBLIN_KAFKA_SHOULD_ENABLE_DATASET_STATESTORE = false;
   public static final String OFFSET_FETCH_TIMER = "offsetFetchTimer";
+  public static final String TARGET_MAPPER_SIZE = "target.mapper.size";
 
   private final Set<String> moveToLatestTopics = Sets.newTreeSet(String.CASE_INSENSITIVE_ORDER);
   private final Map<KafkaPartition, Long> previousOffsets = Maps.newConcurrentMap();
@@ -258,9 +259,14 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       // Create empty WorkUnits for skipped partitions (i.e., partitions that have previous offsets,
       // but aren't processed).
       createEmptyWorkUnitsForSkippedPartitions(workUnits, topicSpecificStateMap, state);
-
       int numOfMultiWorkunits =
           state.getPropAsInt(ConfigurationKeys.MR_JOB_MAX_MAPPERS_KEY, ConfigurationKeys.DEFAULT_MR_JOB_MAX_MAPPERS);
+      if(state.contains(ConfigurationKeys.TARGET_MAPPER_SIZE)) {
+        double totalEstDataSize = KafkaWorkUnitPacker.getInstance(this, state).getWorkUnitEstSizes(workUnits);
+        LOG.info(String.format("The total estimated data size is %.2f", totalEstDataSize));
+        double targetMapperSize = state.getPropAsDouble(ConfigurationKeys.TARGET_MAPPER_SIZE);
+        numOfMultiWorkunits = (int) (totalEstDataSize / targetMapperSize);
+      }
       List<WorkUnit> workUnitList = KafkaWorkUnitPacker.getInstance(this, state).pack(workUnits, numOfMultiWorkunits);
       addTopicSpecificPropsToWorkUnits(workUnitList, topicSpecificStateMap);
       setLimiterReportKeyListToWorkUnits(workUnitList, getLimiterExtractorReportKeys());
