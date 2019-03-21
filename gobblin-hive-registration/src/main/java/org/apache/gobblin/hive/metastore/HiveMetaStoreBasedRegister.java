@@ -165,13 +165,6 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
     }
   }
 
-  @Override
-  public boolean createDbIfNotExists(String dbName) throws IOException {
-    try (AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient()) {
-      return createDbIfNotExists(client.get(), dbName);
-    }
-  }
-
   /**
    * If table existed on Hive side will return false;
    * Or will create the table thru. RPC and return retVal from remote MetaStore.
@@ -200,7 +193,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
         }
         if (needToUpdateTable(existingTable, spec.getTable())) {
           try (Timer.Context context = this.metricContext.timer(ALTER_TABLE).time()) {
-            client.alter_table(dbName, tableName, getTableWithCreateTime(table, existingTable));
+            client.alter_table(dbName, tableName, getNewTblByMergingExistingTblProps(table, existingTable));
           }
           log.info(String.format("updated Hive table %s in db %s", tableName, dbName));
         }
@@ -281,6 +274,20 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
     }
   }
 
+  /**
+   * @deprecated Use {@link #createDbIfNotExists(IMetaStoreClient, String)} directly.
+   */
+  @Deprecated
+  public boolean createDbIfNotExists(String dbName) throws IOException {
+    try (AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient()) {
+      return createDbIfNotExists(client.get(), dbName);
+    }
+  }
+
+  /**
+   * @deprecated Please use {@link #createOrAlterTable(IMetaStoreClient, Table, HiveSpec)} instead.
+   */
+  @Deprecated
   @Override
   public boolean createTableIfNotExists(HiveTable table) throws IOException {
     try (AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient();
@@ -289,6 +296,10 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
     }
   }
 
+  /**
+   * @deprecated Use {@link #addOrAlterPartition} instead.
+   */
+  @Deprecated
   @Override
   public boolean addPartitionIfNotExists(HiveTable table, HivePartition partition) throws IOException {
     try (AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient();
@@ -312,6 +323,10 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
     }
   }
 
+  @Deprecated
+  /**
+   * @deprecated Please use {@link #createOrAlterTable(IMetaStoreClient, Table, HiveSpec)} instead.
+   */
   private boolean createTableIfNotExists(IMetaStoreClient client, Table table, HiveTable hiveTable) throws IOException {
     String dbName = table.getDbName();
     String tableName = table.getTableName();
@@ -356,10 +371,6 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
       this.ensureHiveTableExistenceBeforeAlternation(tableName, dbName, client, table, spec);
     }
   }
-
-
-
-
 
   @Override
   public boolean existsTable(String dbName, String tableName) throws IOException {
@@ -617,4 +628,16 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
     return actualtable;
   }
 
+
+  /**
+   * Used to merge properties from existingTable to newTable.
+   * e.g. New table will inherit creation time from existing table.
+   *
+   * This method is extensible for customized logic in merging table properties.
+   * @param newTable
+   * @param existingTable
+   */
+  protected Table getNewTblByMergingExistingTblProps(Table newTable, HiveTable existingTable) {
+    return getTableWithCreateTime(newTable, existingTable);
+  }
 }
