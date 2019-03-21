@@ -370,7 +370,6 @@ public abstract class KafkaWorkUnitPacker {
       }
     }
     return totalEstDataSize;
-    //return setWorkUnitEstSizes(workUnitsByTopic);
   }
 
   /**
