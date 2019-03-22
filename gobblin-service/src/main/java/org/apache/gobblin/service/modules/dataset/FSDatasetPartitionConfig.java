@@ -23,12 +23,13 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
 import com.google.common.base.Enums;
-import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
@@ -41,7 +42,9 @@ import org.apache.gobblin.util.ConfigUtils;
  * the regex pattern) is validated.
  */
 @Slf4j
-public class FsDatasetPartitionConfig {
+@ToString (exclude = {"rawConfig"})
+@EqualsAndHashCode (exclude = {"rawConfig"})
+public class FSDatasetPartitionConfig {
   @Getter
   private final String partitionType;
   @Getter
@@ -73,9 +76,9 @@ public class FsDatasetPartitionConfig {
           .put(DatasetDescriptorConfigKeys.PARTITION_PATTERN_KEY, DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY)
           .build());
 
-  public FsDatasetPartitionConfig(Config config) throws IOException {
-    String partitionType = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.PARTITION_TYPE_KEY, DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY);
-    String partitionPattern = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.PARTITION_PATTERN_KEY, DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY);
+  public FSDatasetPartitionConfig(Config config) throws IOException {
+    String partitionType = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.PARTITION_TYPE_KEY, DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY).toLowerCase();
+    String partitionPattern = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.PARTITION_PATTERN_KEY, DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY).toLowerCase();
     if (partitionType.equalsIgnoreCase(PartitionType.NONE.name())) {
       partitionPattern = DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_NONE;
     } else if(partitionType.equalsIgnoreCase(PartitionType.ANY.name())) {
@@ -125,41 +128,13 @@ public class FsDatasetPartitionConfig {
     }
   }
 
-  public boolean contains(FsDatasetPartitionConfig other) {
+  public boolean contains(FSDatasetPartitionConfig other) {
     if (other == null) {
       return false;
     }
-
     return ((DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(getPartitionType())
         || this.getPartitionType().equalsIgnoreCase(partitionType)))
         && ((DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(getPartitionPattern())
         || this.getPartitionPattern().equalsIgnoreCase(other.getPartitionPattern())));
-  }
-
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) {
-      return true;
-    }
-
-    if (!(o instanceof FsDatasetPartitionConfig)) {
-      return false;
-    }
-    FsDatasetPartitionConfig other = (FsDatasetPartitionConfig) o;
-    return this.getPartitionType().equalsIgnoreCase(other.getPartitionType()) &&
-        this.getPartitionPattern().equalsIgnoreCase(other.getPartitionPattern());
-  }
-
-  @Override
-  public String toString() {
-    return "(" + Joiner.on(",").join(this.getPartitionType(), this.getPartitionPattern()) + ")";
-  }
-
-  @Override
-  public int hashCode() {
-    int result = 17;
-    result = 31 * result + this.getPartitionType().hashCode();
-    result = 31 * result + this.getPartitionPattern().toLowerCase().hashCode();
-    return result;
   }
 }

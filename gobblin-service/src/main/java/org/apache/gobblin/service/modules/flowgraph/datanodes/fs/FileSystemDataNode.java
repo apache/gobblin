@@ -20,17 +20,17 @@ package org.apache.gobblin.service.modules.flowgraph.datanodes.fs;
 import java.io.IOException;
 import java.net.URI;
 
-import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
+
+import joptsimple.internal.Strings;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.service.modules.flowgraph.BaseDataNode;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraphConfigurationKeys;
 import org.apache.gobblin.util.ConfigUtils;
-
-import joptsimple.internal.Strings;
-import lombok.Getter;
 
 
 /**
@@ -38,6 +38,7 @@ import lombok.Getter;
  * must have a FS URI specified. Example implementations of {@link FileSystemDataNode} include {@link HdfsDataNode}, {@link LocalFSDataNode}.
  */
 @Alpha
+@EqualsAndHashCode (callSuper = true)
 public abstract class FileSystemDataNode extends BaseDataNode {
   public static final String FS_URI_KEY = FlowGraphConfigurationKeys.DATA_NODE_PREFIX + "fs.uri";
 
@@ -63,25 +64,4 @@ public abstract class FileSystemDataNode extends BaseDataNode {
   }
 
   public abstract boolean isUriValid(URI fsUri);
-  /**
-   * Two HDFS DataNodes are the same if they have the same id and the same fsUri.
-   */
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-
-    FileSystemDataNode that = (FileSystemDataNode) o;
-
-    return this.getId().equals(that.getId()) && this.fsUri.equals(that.getFsUri());
-  }
-
-  @Override
-  public int hashCode() {
-    return Joiner.on("-").join(this.getId(), this.fsUri).hashCode();
-  }
 }

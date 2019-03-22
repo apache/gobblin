@@ -31,12 +31,14 @@ public class DatasetDescriptorConfigKeys {
   public static final String CLASS_KEY = "class";
   public static final String PLATFORM_KEY = "platform";
   public static final String PATH_KEY = "path";
+  public static final String DATABASE_KEY = "databaseName";
+  public static final String TABLE_KEY = "tableName";
   public static final String FORMAT_KEY = "format";
   public static final String CODEC_KEY = "codec";
   public static final String DESCRIPTION_KEY = "description";
   public static final String IS_RETENTION_APPLIED_KEY = "isRetentionApplied";
   public static final String IS_COMPACTED_KEY = "isCompacted";
-  public static final String IS_COMPACTED_AND_DEDUPED_KEY = "isCompatedAndDeduped";
+  public static final String IS_COMPACTED_AND_DEDUPED_KEY = "isCompactedAndDeduped";
 
   //Dataset encryption related keys
   public static final String ENCYPTION_PREFIX = "encrypt";

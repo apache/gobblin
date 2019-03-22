@@ -20,18 +20,21 @@ package org.apache.gobblin.service.modules.dataset;
 import java.io.IOException;
 
 import com.google.common.base.Enums;
-import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
 import org.apache.gobblin.util.ConfigUtils;
 
 @Slf4j
+@ToString(exclude = {"rawConfig"})
+@EqualsAndHashCode (exclude = {"rawConfig"})
 public class EncryptionConfig {
   @Getter
   private final String encryptionAlgorithm;
@@ -85,13 +88,13 @@ public class EncryptionConfig {
       this.encryptedFields = DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_NONE;
     } else {
       this.keystoreType = ConfigUtils.getString(encryptionConfig, DatasetDescriptorConfigKeys.ENCRYPTION_KEYSTORE_TYPE_KEY,
-          DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY);
+          DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY).toLowerCase();
       this.keystoreEncoding = ConfigUtils.getString(encryptionConfig, DatasetDescriptorConfigKeys.ENCRYPTION_KEYSTORE_ENCODING_KEY,
-          DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY);
+          DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY).toLowerCase();
       this.encryptionLevel = ConfigUtils.getString(encryptionConfig, DatasetDescriptorConfigKeys.ENCRYPTION_LEVEL_KEY,
-          DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY);
+          DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY).toLowerCase();
       this.encryptedFields = ConfigUtils.getString(encryptionConfig, DatasetDescriptorConfigKeys.ENCRYPTED_FIELDS,
-          DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY);
+          DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY).toLowerCase();
       validate(this.encryptionLevel, this.encryptedFields);
     }
     this.rawConfig = encryptionConfig.withFallback(DEFAULT_FALLBACK);
@@ -142,36 +145,5 @@ public class EncryptionConfig {
         || this.encryptionLevel.equalsIgnoreCase(otherEncryptionLevel))
         && (DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(this.getEncryptedFields())
         || this.encryptedFields.equalsIgnoreCase(otherEncryptedFields));
-  }
-
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) {
-      return true;
-    }
-
-    if (!(o instanceof EncryptionConfig)) {
-      return false;
-    }
-    EncryptionConfig other = (EncryptionConfig) o;
-    return this.getEncryptionAlgorithm().equalsIgnoreCase(other.getEncryptionAlgorithm()) && this.keystoreEncoding.equalsIgnoreCase(other.getKeystoreEncoding())
-        && this.getKeystoreType().equalsIgnoreCase(other.getKeystoreType()) && this.getEncryptionLevel().equals(other.getEncryptionLevel())
-        && this.getEncryptedFields().equalsIgnoreCase(other.getEncryptedFields());
-  }
-
-  @Override
-  public String toString() {
-    return "(" + Joiner.on(",").join(this.encryptionAlgorithm, this.encryptionLevel, this.encryptedFields, this.keystoreType, this.keystoreEncoding) + ")";
-  }
-
-  @Override
-  public int hashCode() {
-    int result = 17;
-    result = 31 * result + encryptionAlgorithm.toLowerCase().hashCode();
-    result = 31 * result + keystoreType.toLowerCase().hashCode();
-    result = 31 * result + keystoreEncoding.toLowerCase().hashCode();
-    result = 31 * result + encryptionLevel.toLowerCase().hashCode();
-    result = 31 * result + encryptedFields.toLowerCase().hashCode();
-    return result;
   }
 }
