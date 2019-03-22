@@ -259,14 +259,16 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       // but aren't processed).
       createEmptyWorkUnitsForSkippedPartitions(workUnits, topicSpecificStateMap, state);
       //determine the number of mappers
-      int numOfMultiWorkunits =
+      int maxMapperNum =
           state.getPropAsInt(ConfigurationKeys.MR_JOB_MAX_MAPPERS_KEY, ConfigurationKeys.DEFAULT_MR_JOB_MAX_MAPPERS);
       KafkaWorkUnitPacker kafkaWorkUnitPacker = KafkaWorkUnitPacker.getInstance(this, state);
+      int numOfMultiWorkunits = maxMapperNum;
       if(state.contains(ConfigurationKeys.MR_TARGET_MAPPER_SIZE)) {
         double totalEstDataSize = kafkaWorkUnitPacker.getWorkUnitEstSizes(workUnits);
         LOG.info(String.format("The total estimated data size is %.2f", totalEstDataSize));
         double targetMapperSize = state.getPropAsDouble(ConfigurationKeys.MR_TARGET_MAPPER_SIZE);
         numOfMultiWorkunits = (int) (totalEstDataSize / targetMapperSize);
+        numOfMultiWorkunits = numOfMultiWorkunits>maxMapperNum? maxMapperNum:numOfMultiWorkunits;
         numOfMultiWorkunits = numOfMultiWorkunits==0? 1: numOfMultiWorkunits;
       }
       List<WorkUnit> workUnitList = kafkaWorkUnitPacker.pack(workUnits, numOfMultiWorkunits);
