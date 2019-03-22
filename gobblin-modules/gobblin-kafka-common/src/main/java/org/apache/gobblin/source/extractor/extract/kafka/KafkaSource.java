@@ -264,12 +264,11 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       KafkaWorkUnitPacker kafkaWorkUnitPacker = KafkaWorkUnitPacker.getInstance(this, state);
       int numOfMultiWorkunits = maxMapperNum;
       if(state.contains(ConfigurationKeys.MR_TARGET_MAPPER_SIZE)) {
-        double totalEstDataSize = kafkaWorkUnitPacker.getWorkUnitEstSizes(workUnits);
+        double totalEstDataSize = kafkaWorkUnitPacker.setWorkUnitEstSizes(workUnits);
         LOG.info(String.format("The total estimated data size is %.2f", totalEstDataSize));
         double targetMapperSize = state.getPropAsDouble(ConfigurationKeys.MR_TARGET_MAPPER_SIZE);
-        numOfMultiWorkunits = (int) (totalEstDataSize / targetMapperSize);
-        numOfMultiWorkunits = numOfMultiWorkunits>maxMapperNum? maxMapperNum:numOfMultiWorkunits;
-        numOfMultiWorkunits = numOfMultiWorkunits==0? 1: numOfMultiWorkunits;
+        numOfMultiWorkunits = (int) (totalEstDataSize / targetMapperSize) + 1;
+        numOfMultiWorkunits = Math.min(numOfMultiWorkunits, maxMapperNum);
       }
       List<WorkUnit> workUnitList = kafkaWorkUnitPacker.pack(workUnits, numOfMultiWorkunits);
       addTopicSpecificPropsToWorkUnits(workUnitList, topicSpecificStateMap);
