@@ -261,13 +261,15 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       //determine the number of mappers
       int numOfMultiWorkunits =
           state.getPropAsInt(ConfigurationKeys.MR_JOB_MAX_MAPPERS_KEY, ConfigurationKeys.DEFAULT_MR_JOB_MAX_MAPPERS);
-      if(state.contains(ConfigurationKeys.TARGET_MAPPER_SIZE)) {
-        double totalEstDataSize = KafkaWorkUnitPacker.getInstance(this, state).getWorkUnitEstSizes(workUnits);
+      KafkaWorkUnitPacker kafkaWorkUnitPacker = KafkaWorkUnitPacker.getInstance(this, state);
+      if(state.contains(ConfigurationKeys.MR_TARGET_MAPPER_SIZE)) {
+        double totalEstDataSize = kafkaWorkUnitPacker.getWorkUnitEstSizes(workUnits);
         LOG.info(String.format("The total estimated data size is %.2f", totalEstDataSize));
-        double targetMapperSize = state.getPropAsDouble(ConfigurationKeys.TARGET_MAPPER_SIZE);
+        double targetMapperSize = state.getPropAsDouble(ConfigurationKeys.MR_TARGET_MAPPER_SIZE);
         numOfMultiWorkunits = (int) (totalEstDataSize / targetMapperSize);
+        numOfMultiWorkunits = numOfMultiWorkunits==0? 1: numOfMultiWorkunits;
       }
-      List<WorkUnit> workUnitList = KafkaWorkUnitPacker.getInstance(this, state).pack(workUnits, numOfMultiWorkunits);
+      List<WorkUnit> workUnitList = kafkaWorkUnitPacker.pack(workUnits, numOfMultiWorkunits);
       addTopicSpecificPropsToWorkUnits(workUnitList, topicSpecificStateMap);
       setLimiterReportKeyListToWorkUnits(workUnitList, getLimiterExtractorReportKeys());
       return workUnitList;
