@@ -28,29 +28,29 @@ Gobblin ingestion applications
 
 Gobblin ingestion applications can be accessed through the command `run`:
 ```bash
-bin/gobblin run [listQuickApps] [<quick-app>] -jobName <jobName> [OPTIONS]
+bin/gobblin cli run [listQuickApps] [<quick-app>] -jobName <jobName> [OPTIONS]
 ```
-For usage run `bin/gobblin run`.
+For usage run `bin/gobblin cli run`.
 
-`bin/gobblin run` uses [Embedded Gobblin](Gobblin-as-a-Library.md) and subclasses to run Gobblin ingestion jobs, giving CLI access to most functionality that could be achieved using `EmbeddedGobblin`. For example, the following command will run a Hello World job (it will print "Hello World 1 !" somewhere in the logs).
+`bin/gobblin cli run` uses [Embedded Gobblin](Gobblin-as-a-Library.md) and subclasses to run Gobblin ingestion jobs, giving CLI access to most functionality that could be achieved using `EmbeddedGobblin`. For example, the following command will run a Hello World job (it will print "Hello World 1 !" somewhere in the logs).
 ```bash
-bin/gobblin run -jobName helloWorld -setTemplate resource:///templates/hello-world.template
+bin/gobblin cli run -jobName helloWorld -setTemplate resource:///templates/hello-world.template
 ```
 
 Obviously, it is daunting to have to know the path to templates and exactly which configurations to set. The alternative is to use a quick app. Running:
 ```bash
-bin/gobblin run listQuickApps
+bin/gobblin cli run listQuickApps
 ```
 will provide with a list of available quick apps. To run a quick app:
 ```bash
-bin/gobblin run <quick-app-name>
+bin/gobblin cli run <quick-app-name>
 ```
-Quick apps may require additional arguments. For the usage of a particular app, run `bin/gobblin run <quick-app-name> -h`.
+Quick apps may require additional arguments. For the usage of a particular app, run `bin/gobblin cli run <quick-app-name> -h`.
 
 For example, consider the quick app distcp:
 ```bash
-$ bin/gobblin run distcp -h
-usage: gobblin run distcp [OPTIONS] <source> <target>
+$ bin/gobblin cli run distcp -h
+usage: gobblin cli run distcp [OPTIONS] <source> <target>
  -delete                         Delete files in target that don't exist
                                  on source.
  -deleteEmptyParentDirectories   If deleting files on target, also delete
@@ -71,7 +71,7 @@ usage: gobblin run distcp [OPTIONS] <source> <target>
 ```
 This provides usage for the app distcp, as well as listing all available options. Distcp could then be run:
 ```bash
-bin/gobblin run distcp file:///source/path file:///target/path
+bin/gobblin cli run distcp file:///source/path file:///target/path
 ```
 
 Developing quick apps for the CLI
