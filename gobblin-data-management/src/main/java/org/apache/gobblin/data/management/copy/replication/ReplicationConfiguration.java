@@ -27,10 +27,15 @@ import java.util.Set;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.util.filesystem.DataFileVersionStrategy;
+import org.apache.gobblin.util.filesystem.ModTimeDataFileVersionStrategy;
+
 import lombok.Getter;
 
 
@@ -115,6 +120,9 @@ public class ReplicationConfiguration {
   @Getter
   private final boolean deleteTargetIfNotExistOnSource;
 
+  @Getter
+  private final Optional<String> versionStrategyFromConfigStore;
+
   public static ReplicationConfiguration buildFromConfig(Config input)
       throws InstantiationException, IllegalAccessException, ClassNotFoundException {
     Preconditions.checkArgument(input != null, "can not build ReplicationConfig from null");
@@ -131,6 +139,7 @@ public class ReplicationConfiguration {
         .withDataFlowTopologyConfig(config)
         .withCopyRouteGenerator(config)
         .withDeleteTarget(config)
+        .withVersionStrategyFromConfigStore(config)
         .build();
   }
 
@@ -143,6 +152,7 @@ public class ReplicationConfiguration {
     this.dataFlowToplogy = builder.dataFlowTopology;
     this.copyRouteGenerator = builder.copyRouteGenerator;
     this.deleteTargetIfNotExistOnSource = builder.deleteTargetIfNotExistOnSource;
+    this.versionStrategyFromConfigStore = builder.versionStrategyFromConfigStore;
   }
 
   private static class Builder {
@@ -168,6 +178,16 @@ public class ReplicationConfiguration {
     private CopyRouteGenerator copyRouteGenerator;
 
     private boolean deleteTargetIfNotExistOnSource = false;
+
+    private Optional<String> versionStrategyFromConfigStore = Optional.absent();
+
+
+    public Builder withVersionStrategyFromConfigStore(Config config) {
+      this.versionStrategyFromConfigStore = config.hasPath(DataFileVersionStrategy.DATA_FILE_VERSION_STRATEGY_KEY)?
+          Optional.of(config.getString(DataFileVersionStrategy.DATA_FILE_VERSION_STRATEGY_KEY)) :
+          Optional.absent();
+      return this;
+    }
 
     public Builder withReplicationMetaData(ReplicationMetaData metaData) {
       this.metaData = metaData;
