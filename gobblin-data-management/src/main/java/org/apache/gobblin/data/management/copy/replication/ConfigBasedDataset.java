@@ -176,7 +176,7 @@ public class ConfigBasedDataset implements CopyableDataset {
       return copyableFiles;
     }
 
-    if (this.srcDataFileVersionStrategy.get().getClass().getName()
+    if (!this.srcDataFileVersionStrategy.get().getClass().getName()
         .equals(this.dstDataFileVersionStrategy.get().getClass().getName())) {
       log.warn("Version strategy doesn't match, cannot handle copy");
       return copyableFiles;
