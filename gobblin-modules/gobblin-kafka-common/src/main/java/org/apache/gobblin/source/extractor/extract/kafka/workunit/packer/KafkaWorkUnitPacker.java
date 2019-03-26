@@ -103,16 +103,6 @@ public abstract class KafkaWorkUnitPacker {
     }
   };
 
-  protected double setWorkUnitEstSizes(Map<String, List<WorkUnit>> workUnitsByTopic) {
-    double totalEstDataSize = 0;
-    for (List<WorkUnit> workUnitsForTopic : workUnitsByTopic.values()) {
-      for (WorkUnit workUnit : workUnitsForTopic) {
-        setWorkUnitEstSize(workUnit);
-        totalEstDataSize += getWorkUnitEstSize(workUnit);
-      }
-    }
-    return totalEstDataSize;
-  }
 
   private void setWorkUnitEstSize(WorkUnit workUnit) {
     workUnit.setProp(ESTIMATED_WORKUNIT_SIZE, this.sizeEstimator.calcEstimatedSize(workUnit));
@@ -361,6 +351,22 @@ public abstract class KafkaWorkUnitPacker {
       default:
         throw new IllegalArgumentException("WorkUnit packer type " + packerType + " not found");
     }
+  }
+
+  /**
+   * Calculate the total size of the workUnits and set the estimated size for each workUnit
+   * @param workUnitsByTopic
+   * @return the total size of the input workUnits
+   */
+  public double setWorkUnitEstSizes(Map<String, List<WorkUnit>> workUnitsByTopic) {
+    double totalEstDataSize = 0;
+    for (List<WorkUnit> workUnitsForTopic : workUnitsByTopic.values()) {
+      for (WorkUnit workUnit : workUnitsForTopic) {
+        setWorkUnitEstSize(workUnit);
+        totalEstDataSize += getWorkUnitEstSize(workUnit);
+      }
+    }
+    return totalEstDataSize;
   }
 
   /**

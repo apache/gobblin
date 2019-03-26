@@ -258,10 +258,19 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       // Create empty WorkUnits for skipped partitions (i.e., partitions that have previous offsets,
       // but aren't processed).
       createEmptyWorkUnitsForSkippedPartitions(workUnits, topicSpecificStateMap, state);
-
-      int numOfMultiWorkunits =
+      //determine the number of mappers
+      int maxMapperNum =
           state.getPropAsInt(ConfigurationKeys.MR_JOB_MAX_MAPPERS_KEY, ConfigurationKeys.DEFAULT_MR_JOB_MAX_MAPPERS);
-      List<WorkUnit> workUnitList = KafkaWorkUnitPacker.getInstance(this, state).pack(workUnits, numOfMultiWorkunits);
+      KafkaWorkUnitPacker kafkaWorkUnitPacker = KafkaWorkUnitPacker.getInstance(this, state);
+      int numOfMultiWorkunits = maxMapperNum;
+      if(state.contains(ConfigurationKeys.MR_TARGET_MAPPER_SIZE)) {
+        double totalEstDataSize = kafkaWorkUnitPacker.setWorkUnitEstSizes(workUnits);
+        LOG.info(String.format("The total estimated data size is %.2f", totalEstDataSize));
+        double targetMapperSize = state.getPropAsDouble(ConfigurationKeys.MR_TARGET_MAPPER_SIZE);
+        numOfMultiWorkunits = (int) (totalEstDataSize / targetMapperSize) + 1;
+        numOfMultiWorkunits = Math.min(numOfMultiWorkunits, maxMapperNum);
+      }
+      List<WorkUnit> workUnitList = kafkaWorkUnitPacker.pack(workUnits, numOfMultiWorkunits);
       addTopicSpecificPropsToWorkUnits(workUnitList, topicSpecificStateMap);
       setLimiterReportKeyListToWorkUnits(workUnitList, getLimiterExtractorReportKeys());
       return workUnitList;
