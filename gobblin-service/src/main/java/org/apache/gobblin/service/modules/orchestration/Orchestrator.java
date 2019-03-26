@@ -60,8 +60,12 @@ import org.apache.gobblin.service.ServiceMetricNames;
 import org.apache.gobblin.service.modules.flow.SpecCompiler;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
+import org.apache.gobblin.service.monitoring.FsJobStatusRetriever;
+import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**
@@ -70,6 +74,8 @@ import org.apache.gobblin.util.ConfigUtils;
  */
 @Alpha
 public class Orchestrator implements SpecCatalogListener, Instrumentable {
+  private static final String JOB_STATUS_RETRIEVER_CLASS_KEY = "jobStatusRetriever.class";
+
   protected final Logger _log;
   protected final SpecCompiler specCompiler;
   protected final Optional<TopologyCatalog> topologyCatalog;
@@ -83,6 +89,8 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   private Optional<Meter> flowOrchestrationFailedMeter;
   @Getter
   private Optional<Timer> flowOrchestrationTimer;
+
+  private FlowStatusGenerator flowStatusGenerator;
 
   private final ClassAliasResolver<SpecCompiler> aliasResolver;
 
@@ -152,6 +160,13 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     return this.specCompiler;
   }
 
+  /**
+   * Setter for setting the {@link FlowStatusGenerator}.
+   */
+  public void setFlowStatusGenerator(FlowStatusGenerator flowStatusGenerator) {
+    this.flowStatusGenerator = flowStatusGenerator;
+  }
+
   /** {@inheritDoc} */
   @Override
   public AddSpecResponse onAddSpec(Spec addedSpec) {
@@ -210,6 +225,19 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       TimingEvent flowCompilationTimer = this.eventSubmitter.isPresent()
           ? this.eventSubmitter.get().getTimingEvent(TimingEvent.FlowTimings.FLOW_COMPILED)
           : null;
+
+      //If the FlowSpec disallows concurrent executions, then check if another instance of the flow is already
+      //running. If so, return immediately.
+      Config flowConfig = ((FlowSpec) spec).getConfig();
+      String flowGroup = flowConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
+      String flowName = flowConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
+      boolean allowConcurrentExecution = ConfigUtils.getBoolean(flowConfig, ConfigurationKeys.FLOW_ALLOW_CONCURRENT_EXECUTION, true);
+
+      if (!canRun(flowName, flowGroup, allowConcurrentExecution)) {
+        _log.warn("Another instance of flowGroup: {}, flowName: {} running; Skipping flow execution since "
+            + "concurrent executions are disabled for this flow.", flowGroup, flowName);
+        return;
+      }
 
       Dag<JobExecutionPlan> jobExecutionPlanDag = specCompiler.compileFlow(spec);
 
@@ -283,6 +311,21 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     Instrumented.updateTimer(this.flowOrchestrationTimer, System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
   }
 
+  /**
+   * Check if the flow instance is allowed to run.
+   * @param flowName
+   * @param flowGroup
+   * @param allowConcurrentExecution
+   * @return true if the {@link FlowSpec} allows concurrent executions or if no other instance of the flow is currently RUNNING.
+   */
+  private boolean canRun(String flowName, String flowGroup, boolean allowConcurrentExecution) {
+    if (allowConcurrentExecution) {
+      return true;
+    } else {
+      return !flowStatusGenerator.isFlowRunning(flowName, flowGroup);
+    }
+  }
+
   public void remove(Spec spec, Properties headers) {
     // TODO: Evolve logic to cache and reuse previously compiled JobSpecs
     // .. this will work for Identity compiler but not always for multi-hop.
@@ -314,6 +357,19 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     } else {
       throw new RuntimeException("Spec not of type FlowSpec, cannot delete: " + spec);
     }
+  }
+
+  private FlowStatusGenerator buildFlowStatusGenerator(Config config) {
+    JobStatusRetriever jobStatusRetriever;
+    try {
+      Class jobStatusRetrieverClass = Class.forName(ConfigUtils.getString(config, JOB_STATUS_RETRIEVER_CLASS_KEY, FsJobStatusRetriever.class.getName()));
+      jobStatusRetriever =
+          (JobStatusRetriever) GobblinConstructorUtils.invokeLongestConstructor(jobStatusRetrieverClass, config);
+    } catch (ReflectiveOperationException e) {
+      _log.error("Exception encountered when instantiating JobStatusRetriever");
+      throw new RuntimeException(e);
+    }
+    return FlowStatusGenerator.builder().jobStatusRetriever(jobStatusRetriever).build();
   }
 
   @Nonnull
