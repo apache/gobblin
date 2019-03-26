@@ -212,6 +212,47 @@ public class PullFileLoader {
     }
   }
 
+  public List<Path> fetchJobFilesRecursively(Path path) {
+    return getSortedPaths(fetchJobFilePathsRecursivelyHelper(path));
+  }
+
+  private List<Path> getSortedPaths(List<PathWithTimeStamp> pathsWithTimeStamps) {
+    List<Path> sortedPaths = Lists.newArrayList();
+    Collections.sort(pathsWithTimeStamps, Comparator.comparingLong(o -> o.timeStamp));
+    for (PathWithTimeStamp pathWithTimeStamp : pathsWithTimeStamps) {
+      sortedPaths.add(pathWithTimeStamp.path);
+    }
+    return sortedPaths;
+  }
+
+  private List<PathWithTimeStamp> fetchJobFilePathsRecursivelyHelper(Path path) {
+    List<PathWithTimeStamp> paths = Lists.newArrayList();
+    try {
+      FileStatus[] statuses = this.fs.listStatus(path);
+      if (statuses == null) {
+        log.error("Path does not exist: " + path);
+        return paths;
+      }
+
+      for (FileStatus status : statuses) {
+        if (status.isDirectory()) {
+          paths.addAll(fetchJobFilePathsRecursivelyHelper(status.getPath()));
+        } else if (this.javaPropsPullFileFilter.accept(status.getPath())) {
+          log.debug("modification time of {} is {}", status.getPath(), status.getModificationTime());
+          paths.add(new PathWithTimeStamp(status.getModificationTime(), status.getPath()));
+        } else if (this.hoconPullFileFilter.accept(status.getPath())) {
+          log.debug("modification time of {} is {}", status.getPath(), status.getModificationTime());
+          paths.add(new PathWithTimeStamp(status.getModificationTime(), status.getPath()));
+        }
+      }
+
+      return paths;
+    } catch (IOException ioe) {
+      log.error("Could not load properties at path: " + path, ioe);
+      return Lists.newArrayList();
+    }
+  }
+
   /**
    * Load at most one *.properties files from path and each ancestor of path up to and including {@link #rootDirectory}.
    * Higher directories will serve as fallback for lower directories, and sysProps will serve as fallback for all of them.
@@ -307,6 +348,16 @@ public class PullFileLoader {
           PathUtils.getPathWithoutSchemeAndAuthority(path).toString()))
           .withFallback(ConfigFactory.parseReader(reader, ConfigParseOptions.defaults().setSyntax(ConfigSyntax.CONF)))
           .withFallback(fallback);
+    }
+  }
+
+  private static class PathWithTimeStamp {
+    long timeStamp;
+    Path path;
+
+    public PathWithTimeStamp(long timeStamp, Path path) {
+      this.timeStamp = timeStamp;
+      this.path = path;
     }
   }
 
