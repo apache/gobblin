@@ -105,6 +105,9 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
   private volatile boolean cancellationRequested = false;
   // A flag indicating whether a cancellation has been executed or not
   private volatile boolean cancellationExecuted = false;
+  // A flag indicating wheter a planning job should wait for its completion
+  private boolean nonBlockingMode = false;
+
   @Getter
   private DistributeJobMonitor jobMonitor;
 
@@ -126,6 +129,9 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
         GobblinClusterConfigurationKeys.HELIX_WORKFLOW_EXPIRY_TIME_SECONDS,
         GobblinClusterConfigurationKeys.DEFAULT_HELIX_WORKFLOW_EXPIRY_TIME_SECONDS);
     this.planningJobLauncherMetrics = builder.planningJobLauncherMetrics;
+    this.nonBlockingMode = ConfigUtils.getBoolean(combined,
+        GobblinClusterConfigurationKeys.NON_BLOCKING_PLANNING_JOB_ENABLED,
+        GobblinClusterConfigurationKeys.DEFAULT_NON_BLOCKING_PLANNING_JOB_ENABLED);
     this.helixMetrics = builder.helixMetrics;
     this.jobsMapping = builder.jobsMapping;
     this.helixJobStopTimeoutSeconds = ConfigUtils.getLong(combined,
@@ -274,12 +280,18 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
         submitJobToHelix(planningId, planningId, builder);
         GobblinHelixDistributeJobExecutionLauncher.this.helixMetrics.updateTimeForHelixSubmit(submitStartTime);
         long waitStartTime = System.currentTimeMillis();
-        DistributeJobResult rst = waitForJobCompletion(planningId, planningId);
-        GobblinHelixDistributeJobExecutionLauncher.this.helixMetrics.updateTimeForHelixWait(waitStartTime);
+
+        // we should not wait if in non-blocking mode.
+        DistributeJobResult rst = new DistributeJobResult();
+        if (!GobblinHelixDistributeJobExecutionLauncher.this.nonBlockingMode) {
+          rst = waitForJobCompletion(planningId, planningId);
+          GobblinHelixDistributeJobExecutionLauncher.this.helixMetrics.updateTimeForHelixWait(waitStartTime);
+        }
+
         return rst;
       } catch (Exception e) {
         log.error(planningId + " is not able to submit.");
-        return new DistributeJobResult(false);
+        return new DistributeJobResult();
       }
     }
   }
@@ -302,19 +314,20 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
     } catch (TimeoutException te) {
       HelixUtils.handleJobTimeout(workFlowName, jobName,
           planningJobHelixManager, this, null);
-      return new DistributeJobResult(false);
+      return new DistributeJobResult();
     }
   }
 
-  //TODO: we will remove this logic after we change to polling model.
   protected DistributeJobResult getResultFromUserContent() {
-    return new DistributeJobResult(false);
+    return new DistributeJobResult();
   }
 
-  @Getter
-  @AllArgsConstructor
+  /**
+   * If {@link GobblinClusterConfigurationKeys#NON_BLOCKING_PLANNING_JOB_ENABLED} is enabled
+   * this result object contains nothing; otherwise this result object can be used to contain
+   * any values returned from other task-driver instances.
+   */
   static class DistributeJobResult implements ExecutionResult {
-    boolean isEarlyStopped = false;
   }
 
   private class DistributeJobMonitor extends FutureTask<ExecutionResult> implements JobExecutionMonitor {

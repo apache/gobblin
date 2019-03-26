@@ -31,6 +31,7 @@ import org.apache.helix.HelixManager;
 
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.Striped;
+import com.typesafe.config.Config;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -41,6 +42,7 @@ import org.apache.gobblin.runtime.api.JobExecutionMonitor;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
 import org.apache.gobblin.runtime.listeners.JobListener;
 import org.apache.gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PropertiesUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
@@ -234,7 +236,7 @@ class HelixRetriggeringJobCallable implements Callable {
 
       // Check if any existing planning job is running
       Optional<String> planningJobIdFromStore = jobsMapping.getPlanningJobId(jobName);
-
+      boolean nonblocking = false;
       // start of critical section to check if a job with same job name is running
       Lock jobLock = locks.get(jobName);
       jobLock.lock();
@@ -290,6 +292,14 @@ class HelixRetriggeringJobCallable implements Callable {
         builder.setPlanningJobLauncherMetrics(this.planningJobLauncherMetrics);
         builder.setHelixMetrics(this.helixMetrics);
 
+        // if the distributed job launcher should wait for planning job completion
+
+        Config combined = ConfigUtils.propertiesToConfig(jobPlanningProps)
+            .withFallback(ConfigUtils.propertiesToConfig(sysProps));
+
+        nonblocking = ConfigUtils.getBoolean(combined, GobblinClusterConfigurationKeys.NON_BLOCKING_PLANNING_JOB_ENABLED,
+            GobblinClusterConfigurationKeys.DEFAULT_NON_BLOCKING_PLANNING_JOB_ENABLED);
+
         log.info("Planning job {} started.", newPlanningId);
         GobblinHelixDistributeJobExecutionLauncher launcher = builder.build();
         closer.register(launcher);
@@ -297,7 +307,7 @@ class HelixRetriggeringJobCallable implements Callable {
         startTime = System.currentTimeMillis();
         this.currentJobMonitor = launcher.launchJob(null);
 
-        // make sure the planning job will be visible to other parallel running threads,
+        // make sure the planning job is initialized (or visible) to other parallel running threads,
         // so that the same critical section check (querying Helix for job completeness)
         // can be applied.
         HelixUtils.waitJobInitialization(planningJobManager, newPlanningId, newPlanningId, 300_000);
@@ -310,11 +320,16 @@ class HelixRetriggeringJobCallable implements Callable {
       // we can remove the job spec from the catalog because Helix will drive this job to the end.
       this.deleteJobSpec();
 
+      // If we are using non-blocking mode, this get() only guarantees the plannning job is submitted.
+      // It doesn't guarantee the job will finish because internally we won't wait for Helix completion.
       this.currentJobMonitor.get();
       this.currentJobMonitor = null;
-      log.info("Planning job {} finished.", newPlanningId);
-      this.planningJobLauncherMetrics.updateTimeForCompletedPlanningJobs(startTime);
-
+      if (nonblocking) {
+        log.info("Planning job {} submitted successfully.", newPlanningId);
+      } else {
+        log.info("Planning job {} finished.", newPlanningId);
+        this.planningJobLauncherMetrics.updateTimeForCompletedPlanningJobs(startTime);
+      }
     } catch (Exception e) {
       if (startTime != 0) {
         this.planningJobLauncherMetrics.updateTimeForFailedPlanningJobs(startTime);

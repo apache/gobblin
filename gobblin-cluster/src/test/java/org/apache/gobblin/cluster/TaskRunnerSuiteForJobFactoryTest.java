@@ -93,7 +93,6 @@ public class TaskRunnerSuiteForJobFactoryTest extends TaskRunnerSuiteThreadModel
 
     protected DistributeJobResult getResultFromUserContent() {
       DistributeJobResult rst = super.getResultFromUserContent();
-      Assert.assertTrue(!rst.isEarlyStopped());
       String jobName = this.jobPlanningProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
       try {
         Assert.assertFalse(this.jobsMapping.getPlanningJobId(jobName).isPresent());
