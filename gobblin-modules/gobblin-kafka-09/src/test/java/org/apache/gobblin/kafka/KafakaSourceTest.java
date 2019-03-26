@@ -34,8 +34,6 @@ public class KafakaSourceTest {
   public static final String BOOTSTRAP_WITH_OFFSET = "bootstrap.with.offset";
   public static final String PARTITION_ID = "partition.id";
 
-
-  //private MockConsumer<String, String> consumer = new MockConsumer<String, String>(OffsetResetStrategy.NONE);
   private final KafkaTestBase kafkaTestHelper;
   public KafakaSourceTest()
       throws InterruptedException, RuntimeException {
