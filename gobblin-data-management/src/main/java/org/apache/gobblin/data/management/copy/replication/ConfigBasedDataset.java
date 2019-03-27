@@ -79,6 +79,8 @@ public class ConfigBasedDataset implements CopyableDataset {
   private final Optional<DataFileVersionStrategy> srcDataFileVersionStrategy;
   private final Optional<DataFileVersionStrategy> dstDataFileVersionStrategy;
 
+  private final boolean enforceFileLengthMatch;
+
   //Apply filter to directories
   private final boolean applyFilterToDirectories;
 
@@ -94,6 +96,7 @@ public class ConfigBasedDataset implements CopyableDataset {
         Boolean.parseBoolean(this.props.getProperty(CopyConfiguration.APPLY_FILTER_TO_DIRECTORIES, "false"));
     this.srcDataFileVersionStrategy = getDataFileVersionStrategy(this.copyRoute.getCopyFrom(), rc, props);
     this.dstDataFileVersionStrategy = getDataFileVersionStrategy(this.copyRoute.getCopyTo(), rc, props);
+    this.enforceFileLengthMatch = Boolean.parseBoolean(this.props.getProperty(CopyConfiguration.ENFORCE_FILE_LENGTH_MATCH, "true"));
   }
 
   public ConfigBasedDataset(ReplicationConfiguration rc, Properties props, CopyRoute copyRoute, String datasetURN) {
@@ -106,6 +109,7 @@ public class ConfigBasedDataset implements CopyableDataset {
         Boolean.parseBoolean(this.props.getProperty(CopyConfiguration.APPLY_FILTER_TO_DIRECTORIES, "false"));
     this.srcDataFileVersionStrategy = getDataFileVersionStrategy(this.copyRoute.getCopyFrom(), rc, props);
     this.dstDataFileVersionStrategy = getDataFileVersionStrategy(this.copyRoute.getCopyTo(), rc, props);
+    this.enforceFileLengthMatch = Boolean.parseBoolean(this.props.getProperty(CopyConfiguration.ENFORCE_FILE_LENGTH_MATCH, "true"));
   }
 
   /**
@@ -234,20 +238,13 @@ public class ConfigBasedDataset implements CopyableDataset {
 
       boolean shouldCopy = true;
       if (copyToFileMap.containsKey(newPath)) {
-        if (this.srcDataFileVersionStrategy.get() instanceof ModTimeDataFileVersionStrategy) {
-          // default version strategy should also compare data file length
-          if (copyToFileMap.get(newPath).getLen() == originFileStatus.getLen()
-              && copyToFileMap.get(newPath).getModificationTime() > originFileStatus.getModificationTime()) {
-            log.debug("Copy from timestamp older than copy to timestamp, skipped copy {} for dataset with metadata {}",
-                originFileStatus.getPath(), this.rc.getMetaData());
-            shouldCopy = false;
-          }
-        } else {
-          // other version strategy should just compare the version number
-          Comparable srcVer = this.srcDataFileVersionStrategy.get().getVersion(originFileStatus.getPath());
-          Comparable dstVer = this.dstDataFileVersionStrategy.get().getVersion(copyToFileMap.get(newPath).getPath());
-          if (srcVer.compareTo(dstVer) == 0) {
-            log.debug("Copy from src {} (v:{}) to dst {} (v:{}) can be skipped",
+        Comparable srcVer = this.srcDataFileVersionStrategy.get().getVersion(originFileStatus.getPath());
+        Comparable dstVer = this.dstDataFileVersionStrategy.get().getVersion(copyToFileMap.get(newPath).getPath());
+
+        // destination has higher version, skip the copy
+        if (srcVer.compareTo(dstVer) <= 0) {
+          if (!enforceFileLengthMatch || copyToFileMap.get(newPath).getLen() == originFileStatus.getLen()) {
+            log.debug("Copy from src {} (v:{}) to dst {} (v:{}) can be skipped.",
                 originFileStatus.getPath(), srcVer, copyToFileMap.get(newPath).getPath(), dstVer);
             shouldCopy = false;
           }

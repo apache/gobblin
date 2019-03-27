@@ -80,8 +80,6 @@ public class ConfigBasedMultiDatasets {
 
       ReplicationConfiguration rc = ReplicationConfiguration.buildFromConfig(c);
 
-      //TODO: we need to pass config down so that we can see if this dataset needs a version based copy
-
       // push mode
       if(this.props.containsKey(REPLICATION_PUSH_MODE) && Boolean.parseBoolean(this.props.getProperty(REPLICATION_PUSH_MODE))){
         generateDatasetInPushMode(rc, executionClusterURI);
