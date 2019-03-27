@@ -47,7 +47,6 @@ import static org.apache.helix.task.TaskState.STOPPED;
  *
  * @author Yinan Li
  */
-@Alpha
 @Slf4j
 public class HelixUtils {
 
