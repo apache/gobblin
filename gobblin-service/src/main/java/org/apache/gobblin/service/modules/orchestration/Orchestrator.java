@@ -37,6 +37,7 @@ import com.typesafe.config.Config;
 
 import javax.annotation.Nonnull;
 import lombok.Getter;
+import lombok.Setter;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -89,7 +90,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   private Optional<Meter> flowOrchestrationFailedMeter;
   @Getter
   private Optional<Timer> flowOrchestrationTimer;
-
+  @Setter
   private FlowStatusGenerator flowStatusGenerator;
 
   private final ClassAliasResolver<SpecCompiler> aliasResolver;
@@ -158,13 +159,6 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   @VisibleForTesting
   public SpecCompiler getSpecCompiler() {
     return this.specCompiler;
-  }
-
-  /**
-   * Setter for setting the {@link FlowStatusGenerator}.
-   */
-  public void setFlowStatusGenerator(FlowStatusGenerator flowStatusGenerator) {
-    this.flowStatusGenerator = flowStatusGenerator;
   }
 
   /** {@inheritDoc} */
