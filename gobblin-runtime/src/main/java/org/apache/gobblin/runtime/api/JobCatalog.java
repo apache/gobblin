@@ -18,6 +18,7 @@ package org.apache.gobblin.runtime.api;
 
 import java.net.URI;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -49,6 +50,10 @@ import org.apache.gobblin.util.ConfigUtils;
 public interface JobCatalog extends JobCatalogListenersContainer, Instrumentable, StandardMetricsBridge {
   /** Returns an immutable {@link Collection} of {@link JobSpec}s that are known to the catalog. */
   Collection<JobSpec> getJobs();
+
+  default Iterator<JobSpec> getJobSpecIterator() {
+    return getJobs().iterator();
+  }
 
   /** Metrics for the job catalog; null if
    * ({@link #isInstrumentationEnabled()}) is false. */
