@@ -17,9 +17,9 @@
 
 package org.apache.gobblin.kafka;
 
+import com.google.common.collect.Iterators;
 import com.typesafe.config.Config;
 import java.io.IOException;
-import java.lang.management.ManagementFactory;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -58,7 +58,6 @@ public class KafakaSourceTest {
   }
   @BeforeSuite
   public void beforeSuite() {
-    log.info("Process id = " + ManagementFactory.getRuntimeMXBean().getName());
     kafkaTestHelper.startServers();
   }
 
@@ -90,14 +89,7 @@ public class KafakaSourceTest {
     state.setProp(ConfigurationKeys.MR_JOB_MAX_MAPPERS_KEY, 100);
     List<WorkUnit> workUnits =  source.getWorkunits(state);
     Assert.assertEquals(workUnits.size(), 100);
-
-    MultiWorkUnitUnpackingIterator iterator = new MultiWorkUnitUnpackingIterator(workUnits.iterator());
-    int numOfWorkUnits = 0;
-    while(iterator.hasNext())
-    {
-      numOfWorkUnits++;
-      iterator.next();
-    }
+    int numOfWorkUnits = Iterators.size(new MultiWorkUnitUnpackingIterator(workUnits.iterator()));
     Assert.assertEquals(numOfWorkUnits,3);
   }
 
