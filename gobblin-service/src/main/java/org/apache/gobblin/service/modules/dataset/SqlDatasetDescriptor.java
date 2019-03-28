@@ -54,7 +54,9 @@ public class SqlDatasetDescriptor extends BaseDatasetDescriptor implements Datas
   public enum  Platform {
     SQLSERVER("sqlserver"),
     MYSQL("mysql"),
-    ORACLE("oracle");
+    ORACLE("oracle"),
+    POSTGRES("postgres"),
+    TERADARA("teradata");
 
     private final String platform;
 
