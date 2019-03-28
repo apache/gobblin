@@ -93,14 +93,19 @@ import org.apache.gobblin.service.modules.restli.GobblinServiceFlowConfigResourc
 import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
 import org.apache.gobblin.service.modules.topology.TopologySpecFactory;
 import org.apache.gobblin.service.modules.utils.HelixUtils;
+import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
+import org.apache.gobblin.service.monitoring.FsJobStatusRetriever;
+import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 @Alpha
 public class GobblinServiceManager implements ApplicationLauncher, StandardMetricsBridge {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinServiceManager.class);
+  private static final String JOB_STATUS_RETRIEVER_CLASS_KEY = "jobStatusRetriever.class";
 
   protected final ServiceBasedAppLauncher serviceLauncher;
   private volatile boolean stopInProgress = false;
@@ -132,6 +137,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
   protected GobblinServiceFlowConfigResourceHandler v2ResourceHandler;
 
   protected boolean flowCatalogLocalCommit;
+  @Getter
   protected Orchestrator orchestrator;
   protected EmbeddedRestliServer restliServer;
   protected TopologySpecFactory topologySpecFactory;
@@ -336,6 +342,19 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
 
   private Path getServiceWorkDirPath(FileSystem fs, String serviceName, String serviceId) {
     return new Path(fs.getHomeDirectory(), serviceName + Path.SEPARATOR + serviceId);
+  }
+
+  private FlowStatusGenerator buildFlowStatusGenerator(Config config) {
+    JobStatusRetriever jobStatusRetriever;
+    try {
+      Class jobStatusRetrieverClass = Class.forName(ConfigUtils.getString(config, JOB_STATUS_RETRIEVER_CLASS_KEY, FsJobStatusRetriever.class.getName()));
+      jobStatusRetriever =
+          (JobStatusRetriever) GobblinConstructorUtils.invokeLongestConstructor(jobStatusRetrieverClass, config);
+    } catch (ReflectiveOperationException e) {
+      LOGGER.error("Exception encountered when instantiating JobStatusRetriever");
+      throw new RuntimeException(e);
+    }
+    return FlowStatusGenerator.builder().jobStatusRetriever(jobStatusRetriever).build();
   }
 
   /**
@@ -558,7 +577,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
       try (GobblinServiceManager gobblinServiceManager = new GobblinServiceManager(
           cmd.getOptionValue(ServiceConfigKeys.SERVICE_NAME_OPTION_NAME), getServiceId(),
           config, Optional.<Path>absent())) {
-
+        gobblinServiceManager.getOrchestrator().setFlowStatusGenerator(gobblinServiceManager.buildFlowStatusGenerator(config));
         gobblinServiceManager.start();
 
         if (isTestMode) {

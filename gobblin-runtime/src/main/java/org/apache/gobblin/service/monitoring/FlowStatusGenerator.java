@@ -21,6 +21,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.google.common.collect.Lists;
+
 import lombok.Builder;
 
 import org.apache.gobblin.annotation.Alpha;
@@ -32,6 +34,8 @@ import org.apache.gobblin.annotation.Alpha;
 @Alpha
 @Builder
 public class FlowStatusGenerator {
+  public static final List<String> FINISHED_JOB_STATUSES = Lists.newArrayList("FAILED", "COMPLETE", "CANCELLED");
+
   private final JobStatusRetriever jobStatusRetriever;
 
   /**
@@ -71,5 +75,39 @@ public class FlowStatusGenerator {
     }
 
     return flowStatus;
+  }
+
+  /**
+   * Return true if another instance of a flow is running. A flow is determined to be in the RUNNING state, if any of the
+   * jobs in the flow are in the RUNNING state.
+   * @param flowName
+   * @param flowGroup
+   * @return true, if any jobs of the flow are RUNNING.
+   */
+  public boolean isFlowRunning(String flowName, String flowGroup) {
+    List<FlowStatus> flowStatusList = getLatestFlowStatus(flowName, flowGroup, 1);
+    if (flowStatusList == null || flowStatusList.isEmpty()) {
+      return false;
+    } else {
+      FlowStatus flowStatus = flowStatusList.get(0);
+      Iterator<JobStatus> jobStatusIterator = flowStatus.getJobStatusIterator();
+
+      while (jobStatusIterator.hasNext()) {
+        JobStatus jobStatus = jobStatusIterator.next();
+        if (isJobRunning(jobStatus)) {
+          return true;
+        }
+      }
+      return false;
+    }
+  }
+
+  /**
+   * @param jobStatus
+   * @return true if the job associated with the {@link JobStatus} is RUNNING
+   */
+  private boolean isJobRunning(JobStatus jobStatus) {
+    String status = jobStatus.getEventName().toUpperCase();
+    return !FINISHED_JOB_STATUSES.contains(status);
   }
 }
