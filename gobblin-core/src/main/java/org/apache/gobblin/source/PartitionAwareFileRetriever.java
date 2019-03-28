@@ -18,6 +18,7 @@ package org.apache.gobblin.source;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Objects;
 
 import org.apache.gobblin.configuration.SourceState;
 
@@ -66,11 +67,17 @@ public interface PartitionAwareFileRetriever {
     private final String filePath;
     private final long fileSize;
     private final long watermarkMsSinceEpoch;
+    private final String partitionName;
 
-    public FileInfo(String filePath, long fileSize, long watermarkMsSinceEpoch) {
+    public FileInfo(String filePath, long fileSize, long watermarkMsSinceEpoch, String partitionName) {
       this.fileSize = fileSize;
       this.filePath = filePath;
       this.watermarkMsSinceEpoch = watermarkMsSinceEpoch;
+      this.partitionName = partitionName;
+    }
+
+    public FileInfo(String filePath, long fileSize, long watermarkMsSinceEpoch) {
+      this(filePath, fileSize, watermarkMsSinceEpoch, Long.toString(watermarkMsSinceEpoch));
     }
 
     public String getFilePath() {
@@ -85,9 +92,14 @@ public interface PartitionAwareFileRetriever {
       return fileSize;
     }
 
+    public String getPartitionName() {
+      return partitionName;
+    }
+
     @Override
     public String toString() {
-      return "FileInfo{" + "filePath='" + filePath + '\'' + ", watermarkMsSinceEpoch=" + watermarkMsSinceEpoch + '}';
+      return "FileInfo{" + "filePath='" + filePath + '\'' + ", watermarkMsSinceEpoch=" + watermarkMsSinceEpoch +
+          ", partitionName=" + partitionName + '}';
     }
 
     @Override
@@ -97,7 +109,8 @@ public interface PartitionAwareFileRetriever {
       } else if (watermarkMsSinceEpoch > o.watermarkMsSinceEpoch) {
         return 1;
       } else {
-        return filePath.compareTo(o.filePath);
+        int ret = filePath.compareTo(o.filePath);
+        return ret == 0 ? partitionName.compareTo(o.partitionName) : ret;
       }
     }
 
@@ -109,20 +122,14 @@ public interface PartitionAwareFileRetriever {
       if (o == null || getClass() != o.getClass()) {
         return false;
       }
-
       FileInfo fileInfo = (FileInfo) o;
-
-      if (watermarkMsSinceEpoch != fileInfo.watermarkMsSinceEpoch) {
-        return false;
-      }
-      return filePath != null ? filePath.equals(fileInfo.filePath) : fileInfo.filePath == null;
+      return fileSize == fileInfo.fileSize && watermarkMsSinceEpoch == fileInfo.watermarkMsSinceEpoch && Objects
+          .equals(filePath, fileInfo.filePath) && Objects.equals(partitionName, fileInfo.partitionName);
     }
 
     @Override
     public int hashCode() {
-      int result = filePath != null ? filePath.hashCode() : 0;
-      result = 31 * result + (int) (watermarkMsSinceEpoch ^ (watermarkMsSinceEpoch >>> 32));
-      return result;
+      return Objects.hash(filePath, fileSize, watermarkMsSinceEpoch, partitionName);
     }
   }
 }
