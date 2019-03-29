@@ -298,6 +298,15 @@ public abstract class KafkaWorkUnitPacker {
       addWorkUnitToMultiWorkUnit(group, lightestMultiWorkUnit);
       pQueue.add(lightestMultiWorkUnit);
     }
+    while(!pQueue.isEmpty())
+    {
+      MultiWorkUnit multiWorkUnit = pQueue.poll();
+      if(multiWorkUnit.getWorkUnits().size() != 0)
+      {
+        pQueue.add(multiWorkUnit);
+        break;
+      }
+    }
 
     logMultiWorkUnitInfo(pQueue);
 
