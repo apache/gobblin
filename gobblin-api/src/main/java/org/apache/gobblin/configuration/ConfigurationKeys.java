@@ -270,6 +270,7 @@ public class ConfigurationKeys {
   public static final String WORK_UNIT_STATE_RUNTIME_HIGH_WATER_MARK = "workunit.state.runtime.high.water.mark";
   public static final String WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY = "workunit.state.actual.high.water.mark";
   public static final String WORK_UNIT_DATE_PARTITION_KEY = "workunit.source.date.partition";
+  public static final String WORK_UNIT_DATE_PARTITION_NAME = "workunit.source.date.partitionName";
 
   /**
    * Task execution properties.
@@ -541,6 +542,7 @@ public class ConfigurationKeys {
    * Configuration properties used by the FileBasedExtractor
    */
   public static final String SOURCE_FILEBASED_DATA_DIRECTORY = "source.filebased.data.directory";
+  public static final String SOURCE_FILEBASED_PLATFORM = "source.filebased.platform";
   public static final String SOURCE_FILEBASED_FILES_TO_PULL = "source.filebased.files.to.pull";
   public static final String SOURCE_FILEBASED_MAX_FILES_PER_RUN = "source.filebased.maxFilesPerRun";
   public static final String SOURCE_FILEBASED_FS_SNAPSHOT = "source.filebased.fs.snapshot";

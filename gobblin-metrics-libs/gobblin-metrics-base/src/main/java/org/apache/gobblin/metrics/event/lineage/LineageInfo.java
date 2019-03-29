@@ -24,6 +24,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.commons.lang3.StringUtils;
+
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -158,8 +160,15 @@ public final class LineageInfo {
         resolvedDescriptors.add(resolvedDescriptor);
       }
 
-      state.setProp(getKey(BRANCH, branchId, LineageEventBuilder.DESTINATION),
-          Descriptor.toJson(resolvedDescriptors));
+      String destinationKey = getKey(BRANCH, branchId, LineageEventBuilder.DESTINATION);
+      String currentDestinations = state.getProp(destinationKey);
+      List<Descriptor> allDescriptors = Lists.newArrayList();
+      if (StringUtils.isNotEmpty(currentDestinations)) {
+        allDescriptors = Descriptor.fromJsonList(currentDestinations);
+      }
+      allDescriptors.addAll(resolvedDescriptors);
+
+      state.setProp(destinationKey, Descriptor.toJson(allDescriptors));
     }
   }
 
