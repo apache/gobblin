@@ -25,6 +25,8 @@ import org.apache.helix.HelixManager;
 import org.apache.helix.InstanceType;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.Maps;
+import com.linkedin.data.template.StringMap;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
 import com.linkedin.restli.common.HttpStatus;
@@ -196,7 +198,9 @@ public class GobblinServiceFlowConfigResourceHandler implements FlowConfigsResou
           this.localHandler.deleteFlowConfig(flowId, header, false);
         }
 
-        forwardMessage(ServiceConfigKeys.HELIX_FLOWSPEC_REMOVE, FlowConfigUtils.serializeFlowId(flowId), flowName, flowGroup);
+        FlowConfig flowConfig = new FlowConfig().setId(flowId).setProperties(new StringMap(Maps.fromProperties(header)));
+
+        forwardMessage(ServiceConfigKeys.HELIX_FLOWSPEC_REMOVE, FlowConfigUtils.serializeFlowConfig(flowConfig), flowName, flowGroup);
 
         return new UpdateResponse(HttpStatus.S_200_OK);
       } else {

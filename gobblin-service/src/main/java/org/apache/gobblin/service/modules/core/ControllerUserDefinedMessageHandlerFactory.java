@@ -30,6 +30,8 @@ import org.apache.helix.messaging.handling.MessageHandler;
 import org.apache.helix.messaging.handling.MessageHandlerFactory;
 import org.apache.helix.model.Message;
 
+import com.typesafe.config.ConfigFactory;
+
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -42,6 +44,8 @@ import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.restli.FlowConfigUtils;
 import org.apache.gobblin.service.modules.restli.GobblinServiceFlowConfigResourceHandler;
 import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
+import org.apache.gobblin.util.ConfigUtils;
+
 
 /**
  * A custom {@link MessageHandlerFactory} for {@link org.apache.gobblin.service.modules.core.ControllerUserDefinedMessageHandlerFactory}s that
@@ -149,14 +153,16 @@ class ControllerUserDefinedMessageHandlerFactory implements MessageHandlerFactor
     private void handleDelete(String msg)
         throws IOException {
       try {
-        FlowId id = FlowConfigUtils.deserializeFlowId(msg);
+        FlowConfig config = FlowConfigUtils.deserializeFlowConfig(msg);
+        FlowId id =  config.getId();
+        Properties headers = ConfigUtils.configToProperties(ConfigFactory.parseMap(config.getProperties()));
         if (flowCatalogLocalCommit) {
           // in balance mode, flow spec is already deleted in flow catalog on standby node.
           URI flowUri = FlowConfigResourceLocalHandler.createFlowSpecUri(id);
           log.info("Only handle update {} scheduling because flow catalog is committed locally on standby.", flowUri);
-          jobScheduler.onDeleteSpec(flowUri, FlowSpec.Builder.DEFAULT_VERSION);
+          jobScheduler.onDeleteSpec(flowUri, FlowSpec.Builder.DEFAULT_VERSION, headers);
         } else {
-          resourceHandler.deleteFlowConfig(id, new Properties());
+          resourceHandler.deleteFlowConfig(id, headers);
         }
       } catch (URISyntaxException e) {
         throw new IOException(e);
