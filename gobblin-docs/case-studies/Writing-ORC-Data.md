@@ -4,7 +4,7 @@
 
 # Introduction
 
-Gobblin is capable of writing data to ORC files by leveraging Hive's SerDe library. Gobblin has native integration with Hive SerDe's library via the [HiveSerDeWrapper](https://github.com/linkedin/gobblin/blob/master/gobblin-hive-registration/src/main/java/gobblin/hive/HiveSerDeManager.java) class.
+Gobblin is capable of writing data to ORC files by leveraging Hive's SerDe library. Gobblin has native integration with Hive SerDe's library via the [HiveSerDeWrapper](https://github.com/apache/incubator-gobblin/blob/master/gobblin-hive-registration/src/main/java/org/apache/gobblin/hive/HiveSerDeManager.java) class.
 
 This document will briefly explain how Gobblin integrates with Hive's SerDe library, and show an example of writing ORC files.
 
