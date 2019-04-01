@@ -19,6 +19,7 @@ package org.apache.gobblin.source.extractor.extract.kafka.workunit.packer;
 
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -298,20 +299,19 @@ public abstract class KafkaWorkUnitPacker {
       addWorkUnitToMultiWorkUnit(group, lightestMultiWorkUnit);
       pQueue.add(lightestMultiWorkUnit);
     }
+    LinkedList<MultiWorkUnit> pQueue_filtered = new LinkedList();
     while(!pQueue.isEmpty())
     {
       MultiWorkUnit multiWorkUnit = pQueue.poll();
       if(multiWorkUnit.getWorkUnits().size() != 0)
       {
-        pQueue.add(multiWorkUnit);
-        break;
+        pQueue_filtered.offer(multiWorkUnit);
       }
     }
 
-    logMultiWorkUnitInfo(pQueue);
-
-    double minLoad = getWorkUnitEstLoad(pQueue.peekFirst());
-    double maxLoad = getWorkUnitEstLoad(pQueue.peekLast());
+    logMultiWorkUnitInfo(pQueue_filtered);
+    double minLoad = getWorkUnitEstLoad(pQueue_filtered.peekFirst());
+    double maxLoad = getWorkUnitEstLoad(pQueue_filtered.peekLast());
     LOG.info(String.format("Min load of multiWorkUnit = %f; Max load of multiWorkUnit = %f; Diff = %f%%", minLoad,
         maxLoad, (maxLoad - minLoad) / maxLoad * 100.0));
 
@@ -319,7 +319,7 @@ public abstract class KafkaWorkUnitPacker {
     this.state.setProp(MAX_MULTIWORKUNIT_LOAD, maxLoad);
 
     List<WorkUnit> multiWorkUnits = Lists.newArrayList();
-    multiWorkUnits.addAll(pQueue);
+    multiWorkUnits.addAll(pQueue_filtered);
     return multiWorkUnits;
   }
 
