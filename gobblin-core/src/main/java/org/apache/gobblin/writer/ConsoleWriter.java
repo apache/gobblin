@@ -78,29 +78,6 @@ public class ConsoleWriter<D> implements WatermarkAwareWriter<D> {
     log.debug("Close called");
   }
 
-  @Override
-  public boolean isWatermarkCapable() {
-    return true;
-  }
-
-
-  @Override
-  public void writeEnvelope(RecordEnvelope<D> recordEnvelope)
-      throws IOException {
-    write(recordEnvelope.getRecord());
-    recordEnvelope.ack();
-  }
-
-  @Override
-  public Map<String, CheckpointableWatermark> getCommittableWatermark() {
-    throw new UnsupportedOperationException("This writer does not keep track of committed watermarks");
-  }
-
-  @Override
-  public Map<String, CheckpointableWatermark> getUnacknowledgedWatermark() {
-    throw new UnsupportedOperationException("This writer does not keep track of uncommitted watermarks");
-  }
-
   /**
    * Flush console output
    */
@@ -108,5 +85,6 @@ public class ConsoleWriter<D> implements WatermarkAwareWriter<D> {
   public void flush() throws IOException {
     System.out.flush();
   }
+
 }
 

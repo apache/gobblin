@@ -143,18 +143,6 @@ public class InstrumentedDataWriterDecorator<D> extends InstrumentedDataWriterBa
   }
 
   @Override
-  public Map<String, CheckpointableWatermark> getCommittableWatermark() {
-    Preconditions.checkState(isWatermarkCapable());
-    return watermarkAwareWriter.get().getCommittableWatermark();
-  }
-
-  @Override
-  public Map<String, CheckpointableWatermark> getUnacknowledgedWatermark() {
-    Preconditions.checkState(isWatermarkCapable());
-    return watermarkAwareWriter.get().getUnacknowledgedWatermark();
-  }
-
-  @Override
   public ControlMessageHandler getMessageHandler() {
     return this.embeddedWriter.getMessageHandler();
   }
