@@ -247,8 +247,17 @@ public class ConfigBasedDataset implements CopyableDataset {
             log.debug("Copy from src {} (v:{}) to dst {} (v:{}) can be skipped.",
                 originFileStatus.getPath(), srcVer, copyToFileMap.get(newPath).getPath(), dstVer);
             shouldCopy = false;
+          } else {
+            log.debug("Copy from src {} (v:{}) to dst {} (v:{}) can not be skipped due to unmatched file length.",
+                originFileStatus.getPath(), srcVer, copyToFileMap.get(newPath).getPath(), dstVer);
           }
+        } else {
+          log.debug("Copy from src {} (v:{}) to dst {} (v:{}) is needed due to a higher version.",
+              originFileStatus.getPath(), srcVer, copyToFileMap.get(newPath).getPath(), dstVer);
         }
+      } else {
+        log.debug("Copy from src {} to dst {} is needed because dst doesn't contain the file",
+            originFileStatus.getPath(), copyToFileMap.get(newPath));
       }
 
       if (shouldCopy) {
