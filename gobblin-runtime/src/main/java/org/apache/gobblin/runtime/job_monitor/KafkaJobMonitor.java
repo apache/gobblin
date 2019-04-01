@@ -122,8 +122,10 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
     String[] uriTokens = jobSpecUri.getPath().split("/");
     if (null == this.datasetStateStore) {
       log.warn("Job state store deletion failed as datasetstore is not initialized.");
-    }if (uriTokens.length != 3) {
+      return;
+    } if (uriTokens.length != 3) {
       log.error("Invalid URI {}.", jobSpecUri);
+      return;
     }
     String jobName = uriTokens[2];
     this.datasetStateStore.delete(jobName);
