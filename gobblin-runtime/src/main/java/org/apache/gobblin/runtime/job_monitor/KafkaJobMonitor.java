@@ -106,7 +106,10 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
           this.jobCatalog.put(((Either.Left<JobSpec, URI>) parsedMessage).getLeft());
         } else if (parsedMessage instanceof Either.Right) {
           this.removedSpecs.inc();
-          this.jobCatalog.remove(((Either.Right<JobSpec, URI>) parsedMessage).getRight());
+          URI jobSpecUri = ((Either.Right<JobSpec, URI>) parsedMessage).getRight();
+          this.jobCatalog.remove(jobSpecUri);
+          // Delete the job state if it is a delete spec request
+          deleteStateStore(jobSpecUri);
         }
       }
     } catch (IOException ioe) {
@@ -115,4 +118,15 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
     }
   }
 
+  private void deleteStateStore(URI jobSpecUri) throws IOException {
+    String[] uriTokens = jobSpecUri.getPath().split("/");
+    if (null == this.datasetStateStore) {
+      log.warn("Job state store deletion failed as datasetstore is not initialized.");
+    }if (uriTokens.length != 3) {
+      log.error("Invalid URI {}.", jobSpecUri);
+    }
+    String jobName = uriTokens[2];
+    this.datasetStateStore.delete(jobName);
+    log.info("JobSpec {} deleted with statestore.", jobSpecUri);
+  }
 }
