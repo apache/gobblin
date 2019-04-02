@@ -117,16 +117,6 @@ public class AsyncWriterManager<D> implements WatermarkAwareWriter<D>, DataWrite
     return true;
   }
 
-  @Override
-  public Map<String, CheckpointableWatermark> getCommittableWatermark() {
-    throw new UnsupportedOperationException("This writer does not keep track of committed watermarks");
-  }
-
-  @Override
-  public Map<String, CheckpointableWatermark> getUnacknowledgedWatermark() {
-    throw new UnsupportedOperationException("This writer does not keep track of uncommitted watermarks");
-  }
-
   /**
    * A class to store attempts at writing a record
    **/

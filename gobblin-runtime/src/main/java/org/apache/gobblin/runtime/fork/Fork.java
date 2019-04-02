@@ -496,8 +496,6 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
                 recordEnvelope.withRecord(convertedRecord));
           }
         }
-        // ack this fork's processing done
-        recordEnvelope.ack();
       } else {
         buildWriterIfNotPresent();
 

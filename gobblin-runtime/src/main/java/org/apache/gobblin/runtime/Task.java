@@ -87,7 +87,6 @@ import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.writer.AcknowledgableWatermark;
 import org.apache.gobblin.writer.DataWriter;
 import org.apache.gobblin.writer.FineGrainedWatermarkTracker;
-import org.apache.gobblin.writer.MultiWriterWatermarkManager;
 import org.apache.gobblin.writer.TrackerBasedWatermarkManager;
 import org.apache.gobblin.writer.WatermarkAwareWriter;
 import org.apache.gobblin.writer.WatermarkManager;
@@ -149,7 +148,6 @@ public class Task implements TaskIFace {
   private final InstrumentedExtractorBase extractor;
   private final RowLevelPolicyChecker rowChecker;
   private final ExecutionModel taskMode;
-  private final String watermarkingStrategy;
   private final Optional<WatermarkManager> watermarkManager;
   private final Optional<FineGrainedWatermarkTracker> watermarkTracker;
   private final Optional<WatermarkStorage> watermarkStorage;
@@ -235,8 +233,6 @@ public class Task implements TaskIFace {
 
     // Setup Streaming constructs
 
-    this.watermarkingStrategy = "FineGrain"; // TODO: Configure
-
     if (isStreamingTask()) {
       Extractor underlyingExtractor = this.taskContext.getRawSourceExtractor();
       if (!(underlyingExtractor instanceof StreamingExtractor)) {
@@ -259,18 +255,11 @@ public class Task implements TaskIFace {
       long commitIntervalMillis = ConfigUtils.getLong(config,
           TaskConfigurationKeys.STREAMING_WATERMARK_COMMIT_INTERVAL_MILLIS,
           TaskConfigurationKeys.DEFAULT_STREAMING_WATERMARK_COMMIT_INTERVAL_MILLIS);
-      if (watermarkingStrategy.equals("FineGrain")) { // TODO: Configure
-        this.watermarkTracker = Optional.of(this.closer.register(new FineGrainedWatermarkTracker(config)));
-        this.watermarkManager = Optional.of((WatermarkManager) this.closer.register(
-            new TrackerBasedWatermarkManager(this.watermarkStorage.get(), this.watermarkTracker.get(),
-                commitIntervalMillis, Optional.of(this.LOG))));
+      this.watermarkTracker = Optional.of(this.closer.register(new FineGrainedWatermarkTracker(config)));
+      this.watermarkManager = Optional.of((WatermarkManager) this.closer.register(
+          new TrackerBasedWatermarkManager(this.watermarkStorage.get(), this.watermarkTracker.get(),
+              commitIntervalMillis, Optional.of(this.LOG))));
 
-      } else {
-        // writer-based watermarking
-        this.watermarkManager = Optional.of((WatermarkManager) this.closer.register(
-            new MultiWriterWatermarkManager(this.watermarkStorage.get(), commitIntervalMillis, Optional.of(this.LOG))));
-        this.watermarkTracker = Optional.absent();
-      }
     } else {
       this.watermarkManager = Optional.absent();
       this.watermarkTracker = Optional.absent();
@@ -368,7 +357,7 @@ public class Task implements TaskIFace {
       } else {
         new StreamModelTaskRunner(this, this.taskState, this.closer, this.taskContext, this.extractor,
             this.converter, this.recordStreamProcessors, this.rowChecker, this.taskExecutor, this.taskMode, this.shutdownRequested,
-            this.watermarkTracker, this.watermarkManager, this.watermarkStorage, this.forks, this.watermarkingStrategy).run();
+            this.watermarkTracker, this.watermarkManager, this.watermarkStorage, this.forks).run();
       }
 
       LOG.info("Extracted " + this.recordsPulled + " data records");
@@ -434,7 +423,7 @@ public class Task implements TaskIFace {
           AsynchronousFork fork = closer.register(
               new AsynchronousFork(this.taskContext, schema instanceof Copyable ? ((Copyable) schema).copy() : schema,
                   branches, i, this.taskMode));
-          configureStreamingFork(fork, watermarkingStrategy);
+          configureStreamingFork(fork);
           // Run the Fork
           this.forks.put(Optional.<Fork>of(fork), Optional.<Future<?>>of(this.taskExecutor.submit(fork)));
         } else {
@@ -445,10 +434,11 @@ public class Task implements TaskIFace {
       SynchronousFork fork = closer.register(
           new SynchronousFork(this.taskContext, schema instanceof Copyable ? ((Copyable) schema).copy() : schema,
               branches, 0, this.taskMode));
-      configureStreamingFork(fork, watermarkingStrategy);
+      configureStreamingFork(fork);
       this.forks.put(Optional.<Fork>of(fork), Optional.<Future<?>> of(this.taskExecutor.submit(fork)));
     }
 
+    LOG.info("Task mode streaming = " + isStreamingTask());
     if (isStreamingTask()) {
 
       // Start watermark manager and tracker
@@ -531,14 +521,13 @@ public class Task implements TaskIFace {
     }
   }
 
-  protected void configureStreamingFork(Fork fork, String watermarkingStrategy) throws IOException {
+  protected void configureStreamingFork(Fork fork) throws IOException {
     if (isStreamingTask()) {
       DataWriter forkWriter = fork.getWriter();
-      if (forkWriter instanceof WatermarkAwareWriter) {
-        if (watermarkingStrategy.equals("WriterBased")) {
-          ((MultiWriterWatermarkManager) this.watermarkManager.get()).registerWriter((WatermarkAwareWriter) forkWriter);
-        }
-      } else {
+      boolean isWaterMarkAwareWriter = (forkWriter instanceof WatermarkAwareWriter)
+          && ((WatermarkAwareWriter) forkWriter).isWatermarkCapable();
+
+      if (!isWaterMarkAwareWriter) {
         String errorMessage = String.format("The Task is configured to run in continuous mode, "
             + "but the writer %s is not a WatermarkAwareWriter", forkWriter.getClass().getName());
         LOG.error(errorMessage);
