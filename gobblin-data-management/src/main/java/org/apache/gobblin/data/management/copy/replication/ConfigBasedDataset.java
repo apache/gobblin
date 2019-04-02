@@ -123,7 +123,7 @@ public class ConfigBasedDataset implements CopyableDataset {
       HadoopFsEndPoint hEndpoint = (HadoopFsEndPoint) endPoint;
       FileSystem fs = FileSystem.get(hEndpoint.getFsURI(), conf);
 
-      // IF configStore doesn't contain the strategy, check from job properties.
+      // If configStore doesn't contain the strategy, check from job properties.
       // If no strategy is found, default to the modification time strategy.
       Optional<String> versionStrategy = rc.getVersionStrategyFromConfigStore();
       Config versionStrategyConfig = ConfigFactory.parseMap(ImmutableMap.of(
@@ -135,6 +135,7 @@ public class ConfigBasedDataset implements CopyableDataset {
       log.debug("{} has version strategy {}", hEndpoint.getClusterName());
       return Optional.of(strategy);
     } catch (IOException e) {
+      log.error("Version strategy cannot be created due to {}", e.toString());
       return Optional.absent();
     }
   }
@@ -178,7 +179,9 @@ public class ConfigBasedDataset implements CopyableDataset {
 
     if (!this.srcDataFileVersionStrategy.get().getClass().getName()
         .equals(this.dstDataFileVersionStrategy.get().getClass().getName())) {
-      log.warn("Version strategy doesn't match, cannot handle copy");
+      log.warn("Version strategy src: {} and dst: {} doesn't match, cannot handle copy.",
+          this.srcDataFileVersionStrategy.get().getClass().getName(),
+          this.dstDataFileVersionStrategy.get().getClass().getName());
       return copyableFiles;
     }
 
