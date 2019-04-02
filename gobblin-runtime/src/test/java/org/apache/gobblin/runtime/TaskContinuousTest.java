@@ -19,7 +19,6 @@ package org.apache.gobblin.runtime;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -59,8 +58,6 @@ import org.apache.gobblin.source.extractor.Extractor;
 import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.source.extractor.StreamingExtractor;
 import org.apache.gobblin.source.extractor.extract.LongWatermark;
-import org.apache.gobblin.source.workunit.Extract;
-import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.writer.DataWriter;
 import org.apache.gobblin.writer.WatermarkAwareWriter;
@@ -220,6 +217,15 @@ public class TaskContinuousTest {
     @Override
     public void start(WatermarkStorage watermarkStorage) {
 
+    }
+
+    @Override
+    public void shutdown() throws JobShutdownException {
+      try {
+        this.close();
+      } catch (Exception e) {
+        throw new JobShutdownException("Failed to close extractor during shutdown");
+      }
     }
   }
 
