@@ -51,7 +51,6 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
   public static final String KAFKA_AUTO_OFFSET_RESET_KEY = KAFKA_JOB_MONITOR_PREFIX + ".auto.offset.reset";
   public static final String KAFKA_AUTO_OFFSET_RESET_SMALLEST = "smallest";
   public static final String KAFKA_AUTO_OFFSET_RESET_LARGEST = "largest";
-  public static final int EXPECTED_NUM_URI_TOKENS = 3;
   protected DatasetStateStore datasetStateStore;
   protected final MutableJobCatalog jobCatalog;
 
@@ -120,15 +119,19 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
   }
 
   private void deleteStateStore(URI jobSpecUri) throws IOException {
+    int EXPECTED_NUM_URI_TOKENS = 3;
     String[] uriTokens = jobSpecUri.getPath().split("/");
+    
     if (null == this.datasetStateStore) {
       log.warn("Job state store deletion failed as datasetstore is not initialized.");
       return;
-    } if (uriTokens.length != EXPECTED_NUM_URI_TOKENS) {
+    }
+    if (uriTokens.length != EXPECTED_NUM_URI_TOKENS) {
       log.error("Invalid URI {}.", jobSpecUri);
       return;
     }
-    String jobName = uriTokens[2];
+
+    String jobName = uriTokens[EXPECTED_NUM_URI_TOKENS - 1];
     this.datasetStateStore.delete(jobName);
     log.info("JobSpec {} deleted with statestore.", jobSpecUri);
   }
