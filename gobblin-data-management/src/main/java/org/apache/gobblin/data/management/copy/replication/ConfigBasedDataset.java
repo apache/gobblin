@@ -135,7 +135,7 @@ public class ConfigBasedDataset implements CopyableDataset {
       log.debug("{} has version strategy {}", hEndpoint.getClusterName());
       return Optional.of(strategy);
     } catch (IOException e) {
-      log.error("Version strategy cannot be created due to {}", e.toString());
+      log.error("Version strategy cannot be created due to {}", e);
       return Optional.absent();
     }
   }
