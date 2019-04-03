@@ -137,6 +137,7 @@ public class ConfigurationKeys {
   public static final String FLOW_APPLY_INPUT_RETENTION = "flow.applyInputRetention";
   public static final String FLOW_ALLOW_CONCURRENT_EXECUTION = "flow.allowConcurrentExecution";
   public static final String FLOW_EXPLAIN_KEY = "flow.explain";
+  public static final String FLOW_UNSCHEDULE_KEY = "flow.unschedule";
 
   /**
    * Common topology configuration properties.

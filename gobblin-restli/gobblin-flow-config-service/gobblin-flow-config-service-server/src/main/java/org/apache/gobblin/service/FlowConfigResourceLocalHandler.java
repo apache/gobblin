@@ -48,6 +48,7 @@ import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
  */
 @Slf4j
 public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandler {
+  public static final Schedule NEVER_RUN_CRON_SCHEDULE = new Schedule().setCronSchedule("0 0 0 ? 1 1 2050");
   @Getter
   protected FlowCatalog flowCatalog;
   public FlowConfigResourceLocalHandler(FlowCatalog flowCatalog) {
@@ -144,9 +145,19 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
       throw new FlowConfigLoggedException(HttpStatus.S_400_BAD_REQUEST,
           "flowName and flowGroup cannot be changed in update", null);
     }
+    if (isUnscheduleRequest(flowConfig)) {
+      // flow config is not changed if it is just a request to un-schedule
+      FlowConfig originalFlowConfig = getFlowConfig(flowId);
+      originalFlowConfig.setSchedule(NEVER_RUN_CRON_SCHEDULE);
+      flowConfig = originalFlowConfig;
+    }
 
     this.flowCatalog.put(createFlowSpecForConfig(flowConfig), triggerListener);
     return new UpdateResponse(HttpStatus.S_200_OK);
+  }
+
+  private boolean isUnscheduleRequest(FlowConfig flowConfig) {
+    return Boolean.parseBoolean(flowConfig.getProperties().getOrDefault(ConfigurationKeys.FLOW_UNSCHEDULE_KEY, "false"));
   }
 
   /**
