@@ -118,10 +118,17 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
     }
   }
 
+  /**
+   * It fetches the job name from the given jobSpecUri
+   * and deletes its corresponding state store
+   * @param jobSpecUri jobSpecUri as created by
+   *                   {@link FlowConfigResourceLocalHandler.FlowUriUtils.createFlowSpecUri}
+   * @throws IOException
+   */
   private void deleteStateStore(URI jobSpecUri) throws IOException {
     int EXPECTED_NUM_URI_TOKENS = 3;
     String[] uriTokens = jobSpecUri.getPath().split("/");
-    
+
     if (null == this.datasetStateStore) {
       log.warn("Job state store deletion failed as datasetstore is not initialized.");
       return;
