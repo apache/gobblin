@@ -22,11 +22,13 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -116,7 +118,7 @@ public class LogCopier extends AbstractScheduledService {
 
   private final FileSystem srcFs;
   private final FileSystem destFs;
-  private final Path srcLogDir;
+  private final List<Path> srcLogDirs;
   private final Path destLogDir;
 
   private final long sourceLogFileMonitorInterval;
@@ -140,7 +142,7 @@ public class LogCopier extends AbstractScheduledService {
     this.srcFs = builder.srcFs;
     this.destFs = builder.destFs;
 
-    this.srcLogDir = this.srcFs.makeQualified(builder.srcLogDir);
+    this.srcLogDirs = builder.srcLogDirs.stream().map(d -> this.srcFs.makeQualified(d)).collect(Collectors.toList());
     this.destLogDir = this.destFs.makeQualified(builder.destLogDir);
 
     this.sourceLogFileMonitorInterval = builder.sourceLogFileMonitorInterval;
@@ -180,15 +182,19 @@ public class LogCopier extends AbstractScheduledService {
    * Perform a check on new source log files and submit copy tasks for new log files.
    */
   private void checkSrcLogFiles() throws IOException {
-    List<FileStatus> srcLogFiles = FileListUtils.listFilesRecursively(this.srcFs, this.srcLogDir, new PathFilter() {
-      @Override
-      public boolean accept(Path path) {
-        return LogCopier.this.logFileExtensions.contains(Files.getFileExtension(path.getName()));
-      }
-    });
+    List<FileStatus> srcLogFiles = new ArrayList<>();
+
+    for (Path logDirPath: this.srcLogDirs) {
+      srcLogFiles.addAll(FileListUtils.listFilesRecursively(this.srcFs, logDirPath, new PathFilter() {
+        @Override
+        public boolean accept(Path path) {
+          return LogCopier.this.logFileExtensions.contains(Files.getFileExtension(path.getName()));
+        }
+      }));
+    }
 
     if (srcLogFiles.isEmpty()) {
-      LOGGER.warn("No log file found under directory " + this.srcLogDir);
+      LOGGER.warn("No log file found under directories " + this.srcLogDirs);
       return;
     }
 
@@ -238,7 +244,7 @@ public class LogCopier extends AbstractScheduledService {
     private static final Splitter COMMA_SPLITTER = Splitter.on(',').omitEmptyStrings().trimResults();
 
     private FileSystem srcFs;
-    private Path srcLogDir;
+    private List<Path> srcLogDirs;
     private FileSystem destFs;
     private Path destLogDir;
 
@@ -388,7 +394,19 @@ public class LogCopier extends AbstractScheduledService {
      */
     public Builder readFrom(Path srcLogDir) {
       Preconditions.checkNotNull(srcLogDir);
-      this.srcLogDir = srcLogDir;
+      this.srcLogDirs = ImmutableList.of(srcLogDir);
+      return this;
+    }
+
+    /**
+     * Set the paths of the source log file directories to read from.
+     *
+     * @param srcLogDirs the paths of the source log file directories to read from
+     * @return this {@link LogCopier.Builder} instance
+     */
+    public Builder readFrom(List<Path> srcLogDirs) {
+      Preconditions.checkNotNull(srcLogDirs);
+      this.srcLogDirs = srcLogDirs;
       return this;
     }
 
