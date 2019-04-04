@@ -222,6 +222,26 @@ public class FlowConfigTest {
   }
 
   @Test (dependsOnMethods = "testUpdate")
+  public void testUnschedule() throws Exception {
+    FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME);
+    Map<String, String> flowProperties = Maps.newHashMap();
+    flowProperties.put("param1", "value1");
+    flowProperties.put(ConfigurationKeys.FLOW_UNSCHEDULE_KEY, "true");
+
+    FlowConfig flowConfig = new FlowConfig().setId(flowId)
+        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).
+            setRunImmediately(true))
+        .setProperties(new StringMap(flowProperties));
+
+    _client.updateFlowConfig(flowConfig);
+
+    FlowConfig persistedFlowConfig = _client.getFlowConfig(flowId);
+
+    Assert.assertFalse(persistedFlowConfig.getProperties().containsKey(ConfigurationKeys.FLOW_UNSCHEDULE_KEY));
+    Assert.assertEquals(persistedFlowConfig.getSchedule().getCronSchedule(), FlowConfigResourceLocalHandler.NEVER_RUN_CRON_SCHEDULE.getCronSchedule());
+  }
+
+  @Test (dependsOnMethods = "testUnschedule")
   public void testDelete() throws Exception {
     FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME);
 
