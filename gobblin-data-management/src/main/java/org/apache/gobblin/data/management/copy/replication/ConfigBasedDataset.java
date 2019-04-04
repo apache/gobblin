@@ -29,10 +29,13 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 
+import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.data.management.copy.CopyConfiguration;
 import org.apache.gobblin.data.management.copy.CopyEntity;
@@ -44,6 +47,9 @@ import org.apache.gobblin.data.management.dataset.DatasetUtils;
 import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.commit.DeleteFileCommitStep;
+import org.apache.gobblin.util.filesystem.DataFileVersionStrategy;
+import org.apache.gobblin.util.filesystem.ModTimeDataFileVersionStrategy;
+
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -70,6 +76,8 @@ public class ConfigBasedDataset implements CopyableDataset {
   private String datasetURN;
   private boolean watermarkEnabled;
   private final PathFilter pathFilter;
+  private final Optional<DataFileVersionStrategy> srcDataFileVersionStrategy;
+  private final Optional<DataFileVersionStrategy> dstDataFileVersionStrategy;
 
   //Apply filter to directories
   private final boolean applyFilterToDirectories;
@@ -84,6 +92,8 @@ public class ConfigBasedDataset implements CopyableDataset {
     this.pathFilter = DatasetUtils.instantiatePathFilter(this.props);
     this.applyFilterToDirectories =
         Boolean.parseBoolean(this.props.getProperty(CopyConfiguration.APPLY_FILTER_TO_DIRECTORIES, "false"));
+    this.srcDataFileVersionStrategy = getDataFileVersionStrategy(this.copyRoute.getCopyFrom(), rc, props);
+    this.dstDataFileVersionStrategy = getDataFileVersionStrategy(this.copyRoute.getCopyTo(), rc, props);
   }
 
   public ConfigBasedDataset(ReplicationConfiguration rc, Properties props, CopyRoute copyRoute, String datasetURN) {
@@ -94,6 +104,40 @@ public class ConfigBasedDataset implements CopyableDataset {
     this.pathFilter = DatasetUtils.instantiatePathFilter(this.props);
     this.applyFilterToDirectories =
         Boolean.parseBoolean(this.props.getProperty(CopyConfiguration.APPLY_FILTER_TO_DIRECTORIES, "false"));
+    this.srcDataFileVersionStrategy = getDataFileVersionStrategy(this.copyRoute.getCopyFrom(), rc, props);
+    this.dstDataFileVersionStrategy = getDataFileVersionStrategy(this.copyRoute.getCopyTo(), rc, props);
+  }
+
+  /**
+   * Get the version strategy that can retrieve the data file version from the end point.
+   *
+   * @return the version strategy. Empty value when the version is not supported for this end point.
+   */
+  private Optional<DataFileVersionStrategy> getDataFileVersionStrategy(EndPoint endPoint, ReplicationConfiguration rc, Properties props) {
+    if (!(endPoint instanceof HadoopFsEndPoint)) {
+      log.warn("Data file version currently only handle the Hadoop Fs EndPoint replication");
+      return Optional.absent();
+    }
+    Configuration conf = HadoopUtils.newConfiguration();
+    try {
+      HadoopFsEndPoint hEndpoint = (HadoopFsEndPoint) endPoint;
+      FileSystem fs = FileSystem.get(hEndpoint.getFsURI(), conf);
+
+      // If configStore doesn't contain the strategy, check from job properties.
+      // If no strategy is found, default to the modification time strategy.
+      Optional<String> versionStrategy = rc.getVersionStrategyFromConfigStore();
+      Config versionStrategyConfig = ConfigFactory.parseMap(ImmutableMap.of(
+          DataFileVersionStrategy.DATA_FILE_VERSION_STRATEGY_KEY, versionStrategy.isPresent()? versionStrategy.get() :
+              props.getProperty(DataFileVersionStrategy.DATA_FILE_VERSION_STRATEGY_KEY,
+                  ModTimeDataFileVersionStrategy.Factory.class.getName())));
+
+      DataFileVersionStrategy strategy = DataFileVersionStrategy.instantiateDataFileVersionStrategy(fs, versionStrategyConfig);
+      log.debug("{} has version strategy {}", hEndpoint.getClusterName());
+      return Optional.of(strategy);
+    } catch (IOException e) {
+      log.error("Version strategy cannot be created due to {}", e);
+      return Optional.absent();
+    }
   }
 
   private void calculateDatasetURN() {
@@ -125,6 +169,19 @@ public class ConfigBasedDataset implements CopyableDataset {
     EndPoint copyToRaw = copyRoute.getCopyTo();
     if (!(copyFromRaw instanceof HadoopFsEndPoint && copyToRaw instanceof HadoopFsEndPoint)) {
       log.warn("Currently only handle the Hadoop Fs EndPoint replication");
+      return copyableFiles;
+    }
+
+    if (!this.srcDataFileVersionStrategy.isPresent() || !this.dstDataFileVersionStrategy.isPresent()) {
+      log.warn("Version strategy doesn't exist, cannot handle copy");
+      return copyableFiles;
+    }
+
+    if (!this.srcDataFileVersionStrategy.get().getClass().getName()
+        .equals(this.dstDataFileVersionStrategy.get().getClass().getName())) {
+      log.warn("Version strategy src: {} and dst: {} doesn't match, cannot handle copy.",
+          this.srcDataFileVersionStrategy.get().getClass().getName(),
+          this.dstDataFileVersionStrategy.get().getClass().getName());
       return copyableFiles;
     }
 
@@ -177,12 +234,32 @@ public class ConfigBasedDataset implements CopyableDataset {
         watermarkMetadataCopied = true;
       }
 
-      // skip copy same file
-      if (copyToFileMap.containsKey(newPath) && copyToFileMap.get(newPath).getLen() == originFileStatus.getLen()
-          && copyToFileMap.get(newPath).getModificationTime() > originFileStatus.getModificationTime()) {
-        log.debug("Copy from timestamp older than copy to timestamp, skipped copy {} for dataset with metadata {}",
-            originFileStatus.getPath(), this.rc.getMetaData());
+
+      boolean shouldCopy = true;
+      if (copyToFileMap.containsKey(newPath)) {
+        Comparable srcVer = this.srcDataFileVersionStrategy.get().getVersion(originFileStatus.getPath());
+        Comparable dstVer = this.dstDataFileVersionStrategy.get().getVersion(copyToFileMap.get(newPath).getPath());
+
+        // destination has higher version, skip the copy
+        if (srcVer.compareTo(dstVer) <= 0) {
+          if (!copyConfiguration.isEnforceFileLengthMatch() || copyToFileMap.get(newPath).getLen() == originFileStatus.getLen()) {
+            log.debug("Copy from src {} (v:{}) to dst {} (v:{}) can be skipped.",
+                originFileStatus.getPath(), srcVer, copyToFileMap.get(newPath).getPath(), dstVer);
+            shouldCopy = false;
+          } else {
+            log.debug("Copy from src {} (v:{}) to dst {} (v:{}) can not be skipped due to unmatched file length.",
+                originFileStatus.getPath(), srcVer, copyToFileMap.get(newPath).getPath(), dstVer);
+          }
+        } else {
+          log.debug("Copy from src {} (v:{}) to dst {} (v:{}) is needed due to a higher version.",
+              originFileStatus.getPath(), srcVer, copyToFileMap.get(newPath).getPath(), dstVer);
+        }
       } else {
+        log.debug("Copy from src {} to dst {} is needed because dst doesn't contain the file",
+            originFileStatus.getPath(), copyToFileMap.get(newPath));
+      }
+
+      if (shouldCopy) {
         // need to remove those files in the target File System
         if (copyToFileMap.containsKey(newPath)) {
           deletedPaths.add(newPath);

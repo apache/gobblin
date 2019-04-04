@@ -43,12 +43,4 @@ public abstract class WatermarkAwareWriterWrapper<D> extends WriterWrapper<D> im
     watermarkAwareWriter.get().writeEnvelope(recordEnvelope);
   }
 
-  public final Map<String, CheckpointableWatermark> getCommittableWatermark() {
-    return watermarkAwareWriter.get().getCommittableWatermark();
-  }
-
-  public Map<String, CheckpointableWatermark> getUnacknowledgedWatermark() {
-    return watermarkAwareWriter.get().getUnacknowledgedWatermark();
-  }
-
 }

@@ -138,6 +138,36 @@ public class LineageEventTest {
     Assert.assertEquals(LineageEventBuilder.fromEvent(trackingEvent), event);
   }
 
+  @Test
+  public void testMultiPuts() {
+    final String topic = "testTopic";
+    final String kafka = "kafka";
+    final String hdfs = "hdfs";
+    final String path = "/data/tracking/PageViewEvent";
+    final String partitionName = "hourly/2018/08/15/15";
+
+    State state = new State();
+    LineageInfo lineageInfo = getLineageInfo();
+    DatasetDescriptor source = new DatasetDescriptor(kafka, topic);
+    lineageInfo.setSource(source, state);
+    DatasetDescriptor destinationDataset = new DatasetDescriptor(hdfs, path);
+    PartitionDescriptor destination = new PartitionDescriptor(partitionName, destinationDataset);
+    lineageInfo.putDestination(Lists.newArrayList(destination), 0, state);
+
+    // Put another destination
+    DatasetDescriptor destinationDataset2 = new DatasetDescriptor(kafka, "nextTopic");
+    lineageInfo.putDestination(Lists.newArrayList(destinationDataset2), 0, state);
+
+    Map<String, Set<LineageEventBuilder>> eventsMap = LineageInfo.load(state);
+    Assert.assertEquals(eventsMap.size(), 1);
+
+    Set<LineageEventBuilder> events = eventsMap.get("0");
+    Assert.assertEquals(events.size(), 2);
+
+    verifyOne(events, topic, source, destination);
+    verifyOne(events, topic, source, destinationDataset2);
+  }
+
   private LineageEventBuilder getLineageEvent(Collection<LineageEventBuilder> events, int branchId, String destinationPlatform) {
     for (LineageEventBuilder event : events) {
       DatasetDescriptor descriptor = (DatasetDescriptor) event.getDestination();
@@ -174,5 +204,16 @@ public class LineageEventTest {
 
   private <T> T first(Collection<T> collection) {
     return collection.iterator().next();
+  }
+
+  private void verifyOne(Collection<LineageEventBuilder> collection, String name, Descriptor source, Descriptor destination) {
+    for (LineageEventBuilder event : collection) {
+      if (event.getDestination().equals(destination)) {
+        verify(event, name, source, destination);
+        return;
+      }
+    }
+
+    Assert.fail("Could not find a matching lineage with destination: " + destination);
   }
 }

@@ -30,10 +30,12 @@ import java.util.List;
 import java.util.Set;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
@@ -43,8 +45,12 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.dataset.DatasetConstants;
+import org.apache.gobblin.dataset.DatasetDescriptor;
+import org.apache.gobblin.metrics.event.lineage.LineageInfo;
 import org.apache.gobblin.source.extractor.extract.AbstractSource;
 import org.apache.gobblin.source.workunit.Extract;
+import org.apache.gobblin.source.workunit.MultiWorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.source.workunit.Extract.TableType;
 
@@ -59,6 +65,8 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
   private static final Logger log = LoggerFactory.getLogger(FileBasedSource.class);
   protected TimestampAwareFileBasedHelper fsHelper;
   protected String splitPattern = ":::";
+
+  protected Optional<LineageInfo> lineageInfo;
 
   /**
    * Initialize the logger.
@@ -85,6 +93,8 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
   @Override
   public List<WorkUnit> getWorkunits(SourceState state) {
     initLogger(state);
+    lineageInfo = LineageInfo.getLineageInfo(state.getBroker());
+
     try {
       initFileSystemHelper(state);
     } catch (FileBasedHelperException e) {
@@ -199,7 +209,41 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
       log.info("Total number of work units for the current run: " + (workUnits.size() - previousWorkUnitsForRetry.size()));
     }
 
+    addLineageSourceInfo(workUnits, state);
     return workUnits;
+  }
+
+  /**
+   * Add lineage source info to a list of work units, it can have instances of
+   * {@link org.apache.gobblin.source.workunit.MultiWorkUnit}
+   */
+  protected void addLineageSourceInfo(List<WorkUnit> workUnits, State state) {
+    workUnits.forEach(workUnit -> {
+      if (workUnit instanceof MultiWorkUnit) {
+        ((MultiWorkUnit) workUnit).getWorkUnits().forEach((wu -> addLineageSourceInfo(wu, state)));
+      } else {
+        addLineageSourceInfo(workUnit, state);
+      }
+    });
+  }
+
+  /**
+   * Add lineage source info to a single work unit
+   *
+   * @param workUnit a single work unit, not an instance of {@link org.apache.gobblin.source.workunit.MultiWorkUnit}
+   * @param state configurations
+   */
+  protected void addLineageSourceInfo(WorkUnit workUnit, State state) {
+    if (!lineageInfo.isPresent()) {
+      log.info("Lineage is not enabled");
+      return;
+    }
+
+    String platform = state.getProp(ConfigurationKeys.SOURCE_FILEBASED_PLATFORM, DatasetConstants.PLATFORM_HDFS);
+    Path dataDir = new Path(state.getProp(ConfigurationKeys.SOURCE_FILEBASED_DATA_DIRECTORY));
+    String dataset = Path.getPathWithoutSchemeAndAuthority(dataDir).toString();
+    DatasetDescriptor source = new DatasetDescriptor(platform, dataset);
+    lineageInfo.get().setSource(source, workUnit);
   }
 
   /**

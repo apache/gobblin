@@ -32,12 +32,14 @@ import java.util.Set;
 import org.apache.commons.configuration.ConfigurationConverter;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
+import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 
 import com.google.common.base.Charsets;
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableMap;
@@ -51,6 +53,7 @@ import com.typesafe.config.ConfigSyntax;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 
+import javax.annotation.Nullable;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -155,57 +158,60 @@ public class PullFileLoader {
    * @return The loaded {@link Config}s.
    */
   public List<Config> loadPullFilesRecursively(Path path, Config sysProps, boolean loadGlobalProperties) {
-    try {
-      Config fallback = sysProps;
-      if (loadGlobalProperties && PathUtils.isAncestor(this.rootDirectory, path.getParent())) {
-        fallback = loadAncestorGlobalConfigs(path.getParent(), fallback);
+    return Lists.transform(this.fetchJobFilesRecursively(path), new Function<Path, Config>() {
+      @Nullable
+      @Override
+      public Config apply(@Nullable Path jobFile) {
+        if (jobFile == null) {
+          return null;
+        }
+
+        try {
+          return PullFileLoader.this.loadPullFile(jobFile,
+              sysProps, loadGlobalProperties);
+        } catch (IOException e) {
+          log.error("Cannot load job from {} due to {}", jobFile, ExceptionUtils.getFullStackTrace(e));
+          return null;
+        }
       }
-      return getSortedConfigs(loadPullFilesRecursivelyHelper(path, fallback, loadGlobalProperties));
-    } catch (IOException ioe) {
-      return Lists.newArrayList();
-    }
+    });
   }
 
-  private List<Config> getSortedConfigs(List<ConfigWithTimeStamp> configsWithTimeStamps) {
-    List<Config> sortedConfigs = Lists.newArrayList();
-    Collections.sort(configsWithTimeStamps, Comparator.comparingLong(o -> o.timeStamp));
-    for (ConfigWithTimeStamp configWithTimeStamp : configsWithTimeStamps) {
-      sortedConfigs.add(configWithTimeStamp.config);
-    }
-    return sortedConfigs;
+  public List<Path> fetchJobFilesRecursively(Path path) {
+    return getSortedPaths(fetchJobFilePathsRecursivelyHelper(path));
   }
 
-  private List<ConfigWithTimeStamp> loadPullFilesRecursivelyHelper(Path path, Config fallback, boolean loadGlobalProperties) {
-    List<ConfigWithTimeStamp> pullFiles = Lists.newArrayList();
-    try {
-      if (loadGlobalProperties) {
-        fallback = findAndLoadGlobalConfigInDirectory(path, fallback);
-      }
+  private List<Path> getSortedPaths(List<PathWithTimeStamp> pathsWithTimeStamps) {
+    List<Path> sortedPaths = Lists.newArrayList();
+    Collections.sort(pathsWithTimeStamps, Comparator.comparingLong(o -> o.timeStamp));
+    for (PathWithTimeStamp pathWithTimeStamp : pathsWithTimeStamps) {
+      sortedPaths.add(pathWithTimeStamp.path);
+    }
+    return sortedPaths;
+  }
 
+  private List<PathWithTimeStamp> fetchJobFilePathsRecursivelyHelper(Path path) {
+    List<PathWithTimeStamp> paths = Lists.newArrayList();
+    try {
       FileStatus[] statuses = this.fs.listStatus(path);
       if (statuses == null) {
         log.error("Path does not exist: " + path);
-        return pullFiles;
+        return paths;
       }
 
       for (FileStatus status : statuses) {
-        try {
-          if (status.isDirectory()) {
-            pullFiles.addAll(loadPullFilesRecursivelyHelper(status.getPath(), fallback, loadGlobalProperties));
-          } else if (this.javaPropsPullFileFilter.accept(status.getPath())) {
-            log.debug("modification time of {} is {}", status.getPath(), status.getModificationTime());
-            pullFiles.add(new ConfigWithTimeStamp(status.getModificationTime(), loadJavaPropsWithFallback(status.getPath(), fallback).resolve()));
-          } else if (this.hoconPullFileFilter.accept(status.getPath())) {
-            log.debug("modification time of {} is {}", status.getPath(), status.getModificationTime());
-            pullFiles.add(new ConfigWithTimeStamp(status.getModificationTime(), loadHoconConfigAtPath(status.getPath()).withFallback(fallback).resolve()));
-          }
-        } catch (IOException ioe) {
-          // Failed to load specific subpath, try with the other subpaths in this directory
-          log.error(String.format("Failed to load %s. Skipping.", status.getPath()));
+        if (status.isDirectory()) {
+          paths.addAll(fetchJobFilePathsRecursivelyHelper(status.getPath()));
+        } else if (this.javaPropsPullFileFilter.accept(status.getPath())) {
+          log.debug("modification time of {} is {}", status.getPath(), status.getModificationTime());
+          paths.add(new PathWithTimeStamp(status.getModificationTime(), status.getPath()));
+        } else if (this.hoconPullFileFilter.accept(status.getPath())) {
+          log.debug("modification time of {} is {}", status.getPath(), status.getModificationTime());
+          paths.add(new PathWithTimeStamp(status.getModificationTime(), status.getPath()));
         }
       }
 
-      return pullFiles;
+      return paths;
     } catch (IOException ioe) {
       log.error("Could not load properties at path: " + path, ioe);
       return Lists.newArrayList();
@@ -307,6 +313,16 @@ public class PullFileLoader {
           PathUtils.getPathWithoutSchemeAndAuthority(path).toString()))
           .withFallback(ConfigFactory.parseReader(reader, ConfigParseOptions.defaults().setSyntax(ConfigSyntax.CONF)))
           .withFallback(fallback);
+    }
+  }
+
+  private static class PathWithTimeStamp {
+    long timeStamp;
+    Path path;
+
+    public PathWithTimeStamp(long timeStamp, Path path) {
+      this.timeStamp = timeStamp;
+      this.path = path;
     }
   }
 

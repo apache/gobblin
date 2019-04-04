@@ -305,43 +305,6 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
   }
 
   @Override
-  public Map<String, CheckpointableWatermark> getCommittableWatermark() {
-    // The committable watermark from a collection of commitable and unacknowledged watermarks is the highest
-    // committable watermark that is less than the lowest unacknowledged watermark
-
-    WatermarkTracker watermarkTracker = new MultiWriterWatermarkTracker();
-    for (Map.Entry<GenericRecord, DataWriter<D>> entry : this.partitionWriters.asMap().entrySet()) {
-      if (entry.getValue() instanceof WatermarkAwareWriter) {
-        Map<String, CheckpointableWatermark> commitableWatermarks =
-            ((WatermarkAwareWriter) entry.getValue()).getCommittableWatermark();
-        if (!commitableWatermarks.isEmpty()) {
-          watermarkTracker.committedWatermarks(commitableWatermarks);
-        }
-
-        Map<String, CheckpointableWatermark> unacknowledgedWatermark =
-            ((WatermarkAwareWriter) entry.getValue()).getUnacknowledgedWatermark();
-        if (!unacknowledgedWatermark.isEmpty()) {
-          watermarkTracker.unacknowledgedWatermarks(unacknowledgedWatermark);
-        }
-      }
-    }
-    return watermarkTracker.getAllCommitableWatermarks(); //TODO: Change this to use List of committables instead
-  }
-
-  @Override
-  public Map<String, CheckpointableWatermark> getUnacknowledgedWatermark() {
-    WatermarkTracker watermarkTracker = new MultiWriterWatermarkTracker();
-    for (Map.Entry<GenericRecord, DataWriter<D>> entry : this.partitionWriters.asMap().entrySet()) {
-      Map<String, CheckpointableWatermark> unacknowledgedWatermark =
-          ((WatermarkAwareWriter) entry.getValue()).getUnacknowledgedWatermark();
-      if (!unacknowledgedWatermark.isEmpty()) {
-        watermarkTracker.unacknowledgedWatermarks(unacknowledgedWatermark);
-      }
-    }
-    return watermarkTracker.getAllUnacknowledgedWatermarks();
-  }
-
-  @Override
   public ControlMessageHandler getMessageHandler() {
     return this.controlMessageHandler;
   }

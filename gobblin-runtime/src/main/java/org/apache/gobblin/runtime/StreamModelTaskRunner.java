@@ -72,7 +72,6 @@ public class StreamModelTaskRunner {
   private final Optional<WatermarkManager> watermarkManager;
   private final Optional<WatermarkStorage> watermarkStorage;
   private final Map<Optional<Fork>, Optional<Future<?>>> forks;
-  private final String watermarkingStrategy;
 
   protected void run() throws Exception {
     long maxWaitInMinute = taskState.getPropAsLong(ConfigurationKeys.FORK_MAX_WAIT_MININUTES, ConfigurationKeys.DEFAULT_FORK_MAX_WAIT_MININUTES);
@@ -140,7 +139,7 @@ public class StreamModelTaskRunner {
         Fork fork = new Fork(this.taskContext, forkedStream.getGlobalMetadata().getSchema(), forkedStreams.getForkedStreams().size(), fidx, this.taskMode);
         fork.consumeRecordStream(forkedStream);
         this.forks.put(Optional.of(fork), Optional.of(Futures.immediateFuture(null)));
-        this.task.configureStreamingFork(fork, this.watermarkingStrategy);
+        this.task.configureStreamingFork(fork);
       }
     }
 
