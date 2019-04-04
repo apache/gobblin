@@ -29,6 +29,7 @@ import com.google.common.collect.ImmutableMap;
 import com.linkedin.common.callback.Callback;
 import com.linkedin.common.callback.FutureCallback;
 import com.linkedin.data.DataMap;
+import com.linkedin.data.template.GetMode;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
 import com.linkedin.restli.common.HttpStatus;
@@ -124,6 +125,21 @@ public class LimiterServerResource extends ComplexKeyResourceAsyncTemplate<Permi
         try (Closeable thisContext = limiterTimer.time()) {
           allocation = policy.computePermitAllocation(request);
         }
+
+        if (request.getVersion(GetMode.DEFAULT) < ThrottlingProtocolVersion.WAIT_ON_CLIENT.ordinal()) {
+          // If the client does not understand "waitForPermitsUse", delay the response at the server side.
+          // This has a detrimental effect to server performance
+          long wait = allocation.getWaitForPermitUseMillis(GetMode.DEFAULT);
+          allocation.setWaitForPermitUseMillis(0);
+          if (wait > 0) {
+            try {
+              Thread.sleep(wait);
+            } catch (InterruptedException ie) {
+              allocation.setPermits(0);
+            }
+          }
+        }
+
         permitsGrantedMeter.mark(allocation.getPermits());
 
         callback.onSuccess(allocation);

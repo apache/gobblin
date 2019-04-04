@@ -21,6 +21,7 @@ import java.util.concurrent.TimeUnit;
 
 import com.google.common.annotations.VisibleForTesting;
 
+import lombok.Data;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -39,6 +40,16 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class DynamicTokenBucket {
+
+  /**
+   * Contains number of allocated permits and delay before they can be used.
+   */
+  @Data
+  public static class PermitsAndDelay {
+    private final long permits;
+    private final long delay;
+    private final boolean possibleToSatisfy;
+  }
 
   @VisibleForTesting
   @Getter
@@ -63,39 +74,56 @@ public class DynamicTokenBucket {
    * @param minPermits the minimum number of tokens useful for the calling process. If this many tokens cannot be acquired,
    *                   the method will return 0 instead,
    * @param timeoutMillis the maximum wait the calling process is willing to wait for tokens.
-   * @return the number of allocated tokens.
+   * @return a {@link PermitsAndDelay} for the allocated permits.
    */
-  public long getPermits(long requestedPermits, long minPermits, long timeoutMillis) {
-
+  public PermitsAndDelay getPermitsAndDelay(long requestedPermits, long minPermits, long timeoutMillis) {
     try {
       long storedTokens = this.tokenBucket.getStoredTokens();
 
       long eagerTokens = storedTokens / 2;
       if (eagerTokens > requestedPermits && this.tokenBucket.getTokens(eagerTokens, 0, TimeUnit.MILLISECONDS)) {
-        return eagerTokens;
+        return new PermitsAndDelay(eagerTokens, 0, true);
       }
 
       long millisToSatisfyMinPermits = (long) (minPermits / this.tokenBucket.getTokensPerMilli());
       if (millisToSatisfyMinPermits > timeoutMillis) {
-        return 0;
+        return new PermitsAndDelay(0, 0, false);
       }
       long allowedTimeout = Math.min(millisToSatisfyMinPermits + this.baseTimeout, timeoutMillis);
 
       while (requestedPermits > minPermits) {
-        if (this.tokenBucket.getTokens(requestedPermits, allowedTimeout, TimeUnit.MILLISECONDS)) {
-          return requestedPermits;
+        long wait = this.tokenBucket.tryReserveTokens(requestedPermits, allowedTimeout);
+        if (wait >= 0) {
+          return new PermitsAndDelay(requestedPermits, wait, true);
         }
         requestedPermits /= 2;
       }
 
-      if (this.tokenBucket.getTokens(minPermits, allowedTimeout, TimeUnit.MILLISECONDS)) {
-        return minPermits;
+      long wait = this.tokenBucket.tryReserveTokens(minPermits, allowedTimeout);
+      if (wait >= 0) {
+        return new PermitsAndDelay(requestedPermits, wait, true);
       }
+
     } catch (InterruptedException ie) {
       // Fallback to returning 0
     }
 
-    return 0;
+    return new PermitsAndDelay(0, 0, true);
+  }
+
+  /**
+   * Request tokens. Like {@link #getPermitsAndDelay(long, long, long)} but block until the wait time passes.
+   */
+  public long getPermits(long requestedPermits, long minPermits, long timeoutMillis) {
+    PermitsAndDelay permitsAndDelay = getPermitsAndDelay(requestedPermits, minPermits, timeoutMillis);
+    if (permitsAndDelay.delay > 0) {
+      try {
+        Thread.sleep(permitsAndDelay.delay);
+      } catch (InterruptedException ie) {
+        return 0;
+      }
+    }
+    return permitsAndDelay.permits;
   }
 
 }

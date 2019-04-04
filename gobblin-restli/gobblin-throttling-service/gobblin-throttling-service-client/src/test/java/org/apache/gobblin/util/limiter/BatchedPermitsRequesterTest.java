@@ -158,6 +158,46 @@ public class BatchedPermitsRequesterTest {
     }
   }
 
+  @Test
+  public void testWaitToUsePermits() throws Exception {
+    Queue<RequestAndCallback> queue = Queues.newArrayDeque();
+
+    BatchedPermitsRequester container = BatchedPermitsRequester.builder().resourceId("resource")
+        .requestorIdentifier("requestor").requestSender(new TestRequestSender(queue, false)).build();
+
+    MockWaiter mockWaiter = new MockWaiter();
+    BatchedPermitsRequester.AllocationCallback callback = container.createAllocationCallback(mockWaiter);
+
+    PermitAllocation allocation = new PermitAllocation();
+    allocation.setPermits(10);
+    allocation.setWaitForPermitUseMillis(20);
+    allocation.setExpiration(Long.MAX_VALUE);
+
+    Response<PermitAllocation> response = Mockito.mock(Response.class);
+    Mockito.when(response.getEntity()).thenReturn(allocation);
+
+    callback.onSuccess(response);
+    Assert.assertEquals(mockWaiter.lastWait, 20);
+    Assert.assertEquals(container.getPermitBatchContainer().getTotalAvailablePermits(), 10);
+
+    // A zero wait will not trigger a wait in the requester
+    allocation.setWaitForPermitUseMillis(0);
+    mockWaiter.lastWait = -1;
+    callback.onSuccess(response);
+    Assert.assertEquals(mockWaiter.lastWait, -1);
+    Assert.assertEquals(container.getPermitBatchContainer().getTotalAvailablePermits(), 20);
+  }
+
+  public static class MockWaiter extends BatchedPermitsRequester.Waiter {
+    public long lastWait;
+
+    @Override
+    void waitMillis(long millis)
+        throws InterruptedException {
+      this.lastWait = millis;
+    }
+  }
+
   public static class TestRequestSender implements RequestSender {
     private final Queue<RequestAndCallback> requestAndCallbacks;
     private final boolean autoSatisfyRequests;
