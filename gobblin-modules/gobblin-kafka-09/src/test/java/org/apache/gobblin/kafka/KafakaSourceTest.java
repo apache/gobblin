@@ -88,7 +88,7 @@ public class KafakaSourceTest {
     SourceState state = generateState();
     state.setProp(ConfigurationKeys.MR_JOB_MAX_MAPPERS_KEY, 100);
     List<WorkUnit> workUnits =  source.getWorkunits(state);
-    Assert.assertEquals(workUnits.size(), 100);
+    Assert.assertEquals(workUnits.size(), 3);
     int numOfWorkUnits = Iterators.size(new MultiWorkUnitUnpackingIterator(workUnits.iterator()));
     Assert.assertEquals(numOfWorkUnits,3);
   }
