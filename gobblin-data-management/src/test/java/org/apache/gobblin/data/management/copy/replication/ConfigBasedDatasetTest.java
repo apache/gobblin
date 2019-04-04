@@ -47,6 +47,7 @@ import org.apache.gobblin.source.extractor.extract.LongWatermark;
 import org.apache.gobblin.util.FileListUtils;
 import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.commit.DeleteFileCommitStep;
+import org.apache.gobblin.util.filesystem.ModTimeDataFileVersionStrategy;
 
 
 /**
@@ -89,6 +90,7 @@ public class ConfigBasedDatasetTest {
     ReplicationConfiguration mockRC = Mockito.mock(ReplicationConfiguration.class);
     Mockito.when(mockRC.getCopyMode()).thenReturn(ReplicationCopyMode.PULL);
     Mockito.when(mockRC.getMetaData()).thenReturn(mockMetaData);
+    Mockito.when(mockRC.getVersionStrategyFromConfigStore()).thenReturn(Optional.of(ModTimeDataFileVersionStrategy.Factory.class.getName()));
 
     HadoopFsEndPoint copyFrom = Mockito.mock(HadoopFsEndPoint.class);
     Mockito.when(copyFrom.getDatasetPath()).thenReturn(new Path(sourceDir));
