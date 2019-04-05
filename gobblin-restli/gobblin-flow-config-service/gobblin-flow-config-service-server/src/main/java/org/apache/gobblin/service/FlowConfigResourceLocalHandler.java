@@ -48,6 +48,7 @@ import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
  */
 @Slf4j
 public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandler {
+  public static final Schedule NEVER_RUN_CRON_SCHEDULE = new Schedule().setCronSchedule("0 0 0 ? 1 1 2050");
   @Getter
   protected FlowCatalog flowCatalog;
   public FlowConfigResourceLocalHandler(FlowCatalog flowCatalog) {
@@ -61,9 +62,7 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
     log.info("[GAAS-REST] Get called with flowGroup {} flowName {}", flowId.getFlowGroup(), flowId.getFlowName());
 
     try {
-      URI flowCatalogURI = new URI("gobblin-flow", null, "/", null, null);
-      URI flowUri = new URI(flowCatalogURI.getScheme(), flowCatalogURI.getAuthority(),
-          "/" + flowId.getFlowGroup() + "/" + flowId.getFlowName(), null, null);
+      URI flowUri = FlowUriUtils.createFlowSpecUri(flowId);
       FlowSpec spec = (FlowSpec) flowCatalog.getSpec(flowUri);
       FlowConfig flowConfig = new FlowConfig();
       Properties flowProps = spec.getConfigAsProperties();
@@ -144,9 +143,19 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
       throw new FlowConfigLoggedException(HttpStatus.S_400_BAD_REQUEST,
           "flowName and flowGroup cannot be changed in update", null);
     }
+    if (isUnscheduleRequest(flowConfig)) {
+      // flow config is not changed if it is just a request to un-schedule
+      FlowConfig originalFlowConfig = getFlowConfig(flowId);
+      originalFlowConfig.setSchedule(NEVER_RUN_CRON_SCHEDULE);
+      flowConfig = originalFlowConfig;
+    }
 
     this.flowCatalog.put(createFlowSpecForConfig(flowConfig), triggerListener);
     return new UpdateResponse(HttpStatus.S_200_OK);
+  }
+
+  private boolean isUnscheduleRequest(FlowConfig flowConfig) {
+    return Boolean.parseBoolean(flowConfig.getProperties().getOrDefault(ConfigurationKeys.FLOW_UNSCHEDULE_KEY, "false"));
   }
 
   /**
@@ -165,7 +174,7 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
     URI flowUri = null;
 
     try {
-      flowUri = createFlowSpecUri(flowId);
+      flowUri = FlowUriUtils.createFlowSpecUri(flowId);
       this.flowCatalog.remove(flowUri, header, triggerListener);
       return new UpdateResponse(HttpStatus.S_200_OK);
     } catch (URISyntaxException e) {
@@ -178,13 +187,6 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
    */
   public UpdateResponse deleteFlowConfig(FlowId flowId, Properties header)  throws FlowConfigLoggedException {
     return deleteFlowConfig(flowId, header, true);
-  }
-
-  public static URI createFlowSpecUri (FlowId flowId) throws URISyntaxException {
-    URI flowCatalogURI = new URI("gobblin-flow", null, "/", null, null);
-    URI flowUri = new URI(flowCatalogURI.getScheme(), flowCatalogURI.getAuthority(),
-        "/" + flowId.getFlowGroup() + "/" + flowId.getFlowName(), null, null);
-    return flowUri;
   }
 
   /**
@@ -234,6 +236,51 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
       return FlowSpec.builder().withConfig(configWithFallback).withTemplate(templateURI).build();
     } catch (URISyntaxException e) {
       throw new FlowConfigLoggedException(HttpStatus.S_400_BAD_REQUEST, "bad URI " + flowConfig.getTemplateUris(), e);
+    }
+  }
+
+  public static class FlowUriUtils {
+    private final static String URI_SCHEME = "gobblin-flow";
+    private final static String URI_AUTHORITY = null;
+    private final static String URI_PATH_SEPARATOR = "/";
+    private final static String URI_QUERY = null;
+    private final static String URI_FRAGMENT = null;
+    private final static int EXPECTED_NUM_URI_PATH_TOKENS = 3;
+
+    public static URI createFlowSpecUri(FlowId flowId) throws URISyntaxException {
+      return new URI(URI_SCHEME, URI_AUTHORITY, createUriPath(flowId), URI_QUERY, URI_FRAGMENT);
+    }
+
+    private static String createUriPath(FlowId flowId) {
+      return URI_PATH_SEPARATOR + flowId.getFlowGroup() + URI_PATH_SEPARATOR + flowId.getFlowName();
+    }
+
+    /**
+     * returns the flow name from the flowUri
+     * @param flowUri FlowUri
+     * @return null if the provided flowUri is not valid
+     */
+    public static String getFlowName(URI flowUri) {
+      String[] uriTokens = flowUri.getPath().split("/");
+      if (uriTokens.length != EXPECTED_NUM_URI_PATH_TOKENS) {
+        log.error("Invalid URI {}.", flowUri);
+        return null;
+      }
+      return uriTokens[EXPECTED_NUM_URI_PATH_TOKENS - 1];
+    }
+
+    /**
+     * returns the flow group from the flowUri
+     * @param flowUri FlowUri
+     * @return null if the provided flowUri is not valid
+     */
+    public static String getFlowGroup(URI flowUri) {
+      String[] uriTokens = flowUri.getPath().split("/");
+      if (uriTokens.length != EXPECTED_NUM_URI_PATH_TOKENS) {
+        log.error("Invalid URI {}.", flowUri);
+        return null;
+      }
+      return uriTokens[EXPECTED_NUM_URI_PATH_TOKENS - 2];
     }
   }
 }

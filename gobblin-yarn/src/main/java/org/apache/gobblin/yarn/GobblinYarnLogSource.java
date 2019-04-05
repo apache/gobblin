@@ -18,15 +18,18 @@
 package org.apache.gobblin.yarn;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.stream.Collectors;
 
-import com.typesafe.config.Config;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 
+import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableSet;
+import com.typesafe.config.Config;
 
 import org.apache.gobblin.util.logs.LogCopier;
 
@@ -42,6 +45,7 @@ import org.apache.gobblin.util.logs.LogCopier;
  * @author Yinan Li
  */
 class GobblinYarnLogSource {
+  private static final Splitter COMMA_SPLITTER = Splitter.on(',').omitEmptyStrings().trimResults();
 
   /**
    * Return if the log source is present or not.
@@ -67,7 +71,7 @@ class GobblinYarnLogSource {
     LogCopier.Builder builder = LogCopier.newBuilder()
             .useSrcFileSystem(FileSystem.getLocal(new Configuration()))
             .useDestFileSystem(destFs)
-            .readFrom(getLocalLogDir())
+            .readFrom(getLocalLogDirs())
             .writeTo(getHdfsLogDir(containerId, destFs, appWorkDir))
             .acceptsLogFileExtensions(ImmutableSet.of(ApplicationConstants.STDOUT, ApplicationConstants.STDERR))
             .useLogFileNamePrefix(containerId.toString());
@@ -80,8 +84,14 @@ class GobblinYarnLogSource {
     return builder.build();
   }
 
-  private Path getLocalLogDir() throws IOException {
-    return new Path(System.getenv(ApplicationConstants.Environment.LOG_DIRS.toString()));
+  /**
+   * Multiple directories may be specified in the LOG_DIRS string. Split them up and return a list of {@link Path}s.
+   * @return list of {@link Path}s to the log directories
+   * @throws IOException
+   */
+  private List<Path> getLocalLogDirs() throws IOException {
+    String logDirs = System.getenv(ApplicationConstants.Environment.LOG_DIRS.toString());
+    return COMMA_SPLITTER.splitToList(logDirs).stream().map(e -> new Path(e)).collect(Collectors.toList());
   }
 
   private Path getHdfsLogDir(ContainerId containerId, FileSystem destFs, Path appWorkDir) throws IOException {
