@@ -46,6 +46,7 @@ import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.broker.MetricContextFactory;
 import org.apache.gobblin.metrics.broker.SubTaggedMetricContextKey;
 import org.apache.gobblin.util.NoopCloseable;
+import org.apache.gobblin.util.Sleeper;
 import org.apache.gobblin.util.limiter.Limiter;
 import org.apache.gobblin.util.limiter.broker.SharedLimiterKey;
 
@@ -87,6 +88,9 @@ public class LimiterServerResource extends ComplexKeyResourceAsyncTemplate<Permi
 
   @Inject @Named(LEADER_FINDER_INJECT_NAME)
   Optional<LeaderFinder<URIMetadata>> leaderFinderOpt;
+
+  @Inject
+  Sleeper sleeper;
 
   /**
    * Request permits from the limiter server. The returned {@link PermitAllocation} specifies the number of permits
@@ -133,7 +137,7 @@ public class LimiterServerResource extends ComplexKeyResourceAsyncTemplate<Permi
           allocation.setWaitForPermitUseMillis(0);
           if (wait > 0) {
             try {
-              Thread.sleep(wait);
+              this.sleeper.sleep(wait);
             } catch (InterruptedException ie) {
               allocation.setPermits(0);
             }

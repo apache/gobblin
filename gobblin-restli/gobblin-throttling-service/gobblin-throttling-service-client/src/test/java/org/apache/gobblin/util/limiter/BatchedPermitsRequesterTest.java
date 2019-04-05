@@ -26,6 +26,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.gobblin.util.Sleeper;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.testng.Assert;
@@ -35,7 +36,6 @@ import com.google.common.base.Optional;
 import com.google.common.collect.Queues;
 import com.linkedin.common.callback.Callback;
 import com.linkedin.restli.client.Response;
-import com.linkedin.restli.client.RestClient;
 import com.linkedin.restli.client.RestLiResponseException;
 import com.linkedin.restli.common.HttpStatus;
 
@@ -165,7 +165,7 @@ public class BatchedPermitsRequesterTest {
     BatchedPermitsRequester container = BatchedPermitsRequester.builder().resourceId("resource")
         .requestorIdentifier("requestor").requestSender(new TestRequestSender(queue, false)).build();
 
-    MockWaiter mockWaiter = new MockWaiter();
+    Sleeper.MockSleeper mockWaiter = new Sleeper.MockSleeper();
     BatchedPermitsRequester.AllocationCallback callback = container.createAllocationCallback(mockWaiter);
 
     PermitAllocation allocation = new PermitAllocation();
@@ -177,25 +177,15 @@ public class BatchedPermitsRequesterTest {
     Mockito.when(response.getEntity()).thenReturn(allocation);
 
     callback.onSuccess(response);
-    Assert.assertEquals(mockWaiter.lastWait, 20);
+    Assert.assertEquals((long) mockWaiter.getRequestedSleeps().peek(), 20);
     Assert.assertEquals(container.getPermitBatchContainer().getTotalAvailablePermits(), 10);
 
     // A zero wait will not trigger a wait in the requester
     allocation.setWaitForPermitUseMillis(0);
-    mockWaiter.lastWait = -1;
+    mockWaiter.reset();
     callback.onSuccess(response);
-    Assert.assertEquals(mockWaiter.lastWait, -1);
+    Assert.assertTrue(mockWaiter.getRequestedSleeps().isEmpty());
     Assert.assertEquals(container.getPermitBatchContainer().getTotalAvailablePermits(), 20);
-  }
-
-  public static class MockWaiter extends BatchedPermitsRequester.Waiter {
-    public long lastWait;
-
-    @Override
-    void waitMillis(long millis)
-        throws InterruptedException {
-      this.lastWait = millis;
-    }
   }
 
   public static class TestRequestSender implements RequestSender {

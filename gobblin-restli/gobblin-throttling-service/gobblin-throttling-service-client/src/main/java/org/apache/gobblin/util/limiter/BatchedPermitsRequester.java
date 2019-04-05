@@ -53,6 +53,7 @@ import org.apache.gobblin.restli.throttling.PermitRequest;
 import org.apache.gobblin.restli.throttling.ThrottlingProtocolVersion;
 import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.NoopCloseable;
+import org.apache.gobblin.util.Sleeper;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import javax.annotation.Nullable;
@@ -171,7 +172,7 @@ class BatchedPermitsRequester {
           if (this.callbackCounter.get() == callbackCounterSnap) {
             // If a callback has happened since we tried to send the new permit request, don't await
             // Since some request senders may be synchronous, we would have missed the notification
-            this.newPermitsAvailable.await(remainingTime(startTimeNanos, this.maxTimeout), TimeUnit.MILLISECONDS);
+            boolean ignore = this.newPermitsAvailable.await(remainingTime(startTimeNanos, this.maxTimeout), TimeUnit.MILLISECONDS);
           }
         } else {
           break;
@@ -222,7 +223,7 @@ class BatchedPermitsRequester {
 
       this.requestSender.sendRequest(permitRequest, new AllocationCallback(
           BatchedPermitsRequester.this.restRequestTimer == null ? NoopCloseable.INSTANCE :
-              BatchedPermitsRequester.this.restRequestTimer.time(), new Waiter()));
+              BatchedPermitsRequester.this.restRequestTimer.time(), new Sleeper()));
     } catch (CloneNotSupportedException cnse) {
       // This should never happen.
       this.requestSemaphore.release();
@@ -265,17 +266,8 @@ class BatchedPermitsRequester {
   }
 
   @VisibleForTesting
-  AllocationCallback createAllocationCallback(Waiter waiter) {
-    return new AllocationCallback(new NoopCloseable(), waiter);
-  }
-
-  /**
-   * A class to sleep. Abstracted into a class so it can be replaced in tests.
-   */
-  static class Waiter {
-    void waitMillis(long millis) throws InterruptedException {
-      Thread.sleep(millis);
-    }
+  AllocationCallback createAllocationCallback(Sleeper sleeper) {
+    return new AllocationCallback(new NoopCloseable(), sleeper);
   }
 
   /**
@@ -284,11 +276,11 @@ class BatchedPermitsRequester {
   @VisibleForTesting
   class AllocationCallback implements Callback<Response<PermitAllocation>> {
     private final Closeable timerContext;
-    private final Waiter waiter;
+    private final Sleeper sleeper;
 
-    public AllocationCallback(Closeable timerContext, Waiter waiter) {
+    public AllocationCallback(Closeable timerContext, Sleeper sleeper) {
       this.timerContext = timerContext;
-      this.waiter = waiter;
+      this.sleeper = sleeper;
     }
 
     @Override
@@ -344,7 +336,7 @@ class BatchedPermitsRequester {
 
         long waitForUse = allocation.getWaitForPermitUseMillis(GetMode.DEFAULT);
         if (waitForUse > 0) {
-          this.waiter.waitMillis(waitForUse);
+          this.sleeper.sleep(waitForUse);
         }
 
         if (allocation.getUnsatisfiablePermits(GetMode.DEFAULT) > 0) {

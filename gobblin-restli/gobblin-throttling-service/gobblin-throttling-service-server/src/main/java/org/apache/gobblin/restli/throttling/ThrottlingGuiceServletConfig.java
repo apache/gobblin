@@ -47,6 +47,7 @@ import org.apache.gobblin.broker.iface.SharedResourcesBroker;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.broker.MetricContextFactory;
 import org.apache.gobblin.metrics.broker.MetricContextKey;
+import org.apache.gobblin.util.Sleeper;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -82,6 +83,7 @@ public class ThrottlingGuiceServletConfig extends GuiceServletContextListener im
 
   private Optional<LeaderFinder<URIMetadata>> _leaderFinder;
   private Config _config;
+  private Sleeper _sleeper = null;
   private Injector _injector;
 
   @Override
@@ -97,6 +99,14 @@ public class ThrottlingGuiceServletConfig extends GuiceServletContextListener im
     initialize(ConfigFactory.parseMap(configMap));
 
     super.contextInitialized(servletContextEvent);
+  }
+
+  /**
+   * Use a mock sleeper for testing. Note this should be called before initialization.
+   */
+  public Sleeper.MockSleeper mockSleeper() {
+    this._sleeper = new Sleeper.MockSleeper();
+    return (Sleeper.MockSleeper) this._sleeper;
   }
 
   public void initialize(Config config) {
@@ -128,9 +138,14 @@ public class ThrottlingGuiceServletConfig extends GuiceServletContextListener im
       protected void configure() {
         try {
 
+          if (_sleeper == null) {
+            _sleeper = new Sleeper();
+          }
+
           RestLiConfig restLiConfig = new RestLiConfig();
           restLiConfig.setResourcePackageNames("org.apache.gobblin.restli.throttling");
           bind(RestLiConfig.class).toInstance(restLiConfig);
+          bind(Sleeper.class).toInstance(_sleeper);
 
           bind(SharedResourcesBroker.class).annotatedWith(Names.named(LimiterServerResource.BROKER_INJECT_NAME)).toInstance(topLevelBroker);
 
