@@ -24,6 +24,7 @@ import java.util.concurrent.TimeUnit;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
+import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -32,8 +33,10 @@ import kafka.message.MessageAndMetadata;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.FileContextBasedFsStateStore;
 import org.apache.gobblin.metastore.FileContextBasedFsStateStoreFactory;
+import org.apache.gobblin.metastore.MysqlStateStoreFactory;
 import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.metastore.util.StateStoreCleanerRunnable;
 import org.apache.gobblin.metrics.event.TimingEvent;
@@ -53,16 +56,15 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   //We use table suffix that is different from the Gobblin job state store suffix of jst to avoid confusion.
   //gst refers to the state store suffix for GaaS-orchestrated Gobblin jobs.
   public static final String STATE_STORE_TABLE_SUFFIX = "gst";
+  public static final String STATE_STORE_KEY_SEPARATION_CHARACTER = ".";
 
   static final String JOB_STATUS_MONITOR_TOPIC_KEY = "topic";
   static final String JOB_STATUS_MONITOR_NUM_THREADS_KEY = "numThreads";
   static final String JOB_STATUS_MONITOR_CLASS_KEY = "class";
   static final String DEFAULT_JOB_STATUS_MONITOR_CLASS = KafkaAvroJobStatusMonitor.class.getName();
-  static final String STATE_STORE_FACTORY_CLASS_KEY = "stateStoreFactoryClass";
 
   private static final String KAFKA_AUTO_OFFSET_RESET_KEY = "auto.offset.reset";
   private static final String KAFKA_AUTO_OFFSET_RESET_SMALLEST = "smallest";
-  private static final String KAFKA_AUTO_OFFSET_RESET_LARGEST = "largest";
 
   @Getter
   private final StateStore<org.apache.gobblin.configuration.State> stateStore;
@@ -73,7 +75,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   public KafkaJobStatusMonitor(String topic, Config config, int numThreads)
       throws ReflectiveOperationException {
     super(topic, config.withFallback(DEFAULTS), numThreads);
-    String stateStoreFactoryClass = ConfigUtils.getString(config, STATE_STORE_FACTORY_CLASS_KEY, FileContextBasedFsStateStoreFactory.class.getName());
+    String stateStoreFactoryClass = ConfigUtils.getString(config, ConfigurationKeys.STATE_STORE_FACTORY_CLASS_KEY, MysqlStateStoreFactory.class.getName());
 
     this.stateStore =
         ((StateStore.Factory) Class.forName(stateStoreFactoryClass).newInstance()).createStateStore(config, org.apache.gobblin.configuration.State.class);
@@ -125,12 +127,29 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
       throws IOException {
     String flowName = jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD);
     String flowGroup = jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD);
-    String storeName = Joiner.on(JobStatusRetriever.STATE_STORE_KEY_SEPARATION_CHARACTER).join(flowGroup, flowName);
     String flowExecutionId = jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD);
     String jobName = jobStatus.getProp(TimingEvent.FlowEventConstants.JOB_NAME_FIELD,JobStatusRetriever.NA_KEY);
     String jobGroup = jobStatus.getProp(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, JobStatusRetriever.NA_KEY);
-    String tableName = Joiner.on(JobStatusRetriever.STATE_STORE_KEY_SEPARATION_CHARACTER).join(flowExecutionId, jobGroup, jobName, STATE_STORE_TABLE_SUFFIX);
+
+    String storeName = jobStatusStoreName(flowGroup, flowName);
+    String tableName = jobStatusTableName(flowExecutionId, jobGroup, jobName);
     this.stateStore.put(storeName, tableName, jobStatus);
+  }
+
+  public static String jobStatusTableName(String flowExecutionId, String jobGroup, String jobName) {
+    return Joiner.on(STATE_STORE_KEY_SEPARATION_CHARACTER).join(flowExecutionId, jobGroup, jobName, STATE_STORE_TABLE_SUFFIX);
+  }
+
+  public static String jobStatusTableName(long flowExecutionId, String jobGroup, String jobName) {
+    return jobStatusTableName(String.valueOf(flowExecutionId), jobGroup, jobName);
+  }
+
+  public static String jobStatusStoreName(String flowGroup, String flowName) {
+    return Joiner.on(STATE_STORE_KEY_SEPARATION_CHARACTER).join(flowGroup, flowName);
+  }
+
+  public static long getExecutionIdFromTableName(String tableName) {
+    return Long.parseLong(Splitter.on(STATE_STORE_KEY_SEPARATION_CHARACTER).splitToList(tableName).get(0));
   }
 
   public abstract org.apache.gobblin.configuration.State parseJobStatus(byte[] message) throws IOException;
