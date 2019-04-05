@@ -17,6 +17,9 @@
 
 package org.apache.gobblin.service.monitoring;
 
+import java.util.Iterator;
+
+import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 
 import org.apache.gobblin.config.ConfigBuilder;
@@ -24,6 +27,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.MysqlJobStatusStateStore;
 import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
+import org.apache.gobblin.service.ExecutionStatus;
 
 
 public class MysqlJobStatusRetrieverTest extends JobStatusRetrieverTest {
@@ -45,6 +49,17 @@ public class MysqlJobStatusRetrieverTest extends JobStatusRetrieverTest {
     this.jobStatusRetriever = new MysqlJobStatusRetriever(configBuilder.build());
     this.dbJobStateStore = ((MysqlJobStatusRetriever) this.jobStatusRetriever).getStateStore();
     cleanUpDir();
+  }
+
+  @Override
+  public void testJobTiming() throws Exception {
+    addJobStatusToStateStore(1234L, MY_JOB_NAME_1, ExecutionStatus.COMPLETE.name(), JOB_END_TIME, JOB_END_TIME);
+    Iterator<JobStatus>
+        jobStatusIterator = this.jobStatusRetriever.getJobStatusesForFlowExecution(FLOW_NAME, FLOW_GROUP, 1234L);
+    JobStatus jobStatus = jobStatusIterator.next();
+    Assert.assertEquals(jobStatus.getEventName(), ExecutionStatus.COMPLETE.name());
+    Assert.assertEquals(jobStatus.getStartTime(), JOB_START_TIME);
+    Assert.assertEquals(jobStatus.getEndTime(), JOB_END_TIME);
   }
 
   @Override

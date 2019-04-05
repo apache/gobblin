@@ -22,11 +22,9 @@ import java.util.List;
 
 import com.google.common.collect.Iterators;
 
-import lombok.Getter;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.metastore.FileContextBasedFsStateStore;
 import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.metrics.event.TimingEvent;
 
@@ -75,8 +73,8 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
     String jobGroup = jobState.getProp(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD);
     long jobExecutionId = Long.parseLong(jobState.getProp(TimingEvent.FlowEventConstants.JOB_EXECUTION_ID_FIELD, "0"));
     String eventName = jobState.getProp(JobStatusRetriever.EVENT_NAME_FIELD);
-    long startTime = Long.parseLong(jobState.getProp(TimingEvent.METADATA_START_TIME, "0"));
-    long endTime = Long.parseLong(jobState.getProp(TimingEvent.METADATA_END_TIME, "0"));
+    long startTime = Long.parseLong(jobState.getProp(TimingEvent.JOB_START_TIME, "0"));
+    long endTime = Long.parseLong(jobState.getProp(TimingEvent.JOB_END_TIME, "0"));
     String message = jobState.getProp(TimingEvent.METADATA_MESSAGE, "");
     String lowWatermark = jobState.getProp(TimingEvent.FlowEventConstants.LOW_WATERMARK_FIELD, "");
     String highWatermark = jobState.getProp(TimingEvent.FlowEventConstants.HIGH_WATERMARK_FIELD, "");

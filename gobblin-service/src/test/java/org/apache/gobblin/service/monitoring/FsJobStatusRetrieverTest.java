@@ -18,27 +18,15 @@
 package org.apache.gobblin.service.monitoring;
 
 import java.io.File;
-import java.io.IOException;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Properties;
 
 import org.apache.commons.io.FileUtils;
-import org.testng.Assert;
-import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
 
-import com.google.common.base.Joiner;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.metastore.FileContextBasedFsStateStore;
-import org.apache.gobblin.metrics.event.TimingEvent;
-import org.apache.gobblin.service.ExecutionStatus;
 
 
 public class FsJobStatusRetrieverTest extends JobStatusRetrieverTest {
