@@ -84,6 +84,12 @@ configurations {
   all*.exclude group: 'xerces'
 }
 
+jar {
+  manifest {
+    attributes("Premain-class": "org.apache.gobblin.writer.test.InstrumentationAgent")
+  }
+}
+
 test {
   workingDir rootProject.rootDir
 }
