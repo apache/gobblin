@@ -20,7 +20,7 @@ Each metric context contains the following instance variables:
 * A reference to the parent metric context, or null if it has no parent.
 * A list of children metric context references, stored as soft references.
 * An object of type [Tagged](https://github.com/apache/incubator-gobblin/blob/master/gobblin-metrics-libs/gobblin-metrics-base/src/main/java/org/apache/gobblin/metrics/Tagged.java) containing the tags for this metric context.
-* A `Set` of notification targets. Notification targets are objects of type [Function](http://docs.guava-libraries.googlecode.com/git/javadoc/com/google/common/base/Function.html)<[Notification](https://github.com/apache/incubator-gobblin/blob/master/gobblin-metrics-libs/gobblin-metrics-base/src/main/java/org/apache/gobblin/metrics/notification/Notification.java), Void> which are all called every time there is a new notification. Notifications can be submitted to the Metric Context using the method `sendNotification(Notification)`. Notification targets can be added using `addNotificationTarget(Function<Notification, Void>)`.
+* A `Set` of notification targets. Notification targets are objects of type [Function](https://google.github.io/guava/releases/15.0/api/docs/com/google/common/base/Function.html)<[Notification](https://github.com/apache/incubator-gobblin/blob/master/gobblin-metrics-libs/gobblin-metrics-base/src/main/java/org/apache/gobblin/metrics/notification/Notification.java), Void> which are all called every time there is a new notification. Notifications can be submitted to the Metric Context using the method `sendNotification(Notification)`. Notification targets can be added using `addNotificationTarget(Function<Notification, Void>)`.
 * A lazily instantiated `ExecutorService` used for asynchronously executing the notification targets. The executor service will only be started the first time there is a notification and the number of notification targets is positive.
 * A `ConcurrentMap` from metric names to `Metric` for all metrics registered in this Metric Context. Metrics can be added to this map using the `register(Metric)`, `register(String, Metric)`, or `registerAll(MetricSet)`, although it is recommended to instead use the methods to create and register the metrics. Metric Context implements getter methods for all metrics, as well as for each type of metric individually (`getMetrics`, `getGauges`, `getCounters`, `getHistograms`, `getMeters`, `getTimers`).
 
@@ -38,7 +38,7 @@ Users can also register objects of type `com.codahale.metrics.Metric` with any M
 Events
 ======
 
-Events are objects of type [GobblinTrackingEvent](https://github.com/linkedin/gobblin/blob/master/gobblin-metrics/src/main/avro/GobblinTrackingEvent.avsc), which is a type generated from an Avro schema. Events have:
+Events are objects of type [GobblinTrackingEvent](https://github.com/apache/incubator-gobblin/blob/master/gobblin-metrics-libs/gobblin-metrics-base/src/main/avro/GobblinTrackingEvent.avsc), which is a type generated from an Avro schema. Events have:
 
 * A `namespace`.
 * A `name`.

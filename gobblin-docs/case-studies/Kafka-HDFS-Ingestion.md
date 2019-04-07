@@ -117,7 +117,7 @@ As examples, take a look at [`KafkaSimpleSource`](https://github.com/apache/incu
 
 ## Writer and Publisher
 
-Any desired writer and publisher can be used, e.g., one may use the [`AvroHdfsDataWriter`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/writer/AvroHdfsDataWriter.java) and the [`BaseDataPublisher`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/publisher/BaseDataPublisher.java), similar as the [Wikipedia example job](../Getting-Started). If plain text output file is desired, one may use [`SimpleDataWriter`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/writer/SimpleDataWriter.java).
+Any desired writer and publisher can be used, e.g., one may use the [`AvroHdfsDataWriter`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/writer/AvroHdfsDataWriter.java) and the [`BaseDataPublisher`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/publisher/BaseDataPublisher.java), similar as the [Wikipedia example job](https://github.com/apache/incubator-gobblin/blob/master/gobblin-example/src/main/resources/wikipedia.pull). If plain text output file is desired, one may use [`SimpleDataWriter`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/writer/SimpleDataWriter.java).
 
 # Job Config Properties
 

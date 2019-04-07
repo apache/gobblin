@@ -5,7 +5,7 @@ development, will likely change, and have many new features planned. The
 two interfaces provided are a command line interface and a GUI,
 accessible via a web server. The current state of the interfaces relies
 on the [Job Execution History
-Store](https://github.com/linkedin/gobblin/wiki/Job%20Execution%20History%20Store),
+Store](https://gobblin.readthedocs.io/en/latest/user-guide/Job-Execution-History-Store/),
 which must be enabled and running for the interfaces to work.
 
 ## CLI

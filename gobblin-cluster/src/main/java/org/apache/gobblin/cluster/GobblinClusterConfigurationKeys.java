@@ -101,7 +101,7 @@ public class GobblinClusterConfigurationKeys {
    * A path pointing to a directory that contains job execution files to be executed by Gobblin. This directory can
    * have a nested structure.
    *
-   * @see <a href="https://github.com/linkedin/gobblin/wiki/Working-with-Job-Configuration-Files">Job Config Files</a>
+   * @see <a href="https://gobblin.readthedocs.io/en/latest/user-guide/Working-with-Job-Configuration-Files/">Job Config Files</a>
    */
   public static final String JOB_CONF_PATH_KEY = GOBBLIN_CLUSTER_PREFIX + "job.conf.path";
   public static final String INPUT_WORK_UNIT_DIR_NAME = "_workunits";
