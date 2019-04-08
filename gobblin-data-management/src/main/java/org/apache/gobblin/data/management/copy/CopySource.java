@@ -435,7 +435,6 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
       WorkUnitState state)
       throws IOException{
     return new FileAwareInputStreamExtractor(fs, cf, state);
-    //return new FileAwareInputStreamExtractorWithCheckSchema(fs, cf, state);
   }
 
   @Override
