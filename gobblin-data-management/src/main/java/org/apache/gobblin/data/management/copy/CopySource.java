@@ -433,7 +433,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
   protected Extractor<String, FileAwareInputStream> extractorForCopyableFile(FileSystem fs, CopyableFile cf,
       WorkUnitState state)
-      throws IOException{
+      throws IOException {
     return new FileAwareInputStreamExtractor(fs, cf, state);
   }
 
