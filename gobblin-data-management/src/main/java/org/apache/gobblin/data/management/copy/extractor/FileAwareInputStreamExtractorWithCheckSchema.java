@@ -55,25 +55,20 @@ public class FileAwareInputStreamExtractorWithCheckSchema extends FileAwareInput
       Configuration conf =
           this.state == null ? HadoopUtils.newConfiguration() : HadoopUtils.getConfFromState(this.state);
       FileSystem fsFromFile = this.file.getOrigin().getPath().getFileSystem(conf);
-      DatumReader<GenericRecord> datumReader = new GenericDatumReader<>();
-      DataFileReader<GenericRecord> dataFileReader = new DataFileReader(new FsInput(this.file.getFileStatus().getPath(),fsFromFile), datumReader);
-      Schema schema = dataFileReader.getSchema();
-      if(!schema.toString().equals(this.state.getProp(EXPECTED_SCHEMA)))
+      if(!schemaChecking(fsFromFile))
       {
-        try {
-          throw new DataRecordException("Schema does match the expected schema");
-        }
-        finally{
-          return null;
-        }
+        throw new DataRecordException("Schema does match the expected schema");
       }
       return this.buildStream(fsFromFile);
     }
     return null;
   }
-  public static class Factory{
-    public FileAwareInputStreamExtractorWithCheckSchema create(FileSystem fs, CopyableFile file, WorkUnitState state) {
-      return new FileAwareInputStreamExtractorWithCheckSchema(fs,file,state);
-    }
+
+  protected boolean schemaChecking(FileSystem fsFromFile)
+      throws IOException {
+    DatumReader<GenericRecord> datumReader = new GenericDatumReader<>();
+    DataFileReader<GenericRecord> dataFileReader = new DataFileReader(new FsInput(this.file.getFileStatus().getPath(),fsFromFile), datumReader);
+    Schema schema = dataFileReader.getSchema();
+    return schema.toString().equals(this.state.getProp(EXPECTED_SCHEMA));
   }
 }

@@ -29,7 +29,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.converter.GobblinMetricsPinotFlattenerConverter;
 import org.apache.gobblin.data.management.copy.CopyConfiguration;
-import org.apache.gobblin.data.management.copy.SchemaCheckedCopySsource;
+import org.apache.gobblin.data.management.copy.SchemaCheckedCopySource;
 import org.apache.gobblin.data.management.copy.extractor.FileAwareInputStreamExtractorWithCheckSchema;
 import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.filesystem.DataFileVersionStrategy;
@@ -116,7 +116,7 @@ public class EmbeddedGobblinDistcpTest {
     EmbeddedGobblinDistcp embedded = new EmbeddedGobblinDistcp(new Path(tmpSource.getAbsolutePath()),
         new Path(tmpTarget.getAbsolutePath()));
     embedded.setLaunchTimeout(30, TimeUnit.SECONDS);
-    embedded.setConfiguration(ConfigurationKeys.SOURCE_CLASS_KEY, SchemaCheckedCopySsource.class.getName());
+    embedded.setConfiguration(ConfigurationKeys.SOURCE_CLASS_KEY, SchemaCheckedCopySource.class.getName());
     //test when schema is not the expected one, the job will be aborted.
     embedded.setConfiguration(FileAwareInputStreamExtractorWithCheckSchema.EXPECTED_SCHEMA, "{\"type\":\"record\",\"name\":\"baseRecord\",\"fields\":[{\"name\":\"foo1\",\"type\":[\"null\",\"int\"],\"default\":null}]}");
     embedded.run();
