@@ -31,6 +31,7 @@ import org.apache.gobblin.converter.GobblinMetricsPinotFlattenerConverter;
 import org.apache.gobblin.data.management.copy.CopyConfiguration;
 import org.apache.gobblin.data.management.copy.SchemaCheckedCopySource;
 import org.apache.gobblin.data.management.copy.extractor.FileAwareInputStreamExtractorWithCheckSchema;
+import org.apache.gobblin.runtime.api.JobExecutionResult;
 import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.filesystem.DataFileVersionStrategy;
 
@@ -119,13 +120,15 @@ public class EmbeddedGobblinDistcpTest {
     embedded.setConfiguration(ConfigurationKeys.SOURCE_CLASS_KEY, SchemaCheckedCopySource.class.getName());
     //test when schema is not the expected one, the job will be aborted.
     embedded.setConfiguration(ConfigurationKeys.COPY_EXPECTED_SCHEMA, "{\"type\":\"record\",\"name\":\"baseRecord\",\"fields\":[{\"name\":\"foo1\",\"type\":[\"null\",\"int\"],\"default\":null}]}");
-    embedded.run();
+    JobExecutionResult result = embedded.run();
     Assert.assertTrue(new File(tmpSource, fileName).exists());
+    Assert.assertFalse(result.isSuccessful());
     Assert.assertFalse(new File(tmpTarget, fileName).exists());
 
     //test when schema is the expected one, the job will succeed.
     embedded.setConfiguration(ConfigurationKeys.COPY_EXPECTED_SCHEMA, "{\"type\":\"record\",\"name\":\"baseRecord\",\"fields\":[{\"name\":\"foo\",\"type\":[\"null\",\"int\"],\"default\":null}]}");
-    embedded.run();
+    result = embedded.run();
+    Assert.assertTrue(result.isSuccessful());
     Assert.assertTrue(new File(tmpSource, fileName).exists());
     Assert.assertTrue(new File(tmpTarget, fileName).exists());
 

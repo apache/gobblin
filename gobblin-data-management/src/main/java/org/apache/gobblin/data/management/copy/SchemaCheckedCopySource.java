@@ -28,7 +28,7 @@ import org.apache.gobblin.source.extractor.Extractor;
 
 /**
  * Used instead of {@link CopySource} for {@link FileSystem}s that need to check the schema
- * during teh process of data deployment.
+ * during the process of data deployment.
  */
 public class SchemaCheckedCopySource extends CopySource {
   @Override
