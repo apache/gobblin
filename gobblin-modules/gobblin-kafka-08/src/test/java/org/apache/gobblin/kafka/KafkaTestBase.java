@@ -247,5 +247,9 @@ public class KafkaTestBase implements Closeable {
   public int getKafkaServerPort() {
     return _kafkaServerSuite.getKafkaServerPort();
   }
+
+  public String getZkConnectString() {
+    return _kafkaServerSuite.getZkConnectString();
+  }
 }
 

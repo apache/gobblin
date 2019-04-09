@@ -38,8 +38,6 @@ import org.apache.gobblin.metrics.event.TimingEvent;
 public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker {
   public static final String EVENT_NAME_FIELD = "eventName";
   public static final String NA_KEY = "NA";
-  @Getter
-  public StateStore<State> stateStore;
 
   public abstract Iterator<JobStatus> getJobStatusesForFlowExecution(String flowName, String flowGroup,
       long flowExecutionId);
@@ -89,4 +87,6 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
         lowWatermark(lowWatermark).highWatermark(highWatermark).startTime(startTime).endTime(endTime).
         message(message).processedCount(processedCount).build();
   }
+
+  public abstract StateStore<State> getStateStore();
 }

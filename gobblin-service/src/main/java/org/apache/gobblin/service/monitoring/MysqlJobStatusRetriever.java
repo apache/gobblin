@@ -42,9 +42,9 @@ import org.apache.gobblin.service.ExecutionStatus;
  */
 public class MysqlJobStatusRetriever extends JobStatusRetriever {
 
-  static final String CONF_PREFIX = "mysqlJobStatusRetriever";
+  public static final String CONF_PREFIX = "mysqlJobStatusRetriever";
   @Getter
-  public MysqlJobStatusStateStore<State> stateStore;
+  private MysqlJobStatusStateStore<State> stateStore;
 
   public MysqlJobStatusRetriever(Config config) throws ReflectiveOperationException {
     config = config.getConfig(CONF_PREFIX).withFallback(config);

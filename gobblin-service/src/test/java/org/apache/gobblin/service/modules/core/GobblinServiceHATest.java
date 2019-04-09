@@ -34,23 +34,18 @@ import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.linkedin.data.template.StringMap;
 import com.linkedin.restli.client.RestLiResponseException;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.runtime.api.FlowSpec;
-import org.apache.gobblin.runtime.api.TopologySpec;
-import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
-import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
-import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
+import org.apache.gobblin.metastore.MysqlJobStatusStateStoreFactory;
+import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
+import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.apache.gobblin.service.FlowConfig;
 import org.apache.gobblin.service.FlowConfigClient;
 import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.Schedule;
 import org.apache.gobblin.service.ServiceConfigKeys;
-import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.service.modules.utils.HelixUtils;
 import org.apache.gobblin.service.monitoring.FsJobStatusRetriever;
 import org.apache.gobblin.util.ConfigUtils;
@@ -59,7 +54,6 @@ import org.apache.gobblin.util.ConfigUtils;
 public class GobblinServiceHATest {
 
   private static final Logger logger = LoggerFactory.getLogger(GobblinServiceHATest.class);
-  private static Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
   private static final String QUARTZ_INSTANCE_NAME = "org.quartz.scheduler.instanceName";
   private static final String QUARTZ_THREAD_POOL_COUNT = "org.quartz.threadPool.threadCount";
@@ -91,21 +85,10 @@ public class GobblinServiceHATest {
   private static final String TEST_FLOW_NAME_2 = "testFlow2";
   private static final String TEST_SCHEDULE_2 = "0 1/0 * ? * *";
   private static final String TEST_TEMPLATE_URI_2 = "FS:///templates/test.template";
-  private static final String TEST_DUMMY_GROUP_NAME_2 = "dummyGroup";
-  private static final String TEST_DUMMY_FLOW_NAME_2 = "dummyFlow";
 
   private static final String TEST_GOBBLIN_EXECUTOR_NAME = "testGobblinExecutor";
   private static final String TEST_SOURCE_NAME = "testSource";
   private static final String TEST_SINK_NAME = "testSink";
-
-  private ServiceBasedAppLauncher serviceLauncher;
-  private TopologyCatalog topologyCatalog;
-  private TopologySpec topologySpec;
-
-  private FlowCatalog flowCatalog;
-  private FlowSpec flowSpec;
-
-  private Orchestrator orchestrator;
 
   private GobblinServiceManager node1GobblinServiceManager;
   private FlowConfigClient node1FlowConfigClient;
@@ -133,6 +116,8 @@ public class GobblinServiceHATest {
     logger.info("Testing ZK Server listening on: " + testingZKServer.getConnectString());
     HelixUtils.createGobblinHelixCluster(testingZKServer.getConnectString(), TEST_HELIX_CLUSTER_NAME);
 
+    ITestMetastoreDatabase testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
+
     Properties commonServiceCoreProperties = new Properties();
     commonServiceCoreProperties.put(ServiceConfigKeys.ZK_CONNECTION_STRING_KEY, testingZKServer.getConnectString());
     commonServiceCoreProperties.put(ServiceConfigKeys.HELIX_CLUSTER_NAME_KEY, TEST_HELIX_CLUSTER_NAME);
@@ -148,6 +133,11 @@ public class GobblinServiceHATest {
         "org.gobblin.service.InMemorySpecExecutor");
     commonServiceCoreProperties.put(ServiceConfigKeys.TOPOLOGY_FACTORY_PREFIX +  TEST_GOBBLIN_EXECUTOR_NAME + ".specExecInstance.capabilities",
         TEST_SOURCE_NAME + ":" + TEST_SINK_NAME);
+    commonServiceCoreProperties.put(ConfigurationKeys.STATE_STORE_DB_USER_KEY, "testUser");
+    commonServiceCoreProperties.put(ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY, "testPassword");
+    commonServiceCoreProperties.put(ConfigurationKeys.STATE_STORE_DB_URL_KEY, testMetastoreDatabase.getJdbcUrl());
+    commonServiceCoreProperties.put("zookeeper.connect", testingZKServer.getConnectString());
+    commonServiceCoreProperties.put(ConfigurationKeys.STATE_STORE_FACTORY_CLASS_KEY, MysqlJobStatusStateStoreFactory.class.getName());
 
     Properties node1ServiceCoreProperties = new Properties();
     node1ServiceCoreProperties.putAll(commonServiceCoreProperties);

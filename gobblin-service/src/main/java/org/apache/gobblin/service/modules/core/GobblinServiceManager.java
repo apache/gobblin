@@ -96,8 +96,6 @@ import org.apache.gobblin.service.modules.utils.HelixUtils;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.service.monitoring.FsJobStatusRetriever;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
-import org.apache.gobblin.service.monitoring.KafkaAvroJobStatusMonitor;
-import org.apache.gobblin.service.monitoring.KafkaJobStatusMonitor;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
@@ -222,11 +220,6 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
       this.dagManager = new DagManager(config);
       this.serviceLauncher.addService(this.dagManager);
     }
-
-    KafkaJobStatusMonitor jobStatusMonitor = new KafkaAvroJobStatusMonitor(
-        properties.getProperty(ConfigurationKeys.METRICS_KAFKA_TOPIC_EVENTS, "GobblinTrackingEvent_GaaS_test"),
-                config, Integer.parseInt(properties.getProperty(ConfigurationKeys.JOB_EXECUTOR_THREAD_POOL_SIZE_KEY, "20")));
-        this.serviceLauncher.addService(jobStatusMonitor);
 
     // Initialize ServiceScheduler
     this.isSchedulerEnabled = ConfigUtils.getBoolean(config,

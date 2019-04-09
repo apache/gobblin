@@ -75,7 +75,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   public KafkaJobStatusMonitor(String topic, Config config, int numThreads)
       throws ReflectiveOperationException {
     super(topic, config.withFallback(DEFAULTS), numThreads);
-    String stateStoreFactoryClass = ConfigUtils.getString(config, ConfigurationKeys.STATE_STORE_FACTORY_CLASS_KEY, MysqlStateStoreFactory.class.getName());
+    String stateStoreFactoryClass = ConfigUtils.getString(config, ConfigurationKeys.STATE_STORE_FACTORY_CLASS_KEY, FileContextBasedFsStateStoreFactory.class.getName());
 
     this.stateStore =
         ((StateStore.Factory) Class.forName(stateStoreFactoryClass).newInstance()).createStateStore(config, org.apache.gobblin.configuration.State.class);
