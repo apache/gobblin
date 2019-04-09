@@ -28,27 +28,27 @@ import lombok.Getter;
  */
 public class Sleeper {
 
-	/**
-	 * A mock version of {@link Sleeper} that just register calls to sleep but returns immediately.
-	 */
-	@Getter
-	public static class MockSleeper extends Sleeper {
-		private Queue<Long> requestedSleeps = new LinkedList<>();
+  /**
+   * A mock version of {@link Sleeper} that just register calls to sleep but returns immediately.
+   */
+  @Getter
+  public static class MockSleeper extends Sleeper {
+    private Queue<Long> requestedSleeps = new LinkedList<>();
 
-		@Override
-		public void sleep(long millis) {
-			this.requestedSleeps.add(millis);
-		}
+    @Override
+    public void sleep(long millis) {
+      this.requestedSleeps.add(millis);
+    }
 
-		public void reset() {
-			this.requestedSleeps.clear();
-		}
-	}
+    public void reset() {
+      this.requestedSleeps.clear();
+    }
+  }
 
-	/**
-	 * Equivalent to {@link Thread#sleep(long)}.
-	 */
-	public void sleep(long millis) throws InterruptedException {
-		Thread.sleep(millis);
-	}
+  /**
+   * Equivalent to {@link Thread#sleep(long)}.
+   */
+  public void sleep(long millis) throws InterruptedException {
+    Thread.sleep(millis);
+  }
 }
