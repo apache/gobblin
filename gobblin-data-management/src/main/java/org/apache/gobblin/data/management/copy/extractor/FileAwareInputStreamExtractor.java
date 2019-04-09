@@ -89,7 +89,7 @@ public class FileAwareInputStreamExtractor implements Extractor<String, FileAwar
   }
 
   protected FileAwareInputStream buildStream(FileSystem fsFromFile)
-      throws IOException{
+      throws DataRecordException, IOException{
     this.recordRead = true;
     FileAwareInputStream.FileAwareInputStreamBuilder builder = FileAwareInputStream.builder().file(this.file);
     if (this.file.getFileStatus().isDirectory()) {

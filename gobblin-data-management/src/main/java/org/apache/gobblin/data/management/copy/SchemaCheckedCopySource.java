@@ -26,6 +26,10 @@ import org.apache.gobblin.data.management.copy.extractor.FileAwareInputStreamExt
 import org.apache.gobblin.source.extractor.Extractor;
 
 
+/**
+ * Used instead of {@link CopySource} for {@link FileSystem}s that need to check the schema
+ * during teh process of data deployment.
+ */
 public class SchemaCheckedCopySource extends CopySource {
   @Override
   protected Extractor<String, FileAwareInputStream> extractorForCopyableFile(FileSystem fs, CopyableFile cf,

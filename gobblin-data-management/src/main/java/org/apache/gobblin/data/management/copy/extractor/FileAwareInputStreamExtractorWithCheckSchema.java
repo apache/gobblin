@@ -18,6 +18,7 @@
 package org.apache.gobblin.data.management.copy.extractor;
 
 import java.io.IOException;
+import java.io.InputStream;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileReader;
@@ -25,19 +26,20 @@ import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.mapred.FsInput;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.data.management.copy.CopyableFile;
 import org.apache.gobblin.data.management.copy.FileAwareInputStream;
 import org.apache.gobblin.source.extractor.DataRecordException;
-import org.apache.gobblin.util.HadoopUtils;
 
-
+/**
+ * Used instead of {@link FileAwareInputStreamExtractor} that extracts {@link InputStream}s. This extractor will first
+ * check if the schema matches the expected schema. If not it will abort the job.
+ */
 
 public class FileAwareInputStreamExtractorWithCheckSchema extends FileAwareInputStreamExtractor{
-  public final static String EXPECTED_SCHEMA = "expected.schema";
 
   public FileAwareInputStreamExtractorWithCheckSchema(FileSystem fs, CopyableFile file, WorkUnitState state)
   {
@@ -49,19 +51,13 @@ public class FileAwareInputStreamExtractorWithCheckSchema extends FileAwareInput
   }
 
   @Override
-  public FileAwareInputStream readRecord(@Deprecated FileAwareInputStream reuse)
-      throws DataRecordException, IOException {
-    if (!this.recordRead) {
-      Configuration conf =
-          this.state == null ? HadoopUtils.newConfiguration() : HadoopUtils.getConfFromState(this.state);
-      FileSystem fsFromFile = this.file.getOrigin().getPath().getFileSystem(conf);
-      if(!schemaChecking(fsFromFile))
-      {
-        throw new DataRecordException("Schema does match the expected schema");
-      }
-      return this.buildStream(fsFromFile);
+  protected FileAwareInputStream buildStream(FileSystem fsFromFile)
+      throws DataRecordException, IOException{
+    if(!schemaChecking(fsFromFile))
+    {
+      throw new DataRecordException("Schema does not match the expected schema");
     }
-    return null;
+    return super.buildStream(fsFromFile);
   }
 
   protected boolean schemaChecking(FileSystem fsFromFile)
@@ -69,6 +65,6 @@ public class FileAwareInputStreamExtractorWithCheckSchema extends FileAwareInput
     DatumReader<GenericRecord> datumReader = new GenericDatumReader<>();
     DataFileReader<GenericRecord> dataFileReader = new DataFileReader(new FsInput(this.file.getFileStatus().getPath(),fsFromFile), datumReader);
     Schema schema = dataFileReader.getSchema();
-    return schema.toString().equals(this.state.getProp(EXPECTED_SCHEMA));
+    return schema.toString().equals(this.state.getProp(ConfigurationKeys.COPY_EXPECTED_SCHEMA));
   }
 }
