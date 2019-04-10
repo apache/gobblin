@@ -34,5 +34,5 @@ Each metric context manages a set of metrics (like counters, timers, meters, and
 </p>
 
 <p>
-  To learn more about Gobblin Metrics, check out the <a href="https://github.com/linkedin/gobblin/wiki/Gobblin%20Metrics">Wiki</a> and the <a href="https://github.com/linkedin/gobblin">Gobblin project</a> in Github.
+  To learn more about Gobblin Metrics, check out the <a href="https://gobblin.readthedocs.io/en/latest/metrics/Gobblin-Metrics/">Wiki</a> and the <a href="https://github.com/apache/incubator-gobblin">Gobblin project</a> in Github.
 </p>

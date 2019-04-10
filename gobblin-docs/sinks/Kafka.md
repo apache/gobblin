@@ -15,7 +15,7 @@ The Kafka writer allows users to create pipelines that ingest data from Gobblin 
 
 #Steps 
 
-* Edit the [wikipedia-kafka.pull](https://github.com/linkedin/gobblin/blob/master/gobblin-example/src/main/resources/wikipedia-kafka.pull) example to get started with setting up ingestion into Kafka. This is a very similar pipeline to the [wikipedia.pull](https://github.com/linkedin/gobblin/blob/master/gobblin-example/src/main/resources/wikipedia.pull) example which pulls pages from 5 titles from Wikipedia to HDFS. The main differences to note are: 
+* Edit the [wikipedia-kafka.pull](https://github.com/apache/incubator-gobblin/blob/master/gobblin-example/src/main/resources/wikipedia-kafka.pull) example to get started with setting up ingestion into Kafka. This is a very similar pipeline to the [wikipedia.pull](https://github.com/apache/incubator-gobblin/blob/master/gobblin-example/src/main/resources/wikipedia.pull) example which pulls pages from 5 titles from Wikipedia to HDFS. The main differences to note are: 
     * The `writer.builder.class` is set to `gobblin.kafka.writer.KafkaDataWriterBuilder`. This is the class that creates a Kafka writer.
     * The `writer.kafka.topic` is set to `WikipediaExample`. This is the topic that the writer will write the records to.
     * The `writer.kafka.producerConfig.bootstrap.servers` is set to `localhost:9092`. This is the address of the kafka broker(s) that the writer must write to.
@@ -53,7 +53,7 @@ INFO  [TaskExecutor-0] gobblin.runtime.Fork  261 - Committing data for fork 0 of
 INFO  [TaskExecutor-0] gobblin.kafka.writer.KafkaDataWriter  211 - Successfully committed 20 records.
 ```
 
-* To verify that the records have indeed been ingested into Kafka, you can run a kafka console consumer or run Gobblin's [kafka-console pull file](https://github.com/linkedin/gobblin/blob/master/gobblin-example/src/main/resources/wikipedia-kafka.pull) which prints the events from Kafka onto the console.
+* To verify that the records have indeed been ingested into Kafka, you can run a kafka console consumer or run Gobblin's [kafka-console pull file](https://github.com/apache/incubator-gobblin/blob/master/gobblin-example/src/main/resources/kafka-console.pull) which prints the events from Kafka onto the console.
 
 #Configuration Details
 

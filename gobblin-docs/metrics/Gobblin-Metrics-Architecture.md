@@ -19,15 +19,15 @@ Each metric context contains the following instance variables:
 * A `String` `name`. The name is not used by the core metrics engine, but can be accessed by users to identify the context.
 * A reference to the parent metric context, or null if it has no parent.
 * A list of children metric context references, stored as soft references.
-* An object of type [Tagged](https://github.com/linkedin/gobblin/blob/master/gobblin-metrics/src/main/java/gobblin/metrics/Tagged.java) containing the tags for this metric context.
-* A `Set` of notification targets. Notification targets are objects of type [Function](http://docs.guava-libraries.googlecode.com/git/javadoc/com/google/common/base/Function.html)<[Notification](https://github.com/linkedin/gobblin/blob/master/gobblin-metrics/src/main/java/gobblin/metrics/notification/Notification.java), Void> which are all called every time there is a new notification. Notifications can be submitted to the Metric Context using the method `sendNotification(Notification)`. Notification targets can be added using `addNotificationTarget(Function<Notification, Void>)`.
+* An object of type [Tagged](https://github.com/apache/incubator-gobblin/blob/master/gobblin-metrics-libs/gobblin-metrics-base/src/main/java/org/apache/gobblin/metrics/Tagged.java) containing the tags for this metric context.
+* A `Set` of notification targets. Notification targets are objects of type [Function](https://google.github.io/guava/releases/15.0/api/docs/com/google/common/base/Function.html)<[Notification](https://github.com/apache/incubator-gobblin/blob/master/gobblin-metrics-libs/gobblin-metrics-base/src/main/java/org/apache/gobblin/metrics/notification/Notification.java), Void> which are all called every time there is a new notification. Notifications can be submitted to the Metric Context using the method `sendNotification(Notification)`. Notification targets can be added using `addNotificationTarget(Function<Notification, Void>)`.
 * A lazily instantiated `ExecutorService` used for asynchronously executing the notification targets. The executor service will only be started the first time there is a notification and the number of notification targets is positive.
 * A `ConcurrentMap` from metric names to `Metric` for all metrics registered in this Metric Context. Metrics can be added to this map using the `register(Metric)`, `register(String, Metric)`, or `registerAll(MetricSet)`, although it is recommended to instead use the methods to create and register the metrics. Metric Context implements getter methods for all metrics, as well as for each type of metric individually (`getMetrics`, `getGauges`, `getCounters`, `getHistograms`, `getMeters`, `getTimers`).
 
 Metrics
 =======
 
-All metrics extend the interface [ContextAwareMetric](https://github.com/linkedin/gobblin/blob/master/gobblin-metrics/src/main/java/gobblin/metrics/ContextAwareMetric.java). Each metric type in Dropwizard Metrics is extended to a Context Aware type: `ContextAwareCounter`, `ContextAwareGauge`, `ContextAwareHistogram`, `ContextAwareMeter`, `ContextAwareTimer`.
+All metrics extend the interface [ContextAwareMetric](https://github.com/apache/incubator-gobblin/blob/master/gobblin-metrics-libs/gobblin-metrics-base/src/main/java/org/apache/gobblin/metrics/ContextAwareMetric.java). Each metric type in Dropwizard Metrics is extended to a Context Aware type: `ContextAwareCounter`, `ContextAwareGauge`, `ContextAwareHistogram`, `ContextAwareMeter`, `ContextAwareTimer`.
 
 Context Aware metrics all always created from the Metric Context where they will be registered. For example, to get a counter under Metric Context `context`, the user would call `context.counter("counter.name")`. This method first checks all registered metrics in the Metric Context to find a counter with that name, if it succeeds, it simply returns that counter. If a counter with that name has not been registered in `context`, then a new `ContextAwareCounter` is created and registered in `context`.
 
@@ -38,16 +38,16 @@ Users can also register objects of type `com.codahale.metrics.Metric` with any M
 Events
 ======
 
-Events are objects of type [GobblinTrackingEvent](https://github.com/linkedin/gobblin/blob/master/gobblin-metrics/src/main/avro/GobblinTrackingEvent.avsc), which is a type generated from an Avro schema. Events have:
+Events are objects of type [GobblinTrackingEvent](https://github.com/apache/incubator-gobblin/blob/master/gobblin-metrics-libs/gobblin-metrics-base/src/main/avro/GobblinTrackingEvent.avsc), which is a type generated from an Avro schema. Events have:
 
 * A `namespace`.
 * A `name`.
 * A `timestamp`.
 * A `Map<String,String>` of `metadata`.
 
-Events are submitted using the `MetricContext#submitEvent(GobblinTrackingEvent)` method. When called, this method packages the event into an [EventNotification](https://github.com/linkedin/gobblin/blob/master/gobblin-metrics/src/main/java/gobblin/metrics/notification/EventNotification.java) and submits it to the metric context using the method `MetricContext#sendNotification(Notification)`. This notification is passed to all metrics context ancestors. Each notification target of each ancestor metric context will receive the EventNotification. Events are not stored by any Metric Context, so the notification targets need to handle these events appropriately.
+Events are submitted using the `MetricContext#submitEvent(GobblinTrackingEvent)` method. When called, this method packages the event into an [EventNotification](https://github.com/apache/incubator-gobblin/blob/master/gobblin-metrics-libs/gobblin-metrics-base/src/main/java/org/apache/gobblin/metrics/notification/EventNotification.java) and submits it to the metric context using the method `MetricContext#sendNotification(Notification)`. This notification is passed to all metrics context ancestors. Each notification target of each ancestor metric context will receive the EventNotification. Events are not stored by any Metric Context, so the notification targets need to handle these events appropriately.
 
-Events can be created manually using Avro constructors, and using the method `context.submitEvent(GobblinTrackinEvent)`, but this is unfriendly when trying to build events incrementally, especially when using metadata. To address this, users can instead use [EventSubmitter](https://github.com/linkedin/gobblin/blob/master/gobblin-metrics/src/main/java/gobblin/metrics/event/EventSubmitter.java) which is an abstraction around the Avro constructor for GobblinTrackingEvent.
+Events can be created manually using Avro constructors, and using the method `context.submitEvent(GobblinTrackinEvent)`, but this is unfriendly when trying to build events incrementally, especially when using metadata. To address this, users can instead use [EventSubmitter](https://github.com/apache/incubator-gobblin/blob/master/gobblin-metrics-libs/gobblin-metrics-base/src/main/java/org/apache/gobblin/metrics/event/EventSubmitter.java) which is an abstraction around the Avro constructor for GobblinTrackingEvent.
 
 Event Submitter
 ---------------
@@ -59,7 +59,7 @@ Reporters
 
 Reporters export the metrics and/or events of a metric context to a sink. Reporters extend the interface `com.codahale.metrics.Reporter`. Most reporters will attach themselves to a Metric Context. The reporter can then navigate the Metric Context tree where the Metric Context belongs, get tags and metrics, get notified of events, and export them to the sink.
 
-The two best entry points for developing reporters are [RecursiveScheduledMetricReporter](https://github.com/linkedin/gobblin/blob/master/gobblin-metrics/src/main/java/gobblin/metrics/reporter/RecursiveScheduledMetricReporter.java) and [EventReporter](https://github.com/linkedin/gobblin/blob/master/gobblin-metrics/src/main/java/gobblin/metrics/reporter/EventReporter.java). These classes do most of the heavy lifting for reporting metrics and events respectively. They are both scheduled reporters, meaning the will export their metrics / events following a configurable schedule.
+The two best entry points for developing reporters are [RecursiveScheduledMetricReporter](https://github.com/apache/incubator-gobblin/blob/master/gobblin-metrics-libs/gobblin-metrics-base/src/main/java/org/apache/gobblin/metrics/reporter/RecursiveScheduledMetricReporter.java) and [EventReporter](https://github.com/apache/incubator-gobblin/blob/master/gobblin-metrics-libs/gobblin-metrics-base/src/main/java/org/apache/gobblin/metrics/reporter/EventReporter.java). These classes do most of the heavy lifting for reporting metrics and events respectively. They are both scheduled reporters, meaning the will export their metrics / events following a configurable schedule.
 
 RecursiveScheduleMetricReporter
 -------------------------------
