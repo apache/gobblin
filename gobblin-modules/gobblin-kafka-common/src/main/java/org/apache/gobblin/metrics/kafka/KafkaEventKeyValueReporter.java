@@ -63,7 +63,7 @@ public class KafkaEventKeyValueReporter extends KafkaEventReporter {
           if (nextEvent.getMetadata().containsKey(keyPart)) {
             sb.append(nextEvent.getMetadata().get(keyPart));
           } else {
-            log.error("{} not found in the GobblinTrackingEvent. Setting key to null.", keyPart);
+            log.debug("{} not found in the GobblinTrackingEvent. Setting key to null.", keyPart);
             sb = null;
             break;
           }

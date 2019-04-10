@@ -39,6 +39,8 @@ import com.google.inject.name.Names;
 import com.linkedin.restli.server.resources.BaseResource;
 
 import org.apache.gobblin.config.ConfigBuilder;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.restli.EmbeddedRestliServer;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
@@ -61,6 +63,11 @@ public class FlowStatusTest {
     public Iterator<org.apache.gobblin.service.monitoring.JobStatus> getJobStatusesForFlowExecution(String flowName,
         String flowGroup, long flowExecutionId, String jobGroup, String jobName) {
       return Iterators.emptyIterator();
+    }
+
+    @Override
+    public StateStore<State> getStateStore() {
+      return null;
     }
 
     @Override

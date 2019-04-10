@@ -72,6 +72,7 @@ dependencies {
 
   testCompile project(":gobblin-example")
   testCompile project(path: ":gobblin-modules:gobblin-kafka-08:", configuration: "tests")
+  testCompile project(path: ":gobblin-metastore", configuration: "testFixtures")
   testCompile project(":gobblin-test-utils")
   testCompile externalDependency.byteman
   testCompile externalDependency.bytemanBmunit
