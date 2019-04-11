@@ -276,7 +276,7 @@ public class PasswordManager {
     public CachedInstanceKey(State state) {
       this.numOfEncryptionKeys = state.getPropAsInt(ConfigurationKeys.NUMBER_OF_ENCRYPT_KEYS, ConfigurationKeys.DEFAULT_NUMBER_OF_MASTER_PASSWORDS);
       this.useStrongEncryptor = shouldUseStrongEncryptor(state);
-      this.fsURI = state.getProp(ConfigurationKeys.ENCRYPT_KEY_LOC);
+      this.fsURI = state.getProp(ConfigurationKeys.ENCRYPT_KEY_FS_URI);
       this.masterPasswordFile = state.getProp(ConfigurationKeys.ENCRYPT_KEY_LOC);
     }
 

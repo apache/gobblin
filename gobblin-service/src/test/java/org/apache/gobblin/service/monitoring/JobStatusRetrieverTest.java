@@ -91,7 +91,7 @@ public abstract class JobStatusRetrieverTest {
     Assert.assertTrue(jobStatusIterator.hasNext());
     JobStatus jobStatus = jobStatusIterator.next();
     Assert.assertEquals(jobStatus.getEventName(), ExecutionStatus.COMPILED.name());
-    Assert.assertEquals(jobStatus.getJobName(), (JobStatusRetriever.NA_KEY));
+    Assert.assertEquals(jobStatus.getJobName(), JobStatusRetriever.NA_KEY);
     Assert.assertEquals(jobStatus.getJobGroup(), JobStatusRetriever.NA_KEY);
     Assert.assertEquals(jobStatus.getProcessedCount(), 0);
     Assert.assertEquals(jobStatus.getLowWatermark(), "");
