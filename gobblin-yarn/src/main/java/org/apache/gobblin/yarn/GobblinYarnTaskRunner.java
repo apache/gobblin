@@ -47,6 +47,7 @@ import com.google.common.util.concurrent.Service;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import org.apache.gobblin.cluster.GobblinClusterUtils;
 import org.apache.gobblin.cluster.GobblinTaskRunner;
 import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
 import org.apache.gobblin.util.JvmUtils;
@@ -60,8 +61,8 @@ public class GobblinYarnTaskRunner extends GobblinTaskRunner {
 
   public GobblinYarnTaskRunner(String applicationName, String helixInstanceName, ContainerId containerId, Config config,
       Optional<Path> appWorkDirOptional) throws Exception {
-    super(applicationName, helixInstanceName, getApplicationId(containerId), getTaskRunnerId(containerId), config,
-        appWorkDirOptional);
+    super(applicationName, helixInstanceName, getApplicationId(containerId), getTaskRunnerId(containerId),
+        GobblinClusterUtils.addDynamicConfig(config), appWorkDirOptional);
   }
 
   @Override
