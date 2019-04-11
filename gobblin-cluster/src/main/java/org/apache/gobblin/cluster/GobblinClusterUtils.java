@@ -28,7 +28,9 @@ import com.typesafe.config.Config;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.DynamicConfigGenerator;
 import org.apache.gobblin.runtime.AbstractJobLauncher;
+import org.apache.gobblin.runtime.DynamicConfigGeneratorFactory;
 
 import static org.apache.gobblin.cluster.GobblinClusterConfigurationKeys.CLUSTER_WORK_DIR;
 
@@ -103,4 +105,28 @@ public class GobblinClusterUtils {
 
     return jobStateFilePath;
   }
+
+  /**
+   * Get the dynamic config from a {@link DynamicConfigGenerator}
+   * @param config input config
+   * @return  the dynamic config
+   */
+  public static Config getDynamicConfig(Config config) {
+    // load dynamic configuration and add them to the job properties
+    DynamicConfigGenerator dynamicConfigGenerator =
+        DynamicConfigGeneratorFactory.createDynamicConfigGenerator(config);
+    Config dynamicConfig = dynamicConfigGenerator.generateDynamicConfig(config);
+
+    return dynamicConfig;
+  }
+
+  /**
+   * Add dynamic config with higher precedence to the input config
+   * @param config input config
+   * @return a config combining the input config with the dynamic config
+   */
+  public static Config addDynamicConfig(Config config) {
+    return getDynamicConfig(config).withFallback(config);
+  }
+
 }
