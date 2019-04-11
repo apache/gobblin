@@ -57,7 +57,7 @@ public interface MutableSpecCatalog extends SpecCatalog {
   void remove(URI uri, Properties headers) throws SpecNotFoundException;
 
   @Slf4j
-  public static class MutableStandardMetrics extends StandardMetrics {
+  class MutableStandardMetrics extends StandardMetrics {
     public static final String TIME_FOR_SPEC_CATALOG_REMOVE = "timeForSpecCatalogRemove";
     public static final String TIME_FOR_SPEC_CATALOG_PUT = "timeForSpecCatalogPut";
     @Getter private final ContextAwareTimer timeForSpecCatalogPut;

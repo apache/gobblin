@@ -205,24 +205,25 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
   /* Catalog core functionality                     *
   /**************************************************/
 
+  /**
+   * Get all specs from {@link SpecStore}
+   */
   @Override
   public Collection<Spec> getSpecs() {
     try {
       return specStore.getSpecs();
+      // TODO: Have kind of metrics keeping track of specs that failed to be deserialized.
+
     } catch (IOException e) {
       throw new RuntimeException("Cannot retrieve Specs from Spec store", e);
     }
   }
 
   public Collection<Spec> getSpecsWithTimeUpdate() {
-    try {
-      long startTime = System.currentTimeMillis();
-      Collection<Spec> specs = specStore.getSpecs();
-      this.metrics.updateGetSpecTime(startTime);
-      return specs;
-    } catch (IOException e) {
-      throw new RuntimeException("Cannot retrieve Specs from Spec store", e);
-    }
+    long startTime = System.currentTimeMillis();
+    Collection<Spec> specs = this.getSpecs();
+    this.metrics.updateGetSpecTime(startTime);
+    return specs;
   }
 
   public boolean exists(URI uri) {

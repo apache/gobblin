@@ -17,15 +17,25 @@
 
 package org.apache.gobblin.spec_catalog;
 
+import de.flapdoodle.embed.process.io.file.Files;
 import java.io.File;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Properties;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
+import org.apache.gobblin.runtime.api.SpecSerDe;
+import org.apache.gobblin.runtime.api.SpecStore;
+import org.apache.gobblin.runtime.spec_store.FSSpecStore;
 import org.apache.hadoop.fs.Path;
+import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -114,6 +124,45 @@ public class FlowCatalogTest {
     File specStoreDir = new File(SPEC_STORE_DIR);
     if (specStoreDir.exists()) {
       FileUtils.deleteDirectory(specStoreDir);
+    }
+  }
+
+  /**
+   * Make sure that when there's on spec failed to be deserialized, the rest of spec in specStore can
+   * still be taken care of.
+   */
+  @Test
+  public void testGetSpecRobustness() throws Exception {
+
+    File specDir = Files.createTempDir("specFileDir");
+    Properties properties = new Properties();
+    properties.setProperty(ConfigurationKeys.SPECSTORE_FS_DIR_KEY, specDir.getAbsolutePath());
+    SpecSerDe serde = Mockito.mock(SpecSerDe.class);
+    TestFsSpecStore fsSpecStore = new TestFsSpecStore(ConfigUtils.propertiesToConfig(properties), serde);
+
+    // Version is specified as 0,1,2
+    File specFileFail = new File(specDir, "spec_fail");
+    Assert.assertTrue(specFileFail.createNewFile());
+    File specFile1 = new File(specDir, "spec0");
+    Assert.assertTrue(specFile1.createNewFile());
+    File specFile2 = new File(specDir, "spec1");
+    Assert.assertTrue(specFile2.createNewFile());
+
+    Collection<Spec> specList = fsSpecStore.getSpecs();
+    Assert.assertEquals(specList.size(), 2);
+  }
+
+  class TestFsSpecStore extends FSSpecStore {
+    public TestFsSpecStore(Config sysConfig, SpecSerDe specSerDe) throws IOException {
+      super(sysConfig, specSerDe);
+    }
+
+    @Override
+    protected Spec readSpecFromFile(Path path) throws IOException {
+      if (path.getName().contains("fail")) {
+        throw new IOException("Mean to fail in the test");
+      }
+      else return initFlowSpec();
     }
   }
 

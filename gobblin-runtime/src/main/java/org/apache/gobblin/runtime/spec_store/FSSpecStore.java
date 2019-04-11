@@ -238,13 +238,25 @@ public class FSSpecStore implements SpecStore {
     return specs;
   }
 
+  /**
+   * For multiple {@link FlowSpec}s to be loaded, catch IOexception when one of them failed to be loaded and
+   * continue with the rest.
+   *
+   * The {@link IOException} thrown from standard FileSystem call will be propagated.
+   * @param directory The directory that contains specs to be deserialized
+   * @param specs Container of specs.
+   */
   private void getSpecs(Path directory, Collection<Spec> specs) throws IOException {
     FileStatus[] fileStatuses = fs.listStatus(directory);
     for (FileStatus fileStatus : fileStatuses) {
       if (fileStatus.isDirectory()) {
         getSpecs(fileStatus.getPath(), specs);
       } else {
-        specs.add(readSpecFromFile(fileStatus.getPath()));
+        try {
+          specs.add(readSpecFromFile(fileStatus.getPath()));
+        } catch (IOException ioe) {
+          log.warn(String.format("Path[%s] cannot be correctly deserialized as Spec", fileStatus.getPath()));
+        }
       }
     }
   }

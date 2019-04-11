@@ -40,7 +40,7 @@ public interface StandardMetricsBridge {
     return ImmutableList.of();
   }
 
-  public class StandardMetrics implements MetricSet {
+  class StandardMetrics implements MetricSet {
     protected final List<ContextAwareMetric> contextAwareMetrics;
     protected final Map<String, Metric> rawMetrics;
 
