@@ -81,7 +81,7 @@ public class AvroFilterConverter extends AvroToAvroConverterBase {
    * @see org.apache.gobblin.converter.AvroToAvroConverterBase#convertRecord(org.apache.avro.Schema, org.apache.avro.generic.GenericRecord, org.apache.gobblin.configuration.WorkUnitState)
    */
   @Override
-  public Iterable<GenericRecord> convertRecord(Schema outputSchema, GenericRecord inputRecord, WorkUnitState workUnit)
+  public Iterable<GenericRecord> convertRecordImpl(Schema outputSchema, GenericRecord inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
     Optional<Object> fieldValue = AvroUtils.getFieldValue(inputRecord, this.fieldName);
     if (fieldValue.isPresent() && fieldValue.get().toString().equals(this.fieldValue)) {
