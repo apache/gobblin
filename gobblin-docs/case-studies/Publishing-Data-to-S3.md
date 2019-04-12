@@ -95,7 +95,7 @@ Go to the [S3 dashboard](https://console.aws.amazon.com/s3)
 ## Setting Up Gobblin on EC2
 
 * Download and Build Gobblin Locally
-    * On your local machine, clone the [Gobblin repository](https://github.com/apache/incubator-gobblin): `git clone git@github.com:linkedin/gobblin.git` (this assumes you have [Git](https://en.wikipedia.org/wiki/Git_(software)) installed locally)
+    * On your local machine, clone the [Gobblin repository](https://github.com/apache/incubator-gobblin): `git clone git@github.com:apache/incubator-gobblin.git` (this assumes you have [Git](https://en.wikipedia.org/wiki/Git_(software)) installed locally)
     * Build Gobblin using the following commands (it is important to use Hadoop version 2.6.0 as it includes the `s3a` file system implementation):
 ```
 cd gobblin
