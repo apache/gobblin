@@ -23,18 +23,22 @@ if [[ -z "$JAVA_HOME" ]]; then
     exit 1
 fi
 
-# gobblin global vars, All these can be overridden by specified values in gobblin-env.sh
-GOBBLIN_VERSION="0.15.0"
+# global vars
 
+GOBBLIN_VERSION="0.15.0"
 GOBBLIN_HOME="$(cd `dirname $0`/..; pwd)"
 GOBBLIN_LIB=${GOBBLIN_HOME}/lib
 GOBBLIN_BIN=${GOBBLIN_HOME}/bin
 GOBBLIN_LOGS=${GOBBLIN_HOME}/logs
 GOBBLIN_CONF=''
 
-LOG4J_FILE_PATH=''
+#sourcing basic gobblin env vars like GOBBLIN_HOME and GOBBLIN_LIB
+. ${GOBBLIN_BIN}/gobblin-env.sh
+
 CLUSTER_NAME="gobblin_cluster"
 JVM_OPTS="-Xmx1g -Xms512m"
+LOG4J_FILE_PATH=''
+LOG4J_OPTS=''
 GOBBLIN_MODE=''
 ACTION=''
 JVM_FLAGS=''
@@ -47,11 +51,12 @@ GOBBLIN_MODE_TYPE_SERVICE="GOBBLIN_SERVICE"
 
 # Gobblin Commands, Modes & respective Classes
 # Commands
-ADMIN_MODE='admin'
-CLI_MODE='cli'
-STATESTORE_CHECK_MODE='statestore-check'
-STATESTORE_CLEAN_MODE='statestore-clean'
-HISTORYSTORE_MANAGER_MODE='historystore-manager'
+ADMIN_CMD='admin'
+CLI_CMD='cli'
+STATESTORE_CHECK_CMD='statestore-check'
+STATESTORE_CLEAN_CMD='statestore-clean'
+HISTORYSTORE_MANAGER_CMD='historystore-manager'
+CLASSPATH_CMD='classpath'
 
 # Services
 STANDALONE_MODE='standalone'
@@ -59,7 +64,7 @@ CLUSTER_MASTER_MODE='cluster-master'
 CLUSTER_WORKER_MODE='cluster-worker'
 AWS_MODE='aws'
 YARN_MODE='yarn'
-MR_MODE='mr'
+MAPREDUCE_MODE='mapreduce'
 SERVICE_MODE='service'
 
 # Command class
@@ -75,27 +80,29 @@ CLUSTER_MASTER_CLASS='org.apache.gobblin.cluster.GobblinClusterManager'
 CLUSTER_WORKER_CLASS='org.apache.gobblin.cluster.GobblinTaskRunner'
 AWS_CLASS='org.apache.gobblin.aws.GobblinAWSClusterLauncher'
 YARN_CLASS='org.apache.gobblin.yarn.GobblinYarnAppLauncher'
-MR_CLASS='org.apache.gobblin.runtime.mapreduce.CliMRJobLauncher'
+MAPREDUCE_CLASS='org.apache.gobblin.runtime.mapreduce.CliMRJobLauncher'
 SERVICE_CLASS='org.apache.gobblin.service.modules.core.GobblinServiceManager'
 
 
 function print_usage() {
     echo "gobblin.sh  <command> <params>"
     echo "gobblin.sh  <service-name> <start|stop|status>"
-
+    echo ""
     echo "Argument Options:"
-    echo "    <commands>                                    values: $ADMIN_MODE, $CLI_MODE, $STATESTORE_CHECK_MODE, $STATESTORE_CLEAN_MODE, $HISTORYSTORE_MANAGER_MODE"
-    echo "    <service>                                     values: $STANDALONE_MODE, $CLUSTER_MASTER_MODE, $CLUSTER_WORKER_MODE, $AWS_MODE, $YARN_MODE, $MR_MODE, $SERVICE_MODE."
-    echo "    --cluster-name                                assign cluster name ( default: $CLUSTER_NAME)."
-    echo "    --conf-dir <path-to-conf-dir>                 default is '$GOBBLIN_HOME/conf/<mode-name>'."
-    echo "    --log4j-conf <path-to-conf-file>              default is '$GOBBLIN_HOME/conf/<mode-name>/log4j.properties'."
-    echo "    --jt <resource manager URL>                   Only for MR mode: Job submission URL, if not set, taken from \${HADOOP_HOME}/conf."
-    echo "    --fs <file system URL>                        Only for MR mode: Target file system, if not set, taken from \${HADOOP_HOME}/conf."
-    echo "    --jvmopts <jvm or gc options>                 String containing JVM flags to include, in addition to \"$JVM_OPTS\"."
-    echo "    --jars <column-separated list of extra jars>  Column-separated list of extra jars to put on the CLASSPATH."
-    echo "    --enable-gc-logs                              enables gc logs & dumps."
-    echo "    --help                                        Display this help."
-    echo "    --verbose                                     Display full command used to start the process."
+    echo "    <commands>                       values: $ADMIN_CMD, $CLI_CMD, $STATESTORE_CHECK_CMD, $STATESTORE_CLEAN_CMD, $HISTORYSTORE_MANAGER_CMD, $CLASSPATH_CMD"
+    echo "    <service>                        values: $STANDALONE_MODE, $CLUSTER_MASTER_MODE, $CLUSTER_WORKER_MODE, $AWS_MODE, $YARN_MODE, $MAPREDUCE_MODE, $SERVICE_MODE."
+    echo "    --cluster-name                   cluster name, also used by helix & other services. ( default: $CLUSTER_NAME)."
+    echo "    --conf-dir <path-of-conf-dir>    default is '\$GOBBLIN_HOME/conf/<mode-name>'."
+    echo "    --log4j-conf <path-of-conf-file> default is '\$GOBBLIN_HOME/conf/<mode-name>/log4j.properties'."
+    echo "    --jt <resource manager URL>      Only for mapreduce mode: Job submission URL, if not set, taken from \${HADOOP_HOME}/conf."
+    echo "    --fs <file system URL>           Only for mapreduce mode: Target file system, if not set, taken from \${HADOOP_HOME}/conf."
+    echo "    --jvmopts <jvm or gc options>    String containing JVM flags to include, in addition to \"$JVM_OPTS\"."
+    echo "    --jars <csv list of extra jars>  Column-separated list of extra jars to put on the CLASSPATH."
+    echo "    --enable-gc-logs                 enables gc logs & dumps."
+    echo "    --help                           Display this help."
+    echo "    --verbose                        Display full command used to start the process."
+    echo "                                     Gobblin Version: $GOBBLIN_VERSION"
+
 }
 
 # TODO: use getopts
@@ -103,11 +110,11 @@ shopt -s nocasematch
 for i in "$@"
 do
     case "$1" in
-        "$ADMIN_MODE" | "$CLI_MODE" | "$STATESTORE_CHECK_MODE" | "$STATESTORE_CLEAN_MODE" | "$HISTORYSTORE_MANAGER_CLASS" )
+        "$CLASSPATH_CMD" | "$ADMIN_CMD" | "$CLI_CMD" | "$STATESTORE_CHECK_CMD" | "$STATESTORE_CLEAN_CMD" | "$HISTORYSTORE_MANAGER_CLASS" )
             GOBBLIN_MODE_TYPE=$GOBBLIN_MODE_TYPE_COMMAND
             GOBBLIN_MODE="$1"
         ;;
-        "$STANDALONE_MODE" | "$CLUSTER_MASTER_MODE" | "$CLUSTER_WORKER_MODE" | "$AWS_MODE" | "$YARN_MODE" | "$MR_MODE")
+        "$STANDALONE_MODE" | "$CLUSTER_MASTER_MODE" | "$CLUSTER_WORKER_MODE" | "$AWS_MODE" | "$YARN_MODE" | "$MAPREDUCE_MODE")
             GOBBLIN_MODE_TYPE=$GOBBLIN_MODE_TYPE_SERVICE
             GOBBLIN_MODE="$1"
         ;;
@@ -159,12 +166,10 @@ do
     shift
 done
 
-
+# derived based on input from user, $GOBBLIN_MODE
 PID_FILE_NAME=".gobblin-$GOBBLIN_MODE.pid"
 PID_FILE="$GOBBLIN_HOME/$PID_FILE_NAME"
 
-#sourcing basic gobblin env vars like GOBBLIN_HOME and GOBBLIN_LIB
-. ${GOBBLIN_BIN}/gobblin-env.sh
 
 # for gobblin commands, the action is always 'start'
 if [[ "$GOBBLIN_MODE_TYPE" == "$GOBBLIN_MODE_TYPE_COMMAND" ]]; then
@@ -184,10 +189,14 @@ else
 fi
 
 #log4j config file
+
+
 if [[ -n "$USER_LOG4J_FILE" ]]; then
-    LOG4J_FILE_PATH=$USER_LOG4J_FILE
-else
+    LOG4J_FILE_PATH=file://${USER_LOG4J_FILE}
+    LOG4J_OPTS="-Dlog4j.configuration=$LOG4J_FILE_PATH"
+elif [[ -f ${GOBBLIN_CONF}/log4j.properties ]]; then
     LOG4J_FILE_PATH=file://${GOBBLIN_CONF}/log4j.properties
+    LOG4J_OPTS="-Dlog4j.configuration=$LOG4J_FILE_PATH"
 fi
 
 
@@ -201,8 +210,8 @@ fi
 
 export HADOOP_USER_CLASSPATH_FIRST=true
 
-
-function start() {
+function build_classpath(){
+    GOBBLIN_CLASSPATH=''
     # Build classpth
     GOBBLIN_JARS=''
     for jarFile in `ls ${GOBBLIN_LIB}/*`
@@ -216,7 +225,8 @@ function start() {
 
     GOBBLIN_CLASSPATH=${GOBBLIN_JARS}
     if [[ -n "$HADOOP_HOME" ]]; then
-        GOBBLIN_CLASSPATH=${GOBBLIN_CLASSPATH}:${HADOOP_HOME}/lib
+        HADOOP_CLASSPATH=$($HADOOP_HOME/bin/hadoop classpath)
+        GOBBLIN_CLASSPATH=${HADOOP_CLASSPATH}:${GOBBLIN_CLASSPATH}
     else
         echo "WARN: HADOOP_HOME is not defined. Hadoop libs are not added to classpath."
     fi
@@ -227,31 +237,43 @@ function start() {
 
     GOBBLIN_CLASSPATH=${GOBBLIN_CONF}:${GOBBLIN_CLASSPATH}
 
+}
+
+function start() {
+    # build and set the classpath in variable: GOBBLIN_CLASSPATH
+    build_classpath
+
     LOG_OUT_FILE="${GOBBLIN_LOGS}/${GOBBLIN_MODE}.out"
     LOG_ERR_FILE="${GOBBLIN_LOGS}/${GOBBLIN_MODE}.err"
 
     # for all gobblin commands
     if [[ "$GOBBLIN_MODE_TYPE" == "$GOBBLIN_MODE_TYPE_COMMAND" ]]; then
-        if [[ "$GOBBLIN_MODE" = "$ADMIN_MODE" ]]; then
-            CLASS_N_ARGS="$ADMIN_CLASS"
-        elif [[ "$GOBBLIN_MODE" = "$CLI_MODE" ]]; then
-            CLASS_N_ARGS="$CLI_CLASS"
-        elif [[ "$GOBBLIN_MODE" = "$STATESTORE_CHECK_MODE" ]]; then
-            CLASS_N_ARGS="$STATESTORE_CHECK_CLASS"
-        elif [[ "$GOBBLIN_MODE" = "$STATESTORE_CLEAN_MODE" ]]; then
-            CLASS_N_ARGS="$STATESTORE_CLEAN_CLASS"
-        elif [[ "$GOBBLIN_MODE" = "$HISTORYSTORE_MANAGER_MODE" ]]; then
-            CLASS_N_ARGS="$HISTORYSTORE_MANAGER_CLASS"
-        fi
+        if [[ "$GOBBLIN_MODE" = "$CLASSPATH_CMD" ]]; then
+            build_classpath
+            # not adding anything in echo here so that it can be used for getting classpath from any other command
+            echo "$GOBBLIN_CLASSPATH"
+        else
+            if [[ "$GOBBLIN_MODE" = "$ADMIN_CMD" ]]; then
+                CLASS_N_ARGS="$ADMIN_CLASS"
+            elif [[ "$GOBBLIN_MODE" = "$CLI_CMD" ]]; then
+                CLASS_N_ARGS="$CLI_CLASS"
+            elif [[ "$GOBBLIN_MODE" = "$STATESTORE_CHECK_CMD" ]]; then
+                CLASS_N_ARGS="$STATESTORE_CHECK_CLASS"
+            elif [[ "$GOBBLIN_MODE" = "$STATESTORE_CLEAN_CMD" ]]; then
+                CLASS_N_ARGS="$STATESTORE_CLEAN_CLASS"
+            elif [[ "$GOBBLIN_MODE" = "$HISTORYSTORE_MANAGER_CMD" ]]; then
+                CLASS_N_ARGS="$HISTORYSTORE_MANAGER_CLASS"
+            fi
 
-        if [[ $VERBOSE -eq 1 ]]; then
-            echo "Running command: $JAVA_HOME/bin/java $GC_OPTS $JVM_OPTS -cp $GOBBLIN_CLASSPATH  $CLASS_N_ARGS $CMD_PARAMS";
-        fi
+            if [[ $VERBOSE -eq 1 ]]; then
+                echo "Running command: $JAVA_HOME/bin/java $GC_OPTS $JVM_OPTS -cp $GOBBLIN_CLASSPATH  $CLASS_N_ARGS $CMD_PARAMS";
+            fi
 
-        $JAVA_HOME/bin/java $GC_OPTS $JVM_OPTS -cp $GOBBLIN_CLASSPATH  $CLASS_N_ARGS $CMD_PARAMS
+            $JAVA_HOME/bin/java $GC_OPTS $JVM_OPTS -cp $GOBBLIN_CLASSPATH  $CLASS_N_ARGS $CMD_PARAMS
+        fi
     # for all gobblin services
     else
-        if [[ "$GOBBLIN_MODE" = "$MR_MODE" ]]; then
+        if [[ "$GOBBLIN_MODE" = "$MAPREDUCE_MODE" ]]; then
             MR_MODE_LIB_JARS="gobblin-api-$GOBBLIN_VERSION.jar,gobblin-avro-json-$GOBBLIN_VERSION.jar,
                     gobblin-codecs-$GOBBLIN_VERSION.jar,gobblin-core-$GOBBLIN_VERSION.jar,gobblin-core-base-$GOBBLIN_VERSION.jar,
                     gobblin-crypto-$GOBBLIN_VERSION.jar,gobblin-crypto-provider-$GOBBLIN_VERSION.jar,gobblin-data-management-$GOBBLIN_VERSION.jar,
@@ -265,7 +287,7 @@ function start() {
             MR_MODE_LIB_JARS="${MR_MODE_LIB_JARS},$EXTRA_JARS"
             JT_COMMAND=$([ -z $JOB_TRACKER_URL ] && echo "" || echo "-jt $JOB_TRACKER_URL")
             FS_COMMAND=$([ -z $FS_URL ] && echo "" || echo "-fs $FS_URL")
-            GOBBLIN_COMMAND="hadoop jar $GOBBLIN_LIB/gobblin-runtime-$GOBBLIN_VERSION.jar $MR_CLASS \
+            GOBBLIN_COMMAND="hadoop jar $GOBBLIN_LIB/gobblin-runtime-$GOBBLIN_VERSION.jar $MAPREDUCE_CLASS \
                                         -D mapreduce.user.classpath.first=true -D mapreduce.job.user.classpath.first=true \
                                         $JT_COMMAND $FS_COMMAND \
                                         -libjars $MR_MODE_LIB_JARS \
@@ -300,7 +322,7 @@ function start() {
                 echo "Invalid gobblin command or service... [EXITING]"
                 exit 1
             fi
-            GOBBLIN_COMMAND="$JAVA_HOME/bin/java -Dlog4j.configuration=$LOG4J_FILE_PATH -cp $GOBBLIN_CLASSPATH $GC_OPTS $JVM_OPTS $CLASS_N_ARGS"
+            GOBBLIN_COMMAND="$JAVA_HOME/bin/java -cp $GOBBLIN_CLASSPATH $GC_OPTS $JVM_OPTS $LOG4J_OPTS $CLASS_N_ARGS"
         fi
 
         # execute the command
@@ -325,14 +347,20 @@ function stop() {
     PID=''
     if [[ ! -f $PID_FILE ]]; then
         echo "Gobblin process id file not found at $PID_FILE"
+    else
+        PID=`tail -1 $PID_FILE`
+    fi
+
+    if [[ -z "$PID" ]]; then
+        echo "Can not find any running Gobblin $GOBBLIN_MODE process..."
         while true; do
             read -p "Do you want to search gobblin $GOBBLIN_MODE process and stop it? (y/n): " search_and_kill
             case ${search_and_kill} in
                 [Yy]*)
                     class_to_search=''
-                    if [[ "$GOBBLIN_MODE" = "$MR_MODE" ]]; then
-                        class_to_search="$MR_CLASS"
-                    elif [[ "$GOBBLIN_MODE" = "$CLI_MODE" ]]; then
+                    if [[ "$GOBBLIN_MODE" = "$MAPREDUCE_MODE" ]]; then
+                        class_to_search="$MAPREDUCE_CLASS"
+                    elif [[ "$GOBBLIN_MODE" = "$CLI_CMD" ]]; then
                         class_to_search="$CLI_CLASS"
                     elif [[ "$GOBBLIN_MODE" = "$STANDALONE_MODE" ]]; then
                         class_to_search="$STANDALONE_CLASS"
@@ -353,23 +381,19 @@ function stop() {
 
                     PID=$(ps aux | grep "$class_to_search" | grep -v grep | awk '{print $2}')
                     break
-                    ;;
+                ;;
                 [Nn]*)
                     echo "Stopping the Gobblin $GOBBLIN_MODE process... [ABORTED]"
                     exit
-                    ;;
+                ;;
                 *)
                     echo "Please answer yes or no."
-                    ;;
+                ;;
             esac
         done
-    else
-        PID=`tail -1 $PID_FILE`
     fi
 
-    if [[ -z "$PID" ]]; then
-        echo "Can not find any running Gobblin $GOBBLIN_MODE process..."
-    else
+    if [[ -n "$PID" ]]; then
         if kill -0 $PID > /dev/null 2>&1; then
             kill $PID
             printf "Stopping the Gobblin $GOBBLIN_MODE process (pid: $PID)... "; sleep 1; printf "[DONE]\n"
@@ -381,6 +405,8 @@ function stop() {
         if [[ -s $PID_FILE ]]; then
             rm $PID_FILE;
         fi
+    else
+        echo "Can not find any running Gobblin $GOBBLIN_MODE process...[FAILED]"
     fi
 }
 
@@ -416,11 +442,6 @@ case "$ACTION" in
     ;;
     *)
         print_usage
-#        if [[ "$GOBBLIN_MODE" == "$CLI_MODE" ]] || [[ "$GOBBLIN_MODE" == "$STATESTORE_CHECK_MODE" ]] || [[ "$GOBBLIN_MODE" == "$STATESTORE_CLEAN_MODE" ]]; then
-#            start
-#        else
-#            print_usage
-#        fi
     ;;
 esac
 
