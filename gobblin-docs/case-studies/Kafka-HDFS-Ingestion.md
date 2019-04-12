@@ -34,7 +34,7 @@ data.publisher.type=org.apache.gobblin.publisher.BaseDataPublisher
 mr.job.max.mappers=1
 
 metrics.reporting.file.enabled=true
-metrics.log.dir=${env:GOBBLIN_WORK_DIR}/metrics
+metrics.log.dir=${gobblin.cluster.work.dir}/metrics
 metrics.reporting.file.suffix=txt
 
 bootstrap.with.offset=earliest
@@ -52,7 +52,7 @@ INFO Actual high watermark for partition test:0=2, expected=2
 INFO Task <task_id> completed in 31212ms with state SUCCESSFUL
 ```
 
-The output file will be in `GOBBLIN_WORK_DIR/job-output/test`, with the two messages you've just created in the Kafka broker. `GOBBLIN_WORK_DIR/metrics` will contain metrics collected from this run.
+The output file will be in `{gobblin.cluster.work.dir}/job-output/test`, with the two messages you've just created in the Kafka broker. `{gobblin.cluster.work.dir}/metrics` will contain metrics collected from this run.
 
 ## MapReduce
 

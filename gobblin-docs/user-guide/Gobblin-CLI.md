@@ -3,19 +3,67 @@ Table of Contents
 
 [TOC]
 
-Gobblin CLI
+Gobblin commands & services
 -----------
 
-The Gobblin distribution contains a CLI at `bin/gobblin` providing CLI access to various Gobblin applications and commands. To run:
+The Gobblin distribution comes with a script `bin/gobblin` for various admin/cli commands as well as ways to start/stop process for all modes of gobblin executions.
+Here is the usage:  ( Please note that `JAVA_HOME` is required to be set prior to running the script. )
+
 ```bash
-bin/gobblin
+./bin/gobblin --help
+
+gobblin.sh  <command> <params>
+gobblin.sh  <service-name> <start|stop|status>
+
+Argument Options:
+    <commands>                       values: admin, cli, statestore-check, statestore-clean, historystore-manager, classpath
+    <service>                        values: standalone, cluster-master, cluster-worker, aws, yarn, mapreduce, service.
+    --cluster-name                   cluster name, also used by helix & other services. ( default: gobblin_cluster).
+    --conf-dir <path-of-conf-dir>    default is '$GOBBLIN_HOME/conf/<mode-name>'.
+    --log4j-conf <path-of-conf-file> default is '$GOBBLIN_HOME/conf/<mode-name>/log4j.properties'.
+    --jt <resource manager URL>      Only for mapreduce mode: Job submission URL, if not set, taken from ${HADOOP_HOME}/conf.
+    --fs <file system URL>           Only for mapreduce mode: Target file system, if not set, taken from ${HADOOP_HOME}/conf.
+    --jvmopts <jvm or gc options>    String containing JVM flags to include, in addition to "-Xmx1g -Xms512m".
+    --jars <csv list of extra jars>  Column-separated list of extra jars to put on the CLASSPATH.
+    --enable-gc-logs                 enables gc logs & dumps.
+    --help                           Display this help.
+    --verbose                        Display full command used to start the process.
+                                     Gobblin Version: 0.15.0
 ```
-The usage is `bin/gobblin <command>` where the command specifies an application to run. Running `bin/gobblin -h` provides a list of available commands.
 
-The special command `bin/gobblin classpath` is trapped by the bash script and simply displays the full classpath that Gobblin uses.
+command line argument details:
+* `--conf-dir`: specifies the path to directory containing gobblin system configuration files, ex: `application.conf` or `reference.conf`, `log4j.properties` and `quartz.properties`.
+* `--log4j-conf`: specify the path of log4j config file to override the one in config directory (default is `<conf>/<gobblin-mode>/log4j.properties`. Gobblin uses [SLF4J](http://www.slf4j.org/) and the [slf4j-log4j12](http://mvnrepository.com/artifact/org.slf4j/slf4j-log4j12) binding for logging.
+* `--jvmopts`: JVM parameters to override the default `-Xmx1g -Xms512m`.
+* `--enable-gc-logs`: adds these JVM parameters:  ``` -XX:+UseConcMarkSweepGC -XX:+UseParNewGC -XX:+UseCompressedOops -XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+PrintTenuringDistribution -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=$GOBBLIN_LOGS/ -Xloggc:$GOBBLIN_LOGS/gobblin-$GOBBLIN_MODE-gc.log ```
 
-If running from an IDE, the main method for the CLI is `gobblin.runtime.cli.GobblinCli`.
+Gobblin Services 
+-------------------
+1. Mapreduce Mode:
 
+    This mode is dependent on Hadoop (both MapReduce and HDFS) running locally or remote cluster. Before launching any Gobblin jobs on Hadoop MapReduce, check the Gobblin system configuration file located at `conf/mapreduce/application.properties` for property `fs.uri`, which defines the file system URI used. The default value is `hdfs://localhost:8020`, which points to the local HDFS on the default port 8020. Change it to the right value depending on your Hadoop/HDFS setup. For example, if you have HDFS setup somwhere on port 9000, then set the property as follows:
+``` fs.uri=hdfs://<namenode host name>:9000/ ```
+    * `--jt`: In mapreduce mode, provides resource manager URL
+    * `--fs`: In mapreduce mode, provides file system type value for `fs.uri`
+
+2. Standalone Mode
+     
+
+* Gobblin system configurations details can be found here: [Configuration Properties Glossary](user-guide/Configuration-Properties-Glossary).
+
+
+All job data and persisted job/task states will be written to the specified file system. Before launching any jobs, make sure the environment variable `HADOOP_HOME` is set so that it can access hadoop binaries under `{HADOOP_HOME}/bin` and also working directory should be set with configuration `{gobblin.cluster.work.dir}`. Note that the Gobblin working directory will be created on the file system specified above. Below is a summary of the environment variables that may be set for deployment on Hadoop MapReduce:
+
+
+This setup will have the minimum set of jars Gobblin needs to run the job added to the Hadoop `DistributedCache` for use in the mappers. If a job has additional jars needed for task executions (in the mappers), those jars can also be included by using the `--jars` option of `bin/gobblin-mapreduce.sh` or the following job configuration property in the job configuration file:
+
+```
+job.jars=<comma-separated list of jars the job depends on>
+```
+
+The `--projectversion` controls which version of the Gobblin jars to look for. Typically, this value is dynamically set during the build process. Users should use the `bin/gobblin-mapreduce.sh` script that is copied into the `gobblin-distribution-[project-version].tar.gz` file. This version of the script has the project version already set, in which case users do not need to specify the `--projectversion` parameter. If users want to use the `gobblin/bin/gobblin-mapreduce.sh` script they have to specify this parameter.
+
+The `--logdir` parameter controls the directory where log files are written to. If not set log files are written under a the `./logs` directory.
 A note on Hadoop classpath
 -------------------------
 
