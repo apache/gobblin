@@ -3,11 +3,14 @@ Table of Contents
 
 [TOC]
 
-Deployment Overview <a name="Standalone-Overview"></a>
---------------------
+Gobblin Execution Modes Overview <a name="gobblin-execution-modes-Overview"></a>
+--------------------------------------------------------------------------------
 One important feature of Gobblin is that it can be run on different platforms. Currently, Gobblin can run in standalone mode (which runs on a single machine), and on Hadoop MapReduce mode (which runs on a Hadoop cluster). This page summarizes the different deployment modes of Gobblin. It is important to understand the architecture of Gobblin in a specific deployment mode, so this page also describes the architecture of each deployment mode.  
 
 Gobblin supports Java 7 and up, but can only run on Hadoop 2.x. By default, Gobblin will build against Hadoop 2.x, run `./gradlew clean build`. More information on how to build Gobblin can be found [here](https://github.com/apache/incubator-gobblin/blob/master/README.md). All directories/paths referred below are relative to `gobblin-dist`.
+
+To run gobblin in any of the following executuon mode using ```gobblin.sh```, refer [Gobblin-CLI](/gobblin-docs/user-guide/Gobblin-CLI.md) for the usage.
+
 
 Standalone Architecture <a name="Standalone-Architecture"></a>
 --------------------
@@ -26,23 +29,7 @@ Each `LocalJobLauncher` starts and manages a few components for executing tasks 
 5. Upon completion of all the submitted tasks, collecting tasks states and persisting them to the state store, and publishing the extracted data.  
 
 
-Job Scheduler <a name="Job-Scheduler"></a>
---------------------
-
-The `JobScheduler` is backed by a [Quartz](http://quartz-scheduler.org/) scheduler and it supports cron-based triggers using the configuration property `job.schedule` for defining the cron schedule. Please refer to this [tutorial](http://quartz-scheduler.org/documentation/quartz-2.2.x/tutorials/tutorial-lesson-06) for more information on how to use and configure a cron-based trigger.  
-
-
-Standalone Deployment <a name="Standalone-Deployment"></a>
---------------------
-
-start the Gobblin standalone daemon on a single node using following command. 
-```
-./bin/gibblin standalone start
-```
-for more usage detail, run `bin/gobblin --help` or refer to the gobblin command line page for explanation on options.
-
-
-Hadoop MapReduce Architecture <a name="Hadoop-MapReduce-Architecture"></a>
+MapReduce architecture <a name="MapReduce-Architecture"></a>
 --------------------
 The digram below shows the architecture of Gobblin on Hadoop MapReduce. As the diagram shows, a Gobblin job runs as a mapper-only MapReduce job that runs tasks of the Gobblin job in the mappers. The basic idea here is to use the mappers purely as _containers_ to run Gobblin tasks. This design also makes it easier to integrate with Yarn. Unlike in the standalone mode, task retries are not handled by Gobblin itself in the Hadoop MapReduce mode. Instead, Gobblin relies on the task retry mechanism of Hadoop MapReduce.  
 
@@ -69,11 +56,33 @@ A mapper in a Gobblin MapReduce job follows the step below to run tasks assigned
 5. Upon completion of all the submitted tasks, writing out the state of each task into a file that will be read by the `MRJobLauncher` when collecting task states.
 6. Going back to step 2 and reading the next input record if available.
 
-Hadoop MapReduce Deployment <a name="Hadoop-MapReduce-Deployment"></a>
---------------------
+Master-Worker architecture
+----------------------------------
 
-start the Gobblin standalone daemon on a single node using following command. 
-```
-./bin/gibblin mapreduce start
-```
-for more usage detail, run `bin/gobblin --help` or refer to the gobblin command line page for explanation on options.
+
+
+
+
+AWS architecture
+---------------
+
+
+
+
+
+YARN architecture
+---------------
+
+
+
+
+
+
+Gobblin-As-A-Service  architecture
+----------------------------------
+
+
+
+
+
+
