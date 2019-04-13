@@ -26,6 +26,7 @@ import java.util.Properties;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
@@ -38,6 +39,8 @@ import org.testng.annotations.Test;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+
+import lombok.AllArgsConstructor;
 
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.data.management.copy.CopyEntity;
@@ -77,6 +80,7 @@ public class HiveCopyEntityHelperTest {
 
     MultiTimingEvent timer = Mockito.mock(MultiTimingEvent.class);
     HiveCopyEntityHelper helper = Mockito.mock(HiveCopyEntityHelper.class);
+    Mockito.when(helper.isEnforceFileSizeMatch()).thenReturn(true);
     HiveTargetPathHelper targetPathHelper = Mockito.mock(HiveTargetPathHelper.class);
     Mockito.when(targetPathHelper
         .getTargetPath(Mockito.any(Path.class), Mockito.any(FileSystem.class), Mockito.any(Optional.class),
@@ -139,6 +143,7 @@ public class HiveCopyEntityHelperTest {
     HiveDataset hiveDataset = Mockito.mock(HiveDataset.class);
     MultiTimingEvent timer = Mockito.mock(MultiTimingEvent.class);
     HiveCopyEntityHelper helper = Mockito.mock(HiveCopyEntityHelper.class);
+    Mockito.when(helper.isEnforceFileSizeMatch()).thenReturn(true);
     HiveTargetPathHelper targetPathHelper = Mockito.mock(HiveTargetPathHelper.class);
     Mockito.when(helper.getDataset()).thenReturn(hiveDataset);
     Mockito.when(hiveDataset.getTable()).thenReturn(table);
@@ -200,6 +205,7 @@ public class HiveCopyEntityHelperTest {
     HiveDataset hiveDataset = Mockito.mock(HiveDataset.class);
     MultiTimingEvent timer = Mockito.mock(MultiTimingEvent.class);
     HiveCopyEntityHelper helper = Mockito.mock(HiveCopyEntityHelper.class);
+    Mockito.when(helper.isEnforceFileSizeMatch()).thenReturn(true);
     HiveTargetPathHelper targetPathHelper = Mockito.mock(HiveTargetPathHelper.class);
     Mockito.when(helper.getDataset()).thenReturn(hiveDataset);
     Mockito.when(hiveDataset.getTable()).thenReturn(table);
@@ -358,7 +364,7 @@ public class HiveCopyEntityHelperTest {
     Map<Path, FileStatus> paths;
 
     public TestLocationDescriptor(Map<Path, FileStatus> paths) {
-      super(null, null, null, null);
+      super(null, null, new TestLocationFs(paths), new Properties());
       this.paths = paths;
     }
 
@@ -369,4 +375,11 @@ public class HiveCopyEntityHelperTest {
     }
   }
 
+  @AllArgsConstructor
+  class TestLocationFs extends LocalFileSystem {
+    private Map<Path, FileStatus> paths;
+    public FileStatus getFileStatus(Path f) throws IOException {
+      return paths.get(f);
+    }
+  }
 }
