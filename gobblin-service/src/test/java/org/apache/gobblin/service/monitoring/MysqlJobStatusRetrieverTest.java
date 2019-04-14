@@ -52,17 +52,6 @@ public class MysqlJobStatusRetrieverTest extends JobStatusRetrieverTest {
   }
 
   @Override
-  public void testJobTiming() throws Exception {
-    addJobStatusToStateStore(1234L, MY_JOB_NAME_1, ExecutionStatus.COMPLETE.name(), JOB_END_TIME, JOB_END_TIME);
-    Iterator<JobStatus>
-        jobStatusIterator = this.jobStatusRetriever.getJobStatusesForFlowExecution(FLOW_NAME, FLOW_GROUP, 1234L);
-    JobStatus jobStatus = jobStatusIterator.next();
-    Assert.assertEquals(jobStatus.getEventName(), ExecutionStatus.COMPLETE.name());
-    Assert.assertEquals(jobStatus.getStartTime(), JOB_START_TIME);
-    Assert.assertEquals(jobStatus.getEndTime(), JOB_END_TIME);
-  }
-
-  @Override
   void cleanUpDir() throws Exception {
     this.dbJobStateStore.delete(KafkaJobStatusMonitor.jobStatusStoreName(FLOW_GROUP, FLOW_NAME));
   }

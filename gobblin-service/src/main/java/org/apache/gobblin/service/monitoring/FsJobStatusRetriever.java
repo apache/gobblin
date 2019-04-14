@@ -52,7 +52,6 @@ import org.apache.gobblin.metrics.event.TimingEvent;
  * This retriever is deprecated in favour of {@link MysqlJobStatusRetriever}.
  */
 @Slf4j
-@Deprecated
 public class FsJobStatusRetriever extends JobStatusRetriever {
   public static final String CONF_PREFIX = "fsJobStatusRetriever";
 

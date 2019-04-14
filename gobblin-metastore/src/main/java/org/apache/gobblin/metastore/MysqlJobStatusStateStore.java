@@ -58,21 +58,4 @@ public class MysqlJobStatusStateStore<T extends State> extends MysqlStateStore {
   public List<T> getAll(String storeName, long flowExecutionId) throws IOException {
     return getAll(storeName, flowExecutionId + "%", true);
   }
-
-  @Override
-  public void put(String storeName, String tableName, State state) throws IOException {
-    Properties mergedProperties = new Properties();
-
-    try {
-      List<State> states = getAll(storeName, tableName);
-      if (states.size() > 0) {
-        mergedProperties.putAll(states.get(states.size() - 1).getProperties());
-      }
-    } catch (Exception e) {
-      log.warn("Could not get previous state for {} {}", storeName, tableName, e);
-    }
-    mergedProperties.putAll(state.getProperties());
-
-    putAll(storeName, tableName, Collections.singleton(new State(mergedProperties)));
-  }
 }

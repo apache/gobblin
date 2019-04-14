@@ -58,15 +58,14 @@ public abstract class JobStatusRetrieverTest {
     properties.setProperty(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, jobName);
     if (!jobName.equals(JobStatusRetriever.NA_KEY)) {
       jobGroup = myJobGroup;
-      properties.setProperty(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, myJobGroup);
       properties.setProperty(TimingEvent.FlowEventConstants.JOB_EXECUTION_ID_FIELD, String.valueOf(JOB_EXECUTION_ID));
       properties.setProperty(TimingEvent.METADATA_MESSAGE, MESSAGE);
       properties.setProperty(JobStatusRetriever.EVENT_NAME_FIELD, status);
     } else {
       jobGroup = JobStatusRetriever.NA_KEY;
-      properties.setProperty(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, JobStatusRetriever.NA_KEY);
       properties.setProperty(JobStatusRetriever.EVENT_NAME_FIELD, status);
     }
+    properties.setProperty(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, jobGroup);
     if (status.equals(ExecutionStatus.RUNNING.name())) {
       properties.setProperty(TimingEvent.JOB_START_TIME, String.valueOf(startTime));
     }
@@ -75,10 +74,7 @@ public abstract class JobStatusRetrieverTest {
     }
     State jobStatus = new State(properties);
 
-    String storeName = KafkaJobStatusMonitor.jobStatusStoreName(FLOW_GROUP, FLOW_NAME);
-    String tableName = KafkaJobStatusMonitor.jobStatusTableName(flowExecutionId, jobGroup, jobName);
-
-    this.jobStatusRetriever.getStateStore().put(storeName, tableName, jobStatus);
+    KafkaJobStatusMonitor.addJobStatusToStateStore(jobStatus, this.jobStatusRetriever.getStateStore());
   }
 
   @Test
@@ -118,10 +114,17 @@ public abstract class JobStatusRetrieverTest {
     Assert.assertEquals(jobStatus.getJobName(), nextExpectedJobName);
   }
 
-  @Test(dependsOnMethods = "testGetJobStatusesForFlowExecution")
+  @Test (dependsOnMethods = "testGetJobStatusesForFlowExecution")
   public void testJobTiming() throws Exception {
-    // job timing case not implemented in fs based job status writer/retriever
+    addJobStatusToStateStore(1234L, MY_JOB_NAME_1, ExecutionStatus.COMPLETE.name(), JOB_END_TIME, JOB_END_TIME);
+    Iterator<JobStatus>
+        jobStatusIterator = this.jobStatusRetriever.getJobStatusesForFlowExecution(FLOW_NAME, FLOW_GROUP, 1234L);
+    JobStatus jobStatus = jobStatusIterator.next();
+    Assert.assertEquals(jobStatus.getEventName(), ExecutionStatus.COMPLETE.name());
+    Assert.assertEquals(jobStatus.getStartTime(), JOB_START_TIME);
+    Assert.assertEquals(jobStatus.getEndTime(), JOB_END_TIME);
   }
+
   @Test (dependsOnMethods = "testJobTiming")
   public void testGetJobStatusesForFlowExecution1() {
     long flowExecutionId = 1234L;
