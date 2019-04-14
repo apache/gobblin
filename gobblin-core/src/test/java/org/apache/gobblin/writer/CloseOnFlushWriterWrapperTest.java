@@ -130,6 +130,62 @@ public class CloseOnFlushWriterWrapperTest {
     Assert.assertEquals(dummyWriters.get(0).closeCount, 1);
   }
 
+  @Test
+  public void testDirectFlushAfterFlush()
+      throws IOException {
+    WorkUnitState state = new WorkUnitState();
+    state.getJobState().setProp(CloseOnFlushWriterWrapper.WRITER_CLOSE_ON_FLUSH_KEY, "true");
+    List<DummyWriter> dummyWriters = new ArrayList<>();
+    CloseOnFlushWriterWrapper<byte[]> writer = getCloseOnFlushWriter(dummyWriters, state);
+
+    byte[] record = new byte[]{'a', 'b', 'c', 'd'};
+
+    writer.writeEnvelope(new RecordEnvelope(record));
+    writer.getMessageHandler().handleMessage(FlushControlMessage.builder().build());
+
+    Assert.assertEquals(dummyWriters.get(0).recordsWritten(), 1);
+    Assert.assertEquals(dummyWriters.get(0).flushCount, 1);
+    Assert.assertEquals(dummyWriters.get(0).closeCount, 1);
+    Assert.assertTrue(dummyWriters.get(0).committed);
+    Assert.assertEquals(dummyWriters.get(0).handlerCalled, 1);
+
+    writer.flush();
+    writer.close();
+
+    // writer should not be flushed or closed multiple times
+    Assert.assertEquals(dummyWriters.get(0).flushCount, 1);
+    Assert.assertEquals(dummyWriters.get(0).closeCount, 1);
+  }
+
+  @Test
+  public void testBackToBackFlushMessages()
+      throws IOException {
+    WorkUnitState state = new WorkUnitState();
+    state.getJobState().setProp(CloseOnFlushWriterWrapper.WRITER_CLOSE_ON_FLUSH_KEY, "true");
+    List<DummyWriter> dummyWriters = new ArrayList<>();
+    CloseOnFlushWriterWrapper<byte[]> writer = getCloseOnFlushWriter(dummyWriters, state);
+
+    byte[] record = new byte[]{'a', 'b', 'c', 'd'};
+
+    writer.writeEnvelope(new RecordEnvelope(record));
+    writer.getMessageHandler().handleMessage(FlushControlMessage.builder().build());
+
+    Assert.assertEquals(dummyWriters.get(0).recordsWritten(), 1);
+    Assert.assertEquals(dummyWriters.get(0).flushCount, 1);
+    Assert.assertEquals(dummyWriters.get(0).closeCount, 1);
+    Assert.assertTrue(dummyWriters.get(0).committed);
+    Assert.assertEquals(dummyWriters.get(0).handlerCalled, 1);
+
+    writer.getMessageHandler().handleMessage(FlushControlMessage.builder().build());
+
+    // a flush control message on a closed writer should be a noop
+    Assert.assertEquals(dummyWriters.get(0).handlerCalled, 1);
+
+    writer.close();
+
+    // writer should not be closed multiple times
+    Assert.assertEquals(dummyWriters.get(0).closeCount, 1);
+  }
 
   private CloseOnFlushWriterWrapper getCloseOnFlushWriter(List<DummyWriter> dummyWriters, WorkUnitState state) {
     return new CloseOnFlushWriterWrapper<>(new Supplier<DataWriter<byte[]>>() {
