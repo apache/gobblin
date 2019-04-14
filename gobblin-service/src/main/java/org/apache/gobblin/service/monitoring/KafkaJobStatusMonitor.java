@@ -122,7 +122,9 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
 
   /**
    * Persist job status to the underlying {@link StateStore}.
-   * Fill missing fields in job status.
+   * It fills missing fields in job status and also merge the fields with the
+   * existing job status in the state store. Merging is required because we
+   * do not want to lose the information sent by other GobblinTrackingEvents.
    * @param jobStatus
    * @throws IOException
    */

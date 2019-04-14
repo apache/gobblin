@@ -48,8 +48,6 @@ import org.apache.gobblin.metrics.event.TimingEvent;
  * A FileSystem based implementation of {@link JobStatusRetriever}. This implementation stores the job statuses
  * as {@link org.apache.gobblin.configuration.State} objects in a {@link FsStateStore}.
  * The store name is set to flowGroup.flowName, while the table name is set to flowExecutionId.jobGroup.jobName.
- *
- * This retriever is deprecated in favour of {@link MysqlJobStatusRetriever}.
  */
 @Slf4j
 public class FsJobStatusRetriever extends JobStatusRetriever {
