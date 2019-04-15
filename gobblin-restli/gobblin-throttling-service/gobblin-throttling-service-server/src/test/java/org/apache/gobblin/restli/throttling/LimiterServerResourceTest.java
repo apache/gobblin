@@ -19,15 +19,19 @@ package org.apache.gobblin.restli.throttling;
 
 import java.util.Map;
 
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.util.Sleeper;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.codahale.metrics.Timer;
 import com.google.inject.Injector;
+import com.linkedin.data.template.GetMode;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
 import com.linkedin.restli.common.HttpStatus;
 import com.linkedin.restli.server.RestLiServiceException;
+import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.broker.BrokerConfigurationKeyGenerator;
@@ -57,6 +61,53 @@ public class LimiterServerResourceTest {
   }
 
   @Test
+  public void testSleepOnClientDelegation() {
+
+    ThrottlingPolicyFactory factory = new ThrottlingPolicyFactory();
+    SharedLimiterKey res1key = new SharedLimiterKey("res1");
+
+    Map<String, String> configMap = ImmutableMap.<String, String>builder()
+        .put(BrokerConfigurationKeyGenerator.generateKey(factory, res1key, null, ThrottlingPolicyFactory.POLICY_KEY),
+            TestWaitPolicy.class.getName())
+        .build();
+
+    ThrottlingGuiceServletConfig guiceServletConfig = new ThrottlingGuiceServletConfig();
+    Sleeper.MockSleeper sleeper = guiceServletConfig.mockSleeper();
+    guiceServletConfig.initialize(ConfigFactory.parseMap(configMap));
+    Injector injector = guiceServletConfig.getInjector();
+
+    LimiterServerResource limiterServer = injector.getInstance(LimiterServerResource.class);
+
+    PermitRequest request = new PermitRequest();
+    request.setPermits(5);
+    request.setResource(res1key.getResourceLimitedPath());
+    request.setVersion(ThrottlingProtocolVersion.BASE.ordinal());
+
+    // policy does not require sleep, verify no sleep happened or is requested from client
+    PermitAllocation allocation = limiterServer.getSync(new ComplexResourceKey<>(request, new EmptyRecord()));
+    Assert.assertEquals((long) allocation.getPermits(), 5);
+    Assert.assertEquals((long) allocation.getWaitForPermitUseMillis(GetMode.DEFAULT), 0);
+    Assert.assertTrue(sleeper.getRequestedSleeps().isEmpty());
+
+    // policy requests a sleep of 10 millis, using BASE protocol version, verify server executes the sleep
+    request.setPermits(20);
+    request.setVersion(ThrottlingProtocolVersion.BASE.ordinal());
+    allocation = limiterServer.getSync(new ComplexResourceKey<>(request, new EmptyRecord()));
+    Assert.assertEquals((long) allocation.getPermits(), 20);
+    Assert.assertEquals((long) allocation.getWaitForPermitUseMillis(GetMode.DEFAULT), 0);
+    Assert.assertEquals((long) sleeper.getRequestedSleeps().peek(), 10);
+    sleeper.reset();
+
+    // policy requests a sleep of 10 millis, using WAIT_ON_CLIENT protocol version, verify server delegates sleep to client
+    request.setVersion(ThrottlingProtocolVersion.WAIT_ON_CLIENT.ordinal());
+    request.setPermits(20);
+    allocation = limiterServer.getSync(new ComplexResourceKey<>(request, new EmptyRecord()));
+    Assert.assertEquals((long) allocation.getPermits(), 20);
+    Assert.assertEquals((long) allocation.getWaitForPermitUseMillis(GetMode.DEFAULT), 10);
+    Assert.assertTrue(sleeper.getRequestedSleeps().isEmpty());
+  }
+
+    @Test
   public void testLimitedRequests() {
 
     ThrottlingPolicyFactory factory = new ThrottlingPolicyFactory();
@@ -139,6 +190,35 @@ public class LimiterServerResourceTest {
     Timer timer = metricContext.timer(LimiterServerResource.REQUEST_TIMER_NAME);
 
     Assert.assertEquals(timer.getCount(), 3);
+  }
+
+  public static class TestWaitPolicy implements ThrottlingPolicy, ThrottlingPolicyFactory.SpecificPolicyFactory {
+    @Override
+    public PermitAllocation computePermitAllocation(PermitRequest request) {
+
+      PermitAllocation allocation = new PermitAllocation();
+      allocation.setPermits(request.getPermits());
+      if (request.getPermits() > 10) {
+        allocation.setWaitForPermitUseMillis(10);
+      }
+      return allocation;
+    }
+
+    @Override
+    public Map<String, String> getParameters() {
+      return null;
+    }
+
+    @Override
+    public String getDescription() {
+      return null;
+    }
+
+    @Override
+    public ThrottlingPolicy createPolicy(SharedLimiterKey sharedLimiterKey,
+        SharedResourcesBroker<ThrottlingServerScopes> broker, Config config) {
+      return this;
+    }
   }
 
 }

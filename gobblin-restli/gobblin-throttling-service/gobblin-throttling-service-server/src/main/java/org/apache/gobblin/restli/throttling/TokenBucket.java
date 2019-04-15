@@ -68,10 +68,7 @@ public class TokenBucket {
    */
   public boolean getTokens(long tokens, long timeout, TimeUnit timeoutUnit) throws InterruptedException {
     long timeoutMillis = timeoutUnit.toMillis(timeout);
-    long wait;
-    synchronized (this) {
-      wait = tryReserveTokens(tokens, timeoutMillis);
-    }
+    long wait = tryReserveTokens(tokens, timeoutMillis);
 
     if (wait < 0) {
       return false;
@@ -101,7 +98,7 @@ public class TokenBucket {
    *
    * @return the wait until the tokens are available or negative if they can't be acquired in the give timeout.
    */
-  private long tryReserveTokens(long tokens, long maxWaitMillis) {
+  synchronized long tryReserveTokens(long tokens, long maxWaitMillis) {
     long now = System.currentTimeMillis();
     long waitUntilNextTokenAvailable = Math.max(0, this.nextTokenAvailableMillis - now);
 

@@ -50,8 +50,10 @@ import com.linkedin.restli.common.HttpStatus;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.restli.throttling.PermitAllocation;
 import org.apache.gobblin.restli.throttling.PermitRequest;
+import org.apache.gobblin.restli.throttling.ThrottlingProtocolVersion;
 import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.NoopCloseable;
+import org.apache.gobblin.util.Sleeper;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import javax.annotation.Nullable;
@@ -59,7 +61,6 @@ import javax.annotation.concurrent.NotThreadSafe;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -106,10 +107,13 @@ class BatchedPermitsRequester {
   private final SynchronizedAverager permitsOutstanding;
   private final long targetMillisBetweenRequests;
   private final AtomicLong callbackCounter;
+  private final long maxTimeout;
+  /** Any request larger than this is known to be impossible to satisfy. */
+  private long knownUnsatisfiablePermits;
 
   @Builder
   private BatchedPermitsRequester(String resourceId, String requestorIdentifier,
-      long targetMillisBetweenRequests, RequestSender requestSender, MetricContext metricContext) {
+      long targetMillisBetweenRequests, RequestSender requestSender, MetricContext metricContext, long maxTimeoutMillis) {
 
     Preconditions.checkArgument(!Strings.isNullOrEmpty(resourceId), "Must provide a resource id.");
     Preconditions.checkArgument(!Strings.isNullOrEmpty(requestorIdentifier), "Must provide a requestor identifier.");
@@ -133,6 +137,8 @@ class BatchedPermitsRequester {
     this.restRequestTimer = metricContext == null ? null : metricContext.timer(REST_REQUEST_TIMER);
     this.restRequestHistogram = metricContext == null ? null : metricContext.histogram(REST_REQUEST_PERMITS_HISTOGRAM);
     this.callbackCounter = new AtomicLong();
+    this.maxTimeout = maxTimeoutMillis > 0 ? maxTimeoutMillis : 10000;
+    this.knownUnsatisfiablePermits = Long.MAX_VALUE;
   }
 
   /**
@@ -143,21 +149,30 @@ class BatchedPermitsRequester {
     if (permits <= 0) {
       return true;
     }
+    long startTimeNanos = System.nanoTime();
     this.permitsOutstanding.addEntryWithWeight(permits);
     this.lock.lock();
     try {
       while (true) {
+        if (permits > this.knownUnsatisfiablePermits) {
+          // We are requesting more permits than the remote policy will ever be able to satisfy, return immediately with no permits
+          break;
+        }
+        if (elapsedMillis(startTimeNanos) > this.maxTimeout) {
+          // Max timeout reached, break
+          break;
+        }
         if (this.permitBatchContainer.tryTake(permits)) {
           this.permitsOutstanding.removeEntryWithWeight(permits);
           return true;
         }
-        if (this.retryStatus.canRetryWithinMillis(10000)) {
+        if (this.retryStatus.canRetryWithinMillis(remainingTime(startTimeNanos, this.maxTimeout))) {
           long callbackCounterSnap = this.callbackCounter.get();
           maybeSendNewPermitRequest();
           if (this.callbackCounter.get() == callbackCounterSnap) {
             // If a callback has happened since we tried to send the new permit request, don't await
             // Since some request senders may be synchronous, we would have missed the notification
-            this.newPermitsAvailable.await();
+            boolean ignore = this.newPermitsAvailable.await(remainingTime(startTimeNanos, this.maxTimeout), TimeUnit.MILLISECONDS);
           }
         } else {
           break;
@@ -166,7 +181,16 @@ class BatchedPermitsRequester {
     } finally {
       this.lock.unlock();
     }
+    this.permitsOutstanding.removeEntryWithWeight(permits);
     return false;
+  }
+
+  private long remainingTime(long startTimeNanos, long timeout) {
+    return Math.max(timeout - elapsedMillis(startTimeNanos), 0);
+  }
+
+  private long elapsedMillis(long startTimeNanos) {
+    return (System.nanoTime() - startTimeNanos)/1000000;
   }
 
   /**
@@ -190,6 +214,7 @@ class BatchedPermitsRequester {
       PermitRequest permitRequest = this.basePermitRequest.copy();
       permitRequest.setPermits(permits);
       permitRequest.setMinPermits((long) this.permitsOutstanding.getAverageWeightOrZero());
+      permitRequest.setVersion(ThrottlingProtocolVersion.WAIT_ON_CLIENT.ordinal());
       if (BatchedPermitsRequester.this.restRequestHistogram != null) {
         BatchedPermitsRequester.this.restRequestHistogram.update(permits);
       }
@@ -198,7 +223,7 @@ class BatchedPermitsRequester {
 
       this.requestSender.sendRequest(permitRequest, new AllocationCallback(
           BatchedPermitsRequester.this.restRequestTimer == null ? NoopCloseable.INSTANCE :
-              BatchedPermitsRequester.this.restRequestTimer.time()));
+              BatchedPermitsRequester.this.restRequestTimer.time(), new Sleeper()));
     } catch (CloneNotSupportedException cnse) {
       // This should never happen.
       this.requestSemaphore.release();
@@ -240,12 +265,23 @@ class BatchedPermitsRequester {
     }
   }
 
+  @VisibleForTesting
+  AllocationCallback createAllocationCallback(Sleeper sleeper) {
+    return new AllocationCallback(new NoopCloseable(), sleeper);
+  }
+
   /**
    * Callback for Rest request.
    */
-  @RequiredArgsConstructor
-  private class AllocationCallback implements Callback<Response<PermitAllocation>> {
+  @VisibleForTesting
+  class AllocationCallback implements Callback<Response<PermitAllocation>> {
     private final Closeable timerContext;
+    private final Sleeper sleeper;
+
+    public AllocationCallback(Closeable timerContext, Sleeper sleeper) {
+      this.timerContext = timerContext;
+      this.sleeper = sleeper;
+    }
 
     @Override
     public void onError(Throwable exc) {
@@ -298,13 +334,26 @@ class BatchedPermitsRequester {
           BatchedPermitsRequester.this.retryStatus.blockRetries(retryDelay, null);
         }
 
+        long waitForUse = allocation.getWaitForPermitUseMillis(GetMode.DEFAULT);
+        if (waitForUse > 0) {
+          this.sleeper.sleep(waitForUse);
+        }
+
+        if (allocation.getUnsatisfiablePermits(GetMode.DEFAULT) > 0) {
+          BatchedPermitsRequester.this.knownUnsatisfiablePermits = allocation.getUnsatisfiablePermits(GetMode.DEFAULT);
+        }
+
         if (allocation.getPermits() > 0) {
           BatchedPermitsRequester.this.permitBatchContainer.addPermitAllocation(allocation);
         }
+
         BatchedPermitsRequester.this.requestSemaphore.release();
         if (allocation.getPermits() > 0) {
           BatchedPermitsRequester.this.newPermitsAvailable.signalAll();
         }
+      } catch (InterruptedException ie) {
+        // Thread was interrupted while waiting for permits to be usable. Permits are not yet usable, so will not
+        // add permits to container
       } finally {
         try {
           this.timerContext.close();
