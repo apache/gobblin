@@ -96,6 +96,9 @@ public class GobblinClusterConfigurationKeys {
   // job spec operation
   public static final String JOB_ALWAYS_DELETE = GOBBLIN_CLUSTER_PREFIX + "job.alwaysDelete";
 
+  // Job quota configuration as a comma separated list of name value pairs separated by a colon.
+  // Example: A:1,B:38,DEFAULT:1
+  public static final String HELIX_TASK_QUOTA_CONFIG_KEY = "gobblin.cluster.helixTaskQuotaConfig";
 
   /**
    * A path pointing to a directory that contains job execution files to be executed by Gobblin. This directory can
