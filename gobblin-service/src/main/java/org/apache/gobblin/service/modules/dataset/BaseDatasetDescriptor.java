@@ -75,11 +75,12 @@ public abstract class BaseDatasetDescriptor implements DatasetDescriptor {
     if (this == other) {
       return true;
     }
-    if (!getClass().equals(other.getClass())) {
+    
+    if (other == null || !getClass().equals(other.getClass())) {
       return false;
     }
 
-    if (this.getPlatform() == null || other.getPlatform() == null || !this.getPlatform().equalsIgnoreCase(other.getPlatform())) {
+    if (this.getPlatform() == null || !this.getPlatform().equalsIgnoreCase(other.getPlatform())) {
       return false;
     }
 
