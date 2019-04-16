@@ -19,12 +19,11 @@ package org.apache.gobblin.spec_catalog;
 
 import com.google.common.base.Optional;
 import com.google.common.io.ByteStreams;
+import com.google.common.io.Files;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.typesafe.config.Config;
-import de.flapdoodle.embed.process.io.file.Files;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -133,7 +132,7 @@ public class FlowCatalogTest {
   @Test
   public void testGetSpecRobustness() throws Exception {
 
-    File specDir = Files.createTempDir("specFileDir");
+    File specDir = Files.createTempDir();
     Properties properties = new Properties();
     properties.setProperty(ConfigurationKeys.SPECSTORE_FS_DIR_KEY, specDir.getAbsolutePath());
     SpecSerDe serde = Mockito.mock(SpecSerDe.class);
