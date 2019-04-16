@@ -252,6 +252,14 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     }
   }
 
+  /**
+   * Persist {@link Spec} into {@link SpecStore} and notify {@link SpecCatalogListener} if triggerListener
+   * is set to true.
+   *
+   * @param spec The Spec to be added
+   * @param triggerListener True if listeners should be notified.
+   * @return
+   */
   public Map<String, AddSpecResponse> put(Spec spec, boolean triggerListener) {
     Map<String, AddSpecResponse> responseMap = new HashMap<>();
     try {
