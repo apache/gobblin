@@ -18,6 +18,8 @@
 package org.apache.gobblin.service.monitoring;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.Properties;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -29,6 +31,7 @@ import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import avro.shaded.com.google.common.annotations.VisibleForTesting;
 import kafka.message.MessageAndMetadata;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -36,7 +39,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.FileContextBasedFsStateStore;
 import org.apache.gobblin.metastore.FileContextBasedFsStateStoreFactory;
-import org.apache.gobblin.metastore.MysqlStateStoreFactory;
 import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.metastore.util.StateStoreCleanerRunnable;
 import org.apache.gobblin.metrics.event.TimingEvent;
@@ -110,7 +112,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
     try {
       org.apache.gobblin.configuration.State jobStatus = parseJobStatus(message.message());
       if (jobStatus != null) {
-        addJobStatusToStateStore(jobStatus);
+        addJobStatusToStateStore(jobStatus, this.stateStore);
       }
     } catch (IOException ioe) {
       String messageStr = new String(message.message(), Charsets.UTF_8);
@@ -120,20 +122,50 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
 
   /**
    * Persist job status to the underlying {@link StateStore}.
+   * It fills missing fields in job status and also merge the fields with the
+   * existing job status in the state store. Merging is required because we
+   * do not want to lose the information sent by other GobblinTrackingEvents.
    * @param jobStatus
    * @throws IOException
    */
-  private void addJobStatusToStateStore(org.apache.gobblin.configuration.State jobStatus)
+  @VisibleForTesting
+  static void addJobStatusToStateStore(org.apache.gobblin.configuration.State jobStatus, StateStore stateStore)
       throws IOException {
+    if (!jobStatus.contains(TimingEvent.FlowEventConstants.JOB_NAME_FIELD)) {
+      jobStatus.setProp(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, JobStatusRetriever.NA_KEY);
+    }
+    if (!jobStatus.contains(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD)) {
+      jobStatus.setProp(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, JobStatusRetriever.NA_KEY);
+    }
+
     String flowName = jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD);
     String flowGroup = jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD);
     String flowExecutionId = jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD);
-    String jobName = jobStatus.getProp(TimingEvent.FlowEventConstants.JOB_NAME_FIELD,JobStatusRetriever.NA_KEY);
-    String jobGroup = jobStatus.getProp(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, JobStatusRetriever.NA_KEY);
-
+    String jobName = jobStatus.getProp(TimingEvent.FlowEventConstants.JOB_NAME_FIELD);
+    String jobGroup = jobStatus.getProp(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD);
     String storeName = jobStatusStoreName(flowGroup, flowName);
     String tableName = jobStatusTableName(flowExecutionId, jobGroup, jobName);
-    this.stateStore.put(storeName, tableName, jobStatus);
+
+    jobStatus = mergedProperties(storeName, tableName, jobStatus, stateStore);
+
+    stateStore.put(storeName, tableName, jobStatus);
+  }
+
+  private static org.apache.gobblin.configuration.State mergedProperties(
+      String storeName, String tableName, org.apache.gobblin.configuration.State jobStatus, StateStore stateStore) {
+    Properties mergedProperties = new Properties();
+
+    try {
+      List<org.apache.gobblin.configuration.State> states = stateStore.getAll(storeName, tableName);
+      if (states.size() > 0) {
+        mergedProperties.putAll(states.get(states.size() - 1).getProperties());
+      }
+    } catch (Exception e) {
+      log.warn("Could not get previous state for {} {}", storeName, tableName, e);
+    }
+    mergedProperties.putAll(jobStatus.getProperties());
+
+    return new org.apache.gobblin.configuration.State(mergedProperties);
   }
 
   public static String jobStatusTableName(String flowExecutionId, String jobGroup, String jobName) {

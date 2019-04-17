@@ -17,6 +17,9 @@
 
 package org.apache.gobblin.service.monitoring;
 
+import java.util.Iterator;
+
+import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 
 import org.apache.gobblin.config.ConfigBuilder;
@@ -24,6 +27,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.MysqlJobStatusStateStore;
 import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
+import org.apache.gobblin.service.ExecutionStatus;
 
 
 public class MysqlJobStatusRetrieverTest extends JobStatusRetrieverTest {
