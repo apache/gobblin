@@ -49,7 +49,6 @@ import org.apache.gobblin.util.HadoopUtils;
 public class FileContextBasedFsStateStore<T extends State> extends FsStateStore<T> {
   private FileContext fc;
 
-
   public FileContextBasedFsStateStore(String fsUri, String storeRootDir, Class stateClass)
       throws IOException {
     super(fsUri, storeRootDir, stateClass);

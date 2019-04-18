@@ -18,12 +18,16 @@
 package org.apache.gobblin.metastore;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
+import java.util.Properties;
 
 import javax.sql.DataSource;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.State;
 
+@Slf4j
 /**
  * An implementation of {@link MysqlStateStore} backed by MySQL to store JobStatuses.
  *
@@ -54,5 +58,4 @@ public class MysqlJobStatusStateStore<T extends State> extends MysqlStateStore {
   public List<T> getAll(String storeName, long flowExecutionId) throws IOException {
     return getAll(storeName, flowExecutionId + "%", true);
   }
-
 }

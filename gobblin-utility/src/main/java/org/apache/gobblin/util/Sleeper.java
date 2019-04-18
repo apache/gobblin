@@ -15,21 +15,40 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.converter;
+package org.apache.gobblin.util;
 
-import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericRecord;
+import java.util.LinkedList;
+import java.util.Queue;
 
-import org.apache.gobblin.configuration.WorkUnitState;
-import org.apache.gobblin.instrumented.converter.InstrumentedConverter;
+import lombok.Getter;
 
 
 /**
- * A base abstract {@link Converter} class for data transformation from Avro to Avro.
+ * A class surrounding {@link Thread#sleep(long)} that allows mocking sleeps during testing.
  */
-public abstract class AvroToAvroConverterBase extends InstrumentedConverter<Schema, Schema, GenericRecord, GenericRecord> {
+public class Sleeper {
 
-  @Override
-  public abstract Schema convertSchema(Schema inputSchema, WorkUnitState workUnit)
-      throws SchemaConversionException;
+  /**
+   * A mock version of {@link Sleeper} that just register calls to sleep but returns immediately.
+   */
+  @Getter
+  public static class MockSleeper extends Sleeper {
+    private Queue<Long> requestedSleeps = new LinkedList<>();
+
+    @Override
+    public void sleep(long millis) {
+      this.requestedSleeps.add(millis);
+    }
+
+    public void reset() {
+      this.requestedSleeps.clear();
+    }
+  }
+
+  /**
+   * Equivalent to {@link Thread#sleep(long)}.
+   */
+  public void sleep(long millis) throws InterruptedException {
+    Thread.sleep(millis);
+  }
 }

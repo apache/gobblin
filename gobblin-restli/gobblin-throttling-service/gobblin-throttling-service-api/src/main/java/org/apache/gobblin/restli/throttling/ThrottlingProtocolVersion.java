@@ -15,21 +15,15 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.converter;
-
-import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericRecord;
-
-import org.apache.gobblin.configuration.WorkUnitState;
-import org.apache.gobblin.instrumented.converter.InstrumentedConverter;
-
+package org.apache.gobblin.restli.throttling;
 
 /**
- * A base abstract {@link Converter} class for data transformation from Avro to Avro.
+ * Versions of the Throttling service protocol. Allows the server to know what the client understands, and to adjust
+ * the response based on the client version. Only add new versions at the end.
  */
-public abstract class AvroToAvroConverterBase extends InstrumentedConverter<Schema, Schema, GenericRecord, GenericRecord> {
-
-  @Override
-  public abstract Schema convertSchema(Schema inputSchema, WorkUnitState workUnit)
-      throws SchemaConversionException;
+public enum ThrottlingProtocolVersion {
+	/** Base version of throttling server. */
+	BASE,
+	/** Clients at this level know to wait before distributing permits allocated to them. */
+	WAIT_ON_CLIENT
 }

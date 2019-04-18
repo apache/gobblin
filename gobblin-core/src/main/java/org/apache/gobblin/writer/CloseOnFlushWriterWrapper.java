@@ -169,6 +169,11 @@ public class CloseOnFlushWriterWrapper<D> extends WriterWrapper<D> implements De
   }
 
   private void flush(boolean close) throws IOException {
+    // nothing to flush, so don't call flush on the underlying writer since it may not support flush after close
+    if (this.closed) {
+      return;
+    }
+
     this.writer.flush();
 
     // commit data then close the writer
@@ -184,6 +189,11 @@ public class CloseOnFlushWriterWrapper<D> extends WriterWrapper<D> implements De
   private class CloseOnFlushWriterMessageHandler implements ControlMessageHandler {
     @Override
     public void handleMessage(ControlMessage message) {
+      // nothing to do if already closed, so don't call then underlying handler since it may not work on closed objects
+      if (CloseOnFlushWriterWrapper.this.closed) {
+        return;
+      }
+
       ControlMessageHandler underlyingHandler = CloseOnFlushWriterWrapper.this.writer.getMessageHandler();
 
       // let underlying writer handle the control messages first
