@@ -33,8 +33,6 @@ import org.influxdb.dto.Point;
  */
 public class InfluxDBPusher {
 
-//  private static final String DEFAULT_RETENTION_POLICY = null;
-
   private final InfluxDB influxDB;
   private final String database;
 
