@@ -94,7 +94,7 @@ public class InfluxDBPusher {
    * @param points list of {@link Point}s to report
    */
   public void push(List<Point> points) {
-    BatchPoints.Builder batchPointsBuilder = BatchPoints.database(database).retentionPolicy();
+    BatchPoints.Builder batchPointsBuilder = BatchPoints.database(database);
     for (Point point : points) {
       batchPointsBuilder.point(point);
     }
