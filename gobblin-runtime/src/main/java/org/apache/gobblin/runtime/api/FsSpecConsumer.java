@@ -121,7 +121,7 @@ public class FsSpecConsumer implements SpecConsumer<Spec> {
   public void commit(Spec spec) throws IOException {
     Path path = this.specToPathMap.get(spec.getUri());
     if (path != null) {
-      this.fs.delete(path, true);
+      this.fs.delete(path, false);
     }
   }
 }

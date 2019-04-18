@@ -68,10 +68,6 @@ public class FsScheduledJobConfigurationManagerTest {
     this.fs = FileSystem.getLocal(new Configuration(false));
     Path jobConfDirPath = new Path(jobConfDir);
     if (!this.fs.exists(jobConfDirPath)) {
-      Path parentDir = jobConfDirPath.getParent();
-      if (this.fs.exists(parentDir)) {
-        this.fs.mkdirs(parentDir);
-      }
       this.fs.mkdirs(jobConfDirPath);
     }
 
