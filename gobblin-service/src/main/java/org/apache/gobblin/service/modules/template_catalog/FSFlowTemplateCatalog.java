@@ -56,9 +56,12 @@ import org.apache.gobblin.util.PathUtils;
  * <p> /path/to/template/catalog/flowName/flow.conf </p>
  * <p> /path/to/template/catalog/flowName/jobs/job1.(job|template) </p>
  * <p> /path/to/template/catalog/flowName/jobs/job2.(job|template) </p>
+ *
+ * Avoid confusing with {@link org.apache.gobblin.runtime.spec_catalog.FlowCatalog} which is a catalog for
+ * {@link org.apache.gobblin.runtime.api.FlowSpec}.
  */
 @Alpha
-public class FSFlowCatalog extends FSJobCatalog implements FlowCatalogWithTemplates {
+public class FSFlowTemplateCatalog extends FSJobCatalog implements FlowCatalogWithTemplates {
   public static final String JOBS_DIR_NAME = "jobs";
   public static final String FLOW_CONF_FILE_NAME = "flow.conf";
   public static final List<String> JOB_FILE_EXTENSIONS = Arrays.asList(".job", ".template");
@@ -71,7 +74,7 @@ public class FSFlowCatalog extends FSJobCatalog implements FlowCatalogWithTempla
    * @param sysConfig that must contain the fully qualified path of the flow template catalog
    * @throws IOException
    */
-  public FSFlowCatalog(Config sysConfig)
+  public FSFlowTemplateCatalog(Config sysConfig)
       throws IOException {
     super(sysConfig.withValue(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY,
         sysConfig.getValue(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY)));
@@ -87,13 +90,8 @@ public class FSFlowCatalog extends FSJobCatalog implements FlowCatalogWithTempla
    */
   public FlowTemplate getFlowTemplate(URI flowTemplateDirURI)
       throws SpecNotFoundException, JobTemplate.TemplateException, IOException, URISyntaxException {
-    if (!this.sysConfig.hasPath(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY)) {
-      throw new RuntimeException("Missing config " + ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY);
-    }
-    if (!flowTemplateDirURI.getScheme().equals(FS_SCHEME)) {
-      throw new RuntimeException(
-          "Expected scheme " + FS_SCHEME + " got unsupported scheme " + flowTemplateDirURI.getScheme());
-    }
+    validateTemplateURI(flowTemplateDirURI);
+
     String templateCatalogDir = this.sysConfig.getString(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY);
     // path of uri is location of template file relative to the job configuration root directory
     Path templateDirPath = PathUtils.mergePaths(new Path(templateCatalogDir), new Path(flowTemplateDirURI.getPath()));
@@ -125,13 +123,7 @@ public class FSFlowCatalog extends FSJobCatalog implements FlowCatalogWithTempla
       return false;
     };
 
-    if (!this.sysConfig.hasPath(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY)) {
-      throw new RuntimeException("Missing config " + ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY);
-    }
-    if (!flowTemplateDirURI.getScheme().equals(FS_SCHEME)) {
-      throw new RuntimeException(
-          "Expected scheme " + FS_SCHEME + " got unsupported scheme " + flowTemplateDirURI.getScheme());
-    }
+    validateTemplateURI(flowTemplateDirURI);
     List<JobTemplate> jobTemplates = new ArrayList<>();
 
     String templateCatalogDir = this.sysConfig.getString(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY);
@@ -166,5 +158,22 @@ public class FSFlowCatalog extends FSJobCatalog implements FlowCatalogWithTempla
     try (InputStream is = fs.open(filePath)) {
       return ConfigFactory.parseReader(new InputStreamReader(is, Charsets.UTF_8)).resolve(options);
     }
+  }
+
+  /**
+   * Determine if an URI of a jobTemplate or a FlowTemplate is valid.
+   * @param flowURI The given job/flow template
+   * @return true to continue on loading.
+   */
+  private boolean validateTemplateURI(URI flowURI) {
+    if (!this.sysConfig.hasPath(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY)) {
+      throw new RuntimeException("Missing config " + ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY);
+    }
+    if (!flowURI.getScheme().equals(FS_SCHEME)) {
+      throw new RuntimeException(
+          "Expected scheme " + FS_SCHEME + " got unsupported scheme " + flowURI.getScheme());
+    }
+
+    return true;
   }
 }

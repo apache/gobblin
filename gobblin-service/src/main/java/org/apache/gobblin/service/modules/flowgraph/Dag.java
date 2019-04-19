@@ -238,6 +238,9 @@ public class Dag<T> {
     return this;
   }
 
+  /**
+   * DagNode is essentially a job within a Dag, usually they are used interchangeably.
+   */
   @Getter
   public static class DagNode<T> {
     private T value;

@@ -17,6 +17,10 @@
 
 package org.apache.gobblin.runtime.spec_catalog;
 
+import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
+import com.google.common.util.concurrent.AbstractIdleService;
+import com.typesafe.config.Config;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
@@ -27,7 +31,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-
+import javax.annotation.Nonnull;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.gobblin.runtime.api.SpecSerDeException;
@@ -59,10 +63,21 @@ import org.apache.gobblin.runtime.spec_store.FSSpecStore;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.callbacks.CallbackResult;
 import org.apache.gobblin.util.callbacks.CallbacksDispatcher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
-@Alpha
+/**
+ * A service that interact with FlowSpec storage.
+ * The FlowSpec storage, a.k.a. {@link SpecStore} should be plugable with different implementation.
+ */
 public class FlowCatalog extends AbstractIdleService implements SpecCatalog, MutableSpecCatalog, SpecSerDe {
+
+  /***
+   * Configuration properties related to FlowSpec Store
+   */
+  public static final String FLOWSPEC_STORE_CLASS_KEY = "flowSpec.store.class";
+  public static final String FLOWSPEC_STORE_DIR_KEY = "flowSpec.store.dir";
   public static final String DEFAULT_FLOWSPEC_STORE_CLASS = FSSpecStore.class.getCanonicalName();
 
   protected final SpecCatalogListenersList listeners;
@@ -104,15 +119,15 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     this.aliasResolver = new ClassAliasResolver<>(SpecStore.class);
     try {
       Config newConfig = config;
-      if (config.hasPath(ConfigurationKeys.FLOWSPEC_STORE_DIR_KEY)) {
+      if (config.hasPath(FLOWSPEC_STORE_DIR_KEY)) {
         newConfig = config.withValue(ConfigurationKeys.SPECSTORE_FS_DIR_KEY,
-            config.getValue(ConfigurationKeys.FLOWSPEC_STORE_DIR_KEY));
+            config.getValue(FLOWSPEC_STORE_DIR_KEY));
       }
       String specStoreClassName = DEFAULT_FLOWSPEC_STORE_CLASS;
-      if (config.hasPath(ConfigurationKeys.FLOWSPEC_STORE_CLASS_KEY)) {
-        specStoreClassName = config.getString(ConfigurationKeys.FLOWSPEC_STORE_CLASS_KEY);
+      if (config.hasPath(FLOWSPEC_STORE_CLASS_KEY)) {
+        specStoreClassName = config.getString(FLOWSPEC_STORE_CLASS_KEY);
       }
-      this.log.info("Using audit sink class name/alias " + specStoreClassName);
+      this.log.info(String.format("Using class name/alias [%s] for specstore", specStoreClassName));
       this.specStore = (SpecStore) ConstructorUtils.invokeConstructor(Class.forName(this.aliasResolver.resolve(
           specStoreClassName)), newConfig, this);
     } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException

@@ -22,18 +22,19 @@ import java.util.List;
 import com.typesafe.config.Config;
 
 import org.apache.gobblin.runtime.api.SpecExecutor;
-import org.apache.gobblin.service.modules.template_catalog.FSFlowCatalog;
+import org.apache.gobblin.service.modules.template_catalog.FSFlowTemplateCatalog;
+
 
 public interface FlowEdgeFactory {
   /**
    * Construct a {@link FlowEdge} from the edge properties
    * @param edgeProps properties of the {@link FlowEdge}
-   * @param flowCatalog an instance of {@link FSFlowCatalog} that returns {@link org.apache.gobblin.service.modules.template.FlowTemplate}s
+   * @param flowCatalog an instance of {@link FSFlowTemplateCatalog} that returns {@link org.apache.gobblin.service.modules.template.FlowTemplate}s
    *               useful for creating a {@link FlowEdge}.
    * @return an instance of {@link FlowEdge}
    * @throws FlowEdgeCreationException
    */
-  public FlowEdge createFlowEdge(Config edgeProps, FSFlowCatalog flowCatalog, List<SpecExecutor> specExecutors) throws FlowEdgeCreationException;
+  public FlowEdge createFlowEdge(Config edgeProps, FSFlowTemplateCatalog flowCatalog, List<SpecExecutor> specExecutors) throws FlowEdgeCreationException;
 
   public class FlowEdgeCreationException extends Exception {
     private static final String MESSAGE_FORMAT = "Failed to create FlowEdge because of: %s";

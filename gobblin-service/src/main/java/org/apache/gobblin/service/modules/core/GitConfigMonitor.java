@@ -38,7 +38,7 @@ import org.apache.gobblin.util.PullFileLoader;
 
 /**
  * Service that monitors for jobs from a git repository.
- * The git repository must have an inital commit that has no config files since that is used as a base for getting
+ * The git repository must have an initial commit that has no config files since that is used as a base for getting
  * the change list.
  * The config needs to be organized with the following structure:
  * <root_config_dir>/<flowGroup>/<flowName>.(pull|job|json|conf)

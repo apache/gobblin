@@ -96,7 +96,7 @@ public class GitConfigMonitorTest {
         .addPrimitive(GitConfigMonitor.GIT_CONFIG_MONITOR_PREFIX + "." + ConfigurationKeys.GIT_MONITOR_REPO_URI,
             this.remoteRepo.getDirectory().getAbsolutePath())
         .addPrimitive(GitConfigMonitor.GIT_CONFIG_MONITOR_PREFIX + "." + ConfigurationKeys.GIT_MONITOR_REPO_DIR, TEST_DIR + "/jobConfig")
-        .addPrimitive(ConfigurationKeys.FLOWSPEC_STORE_DIR_KEY, TEST_DIR + "flowCatalog")
+        .addPrimitive(FlowCatalog.FLOWSPEC_STORE_DIR_KEY, TEST_DIR + "flowCatalog")
         .addPrimitive(ConfigurationKeys.GIT_MONITOR_POLLING_INTERVAL, 5)
         .build();
 

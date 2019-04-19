@@ -25,6 +25,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.gobblin.service.modules.template_catalog.FSFlowTemplateCatalog;
 import org.slf4j.Logger;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -53,7 +54,6 @@ import org.apache.gobblin.service.modules.flowgraph.FlowGraph;
 import org.apache.gobblin.service.modules.flowgraph.pathfinder.PathFinder;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlanDagFactory;
-import org.apache.gobblin.service.modules.template_catalog.FSFlowCatalog;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -88,11 +88,11 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
   public MultiHopFlowCompiler(Config config, Optional<Logger> log, boolean instrumentationEnabled) {
     super(config, log, instrumentationEnabled);
     this.flowGraph = new BaseFlowGraph();
-    Optional<FSFlowCatalog> flowCatalog = Optional.absent();
+    Optional<FSFlowTemplateCatalog> flowCatalog = Optional.absent();
     if (config.hasPath(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY)
         && StringUtils.isNotBlank(config.getString(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY))) {
       try {
-        flowCatalog = Optional.of(new FSFlowCatalog(config));
+        flowCatalog = Optional.of(new FSFlowTemplateCatalog(config));
       } catch (IOException e) {
         throw new RuntimeException("Cannot instantiate " + getClass().getName(), e);
       }

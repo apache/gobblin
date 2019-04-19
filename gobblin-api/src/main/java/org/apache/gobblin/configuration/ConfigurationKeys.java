@@ -894,12 +894,6 @@ public class ConfigurationKeys {
   public static final String TOPOLOGYSPEC_STORE_DIR_KEY = "topologySpec.store.dir";
 
   /***
-   * Configuration properties related to FlowSpec Store
-   */
-  public static final String FLOWSPEC_STORE_CLASS_KEY = "flowSpec.store.class";
-  public static final String FLOWSPEC_STORE_DIR_KEY = "flowSpec.store.dir";
-
-  /***
    * Configuration properties related to Spec Executor Instance
    */
   public static final String SPECEXECUTOR_INSTANCE_URI_KEY = "specExecInstance.uri";
