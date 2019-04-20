@@ -18,11 +18,19 @@
 package org.apache.gobblin.cluster;
 
 import java.io.IOException;
+import java.nio.file.Paths;
 
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
+import org.apache.helix.ZNRecord;
+import org.apache.helix.manager.zk.ChainedPathZkSerializer;
+import org.apache.helix.manager.zk.PathBasedZkSerializer;
+import org.apache.helix.manager.zk.ZNRecordStreamingSerializer;
+import org.apache.helix.manager.zk.ZkClient;
+import org.apache.helix.task.TargetState;
 import org.apache.helix.task.TaskDriver;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
@@ -34,15 +42,19 @@ import org.apache.gobblin.cluster.suite.IntegrationBasicSuite;
 import org.apache.gobblin.cluster.suite.IntegrationDedicatedManagerClusterSuite;
 import org.apache.gobblin.cluster.suite.IntegrationDedicatedTaskDriverClusterSuite;
 import org.apache.gobblin.cluster.suite.IntegrationJobCancelSuite;
+import org.apache.gobblin.cluster.suite.IntegrationJobCancelViaSpecSuite;
 import org.apache.gobblin.cluster.suite.IntegrationJobFactorySuite;
 import org.apache.gobblin.cluster.suite.IntegrationJobTagSuite;
 import org.apache.gobblin.cluster.suite.IntegrationSeparateProcessSuite;
+import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.util.ConfigUtils;
+
 
 @Slf4j
 public class ClusterIntegrationTest {
 
   private IntegrationBasicSuite suite;
+  private String zkConnectString;
 
   @Test
   public void testJobShouldComplete()
@@ -51,17 +63,20 @@ public class ClusterIntegrationTest {
     runAndVerify();
   }
 
-  @Test void testJobShouldGetCancelled() throws Exception {
-    this.suite =new IntegrationJobCancelSuite();
+  private HelixManager getHelixManager() {
     Config helixConfig = this.suite.getManagerConfig();
     String clusterName = helixConfig.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
     String instanceName = ConfigUtils.getString(helixConfig, GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_KEY,
         GobblinClusterManager.class.getSimpleName());
-    String zkConnectString = helixConfig.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
+    this.zkConnectString = helixConfig.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
     HelixManager helixManager = HelixManagerFactory.getZKHelixManager(clusterName, instanceName, InstanceType.CONTROLLER, zkConnectString);
+    return helixManager;
+  }
 
+  @Test void testJobShouldGetCancelled() throws Exception {
+    this.suite =new IntegrationJobCancelSuite();
+    HelixManager helixManager = getHelixManager();
     suite.startCluster();
-
     helixManager.connect();
 
     TaskDriver taskDriver = new TaskDriver(helixManager);
@@ -80,6 +95,72 @@ public class ClusterIntegrationTest {
     suite.shutdownCluster();
 
     suite.waitForAndVerifyOutputFiles();
+  }
+
+  /**
+   * An integration test for cancelling a Helix workflow via a JobSpec. This test case starts a Helix cluster with
+   * a {@link FsScheduledJobConfigurationManager}. The test case does the following:
+   * <ul>
+   *   <li> add a {@link org.apache.gobblin.runtime.api.JobSpec} that uses a {@link org.apache.gobblin.cluster.SleepingCustomTaskSource})
+   *   to {@link IntegrationJobCancelViaSpecSuite#FS_SPEC_CONSUMER_DIR}.  which is picked by the JobConfigurationManager. </li>
+   *   <li> the JobConfigurationManager sends a notification to the GobblinHelixJobScheduler which schedules the job for execution. The JobSpec is
+   *   also added to the JobCatalog for persistence. Helix starts a Workflow for this JobSpec. </li>
+   *   <li> We then add a {@link org.apache.gobblin.runtime.api.JobSpec} with DELETE Verb to {@link IntegrationJobCancelViaSpecSuite#FS_SPEC_CONSUMER_DIR}.
+   *   This signals GobblinHelixJobScheduler (and, Helix) to delete the running job (i.e., Helix Workflow) started in the previous step. </li>
+   *   <li> Finally, we inspect the state of the zNode corresponding to the Workflow resource in Zookeeper to ensure that its {@link org.apache.helix.task.TargetState}
+   *   is STOP. </li>
+   * </ul>
+   */
+  @Test (dependsOnMethods = { "testJobShouldGetCancelled" })
+  public void testJobCancellationViaSpec() throws Exception {
+    this.suite = new IntegrationJobCancelViaSpecSuite();
+    HelixManager helixManager = getHelixManager();
+
+    IntegrationJobCancelViaSpecSuite cancelViaSpecSuite = (IntegrationJobCancelViaSpecSuite) this.suite;
+
+    //Add a new JobSpec to the path monitored by the SpecConsumer
+    cancelViaSpecSuite.addJobSpec(IntegrationJobCancelViaSpecSuite.JOB_ID, SpecExecutor.Verb.ADD.name());
+
+    //Start the cluster
+    cancelViaSpecSuite.startCluster();
+
+    helixManager.connect();
+
+    while (TaskDriver.getWorkflowContext(helixManager, IntegrationJobCancelViaSpecSuite.JOB_ID) == null) {
+      log.warn("Waiting for the job to start...");
+      Thread.sleep(1000L);
+    }
+
+    // Give the job some time to reach writer, where it sleeps
+    Thread.sleep(2000L);
+
+    ZkClient zkClient = new ZkClient(this.zkConnectString);
+    PathBasedZkSerializer zkSerializer = ChainedPathZkSerializer.builder(new ZNRecordStreamingSerializer()).build();
+    zkClient.setZkSerializer(zkSerializer);
+
+    String clusterName = getHelixManager().getClusterName();
+    String zNodePath = Paths.get("/", clusterName, "CONFIGS", "RESOURCE", IntegrationJobCancelViaSpecSuite.JOB_ID).toString();
+
+    //Ensure that the Workflow is started
+    ZNRecord record = zkClient.readData(zNodePath);
+    String targetState = record.getSimpleField("TargetState");
+    Assert.assertEquals(targetState, TargetState.START.name());
+
+    //Add a JobSpec with DELETE verb signalling the Helix cluster to cancel the workflow
+    cancelViaSpecSuite.addJobSpec(IntegrationJobCancelViaSpecSuite.JOB_ID, SpecExecutor.Verb.DELETE.name());
+
+    //Give some time for the FsScheduledJobConfigurationManager to pick up the DELETE spec and send
+    // DeleteJobConfigArrivalEvent.
+    Thread.sleep(3000L);
+
+    //Inspect the zNode at the path corresponding to the Workflow resource. Ensure the target state of the resource is in
+    // the STOP state or that the zNode has been deleted.
+    ZNRecord recordNew = zkClient.readData(zNodePath, true);
+    String targetStateNew = null;
+    if (recordNew != null) {
+      targetStateNew = recordNew.getSimpleField("TargetState");
+    }
+    Assert.assertTrue(recordNew == null || targetStateNew.equals(TargetState.STOP.name()));
   }
 
   @Test
