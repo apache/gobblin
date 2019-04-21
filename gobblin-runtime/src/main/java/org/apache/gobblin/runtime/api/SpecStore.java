@@ -20,6 +20,7 @@ package org.apache.gobblin.runtime.api;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
+import java.util.Iterator;
 
 
 public interface SpecStore {
@@ -105,4 +106,9 @@ public interface SpecStore {
    * @throws IOException Exception in retrieving {@link Spec}s.
    */
   Collection<Spec> getSpecs() throws IOException;
+
+  /**
+   * Return an iterator of Spec's URI(Spec's identifier)
+   */
+  Iterator<URI> getSpecURI() throws IOException;
 }

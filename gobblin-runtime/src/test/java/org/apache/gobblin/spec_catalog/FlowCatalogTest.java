@@ -27,7 +27,10 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Properties;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.SerializationUtils;
@@ -181,6 +184,36 @@ public class FlowCatalogTest {
       }
       else return initFlowSpec();
     }
+  }
+
+  @Test
+  public void testGetSpecURI() throws Exception {
+    File specDir = Files.createTempDir();
+    Properties properties = new Properties();
+    properties.setProperty(ConfigurationKeys.SPECSTORE_FS_DIR_KEY, specDir.getAbsolutePath());
+    SpecSerDe serde = Mockito.mock(SpecSerDe.class);
+    FSSpecStore fsSpecStore = new FSSpecStore(ConfigUtils.propertiesToConfig(properties), serde);
+
+    File specFile1 = new File(specDir, "spec0");
+    Assert.assertTrue(specFile1.createNewFile());
+    File specFile2 = new File(specDir, "spec1");
+    Assert.assertTrue(specFile2.createNewFile());
+    File specFile3 = new File(specDir, "spec2");
+    Assert.assertTrue(specFile3.createNewFile());
+
+    Iterator<URI> it = fsSpecStore.getSpecURI();
+    int count = 0;
+    List<String> result = new ArrayList<>();
+    while (it.hasNext()) {
+      count += 1 ;
+      result.add(it.next().getPath());
+    }
+
+    Assert.assertEquals(count, 3);
+    Assert.assertTrue(result.contains(specFile1.getAbsolutePath()));
+    Assert.assertTrue(result.contains(specFile2.getAbsolutePath()));
+    Assert.assertTrue(result.contains(specFile3.getAbsolutePath()));
+
   }
 
   @Test

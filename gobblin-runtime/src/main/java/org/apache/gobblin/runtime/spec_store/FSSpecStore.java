@@ -17,37 +17,36 @@
 
 package org.apache.gobblin.runtime.spec_store;
 
-import com.google.common.io.ByteStreams;
-
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.net.URI;
-import java.util.Collection;
-
-import org.apache.commons.lang3.StringUtils;
-import org.apache.gobblin.runtime.api.FlowSpec;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FSDataOutputStream;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import com.google.common.io.ByteStreams;
 import com.google.common.io.Files;
 import com.typesafe.config.Config;
-
+import java.io.IOException;
+import java.net.URI;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.Spliterators;
+import java.util.stream.StreamSupport;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.GobblinInstanceEnvironment;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.api.SpecSerDe;
 import org.apache.gobblin.runtime.api.SpecStore;
 import org.apache.gobblin.util.PathUtils;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocatedFileStatus;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.RemoteIterator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -236,6 +235,30 @@ public class FSSpecStore implements SpecStore {
     }
 
     return specs;
+  }
+
+  @Override
+  public Iterator<URI> getSpecURI() throws IOException {
+    final RemoteIterator<LocatedFileStatus> it = fs.listFiles(this.fsSpecStoreDirPath, true);
+    return new Iterator<URI>() {
+      @Override
+      public boolean hasNext() {
+        try {
+          return it.hasNext();
+        } catch (IOException ioe) {
+          throw new RuntimeException("Failed to determine if there's next element available due to:", ioe);
+        }
+      }
+
+      @Override
+      public URI next() {
+        try {
+          return it.next().getPath().toUri();
+        } catch (IOException ioe) {
+          throw new RuntimeException("Failed to fetch next element due to:", ioe);
+        }
+      }
+    };
   }
 
   /**

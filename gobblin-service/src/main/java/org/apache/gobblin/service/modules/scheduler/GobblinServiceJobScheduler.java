@@ -114,7 +114,9 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     if (isActive) {
       // Need to set active=true first; otherwise in the onAddSpec(), node will forward specs to active node, which is itself.
       this.isActive = isActive;
+
       if (this.flowCatalog.isPresent()) {
+        // Load spec asynchronously and make scheduler be aware of that.
         Collection<Spec> specs = this.flowCatalog.get().getSpecsWithTimeUpdate();
         for (Spec spec : specs) {
           //Disable FLOW_RUN_IMMEDIATELY on service startup or leadership change
@@ -134,6 +136,13 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       // Need to set active=false at the end; otherwise in the onDeleteSpec(), node will forward specs to active node, which is itself.
       this.isActive = isActive;
     }
+  }
+
+  /**
+   * Load all {@link FlowSpec}s from {@link FlowCatalog} and make schedulers be aware of that.
+   */
+  private void scheduleSpecsFromCatalog() {
+
   }
 
   @VisibleForTesting
