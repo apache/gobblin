@@ -20,6 +20,9 @@ package org.apache.gobblin.cluster;
 import java.io.IOException;
 import java.nio.file.Paths;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
@@ -86,8 +89,7 @@ public class ClusterIntegrationTest {
       Thread.sleep(1000L);
     }
 
-    // Give the job some time to reach writer, where it sleeps
-    Thread.sleep(2000L);
+    Assert.assertTrue(isTaskRunning(IntegrationJobCancelSuite.TASK_STATE_FILE));
 
     log.info("Stopping the job");
     taskDriver.stop(IntegrationJobCancelSuite.JOB_ID);
@@ -131,8 +133,7 @@ public class ClusterIntegrationTest {
       Thread.sleep(1000L);
     }
 
-    // Give the job some time to reach writer, where it sleeps
-    Thread.sleep(2000L);
+    Assert.assertTrue(isTaskRunning(IntegrationJobCancelViaSpecSuite.TASK_STATE_FILE));
 
     ZkClient zkClient = new ZkClient(this.zkConnectString);
     PathBasedZkSerializer zkSerializer = ChainedPathZkSerializer.builder(new ZNRecordStreamingSerializer()).build();
@@ -149,18 +150,42 @@ public class ClusterIntegrationTest {
     //Add a JobSpec with DELETE verb signalling the Helix cluster to cancel the workflow
     cancelViaSpecSuite.addJobSpec(IntegrationJobCancelViaSpecSuite.JOB_ID, SpecExecutor.Verb.DELETE.name());
 
-    //Give some time for the FsScheduledJobConfigurationManager to pick up the DELETE spec and send
-    // DeleteJobConfigArrivalEvent.
-    Thread.sleep(3000L);
-
-    //Inspect the zNode at the path corresponding to the Workflow resource. Ensure the target state of the resource is in
-    // the STOP state or that the zNode has been deleted.
-    ZNRecord recordNew = zkClient.readData(zNodePath, true);
-    String targetStateNew = null;
-    if (recordNew != null) {
-      targetStateNew = recordNew.getSimpleField("TargetState");
+    int j = 0;
+    boolean successFlag = false;
+    while (true) {
+      //Inspect the zNode at the path corresponding to the Workflow resource. Ensure the target state of the resource is in
+      // the STOP state or that the zNode has been deleted.
+      ZNRecord recordNew = zkClient.readData(zNodePath, true);
+      String targetStateNew = null;
+      if (recordNew != null) {
+        targetStateNew = recordNew.getSimpleField("TargetState");
+      }
+      if (recordNew == null || targetStateNew.equals(TargetState.STOP.name())) {
+        successFlag = true;
+        break;
+      } else {
+        j++;
+        if (j > 5) {
+          break;
+        }
+        log.warn("Sleeping for 1 second...");
+        Thread.sleep(1000L);
+      }
     }
-    Assert.assertTrue(recordNew == null || targetStateNew.equals(TargetState.STOP.name()));
+    Assert.assertTrue(successFlag);
+    suite.waitForAndVerifyOutputFiles();
+  }
+
+  private boolean isTaskRunning(String taskStateFileName)
+      throws IOException, InterruptedException {
+    FileSystem fs = FileSystem.getLocal(new Configuration());
+    int i = 0;
+    Path taskStateFile = new Path(taskStateFileName);
+    while (!fs.exists(taskStateFile) && (i++ < 20)) {
+      log.warn("Waiting for the task to enter running state...");
+      Thread.sleep(100L);
+    }
+    return fs.exists(taskStateFile);
   }
 
   @Test

@@ -44,6 +44,7 @@ import com.typesafe.config.ConfigValueFactory;
 
 import org.apache.gobblin.cluster.FsScheduledJobConfigurationManager;
 import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
+import org.apache.gobblin.cluster.SleepingTask;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.FsSpecConsumer;
 import org.apache.gobblin.runtime.api.SpecExecutor;
@@ -55,6 +56,7 @@ public class IntegrationJobCancelViaSpecSuite extends IntegrationJobCancelSuite 
   public static final String JOB_ID = "job_HelloWorldTestJob_1235";
   public static final String JOB_CATALOG_DIR = "/tmp/IntegrationJobCancelViaSpecSuite/jobCatalog";
   public static final String FS_SPEC_CONSUMER_DIR = "/tmp/IntegrationJobCancelViaSpecSuite/jobSpecs";
+  public static final String TASK_STATE_FILE = "/tmp/IntegrationJobCancelViaSpecSuite/taskState/_RUNNING";
 
   public IntegrationJobCancelViaSpecSuite() throws IOException {
     super();
@@ -71,11 +73,17 @@ public class IntegrationJobCancelViaSpecSuite extends IntegrationJobCancelSuite 
       Config rawJobConfig =
           ConfigFactory.parseReader(reader, ConfigParseOptions.defaults().setSyntax(ConfigSyntax.CONF));
       rawJobConfig = rawJobConfig.withFallback(getClusterConfig());
+
       Config newConfig = ConfigFactory.parseMap(ImmutableMap
           .of(ConfigurationKeys.SOURCE_CLASS_KEY, "org.apache.gobblin.cluster.SleepingCustomTaskSource",
-              ConfigurationKeys.JOB_ID_KEY, JOB_ID, GobblinClusterConfigurationKeys.HELIX_JOB_TIMEOUT_ENABLED_KEY,
-              Boolean.TRUE, GobblinClusterConfigurationKeys.HELIX_JOB_TIMEOUT_SECONDS, 100L,
-              ConfigurationKeys.JOB_NAME_KEY, JOB_ID)).withFallback(rawJobConfig);
+              ConfigurationKeys.JOB_ID_KEY, JOB_ID,
+              GobblinClusterConfigurationKeys.HELIX_JOB_TIMEOUT_ENABLED_KEY, Boolean.TRUE,
+              GobblinClusterConfigurationKeys.HELIX_JOB_TIMEOUT_SECONDS, 100L,
+              ConfigurationKeys.JOB_NAME_KEY, JOB_ID));
+
+      newConfig = newConfig.withValue(SleepingTask.TASK_STATE_FILE_KEY, ConfigValueFactory.fromAnyRef(TASK_STATE_FILE));
+      newConfig = newConfig.withFallback(rawJobConfig);
+
       Properties jobProperties = ConfigUtils.configToProperties(newConfig);
       Map<String, String> jobPropertiesAsMap = new HashMap<>();
       for (String name : jobProperties.stringPropertyNames()) {
@@ -106,7 +114,7 @@ public class IntegrationJobCancelViaSpecSuite extends IntegrationJobCancelSuite 
     if (SpecExecutor.Verb.ADD.name().equals(verb)) {
       jobProperties = getJobConfig();
     } else if (SpecExecutor.Verb.DELETE.name().equals(verb)) {
-      jobProperties.put(GobblinClusterConfigurationKeys.SHOULD_CANCEL_RUNNING_JOB_ON_DELETE, "true");
+      jobProperties.put(GobblinClusterConfigurationKeys.CANCEL_RUNNING_JOB_ON_DELETE, "true");
     }
 
     AvroJobSpec jobSpec = AvroJobSpec.newBuilder().

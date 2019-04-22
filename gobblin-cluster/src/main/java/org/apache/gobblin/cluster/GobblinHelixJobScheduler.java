@@ -39,6 +39,7 @@ import com.google.common.collect.Maps;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 import com.google.common.util.concurrent.Striped;
+import com.typesafe.config.Config;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.cluster.event.DeleteJobConfigArrivalEvent;
@@ -118,7 +119,8 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     this.jobCatalog = jobCatalog;
     this.metricContext = Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(properties), this.getClass());
 
-    int metricsWindowSizeInMin = ConfigUtils.getInt(ConfigUtils.propertiesToConfig(this.properties),
+    Config jobConfig = ConfigUtils.propertiesToConfig(this.properties);
+    int metricsWindowSizeInMin = ConfigUtils.getInt(jobConfig,
                                                     ConfigurationKeys.METRIC_TIMER_WINDOW_SIZE_IN_MINUTES,
                                                     ConfigurationKeys.DEFAULT_METRIC_TIMER_WINDOW_SIZE_IN_MINUTES);
 
@@ -144,7 +146,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
 
     this.startServicesCompleted = false;
 
-    this.helixJobStopTimeoutSeconds = ConfigUtils.getLong(ConfigUtils.propertiesToConfig(properties),
+    this.helixJobStopTimeoutSeconds = ConfigUtils.getLong(jobConfig,
         GobblinClusterConfigurationKeys.HELIX_JOB_STOP_TIMEOUT_SECONDS,
         GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_STOP_TIMEOUT_SECONDS);
   }
@@ -335,7 +337,8 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     try {
       unscheduleJob(deleteJobArrival.getJobName());
       Properties jobConfig = deleteJobArrival.getJobConfig();
-      if (PropertiesUtils.getPropAsBoolean(jobConfig, GobblinClusterConfigurationKeys.SHOULD_CANCEL_RUNNING_JOB_ON_DELETE, "false")) {
+      if (PropertiesUtils.getPropAsBoolean(jobConfig, GobblinClusterConfigurationKeys.CANCEL_RUNNING_JOB_ON_DELETE,
+          GobblinClusterConfigurationKeys.DEFAULT_CANCEL_RUNNING_JOB_ON_DELETE)) {
         LOGGER.info("Cancelling workflow: {}", deleteJobArrival.getJobName());
         TaskDriver taskDriver = new TaskDriver(this.jobHelixManager);
         taskDriver.waitToStop(deleteJobArrival.getJobName(), this.helixJobStopTimeoutSeconds);
