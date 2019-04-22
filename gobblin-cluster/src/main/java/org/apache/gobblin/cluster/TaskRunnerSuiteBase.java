@@ -82,7 +82,8 @@ public abstract class TaskRunnerSuiteBase {
 
   @Getter
   public static class Builder {
-    private Config config;
+    private final Config config;
+    private final Config dynamicConfig;
     private HelixManager jobHelixManager;
     private Optional<ContainerMetrics> containerMetrics;
     private FileSystem fs;
@@ -92,6 +93,7 @@ public abstract class TaskRunnerSuiteBase {
     private String instanceName;
 
     public Builder(Config config) {
+      this.dynamicConfig = GobblinClusterUtils.getDynamicConfig(config);
       this.config = config;
     }
 

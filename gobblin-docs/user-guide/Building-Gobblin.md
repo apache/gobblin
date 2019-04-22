@@ -7,7 +7,7 @@
 This page outlines all the options that can be specified when building Gobblin using Gradle. The typical way of building Gobblin is to first checkout the code-base from GitHub and then build the code-base using Gradle.
 
 ```
-git clone https://github.com/linkedin/gobblin.git
+git clone https://github.com/apache/incubator-gobblin.git
 cd gobblin
 ./gradlew assemble
 ```

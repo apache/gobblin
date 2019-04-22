@@ -55,15 +55,17 @@ public class SingleTask {
   private FileSystem _fs;
   private TaskAttemptBuilder _taskAttemptBuilder;
   private StateStores _stateStores;
+  private Config _dynamicConfig;
 
   SingleTask(String jobId, Path workUnitFilePath, Path jobStateFilePath, FileSystem fs,
-      TaskAttemptBuilder taskAttemptBuilder, StateStores stateStores) {
+      TaskAttemptBuilder taskAttemptBuilder, StateStores stateStores, Config dynamicConfig) {
     _jobId = jobId;
     _workUnitFilePath = workUnitFilePath;
     _jobStateFilePath = jobStateFilePath;
     _fs = fs;
     _taskAttemptBuilder = taskAttemptBuilder;
     _stateStores = stateStores;
+    _dynamicConfig = dynamicConfig;
   }
 
   public void run()
@@ -71,6 +73,9 @@ public class SingleTask {
     List<WorkUnit> workUnits = getWorkUnits();
 
     JobState jobState = getJobState();
+    // Add dynamic configuration to the job state
+    _dynamicConfig.entrySet().forEach(e -> jobState.setProp(e.getKey(), e.getValue().unwrapped().toString()));
+
     Config jobConfig = getConfigFromJobState(jobState);
 
     _logger.debug("SingleTask.run: jobId {} workUnitFilePath {} jobStateFilePath {} jobState {} jobConfig {}",

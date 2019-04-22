@@ -102,6 +102,8 @@ import org.apache.gobblin.util.logs.LogCopier;
 import org.apache.gobblin.yarn.event.ApplicationReportArrivalEvent;
 import org.apache.gobblin.yarn.event.GetApplicationReportFailureEvent;
 
+import static org.apache.hadoop.security.UserGroupInformation.HADOOP_TOKEN_FILE_LOCATION;
+
 
 /**
  * A client driver to launch Gobblin as a Yarn application.
@@ -651,6 +653,15 @@ public class GobblinYarnAppLauncher {
 
   private void setupSecurityTokens(ContainerLaunchContext containerLaunchContext) throws IOException {
     Credentials credentials = UserGroupInformation.getCurrentUser().getCredentials();
+
+    // Pass on the credentials from the hadoop token file if present.
+    // The value in the token file takes precedence.
+    if (System.getenv(HADOOP_TOKEN_FILE_LOCATION) != null) {
+      Credentials tokenFileCredentials = Credentials.readTokenStorageFile(new File(System.getenv(HADOOP_TOKEN_FILE_LOCATION)),
+          new Configuration());
+      credentials.addAll(tokenFileCredentials);
+    }
+
     String tokenRenewer = this.yarnConfiguration.get(YarnConfiguration.RM_PRINCIPAL);
     if (tokenRenewer == null || tokenRenewer.length() == 0) {
       throw new IOException("Failed to get master Kerberos principal for the RM to use as renewer");

@@ -41,12 +41,14 @@ import org.apache.helix.Criteria;
 import org.apache.helix.HelixManager;
 import org.apache.helix.InstanceType;
 import org.apache.helix.messaging.handling.MessageHandlerFactory;
+import org.apache.helix.model.ClusterConfig;
 import org.apache.helix.model.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
+import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.eventbus.EventBus;
@@ -134,7 +136,7 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
   private JobConfigurationManager jobConfigurationManager;
 
   private final String clusterName;
-  private final Config config;
+  protected final Config config;
 
   public GobblinClusterManager(String clusterName, String applicationId, Config config,
       Optional<Path> appWorkDirOptional) throws Exception {
@@ -219,6 +221,39 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
   }
 
   /**
+   * Configure Helix quota-based task scheduling
+   */
+  @VisibleForTesting
+  void configureHelixQuotaBasedTaskScheduling() {
+    // set up the cluster quota config
+    List<String> quotaConfigList = ConfigUtils.getStringList(this.config,
+        GobblinClusterConfigurationKeys.HELIX_TASK_QUOTA_CONFIG_KEY);
+
+    if (quotaConfigList.isEmpty()) {
+      return;
+    }
+
+    // retrieve the cluster config for updating
+    ClusterConfig clusterConfig = this.multiManager.getJobClusterHelixManager().getConfigAccessor()
+        .getClusterConfig(this.clusterName);
+    clusterConfig.resetTaskQuotaRatioMap();
+
+    for (String entry : quotaConfigList) {
+      List<String> quotaConfig = Splitter.on(":").limit(2).trimResults().omitEmptyStrings().splitToList(entry);
+
+      if (quotaConfig.size() < 2) {
+        throw new IllegalArgumentException(
+            "Quota configurations must be of the form <key1>:<value1>,<key2>:<value2>,...");
+      }
+
+      clusterConfig.setTaskQuotaRatio(quotaConfig.get(0), Integer.parseInt(quotaConfig.get(1)));
+    }
+
+    this.multiManager.getJobClusterHelixManager().getConfigAccessor()
+        .setClusterConfig(this.clusterName, clusterConfig); // Set the new ClusterConfig
+  }
+
+  /**
    * Start the Gobblin Cluster Manager.
    */
   @Override
@@ -227,6 +262,8 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
 
     this.eventBus.register(this);
     this.multiManager.connect();
+
+    configureHelixQuotaBasedTaskScheduling();
 
     if (this.isStandaloneMode) {
       // standalone mode starts non-daemon threads later, so need to have this thread to keep process up

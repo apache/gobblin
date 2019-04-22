@@ -126,9 +126,8 @@ public class KafkaAvroJobStatusMonitorTest {
     jobStatusMonitor.processMessage(messageAndMetadata);
 
     StateStore stateStore = jobStatusMonitor.getStateStore();
-    String storeName = Joiner.on(JobStatusRetriever.STATE_STORE_KEY_SEPARATION_CHARACTER).join(this.flowGroup, this.flowName);
-    String tableName = Joiner.on(JobStatusRetriever.STATE_STORE_KEY_SEPARATION_CHARACTER).join(this.flowExecutionId, "NA", "NA",
-        KafkaJobStatusMonitor.STATE_STORE_TABLE_SUFFIX);
+    String storeName = KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, flowName);
+    String tableName = KafkaJobStatusMonitor.jobStatusTableName(this.flowExecutionId, "NA", "NA");
     List<State> stateList  = stateStore.getAll(storeName, tableName);
     Assert.assertEquals(stateList.size(), 1);
     State state = stateList.get(0);
@@ -137,8 +136,7 @@ public class KafkaAvroJobStatusMonitorTest {
     messageAndMetadata = iterator.next();
     jobStatusMonitor.processMessage(messageAndMetadata);
 
-    tableName = Joiner.on(JobStatusRetriever.STATE_STORE_KEY_SEPARATION_CHARACTER).join(this.flowExecutionId, this.jobGroup, this.jobName,
-        KafkaJobStatusMonitor.STATE_STORE_TABLE_SUFFIX);
+    tableName = KafkaJobStatusMonitor.jobStatusTableName(this.flowExecutionId, this.jobGroup, this.jobName);
     stateList  = stateStore.getAll(storeName, tableName);
     Assert.assertEquals(stateList.size(), 1);
     state = stateList.get(0);

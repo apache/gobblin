@@ -59,7 +59,7 @@ public class ScheduledJobConfigurationManager extends JobConfigurationManager {
 
   private final ScheduledExecutorService fetchJobSpecExecutor;
 
-  private final SpecConsumer _specConsumer;
+  protected final SpecConsumer _specConsumer;
 
   private final ClassAliasResolver<SpecConsumer> aliasResolver;
 
@@ -115,7 +115,7 @@ public class ScheduledJobConfigurationManager extends JobConfigurationManager {
    * @throws ExecutionException
    * @throws InterruptedException
    */
-  private void fetchJobSpecs() throws ExecutionException, InterruptedException {
+  protected void fetchJobSpecs() throws ExecutionException, InterruptedException {
     List<Pair<SpecExecutor.Verb, Spec>> changesSpecs =
         (List<Pair<SpecExecutor.Verb, Spec>>) this._specConsumer.changedSpecs().get();
 

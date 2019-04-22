@@ -57,6 +57,8 @@ public class CloseOnFlushWriterWrapper<D> extends WriterWrapper<D> implements De
   private DataWriter<D> writer;
   private final Supplier<DataWriter<D>> writerSupplier;
   private boolean closed;
+  private boolean committed;
+
   // is the close functionality enabled?
   private final boolean closeOnFlush;
   private final ControlMessageHandler controlMessageHandler;
@@ -90,6 +92,7 @@ public class CloseOnFlushWriterWrapper<D> extends WriterWrapper<D> implements De
     if (this.closed) {
       this.writer = writerSupplier.get();
       this.closed = false;
+      this.committed = false;
     }
     this.writer.writeEnvelope(record);
   }
@@ -104,13 +107,15 @@ public class CloseOnFlushWriterWrapper<D> extends WriterWrapper<D> implements De
 
   @Override
   public void commit() throws IOException {
-    writer.commit();
+    if (!this.committed) {
+      writer.commit();
+      this.committed = true;
+    }
   }
 
   @Override
   public void cleanup() throws IOException {
     writer.cleanup();
-
   }
 
   @Override
@@ -164,6 +169,11 @@ public class CloseOnFlushWriterWrapper<D> extends WriterWrapper<D> implements De
   }
 
   private void flush(boolean close) throws IOException {
+    // nothing to flush, so don't call flush on the underlying writer since it may not support flush after close
+    if (this.closed) {
+      return;
+    }
+
     this.writer.flush();
 
     // commit data then close the writer
@@ -179,6 +189,11 @@ public class CloseOnFlushWriterWrapper<D> extends WriterWrapper<D> implements De
   private class CloseOnFlushWriterMessageHandler implements ControlMessageHandler {
     @Override
     public void handleMessage(ControlMessage message) {
+      // nothing to do if already closed, so don't call then underlying handler since it may not work on closed objects
+      if (CloseOnFlushWriterWrapper.this.closed) {
+        return;
+      }
+
       ControlMessageHandler underlyingHandler = CloseOnFlushWriterWrapper.this.writer.getMessageHandler();
 
       // let underlying writer handle the control messages first

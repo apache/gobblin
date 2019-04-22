@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.Properties;
 
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -30,15 +31,19 @@ import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.hadoop.mapred.InputFormat;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
 
 import org.apache.gobblin.data.management.copy.RecursivePathFinder;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PathUtils;
+import org.apache.gobblin.util.filesystem.DataFileVersionStrategy;
 
 /**
  * Contains data for a Hive location as well as additional data if {@link #HIVE_DATASET_COPY_ADDITIONAL_PATHS_RECURSIVELY_ENABLED} set to true.
  */
 @Data
+@Slf4j
 public class HiveLocationDescriptor {
   public static final String HIVE_DATASET_COPY_ADDITIONAL_PATHS_RECURSIVELY_ENABLED =
       HiveDatasetFinder.HIVE_DATASET_PREFIX + ".copy.additional.paths.recursively.enabled";
@@ -57,6 +62,16 @@ public class HiveLocationDescriptor {
   protected final InputFormat<?, ?> inputFormat;
   protected final FileSystem fileSystem;
   protected final Properties properties;
+  protected Optional<DataFileVersionStrategy> versionStrategy;
+
+  protected void populateDataFileVersionStrategy() {
+    try {
+      this.versionStrategy = Optional.of(DataFileVersionStrategy
+          .instantiateDataFileVersionStrategy(fileSystem, ConfigUtils.propertiesToConfig(properties)));
+    } catch (IOException e) {
+      log.error("Cannot generate version strategy due to {}", e);
+    }
+  }
 
   public Map<Path, FileStatus> getPaths() throws IOException {
 

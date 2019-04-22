@@ -53,6 +53,7 @@ configurations {
 shadowJar {
   zip64 true
   relocate 'org.apache.hadoop.hive', 'shadow.gobblin.orc.org.apache.hadoop.hive'
+  relocate 'com.google', 'shadow.gobblin.orc.com.google'
 }
 
 ext.classification="library"

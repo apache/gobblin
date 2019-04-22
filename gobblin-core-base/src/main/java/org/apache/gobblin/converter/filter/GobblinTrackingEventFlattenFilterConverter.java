@@ -24,7 +24,6 @@ import java.util.Set;
 
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
-import org.apache.avro.SchemaCompatibility;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 
@@ -121,7 +120,7 @@ public class GobblinTrackingEventFlattenFilterConverter extends AvroToAvroConver
   }
 
   @Override
-  public Iterable<GenericRecord> convertRecord(Schema outputSchema, GenericRecord inputRecord, WorkUnitState workUnit)
+  public Iterable<GenericRecord> convertRecordImpl(Schema outputSchema, GenericRecord inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
     GenericRecord genericRecord = new GenericData.Record(outputSchema);
 

@@ -22,7 +22,11 @@ import java.util.List;
 
 import com.google.common.collect.Iterators;
 
+
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.metastore.StateStore;
+import org.apache.gobblin.metrics.event.TimingEvent;
 
 
 /**
@@ -32,7 +36,6 @@ import org.apache.gobblin.annotation.Alpha;
 public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker {
   public static final String EVENT_NAME_FIELD = "eventName";
   public static final String NA_KEY = "NA";
-  public static final String STATE_STORE_KEY_SEPARATION_CHARACTER = ".";
 
   public abstract Iterator<JobStatus> getJobStatusesForFlowExecution(String flowName, String flowGroup,
       long flowExecutionId);
@@ -55,4 +58,33 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
     return latestExecutionId == -1L ? Iterators.<JobStatus>emptyIterator()
         : getJobStatusesForFlowExecution(flowName, flowGroup, latestExecutionId);
   }
+
+
+  /**
+   *
+   * @param jobState instance of {@link State}
+   * @return deserialize {@link State} into a {@link JobStatus}.
+   */
+  protected JobStatus getJobStatus(State jobState) {
+    String flowGroup = jobState.getProp(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD);
+    String flowName = jobState.getProp(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD);
+    long flowExecutionId = Long.parseLong(jobState.getProp(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD));
+    String jobName = jobState.getProp(TimingEvent.FlowEventConstants.JOB_NAME_FIELD);
+    String jobGroup = jobState.getProp(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD);
+    long jobExecutionId = Long.parseLong(jobState.getProp(TimingEvent.FlowEventConstants.JOB_EXECUTION_ID_FIELD, "0"));
+    String eventName = jobState.getProp(JobStatusRetriever.EVENT_NAME_FIELD);
+    long startTime = Long.parseLong(jobState.getProp(TimingEvent.JOB_START_TIME, "0"));
+    long endTime = Long.parseLong(jobState.getProp(TimingEvent.JOB_END_TIME, "0"));
+    String message = jobState.getProp(TimingEvent.METADATA_MESSAGE, "");
+    String lowWatermark = jobState.getProp(TimingEvent.FlowEventConstants.LOW_WATERMARK_FIELD, "");
+    String highWatermark = jobState.getProp(TimingEvent.FlowEventConstants.HIGH_WATERMARK_FIELD, "");
+    long processedCount = Long.parseLong(jobState.getProp(TimingEvent.FlowEventConstants.PROCESSED_COUNT_FIELD, "0"));
+
+    return JobStatus.builder().flowName(flowName).flowGroup(flowGroup).flowExecutionId(flowExecutionId).
+        jobName(jobName).jobGroup(jobGroup).jobExecutionId(jobExecutionId).eventName(eventName).
+        lowWatermark(lowWatermark).highWatermark(highWatermark).startTime(startTime).endTime(endTime).
+        message(message).processedCount(processedCount).build();
+  }
+
+  public abstract StateStore<State> getStateStore();
 }

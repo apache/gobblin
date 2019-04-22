@@ -17,35 +17,43 @@
 
 package org.apache.gobblin.spec_catalog;
 
+import com.google.common.base.Optional;
+import com.google.common.io.ByteStreams;
+import com.google.common.io.Files;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.typesafe.config.Config;
 import java.io.File;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collection;
 import java.util.Properties;
-
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.SerializationUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.api.FlowSpec;
+import org.apache.gobblin.runtime.api.Spec;
+import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
+import org.apache.gobblin.runtime.api.SpecSerDe;
+import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
+import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
+import org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutor;
+import org.apache.gobblin.runtime.spec_store.FSSpecStore;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.PathUtils;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import com.google.common.base.Optional;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.typesafe.config.Config;
-
-import org.apache.gobblin.runtime.api.Spec;
-import org.apache.gobblin.runtime.api.FlowSpec;
-import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
-import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
-import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.util.PathUtils;
-import org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutor;
-import org.apache.gobblin.runtime.api.SpecExecutor;
 
 
 public class FlowCatalogTest {
@@ -114,6 +122,64 @@ public class FlowCatalogTest {
     File specStoreDir = new File(SPEC_STORE_DIR);
     if (specStoreDir.exists()) {
       FileUtils.deleteDirectory(specStoreDir);
+    }
+  }
+
+  /**
+   * Make sure that when there's on spec failed to be deserialized, the rest of spec in specStore can
+   * still be taken care of.
+   */
+  @Test
+  public void testGetSpecRobustness() throws Exception {
+
+    File specDir = Files.createTempDir();
+    Properties properties = new Properties();
+    properties.setProperty(ConfigurationKeys.SPECSTORE_FS_DIR_KEY, specDir.getAbsolutePath());
+    SpecSerDe serde = Mockito.mock(SpecSerDe.class);
+    TestFsSpecStore fsSpecStore = new TestFsSpecStore(ConfigUtils.propertiesToConfig(properties), serde);
+
+    // Version is specified as 0,1,2
+    File specFileFail = new File(specDir, "spec_fail");
+    Assert.assertTrue(specFileFail.createNewFile());
+    File specFile1 = new File(specDir, "spec0");
+    Assert.assertTrue(specFile1.createNewFile());
+    File specFile2 = new File(specDir, "spec1");
+    Assert.assertTrue(specFile2.createNewFile());
+    File specFile3 = new File(specDir, "serDeFail");
+    Assert.assertTrue(specFile3.createNewFile());
+
+    FileSystem fs = FileSystem.getLocal(new Configuration());
+    Assert.assertEquals(fs.getFileStatus(new Path(specFile3.getAbsolutePath())).getLen(), 0);
+
+    Collection<Spec> specList = fsSpecStore.getSpecs();
+    // The fail and serDe datasets wouldn't survive
+    Assert.assertEquals(specList.size(), 2);
+    for (Spec spec: specList) {
+      Assert.assertTrue(!spec.getDescription().contains("spec_fail"));
+      Assert.assertTrue(!spec.getDescription().contains("serDeFail"));
+    }
+  }
+
+  class TestFsSpecStore extends FSSpecStore {
+    public TestFsSpecStore(Config sysConfig, SpecSerDe specSerDe) throws IOException {
+      super(sysConfig, specSerDe);
+    }
+
+    @Override
+    protected Spec readSpecFromFile(Path path) throws IOException {
+      if (path.getName().contains("fail")) {
+        throw new IOException("Mean to fail in the test");
+      } else if (path.getName().contains("serDeFail")) {
+
+        // Simulate the way that a serDe exception
+        FSDataInputStream fis = fs.open(path);
+        SerializationUtils.deserialize(ByteStreams.toByteArray(fis));
+
+        // This line should never be reached since we generate SerDe Exception on purpose.
+        Assert.assertTrue(false);
+        return null;
+      }
+      else return initFlowSpec();
     }
   }
 

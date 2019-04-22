@@ -91,12 +91,15 @@ public class QPSPolicy implements ThrottlingPolicy {
       minPermits = permitsRequested;
     }
 
-    long permitsGranted = this.tokenBucket.getPermits(permitsRequested, minPermits, LimiterServerResource.TIMEOUT_MILLIS);
+    DynamicTokenBucket.PermitsAndDelay permitsGranted =
+        this.tokenBucket.getPermitsAndDelay(permitsRequested, minPermits, LimiterServerResource.TIMEOUT_MILLIS);
 
     PermitAllocation allocation = new PermitAllocation();
-    allocation.setPermits(permitsGranted);
+    allocation.setPermits(permitsGranted.getPermits());
     allocation.setExpiration(Long.MAX_VALUE);
-    if (permitsGranted <= 0) {
+    allocation.setWaitForPermitUseMillis(permitsGranted.getDelay());
+    allocation.setUnsatisfiablePermits(request.getMinPermits(GetMode.DEFAULT));
+    if (permitsGranted.getPermits() <= 0) {
       allocation.setMinRetryDelayMillis(LimiterServerResource.TIMEOUT_MILLIS);
     }
     return allocation;

@@ -94,7 +94,8 @@ public class GobblinHelixTask implements Task {
                                jobStateFilePath,
                                builder.getFs(),
                                taskAttemptBuilder,
-                               stateStores);
+                               stateStores,
+                               builder.getDynamicConfig());
   }
 
   private void getInfoFromTaskConfig() {

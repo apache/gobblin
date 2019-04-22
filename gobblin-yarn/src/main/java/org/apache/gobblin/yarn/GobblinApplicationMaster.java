@@ -50,6 +50,7 @@ import com.typesafe.config.ConfigFactory;
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
 import org.apache.gobblin.cluster.GobblinClusterManager;
+import org.apache.gobblin.cluster.GobblinClusterUtils;
 import org.apache.gobblin.util.JvmUtils;
 import org.apache.gobblin.util.logs.Log4jConfigurationHelper;
 import org.apache.gobblin.yarn.event.DelegationTokenUpdatedEvent;
@@ -72,21 +73,21 @@ public class GobblinApplicationMaster extends GobblinClusterManager {
 
   public GobblinApplicationMaster(String applicationName, ContainerId containerId, Config config,
       YarnConfiguration yarnConfiguration) throws Exception {
-    super(applicationName, containerId.getApplicationAttemptId().getApplicationId().toString(), config,
-        Optional.<Path>absent());
+    super(applicationName, containerId.getApplicationAttemptId().getApplicationId().toString(),
+        GobblinClusterUtils.addDynamicConfig(config), Optional.<Path>absent());
 
     GobblinYarnLogSource gobblinYarnLogSource = new GobblinYarnLogSource();
     if (gobblinYarnLogSource.isLogSourcePresent()) {
       this.applicationLauncher
-          .addService(gobblinYarnLogSource.buildLogCopier(config, containerId, this.fs, this.appWorkDir));
+          .addService(gobblinYarnLogSource.buildLogCopier(this.config, containerId, this.fs, this.appWorkDir));
     }
 
     this.applicationLauncher
-        .addService(buildYarnService(config, applicationName, this.applicationId, yarnConfiguration, this.fs));
+        .addService(buildYarnService(this.config, applicationName, this.applicationId, yarnConfiguration, this.fs));
 
     if (UserGroupInformation.isSecurityEnabled()) {
       LOGGER.info("Adding YarnContainerSecurityManager since security is enabled");
-      this.applicationLauncher.addService(buildYarnContainerSecurityManager(config, this.fs));
+      this.applicationLauncher.addService(buildYarnContainerSecurityManager(this.config, this.fs));
     }
   }
 

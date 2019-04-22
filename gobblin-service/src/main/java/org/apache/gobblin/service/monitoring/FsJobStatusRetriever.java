@@ -67,7 +67,7 @@ public class FsJobStatusRetriever extends JobStatusRetriever {
     Preconditions.checkArgument(flowGroup != null, "FlowGroup cannot be null");
 
     Predicate<String> flowExecutionIdPredicate = input -> input.startsWith(String.valueOf(flowExecutionId) + ".");
-    String storeName = Joiner.on(JobStatusRetriever.STATE_STORE_KEY_SEPARATION_CHARACTER).join(flowGroup, flowName);
+    String storeName = KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, flowName);
     try {
       List<JobStatus> jobStatuses = new ArrayList<>();
       List<String> tableNames = this.stateStore.getTableNames(storeName, flowExecutionIdPredicate);
@@ -96,9 +96,8 @@ public class FsJobStatusRetriever extends JobStatusRetriever {
     Preconditions.checkArgument(jobGroup != null, "jobGroup cannot be null");
 
     try {
-      String storeName = Joiner.on(JobStatusRetriever.STATE_STORE_KEY_SEPARATION_CHARACTER).join(flowGroup, flowName);
-      String tableName = Joiner.on(JobStatusRetriever.STATE_STORE_KEY_SEPARATION_CHARACTER).join(flowExecutionId, jobGroup, jobName,
-          KafkaJobStatusMonitor.STATE_STORE_TABLE_SUFFIX);
+      String storeName = KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, flowName);
+      String tableName = KafkaJobStatusMonitor.jobStatusTableName(flowExecutionId, jobGroup, jobName);
       List<State> jobStates = this.stateStore.getAll(storeName, tableName);
       if (jobStates.isEmpty()) {
         return Iterators.emptyIterator();
@@ -122,47 +121,15 @@ public class FsJobStatusRetriever extends JobStatusRetriever {
     Preconditions.checkArgument(flowGroup != null, "flowGroup cannot be null");
     Preconditions.checkArgument(count > 0, "Number of execution ids must be at least 1.");
     try {
-      String storeName = Joiner.on(JobStatusRetriever.STATE_STORE_KEY_SEPARATION_CHARACTER).join(flowGroup, flowName);
+      String storeName = KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, flowName);
       List<String> tableNames = this.stateStore.getTableNames(storeName, input -> true);
-      if (tableNames.isEmpty()) {
-        return null;
-      }
-      Set<Long> flowExecutionIds =
-          new TreeSet<>(tableNames.stream().map(this::getExecutionIdFromTableName).collect(Collectors.toList())).descendingSet();
+      Set<Long> flowExecutionIds = new TreeSet<>(tableNames.stream()
+          .map(KafkaJobStatusMonitor::getExecutionIdFromTableName)
+          .collect(Collectors.toList())).descendingSet();
       return ImmutableList.copyOf(Iterables.limit(flowExecutionIds, count));
     } catch (Exception e) {
       return null;
     }
-  }
-
-  /**
-   *
-   * @param jobState instance of {@link State}
-   * @return deserialize {@link State} into a {@link JobStatus}.
-   */
-  private JobStatus getJobStatus(State jobState) {
-    String flowGroup = jobState.getProp(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD);
-    String flowName = jobState.getProp(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD);
-    long flowExecutionId = Long.parseLong(jobState.getProp(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD));
-    String jobName = jobState.getProp(TimingEvent.FlowEventConstants.JOB_NAME_FIELD);
-    String jobGroup = jobState.getProp(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD);
-    long jobExecutionId = Long.parseLong(jobState.getProp(TimingEvent.FlowEventConstants.JOB_EXECUTION_ID_FIELD, "0"));
-    String eventName = jobState.getProp(JobStatusRetriever.EVENT_NAME_FIELD);
-    long startTime = Long.parseLong(jobState.getProp(TimingEvent.METADATA_START_TIME, "0"));
-    long endTime = Long.parseLong(jobState.getProp(TimingEvent.METADATA_END_TIME, "0"));
-    String message = jobState.getProp(TimingEvent.METADATA_MESSAGE, "");
-    String lowWatermark = jobState.getProp(TimingEvent.FlowEventConstants.LOW_WATERMARK_FIELD, "");
-    String highWatermark = jobState.getProp(TimingEvent.FlowEventConstants.HIGH_WATERMARK_FIELD, "");
-    long processedCount = Long.parseLong(jobState.getProp(TimingEvent.FlowEventConstants.PROCESSED_COUNT_FIELD, "0"));
-
-    return JobStatus.builder().flowName(flowName).flowGroup(flowGroup).flowExecutionId(flowExecutionId).
-        jobName(jobName).jobGroup(jobGroup).jobExecutionId(jobExecutionId).eventName(eventName).
-        lowWatermark(lowWatermark).highWatermark(highWatermark).startTime(startTime).endTime(endTime).
-        message(message).processedCount(processedCount).build();
-  }
-
-  private long getExecutionIdFromTableName(String tableName) {
-    return Long.parseLong(Splitter.on(JobStatusRetriever.STATE_STORE_KEY_SEPARATION_CHARACTER).splitToList(tableName).get(0));
   }
 
   /**
@@ -174,6 +141,6 @@ public class FsJobStatusRetriever extends JobStatusRetriever {
    */
   private boolean shouldFilterJobStatus(List<String> tableNames, String tableName) {
     return tableNames.size() > 1 && JobStatusRetriever.NA_KEY
-        .equals(Splitter.on(JobStatusRetriever.STATE_STORE_KEY_SEPARATION_CHARACTER).splitToList(tableName).get(1));
+        .equals(Splitter.on(KafkaJobStatusMonitor.STATE_STORE_KEY_SEPARATION_CHARACTER).splitToList(tableName).get(1));
   }
 }
