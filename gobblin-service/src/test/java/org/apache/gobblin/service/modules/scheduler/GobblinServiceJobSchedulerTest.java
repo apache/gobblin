@@ -79,7 +79,7 @@ public class GobblinServiceJobSchedulerTest {
         ConfigFactory.empty(), Optional.of(flowCatalog), null, null, null);
 
     scheduler.setActive(true);
-    scheduler.getFlowSpecInitFinished().await(200000, TimeUnit.MILLISECONDS);
+    scheduler.getFlowSpecInitFinished().await(2000, TimeUnit.MILLISECONDS);
 
     // Verify if flowSpecs are loaded.
     Assert.assertEquals(scheduler.scheduledFlowSpecs.size(), 2);

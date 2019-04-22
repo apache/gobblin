@@ -159,7 +159,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
           spec = this.flowCatalog.get().getSpec(specUris.next());
         } catch (SpecNotFoundException snfe) {
           _log.error(String.format("The URI %s discovered in SpecStore is missing in FlowCatlog"
-              + ", suspecting current modification on SpecStore", spec.getUri()), snfe);
+              + ", suspecting current modification on SpecStore", specUris.next()), snfe);
         }
 
         //Disable FLOW_RUN_IMMEDIATELY on service startup or leadership change
