@@ -23,12 +23,14 @@ import java.net.URI;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
+import org.apache.gobblin.runtime.api.SpecSerDeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -205,6 +207,14 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
   /* Catalog core functionality                     *
   /**************************************************/
 
+  public Iterator<URI> getSpecURIs() throws SpecSerDeException{
+    try {
+      return specStore.getSpecURIs();
+    } catch (IOException ioe) {
+      throw new SpecSerDeException("Cannot retrieve Specs' URI from Spec Store", specStore.getSpecStoreURI().get(), ioe);
+    }
+  }
+
   /**
    * Get all specs from {@link SpecStore}
    */
@@ -213,7 +223,6 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     try {
       return specStore.getSpecs();
       // TODO: Have kind of metrics keeping track of specs that failed to be deserialized.
-
     } catch (IOException e) {
       throw new RuntimeException("Cannot retrieve Specs from Spec store", e);
     }

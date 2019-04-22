@@ -27,8 +27,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
 import java.util.Iterator;
-import java.util.Spliterators;
-import java.util.stream.StreamSupport;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.GobblinInstanceEnvironment;
@@ -103,7 +101,7 @@ public class FSSpecStore implements SpecStore {
 
   /**
    * @param specUri path of the spec
-   * @return empty string for topology spec, as topolgies do not have a group,
+   * @return empty string for topology spec, as topologies do not have a group,
    *         group name for flow spec
    */
   public static String getSpecGroup(Path specUri) {
@@ -238,7 +236,7 @@ public class FSSpecStore implements SpecStore {
   }
 
   @Override
-  public Iterator<URI> getSpecURI() throws IOException {
+  public Iterator<URI> getSpecURIs() throws IOException {
     final RemoteIterator<LocatedFileStatus> it = fs.listFiles(this.fsSpecStoreDirPath, true);
     return new Iterator<URI>() {
       @Override
@@ -253,12 +251,17 @@ public class FSSpecStore implements SpecStore {
       @Override
       public URI next() {
         try {
-          return it.next().getPath().toUri();
+          return getURIFromPath(it.next().getPath(), fsSpecStoreDirPath);
         } catch (IOException ioe) {
           throw new RuntimeException("Failed to fetch next element due to:", ioe);
         }
       }
     };
+  }
+
+  @Override
+  public Optional<URI> getSpecStoreURI() {
+    return Optional.of(this.fsSpecStoreDirPath.toUri());
   }
 
   /**
@@ -316,6 +319,7 @@ public class FSSpecStore implements SpecStore {
   }
 
   /**
+   * Construct a file path given URI and version of a spec.
    *
    * @param fsSpecStoreDirPath The directory path for specs.
    * @param uri Uri as the identifier of JobSpec
@@ -323,5 +327,16 @@ public class FSSpecStore implements SpecStore {
    */
   protected Path getPathForURI(Path fsSpecStoreDirPath, URI uri, String version) {
     return PathUtils.addExtension(PathUtils.mergePaths(fsSpecStoreDirPath, new Path(uri)), version);
+  }
+
+  /**
+   * Recover {@link Spec}'s URI from a file path.
+   * Note that there's no version awareness of this method, as Spec's version is currently not supported.
+   *
+   * @param fsPath The given file path to get URI from.
+   * @return The exact URI of a Spec.
+   */
+  protected URI getURIFromPath(Path fsPath, Path fsSpecStoreDirPath) {
+    return PathUtils.relativizePath(fsPath, fsSpecStoreDirPath).toUri();
   }
 }
