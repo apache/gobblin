@@ -357,6 +357,9 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
           WorkUnit workUnit = new WorkUnit(extract);
           workUnit.addAll(this.state);
+          if(this.copyableDataset.expectedSchema != null) {
+            workUnit.setProp(ConfigurationKeys.COPY_EXPECTED_SCHEMA, this.copyableDataset.expectedSchema);
+          }
           serializeCopyEntity(workUnit, copyEntity);
           serializeCopyableDataset(workUnit, metadata);
           GobblinMetrics.addCustomTagToState(workUnit,
