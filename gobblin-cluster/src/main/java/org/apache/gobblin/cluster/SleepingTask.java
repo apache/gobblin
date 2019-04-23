@@ -17,11 +17,10 @@
 
 package org.apache.gobblin.cluster;
 
+import java.io.File;
 import java.io.IOException;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
+import com.google.common.io.Files;
 
 import avro.shaded.com.google.common.base.Throwables;
 import lombok.extern.slf4j.Slf4j;
@@ -35,33 +34,35 @@ public class SleepingTask extends BaseAbstractTask {
   public static final String TASK_STATE_FILE_KEY = "task.state.file.path";
 
   private final long sleepTime;
-  private FileSystem fs;
-  private Path taskStateFile;
+  private File taskStateFile;
 
   public SleepingTask(TaskContext taskContext) {
     super(taskContext);
     TaskState taskState = taskContext.getTaskState();
     sleepTime = taskState.getPropAsLong("data.publisher.sleep.time.in.seconds", 10L);
-    taskStateFile = new Path(taskState.getProp(TASK_STATE_FILE_KEY));
+    taskStateFile = new File(taskState.getProp(TASK_STATE_FILE_KEY));
     try {
-      fs = FileSystem.getLocal(new Configuration());
-      //Delete any previous left over task state files
-      if (this.fs.exists(taskStateFile)) {
-        this.fs.delete(taskStateFile, false);
+      if (taskStateFile.exists()) {
+        if (!taskStateFile.delete()) {
+          log.error("Unable to delete {}", taskStateFile);
+          throw new IOException("File Delete Exception");
+        }
+      } else {
+        Files.createParentDirs(taskStateFile);
       }
     } catch (IOException e) {
-      log.error("Error creating SleepingTask.");
+      log.error("Unable to create directory: ", taskStateFile.getParent());
       Throwables.propagate(e);
     }
+    taskStateFile.deleteOnExit();
   }
 
   @Override
   public void run() {
     try {
-      if (!this.fs.exists(taskStateFile.getParent())) {
-        this.fs.mkdirs(taskStateFile.getParent());
+      if (!taskStateFile.createNewFile()) {
+        throw new IOException("File creation error: " + taskStateFile.getName());
       }
-      this.fs.create(taskStateFile);
       long endTime = System.currentTimeMillis() + sleepTime * 1000;
       while (System.currentTimeMillis() <= endTime) {
         Thread.sleep(1000L);
@@ -74,16 +75,8 @@ public class SleepingTask extends BaseAbstractTask {
       Thread.currentThread().interrupt();
       Throwables.propagate(e);
     } catch (IOException e) {
-      log.error("IOException encountered", e);
+      log.error("IOException encountered when creating {}", taskStateFile.getName(), e);
       Throwables.propagate(e);
-    } finally {
-      try {
-        if (this.fs.exists(taskStateFile)) {
-          this.fs.delete(taskStateFile, false);
-        }
-      } catch (IOException e) {
-        log.warn("Error when attempting to delete {}", taskStateFile, e);
-      }
     }
   }
 }

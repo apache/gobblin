@@ -37,6 +37,7 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
+import com.google.common.base.Predicate;
 import com.typesafe.config.Config;
 
 import lombok.extern.slf4j.Slf4j;
@@ -45,11 +46,12 @@ import org.apache.gobblin.cluster.suite.IntegrationBasicSuite;
 import org.apache.gobblin.cluster.suite.IntegrationDedicatedManagerClusterSuite;
 import org.apache.gobblin.cluster.suite.IntegrationDedicatedTaskDriverClusterSuite;
 import org.apache.gobblin.cluster.suite.IntegrationJobCancelSuite;
-import org.apache.gobblin.cluster.suite.IntegrationJobCancelViaSpecSuite;
+import org.apache.gobblin.cluster.suite.IntegrationJobRestartViaSpecSuite;
 import org.apache.gobblin.cluster.suite.IntegrationJobFactorySuite;
 import org.apache.gobblin.cluster.suite.IntegrationJobTagSuite;
 import org.apache.gobblin.cluster.suite.IntegrationSeparateProcessSuite;
 import org.apache.gobblin.runtime.api.SpecExecutor;
+import org.apache.gobblin.testing.AssertWithBackoff;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -84,12 +86,12 @@ public class ClusterIntegrationTest {
 
     TaskDriver taskDriver = new TaskDriver(helixManager);
 
-    while (TaskDriver.getWorkflowContext(helixManager, IntegrationJobCancelSuite.JOB_ID) == null) {
-      log.warn("Waiting for the job to start...");
-      Thread.sleep(1000L);
-    }
+    AssertWithBackoff asserter1 = AssertWithBackoff.create().maxSleepMs(1000).backoffFactor(1);
+    asserter1.assertTrue(isTaskStarted(helixManager, IntegrationJobCancelSuite.JOB_ID),
+        "Waiting for the job to start...");
 
-    Assert.assertTrue(isTaskRunning(IntegrationJobCancelSuite.TASK_STATE_FILE));
+    AssertWithBackoff asserter2 = AssertWithBackoff.create().maxSleepMs(100).timeoutMs(2000).backoffFactor(1);
+    asserter2.assertTrue(isTaskRunning(IntegrationJobCancelSuite.TASK_STATE_FILE),"Waiting for the task to enter running state");
 
     log.info("Stopping the job");
     taskDriver.stop(IntegrationJobCancelSuite.JOB_ID);
@@ -100,59 +102,60 @@ public class ClusterIntegrationTest {
   }
 
   /**
-   * An integration test for cancelling a Helix workflow via a JobSpec. This test case starts a Helix cluster with
+   * An integration test for restarting a Helix workflow via a JobSpec. This test case starts a Helix cluster with
    * a {@link FsScheduledJobConfigurationManager}. The test case does the following:
    * <ul>
    *   <li> add a {@link org.apache.gobblin.runtime.api.JobSpec} that uses a {@link org.apache.gobblin.cluster.SleepingCustomTaskSource})
-   *   to {@link IntegrationJobCancelViaSpecSuite#FS_SPEC_CONSUMER_DIR}.  which is picked by the JobConfigurationManager. </li>
+   *   to {@link IntegrationJobRestartViaSpecSuite#FS_SPEC_CONSUMER_DIR}.  which is picked by the JobConfigurationManager. </li>
    *   <li> the JobConfigurationManager sends a notification to the GobblinHelixJobScheduler which schedules the job for execution. The JobSpec is
    *   also added to the JobCatalog for persistence. Helix starts a Workflow for this JobSpec. </li>
-   *   <li> We then add a {@link org.apache.gobblin.runtime.api.JobSpec} with DELETE Verb to {@link IntegrationJobCancelViaSpecSuite#FS_SPEC_CONSUMER_DIR}.
-   *   This signals GobblinHelixJobScheduler (and, Helix) to delete the running job (i.e., Helix Workflow) started in the previous step. </li>
-   *   <li> Finally, we inspect the state of the zNode corresponding to the Workflow resource in Zookeeper to ensure that its {@link org.apache.helix.task.TargetState}
+   *   <li> We then add a {@link org.apache.gobblin.runtime.api.JobSpec} with UPDATE Verb to {@link IntegrationJobRestartViaSpecSuite#FS_SPEC_CONSUMER_DIR}.
+   *   This signals GobblinHelixJobScheduler (and, Helix) to first cancel the running job (i.e., Helix Workflow) started in the previous step.
+   *   <li> We inspect the state of the zNode corresponding to the Workflow resource in Zookeeper to ensure that its {@link org.apache.helix.task.TargetState}
    *   is STOP. </li>
+   *   <li> Once the cancelled job from the previous steps is completed, the job will be re-launched for execution by the GobblinHelixJobScheduler.
+   *   We confirm the execution by again inspecting the zNode and ensuring its TargetState is START. </li>
    * </ul>
    */
   @Test (dependsOnMethods = { "testJobShouldGetCancelled" })
-  public void testJobCancellationViaSpec() throws Exception {
-    this.suite = new IntegrationJobCancelViaSpecSuite();
+  public void testJobRestartViaSpec() throws Exception {
+    this.suite = new IntegrationJobRestartViaSpecSuite();
     HelixManager helixManager = getHelixManager();
 
-    IntegrationJobCancelViaSpecSuite cancelViaSpecSuite = (IntegrationJobCancelViaSpecSuite) this.suite;
+    IntegrationJobRestartViaSpecSuite restartViaSpecSuite = (IntegrationJobRestartViaSpecSuite) this.suite;
 
     //Add a new JobSpec to the path monitored by the SpecConsumer
-    cancelViaSpecSuite.addJobSpec(IntegrationJobCancelViaSpecSuite.JOB_ID, SpecExecutor.Verb.ADD.name());
+    restartViaSpecSuite.addJobSpec(IntegrationJobRestartViaSpecSuite.JOB_ID, SpecExecutor.Verb.ADD.name());
 
     //Start the cluster
-    cancelViaSpecSuite.startCluster();
+    restartViaSpecSuite.startCluster();
 
     helixManager.connect();
 
-    while (TaskDriver.getWorkflowContext(helixManager, IntegrationJobCancelViaSpecSuite.JOB_ID) == null) {
-      log.warn("Waiting for the job to start...");
-      Thread.sleep(1000L);
-    }
+    AssertWithBackoff asserter1 = AssertWithBackoff.create().timeoutMs(30000).maxSleepMs(1000).backoffFactor(1);
+    asserter1.assertTrue(isTaskStarted(helixManager, IntegrationJobRestartViaSpecSuite.JOB_ID),
+        "Waiting for the job to start...");
 
-    Assert.assertTrue(isTaskRunning(IntegrationJobCancelViaSpecSuite.TASK_STATE_FILE));
+    AssertWithBackoff asserter2 = AssertWithBackoff.create().maxSleepMs(100).timeoutMs(2000).backoffFactor(1);
+    asserter2.assertTrue(isTaskRunning(IntegrationJobRestartViaSpecSuite.TASK_STATE_FILE),"Waiting for the task to enter running state");
 
     ZkClient zkClient = new ZkClient(this.zkConnectString);
     PathBasedZkSerializer zkSerializer = ChainedPathZkSerializer.builder(new ZNRecordStreamingSerializer()).build();
     zkClient.setZkSerializer(zkSerializer);
 
     String clusterName = getHelixManager().getClusterName();
-    String zNodePath = Paths.get("/", clusterName, "CONFIGS", "RESOURCE", IntegrationJobCancelViaSpecSuite.JOB_ID).toString();
+    String zNodePath = Paths.get("/", clusterName, "CONFIGS", "RESOURCE", IntegrationJobRestartViaSpecSuite.JOB_ID).toString();
 
     //Ensure that the Workflow is started
     ZNRecord record = zkClient.readData(zNodePath);
     String targetState = record.getSimpleField("TargetState");
     Assert.assertEquals(targetState, TargetState.START.name());
 
-    //Add a JobSpec with DELETE verb signalling the Helix cluster to cancel the workflow
-    cancelViaSpecSuite.addJobSpec(IntegrationJobCancelViaSpecSuite.JOB_ID, SpecExecutor.Verb.DELETE.name());
+    //Add a JobSpec with UPDATE verb signalling the Helix cluster to restart the workflow
+    restartViaSpecSuite.addJobSpec(IntegrationJobRestartViaSpecSuite.JOB_ID, SpecExecutor.Verb.UPDATE.name());
 
-    int j = 0;
-    boolean successFlag = false;
-    while (true) {
+    AssertWithBackoff asserter3 = AssertWithBackoff.create().maxSleepMs(1000).timeoutMs(5000).backoffFactor(1);
+    asserter3.assertTrue(input -> {
       //Inspect the zNode at the path corresponding to the Workflow resource. Ensure the target state of the resource is in
       // the STOP state or that the zNode has been deleted.
       ZNRecord recordNew = zkClient.readData(zNodePath, true);
@@ -160,32 +163,41 @@ public class ClusterIntegrationTest {
       if (recordNew != null) {
         targetStateNew = recordNew.getSimpleField("TargetState");
       }
-      if (recordNew == null || targetStateNew.equals(TargetState.STOP.name())) {
-        successFlag = true;
-        break;
-      } else {
-        j++;
-        if (j > 5) {
-          break;
-        }
-        log.warn("Sleeping for 1 second...");
-        Thread.sleep(1000L);
-      }
-    }
-    Assert.assertTrue(successFlag);
+      return recordNew == null || targetStateNew.equals(TargetState.STOP.name());
+    }, "Waiting for Workflow TargetState to be STOP");
+
+    //Ensure that the SleepingTask did not terminate normally i.e. it was interrupted. We check this by ensuring
+    // that the line "Hello World!" is not present in the logged output.
     suite.waitForAndVerifyOutputFiles();
+
+    AssertWithBackoff asserter4 = AssertWithBackoff.create().maxSleepMs(1000).timeoutMs(120000).backoffFactor(1);
+    asserter4.assertTrue(input -> {
+      //Inspect the zNode at the path corresponding to the Workflow resource. Ensure the target state of the resource is in
+      // the START state.
+      ZNRecord recordNew = zkClient.readData(zNodePath, true);
+      String targetStateNew = null;
+      if (recordNew != null) {
+        targetStateNew = recordNew.getSimpleField("TargetState");
+        return targetStateNew.equals(TargetState.START.name());
+      }
+      return false;
+    }, "Waiting for Workflow TargetState to be START");
   }
 
-  private boolean isTaskRunning(String taskStateFileName)
-      throws IOException, InterruptedException {
-    FileSystem fs = FileSystem.getLocal(new Configuration());
-    int i = 0;
-    Path taskStateFile = new Path(taskStateFileName);
-    while (!fs.exists(taskStateFile) && (i++ < 20)) {
-      log.warn("Waiting for the task to enter running state...");
-      Thread.sleep(100L);
-    }
-    return fs.exists(taskStateFile);
+  private Predicate<Void> isTaskStarted(HelixManager helixManager, String jobId) {
+    return input -> TaskDriver.getWorkflowContext(helixManager, jobId) != null;
+  }
+
+  private Predicate<Void> isTaskRunning(String taskStateFileName) {
+    return input -> {
+      try {
+        FileSystem fs = FileSystem.getLocal(new Configuration());
+        return fs.exists(new Path(taskStateFileName));
+      } catch (IOException e) {
+        log.error("Error when creating filesystem", e);
+        return false;
+      }
+    };
   }
 
   @Test

@@ -57,10 +57,15 @@ public class FsScheduledJobConfigurationManager extends ScheduledJobConfiguratio
     for (Pair<SpecExecutor.Verb, JobSpec> entry : jobSpecs) {
       JobSpec jobSpec = entry.getValue();
       SpecExecutor.Verb verb = entry.getKey();
-      if (verb.equals(SpecExecutor.Verb.ADD) || verb.equals(SpecExecutor.Verb.UPDATE)) {
+      if (verb.equals(SpecExecutor.Verb.ADD)) {
         // Handle addition
         this._jobCatalog.put(jobSpec);
         postNewJobConfigArrival(jobSpec.getUri().toString(), jobSpec.getConfigAsProperties());
+      } else if (verb.equals(SpecExecutor.Verb.UPDATE)) {
+        //Handle update.
+        //Overwrite the jobSpec in the jobCatalog and post an UpdateJobConfigArrivalEvent.
+        this._jobCatalog.put(jobSpec);
+        postUpdateJobConfigArrival(jobSpec.getUri().toString(), jobSpec.getConfigAsProperties());
       } else if (verb.equals(SpecExecutor.Verb.DELETE)) {
         // Handle delete
         this._jobCatalog.remove(jobSpec.getUri());

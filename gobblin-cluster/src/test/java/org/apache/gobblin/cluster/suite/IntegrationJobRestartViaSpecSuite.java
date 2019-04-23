@@ -52,13 +52,13 @@ import org.apache.gobblin.runtime.job_spec.AvroJobSpec;
 import org.apache.gobblin.util.ConfigUtils;
 
 
-public class IntegrationJobCancelViaSpecSuite extends IntegrationJobCancelSuite {
+public class IntegrationJobRestartViaSpecSuite extends IntegrationJobCancelSuite {
   public static final String JOB_ID = "job_HelloWorldTestJob_1235";
   public static final String JOB_CATALOG_DIR = "/tmp/IntegrationJobCancelViaSpecSuite/jobCatalog";
   public static final String FS_SPEC_CONSUMER_DIR = "/tmp/IntegrationJobCancelViaSpecSuite/jobSpecs";
   public static final String TASK_STATE_FILE = "/tmp/IntegrationJobCancelViaSpecSuite/taskState/_RUNNING";
 
-  public IntegrationJobCancelViaSpecSuite() throws IOException {
+  public IntegrationJobRestartViaSpecSuite() throws IOException {
     super();
     Path jobCatalogDirPath = new Path(JOB_CATALOG_DIR);
     FileSystem fs = FileSystem.getLocal(new Configuration());
@@ -114,6 +114,9 @@ public class IntegrationJobCancelViaSpecSuite extends IntegrationJobCancelSuite 
     if (SpecExecutor.Verb.ADD.name().equals(verb)) {
       jobProperties = getJobConfig();
     } else if (SpecExecutor.Verb.DELETE.name().equals(verb)) {
+      jobProperties.put(GobblinClusterConfigurationKeys.CANCEL_RUNNING_JOB_ON_DELETE, "true");
+    } else if (SpecExecutor.Verb.UPDATE.name().equals(verb)) {
+      jobProperties = getJobConfig();
       jobProperties.put(GobblinClusterConfigurationKeys.CANCEL_RUNNING_JOB_ON_DELETE, "true");
     }
 
