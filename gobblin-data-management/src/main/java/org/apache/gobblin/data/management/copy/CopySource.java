@@ -358,7 +358,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
           WorkUnit workUnit = new WorkUnit(extract);
           workUnit.addAll(this.state);
-          if(this.copyableDataset instanceof ConfigBasedDataset) {
+          if(this.copyableDataset instanceof ConfigBasedDataset && ((ConfigBasedDataset)this.copyableDataset).getExpectedSchema() != null) {
             workUnit.setProp(ConfigurationKeys.COPY_EXPECTED_SCHEMA, ((ConfigBasedDataset)this.copyableDataset).getExpectedSchema());
           }
           serializeCopyEntity(workUnit, copyEntity);
