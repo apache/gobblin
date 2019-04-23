@@ -50,6 +50,8 @@ import org.apache.gobblin.util.commit.DeleteFileCommitStep;
 import org.apache.gobblin.util.filesystem.DataFileVersionStrategy;
 import org.apache.gobblin.util.filesystem.ModTimeDataFileVersionStrategy;
 
+import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -78,6 +80,8 @@ public class ConfigBasedDataset implements CopyableDataset {
   private final PathFilter pathFilter;
   private final Optional<DataFileVersionStrategy> srcDataFileVersionStrategy;
   private final Optional<DataFileVersionStrategy> dstDataFileVersionStrategy;
+  @Setter @Getter
+  protected String expectedSchema = null;
 
   //Apply filter to directories
   private final boolean applyFilterToDirectories;

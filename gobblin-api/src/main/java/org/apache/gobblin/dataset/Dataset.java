@@ -23,10 +23,6 @@ package org.apache.gobblin.dataset;
 public interface Dataset extends URNIdentified {
 
   /**
-   * the expected schema for the dataset, used for schema check part
-   */
-  String expectedSchema = null;
-  /**
    * URN for this dataset.
    * @deprecated use {@link #getUrn()}
    */
