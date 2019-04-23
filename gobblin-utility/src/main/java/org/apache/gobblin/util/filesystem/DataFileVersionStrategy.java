@@ -65,12 +65,13 @@ public interface DataFileVersionStrategy<T extends Comparable<T> & Serializable>
   }
 
   String DATA_FILE_VERSION_STRATEGY_KEY = "org.apache.gobblin.dataFileVersionStrategy";
+  String DEFAULT_DATA_FILE_VERSION_STAREGY = "modtime";
 
   /**
    * Instantiate a {@link DataFileVersionStrategy} according to input configuration.
    */
   static DataFileVersionStrategy instantiateDataFileVersionStrategy(FileSystem fs, Config config) throws IOException {
-    String versionStrategy = ConfigUtils.getString(config, DATA_FILE_VERSION_STRATEGY_KEY, ModTimeDataFileVersionStrategy.Factory.class.getName());
+    String versionStrategy = ConfigUtils.getString(config, DATA_FILE_VERSION_STRATEGY_KEY, DEFAULT_DATA_FILE_VERSION_STAREGY);
 
     ClassAliasResolver resolver = new ClassAliasResolver(DataFileVersionFactory.class);
 
