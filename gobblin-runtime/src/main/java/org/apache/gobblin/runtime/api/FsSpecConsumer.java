@@ -78,6 +78,9 @@ public class FsSpecConsumer implements SpecConsumer<Spec> {
       return null;
     }
 
+    //Sort the {@link JobSpec}s in increasing order of their modification times.
+    //This is done so that the {JobSpec}s can be handled in FIFO order by the
+    //JobConfigurationManager and eventually, the GobblinHelixJobScheduler.
     Arrays.sort(fileStatuses, Comparator.comparingLong(FileStatus::getModificationTime));
 
     for (FileStatus fileStatus : fileStatuses) {

@@ -20,9 +20,9 @@ package org.apache.gobblin.cluster;
 import java.io.File;
 import java.io.IOException;
 
+import com.google.common.base.Throwables;
 import com.google.common.io.Files;
 
-import avro.shaded.com.google.common.base.Throwables;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.runtime.TaskContext;

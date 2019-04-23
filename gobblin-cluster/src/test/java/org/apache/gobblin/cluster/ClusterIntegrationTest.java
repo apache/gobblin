@@ -17,12 +17,10 @@
 
 package org.apache.gobblin.cluster;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
@@ -46,8 +44,8 @@ import org.apache.gobblin.cluster.suite.IntegrationBasicSuite;
 import org.apache.gobblin.cluster.suite.IntegrationDedicatedManagerClusterSuite;
 import org.apache.gobblin.cluster.suite.IntegrationDedicatedTaskDriverClusterSuite;
 import org.apache.gobblin.cluster.suite.IntegrationJobCancelSuite;
-import org.apache.gobblin.cluster.suite.IntegrationJobRestartViaSpecSuite;
 import org.apache.gobblin.cluster.suite.IntegrationJobFactorySuite;
+import org.apache.gobblin.cluster.suite.IntegrationJobRestartViaSpecSuite;
 import org.apache.gobblin.cluster.suite.IntegrationJobTagSuite;
 import org.apache.gobblin.cluster.suite.IntegrationSeparateProcessSuite;
 import org.apache.gobblin.runtime.api.SpecExecutor;
@@ -86,12 +84,13 @@ public class ClusterIntegrationTest {
 
     TaskDriver taskDriver = new TaskDriver(helixManager);
 
-    AssertWithBackoff asserter1 = AssertWithBackoff.create().maxSleepMs(1000).backoffFactor(1);
-    asserter1.assertTrue(isTaskStarted(helixManager, IntegrationJobCancelSuite.JOB_ID),
-        "Waiting for the job to start...");
+    //Ensure that Helix has created a workflow
+    AssertWithBackoff.create().maxSleepMs(1000).backoffFactor(1).
+        assertTrue(isTaskStarted(helixManager, IntegrationJobCancelSuite.JOB_ID), "Waiting for the job to start...");
 
-    AssertWithBackoff asserter2 = AssertWithBackoff.create().maxSleepMs(100).timeoutMs(2000).backoffFactor(1);
-    asserter2.assertTrue(isTaskRunning(IntegrationJobCancelSuite.TASK_STATE_FILE),"Waiting for the task to enter running state");
+    //Ensure that the SleepingTask is running
+    AssertWithBackoff.create().maxSleepMs(100).timeoutMs(2000).backoffFactor(1).
+        assertTrue(isTaskRunning(IntegrationJobCancelSuite.TASK_STATE_FILE),"Waiting for the task to enter running state");
 
     log.info("Stopping the job");
     taskDriver.stop(IntegrationJobCancelSuite.JOB_ID);
@@ -132,12 +131,11 @@ public class ClusterIntegrationTest {
 
     helixManager.connect();
 
-    AssertWithBackoff asserter1 = AssertWithBackoff.create().timeoutMs(30000).maxSleepMs(1000).backoffFactor(1);
-    asserter1.assertTrue(isTaskStarted(helixManager, IntegrationJobRestartViaSpecSuite.JOB_ID),
-        "Waiting for the job to start...");
+    AssertWithBackoff.create().timeoutMs(30000).maxSleepMs(1000).backoffFactor(1).
+        assertTrue(isTaskStarted(helixManager, IntegrationJobRestartViaSpecSuite.JOB_ID), "Waiting for the job to start...");
 
-    AssertWithBackoff asserter2 = AssertWithBackoff.create().maxSleepMs(100).timeoutMs(2000).backoffFactor(1);
-    asserter2.assertTrue(isTaskRunning(IntegrationJobRestartViaSpecSuite.TASK_STATE_FILE),"Waiting for the task to enter running state");
+    AssertWithBackoff.create().maxSleepMs(100).timeoutMs(2000).backoffFactor(1).
+        assertTrue(isTaskRunning(IntegrationJobRestartViaSpecSuite.TASK_STATE_FILE), "Waiting for the task to enter running state");
 
     ZkClient zkClient = new ZkClient(this.zkConnectString);
     PathBasedZkSerializer zkSerializer = ChainedPathZkSerializer.builder(new ZNRecordStreamingSerializer()).build();
@@ -154,8 +152,7 @@ public class ClusterIntegrationTest {
     //Add a JobSpec with UPDATE verb signalling the Helix cluster to restart the workflow
     restartViaSpecSuite.addJobSpec(IntegrationJobRestartViaSpecSuite.JOB_ID, SpecExecutor.Verb.UPDATE.name());
 
-    AssertWithBackoff asserter3 = AssertWithBackoff.create().maxSleepMs(1000).timeoutMs(5000).backoffFactor(1);
-    asserter3.assertTrue(input -> {
+    AssertWithBackoff.create().maxSleepMs(1000).timeoutMs(5000).backoffFactor(1).assertTrue(input -> {
       //Inspect the zNode at the path corresponding to the Workflow resource. Ensure the target state of the resource is in
       // the STOP state or that the zNode has been deleted.
       ZNRecord recordNew = zkClient.readData(zNodePath, true);
@@ -170,8 +167,7 @@ public class ClusterIntegrationTest {
     // that the line "Hello World!" is not present in the logged output.
     suite.waitForAndVerifyOutputFiles();
 
-    AssertWithBackoff asserter4 = AssertWithBackoff.create().maxSleepMs(1000).timeoutMs(120000).backoffFactor(1);
-    asserter4.assertTrue(input -> {
+    AssertWithBackoff.create().maxSleepMs(1000).timeoutMs(120000).backoffFactor(1).assertTrue(input -> {
       //Inspect the zNode at the path corresponding to the Workflow resource. Ensure the target state of the resource is in
       // the START state.
       ZNRecord recordNew = zkClient.readData(zNodePath, true);
@@ -190,13 +186,8 @@ public class ClusterIntegrationTest {
 
   private Predicate<Void> isTaskRunning(String taskStateFileName) {
     return input -> {
-      try {
-        FileSystem fs = FileSystem.getLocal(new Configuration());
-        return fs.exists(new Path(taskStateFileName));
-      } catch (IOException e) {
-        log.error("Error when creating filesystem", e);
-        return false;
-      }
+      File taskStateFile = new File(taskStateFileName);
+      return taskStateFile.exists();
     };
   }
 
