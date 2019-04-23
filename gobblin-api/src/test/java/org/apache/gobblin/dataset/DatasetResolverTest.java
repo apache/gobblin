@@ -27,27 +27,27 @@ public class DatasetResolverTest {
 
   @Test
   public void testAsDescriptorResolver() {
-    DescriptorResolver resolver = new TestDatasetResolver();
+    DescriptorResolver resolver = new TestDescriptorResolver();
     State state = new State();
 
     // Test dataset descriptor
     DatasetDescriptor dataset = new DatasetDescriptor("hdfs", "/data/tracking/PageViewEvent");
     Descriptor descriptor = resolver.resolve(dataset, state);
     Assert.assertTrue(descriptor.getClass().isAssignableFrom(DatasetDescriptor.class));
-    Assert.assertEquals(descriptor.getName(), TestDatasetResolver.DATASET_NAME);
+    Assert.assertEquals(descriptor.getName(), TestDescriptorResolver.DATASET_NAME);
 
     // Test partition descriptor
     String partitionName = "hourly/2018/08/14/18";
     PartitionDescriptor partition = new PartitionDescriptor(partitionName, dataset);
     descriptor = resolver.resolve(partition, state);
     Assert.assertTrue(descriptor.getClass().isAssignableFrom(DatasetDescriptor.class));
-    Assert.assertEquals(descriptor.getName(), TestDatasetResolver.DATASET_NAME);
+    Assert.assertEquals(descriptor.getName(), TestDescriptorResolver.DATASET_NAME);
 
     // Test unsupported descriptor
     Assert.assertEquals(resolver.resolve(new MockDescriptor("test"), state), null);
   }
 
-  private static class TestDatasetResolver implements DatasetResolver {
+  private static class TestDescriptorResolver implements DescriptorResolver {
     static final String DATASET_NAME = "TEST";
 
     @Override

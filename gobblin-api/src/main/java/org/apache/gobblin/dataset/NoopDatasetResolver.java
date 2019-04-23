@@ -21,9 +21,9 @@ import org.apache.gobblin.configuration.State;
 
 
 /**
- * The default {@link DatasetResolver} that directly uses Gobblin raw dataset as job dataset
+ * The default {@link DescriptorResolver} that directly uses Gobblin raw dataset as job dataset
  */
-public class NoopDatasetResolver implements DatasetResolver {
+public class NoopDatasetResolver implements DescriptorResolver {
   public static final NoopDatasetResolver INSTANCE = new NoopDatasetResolver();
   public static final String FACTORY = "NOOP";
 
@@ -31,11 +31,6 @@ public class NoopDatasetResolver implements DatasetResolver {
 
   @Override
   public DatasetDescriptor resolve(DatasetDescriptor raw, State state) {
-    return raw;
-  }
-
-  @Override
-  public Descriptor resolve(Descriptor raw, State state) {
     return raw;
   }
 }

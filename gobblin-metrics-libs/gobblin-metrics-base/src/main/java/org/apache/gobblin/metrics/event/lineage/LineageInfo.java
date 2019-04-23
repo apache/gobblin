@@ -44,12 +44,7 @@ import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import org.apache.gobblin.broker.iface.NotConfiguredException;
 import org.apache.gobblin.broker.iface.SharedResourcesBroker;
 import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.dataset.DatasetDescriptor;
-import org.apache.gobblin.dataset.DatasetResolver;
-import org.apache.gobblin.dataset.DatasetResolverFactory;
-import org.apache.gobblin.dataset.Descriptor;
-import org.apache.gobblin.dataset.DescriptorResolver;
-import org.apache.gobblin.dataset.NoopDatasetResolver;
+import org.apache.gobblin.dataset.*;
 import org.apache.gobblin.metrics.broker.LineageInfoFactory;
 import org.apache.gobblin.util.ConfigUtils;
 
@@ -273,9 +268,9 @@ public final class LineageInfo {
   }
 
   /**
-   * Get the configured {@link DatasetResolver} from {@link State}
+   * Get the configured {@link DescriptorResolver} from {@link State}
    */
-  public static DatasetResolver getResolver(Config config) {
+  public static DescriptorResolver getResolver(Config config) {
     // ConfigException.Missing will throw if DATASET_RESOLVER_FACTORY is absent
     String resolverFactory = config.getString(DATASET_RESOLVER_FACTORY);
 
@@ -283,12 +278,12 @@ public final class LineageInfo {
       return NoopDatasetResolver.INSTANCE;
     }
 
-    DatasetResolver resolver = NoopDatasetResolver.INSTANCE;
+    DescriptorResolver resolver = NoopDatasetResolver.INSTANCE;
     try {
-      DatasetResolverFactory factory = (DatasetResolverFactory) Class.forName(resolverFactory).newInstance();
+      DescriptorResolverFactory factory = (DescriptorResolverFactory) Class.forName(resolverFactory).newInstance();
       resolver = factory.createResolver(ConfigUtils.getConfigOrEmpty(config, DATASET_RESOLVER_CONFIG_NAMESPACE));
     } catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
-      log.error(String.format("Fail to create a DatasetResolver with factory class %s", resolverFactory));
+      log.error(String.format("Fail to create a DescriptorResolver with factory class %s", resolverFactory));
     }
 
     return resolver;
