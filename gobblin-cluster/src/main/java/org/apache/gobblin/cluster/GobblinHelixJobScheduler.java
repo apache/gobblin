@@ -30,6 +30,7 @@ import java.util.concurrent.locks.Lock;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.helix.HelixManager;
+import org.apache.helix.task.TaskDriver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,6 +39,7 @@ import com.google.common.collect.Maps;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 import com.google.common.util.concurrent.Striped;
+import com.typesafe.config.Config;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.cluster.event.DeleteJobConfigArrivalEvent;
@@ -96,6 +98,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
   final Striped<Lock> locks = Striped.lazyWeakLock(256);
 
   private boolean startServicesCompleted;
+  private final long helixJobStopTimeoutMillis;
 
   public GobblinHelixJobScheduler(Properties properties,
                                   HelixManager jobHelixManager,
@@ -116,7 +119,8 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     this.jobCatalog = jobCatalog;
     this.metricContext = Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(properties), this.getClass());
 
-    int metricsWindowSizeInMin = ConfigUtils.getInt(ConfigUtils.propertiesToConfig(this.properties),
+    Config jobConfig = ConfigUtils.propertiesToConfig(this.properties);
+    int metricsWindowSizeInMin = ConfigUtils.getInt(jobConfig,
                                                     ConfigurationKeys.METRIC_TIMER_WINDOW_SIZE_IN_MINUTES,
                                                     ConfigurationKeys.DEFAULT_METRIC_TIMER_WINDOW_SIZE_IN_MINUTES);
 
@@ -141,6 +145,9 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
                                                   metricsWindowSizeInMin);
 
     this.startServicesCompleted = false;
+
+    this.helixJobStopTimeoutMillis = ConfigUtils.getLong(jobConfig, GobblinClusterConfigurationKeys.HELIX_JOB_STOP_TIMEOUT_SECONDS,
+        GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_STOP_TIMEOUT_SECONDS) * 1000;
   }
 
   @Override
@@ -315,6 +322,10 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     } catch (Exception je) {
       LOGGER.error("Failed to update job " + updateJobArrival.getJobName(), je);
     }
+
+    //Wait until the cancelled job is complete.
+    waitForJobCompletion(updateJobArrival.getJobName());
+
     try {
       handleNewJobConfigArrival(new NewJobConfigArrivalEvent(updateJobArrival.getJobName(),
           updateJobArrival.getJobConfig()));
@@ -323,16 +334,38 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     }
   }
 
+  private void waitForJobCompletion(String jobName) {
+    while (this.jobRunningMap.getOrDefault(jobName, false) != false) {
+      LOGGER.info("Waiting for job {} to stop...", jobName);
+      try {
+        Thread.sleep(1000);
+      } catch (InterruptedException e) {
+        LOGGER.warn("Interrupted exception encountered: ", e);
+      }
+    }
+  }
+
   @Subscribe
-  public void handleDeleteJobConfigArrival(DeleteJobConfigArrivalEvent deleteJobArrival) {
+  public void handleDeleteJobConfigArrival(DeleteJobConfigArrivalEvent deleteJobArrival) throws InterruptedException {
     LOGGER.info("Received delete for job configuration of job " + deleteJobArrival.getJobName());
     try {
       unscheduleJob(deleteJobArrival.getJobName());
+      cancelJobIfRequired(deleteJobArrival);
     } catch (JobException je) {
       LOGGER.error("Failed to unschedule job " + deleteJobArrival.getJobName());
     }
   }
 
+  private void cancelJobIfRequired(DeleteJobConfigArrivalEvent deleteJobArrival) throws InterruptedException {
+    Properties jobConfig = deleteJobArrival.getJobConfig();
+    if (PropertiesUtils.getPropAsBoolean(jobConfig, GobblinClusterConfigurationKeys.CANCEL_RUNNING_JOB_ON_DELETE,
+        GobblinClusterConfigurationKeys.DEFAULT_CANCEL_RUNNING_JOB_ON_DELETE)) {
+      LOGGER.info("Cancelling workflow: {}", deleteJobArrival.getJobName());
+      TaskDriver taskDriver = new TaskDriver(this.jobHelixManager);
+      taskDriver.waitToStop(deleteJobArrival.getJobName(), this.helixJobStopTimeoutMillis);
+      LOGGER.info("Stopped workflow: {}", deleteJobArrival.getJobName());
+    }
+  }
   /**
    * This class is responsible for running non-scheduled jobs.
    */

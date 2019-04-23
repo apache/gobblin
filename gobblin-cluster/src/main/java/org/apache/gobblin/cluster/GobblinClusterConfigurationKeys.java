@@ -159,4 +159,6 @@ public class GobblinClusterConfigurationKeys {
   public static final String KILL_DUPLICATE_PLANNING_JOB = GOBBLIN_CLUSTER_PREFIX + "kill.duplicate.planningJob";
   public static final boolean DEFAULT_KILL_DUPLICATE_PLANNING_JOB = true;
 
+  public static final String CANCEL_RUNNING_JOB_ON_DELETE = GOBBLIN_CLUSTER_PREFIX + "job.cancelRunningJobOnDelete";
+  public static final String DEFAULT_CANCEL_RUNNING_JOB_ON_DELETE = "false";
 }

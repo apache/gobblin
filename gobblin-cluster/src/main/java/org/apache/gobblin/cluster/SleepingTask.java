@@ -17,24 +17,52 @@
 
 package org.apache.gobblin.cluster;
 
-import avro.shaded.com.google.common.base.Throwables;
+import java.io.File;
+import java.io.IOException;
+
+import com.google.common.base.Throwables;
+import com.google.common.io.Files;
+
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.runtime.TaskContext;
+import org.apache.gobblin.runtime.TaskState;
 import org.apache.gobblin.runtime.task.BaseAbstractTask;
 
 @Slf4j
 public class SleepingTask extends BaseAbstractTask {
+  public static final String TASK_STATE_FILE_KEY = "task.state.file.path";
+
   private final long sleepTime;
+  private File taskStateFile;
 
   public SleepingTask(TaskContext taskContext) {
     super(taskContext);
-    sleepTime = taskContext.getTaskState().getPropAsLong("data.publisher.sleep.time.in.seconds", 10L);
+    TaskState taskState = taskContext.getTaskState();
+    sleepTime = taskState.getPropAsLong("data.publisher.sleep.time.in.seconds", 10L);
+    taskStateFile = new File(taskState.getProp(TASK_STATE_FILE_KEY));
+    try {
+      if (taskStateFile.exists()) {
+        if (!taskStateFile.delete()) {
+          log.error("Unable to delete {}", taskStateFile);
+          throw new IOException("File Delete Exception");
+        }
+      } else {
+        Files.createParentDirs(taskStateFile);
+      }
+    } catch (IOException e) {
+      log.error("Unable to create directory: ", taskStateFile.getParent());
+      Throwables.propagate(e);
+    }
+    taskStateFile.deleteOnExit();
   }
 
   @Override
   public void run() {
     try {
+      if (!taskStateFile.createNewFile()) {
+        throw new IOException("File creation error: " + taskStateFile.getName());
+      }
       long endTime = System.currentTimeMillis() + sleepTime * 1000;
       while (System.currentTimeMillis() <= endTime) {
         Thread.sleep(1000L);
@@ -45,6 +73,9 @@ public class SleepingTask extends BaseAbstractTask {
     } catch (InterruptedException e) {
       log.error("Sleep interrupted.");
       Thread.currentThread().interrupt();
+      Throwables.propagate(e);
+    } catch (IOException e) {
+      log.error("IOException encountered when creating {}", taskStateFile.getName(), e);
       Throwables.propagate(e);
     }
   }

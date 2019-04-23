@@ -20,6 +20,8 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -62,7 +64,9 @@ public class FsSpecConsumer implements SpecConsumer<Spec> {
     }
   }
 
-  /** List of newly changed {@link Spec}s for execution on {@link SpecExecutor}. */
+  /** List of newly changed {@link Spec}s for execution on {@link SpecExecutor}.
+   * The {@link Spec}s are returned in the increasing order of their modification times.
+   */
   @Override
   public Future<? extends List<Pair<SpecExecutor.Verb, Spec>>> changedSpecs() {
     List<Pair<SpecExecutor.Verb, Spec>> specList = new ArrayList<>();
@@ -73,6 +77,11 @@ public class FsSpecConsumer implements SpecConsumer<Spec> {
       log.error("Error when listing files at path: {}", this.specDirPath.toString(), e);
       return null;
     }
+
+    //Sort the {@link JobSpec}s in increasing order of their modification times.
+    //This is done so that the {JobSpec}s can be handled in FIFO order by the
+    //JobConfigurationManager and eventually, the GobblinHelixJobScheduler.
+    Arrays.sort(fileStatuses, Comparator.comparingLong(FileStatus::getModificationTime));
 
     for (FileStatus fileStatus : fileStatuses) {
       DataFileReader<AvroJobSpec> dataFileReader;

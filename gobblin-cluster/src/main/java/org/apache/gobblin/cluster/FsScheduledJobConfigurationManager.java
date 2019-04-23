@@ -18,7 +18,6 @@ package org.apache.gobblin.cluster;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 
 import org.apache.commons.lang3.tuple.Pair;
@@ -31,7 +30,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.runtime.api.FsSpecConsumer;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
-import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecExecutor;
 
 
@@ -53,27 +51,31 @@ public class FsScheduledJobConfigurationManager extends ScheduledJobConfiguratio
 
   @Override
   protected void fetchJobSpecs() throws ExecutionException, InterruptedException {
-    List<Pair<SpecExecutor.Verb, Spec>> jobSpecs =
-        (List<Pair<SpecExecutor.Verb, Spec>>) this._specConsumer.changedSpecs().get();
+    List<Pair<SpecExecutor.Verb, JobSpec>> jobSpecs =
+        (List<Pair<SpecExecutor.Verb, JobSpec>>) this._specConsumer.changedSpecs().get();
 
-    for (Pair<SpecExecutor.Verb, Spec> entry : jobSpecs) {
-      Spec spec = entry.getValue();
+    for (Pair<SpecExecutor.Verb, JobSpec> entry : jobSpecs) {
+      JobSpec jobSpec = entry.getValue();
       SpecExecutor.Verb verb = entry.getKey();
-      if (verb.equals(SpecExecutor.Verb.ADD) || verb.equals(SpecExecutor.Verb.UPDATE)) {
+      if (verb.equals(SpecExecutor.Verb.ADD)) {
         // Handle addition
-        JobSpec jobSpec = (JobSpec) spec;
         this._jobCatalog.put(jobSpec);
         postNewJobConfigArrival(jobSpec.getUri().toString(), jobSpec.getConfigAsProperties());
+      } else if (verb.equals(SpecExecutor.Verb.UPDATE)) {
+        //Handle update.
+        //Overwrite the jobSpec in the jobCatalog and post an UpdateJobConfigArrivalEvent.
+        this._jobCatalog.put(jobSpec);
+        postUpdateJobConfigArrival(jobSpec.getUri().toString(), jobSpec.getConfigAsProperties());
       } else if (verb.equals(SpecExecutor.Verb.DELETE)) {
         // Handle delete
-        this._jobCatalog.remove(spec.getUri());
-        postDeleteJobConfigArrival(spec.getUri().toString(), new Properties());
+        this._jobCatalog.remove(jobSpec.getUri());
+        postDeleteJobConfigArrival(jobSpec.getUri().toString(), jobSpec.getConfigAsProperties());
       }
 
       try {
         //Acknowledge the successful consumption of the JobSpec back to the SpecConsumer, so that the
         //SpecConsumer can delete the JobSpec.
-        this._specConsumer.commit(spec);
+        this._specConsumer.commit(jobSpec);
       } catch (IOException e) {
         log.error("Error when committing to FsSpecConsumer: ", e);
       }
