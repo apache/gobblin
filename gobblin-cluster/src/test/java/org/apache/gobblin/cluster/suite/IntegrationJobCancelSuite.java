@@ -26,11 +26,13 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
+import org.apache.gobblin.cluster.SleepingTask;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 
 
 public class IntegrationJobCancelSuite extends IntegrationBasicSuite {
   public static final String JOB_ID = "job_HelloWorldTestJob_1234";
+  public static final String TASK_STATE_FILE = "/tmp/IntegrationJobCancelSuite/taskState/_RUNNING";
 
   @Override
   protected Map<String, Config> overrideJobConfigs(Config rawJobConfig) {
@@ -38,7 +40,7 @@ public class IntegrationJobCancelSuite extends IntegrationBasicSuite {
         ConfigurationKeys.SOURCE_CLASS_KEY, "org.apache.gobblin.cluster.SleepingCustomTaskSource",
         ConfigurationKeys.JOB_ID_KEY, JOB_ID,
         GobblinClusterConfigurationKeys.HELIX_JOB_TIMEOUT_ENABLED_KEY, Boolean.TRUE,
-        GobblinClusterConfigurationKeys.HELIX_JOB_TIMEOUT_SECONDS, 10L))
+        GobblinClusterConfigurationKeys.HELIX_JOB_TIMEOUT_SECONDS, 10L, SleepingTask.TASK_STATE_FILE_KEY, TASK_STATE_FILE))
         .withFallback(rawJobConfig);
     return ImmutableMap.of("HelloWorldJob", newConfig);
   }

@@ -211,25 +211,10 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
 
         this.nextWatermark.set(this.currentPartitionIdx, nextValidMessage.getNextOffset());
         try {
-          D record = null;
           // track time for decode/convert depending on the record type
           long decodeStartTime = System.nanoTime();
 
-          if (nextValidMessage instanceof ByteArrayBasedKafkaRecord) {
-            record = decodeRecord((ByteArrayBasedKafkaRecord)nextValidMessage);
-          } else if (nextValidMessage instanceof DecodeableKafkaRecord){
-            // if value is null then this is a bad record that is returned for further error handling, so raise an error
-            if (((DecodeableKafkaRecord) nextValidMessage).getValue() == null) {
-              throw new DataRecordException("Could not decode Kafka record");
-            }
-
-            // get value from decodeable record and convert to the output schema if necessary
-            record = convertRecord(((DecodeableKafkaRecord<?, D>) nextValidMessage).getValue());
-          } else {
-            throw new IllegalStateException(
-                "Unsupported KafkaConsumerRecord type. The returned record can either be ByteArrayBasedKafkaRecord"
-                    + " or DecodeableKafkaRecord");
-          }
+          D record = decodeKafkaMessage(nextValidMessage);
 
           this.currentPartitionDecodeRecordTime += System.nanoTime() - decodeStartTime;
           this.currentPartitionRecordCount++;
@@ -251,6 +236,29 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
 
     this.currentPartitionReadRecordTime += System.nanoTime() - readStartTime;
     return null;
+  }
+
+  protected D decodeKafkaMessage(KafkaConsumerRecord message) throws DataRecordException, IOException {
+
+    D record = null;
+
+    if (message instanceof ByteArrayBasedKafkaRecord) {
+      record = decodeRecord((ByteArrayBasedKafkaRecord)message);
+    } else if (message instanceof DecodeableKafkaRecord){
+      // if value is null then this is a bad record that is returned for further error handling, so raise an error
+      if (((DecodeableKafkaRecord) message).getValue() == null) {
+        throw new DataRecordException("Could not decode Kafka record");
+      }
+
+      // get value from decodeable record and convert to the output schema if necessary
+      record = convertRecord(((DecodeableKafkaRecord<?, D>) message).getValue());
+    } else {
+      throw new IllegalStateException(
+          "Unsupported KafkaConsumerRecord type. The returned record can either be ByteArrayBasedKafkaRecord"
+              + " or DecodeableKafkaRecord");
+    }
+
+    return record;
   }
 
   @Override

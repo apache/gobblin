@@ -79,15 +79,15 @@ public class GobblinApplicationMaster extends GobblinClusterManager {
     GobblinYarnLogSource gobblinYarnLogSource = new GobblinYarnLogSource();
     if (gobblinYarnLogSource.isLogSourcePresent()) {
       this.applicationLauncher
-          .addService(gobblinYarnLogSource.buildLogCopier(config, containerId, this.fs, this.appWorkDir));
+          .addService(gobblinYarnLogSource.buildLogCopier(this.config, containerId, this.fs, this.appWorkDir));
     }
 
     this.applicationLauncher
-        .addService(buildYarnService(config, applicationName, this.applicationId, yarnConfiguration, this.fs));
+        .addService(buildYarnService(this.config, applicationName, this.applicationId, yarnConfiguration, this.fs));
 
     if (UserGroupInformation.isSecurityEnabled()) {
       LOGGER.info("Adding YarnContainerSecurityManager since security is enabled");
-      this.applicationLauncher.addService(buildYarnContainerSecurityManager(config, this.fs));
+      this.applicationLauncher.addService(buildYarnContainerSecurityManager(this.config, this.fs));
     }
   }
 

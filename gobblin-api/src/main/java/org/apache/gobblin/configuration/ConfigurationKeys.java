@@ -539,6 +539,7 @@ public class ConfigurationKeys {
    * Configuration properties used by the CopySource.
    */
   public static final String COPY_SOURCE_FILESET_WU_GENERATOR_CLASS = "copy.source.fileset.wu.generator.class";
+  public static final String COPY_EXPECTED_SCHEMA = "gobblin.copy.expectedSchema";
 
   /**
    * Configuration properties used by the FileBasedExtractor

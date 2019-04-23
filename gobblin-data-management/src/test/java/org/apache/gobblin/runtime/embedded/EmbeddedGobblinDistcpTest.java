@@ -20,14 +20,26 @@ package org.apache.gobblin.runtime.embedded;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.converter.GobblinMetricsPinotFlattenerConverter;
 import org.apache.gobblin.data.management.copy.CopyConfiguration;
+import org.apache.gobblin.data.management.copy.SchemaCheckedCopySource;
+import org.apache.gobblin.data.management.copy.extractor.FileAwareInputStreamExtractorWithCheckSchema;
+import org.apache.gobblin.runtime.api.JobExecutionResult;
 import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.filesystem.DataFileVersionStrategy;
+
+import org.apache.avro.Schema;
+import org.apache.avro.file.DataFileWriter;
+import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericDatumWriter;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
@@ -69,6 +81,58 @@ public class EmbeddedGobblinDistcpTest {
 
     Assert.assertTrue(new File(tmpSource, fileName).exists());
     Assert.assertTrue(new File(tmpTarget, fileName).exists());
+  }
+
+  @Test
+  public void testCheckSchema() throws Exception {
+    Schema schema = null;
+    try (InputStream is = GobblinMetricsPinotFlattenerConverter.class.getClassLoader().getResourceAsStream("avroSchemaManagerTest/expectedSchema.avsc")) {
+      schema = new Schema.Parser().parse(is);
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+    String fileName = "file.avro";
+
+    File tmpSource = Files.createTempDir();
+    tmpSource.deleteOnExit();
+    File tmpTarget = Files.createTempDir();
+    tmpTarget.deleteOnExit();
+
+    File tmpFile = new File(tmpSource, fileName);
+    tmpFile.createNewFile();
+
+    GenericDatumWriter<GenericRecord> datumWriter = new
+        GenericDatumWriter<>(schema);
+    DataFileWriter<GenericRecord> dataFileWriter = new DataFileWriter<>(datumWriter);
+    dataFileWriter.create(schema, tmpFile);
+    for(int i = 0; i < 100; i++) {
+      GenericRecord record = new GenericData.Record(schema);
+      record.put("foo", i);
+      dataFileWriter.append(record);
+    }
+
+    Assert.assertTrue(new File(tmpSource, fileName).exists());
+    Assert.assertFalse(new File(tmpTarget, fileName).exists());
+
+    EmbeddedGobblinDistcp embedded = new EmbeddedGobblinDistcp(new Path(tmpSource.getAbsolutePath()),
+        new Path(tmpTarget.getAbsolutePath()));
+    embedded.setLaunchTimeout(30, TimeUnit.SECONDS);
+    embedded.setConfiguration(ConfigurationKeys.SOURCE_CLASS_KEY, SchemaCheckedCopySource.class.getName());
+    //test when schema is not the expected one, the job will be aborted.
+    embedded.setConfiguration(ConfigurationKeys.COPY_EXPECTED_SCHEMA, "{\"type\":\"record\",\"name\":\"baseRecord\",\"fields\":[{\"name\":\"foo1\",\"type\":[\"null\",\"int\"],\"default\":null}]}");
+    JobExecutionResult result = embedded.run();
+    Assert.assertTrue(new File(tmpSource, fileName).exists());
+    Assert.assertFalse(result.isSuccessful());
+    Assert.assertFalse(new File(tmpTarget, fileName).exists());
+
+    //test when schema is the expected one, the job will succeed.
+    embedded.setConfiguration(ConfigurationKeys.COPY_EXPECTED_SCHEMA, "{\"type\":\"record\",\"name\":\"baseRecord\",\"fields\":[{\"name\":\"foo\",\"type\":[\"null\",\"int\"],\"default\":null}]}");
+    result = embedded.run();
+    Assert.assertTrue(result.isSuccessful());
+    Assert.assertTrue(new File(tmpSource, fileName).exists());
+    Assert.assertTrue(new File(tmpTarget, fileName).exists());
+
+
   }
 
   @Test

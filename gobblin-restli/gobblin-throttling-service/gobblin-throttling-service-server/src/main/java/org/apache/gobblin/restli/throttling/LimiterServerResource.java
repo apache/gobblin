@@ -102,6 +102,7 @@ public class LimiterServerResource extends ComplexKeyResourceAsyncTemplate<Permi
       ComplexResourceKey<PermitRequest, EmptyRecord> key,
       @CallbackParam final Callback<PermitAllocation> callback) {
     try (Closeable context = this.requestTimer == null ? NoopCloseable.INSTANCE : this.requestTimer.time()) {
+      long startNanos = System.nanoTime();
 
       PermitRequest request = key.getKey();
       String resourceId = request.getResource();
@@ -145,6 +146,8 @@ public class LimiterServerResource extends ComplexKeyResourceAsyncTemplate<Permi
         }
 
         permitsGrantedMeter.mark(allocation.getPermits());
+
+        log.debug("Request: {}, allocation: {}, elapsedTime: {} ns", request, allocation, System.nanoTime() - startNanos);
 
         callback.onSuccess(allocation);
       }

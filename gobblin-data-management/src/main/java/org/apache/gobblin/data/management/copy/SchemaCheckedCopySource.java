@@ -15,28 +15,26 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.runtime.api;
+package org.apache.gobblin.data.management.copy;
 
 import java.io.IOException;
-import java.util.List;
-import java.util.concurrent.Future;
-import org.apache.commons.lang3.tuple.Pair;
+
+import org.apache.hadoop.fs.FileSystem;
+
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.data.management.copy.extractor.FileAwareInputStreamExtractorWithCheckSchema;
+import org.apache.gobblin.source.extractor.Extractor;
 
 
 /**
- * A communication socket (receiving side for this class)
- * for each {@link SpecExecutor} to receive spec to execute from Orchestrator.
- * Implementation of this interface should specify communication channel (e.g. Kafka, REST, etc.)
+ * Used instead of {@link CopySource} for {@link FileSystem}s that need to check the schema
+ * during the process of data deployment.
  */
-public interface SpecConsumer<V>  {
-
-  /** List of newly changed {@link Spec}s for execution on {@link SpecExecutor}. */
-  Future<? extends List<Pair<SpecExecutor.Verb, V>>> changedSpecs();
-
-  /**
-   * A commit method to allow the consumer to checkpoint state on successful consumption of a {@link Spec}.
-   */
-  default void commit(Spec spec) throws IOException {
-    return;
+public class SchemaCheckedCopySource extends CopySource {
+  @Override
+  protected Extractor<String, FileAwareInputStream> extractorForCopyableFile(FileSystem fs, CopyableFile cf,
+      WorkUnitState state)
+      throws IOException {
+    return new FileAwareInputStreamExtractorWithCheckSchema(fs, cf, state);
   }
 }

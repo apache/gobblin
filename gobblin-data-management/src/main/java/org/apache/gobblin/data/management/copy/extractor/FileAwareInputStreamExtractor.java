@@ -48,11 +48,11 @@ import org.apache.gobblin.util.io.MeteredInputStream;
  */
 public class FileAwareInputStreamExtractor implements Extractor<String, FileAwareInputStream> {
 
-  private final FileSystem fs;
-  private final CopyableFile file;
-  private final WorkUnitState state;
+  protected final FileSystem fs;
+  protected final CopyableFile file;
+  protected final WorkUnitState state;
   /** True indicates the unique record has already been read. */
-  private boolean recordRead;
+  protected boolean recordRead;
 
   public FileAwareInputStreamExtractor(FileSystem fs, CopyableFile file, WorkUnitState state) {
     this.fs = fs;
@@ -83,24 +83,29 @@ public class FileAwareInputStreamExtractor implements Extractor<String, FileAwar
       Configuration conf =
           this.state == null ? HadoopUtils.newConfiguration() : HadoopUtils.getConfFromState(this.state);
       FileSystem fsFromFile = this.file.getOrigin().getPath().getFileSystem(conf);
-      this.recordRead = true;
-      FileAwareInputStream.FileAwareInputStreamBuilder builder = FileAwareInputStream.builder().file(this.file);
-      if (this.file.getFileStatus().isDirectory()) {
-        return builder.inputStream(EmptyInputStream.instance).build();
-      }
-
-      FSDataInputStream dataInputStream = fsFromFile.open(this.file.getFileStatus().getPath());
-      if (this.state != null && DistcpFileSplitter.isSplitWorkUnit(this.state)) {
-        Optional<DistcpFileSplitter.Split> split = DistcpFileSplitter.getSplit(this.state);
-        builder.split(split);
-        if (split.isPresent()) {
-          dataInputStream.seek(split.get().getLowPosition());
-        }
-      }
-      builder.inputStream(MeteredInputStream.builder().in(dataInputStream).build());
-      return builder.build();
+      return buildStream(fsFromFile);
     }
     return null;
+  }
+
+  protected FileAwareInputStream buildStream(FileSystem fsFromFile)
+      throws DataRecordException, IOException{
+    this.recordRead = true;
+    FileAwareInputStream.FileAwareInputStreamBuilder builder = FileAwareInputStream.builder().file(this.file);
+    if (this.file.getFileStatus().isDirectory()) {
+      return builder.inputStream(EmptyInputStream.instance).build();
+    }
+
+    FSDataInputStream dataInputStream = fsFromFile.open(this.file.getFileStatus().getPath());
+    if (this.state != null && DistcpFileSplitter.isSplitWorkUnit(this.state)) {
+      Optional<DistcpFileSplitter.Split> split = DistcpFileSplitter.getSplit(this.state);
+      builder.split(split);
+      if (split.isPresent()) {
+        dataInputStream.seek(split.get().getLowPosition());
+      }
+    }
+    builder.inputStream(MeteredInputStream.builder().in(dataInputStream).build());
+    return builder.build();
   }
 
   /**

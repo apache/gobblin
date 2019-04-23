@@ -55,6 +55,7 @@ import org.apache.gobblin.data.management.copy.extractor.EmptyExtractor;
 import org.apache.gobblin.data.management.copy.extractor.FileAwareInputStreamExtractor;
 import org.apache.gobblin.data.management.copy.prioritization.FileSetComparator;
 import org.apache.gobblin.data.management.copy.publisher.CopyEventSubmitterHelper;
+import org.apache.gobblin.data.management.copy.replication.ConfigBasedDataset;
 import org.apache.gobblin.data.management.copy.splitter.DistcpFileSplitter;
 import org.apache.gobblin.data.management.copy.watermark.CopyableFileWatermarkGenerator;
 import org.apache.gobblin.data.management.copy.watermark.CopyableFileWatermarkHelper;
@@ -357,6 +358,9 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
           WorkUnit workUnit = new WorkUnit(extract);
           workUnit.addAll(this.state);
+          if(this.copyableDataset instanceof ConfigBasedDataset && ((ConfigBasedDataset)this.copyableDataset).getExpectedSchema() != null) {
+            workUnit.setProp(ConfigurationKeys.COPY_EXPECTED_SCHEMA, ((ConfigBasedDataset)this.copyableDataset).getExpectedSchema());
+          }
           serializeCopyEntity(workUnit, copyEntity);
           serializeCopyableDataset(workUnit, metadata);
           GobblinMetrics.addCustomTagToState(workUnit,
