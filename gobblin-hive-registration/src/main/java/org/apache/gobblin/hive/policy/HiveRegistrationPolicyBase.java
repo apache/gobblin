@@ -360,11 +360,7 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
     }
 
     // Setting table-level props.
-    State tableProps = new State(this.props.getTablePartitionProps());
-    if (this.props.getRuntimeTableProps().isPresent()){
-      tableProps.setProp(HiveMetaStoreUtils.RUNTIME_PROPS, this.props.getRuntimeTableProps().get());
-    }
-    table.setProps(tableProps);
+    table.setProps(getRuntimePropsEnrichedTblProps());
 
     table.setStorageProps(this.props.getStorageProps());
     table.setSerDeProps(this.props.getSerdeProps());
@@ -372,6 +368,18 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
     table.setBucketColumns(Lists.<String> newArrayList());
     table.setTableType(TableType.EXTERNAL_TABLE.toString());
     return table;
+  }
+
+  /**
+   * Enrich the table-level properties with properties carried over from ingestion runtime.
+   * Extend this class to add more runtime properties if required.
+   */
+  protected State getRuntimePropsEnrichedTblProps() {
+    State tableProps = new State(this.props.getTablePartitionProps());
+    if (this.props.getRuntimeTableProps().isPresent()){
+      tableProps.setProp(HiveMetaStoreUtils.RUNTIME_PROPS, this.props.getRuntimeTableProps().get());
+    }
+    return tableProps;
   }
 
   protected Optional<HivePartition> getPartition(Path path, HiveTable table) throws IOException {
