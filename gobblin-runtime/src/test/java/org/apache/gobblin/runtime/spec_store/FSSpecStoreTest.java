@@ -41,7 +41,7 @@ import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import static org.apache.gobblin.spec_catalog.FlowCatalogTest.*;
+import static org.apache.gobblin.runtime.spec_catalog.FlowCatalogTest.*;
 
 
 public class FSSpecStoreTest {

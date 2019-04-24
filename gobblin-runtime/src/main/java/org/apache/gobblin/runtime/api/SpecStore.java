@@ -109,7 +109,7 @@ public interface SpecStore {
   Collection<Spec> getSpecs() throws IOException;
 
   /**
-   * Return an iterator of Spec's URI(Spec's identifier)
+   * Return an iterator of Spec URIs(Spec identifiers)
    */
   Iterator<URI> getSpecURIs() throws IOException;
 

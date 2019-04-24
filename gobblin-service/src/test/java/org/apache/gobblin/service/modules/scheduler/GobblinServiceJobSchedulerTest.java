@@ -17,12 +17,16 @@
 package org.apache.gobblin.service.modules.scheduler;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Predicate;
 import com.google.common.io.Files;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 import java.io.File;
 import java.net.URI;
+import java.util.Map;
 import java.util.Properties;
-
-import java.util.concurrent.TimeUnit;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
 import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
@@ -30,18 +34,11 @@ import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
 import org.apache.gobblin.scheduler.SchedulerService;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
-import org.apache.gobblin.spec_catalog.FlowCatalogTest;
+import org.apache.gobblin.runtime.spec_catalog.FlowCatalogTest;
+import org.apache.gobblin.testing.AssertWithBackoff;
 import org.apache.gobblin.util.ConfigUtils;
-import org.apache.helix.HelixManager;
-import org.slf4j.Logger;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
-
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.runtime.api.FlowSpec;
 
 
 public class GobblinServiceJobSchedulerTest {
@@ -79,12 +76,20 @@ public class GobblinServiceJobSchedulerTest {
         ConfigFactory.empty(), Optional.of(flowCatalog), null, null, null);
 
     scheduler.setActive(true);
-    scheduler.getFlowSpecInitFinished().await(2000, TimeUnit.MILLISECONDS);
 
-    // Verify if flowSpecs are loaded.
-    Assert.assertEquals(scheduler.scheduledFlowSpecs.size(), 2);
-    scheduler.scheduledFlowSpecs.containsKey("spec0");
-    scheduler.scheduledFlowSpecs.containsKey("spec1");
+    AssertWithBackoff.create().timeoutMs(6000).maxSleepMs(2000).backoffFactor(2)
+        .assertTrue(new Predicate<Void>() {
+          @Override
+          public boolean apply(Void input) {
+            Map<String, Spec> scheduledFlowSpecs = scheduler.scheduledFlowSpecs;
+            if (scheduledFlowSpecs != null && scheduledFlowSpecs.size() == 2) {
+              return scheduler.scheduledFlowSpecs.containsKey("spec0") &&
+                  scheduler.scheduledFlowSpecs.containsKey("spec1");
+            } else {
+              return false;
+            }
+          }
+        }, "Waiting all flowSpecs to be scheduled");
   }
 
   @Test

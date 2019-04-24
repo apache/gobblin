@@ -19,10 +19,11 @@ package org.apache.gobblin.runtime.api;
 
 import java.net.URI;
 
+
 /**
  * An exception when {@link Spec} cannot be correctly serialized/deserialized from underlying storage.
  */
-public class SpecSerDeException extends Exception{
+public class SpecSerDeException extends Exception {
   private static final long serialVersionUID = 1L;
 
   /**
@@ -32,7 +33,7 @@ public class SpecSerDeException extends Exception{
   private final URI errorUri;
 
   public SpecSerDeException(URI errorUri) {
-    super("Error occurred in loading of Spec with URI " + errorUri );
+    super("Error occurred in loading of Spec with URI " + errorUri);
     this.errorUri = errorUri;
   }
 

@@ -26,7 +26,6 @@ import java.net.URI;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
-import java.util.concurrent.CountDownLatch;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
@@ -80,10 +79,6 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   @Getter
   private volatile boolean isActive;
   private String serviceName;
-
-  /** The latch to inform the completeness all FlowSpecs from Catalog has been loaded and scheduled  **/
-  @Getter
-  private CountDownLatch flowSpecInitFinished = new CountDownLatch(1);
 
   public GobblinServiceJobScheduler(String serviceName, Config config, Optional<HelixManager> helixManager,
       Optional<FlowCatalog> flowCatalog, Optional<TopologyCatalog> topologyCatalog, Orchestrator orchestrator,
@@ -171,7 +166,6 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
         }
       }
     } finally {
-      flowSpecInitFinished.countDown();
       this.flowCatalog.get().getMetrics().updateGetSpecTime(startTime);
     }
   }
