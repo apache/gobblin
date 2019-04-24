@@ -17,9 +17,11 @@
 
 package org.apache.gobblin.runtime.api;
 
+import com.google.common.base.Optional;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
+import java.util.Iterator;
 
 
 public interface SpecStore {
@@ -105,4 +107,16 @@ public interface SpecStore {
    * @throws IOException Exception in retrieving {@link Spec}s.
    */
   Collection<Spec> getSpecs() throws IOException;
+
+  /**
+   * Return an iterator of Spec URIs(Spec identifiers)
+   */
+  Iterator<URI> getSpecURIs() throws IOException;
+
+  /**
+   * @return A URI to identify the SpecStore itself.
+   * e.g. For File-System based implementation of {@link SpecStore}, the URI will be associated
+   * with root-level FileSystem directory.
+   */
+  Optional<URI> getSpecStoreURI();
 }

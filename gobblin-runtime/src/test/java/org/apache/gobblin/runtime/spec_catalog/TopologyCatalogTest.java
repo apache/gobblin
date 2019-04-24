@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.spec_catalog;
+package org.apache.gobblin.runtime.spec_catalog;
 
 import java.io.File;
 import java.net.URI;

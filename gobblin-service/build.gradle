@@ -71,6 +71,9 @@ dependencies {
   compile externalDependency.zkClient
 
   testCompile project(":gobblin-example")
+
+  // Required for adding Test class into classpath
+  testCompile project(":gobblin-runtime").sourceSets.test.output
   testCompile project(path: ":gobblin-modules:gobblin-kafka-08:", configuration: "tests")
   testCompile project(path: ":gobblin-metastore", configuration: "testFixtures")
   testCompile project(":gobblin-test-utils")
