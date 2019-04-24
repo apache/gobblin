@@ -25,7 +25,7 @@ fi
 
 # global vars
 
-GOBBLIN_VERSION="0.15.0"
+GOBBLIN_VERSION=@project.version@
 GOBBLIN_HOME="$(cd `dirname $0`/..; pwd)"
 GOBBLIN_LIB=${GOBBLIN_HOME}/lib
 GOBBLIN_BIN=${GOBBLIN_HOME}/bin
