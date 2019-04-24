@@ -154,7 +154,7 @@ class BatchedPermitsRequester {
     this.lock.lock();
     try {
       while (true) {
-        if (permits > this.knownUnsatisfiablePermits) {
+        if (permits >= this.knownUnsatisfiablePermits) {
           // We are requesting more permits than the remote policy will ever be able to satisfy, return immediately with no permits
           break;
         }
