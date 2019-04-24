@@ -27,7 +27,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
 import java.util.Iterator;
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.GobblinInstanceEnvironment;
 import org.apache.gobblin.runtime.api.Spec;
@@ -56,6 +55,11 @@ import org.slf4j.LoggerFactory;
  */
 public class FSSpecStore implements SpecStore {
 
+  /***
+   * Configuration properties related to Spec Store
+   */
+  public static final String SPECSTORE_FS_DIR_KEY = "specStore.fs.dir";
+
   protected final Logger log;
   protected final Config sysConfig;
   protected final FileSystem fs;
@@ -79,13 +83,13 @@ public class FSSpecStore implements SpecStore {
 
   public FSSpecStore(Config sysConfig, SpecSerDe specSerDe, Optional<Logger> log)
       throws IOException {
-    Preconditions.checkArgument(sysConfig.hasPath(ConfigurationKeys.SPECSTORE_FS_DIR_KEY),
+    Preconditions.checkArgument(sysConfig.hasPath(SPECSTORE_FS_DIR_KEY),
         "FS SpecStore path must be specified.");
 
     this.log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
     this.sysConfig = sysConfig;
     this.specSerDe = specSerDe;
-    this.fsSpecStoreDir = this.sysConfig.getString(ConfigurationKeys.SPECSTORE_FS_DIR_KEY);
+    this.fsSpecStoreDir = this.sysConfig.getString(SPECSTORE_FS_DIR_KEY);
     this.fsSpecStoreDirPath = new Path(this.fsSpecStoreDir);
     this.log.info("FSSpecStore directory is: " + this.fsSpecStoreDir);
     try {

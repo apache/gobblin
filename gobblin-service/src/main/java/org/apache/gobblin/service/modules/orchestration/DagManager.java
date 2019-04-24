@@ -313,7 +313,7 @@ public class DagManager extends AbstractIdleService {
         }
         log.debug("Polling job statuses..");
         //Poll and update the job statuses of running jobs.
-        pollJobStatuses();
+        pollAndAdvanceDag();
         log.debug("Poll done.");
         //Clean up any finished dags
         log.debug("Cleaning up finished dags..");
@@ -357,10 +357,9 @@ public class DagManager extends AbstractIdleService {
     }
 
     /**
-     * Poll the statuses of running jobs.
-     * @return List of {@link JobStatus}es.
+     * Proceed the execution of each dag node based on job status.
      */
-    private void pollJobStatuses()
+    private void pollAndAdvanceDag()
         throws IOException {
       this.failedDagIdsFinishRunning.clear();
 
@@ -428,7 +427,13 @@ public class DagManager extends AbstractIdleService {
       }
     }
 
-    Map<String, Set<DagNode<JobExecutionPlan>>> submitNext(String dagId) throws IOException {
+    /**
+     * Obtain next dag
+     * @param dagId The dagId that has been processed.
+     * @return
+     * @throws IOException
+     */
+    synchronized Map<String, Set<DagNode<JobExecutionPlan>>> submitNext(String dagId) throws IOException {
       Dag<JobExecutionPlan> dag = this.dags.get(dagId);
       Set<DagNode<JobExecutionPlan>> nextNodes = DagManagerUtils.getNext(dag);
       //Submit jobs from the dag ready for execution.
@@ -437,6 +442,7 @@ public class DagManager extends AbstractIdleService {
       }
       //Checkpoint the dag state
       this.dagStateStore.writeCheckpoint(dag);
+
       Map<String, Set<DagNode<JobExecutionPlan>>> dagIdToNextJobs = Maps.newHashMap();
       dagIdToNextJobs.put(dagId, nextNodes);
       return dagIdToNextJobs;

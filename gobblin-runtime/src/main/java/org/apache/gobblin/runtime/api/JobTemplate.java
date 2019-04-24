@@ -58,6 +58,11 @@ public interface JobTemplate extends Spec {
    */
   Config getResolvedConfig(Config userProps) throws SpecNotFoundException, TemplateException;
 
+  /**
+   * The Exception thrown while occurring error when loading/resolving a template.
+   * Note that the template here is not necessary to be a JobTemplate, it could be a FlowTemplate in the
+   * context of Gobblin Service.
+   */
   class TemplateException extends Exception {
     public TemplateException(String message, Throwable cause) {
       super(message, cause);

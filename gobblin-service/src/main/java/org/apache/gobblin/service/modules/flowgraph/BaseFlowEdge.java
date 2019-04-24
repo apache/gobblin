@@ -17,33 +17,22 @@
 
 package org.apache.gobblin.service.modules.flowgraph;
 
-import java.io.IOException;
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
+import org.apache.gobblin.service.modules.template_catalog.FSFlowTemplateCatalog;
 import org.apache.hadoop.security.UserGroupInformation;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
 
 import joptsimple.internal.Strings;
 import lombok.Getter;
 
 import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.SpecExecutor;
-import org.apache.gobblin.service.ServiceConfigKeys;
-import org.apache.gobblin.service.modules.template_catalog.FSFlowCatalog;
 import org.apache.gobblin.service.modules.template.FlowTemplate;
-import org.apache.gobblin.util.PullFileLoader;
-import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -133,11 +122,12 @@ public class BaseFlowEdge implements FlowEdge {
      * A method to return an instance of {@link BaseFlowEdge}. The method performs all the validation checks
      * and returns
      * @param edgeProps Properties of edge
-     * @param flowCatalog Flow Catalog used to retrieve {@link FlowTemplate}s.
+     * @param flowTemplateCatalog Flow Catalog used to retrieve {@link FlowTemplate}s.
      * @return a {@link BaseFlowEdge}
      */
     @Override
-    public FlowEdge createFlowEdge(Config edgeProps, FSFlowCatalog flowCatalog, List<SpecExecutor> specExecutors) throws FlowEdgeCreationException {
+    public FlowEdge createFlowEdge(Config edgeProps, FSFlowTemplateCatalog flowTemplateCatalog, List<SpecExecutor> specExecutors)
+        throws FlowEdgeCreationException {
       try {
         String source = ConfigUtils.getString(edgeProps, FlowGraphConfigurationKeys.FLOW_EDGE_SOURCE_KEY, "");
         Preconditions.checkArgument(!Strings.isNullOrEmpty(source), "A FlowEdge must have a non-null or empty source");
@@ -157,7 +147,7 @@ public class BaseFlowEdge implements FlowEdge {
             .checkArgument(!Strings.isNullOrEmpty(flowTemplateDirUri), "FlowTemplate URI must be not null or empty");
         boolean isActive = ConfigUtils.getBoolean(edgeProps, FlowGraphConfigurationKeys.FLOW_EDGE_IS_ACTIVE_KEY, true);
 
-        FlowTemplate flowTemplate = flowCatalog.getFlowTemplate(new URI(flowTemplateDirUri));
+        FlowTemplate flowTemplate = flowTemplateCatalog.getFlowTemplate(new URI(flowTemplateDirUri));
         return new BaseFlowEdge(endPoints, edgeId, flowTemplate, specExecutors, edgeProps, isActive);
       } catch (RuntimeException e) {
         throw e;

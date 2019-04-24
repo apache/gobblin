@@ -883,21 +883,10 @@ public class ConfigurationKeys {
   public static final String FLOW_RUN_IMMEDIATELY = "flow.runImmediately";
 
   /***
-   * Configuration properties related to Spec Store
-   */
-  public static final String SPECSTORE_FS_DIR_KEY = "specStore.fs.dir";
-
-  /***
    * Configuration properties related to TopologySpec Store
    */
   public static final String TOPOLOGYSPEC_STORE_CLASS_KEY = "topologySpec.store.class";
   public static final String TOPOLOGYSPEC_STORE_DIR_KEY = "topologySpec.store.dir";
-
-  /***
-   * Configuration properties related to FlowSpec Store
-   */
-  public static final String FLOWSPEC_STORE_CLASS_KEY = "flowSpec.store.class";
-  public static final String FLOWSPEC_STORE_DIR_KEY = "flowSpec.store.dir";
 
   /***
    * Configuration properties related to Spec Executor Instance

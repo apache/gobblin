@@ -34,7 +34,7 @@ import com.typesafe.config.ConfigValueFactory;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.service.ServiceConfigKeys;
-import org.apache.gobblin.service.modules.template_catalog.FSFlowCatalog;
+import org.apache.gobblin.service.modules.template_catalog.FSFlowTemplateCatalog;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -66,7 +66,7 @@ public class BaseFlowEdgeFactoryTest {
     Config templateCatalogCfg = config
         .withValue(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY,
             config.getValue(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY));
-    FSFlowCatalog catalog = new FSFlowCatalog(templateCatalogCfg);
+    FSFlowTemplateCatalog catalog = new FSFlowTemplateCatalog(templateCatalogCfg);
     Config edgeProps = ConfigUtils.propertiesToConfig(properties);
     FlowEdge flowEdge = flowEdgeFactory.createFlowEdge(edgeProps, catalog, specExecutorList);
     Assert.assertEquals(flowEdge.getSrc(), "node1");

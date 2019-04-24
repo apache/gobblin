@@ -29,7 +29,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
 import org.apache.commons.lang3.SerializationUtils;
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecSerDe;
 import org.apache.gobblin.util.ConfigUtils;
@@ -50,7 +49,7 @@ public class FSSpecStoreTest {
   public void testPathConversion() throws Exception {
     Properties properties = new Properties();
     File tmpDir = Files.createTempDir();
-    properties.setProperty(ConfigurationKeys.SPECSTORE_FS_DIR_KEY, tmpDir.getAbsolutePath());
+    properties.setProperty(FSSpecStore.SPECSTORE_FS_DIR_KEY, tmpDir.getAbsolutePath());
     SpecSerDe specSerDe = Mockito.mock(SpecSerDe.class);
     FSSpecStore fsSpecStore = new FSSpecStore(ConfigUtils.propertiesToConfig(properties), specSerDe);
 
@@ -68,7 +67,7 @@ public class FSSpecStoreTest {
 
     File specDir = Files.createTempDir();
     Properties properties = new Properties();
-    properties.setProperty(ConfigurationKeys.SPECSTORE_FS_DIR_KEY, specDir.getAbsolutePath());
+    properties.setProperty(FSSpecStore.SPECSTORE_FS_DIR_KEY, specDir.getAbsolutePath());
     SpecSerDe serde = Mockito.mock(SpecSerDe.class);
     TestFsSpecStore fsSpecStore = new TestFsSpecStore(ConfigUtils.propertiesToConfig(properties), serde);
 
@@ -122,7 +121,7 @@ public class FSSpecStoreTest {
   public void testGetSpecURI() throws Exception {
     File specDir = Files.createTempDir();
     Properties properties = new Properties();
-    properties.setProperty(ConfigurationKeys.SPECSTORE_FS_DIR_KEY, specDir.getAbsolutePath());
+    properties.setProperty(FSSpecStore.SPECSTORE_FS_DIR_KEY, specDir.getAbsolutePath());
     SpecSerDe serde = Mockito.mock(SpecSerDe.class);
     FSSpecStore fsSpecStore = new FSSpecStore(ConfigUtils.propertiesToConfig(properties), serde);
 

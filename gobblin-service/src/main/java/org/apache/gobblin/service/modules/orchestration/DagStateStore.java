@@ -34,20 +34,22 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 public interface DagStateStore {
   /**
    * Persist the {@link Dag} to the backing store.
-   * @param dag
+   * This is not an actual checkpoint but more like a Write-ahead log, where uncommitted job will be persisted
+   * and be picked up again when leader transition happens.
+   * @param dag The dag submitted to {@link DagManager}
    */
-  public void writeCheckpoint(Dag<JobExecutionPlan> dag) throws IOException;
+  void writeCheckpoint(Dag<JobExecutionPlan> dag) throws IOException;
 
   /**
    * Delete the {@link Dag} from the backing store, typically upon completion of execution.
-   * @param dag
+   * @param dag The dag completed/cancelled from execution on {@link org.apache.gobblin.runtime.api.SpecExecutor}.
    */
-  public void cleanUp(Dag<JobExecutionPlan> dag);
+  void cleanUp(Dag<JobExecutionPlan> dag);
 
   /**
    * Load all currently running {@link Dag}s from the underlying store. Typically, invoked when a new {@link DagManager}
    * takes over or on restart of service.
    * @return a {@link List} of currently running {@link Dag}s.
    */
-  public List<Dag<JobExecutionPlan>> getDags() throws IOException;
+  List<Dag<JobExecutionPlan>> getDags() throws IOException;
 }

@@ -44,7 +44,7 @@ import org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutor;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.template.FlowTemplate;
-import org.apache.gobblin.service.modules.template_catalog.FSFlowCatalog;
+import org.apache.gobblin.service.modules.template_catalog.FSFlowTemplateCatalog;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -56,7 +56,7 @@ public class JobExecutionPlanDagFactoryTest {
 
   @BeforeClass
   public void setUp() throws URISyntaxException, IOException, SpecNotFoundException, JobTemplate.TemplateException {
-    // Create a FSFlowCatalog instance
+    // Create a FSFlowTemplateCatalog instance
     URI flowTemplateCatalogUri = this.getClass().getClassLoader().getResource("template_catalog").toURI();
     Properties properties = new Properties();
     properties.put(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY, flowTemplateCatalogUri.toString());
@@ -64,7 +64,7 @@ public class JobExecutionPlanDagFactoryTest {
     Config templateCatalogCfg = config
         .withValue(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY,
             config.getValue(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY));
-    FSFlowCatalog catalog = new FSFlowCatalog(templateCatalogCfg);
+    FSFlowTemplateCatalog catalog = new FSFlowTemplateCatalog(templateCatalogCfg);
     FlowTemplate flowTemplate = catalog.getFlowTemplate(new URI(TEST_TEMPLATE_URI));
     this.jobTemplates = flowTemplate.getJobTemplates();
 

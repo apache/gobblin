@@ -29,6 +29,7 @@ import java.util.concurrent.ExecutionException;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.SystemUtils;
+import org.apache.gobblin.service.modules.template_catalog.FSFlowTemplateCatalog;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.dircache.DirCache;
@@ -60,7 +61,6 @@ import org.apache.gobblin.service.modules.flowgraph.BaseFlowGraph;
 import org.apache.gobblin.service.modules.flowgraph.DataNode;
 import org.apache.gobblin.service.modules.flowgraph.FlowEdge;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraphConfigurationKeys;
-import org.apache.gobblin.service.modules.template_catalog.FSFlowCatalog;
 
 
 public class GitFlowGraphMonitorTest {
@@ -81,7 +81,7 @@ public class GitFlowGraphMonitorTest {
   private final File edge1File = new File(edge1Dir, "edge1.properties");
 
   private RefSpec masterRefSpec = new RefSpec("master");
-  private Optional<FSFlowCatalog> flowCatalog;
+  private Optional<FSFlowTemplateCatalog> flowCatalog;
   private Config config;
   private BaseFlowGraph flowGraph;
   private GitFlowGraphMonitor gitFlowGraphMonitor;
@@ -111,7 +111,7 @@ public class GitFlowGraphMonitorTest {
         .addPrimitive(GitFlowGraphMonitor.GIT_FLOWGRAPH_MONITOR_PREFIX + "." + ConfigurationKeys.GIT_MONITOR_POLLING_INTERVAL, 5)
         .build();
 
-    // Create a FSFlowCatalog instance
+    // Create a FSFlowTemplateCatalog instance
     URI flowTemplateCatalogUri = this.getClass().getClassLoader().getResource("template_catalog").toURI();
     Properties properties = new Properties();
     properties.put(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY, flowTemplateCatalogUri.toString());
@@ -119,7 +119,7 @@ public class GitFlowGraphMonitorTest {
     Config templateCatalogCfg = config
         .withValue(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY,
             config.getValue(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY));
-    this.flowCatalog = Optional.of(new FSFlowCatalog(templateCatalogCfg));
+    this.flowCatalog = Optional.of(new FSFlowTemplateCatalog(templateCatalogCfg));
 
     //Create a FlowGraph instance with defaults
     this.flowGraph = new BaseFlowGraph();

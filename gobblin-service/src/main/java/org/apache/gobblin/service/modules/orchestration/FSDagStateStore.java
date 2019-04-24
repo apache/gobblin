@@ -121,7 +121,7 @@ public class FSDagStateStore implements DagStateStore {
   /**
    * Return a {@link Dag} given a file name.
    * @param dagFile
-   * @return the {@link Dag} associated with the dagFiel.
+   * @return the {@link Dag} associated with the dagFile.
    */
   @VisibleForTesting
   public Dag<JobExecutionPlan> getDag(File dagFile) throws IOException {
