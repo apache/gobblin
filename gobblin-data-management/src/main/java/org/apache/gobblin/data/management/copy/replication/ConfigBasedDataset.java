@@ -135,7 +135,7 @@ public class ConfigBasedDataset implements CopyableDataset {
       // If no strategy is found, default to the modification time strategy.
       this.versionStrategyFromCS = rc.getVersionStrategyFromConfigStore();
       String nonEmptyStrategy = versionStrategyFromCS.isPresent()? versionStrategyFromCS.get() :
-          props.getProperty(DataFileVersionStrategy.DATA_FILE_VERSION_STRATEGY_KEY, DataFileVersionStrategy.DEFAULT_DATA_FILE_VERSION_STAREGY);
+          props.getProperty(DataFileVersionStrategy.DATA_FILE_VERSION_STRATEGY_KEY, DataFileVersionStrategy.DEFAULT_DATA_FILE_VERSION_STRATEGY);
       Config versionStrategyConfig = ConfigFactory.parseMap(ImmutableMap.of(
           DataFileVersionStrategy.DATA_FILE_VERSION_STRATEGY_KEY, nonEmptyStrategy));
 

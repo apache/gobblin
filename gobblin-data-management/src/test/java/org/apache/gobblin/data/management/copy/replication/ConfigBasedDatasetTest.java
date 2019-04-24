@@ -90,7 +90,7 @@ public class ConfigBasedDatasetTest {
     ReplicationConfiguration mockRC = Mockito.mock(ReplicationConfiguration.class);
     Mockito.when(mockRC.getCopyMode()).thenReturn(ReplicationCopyMode.PULL);
     Mockito.when(mockRC.getMetaData()).thenReturn(mockMetaData);
-    Mockito.when(mockRC.getVersionStrategyFromConfigStore()).thenReturn(Optional.of(DataFileVersionStrategy.DEFAULT_DATA_FILE_VERSION_STAREGY));
+    Mockito.when(mockRC.getVersionStrategyFromConfigStore()).thenReturn(Optional.of(DataFileVersionStrategy.DEFAULT_DATA_FILE_VERSION_STRATEGY));
     Mockito.when(mockRC.getEnforceFileSizeMatchFromConfigStore()).thenReturn(Optional.absent());
     HadoopFsEndPoint copyFrom = Mockito.mock(HadoopFsEndPoint.class);
     Mockito.when(copyFrom.getDatasetPath()).thenReturn(new Path(sourceDir));
