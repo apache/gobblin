@@ -313,7 +313,7 @@ public class DagManager extends AbstractIdleService {
         }
         log.debug("Polling job statuses..");
         //Poll and update the job statuses of running jobs.
-        proceedDagExecutionOnDagNodeStatus();
+        pollAndAdvanceDag();
         log.debug("Poll done.");
         //Clean up any finished dags
         log.debug("Cleaning up finished dags..");
@@ -359,7 +359,7 @@ public class DagManager extends AbstractIdleService {
     /**
      * Proceed the execution of each dag node based on job status.
      */
-    private void proceedDagExecutionOnDagNodeStatus()
+    private void pollAndAdvanceDag()
         throws IOException {
       this.failedDagIdsFinishRunning.clear();
 

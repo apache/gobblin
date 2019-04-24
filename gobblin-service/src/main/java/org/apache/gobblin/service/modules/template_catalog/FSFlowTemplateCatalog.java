@@ -59,6 +59,9 @@ import org.apache.gobblin.util.PathUtils;
  *
  * Avoid confusing with {@link org.apache.gobblin.runtime.spec_catalog.FlowCatalog} which is a catalog for
  * {@link org.apache.gobblin.runtime.api.FlowSpec}.
+ *
+ * Note that any exceptions thrown here should be propagated into called level for handling, since the handling
+ * of exceptions while loading/resolving template is subject to caller logic.
  */
 @Alpha
 public class FSFlowTemplateCatalog extends FSJobCatalog implements FlowCatalogWithTemplates {
@@ -90,7 +93,9 @@ public class FSFlowTemplateCatalog extends FSJobCatalog implements FlowCatalogWi
    */
   public FlowTemplate getFlowTemplate(URI flowTemplateDirURI)
       throws SpecNotFoundException, JobTemplate.TemplateException, IOException, URISyntaxException {
-    validateTemplateURI(flowTemplateDirURI);
+    if (!validateTemplateURI(flowTemplateDirURI)) {
+      throw new JobTemplate.TemplateException(String.format("The FlowTemplate %s is not valid", flowTemplateDirURI));
+    }
 
     String templateCatalogDir = this.sysConfig.getString(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY);
     // path of uri is location of template file relative to the job configuration root directory
@@ -123,7 +128,10 @@ public class FSFlowTemplateCatalog extends FSJobCatalog implements FlowCatalogWi
       return false;
     };
 
-    validateTemplateURI(flowTemplateDirURI);
+    if (!validateTemplateURI(flowTemplateDirURI)) {
+      throw new JobTemplate.TemplateException(String.format("The FlowTemplate %s is not valid", flowTemplateDirURI));
+    }
+
     List<JobTemplate> jobTemplates = new ArrayList<>();
 
     String templateCatalogDir = this.sysConfig.getString(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY);
@@ -163,15 +171,17 @@ public class FSFlowTemplateCatalog extends FSJobCatalog implements FlowCatalogWi
   /**
    * Determine if an URI of a jobTemplate or a FlowTemplate is valid.
    * @param flowURI The given job/flow template
-   * @return true to continue on loading.
+   * @return true if the URI is valid.
    */
   private boolean validateTemplateURI(URI flowURI) {
     if (!this.sysConfig.hasPath(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY)) {
-      throw new RuntimeException("Missing config " + ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY);
+      log.error("Missing config " + ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY);
+      return false;
     }
     if (!flowURI.getScheme().equals(FS_SCHEME)) {
-      throw new RuntimeException(
+      log.error(
           "Expected scheme " + FS_SCHEME + " got unsupported scheme " + flowURI.getScheme());
+      return false;
     }
 
     return true;
