@@ -40,6 +40,8 @@ import org.apache.gobblin.util.ConfigUtils;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import static org.apache.gobblin.runtime.spec_catalog.FlowCatalog.*;
+
 
 public class GobblinServiceJobSchedulerTest {
   private static final String TEST_GROUP_NAME = "testGroup";
@@ -56,7 +58,7 @@ public class GobblinServiceJobSchedulerTest {
     File specDir = Files.createTempDir();
 
     Properties properties = new Properties();
-    properties.setProperty(ConfigurationKeys.FLOWSPEC_STORE_DIR_KEY, specDir.getAbsolutePath());
+    properties.setProperty(FLOWSPEC_STORE_DIR_KEY, specDir.getAbsolutePath());
     FlowCatalog flowCatalog = new FlowCatalog(ConfigUtils.propertiesToConfig(properties));
     ServiceBasedAppLauncher serviceLauncher = new ServiceBasedAppLauncher(properties, "GaaSJobSchedulerTest");
 

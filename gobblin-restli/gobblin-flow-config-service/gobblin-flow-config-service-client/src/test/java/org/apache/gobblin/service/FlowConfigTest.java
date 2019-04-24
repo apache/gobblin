@@ -23,6 +23,7 @@ import java.net.ServerSocket;
 import java.util.Map;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.gobblin.runtime.spec_store.FSSpecStore;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -70,7 +71,7 @@ public class FlowConfigTest {
 
     configBuilder
         .addPrimitive(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY, _testDirectory.getAbsolutePath())
-        .addPrimitive(ConfigurationKeys.SPECSTORE_FS_DIR_KEY, TEST_SPEC_STORE_DIR);
+        .addPrimitive(FSSpecStore.SPECSTORE_FS_DIR_KEY, TEST_SPEC_STORE_DIR);
     cleanUpDir(TEST_SPEC_STORE_DIR);
 
     Config config = configBuilder.build();

@@ -38,15 +38,6 @@ import org.apache.gobblin.runtime.api.SpecSerDeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
-import com.google.common.util.concurrent.AbstractIdleService;
-import com.typesafe.config.Config;
-
-import javax.annotation.Nonnull;
-
-import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
@@ -63,8 +54,6 @@ import org.apache.gobblin.runtime.spec_store.FSSpecStore;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.callbacks.CallbackResult;
 import org.apache.gobblin.util.callbacks.CallbacksDispatcher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 
 /**
@@ -120,7 +109,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     try {
       Config newConfig = config;
       if (config.hasPath(FLOWSPEC_STORE_DIR_KEY)) {
-        newConfig = config.withValue(ConfigurationKeys.SPECSTORE_FS_DIR_KEY,
+        newConfig = config.withValue(FSSpecStore.SPECSTORE_FS_DIR_KEY,
             config.getValue(FLOWSPEC_STORE_DIR_KEY));
       }
       String specStoreClassName = DEFAULT_FLOWSPEC_STORE_CLASS;
