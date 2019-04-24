@@ -88,6 +88,8 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
   protected static final ConfigClient configClient =
       org.apache.gobblin.config.client.ConfigClient.createConfigClient(VersionStabilityPolicy.WEAK_LOCAL_STABILITY);
 
+  protected Optional<Config> configForTopic = Optional.<Config>absent();
+
   /**
    * A valid db or table name should start with an alphanumeric character, and contains only
    * alphanumeric characters and '_'.
@@ -132,6 +134,13 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
     this.tableNameSuffix = props.getProp(HIVE_TABLE_NAME_SUFFIX, StringUtils.EMPTY);
     this.emptyInputPathFlag = props.getPropAsBoolean(MAPREDUCE_JOB_INPUT_PATH_EMPTY_KEY, false);
     this.metricContext = Instrumented.getMetricContext(props, HiveRegister.class);
+
+    // Get Topic-specific config object doesn't require any runtime-set properties in prop object, safe to initialize
+    // in constructor.
+    Timer.Context context = this.metricContext.timer(CONFIG_FOR_TOPIC_TIMER).time();
+    configForTopic =
+        ConfigStoreUtils.getConfigForTopic(this.props.getProperties(), KafkaSource.TOPIC_NAME, this.configClient);
+    context.close();
   }
 
   /**
@@ -175,8 +184,8 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
   }
 
   /**
-   * This method first tries to obtain the database name from {@link #HIVE_TABLE_NAME}.
-   * If this property is not specified, it then tries to obtain the database name using
+   * This method first tries to obtain the table name from {@link #HIVE_TABLE_NAME}.
+   * If this property is not specified, it then tries to obtain the table name using
    * the first group of {@link #HIVE_TABLE_REGEX}.
    */
   protected Optional<String> getTableName(Path path) {
@@ -234,13 +243,6 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
     if ((primaryTableName = getTableName(path)).isPresent() && !dbPrefix.isPresent()) {
       tableNames.add(primaryTableName.get());
     }
-    Optional<Config> configForTopic = Optional.<Config>absent();
-    if (primaryTableName.isPresent()) {
-      Timer.Context context = this.metricContext.timer(CONFIG_FOR_TOPIC_TIMER).time();
-      configForTopic =
-          ConfigStoreUtils.getConfigForTopic(this.props.getProperties(), KafkaSource.TOPIC_NAME, this.configClient);
-      context.close();
-    }
 
     String additionalNamesProp;
     if (dbPrefix.isPresent()) {
@@ -249,7 +251,8 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
       additionalNamesProp = ADDITIONAL_HIVE_TABLE_NAMES;
     }
 
-    if (configForTopic.isPresent() && configForTopic.get().hasPath(additionalNamesProp)) {
+    // Searching additional table name from ConfigStore-returned object.
+    if (primaryTableName.isPresent() && configForTopic.isPresent() && configForTopic.get().hasPath(additionalNamesProp)) {
       for (String additionalTableName : Splitter.on(",")
           .trimResults()
           .splitToList(configForTopic.get().getString(additionalNamesProp))) {
