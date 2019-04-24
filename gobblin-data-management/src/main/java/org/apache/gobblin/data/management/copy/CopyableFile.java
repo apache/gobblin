@@ -100,11 +100,14 @@ public class CopyableFile extends CopyEntity implements File {
   /** Timestamp of file as in upstream. */
   private long upstreamTimestamp;
 
+  private String dataFileVersionStrategy;
+
   @lombok.Builder(builderClassName = "Builder", builderMethodName = "_hiddenBuilder")
   public CopyableFile(FileStatus origin, Path destination, OwnerAndPermission destinationOwnerAndPermission,
       List<OwnerAndPermission> ancestorsOwnerAndPermission, byte[] checksum, PreserveAttributes preserve,
       String fileSet, long originTimestamp, long upstreamTimestamp, Map<String, String> additionalMetadata,
-      String datasetOutputPath) {
+      String datasetOutputPath,
+      String dataFileVersionStrategy) {
     super(fileSet, additionalMetadata);
     this.origin = origin;
     this.destination = destination;
@@ -112,6 +115,7 @@ public class CopyableFile extends CopyEntity implements File {
     this.ancestorsOwnerAndPermission = ancestorsOwnerAndPermission;
     this.checksum = checksum;
     this.preserve = preserve;
+    this.dataFileVersionStrategy = dataFileVersionStrategy;
     this.originTimestamp = originTimestamp;
     this.upstreamTimestamp = upstreamTimestamp;
     this.datasetOutputPath = datasetOutputPath;
@@ -262,7 +266,7 @@ public class CopyableFile extends CopyEntity implements File {
 
       return new CopyableFile(this.origin, this.destination, this.destinationOwnerAndPermission,
           this.ancestorsOwnerAndPermission, this.checksum, this.preserve, this.fileSet, this.originTimestamp,
-          this.upstreamTimestamp, this.additionalMetadata, this.datasetOutputPath);
+          this.upstreamTimestamp, this.additionalMetadata, this.datasetOutputPath, this.dataFileVersionStrategy);
     }
 
     private List<OwnerAndPermission> replicateAncestorsOwnerAndPermission(FileSystem originFs, Path originPath,

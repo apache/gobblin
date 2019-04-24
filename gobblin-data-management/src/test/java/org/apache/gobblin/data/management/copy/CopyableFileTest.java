@@ -55,7 +55,7 @@ public class CopyableFileTest {
             new OwnerAndPermission("owner", "group", FsPermission.getDefault()),
             Lists.newArrayList(new OwnerAndPermission("owner2", "group2", FsPermission.getDefault())),
             "checksum".getBytes(), PreserveAttributes.fromMnemonicString(""), "", 0, 0, Maps
-            .<String, String>newHashMap(), "");
+            .<String, String>newHashMap(), "", null);
 
     DatasetDescriptor dataset = new DatasetDescriptor("hive", "db.table");
     PartitionDescriptor descriptor = new PartitionDescriptor("datepartition=2018/09/05", dataset);
@@ -74,7 +74,7 @@ public class CopyableFileTest {
         new CopyableFile(null, null, new OwnerAndPermission("owner", "group",
             FsPermission.getDefault()), Lists.newArrayList(new OwnerAndPermission(null, "group2", FsPermission
             .getDefault())), "checksum".getBytes(), PreserveAttributes.fromMnemonicString(""), "", 0, 0,
-            Maps.<String, String>newHashMap(), "");
+            Maps.<String, String>newHashMap(), "", null);
 
     String serialized = CopyEntity.serialize(copyableFile);
     CopyEntity deserialized = CopyEntity.deserialize(serialized);
@@ -114,7 +114,7 @@ public class CopyableFileTest {
     // Test when source file is not a directory
     FileStatus origin = new FileStatus(0l, false, 0, 0l, 0l, new Path(originPath));
     CopyableFile copyableFile = new CopyableFile(origin, new Path(destinationPath), null, null, null,
-        PreserveAttributes.fromMnemonicString(""), "", 0, 0, Maps.<String, String>newHashMap(), "");
+        PreserveAttributes.fromMnemonicString(""), "", 0, 0, Maps.<String, String>newHashMap(), "", null);
     copyableFile.setFsDatasets(originFs, targetFs);
     DatasetDescriptor source = (DatasetDescriptor) copyableFile.getSourceData();
     Assert.assertEquals(source.getName(), "/data/databases/source");
@@ -130,7 +130,7 @@ public class CopyableFileTest {
     destinationPath = targetFsUri + destinationPath;
     origin = new FileStatus(0l, true, 0, 0l, 0l, new Path(originPath));
     copyableFile = new CopyableFile(origin, new Path(destinationPath), null, null, null,
-        PreserveAttributes.fromMnemonicString(""), "", 0, 0, Maps.<String, String>newHashMap(), "");
+        PreserveAttributes.fromMnemonicString(""), "", 0, 0, Maps.<String, String>newHashMap(), "", null);
     copyableFile.setFsDatasets(originFs, targetFs);
     source = (DatasetDescriptor) copyableFile.getSourceData();
     Assert.assertEquals(source.getName(), "/data/databases/source/profile");

@@ -27,14 +27,12 @@ import java.util.Set;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
 
+import org.apache.gobblin.data.management.copy.CopyConfiguration;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.filesystem.DataFileVersionStrategy;
-import org.apache.gobblin.util.filesystem.ModTimeDataFileVersionStrategy;
 
 import lombok.Getter;
 
@@ -123,6 +121,9 @@ public class ReplicationConfiguration {
   @Getter
   private final Optional<String> versionStrategyFromConfigStore;
 
+  @Getter
+  private final Optional<Boolean> enforceFileSizeMatchFromConfigStore;
+
   public static ReplicationConfiguration buildFromConfig(Config input)
       throws InstantiationException, IllegalAccessException, ClassNotFoundException {
     Preconditions.checkArgument(input != null, "can not build ReplicationConfig from null");
@@ -140,6 +141,7 @@ public class ReplicationConfiguration {
         .withCopyRouteGenerator(config)
         .withDeleteTarget(config)
         .withVersionStrategyFromConfigStore(config)
+        .withEnforceFileSizeMatchFromConfigStore(config)
         .build();
   }
 
@@ -153,6 +155,7 @@ public class ReplicationConfiguration {
     this.copyRouteGenerator = builder.copyRouteGenerator;
     this.deleteTargetIfNotExistOnSource = builder.deleteTargetIfNotExistOnSource;
     this.versionStrategyFromConfigStore = builder.versionStrategyFromConfigStore;
+    this.enforceFileSizeMatchFromConfigStore = builder.enforceFileMatchFromConfigStore;
   }
 
   private static class Builder {
@@ -181,6 +184,14 @@ public class ReplicationConfiguration {
 
     private Optional<String> versionStrategyFromConfigStore = Optional.absent();
 
+    private Optional<Boolean> enforceFileMatchFromConfigStore = Optional.absent();
+
+    public Builder withEnforceFileSizeMatchFromConfigStore(Config config) {
+      this.enforceFileMatchFromConfigStore = config.hasPath(CopyConfiguration.ENFORCE_FILE_LENGTH_MATCH)?
+          Optional.of(config.getBoolean(CopyConfiguration.ENFORCE_FILE_LENGTH_MATCH)) :
+          Optional.absent();
+      return this;
+    }
 
     public Builder withVersionStrategyFromConfigStore(Config config) {
       this.versionStrategyFromConfigStore = config.hasPath(DataFileVersionStrategy.DATA_FILE_VERSION_STRATEGY_KEY)?
