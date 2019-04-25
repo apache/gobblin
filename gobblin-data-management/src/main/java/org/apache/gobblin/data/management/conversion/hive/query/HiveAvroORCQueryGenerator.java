@@ -858,7 +858,7 @@ public class HiveAvroORCQueryGenerator {
           }
           if (typeEvolved) {
             ddl.add(String.format("USE %s%n", finalDbName));
-            ddl.add(String.format("ALTER TABLE `%s` CHANGE COLUMN `%s` %s %s COMMENT '%s'",
+            ddl.add(String.format("ALTER TABLE `%s` CHANGE COLUMN `%s` `%s` %s COMMENT '%s'",
                 finalTableName, evolvedColumn.getKey(), evolvedColumn.getKey(), evolvedColumn.getValue(),
                 escapeStringForHive(destinationField.getComment())));
           }
