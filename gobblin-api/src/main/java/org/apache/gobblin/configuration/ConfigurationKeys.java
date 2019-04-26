@@ -690,6 +690,7 @@ public class ConfigurationKeys {
   public static final String DEFAULT_METRICS_REPORTING_KAFKA_REPORTER_CLASS = "org.apache.gobblin.metrics.kafka.KafkaReporterFactory";
   public static final String METRICS_REPORTING_KAFKA_FORMAT = METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.format";
   public static final String METRICS_REPORTING_EVENTS_KAFKA_FORMAT = METRICS_CONFIGURATIONS_PREFIX + "reporting.events.kafka.format";
+  public static final String METRICS_REPORTING_KAFKAPUSHERKEYS = METRICS_CONFIGURATIONS_PREFIX + "reporting.kafkaPusherKeys";
   public static final String METRICS_REPORTING_EVENTS_KAFKAPUSHERKEYS = METRICS_CONFIGURATIONS_PREFIX + "reporting.events.kafkaPusherKeys";
   public static final String DEFAULT_METRICS_REPORTING_KAFKA_FORMAT = "json";
   public static final String METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY =

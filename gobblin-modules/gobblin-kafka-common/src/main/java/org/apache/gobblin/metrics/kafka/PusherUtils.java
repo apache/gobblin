@@ -25,7 +25,9 @@ public class PusherUtils {
   public static final String METRICS_REPORTING_KAFKA_CONFIG_PREFIX = "metrics.reporting.kafka.config";
   public static final String KAFKA_PUSHER_CLASS_NAME_KEY = "metrics.reporting.kafkaPusherClass";
   public static final String KAFKA_PUSHER_CLASS_NAME_KEY_FOR_EVENTS = "metrics.reporting.events.kafkaPusherClass";
+  public static final String KAFKA_PUSHER_CLASS_NAME_KEY_FOR_OBJECTS = "metrics.reporting.objects.kafkaPusherClass";
   public static final String DEFAULT_KAFKA_PUSHER_CLASS_NAME = "org.apache.gobblin.metrics.kafka.KafkaPusher";
+  public static final String DEFAULT_KAFKA_KEY_VALUE_PUSHER_CLASS_NAME = "org.apache.gobblin.metrics.kafka.KafkaKeyValuePusher";
 
   /**
    * Create a {@link Pusher}
@@ -45,4 +47,24 @@ public class PusherUtils {
       throw new RuntimeException("Could not instantiate kafka pusher", e);
     }
   }
+
+  /**
+   * Create a {@link KeyValuePusher}
+   * @param pusherClassName the {@link Pusher} class to instantiate
+   * @param brokers brokers to connect to
+   * @param topic the topic to write to
+   * @param config additional configuration for configuring the {@link Pusher}
+   * @return a {@link KeyValuePusher}
+   */
+  public static KeyValuePusher getKeyValuePusher(String pusherClassName, String brokers, String topic, Optional<Config> config) {
+    try {
+      Class<?> pusherClass = Class.forName(pusherClassName);
+
+      return (KeyValuePusher) GobblinConstructorUtils.invokeLongestConstructor(pusherClass,
+          brokers, topic, config);
+    } catch (ReflectiveOperationException e) {
+      throw new RuntimeException("Could not instantiate kafka pusher", e);
+    }
+  }
+
 }

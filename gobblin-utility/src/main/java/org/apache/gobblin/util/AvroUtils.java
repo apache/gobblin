@@ -78,10 +78,12 @@ import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 
 import javax.annotation.Nonnull;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * A Utils class for dealing with Avro objects
  */
+@Slf4j
 public class AvroUtils {
 
   private static final Logger LOG = LoggerFactory.getLogger(AvroUtils.class);
@@ -843,7 +845,6 @@ public class AvroUtils {
     return reader.read(null, decoder);
   }
 
-
   /**
    * Decorate the {@link Schema} for a record with additional {@link Field}s.
    * @param inputSchema: must be a {@link Record} schema.
@@ -875,11 +876,26 @@ public class AvroUtils {
   public static GenericRecord decorateRecord(GenericRecord inputRecord, @Nonnull Map<String, Object> fieldMap,
           Schema outputSchema) {
     GenericRecord outputRecord = new GenericData.Record(outputSchema);
-    inputRecord.getSchema().getFields().forEach(
-            f -> outputRecord.put(f.name(), inputRecord.get(f.name()))
-    );
+    inputRecord.getSchema().getFields().forEach(f -> outputRecord.put(f.name(), inputRecord.get(f.name())));
     fieldMap.forEach((key, value) -> outputRecord.put(key, value));
     return outputRecord;
+  }
+
+  public static GenericRecord overrideNameAndNamespace(GenericRecord event, String nameOverride, Optional<Map<String, String>> namespaceOverride) {
+
+    GenericRecord record = event;
+    Schema newSchema = AvroUtils.switchName(event.getSchema(), nameOverride);
+    if(namespaceOverride.isPresent()) {
+      newSchema = switchNamespace(newSchema, namespaceOverride.get());
+    }
+
+    try {
+      record = AvroUtils.convertRecordSchema(record, newSchema);
+    } catch (Exception e){
+      log.error("Unable to generate generic data record", e);
+    }
+
+    return record;
   }
 
 }

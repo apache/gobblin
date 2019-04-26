@@ -40,14 +40,13 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.util.ConfigUtils;
 
-
 /**
  * Establishes a connection to a Kafka cluster and push keyed messages to a specified topic.
  * @param <K> key type
  * @param <V> value type
  */
 @Slf4j
-public class KafkaKeyValueProducerPusher<K, V> implements KeyValuePusher<K, V> {
+public class KafkaKeyValuePusher<K,V> implements KeyValuePusher<K,V> {
   private static final long DEFAULT_MAX_NUM_FUTURES_TO_BUFFER = 1000L;
   //Low watermark for the size of the futures queue, to trigger flushing of messages.
   private static final String MAX_NUM_FUTURES_TO_BUFFER_KEY = "numFuturesToBuffer";
@@ -64,7 +63,7 @@ public class KafkaKeyValueProducerPusher<K, V> implements KeyValuePusher<K, V> {
   private final Queue<Future<RecordMetadata>> futures = new LinkedBlockingDeque<>();
   private long numFuturesToBuffer=1000L;
 
-  public KafkaKeyValueProducerPusher(String brokers, String topic, Optional<Config> kafkaConfig) {
+  public KafkaKeyValuePusher(String brokers, String topic, Optional<Config> kafkaConfig) {
     this.closer = Closer.create();
 
     this.topic = topic;
@@ -88,14 +87,10 @@ public class KafkaKeyValueProducerPusher<K, V> implements KeyValuePusher<K, V> {
     this.producer = createProducer(props);
   }
 
-  public KafkaKeyValueProducerPusher(String brokers, String topic) {
+  public KafkaKeyValuePusher(String brokers, String topic) {
     this(brokers, topic, Optional.absent());
   }
-
-  /**
-   * Push all keyed messages to the Kafka topic.
-   * @param messages List of keyed messages to push to Kakfa.
-   */
+  @Override
   public void pushKeyValueMessages(List<Pair<K, V>> messages) {
     for (Pair<K, V> message: messages) {
       this.futures.offer(this.producer.send(new ProducerRecord<>(topic, message.getKey(), message.getValue()), (recordMetadata, e) -> {
@@ -104,33 +99,25 @@ public class KafkaKeyValueProducerPusher<K, V> implements KeyValuePusher<K, V> {
         }
       }));
     }
+      //Once the low watermark of numFuturesToBuffer is hit, start flushing messages from the futures
+      // buffer. In order to avoid blocking on newest messages added to futures queue, we only invoke future.get() on
+      // the oldest messages in the futures buffer. The number of messages to flush is same as the number of messages added
+      // in the current call. Note this does not completely avoid calling future.get() on the newer messages e.g. when
+      // multiple threads enter the if{} block concurrently, and invoke flush().
+      if (this.futures.size() >= this.numFuturesToBuffer) {
+        flush(messages.size());
+      }
 
-    //Once the low watermark of numFuturesToBuffer is hit, start flushing messages from the futures
-    // buffer. In order to avoid blocking on newest messages added to futures queue, we only invoke future.get() on
-    // the oldest messages in the futures buffer. The number of messages to flush is same as the number of messages added
-    // in the current call. Note this does not completely avoid calling future.get() on the newer messages e.g. when
-    // multiple threads enter the if{} block concurrently, and invoke flush().
-    if (this.futures.size() >= this.numFuturesToBuffer) {
-      flush(messages.size());
-    }
   }
 
+  @Override
   public void pushMessages(List<V> messages) {
-    for (V message: messages) {
+    for (V message : messages) {
       this.futures.offer(this.producer.send(new ProducerRecord<>(topic, message), (recordMetadata, e) -> {
         if (e != null) {
           log.error("Failed to send message to topic {} due to exception: ", topic, e);
         }
       }));
-    }
-
-    //Once the low watermark of numFuturesToBuffer is hit, start flushing messages from the futures
-    // buffer. In order to avoid blocking on newest messages added to futures queue, we only invoke future.get() on
-    // the oldest messages in the futures buffer. The number of messages to flush is same as the number of messages added
-    // in the current call. Note this does not completely avoid calling future.get() on the newer messages e.g. when
-    // multiple threads enter the if{} block concurrently, and invoke flush().
-    if (this.futures.size() >= this.numFuturesToBuffer) {
-      flush(messages.size());
     }
   }
 
@@ -156,8 +143,7 @@ public class KafkaKeyValueProducerPusher<K, V> implements KeyValuePusher<K, V> {
   }
 
   @Override
-  public void close()
-      throws IOException {
+  public void close() throws IOException {
     log.info("Flushing records before close");
     flush(Long.MAX_VALUE);
     this.closer.close();
@@ -169,4 +155,5 @@ public class KafkaKeyValueProducerPusher<K, V> implements KeyValuePusher<K, V> {
   protected KafkaProducer<K, V> createProducer(Properties props) {
     return this.closer.register(new KafkaProducer<K, V>(props));
   }
+
 }
