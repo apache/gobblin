@@ -114,4 +114,9 @@ public class HiveWritableHdfsDataWriter extends FsDataWriter<Writable> {
 
     super.commit();
   }
+
+  @Override
+  public boolean isSpeculativeAttemptSafe() {
+    return this.writerAttemptIdOptional.isPresent() && this.getClass() == HiveWritableHdfsDataWriter.class;
+  }
 }

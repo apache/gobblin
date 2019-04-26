@@ -345,6 +345,10 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
     return this.fs.makeQualified(this.outputFile).toString();
   }
 
+  /**
+   * Classes that extends this method needs to determine if writerAttemptIdOptional is present and to avoid
+   * problems of overriding, adding another checking on class type.
+   */
   @Override
   public boolean isSpeculativeAttemptSafe() {
     return this.writerAttemptIdOptional.isPresent() && this.getClass() == FsDataWriter.class;
