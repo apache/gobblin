@@ -858,7 +858,7 @@ public class HiveAvroORCQueryGenerator {
           }
           if (typeEvolved) {
             ddl.add(String.format("USE %s%n", finalDbName));
-            ddl.add(String.format("ALTER TABLE `%s` CHANGE COLUMN %s %s %s COMMENT '%s'",
+            ddl.add(String.format("ALTER TABLE `%s` CHANGE COLUMN `%s` `%s` %s COMMENT '%s'",
                 finalTableName, evolvedColumn.getKey(), evolvedColumn.getKey(), evolvedColumn.getValue(),
                 escapeStringForHive(destinationField.getComment())));
           }
@@ -876,7 +876,7 @@ public class HiveAvroORCQueryGenerator {
         // .. hence specifying 'use dbName' as a precursor to rename
         // Refer: HIVE-2496
         ddl.add(String.format("USE %s%n", finalDbName));
-        ddl.add(String.format("ALTER TABLE `%s` ADD COLUMNS (%s %s COMMENT 'from flatten_source %s')",
+        ddl.add(String.format("ALTER TABLE `%s` ADD COLUMNS (`%s` %s COMMENT 'from flatten_source %s')",
             finalTableName, evolvedColumn.getKey(), evolvedColumn.getValue(), flattenSource));
       }
     }
