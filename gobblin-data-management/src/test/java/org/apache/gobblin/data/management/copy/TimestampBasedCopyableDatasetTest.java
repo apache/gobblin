@@ -149,7 +149,6 @@ public class TimestampBasedCopyableDatasetTest {
     ConcurrentLinkedQueue<CopyableFile> copyableFiles =
         (ConcurrentLinkedQueue<CopyableFile>) tCopyableDs.getCopyableFiles(this.localFs, copyConfig);
     Assert.assertEquals(3, copyableFiles.size());
-//    copyableFiles.stream().parallel().forEach(file -> System.out.println(file.getFileSet()));
 
     /* Change in MinLookBack to 1d should result in 0 files */
     props.setProperty(SelectBtwModDataTimeBasedCopyableFileFilter.MODIFIED_MIN_LOOK_BACK_TIME_KEY, "1d");
