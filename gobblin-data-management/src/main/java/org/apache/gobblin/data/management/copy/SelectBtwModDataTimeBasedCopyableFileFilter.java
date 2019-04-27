@@ -112,7 +112,6 @@ public class SelectBtwModDataTimeBasedCopyableFileFilter implements CopyableFile
         this.minLookBackTime.toDateTime())) {
       return true;
     }
-
     return false;
   }
 }

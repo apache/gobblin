@@ -35,7 +35,6 @@ import org.apache.gobblin.data.management.copy.CopyableFileFilter;
 import org.apache.gobblin.dataset.DatasetsFinder;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
-
 /**
  * Utilities for datasets.
  */

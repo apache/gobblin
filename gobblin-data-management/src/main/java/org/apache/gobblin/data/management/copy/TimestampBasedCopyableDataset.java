@@ -97,14 +97,12 @@ public class TimestampBasedCopyableDataset implements CopyableDataset, FileSyste
       this.datasetVersionFinder =
           (VersionFinder<TimestampedDatasetVersion>) timestampedDatasetVersionFinderClass.getConstructor(
               FileSystem.class, Properties.class).newInstance(this.srcFs, props);
-    } catch (ClassNotFoundException | NoSuchMethodException | InstantiationException | IllegalAccessException
-        | InvocationTargetException exception) {
+    } catch (ClassNotFoundException | NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException exception) {
       throw new RuntimeException(exception);
     }
-    this.executor =
-        ScalingThreadPoolExecutor.newScalingThreadPool(0, Integer.parseInt(props.getProperty(
-            THREADPOOL_SIZE_TO_GET_COPYABLE_FILES, DEFAULT_THREADPOOL_SIZE_TO_GET_COPYABLE_FILES)), 100, ExecutorsUtils
-            .newThreadFactory(Optional.of(log), Optional.of(getClass().getSimpleName())));
+    this.executor = ScalingThreadPoolExecutor.newScalingThreadPool(0, Integer.parseInt(
+        props.getProperty(THREADPOOL_SIZE_TO_GET_COPYABLE_FILES, DEFAULT_THREADPOOL_SIZE_TO_GET_COPYABLE_FILES)), 100,
+        ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of(getClass().getSimpleName())));
   }
 
   @Override
@@ -122,8 +120,8 @@ public class TimestampBasedCopyableDataset implements CopyableDataset, FileSyste
     List<Future<?>> futures = Lists.newArrayList();
     //this.copyableFileFilter.filter(this.fs, targetFs, copyableFiles)
     for (TimestampedDatasetVersion copyableVersion : copyableVersions) {
-      futures.add(this.executor.submit(this.getCopyableFileGenetator(targetFs, configuration, copyableVersion,
-          copyableFileList)));
+      futures.add(this.executor.submit(
+          this.getCopyableFileGenetator(targetFs, configuration, copyableVersion, copyableFileList)));
     }
 
     try {
@@ -189,8 +187,8 @@ public class TimestampBasedCopyableDataset implements CopyableDataset, FileSyste
             Path targetPath = new Path(targetRoot, relativePath);
             if (this.isCopyableFile(singleFile, targetPath)) {
               log.debug("Will create workunit for: " + singleFilePath);
-              copyableFileList
-                  .add(this.generateCopyableFile(singleFile, targetPath, timestampFromPath, locationToCopy));
+              copyableFileList.add(
+                  this.generateCopyableFile(singleFile, targetPath, timestampFromPath, locationToCopy));
             }
           }
         } catch (IOException e) {
@@ -204,8 +202,10 @@ public class TimestampBasedCopyableDataset implements CopyableDataset, FileSyste
     protected CopyableFile generateCopyableFile(FileStatus singleFile, Path targetPath, long timestampFromPath,
         Path locationToCopy) throws IOException {
       return CopyableFile.fromOriginAndDestination(srcFs, singleFile, targetPath, configuration)
-          .originTimestamp(timestampFromPath).upstreamTimestamp(timestampFromPath)
-          .fileSet(PathUtils.getPathWithoutSchemeAndAuthority(locationToCopy).toString()).build();
+          .originTimestamp(timestampFromPath)
+          .upstreamTimestamp(timestampFromPath)
+          .fileSet(PathUtils.getPathWithoutSchemeAndAuthority(locationToCopy).toString())
+          .build();
     }
 
     /***

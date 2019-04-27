@@ -29,7 +29,6 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.regex.Pattern;
-import java.net.URI;
 import java.util.stream.IntStream;
 
 import com.google.common.collect.Lists;
@@ -40,7 +39,6 @@ import org.apache.gobblin.data.management.version.finder.DateTimeDatasetVersionF
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.FilterFileSystem;
 import org.apache.hadoop.fs.Path;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;

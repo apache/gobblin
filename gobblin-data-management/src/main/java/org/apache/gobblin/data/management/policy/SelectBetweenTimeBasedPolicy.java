@@ -67,11 +67,11 @@ public class SelectBetweenTimeBasedPolicy implements VersionSelectionPolicy<Time
 
   public SelectBetweenTimeBasedPolicy(Config conf) {
 
-    this(conf.hasPath(TIME_BASED_SELECTION_MIN_LOOK_BACK_TIME_KEY) ? Optional.of(getLookBackPeriod(conf
-        .getString(TIME_BASED_SELECTION_MIN_LOOK_BACK_TIME_KEY))) : Optional.<Period> absent(), conf
-        .hasPath(TIME_BASED_SELECTION_MAX_LOOK_BACK_TIME_KEY) ? Optional.of(getLookBackPeriod(conf
-        .getString(TIME_BASED_SELECTION_MAX_LOOK_BACK_TIME_KEY))) : Optional.<Period> absent());
-
+    this(conf.hasPath(TIME_BASED_SELECTION_MIN_LOOK_BACK_TIME_KEY) ? Optional.of(
+        getLookBackPeriod(conf.getString(TIME_BASED_SELECTION_MIN_LOOK_BACK_TIME_KEY))) : Optional.<Period>absent(),
+        conf.hasPath(TIME_BASED_SELECTION_MAX_LOOK_BACK_TIME_KEY) ? Optional.of(
+            getLookBackPeriod(conf.getString(TIME_BASED_SELECTION_MAX_LOOK_BACK_TIME_KEY)))
+            : Optional.<Period>absent());
   }
 
   public SelectBetweenTimeBasedPolicy(Properties props) {
@@ -100,17 +100,25 @@ public class SelectBetweenTimeBasedPolicy implements VersionSelectionPolicy<Time
       public boolean apply(TimestampedDatasetVersion version) {
         return version.getDateTime()
             .plus(SelectBetweenTimeBasedPolicy.this.maxLookBackPeriod.or(new Period(DateTime.now().getMillis())))
-            .isAfterNow()
-            && version.getDateTime().plus(SelectBetweenTimeBasedPolicy.this.minLookBackPeriod.or(new Period(0)))
-                .isBeforeNow();
+            .isAfterNow() && version.getDateTime()
+            .plus(SelectBetweenTimeBasedPolicy.this.minLookBackPeriod.or(new Period(0)))
+            .isBeforeNow();
       }
     };
   }
 
   protected static Period getLookBackPeriod(String lookbackTime) {
-    PeriodFormatter periodFormatter =
-        new PeriodFormatterBuilder().appendYears().appendSuffix("y").appendMonths().appendSuffix("M").appendDays()
-            .appendSuffix("d").appendHours().appendSuffix("h").appendMinutes().appendSuffix("m").toFormatter();
+    PeriodFormatter periodFormatter = new PeriodFormatterBuilder().appendYears()
+        .appendSuffix("y")
+        .appendMonths()
+        .appendSuffix("M")
+        .appendDays()
+        .appendSuffix("d")
+        .appendHours()
+        .appendSuffix("h")
+        .appendMinutes()
+        .appendSuffix("m")
+        .toFormatter();
     return periodFormatter.parsePeriod(lookbackTime);
   }
 }
