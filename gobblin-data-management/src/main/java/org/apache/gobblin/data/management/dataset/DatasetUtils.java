@@ -142,7 +142,7 @@ public class DatasetUtils {
     try {
       Class<?> copyableFileFilterClass = Class.forName(props.getProperty(COPYABLE_FILE_FILTER_KEY));
       return (CopyableFileFilter) GobblinConstructorUtils
-          .invokeLongestConstructor(copyableFileFilterClass, additionalArgs);
+          .invokeLongestConstructor(copyableFileFilterClass, props, additionalArgs);
     } catch (ReflectiveOperationException exception) {
       throw new RuntimeException(exception);
     }

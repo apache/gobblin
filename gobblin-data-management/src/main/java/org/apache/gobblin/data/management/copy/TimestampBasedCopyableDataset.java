@@ -37,9 +37,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 import org.joda.time.DateTime;
 
-import org.apache.gobblin.data.management.copy.CopyConfiguration;
-import org.apache.gobblin.data.management.copy.CopyableDataset;
-import org.apache.gobblin.data.management.copy.CopyableFile;
+import org.apache.gobblin.data.management.dataset.DatasetUtils;
 import org.apache.gobblin.data.management.policy.SelectAfterTimeBasedPolicy;
 import org.apache.gobblin.data.management.policy.VersionSelectionPolicy;
 import org.apache.gobblin.data.management.version.TimestampedDatasetVersion;
@@ -73,6 +71,7 @@ public class TimestampBasedCopyableDataset implements CopyableDataset, FileSyste
   private final VersionSelectionPolicy<TimestampedDatasetVersion> versionSelectionPolicy;
   private final ExecutorService executor;
   private final FileSystem srcFs;
+  private final CopyableFileFilter copyableFileFilter;
 
   public static final String DATASET_VERSION_FINDER = "timestamp.based.copyable.dataset.version.finder";
   public static final String DEFAULT_DATASET_VERSION_FINDER = DateTimeDatasetVersionFinder.class.getName();
@@ -86,6 +85,7 @@ public class TimestampBasedCopyableDataset implements CopyableDataset, FileSyste
   public TimestampBasedCopyableDataset(FileSystem fs, Properties props, Path datasetRoot) {
     this.srcFs = fs;
     this.datasetRoot = datasetRoot;
+    this.copyableFileFilter = DatasetUtils.instantiateCopyableFileFilter(props);
     try {
       Class<?> copyPolicyClass = Class.forName(props.getProperty(COPY_POLICY, DEFAULT_COPY_POLICY));
       this.versionSelectionPolicy =
@@ -120,6 +120,7 @@ public class TimestampBasedCopyableDataset implements CopyableDataset, FileSyste
     Collection<TimestampedDatasetVersion> copyableVersions = this.versionSelectionPolicy.listSelectedVersions(versions);
     ConcurrentLinkedQueue<CopyableFile> copyableFileList = new ConcurrentLinkedQueue<>();
     List<Future<?>> futures = Lists.newArrayList();
+    //this.copyableFileFilter.filter(this.fs, targetFs, copyableFiles)
     for (TimestampedDatasetVersion copyableVersion : copyableVersions) {
       futures.add(this.executor.submit(this.getCopyableFileGenetator(targetFs, configuration, copyableVersion,
           copyableFileList)));
@@ -134,7 +135,11 @@ public class TimestampBasedCopyableDataset implements CopyableDataset, FileSyste
     } finally {
       ExecutorsUtils.shutdownExecutorService(executor, Optional.of(log));
     }
-    return copyableFileList;
+
+    ConcurrentLinkedQueue<CopyableFile> copyableFilesFilteredList = new ConcurrentLinkedQueue<>();
+    copyableFilesFilteredList.addAll(this.copyableFileFilter.filter(this.srcFs, targetFs, copyableFileList));
+
+    return copyableFilesFilteredList;
   }
 
   @VisibleForTesting

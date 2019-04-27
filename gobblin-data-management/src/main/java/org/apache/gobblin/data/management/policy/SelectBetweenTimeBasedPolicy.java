@@ -18,9 +18,11 @@ package org.apache.gobblin.data.management.policy;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Properties;
 
 import lombok.ToString;
 
+import org.apache.gobblin.util.ConfigUtils;
 import org.joda.time.DateTime;
 import org.joda.time.Period;
 import org.joda.time.format.PeriodFormatter;
@@ -70,6 +72,10 @@ public class SelectBetweenTimeBasedPolicy implements VersionSelectionPolicy<Time
         .hasPath(TIME_BASED_SELECTION_MAX_LOOK_BACK_TIME_KEY) ? Optional.of(getLookBackPeriod(conf
         .getString(TIME_BASED_SELECTION_MAX_LOOK_BACK_TIME_KEY))) : Optional.<Period> absent());
 
+  }
+
+  public SelectBetweenTimeBasedPolicy(Properties props) {
+    this(ConfigUtils.propertiesToConfig(props));
   }
 
   public SelectBetweenTimeBasedPolicy(Optional<Period> minLookBackPeriod, Optional<Period> maxLookBackPeriod) {
