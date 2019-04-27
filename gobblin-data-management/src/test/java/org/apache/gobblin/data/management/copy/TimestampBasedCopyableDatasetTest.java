@@ -34,25 +34,28 @@ import java.util.stream.IntStream;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
-import org.apache.gobblin.data.management.policy.SelectBetweenTimeBasedPolicy;
-import org.apache.gobblin.data.management.version.finder.DateTimeDatasetVersionFinder;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 import org.testng.Assert;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.data.management.policy.SelectBetweenTimeBasedPolicy;
+import org.apache.gobblin.data.management.version.finder.DateTimeDatasetVersionFinder;
 import org.apache.gobblin.data.management.policy.VersionSelectionPolicy;
 import org.apache.gobblin.data.management.version.DatasetVersion;
 import org.apache.gobblin.data.management.version.FileSystemDatasetVersion;
 import org.apache.gobblin.data.management.version.TimestampedDatasetVersion;
 import org.apache.gobblin.data.management.version.finder.VersionFinder;
 import org.apache.gobblin.dataset.Dataset;
+
 
 /**
  * Test for {@link TimestampBasedCopyableDataset}.
@@ -104,7 +107,9 @@ public class TimestampBasedCopyableDatasetTest {
     }
 
     List<DateTime> dateTimeList = Lists.newArrayList();
-    IntStream.range(0, 4).forEach(i -> dateTimeList.add(new DateTime().minusDays(i)));
+    IntStream.range(0, 4)
+        .forEach(
+            i -> dateTimeList.add(new DateTime(DateTimeZone.forID(ConfigurationKeys.PST_TIMEZONE_NAME)).minusDays(i)));
 
     String datePattern = "yyyy/MM/dd";
     DateTimeFormatter formatter = DateTimeFormat.forPattern(datePattern);
