@@ -100,7 +100,7 @@ public class TimestampBasedCopyableDatasetTest {
   public void testCopyWithFilter() throws IOException {
 
     /** source setup **/
-    Path srcRoot = new Path("/tmp/data/slt/eqp/daily");
+    Path srcRoot = new Path("/tmp/src/slt/eqp/daily");
 
     if (this.localFs.exists(srcRoot)) {
       this.localFs.delete(srcRoot, true);
@@ -153,7 +153,7 @@ public class TimestampBasedCopyableDatasetTest {
     TimestampBasedCopyableDataset tCopyableDs = new TimestampBasedCopyableDataset(this.localFs, props, srcRoot);
     ConcurrentLinkedQueue<CopyableFile> copyableFiles =
         (ConcurrentLinkedQueue<CopyableFile>) tCopyableDs.getCopyableFiles(this.localFs, copyConfig);
-    Assert.assertEquals(3, copyableFiles.size());
+    Assert.assertEquals(copyableFiles.size(), 3);
 
     /* Change in MinLookBack to 1d should result in 0 files */
     props.setProperty(SelectBtwModDataTimeBasedCopyableFileFilter.MODIFIED_MIN_LOOK_BACK_TIME_KEY, "1d");
@@ -161,7 +161,7 @@ public class TimestampBasedCopyableDatasetTest {
 
     tCopyableDs = new TimestampBasedCopyableDataset(this.localFs, props, srcRoot);
     copyableFiles = (ConcurrentLinkedQueue<CopyableFile>) tCopyableDs.getCopyableFiles(this.localFs, copyConfig);
-    Assert.assertEquals(0, copyableFiles.size());
+    Assert.assertEquals(copyableFiles.size(), 0);
   }
 
   /**
