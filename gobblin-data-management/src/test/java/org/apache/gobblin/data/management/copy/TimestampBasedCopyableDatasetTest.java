@@ -20,7 +20,6 @@ package org.apache.gobblin.data.management.copy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.google.common.base.Optional;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
@@ -31,6 +30,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 
+import com.google.common.base.Optional;
+import com.google.common.io.Files;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
@@ -43,6 +44,7 @@ import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
 
@@ -64,10 +66,21 @@ import org.apache.gobblin.dataset.Dataset;
 public class TimestampBasedCopyableDatasetTest {
 
   private FileSystem localFs;
+  private Path testTempPath;
 
   @BeforeTest
   public void before() throws IOException {
     this.localFs = FileSystem.getLocal(new Configuration());
+    this.testTempPath = new Path(Files.createTempDir().getAbsolutePath(), "TimeBasedCopyableDatasetTest");
+  }
+
+  @AfterClass
+  public void cleanUp() {
+    try {
+      this.localFs.delete(this.testTempPath, true);
+    } catch (Exception e) {
+      // ignore
+    }
   }
 
   /**
@@ -100,7 +113,7 @@ public class TimestampBasedCopyableDatasetTest {
   public void testCopyWithFilter() throws IOException {
 
     /** source setup **/
-    Path srcRoot = new Path("/tmp/src/slt/eqp/daily");
+    Path srcRoot = new Path(this.testTempPath, "tmp/src/slt/eqp/daily");
 
     if (this.localFs.exists(srcRoot)) {
       this.localFs.delete(srcRoot, true);
@@ -124,9 +137,9 @@ public class TimestampBasedCopyableDatasetTest {
     }
 
     /** destination setup **/
-    Path destRoot = new Path("/tmp/dest/slt/eqp");
+    Path destRoot = new Path(this.testTempPath, "tmp/dest/slt/eqp");
     if (this.localFs.exists(destRoot)) {
-      this.localFs.delete(destRoot);
+      this.localFs.delete(destRoot, true);
     }
     this.localFs.mkdirs(destRoot);
 
