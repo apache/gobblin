@@ -113,6 +113,11 @@ public class TimestampBasedCopyableDatasetTest {
   @Test
   public void testCopyWithFilter() throws IOException {
 
+    String dp = "yyyy/MM/dd_HH";
+    DateTimeFormatter fmt = DateTimeFormat.forPattern(dp);
+    String today = fmt.print(new DateTime(DateTimeZone.forID("America/Los_Angeles")));
+    Assert.assertEquals(today, "2019/04/28_14");
+
     /** source setup **/
     Path srcRoot = new Path(this.testTempPath, "src/slt/eqp/daily");
 
@@ -135,8 +140,6 @@ public class TimestampBasedCopyableDatasetTest {
 
       Path srcfile = new Path(srcVersionPath, "file1.avro");
       this.localFs.create(srcfile);
-
-      Assert.assertTrue(srcfile.toString().contains("2019/04"));
     }
 
     Assert.assertTrue(this.localFs.exists(srcRoot));
