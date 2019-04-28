@@ -137,6 +137,8 @@ public class TimestampBasedCopyableDatasetTest {
       this.localFs.create(srcfile);
     }
 
+    Assert.assertTrue(this.localFs.exists(srcRoot));
+
     /** destination setup **/
     Path destRoot = new Path(this.testTempPath, "tmp/dest/slt/eqp");
     if (this.localFs.exists(destRoot)) {
