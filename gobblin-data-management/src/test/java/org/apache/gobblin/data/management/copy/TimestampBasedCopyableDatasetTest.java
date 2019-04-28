@@ -113,11 +113,6 @@ public class TimestampBasedCopyableDatasetTest {
   @Test
   public void testCopyWithFilter() throws IOException {
 
-    String dp = "yyyy/MM/dd_HH";
-    DateTimeFormatter fmt = DateTimeFormat.forPattern(dp);
-    String today = fmt.print(new DateTime(DateTimeZone.forID("America/Los_Angeles")));
-    Assert.assertEquals(today, "2019/04/28_14");
-
     /** source setup **/
     Path srcRoot = new Path(this.testTempPath, "src/slt/eqp/daily");
 
@@ -142,14 +137,18 @@ public class TimestampBasedCopyableDatasetTest {
       this.localFs.create(srcfile);
     }
 
-    Assert.assertTrue(this.localFs.exists(srcRoot));
-
     /** destination setup **/
     Path destRoot = new Path(this.testTempPath, "dest/slt/eqp");
     if (this.localFs.exists(destRoot)) {
       this.localFs.delete(destRoot, true);
     }
     this.localFs.mkdirs(destRoot);
+
+    Assert.assertTrue(this.localFs.exists(srcRoot));
+    Assert.assertTrue(this.localFs.exists(new Path(srcRoot, "2019/04/25/file1.avro")));
+    Assert.assertTrue(this.localFs.exists(new Path(srcRoot, "2019/04/26/file1.avro")));
+    Assert.assertTrue(this.localFs.exists(new Path(srcRoot, "2019/04/27/file1.avro")));
+    Assert.assertTrue(this.localFs.exists(new Path(srcRoot, "2019/04/28/file1.avro")));
 
     Properties props = new Properties();
     props.setProperty(TimestampBasedCopyableDataset.COPY_POLICY, SelectBetweenTimeBasedPolicy.class.getName());
@@ -174,6 +173,11 @@ public class TimestampBasedCopyableDatasetTest {
     TimestampBasedCopyableDataset tCopyableDs = new TimestampBasedCopyableDataset(this.localFs, props, srcRoot);
     ConcurrentLinkedQueue<CopyableFile> copyableFiles =
         (ConcurrentLinkedQueue<CopyableFile>) tCopyableDs.getCopyableFiles(this.localFs, copyConfig);
+
+    Assert.assertTrue(this.localFs.exists(new Path(srcRoot, "2019/04/25/file1.avro")));
+    Assert.assertTrue(this.localFs.exists(new Path(srcRoot, "2019/04/26/file1.avro")));
+    Assert.assertTrue(this.localFs.exists(new Path(srcRoot, "2019/04/27/file1.avro")));
+    Assert.assertTrue(this.localFs.exists(new Path(srcRoot, "2019/04/28/file1.avro")));
     Assert.assertEquals(copyableFiles.size(), 3);
 
     /* Change in MinLookBack to 1d should result in 0 files */
