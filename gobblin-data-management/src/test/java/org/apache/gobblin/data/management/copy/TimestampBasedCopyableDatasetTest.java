@@ -114,7 +114,7 @@ public class TimestampBasedCopyableDatasetTest {
   public void testCopyWithFilter() throws IOException {
 
     /** source setup **/
-    Path srcRoot = new Path(this.testTempPath, "tmp/src/slt/eqp/daily");
+    Path srcRoot = new Path(this.testTempPath, "src/slt/eqp/daily");
 
     if (this.localFs.exists(srcRoot)) {
       this.localFs.delete(srcRoot, true);
@@ -135,12 +135,14 @@ public class TimestampBasedCopyableDatasetTest {
 
       Path srcfile = new Path(srcVersionPath, "file1.avro");
       this.localFs.create(srcfile);
+
+      Assert.assertTrue(srcfile.toString().contains("2019/04"));
     }
 
     Assert.assertTrue(this.localFs.exists(srcRoot));
 
     /** destination setup **/
-    Path destRoot = new Path(this.testTempPath, "tmp/dest/slt/eqp");
+    Path destRoot = new Path(this.testTempPath, "dest/slt/eqp");
     if (this.localFs.exists(destRoot)) {
       this.localFs.delete(destRoot, true);
     }
@@ -156,7 +158,7 @@ public class TimestampBasedCopyableDatasetTest {
     props.setProperty("gobblin.dataset.copyable.file.filter.class",
         "org.apache.gobblin.data.management.copy.SelectBtwModDataTimeBasedCopyableFileFilter");
     props.setProperty(SelectBtwModDataTimeBasedCopyableFileFilter.MODIFIED_MIN_LOOK_BACK_TIME_KEY, "0d");
-    props.setProperty(SelectBtwModDataTimeBasedCopyableFileFilter.MODIFIED_MAX_LOOK_BACK_TIME_KEY, "3d");
+    props.setProperty(SelectBtwModDataTimeBasedCopyableFileFilter.MODIFIED_MAX_LOOK_BACK_TIME_KEY, "1d");
 
     /** Mock object **/
     CopyConfiguration copyConfig = mock(CopyConfiguration.class);
@@ -173,7 +175,7 @@ public class TimestampBasedCopyableDatasetTest {
 
     /* Change in MinLookBack to 1d should result in 0 files */
     props.setProperty(SelectBtwModDataTimeBasedCopyableFileFilter.MODIFIED_MIN_LOOK_BACK_TIME_KEY, "1d");
-    props.setProperty(SelectBtwModDataTimeBasedCopyableFileFilter.MODIFIED_MAX_LOOK_BACK_TIME_KEY, "3d");
+    props.setProperty(SelectBtwModDataTimeBasedCopyableFileFilter.MODIFIED_MAX_LOOK_BACK_TIME_KEY, "2d");
 
     tCopyableDs = new TimestampBasedCopyableDataset(this.localFs, props, srcRoot);
     copyableFiles = (ConcurrentLinkedQueue<CopyableFile>) tCopyableDs.getCopyableFiles(this.localFs, copyConfig);
