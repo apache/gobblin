@@ -44,7 +44,7 @@ import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
+import org.testng.annotations.AfterTest;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
 
@@ -71,11 +71,11 @@ public class TimestampBasedCopyableDatasetTest {
   @BeforeTest
   public void before() throws IOException {
     this.localFs = FileSystem.getLocal(new Configuration());
-    this.testTempPath = new Path(Files.createTempDir().getAbsolutePath(), "TimeBasedCopyableDatasetTest");
+    this.testTempPath = new Path(Files.createTempDir().getAbsolutePath(), "TbCopyDatasetTest");
     this.localFs.mkdirs(this.testTempPath);
   }
 
-  @AfterClass
+  @AfterTest
   public void cleanUp() {
     try {
       this.localFs.delete(this.testTempPath, true);
