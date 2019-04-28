@@ -72,6 +72,7 @@ public class TimestampBasedCopyableDatasetTest {
   public void before() throws IOException {
     this.localFs = FileSystem.getLocal(new Configuration());
     this.testTempPath = new Path(Files.createTempDir().getAbsolutePath(), "TimeBasedCopyableDatasetTest");
+    this.localFs.mkdirs(this.testTempPath);
   }
 
   @AfterClass
