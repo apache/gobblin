@@ -104,7 +104,7 @@ public class SelectBtwModDataTimeBasedCopyableFileFilter implements CopyableFile
    *         <code>false</code> if file modification time not between look back window.
    *
    */
-  private boolean isFileModifiedBtwLookBackPeriod(long modTime) {
+  public boolean isFileModifiedBtwLookBackPeriod(long modTime) {
     DateTime modifiedTime = this.props.containsKey(DATE_PATTERN_TIMEZONE_KEY) ? new DateTime(modTime).withZone(
         DateTimeZone.forID(props.getProperty(DATE_PATTERN_TIMEZONE_KEY)))
         : new DateTime(modTime).withZone(DateTimeZone.forID(DEFAULT_DATE_PATTERN_TIMEZONE));

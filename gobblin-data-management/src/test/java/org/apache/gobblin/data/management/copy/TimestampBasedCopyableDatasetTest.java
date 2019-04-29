@@ -203,6 +203,17 @@ public class TimestampBasedCopyableDatasetTest {
     Assert.assertEquals(copyableFileList.peek().getOrigin().getModificationTime(), srcFileModTime);
 
     SelectBtwModDataTimeBasedCopyableFileFilter selectCopyFilter = new SelectBtwModDataTimeBasedCopyableFileFilter(props);
+    Assert.assertTrue(selectCopyFilter.isFileModifiedBtwLookBackPeriod(copyableFileList.peek().getOrigin().getModificationTime()));
+
+    ConcurrentLinkedQueue<CopyableFile> copyableFileTestList = new ConcurrentLinkedQueue<>();
+    for(CopyableFile cf : copyableFileList){
+      if(selectCopyFilter.isFileModifiedBtwLookBackPeriod(cf.getOrigin().getModificationTime())) {
+        copyableFileTestList.add(cf);
+      }
+    }
+
+    Assert.assertEquals(copyableFileList.size(), 3);
+
     Collection<CopyableFile> cFilterList = selectCopyFilter.filter(this.localFs, this.localFs, copyableFileList);
     Assert.assertEquals(cFilterList.size(), 3);
 
