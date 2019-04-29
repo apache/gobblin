@@ -55,7 +55,7 @@ public class SelectBtwModDataTimeBasedCopyableFileFilter implements CopyableFile
   public static final String MODIFIED_MAX_LOOK_BACK_TIME_KEY =
       CONFIGURATION_KEY_PREFIX + "selection.modified.max.lookbackTime";
   public static final String DEFAULT_DATE_PATTERN_TIMEZONE = ConfigurationKeys.PST_TIMEZONE_NAME;
-  public static final String DATE_PATTERN_TIMEZONE_KEY = CONFIGURATION_KEY_PREFIX + ".datetime.timezone";
+  public static final String DATE_PATTERN_TIMEZONE_KEY = CONFIGURATION_KEY_PREFIX + "datetime.timezone";
 
   public SelectBtwModDataTimeBasedCopyableFileFilter(Properties properties) {
     this.props = properties;
@@ -66,7 +66,7 @@ public class SelectBtwModDataTimeBasedCopyableFileFilter implements CopyableFile
     this.maxLookBackPeriod = props.containsKey(MODIFIED_MAX_LOOK_BACK_TIME_KEY) ? periodFormatter.parsePeriod(
         props.getProperty(MODIFIED_MAX_LOOK_BACK_TIME_KEY)) : new Period(DateTime.now().minusDays(1).getMillis());
     this.currentTime = properties.containsKey(DATE_PATTERN_TIMEZONE_KEY) ? LocalDateTime.now(
-        DateTimeZone.forID(DATE_PATTERN_TIMEZONE_KEY))
+        DateTimeZone.forID(props.getProperty(DATE_PATTERN_TIMEZONE_KEY)))
         : LocalDateTime.now(DateTimeZone.forID(DEFAULT_DATE_PATTERN_TIMEZONE));
     this.minLookBackTime = this.currentTime.minus(minLookBackPeriod);
     this.maxLookBackTime = this.currentTime.minus(maxLookBackPeriod);
@@ -106,7 +106,7 @@ public class SelectBtwModDataTimeBasedCopyableFileFilter implements CopyableFile
    */
   private boolean isFileModifiedBtwLookBackPeriod(long modTime) {
     DateTime modifiedTime = this.props.containsKey(DATE_PATTERN_TIMEZONE_KEY) ? new DateTime(modTime).withZone(
-        DateTimeZone.forID(DATE_PATTERN_TIMEZONE_KEY))
+        DateTimeZone.forID(props.getProperty(DATE_PATTERN_TIMEZONE_KEY)))
         : new DateTime(modTime).withZone(DateTimeZone.forID(DEFAULT_DATE_PATTERN_TIMEZONE));
     if (modifiedTime.isAfter(this.maxLookBackTime.toDateTime()) && modifiedTime.isBefore(
         this.minLookBackTime.toDateTime())) {

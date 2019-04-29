@@ -137,8 +137,6 @@ public class TimestampBasedCopyableDatasetTest {
       this.localFs.create(srcfile);
     }
 
-
-//    FileStatus[] dataSetVersionPaths = this.fs.globStatus(versionGlobStatus);
     Path versionGlobStatus = new Path(srcRoot, new Path("*/*/*"));
     FileStatus[] datasetVersionPaths = this.localFs.globStatus(versionGlobStatus);
     Assert.assertEquals(datasetVersionPaths.length, 4);
@@ -167,6 +165,8 @@ public class TimestampBasedCopyableDatasetTest {
         "org.apache.gobblin.data.management.copy.SelectBtwModDataTimeBasedCopyableFileFilter");
     props.setProperty(SelectBtwModDataTimeBasedCopyableFileFilter.MODIFIED_MIN_LOOK_BACK_TIME_KEY, "0d");
     props.setProperty(SelectBtwModDataTimeBasedCopyableFileFilter.MODIFIED_MAX_LOOK_BACK_TIME_KEY, "1d");
+    props.setProperty(SelectBtwModDataTimeBasedCopyableFileFilter.DATE_PATTERN_TIMEZONE_KEY,
+        ConfigurationKeys.PST_TIMEZONE_NAME);
 
     /** Mock object **/
     CopyConfiguration copyConfig = mock(CopyConfiguration.class);
@@ -184,7 +184,26 @@ public class TimestampBasedCopyableDatasetTest {
     Assert.assertTrue(this.localFs.exists(new Path(srcRoot, "2019/04/26/file1.avro")));
     Assert.assertTrue(this.localFs.exists(new Path(srcRoot, "2019/04/27/file1.avro")));
     Assert.assertTrue(this.localFs.exists(new Path(srcRoot, "2019/04/28/file1.avro")));
-    Assert.assertEquals(copyableFiles.size(), 3);
+
+    DateTimeDatasetVersionFinder dsFinder = new DateTimeDatasetVersionFinder(this.localFs, props);
+    List<TimestampedDatasetVersion> dsList = Lists.newArrayList(dsFinder.findDatasetVersions(tCopyableDs));
+    Assert.assertEquals(dsList.size(), 4);
+
+    SelectBetweenTimeBasedPolicy sbtp = new SelectBetweenTimeBasedPolicy(props);
+    Collection<TimestampedDatasetVersion> sbtpList = sbtp.listSelectedVersions(dsList);
+    Assert.assertEquals(sbtpList.size(), 3);
+
+    ConcurrentLinkedQueue<CopyableFile> copyableFileList = new ConcurrentLinkedQueue<>();
+    for (TimestampedDatasetVersion i : sbtpList) {
+      tCopyableDs.getCopyableFileGenetator(this.localFs, copyConfig, i, copyableFileList).run();
+    }
+    Assert.assertEquals(copyableFileList.size(), 3);
+
+    SelectBtwModDataTimeBasedCopyableFileFilter selectCopyFilter = new SelectBtwModDataTimeBasedCopyableFileFilter(props);
+    Collection<CopyableFile> cFilterList = selectCopyFilter.filter(this.localFs, this.localFs, copyableFileList);
+    Assert.assertEquals(cFilterList.size(), 3);
+
+//    Assert.assertEquals(copyableFiles.size(), 3);
 
     /* Change in MinLookBack to 1d should result in 0 files */
     props.setProperty(SelectBtwModDataTimeBasedCopyableFileFilter.MODIFIED_MIN_LOOK_BACK_TIME_KEY, "1d");
