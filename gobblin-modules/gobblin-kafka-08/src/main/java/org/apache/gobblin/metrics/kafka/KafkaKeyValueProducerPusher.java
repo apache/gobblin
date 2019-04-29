@@ -47,7 +47,7 @@ import org.apache.gobblin.util.ConfigUtils;
  * @param <V> value type
  */
 @Slf4j
-public class KafkaKeyValueProducerPusher<K, V> implements KeyValuePusher<K, V> {
+public class KafkaKeyValueProducerPusher<K, V> implements Pusher<Pair<K, V>> {
   private static final long DEFAULT_MAX_NUM_FUTURES_TO_BUFFER = 1000L;
   //Low watermark for the size of the futures queue, to trigger flushing of messages.
   private static final String MAX_NUM_FUTURES_TO_BUFFER_KEY = "numFuturesToBuffer";
@@ -96,28 +96,9 @@ public class KafkaKeyValueProducerPusher<K, V> implements KeyValuePusher<K, V> {
    * Push all keyed messages to the Kafka topic.
    * @param messages List of keyed messages to push to Kakfa.
    */
-  public void pushKeyValueMessages(List<Pair<K, V>> messages) {
+  public void pushMessages(List<Pair<K, V>> messages) {
     for (Pair<K, V> message: messages) {
       this.futures.offer(this.producer.send(new ProducerRecord<>(topic, message.getKey(), message.getValue()), (recordMetadata, e) -> {
-        if (e != null) {
-          log.error("Failed to send message to topic {} due to exception: ", topic, e);
-        }
-      }));
-    }
-
-    //Once the low watermark of numFuturesToBuffer is hit, start flushing messages from the futures
-    // buffer. In order to avoid blocking on newest messages added to futures queue, we only invoke future.get() on
-    // the oldest messages in the futures buffer. The number of messages to flush is same as the number of messages added
-    // in the current call. Note this does not completely avoid calling future.get() on the newer messages e.g. when
-    // multiple threads enter the if{} block concurrently, and invoke flush().
-    if (this.futures.size() >= this.numFuturesToBuffer) {
-      flush(messages.size());
-    }
-  }
-
-  public void pushMessages(List<V> messages) {
-    for (V message: messages) {
-      this.futures.offer(this.producer.send(new ProducerRecord<>(topic, message), (recordMetadata, e) -> {
         if (e != null) {
           log.error("Failed to send message to topic {} due to exception: ", topic, e);
         }

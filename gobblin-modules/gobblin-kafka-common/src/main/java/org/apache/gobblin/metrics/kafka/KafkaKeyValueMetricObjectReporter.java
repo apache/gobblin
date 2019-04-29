@@ -27,6 +27,7 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.commons.lang3.tuple.Pair;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
@@ -60,13 +61,13 @@ public class KafkaKeyValueMetricObjectReporter extends MetricReportReporter {
       String pusherClassName = ConfigUtils.getString(config, PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY_FOR_OBJECTS, PusherUtils.DEFAULT_KAFKA_PUSHER_CLASS_NAME);
       this.kafkaPusher = PusherUtils.getKeyValuePusher(pusherClassName, builder.brokers, builder.topic, Optional.of(kafkaConfig));
     }
-
     this.closer.register(this.kafkaPusher);
 
     randomKey=String.valueOf(new Random().nextInt(100));
-    if (builder.keys.size() > 0) {
-      this.keys = Optional.of(builder.keys);
-    } else {
+    if (config.hasPath((ConfigurationKeys.METRICS_REPORTING_KAFKAPUSHERKEYS))) {
+      List<String> keys = Splitter.on(",").omitEmptyStrings().trimResults().splitToList(config.getString(ConfigurationKeys.METRICS_REPORTING_KAFKAPUSHERKEYS));
+      this.keys = Optional.of(keys);
+    }else{
       log.warn("Key not assigned from config. Please set it with property {}", ConfigurationKeys.METRICS_REPORTING_KAFKAPUSHERKEYS);
       log.warn("Using generated number " + randomKey + " as key");
     }
@@ -108,7 +109,6 @@ public class KafkaKeyValueMetricObjectReporter extends MetricReportReporter {
     protected String topic;
     protected Optional<KeyValuePusher> kafkaPusher = Optional.absent();
     protected Optional<String> pusherClassName = Optional.absent();
-    protected List<String> keys = Lists.newArrayList();
     protected Optional<Map<String,String>> namespaceOverride=Optional.absent();
 
     public T withKafkaPusher(KeyValuePusher pusher) {
@@ -121,11 +121,6 @@ public class KafkaKeyValueMetricObjectReporter extends MetricReportReporter {
      */
     public T withPusherClassName(String pusherClassName) {
       this.pusherClassName = Optional.of(pusherClassName);
-      return self();
-    }
-
-    public T withKeys(List<String> keys) {
-      this.keys = keys;
       return self();
     }
 

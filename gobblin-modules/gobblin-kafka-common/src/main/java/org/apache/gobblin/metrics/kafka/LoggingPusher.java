@@ -19,6 +19,8 @@ package org.apache.gobblin.metrics.kafka;
 import java.io.IOException;
 import java.util.List;
 
+import org.apache.commons.lang3.tuple.Pair;
+
 import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 
@@ -29,10 +31,10 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * This is a {@Pusher} class that logs the messages
- * @param <M> message type
+ * @param <V> message type
  */
 @Slf4j
-public class LoggingPusher<M> implements Pusher<M> {
+public class LoggingPusher<K,V> implements KeyValuePusher<K,V> {
   private final String brokers;
   private final String topic;
   private static final String KAFKA_TOPIC = "kafka.topic";
@@ -56,13 +58,22 @@ public class LoggingPusher<M> implements Pusher<M> {
     this.topic = topic;
   }
 
-  public void pushMessages(List<M> messages) {
-    for (M message: messages) {
-      log.info("Pushing to {}:{}: {}", this.brokers, this.topic, message.toString());
+  @Override
+  public void close() throws IOException {
+  }
+
+  @Override
+  public void pushKeyValueMessages(List<Pair<K,V>> messages) {
+    for (Pair<K,V> message: messages) {
+      log.info("Pushing to {}:{}: {} - {}", this.brokers, this.topic, message.getKey(), message.getValue().toString());
     }
   }
 
   @Override
-  public void close() throws IOException {
+  public void pushMessages(List<V> messages) {
+    for (V message: messages) {
+      log.info("Pushing to {}:{}: {}", this.brokers, this.topic, message.toString());
+    }
+
   }
 }

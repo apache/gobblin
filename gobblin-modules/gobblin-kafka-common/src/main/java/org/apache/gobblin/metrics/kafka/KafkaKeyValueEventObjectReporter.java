@@ -26,6 +26,7 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.commons.lang3.tuple.Pair;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
@@ -60,10 +61,11 @@ public class KafkaKeyValueEventObjectReporter extends EventReporter {
 
     this.closer.register(this.kafkaPusher);
 
-    randomKey = String.valueOf(new Random().nextInt(100));
-    if (builder.keys.size() > 0) {
-      this.keys = Optional.of(builder.keys);
-    } else {
+    randomKey=String.valueOf(new Random().nextInt(100));
+    if (builder.config.get().hasPath((ConfigurationKeys.METRICS_REPORTING_EVENTS_KAFKAPUSHERKEYS))) {
+      List<String> keys = Splitter.on(",").omitEmptyStrings().trimResults().splitToList(builder.config.get().getString(ConfigurationKeys.METRICS_REPORTING_EVENTS_KAFKAPUSHERKEYS));
+      this.keys = Optional.of(keys);
+    }else{
       log.warn("Key not assigned from config. Please set it with property {}", ConfigurationKeys.METRICS_REPORTING_EVENTS_KAFKAPUSHERKEYS);
       log.warn("Using generated number " + randomKey + " as key");
     }

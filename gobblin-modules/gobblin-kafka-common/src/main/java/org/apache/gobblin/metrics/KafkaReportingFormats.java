@@ -22,13 +22,13 @@ import java.util.List;
 import java.util.Properties;
 
 import com.codahale.metrics.ScheduledReporter;
+import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
 import com.typesafe.config.Config;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.kafka.KafkaAvroEventKeyValueReporter;
 import org.apache.gobblin.metrics.kafka.KafkaAvroEventReporter;
-import org.apache.gobblin.metrics.kafka.KafkaAvroMetricKeyValueReporter;
 import org.apache.gobblin.metrics.kafka.KafkaAvroReporter;
 import org.apache.gobblin.metrics.kafka.KafkaAvroSchemaRegistry;
 import org.apache.gobblin.metrics.kafka.KafkaEventReporter;
@@ -84,18 +84,7 @@ public enum KafkaReportingFormats {
     @Override
     public void buildMetricsScheduledReporter(String brokers, String topic, Properties properties) throws IOException {
 
-      KafkaAvroMetricKeyValueReporter.Builder<?> builder = KafkaAvroMetricKeyValueReporter.Factory.newBuilder();
-      if (properties.containsKey(ConfigurationKeys.METRICS_REPORTING_EVENTS_KAFKAPUSHERKEYS)) {
-        List<String> keys = Splitter.on(",").omitEmptyStrings().trimResults()
-            .splitToList(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_EVENTS_KAFKAPUSHERKEYS));
-        builder.withKeys(keys);
-      }
-      if (Boolean.valueOf(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY,
-          ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY))) {
-        builder.withSchemaRegistry(new KafkaAvroSchemaRegistry(properties));
-      }
-      builder.build(brokers, topic, properties);
-
+      throw new IOException("Unsupported format for Metric reporting " + this.name());
     }
 
     @Override
@@ -148,11 +137,7 @@ public enum KafkaReportingFormats {
     public void buildMetricsScheduledReporter(String brokers, String topic, Properties properties) throws IOException {
 
       KafkaKeyValueMetricObjectReporter.Builder<?> builder = KafkaKeyValueMetricObjectReporter.Factory.newBuilder();
-      if (properties.containsKey(ConfigurationKeys.METRICS_REPORTING_EVENTS_KAFKAPUSHERKEYS)) {
-        List<String> keys = Splitter.on(",").omitEmptyStrings().trimResults()
-            .splitToList(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_EVENTS_KAFKAPUSHERKEYS));
-        builder.withKeys(keys);
-      }
+
       builder.namespaceOverride(KafkaAvroReporterUtil.extractOverrideNamespace(properties));
       builder.build(brokers, topic, properties);
 
@@ -183,13 +168,9 @@ public enum KafkaReportingFormats {
 
   public Config getEventsKafkaConfig(Properties properties){
 
-    Config allConfig = ConfigUtils.propertiesToConfig(properties);
-    // the kafka configuration is composed of the metrics reporting specific keys with a fallback to the shared
-    // kafka config
-    Config kafkaConfig = ConfigUtils.getConfigOrEmpty(allConfig,
-        PusherUtils.METRICS_REPORTING_KAFKA_CONFIG_PREFIX).withFallback(ConfigUtils.getConfigOrEmpty(allConfig,
-        ConfigurationKeys.SHARED_KAFKA_CONFIG_PREFIX));
+    return ConfigUtils.propertiesToConfig(properties, Optional.of(ConfigurationKeys.METRICS_CONFIGURATIONS_PREFIX))
+        .withFallback(ConfigUtils.propertiesToConfig(properties,
+            Optional.of(ConfigurationKeys.SHARED_KAFKA_CONFIG_PREFIX)));
 
-    return kafkaConfig;
   }
 }

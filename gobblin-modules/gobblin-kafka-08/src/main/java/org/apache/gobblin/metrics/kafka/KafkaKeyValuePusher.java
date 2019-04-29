@@ -99,14 +99,15 @@ public class KafkaKeyValuePusher<K,V> implements KeyValuePusher<K,V> {
         }
       }));
     }
-      //Once the low watermark of numFuturesToBuffer is hit, start flushing messages from the futures
-      // buffer. In order to avoid blocking on newest messages added to futures queue, we only invoke future.get() on
-      // the oldest messages in the futures buffer. The number of messages to flush is same as the number of messages added
-      // in the current call. Note this does not completely avoid calling future.get() on the newer messages e.g. when
-      // multiple threads enter the if{} block concurrently, and invoke flush().
-      if (this.futures.size() >= this.numFuturesToBuffer) {
-        flush(messages.size());
-      }
+
+    //Once the low watermark of numFuturesToBuffer is hit, start flushing messages from the futures
+    // buffer. In order to avoid blocking on newest messages added to futures queue, we only invoke future.get() on
+    // the oldest messages in the futures buffer. The number of messages to flush is same as the number of messages added
+    // in the current call. Note this does not completely avoid calling future.get() on the newer messages e.g. when
+    // multiple threads enter the if{} block concurrently, and invoke flush().
+    if (this.futures.size() >= this.numFuturesToBuffer) {
+      flush(messages.size());
+    }
 
   }
 
@@ -118,6 +119,15 @@ public class KafkaKeyValuePusher<K,V> implements KeyValuePusher<K,V> {
           log.error("Failed to send message to topic {} due to exception: ", topic, e);
         }
       }));
+    }
+
+    //Once the low watermark of numFuturesToBuffer is hit, start flushing messages from the futures
+    // buffer. In order to avoid blocking on newest messages added to futures queue, we only invoke future.get() on
+    // the oldest messages in the futures buffer. The number of messages to flush is same as the number of messages added
+    // in the current call. Note this does not completely avoid calling future.get() on the newer messages e.g. when
+    // multiple threads enter the if{} block concurrently, and invoke flush().
+    if (this.futures.size() >= this.numFuturesToBuffer) {
+      flush(messages.size());
     }
   }
 
