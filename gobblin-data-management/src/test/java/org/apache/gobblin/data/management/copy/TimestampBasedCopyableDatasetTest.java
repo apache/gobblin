@@ -149,10 +149,12 @@ public class TimestampBasedCopyableDatasetTest {
     this.localFs.mkdirs(destRoot);
 
     Assert.assertTrue(this.localFs.exists(srcRoot));
-    Assert.assertTrue(this.localFs.exists(new Path(srcRoot, "2019/04/25/file1.avro")));
     Assert.assertTrue(this.localFs.exists(new Path(srcRoot, "2019/04/26/file1.avro")));
     Assert.assertTrue(this.localFs.exists(new Path(srcRoot, "2019/04/27/file1.avro")));
     Assert.assertTrue(this.localFs.exists(new Path(srcRoot, "2019/04/28/file1.avro")));
+    Assert.assertTrue(this.localFs.exists(new Path(srcRoot, "2019/04/29/file1.avro")));
+    FileStatus[] fsTest = this.localFs.globStatus(new Path(srcRoot, "2019/04/26/file1.avro"));
+    long srcFileModTime = fsTest[0].getModificationTime();
 
     Properties props = new Properties();
     props.setProperty(TimestampBasedCopyableDataset.COPY_POLICY, SelectBetweenTimeBasedPolicy.class.getName());
@@ -180,10 +182,10 @@ public class TimestampBasedCopyableDatasetTest {
     ConcurrentLinkedQueue<CopyableFile> copyableFiles =
         (ConcurrentLinkedQueue<CopyableFile>) tCopyableDs.getCopyableFiles(this.localFs, copyConfig);
 
-    Assert.assertTrue(this.localFs.exists(new Path(srcRoot, "2019/04/25/file1.avro")));
     Assert.assertTrue(this.localFs.exists(new Path(srcRoot, "2019/04/26/file1.avro")));
     Assert.assertTrue(this.localFs.exists(new Path(srcRoot, "2019/04/27/file1.avro")));
     Assert.assertTrue(this.localFs.exists(new Path(srcRoot, "2019/04/28/file1.avro")));
+    Assert.assertTrue(this.localFs.exists(new Path(srcRoot, "2019/04/29/file1.avro")));
 
     DateTimeDatasetVersionFinder dsFinder = new DateTimeDatasetVersionFinder(this.localFs, props);
     List<TimestampedDatasetVersion> dsList = Lists.newArrayList(dsFinder.findDatasetVersions(tCopyableDs));
@@ -198,6 +200,7 @@ public class TimestampBasedCopyableDatasetTest {
       tCopyableDs.getCopyableFileGenetator(this.localFs, copyConfig, i, copyableFileList).run();
     }
     Assert.assertEquals(copyableFileList.size(), 3);
+    Assert.assertEquals(copyableFileList.peek().getOrigin().getModificationTime(), srcFileModTime);
 
     SelectBtwModDataTimeBasedCopyableFileFilter selectCopyFilter = new SelectBtwModDataTimeBasedCopyableFileFilter(props);
     Collection<CopyableFile> cFilterList = selectCopyFilter.filter(this.localFs, this.localFs, copyableFileList);
