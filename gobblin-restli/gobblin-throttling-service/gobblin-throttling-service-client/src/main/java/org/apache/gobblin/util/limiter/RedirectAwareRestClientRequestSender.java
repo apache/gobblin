@@ -59,6 +59,8 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class RedirectAwareRestClientRequestSender extends RestClientRequestSender {
 
+  private static final int MIN_RETRIES = 3;
+
   /**
    * A {@link SharedResourceFactory} that creates {@link RedirectAwareRestClientRequestSender}s.
    * @param <S>
@@ -106,7 +108,7 @@ public class RedirectAwareRestClientRequestSender extends RestClientRequestSende
       throws NotConfiguredException {
     this.broker = broker;
     this.connectionPrefixes = connectionPrefixes;
-    updateRestClient(getNextConnectionPrefix(), "service start");
+    updateRestClient(getNextConnectionPrefix(), "service start", null);
   }
 
   private String getNextConnectionPrefix() {
@@ -139,8 +141,12 @@ public class RedirectAwareRestClientRequestSender extends RestClientRequestSende
   }
 
   @VisibleForTesting
-  void updateRestClient(String uri, String reason) throws NotConfiguredException {
-    log.info(String.format("Switching to server prefix %s due to: %s", uri, reason));
+  void updateRestClient(String uri, String reason, Throwable errorCause) throws NotConfiguredException {
+    if (errorCause == null) {
+      log.info(String.format("Switching to server prefix %s due to: %s", uri, reason));
+    } else {
+      log.error(String.format("Switching to server prefix %s due to: %s", uri, reason), errorCause);
+    }
     this.currentServerPrefix = uri;
     this.restClient = (RestClient) this.broker.getSharedResource(new SharedRestClientFactory(),
           new UriRestClientKey(RestliLimiterFactory.RESTLI_SERVICE_NAME, uri));
@@ -154,7 +160,7 @@ public class RedirectAwareRestClientRequestSender extends RestClientRequestSende
   private class CallbackDecorator implements Callback<Response<PermitAllocation>> {
     private final PermitRequest originalRequest;
     private final Callback<Response<PermitAllocation>> underlying;
-    private final ExponentialBackoff exponentialBackoff = ExponentialBackoff.builder().maxDelay(10000L).build();
+    private final ExponentialBackoff exponentialBackoff = ExponentialBackoff.builder().maxDelay(10000L).initialDelay(500L).build();
     private int redirects = 0;
     private int retries = 0;
 
@@ -170,16 +176,16 @@ public class RedirectAwareRestClientRequestSender extends RestClientRequestSende
           RestLiResponseException responseExc = (RestLiResponseException) error;
           String newUri = (String) responseExc.getErrorDetails().get("Location");
           RedirectAwareRestClientRequestSender.this.updateRestClient(
-              SharedRestClientFactory.resolveUriPrefix(new URI(newUri)), "301 redirect");
+              SharedRestClientFactory.resolveUriPrefix(new URI(newUri)), "301 redirect", null);
           this.exponentialBackoff.awaitNextRetry();
           sendRequest(this.originalRequest, this);
         } else if (error instanceof RemoteInvocationException
             && shouldCatchExceptionAndSwitchUrl((RemoteInvocationException) error)) {
           this.retries++;
-          if (this.retries > RedirectAwareRestClientRequestSender.this.connectionPrefixes.size()) {
-            this.underlying.onError(new NonRetriableException("Failed to connect to all available connection prefixes."));
+          if (this.retries > RedirectAwareRestClientRequestSender.this.connectionPrefixes.size() + MIN_RETRIES) {
+            this.underlying.onError(new NonRetriableException("Failed to connect to all available connection prefixes.", error));
           }
-          updateRestClient(getNextConnectionPrefix(), "Failed to communicate with " + getCurrentServerPrefix());
+          updateRestClient(getNextConnectionPrefix(), "Failed to communicate with " + getCurrentServerPrefix(), error);
           this.exponentialBackoff.awaitNextRetry();
           sendRequest(this.originalRequest, this);
         } else {
