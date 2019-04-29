@@ -137,24 +137,12 @@ public class TimestampBasedCopyableDatasetTest {
       this.localFs.create(srcfile);
     }
 
-    Path versionGlobStatus = new Path(srcRoot, new Path("*/*/*"));
-    FileStatus[] datasetVersionPaths = this.localFs.globStatus(versionGlobStatus);
-    Assert.assertEquals(datasetVersionPaths.length, 4);
-
     /** destination setup **/
     Path destRoot = new Path(this.testTempPath, "dest/slt/eqp");
     if (this.localFs.exists(destRoot)) {
       this.localFs.delete(destRoot, true);
     }
     this.localFs.mkdirs(destRoot);
-
-    Assert.assertTrue(this.localFs.exists(srcRoot));
-    Assert.assertTrue(this.localFs.exists(new Path(srcRoot, "2019/04/26/file1.avro")));
-    Assert.assertTrue(this.localFs.exists(new Path(srcRoot, "2019/04/27/file1.avro")));
-    Assert.assertTrue(this.localFs.exists(new Path(srcRoot, "2019/04/28/file1.avro")));
-    Assert.assertTrue(this.localFs.exists(new Path(srcRoot, "2019/04/29/file1.avro")));
-    FileStatus[] fsTest = this.localFs.globStatus(new Path(srcRoot, "2019/04/26/file1.avro"));
-    long srcFileModTime = fsTest[0].getModificationTime();
 
     Properties props = new Properties();
     props.setProperty(TimestampBasedCopyableDataset.COPY_POLICY, SelectBetweenTimeBasedPolicy.class.getName());
@@ -182,42 +170,7 @@ public class TimestampBasedCopyableDatasetTest {
     ConcurrentLinkedQueue<CopyableFile> copyableFiles =
         (ConcurrentLinkedQueue<CopyableFile>) tCopyableDs.getCopyableFiles(this.localFs, copyConfig);
 
-    Assert.assertTrue(this.localFs.exists(new Path(srcRoot, "2019/04/26/file1.avro")));
-    Assert.assertTrue(this.localFs.exists(new Path(srcRoot, "2019/04/27/file1.avro")));
-    Assert.assertTrue(this.localFs.exists(new Path(srcRoot, "2019/04/28/file1.avro")));
-    Assert.assertTrue(this.localFs.exists(new Path(srcRoot, "2019/04/29/file1.avro")));
-
-    DateTimeDatasetVersionFinder dsFinder = new DateTimeDatasetVersionFinder(this.localFs, props);
-    List<TimestampedDatasetVersion> dsList = Lists.newArrayList(dsFinder.findDatasetVersions(tCopyableDs));
-    Assert.assertEquals(dsList.size(), 4);
-
-    SelectBetweenTimeBasedPolicy sbtp = new SelectBetweenTimeBasedPolicy(props);
-    Collection<TimestampedDatasetVersion> sbtpList = sbtp.listSelectedVersions(dsList);
-    Assert.assertEquals(sbtpList.size(), 3);
-
-    ConcurrentLinkedQueue<CopyableFile> copyableFileList = new ConcurrentLinkedQueue<>();
-    for (TimestampedDatasetVersion i : sbtpList) {
-      tCopyableDs.getCopyableFileGenetator(this.localFs, copyConfig, i, copyableFileList).run();
-    }
-    Assert.assertEquals(copyableFileList.size(), 3);
-    Assert.assertEquals(copyableFileList.peek().getOrigin().getModificationTime(), srcFileModTime);
-
-    SelectBtwModDataTimeBasedCopyableFileFilter selectCopyFilter = new SelectBtwModDataTimeBasedCopyableFileFilter(props);
-    Assert.assertTrue(selectCopyFilter.isFileModifiedBtwLookBackPeriod(copyableFileList.peek().getOrigin().getModificationTime()));
-
-    ConcurrentLinkedQueue<CopyableFile> copyableFileTestList = new ConcurrentLinkedQueue<>();
-    for(CopyableFile cf : copyableFileList){
-      if(selectCopyFilter.isFileModifiedBtwLookBackPeriod(cf.getOrigin().getModificationTime())) {
-        copyableFileTestList.add(cf);
-      }
-    }
-
-    Assert.assertEquals(copyableFileList.size(), 3);
-
-    Collection<CopyableFile> cFilterList = selectCopyFilter.filter(this.localFs, this.localFs, copyableFileList);
-    Assert.assertEquals(cFilterList.size(), 3);
-
-//    Assert.assertEquals(copyableFiles.size(), 3);
+    Assert.assertEquals(copyableFiles.size(), 3);
 
     /* Change in MinLookBack to 1d should result in 0 files */
     props.setProperty(SelectBtwModDataTimeBasedCopyableFileFilter.MODIFIED_MIN_LOOK_BACK_TIME_KEY, "1d");

@@ -25,7 +25,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.fs.FileSystem;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
-import org.joda.time.LocalDateTime;
 import org.joda.time.Period;
 import org.joda.time.format.PeriodFormatter;
 import org.joda.time.format.PeriodFormatterBuilder;
@@ -45,9 +44,9 @@ public class SelectBtwModDataTimeBasedCopyableFileFilter implements CopyableFile
   private final Properties props;
   private Period minLookBackPeriod;
   private Period maxLookBackPeriod;
-  private LocalDateTime currentTime;
-  private LocalDateTime minLookBackTime;
-  private LocalDateTime maxLookBackTime;
+  private DateTime currentTime;
+  private DateTime minLookBackTime;
+  private DateTime maxLookBackTime;
 
   public static final String CONFIGURATION_KEY_PREFIX = "gobblin.dataset.";
   public static final String MODIFIED_MIN_LOOK_BACK_TIME_KEY =
@@ -65,9 +64,9 @@ public class SelectBtwModDataTimeBasedCopyableFileFilter implements CopyableFile
         props.getProperty(MODIFIED_MIN_LOOK_BACK_TIME_KEY)) : new Period(DateTime.now().getMillis());
     this.maxLookBackPeriod = props.containsKey(MODIFIED_MAX_LOOK_BACK_TIME_KEY) ? periodFormatter.parsePeriod(
         props.getProperty(MODIFIED_MAX_LOOK_BACK_TIME_KEY)) : new Period(DateTime.now().minusDays(1).getMillis());
-    this.currentTime = properties.containsKey(DATE_PATTERN_TIMEZONE_KEY) ? LocalDateTime.now(
+    this.currentTime = properties.containsKey(DATE_PATTERN_TIMEZONE_KEY) ? DateTime.now(
         DateTimeZone.forID(props.getProperty(DATE_PATTERN_TIMEZONE_KEY)))
-        : LocalDateTime.now(DateTimeZone.forID(DEFAULT_DATE_PATTERN_TIMEZONE));
+        : DateTime.now(DateTimeZone.forID(DEFAULT_DATE_PATTERN_TIMEZONE));
     this.minLookBackTime = this.currentTime.minus(minLookBackPeriod);
     this.maxLookBackTime = this.currentTime.minus(maxLookBackPeriod);
   }
@@ -104,10 +103,10 @@ public class SelectBtwModDataTimeBasedCopyableFileFilter implements CopyableFile
    *         <code>false</code> if file modification time not between look back window.
    *
    */
-  public boolean isFileModifiedBtwLookBackPeriod(long modTime) {
-    DateTime modifiedTime = this.props.containsKey(DATE_PATTERN_TIMEZONE_KEY) ? new DateTime(modTime).withZone(
+  private boolean isFileModifiedBtwLookBackPeriod(long modTime) {
+    DateTime modifiedTime = props.containsKey(DATE_PATTERN_TIMEZONE_KEY) ? new DateTime(modTime,
         DateTimeZone.forID(props.getProperty(DATE_PATTERN_TIMEZONE_KEY)))
-        : new DateTime(modTime).withZone(DateTimeZone.forID(DEFAULT_DATE_PATTERN_TIMEZONE));
+        : new DateTime(modTime, DateTimeZone.forID(DEFAULT_DATE_PATTERN_TIMEZONE));
     if (modifiedTime.isAfter(this.maxLookBackTime.toDateTime()) && modifiedTime.isBefore(
         this.minLookBackTime.toDateTime())) {
       return true;
