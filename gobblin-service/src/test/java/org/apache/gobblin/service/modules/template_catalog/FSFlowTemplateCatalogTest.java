@@ -44,8 +44,8 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class FSFlowTemplateCatalogTest {
-  private static final String TEST_TEMPLATE_NAME = "flowEdgeTemplate";
-  private static final String TEST_TEMPLATE_DIR_URI = "FS:///" + TEST_TEMPLATE_NAME;
+  public static final String TEST_TEMPLATE_NAME = "flowEdgeTemplate";
+  public static final String TEST_TEMPLATE_DIR_URI = "FS:///" + TEST_TEMPLATE_NAME;
 
   @Test
   public void testGetFlowTemplate() throws Exception {

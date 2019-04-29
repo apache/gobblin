@@ -17,10 +17,11 @@
 
 package org.apache.gobblin.service.modules.flowgraph;
 
+import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.List;
 
-import org.apache.gobblin.service.modules.template_catalog.FSFlowTemplateCatalog;
 import org.apache.hadoop.security.UserGroupInformation;
 
 import com.google.common.base.Preconditions;
@@ -29,17 +30,23 @@ import com.typesafe.config.Config;
 
 import joptsimple.internal.Strings;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.runtime.api.JobTemplate;
 import org.apache.gobblin.runtime.api.SpecExecutor;
+import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.service.modules.template.FlowTemplate;
+import org.apache.gobblin.service.modules.template_catalog.FSFlowTemplateCatalog;
 import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
- * An implementation of {@link FlowEdge}.
+ * An implementation of {@link FlowEdge}. If a {@link FSFlowTemplateCatalog} is specified in the constructor,
+ * {@link #flowTemplate} is reloaded when {@link #getFlowTemplate()} is called.
  */
 @Alpha
+@Slf4j
 public class BaseFlowEdge implements FlowEdge {
   @Getter
   protected String src;
@@ -47,7 +54,6 @@ public class BaseFlowEdge implements FlowEdge {
   @Getter
   protected String dest;
 
-  @Getter
   protected FlowTemplate flowTemplate;
 
   @Getter
@@ -62,8 +68,16 @@ public class BaseFlowEdge implements FlowEdge {
   @Getter
   private boolean active;
 
+  private final FSFlowTemplateCatalog flowTemplateCatalog;
+
   //Constructor
-  public BaseFlowEdge(List<String> endPoints, String edgeId, FlowTemplate flowTemplate, List<SpecExecutor> executors, Config properties, boolean active) {
+  public BaseFlowEdge(List<String> endPoints, String edgeId, FlowTemplate flowTemplate, List<SpecExecutor> executors,
+      Config properties, boolean active) {
+    this(endPoints, edgeId, flowTemplate, executors, properties, active, null);
+  }
+
+  public BaseFlowEdge(List<String> endPoints, String edgeId, FlowTemplate flowTemplate, List<SpecExecutor> executors,
+      Config properties, boolean active, FSFlowTemplateCatalog flowTemplateCatalog) {
     this.src = endPoints.get(0);
     this.dest = endPoints.get(1);
     this.flowTemplate = flowTemplate;
@@ -71,6 +85,20 @@ public class BaseFlowEdge implements FlowEdge {
     this.active = active;
     this.config = properties;
     this.id = edgeId;
+    this.flowTemplateCatalog = flowTemplateCatalog;
+  }
+
+  @Override
+  public FlowTemplate getFlowTemplate() {
+    try {
+      if (this.flowTemplateCatalog != null) {
+        this.flowTemplate = this.flowTemplateCatalog.getFlowTemplate(this.flowTemplate.getUri());
+      }
+    } catch (SpecNotFoundException | JobTemplate.TemplateException | IOException | URISyntaxException e) {
+      // If loading template fails, use the template that was successfully loaded on construction
+      log.warn("Failed to get flow template at " + this.flowTemplate.getUri() + ", using in-memory flow template");
+    }
+    return this.flowTemplate;
   }
 
   @Override
@@ -148,7 +176,7 @@ public class BaseFlowEdge implements FlowEdge {
         boolean isActive = ConfigUtils.getBoolean(edgeProps, FlowGraphConfigurationKeys.FLOW_EDGE_IS_ACTIVE_KEY, true);
 
         FlowTemplate flowTemplate = flowTemplateCatalog.getFlowTemplate(new URI(flowTemplateDirUri));
-        return new BaseFlowEdge(endPoints, edgeId, flowTemplate, specExecutors, edgeProps, isActive);
+        return new BaseFlowEdge(endPoints, edgeId, flowTemplate, specExecutors, edgeProps, isActive, flowTemplateCatalog);
       } catch (RuntimeException e) {
         throw e;
       } catch (Exception e) {

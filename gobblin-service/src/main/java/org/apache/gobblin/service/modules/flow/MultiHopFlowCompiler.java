@@ -23,9 +23,10 @@ import java.util.ArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.gobblin.service.modules.template_catalog.FSFlowTemplateCatalog;
 import org.slf4j.Logger;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -54,6 +55,7 @@ import org.apache.gobblin.service.modules.flowgraph.FlowGraph;
 import org.apache.gobblin.service.modules.flowgraph.pathfinder.PathFinder;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlanDagFactory;
+import org.apache.gobblin.service.modules.template_catalog.ObservingFSFlowEdgeTemplateCatalog;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -87,12 +89,13 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
 
   public MultiHopFlowCompiler(Config config, Optional<Logger> log, boolean instrumentationEnabled) {
     super(config, log, instrumentationEnabled);
-    this.flowGraph = new BaseFlowGraph();
-    Optional<FSFlowTemplateCatalog> flowCatalog = Optional.absent();
+    ReadWriteLock rwLock = new ReentrantReadWriteLock(true);
+    this.flowGraph = new BaseFlowGraph(rwLock);
+    Optional<ObservingFSFlowEdgeTemplateCatalog> flowTemplateCatalog = Optional.absent();
     if (config.hasPath(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY)
         && StringUtils.isNotBlank(config.getString(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY))) {
       try {
-        flowCatalog = Optional.of(new FSFlowTemplateCatalog(config));
+        flowTemplateCatalog = Optional.of(new ObservingFSFlowEdgeTemplateCatalog(config, rwLock));
       } catch (IOException e) {
         throw new RuntimeException("Cannot instantiate " + getClass().getName(), e);
       }
@@ -105,8 +108,8 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
       gitFlowGraphConfig = this.config
           .withValue(GitFlowGraphMonitor.GIT_FLOWGRAPH_MONITOR_PREFIX + "." + ConfigurationKeys.ENCRYPT_KEY_LOC, config.getValue(ConfigurationKeys.ENCRYPT_KEY_LOC));
     }
-    this.gitFlowGraphMonitor = new GitFlowGraphMonitor(gitFlowGraphConfig, flowCatalog, this.flowGraph, this.topologySpecMap, this.getInitComplete());
-    this.serviceManager = new ServiceManager(Lists.newArrayList(this.gitFlowGraphMonitor));
+    this.gitFlowGraphMonitor = new GitFlowGraphMonitor(gitFlowGraphConfig, flowTemplateCatalog, this.flowGraph, this.topologySpecMap, this.getInitComplete());
+    this.serviceManager = new ServiceManager(Lists.newArrayList(this.gitFlowGraphMonitor, flowTemplateCatalog.get()));
     addShutdownHook();
     //Start the git flow graph monitor
     try {

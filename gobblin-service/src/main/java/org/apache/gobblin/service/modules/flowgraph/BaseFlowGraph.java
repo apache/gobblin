@@ -24,14 +24,14 @@ import java.util.Set;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.service.modules.flow.FlowGraphPath;
 import org.apache.gobblin.service.modules.flowgraph.pathfinder.PathFinder;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
-
-import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -45,11 +45,19 @@ import lombok.extern.slf4j.Slf4j;
 @Alpha
 @Slf4j
 public class BaseFlowGraph implements FlowGraph {
-  private final ReadWriteLock rwLock = new ReentrantReadWriteLock(true);
+  private final ReadWriteLock rwLock;
 
   private Map<DataNode, Set<FlowEdge>> nodesToEdges = new HashMap<>();
   private Map<String, DataNode> dataNodeMap = new HashMap<>();
   private Map<String, FlowEdge> flowEdgeMap = new HashMap<>();
+
+  public BaseFlowGraph() {
+    this.rwLock = new ReentrantReadWriteLock(true);
+  }
+
+  public BaseFlowGraph(ReadWriteLock rwLock) {
+    this.rwLock = rwLock;
+  }
 
   /**
    * Lookup a node by its identifier.
