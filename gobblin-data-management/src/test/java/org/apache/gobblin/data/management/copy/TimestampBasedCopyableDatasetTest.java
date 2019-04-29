@@ -137,6 +137,12 @@ public class TimestampBasedCopyableDatasetTest {
       this.localFs.create(srcfile);
     }
 
+
+//    FileStatus[] dataSetVersionPaths = this.fs.globStatus(versionGlobStatus);
+    Path versionGlobStatus = new Path(srcRoot, new Path("*/*/*"));
+    FileStatus[] datasetVersionPaths = this.localFs.globStatus(versionGlobStatus);
+    Assert.assertEquals(datasetVersionPaths.length, 4);
+
     /** destination setup **/
     Path destRoot = new Path(this.testTempPath, "dest/slt/eqp");
     if (this.localFs.exists(destRoot)) {
