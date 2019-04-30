@@ -75,6 +75,8 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
 
   private GitFlowGraphMonitor gitFlowGraphMonitor;
 
+  private ReadWriteLock rwLock;
+
   public MultiHopFlowCompiler(Config config) {
     this(config, true);
   }
@@ -89,8 +91,8 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
 
   public MultiHopFlowCompiler(Config config, Optional<Logger> log, boolean instrumentationEnabled) {
     super(config, log, instrumentationEnabled);
-    ReadWriteLock rwLock = new ReentrantReadWriteLock(true);
-    this.flowGraph = new BaseFlowGraph(rwLock);
+    this.rwLock = new ReentrantReadWriteLock(true);
+    this.flowGraph = new BaseFlowGraph();
     Optional<ObservingFSFlowEdgeTemplateCatalog> flowTemplateCatalog = Optional.absent();
     if (config.hasPath(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY)
         && StringUtils.isNotBlank(config.getString(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY))) {
@@ -162,6 +164,8 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
 
     long startTime = System.nanoTime();
 
+    this.rwLock.readLock().lock();
+
     FlowSpec flowSpec = (FlowSpec) spec;
     String source = ConfigUtils.getString(flowSpec.getConfig(), ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, "");
     String destination =
@@ -189,6 +193,9 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
     }
     Instrumented.markMeter(flowCompilationSuccessFulMeter);
     Instrumented.updateTimer(flowCompilationTimer, System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
+
+    this.rwLock.readLock().unlock();
+
     return jobExecutionPlanDag;
   }
 

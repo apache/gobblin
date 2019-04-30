@@ -45,19 +45,11 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 @Alpha
 @Slf4j
 public class BaseFlowGraph implements FlowGraph {
-  private final ReadWriteLock rwLock;
+  private final ReadWriteLock rwLock = new ReentrantReadWriteLock(true);
 
   private Map<DataNode, Set<FlowEdge>> nodesToEdges = new HashMap<>();
   private Map<String, DataNode> dataNodeMap = new HashMap<>();
   private Map<String, FlowEdge> flowEdgeMap = new HashMap<>();
-
-  public BaseFlowGraph() {
-    this.rwLock = new ReentrantReadWriteLock(true);
-  }
-
-  public BaseFlowGraph(ReadWriteLock rwLock) {
-    this.rwLock = rwLock;
-  }
 
   /**
    * Lookup a node by its identifier.
