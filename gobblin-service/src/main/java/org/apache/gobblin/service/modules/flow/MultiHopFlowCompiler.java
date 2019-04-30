@@ -75,7 +75,7 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
 
   private GitFlowGraphMonitor gitFlowGraphMonitor;
 
-  private ReadWriteLock rwLock;
+  private ReadWriteLock rwLock = new ReentrantReadWriteLock(true);
 
   public MultiHopFlowCompiler(Config config) {
     this(config, true);
@@ -91,7 +91,6 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
 
   public MultiHopFlowCompiler(Config config, Optional<Logger> log, boolean instrumentationEnabled) {
     super(config, log, instrumentationEnabled);
-    this.rwLock = new ReentrantReadWriteLock(true);
     this.flowGraph = new BaseFlowGraph();
     Optional<ObservingFSFlowEdgeTemplateCatalog> flowTemplateCatalog = Optional.absent();
     if (config.hasPath(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY)
