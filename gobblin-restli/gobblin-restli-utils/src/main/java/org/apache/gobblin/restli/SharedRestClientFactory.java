@@ -51,6 +51,7 @@ import org.apache.gobblin.broker.iface.SharedResourcesBroker;
 import org.apache.gobblin.util.ExecutorsUtils;
 
 import io.netty.channel.nio.NioEventLoopGroup;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -58,6 +59,7 @@ import io.netty.channel.nio.NioEventLoopGroup;
  *
  * To configure, specify rest server uri at key "serverUri". Note uri must start with "http" or "https".
  */
+@Slf4j
 public class SharedRestClientFactory<S extends ScopeType<S>> implements SharedResourceFactory<RestClient, SharedRestClientKey, S> {
 
   public static final String FACTORY_NAME = "restli";
@@ -81,6 +83,8 @@ public class SharedRestClientFactory<S extends ScopeType<S>> implements SharedRe
       }
 
       String uriPrefix = ((UriRestClientKey) key).getUri();
+
+      log.info(String.format("Creating a brand new rest client for service name %s and uri prefix %s", key.serviceName, uriPrefix));
 
       HttpClientFactory http = new HttpClientFactory(FilterChains.empty(),
           new NioEventLoopGroup(0 /* use default settings */,
