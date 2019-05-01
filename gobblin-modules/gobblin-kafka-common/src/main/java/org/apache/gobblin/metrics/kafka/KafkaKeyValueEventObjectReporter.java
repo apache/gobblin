@@ -37,9 +37,12 @@ import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.reporter.EventReporter;
 import org.apache.gobblin.util.AvroUtils;
+import org.apache.gobblin.util.ConfigUtils;
+
 
 @Slf4j
 public class KafkaKeyValueEventObjectReporter extends EventReporter {
+  private static final String PUSHER_CONFIG = "pusherConfig";
 
   protected Optional<List<String>> keys = Optional.absent();
   protected final String randomKey;
@@ -52,18 +55,22 @@ public class KafkaKeyValueEventObjectReporter extends EventReporter {
 
     this.topic=builder.topic;
     this.namespaceOverride=builder.namespaceOverride;
+    Config config = builder.config.get();
 
     if (builder.kafkaPusher.isPresent()) {
       this.kafkaPusher = builder.kafkaPusher.get();
     } else {
-      this.kafkaPusher = PusherUtils.getKeyValuePusher(builder.pusherClassName.get(), builder.brokers, builder.topic, builder.config);
+      Config pusherConfig = ConfigUtils.getConfigOrEmpty(config, PUSHER_CONFIG).withFallback(config);
+      String pusherClassName = ConfigUtils.getString(config, "pusherClass", PusherUtils.DEFAULT_KEY_VALUE_PUSHER_CLASS_NAME);
+      this.kafkaPusher = PusherUtils.getKeyValuePusher(pusherClassName, builder.brokers, builder.topic, Optional.of(pusherConfig));
     }
 
     this.closer.register(this.kafkaPusher);
 
     randomKey=String.valueOf(new Random().nextInt(100));
-    if (builder.config.get().hasPath((ConfigurationKeys.METRICS_REPORTING_EVENTS_KAFKAPUSHERKEYS))) {
-      List<String> keys = Splitter.on(",").omitEmptyStrings().trimResults().splitToList(builder.config.get().getString(ConfigurationKeys.METRICS_REPORTING_EVENTS_KAFKAPUSHERKEYS));
+    String pusherKeys_Key = "pusherKeys";
+    if (config.hasPath(pusherKeys_Key)) {
+      List<String> keys = Splitter.on(",").omitEmptyStrings().trimResults().splitToList(config.getString(pusherKeys_Key));
       this.keys = Optional.of(keys);
     }else{
       log.warn("Key not assigned from config. Please set it with property {}", ConfigurationKeys.METRICS_REPORTING_EVENTS_KAFKAPUSHERKEYS);
@@ -137,7 +144,6 @@ public class KafkaKeyValueEventObjectReporter extends EventReporter {
 
   public static abstract class Builder<T extends Builder<T>> extends EventReporter.Builder<T>{
 
-    protected List<String> keys = Lists.newArrayList();
     protected String brokers;
     protected String topic;
     protected Optional<KeyValuePusher> kafkaPusher=Optional.absent();
@@ -172,11 +178,6 @@ public class KafkaKeyValueEventObjectReporter extends EventReporter {
       return self();
     }
 
-    public T withKeys(List<String> keys) {
-      this.keys = keys;
-      return self();
-    }
-
     public T namespaceOverride(Optional<Map<String,String>> namespaceOverride) {
       this.namespaceOverride = namespaceOverride;
       return self();
@@ -189,22 +190,4 @@ public class KafkaKeyValueEventObjectReporter extends EventReporter {
     }
 
   }
-
-//  public static GenericRecord overrideNameAndNamespace(GobblinTrackingEvent event, String nameOverride, Optional<Map<String, String>> namespaceOverride) {
-//
-//    GenericRecord record = event;
-//    Schema newSchema = AvroUtils.switchName(event.getSchema(), nameOverride);
-//    if(namespaceOverride.isPresent()) {
-//      newSchema = AvroUtils.switchNamespace(newSchema, namespaceOverride.get());
-//    }
-//
-//    try {
-//      record = AvroUtils.convertRecordSchema(record, newSchema);
-//    } catch (Exception e){
-//      log.error("Unable to generate generic data record", e);
-//    }
-//
-//    return record;
-//  }
-
 }

@@ -139,7 +139,7 @@ public enum KafkaReportingFormats {
       KafkaKeyValueMetricObjectReporter.Builder<?> builder = KafkaKeyValueMetricObjectReporter.Factory.newBuilder();
 
       builder.namespaceOverride(KafkaAvroReporterUtil.extractOverrideNamespace(properties));
-      builder.build(brokers, topic, properties);
+      builder.build(brokers, topic, getMetricsKafkaConfig(properties));
 
     }
 
@@ -147,16 +147,7 @@ public enum KafkaReportingFormats {
     public ScheduledReporter buildEventsScheduledReporter(String brokers, String topic, MetricContext context, Properties properties) throws IOException {
 
       KafkaKeyValueEventObjectReporter.Builder<?> builder = KafkaKeyValueEventObjectReporter.Factory.forContext(context);
-      if (properties.containsKey(ConfigurationKeys.METRICS_REPORTING_EVENTS_KAFKAPUSHERKEYS)) {
-        List<String> keys = Splitter.on(",").omitEmptyStrings().trimResults()
-            .splitToList(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_EVENTS_KAFKAPUSHERKEYS));
-        builder.withKeys(keys);
-      }
       builder.withConfig(getEventsKafkaConfig(properties));
-
-      String objPusherClassKey = PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY_FOR_OBJECTS;
-      String pusherClassName = properties.getProperty(objPusherClassKey, PusherUtils.DEFAULT_KAFKA_KEY_VALUE_PUSHER_CLASS_NAME);
-      builder.withPusherClassName(pusherClassName);
       builder.namespaceOverride(KafkaAvroReporterUtil.extractOverrideNamespace(properties));
       return builder.build(brokers, topic);
     }
@@ -165,12 +156,15 @@ public enum KafkaReportingFormats {
   public abstract void buildMetricsScheduledReporter(String brokers, String topic, Properties properties) throws IOException;
   public abstract ScheduledReporter buildEventsScheduledReporter(String brokers, String topic, MetricContext context, Properties properties) throws IOException;
 
+  public Config getMetricsKafkaConfig(Properties properties){
+    Config allConfig = ConfigUtils.propertiesToConfig(properties);
+    Config kafkaConfig = ConfigUtils.getConfigOrEmpty(allConfig, ConfigurationKeys.METRICS_REPORTING_CONFIGURATIONS_PREFIX).withFallback(allConfig);
+    return kafkaConfig;
+  }
 
   public Config getEventsKafkaConfig(Properties properties){
-
-    return ConfigUtils.propertiesToConfig(properties, Optional.of(ConfigurationKeys.METRICS_CONFIGURATIONS_PREFIX))
-        .withFallback(ConfigUtils.propertiesToConfig(properties,
-            Optional.of(ConfigurationKeys.SHARED_KAFKA_CONFIG_PREFIX)));
-
+    Config allConfig = ConfigUtils.propertiesToConfig(properties);
+    Config kafkaConfig = ConfigUtils.getConfigOrEmpty(allConfig, ConfigurationKeys.METRICS_REPORTING_EVENTS_CONFIGURATIONS_PREFIX).withFallback(allConfig);
+    return kafkaConfig;
   }
 }

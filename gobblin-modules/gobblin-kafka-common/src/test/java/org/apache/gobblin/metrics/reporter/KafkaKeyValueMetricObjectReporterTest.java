@@ -31,6 +31,7 @@ import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.kafka.KafkaKeyValueMetricObjectReporter;
 import org.apache.gobblin.metrics.kafka.KeyValuePusher;
 import org.apache.gobblin.metrics.reporter.util.KafkaAvroReporterUtil;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 public class KafkaKeyValueMetricObjectReporterTest {
@@ -54,7 +55,8 @@ public class KafkaKeyValueMetricObjectReporterTest {
     properties.put(KafkaSchemaRegistryConfigurationKeys.KAFKA_SCHEMA_REGISTRY_OVERRIDE_NAMESPACE, namespace);
 
     MockKafkaKeyValPusherNew pusher = new MockKafkaKeyValPusherNew();
-    KafkaKeyValueMetricObjectReporter kafkaReporter = getBuilder(pusher, properties).build("localhost:0000", TOPIC, properties);
+    KafkaKeyValueMetricObjectReporter kafkaReporter = getBuilder(pusher, properties).build("localhost:0000", TOPIC,
+        ConfigUtils.propertiesToConfig(properties));
 
     kafkaReporter.report(metricContext);
 

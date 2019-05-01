@@ -20,7 +20,6 @@ package org.apache.gobblin.metrics.kafka;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Random;
 
 import org.apache.avro.generic.GenericRecord;
@@ -42,6 +41,8 @@ import org.apache.gobblin.util.ConfigUtils;
 @Slf4j
 public class KafkaKeyValueMetricObjectReporter extends MetricReportReporter {
 
+  private static final String PUSHER_CONFIG = "pusherConfig";
+
   private Optional<List<String>> keys = Optional.absent();
   protected final String randomKey;
   protected KeyValuePusher kafkaPusher;
@@ -57,15 +58,16 @@ public class KafkaKeyValueMetricObjectReporter extends MetricReportReporter {
     if (builder.kafkaPusher.isPresent()) {
       this.kafkaPusher = builder.kafkaPusher.get();
     } else {
-      Config kafkaConfig = ConfigUtils.getConfigOrEmpty(config, PusherUtils.METRICS_REPORTING_KAFKA_CONFIG_PREFIX).withFallback(ConfigUtils.getConfigOrEmpty(config, ConfigurationKeys.SHARED_KAFKA_CONFIG_PREFIX));
-      String pusherClassName = ConfigUtils.getString(config, PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY_FOR_OBJECTS, PusherUtils.DEFAULT_KAFKA_PUSHER_CLASS_NAME);
-      this.kafkaPusher = PusherUtils.getKeyValuePusher(pusherClassName, builder.brokers, builder.topic, Optional.of(kafkaConfig));
+      Config pusherConfig = ConfigUtils.getConfigOrEmpty(config, PUSHER_CONFIG).withFallback(config);
+      String pusherClassName = ConfigUtils.getString(config, "pusherClass", PusherUtils.DEFAULT_KEY_VALUE_PUSHER_CLASS_NAME);
+      this.kafkaPusher = PusherUtils.getKeyValuePusher(pusherClassName, builder.brokers, builder.topic, Optional.of(pusherConfig));
     }
     this.closer.register(this.kafkaPusher);
 
     randomKey=String.valueOf(new Random().nextInt(100));
-    if (config.hasPath((ConfigurationKeys.METRICS_REPORTING_KAFKAPUSHERKEYS))) {
-      List<String> keys = Splitter.on(",").omitEmptyStrings().trimResults().splitToList(config.getString(ConfigurationKeys.METRICS_REPORTING_KAFKAPUSHERKEYS));
+    String pusherKeys_Key = "pusherKeys";
+    if (config.hasPath(pusherKeys_Key)) {
+      List<String> keys = Splitter.on(",").omitEmptyStrings().trimResults().splitToList(config.getString(pusherKeys_Key));
       this.keys = Optional.of(keys);
     }else{
       log.warn("Key not assigned from config. Please set it with property {}", ConfigurationKeys.METRICS_REPORTING_KAFKAPUSHERKEYS);
@@ -129,10 +131,10 @@ public class KafkaKeyValueMetricObjectReporter extends MetricReportReporter {
       return self();
     }
 
-    public KafkaKeyValueMetricObjectReporter build(String brokers, String topic, Properties props) throws IOException{
+    public KafkaKeyValueMetricObjectReporter build(String brokers, String topic, Config config) throws IOException{
       this.brokers=brokers;
       this.topic=topic;
-      return new KafkaKeyValueMetricObjectReporter(this, KafkaReporter.getKafkaAndMetricsConfigFromProperties(props));
+      return new KafkaKeyValueMetricObjectReporter(this, config);
     }
 
   }
@@ -151,8 +153,5 @@ public class KafkaKeyValueMetricObjectReporter extends MetricReportReporter {
       return new BuilderImpl();
     }
   }
-
-
-
 
 }
