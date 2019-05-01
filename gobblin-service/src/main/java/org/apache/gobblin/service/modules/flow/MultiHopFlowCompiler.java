@@ -163,8 +163,6 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
 
     long startTime = System.nanoTime();
 
-    this.rwLock.readLock().lock();
-
     FlowSpec flowSpec = (FlowSpec) spec;
     String source = ConfigUtils.getString(flowSpec.getConfig(), ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, "");
     String destination =
@@ -173,6 +171,7 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
 
     Dag<JobExecutionPlan> jobExecutionPlanDag;
     try {
+      this.rwLock.readLock().lock();
       //Compute the path from source to destination.
       FlowGraphPath flowGraphPath = flowGraph.findPath(flowSpec);
       //Convert the path into a Dag of JobExecutionPlans.
@@ -189,11 +188,11 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
               .format("Exception encountered while compiling flow for source: %s and destination: %s", source, destination),
           e);
       return null;
+    } finally {
+      this.rwLock.readLock().unlock();
     }
     Instrumented.markMeter(flowCompilationSuccessFulMeter);
     Instrumented.updateTimer(flowCompilationTimer, System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
-
-    this.rwLock.readLock().unlock();
 
     return jobExecutionPlanDag;
   }
