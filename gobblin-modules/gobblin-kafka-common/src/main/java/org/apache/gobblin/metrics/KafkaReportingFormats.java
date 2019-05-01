@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.Properties;
 
 import com.codahale.metrics.ScheduledReporter;
-import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
 import com.typesafe.config.Config;
 
@@ -32,8 +31,8 @@ import org.apache.gobblin.metrics.kafka.KafkaAvroEventReporter;
 import org.apache.gobblin.metrics.kafka.KafkaAvroReporter;
 import org.apache.gobblin.metrics.kafka.KafkaAvroSchemaRegistry;
 import org.apache.gobblin.metrics.kafka.KafkaEventReporter;
-import org.apache.gobblin.metrics.kafka.KafkaKeyValueEventObjectReporter;
-import org.apache.gobblin.metrics.kafka.KafkaKeyValueMetricObjectReporter;
+import org.apache.gobblin.metrics.kafka.KeyValueEventObjectReporter;
+import org.apache.gobblin.metrics.kafka.KeyValueMetricObjectReporter;
 import org.apache.gobblin.metrics.kafka.KafkaReporter;
 import org.apache.gobblin.metrics.kafka.PusherUtils;
 import org.apache.gobblin.metrics.reporter.util.KafkaAvroReporterUtil;
@@ -67,7 +66,7 @@ public enum KafkaReportingFormats {
           ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY))) {
         builder.withSchemaRegistry(new KafkaAvroSchemaRegistry(properties));
       }
-      builder.withConfig(getEventsKafkaConfig(properties));
+      builder.withConfig(getEventsConfig(properties));
       String pusherClassName = properties.containsKey(PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY_FOR_EVENTS)
           ? properties.getProperty(PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY_FOR_EVENTS)
           : properties.getProperty(PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY,
@@ -99,7 +98,7 @@ public enum KafkaReportingFormats {
           ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY))) {
         builder.withSchemaRegistry(new KafkaAvroSchemaRegistry(properties));
       }
-      builder.withConfig(getEventsKafkaConfig(properties));
+      builder.withConfig(getEventsConfig(properties));
       String pusherClassName = properties.containsKey(PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY_FOR_EVENTS)
           ? properties.getProperty(PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY_FOR_EVENTS)
           : properties.getProperty(PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY,
@@ -121,7 +120,7 @@ public enum KafkaReportingFormats {
     @Override
     public ScheduledReporter buildEventsScheduledReporter(String brokers, String topic, MetricContext context, Properties properties) throws IOException {
        KafkaEventReporter.Builder builder = KafkaEventReporter.Factory.forContext(context);
-       builder.withConfig(getEventsKafkaConfig(properties));
+       builder.withConfig(getEventsConfig(properties));
        String pusherClassName = properties.containsKey(PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY_FOR_EVENTS)
           ? properties.getProperty(PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY_FOR_EVENTS)
           : properties.getProperty(PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY,
@@ -135,18 +134,17 @@ public enum KafkaReportingFormats {
     @Override
     public void buildMetricsScheduledReporter(String brokers, String topic, Properties properties) throws IOException {
 
-      KafkaKeyValueMetricObjectReporter.Builder<?> builder = KafkaKeyValueMetricObjectReporter.Factory.newBuilder();
-
+      KeyValueMetricObjectReporter.Builder<?> builder = KeyValueMetricObjectReporter.Factory.newBuilder();
       builder.namespaceOverride(KafkaAvroReporterUtil.extractOverrideNamespace(properties));
-      builder.build(brokers, topic, getMetricsKafkaConfig(properties));
+      builder.build(brokers, topic, getMetricsConfig(properties));
 
     }
 
     @Override
     public ScheduledReporter buildEventsScheduledReporter(String brokers, String topic, MetricContext context, Properties properties) throws IOException {
 
-      KafkaKeyValueEventObjectReporter.Builder<?> builder = KafkaKeyValueEventObjectReporter.Factory.forContext(context);
-      builder.withConfig(getEventsKafkaConfig(properties));
+      KeyValueEventObjectReporter.Builder<?> builder = KeyValueEventObjectReporter.Factory.forContext(context);
+      builder.withConfig(getEventsConfig(properties));
       builder.namespaceOverride(KafkaAvroReporterUtil.extractOverrideNamespace(properties));
       return builder.build(brokers, topic);
     }
@@ -155,15 +153,15 @@ public enum KafkaReportingFormats {
   public abstract void buildMetricsScheduledReporter(String brokers, String topic, Properties properties) throws IOException;
   public abstract ScheduledReporter buildEventsScheduledReporter(String brokers, String topic, MetricContext context, Properties properties) throws IOException;
 
-  public Config getMetricsKafkaConfig(Properties properties){
+  public Config getMetricsConfig(Properties properties){
     Config allConfig = ConfigUtils.propertiesToConfig(properties);
-    Config kafkaConfig = ConfigUtils.getConfigOrEmpty(allConfig, ConfigurationKeys.METRICS_REPORTING_CONFIGURATIONS_PREFIX).withFallback(allConfig);
-    return kafkaConfig;
+    Config config = ConfigUtils.getConfigOrEmpty(allConfig, ConfigurationKeys.METRICS_REPORTING_CONFIGURATIONS_PREFIX).withFallback(allConfig);
+    return config;
   }
 
-  public Config getEventsKafkaConfig(Properties properties){
+  public Config getEventsConfig(Properties properties){
     Config allConfig = ConfigUtils.propertiesToConfig(properties);
-    Config kafkaConfig = ConfigUtils.getConfigOrEmpty(allConfig, ConfigurationKeys.METRICS_REPORTING_EVENTS_CONFIGURATIONS_PREFIX).withFallback(allConfig);
-    return kafkaConfig;
+    Config config = ConfigUtils.getConfigOrEmpty(allConfig, ConfigurationKeys.METRICS_REPORTING_EVENTS_CONFIGURATIONS_PREFIX).withFallback(allConfig);
+    return config;
   }
 }
