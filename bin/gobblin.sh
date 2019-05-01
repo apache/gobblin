@@ -159,7 +159,7 @@ do
             shift
         ;;
         *)
-        CMD_PARAMS="$CMD_PARAMS $1"
+            CMD_PARAMS="$CMD_PARAMS $1"
         ;;
     esac
     shift
@@ -213,22 +213,31 @@ function build_classpath(){
     GOBBLIN_CLASSPATH=''
     # Build classpth
     GOBBLIN_JARS=''
+    GOBBLIN_HADOOP_JARS=''
+    GOBBLIN_CLASSPATH=''
+
     for jarFile in `ls ${GOBBLIN_LIB}/*`
     do
-        if [[ -z "$GOBBLIN_JARS" ]]; then
-            GOBBLIN_JARS=${jarFile}
+        if [[ $jarFile == hadoop* ]]; then
+            GOBBLIN_HADOOP_JARS=${GOBBLIN_HADOOP_JARS}:${jarFile}
         else
             GOBBLIN_JARS=${GOBBLIN_JARS}:${jarFile}
         fi
     done
 
-    GOBBLIN_CLASSPATH=${GOBBLIN_JARS}
+    # just removing first colon if present
+    GOBBLIN_HADOOP_JARS=${GOBBLIN_HADOOP_JARS#:}
+    GOBBLIN_JARS=${GOBBLIN_JARS#:}
+
     if [[ -n "$HADOOP_HOME" ]]; then
         HADOOP_CLASSPATH=$($HADOOP_HOME/bin/hadoop classpath)
-        GOBBLIN_CLASSPATH=${HADOOP_CLASSPATH}:${GOBBLIN_CLASSPATH}
+        GOBBLIN_CLASSPATH=${GOBBLIN_JARS}:${HADOOP_CLASSPATH}
     else
-        echo "WARN: HADOOP_HOME is not defined. Hadoop libs are not added to classpath."
+        echo "WARN: HADOOP_HOME is not defined. Gobblin Hadoop libs will be used in classpath."
+        HADOOP_CLASSPATH=${GOBBLIN_HADOOP_JARS}
     fi
+
+    GOBBLIN_CLASSPATH=${GOBBLIN_JARS}:${HADOOP_CLASSPATH}
 
     if [[ -n "$EXTRA_JARS" ]]; then
         GOBBLIN_CLASSPATH=${GOBBLIN_CLASSPATH}:"$EXTRA_JARS"
@@ -248,7 +257,6 @@ function start() {
     # for all gobblin commands
     if [[ "$GOBBLIN_MODE_TYPE" == "$GOBBLIN_COMMAND_MODE" ]]; then
         if [[ "$GOBBLIN_MODE" = "$CLASSPATH_CMD" ]]; then
-            build_classpath
             # not adding anything in echo here so that it can be used for getting classpath from any other command
             echo "$GOBBLIN_CLASSPATH"
         else
