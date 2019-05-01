@@ -74,7 +74,6 @@ public enum KafkaReportingFormats {
               PusherUtils.DEFAULT_KAFKA_PUSHER_CLASS_NAME);
       builder.withPusherClassName(pusherClassName);
 
-
       return builder.build(brokers, topic);
 
     }
