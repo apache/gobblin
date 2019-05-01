@@ -29,7 +29,6 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Maps;
 
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.kafka.schemareg.KafkaSchemaRegistryConfigurationKeys;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
@@ -46,7 +45,7 @@ public class KeyValueEventObjectReporterTest {
    * @return KeyValueEventObjectReporter builder
    */
   public KeyValueEventObjectReporter.Builder getBuilder(MetricContext context, KeyValuePusher pusher, Properties props) {
-    return KeyValueEventObjectReporter.Factory.forContext(context).withKafkaPusher(pusher).namespaceOverride(
+    return KeyValueEventObjectReporter.Factory.forContext(context).withPusher(pusher).namespaceOverride(
         KafkaAvroReporterUtil.extractOverrideNamespace(props)).withConfig(ConfigUtils.propertiesToConfig(props));
   }
 

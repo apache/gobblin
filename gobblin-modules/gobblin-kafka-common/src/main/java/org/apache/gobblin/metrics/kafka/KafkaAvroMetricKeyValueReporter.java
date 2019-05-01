@@ -54,15 +54,15 @@ public class KafkaAvroMetricKeyValueReporter extends KeyValueMetricObjectReporte
           Optional.of(schema)));
     }
 
-    if (builder.kafkaPusher.isPresent()) {
-      this.kafkaPusher = builder.kafkaPusher.get();
+    if (builder.pusher.isPresent()) {
+      this.pusher = builder.pusher.get();
     } else {
       Config kafkaConfig = ConfigUtils.getConfigOrEmpty(config, PusherUtils.METRICS_REPORTING_KAFKA_CONFIG_PREFIX)
           .withFallback(ConfigUtils.getConfigOrEmpty(config, ConfigurationKeys.SHARED_KAFKA_CONFIG_PREFIX));
 
       String pusherClassName = ConfigUtils.getString(config, PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY,  PusherUtils.DEFAULT_KAFKA_PUSHER_CLASS_NAME);
 
-      this.kafkaPusher = PusherUtils.getKeyValuePusher(pusherClassName, builder.brokers, builder.topic, Optional.of(kafkaConfig));
+      this.pusher = PusherUtils.getKeyValuePusher(pusherClassName, builder.brokers, builder.topic, Optional.of(kafkaConfig));
     }
   }
 
@@ -70,7 +70,7 @@ public class KafkaAvroMetricKeyValueReporter extends KeyValueMetricObjectReporte
   protected void emitReport(MetricReport report) {
     log.info("Emitting report using KeyValueMetricPlainObjectReporter");
 
-    this.kafkaPusher.pushKeyValueMessages(Lists.newArrayList(Pair.of(buildKey(report),this.serializer.serializeRecord(report))));
+    this.pusher.pushKeyValueMessages(Lists.newArrayList(Pair.of(buildKey(report),this.serializer.serializeRecord(report))));
 
   }
 

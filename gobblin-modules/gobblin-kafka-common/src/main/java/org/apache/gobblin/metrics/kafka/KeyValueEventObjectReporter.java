@@ -46,7 +46,7 @@ public class KeyValueEventObjectReporter extends EventReporter {
 
   protected Optional<List<String>> keys = Optional.absent();
   protected final String randomKey;
-  protected KeyValuePusher kafkaPusher;
+  protected KeyValuePusher pusher;
   protected Optional<Map<String,String>> namespaceOverride;
   protected final String topic;
 
@@ -57,15 +57,15 @@ public class KeyValueEventObjectReporter extends EventReporter {
     this.namespaceOverride=builder.namespaceOverride;
     Config config = builder.config.get();
 
-    if (builder.kafkaPusher.isPresent()) {
-      this.kafkaPusher = builder.kafkaPusher.get();
+    if (builder.pusher.isPresent()) {
+      this.pusher = builder.pusher.get();
     } else {
       Config pusherConfig = ConfigUtils.getConfigOrEmpty(config, PUSHER_CONFIG).withFallback(config);
       String pusherClassName = ConfigUtils.getString(config, "pusherClass", PusherUtils.DEFAULT_KEY_VALUE_PUSHER_CLASS_NAME);
-      this.kafkaPusher = PusherUtils.getKeyValuePusher(pusherClassName, builder.brokers, builder.topic, Optional.of(pusherConfig));
+      this.pusher = PusherUtils.getKeyValuePusher(pusherClassName, builder.brokers, builder.topic, Optional.of(pusherConfig));
     }
 
-    this.closer.register(this.kafkaPusher);
+    this.closer.register(this.pusher);
 
     randomKey=String.valueOf(new Random().nextInt(100));
     String pusherKeys_Key = "pusherKeys";
@@ -91,7 +91,7 @@ public class KeyValueEventObjectReporter extends EventReporter {
     }
 
     if (!events.isEmpty()) {
-      this.kafkaPusher.pushKeyValueMessages(events);
+      this.pusher.pushKeyValueMessages(events);
     }
   }
 
@@ -146,7 +146,7 @@ public class KeyValueEventObjectReporter extends EventReporter {
 
     protected String brokers;
     protected String topic;
-    protected Optional<KeyValuePusher> kafkaPusher=Optional.absent();
+    protected Optional<KeyValuePusher> pusher =Optional.absent();
     protected Optional<Config> config = Optional.absent();
     protected Optional<String> pusherClassName = Optional.absent();
     protected Optional<Map<String,String>> namespaceOverride=Optional.absent();
@@ -157,8 +157,8 @@ public class KeyValueEventObjectReporter extends EventReporter {
     /**
      * Set {@link Pusher} to use.
      */
-    public T withKafkaPusher(KeyValuePusher pusher) {
-      this.kafkaPusher = Optional.of(pusher);
+    public T withPusher(KeyValuePusher pusher) {
+      this.pusher = Optional.of(pusher);
       return self();
     }
 

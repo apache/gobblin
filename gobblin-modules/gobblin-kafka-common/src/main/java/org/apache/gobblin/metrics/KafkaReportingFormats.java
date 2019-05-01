@@ -66,12 +66,20 @@ public enum KafkaReportingFormats {
           ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY))) {
         builder.withSchemaRegistry(new KafkaAvroSchemaRegistry(properties));
       }
-      builder.withConfig(getEventsConfig(properties));
       String pusherClassName = properties.containsKey(PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY_FOR_EVENTS)
           ? properties.getProperty(PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY_FOR_EVENTS)
           : properties.getProperty(PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY,
               PusherUtils.DEFAULT_KAFKA_PUSHER_CLASS_NAME);
       builder.withPusherClassName(pusherClassName);
+
+      Config allConfig = ConfigUtils.propertiesToConfig(properties);
+      // the kafka configuration is composed of the metrics reporting specific keys with a fallback to the shared
+      // kafka config
+      Config kafkaConfig = ConfigUtils.getConfigOrEmpty(allConfig,
+          PusherUtils.METRICS_REPORTING_KAFKA_CONFIG_PREFIX).withFallback(ConfigUtils.getConfigOrEmpty(allConfig,
+          ConfigurationKeys.SHARED_KAFKA_CONFIG_PREFIX));
+
+      builder.withConfig(kafkaConfig);
 
       return builder.build(brokers, topic);
 
@@ -98,12 +106,20 @@ public enum KafkaReportingFormats {
           ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY))) {
         builder.withSchemaRegistry(new KafkaAvroSchemaRegistry(properties));
       }
-      builder.withConfig(getEventsConfig(properties));
       String pusherClassName = properties.containsKey(PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY_FOR_EVENTS)
           ? properties.getProperty(PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY_FOR_EVENTS)
           : properties.getProperty(PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY,
               PusherUtils.DEFAULT_KAFKA_PUSHER_CLASS_NAME);
       builder.withPusherClassName(pusherClassName);
+
+      Config allConfig = ConfigUtils.propertiesToConfig(properties);
+      // the kafka configuration is composed of the metrics reporting specific keys with a fallback to the shared
+      // kafka config
+      Config kafkaConfig = ConfigUtils.getConfigOrEmpty(allConfig,
+          PusherUtils.METRICS_REPORTING_KAFKA_CONFIG_PREFIX).withFallback(ConfigUtils.getConfigOrEmpty(allConfig,
+          ConfigurationKeys.SHARED_KAFKA_CONFIG_PREFIX));
+
+      builder.withConfig(kafkaConfig);
 
       return builder.build(brokers, topic);
 
@@ -120,12 +136,22 @@ public enum KafkaReportingFormats {
     @Override
     public ScheduledReporter buildEventsScheduledReporter(String brokers, String topic, MetricContext context, Properties properties) throws IOException {
        KafkaEventReporter.Builder builder = KafkaEventReporter.Factory.forContext(context);
-       builder.withConfig(getEventsConfig(properties));
+       //builder.withConfig(getEventsConfig(properties));
        String pusherClassName = properties.containsKey(PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY_FOR_EVENTS)
           ? properties.getProperty(PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY_FOR_EVENTS)
           : properties.getProperty(PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY,
               PusherUtils.DEFAULT_KAFKA_PUSHER_CLASS_NAME);
        builder.withPusherClassName(pusherClassName);
+
+      Config allConfig = ConfigUtils.propertiesToConfig(properties);
+      // the kafka configuration is composed of the metrics reporting specific keys with a fallback to the shared
+      // kafka config
+      Config kafkaConfig = ConfigUtils.getConfigOrEmpty(allConfig,
+          PusherUtils.METRICS_REPORTING_KAFKA_CONFIG_PREFIX).withFallback(ConfigUtils.getConfigOrEmpty(allConfig,
+          ConfigurationKeys.SHARED_KAFKA_CONFIG_PREFIX));
+
+      builder.withConfig(kafkaConfig);
+
        return builder.build(brokers, topic);
     }
   },
@@ -136,7 +162,9 @@ public enum KafkaReportingFormats {
 
       KeyValueMetricObjectReporter.Builder<?> builder = KeyValueMetricObjectReporter.Factory.newBuilder();
       builder.namespaceOverride(KafkaAvroReporterUtil.extractOverrideNamespace(properties));
-      builder.build(brokers, topic, getMetricsConfig(properties));
+      Config allConfig = ConfigUtils.propertiesToConfig(properties);
+      Config config = ConfigUtils.getConfigOrEmpty(allConfig, ConfigurationKeys.METRICS_REPORTING_CONFIGURATIONS_PREFIX).withFallback(allConfig);
+      builder.build(brokers, topic, config);
 
     }
 
@@ -144,7 +172,9 @@ public enum KafkaReportingFormats {
     public ScheduledReporter buildEventsScheduledReporter(String brokers, String topic, MetricContext context, Properties properties) throws IOException {
 
       KeyValueEventObjectReporter.Builder<?> builder = KeyValueEventObjectReporter.Factory.forContext(context);
-      builder.withConfig(getEventsConfig(properties));
+      Config allConfig = ConfigUtils.propertiesToConfig(properties);
+      Config config = ConfigUtils.getConfigOrEmpty(allConfig, ConfigurationKeys.METRICS_REPORTING_EVENTS_CONFIGURATIONS_PREFIX).withFallback(allConfig);
+      builder.withConfig(config);
       builder.namespaceOverride(KafkaAvroReporterUtil.extractOverrideNamespace(properties));
       return builder.build(brokers, topic);
     }
@@ -153,15 +183,4 @@ public enum KafkaReportingFormats {
   public abstract void buildMetricsScheduledReporter(String brokers, String topic, Properties properties) throws IOException;
   public abstract ScheduledReporter buildEventsScheduledReporter(String brokers, String topic, MetricContext context, Properties properties) throws IOException;
 
-  public Config getMetricsConfig(Properties properties){
-    Config allConfig = ConfigUtils.propertiesToConfig(properties);
-    Config config = ConfigUtils.getConfigOrEmpty(allConfig, ConfigurationKeys.METRICS_REPORTING_CONFIGURATIONS_PREFIX).withFallback(allConfig);
-    return config;
-  }
-
-  public Config getEventsConfig(Properties properties){
-    Config allConfig = ConfigUtils.propertiesToConfig(properties);
-    Config config = ConfigUtils.getConfigOrEmpty(allConfig, ConfigurationKeys.METRICS_REPORTING_EVENTS_CONFIGURATIONS_PREFIX).withFallback(allConfig);
-    return config;
-  }
 }

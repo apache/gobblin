@@ -42,7 +42,7 @@ public class KeyValueMetricObjectReporterTest {
    * @return KeyValueMetricObjectReporter builder
    */
   public KeyValueMetricObjectReporter.Builder getBuilder(KeyValuePusher pusher, Properties props) {
-    return KeyValueMetricObjectReporter.Factory.newBuilder().withKafkaPusher(pusher).namespaceOverride(KafkaAvroReporterUtil.extractOverrideNamespace(props));
+    return KeyValueMetricObjectReporter.Factory.newBuilder().withPusher(pusher).namespaceOverride(KafkaAvroReporterUtil.extractOverrideNamespace(props));
   }
 
   @Test

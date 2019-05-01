@@ -45,7 +45,7 @@ public class KeyValueMetricObjectReporter extends MetricReportReporter {
 
   private Optional<List<String>> keys = Optional.absent();
   protected final String randomKey;
-  protected KeyValuePusher kafkaPusher;
+  protected KeyValuePusher pusher;
   private Optional<Map<String,String>> namespaceOverride;
   protected final String topic;
 
@@ -55,14 +55,14 @@ public class KeyValueMetricObjectReporter extends MetricReportReporter {
     this.topic=builder.topic;
     this.namespaceOverride=builder.namespaceOverride;
 
-    if (builder.kafkaPusher.isPresent()) {
-      this.kafkaPusher = builder.kafkaPusher.get();
+    if (builder.pusher.isPresent()) {
+      this.pusher = builder.pusher.get();
     } else {
       Config pusherConfig = ConfigUtils.getConfigOrEmpty(config, PUSHER_CONFIG).withFallback(config);
       String pusherClassName = ConfigUtils.getString(config, "pusherClass", PusherUtils.DEFAULT_KEY_VALUE_PUSHER_CLASS_NAME);
-      this.kafkaPusher = PusherUtils.getKeyValuePusher(pusherClassName, builder.brokers, builder.topic, Optional.of(pusherConfig));
+      this.pusher = PusherUtils.getKeyValuePusher(pusherClassName, builder.brokers, builder.topic, Optional.of(pusherConfig));
     }
-    this.closer.register(this.kafkaPusher);
+    this.closer.register(this.pusher);
 
     randomKey=String.valueOf(new Random().nextInt(100));
     String pusherKeys_Key = "pusherKeys";
@@ -78,7 +78,7 @@ public class KeyValueMetricObjectReporter extends MetricReportReporter {
   @Override
   protected void emitReport(MetricReport report) {
     GenericRecord record = AvroUtils.overrideNameAndNamespace(report, this.topic, this.namespaceOverride);
-    this.kafkaPusher.pushKeyValueMessages(Lists.newArrayList(Pair.of(buildKey(report),record)));
+    this.pusher.pushKeyValueMessages(Lists.newArrayList(Pair.of(buildKey(report),record)));
   }
 
   protected String buildKey(MetricReport report) {
@@ -109,12 +109,12 @@ public class KeyValueMetricObjectReporter extends MetricReportReporter {
   public static abstract class Builder<T extends Builder<T>> extends MetricReportReporter.Builder<T> {
     protected String brokers;
     protected String topic;
-    protected Optional<KeyValuePusher> kafkaPusher = Optional.absent();
+    protected Optional<KeyValuePusher> pusher = Optional.absent();
     protected Optional<String> pusherClassName = Optional.absent();
     protected Optional<Map<String,String>> namespaceOverride=Optional.absent();
 
-    public T withKafkaPusher(KeyValuePusher pusher) {
-      this.kafkaPusher = Optional.of(pusher);
+    public T withPusher(KeyValuePusher pusher) {
+      this.pusher = Optional.of(pusher);
       return self();
     }
 
