@@ -28,21 +28,21 @@ import org.testng.annotations.Test;
 
 import org.apache.gobblin.kafka.schemareg.KafkaSchemaRegistryConfigurationKeys;
 import org.apache.gobblin.metrics.MetricContext;
-import org.apache.gobblin.metrics.kafka.KafkaKeyValueMetricObjectReporter;
+import org.apache.gobblin.metrics.kafka.KeyValueMetricObjectReporter;
 import org.apache.gobblin.metrics.kafka.KeyValuePusher;
 import org.apache.gobblin.metrics.reporter.util.KafkaAvroReporterUtil;
 import org.apache.gobblin.util.ConfigUtils;
 
 
-public class KafkaKeyValueMetricObjectReporterTest {
+public class KeyValueMetricObjectReporterTest {
 
-  private static final String TOPIC = KafkaKeyValueMetricObjectReporterTest.class.getSimpleName();
+  private static final String TOPIC = KeyValueMetricObjectReporterTest.class.getSimpleName();
   /**
-   * Get builder for KafkaKeyValueMetricObjectReporter
-   * @return KafkaKeyValueMetricObjectReporter builder
+   * Get builder for KeyValueMetricObjectReporter
+   * @return KeyValueMetricObjectReporter builder
    */
-  public KafkaKeyValueMetricObjectReporter.Builder getBuilder(KeyValuePusher pusher, Properties props) {
-    return KafkaKeyValueMetricObjectReporter.Factory.newBuilder().withKafkaPusher(pusher).namespaceOverride(KafkaAvroReporterUtil.extractOverrideNamespace(props));
+  public KeyValueMetricObjectReporter.Builder getBuilder(KeyValuePusher pusher, Properties props) {
+    return KeyValueMetricObjectReporter.Factory.newBuilder().withKafkaPusher(pusher).namespaceOverride(KafkaAvroReporterUtil.extractOverrideNamespace(props));
   }
 
   @Test
@@ -55,7 +55,7 @@ public class KafkaKeyValueMetricObjectReporterTest {
     properties.put(KafkaSchemaRegistryConfigurationKeys.KAFKA_SCHEMA_REGISTRY_OVERRIDE_NAMESPACE, namespace);
 
     MockKafkaKeyValPusherNew pusher = new MockKafkaKeyValPusherNew();
-    KafkaKeyValueMetricObjectReporter kafkaReporter = getBuilder(pusher, properties).build("localhost:0000", TOPIC,
+    KeyValueMetricObjectReporter kafkaReporter = getBuilder(pusher, properties).build("localhost:0000", TOPIC,
         ConfigUtils.propertiesToConfig(properties));
 
     kafkaReporter.report(metricContext);

@@ -39,7 +39,7 @@ import org.apache.gobblin.util.AvroUtils;
 import org.apache.gobblin.util.ConfigUtils;
 
 @Slf4j
-public class KafkaKeyValueMetricObjectReporter extends MetricReportReporter {
+public class KeyValueMetricObjectReporter extends MetricReportReporter {
 
   private static final String PUSHER_CONFIG = "pusherConfig";
 
@@ -49,7 +49,7 @@ public class KafkaKeyValueMetricObjectReporter extends MetricReportReporter {
   private Optional<Map<String,String>> namespaceOverride;
   protected final String topic;
 
-  public KafkaKeyValueMetricObjectReporter(Builder<?> builder, Config config) {
+  public KeyValueMetricObjectReporter(Builder<?> builder, Config config) {
     super(builder, config);
 
     this.topic=builder.topic;
@@ -131,10 +131,10 @@ public class KafkaKeyValueMetricObjectReporter extends MetricReportReporter {
       return self();
     }
 
-    public KafkaKeyValueMetricObjectReporter build(String brokers, String topic, Config config) throws IOException{
+    public KeyValueMetricObjectReporter build(String brokers, String topic, Config config) throws IOException{
       this.brokers=brokers;
       this.topic=topic;
-      return new KafkaKeyValueMetricObjectReporter(this, config);
+      return new KeyValueMetricObjectReporter(this, config);
     }
 
   }
