@@ -20,6 +20,7 @@ package org.apache.gobblin.metrics.reporter;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Properties;
 
 import org.apache.avro.generic.GenericRecord;
 import org.apache.commons.lang3.tuple.Pair;
@@ -28,10 +29,14 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Maps;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.kafka.schemareg.KafkaSchemaRegistryConfigurationKeys;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.kafka.KeyValueEventObjectReporter;
 import org.apache.gobblin.metrics.kafka.KeyValuePusher;
+import org.apache.gobblin.metrics.reporter.util.KafkaAvroReporterUtil;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 public class KeyValueEventObjectReporterTest {
@@ -40,18 +45,22 @@ public class KeyValueEventObjectReporterTest {
    * Get builder for KeyValueEventObjectReporter
    * @return KeyValueEventObjectReporter builder
    */
-  public KeyValueEventObjectReporter.Builder getBuilder(MetricContext context, KeyValuePusher pusher) {
-    return KeyValueEventObjectReporter.Factory.forContext(context).withKafkaPusher(pusher);
+  public KeyValueEventObjectReporter.Builder getBuilder(MetricContext context, KeyValuePusher pusher, Properties props) {
+    return KeyValueEventObjectReporter.Factory.forContext(context).withKafkaPusher(pusher).namespaceOverride(
+        KafkaAvroReporterUtil.extractOverrideNamespace(props)).withConfig(ConfigUtils.propertiesToConfig(props));
   }
 
   @Test
   public void testKafkaKeyValueEventObjectReporter() throws IOException {
     MetricContext context = MetricContext.builder("context").build();
+    String namespace = "org.apache.gobblin.metrics:gobblin.metrics.test";
 
     MockKafkaKeyValPusherNew pusher = new MockKafkaKeyValPusherNew();
-    KeyValueEventObjectReporter reporter = getBuilder(context, pusher).build("localhost:0000", "topic");
+    Properties properties = new Properties();
+    properties.put(KafkaSchemaRegistryConfigurationKeys.KAFKA_SCHEMA_REGISTRY_OVERRIDE_NAMESPACE, namespace);
 
-    String namespace = "gobblin.metrics.test";
+    KeyValueEventObjectReporter reporter = getBuilder(context, pusher, properties).build("localhost:0000", "topic");
+
     String eventName = "testEvent";
 
     GobblinTrackingEvent event = new GobblinTrackingEvent();

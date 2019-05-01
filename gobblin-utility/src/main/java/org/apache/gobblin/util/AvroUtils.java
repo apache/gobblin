@@ -884,13 +884,13 @@ public class AvroUtils {
   public static GenericRecord overrideNameAndNamespace(GenericRecord event, String nameOverride, Optional<Map<String, String>> namespaceOverride) {
 
     GenericRecord record = event;
-    Schema newSchema = AvroUtils.switchName(event.getSchema(), nameOverride);
+    Schema newSchema = switchName(event.getSchema(), nameOverride);
     if(namespaceOverride.isPresent()) {
       newSchema = switchNamespace(newSchema, namespaceOverride.get());
     }
 
     try {
-      record = AvroUtils.convertRecordSchema(record, newSchema);
+      record = convertRecordSchema(record, newSchema);
     } catch (Exception e){
       log.error("Unable to generate generic data record", e);
     }

@@ -37,7 +37,7 @@ import org.apache.gobblin.util.ConfigUtils;
 
 
 @Slf4j
-public class KafkaAvroMetricKeyValueReporter extends KafkaKeyValueMetricObjectReporter {
+public class KafkaAvroMetricKeyValueReporter extends KeyValueMetricObjectReporter {
 
   protected AvroSerializer<MetricReport> serializer;
 
@@ -97,7 +97,7 @@ public class KafkaAvroMetricKeyValueReporter extends KafkaKeyValueMetricObjectRe
    * Builder for {@link KafkaAvroMetricKeyValueReporter}.
    * Defaults to no filter, reporting rates in seconds and times in milliseconds.
    */
-  public static abstract class Builder<T extends Builder<T>> extends KafkaKeyValueMetricObjectReporter.Builder<T> {
+  public static abstract class Builder<T extends Builder<T>> extends KeyValueMetricObjectReporter.Builder<T> {
     private Optional<KafkaAvroSchemaRegistry> registry = Optional.absent();
 
     public T withSchemaRegistry(KafkaAvroSchemaRegistry registry) {
