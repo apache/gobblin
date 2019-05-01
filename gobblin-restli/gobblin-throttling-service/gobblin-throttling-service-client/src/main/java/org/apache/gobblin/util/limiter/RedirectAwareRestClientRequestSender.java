@@ -22,7 +22,9 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.linkedin.common.callback.Callback;
@@ -99,6 +101,10 @@ public class RedirectAwareRestClientRequestSender extends RestClientRequestSende
   @Getter
   private volatile String currentServerPrefix;
 
+  private String lastLogPrefix = "";
+  private AtomicInteger requestsSinceLastLog = new AtomicInteger(0);
+  private long lastLogTimeNanos = 0;
+
   /**
    * @param broker {@link SharedResourcesBroker} used to create {@link RestClient}s.
    * @param connectionPrefixes List of uri prefixes of available servers.
@@ -122,8 +128,37 @@ public class RedirectAwareRestClientRequestSender extends RestClientRequestSende
 
   @Override
   public void sendRequest(PermitRequest request, Callback<Response<PermitAllocation>> callback) {
-    log.info("Sending request to " + getCurrentServerPrefix());
+    logRequest();
     super.sendRequest(request, callback);
+  }
+
+  private void logRequest() {
+    String prefix = getCurrentServerPrefix();
+
+    if (!prefix.equals(this.lastLogPrefix)) {
+      logAggregatedRequests(this.lastLogPrefix);
+      log.info("Sending request to " + prefix);
+      this.lastLogPrefix = prefix;
+      return;
+    }
+
+    this.requestsSinceLastLog.incrementAndGet();
+    log.debug("Sending request to {}", prefix);
+
+    if (TimeUnit.SECONDS.convert(System.nanoTime() - this.lastLogTimeNanos, TimeUnit.NANOSECONDS) > 60) { // 1 minute
+      logAggregatedRequests(prefix);
+    }
+  }
+
+  private void logAggregatedRequests(String prefix) {
+    int requests = this.requestsSinceLastLog.getAndSet(0);
+    long time = System.nanoTime();
+    long elapsedMillis = TimeUnit.MILLISECONDS.convert(time - this.lastLogTimeNanos, TimeUnit.NANOSECONDS);
+    this.lastLogTimeNanos = time;
+
+    if (requests > 0) {
+      log.info(String.format("Made %d requests to %s over the last %d millis.", requests, prefix, elapsedMillis));
+    }
   }
 
   @Override

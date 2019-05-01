@@ -88,7 +88,7 @@ class BatchedPermitsRequester {
   private static final long RETRY_DELAY_ON_NON_RETRIABLE_EXCEPTION = 60000; // 10 minutes
   private static final double MAX_DEPLETION_RATE = 1e20;
   public static final int MAX_GROWTH_REQUEST = 2;
-  private static final long GET_PERMITS_MAX_SLEEP = 1000;
+  private static final long GET_PERMITS_MAX_SLEEP_MILLIS = 1000;
 
   private static final ScheduledExecutorService SCHEDULE_EXECUTOR_SERVICE =
       Executors.newScheduledThreadPool(1, ExecutorsUtils.newDaemonThreadFactory(Optional.of(log),
@@ -181,7 +181,7 @@ class BatchedPermitsRequester {
             // If a callback has happened since we tried to send the new permit request, don't await
             // Since some request senders may be synchronous, we would have missed the notification
             boolean ignore = this.newPermitsAvailable.await(
-                Math.min(GET_PERMITS_MAX_SLEEP, remainingTime(startTimeNanos, this.maxTimeout)), TimeUnit.MILLISECONDS);
+                Math.min(GET_PERMITS_MAX_SLEEP_MILLIS, remainingTime(startTimeNanos, this.maxTimeout)), TimeUnit.MILLISECONDS);
           }
         } else {
           break;
@@ -212,6 +212,9 @@ class BatchedPermitsRequester {
       }
       if (this.currentCallback.elapsedTime() > 30000) {
         // If the previous callback has not returned after 30s, we consider the call lost and try again
+        // Note we expect Rest.li to call onError for most failure situations, this logic just handles the edge
+        // case were Rest.li fails somehow and we don't want to just hang.
+        log.warn("Last request did not return after 30s, considering it lost and retrying.");
         this.currentCallback.clearCallback();
       } else {
         return;
