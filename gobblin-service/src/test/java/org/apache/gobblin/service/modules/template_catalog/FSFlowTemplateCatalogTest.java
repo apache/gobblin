@@ -43,21 +43,21 @@ import org.testng.collections.Lists;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class FSFlowCatalogTest {
-  private static final String TEST_TEMPLATE_NAME = "flowEdgeTemplate";
-  private static final String TEST_TEMPLATE_DIR_URI = "FS:///" + TEST_TEMPLATE_NAME;
+public class FSFlowTemplateCatalogTest {
+  public static final String TEST_TEMPLATE_NAME = "flowEdgeTemplate";
+  public static final String TEST_TEMPLATE_DIR_URI = "FS:///" + TEST_TEMPLATE_NAME;
 
   @Test
   public void testGetFlowTemplate() throws Exception {
     URI flowTemplateCatalogUri = this.getClass().getClassLoader().getResource("template_catalog").toURI();
-    // Create a FSFlowCatalog instance
+    // Create a FSFlowTemplateCatalog instance
     Properties properties = new Properties();
     properties.put(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY, flowTemplateCatalogUri.toString());
     Config config = ConfigFactory.parseProperties(properties);
     Config templateCatalogCfg = config
         .withValue(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY,
             config.getValue(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY));
-    FSFlowCatalog catalog = new FSFlowCatalog(templateCatalogCfg);
+    FSFlowTemplateCatalog catalog = new FSFlowTemplateCatalog(templateCatalogCfg);
     FlowTemplate flowTemplate = catalog.getFlowTemplate(new URI(TEST_TEMPLATE_DIR_URI));
 
     //Basic sanity check for the FlowTemplate

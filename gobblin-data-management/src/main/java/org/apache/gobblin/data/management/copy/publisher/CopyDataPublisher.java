@@ -36,10 +36,12 @@ import org.apache.hadoop.fs.Path;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.commit.CommitStep;
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -83,7 +85,7 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
   public boolean isThreadSafe() {
     return this.getClass() == CopyDataPublisher.class;
   }
-
+  private final FileSystem srcFs;
   private final FileSystem fs;
   protected final EventSubmitter eventSubmitter;
   protected final RecoveryHelper recoveryHelper;
@@ -128,8 +130,8 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
 
     Config config = ConfigUtils.propertiesToConfig(state.getProperties());
 
-    this.srcDataFileVersionStrategy = DataFileVersionStrategy
-        .instantiateDataFileVersionStrategy(HadoopUtils.getSourceFileSystem(state), config);
+    this.srcFs = HadoopUtils.getSourceFileSystem(state);
+    this.srcDataFileVersionStrategy = DataFileVersionStrategy.instantiateDataFileVersionStrategy(this.srcFs, config);
     this.dstDataFileVersionStrategy = DataFileVersionStrategy.instantiateDataFileVersionStrategy(this.fs, config);
   }
 
@@ -231,11 +233,21 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
       CopyEntity copyEntity = CopySource.deserializeCopyEntity(wus);
       if (copyEntity instanceof CopyableFile) {
         CopyableFile copyableFile = (CopyableFile) copyEntity;
+        DataFileVersionStrategy srcVS = this.srcDataFileVersionStrategy;
+        DataFileVersionStrategy dstVS = this.dstDataFileVersionStrategy;
+
+        // Prefer to use copyableFile's specific version strategy
+        if (copyableFile.getDataFileVersionStrategy() != null) {
+          Config versionStrategyConfig = ConfigFactory.parseMap(ImmutableMap.of(
+              DataFileVersionStrategy.DATA_FILE_VERSION_STRATEGY_KEY, copyableFile.getDataFileVersionStrategy()));
+          srcVS = DataFileVersionStrategy.instantiateDataFileVersionStrategy(this.srcFs, versionStrategyConfig);
+          dstVS = DataFileVersionStrategy.instantiateDataFileVersionStrategy(this.fs, versionStrategyConfig);
+        }
 
         if (copyableFile.getPreserve().preserve(PreserveAttributes.Option.VERSION)
-            && this.dstDataFileVersionStrategy.hasCharacteristic(DataFileVersionStrategy.Characteristic.SETTABLE)) {
-          this.dstDataFileVersionStrategy.setVersion(copyableFile.getDestination(),
-              this.srcDataFileVersionStrategy.getVersion(copyableFile.getOrigin().getPath()));
+            && dstVS.hasCharacteristic(DataFileVersionStrategy.Characteristic.SETTABLE)) {
+          dstVS.setVersion(copyableFile.getDestination(),
+              srcVS.getVersion(copyableFile.getOrigin().getPath()));
         }
 
         if (wus.getWorkingState() == WorkingState.COMMITTED) {

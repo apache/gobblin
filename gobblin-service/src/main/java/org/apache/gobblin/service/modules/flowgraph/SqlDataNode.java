@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gobblin.service.modules.flowgraph;
 
 import com.google.common.base.Preconditions;
@@ -23,35 +22,31 @@ import com.typesafe.config.Config;
 import joptsimple.internal.Strings;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 
-import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.util.ConfigUtils;
 
+@EqualsAndHashCode (callSuper = true)
+public class SqlDataNode extends BaseDataNode {
+  public static final String SQL_HOSTNAME = FlowGraphConfigurationKeys.DATA_NODE_PREFIX + "sql.hostname";
+  public static final String SQL_PORT = FlowGraphConfigurationKeys.DATA_NODE_PREFIX + "sql.port";
+  public static final String SQL_DRIVER = FlowGraphConfigurationKeys.DATA_NODE_PREFIX + ".sql.driver";
 
-/**
- * An implementation of {@link DataNode}.
- */
-@Alpha
-@Slf4j
-@EqualsAndHashCode (exclude = {"rawConfig", "active"})
-public class BaseDataNode implements DataNode {
   @Getter
-  private String id;
+  private String hostName;
   @Getter
-  private Config rawConfig;
+  private Integer port;
   @Getter
-  private boolean active = true;
+  private String jdbcDriver;
 
-  public BaseDataNode(Config nodeProps) throws DataNodeCreationException {
+  public SqlDataNode(Config nodeProps) throws DataNodeCreationException {
+    super(nodeProps);
     try {
-      String nodeId = ConfigUtils.getString(nodeProps, FlowGraphConfigurationKeys.DATA_NODE_ID_KEY, "");
-      Preconditions.checkArgument(!Strings.isNullOrEmpty(nodeId), "Node Id cannot be null or empty");
-      this.id = nodeId;
-      if (nodeProps.hasPath(FlowGraphConfigurationKeys.DATA_NODE_IS_ACTIVE_KEY)) {
-        this.active = nodeProps.getBoolean(FlowGraphConfigurationKeys.DATA_NODE_IS_ACTIVE_KEY);
-      }
-      this.rawConfig = nodeProps;
+      this.hostName = ConfigUtils.getString(nodeProps, SQL_HOSTNAME, "");
+      this.port = ConfigUtils.getInt(nodeProps, SQL_PORT, 0);
+      this.jdbcDriver = ConfigUtils.getString(nodeProps, SQL_DRIVER, "");
+      Preconditions.checkArgument(!Strings.isNullOrEmpty(hostName), SQL_HOSTNAME + " cannot be null or empty.");
+      Preconditions.checkArgument(port != 0, SQL_PORT + " cannot be empty.");
+      Preconditions.checkArgument(!Strings.isNullOrEmpty(jdbcDriver), SQL_DRIVER + " cannot be null or empty.");
     } catch (Exception e) {
       throw new DataNodeCreationException(e);
     }

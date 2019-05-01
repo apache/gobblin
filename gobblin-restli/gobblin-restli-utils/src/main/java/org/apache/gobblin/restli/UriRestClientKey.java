@@ -22,12 +22,14 @@ import java.net.URISyntaxException;
 
 import com.google.common.base.Preconditions;
 
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
 
 /**
  * A {@link SharedRestClientKey} that explicitly specifies the {@link URI} of the remote server.
  */
+@EqualsAndHashCode(callSuper = true)
 public class UriRestClientKey extends SharedRestClientKey {
   @Getter
   private final String uri;
@@ -50,29 +52,5 @@ public class UriRestClientKey extends SharedRestClientKey {
   public UriRestClientKey(String serviceName, String uriPrefix) {
     super(serviceName);
     this.uri = uriPrefix;
-  }
-
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-    if (!super.equals(o)) {
-      return false;
-    }
-
-    UriRestClientKey that = (UriRestClientKey) o;
-
-    return uri.equals(that.uri);
-  }
-
-  @Override
-  public int hashCode() {
-    int result = super.hashCode();
-    result = 31 * result + uri.hashCode();
-    return result;
   }
 }

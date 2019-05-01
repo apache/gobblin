@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.Schema;
@@ -37,6 +38,7 @@ import org.apache.avro.Schema.Type;
 import org.apache.avro.SchemaCompatibility;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.file.SeekableInput;
+import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericData.Record;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericDatumWriter;
@@ -75,6 +77,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 
+import javax.annotation.Nonnull;
 
 /**
  * A Utils class for dealing with Avro objects
@@ -108,9 +111,14 @@ public class AvroUtils {
 
   public static List<Field> deepCopySchemaFields(Schema readerSchema) {
     return readerSchema.getFields().stream()
-        .map(field -> new Field(field.name(), field.schema(), field.doc(), field.defaultValue(), field.order()))
+        .map(field -> {
+          Field f = new Field(field.name(), field.schema(), field.doc(), field.defaultValue(), field.order());
+          field.getProps().forEach((key, value) -> f.addProp(key, value));
+          return f;
+        })
         .collect(Collectors.toList());
   }
+
 
   public static class AvroPathFilter implements PathFilter {
     @Override
@@ -834,4 +842,44 @@ public class AvroUtils {
     GenericDatumReader<GenericRecord> reader = new GenericDatumReader<>(schema);
     return reader.read(null, decoder);
   }
+
+
+  /**
+   * Decorate the {@link Schema} for a record with additional {@link Field}s.
+   * @param inputSchema: must be a {@link Record} schema.
+   * @return the decorated Schema. Fields are appended to the inputSchema.
+   */
+  public static Schema decorateRecordSchema(Schema inputSchema, @Nonnull List<Field> fieldList) {
+    Preconditions.checkState(inputSchema.getType().equals(Type.RECORD));
+    List<Field> outputFields = deepCopySchemaFields(inputSchema);
+    List<Field> newOutputFields = Stream.concat(outputFields.stream(), fieldList.stream()).collect(Collectors.toList());
+
+    Schema outputSchema = Schema.createRecord(inputSchema.getName(), inputSchema.getDoc(),
+            inputSchema.getNamespace(), inputSchema.isError());
+    outputSchema.setFields(newOutputFields);
+    copyProperties(inputSchema, outputSchema);
+    return outputSchema;
+  }
+
+  /**
+   * Decorate a {@link GenericRecord} with additional fields and make it conform to an extended Schema
+   * It is the caller's responsibility to ensure that the outputSchema is the merge of the inputRecord's schema
+   * and the additional fields. The method does not check this for performance reasons, because it is expected to be called in the
+   * critical path of processing a record.
+   * Use {@link AvroUtils#decorateRecordSchema(Schema, List)} to generate such a Schema before calling this method.
+   * @param inputRecord: record with data to be copied into the output record
+   * @param fieldMap: values can be primitive types or GenericRecords if nested
+   * @param outputSchema: the schema that the decoratedRecord will conform to
+   * @return an outputRecord that contains a union of the fields in the inputRecord and the field-values in the fieldMap
+   */
+  public static GenericRecord decorateRecord(GenericRecord inputRecord, @Nonnull Map<String, Object> fieldMap,
+          Schema outputSchema) {
+    GenericRecord outputRecord = new GenericData.Record(outputSchema);
+    inputRecord.getSchema().getFields().forEach(
+            f -> outputRecord.put(f.name(), inputRecord.get(f.name()))
+    );
+    fieldMap.forEach((key, value) -> outputRecord.put(key, value));
+    return outputRecord;
+  }
+
 }

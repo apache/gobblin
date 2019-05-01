@@ -19,12 +19,13 @@ package org.apache.gobblin.service.modules.dataset;
 
 import java.io.IOException;
 
-import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.ToString;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
@@ -41,6 +42,8 @@ import org.apache.gobblin.util.ConfigUtils;
  *  </ul>
  */
 @Alpha
+@ToString (exclude = {"rawConfig"})
+@EqualsAndHashCode (exclude = {"rawConfig"})
 public class FormatConfig {
   @Getter
   private final String format;
@@ -58,8 +61,8 @@ public class FormatConfig {
           .build());
 
   public FormatConfig(Config config) throws IOException {
-    this.format = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.FORMAT_KEY, DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY);
-    this.codecType = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.CODEC_KEY, DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY);
+    this.format = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.FORMAT_KEY, DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY).toLowerCase();
+    this.codecType = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.CODEC_KEY, DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY).toLowerCase();
     this.encryptionConfig = new EncryptionConfig(ConfigUtils.getConfig(config, DatasetDescriptorConfigKeys.ENCYPTION_PREFIX, ConfigFactory
         .empty()));
     this.rawConfig = config.withFallback(this.encryptionConfig.getRawConfig().atPath(DatasetDescriptorConfigKeys.ENCYPTION_PREFIX)).
@@ -83,33 +86,5 @@ public class FormatConfig {
 
   private boolean containsEncryptionConfig(EncryptionConfig otherEncryptionConfig) {
     return this.getEncryptionConfig().contains(otherEncryptionConfig);
-  }
-
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) {
-      return true;
-    }
-
-    if (!(o instanceof FormatConfig)) {
-      return false;
-    }
-    FormatConfig other = (FormatConfig) o;
-    return this.getFormat().equalsIgnoreCase(other.getFormat()) && this.getCodecType().equalsIgnoreCase(other.getCodecType())
-        && this.getEncryptionConfig().equals(other.getEncryptionConfig());
-  }
-
-  @Override
-  public String toString() {
-    return "(" + Joiner.on(",").join(this.getFormat(), this.getCodecType(), this.getEncryptionConfig().toString()) + ")";
-  }
-
-  @Override
-  public int hashCode() {
-    int result = 17;
-    result = 31 * result + codecType.toLowerCase().hashCode();
-    result = 31 * result + format.toLowerCase().hashCode();
-    result = 31 * result + encryptionConfig.hashCode();
-    return result;
   }
 }

@@ -133,7 +133,7 @@ public class RestliServiceBasedLimiterTest {
       // leader is currently 2501
       Assert.assertEquals(parsePortOfCurrentServerPrefix(requestSender), 2501);
       // set request to 2500 (not leader)
-      requestSender.updateRestClient(server2500.getServer().getURIPrefix(), "test");
+      requestSender.updateRestClient(server2500.getServer().getURIPrefix(), "test", null);
       Assert.assertEquals(parsePortOfCurrentServerPrefix(requestSender), 2500);
       Assert.assertNotNull(limiter.acquirePermits(20));
       // verify request sender switched back to leader

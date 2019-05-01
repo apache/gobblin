@@ -111,7 +111,7 @@ public class TopologyCatalog extends AbstractIdleService implements SpecCatalog,
     try {
       Config newConfig = config;
       if (config.hasPath(ConfigurationKeys.TOPOLOGYSPEC_STORE_DIR_KEY)) {
-        newConfig = config.withValue(ConfigurationKeys.SPECSTORE_FS_DIR_KEY,
+        newConfig = config.withValue(FSSpecStore.SPECSTORE_FS_DIR_KEY,
             config.getValue(ConfigurationKeys.TOPOLOGYSPEC_STORE_DIR_KEY));
       }
       String specStoreClassName = DEFAULT_TOPOLOGYSPEC_STORE_CLASS;

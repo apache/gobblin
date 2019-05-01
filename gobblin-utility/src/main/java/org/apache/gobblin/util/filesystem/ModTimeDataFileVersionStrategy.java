@@ -28,6 +28,8 @@ import com.typesafe.config.Config;
 
 import lombok.Data;
 
+import org.apache.gobblin.annotation.Alias;
+
 
 /**
  * An implementation of {@link DataFileVersionStrategy} that uses modtime as the file version.
@@ -37,6 +39,7 @@ import lombok.Data;
 @Data
 public class ModTimeDataFileVersionStrategy implements DataFileVersionStrategy<Long> {
 
+  @Alias(value = "modtime")
 	public static class Factory implements DataFileVersionStrategy.DataFileVersionFactory<Long> {
 		@Override
 		public DataFileVersionStrategy<Long> createDataFileVersionStrategy(FileSystem fs, Config config) {

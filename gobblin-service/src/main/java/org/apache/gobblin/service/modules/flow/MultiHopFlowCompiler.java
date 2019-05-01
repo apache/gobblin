@@ -23,6 +23,8 @@ import java.util.ArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -53,7 +55,7 @@ import org.apache.gobblin.service.modules.flowgraph.FlowGraph;
 import org.apache.gobblin.service.modules.flowgraph.pathfinder.PathFinder;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlanDagFactory;
-import org.apache.gobblin.service.modules.template_catalog.FSFlowCatalog;
+import org.apache.gobblin.service.modules.template_catalog.ObservingFSFlowEdgeTemplateCatalog;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -73,6 +75,8 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
 
   private GitFlowGraphMonitor gitFlowGraphMonitor;
 
+  private ReadWriteLock rwLock = new ReentrantReadWriteLock(true);
+
   public MultiHopFlowCompiler(Config config) {
     this(config, true);
   }
@@ -88,11 +92,11 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
   public MultiHopFlowCompiler(Config config, Optional<Logger> log, boolean instrumentationEnabled) {
     super(config, log, instrumentationEnabled);
     this.flowGraph = new BaseFlowGraph();
-    Optional<FSFlowCatalog> flowCatalog = Optional.absent();
+    Optional<ObservingFSFlowEdgeTemplateCatalog> flowTemplateCatalog = Optional.absent();
     if (config.hasPath(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY)
         && StringUtils.isNotBlank(config.getString(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY))) {
       try {
-        flowCatalog = Optional.of(new FSFlowCatalog(config));
+        flowTemplateCatalog = Optional.of(new ObservingFSFlowEdgeTemplateCatalog(config, rwLock));
       } catch (IOException e) {
         throw new RuntimeException("Cannot instantiate " + getClass().getName(), e);
       }
@@ -105,8 +109,8 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
       gitFlowGraphConfig = this.config
           .withValue(GitFlowGraphMonitor.GIT_FLOWGRAPH_MONITOR_PREFIX + "." + ConfigurationKeys.ENCRYPT_KEY_LOC, config.getValue(ConfigurationKeys.ENCRYPT_KEY_LOC));
     }
-    this.gitFlowGraphMonitor = new GitFlowGraphMonitor(gitFlowGraphConfig, flowCatalog, this.flowGraph, this.topologySpecMap, this.getInitComplete());
-    this.serviceManager = new ServiceManager(Lists.newArrayList(this.gitFlowGraphMonitor));
+    this.gitFlowGraphMonitor = new GitFlowGraphMonitor(gitFlowGraphConfig, flowTemplateCatalog, this.flowGraph, this.topologySpecMap, this.getInitComplete());
+    this.serviceManager = new ServiceManager(Lists.newArrayList(this.gitFlowGraphMonitor, flowTemplateCatalog.get()));
     addShutdownHook();
     //Start the git flow graph monitor
     try {
@@ -167,6 +171,7 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
 
     Dag<JobExecutionPlan> jobExecutionPlanDag;
     try {
+      this.rwLock.readLock().lock();
       //Compute the path from source to destination.
       FlowGraphPath flowGraphPath = flowGraph.findPath(flowSpec);
       //Convert the path into a Dag of JobExecutionPlans.
@@ -183,9 +188,12 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
               .format("Exception encountered while compiling flow for source: %s and destination: %s", source, destination),
           e);
       return null;
+    } finally {
+      this.rwLock.readLock().unlock();
     }
     Instrumented.markMeter(flowCompilationSuccessFulMeter);
     Instrumented.updateTimer(flowCompilationTimer, System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
+
     return jobExecutionPlanDag;
   }
 

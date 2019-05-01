@@ -52,6 +52,7 @@ import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.JobSpecNotFoundException;
 import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.PullFileLoader;
+import org.apache.gobblin.util.filesystem.PathAlterationListener;
 import org.apache.gobblin.util.filesystem.PathAlterationObserverScheduler;
 import org.apache.gobblin.util.filesystem.PathAlterationObserver;
 
@@ -127,11 +128,13 @@ public class ImmutableFSJobCatalog extends JobCatalogBase implements JobCatalog 
 
       // If absent, the Optional object will be created automatically by addPathAlterationObserver
       Optional<PathAlterationObserver> observerOptional = Optional.fromNullable(observer);
-      FSPathAlterationListenerAdaptor configFilelistener =
-          new FSPathAlterationListenerAdaptor(this.jobConfDirPath, this.loader, this.sysConfig, this.listeners,
-              this.converter);
-      this.pathAlterationDetector.addPathAlterationObserver(configFilelistener, observerOptional, this.jobConfDirPath);
+      this.pathAlterationDetector.addPathAlterationObserver(getListener(), observerOptional, this.jobConfDirPath);
     }
+  }
+
+  protected PathAlterationListener getListener() {
+    return new FSPathAlterationListenerAdaptor(this.jobConfDirPath, this.loader, this.sysConfig, this.listeners,
+        this.converter);
   }
 
   @Override

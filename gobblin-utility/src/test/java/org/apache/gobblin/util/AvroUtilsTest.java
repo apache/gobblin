@@ -17,9 +17,12 @@
 
 package org.apache.gobblin.util;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -31,11 +34,18 @@ import org.apache.avro.file.FileReader;
 import org.apache.avro.file.SeekableInput;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
+import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumReader;
+import org.apache.avro.io.Decoder;
+import org.apache.avro.io.DecoderFactory;
+import org.apache.avro.io.Encoder;
+import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.mapred.FsInput;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
+import org.codehaus.jackson.JsonNode;
+import org.codehaus.jackson.map.ObjectMapper;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -310,4 +320,167 @@ public class AvroUtilsTest {
     String stringValue = AvroUtils.getFieldValue(record, "union.string").get().toString();
     Assert.assertEquals(stringValue, "testString");
   }
+
+
+  @Test
+  public void testDecorateSchemaWithSingleField() {
+
+    Schema inputRecord = SchemaBuilder.record("test").fields().requiredInt("numeric1")
+            .requiredString("string1").endRecord();
+    Schema fieldSchema = SchemaBuilder.builder().intType();
+    Schema.Field field = new Schema.Field("newField", fieldSchema, "",null);
+    Schema outputRecord = AvroUtils.decorateRecordSchema(inputRecord, Collections.singletonList(field));
+    checkFieldsMatch(inputRecord, outputRecord);
+    Assert.assertNotNull(outputRecord.getField("newField"));
+    Assert.assertEquals(outputRecord.getField("newField").schema(), fieldSchema);
+  }
+
+  private void checkFieldsMatch(Schema inputRecord, Schema outputRecord) {
+    inputRecord.getFields().forEach(f -> {
+      Schema.Field outField = outputRecord.getField(f.name());
+      Assert.assertEquals(f, outField);
+    });
+  }
+
+  @Test
+  public void testDecorateSchemaWithStringProperties() {
+
+    Schema inputRecord = SchemaBuilder.record("test").fields()
+            .name("integer1")
+              .prop("innerProp", "innerVal")
+              .type().intBuilder().endInt().noDefault()
+            .requiredString("string1")
+            .endRecord();
+    inputRecord.addProp("topLevelProp", "topLevelVal");
+    Schema.Field additionalField = getTestInnerRecordField();
+    Schema outputSchema = AvroUtils.decorateRecordSchema(inputRecord, Collections.singletonList(additionalField));
+    checkFieldsMatch(inputRecord, outputSchema);
+    Assert.assertEquals(outputSchema.getProp("topLevelProp"), "topLevelVal");
+    Assert.assertEquals(outputSchema.getField("integer1").getProp("innerProp"), "innerVal");
+  }
+
+  @Test
+  public void testDecorateSchemaWithObjectProperties() throws IOException {
+
+    String customPropertyString = "{\"custom\": {\"prop1\": \"val1\"}}";
+    JsonNode customPropertyValue = new ObjectMapper().readTree(customPropertyString);
+
+    Schema inputRecord = SchemaBuilder.record("test").fields()
+            .name("integer1")
+            .prop("innerProp", "innerVal")
+            .type().intBuilder().endInt().noDefault()
+            .requiredString("string1")
+            .endRecord();
+    inputRecord.addProp("topLevelProp", customPropertyValue);
+    Schema.Field additionalField = getTestInnerRecordField();
+    Schema outputSchema = AvroUtils.decorateRecordSchema(inputRecord, Collections.singletonList(additionalField));
+    checkFieldsMatch(inputRecord, outputSchema);
+    Assert.assertEquals(outputSchema.getProp("topLevelProp"), inputRecord.getProp("topLevelProp"));
+    Assert.assertEquals(outputSchema.getField("integer1").getProp("innerProp"), "innerVal");
+  }
+
+
+  private Schema.Field getTestInnerRecordField() {
+    Schema fieldSchema = SchemaBuilder.record("innerRecord")
+            .fields().requiredInt("innerInt").requiredString("innerString")
+            .endRecord();
+    Schema.Field field = new Schema.Field("innerRecord", fieldSchema, "",null);
+    return field;
+  }
+
+
+  @Test
+  public void testDecorateSchemaWithSingleRecord() {
+    Schema inputRecord = SchemaBuilder.record("test").fields().requiredInt("numeric1")
+            .requiredString("string1").endRecord();
+    Schema fieldSchema = SchemaBuilder.record("innerRecord")
+            .fields().requiredInt("innerInt").requiredString("innerString")
+            .endRecord();
+    Schema.Field field = new Schema.Field("innerRecord", fieldSchema, "",null);
+    Schema outputRecord = AvroUtils.decorateRecordSchema(inputRecord, Collections.singletonList(field));
+    checkFieldsMatch(inputRecord, outputRecord);
+    Assert.assertNotNull(outputRecord.getField("innerRecord"));
+    Assert.assertEquals(outputRecord.getField("innerRecord").schema(), fieldSchema);
+  }
+
+
+  @Test
+  public void testDecorateRecordWithPrimitiveField() {
+    Schema inputRecordSchema = SchemaBuilder.record("test").fields()
+            .name("integer1")
+            .prop("innerProp", "innerVal")
+            .type().intBuilder().endInt().noDefault()
+            .requiredString("string1")
+            .endRecord();
+
+    GenericRecord inputRecord = new GenericData.Record(inputRecordSchema);
+    inputRecord.put("integer1", 10);
+    inputRecord.put("string1", "hello");
+
+    Schema outputRecordSchema = AvroUtils.decorateRecordSchema(inputRecordSchema, Collections.singletonList(new Schema.Field("newField", SchemaBuilder.builder().intType(), "test field", null)));
+    Map<String, Object> newFields = new HashMap<>();
+    newFields.put("newField", 5);
+
+    GenericRecord outputRecord = AvroUtils.decorateRecord(inputRecord, newFields, outputRecordSchema);
+    Assert.assertEquals(outputRecord.get("newField"), 5);
+    Assert.assertEquals(outputRecord.get("integer1"), 10);
+    Assert.assertEquals(outputRecord.get("string1"), "hello");
+
+  }
+
+
+  @Test
+  public void testDecorateRecordWithNestedField() throws IOException {
+    Schema inputRecordSchema = SchemaBuilder.record("test").fields()
+            .name("integer1")
+            .prop("innerProp", "innerVal")
+            .type().intBuilder().endInt().noDefault()
+            .requiredString("string1")
+            .endRecord();
+
+    GenericRecord inputRecord = new GenericData.Record(inputRecordSchema);
+    inputRecord.put("integer1", 10);
+    inputRecord.put("string1", "hello");
+
+    Schema nestedFieldSchema = SchemaBuilder.builder().record("metadata")
+            .fields()
+            .requiredString("source")
+            .requiredLong("timestamp")
+            .endRecord();
+
+    Schema.Field nestedField = new Schema.Field("metadata", nestedFieldSchema, "I am a nested field", null);
+
+    Schema outputRecordSchema = AvroUtils.decorateRecordSchema(inputRecordSchema, Collections.singletonList(nestedField));
+    Map<String, Object> newFields = new HashMap<>();
+
+    GenericData.Record metadataRecord = new GenericData.Record(nestedFieldSchema);
+    metadataRecord.put("source", "oracle");
+    metadataRecord.put("timestamp", 1234L);
+
+    newFields.put("metadata", metadataRecord);
+
+    GenericRecord outputRecord = AvroUtils.decorateRecord(inputRecord, newFields, outputRecordSchema);
+    Assert.assertEquals(outputRecord.get("integer1"), 10);
+    Assert.assertEquals(outputRecord.get("string1"), "hello");
+    Assert.assertEquals(outputRecord.get("metadata"), metadataRecord);
+
+
+    // Test that serializing and deserializing this record works.
+    GenericDatumWriter writer = new GenericDatumWriter(outputRecordSchema);
+    ByteArrayOutputStream baos = new ByteArrayOutputStream(1000);
+    Encoder binaryEncoder = EncoderFactory.get().binaryEncoder(baos, null);
+    writer.write(outputRecord, binaryEncoder);
+    binaryEncoder.flush();
+    baos.close();
+
+    ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
+    Decoder binaryDecoder = DecoderFactory.get().binaryDecoder(bais, null);
+    GenericDatumReader reader = new GenericDatumReader(outputRecordSchema);
+    GenericRecord deserialized = (GenericRecord) reader.read(null, binaryDecoder);
+    Assert.assertEquals(deserialized.get("integer1"), 10);
+    Assert.assertEquals(deserialized.get("string1").toString(), "hello"); //extra toString: avro returns Utf8
+    Assert.assertEquals(deserialized.get("metadata"), metadataRecord);
+  }
+
+
 }

@@ -49,7 +49,7 @@ import org.apache.gobblin.service.modules.flowgraph.FlowEdge;
 import org.apache.gobblin.service.modules.flowgraph.FlowEdgeFactory;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraph;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraphConfigurationKeys;
-import org.apache.gobblin.service.modules.template_catalog.FSFlowCatalog;
+import org.apache.gobblin.service.modules.template_catalog.FSFlowTemplateCatalog;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
@@ -88,15 +88,16 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
           .put(SHOULD_CHECKPOINT_HASHES, false)
           .build());
 
-  private Optional<FSFlowCatalog> flowCatalog;
+  private Optional<? extends FSFlowTemplateCatalog> flowTemplateCatalog;
   private FlowGraph flowGraph;
   private final Map<URI, TopologySpec> topologySpecMap;
   private final Config emptyConfig = ConfigFactory.empty();
   private final CountDownLatch initComplete;
 
-  public GitFlowGraphMonitor(Config config, Optional<FSFlowCatalog> flowCatalog, FlowGraph graph, Map<URI, TopologySpec> topologySpecMap, CountDownLatch initComplete) {
+  public GitFlowGraphMonitor(Config config, Optional<? extends FSFlowTemplateCatalog> flowTemplateCatalog,
+      FlowGraph graph, Map<URI, TopologySpec> topologySpecMap, CountDownLatch initComplete) {
     super(config.getConfig(GIT_FLOWGRAPH_MONITOR_PREFIX).withFallback(DEFAULT_FALLBACK));
-    this.flowCatalog = flowCatalog;
+    this.flowTemplateCatalog = flowTemplateCatalog;
     this.flowGraph = graph;
     this.topologySpecMap = topologySpecMap;
     this.initComplete = initComplete;
@@ -224,15 +225,15 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
         Class flowEdgeFactoryClass = Class.forName(ConfigUtils.getString(edgeConfig, FlowGraphConfigurationKeys.FLOW_EDGE_FACTORY_CLASS,
             FlowGraphConfigurationKeys.DEFAULT_FLOW_EDGE_FACTORY_CLASS));
         FlowEdgeFactory flowEdgeFactory = (FlowEdgeFactory) GobblinConstructorUtils.invokeLongestConstructor(flowEdgeFactoryClass, edgeConfig);
-        if (flowCatalog.isPresent()) {
-          FlowEdge edge = flowEdgeFactory.createFlowEdge(edgeConfig, flowCatalog.get(), specExecutors);
+        if (flowTemplateCatalog.isPresent()) {
+          FlowEdge edge = flowEdgeFactory.createFlowEdge(edgeConfig, flowTemplateCatalog.get(), specExecutors);
           if (!this.flowGraph.addFlowEdge(edge)) {
             log.warn("Could not add edge {} to FlowGraph; skipping", edge.getId());
           } else {
             log.info("Added edge {} to FlowGraph", edge.getId());
           }
         } else {
-          log.warn("Could not add edge defined in {} to FlowGraph as FlowCatalog is absent", change.getNewPath());
+          log.warn("Could not add edge defined in {} to FlowGraph as FlowTemplateCatalog is absent", change.getNewPath());
         }
       } catch (Exception e) {
         log.warn("Could not add edge defined in {} due to exception {}", change.getNewPath(), e.getMessage());
