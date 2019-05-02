@@ -881,21 +881,28 @@ public class AvroUtils {
     return outputRecord;
   }
 
-  public static GenericRecord overrideNameAndNamespace(GenericRecord event, String nameOverride, Optional<Map<String, String>> namespaceOverride) {
+  /**
+   * Given a generic record, Override the name and namespace of the schema and return a new generic record
+   * @param input input record who's name and namespace need to be overridden
+   * @param nameOverride new name for the record schema
+   * @param namespaceOverride Optional map containing namespace overrides
+   * @return an output record with overriden name and possibly namespace
+   */
+  public static GenericRecord overrideNameAndNamespace(GenericRecord input, String nameOverride, Optional<Map<String, String>> namespaceOverride) {
 
-    GenericRecord record = event;
-    Schema newSchema = switchName(event.getSchema(), nameOverride);
+    GenericRecord output = input;
+    Schema newSchema = switchName(input.getSchema(), nameOverride);
     if(namespaceOverride.isPresent()) {
       newSchema = switchNamespace(newSchema, namespaceOverride.get());
     }
 
     try {
-      record = convertRecordSchema(record, newSchema);
+      output = convertRecordSchema(output, newSchema);
     } catch (Exception e){
       log.error("Unable to generate generic data record", e);
     }
 
-    return record;
+    return output;
   }
 
 }

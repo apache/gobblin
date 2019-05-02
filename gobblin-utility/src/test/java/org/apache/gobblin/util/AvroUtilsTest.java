@@ -49,6 +49,7 @@ import org.codehaus.jackson.map.ObjectMapper;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
 
 
@@ -482,5 +483,35 @@ public class AvroUtilsTest {
     Assert.assertEquals(deserialized.get("metadata"), metadataRecord);
   }
 
+  @Test
+  public void overrideNameAndNamespaceTest() throws IOException{
+
+    String inputName = "input_name";
+    String inputNamespace = "input_namespace";
+    String outputName = "output_name";
+    String outputNamespace = "output_namespace";
+
+    Schema inputRecordSchema = SchemaBuilder.record(inputName).namespace(inputNamespace).fields()
+        .name("integer1")
+        .type().intBuilder().endInt().noDefault()
+        .endRecord();
+
+    GenericRecord inputRecord = new GenericData.Record(inputRecordSchema);
+    inputRecord.put("integer1", 10);
+
+    GenericRecord outputRecord = AvroUtils.overrideNameAndNamespace(inputRecord, outputName, Optional.of(Collections.EMPTY_MAP));
+    Assert.assertEquals(outputRecord.getSchema().getName(), outputName);
+    Assert.assertEquals(outputRecord.getSchema().getNamespace(), inputNamespace);
+    Assert.assertEquals(outputRecord.get("integer1"), 10);
+
+    Map<String,String> namespaceOverrideMap = new HashMap<>();
+    namespaceOverrideMap.put(inputNamespace,outputNamespace);
+
+    outputRecord = AvroUtils.overrideNameAndNamespace(inputRecord, outputName, Optional.of(namespaceOverrideMap));
+    Assert.assertEquals(outputRecord.getSchema().getName(), outputName);
+    Assert.assertEquals(outputRecord.getSchema().getNamespace(), outputNamespace);
+    Assert.assertEquals(outputRecord.get("integer1"), 10);
+
+  }
 
 }
