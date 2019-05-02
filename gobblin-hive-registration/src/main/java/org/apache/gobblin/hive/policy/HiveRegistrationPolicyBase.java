@@ -137,10 +137,12 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
 
     // Get Topic-specific config object doesn't require any runtime-set properties in prop object, safe to initialize
     // in constructor.
-    Timer.Context context = this.metricContext.timer(CONFIG_FOR_TOPIC_TIMER).time();
-    configForTopic =
-        ConfigStoreUtils.getConfigForTopic(this.props.getProperties(), KafkaSource.TOPIC_NAME, this.configClient);
-    context.close();
+    if (this.props.getProperties().containsKey(KafkaSource.TOPIC_NAME)) {
+      Timer.Context context = this.metricContext.timer(CONFIG_FOR_TOPIC_TIMER).time();
+      configForTopic =
+          ConfigStoreUtils.getConfigForTopic(this.props.getProperties(), KafkaSource.TOPIC_NAME, this.configClient);
+      context.close();
+    }
   }
 
   /**
