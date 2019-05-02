@@ -42,6 +42,7 @@ public class GobblinYarnConfigurationKeys {
   public static final String APP_MASTER_FILES_REMOTE_KEY = GOBBLIN_YARN_PREFIX + "app.master.files.remote";
   public static final String APP_MASTER_WORK_DIR_NAME = "appmaster";
   public static final String APP_MASTER_JVM_ARGS_KEY = GOBBLIN_YARN_PREFIX + "app.master.jvm.args";
+  public static final String APP_MASTER_SERVICE_CLASSES = GOBBLIN_YARN_PREFIX + "app.master.serviceClasses";
 
   // Gobblin Yarn container configuration properties.
   public static final String INITIAL_CONTAINERS_KEY = GOBBLIN_YARN_PREFIX + "initial.containers";
