@@ -26,39 +26,72 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.typesafe.config.Config;
+
 import org.apache.gobblin.kafka.schemareg.KafkaSchemaRegistryConfigurationKeys;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.kafka.KeyValueMetricObjectReporter;
-import org.apache.gobblin.metrics.kafka.KeyValuePusher;
 import org.apache.gobblin.metrics.reporter.util.KafkaAvroReporterUtil;
 import org.apache.gobblin.util.ConfigUtils;
 
-
-public class KeyValueMetricObjectReporterTest {
+public class KeyValueMetricObjectReporterTest extends KeyValueMetricObjectReporter{
 
   private static final String TOPIC = KeyValueMetricObjectReporterTest.class.getSimpleName();
+
+  public KeyValueMetricObjectReporterTest(Builder<?> builder, Config config){
+    super(builder, config);
+  }
+
+  public MockKeyValuePusher getPusher(){
+    return (MockKeyValuePusher) pusher;
+  }
+
+  public static abstract class Builder<T extends Builder<T>> extends KeyValueMetricObjectReporter.Builder<T> {
+
+    public KeyValueMetricObjectReporterTest build(String brokers, String topic, Config config) throws IOException{
+      this.brokers=brokers;
+      this.topic=topic;
+      return new KeyValueMetricObjectReporterTest(this, config);
+    }
+  }
+
+  public static class BuilderImpl extends Builder<BuilderImpl> {
+
+    @Override
+    protected BuilderImpl self() {
+      return this;
+    }
+  }
+
+  public static class Factory {
+
+    public static KeyValueMetricObjectReporterTest.BuilderImpl newBuilder() {
+      return new KeyValueMetricObjectReporterTest.BuilderImpl();
+    }
+  }
+
   /**
    * Get builder for KeyValueMetricObjectReporter
    * @return KeyValueMetricObjectReporter builder
    */
-  public KeyValueMetricObjectReporter.Builder getBuilder(KeyValuePusher pusher, Properties props) {
-    return KeyValueMetricObjectReporter.Factory.newBuilder().withPusher(pusher).namespaceOverride(KafkaAvroReporterUtil.extractOverrideNamespace(props));
+  public static KeyValueMetricObjectReporterTest.Builder getBuilder(Properties props) {
+    return KeyValueMetricObjectReporterTest.Factory.newBuilder().namespaceOverride(KafkaAvroReporterUtil.extractOverrideNamespace(props));
   }
 
   @Test
-  public void testKafkaKeyValueMetricObjectReporter() throws IOException {
-    MetricContext metricContext = MetricContext.builder(this.getClass().getCanonicalName() + ".testKafkaReporter").build();
+  public static void testKafkaKeyValueMetricObjectReporter() throws IOException {
+    MetricContext metricContext = MetricContext.builder("context").build();
 
     String namespace = "org.apache.gobblin.metrics:gobblin.metrics.test";
     String name = TOPIC;
     Properties properties = new Properties();
     properties.put(KafkaSchemaRegistryConfigurationKeys.KAFKA_SCHEMA_REGISTRY_OVERRIDE_NAMESPACE, namespace);
+    properties.put("pusherClass", "org.apache.gobblin.metrics.reporter.MockKeyValuePusher");
 
-    MockKafkaKeyValPusherNew pusher = new MockKafkaKeyValPusherNew();
-    KeyValueMetricObjectReporter kafkaReporter = getBuilder(pusher, properties).build("localhost:0000", TOPIC,
+    KeyValueMetricObjectReporterTest reporter = getBuilder(properties).build("localhost:0000", TOPIC,
         ConfigUtils.propertiesToConfig(properties));
 
-    kafkaReporter.report(metricContext);
+    reporter.report(metricContext);
 
     try {
       Thread.sleep(1000);
@@ -66,6 +99,7 @@ public class KeyValueMetricObjectReporterTest {
       Thread.currentThread().interrupt();
     }
 
+    MockKeyValuePusher pusher = reporter.getPusher();
     Pair<String,GenericRecord> retrievedEvent = nextKVReport(pusher.messageIterator());
 
     Assert.assertEquals(retrievedEvent.getValue().getSchema().getNamespace(), "gobblin.metrics.test");
@@ -73,8 +107,7 @@ public class KeyValueMetricObjectReporterTest {
     int partition = Integer.parseInt(retrievedEvent.getKey());
     Assert.assertTrue((0 <= partition && partition <= 99));
 
-    kafkaReporter.close();
-
+    reporter.close();
   }
 
   /**
@@ -84,7 +117,7 @@ public class KeyValueMetricObjectReporterTest {
    * @return next metric in the stream
    * @throws IOException
    */
-  protected Pair<String,GenericRecord> nextKVReport(Iterator<Pair<String, GenericRecord>> it){
+  protected static Pair<String,GenericRecord> nextKVReport(Iterator<Pair<String, GenericRecord>> it){
     Assert.assertTrue(it.hasNext());
     return it.next();
   }

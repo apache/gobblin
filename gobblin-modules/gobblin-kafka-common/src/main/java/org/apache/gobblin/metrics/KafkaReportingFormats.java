@@ -47,7 +47,7 @@ public enum KafkaReportingFormats {
   AVRO() {
 
     @Override
-    public void buildMetricsScheduledReporter(String brokers, String topic, Properties properties) throws IOException {
+    public void buildMetricsReporter(String brokers, String topic, Properties properties) throws IOException {
 
       KafkaAvroReporter.Builder<?> builder = KafkaAvroReporter.BuilderFactory.newBuilder();
       if (Boolean.valueOf(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY,
@@ -59,7 +59,7 @@ public enum KafkaReportingFormats {
     }
 
     @Override
-    public ScheduledReporter buildEventsScheduledReporter(String brokers, String topic, MetricContext context, Properties properties) throws IOException {
+    public ScheduledReporter buildEventsReporter(String brokers, String topic, MetricContext context, Properties properties) throws IOException {
 
       KafkaAvroEventReporter.Builder<?> builder = KafkaAvroEventReporter.Factory.forContext(context);
       if (Boolean.valueOf(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY,
@@ -88,13 +88,13 @@ public enum KafkaReportingFormats {
   AVRO_KEY_VALUE() {
 
     @Override
-    public void buildMetricsScheduledReporter(String brokers, String topic, Properties properties) throws IOException {
+    public void buildMetricsReporter(String brokers, String topic, Properties properties) throws IOException {
 
       throw new IOException("Unsupported format for Metric reporting " + this.name());
     }
 
     @Override
-    public ScheduledReporter buildEventsScheduledReporter(String brokers, String topic, MetricContext context, Properties properties) throws IOException {
+    public ScheduledReporter buildEventsReporter(String brokers, String topic, MetricContext context, Properties properties) throws IOException {
 
       KafkaAvroEventKeyValueReporter.Builder<?> builder = KafkaAvroEventKeyValueReporter.Factory.forContext(context);
       if (properties.containsKey(ConfigurationKeys.METRICS_REPORTING_EVENTS_KAFKAPUSHERKEYS)) {
@@ -128,13 +128,13 @@ public enum KafkaReportingFormats {
   JSON() {
 
     @Override
-    public void buildMetricsScheduledReporter(String brokers, String topic, Properties properties) throws IOException {
+    public void buildMetricsReporter(String brokers, String topic, Properties properties) throws IOException {
       KafkaReporter.Builder builder = KafkaReporter.BuilderFactory.newBuilder();
       builder.build(brokers, topic, properties);
     }
 
     @Override
-    public ScheduledReporter buildEventsScheduledReporter(String brokers, String topic, MetricContext context, Properties properties) throws IOException {
+    public ScheduledReporter buildEventsReporter(String brokers, String topic, MetricContext context, Properties properties) throws IOException {
        KafkaEventReporter.Builder builder = KafkaEventReporter.Factory.forContext(context);
        //builder.withConfig(getEventsConfig(properties));
        String pusherClassName = properties.containsKey(PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY_FOR_EVENTS)
@@ -158,18 +158,17 @@ public enum KafkaReportingFormats {
   PLAIN_OBJECT() {
 
     @Override
-    public void buildMetricsScheduledReporter(String brokers, String topic, Properties properties) throws IOException {
+    public void buildMetricsReporter(String brokers, String topic, Properties properties) throws IOException {
 
       KeyValueMetricObjectReporter.Builder<?> builder = KeyValueMetricObjectReporter.Factory.newBuilder();
       builder.namespaceOverride(KafkaAvroReporterUtil.extractOverrideNamespace(properties));
       Config allConfig = ConfigUtils.propertiesToConfig(properties);
       Config config = ConfigUtils.getConfigOrEmpty(allConfig, ConfigurationKeys.METRICS_REPORTING_CONFIGURATIONS_PREFIX).withFallback(allConfig);
       builder.build(brokers, topic, config);
-
     }
 
     @Override
-    public ScheduledReporter buildEventsScheduledReporter(String brokers, String topic, MetricContext context, Properties properties) throws IOException {
+    public ScheduledReporter buildEventsReporter(String brokers, String topic, MetricContext context, Properties properties) throws IOException {
 
       KeyValueEventObjectReporter.Builder<?> builder = KeyValueEventObjectReporter.Factory.forContext(context);
       Config allConfig = ConfigUtils.propertiesToConfig(properties);
@@ -180,7 +179,24 @@ public enum KafkaReportingFormats {
     }
   };
 
-  public abstract void buildMetricsScheduledReporter(String brokers, String topic, Properties properties) throws IOException;
-  public abstract ScheduledReporter buildEventsScheduledReporter(String brokers, String topic, MetricContext context, Properties properties) throws IOException;
+  /**
+   * Method to build reporters that emit metrics. This method does not return anything but schedules/starts the reporter internally
+   * @param brokers Kafka broker to connect
+   * @param topic Kafka topic to publish data
+   * @param properties Properties to build configurations from
+   * @throws IOException
+   */
+  public abstract void buildMetricsReporter(String brokers, String topic, Properties properties) throws IOException;
+
+  /**
+   * Method to build reporters that emit events.
+   * @param brokers Kafka broker to connect
+   * @param topic Kafka topic to publish data
+   * @param context MetricContext to report
+   * @param properties Properties to build configurations from
+   * @return an instance of the event reporter
+   * @throws IOException
+   */
+  public abstract ScheduledReporter buildEventsReporter(String brokers, String topic, MetricContext context, Properties properties) throws IOException;
 
 }

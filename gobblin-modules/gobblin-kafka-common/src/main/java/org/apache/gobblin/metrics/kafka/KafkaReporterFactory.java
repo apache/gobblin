@@ -24,13 +24,11 @@ import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.ScheduledReporter;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.typesafe.config.Config;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.CustomCodahaleReporterFactory;
 import org.apache.gobblin.metrics.KafkaReportingFormats;
 import org.apache.gobblin.metrics.RootMetricContext;
-import org.apache.gobblin.util.ConfigUtils;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -82,7 +80,7 @@ public class KafkaReporterFactory implements CustomCodahaleReporterFactory {
 
     if (metricsEnabled) {
       try {
-        formatEnum.buildMetricsScheduledReporter(brokers, metricsTopic.or(defaultTopic).get(), properties);
+        formatEnum.buildMetricsReporter(brokers, metricsTopic.or(defaultTopic).get(), properties);
 
       } catch (IOException exception) {
         log.error("Failed to create Kafka metrics reporter. Will not report metrics to Kafka.", exception);
@@ -106,7 +104,7 @@ public class KafkaReporterFactory implements CustomCodahaleReporterFactory {
     if (eventsEnabled) {
       try {
         String eventTopic = eventsTopic.or(defaultTopic).get();
-        ScheduledReporter reporter = eventFormatEnum.buildEventsScheduledReporter(brokers, eventTopic, RootMetricContext.get(), properties);
+        ScheduledReporter reporter = eventFormatEnum.buildEventsReporter(brokers, eventTopic, RootMetricContext.get(), properties);
 
         return reporter;
       } catch (IOException exception) {
@@ -114,7 +112,6 @@ public class KafkaReporterFactory implements CustomCodahaleReporterFactory {
       }
     }
 
-    log.info("Will start reporting metrics to Kafka");
     return null;
   }
 }

@@ -42,6 +42,8 @@ import org.apache.gobblin.util.ConfigUtils;
 public class KeyValueMetricObjectReporter extends MetricReportReporter {
 
   private static final String PUSHER_CONFIG = "pusherConfig";
+  private static final String PUSHER_CLASS = "pusherClass";
+  private static final String PUSHER_KEYS = "pusherKeys";
 
   private Optional<List<String>> keys = Optional.absent();
   protected final String randomKey;
@@ -55,19 +57,14 @@ public class KeyValueMetricObjectReporter extends MetricReportReporter {
     this.topic=builder.topic;
     this.namespaceOverride=builder.namespaceOverride;
 
-    if (builder.pusher.isPresent()) {
-      this.pusher = builder.pusher.get();
-    } else {
-      Config pusherConfig = ConfigUtils.getConfigOrEmpty(config, PUSHER_CONFIG).withFallback(config);
-      String pusherClassName = ConfigUtils.getString(config, "pusherClass", PusherUtils.DEFAULT_KEY_VALUE_PUSHER_CLASS_NAME);
-      this.pusher = PusherUtils.getKeyValuePusher(pusherClassName, builder.brokers, builder.topic, Optional.of(pusherConfig));
-    }
+    Config pusherConfig = ConfigUtils.getConfigOrEmpty(config, PUSHER_CONFIG).withFallback(config);
+    String pusherClassName = ConfigUtils.getString(config, PUSHER_CLASS, PusherUtils.DEFAULT_KEY_VALUE_PUSHER_CLASS_NAME);
+    this.pusher = PusherUtils.getKeyValuePusher(pusherClassName, builder.brokers, builder.topic, Optional.of(pusherConfig));
     this.closer.register(this.pusher);
 
     randomKey=String.valueOf(new Random().nextInt(100));
-    String pusherKeys_Key = "pusherKeys";
-    if (config.hasPath(pusherKeys_Key)) {
-      List<String> keys = Splitter.on(",").omitEmptyStrings().trimResults().splitToList(config.getString(pusherKeys_Key));
+    if (config.hasPath(PUSHER_KEYS)) {
+      List<String> keys = Splitter.on(",").omitEmptyStrings().trimResults().splitToList(config.getString(PUSHER_KEYS));
       this.keys = Optional.of(keys);
     }else{
       log.warn("Key not assigned from config. Please set it with property {}", ConfigurationKeys.METRICS_REPORTING_KAFKAPUSHERKEYS);
@@ -81,7 +78,7 @@ public class KeyValueMetricObjectReporter extends MetricReportReporter {
     this.pusher.pushKeyValueMessages(Lists.newArrayList(Pair.of(buildKey(report),record)));
   }
 
-  protected String buildKey(MetricReport report) {
+  private String buildKey(MetricReport report) {
 
     String key = randomKey;
     if (this.keys.isPresent()) {
@@ -109,22 +106,7 @@ public class KeyValueMetricObjectReporter extends MetricReportReporter {
   public static abstract class Builder<T extends Builder<T>> extends MetricReportReporter.Builder<T> {
     protected String brokers;
     protected String topic;
-    protected Optional<KeyValuePusher> pusher = Optional.absent();
-    protected Optional<String> pusherClassName = Optional.absent();
     protected Optional<Map<String,String>> namespaceOverride=Optional.absent();
-
-    public T withPusher(KeyValuePusher pusher) {
-      this.pusher = Optional.of(pusher);
-      return self();
-    }
-
-    /**
-     * Set a {@link Pusher} class name
-     */
-    public T withPusherClassName(String pusherClassName) {
-      this.pusherClassName = Optional.of(pusherClassName);
-      return self();
-    }
 
     public T namespaceOverride(Optional<Map<String,String>> namespaceOverride) {
       this.namespaceOverride = namespaceOverride;
@@ -136,7 +118,6 @@ public class KeyValueMetricObjectReporter extends MetricReportReporter {
       this.topic=topic;
       return new KeyValueMetricObjectReporter(this, config);
     }
-
   }
 
   public static class BuilderImpl extends Builder<BuilderImpl> {

@@ -33,32 +33,76 @@ import org.apache.gobblin.kafka.schemareg.KafkaSchemaRegistryConfigurationKeys;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.kafka.KeyValueEventObjectReporter;
-import org.apache.gobblin.metrics.kafka.KeyValuePusher;
 import org.apache.gobblin.metrics.reporter.util.KafkaAvroReporterUtil;
 import org.apache.gobblin.util.ConfigUtils;
 
+public class KeyValueEventObjectReporterTest extends KeyValueEventObjectReporter{
 
-public class KeyValueEventObjectReporterTest {
+  public KeyValueEventObjectReporterTest(Builder<?> builder){
+    super(builder);
+  }
+
+  public MockKeyValuePusher getPusher(){
+    return (MockKeyValuePusher) pusher;
+  }
+
+  public static class Factory {
+    /**
+     * Returns a new {@link KeyValueEventObjectReporter.Builder} for {@link KeyValueEventObjectReporter}.
+     * Will automatically add all Context tags to the reporter.
+     *
+     * @param context the {@link MetricContext} to report
+     * @return KafkaReporter builder
+     */
+    public static KeyValueEventObjectReporterTest.BuilderImpl forContext(MetricContext context) {
+      return new KeyValueEventObjectReporterTest.BuilderImpl(context);
+    }
+  }
+
+  public static class BuilderImpl extends Builder<BuilderImpl> {
+    private BuilderImpl(MetricContext context) {
+      super(context);
+    }
+
+    @Override
+    protected BuilderImpl self() {
+      return this;
+    }
+  }
+
+  public static abstract class Builder<T extends Builder<T>> extends KeyValueEventObjectReporter.Builder<T>{
+
+    protected Builder(MetricContext context) {
+      super(context);
+    }
+
+    public KeyValueEventObjectReporterTest build(String brokers, String topic){
+      this.brokers=brokers;
+      this.topic=topic;
+      return new KeyValueEventObjectReporterTest(this);
+    }
+  }
 
   /**
    * Get builder for KeyValueEventObjectReporter
    * @return KeyValueEventObjectReporter builder
    */
-  public KeyValueEventObjectReporter.Builder getBuilder(MetricContext context, KeyValuePusher pusher, Properties props) {
-    return KeyValueEventObjectReporter.Factory.forContext(context).withPusher(pusher).namespaceOverride(
-        KafkaAvroReporterUtil.extractOverrideNamespace(props)).withConfig(ConfigUtils.propertiesToConfig(props));
+  public static KeyValueEventObjectReporterTest.Builder getBuilder(MetricContext context, Properties props) {
+    return KeyValueEventObjectReporterTest.Factory.forContext(context)
+        .namespaceOverride(KafkaAvroReporterUtil.extractOverrideNamespace(props))
+        .withConfig(ConfigUtils.propertiesToConfig(props));
   }
 
   @Test
-  public void testKafkaKeyValueEventObjectReporter() throws IOException {
+  public static void testKafkaKeyValueEventObjectReporter() throws IOException {
     MetricContext context = MetricContext.builder("context").build();
     String namespace = "org.apache.gobblin.metrics:gobblin.metrics.test";
 
-    MockKafkaKeyValPusherNew pusher = new MockKafkaKeyValPusherNew();
     Properties properties = new Properties();
     properties.put(KafkaSchemaRegistryConfigurationKeys.KAFKA_SCHEMA_REGISTRY_OVERRIDE_NAMESPACE, namespace);
+    properties.put("pusherClass", "org.apache.gobblin.metrics.reporter.MockKeyValuePusher");
 
-    KeyValueEventObjectReporter reporter = getBuilder(context, pusher, properties).build("localhost:0000", "topic");
+    KeyValueEventObjectReporterTest reporter = getBuilder(context, properties).build("localhost:0000", "topic");
 
     String eventName = "testEvent";
 
@@ -77,12 +121,7 @@ public class KeyValueEventObjectReporterTest {
 
     reporter.report();
 
-    try {
-      Thread.sleep(100);
-    } catch(InterruptedException ex) {
-      Thread.currentThread().interrupt();
-    }
-
+    MockKeyValuePusher pusher = reporter.getPusher();
     Pair<String,GenericRecord> retrievedEvent = nextKVEvent(pusher.messageIterator());
 
     Assert.assertEquals(retrievedEvent.getValue().get("namespace"), namespace);
@@ -92,7 +131,7 @@ public class KeyValueEventObjectReporterTest {
 
   }
 
-  private Pair<String, GenericRecord> nextKVEvent(Iterator<Pair<String, GenericRecord>> it) {
+  private static Pair<String, GenericRecord> nextKVEvent(Iterator<Pair<String, GenericRecord>> it) {
     Assert.assertTrue(it.hasNext());
     Pair<String, GenericRecord> event = it.next();
     return Pair.of(event.getKey(), event.getValue());

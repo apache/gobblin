@@ -35,10 +35,9 @@ import org.apache.gobblin.metrics.kafka.KeyValuePusher;
  * Mock instance of {@link org.apache.gobblin.metrics.kafka.KeyValuePusher} used to test
  * {@link KeyValueMetricObjectReporter}
  * {@link KeyValueEventObjectReporter}
- * {@link org.apache.gobblin.metrics.kafka.KafkaAvroMetricKeyValueReporter}
  */
 
-public class MockKafkaKeyValPusherNew<K,V> implements KeyValuePusher<K,V> {
+public class MockKeyValuePusher<K,V> implements KeyValuePusher<K,V> {
 
   Queue<Pair<K,V>> messages = Queues.newLinkedBlockingQueue();
 

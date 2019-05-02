@@ -43,6 +43,8 @@ import org.apache.gobblin.util.ConfigUtils;
 @Slf4j
 public class KeyValueEventObjectReporter extends EventReporter {
   private static final String PUSHER_CONFIG = "pusherConfig";
+  private static final String PUSHER_CLASS = "pusherClass";
+  private static final String PUSHER_KEYS = "pusherKeys";
 
   protected Optional<List<String>> keys = Optional.absent();
   protected final String randomKey;
@@ -55,22 +57,16 @@ public class KeyValueEventObjectReporter extends EventReporter {
 
     this.topic=builder.topic;
     this.namespaceOverride=builder.namespaceOverride;
+
     Config config = builder.config.get();
-
-    if (builder.pusher.isPresent()) {
-      this.pusher = builder.pusher.get();
-    } else {
-      Config pusherConfig = ConfigUtils.getConfigOrEmpty(config, PUSHER_CONFIG).withFallback(config);
-      String pusherClassName = ConfigUtils.getString(config, "pusherClass", PusherUtils.DEFAULT_KEY_VALUE_PUSHER_CLASS_NAME);
-      this.pusher = PusherUtils.getKeyValuePusher(pusherClassName, builder.brokers, builder.topic, Optional.of(pusherConfig));
-    }
-
+    Config pusherConfig = ConfigUtils.getConfigOrEmpty(config, PUSHER_CONFIG).withFallback(config);
+    String pusherClassName = ConfigUtils.getString(config, PUSHER_CLASS, PusherUtils.DEFAULT_KEY_VALUE_PUSHER_CLASS_NAME);
+    this.pusher = PusherUtils.getKeyValuePusher(pusherClassName, builder.brokers, builder.topic, Optional.of(pusherConfig));
     this.closer.register(this.pusher);
 
     randomKey=String.valueOf(new Random().nextInt(100));
-    String pusherKeys_Key = "pusherKeys";
-    if (config.hasPath(pusherKeys_Key)) {
-      List<String> keys = Splitter.on(",").omitEmptyStrings().trimResults().splitToList(config.getString(pusherKeys_Key));
+    if (config.hasPath(PUSHER_KEYS)) {
+      List<String> keys = Splitter.on(",").omitEmptyStrings().trimResults().splitToList(config.getString(PUSHER_KEYS));
       this.keys = Optional.of(keys);
     }else{
       log.warn("Key not assigned from config. Please set it with property {}", ConfigurationKeys.METRICS_REPORTING_EVENTS_KAFKAPUSHERKEYS);
@@ -95,11 +91,10 @@ public class KeyValueEventObjectReporter extends EventReporter {
     }
   }
 
-  protected String buildKey(GobblinTrackingEvent event) {
+  private String buildKey(GobblinTrackingEvent event) {
 
     String key = randomKey;
     if (this.keys.isPresent()) {
-
       StringBuilder keyBuilder = new StringBuilder();
       for (String keyPart : keys.get()) {
         Map<String,String> metadata = event.getMetadata();
@@ -146,20 +141,11 @@ public class KeyValueEventObjectReporter extends EventReporter {
 
     protected String brokers;
     protected String topic;
-    protected Optional<KeyValuePusher> pusher =Optional.absent();
     protected Optional<Config> config = Optional.absent();
-    protected Optional<String> pusherClassName = Optional.absent();
     protected Optional<Map<String,String>> namespaceOverride=Optional.absent();
 
     protected Builder(MetricContext context) {
       super(context);
-    }
-    /**
-     * Set {@link Pusher} to use.
-     */
-    public T withPusher(KeyValuePusher pusher) {
-      this.pusher = Optional.of(pusher);
-      return self();
     }
 
     /**
@@ -167,14 +153,6 @@ public class KeyValueEventObjectReporter extends EventReporter {
      */
     public T withConfig(Config config) {
       this.config = Optional.of(config);
-      return self();
-    }
-
-    /**
-     * Set a {@link Pusher} class name
-     */
-    public T withPusherClassName(String pusherClassName) {
-      this.pusherClassName = Optional.of(pusherClassName);
       return self();
     }
 
@@ -188,6 +166,5 @@ public class KeyValueEventObjectReporter extends EventReporter {
       this.topic=topic;
       return new KeyValueEventObjectReporter(this);
     }
-
   }
 }
