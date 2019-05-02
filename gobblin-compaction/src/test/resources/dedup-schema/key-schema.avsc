@@ -1,0 +1,375 @@
+{
+  "type" : "record",
+  "name" : "ORDERS2_etl",
+  "namespace" : "OMS_etl",
+  "fields" : [ {
+    "name" : "metadata",
+    "type" : {
+      "type" : "map",
+      "values" : "string"
+    },
+    "doc" : "Event metadata.",
+    "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":null}"
+  }, {
+    "name" : "key",
+    "type" : "bytes",
+    "doc" : "serialized key.",
+    "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":null}"
+  }, {
+    "name" : "value",
+    "type" : {
+      "type" : "record",
+      "name" : "ORDERS2",
+      "namespace" : "OMS",
+      "doc" : "Auto-generated Avro schema for ORDERS2. Generated at Feb 15, 2019 10:17:30 PM UTC",
+      "fields" : [ {
+        "name" : "ORDER_ID",
+        "type" : "long",
+        "default" : 0,
+        "attributes_json" : "{\"delta\":false,\"pk\":true,\"type\":\"NUMBER\"}"
+      }, {
+        "name" : "DATE_PLACED",
+        "type" : [ "null", "long" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"DATE\"}"
+      }, {
+        "name" : "INVOICE_STATUS",
+        "type" : [ "null", "string" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"CHAR\"}"
+      }, {
+        "name" : "MEMBER_ID",
+        "type" : [ "null", "long" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"NUMBER\"}"
+      }, {
+        "name" : "PAYPAL_TX_ID",
+        "type" : [ "null", "string" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"NVARCHAR2\"}"
+      }, {
+        "name" : "TX_TYPE",
+        "type" : [ "null", "string" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"CHAR\"}"
+      }, {
+        "name" : "TX_AMOUNT",
+        "type" : [ "null", "double" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"NUMBER\"}"
+      }, {
+        "name" : "TX_CURRENCY",
+        "type" : [ "null", "string" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"CHAR\"}"
+      }, {
+        "name" : "SALE_TX_ID",
+        "type" : [ "null", "string" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"NVARCHAR2\"}"
+      }, {
+        "name" : "ORDER_STATE",
+        "type" : [ "null", "string" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"CHAR\"}"
+      }, {
+        "name" : "REFUND_DATE",
+        "type" : [ "null", "long" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"DATE\"}"
+      }, {
+        "name" : "UPG_ORIG_ORDER_ID",
+        "type" : [ "null", "long" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"NUMBER\"}"
+      }, {
+        "name" : "UPG_CREDIT_AMT",
+        "type" : [ "null", "double" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"NUMBER\"}"
+      }, {
+        "name" : "UPG_CREDIT_CUR",
+        "type" : [ "null", "string" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"CHAR\"}"
+      }, {
+        "name" : "ORDER_INFO_VER",
+        "type" : [ "null", "long" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"NUMBER\"}"
+      }, {
+        "name" : "ACCOUNT_ID",
+        "type" : [ "null", "long" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"NUMBER\"}"
+      }, {
+        "name" : "LOCALE",
+        "type" : [ "null", "string" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"VARCHAR2\"}"
+      }, {
+        "name" : "LAST_MODIFIED",
+        "type" : [ "null", "long" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":true,\"pk\":false,\"type\":\"DATE\"}"
+      }, {
+        "name" : "DATE_CREATED",
+        "type" : [ "null", "long" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"DATE\"}"
+      }, {
+        "name" : "CREATED_BY",
+        "type" : [ "null", "long" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"NUMBER\"}"
+      }, {
+        "name" : "UPDATED_BY",
+        "type" : [ "null", "long" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"NUMBER\"}"
+      }, {
+        "name" : "UPDATE_COUNT",
+        "type" : [ "null", "long" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"NUMBER\"}"
+      }, {
+        "name" : "ORDER_TYPE",
+        "type" : [ "null", "string" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"CHAR\"}"
+      }, {
+        "name" : "REF_ORDER_ID",
+        "type" : [ "null", "long" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"NUMBER\"}"
+      }, {
+        "name" : "GLOBAL_TX_ID",
+        "type" : [ "null", "string" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"VARCHAR2\"}"
+      }, {
+        "name" : "BUYER_ID",
+        "type" : [ "null", "long" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"NUMBER\"}"
+      }, {
+        "name" : "BUYER_TYPE",
+        "type" : [ "null", "long" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"NUMBER\"}"
+      }, {
+        "name" : "VALIDATE_COUNT",
+        "type" : [ "null", "long" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"NUMBER\"}"
+      }, {
+        "name" : "TAX_AMOUNT",
+        "type" : [ "null", "double" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"NUMBER\"}"
+      }, {
+        "name" : "TAX_RATE",
+        "type" : [ "null", "double" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"NUMBER\"}"
+      }, {
+        "name" : "TAX_TYPE",
+        "type" : [ "null", "string" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"VARCHAR2\"}"
+      }, {
+        "name" : "TAX_LOG_ENTRY_ID",
+        "type" : [ "null", "long" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"NUMBER\"}"
+      }, {
+        "name" : "CONTACT_INFO_HASH",
+        "type" : [ "null", "string" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"VARCHAR2\"}"
+      }, {
+        "name" : "CUSTOMER_ACCOUNT_ID",
+        "type" : [ "null", "long" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"NUMBER\"}"
+      }, {
+        "name" : "TAX_ID",
+        "type" : [ "null", "string" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"VARCHAR2\"}"
+      }, {
+        "name" : "OWNER_ID",
+        "type" : [ "null", "long" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"NUMBER\"}"
+      }, {
+        "name" : "OWNER_TYPE",
+        "type" : [ "null", "long" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"NUMBER\"}"
+      }, {
+        "name" : "RESOLVED_BY_CS",
+        "type" : [ "null", "string" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"CHAR\"}"
+      }, {
+        "name" : "CS_COMMENTS",
+        "type" : [ "null", "string" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"VARCHAR2\"}"
+      }, {
+        "name" : "USD_EXCHANGE_RATE_ID",
+        "type" : [ "null", "long" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"NUMBER\"}"
+      }, {
+        "name" : "TAX_EXEMPTION_ID",
+        "type" : [ "null", "long" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"NUMBER\"}"
+      }, {
+        "name" : "EXEMPTION_DOCUMENT",
+        "type" : [ "null", "string" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"VARCHAR2\"}"
+      }, {
+        "name" : "PAYMENT_ACCOUNT_ID",
+        "type" : [ "null", "long" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"NUMBER\"}"
+      }, {
+        "name" : "GG_MODI_TS",
+        "type" : [ "null", "long" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"TIMESTAMP\"}"
+      }, {
+        "name" : "GG_STATUS",
+        "type" : [ "null", "string" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"VARCHAR2\"}"
+      }, {
+        "name" : "ORIGIN_DATA_CENTER",
+        "type" : [ "null", "string" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"VARCHAR2\"}"
+      }, {
+        "name" : "ATTRIBUTES",
+        "type" : [ "null", "string" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"XMLTYPE\"}"
+      }, {
+        "name" : "TX_CHANNEL",
+        "type" : [ "null", "string" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"VARCHAR2\"}"
+      }, {
+        "name" : "ORDER_SUBTYPE",
+        "type" : [ "null", "string" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"VARCHAR2\"}"
+      }, {
+        "name" : "SOURCE_APP",
+        "type" : [ "null", "string" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"VARCHAR2\"}"
+      }, {
+        "name" : "SHOW_RECEIPT",
+        "type" : [ "null", "string" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"VARCHAR2\"}"
+      }, {
+        "name" : "FULFILLED_IN_DC",
+        "type" : [ "null", "string" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"VARCHAR2\"}"
+      }, {
+        "name" : "HOME_CURRENCY",
+        "type" : [ "null", "string" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"CHAR\"}"
+      }, {
+        "name" : "HOME_CURRENCY_EXCHANGE_RATE_ID",
+        "type" : [ "null", "long" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"NUMBER\"}"
+      }, {
+        "name" : "ORDER_NUMBER",
+        "type" : [ "null", "string" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"VARCHAR2\"}"
+      }, {
+        "name" : "DELETED_TS",
+        "type" : [ "null", "long" ],
+        "default" : null,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"TIMESTAMP\"}"
+      }, {
+        "name" : "lumos_dropdate",
+        "type" : "long",
+        "doc" : "",
+        "default" : 0,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"NUMBER\"}"
+      }, {
+        "name" : "__ETL_GG_MODI_MICROS",
+        "type" : "long",
+        "doc" : "A private field reserved only for ETL purpose",
+        "default" : 0,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"MICROS\",\"aux_delta\":1}"
+      }, {
+        "name" : "__ETL_SCN",
+        "type" : "long",
+        "doc" : "A private field reserved only for ETL purpose",
+        "default" : 0,
+        "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":\"NUMBER\",\"aux_delta\":2}"
+      } ],
+      "attributes_json" : "{\"instance\":\"oracle\",\"dumpdate\":\"20190502081051\",\"isFull\":false,\"begin_date\":0,\"end_date\":0,\"total_records\":-1,\"isSharded\":false,\"isSecured\":false,\"permission_group\":\"\",\"datasource_colo\":\"ei-ltx1\",\"table_type\":\"SNAPSHOT_APPEND\"}"
+    },
+    "doc" : "Decorated payload data",
+    "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":null}"
+  }, {
+    "name" : "auditHeader",
+    "type" : [ "null", {
+      "type" : "record",
+      "name" : "KafkaAuditHeader",
+      "namespace" : "com.linkedin.events",
+      "fields" : [ {
+        "name" : "time",
+        "type" : "long",
+        "doc" : "The time at which the event was emitted into kafka."
+      }, {
+        "name" : "server",
+        "type" : "string",
+        "doc" : "The fully qualified name of the host from which the event is being emitted."
+      }, {
+        "name" : "instance",
+        "type" : [ "null", "string" ],
+        "doc" : "The instance on the server from which the event is being emitted. e.g. i001"
+      }, {
+        "name" : "appName",
+        "type" : "string",
+        "doc" : "The name of the application from which the event is being emitted. see go/appname"
+      }, {
+        "name" : "messageId",
+        "type" : {
+          "type" : "fixed",
+          "name" : "UUID",
+          "size" : 16
+        },
+        "doc" : "A unique identifier for the message"
+      }, {
+        "name" : "auditVersion",
+        "type" : [ "null", "int" ],
+        "doc" : "The version that is being used for auditing. In version 0, the audit trail buckets events into 10 minute audit windows based on the EventHeader timestamp. In version 1, the audit trail buckets events as follows: if the schema has an outer KafkaAuditHeader, use the outer audit header timestamp for bucketing; else if the EventHeader has an inner KafkaAuditHeader use that inner audit header's timestamp for bucketing",
+        "default" : null
+      }, {
+        "name" : "fabricUrn",
+        "type" : [ "null", "string" ],
+        "doc" : "The fabricUrn of the host from which the event is being emitted. Fabric Urn in the format of urn:li:fabric:{fabric_name}. See go/fabric.",
+        "default" : null
+      } ]
+    } ],
+    "doc" : "Header used by kafka for auditing the data in the kafka pipeline",
+    "default" : null,
+    "attributes_json" : "{\"delta\":false,\"pk\":false,\"type\":null}"
+  } ],
+  "attributes_json" : "{\"instance\":\"oracle\",\"dumpdate\":\"20190502081051\",\"isFull\":false,\"begin_date\":0,\"end_date\":0,\"total_records\":-1,\"isSharded\":false,\"isSecured\":false,\"permission_group\":\"\",\"datasource_colo\":\"ei-ltx1\",\"table_type\":\"SNAPSHOT_APPEND\"}"
+}

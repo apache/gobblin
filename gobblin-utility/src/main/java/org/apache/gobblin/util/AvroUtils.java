@@ -74,6 +74,7 @@ import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 
@@ -607,10 +608,10 @@ public class AvroUtils {
    * MapReduce job.
    */
   public static Optional<Schema> removeUncomparableFields(Schema schema) {
-    return removeUncomparableFields(schema, Sets.<Schema> newHashSet());
+    return removeUncomparableFields(schema, Maps.newHashMap());
   }
 
-  private static Optional<Schema> removeUncomparableFields(Schema schema, Set<Schema> processed) {
+  private static Optional<Schema> removeUncomparableFields(Schema schema, Map<Schema, Optional<Schema>> processed) {
     switch (schema.getType()) {
       case RECORD:
         return removeUncomparableFieldsFromRecord(schema, processed);
@@ -627,13 +628,13 @@ public class AvroUtils {
     }
   }
 
-  private static Optional<Schema> removeUncomparableFieldsFromRecord(Schema record, Set<Schema> processed) {
+  private static Optional<Schema> removeUncomparableFieldsFromRecord(Schema record, Map<Schema, Optional<Schema>> processed) {
     Preconditions.checkArgument(record.getType() == Schema.Type.RECORD);
 
-    if (processed.contains(record)) {
-      return Optional.absent();
+    Optional<Schema> result = processed.get(record);
+    if (null != result) {
+      return result;
     }
-    processed.add(record);
 
     List<Field> fields = Lists.newArrayList();
     for (Field field : record.getFields()) {
@@ -645,16 +646,19 @@ public class AvroUtils {
 
     Schema newSchema = Schema.createRecord(record.getName(), record.getDoc(), record.getNamespace(), false);
     newSchema.setFields(fields);
-    return Optional.of(newSchema);
+    result = Optional.of(newSchema);
+    processed.put(record, result);
+
+    return result;
   }
 
-  private static Optional<Schema> removeUncomparableFieldsFromUnion(Schema union, Set<Schema> processed) {
+  private static Optional<Schema> removeUncomparableFieldsFromUnion(Schema union, Map<Schema, Optional<Schema>> processed) {
     Preconditions.checkArgument(union.getType() == Schema.Type.UNION);
 
-    if (processed.contains(union)) {
-      return Optional.absent();
+    Optional<Schema> result = processed.get(union);
+    if (null != result) {
+      return result;
     }
-    processed.add(union);
 
     List<Schema> newUnion = Lists.newArrayList();
     for (Schema unionType : union.getTypes()) {
@@ -666,9 +670,13 @@ public class AvroUtils {
 
     // Discard the union field if one or more types are removed from the union.
     if (newUnion.size() != union.getTypes().size()) {
-      return Optional.absent();
+      result = Optional.absent();
+    } else {
+      result = Optional.of(Schema.createUnion(newUnion));
     }
-    return Optional.of(Schema.createUnion(newUnion));
+    processed.put(union, result);
+
+    return result;
   }
 
   /**
