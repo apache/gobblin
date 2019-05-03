@@ -39,7 +39,7 @@ import org.apache.gobblin.util.ConfigUtils;
 
 public class KeyValueEventObjectReporterTest extends KeyValueEventObjectReporter {
 
-  public KeyValueEventObjectReporterTest(Builder<?> builder) {
+  public KeyValueEventObjectReporterTest(Builder builder) {
     super(builder);
   }
 
@@ -47,31 +47,7 @@ public class KeyValueEventObjectReporterTest extends KeyValueEventObjectReporter
     return (MockKeyValuePusher) pusher;
   }
 
-  public static class Factory {
-    /**
-     * Returns a new {@link KeyValueEventObjectReporter.Builder} for {@link KeyValueEventObjectReporter}.
-     * Will automatically add all Context tags to the reporter.
-     *
-     * @param context the {@link MetricContext} to report
-     * @return KafkaReporter builder
-     */
-    public static KeyValueEventObjectReporterTest.BuilderImpl forContext(MetricContext context) {
-      return new KeyValueEventObjectReporterTest.BuilderImpl(context);
-    }
-  }
-
-  public static class BuilderImpl extends Builder<BuilderImpl> {
-    private BuilderImpl(MetricContext context) {
-      super(context);
-    }
-
-    @Override
-    protected BuilderImpl self() {
-      return this;
-    }
-  }
-
-  public static abstract class Builder<T extends Builder<T>> extends KeyValueEventObjectReporter.Builder<T> {
+  public static class Builder extends KeyValueEventObjectReporter.Builder {
 
     protected Builder(MetricContext context) {
       super(context);
@@ -89,9 +65,10 @@ public class KeyValueEventObjectReporterTest extends KeyValueEventObjectReporter
    * @return KeyValueEventObjectReporter builder
    */
   public static KeyValueEventObjectReporterTest.Builder getBuilder(MetricContext context, Properties props) {
-    return KeyValueEventObjectReporterTest.Factory.forContext(context)
-        .namespaceOverride(KafkaAvroReporterUtil.extractOverrideNamespace(props))
+    KeyValueEventObjectReporterTest.Builder builder = new KeyValueEventObjectReporterTest.Builder(context);
+    builder.namespaceOverride(KafkaAvroReporterUtil.extractOverrideNamespace(props))
         .withConfig(ConfigUtils.propertiesToConfig(props));
+    return builder;
   }
 
   @Test

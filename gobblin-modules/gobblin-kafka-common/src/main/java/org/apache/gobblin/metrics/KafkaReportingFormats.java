@@ -154,7 +154,7 @@ public enum KafkaReportingFormats {
     public void buildMetricsReporter(String brokers, String topic, Properties properties)
         throws IOException {
 
-      KeyValueMetricObjectReporter.Builder<?> builder = KeyValueMetricObjectReporter.Factory.newBuilder();
+      KeyValueMetricObjectReporter.Builder builder = new KeyValueMetricObjectReporter.Builder();
       builder.namespaceOverride(KafkaAvroReporterUtil.extractOverrideNamespace(properties));
       Config allConfig = ConfigUtils.propertiesToConfig(properties);
       Config config = ConfigUtils.getConfigOrEmpty(allConfig, ConfigurationKeys.METRICS_REPORTING_CONFIGURATIONS_PREFIX)
@@ -167,7 +167,7 @@ public enum KafkaReportingFormats {
         Properties properties)
         throws IOException {
 
-      KeyValueEventObjectReporter.Builder<?> builder = KeyValueEventObjectReporter.Factory.forContext(context);
+      KeyValueEventObjectReporter.Builder builder = new KeyValueEventObjectReporter.Builder(context);
       Config allConfig = ConfigUtils.propertiesToConfig(properties);
       Config config =
           ConfigUtils.getConfigOrEmpty(allConfig, ConfigurationKeys.METRICS_REPORTING_EVENTS_CONFIGURATIONS_PREFIX)

@@ -39,7 +39,7 @@ public class KeyValueMetricObjectReporterTest extends KeyValueMetricObjectReport
 
   private static final String TOPIC = KeyValueMetricObjectReporterTest.class.getSimpleName();
 
-  public KeyValueMetricObjectReporterTest(Builder<?> builder, Config config) {
+  public KeyValueMetricObjectReporterTest(Builder builder, Config config) {
     super(builder, config);
   }
 
@@ -47,7 +47,7 @@ public class KeyValueMetricObjectReporterTest extends KeyValueMetricObjectReport
     return (MockKeyValuePusher) pusher;
   }
 
-  public static abstract class Builder<T extends Builder<T>> extends KeyValueMetricObjectReporter.Builder<T> {
+  public static class Builder extends KeyValueMetricObjectReporter.Builder {
 
     public KeyValueMetricObjectReporterTest build(String brokers, String topic, Config config)
         throws IOException {
@@ -57,28 +57,14 @@ public class KeyValueMetricObjectReporterTest extends KeyValueMetricObjectReport
     }
   }
 
-  public static class BuilderImpl extends Builder<BuilderImpl> {
-
-    @Override
-    protected BuilderImpl self() {
-      return this;
-    }
-  }
-
-  public static class Factory {
-
-    public static KeyValueMetricObjectReporterTest.BuilderImpl newBuilder() {
-      return new KeyValueMetricObjectReporterTest.BuilderImpl();
-    }
-  }
-
   /**
    * Get builder for KeyValueMetricObjectReporter
    * @return KeyValueMetricObjectReporter builder
    */
   public static KeyValueMetricObjectReporterTest.Builder getBuilder(Properties props) {
-    return KeyValueMetricObjectReporterTest.Factory.newBuilder()
-        .namespaceOverride(KafkaAvroReporterUtil.extractOverrideNamespace(props));
+    KeyValueMetricObjectReporterTest.Builder builder = new KeyValueMetricObjectReporterTest.Builder();
+    builder.namespaceOverride(KafkaAvroReporterUtil.extractOverrideNamespace(props));
+    return builder;
   }
 
   @Test

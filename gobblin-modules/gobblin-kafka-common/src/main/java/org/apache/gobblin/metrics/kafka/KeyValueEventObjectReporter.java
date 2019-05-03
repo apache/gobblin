@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Random;
+import java.util.StringJoiner;
 
 import org.apache.avro.generic.GenericRecord;
 import org.apache.commons.lang3.tuple.Pair;
@@ -40,19 +41,23 @@ import org.apache.gobblin.util.AvroUtils;
 import org.apache.gobblin.util.ConfigUtils;
 
 
+/**
+ * This is a raw event (GobblinTrackingEvent) key value reporter that reports events as GenericRecords without serialization
+ * Configuration for this reporter start with the prefix "metrics.reporting.events"
+ */
 @Slf4j
 public class KeyValueEventObjectReporter extends EventReporter {
   private static final String PUSHER_CONFIG = "pusherConfig";
   private static final String PUSHER_CLASS = "pusherClass";
   private static final String PUSHER_KEYS = "pusherKeys";
 
-  protected Optional<List<String>> keys = Optional.absent();
+  protected List<String> keys;
   protected final String randomKey;
   protected KeyValuePusher pusher;
   protected Optional<Map<String, String>> namespaceOverride;
   protected final String topic;
 
-  public KeyValueEventObjectReporter(Builder<?> builder) {
+  public KeyValueEventObjectReporter(Builder builder) {
     super(builder);
 
     this.topic = builder.topic;
@@ -66,14 +71,15 @@ public class KeyValueEventObjectReporter extends EventReporter {
         PusherUtils.getKeyValuePusher(pusherClassName, builder.brokers, builder.topic, Optional.of(pusherConfig));
     this.closer.register(this.pusher);
 
-    randomKey = String.valueOf(new Random().nextInt(100));
+    randomKey = String.valueOf(new Random().nextInt(
+        ConfigUtils.getInt(config, ConfigurationKeys.KEY_SIZE_KEY, ConfigurationKeys.DEFAULT_REPORTER_KEY_SIZE)));
     if (config.hasPath(PUSHER_KEYS)) {
       List<String> keys = Splitter.on(",").omitEmptyStrings().trimResults().splitToList(config.getString(PUSHER_KEYS));
-      this.keys = Optional.of(keys);
+      this.keys = keys;
     } else {
-      log.warn("Key not assigned from config. Please set it with property {}",
-          ConfigurationKeys.METRICS_REPORTING_EVENTS_KAFKAPUSHERKEYS);
-      log.warn("Using generated number " + randomKey + " as key");
+      log.info(
+          "Key not assigned from config. Please set it with property {} Using randomly generated number {} as key ",
+          ConfigurationKeys.METRICS_REPORTING_EVENTS_PUSHERKEYS, randomKey);
     }
   }
 
@@ -86,7 +92,7 @@ public class KeyValueEventObjectReporter extends EventReporter {
 
     while (null != (event = queue.poll())) {
       GenericRecord record = AvroUtils.overrideNameAndNamespace(event, this.topic, this.namespaceOverride);
-      events.add(Pair.of(buildKey(event), record));
+      events.add(Pair.of(buildKey(record), record));
     }
 
     if (!events.isEmpty()) {
@@ -94,72 +100,52 @@ public class KeyValueEventObjectReporter extends EventReporter {
     }
   }
 
-  private String buildKey(GobblinTrackingEvent event) {
+  private String buildKey(GenericRecord record) {
 
     String key = randomKey;
-    if (this.keys.isPresent()) {
-      StringBuilder keyBuilder = new StringBuilder();
-      for (String keyPart : keys.get()) {
-        Optional value = AvroUtils.getFieldValue(event, keyPart);
+    if (this.keys != null && this.keys.size() > 0) {
+      StringJoiner joiner = new StringJoiner(ConfigurationKeys.KEY_DELIMITER);
+      for (String keyPart : keys) {
+        Optional value = AvroUtils.getFieldValue(record, keyPart);
         if (value.isPresent()) {
-          keyBuilder.append(value.get().toString());
+          joiner.add(value.get().toString());
         } else {
-          log.error("{} not found in the GobblinTrackingEvent. Setting key to {}", keyPart, key);
-          keyBuilder = null;
-          break;
+          log.info("{} not found in the GobblinTrackingEvent. Setting key to {}", keyPart, key);
+          return key;
         }
       }
 
-      key = (keyBuilder == null) ? key : keyBuilder.toString();
+      key = joiner.toString();
     }
 
     return key;
   }
 
-  public static class Factory {
-    /**
-     * Returns a new {@link KeyValueEventObjectReporter.Builder} for {@link KeyValueEventObjectReporter}.
-     * Will automatically add all Context tags to the reporter.
-     *
-     * @param context the {@link MetricContext} to report
-     * @return KafkaReporter builder
-     */
-    public static BuilderImpl forContext(MetricContext context) {
-      return new BuilderImpl(context);
-    }
-  }
-
-  public static class BuilderImpl extends Builder<BuilderImpl> {
-    private BuilderImpl(MetricContext context) {
-      super(context);
-    }
-
-    @Override
-    protected BuilderImpl self() {
-      return this;
-    }
-  }
-
-  public static abstract class Builder<T extends Builder<T>> extends EventReporter.Builder<T> {
+  public static class Builder extends EventReporter.Builder<Builder> {
 
     protected String brokers;
     protected String topic;
     protected Optional<Config> config = Optional.absent();
     protected Optional<Map<String, String>> namespaceOverride = Optional.absent();
 
-    protected Builder(MetricContext context) {
+    public Builder(MetricContext context) {
       super(context);
+    }
+
+    @Override
+    protected Builder self() {
+      return this;
     }
 
     /**
      * Set additional configuration.
      */
-    public T withConfig(Config config) {
+    public Builder withConfig(Config config) {
       this.config = Optional.of(config);
       return self();
     }
 
-    public T namespaceOverride(Optional<Map<String, String>> namespaceOverride) {
+    public Builder namespaceOverride(Optional<Map<String, String>> namespaceOverride) {
       this.namespaceOverride = namespaceOverride;
       return self();
     }

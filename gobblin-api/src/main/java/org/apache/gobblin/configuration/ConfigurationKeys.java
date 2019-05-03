@@ -706,6 +706,13 @@ public class ConfigurationKeys {
   // Topic used only for event reporting.
   public static final String METRICS_KAFKA_TOPIC_EVENTS =
       METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.topic.events";
+  // Key related configurations for raw metric and event key value reporters
+  public static final String KEY_DELIMITER = ",";
+  public static final String KEY_SIZE_KEY = "keySize";
+  public static final int DEFAULT_REPORTER_KEY_SIZE = 100;
+
+  public static final String METRICS_REPORTING_PUSHERKEYS = METRICS_CONFIGURATIONS_PREFIX + "reporting.pusherKeys";
+  public static final String METRICS_REPORTING_EVENTS_PUSHERKEYS = METRICS_REPORTING_EVENTS_CONFIGURATIONS_PREFIX + ".pusherKeys";
 
   //Graphite-based reporting
   public static final String METRICS_REPORTING_GRAPHITE_METRICS_ENABLED_KEY =
