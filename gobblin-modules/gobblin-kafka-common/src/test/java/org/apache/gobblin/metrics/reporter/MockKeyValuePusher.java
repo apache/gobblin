@@ -37,9 +37,9 @@ import org.apache.gobblin.metrics.kafka.KeyValuePusher;
  * {@link KeyValueEventObjectReporter}
  */
 
-public class MockKeyValuePusher<K,V> implements KeyValuePusher<K,V> {
+public class MockKeyValuePusher<K, V> implements KeyValuePusher<K, V> {
 
-  Queue<Pair<K,V>> messages = Queues.newLinkedBlockingQueue();
+  Queue<Pair<K, V>> messages = Queues.newLinkedBlockingQueue();
 
   @Override
   public void pushKeyValueMessages(List<Pair<K, V>> messages) {
@@ -53,11 +53,12 @@ public class MockKeyValuePusher<K,V> implements KeyValuePusher<K,V> {
   }
 
   @Override
-  public void close() throws IOException {
+  public void close()
+      throws IOException {
 
   }
 
-  public Iterator<Pair<K,V>> messageIterator() {
+  public Iterator<Pair<K, V>> messageIterator() {
     return this.messages.iterator();
   }
 }

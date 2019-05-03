@@ -21,6 +21,7 @@ import com.typesafe.config.Config;
 
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
+
 public class PusherUtils {
   public static final String METRICS_REPORTING_KAFKA_CONFIG_PREFIX = "metrics.reporting.kafka.config";
   public static final String KAFKA_PUSHER_CLASS_NAME_KEY = "metrics.reporting.kafkaPusherClass";
@@ -40,8 +41,7 @@ public class PusherUtils {
     try {
       Class<?> pusherClass = Class.forName(pusherClassName);
 
-     return (Pusher) GobblinConstructorUtils.invokeLongestConstructor(pusherClass,
-          brokers, topic, config);
+      return (Pusher) GobblinConstructorUtils.invokeLongestConstructor(pusherClass, brokers, topic, config);
     } catch (ReflectiveOperationException e) {
       throw new RuntimeException("Could not instantiate kafka pusher", e);
     }
@@ -55,15 +55,14 @@ public class PusherUtils {
    * @param config additional configuration for configuring the {@link Pusher}
    * @return a {@link KeyValuePusher}
    */
-  public static KeyValuePusher getKeyValuePusher(String pusherClassName, String brokers, String topic, Optional<Config> config) {
+  public static KeyValuePusher getKeyValuePusher(String pusherClassName, String brokers, String topic,
+      Optional<Config> config) {
     try {
       Class<?> pusherClass = Class.forName(pusherClassName);
 
-      return (KeyValuePusher) GobblinConstructorUtils.invokeLongestConstructor(pusherClass,
-          brokers, topic, config);
+      return (KeyValuePusher) GobblinConstructorUtils.invokeLongestConstructor(pusherClass, brokers, topic, config);
     } catch (ReflectiveOperationException e) {
       throw new RuntimeException("Could not instantiate kafka pusher", e);
     }
   }
-
 }

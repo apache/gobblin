@@ -36,13 +36,14 @@ import org.apache.gobblin.metrics.kafka.KeyValueEventObjectReporter;
 import org.apache.gobblin.metrics.reporter.util.KafkaAvroReporterUtil;
 import org.apache.gobblin.util.ConfigUtils;
 
-public class KeyValueEventObjectReporterTest extends KeyValueEventObjectReporter{
 
-  public KeyValueEventObjectReporterTest(Builder<?> builder){
+public class KeyValueEventObjectReporterTest extends KeyValueEventObjectReporter {
+
+  public KeyValueEventObjectReporterTest(Builder<?> builder) {
     super(builder);
   }
 
-  public MockKeyValuePusher getPusher(){
+  public MockKeyValuePusher getPusher() {
     return (MockKeyValuePusher) pusher;
   }
 
@@ -70,15 +71,15 @@ public class KeyValueEventObjectReporterTest extends KeyValueEventObjectReporter
     }
   }
 
-  public static abstract class Builder<T extends Builder<T>> extends KeyValueEventObjectReporter.Builder<T>{
+  public static abstract class Builder<T extends Builder<T>> extends KeyValueEventObjectReporter.Builder<T> {
 
     protected Builder(MetricContext context) {
       super(context);
     }
 
-    public KeyValueEventObjectReporterTest build(String brokers, String topic){
-      this.brokers=brokers;
-      this.topic=topic;
+    public KeyValueEventObjectReporterTest build(String brokers, String topic) {
+      this.brokers = brokers;
+      this.topic = topic;
       return new KeyValueEventObjectReporterTest(this);
     }
   }
@@ -94,7 +95,8 @@ public class KeyValueEventObjectReporterTest extends KeyValueEventObjectReporter
   }
 
   @Test
-  public static void testKafkaKeyValueEventObjectReporter() throws IOException {
+  public static void testKafkaKeyValueEventObjectReporter()
+      throws IOException {
     MetricContext context = MetricContext.builder("context").build();
     String namespace = "org.apache.gobblin.metrics:gobblin.metrics.test";
 
@@ -115,20 +117,19 @@ public class KeyValueEventObjectReporterTest extends KeyValueEventObjectReporter
 
     try {
       Thread.sleep(100);
-    } catch(InterruptedException ex) {
+    } catch (InterruptedException ex) {
       Thread.currentThread().interrupt();
     }
 
     reporter.report();
 
     MockKeyValuePusher pusher = reporter.getPusher();
-    Pair<String,GenericRecord> retrievedEvent = nextKVEvent(pusher.messageIterator());
+    Pair<String, GenericRecord> retrievedEvent = nextKVEvent(pusher.messageIterator());
 
     Assert.assertEquals(retrievedEvent.getValue().get("namespace"), namespace);
     Assert.assertEquals(retrievedEvent.getValue().get("name"), eventName);
     int partition = Integer.parseInt(retrievedEvent.getKey());
     Assert.assertTrue((0 <= partition && partition <= 99));
-
   }
 
   private static Pair<String, GenericRecord> nextKVEvent(Iterator<Pair<String, GenericRecord>> it) {

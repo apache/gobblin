@@ -29,12 +29,13 @@ import org.apache.gobblin.util.ConfigUtils;
 
 import lombok.extern.slf4j.Slf4j;
 
+
 /**
  * This is a {@Pusher} class that logs the messages
  * @param <V> message type
  */
 @Slf4j
-public class LoggingPusher<K,V> implements KeyValuePusher<K,V> {
+public class LoggingPusher<K, V> implements KeyValuePusher<K, V> {
   private final String brokers;
   private final String topic;
   private static final String KAFKA_TOPIC = "kafka.topic";
@@ -59,21 +60,21 @@ public class LoggingPusher<K,V> implements KeyValuePusher<K,V> {
   }
 
   @Override
-  public void close() throws IOException {
+  public void close()
+      throws IOException {
   }
 
   @Override
-  public void pushKeyValueMessages(List<Pair<K,V>> messages) {
-    for (Pair<K,V> message: messages) {
+  public void pushKeyValueMessages(List<Pair<K, V>> messages) {
+    for (Pair<K, V> message : messages) {
       log.info("Pushing to {}:{}: {} - {}", this.brokers, this.topic, message.getKey(), message.getValue().toString());
     }
   }
 
   @Override
   public void pushMessages(List<V> messages) {
-    for (V message: messages) {
+    for (V message : messages) {
       log.info("Pushing to {}:{}: {}", this.brokers, this.topic, message.toString());
     }
-
   }
 }

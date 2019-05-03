@@ -18,11 +18,11 @@
 package org.apache.gobblin.metrics.kafka;
 
 import java.util.List;
+
 import org.apache.commons.lang3.tuple.Pair;
 
 
-public interface KeyValuePusher<K,V> extends Pusher<V> {
+public interface KeyValuePusher<K, V> extends Pusher<V> {
 
-  void pushKeyValueMessages(List<Pair<K,V>> messages);
-
+  void pushKeyValueMessages(List<Pair<K, V>> messages);
 }
