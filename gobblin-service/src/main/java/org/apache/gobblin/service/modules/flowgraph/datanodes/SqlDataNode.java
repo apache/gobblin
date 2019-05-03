@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gobblin.service.modules.flowgraph;
+package org.apache.gobblin.service.modules.flowgraph.datanodes;
 
 import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
@@ -23,13 +23,15 @@ import joptsimple.internal.Strings;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
+import org.apache.gobblin.service.modules.flowgraph.BaseDataNode;
+import org.apache.gobblin.service.modules.flowgraph.FlowGraphConfigurationKeys;
 import org.apache.gobblin.util.ConfigUtils;
 
 @EqualsAndHashCode (callSuper = true)
 public class SqlDataNode extends BaseDataNode {
   public static final String SQL_HOSTNAME = FlowGraphConfigurationKeys.DATA_NODE_PREFIX + "sql.hostname";
   public static final String SQL_PORT = FlowGraphConfigurationKeys.DATA_NODE_PREFIX + "sql.port";
-  public static final String SQL_DRIVER = FlowGraphConfigurationKeys.DATA_NODE_PREFIX + ".sql.driver";
+  public static final String SQL_DRIVER = FlowGraphConfigurationKeys.DATA_NODE_PREFIX + "sql.driver";
 
   @Getter
   private String hostName;
