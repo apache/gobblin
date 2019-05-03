@@ -283,7 +283,7 @@ public class AvroUtils {
       } else if (data instanceof List) {
         val = getObjectFromArray((List)data, Integer.parseInt(pathList.get(field)));
       } else {
-        val = ((Record)data).get(pathList.get(field));
+        val = ((GenericRecord)data).get(pathList.get(field));
       }
 
       if (val != null) {
@@ -315,7 +315,7 @@ public class AvroUtils {
       return;
     }
 
-    AvroUtils.getFieldHelper(retVal, ((Record) data).get(pathList.get(field)), pathList, ++field);
+    AvroUtils.getFieldHelper(retVal, ((GenericRecord) data).get(pathList.get(field)), pathList, ++field);
     return;
   }
 
@@ -354,7 +354,12 @@ public class AvroUtils {
 
   private static Object getObjectFromMap(Map map, String key) {
     Utf8 utf8Key = new Utf8(key);
-    return map.get(utf8Key);
+    Object value = map.get(utf8Key);
+    if (value == null) {
+      return map.get(key);
+    }
+
+    return value;
   }
 
   /**

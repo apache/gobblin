@@ -38,6 +38,7 @@ import org.apache.gobblin.metrics.reporter.MetricReportReporter;
 import org.apache.gobblin.util.AvroUtils;
 import org.apache.gobblin.util.ConfigUtils;
 
+
 @Slf4j
 public class KeyValueMetricObjectReporter extends MetricReportReporter {
 
@@ -48,26 +49,29 @@ public class KeyValueMetricObjectReporter extends MetricReportReporter {
   private Optional<List<String>> keys = Optional.absent();
   protected final String randomKey;
   protected KeyValuePusher pusher;
-  private Optional<Map<String,String>> namespaceOverride;
+  private Optional<Map<String, String>> namespaceOverride;
   protected final String topic;
 
   public KeyValueMetricObjectReporter(Builder<?> builder, Config config) {
     super(builder, config);
 
-    this.topic=builder.topic;
-    this.namespaceOverride=builder.namespaceOverride;
+    this.topic = builder.topic;
+    this.namespaceOverride = builder.namespaceOverride;
 
     Config pusherConfig = ConfigUtils.getConfigOrEmpty(config, PUSHER_CONFIG).withFallback(config);
-    String pusherClassName = ConfigUtils.getString(config, PUSHER_CLASS, PusherUtils.DEFAULT_KEY_VALUE_PUSHER_CLASS_NAME);
-    this.pusher = PusherUtils.getKeyValuePusher(pusherClassName, builder.brokers, builder.topic, Optional.of(pusherConfig));
+    String pusherClassName =
+        ConfigUtils.getString(config, PUSHER_CLASS, PusherUtils.DEFAULT_KEY_VALUE_PUSHER_CLASS_NAME);
+    this.pusher =
+        PusherUtils.getKeyValuePusher(pusherClassName, builder.brokers, builder.topic, Optional.of(pusherConfig));
     this.closer.register(this.pusher);
 
-    randomKey=String.valueOf(new Random().nextInt(100));
+    randomKey = String.valueOf(new Random().nextInt(100));
     if (config.hasPath(PUSHER_KEYS)) {
       List<String> keys = Splitter.on(",").omitEmptyStrings().trimResults().splitToList(config.getString(PUSHER_KEYS));
       this.keys = Optional.of(keys);
-    }else{
-      log.warn("Key not assigned from config. Please set it with property {}", ConfigurationKeys.METRICS_REPORTING_KAFKAPUSHERKEYS);
+    } else {
+      log.warn("Key not assigned from config. Please set it with property {}",
+          ConfigurationKeys.METRICS_REPORTING_KAFKAPUSHERKEYS);
       log.warn("Using generated number " + randomKey + " as key");
     }
   }
@@ -75,7 +79,7 @@ public class KeyValueMetricObjectReporter extends MetricReportReporter {
   @Override
   protected void emitReport(MetricReport report) {
     GenericRecord record = AvroUtils.overrideNameAndNamespace(report, this.topic, this.namespaceOverride);
-    this.pusher.pushKeyValueMessages(Lists.newArrayList(Pair.of(buildKey(report),record)));
+    this.pusher.pushKeyValueMessages(Lists.newArrayList(Pair.of(buildKey(report), record)));
   }
 
   private String buildKey(MetricReport report) {
@@ -83,17 +87,15 @@ public class KeyValueMetricObjectReporter extends MetricReportReporter {
     String key = randomKey;
     if (this.keys.isPresent()) {
 
-      Map<String, String> tags = report.getTags();
       StringBuilder keyBuilder = new StringBuilder();
-      if (tags != null && tags.size() > 0) {
-        for (String keyPart : keys.get()) {
-          if (tags.containsKey(keyPart)) {
-            keyBuilder.append(tags.get(keyPart));
-          } else {
-            log.error("{} not found in the MetricReport. Setting key to null.", keyPart);
-            keyBuilder = null;
-            break;
-          }
+      for (String keyPart : keys.get()) {
+        Optional value = AvroUtils.getFieldValue(report, keyPart);
+        if (value.isPresent()) {
+          keyBuilder.append(value.get().toString());
+        } else {
+          log.error("{} not found in the MetricReport. Setting key to {}", keyPart, key);
+          keyBuilder = null;
+          break;
         }
       }
 
@@ -106,16 +108,17 @@ public class KeyValueMetricObjectReporter extends MetricReportReporter {
   public static abstract class Builder<T extends Builder<T>> extends MetricReportReporter.Builder<T> {
     protected String brokers;
     protected String topic;
-    protected Optional<Map<String,String>> namespaceOverride=Optional.absent();
+    protected Optional<Map<String, String>> namespaceOverride = Optional.absent();
 
-    public T namespaceOverride(Optional<Map<String,String>> namespaceOverride) {
+    public T namespaceOverride(Optional<Map<String, String>> namespaceOverride) {
       this.namespaceOverride = namespaceOverride;
       return self();
     }
 
-    public KeyValueMetricObjectReporter build(String brokers, String topic, Config config) throws IOException{
-      this.brokers=brokers;
-      this.topic=topic;
+    public KeyValueMetricObjectReporter build(String brokers, String topic, Config config)
+        throws IOException {
+      this.brokers = brokers;
+      this.topic = topic;
       return new KeyValueMetricObjectReporter(this, config);
     }
   }
@@ -134,5 +137,4 @@ public class KeyValueMetricObjectReporter extends MetricReportReporter {
       return new BuilderImpl();
     }
   }
-
 }

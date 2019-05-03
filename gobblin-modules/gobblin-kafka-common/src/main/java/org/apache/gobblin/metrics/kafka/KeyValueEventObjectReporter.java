@@ -97,11 +97,11 @@ public class KeyValueEventObjectReporter extends EventReporter {
     if (this.keys.isPresent()) {
       StringBuilder keyBuilder = new StringBuilder();
       for (String keyPart : keys.get()) {
-        Map<String,String> metadata = event.getMetadata();
-        if (metadata.containsKey(keyPart)) {
-          keyBuilder.append(metadata.get(keyPart));
+        Optional value = AvroUtils.getFieldValue(event, keyPart);
+        if (value.isPresent()) {
+          keyBuilder.append(value.get().toString());
         } else {
-          log.error("{} not found in the GobblinTrackingEvent. Setting key to null.", key);
+          log.error("{} not found in the GobblinTrackingEvent. Setting key to {}", keyPart, key);
           keyBuilder = null;
           break;
         }
