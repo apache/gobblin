@@ -46,23 +46,4 @@ public class PusherUtils {
       throw new RuntimeException("Could not instantiate kafka pusher", e);
     }
   }
-
-  /**
-   * Create a {@link KeyValuePusher}
-   * @param pusherClassName the {@link Pusher} class to instantiate
-   * @param brokers brokers to connect to
-   * @param topic the topic to write to
-   * @param config additional configuration for configuring the {@link Pusher}
-   * @return a {@link KeyValuePusher}
-   */
-  public static KeyValuePusher getKeyValuePusher(String pusherClassName, String brokers, String topic,
-      Optional<Config> config) {
-    try {
-      Class<?> pusherClass = Class.forName(pusherClassName);
-
-      return (KeyValuePusher) GobblinConstructorUtils.invokeLongestConstructor(pusherClass, brokers, topic, config);
-    } catch (ReflectiveOperationException e) {
-      throw new RuntimeException("Could not instantiate kafka pusher", e);
-    }
-  }
 }

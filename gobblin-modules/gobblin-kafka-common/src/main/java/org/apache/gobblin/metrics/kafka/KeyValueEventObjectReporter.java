@@ -50,6 +50,8 @@ public class KeyValueEventObjectReporter extends EventReporter {
   private static final String PUSHER_CONFIG = "pusherConfig";
   private static final String PUSHER_CLASS = "pusherClass";
   private static final String PUSHER_KEYS = "pusherKeys";
+  private static final String KEY_DELIMITER = ",";
+  private static final String KEY_SIZE_KEY = "keySize";
 
   protected List<String> keys;
   protected final String randomKey;
@@ -67,12 +69,12 @@ public class KeyValueEventObjectReporter extends EventReporter {
     Config pusherConfig = ConfigUtils.getConfigOrEmpty(config, PUSHER_CONFIG).withFallback(config);
     String pusherClassName =
         ConfigUtils.getString(config, PUSHER_CLASS, PusherUtils.DEFAULT_KEY_VALUE_PUSHER_CLASS_NAME);
-    this.pusher =
-        PusherUtils.getKeyValuePusher(pusherClassName, builder.brokers, builder.topic, Optional.of(pusherConfig));
+    this.pusher = (KeyValuePusher) PusherUtils
+        .getPusher(pusherClassName, builder.brokers, builder.topic, Optional.of(pusherConfig));
     this.closer.register(this.pusher);
 
     randomKey = String.valueOf(new Random().nextInt(
-        ConfigUtils.getInt(config, ConfigurationKeys.KEY_SIZE_KEY, ConfigurationKeys.DEFAULT_REPORTER_KEY_SIZE)));
+        ConfigUtils.getInt(config, KEY_SIZE_KEY, ConfigurationKeys.DEFAULT_REPORTER_KEY_SIZE)));
     if (config.hasPath(PUSHER_KEYS)) {
       List<String> keys = Splitter.on(",").omitEmptyStrings().trimResults().splitToList(config.getString(PUSHER_KEYS));
       this.keys = keys;
@@ -104,7 +106,7 @@ public class KeyValueEventObjectReporter extends EventReporter {
 
     String key = randomKey;
     if (this.keys != null && this.keys.size() > 0) {
-      StringJoiner joiner = new StringJoiner(ConfigurationKeys.KEY_DELIMITER);
+      StringJoiner joiner = new StringJoiner(KEY_DELIMITER);
       for (String keyPart : keys) {
         Optional value = AvroUtils.getFieldValue(record, keyPart);
         if (value.isPresent()) {
