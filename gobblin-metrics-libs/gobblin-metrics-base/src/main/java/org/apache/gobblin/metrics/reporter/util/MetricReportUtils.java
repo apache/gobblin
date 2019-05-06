@@ -38,6 +38,9 @@ public class MetricReportUtils {
 
   public static final int SCHEMA_VERSION = 1;
   private static Optional<SpecificDatumReader<MetricReport>> READER = Optional.absent();
+  // This prefix can be used to distinguish metrics reported by GobblinService from other metrics reported by Gobblin
+  // This can be used in conjunction with MetricNameRegexFilter to filter out metrics in any MetricReporter
+  public static final String GOBBLIN_SERVICE_METRICS_PREFIX = "GobblinService";
 
   /**
    * Parses a {@link org.apache.gobblin.metrics.MetricReport} from a byte array representing a json input.

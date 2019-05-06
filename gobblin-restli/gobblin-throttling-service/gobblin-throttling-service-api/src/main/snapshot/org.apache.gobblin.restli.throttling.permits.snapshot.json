@@ -17,6 +17,18 @@
       "type" : "long",
       "doc" : "Client should not try to acquire permits before this delay has passed.",
       "optional" : true
+    }, {
+      "name" : "waitForPermitUseMillis",
+      "type" : "long",
+      "doc" : "Client must wait this many millis before allocating provided permits.",
+      "default" : 0,
+      "optional" : true
+    }, {
+      "name" : "unsatisfiablePermits",
+      "type" : "long",
+      "doc" : "If larger than 0, specifies request larger than this number are impossible to satisfy by the policy.",
+      "default" : 0,
+      "optional" : true
     } ]
   }, {
     "type" : "record",
@@ -35,11 +47,18 @@
       "name" : "minPermits",
       "type" : "long",
       "doc" : "Minimum number of useful permits.",
+      "default" : 0,
       "optional" : true
     }, {
       "name" : "requestorIdentifier",
       "type" : "string",
       "doc" : "Identifier of the service requesting the permits."
+    }, {
+      "name" : "version",
+      "type" : "int",
+      "doc" : "Protocol version, see ThrottlingProtocolVersion.java. Allows the server to avoid asking the client for unsupported operations.",
+      "default" : 0,
+      "optional" : true
     } ]
   }, {
     "type" : "record",

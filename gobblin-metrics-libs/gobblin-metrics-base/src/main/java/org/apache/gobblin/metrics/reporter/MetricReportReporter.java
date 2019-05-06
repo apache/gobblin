@@ -124,7 +124,6 @@ public abstract class MetricReportReporter extends ConfiguredScheduledReporter {
     for (Map.Entry<String, Timer> timer : timers.entrySet()) {
       metrics.addAll(serializeSnapshot(timer.getKey(), timer.getValue().getSnapshot()));
       metrics.addAll(serializeMetered(timer.getKey(), timer.getValue()));
-      metrics.addAll(serializeSingleValue(timer.getKey(), timer.getValue().getCount(), Measurements.COUNT.getName()));
     }
 
     Map<String, Object> allTags = Maps.newHashMap();

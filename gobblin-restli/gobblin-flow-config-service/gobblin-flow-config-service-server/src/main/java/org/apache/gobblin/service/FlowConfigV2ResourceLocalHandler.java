@@ -43,6 +43,8 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
    */
   public CreateKVResponse createFlowConfig(FlowConfig flowConfig, boolean triggerListener) throws FlowConfigLoggedException {
     String createLog = "[GAAS-REST] Create called with flowGroup " + flowConfig.getId().getFlowGroup() + " flowName " + flowConfig.getId().getFlowName();
+    this.createFlow.mark();
+
     if (flowConfig.hasExplain()) {
       createLog += " explain " + Boolean.toString(flowConfig.isExplain());
     }
