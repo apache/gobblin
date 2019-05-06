@@ -17,10 +17,13 @@
 
 package org.apache.gobblin.metrics;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
 
+import com.codahale.metrics.ScheduledReporter;
 import com.google.common.base.Splitter;
+import com.typesafe.config.Config;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.kafka.KafkaAvroEventKeyValueReporter;
@@ -28,7 +31,12 @@ import org.apache.gobblin.metrics.kafka.KafkaAvroEventReporter;
 import org.apache.gobblin.metrics.kafka.KafkaAvroReporter;
 import org.apache.gobblin.metrics.kafka.KafkaAvroSchemaRegistry;
 import org.apache.gobblin.metrics.kafka.KafkaEventReporter;
+import org.apache.gobblin.metrics.reporter.KeyValueEventObjectReporter;
+import org.apache.gobblin.metrics.reporter.KeyValueMetricObjectReporter;
 import org.apache.gobblin.metrics.kafka.KafkaReporter;
+import org.apache.gobblin.metrics.kafka.PusherUtils;
+import org.apache.gobblin.metrics.reporter.util.KafkaAvroReporterUtil;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
@@ -36,68 +44,161 @@ import org.apache.gobblin.metrics.kafka.KafkaReporter;
  */
 public enum KafkaReportingFormats {
 
-  AVRO,
-  AVRO_KEY_VALUE,
-  JSON;
+  AVRO() {
+    @Override
+    public void buildMetricsReporter(String brokers, String topic, Properties properties)
+        throws IOException {
+
+      KafkaAvroReporter.Builder<?> builder = KafkaAvroReporter.BuilderFactory.newBuilder();
+      if (Boolean.valueOf(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY,
+          ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY))) {
+        builder.withSchemaRegistry(new KafkaAvroSchemaRegistry(properties));
+      }
+      builder.build(brokers, topic, properties);
+    }
+
+    @Override
+    public ScheduledReporter buildEventsReporter(String brokers, String topic, MetricContext context,
+        Properties properties)
+        throws IOException {
+
+      KafkaAvroEventReporter.Builder<?> builder = KafkaAvroEventReporter.Factory.forContext(context);
+      if (Boolean.valueOf(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY,
+          ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY))) {
+        builder.withSchemaRegistry(new KafkaAvroSchemaRegistry(properties));
+      }
+      String pusherClassName = properties.containsKey(PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY_FOR_EVENTS) ? properties
+          .getProperty(PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY_FOR_EVENTS) : properties
+          .getProperty(PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY, PusherUtils.DEFAULT_KAFKA_PUSHER_CLASS_NAME);
+      builder.withPusherClassName(pusherClassName);
+
+      Config allConfig = ConfigUtils.propertiesToConfig(properties);
+      // the kafka configuration is composed of the metrics reporting specific keys with a fallback to the shared
+      // kafka config
+      Config kafkaConfig = ConfigUtils.getConfigOrEmpty(allConfig, PusherUtils.METRICS_REPORTING_KAFKA_CONFIG_PREFIX)
+          .withFallback(ConfigUtils.getConfigOrEmpty(allConfig, ConfigurationKeys.SHARED_KAFKA_CONFIG_PREFIX));
+
+      builder.withConfig(kafkaConfig);
+
+      return builder.build(brokers, topic);
+    }
+  }, AVRO_KEY_VALUE() {
+    @Override
+    public void buildMetricsReporter(String brokers, String topic, Properties properties)
+        throws IOException {
+
+      throw new IOException("Unsupported format for Metric reporting " + this.name());
+    }
+
+    @Override
+    public ScheduledReporter buildEventsReporter(String brokers, String topic, MetricContext context,
+        Properties properties)
+        throws IOException {
+
+      KafkaAvroEventKeyValueReporter.Builder<?> builder = KafkaAvroEventKeyValueReporter.Factory.forContext(context);
+      if (properties.containsKey(ConfigurationKeys.METRICS_REPORTING_EVENTS_KAFKAPUSHERKEYS)) {
+        List<String> keys = Splitter.on(",").omitEmptyStrings().trimResults()
+            .splitToList(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_EVENTS_KAFKAPUSHERKEYS));
+        builder.withKeys(keys);
+      }
+      if (Boolean.valueOf(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY,
+          ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY))) {
+        builder.withSchemaRegistry(new KafkaAvroSchemaRegistry(properties));
+      }
+      String pusherClassName = properties.containsKey(PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY_FOR_EVENTS) ? properties
+          .getProperty(PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY_FOR_EVENTS) : properties
+          .getProperty(PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY, PusherUtils.DEFAULT_KAFKA_PUSHER_CLASS_NAME);
+      builder.withPusherClassName(pusherClassName);
+
+      Config allConfig = ConfigUtils.propertiesToConfig(properties);
+      // the kafka configuration is composed of the metrics reporting specific keys with a fallback to the shared
+      // kafka config
+      Config kafkaConfig = ConfigUtils.getConfigOrEmpty(allConfig, PusherUtils.METRICS_REPORTING_KAFKA_CONFIG_PREFIX)
+          .withFallback(ConfigUtils.getConfigOrEmpty(allConfig, ConfigurationKeys.SHARED_KAFKA_CONFIG_PREFIX));
+
+      builder.withConfig(kafkaConfig);
+
+      return builder.build(brokers, topic);
+    }
+  }, JSON() {
+    @Override
+    public void buildMetricsReporter(String brokers, String topic, Properties properties)
+        throws IOException {
+      KafkaReporter.Builder builder = KafkaReporter.BuilderFactory.newBuilder();
+      builder.build(brokers, topic, properties);
+    }
+
+    @Override
+    public ScheduledReporter buildEventsReporter(String brokers, String topic, MetricContext context,
+        Properties properties)
+        throws IOException {
+      KafkaEventReporter.Builder builder = KafkaEventReporter.Factory.forContext(context);
+      //builder.withConfig(getEventsConfig(properties));
+      String pusherClassName = properties.containsKey(PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY_FOR_EVENTS) ? properties
+          .getProperty(PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY_FOR_EVENTS) : properties
+          .getProperty(PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY, PusherUtils.DEFAULT_KAFKA_PUSHER_CLASS_NAME);
+      builder.withPusherClassName(pusherClassName);
+
+      Config allConfig = ConfigUtils.propertiesToConfig(properties);
+      // the kafka configuration is composed of the metrics reporting specific keys with a fallback to the shared
+      // kafka config
+      Config kafkaConfig = ConfigUtils.getConfigOrEmpty(allConfig, PusherUtils.METRICS_REPORTING_KAFKA_CONFIG_PREFIX)
+          .withFallback(ConfigUtils.getConfigOrEmpty(allConfig, ConfigurationKeys.SHARED_KAFKA_CONFIG_PREFIX));
+
+      builder.withConfig(kafkaConfig);
+
+      return builder.build(brokers, topic);
+    }
+  }, PLAIN_OBJECT() {
+    @Override
+    public void buildMetricsReporter(String brokers, String topic, Properties properties)
+        throws IOException {
+
+      KeyValueMetricObjectReporter.Builder builder = new KeyValueMetricObjectReporter.Builder();
+      builder.namespaceOverride(KafkaAvroReporterUtil.extractOverrideNamespace(properties));
+      Config allConfig = ConfigUtils.propertiesToConfig(properties);
+      Config config = ConfigUtils.getConfigOrEmpty(allConfig, ConfigurationKeys.METRICS_REPORTING_CONFIGURATIONS_PREFIX)
+          .withFallback(allConfig);
+      builder.build(brokers, topic, config);
+    }
+
+    @Override
+    public ScheduledReporter buildEventsReporter(String brokers, String topic, MetricContext context,
+        Properties properties)
+        throws IOException {
+
+      KeyValueEventObjectReporter.Builder builder = new KeyValueEventObjectReporter.Builder(context);
+      Config allConfig = ConfigUtils.propertiesToConfig(properties);
+      Config config =
+          ConfigUtils.getConfigOrEmpty(allConfig, ConfigurationKeys.METRICS_REPORTING_EVENTS_CONFIGURATIONS_PREFIX)
+              .withFallback(allConfig);
+      builder.withConfig(config);
+      builder.namespaceOverride(KafkaAvroReporterUtil.extractOverrideNamespace(properties));
+      return builder.build(brokers, topic);
+    }
+  };
 
   /**
-   * Get a {@link org.apache.gobblin.metrics.kafka.KafkaReporter.Builder} for this reporting format.
-   *
-   * @param properties {@link Properties} containing information to build reporters.
-   * @return {@link org.apache.gobblin.metrics.kafka.KafkaReporter.Builder}.
+   * Method to build reporters that emit metrics. This method does not return anything but schedules/starts the reporter internally
+   * @param brokers Kafka broker to connect
+   * @param topic Kafka topic to publish data
+   * @param properties Properties to build configurations from
+   * @throws IOException
    */
-  public KafkaReporter.Builder<?> metricReporterBuilder(Properties properties) {
-    switch (this) {
-      case AVRO:
-        KafkaAvroReporter.Builder<?> builder = KafkaAvroReporter.BuilderFactory.newBuilder();
-        if (Boolean.valueOf(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY,
-            ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY))) {
-          builder.withSchemaRegistry(new KafkaAvroSchemaRegistry(properties));
-        }
-        return builder;
-      case JSON:
-        return KafkaReporter.BuilderFactory.newBuilder();
-      default:
-        // This should never happen.
-        throw new IllegalArgumentException("KafkaReportingFormat not recognized.");
-    }
-  }
+  public abstract void buildMetricsReporter(String brokers, String topic, Properties properties)
+      throws IOException;
 
   /**
-   * Get a {@link org.apache.gobblin.metrics.kafka.KafkaEventReporter.Builder} for this reporting format.
-   * @param context {@link MetricContext} that should be reported.
-   * @param properties {@link Properties} containing information to build reporters.
-   * @return {@link org.apache.gobblin.metrics.kafka.KafkaEventReporter.Builder}.
+   * Method to build reporters that emit events.
+   * @param brokers Kafka broker to connect
+   * @param topic Kafka topic to publish data
+   * @param context MetricContext to report
+   * @param properties Properties to build configurations from
+   * @return an instance of the event reporter
+   * @throws IOException
    */
-  public KafkaEventReporter.Builder<?> eventReporterBuilder(MetricContext context, Properties properties) {
-    switch (this) {
-      case AVRO:
-        KafkaAvroEventReporter.Builder<?> kafkaAvroEventReporterBuilder = KafkaAvroEventReporter.Factory.forContext(context);
-        if (Boolean.valueOf(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY,
-            ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY))) {
-          kafkaAvroEventReporterBuilder.withSchemaRegistry(new KafkaAvroSchemaRegistry(properties));
-        }
-        return kafkaAvroEventReporterBuilder;
+  public abstract ScheduledReporter buildEventsReporter(String brokers, String topic, MetricContext context,
+      Properties properties)
+      throws IOException;
 
-      case AVRO_KEY_VALUE:
-        KafkaAvroEventKeyValueReporter.Builder<?> kafkaAvroEventKeyValueReporterBuilder = KafkaAvroEventKeyValueReporter.Factory.forContext(context);
-        if (properties.containsKey(ConfigurationKeys.METRICS_REPORTING_EVENTS_KAFKAPUSHERKEYS)) {
-          List<String> keys = Splitter.on(",").omitEmptyStrings().trimResults()
-              .splitToList(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_EVENTS_KAFKAPUSHERKEYS));
-          kafkaAvroEventKeyValueReporterBuilder.withKeys(keys);
-        }
-        if (Boolean.valueOf(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY,
-            ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY))) {
-          kafkaAvroEventKeyValueReporterBuilder.withSchemaRegistry(new KafkaAvroSchemaRegistry(properties));
-        }
-        return kafkaAvroEventKeyValueReporterBuilder;
-
-      case JSON:
-        return KafkaEventReporter.Factory.forContext(context);
-
-      default:
-        // This should never happen.
-        throw new IllegalArgumentException("KafkaReportingFormat not recognized.");
-    }
-  }
 }

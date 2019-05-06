@@ -78,10 +78,12 @@ import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 
 import javax.annotation.Nonnull;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * A Utils class for dealing with Avro objects
  */
+@Slf4j
 public class AvroUtils {
 
   private static final Logger LOG = LoggerFactory.getLogger(AvroUtils.class);
@@ -281,7 +283,7 @@ public class AvroUtils {
       } else if (data instanceof List) {
         val = getObjectFromArray((List)data, Integer.parseInt(pathList.get(field)));
       } else {
-        val = ((Record)data).get(pathList.get(field));
+        val = ((GenericRecord)data).get(pathList.get(field));
       }
 
       if (val != null) {
@@ -313,7 +315,7 @@ public class AvroUtils {
       return;
     }
 
-    AvroUtils.getFieldHelper(retVal, ((Record) data).get(pathList.get(field)), pathList, ++field);
+    AvroUtils.getFieldHelper(retVal, ((GenericRecord) data).get(pathList.get(field)), pathList, ++field);
     return;
   }
 
@@ -352,7 +354,12 @@ public class AvroUtils {
 
   private static Object getObjectFromMap(Map map, String key) {
     Utf8 utf8Key = new Utf8(key);
-    return map.get(utf8Key);
+    Object value = map.get(utf8Key);
+    if (value == null) {
+      return map.get(key);
+    }
+
+    return value;
   }
 
   /**
@@ -843,7 +850,6 @@ public class AvroUtils {
     return reader.read(null, decoder);
   }
 
-
   /**
    * Decorate the {@link Schema} for a record with additional {@link Field}s.
    * @param inputSchema: must be a {@link Record} schema.
@@ -875,11 +881,33 @@ public class AvroUtils {
   public static GenericRecord decorateRecord(GenericRecord inputRecord, @Nonnull Map<String, Object> fieldMap,
           Schema outputSchema) {
     GenericRecord outputRecord = new GenericData.Record(outputSchema);
-    inputRecord.getSchema().getFields().forEach(
-            f -> outputRecord.put(f.name(), inputRecord.get(f.name()))
-    );
+    inputRecord.getSchema().getFields().forEach(f -> outputRecord.put(f.name(), inputRecord.get(f.name())));
     fieldMap.forEach((key, value) -> outputRecord.put(key, value));
     return outputRecord;
+  }
+
+  /**
+   * Given a generic record, Override the name and namespace of the schema and return a new generic record
+   * @param input input record who's name and namespace need to be overridden
+   * @param nameOverride new name for the record schema
+   * @param namespaceOverride Optional map containing namespace overrides
+   * @return an output record with overriden name and possibly namespace
+   */
+  public static GenericRecord overrideNameAndNamespace(GenericRecord input, String nameOverride, Optional<Map<String, String>> namespaceOverride) {
+
+    GenericRecord output = input;
+    Schema newSchema = switchName(input.getSchema(), nameOverride);
+    if(namespaceOverride.isPresent()) {
+      newSchema = switchNamespace(newSchema, namespaceOverride.get());
+    }
+
+    try {
+      output = convertRecordSchema(output, newSchema);
+    } catch (Exception e){
+      log.error("Unable to generate generic data record", e);
+    }
+
+    return output;
   }
 
 }

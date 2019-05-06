@@ -666,7 +666,7 @@ public class ConfigurationKeys {
   public static final String METRIC_TIMER_WINDOW_SIZE_IN_MINUTES = METRICS_CONFIGURATIONS_PREFIX + "timer.window.size.in.minutes";
   public static final int DEFAULT_METRIC_TIMER_WINDOW_SIZE_IN_MINUTES = 15;
   public static final String METRICS_REPORTING_CONFIGURATIONS_PREFIX = "metrics.reporting";
-
+  public static final String METRICS_REPORTING_EVENTS_CONFIGURATIONS_PREFIX = METRICS_REPORTING_CONFIGURATIONS_PREFIX + ".events";
   // File-based reporting
   public static final String METRICS_REPORTING_FILE_ENABLED_KEY =
       METRICS_CONFIGURATIONS_PREFIX + "reporting.file.enabled";
@@ -690,6 +690,7 @@ public class ConfigurationKeys {
   public static final String DEFAULT_METRICS_REPORTING_KAFKA_REPORTER_CLASS = "org.apache.gobblin.metrics.kafka.KafkaReporterFactory";
   public static final String METRICS_REPORTING_KAFKA_FORMAT = METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.format";
   public static final String METRICS_REPORTING_EVENTS_KAFKA_FORMAT = METRICS_CONFIGURATIONS_PREFIX + "reporting.events.kafka.format";
+  public static final String METRICS_REPORTING_KAFKAPUSHERKEYS = METRICS_CONFIGURATIONS_PREFIX + "reporting.kafkaPusherKeys";
   public static final String METRICS_REPORTING_EVENTS_KAFKAPUSHERKEYS = METRICS_CONFIGURATIONS_PREFIX + "reporting.events.kafkaPusherKeys";
   public static final String DEFAULT_METRICS_REPORTING_KAFKA_FORMAT = "json";
   public static final String METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY =
@@ -705,6 +706,11 @@ public class ConfigurationKeys {
   // Topic used only for event reporting.
   public static final String METRICS_KAFKA_TOPIC_EVENTS =
       METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.topic.events";
+  // Key related configurations for raw metric and event key value reporters
+  public static final int DEFAULT_REPORTER_KEY_SIZE = 100;
+
+  public static final String METRICS_REPORTING_PUSHERKEYS = METRICS_CONFIGURATIONS_PREFIX + "reporting.pusherKeys";
+  public static final String METRICS_REPORTING_EVENTS_PUSHERKEYS = METRICS_REPORTING_EVENTS_CONFIGURATIONS_PREFIX + ".pusherKeys";
 
   //Graphite-based reporting
   public static final String METRICS_REPORTING_GRAPHITE_METRICS_ENABLED_KEY =
