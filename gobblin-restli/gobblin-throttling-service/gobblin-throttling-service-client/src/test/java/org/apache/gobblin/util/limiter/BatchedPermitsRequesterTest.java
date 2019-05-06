@@ -119,7 +119,8 @@ public class BatchedPermitsRequesterTest {
     Queue<RequestAndCallback> queue = Queues.newArrayDeque();
 
     BatchedPermitsRequester container = BatchedPermitsRequester.builder().resourceId("resource")
-        .requestorIdentifier("requestor").requestSender(new TestRequestSender(queue, false)).build();
+        .requestorIdentifier("requestor").requestSender(new TestRequestSender(queue, false))
+        .maxTimeoutMillis(1000).build();
     try (ParallelRequester requester = new ParallelRequester(container)) {
 
       Future<Boolean> future = requester.request(10);
@@ -143,7 +144,8 @@ public class BatchedPermitsRequesterTest {
     Queue<RequestAndCallback> queue = Queues.newArrayDeque();
 
     BatchedPermitsRequester container = BatchedPermitsRequester.builder().resourceId("resource")
-        .requestorIdentifier("requestor").requestSender(new TestRequestSender(queue, false)).build();
+        .requestorIdentifier("requestor").requestSender(new TestRequestSender(queue, false))
+        .maxTimeoutMillis(1000).build();
     try (ParallelRequester requester = new ParallelRequester(container)) {
 
       Future<Boolean> future = requester.request(10);
@@ -175,6 +177,10 @@ public class BatchedPermitsRequesterTest {
 
     Response<PermitAllocation> response = Mockito.mock(Response.class);
     Mockito.when(response.getEntity()).thenReturn(allocation);
+
+    // Normally the semaphore is reserved during a request. Since we're mocking a response without ever starting a request,
+    // manually reserve the semaphore
+    Assert.assertTrue(container.reserveSemaphore());
 
     callback.onSuccess(response);
     Assert.assertEquals((long) mockWaiter.getRequestedSleeps().peek(), 20);

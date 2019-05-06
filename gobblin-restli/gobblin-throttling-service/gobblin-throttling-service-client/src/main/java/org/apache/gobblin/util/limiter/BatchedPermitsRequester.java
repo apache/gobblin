@@ -252,6 +252,11 @@ class BatchedPermitsRequester {
     }
   }
 
+  @VisibleForTesting
+  synchronized boolean reserveSemaphore() {
+    return this.requestSemaphore.tryAcquire();
+  }
+
   private synchronized void clearSemaphore() {
     if (this.requestSemaphore.availablePermits() > 0) {
       throw new IllegalStateException("Semaphore should have 0 permits!");
