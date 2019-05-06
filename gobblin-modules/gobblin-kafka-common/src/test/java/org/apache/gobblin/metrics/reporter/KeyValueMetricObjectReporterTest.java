@@ -30,7 +30,6 @@ import com.typesafe.config.Config;
 
 import org.apache.gobblin.kafka.schemareg.KafkaSchemaRegistryConfigurationKeys;
 import org.apache.gobblin.metrics.MetricContext;
-import org.apache.gobblin.metrics.kafka.KeyValueMetricObjectReporter;
 import org.apache.gobblin.metrics.reporter.util.KafkaAvroReporterUtil;
 import org.apache.gobblin.util.ConfigUtils;
 

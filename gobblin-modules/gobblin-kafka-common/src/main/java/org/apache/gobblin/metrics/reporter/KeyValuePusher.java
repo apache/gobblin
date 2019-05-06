@@ -15,11 +15,13 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.metrics.kafka;
+package org.apache.gobblin.metrics.reporter;
 
 import java.util.List;
 
 import org.apache.commons.lang3.tuple.Pair;
+
+import org.apache.gobblin.metrics.kafka.Pusher;
 
 
 public interface KeyValuePusher<K, V> extends Pusher<V> {

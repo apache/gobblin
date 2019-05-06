@@ -26,13 +26,9 @@ import org.apache.commons.lang3.tuple.Pair;
 
 import com.google.common.collect.Queues;
 
-import org.apache.gobblin.metrics.kafka.KeyValueEventObjectReporter;
-import org.apache.gobblin.metrics.kafka.KeyValueMetricObjectReporter;
-import org.apache.gobblin.metrics.kafka.KeyValuePusher;
-
 
 /**
- * Mock instance of {@link org.apache.gobblin.metrics.kafka.KeyValuePusher} used to test
+ * Mock instance of {@link org.apache.gobblin.metrics.reporter.KeyValuePusher} used to test
  * {@link KeyValueMetricObjectReporter}
  * {@link KeyValueEventObjectReporter}
  */

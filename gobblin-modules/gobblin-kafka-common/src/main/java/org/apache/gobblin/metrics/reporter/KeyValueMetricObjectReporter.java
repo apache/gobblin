@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.metrics.kafka;
+package org.apache.gobblin.metrics.reporter;
 
 import java.io.IOException;
 import java.util.List;
@@ -35,6 +35,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.MetricReport;
+import org.apache.gobblin.metrics.kafka.PusherUtils;
 import org.apache.gobblin.metrics.reporter.MetricReportReporter;
 import org.apache.gobblin.util.AvroUtils;
 import org.apache.gobblin.util.ConfigUtils;
@@ -52,7 +53,6 @@ public class KeyValueMetricObjectReporter extends MetricReportReporter {
   private static final String PUSHER_KEYS = "pusherKeys";
   private static final String KEY_DELIMITER = ",";
   private static final String KEY_SIZE_KEY = "keySize";
-
 
   private List<String> keys;
   protected final String randomKey;
@@ -73,8 +73,8 @@ public class KeyValueMetricObjectReporter extends MetricReportReporter {
         .getPusher(pusherClassName, builder.brokers, builder.topic, Optional.of(pusherConfig));
     this.closer.register(this.pusher);
 
-    randomKey = String.valueOf(new Random().nextInt(
-        ConfigUtils.getInt(config, KEY_SIZE_KEY, ConfigurationKeys.DEFAULT_REPORTER_KEY_SIZE)));
+    randomKey = String.valueOf(
+        new Random().nextInt(ConfigUtils.getInt(config, KEY_SIZE_KEY, ConfigurationKeys.DEFAULT_REPORTER_KEY_SIZE)));
     if (config.hasPath(PUSHER_KEYS)) {
       List<String> keys = Splitter.on(",").omitEmptyStrings().trimResults().splitToList(config.getString(PUSHER_KEYS));
       this.keys = keys;

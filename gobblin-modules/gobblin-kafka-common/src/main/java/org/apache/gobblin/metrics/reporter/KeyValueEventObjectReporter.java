@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.metrics.kafka;
+package org.apache.gobblin.metrics.reporter;
 
 import java.util.List;
 import java.util.Map;
@@ -36,7 +36,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
-import org.apache.gobblin.metrics.reporter.EventReporter;
+import org.apache.gobblin.metrics.kafka.PusherUtils;
 import org.apache.gobblin.util.AvroUtils;
 import org.apache.gobblin.util.ConfigUtils;
 
@@ -73,8 +73,8 @@ public class KeyValueEventObjectReporter extends EventReporter {
         .getPusher(pusherClassName, builder.brokers, builder.topic, Optional.of(pusherConfig));
     this.closer.register(this.pusher);
 
-    randomKey = String.valueOf(new Random().nextInt(
-        ConfigUtils.getInt(config, KEY_SIZE_KEY, ConfigurationKeys.DEFAULT_REPORTER_KEY_SIZE)));
+    randomKey = String.valueOf(
+        new Random().nextInt(ConfigUtils.getInt(config, KEY_SIZE_KEY, ConfigurationKeys.DEFAULT_REPORTER_KEY_SIZE)));
     if (config.hasPath(PUSHER_KEYS)) {
       List<String> keys = Splitter.on(",").omitEmptyStrings().trimResults().splitToList(config.getString(PUSHER_KEYS));
       this.keys = keys;

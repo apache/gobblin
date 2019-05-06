@@ -29,6 +29,9 @@ import org.testng.annotations.Test;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 
+import org.apache.gobblin.metrics.reporter.KeyValuePusher;
+
+
 @Test
 public class LoggingPusherTest {
 
@@ -39,10 +42,11 @@ public class LoggingPusherTest {
     Logger logger = LogManager.getLogger(LoggingPusher.class.getName());
     logger.addAppender(testAppender);
 
-    KeyValuePusher<String,String> loggingPusher = new LoggingPusher<String,String>("broker", "topic", Optional.absent());
+    KeyValuePusher<String, String> loggingPusher =
+        new LoggingPusher<String, String>("broker", "topic", Optional.absent());
 
     loggingPusher.pushMessages(ImmutableList.of("message1", "message2"));
-    loggingPusher.pushKeyValueMessages(ImmutableList.of(org.apache.commons.lang3.tuple.Pair.of("key","message3")));
+    loggingPusher.pushKeyValueMessages(ImmutableList.of(org.apache.commons.lang3.tuple.Pair.of("key", "message3")));
 
     Assert.assertEquals(testAppender.events.size(), 3);
     Assert.assertEquals(testAppender.events.get(0).getRenderedMessage(), "Pushing to broker:topic: message1");
@@ -52,11 +56,16 @@ public class LoggingPusherTest {
     logger.removeAppender(testAppender);
   }
 
-
   private class TestAppender extends AppenderSkeleton {
     List<LoggingEvent> events = new ArrayList<LoggingEvent>();
-    public void close() {}
-    public boolean requiresLayout() {return false;}
+
+    public void close() {
+    }
+
+    public boolean requiresLayout() {
+      return false;
+    }
+
     @Override
     protected void append(LoggingEvent event) {
       events.add(event);
