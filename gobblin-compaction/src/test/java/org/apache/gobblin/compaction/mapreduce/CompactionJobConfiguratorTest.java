@@ -44,7 +44,7 @@ public class CompactionJobConfiguratorTest {
       Assert.assertEquals(actualKeySchema.getField("value").schema().getFields().size(), 57);
       Assert.assertFalse(AvroUtils.getFieldSchema(actualKeySchema, "auditheader").isPresent());
       Assert.assertFalse(AvroUtils.getFieldSchema(actualKeySchema, "value.lumos_dropdate").isPresent());
-      Assert.assertFalse(AvroUtils.getFieldSchema(actualKeySchema, "value.lumos_dropdate").isPresent());
+      Assert.assertFalse(AvroUtils.getFieldSchema(actualKeySchema, "value.__ETL_SCN").isPresent());
 
     }
   }
