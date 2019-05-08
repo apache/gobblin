@@ -22,6 +22,8 @@ import com.google.common.eventbus.EventBus;
 import com.google.common.io.Closer;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
+
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.URL;
@@ -40,6 +42,7 @@ import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.ApplicationSubmissionContext;
 import org.apache.hadoop.yarn.api.records.Container;
+import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
@@ -217,12 +220,34 @@ public class YarnServiceTest {
     Assert.assertFalse(this.yarnService.waitForContainerCount(6, 10000));
 
   }
+
   @Test(groups = {"gobblin.yarn", "disabledOnTravis"}, dependsOnMethods = "testScaleDownWithInUseInstances")
   public void testScaleDown() throws Exception {
     this.yarnService.requestTargetNumberOfContainers(4, Collections.EMPTY_SET);
 
     Assert.assertEquals(this.yarnService.getNumRequestedContainers(), 4);
     Assert.assertTrue(this.yarnService.waitForContainerCount(4, 60000));
+  }
+
+  // Keep this test last since it interferes with the container counts in the prior tests.
+  @Test(groups = {"gobblin.yarn", "disabledOnTravis"}, dependsOnMethods = "testScaleDown")
+  public void testReleasedContainerCache() throws Exception {
+    Config modifiedConfig = this.config
+        .withValue(GobblinYarnConfigurationKeys.RELEASED_CONTAINERS_CACHE_EXPIRY_SECS, ConfigValueFactory.fromAnyRef("2"));
+    TestYarnService yarnService =
+        new TestYarnService(modifiedConfig, "testApp1", "appId1",
+            this.clusterConf, FileSystem.getLocal(new Configuration()), this.eventBus);
+
+    ContainerId containerId1 = ContainerId.newInstance(ApplicationAttemptId.newInstance(ApplicationId.newInstance(1, 0),
+        0), 0);
+
+    yarnService.getReleasedContainerCache().put(containerId1, "");
+
+    Assert.assertTrue(yarnService.getReleasedContainerCache().getIfPresent(containerId1) != null);
+
+    // give some time for element to expire
+    Thread.sleep(4000);
+    Assert.assertTrue(yarnService.getReleasedContainerCache().getIfPresent(containerId1) == null);
   }
 
 

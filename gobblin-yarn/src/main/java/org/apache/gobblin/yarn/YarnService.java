@@ -27,11 +27,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.hadoop.conf.Configuration;
@@ -72,6 +72,8 @@ import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -157,8 +159,12 @@ public class YarnService extends AbstractIdleService {
   @Getter(AccessLevel.PROTECTED)
   private final ConcurrentMap<ContainerId, Map.Entry<Container, String>> containerMap = Maps.newConcurrentMap();
 
-  // A set of the containers with an outstanding container release request
-  private final Set<ContainerId> releasedContainerSet = ConcurrentHashMap.newKeySet();
+  // A cache of the containers with an outstanding container release request.
+  // This is a cache instead of a set to get the automatic cleanup in case a container completes before the requested
+  // release.
+  @VisibleForTesting
+  @Getter(AccessLevel.PROTECTED)
+  private final Cache<ContainerId, String> releasedContainerCache;
 
   // A generator for an integer ID of a Helix instance (participant)
   private final AtomicInteger helixInstanceIdGenerator = new AtomicInteger(0);
@@ -173,7 +179,11 @@ public class YarnService extends AbstractIdleService {
 
   private volatile boolean shutdownInProgress = false;
 
-  // The number of containers requested
+  // The number of containers requested based on the desired target number of containers. This is used to determine
+  // how may additional containers to request since the the currently allocated amount may be less than this amount if we
+  // are waiting for containers to be allocated.
+  // The currently allocated amount may also be higher than this amount if YARN returned more than the requested number
+  // of containers.
   @VisibleForTesting
   @Getter(AccessLevel.PROTECTED)
   private int numRequestedContainers = 0;
@@ -217,6 +227,10 @@ public class YarnService extends AbstractIdleService {
         ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("ContainerLaunchExecutor")));
 
     this.tokens = getSecurityTokens();
+
+    this.releasedContainerCache = CacheBuilder.newBuilder().expireAfterAccess(ConfigUtils.getInt(config,
+        GobblinYarnConfigurationKeys.RELEASED_CONTAINERS_CACHE_EXPIRY_SECS,
+        GobblinYarnConfigurationKeys.DEFAULT_RELEASED_CONTAINERS_CACHE_EXPIRY_SECS), TimeUnit.SECONDS).build();
   }
 
   @SuppressWarnings("unused")
@@ -257,8 +271,13 @@ public class YarnService extends AbstractIdleService {
     for (Container container : containerReleaseRequest.getContainers()) {
       LOGGER.info(String.format("Releasing container %s running on %s", container.getId(), container.getNodeId()));
 
-      // record that this container was explicitly released so that a new one is not spawned to replace it
-      this.releasedContainerSet.add(container.getId());
+      // Record that this container was explicitly released so that a new one is not spawned to replace it
+      // Put the container id in the releasedContainerCache before releasing it so that handleContainerCompletion()
+      // can check for the container id and skip spawning a replacement container.
+      // Note that this is best effort since these are asynchronous operations and a container may abort concurrently
+      // with the release call. So in some cases a replacement container may have already been spawned before
+      // the container is put into the black list.
+      this.releasedContainerCache.put(container.getId(), "");
       this.amrmClientAsync.releaseAssignedContainer(container.getId());
     }
   }
@@ -372,7 +391,8 @@ public class YarnService extends AbstractIdleService {
     int numContainers = Math.max(numRequestedContainers, numAllocatedContainers);
 
     // Request additional containers if the desired count is higher than the max of the current allocation or previously
-    // requested amount.
+    // requested amount. Note that there may be in-flight or additional allocations after numContainers has been computed
+    // so overshooting can occur, but periodic calls to this method will make adjustments towards the target.
     for (int i = numContainers; i < numTargetContainers; i++) {
       requestContainer(Optional.<String>absent());
     }
@@ -562,10 +582,9 @@ public class YarnService extends AbstractIdleService {
           containerStatus.getContainerId(), containerStatus.getDiagnostics()));
     }
 
-    if (this.releasedContainerSet.contains(containerStatus.getContainerId())) {
+    if (this.releasedContainerCache.getIfPresent(containerStatus.getContainerId()) != null) {
       LOGGER.info("Container release requested, so not spawning a replacement for containerId {}",
           containerStatus.getContainerId());
-      this.releasedContainerSet.remove(containerStatus.getContainerId());
       return;
     }
 

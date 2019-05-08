@@ -59,12 +59,18 @@ public class YarnAutoScalingManager extends AbstractIdleService {
   // Only one container will be requested for each N partitions of work
   private final String AUTO_SCALING_PARTITIONS_PER_CONTAINER = AUTO_SCALING_PREFIX + "partitionsPerContainer";
   private final int DEFAULT_AUTO_SCALING_PARTITIONS_PER_CONTAINER = 1;
+  private final String AUTO_SCALING_MIN_CONTAINERS = AUTO_SCALING_PREFIX + "minContainers";
+  private final int DEFAULT_AUTO_SCALING_MIN_CONTAINERS = 0;
+  private final String AUTO_SCALING_MAX_CONTAINERS = AUTO_SCALING_PREFIX + "maxContainers";
+  private final int DEFAULT_AUTO_SCALING_MAX_CONTAINERS = Integer.MAX_VALUE;
 
   private final Config config;
   private final HelixManager helixManager;
   private final ScheduledExecutorService autoScalingExecutor;
   private final YarnService yarnService;
   private final int partitionsPerContainer;
+  private final int minContainers;
+  private final int maxContainers;
 
   public YarnAutoScalingManager(GobblinApplicationMaster appMaster) {
     this.config = appMaster.getConfig();
@@ -75,6 +81,22 @@ public class YarnAutoScalingManager extends AbstractIdleService {
 
     Preconditions.checkArgument(this.partitionsPerContainer > 0,
         AUTO_SCALING_PARTITIONS_PER_CONTAINER + " needs to be greater than 0");
+
+    this.minContainers = ConfigUtils.getInt(this.config, AUTO_SCALING_MIN_CONTAINERS,
+        DEFAULT_AUTO_SCALING_MIN_CONTAINERS);
+
+    Preconditions.checkArgument(this.minContainers >= 0,
+        DEFAULT_AUTO_SCALING_MIN_CONTAINERS + " needs to be greater than or equal to 0");
+
+    this.maxContainers = ConfigUtils.getInt(this.config, AUTO_SCALING_MAX_CONTAINERS,
+        DEFAULT_AUTO_SCALING_MAX_CONTAINERS);
+
+    Preconditions.checkArgument(this.maxContainers > 0,
+        DEFAULT_AUTO_SCALING_MAX_CONTAINERS + " needs to be greater than 0");
+
+    Preconditions.checkArgument(this.maxContainers >= this.minContainers,
+        DEFAULT_AUTO_SCALING_MAX_CONTAINERS + " needs to be greater than or equal to "
+            + DEFAULT_AUTO_SCALING_MIN_CONTAINERS);
 
     this.autoScalingExecutor = Executors.newSingleThreadScheduledExecutor(
         ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("AutoScalingExecutor")));
@@ -88,7 +110,7 @@ public class YarnAutoScalingManager extends AbstractIdleService {
     log.info("Scheduling the auto scaling task with an interval of {} seconds", scheduleInterval);
 
     this.autoScalingExecutor.scheduleAtFixedRate(new YarnAutoScalingRunnable(new TaskDriver(this.helixManager),
-            this.yarnService, this.partitionsPerContainer), 0,
+            this.yarnService, this.partitionsPerContainer, this.minContainers, this.maxContainers), 0,
         scheduleInterval, TimeUnit.SECONDS);
   }
 
@@ -109,6 +131,8 @@ public class YarnAutoScalingManager extends AbstractIdleService {
     private final TaskDriver taskDriver;
     private final YarnService yarnService;
     private final int partitionsPerContainer;
+    private final int minContainers;
+    private final int maxContainers;
 
     /**
      * Iterate through the workflows configured in Helix to figure out the number of required partitions
@@ -150,7 +174,12 @@ public class YarnAutoScalingManager extends AbstractIdleService {
         }
       }
 
-      int numTargetContainers = (numPartitions + (this.partitionsPerContainer - 1)) / this.partitionsPerContainer;
+      // compute the target containers as a ceiling of number of partitions divided by the number of containers
+      // per partition.
+      int numTargetContainers = (int) Math.ceil((double)numPartitions / this.partitionsPerContainer);
+
+      // adjust the number of target containers based on the configured min and max container values.
+      numTargetContainers = Math.max(this.minContainers, Math.min(this.maxContainers, numTargetContainers));
 
       this.yarnService.requestTargetNumberOfContainers(numTargetContainers, inUseInstances);
     }
