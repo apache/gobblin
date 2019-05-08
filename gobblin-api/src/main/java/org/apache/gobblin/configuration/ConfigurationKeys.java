@@ -380,6 +380,7 @@ public class ConfigurationKeys {
   public static final String DEFAULT_WRITER_FILE_PATH_TYPE = "default";
   public static final String SIMPLE_WRITER_DELIMITER = "simple.writer.delimiter";
   public static final String SIMPLE_WRITER_PREPEND_SIZE = "simple.writer.prepend.size";
+  public static final String WRITER_RECORDS_PER_FILE_THRESHOLD = WRITER_PREFIX + ".records.perFile.threshold";
 
 
   // Internal use only - used to send metadata to publisher
