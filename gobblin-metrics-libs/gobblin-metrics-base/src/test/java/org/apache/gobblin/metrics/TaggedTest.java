@@ -38,6 +38,8 @@ public class TaggedTest {
   private static final String JOB_ID = "TestJob-0";
   private static final String PROJECT_VERSION_KEY = "project.version";
   private static final int PROJECT_VERSION = 1;
+  private static final String WORK_UNITS_CREATED = "WorkUnitsCreated";
+  private static final int WORKUNITS = 10;
 
   private Tagged tagged;
 
@@ -50,6 +52,7 @@ public class TaggedTest {
   public void testAddTags() {
     this.tagged.addTag(new Tag<String>(JOB_ID_KEY, JOB_ID));
     this.tagged.addTag(new Tag<Integer>(PROJECT_VERSION_KEY, PROJECT_VERSION));
+    this.tagged.addTag(new Tag<Integer>(WORK_UNITS_CREATED, WORKUNITS));
   }
 
   @Test(dependsOnMethods = "testAddTags")
@@ -60,6 +63,8 @@ public class TaggedTest {
     Assert.assertEquals(tags.get(0).getValue(), JOB_ID);
     Assert.assertEquals(tags.get(1).getKey(), PROJECT_VERSION_KEY);
     Assert.assertEquals(tags.get(1).getValue(), PROJECT_VERSION);
+    Assert.assertEquals(tags.get(2).getKey(), WORK_UNITS_CREATED );
+    Assert.assertEquals(tags.get(2).getValue(), WORKUNITS );
   }
 
   @Test(dependsOnMethods = "testAddTags")
