@@ -63,7 +63,6 @@ public class TimeBasedAvroWriterPartitionerTest {
           + "\"name\" : \"" + PARTITION_COLUMN_NAME + "\"," + "\"type\" : \"long\"" + "} ]" + "}";
 
   private Schema schema;
-  private DataWriter<GenericRecord> writer;
 
   @BeforeClass
   public void setUp() throws IOException {
@@ -83,7 +82,9 @@ public class TimeBasedAvroWriterPartitionerTest {
     }
 
     this.schema = new Schema.Parser().parse(AVRO_SCHEMA);
+  }
 
+  private State getBasicState() {
     State properties = new State();
     properties.setProp(TimeBasedAvroWriterPartitioner.WRITER_PARTITION_COLUMNS, PARTITION_COLUMN_NAME);
     properties.setProp(ConfigurationKeys.WRITER_BUFFER_SIZE, ConfigurationKeys.DEFAULT_BUFFER_SIZE);
@@ -95,11 +96,16 @@ public class TimeBasedAvroWriterPartitionerTest {
     properties.setProp(TimeBasedWriterPartitioner.WRITER_PARTITION_PATTERN, "yyyy/MM/dd");
     properties.setProp(ConfigurationKeys.WRITER_PARTITIONER_CLASS, TimeBasedAvroWriterPartitioner.class.getName());
 
+    return properties;
+  }
+
+  private DataWriter<GenericRecord> getWriter(State state)
+      throws IOException {
     // Build a writer to write test records
     DataWriterBuilder<Schema, GenericRecord> builder = new AvroDataWriterBuilder()
-        .writeTo(Destination.of(Destination.DestinationType.HDFS, properties)).writeInFormat(WriterOutputFormat.AVRO)
+        .writeTo(Destination.of(Destination.DestinationType.HDFS, state)).writeInFormat(WriterOutputFormat.AVRO)
         .withWriterId(WRITER_ID).withSchema(this.schema).withBranches(1).forBranch(0);
-    this.writer = new PartitionedDataWriter<Schema, GenericRecord>(builder, properties);
+    return new PartitionedDataWriter<Schema, GenericRecord>(builder, state);
   }
 
   @Test
@@ -108,23 +114,31 @@ public class TimeBasedAvroWriterPartitionerTest {
     // Write three records, each should be written to a different file
     GenericRecordBuilder genericRecordBuilder = new GenericRecordBuilder(this.schema);
 
+    State state = getBasicState();
+    DataWriter<GenericRecord> millisPartitionWriter = getWriter(state);
+
     // This timestamp corresponds to 2015/01/01
     genericRecordBuilder.set("timestamp", 1420099200000l);
-    this.writer.writeEnvelope(new RecordEnvelope<>(genericRecordBuilder.build()));
+    millisPartitionWriter.writeEnvelope(new RecordEnvelope<>(genericRecordBuilder.build()));
 
     // This timestamp corresponds to 2015/01/02
     genericRecordBuilder.set("timestamp", 1420185600000l);
-    this.writer.writeEnvelope(new RecordEnvelope<>(genericRecordBuilder.build()));
+    millisPartitionWriter.writeEnvelope(new RecordEnvelope<>(genericRecordBuilder.build()));
 
+    millisPartitionWriter.close();
+    millisPartitionWriter.commit();
+    // Check that the writer reports that 2 records have been written
+    Assert.assertEquals(millisPartitionWriter.recordsWritten(), 2);
+
+    state.setProp(TimeBasedWriterPartitioner.WRITER_PARTITION_TIMEUNIT, "seconds");
+    DataWriter<GenericRecord> secsPartitionWriter = getWriter(state);
     // This timestamp corresponds to 2015/01/03
-    genericRecordBuilder.set("timestamp", 1420272000000l);
-    this.writer.writeEnvelope(new RecordEnvelope<>(genericRecordBuilder.build()));
-
-    // Check that the writer reports that 3 records have been written
-    Assert.assertEquals(this.writer.recordsWritten(), 3);
-
-    this.writer.close();
-    this.writer.commit();
+    genericRecordBuilder.set("timestamp", 1420272000L);
+    secsPartitionWriter.writeEnvelope(new RecordEnvelope<>(genericRecordBuilder.build()));
+    secsPartitionWriter.close();
+    secsPartitionWriter.commit();
+    // Check that the writer reports that 1 record has been written
+    Assert.assertEquals(secsPartitionWriter.recordsWritten(), 1);
 
     // Check that 3 files were created
     Assert.assertEquals(FileUtils.listFiles(new File(TEST_ROOT_DIR), new String[] { "avro" }, true).size(), 3);
@@ -148,7 +162,6 @@ public class TimeBasedAvroWriterPartitionerTest {
 
   @AfterClass
   public void tearDown() throws IOException {
-    this.writer.close();
     FileUtils.deleteDirectory(new File(TEST_ROOT_DIR));
   }
 }
