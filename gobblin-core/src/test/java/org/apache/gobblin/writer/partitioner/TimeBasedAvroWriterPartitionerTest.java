@@ -127,7 +127,7 @@ public class TimeBasedAvroWriterPartitionerTest {
 
     millisPartitionWriter.close();
     millisPartitionWriter.commit();
-    // Check that the writer reports that 3 records have been written
+    // Check that the writer reports that 2 records have been written
     Assert.assertEquals(millisPartitionWriter.recordsWritten(), 2);
 
     state.setProp(TimeBasedWriterPartitioner.WRITER_PARTITION_TIMEUNIT, "seconds");
@@ -137,7 +137,7 @@ public class TimeBasedAvroWriterPartitionerTest {
     secsPartitionWriter.writeEnvelope(new RecordEnvelope<>(genericRecordBuilder.build()));
     secsPartitionWriter.close();
     secsPartitionWriter.commit();
-    // Check that the writer reports that 3 records have been written
+    // Check that the writer reports that 1 record has been written
     Assert.assertEquals(secsPartitionWriter.recordsWritten(), 1);
 
     // Check that 3 files were created
