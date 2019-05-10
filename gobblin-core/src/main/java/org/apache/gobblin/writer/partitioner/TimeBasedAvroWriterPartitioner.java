@@ -21,7 +21,6 @@ import java.util.List;
 
 import org.apache.avro.generic.GenericRecord;
 
-import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 
 import lombok.extern.slf4j.Slf4j;
