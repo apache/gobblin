@@ -21,7 +21,10 @@ import java.util.List;
 
 import org.apache.avro.generic.GenericRecord;
 
+import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
+
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
@@ -40,6 +43,7 @@ import org.apache.gobblin.util.ForkOperatorUtils;
  *
  * If a record contains none of the specified fields, or if no field is specified, the current timestamp will be used.
  */
+@Slf4j
 public class TimeBasedAvroWriterPartitioner extends TimeBasedWriterPartitioner<GenericRecord> {
 
   public static final String WRITER_PARTITION_COLUMNS = ConfigurationKeys.WRITER_PREFIX + ".partition.columns";
@@ -57,6 +61,8 @@ public class TimeBasedAvroWriterPartitioner extends TimeBasedWriterPartitioner<G
 
   private static Optional<List<String>> getWriterPartitionColumns(State state, int numBranches, int branchId) {
     String propName = ForkOperatorUtils.getPropertyNameForBranch(WRITER_PARTITION_COLUMNS, numBranches, branchId);
+    log.info("Partition columns for dataset {} are: {}", state.getProp(ConfigurationKeys.DATASET_URN_KEY),
+        state.getProp(propName));
     return state.contains(propName) ? Optional.of(state.getPropAsList(propName)) : Optional.<List<String>> absent();
   }
 
