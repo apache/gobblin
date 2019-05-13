@@ -18,10 +18,7 @@
 package org.apache.gobblin.runtime.spec_store;
 
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.net.URI;
 import java.sql.Blob;
 import java.sql.Connection;
@@ -33,17 +30,22 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.commons.lang3.SerializationException;
+
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
+import com.google.common.io.ByteStreams;
 import com.typesafe.config.Config;
 
 import javax.sql.DataSource;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.MysqlDataSourceFactory;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
+import org.apache.gobblin.runtime.api.SpecSerDe;
 import org.apache.gobblin.runtime.api.SpecStore;
 
 
@@ -51,7 +53,10 @@ import org.apache.gobblin.runtime.api.SpecStore;
  * Implementation of {@link SpecStore} that stores specs as serialized java objects in MySQL. Note that versions are not
  * supported, so the version parameter will be ignored in methods that have it.
  */
+@Slf4j
 public class MysqlSpecStore implements SpecStore {
+  public static final String CONFIG_PREFIX = "mysqlSpecStore";
+
   private static final String CREATE_TABLE_STATEMENT =
       "CREATE TABLE IF NOT EXISTS %s (spec_uri VARCHAR(128) NOT NULL, spec LONGBLOB, PRIMARY KEY (spec_uri))";
   private static final String EXISTS_STATEMENT = "SELECT EXISTS(SELECT * FROM %s WHERE spec_uri = ?)";
@@ -60,14 +65,21 @@ public class MysqlSpecStore implements SpecStore {
   private static final String GET_STATEMENT = "SELECT spec FROM %s WHERE spec_uri = ?";
   private static final String GET_ALL_STATEMENT = "SELECT spec_uri, spec FROM %s";
 
-  private DataSource dataSource;
-  private String tableName;
-  private URI specStoreURI;
+  private final DataSource dataSource;
+  private final String tableName;
+  private final URI specStoreURI;
+  private final SpecSerDe specSerDe;
 
-  public MysqlSpecStore(Config config) throws IOException {
+  public MysqlSpecStore(Config config, SpecSerDe specSerDe) throws IOException {
+    if (config.hasPath(CONFIG_PREFIX)) {
+      config = config.getConfig(CONFIG_PREFIX).withFallback(config);
+    }
+
     this.dataSource = MysqlDataSourceFactory.get(config, SharedResourcesBrokerFactory.getImplicitBroker());
     this.tableName = config.getString(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY);
     this.specStoreURI = URI.create(config.getString(ConfigurationKeys.STATE_STORE_DB_URL_KEY));
+    this.specSerDe = specSerDe;
+
     try (Connection connection = this.dataSource.getConnection();
         PreparedStatement statement = connection.prepareStatement(String.format(CREATE_TABLE_STATEMENT, this.tableName))) {
       statement.executeUpdate();
@@ -92,17 +104,14 @@ public class MysqlSpecStore implements SpecStore {
   @Override
   public void addSpec(Spec spec) throws IOException {
     try (Connection connection = this.dataSource.getConnection();
-        PreparedStatement statement = connection.prepareStatement(String.format(INSERT_STATEMENT, this.tableName));
-        ByteArrayOutputStream aos = new ByteArrayOutputStream();
-        ObjectOutputStream oos = new ObjectOutputStream(aos)) {
+        PreparedStatement statement = connection.prepareStatement(String.format(INSERT_STATEMENT, this.tableName))) {
 
-      oos.writeObject(spec);
       statement.setString(1, spec.getUri().toString());
-      statement.setBlob(2, new ByteArrayInputStream(aos.toByteArray()));
+      statement.setBlob(2, new ByteArrayInputStream(this.specSerDe.serialize(spec)));
       statement.executeUpdate();
 
       connection.commit();
-    } catch (SQLException e) {
+    } catch (SQLException | SerializationException e) {
       throw new IOException(e);
     }
   }
@@ -148,12 +157,8 @@ public class MysqlSpecStore implements SpecStore {
       }
 
       Blob blob = rs.getBlob(1);
-
-      try (ObjectInputStream ois = new ObjectInputStream(blob.getBinaryStream())) {
-        return (Spec) ois.readObject();
-      }
-
-    } catch (SQLException | ClassNotFoundException e) {
+      return this.specSerDe.deserialize(ByteStreams.toByteArray(blob.getBinaryStream()));
+    } catch (SQLException | SerializationException e) {
       throw new IOException(e);
     }
   }
@@ -177,14 +182,16 @@ public class MysqlSpecStore implements SpecStore {
       ResultSet rs = statement.executeQuery();
 
       while (rs.next()) {
-        Blob blob = rs.getBlob(2);
-        try (ObjectInputStream ois = new ObjectInputStream(blob.getBinaryStream())) {
-          specs.add((Spec) ois.readObject());
+        try {
+          Blob blob = rs.getBlob(2);
+          specs.add(this.specSerDe.deserialize(ByteStreams.toByteArray(blob.getBinaryStream())));
+        } catch (SQLException | SerializationException e) {
+          log.error("Failed to deserialize spec", e);
         }
       }
 
       return specs;
-    } catch (SQLException | ClassNotFoundException e) {
+    } catch (SQLException e) {
       throw new IOException(e);
     }
   }

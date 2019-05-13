@@ -21,6 +21,7 @@ import java.net.URI;
 import java.util.Collection;
 import java.util.Iterator;
 
+import org.apache.commons.lang3.SerializationUtils;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -34,6 +35,7 @@ import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.Spec;
+import org.apache.gobblin.runtime.api.SpecSerDe;
 
 
 public class MysqlSpecStoreTest {
@@ -66,16 +68,23 @@ public class MysqlSpecStoreTest {
         .addPrimitive(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY, TABLE)
         .build();
 
-    this.specStore = new MysqlSpecStore(config);
+    this.specStore = new MysqlSpecStore(config, new TestSpecSerDe());
   }
 
   @Test
-  public void testAddGetSpec() throws Exception {
+  public void testAddSpec() throws Exception {
     this.specStore.addSpec(this.flowSpec1);
     this.specStore.addSpec(this.flowSpec2);
 
     Assert.assertTrue(this.specStore.exists(this.uri1));
+    Assert.assertTrue(this.specStore.exists(this.uri2));
     Assert.assertFalse(this.specStore.exists(URI.create("dummy")));
+  }
+
+  @Test
+  public void testGetSpec() throws Exception {
+    this.specStore.addSpec(this.flowSpec1);
+    this.specStore.addSpec(this.flowSpec2);
 
     FlowSpec result = (FlowSpec) this.specStore.getSpec(this.uri1);
     Assert.assertEquals(result, this.flowSpec1);
@@ -96,5 +105,17 @@ public class MysqlSpecStoreTest {
 
     this.specStore.deleteSpec(this.uri1);
     Assert.assertFalse(this.specStore.exists(this.uri1));
+  }
+
+  public class TestSpecSerDe implements SpecSerDe {
+    @Override
+    public byte[] serialize(Spec spec) {
+      return SerializationUtils.serialize(spec);
+    }
+
+    @Override
+    public Spec deserialize(byte[] spec) {
+      return SerializationUtils.deserialize(spec);
+    }
   }
 }
