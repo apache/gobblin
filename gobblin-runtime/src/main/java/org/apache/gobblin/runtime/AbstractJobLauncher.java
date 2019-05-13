@@ -145,14 +145,12 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   // Used to generate additional metadata to emit in timing events
   private final EventMetadataGenerator eventMetadataGenerator;
 
-  public AbstractJobLauncher(Properties jobProps, List<? extends Tag<?>> metadataTags)
-      throws Exception {
+  public AbstractJobLauncher(Properties jobProps, List<? extends Tag<?>> metadataTags) throws Exception {
     this(jobProps, metadataTags, null);
   }
 
   public AbstractJobLauncher(Properties jobProps, List<? extends Tag<?>> metadataTags,
-      @Nullable SharedResourcesBroker<GobblinScopeTypes> instanceBroker)
-      throws Exception {
+      @Nullable SharedResourcesBroker<GobblinScopeTypes> instanceBroker) throws Exception {
     Preconditions.checkArgument(jobProps.containsKey(ConfigurationKeys.JOB_NAME_KEY),
         "A job must have a job name specified by job.name");
 
@@ -205,8 +203,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
             new ClassAliasResolver<>(EventMetadataGenerator.class);
         this.eventMetadataGenerator = aliasResolver.resolveClass(eventMetadatadataGeneratorClassName).newInstance();
       } catch (ReflectiveOperationException e) {
-        throw new RuntimeException("Could not construct EventMetadataGenerator " +
-            eventMetadatadataGeneratorClassName, e);
+        throw new RuntimeException("Could not construct EventMetadataGenerator " + eventMetadatadataGeneratorClassName,
+            e);
       }
     } catch (Exception e) {
       unlockJob();
@@ -250,8 +248,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    * {@inheritDoc JobLauncher#cancelJob(JobListener)}
    */
   @Override
-  public void cancelJob(JobListener jobListener)
-      throws JobException {
+  public void cancelJob(JobListener jobListener) throws JobException {
     synchronized (this.cancellationRequest) {
       if (this.cancellationRequested) {
         // Return immediately if a cancellation has already been requested
@@ -284,8 +281,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         }
         notifyListeners(this.jobContext, jobListener, TimingEvent.LauncherTimings.JOB_CANCEL, new JobListenerAction() {
           @Override
-          public void apply(JobListener jobListener, JobContext jobContext)
-              throws Exception {
+          public void apply(JobListener jobListener, JobContext jobContext) throws Exception {
             jobListener.onJobCancellation(jobContext);
           }
         });
@@ -324,8 +320,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   }
 
   @Override
-  public void launchJob(JobListener jobListener)
-      throws JobException {
+  public void launchJob(JobListener jobListener) throws JobException {
     String jobId = this.jobContext.getJobId();
     final JobState jobState = this.jobContext.getJobState();
     boolean isWorkUnitsEmpty = false;
@@ -339,8 +334,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         closer.register(this.jobContext);
         notifyListeners(this.jobContext, jobListener, TimingEvent.LauncherTimings.JOB_PREPARE, new JobListenerAction() {
           @Override
-          public void apply(JobListener jobListener, JobContext jobContext)
-              throws Exception {
+          public void apply(JobListener jobListener, JobContext jobContext) throws Exception {
             jobListener.onJobPrepare(jobContext);
           }
         });
@@ -361,8 +355,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         } else {
           workUnitStream = new BasicWorkUnitStream.Builder(source.getWorkunits(jobState)).build();
         }
-        workUnitsCreationTimer.stop(this.eventMetadataGenerator.getMetadata(this.jobContext,
-            EventName.WORK_UNITS_CREATION));
+        workUnitsCreationTimer.stop(
+            this.eventMetadataGenerator.getMetadata(this.jobContext, EventName.WORK_UNITS_CREATION));
 
         // The absence means there is something wrong getting the work units
         if (workUnitStream == null || workUnitStream.getWorkUnits() == null) {
@@ -379,8 +373,12 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           isWorkUnitsEmpty = true;
           return;
         } else {
-          this.eventSubmitter.submit(JobEvent.WORK_UNITS_CREATED, "workUnitsCreated",
-              Long.toString(((Collection<?>) workUnitStream).size()));
+          if (workUnitStream.isSafeToMaterialize()) {
+            this.eventSubmitter.submit(JobEvent.WORK_UNITS_CREATED, "workUnitsCreated",
+                Long.toString(workUnitStream.getMaterializedWorkUnitCollection().size()));
+            LOG.info("Emitting WorkUnitsCreated Event With Count: " + workUnitStream.getMaterializedWorkUnitCollection()
+                .size());
+          }
         }
 
         //Initialize writer and converter(s)
@@ -393,8 +391,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         // important if the current batch of WorkUnits include failed WorkUnits from the previous
         // run which may still have left-over staging data not cleaned up yet.
         cleanLeftoverStagingData(workUnitStream, jobState);
-        stagingDataCleanTimer.stop(this.eventMetadataGenerator.getMetadata(this.jobContext,
-            EventName.MR_STAGING_DATA_CLEAN));
+        stagingDataCleanTimer.stop(
+            this.eventMetadataGenerator.getMetadata(this.jobContext, EventName.MR_STAGING_DATA_CLEAN));
 
         long startTime = System.currentTimeMillis();
         jobState.setStartTime(startTime);
@@ -405,8 +403,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
           notifyListeners(this.jobContext, jobListener, TimingEvent.LauncherTimings.JOB_START, new JobListenerAction() {
             @Override
-            public void apply(JobListener jobListener, JobContext jobContext)
-                throws Exception {
+            public void apply(JobListener jobListener, JobContext jobContext) throws Exception {
               jobListener.onJobStart(jobContext);
             }
           });
@@ -438,8 +435,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
             });
           }
 
-          workUnitsPreparationTimer.stop(this.eventMetadataGenerator.getMetadata(this.jobContext,
-              EventName.WORK_UNITS_PREPARATION));
+          workUnitsPreparationTimer.stop(
+              this.eventMetadataGenerator.getMetadata(this.jobContext, EventName.WORK_UNITS_PREPARATION));
 
           // Write job execution info to the job history store before the job starts to run
           this.jobContext.storeJobExecutionInfo();
@@ -447,10 +444,10 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           TimingEvent jobRunTimer = this.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.JOB_RUN);
           // Start the job and wait for it to finish
           runWorkUnitStream(workUnitStream);
-          jobRunTimer.stop(this.eventMetadataGenerator.getMetadata(this.jobContext,EventName.JOB_RUN));
+          jobRunTimer.stop(this.eventMetadataGenerator.getMetadata(this.jobContext, EventName.JOB_RUN));
 
-          this.eventSubmitter
-              .submit(CaseFormat.UPPER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, "JOB_" + jobState.getState()));
+          this.eventSubmitter.submit(
+              CaseFormat.UPPER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, "JOB_" + jobState.getState()));
 
           // Check and set final job jobPropsState upon job completion
           if (jobState.getState() == JobState.RunningState.CANCELLED) {
@@ -483,21 +480,21 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           launchJobTimer.stop(this.eventMetadataGenerator.getMetadata(this.jobContext, EventName.FULL_JOB_EXECUTION));
           if (isWorkUnitsEmpty) {
             //If no WorkUnits are created, first send the JobCompleteTimer event.
-            notifyListeners(this.jobContext, jobListener, TimingEvent.LauncherTimings.JOB_COMPLETE, new JobListenerAction() {
-              @Override
-              public void apply(JobListener jobListener, JobContext jobContext)
-                  throws Exception {
-                jobListener.onJobCompletion(jobContext);
-              }
-            });
+            notifyListeners(this.jobContext, jobListener, TimingEvent.LauncherTimings.JOB_COMPLETE,
+                new JobListenerAction() {
+                  @Override
+                  public void apply(JobListener jobListener, JobContext jobContext) throws Exception {
+                    jobListener.onJobCompletion(jobContext);
+                  }
+                });
             //Next, send the JobSucceededTimer event.
-            notifyListeners(this.jobContext, jobListener, TimingEvent.LauncherTimings.JOB_SUCCEEDED, new JobListenerAction() {
-              @Override
-              public void apply(JobListener jobListener, JobContext jobContext)
-                  throws Exception {
-                jobListener.onJobFailure(jobContext);
-              }
-            });
+            notifyListeners(this.jobContext, jobListener, TimingEvent.LauncherTimings.JOB_SUCCEEDED,
+                new JobListenerAction() {
+                  @Override
+                  public void apply(JobListener jobListener, JobContext jobContext) throws Exception {
+                    jobListener.onJobFailure(jobContext);
+                  }
+                });
           }
         }
       }
@@ -513,8 +510,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
       notifyListeners(this.jobContext, jobListener, TimingEvent.LauncherTimings.JOB_COMPLETE, new JobListenerAction() {
         @Override
-        public void apply(JobListener jobListener, JobContext jobContext)
-            throws Exception {
+        public void apply(JobListener jobListener, JobContext jobContext) throws Exception {
           jobListener.onJobCompletion(jobContext);
         }
       });
@@ -522,20 +518,19 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       if (jobState.getState() == JobState.RunningState.FAILED) {
         notifyListeners(this.jobContext, jobListener, TimingEvent.LauncherTimings.JOB_FAILED, new JobListenerAction() {
           @Override
-          public void apply(JobListener jobListener, JobContext jobContext)
-              throws Exception {
+          public void apply(JobListener jobListener, JobContext jobContext) throws Exception {
             jobListener.onJobFailure(jobContext);
           }
         });
         throw new JobException(String.format("Job %s failed", jobId));
       } else {
-        notifyListeners(this.jobContext, jobListener, TimingEvent.LauncherTimings.JOB_SUCCEEDED, new JobListenerAction() {
-          @Override
-          public void apply(JobListener jobListener, JobContext jobContext)
-              throws Exception {
-            jobListener.onJobFailure(jobContext);
-          }
-        });
+        notifyListeners(this.jobContext, jobListener, TimingEvent.LauncherTimings.JOB_SUCCEEDED,
+            new JobListenerAction() {
+              @Override
+              public void apply(JobListener jobListener, JobContext jobContext) throws Exception {
+                jobListener.onJobFailure(jobContext);
+              }
+            });
       }
     } finally {
       // Stop metrics reporting
@@ -547,8 +542,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     }
   }
 
-  private void executeUnfinishedCommitSequences(String jobName)
-      throws IOException {
+  private void executeUnfinishedCommitSequences(String jobName) throws IOException {
     Preconditions.checkState(this.jobContext.getCommitSequenceStore().isPresent());
     CommitSequenceStore commitSequenceStore = this.jobContext.getCommitSequenceStore().get();
 
@@ -581,8 +575,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   }
 
   @Override
-  public void close()
-      throws IOException {
+  public void close() throws IOException {
     try {
       this.cancellationExecutor.shutdownNow();
       try {
@@ -609,8 +602,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    *
    * @param workUnits List of {@link WorkUnit}s of the job
    */
-  protected abstract void runWorkUnits(List<WorkUnit> workUnits)
-      throws Exception;
+  protected abstract void runWorkUnits(List<WorkUnit> workUnits) throws Exception;
 
   /**
    * Run the given job.
@@ -812,7 +804,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    * @see ClusterNameTags
    */
   private static List<Tag<?>> addClusterNameTags(List<? extends Tag<?>> tags) {
-    return ImmutableList.<Tag<?>>builder().addAll(tags).addAll(Tag.fromMap(ClusterNameTags.getClusterNameTags()))
+    return ImmutableList.<Tag<?>>builder().addAll(tags)
+        .addAll(Tag.fromMap(ClusterNameTags.getClusterNameTags()))
         .build();
   }
 
@@ -820,8 +813,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    * Build the {@link EventSubmitter} for this class.
    */
   private EventSubmitter buildEventSubmitter(List<? extends Tag<?>> tags) {
-    return new EventSubmitter.Builder(this.runtimeMetricContext, "gobblin.runtime")
-        .addMetadata(Tag.toMap(Tag.tagValuesToString(tags))).build();
+    return new EventSubmitter.Builder(this.runtimeMetricContext, "gobblin.runtime").addMetadata(
+        Tag.toMap(Tag.tagValuesToString(tags))).build();
   }
 
   /**
@@ -833,8 +826,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    *
    * Staging data will not be cleaned if the job has unfinished {@link CommitSequence}s.
    */
-  private void cleanLeftoverStagingData(WorkUnitStream workUnits, JobState jobState)
-      throws JobException {
+  private void cleanLeftoverStagingData(WorkUnitStream workUnits, JobState jobState) throws JobException {
     if (jobState.getPropAsBoolean(ConfigurationKeys.CLEANUP_STAGING_DATA_BY_INITIALIZER, false)) {
       //Clean up will be done by initializer.
       return;
@@ -856,7 +848,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           Map<String, ParallelRunner> parallelRunners = Maps.newHashMap();
           try {
             for (WorkUnit workUnit : JobLauncherUtils.flattenWorkUnits(workUnits.getMaterializedWorkUnitCollection())) {
-              JobLauncherUtils.cleanTaskStagingData(new WorkUnitState(workUnit, jobState), LOG, closer, parallelRunners);
+              JobLauncherUtils.cleanTaskStagingData(new WorkUnitState(workUnit, jobState), LOG, closer,
+                  parallelRunners);
             }
           } catch (Throwable t) {
             throw closer.rethrow(t);
@@ -867,8 +860,10 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           throw new RuntimeException("Work unit streams do not support cleaning staging data per task.");
         }
       } else {
-        if (jobState.getPropAsBoolean(ConfigurationKeys.CLEANUP_OLD_JOBS_DATA, ConfigurationKeys.DEFAULT_CLEANUP_OLD_JOBS_DATA)) {
-          JobLauncherUtils.cleanUpOldJobData(jobState, LOG, jobContext.getStagingDirProvided(), jobContext.getOutputDirProvided());
+        if (jobState.getPropAsBoolean(ConfigurationKeys.CLEANUP_OLD_JOBS_DATA,
+            ConfigurationKeys.DEFAULT_CLEANUP_OLD_JOBS_DATA)) {
+          JobLauncherUtils.cleanUpOldJobData(jobState, LOG, jobContext.getStagingDirProvided(),
+              jobContext.getOutputDirProvided());
         }
         JobLauncherUtils.cleanJobStagingData(jobState, LOG);
       }
@@ -878,11 +873,10 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     }
   }
 
-
-
   private static String getJobIdPrefix(String jobId) {
     return jobId.substring(0, jobId.lastIndexOf(Id.Job.SEPARATOR) + 1);
   }
+
   /**
    * Cleanup the job's task staging data. This is not doing anything in case job succeeds
    * and data is successfully committed because the staging data has already been moved
@@ -894,8 +888,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    *
    * Staging data will not be cleaned if the job has unfinished {@link CommitSequence}s.
    */
-  private void cleanupStagingData(JobState jobState)
-      throws JobException {
+  private void cleanupStagingData(JobState jobState) throws JobException {
     if (jobState.getPropAsBoolean(ConfigurationKeys.CLEANUP_STAGING_DATA_BY_INITIALIZER, false)) {
       //Clean up will be done by initializer.
       return;
@@ -925,10 +918,10 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    * Staging data cannot be cleaned if exactly once semantics is used, and the job has unfinished
    * commit sequences.
    */
-  private boolean canCleanStagingData(JobState jobState)
-      throws IOException {
+  private boolean canCleanStagingData(JobState jobState) throws IOException {
     return this.jobContext.getSemantics() != DeliverySemantics.EXACTLY_ONCE || !this.jobContext.getCommitSequenceStore()
-        .get().exists(jobState.getJobName());
+        .get()
+        .exists(jobState.getJobName());
   }
 
   private static void cleanupStagingDataPerTask(JobState jobState) {
@@ -960,8 +953,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   }
 
   private void notifyListeners(JobContext jobContext, JobListener jobListener, String timerEventName,
-      JobListenerAction action)
-      throws JobException {
+      JobListenerAction action) throws JobException {
     TimingEvent timer = this.eventSubmitter.getTimingEvent(timerEventName);
     try (CloseableJobListener parallelJobListener = getParallelCombinedJobListener(this.jobContext.getJobState(),
         jobListener)) {
@@ -970,13 +962,12 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       throw new JobException("Failed to execute all JobListeners", e);
     } finally {
       LOG.info("Submitting {}", timerEventName);
-      timer.stop(this.eventMetadataGenerator.getMetadata(this.jobContext,
-          EventName.getEnumFromEventId(timerEventName)));
+      timer.stop(
+          this.eventMetadataGenerator.getMetadata(this.jobContext, EventName.getEnumFromEventId(timerEventName)));
     }
   }
 
   private interface JobListenerAction {
-    void apply(JobListener jobListener, JobContext jobContext)
-        throws Exception;
+    void apply(JobListener jobListener, JobContext jobContext) throws Exception;
   }
 }

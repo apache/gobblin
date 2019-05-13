@@ -39,7 +39,7 @@ public class TaggedTest {
   private static final String PROJECT_VERSION_KEY = "project.version";
   private static final int PROJECT_VERSION = 1;
   private static final String WORK_UNITS_CREATED = "WorkUnitsCreated";
-  private static final int WORKUNITS = 10;
+  private static final int WORKUNITS = 5;
 
   private Tagged tagged;
 
@@ -58,21 +58,21 @@ public class TaggedTest {
   @Test(dependsOnMethods = "testAddTags")
   public void testGetTags() {
     List<Tag<?>> tags = this.tagged.getTags();
-    Assert.assertEquals(tags.size(), 2);
+    Assert.assertEquals(tags.size(), 3);
     Assert.assertEquals(tags.get(0).getKey(), JOB_ID_KEY);
     Assert.assertEquals(tags.get(0).getValue(), JOB_ID);
     Assert.assertEquals(tags.get(1).getKey(), PROJECT_VERSION_KEY);
     Assert.assertEquals(tags.get(1).getValue(), PROJECT_VERSION);
-    Assert.assertEquals(tags.get(2).getKey(), WORK_UNITS_CREATED );
-    Assert.assertEquals(tags.get(2).getValue(), WORKUNITS );
+    Assert.assertEquals(tags.get(2).getKey(), WORK_UNITS_CREATED);
+    Assert.assertEquals(tags.get(2).getValue(), WORKUNITS);
   }
 
   @Test(dependsOnMethods = "testAddTags")
   public void testMetricNamePrefix() {
-    Assert.assertEquals(
-        this.tagged.metricNamePrefix(false), MetricRegistry.name(JOB_ID, Integer.toString(PROJECT_VERSION)));
-    Assert.assertEquals(
-        this.tagged.metricNamePrefix(true),
-        MetricRegistry.name(this.tagged.getTags().get(0).toString(), this.tagged.getTags().get(1).toString()));
+    Assert.assertEquals(this.tagged.metricNamePrefix(false),
+        MetricRegistry.name(JOB_ID, Integer.toString(PROJECT_VERSION), Integer.toString(WORKUNITS)));
+    Assert.assertEquals(this.tagged.metricNamePrefix(true),
+        MetricRegistry.name(this.tagged.getTags().get(0).toString(), this.tagged.getTags().get(1).toString(),
+            this.tagged.getTags().get(2).toString()));
   }
 }
