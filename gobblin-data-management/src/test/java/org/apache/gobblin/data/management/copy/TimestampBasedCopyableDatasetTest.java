@@ -28,7 +28,10 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.regex.Pattern;
+import java.util.stream.IntStream;
 
+import com.google.common.base.Optional;
+import com.google.common.io.Files;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
@@ -37,12 +40,17 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
 import org.testng.Assert;
+import org.testng.annotations.AfterTest;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
 
-import org.apache.gobblin.data.management.copy.CopyConfiguration;
-import org.apache.gobblin.data.management.copy.CopyableFile;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.data.management.policy.SelectBetweenTimeBasedPolicy;
+import org.apache.gobblin.data.management.version.finder.DateTimeDatasetVersionFinder;
 import org.apache.gobblin.data.management.policy.VersionSelectionPolicy;
 import org.apache.gobblin.data.management.version.DatasetVersion;
 import org.apache.gobblin.data.management.version.FileSystemDatasetVersion;
@@ -58,11 +66,22 @@ import org.apache.gobblin.dataset.Dataset;
 public class TimestampBasedCopyableDatasetTest {
 
   private FileSystem localFs;
+  private Path testTempPath;
 
   @BeforeTest
-  public void before()
-      throws IOException {
+  public void before() throws IOException {
     this.localFs = FileSystem.getLocal(new Configuration());
+    this.testTempPath = new Path(Files.createTempDir().getAbsolutePath(), "TbCopyDatasetTest");
+    this.localFs.mkdirs(this.testTempPath);
+  }
+
+  @AfterTest
+  public void cleanUp() {
+    try {
+      this.localFs.delete(this.testTempPath, true);
+    } catch (Exception e) {
+      // ignore
+    }
   }
 
   /**
@@ -91,12 +110,82 @@ public class TimestampBasedCopyableDatasetTest {
         TimeBasedCopyPolicyForTest.class.getName());
   }
 
+  @Test
+  public void testCopyWithFilter() throws IOException {
+
+    /** source setup **/
+    Path srcRoot = new Path(this.testTempPath, "src/slt/eqp/daily");
+
+    if (this.localFs.exists(srcRoot)) {
+      this.localFs.delete(srcRoot, true);
+    }
+
+    List<DateTime> dateTimeList = Lists.newArrayList();
+    IntStream.range(0, 4)
+        .forEach(
+            i -> dateTimeList.add(new DateTime(DateTimeZone.forID(ConfigurationKeys.PST_TIMEZONE_NAME)).minusDays(i)));
+
+    String datePattern = "yyyy/MM/dd";
+    DateTimeFormatter formatter = DateTimeFormat.forPattern(datePattern);
+
+    for (DateTime dt : dateTimeList) {
+      String srcVersionPathStr = formatter.print(dt);
+      Path srcVersionPath = new Path(srcRoot, srcVersionPathStr);
+      this.localFs.mkdirs(srcVersionPath);
+
+      Path srcfile = new Path(srcVersionPath, "file1.avro");
+      this.localFs.create(srcfile);
+    }
+
+    /** destination setup **/
+    Path destRoot = new Path(this.testTempPath, "dest/slt/eqp");
+    if (this.localFs.exists(destRoot)) {
+      this.localFs.delete(destRoot, true);
+    }
+    this.localFs.mkdirs(destRoot);
+
+    Properties props = new Properties();
+    props.setProperty(TimestampBasedCopyableDataset.COPY_POLICY, SelectBetweenTimeBasedPolicy.class.getName());
+    props.setProperty(TimestampBasedCopyableDataset.DATASET_VERSION_FINDER,
+        DateTimeDatasetVersionFinder.class.getName());
+    props.setProperty(SelectBetweenTimeBasedPolicy.TIME_BASED_SELECTION_MIN_LOOK_BACK_TIME_KEY, "1d");
+    props.setProperty(SelectBetweenTimeBasedPolicy.TIME_BASED_SELECTION_MAX_LOOK_BACK_TIME_KEY, "6d");
+    props.setProperty(DateTimeDatasetVersionFinder.DATE_TIME_PATTERN_KEY, "yyyy/MM/dd");
+    props.setProperty("gobblin.dataset.copyable.file.filter.class",
+        "org.apache.gobblin.data.management.copy.SelectBtwModDataTimeBasedCopyableFileFilter");
+    props.setProperty(SelectBtwModDataTimeBasedCopyableFileFilter.MODIFIED_MIN_LOOK_BACK_TIME_KEY, "0d");
+    props.setProperty(SelectBtwModDataTimeBasedCopyableFileFilter.MODIFIED_MAX_LOOK_BACK_TIME_KEY, "1d");
+    props.setProperty(SelectBtwModDataTimeBasedCopyableFileFilter.DATE_PATTERN_TIMEZONE_KEY,
+        ConfigurationKeys.PST_TIMEZONE_NAME);
+
+    /** Mock object **/
+    CopyConfiguration copyConfig = mock(CopyConfiguration.class);
+    when(copyConfig.getTargetFs()).thenReturn(this.localFs);
+    when(copyConfig.getPublishDir()).thenReturn(this.localFs.getFileStatus(destRoot).getPath());
+    when(copyConfig.getPreserve()).thenReturn(PreserveAttributes.fromMnemonicString("g"));
+    when(copyConfig.getCopyContext()).thenReturn(new CopyContext());
+    when(copyConfig.getTargetGroup()).thenReturn(Optional.<String>absent());
+
+    TimestampBasedCopyableDataset tCopyableDs = new TimestampBasedCopyableDataset(this.localFs, props, srcRoot);
+    ConcurrentLinkedQueue<CopyableFile> copyableFiles =
+        (ConcurrentLinkedQueue<CopyableFile>) tCopyableDs.getCopyableFiles(this.localFs, copyConfig);
+
+    Assert.assertEquals(copyableFiles.size(), 3);
+
+    /* Change in MinLookBack to 1d should result in 0 files */
+    props.setProperty(SelectBtwModDataTimeBasedCopyableFileFilter.MODIFIED_MIN_LOOK_BACK_TIME_KEY, "1d");
+    props.setProperty(SelectBtwModDataTimeBasedCopyableFileFilter.MODIFIED_MAX_LOOK_BACK_TIME_KEY, "2d");
+
+    tCopyableDs = new TimestampBasedCopyableDataset(this.localFs, props, srcRoot);
+    copyableFiles = (ConcurrentLinkedQueue<CopyableFile>) tCopyableDs.getCopyableFiles(this.localFs, copyConfig);
+    Assert.assertEquals(copyableFiles.size(), 0);
+  }
+
   /**
    * Test {@link TimestampBasedCopyableDataset.CopyableFileGenerator}'s logic to determine copyable files.
    */
   @Test
-  public void testIsCopyableFile()
-      throws IOException, InterruptedException {
+  public void testIsCopyableFile() throws IOException, InterruptedException {
     Path testRoot = new Path("testCopyableFileGenerator");
     Path srcRoot = new Path(testRoot, "datasetRoot");
     String versionDir = "dummyversion";
@@ -130,8 +219,7 @@ public class TimestampBasedCopyableDatasetTest {
 
       @Override
       protected CopyableFile generateCopyableFile(FileStatus singleFile, Path targetPath, long timestampFromPath,
-          Path locationToCopy)
-          throws IOException {
+          Path locationToCopy) throws IOException {
         CopyableFile mockCopyableFile = mock(CopyableFile.class);
         when(mockCopyableFile.getFileSet()).thenReturn(singleFile.getPath().toString());
         return mockCopyableFile;
@@ -204,8 +292,7 @@ public class TimestampBasedCopyableDatasetTest {
    * Test the parallel execution to get copyable files in {@link TimestampBasedCopyableDataset#getCopyableFiles(FileSystem, CopyConfiguration)}.
    */
   @Test
-  public void testGetCopyableFiles()
-      throws IOException {
+  public void testGetCopyableFiles() throws IOException {
     Properties props = new Properties();
     props.put(TimestampBasedCopyableDataset.COPY_POLICY, TimeBasedCopyPolicyForTest.class.getName());
     props.put(TimestampBasedCopyableDataset.DATASET_VERSION_FINDER,
@@ -230,8 +317,7 @@ public class TimestampBasedCopyableDatasetTest {
 
   public static class TimestampBasedCopyableDatasetForTest extends TimestampBasedCopyableDataset {
 
-    public TimestampBasedCopyableDatasetForTest(FileSystem fs, Properties props, Path datasetRoot)
-        throws IOException {
+    public TimestampBasedCopyableDatasetForTest(FileSystem fs, Properties props, Path datasetRoot) throws IOException {
       super(fs, props, datasetRoot);
     }
 
@@ -305,8 +391,7 @@ public class TimestampBasedCopyableDatasetTest {
     }
 
     @Override
-    public Collection<TimestampedDatasetVersion> findDatasetVersions(Dataset dataset)
-        throws IOException {
+    public Collection<TimestampedDatasetVersion> findDatasetVersions(Dataset dataset) throws IOException {
       Random ran = new Random();
       Path dummyPath = new Path("dummy");
       DateTime dt1 = start.plusDays(ran.nextInt(range));
@@ -336,8 +421,7 @@ public class TimestampBasedCopyableDatasetTest {
     }
 
     @Override
-    public Collection<TimestampedDatasetVersion> findDatasetVersions(Dataset dataset)
-        throws IOException {
+    public Collection<TimestampedDatasetVersion> findDatasetVersions(Dataset dataset) throws IOException {
       return Lists.newArrayList();
     }
   }

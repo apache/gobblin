@@ -35,7 +35,6 @@ import org.apache.gobblin.data.management.copy.CopyableFileFilter;
 import org.apache.gobblin.dataset.DatasetsFinder;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
-
 /**
  * Utilities for datasets.
  */
@@ -142,7 +141,7 @@ public class DatasetUtils {
     try {
       Class<?> copyableFileFilterClass = Class.forName(props.getProperty(COPYABLE_FILE_FILTER_KEY));
       return (CopyableFileFilter) GobblinConstructorUtils
-          .invokeLongestConstructor(copyableFileFilterClass, additionalArgs);
+          .invokeLongestConstructor(copyableFileFilterClass, props, additionalArgs);
     } catch (ReflectiveOperationException exception) {
       throw new RuntimeException(exception);
     }
