@@ -18,6 +18,7 @@
 package org.apache.gobblin.writer.partitioner;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.avro.generic.GenericRecord;
 
@@ -73,9 +74,25 @@ public class TimeBasedAvroWriterPartitioner extends TimeBasedWriterPartitioner<G
   /**
    *  Check if the partition column value is present and is a Long object. Otherwise, use current system time.
    */
-  private static long getRecordTimestamp(Optional<Object> writerPartitionColumnValue) {
-    return writerPartitionColumnValue.orNull() instanceof Long ? (Long) writerPartitionColumnValue.get()
-        : System.currentTimeMillis();
+  private long getRecordTimestamp(Optional<Object> writerPartitionColumnValue) {
+
+    // Default to current time
+    Long recordTimestamp = timeUnit.convert(System.currentTimeMillis(), TimeUnit.MILLISECONDS);
+
+    if (writerPartitionColumnValue.isPresent()) {
+      Object val = writerPartitionColumnValue.get();
+      if (val instanceof Long) {
+        recordTimestamp = (Long) val;
+      } else {
+        try {
+          recordTimestamp = Long.parseLong(val.toString());
+        } catch (NumberFormatException e) {
+          // ignore
+        }
+      }
+    }
+
+    return recordTimestamp;
   }
 
   /**

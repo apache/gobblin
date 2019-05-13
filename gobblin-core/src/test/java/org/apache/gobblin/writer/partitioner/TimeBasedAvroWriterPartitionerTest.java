@@ -23,6 +23,7 @@ import java.io.IOException;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
+import org.apache.avro.util.Utf8;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.fs.Path;
 
@@ -58,12 +59,6 @@ public class TimeBasedAvroWriterPartitionerTest {
   private static final String PARTITION_COLUMN_NAME = "timestamp";
   private static final String WRITER_ID = "writer-1";
 
-  private static final String AVRO_SCHEMA =
-      "{" + "\"type\" : \"record\"," + "\"name\" : \"User\"," + "\"namespace\" : \"example.avro\"," + "\"fields\" : [ {"
-          + "\"name\" : \"" + PARTITION_COLUMN_NAME + "\"," + "\"type\" : \"long\"" + "} ]" + "}";
-
-  private Schema schema;
-
   @BeforeClass
   public void setUp() throws IOException {
     File stagingDir = new File(STAGING_DIR);
@@ -80,42 +75,22 @@ public class TimeBasedAvroWriterPartitionerTest {
     } else {
       FileUtils.deleteDirectory(outputDir);
     }
-
-    this.schema = new Schema.Parser().parse(AVRO_SCHEMA);
   }
 
-  private State getBasicState() {
-    State properties = new State();
-    properties.setProp(TimeBasedAvroWriterPartitioner.WRITER_PARTITION_COLUMNS, PARTITION_COLUMN_NAME);
-    properties.setProp(ConfigurationKeys.WRITER_BUFFER_SIZE, ConfigurationKeys.DEFAULT_BUFFER_SIZE);
-    properties.setProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, ConfigurationKeys.LOCAL_FS_URI);
-    properties.setProp(ConfigurationKeys.WRITER_STAGING_DIR, STAGING_DIR);
-    properties.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, OUTPUT_DIR);
-    properties.setProp(ConfigurationKeys.WRITER_FILE_PATH, BASE_FILE_PATH);
-    properties.setProp(ConfigurationKeys.WRITER_FILE_NAME, FILE_NAME);
-    properties.setProp(TimeBasedWriterPartitioner.WRITER_PARTITION_PATTERN, "yyyy/MM/dd");
-    properties.setProp(ConfigurationKeys.WRITER_PARTITIONER_CLASS, TimeBasedAvroWriterPartitioner.class.getName());
-
-    return properties;
-  }
-
-  private DataWriter<GenericRecord> getWriter(State state)
-      throws IOException {
-    // Build a writer to write test records
-    DataWriterBuilder<Schema, GenericRecord> builder = new AvroDataWriterBuilder()
-        .writeTo(Destination.of(Destination.DestinationType.HDFS, state)).writeInFormat(WriterOutputFormat.AVRO)
-        .withWriterId(WRITER_ID).withSchema(this.schema).withBranches(1).forBranch(0);
-    return new PartitionedDataWriter<Schema, GenericRecord>(builder, state);
-  }
-
+  /**
+   * Test
+   *  1. Record timestamp of type long
+   *  2. Partition path of a given record
+   */
   @Test
   public void testWriter() throws IOException {
 
-    // Write three records, each should be written to a different file
-    GenericRecordBuilder genericRecordBuilder = new GenericRecordBuilder(this.schema);
-
+    Schema schema = getRecordSchema("long");
     State state = getBasicState();
-    DataWriter<GenericRecord> millisPartitionWriter = getWriter(state);
+    // Write three records, each should be written to a different file
+    GenericRecordBuilder genericRecordBuilder = new GenericRecordBuilder(schema);
+
+    DataWriter<GenericRecord> millisPartitionWriter = getWriter(schema, state);
 
     // This timestamp corresponds to 2015/01/01
     genericRecordBuilder.set("timestamp", 1420099200000l);
@@ -131,7 +106,7 @@ public class TimeBasedAvroWriterPartitionerTest {
     Assert.assertEquals(millisPartitionWriter.recordsWritten(), 2);
 
     state.setProp(TimeBasedWriterPartitioner.WRITER_PARTITION_TIMEUNIT, "seconds");
-    DataWriter<GenericRecord> secsPartitionWriter = getWriter(state);
+    DataWriter<GenericRecord> secsPartitionWriter = getWriter(schema, state);
     // This timestamp corresponds to 2015/01/03
     genericRecordBuilder.set("timestamp", 1420272000L);
     secsPartitionWriter.writeEnvelope(new RecordEnvelope<>(genericRecordBuilder.build()));
@@ -160,8 +135,72 @@ public class TimeBasedAvroWriterPartitionerTest {
     Assert.assertTrue(outputDir20150103.exists());
   }
 
+  @Test
+  public void testGetRecordTimestamp() {
+
+    // Test for string record timestamp in millis partition time unit
+    State state = getBasicState();
+    TimeBasedAvroWriterPartitioner partitioner = new TimeBasedAvroWriterPartitioner(state);
+    GenericRecordBuilder genericRecordBuilder = new GenericRecordBuilder(getRecordSchema("string"));
+
+    // Test for string type
+    genericRecordBuilder.set("timestamp", "1557786583000");
+    Assert.assertEquals(partitioner.getRecordTimestamp(genericRecordBuilder.build()), 1557786583000L);
+    // Test for Utf8
+    genericRecordBuilder.set("timestamp", new Utf8("1557786583000"));
+    Assert.assertEquals(partitioner.getRecordTimestamp(genericRecordBuilder.build()), 1557786583000L);
+    // Test for random string
+    genericRecordBuilder.set("timestamp", "blah");
+    Assert.assertTrue(
+        partitioner.getRecordTimestamp(genericRecordBuilder.build()) <= System.currentTimeMillis());
+    // Test for null value
+    genericRecordBuilder.set("timestamp", null);
+    Assert.assertTrue(
+        partitioner.getRecordTimestamp(genericRecordBuilder.build()) <= System.currentTimeMillis());
+
+    // Test for string type in seconds partition time unit
+    state.setProp(TimeBasedWriterPartitioner.WRITER_PARTITION_TIMEUNIT, "seconds");
+    partitioner = new TimeBasedAvroWriterPartitioner(state);
+    genericRecordBuilder.set("timestamp", "1557786583");
+    Assert.assertEquals(partitioner.getRecordTimestamp(genericRecordBuilder.build()), 1557786583L);
+    // Test for random string
+    genericRecordBuilder.set("timestamp", "blah");
+    Assert.assertTrue(
+        partitioner.getRecordTimestamp(genericRecordBuilder.build()) <= System.currentTimeMillis() / 1000);
+  }
+
   @AfterClass
   public void tearDown() throws IOException {
     FileUtils.deleteDirectory(new File(TEST_ROOT_DIR));
+  }
+
+  private DataWriter<GenericRecord> getWriter(Schema schema, State state)
+      throws IOException {
+    // Build a writer to write test records
+    DataWriterBuilder<Schema, GenericRecord> builder = new AvroDataWriterBuilder()
+        .writeTo(Destination.of(Destination.DestinationType.HDFS, state)).writeInFormat(WriterOutputFormat.AVRO)
+        .withWriterId(WRITER_ID).withSchema(schema).withBranches(1).forBranch(0);
+    return new PartitionedDataWriter<Schema, GenericRecord>(builder, state);
+  }
+
+  private State getBasicState() {
+    State properties = new State();
+
+    properties.setProp(TimeBasedAvroWriterPartitioner.WRITER_PARTITION_COLUMNS, PARTITION_COLUMN_NAME);
+    properties.setProp(ConfigurationKeys.WRITER_BUFFER_SIZE, ConfigurationKeys.DEFAULT_BUFFER_SIZE);
+    properties.setProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, ConfigurationKeys.LOCAL_FS_URI);
+    properties.setProp(ConfigurationKeys.WRITER_STAGING_DIR, STAGING_DIR);
+    properties.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, OUTPUT_DIR);
+    properties.setProp(ConfigurationKeys.WRITER_FILE_PATH, BASE_FILE_PATH);
+    properties.setProp(ConfigurationKeys.WRITER_FILE_NAME, FILE_NAME);
+    properties.setProp(TimeBasedWriterPartitioner.WRITER_PARTITION_PATTERN, "yyyy/MM/dd");
+    properties.setProp(ConfigurationKeys.WRITER_PARTITIONER_CLASS, TimeBasedAvroWriterPartitioner.class.getName());
+
+    return properties;
+  }
+
+  private Schema getRecordSchema(String timestampType) {
+    return new Schema.Parser().parse("{" + "\"type\" : \"record\"," + "\"name\" : \"User\"," + "\"namespace\" : \"example.avro\"," + "\"fields\" : [ {"
+        + "\"name\" : \"" + PARTITION_COLUMN_NAME + "\"," + "\"type\" : [\"null\", \"" + timestampType + "\"]} ]" + "}");
   }
 }
