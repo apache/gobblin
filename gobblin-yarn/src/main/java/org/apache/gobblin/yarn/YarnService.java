@@ -69,6 +69,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
@@ -139,6 +140,8 @@ public class YarnService extends AbstractIdleService {
   private final int initialContainers;
   private final int requestedContainerMemoryMbs;
   private final int requestedContainerCores;
+  private final int jvmMemoryOverheadMbs;
+  private final double jvmMemoryXmxRatio;
   private final boolean containerHostAffinityEnabled;
 
   private final int helixInstanceMaxRetries;
@@ -231,6 +234,22 @@ public class YarnService extends AbstractIdleService {
     this.releasedContainerCache = CacheBuilder.newBuilder().expireAfterAccess(ConfigUtils.getInt(config,
         GobblinYarnConfigurationKeys.RELEASED_CONTAINERS_CACHE_EXPIRY_SECS,
         GobblinYarnConfigurationKeys.DEFAULT_RELEASED_CONTAINERS_CACHE_EXPIRY_SECS), TimeUnit.SECONDS).build();
+
+    this.jvmMemoryXmxRatio = ConfigUtils.getDouble(this.config,
+        GobblinYarnConfigurationKeys.CONTAINER_JVM_MEMORY_XMX_RATIO_KEY,
+        GobblinYarnConfigurationKeys.DEFAULT_CONTAINER_JVM_MEMORY_XMX_RATIO);
+
+    Preconditions.checkArgument(this.jvmMemoryXmxRatio >= 0 && this.jvmMemoryXmxRatio <= 1,
+        GobblinYarnConfigurationKeys.CONTAINER_JVM_MEMORY_XMX_RATIO_KEY + " must be between 0 and 1 inclusive");
+
+    this.jvmMemoryOverheadMbs = ConfigUtils.getInt(this.config,
+        GobblinYarnConfigurationKeys.CONTAINER_JVM_MEMORY_OVERHEAD_MBS_KEY,
+        GobblinYarnConfigurationKeys.DEFAULT_CONTAINER_JVM_MEMORY_OVERHEAD_MBS);
+
+    Preconditions.checkArgument(this.jvmMemoryOverheadMbs < this.requestedContainerMemoryMbs * this.jvmMemoryXmxRatio,
+        GobblinYarnConfigurationKeys.CONTAINER_JVM_MEMORY_OVERHEAD_MBS_KEY + " cannot be more than "
+            + GobblinYarnConfigurationKeys.CONTAINER_MEMORY_MBS_KEY + " * "
+            + GobblinYarnConfigurationKeys.CONTAINER_JVM_MEMORY_XMX_RATIO_KEY);
   }
 
   @SuppressWarnings("unused")
@@ -521,11 +540,13 @@ public class YarnService extends AbstractIdleService {
     }
   }
 
-  private String buildContainerCommand(Container container, String helixInstanceName) {
+  @VisibleForTesting
+  protected String buildContainerCommand(Container container, String helixInstanceName) {
     String containerProcessName = GobblinYarnTaskRunner.class.getSimpleName();
     return new StringBuilder()
         .append(ApplicationConstants.Environment.JAVA_HOME.$()).append("/bin/java")
-        .append(" -Xmx").append(container.getResource().getMemory()).append("M")
+        .append(" -Xmx").append((int) (container.getResource().getMemory() * this.jvmMemoryXmxRatio) -
+            this.jvmMemoryOverheadMbs).append("M")
         .append(" ").append(JvmUtils.formatJvmArguments(this.containerJvmArgs))
         .append(" ").append(GobblinYarnTaskRunner.class.getName())
         .append(" --").append(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME)

@@ -250,6 +250,27 @@ public class YarnServiceTest {
     Assert.assertTrue(yarnService.getReleasedContainerCache().getIfPresent(containerId1) == null);
   }
 
+  @Test(groups = {"gobblin.yarn", "disabledOnTravis"}, dependsOnMethods = "testReleasedContainerCache")
+  public void testBuildContainerCommand() throws Exception {
+    Config modifiedConfig = this.config
+        .withValue(GobblinYarnConfigurationKeys.CONTAINER_JVM_MEMORY_OVERHEAD_MBS_KEY, ConfigValueFactory.fromAnyRef("10"))
+        .withValue(GobblinYarnConfigurationKeys.CONTAINER_JVM_MEMORY_XMX_RATIO_KEY, ConfigValueFactory.fromAnyRef("0.8"));
+
+    TestYarnService yarnService =
+        new TestYarnService(modifiedConfig, "testApp2", "appId2",
+            this.clusterConf, FileSystem.getLocal(new Configuration()), this.eventBus);
+
+    ContainerId containerId = ContainerId.newInstance(ApplicationAttemptId.newInstance(ApplicationId.newInstance(1, 0),
+        0), 0);
+    Resource resource = Resource.newInstance(2048, 1);
+    Container container = Container.newInstance(containerId, null, null, resource, null, null);
+
+    String command = yarnService.buildContainerCommand(container, "helixInstance1");
+
+    // 1628 is from 2048 * 0.8 - 10
+    Assert.assertTrue(command.contains("-Xmx1628"));
+  }
+
 
   private static class TestYarnService extends YarnService {
     public TestYarnService(Config config, String applicationName, String applicationId, YarnConfiguration yarnConfiguration,
