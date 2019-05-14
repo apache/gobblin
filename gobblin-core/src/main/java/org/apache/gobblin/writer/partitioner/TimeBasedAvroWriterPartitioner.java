@@ -60,7 +60,7 @@ public class TimeBasedAvroWriterPartitioner extends TimeBasedWriterPartitioner<G
   public TimeBasedAvroWriterPartitioner(State state, int numBranches, int branchId) {
     super(state, numBranches, branchId);
     this.partitionColumns = getWriterPartitionColumns(state, numBranches, branchId);
-    this.enableParseAsString = getEnableParseString(state, numBranches, branchId);
+    this.enableParseAsString = getEnableParseAsString(state, numBranches, branchId);
     log.info("Enable parse string: {}", this.enableParseAsString);
   }
 
@@ -71,7 +71,7 @@ public class TimeBasedAvroWriterPartitioner extends TimeBasedWriterPartitioner<G
     return state.contains(propName) ? Optional.of(state.getPropAsList(propName)) : Optional.<List<String>> absent();
   }
 
-  private static boolean getEnableParseString(State state, int numBranches, int branchId) {
+  private static boolean getEnableParseAsString(State state, int numBranches, int branchId) {
     String propName = ForkOperatorUtils.getPropertyNameForBranch(WRITER_PARTITION_ENABLE_PARSE_AS_STRING,
         numBranches, branchId);
     return state.getPropAsBoolean(propName, false);
