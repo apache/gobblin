@@ -74,7 +74,7 @@ public abstract class TimeBasedWriterPartitioner<D> implements WriterPartitioner
   private final String writerPartitionSuffix;
   private final DatePartitionType granularity;
   private final DateTimeZone timeZone;
-  private final TimeUnit timeUnit;
+  protected final TimeUnit timeUnit;
   private final Optional<DateTimeFormatter> timestampToPathFormatter;
   private final Schema schema;
 
