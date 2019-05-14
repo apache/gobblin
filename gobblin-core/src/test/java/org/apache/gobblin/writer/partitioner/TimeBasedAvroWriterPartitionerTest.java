@@ -142,17 +142,17 @@ public class TimeBasedAvroWriterPartitionerTest {
     State state = getBasicState();
     TimeBasedAvroWriterPartitioner partitioner = new TimeBasedAvroWriterPartitioner(state);
     GenericRecordBuilder genericRecordBuilder = new GenericRecordBuilder(getRecordSchema("string"));
-
-    // Test for string type
     genericRecordBuilder.set("timestamp", "1557786583000");
+    // Test without parsing as string
+    Assert.assertTrue(partitioner.getRecordTimestamp(genericRecordBuilder.build()) > 1557786583000L);
+
+    // Test with parsing as string
+    state.setProp(TimeBasedAvroWriterPartitioner.WRITER_PARTITION_ENABLE_PARSE_AS_STRING, true);
+    partitioner = new TimeBasedAvroWriterPartitioner(state);
     Assert.assertEquals(partitioner.getRecordTimestamp(genericRecordBuilder.build()), 1557786583000L);
     // Test for Utf8
     genericRecordBuilder.set("timestamp", new Utf8("1557786583000"));
     Assert.assertEquals(partitioner.getRecordTimestamp(genericRecordBuilder.build()), 1557786583000L);
-    // Test for random string
-    genericRecordBuilder.set("timestamp", "blah");
-    Assert.assertTrue(
-        partitioner.getRecordTimestamp(genericRecordBuilder.build()) <= System.currentTimeMillis());
     // Test for null value
     genericRecordBuilder.set("timestamp", null);
     Assert.assertTrue(
@@ -163,10 +163,6 @@ public class TimeBasedAvroWriterPartitionerTest {
     partitioner = new TimeBasedAvroWriterPartitioner(state);
     genericRecordBuilder.set("timestamp", "1557786583");
     Assert.assertEquals(partitioner.getRecordTimestamp(genericRecordBuilder.build()), 1557786583L);
-    // Test for random string
-    genericRecordBuilder.set("timestamp", "blah");
-    Assert.assertTrue(
-        partitioner.getRecordTimestamp(genericRecordBuilder.build()) <= System.currentTimeMillis() / 1000);
   }
 
   @AfterClass

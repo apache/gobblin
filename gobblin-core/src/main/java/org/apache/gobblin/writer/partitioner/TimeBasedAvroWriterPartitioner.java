@@ -47,8 +47,11 @@ import org.apache.gobblin.util.ForkOperatorUtils;
 public class TimeBasedAvroWriterPartitioner extends TimeBasedWriterPartitioner<GenericRecord> {
 
   public static final String WRITER_PARTITION_COLUMNS = ConfigurationKeys.WRITER_PREFIX + ".partition.columns";
+  public static final String WRITER_PARTITION_ENABLE_PARSE_AS_STRING =
+      ConfigurationKeys.WRITER_PREFIX + ".partition.enableParseAsString";
 
   private final Optional<List<String>> partitionColumns;
+  private final boolean enableParseAsString;
 
   public TimeBasedAvroWriterPartitioner(State state) {
     this(state, 1, 0);
@@ -57,6 +60,8 @@ public class TimeBasedAvroWriterPartitioner extends TimeBasedWriterPartitioner<G
   public TimeBasedAvroWriterPartitioner(State state, int numBranches, int branchId) {
     super(state, numBranches, branchId);
     this.partitionColumns = getWriterPartitionColumns(state, numBranches, branchId);
+    this.enableParseAsString = getEnableParseString(state, numBranches, branchId);
+    log.info("Enable parse string: {}", this.enableParseAsString);
   }
 
   private static Optional<List<String>> getWriterPartitionColumns(State state, int numBranches, int branchId) {
@@ -64,6 +69,12 @@ public class TimeBasedAvroWriterPartitioner extends TimeBasedWriterPartitioner<G
     log.info("Partition columns for dataset {} are: {}", state.getProp(ConfigurationKeys.DATASET_URN_KEY),
         state.getProp(propName));
     return state.contains(propName) ? Optional.of(state.getPropAsList(propName)) : Optional.<List<String>> absent();
+  }
+
+  private static boolean getEnableParseString(State state, int numBranches, int branchId) {
+    String propName = ForkOperatorUtils.getPropertyNameForBranch(WRITER_PARTITION_ENABLE_PARSE_AS_STRING,
+        numBranches, branchId);
+    return state.getPropAsBoolean(propName, false);
   }
 
   @Override
@@ -76,23 +87,17 @@ public class TimeBasedAvroWriterPartitioner extends TimeBasedWriterPartitioner<G
    */
   private long getRecordTimestamp(Optional<Object> writerPartitionColumnValue) {
 
-    // Default to current time
-    Long recordTimestamp = timeUnit.convert(System.currentTimeMillis(), TimeUnit.MILLISECONDS);
-
     if (writerPartitionColumnValue.isPresent()) {
       Object val = writerPartitionColumnValue.get();
       if (val instanceof Long) {
-        recordTimestamp = (Long) val;
-      } else {
-        try {
-          recordTimestamp = Long.parseLong(val.toString());
-        } catch (NumberFormatException e) {
-          // ignore
-        }
+        return (Long) val;
+      } else if (enableParseAsString) {
+        return Long.parseLong(val.toString());
       }
     }
 
-    return recordTimestamp;
+    // Default to current time
+    return timeUnit.convert(System.currentTimeMillis(), TimeUnit.MILLISECONDS);
   }
 
   /**
