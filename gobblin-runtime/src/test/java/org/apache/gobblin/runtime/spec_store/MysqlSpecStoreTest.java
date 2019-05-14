@@ -21,6 +21,7 @@ import java.net.URI;
 import java.util.Collection;
 import java.util.Iterator;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.SerializationUtils;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
@@ -46,6 +47,7 @@ public class MysqlSpecStoreTest {
   private MysqlSpecStore specStore;
   private URI uri1 = URI.create("flowspec1");
   private URI uri2 = URI.create("flowspec2");
+  private URI uri3 = URI.create("flowspec3");
   private FlowSpec flowSpec1 = FlowSpec.builder(this.uri1)
       .withConfig(ConfigBuilder.create().addPrimitive("key", "value").build())
       .withDescription("Test flow spec")
@@ -55,6 +57,11 @@ public class MysqlSpecStoreTest {
       .withConfig(ConfigBuilder.create().addPrimitive("key2", "value2").build())
       .withDescription("Test flow spec 2")
       .withVersion("Test version 2")
+      .build();
+  private FlowSpec flowSpec3 = FlowSpec.builder(this.uri3)
+      .withConfig(ConfigBuilder.create().addPrimitive("key3", "value3").build())
+      .withDescription("Test flow spec 3")
+      .withVersion("Test version 3")
       .build();
 
   @BeforeClass
@@ -99,6 +106,18 @@ public class MysqlSpecStoreTest {
   }
 
   @Test
+  public void testGetCorruptedSpec() throws Exception {
+    this.specStore.addSpec(this.flowSpec1);
+    this.specStore.addSpec(this.flowSpec2);
+    this.specStore.addSpec(this.flowSpec3);
+
+    Collection<Spec> specs = this.specStore.getSpecs();
+    Assert.assertTrue(specs.contains(this.flowSpec1));
+    Assert.assertTrue(specs.contains(this.flowSpec2));
+    Assert.assertFalse(specs.contains(this.flowSpec3));
+  }
+
+  @Test
   public void testDeleteSpec() throws Exception {
     this.specStore.addSpec(this.flowSpec1);
     Assert.assertTrue(this.specStore.exists(this.uri1));
@@ -110,7 +129,12 @@ public class MysqlSpecStoreTest {
   public class TestSpecSerDe implements SpecSerDe {
     @Override
     public byte[] serialize(Spec spec) {
-      return SerializationUtils.serialize(spec);
+      byte[] bytes = SerializationUtils.serialize(spec);
+      // Reverse bytes to simulate corrupted Spec
+      if (spec.getUri().equals(uri3)) {
+        ArrayUtils.reverse(bytes);
+      }
+      return bytes;
     }
 
     @Override

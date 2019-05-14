@@ -93,9 +93,10 @@ public class MysqlSpecStore implements SpecStore {
     try (Connection connection = this.dataSource.getConnection();
         PreparedStatement statement = connection.prepareStatement(String.format(EXISTS_STATEMENT, this.tableName))) {
       statement.setString(1, specUri.toString());
-      ResultSet rs = statement.executeQuery();
-      rs.next();
-      return rs.getBoolean(1);
+      try (ResultSet rs = statement.executeQuery()) {
+        rs.next();
+        return rs.getBoolean(1);
+      }
     } catch (SQLException e) {
       throw new IOException(e);
     }
@@ -151,13 +152,15 @@ public class MysqlSpecStore implements SpecStore {
         PreparedStatement statement = connection.prepareStatement(String.format(GET_STATEMENT, this.tableName))) {
 
       statement.setString(1, specUri.toString());
-      ResultSet rs = statement.executeQuery();
-      if (!rs.next()) {
-        throw new SpecNotFoundException(specUri);
-      }
 
-      Blob blob = rs.getBlob(1);
-      return this.specSerDe.deserialize(ByteStreams.toByteArray(blob.getBinaryStream()));
+      try (ResultSet rs = statement.executeQuery()) {
+        if (!rs.next()) {
+          throw new SpecNotFoundException(specUri);
+        }
+
+        Blob blob = rs.getBlob(1);
+        return this.specSerDe.deserialize(ByteStreams.toByteArray(blob.getBinaryStream()));
+      }
     } catch (SQLException | SerializationException e) {
       throw new IOException(e);
     }
@@ -179,14 +182,15 @@ public class MysqlSpecStore implements SpecStore {
         PreparedStatement statement = connection.prepareStatement(String.format(GET_ALL_STATEMENT, this.tableName))) {
 
       List<Spec> specs = new ArrayList<>();
-      ResultSet rs = statement.executeQuery();
 
-      while (rs.next()) {
-        try {
-          Blob blob = rs.getBlob(2);
-          specs.add(this.specSerDe.deserialize(ByteStreams.toByteArray(blob.getBinaryStream())));
-        } catch (SQLException | SerializationException e) {
-          log.error("Failed to deserialize spec", e);
+      try (ResultSet rs = statement.executeQuery()) {
+        while (rs.next()) {
+          try {
+            Blob blob = rs.getBlob(2);
+            specs.add(this.specSerDe.deserialize(ByteStreams.toByteArray(blob.getBinaryStream())));
+          } catch (SQLException | SerializationException e) {
+            log.error("Failed to deserialize spec", e);
+          }
         }
       }
 
@@ -202,11 +206,12 @@ public class MysqlSpecStore implements SpecStore {
         PreparedStatement statement = connection.prepareStatement(String.format(GET_ALL_STATEMENT, this.tableName))) {
 
       List<URI> specs = new ArrayList<>();
-      ResultSet rs = statement.executeQuery();
 
-      while (rs.next()) {
-        URI specURI = URI.create(rs.getString(1));
-        specs.add(specURI);
+      try (ResultSet rs = statement.executeQuery()) {
+        while (rs.next()) {
+          URI specURI = URI.create(rs.getString(1));
+          specs.add(specURI);
+        }
       }
 
       return specs.iterator();
