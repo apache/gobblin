@@ -65,6 +65,10 @@ dependencies {
   testCompile externalDependency.hadoopYarnMiniCluster
   testCompile externalDependency.curatorFramework
   testCompile externalDependency.curatorTest
+
+  testCompile ('com.google.inject:guice:3.0') {
+    force = true
+  }
 }
 
 task testJar(type: Jar, dependsOn: testClasses) {
@@ -124,6 +128,7 @@ test {
   dependsOn shadowJar
   workingDir rootProject.rootDir
   maxParallelForks = 1
+  forkEvery = 1
 }
 
 clean {
