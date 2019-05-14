@@ -61,7 +61,7 @@ public class TimeBasedAvroWriterPartitioner extends TimeBasedWriterPartitioner<G
     super(state, numBranches, branchId);
     this.partitionColumns = getWriterPartitionColumns(state, numBranches, branchId);
     this.enableParseAsString = getEnableParseAsString(state, numBranches, branchId);
-    log.info("Enable parse string: {}", this.enableParseAsString);
+    log.info("Enable parse as string: {}", this.enableParseAsString);
   }
 
   private static Optional<List<String>> getWriterPartitionColumns(State state, int numBranches, int branchId) {
