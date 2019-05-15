@@ -182,6 +182,14 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
   }
 
   @Test
+  public void testBuildApplicationMasterCommand() {
+    String command = this.gobblinYarnAppLauncher.buildApplicationMasterCommand(64);
+
+    // 41 is from 64 * 0.8 - 10
+    Assert.assertTrue(command.contains("-Xmx41"));
+  }
+
+  @Test
   public void testCreateHelixCluster() throws Exception {
     // This is tested here instead of in HelixUtilsTest to avoid setting up yet another testing ZooKeeper server.
     HelixUtils.createGobblinHelixCluster(
