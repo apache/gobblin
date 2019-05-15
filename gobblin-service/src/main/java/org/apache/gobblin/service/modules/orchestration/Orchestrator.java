@@ -24,12 +24,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.Meter;
+import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
@@ -44,10 +46,13 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.instrumented.Instrumentable;
 import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.metrics.reporter.util.MetricReportUtils;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
@@ -57,7 +62,6 @@ import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
 import org.apache.gobblin.service.ServiceConfigKeys;
-import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.service.modules.flow.SpecCompiler;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
@@ -83,7 +87,10 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   protected final Optional<DagManager> dagManager;
 
   protected final MetricContext metricContext;
+  private final java.util.Optional<ContextAwareGauge> flowAlreadyRunningGauge;
+
   protected final Optional<EventSubmitter> eventSubmitter;
+  private final AtomicLong jobAlreadyRunning = new AtomicLong(0L);
   @Getter
   private Optional<Meter> flowOrchestrationSuccessFulMeter;
   @Getter
@@ -126,12 +133,16 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       this.flowOrchestrationFailedMeter = Optional.of(this.metricContext.meter(ServiceMetricNames.FLOW_ORCHESTRATION_FAILED_METER));
       this.flowOrchestrationTimer = Optional.of(this.metricContext.timer(ServiceMetricNames.FLOW_ORCHESTRATION_TIMER));
       this.eventSubmitter = Optional.of(new EventSubmitter.Builder(this.metricContext, "org.apache.gobblin.service").build());
+      this.flowAlreadyRunningGauge = java.util.Optional.of(metricContext.newContextAwareGauge(
+          MetricRegistry.name(MetricReportUtils.GOBBLIN_SERVICE_METRICS_PREFIX, ServiceMetricNames.FLOWS_ALREADY_RUNNING_GAUGE),
+          this.jobAlreadyRunning::get));
     } else {
       this.metricContext = null;
       this.flowOrchestrationSuccessFulMeter = Optional.absent();
       this.flowOrchestrationFailedMeter = Optional.absent();
       this.flowOrchestrationTimer = Optional.absent();
       this.eventSubmitter = Optional.absent();
+      this.flowAlreadyRunningGauge = java.util.Optional.empty();
     }
   }
 
@@ -230,6 +241,9 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       if (!canRun(flowName, flowGroup, allowConcurrentExecution)) {
         _log.warn("Another instance of flowGroup: {}, flowName: {} running; Skipping flow execution since "
             + "concurrent executions are disabled for this flow.", flowGroup, flowName);
+        if (this.flowAlreadyRunningGauge.isPresent()) {
+          this.jobAlreadyRunning.incrementAndGet();
+        }
         return;
       }
 

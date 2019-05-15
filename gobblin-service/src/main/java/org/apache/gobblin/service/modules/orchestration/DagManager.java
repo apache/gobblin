@@ -48,7 +48,6 @@ import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.ContextAwareCounter;
-import org.apache.gobblin.metrics.Counters;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.TimingEvent;
@@ -545,7 +544,7 @@ public class DagManager extends AbstractIdleService {
       return metricContext.contextAwareCounter(
           MetricRegistry.name(
               MetricReportUtils.GOBBLIN_SERVICE_METRICS_PREFIX,
-              ServiceMetricNames.RUNNING_JOBS,
+              ServiceMetricNames.RUNNING_FLOWS_COUNTER,
               dagNode.getValue().getSpecExecutor().getUri().toString()));
     }
 

@@ -34,8 +34,6 @@ import java.util.Properties;
 import javax.annotation.Nonnull;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
-
-import org.apache.gobblin.metrics.ContextAwareMeter;
 import org.apache.gobblin.runtime.api.SpecSerDeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,7 +52,6 @@ import org.apache.gobblin.runtime.api.SpecSerDe;
 import org.apache.gobblin.runtime.api.SpecStore;
 import org.apache.gobblin.runtime.spec_store.FSSpecStore;
 import org.apache.gobblin.util.ClassAliasResolver;
-import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.callbacks.CallbackResult;
 import org.apache.gobblin.util.callbacks.CallbacksDispatcher;
 
@@ -75,7 +72,6 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
   protected final SpecCatalogListenersList listeners;
   protected final Logger log;
   protected final MetricContext metricContext;
-  protected ContextAwareMeter putMeter;
   protected final MutableStandardMetrics metrics;
   protected final SpecStore specStore;
 
@@ -102,8 +98,6 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
       MetricContext realParentCtx =
           parentMetricContext.or(Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(), getClass()));
       this.metricContext = realParentCtx.childBuilder(FlowCatalog.class.getSimpleName()).build();
-      putMeter = metricContext.contextAwareMeter("testGaas");
-
       this.metrics = new MutableStandardMetrics(this, Optional.of(config));
       this.addListener(this.metrics);
     } else {
@@ -275,8 +269,6 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     try {
       Preconditions.checkState(state() == State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
       Preconditions.checkNotNull(spec);
-
-      putMeter.mark();
 
       long startTime = System.currentTimeMillis();
       log.info(String.format("Adding FlowSpec with URI: %s and Config: %s", spec.getUri(),
