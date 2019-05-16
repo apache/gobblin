@@ -119,14 +119,19 @@ public class EmbeddedGobblinDistcpTest {
     embedded.setLaunchTimeout(30, TimeUnit.SECONDS);
     embedded.setConfiguration(ConfigurationKeys.SOURCE_CLASS_KEY, SchemaCheckedCopySource.class.getName());
     //test when schema is not the expected one, the job will be aborted.
-    embedded.setConfiguration(ConfigurationKeys.COPY_EXPECTED_SCHEMA, "{\"type\":\"record\",\"name\":\"baseRecord\",\"fields\":[{\"name\":\"foo1\",\"type\":[\"null\",\"int\"],\"default\":null}]}");
+    embedded.setConfiguration(ConfigurationKeys.COPY_EXPECTED_SCHEMA, "{\"type\":\"record\",\"name\":\"baseRecord\",\"fields\":[{\"name\":\"foo1\",\"type\":[\"null\",\"int\"],\"doc\":\"this is for test\",\"default\":null}]}");
     JobExecutionResult result = embedded.run();
+    Assert.assertTrue(new File(tmpSource, fileName).exists());
+    Assert.assertFalse(result.isSuccessful());
+    Assert.assertFalse(new File(tmpTarget, fileName).exists());
+    embedded.setConfiguration(ConfigurationKeys.COPY_EXPECTED_SCHEMA, "{\"type\":\"record\",\"name\":\"baseRecord\",\"fields\":[{\"name\":\"foo\",\"type\":[\"string\",\"int\"],\"doc\":\"this is for test\",\"default\":null}]}");
+    result = embedded.run();
     Assert.assertTrue(new File(tmpSource, fileName).exists());
     Assert.assertFalse(result.isSuccessful());
     Assert.assertFalse(new File(tmpTarget, fileName).exists());
 
     //test when schema is the expected one, the job will succeed.
-    embedded.setConfiguration(ConfigurationKeys.COPY_EXPECTED_SCHEMA, "{\"type\":\"record\",\"name\":\"baseRecord\",\"fields\":[{\"name\":\"foo\",\"type\":[\"null\",\"int\"],\"default\":null}]}");
+    embedded.setConfiguration(ConfigurationKeys.COPY_EXPECTED_SCHEMA, "{\"type\":\"record\",\"name\":\"baseRecord\",\"fields\":[{\"name\":\"foo\",\"type\":[\"null\",\"int\"],\"doc\":\"this is for test\",\"default\":null}]}");
     result = embedded.run();
     Assert.assertTrue(result.isSuccessful());
     Assert.assertTrue(new File(tmpSource, fileName).exists());
