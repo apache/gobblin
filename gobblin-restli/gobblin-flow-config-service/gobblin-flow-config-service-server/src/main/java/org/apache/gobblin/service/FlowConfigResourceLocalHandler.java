@@ -128,7 +128,7 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
   public CreateResponse createFlowConfig(FlowConfig flowConfig, boolean triggerListener) throws FlowConfigLoggedException {
     log.info("[GAAS-REST] Create called with flowGroup " + flowConfig.getId().getFlowGroup() + " flowName " + flowConfig.getId().getFlowName());
     this.createFlow.mark();
-    if (flowConfig.hasSchedule() && flowConfig.getSchedule().hasRunImmediately() && flowConfig.getSchedule().isRunImmediately()) {
+    if (!flowConfig.hasSchedule() || StringUtils.isEmpty(flowConfig.getSchedule().getCronSchedule())) {
       this.runImmediatelyFlow.mark();
     }
 
