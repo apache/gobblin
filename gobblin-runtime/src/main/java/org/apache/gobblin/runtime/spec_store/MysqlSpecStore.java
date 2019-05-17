@@ -58,6 +58,7 @@ import org.apache.gobblin.util.ConfigUtils;
 public class MysqlSpecStore implements SpecStore {
   public static final String CONFIG_PREFIX = "mysqlSpecStore";
   public static final String SPEC_STORE_SOURCE = "source";
+  public static final String DEFAULT_SPEC_STORE_SOURCE = "default_source";
 
   private static final String CREATE_TABLE_STATEMENT =
       "CREATE TABLE IF NOT EXISTS %s (spec_uri VARCHAR(128) NOT NULL, spec_source VARCHAR(128) NOT NULL, spec LONGBLOB, PRIMARY KEY (spec_uri, spec_source))";
@@ -82,7 +83,7 @@ public class MysqlSpecStore implements SpecStore {
     this.tableName = config.getString(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY);
     this.specStoreURI = URI.create(config.getString(ConfigurationKeys.STATE_STORE_DB_URL_KEY));
     this.specSerDe = specSerDe;
-    this.specStoreSource = ConfigUtils.getString(config, SPEC_STORE_SOURCE, "default_source");
+    this.specStoreSource = ConfigUtils.getString(config, SPEC_STORE_SOURCE, DEFAULT_SPEC_STORE_SOURCE);
 
     try (Connection connection = this.dataSource.getConnection();
         PreparedStatement statement = connection.prepareStatement(String.format(CREATE_TABLE_STATEMENT, this.tableName))) {
