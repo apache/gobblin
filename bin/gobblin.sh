@@ -387,15 +387,14 @@ function start() {
         if [[ $VERBOSE -eq 1 ]]; then
             echo "Running command: $GOBBLIN_COMMAND";
         fi
-        echo "ran command $JAVA_HOME/bin/java -cp <classpath> $GC_OPTS $JVM_OPTS $LOG4J_OPTS $CLASS_N_ARGS"
-#        nohup $GOBBLIN_COMMAND 1>> ${LOG_OUT_FILE} 2>> ${LOG_ERR_FILE} &
-#        PID=$!
-#        echo $PID >> $PID_FILE
-#        if [[ $? != 0 ]]; then
-#            echo "Starting the Gobblin $GOBBLIN_MODE process... [FAILED]"
-#        else
-#            echo "Started the Gobblin $GOBBLIN_MODE process [pid: $PID] ... [DONE]"
-#        fi
+        nohup $GOBBLIN_COMMAND 1>> ${LOG_OUT_FILE} 2>> ${LOG_ERR_FILE} &
+        PID=$!
+        echo $PID >> $PID_FILE
+        if [[ $? != 0 ]]; then
+            echo "Starting the Gobblin $GOBBLIN_MODE process... [FAILED]"
+        else
+            echo "Started the Gobblin $GOBBLIN_MODE process [pid: $PID] ... [DONE]"
+        fi
 
     fi
 }
