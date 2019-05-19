@@ -25,12 +25,15 @@ import java.util.Properties;
 
 import com.google.common.io.Closer;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.configuration.AbstractConfiguration;
 import org.apache.commons.configuration.CompositeConfiguration;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.commons.configuration.SystemConfiguration;
 import org.apache.commons.lang.StringUtils;
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.runtime.cli.CliApplication;
 import org.flywaydb.core.api.FlywayException;
 import org.flywaydb.core.api.MigrationInfoService;
 import org.flywaydb.core.Flyway;
@@ -44,7 +47,9 @@ import org.apache.gobblin.metastore.DatabaseJobHistoryStore;
  *
  * @author Joel Baranick
  */
-public class DatabaseJobHistoryStoreSchemaManager implements Closeable {
+@Slf4j
+@Alias(value = "job-store-schema-manager", description = "Database job history store schema manager")
+public class DatabaseJobHistoryStoreSchemaManager implements CliApplication, Closeable {
 
   private final Flyway flyway;
 
@@ -75,7 +80,8 @@ public class DatabaseJobHistoryStoreSchemaManager implements Closeable {
   public void close() throws IOException {
   }
 
-  public static void main(String[] args) throws IOException {
+  @Override
+  public void run(String[] args) throws Exception {
     if (args.length < 1 || args.length > 2) {
       printUsage();
     }
