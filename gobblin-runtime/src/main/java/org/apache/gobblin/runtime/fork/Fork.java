@@ -217,7 +217,15 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
         if (r instanceof RecordEnvelope) {
           this.writer.get().writeEnvelope((RecordEnvelope) r);
         } else if (r instanceof ControlMessage) {
-          this.writer.get().getMessageHandler().handleMessage((ControlMessage) r);
+          // Nack with error and reraise the error if the control messsage handling raises an error.
+          // This is to avoid missing an ack/nack in the error path.
+          try {
+            this.writer.get().getMessageHandler().handleMessage((ControlMessage) r);
+          } catch (Throwable error) {
+            r.nack(error);
+            throw error;
+          }
+
           r.ack();
         }
       }, e -> logger.error("Failed to process record.", e),
