@@ -24,6 +24,7 @@ import java.util.HashSet;
 import java.util.Set;
 import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.Schema;
+import org.apache.avro.SchemaCompatibility;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
@@ -73,8 +74,12 @@ public class FileAwareInputStreamExtractorWithCheckSchema extends FileAwareInput
         new DataFileReader(new FsInput(this.file.getFileStatus().getPath(), fsFromFile), datumReader);
     Schema schema = dataFileReader.getSchema();
     Schema expectedSchema = new Schema.Parser().parse(this.state.getProp(ConfigurationKeys.COPY_EXPECTED_SCHEMA));
-
-    return AvroSchemaCheckStrategy.compare(schema, expectedSchema);
+    AvroSchemaCheckStrategy strategy = AvroSchemaCheckStrategy.AvroSchemaCheckStrategyFactory.create(this.state);
+    if(strategy == null)
+    {
+      throw new IOException("schema check strategy cannot be initialized");
+    }
+    return strategy.compare(expectedSchema,schema);
   }
 
 }
