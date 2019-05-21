@@ -37,5 +37,5 @@ public class ServiceMetricNames {
   public static final String RUN_IMMEDIATELY_FLOW_METER = "RunImmediatelyFlow";
 
   public static final String RUNNING_FLOWS_COUNTER = "RunningFlows";
-  public static final String FLOWS_ALREADY_RUNNING_GAUGE = "FlowsAlreadyRunning";
+  public static final String COMPILED = "Compiled";
 }
