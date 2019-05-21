@@ -124,7 +124,7 @@ public class ClusterIntegrationTest {
     IntegrationJobRestartViaSpecSuite restartViaSpecSuite = (IntegrationJobRestartViaSpecSuite) this.suite;
 
     //Add a new JobSpec to the path monitored by the SpecConsumer
-    restartViaSpecSuite.addJobSpec(IntegrationJobRestartViaSpecSuite.JOB_ID, SpecExecutor.Verb.ADD.name());
+    restartViaSpecSuite.addJobSpec(IntegrationJobRestartViaSpecSuite.JOB_NAME, SpecExecutor.Verb.ADD.name());
 
     //Start the cluster
     restartViaSpecSuite.startCluster();
@@ -150,7 +150,7 @@ public class ClusterIntegrationTest {
     Assert.assertEquals(targetState, TargetState.START.name());
 
     //Add a JobSpec with UPDATE verb signalling the Helix cluster to restart the workflow
-    restartViaSpecSuite.addJobSpec(IntegrationJobRestartViaSpecSuite.JOB_ID, SpecExecutor.Verb.UPDATE.name());
+    restartViaSpecSuite.addJobSpec(IntegrationJobRestartViaSpecSuite.JOB_NAME, SpecExecutor.Verb.UPDATE.name());
 
     AssertWithBackoff.create().maxSleepMs(1000).timeoutMs(5000).backoffFactor(1).assertTrue(input -> {
       //Inspect the zNode at the path corresponding to the Workflow resource. Ensure the target state of the resource is in
