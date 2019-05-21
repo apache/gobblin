@@ -28,8 +28,10 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeoutException;
@@ -46,7 +48,9 @@ import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
+import org.apache.hadoop.yarn.api.records.ResourceRequest;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
+import org.apache.hadoop.yarn.client.api.AMRMClient;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
@@ -197,8 +201,12 @@ public class YarnServiceTest {
   public void testScaleUp() {
     this.yarnService.requestTargetNumberOfContainers(10, Collections.EMPTY_SET);
 
+    Assert.assertFalse(this.yarnService.getMatchingRequestsList(64, 1).isEmpty());
     Assert.assertEquals(this.yarnService.getNumRequestedContainers(), 10);
     Assert.assertTrue(this.yarnService.waitForContainerCount(10, 60000));
+
+    // container request list that had entries earlier should now be empty
+    Assert.assertEquals(this.yarnService.getMatchingRequestsList(64, 1).size(), 0);
   }
 
   @Test(groups = {"gobblin.yarn", "disabledOnTravis"}, dependsOnMethods = "testScaleUp")
@@ -282,6 +290,16 @@ public class YarnServiceTest {
         throws IOException {
       return BuilderUtils.newContainerLaunchContext(Collections.emptyMap(), Collections.emptyMap(),
               Arrays.asList("sleep", "60000"), Collections.emptyMap(), null, Collections.emptyMap());
+    }
+
+    /**
+     * Get the list of matching container requests for the specified resource memory and cores.
+     */
+    public List<? extends Collection<AMRMClient.ContainerRequest>> getMatchingRequestsList(int memory, int cores) {
+      Resource resource = Resource.newInstance(memory, cores);
+      Priority priority = Priority.newInstance(0);
+
+      return getAmrmClientAsync().getMatchingRequests(priority, ResourceRequest.ANY, resource);
     }
 
     /**
