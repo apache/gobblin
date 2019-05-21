@@ -72,6 +72,7 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import static org.apache.gobblin.service.ExecutionStatus.COMPLETE;
 import static org.apache.gobblin.service.ExecutionStatus.FAILED;
 import static org.apache.gobblin.service.ExecutionStatus.RUNNING;
+import static org.apache.gobblin.service.ExecutionStatus.PENDING;
 import static org.apache.gobblin.service.ExecutionStatus.valueOf;
 
 
@@ -146,6 +147,7 @@ public class DagManager extends AbstractIdleService {
   private final JobStatusRetriever jobStatusRetriever;
   private final KafkaJobStatusMonitor jobStatusMonitor;
   private final Config config;
+  private final Optional<EventSubmitter> eventSubmitter;
 
   private volatile boolean isActive = false;
 
@@ -156,6 +158,12 @@ public class DagManager extends AbstractIdleService {
     this.scheduledExecutorPool = Executors.newScheduledThreadPool(numThreads);
     this.pollingInterval = ConfigUtils.getInt(config, JOB_STATUS_POLLING_INTERVAL_KEY, DEFAULT_JOB_STATUS_POLLING_INTERVAL);
     this.instrumentationEnabled = instrumentationEnabled;
+    if (instrumentationEnabled) {
+      MetricContext metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
+      this.eventSubmitter = Optional.of(new EventSubmitter.Builder(metricContext, "org.apache.gobblin.service").build());
+    } else {
+      this.eventSubmitter = Optional.absent();
+    }
 
     try {
       Class jobStatusRetrieverClass = Class.forName(ConfigUtils.getString(config, JOB_STATUS_RETRIEVER_CLASS_KEY, DEFAULT_JOB_STATUS_RETRIEVER_CLASS));
@@ -187,9 +195,20 @@ public class DagManager extends AbstractIdleService {
   synchronized void offer(Dag<JobExecutionPlan> dag) throws IOException {
     //Persist the dag
     this.dagStateStore.writeCheckpoint(dag);
+    submitTrackingEventsForPendingJobs(dag);
     //Add it to the queue of dags
     if (!this.queue.offer(dag)) {
       throw new IOException("Could not add dag" + DagManagerUtils.generateDagId(dag) + "to queue");
+    }
+  }
+
+  private void submitTrackingEventsForPendingJobs(Dag<JobExecutionPlan> dag) {
+    if (this.eventSubmitter.isPresent()) {
+      for (DagNode<JobExecutionPlan> dagNode : dag.getNodes()) {
+        JobExecutionPlan jobExecutionPlan = DagManagerUtils.getJobExecutionPlan(dagNode);
+        Map<String, String> jobMetadata = TimingEventUtils.getJobMetadata(Maps.newHashMap(), jobExecutionPlan);
+        this.eventSubmitter.get().getTimingEvent(TimingEvent.LauncherTimings.JOB_PENDING).stop(jobMetadata);
+      }
     }
   }
 
@@ -336,7 +355,8 @@ public class DagManager extends AbstractIdleService {
       //Are there any jobs already in the running state? This check is for Dags already running
       //before a leadership change occurs.
       for (DagNode<JobExecutionPlan> dagNode : dag.getNodes()) {
-        if (DagManagerUtils.getExecutionStatus(dagNode) == RUNNING) {
+        if (DagManagerUtils.getExecutionStatus(dagNode) == RUNNING ||
+            DagManagerUtils.getExecutionStatus(dagNode) == PENDING) {
           addJobState(dagId, dagNode);
         }
       }
