@@ -54,7 +54,6 @@ import org.apache.gobblin.util.ConfigUtils;
 @Slf4j
 public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], byte[]> {
   static final String JOB_STATUS_MONITOR_PREFIX = "jobStatusMonitor";
-  public static final String JOB_STATUS_MONITOR_ENABLED_KEY =  JOB_STATUS_MONITOR_PREFIX + ".enabled";
   //We use table suffix that is different from the Gobblin job state store suffix of jst to avoid confusion.
   //gst refers to the state store suffix for GaaS-orchestrated Gobblin jobs.
   public static final String STATE_STORE_TABLE_SUFFIX = "gst";
