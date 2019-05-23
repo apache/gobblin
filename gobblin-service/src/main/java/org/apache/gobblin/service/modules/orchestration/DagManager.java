@@ -154,18 +154,10 @@ public class DagManager extends AbstractIdleService {
     this.scheduledExecutorPool = Executors.newScheduledThreadPool(numThreads);
     this.pollingInterval = ConfigUtils.getInt(config, JOB_STATUS_POLLING_INTERVAL_KEY, DEFAULT_JOB_STATUS_POLLING_INTERVAL);
     this.instrumentationEnabled = instrumentationEnabled;
-    boolean jobStatusMonitorEnabled =
-        ConfigUtils.getBoolean(config, KafkaJobStatusMonitor.JOB_STATUS_MONITOR_ENABLED_KEY, true);
 
     try {
-      Class jobStatusRetrieverClass;
-      if (jobStatusMonitorEnabled) {
-        jobStatusRetrieverClass = Class.forName(DEFAULT_JOB_STATUS_RETRIEVER_CLASS);
-        this.jobStatusMonitor = new KafkaJobStatusMonitorFactory().createJobStatusMonitor(config);
-      } else {
-        jobStatusRetrieverClass = Class.forName(config.getString(JOB_STATUS_RETRIEVER_CLASS_KEY));
-        this.jobStatusMonitor = null;
-      }
+      Class jobStatusRetrieverClass = Class.forName(ConfigUtils.getString(config, JOB_STATUS_RETRIEVER_CLASS_KEY, DEFAULT_JOB_STATUS_RETRIEVER_CLASS));
+      this.jobStatusMonitor = new KafkaJobStatusMonitorFactory().createJobStatusMonitor(config);
       this.jobStatusRetriever =
           (JobStatusRetriever) GobblinConstructorUtils.invokeLongestConstructor(jobStatusRetrieverClass, config);
     } catch (ReflectiveOperationException e) {
