@@ -60,9 +60,11 @@ public class YarnAutoScalingManager extends AbstractIdleService {
   private final String AUTO_SCALING_PARTITIONS_PER_CONTAINER = AUTO_SCALING_PREFIX + "partitionsPerContainer";
   private final int DEFAULT_AUTO_SCALING_PARTITIONS_PER_CONTAINER = 1;
   private final String AUTO_SCALING_MIN_CONTAINERS = AUTO_SCALING_PREFIX + "minContainers";
-  private final int DEFAULT_AUTO_SCALING_MIN_CONTAINERS = 0;
+  private final int DEFAULT_AUTO_SCALING_MIN_CONTAINERS = 1;
   private final String AUTO_SCALING_MAX_CONTAINERS = AUTO_SCALING_PREFIX + "maxContainers";
   private final int DEFAULT_AUTO_SCALING_MAX_CONTAINERS = Integer.MAX_VALUE;
+  private final String AUTO_SCALING_INITIAL_DELAY = AUTO_SCALING_PREFIX + "initialDelay";
+  private final int DEFAULT_AUTO_SCALING_INITIAL_DELAY_SECS = 60;
 
   private final Config config;
   private final HelixManager helixManager;
@@ -85,8 +87,8 @@ public class YarnAutoScalingManager extends AbstractIdleService {
     this.minContainers = ConfigUtils.getInt(this.config, AUTO_SCALING_MIN_CONTAINERS,
         DEFAULT_AUTO_SCALING_MIN_CONTAINERS);
 
-    Preconditions.checkArgument(this.minContainers >= 0,
-        DEFAULT_AUTO_SCALING_MIN_CONTAINERS + " needs to be greater than or equal to 0");
+    Preconditions.checkArgument(this.minContainers > 0,
+        DEFAULT_AUTO_SCALING_MIN_CONTAINERS + " needs to be greater than 0");
 
     this.maxContainers = ConfigUtils.getInt(this.config, AUTO_SCALING_MAX_CONTAINERS,
         DEFAULT_AUTO_SCALING_MAX_CONTAINERS);
@@ -106,11 +108,13 @@ public class YarnAutoScalingManager extends AbstractIdleService {
   protected void startUp() throws Exception {
     int scheduleInterval = ConfigUtils.getInt(this.config, AUTO_SCALING_POLLING_INTERVAL_SECS,
         DEFAULT_AUTO_SCALING_POLLING_INTERVAL_SECS);
+    int initialDelay = ConfigUtils.getInt(this.config, AUTO_SCALING_INITIAL_DELAY,
+        DEFAULT_AUTO_SCALING_INITIAL_DELAY_SECS);
     log.info("Starting the " + YarnAutoScalingManager.class.getSimpleName());
     log.info("Scheduling the auto scaling task with an interval of {} seconds", scheduleInterval);
 
     this.autoScalingExecutor.scheduleAtFixedRate(new YarnAutoScalingRunnable(new TaskDriver(this.helixManager),
-            this.yarnService, this.partitionsPerContainer, this.minContainers, this.maxContainers), 0,
+            this.yarnService, this.partitionsPerContainer, this.minContainers, this.maxContainers), initialDelay,
         scheduleInterval, TimeUnit.SECONDS);
   }
 
@@ -134,12 +138,23 @@ public class YarnAutoScalingManager extends AbstractIdleService {
     private final int minContainers;
     private final int maxContainers;
 
+
+    @Override
+    public void run() {
+      // Suppress errors to avoid interrupting any scheduled executions of this Runnable
+      try {
+        runInternal();
+      } catch (Throwable t) {
+        log.warn("Suppressing error from YarnAutoScalingRunnable.run()", t);
+      }
+    }
+
     /**
      * Iterate through the workflows configured in Helix to figure out the number of required partitions
      * and request the {@link YarnService} to scale to the desired number of containers.
      */
-    @Override
-    public void run() {
+    @VisibleForTesting
+    void runInternal() {
       Set<String> inUseInstances = new HashSet<>();
 
       int numPartitions = 0;
