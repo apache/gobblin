@@ -48,7 +48,6 @@ import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.api.SpecSerDe;
 import org.apache.gobblin.runtime.api.SpecStore;
 
-import static org.apache.gobblin.runtime.spec_catalog.FlowCatalog.*;
 
 
 /**
@@ -110,11 +109,18 @@ public class MysqlSpecStore implements SpecStore {
 
   @Override
   public void addSpec(Spec spec) throws IOException {
+    this.addSpec(spec, DEFAULT_TAG_VALUE);
+  }
+
+  /**
+   * Temporarily only used for testing since tag it not exposed in endpoint of {@link org.apache.gobblin.runtime.api.FlowSpec}
+   */
+  public void addSpec(Spec spec, String tagValue) throws IOException{
     try (Connection connection = this.dataSource.getConnection();
         PreparedStatement statement = connection.prepareStatement(String.format(INSERT_STATEMENT, this.tableName))) {
 
       statement.setString(1, spec.getUri().toString());
-      statement.setString(2, DEFAULT_TAG_VALUE);
+      statement.setString(2, tagValue);
       statement.setBlob(3, new ByteArrayInputStream(this.specSerDe.serialize(spec)));
       statement.executeUpdate();
 
