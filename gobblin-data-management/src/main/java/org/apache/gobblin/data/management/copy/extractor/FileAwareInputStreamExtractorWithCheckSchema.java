@@ -20,17 +20,14 @@ package org.apache.gobblin.data.management.copy.extractor;
 import java.io.IOException;
 import java.io.InputStream;
 
-import java.util.HashSet;
-import java.util.Set;
-import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.Schema;
-import org.apache.avro.SchemaCompatibility;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.mapred.FsInput;
 import org.apache.gobblin.util.schema_check.AvroSchemaCheckStrategy;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -71,7 +68,7 @@ public class FileAwareInputStreamExtractorWithCheckSchema extends FileAwareInput
   protected boolean schemaChecking(FileSystem fsFromFile) throws IOException {
     DatumReader<GenericRecord> datumReader = new GenericDatumReader<>();
     DataFileReader<GenericRecord> dataFileReader =
-        new DataFileReader(new FsInput(this.file.getFileStatus().getPath(), fsFromFile), datumReader);
+        new DataFileReader(new FsInput(this.file.getFileStatus().getPath(), new Configuration()), datumReader);
     Schema schema = dataFileReader.getSchema();
     Schema expectedSchema = new Schema.Parser().parse(this.state.getProp(ConfigurationKeys.COPY_EXPECTED_SCHEMA));
     AvroSchemaCheckStrategy strategy = AvroSchemaCheckStrategy.AvroSchemaCheckStrategyFactory.create(this.state);

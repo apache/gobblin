@@ -38,7 +38,7 @@ public interface AvroSchemaCheckStrategy {
     public static AvroSchemaCheckStrategy create(WorkUnitState state)
     {
       try {
-        return (AvroSchemaCheckStrategy) Class.forName(state.getProp(ConfigurationKeys.AVRO_SCHEMA_CHECK_STRATEGY)).newInstance();
+        return (AvroSchemaCheckStrategy) Class.forName(state.getProp(ConfigurationKeys.AVRO_SCHEMA_CHECK_STRATEGY, ConfigurationKeys.AVRO_SCHEMA_CHECK_STRATEGY_DEFAULT)).newInstance();
       } catch (Exception e)
       {
         return null;

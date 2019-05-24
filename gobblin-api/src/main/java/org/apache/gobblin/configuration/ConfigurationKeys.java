@@ -941,4 +941,5 @@ public class ConfigurationKeys {
    * Configuration related to data derived
    */
   public static final String AVRO_SCHEMA_CHECK_STRATEGY = "avro.schema.check.strategy";
+  public static final String AVRO_SCHEMA_CHECK_STRATEGY_DEFAULT = "org.apache.gobblin.utils.AvroBackwardSchemaCheckStrategy";
 }
