@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.util.schema_check;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
@@ -29,6 +30,7 @@ public interface AvroSchemaCheckStrategy {
   /**
    * A factory to initiate the Strategy
    */
+  @Slf4j
   class AvroSchemaCheckStrategyFactory {
     /**
      * Use the configuration to create a schema check strategy. If it's not found, return null.
@@ -40,6 +42,7 @@ public interface AvroSchemaCheckStrategy {
       try {
         return (AvroSchemaCheckStrategy) Class.forName(state.getProp(ConfigurationKeys.AVRO_SCHEMA_CHECK_STRATEGY, ConfigurationKeys.AVRO_SCHEMA_CHECK_STRATEGY_DEFAULT)).newInstance();
       } catch (Exception e) {
+        log.error(e.getMessage());
         return null;
       }
     }

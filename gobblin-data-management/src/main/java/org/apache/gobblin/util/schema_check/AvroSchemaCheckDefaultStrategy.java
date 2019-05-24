@@ -15,16 +15,24 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.data.management.util;
+package org.apache.gobblin.util.schema_check;
 
 import java.util.HashSet;
 import java.util.Set;
 import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.Schema;
-import org.apache.gobblin.util.schema_check.AvroSchemaCheckStrategy;
 
 
-public class AvroSchemaCheckStrategyForTest implements AvroSchemaCheckStrategy {
+/**
+ * default strategy to check the compatibility of avro schema
+ */
+public class AvroSchemaCheckDefaultStrategy implements AvroSchemaCheckStrategy {
+  /**
+   * This method will compare the name and types of the two schema
+   * @param expected The expected schema
+   * @param toValidate The real schema
+   * @return true when expected schema and toValidate schema have matching field names and types
+   */
   public boolean compare(Schema expected, Schema toValidate)
   {
     if (toValidate.getType() != expected.getType() || !toValidate.getName().equals(expected.getName())) {return false;}

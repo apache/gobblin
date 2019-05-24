@@ -938,8 +938,8 @@ public class ConfigurationKeys {
   public static final String GIT_MONITOR_JSCH_LOGGER_ENABLED = "isJschLoggerEnabled";
 
   /**
-   * Configuration related to data derived
+   * Configuration related to avro schema check strategy
    */
   public static final String AVRO_SCHEMA_CHECK_STRATEGY = "avro.schema.check.strategy";
-  public static final String AVRO_SCHEMA_CHECK_STRATEGY_DEFAULT = "org.apache.gobblin.utils.AvroBackwardSchemaCheckStrategy";
+  public static final String AVRO_SCHEMA_CHECK_STRATEGY_DEFAULT = "org.apache.gobblin.util.schema_check.AvroSchemaCheckDefaultStrategy";
 }
