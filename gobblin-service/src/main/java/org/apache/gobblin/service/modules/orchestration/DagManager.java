@@ -33,6 +33,7 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
@@ -46,15 +47,17 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.ContextAwareCounter;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.metrics.reporter.util.MetricReportUtils;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.service.ExecutionStatus;
-import org.apache.gobblin.service.ServiceMetricNames;
+import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.Dag.DagNode;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
@@ -278,7 +281,6 @@ public class DagManager extends AbstractIdleService {
         this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
         this.eventSubmitter = Optional.of(new EventSubmitter.Builder(this.metricContext, "org.apache.gobblin.service").build());
         this.jobStatusPolledTimer = Optional.of(this.metricContext.timer(ServiceMetricNames.JOB_STATUS_POLLED_TIMER));
-
       } else {
         this.metricContext = null;
         this.eventSubmitter = Optional.absent();
@@ -463,6 +465,9 @@ public class DagManager extends AbstractIdleService {
         // either successfully or unsuccessfully. To catch any exceptions in the job submission, the DagManagerThread
         // blocks (by calling Future#get()) until the submission is completed.
         producer.addSpec(jobSpec).get();
+        if (this.metricContext != null) {
+          getRunningJobsCounter(dagNode).inc();
+        }
 
         if (jobOrchestrationTimer != null) {
           jobOrchestrationTimer.stop(jobMetadata);
@@ -489,6 +494,10 @@ public class DagManager extends AbstractIdleService {
       String jobName = DagManagerUtils.getFullyQualifiedJobName(dagNode);
       ExecutionStatus jobStatus = DagManagerUtils.getExecutionStatus(dagNode);
       log.info("Job {} of Dag {} has finished with status {}", jobName, dagId, jobStatus.name());
+
+      if (this.metricContext != null) {
+        getRunningJobsCounter(dagNode).dec();
+      }
 
       if (jobStatus == COMPLETE) {
         return submitNext(dagId);
@@ -521,6 +530,14 @@ public class DagManager extends AbstractIdleService {
 
     private boolean hasRunningJobs(String dagId) {
       return !this.dagToJobs.get(dagId).isEmpty();
+    }
+
+    private ContextAwareCounter getRunningJobsCounter(DagNode<JobExecutionPlan> dagNode) {
+      return metricContext.contextAwareCounter(
+          MetricRegistry.name(
+              MetricReportUtils.GOBBLIN_SERVICE_METRICS_PREFIX,
+              ServiceMetricNames.RUNNING_FLOWS_COUNTER,
+              dagNode.getValue().getSpecExecutor().getUri().toString()));
     }
 
     /**

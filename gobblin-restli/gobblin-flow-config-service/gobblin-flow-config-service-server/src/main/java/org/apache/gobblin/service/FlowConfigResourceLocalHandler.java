@@ -23,6 +23,7 @@ import java.util.Properties;
 
 import org.apache.commons.lang.StringUtils;
 
+import com.codahale.metrics.MetricRegistry;
 import com.google.common.collect.Maps;
 import com.linkedin.data.template.StringMap;
 import com.linkedin.restli.common.ComplexResourceKey;
@@ -39,9 +40,16 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.ContextAwareMeter;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.ServiceMetricNames;
+import org.apache.gobblin.metrics.reporter.util.MetricReportUtils;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
+import org.apache.gobblin.util.ConfigUtils;
+
 
 /**
  * A {@link FlowConfigsResourceHandler} that handles Restli locally.
@@ -51,8 +59,19 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
   public static final Schedule NEVER_RUN_CRON_SCHEDULE = new Schedule().setCronSchedule("0 0 0 ? 1 1 2050");
   @Getter
   protected FlowCatalog flowCatalog;
+  protected final ContextAwareMeter createFlow;
+  protected final ContextAwareMeter deleteFlow;
+  protected final ContextAwareMeter runImmediatelyFlow;
+
   public FlowConfigResourceLocalHandler(FlowCatalog flowCatalog) {
     this.flowCatalog = flowCatalog;
+    MetricContext metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
+    this.createFlow = metricContext.contextAwareMeter(
+        MetricRegistry.name(MetricReportUtils.GOBBLIN_SERVICE_METRICS_PREFIX, ServiceMetricNames.CREATE_FLOW_METER));
+    this.deleteFlow = metricContext.contextAwareMeter(
+        MetricRegistry.name(MetricReportUtils.GOBBLIN_SERVICE_METRICS_PREFIX, ServiceMetricNames.DELETE_FLOW_METER));
+    this.runImmediatelyFlow = metricContext.contextAwareMeter(
+        MetricRegistry.name(MetricReportUtils.GOBBLIN_SERVICE_METRICS_PREFIX, ServiceMetricNames.RUN_IMMEDIATELY_FLOW_METER));
   }
 
   /**
@@ -108,6 +127,10 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
    */
   public CreateResponse createFlowConfig(FlowConfig flowConfig, boolean triggerListener) throws FlowConfigLoggedException {
     log.info("[GAAS-REST] Create called with flowGroup " + flowConfig.getId().getFlowGroup() + " flowName " + flowConfig.getId().getFlowName());
+    this.createFlow.mark();
+    if (!flowConfig.hasSchedule() || StringUtils.isEmpty(flowConfig.getSchedule().getCronSchedule())) {
+      this.runImmediatelyFlow.mark();
+    }
 
     if (flowConfig.hasExplain()) {
       //Return Error if FlowConfig has explain set. Explain request is only valid for v2 FlowConfig.
@@ -171,6 +194,7 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
   public UpdateResponse deleteFlowConfig(FlowId flowId, Properties header, boolean triggerListener) throws FlowConfigLoggedException {
 
     log.info("[GAAS-REST] Delete called with flowGroup {} flowName {}", flowId.getFlowGroup(), flowId.getFlowName());
+    this.deleteFlow.mark();
     URI flowUri = null;
 
     try {
