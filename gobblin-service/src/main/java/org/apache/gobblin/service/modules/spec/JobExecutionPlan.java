@@ -50,11 +50,15 @@ import org.apache.gobblin.util.ConfigUtils;
  * where the {@link JobSpec} will be executed.
  */
 @Data
-@EqualsAndHashCode (exclude = {"executionStatus"})
+@EqualsAndHashCode(exclude = {"executionStatus", "currentAttempts"})
 public class JobExecutionPlan {
+  public static final String JOB_MAX_ATTEMPTS = "job.maxAttempts";
+
   private final JobSpec jobSpec;
   private final SpecExecutor specExecutor;
   private ExecutionStatus executionStatus = ExecutionStatus.$UNKNOWN;
+  private final int maxAttempts;
+  private int currentAttempts = 0;
 
   public static class Factory {
     public static final String JOB_NAME_COMPONENT_SEPARATION_CHAR = "_";
@@ -165,6 +169,12 @@ public class JobExecutionPlan {
           StringUtils.appendIfMissing(StringUtils.prependIfMissing(flowSpec.getUri().getPath(), "/"), "/") + jobGroup
               + "/" + jobName, null);
     }
+  }
+
+  public JobExecutionPlan(JobSpec jobSpec, SpecExecutor specExecutor) {
+    this.jobSpec = jobSpec;
+    this.specExecutor = specExecutor;
+    this.maxAttempts = ConfigUtils.getInt(jobSpec.getConfig(), JOB_MAX_ATTEMPTS, 1);
   }
 
   /**

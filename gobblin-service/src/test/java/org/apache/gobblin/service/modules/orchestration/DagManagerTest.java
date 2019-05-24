@@ -44,6 +44,7 @@ import com.typesafe.config.ConfigValueFactory;
 
 import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutor;
@@ -124,9 +125,13 @@ public class DagManagerTest {
     return new JobExecutionPlanDagFactory().createDag(jobExecutionPlans);
   }
 
-  private Iterator<JobStatus> getMockJobStatus(String flowName, String flowGroup,  Long flowExecutionId, String jobGroup, String jobName, String eventName) {
+  private Iterator<JobStatus> getMockJobStatus(String flowName, String flowGroup, Long flowExecutionId, String jobGroup, String jobName, String eventName) {
+    return getMockJobStatus(flowName, flowGroup, flowExecutionId, jobGroup, jobName, eventName, false);
+  }
+
+  private Iterator<JobStatus> getMockJobStatus(String flowName, String flowGroup,  Long flowExecutionId, String jobGroup, String jobName, String eventName, boolean shouldRetry) {
     return Iterators.singletonIterator(JobStatus.builder().flowName(flowName).flowGroup(flowGroup).jobGroup(jobGroup).jobName(jobName).flowExecutionId(flowExecutionId).
-        message("Test message").eventName(eventName).startTime(5000L).build());
+        message("Test message").eventName(eventName).startTime(5000L).shouldRetry(shouldRetry).build());
   }
 
   @Test
@@ -311,6 +316,135 @@ public class DagManagerTest {
         Assert.assertEquals(this._dagStateStore.getDags().size(), 0);
       }
     }
+  }
+
+  @Test
+  public void testSucceedAfterRetry() throws Exception {
+    long flowExecutionId = System.currentTimeMillis();
+    String flowGroupId = "0";
+    String flowGroup = "group" + flowGroupId;
+    String flowName = "flow" + flowGroupId;
+    String jobName0 = "job0";
+    String jobName1 = "job1";
+    String jobName2 = "job2";
+
+    Dag<JobExecutionPlan> dag = buildDag(flowGroupId, flowExecutionId, "FINISH_RUNNING", true);
+    String dagId = DagManagerUtils.generateDagId(dag);
+
+    //Add a dag to the queue of dags
+    this.queue.offer(dag);
+    Iterator<JobStatus> jobStatusIterator1 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.RUNNING));
+    Iterator<JobStatus> jobStatusIterator2 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.RUNNING), true);
+    Iterator<JobStatus> jobStatusIterator3 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.COMPLETE));
+    Iterator<JobStatus> jobStatusIterator4 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName1, flowGroup, String.valueOf(ExecutionStatus.RUNNING));
+    Iterator<JobStatus> jobStatusIterator5 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName2, flowGroup, String.valueOf(ExecutionStatus.RUNNING));
+    Iterator<JobStatus> jobStatusIterator6 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName1, flowGroup, String.valueOf(ExecutionStatus.COMPLETE));
+    Iterator<JobStatus> jobStatusIterator7 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName2, flowGroup, String.valueOf(ExecutionStatus.COMPLETE));
+
+    Mockito.when(_jobStatusRetriever.getJobStatusesForFlowExecution(Mockito.anyString(), Mockito.anyString(),
+        Mockito.anyLong(), Mockito.anyString(), Mockito.anyString())).
+        thenReturn(jobStatusIterator1).
+        thenReturn(jobStatusIterator2).
+        thenReturn(jobStatusIterator3).
+        thenReturn(jobStatusIterator4).
+        thenReturn(jobStatusIterator5).
+        thenReturn(jobStatusIterator6).
+        thenReturn(jobStatusIterator7);
+
+    //Run the thread once. Ensure the first job is running
+    this._dagManagerThread.run();
+    Assert.assertEquals(this.dags.size(), 1);
+    Assert.assertTrue(this.dags.containsKey(dagId));
+    Assert.assertEquals(this.jobToDag.size(), 1);
+    Assert.assertTrue(this.jobToDag.containsKey(dag.getStartNodes().get(0)));
+    Assert.assertEquals(this.dagToJobs.get(dagId).size(), 1);
+    Assert.assertTrue(this.dagToJobs.get(dagId).contains(dag.getStartNodes().get(0)));
+
+    // Second run: check that first job failed and is running again after retry
+    this._dagManagerThread.run();
+    Assert.assertEquals(this.dags.size(), 1);
+    Assert.assertTrue(this.dags.containsKey(dagId));
+    Assert.assertEquals(this.jobToDag.size(), 1);
+    Assert.assertTrue(this.jobToDag.containsKey(dag.getStartNodes().get(0)));
+    Assert.assertEquals(this.dagToJobs.get(dagId).size(), 1);
+    Assert.assertTrue(this.dagToJobs.get(dagId).contains(dag.getStartNodes().get(0)));
+
+    // Third run: check that first job completed successfully and now second and third job are submitted
+    this._dagManagerThread.run();
+    Assert.assertEquals(this.dags.size(), 1);
+    Assert.assertTrue(this.dags.containsKey(dagId));
+    Assert.assertEquals(this.jobToDag.size(), 2);
+    Assert.assertTrue(this.jobToDag.containsKey(dag.getNodes().get(1)));
+    Assert.assertTrue(this.jobToDag.containsKey(dag.getNodes().get(2)));
+    Assert.assertEquals(this.dagToJobs.get(dagId).size(), 2);
+    Assert.assertTrue(this.dagToJobs.get(dagId).contains(dag.getNodes().get(1)));
+    Assert.assertTrue(this.dagToJobs.get(dagId).contains(dag.getNodes().get(2)));
+
+    // Fourth run: second and third job are running
+    this._dagManagerThread.run();
+    Assert.assertEquals(this.dags.size(), 1);
+    Assert.assertTrue(this.dags.containsKey(dagId));
+    Assert.assertEquals(this.jobToDag.size(), 2);
+    Assert.assertTrue(this.jobToDag.containsKey(dag.getNodes().get(1)));
+    Assert.assertTrue(this.jobToDag.containsKey(dag.getNodes().get(2)));
+    Assert.assertEquals(this.dagToJobs.get(dagId).size(), 2);
+    Assert.assertTrue(this.dagToJobs.get(dagId).contains(dag.getNodes().get(1)));
+    Assert.assertTrue(this.dagToJobs.get(dagId).contains(dag.getNodes().get(2)));
+
+    // Fifth run: second and third job complete and dag is cleaned up
+    this._dagManagerThread.run();
+    Assert.assertEquals(this.dags.size(), 0);
+    Assert.assertEquals(this.jobToDag.size(), 0);
+    Assert.assertEquals(this.dagToJobs.size(), 0);
+    Assert.assertEquals(this._dagStateStore.getDags().size(), 0);
+  }
+
+  @Test
+  public void testFailAfterRetry() throws Exception {
+    long flowExecutionId = System.currentTimeMillis();
+    String flowGroupId = "0";
+    String flowGroup = "group" + flowGroupId;
+    String flowName = "flow" + flowGroupId;
+    String jobName0 = "job0";
+
+    Dag<JobExecutionPlan> dag = buildDag(flowGroupId, flowExecutionId, "FINISH_RUNNING", true);
+    String dagId = DagManagerUtils.generateDagId(dag);
+
+    //Add a dag to the queue of dags
+    this.queue.offer(dag);
+    Iterator<JobStatus> jobStatusIterator1 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.RUNNING));
+    Iterator<JobStatus> jobStatusIterator2 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.RUNNING), true);
+    Iterator<JobStatus> jobStatusIterator3 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.RUNNING), true);
+    Iterator<JobStatus> jobStatusIterator4 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.RUNNING), true);
+    Iterator<JobStatus> jobStatusIterator5 = getMockJobStatus(flowName, flowGroup, flowExecutionId, jobName0, flowGroup, String.valueOf(ExecutionStatus.FAILED));
+
+
+    Mockito.when(_jobStatusRetriever.getJobStatusesForFlowExecution(Mockito.anyString(), Mockito.anyString(),
+        Mockito.anyLong(), Mockito.anyString(), Mockito.anyString())).
+        thenReturn(jobStatusIterator1).
+        thenReturn(jobStatusIterator2).
+        thenReturn(jobStatusIterator3).
+        thenReturn(jobStatusIterator4).
+        thenReturn(jobStatusIterator5);
+
+    // Run 4 times, first job fails every time and is retried
+    for (int i = 0; i < 4; i++) {
+      this._dagManagerThread.run();
+      Assert.assertEquals(this.dags.size(), 1);
+      Assert.assertTrue(this.dags.containsKey(dagId));
+      Assert.assertEquals(this.jobToDag.size(), 1);
+      Assert.assertTrue(this.jobToDag.containsKey(dag.getStartNodes().get(0)));
+      Assert.assertEquals(this.dagToJobs.get(dagId).size(), 1);
+      Assert.assertTrue(this.dagToJobs.get(dagId).contains(dag.getStartNodes().get(0)));
+      Assert.assertEquals(dag.getStartNodes().get(0).getValue().getCurrentAttempts(), i + 1);
+    }
+
+    // Last run fails and dag is cleaned up
+    this._dagManagerThread.run();
+    Assert.assertEquals(this.dags.size(), 0);
+    Assert.assertEquals(this.jobToDag.size(), 0);
+    Assert.assertEquals(this.dagToJobs.size(), 0);
+    Assert.assertEquals(this._dagStateStore.getDags().size(), 0);
   }
 
   @AfterClass
