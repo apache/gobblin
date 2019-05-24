@@ -113,6 +113,8 @@ public interface SpecStore {
    */
   Iterator<URI> getSpecURIs() throws IOException;
 
+  Iterator<URI> getSpecURIsWithTag(String tag) throws IOException;
+
   /**
    * @return A URI to identify the SpecStore itself.
    * e.g. For File-System based implementation of {@link SpecStore}, the URI will be associated

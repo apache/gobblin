@@ -47,32 +47,34 @@ import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.api.SpecSerDe;
 import org.apache.gobblin.runtime.api.SpecStore;
-import org.apache.gobblin.util.ConfigUtils;
+
+import static org.apache.gobblin.runtime.spec_catalog.FlowCatalog.*;
 
 
 /**
  * Implementation of {@link SpecStore} that stores specs as serialized java objects in MySQL. Note that versions are not
  * supported, so the version parameter will be ignored in methods that have it.
+ *
+ * A tag column is added into implementation to serve certain filtering purposes in MySQL-based SpecStore.
  */
 @Slf4j
 public class MysqlSpecStore implements SpecStore {
   public static final String CONFIG_PREFIX = "mysqlSpecStore";
-  public static final String SPEC_STORE_SOURCE = "source";
-  public static final String DEFAULT_SPEC_STORE_SOURCE = "default_source";
+  public static final String DEFAULT_TAG_VALUE = "";
 
   private static final String CREATE_TABLE_STATEMENT =
-      "CREATE TABLE IF NOT EXISTS %s (spec_uri VARCHAR(128) NOT NULL, spec_source VARCHAR(128) NOT NULL, spec LONGBLOB, PRIMARY KEY (spec_uri, spec_source))";
+      "CREATE TABLE IF NOT EXISTS %s (spec_uri VARCHAR(128) NOT NULL, tag VARCHAR(128) NOT NULL, spec LONGBLOB, PRIMARY KEY (spec_uri))";
   private static final String EXISTS_STATEMENT = "SELECT EXISTS(SELECT * FROM %s WHERE spec_uri = ?)";
-  private static final String INSERT_STATEMENT = "INSERT INTO %s (spec_uri, spec_source, spec) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE spec = VALUES(spec)";
+  private static final String INSERT_STATEMENT = "INSERT INTO %s (spec_uri, tag, spec) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE spec = VALUES(spec)";
   private static final String DELETE_STATEMENT = "DELETE FROM %s WHERE spec_uri = ?";
   private static final String GET_STATEMENT = "SELECT spec FROM %s WHERE spec_uri = ?";
   private static final String GET_ALL_STATEMENT = "SELECT spec_uri, spec FROM %s";
+  private static final String GET_ALL_STATEMENT_WITH_TAG = "SELECT spec_uri, spec FROM %s WHERE tag = ?";
 
   private final DataSource dataSource;
   private final String tableName;
   private final URI specStoreURI;
   private final SpecSerDe specSerDe;
-  private final String specStoreSource;
 
   public MysqlSpecStore(Config config, SpecSerDe specSerDe) throws IOException {
     if (config.hasPath(CONFIG_PREFIX)) {
@@ -83,7 +85,6 @@ public class MysqlSpecStore implements SpecStore {
     this.tableName = config.getString(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY);
     this.specStoreURI = URI.create(config.getString(ConfigurationKeys.STATE_STORE_DB_URL_KEY));
     this.specSerDe = specSerDe;
-    this.specStoreSource = ConfigUtils.getString(config, SPEC_STORE_SOURCE, DEFAULT_SPEC_STORE_SOURCE);
 
     try (Connection connection = this.dataSource.getConnection();
         PreparedStatement statement = connection.prepareStatement(String.format(CREATE_TABLE_STATEMENT, this.tableName))) {
@@ -113,7 +114,7 @@ public class MysqlSpecStore implements SpecStore {
         PreparedStatement statement = connection.prepareStatement(String.format(INSERT_STATEMENT, this.tableName))) {
 
       statement.setString(1, spec.getUri().toString());
-      statement.setString(2, this.specStoreSource);
+      statement.setString(2, DEFAULT_TAG_VALUE);
       statement.setBlob(3, new ByteArrayInputStream(this.specSerDe.serialize(spec)));
       statement.executeUpdate();
 
@@ -210,20 +211,34 @@ public class MysqlSpecStore implements SpecStore {
   public Iterator<URI> getSpecURIs() throws IOException {
     try (Connection connection = this.dataSource.getConnection();
         PreparedStatement statement = connection.prepareStatement(String.format(GET_ALL_STATEMENT, this.tableName))) {
-
-      List<URI> specs = new ArrayList<>();
-
-      try (ResultSet rs = statement.executeQuery()) {
-        while (rs.next()) {
-          URI specURI = URI.create(rs.getString(1));
-          specs.add(specURI);
-        }
-      }
-
-      return specs.iterator();
+      return getURIIteratorByQuery(statement);
     } catch (SQLException e) {
       throw new IOException(e);
     }
+  }
+
+  @Override
+  public Iterator<URI> getSpecURIsWithTag(String tag) throws IOException {
+    try (Connection connection = this.dataSource.getConnection();
+        PreparedStatement statement = connection.prepareStatement(String.format(GET_ALL_STATEMENT_WITH_TAG, this.tableName))) {
+      statement.setString(1, tag);
+      return getURIIteratorByQuery(statement);
+    } catch (SQLException e) {
+      throw new IOException(e);
+    }
+  }
+
+  private Iterator<URI> getURIIteratorByQuery(PreparedStatement statement) throws SQLException {
+    List<URI> specs = new ArrayList<>();
+
+    try (ResultSet rs = statement.executeQuery()) {
+      while (rs.next()) {
+        URI specURI = URI.create(rs.getString(1));
+        specs.add(specURI);
+      }
+    }
+
+    return specs.iterator();
   }
 
   @Override

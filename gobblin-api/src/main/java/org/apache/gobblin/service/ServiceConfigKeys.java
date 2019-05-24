@@ -63,9 +63,6 @@ public class ServiceConfigKeys {
   public static final String FLOW_SOURCE_IDENTIFIER_KEY = "gobblin.flow.sourceIdentifier";
   public static final String FLOW_DESTINATION_IDENTIFIER_KEY = "gobblin.flow.destinationIdentifier";
 
-  // Command line options
-  public static final String SERVICE_NAME_OPTION_NAME = "service_name";
-
   // Topology Factory Keys (for overall factory)
   public static final String TOPOLOGY_FACTORY_PREFIX = "topologySpecFactory.";
   public static final String DEFAULT_TOPOLOGY_SPEC_FACTORY =

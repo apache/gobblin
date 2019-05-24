@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.service.modules.core;
 
+import com.typesafe.config.ConfigValueFactory;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
@@ -104,6 +105,11 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 @Alpha
 public class GobblinServiceManager implements ApplicationLauncher, StandardMetricsBridge {
 
+  // Command line options
+  // These two options are required to launch GobblinServiceManager.
+  public static final String SERVICE_NAME_OPTION_NAME = "service_name";
+  public static final String SERVICE_ID_OPTION_NAME = "service_id";
+
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinServiceManager.class);
   private static final String JOB_STATUS_RETRIEVER_CLASS_KEY = "jobStatusRetriever.class";
 
@@ -163,7 +169,6 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     if (!properties.contains(ServiceBasedAppLauncher.APP_STOP_TIME_SECONDS)) {
       properties.setProperty(ServiceBasedAppLauncher.APP_STOP_TIME_SECONDS, Long.toString(300));
     }
-    this.config = config;
     this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), this.getClass());
     this.metrics = new Metrics(this.metricContext, this.config);
     this.serviceName = serviceName;
@@ -544,13 +549,15 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     }
   }
 
-  private static String getServiceId() {
-    return "1";
+  private static String getServiceId(CommandLine cmd) {
+    return cmd.getOptionValue(SERVICE_ID_OPTION_NAME) == null ? "1" : cmd.getOptionValue(SERVICE_ID_OPTION_NAME);
   }
 
   private static Options buildOptions() {
     Options options = new Options();
-    options.addOption("a", ServiceConfigKeys.SERVICE_NAME_OPTION_NAME, true, "Gobblin application name");
+    options.addOption("a", SERVICE_NAME_OPTION_NAME, true, "Gobblin Service application's name");
+    options.addOption("i", SERVICE_ID_OPTION_NAME, true, "Gobblin Service application's ID, "
+        + "this needs to be globally unique");
     return options;
   }
 
@@ -563,9 +570,14 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     Options options = buildOptions();
     try {
       CommandLine cmd = new DefaultParser().parse(options, args);
-      if (!cmd.hasOption(ServiceConfigKeys.SERVICE_NAME_OPTION_NAME)) {
+      if (!cmd.hasOption(SERVICE_NAME_OPTION_NAME)) {
         printUsage(options);
         System.exit(1);
+      }
+
+      if (!cmd.hasOption(SERVICE_ID_OPTION_NAME)) {
+        printUsage(options);
+        LOGGER.warn("Please assign globally unique ID for a GobblinServiceManager instance, or it will use default ID");
       }
 
       boolean isTestMode = false;
@@ -575,7 +587,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
 
       Config config = ConfigFactory.load();
       try (GobblinServiceManager gobblinServiceManager = new GobblinServiceManager(
-          cmd.getOptionValue(ServiceConfigKeys.SERVICE_NAME_OPTION_NAME), getServiceId(),
+          cmd.getOptionValue(SERVICE_NAME_OPTION_NAME), getServiceId(cmd),
           config, Optional.<Path>absent())) {
         gobblinServiceManager.getOrchestrator().setFlowStatusGenerator(gobblinServiceManager.buildFlowStatusGenerator(config));
         gobblinServiceManager.start();

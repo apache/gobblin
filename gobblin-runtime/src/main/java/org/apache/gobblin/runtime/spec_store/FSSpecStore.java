@@ -264,6 +264,12 @@ public class FSSpecStore implements SpecStore {
   }
 
   @Override
+  public Iterator<URI> getSpecURIsWithTag(String tag) throws IOException {
+    log.error("getSpecURISWithTag is not supported in " + this.getClass().getName());
+    return this.getSpecURIs();
+  }
+
+  @Override
   public Optional<URI> getSpecStoreURI() {
     return Optional.of(this.fsSpecStoreDirPath.toUri());
   }
