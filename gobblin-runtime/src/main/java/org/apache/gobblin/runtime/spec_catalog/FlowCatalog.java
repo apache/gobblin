@@ -143,10 +143,14 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
    /* Catalog listeners                              *
    /**************************************************/
 
-  // TODO: Change this deprecated methods.
   protected void notifyAllListeners() {
-    for (Spec spec : getSpecsWithTimeUpdate()) {
-      this.listeners.onAddSpec(spec);
+    try {
+      Iterator<URI> uriIterator = getSpecURIs();
+      while (uriIterator.hasNext()) {
+        this.listeners.onAddSpec(getSpecWrapper(uriIterator.next()));
+      }
+    } catch (SpecSerDeException ssde) {
+      log.error("Cannot retrieve specs from catalog:", ssde);
     }
   }
 
@@ -156,10 +160,15 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     this.listeners.addListener(specListener);
 
     if (state() == State.RUNNING) {
-      // TODO: Change this deprecated method
-      for (Spec spec : getSpecsWithTimeUpdate()) {
-        SpecCatalogListener.AddSpecCallback addJobCallback = new SpecCatalogListener.AddSpecCallback(spec);
-        this.listeners.callbackOneListener(addJobCallback, specListener);
+      try {
+        Iterator<URI> uriIterator = getSpecURIs();
+        while (uriIterator.hasNext()) {
+          SpecCatalogListener.AddSpecCallback addJobCallback =
+              new SpecCatalogListener.AddSpecCallback(getSpecWrapper(uriIterator.next()));
+          this.listeners.callbackOneListener(addJobCallback, specListener);
+        }
+      } catch (SpecSerDeException ssde) {
+        log.error("Cannot retrieve specs from catalog:", ssde);
       }
     }
   }
@@ -232,6 +241,8 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
 
   /**
    * Get all specs from {@link SpecStore}
+   * Not suggested for {@link FlowCatalog} where the total amount of space that all {@link FlowSpec}s occupied
+   * would be large and loading process is slow.
    */
   @Deprecated
   @Override
@@ -242,13 +253,6 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     } catch (IOException e) {
       throw new RuntimeException("Cannot retrieve Specs from Spec store", e);
     }
-  }
-
-  public Collection<Spec> getSpecsWithTimeUpdate() {
-    long startTime = System.currentTimeMillis();
-    Collection<Spec> specs = this.getSpecs();
-    this.metrics.updateGetSpecTime(startTime);
-    return specs;
   }
 
   public boolean exists(URI uri) {
