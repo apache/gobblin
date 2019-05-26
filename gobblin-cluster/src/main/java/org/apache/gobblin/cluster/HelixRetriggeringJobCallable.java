@@ -152,7 +152,7 @@ class HelixRetriggeringJobCallable implements Callable {
         GobblinClusterConfigurationKeys.JOB_ALWAYS_DELETE,
         "false");
 
-    try { //TODO: what is really the difference ?
+    try {
       if (this.isDistributeJobEnabled) {
         runJobExecutionLauncher();
       } else {

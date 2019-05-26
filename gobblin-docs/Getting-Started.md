@@ -101,15 +101,13 @@ A list of commonly used configuration properties can be found here: [Configurati
 
 * Unpack Gobblin distribution:
 
-* Launch Gobblin:
+* Launch Gobblin in one of the execution mode [for more info refer: [Gobblin-CLI](/gobblin-docs/user-guide/Gobblin-CLI.md)] :
 
 ```bash
-bin/gobblin-standalone.sh start
+gobblin service standalone start
 ```
 
-This script will launch Gobblin and pass the Gobblin configuration file ([gobblin-standalone.properties](https://github.com/apache/incubator-gobblin/blob/master/conf/gobblin-standalone-v2.properties)) as an argument.
-
-The job log, which contains the progress and status of the job, will be written into `logs/gobblin-current.log` (to change where the log is written, modify the Log4j configuration file `conf/log4j-standalone.xml`). Stdout will be written into `nohup.out`.
+The job log, which contains the progress and status of the job, will be written into `logs/<execution-mode>.out` & `logs/<execution-mode>.err` (to change where the log is written, modify the Log4j configuration file `conf/log4j.properties`).
 
 Among the job logs there should be the following information:
 
@@ -139,7 +137,7 @@ INFO  AbstractJobLauncher - Persisting job/task states of job job_PullFromWikipe
 * After the job is done, stop Gobblin by running
 
 ```bash
-bin/gobblin-standalone.sh stop
+gobblin service standalone stop
 ```
 
 The job output is written in `GOBBLIN_WORK_DIR/job-output` folder as an Avro file.

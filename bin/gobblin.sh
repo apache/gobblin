@@ -108,8 +108,8 @@ function print_gobblin_cli_usage() {
                 watermarks                  Inspect streaming watermarks
                 job-store-schema-manager    Database job history store schema manager"
     echo ""
-    echo "    --conf-dir <path-of-conf-dir>      Gobblon config path. default is '\$GOBBLIN_HOME/conf/<exe-mode-name>'."
-    echo "    --log4j-conf <path-of-log4j-file>  default is '\$GOBBLIN_HOME/conf/<exe-mode-name>/log4j.properties'."
+    echo "    --conf-dir <gobblin-conf-dir-path> Gobblon config path. default is '\$GOBBLIN_HOME/conf/<exe-mode-name>'."
+    echo "    --log4j-conf <path-of-log4j-file>  default is '<gobblin-conf-dir-path>/<execution-mode>/log4j.properties'."
     echo "    --jvmopts <jvm or gc options>      String containing JVM flags to include, in addition to \"$JVM_OPTS\"."
     echo "    --jars <csv list of extra jars>    Column-separated list of extra jars to put on the CLASSPATH."
     echo "    --enable-gc-logs                   enables gc logs & dumps."
@@ -127,8 +127,8 @@ function print_gobblin_service_usage() {
     echo "    <execution-mode>                   $STANDALONE_MODE, $CLUSTER_MASTER_MODE, $CLUSTER_WORKER_MODE, $AWS_MODE,
                                                  $YARN_MODE, $MAPREDUCE_MODE, $SERVICE_MANAGER_MODE."
     echo ""
-    echo "    --conf-dir <path-of-conf-dir>      Gobblon config path. default is '\$GOBBLIN_HOME/conf/<exe-mode-name>'."
-    echo "    --log4j-conf <path-of-log4j-file>  default is '\$GOBBLIN_HOME/conf/<exe-mode-name>/log4j.properties'."
+    echo "    --conf-dir <gobblin-conf-dir-path> Gobblon config path. default is '\$GOBBLIN_HOME/conf/<exe-mode-name>'."
+    echo "    --log4j-conf <path-of-log4j-file>  default is '<gobblin-conf-dir-path>/<execution-mode>/log4j.properties'."
     echo "    --jvmopts <jvm or gc options>      String containing JVM flags to include, in addition to \"$JVM_OPTS\"."
     echo "    --jars <csv list of extra jars>    Column-separated list of extra jars to put on the CLASSPATH."
     echo "    --enable-gc-logs                   enables gc logs & dumps."
@@ -203,7 +203,7 @@ do
             CLUSTER_NAME="$2"
             shift
         ;;
-        --help)
+        --help )
             print_help_n_exit
         ;;
         --verbose)
@@ -364,7 +364,7 @@ function start() {
                 CLASS_N_ARGS="$YARN_CLASS"
 
             elif [[ "$GOBBLIN_MODE" = "$CLUSTER_MASTER_MODE" ]]; then
-                CLASS_N_ARGS="$CLUSTER_MASTER_CLASS --standalone_cluster true --app_name $CLUSTER_NAME --delay_start_in_sec 10"
+                CLASS_N_ARGS="$CLUSTER_MASTER_CLASS --standalone_cluster true --app_name $CLUSTER_NAME"
 
             elif [[ "$GOBBLIN_MODE" = "$SERVICE_MANAGER_MODE" ]]; then
                 CLASS_N_ARGS="$SERVICE_MANAGER_CLASS --service_name Gobblin-$SERVICE_MANAGER_MODE"
