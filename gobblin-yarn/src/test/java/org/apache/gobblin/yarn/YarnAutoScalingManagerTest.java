@@ -351,7 +351,70 @@ public class YarnAutoScalingManagerTest {
 
     runnable.run();
 
-    // 1 containers requested  to max and one worker in use
+    // 1 container requested to max and one worker in use
     Mockito.verify(mockYarnService, times(1)).requestTargetNumberOfContainers(1, ImmutableSet.of("worker1"));
+  }
+
+  /**
+   * Test suppressed exception
+   */
+  @Test
+  public void testSuppressedException() throws IOException {
+    YarnService mockYarnService = mock(YarnService.class);
+    TaskDriver mockTaskDriver = mock(TaskDriver.class);
+    WorkflowConfig mockWorkflowConfig = mock(WorkflowConfig.class);
+    JobDag mockJobDag = mock(JobDag.class);
+
+    Mockito.when(mockJobDag.getAllNodes()).thenReturn(ImmutableSet.of("job1"));
+    Mockito.when(mockWorkflowConfig.getJobDag()).thenReturn(mockJobDag);
+
+    Mockito.when(mockTaskDriver.getWorkflows())
+        .thenReturn(ImmutableMap.of("workflow1", mockWorkflowConfig));
+
+    WorkflowContext mockWorkflowContext = mock(WorkflowContext.class);
+    Mockito.when(mockWorkflowContext.getWorkflowState()).thenReturn(TaskState.IN_PROGRESS);
+
+    Mockito.when(mockTaskDriver.getWorkflowContext("workflow1")).thenReturn(mockWorkflowContext);
+
+    JobContext mockJobContext = mock(JobContext.class);
+    Mockito.when(mockJobContext.getPartitionSet())
+        .thenReturn(ImmutableSet.of(Integer.valueOf(1), Integer.valueOf(2)));
+    Mockito.when(mockJobContext.getAssignedParticipant(2)).thenReturn("worker1");
+
+    Mockito.when(mockTaskDriver.getJobContext("job1")).thenReturn(mockJobContext);
+
+    TestYarnAutoScalingRunnable runnable =
+        new TestYarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1, 1, 1);
+
+    runnable.setRaiseException(true);
+    runnable.run();
+    Mockito.verify(mockYarnService, times(0)).requestTargetNumberOfContainers(1, ImmutableSet.of("worker1"));
+
+    runnable.setRaiseException(false);
+    runnable.run();
+    // 1 container requested to max and one worker in use
+    Mockito.verify(mockYarnService, times(1)).requestTargetNumberOfContainers(1, ImmutableSet.of("worker1"));
+  }
+
+  private static class TestYarnAutoScalingRunnable extends YarnAutoScalingManager.YarnAutoScalingRunnable {
+    boolean raiseException = false;
+
+    public TestYarnAutoScalingRunnable(TaskDriver taskDriver, YarnService yarnService, int partitionsPerContainer,
+        int minContainers, int maxContainers) {
+      super(taskDriver, yarnService, partitionsPerContainer, minContainers, maxContainers);
+    }
+
+    @Override
+    void runInternal() {
+      if (this.raiseException) {
+        throw new RuntimeException("Test exception");
+      } else {
+        super.runInternal();
+      }
+    }
+
+    void setRaiseException(boolean raiseException) {
+      this.raiseException = raiseException;
+    }
   }
 }
