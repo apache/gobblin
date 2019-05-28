@@ -18,7 +18,6 @@
 package org.apache.gobblin.runtime;
 
 import java.io.IOException;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -378,13 +377,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           jobState.setState(JobState.RunningState.COMMITTED);
           isWorkUnitsEmpty = true;
           return;
-        } else {
-          if (workUnitStream.isSafeToMaterialize()) {
-            this.eventSubmitter.submit(JobEvent.WORK_UNITS_CREATED, "workUnitsCreated",
-                Long.toString(workUnitStream.getMaterializedWorkUnitCollection().size()));
-            LOG.info("Emitting WorkUnitsCreated Event Count: " + workUnitStream.getMaterializedWorkUnitCollection().size());
-          }
-
         }
 
         //Initialize writer and converter(s)
