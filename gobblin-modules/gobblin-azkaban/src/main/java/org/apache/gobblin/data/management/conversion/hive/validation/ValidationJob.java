@@ -293,7 +293,7 @@ public class ValidationJob extends AbstractJob {
 
           // Validate dataset
           log.info(String.format("Validating dataset: %s", hiveDataset));
-          if (HiveUtils.isPartitioned(hiveDataset.getTable())) {
+          if (hiveDataset.getTable().isPartitioned()) {
             processPartitionedTable(hiveDataset, client);
           } else {
             processNonPartitionedTable(hiveDataset);
