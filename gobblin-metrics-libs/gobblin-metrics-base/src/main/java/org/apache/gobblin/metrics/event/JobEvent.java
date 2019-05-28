@@ -31,6 +31,7 @@ public class JobEvent {
   public static final String LOCK_IN_USE = "LockInUse";
   public static final String WORK_UNITS_MISSING = "WorkUnitsMissing";
   public static final String WORK_UNITS_EMPTY = "WorkUnitsEmpty";
+  public static final String WORK_UNITS_CREATED = "WorkUnitsCreated";
   public static final String TASKS_SUBMITTED = "TasksSubmitted";
 
   public static final String METADATA_JOB_ID = "jobId";
