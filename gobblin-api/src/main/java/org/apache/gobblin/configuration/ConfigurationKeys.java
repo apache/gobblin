@@ -239,6 +239,7 @@ public class ConfigurationKeys {
   public static final String JOB_KEY_KEY = "job.key";
   public static final String TASK_ID_KEY = "task.id";
   public static final String TASK_KEY_KEY = "task.key";
+  public static final String TASK_START_TIME_MILLIS_KEY = "task.startTimeMillis";
   public static final String TASK_ATTEMPT_ID_KEY = "task.AttemptId";
   public static final String JOB_CONFIG_FILE_PATH_KEY = "job.config.path";
   public static final String TASK_FAILURE_EXCEPTION_KEY = "task.failure.exception";
@@ -380,6 +381,7 @@ public class ConfigurationKeys {
   public static final String DEFAULT_WRITER_FILE_PATH_TYPE = "default";
   public static final String SIMPLE_WRITER_DELIMITER = "simple.writer.delimiter";
   public static final String SIMPLE_WRITER_PREPEND_SIZE = "simple.writer.prepend.size";
+  public static final String WRITER_ADD_TASK_TIMESTAMP = WRITER_PREFIX + ".addTaskTimestamp";
 
 
   // Internal use only - used to send metadata to publisher

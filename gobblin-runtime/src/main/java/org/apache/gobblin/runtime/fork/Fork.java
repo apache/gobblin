@@ -529,9 +529,18 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
    */
   private DataWriter<Object> buildWriter()
       throws IOException {
+    String writerId = this.taskId;
+
+    // Add the task starting time if configured.
+    // This is used to reduce file name collisions which can happen due to the scheduling of a task on multiple workers.
+    // One case where this occurs is when a worker gets disconnected from a Helix cluster.
+    if (this.taskState.getPropAsBoolean(ConfigurationKeys.WRITER_ADD_TASK_TIMESTAMP, false)) {
+        writerId = this.taskId + "_" + this.taskState.getProp(ConfigurationKeys.TASK_START_TIME_MILLIS_KEY, "0");
+    }
+
     DataWriterBuilder<Object, Object> builder = this.taskContext.getDataWriterBuilder(this.branches, this.index)
         .writeTo(Destination.of(this.taskContext.getDestinationType(this.branches, this.index), this.taskState))
-        .writeInFormat(this.taskContext.getWriterOutputFormat(this.branches, this.index)).withWriterId(this.taskId)
+        .writeInFormat(this.taskContext.getWriterOutputFormat(this.branches, this.index)).withWriterId(writerId)
         .withSchema(this.convertedSchema.orNull()).withBranches(this.branches).forBranch(this.index);
     if (this.taskAttemptId.isPresent()) {
       builder.withAttemptId(this.taskAttemptId.get());
