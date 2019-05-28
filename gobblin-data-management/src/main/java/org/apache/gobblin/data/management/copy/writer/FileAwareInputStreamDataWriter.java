@@ -27,8 +27,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
-import lombok.extern.slf4j.Slf4j;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileContext;
@@ -44,6 +42,8 @@ import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.collect.Iterators;
+
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.broker.EmptyKey;
 import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
@@ -206,7 +206,8 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
   protected void writeImpl(InputStream inputStream, Path writeAt, CopyableFile copyableFile,
       FileAwareInputStream record) throws IOException {
 
-    final short replication = copyableFile.getReplication(this.fs);
+    final short replication = this.state.getPropAsShort(ConfigurationKeys.WRITER_FILE_REPLICATION_FACTOR,
+        copyableFile.getReplication(this.fs));
     final long blockSize = copyableFile.getBlockSize(this.fs);
     final long fileSize = copyableFile.getFileStatus().getLen();
 
