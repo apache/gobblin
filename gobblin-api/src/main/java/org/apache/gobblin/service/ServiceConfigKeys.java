@@ -22,7 +22,7 @@ import org.apache.gobblin.annotation.Alpha;
 @Alpha
 public class ServiceConfigKeys {
 
-  private static final String GOBBLIN_SERVICE_PREFIX = "gobblin.service.";
+  public static final String GOBBLIN_SERVICE_PREFIX = "gobblin.service.";
 
   // Gobblin Service Manager Keys
   public static final String GOBBLIN_SERVICE_TOPOLOGY_CATALOG_ENABLED_KEY = GOBBLIN_SERVICE_PREFIX + "topologyCatalog.enabled";
