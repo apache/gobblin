@@ -529,9 +529,24 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
    */
   private DataWriter<Object> buildWriter()
       throws IOException {
+    String writerId = this.taskId;
+
+    // Add the task starting time if configured.
+    // This is used to reduce file name collisions which can happen due to the execution of a workunit across multiple
+    // task instances.
+    // File names are generated from the writerId which is based on the taskId. Different instances of
+    // the task have the same taskId, so file name collisions can occur.
+    // Adding the task start time to the taskId gives a writerId that should be different across task instances.
+    if (this.taskState.getPropAsBoolean(ConfigurationKeys.WRITER_ADD_TASK_TIMESTAMP, false)) {
+      String taskStartTime = this.taskState.getProp(ConfigurationKeys.TASK_START_TIME_MILLIS_KEY);
+      Preconditions.checkArgument(taskStartTime != null, ConfigurationKeys.TASK_START_TIME_MILLIS_KEY + " has not been set");
+
+      writerId = this.taskId + "_" + taskStartTime;
+    }
+
     DataWriterBuilder<Object, Object> builder = this.taskContext.getDataWriterBuilder(this.branches, this.index)
         .writeTo(Destination.of(this.taskContext.getDestinationType(this.branches, this.index), this.taskState))
-        .writeInFormat(this.taskContext.getWriterOutputFormat(this.branches, this.index)).withWriterId(this.taskId)
+        .writeInFormat(this.taskContext.getWriterOutputFormat(this.branches, this.index)).withWriterId(writerId)
         .withSchema(this.convertedSchema.orNull()).withBranches(this.branches).forBranch(this.index);
     if (this.taskAttemptId.isPresent()) {
       builder.withAttemptId(this.taskAttemptId.get());

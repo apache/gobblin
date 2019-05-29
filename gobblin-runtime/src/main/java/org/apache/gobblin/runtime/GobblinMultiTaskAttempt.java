@@ -375,6 +375,8 @@ public class GobblinMultiTaskAttempt {
       workUnitState.setId(taskId);
       workUnitState.setProp(ConfigurationKeys.JOB_ID_KEY, this.jobId);
       workUnitState.setProp(ConfigurationKeys.TASK_ID_KEY, taskId);
+      workUnitState.setProp(ConfigurationKeys.TASK_START_TIME_MILLIS_KEY, Long.toString(System.currentTimeMillis()));
+
       if (this.containerIdOptional.isPresent()) {
         workUnitState.setProp(ConfigurationKeys.TASK_ATTEMPT_ID_KEY, this.containerIdOptional.get());
       }
