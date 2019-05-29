@@ -583,10 +583,13 @@ public class DagManager extends AbstractIdleService {
     }
 
     private void cleanUpDag(String dagId) {
-      Dag<JobExecutionPlan> dag = this.dags.get(dagId);
       this.dagToJobs.remove(dagId);
-      this.dagStateStore.cleanUp(dag);
       this.dags.remove(dagId);
+       try {
+         this.dagStateStore.cleanUp(dags.get(dagId));
+       } catch (IOException ioe) {
+         log.error(String.format("Failed to clean %s from backStore due to:", dagId), ioe);
+       }
     }
   }
 
