@@ -385,6 +385,12 @@ public class DagManager extends AbstractIdleService {
             jobExecutionPlan.setExecutionStatus(RUNNING);
             break;
         }
+
+        if (jobStatus.isShouldRetry()) {
+          log.info("Retrying job: {}, current attempts: {}, max attempts: {}", DagManagerUtils.getFullyQualifiedJobName(node),
+              jobStatus.getCurrentAttempts(), jobStatus.getMaxAttempts());
+          submitJob(node);
+        }
       }
 
       for (Map.Entry<String, Set<DagNode<JobExecutionPlan>>> entry: nextSubmitted.entrySet()) {
@@ -446,6 +452,7 @@ public class DagManager extends AbstractIdleService {
      * Submits a {@link JobSpec} to a {@link org.apache.gobblin.runtime.api.SpecExecutor}.
      */
     private void submitJob(DagNode<JobExecutionPlan> dagNode) {
+      DagManagerUtils.incrementJobAttempt(dagNode);
       JobExecutionPlan jobExecutionPlan = DagManagerUtils.getJobExecutionPlan(dagNode);
       jobExecutionPlan.setExecutionStatus(RUNNING);
       JobSpec jobSpec = DagManagerUtils.getJobSpec(dagNode);

@@ -156,4 +156,11 @@ public class DagManagerUtils {
     String failureOption = ConfigUtils.getString(getJobConfig(dagNode), ConfigurationKeys.FLOW_FAILURE_OPTION, DagManager.DEFAULT_FLOW_FAILURE_OPTION);
     return FailureOption.valueOf(failureOption);
   }
+
+  /**
+   * Increment the value of {@link JobExecutionPlan#currentAttempts}
+   */
+  static void incrementJobAttempt(DagNode<JobExecutionPlan> dagNode) {
+    dagNode.getValue().setCurrentAttempts(dagNode.getValue().getCurrentAttempts() + 1);
+  }
 }

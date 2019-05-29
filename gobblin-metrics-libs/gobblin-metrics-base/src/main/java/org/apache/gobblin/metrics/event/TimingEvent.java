@@ -71,6 +71,9 @@ public class TimingEvent {
     public static final String LOW_WATERMARK_FIELD = "lowWatermark";
     public static final String HIGH_WATERMARK_FIELD = "highWatermark";
     public static final String PROCESSED_COUNT_FIELD = "processedCount";
+    public static final String MAX_ATTEMPTS_FIELD = "maxAttempts";
+    public static final String CURRENT_ATTEMPTS_FIELD = "currentAttempts";
+    public static final String SHOULD_RETRY_FIELD = "shouldRetry";
   }
 
   public static final String METADATA_START_TIME = "startTime";
