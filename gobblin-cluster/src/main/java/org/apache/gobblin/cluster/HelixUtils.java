@@ -259,9 +259,10 @@ public class HelixUtils {
 
   /**
    * Returns the Helix Workflow Ids given {@link Iterable} of Gobblin job names. The method returns a
-   * {@link Map} from Gobblin job name to the corresponding Helix Workflow Id.
-   * @param jobNames
-   * @return a map from jobNames to Helix Workflow Ids.
+   * {@link Map} from Gobblin job name to the corresponding Helix Workflow Id. This method iterates
+   * each Helix workflow, and obtains the jobs of each workflow from its jobDag.
+   * @param jobNames a list of Gobblin job names.
+   * @return a map from jobNames to their Helix Workflow Ids.
    */
   public static Map<String, String> getWorkflowIdsFromJobNames(HelixManager helixManager, Iterable<String> jobNames) {
     Map<String, String> jobNameToWorkflowId = new HashMap<>();
