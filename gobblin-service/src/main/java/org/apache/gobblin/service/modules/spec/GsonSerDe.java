@@ -23,7 +23,6 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonSerializer;
-import com.google.gson.reflect.TypeToken;
 
 
 /**
@@ -37,24 +36,23 @@ public class GsonSerDe<T> {
   private final Gson gson;
   private final JsonSerializer<T> serializer;
   private final JsonDeserializer<T> deserializer;
-  private final Type typeToken;
+  private final Type type;
 
-  public GsonSerDe(JsonSerializer<T> serializer, JsonDeserializer<T> deserializer) {
+  public GsonSerDe(Type type, JsonSerializer<T> serializer, JsonDeserializer<T> deserializer) {
     this.serializer = serializer;
     this.deserializer = deserializer;
+    this.type = type;
 
-    typeToken = new TypeToken<T>() {
-    }.getType();
-    this.gson = new GsonBuilder().registerTypeAdapter(typeToken, serializer)
-        .registerTypeAdapter(typeToken, deserializer)
+    this.gson = new GsonBuilder().registerTypeAdapter(type, serializer)
+        .registerTypeAdapter(type, deserializer)
         .create();
   }
 
   public String serialize(T object) {
-    return gson.toJson(object, typeToken);
+    return gson.toJson(object, type);
   }
 
   public T deserialize(String serializedObject) {
-    return gson.fromJson(serializedObject, typeToken);
+    return gson.fromJson(serializedObject, type);
   }
 }

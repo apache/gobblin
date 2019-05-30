@@ -19,6 +19,7 @@ package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Type;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +31,7 @@ import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonSerializer;
+import com.google.gson.reflect.TypeToken;
 import com.typesafe.config.Config;
 
 import lombok.extern.slf4j.Slf4j;
@@ -63,7 +65,13 @@ public class FSDagStateStore implements DagStateStore {
 
     JsonSerializer<List<JobExecutionPlan>> serializer = new JobExecutionPlanListSerializer();
     JsonDeserializer<List<JobExecutionPlan>> deserializer = new JobExecutionPlanListDeserializer(topologySpecMap);
-    this.serDe = new GsonSerDe<>(serializer, deserializer);
+
+    /** {@link Type} object will need to strictly match with the generic arguments being used
+     * to define {@link GsonSerDe}
+     * Due to type erasure, the {@link Type} needs to initialized here instead of inside {@link GsonSerDe}.
+     * */
+    Type typeToken = new TypeToken<List<JobExecutionPlan>>(){}.getType();
+    this.serDe = new GsonSerDe<>(typeToken, serializer, deserializer);
   }
 
   /**
