@@ -29,8 +29,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonSerializer;
 import com.google.gson.reflect.TypeToken;
@@ -41,6 +39,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.spec.GsonSerDe;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlanDagFactory;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlanListDeserializer;
@@ -52,11 +51,8 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlanListSerializer;
 public class FSDagStateStore implements DagStateStore {
   public static final String DAG_FILE_EXTENSION = ".dag";
 
-  /** Type token for ser/de JobExecutionPlan list */
-  private static final Type LIST_JOBEXECUTIONPLAN_TYPE = new TypeToken<List<JobExecutionPlan>>(){}.getType();
-
   private final String dagCheckpointDir;
-  private final Gson gson;
+  private final GsonSerDe<List<JobExecutionPlan>> serDe;
 
   public FSDagStateStore(Config config, Map<URI, TopologySpec> topologySpecMap) throws IOException {
     this.dagCheckpointDir = config.getString(DagManager.DAG_STATESTORE_DIR);
@@ -69,8 +65,13 @@ public class FSDagStateStore implements DagStateStore {
 
     JsonSerializer<List<JobExecutionPlan>> serializer = new JobExecutionPlanListSerializer();
     JsonDeserializer<List<JobExecutionPlan>> deserializer = new JobExecutionPlanListDeserializer(topologySpecMap);
-    this.gson = new GsonBuilder().registerTypeAdapter(LIST_JOBEXECUTIONPLAN_TYPE, serializer)
-        .registerTypeAdapter(LIST_JOBEXECUTIONPLAN_TYPE, deserializer).create();
+
+    /** {@link Type} object will need to strictly match with the generic arguments being used
+     * to define {@link GsonSerDe}
+     * Due to type erasure, the {@link Type} needs to initialized here instead of inside {@link GsonSerDe}.
+     * */
+    Type typeToken = new TypeToken<List<JobExecutionPlan>>(){}.getType();
+    this.serDe = new GsonSerDe<>(typeToken, serializer, deserializer);
   }
 
   /**
@@ -136,7 +137,7 @@ public class FSDagStateStore implements DagStateStore {
    */
   private String serializeDag(Dag<JobExecutionPlan> dag) {
     List<JobExecutionPlan> jobExecutionPlanList = dag.getNodes().stream().map(Dag.DagNode::getValue).collect(Collectors.toList());
-    return gson.toJson(jobExecutionPlanList, LIST_JOBEXECUTIONPLAN_TYPE);
+    return serDe.serialize(jobExecutionPlanList);
   }
 
   /**
@@ -145,6 +146,6 @@ public class FSDagStateStore implements DagStateStore {
    * @return a {@link Dag} parametrized by {@link JobExecutionPlan}.
    */
   private Dag<JobExecutionPlan> deserializeDag(String jsonDag) {
-    return new JobExecutionPlanDagFactory().createDag(gson.fromJson(jsonDag, LIST_JOBEXECUTIONPLAN_TYPE));
+    return new JobExecutionPlanDagFactory().createDag(serDe.deserialize(jsonDag));
   }
 }
