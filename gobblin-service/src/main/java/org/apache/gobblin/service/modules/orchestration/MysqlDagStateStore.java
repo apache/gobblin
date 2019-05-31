@@ -1,24 +1,49 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.gobblin.service.modules.orchestration;
 
-import com.google.gson.JsonDeserializer;
-import com.google.gson.JsonSerializer;
-import com.typesafe.config.Config;
 import java.io.IOException;
+import java.lang.reflect.Type;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metastore.MysqlStateStore;
 import org.apache.gobblin.metastore.MysqlStateStoreFactory;
 import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.spec.GsonSerDe;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+import org.apache.gobblin.service.modules.spec.JobExecutionPlanDagFactory;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlanListDeserializer;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlanListSerializer;
 
-import static org.apache.gobblin.service.modules.orchestration.DagManagerUtils.*;
+import com.google.gson.JsonDeserializer;
+import com.google.gson.JsonSerializer;
+import com.google.gson.reflect.TypeToken;
+import com.typesafe.config.Config;
+
+import static org.apache.gobblin.service.ServiceConfigKeys.GOBBLIN_SERVICE_PREFIX;
+import static org.apache.gobblin.service.modules.orchestration.DagManagerUtils.generateFlowIdInString;
+import static org.apache.gobblin.service.modules.orchestration.DagManagerUtils.getFlowExecId;
 
 
 /**
@@ -43,37 +68,54 @@ public class MysqlDagStateStore implements DagStateStore {
   /**
    * The schema of {@link MysqlStateStore} is fixed but the columns are semantically projected into Dag's context:
    * - The 'storeName' is FlowId.
-   * - The 'tableName' is
+   * - The 'tableName' is FlowExecutionId.
    */
-  private StateStore<State> stateStore;
-  private final GaasSerDe<List<JobExecutionPlan>> serDe;
+  private MysqlStateStore<State> mysqlStateStore;
+  private final GsonSerDe<List<JobExecutionPlan>> serDe;
+  private JobExecutionPlanDagFactory jobExecPlanDagFactory;
 
-  public MysqlDagStateStore(Config config, Map<URI, TopologySpec> topologySpecMap)
-      throws IOException, ReflectiveOperationException {
+  public MysqlDagStateStore(Config config, Map<URI, TopologySpec> topologySpecMap) {
     if (config.hasPath(CONFIG_PREFIX)) {
       config = config.getConfig(CONFIG_PREFIX).withFallback(config);
     }
 
-    this.stateStore = (MysqlStateStoreFactory.class.newInstance()).createStateStore(config, State.class);
+    this.mysqlStateStore = (MysqlStateStore<State>) createStateStore(config);
 
     JsonSerializer<List<JobExecutionPlan>> serializer = new JobExecutionPlanListSerializer();
     JsonDeserializer<List<JobExecutionPlan>> deserializer = new JobExecutionPlanListDeserializer(topologySpecMap);
-    this.serDe = new GaasSerDe<>(serializer, deserializer);
+    Type typeToken = new TypeToken<List<JobExecutionPlan>>() {
+    }.getType();
+    this.serDe = new GsonSerDe<>(typeToken, serializer, deserializer);
+    this.jobExecPlanDagFactory = new JobExecutionPlanDagFactory();
+  }
+
+  /**
+   * Creating an instance of StateStore.
+   */
+  protected StateStore<State> createStateStore(Config config) {
+    try {
+      return (MysqlStateStoreFactory.class.newInstance()).createStateStore(config, State.class);
+    } catch (ReflectiveOperationException rfoe) {
+      throw new RuntimeException("A MySQL StateStore cannot be correctly initialized due to:", rfoe);
+    }
   }
 
   @Override
-  public void writeCheckpoint(Dag<JobExecutionPlan> dag) throws IOException {
-    stateStore.put(generateFlowIdInString(dag), getFlowExecId(dag) + "", convertDagIntoState(dag));
+  public void writeCheckpoint(Dag<JobExecutionPlan> dag)
+      throws IOException {
+    mysqlStateStore.put(generateFlowIdInString(dag), getFlowExecId(dag) + "", convertDagIntoState(dag));
   }
 
   @Override
-  public void cleanUp(Dag<JobExecutionPlan> dag) throws IOException {
-    stateStore.delete(generateFlowIdInString(dag), getFlowExecId(dag) + "");
+  public void cleanUp(Dag<JobExecutionPlan> dag)
+      throws IOException {
+    mysqlStateStore.delete(generateFlowIdInString(dag), getFlowExecId(dag) + "");
   }
 
   @Override
-  public List<Dag<JobExecutionPlan>> getDags() throws IOException {
-    return stateStore.getAll("%").stream().map(this::convertStateObjIntoDag).collect(Collectors.toList());
+  public List<Dag<JobExecutionPlan>> getDags()
+      throws IOException {
+    return mysqlStateStore.getAll().stream().map(this::convertStateObjIntoDag).collect(Collectors.toList());
   }
 
   /**
@@ -89,7 +131,9 @@ public class MysqlDagStateStore implements DagStateStore {
     State outputState = new State();
 
     // Make sure the object has been serialized.
-//    outputState.setProp(DAG_KEY_IN_STATE, );
+    List<JobExecutionPlan> jobExecutionPlanList =
+        dag.getNodes().stream().map(Dag.DagNode::getValue).collect(Collectors.toList());
+    outputState.setProp(DAG_KEY_IN_STATE, serDe.serialize(jobExecutionPlanList));
     return outputState;
   }
 
@@ -97,6 +141,7 @@ public class MysqlDagStateStore implements DagStateStore {
    * Get the {@link Dag} out of a {@link State} pocket.
    */
   private Dag<JobExecutionPlan> convertStateObjIntoDag(State state) {
-    return null;
+    String serializedJobExecPlanList = state.getProp(DAG_KEY_IN_STATE);
+    return jobExecPlanDagFactory.createDag(serDe.deserialize(serializedJobExecPlanList));
   }
 }
