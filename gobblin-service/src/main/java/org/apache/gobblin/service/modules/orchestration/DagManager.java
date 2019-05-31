@@ -195,19 +195,20 @@ public class DagManager extends AbstractIdleService {
   synchronized void offer(Dag<JobExecutionPlan> dag) throws IOException {
     //Persist the dag
     this.dagStateStore.writeCheckpoint(dag);
-    submitTrackingEventsForPendingJobs(dag);
+    submitEventsAndSetStatus(dag);
     //Add it to the queue of dags
     if (!this.queue.offer(dag)) {
       throw new IOException("Could not add dag" + DagManagerUtils.generateDagId(dag) + "to queue");
     }
   }
 
-  private void submitTrackingEventsForPendingJobs(Dag<JobExecutionPlan> dag) {
+  private void submitEventsAndSetStatus(Dag<JobExecutionPlan> dag) {
     if (this.eventSubmitter.isPresent()) {
       for (DagNode<JobExecutionPlan> dagNode : dag.getNodes()) {
         JobExecutionPlan jobExecutionPlan = DagManagerUtils.getJobExecutionPlan(dagNode);
         Map<String, String> jobMetadata = TimingEventUtils.getJobMetadata(Maps.newHashMap(), jobExecutionPlan);
         this.eventSubmitter.get().getTimingEvent(TimingEvent.LauncherTimings.JOB_PENDING).stop(jobMetadata);
+        jobExecutionPlan.setExecutionStatus(PENDING);
       }
     }
   }
@@ -355,8 +356,7 @@ public class DagManager extends AbstractIdleService {
       //Are there any jobs already in the running state? This check is for Dags already running
       //before a leadership change occurs.
       for (DagNode<JobExecutionPlan> dagNode : dag.getNodes()) {
-        if (DagManagerUtils.getExecutionStatus(dagNode) == RUNNING ||
-            DagManagerUtils.getExecutionStatus(dagNode) == PENDING) {
+        if (DagManagerUtils.getExecutionStatus(dagNode) == RUNNING) {
           addJobState(dagId, dagNode);
         }
       }
@@ -399,6 +399,9 @@ public class DagManager extends AbstractIdleService {
             jobExecutionPlan.setExecutionStatus(FAILED);
             nextSubmitted.putAll(onJobFinish(node));
             nodesToCleanUp.add(node);
+            break;
+          case PENDING:
+            jobExecutionPlan.setExecutionStatus(PENDING);
             break;
           default:
             jobExecutionPlan.setExecutionStatus(RUNNING);
