@@ -63,17 +63,17 @@ public class FsSpecProducer implements SpecProducer<Spec> {
    * @param addedSpec*/
   @Override
   public Future<?> addSpec(Spec addedSpec) {
-    return addSpec(addedSpec, SpecExecutor.Verb.ADD);
+    return writeSpec(addedSpec, SpecExecutor.Verb.ADD);
   }
 
   /** Update a {@link Spec} being executed on {@link org.apache.gobblin.runtime.api.SpecExecutor}.
    * @param updatedSpec*/
   @Override
   public Future<?> updateSpec(Spec updatedSpec) {
-    return addSpec(updatedSpec, SpecExecutor.Verb.UPDATE);
+    return writeSpec(updatedSpec, SpecExecutor.Verb.UPDATE);
   }
 
-  private Future<?> addSpec(Spec spec, SpecExecutor.Verb verb) {
+  private Future<?> writeSpec(Spec spec, SpecExecutor.Verb verb) {
     if (spec instanceof JobSpec) {
       try {
         AvroJobSpec avroJobSpec = convertToAvroJobSpec((JobSpec) spec, verb);
