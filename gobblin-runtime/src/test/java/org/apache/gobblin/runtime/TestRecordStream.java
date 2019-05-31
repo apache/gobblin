@@ -51,6 +51,7 @@ import org.apache.gobblin.records.ControlMessageHandler;
 import org.apache.gobblin.records.FlushControlMessageHandler;
 import org.apache.gobblin.records.RecordStreamProcessor;
 import org.apache.gobblin.records.RecordStreamWithMetadata;
+import org.apache.gobblin.runtime.util.TaskMetrics;
 import org.apache.gobblin.source.extractor.Extractor;
 import org.apache.gobblin.source.workunit.Extract;
 import org.apache.gobblin.source.workunit.WorkUnit;
@@ -142,7 +143,7 @@ public class TestRecordStream {
     Assert.assertNotNull(error);
 
     task.commit();
-    Assert.assertEquals(task.getTaskState().getWorkingState(), WorkUnitState.WorkingState.SUCCESSFUL);
+    Assert.assertEquals(task.getTaskState().getWorkingState(), WorkUnitState.WorkingState.FAILED);
 
     Assert.assertEquals(converter.records, Lists.newArrayList("a", "b"));
     Assert.assertEquals(converter.messages, Lists.newArrayList(
@@ -335,6 +336,7 @@ public class TestRecordStream {
     when(mockTaskContext.getRowLevelPolicyChecker(anyInt())).
         thenReturn(new RowLevelPolicyChecker(Lists.newArrayList(), "ss", FileSystem.getLocal(new Configuration())));
     when(mockTaskContext.getDataWriterBuilder(anyInt(), anyInt())).thenReturn(writer);
+    when(mockTaskContext.getTaskMetrics()).thenReturn(TaskMetrics.get(taskState));
 
     // Create a mock TaskPublisher
     TaskPublisher mockTaskPublisher = mock(TaskPublisher.class);

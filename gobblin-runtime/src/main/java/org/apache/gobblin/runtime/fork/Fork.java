@@ -207,7 +207,11 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
     }));
     stream = stream.mapStream(s -> s.doOnSubscribe(subscription -> onStart()));
     stream = stream.mapStream(s -> s.doOnComplete(() -> verifyAndSetForkState(ForkState.RUNNING, ForkState.SUCCEEDED)));
-    stream = stream.mapStream(s -> s.doOnCancel(() -> verifyAndSetForkState(ForkState.RUNNING, ForkState.SUCCEEDED)));
+    stream = stream.mapStream(s -> s.doOnCancel(() -> {
+      // Errors don't propagate up from below the fork, but cancel the stream, so use the failed state to indicate that
+      // the fork failed to complete, which will then fail the task.
+      verifyAndSetForkState(ForkState.RUNNING, ForkState.FAILED);
+    }));
     stream = stream.mapStream(s -> s.doOnError(exc -> {
       verifyAndSetForkState(ForkState.RUNNING, ForkState.FAILED);
       this.logger.error(String.format("Fork %d of task %s failed to process data records", this.index, this.taskId), exc);
