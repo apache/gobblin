@@ -284,8 +284,8 @@ public class HelixUtils {
             if (!jobNameToWorkflowId.containsKey(jobName)) {
               jobNameToWorkflowId.put(jobName, workflow);
             } else {
-              String workflowId = jobNameToWorkflowId.get(jobName);
-              log.warn("JobName {} previously found to have WorkflowId {}; found " + " a different WorkflowId {} for the job; Skipping this entry", jobName, workflowId);
+              log.warn("JobName {} previously found to have WorkflowId {}; found " + " a different WorkflowId {} for the job; "
+                  + "Skipping this entry", jobName, jobNameToWorkflowId.get(jobName), workflow);
             }
             break;
           }
