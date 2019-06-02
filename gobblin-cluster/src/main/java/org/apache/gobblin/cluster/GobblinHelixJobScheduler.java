@@ -18,7 +18,9 @@
 package org.apache.gobblin.cluster;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
@@ -361,9 +363,16 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     if (PropertiesUtils.getPropAsBoolean(jobConfig, GobblinClusterConfigurationKeys.CANCEL_RUNNING_JOB_ON_DELETE,
         GobblinClusterConfigurationKeys.DEFAULT_CANCEL_RUNNING_JOB_ON_DELETE)) {
       LOGGER.info("Cancelling workflow: {}", deleteJobArrival.getJobName());
-      TaskDriver taskDriver = new TaskDriver(this.jobHelixManager);
-      taskDriver.waitToStop(deleteJobArrival.getJobName(), this.helixJobStopTimeoutMillis);
-      LOGGER.info("Stopped workflow: {}", deleteJobArrival.getJobName());
+      Map<String, String> jobNameToWorkflowIdMap = HelixUtils.getWorkflowIdsFromJobNames(this.jobHelixManager,
+          Collections.singletonList(deleteJobArrival.getJobName()));
+      if (jobNameToWorkflowIdMap.containsKey(deleteJobArrival.getJobName())) {
+        String workflowId = jobNameToWorkflowIdMap.get(deleteJobArrival.getJobName());
+        TaskDriver taskDriver = new TaskDriver(this.jobHelixManager);
+        taskDriver.waitToStop(workflowId, this.helixJobStopTimeoutMillis);
+        LOGGER.info("Stopped workflow: {}", deleteJobArrival.getJobName());
+      } else {
+        LOGGER.warn("Could not find Helix Workflow Id for job: {}", deleteJobArrival.getJobName());
+      }
     }
   }
   /**

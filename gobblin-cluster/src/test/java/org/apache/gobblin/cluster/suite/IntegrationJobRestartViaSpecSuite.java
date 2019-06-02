@@ -54,6 +54,7 @@ import org.apache.gobblin.util.ConfigUtils;
 
 public class IntegrationJobRestartViaSpecSuite extends IntegrationJobCancelSuite {
   public static final String JOB_ID = "job_HelloWorldTestJob_1235";
+  public static final String JOB_NAME = "HelloWorldTestJob";
   public static final String JOB_CATALOG_DIR = "/tmp/IntegrationJobCancelViaSpecSuite/jobCatalog";
   public static final String FS_SPEC_CONSUMER_DIR = "/tmp/IntegrationJobCancelViaSpecSuite/jobSpecs";
   public static final String TASK_STATE_FILE = "/tmp/IntegrationJobCancelViaSpecSuite/taskState/_RUNNING";
@@ -79,7 +80,7 @@ public class IntegrationJobRestartViaSpecSuite extends IntegrationJobCancelSuite
               ConfigurationKeys.JOB_ID_KEY, JOB_ID,
               GobblinClusterConfigurationKeys.HELIX_JOB_TIMEOUT_ENABLED_KEY, Boolean.TRUE,
               GobblinClusterConfigurationKeys.HELIX_JOB_TIMEOUT_SECONDS, 100L,
-              ConfigurationKeys.JOB_NAME_KEY, JOB_ID));
+              ConfigurationKeys.JOB_NAME_KEY, JOB_NAME));
 
       newConfig = newConfig.withValue(SleepingTask.TASK_STATE_FILE_KEY, ConfigValueFactory.fromAnyRef(TASK_STATE_FILE));
       newConfig = newConfig.withFallback(rawJobConfig);
