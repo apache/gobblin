@@ -44,6 +44,7 @@ import org.apache.gobblin.writer.FineGrainedWatermarkTracker;
 import org.apache.gobblin.writer.WatermarkManager;
 import org.apache.gobblin.writer.WatermarkStorage;
 
+import io.reactivex.Flowable;
 import io.reactivex.flowables.ConnectableFlowable;
 import io.reactivex.schedulers.Schedulers;
 import lombok.AllArgsConstructor;
@@ -80,8 +81,14 @@ public class StreamModelTaskRunner {
     ForkOperator forkOperator = closer.register(this.taskContext.getForkOperator());
 
     RecordStreamWithMetadata<?, ?> stream = this.extractor.recordStream(this.shutdownRequested);
+    // This prevents emitting records until a connect() call is made on the connectable stream
     ConnectableFlowable connectableStream = stream.getRecordStream().publish();
-    stream = stream.withRecordStream(connectableStream);
+
+    // The cancel is not propagated to the extractor's record generator when it has been turned into a hot Flowable
+    // by publish, so set the shutdownRequested flag on cancel to stop the extractor
+    Flowable streamWithShutdownOnCancel = connectableStream.doOnCancel(() -> this.shutdownRequested.set(true));
+
+    stream = stream.withRecordStream(streamWithShutdownOnCancel);
 
     stream = stream.mapRecords(r -> {
       this.task.onRecordExtract();
