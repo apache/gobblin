@@ -17,16 +17,10 @@
 package org.apache.gobblin.cluster;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
-import org.apache.avro.file.DataFileWriter;
-import org.apache.avro.io.DatumWriter;
-import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -45,12 +39,13 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.FsSpecConsumer;
+import org.apache.gobblin.runtime.api.FsSpecProducer;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.JobSpecNotFoundException;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
 import org.apache.gobblin.runtime.api.SpecExecutor;
+import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.runtime.job_catalog.NonObservingFSJobCatalog;
-import org.apache.gobblin.runtime.job_spec.AvroJobSpec;
 
 @Slf4j
 public class FsScheduledJobConfigurationManagerTest {
@@ -62,6 +57,7 @@ public class FsScheduledJobConfigurationManagerTest {
   private String jobSpecUriString = "testJobSpec";
 
   private FileSystem fs;
+  private SpecProducer _specProducer;
 
   @BeforeClass
   public void setUp() throws IOException {
@@ -73,38 +69,43 @@ public class FsScheduledJobConfigurationManagerTest {
 
     EventBus eventBus = new EventBus(FsScheduledJobConfigurationManagerTest.class.getSimpleName());
     Config config = ConfigFactory.empty()
-        .withValue(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, ConfigValueFactory.fromAnyRef(jobConfDir));
+        .withValue(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, ConfigValueFactory.fromAnyRef(jobConfDir))
+        .withValue(GobblinClusterConfigurationKeys.SPEC_CONSUMER_CLASS_KEY, ConfigValueFactory.fromAnyRef(FsSpecConsumer.class.getName()))
+        .withValue(FsSpecConsumer.SPEC_PATH_KEY, ConfigValueFactory.fromAnyRef(fsSpecConsumerPathString));
+
     this._jobCatalog = new NonObservingFSJobCatalog(config);
     ((NonObservingFSJobCatalog) this._jobCatalog).startAsync().awaitRunning();
 
-    Config jobConfigurationManagerConfig = ConfigFactory.empty()
-        .withValue(GobblinClusterConfigurationKeys.SPEC_CONSUMER_CLASS_KEY, ConfigValueFactory.fromAnyRef(FsSpecConsumer.class.getName()))
-        .withValue(FsSpecConsumer.SPEC_PATH_KEY, ConfigValueFactory.fromAnyRef(fsSpecConsumerPathString));
-    jobConfigurationManager = new FsScheduledJobConfigurationManager(eventBus, jobConfigurationManagerConfig, this._jobCatalog);
+    jobConfigurationManager = new FsScheduledJobConfigurationManager(eventBus, config, this._jobCatalog);
+
+    _specProducer = new FsSpecProducer(config);
   }
 
-  private void addJobSpec(String jobSpecName, String version, String verb) throws IOException {
-    Map<String, String> metadataMap = new HashMap<>();
-    metadataMap.put(FsSpecConsumer.VERB_KEY, verb);
+  private void addJobSpec(String jobSpecName, String version, String verb)
+      throws URISyntaxException, IOException {
+    JobSpec jobSpec =
+        JobSpec.builder(new URI(Files.getNameWithoutExtension(jobSpecName)))
+            .withConfig(ConfigFactory.empty())
+            .withTemplate(new URI("FS:///"))
+            .withVersion(version)
+            .withDescription("test")
+            .build();
 
-    AvroJobSpec jobSpec = AvroJobSpec.newBuilder().
-        setUri(Files.getNameWithoutExtension(jobSpecName)).
-        setProperties(new HashMap<>()).
-        setTemplateUri("FS:///").
-        setDescription("test").
-        setVersion(version).
-        setMetadata(metadataMap).build();
+    SpecExecutor.Verb enumVerb = SpecExecutor.Verb.valueOf(verb);
 
-    DatumWriter<AvroJobSpec> datumWriter = new SpecificDatumWriter<>(AvroJobSpec.SCHEMA$);
-    DataFileWriter<AvroJobSpec> dataFileWriter = new DataFileWriter<>(datumWriter);
-
-    Path fsSpecConsumerPath = new Path(fsSpecConsumerPathString, jobSpecName);
-    FileSystem fs = fsSpecConsumerPath.getFileSystem(new Configuration());
-    OutputStream out = fs.create(fsSpecConsumerPath);
-
-    dataFileWriter.create(AvroJobSpec.SCHEMA$, out);
-    dataFileWriter.append(jobSpec);
-    dataFileWriter.close();
+    switch (enumVerb) {
+      case ADD:
+        _specProducer.addSpec(jobSpec);
+        break;
+      case DELETE:
+        _specProducer.deleteSpec(jobSpec.getUri());
+        break;
+      case UPDATE:
+        _specProducer.updateSpec(jobSpec);
+        break;
+      default:
+        throw new IOException("Unknown Spec Verb: " + verb);
+    }
   }
 
   @Test (expectedExceptions = {JobSpecNotFoundException.class})
