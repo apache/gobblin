@@ -142,7 +142,7 @@ public class JsonElementConversionFactory {
         return new BooleanConverter(schemaNode);
 
       case ARRAY:
-        return new ArrayConverter(schemaNode, state);
+        return new ArrayConverter(schemaNode, state, namespace);
 
       case MAP:
         return new MapConverter(schemaNode, state);
@@ -501,7 +501,7 @@ public class JsonElementConversionFactory {
       return this.elementConverter;
     }
 
-    protected void processNestedItems(JsonSchema schema, WorkUnitState state)
+    protected void processNestedItems(JsonSchema schema, WorkUnitState state, String namespace)
         throws UnsupportedDateTypeException {
       JsonSchema nestedItem = null;
       if (schema.isType(ARRAY)) {
@@ -510,16 +510,16 @@ public class JsonElementConversionFactory {
       if (schema.isType(MAP)) {
         nestedItem = schema.getValuesWithinDataType();
       }
-      this.setElementConverter(getConvertor(nestedItem, null, state));
+      this.setElementConverter(getConvertor(nestedItem, namespace, state));
     }
   }
 
   public static class ArrayConverter extends ComplexConverter {
 
-    public ArrayConverter(JsonSchema schema, WorkUnitState state)
+    public ArrayConverter(JsonSchema schema, WorkUnitState state, String namespace)
         throws UnsupportedDateTypeException {
       super(schema);
-      processNestedItems(schema, state);
+      processNestedItems(schema, state, namespace);
     }
 
     @Override
@@ -558,7 +558,7 @@ public class JsonElementConversionFactory {
     public MapConverter(JsonSchema schema, WorkUnitState state)
         throws UnsupportedDateTypeException {
       super(schema);
-      processNestedItems(schema, state);
+      processNestedItems(schema, state, null);
     }
 
     @Override
