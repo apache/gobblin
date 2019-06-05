@@ -97,7 +97,8 @@ public class FsJobConfigurationManagerTest {
     Config config = ConfigFactory.empty()
         .withValue(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, ConfigValueFactory.fromAnyRef(jobConfDir))
         .withValue(GobblinClusterConfigurationKeys.SPEC_CONSUMER_CLASS_KEY, ConfigValueFactory.fromAnyRef(FsSpecConsumer.class.getName()))
-        .withValue(FsSpecConsumer.SPEC_PATH_KEY, ConfigValueFactory.fromAnyRef(fsSpecConsumerPathString));
+        .withValue(FsSpecConsumer.SPEC_PATH_KEY, ConfigValueFactory.fromAnyRef(fsSpecConsumerPathString))
+        .withValue(GobblinClusterConfigurationKeys.JOB_SPEC_REFRESH_INTERVAL, ConfigValueFactory.fromAnyRef(1));
 
     this._jobCatalog = new NonObservingFSJobCatalog(config);
     ((NonObservingFSJobCatalog) this._jobCatalog).startAsync().awaitRunning();
@@ -185,6 +186,23 @@ public class FsJobConfigurationManagerTest {
     Assert.assertEquals(newJobConfigArrivalEventCount, 1);
     Assert.assertEquals(updateJobConfigArrivalEventCount, 1);
     Assert.assertEquals(deleteJobConfigArrivalEventCount, 1);
+  }
+
+  @Test
+  public void testException()
+      throws Exception {
+    FsJobConfigurationManager jobConfigurationManager = Mockito.spy(this.jobConfigurationManager);
+    Mockito.doThrow(new ExecutionException(new IOException("Test exception"))).when(jobConfigurationManager).fetchJobSpecs();
+
+    jobConfigurationManager.startUp();
+    Mockito.verify(jobConfigurationManager, Mockito.times(1)).fetchJobSpecs();
+
+    Thread.sleep(1000);
+
+    //Verify that there are no new invocations of fetchJobSpecs()
+    Mockito.verify(jobConfigurationManager, Mockito.times(1)).fetchJobSpecs();
+    //Ensure that the JobConfigurationManager Service is not running.
+    Assert.assertFalse(jobConfigurationManager.isRunning());
   }
 
   @AfterClass

@@ -79,10 +79,8 @@ public class FsJobConfigurationManager extends JobConfigurationManager {
 
     this.aliasResolver = new ClassAliasResolver<>(SpecConsumer.class);
     try {
-      String specConsumerClassName = GobblinClusterConfigurationKeys.DEFAULT_SPEC_CONSUMER_CLASS;
-      if (config.hasPath(GobblinClusterConfigurationKeys.SPEC_CONSUMER_CLASS_KEY)) {
-        specConsumerClassName = config.getString(GobblinClusterConfigurationKeys.SPEC_CONSUMER_CLASS_KEY);
-      }
+      String specConsumerClassName = ConfigUtils.getString(config, GobblinClusterConfigurationKeys.SPEC_CONSUMER_CLASS_KEY,
+          GobblinClusterConfigurationKeys.DEFAULT_SPEC_CONSUMER_CLASS);
       log.info("Using SpecConsumer ClassNameclass name/alias " + specConsumerClassName);
       this._specConsumer = (SpecConsumer) ConstructorUtils
           .invokeConstructor(Class.forName(this.aliasResolver.resolve(specConsumerClassName)), config);
