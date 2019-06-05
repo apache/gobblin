@@ -1,0 +1,49 @@
+{
+  "metaData": {
+    "id": "12345",
+    "url": "https://www.domain.com",
+    "title": "title 1",
+    "scheduled": "2019-04-14T20:00:00-07:00",
+    "started": "2019-04-14T19:45:07.596-07:00",
+    "duration": 3893,
+    "primaryUserId": "123456",
+    "direction": "Conference",
+    "system": "BlueJeans",
+    "scope": "External",
+    "media": "Video",
+    "language": "eng"
+  },
+  "context": [{
+    "system": "System 1",
+    "objects": [{
+      "objectType": "Opportunity",
+      "objectId": "abcdefg",
+      "fields": [{
+        "name": "Type",
+        "value": "New Business"
+      }, {
+        "name": "StageName",
+        "value": "Closed Won - Pending Delivery"
+      }, {
+        "name": "CloseDate",
+        "value": "2019-01-01"
+      }, {
+        "name": "Name",
+        "value": "University 1"
+      }]
+    }, {
+      "objectType": "Account",
+      "objectId": "defghijk",
+      "fields": [{
+        "name": "Industry",
+        "value": "Higher Education"
+      }, {
+        "name": "Website",
+        "value": "www.domain.com"
+      }, {
+        "name": "Name",
+        "value": "University 2"
+      }]
+    }]
+  }]
+}
