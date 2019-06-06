@@ -36,6 +36,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 
+import avro.shaded.com.google.common.collect.Maps;
 import javax.annotation.Nonnull;
 import lombok.Getter;
 import lombok.Setter;
@@ -46,6 +47,7 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.instrumented.Instrumentable;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.RootMetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.metrics.event.EventSubmitter;
@@ -97,6 +99,8 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   private FlowStatusGenerator flowStatusGenerator;
 
   private final ClassAliasResolver<SpecCompiler> aliasResolver;
+
+  private Map<String, FlowCompiledState> flowGauges = Maps.newHashMap();
 
   public Orchestrator(Config config, Optional<TopologyCatalog> topologyCatalog, Optional<DagManager> dagManager, Optional<Logger> log,
       boolean instrumentationEnabled) {
@@ -223,25 +227,27 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
           ? this.eventSubmitter.get().getTimingEvent(TimingEvent.FlowTimings.FLOW_COMPILED)
           : null;
 
-      //If the FlowSpec disallows concurrent executions, then check if another instance of the flow is already
-      //running. If so, return immediately.
       Config flowConfig = ((FlowSpec) spec).getConfig();
       String flowGroup = flowConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
       String flowName = flowConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
+
+      if (!flowGauges.containsKey(spec.getUri().toString())) {
+        String flowCompiledGaugeName = MetricRegistry.name(MetricReportUtils.GOBBLIN_SERVICE_METRICS_PREFIX, flowGroup, flowName, ServiceMetricNames.COMPILED);
+        flowGauges.put(spec.getUri().toString(), new FlowCompiledState());
+        RootMetricContext.get().newContextAwareGauge(flowCompiledGaugeName, () -> flowGauges.get(spec.getUri().toString()).state.value);
+      }
+
+      //If the FlowSpec disallows concurrent executions, then check if another instance of the flow is already
+      //running. If so, return immediately.
       boolean allowConcurrentExecution = ConfigUtils.getBoolean(flowConfig, ConfigurationKeys.FLOW_ALLOW_CONCURRENT_EXECUTION, true);
 
       if (!canRun(flowName, flowGroup, allowConcurrentExecution)) {
         _log.warn("Another instance of flowGroup: {}, flowName: {} running; Skipping flow execution since "
             + "concurrent executions are disabled for this flow.", flowGroup, flowName);
-        // We send a gauge with value 0 signifying that the flow could not be compiled because previous execution is already running
-        metricContext.newContextAwareGauge(
-            MetricRegistry.name(MetricReportUtils.GOBBLIN_SERVICE_METRICS_PREFIX, flowGroup, flowName, ServiceMetricNames.COMPILED),
-            () -> 0L);
+        flowGauges.get(spec.getUri().toString()).setState(CompiledState.FAILED);
         return;
       } else {
-        metricContext.newContextAwareGauge(
-            MetricRegistry.name(MetricReportUtils.GOBBLIN_SERVICE_METRICS_PREFIX, flowGroup, flowName, ServiceMetricNames.COMPILED),
-            () -> 1L);
+        flowGauges.get(spec.getUri().toString()).setState(CompiledState.SUCCESSFUL);
       }
 
       Dag<JobExecutionPlan> jobExecutionPlanDag = specCompiler.compileFlow(spec);
@@ -402,5 +408,21 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   @Override
   public void switchMetricContext(MetricContext context) {
     throw new UnsupportedOperationException();
+  }
+
+  @Setter
+  private class FlowCompiledState {
+    private CompiledState state = CompiledState.UNKNOWN;
+  }
+  private enum CompiledState {
+    FAILED(-1),
+    UNKNOWN(0),
+    SUCCESSFUL(1);
+
+    public int value;
+
+    CompiledState(int value) {
+      this.value = value;
+    }
   }
 }

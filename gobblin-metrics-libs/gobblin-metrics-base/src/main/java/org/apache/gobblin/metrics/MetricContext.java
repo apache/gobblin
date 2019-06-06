@@ -515,7 +515,9 @@ public class MetricContext extends MetricRegistry implements ReportableContext, 
    * @return a new {@link ContextAwareGauge}
    */
   public <T> ContextAwareGauge<T> newContextAwareGauge(String name, Gauge<T> gauge) {
-    return new ContextAwareGauge<T>(this, name, gauge);
+    ContextAwareGauge<T> newContextAwareGauge = new ContextAwareGauge<>(innerMetricContext.getMetricContext().get(), name, gauge);
+    this.innerMetricContext.register(name, newContextAwareGauge);
+    return newContextAwareGauge;
   }
 
   /**
