@@ -55,6 +55,9 @@ import org.apache.gobblin.runtime.api.SpecStore;
  * supported, so the version parameter will be ignored in methods that have it.
  *
  * A tag column is added into implementation to serve certain filtering purposes in MySQL-based SpecStore.
+ * For example, in DR mode of GaaS, we would only want certain {@link Spec}s to be eligible for orchestrated
+ * by alternative GaaS instances. Another example is whitelisting/blacklisting {@link Spec}s temporarily
+ * but not removing it from {@link SpecStore}.
  */
 @Slf4j
 public class MysqlSpecStore implements SpecStore {

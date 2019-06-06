@@ -113,6 +113,16 @@ public interface SpecStore {
    */
   Iterator<URI> getSpecURIs() throws IOException;
 
+  /**
+   * Return an iterator of Spec URIS with certain tag.
+   * Tag can be an implementation details, but provide an example here with {@link org.apache.gobblin.runtime.spec_store.MysqlSpecStore}:
+   * We could add Tag field in MySQL table, it stores value for convenience of filtering in Mysql statement level:
+   * Select * from <TABLE> Where tag == ?
+   *
+   * This type of filtering will be needed when we want to opt-out some specs in loading, or we want to only
+   * whitelist several specs in loading, etc.
+   *
+   */
   Iterator<URI> getSpecURIsWithTag(String tag) throws IOException;
 
   /**

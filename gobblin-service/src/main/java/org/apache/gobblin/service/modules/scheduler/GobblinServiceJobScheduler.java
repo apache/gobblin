@@ -93,7 +93,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
    * e.g. There are multi-datacenter deployment of GaaS Cluster. Intra-datacenter fail-over could be handled by
    * leadership change mechanism, while inter-datacenter fail-over would be handled by DR handling mechanism.
    */
-  private boolean isNominatedDRHanlder;
+  private boolean isNominatedDRHandler;
 
   /**
    * Use this to tag all DR-applicable FlowSpec entries in {@link org.apache.gobblin.runtime.api.SpecStore}
@@ -112,7 +112,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     this.helixManager = helixManager;
     this.orchestrator = orchestrator;
     this.scheduledFlowSpecs = Maps.newHashMap();
-    this.isNominatedDRHanlder = config.hasPath(GOBBLIN_SERVICE_SCHEDULER_DR_NOMINATED)
+    this.isNominatedDRHandler = config.hasPath(GOBBLIN_SERVICE_SCHEDULER_DR_NOMINATED)
         && config.hasPath(GOBBLIN_SERVICE_SCHEDULER_DR_NOMINATED);
   }
 
@@ -168,7 +168,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       specUris = this.flowCatalog.get().getSpecURIs();
 
       // If current instances nominated as DR handler, will take additional URIS from FlowCatalog.
-      if (isNominatedDRHanlder) {
+      if (isNominatedDRHandler) {
         // Synchronously cleaning the execution state for DR-applicable FlowSpecs
         // before rescheduling the again in nominated DR-Hanlder.
         Iterator<URI> drUris = this.flowCatalog.get().getSpecURISWithTag(DR_FILTER_TAG);

@@ -265,8 +265,7 @@ public class FSSpecStore implements SpecStore {
 
   @Override
   public Iterator<URI> getSpecURIsWithTag(String tag) throws IOException {
-    log.error("getSpecURISWithTag is not supported in " + this.getClass().getName());
-    return this.getSpecURIs();
+    throw new UnsupportedOperationException("Loading specs with tag is not supported in FS-Implementation of SpecStore");
   }
 
   @Override
