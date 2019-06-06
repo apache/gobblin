@@ -195,10 +195,12 @@ public class FsJobConfigurationManagerTest {
     Mockito.doThrow(new ExecutionException(new IOException("Test exception"))).when(jobConfigurationManager).fetchJobSpecs();
 
     jobConfigurationManager.startUp();
+
+    //Add wait to ensure that fetchJobSpecExecutor thread is scheduled at least once.
+    Thread.sleep(2000);
     Mockito.verify(jobConfigurationManager, Mockito.times(1)).fetchJobSpecs();
 
-    Thread.sleep(1000);
-
+    Thread.sleep(2000);
     //Verify that there are no new invocations of fetchJobSpecs()
     Mockito.verify(jobConfigurationManager, Mockito.times(1)).fetchJobSpecs();
     //Ensure that the JobConfigurationManager Service is not running.
