@@ -126,6 +126,8 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
 
   private final boolean isStandaloneMode;
 
+  private final boolean cleanUpJobsOnStartup;
+
   @Getter
   protected GobblinHelixMultiManager multiManager;
   @Getter
@@ -145,6 +147,8 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
     this.config = config;
     this.isStandaloneMode = ConfigUtils.getBoolean(config, GobblinClusterConfigurationKeys.STANDALONE_CLUSTER_MODE_KEY,
         GobblinClusterConfigurationKeys.DEFAULT_STANDALONE_CLUSTER_MODE);
+    this.cleanUpJobsOnStartup = ConfigUtils.getBoolean(config, GobblinClusterConfigurationKeys.CLEAN_UP_JOBS_ON_MANAGER_START,
+        GobblinClusterConfigurationKeys.DEFAULT_CLEAN_UP_JOBS_ON_MANAGER_START);
 
     this.applicationId = applicationId;
 
@@ -263,6 +267,12 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
 
     this.eventBus.register(this);
     this.multiManager.connect();
+
+    // Standalone mode registers a handler to clean up on leadership change, so don't do the cleanup
+    // now even if the option to clean up on startup is set.
+    if (this.cleanUpJobsOnStartup && !this.isStandaloneMode) {
+      this.multiManager.cleanUpJobs();
+    }
 
     configureHelixQuotaBasedTaskScheduling();
 

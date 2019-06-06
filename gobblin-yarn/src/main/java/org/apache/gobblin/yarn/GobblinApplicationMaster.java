@@ -44,9 +44,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.Service;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 
 import lombok.Getter;
 
@@ -81,7 +83,10 @@ public class GobblinApplicationMaster extends GobblinClusterManager {
   public GobblinApplicationMaster(String applicationName, ContainerId containerId, Config config,
       YarnConfiguration yarnConfiguration) throws Exception {
     super(applicationName, containerId.getApplicationAttemptId().getApplicationId().toString(),
-        GobblinClusterUtils.addDynamicConfig(config), Optional.<Path>absent());
+        GobblinClusterUtils.addDynamicConfig(config)
+        .withFallback(ConfigFactory.parseMap(
+            ImmutableMap.of(GobblinClusterConfigurationKeys.CLEAN_UP_JOBS_ON_MANAGER_START, "true"))),
+        Optional.<Path>absent());
 
     GobblinYarnLogSource gobblinYarnLogSource = new GobblinYarnLogSource();
     if (gobblinYarnLogSource.isLogSourcePresent()) {
@@ -110,7 +115,7 @@ public class GobblinApplicationMaster extends GobblinClusterManager {
   /**
    * Build the {@link YarnService} for the Application Master.
    */
-  private YarnService buildYarnService(Config config, String applicationName, String applicationId,
+  protected YarnService buildYarnService(Config config, String applicationName, String applicationId,
       YarnConfiguration yarnConfiguration, FileSystem fs)
       throws Exception {
     return new YarnService(config, applicationName, applicationId, yarnConfiguration, fs, this.eventBus);
