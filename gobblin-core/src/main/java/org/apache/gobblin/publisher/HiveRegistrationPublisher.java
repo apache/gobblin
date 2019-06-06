@@ -19,21 +19,20 @@ package org.apache.gobblin.publisher;
 
 import java.io.IOException;
 import java.util.Collection;
-import java.util.Set;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletionService;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.hadoop.fs.Path;
 
 import com.codahale.metrics.Timer;
 import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
-import com.google.common.collect.Sets;
+import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
 
 import org.apache.gobblin.annotation.Alias;
@@ -69,7 +68,6 @@ import lombok.extern.slf4j.Slf4j;
 @Alias("hivereg")
 public class HiveRegistrationPublisher extends DataPublisher {
 
-  private static final String DATA_PUBLISH_TIME = HiveRegistrationPublisher.class.getName() + ".lastDataPublishTime";
   private static final Splitter LIST_SPLITTER_COMMA = Splitter.on(",").trimResults().omitEmptyStrings();
   public static final String HIVE_SPEC_COMPUTATION_TIMER = "hiveSpecComputationTimer";
   private static final String PATH_DEDUPE_ENABLED = "hive.registration.path.dedupe.enabled";
@@ -91,10 +89,19 @@ public class HiveRegistrationPublisher extends DataPublisher {
   private boolean isPathDedupeEnabled;
 
   /**
-   * Make the deduplication of path to be registered in the Publisher level,
-   * So that each invocation of {@link #publishData(Collection)} contribute paths registered to this set.
+   * This map serves two purpose:
+   * 1. Make the deduplication of path to be registered in the publisher level,
+   * so that each invocation of {@link #publishData(Collection)} contribute paths registered to this set.
+   *
+   * 2. Other than registering a path, there are certain metadata that will be included in hiveObject like numRecords
+   * in a partition.
+   *
+   * Key: The path to be registered.
+   * Value: Number of records contained in the partition whose underlying path is the key.
    */
-  private static Set<String> pathsToRegisterFromSingleState = Sets.newHashSet();
+  Map<String, Long> pathToRecordCount = Maps.newHashMap();
+
+  public static final String PARTITION_RECORD_COUNT = "recordCount";
 
   /**
    * @param state This is a Job State
@@ -153,12 +160,16 @@ public class HiveRegistrationPublisher extends DataPublisher {
         }
 
         final HiveRegistrationPolicy policy = HiveRegistrationPolicyBase.getPolicy(taskSpecificState);
-        for ( final String path : state.getPropAsList(ConfigurationKeys.PUBLISHER_DIRS) ) {
-          if (isPathDedupeEnabled && pathsToRegisterFromSingleState.contains(path)){
+        for ( final String path : state.getPropAsList(ConfigurationKeys.PUBLISHER_DIRS)) {
+
+          /** Update metadata and dedup paths to be registered.*/
+          countUpForPath(path, state);
+          if (isPathDedupeEnabled && pathToRecordCount.containsKey(path)){
             continue;
           }
-          pathsToRegisterFromSingleState.add(path);
           toRegisterPathCount += 1;
+
+          /** Computing {@link HiveSpec} */
           completionService.submit(new Callable<Collection<HiveSpec>>() {
             @Override
             public Collection<HiveSpec> call() throws Exception {
@@ -169,11 +180,11 @@ public class HiveRegistrationPublisher extends DataPublisher {
           });
         }
       }
-      else continue;
     }
     for (int i = 0; i < toRegisterPathCount; i++) {
       try {
         for (HiveSpec spec : completionService.take().get()) {
+          updatePartitionMetadata(spec);
           this.hiveRegister.register(spec);
         }
       } catch (InterruptedException | ExecutionException e) {
@@ -189,9 +200,27 @@ public class HiveRegistrationPublisher extends DataPublisher {
     // Nothing to do
   }
 
-  private static void addRuntimeHiveRegistrationProperties(State state) {
-    // Use seconds instead of milliseconds to be consistent with other times stored in hive
-    state.appendToListProp(HiveRegProps.HIVE_TABLE_PARTITION_PROPS,
-        String.format("%s:%d", DATA_PUBLISH_TIME, TimeUnit.SECONDS.convert(System.currentTimeMillis(), TimeUnit.MILLISECONDS)));
+  /**
+   * A wrapper for updating partition record count to {@link #pathToRecordCount}.
+   */
+  private void countUpForPath(String path, State state) {
+    long recordCountInWorkUnit = state.getPropAsLong(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY)
+        - state.getPropAsLong(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY);
+
+    pathToRecordCount.put(path, pathToRecordCount.containsKey(path) ?
+        pathToRecordCount.get(path) + recordCountInWorkUnit : recordCountInWorkUnit);
+  }
+
+  /**
+   * Setting runtime metadata as partition property, currently only support recordCount for partition-level metadata.
+   * Note that, metadata like record count will only be available in publisher where runtime properties {@link WorkUnitState} is available.
+   */
+  private void updatePartitionMetadata(HiveSpec spec){
+    String pathInString = spec.getPath().toString();
+    if (!spec.getPartition().isPresent() || !pathToRecordCount.containsKey(pathInString)) {
+      return;
+    }
+
+    spec.getPartition().get().getProps().setProp(PARTITION_RECORD_COUNT, pathToRecordCount.get(pathInString));
   }
 }
