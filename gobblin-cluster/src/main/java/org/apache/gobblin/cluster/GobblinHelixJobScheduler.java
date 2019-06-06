@@ -325,9 +325,6 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
       LOGGER.error("Failed to update job " + updateJobArrival.getJobName(), je);
     }
 
-    //Wait until the cancelled job is complete.
-    waitForJobCompletion(updateJobArrival.getJobName());
-
     try {
       handleNewJobConfigArrival(new NewJobConfigArrivalEvent(updateJobArrival.getJobName(),
           updateJobArrival.getJobConfig()));
@@ -370,6 +367,8 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
         TaskDriver taskDriver = new TaskDriver(this.jobHelixManager);
         taskDriver.waitToStop(workflowId, this.helixJobStopTimeoutMillis);
         LOGGER.info("Stopped workflow: {}", deleteJobArrival.getJobName());
+        //Wait until the cancelled job is complete.
+        waitForJobCompletion(deleteJobArrival.getJobName());
       } else {
         LOGGER.warn("Could not find Helix Workflow Id for job: {}", deleteJobArrival.getJobName());
       }

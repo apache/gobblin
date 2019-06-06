@@ -24,6 +24,7 @@ import java.util.concurrent.ExecutionException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -37,6 +38,9 @@ import com.typesafe.config.ConfigValueFactory;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.cluster.event.DeleteJobConfigArrivalEvent;
+import org.apache.gobblin.cluster.event.NewJobConfigArrivalEvent;
+import org.apache.gobblin.cluster.event.UpdateJobConfigArrivalEvent;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.FsSpecConsumer;
 import org.apache.gobblin.runtime.api.FsSpecProducer;
@@ -48,9 +52,9 @@ import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.runtime.job_catalog.NonObservingFSJobCatalog;
 
 @Slf4j
-public class FsScheduledJobConfigurationManagerTest {
+public class FsJobConfigurationManagerTest {
   private MutableJobCatalog _jobCatalog;
-  private FsScheduledJobConfigurationManager jobConfigurationManager;
+  private FsJobConfigurationManager jobConfigurationManager;
 
   private String jobConfDir = "/tmp/" + this.getClass().getSimpleName() + "/jobCatalog";
   private String fsSpecConsumerPathString = "/tmp/fsJobConfigManagerTest";
@@ -59,24 +63,47 @@ public class FsScheduledJobConfigurationManagerTest {
   private FileSystem fs;
   private SpecProducer _specProducer;
 
+  private int newJobConfigArrivalEventCount = 0;
+  private int updateJobConfigArrivalEventCount = 0;
+  private int deleteJobConfigArrivalEventCount = 0;
+
+  // An EventBus used for communications between services running in the ApplicationMaster
+  private EventBus eventBus;
+
   @BeforeClass
   public void setUp() throws IOException {
+    this.eventBus = Mockito.mock(EventBus.class);
+    Mockito.doAnswer(invocationOnMock -> {
+      Object argument = invocationOnMock.getArguments()[0];
+
+      if (argument instanceof NewJobConfigArrivalEvent) {
+        newJobConfigArrivalEventCount++;
+      } else if (argument instanceof DeleteJobConfigArrivalEvent) {
+        deleteJobConfigArrivalEventCount++;
+      } else if (argument instanceof UpdateJobConfigArrivalEvent) {
+        updateJobConfigArrivalEventCount++;
+      } else {
+        throw new IOException("Unexpected event type");
+      }
+      return null;
+    }).when(this.eventBus).post(Mockito.anyObject());
+
     this.fs = FileSystem.getLocal(new Configuration(false));
     Path jobConfDirPath = new Path(jobConfDir);
     if (!this.fs.exists(jobConfDirPath)) {
       this.fs.mkdirs(jobConfDirPath);
     }
 
-    EventBus eventBus = new EventBus(FsScheduledJobConfigurationManagerTest.class.getSimpleName());
     Config config = ConfigFactory.empty()
         .withValue(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, ConfigValueFactory.fromAnyRef(jobConfDir))
         .withValue(GobblinClusterConfigurationKeys.SPEC_CONSUMER_CLASS_KEY, ConfigValueFactory.fromAnyRef(FsSpecConsumer.class.getName()))
-        .withValue(FsSpecConsumer.SPEC_PATH_KEY, ConfigValueFactory.fromAnyRef(fsSpecConsumerPathString));
+        .withValue(FsSpecConsumer.SPEC_PATH_KEY, ConfigValueFactory.fromAnyRef(fsSpecConsumerPathString))
+        .withValue(GobblinClusterConfigurationKeys.JOB_SPEC_REFRESH_INTERVAL, ConfigValueFactory.fromAnyRef(1));
 
     this._jobCatalog = new NonObservingFSJobCatalog(config);
     ((NonObservingFSJobCatalog) this._jobCatalog).startAsync().awaitRunning();
 
-    jobConfigurationManager = new FsScheduledJobConfigurationManager(eventBus, config, this._jobCatalog);
+    jobConfigurationManager = new FsJobConfigurationManager(eventBus, config, this._jobCatalog);
 
     _specProducer = new FsSpecProducer(config);
   }
@@ -110,7 +137,7 @@ public class FsScheduledJobConfigurationManagerTest {
 
   @Test (expectedExceptions = {JobSpecNotFoundException.class})
   public void testFetchJobSpecs() throws ExecutionException, InterruptedException, URISyntaxException, JobSpecNotFoundException, IOException {
-    //Test adding a JobSpec
+    //Ensure JobSpec is added to JobCatalog
     String verb1 = SpecExecutor.Verb.ADD.name();
     String version1 = "1";
     addJobSpec(jobSpecUriString, version1, verb1);
@@ -119,9 +146,15 @@ public class FsScheduledJobConfigurationManagerTest {
     Assert.assertTrue(jobSpec != null);
     Assert.assertTrue(jobSpec.getVersion().equals(version1));
     Assert.assertTrue(jobSpec.getUri().getPath().equals(jobSpecUriString));
+
     //Ensure the JobSpec is deleted from the FsSpecConsumer path.
     Path fsSpecConsumerPath = new Path(fsSpecConsumerPathString);
     Assert.assertEquals(this.fs.listStatus(fsSpecConsumerPath).length, 0);
+
+    //Ensure NewJobConfigArrivalEvent is posted to EventBus
+    Assert.assertEquals(newJobConfigArrivalEventCount, 1);
+    Assert.assertEquals(updateJobConfigArrivalEventCount, 0);
+    Assert.assertEquals(deleteJobConfigArrivalEventCount, 0);
 
     //Test that the updated JobSpec has been added to the JobCatalog.
     String verb2 = SpecExecutor.Verb.UPDATE.name();
@@ -131,15 +164,47 @@ public class FsScheduledJobConfigurationManagerTest {
     jobSpec = this._jobCatalog.getJobSpec(new URI(jobSpecUriString));
     Assert.assertTrue(jobSpec != null);
     Assert.assertTrue(jobSpec.getVersion().equals(version2));
-    //Ensure the JobSpec is deleted from the FsSpecConsumer path.
+
+    //Ensure the updated JobSpec is deleted from the FsSpecConsumer path.
     Assert.assertEquals(this.fs.listStatus(fsSpecConsumerPath).length, 0);
+
+    //Ensure UpdateJobConfigArrivalEvent is posted to EventBus
+    Assert.assertEquals(newJobConfigArrivalEventCount, 1);
+    Assert.assertEquals(updateJobConfigArrivalEventCount, 1);
+    Assert.assertEquals(deleteJobConfigArrivalEventCount, 0);
 
     //Test that the JobSpec has been deleted from the JobCatalog.
     String verb3 = SpecExecutor.Verb.DELETE.name();
     addJobSpec(jobSpecUriString, version2, verb3);
     this.jobConfigurationManager.fetchJobSpecs();
+
+    //Ensure the JobSpec is deleted from the FsSpecConsumer path.
     Assert.assertEquals(this.fs.listStatus(fsSpecConsumerPath).length, 0);
     this._jobCatalog.getJobSpec(new URI(jobSpecUriString));
+
+    //Ensure DeleteJobConfigArrivalEvent is posted to EventBus
+    Assert.assertEquals(newJobConfigArrivalEventCount, 1);
+    Assert.assertEquals(updateJobConfigArrivalEventCount, 1);
+    Assert.assertEquals(deleteJobConfigArrivalEventCount, 1);
+  }
+
+  @Test
+  public void testException()
+      throws Exception {
+    FsJobConfigurationManager jobConfigurationManager = Mockito.spy(this.jobConfigurationManager);
+    Mockito.doThrow(new ExecutionException(new IOException("Test exception"))).when(jobConfigurationManager).fetchJobSpecs();
+
+    jobConfigurationManager.startUp();
+
+    //Add wait to ensure that fetchJobSpecExecutor thread is scheduled at least once.
+    Thread.sleep(2000);
+    Mockito.verify(jobConfigurationManager, Mockito.times(1)).fetchJobSpecs();
+
+    Thread.sleep(2000);
+    //Verify that there are no new invocations of fetchJobSpecs()
+    Mockito.verify(jobConfigurationManager, Mockito.times(1)).fetchJobSpecs();
+    //Ensure that the JobConfigurationManager Service is not running.
+    Assert.assertFalse(jobConfigurationManager.isRunning());
   }
 
   @AfterClass

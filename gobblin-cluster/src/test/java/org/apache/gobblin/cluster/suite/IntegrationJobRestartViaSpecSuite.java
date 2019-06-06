@@ -24,10 +24,6 @@ import java.io.Reader;
 import java.net.URI;
 import java.net.URISyntaxException;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Files;
 import com.google.common.io.Resources;
@@ -37,7 +33,7 @@ import com.typesafe.config.ConfigParseOptions;
 import com.typesafe.config.ConfigSyntax;
 import com.typesafe.config.ConfigValueFactory;
 
-import org.apache.gobblin.cluster.FsScheduledJobConfigurationManager;
+import org.apache.gobblin.cluster.FsJobConfigurationManager;
 import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
 import org.apache.gobblin.cluster.SleepingTask;
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -49,21 +45,13 @@ import org.apache.gobblin.runtime.api.SpecProducer;
 
 
 public class IntegrationJobRestartViaSpecSuite extends IntegrationJobCancelSuite {
-  public static final String JOB_ID = "job_HelloWorldTestJob_1235";
   public static final String JOB_NAME = "HelloWorldTestJob";
-  public static final String JOB_CATALOG_DIR = "/tmp/IntegrationJobCancelViaSpecSuite/jobCatalog";
   public static final String FS_SPEC_CONSUMER_DIR = "/tmp/IntegrationJobCancelViaSpecSuite/jobSpecs";
-  public static final String TASK_STATE_FILE = "/tmp/IntegrationJobCancelViaSpecSuite/taskState/_RUNNING";
 
   private final SpecProducer _specProducer;
 
   public IntegrationJobRestartViaSpecSuite() throws IOException {
     super();
-    Path jobCatalogDirPath = new Path(JOB_CATALOG_DIR);
-    FileSystem fs = FileSystem.getLocal(new Configuration());
-    if (!fs.exists(jobCatalogDirPath)) {
-      fs.mkdirs(jobCatalogDirPath);
-    }
     this._specProducer = new FsSpecProducer(ConfigFactory.empty().withValue(FsSpecConsumer.SPEC_PATH_KEY, ConfigValueFactory.fromAnyRef(FS_SPEC_CONSUMER_DIR)));
   }
 
@@ -91,11 +79,9 @@ public class IntegrationJobRestartViaSpecSuite extends IntegrationJobCancelSuite
   public Config getManagerConfig() {
     Config managerConfig = super.getManagerConfig();
     managerConfig = managerConfig.withValue(GobblinClusterConfigurationKeys.JOB_CONFIGURATION_MANAGER_KEY,
-        ConfigValueFactory.fromAnyRef(FsScheduledJobConfigurationManager.class.getName()))
-        .withValue(GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_PREFIX + ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY,
-            ConfigValueFactory.fromAnyRef(JOB_CATALOG_DIR))
+        ConfigValueFactory.fromAnyRef(FsJobConfigurationManager.class.getName()))
     .withValue(GobblinClusterConfigurationKeys.SPEC_CONSUMER_CLASS_KEY, ConfigValueFactory.fromAnyRef(FsSpecConsumer.class.getName()))
-        .withValue(GobblinClusterConfigurationKeys.JOB_SPEC_REFRESH_INTERVAL, ConfigValueFactory.fromAnyRef(5L))
+        .withValue(GobblinClusterConfigurationKeys.JOB_SPEC_REFRESH_INTERVAL, ConfigValueFactory.fromAnyRef(1L))
     .withValue(FsSpecConsumer.SPEC_PATH_KEY, ConfigValueFactory.fromAnyRef(FS_SPEC_CONSUMER_DIR));
     return managerConfig;
   }
