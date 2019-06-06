@@ -581,14 +581,18 @@ public class DagManager extends AbstractIdleService {
       }
     }
 
-    private void cleanUpDag(String dagId) {
-      this.dagToJobs.remove(dagId);
-      this.dags.remove(dagId);
+    /**
+     * Cleaning of all relevant states need to be
+     * @param dagId
+     */
+    private synchronized void cleanUpDag(String dagId) {
        try {
          this.dagStateStore.cleanUp(dags.get(dagId));
        } catch (IOException ioe) {
          log.error(String.format("Failed to clean %s from backStore due to:", dagId), ioe);
        }
+      this.dags.remove(dagId);
+      this.dagToJobs.remove(dagId);
     }
   }
 
