@@ -192,13 +192,13 @@ public class JobStateToJsonConverter implements CliApplication {
     } catch (ParseException pe) {
       HelpFormatter formatter = new HelpFormatter();
       formatter.printHelp("JobStateToJsonConverter", options);
-      System.exit(1);
+      return;
     }
 
     if (!cmd.hasOption(sysConfigOption.getLongOpt()) && !cmd.hasOption(storeUrlOption.getLongOpt()) ){
       HelpFormatter formatter = new HelpFormatter();
       formatter.printHelp("JobStateToJsonConverter", options);
-      System.exit(1);
+      return;
     }
 
     Properties sysConfig = new Properties();
