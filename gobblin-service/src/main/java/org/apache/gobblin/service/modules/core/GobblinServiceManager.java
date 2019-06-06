@@ -170,7 +170,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
       properties.setProperty(ServiceBasedAppLauncher.APP_STOP_TIME_SECONDS, Long.toString(300));
     }
     this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), this.getClass());
-    this.metrics = new Metrics(this.metricContext, this.config);
+    this.metrics = new Metrics(this.metricContext, config);
     this.serviceName = serviceName;
     this.serviceId = serviceId;
     this.serviceLauncher = new ServiceBasedAppLauncher(properties, serviceName);
