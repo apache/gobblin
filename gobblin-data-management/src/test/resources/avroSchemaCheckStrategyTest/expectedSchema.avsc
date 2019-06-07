@@ -1,0 +1,239 @@
+{
+  "type" : "record",
+  "name" : "OfflineComplianceRequestEvent",
+  "namespace" : "com.linkedin.events.compliance",
+  "fields" : [ {
+    "name" : "header",
+    "type" : {
+      "type" : "record",
+      "name" : "EventHeader",
+      "namespace" : "com.linkedin.events",
+      "fields" : [ {
+        "name" : "memberId",
+        "type" : "int",
+        "doc" : "The LinkedIn member ID of the user initiating the action.  LinkedIn member IDs are integers greater than zero.  Guests are represented either as zero or a negative number."
+      }, {
+        "name" : "viewerUrn",
+        "type" : [ "null", "string" ],
+        "doc" : "The LinkedIn URN of the user initiating the action.  For other applications like Slideshare, this should be filled in when the LinkedIn member URN is actually known.  The LinkedIn member URN would be known, for example, when the user has linked their Slideshare account with their LinkedIn account.",
+        "default" : null
+      }, {
+        "name" : "applicationViewerUrn",
+        "type" : [ "null", "string" ],
+        "doc" : "The Application URN of the user initiating the action.  This URN identifies the member within the particular application that the member is using, which may or may not be LinkedIn.  If the user is interacting with LinkedIn then this should be the LinkedIn URN, the same as viewerUrn.  If the member is interacting with a different site, such as Slideshare, then this should be the URN identifying the member in that site.",
+        "default" : null
+      }, {
+        "name" : "csUserUrn",
+        "type" : [ "null", "string" ],
+        "doc" : "The URN of the CS user initiating the action. A CS user is essentially a LinkedIn member with elevated permissions and can perform Admin actions on a page. A non-null value would indicate CS activity on the website. This field is different from the impersonatorId. ImpersonatorId will be populated when a CS user is logged in as (or impersonating) another member. On the other hand, this field will be populated when a CS user logged in as himself has elevated permissions to perform Admin actions on the website.",
+        "default" : null
+      }, {
+        "name" : "time",
+        "type" : "long",
+        "doc" : "The time of the event"
+      }, {
+        "name" : "server",
+        "type" : "string",
+        "doc" : "The name of the server"
+      }, {
+        "name" : "service",
+        "type" : "string",
+        "doc" : "The name of the service. Synonymous to the com.linkedin.events.monitoring.EventHeader#container field."
+      }, {
+        "name" : "environment",
+        "type" : [ "string", "null" ],
+        "doc" : "The environment the service is running in",
+        "default" : ""
+      }, {
+        "name" : "guid",
+        "type" : {
+          "type" : "fixed",
+          "name" : "Guid",
+          "size" : 16
+        },
+        "doc" : "A unique identifier for the message"
+      }, {
+        "name" : "treeId",
+        "type" : [ "null", {
+          "type" : "fixed",
+          "name" : "fixed_16",
+          "size" : 16
+        } ],
+        "doc" : "Service call tree uuid",
+        "default" : null
+      }, {
+        "name" : "requestId",
+        "type" : [ "null", "int" ],
+        "doc" : "Service call request id",
+        "default" : null
+      }, {
+        "name" : "impersonatorId",
+        "type" : [ "null", "string" ],
+        "doc" : "this is the ID of the CS Agent or Application acting on the users behalf",
+        "default" : null
+      }, {
+        "name" : "version",
+        "type" : [ "null", "string" ],
+        "doc" : "Synonymous to the com.linkedin.events.monitoring.EventHeader#version field. The version that the service which emitted this event was at. For services in multiproducts, this usually comes in the form of {major}.{minor}.{micro} (eg. 0.1.2), however for network services, the version follows a format like so: 0.0.2000-RC8.35047",
+        "default" : null
+      }, {
+        "name" : "instance",
+        "type" : [ "null", "string" ],
+        "doc" : "Synonymous to the com.linkedin.events.monitoring.EventHeader#instance field. The instance ID of the service (eg. i001)",
+        "default" : null
+      }, {
+        "name" : "appName",
+        "type" : [ "null", "string" ],
+        "doc" : "Synonymous to the com.linkedin.events.monitoring.EventHeader#service field. Named 'appName' here since this is what this field actually represents, and 'service' is already used. This is also synonymous to 'appName' in Play and network apps, where on a typical page there would be a <meta name=appName content=biz> tag. For network apps, this would be the container name without the '-tomcat' suffix. So for 'profile-tomcat', it would just be 'profile'. For Play! services, it would just be the container name, such as 'polls-frontend'. For additional information, please see the wiki at go/appname",
+        "default" : null
+      }, {
+        "name" : "testId",
+        "type" : [ "null", "string" ],
+        "doc" : "A client provided ID that uniquely identifies a particular execution of a test case.  This ID is provided by clients through an ENG_TEST_ID cookie.  The Selenium test framework automatically sets this cookie for each request.  This will be null when there is no ENG_TEST_ID provided.  See https://iwww.corp.linkedin.com/wiki/cf/display/ENGS/Selenium+Framework+Architecture+Documentation for more details on the test framework.  See https://iwww.corp.linkedin.com/wiki/cf/display/ENGS/Improving+Automated+Testability+of+Tracking+Events for details on the motiviation behind adding this test ID to the header and how it is used.",
+        "default" : null
+      }, {
+        "name" : "testSegmentId",
+        "type" : [ "null", "string" ],
+        "doc" : "A client provided ID that uniquely identifies a section of the testing code from a  particular execution of a test case.  This ID is provided by clients through an ENG_TEST_SEGMENT_ID cookie. ",
+        "default" : null
+      }, {
+        "name" : "auditHeader",
+        "type" : [ "null", {
+          "type" : "record",
+          "name" : "KafkaAuditHeader",
+          "fields" : [ {
+            "name" : "time",
+            "type" : "long",
+            "doc" : "The time at which the event was emitted into kafka."
+          }, {
+            "name" : "server",
+            "type" : "string",
+            "doc" : "The fully qualified name of the host from which the event is being emitted."
+          }, {
+            "name" : "instance",
+            "type" : [ "null", "string" ],
+            "doc" : "The instance on the server from which the event is being emitted. e.g. i001"
+          }, {
+            "name" : "appName",
+            "type" : "string",
+            "doc" : "The name of the application from which the event is being emitted. see go/appname"
+          }, {
+            "name" : "messageId",
+            "type" : {
+              "type" : "fixed",
+              "name" : "UUID",
+              "size" : 16
+            },
+            "doc" : "A unique identifier for the message"
+          }, {
+            "name" : "auditVersion",
+            "type" : [ "null", "int" ],
+            "doc" : "The version that is being used for auditing. In version 0, the audit trail buckets events into 10 minute audit windows based on the EventHeader timestamp. In version 1, the audit trail buckets events as follows: if the schema has an outer KafkaAuditHeader, use the outer audit header timestamp for bucketing; else if the EventHeader has an inner KafkaAuditHeader use that inner audit header's timestamp for bucketing",
+            "default" : null
+          }, {
+            "name" : "fabricUrn",
+            "type" : [ "null", "string" ],
+            "doc" : "The fabricUrn of the host from which the event is being emitted. Fabric Urn in the format of urn:li:fabric:{fabric_name}. See go/fabric.",
+            "default" : null
+          } ]
+        } ],
+        "doc" : "Header used by kafka for auditing the data in the kafka pipeline",
+        "default" : null
+      }, {
+        "name" : "pageInstance",
+        "type" : [ "null", {
+          "type" : "record",
+          "name" : "PageInstance",
+          "namespace" : "com.linkedin.events.common",
+          "fields" : [ {
+            "name" : "pageUrn",
+            "type" : "string",
+            "doc" : "The page entity. Example: urn:li:page:<pageKey>."
+          }, {
+            "name" : "trackingId",
+            "type" : {
+              "type" : "fixed",
+              "name" : "TrackingId",
+              "size" : 16
+            },
+            "doc" : "Uniquely identifies this rendering of the page."
+          } ]
+        } ],
+        "doc" : "The instance of a page to which the request that triggered this event is responding.  For more information see go/pageinstance",
+        "default" : null
+      }, {
+        "name" : "clientApplicationInstance",
+        "type" : [ "null", {
+          "type" : "record",
+          "name" : "ApplicationInstance",
+          "namespace" : "com.linkedin.events.common",
+          "fields" : [ {
+            "name" : "applicationUrn",
+            "type" : "string",
+            "doc" : "The application. Example: urn:li:application:<identifier>."
+          }, {
+            "name" : "version",
+            "type" : "string",
+            "doc" : "The internal version number of the running application in standardized version format, see go/version."
+          }, {
+            "name" : "trackingId",
+            "type" : "TrackingId",
+            "doc" : "Uniquely identifies this instantiation of the application.  Created when an application is started from cold.  Preserved through application pause, suspend, loss of focus, background, etc."
+          } ]
+        } ],
+        "doc" : "The particular instance of a client application which triggered this event.  For more information see go/clientApplicationInstance",
+        "default" : null
+      }, {
+        "name" : "originSource",
+        "type" : [ "null", {
+          "type" : "enum",
+          "name" : "OriginSource",
+          "symbols" : [ "QPROD" ]
+        } ],
+        "doc" : "If present, identifies this request as having an origin in a testing mechanism. If null, indicates a normal request from the external internet. For more information see go/originSource",
+        "default" : null
+      } ]
+    },
+    "doc" : "The basic header for this tracking event."
+  }, {
+    "name" : "requestType",
+    "type" : {
+      "type" : "enum",
+      "name" : "ComplianceRequestType",
+      "symbols" : [ "TIME_LIMITED_FILTER", "GLOBAL_FILTER", "GLOBAL_UNFILTER", "RETIRED_URN_FILTER" ]
+    },
+    "doc" : "The type of filter required by this event."
+  }, {
+    "name" : "conditionValueUrn",
+    "type" : "string",
+    "doc" : "Filter all records owned by this urn. Examples: member id urn, lynda member id urn, etc."
+  }, {
+    "name" : "endTime",
+    "type" : [ "null", "long" ],
+    "doc" : "For certain request types, specifies the upper timestamp for which the filter applies. Unit is ms since epoch."
+  }, {
+    "name" : "datasetRestrictionUrns",
+    "type" : [ "null", {
+      "type" : "array",
+      "items" : "string"
+    } ],
+    "doc" : "URN restricting the datasets to which this request should be applied. The request will be applied to a dataset that matches ANY of the given restrictions. To match all datasets, use NULL. An empty array will be reported as an error.",
+    "default" : null
+  }, {
+    "name" : "useCaseRestrictionUrns",
+    "type" : [ "null", {
+      "type" : "array",
+      "items" : "string"
+    } ],
+    "doc" : "URN restricting the querying users to which this request should be applied. The request will be applied to a use case that matches ANY of the given restrictions. To match all use cases, use NULL. An empty array will be reported as an error.",
+    "default" : null
+  }, {
+    "name" : "columnRestrictionUrns",
+    "type" : [ "null", {
+      "type" : "array",
+      "items" : "string"
+    } ],
+    "doc" : "URN restricting the columns to which this request should be applied. The request will be applied to a column that matches ANY of the given restrictions. To match all columns, use NULL. An empty array will be reported as an error.",
+    "default" : null
+  } ]
+}

@@ -1,5 +1,6 @@
 package org.apache.gobblin.data.management.util;
 
+import java.io.File;
 import org.apache.avro.Schema;
 import org.apache.gobblin.util.schema_check.AvroSchemaCheckDefaultStrategy;
 import org.junit.Assert;
@@ -22,8 +23,12 @@ public class AvroSchemaCheckDefaultStrategyTest {
     //test when the type change
     expected = new Schema.Parser().parse("{\"type\":\"record\",\"name\":\"baseRecord\",\"fields\":[{\"name\":\"foo\",\"type\":[\"null\",\"int\"],\"doc\":\"this is for test\",\"default\":null}]}");
     org.junit.Assert.assertFalse(strategy.compare(expected, toValidate));
-
     expected = new Schema.Parser().parse("{\"type\":\"record\",\"name\":\"baseRecord\",\"fields\":[{\"name\":\"foo\",\"type\":[\"null\",\"float\"],\"doc\":\"this is for test\",\"default\":null}]}");
     Assert.assertFalse(strategy.compare(expected, toValidate));
+
+    //test complex schema
+    toValidate = new Schema.Parser().parse(new File(AvroSchemaCheckDefaultStrategy.class.getClassLoader().getResource("avroSchemaCheckStrategyTest/toValidateSchema.avsc").getFile()));
+    expected = new Schema.Parser().parse(new File(AvroSchemaCheckDefaultStrategy.class.getClassLoader().getResource("avroSchemaCheckStrategyTest/expectedSchema.avsc").getFile()));
+    Assert.assertTrue(strategy.compare(expected, toValidate));
   }
 }
