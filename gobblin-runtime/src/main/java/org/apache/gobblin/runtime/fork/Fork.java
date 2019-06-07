@@ -43,7 +43,6 @@ import org.apache.gobblin.converter.Converter;
 import org.apache.gobblin.converter.DataConversionException;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.GobblinMetrics;
-import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.publisher.TaskPublisher;
 import org.apache.gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
 import org.apache.gobblin.qualitychecker.row.RowLevelPolicyChecker;
@@ -59,7 +58,7 @@ import org.apache.gobblin.runtime.Task;
 import org.apache.gobblin.runtime.TaskContext;
 import org.apache.gobblin.runtime.TaskExecutor;
 import org.apache.gobblin.runtime.TaskState;
-import org.apache.gobblin.runtime.util.TaskMetrics;
+import org.apache.gobblin.runtime.util.ForkMetrics;
 import org.apache.gobblin.state.ConstructState;
 import org.apache.gobblin.stream.ControlMessage;
 import org.apache.gobblin.stream.RecordEnvelope;
@@ -135,7 +134,6 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
   // An AtomicReference is still used here for the compareAntSet operation.
   private final AtomicReference<ForkState> forkState;
 
-  private static final String FORK_METRICS_BRANCH_NAME_KEY = "forkBranchName";
   protected static final Object SHUTDOWN_RECORD = new Object();
   private SharedResourcesBroker<GobblinScopeTypes> broker;
 
@@ -176,9 +174,7 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
      * {@link Instrumented#setMetricContextName(State, String)} will be children of the forkMetrics.
      */
     if (GobblinMetrics.isEnabled(this.taskState)) {
-      GobblinMetrics forkMetrics = GobblinMetrics
-          .get(getForkMetricsName(taskContext.getTaskMetrics(), this.taskState, index),
-              taskContext.getTaskMetrics().getMetricContext(), getForkMetricsTags(this.taskState, index));
+      ForkMetrics forkMetrics = ForkMetrics.get(this.taskState, index);
       this.closer.register(forkMetrics.getMetricContext());
       Instrumented.setMetricContextName(this.taskState, forkMetrics.getMetricContext().getName());
     }
@@ -664,30 +660,6 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
       throw new IllegalStateException(String
           .format("Expected fork state %s; actual fork state %s", expectedState.name(), this.forkState.get().name()));
     }
-  }
-
-  /**
-   * Creates a {@link List} of {@link Tag}s for a {@link Fork} instance. The {@link Tag}s are purely based on the
-   * index and the branch name.
-   */
-  private static List<Tag<?>> getForkMetricsTags(State state, int index) {
-    return ImmutableList.<Tag<?>>of(new Tag<>(FORK_METRICS_BRANCH_NAME_KEY, getForkMetricsId(state, index)));
-  }
-
-  /**
-   * Creates a {@link String} that is a concatenation of the {@link TaskMetrics#getName()} and
-   * {@link #getForkMetricsId(State, int)}.
-   */
-  private static String getForkMetricsName(TaskMetrics taskMetrics, State state, int index) {
-    return taskMetrics.getName() + "." + getForkMetricsId(state, index);
-  }
-
-  /**
-   * Creates a unique {@link String} representing this branch.
-   */
-  private static String getForkMetricsId(State state, int index) {
-    return state.getProp(ConfigurationKeys.FORK_BRANCH_NAME_KEY + "." + index,
-        ConfigurationKeys.DEFAULT_FORK_BRANCH_NAME + index);
   }
 
   public boolean isSpeculativeExecutionSafe() {

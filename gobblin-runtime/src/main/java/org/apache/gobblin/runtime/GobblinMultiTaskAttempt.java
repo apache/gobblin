@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.lang.management.MemoryUsage;
-import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -48,12 +47,14 @@ import org.apache.gobblin.commit.CommitStep;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.metastore.StateStore;
+import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.JobEvent;
 import org.apache.gobblin.runtime.task.TaskFactory;
 import org.apache.gobblin.runtime.task.TaskIFaceWrapper;
 import org.apache.gobblin.runtime.task.TaskUtils;
 import org.apache.gobblin.runtime.util.JobMetrics;
+import org.apache.gobblin.runtime.util.TaskMetrics;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.Either;
 import org.apache.gobblin.util.ExecutorsUtils;
@@ -451,13 +452,26 @@ public class GobblinMultiTaskAttempt {
 
   public void runAndOptionallyCommitTaskAttempt(CommitPolicy multiTaskAttemptCommitPolicy)
       throws IOException, InterruptedException {
-    run();
-    if (multiTaskAttemptCommitPolicy.equals(GobblinMultiTaskAttempt.CommitPolicy.IMMEDIATE)) {
-      this.log.info("Will commit tasks directly.");
-      commit();
-    } else if (!isSpeculativeExecutionSafe()) {
-      throw new RuntimeException(
-          "Speculative execution is enabled. However, the task context is not safe for speculative execution.");
+    try {
+      run();
+      if (multiTaskAttemptCommitPolicy.equals(GobblinMultiTaskAttempt.CommitPolicy.IMMEDIATE)) {
+        this.log.info("Will commit tasks directly.");
+        commit();
+      } else if (!isSpeculativeExecutionSafe()) {
+        throw new RuntimeException(
+            "Speculative execution is enabled. However, the task context is not safe for speculative execution.");
+      }
+    } finally {
+      // During the task execution, the fork/task instances will create metric contexts (fork, task, job, container)
+      // along the hierarchy up to the root metric context. Although root metric context has a weak reference to
+      // those metric contexts, they are meanwhile cached by GobblinMetricsRegistry. Here we will remove all those
+      // strong reference from the cache to make sure it can be reclaimed by Java GC when JVM has run out of memory.
+
+      this.tasks.forEach(task-> {
+        TaskMetrics.remove(task);
+      });
+
+      JobMetrics.remove(GobblinMetrics.METRICS_ID_PREFIX + jobState.getJobId());
     }
   }
 

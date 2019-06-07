@@ -118,7 +118,7 @@ public class JobMetrics extends GobblinMetrics {
   }
 
   private static String name(JobState jobState) {
-    return "gobblin.metrics." + jobState.getJobId();
+    return METRICS_ID_PREFIX + jobState.getJobId();
   }
 
   private static List<Tag<?>> tagsForJob(JobState jobState) {

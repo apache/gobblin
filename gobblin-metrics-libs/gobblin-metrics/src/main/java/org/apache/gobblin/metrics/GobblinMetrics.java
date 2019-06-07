@@ -70,6 +70,7 @@ import org.apache.gobblin.util.PropertiesUtils;
  */
 public class GobblinMetrics {
 
+  public static final String METRICS_ID_PREFIX = "gobblin.metrics.";
   public static final String METRICS_STATE_CUSTOM_TAGS = "metrics.state.custom.tags";
 
   protected static final GobblinMetricsRegistry GOBBLIN_METRICS_REGISTRY = GobblinMetricsRegistry.getInstance();
