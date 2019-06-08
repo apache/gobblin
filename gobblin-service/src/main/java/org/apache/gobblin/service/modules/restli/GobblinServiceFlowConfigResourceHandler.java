@@ -25,11 +25,14 @@ import org.apache.helix.HelixManager;
 import org.apache.helix.InstanceType;
 
 import com.google.common.base.Optional;
+import com.linkedin.data.transform.DataProcessingException;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
 import com.linkedin.restli.common.HttpStatus;
+import com.linkedin.restli.common.PatchRequest;
 import com.linkedin.restli.server.CreateResponse;
 import com.linkedin.restli.server.UpdateResponse;
+import com.linkedin.restli.server.util.PatchApplier;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -166,6 +169,19 @@ public class GobblinServiceFlowConfigResourceHandler implements FlowConfigsResou
       throw new FlowConfigLoggedException(HttpStatus.S_500_INTERNAL_SERVER_ERROR,
           "Cannot update flowConfig [flowName=" + flowName + " flowGroup=" + flowGroup + "]", e);
     }
+  }
+
+  @Override
+  public UpdateResponse partialUpdateFlowConfig(FlowId flowId, PatchRequest<FlowConfig> flowConfigPatch) {
+    FlowConfig flowConfig = getFlowConfig(flowId);
+
+    try {
+      PatchApplier.applyPatch(flowConfig, flowConfigPatch);
+    } catch (DataProcessingException e) {
+      throw new FlowConfigLoggedException(HttpStatus.S_400_BAD_REQUEST, "Failed to apply partial update", e);
+    }
+
+    return updateFlowConfig(flowId, flowConfig);
   }
 
   /**
