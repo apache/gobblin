@@ -357,9 +357,6 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
         appMaster = Mockito.spy(new TestApplicationMaster("testApp", containerId, config,
         new YarnConfiguration()));
 
-    Assert.assertEquals(appMaster.getConfig().getString(GobblinClusterConfigurationKeys.CLEAN_UP_JOBS_ON_MANAGER_START),
-        "true");
-
     GobblinHelixMultiManager mockMultiManager = Mockito.mock(GobblinHelixMultiManager.class);
 
     appMaster.setMultiManager(mockMultiManager);

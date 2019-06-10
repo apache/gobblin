@@ -377,7 +377,7 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
 
     Map<String, WorkflowConfig> workflows = taskDriver.getWorkflows();
 
-    log.debug("cleanUpJobs workflow count {} workflows {}", workflows.size(), workflows);
+    log.debug("cleanUpJobs workflow count {} workflows {}", workflows.size(), workflows.keySet());
 
     boolean cleanupDistJobs = ConfigUtils.getBoolean(this.config,
         GobblinClusterConfigurationKeys.CLEAN_ALL_DIST_JOBS,

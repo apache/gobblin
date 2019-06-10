@@ -161,8 +161,4 @@ public class GobblinClusterConfigurationKeys {
 
   public static final String CANCEL_RUNNING_JOB_ON_DELETE = GOBBLIN_CLUSTER_PREFIX + "job.cancelRunningJobOnDelete";
   public static final String DEFAULT_CANCEL_RUNNING_JOB_ON_DELETE = "false";
-
-  // for cleaning up jobs on cluster manager startup
-  public static final String CLEAN_UP_JOBS_ON_MANAGER_START = GOBBLIN_CLUSTER_PREFIX + "cleanUpJobsOnManagerStart";
-  public static final boolean DEFAULT_CLEAN_UP_JOBS_ON_MANAGER_START = false;
 }
