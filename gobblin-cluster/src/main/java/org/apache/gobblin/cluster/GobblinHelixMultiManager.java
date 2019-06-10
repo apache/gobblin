@@ -339,11 +339,7 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
       if (!isLeader) {
         log.info("New Helix Controller leader {}", this.managerClusterHelixManager.getInstanceName());
 
-        cleanUpJobs(this.jobClusterHelixManager);
-
-        if (this.taskDriverHelixManager.isPresent()) {
-          cleanUpJobs(this.taskDriverHelixManager.get());
-        }
+        cleanUpJobs();
 
         for (LeadershipChangeAwareComponent c: this.leadershipChangeAwareComponents) {
           c.becomeActive();
@@ -363,11 +359,25 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
     }
   }
 
+  /**
+   * Delete jobs from the helix cluster
+   */
+  @VisibleForTesting
+  public void cleanUpJobs() {
+    cleanUpJobs(this.jobClusterHelixManager);
+
+    if (this.taskDriverHelixManager.isPresent()) {
+      cleanUpJobs(this.taskDriverHelixManager.get());
+    }
+  }
+
   private void cleanUpJobs(HelixManager helixManager) {
     // Clean up existing jobs
     TaskDriver taskDriver = new TaskDriver(helixManager);
 
     Map<String, WorkflowConfig> workflows = taskDriver.getWorkflows();
+
+    log.debug("cleanUpJobs workflow count {} workflows {}", workflows.size(), workflows.keySet());
 
     boolean cleanupDistJobs = ConfigUtils.getBoolean(this.config,
         GobblinClusterConfigurationKeys.CLEAN_ALL_DIST_JOBS,

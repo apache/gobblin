@@ -264,6 +264,12 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
     this.eventBus.register(this);
     this.multiManager.connect();
 
+    // Standalone mode registers a handler to clean up on manager leadership change, so only clean up for non-standalone
+    // mode, such as YARN mode
+    if (!this.isStandaloneMode) {
+      this.multiManager.cleanUpJobs();
+    }
+
     configureHelixQuotaBasedTaskScheduling();
 
     if (this.isStandaloneMode) {
