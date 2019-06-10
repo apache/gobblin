@@ -34,9 +34,9 @@ import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
+import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 
-import avro.shaded.com.google.common.collect.Maps;
 import javax.annotation.Nonnull;
 import lombok.Getter;
 import lombok.Setter;
