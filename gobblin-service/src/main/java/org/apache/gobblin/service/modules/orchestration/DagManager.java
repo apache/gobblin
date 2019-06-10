@@ -582,7 +582,9 @@ public class DagManager extends AbstractIdleService {
     }
 
     /**
-     * Cleaning of all relevant states need to be
+     * Note that removal of a {@link Dag} entry in {@link #dags} needs to be happen after {@link #cleanUp()}
+     * since the real {@link Dag} object is required for {@link #cleanUp()},
+     * and cleaning of all relevant states need to be atomic
      * @param dagId
      */
     private synchronized void cleanUpDag(String dagId) {

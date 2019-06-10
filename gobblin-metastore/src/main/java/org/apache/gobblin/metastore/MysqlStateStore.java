@@ -125,7 +125,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
 
   private final String UPSERT_JOB_STATE_SQL;
   private final String SELECT_JOB_STATE_SQL;
-  private final String SELECT_ALL_JOB_STATE_SQL;
+  private final String SELECT_ALL_JOBS_STATE_SQL;
   private final String SELECT_JOB_STATE_WITH_LIKE_SQL;
   private final String SELECT_JOB_STATE_EXISTS_SQL;
   private final String SELECT_JOB_STATE_NAMES_SQL;
@@ -152,7 +152,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
     UPSERT_JOB_STATE_SQL = UPSERT_JOB_STATE_TEMPLATE.replace("$TABLE$", stateStoreTableName);
     SELECT_JOB_STATE_SQL = SELECT_JOB_STATE_TEMPLATE.replace("$TABLE$", stateStoreTableName);
     SELECT_JOB_STATE_WITH_LIKE_SQL = SELECT_JOB_STATE_WITH_LIKE_TEMPLATE.replace("$TABLE$", stateStoreTableName);
-    SELECT_ALL_JOB_STATE_SQL = SELECT_ALL_JOBS_STATE.replace("$TABLE$", stateStoreTableName);
+    SELECT_ALL_JOBS_STATE_SQL = SELECT_ALL_JOBS_STATE.replace("$TABLE$", stateStoreTableName);
     SELECT_JOB_STATE_EXISTS_SQL = SELECT_JOB_STATE_EXISTS_TEMPLATE.replace("$TABLE$", stateStoreTableName);
     SELECT_JOB_STATE_NAMES_SQL = SELECT_JOB_STATE_NAMES_TEMPLATE.replace("$TABLE$", stateStoreTableName);
     DELETE_JOB_STORE_SQL = DELETE_JOB_STORE_TEMPLATE.replace("$TABLE$", stateStoreTableName);
@@ -356,12 +356,12 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
     List<T> states = Lists.newArrayList();
 
     try (Connection connection = dataSource.getConnection();
-        PreparedStatement queryStatement = connection.prepareStatement(SELECT_ALL_JOB_STATE_SQL)) {
+        PreparedStatement queryStatement = connection.prepareStatement(SELECT_ALL_JOBS_STATE_SQL)) {
       execGetAllStatement(queryStatement, states);
     } catch (RuntimeException re) {
       throw re;
     } catch (Exception e) {
-      throw new IOException(String.format("failure retrieving all states with the SQL[%s]", SELECT_ALL_JOB_STATE_SQL), e);
+      throw new IOException(String.format("failure retrieving all states with the SQL[%s]", SELECT_ALL_JOBS_STATE_SQL), e);
     }
     return states;
   }
