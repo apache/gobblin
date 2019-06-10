@@ -57,7 +57,6 @@ import static org.apache.gobblin.service.modules.orchestration.DagManagerUtils.g
  * where storeName represents FlowId, a combination of FlowGroup and FlowName, and tableName represents FlowExecutionId.
  * State is a pocket for serialized {@link Dag} object.
  *
- * TODO: In the DagManagerTest: change the hardcoded type of DagStateStore.
  *
  */
 public class MysqlDagStateStore implements DagStateStore {
