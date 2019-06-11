@@ -46,6 +46,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.instrumented.Instrumentable;
 import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.RootMetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
@@ -234,7 +235,8 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       if (!flowGauges.containsKey(spec.getUri().toString())) {
         String flowCompiledGaugeName = MetricRegistry.name(MetricReportUtils.GOBBLIN_SERVICE_METRICS_PREFIX, flowGroup, flowName, ServiceMetricNames.COMPILED);
         flowGauges.put(spec.getUri().toString(), new FlowCompiledState());
-        RootMetricContext.get().newContextAwareGauge(flowCompiledGaugeName, () -> flowGauges.get(spec.getUri().toString()).state.value);
+        ContextAwareGauge<Integer> gauge = RootMetricContext.get().newContextAwareGauge(flowCompiledGaugeName, () -> flowGauges.get(spec.getUri().toString()).state.value);
+        RootMetricContext.get().register(flowCompiledGaugeName, gauge);
       }
 
       //If the FlowSpec disallows concurrent executions, then check if another instance of the flow is already

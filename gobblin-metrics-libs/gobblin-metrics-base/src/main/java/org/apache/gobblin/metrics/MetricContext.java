@@ -508,6 +508,7 @@ public class MetricContext extends MetricRegistry implements ReportableContext, 
 
   /**
    * Create a new {@link ContextAwareGauge} wrapping a given {@link com.codahale.metrics.Gauge}.
+   * Unlike other metrics, gauges are supposed to be registered by the caller.
    *
    * @param name name of the {@link ContextAwareGauge}
    * @param gauge the {@link com.codahale.metrics.Gauge} to be wrapped by the {@link ContextAwareGauge}
@@ -515,13 +516,7 @@ public class MetricContext extends MetricRegistry implements ReportableContext, 
    * @return a new {@link ContextAwareGauge}
    */
   public <T> ContextAwareGauge<T> newContextAwareGauge(String name, Gauge<T> gauge) {
-    ContextAwareGauge<T> newContextAwareGauge = new ContextAwareGauge<>(innerMetricContext.getMetricContext().get(), name, gauge);
-    if (this.innerMetricContext.contextAwareMetrics.containsKey(name)) {
-      LOG.warn("Another metric with the same name {} is already registered in the same metric context {}. Skipping registration...", name, getName());
-    } else {
-      this.innerMetricContext.register(name, newContextAwareGauge);
-    }
-    return newContextAwareGauge;
+    return new ContextAwareGauge<T>(this, name, gauge);
   }
 
   /**
