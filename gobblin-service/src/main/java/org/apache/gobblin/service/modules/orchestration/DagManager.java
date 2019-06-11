@@ -98,7 +98,8 @@ import static org.apache.gobblin.service.ExecutionStatus.valueOf;
 public class DagManager extends AbstractIdleService {
   public static final String DEFAULT_FLOW_FAILURE_OPTION = FailureOption.FINISH_ALL_POSSIBLE.name();
 
-  private static final String DAG_MANAGER_PREFIX = "gobblin.service.dagManager.";
+  public static final String DAG_MANAGER_PREFIX = "gobblin.service.dagManager.";
+
   private static final String JOB_STATUS_RETRIEVER_KEY = DAG_MANAGER_PREFIX + "jobStatusRetriever";
   private static final Integer DEFAULT_JOB_STATUS_POLLING_INTERVAL = 10;
   private static final Integer DEFAULT_NUM_THREADS = 3;
@@ -108,8 +109,6 @@ public class DagManager extends AbstractIdleService {
   private static final String JOB_STATUS_RETRIEVER_CLASS_KEY = JOB_STATUS_RETRIEVER_KEY + ".class";
   private static final String DEFAULT_JOB_STATUS_RETRIEVER_CLASS = FsJobStatusRetriever.class.getName();
   private static final String DAG_STATESTORE_CLASS_KEY = DAG_MANAGER_PREFIX + "dagStateStoreClass";
-
-  static final String DAG_STATESTORE_DIR = DAG_MANAGER_PREFIX + "dagStateStoreDir";
 
   /**
    * Action to be performed on a {@link Dag}, in case of a job failure. Currently, we allow 2 modes:
@@ -582,11 +581,20 @@ public class DagManager extends AbstractIdleService {
       }
     }
 
-    private void cleanUpDag(String dagId) {
-      Dag<JobExecutionPlan> dag = this.dags.get(dagId);
-      this.dagToJobs.remove(dagId);
-      this.dagStateStore.cleanUp(dag);
+    /**
+     * Note that removal of a {@link Dag} entry in {@link #dags} needs to be happen after {@link #cleanUp()}
+     * since the real {@link Dag} object is required for {@link #cleanUp()},
+     * and cleaning of all relevant states need to be atomic
+     * @param dagId
+     */
+    private synchronized void cleanUpDag(String dagId) {
+       try {
+         this.dagStateStore.cleanUp(dags.get(dagId));
+       } catch (IOException ioe) {
+         log.error(String.format("Failed to clean %s from backStore due to:", dagId), ioe);
+       }
       this.dags.remove(dagId);
+      this.dagToJobs.remove(dagId);
     }
   }
 

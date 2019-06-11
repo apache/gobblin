@@ -30,6 +30,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.service.ExecutionStatus;
+import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.Dag.DagNode;
 import org.apache.gobblin.service.modules.orchestration.DagManager.FailureOption;
@@ -38,17 +39,40 @@ import org.apache.gobblin.util.ConfigUtils;
 
 
 public class DagManagerUtils {
+
+  static FlowId getFlowId(Dag<JobExecutionPlan> dag) {
+    Config jobConfig = dag.getStartNodes().get(0).getValue().getJobSpec().getConfig();
+    String flowGroup = jobConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
+    String flowName = jobConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
+    return new FlowId().setFlowGroup(flowGroup).setFlowName(flowName);
+  }
+
+  static long getFlowExecId(Dag<JobExecutionPlan> dag) {
+    Config jobConfig = dag.getStartNodes().get(0).getValue().getJobSpec().getConfig();
+    return jobConfig.getLong(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
+  }
+
   /**
    * Generate a dagId from the given {@link Dag} instance.
    * @param dag instance of a {@link Dag}.
    * @return a String id associated corresponding to the {@link Dag} instance.
    */
   static String generateDagId(Dag<JobExecutionPlan> dag) {
-    Config jobConfig = dag.getStartNodes().get(0).getValue().getJobSpec().getConfig();
-    String flowGroup = jobConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
-    String flowName = jobConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
-    Long flowExecutionId = jobConfig.getLong(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
-    return Joiner.on("_").join(flowGroup, flowName, flowExecutionId);
+    FlowId flowId = getFlowId(dag);
+    Long flowExecutionId = getFlowExecId(dag);
+    return Joiner.on("_").join(flowId.getFlowGroup(), flowId.getFlowName(), flowExecutionId);
+  }
+
+  /**
+   * Generate a FlowId from the given {@link Dag} instance.
+   * FlowId, comparing to DagId, doesn't contain FlowExecutionId so different {@link Dag} could possibly have same
+   * {@link FlowId}.
+   * @param dag
+   * @return
+   */
+  static String generateFlowIdInString(Dag<JobExecutionPlan> dag) {
+    FlowId flowId = getFlowId(dag);
+    return Joiner.on("_").join(flowId.getFlowGroup(), flowId.getFlowName());
   }
 
   /**
@@ -57,12 +81,9 @@ public class DagManagerUtils {
    * @return fully qualified name of the underlying {@link Dag}.
    */
   static String getFullyQualifiedDagName(Dag<JobExecutionPlan> dag) {
-    Config jobConfig = dag.getStartNodes().get(0).getValue().getJobSpec().getConfig();
-    String flowGroup = ConfigUtils.getString(jobConfig, ConfigurationKeys.FLOW_GROUP_KEY, "");
-    String flowName = ConfigUtils.getString(jobConfig, ConfigurationKeys.FLOW_NAME_KEY, "");
-    Long flowExecutionId = ConfigUtils.getLong(jobConfig, ConfigurationKeys.FLOW_EXECUTION_ID_KEY, 0L);
-
-    return "(flowGroup: " + flowGroup + ", flowName: " + flowName + ", flowExecutionId: " + flowExecutionId + ")";
+    FlowId flowid = getFlowId(dag);
+    long flowExecutionId = getFlowExecId(dag);
+    return "(flowGroup: " + flowid.getFlowGroup() + ", flowName: " + flowid.getFlowName() + ", flowExecutionId: " + flowExecutionId + ")";
   }
 
   static String getJobName(DagNode<JobExecutionPlan> dagNode) {

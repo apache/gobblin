@@ -50,12 +50,13 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlanListSerializer;
 @Slf4j
 public class FSDagStateStore implements DagStateStore {
   public static final String DAG_FILE_EXTENSION = ".dag";
+  static final String DAG_STATESTORE_DIR = DagManager.DAG_MANAGER_PREFIX + "dagStateStoreDir";
 
   private final String dagCheckpointDir;
   private final GsonSerDe<List<JobExecutionPlan>> serDe;
 
   public FSDagStateStore(Config config, Map<URI, TopologySpec> topologySpecMap) throws IOException {
-    this.dagCheckpointDir = config.getString(DagManager.DAG_STATESTORE_DIR);
+    this.dagCheckpointDir = config.getString(DAG_STATESTORE_DIR);
     File checkpointDir = new File(this.dagCheckpointDir);
     if (!checkpointDir.exists()) {
       if (!checkpointDir.mkdirs()) {

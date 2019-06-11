@@ -44,7 +44,7 @@ public interface DagStateStore {
    * Delete the {@link Dag} from the backing store, typically upon completion of execution.
    * @param dag The dag completed/cancelled from execution on {@link org.apache.gobblin.runtime.api.SpecExecutor}.
    */
-  void cleanUp(Dag<JobExecutionPlan> dag);
+  void cleanUp(Dag<JobExecutionPlan> dag) throws IOException;
 
   /**
    * Load all currently running {@link Dag}s from the underlying store. Typically, invoked when a new {@link DagManager}
