@@ -144,8 +144,13 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
    /**************************************************/
 
   protected void notifyAllListeners() {
-    for (Spec spec : getSpecsWithTimeUpdate()) {
-      this.listeners.onAddSpec(spec);
+    try {
+      Iterator<URI> uriIterator = getSpecURIs();
+      while (uriIterator.hasNext()) {
+        this.listeners.onAddSpec(getSpecWrapper(uriIterator.next()));
+      }
+    } catch (SpecSerDeException ssde) {
+      log.error("Cannot retrieve specs from catalog:", ssde);
     }
   }
 
@@ -155,9 +160,15 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     this.listeners.addListener(specListener);
 
     if (state() == State.RUNNING) {
-      for (Spec spec : getSpecsWithTimeUpdate()) {
-        SpecCatalogListener.AddSpecCallback addJobCallback = new SpecCatalogListener.AddSpecCallback(spec);
-        this.listeners.callbackOneListener(addJobCallback, specListener);
+      try {
+        Iterator<URI> uriIterator = getSpecURIs();
+        while (uriIterator.hasNext()) {
+          SpecCatalogListener.AddSpecCallback addJobCallback =
+              new SpecCatalogListener.AddSpecCallback(getSpecWrapper(uriIterator.next()));
+          this.listeners.callbackOneListener(addJobCallback, specListener);
+        }
+      } catch (SpecSerDeException ssde) {
+        log.error("Cannot retrieve specs from catalog:", ssde);
       }
     }
   }
@@ -219,9 +230,21 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     }
   }
 
+  public Iterator<URI> getSpecURISWithTag(String tag) throws SpecSerDeException {
+    try {
+      return specStore.getSpecURIsWithTag(tag);
+    } catch (IOException ioe) {
+      throw new SpecSerDeException( String.format("Cannot retrieve Specs' URI with tag %s from Spec Store", tag),
+          specStore.getSpecStoreURI().get(), ioe);
+    }
+  }
+
   /**
    * Get all specs from {@link SpecStore}
+   * Not suggested for {@link FlowCatalog} where the total amount of space that all {@link FlowSpec}s occupied
+   * would be large and loading process is slow.
    */
+  @Deprecated
   @Override
   public Collection<Spec> getSpecs() {
     try {
@@ -230,13 +253,6 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     } catch (IOException e) {
       throw new RuntimeException("Cannot retrieve Specs from Spec store", e);
     }
-  }
-
-  public Collection<Spec> getSpecsWithTimeUpdate() {
-    long startTime = System.currentTimeMillis();
-    Collection<Spec> specs = this.getSpecs();
-    this.metrics.updateGetSpecTime(startTime);
-    return specs;
   }
 
   public boolean exists(URI uri) {
@@ -254,6 +270,22 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     } catch (IOException e) {
       throw new RuntimeException("Cannot retrieve Spec from Spec store for URI: " + uri, e);
     }
+  }
+
+  /**
+   * A wrapper of getSpec that handles {@link SpecNotFoundException} properly.
+   * This is the most common way to fetch {@link Spec}. For customized way to deal with exception, one will
+   * need to implement specific catch-block logic.
+   */
+  public Spec getSpecWrapper(URI uri) {
+    Spec spec = null;
+    try {
+      spec = getSpec(uri);
+    } catch (SpecNotFoundException snfe) {
+      log.error(String.format("The URI %s discovered in SpecStore is missing in FlowCatlog"
+          + ", suspecting current modification on SpecStore", uri), snfe);
+    }
+    return spec;
   }
 
   /**

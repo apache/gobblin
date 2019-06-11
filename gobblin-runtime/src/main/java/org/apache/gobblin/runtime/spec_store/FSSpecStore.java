@@ -264,6 +264,11 @@ public class FSSpecStore implements SpecStore {
   }
 
   @Override
+  public Iterator<URI> getSpecURIsWithTag(String tag) throws IOException {
+    throw new UnsupportedOperationException("Loading specs with tag is not supported in FS-Implementation of SpecStore");
+  }
+
+  @Override
   public Optional<URI> getSpecStoreURI() {
     return Optional.of(this.fsSpecStoreDirPath.toUri());
   }

@@ -318,7 +318,8 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   }
 
   /**
-   * Check if the flow instance is allowed to run.
+   * Check if a FlowSpec instance is allowed to run.
+   *
    * @param flowName
    * @param flowGroup
    * @param allowConcurrentExecution

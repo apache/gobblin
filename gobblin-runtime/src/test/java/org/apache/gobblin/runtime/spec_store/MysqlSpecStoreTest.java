@@ -18,9 +18,11 @@
 package org.apache.gobblin.runtime.spec_store;
 
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 
+import java.util.List;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.SerializationUtils;
 import org.testng.Assert;
@@ -103,6 +105,36 @@ public class MysqlSpecStoreTest {
     Iterator<URI> uris = this.specStore.getSpecURIs();
     Assert.assertTrue(Iterators.contains(uris, this.uri1));
     Assert.assertTrue(Iterators.contains(uris, this.uri2));
+  }
+
+  @Test
+  public void testGetSpecWithTag() throws Exception {
+
+    //Creating and inserting flowspecs with tags
+    URI uri4 = URI.create("flowspec4");
+    FlowSpec flowSpec4 = FlowSpec.builder(uri4)
+        .withConfig(ConfigBuilder.create().addPrimitive("key4", "value4").build())
+        .withDescription("Test flow spec 4")
+        .withVersion("Test version 4")
+        .build();
+
+    URI uri5 = URI.create("flowspec5");
+    FlowSpec flowSpec5 = FlowSpec.builder(uri5)
+        .withConfig(ConfigBuilder.create().addPrimitive("key5", "value5").build())
+        .withDescription("Test flow spec 5")
+        .withVersion("Test version 5")
+        .build();
+
+    this.specStore.addSpec(flowSpec3);
+    this.specStore.addSpec(flowSpec4, "dr");
+    this.specStore.addSpec(flowSpec5, "dr");
+
+    Assert.assertTrue(this.specStore.exists(uri3));
+    Assert.assertTrue(this.specStore.exists(uri4));
+    Assert.assertTrue(this.specStore.exists(uri5));
+    List<URI> result = new ArrayList();
+    this.specStore.getSpecURIsWithTag("dr").forEachRemaining(result::add);
+    Assert.assertEquals(result.size(), 2);
   }
 
   @Test
