@@ -516,7 +516,11 @@ public class MetricContext extends MetricRegistry implements ReportableContext, 
    */
   public <T> ContextAwareGauge<T> newContextAwareGauge(String name, Gauge<T> gauge) {
     ContextAwareGauge<T> newContextAwareGauge = new ContextAwareGauge<>(innerMetricContext.getMetricContext().get(), name, gauge);
-    this.innerMetricContext.register(name, newContextAwareGauge);
+    if (this.innerMetricContext.contextAwareMetrics.containsKey(name)) {
+      LOG.warn("Another metric with the same name {} is already registered in the same metric context {}. Skipping registration...", name, getName());
+    } else {
+      this.innerMetricContext.register(name, newContextAwareGauge);
+    }
     return newContextAwareGauge;
   }
 

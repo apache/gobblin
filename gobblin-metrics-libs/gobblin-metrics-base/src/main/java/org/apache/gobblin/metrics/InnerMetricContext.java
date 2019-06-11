@@ -71,7 +71,7 @@ public class InnerMetricContext extends MetricRegistry implements ReportableCont
 
   // A map from simple names to context-aware metrics. All metrics registered with this context (using
   // their simple names) are also registered with the MetricRegistry using their fully-qualified names.
-  private final ConcurrentMap<String, InnerMetric> contextAwareMetrics = Maps.newConcurrentMap();
+  final ConcurrentMap<String, InnerMetric> contextAwareMetrics = Maps.newConcurrentMap();
 
   // This is used to work on tags associated with this context
   private final Tagged tagged;
