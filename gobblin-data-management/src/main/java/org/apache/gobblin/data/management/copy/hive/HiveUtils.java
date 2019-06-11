@@ -163,4 +163,11 @@ public class HiveUtils {
     return conf;
   }
 
+  /**
+   * @return true if {@link Table} is partitioned.
+   * @deprecated use {@link Table}'s isPartitioned method directly.
+   */
+  public static boolean isPartitioned(Table table) {
+    return table.isPartitioned();
+  }
 }
