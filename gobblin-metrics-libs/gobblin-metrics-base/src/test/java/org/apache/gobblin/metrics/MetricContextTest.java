@@ -228,7 +228,6 @@ public class MetricContextTest {
             return 1000l;
           }
         });
-    this.context.register(QUEUE_SIZE, queueSize);
 
     Assert.assertEquals(queueSize.getValue().longValue(), 1000l);
 
