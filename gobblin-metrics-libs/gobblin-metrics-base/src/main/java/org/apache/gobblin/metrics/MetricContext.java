@@ -508,6 +508,7 @@ public class MetricContext extends MetricRegistry implements ReportableContext, 
 
   /**
    * Create a new {@link ContextAwareGauge} wrapping a given {@link com.codahale.metrics.Gauge}.
+   * Unlike other metrics, gauges are supposed to be registered by the caller.
    *
    * @param name name of the {@link ContextAwareGauge}
    * @param gauge the {@link com.codahale.metrics.Gauge} to be wrapped by the {@link ContextAwareGauge}
