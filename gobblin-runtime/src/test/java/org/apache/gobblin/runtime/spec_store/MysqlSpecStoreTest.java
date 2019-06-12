@@ -38,7 +38,8 @@ import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.Spec;
-import org.apache.gobblin.runtime.api.SpecSerDe;
+import org.apache.gobblin.runtime.api.SpecSerDeException;
+import org.apache.gobblin.runtime.spec_serde.JavaSpecSerDe;
 
 
 public class MysqlSpecStoreTest {
@@ -158,20 +159,15 @@ public class MysqlSpecStoreTest {
     Assert.assertFalse(this.specStore.exists(this.uri1));
   }
 
-  public class TestSpecSerDe implements SpecSerDe {
+  public class TestSpecSerDe extends JavaSpecSerDe {
     @Override
-    public byte[] serialize(Spec spec) {
+    public byte[] serialize(Spec spec) throws SpecSerDeException {
       byte[] bytes = SerializationUtils.serialize(spec);
       // Reverse bytes to simulate corrupted Spec
       if (spec.getUri().equals(uri3)) {
         ArrayUtils.reverse(bytes);
       }
       return bytes;
-    }
-
-    @Override
-    public Spec deserialize(byte[] spec) {
-      return SerializationUtils.deserialize(spec);
     }
   }
 }

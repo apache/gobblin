@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.service.modules.spec;
+package org.apache.gobblin.runtime.spec_serde;
 
 import java.lang.reflect.Type;
 
