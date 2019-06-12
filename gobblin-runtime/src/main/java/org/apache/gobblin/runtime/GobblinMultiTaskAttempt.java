@@ -47,7 +47,7 @@ import org.apache.gobblin.commit.CommitStep;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.metastore.StateStore;
-import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.JobEvent;
 import org.apache.gobblin.runtime.task.TaskFactory;
@@ -89,6 +89,7 @@ public class GobblinMultiTaskAttempt {
   private final Logger log;
   private final Iterator<WorkUnit> workUnits;
   private final String jobId;
+  private final String attemptId;
   private final JobState jobState;
   private final TaskStateTracker taskStateTracker;
   private final TaskExecutor taskExecutor;
@@ -116,6 +117,7 @@ public class GobblinMultiTaskAttempt {
     super();
     this.workUnits = workUnits;
     this.jobId = jobId;
+    this.attemptId = this.getClass().getName() + "." + this.jobId;
     this.jobState = jobState;
     this.taskStateTracker = taskStateTracker;
     this.taskExecutor = taskExecutor;
@@ -415,7 +417,8 @@ public class GobblinMultiTaskAttempt {
       }
     }
 
-    new EventSubmitter.Builder(JobMetrics.get(this.jobId).getMetricContext(), "gobblin.runtime").build()
+    new EventSubmitter.Builder(JobMetrics.get(this.jobId, new JobMetrics.CreatorTag(this.attemptId)).getMetricContext(), "gobblin.runtime")
+        .build()
         .submit(JobEvent.TASKS_SUBMITTED, "tasksCount", Long.toString(countDownLatch.getRegisteredParties()));
 
     return tasks;
@@ -452,27 +455,34 @@ public class GobblinMultiTaskAttempt {
 
   public void runAndOptionallyCommitTaskAttempt(CommitPolicy multiTaskAttemptCommitPolicy)
       throws IOException, InterruptedException {
-    try {
-      run();
-      if (multiTaskAttemptCommitPolicy.equals(GobblinMultiTaskAttempt.CommitPolicy.IMMEDIATE)) {
-        this.log.info("Will commit tasks directly.");
-        commit();
-      } else if (!isSpeculativeExecutionSafe()) {
-        throw new RuntimeException(
-            "Speculative execution is enabled. However, the task context is not safe for speculative execution.");
-      }
-    } finally {
-      // During the task execution, the fork/task instances will create metric contexts (fork, task, job, container)
-      // along the hierarchy up to the root metric context. Although root metric context has a weak reference to
-      // those metric contexts, they are meanwhile cached by GobblinMetricsRegistry. Here we will remove all those
-      // strong reference from the cache to make sure it can be reclaimed by Java GC when JVM has run out of memory.
-
-      this.tasks.forEach(task-> {
-        TaskMetrics.remove(task);
-      });
-
-      JobMetrics.remove(GobblinMetrics.METRICS_ID_PREFIX + jobState.getJobId());
+    run();
+    if (multiTaskAttemptCommitPolicy.equals(GobblinMultiTaskAttempt.CommitPolicy.IMMEDIATE)) {
+      this.log.info("Will commit tasks directly.");
+      commit();
+    } else if (!isSpeculativeExecutionSafe()) {
+      throw new RuntimeException(
+          "Speculative execution is enabled. However, the task context is not safe for speculative execution.");
     }
+  }
+
+  /**
+   * <p> During the task execution, the fork/task instances will create metric contexts (fork, task, job, container)
+   * along the hierarchy up to the root metric context. Although root metric context has a weak reference to
+   * those metric contexts, they are meanwhile cached by GobblinMetricsRegistry. Here we will remove all those
+   * strong reference from the cache to make sure it can be reclaimed by Java GC when JVM has run out of memory.
+   *
+   * <p> Task metrics are cleaned by iterating all tasks. Job level metrics cleaning needs some caveat. The
+   * cleaning will only succeed if the creator of this job level metrics initiates the removal. This means if a task
+   * tries to remove the {@link JobMetrics} which is created by others, the removal won't take effect. This is handled by
+   * {@link JobMetrics#attemptRemove(String, Tag)}.
+   */
+  public void cleanMetrics() {
+    tasks.forEach(task-> {
+      TaskMetrics.remove(task);
+      JobMetrics.attemptRemove(this.jobId, new JobMetrics.CreatorTag(task.getTaskId()));
+    });
+
+    JobMetrics.attemptRemove(this.jobId, new JobMetrics.CreatorTag(this.attemptId));
   }
 
   /**

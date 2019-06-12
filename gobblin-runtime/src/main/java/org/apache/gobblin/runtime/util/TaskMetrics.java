@@ -90,7 +90,7 @@ public class TaskMetrics extends GobblinMetrics {
   }
 
   private static String name(Task task) {
-    return METRICS_ID_PREFIX + task.getJobId() + "." + task.getTaskId();
+    return name(task.getTaskState());
   }
 
   protected static List<Tag<?>> tagsForTask(TaskState taskState) {
@@ -104,7 +104,11 @@ public class TaskMetrics extends GobblinMetrics {
   }
 
   private static MetricContext parentContextForTask(TaskState taskState) {
-    return JobMetrics.get(taskState.getProp(ConfigurationKeys.JOB_NAME_KEY), taskState.getJobId()).getMetricContext();
+    return JobMetrics.get(
+        taskState.getProp(ConfigurationKeys.JOB_NAME_KEY),
+        taskState.getJobId(),
+        new JobMetrics.CreatorTag(taskState.getTaskId()))
+        .getMetricContext();
   }
 
   public static String taskInstanceRemoved(String metricName) {
