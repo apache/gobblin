@@ -413,9 +413,10 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   }
 
   @Setter
-  private class FlowCompiledState {
+  private static class FlowCompiledState {
     private CompiledState state = CompiledState.UNKNOWN;
   }
+
   private enum CompiledState {
     FAILED(-1),
     UNKNOWN(0),
