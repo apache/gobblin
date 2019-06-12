@@ -481,7 +481,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
           if (needToUpdatePartition(existingPartition, partition)) {
             log.info(String.format("Partition update required. ExistingPartition %s, newPartition %s",
                 stringifyPartition(existingPartition), stringifyPartition(partition)));
-            Partition newPartition = getPartitionWithCreateTime(nativePartition, existingPartition);
+            Partition newPartition = getNewPartitionByMergingExistingPartPros(nativePartition, existingPartition);
             log.info(String.format("Altering partition %s", newPartition));
             try (Timer.Context context = this.metricContext.timer(ALTER_PARTITION).time()) {
               client.alter_partition(table.getDbName(), table.getTableName(), newPartition);
@@ -639,5 +639,18 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
    */
   protected Table getNewTblByMergingExistingTblProps(Table newTable, HiveTable existingTable) {
     return getTableWithCreateTime(newTable, existingTable);
+  }
+
+  /**
+   * Similar to {@link #getNewTblByMergingExistingTblProps}, will need to merge existing partition's property
+   * with new partitions since the existing property value may not be available when creating new partition object.
+   *
+   *
+   * This method is extensible for customized logic in merging table properties.
+   * @param newPart The new partition object.
+   * @param referencePart The existing partition object.
+   */
+  protected Partition getNewPartitionByMergingExistingPartPros(Partition newPart, HivePartition referencePart) {
+    return getPartitionWithCreateTime(newPart, referencePart);
   }
 }
