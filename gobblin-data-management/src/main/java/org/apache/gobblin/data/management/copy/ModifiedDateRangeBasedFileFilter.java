@@ -39,7 +39,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
  *  <code>sourceFs<code>
  */
 @Slf4j
-public class SelectBtwModDataTimeBasedCopyableFileFilter implements CopyableFileFilter {
+public class ModifiedDateRangeBasedFileFilter implements CopyableFileFilter {
 
   private final Properties props;
   private Period minLookBackPeriod;
@@ -48,7 +48,7 @@ public class SelectBtwModDataTimeBasedCopyableFileFilter implements CopyableFile
   private DateTime minLookBackTime;
   private DateTime maxLookBackTime;
 
-  public static final String CONFIGURATION_KEY_PREFIX = "gobblin.dataset.";
+  public static final String CONFIGURATION_KEY_PREFIX = "gobblin.dataset.filter.";
   public static final String MODIFIED_MIN_LOOK_BACK_TIME_KEY =
       CONFIGURATION_KEY_PREFIX + "selection.modified.min.lookbackTime";
   public static final String MODIFIED_MAX_LOOK_BACK_TIME_KEY =
@@ -56,7 +56,7 @@ public class SelectBtwModDataTimeBasedCopyableFileFilter implements CopyableFile
   public static final String DEFAULT_DATE_PATTERN_TIMEZONE = ConfigurationKeys.PST_TIMEZONE_NAME;
   public static final String DATE_PATTERN_TIMEZONE_KEY = CONFIGURATION_KEY_PREFIX + "datetime.timezone";
 
-  public SelectBtwModDataTimeBasedCopyableFileFilter(Properties properties) {
+  public ModifiedDateRangeBasedFileFilter(Properties properties) {
     this.props = properties;
     PeriodFormatter periodFormatter =
         new PeriodFormatterBuilder().appendDays().appendSuffix("d").appendHours().appendSuffix("h").toFormatter();

@@ -152,10 +152,10 @@ public class TimestampBasedCopyableDatasetTest {
     props.setProperty(SelectBetweenTimeBasedPolicy.TIME_BASED_SELECTION_MAX_LOOK_BACK_TIME_KEY, "6d");
     props.setProperty(DateTimeDatasetVersionFinder.DATE_TIME_PATTERN_KEY, "yyyy/MM/dd");
     props.setProperty("gobblin.dataset.copyable.file.filter.class",
-        "org.apache.gobblin.data.management.copy.SelectBtwModDataTimeBasedCopyableFileFilter");
-    props.setProperty(SelectBtwModDataTimeBasedCopyableFileFilter.MODIFIED_MIN_LOOK_BACK_TIME_KEY, "0d");
-    props.setProperty(SelectBtwModDataTimeBasedCopyableFileFilter.MODIFIED_MAX_LOOK_BACK_TIME_KEY, "1d");
-    props.setProperty(SelectBtwModDataTimeBasedCopyableFileFilter.DATE_PATTERN_TIMEZONE_KEY,
+        "org.apache.gobblin.data.management.copy.ModifiedDateRangeBasedFileFilter");
+    props.setProperty(ModifiedDateRangeBasedFileFilter.MODIFIED_MIN_LOOK_BACK_TIME_KEY, "0d");
+    props.setProperty(ModifiedDateRangeBasedFileFilter.MODIFIED_MAX_LOOK_BACK_TIME_KEY, "1d");
+    props.setProperty(ModifiedDateRangeBasedFileFilter.DATE_PATTERN_TIMEZONE_KEY,
         ConfigurationKeys.PST_TIMEZONE_NAME);
 
     /** Mock object **/
@@ -173,8 +173,8 @@ public class TimestampBasedCopyableDatasetTest {
     Assert.assertEquals(copyableFiles.size(), 3);
 
     /* Change in MinLookBack to 1d should result in 0 files */
-    props.setProperty(SelectBtwModDataTimeBasedCopyableFileFilter.MODIFIED_MIN_LOOK_BACK_TIME_KEY, "1d");
-    props.setProperty(SelectBtwModDataTimeBasedCopyableFileFilter.MODIFIED_MAX_LOOK_BACK_TIME_KEY, "2d");
+    props.setProperty(ModifiedDateRangeBasedFileFilter.MODIFIED_MIN_LOOK_BACK_TIME_KEY, "1d");
+    props.setProperty(ModifiedDateRangeBasedFileFilter.MODIFIED_MAX_LOOK_BACK_TIME_KEY, "2d");
 
     tCopyableDs = new TimestampBasedCopyableDataset(this.localFs, props, srcRoot);
     copyableFiles = (ConcurrentLinkedQueue<CopyableFile>) tCopyableDs.getCopyableFiles(this.localFs, copyConfig);
