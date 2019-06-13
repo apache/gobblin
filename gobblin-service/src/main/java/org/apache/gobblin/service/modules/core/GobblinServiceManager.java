@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.service.modules.core;
 
-import com.typesafe.config.ConfigValueFactory;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
@@ -169,6 +168,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     if (!properties.contains(ServiceBasedAppLauncher.APP_STOP_TIME_SECONDS)) {
       properties.setProperty(ServiceBasedAppLauncher.APP_STOP_TIME_SECONDS, Long.toString(300));
     }
+    this.config = config;
     this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), this.getClass());
     this.metrics = new Metrics(this.metricContext, config);
     this.serviceName = serviceName;
