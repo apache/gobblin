@@ -894,6 +894,7 @@ public class ConfigurationKeys {
    * Configuration properties related to TopologySpec Store
    */
   public static final String TOPOLOGYSPEC_STORE_CLASS_KEY = "topologySpec.store.class";
+  public static final String TOPOLOGYSPEC_SERDE_CLASS_KEY = "topologySpec.serde.class";
   public static final String TOPOLOGYSPEC_STORE_DIR_KEY = "topologySpec.store.dir";
 
   /***

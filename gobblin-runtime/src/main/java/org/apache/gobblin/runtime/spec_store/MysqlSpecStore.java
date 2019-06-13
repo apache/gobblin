@@ -30,8 +30,6 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
-import org.apache.commons.lang3.SerializationException;
-
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.io.ByteStreams;
@@ -46,6 +44,7 @@ import org.apache.gobblin.metastore.MysqlDataSourceFactory;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.api.SpecSerDe;
+import org.apache.gobblin.runtime.api.SpecSerDeException;
 import org.apache.gobblin.runtime.api.SpecStore;
 
 
@@ -128,7 +127,7 @@ public class MysqlSpecStore implements SpecStore {
       statement.executeUpdate();
 
       connection.commit();
-    } catch (SQLException | SerializationException e) {
+    } catch (SQLException | SpecSerDeException e) {
       throw new IOException(e);
     }
   }
@@ -177,7 +176,7 @@ public class MysqlSpecStore implements SpecStore {
         Blob blob = rs.getBlob(1);
         return this.specSerDe.deserialize(ByteStreams.toByteArray(blob.getBinaryStream()));
       }
-    } catch (SQLException | SerializationException e) {
+    } catch (SQLException | SpecSerDeException e) {
       throw new IOException(e);
     }
   }
@@ -204,7 +203,7 @@ public class MysqlSpecStore implements SpecStore {
           try {
             Blob blob = rs.getBlob(2);
             specs.add(this.specSerDe.deserialize(ByteStreams.toByteArray(blob.getBinaryStream())));
-          } catch (SQLException | SerializationException e) {
+          } catch (SQLException | SpecSerDeException e) {
             log.error("Failed to deserialize spec", e);
           }
         }
