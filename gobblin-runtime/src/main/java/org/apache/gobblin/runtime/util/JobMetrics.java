@@ -65,7 +65,7 @@ public class JobMetrics extends GobblinMetrics {
 
   /**
    * Get a new {@link GobblinMetrics} instance for a given job.
-   * This method has been deprecated. Please consider to use {@link JobMetrics#get(String, String, CreatorTag)}
+   * @deprecated  use {@link JobMetrics#get(String, String, CreatorTag)} instead.
    *
    * @param jobName job name
    * @param jobId job ID
@@ -119,7 +119,7 @@ public class JobMetrics extends GobblinMetrics {
 
   /**
    * Get a {@link JobMetrics} instance for the job with the given {@link JobState} instance.
-   * This method has been deprecated. Please consider to use {@link JobMetrics#get(JobState, CreatorTag)}.
+   * @deprecated  use {@link JobMetrics#get(JobState, CreatorTag)} instead.
    *
    * @param jobState the given {@link JobState} instance
    * @return a {@link JobMetrics} instance
