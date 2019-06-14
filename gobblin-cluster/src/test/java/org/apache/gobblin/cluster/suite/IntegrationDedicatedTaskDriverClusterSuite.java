@@ -72,7 +72,7 @@ public class IntegrationDedicatedTaskDriverClusterSuite extends IntegrationBasic
     Config newConfig = ConfigFactory.parseMap(ImmutableMap.of(
         GobblinClusterConfigurationKeys.DISTRIBUTED_JOB_LAUNCHER_ENABLED, true))
         .withFallback(rawJobConfig);
-    return ImmutableMap.of("HelloWorldJob", newConfig);
+    return ImmutableMap.of(JOB_NAME, newConfig);
   }
 
   @Override

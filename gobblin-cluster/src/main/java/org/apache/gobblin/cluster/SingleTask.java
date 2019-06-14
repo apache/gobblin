@@ -87,6 +87,8 @@ public class SingleTask {
 
       _taskattempt = _taskAttemptBuilder.build(workUnits.iterator(), _jobId, jobState, jobBroker);
       _taskattempt.runAndOptionallyCommitTaskAttempt(GobblinMultiTaskAttempt.CommitPolicy.IMMEDIATE);
+    } finally {
+      _taskattempt.cleanMetrics();
     }
   }
 

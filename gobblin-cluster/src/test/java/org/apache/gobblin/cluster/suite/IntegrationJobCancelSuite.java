@@ -42,7 +42,7 @@ public class IntegrationJobCancelSuite extends IntegrationBasicSuite {
         GobblinClusterConfigurationKeys.HELIX_JOB_TIMEOUT_ENABLED_KEY, Boolean.TRUE,
         GobblinClusterConfigurationKeys.HELIX_JOB_TIMEOUT_SECONDS, 10L, SleepingTask.TASK_STATE_FILE_KEY, TASK_STATE_FILE))
         .withFallback(rawJobConfig);
-    return ImmutableMap.of("HelloWorldJob", newConfig);
+    return ImmutableMap.of(JOB_NAME, newConfig);
   }
 
   @Override

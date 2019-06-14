@@ -311,6 +311,7 @@ public class TaskState extends WorkUnitState implements TaskProgress {
     this.jobId = text.toString().intern();
     text.readFields(in);
     this.taskId = text.toString().intern();
+    this.taskAttemptId = Optional.absent();
     this.setId(this.taskId);
     this.startTime = in.readLong();
     this.endTime = in.readLong();

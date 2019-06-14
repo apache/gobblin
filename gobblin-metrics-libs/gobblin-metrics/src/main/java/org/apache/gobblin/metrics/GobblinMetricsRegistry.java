@@ -17,11 +17,15 @@
 
 package org.apache.gobblin.metrics;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import com.google.common.cache.Cache;
@@ -113,6 +117,21 @@ public class GobblinMetricsRegistry {
    */
   public static GobblinMetricsRegistry getInstance() {
     return GLOBAL_INSTANCE;
+  }
+
+  /**
+   * Retrieve the {@link GobblinMetrics} by check if the key in cache matches a given regex.
+   */
+  @VisibleForTesting
+  public Collection<GobblinMetrics> getMetricsByPattern(String regex) {
+    Map<String, GobblinMetrics> entries = this.metricsCache.asMap();
+    List<GobblinMetrics> rst = new ArrayList<>();
+    for (Map.Entry<String, GobblinMetrics> entry: entries.entrySet()) {
+      if (entry.getKey().matches(regex)) {
+        rst.add(entry.getValue());
+      }
+    }
+    return rst;
   }
 
   /**
