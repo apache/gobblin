@@ -317,7 +317,7 @@ public class DagManagerTest {
     }
   }
 
-  @Test
+  @Test (dependsOnMethods = "testFailedDag")
   public void testSucceedAfterRetry() throws Exception {
     long flowExecutionId = System.currentTimeMillis();
     String flowGroupId = "0";
@@ -398,7 +398,7 @@ public class DagManagerTest {
     Assert.assertEquals(this._dagStateStore.getDags().size(), 0);
   }
 
-  @Test
+  @Test (dependsOnMethods = "testSucceedAfterRetry")
   public void testFailAfterRetry() throws Exception {
     long flowExecutionId = System.currentTimeMillis();
     String flowGroupId = "0";

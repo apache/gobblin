@@ -565,7 +565,7 @@ public class DagManager extends AbstractIdleService {
 
       //Clean up completed dags
       for (String dagId : this.dags.keySet()) {
-        if (!hasRunningJobs(dagId)) {
+        if (!hasRunningJobs(dagId) && !this.failedDagIdsFinishRunning.contains(dagId)) {
           String status = "COMPLETE";
           if (this.failedDagIdsFinishAllPossible.contains(dagId)) {
             status = "FAILED";
