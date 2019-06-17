@@ -33,8 +33,10 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.DynamicConfigGenerator;
 import org.apache.gobblin.kafka.schemareg.KafkaSchemaRegistryConfigurationKeys;
 import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistry;
+import org.apache.gobblin.runtime.DynamicConfigGeneratorFactory;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.SpecExecutor;
@@ -124,6 +126,11 @@ public class JobExecutionPlan {
 
       //Add tracking config to JobSpec.
       addTrackingEventConfig(jobSpec, sysConfig);
+
+      // Add dynamic config to jobSpec if a dynamic config generator is specified in sysConfig
+      DynamicConfigGenerator dynamicConfigGenerator = DynamicConfigGeneratorFactory.createDynamicConfigGenerator(sysConfig);
+      Config dynamicConfig = dynamicConfigGenerator.generateDynamicConfig(jobSpec.getConfig().withFallback(sysConfig));
+      jobSpec.setConfig(jobSpec.getConfig().withFallback(dynamicConfig));
 
       // Reset properties in Spec from Config
       jobSpec.setConfigAsProperties(ConfigUtils.configToProperties(jobSpec.getConfig()));
