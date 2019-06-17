@@ -59,6 +59,7 @@ public class AvroSchemaCheckDefaultStrategy implements AvroSchemaCheckStrategy {
           if (toValidate.getFixedSize() != expected.getFixedSize()) {
             return false;
           }
+          return true;
         }
         case ENUM: {
           // expected symbols must contain all toValidate symbols:
@@ -70,6 +71,7 @@ public class AvroSchemaCheckDefaultStrategy implements AvroSchemaCheckStrategy {
           if (!expectedSymbols.containsAll(toValidateSymbols)) {
             return false;
           }
+          return true;
         }
 
         case RECORD: {
