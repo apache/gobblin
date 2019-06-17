@@ -85,7 +85,7 @@ public abstract class MultiDatasetFinder implements DatasetsFinder<Dataset> {
           log.info(String.format("Instantiating datasetfinder %s ", jobProps.getProperty(datasetFinderClassKey())));
           this.datasetFinders.add((DatasetsFinder) GobblinConstructorUtils.invokeLongestConstructor(
               Class.forName(jobProps.getProperty(datasetFinderClassKey())), fs, jobProps, eventSubmitter));
-        } catch ( ReflectiveOperationException e) {
+        } catch (ReflectiveOperationException e) {
           log.error(
               String.format("Retention ignored could not instantiate datasetfinder %s.",
                   jobProps.getProperty(datasetFinderClassKey())), e);
@@ -109,7 +109,8 @@ public abstract class MultiDatasetFinder implements DatasetsFinder<Dataset> {
           try {
             this.datasetFinders.add((DatasetsFinder) GobblinConstructorUtils.invokeFirstConstructor(
                 Class.forName(datasetClassConfig.getString(datasetFinderClassKey())), ImmutableList.of(fs, jobProps,
-                    datasetClassConfig), ImmutableList.of(fs, jobProps)));
+                    datasetClassConfig), ImmutableList.of(fs, jobProps, eventSubmitter),
+                    ImmutableList.of(fs, jobProps)));
             log.info(String.format("Instantiated datasetfinder %s for %s.",
                 datasetClassConfig.getString(datasetFinderClassKey()), importedBy));
           } catch (InstantiationException | IllegalAccessException | IllegalArgumentException
