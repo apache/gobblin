@@ -71,6 +71,7 @@ public abstract class MultiDatasetFinder implements DatasetsFinder<Dataset> {
 
   protected final Properties jobProps;
 
+  @SuppressWarnings({ "rawtypes", "unchecked" })
   public MultiDatasetFinder(FileSystem fs, Properties jobProps) {
     this(fs,jobProps,new EventSubmitter.Builder(Optional.absent(),"noMessage").build());
   }
