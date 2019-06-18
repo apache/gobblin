@@ -1,33 +1,13 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package org.apache.gobblin.metrics.event;
 
-import java.util.Map;
+import org.apache.gobblin.metrics.GobblinTrackingEvent;
 
-import com.google.common.collect.Maps;
 
 /**
- * Event to time actions in the program. Automatically reports start time, end time, and duration from the time
- * the {@link org.apache.gobblin.metrics.event.TimingEvent} was created to the time {@link #stop} is called.
- * @deprecated  Use {@link TimingEventBuilder}
+ * A Builder that builds and can submit a {@link GobblinTrackingEvent }
+ *
  */
-@Deprecated
-public class TimingEvent {
+public class TimingEventBuilder extends GobblinEventBuilder {
 
   public static class LauncherTimings {
     public static final String FULL_JOB_EXECUTION = "FullJobExecutionTimer";
@@ -53,7 +33,7 @@ public class TimingEvent {
     public static final String MR_DISTRIBUTED_CACHE_SETUP = "JobMrDistributedCacheSetupTimer";
     public static final String MR_JOB_SETUP = "JobMrSetupTimer";
     public static final String MR_JOB_RUN = "JobMrRunTimer";
-    public static final String HELIX_JOB_SUBMISSION= "JobHelixSubmissionTimer";
+    public static final String HELIX_JOB_SUBMISSION = "JobHelixSubmissionTimer";
     public static final String HELIX_JOB_RUN = "JobHelixRunTimer";
   }
 
@@ -86,46 +66,39 @@ public class TimingEvent {
   public static final String JOB_START_TIME = "jobStartTime";
   public static final String JOB_END_TIME = "jobEndTime";
 
-  private final String name;
-  private final Long startTime;
-  private final EventSubmitter submitter;
+  private final long startTime;
   private boolean stopped;
 
-  public TimingEvent(EventSubmitter submitter, String name) {
+  public TimingEventBuilder(String name) {
+    super(name);
     this.stopped = false;
-    this.name = name;
-    this.submitter = submitter;
     this.startTime = System.currentTimeMillis();
   }
 
   /**
-   * Stop the timer and submit the event. If the timer was already stopped before, this is a no-op.
+   * Stops the timer if it hasn't already been stopped
+   * and records the duration of the event in metadata
    */
   public void stop() {
-    stop(Maps.<String, String> newHashMap());
-  }
-
-  /**
-   * Stop the timer and submit the event, along with the additional metadata specified. If the timer was already stopped
-   * before, this is a no-op.
-   *
-   * @param additionalMetadata a {@link Map} of additional metadata that should be submitted along with this event
-   */
-  public void stop(Map<String, String> additionalMetadata) {
     if (this.stopped) {
       return;
     }
     this.stopped = true;
     long endTime = System.currentTimeMillis();
-    long duration = endTime - this.startTime;
 
-    Map<String, String> finalMetadata = Maps.newHashMap();
-    finalMetadata.putAll(additionalMetadata);
-    finalMetadata.put(EventSubmitter.EVENT_TYPE, METADATA_TIMING_EVENT);
-    finalMetadata.put(METADATA_START_TIME, Long.toString(this.startTime));
-    finalMetadata.put(METADATA_END_TIME, Long.toString(endTime));
-    finalMetadata.put(METADATA_DURATION, Long.toString(duration));
+    metadata.put(EVENT_TYPE, METADATA_TIMING_EVENT);
+    metadata.put(METADATA_START_TIME, Long.toString(this.startTime));
+    metadata.put(METADATA_END_TIME, Long.toString(endTime));
+    metadata.put(METADATA_DURATION, Long.toString((endTime - this.startTime)));
+  }
 
-    this.submitter.submit(this.name, finalMetadata);
+  /**
+   * stops the timer and returns a {@link GobblinTrackingEvent}
+   * @return {@link GobblinTrackingEvent}
+   */
+  @Override
+  public GobblinTrackingEvent build() {
+    stop();
+    return super.build();
   }
 }
