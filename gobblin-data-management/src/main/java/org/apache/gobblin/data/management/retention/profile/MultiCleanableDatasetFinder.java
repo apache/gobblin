@@ -16,6 +16,7 @@
  */
 package org.apache.gobblin.data.management.retention.profile;
 
+import com.google.common.base.Optional;
 import org.apache.gobblin.data.management.retention.DatasetCleaner;
 
 import java.net.URI;
@@ -50,7 +51,7 @@ public class MultiCleanableDatasetFinder extends MultiDatasetFinder {
 
 
   public MultiCleanableDatasetFinder(FileSystem fs, Properties jobProps) {
-    super(fs, jobProps);
+    this(fs,jobProps,new EventSubmitter.Builder(Optional.absent(),"noMessage").build());
   }
 
   public MultiCleanableDatasetFinder(FileSystem fs, Properties jobProps, EventSubmitter eventSubmitter) {
