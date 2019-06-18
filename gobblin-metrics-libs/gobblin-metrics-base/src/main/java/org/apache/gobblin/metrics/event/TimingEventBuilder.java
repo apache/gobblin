@@ -18,11 +18,13 @@
 package org.apache.gobblin.metrics.event;
 
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
+import org.apache.gobblin.metrics.MetricContext;
 
 
 /**
  * A Builder that builds and can submit a {@link GobblinTrackingEvent }
- *
+ * It can be manually stopped by calling {@link #stop()}
+ * or will be automatically stopped when {@link #submit(MetricContext)} is called
  */
 public class TimingEventBuilder extends GobblinEventBuilder {
 
@@ -110,12 +112,12 @@ public class TimingEventBuilder extends GobblinEventBuilder {
   }
 
   /**
-   * stops the timer and returns a {@link GobblinTrackingEvent}
-   * @return {@link GobblinTrackingEvent}
+   * Stop the timer if not stopped already
+   * and submit the event
    */
   @Override
-  public GobblinTrackingEvent build() {
+  public void submit(MetricContext context) {
     stop();
-    return super.build();
+    super.submit(context);
   }
 }
