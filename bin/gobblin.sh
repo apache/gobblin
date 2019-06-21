@@ -349,8 +349,8 @@ function start() {
                                         -D mapreduce.user.classpath.first=true -D mapreduce.job.user.classpath.first=true \
                                         $JT_COMMAND $FS_COMMAND \
                                         -libjars $MR_MODE_LIB_JARS \
-                                        -sysconfig $GOBBLIN_CONF/application.properties \
-                                        -jobconfig $GOBBLIN_CONF/application.properties"
+                                        -sysconfig $GOBBLIN_CONF/application.conf \
+                                        -jobconfig $GOBBLIN_CONF/application.conf"
         else
             CLASS_N_ARGS=''
             if [[ "$GOBBLIN_MODE" = "$STANDALONE_MODE" ]]; then
