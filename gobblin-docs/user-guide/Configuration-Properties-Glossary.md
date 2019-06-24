@@ -250,7 +250,7 @@ These properties are common properties that are used among different Source impl
 ### DistcpFileSplitter Properties <a name="DistcpFileSplitter-Properties"></a>
 | Name | Description | Required | Default Value |
 | --- | --- | --- | --- |
-| `gobblin.copy.split.enabled` | Will split files into block level granularity work units, which can be copied independently, then merged back together before publishing. To actually achieve splitting, the max split size property also needs to be set. | No | False| 
+| `gobblin.copy.split.enabled` | Will split files into block level granularity work units, which can be copied independently, then merged back together before publishing. To actually achieve splitting, the max split size property also needs to be set. Splitting should not be used for distcp jobs that require decryption/ungzipping. | No | False| 
 | `gobblin.copy.file.max.split.size` | If splitting is enabled, the split size (in bytes) for the block level work units is calculated based on rounding down the value of this property to the nearest integer multiple of the block size. If the value of this property is less than the block size, it gets adjusted up. | No | Long.MAX_VALUE
 
 ### WorkUnitBinPacker Properties <a name="WorkUnitBinPacker-Properties"></a>

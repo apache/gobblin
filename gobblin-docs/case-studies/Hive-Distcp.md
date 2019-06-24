@@ -11,7 +11,7 @@ This document will show an sample job config of running Gobblin hive distcp, and
 
 # Configure Hive Distcp Job
 
-Below is the sample job config of running Gobblin hive distcp. Gobblin job constructs and data flow are the same as [Gobblin distcp](http://gobblin.readthedocs.io/en/latest/adaptors/Gobblin-Distcp/). The only difference is the `gobblin.data.profile.class` and hive related properties.
+Below is the sample job config of running Gobblin hive distcp. Gobblin job constructs and data flow are the same as [Gobblin distcp](http://gobblin.readthedocs.io/en/latest/adaptors/Gobblin-Distcp/). The only difference is the `gobblin.dataset.profile.class` and hive related properties.
 
 ```
 job.name=SampleHiveDistcp
