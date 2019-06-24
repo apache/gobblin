@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.util.Collections;
@@ -341,7 +342,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     }
   }
 
-  public void remove(Spec spec, Properties headers) {
+  public void remove(Spec spec, Properties headers) throws IOException {
     // TODO: Evolve logic to cache and reuse previously compiled JobSpecs
     // .. this will work for Identity compiler but not always for multi-hop.
     // Note: Current logic assumes compilation is consistent between all executions

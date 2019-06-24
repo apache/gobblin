@@ -74,6 +74,7 @@ dependencies {
   compile externalDependency.lombok
   compile externalDependency.metricsCore
   compile externalDependency.metricsJvm
+  compile externalDependency.mockito
   compile externalDependency.pegasus.data
   compile externalDependency.quartz
   compile externalDependency.slf4j

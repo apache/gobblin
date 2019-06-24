@@ -47,6 +47,11 @@ public class DagManagerUtils {
     return new FlowId().setFlowGroup(flowGroup).setFlowName(flowName);
   }
 
+  static long getFlowExecutionId(Dag<JobExecutionPlan> dag) {
+    return Long.parseLong(dag.getNodes().get(0).getValue().getJobSpec().getConfigAsProperties()
+        .getProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY));
+  }
+
   static long getFlowExecId(Dag<JobExecutionPlan> dag) {
     Config jobConfig = dag.getStartNodes().get(0).getValue().getJobSpec().getConfig();
     return jobConfig.getLong(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);

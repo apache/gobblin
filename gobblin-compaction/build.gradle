@@ -56,6 +56,7 @@ dependencies {
   runtime externalDependency.datanucleusCore
   runtime externalDependency.datanucleusRdbms
 
+  compileOnly externalDependency.orcMapreduce
   testCompile externalDependency.testng
 }
 
