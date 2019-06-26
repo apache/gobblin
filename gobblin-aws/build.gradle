@@ -67,7 +67,6 @@ dependencies {
   testCompile externalDependency.curatorFramework
   testCompile externalDependency.curatorTest
   testCompile externalDependency.mockito
-  testCompile externalDependency.powermock
 }
 
 task testJar(type: Jar, dependsOn: testClasses) {

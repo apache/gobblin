@@ -43,7 +43,6 @@ dependencies {
   compile externalDependency.findBugsAnnotations
 
   testCompile externalDependency.mockito
-  testCompile externalDependency.powermock
 }
 
 test {

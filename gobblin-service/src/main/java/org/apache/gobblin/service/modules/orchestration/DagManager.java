@@ -238,7 +238,7 @@ public class DagManager extends AbstractIdleService {
   synchronized void offer(Dag<JobExecutionPlan> dag) throws IOException {
     //Persist the dag
     this.dagStateStore.writeCheckpoint(dag);
-    long flowExecutionId = DagManagerUtils.getFlowExecutionId(dag);
+    long flowExecutionId = DagManagerUtils.getFlowExecId(dag);
     int queueId = (int) (flowExecutionId % this.numThreads);
     // Add the dag to the specific queue determined by flowExecutionId
     // Flow cancellation request has to be forwarded to the same DagManagerThread where the

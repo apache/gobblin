@@ -118,7 +118,7 @@ public class GobblinAWSClusterLauncher {
   private final EventBus eventBus = new EventBus(GobblinAWSClusterLauncher.class.getSimpleName());
   private final CountDownLatch countDownLatch = new CountDownLatch(1);
   private AWSClusterSecurityManager awsClusterSecurityManager;
-  private AWSSdkClient awsSdkClient;
+  protected AWSSdkClient awsSdkClient;
 
   private final Closer closer = Closer.create();
 
