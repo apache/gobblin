@@ -80,7 +80,9 @@ public class GobblinEventBuilder {
   /**
    * Submit the event
    */
+  @Deprecated
   public void submit(MetricContext context) {
     context.submitEvent(build());
   }
+
 }
