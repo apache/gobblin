@@ -38,6 +38,7 @@ import org.apache.gobblin.commit.DeliverySemantics;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.lineage.LineageEventBuilder;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.FailureEventBuilder;
@@ -244,7 +245,7 @@ final class SafeDatasetCommit implements Callable<Void> {
   private void submitLineageEvent(String dataset, Collection<TaskState> states) {
     Collection<LineageEventBuilder> events = LineageInfo.load(states);
     // Send events
-    events.forEach(event -> event.submit(metricContext));
+    events.forEach(event -> EventSubmitter.submit(this.metricContext, event));
     log.info(String.format("Submitted %d lineage events for dataset %s", events.size(), dataset));
   }
 

@@ -43,10 +43,12 @@ public class EventSubmitter {
 
   private final Map<String, String> metadata;
   @Getter
+  @Deprecated
   private final String namespace;
   @Getter
   private final Optional<MetricContext> metricContext;
 
+  @Deprecated
   public static class Builder {
     private final Optional<MetricContext> metricContext;
     private final Map<String, String> metadata;
@@ -77,11 +79,32 @@ public class EventSubmitter {
     }
   }
 
+  public EventSubmitter(MetricContext context) {
+    this.metricContext = Optional.of(context);
+    this.namespace = GobblinEventBuilder.NAMESPACE;
+    this.metadata = Maps.newHashMap();
+  }
+
+  public void submit(GobblinEventBuilder eventBuilder) {
+    eventBuilder.addAdditionalMetadata(this.metadata);
+    this.metricContext.get().submitEvent(eventBuilder.build());
+  }
+
+  public static void submit(MetricContext context, GobblinEventBuilder builder) {
+    context.submitEvent(builder.build());
+  }
+
+  /**
+   *
+   * @deprecated use {@link #EventSubmitter(MetricContext)}
+   */
+  @Deprecated
   private EventSubmitter(Builder builder) {
     this.metadata = builder.metadata;
     this.namespace = builder.namespace;
     this.metricContext = builder.metricContext;
   }
+
 
   /**
    * Submits the {@link org.apache.gobblin.metrics.GobblinTrackingEvent} to the {@link org.apache.gobblin.metrics.MetricContext}.
@@ -93,10 +116,6 @@ public class EventSubmitter {
     submit(name, ImmutableMap.<String, String>of());
   }
 
-  public void submit(GobblinEventBuilder eventBuilder) {
-    eventBuilder.addAdditionalMetadata(this.metadata);
-    this.metricContext.get().submitEvent(eventBuilder.build());
-  }
 
   /**
    * Calls submit on submitter if present.timing
