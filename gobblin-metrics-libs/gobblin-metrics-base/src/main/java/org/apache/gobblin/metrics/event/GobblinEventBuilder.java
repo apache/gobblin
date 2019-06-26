@@ -79,6 +79,7 @@ public class GobblinEventBuilder {
   }
   /**
    * Submit the event
+   * @deprecated Use {@link EventSubmitter#submit(MetricContext, GobblinEventBuilder)}
    */
   @Deprecated
   public void submit(MetricContext context) {

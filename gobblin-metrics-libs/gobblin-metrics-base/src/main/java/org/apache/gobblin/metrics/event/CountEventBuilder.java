@@ -19,7 +19,7 @@ import org.apache.gobblin.metrics.GobblinTrackingEvent;
 public class CountEventBuilder extends GobblinEventBuilder {
 
   private static final String COUNT_EVENT_TYPE = "CountEvent";
-  private static final String COUNT_KEY = "Count";
+  private static final String COUNT_KEY = "count";
   @Setter
   @Getter
   private int count;

@@ -110,6 +110,7 @@ public class TimingEvent extends GobblinEventBuilder implements Closeable {
 
   /**
    * Stop the timer and submit the event. If the timer was already stopped before, this is a no-op.
+   * @deprecated Use {@link #close()}
    */
   @Deprecated
   public void stop() {
@@ -121,6 +122,7 @@ public class TimingEvent extends GobblinEventBuilder implements Closeable {
    * before, this is a no-op.
    *
    * @param additionalMetadata a {@link Map} of additional metadata that should be submitted along with this event
+   * @deprecated Use {@link #close()}
    */
   @Deprecated
   public void stop(Map<String, String> additionalMetadata) {
