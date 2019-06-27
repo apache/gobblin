@@ -160,7 +160,7 @@ public class TimingEvent extends GobblinEventBuilder implements Closeable {
    * Check if the given {@link GobblinTrackingEvent} is a {@link TimingEvent}
    */
   public static boolean isTimingEvent(GobblinTrackingEvent event) {
-    String eventType = event.getMetadata().get(EventSubmitter.EVENT_TYPE);
+    String eventType = (event.getMetadata() == null) ? "" : event.getMetadata().get(EVENT_TYPE);
     return StringUtils.isNotEmpty(eventType) && eventType.equals(METADATA_TIMING_EVENT);
   }
 

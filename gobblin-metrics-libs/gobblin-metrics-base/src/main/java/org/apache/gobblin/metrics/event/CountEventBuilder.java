@@ -34,8 +34,8 @@ import org.apache.gobblin.metrics.GobblinTrackingEvent;
  */
 public class CountEventBuilder extends GobblinEventBuilder {
 
-  private static final String COUNT_EVENT_TYPE = "CountEvent";
-  private static final String COUNT_KEY = "count";
+  public static final String COUNT_EVENT_TYPE = "CountEvent";
+  public static final String COUNT_KEY = "count";
   @Setter
   @Getter
   private int count;
@@ -63,7 +63,7 @@ public class CountEventBuilder extends GobblinEventBuilder {
    * Check if the given {@link GobblinTrackingEvent} is a {@link CountEventBuilder}
    */
   public static boolean isCountEvent(GobblinTrackingEvent event) {
-    String eventType = event.getMetadata().get(EVENT_TYPE);
+    String eventType = (event.getMetadata() == null) ? "" : event.getMetadata().get(EVENT_TYPE);
     return StringUtils.isNotEmpty(eventType) && eventType.equals(COUNT_EVENT_TYPE);
   }
   /**

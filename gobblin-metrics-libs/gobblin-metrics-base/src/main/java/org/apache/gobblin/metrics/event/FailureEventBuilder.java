@@ -77,7 +77,7 @@ public class FailureEventBuilder extends GobblinEventBuilder {
    * Check if the given {@link GobblinTrackingEvent} is a failure event
    */
   public static boolean isFailureEvent(GobblinTrackingEvent event) {
-    String eventType = event.getMetadata().get(EVENT_TYPE);
+    String eventType = (event.getMetadata() == null) ? "" : event.getMetadata().get(EVENT_TYPE);
     return StringUtils.isNotEmpty(eventType) && eventType.equals(FAILURE_EVENT_TYPE);
   }
 
