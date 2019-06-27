@@ -80,9 +80,13 @@ public class EventSubmitter {
   }
 
   public EventSubmitter(MetricContext context) {
+    this(context, Maps.newHashMap());
+  }
+
+  public EventSubmitter(MetricContext context, Map<String, String> additionalMetadataMap) {
     this.metricContext = Optional.of(context);
     this.namespace = GobblinEventBuilder.NAMESPACE;
-    this.metadata = Maps.newHashMap();
+    this.metadata = additionalMetadataMap;
   }
 
   public void submit(GobblinEventBuilder eventBuilder) {
@@ -96,7 +100,7 @@ public class EventSubmitter {
 
   /**
    *
-   * @deprecated use {@link #EventSubmitter(MetricContext)}
+   * @deprecated use {@link #EventSubmitter(MetricContext, Map)}
    */
   @Deprecated
   private EventSubmitter(Builder builder) {

@@ -37,8 +37,7 @@ public class CountEventBuilderTest {
     String name = "TestName";
     int count = 10;
     MetricContext context = new MetricContext.Builder("name").build();
-    CountEventBuilder countEventBuilder = new CountEventBuilder(name);
-    countEventBuilder.setCount(count);
+    CountEventBuilder countEventBuilder = new CountEventBuilder(name, count);
     context.addNotificationTarget(new com.google.common.base.Function<Notification, Void>() {
       @Nullable
       @Override
@@ -62,8 +61,7 @@ public class CountEventBuilderTest {
   public void fromEventTest() {
     String name = "TestName";
     int count = 10;
-    CountEventBuilder countEventBuilder = new CountEventBuilder(name);
-    countEventBuilder.setCount(count);
+    CountEventBuilder countEventBuilder = new CountEventBuilder(name, count);
     GobblinTrackingEvent event = countEventBuilder.build();
 
     //Count Event

@@ -40,13 +40,14 @@ public class CountEventBuilder extends GobblinEventBuilder {
   @Getter
   private int count;
 
-  public CountEventBuilder(String name) {
-    this(name, NAMESPACE);
+  public CountEventBuilder(String name, int count) {
+    this(name, NAMESPACE, count);
   }
 
-  public CountEventBuilder(String name, String namespace) {
+  public CountEventBuilder(String name, String namespace, int count) {
     super(name, namespace);
     this.metadata.put(EVENT_TYPE, COUNT_EVENT_TYPE);
+    this.count = count;
   }
 
   /**
@@ -76,7 +77,8 @@ public class CountEventBuilder extends GobblinEventBuilder {
     }
 
     Map<String, String> metadata = event.getMetadata();
-    CountEventBuilder countEventBuilder = new CountEventBuilder(event.getName());
+    int count = Integer.parseInt(metadata.get(COUNT_KEY));
+    CountEventBuilder countEventBuilder = new CountEventBuilder(event.getName(), count);
     metadata.forEach((key, value) -> {
       switch (key) {
         case COUNT_KEY:
