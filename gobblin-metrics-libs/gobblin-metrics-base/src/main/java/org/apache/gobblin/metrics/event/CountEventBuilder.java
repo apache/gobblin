@@ -77,7 +77,7 @@ public class CountEventBuilder extends GobblinEventBuilder {
     }
 
     Map<String, String> metadata = event.getMetadata();
-    int count = Integer.parseInt(metadata.get(COUNT_KEY));
+    int count = Integer.parseInt(metadata.getOrDefault(COUNT_KEY, "0"));
     CountEventBuilder countEventBuilder = new CountEventBuilder(event.getName(), count);
     metadata.forEach((key, value) -> {
       switch (key) {
