@@ -36,9 +36,7 @@ import lombok.Getter;
  *   Instances of this class are immutable. Calling set* methods returns a copy of the calling instance.
  * </p>
  *
- * @deprecated Use {@link GobblinEventBuilder}
  */
-@Deprecated
 public class EventSubmitter {
 
   public static final String EVENT_TYPE = "eventType";
@@ -79,23 +77,55 @@ public class EventSubmitter {
     }
   }
 
+  /**
+   * GobblinEventBuilder namespace trumps over the namespace of the EventSubmitter unless it's null
+   *
+   * @param eventBuilder
+   */
+  public void submit(GobblinEventBuilder eventBuilder) {
+    eventBuilder.addAdditionalMetadata(this.metadata);
+    if(eventBuilder.namespace == null) {
+      eventBuilder.setNamespace(this.namespace);
+    }
+    this.metricContext.get().submitEvent(eventBuilder.build());
+  }
+
+  /**
+   * This is a convenient way to submit an Event without using an EventSubmitter
+   * namespace should never be null and is defaulted to {@link GobblinEventBuilder#NAMESPACE}
+   * @param context
+   * @param builder
+   */
+  public static void submit(MetricContext context, GobblinEventBuilder builder) {
+    if(builder.namespace == null) {
+      builder.setNamespace(GobblinEventBuilder.NAMESPACE);
+    }
+    context.submitEvent(builder.build());
+  }
+
   private EventSubmitter(Builder builder) {
     this.metadata = builder.metadata;
     this.namespace = builder.namespace;
     this.metricContext = builder.metricContext;
   }
 
+
   /**
    * Submits the {@link org.apache.gobblin.metrics.GobblinTrackingEvent} to the {@link org.apache.gobblin.metrics.MetricContext}.
    * @param name Name of the event.
+   * @deprecated Use {{@link #submit(GobblinEventBuilder)}}
    */
+  @Deprecated
   public void submit(String name) {
     submit(name, ImmutableMap.<String, String>of());
   }
 
+
   /**
-   * Calls submit on submitter if present.
+   * Calls submit on submitter if present.timing
+   * @deprecated Use {{@link #submit(GobblinEventBuilder)}}
    */
+  @Deprecated
   public static void submit(Optional<EventSubmitter> submitter, String name) {
     if (submitter.isPresent()) {
       submitter.get().submit(name);
@@ -106,7 +136,9 @@ public class EventSubmitter {
    * Submits the {@link org.apache.gobblin.metrics.GobblinTrackingEvent} to the {@link org.apache.gobblin.metrics.MetricContext}.
    * @param name Name of the event.
    * @param metadataEls List of keys and values for metadata of the form key1, value2, key2, value2, ...
+   * @deprecated Use {{@link #submit(GobblinEventBuilder)}}
    */
+  @Deprecated
   public void submit(String name, String... metadataEls) {
     if(metadataEls.length % 2 != 0) {
       throw new IllegalArgumentException("Unmatched keys in metadata elements.");
@@ -121,7 +153,9 @@ public class EventSubmitter {
 
   /**
    * Calls submit on submitter if present.
+   * @deprecated Use {{@link #submit(GobblinEventBuilder)}}
    */
+  @Deprecated
   public static void submit(Optional<EventSubmitter> submitter, String name, String... metadataEls) {
     if (submitter.isPresent()) {
       submitter.get().submit(name, metadataEls);
@@ -132,7 +166,9 @@ public class EventSubmitter {
    * Submits the {@link org.apache.gobblin.metrics.GobblinTrackingEvent} to the {@link org.apache.gobblin.metrics.MetricContext}.
    * @param name Name of the event.
    * @param additionalMetadata Additional metadata to be added to the event.
+   * @deprecated Use {{@link #submit(GobblinEventBuilder)}}
    */
+  @Deprecated
   public void submit(String name, Map<String, String> additionalMetadata) {
     if(this.metricContext.isPresent()) {
       Map<String, String> finalMetadata = Maps.newHashMap(this.metadata);
@@ -147,7 +183,9 @@ public class EventSubmitter {
 
   /**
    * Calls submit on submitter if present.
+   * @deprecated Use {{@link #submit(GobblinEventBuilder)}}
    */
+  @Deprecated
   public static void submit(Optional<EventSubmitter> submitter, String name, Map<String, String> additionalMetadata) {
     if (submitter.isPresent()) {
       submitter.get().submit(name, additionalMetadata);
@@ -158,7 +196,9 @@ public class EventSubmitter {
    * Get a {@link org.apache.gobblin.metrics.event.TimingEvent} attached to this {@link org.apache.gobblin.metrics.event.EventSubmitter}.
    * @param name Name of the {@link org.apache.gobblin.metrics.GobblinTrackingEvent} that will be generated.
    * @return a {@link org.apache.gobblin.metrics.event.TimingEvent}.
+   * @deprecated Use {{@link TimingEvent)}}
    */
+  @Deprecated
   public TimingEvent getTimingEvent(String name) {
     return new TimingEvent(this, name);
   }

@@ -17,15 +17,23 @@
 
 package org.apache.gobblin.metrics.event;
 
+import java.io.Closeable;
 import java.util.Map;
 
+import org.apache.commons.lang.StringUtils;
+
 import com.google.common.collect.Maps;
+
+import lombok.Getter;
+
+import org.apache.gobblin.metrics.GobblinTrackingEvent;
+
 
 /**
  * Event to time actions in the program. Automatically reports start time, end time, and duration from the time
  * the {@link org.apache.gobblin.metrics.event.TimingEvent} was created to the time {@link #stop} is called.
  */
-public class TimingEvent {
+public class TimingEvent extends GobblinEventBuilder implements Closeable {
 
   public static class LauncherTimings {
     public static final String FULL_JOB_EXECUTION = "FullJobExecutionTimer";
@@ -51,7 +59,7 @@ public class TimingEvent {
     public static final String MR_DISTRIBUTED_CACHE_SETUP = "JobMrDistributedCacheSetupTimer";
     public static final String MR_JOB_SETUP = "JobMrSetupTimer";
     public static final String MR_JOB_RUN = "JobMrRunTimer";
-    public static final String HELIX_JOB_SUBMISSION= "JobHelixSubmissionTimer";
+    public static final String HELIX_JOB_SUBMISSION = "JobHelixSubmissionTimer";
     public static final String HELIX_JOB_RUN = "JobHelixRunTimer";
   }
 
@@ -84,14 +92,18 @@ public class TimingEvent {
   public static final String JOB_START_TIME = "jobStartTime";
   public static final String JOB_END_TIME = "jobEndTime";
 
-  private final String name;
-  private final Long startTime;
+  @Getter
+  private Long startTime;
+  @Getter
+  private Long endTime;
+  @Getter
+  private Long duration;
   private final EventSubmitter submitter;
   private boolean stopped;
 
   public TimingEvent(EventSubmitter submitter, String name) {
+    super(name);
     this.stopped = false;
-    this.name = name;
     this.submitter = submitter;
     this.startTime = System.currentTimeMillis();
   }
@@ -100,7 +112,7 @@ public class TimingEvent {
    * Stop the timer and submit the event. If the timer was already stopped before, this is a no-op.
    */
   public void stop() {
-    stop(Maps.<String, String> newHashMap());
+    stop(Maps.<String, String>newHashMap());
   }
 
   /**
@@ -108,22 +120,77 @@ public class TimingEvent {
    * before, this is a no-op.
    *
    * @param additionalMetadata a {@link Map} of additional metadata that should be submitted along with this event
+   * @deprecated Use {@link #close()}
    */
+  @Deprecated
   public void stop(Map<String, String> additionalMetadata) {
     if (this.stopped) {
       return;
     }
+
+    this.metadata.putAll(additionalMetadata);
+    doStop();
+    this.submitter.submit(name, this.metadata);
+  }
+
+  public void doStop() {
+    if (this.stopped) {
+      return;
+    }
+
     this.stopped = true;
-    long endTime = System.currentTimeMillis();
-    long duration = endTime - this.startTime;
+    this.endTime = System.currentTimeMillis();
+    this.duration = this.endTime - this.startTime;
 
-    Map<String, String> finalMetadata = Maps.newHashMap();
-    finalMetadata.putAll(additionalMetadata);
-    finalMetadata.put(EventSubmitter.EVENT_TYPE, METADATA_TIMING_EVENT);
-    finalMetadata.put(METADATA_START_TIME, Long.toString(this.startTime));
-    finalMetadata.put(METADATA_END_TIME, Long.toString(endTime));
-    finalMetadata.put(METADATA_DURATION, Long.toString(duration));
+    this.metadata.put(EventSubmitter.EVENT_TYPE, METADATA_TIMING_EVENT);
+    this.metadata.put(METADATA_START_TIME, Long.toString(this.startTime));
+    this.metadata.put(METADATA_END_TIME, Long.toString(this.endTime));
+    this.metadata.put(METADATA_DURATION, Long.toString(this.duration));
+  }
 
-    this.submitter.submit(this.name, finalMetadata);
+  @Override
+  public void close() {
+    doStop();
+    submitter.submit(this);
+  }
+
+  /**
+   * Check if the given {@link GobblinTrackingEvent} is a {@link TimingEvent}
+   */
+  public static boolean isTimingEvent(GobblinTrackingEvent event) {
+    String eventType = (event.getMetadata() == null) ? "" : event.getMetadata().get(EVENT_TYPE);
+    return StringUtils.isNotEmpty(eventType) && eventType.equals(METADATA_TIMING_EVENT);
+  }
+
+  /**
+   * Create a {@link TimingEvent} from a {@link GobblinTrackingEvent}. An inverse function
+   * to {@link TimingEvent#build()}
+   */
+  public static TimingEvent fromEvent(GobblinTrackingEvent event) {
+    if(!isTimingEvent(event)) {
+      return null;
+    }
+
+    Map<String, String> metadata = event.getMetadata();
+    TimingEvent timingEvent = new TimingEvent(null, event.getName());
+
+    metadata.forEach((key, value) -> {
+      switch (key) {
+        case METADATA_START_TIME:
+          timingEvent.startTime = Long.parseLong(value);
+          break;
+        case METADATA_END_TIME:
+          timingEvent.endTime = Long.parseLong(value);
+          break;
+        case METADATA_DURATION:
+          timingEvent.duration = Long.parseLong(value);
+          break;
+        default:
+          timingEvent.addMetadata(key, value);
+          break;
+      }
+    });
+
+    return timingEvent;
   }
 }
