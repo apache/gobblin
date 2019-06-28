@@ -49,6 +49,7 @@ public class CountEventBuilderTest {
           Assert.assertEquals(metadata.containsKey(CountEventBuilder.COUNT_KEY), true);
           Assert.assertEquals(metadata.get(GobblinEventBuilder.EVENT_TYPE), CountEventBuilder.COUNT_EVENT_TYPE);
           Assert.assertEquals(event.getName(), name);
+          Assert.assertEquals(event.getNamespace(), GobblinEventBuilder.NAMESPACE);
           Assert.assertEquals(Integer.parseInt(metadata.get(CountEventBuilder.COUNT_KEY)), count);
         }
         return null;

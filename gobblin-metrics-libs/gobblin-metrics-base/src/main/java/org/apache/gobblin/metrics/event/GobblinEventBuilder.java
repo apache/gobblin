@@ -46,7 +46,7 @@ public class GobblinEventBuilder {
   protected final Map<String, String> metadata;
 
   public GobblinEventBuilder(String name) {
-    this(name, NAMESPACE);
+    this(name, null);
   }
 
   public GobblinEventBuilder(String name, String namespace) {
@@ -85,6 +85,9 @@ public class GobblinEventBuilder {
    */
   @Deprecated
   public void submit(MetricContext context) {
+    if(namespace == null) {
+      namespace = NAMESPACE;
+    }
     context.submitEvent(build());
   }
 

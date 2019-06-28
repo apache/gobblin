@@ -52,10 +52,6 @@ public class EventSubmitter {
     private final Map<String, String> metadata;
     private final String namespace;
 
-    public Builder(MetricContext metricContext) {
-      this(Optional.fromNullable(metricContext), null);
-    }
-
     public Builder(MetricContext metricContext, String namespace) {
       this(Optional.fromNullable(metricContext), namespace);
     }
@@ -82,20 +78,28 @@ public class EventSubmitter {
   }
 
   /**
-   * This method overrides the namespace of GobblinEventBuilder
-   * with the namespace of eventsubmitter
+   * GobblinEventBuilder namespace trumps over the namespace of the EventSubmitter unless it's null
    *
    * @param eventBuilder
    */
   public void submit(GobblinEventBuilder eventBuilder) {
     eventBuilder.addAdditionalMetadata(this.metadata);
-    if(this.namespace != null) {
+    if(eventBuilder.namespace == null) {
       eventBuilder.setNamespace(this.namespace);
     }
     this.metricContext.get().submitEvent(eventBuilder.build());
   }
 
+  /**
+   * This is a convenient way to submit an Event without using an EventSubmitter
+   * namespace should never be null and is defaulted to {@link GobblinEventBuilder#NAMESPACE}
+   * @param context
+   * @param builder
+   */
   public static void submit(MetricContext context, GobblinEventBuilder builder) {
+    if(builder.namespace == null) {
+      builder.setNamespace(GobblinEventBuilder.NAMESPACE);
+    }
     context.submitEvent(builder.build());
   }
 
