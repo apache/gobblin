@@ -43,16 +43,18 @@ public class EventSubmitter {
 
   private final Map<String, String> metadata;
   @Getter
-  @Deprecated
   private final String namespace;
   @Getter
   private final Optional<MetricContext> metricContext;
 
-  @Deprecated
   public static class Builder {
     private final Optional<MetricContext> metricContext;
     private final Map<String, String> metadata;
     private final String namespace;
+
+    public Builder(MetricContext metricContext) {
+      this(Optional.fromNullable(metricContext), null);
+    }
 
     public Builder(MetricContext metricContext, String namespace) {
       this(Optional.fromNullable(metricContext), namespace);
@@ -79,18 +81,17 @@ public class EventSubmitter {
     }
   }
 
-  public EventSubmitter(MetricContext context) {
-    this(context, Maps.newHashMap());
-  }
-
-  public EventSubmitter(MetricContext context, Map<String, String> additionalMetadataMap) {
-    this.metricContext = Optional.of(context);
-    this.namespace = GobblinEventBuilder.NAMESPACE;
-    this.metadata = additionalMetadataMap;
-  }
-
+  /**
+   * This method overrides the namespace of GobblinEventBuilder
+   * with the namespace of eventsubmitter
+   *
+   * @param eventBuilder
+   */
   public void submit(GobblinEventBuilder eventBuilder) {
     eventBuilder.addAdditionalMetadata(this.metadata);
+    if(this.namespace != null) {
+      eventBuilder.setNamespace(this.namespace);
+    }
     this.metricContext.get().submitEvent(eventBuilder.build());
   }
 
@@ -98,11 +99,6 @@ public class EventSubmitter {
     context.submitEvent(builder.build());
   }
 
-  /**
-   *
-   * @deprecated use {@link #EventSubmitter(MetricContext, Map)}
-   */
-  @Deprecated
   private EventSubmitter(Builder builder) {
     this.metadata = builder.metadata;
     this.namespace = builder.namespace;

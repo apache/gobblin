@@ -35,6 +35,7 @@ public class TimingEventTest {
   @Test
   public void test() {
     String name = "TestName";
+    String namepace = "TestNamespace";
     MetricContext context = new MetricContext.Builder("name").build();
     context.addNotificationTarget(new com.google.common.base.Function<Notification, Void>() {
       @Nullable
@@ -43,6 +44,7 @@ public class TimingEventTest {
         if (input instanceof EventNotification) {
           GobblinTrackingEvent event = ((EventNotification) input).getEvent();
           Map<String, String> metadata = event.getMetadata();
+          Assert.assertEquals(event.getNamespace(), namepace);
           Assert.assertEquals(metadata.containsKey(GobblinEventBuilder.EVENT_TYPE), true);
           Assert.assertEquals(metadata.containsKey(TimingEvent.METADATA_START_TIME), true);
           Assert.assertEquals(metadata.containsKey(TimingEvent.METADATA_END_TIME), true);
@@ -53,15 +55,16 @@ public class TimingEventTest {
         return null;
       }
     });
-    TimingEvent timingEvent = new TimingEvent(new EventSubmitter(context), name);
+    TimingEvent timingEvent = new TimingEvent(new EventSubmitter.Builder(context, namepace).build(), name);
     timingEvent.close();
   }
 
   @Test
   public void fromEventTest() {
     String name = "TestName";
+    String namepace = "TestNamespace";
     MetricContext context = new MetricContext.Builder("name").build();
-    TimingEvent timingEventBuilder = new TimingEvent(new EventSubmitter(context), name);
+    TimingEvent timingEventBuilder = new TimingEvent(new EventSubmitter.Builder(context, namepace).build(), name);
     GobblinTrackingEvent event = timingEventBuilder.build();
     timingEventBuilder.close();
 

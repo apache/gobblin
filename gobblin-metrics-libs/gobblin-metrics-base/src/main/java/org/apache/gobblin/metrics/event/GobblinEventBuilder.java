@@ -23,6 +23,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 
 import lombok.Getter;
+import lombok.Setter;
 
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
@@ -40,7 +41,8 @@ public class GobblinEventBuilder {
   @Getter
   protected final String name;
   @Getter
-  protected final String namespace;
+  @Setter
+  protected String namespace;
   protected final Map<String, String> metadata;
 
   public GobblinEventBuilder(String name) {

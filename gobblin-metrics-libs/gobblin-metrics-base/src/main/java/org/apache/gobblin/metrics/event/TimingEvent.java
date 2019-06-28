@@ -110,9 +110,7 @@ public class TimingEvent extends GobblinEventBuilder implements Closeable {
 
   /**
    * Stop the timer and submit the event. If the timer was already stopped before, this is a no-op.
-   * @deprecated Use {@link #close()}
    */
-  @Deprecated
   public void stop() {
     stop(Maps.<String, String>newHashMap());
   }
