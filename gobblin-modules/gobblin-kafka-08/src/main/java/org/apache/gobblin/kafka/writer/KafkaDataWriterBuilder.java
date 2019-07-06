@@ -22,6 +22,7 @@ import java.util.Properties;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 
+import org.apache.gobblin.configuration.ConfigurationException;
 import org.apache.gobblin.writer.AsyncDataWriter;
 
 /**
@@ -30,7 +31,8 @@ import org.apache.gobblin.writer.AsyncDataWriter;
 public class KafkaDataWriterBuilder extends AbstractKafkaDataWriterBuilder<Schema, GenericRecord> {
 
   @Override
-  protected AsyncDataWriter<GenericRecord> getAsyncDataWriter(Properties props) {
+  protected AsyncDataWriter<GenericRecord> getAsyncDataWriter(Properties props)
+      throws ConfigurationException {
     return new Kafka08DataWriter<>(props);
   }
 }

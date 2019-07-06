@@ -14,25 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.gobblin.configuration;
 
-package org.apache.gobblin.kafka.writer;
-
-import java.util.Properties;
-
-import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericRecord;
-
-import org.apache.gobblin.configuration.ConfigurationException;
-import org.apache.gobblin.writer.AsyncDataWriter;
+import java.io.IOException;
 
 
-/**
- * Builder that hands back a {@link Kafka09DataWriter}
- */
-public class KafkaDataWriterBuilder extends AbstractKafkaDataWriterBuilder<Schema, GenericRecord> {
-  @Override
-  protected AsyncDataWriter<GenericRecord> getAsyncDataWriter(Properties props)
-      throws ConfigurationException {
-    return new Kafka09DataWriter<>(props);
+public class ConfigurationException extends IOException {
+
+  public ConfigurationException(String message, Exception e) {
+    super(message, e);
   }
+
 }

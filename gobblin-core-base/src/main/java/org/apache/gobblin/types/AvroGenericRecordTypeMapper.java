@@ -15,24 +15,30 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.kafka.writer;
+package org.apache.gobblin.types;
 
-import java.util.Properties;
-
-import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 
-import org.apache.gobblin.configuration.ConfigurationException;
-import org.apache.gobblin.writer.AsyncDataWriter;
+import lombok.extern.slf4j.Slf4j;
 
 
-/**
- * Builder that hands back a {@link Kafka09DataWriter}
- */
-public class KafkaDataWriterBuilder extends AbstractKafkaDataWriterBuilder<Schema, GenericRecord> {
+@Slf4j
+public class AvroGenericRecordTypeMapper implements TypeMapper<GenericRecord> {
+
   @Override
-  protected AsyncDataWriter<GenericRecord> getAsyncDataWriter(Properties props)
-      throws ConfigurationException {
-    return new Kafka09DataWriter<>(props);
+  public Object getField(GenericRecord record, String fieldPath) throws FieldMappingException {
+    if (fieldPath.equals("*")) {
+      return record;
+    }
+
+    Object field = record;
+    try {
+      for (String part: fieldPath.split("\\.")) {
+        field = ((GenericRecord) field).get(part);
+      }
+    } catch (Exception e) {
+      throw new FieldMappingException("Failed to retrieve fieldPath " + fieldPath + " from record " + record.toString(), e);
+    }
+    return field;
   }
 }

@@ -14,25 +14,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.gobblin.types;
 
-package org.apache.gobblin.kafka.writer;
-
-import java.util.Properties;
-
-import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
-import org.apache.gobblin.configuration.ConfigurationException;
-import org.apache.gobblin.writer.AsyncDataWriter;
+import org.apache.gobblin.test.TestUtils;
 
 
-/**
- * Builder that hands back a {@link Kafka09DataWriter}
- */
-public class KafkaDataWriterBuilder extends AbstractKafkaDataWriterBuilder<Schema, GenericRecord> {
-  @Override
-  protected AsyncDataWriter<GenericRecord> getAsyncDataWriter(Properties props)
-      throws ConfigurationException {
-    return new Kafka09DataWriter<>(props);
+public class AvroGenericRecordTypeMapperTest {
+
+  @Test
+  public void test()
+      throws FieldMappingException {
+    GenericRecord record = TestUtils.generateRandomAvroRecord();
+    AvroGenericRecordTypeMapper typeMapper = new AvroGenericRecordTypeMapper();
+    Object field = typeMapper.getField(record, "field1");
+    Assert.assertEquals(field.getClass(), String.class);
+
   }
+
 }

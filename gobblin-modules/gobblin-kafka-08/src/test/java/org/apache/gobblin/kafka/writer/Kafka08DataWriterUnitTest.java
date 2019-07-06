@@ -41,7 +41,7 @@ public class Kafka08DataWriterUnitTest {
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + "bootstrap.servers", "localhost:9092");
 
     try {
-      Kafka08DataWriter<GenericRecord> kafkaWriter = new Kafka08DataWriter<>(props);
+      Kafka08DataWriter kafkaWriter = new Kafka08DataWriter<>(props);
     }
     catch (Exception e)
     {

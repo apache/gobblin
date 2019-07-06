@@ -15,24 +15,29 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.kafka.writer;
+package org.apache.gobblin.types;
 
-import java.util.Properties;
+import java.io.Closeable;
+import java.io.IOException;
 
-import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericRecord;
-
-import org.apache.gobblin.configuration.ConfigurationException;
-import org.apache.gobblin.writer.AsyncDataWriter;
+import com.typesafe.config.Config;
 
 
 /**
- * Builder that hands back a {@link Kafka09DataWriter}
+ * An interface that allows Gobblin constructs to introspect a type T
+ * @param <T>
  */
-public class KafkaDataWriterBuilder extends AbstractKafkaDataWriterBuilder<Schema, GenericRecord> {
+public interface TypeMapper<T> extends Closeable {
+
+  default void configure(Config config) {
+
+  }
+
+  Object getField(T record, String fieldPath)
+      throws FieldMappingException;
+
   @Override
-  protected AsyncDataWriter<GenericRecord> getAsyncDataWriter(Properties props)
-      throws ConfigurationException {
-    return new Kafka09DataWriter<>(props);
+  default void close()
+      throws IOException {
   }
 }
