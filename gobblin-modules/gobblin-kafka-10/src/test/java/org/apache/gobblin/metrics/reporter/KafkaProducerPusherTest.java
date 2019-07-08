@@ -31,6 +31,7 @@ import com.google.common.collect.Lists;
 import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.kafka.KafkaTestBase;
+import org.apache.gobblin.metrics.kafka.KafkaProducerPusher;
 import org.apache.gobblin.metrics.kafka.Pusher;
 
 import kafka.consumer.ConsumerIterator;

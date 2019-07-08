@@ -35,6 +35,7 @@ import kafka.consumer.ConsumerIterator;
 import kafka.message.MessageAndMetadata;
 
 import org.apache.gobblin.kafka.KafkaTestBase;
+import org.apache.gobblin.metrics.kafka.KafkaKeyValueProducerPusher;
 import org.apache.gobblin.metrics.kafka.Pusher;
 
 

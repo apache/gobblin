@@ -83,6 +83,7 @@ ext.externalDependency = [
     "kafka10": "org.apache.kafka:kafka_2.11:" + kafka10Version,
     "kafka10Test": "org.apache.kafka:kafka_2.11:" + kafka10Version + ":test",
     "kafka10Client": "org.apache.kafka:kafka-clients:" + kafka10Version,
+    "kafka10ClientTest": "org.apache.kafka:kafka-clients:" + kafka10Version + ":test",
     "confluentSchemaRegistryClient": "io.confluent:kafka-schema-registry-client:" + confluentVersion,
     "confluentAvroSerializer": "io.confluent:kafka-avro-serializer:" + confluentVersion,
     "confluentJsonSerializer": "io.confluent:kafka-json-serializer:" + confluentVersion,

@@ -31,6 +31,7 @@ import org.I0Itec.zkclient.ZkClient;
 import com.google.common.collect.ImmutableMap;
 
 import kafka.admin.AdminUtils;
+import kafka.admin.RackAwareMode;
 import kafka.consumer.Consumer;
 import kafka.consumer.ConsumerConfig;
 import kafka.consumer.ConsumerIterator;
@@ -38,8 +39,8 @@ import kafka.consumer.KafkaStream;
 import kafka.javaapi.consumer.ConsumerConnector;
 import kafka.server.KafkaConfig;
 import kafka.server.KafkaServer;
-import kafka.utils.MockTime;
-import kafka.utils.Time;
+import org.apache.kafka.common.utils.MockTime;
+import org.apache.kafka.common.utils.Time;
 import kafka.utils.ZKStringSerializer$;
 import kafka.utils.ZkUtils;
 import kafka.zk.EmbeddedZookeeper;
@@ -124,7 +125,9 @@ class KafkaServerSuite {
           kafka.utils.TestUtils.createBrokerConfig$default$11(),
           kafka.utils.TestUtils.createBrokerConfig$default$12(),
           kafka.utils.TestUtils.createBrokerConfig$default$13(),
-          kafka.utils.TestUtils.createBrokerConfig$default$14()
+          kafka.utils.TestUtils.createBrokerConfig$default$14(),
+          kafka.utils.TestUtils.createBrokerConfig$default$15(),
+          kafka.utils.TestUtils.createBrokerConfig$default$16()
           );
 
 
@@ -240,7 +243,7 @@ public class KafkaTestBase implements Closeable {
     } else {
       // provision topic
       AdminUtils.createTopic(ZkUtils.apply(_kafkaServerSuite.getZkClient(), false),
-          topic, 1, 1, new Properties());
+          topic, 1, 1, new Properties(), RackAwareMode.Disabled$.MODULE$);
 
       List<KafkaServer> servers = new ArrayList<>();
       servers.add(_kafkaServerSuite.getKafkaServer());

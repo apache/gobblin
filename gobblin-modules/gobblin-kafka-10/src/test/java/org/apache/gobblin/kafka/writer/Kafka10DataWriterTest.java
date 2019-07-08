@@ -23,6 +23,7 @@ import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
+import org.apache.avro.generic.GenericRecord;
 import org.testng.Assert;
 import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeSuite;
@@ -31,6 +32,11 @@ import org.testng.annotations.Test;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.kafka.KafkaTestBase;
+import org.apache.gobblin.kafka.schemareg.ConfigDrivenMd5SchemaRegistry;
+import org.apache.gobblin.kafka.schemareg.KafkaSchemaRegistryConfigurationKeys;
+import org.apache.gobblin.kafka.schemareg.SchemaRegistryException;
+import org.apache.gobblin.kafka.serialize.LiAvroDeserializer;
+import org.apache.gobblin.kafka.serialize.LiAvroSerializer;
 import org.apache.gobblin.test.TestUtils;
 import org.apache.gobblin.writer.WriteCallback;
 import org.apache.gobblin.writer.WriteResponse;
@@ -40,12 +46,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-
-/**
- //import org.apache.gobblin.kafka.serialize.LiAvroDeserializer;
- import org.apache.gobblin.kafka.serialize.LiAvroDeserializer;
- import org.apache.gobblin.kafka.serialize.LiAvroSerializer;
- **/
 
 
 @Slf4j
@@ -79,20 +79,20 @@ public class Kafka10DataWriterTest {
   @Test
   public void testStringSerialization()
       throws IOException, InterruptedException, ExecutionException {
-    String topic = "testStringSerialization08";
+    String topic = "testStringSerialization10";
     _kafkaTestHelper.provisionTopic(topic);
     Properties props = new Properties();
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_TOPIC, topic);
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"bootstrap.servers", "localhost:" + _kafkaTestHelper.getKafkaServerPort());
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
-    Kafka10DataWriter<String> kafka09DataWriter = new Kafka10DataWriter<String>(props);
+    Kafka10DataWriter<String> kafkaDataWriter = new Kafka10DataWriter<String>(props);
     String messageString = "foobar";
     WriteCallback callback = mock(WriteCallback.class);
     Future<WriteResponse> future;
 
     try {
-      future = kafka09DataWriter.write(messageString, callback);
-      kafka09DataWriter.flush();
+      future = kafkaDataWriter.write(messageString, callback);
+      kafkaDataWriter.flush();
       verify(callback, times(1)).onSuccess(isA(WriteResponse.class));
       verify(callback, never()).onFailure(isA(Exception.class));
       Assert.assertTrue(future.isDone(), "Future should be done");
@@ -103,7 +103,7 @@ public class Kafka10DataWriterTest {
     }
     finally
     {
-      kafka09DataWriter.close();
+      kafkaDataWriter.close();
     }
 
 
@@ -112,7 +112,7 @@ public class Kafka10DataWriterTest {
   @Test
   public void testBinarySerialization()
       throws IOException, InterruptedException {
-    String topic = "testBinarySerialization08";
+    String topic = "testBinarySerialization10";
     _kafkaTestHelper.provisionTopic(topic);
     Properties props = new Properties();
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_TOPIC, topic);
@@ -136,7 +136,6 @@ public class Kafka10DataWriterTest {
     Assert.assertEquals(message, messageBytes);
   }
 
-  /**
   @Test
   public void testAvroSerialization()
       throws IOException, InterruptedException, SchemaRegistryException {
@@ -155,7 +154,7 @@ public class Kafka10DataWriterTest {
         + KafkaSchemaRegistryConfigurationKeys.KAFKA_SCHEMA_REGISTRY_CLASS,
         ConfigDrivenMd5SchemaRegistry.class.getCanonicalName());
 
-    Kafka09DataWriter<GenericRecord> kafka09DataWriter = new Kafka09DataWriter<>(props);
+    Kafka10DataWriter<GenericRecord> kafka09DataWriter = new Kafka10DataWriter<>(props);
     WriteCallback callback = mock(WriteCallback.class);
 
     GenericRecord record = TestUtils.generateRandomAvroRecord();
@@ -176,7 +175,6 @@ public class Kafka10DataWriterTest {
     GenericRecord receivedRecord = deser.deserialize(topic, message);
     Assert.assertEquals(record.toString(), receivedRecord.toString());
   }
-  **/
 
 
 

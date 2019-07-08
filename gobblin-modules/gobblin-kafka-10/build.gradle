@@ -59,6 +59,11 @@ dependencies {
     exclude group: "com.sun.jdmk", module: "jmxtools"
     exclude group: "javax.jms", module: "jms"
   }
+  testCompile(externalDependency.kafka10ClientTest){
+    exclude group: "com.sun.jmx", module: "jmxri"
+    exclude group: "com.sun.jdmk", module: "jmxtools"
+    exclude group: "javax.jms", module: "jms"
+  }
 }
 
 configurations {

@@ -35,10 +35,9 @@ import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaPartition;
-import org.apache.gobblin.kafka.client.Kafka09ConsumerClient.Kafka09ConsumerRecord;
 
 
-public class Kafka09ConsumerClientTest {
+public class Kafka10ConsumerClientTest {
 
   @Test
   public void testConsume() throws Exception {
@@ -58,16 +57,16 @@ public class Kafka09ConsumerClientTest {
     consumer.addRecord(record1);
     consumer.addRecord(record2);
 
-    try (Kafka09ConsumerClient<String, String> kafka09Client = new Kafka09ConsumerClient<>(testConfig, consumer);) {
+    try (Kafka10ConsumerClient<String, String> kafka09Client = new Kafka10ConsumerClient<>(testConfig, consumer);) {
 
       // Consume from 0 offset
       Set<KafkaConsumerRecord> consumedRecords =
           Sets.newHashSet(kafka09Client.consume(new KafkaPartition.Builder().withId(0).withTopicName("test_topic")
               .build(), 0l, 100l));
 
-      Set<Kafka09ConsumerRecord<String, String>> expected =
-          ImmutableSet.<Kafka09ConsumerRecord<String, String>> of(new Kafka09ConsumerRecord<>(record0),
-              new Kafka09ConsumerRecord<>(record1), new Kafka09ConsumerRecord<>(record2));
+      Set<Kafka10ConsumerClient.Kafka10ConsumerRecord<String, String>> expected =
+          ImmutableSet.of(new Kafka10ConsumerClient.Kafka10ConsumerRecord<>(record0),
+              new Kafka10ConsumerClient.Kafka10ConsumerRecord<>(record1), new Kafka10ConsumerClient.Kafka10ConsumerRecord<>(record2));
       Assert.assertEquals(consumedRecords, expected);
 
     }
