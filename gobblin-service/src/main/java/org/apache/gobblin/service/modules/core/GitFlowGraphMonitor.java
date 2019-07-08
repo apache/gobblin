@@ -68,7 +68,7 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
 
   private static final String PROPERTIES_EXTENSIONS = "properties";
   private static final String CONF_EXTENSIONS = StringUtils.EMPTY;
-  private static final String FLOW_EDGE_LABEL_JOINER_CHAR = ":";
+  private static final String FLOW_EDGE_LABEL_JOINER_CHAR = "_";
   private static final String DEFAULT_GIT_FLOWGRAPH_MONITOR_REPO_DIR = "git-flowgraph";
   private static final String DEFAULT_GIT_FLOWGRAPH_MONITOR_FLOWGRAPH_DIR = "gobblin-flowgraph";
   private static final String DEFAULT_GIT_FLOWGRAPH_MONITOR_BRANCH_NAME = "master";

@@ -244,7 +244,7 @@ public class MultiHopFlowCompilerTest {
     String flowGroup = "testFlowGroup";
     String flowName = "testFlowName";
     String expectedJobName1 = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
-        join(flowGroup, flowName, "Distcp", "LocalFS-1:HDFS-1:localToHdfs");
+        join(flowGroup, flowName, "Distcp", "LocalFS-1", "HDFS-1", "localToHdfs");
     String jobName1 = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
     Assert.assertEquals(jobName1, expectedJobName1);
     String from = jobConfig.getString("from");
@@ -274,7 +274,7 @@ public class MultiHopFlowCompilerTest {
     jobSpecWithExecutor = secondHopNode.getValue();
     jobConfig = jobSpecWithExecutor.getJobSpec().getConfig();
     String expectedJobName2 = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
-        join(flowGroup, flowName, "ConvertToJsonAndEncrypt", "HDFS-1:HDFS-1:hdfsConvertToJsonAndEncrypt");
+        join(flowGroup, flowName, "ConvertToJsonAndEncrypt", "HDFS-1", "HDFS-1", "hdfsConvertToJsonAndEncrypt");
     String jobName2 = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
     Assert.assertEquals(jobName2, expectedJobName2);
     Assert.assertEquals(jobConfig.getString(ConfigurationKeys.JOB_DEPENDENCIES), jobName1);
@@ -294,7 +294,7 @@ public class MultiHopFlowCompilerTest {
     jobSpecWithExecutor = thirdHopNode.getValue();
     jobConfig = jobSpecWithExecutor.getJobSpec().getConfig();
     String expectedJobName3 = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
-        join(flowGroup, flowName, "Distcp", "HDFS-1:HDFS-3:hdfsToHdfs");
+        join(flowGroup, flowName, "Distcp", "HDFS-1", "HDFS-3", "hdfsToHdfs");
     String jobName3 = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
     Assert.assertEquals(jobName3, expectedJobName3);
     Assert.assertEquals(jobConfig.getString(ConfigurationKeys.JOB_DEPENDENCIES), jobName2);
@@ -318,7 +318,7 @@ public class MultiHopFlowCompilerTest {
     jobSpecWithExecutor = fourthHopNode.getValue();
     jobConfig = jobSpecWithExecutor.getJobSpec().getConfig();
     String expectedJobName4 = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
-        join(flowGroup, flowName, "DistcpToADL", "HDFS-3:ADLS-1:hdfsToAdl");
+        join(flowGroup, flowName, "DistcpToADL", "HDFS-3", "ADLS-1", "hdfsToAdl");
     String jobName4 = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
     Assert.assertEquals(jobName4, expectedJobName4);
     Assert.assertEquals(jobConfig.getString(ConfigurationKeys.JOB_DEPENDENCIES), jobName3);
@@ -374,10 +374,10 @@ public class MultiHopFlowCompilerTest {
       }
       Set<String> jobNames = new HashSet<>();
       jobNames.add(Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
-          join(flowGroup, flowName, expectedJobNames.get(i), (Joiner.on(':').join(sourceNodes.get(i), destinationNodes.get(i), edgeNames.get(i)))));
+          join(flowGroup, flowName, expectedJobNames.get(i), sourceNodes.get(i), destinationNodes.get(i), edgeNames.get(i)));
       if (i < 8) {
         jobNames.add(Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
-            join(flowGroup, flowName, expectedJobNames.get(i + 1), (Joiner.on(':').join(sourceNodes.get(i + 1), destinationNodes.get(i + 1), edgeNames.get(i + 1)))));
+            join(flowGroup, flowName, expectedJobNames.get(i + 1), sourceNodes.get(i + 1), destinationNodes.get(i + 1), edgeNames.get(i + 1)));
       }
 
       for (DagNode<JobExecutionPlan> dagNode : currentHopNodes) {
@@ -398,7 +398,7 @@ public class MultiHopFlowCompilerTest {
   @Test (dependsOnMethods = "testCompileFlowWithRetention")
   public void testCompileFlowAfterFirstEdgeDeletion() throws URISyntaxException, IOException {
     //Delete the self edge on HDFS-1 that performs convert-to-json-and-encrypt.
-    this.flowGraph.deleteFlowEdge("HDFS-1:HDFS-1:hdfsConvertToJsonAndEncrypt");
+    this.flowGraph.deleteFlowEdge("HDFS-1_HDFS-1_hdfsConvertToJsonAndEncrypt");
 
     FlowSpec spec = createFlowSpec("flow/flow1.conf", "LocalFS-1", "ADLS-1", false, false);
     Dag<JobExecutionPlan> jobDag = this.specCompiler.compileFlow(spec);
@@ -417,7 +417,7 @@ public class MultiHopFlowCompilerTest {
     String flowGroup = "testFlowGroup";
     String flowName = "testFlowName";
     String expectedJobName1 = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
-        join(flowGroup, flowName, "Distcp", "LocalFS-1:HDFS-2:localToHdfs");
+        join(flowGroup, flowName, "Distcp", "LocalFS-1", "HDFS-2", "localToHdfs");
     String jobName1 = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
     Assert.assertEquals(jobName1, expectedJobName1);
     String from = jobConfig.getString("from");
@@ -447,7 +447,7 @@ public class MultiHopFlowCompilerTest {
     jobExecutionPlan = secondHopNode.getValue();
     jobConfig = jobExecutionPlan.getJobSpec().getConfig();
     String expectedJobName2 = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
-        join(flowGroup, flowName, "ConvertToJsonAndEncrypt", "HDFS-2:HDFS-2:hdfsConvertToJsonAndEncrypt");
+        join(flowGroup, flowName, "ConvertToJsonAndEncrypt", "HDFS-2", "HDFS-2", "hdfsConvertToJsonAndEncrypt");
     String jobName2 = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
     Assert.assertEquals(jobName2, expectedJobName2);
     Assert.assertEquals(jobConfig.getString(ConfigurationKeys.JOB_DEPENDENCIES), jobName1);
@@ -467,7 +467,7 @@ public class MultiHopFlowCompilerTest {
     jobExecutionPlan = thirdHopNode.getValue();
     jobConfig = jobExecutionPlan.getJobSpec().getConfig();
     String expectedJobName3 = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
-        join(flowGroup, flowName, "Distcp", "HDFS-2:HDFS-4:hdfsToHdfs");
+        join(flowGroup, flowName, "Distcp", "HDFS-2", "HDFS-4", "hdfsToHdfs");
     String jobName3 = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
     Assert.assertEquals(jobName3, expectedJobName3);
     Assert.assertEquals(jobConfig.getString(ConfigurationKeys.JOB_DEPENDENCIES), jobName2);
@@ -492,7 +492,7 @@ public class MultiHopFlowCompilerTest {
     jobConfig = jobExecutionPlan.getJobSpec().getConfig();
 
     String expectedJobName4 = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
-        join(flowGroup, flowName, "DistcpToADL", "HDFS-4:ADLS-1:hdfsToAdl");
+        join(flowGroup, flowName, "DistcpToADL", "HDFS-4", "ADLS-1", "hdfsToAdl");
     String jobName4 = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
     Assert.assertEquals(jobName4, expectedJobName4);
     Assert.assertEquals(jobConfig.getString(ConfigurationKeys.JOB_DEPENDENCIES), jobName3);
@@ -520,7 +520,7 @@ public class MultiHopFlowCompilerTest {
   @Test (dependsOnMethods = "testCompileFlowAfterFirstEdgeDeletion")
   public void testCompileFlowAfterSecondEdgeDeletion() throws URISyntaxException, IOException {
     //Delete the self edge on HDFS-2 that performs convert-to-json-and-encrypt.
-    this.flowGraph.deleteFlowEdge("HDFS-2:HDFS-2:hdfsConvertToJsonAndEncrypt");
+    this.flowGraph.deleteFlowEdge("HDFS-2_HDFS-2_hdfsConvertToJsonAndEncrypt");
 
     FlowSpec spec = createFlowSpec("flow/flow1.conf", "LocalFS-1", "ADLS-1", false, false);
     Dag<JobExecutionPlan> jobDag = this.specCompiler.compileFlow(spec);
@@ -542,7 +542,7 @@ public class MultiHopFlowCompilerTest {
     DagNode<JobExecutionPlan> dagNode = jobDag.getStartNodes().get(0);
     Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
     String expectedJobName = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
-        join("testFlowGroup", "testFlowName", "Distcp", "HDFS-1:HDFS-3:hdfsToHdfs");
+        join("testFlowGroup", "testFlowName", "Distcp", "HDFS-1", "HDFS-3", "hdfsToHdfs");
     String jobName = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
     Assert.assertEquals(jobName, expectedJobName);
   }
@@ -560,9 +560,9 @@ public class MultiHopFlowCompilerTest {
     //First hop must be from LocalFS to HDFS-1 and HDFS-2
     Set<String> jobNames = new HashSet<>();
     jobNames.add(Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
-        join("testFlowGroup", "testFlowName", "Distcp", "LocalFS-1:HDFS-1:localToHdfs"));
+        join("testFlowGroup", "testFlowName", "Distcp", "LocalFS-1", "HDFS-1", "localToHdfs"));
     jobNames.add(Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
-        join("testFlowGroup", "testFlowName", "Distcp", "LocalFS-1:HDFS-2:localToHdfs"));
+        join("testFlowGroup", "testFlowName", "Distcp", "LocalFS-1", "HDFS-2", "localToHdfs"));
 
     for (DagNode<JobExecutionPlan> dagNode : jobDag.getStartNodes()) {
       Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
@@ -573,9 +573,9 @@ public class MultiHopFlowCompilerTest {
     //Second hop must be from HDFS-1/HDFS-2 to HDFS-3/HDFS-4 respectively.
     jobNames = new HashSet<>();
     jobNames.add(Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
-        join("testFlowGroup", "testFlowName", "Distcp", "HDFS-1:HDFS-3:hdfsToHdfs"));
+        join("testFlowGroup", "testFlowName", "Distcp", "HDFS-1", "HDFS-3", "hdfsToHdfs"));
     jobNames.add(Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
-        join("testFlowGroup", "testFlowName", "Distcp", "HDFS-2:HDFS-4:hdfsToHdfs"));
+        join("testFlowGroup", "testFlowName", "Distcp", "HDFS-2", "HDFS-4", "hdfsToHdfs"));
     for (DagNode<JobExecutionPlan> dagNode : jobDag.getStartNodes()) {
       List<DagNode<JobExecutionPlan>> nextNodes = jobDag.getChildren(dagNode);
       Assert.assertEquals(nextNodes.size(), 1);
