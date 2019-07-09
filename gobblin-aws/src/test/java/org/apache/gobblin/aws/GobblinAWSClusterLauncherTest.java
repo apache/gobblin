@@ -28,7 +28,13 @@ import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
 import org.apache.helix.model.Message;
+import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.mockito.MockitoAnnotations;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.testng.PowerMockTestCase;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -59,10 +65,6 @@ import org.apache.gobblin.cluster.TestHelper;
 import org.apache.gobblin.cluster.TestShutdownMessageHandlerFactory;
 import org.apache.gobblin.testing.AssertWithBackoff;
 
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doReturn;
-
 
 /**
  * Unit tests for {@link GobblinAWSClusterLauncher}.
@@ -70,7 +72,9 @@ import static org.mockito.Mockito.doReturn;
  * @author Abhishek Tiwari
  */
 @Test(groups = { "gobblin.aws" })
-public class GobblinAWSClusterLauncherTest implements HelixMessageTestBase  {
+@PrepareForTest({ AWSSdkClient.class, GobblinAWSClusterLauncher.class})
+@PowerMockIgnore({"javax.*", "org.apache.helix.*", "org.apache.curator.*", "org.apache.zookeeper.*", "org.w3c.*", "org.xml.*"})
+public class GobblinAWSClusterLauncherTest extends PowerMockTestCase implements HelixMessageTestBase  {
   public final static Logger LOG = LoggerFactory.getLogger(GobblinAWSClusterLauncherTest.class);
 
   private CuratorFramework curatorFramework;
@@ -103,59 +107,61 @@ public class GobblinAWSClusterLauncherTest implements HelixMessageTestBase  {
   private Instance instance = new Instance().withPublicIpAddress("0.0.0.0");
 
   private final Closer closer = Closer.create();
-  AWSSdkClient awsSdkClient = Mockito.mock(AWSSdkClient.class);
+
+  @Mock
+  private AWSSdkClient awsSdkClient;
 
   @BeforeClass
   public void setUp() throws Exception {
 
-    doReturn(Lists.newArrayList(availabilityZone))
+    // Mock AWS SDK calls
+    MockitoAnnotations.initMocks(this);
+
+    PowerMockito.whenNew(AWSSdkClient.class).withAnyArguments().thenReturn(awsSdkClient);
+
+    Mockito.doNothing()
+        .when(awsSdkClient)
+        .createSecurityGroup(Mockito.anyString(), Mockito.anyString());
+    Mockito.doReturn(Lists.<AvailabilityZone>newArrayList(availabilityZone))
         .when(awsSdkClient)
         .getAvailabilityZones();
-
-    doReturn("dummy")
+    Mockito.doReturn("dummy")
         .when(awsSdkClient)
-        .createKeyValuePair(anyString());
-
-    doReturn(Lists.newArrayList(masterASG, workerASG))
+        .createKeyValuePair(Mockito.anyString());
+    Mockito.doReturn(Lists.<AutoScalingGroup>newArrayList(masterASG, workerASG))
         .when(awsSdkClient)
         .getAutoScalingGroupsWithTag(Mockito.any(Tag.class));
-
-    doReturn(Lists.newArrayList(instance))
+    Mockito.doReturn(Lists.<Instance>newArrayList(instance))
         .when(awsSdkClient)
-        .getInstancesForGroup(anyString(), anyString());
-
-    doReturn(Lists.<S3ObjectSummary>newArrayList())
+        .getInstancesForGroup(Mockito.anyString(), Mockito.anyString());
+    Mockito.doReturn(Lists.<S3ObjectSummary>newArrayList())
         .when(awsSdkClient)
-        .listS3Bucket(anyString(), anyString());
-
-    doNothing()
+        .listS3Bucket(Mockito.anyString(), Mockito.anyString());
+    Mockito.doNothing()
         .when(awsSdkClient)
         .addPermissionsToSecurityGroup(Mockito.any(String.class), Mockito.any(String.class), Mockito.any(String.class),
             Mockito.any(Integer.class), Mockito.any(Integer.class));
-
-    doNothing()
+    Mockito.doNothing()
         .when(awsSdkClient)
         .createAutoScalingGroup(Mockito.any(String.class), Mockito.any(String.class), Mockito.any(Integer.class),
             Mockito.any(Integer.class), Mockito.any(Integer.class), Mockito.any(Optional.class),
             Mockito.any(Optional.class), Mockito.any(Optional.class), Mockito.any(Optional.class),
             Mockito.any(Optional.class), Mockito.any(Optional.class), Mockito.any(List.class));
-
-    doNothing()
+    Mockito.doNothing()
         .when(awsSdkClient)
         .createLaunchConfig(Mockito.any(String.class), Mockito.any(String.class), Mockito.any(String.class),
             Mockito.any(String.class), Mockito.any(String.class), Mockito.any(Optional.class),
             Mockito.any(Optional.class), Mockito.any(Optional.class), Mockito.any(Optional.class),
             Mockito.any(Optional.class), Mockito.any(String.class));
-
-    doNothing()
+    Mockito
+        .doNothing()
         .when(awsSdkClient)
         .deleteAutoScalingGroup(Mockito.any(String.class), Mockito.any(boolean.class));
-
-    doNothing()
+    Mockito
+        .doNothing()
         .when(awsSdkClient)
         .deleteLaunchConfiguration(Mockito.any(String.class));
-
-    doNothing()
+    Mockito.doNothing()
         .when(awsSdkClient)
         .addPermissionsToSecurityGroup(Mockito.any(String.class), Mockito.any(String.class), Mockito.any(String.class),
             Mockito.any(Integer.class), Mockito.any(Integer.class));
@@ -181,7 +187,7 @@ public class GobblinAWSClusterLauncherTest implements HelixMessageTestBase  {
             TestHelper.TEST_HELIX_INSTANCE_NAME, InstanceType.CONTROLLER, zkConnectionString);
 
     // Gobblin AWS Cluster Launcher to test
-    this.gobblinAwsClusterLauncher = new MockedGobblinAWSClusterLauncher(this.config);
+    this.gobblinAwsClusterLauncher = new GobblinAWSClusterLauncher(this.config);
   }
 
   @Test
@@ -276,18 +282,6 @@ public class GobblinAWSClusterLauncherTest implements HelixMessageTestBase  {
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
-    }
-  }
-
-  private class MockedGobblinAWSClusterLauncher extends GobblinAWSClusterLauncher {
-
-    public MockedGobblinAWSClusterLauncher(Config config) throws IOException {
-      super(config);
-    }
-
-    @Override
-    AWSSdkClient createAWSSdkClient() {
-      return GobblinAWSClusterLauncherTest.this.awsSdkClient;
     }
   }
 }

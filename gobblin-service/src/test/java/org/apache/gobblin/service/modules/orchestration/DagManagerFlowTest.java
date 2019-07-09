@@ -43,11 +43,7 @@ import org.apache.gobblin.service.monitoring.KafkaJobStatusMonitor;
 import org.apache.gobblin.testing.AssertWithBackoff;
 import org.apache.gobblin.util.ConfigUtils;
 
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyLong;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.*;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -151,11 +147,7 @@ class MockedDagManager extends DagManager {
 
   @Override
   KafkaJobStatusMonitor createJobStatusMonitor(Config config) {
-    //Service
-        KafkaJobStatusMonitor mockedKafkaJobStatusMonitor = Mockito.mock(KafkaJobStatusMonitor.class);
-
-    Mockito.doReturn(true).when(mockedKafkaJobStatusMonitor).isRunning();
-    return mockedKafkaJobStatusMonitor;
+    return null;
   }
 
   @Override
