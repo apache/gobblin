@@ -21,6 +21,8 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.Properties;
 
 import org.apache.commons.lang3.reflect.ConstructorUtils;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 
 import com.google.common.base.Throwables;
 import com.typesafe.config.Config;
@@ -29,6 +31,8 @@ import com.typesafe.config.ConfigFactory;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.types.FieldMappingException;
+import org.apache.gobblin.types.TypeMapper;
 import org.apache.gobblin.util.ConfigUtils;
 
 import static org.apache.gobblin.kafka.writer.KafkaWriterConfigurationKeys.*;
@@ -89,5 +93,19 @@ public class KafkaWriterHelper {
       log.error("Failed to instantiate Kafka producer from class " + kafkaProducerClass, e);
       throw Throwables.propagate(e);
     }
+  }
+
+  public static <K, V> Pair<K,V> getKeyValuePair(V record, KafkaWriterCommonConfig commonConfig)
+      throws FieldMappingException {
+    K key = null;
+    TypeMapper typeMapper = commonConfig.getTypeMapper();
+    if (commonConfig.isKeyed()) {
+      key = (K) typeMapper.getField(record, commonConfig.getKeyField());
+    }
+    V value = record;
+    if (!commonConfig.getValueField().equals(TypeMapper.FIELD_PATH_ALL)) {
+      value = (V) typeMapper.getField(record, commonConfig.getValueField());
+    }
+    return new ImmutablePair<>(key, value);
   }
 }

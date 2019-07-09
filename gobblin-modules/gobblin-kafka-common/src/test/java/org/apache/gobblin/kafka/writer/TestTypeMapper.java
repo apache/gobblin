@@ -17,22 +17,15 @@
 
 package org.apache.gobblin.kafka.writer;
 
-import java.util.Properties;
-
-import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericRecord;
-
-import org.apache.gobblin.configuration.ConfigurationException;
-import org.apache.gobblin.writer.AsyncDataWriter;
+import org.apache.gobblin.types.FieldMappingException;
+import org.apache.gobblin.types.TypeMapper;
 
 
-/**
- * Builder that hands back a {@link Kafka09DataWriter}
- */
-public class KafkaDataWriterBuilder<S, D> extends AbstractKafkaDataWriterBuilder<S, D> {
+public class TestTypeMapper implements TypeMapper {
+
   @Override
-  protected AsyncDataWriter<D> getAsyncDataWriter(Properties props)
-      throws ConfigurationException {
-    return new Kafka09DataWriter<>(props);
+  public Object getField(Object record, String fieldPath)
+      throws FieldMappingException {
+    return null;
   }
 }
