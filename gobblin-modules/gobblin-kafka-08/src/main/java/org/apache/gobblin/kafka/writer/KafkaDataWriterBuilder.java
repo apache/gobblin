@@ -28,10 +28,10 @@ import org.apache.gobblin.writer.AsyncDataWriter;
 /**
  * Builder that hands back a {@link Kafka08DataWriter}
  */
-public class KafkaDataWriterBuilder extends AbstractKafkaDataWriterBuilder<Schema, GenericRecord> {
+public class KafkaDataWriterBuilder<S,D> extends AbstractKafkaDataWriterBuilder<S, D> {
 
   @Override
-  protected AsyncDataWriter<GenericRecord> getAsyncDataWriter(Properties props)
+  protected AsyncDataWriter<D> getAsyncDataWriter(Properties props)
       throws ConfigurationException {
     return new Kafka08DataWriter<>(props);
   }
