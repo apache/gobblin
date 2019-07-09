@@ -72,8 +72,7 @@ public class Kafka09DataWriterTest {
       throws IOException {
     try {
       _kafkaTestHelper.stopClients();
-    }
-    finally {
+    } finally {
       _kafkaTestHelper.stopServers();
     }
   }
@@ -102,9 +101,7 @@ public class Kafka09DataWriterTest {
       byte[] message = _kafkaTestHelper.getIteratorForTopic(topic).next().message();
       String messageReceived = new String(message);
       Assert.assertEquals(messageReceived, messageString);
-    }
-    finally
-    {
+    } finally {
       kafka09DataWriter.close();
     }
 
@@ -126,9 +123,7 @@ public class Kafka09DataWriterTest {
 
     try {
       kafka09DataWriter.write(messageBytes, callback);
-    }
-    finally
-    {
+    } finally {
       kafka09DataWriter.close();
     }
 
@@ -162,9 +157,7 @@ public class Kafka09DataWriterTest {
     GenericRecord record = TestUtils.generateRandomAvroRecord();
     try {
       kafka09DataWriter.write(record, callback);
-    }
-    finally
-    {
+    } finally {
       kafka09DataWriter.close();
     }
 
@@ -207,9 +200,7 @@ public class Kafka09DataWriterTest {
     GenericRecord record = TestUtils.generateRandomAvroRecord();
     try {
       kafka09DataWriter.write(record, callback);
-    }
-    finally
-    {
+    } finally {
       kafka09DataWriter.close();
     }
 
@@ -254,9 +245,7 @@ public class Kafka09DataWriterTest {
     GenericRecord record = TestUtils.generateRandomAvroRecord();
     try {
       kafka09DataWriter.write(record, callback);
-    }
-    finally
-    {
+    } finally {
       kafka09DataWriter.close();
     }
 

@@ -95,21 +95,7 @@ public class KafkaWriterHelper {
     }
   }
 
-  public static <K, D> K getKey(D record, KafkaWriterCommonConfig commonConfig)
-      throws FieldMappingException {
-    if (commonConfig.isKeyed()) {
-      return (K) commonConfig.getTypeMapper().getField(record, commonConfig.getKeyField());
-    } else {
-      return null;
-    }
-  }
-
-  public static <D> D getValue(D record, KafkaWriterCommonConfig commonConfig)
-      throws FieldMappingException {
-    return (D) commonConfig.getTypeMapper().getField(record, commonConfig.getValueField());
-  }
-
-  public static <V, K> Pair<K,V> getKeyValuePair(V record, KafkaWriterCommonConfig commonConfig)
+  public static <K, V> Pair<K,V> getKeyValuePair(V record, KafkaWriterCommonConfig commonConfig)
       throws FieldMappingException {
     K key = null;
     TypeMapper typeMapper = commonConfig.getTypeMapper();
@@ -117,9 +103,9 @@ public class KafkaWriterHelper {
       key = (K) typeMapper.getField(record, commonConfig.getKeyField());
     }
     V value = record;
-    if (!commonConfig.getValueField().equals("*")) {
+    if (!commonConfig.getValueField().equals(TypeMapper.FIELD_PATH_ALL)) {
       value = (V) typeMapper.getField(record, commonConfig.getValueField());
     }
-    return new ImmutablePair<K,V>(key, value);
+    return new ImmutablePair<>(key, value);
   }
 }

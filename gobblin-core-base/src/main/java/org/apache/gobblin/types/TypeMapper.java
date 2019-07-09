@@ -28,6 +28,7 @@ import com.typesafe.config.Config;
  * @param <T>
  */
 public interface TypeMapper<T> extends Closeable {
+  String FIELD_PATH_ALL = "*";
 
   default void configure(Config config) {
 

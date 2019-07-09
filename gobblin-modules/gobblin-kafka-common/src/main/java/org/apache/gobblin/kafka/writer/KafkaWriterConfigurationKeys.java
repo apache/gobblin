@@ -18,6 +18,7 @@
 package org.apache.gobblin.kafka.writer;
 
 import org.apache.gobblin.types.AvroGenericRecordTypeMapper;
+import org.apache.gobblin.types.TypeMapper;
 
 
 /**
@@ -41,9 +42,9 @@ public class KafkaWriterConfigurationKeys {
   public static final String WRITER_KAFKA_KEYFIELD_CONFIG = "writer.kafka.keyField";
   public static final String WRITER_KAFKA_KEYFIELD_DEFAULT = null;
   public static final String WRITER_KAFKA_TYPEMAPPERCLASS_CONFIG = "writer.kafka.typeMapperClass";
-  public static final String WRITER_KAFKA_TYPEMAPPERCLASS_DEFAULT = AvroGenericRecordTypeMapper.class.getCanonicalName();
+  public static final String WRITER_KAFKA_TYPEMAPPERCLASS_DEFAULT = AvroGenericRecordTypeMapper.class.getName();
   public static final String WRITER_KAFKA_VALUEFIELD_CONFIG = "writer.kafka.valueField";
-  public static final String WRITER_KAFKA_VALUEFIELD_DEFAULT = "*";
+  public static final String WRITER_KAFKA_VALUEFIELD_DEFAULT = TypeMapper.FIELD_PATH_ALL;
 
   /**
    * Kafka producer configurations will be passed through as is as long as they are prefixed

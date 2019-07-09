@@ -27,7 +27,7 @@ public class AvroGenericRecordTypeMapper implements TypeMapper<GenericRecord> {
 
   @Override
   public Object getField(GenericRecord record, String fieldPath) throws FieldMappingException {
-    if (fieldPath.equals("*")) {
+    if (fieldPath.equals(FIELD_PATH_ALL)) {
       return record;
     }
 

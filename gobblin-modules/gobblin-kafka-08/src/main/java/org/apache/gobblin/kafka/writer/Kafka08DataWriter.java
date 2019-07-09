@@ -49,7 +49,7 @@ import org.apache.gobblin.writer.WriteResponseMapper;
  *
  */
 @Slf4j
-public class Kafka08DataWriter<K,D> implements AsyncDataWriter<D> {
+public class Kafka08DataWriter<K,V> implements AsyncDataWriter<V> {
 
   private static final WriteResponseMapper<RecordMetadata> WRITE_RESPONSE_WRAPPER =
       new WriteResponseMapper<RecordMetadata>() {
@@ -76,7 +76,7 @@ public class Kafka08DataWriter<K,D> implements AsyncDataWriter<D> {
         }
       };
 
-  private final Producer<K, D> producer;
+  private final Producer<K, V> producer;
   private final String topic;
   private final KafkaWriterCommonConfig commonConfig;
 
@@ -115,9 +115,9 @@ public class Kafka08DataWriter<K,D> implements AsyncDataWriter<D> {
 
 
   @Override
-  public Future<WriteResponse> write(final D record, final WriteCallback callback) {
+  public Future<WriteResponse> write(final V record, final WriteCallback callback) {
     try {
-      Pair<K, D> kvPair = KafkaWriterHelper.getKeyValuePair(record, commonConfig);
+      Pair<K, V> kvPair = KafkaWriterHelper.getKeyValuePair(record, commonConfig);
       return new WriteResponseFuture<>(this.producer.send(new ProducerRecord<>(topic, kvPair.getKey(), kvPair.getValue()),
           (metadata, exception) -> {
             if (exception != null) {
