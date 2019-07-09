@@ -44,10 +44,10 @@ subprojects {
       csv.enabled = false
     }
 
-//    afterEvaluate {
-//      classDirectories = files(classDirectories.files.collect {
-//        fileTree(dir: it, exclude: 'helix-*.jar')
-//      })
-//    }
+    afterEvaluate {
+      classDirectories = files(classDirectories.files.collect {
+        fileTree(dir: it, exclude: 'helix-*.jar')
+      })
+    }
   }
 }
