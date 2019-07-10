@@ -118,6 +118,7 @@ public class JobExecutionPlanListDeserializer implements JsonDeserializer<List<J
 
       } catch (ExecutionException | InterruptedException e) {
         log.warn("Error during deserialization of JobExecutionFuture.");
+        throw new RuntimeException(e);
       }
 
       jobExecutionPlans.add(jobExecutionPlan);
