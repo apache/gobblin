@@ -37,6 +37,7 @@ import com.google.inject.Module;
 import com.google.inject.name.Names;
 import com.linkedin.data.DataMap;
 import com.linkedin.data.template.StringMap;
+import com.linkedin.restli.client.RestLiResponseException;
 import com.linkedin.restli.common.PatchRequest;
 import com.linkedin.restli.internal.server.util.DataMapUtils;
 import com.linkedin.restli.server.resources.BaseResource;
@@ -159,6 +160,19 @@ public class FlowConfigV2Test {
     Assert.assertEquals(retrievedFlowConfig.getProperties().get("param1"), "value1");
     Assert.assertEquals(retrievedFlowConfig.getProperties().get("param2"), "value4");
     Assert.assertFalse(retrievedFlowConfig.getProperties().containsKey("param3"));
+  }
+
+  @Test (expectedExceptions = RestLiResponseException.class)
+  public void testBadPartialUpdate() throws Exception {
+    FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME);
+
+    String patchJson = "{\"schedule\":{\"$set\":{\"runImmediately\":true}},"
+        + "\"properties\":{\"$set\":{\"param2\":\"value4\"},\"$delete\":[\"param3\"]}}";
+    DataMap dataMap = DataMapUtils.readMap(IOUtils.toInputStream(patchJson));
+    PatchRequest<FlowConfig> flowConfigPatch = PatchRequest.createFromPatchDocument(dataMap);
+
+    // Throws exception since local handlers don't support partial update
+    _client.partialUpdateFlowConfig(flowId, flowConfigPatch);
   }
 
   @AfterClass(alwaysRun = true)
