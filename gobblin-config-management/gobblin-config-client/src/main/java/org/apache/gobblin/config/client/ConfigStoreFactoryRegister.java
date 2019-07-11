@@ -23,11 +23,12 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.ServiceLoader;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 
 
 public class ConfigStoreFactoryRegister {
-  private static final Logger LOG = Logger.getLogger(ConfigStoreFactoryRegister.class);
+  private static final Logger LOG = LogManager.getLogger(ConfigStoreFactoryRegister.class);
 
   //key is the configStore scheme name, value is the ConfigStoreFactory
   @SuppressWarnings("rawtypes")

@@ -65,5 +65,5 @@ println "Detected Gradle version major=" + gradleVersionMajor + " minor=" + grad
 ext.dropwizardMetricsVersion = '3.2.3'
 ext.findBugsVersion = '3.0.0'
 ext.googleVersion = '1.22.0'
-ext.slf4jVersion = '1.7.21'
-ext.log4jVersion = '1.2.17'
+ext.slf4jVersion = '1.7.26'
+ext.log4j2Version = '2.11.2'

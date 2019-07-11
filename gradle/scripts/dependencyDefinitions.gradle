@@ -172,12 +172,13 @@ ext.externalDependency = [
     'reactivex': 'io.reactivex.rxjava2:rxjava:2.1.0',
     "slf4j": [
         "org.slf4j:slf4j-api:" + slf4jVersion,
-        "org.slf4j:slf4j-log4j12:" + slf4jVersion,
         "org.slf4j:jcl-over-slf4j:" + slf4jVersion
     ],
-    "log4j": [
-        "log4j:log4j:" + log4jVersion,
-        "log4j:apache-log4j-extras:" + log4jVersion
+    "log4j2": [
+            "org.apache.logging.log4j:log4j-api:"+log4j2Version,
+            "org.apache.logging.log4j:log4j-core:" + log4j2Version,
+            "org.apache.logging.log4j:log4j-1.2-api:" + log4j2Version,
+            "org.apache.logging.log4j:log4j-slf4j-impl:" + log4j2Version,
     ],
     "postgresConnector": "org.postgresql:postgresql:42.1.4",
     "assertj": 'org.assertj:assertj-core:3.8.0',

@@ -25,6 +25,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.log4j.Logger;
+import org.apache.log4j.LogManager;
 
 import azkaban.jobExecutor.AbstractJob;
 import azkaban.utils.Props;
@@ -43,11 +44,11 @@ public class TrashCollectorJob extends AbstractJob implements Tool {
   }
 
   public TrashCollectorJob(String id) {
-    super(id, Logger.getLogger(TrashCollectorJob.class));
+    super(id, LogManager.getLogger(TrashCollectorJob.class));
   }
 
   public TrashCollectorJob(String id, Props props) throws IOException {
-    super(id, Logger.getLogger(TrashCollectorJob.class));
+    super(id, LogManager.getLogger(TrashCollectorJob.class));
     this.conf = new Configuration();
     this.trash = createTrash(props);
   }

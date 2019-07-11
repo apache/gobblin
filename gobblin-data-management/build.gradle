@@ -31,7 +31,7 @@ dependencies {
   compile externalDependency.commonsLang3
   compile externalDependency.guava
   compile externalDependency.slf4j
-  compile externalDependency.log4j
+  compile externalDependency.log4j2
   compile externalDependency.jodaTime
   compile externalDependency.metricsCore
   compile externalDependency.mockito

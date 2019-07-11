@@ -33,8 +33,10 @@ import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.hadoop.hive.serde2.avro.AvroSerDe;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.config.Configurator;
 import org.joda.time.DateTime;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -464,10 +466,7 @@ public class HiveSource implements Source {
   private void silenceHiveLoggers() {
     List<String> loggers = ImmutableList.of("org.apache.hadoop.hive", "org.apache.hive", "hive.ql.parse");
     for (String name : loggers) {
-      Logger logger = Logger.getLogger(name);
-      if (logger != null) {
-        logger.setLevel(Level.WARN);
-      }
+      Configurator.setLevel(name, Level.WARN);
     }
   }
 

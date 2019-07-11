@@ -22,22 +22,15 @@ import java.io.IOException;
 import java.util.List;
 import org.apache.avro.Schema;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.ql.io.IOConstants;
-import org.apache.hadoop.hive.serde2.SerDe;
+import org.apache.hadoop.hive.serde2.AbstractSerDe;
 import org.apache.hadoop.hive.serde2.SerDeException;
 import org.apache.hadoop.hive.serde2.avro.AvroObjectInspectorGenerator;
-import org.apache.hadoop.hive.serde2.avro.AvroSerDe;
 import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
-import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.apache.hadoop.io.Writable;
-
 import com.google.common.base.Throwables;
-
-import lombok.extern.slf4j.Slf4j;
-
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.converter.DataConversionException;
 import org.apache.gobblin.converter.SchemaConversionException;
@@ -45,11 +38,11 @@ import org.apache.gobblin.converter.SingleRecordIterable;
 import org.apache.gobblin.hive.HiveSerDeWrapper;
 import org.apache.gobblin.instrumented.converter.InstrumentedConverter;
 import org.apache.gobblin.util.HadoopUtils;
-
+import lombok.extern.slf4j.Slf4j;
 
 /**
- * An {@link InstrumentedConverter} that takes a {@link Writable} record, uses a Hive {@link SerDe} to
- * deserialize it, and uses another Hive {@link SerDe} to serialize it into a {@link Writable} record.
+ * An {@link InstrumentedConverter} that takes a {@link Writable} record, uses a Hive {@link AbstractSerDe} to
+ * deserialize it, and uses another Hive {@link AbstractSerDe} to serialize it into a {@link Writable} record.
  *
  * The serializer and deserializer are specified using {@link HiveSerDeWrapper#SERDE_SERIALIZER_TYPE}
  * and {@link HiveSerDeWrapper#SERDE_DESERIALIZER_TYPE}.
@@ -73,8 +66,8 @@ import org.apache.gobblin.util.HadoopUtils;
 @Slf4j
 public class HiveSerDeConverter extends InstrumentedConverter<Object, Object, Writable, Writable> {
 
-  private SerDe serializer;
-  private SerDe deserializer;
+  private AbstractSerDe serializer;
+  private AbstractSerDe deserializer;
 
   @Override
   public HiveSerDeConverter init(WorkUnitState state) {
@@ -100,8 +93,15 @@ public class HiveSerDeConverter extends InstrumentedConverter<Object, Object, Wr
 
   private void setColumnsIfPossible(WorkUnitState state)
       throws SerDeException {
-    AvroObjectInspectorGenerator aoig = new AvroObjectInspectorGenerator(
-        AvroSerdeUtils.determineSchemaOrReturnErrorSchema(state.getProperties()));
+    Schema schema = null;
+    try {
+      schema = AvroSerdeUtils.determineSchemaOrThrowException(null, state.getProperties());
+    } catch(Exception exp) {
+      log.warn("Encountered AvroSerdeException determining schema. Returning " +
+          "signal schema to indicate problem", exp);
+      schema = SchemaResolutionProblem.SIGNAL_BAD_SCHEMA;
+    }
+    AvroObjectInspectorGenerator aoig = new AvroObjectInspectorGenerator(schema);
     List<String> columnNames = aoig.getColumnNames();
     List<TypeInfo> columnTypes = aoig.getColumnTypes();
 

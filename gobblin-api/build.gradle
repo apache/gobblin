@@ -33,7 +33,7 @@ dependencies {
 
     testCompile externalDependency.testng
     testCompile externalDependency.mockito
-    testCompile externalDependency.log4j
+    testCompile externalDependency.log4j2
 }
 
 configurations {

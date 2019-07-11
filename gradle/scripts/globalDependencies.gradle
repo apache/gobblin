@@ -21,6 +21,19 @@ import javax.tools.ToolProvider
 subprojects {
   plugins.withType(JavaPlugin) {
     configurations {
+      all {
+        if (!project.name.contains('gobblin-compliance') 
+                && !project.name.contains('gobblin-compaction') 
+                && !project.name.contains('gobblin-data-management') 
+                && !project.name.contains('gobblin-example')) {
+          exclude group: 'org.apache.calcite', module: 'calcite-avatica'
+          // replaced by org.apache.calcite.avatica:avatica-core
+          exclude group: 'log4j', module: 'log4j'
+          exclude group: 'org.slf4j', module: 'slf4j-log4j12'
+          exclude group: 'org.apache.logging.log4j', module: 'log4j-to-slf4j'
+        }
+      }
+
       compile
       dependencies {
         if (!project.name.contains('gobblin-elasticsearch-deps')) {

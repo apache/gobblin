@@ -19,6 +19,7 @@ package org.apache.gobblin.azkaban;
 
 import java.util.List;
 import java.util.Properties;
+import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
 import com.google.common.collect.Lists;
@@ -35,7 +36,11 @@ import azkaban.jobExecutor.AbstractJob;
 
 public class AzkabanGobblinDaemon extends AbstractJob {
 
-  private static final Logger LOG = Logger.getLogger(AzkabanGobblinDaemon.class);
+  /*
+  since Azkaban constructor expects specifically logger from Log4j, we can not use log4j2 logger here
+  so keeping use of log4j logger, should update to Log4j2 logger when Azkaban lib updates it.
+   */
+  private static final Logger LOG = LogManager.getLogger(AzkabanGobblinDaemon.class);
 
   private SchedulerDaemon daemon;
 
