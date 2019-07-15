@@ -899,7 +899,7 @@ public class AvroUtils {
    * @param input input record who's name and namespace need to be overridden
    * @param nameOverride new name for the record schema
    * @param namespaceOverride Optional map containing namespace overrides
-   * @return an output record with overriden name and possibly namespace
+   * @return an output record with overridden name and possibly namespace
    */
   public static GenericRecord overrideNameAndNamespace(GenericRecord input, String nameOverride, Optional<Map<String, String>> namespaceOverride) {
 
@@ -916,6 +916,23 @@ public class AvroUtils {
     }
 
     return output;
+  }
+
+  /**
+   * Given a input schema, Override the name and namespace of the schema and return a new schema
+   * @param input
+   * @param nameOverride
+   * @param namespaceOverride
+   * @return a schema with overridden name and possibly namespace
+   */
+  public static Schema overrideNameAndNamespace(Schema input, String nameOverride, Optional<Map<String, String>> namespaceOverride) {
+
+    Schema newSchema = switchName(input, nameOverride);
+    if(namespaceOverride.isPresent()) {
+      newSchema = switchNamespace(newSchema, namespaceOverride.get());
+    }
+
+    return newSchema;
   }
 
 }

@@ -106,6 +106,7 @@ public class KeyValueEventObjectReporterTest extends KeyValueEventObjectReporter
     Assert.assertEquals(retrievedEvent.getValue().get("name"), eventName);
     int partition = Integer.parseInt(retrievedEvent.getKey());
     Assert.assertTrue((0 <= partition && partition <= 99));
+    Assert.assertTrue(retrievedEvent.getValue().getSchema() == reporter.schema);
   }
 
   private static Pair<String, GenericRecord> nextKVEvent(Iterator<Pair<String, GenericRecord>> it) {

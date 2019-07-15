@@ -23,6 +23,7 @@ import java.util.Properties;
 
 import org.apache.avro.generic.GenericRecord;
 import org.apache.commons.lang3.tuple.Pair;
+import org.codehaus.jackson.annotate.JsonTypeInfo;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -95,6 +96,7 @@ public class KeyValueMetricObjectReporterTest extends KeyValueMetricObjectReport
     Assert.assertEquals(retrievedEvent.getValue().getSchema().getName(), name);
     int partition = Integer.parseInt(retrievedEvent.getKey());
     Assert.assertTrue((0 <= partition && partition <= 99));
+    Assert.assertTrue(retrievedEvent.getValue().getSchema() == reporter.schema);
 
     reporter.close();
   }
