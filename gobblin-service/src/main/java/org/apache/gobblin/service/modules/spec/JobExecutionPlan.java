@@ -85,11 +85,10 @@ public class JobExecutionPlan {
       String flowFailureOption = ConfigUtils.getString(flowConfig, ConfigurationKeys.FLOW_FAILURE_OPTION, DagManager.DEFAULT_FLOW_FAILURE_OPTION);
 
       String jobName = ConfigUtils.getString(jobConfig, ConfigurationKeys.JOB_NAME_KEY, "");
-      String source = ConfigUtils.getString(jobConfig, FlowGraphConfigurationKeys.FLOW_EDGE_SOURCE_KEY, "");
-      String destination = ConfigUtils.getString(jobConfig, FlowGraphConfigurationKeys.FLOW_EDGE_DESTINATION_KEY, "");
+      String edgeId = ConfigUtils.getString(jobConfig, FlowGraphConfigurationKeys.FLOW_EDGE_ID_KEY, "");
 
-      //Modify the job name to include the flow group, flow name and source and destination node ids for the job.
-      jobName = Joiner.on(JOB_NAME_COMPONENT_SEPARATION_CHAR).join(flowGroup, flowName, jobName, source, destination);
+      //Modify the job name to include the flow group, flow name and edge id.
+      jobName = Joiner.on(JOB_NAME_COMPONENT_SEPARATION_CHAR).join(flowGroup, flowName, jobName, edgeId);
 
       JobSpec.Builder jobSpecBuilder = JobSpec.builder(jobSpecURIGenerator(flowGroup, jobName, flowSpec)).withConfig(jobConfig)
           .withDescription(flowSpec.getDescription()).withVersion(flowSpec.getVersion());
