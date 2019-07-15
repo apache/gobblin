@@ -129,7 +129,7 @@ public class JobExecutionPlan {
       // Add dynamic config to jobSpec if a dynamic config generator is specified in sysConfig
       DynamicConfigGenerator dynamicConfigGenerator = DynamicConfigGeneratorFactory.createDynamicConfigGenerator(sysConfig);
       Config dynamicConfig = dynamicConfigGenerator.generateDynamicConfig(jobSpec.getConfig().withFallback(sysConfig));
-      jobSpec.setConfig(jobSpec.getConfig().withFallback(dynamicConfig));
+      jobSpec.setConfig(dynamicConfig.withFallback(jobSpec.getConfig()));
 
       // Reset properties in Spec from Config
       jobSpec.setConfigAsProperties(ConfigUtils.configToProperties(jobSpec.getConfig()));
