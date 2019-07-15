@@ -514,4 +514,25 @@ public class AvroUtilsTest {
 
   }
 
+  @Test
+  public void overrideSchemaNameAndNamespaceTest() {
+    String inputName = "input_name";
+    String inputNamespace = "input_namespace";
+    String outputName = "output_name";
+    String outputNamespace = "output_namespace";
+
+    Schema inputSchema = SchemaBuilder.record(inputName).namespace(inputNamespace).fields()
+        .name("integer1")
+        .type().intBuilder().endInt().noDefault()
+        .endRecord();
+
+    Map<String,String> namespaceOverrideMap = new HashMap<>();
+    namespaceOverrideMap.put(inputNamespace, outputNamespace);
+
+    Schema newSchema = AvroUtils.overrideNameAndNamespace(inputSchema, outputName, Optional.of(namespaceOverrideMap));
+
+    Assert.assertEquals(newSchema.getName(), outputName);
+    Assert.assertEquals(newSchema.getNamespace(), outputNamespace);
+  }
+
 }

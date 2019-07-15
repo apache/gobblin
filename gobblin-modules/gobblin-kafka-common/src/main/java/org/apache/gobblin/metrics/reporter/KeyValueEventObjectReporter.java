@@ -17,12 +17,14 @@
 
 package org.apache.gobblin.metrics.reporter;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Random;
 import java.util.StringJoiner;
 
+import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -56,14 +58,10 @@ public class KeyValueEventObjectReporter extends EventReporter {
   protected List<String> keys;
   protected final String randomKey;
   protected KeyValuePusher pusher;
-  protected Optional<Map<String, String>> namespaceOverride;
-  protected final String topic;
+  protected final Schema schema;
 
   public KeyValueEventObjectReporter(Builder builder) {
     super(builder);
-
-    this.topic = builder.topic;
-    this.namespaceOverride = builder.namespaceOverride;
 
     Config config = builder.config.get();
     Config pusherConfig = ConfigUtils.getConfigOrEmpty(config, PUSHER_CONFIG).withFallback(config);
@@ -83,17 +81,24 @@ public class KeyValueEventObjectReporter extends EventReporter {
           "Key not assigned from config. Please set it with property {} Using randomly generated number {} as key ",
           ConfigurationKeys.METRICS_REPORTING_EVENTS_PUSHERKEYS, randomKey);
     }
+
+    schema = AvroUtils.overrideNameAndNamespace(GobblinTrackingEvent.getClassSchema(), builder.topic, builder.namespaceOverride);
   }
 
   @Override
   public void reportEventQueue(Queue<GobblinTrackingEvent> queue) {
-    log.info("Emitting report using KeyValueEventObjectReporter");
 
     List<Pair<String, GenericRecord>> events = Lists.newArrayList();
     GobblinTrackingEvent event;
 
     while (null != (event = queue.poll())) {
-      GenericRecord record = AvroUtils.overrideNameAndNamespace(event, this.topic, this.namespaceOverride);
+
+      GenericRecord record=event;
+      try {
+        record = AvroUtils.convertRecordSchema(event, schema);
+      } catch (IOException e){
+        log.error("Unable to generate generic data record", e);
+      }
       events.add(Pair.of(buildKey(record), record));
     }
 

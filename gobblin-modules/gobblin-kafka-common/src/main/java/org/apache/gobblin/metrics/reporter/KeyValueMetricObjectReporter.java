@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.StringJoiner;
 
+import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -36,7 +37,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.MetricReport;
 import org.apache.gobblin.metrics.kafka.PusherUtils;
-import org.apache.gobblin.metrics.reporter.MetricReportReporter;
 import org.apache.gobblin.util.AvroUtils;
 import org.apache.gobblin.util.ConfigUtils;
 
@@ -57,14 +57,10 @@ public class KeyValueMetricObjectReporter extends MetricReportReporter {
   private List<String> keys;
   protected final String randomKey;
   protected KeyValuePusher pusher;
-  private Optional<Map<String, String>> namespaceOverride;
-  protected final String topic;
+  protected final Schema schema;
 
   public KeyValueMetricObjectReporter(Builder builder, Config config) {
     super(builder, config);
-
-    this.topic = builder.topic;
-    this.namespaceOverride = builder.namespaceOverride;
 
     Config pusherConfig = ConfigUtils.getConfigOrEmpty(config, PUSHER_CONFIG).withFallback(config);
     String pusherClassName =
@@ -83,11 +79,19 @@ public class KeyValueMetricObjectReporter extends MetricReportReporter {
           "Key not assigned from config. Please set it with property {} Using randomly generated number {} as key ",
           ConfigurationKeys.METRICS_REPORTING_PUSHERKEYS, randomKey);
     }
+
+    schema = AvroUtils.overrideNameAndNamespace(MetricReport.getClassSchema(), builder.topic, builder.namespaceOverride);
   }
 
   @Override
   protected void emitReport(MetricReport report) {
-    GenericRecord record = AvroUtils.overrideNameAndNamespace(report, this.topic, this.namespaceOverride);
+    GenericRecord record = report;
+    try {
+      record = AvroUtils.convertRecordSchema(report, schema);
+    } catch (IOException e){
+      log.error("Unable to generate generic data record", e);
+      return;
+    }
     this.pusher.pushKeyValueMessages(Lists.newArrayList(Pair.of(buildKey(record), record)));
   }
 

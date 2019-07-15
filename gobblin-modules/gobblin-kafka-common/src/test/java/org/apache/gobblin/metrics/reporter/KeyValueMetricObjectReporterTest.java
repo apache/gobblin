@@ -95,6 +95,7 @@ public class KeyValueMetricObjectReporterTest extends KeyValueMetricObjectReport
     Assert.assertEquals(retrievedEvent.getValue().getSchema().getName(), name);
     int partition = Integer.parseInt(retrievedEvent.getKey());
     Assert.assertTrue((0 <= partition && partition <= 99));
+    Assert.assertTrue(retrievedEvent.getValue().getSchema() == reporter.schema);
 
     reporter.close();
   }
