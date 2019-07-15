@@ -58,15 +58,10 @@ public class KeyValueEventObjectReporter extends EventReporter {
   protected List<String> keys;
   protected final String randomKey;
   protected KeyValuePusher pusher;
-  protected Optional<Map<String, String>> namespaceOverride;
-  protected final String topic;
   protected final Schema schema;
 
   public KeyValueEventObjectReporter(Builder builder) {
     super(builder);
-
-    this.topic = builder.topic;
-    this.namespaceOverride = builder.namespaceOverride;
 
     Config config = builder.config.get();
     Config pusherConfig = ConfigUtils.getConfigOrEmpty(config, PUSHER_CONFIG).withFallback(config);
@@ -87,7 +82,7 @@ public class KeyValueEventObjectReporter extends EventReporter {
           ConfigurationKeys.METRICS_REPORTING_EVENTS_PUSHERKEYS, randomKey);
     }
 
-    schema = AvroUtils.overrideNameAndNamespace(GobblinTrackingEvent.getClassSchema(), this.topic, this.namespaceOverride);
+    schema = AvroUtils.overrideNameAndNamespace(GobblinTrackingEvent.getClassSchema(), builder.topic, builder.namespaceOverride);
   }
 
   @Override

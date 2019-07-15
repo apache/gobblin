@@ -23,7 +23,6 @@ import java.util.Properties;
 
 import org.apache.avro.generic.GenericRecord;
 import org.apache.commons.lang3.tuple.Pair;
-import org.codehaus.jackson.annotate.JsonTypeInfo;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 

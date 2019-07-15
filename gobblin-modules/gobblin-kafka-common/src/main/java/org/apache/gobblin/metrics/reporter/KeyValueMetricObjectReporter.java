@@ -57,15 +57,10 @@ public class KeyValueMetricObjectReporter extends MetricReportReporter {
   private List<String> keys;
   protected final String randomKey;
   protected KeyValuePusher pusher;
-  private Optional<Map<String, String>> namespaceOverride;
-  protected final String topic;
   protected final Schema schema;
 
   public KeyValueMetricObjectReporter(Builder builder, Config config) {
     super(builder, config);
-
-    this.topic = builder.topic;
-    this.namespaceOverride = builder.namespaceOverride;
 
     Config pusherConfig = ConfigUtils.getConfigOrEmpty(config, PUSHER_CONFIG).withFallback(config);
     String pusherClassName =
@@ -85,7 +80,7 @@ public class KeyValueMetricObjectReporter extends MetricReportReporter {
           ConfigurationKeys.METRICS_REPORTING_PUSHERKEYS, randomKey);
     }
 
-    schema = AvroUtils.overrideNameAndNamespace(MetricReport.getClassSchema(), this.topic, this.namespaceOverride);
+    schema = AvroUtils.overrideNameAndNamespace(MetricReport.getClassSchema(), builder.topic, builder.namespaceOverride);
   }
 
   @Override
