@@ -306,14 +306,23 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     } else if (!workUnit.contains(TOPIC_NAME)) {
       return;
     } else {
-      addDatasetUrnOptionally(workUnit);
-      if (topicSpecificStateMap == null) {
-        return;
-      } else if (!topicSpecificStateMap.containsKey(workUnit.getProp(TOPIC_NAME))) {
-        return;
-      } else {
-        workUnit.addAll(topicSpecificStateMap.get(workUnit.getProp(TOPIC_NAME)));
-      }
+      configureSingleTopicWU(workUnit, topicSpecificStateMap);
+    }
+  }
+
+  /**
+   * There are certain configurations applied to a WorkUnit that only contains partitions from single topics.
+   * For example, having datasetUrn for kafka topic by setting topic's name is a topic-specific setting.
+   */
+  protected void configureSingleTopicWU(WorkUnit workUnit, Map<String, State> topicSpecificStateMap) {
+    addDatasetUrnOptionally(workUnit);
+
+    if (topicSpecificStateMap == null) {
+      return;
+    } else if (!topicSpecificStateMap.containsKey(workUnit.getProp(TOPIC_NAME))) {
+      return;
+    } else {
+      workUnit.addAll(topicSpecificStateMap.get(workUnit.getProp(TOPIC_NAME)));
     }
   }
 
