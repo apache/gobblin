@@ -26,15 +26,19 @@ import org.apache.commons.lang.StringUtils;
 import com.codahale.metrics.MetricRegistry;
 import com.google.common.collect.Maps;
 import com.linkedin.data.template.StringMap;
+import com.linkedin.data.transform.DataProcessingException;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
 import com.linkedin.restli.common.HttpStatus;
+import com.linkedin.restli.common.PatchRequest;
 import com.linkedin.restli.server.CreateResponse;
 import com.linkedin.restli.server.RestLiServiceException;
 import com.linkedin.restli.server.UpdateResponse;
+import com.linkedin.restli.server.util.PatchApplier;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import javax.naming.OperationNotSupportedException;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -186,6 +190,11 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
    */
   public UpdateResponse updateFlowConfig(FlowId flowId, FlowConfig flowConfig) throws FlowConfigLoggedException {
     return updateFlowConfig(flowId, flowConfig, true);
+  }
+
+  @Override
+  public UpdateResponse partialUpdateFlowConfig(FlowId flowId, PatchRequest<FlowConfig> flowConfigPatch) throws FlowConfigLoggedException {
+    throw new UnsupportedOperationException("Partial update only supported by GobblinServiceFlowConfigResourceHandler");
   }
 
   /**

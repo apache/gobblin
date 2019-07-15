@@ -10,7 +10,7 @@
       "type" : "org.apache.gobblin.service.FlowId",
       "params" : "org.apache.gobblin.service.FlowStatusId"
     },
-    "supports" : [ "create", "delete", "get", "update" ],
+    "supports" : [ "create", "delete", "get", "update", "partial_update" ],
     "methods" : [ {
       "annotations" : {
         "returnEntity" : { }
@@ -23,6 +23,9 @@
     }, {
       "method" : "update",
       "doc" : "Update the flow configuration with the specified key. Running flows are not affected.\n An error is raised if the flow configuration does not exist."
+    }, {
+      "method" : "partial_update",
+      "doc" : "Partial update the flowConfig specified"
     }, {
       "method" : "delete",
       "doc" : "Delete a configured flow. Running flows are not affected. The schedule will be removed for scheduled flows."
