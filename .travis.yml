@@ -31,7 +31,8 @@ before_script:
 
 script: ./travis/test.sh
 
-after_success: ./gradlew coveralls
+after_success:
+  - bash <(cat .codecov_bash)
 after_failure: ./travis/junit-errors-to-stdout.sh
 
 
