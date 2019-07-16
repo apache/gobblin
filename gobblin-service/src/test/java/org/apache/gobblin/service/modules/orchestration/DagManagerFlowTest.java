@@ -67,9 +67,9 @@ public class DagManagerFlowTest {
     Dag<JobExecutionPlan> dag3 = DagManagerTest.buildDag("2", 123456782L, "FINISH_RUNNING", 1);
 
     // mock add spec
-    dagManager.offer(dag1);
-    dagManager.offer(dag2);
-    dagManager.offer(dag3);
+    dagManager.addDag(dag1);
+    dagManager.addDag(dag2);
+    dagManager.addDag(dag3);
 
     // check existence of dag in dagToJobs map
     AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).
@@ -80,9 +80,9 @@ public class DagManagerFlowTest {
         assertTrue(input -> dagManager.dagManagerThreads[2].dagToJobs.containsKey(DagManagerUtils.generateDagId(dag3)), "Waiting for the map to update");
 
     // mock delete spec
-    dagManager.offer(FlowConfigResourceLocalHandler.FlowUriUtils.createFlowSpecUri(new FlowId().setFlowGroup("group0").setFlowName("flow0")));
-    dagManager.offer(FlowConfigResourceLocalHandler.FlowUriUtils.createFlowSpecUri(new FlowId().setFlowGroup("group1").setFlowName("flow1")));
-    dagManager.offer(FlowConfigResourceLocalHandler.FlowUriUtils.createFlowSpecUri(new FlowId().setFlowGroup("group2").setFlowName("flow2")));
+    dagManager.stopDag(FlowConfigResourceLocalHandler.FlowUriUtils.createFlowSpecUri(new FlowId().setFlowGroup("group0").setFlowName("flow0")));
+    dagManager.stopDag(FlowConfigResourceLocalHandler.FlowUriUtils.createFlowSpecUri(new FlowId().setFlowGroup("group1").setFlowName("flow1")));
+    dagManager.stopDag(FlowConfigResourceLocalHandler.FlowUriUtils.createFlowSpecUri(new FlowId().setFlowGroup("group2").setFlowName("flow2")));
 
     // verify deleteSpec() of specProducer is called once
     AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).assertTrue(new DeletePredicate(dag1), "Waiting for the map to update");

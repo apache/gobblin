@@ -284,7 +284,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
       if (this.dagManager.isPresent()) {
         //Send the dag to the DagManager.
-        this.dagManager.get().offer(jobExecutionPlanDag);
+        this.dagManager.get().addDag(jobExecutionPlanDag);
       } else {
         // Schedule all compiled JobSpecs on their respective Executor
         for (Dag.DagNode<JobExecutionPlan> dagNode : jobExecutionPlanDag.getNodes()) {
@@ -350,7 +350,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       if (this.dagManager.isPresent()) {
         //Send the dag to the DagManager.
         _log.info("Forwarding cancel request for flow URI {} to DagManager.", spec.getUri());
-        this.dagManager.get().offer(spec.getUri());
+        this.dagManager.get().stopDag(spec.getUri());
       } else {
         _log.warn("Operation not supported.");
       }

@@ -99,7 +99,7 @@ import static org.apache.gobblin.service.ExecutionStatus.valueOf;
  * For deleteSpec/cancellation requests for a flow URI, {@link DagManager} finds out the flowExecutionId using
  * {@link JobStatusRetriever}, and forwards the request to the {@link DagManagerThread} which handled the addSpec request
  * for this flow. We need separate {@value queue} and {@value cancelQueue} for each {@link DagManagerThread} because
- * cancellation needs the information which is stored only in the same {@link Dag}.
+ * cancellation needs the information which is stored only in the same {@link DagManagerThread}.
  *
  * The {@link DagManager} is active only in the leader mode. To ensure, each {@link Dag} managed by a {@link DagManager} is
  * checkpointed to a persistent location. On start up or leadership change,
@@ -235,7 +235,7 @@ public class DagManager extends AbstractIdleService {
    * submitted dag to the {@link DagStateStore} and then adds the dag to a {@link BlockingQueue} to be picked up
    * by one of the {@link DagManagerThread}s.
    */
-  synchronized void offer(Dag<JobExecutionPlan> dag) throws IOException {
+  synchronized void addDag(Dag<JobExecutionPlan> dag) throws IOException {
     //Persist the dag
     this.dagStateStore.writeCheckpoint(dag);
     long flowExecutionId = DagManagerUtils.getFlowExecId(dag);
@@ -263,7 +263,7 @@ public class DagManager extends AbstractIdleService {
    * Method to submit a {@link URI} for cancellation requsts to the {@link DagManager}.
    * The {@link DagManager} adds the dag to the {@link BlockingQueue} to be picked up by one of the {@link DagManagerThread}s.
    */
-  synchronized public void offer(URI uri) throws IOException {
+  synchronized public void stopDag(URI uri) throws IOException {
     String flowGroup = FlowConfigResourceLocalHandler.FlowUriUtils.getFlowGroup(uri);
     String flowName = FlowConfigResourceLocalHandler.FlowUriUtils.getFlowName(uri);
 
@@ -315,7 +315,7 @@ public class DagManager extends AbstractIdleService {
           jobStatusMonitor.startAsync().awaitRunning();
         }
         for (Dag<JobExecutionPlan> dag : dagStateStore.getDags()) {
-          offer(dag);
+          addDag(dag);
         }
       } else { //Mark the DagManager inactive.
         log.info("Inactivating the DagManager. Shutting down all DagManager threads");
