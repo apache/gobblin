@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.gobblin.metrics.event;
 
 import java.util.Map;
@@ -47,6 +48,7 @@ public class JobStateEventBuilder extends GobblinEventBuilder {
 
   public JobStateEventBuilder(String name, String namespace) {
     super(name, namespace);
+    this.metadata.put(EVENT_TYPE, JOB_STATE_EVENT_TYPE);
   }
 
   @Override
