@@ -130,10 +130,10 @@ There are no configuration parameters specific to AzkabanJobLauncher. This class
 ## Common Job Type Properties <a name="Common-Job-Type-Properties"></a>
 | Name | Description | Required | Default Value |
 | --- | --- | --- | --- |
-| `launcher.type` | Job launcher type; one of LOCAL, MAPREDUCE, YARN. LOCAL mode runs on a single machine (LocalJobLauncher), MAPREDUCE runs on a Hadoop cluster (MRJobLauncher), and YARN runs on a YARN cluster (not implemented yet). | No | LOCAL |
+| `job.launcher.type` | Job launcher type; one of LOCAL, MAPREDUCE, YARN. LOCAL mode runs on a single machine (LocalJobLauncher), MAPREDUCE runs on a Hadoop cluster (MRJobLauncher), and YARN runs on a YARN cluster (not implemented yet). | No | LOCAL |
 
 ## LocalJobLauncher Properties <a name="LocalJobLauncher-Properties"></a>
-There are no configuration parameters specific to LocalJobLauncher. The LocalJobLauncher will launch a Hadoop job on a single machine. If launcher.type is set to LOCAL then this class will be used to launch the job.
+There are no configuration parameters specific to LocalJobLauncher. The LocalJobLauncher will launch a Hadoop job on a single machine. If job.launcher.type is set to LOCAL then this class will be used to launch the job.
 Properties required by the MRJobLauncher class.
 
 | Name | Description | Required | Default Value |

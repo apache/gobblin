@@ -317,6 +317,6 @@ metrics.reporting.kafka.format=avro
 metrics.reporting.kafka.avro.use.schema.registry=true
 metrics.reporting.kafka.topic.metrics=MetricReport
 
-launcher.type=LOCAL
+job.launcher.type=LOCAL
 classpath=lib/*
 ```

@@ -262,7 +262,7 @@ public class MultiHopFlowCompilerTest {
     Assert.assertEquals(jobConfig.getString("data.publisher.final.dir"), to);
     Assert.assertEquals(jobConfig.getString("type"), "java");
     Assert.assertEquals(jobConfig.getString("job.class"), "org.apache.gobblin.runtime.local.LocalJobLauncher");
-    Assert.assertEquals(jobConfig.getString("launcher.type"), "LOCAL");
+    Assert.assertEquals(jobConfig.getString("job.launcher.type"), "LOCAL");
     //Ensure the spec executor has the correct configurations
     SpecExecutor specExecutor = jobSpecWithExecutor.getSpecExecutor();
     Assert.assertEquals(specExecutor.getUri().toString(), "fs:///");
@@ -306,7 +306,7 @@ public class MultiHopFlowCompilerTest {
     Assert.assertEquals(jobConfig.getString("target.filebased.fs.uri"), "hdfs://hadoopnn03.grid.linkedin.com:8888/");
     Assert.assertEquals(jobConfig.getString("type"), "hadoopJava");
     Assert.assertEquals(jobConfig.getString("job.class"), "org.apache.gobblin.azkaban.AzkabanJobLauncher");
-    Assert.assertEquals(jobConfig.getString("launcher.type"), "MAPREDUCE");
+    Assert.assertEquals(jobConfig.getString("job.launcher.type"), "MAPREDUCE");
     //Ensure the spec executor has the correct configurations
     specExecutor = jobSpecWithExecutor.getSpecExecutor();
     Assert.assertEquals(specExecutor.getUri().toString(), "https://azkaban01.gobblin.net:8443");
@@ -330,7 +330,7 @@ public class MultiHopFlowCompilerTest {
     Assert.assertEquals(jobConfig.getString("target.filebased.fs.uri"), "adl://azuredatalakestore.net/");
     Assert.assertEquals(jobConfig.getString("type"), "hadoopJava");
     Assert.assertEquals(jobConfig.getString("job.class"), "org.apache.gobblin.azkaban.AzkabanJobLauncher");
-    Assert.assertEquals(jobConfig.getString("launcher.type"), "MAPREDUCE");
+    Assert.assertEquals(jobConfig.getString("job.launcher.type"), "MAPREDUCE");
     Assert.assertEquals(jobConfig.getString("dfs.adls.oauth2.client.id"), "1234");
     Assert.assertEquals(jobConfig.getString("writer.encrypted.dfs.adls.oauth2.credential"), "credential");
     Assert.assertEquals(jobConfig.getString("encrypt.key.loc"), "/user/testUser/master.password");
@@ -435,7 +435,7 @@ public class MultiHopFlowCompilerTest {
     Assert.assertEquals(jobConfig.getString("data.publisher.final.dir"), to);
     Assert.assertEquals(jobConfig.getString("type"), "java");
     Assert.assertEquals(jobConfig.getString("job.class"), "org.apache.gobblin.runtime.local.LocalJobLauncher");
-    Assert.assertEquals(jobConfig.getString("launcher.type"), "LOCAL");
+    Assert.assertEquals(jobConfig.getString("job.launcher.type"), "LOCAL");
     //Ensure the spec executor has the correct configurations
     SpecExecutor specExecutor = jobExecutionPlan.getSpecExecutor();
     Assert.assertEquals(specExecutor.getUri().toString(), "fs:///");
@@ -479,7 +479,7 @@ public class MultiHopFlowCompilerTest {
     Assert.assertEquals(jobConfig.getString("target.filebased.fs.uri"), "hdfs://hadoopnn04.grid.linkedin.com:8888/");
     Assert.assertEquals(jobConfig.getString("type"), "hadoopJava");
     Assert.assertEquals(jobConfig.getString("job.class"), "org.apache.gobblin.azkaban.AzkabanJobLauncher");
-    Assert.assertEquals(jobConfig.getString("launcher.type"), "MAPREDUCE");
+    Assert.assertEquals(jobConfig.getString("job.launcher.type"), "MAPREDUCE");
     //Ensure the spec executor has the correct configurations
     specExecutor = jobExecutionPlan.getSpecExecutor();
     Assert.assertEquals(specExecutor.getUri().toString(), "https://azkaban02.gobblin.net:8443");
@@ -504,7 +504,7 @@ public class MultiHopFlowCompilerTest {
     Assert.assertEquals(jobConfig.getString("target.filebased.fs.uri"), "adl://azuredatalakestore.net/");
     Assert.assertEquals(jobConfig.getString("type"), "hadoopJava");
     Assert.assertEquals(jobConfig.getString("job.class"), "org.apache.gobblin.azkaban.AzkabanJobLauncher");
-    Assert.assertEquals(jobConfig.getString("launcher.type"), "MAPREDUCE");
+    Assert.assertEquals(jobConfig.getString("job.launcher.type"), "MAPREDUCE");
     Assert.assertEquals(jobConfig.getString("dfs.adls.oauth2.client.id"), "1234");
     Assert.assertEquals(jobConfig.getString("writer.encrypted.dfs.adls.oauth2.credential"), "credential");
     Assert.assertEquals(jobConfig.getString("encrypt.key.loc"), "/user/testUser/master.password");
