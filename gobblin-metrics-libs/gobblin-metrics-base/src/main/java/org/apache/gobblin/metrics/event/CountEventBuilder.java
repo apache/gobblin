@@ -41,7 +41,7 @@ public class CountEventBuilder extends GobblinEventBuilder {
   private int count;
 
   public CountEventBuilder(String name, int count) {
-    this(name, NAMESPACE, count);
+    this(name, null, count);
   }
 
   public CountEventBuilder(String name, String namespace, int count) {
@@ -82,7 +82,6 @@ public class CountEventBuilder extends GobblinEventBuilder {
     metadata.forEach((key, value) -> {
       switch (key) {
         case COUNT_KEY:
-          countEventBuilder.setCount(Integer.parseInt(value));
           break;
         default:
           countEventBuilder.addMetadata(key, value);
