@@ -58,7 +58,7 @@ public class JobExecutionPlan {
 
   private final JobSpec jobSpec;
   private final SpecExecutor specExecutor;
-  private ExecutionStatus executionStatus = ExecutionStatus.$UNKNOWN;
+  private ExecutionStatus executionStatus = ExecutionStatus.PENDING;
   private final int maxAttempts;
   private int currentAttempts = 0;
 

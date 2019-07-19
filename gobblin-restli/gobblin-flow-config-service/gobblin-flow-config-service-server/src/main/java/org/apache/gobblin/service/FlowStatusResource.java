@@ -183,10 +183,16 @@ public class FlowStatusResource extends ComplexKeyResourceTemplate<FlowStatusId,
       return ExecutionStatus.CANCELLED;
     }
 
+    if (currentFlowExecutionStatus == ExecutionStatus.COMPLETE &&
+        jobExecutionStatus == ExecutionStatus.PENDING) {
+      return ExecutionStatus.PENDING;
+    }
+
     if (currentFlowExecutionStatus == ExecutionStatus.RUNNING ||
         jobExecutionStatus == ExecutionStatus.RUNNING ||
         jobExecutionStatus == ExecutionStatus.ORCHESTRATED ||
-        jobExecutionStatus == ExecutionStatus.COMPILED) {
+        jobExecutionStatus == ExecutionStatus.COMPILED ||
+        jobExecutionStatus == ExecutionStatus.PENDING) {
       return ExecutionStatus.RUNNING;
     }
 
