@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -36,6 +37,11 @@ import org.apache.helix.task.TaskDriver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.github.rholder.retry.AttemptTimeLimiters;
+import com.github.rholder.retry.RetryException;
+import com.github.rholder.retry.Retryer;
+import com.github.rholder.retry.RetryerBuilder;
+import com.github.rholder.retry.StopStrategies;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import com.google.common.eventbus.EventBus;
@@ -98,6 +104,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
   final GobblinHelixPlanningJobLauncherMetrics planningJobLauncherMetrics;
   final HelixJobsMapping jobsMapping;
   final Striped<Lock> locks = Striped.lazyWeakLock(256);
+  private final long helixWorkflowListingTimeoutMillis;
 
   private boolean startServicesCompleted;
   private final long helixJobStopTimeoutMillis;
@@ -150,6 +157,10 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
 
     this.helixJobStopTimeoutMillis = ConfigUtils.getLong(jobConfig, GobblinClusterConfigurationKeys.HELIX_JOB_STOP_TIMEOUT_SECONDS,
         GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_STOP_TIMEOUT_SECONDS) * 1000;
+
+    this.helixWorkflowListingTimeoutMillis = ConfigUtils.getLong(jobConfig, GobblinClusterConfigurationKeys.HELIX_WORKFLOW_LISTING_TIMEOUT_SECONDS,
+        GobblinClusterConfigurationKeys.DEFAULT_HELIX_WORKFLOW_LISTING_TIMEOUT_SECONDS) * 1000;
+
   }
 
   @Override
@@ -360,8 +371,22 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     if (PropertiesUtils.getPropAsBoolean(jobConfig, GobblinClusterConfigurationKeys.CANCEL_RUNNING_JOB_ON_DELETE,
         GobblinClusterConfigurationKeys.DEFAULT_CANCEL_RUNNING_JOB_ON_DELETE)) {
       LOGGER.info("Cancelling workflow: {}", deleteJobArrival.getJobName());
-      Map<String, String> jobNameToWorkflowIdMap = HelixUtils.getWorkflowIdsFromJobNames(this.jobHelixManager,
+
+      //Workaround for preventing indefinite hangs observed in TaskDriver.getWorkflows() call.
+      Callable<Map<String, String>> workflowsCallable = () -> HelixUtils.getWorkflowIdsFromJobNames(this.jobHelixManager,
           Collections.singletonList(deleteJobArrival.getJobName()));
+      Retryer<Map<String, String>> retryer = RetryerBuilder.<Map<String, String>>newBuilder()
+          .retryIfException()
+          .withStopStrategy(StopStrategies.stopAfterAttempt(1))
+          .withAttemptTimeLimiter(AttemptTimeLimiters.fixedTimeLimit(this.helixWorkflowListingTimeoutMillis, TimeUnit.MILLISECONDS)).build();
+      Map<String, String> jobNameToWorkflowIdMap;
+      try {
+        jobNameToWorkflowIdMap = retryer.call(workflowsCallable);
+      } catch (ExecutionException | RetryException e) {
+        LOGGER.error("Exception encountered when getting workflows from Helix; likely a Helix/Zk issue.", e);
+        return;
+      }
+
       if (jobNameToWorkflowIdMap.containsKey(deleteJobArrival.getJobName())) {
         String workflowId = jobNameToWorkflowIdMap.get(deleteJobArrival.getJobName());
         TaskDriver taskDriver = new TaskDriver(this.jobHelixManager);
@@ -374,6 +399,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
       }
     }
   }
+
   /**
    * This class is responsible for running non-scheduled jobs.
    */
