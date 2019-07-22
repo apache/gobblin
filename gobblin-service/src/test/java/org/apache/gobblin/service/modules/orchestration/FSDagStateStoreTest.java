@@ -23,6 +23,7 @@ import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.Assert;
@@ -110,7 +111,7 @@ public class FSDagStateStoreTest {
   }
 
   @Test (dependsOnMethods = "testCleanUp")
-  public void testGetDags() throws IOException, URISyntaxException {
+  public void testGetDags() throws IOException, URISyntaxException, ExecutionException, InterruptedException {
     //Set up a new FSDagStateStore instance.
     setUp();
     List<Long> flowExecutionIds = Lists.newArrayList(System.currentTimeMillis(), System.currentTimeMillis() + 1);
@@ -129,6 +130,8 @@ public class FSDagStateStoreTest {
       Assert.assertEquals(dag.getParentChildMap().size(), 1);
       Assert.assertEquals(dag.getNodes().get(0).getValue().getSpecExecutor().getUri(), specExecURI);
       Assert.assertEquals(dag.getNodes().get(1).getValue().getSpecExecutor().getUri(), specExecURI);
+      Assert.assertTrue(Boolean.parseBoolean(dag.getNodes().get(0).getValue().getJobFuture().get().get().toString()));
+      Assert.assertTrue(Boolean.parseBoolean(dag.getNodes().get(1).getValue().getJobFuture().get().get().toString()));
     }
   }
 

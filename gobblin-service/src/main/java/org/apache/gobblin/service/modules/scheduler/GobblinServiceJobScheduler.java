@@ -349,7 +349,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
             "Spec with URI: %s was not found in cache. May be it was cleaned, if not please " + "clean it manually",
             deletedSpecURI));
       }
-    } catch (JobException e) {
+    } catch (JobException | IOException e) {
       _log.warn(String.format("Spec with URI: %s was not unscheduled cleaning", deletedSpecURI), e);
     }
   }

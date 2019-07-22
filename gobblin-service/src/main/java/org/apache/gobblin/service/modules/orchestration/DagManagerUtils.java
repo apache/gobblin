@@ -58,9 +58,23 @@ public class DagManagerUtils {
    * @return a String id associated corresponding to the {@link Dag} instance.
    */
   static String generateDagId(Dag<JobExecutionPlan> dag) {
-    FlowId flowId = getFlowId(dag);
-    Long flowExecutionId = getFlowExecId(dag);
-    return Joiner.on("_").join(flowId.getFlowGroup(), flowId.getFlowName(), flowExecutionId);
+    return generateDagId(dag.getStartNodes().get(0).getValue().getJobSpec().getConfig());
+  }
+
+  static String generateDagId(Dag.DagNode<JobExecutionPlan> dagNode) {
+    return generateDagId(dagNode.getValue().getJobSpec().getConfig());
+  }
+
+  private static String generateDagId(Config jobConfig) {
+    String flowGroup = jobConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
+    String flowName = jobConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
+    long flowExecutionId = jobConfig.getLong(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
+
+    return generateDagId(flowGroup, flowName, flowExecutionId);
+  }
+
+  static String generateDagId(String flowGroup, String flowName, long flowExecutionId) {
+    return Joiner.on("_").join(flowGroup, flowName, flowExecutionId);
   }
 
   /**

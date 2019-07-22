@@ -46,7 +46,7 @@ import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.SpecExecutor;
-import org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutor;
+import org.apache.gobblin.runtime.spec_executorInstance.MockedSpecExecutor;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.Dag.DagNode;
@@ -62,6 +62,7 @@ public class DagManagerTest {
   private JobStatusRetriever _jobStatusRetriever;
   private DagManager.DagManagerThread _dagManagerThread;
   private LinkedBlockingQueue<Dag<JobExecutionPlan>> queue;
+  private LinkedBlockingQueue<String> cancelQueue;
   private Map<DagNode<JobExecutionPlan>, Dag<JobExecutionPlan>> jobToDag;
   private Map<String, LinkedList<DagNode<JobExecutionPlan>>> dagToJobs;
   private Map<String, Dag<JobExecutionPlan>> dags;
@@ -75,7 +76,9 @@ public class DagManagerTest {
     this._dagStateStore = new FSDagStateStore(config, new HashMap<>());
     this._jobStatusRetriever = Mockito.mock(JobStatusRetriever.class);
     this.queue = new LinkedBlockingQueue<>();
-    this._dagManagerThread = new DagManager.DagManagerThread(_jobStatusRetriever, _dagStateStore, queue, true);
+    this.cancelQueue = new LinkedBlockingQueue<>();
+    this._dagManagerThread = new DagManager.DagManagerThread(_jobStatusRetriever, _dagStateStore, queue, cancelQueue,
+        true);
 
     Field jobToDagField = DagManager.DagManagerThread.class.getDeclaredField("jobToDag");
     jobToDagField.setAccessible(true);
@@ -95,10 +98,16 @@ public class DagManagerTest {
    * Create a {@link Dag <JobExecutionPlan>}.
    * @return a Dag.
    */
-  private Dag<JobExecutionPlan> buildDag(String id, Long flowExecutionId, String flowFailureOption, boolean flag)
+  static Dag<JobExecutionPlan> buildDag(String id, Long flowExecutionId, String flowFailureOption, boolean flag)
+      throws URISyntaxException {
+    int numNodes = (flag) ? 3 : 5;
+    return buildDag(id, flowExecutionId, flowFailureOption, numNodes);
+  }
+
+  static Dag<JobExecutionPlan> buildDag(String id, Long flowExecutionId, String flowFailureOption, int numNodes)
       throws URISyntaxException {
     List<JobExecutionPlan> jobExecutionPlans = new ArrayList<>();
-    int numNodes = (flag) ? 3 : 5;
+
     for (int i = 0; i < numNodes; i++) {
       String suffix = Integer.toString(i);
       Config jobConfig = ConfigBuilder.create().
@@ -117,18 +126,18 @@ public class DagManagerTest {
       }
       JobSpec js = JobSpec.builder("test_job" + suffix).withVersion(suffix).withConfig(jobConfig).
           withTemplate(new URI("job" + suffix)).build();
-      SpecExecutor specExecutor = InMemorySpecExecutor.createDummySpecExecutor(new URI("job" + i));
+      SpecExecutor specExecutor = MockedSpecExecutor.createDummySpecExecutor(new URI("job" + i));
       JobExecutionPlan jobExecutionPlan = new JobExecutionPlan(js, specExecutor);
       jobExecutionPlans.add(jobExecutionPlan);
     }
     return new JobExecutionPlanDagFactory().createDag(jobExecutionPlans);
   }
 
-  private Iterator<JobStatus> getMockJobStatus(String flowName, String flowGroup, Long flowExecutionId, String jobGroup, String jobName, String eventName) {
+  static Iterator<JobStatus> getMockJobStatus(String flowName, String flowGroup, Long flowExecutionId, String jobGroup, String jobName, String eventName) {
     return getMockJobStatus(flowName, flowGroup, flowExecutionId, jobGroup, jobName, eventName, false);
   }
 
-  private Iterator<JobStatus> getMockJobStatus(String flowName, String flowGroup,  Long flowExecutionId, String jobGroup, String jobName, String eventName, boolean shouldRetry) {
+  private static Iterator<JobStatus> getMockJobStatus(String flowName, String flowGroup,  Long flowExecutionId, String jobGroup, String jobName, String eventName, boolean shouldRetry) {
     return Iterators.singletonIterator(JobStatus.builder().flowName(flowName).flowGroup(flowGroup).jobGroup(jobGroup).jobName(jobName).flowExecutionId(flowExecutionId).
         message("Test message").eventName(eventName).startTime(5000L).shouldRetry(shouldRetry).build());
   }

@@ -23,6 +23,12 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.dbcp.BasicDataSource;
+import org.testng.Assert;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
+
+import com.typesafe.config.Config;
+
 import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
@@ -34,11 +40,6 @@ import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
-import org.testng.Assert;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
-
-import com.typesafe.config.Config;
 
 
 /**
@@ -97,6 +98,8 @@ public class MysqlDagStateStoreTest {
       Assert.assertEquals(jobConfig.getString(ConfigurationKeys.FLOW_NAME_KEY), "flow" + "random_0");
       Assert.assertEquals(jobConfig.getLong(ConfigurationKeys.FLOW_EXECUTION_ID_KEY), 123L);
       Assert.assertEquals(plan.getExecutionStatus(), ExecutionStatus.RUNNING);
+      Assert.assertTrue(Boolean.parseBoolean(plan.getJobFuture().get().get().toString()));
+      Assert.assertTrue(Boolean.parseBoolean(plan.getJobFuture().get().get().toString()));
     }
 
     dagDeserialized = dags.get(1);

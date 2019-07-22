@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.util.Collections;
@@ -283,7 +284,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
       if (this.dagManager.isPresent()) {
         //Send the dag to the DagManager.
-        this.dagManager.get().offer(jobExecutionPlanDag);
+        this.dagManager.get().addDag(jobExecutionPlanDag);
       } else {
         // Schedule all compiled JobSpecs on their respective Executor
         for (Dag.DagNode<JobExecutionPlan> dagNode : jobExecutionPlanDag.getNodes()) {
@@ -341,33 +342,17 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     }
   }
 
-  public void remove(Spec spec, Properties headers) {
+  public void remove(Spec spec, Properties headers) throws IOException {
     // TODO: Evolve logic to cache and reuse previously compiled JobSpecs
     // .. this will work for Identity compiler but not always for multi-hop.
     // Note: Current logic assumes compilation is consistent between all executions
     if (spec instanceof FlowSpec) {
-      Dag<JobExecutionPlan> jobExecutionPlanDag = specCompiler.compileFlow(spec);
-
-      if (jobExecutionPlanDag.isEmpty()) {
-        _log.warn("Cannot determine an executor to delete Spec: " + spec);
-        return;
-      }
-
-      // Delete all compiled JobSpecs on their respective Executor
-      for (Dag.DagNode<JobExecutionPlan> dagNode: jobExecutionPlanDag.getNodes()) {
-        JobExecutionPlan jobExecutionPlan = dagNode.getValue();
-        // Delete this spec on selected executor
-        SpecProducer producer = null;
-        try {
-          producer = jobExecutionPlan.getSpecExecutor().getProducer().get();
-          Spec jobSpec = jobExecutionPlan.getJobSpec();
-
-          _log.info(String.format("Going to delete JobSpec: %s on Executor: %s", jobSpec, producer));
-          producer.deleteSpec(jobSpec.getUri(), headers);
-        } catch (Exception e) {
-          _log.error("Cannot successfully delete spec: " + jobExecutionPlan.getJobSpec() + " on executor: " + producer
-              + " for flow: " + spec, e);
-        }
+      if (this.dagManager.isPresent()) {
+        //Send the dag to the DagManager.
+        _log.info("Forwarding cancel request for flow URI {} to DagManager.", spec.getUri());
+        this.dagManager.get().stopDag(spec.getUri());
+      } else {
+        _log.warn("Operation not supported.");
       }
     } else {
       throw new RuntimeException("Spec not of type FlowSpec, cannot delete: " + spec);
