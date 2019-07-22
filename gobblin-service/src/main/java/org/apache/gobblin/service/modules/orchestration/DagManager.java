@@ -258,6 +258,8 @@ public class DagManager extends AbstractIdleService {
         this.eventSubmitter.get().getTimingEvent(TimingEvent.LauncherTimings.JOB_PENDING).stop(jobMetadata);
         jobExecutionPlan.setExecutionStatus(PENDING);
       }
+    }
+  }
 
   /**
    * Method to submit a {@link URI} for cancellation requsts to the {@link DagManager}.
