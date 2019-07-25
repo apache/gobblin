@@ -162,7 +162,6 @@ public class DagManager extends AbstractIdleService {
   private final Integer pollingInterval;
   @Getter
   private final JobStatusRetriever jobStatusRetriever;
-  private final KafkaJobStatusMonitor jobStatusMonitor;
   private final Config config;
   private final Optional<EventSubmitter> eventSubmitter;
 
@@ -184,7 +183,6 @@ public class DagManager extends AbstractIdleService {
     }
 
     try {
-      this.jobStatusMonitor = createJobStatusMonitor(config);
       this.jobStatusRetriever = createJobStatusRetriever(config);
     } catch (ReflectiveOperationException e) {
       throw new RuntimeException("Exception encountered during DagManager initialization", e);
@@ -312,10 +310,6 @@ public class DagManager extends AbstractIdleService {
           this.dagManagerThreads[i] = dagManagerThread;
           this.scheduledExecutorPool.scheduleAtFixedRate(dagManagerThread, 0, this.pollingInterval, TimeUnit.SECONDS);
         }
-        if ((this.jobStatusMonitor != null) && (!this.jobStatusMonitor.isRunning())) {
-          log.info("Starting job status monitor");
-          jobStatusMonitor.startAsync().awaitRunning();
-        }
         for (Dag<JobExecutionPlan> dag : dagStateStore.getDags()) {
           addDag(dag);
         }
@@ -327,8 +321,6 @@ public class DagManager extends AbstractIdleService {
         } catch (InterruptedException e) {
           log.error("Exception encountered when shutting down DagManager threads.", e);
         }
-        log.info("Shutting down JobStatusMonitor");
-        this.jobStatusMonitor.shutDown();
       }
     } catch (IOException e) {
       log.error("Exception encountered when activating the new DagManager", e);
@@ -815,6 +807,5 @@ public class DagManager extends AbstractIdleService {
       throws Exception {
     this.scheduledExecutorPool.shutdown();
     this.scheduledExecutorPool.awaitTermination(TERMINATION_TIMEOUT, TimeUnit.SECONDS);
-    this.jobStatusMonitor.shutDown();
   }
 }
