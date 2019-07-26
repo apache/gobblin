@@ -73,6 +73,10 @@ public class GobblinYarnConfigurationKeys {
   public static final String CONTAINER_JVM_MEMORY_XMX_RATIO_KEY = GOBBLIN_YARN_PREFIX + "container.jvmMemoryXmxRatio";
   public static final double DEFAULT_CONTAINER_JVM_MEMORY_XMX_RATIO = 1.0;
 
+  //Container Log location properties
+  public static final String GOBBLIN_YARN_CONTAINER_LOG_DIR_NAME = GobblinYarnConfigurationKeys.GOBBLIN_YARN_PREFIX + "app.container.log.dir";
+  public static final String GOBBLIN_YARN_CONTAINER_LOG_FILE_NAME = GobblinYarnConfigurationKeys.GOBBLIN_YARN_PREFIX + "app.container.log.file";
+
   // Helix configuration properties.
   public static final String HELIX_INSTANCE_MAX_RETRIES = GOBBLIN_YARN_PREFIX + "helix.instance.max.retries";
 
