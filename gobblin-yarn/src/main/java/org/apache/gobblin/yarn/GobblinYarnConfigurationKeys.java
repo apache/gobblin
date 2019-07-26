@@ -35,6 +35,8 @@ public class GobblinYarnConfigurationKeys {
       GOBBLIN_YARN_PREFIX + "email.notification.on.shutdown";
   public static final String RELEASED_CONTAINERS_CACHE_EXPIRY_SECS = GOBBLIN_YARN_PREFIX + "releasedContainersCacheExpirySecs";
   public static final int DEFAULT_RELEASED_CONTAINERS_CACHE_EXPIRY_SECS = 300;
+  public static final String APP_VIEW_ACL = GOBBLIN_YARN_PREFIX + "appViewAcl";
+  public static final String DEFAULT_APP_VIEW_ACL = "*";
 
   // Gobblin Yarn ApplicationMaster configuration properties.
   public static final String APP_MASTER_MEMORY_MBS_KEY = GOBBLIN_YARN_PREFIX + "app.master.memory.mbs";
