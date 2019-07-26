@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -45,6 +46,7 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.protocolrecords.GetNewApplicationResponse;
+import org.apache.hadoop.yarn.api.records.ApplicationAccessType;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.ApplicationResourceUsageReport;
@@ -163,6 +165,7 @@ public class GobblinYarnAppLauncher {
 
   private final String applicationName;
   private final String appQueueName;
+  private final String appViewAcl;
 
   private final Config config;
 
@@ -261,6 +264,9 @@ public class GobblinYarnAppLauncher {
         GobblinYarnConfigurationKeys.CONTAINER_JVM_MEMORY_OVERHEAD_MBS_KEY + " cannot be more than "
             + GobblinYarnConfigurationKeys.CONTAINER_MEMORY_MBS_KEY + " * "
             + GobblinYarnConfigurationKeys.CONTAINER_JVM_MEMORY_XMX_RATIO_KEY);
+
+    this.appViewAcl = ConfigUtils.getString(this.config, GobblinYarnConfigurationKeys.APP_VIEW_ACL,
+        GobblinYarnConfigurationKeys.DEFAULT_APP_VIEW_ACL);
   }
 
   /**
@@ -504,6 +510,11 @@ public class GobblinYarnAppLauncher {
     amContainerLaunchContext.setLocalResources(appMasterLocalResources);
     amContainerLaunchContext.setEnvironment(YarnHelixUtils.getEnvironmentVariables(this.yarnConfiguration));
     amContainerLaunchContext.setCommands(Lists.newArrayList(buildApplicationMasterCommand(resource.getMemory())));
+
+    Map<ApplicationAccessType, String> acls = new HashMap<>(1);
+    acls.put(ApplicationAccessType.VIEW_APP, this.appViewAcl);
+    amContainerLaunchContext.setApplicationACLs(acls);
+
     if (UserGroupInformation.isSecurityEnabled()) {
       setupSecurityTokens(amContainerLaunchContext);
     }
