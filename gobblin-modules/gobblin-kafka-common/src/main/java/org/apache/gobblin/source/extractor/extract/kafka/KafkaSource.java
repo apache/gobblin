@@ -698,22 +698,12 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   }
 
   /**
-   * If config store is enabled, then intersection of topics from blacklisting/whitelisting will be taken against
-   * the topics from config-store
+   * Return topics to be processed filtered by job-level whitelist and blacklist.
    */
   private List<KafkaTopic> getFilteredTopics(SourceState state) {
     List<Pattern> blacklist = DatasetFilterUtils.getPatternList(state, TOPIC_BLACKLIST);
     List<Pattern> whitelist = DatasetFilterUtils.getPatternList(state, TOPIC_WHITELIST);
-    List<KafkaTopic> topics = this.kafkaConsumerClient.get().getFilteredTopics(blacklist, whitelist);
-    Optional<String> configStoreUri = ConfigStoreUtils.getConfigStoreUri(state.getProperties());
-    if (configStoreUri.isPresent()) {
-      List<KafkaTopic> topicsFromConfigStore = ConfigStoreUtils
-          .getTopicsFromConfigStore(state.getProperties(), configStoreUri.get(), this.kafkaConsumerClient.get());
-
-      return topics.stream().filter((KafkaTopic p) -> (topicsFromConfigStore.stream()
-          .anyMatch((KafkaTopic q) -> q.getName().equalsIgnoreCase(p.getName())))).collect(toList());
-    }
-    return topics;
+    return this.kafkaConsumerClient.get().getFilteredTopics(blacklist, whitelist);
   }
 
   @Override
