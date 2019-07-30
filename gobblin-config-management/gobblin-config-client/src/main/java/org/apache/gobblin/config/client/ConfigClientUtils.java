@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.config.client;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -25,6 +26,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Optional;
@@ -46,6 +50,9 @@ import org.apache.gobblin.util.ConfigUtils;
  */
 public class ConfigClientUtils {
 
+  /** Reducing multiple times of init of {@link FileSystem} object.  */
+  private static ThreadLocal<FileSystem> THREADLOCAL_FS = new ThreadLocal<>();
+
   /**
    *
    * @param configKeyURI - URI provided by client , which could missing authority/store root directory
@@ -66,20 +73,27 @@ public class ConfigClientUtils {
    * @param configKeyPath : relative path to the input config store cs
    * @param returnURIWithAuthority  : return the URI with input config store's authority and absolute path
    * @param cs            : the config store of the input configKeyURI
+   * @param couldBeLocalFs  : determine if current call is possibly from localFs.
+   *                      This is important because the determination of whether returning configKeyPath directly
+   *                        as the "path" component in URI or not cannot easily
+   *                      based on whether returnURIWithAuthority is true or false, since local FS will not contain
+   *                      authority at all, even the configKeyPath is given a relative path.
+   *                      This is useful for setting local-fs based config-store for unit test.
    * @return              : return the URI of the same format with the input configKeyURI
    *
    * for example, configKeyPath is /tags/retention,
-   * with returnURIWithAuthority as true, return "etl-hdfs:///tags/retention
-   * with returnURIWithAuthority as false , then return
+   * with returnURIWithAuthority as false, return "etl-hdfs:///tags/retention
+   * with returnURIWithAuthority as true , then return
    * etl-hdfs://eat1-nertznn01.grid.linkedin.com:9000/user/mitu/HdfsBasedConfigTest/tags/retention
    */
   public static URI buildUriInClientFormat(ConfigKeyPath configKeyPath, ConfigStore cs,
-      boolean returnURIWithAuthority) {
+      boolean returnURIWithAuthority, boolean couldBeLocalFs) {
 
     try {
-      if (!returnURIWithAuthority) {
+      if (!returnURIWithAuthority && !couldBeLocalFs) {
         return new URI(cs.getStoreURI().getScheme(), null, configKeyPath.getAbsolutePathString(), null, null);
       }
+
       URI storeRoot = cs.getStoreURI();
       // if configKeyPath is root, the configKeyPath.getAbsolutePathString().substring(1) will return "" and
       // will cause the Path creation failure if not handled here
@@ -93,6 +107,12 @@ public class ConfigClientUtils {
       // should not come here
       throw new RuntimeException("Can not build URI based on " + configKeyPath);
     }
+  }
+
+  // Added for backward-compatibility.
+  public static URI buildUriInClientFormat(ConfigKeyPath configKeyPath, ConfigStore cs,
+      boolean returnURIWithAuthority) {
+    return buildUriInClientFormat(configKeyPath, cs, returnURIWithAuthority, true);
   }
 
   public static Collection<URI> buildUriInClientFormat(Collection<ConfigKeyPath> configKeyPaths, ConfigStore cs,

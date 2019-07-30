@@ -16,9 +16,16 @@
  */
 package org.apache.gobblin.source.extractor.extract.kafka;
 
-import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
-import com.typesafe.config.Config;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Properties;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.apache.commons.lang.StringUtils;
 import org.apache.gobblin.config.client.ConfigClient;
 import org.apache.gobblin.config.client.ConfigClientUtils;
 import org.apache.gobblin.config.client.api.ConfigStoreFactoryDoesNotExistsException;
@@ -30,23 +37,23 @@ import org.apache.gobblin.kafka.client.GobblinKafkaConsumerClient;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.DatasetFilterUtils;
 import org.apache.gobblin.util.PathUtils;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Properties;
-import java.util.Set;
-import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.Path;
+
+import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
+import com.typesafe.config.Config;
+
+import lombok.extern.slf4j.Slf4j;
 
 
 @Slf4j
 public class ConfigStoreUtils {
+  /**
+   * Used as the grouping functionality in config-store to filter certain data nodes.
+   */
   public static final String GOBBLIN_CONFIG_TAGS_WHITELIST = "gobblin.config.tags.whitelist";
   public static final String GOBBLIN_CONFIG_TAGS_BLACKLIST = "gobblin.config.tags.blacklist";
+
   public static final String GOBBLIN_CONFIG_FILTER = "gobblin.config.filter";
   public static final String GOBBLIN_CONFIG_COMMONPATH = "gobblin.config.commonPath";
 
@@ -124,10 +131,8 @@ public class ConfigStoreUtils {
   /**
    * Get topics from config store.
    * Topics will either be whitelisted or blacklisted using tag.
-   * After filtering out topics via tag, their config property is checked.
-   * For each shortlisted topic, config must contain either property topic.blacklist or topic.whitelist
    *
-   * If tags are not provided, it will return all topics
+   * If tags are not provided, it will return all topics.
    */
   public static List<KafkaTopic> getTopicsFromConfigStore(Properties properties, String configStoreUri,
       GobblinKafkaConsumerClient kafkaConsumerClient) {
@@ -141,33 +146,14 @@ public class ConfigStoreUtils {
     Optional<Config> runtimeConfig = ConfigClientUtils.getOptionalRuntimeConfig(properties);
 
     if (properties.containsKey(GOBBLIN_CONFIG_TAGS_WHITELIST)) {
-      Preconditions.checkArgument(properties.containsKey(GOBBLIN_CONFIG_FILTER),
-          "Missing required property " + GOBBLIN_CONFIG_FILTER);
-      String filterString = properties.getProperty(GOBBLIN_CONFIG_FILTER);
-      Path whiteListTagUri = PathUtils.mergePaths(new Path(configStoreUri),
-          new Path(properties.getProperty(GOBBLIN_CONFIG_TAGS_WHITELIST)));
-      List<String> whitelistedTopics = new ArrayList<>();
-      ConfigStoreUtils.getTopicsURIFromConfigStore(configClient, whiteListTagUri, filterString, runtimeConfig)
-          .stream()
-          .filter((URI u) -> ConfigUtils.getBoolean(ConfigStoreUtils.getConfig(configClient, u, runtimeConfig),
-              KafkaSource.TOPIC_WHITELIST, false))
-          .forEach(((URI u) -> whitelistedTopics.add(ConfigStoreUtils.getTopicNameFromURI(u))));
-
+      List<String> whitelistedTopics = getListOfTopicNamesByFilteringTag(properties, configClient, runtimeConfig,
+          configStoreUri, GOBBLIN_CONFIG_TAGS_WHITELIST);
       return allTopics.stream()
           .filter((KafkaTopic p) -> whitelistedTopics.contains(p.getName()))
           .collect(Collectors.toList());
     } else if (properties.containsKey(GOBBLIN_CONFIG_TAGS_BLACKLIST)) {
-      Preconditions.checkArgument(properties.containsKey(GOBBLIN_CONFIG_FILTER),
-          "Missing required property " + GOBBLIN_CONFIG_FILTER);
-      String filterString = properties.getProperty(GOBBLIN_CONFIG_FILTER);
-      Path blackListTagUri = PathUtils.mergePaths(new Path(configStoreUri),
-          new Path(properties.getProperty(GOBBLIN_CONFIG_TAGS_BLACKLIST)));
-      List<String> blacklistedTopics = new ArrayList<>();
-      ConfigStoreUtils.getTopicsURIFromConfigStore(configClient, blackListTagUri, filterString, runtimeConfig)
-          .stream()
-          .filter((URI u) -> ConfigUtils.getBoolean(ConfigStoreUtils.getConfig(configClient, u, runtimeConfig),
-              KafkaSource.TOPIC_BLACKLIST, false))
-          .forEach(((URI u) -> blacklistedTopics.add(ConfigStoreUtils.getTopicNameFromURI(u))));
+      List<String> blacklistedTopics = getListOfTopicNamesByFilteringTag(properties, configClient, runtimeConfig,
+          configStoreUri, GOBBLIN_CONFIG_TAGS_BLACKLIST);
       return allTopics.stream()
           .filter((KafkaTopic p) -> !blacklistedTopics.contains(p.getName()))
           .collect(Collectors.toList());
@@ -175,6 +161,27 @@ public class ConfigStoreUtils {
       log.warn("None of the blacklist or whitelist tags are provided");
       return allTopics;
     }
+  }
+
+  /**
+   * Using the tag feature provided by Config-Store for grouping, getting a list of topics (case-sensitive,
+   * need to be matched with what would be returned from kafka broker) tagged by the tag value specified
+   * in job configuration.
+   */
+  public static List<String> getListOfTopicNamesByFilteringTag(Properties properties, ConfigClient configClient,
+      Optional<Config> runtimeConfig, String configStoreUri, String tagConfName) {
+    Preconditions.checkArgument(properties.containsKey(GOBBLIN_CONFIG_FILTER),
+        "Missing required property " + GOBBLIN_CONFIG_FILTER);
+    String filterString = properties.getProperty(GOBBLIN_CONFIG_FILTER);
+
+    Path tagUri = PathUtils.mergePaths(new Path(configStoreUri),
+        new Path(properties.getProperty(tagConfName)));
+
+    List<String> taggedTopics = new ArrayList<>();
+    ConfigStoreUtils.getTopicsURIFromConfigStore(configClient, tagUri, filterString, runtimeConfig)
+        .forEach(((URI u) -> taggedTopics.add(ConfigStoreUtils.getTopicNameFromURI(u))));
+
+    return taggedTopics;
   }
 
   /**
