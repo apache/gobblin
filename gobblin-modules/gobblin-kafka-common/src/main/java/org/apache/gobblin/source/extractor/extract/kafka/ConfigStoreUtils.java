@@ -79,13 +79,42 @@ public class ConfigStoreUtils {
     return path.getName();
   }
 
+  /**
+   * The construction of URI in config-store is implementation specific.
+   * Supporting ivy-based and fs-based config-store and ivy-based has different construction.
+   */
   public static URI getUriStringForTopic(String topicName, String commonPath, String configStoreUri)
       throws URISyntaxException {
     URI storeUri = new URI(configStoreUri);
     Path path = PathUtils.mergePaths(new Path(storeUri.getPath()), PathUtils.mergePaths(new Path(commonPath), new Path(topicName)));
-    URI topicUri = new URI(storeUri.getScheme(), storeUri.getAuthority(), path.toString(), storeUri.getQuery(), storeUri.getFragment());
+
+    URI topicUri = (storeUri.getScheme().contains("ivy")) ? getUriForPathIvyBased(path, configStoreUri)
+        : getUriForPathFsBased(topicName, commonPath, configStoreUri);
+
     log.info("URI for topic is : " + topicUri.toString());
     return topicUri;
+  }
+
+  /**
+   * Constructing an URI in config-store in ivy-based implementation, given a path.
+   * A use case for this is to construct URI given the tag path.
+   */
+  public static URI getUriForPathIvyBased(Path path, String configStoreUri) throws URISyntaxException {
+    URI storeUri = new URI(configStoreUri);
+    URI resultUri = new URI(storeUri.getScheme(), storeUri.getAuthority(), path.toString(), storeUri.getQuery(), storeUri.getFragment());
+    return resultUri;
+  }
+
+  /**
+   * A utility method used for getting URI specific to a Kafka topic in fs-based config-store implementation.
+   * Keep the method which doesn't contain any fs-specific information for backward-compatibility.
+   */
+  public static URI getUriForPathFsBased(String topicName, String commonPath, String configStoreUri)
+      throws URISyntaxException {
+    Path path =
+        PathUtils.mergePaths(new Path(configStoreUri), PathUtils.mergePaths(new Path(commonPath), new Path(topicName)));
+    log.info("URI for topic is : " + path.toString());
+    return new URI(path.toString());
   }
 
   public static Optional<Config> getConfigForTopic(Properties properties, String topicKey, ConfigClient configClient) {
