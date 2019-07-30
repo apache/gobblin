@@ -33,8 +33,6 @@ import org.influxdb.dto.Point;
  */
 public class InfluxDBPusher {
 
-  private static final String DEFAULT_RETENTION_POLICY = "default";
-
   private final InfluxDB influxDB;
   private final String database;
 
@@ -84,7 +82,7 @@ public class InfluxDBPusher {
    * @param point the {@link Point} to report
    */
   public void push(Point point) {
-    BatchPoints.Builder batchPointsBuilder = BatchPoints.database(database).retentionPolicy(DEFAULT_RETENTION_POLICY);
+    BatchPoints.Builder batchPointsBuilder = BatchPoints.database(database);
     batchPointsBuilder.point(point);
     influxDB.write(batchPointsBuilder.build());
   }
@@ -94,7 +92,7 @@ public class InfluxDBPusher {
    * @param points list of {@link Point}s to report
    */
   public void push(List<Point> points) {
-    BatchPoints.Builder batchPointsBuilder = BatchPoints.database(database).retentionPolicy(DEFAULT_RETENTION_POLICY);
+    BatchPoints.Builder batchPointsBuilder = BatchPoints.database(database);
     for (Point point : points) {
       batchPointsBuilder.point(point);
     }
