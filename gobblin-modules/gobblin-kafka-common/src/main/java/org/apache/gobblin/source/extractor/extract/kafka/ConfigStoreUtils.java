@@ -63,9 +63,9 @@ public class ConfigStoreUtils {
   public static Collection<URI> getTopicsURIFromConfigStore(ConfigClient configClient, Path tagUri, String filterString,
       Optional<Config> runtimeConfig) {
     try {
-      Collection<URI> importedBy = configClient.getImportedBy(new URI(tagUri.toString()), true, runtimeConfig);
+      Collection<URI> importedBy = configClient.getImportedBy(tagUri.toUri(), true, runtimeConfig);
       return importedBy.stream().filter((URI u) -> u.toString().contains(filterString)).collect(Collectors.toList());
-    } catch (URISyntaxException | ConfigStoreFactoryDoesNotExistsException | ConfigStoreCreationException e) {
+    } catch (ConfigStoreFactoryDoesNotExistsException | ConfigStoreCreationException e) {
       throw new Error(e);
     }
   }
@@ -88,9 +88,8 @@ public class ConfigStoreUtils {
 
   public static URI getUriStringForTopic(String topicName, String commonPath, String configStoreUri)
       throws URISyntaxException {
-    URI storeUri = new URI(configStoreUri);
-    Path path = PathUtils.mergePaths(new Path(storeUri.getPath()), PathUtils.mergePaths(new Path(commonPath), new Path(topicName)));
-    URI topicUri = new URI(storeUri.getScheme(), storeUri.getAuthority(), path.toString(), storeUri.getQuery(), storeUri.getFragment());
+    Path fullTopicPathInConfigStore = PathUtils.mergePaths(new Path(commonPath), new Path(topicName));
+    URI topicUri = getUriFromPath(fullTopicPathInConfigStore, configStoreUri);
     log.info("URI for topic is : " + topicUri.toString());
     return topicUri;
   }
@@ -174,8 +173,12 @@ public class ConfigStoreUtils {
         "Missing required property " + GOBBLIN_CONFIG_FILTER);
     String filterString = properties.getProperty(GOBBLIN_CONFIG_FILTER);
 
-    Path tagUri = PathUtils.mergePaths(new Path(configStoreUri),
-        new Path(properties.getProperty(tagConfName)));
+    Path tagUri = new Path("/");
+    try {
+      tagUri = new Path(getUriFromPath(new Path(properties.getProperty(tagConfName)), configStoreUri));
+    } catch (URISyntaxException ue) {
+      log.error("Cannot construct a Tag URI due to the exception:", ue);
+    }
 
     List<String> taggedTopics = new ArrayList<>();
     ConfigStoreUtils.getTopicsURIFromConfigStore(configClient, tagUri, filterString, runtimeConfig)
@@ -185,11 +188,36 @@ public class ConfigStoreUtils {
   }
 
   /**
+   * Construct the URI for a Config-Store node given a path.
+   * The implementation will be based on scheme, while the signature of this method will not be subject to
+   * different implementation.
+   *
+   * The implementation will be different since Fs-based config-store simply append dataNode's path in the end,
+   * while ivy-based config-store will require query to store those information.
+   *
+   * @param path The relative path of a node inside Config-Store.
+   * @param configStoreUri The config store URI.
+   * @return The URI to inspect a data node represented by path inside Config Store.
+   * @throws URISyntaxException
+   */
+  private static URI getUriFromPath(Path path, String configStoreUri) throws URISyntaxException {
+    URI storeUri = new URI(configStoreUri);
+    if (storeUri.getScheme().contains("ivy")) {
+      return new URI(storeUri.getScheme(), storeUri.getAuthority(), path.toString(), storeUri.getQuery(),
+          storeUri.getFragment());
+    } else {
+      return PathUtils.mergePaths(new Path(configStoreUri), path).toUri();
+    }
+  }
+
+  /**
    * Shortlist topics from config store based on whitelist/blacklist tags and
    * add it to {@param whitelist}/{@param blacklist}
    *
    * If tags are not provided, blacklist and whitelist won't be modified
+   * @deprecated Since this method contains implementation-specific way to construct TagURI inside Config-Store.
    */
+  @Deprecated
   public static void setTopicsFromConfigStore(Properties properties, Set<String> blacklist, Set<String> whitelist,
       final String _blacklistTopicKey, final String _whitelistTopicKey) {
     Optional<String> configStoreUri = getConfigStoreUri(properties);

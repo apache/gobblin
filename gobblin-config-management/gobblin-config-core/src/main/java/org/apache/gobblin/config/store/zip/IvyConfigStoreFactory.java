@@ -48,11 +48,11 @@ import org.apache.gobblin.util.DownloadUtils;
  */
 public class IvyConfigStoreFactory implements ConfigStoreFactory<ZipFileConfigStore> {
 
-  private static final String IVY_SCHEME_PREFIX = "ivy-";
-  private static final String ORG_KEY = "org";
-  private static final String MODULE_KEY = "module";
-  private static final String STORE_PATH_KEY = "storePath";
-  private static final String STORE_PREFIX_KEY = "storePrefix";
+  protected static final String IVY_SCHEME_PREFIX = "ivy-";
+  protected static final String ORG_KEY = "org";
+  protected static final String MODULE_KEY = "module";
+  protected static final String STORE_PATH_KEY = "storePath";
+  protected static final String STORE_PREFIX_KEY = "storePrefix";
 
   @Override
   public String getScheme() {
@@ -120,8 +120,8 @@ public class IvyConfigStoreFactory implements ConfigStoreFactory<ZipFileConfigSt
   /**
    * Base URI for a config store should be root of the zip file, so change path part of URI to be null
    */
-  private URI getBaseURI(URI configKey) throws URISyntaxException {
-    return new URI(configKey.getScheme(), configKey.getAuthority(), null, configKey.getQuery(), configKey.getFragment());
+  protected URI getBaseURI(URI configKey) throws URISyntaxException {
+    return new URI(configKey.getScheme(), configKey.getAuthority(), "/", configKey.getQuery(), configKey.getFragment());
   }
 }
 

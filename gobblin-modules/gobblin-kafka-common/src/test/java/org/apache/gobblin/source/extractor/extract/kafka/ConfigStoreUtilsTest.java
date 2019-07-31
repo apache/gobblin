@@ -52,6 +52,18 @@ public class ConfigStoreUtilsTest {
   }
 
   @Test
+  public void testGetUriStringForTopic() throws Exception {
+    String commonPath = "/data/tracking";
+    URI topic1URI = ConfigStoreUtils.getUriStringForTopic("Topic1", commonPath, configStoreUri);
+    URI expectedTopic1URI = new URI("simple-file", "", new URI(configStoreUri).getPath() + "/data/tracking/Topic1", null, null);
+    Assert.assertEquals(topic1URI, expectedTopic1URI);
+
+    URI topic2URI = ConfigStoreUtils.getUriStringForTopic("Topic2", commonPath, configStoreUri);
+    URI expectedTopic2URI = new URI("simple-file", "", new URI(configStoreUri).getPath() + "/data/tracking/Topic2", null, null);
+    Assert.assertEquals(topic2URI, expectedTopic2URI);
+  }
+
+  @Test
   public void testGetTopicsFromConfigStore()
       throws Exception {
     KafkaTopic topic1 = new KafkaTopic("Topic1", Lists.newArrayList());

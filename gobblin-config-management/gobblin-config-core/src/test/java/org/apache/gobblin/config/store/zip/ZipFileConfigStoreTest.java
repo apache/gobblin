@@ -51,7 +51,7 @@ public class ZipFileConfigStoreTest {
 
   @BeforeClass
   public void setUp() throws URISyntaxException, ConfigStoreCreationException, IOException {
-    Path path = Paths.get(this.getClass().getClassLoader().getResource("zipStoreTest.zip").getPath());
+    Path path = Paths.get(this.getClass().getClassLoader().getResource("IvyConfigStoreTest.zip").getPath());
     FileSystem fs = FileSystems.newFileSystem(path, null);
 
     this.store = new ZipFileConfigStore((ZipFileSystem) fs, path.toUri(), this.version, "_CONFIG_STORE");

@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.config.client;
 
-import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -26,20 +25,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.LocalFileSystem;
-import org.apache.hadoop.fs.Path;
-
-import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
-import com.typesafe.config.Config;
-
 import org.apache.gobblin.config.common.impl.SingleLinkedListConfigKeyPath;
 import org.apache.gobblin.config.store.api.ConfigKeyPath;
 import org.apache.gobblin.config.store.api.ConfigStore;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.hadoop.fs.Path;
+
+import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
+import com.typesafe.config.Config;
 
 
 /**
@@ -49,9 +44,6 @@ import org.apache.gobblin.util.ConfigUtils;
  *
  */
 public class ConfigClientUtils {
-
-  /** Reducing multiple times of init of {@link FileSystem} object.  */
-  private static ThreadLocal<FileSystem> THREADLOCAL_FS = new ThreadLocal<>();
 
   /**
    *
