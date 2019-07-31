@@ -91,7 +91,7 @@ public class ConfigStoreUtilsTest {
 
     // Blacklist two topics. Should only return non-blacklisted topics.
     properties.remove(GOBBLIN_CONFIG_TAGS_WHITELIST);
-    properties.setProperty(GOBBLIN_CONFIG_TAGS_BLACKLIST, "tags/blacklist");
+    properties.setProperty(GOBBLIN_CONFIG_TAGS_BLACKLIST, "/tags/blacklist");
     result = ConfigStoreUtils.getTopicsFromConfigStore(properties, configStoreUri, mockClient);
     Assert.assertEquals(result.size(), 1);
     Assert.assertEquals(result.get(0).getName(), "Topic3");

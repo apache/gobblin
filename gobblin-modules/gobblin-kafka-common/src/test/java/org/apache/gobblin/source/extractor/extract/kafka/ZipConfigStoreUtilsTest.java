@@ -24,21 +24,28 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Properties;
+import java.util.stream.Collectors;
 
 import org.apache.gobblin.config.client.ConfigClient;
 import org.apache.gobblin.config.client.api.VersionStabilityPolicy;
 import org.apache.gobblin.config.store.api.ConfigStoreCreationException;
 import org.apache.gobblin.config.store.zip.SimpleLocalIvyConfigStoreFactory;
 import org.apache.gobblin.config.store.zip.ZipFileConfigStore;
+import org.apache.gobblin.kafka.client.GobblinKafkaConsumerClient;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 
 import static org.apache.gobblin.source.extractor.extract.kafka.ConfigStoreUtils.GOBBLIN_CONFIG_COMMONPATH;
 import static org.apache.gobblin.source.extractor.extract.kafka.ConfigStoreUtils.GOBBLIN_CONFIG_FILTER;
+import static org.apache.gobblin.source.extractor.extract.kafka.ConfigStoreUtils.GOBBLIN_CONFIG_TAGS_BLACKLIST;
 import static org.apache.gobblin.source.extractor.extract.kafka.ConfigStoreUtils.GOBBLIN_CONFIG_TAGS_WHITELIST;
+import static org.mockito.Matchers.anyList;
 
 
 /**
@@ -48,6 +55,7 @@ import static org.apache.gobblin.source.extractor.extract.kafka.ConfigStoreUtils
 public class ZipConfigStoreUtilsTest {
   private String configStoreUri;
   private ConfigClient configClient = ConfigClient.createConfigClient(VersionStabilityPolicy.WEAK_LOCAL_STABILITY);
+  private GobblinKafkaConsumerClient mockClient;
 
   @BeforeClass
   public void setUp()
@@ -60,6 +68,7 @@ public class ZipConfigStoreUtilsTest {
 
     ZipFileConfigStore store = new SimpleLocalIvyConfigStoreFactory().createConfigStore(zipInClassPathURI);
     configStoreUri = store.getStoreURI().toString();
+    mockClient = Mockito.mock(GobblinKafkaConsumerClient.class);
   }
 
   @Test
@@ -76,5 +85,39 @@ public class ZipConfigStoreUtilsTest {
     Assert.assertEquals(result.size(), 2);
     Assert.assertTrue(result.contains("Topic1"));
     Assert.assertTrue(result.contains("Topic2"));
+  }
+
+  @Test
+  public void testGetTopicsFromConfigStore()
+      throws Exception {
+    KafkaTopic topic1 = new KafkaTopic("Topic1", Lists.newArrayList());
+    KafkaTopic topic2 = new KafkaTopic("Topic2", Lists.newArrayList());
+    KafkaTopic topic3 = new KafkaTopic("Topic3", Lists.newArrayList());
+
+    Mockito.when(mockClient.getFilteredTopics(anyList(), anyList()))
+        .thenReturn(ImmutableList.of(topic1, topic2, topic3));
+    Properties properties = new Properties();
+
+    // Empty properties returns everything: topic1, 2 and 3.
+    List<KafkaTopic> result = ConfigStoreUtils.getTopicsFromConfigStore(properties, configStoreUri, mockClient);
+    Assert.assertEquals(result.size(), 3);
+
+    properties.setProperty(GOBBLIN_CONFIG_TAGS_WHITELIST, "/tags/whitelist");
+    properties.setProperty(GOBBLIN_CONFIG_FILTER, "/data/tracking");
+    properties.setProperty(GOBBLIN_CONFIG_COMMONPATH, "/data/tracking");
+
+    // Whitelist only two topics. Should only returned whitelisted topics.
+    result = ConfigStoreUtils.getTopicsFromConfigStore(properties, configStoreUri, mockClient);
+    Assert.assertEquals(result.size(), 2);
+    List<String> resultInString = result.stream().map(KafkaTopic::getName).collect(Collectors.toList());
+    Assert.assertTrue(resultInString.contains("Topic1"));
+    Assert.assertTrue(resultInString.contains("Topic2"));
+
+    // Blacklist two topics. Should only return non-blacklisted topics.
+    properties.remove(GOBBLIN_CONFIG_TAGS_WHITELIST);
+    properties.setProperty(GOBBLIN_CONFIG_TAGS_BLACKLIST, "/tags/blacklist");
+    result = ConfigStoreUtils.getTopicsFromConfigStore(properties, configStoreUri, mockClient);
+    Assert.assertEquals(result.size(), 1);
+    Assert.assertEquals(result.get(0).getName(), "Topic3");
   }
 }
