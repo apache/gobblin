@@ -27,8 +27,6 @@ import java.util.Properties;
 
 import org.apache.gobblin.config.client.ConfigClient;
 import org.apache.gobblin.config.client.api.VersionStabilityPolicy;
-import org.apache.gobblin.config.common.impl.SingleLinkedListConfigKeyPath;
-import org.apache.gobblin.config.store.api.ConfigKeyPath;
 import org.apache.gobblin.config.store.api.ConfigStoreCreationException;
 import org.apache.gobblin.config.store.zip.SimpleLocalIvyConfigStoreFactory;
 import org.apache.gobblin.config.store.zip.ZipFileConfigStore;
