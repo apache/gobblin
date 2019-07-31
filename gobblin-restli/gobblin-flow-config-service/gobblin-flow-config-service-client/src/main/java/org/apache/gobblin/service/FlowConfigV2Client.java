@@ -71,8 +71,7 @@ public class FlowConfigV2Client implements Closeable {
     _httpClientFactory = Optional.of(new HttpClientFactory());
     Client r2Client = new TransportClientAdapter(_httpClientFactory.get().getClient(Collections.<String, String>emptyMap()));
     _restClient = Optional.of(new RestClient(r2Client, serverUri));
-
-    _flowconfigsV2RequestBuilders = new FlowconfigsV2RequestBuilders();
+    _flowconfigsV2RequestBuilders = createRequestBuilders();
   }
 
   /**
@@ -84,8 +83,13 @@ public class FlowConfigV2Client implements Closeable {
 
     _httpClientFactory = Optional.absent();
     _restClient = Optional.of(restClient);
+    _flowconfigsV2RequestBuilders = createRequestBuilders();
+  }
 
-    _flowconfigsV2RequestBuilders = new FlowconfigsV2RequestBuilders();
+  // Clients using different service name can override this method
+  // RequestBuilders decide the name of the service requests go to.
+  protected FlowconfigsV2RequestBuilders createRequestBuilders() {
+    return new FlowconfigsV2RequestBuilders();
   }
 
   /**
