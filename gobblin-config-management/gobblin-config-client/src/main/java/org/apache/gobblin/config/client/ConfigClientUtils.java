@@ -65,12 +65,6 @@ public class ConfigClientUtils {
    * @param configKeyPath : relative path to the input config store cs
    * @param returnURIWithAuthority  : return the URI with input config store's authority and absolute path
    * @param cs            : the config store of the input configKeyURI
-   * @param couldBeLocalFs  : determine if current call is possibly from localFs.
-   *                      This is important because the determination of whether returning configKeyPath directly
-   *                        as the "path" component in URI or not cannot easily
-   *                      based on whether returnURIWithAuthority is true or false, since local FS will not contain
-   *                      authority at all, even the configKeyPath is given a relative path.
-   *                      This is useful for setting local-fs based config-store for unit test.
    * @return              : return the URI of the same format with the input configKeyURI
    *
    * for example, configKeyPath is /tags/retention,
@@ -78,11 +72,9 @@ public class ConfigClientUtils {
    * with returnURIWithAuthority as true , then return
    * etl-hdfs://eat1-nertznn01.grid.linkedin.com:9000/user/mitu/HdfsBasedConfigTest/tags/retention
    */
-  public static URI buildUriInClientFormat(ConfigKeyPath configKeyPath, ConfigStore cs,
-      boolean returnURIWithAuthority, boolean couldBeLocalFs) {
-
+  public static URI buildUriInClientFormat(ConfigKeyPath configKeyPath, ConfigStore cs, boolean returnURIWithAuthority) {
     try {
-      if (!returnURIWithAuthority && !couldBeLocalFs) {
+      if (!returnURIWithAuthority) {
         return new URI(cs.getStoreURI().getScheme(), null, configKeyPath.getAbsolutePathString(), null, null);
       }
 
@@ -99,12 +91,6 @@ public class ConfigClientUtils {
       // should not come here
       throw new RuntimeException("Can not build URI based on " + configKeyPath);
     }
-  }
-
-  // Added for backward-compatibility.
-  public static URI buildUriInClientFormat(ConfigKeyPath configKeyPath, ConfigStore cs,
-      boolean returnURIWithAuthority) {
-    return buildUriInClientFormat(configKeyPath, cs, returnURIWithAuthority, true);
   }
 
   public static Collection<URI> buildUriInClientFormat(Collection<ConfigKeyPath> configKeyPaths, ConfigStore cs,
