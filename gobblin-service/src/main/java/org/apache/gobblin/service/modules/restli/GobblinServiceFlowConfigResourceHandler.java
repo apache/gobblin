@@ -37,6 +37,7 @@ import com.linkedin.restli.server.util.PatchApplier;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.service.FlowConfig;
 import org.apache.gobblin.service.FlowConfigLoggedException;
 import org.apache.gobblin.service.FlowConfigResourceLocalHandler;
@@ -95,6 +96,12 @@ public class GobblinServiceFlowConfigResourceHandler implements FlowConfigsResou
       throws FlowConfigLoggedException {
     String flowName = flowConfig.getId().getFlowName();
     String flowGroup = flowConfig.getId().getFlowGroup();
+
+    if (flowConfig.getProperties().containsKey(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
+      throw new FlowConfigLoggedException(HttpStatus.S_400_BAD_REQUEST,
+          String.format("%s cannot be set by the user", ConfigurationKeys.FLOW_EXECUTION_ID_KEY),
+          null);
+    }
 
     checkHelixConnection(ServiceConfigKeys.HELIX_FLOWSPEC_ADD, flowName, flowGroup);
 
