@@ -246,6 +246,8 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
       String flowExecutionId;
       if (flowConfig.getProperties().containsKey(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
         flowExecutionId = flowConfig.getProperties().get(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
+        // FLOW_EXECUTION_ID may already be present in FlowSpec in cases
+        // where the FlowSpec is forwarded by a slave to the master.
         log.info("Using the existing flowExecutionId {} for {},{}", flowExecutionId, flowConfig.getId().getFlowGroup(), flowConfig.getId().getFlowName());
       } else {
         flowExecutionId = String.valueOf(System.currentTimeMillis());
