@@ -202,12 +202,9 @@ public class ConfigStoreUtils {
    */
   private static URI getUriFromPath(Path path, String configStoreUri) throws URISyntaxException {
     URI storeUri = new URI(configStoreUri);
-    if (storeUri.getScheme().contains("ivy")) {
-      return new URI(storeUri.getScheme(), storeUri.getAuthority(), path.toString(), storeUri.getQuery(),
-          storeUri.getFragment());
-    } else {
-      return PathUtils.mergePaths(new Path(configStoreUri), path).toUri();
-    }
+    return new URI(storeUri.getScheme(), storeUri.getAuthority(),
+        PathUtils.mergePaths(new Path(storeUri.getPath()), path).toString(), storeUri.getQuery(), storeUri.getFragment());
+
   }
 
   /**
