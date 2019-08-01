@@ -43,8 +43,16 @@ public class SimpleLocalIvyConfigStoreFactory extends IvyConfigStoreFactory {
 
   private static ThreadLocal<FileSystem> THREADLOCAL_FS = new ThreadLocal<>();
 
+  /**
+   * If not specified an version, assigned with an default version since the primary usage of this class
+   * is for testing.
+   */
   public SimpleLocalIvyConfigStoreFactory() {
-    this.currentVersion = "";
+    this.currentVersion = "v1.0";
+  }
+
+  public SimpleLocalIvyConfigStoreFactory(String configStoreVersion) {
+    this.currentVersion = configStoreVersion;
   }
 
   @Override

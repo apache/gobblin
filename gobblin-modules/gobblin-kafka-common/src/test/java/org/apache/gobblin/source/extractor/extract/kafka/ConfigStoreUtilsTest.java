@@ -19,7 +19,10 @@ import org.testng.annotations.Test;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.typesafe.config.Config;
 
+import static org.apache.gobblin.configuration.ConfigurationKeys.CONFIG_MANAGEMENT_STORE_ENABLED;
+import static org.apache.gobblin.configuration.ConfigurationKeys.CONFIG_MANAGEMENT_STORE_URI;
 import static org.apache.gobblin.source.extractor.extract.kafka.ConfigStoreUtils.GOBBLIN_CONFIG_COMMONPATH;
 import static org.apache.gobblin.source.extractor.extract.kafka.ConfigStoreUtils.GOBBLIN_CONFIG_FILTER;
 import static org.apache.gobblin.source.extractor.extract.kafka.ConfigStoreUtils.GOBBLIN_CONFIG_TAGS_BLACKLIST;
@@ -62,6 +65,21 @@ public class ConfigStoreUtilsTest {
     URI expectedTopic2URI = new URI("simple-file", "", new URI(configStoreUri).getPath() + "/data/tracking/Topic2", null, null);
     Assert.assertEquals(topic2URI, expectedTopic2URI);
   }
+
+  @Test
+  public void testGetConfigForTopic() throws Exception {
+    Properties properties = new Properties();
+    String commonPath = "/data/tracking";
+    properties.setProperty(GOBBLIN_CONFIG_COMMONPATH, commonPath);
+    properties.setProperty(CONFIG_MANAGEMENT_STORE_URI, configStoreUri);
+    properties.setProperty(CONFIG_MANAGEMENT_STORE_ENABLED, "true");
+    properties.setProperty("topic.name", "Topic1");
+
+    Config topic1Config = ConfigStoreUtils.getConfigForTopic(properties, "topic.name", configClient).get();
+    Assert.assertEquals(topic1Config.getString("aaaaa"), "bbbb");
+  }
+
+
 
   @Test
   public void testGetTopicsFromConfigStore()
