@@ -20,13 +20,11 @@ import java.util.Map;
 import org.apache.commons.lang3.StringEscapeUtils;
 
 import com.linkedin.data.template.StringMap;
-import com.linkedin.data.transform.DataProcessingException;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.HttpStatus;
 import com.linkedin.restli.common.PatchRequest;
 import com.linkedin.restli.server.CreateKVResponse;
 import com.linkedin.restli.server.UpdateResponse;
-import com.linkedin.restli.server.util.PatchApplier;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -50,7 +48,7 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
     this.createFlow.mark();
 
     if (flowConfig.hasExplain()) {
-      createLog += " explain " + Boolean.toString(flowConfig.isExplain());
+      createLog += " explain " + flowConfig.isExplain();
     }
     log.info(createLog);
     FlowSpec flowSpec = createFlowSpecForConfig(flowConfig);
