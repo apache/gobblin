@@ -77,10 +77,7 @@ public class IvyConfigStoreFactory extends SimpleLocalIvyConfigStoreFactory {
       throw new ConfigStoreCreationException(configKey, "Config key URI must have scheme " + getScheme());
     }
 
-    Properties factoryProps = new Properties();
-    for (NameValuePair param : URLEncodedUtils.parse(configKey, "UTF-8")) {
-      factoryProps.setProperty(param.getName(), param.getValue());
-    }
+    Properties factoryProps = parseUriIntoParameterSet(configKey);
 
     String jarOrg = factoryProps.getProperty(ORG_KEY);
     String jarModule = factoryProps.getProperty(MODULE_KEY);

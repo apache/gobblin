@@ -81,10 +81,7 @@ public class SimpleLocalIvyConfigStoreFactory implements ConfigStoreFactory<ZipF
   @Override
   public ZipFileConfigStore createConfigStore(URI configKey)
       throws ConfigStoreCreationException {
-    Properties factoryProps = new Properties();
-    for (NameValuePair param : URLEncodedUtils.parse(configKey, "UTF-8")) {
-      factoryProps.setProperty(param.getName(), param.getValue());
-    }
+    Properties factoryProps = parseUriIntoParameterSet(configKey);
 
     try {
       // Construct URI as jar for zip file, as "jar" is the scheme for ZipFs.
@@ -101,6 +98,17 @@ public class SimpleLocalIvyConfigStoreFactory implements ConfigStoreFactory<ZipF
     } catch (URISyntaxException | IOException e) {
       throw new RuntimeException("Unable to load zip from classpath. ", e);
     }
+  }
+
+  /**
+   * Parse the configKey and obtain the parameters set required to ivy coordinates.
+   */
+  Properties parseUriIntoParameterSet(URI configKey) {
+    Properties factoryProps = new Properties();
+    for (NameValuePair param : URLEncodedUtils.parse(configKey, "UTF-8")) {
+      factoryProps.setProperty(param.getName(), param.getValue());
+    }
+    return factoryProps;
   }
 
   /**
