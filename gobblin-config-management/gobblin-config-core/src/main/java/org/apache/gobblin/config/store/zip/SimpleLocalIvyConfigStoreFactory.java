@@ -25,6 +25,7 @@ import java.nio.file.FileSystems;
 import java.util.Properties;
 
 import org.apache.gobblin.config.store.api.ConfigStoreCreationException;
+import org.apache.gobblin.config.store.api.ConfigStoreFactory;
 import org.apache.hadoop.fs.Path;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
@@ -34,14 +35,21 @@ import com.sun.nio.zipfs.ZipFileSystem;
 
 
 /**
- * Extension of {@link IvyConfigStoreFactory} that creates a {@link IvyConfigStoreFactory} which works for the
- * local file system. Instead of downloading zip from jar artifactory, just use the testing zip files in classpath.
+ * An implementation of {@link ConfigStoreFactory} that takes a locally-existed zip as the backend of Config-store
+ * and creates a {@link ZipFileConfigStore} with it.
+ *
+ * {@link ZipFileConfigStore} has more advantage on encapsulating Config-store itself comparing to
+ * {@link org.apache.gobblin.config.store.hdfs.SimpleHadoopFilesystemConfigStore}, where the latter could, for example,
+ * cause small-file problem on HDFS as the size of Config-Store grows.
  */
-public class SimpleLocalIvyConfigStoreFactory extends IvyConfigStoreFactory {
+public class SimpleLocalIvyConfigStoreFactory implements ConfigStoreFactory<ZipFileConfigStore> {
 
   private String currentVersion;
 
   private static ThreadLocal<FileSystem> THREADLOCAL_FS = new ThreadLocal<>();
+
+  static final String STORE_PREFIX_KEY = "storePrefix";
+  static final String IVY_SCHEME_PREFIX = "ivy-";
 
   /**
    * If not specified an version, assigned with an default version since the primary usage of this class
@@ -58,6 +66,10 @@ public class SimpleLocalIvyConfigStoreFactory extends IvyConfigStoreFactory {
   @Override
   public String getScheme() {
     return getSchemePrefix() + "file";
+  }
+
+  protected String getSchemePrefix() {
+    return IVY_SCHEME_PREFIX;
   }
 
   /**
@@ -89,5 +101,12 @@ public class SimpleLocalIvyConfigStoreFactory extends IvyConfigStoreFactory {
     } catch (URISyntaxException | IOException e) {
       throw new RuntimeException("Unable to load zip from classpath. ", e);
     }
+  }
+
+  /**
+   * Base URI for a config store should be root of the zip file, so change path part of URI to be null
+   */
+  URI getBaseURI(URI configKey) throws URISyntaxException {
+    return new URI(configKey.getScheme(), configKey.getAuthority(), "/", configKey.getQuery(), configKey.getFragment());
   }
 }

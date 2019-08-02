@@ -46,21 +46,18 @@ import org.apache.gobblin.util.DownloadUtils;
  *
  * An ivy settings file must be present on the classpath named {@link DownloadUtils#IVY_SETTINGS_FILE_NAME}
  */
-public class IvyConfigStoreFactory implements ConfigStoreFactory<ZipFileConfigStore> {
+public class IvyConfigStoreFactory extends SimpleLocalIvyConfigStoreFactory {
 
-  protected static final String IVY_SCHEME_PREFIX = "ivy-";
+  /**
+   * Ivy coordinates required for downloading jar file.
+   */
   protected static final String ORG_KEY = "org";
   protected static final String MODULE_KEY = "module";
   protected static final String STORE_PATH_KEY = "storePath";
-  protected static final String STORE_PREFIX_KEY = "storePrefix";
 
   @Override
   public String getScheme() {
     return getSchemePrefix() + SimpleHDFSConfigStoreFactory.HDFS_SCHEME_NAME;
-  }
-
-  public String getSchemePrefix() {
-    return IVY_SCHEME_PREFIX;
   }
 
   /**
@@ -115,13 +112,6 @@ public class IvyConfigStoreFactory implements ConfigStoreFactory<ZipFileConfigSt
     } catch (IOException | URISyntaxException e) {
       throw new ConfigStoreCreationException(configKey, e);
     }
-  }
-
-  /**
-   * Base URI for a config store should be root of the zip file, so change path part of URI to be null
-   */
-  protected URI getBaseURI(URI configKey) throws URISyntaxException {
-    return new URI(configKey.getScheme(), configKey.getAuthority(), "/", configKey.getQuery(), configKey.getFragment());
   }
 }
 
