@@ -25,19 +25,16 @@ import java.nio.file.FileSystems;
 import java.nio.file.Paths;
 import java.util.Properties;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.Path;
-import org.apache.http.NameValuePair;
-import org.apache.http.client.utils.URLEncodedUtils;
-
-import com.sun.nio.zipfs.ZipFileSystem;
-
 import org.apache.gobblin.config.store.api.ConfigStoreCreationException;
 import org.apache.gobblin.config.store.api.ConfigStoreFactory;
 import org.apache.gobblin.config.store.hdfs.SimpleHDFSConfigStoreFactory;
 import org.apache.gobblin.config.store.hdfs.SimpleHDFSStoreMetadata;
 import org.apache.gobblin.config.store.hdfs.SimpleHadoopFilesystemConfigStore;
 import org.apache.gobblin.util.DownloadUtils;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+
+import com.sun.nio.zipfs.ZipFileSystem;
 
 
 /**
