@@ -18,9 +18,16 @@
 package org.apache.gobblin.metrics.event;
 
 
+import java.util.Map;
+
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.exception.ExceptionUtils;
+
+import lombok.Getter;
+
+import org.apache.gobblin.dataset.Descriptor;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
+import org.apache.gobblin.metrics.event.lineage.LineageEventBuilder;
 
 
 /**
@@ -34,7 +41,8 @@ public class FailureEventBuilder extends GobblinEventBuilder {
   private static final String FAILURE_EVENT_TYPE = "FailureEvent";
   private static final String ROOT_CAUSE = "rootException";
 
-  private Throwable rootCause;
+  @Getter
+  private String rootCause;
 
   public FailureEventBuilder(String name) {
     this(name, NAMESPACE);
@@ -49,15 +57,18 @@ public class FailureEventBuilder extends GobblinEventBuilder {
    * Given an throwable, get its root cause and set as a metadata
    */
   public void setRootCause(Throwable t) {
-    rootCause = getRootCause(t);
+    Throwable rootCause = getRootCause(t);
+    if(rootCause != null) {
+      this.rootCause = ExceptionUtils.getStackTrace(rootCause);
+    }
   }
 
   /**
    * Build as {@link GobblinTrackingEvent}
    */
   public GobblinTrackingEvent build() {
-    if (rootCause != null) {
-      metadata.put(ROOT_CAUSE, ExceptionUtils.getStackTrace(rootCause));
+    if (this.rootCause != null) {
+      metadata.put(ROOT_CAUSE, this.rootCause);
     }
     return new GobblinTrackingEvent(0L, namespace, name, metadata);
   }
@@ -66,7 +77,7 @@ public class FailureEventBuilder extends GobblinEventBuilder {
    * Check if the given {@link GobblinTrackingEvent} is a failure event
    */
   public static boolean isFailureEvent(GobblinTrackingEvent event) {
-    String eventType = event.getMetadata().get(EVENT_TYPE);
+    String eventType = (event.getMetadata() == null) ? "" : event.getMetadata().get(EVENT_TYPE);
     return StringUtils.isNotEmpty(eventType) && eventType.equals(FAILURE_EVENT_TYPE);
   }
 
@@ -76,5 +87,31 @@ public class FailureEventBuilder extends GobblinEventBuilder {
       rootCause = t;
     }
     return rootCause;
+  }
+
+  /**
+   * Create a {@link FailureEventBuilder} from a {@link GobblinTrackingEvent}. An inverse function
+   * to {@link FailureEventBuilder#build()}
+   */
+  public static FailureEventBuilder fromEvent(GobblinTrackingEvent event) {
+    if(!isFailureEvent(event)) {
+      return null;
+    }
+
+    Map<String, String> metadata = event.getMetadata();
+    FailureEventBuilder failureEvent = new FailureEventBuilder(event.getName());
+
+    metadata.forEach((key, value) -> {
+      switch (key) {
+        case ROOT_CAUSE:
+          failureEvent.rootCause = value;
+          break;
+        default:
+          failureEvent.addMetadata(key, value);
+          break;
+      }
+    });
+
+    return failureEvent;
   }
 }

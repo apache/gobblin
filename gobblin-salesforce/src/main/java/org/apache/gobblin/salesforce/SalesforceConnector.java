@@ -66,6 +66,11 @@ public class SalesforceConnector extends RestApiConnector {
     log.debug("Authenticating salesforce");
     String clientId = this.state.getProp(ConfigurationKeys.SOURCE_CONN_CLIENT_ID);
     String clientSecret = this.state.getProp(ConfigurationKeys.SOURCE_CONN_CLIENT_SECRET);
+    if (this.state.getPropAsBoolean(ConfigurationKeys.SOURCE_CONN_DECRYPT_CLIENT_SECRET, false)) {
+      PasswordManager passwordManager = PasswordManager.getInstance(this.state);
+      clientId = passwordManager.readPassword(clientId);
+      clientSecret = passwordManager.readPassword(clientSecret);
+    }
     String host = this.state.getProp(ConfigurationKeys.SOURCE_CONN_HOST_NAME);
 
     List<NameValuePair> formParams = Lists.newArrayList();

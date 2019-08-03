@@ -1,0 +1,140 @@
+[{
+  "columnName": "metaData",
+  "dataType": {
+    "type": "record",
+    "name": "metaData",
+    "values": [{
+      "columnName": "id",
+      "dataType": {
+        "type": "string"
+      }
+    }, {
+      "columnName": "url",
+      "dataType": {
+        "type": "string"
+      }
+    }, {
+      "columnName": "title",
+      "dataType": {
+        "type": "string"
+      }
+    }, {
+      "columnName": "scheduled",
+      "dataType": {
+        "type": "string"
+      }
+    }, {
+      "columnName": "started",
+      "dataType": {
+        "type": "string"
+      }
+    }, {
+      "columnName": "duration",
+      "dataType": {
+        "type": "int"
+      }
+    }, {
+      "columnName": "primaryUserId",
+      "dataType": {
+        "type": "string"
+      }
+    }, {
+      "columnName": "direction",
+      "dataType": {
+        "type": "string"
+      }
+    }, {
+      "columnName": "system",
+      "dataType": {
+        "type": "string"
+      }
+    }, {
+      "columnName": "scope",
+      "dataType": {
+        "type": "string"
+      }
+    }, {
+      "columnName": "media",
+      "dataType": {
+        "type": "string"
+      }
+    }, {
+      "columnName": "language",
+      "dataType": {
+        "type": "string"
+      }
+    }]
+  }
+}, {
+  "columnName": "context",
+  "dataType": {
+    "type": "array",
+    "name": "context",
+    "items": {
+      "name": "contextItem",
+      "dataType": {
+        "name": "contextItem",
+        "type": "record",
+        "values": [{
+          "columnName": "system",
+          "isNullable": "true",
+          "dataType": {
+            "type": "string"
+          }
+        }, {
+          "columnName": "objects",
+          "dataType": {
+            "type": "array",
+            "name": "objects",
+            "items": {
+              "name": "objectsItem",
+              "dataType": {
+                "name": "objectsItem",
+                "type": "record",
+                "values": [{
+                  "columnName": "objectType",
+                  "isNullable": "true",
+                  "dataType": {
+                    "type": "string"
+                  }
+                }, {
+                  "columnName": "objectId",
+                  "isNullable": "true",
+                  "dataType": {
+                    "type": "string"
+                  }
+                }, {
+                  "columnName": "fields",
+                  "dataType": {
+                    "type": "array",
+                    "name": "fields",
+                    "items": {
+                      "name": "fieldsItem",
+                      "dataType": {
+                        "name": "fieldsItem",
+                        "type": "record",
+                        "values": [{
+                          "columnName": "name",
+                          "isNullable": "true",
+                          "dataType": {
+                            "type": "string"
+                          }
+                        }, {
+                          "columnName": "value",
+                          "isNullable": "true",
+                          "dataType": {
+                            "type": "string"
+                          }
+                        }]
+                      }
+                    }
+                  }
+                }]
+              }
+            }
+          }
+        }]
+      }
+    }
+  }
+}]

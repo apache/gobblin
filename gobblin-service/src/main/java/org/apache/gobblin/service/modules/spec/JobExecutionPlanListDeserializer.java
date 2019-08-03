@@ -23,7 +23,10 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 
+import com.google.common.base.Optional;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
@@ -107,6 +110,17 @@ public class JobExecutionPlanListDeserializer implements JsonDeserializer<List<J
 
       JobExecutionPlan jobExecutionPlan = new JobExecutionPlan(jobSpec, specExecutor);
       jobExecutionPlan.setExecutionStatus(executionStatus);
+
+      try {
+        String jobExecutionFuture = serializedJobExecutionPlan.get(SerializationConstants.JOB_EXECUTION_FUTURE).getAsString();
+        Future future = specExecutor.getProducer().get().deserializeAddSpecResponse(jobExecutionFuture);
+        jobExecutionPlan.setJobFuture(Optional.fromNullable(future));
+
+      } catch (ExecutionException | InterruptedException e) {
+        log.warn("Error during deserialization of JobExecutionFuture.");
+        throw new RuntimeException(e);
+      }
+
       jobExecutionPlans.add(jobExecutionPlan);
     }
     return jobExecutionPlans;

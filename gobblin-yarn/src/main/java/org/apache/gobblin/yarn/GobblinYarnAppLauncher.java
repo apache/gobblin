@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -45,6 +46,7 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.protocolrecords.GetNewApplicationResponse;
+import org.apache.hadoop.yarn.api.records.ApplicationAccessType;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.ApplicationResourceUsageReport;
@@ -71,6 +73,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
@@ -162,6 +165,7 @@ public class GobblinYarnAppLauncher {
 
   private final String applicationName;
   private final String appQueueName;
+  private final String appViewAcl;
 
   private final Config config;
 
@@ -201,6 +205,10 @@ public class GobblinYarnAppLauncher {
 
   private final boolean emailNotificationOnShutdown;
 
+  private final int appMasterMemoryMbs;
+  private final int jvmMemoryOverheadMbs;
+  private final double jvmMemoryXmxRatio;
+
   public GobblinYarnAppLauncher(Config config, YarnConfiguration yarnConfiguration) throws IOException {
     this.config = config;
 
@@ -238,6 +246,27 @@ public class GobblinYarnAppLauncher {
 
     this.emailNotificationOnShutdown =
         config.getBoolean(GobblinYarnConfigurationKeys.EMAIL_NOTIFICATION_ON_SHUTDOWN_KEY);
+
+    this.appMasterMemoryMbs = this.config.getInt(GobblinYarnConfigurationKeys.APP_MASTER_MEMORY_MBS_KEY);
+
+    this.jvmMemoryXmxRatio = ConfigUtils.getDouble(this.config,
+        GobblinYarnConfigurationKeys.APP_MASTER_JVM_MEMORY_XMX_RATIO_KEY,
+        GobblinYarnConfigurationKeys.DEFAULT_APP_MASTER_JVM_MEMORY_XMX_RATIO);
+
+    Preconditions.checkArgument(this.jvmMemoryXmxRatio >= 0 && this.jvmMemoryXmxRatio <= 1,
+        GobblinYarnConfigurationKeys.APP_MASTER_JVM_MEMORY_XMX_RATIO_KEY + " must be between 0 and 1 inclusive");
+
+    this.jvmMemoryOverheadMbs = ConfigUtils.getInt(this.config,
+        GobblinYarnConfigurationKeys.APP_MASTER_JVM_MEMORY_OVERHEAD_MBS_KEY,
+        GobblinYarnConfigurationKeys.DEFAULT_APP_MASTER_JVM_MEMORY_OVERHEAD_MBS);
+
+    Preconditions.checkArgument(this.jvmMemoryOverheadMbs < this.appMasterMemoryMbs * this.jvmMemoryXmxRatio,
+        GobblinYarnConfigurationKeys.CONTAINER_JVM_MEMORY_OVERHEAD_MBS_KEY + " cannot be more than "
+            + GobblinYarnConfigurationKeys.CONTAINER_MEMORY_MBS_KEY + " * "
+            + GobblinYarnConfigurationKeys.CONTAINER_JVM_MEMORY_XMX_RATIO_KEY);
+
+    this.appViewAcl = ConfigUtils.getString(this.config, GobblinYarnConfigurationKeys.APP_VIEW_ACL,
+        GobblinYarnConfigurationKeys.DEFAULT_APP_VIEW_ACL);
   }
 
   /**
@@ -481,6 +510,11 @@ public class GobblinYarnAppLauncher {
     amContainerLaunchContext.setLocalResources(appMasterLocalResources);
     amContainerLaunchContext.setEnvironment(YarnHelixUtils.getEnvironmentVariables(this.yarnConfiguration));
     amContainerLaunchContext.setCommands(Lists.newArrayList(buildApplicationMasterCommand(resource.getMemory())));
+
+    Map<ApplicationAccessType, String> acls = new HashMap<>(1);
+    acls.put(ApplicationAccessType.VIEW_APP, this.appViewAcl);
+    amContainerLaunchContext.setApplicationACLs(acls);
+
     if (UserGroupInformation.isSecurityEnabled()) {
       setupSecurityTokens(amContainerLaunchContext);
     }
@@ -509,7 +543,7 @@ public class GobblinYarnAppLauncher {
   }
 
   private Resource prepareContainerResource(GetNewApplicationResponse newApplicationResponse) {
-    int memoryMbs = this.config.getInt(GobblinYarnConfigurationKeys.APP_MASTER_MEMORY_MBS_KEY);
+    int memoryMbs = this.appMasterMemoryMbs;
     int maximumMemoryCapacity = newApplicationResponse.getMaximumResourceCapability().getMemory();
     if (memoryMbs > maximumMemoryCapacity) {
       LOGGER.info(String.format("Specified AM memory [%d] is above the maximum memory capacity [%d] of the "
@@ -635,11 +669,14 @@ public class GobblinYarnAppLauncher {
     YarnHelixUtils.addFileAsLocalResource(this.fs, destFilePath, LocalResourceType.ARCHIVE, resourceMap);
   }
 
-  private String buildApplicationMasterCommand(int memoryMbs) {
+  @VisibleForTesting
+  protected String buildApplicationMasterCommand(int memoryMbs) {
     String appMasterClassName = GobblinApplicationMaster.class.getSimpleName();
     return new StringBuilder()
         .append(ApplicationConstants.Environment.JAVA_HOME.$()).append("/bin/java")
-        .append(" -Xmx").append(memoryMbs).append("M")
+        .append(" -Xmx").append((int) (memoryMbs * this.jvmMemoryXmxRatio) - this.jvmMemoryOverheadMbs).append("M")
+        .append(" -D").append(GobblinYarnConfigurationKeys.GOBBLIN_YARN_CONTAINER_LOG_DIR_NAME).append("=").append(ApplicationConstants.LOG_DIR_EXPANSION_VAR)
+        .append(" -D").append(GobblinYarnConfigurationKeys.GOBBLIN_YARN_CONTAINER_LOG_FILE_NAME).append("=").append(appMasterClassName).append(".").append(ApplicationConstants.STDOUT)
         .append(" ").append(JvmUtils.formatJvmArguments(this.appMasterJvmArgs))
         .append(" ").append(GobblinApplicationMaster.class.getName())
         .append(" --").append(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME)

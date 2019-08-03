@@ -20,18 +20,9 @@ package org.apache.gobblin.cluster.suite;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.io.Reader;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
-
-import org.apache.avro.file.DataFileWriter;
-import org.apache.avro.io.DatumWriter;
-import org.apache.avro.specific.SpecificDatumWriter;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
+import java.net.URI;
+import java.net.URISyntaxException;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Files;
@@ -42,32 +33,29 @@ import com.typesafe.config.ConfigParseOptions;
 import com.typesafe.config.ConfigSyntax;
 import com.typesafe.config.ConfigValueFactory;
 
-import org.apache.gobblin.cluster.FsScheduledJobConfigurationManager;
+import org.apache.gobblin.cluster.FsJobConfigurationManager;
 import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
 import org.apache.gobblin.cluster.SleepingTask;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.FsSpecConsumer;
+import org.apache.gobblin.runtime.api.FsSpecProducer;
+import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.SpecExecutor;
-import org.apache.gobblin.runtime.job_spec.AvroJobSpec;
-import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.runtime.api.SpecProducer;
 
 
 public class IntegrationJobRestartViaSpecSuite extends IntegrationJobCancelSuite {
-  public static final String JOB_ID = "job_HelloWorldTestJob_1235";
-  public static final String JOB_CATALOG_DIR = "/tmp/IntegrationJobCancelViaSpecSuite/jobCatalog";
+  public static final String JOB_NAME = "HelloWorldTestJob";
   public static final String FS_SPEC_CONSUMER_DIR = "/tmp/IntegrationJobCancelViaSpecSuite/jobSpecs";
-  public static final String TASK_STATE_FILE = "/tmp/IntegrationJobCancelViaSpecSuite/taskState/_RUNNING";
+
+  private final SpecProducer _specProducer;
 
   public IntegrationJobRestartViaSpecSuite() throws IOException {
     super();
-    Path jobCatalogDirPath = new Path(JOB_CATALOG_DIR);
-    FileSystem fs = FileSystem.getLocal(new Configuration());
-    if (!fs.exists(jobCatalogDirPath)) {
-      fs.mkdirs(jobCatalogDirPath);
-    }
+    this._specProducer = new FsSpecProducer(ConfigFactory.empty().withValue(FsSpecConsumer.SPEC_PATH_KEY, ConfigValueFactory.fromAnyRef(FS_SPEC_CONSUMER_DIR)));
   }
 
-  private Map<String,String> getJobConfig() throws IOException {
+  private Config getJobConfig() throws IOException {
     try (InputStream resourceStream = Resources.getResource(JOB_CONF_NAME).openStream()) {
       Reader reader = new InputStreamReader(resourceStream);
       Config rawJobConfig =
@@ -79,17 +67,11 @@ public class IntegrationJobRestartViaSpecSuite extends IntegrationJobCancelSuite
               ConfigurationKeys.JOB_ID_KEY, JOB_ID,
               GobblinClusterConfigurationKeys.HELIX_JOB_TIMEOUT_ENABLED_KEY, Boolean.TRUE,
               GobblinClusterConfigurationKeys.HELIX_JOB_TIMEOUT_SECONDS, 100L,
-              ConfigurationKeys.JOB_NAME_KEY, JOB_ID));
+              ConfigurationKeys.JOB_NAME_KEY, JOB_NAME));
 
       newConfig = newConfig.withValue(SleepingTask.TASK_STATE_FILE_KEY, ConfigValueFactory.fromAnyRef(TASK_STATE_FILE));
       newConfig = newConfig.withFallback(rawJobConfig);
-
-      Properties jobProperties = ConfigUtils.configToProperties(newConfig);
-      Map<String, String> jobPropertiesAsMap = new HashMap<>();
-      for (String name : jobProperties.stringPropertyNames()) {
-        jobPropertiesAsMap.put(name, jobProperties.getProperty(name));
-      }
-      return jobPropertiesAsMap;
+      return newConfig;
     }
   }
 
@@ -97,46 +79,44 @@ public class IntegrationJobRestartViaSpecSuite extends IntegrationJobCancelSuite
   public Config getManagerConfig() {
     Config managerConfig = super.getManagerConfig();
     managerConfig = managerConfig.withValue(GobblinClusterConfigurationKeys.JOB_CONFIGURATION_MANAGER_KEY,
-        ConfigValueFactory.fromAnyRef(FsScheduledJobConfigurationManager.class.getName()))
-        .withValue(GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_PREFIX + ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY,
-            ConfigValueFactory.fromAnyRef(JOB_CATALOG_DIR))
+        ConfigValueFactory.fromAnyRef(FsJobConfigurationManager.class.getName()))
     .withValue(GobblinClusterConfigurationKeys.SPEC_CONSUMER_CLASS_KEY, ConfigValueFactory.fromAnyRef(FsSpecConsumer.class.getName()))
-        .withValue(GobblinClusterConfigurationKeys.JOB_SPEC_REFRESH_INTERVAL, ConfigValueFactory.fromAnyRef(5L))
+        .withValue(GobblinClusterConfigurationKeys.JOB_SPEC_REFRESH_INTERVAL, ConfigValueFactory.fromAnyRef(1L))
     .withValue(FsSpecConsumer.SPEC_PATH_KEY, ConfigValueFactory.fromAnyRef(FS_SPEC_CONSUMER_DIR));
     return managerConfig;
   }
 
-  public void addJobSpec(String jobSpecName, String verb) throws IOException {
-    Map<String, String> metadataMap = new HashMap<>();
-    metadataMap.put(FsSpecConsumer.VERB_KEY, verb);
-
-    Map<String, String> jobProperties = new HashMap<>();
+  public void addJobSpec(String jobSpecName, String verb) throws IOException, URISyntaxException {
+    Config jobConfig = ConfigFactory.empty();
     if (SpecExecutor.Verb.ADD.name().equals(verb)) {
-      jobProperties = getJobConfig();
+      jobConfig = getJobConfig();
     } else if (SpecExecutor.Verb.DELETE.name().equals(verb)) {
-      jobProperties.put(GobblinClusterConfigurationKeys.CANCEL_RUNNING_JOB_ON_DELETE, "true");
+      jobConfig = jobConfig.withValue(GobblinClusterConfigurationKeys.CANCEL_RUNNING_JOB_ON_DELETE, ConfigValueFactory.fromAnyRef("true"));
     } else if (SpecExecutor.Verb.UPDATE.name().equals(verb)) {
-      jobProperties = getJobConfig();
-      jobProperties.put(GobblinClusterConfigurationKeys.CANCEL_RUNNING_JOB_ON_DELETE, "true");
+      jobConfig = getJobConfig().withValue(GobblinClusterConfigurationKeys.CANCEL_RUNNING_JOB_ON_DELETE, ConfigValueFactory.fromAnyRef("true"));
     }
 
-    AvroJobSpec jobSpec = AvroJobSpec.newBuilder().
-        setUri(Files.getNameWithoutExtension(jobSpecName)).
-        setProperties(jobProperties).
-        setTemplateUri("FS:///").
-        setDescription("HelloWorldTestJob").
-        setVersion("1").
-        setMetadata(metadataMap).build();
+    JobSpec jobSpec = JobSpec.builder(Files.getNameWithoutExtension(jobSpecName))
+        .withConfig(jobConfig)
+        .withTemplate(new URI("FS:///"))
+        .withDescription("HelloWorldTestJob")
+        .withVersion("1")
+        .build();
 
-    DatumWriter<AvroJobSpec> datumWriter = new SpecificDatumWriter<>(AvroJobSpec.SCHEMA$);
-    DataFileWriter<AvroJobSpec> dataFileWriter = new DataFileWriter<>(datumWriter);
+    SpecExecutor.Verb enumVerb = SpecExecutor.Verb.valueOf(verb);
 
-    Path fsSpecConsumerPath = new Path(FS_SPEC_CONSUMER_DIR, jobSpecName);
-    FileSystem fs = fsSpecConsumerPath.getFileSystem(new Configuration());
-    OutputStream out = fs.create(fsSpecConsumerPath);
-
-    dataFileWriter.create(AvroJobSpec.SCHEMA$, out);
-    dataFileWriter.append(jobSpec);
-    dataFileWriter.close();
+    switch (enumVerb) {
+      case ADD:
+        _specProducer.addSpec(jobSpec);
+        break;
+      case DELETE:
+        _specProducer.deleteSpec(jobSpec.getUri());
+        break;
+      case UPDATE:
+        _specProducer.updateSpec(jobSpec);
+        break;
+      default:
+        throw new IOException("Unknown Spec Verb: " + verb);
+    }
   }
 }

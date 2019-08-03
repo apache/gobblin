@@ -17,26 +17,38 @@
 
 package org.apache.gobblin.service.modules.scheduler;
 
+import java.io.IOException;
+import java.net.URI;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Properties;
+
+import org.apache.commons.lang.StringUtils;
+import org.apache.helix.HelixManager;
+import org.quartz.DisallowConcurrentExecution;
+import org.quartz.InterruptableJob;
+import org.quartz.JobDataMap;
+import org.quartz.JobExecutionContext;
+import org.quartz.JobExecutionException;
+import org.quartz.UnableToInterruptJobException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-import java.net.URI;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Properties;
+
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang.StringUtils;
+
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.JobException;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecCatalogListener;
-import org.apache.gobblin.runtime.api.SpecNotFoundException;
-import org.apache.gobblin.runtime.api.SpecSerDeException;
 import org.apache.gobblin.runtime.listeners.JobListener;
 import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
@@ -51,15 +63,8 @@ import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PropertiesUtils;
-import org.apache.helix.HelixManager;
-import org.quartz.DisallowConcurrentExecution;
-import org.quartz.InterruptableJob;
-import org.quartz.JobDataMap;
-import org.quartz.JobExecutionContext;
-import org.quartz.JobExecutionException;
-import org.quartz.UnableToInterruptJobException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import static org.apache.gobblin.service.ServiceConfigKeys.GOBBLIN_SERVICE_PREFIX;
 
 
 /**
@@ -69,6 +74,11 @@ import org.slf4j.LoggerFactory;
  */
 @Alpha
 public class GobblinServiceJobScheduler extends JobScheduler implements SpecCatalogListener {
+
+  // Scheduler related configuration
+  // A boolean function indicating if current instance will handle DR traffic or not.
+  public static final String GOBBLIN_SERVICE_SCHEDULER_DR_NOMINATED = GOBBLIN_SERVICE_PREFIX + "drNominatedInstance";
+
   protected final Logger _log;
 
   protected final Optional<FlowCatalog> flowCatalog;
@@ -79,6 +89,21 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   @Getter
   private volatile boolean isActive;
   private String serviceName;
+
+  /**
+   * If current instances is nominated as a handler for DR traffic from down GaaS-Instance.
+   * Note this is, currently, different from leadership change/fail-over handling, where the traffice could come
+   * from GaaS instance out of current GaaS Cluster:
+   * e.g. There are multi-datacenter deployment of GaaS Cluster. Intra-datacenter fail-over could be handled by
+   * leadership change mechanism, while inter-datacenter fail-over would be handled by DR handling mechanism.
+   */
+  private boolean isNominatedDRHandler;
+
+  /**
+   * Use this to tag all DR-applicable FlowSpec entries in {@link org.apache.gobblin.runtime.api.SpecStore}
+   * so only they would be loaded during DR handling.
+   */
+  public static final String DR_FILTER_TAG = "dr";
 
   public GobblinServiceJobScheduler(String serviceName, Config config, Optional<HelixManager> helixManager,
       Optional<FlowCatalog> flowCatalog, Optional<TopologyCatalog> topologyCatalog, Orchestrator orchestrator,
@@ -91,6 +116,8 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     this.helixManager = helixManager;
     this.orchestrator = orchestrator;
     this.scheduledFlowSpecs = Maps.newHashMap();
+    this.isNominatedDRHandler = config.hasPath(GOBBLIN_SERVICE_SCHEDULER_DR_NOMINATED)
+        && config.hasPath(GOBBLIN_SERVICE_SCHEDULER_DR_NOMINATED);
   }
 
   public GobblinServiceJobScheduler(String serviceName, Config config, Optional<HelixManager> helixManager,
@@ -135,6 +162,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
    * Load all {@link FlowSpec}s from {@link FlowCatalog} as one of the initialization step,
    * and make schedulers be aware of that.
    *
+   * If it is newly brought up as the DR handler, will load additional FlowSpecs and handle transition properly.
    */
   private void scheduleSpecsFromCatalog() {
     Iterator<URI> specUris = null;
@@ -142,21 +170,22 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
 
     try {
       specUris = this.flowCatalog.get().getSpecURIs();
-    } catch (SpecSerDeException ssde) {
-      throw new RuntimeException("Failed to get the iterator of all Spec URIS", ssde);
-    }
 
+      // If current instances nominated as DR handler, will take additional URIS from FlowCatalog.
+      if (isNominatedDRHandler) {
+        // Synchronously cleaning the execution state for DR-applicable FlowSpecs
+        // before rescheduling the again in nominated DR-Hanlder.
+        Iterator<URI> drUris = this.flowCatalog.get().getSpecURISWithTag(DR_FILTER_TAG);
+        clearRunningFlowState(drUris);
+      }
+
+    } catch (IOException e) {
+      throw new RuntimeException("Failed to get the iterator of all Spec URIS", e);
+    }
 
     try {
       while (specUris.hasNext()) {
-        Spec spec = null;
-        try {
-          spec = this.flowCatalog.get().getSpec(specUris.next());
-        } catch (SpecNotFoundException snfe) {
-          _log.error(String.format("The URI %s discovered in SpecStore is missing in FlowCatlog"
-              + ", suspecting current modification on SpecStore", specUris.next()), snfe);
-        }
-
+        Spec spec = this.flowCatalog.get().getSpecWrapper(specUris.next());
         //Disable FLOW_RUN_IMMEDIATELY on service startup or leadership change
         if (spec instanceof FlowSpec) {
           Spec modifiedSpec = disableFlowRunImmediatelyOnStart((FlowSpec) spec);
@@ -167,6 +196,19 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       }
     } finally {
       this.flowCatalog.get().getMetrics().updateGetSpecTime(startTime);
+    }
+  }
+
+  /**
+   * In DR-mode, the running {@link FlowSpec} will all be cancelled and rescheduled.
+   * We will need to make sure that running {@link FlowSpec}s' state are cleared, and corresponding running jobs are
+   * killed before rescheduling them.
+   * @param drUris The uris that applicable for DR discovered from FlowCatalog.
+   */
+  private void clearRunningFlowState(Iterator<URI> drUris) {
+    while (drUris.hasNext()) {
+      // TODO: Instead of simply call onDeleteSpec, a callback when FlowSpec is deleted from FlowCatalog, should also kill Azkaban Flow from AzkabanSpecProducer.
+      onDeleteSpec(drUris.next(), FlowSpec.Builder.DEFAULT_VERSION);
     }
   }
 
@@ -307,7 +349,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
             "Spec with URI: %s was not found in cache. May be it was cleaned, if not please " + "clean it manually",
             deletedSpecURI));
       }
-    } catch (JobException e) {
+    } catch (JobException | IOException e) {
       _log.warn(String.format("Spec with URI: %s was not unscheduled cleaning", deletedSpecURI), e);
     }
   }

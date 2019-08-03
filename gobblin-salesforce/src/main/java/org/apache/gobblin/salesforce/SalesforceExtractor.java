@@ -20,6 +20,7 @@ package org.apache.gobblin.salesforce;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.FileNotFoundException;
 import java.io.InputStreamReader;
 import java.net.URI;
 import java.text.ParseException;
@@ -690,19 +691,10 @@ public class SalesforceExtractor extends RestApiExtractor {
       String soapEndpoint = partnerConfig.getServiceEndpoint();
       String restEndpoint = soapEndpoint.substring(0, soapEndpoint.indexOf("Soap/")) + "async/" + apiVersion;
 
-      ConnectorConfig config = new ConnectorConfig();
+      ConnectorConfig config = createConfig();
       config.setSessionId(partnerConfig.getSessionId());
       config.setRestEndpoint(restEndpoint);
-      config.setCompression(true);
-      config.setTraceFile("traceLogs.txt");
-      config.setTraceMessage(false);
-      config.setPrettyPrintXml(true);
 
-      if (super.workUnitState.contains(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL)
-          && !super.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL).isEmpty()) {
-        config.setProxy(super.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL),
-            super.workUnitState.getPropAsInt(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT));
-      }
 
       this.bulkConnection = new BulkConnection(config);
       success = true;
@@ -1034,6 +1026,26 @@ public class SalesforceExtractor extends RestApiExtractor {
     }
 
     return batchInfo;
+  }
+
+  //Moving config creation in a separate method for custom config parameters like setting up transport factory.
+  public ConnectorConfig createConfig() {
+    ConnectorConfig config = new ConnectorConfig();
+    config.setCompression(true);
+    try {
+      config.setTraceFile("traceLogs.txt");
+    } catch (FileNotFoundException e) {
+      e.printStackTrace();
+    }
+    config.setTraceMessage(false);
+    config.setPrettyPrintXml(true);
+
+    if (super.workUnitState.contains(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL)
+        && !super.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL).isEmpty()) {
+      config.setProxy(super.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_USE_PROXY_URL),
+          super.workUnitState.getPropAsInt(ConfigurationKeys.SOURCE_CONN_USE_PROXY_PORT));
+    }
+    return config;
   }
 
   @Data

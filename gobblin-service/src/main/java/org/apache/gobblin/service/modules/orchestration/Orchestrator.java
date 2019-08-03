@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.util.Collections;
@@ -30,9 +31,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.Meter;
+import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
+import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 
 import javax.annotation.Nonnull;
@@ -44,10 +47,14 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.instrumented.Instrumentable;
 import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.RootMetricContext;
+import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.metrics.reporter.util.MetricReportUtils;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
@@ -57,7 +64,6 @@ import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
 import org.apache.gobblin.service.ServiceConfigKeys;
-import org.apache.gobblin.service.ServiceMetricNames;
 import org.apache.gobblin.service.modules.flow.SpecCompiler;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
@@ -83,6 +89,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   protected final Optional<DagManager> dagManager;
 
   protected final MetricContext metricContext;
+
   protected final Optional<EventSubmitter> eventSubmitter;
   @Getter
   private Optional<Meter> flowOrchestrationSuccessFulMeter;
@@ -94,6 +101,8 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   private FlowStatusGenerator flowStatusGenerator;
 
   private final ClassAliasResolver<SpecCompiler> aliasResolver;
+
+  private Map<String, FlowCompiledState> flowGauges = Maps.newHashMap();
 
   public Orchestrator(Config config, Optional<TopologyCatalog> topologyCatalog, Optional<DagManager> dagManager, Optional<Logger> log,
       boolean instrumentationEnabled) {
@@ -220,17 +229,28 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
           ? this.eventSubmitter.get().getTimingEvent(TimingEvent.FlowTimings.FLOW_COMPILED)
           : null;
 
-      //If the FlowSpec disallows concurrent executions, then check if another instance of the flow is already
-      //running. If so, return immediately.
       Config flowConfig = ((FlowSpec) spec).getConfig();
       String flowGroup = flowConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
       String flowName = flowConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
+
+      if (!flowGauges.containsKey(spec.getUri().toString())) {
+        String flowCompiledGaugeName = MetricRegistry.name(MetricReportUtils.GOBBLIN_SERVICE_METRICS_PREFIX, flowGroup, flowName, ServiceMetricNames.COMPILED);
+        flowGauges.put(spec.getUri().toString(), new FlowCompiledState());
+        ContextAwareGauge<Integer> gauge = RootMetricContext.get().newContextAwareGauge(flowCompiledGaugeName, () -> flowGauges.get(spec.getUri().toString()).state.value);
+        RootMetricContext.get().register(flowCompiledGaugeName, gauge);
+      }
+
+      //If the FlowSpec disallows concurrent executions, then check if another instance of the flow is already
+      //running. If so, return immediately.
       boolean allowConcurrentExecution = ConfigUtils.getBoolean(flowConfig, ConfigurationKeys.FLOW_ALLOW_CONCURRENT_EXECUTION, true);
 
       if (!canRun(flowName, flowGroup, allowConcurrentExecution)) {
         _log.warn("Another instance of flowGroup: {}, flowName: {} running; Skipping flow execution since "
             + "concurrent executions are disabled for this flow.", flowGroup, flowName);
+        flowGauges.get(spec.getUri().toString()).setState(CompiledState.FAILED);
         return;
+      } else {
+        flowGauges.get(spec.getUri().toString()).setState(CompiledState.SUCCESSFUL);
       }
 
       Dag<JobExecutionPlan> jobExecutionPlanDag = specCompiler.compileFlow(spec);
@@ -264,10 +284,11 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
       if (this.dagManager.isPresent()) {
         //Send the dag to the DagManager.
-        this.dagManager.get().offer(jobExecutionPlanDag);
+        this.dagManager.get().addDag(jobExecutionPlanDag);
       } else {
         // Schedule all compiled JobSpecs on their respective Executor
         for (Dag.DagNode<JobExecutionPlan> dagNode : jobExecutionPlanDag.getNodes()) {
+          DagManagerUtils.incrementJobAttempt(dagNode);
           JobExecutionPlan jobExecutionPlan = dagNode.getValue();
 
           // Run this spec on selected executor
@@ -306,7 +327,8 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   }
 
   /**
-   * Check if the flow instance is allowed to run.
+   * Check if a FlowSpec instance is allowed to run.
+   *
    * @param flowName
    * @param flowGroup
    * @param allowConcurrentExecution
@@ -320,33 +342,17 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     }
   }
 
-  public void remove(Spec spec, Properties headers) {
+  public void remove(Spec spec, Properties headers) throws IOException {
     // TODO: Evolve logic to cache and reuse previously compiled JobSpecs
     // .. this will work for Identity compiler but not always for multi-hop.
     // Note: Current logic assumes compilation is consistent between all executions
     if (spec instanceof FlowSpec) {
-      Dag<JobExecutionPlan> jobExecutionPlanDag = specCompiler.compileFlow(spec);
-
-      if (jobExecutionPlanDag.isEmpty()) {
-        _log.warn("Cannot determine an executor to delete Spec: " + spec);
-        return;
-      }
-
-      // Delete all compiled JobSpecs on their respective Executor
-      for (Dag.DagNode<JobExecutionPlan> dagNode: jobExecutionPlanDag.getNodes()) {
-        JobExecutionPlan jobExecutionPlan = dagNode.getValue();
-        // Delete this spec on selected executor
-        SpecProducer producer = null;
-        try {
-          producer = jobExecutionPlan.getSpecExecutor().getProducer().get();
-          Spec jobSpec = jobExecutionPlan.getJobSpec();
-
-          _log.info(String.format("Going to delete JobSpec: %s on Executor: %s", jobSpec, producer));
-          producer.deleteSpec(jobSpec.getUri(), headers);
-        } catch (Exception e) {
-          _log.error("Cannot successfully delete spec: " + jobExecutionPlan.getJobSpec() + " on executor: " + producer
-              + " for flow: " + spec, e);
-        }
+      if (this.dagManager.isPresent()) {
+        //Send the dag to the DagManager.
+        _log.info("Forwarding cancel request for flow URI {} to DagManager.", spec.getUri());
+        this.dagManager.get().stopDag(spec.getUri());
+      } else {
+        _log.warn("Operation not supported.");
       }
     } else {
       throw new RuntimeException("Spec not of type FlowSpec, cannot delete: " + spec);
@@ -390,5 +396,22 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   @Override
   public void switchMetricContext(MetricContext context) {
     throw new UnsupportedOperationException();
+  }
+
+  @Setter
+  private static class FlowCompiledState {
+    private CompiledState state = CompiledState.UNKNOWN;
+  }
+
+  private enum CompiledState {
+    FAILED(-1),
+    UNKNOWN(0),
+    SUCCESSFUL(1);
+
+    public int value;
+
+    CompiledState(int value) {
+      this.value = value;
+    }
   }
 }

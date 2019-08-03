@@ -20,6 +20,7 @@ package org.apache.gobblin.cluster;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.util.Map;
 
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
@@ -54,6 +55,7 @@ import org.apache.gobblin.util.ConfigUtils;
 
 
 @Slf4j
+@Test
 public class ClusterIntegrationTest {
 
   private IntegrationBasicSuite suite;
@@ -76,7 +78,8 @@ public class ClusterIntegrationTest {
     return helixManager;
   }
 
-  @Test void testJobShouldGetCancelled() throws Exception {
+  @Test
+  void testJobShouldGetCancelled() throws Exception {
     this.suite =new IntegrationJobCancelSuite();
     HelixManager helixManager = getHelixManager();
     suite.startCluster();
@@ -102,7 +105,7 @@ public class ClusterIntegrationTest {
 
   /**
    * An integration test for restarting a Helix workflow via a JobSpec. This test case starts a Helix cluster with
-   * a {@link FsScheduledJobConfigurationManager}. The test case does the following:
+   * a {@link FsJobConfigurationManager}. The test case does the following:
    * <ul>
    *   <li> add a {@link org.apache.gobblin.runtime.api.JobSpec} that uses a {@link org.apache.gobblin.cluster.SleepingCustomTaskSource})
    *   to {@link IntegrationJobRestartViaSpecSuite#FS_SPEC_CONSUMER_DIR}.  which is picked by the JobConfigurationManager. </li>
@@ -116,15 +119,12 @@ public class ClusterIntegrationTest {
    *   We confirm the execution by again inspecting the zNode and ensuring its TargetState is START. </li>
    * </ul>
    */
-  @Test (dependsOnMethods = { "testJobShouldGetCancelled" })
+  @Test (dependsOnMethods = { "testJobShouldGetCancelled" }, groups = {"disabledOnTravis"})
   public void testJobRestartViaSpec() throws Exception {
     this.suite = new IntegrationJobRestartViaSpecSuite();
     HelixManager helixManager = getHelixManager();
 
     IntegrationJobRestartViaSpecSuite restartViaSpecSuite = (IntegrationJobRestartViaSpecSuite) this.suite;
-
-    //Add a new JobSpec to the path monitored by the SpecConsumer
-    restartViaSpecSuite.addJobSpec(IntegrationJobRestartViaSpecSuite.JOB_ID, SpecExecutor.Verb.ADD.name());
 
     //Start the cluster
     restartViaSpecSuite.startCluster();
@@ -132,17 +132,17 @@ public class ClusterIntegrationTest {
     helixManager.connect();
 
     AssertWithBackoff.create().timeoutMs(30000).maxSleepMs(1000).backoffFactor(1).
-        assertTrue(isTaskStarted(helixManager, IntegrationJobRestartViaSpecSuite.JOB_ID), "Waiting for the job to start...");
+        assertTrue(isTaskStarted(helixManager, IntegrationJobCancelSuite.JOB_ID), "Waiting for the job to start...");
 
     AssertWithBackoff.create().maxSleepMs(100).timeoutMs(2000).backoffFactor(1).
-        assertTrue(isTaskRunning(IntegrationJobRestartViaSpecSuite.TASK_STATE_FILE), "Waiting for the task to enter running state");
+        assertTrue(isTaskRunning(IntegrationJobCancelSuite.TASK_STATE_FILE), "Waiting for the task to enter running state");
 
     ZkClient zkClient = new ZkClient(this.zkConnectString);
     PathBasedZkSerializer zkSerializer = ChainedPathZkSerializer.builder(new ZNRecordStreamingSerializer()).build();
     zkClient.setZkSerializer(zkSerializer);
 
     String clusterName = getHelixManager().getClusterName();
-    String zNodePath = Paths.get("/", clusterName, "CONFIGS", "RESOURCE", IntegrationJobRestartViaSpecSuite.JOB_ID).toString();
+    String zNodePath = Paths.get("/", clusterName, "CONFIGS", "RESOURCE", IntegrationJobCancelSuite.JOB_ID).toString();
 
     //Ensure that the Workflow is started
     ZNRecord record = zkClient.readData(zNodePath);
@@ -150,9 +150,9 @@ public class ClusterIntegrationTest {
     Assert.assertEquals(targetState, TargetState.START.name());
 
     //Add a JobSpec with UPDATE verb signalling the Helix cluster to restart the workflow
-    restartViaSpecSuite.addJobSpec(IntegrationJobRestartViaSpecSuite.JOB_ID, SpecExecutor.Verb.UPDATE.name());
+    restartViaSpecSuite.addJobSpec(IntegrationJobRestartViaSpecSuite.JOB_NAME, SpecExecutor.Verb.UPDATE.name());
 
-    AssertWithBackoff.create().maxSleepMs(1000).timeoutMs(5000).backoffFactor(1).assertTrue(input -> {
+    AssertWithBackoff.create().maxSleepMs(1000).timeoutMs(12000).backoffFactor(1).assertTrue(input -> {
       //Inspect the zNode at the path corresponding to the Workflow resource. Ensure the target state of the resource is in
       // the STOP state or that the zNode has been deleted.
       ZNRecord recordNew = zkClient.readData(zNodePath, true);
@@ -230,8 +230,31 @@ public class ClusterIntegrationTest {
       throws Exception {
     suite.startCluster();
     suite.waitForAndVerifyOutputFiles();
+    ensureJobLauncherFinished();
+    suite.verifyMetricsCleaned();
     suite.shutdownCluster();
   }
+
+  private void ensureJobLauncherFinished() throws Exception {
+    AssertWithBackoff asserter = AssertWithBackoff.create().logger(log).timeoutMs(120_000)
+       .maxSleepMs(100).backoffFactor(1.5);
+
+    asserter.assertTrue(this::isJobLauncherFinished, "Waiting for job launcher completion");
+  }
+
+  protected boolean isJobLauncherFinished(Void input) {
+    Map<Thread, StackTraceElement[]> map = Thread.getAllStackTraces();
+    for (Map.Entry<Thread, StackTraceElement[]> entry: map.entrySet()) {
+      for (StackTraceElement ste: entry.getValue()) {
+        if (ste.toString().contains(HelixRetriggeringJobCallable.class.getSimpleName())) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  }
+
 
   @AfterMethod
   public void tearDown() throws IOException {

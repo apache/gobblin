@@ -322,7 +322,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     }
 
     if (this.jobConfig.hasPath(GobblinClusterConfigurationKeys.HELIX_JOB_TYPE_KEY)) {
-      String jobType = this.jobConfig.getString(this.jobConfig.getString(GobblinClusterConfigurationKeys.HELIX_JOB_TYPE_KEY));
+      String jobType = this.jobConfig.getString(GobblinClusterConfigurationKeys.HELIX_JOB_TYPE_KEY);
       log.info("Job {} has types associated : {}", this.jobContext.getJobId(), jobType);
       jobConfigBuilder.setJobType(jobType);
     }

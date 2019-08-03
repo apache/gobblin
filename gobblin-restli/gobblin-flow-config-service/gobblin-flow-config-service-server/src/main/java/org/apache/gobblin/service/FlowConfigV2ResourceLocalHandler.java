@@ -22,7 +22,9 @@ import org.apache.commons.lang3.StringEscapeUtils;
 import com.linkedin.data.template.StringMap;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.HttpStatus;
+import com.linkedin.restli.common.PatchRequest;
 import com.linkedin.restli.server.CreateKVResponse;
+import com.linkedin.restli.server.UpdateResponse;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -43,8 +45,10 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
    */
   public CreateKVResponse createFlowConfig(FlowConfig flowConfig, boolean triggerListener) throws FlowConfigLoggedException {
     String createLog = "[GAAS-REST] Create called with flowGroup " + flowConfig.getId().getFlowGroup() + " flowName " + flowConfig.getId().getFlowName();
+    this.createFlow.mark();
+
     if (flowConfig.hasExplain()) {
-      createLog += " explain " + Boolean.toString(flowConfig.isExplain());
+      createLog += " explain " + flowConfig.isExplain();
     }
     log.info(createLog);
     FlowSpec flowSpec = createFlowSpecForConfig(flowConfig);
@@ -71,5 +75,10 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
       httpStatus = HttpStatus.S_200_OK;
     }
     return new CreateKVResponse(new ComplexResourceKey<>(flowConfig.getId(), flowStatusId), flowConfig, httpStatus);
+  }
+
+  @Override
+  public UpdateResponse partialUpdateFlowConfig(FlowId flowId, PatchRequest<FlowConfig> flowConfigPatch) throws FlowConfigLoggedException {
+    throw new UnsupportedOperationException("Partial update only supported by GobblinServiceFlowConfigResourceHandler");
   }
 }

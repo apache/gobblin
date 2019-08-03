@@ -136,6 +136,7 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
   private JobConfigurationManager jobConfigurationManager;
 
   private final String clusterName;
+  @Getter
   protected final Config config;
 
   public GobblinClusterManager(String clusterName, String applicationId, Config config,
@@ -263,6 +264,12 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
     this.eventBus.register(this);
     this.multiManager.connect();
 
+    // Standalone mode registers a handler to clean up on manager leadership change, so only clean up for non-standalone
+    // mode, such as YARN mode
+    if (!this.isStandaloneMode) {
+      this.multiManager.cleanUpJobs();
+    }
+
     configureHelixQuotaBasedTaskScheduling();
 
     if (this.isStandaloneMode) {
@@ -371,11 +378,11 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
 
   private JobConfigurationManager create(Config config) {
     try {
+      List<Object> argumentList = (this.jobCatalog != null)? ImmutableList.of(this.eventBus, config, this.jobCatalog) :
+          ImmutableList.of(this.eventBus, config);
       if (config.hasPath(GobblinClusterConfigurationKeys.JOB_CONFIGURATION_MANAGER_KEY)) {
         return (JobConfigurationManager) GobblinConstructorUtils.invokeFirstConstructor(Class.forName(
-            config.getString(GobblinClusterConfigurationKeys.JOB_CONFIGURATION_MANAGER_KEY)),
-            ImmutableList.<Object>of(this.eventBus, config, this.jobCatalog),
-            ImmutableList.<Object>of(this.eventBus, config));
+            config.getString(GobblinClusterConfigurationKeys.JOB_CONFIGURATION_MANAGER_KEY)), argumentList);
       } else {
         return new JobConfigurationManager(this.eventBus, config);
       }

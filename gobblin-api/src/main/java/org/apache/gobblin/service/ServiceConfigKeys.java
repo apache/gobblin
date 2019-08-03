@@ -22,7 +22,7 @@ import org.apache.gobblin.annotation.Alpha;
 @Alpha
 public class ServiceConfigKeys {
 
-  private static final String GOBBLIN_SERVICE_PREFIX = "gobblin.service.";
+  public static final String GOBBLIN_SERVICE_PREFIX = "gobblin.service.";
 
   // Gobblin Service Manager Keys
   public static final String GOBBLIN_SERVICE_TOPOLOGY_CATALOG_ENABLED_KEY = GOBBLIN_SERVICE_PREFIX + "topologyCatalog.enabled";
@@ -62,9 +62,6 @@ public class ServiceConfigKeys {
   // Flow specific Keys
   public static final String FLOW_SOURCE_IDENTIFIER_KEY = "gobblin.flow.sourceIdentifier";
   public static final String FLOW_DESTINATION_IDENTIFIER_KEY = "gobblin.flow.destinationIdentifier";
-
-  // Command line options
-  public static final String SERVICE_NAME_OPTION_NAME = "service_name";
 
   // Topology Factory Keys (for overall factory)
   public static final String TOPOLOGY_FACTORY_PREFIX = "topologySpecFactory.";

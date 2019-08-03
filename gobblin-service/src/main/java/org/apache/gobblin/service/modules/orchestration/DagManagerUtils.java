@@ -30,6 +30,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.service.ExecutionStatus;
+import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.Dag.DagNode;
 import org.apache.gobblin.service.modules.orchestration.DagManager.FailureOption;
@@ -38,17 +39,54 @@ import org.apache.gobblin.util.ConfigUtils;
 
 
 public class DagManagerUtils {
+
+  static FlowId getFlowId(Dag<JobExecutionPlan> dag) {
+    Config jobConfig = dag.getStartNodes().get(0).getValue().getJobSpec().getConfig();
+    String flowGroup = jobConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
+    String flowName = jobConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
+    return new FlowId().setFlowGroup(flowGroup).setFlowName(flowName);
+  }
+
+  static long getFlowExecId(Dag<JobExecutionPlan> dag) {
+    Config jobConfig = dag.getStartNodes().get(0).getValue().getJobSpec().getConfig();
+    return jobConfig.getLong(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
+  }
+
   /**
    * Generate a dagId from the given {@link Dag} instance.
    * @param dag instance of a {@link Dag}.
    * @return a String id associated corresponding to the {@link Dag} instance.
    */
   static String generateDagId(Dag<JobExecutionPlan> dag) {
-    Config jobConfig = dag.getStartNodes().get(0).getValue().getJobSpec().getConfig();
+    return generateDagId(dag.getStartNodes().get(0).getValue().getJobSpec().getConfig());
+  }
+
+  static String generateDagId(Dag.DagNode<JobExecutionPlan> dagNode) {
+    return generateDagId(dagNode.getValue().getJobSpec().getConfig());
+  }
+
+  private static String generateDagId(Config jobConfig) {
     String flowGroup = jobConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
     String flowName = jobConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
-    Long flowExecutionId = jobConfig.getLong(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
+    long flowExecutionId = jobConfig.getLong(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
+
+    return generateDagId(flowGroup, flowName, flowExecutionId);
+  }
+
+  static String generateDagId(String flowGroup, String flowName, long flowExecutionId) {
     return Joiner.on("_").join(flowGroup, flowName, flowExecutionId);
+  }
+
+  /**
+   * Generate a FlowId from the given {@link Dag} instance.
+   * FlowId, comparing to DagId, doesn't contain FlowExecutionId so different {@link Dag} could possibly have same
+   * {@link FlowId}.
+   * @param dag
+   * @return
+   */
+  static String generateFlowIdInString(Dag<JobExecutionPlan> dag) {
+    FlowId flowId = getFlowId(dag);
+    return Joiner.on("_").join(flowId.getFlowGroup(), flowId.getFlowName());
   }
 
   /**
@@ -57,12 +95,9 @@ public class DagManagerUtils {
    * @return fully qualified name of the underlying {@link Dag}.
    */
   static String getFullyQualifiedDagName(Dag<JobExecutionPlan> dag) {
-    Config jobConfig = dag.getStartNodes().get(0).getValue().getJobSpec().getConfig();
-    String flowGroup = ConfigUtils.getString(jobConfig, ConfigurationKeys.FLOW_GROUP_KEY, "");
-    String flowName = ConfigUtils.getString(jobConfig, ConfigurationKeys.FLOW_NAME_KEY, "");
-    Long flowExecutionId = ConfigUtils.getLong(jobConfig, ConfigurationKeys.FLOW_EXECUTION_ID_KEY, 0L);
-
-    return "(flowGroup: " + flowGroup + ", flowName: " + flowName + ", flowExecutionId: " + flowExecutionId + ")";
+    FlowId flowid = getFlowId(dag);
+    long flowExecutionId = getFlowExecId(dag);
+    return "(flowGroup: " + flowid.getFlowGroup() + ", flowName: " + flowid.getFlowName() + ", flowExecutionId: " + flowExecutionId + ")";
   }
 
   static String getJobName(DagNode<JobExecutionPlan> dagNode) {
@@ -120,7 +155,7 @@ public class DagManagerUtils {
       DagNode<JobExecutionPlan> node = nodesToExpand.poll();
       ExecutionStatus executionStatus = getExecutionStatus(node);
       boolean addFlag = true;
-      if (executionStatus == ExecutionStatus.$UNKNOWN) {
+      if (executionStatus == ExecutionStatus.PENDING) {
         //Add a node to be executed next, only if all of its parent nodes are COMPLETE.
         List<DagNode<JobExecutionPlan>> parentNodes = dag.getParents(node);
         for (DagNode<JobExecutionPlan> parentNode : parentNodes) {
@@ -155,5 +190,12 @@ public class DagManagerUtils {
     DagNode<JobExecutionPlan> dagNode = dag.getStartNodes().get(0);
     String failureOption = ConfigUtils.getString(getJobConfig(dagNode), ConfigurationKeys.FLOW_FAILURE_OPTION, DagManager.DEFAULT_FLOW_FAILURE_OPTION);
     return FailureOption.valueOf(failureOption);
+  }
+
+  /**
+   * Increment the value of {@link JobExecutionPlan#currentAttempts}
+   */
+  static void incrementJobAttempt(DagNode<JobExecutionPlan> dagNode) {
+    dagNode.getValue().setCurrentAttempts(dagNode.getValue().getCurrentAttempts() + 1);
   }
 }

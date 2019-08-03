@@ -74,14 +74,17 @@ import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 
 import javax.annotation.Nonnull;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * A Utils class for dealing with Avro objects
  */
+@Slf4j
 public class AvroUtils {
 
   private static final Logger LOG = LoggerFactory.getLogger(AvroUtils.class);
@@ -281,7 +284,7 @@ public class AvroUtils {
       } else if (data instanceof List) {
         val = getObjectFromArray((List)data, Integer.parseInt(pathList.get(field)));
       } else {
-        val = ((Record)data).get(pathList.get(field));
+        val = ((GenericRecord)data).get(pathList.get(field));
       }
 
       if (val != null) {
@@ -313,7 +316,7 @@ public class AvroUtils {
       return;
     }
 
-    AvroUtils.getFieldHelper(retVal, ((Record) data).get(pathList.get(field)), pathList, ++field);
+    AvroUtils.getFieldHelper(retVal, ((GenericRecord) data).get(pathList.get(field)), pathList, ++field);
     return;
   }
 
@@ -352,7 +355,12 @@ public class AvroUtils {
 
   private static Object getObjectFromMap(Map map, String key) {
     Utf8 utf8Key = new Utf8(key);
-    return map.get(utf8Key);
+    Object value = map.get(utf8Key);
+    if (value == null) {
+      return map.get(key);
+    }
+
+    return value;
   }
 
   /**
@@ -600,10 +608,10 @@ public class AvroUtils {
    * MapReduce job.
    */
   public static Optional<Schema> removeUncomparableFields(Schema schema) {
-    return removeUncomparableFields(schema, Sets.<Schema> newHashSet());
+    return removeUncomparableFields(schema, Maps.newHashMap());
   }
 
-  private static Optional<Schema> removeUncomparableFields(Schema schema, Set<Schema> processed) {
+  private static Optional<Schema> removeUncomparableFields(Schema schema, Map<Schema, Optional<Schema>> processed) {
     switch (schema.getType()) {
       case RECORD:
         return removeUncomparableFieldsFromRecord(schema, processed);
@@ -620,13 +628,13 @@ public class AvroUtils {
     }
   }
 
-  private static Optional<Schema> removeUncomparableFieldsFromRecord(Schema record, Set<Schema> processed) {
+  private static Optional<Schema> removeUncomparableFieldsFromRecord(Schema record, Map<Schema, Optional<Schema>> processed) {
     Preconditions.checkArgument(record.getType() == Schema.Type.RECORD);
 
-    if (processed.contains(record)) {
-      return Optional.absent();
+    Optional<Schema> result = processed.get(record);
+    if (null != result) {
+      return result;
     }
-    processed.add(record);
 
     List<Field> fields = Lists.newArrayList();
     for (Field field : record.getFields()) {
@@ -638,16 +646,19 @@ public class AvroUtils {
 
     Schema newSchema = Schema.createRecord(record.getName(), record.getDoc(), record.getNamespace(), false);
     newSchema.setFields(fields);
-    return Optional.of(newSchema);
+    result = Optional.of(newSchema);
+    processed.put(record, result);
+
+    return result;
   }
 
-  private static Optional<Schema> removeUncomparableFieldsFromUnion(Schema union, Set<Schema> processed) {
+  private static Optional<Schema> removeUncomparableFieldsFromUnion(Schema union, Map<Schema, Optional<Schema>> processed) {
     Preconditions.checkArgument(union.getType() == Schema.Type.UNION);
 
-    if (processed.contains(union)) {
-      return Optional.absent();
+    Optional<Schema> result = processed.get(union);
+    if (null != result) {
+      return result;
     }
-    processed.add(union);
 
     List<Schema> newUnion = Lists.newArrayList();
     for (Schema unionType : union.getTypes()) {
@@ -659,9 +670,13 @@ public class AvroUtils {
 
     // Discard the union field if one or more types are removed from the union.
     if (newUnion.size() != union.getTypes().size()) {
-      return Optional.absent();
+      result = Optional.absent();
+    } else {
+      result = Optional.of(Schema.createUnion(newUnion));
     }
-    return Optional.of(Schema.createUnion(newUnion));
+    processed.put(union, result);
+
+    return result;
   }
 
   /**
@@ -843,7 +858,6 @@ public class AvroUtils {
     return reader.read(null, decoder);
   }
 
-
   /**
    * Decorate the {@link Schema} for a record with additional {@link Field}s.
    * @param inputSchema: must be a {@link Record} schema.
@@ -875,11 +889,50 @@ public class AvroUtils {
   public static GenericRecord decorateRecord(GenericRecord inputRecord, @Nonnull Map<String, Object> fieldMap,
           Schema outputSchema) {
     GenericRecord outputRecord = new GenericData.Record(outputSchema);
-    inputRecord.getSchema().getFields().forEach(
-            f -> outputRecord.put(f.name(), inputRecord.get(f.name()))
-    );
+    inputRecord.getSchema().getFields().forEach(f -> outputRecord.put(f.name(), inputRecord.get(f.name())));
     fieldMap.forEach((key, value) -> outputRecord.put(key, value));
     return outputRecord;
+  }
+
+  /**
+   * Given a generic record, Override the name and namespace of the schema and return a new generic record
+   * @param input input record who's name and namespace need to be overridden
+   * @param nameOverride new name for the record schema
+   * @param namespaceOverride Optional map containing namespace overrides
+   * @return an output record with overridden name and possibly namespace
+   */
+  public static GenericRecord overrideNameAndNamespace(GenericRecord input, String nameOverride, Optional<Map<String, String>> namespaceOverride) {
+
+    GenericRecord output = input;
+    Schema newSchema = switchName(input.getSchema(), nameOverride);
+    if(namespaceOverride.isPresent()) {
+      newSchema = switchNamespace(newSchema, namespaceOverride.get());
+    }
+
+    try {
+      output = convertRecordSchema(output, newSchema);
+    } catch (Exception e){
+      log.error("Unable to generate generic data record", e);
+    }
+
+    return output;
+  }
+
+  /**
+   * Given a input schema, Override the name and namespace of the schema and return a new schema
+   * @param input
+   * @param nameOverride
+   * @param namespaceOverride
+   * @return a schema with overridden name and possibly namespace
+   */
+  public static Schema overrideNameAndNamespace(Schema input, String nameOverride, Optional<Map<String, String>> namespaceOverride) {
+
+    Schema newSchema = switchName(input, nameOverride);
+    if(namespaceOverride.isPresent()) {
+      newSchema = switchNamespace(newSchema, namespaceOverride.get());
+    }
+
+    return newSchema;
   }
 
 }

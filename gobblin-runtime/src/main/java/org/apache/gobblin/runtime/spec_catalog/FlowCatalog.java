@@ -17,10 +17,6 @@
 
 package org.apache.gobblin.runtime.spec_catalog;
 
-import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
-import com.google.common.util.concurrent.AbstractIdleService;
-import com.typesafe.config.Config;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
@@ -31,12 +27,17 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import javax.annotation.Nonnull;
-import org.apache.commons.lang3.SerializationUtils;
+
 import org.apache.commons.lang3.reflect.ConstructorUtils;
-import org.apache.gobblin.runtime.api.SpecSerDeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
+import com.google.common.util.concurrent.AbstractIdleService;
+import com.typesafe.config.Config;
+
+import javax.annotation.Nonnull;
 
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
@@ -50,8 +51,10 @@ import org.apache.gobblin.runtime.api.SpecCatalogListener;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.api.SpecSerDe;
 import org.apache.gobblin.runtime.api.SpecStore;
+import org.apache.gobblin.runtime.spec_serde.JavaSpecSerDe;
 import org.apache.gobblin.runtime.spec_store.FSSpecStore;
 import org.apache.gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.callbacks.CallbackResult;
 import org.apache.gobblin.util.callbacks.CallbacksDispatcher;
 
@@ -60,7 +63,7 @@ import org.apache.gobblin.util.callbacks.CallbacksDispatcher;
  * A service that interact with FlowSpec storage.
  * The FlowSpec storage, a.k.a. {@link SpecStore} should be plugable with different implementation.
  */
-public class FlowCatalog extends AbstractIdleService implements SpecCatalog, MutableSpecCatalog, SpecSerDe {
+public class FlowCatalog extends AbstractIdleService implements SpecCatalog, MutableSpecCatalog {
 
   /***
    * Configuration properties related to FlowSpec Store
@@ -68,6 +71,8 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
   public static final String FLOWSPEC_STORE_CLASS_KEY = "flowSpec.store.class";
   public static final String FLOWSPEC_STORE_DIR_KEY = "flowSpec.store.dir";
   public static final String DEFAULT_FLOWSPEC_STORE_CLASS = FSSpecStore.class.getCanonicalName();
+  public static final String FLOWSPEC_SERDE_CLASS_KEY = "flowSpec.serde.class";
+  public static final String DEFAULT_FLOWSPEC_SERDE_CLASS = JavaSpecSerDe.class.getCanonicalName();
 
   protected final SpecCatalogListenersList listeners;
   protected final Logger log;
@@ -112,13 +117,15 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
         newConfig = config.withValue(FSSpecStore.SPECSTORE_FS_DIR_KEY,
             config.getValue(FLOWSPEC_STORE_DIR_KEY));
       }
-      String specStoreClassName = DEFAULT_FLOWSPEC_STORE_CLASS;
-      if (config.hasPath(FLOWSPEC_STORE_CLASS_KEY)) {
-        specStoreClassName = config.getString(FLOWSPEC_STORE_CLASS_KEY);
-      }
+      String specStoreClassName = ConfigUtils.getString(config, FLOWSPEC_STORE_CLASS_KEY, DEFAULT_FLOWSPEC_STORE_CLASS);
       this.log.info(String.format("Using class name/alias [%s] for specstore", specStoreClassName));
+      String specSerDeClassName = ConfigUtils.getString(config, FLOWSPEC_SERDE_CLASS_KEY, DEFAULT_FLOWSPEC_SERDE_CLASS);
+      this.log.info(String.format("Using class name/alias [%s] for spec serde", specSerDeClassName));
+
+      SpecSerDe specSerDe = (SpecSerDe) ConstructorUtils.invokeConstructor(Class.forName(
+          new ClassAliasResolver<>(SpecSerDe.class).resolve(specSerDeClassName)));
       this.specStore = (SpecStore) ConstructorUtils.invokeConstructor(Class.forName(this.aliasResolver.resolve(
-          specStoreClassName)), newConfig, this);
+          specStoreClassName)), newConfig, specSerDe);
     } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
         | ClassNotFoundException e) {
       throw new RuntimeException(e);
@@ -144,8 +151,13 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
    /**************************************************/
 
   protected void notifyAllListeners() {
-    for (Spec spec : getSpecsWithTimeUpdate()) {
-      this.listeners.onAddSpec(spec);
+    try {
+      Iterator<URI> uriIterator = getSpecURIs();
+      while (uriIterator.hasNext()) {
+        this.listeners.onAddSpec(getSpecWrapper(uriIterator.next()));
+      }
+    } catch (IOException e) {
+      log.error("Cannot retrieve specs from catalog:", e);
     }
   }
 
@@ -155,9 +167,15 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     this.listeners.addListener(specListener);
 
     if (state() == State.RUNNING) {
-      for (Spec spec : getSpecsWithTimeUpdate()) {
-        SpecCatalogListener.AddSpecCallback addJobCallback = new SpecCatalogListener.AddSpecCallback(spec);
-        this.listeners.callbackOneListener(addJobCallback, specListener);
+      try {
+        Iterator<URI> uriIterator = getSpecURIs();
+        while (uriIterator.hasNext()) {
+          SpecCatalogListener.AddSpecCallback addJobCallback =
+              new SpecCatalogListener.AddSpecCallback(getSpecWrapper(uriIterator.next()));
+          this.listeners.callbackOneListener(addJobCallback, specListener);
+        }
+      } catch (IOException e) {
+        log.error("Cannot retrieve specs from catalog:", e);
       }
     }
   }
@@ -211,17 +229,20 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
   /* Catalog core functionality                     *
   /**************************************************/
 
-  public Iterator<URI> getSpecURIs() throws SpecSerDeException{
-    try {
-      return specStore.getSpecURIs();
-    } catch (IOException ioe) {
-      throw new SpecSerDeException("Cannot retrieve Specs' URI from Spec Store", specStore.getSpecStoreURI().get(), ioe);
-    }
+  public Iterator<URI> getSpecURIs() throws IOException {
+    return specStore.getSpecURIs();
+  }
+
+  public Iterator<URI> getSpecURISWithTag(String tag) throws IOException {
+    return specStore.getSpecURIsWithTag(tag);
   }
 
   /**
    * Get all specs from {@link SpecStore}
+   * Not suggested for {@link FlowCatalog} where the total amount of space that all {@link FlowSpec}s occupied
+   * would be large and loading process is slow.
    */
+  @Deprecated
   @Override
   public Collection<Spec> getSpecs() {
     try {
@@ -230,13 +251,6 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     } catch (IOException e) {
       throw new RuntimeException("Cannot retrieve Specs from Spec store", e);
     }
-  }
-
-  public Collection<Spec> getSpecsWithTimeUpdate() {
-    long startTime = System.currentTimeMillis();
-    Collection<Spec> specs = this.getSpecs();
-    this.metrics.updateGetSpecTime(startTime);
-    return specs;
   }
 
   public boolean exists(URI uri) {
@@ -254,6 +268,22 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     } catch (IOException e) {
       throw new RuntimeException("Cannot retrieve Spec from Spec store for URI: " + uri, e);
     }
+  }
+
+  /**
+   * A wrapper of getSpec that handles {@link SpecNotFoundException} properly.
+   * This is the most common way to fetch {@link Spec}. For customized way to deal with exception, one will
+   * need to implement specific catch-block logic.
+   */
+  public Spec getSpecWrapper(URI uri) {
+    Spec spec = null;
+    try {
+      spec = getSpec(uri);
+    } catch (SpecNotFoundException snfe) {
+      log.error(String.format("The URI %s discovered in SpecStore is missing in FlowCatlog"
+          + ", suspecting current modification on SpecStore", uri), snfe);
+    }
+    return spec;
   }
 
   /**
@@ -315,15 +345,5 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     } catch (IOException e) {
       throw new RuntimeException("Cannot delete Spec from Spec store for URI: " + uri, e);
     }
-  }
-
-  @Override
-  public byte[] serialize(Spec spec) {
-    return SerializationUtils.serialize(spec);
-  }
-
-  @Override
-  public Spec deserialize(byte[] spec) {
-    return SerializationUtils.deserialize(spec);
   }
 }

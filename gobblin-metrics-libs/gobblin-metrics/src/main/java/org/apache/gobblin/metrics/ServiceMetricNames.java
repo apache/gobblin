@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gobblin.service;
+package org.apache.gobblin.metrics;
 
 public class ServiceMetricNames {
   private static final String GOBBLIN_SERVICE_PREFIX = "gobblin.service.";
@@ -31,4 +31,11 @@ public class ServiceMetricNames {
 
   //Job status poll timer
   public static final String JOB_STATUS_POLLED_TIMER = GOBBLIN_SERVICE_PREFIX + "jobStatusPoll.time";
+
+  public static final String CREATE_FLOW_METER = "CreateFlow";
+  public static final String DELETE_FLOW_METER = "DeleteFlow";
+  public static final String RUN_IMMEDIATELY_FLOW_METER = "RunImmediatelyFlow";
+
+  public static final String RUNNING_FLOWS_COUNTER = "RunningFlows";
+  public static final String COMPILED = "Compiled";
 }

@@ -77,6 +77,7 @@ public class MRCompactorAvroKeyDedupJobRunner extends MRCompactorJobRunner {
    */
   public static final String COMPACTION_JOB_AVRO_KEY_SCHEMA_LOC = COMPACTION_JOB_PREFIX + "avro.key.schema.loc";
   public static final String COMPACTION_JOB_DEDUP_KEY = COMPACTION_JOB_PREFIX + "dedup.key";
+  public static final String COMPACTION_JOB_KEY_FIELD_BLACKLIST = COMPACTION_JOB_PREFIX + "key.fieldBlacklist";
 
   private static final String AVRO = "avro";
   private static final String SCHEMA_DEDUP_FIELD_ANNOTATOR = "primarykey";

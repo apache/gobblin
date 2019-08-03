@@ -43,7 +43,6 @@ import org.apache.gobblin.converter.Converter;
 import org.apache.gobblin.converter.DataConversionException;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.GobblinMetrics;
-import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.publisher.TaskPublisher;
 import org.apache.gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
 import org.apache.gobblin.qualitychecker.row.RowLevelPolicyChecker;
@@ -59,7 +58,7 @@ import org.apache.gobblin.runtime.Task;
 import org.apache.gobblin.runtime.TaskContext;
 import org.apache.gobblin.runtime.TaskExecutor;
 import org.apache.gobblin.runtime.TaskState;
-import org.apache.gobblin.runtime.util.TaskMetrics;
+import org.apache.gobblin.runtime.util.ForkMetrics;
 import org.apache.gobblin.state.ConstructState;
 import org.apache.gobblin.stream.ControlMessage;
 import org.apache.gobblin.stream.RecordEnvelope;
@@ -135,7 +134,6 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
   // An AtomicReference is still used here for the compareAntSet operation.
   private final AtomicReference<ForkState> forkState;
 
-  private static final String FORK_METRICS_BRANCH_NAME_KEY = "forkBranchName";
   protected static final Object SHUTDOWN_RECORD = new Object();
   private SharedResourcesBroker<GobblinScopeTypes> broker;
 
@@ -176,9 +174,7 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
      * {@link Instrumented#setMetricContextName(State, String)} will be children of the forkMetrics.
      */
     if (GobblinMetrics.isEnabled(this.taskState)) {
-      GobblinMetrics forkMetrics = GobblinMetrics
-          .get(getForkMetricsName(taskContext.getTaskMetrics(), this.taskState, index),
-              taskContext.getTaskMetrics().getMetricContext(), getForkMetricsTags(this.taskState, index));
+      ForkMetrics forkMetrics = ForkMetrics.get(this.taskState, index);
       this.closer.register(forkMetrics.getMetricContext());
       Instrumented.setMetricContextName(this.taskState, forkMetrics.getMetricContext().getName());
     }
@@ -207,7 +203,11 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
     }));
     stream = stream.mapStream(s -> s.doOnSubscribe(subscription -> onStart()));
     stream = stream.mapStream(s -> s.doOnComplete(() -> verifyAndSetForkState(ForkState.RUNNING, ForkState.SUCCEEDED)));
-    stream = stream.mapStream(s -> s.doOnCancel(() -> verifyAndSetForkState(ForkState.RUNNING, ForkState.SUCCEEDED)));
+    stream = stream.mapStream(s -> s.doOnCancel(() -> {
+      // Errors don't propagate up from below the fork, but cancel the stream, so use the failed state to indicate that
+      // the fork failed to complete, which will then fail the task.
+      verifyAndSetForkState(ForkState.RUNNING, ForkState.FAILED);
+    }));
     stream = stream.mapStream(s -> s.doOnError(exc -> {
       verifyAndSetForkState(ForkState.RUNNING, ForkState.FAILED);
       this.logger.error(String.format("Fork %d of task %s failed to process data records", this.index, this.taskId), exc);
@@ -217,7 +217,15 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
         if (r instanceof RecordEnvelope) {
           this.writer.get().writeEnvelope((RecordEnvelope) r);
         } else if (r instanceof ControlMessage) {
-          this.writer.get().getMessageHandler().handleMessage((ControlMessage) r);
+          // Nack with error and reraise the error if the control messsage handling raises an error.
+          // This is to avoid missing an ack/nack in the error path.
+          try {
+            this.writer.get().getMessageHandler().handleMessage((ControlMessage) r);
+          } catch (Throwable error) {
+            r.nack(error);
+            throw error;
+          }
+
           r.ack();
         }
       }, e -> logger.error("Failed to process record.", e),
@@ -521,9 +529,24 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
    */
   private DataWriter<Object> buildWriter()
       throws IOException {
+    String writerId = this.taskId;
+
+    // Add the task starting time if configured.
+    // This is used to reduce file name collisions which can happen due to the execution of a workunit across multiple
+    // task instances.
+    // File names are generated from the writerId which is based on the taskId. Different instances of
+    // the task have the same taskId, so file name collisions can occur.
+    // Adding the task start time to the taskId gives a writerId that should be different across task instances.
+    if (this.taskState.getPropAsBoolean(ConfigurationKeys.WRITER_ADD_TASK_TIMESTAMP, false)) {
+      String taskStartTime = this.taskState.getProp(ConfigurationKeys.TASK_START_TIME_MILLIS_KEY);
+      Preconditions.checkArgument(taskStartTime != null, ConfigurationKeys.TASK_START_TIME_MILLIS_KEY + " has not been set");
+
+      writerId = this.taskId + "_" + taskStartTime;
+    }
+
     DataWriterBuilder<Object, Object> builder = this.taskContext.getDataWriterBuilder(this.branches, this.index)
         .writeTo(Destination.of(this.taskContext.getDestinationType(this.branches, this.index), this.taskState))
-        .writeInFormat(this.taskContext.getWriterOutputFormat(this.branches, this.index)).withWriterId(this.taskId)
+        .writeInFormat(this.taskContext.getWriterOutputFormat(this.branches, this.index)).withWriterId(writerId)
         .withSchema(this.convertedSchema.orNull()).withBranches(this.branches).forBranch(this.index);
     if (this.taskAttemptId.isPresent()) {
       builder.withAttemptId(this.taskAttemptId.get());
@@ -637,30 +660,6 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
       throw new IllegalStateException(String
           .format("Expected fork state %s; actual fork state %s", expectedState.name(), this.forkState.get().name()));
     }
-  }
-
-  /**
-   * Creates a {@link List} of {@link Tag}s for a {@link Fork} instance. The {@link Tag}s are purely based on the
-   * index and the branch name.
-   */
-  private static List<Tag<?>> getForkMetricsTags(State state, int index) {
-    return ImmutableList.<Tag<?>>of(new Tag<>(FORK_METRICS_BRANCH_NAME_KEY, getForkMetricsId(state, index)));
-  }
-
-  /**
-   * Creates a {@link String} that is a concatenation of the {@link TaskMetrics#getName()} and
-   * {@link #getForkMetricsId(State, int)}.
-   */
-  private static String getForkMetricsName(TaskMetrics taskMetrics, State state, int index) {
-    return taskMetrics.getName() + "." + getForkMetricsId(state, index);
-  }
-
-  /**
-   * Creates a unique {@link String} representing this branch.
-   */
-  private static String getForkMetricsId(State state, int index) {
-    return state.getProp(ConfigurationKeys.FORK_BRANCH_NAME_KEY + "." + index,
-        ConfigurationKeys.DEFAULT_FORK_BRANCH_NAME + index);
   }
 
   public boolean isSpeculativeExecutionSafe() {

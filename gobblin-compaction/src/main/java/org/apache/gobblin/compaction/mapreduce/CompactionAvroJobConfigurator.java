@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.compaction.mapreduce;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Enums;
 import com.google.common.base.Optional;
 import java.io.IOException;
@@ -31,6 +32,7 @@ import org.apache.gobblin.compaction.mapreduce.avro.AvroKeyMapper;
 import org.apache.gobblin.compaction.mapreduce.avro.AvroKeyRecursiveCombineFileInputFormat;
 import org.apache.gobblin.compaction.mapreduce.avro.MRCompactorAvroKeyDedupJobRunner;
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.converter.filter.AvroSchemaFieldRemover;
 import org.apache.gobblin.dataset.FileSystemDataset;
 import org.apache.gobblin.hive.policy.HiveRegistrationPolicy;
 import org.apache.gobblin.util.AvroUtils;
@@ -46,6 +48,8 @@ import org.apache.hadoop.mapreduce.Job;
  */
 @Slf4j
 public class CompactionAvroJobConfigurator extends CompactionJobConfigurator {
+
+  private Optional<String> keyFieldBlacklist;
 
   public static class Factory implements CompactionJobConfigurator.ConfiguratorFactory {
     @Override
@@ -65,6 +69,8 @@ public class CompactionAvroJobConfigurator extends CompactionJobConfigurator {
    */
   public CompactionAvroJobConfigurator(State state) throws IOException {
     super(state);
+    keyFieldBlacklist =
+        Optional.fromNullable(state.getProp(MRCompactorAvroKeyDedupJobRunner.COMPACTION_JOB_KEY_FIELD_BLACKLIST));
   }
 
   /**
@@ -83,7 +89,8 @@ public class CompactionAvroJobConfigurator extends CompactionJobConfigurator {
   /**
    * Refer to MRCompactorAvroKeyDedupJobRunner#getKeySchema(Job, Schema)
    */
-  private Schema getDedupKeySchema(Schema topicSchema) {
+  @VisibleForTesting
+  Schema getDedupKeySchema(Schema topicSchema) {
 
     boolean keySchemaFileSpecified =
         this.state.contains(MRCompactorAvroKeyDedupJobRunner.COMPACTION_JOB_AVRO_KEY_SCHEMA_LOC);
@@ -119,6 +126,13 @@ public class CompactionAvroJobConfigurator extends CompactionJobConfigurator {
       log.info("Property " + MRCompactorAvroKeyDedupJobRunner.COMPACTION_JOB_AVRO_KEY_SCHEMA_LOC
           + " not provided. Using key attributes in the schema for compaction");
       keySchema = AvroUtils.removeUncomparableFields(MRCompactorAvroKeyDedupJobRunner.getKeySchema(topicSchema)).get();
+    }
+
+
+    if (keyFieldBlacklist.isPresent()) {
+      AvroSchemaFieldRemover fieldRemover = new AvroSchemaFieldRemover(keyFieldBlacklist.get());
+      keySchema = fieldRemover.removeFields(keySchema);
+      log.info("Adjusted key schema {}", keySchema);
     }
 
     return keySchema;

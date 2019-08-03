@@ -20,14 +20,12 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
+import java.util.concurrent.ExecutionException;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.hadoop.fs.Path;
 import org.junit.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -38,17 +36,11 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
-import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.runtime.api.JobSpec;
-import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.api.TopologySpec;
-import org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutor;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
-import org.apache.gobblin.service.modules.spec.JobExecutionPlanDagFactory;
-import org.apache.gobblin.util.ConfigUtils;
 
 
 public class FSDagStateStoreTest {
@@ -64,63 +56,24 @@ public class FSDagStateStoreTest {
       throws IOException, URISyntaxException {
     this.checkpointDir = new File(dagStateStoreDir);
     FileUtils.deleteDirectory(this.checkpointDir);
-    Config config = ConfigFactory.empty().withValue(DagManager.DAG_STATESTORE_DIR, ConfigValueFactory.fromAnyRef(
+    Config config = ConfigFactory.empty().withValue(FSDagStateStore.DAG_STATESTORE_DIR, ConfigValueFactory.fromAnyRef(
         this.dagStateStoreDir));
     this.topologySpecMap = new HashMap<>();
 
-    String specStoreDir = "/tmp/specStoreDir";
-    String specExecInstance = "mySpecExecutor";
-    Properties properties = new Properties();
-    properties.put("specStore.fs.dir", specStoreDir);
-    properties.put("specExecInstance.capabilities", "source:destination");
-    properties.put("specExecInstance.uri", specExecInstance);
-    properties.put("uri",specExecInstance);
-
-    Config specExecConfig = ConfigUtils.propertiesToConfig(properties);
-    SpecExecutor specExecutorInstanceProducer = new InMemorySpecExecutor(specExecConfig);
-    TopologySpec.Builder topologySpecBuilder = TopologySpec.builder(new Path(specStoreDir).toUri())
-        .withConfig(specExecConfig)
-        .withDescription("test")
-        .withVersion("1")
-        .withSpecExecutor(specExecutorInstanceProducer);
-    this.topologySpec = topologySpecBuilder.build();
-    this.specExecURI = new URI(specExecInstance);
+    // Construct the TopologySpec and its map.
+    String specExecInstanceUriInString = "mySpecExecutor";
+    this.topologySpec = DagTestUtils.buildNaiveTopologySpec(specExecInstanceUriInString);
+    this.specExecURI = new URI(specExecInstanceUriInString);
     this.topologySpecMap.put(this.specExecURI, topologySpec);
 
     this._dagStateStore = new FSDagStateStore(config, this.topologySpecMap);
-  }
-
-  /**
-   * Create a {@link Dag<JobExecutionPlan>} with one parent and one child.
-   * @return a Dag.
-   */
-  public Dag<JobExecutionPlan> buildDag(String id, Long flowExecutionId) throws URISyntaxException {
-    List<JobExecutionPlan> jobExecutionPlans = new ArrayList<>();
-    for (int i = 0; i < 2; i++) {
-      String suffix = Integer.toString(i);
-      Config jobConfig = ConfigBuilder.create().
-          addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, "group" + id).
-          addPrimitive(ConfigurationKeys.FLOW_NAME_KEY, "flow" + id).
-          addPrimitive(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, flowExecutionId).
-          addPrimitive(ConfigurationKeys.JOB_NAME_KEY, "job" + suffix).build();
-      if (i > 0) {
-        jobConfig = jobConfig.withValue(ConfigurationKeys.JOB_DEPENDENCIES, ConfigValueFactory.fromAnyRef("job" + (i - 1)));
-      }
-      JobSpec js = JobSpec.builder("test_job" + suffix).withVersion(suffix).withConfig(jobConfig).
-          withTemplate(new URI("job" + suffix)).build();
-      SpecExecutor specExecutor = this.topologySpec.getSpecExecutor();
-      JobExecutionPlan jobExecutionPlan = new JobExecutionPlan(js, specExecutor);
-      jobExecutionPlan.setExecutionStatus(ExecutionStatus.RUNNING);
-      jobExecutionPlans.add(jobExecutionPlan);
-    }
-    return new JobExecutionPlanDagFactory().createDag(jobExecutionPlans);
   }
 
   @Test
   public void testWriteCheckpoint() throws IOException, URISyntaxException {
     long flowExecutionId = System.currentTimeMillis();
     String flowGroupId = "0";
-    Dag<JobExecutionPlan> dag = buildDag(flowGroupId, flowExecutionId);
+    Dag<JobExecutionPlan> dag = DagTestUtils.buildDag(flowGroupId, flowExecutionId);
     this._dagStateStore.writeCheckpoint(dag);
 
     String fileName = DagManagerUtils.generateDagId(dag) + FSDagStateStore.DAG_FILE_EXTENSION;
@@ -148,7 +101,7 @@ public class FSDagStateStoreTest {
   public void testCleanUp() throws IOException, URISyntaxException {
     long flowExecutionId = System.currentTimeMillis();
     String flowGroupId = "0";
-    Dag<JobExecutionPlan> dag = buildDag(flowGroupId, flowExecutionId);
+    Dag<JobExecutionPlan> dag = DagTestUtils.buildDag(flowGroupId, flowExecutionId);
     this._dagStateStore.writeCheckpoint(dag);
     String fileName = DagManagerUtils.generateDagId(dag) + FSDagStateStore.DAG_FILE_EXTENSION;
     File dagFile = new File(this.checkpointDir, fileName);
@@ -158,13 +111,13 @@ public class FSDagStateStoreTest {
   }
 
   @Test (dependsOnMethods = "testCleanUp")
-  public void testGetDags() throws IOException, URISyntaxException {
+  public void testGetDags() throws IOException, URISyntaxException, ExecutionException, InterruptedException {
     //Set up a new FSDagStateStore instance.
     setUp();
     List<Long> flowExecutionIds = Lists.newArrayList(System.currentTimeMillis(), System.currentTimeMillis() + 1);
     for (int i = 0; i < 2; i++) {
       String flowGroupId = Integer.toString(i);
-      Dag<JobExecutionPlan> dag = buildDag(flowGroupId, flowExecutionIds.get(i));
+      Dag<JobExecutionPlan> dag = DagTestUtils.buildDag(flowGroupId, flowExecutionIds.get(i));
       this._dagStateStore.writeCheckpoint(dag);
     }
 
@@ -177,6 +130,8 @@ public class FSDagStateStoreTest {
       Assert.assertEquals(dag.getParentChildMap().size(), 1);
       Assert.assertEquals(dag.getNodes().get(0).getValue().getSpecExecutor().getUri(), specExecURI);
       Assert.assertEquals(dag.getNodes().get(1).getValue().getSpecExecutor().getUri(), specExecURI);
+      Assert.assertTrue(Boolean.parseBoolean(dag.getNodes().get(0).getValue().getJobFuture().get().get().toString()));
+      Assert.assertTrue(Boolean.parseBoolean(dag.getNodes().get(1).getValue().getJobFuture().get().get().toString()));
     }
   }
 

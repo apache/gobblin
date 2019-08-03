@@ -90,6 +90,8 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
   private static final String SELECT_JOB_STATE_WITH_LIKE_TEMPLATE =
       "SELECT state FROM $TABLE$ WHERE store_name = ? and table_name like ?";
 
+  private static final String SELECT_ALL_JOBS_STATE = "SELECT state FROM $TABLE$";
+
   private static final String SELECT_JOB_STATE_EXISTS_TEMPLATE =
       "SELECT 1 FROM $TABLE$ WHERE store_name = ? and table_name = ?";
 
@@ -123,6 +125,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
 
   private final String UPSERT_JOB_STATE_SQL;
   private final String SELECT_JOB_STATE_SQL;
+  private final String SELECT_ALL_JOBS_STATE_SQL;
   private final String SELECT_JOB_STATE_WITH_LIKE_SQL;
   private final String SELECT_JOB_STATE_EXISTS_SQL;
   private final String SELECT_JOB_STATE_NAMES_SQL;
@@ -149,6 +152,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
     UPSERT_JOB_STATE_SQL = UPSERT_JOB_STATE_TEMPLATE.replace("$TABLE$", stateStoreTableName);
     SELECT_JOB_STATE_SQL = SELECT_JOB_STATE_TEMPLATE.replace("$TABLE$", stateStoreTableName);
     SELECT_JOB_STATE_WITH_LIKE_SQL = SELECT_JOB_STATE_WITH_LIKE_TEMPLATE.replace("$TABLE$", stateStoreTableName);
+    SELECT_ALL_JOBS_STATE_SQL = SELECT_ALL_JOBS_STATE.replace("$TABLE$", stateStoreTableName);
     SELECT_JOB_STATE_EXISTS_SQL = SELECT_JOB_STATE_EXISTS_TEMPLATE.replace("$TABLE$", stateStoreTableName);
     SELECT_JOB_STATE_NAMES_SQL = SELECT_JOB_STATE_NAMES_TEMPLATE.replace("$TABLE$", stateStoreTableName);
     DELETE_JOB_STORE_SQL = DELETE_JOB_STORE_TEMPLATE.replace("$TABLE$", stateStoreTableName);
@@ -335,33 +339,30 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
             SELECT_JOB_STATE_WITH_LIKE_SQL : SELECT_JOB_STATE_SQL)) {
       queryStatement.setString(1, storeName);
       queryStatement.setString(2, tableName);
-
-      try (ResultSet rs = queryStatement.executeQuery()) {
-        while (rs.next()) {
-          Blob blob = rs.getBlob(1);
-          Text key = new Text();
-
-          try (InputStream is = StreamUtils.isCompressed(blob.getBytes(1, 2)) ?
-              new GZIPInputStream(blob.getBinaryStream()) : blob.getBinaryStream();
-              DataInputStream dis = new DataInputStream(is)) {
-            // keep deserializing while we have data
-            while (dis.available() > 0) {
-              T state = this.stateClass.newInstance();
-              key.readString(dis);
-              state.readFields(dis);
-              states.add(state);
-            }
-          } catch (EOFException e) {
-            // no more data. GZIPInputStream.available() doesn't return 0 until after EOF.
-          }
-        }
-      }
+      execGetAllStatement(queryStatement, states);
     } catch (RuntimeException re) {
       throw re;
     } catch (Exception e) {
       throw new IOException("failure retrieving state from storeName " + storeName + " tableName " + tableName, e);
     }
+    return states;
+  }
 
+  /**
+   * An additional {@link #getAll()} method to retrieve all entries in a table.
+   *
+   */
+  public List<T> getAll() throws IOException {
+    List<T> states = Lists.newArrayList();
+
+    try (Connection connection = dataSource.getConnection();
+        PreparedStatement queryStatement = connection.prepareStatement(SELECT_ALL_JOBS_STATE_SQL)) {
+      execGetAllStatement(queryStatement, states);
+    } catch (RuntimeException re) {
+      throw re;
+    } catch (Exception e) {
+      throw new IOException(String.format("failure retrieving all states with the SQL[%s]", SELECT_ALL_JOBS_STATE_SQL), e);
+    }
     return states;
   }
 
@@ -373,6 +374,36 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
   @Override
   public List<T> getAll(String storeName) throws IOException {
     return getAll(storeName, "%", true);
+  }
+
+  /**
+   * An helper function extracted from getAll method originally that has side effects:
+   * - Executing queryStatement
+   * - Put the result into List<state> object.
+   * @throws SQLException
+   * @throws Exception
+   */
+  private void execGetAllStatement(PreparedStatement queryStatement, List<T> states) throws SQLException, Exception {
+    try (ResultSet rs = queryStatement.executeQuery()) {
+      while (rs.next()) {
+        Blob blob = rs.getBlob(1);
+        Text key = new Text();
+
+        try (InputStream is = StreamUtils.isCompressed(blob.getBytes(1, 2)) ?
+            new GZIPInputStream(blob.getBinaryStream()) : blob.getBinaryStream();
+            DataInputStream dis = new DataInputStream(is)) {
+          // keep deserializing while we have data
+          while (dis.available() > 0) {
+            T state = this.stateClass.newInstance();
+            key.readString(dis);
+            state.readFields(dis);
+            states.add(state);
+          }
+        } catch (EOFException e) {
+          // no more data. GZIPInputStream.available() doesn't return 0 until after EOF.
+        }
+      }
+    }
   }
 
   @Override

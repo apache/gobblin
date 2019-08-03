@@ -117,10 +117,4 @@ public class IdentityFlowToJobSpecCompiler extends BaseFlowToJobSpecCompiler {
     }
     return jobExecutionPlans;
   }
-
-  @Override
-  protected void populateEdgeTemplateMap() {
-    log.warn("No population of templates based on edge happen in this implementation");
-    return;
-  }
 }

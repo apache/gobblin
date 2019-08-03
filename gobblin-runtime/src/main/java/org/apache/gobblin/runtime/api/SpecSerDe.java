@@ -26,12 +26,12 @@ public interface SpecSerDe {
    * @param spec {@link Spec} to serialize.
    * @return byte array of serialized {@link Spec}.
    */
-  public byte[] serialize(Spec spec);
+  byte[] serialize(Spec spec) throws SpecSerDeException;
 
   /***
    * Deserialize byte array into a {@link Spec}.
    * @param spec byte array to deserialize.
    * @return deserialized {@link Spec}.
    */
-  public Spec deserialize(byte[] spec);
+  Spec deserialize(byte[] spec) throws SpecSerDeException;
 }

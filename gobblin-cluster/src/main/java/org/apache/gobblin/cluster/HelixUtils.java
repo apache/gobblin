@@ -17,7 +17,12 @@
 
 package org.apache.gobblin.cluster;
 
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -25,6 +30,7 @@ import org.apache.helix.HelixManager;
 import org.apache.helix.manager.zk.ZKHelixManager;
 import org.apache.helix.model.HelixConfigScope;
 import org.apache.helix.task.JobConfig;
+import org.apache.helix.task.TaskConfig;
 import org.apache.helix.task.TaskDriver;
 import org.apache.helix.task.TaskState;
 import org.apache.helix.task.TaskUtil;
@@ -35,7 +41,7 @@ import org.apache.helix.tools.ClusterSetup;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.JobException;
 import org.apache.gobblin.runtime.listeners.JobListener;
 
@@ -250,5 +256,42 @@ public class HelixUtils {
     // deleting the entire workflow, as one workflow contains only one job
     new TaskDriver(helixManager).deleteAndWaitForCompletion(workFlowName, 10000L);
     log.info("Workflow deleted.");
+  }
+  /**
+   * Returns the Helix Workflow Ids given {@link Iterable} of Gobblin job names. The method returns a
+   * {@link java.util.Map} from Gobblin job name to the corresponding Helix Workflow Id. This method iterates
+   * over all Helix workflows, and obtains the jobs of each workflow from its jobDag.
+   *
+   * NOTE: This call is expensive as it results in listing of znodes and subsequently, multiple ZK calls to get the job
+   * configuration for each HelixJob. Ideally, this method should be called infrequently e.g. when a job is deleted/cancelled.
+   *
+   * @param jobNames a list of Gobblin job names.
+   * @return a map from jobNames to their Helix Workflow Ids.
+   */
+  public static Map<String, String> getWorkflowIdsFromJobNames(HelixManager helixManager, Collection<String> jobNames) {
+    Map<String, String> jobNameToWorkflowId = new HashMap<>();
+    TaskDriver taskDriver = new TaskDriver(helixManager);
+    Map<String, WorkflowConfig> workflowConfigMap = taskDriver.getWorkflows();
+    for (String workflow : workflowConfigMap.keySet()) {
+      WorkflowConfig workflowConfig = taskDriver.getWorkflowConfig(workflow);
+      Set<String> helixJobs = workflowConfig.getJobDag().getAllNodes();
+      for (String helixJob : helixJobs) {
+        Iterator<TaskConfig> taskConfigIterator = taskDriver.getJobConfig(helixJob).getTaskConfigMap().values().iterator();
+        if (taskConfigIterator.hasNext()) {
+          TaskConfig taskConfig = taskConfigIterator.next();
+          String jobName = taskConfig.getConfigMap().get(ConfigurationKeys.JOB_NAME_KEY);
+          if (jobNames.contains(jobName)) {
+            if (!jobNameToWorkflowId.containsKey(jobName)) {
+              jobNameToWorkflowId.put(jobName, workflow);
+            } else {
+              log.warn("JobName {} previously found to have WorkflowId {}; found " + " a different WorkflowId {} for the job; "
+                  + "Skipping this entry", jobName, jobNameToWorkflowId.get(jobName), workflow);
+            }
+            break;
+          }
+        }
+      }
+    }
+    return jobNameToWorkflowId;
   }
 }

@@ -63,7 +63,7 @@ public class FlowStatusClient implements Closeable {
     Client r2Client = new TransportClientAdapter(_httpClientFactory.get().getClient(Collections.<String, String>emptyMap()));
     _restClient = Optional.of(new RestClient(r2Client, serverUri));
 
-    _flowstatusesRequestBuilders = new FlowstatusesRequestBuilders();
+    _flowstatusesRequestBuilders = createRequestBuilders();
   }
 
   /**
@@ -76,7 +76,11 @@ public class FlowStatusClient implements Closeable {
     _httpClientFactory = Optional.absent();
     _restClient = Optional.of(restClient);
 
-    _flowstatusesRequestBuilders = new FlowstatusesRequestBuilders();
+    _flowstatusesRequestBuilders = createRequestBuilders();
+  }
+
+  protected FlowstatusesRequestBuilders createRequestBuilders() {
+    return new FlowstatusesRequestBuilders();
   }
 
   /**

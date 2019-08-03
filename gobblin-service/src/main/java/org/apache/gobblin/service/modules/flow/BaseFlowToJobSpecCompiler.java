@@ -49,14 +49,13 @@ import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.JobTemplate;
 import org.apache.gobblin.runtime.api.Spec;
-import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.runtime.job_catalog.FSJobCatalog;
 import org.apache.gobblin.runtime.job_spec.ResolvedJobSpec;
 import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.apache.gobblin.service.ServiceConfigKeys;
-import org.apache.gobblin.service.ServiceMetricNames;
+import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.util.ConfigUtils;
@@ -70,20 +69,6 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
   @Getter
   @Setter
   protected final Map<URI, TopologySpec> topologySpecMap;
-
-
-  /**
-   * Mapping between each FlowEdge and a list of applicable Templates.
-   * Compiler should obtain this Map info from higher level component.
-   * since {@link TopologySpec} doesn't contain Templates.
-   * Key: EdgeIdentifier from {@link org.apache.gobblin.runtime.api.FlowEdge#getEdgeIdentity()}
-   * Value: List of template URI.
-   */
-  // TODO: Define how template info are instantiated. ETL-6217
-  @Getter
-  @Setter
-  protected final Map<String, List<URI>> edgeTemplateMap;
-
 
   protected final Config config;
   protected final Logger log;
@@ -128,7 +113,6 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
     }
 
     this.topologySpecMap = Maps.newConcurrentMap();
-    this.edgeTemplateMap = Maps.newConcurrentMap();
     this.config = config;
 
     /***
@@ -295,14 +279,4 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
     // For now only first template uri will be honored for Identity
     return flowSpec.getTemplateURIs().get().iterator().next();
   }
-
-  /**
-   * Ideally each edge has its own eligible template repository(Based on {@link SpecExecutor})
-   * to pick templates from.
-   *
-   * This function is to transform from all mixed templates ({@link #templateCatalog})
-   * into categorized {@link #edgeTemplateMap}.
-   *
-   */
-  abstract protected void populateEdgeTemplateMap();
 }

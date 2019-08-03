@@ -23,13 +23,17 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 
 import lombok.Getter;
+import lombok.Setter;
 
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
 
 
 /**
- * A general gobblin event builder which builds a {@link GobblinTrackingEvent}
+ * This class is to support semi-typed Gobblin event. Instead of all events represented as
+ * instances of {@link GobblinTrackingEvent}. Different types of events can be defined from {@link GobblinEventBuilder},
+ * where each can define its own attributes. In this way, one can inspect a Gobblin event with the corresponding event
+ * builder instead of looking into the metadata maps, whose keys could be changed without control
  *
  * Note: a {@link GobblinEventBuilder} instance is not reusable
  */
@@ -40,11 +44,12 @@ public class GobblinEventBuilder {
   @Getter
   protected final String name;
   @Getter
-  protected final String namespace;
+  @Setter
+  protected String namespace;
   protected final Map<String, String> metadata;
 
   public GobblinEventBuilder(String name) {
-    this(name, NAMESPACE);
+    this(name, null);
   }
 
   public GobblinEventBuilder(String name, String namespace) {
@@ -79,8 +84,14 @@ public class GobblinEventBuilder {
   }
   /**
    * Submit the event
+   * @deprecated Use {@link EventSubmitter#submit(MetricContext, GobblinEventBuilder)}
    */
+  @Deprecated
   public void submit(MetricContext context) {
+    if(namespace == null) {
+      namespace = NAMESPACE;
+    }
     context.submitEvent(build());
   }
+
 }

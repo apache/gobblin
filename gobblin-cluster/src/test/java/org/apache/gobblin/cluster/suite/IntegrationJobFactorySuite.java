@@ -45,7 +45,7 @@ public class IntegrationJobFactorySuite extends IntegrationBasicSuite {
         GobblinClusterConfigurationKeys.DISTRIBUTED_JOB_LAUNCHER_ENABLED, true,
         GobblinClusterConfigurationKeys.DISTRIBUTED_JOB_LAUNCHER_BUILDER, "TestDistributedExecutionLauncherBuilder"))
         .withFallback(rawJobConfig);
-    return ImmutableMap.of("HelloWorldJob", newConfig);
+    return ImmutableMap.of(JOB_NAME, newConfig);
   }
 
   @Override

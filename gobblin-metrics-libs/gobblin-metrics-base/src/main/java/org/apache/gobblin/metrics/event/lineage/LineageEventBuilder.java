@@ -118,6 +118,10 @@ public final class LineageEventBuilder extends GobblinEventBuilder {
    * to {@link LineageEventBuilder#build()}
    */
   public static LineageEventBuilder fromEvent(GobblinTrackingEvent event) {
+    if(!isLineageEvent(event)) {
+      return null;
+    }
+
     Map<String, String> metadata = event.getMetadata();
     LineageEventBuilder lineageEvent = new LineageEventBuilder(event.getName());
 

@@ -27,7 +27,7 @@ import org.apache.gobblin.metrics.GobblinTrackingEvent;
  */
 public class JobEvent {
 
-  public static final String JOB_STATE = "JobStateEvent";
+  public static final String JOB_STATE = "JobStateEvent"; // TODO: Migrate to JobStateEventBuilder
   public static final String LOCK_IN_USE = "LockInUse";
   public static final String WORK_UNITS_MISSING = "WorkUnitsMissing";
   public static final String WORK_UNITS_EMPTY = "WorkUnitsEmpty";

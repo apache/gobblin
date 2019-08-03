@@ -29,6 +29,7 @@ import java.util.concurrent.TimeoutException;
 
 import org.apache.gobblin.fsm.FiniteStateMachine;
 import org.apache.gobblin.fsm.StateWithCallbacks;
+import org.apache.gobblin.metrics.event.JobStateEventBuilder;
 import org.apache.gobblin.runtime.job.GobblinJobFiniteStateMachine;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -43,6 +44,7 @@ import org.apache.hadoop.mapreduce.Counter;
 import org.apache.hadoop.mapreduce.CounterGroup;
 import org.apache.hadoop.mapreduce.Counters;
 import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.JobStatus;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.filecache.DistributedCache;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
@@ -301,6 +303,14 @@ public class MRJobLauncher extends AbstractJobLauncher {
       // The metrics set is to be persisted to the metrics store later.
       countersToMetrics(JobMetrics.get(jobName, this.jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY)));
     } finally {
+      JobStateEventBuilder eventBuilder = new JobStateEventBuilder(JobStateEventBuilder.MRJobState.MR_JOB_STATE);
+      eventBuilder.jobTrackingURL = this.job.getTrackingURL();
+      eventBuilder.status = JobStateEventBuilder.Status.SUCCEEDED;
+      if (this.job.getJobState() != JobStatus.State.SUCCEEDED) {
+        eventBuilder.status = JobStateEventBuilder.Status.FAILED;
+      }
+      this.eventSubmitter.submit(eventBuilder);
+
       // The last iteration of output TaskState collecting will run when the collector service gets stopped
       this.taskStateCollectorService.stopAsync().awaitTerminated();
       cleanUpWorkingDirectory();

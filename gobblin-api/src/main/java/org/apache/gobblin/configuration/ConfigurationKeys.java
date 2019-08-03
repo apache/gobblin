@@ -239,6 +239,7 @@ public class ConfigurationKeys {
   public static final String JOB_KEY_KEY = "job.key";
   public static final String TASK_ID_KEY = "task.id";
   public static final String TASK_KEY_KEY = "task.key";
+  public static final String TASK_START_TIME_MILLIS_KEY = "task.startTimeMillis";
   public static final String TASK_ATTEMPT_ID_KEY = "task.AttemptId";
   public static final String JOB_CONFIG_FILE_PATH_KEY = "job.config.path";
   public static final String TASK_FAILURE_EXCEPTION_KEY = "task.failure.exception";
@@ -380,6 +381,7 @@ public class ConfigurationKeys {
   public static final String DEFAULT_WRITER_FILE_PATH_TYPE = "default";
   public static final String SIMPLE_WRITER_DELIMITER = "simple.writer.delimiter";
   public static final String SIMPLE_WRITER_PREPEND_SIZE = "simple.writer.prepend.size";
+  public static final String WRITER_ADD_TASK_TIMESTAMP = WRITER_PREFIX + ".addTaskTimestamp";
 
 
   // Internal use only - used to send metadata to publisher
@@ -595,6 +597,7 @@ public class ConfigurationKeys {
   public static final int SOURCE_CONN_DEFAULT_PORT = 22;
   public static final String SOURCE_CONN_SID = SOURCE_CONN_PREFIX + "sid";
   public static final String SOURCE_CONN_REFRESH_TOKEN = SOURCE_CONN_PREFIX + "refresh.token";
+  public static final String SOURCE_CONN_DECRYPT_CLIENT_SECRET = SOURCE_CONN_PREFIX + "decrypt.client.id.secret";
 
 
   /**
@@ -666,7 +669,7 @@ public class ConfigurationKeys {
   public static final String METRIC_TIMER_WINDOW_SIZE_IN_MINUTES = METRICS_CONFIGURATIONS_PREFIX + "timer.window.size.in.minutes";
   public static final int DEFAULT_METRIC_TIMER_WINDOW_SIZE_IN_MINUTES = 15;
   public static final String METRICS_REPORTING_CONFIGURATIONS_PREFIX = "metrics.reporting";
-
+  public static final String METRICS_REPORTING_EVENTS_CONFIGURATIONS_PREFIX = METRICS_REPORTING_CONFIGURATIONS_PREFIX + ".events";
   // File-based reporting
   public static final String METRICS_REPORTING_FILE_ENABLED_KEY =
       METRICS_CONFIGURATIONS_PREFIX + "reporting.file.enabled";
@@ -690,6 +693,7 @@ public class ConfigurationKeys {
   public static final String DEFAULT_METRICS_REPORTING_KAFKA_REPORTER_CLASS = "org.apache.gobblin.metrics.kafka.KafkaReporterFactory";
   public static final String METRICS_REPORTING_KAFKA_FORMAT = METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.format";
   public static final String METRICS_REPORTING_EVENTS_KAFKA_FORMAT = METRICS_CONFIGURATIONS_PREFIX + "reporting.events.kafka.format";
+  public static final String METRICS_REPORTING_KAFKAPUSHERKEYS = METRICS_CONFIGURATIONS_PREFIX + "reporting.kafkaPusherKeys";
   public static final String METRICS_REPORTING_EVENTS_KAFKAPUSHERKEYS = METRICS_CONFIGURATIONS_PREFIX + "reporting.events.kafkaPusherKeys";
   public static final String DEFAULT_METRICS_REPORTING_KAFKA_FORMAT = "json";
   public static final String METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY =
@@ -705,6 +709,11 @@ public class ConfigurationKeys {
   // Topic used only for event reporting.
   public static final String METRICS_KAFKA_TOPIC_EVENTS =
       METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.topic.events";
+  // Key related configurations for raw metric and event key value reporters
+  public static final int DEFAULT_REPORTER_KEY_SIZE = 100;
+
+  public static final String METRICS_REPORTING_PUSHERKEYS = METRICS_CONFIGURATIONS_PREFIX + "reporting.pusherKeys";
+  public static final String METRICS_REPORTING_EVENTS_PUSHERKEYS = METRICS_REPORTING_EVENTS_CONFIGURATIONS_PREFIX + ".pusherKeys";
 
   //Graphite-based reporting
   public static final String METRICS_REPORTING_GRAPHITE_METRICS_ENABLED_KEY =
@@ -886,6 +895,7 @@ public class ConfigurationKeys {
    * Configuration properties related to TopologySpec Store
    */
   public static final String TOPOLOGYSPEC_STORE_CLASS_KEY = "topologySpec.store.class";
+  public static final String TOPOLOGYSPEC_SERDE_CLASS_KEY = "topologySpec.serde.class";
   public static final String TOPOLOGYSPEC_STORE_DIR_KEY = "topologySpec.store.dir";
 
   /***
@@ -930,4 +940,10 @@ public class ConfigurationKeys {
   public static final String GIT_MONITOR_SSH_KNOWN_HOSTS = "knownHosts";
   public static final String GIT_MONITOR_SSH_KNOWN_HOSTS_FILE = "knownHostsFile";
   public static final String GIT_MONITOR_JSCH_LOGGER_ENABLED = "isJschLoggerEnabled";
+
+  /**
+   * Configuration related to avro schema check strategy
+   */
+  public static final String AVRO_SCHEMA_CHECK_STRATEGY = "avro.schema.check.strategy";
+  public static final String AVRO_SCHEMA_CHECK_STRATEGY_DEFAULT = "org.apache.gobblin.util.schema_check.AvroSchemaCheckDefaultStrategy";
 }

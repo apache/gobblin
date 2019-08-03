@@ -92,6 +92,13 @@ public class DatasetCleaner implements Instrumentable, Closeable {
     FileSystem targetFs =
         props.containsKey(ConfigurationKeys.WRITER_FILE_SYSTEM_URI) ? WriterUtils.getWriterFs(state) : fs;
     this.closer = Closer.create();
+    // TODO -- Remove the dependency on gobblin-core after new Gobblin Metrics does not depend on gobblin-core.
+    List<Tag<?>> tags = Lists.newArrayList();
+    tags.addAll(Tag.fromMap(AzkabanTags.getAzkabanTags()));
+    this.metricContext =
+        this.closer.register(Instrumented.getMetricContext(new State(props), DatasetCleaner.class, tags));
+    this.isMetricEnabled = GobblinMetrics.isEnabled(props);
+    this.eventSubmitter = new EventSubmitter.Builder(this.metricContext, RetentionEvents.NAMESPACE).build();
     try {
       FileSystem optionalRateControlledFs = targetFs;
       if (props.contains(DATASET_CLEAN_HDFS_CALLS_PER_SECOND_LIMIT)) {
@@ -100,7 +107,7 @@ public class DatasetCleaner implements Instrumentable, Closeable {
         ((RateControlledFileSystem) optionalRateControlledFs).startRateControl();
       }
 
-      this.datasetFinder = new MultiCleanableDatasetFinder(optionalRateControlledFs, props);
+      this.datasetFinder = new MultiCleanableDatasetFinder(optionalRateControlledFs, props, eventSubmitter);
     } catch (NumberFormatException exception) {
       throw new IOException(exception);
     } catch (ExecutionException exception) {
@@ -111,13 +118,6 @@ public class DatasetCleaner implements Instrumentable, Closeable {
         100, ExecutorsUtils.newThreadFactory(Optional.of(LOG), Optional.of("Dataset-cleaner-pool-%d")));
     this.service = ExecutorsUtils.loggingDecorator(executor);
 
-    List<Tag<?>> tags = Lists.newArrayList();
-    tags.addAll(Tag.fromMap(AzkabanTags.getAzkabanTags()));
-    // TODO -- Remove the dependency on gobblin-core after new Gobblin Metrics does not depend on gobblin-core.
-    this.metricContext =
-        this.closer.register(Instrumented.getMetricContext(new State(props), DatasetCleaner.class, tags));
-    this.isMetricEnabled = GobblinMetrics.isEnabled(props);
-    this.eventSubmitter = new EventSubmitter.Builder(this.metricContext, RetentionEvents.NAMESPACE).build();
     this.throwables = Lists.newArrayList();
   }
 

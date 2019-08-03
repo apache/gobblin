@@ -81,6 +81,7 @@ public class SharedLimiterFactory<S extends ScopeType<S>> implements SharedResou
 
     if (ConfigUtils.getBoolean(config, SKIP_GLOBAL_LIMITER_KEY, false)) {
       if (globalLimiterPolicy != SharedLimiterKey.GlobalLimiterPolicy.LOCAL_ONLY) {
+        log.info("Skip global limiter is set. Switching to local only limiter.");
         SharedLimiterKey modifiedKey = new SharedLimiterKey(configView.getKey().getResourceLimitedPath(),
             SharedLimiterKey.GlobalLimiterPolicy.LOCAL_ONLY);
         return new ResourceCoordinate<>(this, modifiedKey, (S) configView.getScope());
@@ -98,6 +99,7 @@ public class SharedLimiterFactory<S extends ScopeType<S>> implements SharedResou
 
     if (!configView.getScope().isLocal() && !globalLimiterPolicy.equals(SharedLimiterKey.GlobalLimiterPolicy.LOCAL_ONLY)) {
       try {
+        log.info("Looking for Restli Limiter factory.");
         Class<?> klazz = Class.forName("org.apache.gobblin.util.limiter.RestliLimiterFactory");
         return new ResourceCoordinate<>((SharedResourceFactory<Limiter, SharedLimiterKey, S>) klazz.newInstance(),
             configView.getKey(), (S) configView.getScope());

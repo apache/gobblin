@@ -197,11 +197,6 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
     return jobExecutionPlanDag;
   }
 
-  @Override
-  protected void populateEdgeTemplateMap() {
-    log.warn("No population of templates based on edge happen in this implementation");
-  }
-
   /**
    * Register a shutdown hook for this thread.
    */

@@ -16,6 +16,7 @@
  */
 package org.apache.gobblin.data.management.retention.profile;
 
+import com.google.common.base.Optional;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
@@ -26,7 +27,7 @@ import java.util.Properties;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.commons.lang3.reflect.ConstructorUtils;
+import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -72,6 +73,10 @@ public abstract class MultiDatasetFinder implements DatasetsFinder<Dataset> {
 
   @SuppressWarnings({ "rawtypes", "unchecked" })
   public MultiDatasetFinder(FileSystem fs, Properties jobProps) {
+    this(fs,jobProps,new EventSubmitter.Builder(Optional.absent(),"noMessage").build());
+  }
+  @SuppressWarnings({ "rawtypes", "unchecked" })
+  public MultiDatasetFinder(FileSystem fs, Properties jobProps, EventSubmitter eventSubmitter) {
     this.jobProps = jobProps;
     try {
       this.datasetFinders = Lists.newArrayList();
@@ -79,10 +84,9 @@ public abstract class MultiDatasetFinder implements DatasetsFinder<Dataset> {
       if (jobProps.containsKey(datasetFinderClassKey())) {
         try {
           log.info(String.format("Instantiating datasetfinder %s ", jobProps.getProperty(datasetFinderClassKey())));
-          this.datasetFinders.add((DatasetsFinder) ConstructorUtils.invokeConstructor(
-              Class.forName(jobProps.getProperty(datasetFinderClassKey())), fs, jobProps));
-        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
-            | ClassNotFoundException e) {
+          this.datasetFinders.add((DatasetsFinder) GobblinConstructorUtils.invokeLongestConstructor(
+              Class.forName(jobProps.getProperty(datasetFinderClassKey())), fs, jobProps, eventSubmitter));
+        } catch (ReflectiveOperationException e) {
           log.error(
               String.format("Retention ignored could not instantiate datasetfinder %s.",
                   jobProps.getProperty(datasetFinderClassKey())), e);
@@ -106,7 +110,8 @@ public abstract class MultiDatasetFinder implements DatasetsFinder<Dataset> {
           try {
             this.datasetFinders.add((DatasetsFinder) GobblinConstructorUtils.invokeFirstConstructor(
                 Class.forName(datasetClassConfig.getString(datasetFinderClassKey())), ImmutableList.of(fs, jobProps,
-                    datasetClassConfig), ImmutableList.of(fs, jobProps)));
+                    datasetClassConfig), ImmutableList.of(fs, jobProps, eventSubmitter),
+                    ImmutableList.of(fs, jobProps)));
             log.info(String.format("Instantiated datasetfinder %s for %s.",
                 datasetClassConfig.getString(datasetFinderClassKey()), importedBy));
           } catch (InstantiationException | IllegalAccessException | IllegalArgumentException

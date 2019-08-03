@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.runtime;
 
+import java.io.Flushable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -33,6 +34,7 @@ import org.testng.annotations.Test;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 
+import org.apache.gobblin.ack.Ackable;
 import org.apache.gobblin.ack.BasicAckableForTesting;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
@@ -49,6 +51,7 @@ import org.apache.gobblin.records.ControlMessageHandler;
 import org.apache.gobblin.records.FlushControlMessageHandler;
 import org.apache.gobblin.records.RecordStreamProcessor;
 import org.apache.gobblin.records.RecordStreamWithMetadata;
+import org.apache.gobblin.runtime.util.TaskMetrics;
 import org.apache.gobblin.source.extractor.Extractor;
 import org.apache.gobblin.source.workunit.Extract;
 import org.apache.gobblin.source.workunit.WorkUnit;
@@ -115,6 +118,40 @@ public class TestRecordStream {
 
     Assert.assertEquals(writer.records, Lists.newArrayList("a", "b"));
     Assert.assertEquals(writer.flush_messages, Lists.newArrayList("flush called", "flush called"));
+  }
+
+  @Test
+  public void testFlushFailure() throws Exception {
+    FlushAckable flushAckable1 = new FlushAckable();
+    FlushAckable flushAckable2 = new FlushAckable();
+
+    MyExtractor extractor = new MyExtractor(new StreamEntity[]{new RecordEnvelope<>("a"),
+        FlushControlMessage.builder().flushReason("flush1").build().addCallBack(flushAckable1), new RecordEnvelope<>("b"),
+        FlushControlMessage.builder().flushReason("flushFail1").build().addCallBack(flushAckable2)});
+    MyConverter converter = new MyConverter();
+    MyFlushDataWriter writer = new MyFlushDataWriter();
+
+    Task task = setupTask(extractor, writer, converter);
+
+    task.run();
+
+    // first flush should succeed, but second one should fail
+    Throwable error = flushAckable1.waitForAck();
+    Assert.assertNull(error);
+
+    error = flushAckable2.waitForAck();
+    Assert.assertNotNull(error);
+
+    task.commit();
+    Assert.assertEquals(task.getTaskState().getWorkingState(), WorkUnitState.WorkingState.FAILED);
+
+    Assert.assertEquals(converter.records, Lists.newArrayList("a", "b"));
+    Assert.assertEquals(converter.messages, Lists.newArrayList(
+        FlushControlMessage.builder().flushReason("flush1").build(),
+        FlushControlMessage.builder().flushReason("flushFail1").build()));
+
+    Assert.assertEquals(writer.records, Lists.newArrayList("a", "b"));
+    Assert.assertEquals(writer.flush_messages, Lists.newArrayList("flush called"));
   }
 
   /**
@@ -299,6 +336,7 @@ public class TestRecordStream {
     when(mockTaskContext.getRowLevelPolicyChecker(anyInt())).
         thenReturn(new RowLevelPolicyChecker(Lists.newArrayList(), "ss", FileSystem.getLocal(new Configuration())));
     when(mockTaskContext.getDataWriterBuilder(anyInt(), anyInt())).thenReturn(writer);
+    when(mockTaskContext.getTaskMetrics()).thenReturn(TaskMetrics.get(taskState));
 
     // Create a mock TaskPublisher
     TaskPublisher mockTaskPublisher = mock(TaskPublisher.class);
@@ -489,12 +527,69 @@ public class TestRecordStream {
     }
   }
 
+  static class MyFlushControlMessageHandler extends FlushControlMessageHandler {
+    public MyFlushControlMessageHandler(Flushable flushable) {
+      super(flushable);
+    }
+
+    @Override
+    public void handleMessage(ControlMessage message) {
+      if (message instanceof FlushControlMessage) {
+        if (((FlushControlMessage) message).getFlushReason().contains("Fail")) {
+          throw new RuntimeException("Flush failed: " + ((FlushControlMessage) message).getFlushReason());
+        }
+
+        try {
+          flushable.flush();
+        } catch (IOException e) {
+          throw new RuntimeException("Could not flush when handling FlushControlMessage", e);
+        }
+      }
+    }
+  }
+
+  /**
+   * {@link Ackable} for waiting for the flush control message to be processed
+   */
+  private static class FlushAckable implements Ackable {
+    private Throwable error;
+    private final CountDownLatch processed;
+
+    public FlushAckable() {
+      this.processed = new CountDownLatch(1);
+    }
+
+    @Override
+    public void ack() {
+      this.processed.countDown();
+    }
+
+    @Override
+    public void nack(Throwable error) {
+      this.error = error;
+      this.processed.countDown();
+    }
+
+    /**
+     * Wait for ack
+     * @return any error encountered
+     */
+    public Throwable waitForAck() {
+      try {
+        this.processed.await();
+        return this.error;
+      } catch (InterruptedException e) {
+        throw new RuntimeException("interrupted while waiting for ack");
+      }
+    }
+  }
+
   static class MyFlushDataWriter extends MyDataWriter {
     private List<String> flush_messages = new ArrayList<>();
 
     @Override
     public ControlMessageHandler getMessageHandler() {
-      return new FlushControlMessageHandler(this);
+      return new MyFlushControlMessageHandler(this);
     }
 
     @Override

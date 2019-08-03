@@ -1,0 +1,199 @@
+{
+  "type" : "record",
+  "name" : "OfflineComplianceRequestEvent",
+  "namespace" : "com.linkedin.events.compliance",
+  "fields" : [ {
+    "name" : "header",
+    "type" : {
+      "type" : "record",
+      "name" : "EventHeader",
+      "namespace" : "com.linkedin.events",
+      "fields" : [ {
+        "name" : "memberId",
+        "type" : "int"
+      }, {
+        "name" : "viewerUrn",
+        "type" : [ "null", "string" ],
+        "default" : null
+      }, {
+        "name" : "applicationViewerUrn",
+        "type" : [ "null", "string" ],
+        "default" : null
+      }, {
+        "name" : "csUserUrn",
+        "type" : [ "null", "string" ],
+        "default" : null
+      }, {
+        "name" : "time",
+        "type" : "long"
+      }, {
+        "name" : "server",
+        "type" : "string"
+      }, {
+        "name" : "service",
+        "type" : "string"
+      }, {
+        "name" : "environment",
+        "type" : [ "string", "null" ],
+        "default" : ""
+      }, {
+        "name" : "guid",
+        "type" : {
+          "type" : "fixed",
+          "name" : "Guid",
+          "size" : 16
+        }
+      }, {
+        "name" : "treeId",
+        "type" : [ "null", {
+          "type" : "fixed",
+          "name" : "fixed_16",
+          "size" : 16
+        } ],
+        "default" : null
+      }, {
+        "name" : "requestId",
+        "type" : [ "null", "int" ],
+        "default" : null
+      }, {
+        "name" : "impersonatorId",
+        "type" : [ "null", "string" ],
+        "default" : null
+      }, {
+        "name" : "version",
+        "type" : [ "null", "string" ],
+        "default" : null
+      }, {
+        "name" : "instance",
+        "type" : [ "null", "string" ],
+        "default" : null
+      }, {
+        "name" : "appName",
+        "type" : [ "null", "string" ],
+        "default" : null
+      }, {
+        "name" : "testId",
+        "type" : [ "null", "string" ],
+        "default" : null
+      }, {
+        "name" : "testSegmentId",
+        "type" : [ "null", "string" ],
+        "default" : null
+      }, {
+        "name" : "auditHeader",
+        "type" : [ "null", {
+          "type" : "record",
+          "name" : "KafkaAuditHeader",
+          "fields" : [ {
+            "name" : "time",
+            "type" : "long"
+          }, {
+            "name" : "server",
+            "type" : "string"
+          }, {
+            "name" : "instance",
+            "type" : [ "null", "string" ]
+          }, {
+            "name" : "appName",
+            "type" : "string"
+          }, {
+            "name" : "messageId",
+            "type" : {
+              "type" : "fixed",
+              "name" : "UUID",
+              "size" : 16
+            }
+          }, {
+            "name" : "auditVersion",
+            "type" : [ "null", "int" ],
+            "default" : null
+          }, {
+            "name" : "fabricUrn",
+            "type" : [ "null", "string" ],
+            "default" : null
+          } ]
+        } ],
+        "default" : null
+      }, {
+        "name" : "pageInstance",
+        "type" : [ "null", {
+          "type" : "record",
+          "name" : "PageInstance",
+          "namespace" : "com.linkedin.events.common",
+          "fields" : [ {
+            "name" : "pageUrn",
+            "type" : "string"
+          }, {
+            "name" : "trackingId",
+            "type" : {
+              "type" : "fixed",
+              "name" : "TrackingId",
+              "size" : 16
+            }
+          } ]
+        } ],
+        "default" : null
+      }, {
+        "name" : "clientApplicationInstance",
+        "type" : [ "null", {
+          "type" : "record",
+          "name" : "ApplicationInstance",
+          "namespace" : "com.linkedin.events.common",
+          "fields" : [ {
+            "name" : "applicationUrn",
+            "type" : "string"
+          }, {
+            "name" : "version",
+            "type" : "string"
+          }, {
+            "name" : "trackingId",
+            "type" : "TrackingId"
+          } ]
+        } ],
+        "default" : null
+      }, {
+        "name" : "originSource",
+        "type" : [ "null", {
+          "type" : "enum",
+          "name" : "OriginSource",
+          "symbols" : [ "QPROD" ]
+        } ],
+        "default" : null
+      } ]
+    }
+  }, {
+    "name" : "requestType",
+    "type" : {
+      "type" : "enum",
+      "name" : "ComplianceRequestType",
+      "symbols" : [ "TIME_LIMITED_FILTER", "GLOBAL_FILTER", "GLOBAL_UNFILTER", "RETIRED_URN_FILTER" ]
+    }
+  }, {
+    "name" : "conditionValueUrn",
+    "type" : "string"
+  }, {
+    "name" : "endTime",
+    "type" : [ "null", "long" ]
+  }, {
+    "name" : "datasetRestrictionUrns",
+    "type" : [ "null", {
+      "type" : "array",
+      "items" : "string"
+    } ],
+    "default" : null
+  }, {
+    "name" : "useCaseRestrictionUrns",
+    "type" : [ "null", {
+      "type" : "array",
+      "items" : "string"
+    } ],
+    "default" : null
+  }, {
+    "name" : "columnRestrictionUrns",
+    "type" : [ "null", {
+      "type" : "array",
+      "items" : "string"
+    } ],
+    "default" : null
+  } ]
+}

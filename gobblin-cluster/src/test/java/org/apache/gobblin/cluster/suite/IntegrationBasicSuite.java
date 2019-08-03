@@ -34,14 +34,13 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Scanner;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.curator.test.TestingServer;
+import org.testng.Assert;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.io.Resources;
@@ -51,7 +50,6 @@ import com.typesafe.config.ConfigParseOptions;
 import com.typesafe.config.ConfigRenderOptions;
 import com.typesafe.config.ConfigSyntax;
 
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.cluster.ClusterIntegrationTest;
@@ -60,6 +58,8 @@ import org.apache.gobblin.cluster.GobblinClusterManager;
 import org.apache.gobblin.cluster.GobblinTaskRunner;
 import org.apache.gobblin.cluster.HelixUtils;
 import org.apache.gobblin.cluster.TestHelper;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.GobblinMetricsRegistry;
 import org.apache.gobblin.testing.AssertWithBackoff;
 
 /**
@@ -71,6 +71,7 @@ import org.apache.gobblin.testing.AssertWithBackoff;
  */
 @Slf4j
 public class IntegrationBasicSuite {
+  public static final String JOB_NAME = "HelloWorldTestJob";
   public static final String JOB_CONF_NAME = "HelloWorldJob.conf";
   public static final String WORKER_INSTANCE_0 = "WorkerInstance_0";
   public static final String TEST_INSTANCE_NAME_KEY = "worker.instance.name";
@@ -162,7 +163,7 @@ public class IntegrationBasicSuite {
   }
 
   protected Map<String, Config> overrideJobConfigs(Config rawJobConfig) {
-    return ImmutableMap.of("HelloWorldJob", rawJobConfig);
+    return ImmutableMap.of(JOB_NAME, rawJobConfig);
   }
 
   private void writeJobConf(String jobName, Config jobConfig) throws IOException {
@@ -300,6 +301,11 @@ public class IntegrationBasicSuite {
         workerThread.start();
       }
     }
+  }
+
+  public void verifyMetricsCleaned() {
+    Collection<GobblinMetrics> all = GobblinMetricsRegistry.getInstance().getMetricsByPattern(".*" + JOB_NAME + ".*");
+    Assert.assertEquals(all.size(), 0);
   }
 
   public void shutdownCluster() throws InterruptedException, IOException {

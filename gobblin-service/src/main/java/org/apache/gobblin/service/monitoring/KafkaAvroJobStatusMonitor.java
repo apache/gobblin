@@ -126,6 +126,9 @@ public class KafkaAvroJobStatusMonitor extends KafkaJobStatusMonitor {
       case TimingEvent.FlowTimings.FLOW_COMPILE_FAILED:
         properties.put(JobStatusRetriever.EVENT_NAME_FIELD, ExecutionStatus.FAILED.name());
         break;
+      case TimingEvent.LauncherTimings.JOB_PENDING:
+        properties.put(JobStatusRetriever.EVENT_NAME_FIELD, ExecutionStatus.PENDING.name());
+        break;
       case TimingEvent.LauncherTimings.JOB_ORCHESTRATED:
         properties.put(JobStatusRetriever.EVENT_NAME_FIELD, ExecutionStatus.ORCHESTRATED.name());
         break;
@@ -139,6 +142,10 @@ public class KafkaAvroJobStatusMonitor extends KafkaJobStatusMonitor {
         break;
       case TimingEvent.LauncherTimings.JOB_FAILED:
         properties.put(JobStatusRetriever.EVENT_NAME_FIELD, ExecutionStatus.FAILED.name());
+        properties.put(TimingEvent.JOB_END_TIME, properties.getProperty(TimingEvent.METADATA_END_TIME));
+        break;
+      case TimingEvent.LauncherTimings.JOB_CANCEL:
+        properties.put(JobStatusRetriever.EVENT_NAME_FIELD, ExecutionStatus.CANCELLED.name());
         properties.put(TimingEvent.JOB_END_TIME, properties.getProperty(TimingEvent.METADATA_END_TIME));
         break;
       default:

@@ -21,11 +21,13 @@ import com.typesafe.config.Config;
 
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
+
 public class PusherUtils {
   public static final String METRICS_REPORTING_KAFKA_CONFIG_PREFIX = "metrics.reporting.kafka.config";
   public static final String KAFKA_PUSHER_CLASS_NAME_KEY = "metrics.reporting.kafkaPusherClass";
   public static final String KAFKA_PUSHER_CLASS_NAME_KEY_FOR_EVENTS = "metrics.reporting.events.kafkaPusherClass";
   public static final String DEFAULT_KAFKA_PUSHER_CLASS_NAME = "org.apache.gobblin.metrics.kafka.KafkaPusher";
+  public static final String DEFAULT_KEY_VALUE_PUSHER_CLASS_NAME = "org.apache.gobblin.metrics.kafka.LoggingPusher";
 
   /**
    * Create a {@link Pusher}
@@ -39,8 +41,7 @@ public class PusherUtils {
     try {
       Class<?> pusherClass = Class.forName(pusherClassName);
 
-     return (Pusher) GobblinConstructorUtils.invokeLongestConstructor(pusherClass,
-          brokers, topic, config);
+      return (Pusher) GobblinConstructorUtils.invokeLongestConstructor(pusherClass, brokers, topic, config);
     } catch (ReflectiveOperationException e) {
       throw new RuntimeException("Could not instantiate kafka pusher", e);
     }

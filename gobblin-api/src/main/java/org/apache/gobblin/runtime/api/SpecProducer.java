@@ -23,6 +23,7 @@ import java.util.Properties;
 import java.util.concurrent.Future;
 
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.util.CompletedFuture;
 
 
 /**
@@ -48,4 +49,12 @@ public interface SpecProducer<V> {
 
   /** List all {@link Spec} being executed on {@link SpecExecutor}. */
   Future<? extends List<V>> listSpecs();
+
+  default String serializeAddSpecResponse(Future<?> response) {
+    return "";
+  }
+
+  default Future<?> deserializeAddSpecResponse(String serializedResponse) {
+    return new CompletedFuture(serializedResponse, null);
+  }
 }

@@ -110,6 +110,20 @@ public class LocalJobLauncherTest {
     }
   }
 
+  @Test
+  public void testLaunchJobWithTaskTimestamps() throws Exception {
+    Properties jobProps = loadJobProps();
+    jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY,
+        jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY) + "-testLaunchJob");
+    jobProps.setProperty(ConfigurationKeys.WRITER_ADD_TASK_TIMESTAMP, "true");
+
+    try {
+      this.jobLauncherTestHelper.runTest(jobProps);
+    } finally {
+      this.jobLauncherTestHelper.deleteStateStore(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
+    }
+  }
+
   @Test(groups = { "ignore" })
   public void testCancelJob() throws Exception {
     this.jobLauncherTestHelper.runTestWithCancellation(loadJobProps());

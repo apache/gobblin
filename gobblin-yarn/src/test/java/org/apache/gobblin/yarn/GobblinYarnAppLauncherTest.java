@@ -20,6 +20,7 @@ package org.apache.gobblin.yarn;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.eventbus.EventBus;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.Service;
 import com.typesafe.config.Config;
@@ -43,6 +44,7 @@ import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.test.TestingServer;
 import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
 import org.apache.gobblin.cluster.GobblinHelixConstants;
+import org.apache.gobblin.cluster.GobblinHelixMultiManager;
 import org.apache.gobblin.cluster.HelixMessageTestBase;
 import org.apache.gobblin.cluster.HelixUtils;
 import org.apache.gobblin.cluster.TestHelper;
@@ -52,6 +54,7 @@ import org.apache.gobblin.configuration.DynamicConfigGenerator;
 import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
 import org.apache.gobblin.testing.AssertWithBackoff;
 
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ContainerId;
@@ -63,12 +66,15 @@ import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
 import org.apache.helix.model.Message;
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
+
+import static org.mockito.Mockito.times;
 
 
 /**
@@ -179,6 +185,14 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
         InstanceType.CONTROLLER, zkConnectionString);
 
     this.gobblinYarnAppLauncher = new GobblinYarnAppLauncher(this.config, clusterConf);
+  }
+
+  @Test
+  public void testBuildApplicationMasterCommand() {
+    String command = this.gobblinYarnAppLauncher.buildApplicationMasterCommand(64);
+
+    // 41 is from 64 * 0.8 - 10
+    Assert.assertTrue(command.contains("-Xmx41"));
   }
 
   @Test
@@ -333,6 +347,25 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
   }
 
   /**
+   * Test that the job cleanup call is called
+   */
+  @Test
+  public void testJobCleanup() throws Exception {
+    ContainerId containerId = ContainerId.newInstance(
+        ApplicationAttemptId.newInstance(ApplicationId.newInstance(0, 0), 0), 0);
+    TestApplicationMaster
+        appMaster = Mockito.spy(new TestApplicationMaster("testApp", containerId, config,
+        new YarnConfiguration()));
+
+    GobblinHelixMultiManager mockMultiManager = Mockito.mock(GobblinHelixMultiManager.class);
+
+    appMaster.setMultiManager(mockMultiManager);
+    appMaster.start();
+
+    Mockito.verify(mockMultiManager, times(1)).cleanUpJobs();
+  }
+
+  /**
    * An application master for accessing protected fields in {@link GobblinApplicationMaster}
    * for testing.
    */
@@ -343,12 +376,26 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
       super(applicationName, containerId, config, yarnConfiguration);
     }
 
+    @Override
+    protected YarnService buildYarnService(Config config, String applicationName, String applicationId,
+        YarnConfiguration yarnConfiguration, FileSystem fs) throws Exception {
+
+      YarnService testYarnService = new TestYarnService(config, applicationName, applicationId, yarnConfiguration, fs,
+          new EventBus("GobblinYarnAppLauncherTest"));
+
+      return testYarnService;
+    }
+
     public Config getConfig() {
       return this.config;
     }
 
     public ServiceBasedAppLauncher getAppLauncher() {
       return this.applicationLauncher;
+    }
+
+    public void setMultiManager(GobblinHelixMultiManager multiManager) {
+      this.multiManager = multiManager;
     }
   }
 
@@ -363,6 +410,22 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
     @Override
     public Config generateDynamicConfig(Config config) {
       return ConfigFactory.parseMap(ImmutableMap.of("dynamicKey1", "dynamicValue1"));
+    }
+  }
+
+  /**
+   * Test class for mocking out YarnService. Need to use this instead of Mockito because of final methods.
+   */
+  private static class TestYarnService extends YarnService {
+    public TestYarnService(Config config, String applicationName, String applicationId, YarnConfiguration yarnConfiguration,
+        FileSystem fs, EventBus eventBus) throws Exception {
+      super(config, applicationName, applicationId, yarnConfiguration, fs, eventBus);
+    }
+
+    @Override
+    protected void startUp()
+        throws Exception {
+      // do nothing
     }
   }
 }

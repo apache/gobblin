@@ -43,6 +43,7 @@ import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.metastore.util.StateStoreCleanerRunnable;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.kafka.HighLevelConsumer;
+import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -54,7 +55,6 @@ import org.apache.gobblin.util.ConfigUtils;
 @Slf4j
 public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], byte[]> {
   static final String JOB_STATUS_MONITOR_PREFIX = "jobStatusMonitor";
-  public static final String JOB_STATUS_MONITOR_ENABLED_KEY =  JOB_STATUS_MONITOR_PREFIX + ".enabled";
   //We use table suffix that is different from the Gobblin job state store suffix of jst to avoid confusion.
   //gst refers to the state store suffix for GaaS-orchestrated Gobblin jobs.
   public static final String STATE_STORE_TABLE_SUFFIX = "gst";
@@ -148,7 +148,19 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
 
     jobStatus = mergedProperties(storeName, tableName, jobStatus, stateStore);
 
+    modifyStateIfRetryRequired(jobStatus);
+
     stateStore.put(storeName, tableName, jobStatus);
+  }
+
+  private static void modifyStateIfRetryRequired(org.apache.gobblin.configuration.State state) {
+    int maxAttempts = state.getPropAsInt(TimingEvent.FlowEventConstants.MAX_ATTEMPTS_FIELD, 1);
+    int currentAttempts = state.getPropAsInt(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD, 1);
+    if (state.getProp(JobStatusRetriever.EVENT_NAME_FIELD).equals(ExecutionStatus.FAILED.name()) && currentAttempts < maxAttempts) {
+      state.setProp(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD, true);
+      state.setProp(JobStatusRetriever.EVENT_NAME_FIELD, ExecutionStatus.RUNNING.name());
+      state.removeProp(TimingEvent.JOB_END_TIME);
+    }
   }
 
   private static org.apache.gobblin.configuration.State mergedProperties(
