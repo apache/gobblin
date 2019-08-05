@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Stream;
 
 import org.apache.commons.lang.StringUtils;
@@ -102,7 +103,7 @@ public class ZipFileConfigStore implements ConfigStore {
     Preconditions.checkArgument(version.equals(getCurrentVersion()));
 
     List<ConfigKeyPath> children = new ArrayList<>();
-    Path datasetDir = getDatasetDirForKey(configKey);
+    Path datasetDir = getDatasetDirForKey(configKey, version);
 
     try {
 
@@ -142,7 +143,7 @@ public class ZipFileConfigStore implements ConfigStore {
     Preconditions.checkArgument(version.equals(getCurrentVersion()));
 
     List<ConfigKeyPath> configKeyPaths = new ArrayList<>();
-    Path datasetDir = getDatasetDirForKey(configKey);
+    Path datasetDir = getDatasetDirForKey(configKey, version);
     Path includesFile = this.fs.getPath(datasetDir.toString(), SimpleHadoopFilesystemConfigStore.INCLUDES_CONF_FILE_NAME);
 
     try {
@@ -171,7 +172,7 @@ public class ZipFileConfigStore implements ConfigStore {
     Preconditions.checkNotNull(configKey, "configKey cannot be null!");
     Preconditions.checkArgument(version.equals(getCurrentVersion()));
 
-    Path datasetDir = getDatasetDirForKey(configKey);
+    Path datasetDir = getDatasetDirForKey(configKey, version);
     Path mainConfFile = this.fs.getPath(datasetDir.toString(), SimpleHadoopFilesystemConfigStore.MAIN_CONF_FILE_NAME);
 
     try {
@@ -193,7 +194,7 @@ public class ZipFileConfigStore implements ConfigStore {
   /**
    * Get path object using zipped file system and relative path
    */
-  private Path getDatasetDirForKey(ConfigKeyPath configKey) throws VersionDoesNotExistException {
-    return this.fs.getPath(this.storePrefix, configKey.getAbsolutePathString());
+  private Path getDatasetDirForKey(ConfigKeyPath configKey, String version) throws VersionDoesNotExistException {
+    return this.fs.getPath(this.storePrefix, version, configKey.getAbsolutePathString());
   }
 }

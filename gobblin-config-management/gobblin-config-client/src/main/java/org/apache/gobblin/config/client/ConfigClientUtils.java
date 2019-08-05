@@ -25,17 +25,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import org.apache.hadoop.fs.Path;
-
-import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
-import com.typesafe.config.Config;
-
 import org.apache.gobblin.config.common.impl.SingleLinkedListConfigKeyPath;
 import org.apache.gobblin.config.store.api.ConfigKeyPath;
 import org.apache.gobblin.config.store.api.ConfigStore;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.hadoop.fs.Path;
+
+import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
+import com.typesafe.config.Config;
 
 
 /**
@@ -69,17 +68,16 @@ public class ConfigClientUtils {
    * @return              : return the URI of the same format with the input configKeyURI
    *
    * for example, configKeyPath is /tags/retention,
-   * with returnURIWithAuthority as true, return "etl-hdfs:///tags/retention
-   * with returnURIWithAuthority as false , then return
+   * with returnURIWithAuthority as false, return "etl-hdfs:///tags/retention
+   * with returnURIWithAuthority as true , then return
    * etl-hdfs://eat1-nertznn01.grid.linkedin.com:9000/user/mitu/HdfsBasedConfigTest/tags/retention
    */
-  public static URI buildUriInClientFormat(ConfigKeyPath configKeyPath, ConfigStore cs,
-      boolean returnURIWithAuthority) {
-
+  public static URI buildUriInClientFormat(ConfigKeyPath configKeyPath, ConfigStore cs, boolean returnURIWithAuthority) {
     try {
       if (!returnURIWithAuthority) {
         return new URI(cs.getStoreURI().getScheme(), null, configKeyPath.getAbsolutePathString(), null, null);
       }
+
       URI storeRoot = cs.getStoreURI();
       // if configKeyPath is root, the configKeyPath.getAbsolutePathString().substring(1) will return "" and
       // will cause the Path creation failure if not handled here
