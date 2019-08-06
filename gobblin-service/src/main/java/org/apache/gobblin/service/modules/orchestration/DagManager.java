@@ -596,6 +596,8 @@ public class DagManager extends AbstractIdleService {
         // blocks (by calling Future#get()) until the submission is completed.
         Future addSpecFuture = producer.addSpec(jobSpec);
         dagNode.getValue().setJobFuture(Optional.of(addSpecFuture));
+        //Persist the dag
+        this.dagStateStore.writeCheckpoint(this.dags.get(DagManagerUtils.generateDagId(dagNode)));
 
         if (this.metricContext != null) {
           getRunningJobsCounter(dagNode).inc();
