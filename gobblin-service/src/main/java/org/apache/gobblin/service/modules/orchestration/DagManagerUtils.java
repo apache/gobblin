@@ -21,6 +21,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
@@ -28,6 +29,7 @@ import com.typesafe.config.Config;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.FlowId;
@@ -48,8 +50,15 @@ public class DagManagerUtils {
   }
 
   static long getFlowExecId(Dag<JobExecutionPlan> dag) {
-    Config jobConfig = dag.getStartNodes().get(0).getValue().getJobSpec().getConfig();
-    return jobConfig.getLong(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
+    return getFlowExecId(dag.getStartNodes().get(0));
+  }
+
+  static long getFlowExecId(DagNode<JobExecutionPlan> dagNode) {
+    return getFlowExecId(dagNode.getValue().getJobSpec());
+  }
+
+  static long getFlowExecId(JobSpec jobSpec) {
+    return jobSpec.getConfig().getLong(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
   }
 
   /**
@@ -197,5 +206,17 @@ public class DagManagerUtils {
    */
   static void incrementJobAttempt(DagNode<JobExecutionPlan> dagNode) {
     dagNode.getValue().setCurrentAttempts(dagNode.getValue().getCurrentAttempts() + 1);
+  }
+
+  static long getFlowStartTime(DagNode<JobExecutionPlan> dagNode) {
+    return getFlowExecId(dagNode);
+  }
+
+  static long getFlowSla(DagNode<JobExecutionPlan> dagNode) {
+    Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
+
+    return jobConfig.hasPath(ConfigurationKeys.FLOW_SLA)
+        ? TimeUnit.MINUTES.toMillis(jobConfig.getLong(ConfigurationKeys.FLOW_SLA))
+        : -1L;
   }
 }

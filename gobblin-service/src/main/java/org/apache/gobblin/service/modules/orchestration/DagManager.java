@@ -64,6 +64,7 @@ import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.FlowConfigResourceLocalHandler;
+import org.apache.gobblin.service.modules.flow.FlowUtils;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.Dag.DagNode;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
@@ -474,7 +475,7 @@ public class DagManager extends AbstractIdleService {
      * Proceed the execution of each dag node based on job status.
      */
     private void pollAndAdvanceDag()
-        throws IOException {
+        throws IOException, ExecutionException, InterruptedException {
       this.failedDagIdsFinishRunning.clear();
 
       Map<String, Set<DagNode<JobExecutionPlan>>> nextSubmitted = Maps.newHashMap();
@@ -486,6 +487,14 @@ public class DagManager extends AbstractIdleService {
         if (jobStatus == null) {
           continue;
         }
+
+        long flowStartTime = DagManagerUtils.getFlowStartTime(node);
+        long currentTime = System.currentTimeMillis();
+        long flowSla = DagManagerUtils.getFlowSla(node);
+        if (flowSla != -1L && flowStartTime + flowSla > currentTime) {
+          cancelDag(DagManagerUtils.generateDagId(node));
+        }
+
         JobExecutionPlan jobExecutionPlan = DagManagerUtils.getJobExecutionPlan(node);
 
         ExecutionStatus status = valueOf(jobStatus.getEventName());

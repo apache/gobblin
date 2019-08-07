@@ -890,6 +890,7 @@ public class ConfigurationKeys {
    * Configuration properties related to Flows
    */
   public static final String FLOW_RUN_IMMEDIATELY = "flow.runImmediately";
+  public static final String FLOW_SLA = "flow.sla";
 
   /***
    * Configuration properties related to TopologySpec Store
