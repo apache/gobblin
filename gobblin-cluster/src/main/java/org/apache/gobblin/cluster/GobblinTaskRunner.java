@@ -40,6 +40,7 @@ import org.apache.commons.cli.ParseException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.helix.HelixDataAccessor;
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
@@ -143,8 +144,9 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
 
   protected final FileSystem fs;
   private final List<Service> services = Lists.newArrayList();
-  private final String applicationName;
-  private final String applicationId;
+  protected final String applicationName;
+  protected final String applicationId;
+  protected final Optional<ContainerId> containerId;
   private final Path appWorkPath;
   private boolean isTaskDriver;
   private boolean dedicatedTaskDriverCluster;
@@ -157,11 +159,22 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
       String taskRunnerId,
       Config config,
       Optional<Path> appWorkDirOptional) throws Exception {
+    this(applicationName, helixInstanceName, applicationId, taskRunnerId, Optional.absent(), config, appWorkDirOptional);
+  }
+
+  public GobblinTaskRunner(String applicationName,
+      String helixInstanceName,
+      String applicationId,
+      String taskRunnerId,
+      Optional<ContainerId> containerId,
+      Config config,
+      Optional<Path> appWorkDirOptional) throws Exception {
     this.isTaskDriver = ConfigUtils.getBoolean(config, GobblinClusterConfigurationKeys.TASK_DRIVER_ENABLED,false);
     this.helixInstanceName = helixInstanceName;
     this.taskRunnerId = taskRunnerId;
     this.applicationName = applicationName;
     this.applicationId = applicationId;
+    this.containerId = containerId;
     this.dedicatedTaskDriverCluster = ConfigUtils.getBoolean(config,
         GobblinClusterConfigurationKeys.DEDICATED_TASK_DRIVER_CLUSTER_ENABLED, false);
     Configuration conf = HadoopUtils.newConfiguration();

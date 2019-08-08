@@ -209,6 +209,8 @@ public class GobblinYarnAppLauncher {
   private final int jvmMemoryOverheadMbs;
   private final double jvmMemoryXmxRatio;
 
+  private final String containerTimezone;
+
   public GobblinYarnAppLauncher(Config config, YarnConfiguration yarnConfiguration) throws IOException {
     this.config = config;
 
@@ -267,6 +269,8 @@ public class GobblinYarnAppLauncher {
 
     this.appViewAcl = ConfigUtils.getString(this.config, GobblinYarnConfigurationKeys.APP_VIEW_ACL,
         GobblinYarnConfigurationKeys.DEFAULT_APP_VIEW_ACL);
+    this.containerTimezone = ConfigUtils.getString(this.config, GobblinYarnConfigurationKeys.GOBBLIN_YARN_CONTAINER_TIMEZONE,
+        GobblinYarnConfigurationKeys.DEFAULT_GOBBLIN_YARN_CONTAINER_TIMEZONE);
   }
 
   /**
@@ -525,7 +529,6 @@ public class GobblinYarnAppLauncher {
     appSubmissionContext.setQueue(this.appQueueName);
     appSubmissionContext.setPriority(Priority.newInstance(0));
     appSubmissionContext.setAMContainerSpec(amContainerLaunchContext);
-
     // Also setup container local resources by copying local jars and files the container need to HDFS
     addContainerLocalResources(applicationId);
 
@@ -675,6 +678,7 @@ public class GobblinYarnAppLauncher {
     return new StringBuilder()
         .append(ApplicationConstants.Environment.JAVA_HOME.$()).append("/bin/java")
         .append(" -Xmx").append((int) (memoryMbs * this.jvmMemoryXmxRatio) - this.jvmMemoryOverheadMbs).append("M")
+        .append(" -D").append(GobblinYarnConfigurationKeys.JVM_USER_TIMEZONE_CONFIG).append("=").append(this.containerTimezone)
         .append(" -D").append(GobblinYarnConfigurationKeys.GOBBLIN_YARN_CONTAINER_LOG_DIR_NAME).append("=").append(ApplicationConstants.LOG_DIR_EXPANSION_VAR)
         .append(" -D").append(GobblinYarnConfigurationKeys.GOBBLIN_YARN_CONTAINER_LOG_FILE_NAME).append("=").append(appMasterClassName).append(".").append(ApplicationConstants.STDOUT)
         .append(" ").append(JvmUtils.formatJvmArguments(this.appMasterJvmArgs))
@@ -735,12 +739,6 @@ public class GobblinYarnAppLauncher {
             .readFrom(getHdfsLogDir(appWorkDir))
             .writeTo(sinkLogDir)
             .acceptsLogFileExtensions(ImmutableSet.of(ApplicationConstants.STDOUT, ApplicationConstants.STDERR));
-    if (config.hasPath(GobblinYarnConfigurationKeys.LOG_COPIER_MAX_FILE_SIZE)) {
-      builder.useMaxBytesPerLogFile(config.getBytes(GobblinYarnConfigurationKeys.LOG_COPIER_MAX_FILE_SIZE));
-    }
-    if (config.hasPath(GobblinYarnConfigurationKeys.LOG_COPIER_SCHEDULER)) {
-      builder.useScheduler(config.getString(GobblinYarnConfigurationKeys.LOG_COPIER_SCHEDULER));
-    }
     return builder.build();
   }
 

@@ -25,31 +25,26 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-
 import org.apache.hadoop.fs.Path;
-
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.util.ConverterUtils;
-
 import org.apache.helix.NotificationContext;
 import org.apache.helix.messaging.handling.HelixTaskResult;
 import org.apache.helix.messaging.handling.MessageHandler;
 import org.apache.helix.messaging.handling.MessageHandlerFactory;
 import org.apache.helix.model.Message;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 import com.google.common.util.concurrent.Service;
-
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
 import org.apache.gobblin.cluster.GobblinClusterUtils;
 import org.apache.gobblin.cluster.GobblinTaskRunner;
-import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
 import org.apache.gobblin.util.JvmUtils;
 import org.apache.gobblin.util.logs.Log4jConfigurationHelper;
 import org.apache.gobblin.yarn.event.DelegationTokenUpdatedEvent;
@@ -61,7 +56,7 @@ public class GobblinYarnTaskRunner extends GobblinTaskRunner {
 
   public GobblinYarnTaskRunner(String applicationName, String helixInstanceName, ContainerId containerId, Config config,
       Optional<Path> appWorkDirOptional) throws Exception {
-    super(applicationName, helixInstanceName, getApplicationId(containerId), getTaskRunnerId(containerId),
+    super(applicationName, helixInstanceName, getApplicationId(containerId), getTaskRunnerId(containerId), Optional.of(containerId),
         GobblinClusterUtils.addDynamicConfig(config), appWorkDirOptional);
   }
 
@@ -71,6 +66,24 @@ public class GobblinYarnTaskRunner extends GobblinTaskRunner {
     if (this.config.hasPath(GobblinYarnConfigurationKeys.KEYTAB_FILE_PATH)) {
       LOGGER.info("Adding YarnContainerSecurityManager since login is keytab based");
       services.add(new YarnContainerSecurityManager(this.config, this.fs, this.eventBus));
+    }
+
+    if (config.hasPath(GobblinYarnConfigurationKeys.LOGS_SINK_ROOT_DIR_KEY)) {
+      GobblinYarnLogSource gobblinYarnLogSource = new GobblinYarnLogSource();
+      String containerLogDir = config.getString(GobblinYarnConfigurationKeys.LOGS_SINK_ROOT_DIR_KEY);
+
+      if (gobblinYarnLogSource.isLogSourcePresent()) {
+        try {
+          if (containerId.isPresent()) {
+            services.add(gobblinYarnLogSource.buildLogCopier(this.config, containerId.get(), this.fs,
+                new Path(containerLogDir, GobblinClusterUtils.getAppWorkDirPath(this.applicationName, this.applicationId))));
+          } else {
+            LOGGER.warn("Cannot add LogCopier service to the service manager as containerId is missing");
+          }
+        } catch (Exception e) {
+          LOGGER.warn("Cannot add LogCopier service to the service manager due to {}", e);
+        }
+      }
     }
     return services;
   }
