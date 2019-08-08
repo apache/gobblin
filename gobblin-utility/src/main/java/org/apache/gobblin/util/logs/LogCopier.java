@@ -326,9 +326,9 @@ public class LogCopier extends AbstractScheduledService {
     }
 
     /**
-     * Set the {@link TimeUnit} used for the source log file monitor interval, initial delay, copy interval.
+     * Set the {@link TimeUnit} used for the source log file monitor interval.
      *
-     * @param timeUnit the {@link TimeUnit} used for the initial delay and copy interval
+     * @param timeUnit the {@link TimeUnit} used for the log file monitor interval
      * @return this {@link LogCopier.Builder} instance
      */
     public Builder useTimeUnit(TimeUnit timeUnit) {
@@ -523,11 +523,6 @@ public class LogCopier extends AbstractScheduledService {
         fsDataInputStream = closer.register(LogCopier.this.srcFs.open(srcFile));
         BufferedReader srcLogFileReader = closer.register(
             new BufferedReader(new InputStreamReader(fsDataInputStream, ConfigurationKeys.DEFAULT_CHARSET_ENCODING)));
-
-        //If file already exists, delete and re-copy the file.
-        if (LogCopier.this.destFs.exists(destFile)) {
-          LogCopier.this.destFs.delete(destFile, false);
-        }
 
         FSDataOutputStream outputStream = LogCopier.this.destFs.create(destFile);
         BufferedWriter destLogFileWriter = closer.register(

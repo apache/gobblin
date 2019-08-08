@@ -53,11 +53,13 @@ import org.apache.gobblin.yarn.event.DelegationTokenUpdatedEvent;
 public class GobblinYarnTaskRunner extends GobblinTaskRunner {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinTaskRunner.class);
+  private final ContainerId containerId;
 
   public GobblinYarnTaskRunner(String applicationName, String helixInstanceName, ContainerId containerId, Config config,
       Optional<Path> appWorkDirOptional) throws Exception {
-    super(applicationName, helixInstanceName, getApplicationId(containerId), getTaskRunnerId(containerId), Optional.of(containerId),
+    super(applicationName, helixInstanceName, getApplicationId(containerId), getTaskRunnerId(containerId),
         GobblinClusterUtils.addDynamicConfig(config), appWorkDirOptional);
+    this.containerId = containerId;
   }
 
   @Override
@@ -74,12 +76,8 @@ public class GobblinYarnTaskRunner extends GobblinTaskRunner {
 
       if (gobblinYarnLogSource.isLogSourcePresent()) {
         try {
-          if (containerId.isPresent()) {
-            services.add(gobblinYarnLogSource.buildLogCopier(this.config, containerId.get(), this.fs,
+            services.add(gobblinYarnLogSource.buildLogCopier(this.config, this.containerId, this.fs,
                 new Path(containerLogDir, GobblinClusterUtils.getAppWorkDirPath(this.applicationName, this.applicationId))));
-          } else {
-            LOGGER.warn("Cannot add LogCopier service to the service manager as containerId is missing");
-          }
         } catch (Exception e) {
           LOGGER.warn("Cannot add LogCopier service to the service manager due to {}", e);
         }
