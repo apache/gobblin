@@ -29,7 +29,6 @@ import com.typesafe.config.Config;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.JobSpec;
-import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.FlowId;
@@ -208,15 +207,32 @@ public class DagManagerUtils {
     dagNode.getValue().setCurrentAttempts(dagNode.getValue().getCurrentAttempts() + 1);
   }
 
+  /**
+   * flow start time is assumed to be same the flow execution id which is timestamp flow request was received
+   * @param dagNode dag node in context
+   * @return flow execution id
+   */
   static long getFlowStartTime(DagNode<JobExecutionPlan> dagNode) {
     return getFlowExecId(dagNode);
   }
 
+  /**
+   * get the sla from the dag node config.
+   * if time unit is not provided, it assumes time unit is minute.
+   * @param dagNode dag node for which sla is to be retrieved
+   * @return sla if it is provided, -1 otherwise
+   */
   static long getFlowSla(DagNode<JobExecutionPlan> dagNode) {
     Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
+    TimeUnit slaTimeUnit = TimeUnit.valueOf(
+        ConfigUtils.getString(jobConfig, ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME_UNIT, TimeUnit.MINUTES.name()));
 
-    return jobConfig.hasPath(ConfigurationKeys.FLOW_SLA)
-        ? TimeUnit.MINUTES.toMillis(jobConfig.getLong(ConfigurationKeys.FLOW_SLA))
+    return jobConfig.hasPath(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME)
+        ? slaTimeUnit.toMillis(jobConfig.getLong(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME))
         : -1L;
+  }
+
+  static int getJobQueueId(Dag<JobExecutionPlan> dag, int numThreads) {
+    return (int) (DagManagerUtils.getFlowExecId(dag) % numThreads);
   }
 }

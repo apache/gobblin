@@ -890,7 +890,8 @@ public class ConfigurationKeys {
    * Configuration properties related to Flows
    */
   public static final String FLOW_RUN_IMMEDIATELY = "flow.runImmediately";
-  public static final String FLOW_SLA = "flow.sla";
+  public static final String GOBBLIN_FLOW_SLA_TIME = "gobblin.flow.sla.time";
+  public static final String GOBBLIN_FLOW_SLA_TIME_UNIT = "gobblin.flow.sla.timeunit";
 
   /***
    * Configuration properties related to TopologySpec Store
