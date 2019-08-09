@@ -110,13 +110,8 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
   @Override
   public WorkUnitStream getWorkunitStream(SourceState state) {
     try {
-      fs = getSourceFileSystem(state);
-      state.setProp(COMPACTION_INIT_TIME, DateTimeUtils.currentTimeMillis());
-      suite = CompactionSuiteUtils.getCompactionSuiteFactory(state).createSuite(state);
+      initCompactionSource(state);
 
-      initRequestAllocator(state);
-      initJobDir(state);
-      copyJarDependencies(state);
       DatasetsFinder finder = DatasetUtils.instantiateDatasetFinder(state.getProperties(),
               getSourceFileSystem(state),
               DefaultFileSystemGlobFinder.class.getName());
@@ -217,6 +212,29 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
       }
 
     }
+  }
+
+  /**
+   * An non-extensible init method for {@link CompactionSource}, while it leaves
+   * extensible {@link #optionalInit(SourceState)} to derived class to adding customized initialization.
+   *
+   * Comparing to make this method protected directly, this approach is less error-prone since all initialization
+   * happening inside {@link #initCompactionSource(SourceState)} is compulsory.
+   */
+  private void initCompactionSource(SourceState state) throws IOException {
+    fs = getSourceFileSystem(state);
+    state.setProp(COMPACTION_INIT_TIME, DateTimeUtils.currentTimeMillis());
+    suite = CompactionSuiteUtils.getCompactionSuiteFactory(state).createSuite(state);
+
+    initRequestAllocator(state);
+    initJobDir(state);
+    copyJarDependencies(state);
+
+    optionalInit(state);
+  }
+
+  protected void optionalInit(SourceState state) {
+    // do nothing.
   }
 
   private void initRequestAllocator (State state) {
