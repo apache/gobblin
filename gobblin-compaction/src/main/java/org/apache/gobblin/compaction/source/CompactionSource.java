@@ -18,7 +18,6 @@
 package org.apache.gobblin.compaction.source;
 
 import java.io.IOException;
-import java.net.URI;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
@@ -32,23 +31,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.lang.exception.ExceptionUtils;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.LocalFileSystem;
-import org.apache.hadoop.fs.Path;
-import org.joda.time.DateTimeUtils;
-
-import com.google.common.base.Function;
-import com.google.common.base.Optional;
-import com.google.common.base.Stopwatch;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-
-import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
 import org.apache.gobblin.compaction.mapreduce.MRCompactionTaskFactory;
 import org.apache.gobblin.compaction.mapreduce.MRCompactor;
 import org.apache.gobblin.compaction.suite.CompactionSuite;
@@ -88,6 +70,24 @@ import org.apache.gobblin.util.request_allocation.RequestAllocatorConfig;
 import org.apache.gobblin.util.request_allocation.RequestAllocatorUtils;
 import org.apache.gobblin.util.request_allocation.ResourceEstimator;
 import org.apache.gobblin.util.request_allocation.ResourcePool;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocalFileSystem;
+import org.apache.hadoop.fs.Path;
+import org.joda.time.DateTimeUtils;
+
+import com.google.common.base.Function;
+import com.google.common.base.Optional;
+import com.google.common.base.Stopwatch;
+import com.google.common.collect.Iterators;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+import static org.apache.gobblin.util.HadoopUtils.getSourceFileSystem;
+
 
 /**
  * A compaction source derived from {@link Source} which uses {@link DefaultFileSystemGlobFinder} to find all
@@ -110,13 +110,8 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
   @Override
   public WorkUnitStream getWorkunitStream(SourceState state) {
     try {
-      fs = getSourceFileSystem(state);
-      state.setProp(COMPACTION_INIT_TIME, DateTimeUtils.currentTimeMillis());
-      suite = CompactionSuiteUtils.getCompactionSuiteFactory(state).createSuite(state);
+      initCompactionSource(state);
 
-      initRequestAllocator(state);
-      initJobDir(state);
-      copyJarDependencies(state);
       DatasetsFinder finder = DatasetUtils.instantiateDatasetFinder(state.getProperties(),
               getSourceFileSystem(state),
               DefaultFileSystemGlobFinder.class.getName());
@@ -217,6 +212,29 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
       }
 
     }
+  }
+
+  /**
+   * An non-extensible init method for {@link CompactionSource}, while it leaves
+   * extensible {@link #optionalInit(SourceState)} to derived class to adding customized initialization.
+   *
+   * Comparing to make this method protected directly, this approach is less error-prone since all initialization
+   * happening inside {@link #initCompactionSource(SourceState)} is compulsory.
+   */
+  private void initCompactionSource(SourceState state) throws IOException {
+    fs = getSourceFileSystem(state);
+    state.setProp(COMPACTION_INIT_TIME, DateTimeUtils.currentTimeMillis());
+    suite = CompactionSuiteUtils.getCompactionSuiteFactory(state).createSuite(state);
+
+    initRequestAllocator(state);
+    initJobDir(state);
+    copyJarDependencies(state);
+
+    optionalInit(state);
+  }
+
+  protected void optionalInit(SourceState state) {
+    // do nothing.
   }
 
   private void initRequestAllocator (State state) {
@@ -435,13 +453,6 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
-  }
-
-  public static FileSystem getSourceFileSystem(State state)
-          throws IOException {
-    Configuration conf = HadoopUtils.getConfFromState(state);
-    String uri = state.getProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI, ConfigurationKeys.LOCAL_FS_URI);
-    return HadoopUtils.getOptionallyThrottledFileSystem(FileSystem.get(URI.create(uri), conf), state);
   }
 
   /**
