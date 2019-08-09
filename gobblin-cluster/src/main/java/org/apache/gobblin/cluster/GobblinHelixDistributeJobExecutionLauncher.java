@@ -57,7 +57,6 @@ import org.apache.gobblin.runtime.api.JobExecutionMonitor;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.MonitoredObject;
 import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.PropertiesUtils;
 
 
@@ -304,12 +303,17 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
         GobblinClusterConfigurationKeys.HELIX_JOB_TIMEOUT_SECONDS,
         GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_TIMEOUT_SECONDS));
 
+    long stoppingStateTimeoutInSeconds = PropertiesUtils
+        .getPropAsLong(this.jobPlanningProps, GobblinClusterConfigurationKeys.HELIX_JOB_STOPPING_STATE_TIMEOUT_SECONDS,
+            GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_STOPPING_STATE_TIMEOUT_SECONDS);
+
     try {
       HelixUtils.waitJobCompletion(
           GobblinHelixDistributeJobExecutionLauncher.this.planningJobHelixManager,
           workFlowName,
           jobName,
-          timeoutEnabled ? Optional.of(timeoutInSeconds) : Optional.empty());
+          timeoutEnabled ? Optional.of(timeoutInSeconds) : Optional.empty(),
+          stoppingStateTimeoutInSeconds);
       return getResultFromUserContent();
     } catch (TimeoutException te) {
       HelixUtils.handleJobTimeout(workFlowName, jobName,
