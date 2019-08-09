@@ -44,7 +44,6 @@ env:
   - RUN_TEST_GROUP=default
   - RUN_TEST_GROUP=group1
   - RUN_TEST_GROUP=coverage
-  - PROFILE="-Dmaven.javadoc.skip=true"
 
 jdk:
   - oraclejdk8
