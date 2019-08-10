@@ -29,6 +29,7 @@ import java.util.concurrent.TimeoutException;
 
 import org.apache.gobblin.fsm.FiniteStateMachine;
 import org.apache.gobblin.fsm.StateWithCallbacks;
+import org.apache.gobblin.metrics.event.CountEventBuilder;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.JobEvent;
 import org.apache.gobblin.metrics.event.JobStateEventBuilder;
@@ -264,9 +265,9 @@ public class MRJobLauncher extends AbstractJobLauncher {
     JobState jobState = this.jobContext.getJobState();
 
     try {
-      this.eventSubmitter.submit(JobEvent.WORK_UNITS_CREATED, "workUnitsCreated",
-          Integer.toString(workUnits.size()));
-      LOG.info("Emitting WorkUnitsCreated Count: " + workUnits.size());
+      CountEventBuilder countEventBuilder = new CountEventBuilder(JobEvent.WORK_UNITS_CREATED, workUnits.size());
+      this.eventSubmitter.submit(countEventBuilder);
+      LOG.info("Emitting WorkUnitsCreated Count: " + countEventBuilder.getCount());
 
       prepareHadoopJob(workUnits);
 
