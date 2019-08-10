@@ -1,5 +1,5 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
+   * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
  * The ASF licenses this file to You under the Apache License, Version 2.0
@@ -192,20 +192,20 @@ public class DagManagerFlowTest {
   @Test
   void slaConfigCheck() throws Exception {
     Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("5", 123456783L, "FINISH_RUNNING", 1);
-    Assert.assertEquals(DagManagerUtils.getFlowSla(dag.getStartNodes().get(0)), -1L);
+    Assert.assertEquals(DagManagerUtils.getFlowSLA(dag.getStartNodes().get(0)), -1L);
 
     Config jobConfig = dag.getStartNodes().get(0).getValue().getJobSpec().getConfig();
     jobConfig = jobConfig
         .withValue(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME, ConfigValueFactory.fromAnyRef("7"))
         .withValue(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME_UNIT, ConfigValueFactory.fromAnyRef("SECONDS"));
     dag.getStartNodes().get(0).getValue().getJobSpec().setConfig(jobConfig);
-    Assert.assertEquals(DagManagerUtils.getFlowSla(dag.getStartNodes().get(0)), TimeUnit.SECONDS.toMillis(7L));
+    Assert.assertEquals(DagManagerUtils.getFlowSLA(dag.getStartNodes().get(0)), TimeUnit.SECONDS.toMillis(7L));
 
     jobConfig = jobConfig
         .withValue(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME, ConfigValueFactory.fromAnyRef("7"))
         .withValue(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME_UNIT, ConfigValueFactory.fromAnyRef("MINUTES"));
     dag.getStartNodes().get(0).getValue().getJobSpec().setConfig(jobConfig);
-    Assert.assertEquals(DagManagerUtils.getFlowSla(dag.getStartNodes().get(0)), TimeUnit.MINUTES.toMillis(7L));
+    Assert.assertEquals(DagManagerUtils.getFlowSLA(dag.getStartNodes().get(0)), TimeUnit.MINUTES.toMillis(7L));
   }
 }
 

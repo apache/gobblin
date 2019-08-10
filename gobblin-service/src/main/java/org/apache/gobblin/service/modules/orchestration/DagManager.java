@@ -274,7 +274,7 @@ public class DagManager extends AbstractIdleService {
     log.info("Found {} flows to cancel.", flowExecutionIds.size());
 
     for (long flowExecutionId : flowExecutionIds) {
-      int queueId = (int) (flowExecutionId % this.numThreads);
+      int queueId =  DagManagerUtils.getJobQueueId(flowExecutionId, this.numThreads);
       String dagId = DagManagerUtils.generateDagId(flowGroup, flowName, flowExecutionId);
       if (!this.cancelQueue[queueId].offer(dagId)) {
         throw new IOException("Could not add dag " + dagId + " to cancellation queue.");
@@ -415,27 +415,46 @@ public class DagManager extends AbstractIdleService {
       }
     }
 
+    /**
+     * Cancels the dag and sends a cancellation tracking event.
+     * @param dagToCancel dag node to cancel
+     * @throws ExecutionException executionException
+     * @throws InterruptedException interruptedException
+     */
     private void cancelDag(String dagToCancel) throws ExecutionException, InterruptedException {
       log.info("Cancel flow with DagId {}", dagToCancel);
       if (this.dagToJobs.containsKey(dagToCancel)) {
         List<DagNode<JobExecutionPlan>> dagNodesToCancel = this.dagToJobs.get(dagToCancel);
         log.info("Found {} DagNodes to cancel.", dagNodesToCancel.size());
         for (DagNode<JobExecutionPlan> dagNodeToCancel : dagNodesToCancel) {
-          Properties props = new Properties();
-          if (dagNodeToCancel.getValue().getJobFuture().isPresent()) {
-            Future future = dagNodeToCancel.getValue().getJobFuture().get();
-            if (future instanceof CompletableFuture &&
-              future.get() instanceof AzkabanExecuteFlowStatus.ExecuteId) {
-              CompletableFuture<AzkabanExecuteFlowStatus.ExecuteId> completableFuture = (CompletableFuture) future;
-              String azkabanExecId = completableFuture.get().getExecId();
-              props.put(ConfigurationKeys.AZKABAN_EXEC_ID, azkabanExecId);
-              log.info("Cancel job with azkaban exec id {}.", azkabanExecId);
-            }
-          }
-          DagManagerUtils.getSpecProducer(dagNodeToCancel).deleteSpec(null, props);
+          cancelDag(dagNodeToCancel);
         }
       } else {
         log.warn("Did not find Dag with id {}, it might be already cancelled.", dagToCancel);
+      }
+    }
+
+    private void cancelDag(DagNode<JobExecutionPlan> dagNodeToCancel) throws ExecutionException, InterruptedException {
+      Properties props = new Properties();
+      if (dagNodeToCancel.getValue().getJobFuture().isPresent()) {
+        Future future = dagNodeToCancel.getValue().getJobFuture().get();
+        if (future instanceof CompletableFuture &&
+            future.get() instanceof AzkabanExecuteFlowStatus.ExecuteId) {
+          CompletableFuture<AzkabanExecuteFlowStatus.ExecuteId> completableFuture = (CompletableFuture) future;
+          String azkabanExecId = completableFuture.get().getExecId();
+          props.put(ConfigurationKeys.AZKABAN_EXEC_ID, azkabanExecId);
+          log.info("Cancel job with azkaban exec id {}.", azkabanExecId);
+          sendCancellationEvent(dagNodeToCancel.getValue());
+        }
+      }
+      DagManagerUtils.getSpecProducer(dagNodeToCancel).deleteSpec(null, props);
+    }
+
+    private void sendCancellationEvent(JobExecutionPlan jobExecutionPlan) {
+      if (this.eventSubmitter.isPresent()) {
+        Map<String, String> jobMetadata = TimingEventUtils.getJobMetadata(Maps.newHashMap(), jobExecutionPlan);
+        this.eventSubmitter.get().getTimingEvent(TimingEvent.LauncherTimings.JOB_CANCEL).stop(jobMetadata);
+        jobExecutionPlan.setExecutionStatus(CANCELLED);
       }
     }
 
@@ -484,7 +503,7 @@ public class DagManager extends AbstractIdleService {
 
         JobStatus jobStatus = pollJobStatus(node);
 
-        ExecutionStatus status = getJobExcecutionStatus(slaKilled, jobStatus);
+        ExecutionStatus status = getJobExecutionStatus(slaKilled, jobStatus);
 
         JobExecutionPlan jobExecutionPlan = DagManagerUtils.getJobExecutionPlan(node);
 
@@ -529,7 +548,7 @@ public class DagManager extends AbstractIdleService {
       }
     }
 
-    private ExecutionStatus getJobExcecutionStatus(boolean slaKilled, JobStatus jobStatus) {
+    private ExecutionStatus getJobExecutionStatus(boolean slaKilled, JobStatus jobStatus) {
       if (slaKilled) {
         return CANCELLED;
       } else {
@@ -542,7 +561,9 @@ public class DagManager extends AbstractIdleService {
     }
 
     /**
-     * Check if the SLA is configured for this job. If it is, tries to cancel the job if SLA is reached.
+     * Check if the SLA is configured for the flow this job belongs to.
+     * If it is, this method will try to cancel the job when SLA is reached.
+     *
      * @param node dag node of the job
      * @return true if the job is killed because it reached sla
      * @throws ExecutionException exception
@@ -551,17 +572,11 @@ public class DagManager extends AbstractIdleService {
     private boolean slaKillIfNeeded(DagNode<JobExecutionPlan> node) throws ExecutionException, InterruptedException {
       long flowStartTime = DagManagerUtils.getFlowStartTime(node);
       long currentTime = System.currentTimeMillis();
-      long flowSla = DagManagerUtils.getFlowSla(node);
+      long flowSla = DagManagerUtils.getFlowSLA(node);
 
       if (flowSla != -1L && currentTime > flowStartTime + flowSla) {
         log.info("Job exceeded the SLA of {} ms. Killing it now...", flowSla);
-        cancelDag(DagManagerUtils.generateDagId(node));
-        if (this.eventSubmitter.isPresent()) {
-          JobExecutionPlan jobExecutionPlan = DagManagerUtils.getJobExecutionPlan(node);
-          Map<String, String> jobMetadata = TimingEventUtils.getJobMetadata(Maps.newHashMap(), jobExecutionPlan);
-          this.eventSubmitter.get().getTimingEvent(TimingEvent.LauncherTimings.JOB_CANCEL).stop(jobMetadata);
-          jobExecutionPlan.setExecutionStatus(CANCELLED);
-        }
+        cancelDag(node);
         return true;
       }
       return false;

@@ -222,10 +222,10 @@ public class DagManagerUtils {
    * @param dagNode dag node for which sla is to be retrieved
    * @return sla if it is provided, -1 otherwise
    */
-  static long getFlowSla(DagNode<JobExecutionPlan> dagNode) {
+  static long getFlowSLA(DagNode<JobExecutionPlan> dagNode) {
     Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
-    TimeUnit slaTimeUnit = TimeUnit.valueOf(
-        ConfigUtils.getString(jobConfig, ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME_UNIT, TimeUnit.MINUTES.name()));
+    TimeUnit slaTimeUnit = TimeUnit.valueOf(ConfigUtils.getString(
+        jobConfig, ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME_UNIT, ConfigurationKeys.DEFAULT_GOBBLIN_FLOW_SLA_TIME_UNIT));
 
     return jobConfig.hasPath(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME)
         ? slaTimeUnit.toMillis(jobConfig.getLong(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME))
@@ -233,6 +233,10 @@ public class DagManagerUtils {
   }
 
   static int getJobQueueId(Dag<JobExecutionPlan> dag, int numThreads) {
-    return (int) (DagManagerUtils.getFlowExecId(dag) % numThreads);
+    return getJobQueueId(DagManagerUtils.getFlowExecId(dag), numThreads);
+  }
+
+  static int getJobQueueId(long flowExecutionId, int numThreads) {
+    return (int) (flowExecutionId % numThreads);
   }
 }
