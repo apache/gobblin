@@ -143,11 +143,12 @@ public class HiveRegistrationPublisher extends DataPublisher {
 
         final HiveRegistrationPolicy policy = HiveRegistrationPolicyBase.getPolicy(taskSpecificState);
         for ( final String path : state.getPropAsList(ConfigurationKeys.PUBLISHER_DIRS) ) {
-          if (isPathDedupeEnabled && pathsToRegisterFromSingleState.contains(path)){
-            continue;
-          }
-          if(isPathDedupeEnabled) {
-            pathsToRegisterFromSingleState.add(path);
+          if (isPathDedupeEnabled){
+            if (pathsToRegisterFromSingleState.contains(path)) {
+              continue;
+            } else {
+              pathsToRegisterFromSingleState.add(path);
+            }
           }
           toRegisterPathCount += 1;
           completionService.submit(new Callable<Collection<HiveSpec>>() {
