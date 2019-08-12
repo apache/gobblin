@@ -131,7 +131,7 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
 
   private final Optional<ContainerMetrics> containerMetrics;
 
-  private final String taskRunnerId;
+  protected final String taskRunnerId;
 
   private volatile boolean stopInProgress = false;
 

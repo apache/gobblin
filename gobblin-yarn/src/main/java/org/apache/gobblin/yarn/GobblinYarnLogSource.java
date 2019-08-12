@@ -75,7 +75,7 @@ class GobblinYarnLogSource {
    * @return a {@link LogCopier} instance
    * @throws IOException if it fails on any IO operation
    */
-  protected LogCopier buildLogCopier(Config config, ContainerId containerId, FileSystem destFs, Path appWorkDir)
+  protected LogCopier buildLogCopier(Config config, String containerId, FileSystem destFs, Path appWorkDir)
       throws IOException {
     LogCopier.Builder builder = LogCopier.newBuilder()
             .useSrcFileSystem(buildFileSystem(config, true))
@@ -113,8 +113,8 @@ class GobblinYarnLogSource {
     return COMMA_SPLITTER.splitToList(logDirs).stream().map(e -> new Path(e)).collect(Collectors.toList());
   }
 
-  private Path getHdfsLogDir(ContainerId containerId, FileSystem destFs, Path appWorkDir) throws IOException {
-    Path logRootDir = PathUtils.combinePaths(appWorkDir.toString(), GobblinYarnConfigurationKeys.APP_LOGS_DIR_NAME, containerId.toString());
+  private Path getHdfsLogDir(String containerId, FileSystem destFs, Path appWorkDir) throws IOException {
+    Path logRootDir = PathUtils.combinePaths(appWorkDir.toString(), GobblinYarnConfigurationKeys.APP_LOGS_DIR_NAME, containerId);
     if (!destFs.exists(logRootDir)) {
       destFs.mkdirs(logRootDir);
     }

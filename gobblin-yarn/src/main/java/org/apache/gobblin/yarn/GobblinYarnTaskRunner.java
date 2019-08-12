@@ -76,7 +76,7 @@ public class GobblinYarnTaskRunner extends GobblinTaskRunner {
 
       if (gobblinYarnLogSource.isLogSourcePresent()) {
         try {
-            services.add(gobblinYarnLogSource.buildLogCopier(this.config, this.containerId, this.fs,
+            services.add(gobblinYarnLogSource.buildLogCopier(this.config, this.taskRunnerId, this.fs,
                 new Path(containerLogDir, GobblinClusterUtils.getAppWorkDirPath(this.applicationName, this.applicationId))));
         } catch (Exception e) {
           LOGGER.warn("Cannot add LogCopier service to the service manager due to {}", e);
