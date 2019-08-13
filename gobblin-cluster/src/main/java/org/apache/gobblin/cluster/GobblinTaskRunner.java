@@ -131,7 +131,7 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
 
   private final Optional<ContainerMetrics> containerMetrics;
 
-  private final String taskRunnerId;
+  protected final String taskRunnerId;
 
   private volatile boolean stopInProgress = false;
 
@@ -143,8 +143,8 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
 
   protected final FileSystem fs;
   private final List<Service> services = Lists.newArrayList();
-  private final String applicationName;
-  private final String applicationId;
+  protected final String applicationName;
+  protected final String applicationId;
   private final Path appWorkPath;
   private boolean isTaskDriver;
   private boolean dedicatedTaskDriverCluster;

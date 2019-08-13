@@ -56,6 +56,7 @@ import org.apache.gobblin.cluster.GobblinClusterManager;
 import org.apache.gobblin.cluster.GobblinClusterUtils;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.JvmUtils;
+import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.logs.Log4jConfigurationHelper;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.apache.gobblin.yarn.event.DelegationTokenUpdatedEvent;
@@ -83,10 +84,12 @@ public class GobblinApplicationMaster extends GobblinClusterManager {
     super(applicationName, containerId.getApplicationAttemptId().getApplicationId().toString(),
         GobblinClusterUtils.addDynamicConfig(config), Optional.<Path>absent());
 
+    String containerLogDir = config.getString(GobblinYarnConfigurationKeys.LOGS_SINK_ROOT_DIR_KEY);
     GobblinYarnLogSource gobblinYarnLogSource = new GobblinYarnLogSource();
     if (gobblinYarnLogSource.isLogSourcePresent()) {
+      Path appWorkDir = PathUtils.combinePaths(containerLogDir, GobblinClusterUtils.getAppWorkDirPath(this.clusterName, this.applicationId), "AppMaster");
       this.applicationLauncher
-          .addService(gobblinYarnLogSource.buildLogCopier(this.config, containerId, this.fs, this.appWorkDir));
+          .addService(gobblinYarnLogSource.buildLogCopier(this.config, containerId.toString(), this.fs, appWorkDir));
     }
 
     this.yarnService = buildYarnService(this.config, applicationName, this.applicationId, yarnConfiguration, this.fs);

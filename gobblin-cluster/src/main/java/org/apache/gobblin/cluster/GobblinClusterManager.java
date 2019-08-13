@@ -135,7 +135,7 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
   @Getter
   private JobConfigurationManager jobConfigurationManager;
 
-  private final String clusterName;
+  protected final String clusterName;
   @Getter
   protected final Config config;
 

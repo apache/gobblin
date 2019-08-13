@@ -24,8 +24,14 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -35,31 +41,26 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.PathFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Function;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
-import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 import com.google.common.io.Files;
 import com.google.common.util.concurrent.AbstractScheduledService;
 
+import lombok.Getter;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.util.concurrent.ScheduledTask;
-import org.apache.gobblin.util.concurrent.TaskScheduler;
-import org.apache.gobblin.util.concurrent.TaskSchedulerFactory;
 import org.apache.gobblin.util.DatasetFilterUtils;
 import org.apache.gobblin.util.FileListUtils;
-import org.apache.gobblin.util.HadoopUtils;
 
 
 /**
@@ -85,10 +86,7 @@ import org.apache.gobblin.util.HadoopUtils;
  *           .useDestFileSystem(FileSystem.get(URI.create(destFsUri), new Configuration()))
  *           .readFrom(new Path(srcLogDir))
  *           .writeTo(new Path(destLogDir))
- *           .useInitialDelay(60)
- *           .useCopyInterval(60)
- *           .useMaxMinutesPerLogFile(60)
- *           .useMaxBytesPerLogFile(1024 * 1024)
+ *           .useSourceLogFileMonitorInterval(60)
  *           .useTimeUnit(TimeUnit.SECONDS)
  *           .build();
  *
@@ -110,11 +108,10 @@ public class LogCopier extends AbstractScheduledService {
   private static final Logger LOGGER = LoggerFactory.getLogger(LogCopier.class);
 
   private static final long DEFAULT_SOURCE_LOG_FILE_MONITOR_INTERVAL = 120;
-  private static final long DEFAULT_LOG_COPY_INTERVAL_SECONDS = 60;
-  private static final long DEFAULT_MAX_MINUTES_PER_LOG_FILE = Long.MAX_VALUE;
-  private static final long DEFAULT_MAX_BYTES_PER_LOG_FILE = Long.MAX_VALUE;
   private static final TimeUnit DEFAULT_TIME_UNIT = TimeUnit.SECONDS;
   private static final int DEFAULT_LINES_WRITTEN_BEFORE_FLUSH = 100;
+
+  private static final int DEFAULT_NUM_COPY_THREADS = 10;
 
   private final FileSystem srcFs;
   private final FileSystem destFs;
@@ -122,12 +119,11 @@ public class LogCopier extends AbstractScheduledService {
   private final Path destLogDir;
 
   private final long sourceLogFileMonitorInterval;
-  private final long copyInterval;
-  private final long maxMinutesPerLogFile;
-  private final long maxBytesPerLogFile;
   private final TimeUnit timeUnit;
 
   private final Set<String> logFileExtensions;
+  private final int numCopyThreads;
+  private final String currentLogFileName;
 
   private final Optional<List<Pattern>> includingRegexPatterns;
   private final Optional<List<Pattern>> excludingRegexPatterns;
@@ -136,7 +132,11 @@ public class LogCopier extends AbstractScheduledService {
 
   private final int linesWrittenBeforeFlush;
 
-  private final TaskScheduler<Path, LogCopyTask> scheduler;
+  private final ExecutorService executorService;
+
+  @Getter
+  private final Set<String> copiedFileNames = Sets.newConcurrentHashSet();
+  private boolean shouldCopyCurrentLogFile;
 
   private LogCopier(Builder builder) {
     this.srcFs = builder.srcFs;
@@ -146,12 +146,11 @@ public class LogCopier extends AbstractScheduledService {
     this.destLogDir = this.destFs.makeQualified(builder.destLogDir);
 
     this.sourceLogFileMonitorInterval = builder.sourceLogFileMonitorInterval;
-    this.copyInterval = builder.copyInterval;
-    this.maxMinutesPerLogFile = builder.maxMinutesPerLogFile;
-    this.maxBytesPerLogFile = builder.maxBytesPerLogFile;
     this.timeUnit = builder.timeUnit;
 
     this.logFileExtensions = builder.logFileExtensions;
+    this.currentLogFileName = builder.currentLogFileName;
+    this.shouldCopyCurrentLogFile = false;
 
     this.includingRegexPatterns = Optional.fromNullable(builder.includingRegexPatterns);
     this.excludingRegexPatterns = Optional.fromNullable(builder.excludingRegexPatterns);
@@ -159,13 +158,24 @@ public class LogCopier extends AbstractScheduledService {
     this.logFileNamePrefix = Optional.fromNullable(builder.logFileNamePrefix);
 
     this.linesWrittenBeforeFlush = builder.linesWrittenBeforeFlush;
+    this.numCopyThreads = builder.numCopyThreads;
 
-    this.scheduler = TaskSchedulerFactory.get(builder.schedulerName, Optional.<String> absent());
+    this.executorService = Executors.newFixedThreadPool(numCopyThreads);
   }
 
   @Override
   protected void shutDown() throws Exception {
-    this.scheduler.close();
+    try {
+      //We need to copy the current log file as part of shutdown sequence.
+      shouldCopyCurrentLogFile = true;
+      runOneIteration();
+      //Close the Filesystem objects, since these were created with auto close disabled.
+      LOGGER.debug("Closing FileSystem objects...");
+      this.destFs.close();
+      this.srcFs.close();
+    } finally {
+      super.shutDown();
+    }
   }
 
   @Override
@@ -178,53 +188,91 @@ public class LogCopier extends AbstractScheduledService {
     return Scheduler.newFixedRateSchedule(0, this.sourceLogFileMonitorInterval, this.timeUnit);
   }
 
+  private boolean shouldIncludeLogFile(FileStatus logFile) {
+    Path logFilePath = logFile.getPath();
+
+    //Skip copy of current log file if current log file copy is disabled
+    if (currentLogFileName.equals(Files.getNameWithoutExtension(logFilePath.getName()))) {
+      return shouldCopyCurrentLogFile;
+    }
+
+    //Skip copy of log file if it has already been copied previously.
+    if (copiedFileNames.contains(logFilePath.getName())) {
+      return false;
+    }
+
+    //Special case to accept all log file extensions.
+    if (LogCopier.this.logFileExtensions.isEmpty()) {
+      return true;
+    }
+
+    return LogCopier.this.logFileExtensions.contains(Files.getFileExtension(logFilePath.getName()));
+
+  }
+
+  /**
+   * Prune the set of copied files by removing the set of files which have been already deleted from the source.
+   * This keeps the copiedFileNames from growing unboundedly and is useful when log rotation is enabled on the
+   * source dirs with maximum number of backups.
+   * @param srcLogFileNames
+   */
+  @VisibleForTesting
+  void pruneCopiedFileNames(Set<String> srcLogFileNames) {
+    Iterator<String> copiedFilesIterator = copiedFileNames.iterator();
+
+    while (copiedFilesIterator.hasNext()) {
+      String fileName = copiedFilesIterator.next();
+      if (!srcLogFileNames.contains(fileName)) {
+        copiedFilesIterator.remove();
+      }
+    }
+  }
+
   /**
    * Perform a check on new source log files and submit copy tasks for new log files.
    */
-  private void checkSrcLogFiles() throws IOException {
+  @VisibleForTesting
+  void checkSrcLogFiles() throws IOException {
     List<FileStatus> srcLogFiles = new ArrayList<>();
-
-    for (Path logDirPath: this.srcLogDirs) {
-      srcLogFiles.addAll(FileListUtils.listFilesRecursively(this.srcFs, logDirPath, new PathFilter() {
-        @Override
-        public boolean accept(Path path) {
-          return LogCopier.this.logFileExtensions.contains(Files.getFileExtension(path.getName()));
+    Set<String> srcLogFileNames = new HashSet<>();
+    Set <Path> newLogFiles = new HashSet<>();
+    for (Path logDirPath: srcLogDirs) {
+      srcLogFiles.addAll(FileListUtils.listFilesRecursively(srcFs, logDirPath));
+      //Remove the already copied files from the list of files to copy
+      for (FileStatus srcLogFile: srcLogFiles) {
+        if (shouldIncludeLogFile(srcLogFile)) {
+          newLogFiles.add(srcLogFile.getPath());
         }
-      }));
+        srcLogFileNames.add(srcLogFile.getPath().getName());
+      }
     }
 
-    if (srcLogFiles.isEmpty()) {
+    if (newLogFiles.isEmpty()) {
       LOGGER.warn("No log file found under directories " + this.srcLogDirs);
       return;
     }
 
-    Set<Path> newLogFiles = Sets.newHashSet();
-    for (FileStatus srcLogFile : srcLogFiles) {
-      newLogFiles.add(srcLogFile.getPath());
-    }
-
-    HashSet<Path> deletedLogFiles = Sets.newHashSet(getSourceFiles());
-    // Compute the set of deleted log files since the last check
-    deletedLogFiles.removeAll(newLogFiles);
-    // Compute the set of new log files since the last check
-    newLogFiles.removeAll(getSourceFiles());
-
+    List<Future> futures = new ArrayList<>();
     // Schedule a copy task for each new log file
     for (final Path srcLogFile : newLogFiles) {
       String destLogFileName = this.logFileNamePrefix.isPresent()
           ? this.logFileNamePrefix.get() + "." + srcLogFile.getName() : srcLogFile.getName();
       final Path destLogFile = new Path(this.destLogDir, destLogFileName);
-
-      this.scheduler.schedule(new LogCopyTask(srcLogFile, destLogFile), this.copyInterval, this.timeUnit);
+      futures.add(this.executorService.submit(new LogCopyTask(srcLogFile, destLogFile)));
     }
 
-    // Cancel the copy task for each deleted log file
-    for (Path deletedLogFile : deletedLogFiles) {
-      Optional<LogCopyTask> logCopyTask = this.scheduler.getScheduledTask(deletedLogFile);
-      if (logCopyTask.isPresent()) {
-        this.scheduler.cancel(logCopyTask.get());
+    //Wait for copy tasks to finish
+    for (Future future: futures) {
+      try {
+        future.get();
+      } catch (InterruptedException e) {
+        LOGGER.error("LogCopyTask was interrupted - {}", e);
+      } catch (ExecutionException e) {
+        LOGGER.error("Failed LogCopyTask - {}", e);
       }
     }
+
+    pruneCopiedFileNames(srcLogFileNames);
   }
 
   /**
@@ -249,12 +297,13 @@ public class LogCopier extends AbstractScheduledService {
     private Path destLogDir;
 
     private long sourceLogFileMonitorInterval = DEFAULT_SOURCE_LOG_FILE_MONITOR_INTERVAL;
-    private long copyInterval = DEFAULT_LOG_COPY_INTERVAL_SECONDS;
-    private long maxMinutesPerLogFile = DEFAULT_MAX_MINUTES_PER_LOG_FILE;
-    private long maxBytesPerLogFile = DEFAULT_MAX_BYTES_PER_LOG_FILE;
+
+    private int numCopyThreads = DEFAULT_NUM_COPY_THREADS;
+
     private TimeUnit timeUnit = DEFAULT_TIME_UNIT;
 
     private Set<String> logFileExtensions;
+    private String currentLogFileName;
 
     private List<Pattern> includingRegexPatterns;
     private List<Pattern> excludingRegexPatterns;
@@ -262,8 +311,6 @@ public class LogCopier extends AbstractScheduledService {
     private String logFileNamePrefix;
 
     private int linesWrittenBeforeFlush = DEFAULT_LINES_WRITTEN_BEFORE_FLUSH;
-
-    private String schedulerName = null;
 
     /**
     * Set the interval between two checks for the source log file monitor.
@@ -279,45 +326,9 @@ public class LogCopier extends AbstractScheduledService {
     }
 
     /**
-     * Set the copy interval between two iterations of copies.
+     * Set the {@link TimeUnit} used for the source log file monitor interval.
      *
-     * @param copyInterval the copy interval between two iterations of copies
-     * @return this {@link LogCopier.Builder} instance
-     */
-    public Builder useCopyInterval(long copyInterval) {
-      Preconditions.checkArgument(copyInterval > 0, "Copy interval must be positive");
-      this.copyInterval = copyInterval;
-      return this;
-    }
-
-    /**
-     * Set the max minutes per log file.
-     *
-     * @param maxMinutesPerLogFile the maximum minutes of logs a log file contains
-     * @return this {@link LogCopier.Builder} instance
-     */
-    public Builder useMaxMinutesPerLogFile(long maxMinutesPerLogFile) {
-      Preconditions.checkArgument(maxMinutesPerLogFile > 0, "Max minutes per log file must be positive");
-      this.maxMinutesPerLogFile = maxMinutesPerLogFile;
-      return this;
-    }
-
-    /**
-     * Set the max bytes per log file.
-     *
-     * @param maxBytesPerLogFile the maximum bytes of a log file
-     * @return this {@link LogCopier.Builder} instance
-     */
-    public Builder useMaxBytesPerLogFile(long maxBytesPerLogFile) {
-      Preconditions.checkArgument(maxBytesPerLogFile > 0, "Max bytes per log file must be positive");
-      this.maxBytesPerLogFile = maxBytesPerLogFile;
-      return this;
-    }
-
-    /**
-     * Set the {@link TimeUnit} used for the source log file monitor interval, initial delay, copy interval.
-     *
-     * @param timeUnit the {@link TimeUnit} used for the initial delay and copy interval
+     * @param timeUnit the {@link TimeUnit} used for the log file monitor interval
      * @return this {@link LogCopier.Builder} instance
      */
     public Builder useTimeUnit(TimeUnit timeUnit) {
@@ -449,14 +460,19 @@ public class LogCopier extends AbstractScheduledService {
     }
 
     /**
-     * Set the scheduler to use for scheduling copy tasks.
-     *
-     * @param schedulerName the name of the scheduler
-     * @return this {@link LogCopier.Builder} instance
+     * Set the current log file name
      */
-    public Builder useScheduler(String schedulerName) {
-      Preconditions.checkArgument(!Strings.isNullOrEmpty(schedulerName), "Invalid scheduler name: " + schedulerName);
-      this.schedulerName = schedulerName;
+    public Builder useCurrentLogFileName(String currentLogFileName) {
+      this.currentLogFileName = currentLogFileName;
+      return this;
+    }
+
+    /**
+     * Set the number of threads to use for copying container log files to dest FS.
+     * @param numCopyThreads
+     */
+    public Builder useNumCopyThreads(int numCopyThreads) {
+      this.numCopyThreads = numCopyThreads;
       return this;
     }
 
@@ -470,62 +486,31 @@ public class LogCopier extends AbstractScheduledService {
     }
   }
 
-  private ImmutableList<Path> getSourceFiles() {
-    return ImmutableList
-        .copyOf(Iterables.transform(this.scheduler.getScheduledTasks(), new Function<LogCopyTask, Path>() {
-          @Override
-          public Path apply(LogCopyTask input) {
-            return input.getKey();
-          }
-        }));
-  }
-
-  private class LogCopyTask implements ScheduledTask<Path> {
+  private class LogCopyTask implements Callable<Void> {
     private final Path srcLogFile;
     private final Path destLogFile;
-    private final Stopwatch watch;
-
-    // The task maintains the current source log file position itself
-    private long currentPos = 0;
 
     public LogCopyTask(Path srcLogFile, Path destLogFile) {
       this.srcLogFile = srcLogFile;
       this.destLogFile = destLogFile;
-      this.watch = Stopwatch.createStarted();
     }
 
     @Override
-    public Path getKey() {
-      return this.srcLogFile;
-    }
-
-    @Override
-    public void runOneIteration() {
+    public Void call() {
       try {
-        createNewLogFileIfNeeded();
-        LOGGER.debug(String.format("Copying changes from %s to %s", this.srcLogFile, this.destLogFile));
         copyChangesOfLogFile(LogCopier.this.srcFs.makeQualified(this.srcLogFile),
             LogCopier.this.destFs.makeQualified(this.destLogFile));
       } catch (IOException ioe) {
         LOGGER.error(String.format("Failed while copying logs from %s to %s", this.srcLogFile, this.destLogFile), ioe);
       }
-    }
-
-    private void createNewLogFileIfNeeded() throws IOException {
-      if (LogCopier.this.destFs.exists(this.destLogFile)
-          && (this.watch.elapsed(TimeUnit.MINUTES) > LogCopier.this.maxMinutesPerLogFile
-              || LogCopier.this.destFs.getFileStatus(this.destLogFile).getLen() > LogCopier.this.maxBytesPerLogFile)) {
-        HadoopUtils.renamePath(LogCopier.this.destFs, this.destLogFile,
-            new Path(this.destLogFile.toString() + "." + System.currentTimeMillis()));
-        this.watch.reset();
-        this.watch.start();
-      }
+      return null;
     }
 
     /**
      * Copy changes for a single log file.
      */
     private void copyChangesOfLogFile(Path srcFile, Path destFile) throws IOException {
+      LOGGER.info("Copying changes from {} to {}", srcFile.toString(), destFile.toString());
       if (!LogCopier.this.srcFs.exists(srcFile)) {
         LOGGER.warn("Source log file not found: " + srcFile);
         return;
@@ -536,14 +521,10 @@ public class LogCopier extends AbstractScheduledService {
 
       try (Closer closer = Closer.create()) {
         fsDataInputStream = closer.register(LogCopier.this.srcFs.open(srcFile));
-        // Seek to the the most recent position if it is available
-        LOGGER.debug(String.format("Reading log file %s from position %d", srcFile, this.currentPos));
-        fsDataInputStream.seek(this.currentPos);
         BufferedReader srcLogFileReader = closer.register(
             new BufferedReader(new InputStreamReader(fsDataInputStream, ConfigurationKeys.DEFAULT_CHARSET_ENCODING)));
 
-        FSDataOutputStream outputStream = LogCopier.this.destFs.exists(destFile)
-            ? LogCopier.this.destFs.append(destFile) : LogCopier.this.destFs.create(destFile);
+        FSDataOutputStream outputStream = LogCopier.this.destFs.create(destFile);
         BufferedWriter destLogFileWriter = closer.register(
             new BufferedWriter(new OutputStreamWriter(outputStream, ConfigurationKeys.DEFAULT_CHARSET_ENCODING)));
 
@@ -561,10 +542,8 @@ public class LogCopier extends AbstractScheduledService {
             destLogFileWriter.flush();
           }
         }
-      } finally {
-        if (fsDataInputStream != null) {
-          this.currentPos = fsDataInputStream.getPos();
-        }
+        //Add the copied file to the list of files already copied to the destination.
+        LogCopier.this.copiedFileNames.add(srcFile.getName());
       }
     }
 
