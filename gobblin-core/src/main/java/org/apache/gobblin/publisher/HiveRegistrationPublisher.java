@@ -76,9 +76,9 @@ public class HiveRegistrationPublisher extends DataPublisher {
   private static final boolean DEFAULT_PATH_DEDUPE_ENABLED = true;
 
   private final Closer closer = Closer.create();
-  private final HiveRegister hiveRegister;
-  private final ExecutorService hivePolicyExecutor;
-  private final MetricContext metricContext;
+  protected final HiveRegister hiveRegister;
+  protected final ExecutorService hivePolicyExecutor;
+  protected final MetricContext metricContext;
 
   /**
    * The configuration to determine if path deduplication should be enabled during Hive Registration process.
@@ -88,7 +88,7 @@ public class HiveRegistrationPublisher extends DataPublisher {
    *
    * e.g. In streaming mode, there could be cases that files(e.g. avro) under single topic folder carry different schema.
    */
-  private boolean isPathDedupeEnabled;
+  protected boolean isPathDedupeEnabled;
 
   /**
    * Make the deduplication of path to be registered in the Publisher level,
@@ -118,6 +118,52 @@ public class HiveRegistrationPublisher extends DataPublisher {
     }
   }
 
+  protected int computeSpecs(Collection<? extends WorkUnitState> states, CompletionService<Collection<HiveSpec>> completionService) {
+    // Each state in states is task-level State, while superState is the Job-level State.
+    // Using both State objects to distinguish each HiveRegistrationPolicy so that
+    // they can carry task-level information to pass into Hive Partition and its corresponding Hive Table.
+
+    // Here all runtime task-level props are injected into superstate which installed in each Policy Object.
+    // runtime.props are comma-separated props collected in runtime.
+    int toRegisterPathCount = 0;
+    for (State state:states) {
+      State taskSpecificState = state;
+      if (state.contains(ConfigurationKeys.PUBLISHER_DIRS)) {
+
+        // Upstream data attribute is specified, need to inject these info into superState as runtimeTableProps.
+        if (this.hiveRegister.getProps().getUpstreamDataAttrName().isPresent()) {
+          for (String attrName:
+              LIST_SPLITTER_COMMA.splitToList(this.hiveRegister.getProps().getUpstreamDataAttrName().get())){
+            if (state.contains(attrName)) {
+              taskSpecificState.appendToListProp(HiveMetaStoreUtils.RUNTIME_PROPS,
+                  attrName + ":" + state.getProp(attrName));
+            }
+          }
+        }
+
+        final HiveRegistrationPolicy policy = HiveRegistrationPolicyBase.getPolicy(taskSpecificState);
+        for ( final String path : state.getPropAsList(ConfigurationKeys.PUBLISHER_DIRS) ) {
+          if (isPathDedupeEnabled){
+            if (pathsToRegisterFromSingleState.contains(path)) {
+              continue;
+            } else {
+              pathsToRegisterFromSingleState.add(path);
+            }
+          }
+          toRegisterPathCount += 1;
+          completionService.submit(new Callable<Collection<HiveSpec>>() {
+            @Override
+            public Collection<HiveSpec> call() throws Exception {
+              try (Timer.Context context = metricContext.timer(HIVE_SPEC_COMPUTATION_TIMER).time()) {
+                return policy.getHiveSpecs(new Path(path));
+              }
+            }
+          });
+        }
+      }
+    }
+    return toRegisterPathCount;
+  }
   @Deprecated
   @Override
   public void initialize() throws IOException {}
@@ -130,47 +176,7 @@ public class HiveRegistrationPublisher extends DataPublisher {
     CompletionService<Collection<HiveSpec>> completionService =
         new ExecutorCompletionService<>(this.hivePolicyExecutor);
 
-    // Each state in states is task-level State, while superState is the Job-level State.
-    // Using both State objects to distinguish each HiveRegistrationPolicy so that
-    // they can carry task-level information to pass into Hive Partition and its corresponding Hive Table.
-
-    // Here all runtime task-level props are injected into superstate which installed in each Policy Object.
-    // runtime.props are comma-separated props collected in runtime.
-    int toRegisterPathCount = 0 ;
-    for (State state:states) {
-      State taskSpecificState = state;
-      if (state.contains(ConfigurationKeys.PUBLISHER_DIRS)) {
-
-        // Upstream data attribute is specified, need to inject these info into superState as runtimeTableProps.
-        if (this.hiveRegister.getProps().getUpstreamDataAttrName().isPresent()) {
-          for (String attrName:
-              LIST_SPLITTER_COMMA.splitToList(this.hiveRegister.getProps().getUpstreamDataAttrName().get())){
-            if (state.contains(attrName)) {
-              taskSpecificState.appendToListProp(HiveMetaStoreUtils.RUNTIME_PROPS,
-                    attrName + ":" + state.getProp(attrName));
-            }
-          }
-        }
-
-        final HiveRegistrationPolicy policy = HiveRegistrationPolicyBase.getPolicy(taskSpecificState);
-        for ( final String path : state.getPropAsList(ConfigurationKeys.PUBLISHER_DIRS) ) {
-          if (isPathDedupeEnabled && pathsToRegisterFromSingleState.contains(path)){
-            continue;
-          }
-          pathsToRegisterFromSingleState.add(path);
-          toRegisterPathCount += 1;
-          completionService.submit(new Callable<Collection<HiveSpec>>() {
-            @Override
-            public Collection<HiveSpec> call() throws Exception {
-              try (Timer.Context context = metricContext.timer(HIVE_SPEC_COMPUTATION_TIMER).time()) {
-                return policy.getHiveSpecs(new Path(path));
-              }
-            }
-          });
-        }
-      }
-      else continue;
-    }
+    int toRegisterPathCount = computeSpecs(states, completionService);
     for (int i = 0; i < toRegisterPathCount; i++) {
       try {
         for (HiveSpec spec : completionService.take().get()) {
