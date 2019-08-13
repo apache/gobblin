@@ -20,6 +20,7 @@ package org.apache.gobblin.service.modules.flow;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -35,6 +36,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ServiceManager;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigValueFactory;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -51,6 +53,7 @@ import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.core.GitFlowGraphMonitor;
 import org.apache.gobblin.service.modules.flowgraph.BaseFlowGraph;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraph;
 import org.apache.gobblin.service.modules.flowgraph.pathfinder.PathFinder;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
@@ -169,18 +172,23 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
         ConfigUtils.getString(flowSpec.getConfig(), ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, "");
     log.info(String.format("Compiling flow for source: %s and destination: %s", source, destination));
 
-    Dag<JobExecutionPlan> jobExecutionPlanDag;
+    List<FlowSpec> flowSpecs = splitFlowSpecByPath(flowSpec);
+    Dag<JobExecutionPlan> jobExecutionPlanDag = new Dag<>(new ArrayList<>());
     try {
       this.rwLock.readLock().lock();
-      //Compute the path from source to destination.
-      FlowGraphPath flowGraphPath = flowGraph.findPath(flowSpec);
-      //Convert the path into a Dag of JobExecutionPlans.
-      if (flowGraphPath != null) {
-        jobExecutionPlanDag = flowGraphPath.asDag(this.config);
-      } else {
+      for (FlowSpec datasetFlowSpec : flowSpecs) {
+        //Compute the path from source to destination.
+        FlowGraphPath flowGraphPath = flowGraph.findPath(datasetFlowSpec);
+        if (flowGraphPath != null) {
+          //Convert the path into a Dag of JobExecutionPlans.
+          jobExecutionPlanDag = jobExecutionPlanDag.merge(flowGraphPath.asDag(this.config));
+        }
+      }
+
+      if (jobExecutionPlanDag.isEmpty()) {
         Instrumented.markMeter(flowCompilationFailedMeter);
         log.info(String.format("No path found from source: %s and destination: %s", source, destination));
-        return new JobExecutionPlanDagFactory().createDag(new ArrayList<>());
+        return jobExecutionPlanDag;
       }
     } catch (PathFinder.PathFinderException | SpecNotFoundException | JobTemplate.TemplateException | URISyntaxException | ReflectiveOperationException e) {
       Instrumented.markMeter(flowCompilationFailedMeter);
@@ -195,6 +203,56 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
     Instrumented.updateTimer(flowCompilationTimer, System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
 
     return jobExecutionPlanDag;
+  }
+
+  /**
+   * If flowSpec has multiple dataset descriptor paths, return a list of flowSpecs split on the path property with all
+   * other properties being the same. If it does not have multiple, return a singleton list with the original flowSpec.
+   *
+   * Example input flowSpec format:
+   * gobblin.flow.input.dataset.descriptor.0=/data/input/dataset1
+   * gobblin.flow.input.dataset.descriptor.1=/data/input/dataset2
+   *
+   * gobblin.flow.output.dataset.descriptor.0=/data/output/dataset1
+   * gobblin.flow.output.dataset.descriptor.1=/data/output/dataset2
+   */
+  private static List<FlowSpec> splitFlowSpecByPath(FlowSpec flowSpec) {
+    Config config = flowSpec.getConfig();
+
+    String inputKey = DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX + "." + DatasetDescriptorConfigKeys.PATH_KEY;
+    String outputKey = DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX + "." + DatasetDescriptorConfigKeys.PATH_KEY;
+
+    Config inputPathsConfig = ConfigUtils.getConfigOrEmpty(config, inputKey);
+    Config outputPathsConfig = ConfigUtils.getConfigOrEmpty(config, outputKey);
+
+    List<FlowSpec> flowSpecs = new ArrayList<>();
+    int i = 0;
+    while (inputPathsConfig.hasPath(Integer.toString(i))) {
+      // Default to using same input and output path if one is not specified
+      String outputPath = outputPathsConfig.hasPath(Integer.toString(i)) ? outputPathsConfig.getString(Integer.toString(i))
+          : inputPathsConfig.getString(Integer.toString(i));
+      Config newConfig = config.withoutPath(inputKey).withoutPath(outputKey)
+          .withValue(inputKey, inputPathsConfig.getValue(Integer.toString(i)))
+          .withValue(outputKey, ConfigValueFactory.fromAnyRef(outputPath));
+
+      FlowSpec.Builder builder = FlowSpec.builder(flowSpec.getUri()).withVersion(flowSpec.getVersion()).withDescription(flowSpec.getDescription()).withConfig(newConfig);
+      if (flowSpec.getTemplateURIs().isPresent()) {
+        builder = builder.withTemplates(flowSpec.getTemplateURIs().get());
+      }
+      if (flowSpec.getChildSpecs().isPresent()) {
+        builder = builder.withTemplates(flowSpec.getChildSpecs().get());
+      }
+
+      flowSpecs.add(builder.build());
+
+      i++;
+    }
+
+    if (flowSpecs.isEmpty()) {
+      flowSpecs.add(flowSpec);
+    }
+
+    return flowSpecs;
   }
 
   /**
