@@ -36,22 +36,29 @@ compileJava {
 }
 
 dependencies {
+  compile externalDependency.commonsCli
+
   compile project(":gobblin-api")
   compile project(":gobblin-core")
   compile project(":gobblin-hive-registration")
   compile project(":gobblin-metrics-libs:gobblin-metrics")
   compile project(":gobblin-metastore")
   compile project(":gobblin-utility")
-  compile project(path: ':gobblin-rest-service:gobblin-rest-api', configuration: 'restClient')
-  compile project(path: ':gobblin-rest-service:gobblin-rest-api', configuration: 'dataTemplate')
-  compile project(":gobblin-rest-service:gobblin-rest-server")
+  compile(project(path: ':gobblin-rest-service:gobblin-rest-api', configuration: 'restClient')) {
+    exclude group: 'commons-cli', module: 'commons-cli'
+  }
+  compile(project(path: ':gobblin-rest-service:gobblin-rest-api', configuration: 'dataTemplate')) {
+    exclude group: 'commons-cli', module: 'commons-cli'
+  }
+  compile(project(":gobblin-rest-service:gobblin-rest-server")) {
+    exclude group: 'commons-cli', module: 'commons-cli'
+  }
   compile project(":gobblin-modules:google-ingestion")
 
   compile externalDependency.avro
   compile externalDependency.avroMapredH2
   compile externalDependency.calciteCore
   //compile externalDependency.calciteAvatica
-  compile externalDependency.commonsCli
   compile externalDependency.commonsConfiguration
   compile externalDependency.commonsEmail
   compile externalDependency.commonsLang
@@ -199,3 +206,4 @@ task pullFileConverter(type: JavaExec) {
   }
 
 }
+
