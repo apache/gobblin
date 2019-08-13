@@ -43,6 +43,8 @@ public class MockedSpecExecutor extends InMemorySpecExecutor {
     super(config);
     this.mockedSpecProducer = Mockito.mock(SpecProducer.class);
     when(mockedSpecProducer.addSpec(any())).thenReturn(new CompletedFuture(Boolean.TRUE, null));
+    when(mockedSpecProducer.serializeAddSpecResponse(any())).thenReturn("");
+    when(mockedSpecProducer.deserializeAddSpecResponse(any())).thenReturn(new CompletedFuture(Boolean.TRUE, null));
     }
 
   public static SpecExecutor createDummySpecExecutor(URI uri) {

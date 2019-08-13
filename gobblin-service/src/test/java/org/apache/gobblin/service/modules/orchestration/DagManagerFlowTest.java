@@ -74,9 +74,13 @@ public class DagManagerFlowTest {
     Dag<JobExecutionPlan> dag2 = DagManagerTest.buildDag("1", 123456781L, "FINISH_RUNNING", 1);
     Dag<JobExecutionPlan> dag3 = DagManagerTest.buildDag("2", 123456782L, "FINISH_RUNNING", 1);
 
-    int queue1 = DagManagerUtils.getJobQueueId(dag1, dagNumThreads);
-    int queue2 = DagManagerUtils.getJobQueueId(dag2, dagNumThreads);
-    int queue3 = DagManagerUtils.getJobQueueId(dag3, dagNumThreads);
+    String dagId1 = DagManagerUtils.generateDagId(dag1);
+    String dagId2 = DagManagerUtils.generateDagId(dag2);
+    String dagId3 = DagManagerUtils.generateDagId(dag3);
+
+    int queue1 = DagManagerUtils.getDagQueueId(dag1, dagNumThreads);
+    int queue2 = DagManagerUtils.getDagQueueId(dag2, dagNumThreads);
+    int queue3 = DagManagerUtils.getDagQueueId(dag3, dagNumThreads);
 
     when(this.dagManager.getJobStatusRetriever().getLatestExecutionIdsForFlow(eq("flow0"), eq("group0"), anyInt()))
         .thenReturn(Collections.singletonList(123456780L));
@@ -92,11 +96,11 @@ public class DagManagerFlowTest {
 
     // check existence of dag in dagToJobs map
     AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).
-        assertTrue(input -> dagManager.dagManagerThreads[queue1].dagToJobs.containsKey(DagManagerUtils.generateDagId(dag1)), ERROR_MESSAGE);
+        assertTrue(input -> dagManager.dagManagerThreads[queue1].dagToJobs.containsKey(dagId1), ERROR_MESSAGE);
     AssertWithBackoff.create().maxSleepMs(1000).backoffFactor(1).
-        assertTrue(input -> dagManager.dagManagerThreads[queue2].dagToJobs.containsKey(DagManagerUtils.generateDagId(dag2)), ERROR_MESSAGE);
+        assertTrue(input -> dagManager.dagManagerThreads[queue2].dagToJobs.containsKey(dagId2), ERROR_MESSAGE);
     AssertWithBackoff.create().maxSleepMs(1000).backoffFactor(1).
-        assertTrue(input -> dagManager.dagManagerThreads[queue3].dagToJobs.containsKey(DagManagerUtils.generateDagId(dag3)), ERROR_MESSAGE);
+        assertTrue(input -> dagManager.dagManagerThreads[queue3].dagToJobs.containsKey(dagId3), ERROR_MESSAGE);
 
     // mock delete spec
     dagManager.stopDag(FlowConfigResourceLocalHandler.FlowUriUtils.createFlowSpecUri(new FlowId().setFlowGroup("group0").setFlowName("flow0")));
@@ -109,50 +113,61 @@ public class DagManagerFlowTest {
     AssertWithBackoff.create().maxSleepMs(1000).backoffFactor(1).assertTrue(new DeletePredicate(dag3), ERROR_MESSAGE);
 
     // mock flow cancellation tracking event
-    Mockito.doReturn(DagManagerTest.getMockJobStatus("flow0", "group0", 123456780L, "group0", "job0", String.valueOf(
-        ExecutionStatus.CANCELLED)))
-        .when(dagManager.getJobStatusRetriever()).getJobStatusesForFlowExecution("flow0", "group0", 123456780L, "job0", "group0");
+    Mockito.doReturn(DagManagerTest.getMockJobStatus("flow0", "group0", 123456780L,
+        "group0", "job0", String.valueOf(ExecutionStatus.CANCELLED)))
+        .when(dagManager.getJobStatusRetriever()).getJobStatusesForFlowExecution("flow0", "group0",
+        123456780L, "job0", "group0");
 
-    Mockito.doReturn(DagManagerTest.getMockJobStatus("flow1", "group1", 123456781L, "group1", "job0", String.valueOf(
-        ExecutionStatus.CANCELLED)))
-        .when(dagManager.getJobStatusRetriever()).getJobStatusesForFlowExecution("flow1", "group1", 123456781L, "job0", "group1");
+    Mockito.doReturn(DagManagerTest.getMockJobStatus("flow1", "group1", 123456781L,
+        "group1", "job0", String.valueOf(ExecutionStatus.CANCELLED)))
+        .when(dagManager.getJobStatusRetriever()).getJobStatusesForFlowExecution("flow1", "group1",
+        123456781L, "job0", "group1");
 
-    Mockito.doReturn(DagManagerTest.getMockJobStatus("flow2", "group2", 123456782L, "group2", "job0", String.valueOf(
-        ExecutionStatus.CANCELLED)))
-        .when(dagManager.getJobStatusRetriever()).getJobStatusesForFlowExecution("flow2", "group2", 123456782L, "job0", "group2");
+    Mockito.doReturn(DagManagerTest.getMockJobStatus("flow2", "group2", 123456782L,
+        "group2", "job0", String.valueOf(ExecutionStatus.CANCELLED)))
+        .when(dagManager.getJobStatusRetriever()).getJobStatusesForFlowExecution("flow2", "group2",
+        123456782L, "job0", "group2");
 
     // check removal of dag in dagToJobs map
     AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).
-        assertTrue(input -> !dagManager.dagManagerThreads[queue1].dagToJobs.containsKey(DagManagerUtils.generateDagId(dag1)), ERROR_MESSAGE);
+        assertTrue(input -> !dagManager.dagManagerThreads[queue1].dagToJobs.containsKey(dagId1), ERROR_MESSAGE);
     AssertWithBackoff.create().maxSleepMs(1000).backoffFactor(1).
-        assertTrue(input -> !dagManager.dagManagerThreads[queue2].dagToJobs.containsKey(DagManagerUtils.generateDagId(dag2)), ERROR_MESSAGE);
+        assertTrue(input -> !dagManager.dagManagerThreads[queue2].dagToJobs.containsKey(dagId2), ERROR_MESSAGE);
     AssertWithBackoff.create().maxSleepMs(1000).backoffFactor(1).
-        assertTrue(input -> !dagManager.dagManagerThreads[queue3].dagToJobs.containsKey(DagManagerUtils.generateDagId(dag3)), ERROR_MESSAGE);
+        assertTrue(input -> !dagManager.dagManagerThreads[queue3].dagToJobs.containsKey(dagId3), ERROR_MESSAGE);
   }
 
   @Test
   void testFlowSlaWithoutConfig() throws Exception {
     long flowExecutionId = System.currentTimeMillis();
-    Dag<JobExecutionPlan> dag1 = DagManagerTest.buildDag("3", flowExecutionId, "FINISH_RUNNING", 1);
-    int queue = DagManagerUtils.getJobQueueId(dag1, dagNumThreads);
+    Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("3", flowExecutionId, "FINISH_RUNNING", 1);
+    String dagId = DagManagerUtils.generateDagId(dag);
+    int queue = DagManagerUtils.getDagQueueId(dag, dagNumThreads);
 
     when(this.dagManager.getJobStatusRetriever().getLatestExecutionIdsForFlow(eq("flow3"), eq("group3"), anyInt()))
         .thenReturn(Collections.singletonList(flowExecutionId));
 
     // mock add spec
-    dagManager.addDag(dag1);
+    dagManager.addDag(dag);
 
     // check existence of dag in dagToJobs map
     AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).
-        assertTrue(input -> dagManager.dagManagerThreads[queue].dagToJobs.containsKey(DagManagerUtils.generateDagId(dag1)), ERROR_MESSAGE);
+        assertTrue(input -> dagManager.dagManagerThreads[queue].dagToJobs.containsKey(dagId), ERROR_MESSAGE);
+
+    // check existence of dag in dagToSLA map
+    AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).
+        assertTrue(input -> dagManager.dagManagerThreads[queue].dagToSLA.containsKey(dagId), ERROR_MESSAGE);
+
+    // check the SLA value
+    Assert.assertEquals(dagManager.dagManagerThreads[queue].dagToSLA.get(dagId).longValue(), DagManagerUtils.NO_SLA);
 
     // verify deleteSpec() of the specProducer is not called once
     // which means job cancellation was triggered
     try {
-      AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).assertTrue(new DeletePredicate(dag1), ERROR_MESSAGE);
+      AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).assertTrue(new DeletePredicate(dag), ERROR_MESSAGE);
     } catch (TimeoutException e) {
       AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).
-          assertTrue(input -> dagManager.dagManagerThreads[queue].dagToJobs.containsKey(DagManagerUtils.generateDagId(dag1)), ERROR_MESSAGE);
+          assertTrue(input -> dagManager.dagManagerThreads[queue].dagToJobs.containsKey(dagId), ERROR_MESSAGE);
       return;
     }
 
@@ -162,31 +177,43 @@ public class DagManagerFlowTest {
   @Test()
   void testFlowSlaWithConfig() throws Exception {
     long flowExecutionId = System.currentTimeMillis();
-    Dag<JobExecutionPlan> dag1 = DagManagerTest.buildDag("4", flowExecutionId, "FINISH_RUNNING", 1);
-    int queue = DagManagerUtils.getJobQueueId(dag1, dagNumThreads);
+    Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("4", flowExecutionId, "FINISH_RUNNING", 1);
+    String dagId = DagManagerUtils.generateDagId(dag);
+    int queue = DagManagerUtils.getDagQueueId(dag, dagNumThreads);
 
     when(this.dagManager.getJobStatusRetriever().getLatestExecutionIdsForFlow(eq("flow4"), eq("group4"), anyInt()))
         .thenReturn(Collections.singletonList(flowExecutionId));
 
     // change config to set a small sla
-    Config jobConfig = dag1.getStartNodes().get(0).getValue().getJobSpec().getConfig();
+    Config jobConfig = dag.getStartNodes().get(0).getValue().getJobSpec().getConfig();
     jobConfig = jobConfig
         .withValue(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME, ConfigValueFactory.fromAnyRef("7"))
-        .withValue(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME_UNIT, ConfigValueFactory.fromAnyRef("SECONDS"));
-    dag1.getStartNodes().get(0).getValue().getJobSpec().setConfig(jobConfig);
+        .withValue(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME_UNIT, ConfigValueFactory.fromAnyRef(TimeUnit.SECONDS.name()));
+    dag.getStartNodes().get(0).getValue().getJobSpec().setConfig(jobConfig);
 
     // mock add spec
-    dagManager.addDag(dag1);
+    dagManager.addDag(dag);
 
-    System.out.println("checking for " + DagManagerUtils.generateDagId(dag1));
+    // check existence of dag in dagToSLA map
+    AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).
+        assertTrue(input -> dagManager.dagManagerThreads[queue].dagToSLA.containsKey(dagId), ERROR_MESSAGE);
+
+    // check the SLA value
+    Assert.assertEquals(dagManager.dagManagerThreads[queue].dagToSLA.get(dagId).longValue(), TimeUnit.SECONDS.toMillis(7L));
+
 
     // check existence of dag in dagToJobs map
     AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).
-        assertTrue(input -> dagManager.dagManagerThreads[queue].dagToJobs.containsKey(DagManagerUtils.generateDagId(dag1)), ERROR_MESSAGE);
+        assertTrue(input -> dagManager.dagManagerThreads[queue].dagToJobs.containsKey(dagId), ERROR_MESSAGE);
 
     // verify deleteSpec() of specProducer is called once
     // which means job cancellation was triggered
-    AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).assertTrue(new DeletePredicate(dag1), ERROR_MESSAGE);
+    AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).assertTrue(new DeletePredicate(dag), ERROR_MESSAGE);
+
+    // check removal of dag from dagToSLA map
+    AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).
+        assertTrue(input -> !dagManager.dagManagerThreads[queue].dagToSLA.containsKey(dagId), ERROR_MESSAGE);
+
   }
 
   @Test
@@ -197,15 +224,15 @@ public class DagManagerFlowTest {
     Config jobConfig = dag.getStartNodes().get(0).getValue().getJobSpec().getConfig();
     jobConfig = jobConfig
         .withValue(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME, ConfigValueFactory.fromAnyRef("7"))
-        .withValue(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME_UNIT, ConfigValueFactory.fromAnyRef("SECONDS"));
+        .withValue(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME_UNIT, ConfigValueFactory.fromAnyRef(TimeUnit.SECONDS.name()));
     dag.getStartNodes().get(0).getValue().getJobSpec().setConfig(jobConfig);
     Assert.assertEquals(DagManagerUtils.getFlowSLA(dag.getStartNodes().get(0)), TimeUnit.SECONDS.toMillis(7L));
 
     jobConfig = jobConfig
-        .withValue(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME, ConfigValueFactory.fromAnyRef("7"))
-        .withValue(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME_UNIT, ConfigValueFactory.fromAnyRef("MINUTES"));
+        .withValue(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME, ConfigValueFactory.fromAnyRef("8"))
+        .withValue(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME_UNIT, ConfigValueFactory.fromAnyRef(TimeUnit.MINUTES.name()));
     dag.getStartNodes().get(0).getValue().getJobSpec().setConfig(jobConfig);
-    Assert.assertEquals(DagManagerUtils.getFlowSLA(dag.getStartNodes().get(0)), TimeUnit.MINUTES.toMillis(7L));
+    Assert.assertEquals(DagManagerUtils.getFlowSLA(dag.getStartNodes().get(0)), TimeUnit.MINUTES.toMillis(8L));
   }
 }
 
@@ -235,7 +262,8 @@ class MockedDagManager extends DagManager {
   @Override
   JobStatusRetriever createJobStatusRetriever(Config config) {
     JobStatusRetriever mockedJbStatusRetriever = Mockito.mock(JobStatusRetriever.class);
-    Mockito.doReturn(Collections.emptyIterator()).when(mockedJbStatusRetriever).getJobStatusesForFlowExecution(anyString(), anyString(), anyLong(), anyString(), anyString());
+    Mockito.doReturn(Collections.emptyIterator()).when(mockedJbStatusRetriever).
+        getJobStatusesForFlowExecution(anyString(), anyString(), anyLong(), anyString(), anyString());
     return  mockedJbStatusRetriever;
   }
 
