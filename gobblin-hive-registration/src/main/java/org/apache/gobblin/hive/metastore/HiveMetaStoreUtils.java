@@ -211,7 +211,7 @@ public class HiveMetaStoreUtils {
     State props = unit.getStorageProps();
     StorageDescriptor sd = new StorageDescriptor();
     sd.setParameters(getParameters(props));
-    if (unit instanceof HiveTable) {
+    if (unit.isRegisterSchema()) {
       sd.setCols(getFieldSchemas(unit));
     }
     if (unit.getLocation().isPresent()) {
