@@ -56,6 +56,7 @@ import org.apache.gobblin.stream.StreamEntity;
 import org.apache.gobblin.util.AvroUtils;
 import org.apache.gobblin.util.FinalState;
 import org.apache.gobblin.writer.partitioner.WriterPartitioner;
+import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
 
 
 /**
@@ -67,7 +68,6 @@ import org.apache.gobblin.writer.partitioner.WriterPartitioner;
 @Slf4j
 public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements FinalState, SpeculativeAttemptAwareConstruct, WatermarkAwareWriter<D> {
 
-  public static final String TASK_LATEST_SCHEMA = "task.latest.schema";
   private static final GenericRecord NON_PARTITIONED_WRITER_KEY =
       new GenericData.Record(SchemaBuilder.record("Dummy").fields().endRecord());
 
@@ -97,7 +97,9 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
     this.closer = Closer.create();
     this.writerBuilder = builder;
     this.controlMessageHandler = new PartitionDataWriterMessageHandler();
-    this.state.setProp(TASK_LATEST_SCHEMA, builder.getSchema());
+    if(builder.schema!=null) {
+      this.state.setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), builder.getSchema());
+    }
     this.partitionWriters = CacheBuilder.newBuilder().build(new CacheLoader<GenericRecord, DataWriter<D>>() {
       @Override
       public DataWriter<D> load(final GenericRecord key)
@@ -323,7 +325,7 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
       if (message instanceof MetadataUpdateControlMessage) {
         PartitionedDataWriter.this.writerBuilder.withSchema(((MetadataUpdateControlMessage) message)
             .getGlobalMetadata().getSchema());
-        state.setProp(TASK_LATEST_SCHEMA, ((MetadataUpdateControlMessage) message)
+        state.setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), ((MetadataUpdateControlMessage) message)
             .getGlobalMetadata().getSchema());
       }
 
