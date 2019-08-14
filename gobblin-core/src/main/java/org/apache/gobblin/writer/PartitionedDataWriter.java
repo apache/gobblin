@@ -67,6 +67,7 @@ import org.apache.gobblin.writer.partitioner.WriterPartitioner;
 @Slf4j
 public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements FinalState, SpeculativeAttemptAwareConstruct, WatermarkAwareWriter<D> {
 
+  public static final String TASK_LATEST_SCHEMA = "task.latest.schema";
   private static final GenericRecord NON_PARTITIONED_WRITER_KEY =
       new GenericData.Record(SchemaBuilder.record("Dummy").fields().endRecord());
 
@@ -96,6 +97,7 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
     this.closer = Closer.create();
     this.writerBuilder = builder;
     this.controlMessageHandler = new PartitionDataWriterMessageHandler();
+    this.state.setProp(TASK_LATEST_SCHEMA, builder.getSchema());
     this.partitionWriters = CacheBuilder.newBuilder().build(new CacheLoader<GenericRecord, DataWriter<D>>() {
       @Override
       public DataWriter<D> load(final GenericRecord key)
@@ -118,19 +120,19 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
 
     if (state.contains(ConfigurationKeys.WRITER_PARTITIONER_CLASS)) {
       Preconditions.checkArgument(builder instanceof PartitionAwareDataWriterBuilder, String
-              .format("%s was specified but the writer %s does not support partitioning.",
-                  ConfigurationKeys.WRITER_PARTITIONER_CLASS, builder.getClass().getCanonicalName()));
+          .format("%s was specified but the writer %s does not support partitioning.",
+              ConfigurationKeys.WRITER_PARTITIONER_CLASS, builder.getClass().getCanonicalName()));
 
       try {
         this.shouldPartition = true;
         this.builder = Optional.of(PartitionAwareDataWriterBuilder.class.cast(builder));
         this.partitioner = Optional.of(WriterPartitioner.class.cast(ConstructorUtils
-                .invokeConstructor(Class.forName(state.getProp(ConfigurationKeys.WRITER_PARTITIONER_CLASS)), state,
-                    builder.getBranches(), builder.getBranch())));
+            .invokeConstructor(Class.forName(state.getProp(ConfigurationKeys.WRITER_PARTITIONER_CLASS)), state,
+                builder.getBranches(), builder.getBranch())));
         Preconditions
             .checkArgument(this.builder.get().validatePartitionSchema(this.partitioner.get().partitionSchema()), String
-                    .format("Writer %s does not support schema from partitioner %s",
-                        builder.getClass().getCanonicalName(), this.partitioner.getClass().getCanonicalName()));
+                .format("Writer %s does not support schema from partitioner %s",
+                    builder.getClass().getCanonicalName(), this.partitioner.getClass().getCanonicalName()));
       } catch (ReflectiveOperationException roe) {
         throw new IOException(roe);
       }
@@ -320,6 +322,8 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
       // update the schema used to build writers
       if (message instanceof MetadataUpdateControlMessage) {
         PartitionedDataWriter.this.writerBuilder.withSchema(((MetadataUpdateControlMessage) message)
+            .getGlobalMetadata().getSchema());
+        state.setProp(TASK_LATEST_SCHEMA, ((MetadataUpdateControlMessage) message)
             .getGlobalMetadata().getSchema());
       }
 
