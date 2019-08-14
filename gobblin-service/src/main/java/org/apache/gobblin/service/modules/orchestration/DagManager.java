@@ -513,6 +513,7 @@ public class DagManager extends AbstractIdleService {
           case FAILED:
             jobExecutionPlan.setExecutionStatus(FAILED);
             nextSubmitted.putAll(onJobFinish(node));
+            nodesToCleanUp.add(node);
             break;
           case CANCELLED:
             jobExecutionPlan.setExecutionStatus(CANCELLED);
