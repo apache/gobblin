@@ -200,18 +200,4 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
 
   public abstract org.apache.gobblin.configuration.State parseJobStatus(byte[] message) throws IOException;
 
-  public void setActive(boolean active) {
-    if (this.isActive == active) {
-      log.info("KafkaJobStatusMonitor already {}, skipping further actions.", active ? "active" : "inactive");
-      return;
-    }
-    this.isActive = active;
-    if (this.isActive) {
-      log.info("Starting job status monitor");
-      startAsync().awaitRunning();
-    } else {
-      log.info("Shutting down JobStatusMonitor");
-      shutDown();
-    }
-  }
 }
