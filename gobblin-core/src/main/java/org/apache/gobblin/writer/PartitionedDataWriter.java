@@ -48,7 +48,6 @@ import org.apache.gobblin.dataset.PartitionDescriptor;
 import org.apache.gobblin.instrumented.writer.InstrumentedDataWriterDecorator;
 import org.apache.gobblin.instrumented.writer.InstrumentedPartitionedDataWriterDecorator;
 import org.apache.gobblin.records.ControlMessageHandler;
-import org.apache.gobblin.source.extractor.CheckpointableWatermark;
 import org.apache.gobblin.stream.ControlMessage;
 import org.apache.gobblin.stream.MetadataUpdateControlMessage;
 import org.apache.gobblin.stream.RecordEnvelope;
@@ -56,7 +55,6 @@ import org.apache.gobblin.stream.StreamEntity;
 import org.apache.gobblin.util.AvroUtils;
 import org.apache.gobblin.util.FinalState;
 import org.apache.gobblin.writer.partitioner.WriterPartitioner;
-import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
 
 
 /**
@@ -68,6 +66,7 @@ import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
 @Slf4j
 public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements FinalState, SpeculativeAttemptAwareConstruct, WatermarkAwareWriter<D> {
 
+  public static final String WRITER_LATEST_SCHEMA = "writer.latest.schema";
   private static final GenericRecord NON_PARTITIONED_WRITER_KEY =
       new GenericData.Record(SchemaBuilder.record("Dummy").fields().endRecord());
 
@@ -97,8 +96,8 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
     this.closer = Closer.create();
     this.writerBuilder = builder;
     this.controlMessageHandler = new PartitionDataWriterMessageHandler();
-    if(builder.schema!=null) {
-      this.state.setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), builder.getSchema());
+    if(builder.schema != null) {
+      this.state.setProp(WRITER_LATEST_SCHEMA, builder.getSchema());
     }
     this.partitionWriters = CacheBuilder.newBuilder().build(new CacheLoader<GenericRecord, DataWriter<D>>() {
       @Override
@@ -325,7 +324,7 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
       if (message instanceof MetadataUpdateControlMessage) {
         PartitionedDataWriter.this.writerBuilder.withSchema(((MetadataUpdateControlMessage) message)
             .getGlobalMetadata().getSchema());
-        state.setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), ((MetadataUpdateControlMessage) message)
+        state.setProp(WRITER_LATEST_SCHEMA, ((MetadataUpdateControlMessage) message)
             .getGlobalMetadata().getSchema());
       }
 
