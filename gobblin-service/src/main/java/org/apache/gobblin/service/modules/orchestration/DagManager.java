@@ -685,6 +685,9 @@ public class DagManager extends AbstractIdleService {
     /**
      * Method that defines the actions to be performed when a job finishes either successfully or with failure.
      * This method updates the state of the dag and performs clean up actions as necessary.
+     * TODO : Dag should have a status field, like JobExecutionPlan has. This method should update that field,
+     *        which should be used by cleanup(). It may also remove the need of failedDagIdsFinishRunning,
+     *        failedDagIdsFinishAllPossible.
      */
     private Map<String, Set<DagNode<JobExecutionPlan>>> onJobFinish(DagNode<JobExecutionPlan> dagNode)
         throws IOException {
@@ -711,7 +714,7 @@ public class DagManager extends AbstractIdleService {
         case COMPLETE:
           return submitNext(dagId);
         default:
-          log.warn("It should not reach here.");
+          log.warn("It should not reach here. Job status is unexpected.");
           return Maps.newHashMap();
       }
     }
@@ -760,29 +763,29 @@ public class DagManager extends AbstractIdleService {
           deleteJobState(dagId, dagNode);
         }
         log.info("Dag {} has finished with status FAILED; Cleaning up dag from the state store.", dagId);
+        // send an event before cleaning up dag
+        JobExecutionPlan jobExecutionPlan = this.dags.get(dagId).getNodes().get(0).getValue();
+        DagManagerUtils.emitFlowEvent(this.eventSubmitter, jobExecutionPlan, TimingEvent.FlowTimings.FLOW_FAILED);
         dagIdstoClean.add(dagId);
       }
 
       //Clean up completed dags
       for (String dagId : this.dags.keySet()) {
         if (!hasRunningJobs(dagId) && !this.failedDagIdsFinishRunning.contains(dagId)) {
-          String status = "COMPLETE";
+          String status = TimingEvent.FlowTimings.FLOW_SUCCEEDED;
           if (this.failedDagIdsFinishAllPossible.contains(dagId)) {
-            status = "FAILED";
+            status = TimingEvent.FlowTimings.FLOW_FAILED;
             this.failedDagIdsFinishAllPossible.remove(dagId);
           }
           log.info("Dag {} has finished with status {}; Cleaning up dag from the state store.", dagId, status);
+          // send an event before cleaning up dag
+          JobExecutionPlan jobExecutionPlan = this.dags.get(dagId).getNodes().get(0).getValue();
+          DagManagerUtils.emitFlowEvent(this.eventSubmitter, jobExecutionPlan, status);
           dagIdstoClean.add(dagId);
         }
       }
 
       for (String dagId: dagIdstoClean) {
-        // send an event before cleaning up dag metadata
-        if (this.eventSubmitter.isPresent()) {
-          JobExecutionPlan jobExecutionPlan = this.dags.get(dagId).getNodes().get(0).getValue();
-          Map<String, String> jobMetadata = TimingEventUtils.getJobMetadata(Maps.newHashMap(), jobExecutionPlan);
-          this.eventSubmitter.get().getTimingEvent(TimingEvent.FlowTimings.FLOW_CANCEL).stop(jobMetadata);
-        }
         cleanUpDag(dagId);
       }
     }

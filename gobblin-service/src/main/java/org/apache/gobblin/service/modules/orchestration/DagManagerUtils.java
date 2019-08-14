@@ -19,15 +19,19 @@ package org.apache.gobblin.service.modules.orchestration;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import com.google.common.base.Joiner;
+import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.service.ExecutionStatus;
@@ -197,7 +201,8 @@ public class DagManagerUtils {
       return null;
     }
     DagNode<JobExecutionPlan> dagNode = dag.getStartNodes().get(0);
-    String failureOption = ConfigUtils.getString(getJobConfig(dagNode), ConfigurationKeys.FLOW_FAILURE_OPTION, DagManager.DEFAULT_FLOW_FAILURE_OPTION);
+    String failureOption = ConfigUtils.getString(getJobConfig(dagNode),
+        ConfigurationKeys.FLOW_FAILURE_OPTION, DagManager.DEFAULT_FLOW_FAILURE_OPTION);
     return FailureOption.valueOf(failureOption);
   }
 
@@ -239,5 +244,12 @@ public class DagManagerUtils {
 
   static int getDagQueueId(long flowExecutionId, int numThreads) {
     return (int) (flowExecutionId % numThreads);
+  }
+
+  static void emitFlowEvent(Optional<EventSubmitter> eventSubmitter, JobExecutionPlan jobExecutionPlan, String flowEvent) {
+    if (eventSubmitter.isPresent()) {
+      Map<String, String> jobMetadata = TimingEventUtils.getJobMetadata(Maps.newHashMap(), jobExecutionPlan);
+      eventSubmitter.get().getTimingEvent(flowEvent).stop(jobMetadata);
+    }
   }
 }
