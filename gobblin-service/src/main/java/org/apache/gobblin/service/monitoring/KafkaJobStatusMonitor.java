@@ -74,8 +74,6 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   private static final Config DEFAULTS = ConfigFactory.parseMap(ImmutableMap.of(
       KAFKA_AUTO_OFFSET_RESET_KEY, KAFKA_AUTO_OFFSET_RESET_SMALLEST));
 
-  private volatile boolean isActive = false;
-
   public KafkaJobStatusMonitor(String topic, Config config, int numThreads)
       throws ReflectiveOperationException {
     super(topic, config.withFallback(DEFAULTS), numThreads);
