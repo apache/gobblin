@@ -18,7 +18,9 @@
 package org.apache.gobblin.converter.date;
 
 import com.google.common.base.Preconditions;
-import org.apache.gobblin.configuration.ConfigurationKeys;
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.converter.Converter;
 import org.apache.gobblin.converter.DataConversionException;
@@ -26,44 +28,53 @@ import org.apache.gobblin.converter.SchemaConversionException;
 import org.apache.gobblin.converter.SingleRecordIterable;
 import org.apache.gobblin.util.EmptyIterable;
 
-import java.lang.reflect.Method;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.TimeZone;
 
+
+/**
+ * An implementation of {@link org.apache.gobblin.converter.Converter} for the date conversion.
+ *
+ *<p>
+ *   This converter converts date from one format / timezone to another format / timezone.
+ *   If the input record type is JsonElement, then the converter fetches input date using
+ *   converter.date.field specified in jobconfig file.
+ *   TODO: Identify the schema for reading and writing date to the outputRecord.
+ * </p>
+ *
+ * @author Siddhesh Sudesh Narvekar
+ */
+
 public class DateConverter<SI, SO, DI, DO> extends Converter<SI, SO, DI, DO> {
+
+    private static final String CONVERTER_INPUT_TIMEZONE = "converter.input.timezone";
+    private static final String CONVERTER_INPUT_TIMEFORMAT = "converter.input.timeformat";
+    private static final String CONVERTER_OUTPUT_TIMEZONE = "converter.output.timezone";
+    private static final String CONVERTER_OUTPUT_TIMEFORMAT = "converter.output.timeformat";
+    private static final String CONVERTER_DATE_FIELD = "converter.date.field";
 
     private String inputTimezone;
     private String inputTimeformat;
     private String outputTimezone;
     private String outputTimeformat;
 
-    private String date;
-
-    public String getDate() {
-        return date;
-    }
-
-    public void setDate(String date) {
-        this.date = date;
-    }
-
     @Override
     public Converter<SI, SO, DI, DO> init(WorkUnitState workUnit) {
         Calendar cal = Calendar.getInstance();
         TimeZone tz = cal.getTimeZone();
 
-        Preconditions.checkArgument(workUnit.contains(ConfigurationKeys.CONVERTER_INPUT_TIMEZONE), "Cannot use "
-                + this.getClass().getName() + " without specifying " + ConfigurationKeys.CONVERTER_INPUT_TIMEZONE);
-        Preconditions.checkArgument(workUnit.contains(ConfigurationKeys.CONVERTER_INPUT_TIMEFORMAT), "Cannot use "
-                + this.getClass().getName() + " without specifying " + ConfigurationKeys.CONVERTER_INPUT_TIMEFORMAT);
+        Preconditions.checkArgument(workUnit.contains(CONVERTER_INPUT_TIMEZONE), "Cannot use "
+                + this.getClass().getName() + " without specifying " + CONVERTER_INPUT_TIMEZONE);
+        Preconditions.checkArgument(workUnit.contains(CONVERTER_INPUT_TIMEFORMAT), "Cannot use "
+                + this.getClass().getName() + " without specifying " + CONVERTER_INPUT_TIMEFORMAT);
 
-        this.inputTimezone = workUnit.getProp(ConfigurationKeys.CONVERTER_INPUT_TIMEZONE);
-        this.inputTimeformat = workUnit.getProp(ConfigurationKeys.CONVERTER_INPUT_TIMEFORMAT);
-        this.outputTimezone = workUnit.contains(ConfigurationKeys.CONVERTER_OUTPUT_TIMEZONE) ? workUnit.getProp(ConfigurationKeys.CONVERTER_OUTPUT_TIMEZONE) : tz.toZoneId().toString();
-        this.outputTimeformat = workUnit.contains(ConfigurationKeys.CONVERTER_OUTPUT_TIMEFORMAT) ? workUnit.getProp(ConfigurationKeys.CONVERTER_OUTPUT_TIMEFORMAT) : "MM-dd-yyyy HH:mm:ss z";
+        this.inputTimezone = workUnit.getProp(CONVERTER_INPUT_TIMEZONE);
+        this.inputTimeformat = workUnit.getProp(CONVERTER_INPUT_TIMEFORMAT);
+        this.outputTimezone = workUnit.contains(CONVERTER_OUTPUT_TIMEZONE) ? workUnit.getProp(CONVERTER_OUTPUT_TIMEZONE) : tz.toZoneId().toString();
+        this.outputTimeformat = workUnit.contains(CONVERTER_OUTPUT_TIMEFORMAT) ? workUnit.getProp(CONVERTER_OUTPUT_TIMEFORMAT) : "MM-dd-yyyy HH:mm:ss z";
 
         return this;
     }
@@ -74,50 +85,53 @@ public class DateConverter<SI, SO, DI, DO> extends Converter<SI, SO, DI, DO> {
     }
 
     @Override
-    public Iterable<DO> convertRecord(SO outputSchema, DI iR, WorkUnitState workUnit)
+    public Iterable<DO> convertRecord(SO outputSchema, DI inputRecord, WorkUnitState workUnit)
             throws DataConversionException {
-        String inputRecord = "";
-        try{
-            Class inputRecordClass = iR.getClass();
-            Method inputRecordClassGetDate = inputRecordClass.getMethod("getDate", null);
-            inputRecord = (String)inputRecordClassGetDate.invoke(iR, null);
-        }catch (Exception e){
-            System.out.println(iR.getClass() + " must implement DateObject: " + DateObject.class.getCanonicalName());
+        DO outputRecord;
+        String inputField = "";
+
+        if(inputRecord instanceof JsonElement)
+            inputField = ((JsonElement) inputRecord).getAsJsonObject().get(workUnit.getProp(CONVERTER_DATE_FIELD)).getAsString();
+        else {
+            //TODO: Identify the schema and read date from inputRecord
         }
 
         // IF INPUT TIME FORMAT IS UNIX, HANDLE IT DIFFERENTLY
         if(this.inputTimeformat.equalsIgnoreCase("UNIX")) {
-            long unixSeconds = Long.parseLong(inputRecord);
+            long unixSeconds = Long.parseLong(inputField);
             Date date = new Date(unixSeconds * 1000L);
             SimpleDateFormat sdf = new SimpleDateFormat(this.outputTimeformat);
             sdf.setTimeZone(TimeZone.getTimeZone(this.outputTimezone));
             String formattedDate = sdf.format(date);
-            setRecord(iR, formattedDate);
-            return new SingleRecordIterable<>((DO)iR);
+            outputRecord = setRecord(inputRecord, formattedDate, workUnit.getProp(CONVERTER_DATE_FIELD));
+            return new SingleRecordIterable<>(outputRecord);
         }
 
         DateFormat inputTimeformat = new SimpleDateFormat(this.inputTimeformat);
         DateFormat outputTimeformat = new SimpleDateFormat(this.outputTimeformat);
         inputTimeformat.setTimeZone(TimeZone.getTimeZone(this.inputTimezone));
         try {
-            Date date = inputTimeformat.parse(inputRecord);
+            Date date = inputTimeformat.parse(inputField);
             String formattedDate = outputTimeformat.format(date);
-            setRecord(iR, formattedDate);
-            return new SingleRecordIterable<>((DO)iR);
+            outputRecord = setRecord(inputRecord, formattedDate, workUnit.getProp(CONVERTER_DATE_FIELD));
+            return new SingleRecordIterable<>(outputRecord);
         }catch(Exception e){
             System.out.println(e);
         }
         return new EmptyIterable<DO>();
     }
 
-    private void setRecord(DI inputRecord, String formattedDate){
-        try{
-            Class inputRecordClass = inputRecord.getClass();
-            Class cArg = String.class;
-            Method inputRecordClassSetDate = inputRecordClass.getMethod("setDate", cArg);
-            inputRecordClassSetDate.invoke(inputRecord, formattedDate);
-        }catch (Exception e) {
-            System.out.println(e);
+    private DO setRecord(DI inputRecord, String formattedDate, String jsonField){
+        DO outputRecord = null;
+        if(inputRecord instanceof JsonElement){
+            JsonObject iR = ((JsonElement) inputRecord).getAsJsonObject();
+            iR.addProperty(jsonField, formattedDate);
+            Gson gson = new Gson();
+            outputRecord = (DO) gson.fromJson(iR.toString(), JsonElement.class);
         }
+        else {
+            //TODO: Identify the schema and write date to outputRecord
+        }
+        return outputRecord;
     }
 }

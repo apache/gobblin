@@ -327,10 +327,6 @@ public class ConfigurationKeys {
   public static final String CONVERTER_SKIP_FAILED_RECORD = "converter.skipFailedRecord";
   public static final String CONVERTER_AVRO_SCHEMA_KEY = "converter.avroSchema";
   public static final String CONVERTER_IGNORE_FIELDS = "converter.ignoreFields";
-  public static final String CONVERTER_INPUT_TIMEZONE = "converter.input.timezone";
-  public static final String CONVERTER_INPUT_TIMEFORMAT = "converter.input.timeformat";
-  public static final String CONVERTER_OUTPUT_TIMEZONE = "converter.output.timezone";
-  public static final String CONVERTER_OUTPUT_TIMEFORMAT = "converter.output.timeformat";
 
   /**
    * Fork operator configuration properties.
