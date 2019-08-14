@@ -29,7 +29,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -75,6 +74,7 @@ import org.apache.gobblin.service.monitoring.KafkaJobStatusMonitorFactory;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
+import static org.apache.gobblin.service.ExecutionStatus.CANCELLED;
 import static org.apache.gobblin.service.ExecutionStatus.COMPLETE;
 import static org.apache.gobblin.service.ExecutionStatus.FAILED;
 import static org.apache.gobblin.service.ExecutionStatus.RUNNING;
@@ -98,7 +98,7 @@ import static org.apache.gobblin.service.ExecutionStatus.valueOf;
  *
  * For deleteSpec/cancellation requests for a flow URI, {@link DagManager} finds out the flowExecutionId using
  * {@link JobStatusRetriever}, and forwards the request to the {@link DagManagerThread} which handled the addSpec request
- * for this flow. We need separate {@value queue} and {@value cancelQueue} for each {@link DagManagerThread} because
+ * for this flow. We need separate {@link BlockingQueue}s for each {@link DagManagerThread} because
  * cancellation needs the information which is stored only in the same {@link DagManagerThread}.
  *
  * The {@link DagManager} is active only in the leader mode. To ensure, each {@link Dag} managed by a {@link DagManager} is
@@ -157,6 +157,7 @@ public class DagManager extends AbstractIdleService {
   private DagStateStore dagStateStore;
   private Map<URI, TopologySpec> topologySpecMap;
 
+  @Getter
   private final Integer numThreads;
   private final Integer pollingInterval;
   @Getter
@@ -238,8 +239,7 @@ public class DagManager extends AbstractIdleService {
   synchronized void addDag(Dag<JobExecutionPlan> dag) throws IOException {
     //Persist the dag
     this.dagStateStore.writeCheckpoint(dag);
-    long flowExecutionId = DagManagerUtils.getFlowExecId(dag);
-    int queueId = (int) (flowExecutionId % this.numThreads);
+    int queueId = DagManagerUtils.getDagQueueId(dag, this.numThreads);
     // Add the dag to the specific queue determined by flowExecutionId
     // Flow cancellation request has to be forwarded to the same DagManagerThread where the
     // flow create request was forwarded. This is because Azkaban Exec Id is stored in the DagNode of the
@@ -273,7 +273,7 @@ public class DagManager extends AbstractIdleService {
     log.info("Found {} flows to cancel.", flowExecutionIds.size());
 
     for (long flowExecutionId : flowExecutionIds) {
-      int queueId = (int) (flowExecutionId % this.numThreads);
+      int queueId =  DagManagerUtils.getDagQueueId(flowExecutionId, this.numThreads);
       String dagId = DagManagerUtils.generateDagId(flowGroup, flowName, flowExecutionId);
       if (!this.cancelQueue[queueId].offer(dagId)) {
         throw new IOException("Could not add dag " + dagId + " to cancellation queue.");
@@ -347,7 +347,9 @@ public class DagManager extends AbstractIdleService {
   public static class DagManagerThread implements Runnable {
     private final Map<DagNode<JobExecutionPlan>, Dag<JobExecutionPlan>> jobToDag = new HashMap<>();
     private final Map<String, Dag<JobExecutionPlan>> dags = new HashMap<>();
+    // dagToJobs holds a map of dagId to running jobs of that dag
     final Map<String, LinkedList<DagNode<JobExecutionPlan>>> dagToJobs = new HashMap<>();
+    final Map<String, Long> dagToSLA = new HashMap<>();
     private final Set<String> failedDagIdsFinishRunning = new HashSet<>();
     private final Set<String> failedDagIdsFinishAllPossible = new HashSet<>();
     private final MetricContext metricContext;
@@ -382,6 +384,7 @@ public class DagManager extends AbstractIdleService {
     /**
      * Main body of the {@link DagManagerThread}. Deque the next item from the queue and poll job statuses of currently
      * running jobs.
+     * Because this thread runs in a regular interval, we should avoid doing repetitive work inside it.
      */
     @Override
     public void run() {
@@ -414,27 +417,41 @@ public class DagManager extends AbstractIdleService {
       }
     }
 
+    /**
+     * Cancels the dag and sends a cancellation tracking event.
+     * @param dagToCancel dag node to cancel
+     * @throws ExecutionException executionException
+     * @throws InterruptedException interruptedException
+     */
     private void cancelDag(String dagToCancel) throws ExecutionException, InterruptedException {
       log.info("Cancel flow with DagId {}", dagToCancel);
       if (this.dagToJobs.containsKey(dagToCancel)) {
         List<DagNode<JobExecutionPlan>> dagNodesToCancel = this.dagToJobs.get(dagToCancel);
         log.info("Found {} DagNodes to cancel.", dagNodesToCancel.size());
         for (DagNode<JobExecutionPlan> dagNodeToCancel : dagNodesToCancel) {
-          Properties props = new Properties();
-          if (dagNodeToCancel.getValue().getJobFuture().isPresent()) {
-            Future future = dagNodeToCancel.getValue().getJobFuture().get();
-            if (future instanceof CompletableFuture &&
-              future.get() instanceof AzkabanExecuteFlowStatus.ExecuteId) {
-              CompletableFuture<AzkabanExecuteFlowStatus.ExecuteId> completableFuture = (CompletableFuture) future;
-              String azkabanExecId = completableFuture.get().getExecId();
-              props.put(ConfigurationKeys.AZKABAN_EXEC_ID, azkabanExecId);
-              log.info("Cancel job with azkaban exec id {}.", azkabanExecId);
-            }
-          }
-          DagManagerUtils.getSpecProducer(dagNodeToCancel).deleteSpec(null, props);
+          cancelDagNode(dagNodeToCancel);
         }
       } else {
-        log.warn("Did not find Dag with id {}, it might be already cancelled.", dagToCancel);
+        log.warn("Did not find Dag with id {}, it might be already cancelled/finished.", dagToCancel);
+      }
+    }
+
+    private void cancelDagNode(DagNode<JobExecutionPlan> dagNodeToCancel) throws ExecutionException, InterruptedException {
+      Properties props = new Properties();
+      if (dagNodeToCancel.getValue().getJobFuture().isPresent()) {
+        Future future = dagNodeToCancel.getValue().getJobFuture().get();
+        String serializedFuture = DagManagerUtils.getSpecProducer(dagNodeToCancel).serializeAddSpecResponse(future);
+        props.put(ConfigurationKeys.SPEC_PRODUCER_SERIALIZED_FUTURE, serializedFuture);
+        sendCancellationEvent(dagNodeToCancel.getValue());
+      }
+      DagManagerUtils.getSpecProducer(dagNodeToCancel).deleteSpec(null, props);
+    }
+
+    private void sendCancellationEvent(JobExecutionPlan jobExecutionPlan) {
+      if (this.eventSubmitter.isPresent()) {
+        Map<String, String> jobMetadata = TimingEventUtils.getJobMetadata(Maps.newHashMap(), jobExecutionPlan);
+        this.eventSubmitter.get().getTimingEvent(TimingEvent.LauncherTimings.JOB_CANCEL).stop(jobMetadata);
+        jobExecutionPlan.setExecutionStatus(CANCELLED);
       }
     }
 
@@ -473,22 +490,20 @@ public class DagManager extends AbstractIdleService {
     /**
      * Proceed the execution of each dag node based on job status.
      */
-    private void pollAndAdvanceDag()
-        throws IOException {
+    private void pollAndAdvanceDag() throws IOException, ExecutionException, InterruptedException {
       this.failedDagIdsFinishRunning.clear();
-
       Map<String, Set<DagNode<JobExecutionPlan>>> nextSubmitted = Maps.newHashMap();
       List<DagNode<JobExecutionPlan>> nodesToCleanUp = Lists.newArrayList();
+
       for (DagNode<JobExecutionPlan> node: this.jobToDag.keySet()) {
-        long pollStartTime = System.nanoTime();
+        boolean slaKilled = slaKillIfNeeded(node);
+
         JobStatus jobStatus = pollJobStatus(node);
-        Instrumented.updateTimer(this.jobStatusPolledTimer, System.nanoTime() - pollStartTime, TimeUnit.NANOSECONDS);
-        if (jobStatus == null) {
-          continue;
-        }
+
+        ExecutionStatus status = getJobExecutionStatus(slaKilled, jobStatus);
+
         JobExecutionPlan jobExecutionPlan = DagManagerUtils.getJobExecutionPlan(node);
 
-        ExecutionStatus status = valueOf(jobStatus.getEventName());
         switch (status) {
           case COMPLETE:
             jobExecutionPlan.setExecutionStatus(COMPLETE);
@@ -496,8 +511,12 @@ public class DagManager extends AbstractIdleService {
             nodesToCleanUp.add(node);
             break;
           case FAILED:
-          case CANCELLED:
             jobExecutionPlan.setExecutionStatus(FAILED);
+            nextSubmitted.putAll(onJobFinish(node));
+            nodesToCleanUp.add(node);
+            break;
+          case CANCELLED:
+            jobExecutionPlan.setExecutionStatus(CANCELLED);
             nextSubmitted.putAll(onJobFinish(node));
             nodesToCleanUp.add(node);
             break;
@@ -509,7 +528,7 @@ public class DagManager extends AbstractIdleService {
             break;
         }
 
-        if (jobStatus.isShouldRetry()) {
+        if (jobStatus != null && jobStatus.isShouldRetry()) {
           log.info("Retrying job: {}, current attempts: {}, max attempts: {}", DagManagerUtils.getFullyQualifiedJobName(node),
               jobStatus.getCurrentAttempts(), jobStatus.getMaxAttempts());
           submitJob(node);
@@ -519,15 +538,60 @@ public class DagManager extends AbstractIdleService {
       for (Map.Entry<String, Set<DagNode<JobExecutionPlan>>> entry: nextSubmitted.entrySet()) {
         String dagId = entry.getKey();
         Set<DagNode<JobExecutionPlan>> dagNodes = entry.getValue();
-        for (DagNode dagNode: dagNodes) {
+        for (DagNode<JobExecutionPlan> dagNode: dagNodes) {
           addJobState(dagId, dagNode);
         }
       }
 
       for (DagNode<JobExecutionPlan> dagNode: nodesToCleanUp) {
-        String dagId = DagManagerUtils.generateDagId(this.jobToDag.get(dagNode));
+        String dagId = DagManagerUtils.generateDagId(dagNode);
         deleteJobState(dagId, dagNode);
       }
+    }
+
+    private ExecutionStatus getJobExecutionStatus(boolean slaKilled, JobStatus jobStatus) {
+      if (slaKilled) {
+        return CANCELLED;
+      } else {
+        if (jobStatus == null) {
+          return PENDING;
+        } else {
+          return valueOf(jobStatus.getEventName());
+        }
+      }
+    }
+
+    /**
+     * Check if the SLA is configured for the flow this job belongs to.
+     * If it is, this method will try to cancel the job when SLA is reached.
+     *
+     * @param node dag node of the job
+     * @return true if the job is killed because it reached sla
+     * @throws ExecutionException exception
+     * @throws InterruptedException exception
+     */
+    private boolean slaKillIfNeeded(DagNode<JobExecutionPlan> node) throws ExecutionException, InterruptedException {
+      long flowStartTime = DagManagerUtils.getFlowStartTime(node);
+      long currentTime = System.currentTimeMillis();
+      String dagId = DagManagerUtils.generateDagId(node);
+
+      long flowSla;
+      if (dagToSLA.containsKey(dagId)) {
+        flowSla = dagToSLA.get(dagId);
+      } else {
+        flowSla = DagManagerUtils.getFlowSLA(node);
+        dagToSLA.put(dagId, flowSla);
+      }
+
+      if (flowSla != DagManagerUtils.NO_SLA && currentTime > flowStartTime + flowSla) {
+        log.info("Flow {} exceeded the SLA of {} ms. Killing the job {} now...",
+            node.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY),
+            node.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.JOB_NAME_KEY),
+            flowSla);
+        cancelDagNode(node);
+        return true;
+      }
+      return false;
     }
 
     /**
@@ -541,8 +605,11 @@ public class DagManager extends AbstractIdleService {
       String jobGroup = jobConfig.getString(ConfigurationKeys.JOB_GROUP_KEY);
       String jobName = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
 
+      long pollStartTime = System.nanoTime();
       Iterator<JobStatus> jobStatusIterator =
           this.jobStatusRetriever.getJobStatusesForFlowExecution(flowName, flowGroup, flowExecutionId, jobName, jobGroup);
+      Instrumented.updateTimer(this.jobStatusPolledTimer, System.nanoTime() - pollStartTime, TimeUnit.NANOSECONDS);
+
       if (jobStatusIterator.hasNext()) {
         return jobStatusIterator.next();
       } else {
@@ -620,6 +687,9 @@ public class DagManager extends AbstractIdleService {
     /**
      * Method that defines the actions to be performed when a job finishes either successfully or with failure.
      * This method updates the state of the dag and performs clean up actions as necessary.
+     * TODO : Dag should have a status field, like JobExecutionPlan has. This method should update that field,
+     *        which should be used by cleanup(). It may also remove the need of failedDagIdsFinishRunning,
+     *        failedDagIdsFinishAllPossible.
      */
     private Map<String, Set<DagNode<JobExecutionPlan>>> onJobFinish(DagNode<JobExecutionPlan> dagNode)
         throws IOException {
@@ -633,21 +703,28 @@ public class DagManager extends AbstractIdleService {
         getRunningJobsCounter(dagNode).dec();
       }
 
-      if (jobStatus == COMPLETE) {
-        return submitNext(dagId);
-      } else if (jobStatus == FAILED) {
-        if (DagManagerUtils.getFailureOption(dag) == FailureOption.FINISH_RUNNING) {
-          this.failedDagIdsFinishRunning.add(dagId);
-        } else {
-          this.failedDagIdsFinishAllPossible.add(dagId);
-        }
+      switch (jobStatus) {
+        // TODO : For now treat canceled as failed, till we introduce failure option - CANCEL
+        case CANCELLED:
+        case FAILED:
+          if (DagManagerUtils.getFailureOption(dag) == FailureOption.FINISH_RUNNING) {
+            this.failedDagIdsFinishRunning.add(dagId);
+          } else {
+            this.failedDagIdsFinishAllPossible.add(dagId);
+          }
+          return Maps.newHashMap();
+        case COMPLETE:
+          return submitNext(dagId);
+        default:
+          log.warn("It should not reach here. Job status is unexpected.");
+          return Maps.newHashMap();
       }
-      return Maps.newHashMap();
     }
 
     private void deleteJobState(String dagId, DagNode<JobExecutionPlan> dagNode) {
       this.jobToDag.remove(dagNode);
       this.dagToJobs.get(dagId).remove(dagNode);
+      this.dagToSLA.remove(dagId);
     }
 
     private void addJobState(String dagId, DagNode<JobExecutionPlan> dagNode) {
@@ -688,18 +765,24 @@ public class DagManager extends AbstractIdleService {
           deleteJobState(dagId, dagNode);
         }
         log.info("Dag {} has finished with status FAILED; Cleaning up dag from the state store.", dagId);
+        // send an event before cleaning up dag
+        JobExecutionPlan jobExecutionPlan = this.dags.get(dagId).getNodes().get(0).getValue();
+        DagManagerUtils.emitFlowEvent(this.eventSubmitter, jobExecutionPlan, TimingEvent.FlowTimings.FLOW_FAILED);
         dagIdstoClean.add(dagId);
       }
 
       //Clean up completed dags
       for (String dagId : this.dags.keySet()) {
         if (!hasRunningJobs(dagId) && !this.failedDagIdsFinishRunning.contains(dagId)) {
-          String status = "COMPLETE";
+          String status = TimingEvent.FlowTimings.FLOW_SUCCEEDED;
           if (this.failedDagIdsFinishAllPossible.contains(dagId)) {
-            status = "FAILED";
+            status = TimingEvent.FlowTimings.FLOW_FAILED;
             this.failedDagIdsFinishAllPossible.remove(dagId);
           }
           log.info("Dag {} has finished with status {}; Cleaning up dag from the state store.", dagId, status);
+          // send an event before cleaning up dag
+          JobExecutionPlan jobExecutionPlan = this.dags.get(dagId).getNodes().get(0).getValue();
+          DagManagerUtils.emitFlowEvent(this.eventSubmitter, jobExecutionPlan, status);
           dagIdstoClean.add(dagId);
         }
       }

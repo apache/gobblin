@@ -67,6 +67,9 @@ public class TimingEvent extends GobblinEventBuilder implements Closeable {
   public static class FlowTimings {
     public static final String FLOW_COMPILED = "FlowCompiled";
     public static final String FLOW_COMPILE_FAILED = "FlowCompileFailed";
+    public static final String FLOW_CANCEL = "FlowCancelled";
+    public static final String FLOW_SUCCEEDED = "FlowSucceeded";
+    public static final String FLOW_FAILED = "FlowFailed";
   }
 
   public static class FlowEventConstants {
