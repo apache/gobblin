@@ -27,10 +27,15 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 import java.util.stream.Stream;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.gobblin.config.common.impl.SingleLinkedListConfigKeyPath;
+import org.apache.gobblin.config.store.api.ConfigKeyPath;
+import org.apache.gobblin.config.store.api.ConfigStore;
+import org.apache.gobblin.config.store.api.PhysicalPathNotExistException;
+import org.apache.gobblin.config.store.api.VersionDoesNotExistException;
+import org.apache.gobblin.config.store.hdfs.SimpleHadoopFilesystemConfigStore;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
@@ -38,12 +43,6 @@ import com.google.common.base.Preconditions;
 import com.sun.nio.zipfs.ZipFileSystem;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-
-import org.apache.gobblin.config.common.impl.SingleLinkedListConfigKeyPath;
-import org.apache.gobblin.config.store.api.ConfigKeyPath;
-import org.apache.gobblin.config.store.api.ConfigStore;
-import org.apache.gobblin.config.store.api.VersionDoesNotExistException;
-import org.apache.gobblin.config.store.hdfs.SimpleHadoopFilesystemConfigStore;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -103,12 +102,13 @@ public class ZipFileConfigStore implements ConfigStore {
     Preconditions.checkArgument(version.equals(getCurrentVersion()));
 
     List<ConfigKeyPath> children = new ArrayList<>();
-    Path datasetDir = getDatasetDirForKey(configKey, version);
+    Path datasetDir = getDatasetDirForKey(configKey);
 
     try {
 
       if (!Files.exists(this.fs.getPath(datasetDir.toString()))) {
-        return children;
+        throw new PhysicalPathNotExistException(this.logicalStoreRoot,
+            "Cannot find physical location:" + this.fs.getPath(datasetDir.toString()));
       }
 
       Stream<Path> files = Files.walk(datasetDir, 1);
@@ -143,7 +143,7 @@ public class ZipFileConfigStore implements ConfigStore {
     Preconditions.checkArgument(version.equals(getCurrentVersion()));
 
     List<ConfigKeyPath> configKeyPaths = new ArrayList<>();
-    Path datasetDir = getDatasetDirForKey(configKey, version);
+    Path datasetDir = getDatasetDirForKey(configKey);
     Path includesFile = this.fs.getPath(datasetDir.toString(), SimpleHadoopFilesystemConfigStore.INCLUDES_CONF_FILE_NAME);
 
     try {
@@ -172,7 +172,7 @@ public class ZipFileConfigStore implements ConfigStore {
     Preconditions.checkNotNull(configKey, "configKey cannot be null!");
     Preconditions.checkArgument(version.equals(getCurrentVersion()));
 
-    Path datasetDir = getDatasetDirForKey(configKey, version);
+    Path datasetDir = getDatasetDirForKey(configKey);
     Path mainConfFile = this.fs.getPath(datasetDir.toString(), SimpleHadoopFilesystemConfigStore.MAIN_CONF_FILE_NAME);
 
     try {
@@ -191,10 +191,7 @@ public class ZipFileConfigStore implements ConfigStore {
     }
   }
 
-  /**
-   * Get path object using zipped file system and relative path
-   */
-  private Path getDatasetDirForKey(ConfigKeyPath configKey, String version) throws VersionDoesNotExistException {
-    return this.fs.getPath(this.storePrefix, version, configKey.getAbsolutePathString());
+  private Path getDatasetDirForKey(ConfigKeyPath configKey) throws VersionDoesNotExistException {
+    return this.fs.getPath(this.storePrefix, configKey.getAbsolutePathString());
   }
 }

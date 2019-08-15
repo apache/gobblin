@@ -54,6 +54,10 @@ import static org.mockito.Matchers.anyList;
 /**
  * The same testing routine for ivy-based config-store (ZipConfigStore)
  * Make sure everything inside {@link ConfigStoreUtils} will work for {@link ZipFileConfigStore} implementation.
+ *
+ * Note that {@link ZipFileConfigStore}, doesn't contain version folder. More specifically, under .zip file
+ * there would be configNodes directly, unlike {@link org.apache.gobblin.config.store.hdfs.SimpleHadoopFilesystemConfigStore}
+ * where there would be a version folder inside the configStore root path.
  */
 public class ZipConfigStoreUtilsTest {
   private String configStoreUri;
@@ -75,16 +79,29 @@ public class ZipConfigStoreUtilsTest {
   }
 
   @Test
-  public void testGetListOfTopicNamesByFilteringTag()
-      throws Exception {
+  public void testGetListOfTopicNamesByFilteringTag() {
     Properties properties = new Properties();
     properties.setProperty(GOBBLIN_CONFIG_TAGS_WHITELIST, "/tags/whitelist");
     properties.setProperty(GOBBLIN_CONFIG_FILTER, "/data/tracking");
     properties.setProperty(GOBBLIN_CONFIG_COMMONPATH, "/data/tracking");
-
     List<String> result = ConfigStoreUtils
         .getListOfTopicNamesByFilteringTag(properties, configClient, Optional.absent(), configStoreUri,
             GOBBLIN_CONFIG_TAGS_WHITELIST);
+    Assert.assertEquals(result.size(), 2);
+    Assert.assertTrue(result.contains("Topic1"));
+    Assert.assertTrue(result.contains("Topic2"));
+
+    properties.setProperty(GOBBLIN_CONFIG_TAGS_WHITELIST, "/tags/random");
+    result = ConfigStoreUtils
+        .getListOfTopicNamesByFilteringTag(properties, configClient, Optional.absent(), configStoreUri,
+            GOBBLIN_CONFIG_TAGS_WHITELIST);
+    Assert.assertEquals(result.size(), 1);
+    Assert.assertTrue(result.contains("Topic3"));
+
+    properties.setProperty(GOBBLIN_CONFIG_TAGS_BLACKLIST, "/tags/blacklist");
+    result = ConfigStoreUtils
+        .getListOfTopicNamesByFilteringTag(properties, configClient, Optional.absent(), configStoreUri,
+            GOBBLIN_CONFIG_TAGS_BLACKLIST);
     Assert.assertEquals(result.size(), 2);
     Assert.assertTrue(result.contains("Topic1"));
     Assert.assertTrue(result.contains("Topic2"));
