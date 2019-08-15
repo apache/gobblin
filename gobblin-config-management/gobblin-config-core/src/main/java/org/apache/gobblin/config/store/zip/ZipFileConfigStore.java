@@ -105,7 +105,6 @@ public class ZipFileConfigStore implements ConfigStore {
     Path datasetDir = getDatasetDirForKey(configKey);
 
     try {
-
       if (!Files.exists(this.fs.getPath(datasetDir.toString()))) {
         throw new PhysicalPathNotExistException(this.logicalStoreRoot,
             "Cannot find physical location:" + this.fs.getPath(datasetDir.toString()));
