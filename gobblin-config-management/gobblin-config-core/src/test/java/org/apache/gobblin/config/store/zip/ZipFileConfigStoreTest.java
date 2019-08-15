@@ -52,7 +52,6 @@ public class ZipFileConfigStoreTest {
   /**
    * Layout of testing config store:
    * /_CONFIG_STORE
-   *    /testVersion
    *        /test
    *            /child1
    *                main.conf (gobblin.test.property = "string2")
