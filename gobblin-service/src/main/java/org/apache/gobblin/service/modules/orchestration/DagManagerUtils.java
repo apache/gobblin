@@ -246,10 +246,12 @@ public class DagManagerUtils {
     return (int) (flowExecutionId % numThreads);
   }
 
-  static void emitFlowEvent(Optional<EventSubmitter> eventSubmitter, JobExecutionPlan jobExecutionPlan, String flowEvent) {
-    if (eventSubmitter.isPresent()) {
-      Map<String, String> jobMetadata = TimingEventUtils.getJobMetadata(Maps.newHashMap(), jobExecutionPlan);
-      eventSubmitter.get().getTimingEvent(flowEvent).stop(jobMetadata);
+  static void emitFlowEvent(Optional<EventSubmitter> eventSubmitter, Dag<JobExecutionPlan> dag, String flowEvent) {
+    if (eventSubmitter.isPresent() && !dag.isEmpty()) {
+      // Every dag node will contain the same flow metadata
+      Config config = dag.getNodes().get(0).getValue().getJobSpec().getConfig();
+      Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata(config);
+      eventSubmitter.get().getTimingEvent(flowEvent).stop(flowMetadata);
     }
   }
 }
