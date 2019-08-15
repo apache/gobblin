@@ -28,7 +28,6 @@ import org.apache.gobblin.converter.SchemaConversionException;
 import org.apache.gobblin.converter.SingleRecordIterable;
 import org.apache.gobblin.util.EmptyIterable;
 
-import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
@@ -107,9 +106,10 @@ public class DateConverter<SI, SO, DI, DO> extends Converter<SI, SO, DI, DO> {
             return new SingleRecordIterable<>(outputRecord);
         }
 
-        DateFormat inputTimeformat = new SimpleDateFormat(this.inputTimeformat);
-        DateFormat outputTimeformat = new SimpleDateFormat(this.outputTimeformat);
+        SimpleDateFormat inputTimeformat = new SimpleDateFormat(this.inputTimeformat);
+        SimpleDateFormat outputTimeformat = new SimpleDateFormat(this.outputTimeformat);
         inputTimeformat.setTimeZone(TimeZone.getTimeZone(this.inputTimezone));
+        outputTimeformat.setTimeZone(TimeZone.getTimeZone(this.outputTimezone));
         try {
             Date date = inputTimeformat.parse(inputField);
             String formattedDate = outputTimeformat.format(date);

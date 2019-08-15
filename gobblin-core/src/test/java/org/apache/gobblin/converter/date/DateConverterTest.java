@@ -57,7 +57,7 @@ public class DateConverterTest <SI, SO>{
         state = new WorkUnitState(workUnit);
         String inputTimezone = "IST";
         String inputTimeformat = "yyyy-MM-dd HH:mm:ss";
-        String outputTimezone = "PDT";
+        String outputTimezone = "PST";
         String outputTimeformat = "MM-dd-yyyy HH:mm:ss";
         state.setProp(CONVERTER_INPUT_TIMEZONE, inputTimezone);
         state.setProp(CONVERTER_INPUT_TIMEFORMAT, inputTimeformat);
