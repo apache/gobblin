@@ -38,7 +38,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
 /**
- * Created by Jan on 23-Jan-19.
+ * TODO more descriptive javadoc
  */
 public class EventhubExtractor implements Extractor<Void, EventData> {
 
@@ -54,7 +54,7 @@ public class EventhubExtractor implements Extractor<Void, EventData> {
     public static final String MAX_EVENTS_IN_BATCH_KEY = CONFIG_PREFIX + "max.events.in.batch";
     public static final int DEFAULT_MAX_EVENTS_IN_BATCH = 100;
 
-    private WorkUnitState workUnit;
+    private WorkUnitState workUnitState;
     private String highWatermark;
     private PartitionReceiver receiver;
     private EventHubClient ehClient;
@@ -65,6 +65,54 @@ public class EventhubExtractor implements Extractor<Void, EventData> {
     private LocalDateTime endTime;
     private Iterator<EventData> iterator;
     private int pulled;
+    // TODO please consider to use codahale metrics.
+
+    public EventhubExtractor(WorkUnitState workUnitState) {
+        this.workUnitState = workUnitState;
+        String endpoint = workUnitState.getProp(ENDPOINT_KEY);
+        String eventHubName = workUnitState.getProp(EVENTHUB_NAME_KEY);
+        String sasKeyName = workUnitState.getProp(SAS_KEY_NAME_KEY);
+        String sasKey = workUnitState.getProp(SAS_KEY_KEY);
+        String consumerGroup = workUnitState.getProp(CONSUMER_GROUP_KEY, EventHubClient.DEFAULT_CONSUMER_GROUP_NAME);
+        LOG.info(String.format("Connecting to event hub: %s, name: %s, SAS key name: %s", endpoint, eventHubName, sasKeyName));
+        eventsInBatch = workUnitState.getPropAsInt(MAX_EVENTS_IN_BATCH_KEY, DEFAULT_MAX_EVENTS_IN_BATCH);
+        String duration = workUnitState.getProp(MAX_EXTRACTION_DURATION_KEY);
+        startTime = LocalDateTime.now(); // TODO I don't see the zone was specified here, is this the same zone when you compare with current time?
+        maxDuration = Duration.parse(duration);
+        endTime = startTime.plus(maxDuration);
+        long watermark = workUnitState.getWorkunit().getLowWatermark(LongWatermark.class).getValue();
+        pulled = 0;
+        try {
+            URI endPoint;
+            try {
+                endPoint = new URI(endpoint);
+            } catch (URISyntaxException ex) {
+                throw new RuntimeException(ex);
+            }
+
+            final ConnectionStringBuilder connStr = new ConnectionStringBuilder()
+                    .setEndpoint(endPoint)
+                    .setEventHubName(eventHubName)
+                    .setSasKeyName(sasKeyName)
+                    .setSasKey(sasKey);
+
+            executorService = Executors.newSingleThreadScheduledExecutor();
+            ehClient = EventHubClient.createSync(connStr.toString(), executorService);
+            final EventHubRuntimeInformation eventHubInfo = ehClient.getRuntimeInformation().get();
+            final String partitionId = eventHubInfo.getPartitionIds()[0]; // get first partition's id
+            // TODO why just first? single-partition only -> multi partition
+            LOG.info(String.format("Using consumer group: %s", consumerGroup));
+            receiver = ehClient.createEpochReceiverSync(
+                    consumerGroup,
+                    partitionId,
+                    watermark == ConfigurationKeys.DEFAULT_WATERMARK_VALUE ? EventPosition.fromStartOfStream() : EventPosition.fromOffset(Long.toString(watermark)),
+                    1);
+            LOG.info(String.format("Extraction parameters: max events in batch = %s, duration = %s -> end time = %s",
+                    eventsInBatch, duration, endTime));
+        } catch (InterruptedException | ExecutionException | EventHubException | IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     private void logStatus() {
         LOG.info(String.format("Current high watermark: %s, job duration so far: %s (of max %s), received events cummulative: %d",
@@ -78,78 +126,29 @@ public class EventhubExtractor implements Extractor<Void, EventData> {
         if (iterator == null || !iterator.hasNext()) {
             logStatus();
             iterator = null;
-            if (endTime != null && LocalDateTime.now(ZoneId.of("UTC")).isBefore(endTime)) {
+            if (endTime != null && LocalDateTime.now(ZoneId.of("UTC")).isBefore(endTime)) { // TODO why the zone is hardcoded to UTC?
                 LOG.info("Attempting to receive records from source.");
                 Iterable<EventData> received = receiver.receiveSync(eventsInBatch);
                 if (received != null) {
                     iterator = received.iterator();
-                    LOG.info(String.format("Received batch size: %s", received.spliterator().getExactSizeIfKnown()));
-                } else {
-                    LOG.info("No records received from source.");
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug(String.format("Received batch size: %s", received.spliterator().getExactSizeIfKnown()));
+                    }
+                } else if (LOG.isDebugEnabled()) {
+                    LOG.debug("No records received from source.");
+                    // TODO Also, if no records were found, the old iterator object will be returned here, the readRecord() will fail in the .next() method call. You may want to reset the iterator to null, or have another flag to indicate the reading can be stopped.
                 }
-            } else {
-                LOG.info("Reached scheduled end time of the extraction: " + endTime);
+            } else if (LOG.isDebugEnabled()) {
+                LOG.debug("Reached scheduled end time of the extraction: " + endTime);
             }
         }
         return iterator;
     }
 
-    public EventhubExtractor(WorkUnitState workUnit) {
-        this.workUnit = workUnit;
-        String endpoint = workUnit.getProp(ENDPOINT_KEY);
-        String eventHubName = workUnit.getProp(EVENTHUB_NAME_KEY);
-        String sasKeyName = workUnit.getProp(SAS_KEY_NAME_KEY);
-        String sasKey = workUnit.getProp(SAS_KEY_KEY);
-        String consumerGroup = workUnit.getProp(CONSUMER_GROUP_KEY, EventHubClient.DEFAULT_CONSUMER_GROUP_NAME);
-        LOG.info(String.format("Connecting to event hub: %s, name: %s, SAS key name: %s", endpoint, eventHubName, sasKeyName));
-        eventsInBatch = workUnit.getPropAsInt(MAX_EVENTS_IN_BATCH_KEY, DEFAULT_MAX_EVENTS_IN_BATCH);
-        String duration = workUnit.getProp(MAX_EXTRACTION_DURATION_KEY);
-        startTime = LocalDateTime.now();
-        maxDuration = Duration.parse(duration);
-        endTime = startTime.plus(maxDuration);
-        long watermark = workUnit.getWorkunit().getLowWatermark(LongWatermark.class).getValue();
-        pulled = 0;
-        try {
-            URI endPoint;
-            try {
-                endPoint = new URI(endpoint);
-            } catch (URISyntaxException ex) {
-                ex.printStackTrace();
-                return;
-            }
-
-            final ConnectionStringBuilder connStr = new ConnectionStringBuilder()
-                    .setEndpoint(endPoint)
-                    .setEventHubName(eventHubName)
-                    .setSasKeyName(sasKeyName)
-                    .setSasKey(sasKey);
-
-            executorService = Executors.newSingleThreadScheduledExecutor();
-            ehClient = EventHubClient.createSync(connStr.toString(), executorService);
-            final EventHubRuntimeInformation eventHubInfo = ehClient.getRuntimeInformation().get();
-            final String partitionId = eventHubInfo.getPartitionIds()[0]; // get first partition's id
-            LOG.info(String.format("Using consumer group: %s", consumerGroup));
-            receiver = ehClient.createEpochReceiverSync(
-                    consumerGroup,
-                    partitionId,
-                    watermark == ConfigurationKeys.DEFAULT_WATERMARK_VALUE ? EventPosition.fromStartOfStream() : EventPosition.fromOffset(Long.toString(watermark)),
-                    1);
-            LOG.info(String.format("Extraction parameters: max events in batch = %s, duration = %s -> end time = %s",
-                    eventsInBatch, duration, endTime));
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } catch (ExecutionException e) {
-            e.printStackTrace();
-        } catch (EventHubException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
     @Override
     public Void getSchema() throws IOException {
         return null;
+        // TODO Does eventhub has any json schema, or schema registry? If we return null here, it implies this source class doesn't require any future data interpretation (like converters which needs to read certain fields). This seems to be not right?
     }
 
     @Override
@@ -164,8 +163,8 @@ public class EventhubExtractor implements Extractor<Void, EventData> {
             } else {
                 return null;
             }
-        } catch (EventHubException e) {
-            return null;
+        } catch (EventHubException ex) {
+            throw new RuntimeException(ex);
         }
     }
 
@@ -185,7 +184,7 @@ public class EventhubExtractor implements Extractor<Void, EventData> {
         try {
             LongWatermark longWatermark = new LongWatermark(getHighWatermark());
             LOG.info("Persisting state of actual high watermark: " + longWatermark);
-            this.workUnit.setActualHighWatermark(longWatermark);
+            this.workUnitState.setActualHighWatermark(longWatermark);
         } catch (NumberFormatException ex) {
             LOG.info("Not persisting state of actual high watermark - invalid value: " + getHighWatermark());
         }
@@ -200,10 +199,8 @@ public class EventhubExtractor implements Extractor<Void, EventData> {
                     }, executorService).get();
 
             executorService.shutdown();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } catch (ExecutionException e) {
-            e.printStackTrace();
+        } catch (InterruptedException | ExecutionException ex) {
+            throw new RuntimeException(ex);
         }
     }
 }

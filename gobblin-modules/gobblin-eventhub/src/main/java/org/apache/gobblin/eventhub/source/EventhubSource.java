@@ -38,7 +38,7 @@ import java.util.*;
 
 
 /**
- * Created by Jan on 23-Jan-19.
+ * More descriptive javadoc
  */
 public class EventhubSource extends AbstractSource<Void, EventData> {
 
@@ -51,17 +51,7 @@ public class EventhubSource extends AbstractSource<Void, EventData> {
     public List<WorkUnit> getWorkunits(SourceState state) {
         List<WorkUnit> workUnits = new ArrayList<>();
 
-        Long previousWatermark = getPreviousWatermark(state);
-        if (previousWatermark == null) {
-            previousWatermark = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
-        }
-
-        // for now, enforce single work unit to simplify watermark handling:
-        if (state.getPropAsInt(ConfigurationKeys.SOURCE_MAX_NUMBER_OF_PARTITIONS, 1) != 1) {
-            LOG.error("Unsupported number of partitions, resetting to 1.");
-        }
-        state.setProp(ConfigurationKeys.SOURCE_MAX_NUMBER_OF_PARTITIONS, 1);
-        workUnits.addAll(generateWorkUnits(state, previousWatermark));
+        workUnits.addAll(generateWorkUnits(state));
 
         LOG.info("Total number of workunits for the current run: " + workUnits.size());
         List<WorkUnit> previousWorkUnits = this.getPreviousWorkUnitsForRetry(state);
@@ -90,12 +80,19 @@ public class EventhubSource extends AbstractSource<Void, EventData> {
         return result;
     }
 
-    protected List<WorkUnit> generateWorkUnits(SourceState state, long previousWatermark) {
+    protected List<WorkUnit> generateWorkUnits(SourceState state) {
+        Long previousWatermark = getPreviousWatermark(state);
+        if (previousWatermark == null) {
+            previousWatermark = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
+        }
+
+        // TODO I think we should not have a global previousWatermark. If you only support one partition, this will work. But if you have multiple partitions, each partition should have its own previousWatermark. I guess right now your source is much like a QueryBasedSource instead of a partition like source such as KafkaSource. You need to check if you can model it in the same way as KafkaSource, which maintains previousOffsets list for each workunit.
         List<WorkUnit> workUnits = new ArrayList<>();
 
         state.setProp(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY, "offset");
         state.setProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE, "simple");
         state.setProp(ConfigurationKeys.SOURCE_QUERYBASED_EXTRACT_TYPE, "snapshot");
+        // TODO Like I mentioned, there shouldn't be a global previous watermark. Right now if you have one partition, it will cut one partition range into multiple pieces, which doesn't have any ordering guarantees. This is not what we want.
         List<Partition> partitions = new Partitioner(state).getPartitionList(previousWatermark);
         Collections.sort(partitions, Partitioner.ascendingComparator);
 
