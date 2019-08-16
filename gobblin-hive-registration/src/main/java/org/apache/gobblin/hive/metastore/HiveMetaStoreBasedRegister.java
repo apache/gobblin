@@ -129,6 +129,9 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
 
 
   private final boolean optimizedChecks;
+  //If this is true, after we know the partition is existing, we will skip the partition in stead of getting the existing
+  // partition and computing the diff to see if it needs to be updated. Use this only when you can make sure the metadata
+  //for a partition is immutable
   private final boolean skipDiffComputation;
 
   public HiveMetaStoreBasedRegister(State state, Optional<String> metastoreURI) throws IOException {
@@ -515,7 +518,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
 
   private void onPartitionExistWithoutComputingDiff(Table table, Partition nativePartition, TException e) throws TException {
     if (e instanceof AlreadyExistsException) {
-      log.info(String.format("Partition %s in table %s with location %s already exists and no need to update",
+      log.debug(String.format("Partition %s in table %s with location %s already exists and no need to update",
           stringifyPartition(nativePartition), table.getTableName(), nativePartition.getSd().getLocation()));
     }
     else {
