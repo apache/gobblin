@@ -94,8 +94,21 @@ public class ConfigStoreUtils {
     return topicUri;
   }
 
+  /**
+   * Used when topic name needs to be fetched from Properties object, assuming we knew the topicKey.
+   */
   public static Optional<Config> getConfigForTopic(Properties properties, String topicKey, ConfigClient configClient) {
-    Optional<String> configStoreUri = getConfigStoreUri(properties);
+    Preconditions.checkArgument(properties.containsKey(topicKey), "Missing required property " + topicKey);
+    String topicName = properties.getProperty(topicKey);
+
+    return getConfigForTopicWithName(properties, topicName, configClient);
+  }
+
+  /**
+   * Used when topic name is known.
+   */
+  public static Optional<Config> getConfigForTopicWithName(Properties properties, String topicName, ConfigClient configClient) {
+    Optional<String> configStoreUri = ConfigStoreUtils.getConfigStoreUri(properties);
     Optional<Config> config = Optional.<Config>absent();
     if (!configStoreUri.isPresent()) {
       return config;
@@ -103,11 +116,9 @@ public class ConfigStoreUtils {
     try {
       Preconditions.checkArgument(properties.containsKey(GOBBLIN_CONFIG_COMMONPATH),
           "Missing required property " + GOBBLIN_CONFIG_COMMONPATH);
-      Preconditions.checkArgument(properties.containsKey(topicKey), "Missing required property " + topicKey);
-      String topicName = properties.getProperty(topicKey);
       String commonPath = properties.getProperty(GOBBLIN_CONFIG_COMMONPATH);
       config = Optional.fromNullable(
-          getConfig(configClient, getUriStringForTopic(topicName, commonPath, configStoreUri.get()),
+          ConfigStoreUtils.getConfig(configClient, ConfigStoreUtils.getUriStringForTopic(topicName, commonPath, configStoreUri.get()),
               ConfigClientUtils.getOptionalRuntimeConfig(properties)));
     } catch (URISyntaxException e) {
       log.error("Unable to get config", e);
