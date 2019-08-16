@@ -95,6 +95,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
   public static final String GET_HIVE_TABLE = HIVE_REGISTER_METRICS_PREFIX + "getTableTimer";
   public static final String DROP_TABLE = HIVE_REGISTER_METRICS_PREFIX + "dropTableTimer";
   public static final String PATH_REGISTER_TIMER = HIVE_REGISTER_METRICS_PREFIX + "pathRegisterTimer";
+  public static final String SKIP_PARTITION_DIFF_COMPUTATION = HIVE_REGISTER_METRICS_PREFIX + "skip.partition.diff.computation";
   /**
    * To reduce lock aquisition and RPC to metaStoreClient, we cache the result of query regarding to
    * the existence of databases and tables in {@link #tableAndDbExistenceCache},
@@ -119,7 +120,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
    * when the first time a table/database is loaded into the cache, whether they existed on the remote hiveMetaStore side.
    */
   CacheLoader<String, Boolean> cacheLoader = new CacheLoader<String, Boolean>() {
-    @Override
+  @Override
     public Boolean load(String key) throws Exception {
       return true;
     }
@@ -128,11 +129,13 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
 
 
   private final boolean optimizedChecks;
+  private final boolean skipDiffComputation;
 
   public HiveMetaStoreBasedRegister(State state, Optional<String> metastoreURI) throws IOException {
     super(state);
 
     this.optimizedChecks = state.getPropAsBoolean(this.OPTIMIZED_CHECK_ENABLED, true);
+    this.skipDiffComputation = state.getPropAsBoolean(this.SKIP_PARTITION_DIFF_COMPUTATION, false);
 
     GenericObjectPoolConfig config = new GenericObjectPoolConfig();
     config.setMaxTotal(this.props.getNumThreads());
@@ -472,7 +475,11 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
             table.getTableName(), nativePartition.getSd().getLocation()));
       } catch (TException e) {
         try {
-          OnPartitionExist(client, table, partition, nativePartition, e);
+          if (this.skipDiffComputation) {
+            onPartitionExistWithoutComputingDiff(table, nativePartition, e);
+          } else {
+            onPartitionExist(client, table, partition, nativePartition);
+          }
         } catch (Throwable e2) {
           log.error(String.format(
               "Unable to add or alter partition %s in table %s with location %s: " + e2.getMessage(),
@@ -482,7 +489,8 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
       }
     }
   }
-  protected void OnPartitionExist(IMetaStoreClient client, Table table, HivePartition partition, Partition nativePartition, TException e) throws TException {
+
+  private void onPartitionExist(IMetaStoreClient client, Table table, HivePartition partition, Partition nativePartition) throws TException {
     HivePartition existingPartition;
     try (Timer.Context context = this.metricContext.timer(GET_HIVE_PARTITION).time()) {
       existingPartition = HiveMetaStoreUtils.getHivePartition(
@@ -500,12 +508,22 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
       log.info(String.format("Updated partition %s in table %s with location %s", stringifyPartition(newPartition),
           table.getTableName(), nativePartition.getSd().getLocation()));
     } else {
-      log.info(String.format("Partition %s in table %s with location %s already exists and no need to update",
+      log.debug(String.format("Partition %s in table %s with location %s already exists and no need to update",
           stringifyPartition(nativePartition), table.getTableName(), nativePartition.getSd().getLocation()));
     }
   }
 
-  protected static String stringifyPartition(Partition partition) {
+  private void onPartitionExistWithoutComputingDiff(Table table, Partition nativePartition, TException e) throws TException {
+    if (e instanceof AlreadyExistsException) {
+      log.info(String.format("Partition %s in table %s with location %s already exists and no need to update",
+          stringifyPartition(nativePartition), table.getTableName(), nativePartition.getSd().getLocation()));
+    }
+    else {
+      throw e;
+    }
+  }
+
+  private static String stringifyPartition(Partition partition) {
     if (log.isDebugEnabled()) {
       return stringifyPartitionVerbose(partition);
     }
