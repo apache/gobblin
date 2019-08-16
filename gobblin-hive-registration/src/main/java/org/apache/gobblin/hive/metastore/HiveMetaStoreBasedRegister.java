@@ -119,7 +119,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
    * when the first time a table/database is loaded into the cache, whether they existed on the remote hiveMetaStore side.
    */
   CacheLoader<String, Boolean> cacheLoader = new CacheLoader<String, Boolean>() {
-  @Override
+    @Override
     public Boolean load(String key) throws Exception {
       return true;
     }
@@ -472,26 +472,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
             table.getTableName(), nativePartition.getSd().getLocation()));
       } catch (TException e) {
         try {
-          HivePartition existingPartition;
-          try (Timer.Context context = this.metricContext.timer(GET_HIVE_PARTITION).time()) {
-            existingPartition = HiveMetaStoreUtils.getHivePartition(
-                client.getPartition(table.getDbName(), table.getTableName(), nativePartition.getValues()));
-          }
-
-          if (needToUpdatePartition(existingPartition, partition)) {
-            log.info(String.format("Partition update required. ExistingPartition %s, newPartition %s",
-                stringifyPartition(existingPartition), stringifyPartition(partition)));
-            Partition newPartition = getPartitionWithCreateTime(nativePartition, existingPartition);
-            log.info(String.format("Altering partition %s", newPartition));
-            try (Timer.Context context = this.metricContext.timer(ALTER_PARTITION).time()) {
-              client.alter_partition(table.getDbName(), table.getTableName(), newPartition);
-            }
-            log.info(String.format("Updated partition %s in table %s with location %s", stringifyPartition(newPartition),
-                table.getTableName(), nativePartition.getSd().getLocation()));
-          } else {
-            log.info(String.format("Partition %s in table %s with location %s already exists and no need to update",
-                stringifyPartition(nativePartition), table.getTableName(), nativePartition.getSd().getLocation()));
-          }
+          OnPartitionExist(client, table, partition, nativePartition, e);
         } catch (Throwable e2) {
           log.error(String.format(
               "Unable to add or alter partition %s in table %s with location %s: " + e2.getMessage(),
@@ -501,8 +482,30 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
       }
     }
   }
+  protected void OnPartitionExist(IMetaStoreClient client, Table table, HivePartition partition, Partition nativePartition, TException e) throws TException {
+    HivePartition existingPartition;
+    try (Timer.Context context = this.metricContext.timer(GET_HIVE_PARTITION).time()) {
+      existingPartition = HiveMetaStoreUtils.getHivePartition(
+          client.getPartition(table.getDbName(), table.getTableName(), nativePartition.getValues()));
+    }
 
-  private static String stringifyPartition(Partition partition) {
+    if (needToUpdatePartition(existingPartition, partition)) {
+      log.info(String.format("Partition update required. ExistingPartition %s, newPartition %s",
+          stringifyPartition(existingPartition), stringifyPartition(partition)));
+      Partition newPartition = getPartitionWithCreateTime(nativePartition, existingPartition);
+      log.info(String.format("Altering partition %s", newPartition));
+      try (Timer.Context context = this.metricContext.timer(ALTER_PARTITION).time()) {
+        client.alter_partition(table.getDbName(), table.getTableName(), newPartition);
+      }
+      log.info(String.format("Updated partition %s in table %s with location %s", stringifyPartition(newPartition),
+          table.getTableName(), nativePartition.getSd().getLocation()));
+    } else {
+      log.info(String.format("Partition %s in table %s with location %s already exists and no need to update",
+          stringifyPartition(nativePartition), table.getTableName(), nativePartition.getSd().getLocation()));
+    }
+  }
+
+  protected static String stringifyPartition(Partition partition) {
     if (log.isDebugEnabled()) {
       return stringifyPartitionVerbose(partition);
     }
@@ -541,7 +544,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
       try (Timer.Context context = this.metricContext.timer(GET_HIVE_PARTITION).time()) {
         hivePartition = client.get().getPartition(dbName, tableName, partitionValues);
       }
-        return Optional.of(HiveMetaStoreUtils.getHivePartition(hivePartition));
+      return Optional.of(HiveMetaStoreUtils.getHivePartition(hivePartition));
     } catch (NoSuchObjectException e) {
       return Optional.<HivePartition> absent();
     } catch (TException e) {
