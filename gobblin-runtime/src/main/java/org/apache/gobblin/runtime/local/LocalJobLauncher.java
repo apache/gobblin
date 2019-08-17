@@ -128,25 +128,24 @@ public class LocalJobLauncher extends AbstractJobLauncher {
 
   @Override
   protected void runWorkUnitStream(WorkUnitStream workUnitStream) throws Exception {
+
     String jobId = this.jobContext.getJobId();
     final JobState jobState = this.jobContext.getJobState();
+    this.workUnitCount = 0;
 
     Iterator<WorkUnit> workUnitIterator = workUnitStream.getWorkUnits();
-    if (!workUnitIterator.hasNext()) {
-      LOG.warn("No work units to run");
-      CountEventBuilder countEventBuilder = new CountEventBuilder(JobEvent.WORK_UNITS_EMPTY, 0);
-      this.eventSubmitter.submit(countEventBuilder);
-      return;
-    }
-
-    this.workUnitCount = 0;
-    while (workUnitIterator.hasNext()) {
-      workUnitIterator.next();
+    for(Iterator<WorkUnit> i=workUnitIterator; i.hasNext(); i.next()) {
       this.workUnitCount++;
     }
-    CountEventBuilder countEventBuilder = new CountEventBuilder(JobEvent.WORK_UNITS_CREATED, this.workUnitCount);
+    CountEventBuilder countEventBuilder = (this.workUnitCount == 0)? new CountEventBuilder(JobEvent.WORK_UNITS_EMPTY, 0)
+        : new CountEventBuilder(JobEvent.WORK_UNITS_CREATED, this.workUnitCount);
     this.eventSubmitter.submit(countEventBuilder);
-    LOG.info("Emitting WorkUnitsCreated Count: " + countEventBuilder.getCount());
+
+    if (this.workUnitCount == 0) {
+      LOG.warn("No work units to run");
+      return;
+    }
+    LOG.info("Emitting WorkUnitsCreated Count: " + this.workUnitCount);
 
     TimingEvent workUnitsRunTimer = this.eventSubmitter.getTimingEvent(TimingEvent.RunJobTimings.WORK_UNITS_RUN);
     Iterator<WorkUnit> flattenedWorkUnits = new MultiWorkUnitUnpackingIterator(workUnitStream.getWorkUnits());
