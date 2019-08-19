@@ -117,7 +117,7 @@ public class FlowStatusResource extends ComplexKeyResourceTemplate<FlowStatusId,
       org.apache.gobblin.service.monitoring.JobStatus queriedJobStatus = jobStatusIter.next();
 
       // Check if this is the flow status instead of a single job status
-      if (queriedJobStatus.getJobName().equals(JobStatusRetriever.NA_KEY) && queriedJobStatus.getJobGroup().equals(JobStatusRetriever.NA_KEY)) {
+      if (isFlowStatus(queriedJobStatus)) {
         flowEndTime = queriedJobStatus.getEndTime();
         flowExecutionStatus = ExecutionStatus.valueOf(queriedJobStatus.getEventName());
         continue;
@@ -152,11 +152,27 @@ public class FlowStatusResource extends ComplexKeyResourceTemplate<FlowStatusId,
     return new FlowStatus()
         .setId(new FlowStatusId().setFlowGroup(flowId.getFlowGroup()).setFlowName(flowId.getFlowName())
             .setFlowExecutionId(monitoringFlowStatus.getFlowExecutionId()))
-        .setExecutionStatistics(new FlowStatistics().setExecutionStartTime(monitoringFlowStatus.getFlowExecutionId())
+        .setExecutionStatistics(new FlowStatistics().setExecutionStartTime(getFlowStartTime(monitoringFlowStatus))
             .setExecutionEndTime(flowEndTime))
         .setMessage(flowMessages)
         .setExecutionStatus(flowExecutionStatus)
         .setJobStatuses(jobStatusArray);
+  }
+
+  /**
+   * Check if a {@link org.apache.gobblin.service.monitoring.JobStatus} is the special job status that represents the
+   * entire flow's status
+   */
+  private static boolean isFlowStatus(org.apache.gobblin.service.monitoring.JobStatus jobStatus) {
+    return jobStatus.getJobName().equals(JobStatusRetriever.NA_KEY) && jobStatus.getJobGroup().equals(JobStatusRetriever.NA_KEY);
+  }
+
+  /**
+   * Return the flow start time given a {@link org.apache.gobblin.service.monitoring.FlowStatus}. Flow execution ID is
+   * assumed to be the flow start time.
+   */
+  private static long getFlowStartTime(org.apache.gobblin.service.monitoring.FlowStatus flowStatus) {
+    return flowStatus.getFlowExecutionId();
   }
 }
 

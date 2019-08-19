@@ -476,6 +476,10 @@ public class DagManager extends AbstractIdleService {
       for (DagNode dagNode: nextSubmitted.get(dagId)) {
         addJobState(dagId, dagNode);
       }
+
+      // Set flow status to running
+      DagManagerUtils.emitFlowEvent(this.eventSubmitter, dag, TimingEvent.FlowTimings.FLOW_RUNNING);
+
       log.info("Dag {} Initialization complete.", DagManagerUtils.getFullyQualifiedDagName(dag));
     }
 
@@ -618,9 +622,6 @@ public class DagManager extends AbstractIdleService {
     synchronized Map<String, Set<DagNode<JobExecutionPlan>>> submitNext(String dagId) throws IOException {
       Dag<JobExecutionPlan> dag = this.dags.get(dagId);
       Set<DagNode<JobExecutionPlan>> nextNodes = DagManagerUtils.getNext(dag);
-
-      // Set flow status to running if it isn't already
-      DagManagerUtils.emitFlowEvent(this.eventSubmitter, dag, TimingEvent.FlowTimings.FLOW_RUNNING);
 
       //Submit jobs from the dag ready for execution.
       for (DagNode<JobExecutionPlan> dagNode : nextNodes) {
