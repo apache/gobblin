@@ -341,9 +341,9 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
    * @return the converted record
    * @throws IOException
    */
-  protected D convertRecord(D record) throws IOException {
+  protected D convertRecord(DecodeableKafkaRecord record) throws IOException {
     // default implementation does no conversion
-    return record;
+    return record.getValue();
   }
 
   @Override
