@@ -16,6 +16,7 @@
  */
 package org.apache.gobblin.eventhub.source;
 
+import com.google.gson.JsonObject;
 import com.microsoft.azure.eventhubs.*;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
@@ -26,21 +27,22 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.Iterator;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
 /**
- * TODO more descriptive javadoc
+ * A {@link org.apache.gobblin.source.extractor.Extractor}  implementation for MS EventHub source.
+ * Each EventhubExtractor processes one source partition.
  */
-public class EventhubExtractor implements Extractor<Void, EventData> {
+public class EventhubExtractor implements Extractor<JsonObject, EventData> {
 
     public static final Logger LOG = LoggerFactory.getLogger(EventhubExtractor.class);
 
@@ -52,6 +54,7 @@ public class EventhubExtractor implements Extractor<Void, EventData> {
     public static final String CONSUMER_GROUP_KEY = CONFIG_PREFIX + "consumer.group";
     public static final String MAX_EXTRACTION_DURATION_KEY = CONFIG_PREFIX + "max.extraction.duration";
     public static final String MAX_EVENTS_IN_BATCH_KEY = CONFIG_PREFIX + "max.events.in.batch";
+    public static final String SCHEMA_CLASS = CONFIG_PREFIX + "schema.class";
     public static final int DEFAULT_MAX_EVENTS_IN_BATCH = 100;
 
     private WorkUnitState workUnitState;
@@ -60,12 +63,13 @@ public class EventhubExtractor implements Extractor<Void, EventData> {
     private EventHubClient ehClient;
     private ScheduledExecutorService executorService;
     private int eventsInBatch;
-    private LocalDateTime startTime; // for logging only
+    private Instant startTime; // for logging only
     private Duration maxDuration; // for logging only
-    private LocalDateTime endTime;
+    private Instant endTime;
     private Iterator<EventData> iterator;
     private int pulled;
-    // TODO please consider to use codahale metrics.
+    private EventHubSchema schemaProvider;
+    // TODO codahale metrics.
 
     public EventhubExtractor(WorkUnitState workUnitState) {
         this.workUnitState = workUnitState;
@@ -77,11 +81,19 @@ public class EventhubExtractor implements Extractor<Void, EventData> {
         LOG.info(String.format("Connecting to event hub: %s, name: %s, SAS key name: %s", endpoint, eventHubName, sasKeyName));
         eventsInBatch = workUnitState.getPropAsInt(MAX_EVENTS_IN_BATCH_KEY, DEFAULT_MAX_EVENTS_IN_BATCH);
         String duration = workUnitState.getProp(MAX_EXTRACTION_DURATION_KEY);
-        startTime = LocalDateTime.now(); // TODO I don't see the zone was specified here, is this the same zone when you compare with current time?
+        startTime = Instant.now();
         maxDuration = Duration.parse(duration);
         endTime = startTime.plus(maxDuration);
         long watermark = workUnitState.getWorkunit().getLowWatermark(LongWatermark.class).getValue();
         pulled = 0;
+        try {
+            schemaProvider = getClass().getClassLoader()
+                    .loadClass(workUnitState.getProp(SCHEMA_CLASS))
+                    .asSubclass(EventHubSchema.class)
+                    .getConstructor().newInstance();
+        } catch (InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException | ClassNotFoundException ex) {
+            throw new RuntimeException(ex);
+        }
         try {
             URI endPoint;
             try {
@@ -98,18 +110,15 @@ public class EventhubExtractor implements Extractor<Void, EventData> {
 
             executorService = Executors.newSingleThreadScheduledExecutor();
             ehClient = EventHubClient.createSync(connStr.toString(), executorService);
-            final EventHubRuntimeInformation eventHubInfo = ehClient.getRuntimeInformation().get();
-            final String partitionId = eventHubInfo.getPartitionIds()[0]; // get first partition's id
-            // TODO why just first? single-partition only -> multi partition
             LOG.info(String.format("Using consumer group: %s", consumerGroup));
             receiver = ehClient.createEpochReceiverSync(
                     consumerGroup,
-                    partitionId,
+                    workUnitState.getProp(EventhubSource.CURRENT_PARTITION_KEY),
                     watermark == ConfigurationKeys.DEFAULT_WATERMARK_VALUE ? EventPosition.fromStartOfStream() : EventPosition.fromOffset(Long.toString(watermark)),
                     1);
             LOG.info(String.format("Extraction parameters: max events in batch = %s, duration = %s -> end time = %s",
                     eventsInBatch, duration, endTime));
-        } catch (InterruptedException | ExecutionException | EventHubException | IOException e) {
+        } catch (EventHubException | IOException e) {
             throw new RuntimeException(e);
         }
     }
@@ -126,7 +135,7 @@ public class EventhubExtractor implements Extractor<Void, EventData> {
         if (iterator == null || !iterator.hasNext()) {
             logStatus();
             iterator = null;
-            if (endTime != null && LocalDateTime.now(ZoneId.of("UTC")).isBefore(endTime)) { // TODO why the zone is hardcoded to UTC?
+            if (endTime != null && Instant.now().isBefore(endTime)) {
                 LOG.info("Attempting to receive records from source.");
                 Iterable<EventData> received = receiver.receiveSync(eventsInBatch);
                 if (received != null) {
@@ -136,7 +145,6 @@ public class EventhubExtractor implements Extractor<Void, EventData> {
                     }
                 } else if (LOG.isDebugEnabled()) {
                     LOG.debug("No records received from source.");
-                    // TODO Also, if no records were found, the old iterator object will be returned here, the readRecord() will fail in the .next() method call. You may want to reset the iterator to null, or have another flag to indicate the reading can be stopped.
                 }
             } else if (LOG.isDebugEnabled()) {
                 LOG.debug("Reached scheduled end time of the extraction: " + endTime);
@@ -146,9 +154,8 @@ public class EventhubExtractor implements Extractor<Void, EventData> {
     }
 
     @Override
-    public Void getSchema() throws IOException {
-        return null;
-        // TODO Does eventhub has any json schema, or schema registry? If we return null here, it implies this source class doesn't require any future data interpretation (like converters which needs to read certain fields). This seems to be not right?
+    public JsonObject getSchema() throws IOException {
+        return schemaProvider.getSchema(workUnitState);
     }
 
     @Override

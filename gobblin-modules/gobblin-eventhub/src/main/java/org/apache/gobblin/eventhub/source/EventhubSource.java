@@ -16,6 +16,7 @@
  */
 package org.apache.gobblin.eventhub.source;
 
+import avro.shaded.com.google.common.collect.Maps;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
@@ -24,9 +25,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.source.extractor.extract.AbstractSource;
-import org.apache.gobblin.source.extractor.extract.LongWatermark;
-import org.apache.gobblin.source.extractor.partition.Partition;
-import org.apache.gobblin.source.extractor.partition.Partitioner;
+import org.apache.gobblin.source.extractor.extract.kafka.MultiLongWatermark;
 import org.apache.gobblin.source.workunit.Extract;
 import org.apache.gobblin.source.workunit.MultiWorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnit;
@@ -38,14 +37,16 @@ import java.util.*;
 
 
 /**
- * More descriptive javadoc
+ * A {@link org.apache.gobblin.source.Source} implementation for MS EventHub source.
  */
 public class EventhubSource extends AbstractSource<Void, EventData> {
 
     public static final Logger LOG = LoggerFactory.getLogger(EventhubSource.class);
 
-    public static final String WORK_UNIT_STATE_VERSION_KEY = "source.querybased.workUnitState.version";
+    public static final String WORK_UNIT_STATE_VERSION_KEY = "source.eventhub.workUnitState.version";
+    public static final String CURRENT_PARTITION_KEY = "source.eventhub.current.partition";
     public static final Integer CURRENT_WORK_UNIT_STATE_VERSION = 1;
+    public static final String PARTITIONS_TO_PULL = "source.eventhub.partitions";
 
     @Override
     public List<WorkUnit> getWorkunits(SourceState state) {
@@ -81,20 +82,16 @@ public class EventhubSource extends AbstractSource<Void, EventData> {
     }
 
     protected List<WorkUnit> generateWorkUnits(SourceState state) {
-        Long previousWatermark = getPreviousWatermark(state);
-        if (previousWatermark == null) {
-            previousWatermark = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
-        }
-
-        // TODO I think we should not have a global previousWatermark. If you only support one partition, this will work. But if you have multiple partitions, each partition should have its own previousWatermark. I guess right now your source is much like a QueryBasedSource instead of a partition like source such as KafkaSource. You need to check if you can model it in the same way as KafkaSource, which maintains previousOffsets list for each workunit.
-        List<WorkUnit> workUnits = new ArrayList<>();
-
         state.setProp(ConfigurationKeys.EXTRACT_DELTA_FIELDS_KEY, "offset");
         state.setProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE, "simple");
         state.setProp(ConfigurationKeys.SOURCE_QUERYBASED_EXTRACT_TYPE, "snapshot");
-        // TODO Like I mentioned, there shouldn't be a global previous watermark. Right now if you have one partition, it will cut one partition range into multiple pieces, which doesn't have any ordering guarantees. This is not what we want.
-        List<Partition> partitions = new Partitioner(state).getPartitionList(previousWatermark);
-        Collections.sort(partitions, Partitioner.ascendingComparator);
+
+        List<String> partitionsToPull = state.getPropAsList(PARTITIONS_TO_PULL);
+        LOG.info(String.format("Will pull %d partitions: %s", partitionsToPull.size(), partitionsToPull));
+
+        Map<String,Long> previousWatermark = getPreviousWatermark(state, partitionsToPull);
+
+        List<WorkUnit> workUnits = new ArrayList<>();
 
         String tableName = state.getProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY);
         String nameSpaceName = state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY);
@@ -104,10 +101,11 @@ public class EventhubSource extends AbstractSource<Void, EventData> {
         LOG.info("Create extract output with table name is " + tableName);
         Extract extract = createExtract(tableType, nameSpaceName, tableName);
 
-        for (Partition partition : partitions) {
+        for (String partition : partitionsToPull) {
             WorkUnit workunit = WorkUnit.create(extract);
             workunit.setProp(WORK_UNIT_STATE_VERSION_KEY, 1);
-            partition.serialize(workunit);
+            workunit.setProp(CURRENT_PARTITION_KEY, partition);
+            workunit.setLowWaterMark(previousWatermark.get(partition));
             workUnits.add(workunit);
         }
 
@@ -116,23 +114,34 @@ public class EventhubSource extends AbstractSource<Void, EventData> {
 
     private static final Gson gson = new Gson();
 
-    static Long getPreviousWatermark(SourceState state) {
-        long res = ConfigurationKeys.DEFAULT_WATERMARK_VALUE;
+    static Map<String,Long> getPreviousWatermark(SourceState state, List<String> partitionsToPull) {
         WorkUnitState.WorkingState previousWorkingState;
-        LongWatermark watermark;
+        Map<String,Long> previousWatermark = Maps.newHashMapWithExpectedSize(partitionsToPull.size());
+        MultiLongWatermark watermark;
+        String currentPartition;
         for (WorkUnitState previousWus : state.getPreviousWorkUnitStates()) {
             previousWorkingState = previousWus.getWorkingState();
             if (previousWorkingState == WorkUnitState.WorkingState.SUCCESSFUL || previousWorkingState == WorkUnitState.WorkingState.COMMITTED) {
-                watermark = previousWus.getActualHighWatermark(LongWatermark.class);
+                watermark = previousWus.getActualHighWatermark(MultiLongWatermark.class);
             } else {
-                watermark = previousWus.getWorkunit().getLowWatermark(LongWatermark.class);
+                watermark = previousWus.getWorkunit().getLowWatermark(MultiLongWatermark.class);
             }
             if (watermark != null) {
-                res = Math.max(res, watermark.getValue());
+                Preconditions.checkArgument(
+                        partitionsToPull.size() == watermark.size(),
+                        String.format("Num of partitions doesn't match number of watermarks: partitions=%s, watermarks=%s",
+                                partitionsToPull, watermark));
+                for (int i = 0; i < watermark.size(); i++) {
+                    currentPartition = partitionsToPull.get(i);
+                    previousWatermark.put(currentPartition,
+                            Math.max(
+                                    watermark.get(i),
+                                    previousWatermark.getOrDefault(currentPartition, ConfigurationKeys.DEFAULT_WATERMARK_VALUE)));
+                }
             }
         }
-        LOG.info(String.format("Low watermark retrieved from previous states: %d", res));
-        return res;
+        LOG.info(String.format("Low watermarks for %s partitions retrieved from previous states: %s", partitionsToPull.size(), previousWatermark.toString()));
+        return previousWatermark;
     }
 
     @Override
