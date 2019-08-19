@@ -208,7 +208,7 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
             record = decodeRecord((ByteArrayBasedKafkaRecord)nextValidMessage);
           } else if (nextValidMessage instanceof DecodeableKafkaRecord){
             // get value from decodeable record and convert to the output schema if necessary
-            record = convertRecord(((DecodeableKafkaRecord<?, D>) nextValidMessage));
+            record = convertRecord((DecodeableKafkaRecord<?, D>) nextValidMessage);
           } else {
             throw new IllegalStateException(
                 "Unsupported KafkaConsumerRecord type. The returned record can either be ByteArrayBasedKafkaRecord"
@@ -341,7 +341,7 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
    * @return the converted record
    * @throws IOException
    */
-  protected D convertRecord(DecodeableKafkaRecord record) throws IOException {
+  protected D convertRecord(DecodeableKafkaRecord<?,D> record) throws IOException {
     // default implementation does no conversion
     return record.getValue();
   }
