@@ -44,14 +44,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
+import com.google.common.util.concurrent.Service;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+
+import lombok.Getter;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
 import org.apache.gobblin.cluster.GobblinClusterManager;
+import org.apache.gobblin.cluster.GobblinClusterUtils;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.JvmUtils;
+import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.logs.Log4jConfigurationHelper;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.apache.gobblin.yarn.event.DelegationTokenUpdatedEvent;
 
 
@@ -67,33 +74,46 @@ import org.apache.gobblin.yarn.event.DelegationTokenUpdatedEvent;
  */
 @Alpha
 public class GobblinApplicationMaster extends GobblinClusterManager {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinApplicationMaster.class);
+
+  @Getter
+  private final YarnService yarnService;
 
   public GobblinApplicationMaster(String applicationName, ContainerId containerId, Config config,
       YarnConfiguration yarnConfiguration) throws Exception {
-    super(applicationName, containerId.getApplicationAttemptId().getApplicationId().toString(), config,
-        Optional.<Path>absent());
+    super(applicationName, containerId.getApplicationAttemptId().getApplicationId().toString(),
+        GobblinClusterUtils.addDynamicConfig(config), Optional.<Path>absent());
 
+    String containerLogDir = config.getString(GobblinYarnConfigurationKeys.LOGS_SINK_ROOT_DIR_KEY);
     GobblinYarnLogSource gobblinYarnLogSource = new GobblinYarnLogSource();
     if (gobblinYarnLogSource.isLogSourcePresent()) {
+      Path appWorkDir = PathUtils.combinePaths(containerLogDir, GobblinClusterUtils.getAppWorkDirPath(this.clusterName, this.applicationId), "AppMaster");
       this.applicationLauncher
-          .addService(gobblinYarnLogSource.buildLogCopier(config, containerId, this.fs, this.appWorkDir));
+          .addService(gobblinYarnLogSource.buildLogCopier(this.config, containerId.toString(), this.fs, appWorkDir));
     }
 
-    this.applicationLauncher
-        .addService(buildYarnService(config, applicationName, this.applicationId, yarnConfiguration, this.fs));
+    this.yarnService = buildYarnService(this.config, applicationName, this.applicationId, yarnConfiguration, this.fs);
+    this.applicationLauncher.addService(this.yarnService);
 
     if (UserGroupInformation.isSecurityEnabled()) {
       LOGGER.info("Adding YarnContainerSecurityManager since security is enabled");
-      this.applicationLauncher.addService(buildYarnContainerSecurityManager(config, this.fs));
+      this.applicationLauncher.addService(buildYarnContainerSecurityManager(this.config, this.fs));
+    }
+
+    // Add additional services
+    List<String> serviceClassNames = ConfigUtils.getStringList(this.config,
+        GobblinYarnConfigurationKeys.APP_MASTER_SERVICE_CLASSES);
+
+    for (String serviceClassName : serviceClassNames) {
+      Class<?> serviceClass = Class.forName(serviceClassName);
+      this.applicationLauncher.addService((Service) GobblinConstructorUtils.invokeLongestConstructor(serviceClass, this));
     }
   }
 
   /**
    * Build the {@link YarnService} for the Application Master.
    */
-  private YarnService buildYarnService(Config config, String applicationName, String applicationId,
+  protected YarnService buildYarnService(Config config, String applicationName, String applicationId,
       YarnConfiguration yarnConfiguration, FileSystem fs)
       throws Exception {
     return new YarnService(config, applicationName, applicationId, yarnConfiguration, fs, this.eventBus);

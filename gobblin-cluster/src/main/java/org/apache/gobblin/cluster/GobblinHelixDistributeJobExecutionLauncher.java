@@ -19,7 +19,6 @@ package org.apache.gobblin.cluster;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -31,51 +30,46 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeoutException;
 
 import org.apache.hadoop.fs.Path;
+import org.apache.helix.HelixException;
 import org.apache.helix.HelixManager;
 import org.apache.helix.task.JobConfig;
 import org.apache.helix.task.TaskConfig;
 import org.apache.helix.task.TaskDriver;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
-import com.typesafe.config.ConfigValueFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
-import org.apache.gobblin.runtime.JobState;
-import org.apache.gobblin.runtime.TaskState;
 import org.apache.gobblin.runtime.api.ExecutionResult;
 import org.apache.gobblin.runtime.api.JobExecutionLauncher;
 import org.apache.gobblin.runtime.api.JobExecutionMonitor;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.MonitoredObject;
-import org.apache.gobblin.runtime.util.StateStores;
-import org.apache.gobblin.source.extractor.partition.Partitioner;
 import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.util.JobLauncherUtils;
 import org.apache.gobblin.util.PropertiesUtils;
 
 
 /**
- * To avoid all the task driver logic ({@link GobblinHelixJobLauncher}) runs on the same instance (node), this
- * {@link JobExecutionLauncher} can distribute the original job (called planning job) to Helix. Helix will
- * assign this job to one participant. The participant can parse the original job properties and run the task driver.
+ * To avoid all the task driver logic ({@link GobblinHelixJobLauncher}) runs on the same
+ * instance (manager), this {@link JobExecutionLauncher} will distribute the original job
+ * to one of the task driver instance. The original task driver logic will be launched there.
  *
  * <p>
  *   For job submission, the Helix workflow name will be the original job name with prefix
- *   {@link GobblinClusterConfigurationKeys#PLANNING_JOB_NAME_PREFIX}. The Helix job name will be the auto-generated planning
- *   job ID with prefix {@link GobblinClusterConfigurationKeys#PLANNING_ID_KEY}.
+ *   {@link GobblinClusterConfigurationKeys#PLANNING_JOB_NAME_PREFIX}. The Helix job name
+ *   will be the auto-generated planning job ID with prefix
+ *   {@link GobblinClusterConfigurationKeys#PLANNING_ID_KEY}.
  * </p>
  *
  * <p>
@@ -87,86 +81,124 @@ import org.apache.gobblin.util.PropertiesUtils;
 @Alpha
 @Slf4j
 class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher, Closeable {
-  protected HelixManager helixManager;
-  protected TaskDriver helixTaskDriver;
-  protected Properties sysProperties;
-  protected Properties jobProperties;
-  protected StateStores stateStores;
 
-  protected static final String PLANNING_WORK_UNIT_DIR_NAME = "_plan_workunits";
-  protected static final String PLANNING_TASK_STATE_DIR_NAME = "_plan_taskstates";
-  protected static final String PLANNING_JOB_STATE_DIR_NAME = "_plan_jobstates";
+  protected HelixManager planningJobHelixManager;
+  protected TaskDriver helixTaskDriver;
+  protected Properties sysProps;
+  protected Properties jobPlanningProps;
+  protected HelixJobsMapping jobsMapping;
+  protected GobblinHelixPlanningJobLauncherMetrics planningJobLauncherMetrics;
+  protected GobblinHelixMetrics helixMetrics;
 
   protected static final String JOB_PROPS_PREFIX = "gobblin.jobProps.";
 
   private final long workFlowExpiryTimeSeconds;
 
+  private final long helixJobStopTimeoutSeconds;
+
   private boolean jobSubmitted;
 
+  // A conditional variable for which the condition is satisfied if a cancellation is requested
+  private final Object cancellationRequest = new Object();
+  // A flag indicating whether a cancellation has been requested or not
+  private volatile boolean cancellationRequested = false;
+  // A flag indicating whether a cancellation has been executed or not
+  private volatile boolean cancellationExecuted = false;
+  // A flag indicating wheter a planning job should wait for its completion
+  private boolean nonBlockingMode = false;
+
+  @Getter
+  private DistributeJobMonitor jobMonitor;
+
   public GobblinHelixDistributeJobExecutionLauncher(Builder builder) throws Exception {
-    this.helixManager = builder.manager;
-    this.helixTaskDriver = new TaskDriver(this.helixManager);
-    this.sysProperties = builder.sysProperties;
-    this.jobProperties = builder.jobProperties;
+    if (builder.taskDriverHelixManager.isPresent()) {
+      this.planningJobHelixManager = builder.taskDriverHelixManager.get();
+    } else {
+      this.planningJobHelixManager = builder.jobHelixManager;
+    }
+    this.helixTaskDriver = new TaskDriver(this.planningJobHelixManager);
+    this.sysProps = builder.sysProps;
+    this.jobPlanningProps = builder.jobPlanningProps;
     this.jobSubmitted = false;
-    Config combined = ConfigUtils.propertiesToConfig(jobProperties)
-        .withFallback(ConfigUtils.propertiesToConfig(sysProperties));
 
-    Config stateStoreJobConfig = combined
-        .withValue(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigValueFactory.fromAnyRef(
-            new URI(builder.appWorkDir.toUri().getScheme(), null, builder.appWorkDir.toUri().getHost(),
-                builder.appWorkDir.toUri().getPort(), null, null, null).toString()));
-
-    this.stateStores = new StateStores(stateStoreJobConfig,
-        builder.appWorkDir, PLANNING_TASK_STATE_DIR_NAME,
-        builder.appWorkDir, PLANNING_WORK_UNIT_DIR_NAME,
-        builder.appWorkDir, PLANNING_JOB_STATE_DIR_NAME);
+    Config combined = ConfigUtils.propertiesToConfig(jobPlanningProps)
+        .withFallback(ConfigUtils.propertiesToConfig(sysProps));
 
     this.workFlowExpiryTimeSeconds = ConfigUtils.getLong(combined,
         GobblinClusterConfigurationKeys.HELIX_WORKFLOW_EXPIRY_TIME_SECONDS,
         GobblinClusterConfigurationKeys.DEFAULT_HELIX_WORKFLOW_EXPIRY_TIME_SECONDS);
+    this.planningJobLauncherMetrics = builder.planningJobLauncherMetrics;
+    this.nonBlockingMode = ConfigUtils.getBoolean(combined,
+        GobblinClusterConfigurationKeys.NON_BLOCKING_PLANNING_JOB_ENABLED,
+        GobblinClusterConfigurationKeys.DEFAULT_NON_BLOCKING_PLANNING_JOB_ENABLED);
+    this.helixMetrics = builder.helixMetrics;
+    this.jobsMapping = builder.jobsMapping;
+    this.helixJobStopTimeoutSeconds = ConfigUtils.getLong(combined,
+        GobblinClusterConfigurationKeys.HELIX_JOB_STOP_TIMEOUT_SECONDS,
+        GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_STOP_TIMEOUT_SECONDS);
   }
 
   @Override
-  public void close()
-      throws IOException {
-    // we should delete the planning job at the end.
+  public void close()  throws IOException {
+  }
+
+  private void executeCancellation() {
     if (this.jobSubmitted) {
-      String planningName = getPlanningJobName(this.jobProperties);
-      log.info("[DELETE] workflow {} in the close.", planningName);
-      this.helixTaskDriver.delete(planningName);
+      String planningJobId = getPlanningJobId(this.jobPlanningProps);
+      try {
+        if (this.cancellationRequested && !this.cancellationExecuted) {
+          // TODO : fix this when HELIX-1180 is completed
+          // work flow should never be deleted explicitly because it has a expiry time
+          // If cancellation is requested, we should set the job state to CANCELLED/ABORT
+          this.helixTaskDriver.waitToStop(planningJobId, this.helixJobStopTimeoutSeconds);
+          log.info("Stopped the workflow ", planningJobId);
+        }
+      } catch (HelixException e) {
+        // Cancellation may throw an exception, but Helix set the job state to STOP and it should eventually stop
+        // We will keep this.cancellationExecuted and this.cancellationRequested to true and not propagate the exception
+        log.error("Failed to stop workflow {} in Helix", planningJobId, e);
+      } catch (InterruptedException e) {
+        log.error("Thread interrupted while trying to stop the workflow {} in Helix", planningJobId);
+        Thread.currentThread().interrupt();
+      }
     }
   }
 
   @Setter
   public static class Builder {
-    Properties sysProperties;
-    Properties jobProperties;
-    HelixManager manager;
+    Properties sysProps;
+    Properties jobPlanningProps;
+    HelixManager jobHelixManager;
+    Optional<HelixManager> taskDriverHelixManager;
     Path appWorkDir;
+    GobblinHelixPlanningJobLauncherMetrics planningJobLauncherMetrics;
+    GobblinHelixMetrics helixMetrics;
+    HelixJobsMapping jobsMapping;
     public GobblinHelixDistributeJobExecutionLauncher build() throws Exception {
       return new GobblinHelixDistributeJobExecutionLauncher(this);
     }
   }
 
-  private String getPlanningJobName (Properties jobProps) {
-    String jobName = JobState.getJobNameFromProps(jobProps);
-    return GobblinClusterConfigurationKeys.PLANNING_JOB_NAME_PREFIX + jobName;
-  }
-
-  protected String getPlanningJobId (Properties jobProps) {
-    if (jobProps.containsKey(GobblinClusterConfigurationKeys.PLANNING_ID_KEY)) {
-      return jobProps.getProperty(GobblinClusterConfigurationKeys.PLANNING_ID_KEY);
+  protected String getPlanningJobId (Properties jobPlanningProps) {
+    if (jobPlanningProps.containsKey(GobblinClusterConfigurationKeys.PLANNING_ID_KEY)) {
+      return jobPlanningProps.getProperty(GobblinClusterConfigurationKeys.PLANNING_ID_KEY);
+    } else {
+      throw new RuntimeException("Cannot find planning id");
     }
-    String planningId = JobLauncherUtils.newJobId(getPlanningJobName(jobProps));
-    jobProps.setProperty(GobblinClusterConfigurationKeys.PLANNING_ID_KEY, planningId);
-    return planningId;
   }
 
   /**
    * Create a job config builder which has a single task that wraps the original jobProps.
+   *
+   * The planning job (which runs the original {@link GobblinHelixJobLauncher}) will be
+   * executed on one of the Helix participants.
+   *
+   * We rely on the underlying {@link GobblinHelixJobLauncher} to correctly handle the task
+   * execution timeout so that the planning job itself is relieved of the timeout constrain.
+   *
+   * In short, the planning job will run once and requires no timeout.
    */
-  private JobConfig.Builder createPlanningJob (Properties jobProps) {
+  private JobConfig.Builder createJobBuilder (Properties jobProps) {
     // Create a single task for job planning
     String planningId = getPlanningJobId(jobProps);
     Map<String, TaskConfig> taskConfigMap = Maps.newHashMap();
@@ -180,10 +212,29 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
     taskConfigMap.put(planningId, TaskConfig.Builder.from(rawConfigMap));
     JobConfig.Builder jobConfigBuilder = new JobConfig.Builder();
 
-    jobConfigBuilder.setTimeoutPerTask(PropertiesUtils.getPropAsLong(
-        jobProps,
-        ConfigurationKeys.HELIX_TASK_TIMEOUT_SECONDS,
-        ConfigurationKeys.DEFAULT_HELIX_TASK_TIMEOUT_SECONDS) * 1000);
+    // We want GobblinHelixJobLauncher only run once.
+    jobConfigBuilder.setMaxAttemptsPerTask(1);
+
+    // Planning job never timeout (Helix defaults 1h timeout, set a large number '1 month')
+    jobConfigBuilder.setTimeoutPerTask(JobConfig.DEFAULT_TIMEOUT_PER_TASK * 24 * 30);
+
+    // Planning job should have its own tag support
+    if (jobProps.containsKey(GobblinClusterConfigurationKeys.HELIX_PLANNING_JOB_TAG_KEY)) {
+      String jobPlanningTag = jobProps.getProperty(GobblinClusterConfigurationKeys.HELIX_PLANNING_JOB_TAG_KEY);
+      log.info("PlanningJob {} has tags associated : {}", planningId, jobPlanningTag);
+      jobConfigBuilder.setInstanceGroupTag(jobPlanningTag);
+    }
+
+    // Planning job should have its own type support
+    if (jobProps.containsKey(GobblinClusterConfigurationKeys.HELIX_PLANNING_JOB_TYPE_KEY)) {
+      String jobType = jobProps.getProperty(GobblinClusterConfigurationKeys.HELIX_PLANNING_JOB_TYPE_KEY);
+      log.info("PlanningJob {} has types associated : {}", planningId, jobType);
+      jobConfigBuilder.setJobType(jobType);
+    }
+
+    jobConfigBuilder.setNumConcurrentTasksPerInstance(PropertiesUtils.getPropAsInt(jobProps,
+        GobblinClusterConfigurationKeys.HELIX_CLUSTER_TASK_CONCURRENCY,
+        GobblinClusterConfigurationKeys.HELIX_CLUSTER_TASK_CONCURRENCY_DEFAULT));
 
     jobConfigBuilder.setFailureThreshold(1);
     jobConfigBuilder.addTaskConfigMap(taskConfigMap).setCommand(GobblinTaskRunner.GOBBLIN_JOB_FACTORY_NAME);
@@ -192,99 +243,100 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
   }
 
   /**
-   * Submit job to helix so that it can be re-assigned to one of its participants.
+   * Submit a planning job to helix so that it can launched from a remote node.
    * @param jobName A planning job name which has prefix {@link GobblinClusterConfigurationKeys#PLANNING_JOB_NAME_PREFIX}.
    * @param jobId   A planning job id created by {@link GobblinHelixDistributeJobExecutionLauncher#getPlanningJobId}.
    * @param jobConfigBuilder A job config builder which contains a single task.
    */
   private void submitJobToHelix(String jobName, String jobId, JobConfig.Builder jobConfigBuilder) throws Exception {
-    TaskDriver taskDriver = new TaskDriver(this.helixManager);
+    TaskDriver taskDriver = new TaskDriver(this.planningJobHelixManager);
     HelixUtils.submitJobToWorkFlow(jobConfigBuilder,
         jobName,
         jobId,
         taskDriver,
-        this.helixManager,
+        this.planningJobHelixManager,
         this.workFlowExpiryTimeSeconds);
     this.jobSubmitted = true;
   }
 
   @Override
-  public DistributeJobMonitor launchJob(JobSpec jobSpec) {
-    return new DistributeJobMonitor(new DistributeJobCallable(this.jobProperties));
+  public DistributeJobMonitor launchJob(@Nullable  JobSpec jobSpec) {
+    this.jobMonitor = new DistributeJobMonitor(new DistributeJobCallable(this.jobPlanningProps));
+    return this.jobMonitor;
   }
 
   @AllArgsConstructor
   private class DistributeJobCallable implements Callable<ExecutionResult> {
-    Properties jobProps;
+    Properties jobPlanningProps;
     @Override
     public DistributeJobResult call()
         throws Exception {
-      String planningName = getPlanningJobName(this.jobProps);
-      String planningId = getPlanningJobId(this.jobProps);
-      JobConfig.Builder builder = createPlanningJob(this.jobProps);
+      String planningId = getPlanningJobId(this.jobPlanningProps);
+      JobConfig.Builder builder = createJobBuilder(this.jobPlanningProps);
       try {
-        submitJobToHelix(planningName, planningId, builder);
-        return waitForJobCompletion(planningName, planningId);
+        long submitStartTime = System.currentTimeMillis();
+        GobblinHelixDistributeJobExecutionLauncher.this.helixMetrics.submitMeter.mark();
+        submitJobToHelix(planningId, planningId, builder);
+        GobblinHelixDistributeJobExecutionLauncher.this.helixMetrics.updateTimeForHelixSubmit(submitStartTime);
+        long waitStartTime = System.currentTimeMillis();
+
+        // we should not wait if in non-blocking mode.
+        DistributeJobResult rst = new DistributeJobResult();
+        if (!GobblinHelixDistributeJobExecutionLauncher.this.nonBlockingMode) {
+          rst = waitForJobCompletion(planningId, planningId);
+          GobblinHelixDistributeJobExecutionLauncher.this.helixMetrics.updateTimeForHelixWait(waitStartTime);
+        }
+
+        return rst;
       } catch (Exception e) {
-        log.error(planningName + " is not able to submit.");
-        return new DistributeJobResult(Optional.empty(), Optional.of(e));
+        log.error(planningId + " is not able to submit.");
+        return new DistributeJobResult();
       }
     }
   }
 
-  private DistributeJobResult waitForJobCompletion(String planningName, String planningId) throws InterruptedException {
-    boolean timeoutEnabled = Boolean.parseBoolean(this.jobProperties.getProperty(ConfigurationKeys.HELIX_JOB_TIMEOUT_ENABLED_KEY,
-        ConfigurationKeys.DEFAULT_HELIX_JOB_TIMEOUT_ENABLED));
-    long timeoutInSeconds = Long.parseLong(this.jobProperties.getProperty(ConfigurationKeys.HELIX_JOB_TIMEOUT_SECONDS,
-        ConfigurationKeys.DEFAULT_HELIX_JOB_TIMEOUT_SECONDS));
+  private DistributeJobResult waitForJobCompletion(String workFlowName, String jobName) throws InterruptedException {
+    boolean timeoutEnabled = Boolean.parseBoolean(this.jobPlanningProps.getProperty(
+        GobblinClusterConfigurationKeys.HELIX_JOB_TIMEOUT_ENABLED_KEY,
+        GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_TIMEOUT_ENABLED));
+    long timeoutInSeconds = Long.parseLong(this.jobPlanningProps.getProperty(
+        GobblinClusterConfigurationKeys.HELIX_JOB_TIMEOUT_SECONDS,
+        GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_TIMEOUT_SECONDS));
+
+    long stoppingStateTimeoutInSeconds = PropertiesUtils
+        .getPropAsLong(this.jobPlanningProps, GobblinClusterConfigurationKeys.HELIX_JOB_STOPPING_STATE_TIMEOUT_SECONDS,
+            GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_STOPPING_STATE_TIMEOUT_SECONDS);
 
     try {
       HelixUtils.waitJobCompletion(
-          GobblinHelixDistributeJobExecutionLauncher.this.helixManager,
-          planningName,
-          planningId,
-          timeoutEnabled ? Optional.of(timeoutInSeconds) : Optional.empty());
+          GobblinHelixDistributeJobExecutionLauncher.this.planningJobHelixManager,
+          workFlowName,
+          jobName,
+          timeoutEnabled ? Optional.of(timeoutInSeconds) : Optional.empty(),
+          stoppingStateTimeoutInSeconds);
       return getResultFromUserContent();
     } catch (TimeoutException te) {
-      helixTaskDriver.waitToStop(planningName, 10L);
-      log.info("[DELETE] workflow {} timeout.", planningName);
-      this.helixTaskDriver.delete(planningName);
-      this.helixTaskDriver.resume(planningName);
-      log.info("stopped the queue, deleted the job");
-      return new DistributeJobResult(Optional.empty(), Optional.of(te));
+      HelixUtils.handleJobTimeout(workFlowName, jobName,
+          planningJobHelixManager, this, null);
+      return new DistributeJobResult();
     }
   }
 
-  //TODO: change below to Helix UserConentStore
-  @VisibleForTesting
   protected DistributeJobResult getResultFromUserContent() {
-    String planningId = getPlanningJobId(this.jobProperties);
-    try {
-      TaskState taskState = this.stateStores.getTaskStateStore().get(planningId, planningId, planningId);
-      return new DistributeJobResult(Optional.of(taskState.getProperties()), Optional.empty());
-    } catch (IOException e) {
-      return new DistributeJobResult(Optional.empty(), Optional.of(e));
-    }
+    return new DistributeJobResult();
   }
 
-  @Getter
-  @AllArgsConstructor
+  /**
+   * If {@link GobblinClusterConfigurationKeys#NON_BLOCKING_PLANNING_JOB_ENABLED} is enabled
+   * this result object contains nothing; otherwise this result object can be used to contain
+   * any values returned from other task-driver instances.
+   */
   static class DistributeJobResult implements ExecutionResult {
-    boolean isEarlyStopped = false;
-    Optional<Properties> properties;
-    Optional<Throwable> throwable;
-    public DistributeJobResult(Optional<Properties> properties, Optional<Throwable> throwable) {
-      this.properties = properties;
-      this.throwable = throwable;
-      if (properties.isPresent()) {
-        isEarlyStopped = PropertiesUtils.getPropAsBoolean(this.properties.get(), Partitioner.IS_EARLY_STOPPED, "false");
-      }
-    }
   }
 
-  static class DistributeJobMonitor extends FutureTask<ExecutionResult> implements JobExecutionMonitor {
+  private class DistributeJobMonitor extends FutureTask<ExecutionResult> implements JobExecutionMonitor {
     private ExecutorService executor = Executors.newSingleThreadExecutor();
-    public DistributeJobMonitor (Callable<ExecutionResult> c) {
+    DistributeJobMonitor (Callable<ExecutionResult> c) {
       super(c);
       this.executor.execute(this);
     }
@@ -292,6 +344,39 @@ class GobblinHelixDistributeJobExecutionLauncher implements JobExecutionLauncher
     @Override
     public MonitoredObject getRunningState() {
       throw new UnsupportedOperationException();
+    }
+
+    /**
+     * We override Future's cancel method, which means we do not send the interrupt to the underlying thread.
+     * Instead of that, we submit a STOP request to handle, and the underlying thread is supposed to gracefully accept
+     * the STOPPED state and exit in {@link #waitForJobCompletion} method.
+     * @param mayInterruptIfRunning this is ignored.
+     * @return true always
+     */
+    @Override
+    public boolean cancel(boolean mayInterruptIfRunning) {
+      GobblinHelixDistributeJobExecutionLauncher.this.executeCancellation();
+      return true;
+    }
+  }
+
+  /**
+   * This method calls the underlying {@link DistributeJobMonitor}'s cancel method.
+   * It uses a conditional variable {@link GobblinHelixDistributeJobExecutionLauncher#cancellationRequest}
+   * and a flag {@link GobblinHelixDistributeJobExecutionLauncher#cancellationRequested} to avoid double cancellation.
+   */
+  public void cancel() {
+    DistributeJobMonitor jobMonitor = getJobMonitor();
+    if (jobMonitor != null) {
+      synchronized (GobblinHelixDistributeJobExecutionLauncher.this.cancellationRequest) {
+        if (GobblinHelixDistributeJobExecutionLauncher.this.cancellationRequested) {
+          // Return immediately if a cancellation has already been requested
+          return;
+        }
+        GobblinHelixDistributeJobExecutionLauncher.this.cancellationRequested = true;
+      }
+      jobMonitor.cancel(true);
+      GobblinHelixDistributeJobExecutionLauncher.this.cancellationExecuted = true;
     }
   }
 

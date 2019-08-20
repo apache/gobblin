@@ -58,8 +58,8 @@ public class UnGzipConverterTest {
     FileSystem fs = FileSystem.getLocal(new Configuration());
 
     String fullPath = getClass().getClassLoader().getResource(filePath).getFile();
-    FileAwareInputStream fileAwareInputStream =
-        new FileAwareInputStream(CopyableFileUtils.getTestCopyableFile(filePath), fs.open(new Path(fullPath)));
+    FileAwareInputStream fileAwareInputStream = FileAwareInputStream.builder()
+        .file(CopyableFileUtils.getTestCopyableFile(filePath)).inputStream(fs.open(new Path(fullPath))).build();
 
     Iterable<FileAwareInputStream> iterable =
         converter.convertRecord("outputSchema", fileAwareInputStream, new WorkUnitState());
@@ -80,9 +80,9 @@ public class UnGzipConverterTest {
       String filePath = "unGzipConverterTest/" + fileName;
       String fullPath = getClass().getClassLoader().getResource(filePath).getFile();
 
-      FileAwareInputStream fileAwareInputStream =
-          new FileAwareInputStream(CopyableFileUtils.getTestCopyableFile(filePath, "/tmp/" + fileName, null, null),
-              fs.open(new Path(fullPath)));
+      FileAwareInputStream fileAwareInputStream = FileAwareInputStream.builder()
+          .file(CopyableFileUtils.getTestCopyableFile(filePath, "/tmp/" + fileName, null, null))
+          .inputStream(fs.open(new Path(fullPath))).build();
 
       Iterable<FileAwareInputStream> iterable = converter.convertRecord("outputSchema", fileAwareInputStream, new WorkUnitState());
       FileAwareInputStream out = iterable.iterator().next();

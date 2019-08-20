@@ -40,10 +40,12 @@ import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileAlreadyExistsException;
+import org.apache.hadoop.fs.FileContext;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.LocalFileSystem;
+import org.apache.hadoop.fs.Options;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.fs.RawLocalFileSystem;
@@ -233,6 +235,22 @@ public class HadoopUtils {
     else {
       return fs.rename(src, dst);
     }
+  }
+
+  /**
+   * A wrapper around {@link FileContext#rename(Path, Path, Options.Rename...)}.
+   */
+  public static void renamePath(FileContext fc, Path oldName, Path newName) throws IOException {
+    renamePath(fc, oldName, newName, false);
+  }
+
+  /**
+   * A wrapper around {@link FileContext#rename(Path, Path, Options.Rename...)}}.
+   */
+  public static void renamePath(FileContext fc, Path oldName, Path newName, boolean overwrite)
+      throws IOException {
+    Options.Rename renameOptions = (overwrite) ? Options.Rename.OVERWRITE : Options.Rename.NONE;
+    fc.rename(oldName, newName, renameOptions);
   }
 
   /**

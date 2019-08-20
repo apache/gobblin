@@ -52,6 +52,11 @@ public interface DatasetDescriptor {
   public FormatConfig getFormatConfig();
 
   /**
+   * @return true if retention has been applied to the dataset.
+   */
+  public boolean isRetentionApplied();
+
+  /**
    * @return a human-readable description of the dataset.
    */
   public String getDescription();

@@ -22,8 +22,11 @@ import org.apache.gobblin.configuration.State;
 
 /**
  * A {@link DatasetResolver} resolves job specific dataset
+ *
+ * @deprecated use the more general {@link DescriptorResolver}
  */
-public interface DatasetResolver {
+@Deprecated
+public interface DatasetResolver extends DescriptorResolver {
   /**
    * Given raw Gobblin dataset, resolve job specific dataset
    *
@@ -32,4 +35,20 @@ public interface DatasetResolver {
    * @return resolved dataset for the job
    */
   DatasetDescriptor resolve(DatasetDescriptor raw, State state);
+
+  @Override
+  default Descriptor resolve(Descriptor raw, State state) {
+    DatasetDescriptor rawDataset;
+
+    if (raw instanceof DatasetDescriptor) {
+      rawDataset = (DatasetDescriptor) raw;
+    } else if (raw instanceof PartitionDescriptor) {
+      rawDataset = ((PartitionDescriptor) raw).getDataset();
+    } else {
+      // type not supported
+      return null;
+    }
+
+    return resolve(rawDataset, state);
+  }
 }

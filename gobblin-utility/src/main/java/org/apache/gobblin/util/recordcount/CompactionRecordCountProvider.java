@@ -38,14 +38,16 @@ public class CompactionRecordCountProvider extends RecordCountProvider {
   public static final String M_OUTPUT_FILE_PREFIX = "part-m-";
 
   private static final String SEPARATOR = ".";
-  private static final String SUFFIX = ".avro";
+  private static final String DEFAULT_SUFFIX = ".avro";
   private static final Random RANDOM = new Random();
 
   /**
    * Construct the file name as {filenamePrefix}{recordCount}.{SystemCurrentTimeInMills}.{RandomInteger}{SUFFIX}.
+   * @deprecated discouraged since default behavior is not obvious from API itself.
    */
+  @Deprecated
   public static String constructFileName(String filenamePrefix, long recordCount) {
-    return constructFileName(filenamePrefix, SUFFIX, recordCount);
+    return constructFileName(filenamePrefix, DEFAULT_SUFFIX, recordCount);
   }
 
   /**

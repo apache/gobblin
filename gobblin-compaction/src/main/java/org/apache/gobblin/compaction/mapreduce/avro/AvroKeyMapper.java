@@ -28,6 +28,7 @@ import org.apache.avro.mapred.AvroKey;
 import org.apache.avro.mapred.AvroValue;
 import org.apache.avro.mapreduce.AvroJob;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.gobblin.compaction.mapreduce.RecordKeyMapperBase;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.Mapper;
@@ -44,12 +45,8 @@ import org.apache.hadoop.mapreduce.lib.input.CombineFileSplit;
  *
  * @author Ziyang Liu
  */
-public class AvroKeyMapper extends Mapper<AvroKey<GenericRecord>, NullWritable, AvroKey<GenericRecord>, Object> {
-
-  public enum EVENT_COUNTER {
-    RECORD_COUNT
-  }
-
+public class AvroKeyMapper extends
+                           RecordKeyMapperBase<AvroKey<GenericRecord>, NullWritable, AvroKey<GenericRecord>, Object> {
   private AvroKey<GenericRecord> outKey;
   private AvroValue<GenericRecord> outValue;
   private Schema keySchema;
@@ -86,7 +83,7 @@ public class AvroKeyMapper extends Mapper<AvroKey<GenericRecord>, NullWritable, 
    * Target record's schema cannot have MAP, ARRAY or ENUM fields, or UNION fields that
    * contain these fields.
    */
-  private static void populateComparableKeyRecord(GenericRecord source, GenericRecord target) {
+  private void populateComparableKeyRecord(GenericRecord source, GenericRecord target) {
     for (Field field : target.getSchema().getFields()) {
       if (field.schema().getType() == Schema.Type.UNION) {
 

@@ -35,7 +35,8 @@ public class Destination {
     HDFS,
     KAFKA,
     MYSQL,
-    TERADATA
+    TERADATA,
+    POSTGRES
   }
 
   // Type of destination

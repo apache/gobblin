@@ -55,6 +55,8 @@ import org.apache.gobblin.data.management.copy.extractor.EmptyExtractor;
 import org.apache.gobblin.data.management.copy.extractor.FileAwareInputStreamExtractor;
 import org.apache.gobblin.data.management.copy.prioritization.FileSetComparator;
 import org.apache.gobblin.data.management.copy.publisher.CopyEventSubmitterHelper;
+import org.apache.gobblin.data.management.copy.replication.ConfigBasedDataset;
+import org.apache.gobblin.data.management.copy.splitter.DistcpFileSplitter;
 import org.apache.gobblin.data.management.copy.watermark.CopyableFileWatermarkGenerator;
 import org.apache.gobblin.data.management.copy.watermark.CopyableFileWatermarkHelper;
 import org.apache.gobblin.data.management.dataset.DatasetUtils;
@@ -217,7 +219,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
               try {
                 return GobblinConstructorUtils.<FileSetWorkUnitGenerator>invokeLongestConstructor(
                     new ClassAliasResolver(FileSetWorkUnitGenerator.class).resolveClass(filesetWuGeneratorAlias),
-                    input.getDataset(), input, state, workUnitsMap, watermarkGenerator, minWorkUnitWeight, lineageInfo);
+                    input.getDataset(), input, state, targetFs, workUnitsMap, watermarkGenerator, minWorkUnitWeight, lineageInfo);
               } catch (Exception e) {
                 throw new RuntimeException("Cannot create workunits generator", e);
               }
@@ -335,6 +337,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
     protected final CopyableDatasetBase copyableDataset;
     protected final FileSet<CopyEntity> fileSet;
     protected final State state;
+    protected final FileSystem targetFs;
     protected final SetMultimap<FileSet<CopyEntity>, WorkUnit> workUnitList;
     protected final Optional<CopyableFileWatermarkGenerator> watermarkGenerator;
     protected final long minWorkUnitWeight;
@@ -355,6 +358,9 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
           WorkUnit workUnit = new WorkUnit(extract);
           workUnit.addAll(this.state);
+          if(this.copyableDataset instanceof ConfigBasedDataset && ((ConfigBasedDataset)this.copyableDataset).getExpectedSchema() != null) {
+            workUnit.setProp(ConfigurationKeys.COPY_EXPECTED_SCHEMA, ((ConfigBasedDataset)this.copyableDataset).getExpectedSchema());
+          }
           serializeCopyEntity(workUnit, copyEntity);
           serializeCopyableDataset(workUnit, metadata);
           GobblinMetrics.addCustomTagToState(workUnit,
@@ -365,8 +371,12 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
           setWorkUnitWeight(workUnit, copyEntity, minWorkUnitWeight);
           setWorkUnitWatermark(workUnit, watermarkGenerator, copyEntity);
           computeAndSetWorkUnitGuid(workUnit);
-          workUnitsForPartition.add(workUnit);
           addLineageInfo(copyEntity, workUnit);
+          if (copyEntity instanceof CopyableFile && DistcpFileSplitter.allowSplit(this.state, this.targetFs)) {
+            workUnitsForPartition.addAll(DistcpFileSplitter.splitFile((CopyableFile) copyEntity, workUnit, this.targetFs));
+          } else {
+            workUnitsForPartition.add(workUnit);
+          }
         }
 
         this.workUnitList.putAll(this.fileSet, workUnitsForPartition);
@@ -398,9 +408,9 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
        * a DatasetFinder. Consequently, the source and destination dataset for the CopyableFile lineage are expected
        * to be set by the same logic
        */
-        if (lineageInfo.isPresent() && copyableFile.getSourceDataset() != null
-            && copyableFile.getDestinationDataset() != null) {
-          lineageInfo.get().setSource(copyableFile.getSourceDataset(), workUnit);
+        if (lineageInfo.isPresent() && copyableFile.getSourceData() != null
+            && copyableFile.getDestinationData() != null) {
+          lineageInfo.get().setSource(copyableFile.getSourceData(), workUnit);
         }
       }
     }

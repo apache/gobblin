@@ -111,7 +111,7 @@ public class GobblinTrackingEventFlattenFilterConverter extends AvroToAvroConver
   @Override
   public Schema convertSchema(Schema inputSchema, WorkUnitState workUnit)
       throws SchemaConversionException {
-    Preconditions.checkArgument(inputSchema.getFields().equals(gobblinTrackingEventSchema.getFields()));
+    Preconditions.checkArgument(AvroUtils.checkReaderWriterCompatibility(gobblinTrackingEventSchema, inputSchema, true));
     Schema outputSchema = Schema
         .createRecord(ConfigUtils.getString(config, NEW_SCHEMA_NAME, inputSchema.getName()), inputSchema.getDoc(),
             inputSchema.getNamespace(), inputSchema.isError());
@@ -120,7 +120,7 @@ public class GobblinTrackingEventFlattenFilterConverter extends AvroToAvroConver
   }
 
   @Override
-  public Iterable<GenericRecord> convertRecord(Schema outputSchema, GenericRecord inputRecord, WorkUnitState workUnit)
+  public Iterable<GenericRecord> convertRecordImpl(Schema outputSchema, GenericRecord inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
     GenericRecord genericRecord = new GenericData.Record(outputSchema);
 

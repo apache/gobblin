@@ -17,6 +17,9 @@
 
 package org.apache.gobblin.service.monitoring;
 
+import java.util.List;
+
+
 /**
  * Tracks the latest flow execution Id.
  */
@@ -28,4 +31,12 @@ public interface LatestFlowExecutionIdTracker {
    * @return the latest flow execution id with the given flowName and flowGroup. -1 will be returned if no such execution found.
    */
   long getLatestExecutionIdForFlow(String flowName, String flowGroup);
+
+  /**
+   * @param flowName
+   * @param flowGroup
+   * @param count number of execution ids to return
+   * @return the latest <code>count</code> execution ids with the given flowName and flowGroup. null will be returned if no such execution found.
+   */
+  List<Long> getLatestExecutionIdsForFlow(String flowName, String flowGroup, int count);
 }

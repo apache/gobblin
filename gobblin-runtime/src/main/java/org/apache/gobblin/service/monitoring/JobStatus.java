@@ -43,4 +43,7 @@ public class JobStatus {
   private final long processedCount;
   private final String lowWatermark;
   private final String highWatermark;
+  private final int maxAttempts;
+  private final int currentAttempts;
+  private final boolean shouldRetry;
 }

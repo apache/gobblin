@@ -18,6 +18,7 @@
 
 package org.apache.gobblin.cluster;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -47,12 +48,12 @@ import org.apache.helix.task.WorkflowConfig;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.typesafe.config.Config;
 
-import javax.annotation.Nonnull;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -87,6 +88,13 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
   private HelixManager jobClusterHelixManager = null;
 
   /**
+   * Helix manager to handle planning job distribution.
+   * Corresponds to cluster with key name {@link GobblinClusterConfigurationKeys#HELIX_CLUSTER_NAME_KEY}.
+   */
+  @Getter
+  private Optional<HelixManager> taskDriverHelixManager = Optional.empty();
+
+  /**
    * Helix controller for job distribution. Effective only iff below two conditions are established:
    * 1. In {@link GobblinHelixMultiManager#dedicatedManagerCluster} mode.
    * 2. {@link GobblinHelixMultiManager#dedicatedJobClusterController} is turned on.
@@ -95,15 +103,30 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
   private Optional<HelixManager> jobClusterController = Optional.empty();
 
   /**
+   * Helix controller for planning job distribution. Effective only iff below two conditions are established:
+   * 1. In {@link GobblinHelixMultiManager#dedicatedManagerCluster} mode.
+   * 2. {@link GobblinHelixMultiManager#dedicatedTaskDriverCluster} is turned on.
+   * Typically used for unit test and local deployment.
+   */
+  private Optional<HelixManager> taskDriverClusterController = Optional.empty();
+
+  /**
    * Separate manager cluster and job distribution cluster iff this flag is turned on. Otherwise {@link GobblinHelixMultiManager#jobClusterHelixManager}
    * is same as {@link GobblinHelixMultiManager#managerClusterHelixManager}.
    */
   private boolean dedicatedManagerCluster = false;
 
+  private boolean dedicatedTaskDriverCluster = false;
+
   /**
    * Create a dedicated controller for job distribution.
    */
   private boolean dedicatedJobClusterController = true;
+
+  /**
+   * Create a dedicated controller for planning job distribution.
+   */
+  private boolean dedicatedTaskDriverClusterController = true;
 
   @Getter
   boolean isLeader = false;
@@ -130,6 +153,8 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
     this.metrics = new HelixManagerMetrics(this.metricContext, this.config);
     this.dedicatedManagerCluster = ConfigUtils.getBoolean(config,
        GobblinClusterConfigurationKeys.DEDICATED_MANAGER_CLUSTER_ENABLED,false);
+    this.dedicatedTaskDriverCluster = ConfigUtils.getBoolean(config,
+        GobblinClusterConfigurationKeys.DEDICATED_TASK_DRIVER_CLUSTER_ENABLED, false);
     this.userDefinedMessageHandlerFactory = messageHandlerFactoryFunction.apply(null);
     initialize();
   }
@@ -179,6 +204,26 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
             .buildHelixManager(this.config, zkConnectionString, GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY,
                 InstanceType.CONTROLLER));
       }
+
+      if (this.dedicatedTaskDriverCluster) {
+        // This will create a Helix administrator to dispatch jobs to ZooKeeper
+        this.taskDriverHelixManager = Optional.of(buildHelixManager(this.config,
+            zkConnectionString,
+            GobblinClusterConfigurationKeys.TASK_DRIVER_CLUSTER_NAME_KEY,
+            InstanceType.ADMINISTRATOR));
+
+        this.dedicatedTaskDriverClusterController = ConfigUtils.getBoolean(
+            this.config,
+            GobblinClusterConfigurationKeys.DEDICATED_TASK_DRIVER_CLUSTER_CONTROLLER_ENABLED,
+            true);
+
+        // This will creat a dedicated controller for planning job distribution
+        if (this.dedicatedTaskDriverClusterController) {
+          this.taskDriverClusterController = Optional.of(GobblinHelixMultiManager
+              .buildHelixManager(this.config, zkConnectionString, GobblinClusterConfigurationKeys.TASK_DRIVER_CLUSTER_NAME_KEY,
+                  InstanceType.CONTROLLER));
+        }
+      }
     } else {
       log.info("We will use same cluster to manage GobblinClusterManager and job distribution.");
       // This will create and register a Helix controller in ZooKeeper
@@ -199,7 +244,15 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
         if (jobClusterController.isPresent()) {
           this.jobClusterController.get().connect();
         }
+        if (this.dedicatedTaskDriverCluster) {
+          if (taskDriverClusterController.isPresent()) {
+            this.taskDriverClusterController.get().connect();
+          }
+        }
         this.jobClusterHelixManager.connect();
+        if (this.taskDriverHelixManager.isPresent()) {
+          this.taskDriverHelixManager.get().connect();
+        }
       }
 
       this.jobClusterHelixManager.addLiveInstanceChangeListener(new GobblinLiveInstanceChangeListener());
@@ -238,10 +291,17 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
         this.jobClusterHelixManager.disconnect();
       }
 
+      if (taskDriverHelixManager.isPresent()) {
+        this.taskDriverHelixManager.get().disconnect();
+      }
+
       if (jobClusterController.isPresent() && jobClusterController.get().isConnected()) {
         this.jobClusterController.get().disconnect();
       }
 
+      if (taskDriverClusterController.isPresent() && taskDriverClusterController.get().isConnected()) {
+        this.taskDriverClusterController.get().disconnect();
+      }
     }
   }
 
@@ -268,7 +328,8 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
   void handleLeadershipChange(NotificationContext changeContext) {
     this.metrics.clusterLeadershipChange.update(1);
     if (this.managerClusterHelixManager.isLeader()) {
-      // can get multiple notifications on a leadership change, so only start the application launcher the first time
+      // can get multiple notifications on a leadership change,
+      // so only start the application launcher the first time
       // the notification is received
       log.info("Leader notification for {} isLeader {} HM.isLeader {}",
           managerClusterHelixManager.getInstanceName(),
@@ -278,21 +339,7 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
       if (!isLeader) {
         log.info("New Helix Controller leader {}", this.managerClusterHelixManager.getInstanceName());
 
-        // Clean up existing jobs
-        TaskDriver taskDriver = new TaskDriver(this.jobClusterHelixManager);
-        Map<String, WorkflowConfig> workflows = taskDriver.getWorkflows();
-
-        for (Map.Entry<String, WorkflowConfig> entry : workflows.entrySet()) {
-          String queueName = entry.getKey();
-          WorkflowConfig workflowConfig = entry.getValue();
-
-          // request delete if not already requested
-          if (workflowConfig.getTargetState() != TargetState.DELETE) {
-            taskDriver.delete(queueName);
-
-            log.info("Requested delete of queue {}", queueName);
-          }
-        }
+        cleanUpJobs();
 
         for (LeadershipChangeAwareComponent c: this.leadershipChangeAwareComponents) {
           c.becomeActive();
@@ -312,6 +359,51 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
     }
   }
 
+  /**
+   * Delete jobs from the helix cluster
+   */
+  @VisibleForTesting
+  public void cleanUpJobs() {
+    cleanUpJobs(this.jobClusterHelixManager);
+
+    if (this.taskDriverHelixManager.isPresent()) {
+      cleanUpJobs(this.taskDriverHelixManager.get());
+    }
+  }
+
+  private void cleanUpJobs(HelixManager helixManager) {
+    // Clean up existing jobs
+    TaskDriver taskDriver = new TaskDriver(helixManager);
+
+    Map<String, WorkflowConfig> workflows = taskDriver.getWorkflows();
+
+    log.debug("cleanUpJobs workflow count {} workflows {}", workflows.size(), workflows.keySet());
+
+    boolean cleanupDistJobs = ConfigUtils.getBoolean(this.config,
+        GobblinClusterConfigurationKeys.CLEAN_ALL_DIST_JOBS,
+        GobblinClusterConfigurationKeys.DEFAULT_CLEAN_ALL_DIST_JOBS);
+
+    for (Map.Entry<String, WorkflowConfig> entry : workflows.entrySet()) {
+      String workflowName = entry.getKey();
+
+      if (workflowName.contains(GobblinClusterConfigurationKeys.PLANNING_JOB_NAME_PREFIX)
+          || workflowName.contains(GobblinClusterConfigurationKeys.ACTUAL_JOB_NAME_PREFIX)) {
+        if (!cleanupDistJobs) {
+          log.info("Distributed job {} won't be deleted.", workflowName);
+          continue;
+        }
+      }
+
+      WorkflowConfig workflowConfig = entry.getValue();
+
+      // request delete if not already requested
+      if (workflowConfig.getTargetState() != TargetState.DELETE) {
+        taskDriver.delete(workflowName);
+
+        log.info("Requested delete of workflowName {}", workflowName);
+      }
+    }
+  }
 
   /**
    * A custom {@link MessageHandlerFactory} for {@link MessageHandler}s that handle messages of type
@@ -476,19 +568,8 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
     }
   }
 
-  @Nonnull
   @Override
-  public MetricContext getMetricContext() {
-    return this.metricContext;
-  }
-
-  @Override
-  public boolean isInstrumentationEnabled() {
-    return true;
-  }
-
-  @Override
-  public StandardMetrics getStandardMetrics() {
-    return this.metrics;
+  public Collection<StandardMetrics> getStandardMetricsCollection() {
+    return ImmutableList.of(this.metrics);
   }
 }

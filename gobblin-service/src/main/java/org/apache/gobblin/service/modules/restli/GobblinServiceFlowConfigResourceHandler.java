@@ -25,15 +25,19 @@ import org.apache.helix.HelixManager;
 import org.apache.helix.InstanceType;
 
 import com.google.common.base.Optional;
+import com.linkedin.data.transform.DataProcessingException;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
 import com.linkedin.restli.common.HttpStatus;
+import com.linkedin.restli.common.PatchRequest;
 import com.linkedin.restli.server.CreateResponse;
 import com.linkedin.restli.server.UpdateResponse;
+import com.linkedin.restli.server.util.PatchApplier;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.service.FlowConfig;
 import org.apache.gobblin.service.FlowConfigLoggedException;
 import org.apache.gobblin.service.FlowConfigResourceLocalHandler;
@@ -93,19 +97,30 @@ public class GobblinServiceFlowConfigResourceHandler implements FlowConfigsResou
     String flowName = flowConfig.getId().getFlowName();
     String flowGroup = flowConfig.getId().getFlowGroup();
 
+    if (flowConfig.getProperties().containsKey(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
+      throw new FlowConfigLoggedException(HttpStatus.S_400_BAD_REQUEST,
+          String.format("%s cannot be set by the user", ConfigurationKeys.FLOW_EXECUTION_ID_KEY),
+          null);
+    }
+
     checkHelixConnection(ServiceConfigKeys.HELIX_FLOWSPEC_ADD, flowName, flowGroup);
 
     try {
       if (!jobScheduler.isActive() && helixManager.isPresent()) {
+        CreateResponse response = null;
         if (this.flowCatalogLocalCommit) {
           // We will handle FS I/O locally for load balance before forwarding to remote node.
-          this.localHandler.createFlowConfig(flowConfig, false);
+          response = this.localHandler.createFlowConfig(flowConfig, false);
         }
 
-        forwardMessage(ServiceConfigKeys.HELIX_FLOWSPEC_ADD, FlowConfigUtils.serializeFlowConfig(flowConfig), flowName, flowGroup);
+        if (!flowConfig.hasExplain() || !flowConfig.isExplain()) {
+          //Forward the message to master only if it is not an "explain" request.
+          forwardMessage(ServiceConfigKeys.HELIX_FLOWSPEC_ADD, FlowConfigUtils.serializeFlowConfig(flowConfig), flowName, flowGroup);
+        }
 
         // Do actual work on remote node, directly return success
-        return new CreateResponse(new ComplexResourceKey<>(flowConfig.getId(), new EmptyRecord()), HttpStatus.S_201_CREATED);
+        return response == null ? new CreateResponse(new ComplexResourceKey<>(flowConfig.getId(), new EmptyRecord()),
+            HttpStatus.S_201_CREATED) : response;
       } else {
         return this.localHandler.createFlowConfig(flowConfig);
       }
@@ -161,6 +176,19 @@ public class GobblinServiceFlowConfigResourceHandler implements FlowConfigsResou
       throw new FlowConfigLoggedException(HttpStatus.S_500_INTERNAL_SERVER_ERROR,
           "Cannot update flowConfig [flowName=" + flowName + " flowGroup=" + flowGroup + "]", e);
     }
+  }
+
+  @Override
+  public UpdateResponse partialUpdateFlowConfig(FlowId flowId, PatchRequest<FlowConfig> flowConfigPatch) {
+    FlowConfig flowConfig = getFlowConfig(flowId);
+
+    try {
+      PatchApplier.applyPatch(flowConfig, flowConfigPatch);
+    } catch (DataProcessingException e) {
+      throw new FlowConfigLoggedException(HttpStatus.S_400_BAD_REQUEST, "Failed to apply partial update", e);
+    }
+
+    return updateFlowConfig(flowId, flowConfig);
   }
 
   /**

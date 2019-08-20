@@ -28,13 +28,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 import org.apache.avro.Schema.Type;
+import org.apache.avro.SchemaCompatibility;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.file.SeekableInput;
+import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericData.Record;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericDatumWriter;
@@ -70,13 +74,17 @@ import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 
+import javax.annotation.Nonnull;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * A Utils class for dealing with Avro objects
  */
+@Slf4j
 public class AvroUtils {
 
   private static final Logger LOG = LoggerFactory.getLogger(AvroUtils.class);
@@ -84,6 +92,36 @@ public class AvroUtils {
   public static final String FIELD_LOCATION_DELIMITER = ".";
 
   private static final String AVRO_SUFFIX = ".avro";
+
+  /**
+   * Validates that the provided reader schema can be used to decode avro data written with the
+   * provided writer schema.
+   * @param readerSchema schema to check.
+   * @param writerSchema schema to check.
+   * @param ignoreNamespace whether name and namespace should be ignored in validation
+   * @return true if validation passes
+   */
+  public static boolean checkReaderWriterCompatibility(Schema readerSchema, Schema writerSchema, boolean ignoreNamespace) {
+    if (ignoreNamespace) {
+      List<Schema.Field> fields = deepCopySchemaFields(readerSchema);
+      readerSchema = Schema.createRecord(writerSchema.getName(), writerSchema.getDoc(), writerSchema.getNamespace(),
+          readerSchema.isError());
+      readerSchema.setFields(fields);
+    }
+
+    return SchemaCompatibility.checkReaderWriterCompatibility(readerSchema, writerSchema).getType().equals(SchemaCompatibility.SchemaCompatibilityType.COMPATIBLE);
+  }
+
+  public static List<Field> deepCopySchemaFields(Schema readerSchema) {
+    return readerSchema.getFields().stream()
+        .map(field -> {
+          Field f = new Field(field.name(), field.schema(), field.doc(), field.defaultValue(), field.order());
+          field.getProps().forEach((key, value) -> f.addProp(key, value));
+          return f;
+        })
+        .collect(Collectors.toList());
+  }
+
 
   public static class AvroPathFilter implements PathFilter {
     @Override
@@ -246,7 +284,7 @@ public class AvroUtils {
       } else if (data instanceof List) {
         val = getObjectFromArray((List)data, Integer.parseInt(pathList.get(field)));
       } else {
-        val = ((Record)data).get(pathList.get(field));
+        val = ((GenericRecord)data).get(pathList.get(field));
       }
 
       if (val != null) {
@@ -278,7 +316,7 @@ public class AvroUtils {
       return;
     }
 
-    AvroUtils.getFieldHelper(retVal, ((Record) data).get(pathList.get(field)), pathList, ++field);
+    AvroUtils.getFieldHelper(retVal, ((GenericRecord) data).get(pathList.get(field)), pathList, ++field);
     return;
   }
 
@@ -317,7 +355,12 @@ public class AvroUtils {
 
   private static Object getObjectFromMap(Map map, String key) {
     Utf8 utf8Key = new Utf8(key);
-    return map.get(utf8Key);
+    Object value = map.get(utf8Key);
+    if (value == null) {
+      return map.get(key);
+    }
+
+    return value;
   }
 
   /**
@@ -381,27 +424,69 @@ public class AvroUtils {
     Preconditions.checkArgument(fs.exists(filePath), filePath + " does not exist");
 
     try (FSDataInputStream in = fs.open(filePath)) {
-      return new Schema.Parser().parse(in.readUTF());
+      return new Schema.Parser().parse(in);
     }
   }
 
   public static void writeSchemaToFile(Schema schema, Path filePath, FileSystem fs, boolean overwrite)
       throws IOException {
-    writeSchemaToFile(schema, filePath, fs, overwrite, new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.READ));
+    writeSchemaToFile(schema, filePath, null, fs, overwrite);
+  }
+
+  public static void writeSchemaToFile(Schema schema, Path filePath, Path tempFilePath, FileSystem fs, boolean overwrite)
+      throws IOException {
+    writeSchemaToFile(schema, filePath, tempFilePath, fs, overwrite, new FsPermission(FsAction.ALL, FsAction.ALL,
+        FsAction.READ));
   }
 
   public static void writeSchemaToFile(Schema schema, Path filePath, FileSystem fs, boolean overwrite, FsPermission perm)
     throws IOException {
+    writeSchemaToFile(schema, filePath, null, fs, overwrite, perm);
+  }
+
+  /**
+   * Write a schema to a file
+   * @param schema the schema
+   * @param filePath the target file
+   * @param tempFilePath if not null then this path is used for a temporary file used to stage the write
+   * @param fs a {@link FileSystem}
+   * @param overwrite should any existing target file be overwritten?
+   * @param perm permissions
+   * @throws IOException
+   */
+  public static void writeSchemaToFile(Schema schema, Path filePath, Path tempFilePath, FileSystem fs, boolean overwrite,
+      FsPermission perm)
+      throws IOException {
+    boolean fileExists = fs.exists(filePath);
+
     if (!overwrite) {
-      Preconditions.checkState(!fs.exists(filePath), filePath + " already exists");
+      Preconditions.checkState(!fileExists, filePath + " already exists");
     } else {
-      HadoopUtils.deletePath(fs, filePath, true);
+      // delete the target file now if not using a staging file
+      if (fileExists && null == tempFilePath) {
+        HadoopUtils.deletePath(fs, filePath, true);
+        // file has been removed
+        fileExists = false;
+      }
     }
 
-    try (DataOutputStream dos = fs.create(filePath)) {
-      dos.writeUTF(schema.toString());
+    // If the file exists then write to a temp file to make the replacement as close to atomic as possible
+    Path writeFilePath = fileExists ? tempFilePath : filePath;
+
+    try (DataOutputStream dos = fs.create(writeFilePath)) {
+      dos.writeChars(schema.toString());
     }
-    fs.setPermission(filePath, perm);
+    fs.setPermission(writeFilePath, perm);
+
+    // Replace existing file with the staged file
+    if (fileExists) {
+      if (!fs.delete(filePath, true)) {
+        throw new IOException(
+            String.format("Failed to delete %s while renaming %s to %s", filePath, tempFilePath, filePath));
+      }
+
+      HadoopUtils.movePath(fs, tempFilePath, fs, filePath, true, fs.getConf());
+    }
   }
 
   /**
@@ -523,10 +608,10 @@ public class AvroUtils {
    * MapReduce job.
    */
   public static Optional<Schema> removeUncomparableFields(Schema schema) {
-    return removeUncomparableFields(schema, Sets.<Schema> newHashSet());
+    return removeUncomparableFields(schema, Maps.newHashMap());
   }
 
-  private static Optional<Schema> removeUncomparableFields(Schema schema, Set<Schema> processed) {
+  private static Optional<Schema> removeUncomparableFields(Schema schema, Map<Schema, Optional<Schema>> processed) {
     switch (schema.getType()) {
       case RECORD:
         return removeUncomparableFieldsFromRecord(schema, processed);
@@ -543,13 +628,13 @@ public class AvroUtils {
     }
   }
 
-  private static Optional<Schema> removeUncomparableFieldsFromRecord(Schema record, Set<Schema> processed) {
+  private static Optional<Schema> removeUncomparableFieldsFromRecord(Schema record, Map<Schema, Optional<Schema>> processed) {
     Preconditions.checkArgument(record.getType() == Schema.Type.RECORD);
 
-    if (processed.contains(record)) {
-      return Optional.absent();
+    Optional<Schema> result = processed.get(record);
+    if (null != result) {
+      return result;
     }
-    processed.add(record);
 
     List<Field> fields = Lists.newArrayList();
     for (Field field : record.getFields()) {
@@ -561,16 +646,19 @@ public class AvroUtils {
 
     Schema newSchema = Schema.createRecord(record.getName(), record.getDoc(), record.getNamespace(), false);
     newSchema.setFields(fields);
-    return Optional.of(newSchema);
+    result = Optional.of(newSchema);
+    processed.put(record, result);
+
+    return result;
   }
 
-  private static Optional<Schema> removeUncomparableFieldsFromUnion(Schema union, Set<Schema> processed) {
+  private static Optional<Schema> removeUncomparableFieldsFromUnion(Schema union, Map<Schema, Optional<Schema>> processed) {
     Preconditions.checkArgument(union.getType() == Schema.Type.UNION);
 
-    if (processed.contains(union)) {
-      return Optional.absent();
+    Optional<Schema> result = processed.get(union);
+    if (null != result) {
+      return result;
     }
-    processed.add(union);
 
     List<Schema> newUnion = Lists.newArrayList();
     for (Schema unionType : union.getTypes()) {
@@ -582,9 +670,13 @@ public class AvroUtils {
 
     // Discard the union field if one or more types are removed from the union.
     if (newUnion.size() != union.getTypes().size()) {
-      return Optional.absent();
+      result = Optional.absent();
+    } else {
+      result = Optional.of(Schema.createUnion(newUnion));
     }
-    return Optional.of(Schema.createUnion(newUnion));
+    processed.put(union, result);
+
+    return result;
   }
 
   /**
@@ -765,4 +857,82 @@ public class AvroUtils {
     GenericDatumReader<GenericRecord> reader = new GenericDatumReader<>(schema);
     return reader.read(null, decoder);
   }
+
+  /**
+   * Decorate the {@link Schema} for a record with additional {@link Field}s.
+   * @param inputSchema: must be a {@link Record} schema.
+   * @return the decorated Schema. Fields are appended to the inputSchema.
+   */
+  public static Schema decorateRecordSchema(Schema inputSchema, @Nonnull List<Field> fieldList) {
+    Preconditions.checkState(inputSchema.getType().equals(Type.RECORD));
+    List<Field> outputFields = deepCopySchemaFields(inputSchema);
+    List<Field> newOutputFields = Stream.concat(outputFields.stream(), fieldList.stream()).collect(Collectors.toList());
+
+    Schema outputSchema = Schema.createRecord(inputSchema.getName(), inputSchema.getDoc(),
+            inputSchema.getNamespace(), inputSchema.isError());
+    outputSchema.setFields(newOutputFields);
+    copyProperties(inputSchema, outputSchema);
+    return outputSchema;
+  }
+
+  /**
+   * Decorate a {@link GenericRecord} with additional fields and make it conform to an extended Schema
+   * It is the caller's responsibility to ensure that the outputSchema is the merge of the inputRecord's schema
+   * and the additional fields. The method does not check this for performance reasons, because it is expected to be called in the
+   * critical path of processing a record.
+   * Use {@link AvroUtils#decorateRecordSchema(Schema, List)} to generate such a Schema before calling this method.
+   * @param inputRecord: record with data to be copied into the output record
+   * @param fieldMap: values can be primitive types or GenericRecords if nested
+   * @param outputSchema: the schema that the decoratedRecord will conform to
+   * @return an outputRecord that contains a union of the fields in the inputRecord and the field-values in the fieldMap
+   */
+  public static GenericRecord decorateRecord(GenericRecord inputRecord, @Nonnull Map<String, Object> fieldMap,
+          Schema outputSchema) {
+    GenericRecord outputRecord = new GenericData.Record(outputSchema);
+    inputRecord.getSchema().getFields().forEach(f -> outputRecord.put(f.name(), inputRecord.get(f.name())));
+    fieldMap.forEach((key, value) -> outputRecord.put(key, value));
+    return outputRecord;
+  }
+
+  /**
+   * Given a generic record, Override the name and namespace of the schema and return a new generic record
+   * @param input input record who's name and namespace need to be overridden
+   * @param nameOverride new name for the record schema
+   * @param namespaceOverride Optional map containing namespace overrides
+   * @return an output record with overridden name and possibly namespace
+   */
+  public static GenericRecord overrideNameAndNamespace(GenericRecord input, String nameOverride, Optional<Map<String, String>> namespaceOverride) {
+
+    GenericRecord output = input;
+    Schema newSchema = switchName(input.getSchema(), nameOverride);
+    if(namespaceOverride.isPresent()) {
+      newSchema = switchNamespace(newSchema, namespaceOverride.get());
+    }
+
+    try {
+      output = convertRecordSchema(output, newSchema);
+    } catch (Exception e){
+      log.error("Unable to generate generic data record", e);
+    }
+
+    return output;
+  }
+
+  /**
+   * Given a input schema, Override the name and namespace of the schema and return a new schema
+   * @param input
+   * @param nameOverride
+   * @param namespaceOverride
+   * @return a schema with overridden name and possibly namespace
+   */
+  public static Schema overrideNameAndNamespace(Schema input, String nameOverride, Optional<Map<String, String>> namespaceOverride) {
+
+    Schema newSchema = switchName(input, nameOverride);
+    if(namespaceOverride.isPresent()) {
+      newSchema = switchNamespace(newSchema, namespaceOverride.get());
+    }
+
+    return newSchema;
+  }
+
 }

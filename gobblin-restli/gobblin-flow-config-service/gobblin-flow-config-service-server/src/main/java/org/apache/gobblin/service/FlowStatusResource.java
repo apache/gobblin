@@ -17,14 +17,10 @@
 
 package org.apache.gobblin.service;
 
-import com.linkedin.restli.server.PagingContext;
-import com.linkedin.restli.server.annotations.Context;
-import com.linkedin.restli.server.annotations.Finder;
-import com.linkedin.restli.server.annotations.QueryParam;
-import java.util.Collections;
 import java.util.Iterator;
-
 import java.util.List;
+import java.util.stream.Collectors;
+
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,11 +28,16 @@ import org.slf4j.LoggerFactory;
 import com.google.inject.Inject;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
+import com.linkedin.restli.server.PagingContext;
+import com.linkedin.restli.server.annotations.Context;
+import com.linkedin.restli.server.annotations.Finder;
+import com.linkedin.restli.server.annotations.Optional;
+import com.linkedin.restli.server.annotations.QueryParam;
 import com.linkedin.restli.server.annotations.RestLiCollection;
 import com.linkedin.restli.server.resources.ComplexKeyResourceTemplate;
 
-import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
+import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 
 
 /**
@@ -75,14 +76,17 @@ public class FlowStatusResource extends ComplexKeyResourceTemplate<FlowStatusId,
 
   @Finder("latestFlowStatus")
   public List<FlowStatus> getLatestFlowStatus(@Context PagingContext context,
-      @QueryParam("flowId") FlowId flowId) {
-    LOG.info("getLatestFlowStatus called with flowGroup " + flowId.getFlowGroup() + " flowName " + flowId.getFlowName());
+      @QueryParam("flowId") FlowId flowId, @Optional @QueryParam("count") Integer count) {
+    if (count == null) {
+      count = 1;
+    }
+    LOG.info("getLatestFlowStatus called with flowGroup " + flowId.getFlowGroup() + " flowName " + flowId.getFlowName() + " count " + count);
 
-    org.apache.gobblin.service.monitoring.FlowStatus latestFlowStatus =
-        _flowStatusGenerator.getLatestFlowStatus(flowId.getFlowName(), flowId.getFlowGroup());
+    List<org.apache.gobblin.service.monitoring.FlowStatus> flowStatuses =
+        _flowStatusGenerator.getLatestFlowStatus(flowId.getFlowName(), flowId.getFlowGroup(), count);
 
-    if (latestFlowStatus != null) {
-      return Collections.singletonList(convertFlowStatus(latestFlowStatus));
+    if (flowStatuses != null) {
+      return flowStatuses.stream().map(this::convertFlowStatus).collect(Collectors.toList());
     }
 
     // will return 404 status code
@@ -103,14 +107,22 @@ public class FlowStatusResource extends ComplexKeyResourceTemplate<FlowStatusId,
     JobStatusArray jobStatusArray = new JobStatusArray();
     FlowId flowId = new FlowId().setFlowName(monitoringFlowStatus.getFlowName())
         .setFlowGroup(monitoringFlowStatus.getFlowGroup());
-    long flowStartTime = Long.MAX_VALUE;
-    long flowEndTime = -1L;
-    // flow execution status is complete unless job status indicates it is running or failed
-    ExecutionStatus flowExecutionStatus = ExecutionStatus.COMPLETE;
+
+    long flowEndTime = 0L;
+    ExecutionStatus flowExecutionStatus = ExecutionStatus.$UNKNOWN;
+
     StringBuffer flowMessagesStringBuffer = new StringBuffer();
 
     while (jobStatusIter.hasNext()) {
       org.apache.gobblin.service.monitoring.JobStatus queriedJobStatus = jobStatusIter.next();
+
+      // Check if this is the flow status instead of a single job status
+      if (isFlowStatus(queriedJobStatus)) {
+        flowEndTime = queriedJobStatus.getEndTime();
+        flowExecutionStatus = ExecutionStatus.valueOf(queriedJobStatus.getEventName());
+        continue;
+      }
+
       JobStatus jobStatus = new JobStatus();
 
       jobStatus.setFlowId(flowId)
@@ -120,29 +132,17 @@ public class FlowStatusResource extends ComplexKeyResourceTemplate<FlowStatusId,
               .setExecutionStartTime(queriedJobStatus.getStartTime())
               .setExecutionEndTime(queriedJobStatus.getEndTime())
               .setProcessedCount(queriedJobStatus.getProcessedCount()))
-          .setExecutionStatus(timingEventToStatus(queriedJobStatus.getEventName()))
+          .setExecutionStatus(ExecutionStatus.valueOf(queriedJobStatus.getEventName()))
           .setMessage(queriedJobStatus.getMessage())
           .setJobState(new JobState().setLowWatermark(queriedJobStatus.getLowWatermark()).
               setHighWatermark(queriedJobStatus.getHighWatermark()));
 
       jobStatusArray.add(jobStatus);
 
-      if (queriedJobStatus.getStartTime() < flowStartTime){
-        flowStartTime = queriedJobStatus.getStartTime();
-      }
-
-      // TODO: end time should be left as -1 if not all jobs have started for the flow
-      // need to have flow job count to determine this
-      if (queriedJobStatus.getEndTime() > flowEndTime){
-        flowEndTime = queriedJobStatus.getEndTime();
-      }
-
       if (!queriedJobStatus.getMessage().isEmpty()) {
         flowMessagesStringBuffer.append(queriedJobStatus.getMessage());
         flowMessagesStringBuffer.append(MESSAGE_SEPARATOR);
       }
-
-      flowExecutionStatus = updatedFlowExecutionStatus(jobStatus.getExecutionStatus(), flowExecutionStatus);
     }
 
     String flowMessages = flowMessagesStringBuffer.length() > 0 ?
@@ -152,7 +152,7 @@ public class FlowStatusResource extends ComplexKeyResourceTemplate<FlowStatusId,
     return new FlowStatus()
         .setId(new FlowStatusId().setFlowGroup(flowId.getFlowGroup()).setFlowName(flowId.getFlowName())
             .setFlowExecutionId(monitoringFlowStatus.getFlowExecutionId()))
-        .setExecutionStatistics(new FlowStatistics().setExecutionStartTime(flowStartTime)
+        .setExecutionStatistics(new FlowStatistics().setExecutionStartTime(getFlowStartTime(monitoringFlowStatus))
             .setExecutionEndTime(flowEndTime))
         .setMessage(flowMessages)
         .setExecutionStatus(flowExecutionStatus)
@@ -160,49 +160,19 @@ public class FlowStatusResource extends ComplexKeyResourceTemplate<FlowStatusId,
   }
 
   /**
-   * Maps a timing event name to a flow/job ExecutionStatus
-   * @param timingEvent timing event name
-   * @return status string
+   * Check if a {@link org.apache.gobblin.service.monitoring.JobStatus} is the special job status that represents the
+   * entire flow's status
    */
-  private ExecutionStatus timingEventToStatus(String timingEvent) {
-    ExecutionStatus status;
-
-    switch (timingEvent) {
-      case TimingEvent.LauncherTimings.JOB_FAILED:
-      case TimingEvent.LauncherTimings.JOB_CANCEL:
-        status = ExecutionStatus.FAILED;
-        break;
-      case TimingEvent.LauncherTimings.JOB_COMPLETE:
-        status = ExecutionStatus.COMPLETE;
-        break;
-      default:
-        status = ExecutionStatus.RUNNING;
-    }
-
-    return status;
+  private static boolean isFlowStatus(org.apache.gobblin.service.monitoring.JobStatus jobStatus) {
+    return jobStatus.getJobName().equals(JobStatusRetriever.NA_KEY) && jobStatus.getJobGroup().equals(JobStatusRetriever.NA_KEY);
   }
 
   /**
-   * Determines the new flow status based on the current flow status and new job status
-   * @param jobExecutionStatus job status
-   * @param currentFlowExecutionStatus current flow status
-   * @return updated flow status
+   * Return the flow start time given a {@link org.apache.gobblin.service.monitoring.FlowStatus}. Flow execution ID is
+   * assumed to be the flow start time.
    */
-  private ExecutionStatus updatedFlowExecutionStatus(ExecutionStatus jobExecutionStatus,
-      ExecutionStatus currentFlowExecutionStatus) {
-
-    // if any job failed or flow has failed then return failed status
-    if (currentFlowExecutionStatus == ExecutionStatus.FAILED ||
-        jobExecutionStatus == ExecutionStatus.FAILED) {
-      return ExecutionStatus.FAILED;
-    }
-
-    // if job still running then flow is still running
-    if (jobExecutionStatus == ExecutionStatus.RUNNING) {
-      return ExecutionStatus.RUNNING;
-    }
-
-    return currentFlowExecutionStatus;
+  private static long getFlowStartTime(org.apache.gobblin.service.monitoring.FlowStatus flowStatus) {
+    return flowStatus.getFlowExecutionId();
   }
 }
 

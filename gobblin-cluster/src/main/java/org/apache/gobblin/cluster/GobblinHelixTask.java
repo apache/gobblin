@@ -62,27 +62,40 @@ import org.apache.gobblin.util.Id;
 public class GobblinHelixTask implements Task {
 
   private final TaskConfig taskConfig;
+  private final String applicationName;
+  private final String instanceName;
+
   private String jobName;
   private String jobId;
   private String jobKey;
   private String taskId;
   private Path workUnitFilePath;
-
+  private GobblinHelixTaskMetrics taskMetrics;
   private SingleTask task;
 
-  public GobblinHelixTask(TaskCallbackContext taskCallbackContext, FileSystem fs, Path appWorkDir,
-      TaskAttemptBuilder taskAttemptBuilder, StateStores stateStores)
-      throws IOException {
-
+  public GobblinHelixTask(TaskRunnerSuiteBase.Builder builder,
+                          TaskCallbackContext taskCallbackContext,
+                          TaskAttemptBuilder taskAttemptBuilder,
+                          StateStores stateStores,
+                          GobblinHelixTaskMetrics taskMetrics) {
     this.taskConfig = taskCallbackContext.getTaskConfig();
+    this.applicationName = builder.getApplicationName();
+    this.instanceName = builder.getInstanceName();
+    this.taskMetrics = taskMetrics;
     getInfoFromTaskConfig();
 
-    Path jobStateFilePath =
-        GobblinClusterUtils.getJobStateFilePath(stateStores.haveJobStateStore(), appWorkDir, this.jobId);
+    Path jobStateFilePath = GobblinClusterUtils
+        .getJobStateFilePath(stateStores.haveJobStateStore(),
+                             builder.getAppWorkPath(),
+                             this.jobId);
 
-    this.task =
-        new SingleTask(this.jobId, workUnitFilePath, jobStateFilePath, fs, taskAttemptBuilder,
-            stateStores);
+    this.task = new SingleTask(this.jobId,
+                               this.workUnitFilePath,
+                               jobStateFilePath,
+                               builder.getFs(),
+                               taskAttemptBuilder,
+                               stateStores,
+                               builder.getDynamicConfig());
   }
 
   private void getInfoFromTaskConfig() {
@@ -97,24 +110,34 @@ public class GobblinHelixTask implements Task {
 
   @Override
   public TaskResult run() {
-    log.info("Actual task {} started.", this.taskId);
+    this.taskMetrics.helixTaskTotalRunning.incrementAndGet();
+    long startTime = System.currentTimeMillis();
+    log.info("Actual task {} started. [{} {}]", this.taskId, this.applicationName, this.instanceName);
     try (Closer closer = Closer.create()) {
       closer.register(MDC.putCloseable(ConfigurationKeys.JOB_NAME_KEY, this.jobName));
       closer.register(MDC.putCloseable(ConfigurationKeys.JOB_KEY_KEY, this.jobKey));
       this.task.run();
-      log.info("Actual task {} finished.", this.taskId);
+      log.info("Actual task {} completed.", this.taskId);
+      this.taskMetrics.helixTaskTotalCompleted.incrementAndGet();
       return new TaskResult(TaskResult.Status.COMPLETED, "");
     } catch (InterruptedException ie) {
       Thread.currentThread().interrupt();
+      log.error("Actual task {} interrupted.", this.taskId);
+      this.taskMetrics.helixTaskTotalFailed.incrementAndGet();
       return new TaskResult(TaskResult.Status.CANCELED, "");
     } catch (Throwable t) {
-      log.error("GobblinHelixTask " + taskId + " failed due to " + t.getMessage(), t);
+      log.error("Actual task {} failed due to {}", this.taskId, t.getMessage());
+      this.taskMetrics.helixTaskTotalCancelled.incrementAndGet();
       return new TaskResult(TaskResult.Status.FAILED, Throwables.getStackTraceAsString(t));
+    } finally {
+      this.taskMetrics.helixTaskTotalRunning.decrementAndGet();
+      this.taskMetrics.updateTimeForTaskExecution(startTime);
     }
   }
 
   @Override
   public void cancel() {
+    log.warn("Gobblin helix task cancellation invoked.");
     this.task.cancel();
   }
 }

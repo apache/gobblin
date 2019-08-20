@@ -23,6 +23,7 @@ dependencies {
   testCompile project(":gobblin-runtime")
   testCompile project(":gobblin-data-management")
 
+  testCompile externalDependency.bytemanBmunit
   testCompile externalDependency.calciteCore
   testCompile externalDependency.calciteAvatica
   testCompile externalDependency.jhyde

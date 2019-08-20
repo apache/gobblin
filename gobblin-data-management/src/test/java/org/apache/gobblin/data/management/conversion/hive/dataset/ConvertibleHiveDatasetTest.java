@@ -18,10 +18,13 @@ package org.apache.gobblin.data.management.conversion.hive.dataset;
 
 import com.google.common.base.Optional;
 import java.io.InputStream;
+import java.lang.reflect.Type;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Properties;
 
 import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
@@ -35,6 +38,7 @@ import org.apache.gobblin.data.management.conversion.hive.source.HiveAvroToOrcSo
 import org.apache.gobblin.data.management.conversion.hive.source.HiveWorkUnit;
 import org.apache.gobblin.data.management.conversion.hive.utils.LineageUtils;
 import org.apache.gobblin.dataset.DatasetDescriptor;
+import org.apache.gobblin.dataset.Descriptor;
 import org.apache.gobblin.dataset.HiveToHdfsDatasetResolver;
 import org.apache.gobblin.dataset.HiveToHdfsDatasetResolverFactory;
 import org.apache.gobblin.metrics.event.lineage.LineageEventBuilder;
@@ -52,18 +56,28 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset.ConversionConfig;
 import org.apache.gobblin.hive.HiveMetastoreClientPool;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.io.GsonInterfaceAdapter;
 
 import static org.mockito.Mockito.when;
 
 
 @Test(groups = { "gobblin.data.management.conversion" })
 public class ConvertibleHiveDatasetTest {
+
+  /** Lineage info ser/de */
+  private static final Type DESCRIPTOR_LIST_TYPE = new TypeToken<ArrayList<Descriptor>>(){}.getType();
+  private static final Gson GSON =
+      new GsonBuilder().registerTypeAdapterFactory(new GsonInterfaceAdapter(Descriptor.class)).create();
+
+
   /**
    * Test if lineage information is properly set in the workunit for convertible hive datasets
    */
@@ -72,7 +86,6 @@ public class ConvertibleHiveDatasetTest {
     String testConfFilePath = "convertibleHiveDatasetTest/flattenedAndNestedOrc.conf";
     Config config = ConfigFactory.parseResources(testConfFilePath).getConfig("hive.conversion.avro");
     // Set datasetResolverFactory to convert Hive Lineage event to Hdfs Lineage event
-    Gson GSON = new Gson();
     ConvertibleHiveDataset testConvertibleDataset = createTestConvertibleDataset(config);
     HiveWorkUnit workUnit = new HiveWorkUnit(testConvertibleDataset);
     workUnit.setProp("gobblin.broker.lineageInfo.datasetResolverFactory",
@@ -111,7 +124,7 @@ public class ConvertibleHiveDatasetTest {
     // Assert that first dest is correct for lineage event
     Assert.assertTrue(props.containsKey("gobblin.event.lineage.branch.1.destination"));
     DatasetDescriptor destDD1 =
-        GSON.fromJson(props.getProperty("gobblin.event.lineage.branch.1.destination"), DatasetDescriptor.class);
+        (DatasetDescriptor) firstDescriptor(props, "gobblin.event.lineage.branch.1.destination");
     Assert.assertEquals(destDD1.getPlatform(), "file");
     Assert.assertEquals(destDD1.getName(), "/tmp/data_nestedOrc/db1/tb1/final");
     Assert.assertEquals(destDD1.getMetadata().get(HiveToHdfsDatasetResolver.HIVE_TABLE),
@@ -120,11 +133,16 @@ public class ConvertibleHiveDatasetTest {
     // Assert that second dest is correct for lineage event
     Assert.assertTrue(props.containsKey("gobblin.event.lineage.branch.2.destination"));
     DatasetDescriptor destDD2 =
-        GSON.fromJson(props.getProperty("gobblin.event.lineage.branch.2.destination"), DatasetDescriptor.class);
+        (DatasetDescriptor) firstDescriptor(props, "gobblin.event.lineage.branch.2.destination");
     Assert.assertEquals(destDD2.getPlatform(), "file");
     Assert.assertEquals(destDD2.getName(), "/tmp/data_flattenedOrc/db1/tb1/final");
     Assert.assertEquals(destDD2.getMetadata().get(HiveToHdfsDatasetResolver.HIVE_TABLE),
         "db1_flattenedOrcDb.tb1_flattenedOrc");
+  }
+
+  private Descriptor firstDescriptor(Properties prop, String destinationKey) {
+    List<Descriptor> descriptors = GSON.fromJson(prop.getProperty(destinationKey), DESCRIPTOR_LIST_TYPE);
+    return descriptors.get(0);
   }
 
   @Test

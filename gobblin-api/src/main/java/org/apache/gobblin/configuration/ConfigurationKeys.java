@@ -50,6 +50,7 @@ public class ConfigurationKeys {
   public static final String STATE_STORE_TYPE_KEY = "state.store.type";
   public static final String DATASET_STATE_STORE_PREFIX = "dataset";
   public static final String DATASET_STATE_STORE_TYPE_KEY = DATASET_STATE_STORE_PREFIX + ".state.store.type";
+  public static final String STATE_STORE_FACTORY_CLASS_KEY = "state.store.factory.class";
   public static final String INTERMEDIATE_STATE_STORE_PREFIX = "intermediate";
   public static final String INTERMEDIATE_STATE_STORE_TYPE_KEY = INTERMEDIATE_STATE_STORE_PREFIX + ".state.store.type";
   public static final String DEFAULT_STATE_STORE_TYPE = "fs";
@@ -112,13 +113,8 @@ public class ConfigurationKeys {
   public static final String SCHEDULER_WAIT_FOR_JOB_COMPLETION_KEY = "scheduler.wait.for.job.completion";
   public static final String DEFAULT_SCHEDULER_WAIT_FOR_JOB_COMPLETION = Boolean.TRUE.toString();
 
-  public static final String HELIX_JOB_TIMEOUT_ENABLED_KEY = "job.timeout.enabled";
-  public static final String DEFAULT_HELIX_JOB_TIMEOUT_ENABLED = "false";
-  public static final String HELIX_JOB_TIMEOUT_SECONDS = "job.timeout.seconds";
-  public static final String DEFAULT_HELIX_JOB_TIMEOUT_SECONDS = "10800";
-
-  public static final String HELIX_TASK_TIMEOUT_SECONDS = "task.timeout.seconds";
-  public static final long DEFAULT_HELIX_TASK_TIMEOUT_SECONDS = 60 * 60;
+  public static final String TASK_TIMEOUT_SECONDS = "task.timeout.seconds";
+  public static final long DEFAULT_TASK_TIMEOUT_SECONDS = 60 * 60;
 
   /**
    * Task executor and state tracker configuration properties.
@@ -137,6 +133,12 @@ public class ConfigurationKeys {
   public static final String FLOW_GROUP_KEY = "flow.group";
   public static final String FLOW_DESCRIPTION_KEY = "flow.description";
   public static final String FLOW_EXECUTION_ID_KEY = "flow.executionId";
+  public static final String FLOW_FAILURE_OPTION = "flow.failureOption";
+  public static final String FLOW_APPLY_RETENTION = "flow.applyRetention";
+  public static final String FLOW_APPLY_INPUT_RETENTION = "flow.applyInputRetention";
+  public static final String FLOW_ALLOW_CONCURRENT_EXECUTION = "flow.allowConcurrentExecution";
+  public static final String FLOW_EXPLAIN_KEY = "flow.explain";
+  public static final String FLOW_UNSCHEDULE_KEY = "flow.unschedule";
 
   /**
    * Common topology configuration properties.
@@ -180,6 +182,8 @@ public class ConfigurationKeys {
   public static final String WORK_UNIT_CREATION_AND_RUN_INTERVAL = "workunit.creation.and.run.interval";
   public static final String WORK_UNIT_ENABLE_TRACKING_LOGS = "workunit.enableTrackingLogs";
 
+  public static final String JOB_DEPENDENCIES = "job.dependencies";
+  public static final String JOB_FORK_ON_CONCAT = "job.forkOnConcat";
   public static final String JOB_RUN_ONCE_KEY = "job.runonce";
   public static final String JOB_DISABLED_KEY = "job.disabled";
   public static final String JOB_JAR_FILES_KEY = "job.jars";
@@ -212,10 +216,9 @@ public class ConfigurationKeys {
   public static final String JOB_TEMPLATE_PATH = "job.template";
 
   /**
-   * Configuration property used only for job configuration file's tempalte, inside .template file
+   * Configuration property used only for job configuration file's template
    */
   public static final String REQUIRED_ATRRIBUTES_LIST = "gobblin.template.required_attributes";
-  public static final String JOB_DEPENDENCIES = "dependencies";
 
   /**
    * Configuration for emitting job events
@@ -236,10 +239,12 @@ public class ConfigurationKeys {
   public static final String JOB_KEY_KEY = "job.key";
   public static final String TASK_ID_KEY = "task.id";
   public static final String TASK_KEY_KEY = "task.key";
+  public static final String TASK_START_TIME_MILLIS_KEY = "task.startTimeMillis";
   public static final String TASK_ATTEMPT_ID_KEY = "task.AttemptId";
   public static final String JOB_CONFIG_FILE_PATH_KEY = "job.config.path";
   public static final String TASK_FAILURE_EXCEPTION_KEY = "task.failure.exception";
   public static final String TASK_RETRIES_KEY = "task.retries";
+  public static final String TASK_IGNORE_CLOSE_FAILURES = "task.ignoreCloseFailures";
   public static final String JOB_FAILURES_KEY = "job.failures";
   public static final String JOB_TRACKING_URL_KEY = "job.tracking.url";
   public static final String FORK_STATE_KEY = "fork.state";
@@ -268,6 +273,7 @@ public class ConfigurationKeys {
   public static final String WORK_UNIT_STATE_RUNTIME_HIGH_WATER_MARK = "workunit.state.runtime.high.water.mark";
   public static final String WORK_UNIT_STATE_ACTUAL_HIGH_WATER_MARK_KEY = "workunit.state.actual.high.water.mark";
   public static final String WORK_UNIT_DATE_PARTITION_KEY = "workunit.source.date.partition";
+  public static final String WORK_UNIT_DATE_PARTITION_NAME = "workunit.source.date.partitionName";
 
   /**
    * Task execution properties.
@@ -335,6 +341,8 @@ public class ConfigurationKeys {
   public static final long DEFAULT_FORK_RECORD_QUEUE_TIMEOUT = 1000;
   public static final String FORK_RECORD_QUEUE_TIMEOUT_UNIT_KEY = "fork.record.queue.timeout.unit";
   public static final String DEFAULT_FORK_RECORD_QUEUE_TIMEOUT_UNIT = TimeUnit.MILLISECONDS.name();
+  public static final String FORK_MAX_WAIT_MININUTES = "fork.max.wait.minutes";
+  public static final long DEFAULT_FORK_MAX_WAIT_MININUTES = 60;
 
   /**
    * Writer configuration properties.
@@ -373,6 +381,7 @@ public class ConfigurationKeys {
   public static final String DEFAULT_WRITER_FILE_PATH_TYPE = "default";
   public static final String SIMPLE_WRITER_DELIMITER = "simple.writer.delimiter";
   public static final String SIMPLE_WRITER_PREPEND_SIZE = "simple.writer.prepend.size";
+  public static final String WRITER_ADD_TASK_TIMESTAMP = WRITER_PREFIX + ".addTaskTimestamp";
 
 
   // Internal use only - used to send metadata to publisher
@@ -532,11 +541,13 @@ public class ConfigurationKeys {
    * Configuration properties used by the CopySource.
    */
   public static final String COPY_SOURCE_FILESET_WU_GENERATOR_CLASS = "copy.source.fileset.wu.generator.class";
+  public static final String COPY_EXPECTED_SCHEMA = "gobblin.copy.expectedSchema";
 
   /**
    * Configuration properties used by the FileBasedExtractor
    */
   public static final String SOURCE_FILEBASED_DATA_DIRECTORY = "source.filebased.data.directory";
+  public static final String SOURCE_FILEBASED_PLATFORM = "source.filebased.platform";
   public static final String SOURCE_FILEBASED_FILES_TO_PULL = "source.filebased.files.to.pull";
   public static final String SOURCE_FILEBASED_MAX_FILES_PER_RUN = "source.filebased.maxFilesPerRun";
   public static final String SOURCE_FILEBASED_FS_SNAPSHOT = "source.filebased.fs.snapshot";
@@ -586,6 +597,7 @@ public class ConfigurationKeys {
   public static final int SOURCE_CONN_DEFAULT_PORT = 22;
   public static final String SOURCE_CONN_SID = SOURCE_CONN_PREFIX + "sid";
   public static final String SOURCE_CONN_REFRESH_TOKEN = SOURCE_CONN_PREFIX + "refresh.token";
+  public static final String SOURCE_CONN_DECRYPT_CLIENT_SECRET = SOURCE_CONN_PREFIX + "decrypt.client.id.secret";
 
 
   /**
@@ -614,6 +626,7 @@ public class ConfigurationKeys {
   /** Specifies a static location in HDFS to upload jars to. Useful for sharing jars across different Gobblin runs.*/
   public static final String MR_JARS_DIR = "mr.jars.dir";
   public static final String MR_JOB_MAX_MAPPERS_KEY = "mr.job.max.mappers";
+  public static final String MR_TARGET_MAPPER_SIZE = "mr.target.mapper.size";
   public static final String MR_REPORT_METRICS_AS_COUNTERS_KEY = "mr.report.metrics.as.counters";
   public static final boolean DEFAULT_MR_REPORT_METRICS_AS_COUNTERS = false;
   public static final int DEFAULT_MR_JOB_MAX_MAPPERS = 100;
@@ -655,7 +668,8 @@ public class ConfigurationKeys {
   public static final String METRIC_CONTEXT_NAME_KEY = "metrics.context.name";
   public static final String METRIC_TIMER_WINDOW_SIZE_IN_MINUTES = METRICS_CONFIGURATIONS_PREFIX + "timer.window.size.in.minutes";
   public static final int DEFAULT_METRIC_TIMER_WINDOW_SIZE_IN_MINUTES = 15;
-
+  public static final String METRICS_REPORTING_CONFIGURATIONS_PREFIX = "metrics.reporting";
+  public static final String METRICS_REPORTING_EVENTS_CONFIGURATIONS_PREFIX = METRICS_REPORTING_CONFIGURATIONS_PREFIX + ".events";
   // File-based reporting
   public static final String METRICS_REPORTING_FILE_ENABLED_KEY =
       METRICS_CONFIGURATIONS_PREFIX + "reporting.file.enabled";
@@ -663,6 +677,8 @@ public class ConfigurationKeys {
   public static final String METRICS_LOG_DIR_KEY = METRICS_CONFIGURATIONS_PREFIX + "log.dir";
   public static final String METRICS_FILE_SUFFIX = METRICS_CONFIGURATIONS_PREFIX + "reporting.file.suffix";
   public static final String DEFAULT_METRICS_FILE_SUFFIX = "";
+  public static final String FAILURE_REPORTING_FILE_ENABLED_KEY = "failure.reporting.file.enabled";
+  public static final String DEFAULT_FAILURE_REPORTING_FILE_ENABLED = Boolean.toString(true);
   public static final String FAILURE_LOG_DIR_KEY =  "failure.log.dir";
 
   // JMX-based reporting
@@ -676,6 +692,9 @@ public class ConfigurationKeys {
   public static final String DEFAULT_METRICS_REPORTING_KAFKA_ENABLED = Boolean.toString(false);
   public static final String DEFAULT_METRICS_REPORTING_KAFKA_REPORTER_CLASS = "org.apache.gobblin.metrics.kafka.KafkaReporterFactory";
   public static final String METRICS_REPORTING_KAFKA_FORMAT = METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.format";
+  public static final String METRICS_REPORTING_EVENTS_KAFKA_FORMAT = METRICS_CONFIGURATIONS_PREFIX + "reporting.events.kafka.format";
+  public static final String METRICS_REPORTING_KAFKAPUSHERKEYS = METRICS_CONFIGURATIONS_PREFIX + "reporting.kafkaPusherKeys";
+  public static final String METRICS_REPORTING_EVENTS_KAFKAPUSHERKEYS = METRICS_CONFIGURATIONS_PREFIX + "reporting.events.kafkaPusherKeys";
   public static final String DEFAULT_METRICS_REPORTING_KAFKA_FORMAT = "json";
   public static final String METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY =
       METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.avro.use.schema.registry";
@@ -690,6 +709,11 @@ public class ConfigurationKeys {
   // Topic used only for event reporting.
   public static final String METRICS_KAFKA_TOPIC_EVENTS =
       METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.topic.events";
+  // Key related configurations for raw metric and event key value reporters
+  public static final int DEFAULT_REPORTER_KEY_SIZE = 100;
+
+  public static final String METRICS_REPORTING_PUSHERKEYS = METRICS_CONFIGURATIONS_PREFIX + "reporting.pusherKeys";
+  public static final String METRICS_REPORTING_EVENTS_PUSHERKEYS = METRICS_REPORTING_EVENTS_CONFIGURATIONS_PREFIX + ".pusherKeys";
 
   //Graphite-based reporting
   public static final String METRICS_REPORTING_GRAPHITE_METRICS_ENABLED_KEY =
@@ -866,23 +890,16 @@ public class ConfigurationKeys {
    * Configuration properties related to Flows
    */
   public static final String FLOW_RUN_IMMEDIATELY = "flow.runImmediately";
-
-  /***
-   * Configuration properties related to Spec Store
-   */
-  public static final String SPECSTORE_FS_DIR_KEY = "specStore.fs.dir";
+  public static final String GOBBLIN_FLOW_SLA_TIME = "gobblin.flow.sla.time";
+  public static final String GOBBLIN_FLOW_SLA_TIME_UNIT = "gobblin.flow.sla.timeunit";
+  public static final String DEFAULT_GOBBLIN_FLOW_SLA_TIME_UNIT = "MINUTES";
 
   /***
    * Configuration properties related to TopologySpec Store
    */
   public static final String TOPOLOGYSPEC_STORE_CLASS_KEY = "topologySpec.store.class";
+  public static final String TOPOLOGYSPEC_SERDE_CLASS_KEY = "topologySpec.serde.class";
   public static final String TOPOLOGYSPEC_STORE_DIR_KEY = "topologySpec.store.dir";
-
-  /***
-   * Configuration properties related to FlowSpec Store
-   */
-  public static final String FLOWSPEC_STORE_CLASS_KEY = "flowSpec.store.class";
-  public static final String FLOWSPEC_STORE_DIR_KEY = "flowSpec.store.dir";
 
   /***
    * Configuration properties related to Spec Executor Instance
@@ -891,11 +908,16 @@ public class ConfigurationKeys {
   public static final String SPECEXECUTOR_INSTANCE_CAPABILITIES_KEY = "specExecInstance.capabilities";
 
   /***
+   * Configuration properties related to Spec Producer
+   */
+  public static final String SPEC_PRODUCER_SERIALIZED_FUTURE = "specProducer.serialized.future";
+
+  /***
    * Configuration properties related to Compaction Suite
    */
   public static final String COMPACTION_PREFIX = "compaction.";
   public static final String COMPACTION_SUITE_FACTORY = COMPACTION_PREFIX + "suite.factory";
-  public static final String DEFAULT_COMPACTION_SUITE_FACTORY = "CompactionAvroSuiteFactory";
+  public static final String DEFAULT_COMPACTION_SUITE_FACTORY = "CompactionSuiteBaseFactory";
 
   public static final String COMPACTION_PRIORITIZATION_PREFIX = COMPACTION_PREFIX + "prioritization.";
   public static final String COMPACTION_PRIORITIZER_ALIAS = COMPACTION_PRIORITIZATION_PREFIX + "prioritizerAlias";
@@ -914,4 +936,22 @@ public class ConfigurationKeys {
   public static final String GIT_MONITOR_CONFIG_BASE_DIR = "configBaseDirectory";
   public static final String GIT_MONITOR_POLLING_INTERVAL = "pollingInterval";
   public static final String GIT_MONITOR_BRANCH_NAME = "branchName";
+  //Configuration keys for authentication using HTTPS
+  public static final String GIT_MONITOR_USERNAME = "username";
+  public static final String GIT_MONITOR_PASSWORD = "password";
+  //Configuration keys for authentication using SSH with Public Key
+  public static final String GIT_MONITOR_SSH_WITH_PUBLIC_KEY_ENABLED = "isSshWithPublicKeyEnabled";
+  public static final String GIT_MONITOR_SSH_PRIVATE_KEY_PATH = "privateKeyPath";
+  public static final String GIT_MONITOR_SSH_PRIVATE_KEY_BASE64_ENCODED = "privateKeyBase64";
+  public static final String GIT_MONITOR_SSH_PASSPHRASE = "passphrase";
+  public static final String GIT_MONITOR_SSH_STRICT_HOST_KEY_CHECKING_ENABLED = "isStrictHostKeyCheckingEnabled";
+  public static final String GIT_MONITOR_SSH_KNOWN_HOSTS = "knownHosts";
+  public static final String GIT_MONITOR_SSH_KNOWN_HOSTS_FILE = "knownHostsFile";
+  public static final String GIT_MONITOR_JSCH_LOGGER_ENABLED = "isJschLoggerEnabled";
+
+  /**
+   * Configuration related to avro schema check strategy
+   */
+  public static final String AVRO_SCHEMA_CHECK_STRATEGY = "avro.schema.check.strategy";
+  public static final String AVRO_SCHEMA_CHECK_STRATEGY_DEFAULT = "org.apache.gobblin.util.schema_check.AvroSchemaCheckDefaultStrategy";
 }

@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.compaction.mapreduce;
 
+import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
@@ -95,6 +96,10 @@ import static org.apache.gobblin.util.retry.RetryerFactory.*;
  * the output directory.
  *
  * @author Ziyang Liu
+ * @deprecated Please use {@link org.apache.gobblin.compaction.mapreduce.MRCompactionTask}
+ *  and {@link org.apache.gobblin.compaction.source.CompactionSource} to launch MR instead.
+ *  The new way enjoys simpler logic to trigger the compaction flow and more reliable verification criteria,
+ *  instead of using timestamp only before.
  */
 @SuppressWarnings("deprecation")
 public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCompactorJobRunner> {
@@ -322,7 +327,8 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
         this.submitAndWait(job);
         if (shouldPublishData(compactionTimestamp)) {
           // remove all invalid empty files due to speculative task execution
-          List<Path> goodPaths = CompactionAvroJobConfigurator.getGoodFiles(job, this.dataset.outputTmpPath(), this.tmpFs);
+          List<Path> goodPaths = CompactionJobConfigurator.getGoodFiles(job, this.dataset.outputTmpPath(), this.tmpFs,
+              ImmutableList.of("avro"));
 
           if (!this.recompactAllData && this.recompactFromDestPaths) {
             // append new files without deleting output directory

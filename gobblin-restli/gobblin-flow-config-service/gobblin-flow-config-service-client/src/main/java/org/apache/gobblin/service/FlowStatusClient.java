@@ -17,27 +17,27 @@
 
 package org.apache.gobblin.service;
 
-import com.google.common.base.Preconditions;
-import com.linkedin.restli.client.FindRequest;
-import com.linkedin.restli.common.CollectionResponse;
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.List;
 import java.util.Collections;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.linkedin.common.callback.FutureCallback;
 import com.linkedin.common.util.None;
 import com.linkedin.r2.RemoteInvocationException;
 import com.linkedin.r2.transport.common.Client;
 import com.linkedin.r2.transport.common.bridge.client.TransportClientAdapter;
 import com.linkedin.r2.transport.http.client.HttpClientFactory;
+import com.linkedin.restli.client.FindRequest;
 import com.linkedin.restli.client.GetRequest;
 import com.linkedin.restli.client.Response;
 import com.linkedin.restli.client.RestClient;
+import com.linkedin.restli.common.CollectionResponse;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
 
@@ -63,7 +63,7 @@ public class FlowStatusClient implements Closeable {
     Client r2Client = new TransportClientAdapter(_httpClientFactory.get().getClient(Collections.<String, String>emptyMap()));
     _restClient = Optional.of(new RestClient(r2Client, serverUri));
 
-    _flowstatusesRequestBuilders = new FlowstatusesRequestBuilders();
+    _flowstatusesRequestBuilders = createRequestBuilders();
   }
 
   /**
@@ -76,7 +76,11 @@ public class FlowStatusClient implements Closeable {
     _httpClientFactory = Optional.absent();
     _restClient = Optional.of(restClient);
 
-    _flowstatusesRequestBuilders = new FlowstatusesRequestBuilders();
+    _flowstatusesRequestBuilders = createRequestBuilders();
+  }
+
+  protected FlowstatusesRequestBuilders createRequestBuilders() {
+    return new FlowstatusesRequestBuilders();
   }
 
   /**
@@ -123,6 +127,33 @@ public class FlowStatusClient implements Closeable {
       return flowStatusList.get(0);
     }
   }
+
+  /**
+   * Get the latest flow status
+   * @param flowId identifier of flow status to get
+   * @return a list of {@link FlowStatus}es corresponding to the latest <code>count</code> executions.
+   * @throws RemoteInvocationException
+   */
+  public List<FlowStatus> getLatestFlowStatus(FlowId flowId, Integer count)
+      throws RemoteInvocationException {
+    LOG.debug("getFlowConfig with groupName " + flowId.getFlowGroup() + " flowName " +
+        flowId.getFlowName() + " count " + Integer.toString(count));
+
+    FindRequest<FlowStatus> findRequest = _flowstatusesRequestBuilders.findByLatestFlowStatus().flowIdParam(flowId).
+        addReqParam("count", count, Integer.class).build();
+
+    Response<CollectionResponse<FlowStatus>> response =
+        _restClient.get().sendRequest(findRequest).getResponse();
+
+    List<FlowStatus> flowStatusList = response.getEntity().getElements();
+
+    if (flowStatusList.isEmpty()) {
+      return null;
+    } else {
+      return flowStatusList;
+    }
+  }
+
 
   @Override
   public void close()

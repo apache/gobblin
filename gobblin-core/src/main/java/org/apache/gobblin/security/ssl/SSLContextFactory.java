@@ -45,10 +45,10 @@ public class SSLContextFactory {
   public static final String TRUST_STORE_FILE_PATH = "trustStoreFilePath";
   public static final String TRUST_STORE_PASSWORD = "trustStorePassword";
 
-  private static final String DEFAULT_ALGORITHM = "SunX509";
-  private static final String DEFAULT_PROTOCOL = "TLS";
-  private static final String JKS_STORE_TYPE_NAME = "JKS";
-  private static final String P12_STORE_TYPE_NAME = "PKCS12";
+  public static final String DEFAULT_ALGORITHM = "SunX509";
+  public static final String DEFAULT_PROTOCOL = "TLS";
+  public static final String JKS_STORE_TYPE_NAME = "JKS";
+  public static final String P12_STORE_TYPE_NAME = "PKCS12";
 
   /**
    * Create a {@link SSLContext} instance

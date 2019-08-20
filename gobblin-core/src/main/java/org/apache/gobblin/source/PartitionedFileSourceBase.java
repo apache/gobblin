@@ -33,10 +33,16 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Throwables;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.dataset.DatasetConstants;
+import org.apache.gobblin.dataset.DatasetDescriptor;
+import org.apache.gobblin.dataset.PartitionDescriptor;
+import org.apache.gobblin.metrics.event.lineage.LineageInfo;
 import org.apache.gobblin.source.extractor.Extractor;
 import org.apache.gobblin.source.extractor.filebased.FileBasedHelperException;
 import org.apache.gobblin.source.extractor.filebased.FileBasedSource;
@@ -58,6 +64,7 @@ import org.apache.gobblin.writer.partitioner.TimeBasedAvroWriterPartitioner;
  * {@link ConfigurationKeys#SOURCE_FILEBASED_DATA_DIRECTORY}. It relies on a {@link PartitionAwareFileRetriever}
  * to actually retrieve the files in a given partition.
  */
+@Slf4j
 public abstract class PartitionedFileSourceBase<SCHEMA, DATA> extends FileBasedSource<SCHEMA, DATA> {
 
   // Configuration parameters
@@ -197,6 +204,7 @@ public abstract class PartitionedFileSourceBase<SCHEMA, DATA> extends FileBasedS
   @Override
   public List<WorkUnit> getWorkunits(SourceState state) {
 
+    lineageInfo = LineageInfo.getLineageInfo(state.getBroker());
     DateTimeFormatter formatter = DateTimeFormat.fullDateTime();
 
     // Initialize all instance variables for this object
@@ -222,7 +230,28 @@ public abstract class PartitionedFileSourceBase<SCHEMA, DATA> extends FileBasedS
 
     addNewWorkUnits(multiWorkUnitWeightedQueue);
 
-    return multiWorkUnitWeightedQueue.getQueueAsList();
+    List<WorkUnit> workUnits = multiWorkUnitWeightedQueue.getQueueAsList();
+    addLineageSourceInfo(workUnits, state);
+
+    return workUnits;
+  }
+
+  @Override
+  protected void addLineageSourceInfo(WorkUnit workUnit, State state) {
+    if (!lineageInfo.isPresent()) {
+      log.info("Lineage is not enabled");
+      return;
+    }
+
+    String platform = state.getProp(ConfigurationKeys.SOURCE_FILEBASED_PLATFORM, DatasetConstants.PLATFORM_HDFS);
+    Path dataDir = new Path(state.getProp(ConfigurationKeys.SOURCE_FILEBASED_DATA_DIRECTORY));
+    String dataset = Path.getPathWithoutSchemeAndAuthority(dataDir).toString();
+    DatasetDescriptor datasetDescriptor = new DatasetDescriptor(platform, dataset);
+
+    String partitionName = workUnit.getProp(ConfigurationKeys.WORK_UNIT_DATE_PARTITION_NAME);
+    PartitionDescriptor descriptor = new PartitionDescriptor(partitionName, datasetDescriptor);
+
+    lineageInfo.get().setSource(descriptor, workUnit);
   }
 
   /**
@@ -290,7 +319,7 @@ public abstract class PartitionedFileSourceBase<SCHEMA, DATA> extends FileBasedS
         singleWorkUnit.setProp(ConfigurationKeys.WORK_UNIT_LOW_WATER_MARK_KEY, file.getWatermarkMsSinceEpoch());
         singleWorkUnit.setProp(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY, file.getWatermarkMsSinceEpoch());
         singleWorkUnit.setProp(ConfigurationKeys.WORK_UNIT_DATE_PARTITION_KEY, file.getWatermarkMsSinceEpoch());
-
+        singleWorkUnit.setProp(ConfigurationKeys.WORK_UNIT_DATE_PARTITION_NAME, file.getPartitionName());
         if (this.sourceState.getPropAsBoolean(ConfigurationKeys.SCHEMA_IN_SOURCE_DIR,
             ConfigurationKeys.DEFAULT_SCHEMA_IN_SOURCE_DIR)) {
           addSchemaFile(file, singleWorkUnit);

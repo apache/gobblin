@@ -39,7 +39,6 @@ dependencies {
     exclude group: "javax.jms", module: "jms"
   }
   compile externalDependency.kafka09Client
-  compile externalDependency.scala
   compile externalDependency.lombok
   compile externalDependency.metricsCore
   compile externalDependency.typesafeConfig
@@ -72,7 +71,7 @@ configurations {
 }
 
 test {
-  workingDir rootProject.rootDir  
+  workingDir rootProject.rootDir
   systemProperty "live.newtopic", System.getProperty("live.newtopic")
   systemProperty "live.newtopic.replicationCount", System.getProperty("live.newtopic.replicationCount")
   systemProperty "live.newtopic.partitionCount", System.getProperty("live.newtopic.partitionCount")

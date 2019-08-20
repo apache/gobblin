@@ -61,6 +61,10 @@ public class PropertiesUtils {
     return Boolean.valueOf(properties.getProperty(key, defaultValue));
   }
 
+  public static int getPropAsInt(Properties properties, String key, int defaultValue) {
+    return Integer.parseInt(properties.getProperty(key, Integer.toString(defaultValue)));
+  }
+
   public static long getPropAsLong(Properties properties, String key, long defaultValue) {
     return Long.parseLong(properties.getProperty(key, Long.toString(defaultValue)));
   }

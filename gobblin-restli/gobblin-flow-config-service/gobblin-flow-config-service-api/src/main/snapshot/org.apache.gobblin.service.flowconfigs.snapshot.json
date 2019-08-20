@@ -65,6 +65,11 @@
         "org.apache.gobblin.service.validator.TemplateUriValidator" : { }
       }
     }, {
+      "name" : "explain",
+      "type" : "boolean",
+      "doc" : "Return the compiled flow as a string. If enabled, the flow is not added.",
+      "default" : false
+    }, {
       "name" : "properties",
       "type" : {
         "type" : "map",

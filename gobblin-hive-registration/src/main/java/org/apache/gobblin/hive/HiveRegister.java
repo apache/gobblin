@@ -17,6 +17,12 @@
 
 package org.apache.gobblin.hive;
 
+import com.google.common.base.Optional;
+import com.google.common.base.Predicate;
+import com.google.common.base.Throwables;
+import com.google.common.collect.Maps;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.ListeningExecutorService;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Arrays;
@@ -26,17 +32,9 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
-
-import com.google.common.base.Optional;
-import com.google.common.base.Predicate;
-import com.google.common.base.Throwables;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.ListeningExecutorService;
-
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.hive.HiveRegistrationUnit.Column;
@@ -47,8 +45,6 @@ import org.apache.gobblin.hive.spec.HiveSpecWithPredicates;
 import org.apache.gobblin.hive.spec.activity.Activity;
 import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.executors.ScalingThreadPoolExecutor;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 
 
 /**

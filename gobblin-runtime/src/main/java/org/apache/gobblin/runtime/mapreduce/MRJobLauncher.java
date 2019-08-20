@@ -27,6 +27,10 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import org.apache.gobblin.fsm.FiniteStateMachine;
+import org.apache.gobblin.fsm.StateWithCallbacks;
+import org.apache.gobblin.metrics.event.JobStateEventBuilder;
+import org.apache.gobblin.runtime.job.GobblinJobFiniteStateMachine;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -40,6 +44,7 @@ import org.apache.hadoop.mapreduce.Counter;
 import org.apache.hadoop.mapreduce.CounterGroup;
 import org.apache.hadoop.mapreduce.Counters;
 import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.JobStatus;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.filecache.DistributedCache;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
@@ -82,6 +87,8 @@ import org.apache.gobblin.runtime.TaskExecutor;
 import org.apache.gobblin.runtime.TaskState;
 import org.apache.gobblin.runtime.TaskStateCollectorService;
 import org.apache.gobblin.runtime.TaskStateTracker;
+import org.apache.gobblin.runtime.job.GobblinJobFiniteStateMachine.JobFSMState;
+import org.apache.gobblin.runtime.job.GobblinJobFiniteStateMachine.StateType;
 import org.apache.gobblin.runtime.util.JobMetrics;
 import org.apache.gobblin.runtime.util.MetricGroup;
 import org.apache.gobblin.source.workunit.MultiWorkUnit;
@@ -110,6 +117,9 @@ import org.apache.gobblin.util.SerializationUtils;
  */
 public class MRJobLauncher extends AbstractJobLauncher {
 
+  private static final String INTERRUPT_JOB_FILE_NAME = "_INTERRUPT_JOB";
+  private static final String GOBBLIN_JOB_INTERRUPT_PATH_KEY = "gobblin.jobInterruptPath";
+
   private static final Logger LOG = LoggerFactory.getLogger(MRJobLauncher.class);
 
   private static final String JOB_NAME_PREFIX = "Gobblin-";
@@ -119,6 +129,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
   static final String INPUT_DIR_NAME = "input";
   private static final String OUTPUT_DIR_NAME = "output";
   private static final String WORK_UNIT_LIST_FILE_EXTENSION = ".wulist";
+  private static final String SERIALIZE_PREVIOUS_WORKUNIT_STATES_KEY = "MRJobLauncher.serializePreviousWorkunitStates";
+  private static final boolean DEFAULT_SERIALIZE_PREVIOUS_WORKUNIT_STATES = true;
 
   // Configuration that make uploading of jar files more reliable,
   // since multiple Gobblin Jobs are sharing the same jar directory.
@@ -146,6 +158,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
   private final StateStore<TaskState> taskStateStore;
 
   private final int jarFileMaximumRetry;
+  private final Path interruptPath;
+  private final GobblinJobFiniteStateMachine fsm;
 
   public MRJobLauncher(Properties jobProps) throws Exception {
     this(jobProps, null);
@@ -155,9 +169,21 @@ public class MRJobLauncher extends AbstractJobLauncher {
     this(jobProps, new Configuration(), instanceBroker);
   }
 
-  public MRJobLauncher(Properties jobProps, Configuration conf, SharedResourcesBroker<GobblinScopeTypes> instanceBroker)
+  public MRJobLauncher(Properties jobProps, Configuration conf, SharedResourcesBroker<GobblinScopeTypes> instanceBroker) throws Exception {
+    this(jobProps, conf, instanceBroker, ImmutableList.of());
+  }
+
+  public MRJobLauncher(Properties jobProps, SharedResourcesBroker<GobblinScopeTypes> instanceBroker, List<? extends Tag<?>> metadataTags) throws Exception {
+    this(jobProps, new Configuration(), instanceBroker, metadataTags);
+  }
+
+
+  public MRJobLauncher(Properties jobProps, Configuration conf, SharedResourcesBroker<GobblinScopeTypes> instanceBroker,List<? extends Tag<?>> metadataTags)
       throws Exception {
-    super(jobProps, ImmutableList.<Tag<?>>of());
+    super(jobProps, metadataTags);
+
+    this.fsm = GobblinJobFiniteStateMachine.builder().jobState(jobContext.getJobState())
+        .interruptGracefully(this::interruptGracefully).killJob(this::killJob).build();
 
     this.conf = conf;
     // Put job configuration properties into the Hadoop configuration so they are available in the mappers
@@ -174,6 +200,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
     this.mrJobDir = new Path(
         new Path(this.jobProps.getProperty(ConfigurationKeys.MR_JOB_ROOT_DIR_KEY), this.jobContext.getJobName()),
         this.jobContext.getJobId());
+    this.interruptPath = new Path(this.mrJobDir, INTERRUPT_JOB_FILE_NAME);
     if (this.fs.exists(this.mrJobDir)) {
       LOG.warn("Job working directory already exists for job " + this.jobContext.getJobName());
       this.fs.delete(this.mrJobDir, true);
@@ -241,32 +268,49 @@ public class MRJobLauncher extends AbstractJobLauncher {
       this.taskStateCollectorService.startAsync().awaitRunning();
 
       LOG.info("Launching Hadoop MR job " + this.job.getJobName());
-      this.job.submit();
-      this.hadoopJobSubmitted = true;
+      try (FiniteStateMachine<JobFSMState>.Transition t = this.fsm.startTransition(this.fsm.getEndStateForType(StateType.RUNNING))) {
+        try {
+          this.job.submit();
+        } catch (Throwable exc) {
+          t.changeEndState(this.fsm.getEndStateForType(StateType.FAILED));
+          throw exc;
+        }
+        this.hadoopJobSubmitted = true;
 
-      // Set job tracking URL to the Hadoop job tracking URL if it is not set yet
-      if (!jobState.contains(ConfigurationKeys.JOB_TRACKING_URL_KEY)) {
-        jobState.setProp(ConfigurationKeys.JOB_TRACKING_URL_KEY, this.job.getTrackingURL());
+        // Set job tracking URL to the Hadoop job tracking URL if it is not set yet
+        if (!jobState.contains(ConfigurationKeys.JOB_TRACKING_URL_KEY)) {
+          jobState.setProp(ConfigurationKeys.JOB_TRACKING_URL_KEY, this.job.getTrackingURL());
+        }
+      } catch (FiniteStateMachine.UnallowedTransitionException unallowed) {
+        LOG.error("Cannot start MR job.", unallowed);
       }
 
-      TimingEvent mrJobRunTimer = this.eventSubmitter.getTimingEvent(TimingEvent.RunJobTimings.MR_JOB_RUN);
-      LOG.info(String.format("Waiting for Hadoop MR job %s to complete", this.job.getJobID()));
-      this.job.waitForCompletion(true);
-      mrJobRunTimer.stop(ImmutableMap.of("hadoopMRJobId", this.job.getJobID().toString()));
+      if (this.fsm.getCurrentState().getStateType().equals(StateType.RUNNING)) {
+        TimingEvent mrJobRunTimer = this.eventSubmitter.getTimingEvent(TimingEvent.RunJobTimings.MR_JOB_RUN);
+        LOG.info(String.format("Waiting for Hadoop MR job %s to complete", this.job.getJobID()));
 
-      if (this.cancellationRequested) {
-        // Wait for the cancellation execution if it has been requested
-        synchronized (this.cancellationExecution) {
-          if (this.cancellationExecuted) {
-            return;
-          }
-        }
+        this.job.waitForCompletion(true);
+        this.fsm.transitionIfAllowed(fsm.getEndStateForType(StateType.SUCCESS));
+
+        mrJobRunTimer.stop(ImmutableMap.of("hadoopMRJobId", this.job.getJobID().toString()));
+      }
+
+      if (this.fsm.getCurrentState().getStateType().equals(StateType.CANCELLED)) {
+        return;
       }
 
       // Create a metrics set for this job run from the Hadoop counters.
       // The metrics set is to be persisted to the metrics store later.
       countersToMetrics(JobMetrics.get(jobName, this.jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY)));
     } finally {
+      JobStateEventBuilder eventBuilder = new JobStateEventBuilder(JobStateEventBuilder.MRJobState.MR_JOB_STATE);
+      eventBuilder.jobTrackingURL = this.job.getTrackingURL();
+      eventBuilder.status = JobStateEventBuilder.Status.SUCCEEDED;
+      if (this.job.getJobState() != JobStatus.State.SUCCEEDED) {
+        eventBuilder.status = JobStateEventBuilder.Status.FAILED;
+      }
+      this.eventSubmitter.submit(eventBuilder);
+
       // The last iteration of output TaskState collecting will run when the collector service gets stopped
       this.taskStateCollectorService.stopAsync().awaitTerminated();
       cleanUpWorkingDirectory();
@@ -275,18 +319,52 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
   @Override
   protected void executeCancellation() {
-    try {
-      if (this.hadoopJobSubmitted && !this.job.isComplete()) {
-        LOG.info("Killing the Hadoop MR job for job " + this.jobContext.getJobId());
-        this.job.killJob();
-        // Collect final task states.
-        this.taskStateCollectorService.stopAsync().awaitTerminated();
+    try (FiniteStateMachine<JobFSMState>.Transition transition =
+        this.fsm.startTransition(this.fsm.getEndStateForType(StateType.CANCELLED))) {
+      if (transition.getStartState().getStateType().equals(StateType.RUNNING)) {
+        try {
+          killJob();
+        } catch (IOException ioe) {
+          LOG.error("Failed to kill the Hadoop MR job for job " + this.jobContext.getJobId());
+          transition.changeEndState(this.fsm.getEndStateForType(StateType.FAILED));
+        }
       }
-    } catch (IllegalStateException ise) {
-      LOG.error("The Hadoop MR job has not started for job " + this.jobContext.getJobId());
-    } catch (IOException ioe) {
-      LOG.error("Failed to kill the Hadoop MR job for job " + this.jobContext.getJobId());
+    } catch (GobblinJobFiniteStateMachine.FailedTransitionCallbackException exc) {
+      exc.getTransition().switchEndStateToErrorState();
+      exc.getTransition().closeWithoutCallbacks();
+    } catch (FiniteStateMachine.UnallowedTransitionException | InterruptedException exc) {
+      LOG.error("Failed to cancel job " + this.jobContext.getJobId(), exc);
     }
+  }
+
+  /**
+   * Attempt a gracious interruption of the running job
+   */
+  private void interruptGracefully() throws IOException {
+    LOG.info("Attempting graceful interruption of job " + this.jobContext.getJobId());
+
+    this.fs.createNewFile(this.interruptPath);
+
+    long waitTimeStart = System.currentTimeMillis();
+    while (!this.job.isComplete() && System.currentTimeMillis() < waitTimeStart + 30 * 1000) {
+      try {
+        Thread.sleep(1000);
+      } catch (InterruptedException ie) {
+        break;
+      }
+    }
+
+    if (!this.job.isComplete()) {
+      LOG.info("Interrupted job did not shut itself down after timeout. Killing job.");
+      this.job.killJob();
+    }
+  }
+
+  private void killJob() throws IOException {
+    LOG.info("Killing the Hadoop MR job for job " + this.jobContext.getJobId());
+    this.job.killJob();
+    // Collect final task states.
+    this.taskStateCollectorService.stopAsync().awaitTerminated();
   }
 
   /**
@@ -370,6 +448,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
           Integer.parseInt(this.jobProps.getProperty(ConfigurationKeys.MR_JOB_MAX_MAPPERS_KEY)));
     }
 
+    this.job.getConfiguration().set(GOBBLIN_JOB_INTERRUPT_PATH_KEY, this.interruptPath.toString());
+
     mrJobSetupTimer.stop();
   }
 
@@ -384,7 +464,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
     Path jobStateFilePath = new Path(mrJobDir, JOB_STATE_FILE_NAME);
     // Write the job state with an empty task set (work units are read by the mapper from a different file)
     try (DataOutputStream dataOutputStream = new DataOutputStream(fs.create(jobStateFilePath))) {
-      jobState.write(dataOutputStream, false);
+      jobState.write(dataOutputStream, false,
+          conf.getBoolean(SERIALIZE_PREVIOUS_WORKUNIT_STATES_KEY, DEFAULT_SERIALIZE_PREVIOUS_WORKUNIT_STATES));
     }
 
     job.getConfiguration().set(ConfigurationKeys.JOB_STATE_FILE_PATH_KEY, jobStateFilePath.toString());
@@ -667,6 +748,13 @@ public class MRJobLauncher extends AbstractJobLauncher {
     @Override
     public void run(Context context) throws IOException, InterruptedException {
       this.setup(context);
+
+      Path interruptPath = new Path(context.getConfiguration().get(GOBBLIN_JOB_INTERRUPT_PATH_KEY));
+      if (this.fs.exists(interruptPath)) {
+        LOG.info(String.format("Found interrupt path %s indicating the driver has interrupted the job, aborting mapper.", interruptPath));
+        return;
+      }
+
       GobblinMultiTaskAttempt gobblinMultiTaskAttempt = null;
       try {
         // De-serialize and collect the list of WorkUnits to run
@@ -689,7 +777,13 @@ public class MRJobLauncher extends AbstractJobLauncher {
         gobblinMultiTaskAttempt =
             GobblinMultiTaskAttempt.runWorkUnits(this.jobState.getJobId(), context.getTaskAttemptID().toString(),
                 this.jobState, this.workUnits, this.taskStateTracker, this.taskExecutor, this.taskStateStore,
-                multiTaskAttemptCommitPolicy, jobBroker);
+                multiTaskAttemptCommitPolicy, jobBroker, (gmta) -> {
+                  try {
+                    return this.fs.exists(interruptPath);
+                  } catch (IOException ioe) {
+                    return false;
+                  }
+                });
 
         if (this.isSpeculativeEnabled) {
           LOG.info("will not commit in task attempt");

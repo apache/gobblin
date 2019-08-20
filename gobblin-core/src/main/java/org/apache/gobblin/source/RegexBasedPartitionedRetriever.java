@@ -38,6 +38,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.source.extractor.filebased.FileBasedHelperException;
 import org.apache.gobblin.source.extractor.hadoop.HadoopFsHelper;
+import org.apache.gobblin.util.PathUtils;
 
 
 public class RegexBasedPartitionedRetriever implements PartitionAwareFileRetriever {
@@ -114,7 +115,8 @@ public class RegexBasedPartitionedRetriever implements PartitionAwareFileRetriev
           filesToProcess.add(new FileInfo(
               file.getPath().toString(),
               file.getLen(),
-              outerDirectory.getWatermarkMsSinceEpoch()
+              outerDirectory.getWatermarkMsSinceEpoch(),
+              outerDirectory.getPartitionName()
           ));
         }
 
@@ -152,7 +154,7 @@ public class RegexBasedPartitionedRetriever implements PartitionAwareFileRetriev
           outerDirectories.add(new FileInfo(
               file.getPath().toString(),
               0,
-              watermark
+              watermark, PathUtils.relativizePath(file.getPath(), sourceDir).toString()
           ));
         } else {
           LOGGER.info("Ignoring directory {} - watermark {} is not between minWatermark {} and (now-leadTime) {}",

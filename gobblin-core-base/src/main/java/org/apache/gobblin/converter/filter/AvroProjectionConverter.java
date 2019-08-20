@@ -79,7 +79,7 @@ public class AvroProjectionConverter extends AvroToAvroConverterBase {
    * Convert the schema of inputRecord to outputSchema.
    */
   @Override
-  public Iterable<GenericRecord> convertRecord(Schema outputSchema, GenericRecord inputRecord, WorkUnitState workUnit)
+  public Iterable<GenericRecord> convertRecordImpl(Schema outputSchema, GenericRecord inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
     try {
       return new SingleRecordIterable<>(AvroUtils.convertRecordSchema(inputRecord, outputSchema));

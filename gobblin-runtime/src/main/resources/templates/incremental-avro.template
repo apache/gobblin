@@ -1,0 +1,48 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+
+# These properties are required and depend on the job's intended behavior beyond the incremental avro ingestion
+
+gobblin.template.required_attributes="source.filebased.fs.uri,from,to,converter.classes,data.publisher.type,writer.builder.format"
+data.publisher.final.dir=${to}
+source.filebased.data.directory=${from}
+
+
+# These properties can be configured and are unrelated to the actual behavior of the incremental avro ingestion
+
+extract.namespace=gobblin.incremental.avro
+type=hadoopJava
+job.class=org.apache.gobblin.azkaban.AzkabanJobLauncher
+job.description="Incremental avro ingestion"
+job.name=IncrementalAvroIngestion
+task.maxretries=0
+workunit.retry.enabled=false
+
+
+# These properties must be fixed to enable the incremental avro ingestion
+
+source.class=org.apache.gobblin.source.DatePartitionedAvroFileSource
+source.entity=avro
+
+
+# These properties can be configured and define the actual behavior of the incremental avro ingestion
+
+date.partitioned.source.min.watermark.value=2018-11-15_00_00_00
+date.partitioned.source.partition.lead_time.size=24
+date.partitioned.source.partition.pattern=yyyy-MM-dd_HH_mm_ss
+date.partitioned.source.partition.prefix=hourly

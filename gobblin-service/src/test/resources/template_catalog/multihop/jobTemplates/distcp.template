@@ -1,7 +1,7 @@
 # ====================================================================
 # Job configurations
 # ====================================================================
-job.name=Distcp-HDFS-HDFS
+job.name=Distcp
 
 # Source and destination paths to be obtained from flow config.
 from=${gobblin.flow.edge.input.dataset.descriptor.path}
@@ -25,8 +25,7 @@ state.store.fs.uri=${fs.uri}
 target.filebased.fs.uri=${destination.data.node.fs.uri}
 writer.fs.uri=${target.filebased.fs.uri}
 
-work.dir=/tmp/${user.to.proxy}
-writer.user.to.proxy=${adls.user.to.proxy}
+work.dir=/tmp/${user.to.proxy}/${flow.executionId}
 
 # ====================================================================
 # Distcp configurations
@@ -44,14 +43,5 @@ source.class="org.apache.gobblin.data.management.copy.CopySource"
 writer.builder.class="org.apache.gobblin.data.management.copy.writer.FileAwareInputStreamDataWriterBuilder"
 converter.classes="org.apache.gobblin.converter.IdentityConverter"
 
-# =======================================
-# Job Parameters to be resolved using SpecExecutor properties
-# =======================================
-type=${specExecInstance.job.type}
-
 job.jars="lib/*"
 job.lock.enabled=false
-job.class=${specExecInstance.job.launcher.class}
-
-# Gobblin Hadoop Parameters
-launcher.type=${specExecInstance.job.launcher.type}

@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
 
+import org.apache.gobblin.compaction.mapreduce.CompactionJobConfigurator;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -43,10 +44,10 @@ import org.apache.gobblin.metrics.event.EventSubmitter;
 @AllArgsConstructor
 public class CompactionMarkDirectoryAction implements CompactionCompleteAction<FileSystemDataset> {
   protected State state;
-  private CompactionAvroJobConfigurator configurator;
+  private CompactionJobConfigurator configurator;
   private FileSystem fs;
   private EventSubmitter eventSubmitter;
-  public CompactionMarkDirectoryAction(State state, CompactionAvroJobConfigurator configurator) {
+  public CompactionMarkDirectoryAction(State state, CompactionJobConfigurator configurator) {
     if (!(state instanceof WorkUnitState)) {
       throw new UnsupportedOperationException(this.getClass().getName() + " only supports workunit state");
     }

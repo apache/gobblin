@@ -29,8 +29,13 @@ import org.apache.gobblin.metrics.Tag;
 
 /**
  * A factory responsible for creating {@link Compactor}s.
+ * @deprecated Please use {@link org.apache.gobblin.compaction.mapreduce.MRCompactionTask}
+ *  * and {@link org.apache.gobblin.compaction.source.CompactionSource} to launch MR instead.
+ *  * The new way enjoys simpler logic to trigger the compaction flow and more reliable verification criteria,
+ *  * instead of using timestamp only before.
  */
 @Alpha
+@Deprecated
 public interface CompactorFactory {
 
     /**

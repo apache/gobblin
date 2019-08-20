@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.runtime.api;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.Future;
 import org.apache.commons.lang3.tuple.Pair;
@@ -32,4 +33,10 @@ public interface SpecConsumer<V>  {
   /** List of newly changed {@link Spec}s for execution on {@link SpecExecutor}. */
   Future<? extends List<Pair<SpecExecutor.Verb, V>>> changedSpecs();
 
+  /**
+   * A commit method to allow the consumer to checkpoint state on successful consumption of a {@link Spec}.
+   */
+  default void commit(Spec spec) throws IOException {
+    return;
+  }
 }

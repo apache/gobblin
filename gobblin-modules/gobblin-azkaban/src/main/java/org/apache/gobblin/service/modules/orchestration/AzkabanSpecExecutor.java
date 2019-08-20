@@ -22,6 +22,9 @@ import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.runtime.spec_executorInstance.AbstractSpecExecutor;
 import org.apache.gobblin.util.CompletedFuture;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
+
 import org.slf4j.Logger;
 
 import com.google.common.base.Optional;
@@ -44,7 +47,16 @@ public class AzkabanSpecExecutor extends AbstractSpecExecutor {
     super(config, log);
     Config defaultConfig = ConfigFactory.load(ServiceAzkabanConfigKeys.DEFAULT_AZKABAN_PROJECT_CONFIG_FILE);
     _config = config.withFallback(defaultConfig);
-    azkabanSpecProducer = new AzkabanSpecProducer(_config, log);
+
+    try {
+      Class<?> producerClass = Class.forName(ConfigUtils.getString(_config,
+          ServiceAzkabanConfigKeys.AZKABAN_PRODUCER_CLASS,
+          AzkabanSpecProducer.class.getName()));
+      azkabanSpecProducer = (SpecProducer<Spec>) GobblinConstructorUtils
+          .invokeLongestConstructor(producerClass, _config);
+    } catch (ReflectiveOperationException e) {
+      throw new RuntimeException("Could not instantiate kafka pusher", e);
+    }
   }
 
   @Override

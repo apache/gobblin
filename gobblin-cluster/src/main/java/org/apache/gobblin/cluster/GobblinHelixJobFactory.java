@@ -25,48 +25,69 @@ import org.apache.helix.task.TaskCallbackContext;
 import org.apache.helix.task.TaskFactory;
 
 import com.typesafe.config.Config;
-import com.typesafe.config.ConfigValueFactory;
 
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.runtime.util.StateStores;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PathUtils;
 
 
 /**
- * An implementation of Helix's {@link TaskFactory} for {@link GobblinHelixJobTask}s.
+ * <p> A {@link TaskFactory} that creates {@link GobblinHelixJobTask}
+ * to run task driver logic.
  */
 @Slf4j
-public class GobblinHelixJobFactory implements TaskFactory {
-  protected StateStores stateStores;
+class GobblinHelixJobFactory implements TaskFactory {
+  protected HelixJobsMapping jobsMapping;
 
   protected TaskRunnerSuiteBase.Builder builder;
+  @Getter
+  protected GobblinHelixJobLauncherMetrics launcherMetrics;
+  @Getter
+  protected GobblinHelixJobTask.GobblinHelixJobTaskMetrics jobTaskMetrics;
+  @Getter
+  protected GobblinHelixMetrics helixMetrics;
 
-  private void initializeStateStore(TaskRunnerSuiteBase.Builder builder) {
+  private void initJobMapping(TaskRunnerSuiteBase.Builder builder) {
     Config sysConfig = builder.getConfig();
     Path appWorkDir = builder.getAppWorkPath();
     URI rootPathUri = PathUtils.getRootPath(appWorkDir).toUri();
-    Config stateStoreJobConfig = sysConfig
-        .withValue(ConfigurationKeys.STATE_STORE_FS_URI_KEY,
-            ConfigValueFactory.fromAnyRef(rootPathUri.toString()));
-
-    this.stateStores = new StateStores(stateStoreJobConfig,
-        appWorkDir, GobblinHelixDistributeJobExecutionLauncher.PLANNING_TASK_STATE_DIR_NAME,
-        appWorkDir, GobblinHelixDistributeJobExecutionLauncher.PLANNING_WORK_UNIT_DIR_NAME,
-        appWorkDir, GobblinHelixDistributeJobExecutionLauncher.PLANNING_JOB_STATE_DIR_NAME);
+    this.jobsMapping = new HelixJobsMapping(sysConfig,
+                                            rootPathUri,
+                                            appWorkDir.toString());
   }
 
-  public GobblinHelixJobFactory(TaskRunnerSuiteBase.Builder builder) {
+  public GobblinHelixJobFactory(TaskRunnerSuiteBase.Builder builder, MetricContext metricContext) {
+
     this.builder = builder;
-    // TODO: We can remove below initialization once Helix allow us to persist job resut in userContentStore
-    initializeStateStore(this.builder);
+    initJobMapping(this.builder);
+
+    // initialize job related metrics (planning jobs)
+    int metricsWindowSizeInMin = ConfigUtils.getInt(builder.getConfig(),
+        ConfigurationKeys.METRIC_TIMER_WINDOW_SIZE_IN_MINUTES,
+        ConfigurationKeys.DEFAULT_METRIC_TIMER_WINDOW_SIZE_IN_MINUTES);
+
+    this.launcherMetrics = new GobblinHelixJobLauncherMetrics("launcherInJobFactory",
+        metricContext,
+        metricsWindowSizeInMin);
+    this.jobTaskMetrics = new GobblinHelixJobTask.GobblinHelixJobTaskMetrics(
+        metricContext,
+        metricsWindowSizeInMin);
+    this.helixMetrics = new GobblinHelixMetrics("helixMetricsInJobFactory",
+        metricContext,
+        metricsWindowSizeInMin);
   }
 
   @Override
   public Task createNewTask(TaskCallbackContext context) {
     return new GobblinHelixJobTask(context,
-        this.stateStores,
-        this.builder);
+        this.jobsMapping,
+        this.builder,
+        this.launcherMetrics,
+        this.jobTaskMetrics,
+        this.helixMetrics);
   }
 }

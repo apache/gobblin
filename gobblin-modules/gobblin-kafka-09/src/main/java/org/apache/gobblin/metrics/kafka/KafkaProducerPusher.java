@@ -31,12 +31,15 @@ import com.google.common.base.Optional;
 import com.google.common.io.Closer;
 import com.typesafe.config.Config;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
  * Establish a connection to a Kafka cluster and push byte messages to a specified topic.
  */
+@Slf4j
 public class KafkaProducerPusher implements Pusher<byte[]> {
 
   private final String topic;
@@ -52,7 +55,8 @@ public class KafkaProducerPusher implements Pusher<byte[]> {
     props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, brokers);
     props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
     props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName());
-    props.put(ProducerConfig.ACKS_CONFIG, "1");
+    props.put(ProducerConfig.ACKS_CONFIG, "all");
+    props.put(ProducerConfig.RETRIES_CONFIG, 3);
 
     // add the kafka scoped config. if any of the above are specified then they are overridden
     if (kafkaConfig.isPresent()) {
@@ -72,13 +76,21 @@ public class KafkaProducerPusher implements Pusher<byte[]> {
    */
   public void pushMessages(List<byte[]> messages) {
     for (byte[] message: messages) {
-      this.producer.send(new ProducerRecord<String, byte[]>(topic, message));
+      producer.send(new ProducerRecord<>(topic, message), (recordMetadata, e) -> {
+        if (e != null) {
+          log.error("Failed to send message to topic {} due to exception: ", topic, e);
+        }
+      });
     }
   }
 
   @Override
   public void close()
       throws IOException {
+    //Call flush() before invoking close() to ensure any buffered messages are immediately sent. This is required
+    //since close() only guarantees delivery of in-flight messages.
+    log.info("Flushing records from producer buffer");
+    this.producer.flush();
     this.closer.close();
   }
 

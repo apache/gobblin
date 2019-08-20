@@ -27,13 +27,18 @@ dependencies {
   compile project(":gobblin-runtime")
   compile project(":gobblin-modules:gobblin-kafka-common")
 
+  // Given orc-mapreduce depends on hive version of hive-storage-api(2.4.0) and conflicted
+  // with hive-exec-core in older version(1.0.1), we need to shadow ord-mapreduce's transitive deps.
+  // and include direct orc-mapreduce library just as a compileOnly dependency
+  compileOnly externalDependency.orcMapreduce
+  compile project(path: ":gobblin-modules:gobblin-orc-dep", configuration:"shadow")
+
   compile externalDependency.calciteCore
   compile externalDependency.calciteAvatica
   compile externalDependency.jhyde
   compile externalDependency.avro
   compile externalDependency.commonsLang
   compile externalDependency.commonsMath
-  compile externalDependency.hiveExec
   compile externalDependency.mockito
   compile externalDependency.testng
 
@@ -58,7 +63,8 @@ dependencies {
 
 
 configurations {
-    compile { transitive = true }
+  compile { transitive = true }
+  all*.exclude group: "org.apache.hadoop", module: 'hive-exec'
 }
 
 ext.classification="library"

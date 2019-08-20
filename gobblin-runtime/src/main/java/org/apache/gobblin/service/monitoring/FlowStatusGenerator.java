@@ -19,14 +19,13 @@ package org.apache.gobblin.service.monitoring;
 
 import java.util.Iterator;
 import java.util.List;
-
-import org.apache.commons.lang.StringUtils;
+import java.util.stream.Collectors;
 
 import com.google.common.collect.Lists;
 
-import org.apache.gobblin.annotation.Alpha;
-
 import lombok.Builder;
+
+import org.apache.gobblin.annotation.Alpha;
 
 
 /**
@@ -35,23 +34,28 @@ import lombok.Builder;
 @Alpha
 @Builder
 public class FlowStatusGenerator {
+  public static final List<String> FINISHED_JOB_STATUSES = Lists.newArrayList("FAILED", "COMPLETE", "CANCELLED");
+
   private final JobStatusRetriever jobStatusRetriever;
 
   /**
-   * Get the latest flow status.
+   * Get the flow statuses of last <code>count</code> (or fewer) executions
    * @param flowName
    * @param flowGroup
-   * @return the latest {@link FlowStatus}. null is returned if there is no flow execution found.
+   * @param count
+   * @return the latest <code>count</code>{@link FlowStatus}es. null is returned if there is no flow execution found.
    */
-  public FlowStatus getLatestFlowStatus(String flowName, String flowGroup) {
-    FlowStatus flowStatus = null;
-    long latestExecutionId = jobStatusRetriever.getLatestExecutionIdForFlow(flowName, flowGroup);
+  public List<FlowStatus> getLatestFlowStatus(String flowName, String flowGroup, int count) {
+    List<Long> flowExecutionIds = jobStatusRetriever.getLatestExecutionIdsForFlow(flowName, flowGroup, count);
 
-    if (latestExecutionId != -1l) {
-      flowStatus = getFlowStatus(flowName, flowGroup, latestExecutionId);
+    if (flowExecutionIds == null || flowExecutionIds.isEmpty()) {
+      return null;
     }
+    List<FlowStatus> flowStatuses =
+        flowExecutionIds.stream().map(flowExecutionId -> getFlowStatus(flowName, flowGroup, flowExecutionId))
+            .collect(Collectors.toList());
 
-    return flowStatus;
+    return flowStatuses;
   }
 
   /**
@@ -71,5 +75,39 @@ public class FlowStatusGenerator {
     }
 
     return flowStatus;
+  }
+
+  /**
+   * Return true if another instance of a flow is running. A flow is determined to be in the RUNNING state, if any of the
+   * jobs in the flow are in the RUNNING state.
+   * @param flowName
+   * @param flowGroup
+   * @return true, if any jobs of the flow are RUNNING.
+   */
+  public boolean isFlowRunning(String flowName, String flowGroup) {
+    List<FlowStatus> flowStatusList = getLatestFlowStatus(flowName, flowGroup, 1);
+    if (flowStatusList == null || flowStatusList.isEmpty()) {
+      return false;
+    } else {
+      FlowStatus flowStatus = flowStatusList.get(0);
+      Iterator<JobStatus> jobStatusIterator = flowStatus.getJobStatusIterator();
+
+      while (jobStatusIterator.hasNext()) {
+        JobStatus jobStatus = jobStatusIterator.next();
+        if (isJobRunning(jobStatus)) {
+          return true;
+        }
+      }
+      return false;
+    }
+  }
+
+  /**
+   * @param jobStatus
+   * @return true if the job associated with the {@link JobStatus} is RUNNING
+   */
+  private boolean isJobRunning(JobStatus jobStatus) {
+    String status = jobStatus.getEventName().toUpperCase();
+    return !FINISHED_JOB_STATUSES.contains(status);
   }
 }

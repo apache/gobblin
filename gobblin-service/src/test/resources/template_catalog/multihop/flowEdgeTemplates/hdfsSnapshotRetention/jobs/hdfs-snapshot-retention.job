@@ -1,0 +1,15 @@
+gobblin.template.uri="FS:///multihop/jobTemplates/hdfs-retention.template"
+#Should Retention job run in parallel with the next job?
+job.forkOnConcat=true
+#Dataset version finder class
+gobblin.retention.version.finder.class="org.apache.gobblin.data.management.version.finder.DateTimeDatasetVersionFinder"
+#Retention Policy
+gobblin.retention.selection.policy.class="org.apache.gobblin.data.management.policy.CombineSelectionPolicy"
+gobblin.retention.selection.combine.policy.classes="[org.apache.gobblin.data.management.retention.policy.TimeBasedRetentionPolicy,org.apache.gobblin.data.management.retention.policy.NewestKRetentionPolicy]"
+#Num versions to keep
+gobblin.retention.selection.newestK.versionsNotSelected=7
+#Maximum lookback time
+gobblin.retention.selection.timeBased.lookbackTime=7d
+gobblin.retention.selection.combine.operation="INTERSECT"
+gobblin.retention.version.globPattern="snapshot/*"
+gobblin.retention.version.datetime.pattern="yyyy-MM-dd_HH_mm_ss"

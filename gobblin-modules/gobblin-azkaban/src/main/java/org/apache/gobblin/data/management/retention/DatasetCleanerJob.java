@@ -18,6 +18,7 @@
 package org.apache.gobblin.data.management.retention;
 
 import java.io.IOException;
+import java.util.Properties;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -45,6 +46,12 @@ public class DatasetCleanerJob extends AbstractJob implements Tool {
     super(id, Logger.getLogger(DatasetCleanerJob.class));
   }
 
+  public DatasetCleanerJob(String id, Properties props) throws IOException {
+    super(id, Logger.getLogger(DatasetCleanerJob.class));
+    this.conf = new Configuration();
+    this.datasetCleaner = new DatasetCleaner(FileSystem.get(getConf()), props);
+  }
+
   public DatasetCleanerJob(String id, Props props) throws IOException {
     super(id, Logger.getLogger(DatasetCleanerJob.class));
     this.conf = new Configuration();
@@ -54,7 +61,7 @@ public class DatasetCleanerJob extends AbstractJob implements Tool {
   @Override
   public void run() throws Exception {
     if (this.datasetCleaner != null) {
-        this.datasetCleaner.clean();
+      this.datasetCleaner.clean();
     }
   }
 

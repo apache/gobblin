@@ -17,8 +17,16 @@
 
 package org.apache.gobblin.compaction.event;
 
+import com.google.common.base.Optional;
 import java.io.IOException;
-
+import org.apache.gobblin.compaction.dataset.Dataset;
+import org.apache.gobblin.compaction.mapreduce.MRCompactor;
+import org.apache.gobblin.compaction.mapreduce.RecordKeyDedupReducerBase;
+import org.apache.gobblin.compaction.mapreduce.RecordKeyMapperBase;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.metrics.event.sla.SlaEventKeys;
+import org.apache.gobblin.metrics.event.sla.SlaEventSubmitter;
+import org.apache.gobblin.metrics.event.sla.SlaEventSubmitter.SlaEventSubmitterBuilder;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.Counter;
@@ -26,17 +34,6 @@ import org.apache.hadoop.mapreduce.Counters;
 import org.apache.hadoop.mapreduce.Job;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.base.Optional;
-
-import org.apache.gobblin.compaction.dataset.Dataset;
-import org.apache.gobblin.compaction.mapreduce.MRCompactor;
-import org.apache.gobblin.compaction.mapreduce.avro.AvroKeyDedupReducer;
-import org.apache.gobblin.compaction.mapreduce.avro.AvroKeyMapper;
-import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.metrics.event.sla.SlaEventKeys;
-import org.apache.gobblin.metrics.event.sla.SlaEventSubmitter;
-import org.apache.gobblin.metrics.event.sla.SlaEventSubmitter.SlaEventSubmitterBuilder;
 
 
 /**
@@ -142,13 +139,13 @@ public class CompactionSlaEventHelper {
       return -1l;
     }
 
-    Counter recordCounter = counters.findCounter(AvroKeyDedupReducer.EVENT_COUNTER.RECORD_COUNT);
+    Counter recordCounter = counters.findCounter(RecordKeyDedupReducerBase.EVENT_COUNTER.RECORD_COUNT);
 
     if (recordCounter != null && recordCounter.getValue() != 0) {
       return recordCounter.getValue();
     }
 
-    recordCounter = counters.findCounter(AvroKeyMapper.EVENT_COUNTER.RECORD_COUNT);
+    recordCounter = counters.findCounter(RecordKeyMapperBase.EVENT_COUNTER.RECORD_COUNT);
 
     if (recordCounter != null && recordCounter.getValue() != 0) {
       return recordCounter.getValue();

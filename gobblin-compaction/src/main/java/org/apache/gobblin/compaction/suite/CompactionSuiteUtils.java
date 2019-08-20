@@ -21,6 +21,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.util.ClassAliasResolver;
 
+
 /**
  * A utility class for {@link CompactionSuite}
  */
@@ -28,13 +29,15 @@ public class CompactionSuiteUtils {
 
   /**
    * Return an {@link CompactionSuiteFactory} based on the configuration
-   * @return A concrete suite factory instance. By default {@link CompactionAvroSuiteFactory} is used.
+   * @return A concrete suite factory instance. By default {@link CompactionSuiteBaseFactory} is used.
    */
-  public static CompactionSuiteFactory getCompactionSuiteFactory (State state) {
+  public static CompactionSuiteFactory getCompactionSuiteFactory(State state) {
     try {
-      String factoryName = state.getProp(ConfigurationKeys.COMPACTION_SUITE_FACTORY, ConfigurationKeys.DEFAULT_COMPACTION_SUITE_FACTORY);
+      String factoryName =
+          state.getProp(ConfigurationKeys.COMPACTION_SUITE_FACTORY, ConfigurationKeys.DEFAULT_COMPACTION_SUITE_FACTORY);
 
-      ClassAliasResolver<CompactionSuiteFactory> conditionClassAliasResolver = new ClassAliasResolver<>(CompactionSuiteFactory.class);
+      ClassAliasResolver<CompactionSuiteFactory> conditionClassAliasResolver =
+          new ClassAliasResolver<>(CompactionSuiteFactory.class);
       CompactionSuiteFactory factory = conditionClassAliasResolver.resolveClass(factoryName).newInstance();
       return factory;
     } catch (IllegalAccessException | InstantiationException | ClassNotFoundException e) {

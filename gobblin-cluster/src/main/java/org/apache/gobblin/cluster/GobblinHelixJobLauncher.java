@@ -30,12 +30,12 @@ import java.util.concurrent.TimeoutException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.helix.HelixException;
 import org.apache.helix.HelixManager;
 import org.apache.helix.task.JobConfig;
 import org.apache.helix.task.JobQueue;
 import org.apache.helix.task.TaskConfig;
 import org.apache.helix.task.TaskDriver;
-import org.apache.helix.task.TaskUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,6 +69,7 @@ import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.Id;
 import org.apache.gobblin.util.JobLauncherUtils;
 import org.apache.gobblin.util.ParallelRunner;
+import org.apache.gobblin.util.PropertiesUtils;
 import org.apache.gobblin.util.SerializationUtils;
 
 
@@ -107,7 +108,6 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   private final HelixManager helixManager;
   private final TaskDriver helixTaskDriver;
   private final String helixWorkFlowName;
-  private final String jobResourceName;
   private JobListener jobListener;
 
   private final FileSystem fs;
@@ -119,20 +119,23 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   private final int stateSerDeRunnerThreads;
 
   private final TaskStateCollectorService taskStateCollectorService;
-
+  private final Optional<GobblinHelixMetrics> helixMetrics;
   private volatile boolean jobSubmitted = false;
-  private volatile boolean jobComplete = false;
   private final ConcurrentHashMap<String, Boolean> runningMap;
   private final StateStores stateStores;
   private final Config jobConfig;
   private final long workFlowExpiryTimeSeconds;
+  private final long helixJobStopTimeoutSeconds;
 
-  public GobblinHelixJobLauncher(Properties jobProps, final HelixManager helixManager, Path appWorkDir,
-      List<? extends Tag<?>> metadataTags, ConcurrentHashMap<String, Boolean> runningMap)
-      throws Exception {
+  public GobblinHelixJobLauncher (Properties jobProps,
+                                  final HelixManager helixManager,
+                                  Path appWorkDir,
+                                  List<? extends Tag<?>> metadataTags,
+                                  ConcurrentHashMap<String, Boolean> runningMap,
+                                  Optional<GobblinHelixMetrics> helixMetrics) throws Exception {
+
     super(jobProps, addAdditionalMetadataTags(jobProps, metadataTags));
     LOGGER.debug("GobblinHelixJobLauncher: jobProps {}, appWorkDir {}", jobProps, appWorkDir);
-
     this.helixManager = helixManager;
     this.helixTaskDriver = new TaskDriver(this.helixManager);
     this.runningMap = runningMap;
@@ -142,8 +145,6 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
         + Path.SEPARATOR + this.jobContext.getJobId());
 
     this.helixWorkFlowName = this.jobContext.getJobId();
-    this.jobResourceName = TaskUtil.getNamespacedJobName(this.helixWorkFlowName, this.jobContext.getJobId());
-
     this.jobContext.getJobState().setJobLauncherType(LauncherTypeEnum.CLUSTER);
 
     this.stateSerDeRunnerThreads = Integer.parseInt(jobProps.getProperty(ParallelRunner.PARALLEL_RUNNER_THREADS_KEY,
@@ -154,6 +155,10 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     this.workFlowExpiryTimeSeconds = ConfigUtils.getLong(jobConfig,
         GobblinClusterConfigurationKeys.HELIX_WORKFLOW_EXPIRY_TIME_SECONDS,
         GobblinClusterConfigurationKeys.DEFAULT_HELIX_WORKFLOW_EXPIRY_TIME_SECONDS);
+
+    this.helixJobStopTimeoutSeconds = ConfigUtils.getLong(jobConfig,
+        GobblinClusterConfigurationKeys.HELIX_JOB_STOP_TIMEOUT_SECONDS,
+        GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_STOP_TIMEOUT_SECONDS);
 
     Config stateStoreJobConfig = ConfigUtils.propertiesToConfig(jobProps)
         .withValue(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigValueFactory.fromAnyRef(
@@ -168,8 +173,13 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     URI fsUri = URI.create(jobProps.getProperty(ConfigurationKeys.FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI));
     this.fs = FileSystem.get(fsUri, new Configuration());
 
-    this.taskStateCollectorService = new TaskStateCollectorService(jobProps, this.jobContext.getJobState(),
-        this.eventBus, this.stateStores.getTaskStateStore(), outputTaskStateDir);
+    this.taskStateCollectorService = new TaskStateCollectorService(jobProps,
+        this.jobContext.getJobState(),
+        this.eventBus,
+        this.stateStores.getTaskStateStore(),
+        this.outputTaskStateDir);
+
+    this.helixMetrics = helixMetrics;
     startCancellationExecutor();
   }
 
@@ -180,6 +190,10 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     } finally {
       super.close();
     }
+  }
+
+  public String getJobId() {
+    return this.jobContext.getJobId();
   }
 
   @Override
@@ -193,16 +207,33 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
       TimingEvent jobSubmissionTimer =
           this.eventSubmitter.getTimingEvent(TimingEvent.RunJobTimings.HELIX_JOB_SUBMISSION);
-      submitJobToHelix(createJob(workUnits));
-      jobSubmissionTimer.stop();
-      LOGGER.info(String.format("Submitted job %s to Helix", this.jobContext.getJobId()));
-      this.jobSubmitted = true;
+
+      synchronized (this.cancellationRequest) {
+        if (!this.cancellationRequested) {
+          long submitStart = System.currentTimeMillis();
+          if (helixMetrics.isPresent()) {
+            helixMetrics.get().submitMeter.mark();
+          }
+          submitJobToHelix(createJob(workUnits));
+          if (helixMetrics.isPresent()) {
+            this.helixMetrics.get().updateTimeForHelixSubmit(submitStart);
+          }
+          jobSubmissionTimer.stop();
+          LOGGER.info(String.format("Submitted job %s to Helix", this.jobContext.getJobId()));
+          this.jobSubmitted = true;
+        } else {
+          LOGGER.warn("Job {} not submitted to Helix as it was requested to be cancelled.", this.jobContext.getJobId());
+        }
+      }
 
       TimingEvent jobRunTimer = this.eventSubmitter.getTimingEvent(TimingEvent.RunJobTimings.HELIX_JOB_RUN);
+      long waitStart = System.currentTimeMillis();
       waitForJobCompletion();
+      if (helixMetrics.isPresent()) {
+        this.helixMetrics.get().updateTimeForHelixWait(waitStart);
+      }
       jobRunTimer.stop();
       LOGGER.info(String.format("Job %s completed", this.jobContext.getJobId()));
-      this.jobComplete = true;
     } finally {
       // The last iteration of output TaskState collecting will run when the collector service gets stopped
       this.taskStateCollectorService.stopAsync().awaitTerminated();
@@ -214,15 +245,20 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   protected void executeCancellation() {
     if (this.jobSubmitted) {
       try {
-        log.info("[DELETE] workflow {}", this.helixWorkFlowName);
-        if (this.cancellationRequested) {
+        if (this.cancellationRequested && !this.cancellationExecuted) {
           // TODO : fix this when HELIX-1180 is completed
           // work flow should never be deleted explicitly because it has a expiry time
           // If cancellation is requested, we should set the job state to CANCELLED/ABORT
-          this.helixTaskDriver.delete(this.helixWorkFlowName);
+          this.helixTaskDriver.waitToStop(this.helixWorkFlowName, this.helixJobStopTimeoutSeconds);
+          log.info("stopped the workflow ", this.helixWorkFlowName);
         }
-      } catch (IllegalArgumentException e) {
-        LOGGER.warn("Failed to cancel job {} in Helix", this.jobContext.getJobId(), e);
+      } catch (HelixException e) {
+        // Cancellation may throw an exception, but Helix set the job state to STOP and it should eventually stop
+        // We will keep this.cancellationExecuted and this.cancellationRequested to true and not propagate the exception
+        log.error("Failed to stop workflow {} in Helix", helixWorkFlowName, e);
+      } catch (InterruptedException e) {
+        log.error("Thread interrupted while trying to stop the workflow {} in Helix", helixWorkFlowName);
+        Thread.currentThread().interrupt();
       }
     }
   }
@@ -259,12 +295,20 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     }
 
     JobConfig.Builder jobConfigBuilder = new JobConfig.Builder();
-    jobConfigBuilder.setMaxAttemptsPerTask(this.jobContext.getJobState().getPropAsInt(
-        ConfigurationKeys.MAX_TASK_RETRIES_KEY, ConfigurationKeys.DEFAULT_MAX_TASK_RETRIES));
 
+    // Helix task attempts = retries + 1 (fallback to general task retry for backward compatibility)
+    jobConfigBuilder.setMaxAttemptsPerTask(this.jobContext.getJobState().getPropAsInt(
+        GobblinClusterConfigurationKeys.HELIX_TASK_MAX_ATTEMPTS_KEY,
+        this.jobContext.getJobState().getPropAsInt(
+            ConfigurationKeys.MAX_TASK_RETRIES_KEY,
+            ConfigurationKeys.DEFAULT_MAX_TASK_RETRIES)) + 1);
+
+    // Helix task timeout (fallback to general task timeout for backward compatibility)
     jobConfigBuilder.setTimeoutPerTask(this.jobContext.getJobState().getPropAsLong(
-        ConfigurationKeys.HELIX_TASK_TIMEOUT_SECONDS,
-        ConfigurationKeys.DEFAULT_HELIX_TASK_TIMEOUT_SECONDS) * 1000);
+        GobblinClusterConfigurationKeys.HELIX_TASK_TIMEOUT_SECONDS,
+        this.jobContext.getJobState().getPropAsLong(
+            ConfigurationKeys.TASK_TIMEOUT_SECONDS,
+            ConfigurationKeys.DEFAULT_TASK_TIMEOUT_SECONDS)) * 1000);
 
     jobConfigBuilder.setFailureThreshold(workUnits.size());
     jobConfigBuilder.addTaskConfigMap(taskConfigMap).setCommand(GobblinTaskRunner.GOBBLIN_TASK_FACTORY_NAME);
@@ -273,7 +317,15 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
         GobblinClusterConfigurationKeys.HELIX_CLUSTER_TASK_CONCURRENCY_DEFAULT));
 
     if (this.jobConfig.hasPath(GobblinClusterConfigurationKeys.HELIX_JOB_TAG_KEY)) {
-      jobConfigBuilder.setInstanceGroupTag(this.jobConfig.getString(GobblinClusterConfigurationKeys.HELIX_JOB_TAG_KEY));
+      String jobTag = this.jobConfig.getString(GobblinClusterConfigurationKeys.HELIX_JOB_TAG_KEY);
+      log.info("Job {} has tags associated : {}", this.jobContext.getJobId(), jobTag);
+      jobConfigBuilder.setInstanceGroupTag(jobTag);
+    }
+
+    if (this.jobConfig.hasPath(GobblinClusterConfigurationKeys.HELIX_JOB_TYPE_KEY)) {
+      String jobType = this.jobConfig.getString(GobblinClusterConfigurationKeys.HELIX_JOB_TYPE_KEY);
+      log.info("Job {} has types associated : {}", this.jobContext.getJobId(), jobType);
+      jobConfigBuilder.setJobType(jobType);
     }
 
     if (Task.getExecutionModel(ConfigUtils.configToState(jobConfig)).equals(ExecutionModel.STREAMING)) {
@@ -290,8 +342,12 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
    * Submit a job to run.
    */
   private void submitJobToHelix(JobConfig.Builder jobConfigBuilder) throws Exception {
-    HelixUtils.submitJobToWorkFlow(jobConfigBuilder, this.helixWorkFlowName, this.jobContext.getJobId(),
-        this.helixTaskDriver, this.helixManager, this.workFlowExpiryTimeSeconds);
+    HelixUtils.submitJobToWorkFlow(jobConfigBuilder,
+        this.helixWorkFlowName,
+        this.jobContext.getJobId(),
+        this.helixTaskDriver,
+        this.helixManager,
+        this.workFlowExpiryTimeSeconds);
   }
 
   public void launchJob(@Nullable JobListener jobListener)
@@ -367,27 +423,27 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   }
 
   private void waitForJobCompletion()  throws InterruptedException {
-    LOGGER.info("Waiting for job to complete...");
-    boolean timeoutEnabled = Boolean.parseBoolean(this.jobProps.getProperty(ConfigurationKeys.HELIX_JOB_TIMEOUT_ENABLED_KEY,
-        ConfigurationKeys.DEFAULT_HELIX_JOB_TIMEOUT_ENABLED));
-    long timeoutInSeconds = Long.parseLong(this.jobProps.getProperty(ConfigurationKeys.HELIX_JOB_TIMEOUT_SECONDS,
-        ConfigurationKeys.DEFAULT_HELIX_JOB_TIMEOUT_SECONDS));
+    boolean timeoutEnabled = Boolean.parseBoolean(this.jobProps.getProperty(
+        GobblinClusterConfigurationKeys.HELIX_JOB_TIMEOUT_ENABLED_KEY,
+        GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_TIMEOUT_ENABLED));
+    long timeoutInSeconds = Long.parseLong(this.jobProps.getProperty(
+        GobblinClusterConfigurationKeys.HELIX_JOB_TIMEOUT_SECONDS,
+        GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_TIMEOUT_SECONDS));
+
+    long stoppingStateTimeoutInSeconds = PropertiesUtils
+        .getPropAsLong(this.jobProps, GobblinClusterConfigurationKeys.HELIX_JOB_STOPPING_STATE_TIMEOUT_SECONDS,
+            GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_STOPPING_STATE_TIMEOUT_SECONDS);
 
     try {
       HelixUtils.waitJobCompletion(
           this.helixManager,
           this.helixWorkFlowName,
           this.jobContext.getJobId(),
-          timeoutEnabled? Optional.of(timeoutInSeconds) : Optional.empty());
+          timeoutEnabled? Optional.of(timeoutInSeconds) : Optional.empty(),
+          stoppingStateTimeoutInSeconds);
     } catch (TimeoutException te) {
-      helixTaskDriver.waitToStop(helixWorkFlowName, 10L);
-      try {
-        cancelJob(this.jobListener);
-      } catch (JobException e) {
-        throw new RuntimeException("Unable to cancel job " + jobContext.getJobName() + ": ", e);
-      }
-      this.helixTaskDriver.resume(this.helixWorkFlowName);
-      LOGGER.info("stopped the queue, deleted the job");
+      HelixUtils.handleJobTimeout(helixWorkFlowName, jobContext.getJobId(),
+          helixManager, this, this.jobListener);
     }
   }
 
@@ -433,21 +489,21 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
     // only inject flow tags if a flow name is defined
     if (jobProps.containsKey(ConfigurationKeys.FLOW_NAME_KEY)) {
-      metadataTags.add(new Tag<>(GobblinClusterMetricTagNames.FLOW_GROUP,
+      metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD,
           jobProps.getProperty(ConfigurationKeys.FLOW_GROUP_KEY, "")));
       metadataTags.add(
-          new Tag<>(GobblinClusterMetricTagNames.FLOW_NAME, jobProps.getProperty(ConfigurationKeys.FLOW_NAME_KEY)));
+          new Tag<>(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, jobProps.getProperty(ConfigurationKeys.FLOW_NAME_KEY)));
 
       // use job execution id if flow execution id is not present
-      metadataTags.add(new Tag<>(GobblinClusterMetricTagNames.FLOW_EXECUTION_ID,
+      metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD,
           jobProps.getProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, jobExecutionId)));
     }
 
-    metadataTags.add(new Tag<>(GobblinClusterMetricTagNames.JOB_GROUP,
+    metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD,
         jobProps.getProperty(ConfigurationKeys.JOB_GROUP_KEY, "")));
-    metadataTags.add(new Tag<>(GobblinClusterMetricTagNames.JOB_NAME,
+    metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.JOB_NAME_FIELD,
         jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY, "")));
-    metadataTags.add(new Tag<>(GobblinClusterMetricTagNames.JOB_EXECUTION_ID, jobExecutionId));
+    metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.JOB_EXECUTION_ID_FIELD, jobExecutionId));
 
     LOGGER.debug("GobblinHelixJobLauncher.addAdditionalMetadataTags: metadataTags {}", metadataTags);
 

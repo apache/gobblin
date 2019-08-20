@@ -44,6 +44,8 @@ public class HiveWritableHdfsDataWriter extends FsDataWriter<Writable> {
 
   protected final RecordWriter writer;
   protected final AtomicLong count = new AtomicLong(0);
+  // the close method may be invoked multiple times, but the underlying writer only supports close being called once
+  private boolean closed = false;
 
   public HiveWritableHdfsDataWriter(HiveWritableHdfsDataWriterBuilder<?> builder, State properties) throws IOException {
     super(builder, properties);
@@ -92,8 +94,29 @@ public class HiveWritableHdfsDataWriter extends FsDataWriter<Writable> {
   }
 
   @Override
+  public void close() throws IOException {
+    // close the underlying writer if not already closed. The close can only be called once for the underlying writer,
+    // so remember the state
+    if (!this.closed) {
+      this.writer.close(false);
+      this.closed = true;
+    }
+
+    super.close();
+  }
+
+  @Override
   public void commit() throws IOException {
-    this.writer.close(false);
+    if (!this.closed) {
+      this.writer.close(false);
+      this.closed = true;
+    }
+
     super.commit();
+  }
+
+  @Override
+  public boolean isSpeculativeAttemptSafe() {
+    return this.writerAttemptIdOptional.isPresent() && this.getClass() == HiveWritableHdfsDataWriter.class;
   }
 }

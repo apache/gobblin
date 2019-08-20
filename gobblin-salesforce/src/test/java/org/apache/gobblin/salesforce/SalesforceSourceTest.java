@@ -21,6 +21,7 @@ import java.util.List;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.dataset.DatasetDescriptor;
+import org.apache.gobblin.dataset.Descriptor;
 import org.apache.gobblin.metrics.event.lineage.LineageInfo;
 import org.apache.gobblin.source.extractor.extract.QueryBasedSource;
 import org.apache.gobblin.source.extractor.partition.Partitioner;
@@ -48,9 +49,9 @@ public class SalesforceSourceTest {
     List<WorkUnit> workUnits = source.generateWorkUnits(sourceEntity, sourceState, 20140213000000L);
     Assert.assertEquals(workUnits.size(), 1);
 
-    DatasetDescriptor sourceDataset = new DatasetDescriptor("salesforce", "contacts");
-    Gson gson = new Gson();
-    Assert.assertEquals(gson.toJson(sourceDataset), workUnits.get(0).getProp("gobblin.event.lineage.source"));
+    String expected = "{\"object-type\":\"org.apache.gobblin.dataset.DatasetDescriptor\","
+        + "\"object-data\":{\"platform\":\"salesforce\",\"metadata\":{},\"name\":\"contacts\"}}";
+    Assert.assertEquals(expected, workUnits.get(0).getProp("gobblin.event.lineage.source"));
     Assert.assertEquals(workUnits.get(0).getProp("gobblin.event.lineage.name"), "contacts");
   }
 

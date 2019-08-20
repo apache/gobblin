@@ -74,7 +74,7 @@ public class TaskStateCollectorService extends AbstractScheduledService {
   private final Path outputTaskStateDir;
 
   /**
-   * Add a cloesable action to run after each existence-checking of task state file.
+   * Add a closeable action to run after each existence-checking of task state file.
    * A typical example to plug here is hive registration:
    * We do hive registration everytime there are available taskStates deserialized from storage, on the driver level.
    */
@@ -204,7 +204,7 @@ public class TaskStateCollectorService extends AbstractScheduledService {
       this.jobState.addTaskState(taskState);
     }
 
-    // Finish any addtional steps defined in handler on driver level.
+    // Finish any additional steps defined in handler on driver level.
     // Currently implemented handler for Hive registration only.
     if (optionalTaskCollectorHandler.isPresent()) {
       LOGGER.info("Execute Pipelined TaskStateCollectorService Handler for " + taskStateQueue.size() + " tasks");

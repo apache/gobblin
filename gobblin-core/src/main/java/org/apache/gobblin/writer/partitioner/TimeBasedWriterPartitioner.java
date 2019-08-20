@@ -18,6 +18,7 @@
 package org.apache.gobblin.writer.partitioner;
 
 import java.util.Collections;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
@@ -60,6 +61,8 @@ public abstract class TimeBasedWriterPartitioner<D> implements WriterPartitioner
   public static final String WRITER_PARTITION_PATTERN = ConfigurationKeys.WRITER_PREFIX + ".partition.pattern";
   public static final String WRITER_PARTITION_TIMEZONE = ConfigurationKeys.WRITER_PREFIX + ".partition.timezone";
   public static final String DEFAULT_WRITER_PARTITION_TIMEZONE = ConfigurationKeys.PST_TIMEZONE_NAME;
+  public static final String WRITER_PARTITION_TIMEUNIT = ConfigurationKeys.WRITER_PREFIX + ".partition.timeUnit";
+  public static final String DEFAULT_WRITER_PARTITION_TIMEUNIT = TimeUnit.MILLISECONDS.name();
   public static final String WRITER_PARTITION_GRANULARITY = ConfigurationKeys.WRITER_PREFIX + ".partition.granularity";
   public static final DatePartitionType DEFAULT_WRITER_PARTITION_GRANULARITY = DatePartitionType.HOUR;
 
@@ -71,6 +74,7 @@ public abstract class TimeBasedWriterPartitioner<D> implements WriterPartitioner
   private final String writerPartitionSuffix;
   private final DatePartitionType granularity;
   private final DateTimeZone timeZone;
+  protected final TimeUnit timeUnit;
   private final Optional<DateTimeFormatter> timestampToPathFormatter;
   private final Schema schema;
 
@@ -79,6 +83,7 @@ public abstract class TimeBasedWriterPartitioner<D> implements WriterPartitioner
     this.writerPartitionSuffix = getWriterPartitionSuffix(state, numBranches, branchId);
     this.granularity = getGranularity(state, numBranches, branchId);
     this.timeZone = getTimeZone(state, numBranches, branchId);
+    this.timeUnit = getTimeUnit(state, numBranches, branchId);
     this.timestampToPathFormatter = getTimestampToPathFormatter(state, numBranches, branchId);
     this.schema = getSchema();
   }
@@ -117,6 +122,11 @@ public abstract class TimeBasedWriterPartitioner<D> implements WriterPartitioner
     return DateTimeZone.forID(state.getProp(propName, DEFAULT_WRITER_PARTITION_TIMEZONE));
   }
 
+  private static TimeUnit getTimeUnit(State state, int numBranches, int branchId) {
+    String propName = ForkOperatorUtils.getPropertyNameForBranch(WRITER_PARTITION_TIMEUNIT, numBranches, branchId);
+    return TimeUnit.valueOf(state.getProp(propName, DEFAULT_WRITER_PARTITION_TIMEUNIT).toUpperCase());
+  }
+
   private Schema getSchema() {
     if (this.timestampToPathFormatter.isPresent()) {
       return getDateTimeFormatBasedSchema();
@@ -132,7 +142,7 @@ public abstract class TimeBasedWriterPartitioner<D> implements WriterPartitioner
   @SuppressWarnings("fallthrough")
   @Override
   public GenericRecord partitionForRecord(D record) {
-    long timestamp = getRecordTimestamp(record);
+    long timestamp = timeUnit.toMillis(getRecordTimestamp(record));
     GenericRecord partition = new GenericData.Record(this.schema);
     if (!Strings.isNullOrEmpty(this.writerPartitionPrefix)) {
       partition.put(PREFIX, this.writerPartitionPrefix);

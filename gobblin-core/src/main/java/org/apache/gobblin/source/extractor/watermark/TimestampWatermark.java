@@ -92,6 +92,14 @@ public class TimestampWatermark implements Watermark {
     LOG.debug("Sart time:" + startTime + "; End time:" + endTime);
     long lwm;
     long hwm;
+
+    if (startTime.getTime() == endTime.getTime()) {
+      lwm = Long.parseLong(inputFormatParser.format(startTime));
+      hwm = lwm;
+      intervalMap.put(lwm, hwm);
+      return intervalMap;
+    }
+
     while (startTime.getTime() < endTime.getTime()) {
       lwm = Long.parseLong(inputFormatParser.format(startTime));
       calendar.setTime(startTime);
@@ -108,9 +116,9 @@ public class TimestampWatermark implements Watermark {
   /**
    * recalculate interval(in hours) if total number of partitions greater than maximum number of allowed partitions
    *
-   * @param difference in range
-   * @param hour interval (ex: 4 hours)
-   * @param Maximum number of allowed partitions
+   * @param diffInMilliSecs difference in range
+   * @param hourInterval hour interval (ex: 4 hours)
+   * @param maxIntervals max number of allowed partitions
    * @return calculated interval in hours
    */
 

@@ -19,18 +19,20 @@ package org.apache.gobblin.restli;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Collections;
 import java.util.List;
+import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.Executors;
 
+import org.apache.gobblin.util.ConfigUtils;
 import org.slf4j.Logger;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.linkedin.r2.filter.FilterChains;
 import com.linkedin.r2.transport.common.Client;
@@ -51,6 +53,7 @@ import org.apache.gobblin.broker.iface.SharedResourcesBroker;
 import org.apache.gobblin.util.ExecutorsUtils;
 
 import io.netty.channel.nio.NioEventLoopGroup;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -58,6 +61,7 @@ import io.netty.channel.nio.NioEventLoopGroup;
  *
  * To configure, specify rest server uri at key "serverUri". Note uri must start with "http" or "https".
  */
+@Slf4j
 public class SharedRestClientFactory<S extends ScopeType<S>> implements SharedResourceFactory<RestClient, SharedRestClientKey, S> {
 
   public static final String FACTORY_NAME = "restli";
@@ -82,6 +86,8 @@ public class SharedRestClientFactory<S extends ScopeType<S>> implements SharedRe
 
       String uriPrefix = ((UriRestClientKey) key).getUri();
 
+      log.info(String.format("Creating a brand new rest client for service name %s and uri prefix %s", key.serviceName, uriPrefix));
+
       HttpClientFactory http = new HttpClientFactory(FilterChains.empty(),
           new NioEventLoopGroup(0 /* use default settings */,
               ExecutorsUtils.newDaemonThreadFactory(Optional.<Logger>absent(), Optional.of("R2 Nio Event Loop-%d"))),
@@ -89,7 +95,14 @@ public class SharedRestClientFactory<S extends ScopeType<S>> implements SharedRe
           Executors.newSingleThreadScheduledExecutor(
               ExecutorsUtils.newDaemonThreadFactory(Optional.<Logger>absent(), Optional.of("R2 Netty Scheduler"))),
           true);
-      Client r2Client = new TransportClientAdapter(http.getClient(Collections.<String, String>emptyMap()));
+
+      Properties props = ConfigUtils.configToProperties(config.getConfig());
+      if (!props.containsKey(HttpClientFactory.HTTP_REQUEST_TIMEOUT)) {
+        // Rest.li changed the default timeout from 10s to 1s. Since some clients (e.g. throttling) relied on the longer
+        // timeout, override this property uless set by the user explicitly
+        props.setProperty(HttpClientFactory.HTTP_REQUEST_TIMEOUT, "10000");
+      }
+      Client r2Client = new TransportClientAdapter(http.getClient(Maps.fromProperties(props)));
 
       return new ResourceInstance<>(new RestClient(r2Client,uriPrefix));
     } catch (URISyntaxException use) {

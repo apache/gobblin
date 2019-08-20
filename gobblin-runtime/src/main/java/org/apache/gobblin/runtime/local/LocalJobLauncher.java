@@ -24,6 +24,7 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import org.apache.gobblin.runtime.job.JobInterruptionPredicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,11 +71,15 @@ public class LocalJobLauncher extends AbstractJobLauncher {
   private final ServiceManager serviceManager;
 
   public LocalJobLauncher(Properties jobProps) throws Exception {
-    this(jobProps, null);
+    this(jobProps, null, ImmutableList.of());
   }
 
   public LocalJobLauncher(Properties jobProps, SharedResourcesBroker<GobblinScopeTypes> instanceBroker) throws Exception {
-    super(jobProps, ImmutableList.<Tag<?>> of(), instanceBroker);
+    this(jobProps, instanceBroker, ImmutableList.of());
+  }
+
+  public LocalJobLauncher(Properties jobProps, SharedResourcesBroker<GobblinScopeTypes> instanceBroker, List<? extends Tag<?>> metadataTags) throws Exception {
+    super(jobProps, metadataTags, instanceBroker);
     log.debug("Local job launched with properties: {}", jobProps);
 
     TimingEvent jobLocalSetupTimer = this.eventSubmitter.getTimingEvent(TimingEvent.RunJobTimings.JOB_LOCAL_SETUP);
@@ -139,8 +144,12 @@ public class LocalJobLauncher extends AbstractJobLauncher {
       }
     });
 
+    Thread thisThread = Thread.currentThread();
+    JobInterruptionPredicate jobInterruptionPredicate =
+        new JobInterruptionPredicate(jobState, () -> thisThread.interrupt(), true);
     GobblinMultiTaskAttempt.runWorkUnits(this.jobContext, workUnitsWithJobState, this.taskStateTracker,
         this.taskExecutor, GobblinMultiTaskAttempt.CommitPolicy.IMMEDIATE);
+    jobInterruptionPredicate.stopAsync();
 
     if (this.cancellationRequested) {
       // Wait for the cancellation execution if it has been requested

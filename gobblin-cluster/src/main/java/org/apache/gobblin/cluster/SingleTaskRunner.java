@@ -116,7 +116,7 @@ class SingleTaskRunner {
     final TaskAttemptBuilder taskAttemptBuilder = getTaskAttemptBuilder(stateStores);
 
     this.task = new SingleTask(this.jobId, new Path(this.workUnitFilePath), jobStateFilePath, fs,
-        taskAttemptBuilder, stateStores);
+        taskAttemptBuilder, stateStores, GobblinClusterUtils.getDynamicConfig(this.clusterConfig));
   }
 
   private TaskAttemptBuilder getTaskAttemptBuilder(final StateStores stateStores) {

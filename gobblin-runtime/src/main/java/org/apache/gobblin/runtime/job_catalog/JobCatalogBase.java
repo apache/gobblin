@@ -20,6 +20,7 @@ package org.apache.gobblin.runtime.job_catalog;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -112,6 +113,13 @@ public abstract class JobCatalogBase extends AbstractIdleService implements JobC
     return jobSpecs;
   }
 
+  private Iterator<JobSpec> getJobSpecsWithTimeUpdate() {
+    long startTime = System.currentTimeMillis();
+    Iterator<JobSpec> jobSpecs = getJobSpecIterator();
+    this.metrics.updateGetJobTime(startTime);
+    return jobSpecs;
+  }
+
   /**{@inheritDoc}*/
   @Override
   public synchronized void addListener(JobCatalogListener jobListener) {
@@ -119,9 +127,13 @@ public abstract class JobCatalogBase extends AbstractIdleService implements JobC
     this.listeners.addListener(jobListener);
 
     if (state() == State.RUNNING) {
-      for (JobSpec jobSpec : getJobsWithTimeUpdate()) {
-        JobCatalogListener.AddJobCallback addJobCallback = new JobCatalogListener.AddJobCallback(jobSpec);
-        this.listeners.callbackOneListener(addJobCallback, jobListener);
+      Iterator<JobSpec> jobSpecItr = getJobSpecsWithTimeUpdate();
+      while (jobSpecItr.hasNext()) {
+        JobSpec jobSpec = jobSpecItr.next();
+        if (jobSpec != null) {
+          JobCatalogListener.AddJobCallback addJobCallback = new JobCatalogListener.AddJobCallback(jobSpec);
+          this.listeners.callbackOneListener(addJobCallback, jobListener);
+        }
       }
     }
   }

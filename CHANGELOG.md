@@ -1,3 +1,105 @@
+GOBBLIN 0.14.0
+-------------
+
+###Created Date: 27/11/2018
+
+## HIGHLIGHTS 
+
+* Multi-hop support in Gobblin-as-a-Service with in built workflow manager. 
+* Gobblin-as-a-Service integration with Azkaban. 
+* New Elasticsearch writer. 
+* Block level distcp-ng copy support. 
+
+## NEW FEATURES 
+
+* [GaaS] [GOBBLIN-590] Workflow Manager in Gobblin-as-a-Service (GaaS)
+* [GaaS] [GOBBLIN-572] Azkaban support in GaaS
+* [GaaS] [GOBBLIN-552] Add multicast option to the MultiHopFlowCompiler
+* [GaaS] [GOBBLIN-528] Multihop Flow Compiler for Gobblin-as-a-Service (GaaS)
+* [Writer] [GOBBLIN-17] Elasticsearch Writer
+* [Distcp-NG] [GOBBLIN-598]	Block level distcp enhancement 
+
+## IMPROVEMENTS
+
+* [GaaS] [GOBBLIN-638] Submit more timing events from GaaS to accurately track flow/job status
+* [GaaS] [GOBBLIN-637] Create dag checkpoint dir on initialization to avoid NPE
+* [GaaS] [GOBBLIN-636] Use FS scheme and relative URIs for specifying job template locations in GaaS
+* [GaaS] [GOBBLIN-635] Add metadata tags to Gobblin Tracking Event for Azkaban jobs triggered using Gobblin-as-a-Service (GaaS)
+* [GaaS] [GOBBLIN-634] Gobblin as a Service needs to know who sends the request
+* [GaaS] [GOBBLIN-633] Provide HOCON support for flow requests to GaaS 
+* [GaaS] [GOBBLIN-632] Add a template for an incremental avro ingestion job
+* [GaaS] [GOBBLIN-624] Handle dataset retention in multi-hop flow compiler 
+* [GaaS] [GOBBLIN-616] Add ability to fork jobs when concatenating Dags
+* [GaaS] [GOBBLIN-614] Allow multiple flow failure options in DagManager
+* [GaaS] [GOBBLIN-612] Disable commit hash checkpointing for GitFlowGraphMonitor 
+* [GaaS] [GOBBLIN-611] Ensure node events are processed before edge events in GitFlowGraphMonitor
+* [GaaS] [GOBBLIN-610] Add support for secure access to Git in GitMonitoringService
+* [GaaS] [GOBBLIN-604] Map dependencies in job templates to the job names in compiled JobSpecs
+* [GaaS] [GOBBLIN-603] Add ServiceManager to manage GitFlowGraphMonitor in multihop flow compiler
+* [GaaS] [GOBBLIN-602] Allow AzkabanProducer to be customized
+* [GaaS] [GOBBLIN-601] Add cancellation to AzkabanClient
+* [GaaS] [GOBBLIN-591] Allow user to pass in the customized http client for azkaban client
+* [GaaS] [GOBBLIN-559] Implement FlowGraph as a concurrent data structure
+* [GaaS] [GOBBLIN-558] Add Gobblin Tracking Events in GaaS
+* [GaaS] [GOBBLIN-518] Ability to cancel a running job in gobblin service
+* [Cluster] [GOBBLIN-625] Distributed job launcher doesn't have helix tagging support
+* [Cluster] [GOBBLIN-617] Add distributed job launcher metrics and some refactoring
+* [Cluster] [GOBBLIN-584] Fix the helix key configuration naming
+* [Core] [GOBBLIN-639] Change serder method to static from RequesterService
+* [Core] [GOBBLIN-621] Add general utilities
+* [Core] [GOBBLIN-607] Reduce logging in gobblin-runtime tests
+* [Core] [GOBBLIN-564] Implement partition descriptor
+* [Core] [GOBBLIN-563] Upgrade Gradle to 4.9
+* [Core] [GOBBLIN-562] Add SharedHiveConfKey to HiveConf Factory
+* [Core] [GOBBLIN-561] Handle data completeness checks for data partitions with no records
+* [State Store] [GOBBLIN-622] Avoid to serialize all previous workunits in SourceState to save both memory and diskspace
+* [Source] [GOBBLIN-631] Add option to use timezone for TimeAwareDatasetFinder
+* [Source] [GOBBLIN-615] Make LWM==HWM a valid interval in QueryBaseSource
+* [Source] [GOBBLIN-573] Add option to use finer level granularity at the hour level for TimeAwareDatasetfinder
+* [Source] [GOBBLIN-547] Extend DatePartitionedNestedRetriever to support recursive loading of daily partition folder
+* [Extractor] [GOBBLIN-585] Return expectedRecordCount of 1 for FileAwareInputStreamExtractor
+* [Writer] [GOBBLIN-627] Allow files in task output directory to be overwritten when renaming files with record count
+* [Writer] [GOBBLIN-608] Allow user to configure the fork operation timeout
+* [Writer] [GOBBLIN-582] Allow file overwrite when copying from task staging to task output for FileAwareInputStreamDataWriter
+* [Writer] [GOBBLIN-549] Add configurability for Couchbase writer
+* [Retention] [GOBBLIN-586] Feature to apply retention in remote HDFS
+* [Kafka] [GOBBLIN-640] Add a Kafka producer pusher that supports keyed messages
+* [Kafka] [GOBBLIN-629] Skip updating statistics for Kafka partitions in KafkaExtractor when topic is skipped 
+* [Hive Registration] [GOBBLIN-557] Reuse HiveConf among Hive registration by resource broker
+* [Distcp] [GOBBLIN-576] Send partition level lineage in hive distcp
+* [Config Store] [GOBBLIN-609] Change config store to append to path part of URI
+* [Config Store] [GOBBLIN-567] Create config store that downloads and reads from a local jar
+* [Gobblin Metrics] [GOBBLIN-592]	Disable FileFailureEventReport by configuration
+* [Gobblin Metrics] [GOBBLIN-589] Add more Gobblin tracking metrics in KafkaExtractorTopicMetadata event
+
+## BUGS FIXES
+
+* [Bug] [GOBBLIN-626]	Fix the wrong planning job tag key
+* [Bug] [GOBBLIN-620]	NPE when catalog metrics is not enabled
+* [Bug] [GOBBLIN-619]	Fix the metrics name for GobblinHelixJobScheduler
+* [Bug] [GOBBLIN-618]	Remove unnecessary methods from StandardMetricsBridge
+* [Bug] [GOBBLIN-606]	Fix duplicate addition of FlowEdge to path for single-hop paths in Multi-hop flow compiler
+* [Bug] [GOBBLIN-605]	Avoid setting the flowExecutionId twice during path finding in Multi-hop flow compilation
+* [Bug] [GOBBLIN-600]	Fix build issue due to duplicate method signatures in FlowStatusTest
+* [Bug] [GOBBLIN-599]	Handle task creation errors in GobblinMultiTaskAttempt
+* [Bug] [GOBBLIN-597]	Skip submitting a GaaS job if it is already running
+* [Bug] [GOBBLIN-588]	Remove final decorator to allow password be overwritten
+* [Bug] [GOBBLIN-580]	Infinite loop in Google Search Console(webmaster) connector
+* [Bug] [GOBBLIN-578]	Comparison to None should be 'expr is None'
+* [Bug] [GOBBLIN-577]	pep-0020 - Readability counts
+* [Bug] [GOBBLIN-575]	Remove scala dependencies
+* [Bug] [GOBBLIN-574]	elasticsearch-dep module failed to build
+* [Bug] [GOBBLIN-569]	Address the pylint warnings in github-pr-change-log.py
+* [Bug] [GOBBLIN-566] HiveMetastoreBasedRegister incorrectly issues an alter_partition when it should do an add_partition
+* [Bug] [GOBBLIN-556]	Gobblin AvroUtils reads and writes UTF rather than chars
+* [Bug] [GOBBLIN-554]	Change signature of SpecCompiler#compileFlow() to return a DAG of JobSpecs instead of a HashMap
+* [Bug] [GOBBLIN-553]	Fix FileAwareInputStreamDataWriterTest access to public key
+* [Bug] [GOBBLIN-551]	JdbcExtractor code in gobblin-sql module using separate connections for `extractMetadata`, `getMaxWatermark` & `getSourceCount`
+* [Bug] [GOBBLIN-550]	When RuntimeException occurred, alwaysDelete flag doesn't work
+* [Bug] [GOBBLIN-548]	Fix bug in GobblinHelixJobLauncherTest
+* [Bug] [GOBBLIN-546]	Use appropriate Lists package
+* [Bug] [GOBBLIN-538]	Return flow execution id on submitting new flow
+
 GOBBLIN 0.13.0
 -------------
 

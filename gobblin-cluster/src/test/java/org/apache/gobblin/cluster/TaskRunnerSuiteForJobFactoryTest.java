@@ -17,9 +17,7 @@
 
 package org.apache.gobblin.cluster;
 
-import java.io.IOException;
 import java.util.Map;
-import java.util.Properties;
 
 import org.apache.helix.task.Task;
 import org.apache.helix.task.TaskCallbackContext;
@@ -32,16 +30,17 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alias;
 import org.apache.gobblin.cluster.suite.IntegrationJobFactorySuite;
-import org.apache.gobblin.runtime.util.StateStores;
-import org.apache.gobblin.source.extractor.partition.Partitioner;
-import org.apache.gobblin.util.PropertiesUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metrics.MetricContext;
 
 
 public class TaskRunnerSuiteForJobFactoryTest extends TaskRunnerSuiteThreadModel {
+
   private TaskFactory testJobFactory;
+
   public TaskRunnerSuiteForJobFactoryTest(IntegrationJobFactorySuite.TestJobFactorySuiteBuilder builder) {
     super(builder);
-    this.testJobFactory = new TestJobFactory(builder);
+    this.testJobFactory = new TestJobFactory(builder, this.metricContext);
   }
 
   @Override
@@ -53,31 +52,35 @@ public class TaskRunnerSuiteForJobFactoryTest extends TaskRunnerSuiteThreadModel
   }
 
   public class TestJobFactory extends GobblinHelixJobFactory {
-    public TestJobFactory(IntegrationJobFactorySuite.TestJobFactorySuiteBuilder builder) {
-      super (builder);
+    public TestJobFactory(IntegrationJobFactorySuite.TestJobFactorySuiteBuilder builder, MetricContext metricContext) {
+      super (builder, metricContext);
       this.builder = builder;
     }
 
     @Override
     public Task createNewTask(TaskCallbackContext context) {
-      return new TestHelixJobTask(context, stateStores, builder);
+      return new TestHelixJobTask(context,
+          jobsMapping,
+          builder,
+          new GobblinHelixJobLauncherMetrics("launcherInJobFactory", metricContext, 5),
+          new GobblinHelixJobTask.GobblinHelixJobTaskMetrics(metricContext, 5),
+          new GobblinHelixMetrics("helixMetricsInJobFactory", metricContext, 5));
     }
   }
 
   public class TestHelixJobTask extends GobblinHelixJobTask {
     public TestHelixJobTask(TaskCallbackContext context,
-        StateStores stateStores,
-        TaskRunnerSuiteBase.Builder builder) {
-      super(context, stateStores, builder);
-    }
-
-    //TODO: change below to Helix UserConentStore
-    protected void setResultToUserContent(Map<String, String> keyValues) throws IOException {
-      Map<String, String> customizedKVs = Maps.newHashMap(keyValues);
-      customizedKVs.put("customizedKey_1", "customizedVal_1");
-      customizedKVs.put("customizedKey_2", "customizedVal_2");
-      customizedKVs.put("customizedKey_3", "customizedVal_3");
-      super.setResultToUserContent(customizedKVs);
+                            HelixJobsMapping jobsMapping,
+                            TaskRunnerSuiteBase.Builder builder,
+                            GobblinHelixJobLauncherMetrics launcherMetrics,
+                            GobblinHelixJobTaskMetrics jobTaskMetrics,
+                            GobblinHelixMetrics helixMetrics) {
+      super(context,
+            jobsMapping,
+            builder,
+            launcherMetrics,
+            jobTaskMetrics,
+            helixMetrics);
     }
   }
 
@@ -88,20 +91,17 @@ public class TaskRunnerSuiteForJobFactoryTest extends TaskRunnerSuiteThreadModel
       super(builder);
     }
 
-    //TODO: change below to Helix UserConentStore
     protected DistributeJobResult getResultFromUserContent() {
       DistributeJobResult rst = super.getResultFromUserContent();
-      Properties properties = rst.getProperties().get();
-      Assert.assertTrue(properties.containsKey(Partitioner.IS_EARLY_STOPPED));
-      Assert.assertFalse(PropertiesUtils.getPropAsBoolean(properties, Partitioner.IS_EARLY_STOPPED, "false"));
-
-      Assert.assertTrue(properties.getProperty("customizedKey_1").equals("customizedVal_1"));
-      Assert.assertTrue(properties.getProperty("customizedKey_2").equals("customizedVal_2"));
-      Assert.assertTrue(properties.getProperty("customizedKey_3").equals("customizedVal_3"));
+      String jobName = this.jobPlanningProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
+      try {
+        Assert.assertFalse(this.jobsMapping.getPlanningJobId(jobName).isPresent());
+      } catch (Exception e) {
+        Assert.fail(e.toString());
+      }
       IntegrationJobFactorySuite.completed.set(true);
       return rst;
     }
-
 
     @Alias("TestDistributedExecutionLauncherBuilder")
     public static class Builder extends GobblinHelixDistributeJobExecutionLauncher.Builder {

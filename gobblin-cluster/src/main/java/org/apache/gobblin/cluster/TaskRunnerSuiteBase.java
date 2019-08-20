@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.cluster;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -50,12 +51,9 @@ import org.apache.gobblin.util.ConfigUtils;
 @Slf4j
 @Alpha
 public abstract class TaskRunnerSuiteBase {
-  protected TaskFactory taskFactory;
-  protected TaskFactory jobFactory;
   protected MetricContext metricContext;
   protected String applicationId;
   protected String applicationName;
-  protected StandardMetricsBridge.StandardMetrics taskMetrics;
   protected List<Service> services = Lists.newArrayList();
 
   protected TaskRunnerSuiteBase(Builder builder) {
@@ -68,7 +66,7 @@ public abstract class TaskRunnerSuiteBase {
     return this.metricContext;
   }
 
-  protected abstract StandardMetricsBridge.StandardMetrics getTaskMetrics();
+  protected abstract Collection<StandardMetricsBridge.StandardMetrics> getMetricsCollection();
 
   protected abstract Map<String, TaskFactory> getTaskFactoryMap();
 
@@ -84,25 +82,33 @@ public abstract class TaskRunnerSuiteBase {
 
   @Getter
   public static class Builder {
-    private Config config;
-    private HelixManager helixManager;
+    private final Config config;
+    private final Config dynamicConfig;
+    private HelixManager jobHelixManager;
     private Optional<ContainerMetrics> containerMetrics;
     private FileSystem fs;
     private Path appWorkPath;
     private String applicationId;
     private String applicationName;
+    private String instanceName;
 
     public Builder(Config config) {
+      this.dynamicConfig = GobblinClusterUtils.getDynamicConfig(config);
       this.config = config;
     }
 
-    public Builder setHelixManager(HelixManager manager) {
-      this.helixManager = manager;
+    public Builder setJobHelixManager(HelixManager jobHelixManager) {
+      this.jobHelixManager = jobHelixManager;
       return this;
     }
 
     public Builder setApplicationName(String applicationName) {
       this.applicationName = applicationName;
+      return this;
+    }
+
+    public Builder setInstanceName(String instanceName) {
+      this.instanceName = instanceName;
       return this;
     }
 

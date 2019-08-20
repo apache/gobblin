@@ -105,6 +105,10 @@ public class JsonElementConversionFactory {
       case MAP:
         return new MapConverter(schema);
 
+      case DATE:
+      case TIMESTAMP:
+        return new StringConverter(schema, repeated);
+
       default:
         throw new UnsupportedOperationException(fieldType + " is unsupported");
     }

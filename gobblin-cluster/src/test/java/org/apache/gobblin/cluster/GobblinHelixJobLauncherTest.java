@@ -186,7 +186,9 @@ public class GobblinHelixJobLauncherTest {
 
     properties.setProperty(ConfigurationKeys.WRITER_FILE_PATH, jobName);
 
-    properties.setProperty(GobblinClusterConfigurationKeys.HELIX_WORKFLOW_EXPIRY_TIME_SECONDS, "2");
+    // expiry time should be more than the time needed for the job to complete
+    // otherwise JobContext will become null. This is how Helix work flow works.
+    properties.setProperty(GobblinClusterConfigurationKeys.HELIX_WORKFLOW_EXPIRY_TIME_SECONDS, "5");
 
     return properties;
   }
@@ -203,7 +205,8 @@ public class GobblinHelixJobLauncherTest {
     // Normal job launcher
     final Properties properties = generateJobProperties(this.baseConfig, "1", "_1504201348470");
     final GobblinHelixJobLauncher gobblinHelixJobLauncher = this.closer.register(
-        new GobblinHelixJobLauncher(properties, this.helixManager, this.appWorkDir, ImmutableList.<Tag<?>>of(), runningMap));
+        new GobblinHelixJobLauncher(properties, this.helixManager, this.appWorkDir, ImmutableList.<Tag<?>>of(), runningMap,
+            java.util.Optional.empty()));
 
     gobblinHelixJobLauncher.launchJob(null);
 
@@ -252,12 +255,14 @@ public class GobblinHelixJobLauncherTest {
     // Job launcher(1) to test parallel job running
     final Properties properties1 = generateJobProperties(this.baseConfig, "2", "_1504201348471");
     final GobblinHelixJobLauncher gobblinHelixJobLauncher1 = this.closer.register(
-        new GobblinHelixJobLauncher(properties1, this.helixManager, this.appWorkDir, ImmutableList.<Tag<?>>of(), runningMap));
+        new GobblinHelixJobLauncher(properties1, this.helixManager, this.appWorkDir, ImmutableList.<Tag<?>>of(), runningMap,
+            java.util.Optional.empty()));
 
     // Job launcher(2) to test parallel job running
     final Properties properties2 = generateJobProperties(this.baseConfig, "2", "_1504201348472");
     final GobblinHelixJobLauncher gobblinHelixJobLauncher2 = this.closer.register(
-        new GobblinHelixJobLauncher(properties2, this.helixManager, this.appWorkDir, ImmutableList.<Tag<?>>of(), runningMap));
+        new GobblinHelixJobLauncher(properties2, this.helixManager, this.appWorkDir, ImmutableList.<Tag<?>>of(), runningMap,
+            java.util.Optional.empty()));
 
     CountDownLatch stg1 = new CountDownLatch(1);
     CountDownLatch stg2 = new CountDownLatch(1);
@@ -286,11 +291,13 @@ public class GobblinHelixJobLauncherTest {
 
     final Properties properties = generateJobProperties(this.baseConfig, "3", "_1504201348473");
     final GobblinHelixJobLauncher gobblinHelixJobLauncher =
-        new GobblinHelixJobLauncher(properties, this.helixManager, this.appWorkDir, ImmutableList.<Tag<?>>of(), runningMap);
+        new GobblinHelixJobLauncher(properties, this.helixManager, this.appWorkDir, ImmutableList.<Tag<?>>of(), runningMap,
+            java.util.Optional.empty());
 
     final Properties properties2 = generateJobProperties(this.baseConfig, "33", "_1504201348474");
     final GobblinHelixJobLauncher gobblinHelixJobLauncher2 =
-        new GobblinHelixJobLauncher(properties2, this.helixManager, this.appWorkDir, ImmutableList.<Tag<?>>of(), runningMap);
+        new GobblinHelixJobLauncher(properties2, this.helixManager, this.appWorkDir, ImmutableList.<Tag<?>>of(), runningMap,
+            java.util.Optional.empty());
 
     gobblinHelixJobLauncher.launchJob(null);
     gobblinHelixJobLauncher2.launchJob(null);
@@ -299,6 +306,7 @@ public class GobblinHelixJobLauncherTest {
 
     final String jobIdKey1 = properties.getProperty(ConfigurationKeys.JOB_ID_KEY);
     final String jobIdKey2 = properties2.getProperty(ConfigurationKeys.JOB_ID_KEY);
+
     org.apache.helix.task.JobContext jobContext1 = taskDriver.getJobContext(jobIdKey1);
     org.apache.helix.task.JobContext jobContext2 = taskDriver.getJobContext(jobIdKey2);
 

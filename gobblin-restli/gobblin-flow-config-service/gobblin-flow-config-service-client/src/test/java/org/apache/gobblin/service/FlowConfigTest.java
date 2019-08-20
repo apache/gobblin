@@ -23,6 +23,7 @@ import java.net.ServerSocket;
 import java.util.Map;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.gobblin.runtime.spec_store.FSSpecStore;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -70,7 +71,7 @@ public class FlowConfigTest {
 
     configBuilder
         .addPrimitive(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY, _testDirectory.getAbsolutePath())
-        .addPrimitive(ConfigurationKeys.SPECSTORE_FS_DIR_KEY, TEST_SPEC_STORE_DIR);
+        .addPrimitive(FSSpecStore.SPECSTORE_FS_DIR_KEY, TEST_SPEC_STORE_DIR);
     cleanUpDir(TEST_SPEC_STORE_DIR);
 
     Config config = configBuilder.build();
@@ -82,10 +83,15 @@ public class FlowConfigTest {
     Injector injector = Guice.createInjector(new Module() {
        @Override
        public void configure(Binder binder) {
-         binder.bind(FlowConfigsResourceHandler.class).annotatedWith(Names.named("flowConfigsResourceHandler")).toInstance(new FlowConfigResourceLocalHandler(flowCatalog));
+         binder.bind(FlowConfigsResourceHandler.class)
+             .annotatedWith(Names.named(FlowConfigsResource.INJECT_FLOW_CONFIG_RESOURCE_HANDLER))
+             .toInstance(new FlowConfigResourceLocalHandler(flowCatalog));
+
          // indicate that we are in unit testing since the resource is being blocked until flow catalog changes have
          // been made
-         binder.bindConstant().annotatedWith(Names.named("readyToUse")).to(Boolean.TRUE);
+         binder.bindConstant().annotatedWith(Names.named(FlowConfigsResource.INJECT_READY_TO_USE)).to(Boolean.TRUE);
+         binder.bind(RequesterService.class)
+             .annotatedWith(Names.named(FlowConfigsResource.INJECT_REQUESTER_SERVICE)).toInstance(new NoopRequesterService(config));
        }
     });
 
@@ -217,6 +223,26 @@ public class FlowConfigTest {
   }
 
   @Test (dependsOnMethods = "testUpdate")
+  public void testUnschedule() throws Exception {
+    FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME);
+    Map<String, String> flowProperties = Maps.newHashMap();
+    flowProperties.put("param1", "value1");
+    flowProperties.put(ConfigurationKeys.FLOW_UNSCHEDULE_KEY, "true");
+
+    FlowConfig flowConfig = new FlowConfig().setId(flowId)
+        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).
+            setRunImmediately(true))
+        .setProperties(new StringMap(flowProperties));
+
+    _client.updateFlowConfig(flowConfig);
+
+    FlowConfig persistedFlowConfig = _client.getFlowConfig(flowId);
+
+    Assert.assertFalse(persistedFlowConfig.getProperties().containsKey(ConfigurationKeys.FLOW_UNSCHEDULE_KEY));
+    Assert.assertEquals(persistedFlowConfig.getSchedule().getCronSchedule(), FlowConfigResourceLocalHandler.NEVER_RUN_CRON_SCHEDULE.getCronSchedule());
+  }
+
+  @Test (dependsOnMethods = "testUnschedule")
   public void testDelete() throws Exception {
     FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME);
 

@@ -301,9 +301,19 @@ public class SourceState extends State {
   @Override
   public void write(DataOutput out)
       throws IOException {
-    out.writeInt(this.previousWorkUnitStates.size());
-    for (WorkUnitState state : this.previousWorkUnitStates) {
-      state.write(out);
+    write(out, true);
+  }
+
+  public void write(DataOutput out, boolean writePreviousWorkUnitStates)
+      throws IOException {
+
+    if (!writePreviousWorkUnitStates) {
+      out.writeInt(0);
+    } else {
+      out.writeInt(this.previousWorkUnitStates.size());
+      for (WorkUnitState state : this.previousWorkUnitStates) {
+        state.write(out);
+      }
     }
     super.write(out);
   }

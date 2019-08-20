@@ -49,6 +49,8 @@ dependencies {
 
   compile externalDependency.avro
   compile externalDependency.avroMapredH2
+  compile externalDependency.calciteCore
+  //compile externalDependency.calciteAvatica
   compile externalDependency.commonsCli
   compile externalDependency.commonsConfiguration
   compile externalDependency.commonsEmail
@@ -72,20 +74,18 @@ dependencies {
   compile externalDependency.lombok
   compile externalDependency.metricsCore
   compile externalDependency.metricsJvm
+  compile externalDependency.mockito
   compile externalDependency.pegasus.data
   compile externalDependency.quartz
   compile externalDependency.slf4j
   compile externalDependency.typesafeConfig
   compile externalDependency.kafka08
-  compile externalDependency.scala
   compile externalDependency.guavaretrying
   compile externalDependency.hiveExec
   compile externalDependency.parquet
   compile externalDependency.kryo
 
   testCompile project(path: ":gobblin-metastore", configuration: "testFixtures")
-  testCompile externalDependency.calciteCore
-  testCompile externalDependency.calciteAvatica
   testCompile externalDependency.jhyde
   testCompile externalDependency.testng
   testCompile externalDependency.hamcrest
@@ -151,6 +151,7 @@ jmh {
 }
 
 test {
+    systemProperty "org.jboss.byteman.verbose", "true"
     workingDir rootProject.rootDir
     maxParallelForks = 1
 }

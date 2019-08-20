@@ -220,7 +220,7 @@ public class HiveSchemaEvolutionTest {
             outputSchema, isEvolutionEnabled, hiveColumns, destinationTableMeta);
     Assert.assertEquals(generateEvolutionDDL.size(), 2);
     Assert.assertEquals(generateEvolutionDDL.get(1),
-        "ALTER TABLE `sourceSchema` ADD COLUMNS (parentFieldRecord__nestedFieldInt int "
+        "ALTER TABLE `sourceSchema` ADD COLUMNS (`parentFieldRecord__nestedFieldInt` int "
             + "COMMENT 'from flatten_source parentFieldRecord.nestedFieldInt')",
         "Generated evolution DDL did not match for evolution enabled");
 

@@ -24,13 +24,11 @@ import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.ScheduledReporter;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.typesafe.config.Config;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.CustomCodahaleReporterFactory;
 import org.apache.gobblin.metrics.KafkaReportingFormats;
 import org.apache.gobblin.metrics.RootMetricContext;
-import org.apache.gobblin.util.ConfigUtils;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -44,18 +42,23 @@ public class KafkaReporterFactory implements CustomCodahaleReporterFactory {
         ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_ENABLED))) {
       return null;
     }
-    log.info("Reporting metrics to Kafka");
+    log.info("Reporting metrics & events to Kafka");
 
-    Optional<String> defaultTopic = Optional.fromNullable(properties.getProperty(ConfigurationKeys.METRICS_KAFKA_TOPIC));
-    Optional<String> metricsTopic = Optional.fromNullable(
-        properties.getProperty(ConfigurationKeys.METRICS_KAFKA_TOPIC_METRICS));
-    Optional<String> eventsTopic = Optional.fromNullable(
-        properties.getProperty(ConfigurationKeys.METRICS_KAFKA_TOPIC_EVENTS));
+    Optional<String> defaultTopic =
+        Optional.fromNullable(properties.getProperty(ConfigurationKeys.METRICS_KAFKA_TOPIC));
+    Optional<String> metricsTopic =
+        Optional.fromNullable(properties.getProperty(ConfigurationKeys.METRICS_KAFKA_TOPIC_METRICS));
+    Optional<String> eventsTopic =
+        Optional.fromNullable(properties.getProperty(ConfigurationKeys.METRICS_KAFKA_TOPIC_EVENTS));
 
     boolean metricsEnabled = metricsTopic.or(defaultTopic).isPresent();
-    if (metricsEnabled) log.info("Reporting metrics to Kafka");
+    if (metricsEnabled) {
+      log.info("Metrics enabled ---  Reporting metrics to Kafka");
+    }
     boolean eventsEnabled = eventsTopic.or(defaultTopic).isPresent();
-    if (eventsEnabled) log.info("Reporting events to Kafka");
+    if (eventsEnabled) {
+      log.info("Events enabled --- Reporting events to Kafka");
+    }
 
     try {
       Preconditions.checkArgument(properties.containsKey(ConfigurationKeys.METRICS_KAFKA_BROKERS),
@@ -68,51 +71,55 @@ public class KafkaReporterFactory implements CustomCodahaleReporterFactory {
 
     String brokers = properties.getProperty(ConfigurationKeys.METRICS_KAFKA_BROKERS);
 
-    String reportingFormat = properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_FORMAT,
+    String metricsReportingFormat = properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_FORMAT,
         ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_FORMAT);
 
     KafkaReportingFormats formatEnum;
     try {
-      formatEnum = KafkaReportingFormats.valueOf(reportingFormat.toUpperCase());
+      formatEnum = KafkaReportingFormats.valueOf(metricsReportingFormat.toUpperCase());
     } catch (IllegalArgumentException exception) {
-      log.warn("Kafka metrics reporting format " + reportingFormat +
-          " not recognized. Will report in json format.", exception);
+      log.warn(
+          "Kafka metrics reporting format " + metricsReportingFormat + " not recognized. Will report in json format.",
+          exception);
       formatEnum = KafkaReportingFormats.JSON;
     }
 
     if (metricsEnabled) {
       try {
-        formatEnum.metricReporterBuilder(properties)
-            .build(brokers, metricsTopic.or(defaultTopic).get(), properties);
+        formatEnum.buildMetricsReporter(brokers, metricsTopic.or(defaultTopic).get(), properties);
       } catch (IOException exception) {
         log.error("Failed to create Kafka metrics reporter. Will not report metrics to Kafka.", exception);
       }
     }
 
+    KafkaReportingFormats eventFormatEnum;
+    if (properties.containsKey(ConfigurationKeys.METRICS_REPORTING_EVENTS_KAFKA_FORMAT)) {
+      String eventsReportingFormat = properties.getProperty(ConfigurationKeys.METRICS_REPORTING_EVENTS_KAFKA_FORMAT,
+          ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_FORMAT);
+      try {
+        eventFormatEnum = KafkaReportingFormats.valueOf(eventsReportingFormat.toUpperCase());
+      } catch (IllegalArgumentException exception) {
+        log.warn(
+            "Kafka events reporting format " + eventsReportingFormat + " not recognized. Will report in json format.",
+            exception);
+        eventFormatEnum = KafkaReportingFormats.JSON;
+      }
+    } else {
+      eventFormatEnum = formatEnum;
+    }
+
     if (eventsEnabled) {
       try {
-        KafkaEventReporter.Builder<?> builder = formatEnum.eventReporterBuilder(RootMetricContext.get(),
-            properties);
+        String eventTopic = eventsTopic.or(defaultTopic).get();
+        ScheduledReporter reporter =
+            eventFormatEnum.buildEventsReporter(brokers, eventTopic, RootMetricContext.get(), properties);
 
-        Config allConfig = ConfigUtils.propertiesToConfig(properties);
-        // the kafka configuration is composed of the metrics reporting specific keys with a fallback to the shared
-        // kafka config
-        Config kafkaConfig = ConfigUtils.getConfigOrEmpty(allConfig,
-            PusherUtils.METRICS_REPORTING_KAFKA_CONFIG_PREFIX).withFallback(ConfigUtils.getConfigOrEmpty(allConfig,
-            ConfigurationKeys.SHARED_KAFKA_CONFIG_PREFIX));
-
-        builder.withConfig(kafkaConfig);
-
-        builder.withPusherClassName(properties.getProperty(PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY,
-            PusherUtils.DEFAULT_KAFKA_PUSHER_CLASS_NAME));
-
-        return builder.build(brokers, eventsTopic.or(defaultTopic).get());
+        return reporter;
       } catch (IOException exception) {
         log.error("Failed to create Kafka events reporter. Will not report events to Kafka.", exception);
       }
     }
 
-    log.info("Will start reporting metrics to Kafka");
     return null;
   }
 }

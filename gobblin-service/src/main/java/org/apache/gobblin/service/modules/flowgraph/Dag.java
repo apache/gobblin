@@ -17,17 +17,21 @@
 
 package org.apache.gobblin.service.modules.flowgraph;
 
-import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import com.google.common.collect.Lists;
-
-import org.apache.gobblin.annotation.Alpha;
+import com.google.common.collect.Sets;
 
 import lombok.Getter;
+
+import org.apache.gobblin.annotation.Alpha;
 
 
 /**
@@ -80,11 +84,70 @@ public class Dag<T> {
   }
 
   public List<DagNode<T>> getChildren(DagNode node) {
-    return parentChildMap.getOrDefault(node, null);
+    return parentChildMap.getOrDefault(node, Collections.EMPTY_LIST);
   }
 
   public List<DagNode<T>> getParents(DagNode node) {
-    return node.parentNodes;
+    return (node.parentNodes != null) ? node.parentNodes : Collections.EMPTY_LIST;
+  }
+
+  /**
+   * Get the ancestors of a given set of {@link DagNode}s in the {@link Dag}.
+   * @param dagNodes set of nodes in the {@link Dag}.
+   * @return the union of all ancestors of dagNodes in the dag.
+   */
+  private Set<DagNode<T>> getAncestorNodes(Set<DagNode<T>> dagNodes) {
+    Set<DagNode<T>> ancestorNodes = new HashSet<>();
+    for (DagNode<T> dagNode : dagNodes) {
+      LinkedList<DagNode<T>> nodesToExpand = Lists.newLinkedList(this.getParents(dagNode));
+      while (!nodesToExpand.isEmpty()) {
+        DagNode<T> nextNode = nodesToExpand.poll();
+        ancestorNodes.add(nextNode);
+        nodesToExpand.addAll(this.getParents(nextNode));
+      }
+    }
+    return ancestorNodes;
+  }
+
+  /**
+   * This method computes a set of {@link DagNode}s which are the dependency nodes for concatenating this {@link Dag}
+   * with any other {@link Dag}. The set of dependency nodes is the union of:
+   * <p><ul>
+   *   <li> The endNodes of this dag which are not forkable, and </li>
+   *   <li> The parents of forkable nodes, such that no parent is an ancestor of another parent.</li>
+   * </ul></p>
+   *
+   * @param forkNodes set of nodes of this {@link Dag} which are forkable
+   * @return set of dependency nodes of this dag for concatenation with any other dag.
+   */
+  public Set<DagNode<T>> getDependencyNodes(Set<DagNode<T>> forkNodes) {
+    Set<DagNode<T>> dependencyNodes = new HashSet<>();
+    for (DagNode<T> endNode : endNodes) {
+      if (!forkNodes.contains(endNode)) {
+        dependencyNodes.add(endNode);
+      }
+    }
+
+    //Get all ancestors of non-forkable nodes
+    Set<DagNode<T>> ancestorNodes = this.getAncestorNodes(dependencyNodes);
+
+    //Add ancestors of the parents of forkable nodes
+    for (DagNode<T> dagNode: forkNodes) {
+      List<DagNode<T>> parentNodes = this.getParents(dagNode);
+      ancestorNodes.addAll(this.getAncestorNodes(Sets.newHashSet(parentNodes)));
+    }
+
+    for (DagNode<T> dagNode: forkNodes) {
+      List<DagNode<T>> parentNodes = this.getParents(dagNode);
+      for (DagNode<T> parentNode : parentNodes) {
+        //Add parent node of a forkable node as a dependency, only if it is not already an ancestor of another
+        // dependency.
+        if (!ancestorNodes.contains(parentNode)) {
+          dependencyNodes.add(parentNode);
+        }
+      }
+    }
+    return dependencyNodes;
   }
 
   public boolean isEmpty() {
@@ -100,25 +163,84 @@ public class Dag<T> {
    * @param other dag to concatenate to this dag
    * @return the concatenated dag
    */
-  public Dag<T> concatenate(Dag<T> other) throws IOException {
+  public Dag<T> concatenate(Dag<T> other) {
+    return concatenate(other, new HashSet<>());
+  }
+
+  /**
+   * Concatenate two dags together. Join the "other" dag to "this" dag and return "this" dag.
+   * The concatenate method ensures that all the jobs of "this" dag (which may have multiple end nodes)
+   * are completed before starting any job of the "other" dag. This is done by adding each endNode of this dag, which is
+   * not a fork node, as a parent of every startNode of the other dag.
+   *
+   * @param other dag to concatenate to this dag
+   * @param forkNodes a set of nodes from this dag which are marked as forkable nodes. Each of these nodes will be added
+   *                  to the list of end nodes of the concatenated dag. Essentially, a forkable node has no dependents
+   *                  in the concatenated dag.
+   * @return the concatenated dag
+   */
+  public Dag<T> concatenate(Dag<T> other, Set<DagNode<T>> forkNodes) {
     if (other == null || other.isEmpty()) {
       return this;
     }
     if (this.isEmpty()) {
       return other;
     }
-    for (DagNode node : this.endNodes) {
-      this.parentChildMap.put(node, Lists.newArrayList());
+
+    for (DagNode node : getDependencyNodes(forkNodes)) {
+      if (!this.parentChildMap.containsKey(node)) {
+        this.parentChildMap.put(node, Lists.newArrayList());
+      }
       for (DagNode otherNode : other.startNodes) {
         this.parentChildMap.get(node).add(otherNode);
         otherNode.addParentNode(node);
       }
-      this.endNodes = other.endNodes;
     }
+    //Each node which is a forkable node is added to list of end nodes of the concatenated dag
+    other.endNodes.addAll(forkNodes);
+    this.endNodes = other.endNodes;
+
+    //Append all the entries from the other dag's parentChildMap to this dag's parentChildMap
+    this.parentChildMap.putAll(other.parentChildMap);
+
+    //If there exists a node in the other dag with no parent nodes, add it to the list of start nodes of the
+    // concatenated dag.
+    other.startNodes.stream().filter(node -> other.getParents(node).isEmpty())
+        .forEach(node -> this.startNodes.add(node));
+
     this.nodes.addAll(other.nodes);
     return this;
   }
 
+  /**
+   * Merge the "other" dag to "this" dag and return "this" dag as a forest of the two dags.
+   * More specifically, the merge() operation takes two dags and returns a disjoint union of the two dags.
+   *
+   * @param other dag to merge to this dag
+   * @return the disjoint union of the two dags
+   */
+
+  public Dag<T> merge(Dag<T> other) {
+    if (other == null || other.isEmpty()) {
+      return this;
+    }
+    if (this.isEmpty()) {
+      return other;
+    }
+    //Append all the entries from the other dag's parentChildMap to this dag's parentChildMap
+    for (Map.Entry<DagNode, List<DagNode<T>>> entry : other.parentChildMap.entrySet()) {
+      this.parentChildMap.put(entry.getKey(), entry.getValue());
+    }
+    //Append the startNodes, endNodes and nodes from the other dag to this dag.
+    this.startNodes.addAll(other.startNodes);
+    this.endNodes.addAll(other.endNodes);
+    this.nodes.addAll(other.nodes);
+    return this;
+  }
+
+  /**
+   * DagNode is essentially a job within a Dag, usually they are used interchangeably.
+   */
   @Getter
   public static class DagNode<T> {
     private T value;
@@ -147,15 +269,28 @@ public class Dag<T> {
         return false;
       }
       DagNode that = (DagNode) o;
-      if (!this.getValue().equals(that.getValue())) {
-        return false;
-      }
-      return true;
+      return this.getValue().equals(that.getValue());
     }
 
     @Override
     public int hashCode() {
       return this.getValue().hashCode();
     }
+  }
+
+  /**
+   * @return A string representation of the Dag as a JSON Array.
+   */
+  @Override
+  public String toString() {
+    StringBuffer sb = new StringBuffer();
+    sb.append("[");
+    for (DagNode node: this.getNodes()) {
+      sb.append(node.getValue().toString());
+      sb.append(",");
+    }
+    sb.delete(sb.length()-1, sb.length());
+    sb.append("]");
+    return sb.toString();
   }
 }

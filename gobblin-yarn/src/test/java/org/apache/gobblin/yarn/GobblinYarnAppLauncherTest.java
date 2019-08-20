@@ -17,8 +17,12 @@
 
 package org.apache.gobblin.yarn;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicate;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.eventbus.EventBus;
 import com.google.common.io.Closer;
+import com.google.common.util.concurrent.Service;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
@@ -31,18 +35,29 @@ import java.lang.reflect.Field;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.TimeoutException;
+
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.test.TestingServer;
 import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
 import org.apache.gobblin.cluster.GobblinHelixConstants;
+import org.apache.gobblin.cluster.GobblinHelixMultiManager;
 import org.apache.gobblin.cluster.HelixMessageTestBase;
 import org.apache.gobblin.cluster.HelixUtils;
 import org.apache.gobblin.cluster.TestHelper;
 import org.apache.gobblin.cluster.TestShutdownMessageHandlerFactory;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.DynamicConfigGenerator;
+import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
 import org.apache.gobblin.testing.AssertWithBackoff;
+
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
+import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
@@ -51,12 +66,15 @@ import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
 import org.apache.helix.model.Message;
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
+
+import static org.mockito.Mockito.times;
 
 
 /**
@@ -170,6 +188,14 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
   }
 
   @Test
+  public void testBuildApplicationMasterCommand() {
+    String command = this.gobblinYarnAppLauncher.buildApplicationMasterCommand(64);
+
+    // 41 is from 64 * 0.8 - 10
+    Assert.assertTrue(command.contains("-Xmx41"));
+  }
+
+  @Test
   public void testCreateHelixCluster() throws Exception {
     // This is tested here instead of in HelixUtilsTest to avoid setting up yet another testing ZooKeeper server.
     HelixUtils.createGobblinHelixCluster(
@@ -277,5 +303,129 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
   public void assertMessageReception(Message message) {
     Assert.assertEquals(message.getMsgType(), GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE);
     Assert.assertEquals(message.getMsgSubType(), HelixMessageSubTypes.APPLICATION_MASTER_SHUTDOWN.toString());
+  }
+
+  /**
+   * Test that the dynamic config is added to the config specified when the {@link GobblinApplicationMaster}
+   * is instantiated.
+   */
+  @Test
+  public void testDynamicConfig() throws Exception {
+    Config config = this.config.withFallback(
+        ConfigFactory.parseMap(
+        ImmutableMap.of(ConfigurationKeys.DYNAMIC_CONFIG_GENERATOR_CLASS_KEY,
+            TestDynamicConfigGenerator.class.getName())));
+
+    ContainerId containerId = ContainerId.newInstance(
+        ApplicationAttemptId.newInstance(ApplicationId.newInstance(0, 0), 0), 0);
+    TestApplicationMaster
+        appMaster = new TestApplicationMaster("testApp", containerId, config,
+        new YarnConfiguration());
+
+    Assert.assertEquals(appMaster.getConfig().getString("dynamicKey1"), "dynamicValue1");
+    Assert.assertEquals(appMaster.getConfig().getString(ConfigurationKeys.DYNAMIC_CONFIG_GENERATOR_CLASS_KEY),
+        TestDynamicConfigGenerator.class.getName());
+
+    ServiceBasedAppLauncher appLauncher = appMaster.getAppLauncher();
+    Field servicesField = ServiceBasedAppLauncher.class.getDeclaredField("services");
+    servicesField.setAccessible(true);
+
+    List<Service> services = (List<Service>) servicesField.get(appLauncher);
+
+    Optional<Service> yarnServiceOptional = services.stream().filter(e -> e instanceof YarnService).findFirst();
+
+    Assert.assertTrue(yarnServiceOptional.isPresent());
+
+    YarnService yarnService = (YarnService) yarnServiceOptional.get();
+    Field configField = YarnService.class.getDeclaredField("config");
+    configField.setAccessible(true);
+    Config yarnServiceConfig = (Config) configField.get(yarnService);
+
+    Assert.assertEquals(yarnServiceConfig.getString("dynamicKey1"), "dynamicValue1");
+    Assert.assertEquals(yarnServiceConfig.getString(ConfigurationKeys.DYNAMIC_CONFIG_GENERATOR_CLASS_KEY),
+        TestDynamicConfigGenerator.class.getName());
+  }
+
+  /**
+   * Test that the job cleanup call is called
+   */
+  @Test
+  public void testJobCleanup() throws Exception {
+    ContainerId containerId = ContainerId.newInstance(
+        ApplicationAttemptId.newInstance(ApplicationId.newInstance(0, 0), 0), 0);
+    TestApplicationMaster
+        appMaster = Mockito.spy(new TestApplicationMaster("testApp", containerId, config,
+        new YarnConfiguration()));
+
+    GobblinHelixMultiManager mockMultiManager = Mockito.mock(GobblinHelixMultiManager.class);
+
+    appMaster.setMultiManager(mockMultiManager);
+    appMaster.start();
+
+    Mockito.verify(mockMultiManager, times(1)).cleanUpJobs();
+  }
+
+  /**
+   * An application master for accessing protected fields in {@link GobblinApplicationMaster}
+   * for testing.
+   */
+  private static class TestApplicationMaster extends GobblinApplicationMaster {
+    public TestApplicationMaster(String applicationName, ContainerId containerId, Config config,
+        YarnConfiguration yarnConfiguration)
+        throws Exception {
+      super(applicationName, containerId, config, yarnConfiguration);
+    }
+
+    @Override
+    protected YarnService buildYarnService(Config config, String applicationName, String applicationId,
+        YarnConfiguration yarnConfiguration, FileSystem fs) throws Exception {
+
+      YarnService testYarnService = new TestYarnService(config, applicationName, applicationId, yarnConfiguration, fs,
+          new EventBus("GobblinYarnAppLauncherTest"));
+
+      return testYarnService;
+    }
+
+    public Config getConfig() {
+      return this.config;
+    }
+
+    public ServiceBasedAppLauncher getAppLauncher() {
+      return this.applicationLauncher;
+    }
+
+    public void setMultiManager(GobblinHelixMultiManager multiManager) {
+      this.multiManager = multiManager;
+    }
+  }
+
+  /**
+   * Class for testing that dynamic config is injected
+   */
+  @VisibleForTesting
+  public static class TestDynamicConfigGenerator implements DynamicConfigGenerator {
+    public TestDynamicConfigGenerator() {
+    }
+
+    @Override
+    public Config generateDynamicConfig(Config config) {
+      return ConfigFactory.parseMap(ImmutableMap.of("dynamicKey1", "dynamicValue1"));
+    }
+  }
+
+  /**
+   * Test class for mocking out YarnService. Need to use this instead of Mockito because of final methods.
+   */
+  private static class TestYarnService extends YarnService {
+    public TestYarnService(Config config, String applicationName, String applicationId, YarnConfiguration yarnConfiguration,
+        FileSystem fs, EventBus eventBus) throws Exception {
+      super(config, applicationName, applicationId, yarnConfiguration, fs, eventBus);
+    }
+
+    @Override
+    protected void startUp()
+        throws Exception {
+      // do nothing
+    }
   }
 }

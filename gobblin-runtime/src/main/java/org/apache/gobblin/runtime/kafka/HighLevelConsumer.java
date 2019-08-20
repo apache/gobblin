@@ -33,13 +33,6 @@ import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
 
-import org.apache.gobblin.instrumented.Instrumented;
-import org.apache.gobblin.metrics.MetricContext;
-import org.apache.gobblin.metrics.Tag;
-import org.apache.gobblin.runtime.metrics.RuntimeMetrics;
-import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.util.ExecutorsUtils;
-
 import kafka.consumer.Consumer;
 import kafka.consumer.ConsumerConfig;
 import kafka.consumer.ConsumerIterator;
@@ -49,6 +42,13 @@ import kafka.message.MessageAndMetadata;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.runtime.metrics.RuntimeMetrics;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.ExecutorsUtils;
 
 
 /**
@@ -71,9 +71,9 @@ public abstract class HighLevelConsumer<K, V> extends AbstractIdleService {
   private static final String DEFAULT_GROUP_ID = "KafkaJobSpecMonitor";
 
   @Getter
-  private final String topic;
+  protected final String topic;
+  protected final Config config;
   private final int numThreads;
-  private final Config config;
   private final ConsumerConfig consumerConfig;
 
   /**
@@ -203,5 +203,4 @@ public abstract class HighLevelConsumer<K, V> extends AbstractIdleService {
       }
     }
   }
-
 }

@@ -34,6 +34,8 @@ import org.apache.gobblin.codec.StreamCodec;
 
 public class GobblinEncryptionProviderTest {
   private static final long KEY_ID = -4435883136602571409L;
+  private static final String PRIVATE_KEY = "/testPrivate.key";
+  private static final String PUBLIC_KEY = "/testPublic.key";
 
   @Test
   public void testCanBuildAes() throws IOException {
@@ -61,7 +63,7 @@ public class GobblinEncryptionProviderTest {
     Map<String, Object> encryptionProperties = new HashMap<>();
     encryptionProperties.put(EncryptionConfigParser.ENCRYPTION_ALGORITHM_KEY, GPGCodec.TAG);
     encryptionProperties.put(EncryptionConfigParser.ENCRYPTION_KEYSTORE_PATH_KEY, GPGFileEncryptor.class.getResource(
-        GPGFileEncryptorTest.PUBLIC_KEY).toString());
+        PUBLIC_KEY).toString());
     encryptionProperties.put(EncryptionConfigParser.ENCRYPTION_KEY_NAME, String.valueOf(GPGFileEncryptorTest.KEY_ID));
 
     testGPG(encryptionProperties);
@@ -72,7 +74,7 @@ public class GobblinEncryptionProviderTest {
     Map<String, Object> encryptionProperties = new HashMap<>();
     encryptionProperties.put(EncryptionConfigParser.ENCRYPTION_ALGORITHM_KEY, GPGCodec.TAG);
     encryptionProperties.put(EncryptionConfigParser.ENCRYPTION_KEYSTORE_PATH_KEY, GPGFileEncryptor.class.getResource(
-        GPGFileEncryptorTest.PUBLIC_KEY).toString());
+        PUBLIC_KEY).toString());
     encryptionProperties.put(EncryptionConfigParser.ENCRYPTION_KEY_NAME, String.valueOf(GPGFileEncryptorTest.KEY_ID));
     encryptionProperties.put(EncryptionConfigParser.ENCRYPTION_CIPHER_KEY, "CAST5");
 
@@ -84,7 +86,7 @@ public class GobblinEncryptionProviderTest {
     Map<String, Object> encryptionProperties = new HashMap<>();
     encryptionProperties.put(EncryptionConfigParser.ENCRYPTION_ALGORITHM_KEY, GPGCodec.TAG);
     encryptionProperties.put(EncryptionConfigParser.ENCRYPTION_KEYSTORE_PATH_KEY, GPGFileEncryptor.class.getResource(
-        GPGFileEncryptorTest.PUBLIC_KEY).toString());
+        PUBLIC_KEY).toString());
     encryptionProperties.put(EncryptionConfigParser.ENCRYPTION_KEY_NAME, String.valueOf(GPGFileEncryptorTest.KEY_ID));
     encryptionProperties.put(EncryptionConfigParser.ENCRYPTION_CIPHER_KEY, "BadCipher");
 
@@ -98,7 +100,7 @@ public class GobblinEncryptionProviderTest {
     Map<String, Object> decryptionProperties = new HashMap<>();
     decryptionProperties.put(EncryptionConfigParser.ENCRYPTION_ALGORITHM_KEY, GPGCodec.TAG);
     decryptionProperties.put(EncryptionConfigParser.ENCRYPTION_KEYSTORE_PATH_KEY, GPGFileEncryptor.class.getResource(
-        GPGFileEncryptorTest.PRIVATE_KEY).toString());
+        PRIVATE_KEY).toString());
     decryptionProperties.put(EncryptionConfigParser.ENCRYPTION_KEYSTORE_PASSWORD_KEY, GPGFileEncryptorTest.PASSPHRASE);
     StreamCodec decryptor = EncryptionFactory.buildStreamCryptoProvider(decryptionProperties);
     Assert.assertNotNull(decryptor);

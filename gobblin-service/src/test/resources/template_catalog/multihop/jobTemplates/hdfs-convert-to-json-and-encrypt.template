@@ -1,7 +1,7 @@
 # ====================================================================
 # Job configurations (can be changed)
 # ====================================================================
-job.name=convert-to-json-and-encrypt
+job.name=ConvertToJsonAndEncrypt
 job.description="Convert date partitioned avro files to json and encrypt"
 from=/data/out/${team.name}/${dataset.name}
 to=/data/encrypted/${team.name}/${dataset.name}

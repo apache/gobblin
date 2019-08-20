@@ -21,6 +21,7 @@ import org.apache.gobblin.data.management.partition.File;
 import org.apache.gobblin.data.management.copy.PreserveAttributes.Option;
 import org.apache.gobblin.dataset.DatasetConstants;
 import org.apache.gobblin.dataset.DatasetDescriptor;
+import org.apache.gobblin.dataset.Descriptor;
 import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.guid.Guid;
 
@@ -54,16 +55,16 @@ import com.google.common.collect.Lists;
 @EqualsAndHashCode(callSuper = true)
 public class CopyableFile extends CopyEntity implements File {
   /**
-   * The source dataset the file belongs to. For now, since it's only used before copying, set it to be
+   * The source data the file belongs to. For now, since it's only used before copying, set it to be
    * transient so that it won't be serialized, avoid unnecessary data transfer
    */
-  private transient DatasetDescriptor sourceDataset;
+  private transient Descriptor sourceData;
 
   /** {@link FileStatus} of the existing origin file. */
   private FileStatus origin;
 
-  /** The destination dataset the file will be copied to */
-  private DatasetDescriptor destinationDataset;
+  /** The destination data the file will be copied to */
+  private Descriptor destinationData;
 
   /** Complete destination {@link Path} of the file. */
   private Path destination;
@@ -99,11 +100,14 @@ public class CopyableFile extends CopyEntity implements File {
   /** Timestamp of file as in upstream. */
   private long upstreamTimestamp;
 
+  private String dataFileVersionStrategy;
+
   @lombok.Builder(builderClassName = "Builder", builderMethodName = "_hiddenBuilder")
   public CopyableFile(FileStatus origin, Path destination, OwnerAndPermission destinationOwnerAndPermission,
       List<OwnerAndPermission> ancestorsOwnerAndPermission, byte[] checksum, PreserveAttributes preserve,
       String fileSet, long originTimestamp, long upstreamTimestamp, Map<String, String> additionalMetadata,
-      String datasetOutputPath) {
+      String datasetOutputPath,
+      String dataFileVersionStrategy) {
     super(fileSet, additionalMetadata);
     this.origin = origin;
     this.destination = destination;
@@ -111,6 +115,7 @@ public class CopyableFile extends CopyEntity implements File {
     this.ancestorsOwnerAndPermission = ancestorsOwnerAndPermission;
     this.checksum = checksum;
     this.preserve = preserve;
+    this.dataFileVersionStrategy = dataFileVersionStrategy;
     this.originTimestamp = originTimestamp;
     this.upstreamTimestamp = upstreamTimestamp;
     this.datasetOutputPath = datasetOutputPath;
@@ -131,13 +136,15 @@ public class CopyableFile extends CopyEntity implements File {
 
     Path fullSourcePath = Path.getPathWithoutSchemeAndAuthority(origin.getPath());
     String sourceDatasetName = isDir ? fullSourcePath.toString() : fullSourcePath.getParent().toString();
-    sourceDataset = new DatasetDescriptor(originFs.getScheme(), sourceDatasetName);
+    DatasetDescriptor sourceDataset = new DatasetDescriptor(originFs.getScheme(), sourceDatasetName);
     sourceDataset.addMetadata(DatasetConstants.FS_URI, originFs.getUri().toString());
+    sourceData = sourceDataset;
 
     Path fullDestinationPath = Path.getPathWithoutSchemeAndAuthority(destination);
     String destinationDatasetName = isDir ? fullDestinationPath.toString() : fullDestinationPath.getParent().toString();
-    destinationDataset = new DatasetDescriptor(targetFs.getScheme(), destinationDatasetName);
+    DatasetDescriptor destinationDataset = new DatasetDescriptor(targetFs.getScheme(), destinationDatasetName);
     destinationDataset.addMetadata(DatasetConstants.FS_URI, targetFs.getUri().toString());
+    destinationData = destinationDataset;
   }
 
   /**
@@ -259,7 +266,7 @@ public class CopyableFile extends CopyEntity implements File {
 
       return new CopyableFile(this.origin, this.destination, this.destinationOwnerAndPermission,
           this.ancestorsOwnerAndPermission, this.checksum, this.preserve, this.fileSet, this.originTimestamp,
-          this.upstreamTimestamp, this.additionalMetadata, this.datasetOutputPath);
+          this.upstreamTimestamp, this.additionalMetadata, this.datasetOutputPath, this.dataFileVersionStrategy);
     }
 
     private List<OwnerAndPermission> replicateAncestorsOwnerAndPermission(FileSystem originFs, Path originPath,
@@ -346,6 +353,22 @@ public class CopyableFile extends CopyEntity implements File {
   @Override
   public FileStatus getFileStatus() {
     return this.origin;
+  }
+
+  /**
+   * @return desired block size for destination file.
+   */
+  public long getBlockSize(FileSystem targetFs) {
+    return getPreserve().preserve(PreserveAttributes.Option.BLOCK_SIZE) ?
+        getOrigin().getBlockSize() : targetFs.getDefaultBlockSize(this.destination);
+  }
+
+  /**
+   * @return desired replication for destination file.
+   */
+  public short getReplication(FileSystem targetFs) {
+    return getPreserve().preserve(PreserveAttributes.Option.REPLICATION) ?
+        getOrigin().getReplication() : targetFs.getDefaultReplication(this.destination);
   }
 
   /**

@@ -18,7 +18,7 @@
 if (!project.hasProperty('version') || project.version == 'unspecified') {
   try {
     exec {
-      commandLine 'git', 'fetch', '-t', 'https://github.com/linkedin/gobblin.git', 'master'
+      commandLine 'git', 'fetch', '-t', 'https://github.com/apache/incubator-gobblin.git', 'master'
     }
     def versionOut = new ByteArrayOutputStream()
     exec {

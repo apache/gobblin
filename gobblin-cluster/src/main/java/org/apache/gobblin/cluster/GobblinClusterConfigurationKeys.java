@@ -51,12 +51,18 @@ public class GobblinClusterConfigurationKeys {
   public static final boolean DEFAULT_DISTRIBUTED_JOB_LAUNCHER_ENABLED = false;
   public static final String DISTRIBUTED_JOB_LAUNCHER_BUILDER = GOBBLIN_CLUSTER_PREFIX + "distributedJobLauncherBuilder";
 
-
   // Helix configuration properties.
+  public static final String DEDICATED_JOB_CLUSTER_CONTROLLER_ENABLED = GOBBLIN_CLUSTER_PREFIX + "dedicatedJobClusterController.enabled";
   public static final String HELIX_CLUSTER_NAME_KEY = GOBBLIN_CLUSTER_PREFIX + "helix.cluster.name";
+
   public static final String MANAGER_CLUSTER_NAME_KEY = GOBBLIN_CLUSTER_PREFIX + "manager.cluster.name";
   public static final String DEDICATED_MANAGER_CLUSTER_ENABLED = GOBBLIN_CLUSTER_PREFIX + "dedicatedManagerCluster.enabled";
-  public static final String DEDICATED_JOB_CLUSTER_CONTROLLER_ENABLED = GOBBLIN_CLUSTER_PREFIX + "dedicatedJobClusterController.enabled";
+
+  public static final String DEDICATED_TASK_DRIVER_CLUSTER_CONTROLLER_ENABLED = GOBBLIN_CLUSTER_PREFIX + "dedicatedTaskDriverClusterController.enabled";
+  public static final String TASK_DRIVER_CLUSTER_NAME_KEY = GOBBLIN_CLUSTER_PREFIX + "taskDriver.cluster.name";
+  public static final String DEDICATED_TASK_DRIVER_CLUSTER_ENABLED = GOBBLIN_CLUSTER_PREFIX + "dedicatedTaskDriverCluster.enabled";
+  public static final String TASK_DRIVER_ENABLED = GOBBLIN_CLUSTER_PREFIX + "taskDriver.enabled";
+
   public static final String ZK_CONNECTION_STRING_KEY = GOBBLIN_CLUSTER_PREFIX + "zk.connection.string";
   public static final String WORK_UNIT_FILE_PATH = GOBBLIN_CLUSTER_PREFIX + "work.unit.file.path";
   public static final String HELIX_INSTANCE_NAME_OPTION_NAME = "helix_instance_name";
@@ -69,24 +75,36 @@ public class GobblinClusterConfigurationKeys {
   public static final String JOB_EXECUTE_IN_SCHEDULING_THREAD = GOBBLIN_CLUSTER_PREFIX + "job.executeInSchedulingThread";
   public static final boolean JOB_EXECUTE_IN_SCHEDULING_THREAD_DEFAULT = true;
 
-  // Helix related tagging
+  // Helix tagging
   public static final String HELIX_JOB_TAG_KEY = GOBBLIN_CLUSTER_PREFIX + "helixJobTag";
+  public static final String HELIX_PLANNING_JOB_TAG_KEY = GOBBLIN_CLUSTER_PREFIX + "helixPlanningJobTag";
   public static final String HELIX_INSTANCE_TAGS_KEY = GOBBLIN_CLUSTER_PREFIX + "helixInstanceTags";
+
+  // Helix job quota
+  public static final String HELIX_JOB_TYPE_KEY = GOBBLIN_CLUSTER_PREFIX + "helixJobType";
+  public static final String HELIX_PLANNING_JOB_TYPE_KEY = GOBBLIN_CLUSTER_PREFIX + "helixPlanningJobType";
 
   // Planning job properties
   public static final String PLANNING_JOB_NAME_PREFIX = "PlanningJob";
   public static final String PLANNING_CONF_PREFIX = GOBBLIN_CLUSTER_PREFIX + "planning.";
   public static final String PLANNING_ID_KEY = PLANNING_CONF_PREFIX + "idKey";
+  public static final String PLANNING_JOB_CREATE_TIME = PLANNING_CONF_PREFIX + "createTime";
+
+  // Actual job properties
+  public static final String ACTUAL_JOB_NAME_PREFIX = "ActualJob";
 
   // job spec operation
   public static final String JOB_ALWAYS_DELETE = GOBBLIN_CLUSTER_PREFIX + "job.alwaysDelete";
 
+  // Job quota configuration as a comma separated list of name value pairs separated by a colon.
+  // Example: A:1,B:38,DEFAULT:1
+  public static final String HELIX_TASK_QUOTA_CONFIG_KEY = "gobblin.cluster.helixTaskQuotaConfig";
 
   /**
    * A path pointing to a directory that contains job execution files to be executed by Gobblin. This directory can
    * have a nested structure.
    *
-   * @see <a href="https://github.com/linkedin/gobblin/wiki/Working-with-Job-Configuration-Files">Job Config Files</a>
+   * @see <a href="https://gobblin.readthedocs.io/en/latest/user-guide/Working-with-Job-Configuration-Files/">Job Config Files</a>
    */
   public static final String JOB_CONF_PATH_KEY = GOBBLIN_CLUSTER_PREFIX + "job.conf.path";
   public static final String INPUT_WORK_UNIT_DIR_NAME = "_workunits";
@@ -102,6 +120,8 @@ public class GobblinClusterConfigurationKeys {
   public static final String JOB_CONFIGURATION_MANAGER_KEY = GOBBLIN_CLUSTER_PREFIX + "job.configuration.manager";
 
   public static final String JOB_SPEC_REFRESH_INTERVAL = GOBBLIN_CLUSTER_PREFIX + "job.spec.refresh.interval";
+  public static final String JOB_SPEC_URI = GOBBLIN_CLUSTER_PREFIX + "job.spec.uri";
+
   public static final String SPEC_CONSUMER_CLASS_KEY = GOBBLIN_CLUSTER_PREFIX + "specConsumer.class";
   public static final String DEFAULT_SPEC_CONSUMER_CLASS =
       "org.apache.gobblin.service.SimpleKafkaSpecConsumer";
@@ -117,5 +137,34 @@ public class GobblinClusterConfigurationKeys {
   public static final String HELIX_WORKFLOW_EXPIRY_TIME_SECONDS = GOBBLIN_CLUSTER_PREFIX + "workflow.expirySeconds";
   public static final long DEFAULT_HELIX_WORKFLOW_EXPIRY_TIME_SECONDS = 6 * 60 * 60;
 
+  public static final String HELIX_JOB_STOP_TIMEOUT_SECONDS = GOBBLIN_CLUSTER_PREFIX + "helix.job.stopTimeoutSeconds";
+  public static final long DEFAULT_HELIX_JOB_STOP_TIMEOUT_SECONDS = 10L;
   public static final String TASK_RUNNER_SUITE_BUILDER = GOBBLIN_CLUSTER_PREFIX + "taskRunnerSuite.builder";
+
+  public static final String HELIX_JOB_TIMEOUT_ENABLED_KEY = "helix.job.timeout.enabled";
+  public static final String DEFAULT_HELIX_JOB_TIMEOUT_ENABLED = "false";
+  public static final String HELIX_JOB_TIMEOUT_SECONDS = "helix.job.timeout.seconds";
+  public static final String DEFAULT_HELIX_JOB_TIMEOUT_SECONDS = "10800";
+  public static final String HELIX_TASK_TIMEOUT_SECONDS = "helix.task.timeout.seconds";
+  public static final String HELIX_TASK_MAX_ATTEMPTS_KEY = "helix.task.maxAttempts";
+
+  public static final String HELIX_WORKFLOW_DELETE_TIMEOUT_SECONDS = GOBBLIN_CLUSTER_PREFIX + "workflowDeleteTimeoutSeconds";
+  public static final long DEFAULT_HELIX_WORKFLOW_DELETE_TIMEOUT_SECONDS = 300;
+
+  public static final String HELIX_WORKFLOW_LISTING_TIMEOUT_SECONDS = GOBBLIN_CLUSTER_PREFIX + "workflowListingTimeoutSeconds";
+  public static final long DEFAULT_HELIX_WORKFLOW_LISTING_TIMEOUT_SECONDS = 300;
+
+  public static final String CLEAN_ALL_DIST_JOBS = GOBBLIN_CLUSTER_PREFIX + "bootup.clean.dist.jobs";
+  public static final boolean DEFAULT_CLEAN_ALL_DIST_JOBS = false;
+
+  public static final String NON_BLOCKING_PLANNING_JOB_ENABLED = GOBBLIN_CLUSTER_PREFIX + "nonBlocking.planningJob.enabled";
+  public static final boolean DEFAULT_NON_BLOCKING_PLANNING_JOB_ENABLED = false;
+  public static final String KILL_DUPLICATE_PLANNING_JOB = GOBBLIN_CLUSTER_PREFIX + "kill.duplicate.planningJob";
+  public static final boolean DEFAULT_KILL_DUPLICATE_PLANNING_JOB = true;
+
+  public static final String CANCEL_RUNNING_JOB_ON_DELETE = GOBBLIN_CLUSTER_PREFIX + "job.cancelRunningJobOnDelete";
+  public static final String DEFAULT_CANCEL_RUNNING_JOB_ON_DELETE = "false";
+
+  public static final String HELIX_JOB_STOPPING_STATE_TIMEOUT_SECONDS = GOBBLIN_CLUSTER_PREFIX + "job.stoppingStateTimeoutSeconds";
+  public static final long DEFAULT_HELIX_JOB_STOPPING_STATE_TIMEOUT_SECONDS = 300;
 }

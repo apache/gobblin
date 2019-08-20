@@ -22,17 +22,18 @@ import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.util.CompletedFuture;
-
-import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class InMemorySpecProducer implements SpecProducer<Spec>, Serializable {
@@ -79,5 +80,22 @@ public class InMemorySpecProducer implements SpecProducer<Spec>, Serializable {
   @Override
   public Future<? extends List<Spec>> listSpecs() {
     return new CompletedFuture<>(Lists.newArrayList(provisionedSpecs.values()), null);
+  }
+
+  @Override
+  public String serializeAddSpecResponse(Future future) {
+    CompletedFuture<Boolean> completedFuture = (CompletedFuture) future;
+
+    try {
+      return completedFuture.get().toString();
+    } catch (ExecutionException e) {
+      log.error("Error during future serialization in {}.", getClass(), e);
+      return "";
+    }
+  }
+
+  @Override
+  public Future<?> deserializeAddSpecResponse(String serializedResponse) {
+    return new CompletedFuture(Boolean.valueOf(serializedResponse), null);
   }
 }

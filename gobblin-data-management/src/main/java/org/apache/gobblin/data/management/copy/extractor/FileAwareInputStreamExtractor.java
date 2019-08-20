@@ -17,20 +17,23 @@
 
 package org.apache.gobblin.data.management.copy.extractor;
 
+import com.google.common.base.Optional;
+import java.io.IOException;
+import java.io.InputStream;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FileSystem;
+
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.data.management.copy.CopyableFile;
 import org.apache.gobblin.data.management.copy.FileAwareInputStream;
+import org.apache.gobblin.data.management.copy.splitter.DistcpFileSplitter;
 import org.apache.gobblin.source.extractor.DataRecordException;
 import org.apache.gobblin.source.extractor.Extractor;
 import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.io.EmptyInputStream;
 import org.apache.gobblin.util.io.MeteredInputStream;
-
-import java.io.IOException;
-import java.io.InputStream;
-
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
 
 
 /**
@@ -45,11 +48,11 @@ import org.apache.hadoop.fs.FileSystem;
  */
 public class FileAwareInputStreamExtractor implements Extractor<String, FileAwareInputStream> {
 
-  private final FileSystem fs;
-  private final CopyableFile file;
-  private final WorkUnitState state;
+  protected final FileSystem fs;
+  protected final CopyableFile file;
+  protected final WorkUnitState state;
   /** True indicates the unique record has already been read. */
-  private boolean recordRead;
+  protected boolean recordRead;
 
   public FileAwareInputStreamExtractor(FileSystem fs, CopyableFile file, WorkUnitState state) {
     this.fs = fs;
@@ -80,19 +83,37 @@ public class FileAwareInputStreamExtractor implements Extractor<String, FileAwar
       Configuration conf =
           this.state == null ? HadoopUtils.newConfiguration() : HadoopUtils.getConfFromState(this.state);
       FileSystem fsFromFile = this.file.getOrigin().getPath().getFileSystem(conf);
-      this.recordRead = true;
-      if (this.file.getFileStatus().isDirectory()) {
-        return new FileAwareInputStream(this.file, EmptyInputStream.instance);
-      }
-      return new FileAwareInputStream(this.file,
-          MeteredInputStream.builder().in(fsFromFile.open(this.file.getFileStatus().getPath())).build());
+      return buildStream(fsFromFile);
     }
     return null;
   }
 
+  protected FileAwareInputStream buildStream(FileSystem fsFromFile)
+      throws DataRecordException, IOException{
+    this.recordRead = true;
+    FileAwareInputStream.FileAwareInputStreamBuilder builder = FileAwareInputStream.builder().file(this.file);
+    if (this.file.getFileStatus().isDirectory()) {
+      return builder.inputStream(EmptyInputStream.instance).build();
+    }
+
+    FSDataInputStream dataInputStream = fsFromFile.open(this.file.getFileStatus().getPath());
+    if (this.state != null && DistcpFileSplitter.isSplitWorkUnit(this.state)) {
+      Optional<DistcpFileSplitter.Split> split = DistcpFileSplitter.getSplit(this.state);
+      builder.split(split);
+      if (split.isPresent()) {
+        dataInputStream.seek(split.get().getLowPosition());
+      }
+    }
+    builder.inputStream(MeteredInputStream.builder().in(dataInputStream).build());
+    return builder.build();
+  }
+
+  /**
+   * Each {@link FileAwareInputStreamExtractor} processes exactly one record.
+   */
   @Override
   public long getExpectedRecordCount() {
-    return 0;
+    return 1;
   }
 
   @Override

@@ -53,7 +53,7 @@ public class RateBasedLimiter extends NonRefillableLimiter {
       if (!config.hasPath(QPS_KEY)) {
         throw new RuntimeException("Missing key " + QPS_KEY);
       }
-      return new RateBasedLimiter(config.getLong(QPS_KEY));
+      return new RateBasedLimiter(config.getDouble(QPS_KEY));
     }
   }
 

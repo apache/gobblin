@@ -18,6 +18,8 @@
 package org.apache.gobblin.writer;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Supplier;
@@ -29,9 +31,11 @@ import org.apache.commons.lang3.reflect.ConstructorUtils;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
 import lombok.extern.slf4j.Slf4j;
@@ -39,10 +43,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.commit.SpeculativeAttemptAwareConstruct;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.dataset.Descriptor;
+import org.apache.gobblin.dataset.PartitionDescriptor;
 import org.apache.gobblin.instrumented.writer.InstrumentedDataWriterDecorator;
 import org.apache.gobblin.instrumented.writer.InstrumentedPartitionedDataWriterDecorator;
 import org.apache.gobblin.records.ControlMessageHandler;
-import org.apache.gobblin.source.extractor.CheckpointableWatermark;
 import org.apache.gobblin.stream.ControlMessage;
 import org.apache.gobblin.stream.MetadataUpdateControlMessage;
 import org.apache.gobblin.stream.RecordEnvelope;
@@ -61,11 +66,15 @@ import org.apache.gobblin.writer.partitioner.WriterPartitioner;
 @Slf4j
 public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements FinalState, SpeculativeAttemptAwareConstruct, WatermarkAwareWriter<D> {
 
+  public static final String WRITER_LATEST_SCHEMA = "writer.latest.schema";
   private static final GenericRecord NON_PARTITIONED_WRITER_KEY =
       new GenericData.Record(SchemaBuilder.record("Dummy").fields().endRecord());
 
   private int writerIdSuffix = 0;
   private final String baseWriterId;
+  private final State state;
+  private final int branchId;
+
   private final Optional<WriterPartitioner> partitioner;
   private final LoadingCache<GenericRecord, DataWriter<D>> partitionWriters;
   private final Optional<PartitionAwareDataWriterBuilder> builder;
@@ -78,12 +87,18 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
 
   public PartitionedDataWriter(DataWriterBuilder<S, D> builder, final State state)
       throws IOException {
+    this.state = state;
+    this.branchId = builder.branch;
+
     this.isSpeculativeAttemptSafe = true;
     this.isWatermarkCapable = true;
     this.baseWriterId = builder.getWriterId();
     this.closer = Closer.create();
     this.writerBuilder = builder;
     this.controlMessageHandler = new PartitionDataWriterMessageHandler();
+    if(builder.schema != null) {
+      this.state.setProp(WRITER_LATEST_SCHEMA, builder.getSchema());
+    }
     this.partitionWriters = CacheBuilder.newBuilder().build(new CacheLoader<GenericRecord, DataWriter<D>>() {
       @Override
       public DataWriter<D> load(final GenericRecord key)
@@ -106,19 +121,19 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
 
     if (state.contains(ConfigurationKeys.WRITER_PARTITIONER_CLASS)) {
       Preconditions.checkArgument(builder instanceof PartitionAwareDataWriterBuilder, String
-              .format("%s was specified but the writer %s does not support partitioning.",
-                  ConfigurationKeys.WRITER_PARTITIONER_CLASS, builder.getClass().getCanonicalName()));
+          .format("%s was specified but the writer %s does not support partitioning.",
+              ConfigurationKeys.WRITER_PARTITIONER_CLASS, builder.getClass().getCanonicalName()));
 
       try {
         this.shouldPartition = true;
         this.builder = Optional.of(PartitionAwareDataWriterBuilder.class.cast(builder));
         this.partitioner = Optional.of(WriterPartitioner.class.cast(ConstructorUtils
-                .invokeConstructor(Class.forName(state.getProp(ConfigurationKeys.WRITER_PARTITIONER_CLASS)), state,
-                    builder.getBranches(), builder.getBranch())));
+            .invokeConstructor(Class.forName(state.getProp(ConfigurationKeys.WRITER_PARTITIONER_CLASS)), state,
+                builder.getBranches(), builder.getBranch())));
         Preconditions
             .checkArgument(this.builder.get().validatePartitionSchema(this.partitioner.get().partitionSchema()), String
-                    .format("Writer %s does not support schema from partitioner %s",
-                        builder.getClass().getCanonicalName(), this.partitioner.getClass().getCanonicalName()));
+                .format("Writer %s does not support schema from partitioner %s",
+                    builder.getClass().getCanonicalName(), this.partitioner.getClass().getCanonicalName()));
       } catch (ReflectiveOperationException roe) {
         throw new IOException(roe);
       }
@@ -227,7 +242,11 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
   @Override
   public void close()
       throws IOException {
-    this.closer.close();
+    try {
+      serializePartitionInfoToState();
+    } finally {
+      this.closer.close();
+    }
   }
 
   private DataWriter<D> createPartitionWriter(GenericRecord partition)
@@ -289,43 +308,6 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
   }
 
   @Override
-  public Map<String, CheckpointableWatermark> getCommittableWatermark() {
-    // The committable watermark from a collection of commitable and unacknowledged watermarks is the highest
-    // committable watermark that is less than the lowest unacknowledged watermark
-
-    WatermarkTracker watermarkTracker = new MultiWriterWatermarkTracker();
-    for (Map.Entry<GenericRecord, DataWriter<D>> entry : this.partitionWriters.asMap().entrySet()) {
-      if (entry.getValue() instanceof WatermarkAwareWriter) {
-        Map<String, CheckpointableWatermark> commitableWatermarks =
-            ((WatermarkAwareWriter) entry.getValue()).getCommittableWatermark();
-        if (!commitableWatermarks.isEmpty()) {
-          watermarkTracker.committedWatermarks(commitableWatermarks);
-        }
-
-        Map<String, CheckpointableWatermark> unacknowledgedWatermark =
-            ((WatermarkAwareWriter) entry.getValue()).getUnacknowledgedWatermark();
-        if (!unacknowledgedWatermark.isEmpty()) {
-          watermarkTracker.unacknowledgedWatermarks(unacknowledgedWatermark);
-        }
-      }
-    }
-    return watermarkTracker.getAllCommitableWatermarks(); //TODO: Change this to use List of committables instead
-  }
-
-  @Override
-  public Map<String, CheckpointableWatermark> getUnacknowledgedWatermark() {
-    WatermarkTracker watermarkTracker = new MultiWriterWatermarkTracker();
-    for (Map.Entry<GenericRecord, DataWriter<D>> entry : this.partitionWriters.asMap().entrySet()) {
-      Map<String, CheckpointableWatermark> unacknowledgedWatermark =
-          ((WatermarkAwareWriter) entry.getValue()).getUnacknowledgedWatermark();
-      if (!unacknowledgedWatermark.isEmpty()) {
-        watermarkTracker.unacknowledgedWatermarks(unacknowledgedWatermark);
-      }
-    }
-    return watermarkTracker.getAllUnacknowledgedWatermarks();
-  }
-
-  @Override
   public ControlMessageHandler getMessageHandler() {
     return this.controlMessageHandler;
   }
@@ -342,6 +324,8 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
       if (message instanceof MetadataUpdateControlMessage) {
         PartitionedDataWriter.this.writerBuilder.withSchema(((MetadataUpdateControlMessage) message)
             .getGlobalMetadata().getSchema());
+        state.setProp(WRITER_LATEST_SCHEMA, ((MetadataUpdateControlMessage) message)
+            .getGlobalMetadata().getSchema());
       }
 
       for (DataWriter writer : PartitionedDataWriter.this.partitionWriters.asMap().values()) {
@@ -351,5 +335,59 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
 
       cloner.close();
     }
+  }
+
+  /**
+   * Get the serialized key to partitions info in {@link #state}
+   */
+  private static String getPartitionsKey(int branchId) {
+    return String.format("writer.%d.partitions", branchId);
+  }
+
+  /**
+   * Serialize partitions info to {@link #state} if they are any
+   */
+  private void serializePartitionInfoToState() {
+    List<PartitionDescriptor> descriptors = new ArrayList<>();
+
+    for (DataWriter writer : partitionWriters.asMap().values()) {
+      Descriptor descriptor = writer.getDataDescriptor();
+      if (null == descriptor) {
+        log.warn("Drop partition info as writer {} returns a null PartitionDescriptor", writer.toString());
+        continue;
+      }
+
+      if (!(descriptor instanceof PartitionDescriptor)) {
+        log.warn("Drop partition info as writer {} does not return a PartitionDescriptor", writer.toString());
+        continue;
+      }
+
+      descriptors.add((PartitionDescriptor)descriptor);
+    }
+
+    if (descriptors.size() > 0) {
+      state.setProp(getPartitionsKey(branchId), PartitionDescriptor.toPartitionJsonList(descriptors));
+    } else {
+      log.info("Partitions info not available. Will not serialize partitions");
+    }
+  }
+
+  /**
+   * Get the partition info of a work unit from the {@code state}. Then partition info will be removed from the
+   * {@code state} to avoid persisting useless information
+   *
+   * <p>
+   *   In Gobblin, only the {@link PartitionedDataWriter} knows all partitions written for a work unit. Each partition
+   *   {@link DataWriter} decides the actual form of a dataset partition
+   * </p>
+   */
+  public static List<PartitionDescriptor> getPartitionInfoAndClean(State state, int branchId) {
+    String partitionsKey = getPartitionsKey(branchId);
+    String json = state.getProp(partitionsKey);
+    if (Strings.isNullOrEmpty(json)) {
+      return Lists.newArrayList();
+    }
+    state.removeProp(partitionsKey);
+    return PartitionDescriptor.fromPartitionJsonList(json);
   }
 }

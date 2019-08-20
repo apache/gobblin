@@ -38,6 +38,7 @@ import com.google.common.collect.Maps;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.dataset.DatasetDescriptor;
+import org.apache.gobblin.dataset.PartitionDescriptor;
 import org.apache.gobblin.util.PathUtils;
 
 import static org.mockito.Mockito.mock;
@@ -54,7 +55,11 @@ public class CopyableFileTest {
             new OwnerAndPermission("owner", "group", FsPermission.getDefault()),
             Lists.newArrayList(new OwnerAndPermission("owner2", "group2", FsPermission.getDefault())),
             "checksum".getBytes(), PreserveAttributes.fromMnemonicString(""), "", 0, 0, Maps
-            .<String, String>newHashMap(), "");
+            .<String, String>newHashMap(), "", null);
+
+    DatasetDescriptor dataset = new DatasetDescriptor("hive", "db.table");
+    PartitionDescriptor descriptor = new PartitionDescriptor("datepartition=2018/09/05", dataset);
+    copyableFile.setDestinationData(descriptor);
 
     String s = CopyEntity.serialize(copyableFile);
     CopyEntity de = CopyEntity.deserialize(s);
@@ -69,7 +74,7 @@ public class CopyableFileTest {
         new CopyableFile(null, null, new OwnerAndPermission("owner", "group",
             FsPermission.getDefault()), Lists.newArrayList(new OwnerAndPermission(null, "group2", FsPermission
             .getDefault())), "checksum".getBytes(), PreserveAttributes.fromMnemonicString(""), "", 0, 0,
-            Maps.<String, String>newHashMap(), "");
+            Maps.<String, String>newHashMap(), "", null);
 
     String serialized = CopyEntity.serialize(copyableFile);
     CopyEntity deserialized = CopyEntity.deserialize(serialized);
@@ -109,13 +114,13 @@ public class CopyableFileTest {
     // Test when source file is not a directory
     FileStatus origin = new FileStatus(0l, false, 0, 0l, 0l, new Path(originPath));
     CopyableFile copyableFile = new CopyableFile(origin, new Path(destinationPath), null, null, null,
-        PreserveAttributes.fromMnemonicString(""), "", 0, 0, Maps.<String, String>newHashMap(), "");
+        PreserveAttributes.fromMnemonicString(""), "", 0, 0, Maps.<String, String>newHashMap(), "", null);
     copyableFile.setFsDatasets(originFs, targetFs);
-    DatasetDescriptor source = copyableFile.getSourceDataset();
+    DatasetDescriptor source = (DatasetDescriptor) copyableFile.getSourceData();
     Assert.assertEquals(source.getName(), "/data/databases/source");
     Assert.assertEquals(source.getPlatform(), "hdfs");
     Assert.assertEquals(source.getMetadata().get("fsUri"), originFsUri);
-    DatasetDescriptor destination = copyableFile.getDestinationDataset();
+    DatasetDescriptor destination = (DatasetDescriptor) copyableFile.getDestinationData();
     Assert.assertEquals(destination.getName(), "/data/databases/destination");
     Assert.assertEquals(destination.getPlatform(), "file");
     Assert.assertEquals(destination.getMetadata().get("fsUri"), targetFsUri);
@@ -125,13 +130,13 @@ public class CopyableFileTest {
     destinationPath = targetFsUri + destinationPath;
     origin = new FileStatus(0l, true, 0, 0l, 0l, new Path(originPath));
     copyableFile = new CopyableFile(origin, new Path(destinationPath), null, null, null,
-        PreserveAttributes.fromMnemonicString(""), "", 0, 0, Maps.<String, String>newHashMap(), "");
+        PreserveAttributes.fromMnemonicString(""), "", 0, 0, Maps.<String, String>newHashMap(), "", null);
     copyableFile.setFsDatasets(originFs, targetFs);
-    source = copyableFile.getSourceDataset();
+    source = (DatasetDescriptor) copyableFile.getSourceData();
     Assert.assertEquals(source.getName(), "/data/databases/source/profile");
     Assert.assertEquals(source.getPlatform(), "hdfs");
     Assert.assertEquals(source.getMetadata().get("fsUri"), originFsUri);
-    destination = copyableFile.getDestinationDataset();
+    destination = (DatasetDescriptor) copyableFile.getDestinationData();
     Assert.assertEquals(destination.getName(), "/data/databases/destination/profile");
     Assert.assertEquals(destination.getPlatform(), "file");
     Assert.assertEquals(destination.getMetadata().get("fsUri"), targetFsUri);

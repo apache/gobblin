@@ -18,12 +18,17 @@
 package org.apache.gobblin.runtime.embedded;
 
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadInfo;
+import java.lang.management.ThreadMXBean;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -139,6 +144,7 @@ public class EmbeddedGobblin {
   private FullTimeout launchTimeout = new FullTimeout(10, TimeUnit.SECONDS);
   private FullTimeout jobTimeout = new FullTimeout(10, TimeUnit.DAYS);
   private FullTimeout shutdownTimeout = new FullTimeout(10, TimeUnit.SECONDS);
+  private boolean dumpJStackOnTimeout = false;
   private List<GobblinInstancePluginFactory> plugins = Lists.newArrayList();
   private Optional<Path> jobFile = Optional.absent();
 
@@ -194,7 +200,12 @@ public class EmbeddedGobblin {
    * will appear first in the classpath. Default priority is 0.
    */
   public EmbeddedGobblin distributeJarByClassWithPriority(Class<?> klazz, int priority) {
-    return distributeJarWithPriority(ClassUtil.findContainingJar(klazz), priority);
+    String jar = ClassUtil.findContainingJar(klazz);
+    if (jar == null) {
+      log.warn(String.format("Could not find jar for class %s. This is normal in test runs.", klazz));
+      return this;
+    }
+    return distributeJarWithPriority(jar, priority);
   }
 
   /**
@@ -353,6 +364,14 @@ public class EmbeddedGobblin {
   }
 
   /**
+   * Enable dumping jstack when error happens.
+   */
+  public EmbeddedGobblin setDumpJStackOnTimeout(boolean dumpJStackOnTimeout) {
+    this.dumpJStackOnTimeout = dumpJStackOnTimeout;
+    return this;
+  }
+
+  /**
    * Enable state store.
    */
   public EmbeddedGobblin useStateStore(String rootDir) {
@@ -458,6 +477,7 @@ public class EmbeddedGobblin {
 
     boolean started = listener.awaitStarted(this.launchTimeout.getTimeout(), this.launchTimeout.getTimeUnit());
     if (!started) {
+      dumpJStackOnTimeout("Launch");
       log.warn("Timeout waiting for job to start. Aborting.");
       driver.stopAsync();
       driver.awaitTerminated(this.shutdownTimeout.getTimeout(), this.shutdownTimeout.getTimeUnit());
@@ -484,12 +504,34 @@ public class EmbeddedGobblin {
           driver.awaitTerminated(EmbeddedGobblin.this.shutdownTimeout.getTimeout(), EmbeddedGobblin.this.shutdownTimeout
               .getTimeUnit());
         } catch (TimeoutException te) {
+          dumpJStackOnTimeout("stop gobblin instance driver");
           log.error("Failed to shutdown Gobblin instance driver.");
         }
       }
     });
 
     return listener.getJobDriver();
+  }
+
+  private void dumpJStackOnTimeout(String loc) {
+    if (this.dumpJStackOnTimeout) {
+      log.info("=== Dump jstack ({}) ===", loc);
+      ThreadMXBean bean = ManagementFactory.getThreadMXBean();
+      ThreadInfo[] infos = bean.dumpAllThreads(true, true);
+      Set<Thread> threadSet = Thread.getAllStackTraces().keySet();
+      Map<Long, Thread> threadMap = new HashMap<>();
+      for (Thread t : threadSet) {
+        threadMap.put(t.getId(), t);
+      }
+
+      for (ThreadInfo info : infos) {
+        Thread thread = threadMap.get(info.getThreadId());
+        log.info("({}) {}",
+            thread == null ? "Unknown" : thread.isDaemon() ? "Daemon" : "Non-Daemon", info.toString());
+      }
+    } else {
+      log.info("Dump jstack ({}) is disabled.", loc);
+    }
   }
 
   private Configurable getSysConfig() {

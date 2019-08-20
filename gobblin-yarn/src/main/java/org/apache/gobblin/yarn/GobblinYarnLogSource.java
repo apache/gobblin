@@ -18,16 +18,23 @@
 package org.apache.gobblin.yarn;
 
 import java.io.IOException;
+import java.net.URI;
+import java.util.List;
+import java.util.stream.Collectors;
 
-import com.typesafe.config.Config;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 
+import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.io.Files;
+import com.typesafe.config.Config;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.logs.LogCopier;
 
 
@@ -42,6 +49,12 @@ import org.apache.gobblin.util.logs.LogCopier;
  * @author Yinan Li
  */
 class GobblinYarnLogSource {
+  private static final Splitter COMMA_SPLITTER = Splitter.on(',').omitEmptyStrings().trimResults();
+  private static final Configuration AUTO_CLOSE_CONFIG = new Configuration();
+
+  static {
+    AUTO_CLOSE_CONFIG.setBoolean("fs.automatic.close", false);
+  }
 
   /**
    * Return if the log source is present or not.
@@ -62,34 +75,49 @@ class GobblinYarnLogSource {
    * @return a {@link LogCopier} instance
    * @throws IOException if it fails on any IO operation
    */
-  protected LogCopier buildLogCopier(Config config, ContainerId containerId, FileSystem destFs, Path appWorkDir)
+  protected LogCopier buildLogCopier(Config config, String containerId, FileSystem destFs, Path appWorkDir)
       throws IOException {
     LogCopier.Builder builder = LogCopier.newBuilder()
-            .useSrcFileSystem(FileSystem.getLocal(new Configuration()))
-            .useDestFileSystem(destFs)
-            .readFrom(getLocalLogDir())
+            .useSrcFileSystem(buildFileSystem(config, true))
+            .useDestFileSystem(buildFileSystem(config, false))
+            .readFrom(getLocalLogDirs())
             .writeTo(getHdfsLogDir(containerId, destFs, appWorkDir))
-            .acceptsLogFileExtensions(ImmutableSet.of(ApplicationConstants.STDOUT, ApplicationConstants.STDERR))
-            .useLogFileNamePrefix(containerId.toString());
-    if (config.hasPath(GobblinYarnConfigurationKeys.LOG_COPIER_MAX_FILE_SIZE)) {
-      builder.useMaxBytesPerLogFile(config.getBytes(GobblinYarnConfigurationKeys.LOG_COPIER_MAX_FILE_SIZE));
-    }
-    if (config.hasPath(GobblinYarnConfigurationKeys.LOG_COPIER_SCHEDULER)) {
-      builder.useScheduler(config.getString(GobblinYarnConfigurationKeys.LOG_COPIER_SCHEDULER));
-    }
+            .useCurrentLogFileName(Files.getNameWithoutExtension(System.getProperty(GobblinYarnConfigurationKeys.GOBBLIN_YARN_CONTAINER_LOG_FILE_NAME)));
+
+    builder.acceptsLogFileExtensions(config.hasPath(GobblinYarnConfigurationKeys.LOG_FILE_EXTENSIONS) ? ImmutableSet
+        .copyOf(Splitter.on(",").splitToList(config.getString(GobblinYarnConfigurationKeys.LOG_FILE_EXTENSIONS)))
+        : ImmutableSet.of());
+
     return builder.build();
   }
 
-  private Path getLocalLogDir() throws IOException {
-    return new Path(System.getenv(ApplicationConstants.Environment.LOG_DIRS.toString()));
+  /**
+   * Return a new (non-cached) {@link FileSystem} instance. The {@link FileSystem} instance
+   * returned by the method has automatic closing disabled. The user of the instance needs to handle closing of the
+   * instance, typically as part of its shutdown sequence.
+   */
+  private FileSystem buildFileSystem(Config config, boolean isLocal) throws IOException {
+    return isLocal ? FileSystem.newInstanceLocal(AUTO_CLOSE_CONFIG)
+        : config.hasPath(ConfigurationKeys.FS_URI_KEY) ? FileSystem
+            .newInstance(URI.create(config.getString(ConfigurationKeys.FS_URI_KEY)), AUTO_CLOSE_CONFIG)
+            : FileSystem.newInstance(AUTO_CLOSE_CONFIG);
   }
 
-  private Path getHdfsLogDir(ContainerId containerId, FileSystem destFs, Path appWorkDir) throws IOException {
-    Path logRootDir = new Path(appWorkDir, GobblinYarnConfigurationKeys.APP_LOGS_DIR_NAME);
+  /**
+   * Multiple directories may be specified in the LOG_DIRS string. Split them up and return a list of {@link Path}s.
+   * @return list of {@link Path}s to the log directories
+   * @throws IOException
+   */
+  private List<Path> getLocalLogDirs() throws IOException {
+    String logDirs = System.getenv(ApplicationConstants.Environment.LOG_DIRS.toString());
+    return COMMA_SPLITTER.splitToList(logDirs).stream().map(e -> new Path(e)).collect(Collectors.toList());
+  }
+
+  private Path getHdfsLogDir(String containerId, FileSystem destFs, Path appWorkDir) throws IOException {
+    Path logRootDir = PathUtils.combinePaths(appWorkDir.toString(), GobblinYarnConfigurationKeys.APP_LOGS_DIR_NAME, containerId);
     if (!destFs.exists(logRootDir)) {
       destFs.mkdirs(logRootDir);
     }
-
-    return new Path(logRootDir, containerId.toString());
+    return logRootDir;
   }
 }

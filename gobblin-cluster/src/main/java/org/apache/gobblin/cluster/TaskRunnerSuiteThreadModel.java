@@ -18,12 +18,14 @@
 package org.apache.gobblin.cluster;
 
 import java.net.URI;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
 import org.apache.helix.task.TaskFactory;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.Service;
@@ -32,6 +34,7 @@ import com.typesafe.config.ConfigValueFactory;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
+import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.runtime.TaskExecutor;
 import org.apache.gobblin.runtime.TaskStateTracker;
 import org.apache.gobblin.runtime.services.JMXReportingService;
@@ -39,22 +42,24 @@ import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PathUtils;
 
 /**
- * A sub-type of {@link TaskRunnerSuiteBase} suite which runs all tasks in a thread pool.
+ * A sub-type of {@link TaskRunnerSuiteBase} suite which runs tasks in a thread pool.
  */
 class TaskRunnerSuiteThreadModel extends TaskRunnerSuiteBase {
-  private final TaskExecutor taskExecutor;
+  protected final GobblinHelixTaskFactory taskFactory;
+  protected final GobblinHelixJobFactory jobFactory;
 
   TaskRunnerSuiteThreadModel(TaskRunnerSuiteBase.Builder builder) {
     super(builder);
-    this.taskExecutor = new TaskExecutor(ConfigUtils.configToProperties(builder.getConfig()));
-    this.taskFactory = generateTaskFactory(taskExecutor, builder);
-    this.jobFactory = new GobblinHelixJobFactory(builder);
-    this.taskMetrics = new GobblinTaskRunnerMetrics.InProcessTaskRunnerMetrics(taskExecutor, metricContext);
+    this.taskFactory = createTaskFactory(builder, this.metricContext);
+    this.jobFactory = new GobblinHelixJobFactory(builder, this.metricContext);
   }
 
   @Override
-  protected StandardMetricsBridge.StandardMetrics getTaskMetrics() {
-    return this.taskMetrics;
+  protected Collection<StandardMetricsBridge.StandardMetrics> getMetricsCollection() {
+    return ImmutableList.of(this.taskFactory.getTaskMetrics(),
+                            this.jobFactory.getJobTaskMetrics(),
+                            this.jobFactory.getLauncherMetrics(),
+                            this.jobFactory.getHelixMetrics());
   }
 
   @Override
@@ -70,7 +75,7 @@ class TaskRunnerSuiteThreadModel extends TaskRunnerSuiteBase {
     return this.services;
   }
 
-  private TaskFactory generateTaskFactory(TaskExecutor taskExecutor, Builder builder) {
+  private GobblinHelixTaskFactory createTaskFactory(Builder builder, MetricContext metricContext) {
     Properties properties = ConfigUtils.configToProperties(builder.getConfig());
     URI rootPathUri = PathUtils.getRootPath(builder.getAppWorkPath()).toUri();
     Config stateStoreJobConfig = ConfigUtils.propertiesToConfig(properties)
@@ -79,19 +84,16 @@ class TaskRunnerSuiteThreadModel extends TaskRunnerSuiteBase {
 
     TaskStateTracker taskStateTracker = new GobblinHelixTaskStateTracker(properties);
 
-    services.add(taskExecutor);
+    GobblinHelixTaskFactory taskFactory = new GobblinHelixTaskFactory(builder,
+        metricContext,
+        taskStateTracker,
+        stateStoreJobConfig);
+
+    services.add(taskFactory.getTaskExecutor());
     services.add(taskStateTracker);
     services.add(new JMXReportingService(
-        ImmutableMap.of("task.executor", taskExecutor.getTaskExecutorQueueMetricSet())));
+        ImmutableMap.of("task.executor", taskFactory.getTaskExecutor().getTaskExecutorQueueMetricSet())));
 
-    TaskFactory taskFactory =
-        new GobblinHelixTaskFactory(builder.getContainerMetrics(),
-            taskExecutor,
-            taskStateTracker,
-            builder.getFs(),
-            builder.getAppWorkPath(),
-            stateStoreJobConfig,
-            builder.getHelixManager());
     return taskFactory;
   }
 }

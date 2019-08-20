@@ -21,10 +21,17 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-
-import org.apache.gobblin.annotation.Alpha;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.runtime.api.FlowSpec;
+import org.apache.gobblin.service.modules.flow.FlowGraphPath;
+import org.apache.gobblin.service.modules.flowgraph.pathfinder.PathFinder;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**
@@ -32,10 +39,14 @@ import lombok.extern.slf4j.Slf4j;
  *   <p>dataNodeMap - the mapping from a node identifier to the {@link DataNode} instance</p>
  *   <p>nodesToEdges - the mapping from each {@link DataNode} to its outgoing {@link FlowEdge}s</p>
  *   <p>flowEdgeMap - the mapping from a edge label to the {@link FlowEdge} instance</p>
+ *
+ *   Read/Write Access to the {@link FlowGraph} is synchronized via a {@link ReentrantReadWriteLock}.
  */
 @Alpha
 @Slf4j
 public class BaseFlowGraph implements FlowGraph {
+  private final ReadWriteLock rwLock = new ReentrantReadWriteLock(true);
+
   private Map<DataNode, Set<FlowEdge>> nodesToEdges = new HashMap<>();
   private Map<String, DataNode> dataNodeMap = new HashMap<>();
   private Map<String, FlowEdge> flowEdgeMap = new HashMap<>();
@@ -58,11 +69,16 @@ public class BaseFlowGraph implements FlowGraph {
    * @return true if node is successfully added to the {@link FlowGraph}.
    */
   @Override
-  public synchronized boolean addDataNode(DataNode node) {
-    //Get edges adjacent to the node if it already exists
-    Set<FlowEdge> edges = this.nodesToEdges.getOrDefault(node, new HashSet<>());
-    this.nodesToEdges.put(node, edges);
-    this.dataNodeMap.put(node.getId(), node);
+  public boolean addDataNode(DataNode node) {
+    try {
+      rwLock.writeLock().lock();
+      //Get edges adjacent to the node if it already exists
+      Set<FlowEdge> edges = this.nodesToEdges.getOrDefault(node, new HashSet<>());
+      this.nodesToEdges.put(node, edges);
+      this.dataNodeMap.put(node.getId(), node);
+    } finally {
+      rwLock.writeLock().unlock();
+    }
     return true;
   }
 
@@ -74,16 +90,20 @@ public class BaseFlowGraph implements FlowGraph {
    * @return true if addition of {@FlowEdge} is successful.
    */
   @Override
-  public synchronized boolean addFlowEdge(FlowEdge edge) {
-    String srcNode = edge.getSrc();
-    String dstNode = edge.getDest();
-    if(!dataNodeMap.containsKey(srcNode) || !dataNodeMap.containsKey(dstNode)) {
-      return false;
-    }
-    DataNode dataNode = getNode(srcNode);
-    if(dataNode != null) {
+  public boolean addFlowEdge(FlowEdge edge) {
+    try {
+      rwLock.writeLock().lock();
+      String srcNode = edge.getSrc();
+      String dstNode = edge.getDest();
+      if (!dataNodeMap.containsKey(srcNode) || !dataNodeMap.containsKey(dstNode)) {
+        return false;
+      }
+      DataNode dataNode = getNode(srcNode);
+      if (dataNode == null) {
+        return false;
+      }
       Set<FlowEdge> adjacentEdges = this.nodesToEdges.get(dataNode);
-      if(!adjacentEdges.add(edge)) {
+      if (!adjacentEdges.add(edge)) {
         adjacentEdges.remove(edge);
         adjacentEdges.add(edge);
       }
@@ -91,8 +111,8 @@ public class BaseFlowGraph implements FlowGraph {
       String edgeId = edge.getId();
       this.flowEdgeMap.put(edgeId, edge);
       return true;
-    } else {
-      return false;
+    } finally {
+      rwLock.writeLock().unlock();
     }
   }
 
@@ -102,11 +122,12 @@ public class BaseFlowGraph implements FlowGraph {
    * @return true if {@link DataNode} is successfully deleted.
    */
   @Override
-  public synchronized boolean deleteDataNode(String nodeId) {
-    if(this.dataNodeMap.containsKey(nodeId) && deleteDataNode(this.dataNodeMap.get(nodeId))) {
-      return true;
-    } else {
-      return false;
+  public boolean deleteDataNode(String nodeId) {
+    try {
+      rwLock.writeLock().lock();
+      return this.dataNodeMap.containsKey(nodeId) && deleteDataNode(this.dataNodeMap.get(nodeId));
+    } finally {
+      rwLock.writeLock().unlock();
     }
   }
 
@@ -115,20 +136,25 @@ public class BaseFlowGraph implements FlowGraph {
    * @param node to be deleted.
    * @return true if {@link DataNode} is successfully deleted.
    */
-  public synchronized boolean deleteDataNode(DataNode node) {
-    if(dataNodeMap.containsKey(node.getId())) {
+  public boolean deleteDataNode(DataNode node) {
+    try {
+      rwLock.writeLock().lock();
+      if (!dataNodeMap.containsKey(node.getId())) {
+        return false;
+      }
       //Delete node from dataNodeMap
       dataNodeMap.remove(node.getId());
 
       //Delete all the edges adjacent to the node. First, delete edges from flowEdgeMap and next, remove the edges
       // from nodesToEdges
-      for(FlowEdge edge: nodesToEdges.get(node)) {
+      for (FlowEdge edge : nodesToEdges.get(node)) {
         flowEdgeMap.remove(edge.getId());
       }
       nodesToEdges.remove(node);
       return true;
-    } else {
-      return false;
+
+    } finally {
+      rwLock.writeLock().unlock();
     }
   }
 
@@ -138,11 +164,12 @@ public class BaseFlowGraph implements FlowGraph {
    * @return true if {@link FlowEdge} is successfully deleted.
    */
   @Override
-  public synchronized boolean deleteFlowEdge(String edgeId) {
-    if(flowEdgeMap.containsKey(edgeId) && deleteFlowEdge(flowEdgeMap.get(edgeId))) {
-      return true;
-    } else {
-      return false;
+  public boolean deleteFlowEdge(String edgeId) {
+    try {
+      rwLock.writeLock().lock();
+      return flowEdgeMap.containsKey(edgeId) && deleteFlowEdge(flowEdgeMap.get(edgeId));
+    } finally {
+      rwLock.writeLock().unlock();
     }
   }
 
@@ -152,17 +179,22 @@ public class BaseFlowGraph implements FlowGraph {
    * @return true if {@link FlowEdge} is successfully deleted. If the source of a {@link FlowEdge} does not exist or
    * if the {@link FlowEdge} is not in the graph, return false.
    */
-  public synchronized boolean deleteFlowEdge(FlowEdge edge) {
-    if(!dataNodeMap.containsKey(edge.getSrc())) {
-      return false;
+  public boolean deleteFlowEdge(FlowEdge edge) {
+    try {
+      rwLock.writeLock().lock();
+      if (!dataNodeMap.containsKey(edge.getSrc())) {
+        return false;
+      }
+      DataNode node = dataNodeMap.get(edge.getSrc());
+      if (!nodesToEdges.get(node).contains(edge)) {
+        return false;
+      }
+      this.nodesToEdges.get(node).remove(edge);
+      this.flowEdgeMap.remove(edge.getId());
+      return true;
+    } finally {
+      rwLock.writeLock().unlock();
     }
-    DataNode node = dataNodeMap.get(edge.getSrc());
-    if(!nodesToEdges.get(node).contains(edge)) {
-      return false;
-    }
-    this.nodesToEdges.get(node).remove(edge);
-    this.flowEdgeMap.remove(edge.getId());
-    return true;
   }
 
   /**
@@ -172,8 +204,13 @@ public class BaseFlowGraph implements FlowGraph {
    */
   @Override
   public Set<FlowEdge> getEdges(String nodeId) {
-    DataNode dataNode = this.dataNodeMap.getOrDefault(nodeId, null);
-    return getEdges(dataNode);
+    try {
+      rwLock.readLock().lock();
+      DataNode dataNode = this.dataNodeMap.getOrDefault(nodeId, null);
+      return getEdges(dataNode);
+    } finally {
+      rwLock.readLock().unlock();
+    }
   }
 
   /**
@@ -183,7 +220,28 @@ public class BaseFlowGraph implements FlowGraph {
    */
   @Override
   public Set<FlowEdge> getEdges(DataNode node) {
-    return (node != null)? this.nodesToEdges.getOrDefault(node, null) : null;
+    try {
+      rwLock.readLock().lock();
+      return (node != null) ? this.nodesToEdges.getOrDefault(node, null) : null;
+    } finally {
+      rwLock.readLock().unlock();
+    }
   }
 
+  /**{@inheritDoc}**/
+  @Override
+  public FlowGraphPath findPath(FlowSpec flowSpec) throws PathFinder.PathFinderException, ReflectiveOperationException {
+    try {
+      rwLock.readLock().lock();
+      //Instantiate a PathFinder.
+      Class pathFinderClass = Class.forName(ConfigUtils
+          .getString(flowSpec.getConfig(), FlowGraphConfigurationKeys.FLOW_GRAPH_PATH_FINDER_CLASS,
+              FlowGraphConfigurationKeys.DEFAULT_FLOW_GRAPH_PATH_FINDER_CLASS));
+      PathFinder pathFinder =
+          (PathFinder) GobblinConstructorUtils.invokeLongestConstructor(pathFinderClass, this, flowSpec);
+      return pathFinder.findPath();
+    } finally {
+      rwLock.readLock().unlock();
+    }
+  }
 }

@@ -67,6 +67,12 @@ public class SimpleWatermark implements Watermark {
     long startNum = lowWatermarkValue;
     long endNum = highWatermarkValue;
     boolean longOverflow = false;
+
+    if (startNum == endNum) {
+      intervalMap.put(startNum, endNum);
+      return intervalMap;
+    }
+
     while (startNum < endNum && !longOverflow) {
       longOverflow = (Long.MAX_VALUE - interval < startNum);
       nextNum = longOverflow ? endNum : Math.min(startNum + interval, endNum);
@@ -79,10 +85,10 @@ public class SimpleWatermark implements Watermark {
   /**
    * recalculate interval if total number of partitions greater than maximum number of allowed partitions
    *
-   * @param low watermark value
-   * @param high watermark value
-   * @param partition interval
-   * @param Maximum number of allowed partitions
+   * @param lowWatermarkValue low watermark value
+   * @param highWatermarkValue high watermark value
+   * @param partitionInterval partition interval
+   * @param maxIntervals max number of allowed partitions
    * @return calculated interval
    */
   private static long getInterval(long lowWatermarkValue, long highWatermarkValue, long partitionInterval,

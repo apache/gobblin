@@ -22,7 +22,6 @@ import org.apache.gobblin.data.management.copy.CopyableFile;
 import org.apache.gobblin.data.management.copy.FileAwareInputStream;
 import org.apache.gobblin.util.FileUtils;
 import org.apache.gobblin.util.io.StreamCopier;
-import org.apache.gobblin.util.io.StreamUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -36,7 +35,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.lang.StringUtils;
-import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -62,7 +60,8 @@ public class TarArchiveInputStreamDataWriter extends FileAwareInputStreamDataWri
    * @see org.apache.gobblin.data.management.copy.writer.FileAwareInputStreamDataWriter#write(org.apache.gobblin.data.management.copy.FileAwareInputStream)
    */
   @Override
-  public void writeImpl(InputStream inputStream, Path writeAt, CopyableFile copyableFile) throws IOException {
+  public void writeImpl(InputStream inputStream, Path writeAt, CopyableFile copyableFile, FileAwareInputStream record)
+      throws IOException {
     this.closer.register(inputStream);
 
     TarArchiveInputStream tarIn = new TarArchiveInputStream(inputStream);

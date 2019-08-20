@@ -20,7 +20,7 @@ package org.apache.gobblin.service.modules.flowgraph;
 public class FlowGraphConfigurationKeys {
   public static final String DATA_NODE_PREFIX = "data.node.";
   public static final String FLOW_EDGE_PREFIX = "flow.edge.";
-
+  public static final String FLOW_GRAPH_PREFIX = "flow.graph.";
   /**
    *   {@link DataNode} related configuration keys.
    */
@@ -42,4 +42,10 @@ public class FlowGraphConfigurationKeys {
   public static final String FLOW_EDGE_TEMPLATE_DIR_URI_KEY = FLOW_EDGE_PREFIX + "flowTemplateDirUri";
   public static final String FLOW_EDGE_SPEC_EXECUTORS_KEY = FLOW_EDGE_PREFIX + "specExecutors";
   public static final String FLOW_EDGE_SPEC_EXECUTOR_CLASS_KEY = "specExecInstance.class";
+
+  /**
+   * {@link org.apache.gobblin.service.modules.flowgraph.pathfinder.PathFinder} related configuration keys.
+   */
+  public static final String FLOW_GRAPH_PATH_FINDER_CLASS = FLOW_GRAPH_PREFIX + "pathfinder.class";
+  public static final String DEFAULT_FLOW_GRAPH_PATH_FINDER_CLASS = "org.apache.gobblin.service.modules.flowgraph.pathfinder.BFSPathFinder";
 }

@@ -22,16 +22,13 @@ import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 
-import javax.annotation.Nonnull;
-import lombok.Getter;
-
-import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
-import org.apache.gobblin.runtime.api.FlowSpec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,11 +38,15 @@ import com.google.common.util.concurrent.AbstractIdleService;
 import com.google.common.util.concurrent.Service;
 import com.typesafe.config.Config;
 
+import javax.annotation.Nonnull;
+import lombok.Getter;
+
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.GobblinInstanceEnvironment;
 import org.apache.gobblin.runtime.api.MutableSpecCatalog;
 import org.apache.gobblin.runtime.api.Spec;
@@ -55,14 +56,19 @@ import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.api.SpecSerDe;
 import org.apache.gobblin.runtime.api.SpecStore;
 import org.apache.gobblin.runtime.api.TopologySpec;
+import org.apache.gobblin.runtime.spec_serde.JavaSpecSerDe;
 import org.apache.gobblin.runtime.spec_store.FSSpecStore;
 import org.apache.gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.callbacks.CallbackResult;
+import org.apache.gobblin.util.callbacks.CallbacksDispatcher;
 
 
 @Alpha
-public class TopologyCatalog extends AbstractIdleService implements SpecCatalog, MutableSpecCatalog, SpecSerDe {
+public class TopologyCatalog extends AbstractIdleService implements SpecCatalog, MutableSpecCatalog {
 
   public static final String DEFAULT_TOPOLOGYSPEC_STORE_CLASS = FSSpecStore.class.getCanonicalName();
+  public static final String DEFAULT_TOPOLOGYSPEC_SERDE_CLASS = JavaSpecSerDe.class.getCanonicalName();
 
   protected final SpecCatalogListenersList listeners;
   protected final Logger log;
@@ -107,16 +113,20 @@ public class TopologyCatalog extends AbstractIdleService implements SpecCatalog,
     try {
       Config newConfig = config;
       if (config.hasPath(ConfigurationKeys.TOPOLOGYSPEC_STORE_DIR_KEY)) {
-        newConfig = config.withValue(ConfigurationKeys.SPECSTORE_FS_DIR_KEY,
+        newConfig = config.withValue(FSSpecStore.SPECSTORE_FS_DIR_KEY,
             config.getValue(ConfigurationKeys.TOPOLOGYSPEC_STORE_DIR_KEY));
       }
-      String specStoreClassName = DEFAULT_TOPOLOGYSPEC_STORE_CLASS;
-      if (config.hasPath(ConfigurationKeys.TOPOLOGYSPEC_STORE_CLASS_KEY)) {
-        specStoreClassName = config.getString(ConfigurationKeys.TOPOLOGYSPEC_STORE_CLASS_KEY);
-      }
+      String specStoreClassName = ConfigUtils.getString(config, ConfigurationKeys.TOPOLOGYSPEC_STORE_CLASS_KEY,
+          DEFAULT_TOPOLOGYSPEC_STORE_CLASS);
       this.log.info("Using SpecStore class name/alias " + specStoreClassName);
+      String specSerDeClassName = ConfigUtils.getString(config, ConfigurationKeys.TOPOLOGYSPEC_SERDE_CLASS_KEY,
+          DEFAULT_TOPOLOGYSPEC_SERDE_CLASS);
+      this.log.info("Using SpecSerDe class name/alias " + specSerDeClassName);
+
+      SpecSerDe specSerDe = (SpecSerDe) ConstructorUtils.invokeConstructor(Class.forName(
+          new ClassAliasResolver<>(SpecSerDe.class).resolve(specSerDeClassName)));
       this.specStore = (SpecStore) ConstructorUtils.invokeConstructor(Class.forName(this.aliasResolver.resolve(
-          specStoreClassName)), newConfig, this);
+          specStoreClassName)), newConfig, specSerDe);
     } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
         | ClassNotFoundException e) {
       throw new RuntimeException(e);
@@ -228,7 +238,9 @@ public class TopologyCatalog extends AbstractIdleService implements SpecCatalog,
   }
 
   @Override
-  public void put(Spec spec) {
+  public Map<String, AddSpecResponse> put(Spec spec) {
+    Map<String, AddSpecResponse> responseMap = new HashMap<>();
+
     try {
       Preconditions.checkState(state() == Service.State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
       Preconditions.checkNotNull(spec);
@@ -236,17 +248,21 @@ public class TopologyCatalog extends AbstractIdleService implements SpecCatalog,
       log.info(String.format("Adding TopologySpec with URI: %s and Config: %s", spec.getUri(),
           ((TopologySpec) spec).getConfigAsProperties()));
         specStore.addSpec(spec);
-        this.listeners.onAddSpec(spec);
+      AddSpecResponse<CallbacksDispatcher.CallbackResults<SpecCatalogListener, AddSpecResponse>> response = this.listeners.onAddSpec(spec);
+      for (Map.Entry<SpecCatalogListener, CallbackResult<AddSpecResponse>> entry: response.getValue().getSuccesses().entrySet()) {
+        responseMap.put(entry.getKey().getName(), entry.getValue().getResult());
+      }
     } catch (IOException e) {
       throw new RuntimeException("Cannot add Spec to Spec store: " + spec, e);
     }
+    return responseMap;
   }
 
   public void remove(URI uri) {
     remove(uri, new Properties());
   }
 
-    @Override
+  @Override
   public void remove(URI uri, Properties headers) {
     try {
       Preconditions.checkState(state() == Service.State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
@@ -258,15 +274,5 @@ public class TopologyCatalog extends AbstractIdleService implements SpecCatalog,
     } catch (IOException e) {
       throw new RuntimeException("Cannot delete Spec from Spec store for URI: " + uri, e);
     }
-  }
-
-  @Override
-  public byte[] serialize(Spec spec) {
-    return SerializationUtils.serialize(spec);
-  }
-
-  @Override
-  public Spec deserialize(byte[] spec) {
-    return SerializationUtils.deserialize(spec);
   }
 }

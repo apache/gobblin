@@ -24,6 +24,12 @@
       }
     },
     {
+      "name" : "explain",
+      "type" : "boolean",
+      "default" : false,
+      "doc" : "Return the compiled flow as a string. If enabled, the flow is not added."
+    },
+    {
       "name" : "properties",
       "type" : { "type" : "map", "values" : "string" },
       "doc" : "Properties for the flow. These properties are passed to the compiled Gobblin jobs."

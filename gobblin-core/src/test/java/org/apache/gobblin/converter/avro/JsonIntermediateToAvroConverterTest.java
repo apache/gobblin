@@ -162,4 +162,37 @@ public class JsonIntermediateToAvroConverterTest {
       throws Exception {
     complexSchemaTest("/converter/complex3.json");
   }
+
+  @Test
+  public void testConverterWithNestJson() throws Exception {
+    Gson gson = new Gson();
+    jsonSchema = gson.fromJson(new InputStreamReader(
+            this.getClass().getResourceAsStream("/converter/nested_schema.json")),
+        JsonArray.class);
+
+    jsonRecord = gson.fromJson(new InputStreamReader(
+            this.getClass().getResourceAsStream("/converter/nested_json.json")),
+        JsonObject.class);
+
+    WorkUnit workUnit = new WorkUnit(new SourceState(),
+        new Extract(new SourceState(), Extract.TableType.SNAPSHOT_ONLY, "namespace", "dummy_table"));
+    state = new WorkUnitState(workUnit);
+    state.setProp(ConfigurationKeys.CONVERTER_AVRO_TIME_FORMAT, "HH:mm:ss");
+    state.setProp(ConfigurationKeys.CONVERTER_AVRO_DATE_TIMEZONE, "PST");
+
+    JsonIntermediateToAvroConverter converter = new JsonIntermediateToAvroConverter();
+
+    Schema avroSchema = converter.convertSchema(jsonSchema, state);
+    GenericRecord record = converter.convertRecord(avroSchema,
+        jsonRecord.getAsJsonObject(), state).iterator().next();
+
+    Assert.assertEquals(jsonRecord.getAsJsonObject().get("metaData").getAsJsonObject(),
+        gson.fromJson(record.get("metaData").toString(), JsonObject.class));
+
+    Assert.assertEquals(jsonRecord.getAsJsonObject().get("context").getAsJsonArray(),
+        gson.fromJson(record.get("context").toString(), JsonArray.class));
+
+    Assert.assertEquals(jsonRecord.getAsJsonObject().get("metaData").getAsJsonObject().get("id").getAsString(),
+        ((GenericRecord)(record.get("metaData"))).get("id").toString());
+  }
 }

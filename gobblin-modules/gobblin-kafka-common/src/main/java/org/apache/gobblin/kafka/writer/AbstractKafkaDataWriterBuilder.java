@@ -22,6 +22,7 @@ import java.util.Properties;
 
 import com.typesafe.config.Config;
 
+import org.apache.gobblin.configuration.ConfigurationException;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.writer.AsyncDataWriter;
@@ -35,7 +36,7 @@ import org.apache.gobblin.writer.DataWriterBuilder;
  */
 public abstract class AbstractKafkaDataWriterBuilder<S, D> extends DataWriterBuilder<S, D> {
 
-  protected abstract AsyncDataWriter<D> getAsyncDataWriter(Properties props);
+  protected abstract AsyncDataWriter<D> getAsyncDataWriter(Properties props) throws ConfigurationException;
 
   /**
    * Build a {@link DataWriter}.

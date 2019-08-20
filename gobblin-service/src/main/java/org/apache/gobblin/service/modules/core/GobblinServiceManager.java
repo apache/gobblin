@@ -44,6 +44,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.eventbus.EventBus;
@@ -58,7 +59,6 @@ import com.linkedin.restli.server.resources.BaseResource;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import javax.annotation.Nonnull;
 import lombok.Getter;
 
 import org.apache.gobblin.annotation.Alpha;
@@ -78,24 +78,41 @@ import org.apache.gobblin.scheduler.SchedulerService;
 import org.apache.gobblin.service.FlowConfig;
 import org.apache.gobblin.service.FlowConfigClient;
 import org.apache.gobblin.service.FlowConfigResourceLocalHandler;
+import org.apache.gobblin.service.FlowConfigV2ResourceLocalHandler;
 import org.apache.gobblin.service.FlowConfigsResource;
 import org.apache.gobblin.service.FlowConfigsResourceHandler;
+import org.apache.gobblin.service.FlowConfigsV2Resource;
 import org.apache.gobblin.service.FlowId;
+import org.apache.gobblin.service.NoopRequesterService;
+import org.apache.gobblin.service.RequesterService;
 import org.apache.gobblin.service.Schedule;
 import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.service.modules.restli.GobblinServiceFlowConfigResourceHandler;
 import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
 import org.apache.gobblin.service.modules.topology.TopologySpecFactory;
 import org.apache.gobblin.service.modules.utils.HelixUtils;
+import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
+import org.apache.gobblin.service.monitoring.FsJobStatusRetriever;
+import org.apache.gobblin.service.monitoring.JobStatusRetriever;
+import org.apache.gobblin.service.monitoring.KafkaJobStatusMonitor;
+import org.apache.gobblin.service.monitoring.KafkaJobStatusMonitorFactory;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 @Alpha
 public class GobblinServiceManager implements ApplicationLauncher, StandardMetricsBridge {
 
+  // Command line options
+  // These two options are required to launch GobblinServiceManager.
+  public static final String SERVICE_NAME_OPTION_NAME = "service_name";
+  public static final String SERVICE_ID_OPTION_NAME = "service_id";
+
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinServiceManager.class);
+  private static final String JOB_STATUS_RETRIEVER_CLASS_KEY = "jobStatusRetriever.class";
 
   protected final ServiceBasedAppLauncher serviceLauncher;
   private volatile boolean stopInProgress = false;
@@ -114,6 +131,8 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
   protected final boolean isRestLIServerEnabled;
   protected final boolean isTopologySpecFactoryEnabled;
   protected final boolean isGitConfigMonitorEnabled;
+  protected final boolean isDagManagerEnabled;
+  protected final boolean isJobStatusMonitorEnabled;
 
   protected TopologyCatalog topologyCatalog;
   @Getter
@@ -122,8 +141,11 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
   protected GobblinServiceJobScheduler scheduler;
   @Getter
   protected GobblinServiceFlowConfigResourceHandler resourceHandler;
+  @Getter
+  protected GobblinServiceFlowConfigResourceHandler v2ResourceHandler;
 
   protected boolean flowCatalogLocalCommit;
+  @Getter
   protected Orchestrator orchestrator;
   protected EmbeddedRestliServer restliServer;
   protected TopologySpecFactory topologySpecFactory;
@@ -133,6 +155,10 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
   protected ClassAliasResolver<TopologySpecFactory> aliasResolver;
 
   protected GitConfigMonitor gitConfigMonitor;
+
+  protected DagManager dagManager;
+
+  protected KafkaJobStatusMonitor jobStatusMonitor;
 
   @Getter
   protected Config config;
@@ -149,14 +175,14 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     }
     this.config = config;
     this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), this.getClass());
-    this.metrics = new Metrics(this.metricContext, this.config);
+    this.metrics = new Metrics(this.metricContext, config);
     this.serviceName = serviceName;
     this.serviceId = serviceId;
     this.serviceLauncher = new ServiceBasedAppLauncher(properties, serviceName);
 
     this.fs = buildFileSystem(config);
-    this.serviceWorkDir = serviceWorkDirOptional.isPresent() ? serviceWorkDirOptional.get() :
-        getServiceWorkDirPath(this.fs, serviceName, serviceId);
+    this.serviceWorkDir = serviceWorkDirOptional.isPresent() ? serviceWorkDirOptional.get()
+        : getServiceWorkDirPath(this.fs, serviceName, serviceId);
 
     // Initialize TopologyCatalog
     this.isTopologyCatalogEnabled = ConfigUtils.getBoolean(config,
@@ -198,11 +224,25 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
       this.helixManager = Optional.absent();
     }
 
+    this.isDagManagerEnabled = ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_DAG_MANAGER_ENABLED_KEY, false);
+    // Initialize DagManager
+    if (this.isDagManagerEnabled) {
+      this.dagManager = new DagManager(config);
+      this.serviceLauncher.addService(this.dagManager);
+    }
+
+    this.isJobStatusMonitorEnabled = ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_JOB_STATUS_MONITOR_ENABLED_KEY, true) ;
+    // Initialize JobStatusMonitor
+    if (this.isJobStatusMonitorEnabled) {
+      this.jobStatusMonitor = new KafkaJobStatusMonitorFactory().createJobStatusMonitor(config);
+      this.serviceLauncher.addService(this.jobStatusMonitor);
+    }
+
     // Initialize ServiceScheduler
     this.isSchedulerEnabled = ConfigUtils.getBoolean(config,
         ServiceConfigKeys.GOBBLIN_SERVICE_SCHEDULER_ENABLED_KEY, true);
     if (isSchedulerEnabled) {
-      this.orchestrator = new Orchestrator(config, Optional.of(this.topologyCatalog), Optional.of(LOGGER));
+      this.orchestrator = new Orchestrator(config, Optional.of(this.topologyCatalog), Optional.fromNullable(this.dagManager), Optional.of(LOGGER));
       SchedulerService schedulerService = new SchedulerService(properties);
 
       this.scheduler = new GobblinServiceJobScheduler(this.serviceName, config, this.helixManager,
@@ -219,14 +259,37 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
         this.helixManager,
         this.scheduler);
 
+    this.v2ResourceHandler = new GobblinServiceFlowConfigResourceHandler(serviceName,
+        this.flowCatalogLocalCommit,
+        new FlowConfigV2ResourceLocalHandler(this.flowCatalog),
+        this.helixManager,
+        this.scheduler);
+
     this.isRestLIServerEnabled = ConfigUtils.getBoolean(config,
         ServiceConfigKeys.GOBBLIN_SERVICE_RESTLI_SERVER_ENABLED_KEY, true);
+
     if (isRestLIServerEnabled) {
       Injector injector = Guice.createInjector(new Module() {
         @Override
         public void configure(Binder binder) {
-          binder.bind(FlowConfigsResourceHandler.class).annotatedWith(Names.named("flowConfigsResourceHandler")).toInstance(GobblinServiceManager.this.resourceHandler);
-          binder.bindConstant().annotatedWith(Names.named("readyToUse")).to(Boolean.TRUE);
+          binder.bind(FlowConfigsResourceHandler.class)
+              .annotatedWith(Names.named(FlowConfigsResource.INJECT_FLOW_CONFIG_RESOURCE_HANDLER))
+              .toInstance(GobblinServiceManager.this.resourceHandler);
+          binder.bind(FlowConfigsResourceHandler.class)
+              .annotatedWith(Names.named(FlowConfigsV2Resource.FLOW_CONFIG_GENERATOR_INJECT_NAME))
+              .toInstance(GobblinServiceManager.this.v2ResourceHandler);
+          binder.bindConstant()
+              .annotatedWith(Names.named(FlowConfigsResource.INJECT_READY_TO_USE))
+              .to(Boolean.TRUE);
+          binder.bindConstant()
+              .annotatedWith(Names.named(FlowConfigsV2Resource.INJECT_READY_TO_USE))
+              .to(Boolean.TRUE);
+          binder.bind(RequesterService.class)
+              .annotatedWith(Names.named(FlowConfigsResource.INJECT_REQUESTER_SERVICE))
+              .toInstance(new NoopRequesterService(config));
+          binder.bind(RequesterService.class)
+              .annotatedWith(Names.named(FlowConfigsV2Resource.INJECT_REQUESTER_SERVICE))
+              .toInstance(new NoopRequesterService(config));
         }
       });
       this.restliServer = EmbeddedRestliServer.builder()
@@ -298,11 +361,24 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     return new Path(fs.getHomeDirectory(), serviceName + Path.SEPARATOR + serviceId);
   }
 
+  private FlowStatusGenerator buildFlowStatusGenerator(Config config) {
+    JobStatusRetriever jobStatusRetriever;
+    try {
+      Class jobStatusRetrieverClass = Class.forName(ConfigUtils.getString(config, JOB_STATUS_RETRIEVER_CLASS_KEY, FsJobStatusRetriever.class.getName()));
+      jobStatusRetriever =
+          (JobStatusRetriever) GobblinConstructorUtils.invokeLongestConstructor(jobStatusRetrieverClass, config);
+    } catch (ReflectiveOperationException e) {
+      LOGGER.error("Exception encountered when instantiating JobStatusRetriever");
+      throw new RuntimeException(e);
+    }
+    return FlowStatusGenerator.builder().jobStatusRetriever(jobStatusRetriever).build();
+  }
+
   /**
    * Handle leadership change.
    * @param changeContext notification context
    */
-  private void handleLeadershipChange(NotificationContext changeContext) {
+  private void  handleLeadershipChange(NotificationContext changeContext) {
     if (this.helixManager.isPresent() && this.helixManager.get().isLeader()) {
       LOGGER.info("Leader notification for {} HM.isLeader {}", this.helixManager.get().getInstanceName(),
           this.helixManager.get().isLeader());
@@ -315,9 +391,17 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
       if (this.isGitConfigMonitorEnabled) {
         this.gitConfigMonitor.setActive(true);
       }
+
+      if (this.isDagManagerEnabled) {
+        //Activate DagManager only if TopologyCatalog is initialized. If not; skip activation.
+        if (this.topologyCatalog.getInitComplete().getCount() == 0) {
+          this.dagManager.setActive(true);
+        }
+      }
     } else if (this.helixManager.isPresent()) {
       LOGGER.info("Leader lost notification for {} HM.isLeader {}", this.helixManager.get().getInstanceName(),
           this.helixManager.get().isLeader());
+
       if (this.isSchedulerEnabled) {
         LOGGER.info("Gobblin Service is now running in slave instance mode, disabling Scheduler.");
         this.scheduler.setActive(false);
@@ -325,6 +409,10 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
 
       if (this.isGitConfigMonitorEnabled) {
         this.gitConfigMonitor.setActive(false);
+      }
+
+      if (this.isDagManagerEnabled) {
+        this.dagManager.setActive(false);
       }
     }
   }
@@ -359,6 +447,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
         if (this.isGitConfigMonitorEnabled) {
           this.gitConfigMonitor.setActive(true);
         }
+
       } else {
         if (this.isSchedulerEnabled) {
           LOGGER.info("[Init] Gobblin Service is running in slave instance mode, not enabling Scheduler.");
@@ -392,6 +481,16 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
 
     // Notify now topologyCatalog has the right information
     this.topologyCatalog.getInitComplete().countDown();
+
+    //Activate the SpecCompiler, after the topologyCatalog has been initialized.
+    this.orchestrator.getSpecCompiler().setActive(true);
+
+    //Activate the DagManager service, after the topologyCatalog has been initialized.
+    if (!this.helixManager.isPresent() || this.helixManager.get().isLeader()){
+      if (this.isDagManagerEnabled) {
+        this.dagManager.setActive(true);
+      }
+    }
   }
 
   @Override
@@ -447,19 +546,8 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
   }
 
   @Override
-  public StandardMetrics getStandardMetrics() {
-    return this.metrics;
-  }
-
-  @Nonnull
-  @Override
-  public MetricContext getMetricContext() {
-    return this.metricContext;
-  }
-
-  @Override
-  public boolean isInstrumentationEnabled() {
-    return false;
+  public Collection<StandardMetrics> getStandardMetricsCollection() {
+    return ImmutableList.of(this.metrics);
   }
 
   private class Metrics extends StandardMetrics {
@@ -467,19 +555,22 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     private ContextAwareHistogram serviceLeadershipChange;
 
     public Metrics(final MetricContext metricContext, Config config) {
-      int timeWindowSizeInMinutes = ConfigUtils.getInt(config, ConfigurationKeys.METRIC_TIMER_WINDOW_SIZE_IN_MINUTES, ConfigurationKeys.DEFAULT_METRIC_TIMER_WINDOW_SIZE_IN_MINUTES);
+      int timeWindowSizeInMinutes = ConfigUtils.getInt(config, ConfigurationKeys.METRIC_TIMER_WINDOW_SIZE_IN_MINUTES,
+          ConfigurationKeys.DEFAULT_METRIC_TIMER_WINDOW_SIZE_IN_MINUTES);
       this.serviceLeadershipChange = metricContext.contextAwareHistogram(SERVICE_LEADERSHIP_CHANGE, timeWindowSizeInMinutes, TimeUnit.MINUTES);
       this.contextAwareMetrics.add(this.serviceLeadershipChange);
     }
   }
 
-  private static String getServiceId() {
-    return "1";
+  private static String getServiceId(CommandLine cmd) {
+    return cmd.getOptionValue(SERVICE_ID_OPTION_NAME) == null ? "1" : cmd.getOptionValue(SERVICE_ID_OPTION_NAME);
   }
 
   private static Options buildOptions() {
     Options options = new Options();
-    options.addOption("a", ServiceConfigKeys.SERVICE_NAME_OPTION_NAME, true, "Gobblin application name");
+    options.addOption("a", SERVICE_NAME_OPTION_NAME, true, "Gobblin Service application's name");
+    options.addOption("i", SERVICE_ID_OPTION_NAME, true, "Gobblin Service application's ID, "
+        + "this needs to be globally unique");
     return options;
   }
 
@@ -492,9 +583,14 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     Options options = buildOptions();
     try {
       CommandLine cmd = new DefaultParser().parse(options, args);
-      if (!cmd.hasOption(ServiceConfigKeys.SERVICE_NAME_OPTION_NAME)) {
+      if (!cmd.hasOption(SERVICE_NAME_OPTION_NAME)) {
         printUsage(options);
         System.exit(1);
+      }
+
+      if (!cmd.hasOption(SERVICE_ID_OPTION_NAME)) {
+        printUsage(options);
+        LOGGER.warn("Please assign globally unique ID for a GobblinServiceManager instance, or it will use default ID");
       }
 
       boolean isTestMode = false;
@@ -504,9 +600,9 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
 
       Config config = ConfigFactory.load();
       try (GobblinServiceManager gobblinServiceManager = new GobblinServiceManager(
-          cmd.getOptionValue(ServiceConfigKeys.SERVICE_NAME_OPTION_NAME), getServiceId(),
+          cmd.getOptionValue(SERVICE_NAME_OPTION_NAME), getServiceId(cmd),
           config, Optional.<Path>absent())) {
-
+        gobblinServiceManager.getOrchestrator().setFlowStatusGenerator(gobblinServiceManager.buildFlowStatusGenerator(config));
         gobblinServiceManager.start();
 
         if (isTestMode) {

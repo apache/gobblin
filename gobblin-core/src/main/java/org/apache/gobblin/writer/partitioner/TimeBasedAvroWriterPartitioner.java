@@ -18,10 +18,13 @@
 package org.apache.gobblin.writer.partitioner;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.avro.generic.GenericRecord;
 
 import com.google.common.base.Optional;
+
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
@@ -40,11 +43,15 @@ import org.apache.gobblin.util.ForkOperatorUtils;
  *
  * If a record contains none of the specified fields, or if no field is specified, the current timestamp will be used.
  */
+@Slf4j
 public class TimeBasedAvroWriterPartitioner extends TimeBasedWriterPartitioner<GenericRecord> {
 
   public static final String WRITER_PARTITION_COLUMNS = ConfigurationKeys.WRITER_PREFIX + ".partition.columns";
+  public static final String WRITER_PARTITION_ENABLE_PARSE_AS_STRING =
+      ConfigurationKeys.WRITER_PREFIX + ".partition.enableParseAsString";
 
   private final Optional<List<String>> partitionColumns;
+  private final boolean enableParseAsString;
 
   public TimeBasedAvroWriterPartitioner(State state) {
     this(state, 1, 0);
@@ -53,11 +60,21 @@ public class TimeBasedAvroWriterPartitioner extends TimeBasedWriterPartitioner<G
   public TimeBasedAvroWriterPartitioner(State state, int numBranches, int branchId) {
     super(state, numBranches, branchId);
     this.partitionColumns = getWriterPartitionColumns(state, numBranches, branchId);
+    this.enableParseAsString = getEnableParseAsString(state, numBranches, branchId);
+    log.info("Enable parse as string: {}", this.enableParseAsString);
   }
 
   private static Optional<List<String>> getWriterPartitionColumns(State state, int numBranches, int branchId) {
     String propName = ForkOperatorUtils.getPropertyNameForBranch(WRITER_PARTITION_COLUMNS, numBranches, branchId);
+    log.info("Partition columns for dataset {} are: {}", state.getProp(ConfigurationKeys.DATASET_URN_KEY),
+        state.getProp(propName));
     return state.contains(propName) ? Optional.of(state.getPropAsList(propName)) : Optional.<List<String>> absent();
+  }
+
+  private static boolean getEnableParseAsString(State state, int numBranches, int branchId) {
+    String propName = ForkOperatorUtils.getPropertyNameForBranch(WRITER_PARTITION_ENABLE_PARSE_AS_STRING,
+        numBranches, branchId);
+    return state.getPropAsBoolean(propName, false);
   }
 
   @Override
@@ -68,9 +85,19 @@ public class TimeBasedAvroWriterPartitioner extends TimeBasedWriterPartitioner<G
   /**
    *  Check if the partition column value is present and is a Long object. Otherwise, use current system time.
    */
-  private static long getRecordTimestamp(Optional<Object> writerPartitionColumnValue) {
-    return writerPartitionColumnValue.orNull() instanceof Long ? (Long) writerPartitionColumnValue.get()
-        : System.currentTimeMillis();
+  private long getRecordTimestamp(Optional<Object> writerPartitionColumnValue) {
+
+    if (writerPartitionColumnValue.isPresent()) {
+      Object val = writerPartitionColumnValue.get();
+      if (val instanceof Long) {
+        return (Long) val;
+      } else if (enableParseAsString) {
+        return Long.parseLong(val.toString());
+      }
+    }
+
+    // Default to current time
+    return timeUnit.convert(System.currentTimeMillis(), TimeUnit.MILLISECONDS);
   }
 
   /**

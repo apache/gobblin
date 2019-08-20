@@ -166,10 +166,15 @@ abstract class GoogleWebMasterSource extends QueryBasedSource<String, String[]> 
    */
   public static final String KEY_PAGES_TUNING_MAX_RETRIES = PAGES_TUNING + "max_retries";
   /**
-   * Optional. Default to 2 minutes.
-   * Set the time out in minutes while getting all pages.
+   * Optional. Default to 30 seconds.
+   * Set the cooldown time in seconds while getting the page count.
    */
-  public static final String KEY_PAGES_TUNING_TIME_OUT = PAGES_TUNING + "time_out";
+  public static final String KEY_PAGES_COUNT_TUNING_COOLDOWN_TIME = PAGES_TUNING + "size.cooldown";
+  /**
+   * Optional. Default to 5 seconds.
+   * Set the cooldown time in seconds while getting all pages.
+   */
+  public static final String KEY_PAGES_GET_TUNING_COOLDOWN_TIME = PAGES_TUNING + "get.cooldown";
   // =============================================
   // =========   GET PAGES TUNING END ============
   // =============================================
@@ -179,8 +184,7 @@ abstract class GoogleWebMasterSource extends QueryBasedSource<String, String[]> 
   public static final String DEFAULT_SOURCE_PROPERTY_COLUMN_NAME = "Source";
 
   @Override
-  public Extractor<String, String[]> getExtractor(WorkUnitState state)
-      throws IOException {
+  public Extractor<String, String[]> getExtractor(WorkUnitState state) throws IOException {
     List<GoogleWebmasterFilter.Dimension> requestedDimensions = getRequestedDimensions(state);
     List<GoogleWebmasterDataFetcher.Metric> requestedMetrics = getRequestedMetrics(state);
 
@@ -207,8 +211,7 @@ abstract class GoogleWebMasterSource extends QueryBasedSource<String, String[]> 
 
   abstract GoogleWebmasterExtractor createExtractor(WorkUnitState state, Map<String, Integer> columnPositionMap,
       List<GoogleWebmasterFilter.Dimension> requestedDimensions,
-      List<GoogleWebmasterDataFetcher.Metric> requestedMetrics, JsonArray schemaJson)
-      throws IOException;
+      List<GoogleWebmasterDataFetcher.Metric> requestedMetrics, JsonArray schemaJson) throws IOException;
 
   private void validateFilters(String filters) {
     String countryPrefix = "COUNTRY.";

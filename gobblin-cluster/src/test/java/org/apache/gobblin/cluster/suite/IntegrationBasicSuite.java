@@ -30,12 +30,14 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.curator.test.TestingServer;
+import org.testng.Assert;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
@@ -56,6 +58,8 @@ import org.apache.gobblin.cluster.GobblinClusterManager;
 import org.apache.gobblin.cluster.GobblinTaskRunner;
 import org.apache.gobblin.cluster.HelixUtils;
 import org.apache.gobblin.cluster.TestHelper;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.GobblinMetricsRegistry;
 import org.apache.gobblin.testing.AssertWithBackoff;
 
 /**
@@ -67,15 +71,21 @@ import org.apache.gobblin.testing.AssertWithBackoff;
  */
 @Slf4j
 public class IntegrationBasicSuite {
+  public static final String JOB_NAME = "HelloWorldTestJob";
   public static final String JOB_CONF_NAME = "HelloWorldJob.conf";
   public static final String WORKER_INSTANCE_0 = "WorkerInstance_0";
+  public static final String TEST_INSTANCE_NAME_KEY = "worker.instance.name";
 
   // manager and workers
   protected Config managerConfig;
+  protected Collection<Config> taskDriverConfigs = Lists.newArrayList();
   protected Collection<Config> workerConfigs = Lists.newArrayList();
   protected Collection<GobblinTaskRunner> workers = Lists.newArrayList();
+  protected Collection<GobblinTaskRunner> taskDrivers = Lists.newArrayList();
   protected GobblinClusterManager manager;
 
+  // This filename should match the log file specified in log4j.xml
+  public static Path jobLogOutputFile = Paths.get("gobblin-integration-test-log-dir/gobblin-cluster-test.log");;
   protected Path workPath;
   protected Path jobConfigPath;
   protected Path jobOutputBasePath;
@@ -96,6 +106,7 @@ public class IntegrationBasicSuite {
 
   private void initConfig() {
     this.managerConfig = this.getManagerConfig();
+    this.taskDriverConfigs = this.getTaskDriverConfigs();
     this.workerConfigs = this.getWorkerConfigs();
   }
 
@@ -152,7 +163,7 @@ public class IntegrationBasicSuite {
   }
 
   protected Map<String, Config> overrideJobConfigs(Config rawJobConfig) {
-    return ImmutableMap.of("HelloWorldJob", rawJobConfig);
+    return ImmutableMap.of(JOB_NAME, rawJobConfig);
   }
 
   private void writeJobConf(String jobName, Config jobConfig) throws IOException {
@@ -164,7 +175,7 @@ public class IntegrationBasicSuite {
     }
   }
 
-  private Config getClusterConfig() {
+  protected Config getClusterConfig() {
     URL url = Resources.getResource("BasicCluster.conf");
     Config config = ConfigFactory.parseURL(url);
 
@@ -177,12 +188,16 @@ public class IntegrationBasicSuite {
     return overrideConfig.withFallback(config);
   }
 
-  protected Config getManagerConfig() {
+  public Config getManagerConfig() {
     // manager config initialization
     URL url = Resources.getResource("BasicManager.conf");
     Config managerConfig = ConfigFactory.parseURL(url);
     managerConfig = managerConfig.withFallback(getClusterConfig());
     return managerConfig.resolve();
+  }
+
+  protected Collection<Config> getTaskDriverConfigs() {
+    return new ArrayList<>();
   }
 
   protected Collection<Config> getWorkerConfigs() {
@@ -193,11 +208,30 @@ public class IntegrationBasicSuite {
     return Lists.newArrayList(workerConfig.resolve());
   }
 
+  protected Config addInstanceName(Config baseConfig, String instanceName) {
+    Map<String, String> configMap = new HashMap<>();
+    configMap.put(IntegrationBasicSuite.TEST_INSTANCE_NAME_KEY, instanceName);
+    Config instanceConfig = ConfigFactory.parseMap(configMap);
+    return instanceConfig.withFallback(baseConfig).resolve();
+  }
+
   public void waitForAndVerifyOutputFiles() throws Exception {
-    AssertWithBackoff asserter = AssertWithBackoff.create().logger(log).timeoutMs(60_000)
+    AssertWithBackoff asserter = AssertWithBackoff.create().logger(log).timeoutMs(120_000)
         .maxSleepMs(100).backoffFactor(1.5);
 
     asserter.assertTrue(this::hasExpectedFilesBeenCreated, "Waiting for job-completion");
+  }
+
+  /**
+   * verify if the file containts the provided message
+   * @param logFile file to be looked inside
+   * @param message string to look for
+   * @return true if the file contains the message
+   * @throws IOException
+   */
+  static boolean verifyFileForMessage(Path logFile, String message) throws IOException {
+    String content = new String(Files.readAllBytes(logFile));
+    return content.contains(message);
   }
 
   protected boolean hasExpectedFilesBeenCreated(Void input) {
@@ -215,6 +249,7 @@ public class IntegrationBasicSuite {
     this.testingZKServer.start();
     createHelixCluster();
     startWorker();
+    startTaskDriver();
     startManager();
   }
 
@@ -226,19 +261,56 @@ public class IntegrationBasicSuite {
     this.manager.start();
   }
 
-  protected void startWorker() throws Exception {
-    this.workers.add(new GobblinTaskRunner(TestHelper.TEST_APPLICATION_NAME, WORKER_INSTANCE_0,
-        TestHelper.TEST_APPLICATION_ID, "1",
-        this.workerConfigs.iterator().next(), Optional.absent()));
+  private void startTaskDriver() throws Exception {
+    for (Config taskDriverConfig: this.taskDriverConfigs) {
+      GobblinTaskRunner runner = new GobblinTaskRunner(TestHelper.TEST_APPLICATION_NAME,
+          taskDriverConfig.getString(TEST_INSTANCE_NAME_KEY),
+          TestHelper.TEST_APPLICATION_ID, "1",
+          taskDriverConfig, Optional.absent());
+      this.taskDrivers.add(runner);
 
-    // Need to run in another thread since the start call will not return until the stop method
-    // is called.
-    Thread workerThread = new Thread(this.workers.iterator().next()::start);
-    workerThread.start();
+      // Need to run in another thread since the start call will not return until the stop method
+      // is called.
+      Thread workerThread = new Thread(runner::start);
+      workerThread.start();
+    }
+  }
+
+  private void startWorker() throws Exception {
+    if (workerConfigs.size() == 1) {
+      this.workers.add(new GobblinTaskRunner(TestHelper.TEST_APPLICATION_NAME, WORKER_INSTANCE_0,
+          TestHelper.TEST_APPLICATION_ID, "1",
+          this.workerConfigs.iterator().next(), Optional.absent()));
+
+      // Need to run in another thread since the start call will not return until the stop method
+      // is called.
+      Thread workerThread = new Thread(this.workers.iterator().next()::start);
+      workerThread.start();
+    } else {
+      // Each workerConfig corresponds to a worker instance
+      for (Config workerConfig: this.workerConfigs) {
+        GobblinTaskRunner runner = new GobblinTaskRunner(TestHelper.TEST_APPLICATION_NAME,
+            workerConfig.getString(TEST_INSTANCE_NAME_KEY),
+            TestHelper.TEST_APPLICATION_ID, "1",
+            workerConfig, Optional.absent());
+        this.workers.add(runner);
+
+        // Need to run in another thread since the start call will not return until the stop method
+        // is called.
+        Thread workerThread = new Thread(runner::start);
+        workerThread.start();
+      }
+    }
+  }
+
+  public void verifyMetricsCleaned() {
+    Collection<GobblinMetrics> all = GobblinMetricsRegistry.getInstance().getMetricsByPattern(".*" + JOB_NAME + ".*");
+    Assert.assertEquals(all.size(), 0);
   }
 
   public void shutdownCluster() throws InterruptedException, IOException {
-    workers.forEach(runner->runner.stop());
+    this.workers.forEach(runner->runner.stop());
+    this.taskDrivers.forEach(runner->runner.stop());
     this.manager.stop();
     this.testingZKServer.close();
   }

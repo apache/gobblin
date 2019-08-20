@@ -23,12 +23,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.gobblin.runtime.JobShutdownException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
-import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -61,7 +62,7 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
   private static final Logger LOG = LoggerFactory.getLogger(KafkaExtractor.class);
 
   protected static final int INITIAL_PARTITION_IDX = -1;
-  protected static final Integer MAX_LOG_DECODING_ERRORS = 5;
+  protected static final Long MAX_LOG_DECODING_ERRORS = 5L;
 
   // Constants for event submission
   public static final String TOPIC = "topic";
@@ -71,6 +72,8 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
   public static final String EXPECTED_HIGH_WATERMARK = "expectedHighWatermark";
   public static final String ELAPSED_TIME = "elapsedTime";
   public static final String PROCESSED_RECORD_COUNT = "processedRecordCount";
+  public static final String UNDECODABLE_MESSAGE_COUNT = "undecodableMessageCount";
+  public static final String PARTITION_TOTAL_SIZE = "partitionTotalSize";
   public static final String AVG_RECORD_PULL_TIME = "avgRecordPullTime";
   public static final String READ_RECORD_TIME = "readRecordTime";
   public static final String DECODE_RECORD_TIME = "decodeRecordTime";
@@ -87,16 +90,17 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
   protected final GobblinKafkaConsumerClient kafkaConsumerClient;
   private final ClassAliasResolver<GobblinKafkaConsumerClientFactory> kafkaConsumerClientResolver;
 
-  protected final Stopwatch stopwatch;
-
-  protected final Map<KafkaPartition, Integer> decodingErrorCount;
+  protected final Map<KafkaPartition, Long> decodingErrorCount;
   private final Map<KafkaPartition, Double> avgMillisPerRecord;
   private final Map<KafkaPartition, Long> avgRecordSizes;
   private final Map<KafkaPartition, Long> elapsedTime;
   private final Map<KafkaPartition, Long> processedRecordCount;
+  private final Map<KafkaPartition, Long> partitionTotalSize;
   private final Map<KafkaPartition, Long> decodeRecordTime;
   private final Map<KafkaPartition, Long> fetchMessageBufferTime;
   private final Map<KafkaPartition, Long> readRecordTime;
+  private final Map<KafkaPartition, Long> startFetchEpochTime;
+  private final Map<KafkaPartition, Long> stopFetchEpochTime;
 
   private final Set<Integer> errorPartitions;
   private int undecodableMessageCount = 0;
@@ -105,10 +109,12 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
   private int currentPartitionIdx = INITIAL_PARTITION_IDX;
   private long currentPartitionRecordCount = 0;
   private long currentPartitionTotalSize = 0;
-  private long currentPartitionFetchDuration = 0;
   private long currentPartitionDecodeRecordTime = 0;
   private long currentPartitionFetchMessageBufferTime = 0;
   private long currentPartitionReadRecordTime = 0;
+  protected D currentPartitionLastSuccessfulRecord = null;
+
+  private final AtomicBoolean shutdownRequested = new AtomicBoolean(false);
 
   public KafkaExtractor(WorkUnitState state) {
     super(state);
@@ -130,16 +136,17 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
       throw new RuntimeException(e);
     }
 
-    this.stopwatch = Stopwatch.createUnstarted();
-
     this.decodingErrorCount = Maps.newHashMap();
     this.avgMillisPerRecord = Maps.newHashMapWithExpectedSize(this.partitions.size());
     this.avgRecordSizes = Maps.newHashMapWithExpectedSize(this.partitions.size());
     this.elapsedTime = Maps.newHashMapWithExpectedSize(this.partitions.size());
     this.processedRecordCount = Maps.newHashMapWithExpectedSize(this.partitions.size());
+    this.partitionTotalSize = Maps.newHashMapWithExpectedSize(this.partitions.size());
     this.decodeRecordTime = Maps.newHashMapWithExpectedSize(this.partitions.size());
     this.fetchMessageBufferTime = Maps.newHashMapWithExpectedSize(this.partitions.size());
     this.readRecordTime = Maps.newHashMapWithExpectedSize(this.partitions.size());
+    this.startFetchEpochTime = Maps.newHashMapWithExpectedSize(this.partitions.size());
+    this.stopFetchEpochTime= Maps.newHashMapWithExpectedSize(this.partitions.size());
 
     this.errorPartitions = Sets.newHashSet();
 
@@ -161,6 +168,10 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
   @SuppressWarnings("unchecked")
   @Override
   public D readRecordImpl(D reuse) throws DataRecordException, IOException {
+    if (this.shutdownRequested.get()) {
+      return null;
+    }
+
     long readStartTime = System.nanoTime();
 
     while (!allPartitionsFinished()) {
@@ -200,38 +211,24 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
 
         this.nextWatermark.set(this.currentPartitionIdx, nextValidMessage.getNextOffset());
         try {
-          D record = null;
           // track time for decode/convert depending on the record type
           long decodeStartTime = System.nanoTime();
 
-          if (nextValidMessage instanceof ByteArrayBasedKafkaRecord) {
-            record = decodeRecord((ByteArrayBasedKafkaRecord)nextValidMessage);
-          } else if (nextValidMessage instanceof DecodeableKafkaRecord){
-            // if value is null then this is a bad record that is returned for further error handling, so raise an error
-            if (((DecodeableKafkaRecord) nextValidMessage).getValue() == null) {
-              throw new DataRecordException("Could not decode Kafka record");
-            }
-
-            // get value from decodeable record and convert to the output schema if necessary
-            record = convertRecord(((DecodeableKafkaRecord<?, D>) nextValidMessage).getValue());
-          } else {
-            throw new IllegalStateException(
-                "Unsupported KafkaConsumerRecord type. The returned record can either be ByteArrayBasedKafkaRecord"
-                    + " or DecodeableKafkaRecord");
-          }
+          D record = decodeKafkaMessage(nextValidMessage);
 
           this.currentPartitionDecodeRecordTime += System.nanoTime() - decodeStartTime;
           this.currentPartitionRecordCount++;
           this.currentPartitionTotalSize += nextValidMessage.getValueSizeInBytes();
           this.currentPartitionReadRecordTime += System.nanoTime() - readStartTime;
+          this.currentPartitionLastSuccessfulRecord = record;
           return record;
         } catch (Throwable t) {
           this.errorPartitions.add(this.currentPartitionIdx);
           this.undecodableMessageCount++;
           if (shouldLogError()) {
             LOG.error(String.format("A record from partition %s cannot be decoded.", getCurrentPartition()), t);
-            incrementErrorCount();
           }
+          incrementErrorCount();
         }
       }
     }
@@ -239,6 +236,35 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
 
     this.currentPartitionReadRecordTime += System.nanoTime() - readStartTime;
     return null;
+  }
+
+  protected D decodeKafkaMessage(KafkaConsumerRecord message) throws DataRecordException, IOException {
+
+    D record = null;
+
+    if (message instanceof ByteArrayBasedKafkaRecord) {
+      record = decodeRecord((ByteArrayBasedKafkaRecord)message);
+    } else if (message instanceof DecodeableKafkaRecord){
+      // if value is null then this is a bad record that is returned for further error handling, so raise an error
+      if (((DecodeableKafkaRecord) message).getValue() == null) {
+        throw new DataRecordException("Could not decode Kafka record");
+      }
+
+      // get value from decodeable record and convert to the output schema if necessary
+      record = convertRecord(((DecodeableKafkaRecord<?, D>) message).getValue());
+    } else {
+      throw new IllegalStateException(
+          "Unsupported KafkaConsumerRecord type. The returned record can either be ByteArrayBasedKafkaRecord"
+              + " or DecodeableKafkaRecord");
+    }
+
+    return record;
+  }
+
+  @Override
+  public void shutdown()
+      throws JobShutdownException {
+    this.shutdownRequested.set(true);
   }
 
   private boolean allPartitionsFinished() {
@@ -268,10 +294,11 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
       updateStatisticsForCurrentPartition();
       this.currentPartitionIdx++;
       this.currentPartitionRecordCount = 0;
-      this.currentPartitionFetchDuration = 0;
+      this.currentPartitionTotalSize = 0;
       this.currentPartitionDecodeRecordTime = 0;
       this.currentPartitionFetchMessageBufferTime = 0;
       this.currentPartitionReadRecordTime = 0;
+      this.currentPartitionLastSuccessfulRecord = null;
     }
 
     this.messageIterator = null;
@@ -281,29 +308,36 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
           this.highWatermark.get(this.currentPartitionIdx) - this.nextWatermark.get(this.currentPartitionIdx)));
       switchMetricContextToCurrentPartition();
     }
-    this.stopwatch.start();
+
+    if (!allPartitionsFinished()) {
+      this.startFetchEpochTime.put(this.getCurrentPartition(), System.currentTimeMillis());
+    }
   }
 
-  private void updateStatisticsForCurrentPartition() {
-    this.stopwatch.stop();
+  protected void updateStatisticsForCurrentPartition() {
+    long stopFetchEpochTime = System.currentTimeMillis();
+
+    if (!allPartitionsFinished()) {
+      this.stopFetchEpochTime.put(this.getCurrentPartition(), stopFetchEpochTime);
+    }
 
     if (this.currentPartitionRecordCount != 0) {
-      this.currentPartitionFetchDuration = this.stopwatch.elapsed(TimeUnit.MILLISECONDS);
+      long currentPartitionFetchDuration =
+          stopFetchEpochTime - this.startFetchEpochTime.get(this.getCurrentPartition());
       double avgMillisForCurrentPartition =
-          (double) this.currentPartitionFetchDuration / (double) this.currentPartitionRecordCount;
+          (double) currentPartitionFetchDuration / (double) this.currentPartitionRecordCount;
       this.avgMillisPerRecord.put(this.getCurrentPartition(), avgMillisForCurrentPartition);
 
       long avgRecordSize = this.currentPartitionTotalSize / this.currentPartitionRecordCount;
       this.avgRecordSizes.put(this.getCurrentPartition(), avgRecordSize);
 
-      this.elapsedTime.put(this.getCurrentPartition(), this.currentPartitionFetchDuration);
+      this.elapsedTime.put(this.getCurrentPartition(), currentPartitionFetchDuration);
       this.processedRecordCount.put(this.getCurrentPartition(), this.currentPartitionRecordCount);
+      this.partitionTotalSize.put(this.getCurrentPartition(), this.currentPartitionTotalSize);
       this.decodeRecordTime.put(this.getCurrentPartition(), this.currentPartitionDecodeRecordTime);
       this.fetchMessageBufferTime.put(this.getCurrentPartition(), this.currentPartitionFetchMessageBufferTime);
       this.readRecordTime.put(this.getCurrentPartition(), this.currentPartitionReadRecordTime);
     }
-
-    this.stopwatch.reset();
   }
 
   private void switchMetricContextToCurrentPartition() {
@@ -328,7 +362,7 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
     if (this.decodingErrorCount.containsKey(getCurrentPartition())) {
       this.decodingErrorCount.put(getCurrentPartition(), this.decodingErrorCount.get(getCurrentPartition()) + 1);
     } else {
-      this.decodingErrorCount.put(getCurrentPartition(), 1);
+      this.decodingErrorCount.put(getCurrentPartition(), 1L);
     }
   }
 
@@ -358,8 +392,9 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
 
   @Override
   public void close() throws IOException {
-
-    updateStatisticsForCurrentPartition();
+    if (currentPartitionIdx != INITIAL_PARTITION_IDX) {
+      updateStatisticsForCurrentPartition();
+    }
 
     Map<KafkaPartition, Map<String, String>> tagsForPartitionsMap = Maps.newHashMap();
 
@@ -367,64 +402,12 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
     this.workUnitState.setProp(ConfigurationKeys.ERROR_PARTITION_COUNT, this.errorPartitions.size());
     this.workUnitState.setProp(ConfigurationKeys.ERROR_MESSAGE_UNDECODABLE_COUNT, this.undecodableMessageCount);
 
-    // Commit actual high watermark for each partition
     for (int i = 0; i < this.partitions.size(); i++) {
       LOG.info(String.format("Actual high watermark for partition %s=%d, expected=%d", this.partitions.get(i),
           this.nextWatermark.get(i), this.highWatermark.get(i)));
-
-      Map<String, String> tagsForPartition = Maps.newHashMap();
-      KafkaPartition partition = this.partitions.get(i);
-      tagsForPartition.put(TOPIC, partition.getTopicName());
-      tagsForPartition.put(PARTITION, Integer.toString(partition.getId()));
-      tagsForPartition.put(LOW_WATERMARK, Long.toString(this.lowWatermark.get(i)));
-      tagsForPartition.put(ACTUAL_HIGH_WATERMARK, Long.toString(this.nextWatermark.get(i)));
-      // These are used to compute the load factor,
-      // gobblin consumption rate relative to the kafka production rate.
-      // The gobblin rate is computed as (processed record count/elapsed time)
-      // The kafka rate is computed as (expected high watermark - previous latest offset) /
-      // (current offset fetch epoch time - previous offset fetch epoch time).
-      tagsForPartition.put(EXPECTED_HIGH_WATERMARK, Long.toString(this.highWatermark.get(i)));
-      tagsForPartition.put(KafkaSource.PREVIOUS_OFFSET_FETCH_EPOCH_TIME,
-          this.workUnitState.getProp(KafkaUtils.getPartitionPropName(KafkaSource.PREVIOUS_OFFSET_FETCH_EPOCH_TIME,
-              i)));
-      tagsForPartition.put(KafkaSource.OFFSET_FETCH_EPOCH_TIME,
-          this.workUnitState.getProp(KafkaUtils.getPartitionPropName(KafkaSource.OFFSET_FETCH_EPOCH_TIME, i)));
-      tagsForPartition.put(KafkaSource.PREVIOUS_LATEST_OFFSET,
-          this.workUnitState.getProp(KafkaUtils.getPartitionPropName(KafkaSource.PREVIOUS_LATEST_OFFSET, i)));
-
-      if (this.processedRecordCount.containsKey(partition)) {
-        tagsForPartition.put(PROCESSED_RECORD_COUNT, Long.toString(this.processedRecordCount.get(partition)));
-        tagsForPartition.put(ELAPSED_TIME, Long.toString(this.elapsedTime.get(partition)));
-        tagsForPartition.put(DECODE_RECORD_TIME, Long.toString(TimeUnit.NANOSECONDS.toMillis(
-            this.decodeRecordTime.get(partition))));
-        tagsForPartition.put(FETCH_MESSAGE_BUFFER_TIME, Long.toString(TimeUnit.NANOSECONDS.toMillis(
-            this.fetchMessageBufferTime.get(partition))));
-        tagsForPartition.put(READ_RECORD_TIME, Long.toString(TimeUnit.NANOSECONDS.toMillis(
-            this.readRecordTime.get(partition))));
-      } else {
-        tagsForPartition.put(PROCESSED_RECORD_COUNT, "0");
-        tagsForPartition.put(ELAPSED_TIME, "0");
-        tagsForPartition.put(DECODE_RECORD_TIME, "0");
-        tagsForPartition.put(FETCH_MESSAGE_BUFFER_TIME, "0");
-        tagsForPartition.put(READ_RECORD_TIME, "0");
-      }
-
-      tagsForPartitionsMap.put(partition, tagsForPartition);
+      tagsForPartitionsMap.put(this.partitions.get(i), createTagsForPartition(i));
     }
     this.workUnitState.setActualHighWatermark(this.nextWatermark);
-
-    // Commit avg time to pull a record for each partition
-    for (KafkaPartition partition : this.partitions) {
-      if (this.avgMillisPerRecord.containsKey(partition)) {
-        double avgMillis = this.avgMillisPerRecord.get(partition);
-        LOG.info(String.format("Avg time to pull a record for partition %s = %f milliseconds", partition, avgMillis));
-        KafkaUtils.setPartitionAvgRecordMillis(this.workUnitState, partition, avgMillis);
-        tagsForPartitionsMap.get(partition).put(AVG_RECORD_PULL_TIME, Double.toString(avgMillis));
-      } else {
-        LOG.info(String.format("Avg time to pull a record for partition %s not recorded", partition));
-        tagsForPartitionsMap.get(partition).put(AVG_RECORD_PULL_TIME, Double.toString(-1));
-      }
-    }
 
     if (isInstrumentationEnabled()) {
       for (Map.Entry<KafkaPartition, Map<String, String>> eventTags : tagsForPartitionsMap.entrySet()) {
@@ -434,6 +417,87 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
     }
 
     this.closer.close();
+  }
+
+  protected Map<String, String> createTagsForPartition(int partitionId) {
+    Map<String, String> tagsForPartition = Maps.newHashMap();
+    KafkaPartition partition = this.partitions.get(partitionId);
+
+    tagsForPartition.put(TOPIC, partition.getTopicName());
+    tagsForPartition.put(PARTITION, Integer.toString(partition.getId()));
+    tagsForPartition.put(LOW_WATERMARK, Long.toString(this.lowWatermark.get(partitionId)));
+    tagsForPartition.put(ACTUAL_HIGH_WATERMARK, Long.toString(this.nextWatermark.get(partitionId)));
+
+    // These are used to compute the load factor,
+    // gobblin consumption rate relative to the kafka production rate.
+    // The gobblin rate is computed as (processed record count/elapsed time)
+    // The kafka rate is computed as (expected high watermark - previous latest offset) /
+    // (current offset fetch epoch time - previous offset fetch epoch time).
+    tagsForPartition.put(EXPECTED_HIGH_WATERMARK, Long.toString(this.highWatermark.get(partitionId)));
+    tagsForPartition.put(KafkaSource.PREVIOUS_OFFSET_FETCH_EPOCH_TIME,
+        Long.toString(KafkaUtils.getPropAsLongFromSingleOrMultiWorkUnitState(this.workUnitState,
+            KafkaSource.PREVIOUS_OFFSET_FETCH_EPOCH_TIME, partitionId)));
+    tagsForPartition.put(KafkaSource.OFFSET_FETCH_EPOCH_TIME,
+        Long.toString(KafkaUtils.getPropAsLongFromSingleOrMultiWorkUnitState(this.workUnitState,
+            KafkaSource.OFFSET_FETCH_EPOCH_TIME, partitionId)));
+    tagsForPartition.put(KafkaSource.PREVIOUS_LATEST_OFFSET,
+        Long.toString(KafkaUtils.getPropAsLongFromSingleOrMultiWorkUnitState(this.workUnitState,
+            KafkaSource.PREVIOUS_LATEST_OFFSET, partitionId)));
+
+    tagsForPartition.put(KafkaSource.PREVIOUS_LOW_WATERMARK,
+        Long.toString(KafkaUtils.getPropAsLongFromSingleOrMultiWorkUnitState(this.workUnitState,
+            KafkaSource.PREVIOUS_LOW_WATERMARK, partitionId)));
+    tagsForPartition.put(KafkaSource.PREVIOUS_HIGH_WATERMARK,
+        Long.toString(KafkaUtils.getPropAsLongFromSingleOrMultiWorkUnitState(this.workUnitState,
+            KafkaSource.PREVIOUS_HIGH_WATERMARK, partitionId)));
+    tagsForPartition.put(KafkaSource.PREVIOUS_START_FETCH_EPOCH_TIME,
+        Long.toString(KafkaUtils.getPropAsLongFromSingleOrMultiWorkUnitState(this.workUnitState,
+            KafkaSource.PREVIOUS_START_FETCH_EPOCH_TIME, partitionId)));
+    tagsForPartition.put(KafkaSource.PREVIOUS_STOP_FETCH_EPOCH_TIME,
+        Long.toString(KafkaUtils.getPropAsLongFromSingleOrMultiWorkUnitState(this.workUnitState,
+            KafkaSource.PREVIOUS_STOP_FETCH_EPOCH_TIME, partitionId)));
+
+    tagsForPartition.put(KafkaSource.START_FETCH_EPOCH_TIME, Long.toString(this.startFetchEpochTime.getOrDefault(partition, 0L)));
+    tagsForPartition.put(KafkaSource.STOP_FETCH_EPOCH_TIME, Long.toString(this.stopFetchEpochTime.getOrDefault(partition, 0L)));
+    this.workUnitState.setProp(KafkaUtils.getPartitionPropName(KafkaSource.START_FETCH_EPOCH_TIME, partitionId),
+        Long.toString(this.startFetchEpochTime.getOrDefault(partition, 0L)));
+    this.workUnitState.setProp(KafkaUtils.getPartitionPropName(KafkaSource.STOP_FETCH_EPOCH_TIME, partitionId),
+        Long.toString(this.stopFetchEpochTime.getOrDefault(partition, 0L)));
+
+    if (this.processedRecordCount.containsKey(partition)) {
+      tagsForPartition.put(PROCESSED_RECORD_COUNT, Long.toString(this.processedRecordCount.get(partition)));
+      tagsForPartition.put(PARTITION_TOTAL_SIZE, Long.toString(this.partitionTotalSize.get(partition)));
+      tagsForPartition.put(ELAPSED_TIME, Long.toString(this.elapsedTime.get(partition)));
+      tagsForPartition.put(DECODE_RECORD_TIME, Long.toString(TimeUnit.NANOSECONDS.toMillis(
+          this.decodeRecordTime.get(partition))));
+      tagsForPartition.put(FETCH_MESSAGE_BUFFER_TIME, Long.toString(TimeUnit.NANOSECONDS.toMillis(
+          this.fetchMessageBufferTime.get(partition))));
+      tagsForPartition.put(READ_RECORD_TIME, Long.toString(TimeUnit.NANOSECONDS.toMillis(
+          this.readRecordTime.get(partition))));
+    } else {
+      tagsForPartition.put(PROCESSED_RECORD_COUNT, "0");
+      tagsForPartition.put(PARTITION_TOTAL_SIZE, "0");
+      tagsForPartition.put(ELAPSED_TIME, "0");
+      tagsForPartition.put(DECODE_RECORD_TIME, "0");
+      tagsForPartition.put(FETCH_MESSAGE_BUFFER_TIME, "0");
+      tagsForPartition.put(READ_RECORD_TIME, "0");
+    }
+
+    tagsForPartition.put(UNDECODABLE_MESSAGE_COUNT,
+        Long.toString(this.decodingErrorCount.getOrDefault(partition, 0L)));
+
+    // Commit avg time to pull a record for each partition
+    if (this.avgMillisPerRecord.containsKey(partition)) {
+      double avgMillis = this.avgMillisPerRecord.get(partition);
+      LOG.info(String.format("Avg time to pull a record for partition %s = %f milliseconds", partition, avgMillis));
+      KafkaUtils.setPartitionAvgRecordMillis(this.workUnitState, partition, avgMillis);
+      tagsForPartition.put(AVG_RECORD_PULL_TIME, Double.toString(avgMillis));
+    } else {
+      LOG.info(String.format("Avg time to pull a record for partition %s not recorded", partition));
+      tagsForPartition.put(AVG_RECORD_PULL_TIME, Double.toString(-1));
+    }
+
+    return tagsForPartition;
   }
 
   @Deprecated

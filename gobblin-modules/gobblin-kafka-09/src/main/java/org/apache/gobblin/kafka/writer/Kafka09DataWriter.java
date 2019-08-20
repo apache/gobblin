@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.Properties;
 import java.util.concurrent.Future;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
@@ -39,6 +40,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.I0Itec.zkclient.ZkClient;
 import org.I0Itec.zkclient.ZkConnection;
 
+import org.apache.gobblin.configuration.ConfigurationException;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.writer.AsyncDataWriter;
 import org.apache.gobblin.writer.WriteCallback;
@@ -54,7 +56,7 @@ import org.apache.gobblin.writer.WriteResponseMapper;
  *
  */
 @Slf4j
-public class Kafka09DataWriter<D> implements AsyncDataWriter<D> {
+public class Kafka09DataWriter<K, V> implements AsyncDataWriter<V> {
 
   
   private static final WriteResponseMapper<RecordMetadata> WRITE_RESPONSE_WRAPPER =
@@ -81,8 +83,9 @@ public class Kafka09DataWriter<D> implements AsyncDataWriter<D> {
         }
       };
 
-  private final Producer<String, D> producer;
+  private final Producer<K, V> producer;
   private final String topic;
+  private final KafkaWriterCommonConfig commonConfig;
 
   public static Producer getKafkaProducer(Properties props) {
     Object producerObject = KafkaWriterHelper.getKafkaProducer(props);
@@ -96,14 +99,17 @@ public class Kafka09DataWriter<D> implements AsyncDataWriter<D> {
     }
   }
 
-  public Kafka09DataWriter(Properties props) {
+  public Kafka09DataWriter(Properties props)
+      throws ConfigurationException {
     this(getKafkaProducer(props), ConfigFactory.parseProperties(props));
   }
 
-  public Kafka09DataWriter(Producer producer, Config config) {
+  public Kafka09DataWriter(Producer producer, Config config)
+      throws ConfigurationException {
     this.topic = config.getString(KafkaWriterConfigurationKeys.KAFKA_TOPIC);
     provisionTopic(topic,config);
     this.producer = producer;
+    this.commonConfig = new KafkaWriterCommonConfig(config);
   }
 
   @Override
@@ -114,17 +120,23 @@ public class Kafka09DataWriter<D> implements AsyncDataWriter<D> {
   }
 
   @Override
-  public Future<WriteResponse> write(final D record, final WriteCallback callback) {
-    return new WriteResponseFuture<>(this.producer.send(new ProducerRecord<String, D>(topic, record), new Callback() {
-      @Override
-      public void onCompletion(final RecordMetadata metadata, Exception exception) {
-        if (exception != null) {
-          callback.onFailure(exception);
-        } else {
-          callback.onSuccess(WRITE_RESPONSE_WRAPPER.wrap(metadata));
-        }
-      }
-    }), WRITE_RESPONSE_WRAPPER);
+  public Future<WriteResponse> write(final V record, final WriteCallback callback) {
+    try {
+      Pair<K, V> keyValuePair = KafkaWriterHelper.getKeyValuePair(record, this.commonConfig);
+      return new WriteResponseFuture<>(this.producer
+          .send(new ProducerRecord<>(topic, keyValuePair.getKey(), keyValuePair.getValue()), new Callback() {
+            @Override
+            public void onCompletion(final RecordMetadata metadata, Exception exception) {
+              if (exception != null) {
+                callback.onFailure(exception);
+              } else {
+                callback.onSuccess(WRITE_RESPONSE_WRAPPER.wrap(metadata));
+              }
+            }
+          }), WRITE_RESPONSE_WRAPPER);
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to create a Kafka write request", e);
+    }
   }
 
   @Override

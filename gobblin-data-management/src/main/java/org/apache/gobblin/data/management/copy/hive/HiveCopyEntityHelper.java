@@ -134,7 +134,7 @@ public class HiveCopyEntityHelper {
       DeregisterFileDeleteMethod.NO_DELETE;
 
   /**
-   * Config key to specify if {@link IMetaStoreClient }'s filtering method {@link listPartitionsByFilter} is not enough
+   * Config key to specify if {@link IMetaStoreClient }'s filtering method {@link IMetaStoreClient#listPartitionsByFilter} is not enough
    * for filtering out specific partitions.
    * For example, if you specify "Path" as the filter type and "Hourly" as the filtering condition,
    * partitions with Path containing '/Hourly/' will be kept.
@@ -187,7 +187,7 @@ public class HiveCopyEntityHelper {
   private final Optional<CommitStep> tableRegistrationStep;
   private final Map<List<String>, Partition> sourcePartitions;
   private final Map<List<String>, Partition> targetPartitions;
-
+  private final boolean enforceFileSizeMatch;
   private final EventSubmitter eventSubmitter;
   @Getter
   protected final HiveTargetPathHelper targetPathHelper;
@@ -265,6 +265,7 @@ public class HiveCopyEntityHelper {
       this.targetFs = targetFs;
 
       this.targetPathHelper = new HiveTargetPathHelper(this.dataset);
+      this.enforceFileSizeMatch = configuration.isEnforceFileLengthMatch();
       this.hiveRegProps = new HiveRegProps(new State(this.dataset.getProperties()));
       this.targetURI = Optional.fromNullable(this.dataset.getProperties().getProperty(TARGET_METASTORE_URI_KEY));
       this.targetClientPool = HiveMetastoreClientPool.get(this.dataset.getProperties(), this.targetURI);
@@ -587,7 +588,28 @@ public class HiveCopyEntityHelper {
       HiveLocationDescriptor desiredTargetLocation, Optional<HiveLocationDescriptor> currentTargetLocation,
       Optional<Partition> partition, MultiTimingEvent multiTimer, HiveCopyEntityHelper helper) throws IOException {
 
+    // populate version strategy before analyzing diffs
+    sourceLocation.populateDataFileVersionStrategy();
+    desiredTargetLocation.populateDataFileVersionStrategy();
+
     DiffPathSet.DiffPathSetBuilder builder = DiffPathSet.builder();
+
+    // check the strategy is not empty
+    if (!sourceLocation.versionStrategy.isPresent() || !desiredTargetLocation.versionStrategy.isPresent()) {
+      log.warn("Version strategy doesn't exist ({},{}), cannot handle copy.",
+          sourceLocation.versionStrategy.isPresent(),
+          desiredTargetLocation.versionStrategy.isPresent());
+      return builder.build();
+    }
+
+    // check if the src and dst strategy are the same
+    if (!sourceLocation.versionStrategy.get().getClass().getName()
+        .equals(desiredTargetLocation.versionStrategy.get().getClass().getName())) {
+      log.warn("Version strategy src: {} and dst: {} doesn't match, cannot handle copy.",
+          sourceLocation.versionStrategy.get().getClass().getName(),
+          desiredTargetLocation.versionStrategy.get().getClass().getName());
+      return builder.build();
+    }
 
     multiTimer.nextStage(Stages.SOURCE_PATH_LISTING);
     // These are the paths at the source
@@ -616,8 +638,23 @@ public class HiveCopyEntityHelper {
       if (desiredTargetExistingPaths.containsKey(newPath)) {
         // If the file exists at the destination, check whether it should be replaced, if not, no need to copy
         FileStatus existingTargetStatus = desiredTargetExistingPaths.get(newPath);
-        if (!helper.shouldReplaceFile(existingTargetStatus, sourcePath)) {
-          shouldCopy = false;
+
+        Comparable srcVer = sourceLocation.versionStrategy.get().getVersion(sourcePath.getPath());
+        Comparable dstVer = desiredTargetLocation.versionStrategy.get().getVersion(existingTargetStatus.getPath());
+
+        // destination has higher version, skip the copy
+        if (srcVer.compareTo(dstVer) <= 0) {
+          if (!helper.isEnforceFileSizeMatch() || existingTargetStatus.getLen() == sourcePath.getLen()) {
+            log.debug("Copy from src {} (v:{}) to dst {} (v:{}) can be skipped.",
+                sourcePath.getPath(), srcVer, existingTargetStatus.getPath(), dstVer);
+            shouldCopy = false;
+          } else {
+            log.debug("Copy from src {} (v:{}) to dst {} (v:{}) can not be skipped due to unmatched file length.",
+                sourcePath.getPath(), srcVer, existingTargetStatus.getPath(), dstVer);
+          }
+        } else {
+          log.debug("Copy from src {} (v:{}) to dst {} (v:{}) is needed due to a higher version.",
+              sourcePath.getPath(), srcVer, existingTargetStatus.getPath(), dstVer);
         }
       }
       if (shouldCopy) {
@@ -661,11 +698,6 @@ public class HiveCopyEntityHelper {
     }
 
     return builder.build();
-  }
-
-  private static boolean shouldReplaceFile(FileStatus referencePath, FileStatus replacementFile) {
-    return replacementFile.getLen() != referencePath.getLen()
-        || referencePath.getModificationTime() < replacementFile.getModificationTime();
   }
 
   private void checkPartitionedTableCompatibility(Table desiredTargetTable, Table existingTargetTable)
@@ -765,18 +797,17 @@ public class HiveCopyEntityHelper {
     return this.targetFs;
   }
 
-  /**
-   * Set the source and destination datasets of a copyable file
-   */
-  void setCopyableFileDatasets(CopyableFile copyableFile) {
+  DatasetDescriptor getSourceDataset() {
     String sourceTable = dataset.getTable().getDbName() + "." + dataset.getTable().getTableName();
-    DatasetDescriptor source = new DatasetDescriptor(DatasetConstants.PLATFORM_HIVE, sourceTable);
-    source.addMetadata(DatasetConstants.FS_URI, dataset.getFs().getUri().toString());
-    copyableFile.setSourceDataset(source);
+    DatasetDescriptor sourceDataset = new DatasetDescriptor(DatasetConstants.PLATFORM_HIVE, sourceTable);
+    sourceDataset.addMetadata(DatasetConstants.FS_URI, dataset.getFs().getUri().toString());
+    return sourceDataset;
+  }
 
+  DatasetDescriptor getDestinationDataset() {
     String destinationTable = this.getTargetDatabase() + "." + this.getTargetTable();
-    DatasetDescriptor destination = new DatasetDescriptor(DatasetConstants.PLATFORM_HIVE, destinationTable);
-    destination.addMetadata(DatasetConstants.FS_URI, this.getTargetFs().getUri().toString());
-    copyableFile.setDestinationDataset(destination);
+    DatasetDescriptor destinationDataset = new DatasetDescriptor(DatasetConstants.PLATFORM_HIVE, destinationTable);
+    destinationDataset.addMetadata(DatasetConstants.FS_URI, this.getTargetFs().getUri().toString());
+    return destinationDataset;
   }
 }

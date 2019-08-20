@@ -70,6 +70,7 @@ import org.apache.gobblin.util.PropertiesUtils;
  */
 public class GobblinMetrics {
 
+  public static final String METRICS_ID_PREFIX = "gobblin.metrics.";
   public static final String METRICS_STATE_CUSTOM_TAGS = "metrics.state.custom.tags";
 
   protected static final GobblinMetricsRegistry GOBBLIN_METRICS_REGISTRY = GobblinMetricsRegistry.getInstance();
@@ -524,6 +525,12 @@ public class GobblinMetrics {
   }
 
   private void buildFileFailureEventReporter(Properties properties) {
+    if (!Boolean.valueOf(properties.getProperty(ConfigurationKeys.FAILURE_REPORTING_FILE_ENABLED_KEY,
+        ConfigurationKeys.DEFAULT_FAILURE_REPORTING_FILE_ENABLED))) {
+      return;
+    }
+    LOGGER.info("Reporting failure to log files");
+
     if (!properties.containsKey(ConfigurationKeys.FAILURE_LOG_DIR_KEY)) {
       LOGGER.error(
           "Not reporting failure to log files because " + ConfigurationKeys.FAILURE_LOG_DIR_KEY + " is undefined");

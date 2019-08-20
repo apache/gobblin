@@ -19,14 +19,14 @@ package org.apache.gobblin.service.modules.flowgraph;
 
 import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
+
+import joptsimple.internal.Strings;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.util.ConfigUtils;
-
-import joptsimple.internal.Strings;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -34,6 +34,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Alpha
 @Slf4j
+@EqualsAndHashCode (exclude = {"rawConfig", "active"})
 public class BaseDataNode implements DataNode {
   @Getter
   private String id;
@@ -54,28 +55,5 @@ public class BaseDataNode implements DataNode {
     } catch (Exception e) {
       throw new DataNodeCreationException(e);
     }
-  }
-
-  /**
-   * The comparison between two nodes should involve the configuration.
-   * Node name is the identifier for the node.
-   * */
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-
-    BaseDataNode that = (BaseDataNode) o;
-
-    return id.equals(that.getId());
-  }
-
-  @Override
-  public int hashCode() {
-    return this.id.hashCode();
   }
 }

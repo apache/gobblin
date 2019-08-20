@@ -17,19 +17,11 @@
 
 /**
  * Adds integration with the <a href="https://docs.gradle.org/current/userguide/jacoco_plugin.html">Gradle JaCoCo Plugin</a>
- * as well as with <a href="https://coveralls.io/">Coveralls</a>. The script uses the
- * <a href="https://github.com/palantir/gradle-jacoco-coverage">JacocoFullReport</a> to aggregate the JaCoCo report for
- * each Gradle sub-module into one master report. The Gradle JaCoCo plugin does not do the aggregation by default which
- * is why this plugin is necessary. The master report is also needed for Coveralls integration which expects a single
- * aggregated report in <code>xml</code> format. The aggregated report will be placed under
- * <code>build/reports/jacocoFullReport/</code>.
  */
 
-apply plugin: 'com.github.kt3k.coveralls'
-apply plugin: 'com.palantir.jacoco-full-report'
 apply plugin: 'jacoco'
 
-ext.jacocoVersion = '0.7.2.201409121644'
+ext.jacocoVersion = '0.8.1'
 
 jacoco {
   toolVersion = jacocoVersion
@@ -58,12 +50,4 @@ subprojects {
       })
     }
   }
-
-  jacocoFullReport.dependsOn test
-}
-
-// Configure the coveralls task to read the aggregated JaCoCo report
-coveralls {
-  sourceDirs = subprojects.sourceSets.main.allSource.srcDirs.flatten()
-  jacocoReportPath = "build/reports/jacoco/jacocoFullReport/jacocoFullReport.xml"
 }

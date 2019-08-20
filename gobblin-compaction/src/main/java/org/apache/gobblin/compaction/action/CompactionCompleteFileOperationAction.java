@@ -17,26 +17,18 @@
 
 package org.apache.gobblin.compaction.action;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.permission.FsPermission;
-import org.apache.hadoop.mapreduce.Counter;
-import org.apache.hadoop.mapreduce.Job;
-
-import com.google.common.collect.ImmutableMap;
-
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.gobblin.compaction.event.CompactionSlaEventHelper;
-import org.apache.gobblin.compaction.mapreduce.CompactionAvroJobConfigurator;
+import org.apache.gobblin.compaction.mapreduce.CompactionJobConfigurator;
 import org.apache.gobblin.compaction.mapreduce.MRCompactor;
 import org.apache.gobblin.compaction.mapreduce.MRCompactorJobRunner;
-import org.apache.gobblin.compaction.mapreduce.avro.AvroKeyMapper;
+import org.apache.gobblin.compaction.mapreduce.RecordKeyMapperBase;
 import org.apache.gobblin.compaction.parser.CompactionPathParser;
 import org.apache.gobblin.compaction.verify.InputRecordCountHelper;
 import org.apache.gobblin.configuration.State;
@@ -45,22 +37,28 @@ import org.apache.gobblin.dataset.FileSystemDataset;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.WriterUtils;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.mapreduce.Counter;
+import org.apache.hadoop.mapreduce.Job;
 
 
 /**
  * A type of post action {@link CompactionCompleteAction} which focus on the file operations
+ *
  */
 @Slf4j
 @AllArgsConstructor
 public class CompactionCompleteFileOperationAction implements CompactionCompleteAction<FileSystemDataset> {
 
   protected WorkUnitState state;
-  private CompactionAvroJobConfigurator configurator;
+  private CompactionJobConfigurator configurator;
   private InputRecordCountHelper helper;
   private EventSubmitter eventSubmitter;
   private FileSystem fs;
 
-  public CompactionCompleteFileOperationAction (State state, CompactionAvroJobConfigurator configurator) {
+  public CompactionCompleteFileOperationAction (State state, CompactionJobConfigurator configurator) {
     if (!(state instanceof WorkUnitState)) {
       throw new UnsupportedOperationException(this.getClass().getName() + " only supports workunit state");
     }
@@ -71,7 +69,7 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
   }
 
   /**
-   * Replace or append the destination folder with new avro files from map-reduce job
+   * Replace or append the destination folder with new files from map-reduce job
    * Create a record count file containing the number of records that have been processed .
    */
   public void onCompactionJobComplete (FileSystemDataset dataset) throws IOException {
@@ -90,7 +88,8 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
       long oldTotalRecords = helper.readRecordCount(new Path (result.getDstAbsoluteDir()));
       long executeCount = helper.readExecutionCount (new Path (result.getDstAbsoluteDir()));
 
-      List<Path> goodPaths = CompactionAvroJobConfigurator.getGoodFiles(job, tmpPath, this.fs);
+      List<Path> goodPaths = CompactionJobConfigurator.getGoodFiles(job, tmpPath, this.fs,
+          ImmutableList.of(configurator.getFileExtension()));
 
       if (appendDeltaOutput) {
         FsPermission permission = HadoopUtils.deserializeFsPermission(this.state,
@@ -131,7 +130,7 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
         // We don't get record count from file name because tracking which files are actually involved in the MR execution can
         // be hard. This is due to new minutely data is rolled up to hourly folder but from daily compaction perspective we are not
         // able to tell which file are newly added (because we simply pass all hourly folders to MR job instead of individual files).
-        Counter counter = job.getCounters().findCounter(AvroKeyMapper.EVENT_COUNTER.RECORD_COUNT);
+        Counter counter = job.getCounters().findCounter(RecordKeyMapperBase.EVENT_COUNTER.RECORD_COUNT);
         newTotalRecords = counter.getValue();
       }
 

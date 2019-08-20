@@ -220,7 +220,7 @@ public class CopySourcePrioritizationTest {
   private static CopyableFile createCopyableFile(String path, String fileSet) {
     return new CopyableFile(new FileStatus(0, false, 0, 0, 0, new Path(path)), new Path(path),
         new OwnerAndPermission("owner", "group", FsPermission.getDefault()), null, null,
-        PreserveAttributes.fromMnemonicString(""), fileSet, 0, 0, Maps.<String, String>newHashMap(), "");
+        PreserveAttributes.fromMnemonicString(""), fileSet, 0, 0, Maps.<String, String>newHashMap(), "", null);
   }
 
   public static class MyPrioritizer implements FileSetComparator {

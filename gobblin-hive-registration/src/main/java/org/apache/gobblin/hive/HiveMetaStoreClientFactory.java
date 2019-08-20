@@ -17,7 +17,7 @@
 
 package org.apache.gobblin.hive;
 
-import lombok.Getter;
+import java.io.IOException;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.pool2.BasePooledObjectFactory;
@@ -30,8 +30,6 @@ import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.RetryingMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.MetaException;
-
-import com.google.common.base.Optional;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.metadata.HiveStorageHandler;
@@ -39,12 +37,22 @@ import org.apache.hadoop.hive.ql.metadata.HiveUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Optional;
+
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.broker.EmptyKey;
+import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
+import org.apache.gobblin.broker.iface.NotConfiguredException;
+
 import static org.apache.hadoop.hive.metastore.api.hive_metastoreConstants.META_TABLE_STORAGE;
 
 
 /**
  * An implementation of {@link BasePooledObjectFactory} for {@link IMetaStoreClient}.
  */
+@Slf4j
 public class HiveMetaStoreClientFactory extends BasePooledObjectFactory<IMetaStoreClient> {
 
   private static final Logger LOG = LoggerFactory.getLogger(HiveMetaStoreClientFactory.class);
@@ -58,12 +66,11 @@ public class HiveMetaStoreClientFactory extends BasePooledObjectFactory<IMetaSto
   }
 
   private static HiveConf getHiveConf(Optional<String> hcatURI) {
-    HiveConf hiveConf = new HiveConf();
-    if (hcatURI.isPresent() && StringUtils.isNotBlank(hcatURI.get())) {
-      hiveConf.setVar(HiveConf.ConfVars.METASTOREURIS, hcatURI.get());
-      hiveConf.set(HIVE_METASTORE_TOKEN_SIGNATURE, hcatURI.get());
+    try {
+      return HiveConfFactory.get(hcatURI, SharedResourcesBrokerFactory.getImplicitBroker());
+    } catch (IOException nce) {
+      throw new RuntimeException("Implicit broker is not correctly configured, failed to fetch a HiveConf object", nce);
     }
-    return hiveConf;
   }
 
   public HiveMetaStoreClientFactory(HiveConf hiveConf) {

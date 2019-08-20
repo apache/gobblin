@@ -95,7 +95,7 @@ Go to the [S3 dashboard](https://console.aws.amazon.com/s3)
 ## Setting Up Gobblin on EC2
 
 * Download and Build Gobblin Locally
-    * On your local machine, clone the [Gobblin repository](https://github.com/linkedin/gobblin): `git clone git@github.com:linkedin/gobblin.git` (this assumes you have [Git](https://en.wikipedia.org/wiki/Git_(software)) installed locally)
+    * On your local machine, clone the [Gobblin repository](https://github.com/apache/incubator-gobblin): `git clone git@github.com:linkedin/gobblin.git` (this assumes you have [Git](https://en.wikipedia.org/wiki/Git_(software)) installed locally)
     * Build Gobblin using the following commands (it is important to use Hadoop version 2.6.0 as it includes the `s3a` file system implementation):
 ```
 cd gobblin
@@ -132,7 +132,7 @@ Assuming we are running Gobblin in [standalone mode](../user-guide/Gobblin-Deplo
 
 Assuming we want Gobblin to run in standalone mode, follow the usual steps for [standalone deployment](../user-guide/Gobblin-Deployment#Standalone-Deployment).
 
-For the sake of this walkthrough, we will launch the Gobblin [wikipedia example](https://github.com/linkedin/gobblin/blob/master/gobblin-example/src/main/resources/wikipedia.pull). Directions on how to run this example can be found [here](../Getting-Started). The command to launch Gobblin should look similar to:
+For the sake of this walkthrough, we will launch the Gobblin [wikipedia example](https://github.com/apache/incubator-gobblin/blob/master/gobblin-example/src/main/resources/wikipedia.pull). Directions on how to run this example can be found [here](../Getting-Started). The command to launch Gobblin should look similar to:
 ```
 sh bin/gobblin-standalone.sh start --workdir /home/ec2-user/gobblin-dist/work --logdir /home/ec2-user/gobblin-dist/logs --conf /home/ec2-user/gobblin-dist/config
 ```

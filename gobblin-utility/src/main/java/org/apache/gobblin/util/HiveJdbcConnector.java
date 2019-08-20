@@ -241,14 +241,14 @@ public class HiveJdbcConnector implements Closeable {
 
     for (String statement : statements) {
       if (isSimulate) {
-        LOG.info("[SIMULATE MODE] STATEMENT NOT RUN: " + choppedStatement(statement));
+        LOG.info("[SIMULATE MODE] STATEMENT NOT RUN: " + choppedStatementNoLineChange(statement));
       } else {
-        LOG.info("RUNNING STATEMENT: " + choppedStatement(statement));
+        LOG.info("RUNNING STATEMENT: " + choppedStatementNoLineChange(statement));
         try (Statement stmt = this.conn.createStatement()) {
           try {
             stmt.execute(statement);
           } catch (SQLException sqe) {
-            LOG.error("Failed statement: " + statement);
+            LOG.error("Failed statement: " + choppedStatementNoLineChange(statement));
             throw sqe;
           }
         }
@@ -256,12 +256,15 @@ public class HiveJdbcConnector implements Closeable {
     }
   }
 
-  private static String choppedStatement(String statement) {
+  // Chopped statements with all line-changing character being removed for saving space of log.
+  static String choppedStatementNoLineChange(String statement) {
+    // \r\n needs to be the first element in the pipe.
+    statement = statement.replaceAll("\\r\\n|\\r|\\n", " ");
     if (statement.length() <= MAX_OUTPUT_STMT_LENGTH) {
       return statement;
     }
     return statement.substring(0, MAX_OUTPUT_STMT_LENGTH) + "...... (" + (statement.length() - MAX_OUTPUT_STMT_LENGTH)
-        + " characters ommitted)";
+        + " characters omitted)";
   }
 
   public Connection getConnection() {

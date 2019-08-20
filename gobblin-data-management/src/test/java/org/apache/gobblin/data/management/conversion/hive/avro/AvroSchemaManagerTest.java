@@ -61,23 +61,6 @@ public class AvroSchemaManagerTest {
     Assert.assertEquals(actualSchema.toString(), expectedSchema);
   }
 
-  @Test(expectedExceptions = SchemaParseException.class)
-  public void testExceptionWhenReadingSchemaUsingParser()
-      throws IOException, HiveException {
-    FileSystem fs = FileSystem.getLocal(new Configuration());
-
-    String jobId = "123";
-    State state = new State();
-    state.setProp(ConfigurationKeys.JOB_ID_KEY, jobId);
-
-    AvroSchemaManager asm = new AvroSchemaManager(fs, state);
-    Partition partition = getTestPartition(new Table("testDb", "testTable"));
-    Path schemaPath = asm.getSchemaUrl(partition);
-    // parse operation tries to read using UTF-8 encoding and fails
-    // because schema is written using modified UTF-8 encoding
-    new Schema.Parser().parse(fs.open(schemaPath));
-  }
-
   private Partition getTestPartition(Table table) throws HiveException {
     Partition partition = new Partition(table, ImmutableMap.of("partition_key", "1"), null);
     StorageDescriptor sd = new StorageDescriptor();

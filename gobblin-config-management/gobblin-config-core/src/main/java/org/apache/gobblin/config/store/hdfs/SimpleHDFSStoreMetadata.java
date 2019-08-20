@@ -55,7 +55,7 @@ public class SimpleHDFSStoreMetadata {
    * @param fs where metadata is stored
    * @param configStoreDir path to {@link SimpleHadoopFilesystemConfigStore#CONFIG_STORE_NAME}
    */
-  SimpleHDFSStoreMetadata(final FileSystem fs, final Path configStoreDir) {
+  public SimpleHDFSStoreMetadata(final FileSystem fs, final Path configStoreDir) {
     this.storeMetadataFilePath = new Path(configStoreDir, CONFIG_STORE_METADATA_FILENAME);
     this.fs = fs;
   }
@@ -119,7 +119,7 @@ public class SimpleHDFSStoreMetadata {
    * Get the current version from {@link #CONFIG_STORE_METADATA_FILENAME} file at {@link #storeMetadataFilePath}
    *
    */
-  String getCurrentVersion() throws IOException {
+  public String getCurrentVersion() throws IOException {
     return readMetadata().getString(CONFIG_STORE_METADATA_CURRENT_VERSION_KEY);
   }
 

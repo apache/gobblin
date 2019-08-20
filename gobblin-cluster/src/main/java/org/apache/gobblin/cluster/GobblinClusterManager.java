@@ -20,6 +20,8 @@ package org.apache.gobblin.cluster;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
@@ -39,12 +41,14 @@ import org.apache.helix.Criteria;
 import org.apache.helix.HelixManager;
 import org.apache.helix.InstanceType;
 import org.apache.helix.messaging.handling.MessageHandlerFactory;
+import org.apache.helix.model.ClusterConfig;
 import org.apache.helix.model.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
+import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.eventbus.EventBus;
@@ -54,7 +58,6 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
-import javax.annotation.Nonnull;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -62,10 +65,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.cluster.event.ClusterManagerShutdownRequest;
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
-import org.apache.gobblin.metrics.GobblinMetrics;
-import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
 import org.apache.gobblin.runtime.app.ApplicationException;
@@ -105,9 +105,6 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinClusterManager.class);
 
-  @VisibleForTesting
-  protected GobblinHelixMultiManager multiManager;
-
   private StopStatus stopStatus = new StopStatus(false);
 
   protected ServiceBasedAppLauncher applicationLauncher;
@@ -127,11 +124,10 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
   // set to true to stop the idle process thread
   private volatile boolean stopIdleProcessThread = false;
 
-  // flag to keep track of leader and avoid processing duplicate leadership change notifications
-  private boolean isLeader = false;
-
   private final boolean isStandaloneMode;
 
+  @Getter
+  protected GobblinHelixMultiManager multiManager;
   @Getter
   private MutableJobCatalog jobCatalog;
   @Getter
@@ -139,17 +135,14 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
   @Getter
   private JobConfigurationManager jobConfigurationManager;
 
-  private final String clusterName;
-  private final Config config;
-  private final MetricContext metricContext;
-  private final StandardMetrics metrics;
+  protected final String clusterName;
+  @Getter
+  protected final Config config;
 
   public GobblinClusterManager(String clusterName, String applicationId, Config config,
       Optional<Path> appWorkDirOptional) throws Exception {
     this.clusterName = clusterName;
     this.config = config;
-    this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), this.getClass());
-    this.metrics = new StandardMetrics();
     this.isStandaloneMode = ConfigUtils.getBoolean(config, GobblinClusterConfigurationKeys.STANDALONE_CLUSTER_MODE_KEY,
         GobblinClusterConfigurationKeys.DEFAULT_STANDALONE_CLUSTER_MODE);
 
@@ -229,6 +222,39 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
   }
 
   /**
+   * Configure Helix quota-based task scheduling
+   */
+  @VisibleForTesting
+  void configureHelixQuotaBasedTaskScheduling() {
+    // set up the cluster quota config
+    List<String> quotaConfigList = ConfigUtils.getStringList(this.config,
+        GobblinClusterConfigurationKeys.HELIX_TASK_QUOTA_CONFIG_KEY);
+
+    if (quotaConfigList.isEmpty()) {
+      return;
+    }
+
+    // retrieve the cluster config for updating
+    ClusterConfig clusterConfig = this.multiManager.getJobClusterHelixManager().getConfigAccessor()
+        .getClusterConfig(this.clusterName);
+    clusterConfig.resetTaskQuotaRatioMap();
+
+    for (String entry : quotaConfigList) {
+      List<String> quotaConfig = Splitter.on(":").limit(2).trimResults().omitEmptyStrings().splitToList(entry);
+
+      if (quotaConfig.size() < 2) {
+        throw new IllegalArgumentException(
+            "Quota configurations must be of the form <key1>:<value1>,<key2>:<value2>,...");
+      }
+
+      clusterConfig.setTaskQuotaRatio(quotaConfig.get(0), Integer.parseInt(quotaConfig.get(1)));
+    }
+
+    this.multiManager.getJobClusterHelixManager().getConfigAccessor()
+        .setClusterConfig(this.clusterName, clusterConfig); // Set the new ClusterConfig
+  }
+
+  /**
    * Start the Gobblin Cluster Manager.
    */
   @Override
@@ -237,6 +263,14 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
 
     this.eventBus.register(this);
     this.multiManager.connect();
+
+    // Standalone mode registers a handler to clean up on manager leadership change, so only clean up for non-standalone
+    // mode, such as YARN mode
+    if (!this.isStandaloneMode) {
+      this.multiManager.cleanUpJobs();
+    }
+
+    configureHelixQuotaBasedTaskScheduling();
 
     if (this.isStandaloneMode) {
       // standalone mode starts non-daemon threads later, so need to have this thread to keep process up
@@ -325,8 +359,14 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
   private GobblinHelixJobScheduler buildGobblinHelixJobScheduler(Config config, Path appWorkDir,
       List<? extends Tag<?>> metadataTags, SchedulerService schedulerService) throws Exception {
     Properties properties = ConfigUtils.configToProperties(config);
-    return new GobblinHelixJobScheduler(properties, this.multiManager.getJobClusterHelixManager(), this.eventBus, appWorkDir, metadataTags,
-        schedulerService, this.jobCatalog);
+    return new GobblinHelixJobScheduler(properties,
+        this.multiManager.getJobClusterHelixManager(),
+        this.multiManager.getTaskDriverHelixManager(),
+        this.eventBus,
+        appWorkDir,
+        metadataTags,
+        schedulerService,
+        this.jobCatalog);
   }
 
   /**
@@ -338,11 +378,11 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
 
   private JobConfigurationManager create(Config config) {
     try {
+      List<Object> argumentList = (this.jobCatalog != null)? ImmutableList.of(this.eventBus, config, this.jobCatalog) :
+          ImmutableList.of(this.eventBus, config);
       if (config.hasPath(GobblinClusterConfigurationKeys.JOB_CONFIGURATION_MANAGER_KEY)) {
         return (JobConfigurationManager) GobblinConstructorUtils.invokeFirstConstructor(Class.forName(
-            config.getString(GobblinClusterConfigurationKeys.JOB_CONFIGURATION_MANAGER_KEY)),
-            ImmutableList.<Object>of(this.eventBus, config, this.jobCatalog),
-            ImmutableList.<Object>of(this.eventBus, config));
+            config.getString(GobblinClusterConfigurationKeys.JOB_CONFIGURATION_MANAGER_KEY)), argumentList);
       } else {
         return new JobConfigurationManager(this.eventBus, config);
       }
@@ -446,19 +486,13 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
   }
 
   @Override
-  public StandardMetrics getStandardMetrics() {
-    return this.metrics;
-  }
-
-  @Nonnull
-  @Override
-  public MetricContext getMetricContext() {
-    return this.metricContext;
-  }
-
-  @Override
-  public boolean isInstrumentationEnabled() {
-    return GobblinMetrics.isEnabled(ConfigUtils.configToProperties(this.config));
+  public Collection<StandardMetrics> getStandardMetricsCollection() {
+    List<StandardMetrics> list = new ArrayList();
+    list.addAll(this.jobScheduler.getStandardMetricsCollection());
+    list.addAll(this.multiManager.getStandardMetricsCollection());
+    list.addAll(this.jobCatalog.getStandardMetricsCollection());
+    list.addAll(this.jobConfigurationManager.getStandardMetricsCollection());
+    return list;
   }
 
   /**

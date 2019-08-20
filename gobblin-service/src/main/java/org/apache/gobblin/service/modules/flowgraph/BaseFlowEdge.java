@@ -17,8 +17,9 @@
 
 package org.apache.gobblin.service.modules.flowgraph;
 
+import java.io.IOException;
 import java.net.URI;
-import java.util.ArrayList;
+import java.net.URISyntaxException;
 import java.util.List;
 
 import org.apache.hadoop.security.UserGroupInformation;
@@ -29,19 +30,23 @@ import com.typesafe.config.Config;
 
 import joptsimple.internal.Strings;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.runtime.api.JobTemplate;
 import org.apache.gobblin.runtime.api.SpecExecutor;
-import org.apache.gobblin.service.modules.template_catalog.FSFlowCatalog;
+import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.service.modules.template.FlowTemplate;
-import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
+import org.apache.gobblin.service.modules.template_catalog.FSFlowTemplateCatalog;
 import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
- * An implementation of {@link FlowEdge}.
+ * An implementation of {@link FlowEdge}. If a {@link FSFlowTemplateCatalog} is specified in the constructor,
+ * {@link #flowTemplate} is reloaded when {@link #getFlowTemplate()} is called.
  */
 @Alpha
+@Slf4j
 public class BaseFlowEdge implements FlowEdge {
   @Getter
   protected String src;
@@ -49,7 +54,6 @@ public class BaseFlowEdge implements FlowEdge {
   @Getter
   protected String dest;
 
-  @Getter
   protected FlowTemplate flowTemplate;
 
   @Getter
@@ -64,8 +68,16 @@ public class BaseFlowEdge implements FlowEdge {
   @Getter
   private boolean active;
 
+  private final FSFlowTemplateCatalog flowTemplateCatalog;
+
   //Constructor
-  public BaseFlowEdge(List<String> endPoints, String edgeId, FlowTemplate flowTemplate, List<SpecExecutor> executors, Config properties, boolean active) {
+  public BaseFlowEdge(List<String> endPoints, String edgeId, FlowTemplate flowTemplate, List<SpecExecutor> executors,
+      Config properties, boolean active) {
+    this(endPoints, edgeId, flowTemplate, executors, properties, active, null);
+  }
+
+  public BaseFlowEdge(List<String> endPoints, String edgeId, FlowTemplate flowTemplate, List<SpecExecutor> executors,
+      Config properties, boolean active, FSFlowTemplateCatalog flowTemplateCatalog) {
     this.src = endPoints.get(0);
     this.dest = endPoints.get(1);
     this.flowTemplate = flowTemplate;
@@ -73,6 +85,20 @@ public class BaseFlowEdge implements FlowEdge {
     this.active = active;
     this.config = properties;
     this.id = edgeId;
+    this.flowTemplateCatalog = flowTemplateCatalog;
+  }
+
+  @Override
+  public FlowTemplate getFlowTemplate() {
+    try {
+      if (this.flowTemplateCatalog != null) {
+        this.flowTemplate = this.flowTemplateCatalog.getFlowTemplate(this.flowTemplate.getUri());
+      }
+    } catch (SpecNotFoundException | JobTemplate.TemplateException | IOException | URISyntaxException e) {
+      // If loading template fails, use the template that was successfully loaded on construction
+      log.warn("Failed to get flow template at " + this.flowTemplate.getUri() + ", using in-memory flow template");
+    }
+    return this.flowTemplate;
   }
 
   @Override
@@ -124,11 +150,12 @@ public class BaseFlowEdge implements FlowEdge {
      * A method to return an instance of {@link BaseFlowEdge}. The method performs all the validation checks
      * and returns
      * @param edgeProps Properties of edge
-     * @param flowCatalog Flow Catalog used to retrieve {@link FlowTemplate}s.
+     * @param flowTemplateCatalog Flow Catalog used to retrieve {@link FlowTemplate}s.
      * @return a {@link BaseFlowEdge}
      */
     @Override
-    public FlowEdge createFlowEdge(Config edgeProps, FSFlowCatalog flowCatalog) throws FlowEdgeCreationException {
+    public FlowEdge createFlowEdge(Config edgeProps, FSFlowTemplateCatalog flowTemplateCatalog, List<SpecExecutor> specExecutors)
+        throws FlowEdgeCreationException {
       try {
         String source = ConfigUtils.getString(edgeProps, FlowGraphConfigurationKeys.FLOW_EDGE_SOURCE_KEY, "");
         Preconditions.checkArgument(!Strings.isNullOrEmpty(source), "A FlowEdge must have a non-null or empty source");
@@ -138,32 +165,18 @@ public class BaseFlowEdge implements FlowEdge {
         String edgeId = ConfigUtils.getString(edgeProps, FlowGraphConfigurationKeys.FLOW_EDGE_ID_KEY, "");
         Preconditions.checkArgument(!Strings.isNullOrEmpty(edgeId), "A FlowEdge must have a non-null or empty Id");
 
-        List<Config> specExecutorConfigList = new ArrayList<>();
-        boolean flag;
-        for (int i = 0; (flag = edgeProps.hasPath(FlowGraphConfigurationKeys.FLOW_EDGE_SPEC_EXECUTORS_KEY + "." + i)); i++) {
-          specExecutorConfigList.add(edgeProps.getConfig(FlowGraphConfigurationKeys.FLOW_EDGE_SPEC_EXECUTORS_KEY + "." + i));
-        }
-
         String flowTemplateDirUri = ConfigUtils.getString(edgeProps, FlowGraphConfigurationKeys.FLOW_EDGE_TEMPLATE_DIR_URI_KEY, "");
 
         //Perform basic validation
         Preconditions.checkArgument(endPoints.size() == 2, "A FlowEdge must have 2 end points");
         Preconditions
-            .checkArgument(specExecutorConfigList.size() > 0, "A FlowEdge must have at least one SpecExecutor");
+            .checkArgument(specExecutors.size() > 0, "A FlowEdge must have at least one SpecExecutor");
         Preconditions
             .checkArgument(!Strings.isNullOrEmpty(flowTemplateDirUri), "FlowTemplate URI must be not null or empty");
         boolean isActive = ConfigUtils.getBoolean(edgeProps, FlowGraphConfigurationKeys.FLOW_EDGE_IS_ACTIVE_KEY, true);
 
-        //Build SpecExecutor from config
-        List<SpecExecutor> specExecutors = new ArrayList<>();
-
-        for (Config specExecutorConfig : specExecutorConfigList) {
-          Class executorClass = Class.forName(specExecutorConfig.getString(FlowGraphConfigurationKeys.FLOW_EDGE_SPEC_EXECUTOR_CLASS_KEY));
-          SpecExecutor executor = (SpecExecutor) GobblinConstructorUtils.invokeLongestConstructor(executorClass, specExecutorConfig);
-          specExecutors.add(executor);
-        }
-        FlowTemplate flowTemplate = flowCatalog.getFlowTemplate(new URI(flowTemplateDirUri));
-        return new BaseFlowEdge(endPoints, edgeId, flowTemplate, specExecutors, edgeProps, isActive);
+        FlowTemplate flowTemplate = flowTemplateCatalog.getFlowTemplate(new URI(flowTemplateDirUri));
+        return new BaseFlowEdge(endPoints, edgeId, flowTemplate, specExecutors, edgeProps, isActive, flowTemplateCatalog);
       } catch (RuntimeException e) {
         throw e;
       } catch (Exception e) {

@@ -133,7 +133,7 @@ public class TestInfluxDB implements InfluxDB {
    * Get a metric with a given name.
    *
    * @param name metric name
-   * @return a {@link org.apache.gobblin.metrics.TimestampedValue}
+   * @return a {@link org.apache.gobblin.metrics.test.TimestampedValue}
    */
   public TimestampedValue getMetric(String name) {
     return this.data.get(name);

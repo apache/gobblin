@@ -17,23 +17,14 @@
 
 package org.apache.gobblin.serde;
 
-import java.io.FileReader;
-import java.io.IOException;
-import java.util.List;
-import java.util.Properties;
-
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.Writable;
-import org.testng.Assert;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
-
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
 import com.google.common.io.Closer;
-
+import java.io.File;
+import java.io.IOException;
+import java.net.URISyntaxException;
+import java.util.List;
+import java.util.Properties;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.State;
@@ -50,6 +41,13 @@ import org.apache.gobblin.writer.Destination.DestinationType;
 import org.apache.gobblin.writer.HiveWritableHdfsDataWriter;
 import org.apache.gobblin.writer.HiveWritableHdfsDataWriterBuilder;
 import org.apache.gobblin.writer.WriterOutputFormat;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.Writable;
+import org.testng.Assert;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 
 
 /**
@@ -72,10 +70,12 @@ public class HiveSerDeTest {
    */
   @Test(groups = { "gobblin.serde" })
   public void testAvroOrcSerDes()
-      throws IOException, DataRecordException, DataConversionException {
+      throws IOException, DataRecordException, DataConversionException, URISyntaxException {
     Properties properties = new Properties();
-    properties.load(new FileReader("gobblin-core/src/test/resources/serde/serde.properties"));
+    properties.load(HiveSerDeTest.class.getClassLoader().getResourceAsStream("serde/serde.properties"));
     SourceState sourceState = new SourceState(new State(properties), ImmutableList.<WorkUnitState> of());
+    File schemaFile = new File(HiveSerDeTest.class.getClassLoader().getResource("serde/serde.avsc").toURI());
+    sourceState.setProp("avro.schema.url" , schemaFile.getAbsolutePath());
 
     OldApiWritableFileSource source = new OldApiWritableFileSource();
     List<WorkUnit> workUnits = source.getWorkunits(sourceState);
@@ -94,7 +94,10 @@ public class HiveSerDeTest {
       writer =
           closer.register((HiveWritableHdfsDataWriter) new HiveWritableHdfsDataWriterBuilder<>().withBranches(1)
               .withWriterId("0").writeTo(Destination.of(DestinationType.HDFS, sourceState))
+              .withAttemptId("0-0")
               .writeInFormat(WriterOutputFormat.ORC).build());
+
+      Assert.assertTrue(writer.isSpeculativeAttemptSafe());
 
       converter.init(wus);
       Writable record;

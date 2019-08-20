@@ -122,10 +122,10 @@ import org.apache.gobblin.util.io.StreamUtils;
 @ConfigStoreWithStableVersioning
 public class SimpleHadoopFilesystemConfigStore implements ConfigStore, Deployable<FsDeploymentConfig> {
 
-  protected static final String CONFIG_STORE_NAME = "_CONFIG_STORE";
+  public static final String CONFIG_STORE_NAME = "_CONFIG_STORE";
 
-  private static final String MAIN_CONF_FILE_NAME = "main.conf";
-  private static final String INCLUDES_CONF_FILE_NAME = "includes.conf";
+  public static final String MAIN_CONF_FILE_NAME = "main.conf";
+  public static final String INCLUDES_CONF_FILE_NAME = "includes.conf";
   private static final String INCLUDES_KEY_NAME = "includes";
 
   private final FileSystem fs;
@@ -265,14 +265,7 @@ public class SimpleHadoopFilesystemConfigStore implements ConfigStore, Deployabl
       FileStatus includesFileStatus = this.fs.getFileStatus(includesFile);
       if (!includesFileStatus.isDirectory()) {
         try (InputStream includesConfInStream = this.fs.open(includesFileStatus.getPath())) {
-          /*
-           * The includes returned are used to build a fallback chain.
-           * With the natural order, if a key found in the first include it is not be overriden by the next include.
-           * By reversing the list, the Typesafe fallbacks are constructed bottom up.
-           */
-          configKeyPaths.addAll(Lists.newArrayList(
-              Iterables.transform(Lists.reverse(resolveIncludesList(IOUtils.readLines(includesConfInStream, Charsets.UTF_8), runtimeConfig)),
-                  new IncludesToConfigKey())));
+          configKeyPaths.addAll(getResolvedConfigKeyPaths(includesConfInStream, runtimeConfig));
         }
       }
     } catch (IOException e) {
@@ -280,6 +273,21 @@ public class SimpleHadoopFilesystemConfigStore implements ConfigStore, Deployabl
     }
 
     return configKeyPaths;
+  }
+
+  /**
+   * Get resolved config key paths given an includes file as an {@link InputStream}
+   *
+   * The includes returned are used to build a fallback chain.
+   * With the natural order, if a key found in the first include it is not be overriden by the next include.
+   * By reversing the list, the Typesafe fallbacks are constructed bottom up.
+   *
+   * @param includesConfInStream  includes.conf file as an {@link InputStream}
+   * @return a {@link List} of resolved ConfigKeyPaths
+   */
+  public static List<ConfigKeyPath> getResolvedConfigKeyPaths(InputStream includesConfInStream, Optional<Config> runtimeConfig) throws IOException {
+    return Lists.newArrayList(Iterables.transform(Lists.reverse(resolveIncludesList(
+        IOUtils.readLines(includesConfInStream, Charsets.UTF_8), runtimeConfig)), new IncludesToConfigKey()));
   }
 
   /**

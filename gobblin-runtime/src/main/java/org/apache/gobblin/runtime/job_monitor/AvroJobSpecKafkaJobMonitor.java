@@ -23,7 +23,6 @@ import java.net.URISyntaxException;
 import java.util.Collection;
 import java.util.Properties;
 
-import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -37,12 +36,12 @@ import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.JobSpecMonitor;
 import org.apache.gobblin.runtime.api.JobSpecMonitorFactory;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
+import org.apache.gobblin.runtime.api.SpecExecutor.Verb;
 import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.job_spec.AvroJobSpec;
 import org.apache.gobblin.util.Either;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
-import kafka.message.MessageAndMetadata;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -57,8 +56,7 @@ public class AvroJobSpecKafkaJobMonitor extends KafkaAvroJobMonitor<AvroJobSpec>
   public static final String CONFIG_PREFIX = "gobblin.jobMonitor.avroJobSpec";
   public static final String TOPIC_KEY = "topic";
   public static final String SCHEMA_VERSION_READER_CLASS = "versionReaderClass";
-  public static final String DELETE_STATE_STORE_KEY = "delete.state.store";
-
+  protected static final String VERB_KEY = "Verb";
   private static final Config DEFAULTS = ConfigFactory.parseMap(ImmutableMap.of(
       SCHEMA_VERSION_READER_CLASS, FixedSchemaVersionWriter.class.getName()));
 
@@ -106,9 +104,9 @@ public class AvroJobSpecKafkaJobMonitor extends KafkaAvroJobMonitor<AvroJobSpec>
   }
 
   /**
-   * Creates {@link JobSpec} from the {@link AvroJobSpec} record.
+   * Creates a {@link JobSpec} or {@link URI} from the {@link AvroJobSpec} record.
    * @param record the record as an {@link AvroJobSpec}
-   * @return a {@link JobSpec} wrapped in a {@link Collection} of {@link Either}
+   * @return a {@link JobSpec} or {@link URI} wrapped in a {@link Collection} of {@link Either}
    */
   @Override
   public Collection<Either<JobSpec, URI>> parseJobSpec(AvroJobSpec record) {
@@ -127,52 +125,17 @@ public class AvroJobSpecKafkaJobMonitor extends KafkaAvroJobMonitor<AvroJobSpec>
       }
     }
 
+    String verbName = record.getMetadata().get(VERB_KEY);
+    SpecExecutor.Verb verb = SpecExecutor.Verb.valueOf(verbName);
+
     JobSpec jobSpec = jobSpecBuilder.build();
 
     log.info("Parsed job spec " + jobSpec.toString());
 
-    return Lists.newArrayList(Either.<JobSpec, URI>left(jobSpec));
-  }
-
-  @Override
-  protected void processMessage(MessageAndMetadata<byte[], byte[]> message) {
-    try {
-      Collection<Either<JobSpec, URI>> parsedCollection = parseJobSpec(message.message());
-      for (Either<JobSpec, URI> parsedMessage : parsedCollection) {
-        JobSpec jobSpec = ((Either.Left<JobSpec, URI>)parsedMessage).getLeft();
-        if (jobSpec.getMetadata().get(JobSpec.VERB_KEY).equalsIgnoreCase(SpecExecutor.Verb.DELETE.name())) {
-          this.removedSpecs.inc();
-          URI jobSpecUri = jobSpec.getUri();
-          this.jobCatalog.remove(jobSpecUri);
-
-          // Refer FlowConfigsResources:delete to understand the pattern of flow URI
-          // FlowToJobSpec Compilers use the flowSpecURI to derive jobSpecURI
-          if (jobSpec.getConfig().hasPath(DELETE_STATE_STORE_KEY) &&
-              Boolean.parseBoolean(jobSpec.getConfig().getString(DELETE_STATE_STORE_KEY))) {
-            // Delete the job state if it is a delete spec request
-            String[] uriTokens = jobSpecUri.getPath().split("/");
-            if (null == this.datasetStateStore) {
-              log.warn("Job state store deletion failed as datasetstore is not initialized.");
-              continue;
-            }
-            if (uriTokens.length != 3) {
-              log.error("Invalid URI {}.", jobSpecUri);
-              continue;
-            }
-            String jobName = uriTokens[2];
-            this.datasetStateStore.delete(jobName);
-            log.info("JobSpec {} deleted with statestore.", jobSpecUri);
-          } else {
-            log.info("JobSpec {} deleted keeping statestore.", jobSpecUri);
-          }
-        } else {
-          this.newSpecs.inc();
-          this.jobCatalog.put(jobSpec);
-        }
-      }
-    } catch (IOException ioe) {
-      String messageStr = new String(message.message(), Charsets.UTF_8);
-      log.error(String.format("Failed to delete job/jobStateStore or parse kafka message with offset %d: %s.", message.offset(), messageStr), ioe);
+    if (verb == Verb.ADD || verb == Verb.UPDATE) {
+      return Lists.newArrayList(Either.left(jobSpec));
+    } else {
+      return Lists.newArrayList(Either.right(jobSpec.getUri()));
     }
   }
 }
