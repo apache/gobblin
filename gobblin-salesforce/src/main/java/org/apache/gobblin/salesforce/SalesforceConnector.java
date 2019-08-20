@@ -83,6 +83,10 @@ public class SalesforceConnector extends RestApiConnector {
       String password = PasswordManager.getInstance(this.state)
           .readPassword(this.state.getProp(ConfigurationKeys.SOURCE_CONN_PASSWORD));
       String securityToken = this.state.getProp(ConfigurationKeys.SOURCE_CONN_SECURITY_TOKEN);
+      if (this.state.getPropAsBoolean(ConfigurationKeys.SOURCE_CONN_DECRYPT_SECURITY_TOKEN, false)) {
+        PasswordManager passwordManager = PasswordManager.getInstance(this.state);
+        securityToken = passwordManager.readPassword(securityToken);
+      }
       formParams.add(new BasicNameValuePair("grant_type", "password"));
       formParams.add(new BasicNameValuePair("username", userName));
       formParams.add(new BasicNameValuePair("password", password + securityToken));
