@@ -476,6 +476,10 @@ public class DagManager extends AbstractIdleService {
       for (DagNode dagNode: nextSubmitted.get(dagId)) {
         addJobState(dagId, dagNode);
       }
+
+      // Set flow status to running
+      DagManagerUtils.emitFlowEvent(this.eventSubmitter, dag, TimingEvent.FlowTimings.FLOW_RUNNING);
+
       log.info("Dag {} Initialization complete.", DagManagerUtils.getFullyQualifiedDagName(dag));
     }
 
@@ -618,6 +622,7 @@ public class DagManager extends AbstractIdleService {
     synchronized Map<String, Set<DagNode<JobExecutionPlan>>> submitNext(String dagId) throws IOException {
       Dag<JobExecutionPlan> dag = this.dags.get(dagId);
       Set<DagNode<JobExecutionPlan>> nextNodes = DagManagerUtils.getNext(dag);
+
       //Submit jobs from the dag ready for execution.
       for (DagNode<JobExecutionPlan> dagNode : nextNodes) {
         submitJob(dagNode);
@@ -758,8 +763,7 @@ public class DagManager extends AbstractIdleService {
         }
         log.info("Dag {} has finished with status FAILED; Cleaning up dag from the state store.", dagId);
         // send an event before cleaning up dag
-        JobExecutionPlan jobExecutionPlan = this.dags.get(dagId).getNodes().get(0).getValue();
-        DagManagerUtils.emitFlowEvent(this.eventSubmitter, jobExecutionPlan, TimingEvent.FlowTimings.FLOW_FAILED);
+        DagManagerUtils.emitFlowEvent(this.eventSubmitter, this.dags.get(dagId), TimingEvent.FlowTimings.FLOW_FAILED);
         dagIdstoClean.add(dagId);
       }
 
@@ -773,8 +777,7 @@ public class DagManager extends AbstractIdleService {
           }
           log.info("Dag {} has finished with status {}; Cleaning up dag from the state store.", dagId, status);
           // send an event before cleaning up dag
-          JobExecutionPlan jobExecutionPlan = this.dags.get(dagId).getNodes().get(0).getValue();
-          DagManagerUtils.emitFlowEvent(this.eventSubmitter, jobExecutionPlan, status);
+          DagManagerUtils.emitFlowEvent(this.eventSubmitter, this.dags.get(dagId), status);
           dagIdstoClean.add(dagId);
         }
       }
