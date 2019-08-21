@@ -29,6 +29,10 @@ import java.util.concurrent.ExecutionException;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
+import org.apache.gobblin.kafka.schemareg.KafkaSchemaRegistry;
+import org.apache.gobblin.kafka.schemareg.KafkaSchemaRegistryFactory;
+import org.apache.gobblin.kafka.schemareg.SchemaRegistryException;
+import org.apache.gobblin.source.extractor.extract.kafka.KafkaSource;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
@@ -36,6 +40,7 @@ import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
 import org.apache.thrift.TException;
 import org.joda.time.DateTime;
 
@@ -93,9 +98,11 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
   public static final String CREATE_HIVE_DATABASE = HIVE_REGISTER_METRICS_PREFIX + "createDatabaseTimer";
   public static final String CREATE_HIVE_TABLE = HIVE_REGISTER_METRICS_PREFIX + "createTableTimer";
   public static final String GET_HIVE_TABLE = HIVE_REGISTER_METRICS_PREFIX + "getTableTimer";
+  public static final String GET_AND_SET_LATEST_SCHEMA = HIVE_REGISTER_METRICS_PREFIX + "getAndSetLatestSchemaTimer";
   public static final String DROP_TABLE = HIVE_REGISTER_METRICS_PREFIX + "dropTableTimer";
   public static final String PATH_REGISTER_TIMER = HIVE_REGISTER_METRICS_PREFIX + "pathRegisterTimer";
   public static final String SKIP_PARTITION_DIFF_COMPUTATION = HIVE_REGISTER_METRICS_PREFIX + "skip.partition.diff.computation";
+  public static final String FETCH_LATEST_SCHEMA = HIVE_REGISTER_METRICS_PREFIX + "fetch.latest.schema";
   /**
    * To reduce lock aquisition and RPC to metaStoreClient, we cache the result of query regarding to
    * the existence of databases and tables in {@link #tableAndDbExistenceCache},
@@ -134,11 +141,17 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
   //for a partition is immutable
   private final boolean skipDiffComputation;
 
+  private Optional<KafkaSchemaRegistry> schemaRegistry = Optional.absent();
+  private String topicName = "";
   public HiveMetaStoreBasedRegister(State state, Optional<String> metastoreURI) throws IOException {
     super(state);
 
     this.optimizedChecks = state.getPropAsBoolean(this.OPTIMIZED_CHECK_ENABLED, true);
     this.skipDiffComputation = state.getPropAsBoolean(this.SKIP_PARTITION_DIFF_COMPUTATION, false);
+    if(state.getPropAsBoolean(this.FETCH_LATEST_SCHEMA, false)) {
+      this.schemaRegistry = Optional.of(KafkaSchemaRegistryFactory.getSchemaRegistry(state.getProperties()));
+      topicName = state.getProp(KafkaSource.TOPIC_NAME);
+    }
 
     GenericObjectPoolConfig config = new GenericObjectPoolConfig();
     config.setMaxTotal(this.props.getNumThreads());
@@ -176,7 +189,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
    * Or will create the table thru. RPC and return retVal from remote MetaStore.
    */
   private boolean ensureHiveTableExistenceBeforeAlternation(String tableName, String dbName, IMetaStoreClient client,
-      Table table, HiveSpec spec) throws TException{
+      Table table, HiveSpec spec) throws TException, IOException{
     try (AutoCloseableLock lock = this.locks.getTableLock(dbName, tableName)) {
       try {
         try (Timer.Context context = this.metricContext.timer(CREATE_HIVE_TABLE).time()) {
@@ -196,6 +209,16 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
         HiveTable existingTable;
         try (Timer.Context context = this.metricContext.timer(GET_HIVE_TABLE).time()) {
           existingTable = HiveMetaStoreUtils.getHiveTable(client.getTable(dbName, tableName));
+        }
+        if (this.schemaRegistry.isPresent()) {
+          try (Timer.Context context = this.metricContext.timer(GET_AND_SET_LATEST_SCHEMA).time()) {
+            String latestSchema = this.schemaRegistry.get().getLatestSchema(topicName).toString();
+            spec.getTable().getSerDeProps().setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), latestSchema);
+            table.getSd().setSerdeInfo(HiveMetaStoreUtils.getSerDeInfo(spec.getTable()));
+          } catch (SchemaRegistryException | IOException e) {
+            log.error(String.format("Error when fetch latest for topic %s", topicName), e);
+            throw new IOException(e);
+          }
         }
         if (needToUpdateTable(existingTable, spec.getTable())) {
           try (Timer.Context context = this.metricContext.timer(ALTER_TABLE).time()) {
