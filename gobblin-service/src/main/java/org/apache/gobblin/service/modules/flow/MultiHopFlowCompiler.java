@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -36,6 +38,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ServiceManager;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValue;
 import com.typesafe.config.ConfigValueFactory;
 
 import lombok.Getter;
@@ -172,7 +176,7 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
         ConfigUtils.getString(flowSpec.getConfig(), ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, "");
     log.info(String.format("Compiling flow for source: %s and destination: %s", source, destination));
 
-    List<FlowSpec> flowSpecs = splitFlowSpecByPath(flowSpec);
+    List<FlowSpec> flowSpecs = splitFlowSpec(flowSpec);
     Dag<JobExecutionPlan> jobExecutionPlanDag = new Dag<>(new ArrayList<>());
     try {
       this.rwLock.readLock().lock();
@@ -206,45 +210,31 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
   }
 
   /**
-   * If flowSpec has multiple dataset descriptor paths, return a list of flowSpecs split on the path property with all
-   * other properties being the same. If it does not have multiple, return a singleton list with the original flowSpec.
-   *
-   * Example input flowSpec format:
-   * gobblin.flow.input.dataset.descriptor.0=/data/input/dataset1
-   * gobblin.flow.input.dataset.descriptor.1=/data/input/dataset2
-   *
-   * gobblin.flow.output.dataset.descriptor.0=/data/output/dataset1
-   * gobblin.flow.output.dataset.descriptor.1=/data/output/dataset2
+   * If {@link FlowSpec} has config keys like configKey.0, configKey.1, split it into multiple flowSpecs on these properties.
+   * Properties that do not specify numbers will be present in all returned flowSpecs.
    */
-  private static List<FlowSpec> splitFlowSpecByPath(FlowSpec flowSpec) {
-    Config config = flowSpec.getConfig();
-
-    String inputKey = DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX + "." + DatasetDescriptorConfigKeys.PATH_KEY;
-    String outputKey = DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX + "." + DatasetDescriptorConfigKeys.PATH_KEY;
-
-    Config inputPathsConfig = ConfigUtils.getConfigOrEmpty(config, inputKey);
-    Config outputPathsConfig = ConfigUtils.getConfigOrEmpty(config, outputKey);
-
+  private static List<FlowSpec> splitFlowSpec(FlowSpec flowSpec) {
     List<FlowSpec> flowSpecs = new ArrayList<>();
+    boolean foundProperty = true;
     int i = 0;
-    while (inputPathsConfig.hasPath(Integer.toString(i))) {
-      // Default to using same input and output path if one is not specified
-      String outputPath = outputPathsConfig.hasPath(Integer.toString(i)) ? outputPathsConfig.getString(Integer.toString(i))
-          : inputPathsConfig.getString(Integer.toString(i));
-      Config newConfig = config.withoutPath(inputKey).withoutPath(outputKey)
-          .withValue(inputKey, inputPathsConfig.getValue(Integer.toString(i)))
-          .withValue(outputKey, ConfigValueFactory.fromAnyRef(outputPath));
 
-      FlowSpec.Builder builder = FlowSpec.builder(flowSpec.getUri()).withVersion(flowSpec.getVersion()).withDescription(flowSpec.getDescription()).withConfig(newConfig);
-      if (flowSpec.getTemplateURIs().isPresent()) {
-        builder = builder.withTemplates(flowSpec.getTemplateURIs().get());
+    while (foundProperty) {
+      Properties properties = flowSpec.getConfigAsProperties();
+      Config newConfig = flowSpec.getConfig();
+      foundProperty = false;
+      String suffix = "." + i;
+
+      for (String key : properties.stringPropertyNames()) {
+        if (key.endsWith(suffix)) {
+          String path = key.substring(0, key.length() - suffix.length());
+          newConfig = newConfig.withoutPath(path).withValue(path, newConfig.getValue(key));
+          foundProperty = true;
+        }
       }
-      if (flowSpec.getChildSpecs().isPresent()) {
-        builder = builder.withTemplates(flowSpec.getChildSpecs().get());
+
+      if (foundProperty) {
+        flowSpecs.add(copyFlowSpecWithNewConfig(flowSpec, newConfig));
       }
-
-      flowSpecs.add(builder.build());
-
       i++;
     }
 
@@ -253,6 +243,21 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
     }
 
     return flowSpecs;
+  }
+
+  private static FlowSpec copyFlowSpecWithNewConfig(FlowSpec flowSpec, Config newConfig) {
+    FlowSpec.Builder builder = FlowSpec.builder(flowSpec.getUri()).withVersion(flowSpec.getVersion())
+        .withDescription(flowSpec.getDescription()).withConfig(newConfig);
+
+    if (flowSpec.getTemplateURIs().isPresent()) {
+      builder = builder.withTemplates(flowSpec.getTemplateURIs().get());
+    }
+
+    if (flowSpec.getChildSpecs().isPresent()) {
+      builder = builder.withTemplates(flowSpec.getChildSpecs().get());
+    }
+
+    return builder.build();
   }
 
   /**
