@@ -20,6 +20,7 @@ import avro.shaded.com.google.common.collect.Maps;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import com.microsoft.azure.eventhubs.EventData;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
@@ -39,7 +40,7 @@ import java.util.*;
 /**
  * A {@link org.apache.gobblin.source.Source} implementation for MS EventHub source.
  */
-public class EventhubSource extends AbstractSource<Void, EventData> {
+public class EventhubSource extends AbstractSource<JsonObject, EventData> {
 
     public static final Logger LOG = LoggerFactory.getLogger(EventhubSource.class);
 
