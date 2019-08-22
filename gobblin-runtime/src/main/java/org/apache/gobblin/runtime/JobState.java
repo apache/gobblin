@@ -29,7 +29,6 @@ import java.util.Properties;
 
 import org.apache.gobblin.metastore.DatasetStateStore;
 import org.apache.gobblin.runtime.job.JobProgress;
-import org.apache.gobblin.runtime.job.TaskProgress;
 import org.apache.hadoop.io.Text;
 
 import com.codahale.metrics.Counter;
@@ -38,6 +37,7 @@ import com.codahale.metrics.Meter;
 import com.google.common.base.Enums;
 import com.google.common.base.Optional;
 import com.google.common.base.Strings;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
@@ -324,6 +324,23 @@ public class JobState extends SourceState implements JobProgress {
    */
   public void setTaskCount(int taskCount) {
     this.taskCount = taskCount;
+  }
+
+  /**
+   * If not already present, set the {@link ConfigurationKeys#JOB_FAILURE_EXCEPTION_KEY} to a {@link String}
+   * representation of the given {@link Throwable}.
+   */
+  public void setJobFailureException(Throwable jobFailureException) {
+    if (!this.contains(ConfigurationKeys.JOB_FAILURE_EXCEPTION_KEY)) {
+      this.setProp(ConfigurationKeys.JOB_FAILURE_EXCEPTION_KEY,
+          Throwables.getStackTraceAsString(jobFailureException));
+    }
+  }
+
+  public void setJobFailureException(String jobFailureException) {
+    if (!this.contains(ConfigurationKeys.JOB_FAILURE_EXCEPTION_KEY)) {
+      this.setProp(ConfigurationKeys.JOB_FAILURE_EXCEPTION_KEY, jobFailureException);
+    }
   }
 
   /**
