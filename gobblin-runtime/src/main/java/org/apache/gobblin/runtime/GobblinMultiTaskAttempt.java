@@ -99,6 +99,7 @@ public class GobblinMultiTaskAttempt {
   @Setter
   private Predicate<GobblinMultiTaskAttempt> interruptionPredicate = (gmta) -> false;
   private List<Task> tasks;
+  private Integer flattenedWorkUnitsCount;
 
   /**
    * Additional commit steps that may be added by different launcher, and can be environment specific.
@@ -362,8 +363,10 @@ public class GobblinMultiTaskAttempt {
    */
   private List<Task> runWorkUnits(CountUpAndDownLatch countDownLatch) {
 
+    this.flattenedWorkUnitsCount = 0;
     List<Task> tasks = Lists.newArrayList();
     while (this.workUnits.hasNext()) {
+      this.flattenedWorkUnitsCount++;
       WorkUnit workUnit = this.workUnits.next();
       String taskId = workUnit.getProp(ConfigurationKeys.TASK_ID_KEY);
 
@@ -416,6 +419,10 @@ public class GobblinMultiTaskAttempt {
         }
       }
     }
+
+    new EventSubmitter.Builder(JobMetrics.get(this.jobId, new JobMetrics.CreatorTag(this.attemptId)).getMetricContext(), "gobblin.runtime")
+        .build()
+        .submit(JobEvent.FLATTENED_WORK_UNITS_CREATED, "flattenedWorkUnitsCount", Integer.toString(this.flattenedWorkUnitsCount));
 
     new EventSubmitter.Builder(JobMetrics.get(this.jobId, new JobMetrics.CreatorTag(this.attemptId)).getMetricContext(), "gobblin.runtime")
         .build()

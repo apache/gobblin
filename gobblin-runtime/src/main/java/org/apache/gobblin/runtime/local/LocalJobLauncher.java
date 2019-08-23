@@ -131,21 +131,14 @@ public class LocalJobLauncher extends AbstractJobLauncher {
 
     String jobId = this.jobContext.getJobId();
     final JobState jobState = this.jobContext.getJobState();
-    this.workUnitCount = 0;
 
     Iterator<WorkUnit> workUnitIterator = workUnitStream.getWorkUnits();
-    for(Iterator<WorkUnit> i=workUnitIterator; i.hasNext(); i.next()) {
-      this.workUnitCount++;
-    }
-    CountEventBuilder countEventBuilder = (this.workUnitCount == 0)? new CountEventBuilder(JobEvent.WORK_UNITS_EMPTY, 0)
-        : new CountEventBuilder(JobEvent.WORK_UNITS_CREATED, this.workUnitCount);
-    this.eventSubmitter.submit(countEventBuilder);
-
-    if (this.workUnitCount == 0) {
+    if (!workUnitIterator.hasNext()) {
       LOG.warn("No work units to run");
+      CountEventBuilder countEventBuilder = new CountEventBuilder(JobEvent.WORK_UNITS_EMPTY, 0);
+      this.eventSubmitter.submit(countEventBuilder);
       return;
     }
-    LOG.info("Emitting WorkUnitsCreated Count: " + this.workUnitCount);
 
     TimingEvent workUnitsRunTimer = this.eventSubmitter.getTimingEvent(TimingEvent.RunJobTimings.WORK_UNITS_RUN);
     Iterator<WorkUnit> flattenedWorkUnits = new MultiWorkUnitUnpackingIterator(workUnitStream.getWorkUnits());

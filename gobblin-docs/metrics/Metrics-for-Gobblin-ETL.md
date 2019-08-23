@@ -94,6 +94,7 @@ Job Progression Events
 * WorkUnitsMissing: emitted if a job exits because source failed to get work units.
 * WorkUnitsEmpty: emitted if a job exits because there were no work units to process.
 * WorkUnitsCreated: emitted when workunits are created for a task. Metadata: workUnitsCreated(Number of bin-packed workunits created).
+* FlattenedWorkUnitsCreated: emitted when flattened workunits are created for a task. Metadata: flattenedWorkUnitsCreated.
 * TasksSubmitted: emitted when tasks are submitted for execution. Metadata: tasksCount(number of tasks submitted).
 * TaskFailed: emitted when a task fails. Metadata: taskId(id of the failed task).
 * Job_Successful: emitted at the end of a successful job.
