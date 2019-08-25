@@ -91,8 +91,8 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   public static final String EARLIEST_OFFSET = "earliest";
   public static final String NEAREST_OFFSET = "nearest";
   public static final String OFFSET_LOOKBACK = "offset_lookback";
-  public static final String TIMESTAMP_LOOKBACK = "timestamp_lookback";
   public static final String BOOTSTRAP_WITH_OFFSET = "bootstrap.with.offset";
+  public static final String KAFKA_OFFSET_LOOKBACK = "kafka.offset.lookback";
   public static final String DEFAULT_BOOTSTRAP_WITH_OFFSET = LATEST_OFFSET;
   public static final String TOPICS_MOVE_TO_LATEST_OFFSET = "topics.move.to.latest.offset";
   public static final String RESET_ON_OFFSET_OUT_OF_RANGE = "reset.on.offset.out.of.range";
@@ -460,17 +460,39 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
             offsetNotFoundMsg + "This partition will start from the earliest offset: " + offsets.getEarliestOffset());
         offsets.startAtEarliestOffset();
       } else if (offsetOption.equals(OFFSET_LOOKBACK)) {
-        long lookbackOffsetRange = state.getPropAsLong("kafka.offset.lookback", 0L);
+        long lookbackOffsetRange = state.getPropAsLong(KAFKA_OFFSET_LOOKBACK , 0L);
         long offset = offsets.getLatestOffset() - lookbackOffsetRange;
         LOG.warn(offsetNotFoundMsg + "This partition will start from latest-lookback [ " + offsets.getLatestOffset() + " - " + lookbackOffsetRange + " ]  start offset: " + offset);
         try {
           offsets.startAt(offset);
         } catch (StartOffsetOutOfRangeException e) {
+          // Increment counts, which will be reported as job metrics
+          if (offsets.getStartOffset() <= offsets.getLatestOffset()) {
+            this.offsetTooEarlyCount.incrementAndGet();
+          } else {
+            this.offsetTooLateCount.incrementAndGet();
+          }
+
+          // When above computed offset (latest-lookback) is out of range, either start at earliest, latest or nearest offset, or skip the
+          // partition. If skipping, need to create an empty workunit so that previousOffset is persisted.
           String offsetOutOfRangeMsg = String.format(
                   "Start offset for partition %s is out of range. Start offset = %d, earliest offset = %d, latest offset = %d.",
                   partition, offsets.getStartOffset(), offsets.getEarliestOffset(), offsets.getLatestOffset());
-          LOG.warn(offsetOutOfRangeMsg + "This partition will start from the latest offset: " + offsets.getLatestOffset());
-          offsets.startAtLatestOffset();
+          offsetOption =
+                  state.getProp(RESET_ON_OFFSET_OUT_OF_RANGE, DEFAULT_RESET_ON_OFFSET_OUT_OF_RANGE).toLowerCase();
+          if (offsetOption.equals(LATEST_OFFSET) || (offsetOption.equals(NEAREST_OFFSET)
+                  && offsets.getStartOffset() >= offsets.getLatestOffset())) {
+            LOG.warn(
+                    offsetOutOfRangeMsg + "This partition will start from the latest offset: " + offsets.getLatestOffset());
+            offsets.startAtLatestOffset();
+          } else if (offsetOption.equals(EARLIEST_OFFSET) || offsetOption.equals(NEAREST_OFFSET)) {
+            LOG.warn(offsetOutOfRangeMsg + "This partition will start from the earliest offset: " + offsets
+                    .getEarliestOffset());
+            offsets.startAtEarliestOffset();
+          } else {
+            LOG.warn(offsetOutOfRangeMsg + "This partition will be skipped.");
+            return createEmptyWorkUnit(partition, previousOffset, previousOffsetFetchEpochTime, topicSpecificState);
+          }
         }
       }
       else {
