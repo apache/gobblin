@@ -461,8 +461,9 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
         offsets.startAtEarliestOffset();
       } else if (offsetOption.equals(OFFSET_LOOKBACK)) {
         long lookbackOffsetRange = state.getPropAsLong(KAFKA_OFFSET_LOOKBACK , 0L);
-        long offset = offsets.getLatestOffset() - lookbackOffsetRange;
-        LOG.warn(offsetNotFoundMsg + "This partition will start from latest-lookback [ " + offsets.getLatestOffset() + " - " + lookbackOffsetRange + " ]  start offset: " + offset);
+        long latestOffset = offsets.getLatestOffset();
+        long offset = latestOffset - lookbackOffsetRange;
+        LOG.warn(offsetNotFoundMsg + "This partition will start from latest-lookback [ " + latestOffset + " - " + lookbackOffsetRange + " ]  start offset: " + offset);
         try {
           offsets.startAt(offset);
         } catch (StartOffsetOutOfRangeException e) {
