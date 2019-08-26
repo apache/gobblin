@@ -78,7 +78,6 @@ YARN_CLASS='org.apache.gobblin.yarn.GobblinYarnAppLauncher'
 MAPREDUCE_CLASS='org.apache.gobblin.runtime.mapreduce.CliMRJobLauncher'
 SERVICE_MANAGER_CLASS='org.apache.gobblin.service.modules.core.GobblinServiceManager'
 
-
 function print_gobblin_usage() {
     echo "Usage:"
     echo "gobblin.sh  cli     <cli-command>    <params>"
@@ -122,8 +121,7 @@ function print_gobblin_service_usage() {
     echo "gobblin.sh  service <execution-mode> <start|stop|status>"
     echo ""
     echo "Argument Options:"
-    echo "    <execution-mode>                      $STANDALONE_MODE, $CLUSTER_MASTER_MODE, $CLUSTER_WORKER_MODE, $AWS_MODE,
-                                                    $YARN_MODE, $MAPREDUCE_MODE, $SERVICE_MANAGER_MODE."
+    echo "    <execution-mode>                      $GOBBLIN_EXEC_MODE_LIST."
     echo ""
     echo "    --conf-dir <gobblin-conf-dir-path>    Gobblin config path. default is '\$GOBBLIN_HOME/conf/<exe-mode-name>'."
     echo "    --log4j-conf <path-of-log4j-file>     default is '<gobblin-conf-dir-path>/<execution-mode>/log4j.properties'."
@@ -167,6 +165,7 @@ do
                 GOBBLIN_MODE="$2"
                 shift
             else
+                echo "ERROR: Service $2 is not supported. Valid services are : $GOBBLIN_EXEC_MODE_LIST"
                 print_help_n_exit
             fi
         ;;
@@ -234,6 +233,7 @@ if [[ "$GOBBLIN_MODE_TYPE" == "$CLI" ]]; then
     ACTION='start'
     # print help by default if any of the supported command is not specified
     if [[ -z "$GOBBLIN_MODE" || -z "$CMD_PARAMS" ]]; then
+        echo "ERROR: command parameters are required for $GOBBLIN_MODE"
         print_help_n_exit
     fi
 fi
@@ -259,9 +259,11 @@ fi
 if [[ -n "$USER_LOG4J_FILE" ]]; then
     LOG4J_FILE_PATH=file://${USER_LOG4J_FILE}
     LOG4J_OPTS="-Dlog4j.configuration=$LOG4J_FILE_PATH"
-elif [[ -f ${GOBBLIN_CONF}/log4j.properties ]]; then
+#preference to log4j2.xml for log4j2 support
+elif [[ -f ${GOBBLIN_CONF}/log4j2.xml ]]; then
     LOG4J_FILE_PATH=file://${GOBBLIN_CONF}/log4j2.xml
     LOG4J_OPTS="-Dlog4j.configuration=$LOG4J_FILE_PATH"
+#defaults to log4j.properties
 elif [[ -f ${GOBBLIN_CONF}/log4j.properties ]]; then
     LOG4J_FILE_PATH=file://${GOBBLIN_CONF}/log4j.properties
     LOG4J_OPTS="-Dlog4j.configuration=$LOG4J_FILE_PATH"
@@ -342,13 +344,13 @@ function get_gobblin_mapreduce_libs() {
         gobblin-metrics-base-$GOBBLIN_VERSION.jar
         gobblin-metadata-$GOBBLIN_VERSION.jar
         gobblin-utility-$GOBBLIN_VERSION.jar
+        mysql-connector-java-*.jar
         avro-*.jar
         commons-lang3-*.jar
         config-*.jar
         data-*.jar
         gson-*.jar
         guava-*.jar
-        guava-retrying-*.jar
         joda-time-*.jar
         javassist-*.jar
         kafka_2.11-*.jar
@@ -364,13 +366,16 @@ function get_gobblin_mapreduce_libs() {
         reflections-*.jar
     )
 
+    old_IFS=$IFS
+    IFS=' '
     MR_JARS=''
     for i in "${GOBBLIN_MR_JARS[@]}"; do
-        i="$(echo -e "${i}" | tr -d '[:space:]')"
-        MR_JARS="$MR_JARS,$GOBBLIN_LIB/$i"
+        for j in $(eval echo -e "$GOBBLIN_LIB/${i}"); do
+          MR_JARS="$MR_JARS,$j"
+        done
     done
-
     echo ${MR_JARS:1}
+    IFS=$old_IFS
 }
 
 function start() {
@@ -398,17 +403,17 @@ function start() {
     else
         if [[ "$GOBBLIN_MODE" = "$MAPREDUCE_MODE" ]]; then
             if [[ -z "$JOB_CONF_FILE" ]]; then
-                echo "--job-conf-file has to be specified to incident which job to run by mapreduce."
+                echo "--job-conf-file is required that specifies the job to be run into mapreduce mode by Gobblin."
                 exit 1;
             fi
 
             MR_MODE_LIB_JARS=$(get_gobblin_mapreduce_libs)
-#            MR_MODE_LIB_JARS=${GOBBLIN_JARS//:/,}
             export HADOOP_CLASSPATH=${GOBBLIN_CLASSPATH}
             export HADOOP_USER_CLASSPATH_FIRST=true
             if [[ -n "$JVM_OPTS" ]]; then
-                export HADOOP_OPTS=$JVM_OPTS
+                export HADOOP_OPTS="$HADOOP_OPTS $JVM_OPTS"
             fi
+
             if [[ -n "$EXTRA_JARS" ]]; then
                 MR_MODE_LIB_JARS="$EXTRA_JARS,${MR_MODE_LIB_JARS}"
             fi
@@ -464,7 +469,6 @@ function start() {
         else
             echo "Started the Gobblin $GOBBLIN_MODE process [pid: $PID] ... [DONE]"
         fi
-
     fi
 }
 
@@ -600,6 +604,7 @@ case "$ACTION" in
         start
     ;;
     *)
+        echo "ERROR: One of the action is required: start/stop/status/restart"
         print_help_n_exit
     ;;
 esac
