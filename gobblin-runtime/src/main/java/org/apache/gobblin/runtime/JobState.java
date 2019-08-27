@@ -29,8 +29,6 @@ import java.util.Properties;
 
 import org.apache.gobblin.metastore.DatasetStateStore;
 import org.apache.gobblin.runtime.job.JobProgress;
-
-import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.io.Text;
 
 import com.codahale.metrics.Counter;
@@ -333,20 +331,16 @@ public class JobState extends SourceState implements JobProgress {
    * representation of the given {@link Throwable}.
    */
   public void setJobFailureException(Throwable jobFailureException) {
-    setJobFailureException(Throwables.getStackTraceAsString(jobFailureException));
+    if (!this.contains(ConfigurationKeys.JOB_FAILURE_EXCEPTION_KEY)) {
+      this.setProp(ConfigurationKeys.JOB_FAILURE_EXCEPTION_KEY,
+          Throwables.getStackTraceAsString(jobFailureException));
+    }
   }
 
   public void setJobFailureException(String jobFailureException) {
-    String currentExceptions = this.getProp(ConfigurationKeys.JOB_FAILURE_EXCEPTION_KEY);
-    String newExceptions;
-
-    if (StringUtils.isEmpty(currentExceptions)) {
-      newExceptions = jobFailureException;
-    } else {
-      newExceptions = currentExceptions + "\n\n" + jobFailureException;
+    if (!this.contains(ConfigurationKeys.JOB_FAILURE_EXCEPTION_KEY)) {
+      this.setProp(ConfigurationKeys.JOB_FAILURE_EXCEPTION_KEY, jobFailureException);
     }
-
-    this.setProp(ConfigurationKeys.JOB_FAILURE_EXCEPTION_KEY, newExceptions);
   }
 
   /**
