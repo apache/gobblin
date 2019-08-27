@@ -477,7 +477,7 @@ public class JobContext implements Closeable {
       if (!IteratorExecutor.verifyAllSuccessful(result)) {
         this.jobState.setState(JobState.RunningState.FAILED);
         String errMsg = "Failed to commit dataset state for some dataset(s) of job " + this.jobId;
-        this.jobState.setJobFailureException(errMsg);
+        this.jobState.setJobFailureMessage(errMsg);
         throw new IOException(errMsg);
       }
     } catch (InterruptedException exc) {

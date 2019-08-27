@@ -330,7 +330,7 @@ final class SafeDatasetCommit implements Callable<Void> {
         String errMsg = "At least one task did not committed successfully. Setting dataset state to FAILED. "
             + (taskStateException.isPresent() ? taskStateException.get() : "Exception not set.");
         log.warn(errMsg);
-        datasetState.setJobFailureException(errMsg);
+        datasetState.setJobFailureMessage(errMsg);
         return;
       }
     }
@@ -409,7 +409,7 @@ final class SafeDatasetCommit implements Callable<Void> {
           String errMsg = "At least one task did not committed successfully. Setting dataset state to FAILED. "
               + (taskStateException.isPresent() ? taskStateException.get() : "Exception not set.");
           log.warn(errMsg);
-          datasetState.setJobFailureException(errMsg);
+          datasetState.setJobFailureMessage(errMsg);
         }
       }
     }

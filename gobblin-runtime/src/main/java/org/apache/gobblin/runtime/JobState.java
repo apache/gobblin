@@ -29,6 +29,8 @@ import java.util.Properties;
 
 import org.apache.gobblin.metastore.DatasetStateStore;
 import org.apache.gobblin.runtime.job.JobProgress;
+
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.io.Text;
 
 import com.codahale.metrics.Counter;
@@ -331,16 +333,33 @@ public class JobState extends SourceState implements JobProgress {
    * representation of the given {@link Throwable}.
    */
   public void setJobFailureException(Throwable jobFailureException) {
-    if (!this.contains(ConfigurationKeys.JOB_FAILURE_EXCEPTION_KEY)) {
-      this.setProp(ConfigurationKeys.JOB_FAILURE_EXCEPTION_KEY,
-          Throwables.getStackTraceAsString(jobFailureException));
+    String previousExceptions = this.getProp(ConfigurationKeys.JOB_FAILURE_EXCEPTION_KEY);
+    String currentException = Throwables.getStackTraceAsString(jobFailureException);
+    String aggregatedExceptions;
+
+    if (StringUtils.isEmpty(previousExceptions)) {
+      aggregatedExceptions = currentException;
+    } else {
+      aggregatedExceptions = currentException + "\n\n" + previousExceptions;
     }
+
+    this.setProp(ConfigurationKeys.JOB_FAILURE_EXCEPTION_KEY, aggregatedExceptions);
   }
 
-  public void setJobFailureException(String jobFailureException) {
-    if (!this.contains(ConfigurationKeys.JOB_FAILURE_EXCEPTION_KEY)) {
-      this.setProp(ConfigurationKeys.JOB_FAILURE_EXCEPTION_KEY, jobFailureException);
+  /**
+   * If not already present, set the {@link EventMetadataUtils#JOB_FAILURE_MESSAGE_KEY} to the given {@link String}.
+   */
+  public void setJobFailureMessage(String jobFailureMessage) {
+    String previousMessages = this.getProp(ConfigurationKeys.JOB_FAILURE_EXCEPTION_KEY);
+    String aggregatedMessages;
+
+    if (StringUtils.isEmpty(previousMessages)) {
+      aggregatedMessages = jobFailureMessage;
+    } else {
+      aggregatedMessages = jobFailureMessage + ", " + previousMessages;
     }
+
+    this.setProp(EventMetadataUtils.JOB_FAILURE_MESSAGE_KEY, aggregatedMessages);
   }
 
   /**
