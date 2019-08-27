@@ -94,29 +94,32 @@ public abstract class HiveRegister implements Closeable {
 
       @Override
       public Void call() throws Exception {
+        try {
+          if (spec instanceof HiveSpecWithPredicates && !evaluatePredicates((HiveSpecWithPredicates) spec)) {
+            log.info("Skipping " + spec + " since predicates return false");
+            return null;
+          }
 
-        if (spec instanceof HiveSpecWithPredicates && !evaluatePredicates((HiveSpecWithPredicates) spec)) {
-          log.info("Skipping " + spec + " since predicates return false");
+          if (spec instanceof HiveSpecWithPreActivities) {
+            for (Activity activity : ((HiveSpecWithPreActivities) spec).getPreActivities()) {
+              activity.execute(HiveRegister.this);
+            }
+          }
+
+          registerPath(spec);
+
+          if (spec instanceof HiveSpecWithPostActivities) {
+            for (Activity activity : ((HiveSpecWithPostActivities) spec).getPostActivities()) {
+              activity.execute(HiveRegister.this);
+            }
+          }
+
           return null;
+        } catch (Exception e) {
+          log.error("Exception during hive registration", e);
+          throw e;
         }
-
-        if (spec instanceof HiveSpecWithPreActivities) {
-          for (Activity activity : ((HiveSpecWithPreActivities) spec).getPreActivities()) {
-            activity.execute(HiveRegister.this);
-          }
-        }
-
-        registerPath(spec);
-
-        if (spec instanceof HiveSpecWithPostActivities) {
-          for (Activity activity : ((HiveSpecWithPostActivities) spec).getPostActivities()) {
-            activity.execute(HiveRegister.this);
-          }
-        }
-
-        return null;
       }
-
     });
     this.futures.put(getSpecId(spec), future);
     return future;
