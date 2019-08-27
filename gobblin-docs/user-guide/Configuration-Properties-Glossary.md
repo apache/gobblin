@@ -98,7 +98,7 @@ These properties are common to both the Job Launcher and the Command Line.
 | `job.group` | A way to group logically similar jobs together. | No | None |
 | `job.description` | A description of what the jobs does. | No | None |
 | `job.lock.enabled` | If set to true job locks are enabled, if set to false they are disabled | No | True |
-| `job.lock.type` | The fully qualified name of the JobLock class to run. The JobLock is responsible for ensuring that only a single instance of a job runs at a time. <br><br> Allowed values: [gobblin.runtime.locks.FfiFileBasedJobLock](#FileBasedJobLock-Properties), [gobblin.runtime.locks.ZookeeperBasedJobLock](#ZookeeperBasedJobLock-Properties) | No | `gobblin.runtime.locks.FileBasedJobLock` |
+| `job.lock.type` | The fully qualified name of the JobLock class to run. The JobLock is responsible for ensuring that only a single instance of a job runs at a time. <br><br> Allowed values: [gobblin.runtime.locks.FileBasedJobLock](#FileBasedJobLock-Properties), [gobblin.runtime.locks.ZookeeperBasedJobLock](#ZookeeperBasedJobLock-Properties) | No | `gobblin.runtime.locks.FileBasedJobLock` |
 | `job.runonce` | A boolean specifying whether the job will be only once, or multiple times. If set to true the job will only be run once even if a job.schedule is specified. If set to false and a job.schedule is specified then it will run according to the schedule. If set false and a job.schedule is not specified, it will run only once. | No | False |
 | `job.disabled` | Whether the job is disabled or not. If set to true, then Gobblin will not run this job. | No | False |
 

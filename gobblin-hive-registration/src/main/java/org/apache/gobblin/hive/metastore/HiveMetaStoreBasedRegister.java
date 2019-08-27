@@ -116,6 +116,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
   private final HiveLock locks;
   private final EventSubmitter eventSubmitter;
   private final MetricContext metricContext;
+  private final boolean shouldUpdateLatestSchema;
 
   /**
    * Local cache that contains records for both databases and tables.
@@ -149,6 +150,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
 
     this.optimizedChecks = state.getPropAsBoolean(this.OPTIMIZED_CHECK_ENABLED, true);
     this.skipDiffComputation = state.getPropAsBoolean(this.SKIP_PARTITION_DIFF_COMPUTATION, false);
+    this.shouldUpdateLatestSchema = state.getPropAsBoolean(this.FETCH_LATEST_SCHEMA, false);
     if(state.getPropAsBoolean(this.FETCH_LATEST_SCHEMA, false)) {
       this.schemaRegistry = Optional.of(KafkaSchemaRegistryFactory.getSchemaRegistry(state.getProperties()));
       topicName = state.getProp(KafkaSource.TOPIC_NAME);
@@ -184,6 +186,20 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
       throw new IOException(e);
     }
   }
+  //TODO: We need to find a better to get the latest schema
+  private void updateSchema(HiveSpec spec, Table table) throws IOException{
+
+    if (this.schemaRegistry.isPresent()) {
+      try (Timer.Context context = this.metricContext.timer(GET_AND_SET_LATEST_SCHEMA).time()) {
+        String latestSchema = this.schemaRegistry.get().getLatestSchema(topicName).toString();
+        spec.getTable().getSerDeProps().setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), latestSchema);
+        table.getSd().setSerdeInfo(HiveMetaStoreUtils.getSerDeInfo(spec.getTable()));
+      } catch (SchemaRegistryException | IOException e) {
+        log.error(String.format("Error when fetch latest schema for topic %s", topicName), e);
+        throw new IOException(e);
+      }
+    }
+  }
 
   /**
    * If table existed on Hive side will return false;
@@ -211,17 +227,8 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
         try (Timer.Context context = this.metricContext.timer(GET_HIVE_TABLE).time()) {
           existingTable = HiveMetaStoreUtils.getHiveTable(client.getTable(dbName, tableName));
         }
-        //TODO: Determine whether we still use inline hive registration,
-        // if so, instead of fetching schema from schema registry, we need to enable schema version
-        if (this.schemaRegistry.isPresent()) {
-          try (Timer.Context context = this.metricContext.timer(GET_AND_SET_LATEST_SCHEMA).time()) {
-            String latestSchema = this.schemaRegistry.get().getLatestSchema(topicName).toString();
-            spec.getTable().getSerDeProps().setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), latestSchema);
-            table.getSd().setSerdeInfo(HiveMetaStoreUtils.getSerDeInfo(spec.getTable()));
-          } catch (SchemaRegistryException | IOException e) {
-            log.error(String.format("Error when fetch latest schema for topic %s", topicName), e);
-            throw new IOException(e);
-          }
+        if(shouldUpdateLatestSchema) {
+          updateSchema(spec, table);
         }
         if (needToUpdateTable(existingTable, spec.getTable())) {
           try (Timer.Context context = this.metricContext.timer(ALTER_TABLE).time()) {

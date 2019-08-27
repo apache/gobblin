@@ -25,7 +25,7 @@ import java.io.IOException;
  * @param <T> The class of the real lock
  */
 public abstract class HiveLockImpl<T> {
-  public T lock;
+  protected T lock;
   public HiveLockImpl(T _lock){
     this.lock = _lock;
   }
