@@ -27,6 +27,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
  */
 public class EventMetadataUtils {
   public static final String TASK_FAILURE_MESSAGE_KEY = "task.failure.message";
+  public static final String JOB_FAILURE_MESSAGE_KEY = "job.failure.message";
 
   /**
    * Get the number of records written by all the writers
@@ -40,6 +41,26 @@ public class EventMetadataUtils {
     }
 
     return value;
+  }
+
+  /**
+   * Get failure messages
+   * @return The failure messages from the job state
+   */
+  public static String getJobFailureExceptions(JobState jobState) {
+    StringBuffer sb = new StringBuffer();
+
+    if (jobState.contains(JOB_FAILURE_MESSAGE_KEY)) {
+      sb.append(jobState.getProp(JOB_FAILURE_MESSAGE_KEY));
+    }
+    if (jobState.contains(ConfigurationKeys.JOB_FAILURE_EXCEPTION_KEY)) {
+      if (sb.length() != 0) {
+        sb.append(",");
+      }
+      sb.append(jobState.getProp(ConfigurationKeys.JOB_FAILURE_EXCEPTION_KEY));
+    }
+
+    return sb.toString();
   }
 
   /**

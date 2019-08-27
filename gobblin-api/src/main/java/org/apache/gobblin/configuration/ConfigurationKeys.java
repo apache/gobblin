@@ -243,6 +243,7 @@ public class ConfigurationKeys {
   public static final String TASK_ATTEMPT_ID_KEY = "task.AttemptId";
   public static final String JOB_CONFIG_FILE_PATH_KEY = "job.config.path";
   public static final String TASK_FAILURE_EXCEPTION_KEY = "task.failure.exception";
+  public static final String JOB_FAILURE_EXCEPTION_KEY = "job.failure.exception";
   public static final String TASK_RETRIES_KEY = "task.retries";
   public static final String TASK_IGNORE_CLOSE_FAILURES = "task.ignoreCloseFailures";
   public static final String JOB_FAILURES_KEY = "job.failures";
