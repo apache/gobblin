@@ -35,7 +35,7 @@ public class DistributedHiveLockFactory extends HiveLockFactory {
       public void lock() throws IOException {
         try {
           this.lock.lock();
-        } catch (Exception e) {
+        } catch (JobLockException e) {
           throw new IOException(e);
         }
       }
@@ -44,7 +44,7 @@ public class DistributedHiveLockFactory extends HiveLockFactory {
       public void unlock() throws IOException {
         try {
           this.lock.unlock();
-        } catch (Exception e) {
+        } catch (JobLockException e) {
           throw new IOException(e);
         }
       }
