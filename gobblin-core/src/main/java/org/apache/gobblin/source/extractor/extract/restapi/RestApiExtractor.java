@@ -158,7 +158,7 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
       this.updatedQuery = buildDataQuery(inputQuery, entity);
       log.info("Schema:" + columnArray);
       this.setOutputSchema(columnArray);
-    } catch (RuntimeException | RestApiConnectionException | RestApiProcessingException | IOException
+    } catch (RuntimeException | RestApiProcessingException | RestApiConnectionException | IOException
         | SchemaException e) {
       throw new SchemaException("Failed to get schema using rest api; error - " + e.getMessage(), e);
     }

@@ -22,4 +22,9 @@ public class SalesforceConfigurationKeys {
       "source.querybased.salesforce.is.soft.deletes.pull.disabled";
   public static final int DEFAULT_SALESFORCE_MAX_CHARS_IN_FILE = 200000000;
   public static final int DEFAULT_SALESFORCE_MAX_ROWS_IN_FILE = 1000000;
+
+  // pk-chunking
+  public static final String PARTITION_PK_CHUNKING_SIZE = "salesforce.partition.PkChunkingSize";
+  public static final String PK_CHUNKING_JOB_ID = "_salesforce.job.id";
+  public static final String PK_CHUNKING_BATCH_RESULT_IDS = "_salesforce.result.ids";
 }
