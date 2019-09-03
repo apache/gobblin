@@ -29,6 +29,11 @@ import java.util.concurrent.ExecutionException;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
+import org.apache.gobblin.hive.AutoCloseableHiveLock;
+import org.apache.gobblin.kafka.schemareg.KafkaSchemaRegistry;
+import org.apache.gobblin.kafka.schemareg.KafkaSchemaRegistryFactory;
+import org.apache.gobblin.kafka.schemareg.SchemaRegistryException;
+import org.apache.gobblin.source.extractor.extract.kafka.KafkaSource;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
@@ -36,6 +41,7 @@ import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
 import org.apache.thrift.TException;
 import org.joda.time.DateTime;
 
@@ -59,7 +65,6 @@ import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.metrics.GobblinMetricsRegistry;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
-import org.apache.gobblin.util.AutoCloseableLock;
 import org.apache.gobblin.util.AutoReturnableObject;
 
 
@@ -93,9 +98,11 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
   public static final String CREATE_HIVE_DATABASE = HIVE_REGISTER_METRICS_PREFIX + "createDatabaseTimer";
   public static final String CREATE_HIVE_TABLE = HIVE_REGISTER_METRICS_PREFIX + "createTableTimer";
   public static final String GET_HIVE_TABLE = HIVE_REGISTER_METRICS_PREFIX + "getTableTimer";
+  public static final String GET_AND_SET_LATEST_SCHEMA = HIVE_REGISTER_METRICS_PREFIX + "getAndSetLatestSchemaTimer";
   public static final String DROP_TABLE = HIVE_REGISTER_METRICS_PREFIX + "dropTableTimer";
   public static final String PATH_REGISTER_TIMER = HIVE_REGISTER_METRICS_PREFIX + "pathRegisterTimer";
   public static final String SKIP_PARTITION_DIFF_COMPUTATION = HIVE_REGISTER_METRICS_PREFIX + "skip.partition.diff.computation";
+  public static final String FETCH_LATEST_SCHEMA = HIVE_REGISTER_METRICS_PREFIX + "fetchLatestSchemaFromSchemaRegistry";
   /**
    * To reduce lock aquisition and RPC to metaStoreClient, we cache the result of query regarding to
    * the existence of databases and tables in {@link #tableAndDbExistenceCache},
@@ -106,9 +113,10 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
   public static final String OPTIMIZED_CHECK_ENABLED = "hiveRegister.cacheDbTableExistence";
 
   private final HiveMetastoreClientPool clientPool;
-  private final HiveLock locks = new HiveLock();
+  private final HiveLock locks;
   private final EventSubmitter eventSubmitter;
   private final MetricContext metricContext;
+  private final boolean shouldUpdateLatestSchema;
 
   /**
    * Local cache that contains records for both databases and tables.
@@ -134,11 +142,19 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
   //for a partition is immutable
   private final boolean skipDiffComputation;
 
+  private Optional<KafkaSchemaRegistry> schemaRegistry = Optional.absent();
+  private String topicName = "";
   public HiveMetaStoreBasedRegister(State state, Optional<String> metastoreURI) throws IOException {
     super(state);
+    this.locks = new HiveLock(state.getProperties());
 
     this.optimizedChecks = state.getPropAsBoolean(this.OPTIMIZED_CHECK_ENABLED, true);
     this.skipDiffComputation = state.getPropAsBoolean(this.SKIP_PARTITION_DIFF_COMPUTATION, false);
+    this.shouldUpdateLatestSchema = state.getPropAsBoolean(this.FETCH_LATEST_SCHEMA, false);
+    if(state.getPropAsBoolean(this.FETCH_LATEST_SCHEMA, false)) {
+      this.schemaRegistry = Optional.of(KafkaSchemaRegistryFactory.getSchemaRegistry(state.getProperties()));
+      topicName = state.getProp(KafkaSource.TOPIC_NAME);
+    }
 
     GenericObjectPoolConfig config = new GenericObjectPoolConfig();
     config.setMaxTotal(this.props.getNumThreads());
@@ -170,14 +186,28 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
       throw new IOException(e);
     }
   }
+  //TODO: We need to find a better to get the latest schema
+  private void updateSchema(HiveSpec spec, Table table) throws IOException{
+
+    if (this.schemaRegistry.isPresent()) {
+      try (Timer.Context context = this.metricContext.timer(GET_AND_SET_LATEST_SCHEMA).time()) {
+        String latestSchema = this.schemaRegistry.get().getLatestSchema(topicName).toString();
+        spec.getTable().getSerDeProps().setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), latestSchema);
+        table.getSd().setSerdeInfo(HiveMetaStoreUtils.getSerDeInfo(spec.getTable()));
+      } catch (SchemaRegistryException | IOException e) {
+        log.error(String.format("Error when fetch latest schema for topic %s", topicName), e);
+        throw new IOException(e);
+      }
+    }
+  }
 
   /**
    * If table existed on Hive side will return false;
    * Or will create the table thru. RPC and return retVal from remote MetaStore.
    */
   private boolean ensureHiveTableExistenceBeforeAlternation(String tableName, String dbName, IMetaStoreClient client,
-      Table table, HiveSpec spec) throws TException{
-    try (AutoCloseableLock lock = this.locks.getTableLock(dbName, tableName)) {
+      Table table, HiveSpec spec) throws TException, IOException{
+    try (AutoCloseableHiveLock lock = this.locks.getTableLock(dbName, tableName)) {
       try {
         try (Timer.Context context = this.metricContext.timer(CREATE_HIVE_TABLE).time()) {
           client.createTable(getTableWithCreateTimeNow(table));
@@ -196,6 +226,9 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
         HiveTable existingTable;
         try (Timer.Context context = this.metricContext.timer(GET_HIVE_TABLE).time()) {
           existingTable = HiveMetaStoreUtils.getHiveTable(client.getTable(dbName, tableName));
+        }
+        if(shouldUpdateLatestSchema) {
+          updateSchema(spec, table);
         }
         if (needToUpdateTable(existingTable, spec.getTable())) {
           try (Timer.Context context = this.metricContext.timer(ALTER_TABLE).time()) {
@@ -221,7 +254,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
    * @param hiveDbName is the hive databases to be checked for existence
    */
   private boolean ensureHiveDbExistence(String hiveDbName, IMetaStoreClient client) throws IOException{
-    try (AutoCloseableLock lock = this.locks.getDbLock(hiveDbName)) {
+    try (AutoCloseableHiveLock lock = this.locks.getDbLock(hiveDbName)) {
       Database db = new Database();
       db.setName(hiveDbName);
 
@@ -297,7 +330,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
   @Override
   public boolean createTableIfNotExists(HiveTable table) throws IOException {
     try (AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient();
-        AutoCloseableLock lock = this.locks.getTableLock(table.getDbName(), table.getTableName())) {
+        AutoCloseableHiveLock lock = this.locks.getTableLock(table.getDbName(), table.getTableName())) {
       return createTableIfNotExists(client.get(), HiveMetaStoreUtils.getTable(table), table);
     }
   }
@@ -309,7 +342,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
   @Override
   public boolean addPartitionIfNotExists(HiveTable table, HivePartition partition) throws IOException {
     try (AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient();
-        AutoCloseableLock lock = this.locks.getTableLock(table.getDbName(), table.getTableName())) {
+        AutoCloseableHiveLock lock = this.locks.getTableLock(table.getDbName(), table.getTableName())) {
       try {
         try (Timer.Context context = this.metricContext.timer(GET_HIVE_PARTITION).time()) {
           client.get().getPartition(table.getDbName(), table.getTableName(), partition.getValues());
@@ -337,7 +370,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
     String dbName = table.getDbName();
     String tableName = table.getTableName();
 
-    try (AutoCloseableLock lock = this.locks.getTableLock(dbName, tableName)) {
+    try (AutoCloseableHiveLock lock = this.locks.getTableLock(dbName, tableName)) {
       boolean tableExists;
       try (Timer.Context context = this.metricContext.timer(TABLE_EXISTS).time()) {
         tableExists = client.tableExists(table.getDbName(), table.getTableName());
@@ -460,14 +493,14 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
   }
 
   private void addOrAlterPartition(IMetaStoreClient client, Table table, HivePartition partition)
-      throws TException {
+      throws TException, IOException {
     Partition nativePartition = HiveMetaStoreUtils.getPartition(partition);
 
     Preconditions.checkArgument(table.getPartitionKeysSize() == nativePartition.getValues().size(),
         String.format("Partition key size is %s but partition value size is %s", table.getPartitionKeys().size(),
             nativePartition.getValues().size()));
 
-    try (AutoCloseableLock lock =
+    try (AutoCloseableHiveLock lock =
         this.locks.getPartitionLock(table.getDbName(), table.getTableName(), nativePartition.getValues())) {
 
       try {

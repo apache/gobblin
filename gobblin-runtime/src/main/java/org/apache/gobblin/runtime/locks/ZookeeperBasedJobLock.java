@@ -69,8 +69,11 @@ public class ZookeeperBasedJobLock implements ListenableJobLock {
   private long lockAcquireTimeoutMilliseconds;
   private InterProcessLock lock;
 
-  public ZookeeperBasedJobLock(Properties properties) throws JobLockException {
-    String jobName = properties.getProperty(ConfigurationKeys.JOB_NAME_KEY);
+  public ZookeeperBasedJobLock(Properties properties) {
+    this(properties, properties.getProperty(ConfigurationKeys.JOB_NAME_KEY));
+  }
+
+  public ZookeeperBasedJobLock(Properties properties, String jobName)  {
     this.lockAcquireTimeoutMilliseconds =
         getLong(properties, LOCKS_ACQUIRE_TIMEOUT_MILLISECONDS, LOCKS_ACQUIRE_TIMEOUT_MILLISECONDS_DEFAULT);
     this.lockPath = Paths.get(LOCKS_ROOT_PATH, jobName).toString();

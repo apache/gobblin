@@ -239,7 +239,7 @@ public class HiveMetaStoreUtils {
     return sd;
   }
 
-  private static SerDeInfo getSerDeInfo(HiveRegistrationUnit unit) {
+  public static SerDeInfo getSerDeInfo(HiveRegistrationUnit unit) {
     State props = unit.getSerDeProps();
     SerDeInfo si = new SerDeInfo();
     si.setParameters(getParameters(props));

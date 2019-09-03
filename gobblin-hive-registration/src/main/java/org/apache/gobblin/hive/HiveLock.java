@@ -17,13 +17,15 @@
 
 package org.apache.gobblin.hive;
 
-import java.util.concurrent.locks.Lock;
+import java.io.IOException;
+import java.util.Properties;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.common.util.concurrent.Striped;
 
+import org.apache.commons.lang3.reflect.ConstructorUtils;
+import org.apache.gobblin.hive.metastore.HiveMetaStoreBasedRegister;
 import org.apache.gobblin.util.AutoCloseableLock;
 
 
@@ -37,30 +39,45 @@ import org.apache.gobblin.util.AutoCloseableLock;
  * </p>
  */
 public class HiveLock {
+  private static String HIVE_LOCK_TYPE = HiveMetaStoreBasedRegister.HIVE_REGISTER_METRICS_PREFIX + "lock.type";
+  private static String HIVE_LOCK_TYPE_DEFAULT = "org.apache.gobblin.hive.HiveLockFactory";
 
-  private static final Joiner JOINER = Joiner.on(' ').skipNulls();
+  private Properties properties;
 
-  private final Striped<Lock> locks = Striped.lazyWeakLock(Integer.MAX_VALUE);
+  private static final Joiner JOINER = Joiner.on('/').skipNulls();
 
-  public AutoCloseableLock getDbLock(String dbName) {
-    Preconditions.checkArgument(!Strings.isNullOrEmpty(dbName));
+  private final HiveLockFactory locks;
 
-    return new AutoCloseableLock(this.locks.get(dbName));
+  public HiveLock(Properties properties) throws IOException {
+    this.properties = properties;
+    try {
+      locks = (HiveLockFactory) ConstructorUtils.invokeConstructor(
+          Class.forName(properties.getProperty(HIVE_LOCK_TYPE, HIVE_LOCK_TYPE_DEFAULT)), properties);
+    } catch (Exception e) {
+      throw new IOException(e);
+    }
   }
 
-  public AutoCloseableLock getTableLock(String dbName, String tableName) {
+  public AutoCloseableHiveLock getDbLock(String dbName) throws IOException{
+    Preconditions.checkArgument(!Strings.isNullOrEmpty(dbName));
+
+    return new AutoCloseableHiveLock(this.locks.get(dbName));
+  }
+
+  public AutoCloseableHiveLock getTableLock(String dbName, String tableName) throws IOException{
     Preconditions.checkArgument(!Strings.isNullOrEmpty(dbName));
     Preconditions.checkArgument(!Strings.isNullOrEmpty(tableName));
 
-    return new AutoCloseableLock(this.locks.get(JOINER.join(dbName, tableName)));
+    return new AutoCloseableHiveLock(this.locks.get(JOINER.join(dbName, tableName)));
   }
 
-  public AutoCloseableLock getPartitionLock(String dbName, String tableName, Iterable<String> partitionValues) {
+  public AutoCloseableHiveLock getPartitionLock(String dbName, String tableName, Iterable<String> partitionValues)
+      throws IOException{
     Preconditions.checkArgument(!Strings.isNullOrEmpty(dbName));
     Preconditions.checkArgument(!Strings.isNullOrEmpty(tableName));
     Preconditions.checkArgument(partitionValues.iterator().hasNext());
 
-    return new AutoCloseableLock(this.locks.get(JOINER.join(dbName, tableName, JOINER.join(partitionValues))));
+    return new AutoCloseableHiveLock(this.locks.get(JOINER.join(dbName, tableName, JOINER.join(partitionValues))));
   }
 
 }
