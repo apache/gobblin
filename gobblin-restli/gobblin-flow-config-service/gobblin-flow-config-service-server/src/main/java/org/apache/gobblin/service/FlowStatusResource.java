@@ -117,7 +117,7 @@ public class FlowStatusResource extends ComplexKeyResourceTemplate<FlowStatusId,
       org.apache.gobblin.service.monitoring.JobStatus queriedJobStatus = jobStatusIter.next();
 
       // Check if this is the flow status instead of a single job status
-      if (isFlowStatus(queriedJobStatus)) {
+      if (JobStatusRetriever.isFlowStatus(queriedJobStatus)) {
         flowEndTime = queriedJobStatus.getEndTime();
         flowExecutionStatus = ExecutionStatus.valueOf(queriedJobStatus.getEventName());
         continue;
@@ -157,14 +157,6 @@ public class FlowStatusResource extends ComplexKeyResourceTemplate<FlowStatusId,
         .setMessage(flowMessages)
         .setExecutionStatus(flowExecutionStatus)
         .setJobStatuses(jobStatusArray);
-  }
-
-  /**
-   * Check if a {@link org.apache.gobblin.service.monitoring.JobStatus} is the special job status that represents the
-   * entire flow's status
-   */
-  private static boolean isFlowStatus(org.apache.gobblin.service.monitoring.JobStatus jobStatus) {
-    return jobStatus.getJobName().equals(JobStatusRetriever.NA_KEY) && jobStatus.getJobGroup().equals(JobStatusRetriever.NA_KEY);
   }
 
   /**

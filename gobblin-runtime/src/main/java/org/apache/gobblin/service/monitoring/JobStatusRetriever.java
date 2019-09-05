@@ -91,4 +91,12 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
   }
 
   public abstract StateStore<State> getStateStore();
+
+  /**
+   * Check if a {@link org.apache.gobblin.service.monitoring.JobStatus} is the special job status that represents the
+   * entire flow's status
+   */
+  public static boolean isFlowStatus(org.apache.gobblin.service.monitoring.JobStatus jobStatus) {
+    return jobStatus.getJobName().equals(JobStatusRetriever.NA_KEY) && jobStatus.getJobGroup().equals(JobStatusRetriever.NA_KEY);
+  }
 }
