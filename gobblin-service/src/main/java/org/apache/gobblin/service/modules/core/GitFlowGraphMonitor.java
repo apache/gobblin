@@ -188,7 +188,7 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
           log.info("Added Datanode {} to FlowGraph", dataNode.getId());
         }
       } catch (Exception e) {
-        log.warn("Could not add DataNode defined in {} due to exception {}", change.getNewPath(), e.getMessage());
+        log.warn("Could not add DataNode defined in {} due to exception {}", change.getNewPath(), e);
       }
     }
   }
