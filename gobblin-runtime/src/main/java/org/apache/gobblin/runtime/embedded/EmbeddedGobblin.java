@@ -69,7 +69,7 @@ import org.apache.gobblin.instrumented.extractor.InstrumentedExtractorBase;
 import org.apache.gobblin.metastore.FsStateStore;
 import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.metrics.MetricContext;
-import org.apache.gobblin.runtime.JobLauncherFactory;
+import org.apache.gobblin.runtime.JobLauncherType;
 import org.apache.gobblin.runtime.Task;
 import org.apache.gobblin.runtime.api.Configurable;
 import org.apache.gobblin.runtime.api.GobblinInstanceDriver;
@@ -174,7 +174,7 @@ public class EmbeddedGobblin {
    * Specify job should run in MR mode.
    */
   public EmbeddedGobblin mrMode() throws IOException {
-    this.sysConfigOverrides.put(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY, JobLauncherFactory.JobLauncherType.MAPREDUCE.name());
+    this.sysConfigOverrides.put(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY, JobLauncherType.MAPREDUCE.name());
     this.builtConfigMap.put(ConfigurationKeys.FS_URI_KEY, FileSystem.get(new Configuration()).getUri().toString());
     this.builtConfigMap.put(ConfigurationKeys.MR_JOB_ROOT_DIR_KEY, "/tmp/EmbeddedGobblin_" + System.currentTimeMillis());
     this.distributeJarsFunction = new Runnable() {
@@ -391,7 +391,7 @@ public class EmbeddedGobblin {
 
   /**
    * This is the base {@link Config} used for the job, containing all default configurations. Subclasses can override
-   * default configurations (for example setting a particular {@link org.apache.gobblin.runtime.JobLauncherFactory.JobLauncherType}.
+   * default configurations (for example setting a particular {@link org.apache.gobblin.runtime.JobLauncherType}.
    */
   protected Config getDefaultSysConfig() {
     return ConfigFactory.parseResources("embedded/embedded.conf");

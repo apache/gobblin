@@ -62,6 +62,7 @@ import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.DynamicConfigGeneratorFactory;
 import org.apache.gobblin.runtime.JobException;
 import org.apache.gobblin.runtime.JobLauncher;
+import org.apache.gobblin.runtime.JobLauncherType;
 import org.apache.gobblin.runtime.JobLauncherFactory;
 import org.apache.gobblin.runtime.app.ApplicationException;
 import org.apache.gobblin.runtime.app.ApplicationLauncher;
@@ -209,9 +210,9 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
 
     // If the job launcher type is not specified in the job configuration,
     // override the default to use the MAPREDUCE launcher.
-    if (!jobProps.containsKey(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY)) {
-      jobProps.setProperty(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY,
-          JobLauncherFactory.JobLauncherType.MAPREDUCE.toString());
+    if (!jobProps.containsKey(ConfigurationKeys.LAUNCHER_TYPE_KEY)
+            && !jobProps.containsKey(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY)) {
+      jobProps.setProperty(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY, JobLauncherType.MAPREDUCE.toString());
     }
 
     this.ownAzkabanSla = Long.parseLong(

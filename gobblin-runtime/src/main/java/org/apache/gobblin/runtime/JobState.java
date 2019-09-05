@@ -512,7 +512,7 @@ public class JobState extends SourceState implements JobProgress {
    */
   public LauncherTypeEnum getLauncherType() {
     return Enums.getIfPresent(LauncherTypeEnum.class,
-        this.getProp(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY, JobLauncherFactory.JobLauncherType.LOCAL.name()))
+        this.getProp(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY, JobLauncherType.LOCAL.name()))
         .or(LauncherTypeEnum.LOCAL);
   }
 

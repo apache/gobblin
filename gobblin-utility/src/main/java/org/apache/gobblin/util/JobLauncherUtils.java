@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -301,4 +302,23 @@ public class JobLauncherUtils {
     }
     return parallelRunners.get(uriAndHomeDir);
   }
+
+  // GOBBLIN-867: this class should use the log defined/added by lombok slf4j annotation, instead of passing logger around
+  public static String getJobLauncherType(Properties combinedProps) throws IOException {
+    String jobLauncherTypeName = "LOCAL";
+    if (combinedProps == null) {
+      return jobLauncherTypeName;
+    }
+
+    if (combinedProps.contains(ConfigurationKeys.LAUNCHER_TYPE_KEY)) {
+        jobLauncherTypeName = combinedProps.getProperty(ConfigurationKeys.LAUNCHER_TYPE_KEY);
+      log.warn(String.format("Property %s is deprecated. Use %s instead in future.",
+                    ConfigurationKeys.LAUNCHER_TYPE_KEY, ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY));
+    } else {
+        jobLauncherTypeName = combinedProps.getProperty(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY, "LOCAL");
+      log.debug(String.format("Using %s jobLauncher.", jobLauncherTypeName));
+    }
+    return jobLauncherTypeName;
+  }
+
 }

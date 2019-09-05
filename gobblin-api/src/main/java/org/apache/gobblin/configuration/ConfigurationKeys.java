@@ -154,6 +154,8 @@ public class ConfigurationKeys {
   public static final String JOB_GROUP_KEY = "job.group";
   public static final String JOB_DESCRIPTION_KEY = "job.description";
   // Job launcher type
+  @Deprecated
+  public static final String LAUNCHER_TYPE_KEY = "launcher.type";
   public static final String JOB_LAUNCHER_TYPE_KEY = "job.launcher.type";
   public static final String JOB_SCHEDULE_KEY = "job.schedule";
   public static final String JOB_LISTENERS_KEY = "job.listeners";

@@ -53,7 +53,7 @@ import org.apache.gobblin.runtime.JobContext;
 import org.apache.gobblin.runtime.JobException;
 import org.apache.gobblin.runtime.JobLauncher;
 import org.apache.gobblin.runtime.JobLauncherFactory;
-import org.apache.gobblin.runtime.JobLauncherFactory.JobLauncherType;
+import org.apache.gobblin.runtime.JobLauncherType;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.runtime.JobState.RunningState;
 import org.apache.gobblin.runtime.api.Configurable;
@@ -112,7 +112,7 @@ public class JobLauncherExecutionDriver extends FutureTask<JobExecutionResult> i
    * @param instanceBroker          a broker to create difference resources from the same instance scope.
    */
   public static JobLauncherExecutionDriver create(Configurable sysConfig, JobSpec jobSpec,
-      Optional<JobLauncherFactory.JobLauncherType> jobLauncherType,
+      Optional<JobLauncherType> jobLauncherType,
       Optional<Logger> log, boolean instrumentationEnabled,
       JobExecutionLauncher.StandardMetrics launcherMetrics, SharedResourcesBroker<GobblinScopeTypes> instanceBroker) {
 
