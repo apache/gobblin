@@ -115,7 +115,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     this.flowCatalog = flowCatalog;
     this.helixManager = helixManager;
     this.orchestrator = orchestrator;
-    this.scheduledFlowSpecs = Maps.newHashMap();
+    this.scheduledFlowSpecs = Maps.newConcurrentMap();
     this.isNominatedDRHandler = config.hasPath(GOBBLIN_SERVICE_SCHEDULER_DR_NOMINATED)
         && config.hasPath(GOBBLIN_SERVICE_SCHEDULER_DR_NOMINATED);
   }
