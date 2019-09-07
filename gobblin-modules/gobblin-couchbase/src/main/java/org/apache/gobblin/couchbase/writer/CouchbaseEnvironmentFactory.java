@@ -57,7 +57,8 @@ public class CouchbaseEnvironmentFactory {
 
     if (couchbaseEnvironment == null)
     {
-      return builder.build();
+      couchbaseEnvironment = builder.build();
+      return couchbaseEnvironment;
     }
     else {
       return couchbaseEnvironment;
