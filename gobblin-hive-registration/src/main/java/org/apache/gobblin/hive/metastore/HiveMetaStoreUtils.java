@@ -212,6 +212,7 @@ public class HiveMetaStoreUtils {
     State props = unit.getStorageProps();
     StorageDescriptor sd = new StorageDescriptor();
     sd.setParameters(getParameters(props));
+    //Treat AVRO and other formats differently. Details can be found in GOBBLIN-877
     if (unit.isRegisterSchema() || !unit.getInputFormat().equals(AvroContainerInputFormat.class.getName())) {
       sd.setCols(getFieldSchemas(unit));
     }
