@@ -63,7 +63,7 @@ public class KafkaAvgRecordTimeBasedWorkUnitSizeEstimator implements KafkaWorkUn
   private final Map<String, Double> estAvgMillis = Maps.newHashMap();
   private double avgEstAvgMillis = 0.0;
 
-  KafkaAvgRecordTimeBasedWorkUnitSizeEstimator(SourceState state) {
+  public KafkaAvgRecordTimeBasedWorkUnitSizeEstimator(SourceState state) {
     readPrevAvgRecordMillis(state);
   }
 
