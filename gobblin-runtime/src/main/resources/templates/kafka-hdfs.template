@@ -43,6 +43,7 @@ source.kafka.json.schema=${kafka.schema.json}
 
 topic.whitelist=${kafka.topics}
 org.apache.gobblin.kafka.consumerClient.class="org.apache.gobblin.kafka.client.Kafka09ConsumerClient$Factory"
+# Accepted values - latest, earliest and with offset lookback (latest offset - lookback)
 bootstrap.with.offset=earliest
 kafka.workunit.packer.type=SINGLE_LEVEL
 mr.job.max.mappers=10
