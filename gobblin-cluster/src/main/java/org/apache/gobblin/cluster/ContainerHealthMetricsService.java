@@ -105,21 +105,21 @@ public class ContainerHealthMetricsService extends AbstractScheduledService {
     gaugeList.add(RootMetricContext.get().newContextAwareGauge(ContainerHealthMetrics.SYSTEM_LOAD_AVG,
         () -> this.systemLoadAvg.get()));
     gaugeList.add(RootMetricContext.get().newContextAwareGauge(ContainerHealthMetrics.COMMITTED_VMEM_SIZE,
-        () -> new Long(this.committedVmemSize.get()).doubleValue()));
+        () -> Long.valueOf(this.committedVmemSize.get()).doubleValue()));
     gaugeList.add(RootMetricContext.get().newContextAwareGauge(ContainerHealthMetrics.PROCESS_CPU_TIME,
-        () -> new Long(this.processCpuTime.get()).doubleValue()));
+        () -> Long.valueOf(this.processCpuTime.get()).doubleValue()));
     gaugeList.add(RootMetricContext.get().newContextAwareGauge(ContainerHealthMetrics.FREE_SWAP_SPACE_SIZE,
-        () -> new Long(this.freeSwapSpaceSize.get()).doubleValue()));
+        () -> Long.valueOf(this.freeSwapSpaceSize.get()).doubleValue()));
     gaugeList.add(RootMetricContext.get().newContextAwareGauge(ContainerHealthMetrics.NUM_AVAILABLE_PROCESSORS,
-        () -> new Long(this.numAvailableProcessors.get()).doubleValue()));
+        () -> Long.valueOf(this.numAvailableProcessors.get()).doubleValue()));
     gaugeList.add(RootMetricContext.get().newContextAwareGauge(ContainerHealthMetrics.TOTAL_PHYSICAL_MEM_SIZE,
-        () -> new Long(this.totalPhysicalMemSize.get()).doubleValue()));
+        () -> Long.valueOf(this.totalPhysicalMemSize.get()).doubleValue()));
     gaugeList.add(RootMetricContext.get().newContextAwareGauge(ContainerHealthMetrics.TOTAL_SWAP_SPACE_SIZE,
-        () -> new Long(this.totalSwapSpaceSize.get()).doubleValue()));
+        () -> Long.valueOf(this.totalSwapSpaceSize.get()).doubleValue()));
     gaugeList.add(RootMetricContext.get().newContextAwareGauge(ContainerHealthMetrics.FREE_PHYSICAL_MEM_SIZE,
-        () -> new Long(this.freePhysicalMemSize.get()).doubleValue()));
+        () -> Long.valueOf(this.freePhysicalMemSize.get()).doubleValue()));
     gaugeList.add(RootMetricContext.get().newContextAwareGauge(ContainerHealthMetrics.PROCESS_HEAP_USED_SIZE,
-        () -> new Long(this.processHeapUsedSize.get()).doubleValue()));
+        () -> Long.valueOf(this.processHeapUsedSize.get()).doubleValue()));
     return gaugeList;
   }
 
