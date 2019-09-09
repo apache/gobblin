@@ -44,10 +44,10 @@ public class KafkaWorkUnitPackerTest {
     state = new SourceState();
 
     // Using customized type and having customized as a known class.
-    state.setProp(KAFKA_WORKUNIT_PACKER_TYPE, "CUSTOMIZED");
+    state.setProp(KAFKA_WORKUNIT_PACKER_TYPE, "CUSTOM");
     state.setProp(KAFKA_WORKUNIT_PACKER_CUSTOMIZED_TYPE,
         "org.apache.gobblin.source.extractor.extract.kafka.workunit.packer.KafkaSingleLevelWorkUnitPacker");
-    state.setProp(KAFKA_WORKUNIT_SIZE_ESTIMATOR_TYPE, "CUSTOMIZED");
+    state.setProp(KAFKA_WORKUNIT_SIZE_ESTIMATOR_TYPE, "CUSTOM");
     state.setProp(KAFKA_WORKUNIT_SIZE_ESTIMATOR_CUSTOMIZED_TYPE,
         "org.apache.gobblin.source.extractor.extract.kafka.workunit.packer.KafkaAvgRecordTimeBasedWorkUnitSizeEstimator");
     packer = new TestKafkaWorkUnitPacker(source, state);

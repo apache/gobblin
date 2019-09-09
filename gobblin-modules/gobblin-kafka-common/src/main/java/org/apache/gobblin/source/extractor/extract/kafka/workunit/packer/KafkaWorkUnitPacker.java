@@ -44,7 +44,6 @@ import org.apache.gobblin.source.extractor.extract.kafka.KafkaPartition;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaSource;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaUtils;
 import org.apache.gobblin.source.extractor.extract.kafka.MultiLongWatermark;
-import org.apache.gobblin.source.workunit.Extract;
 import org.apache.gobblin.source.workunit.MultiWorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnit;
 
@@ -72,13 +71,12 @@ public abstract class KafkaWorkUnitPacker {
   public enum PackerType {
     SINGLE_LEVEL,
     BI_LEVEL,
-    CUSTOMIZED
+    CUSTOM
   }
 
   public enum SizeEstimatorType {
     AVG_RECORD_TIME,
-    AVG_RECORD_SIZE,
-    CUSTOMIZED
+    AVG_RECORD_SIZE, CUSTOM
   }
 
   public static final String KAFKA_WORKUNIT_PACKER_TYPE = "kafka.workunit.packer.type";
@@ -144,7 +142,7 @@ public abstract class KafkaWorkUnitPacker {
         return new KafkaAvgRecordTimeBasedWorkUnitSizeEstimator(this.state);
       case AVG_RECORD_SIZE:
         return new KafkaAvgRecordSizeBasedWorkUnitSizeEstimator(this.state);
-      case CUSTOMIZED:
+      case CUSTOM:
         Preconditions.checkArgument(this.state.contains(KAFKA_WORKUNIT_SIZE_ESTIMATOR_CUSTOMIZED_TYPE));
         String className = this.state.getProp(KAFKA_WORKUNIT_SIZE_ESTIMATOR_CUSTOMIZED_TYPE);
         return GobblinConstructorUtils.invokeConstructor(KafkaWorkUnitSizeEstimator.class, className, this.state);
@@ -377,7 +375,7 @@ public abstract class KafkaWorkUnitPacker {
         return new KafkaSingleLevelWorkUnitPacker(source, state);
       case BI_LEVEL:
         return new KafkaBiLevelWorkUnitPacker(source, state);
-      case CUSTOMIZED:
+      case CUSTOM:
         Preconditions.checkArgument(state.contains(KAFKA_WORKUNIT_PACKER_CUSTOMIZED_TYPE));
         String className = state.getProp(KAFKA_WORKUNIT_PACKER_CUSTOMIZED_TYPE);
         return GobblinConstructorUtils.invokeConstructor(KafkaWorkUnitPacker.class, className, source, state);
