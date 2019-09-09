@@ -91,7 +91,7 @@ public abstract class AbstractBaseKafkaConsumerClient implements GobblinKafkaCon
    * @param metricName the name of the Kafka metric e.g. "records-lag-max", "fetch-throttle-time-max" etc.
    * @return the canonicalized metric name.
    */
-  public String canonicalMetricName(String metricGroup, Collection<String> metricTags, String metricName) {
+  String canonicalMetricName(String metricGroup, Collection<String> metricTags, String metricName) {
     List<String> nameParts = new ArrayList<>();
     nameParts.add(metricGroup);
     nameParts.addAll(metricTags);
