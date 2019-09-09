@@ -176,7 +176,7 @@ public class Kafka09ConsumerClient<K, V> extends AbstractBaseKafkaConsumerClient
     Map<String, Metric> codaHaleMetricMap = new HashMap<>();
 
     kafkaMetrics
-        .forEach((key, value) -> codaHaleMetricMap.put(canonicalMerticName(value), kafkaToCodaHaleMetric(value)));
+        .forEach((key, value) -> codaHaleMetricMap.put(canonicalMetricName(value), kafkaToCodaHaleMetric(value)));
     return codaHaleMetricMap;
   }
 
@@ -193,7 +193,7 @@ public class Kafka09ConsumerClient<K, V> extends AbstractBaseKafkaConsumerClient
     return gauge;
   }
 
-  private String canonicalMerticName(KafkaMetric kafkaMetric) {
+  private String canonicalMetricName(KafkaMetric kafkaMetric) {
     MetricName name = kafkaMetric.metricName();
     return canonicalMetricName(name.group(), name.tags().values(), name.name());
   }
