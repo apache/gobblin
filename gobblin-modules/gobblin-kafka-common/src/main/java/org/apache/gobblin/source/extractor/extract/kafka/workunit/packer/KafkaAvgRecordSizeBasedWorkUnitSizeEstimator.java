@@ -53,7 +53,7 @@ public class KafkaAvgRecordSizeBasedWorkUnitSizeEstimator implements KafkaWorkUn
 
   private final Map<KafkaPartition, Long> estAvgSizes = Maps.newHashMap();
 
-  KafkaAvgRecordSizeBasedWorkUnitSizeEstimator(SourceState state) {
+  public KafkaAvgRecordSizeBasedWorkUnitSizeEstimator(SourceState state) {
     readPreAvgRecordSizes(state);
   }
 
