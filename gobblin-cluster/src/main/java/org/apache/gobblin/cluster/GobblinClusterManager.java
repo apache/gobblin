@@ -191,6 +191,10 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
     this.applicationLauncher.addService(this.jobScheduler);
     this.jobConfigurationManager = buildJobConfigurationManager(config);
     this.applicationLauncher.addService(this.jobConfigurationManager);
+
+    if (ConfigUtils.getBoolean(this.config, GobblinClusterConfigurationKeys.CONTAINER_HEALTH_METRICS_SERVICE_ENABLED, false)) {
+      this.applicationLauncher.addService(new ContainerHealthMetricsService(config));
+    }
   }
 
   /**

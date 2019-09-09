@@ -196,6 +196,11 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
     this.services.addAll(suite.getServices());
 
     this.services.addAll(getServices());
+
+    if (ConfigUtils.getBoolean(this.config, GobblinClusterConfigurationKeys.CONTAINER_HEALTH_METRICS_SERVICE_ENABLED, false)) {
+      this.services.add(new ContainerHealthMetricsService(config));
+    }
+
     if (this.services.isEmpty()) {
       this.serviceManager = null;
     } else {

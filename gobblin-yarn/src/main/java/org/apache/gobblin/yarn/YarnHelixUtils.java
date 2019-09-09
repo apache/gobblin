@@ -19,8 +19,6 @@ package org.apache.gobblin.yarn;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.Collection;
 import java.util.Map;
 
@@ -132,5 +130,9 @@ public class YarnHelixUtils {
     }
 
     return environmentVariableMap;
+  }
+
+  public static String getContainerNum(String containerId) {
+    return "container-" + containerId.substring(containerId.lastIndexOf("_") + 1);
   }
 }
