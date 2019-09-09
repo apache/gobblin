@@ -19,8 +19,11 @@ package org.apache.gobblin.kafka.client;
 import java.io.Closeable;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Pattern;
 
+import com.codahale.metrics.Metric;
+import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaOffsetRetrievalFailureException;
@@ -85,6 +88,15 @@ public interface GobblinKafkaConsumerClient extends Closeable {
    * @return An {@link Iterator} of {@link KafkaConsumerRecord}s
    */
   public Iterator<KafkaConsumerRecord> consume(KafkaPartition partition, long nextOffset, long maxOffset);
+
+  /**
+   * API to return underlying Kafka consumer metrics. The individual implementations must translate
+   * org.apache.kafka.common.Metric to Coda Hale Metrics.
+   * @return
+   */
+  public default Map<String, Metric> metrics() {
+    return Maps.newHashMap();
+  }
 
   /**
    * A factory to create {@link GobblinKafkaConsumerClient}s
