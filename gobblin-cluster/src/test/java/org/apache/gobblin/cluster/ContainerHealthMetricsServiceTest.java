@@ -34,6 +34,6 @@ public class ContainerHealthMetricsServiceTest {
     Thread.sleep(10);
     service.runOneIteration();
     long processCpuTime2 = service.processCpuTime.get();
-    Assert.assertTrue(processCpuTime1 < processCpuTime2);
+    Assert.assertTrue(processCpuTime2 == -1L || processCpuTime1 < processCpuTime2);
   }
 }
