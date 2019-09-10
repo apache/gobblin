@@ -113,7 +113,6 @@ public class GobblinApplicationMaster extends GobblinClusterManager {
     }
   }
 
-
   /**
    * Build the {@link YarnService} for the Application Master.
    */

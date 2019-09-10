@@ -132,6 +132,12 @@ public class YarnHelixUtils {
     return environmentVariableMap;
   }
 
+  /**
+   * Return the identifier of the containerId. The identifier is the substring in the containerId representing
+   * the sequential number of the container.
+   * @param containerId e.g. "container_e94_1567552810874_2132400_01_000001"
+   * @return sequence number of the containerId e.g. "container-000001"
+   */
   public static String getContainerNum(String containerId) {
     return "container-" + containerId.substring(containerId.lastIndexOf("_") + 1);
   }

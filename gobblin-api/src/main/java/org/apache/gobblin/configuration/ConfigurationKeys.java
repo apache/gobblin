@@ -954,5 +954,4 @@ public class ConfigurationKeys {
    */
   public static final String AVRO_SCHEMA_CHECK_STRATEGY = "avro.schema.check.strategy";
   public static final String AVRO_SCHEMA_CHECK_STRATEGY_DEFAULT = "org.apache.gobblin.util.schema_check.AvroSchemaCheckDefaultStrategy";
-
 }
