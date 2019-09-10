@@ -22,10 +22,7 @@ import org.testng.annotations.Test;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import lombok.extern.slf4j.Slf4j;
 
-
-@Slf4j
 public class ContainerHealthMetricsServiceTest {
 
   @Test
@@ -38,9 +35,5 @@ public class ContainerHealthMetricsServiceTest {
     service.runOneIteration();
     long processCpuTime2 = service.processCpuTime.get();
     Assert.assertTrue(processCpuTime1 < processCpuTime2);
-
-    String containerId = "container_e94_1567552810874_2132400_01_000001";
-    String sequenceNumber = containerId.substring(containerId.lastIndexOf("_") + 1);
-    Assert.assertEquals(sequenceNumber,"000001");
   }
 }
