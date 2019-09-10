@@ -271,7 +271,7 @@ public abstract class KafkaWorkUnitPacker {
   /**
    * Add a list of partitions of the same topic to a {@link WorkUnit}.
    */
-  private static void populateMultiPartitionWorkUnit(List<KafkaPartition> partitions, WorkUnit workUnit) {
+  static void populateMultiPartitionWorkUnit(List<KafkaPartition> partitions, WorkUnit workUnit) {
     Preconditions.checkArgument(!partitions.isEmpty(), "There should be at least one partition");
     GobblinMetrics.addCustomTagToState(workUnit, new Tag<>("kafkaTopic", partitions.get(0).getTopicName()));
     for (int i = 0; i < partitions.size(); i++) {
@@ -289,7 +289,6 @@ public abstract class KafkaWorkUnitPacker {
     for (WorkUnit workUnit : multiWorkUnit.getWorkUnits()) {
       partitions.add(KafkaUtils.getPartition(workUnit));
     }
-
     return partitions;
   }
 
