@@ -155,6 +155,17 @@ public abstract class KafkaWorkUnitPacker {
     workUnit.setProp(ESTIMATED_WORKUNIT_SIZE, estSize);
   }
 
+  /**
+   * Calculate estimated size for a topic from all {@link WorkUnit}s belong to it.
+   */
+  static double calcTotalEstSizeForTopic(List<WorkUnit> workUnitsForTopic) {
+    double totalSize = 0;
+    for (WorkUnit w : workUnitsForTopic) {
+      totalSize += getWorkUnitEstSize(w);
+    }
+    return totalSize;
+  }
+
   protected static double getWorkUnitEstSize(WorkUnit workUnit) {
     Preconditions.checkArgument(workUnit.contains(ESTIMATED_WORKUNIT_SIZE));
     return workUnit.getPropAsDouble(ESTIMATED_WORKUNIT_SIZE);
