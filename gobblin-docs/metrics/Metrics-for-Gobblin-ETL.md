@@ -93,6 +93,7 @@ Job Progression Events
 * LockInUse: emitted if a job fails because it fails to get a lock.
 * WorkUnitsMissing: emitted if a job exits because source failed to get work units.
 * WorkUnitsEmpty: emitted if a job exits because there were no work units to process.
+* WorkUnitsCreated: emitted when workunits are created for a task. Metadata: workUnitsCreated(Number of bin-packed workunits created).
 * TasksSubmitted: emitted when tasks are submitted for execution. Metadata: tasksCount(number of tasks submitted).
 * TaskFailed: emitted when a task fails. Metadata: taskId(id of the failed task).
 * Job_Successful: emitted at the end of a successful job.
