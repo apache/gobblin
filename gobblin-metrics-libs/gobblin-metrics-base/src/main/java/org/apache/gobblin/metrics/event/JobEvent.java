@@ -33,7 +33,6 @@ public class JobEvent {
   public static final String WORK_UNITS_EMPTY = "WorkUnitsEmpty";
   public static final String WORK_UNITS_CREATED = "WorkUnitsCreated";
   public static final String TASKS_SUBMITTED = "TasksSubmitted";
-  public static final String FLATTENED_WORK_UNITS_CREATED = "FlattenedWorkUnitsCreated";
 
   public static final String METADATA_JOB_ID = "jobId";
   public static final String METADATA_JOB_NAME = "jobName";
