@@ -587,28 +587,34 @@ public class MultiHopFlowCompilerTest {
 
   @Test (dependsOnMethods = "testMulticastPath")
   public void testCompileMultiDatasetFlow() throws Exception {
-    FlowSpec spec = createFlowSpec("flow/flow3.conf", "HDFS-1", "HDFS-3", true, false);
-    Dag<JobExecutionPlan> dag = specCompiler.compileFlow(spec);
+    // These confs contain two different ways of specifying the same multi-dataset flow
+    FlowSpec spec1 = createFlowSpec("flow/flow3.conf", "HDFS-1", "HDFS-3", true, false);
+    FlowSpec spec2 = createFlowSpec("flow/flow4.conf", "HDFS-1", "HDFS-3", true, false);
+    List<FlowSpec> specs = Lists.newArrayList(spec1, spec2);
 
-    // Should be 3 parallel jobs, one for each dataset, with copy -> retention
-    Assert.assertEquals(dag.getNodes().size(), 6);
-    Assert.assertEquals(dag.getEndNodes().size(), 3);
-    Assert.assertEquals(dag.getStartNodes().size(), 3);
+    for (FlowSpec spec : specs) {
+      Dag<JobExecutionPlan> dag = specCompiler.compileFlow(spec);
 
-    String copyJobName = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
-        join("testFlowGroup", "testFlowName", "Distcp", "HDFS-1", "HDFS-3", "hdfsToHdfs");
-    for (DagNode<JobExecutionPlan> dagNode : dag.getStartNodes()) {
-      Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
-      String jobName = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
-      Assert.assertTrue(jobName.startsWith(copyJobName));
-    }
+      // Should be 3 parallel jobs, one for each dataset, with copy -> retention
+      Assert.assertEquals(dag.getNodes().size(), 6);
+      Assert.assertEquals(dag.getEndNodes().size(), 3);
+      Assert.assertEquals(dag.getStartNodes().size(), 3);
 
-    String retentionJobName = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
-        join("testFlowGroup", "testFlowName", "SnapshotRetention", "HDFS-3", "HDFS-3", "hdfsRetention");
-    for (DagNode<JobExecutionPlan> dagNode : dag.getEndNodes()) {
-      Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
-      String jobName = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
-      Assert.assertTrue(jobName.startsWith(retentionJobName));
+      String copyJobName = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
+          join("testFlowGroup", "testFlowName", "Distcp", "HDFS-1", "HDFS-3", "hdfsToHdfs");
+      for (DagNode<JobExecutionPlan> dagNode : dag.getStartNodes()) {
+        Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
+        String jobName = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
+        Assert.assertTrue(jobName.startsWith(copyJobName));
+      }
+
+      String retentionJobName = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
+          join("testFlowGroup", "testFlowName", "SnapshotRetention", "HDFS-3", "HDFS-3", "hdfsRetention");
+      for (DagNode<JobExecutionPlan> dagNode : dag.getEndNodes()) {
+        Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
+        String jobName = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
+        Assert.assertTrue(jobName.startsWith(retentionJobName));
+      }
     }
   }
 

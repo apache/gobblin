@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -30,6 +29,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -38,8 +38,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ServiceManager;
 import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
-import com.typesafe.config.ConfigValue;
 import com.typesafe.config.ConfigValueFactory;
 
 import lombok.Getter;
@@ -61,7 +59,6 @@ import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraph;
 import org.apache.gobblin.service.modules.flowgraph.pathfinder.PathFinder;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
-import org.apache.gobblin.service.modules.spec.JobExecutionPlanDagFactory;
 import org.apache.gobblin.service.modules.template_catalog.ObservingFSFlowEdgeTemplateCatalog;
 import org.apache.gobblin.util.ConfigUtils;
 
@@ -73,6 +70,10 @@ import org.apache.gobblin.util.ConfigUtils;
 @Alpha
 @Slf4j
 public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
+  private static final String DATASET_SUBPATHS_KEY = "dataset.subPaths";
+  private static final String DATASET_BASE_INPUT_PATH_KEY = "dataset.baseInputPath";
+  private static final String DATASET_BASE_OUTPUT_PATH_KEY = "dataset.baseOutputPath";
+
   @Getter
   private final FlowGraph flowGraph;
   @Getter
@@ -210,17 +211,47 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
   }
 
   /**
+   * If {@link FlowSpec} has {@link #DATASET_SUBPATHS_KEY}, split it into multiple flowSpecs using a provided base input
+   * and base output path to generate multiple source/destination paths.
+   */
+  private static List<FlowSpec> splitFlowSpec(FlowSpec flowSpec) {
+    long flowExecutionId = FlowUtils.getOrCreateFlowExecutionId(flowSpec);
+    List<FlowSpec> flowSpecs = new ArrayList<>();
+
+    if (flowSpec.getConfig().hasPath(DATASET_SUBPATHS_KEY)) {
+      List<String> datasetSubpaths = ConfigUtils.getStringList(flowSpec.getConfig(), DATASET_SUBPATHS_KEY);
+      String baseInputPath = ConfigUtils.getString(flowSpec.getConfig(), DATASET_BASE_INPUT_PATH_KEY, "/");
+      String baseOutputPath = ConfigUtils.getString(flowSpec.getConfig(), DATASET_BASE_OUTPUT_PATH_KEY, "/");
+
+      for (String subPath : datasetSubpaths) {
+        Config newConfig = flowSpec.getConfig().withoutPath("dataset.subPaths")
+            .withValue(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, ConfigValueFactory.fromAnyRef(flowExecutionId))
+            .withValue(DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX + "." + DatasetDescriptorConfigKeys.PATH_KEY,
+                ConfigValueFactory.fromAnyRef(new Path(baseInputPath, subPath).toString()))
+            .withValue(DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX + "." + DatasetDescriptorConfigKeys.PATH_KEY,
+                ConfigValueFactory.fromAnyRef(new Path(baseOutputPath, subPath).toString()));
+        flowSpecs.add(copyFlowSpecWithNewConfig(flowSpec, newConfig));
+      }
+    } else {
+      return splitFlowSpecByNumber(flowSpec);
+    }
+
+    return flowSpecs;
+  }
+
+  /**
    * If {@link FlowSpec} has config keys like configKey.0, configKey.1, split it into multiple flowSpecs on these properties.
    * Properties that do not specify numbers will be present in all returned flowSpecs.
    */
-  private static List<FlowSpec> splitFlowSpec(FlowSpec flowSpec) {
+  private static List<FlowSpec> splitFlowSpecByNumber(FlowSpec flowSpec) {
     List<FlowSpec> flowSpecs = new ArrayList<>();
     boolean foundProperty = true;
     int i = 0;
+    long flowExecutionId = FlowUtils.getOrCreateFlowExecutionId(flowSpec);
 
     while (foundProperty) {
       Properties properties = flowSpec.getConfigAsProperties();
-      Config newConfig = flowSpec.getConfig();
+      Config newConfig = flowSpec.getConfig().withValue(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, ConfigValueFactory.fromAnyRef(flowExecutionId));
       foundProperty = false;
       String suffix = "." + i;
 
