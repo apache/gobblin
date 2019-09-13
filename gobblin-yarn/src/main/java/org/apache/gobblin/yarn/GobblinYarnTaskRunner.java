@@ -65,6 +65,7 @@ public class GobblinYarnTaskRunner extends GobblinTaskRunner {
   @Override
   public List<Service> getServices() {
     List<Service> services = new ArrayList<>();
+    services.addAll(super.getServices());
     if (this.config.hasPath(GobblinYarnConfigurationKeys.KEYTAB_FILE_PATH)) {
       LOGGER.info("Adding YarnContainerSecurityManager since login is keytab based");
       services.add(new YarnContainerSecurityManager(this.config, this.fs, this.eventBus));
