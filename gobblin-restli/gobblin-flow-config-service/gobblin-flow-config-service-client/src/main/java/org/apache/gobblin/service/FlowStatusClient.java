@@ -134,13 +134,13 @@ public class FlowStatusClient implements Closeable {
    * @return a list of {@link FlowStatus}es corresponding to the latest <code>count</code> executions.
    * @throws RemoteInvocationException
    */
-  public List<FlowStatus> getLatestFlowStatus(FlowId flowId, Integer count)
+  public List<FlowStatus> getLatestFlowStatus(FlowId flowId, Integer count, String tag)
       throws RemoteInvocationException {
     LOG.debug("getFlowConfig with groupName " + flowId.getFlowGroup() + " flowName " +
         flowId.getFlowName() + " count " + Integer.toString(count));
 
     FindRequest<FlowStatus> findRequest = _flowstatusesRequestBuilders.findByLatestFlowStatus().flowIdParam(flowId).
-        addReqParam("count", count, Integer.class).build();
+        addReqParam("count", count, Integer.class).addParam("tag", tag, String.class).build();
 
     Response<CollectionResponse<FlowStatus>> response =
         _restClient.get().sendRequest(findRequest).getResponse();

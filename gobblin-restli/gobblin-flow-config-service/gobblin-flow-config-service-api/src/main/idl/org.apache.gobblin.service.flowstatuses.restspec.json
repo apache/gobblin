@@ -24,6 +24,10 @@
         "name" : "count",
         "type" : "int",
         "optional" : true
+      }, {
+        "name" : "tag",
+        "type" : "string",
+        "optional" : true
       } ]
     } ],
     "entity" : {

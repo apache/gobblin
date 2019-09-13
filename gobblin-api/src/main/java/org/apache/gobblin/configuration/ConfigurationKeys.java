@@ -152,6 +152,7 @@ public class ConfigurationKeys {
    */
   public static final String JOB_NAME_KEY = "job.name";
   public static final String JOB_GROUP_KEY = "job.group";
+  public static final String JOB_TAG_KEY = "job.tag";
   public static final String JOB_DESCRIPTION_KEY = "job.description";
   // Job launcher type
   public static final String JOB_LAUNCHER_TYPE_KEY = "launcher.type";

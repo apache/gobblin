@@ -26,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.inject.Inject;
+import com.linkedin.data.template.SetMode;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
 import com.linkedin.restli.server.PagingContext;
@@ -68,7 +69,7 @@ public class FlowStatusResource extends ComplexKeyResourceTemplate<FlowStatusId,
     LOG.info("Get called with flowGroup " + flowGroup + " flowName " + flowName + " flowExecutionId " + flowExecutionId);
 
     org.apache.gobblin.service.monitoring.FlowStatus flowStatus =
-        _flowStatusGenerator.getFlowStatus(flowName, flowGroup, flowExecutionId);
+        _flowStatusGenerator.getFlowStatus(flowName, flowGroup, flowExecutionId, null);
 
     // this returns null to raise a 404 error if flowStatus is null
     return convertFlowStatus(flowStatus);
@@ -76,14 +77,14 @@ public class FlowStatusResource extends ComplexKeyResourceTemplate<FlowStatusId,
 
   @Finder("latestFlowStatus")
   public List<FlowStatus> getLatestFlowStatus(@Context PagingContext context,
-      @QueryParam("flowId") FlowId flowId, @Optional @QueryParam("count") Integer count) {
+      @QueryParam("flowId") FlowId flowId, @Optional @QueryParam("count") Integer count, @Optional @QueryParam("tag") String tag) {
     if (count == null) {
       count = 1;
     }
     LOG.info("getLatestFlowStatus called with flowGroup " + flowId.getFlowGroup() + " flowName " + flowId.getFlowName() + " count " + count);
 
     List<org.apache.gobblin.service.monitoring.FlowStatus> flowStatuses =
-        _flowStatusGenerator.getLatestFlowStatus(flowId.getFlowName(), flowId.getFlowGroup(), count);
+        _flowStatusGenerator.getLatestFlowStatus(flowId.getFlowName(), flowId.getFlowGroup(), count, tag);
 
     if (flowStatuses != null) {
       return flowStatuses.stream().map(this::convertFlowStatus).collect(Collectors.toList());
@@ -128,6 +129,7 @@ public class FlowStatusResource extends ComplexKeyResourceTemplate<FlowStatusId,
       jobStatus.setFlowId(flowId)
           .setJobId(new JobId().setJobName(queriedJobStatus.getJobName())
               .setJobGroup(queriedJobStatus.getJobGroup()))
+          .setJobTag(queriedJobStatus.getJobTag(), SetMode.IGNORE_NULL)
           .setExecutionStatistics(new JobStatistics()
               .setExecutionStartTime(queriedJobStatus.getStartTime())
               .setExecutionEndTime(queriedJobStatus.getEndTime())
