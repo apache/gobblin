@@ -19,6 +19,7 @@ package org.apache.gobblin.couchbase.writer;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 
 public class CouchbaseWriterConfigurationKeys {
@@ -40,6 +41,14 @@ public class CouchbaseWriterConfigurationKeys {
   public static final String SSL_TRUSTSTORE_FILE = prefix("sslTruststoreFile");
   public static final String SSL_TRUSTSTORE_PASSWORD = prefix("sslTruststorePassword");
   public static final String CERT_AUTH_ENABLED = prefix("certAuthEnabled");
+  public static final String DNS_SRV_ENABLED = prefix("dnsSrvEnabled");
+
+  public static final String DOCUMENT_TTL = prefix("documentTTL");
+  public static final String DOCUMENT_TTL_UNIT = prefix("documentTTLUnits");
+  public static final TimeUnit DOCUMENT_TTL_UNIT_DEFAULT = TimeUnit.SECONDS;
+  public static final String DOCUMENT_TTL_ORIGIN_FIELD = prefix("documentTTLOriginField");
+  public static final String DOCUMENT_TTL_ORIGIN_FIELD_UNITS = prefix("documentTTLOriginUnits");
+  public static final TimeUnit DOCUMENT_TTL_ORIGIN_FIELD_UNITS_DEFAULT = TimeUnit.MILLISECONDS;
 
   public static final String OPERATION_TIMEOUT_MILLIS = prefix("operationTimeoutMillis");
   public static final long OPERATION_TIMEOUT_DEFAULT = 10000; // 10 second default timeout
