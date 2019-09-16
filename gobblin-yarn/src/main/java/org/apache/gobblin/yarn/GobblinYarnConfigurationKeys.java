@@ -105,4 +105,7 @@ public class GobblinYarnConfigurationKeys {
   //Constant definitions
   public static final String GOBBLIN_YARN_LOG4J_CONFIGURATION_FILE = "log4j-yarn.properties";
   public static final String JVM_USER_TIMEZONE_CONFIG = "user.timezone";
+
+  //Configuration properties relating to container mode of execution e.g. Gobblin cluster runs on Yarn
+  public static final String CONTAINER_NUM_KEY = "container.num";
 }

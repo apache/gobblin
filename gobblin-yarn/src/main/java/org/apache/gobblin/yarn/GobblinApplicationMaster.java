@@ -47,6 +47,7 @@ import com.google.common.base.Optional;
 import com.google.common.util.concurrent.Service;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 
 import lombok.Getter;
 
@@ -82,7 +83,9 @@ public class GobblinApplicationMaster extends GobblinClusterManager {
   public GobblinApplicationMaster(String applicationName, ContainerId containerId, Config config,
       YarnConfiguration yarnConfiguration) throws Exception {
     super(applicationName, containerId.getApplicationAttemptId().getApplicationId().toString(),
-        GobblinClusterUtils.addDynamicConfig(config), Optional.<Path>absent());
+        GobblinClusterUtils.addDynamicConfig(config.withValue(GobblinYarnConfigurationKeys.CONTAINER_NUM_KEY,
+            ConfigValueFactory.fromAnyRef(YarnHelixUtils.getContainerNum(containerId.toString())))),
+        Optional.<Path>absent());
 
     String containerLogDir = config.getString(GobblinYarnConfigurationKeys.LOGS_SINK_ROOT_DIR_KEY);
     GobblinYarnLogSource gobblinYarnLogSource = new GobblinYarnLogSource();

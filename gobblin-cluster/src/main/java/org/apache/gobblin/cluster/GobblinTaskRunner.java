@@ -196,6 +196,7 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
     this.services.addAll(suite.getServices());
 
     this.services.addAll(getServices());
+
     if (this.services.isEmpty()) {
       this.serviceManager = null;
     } else {
@@ -335,7 +336,12 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
    * @return a {@link List} of additional {@link Service}s to run.
    */
   protected List<Service> getServices() {
-    return new ArrayList<>();
+    List<Service> serviceList = new ArrayList<>();
+    if (ConfigUtils.getBoolean(this.config, GobblinClusterConfigurationKeys.CONTAINER_HEALTH_METRICS_SERVICE_ENABLED,
+        GobblinClusterConfigurationKeys.DEFAULT_CONTAINER_HEALTH_METRICS_SERVICE_ENABLED)) {
+      serviceList.add(new ContainerHealthMetricsService(config));
+    }
+    return serviceList;
   }
 
   @VisibleForTesting
