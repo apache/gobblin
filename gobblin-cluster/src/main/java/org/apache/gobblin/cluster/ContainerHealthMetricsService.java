@@ -36,7 +36,7 @@ import org.apache.gobblin.util.ConfigUtils;
 
 /**
  * A utility class that periodically emits system level metrics that report the health of the container.
- * Reported metrics include CPU/Memory usage of the JVM, system load, file descriptors used etc.
+ * Reported metrics include CPU/Memory usage of the JVM, system load etc.
  *
  * <p>
  *   This class extends the {@link AbstractScheduledService} so it can be used with a
