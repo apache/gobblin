@@ -155,6 +155,17 @@ public abstract class KafkaWorkUnitPacker {
     workUnit.setProp(ESTIMATED_WORKUNIT_SIZE, estSize);
   }
 
+  /**
+   * Calculate estimated size for a topic from all {@link WorkUnit}s belong to it.
+   */
+  static double calcTotalEstSizeForTopic(List<WorkUnit> workUnitsForTopic) {
+    double totalSize = 0;
+    for (WorkUnit w : workUnitsForTopic) {
+      totalSize += getWorkUnitEstSize(w);
+    }
+    return totalSize;
+  }
+
   protected static double getWorkUnitEstSize(WorkUnit workUnit) {
     Preconditions.checkArgument(workUnit.contains(ESTIMATED_WORKUNIT_SIZE));
     return workUnit.getPropAsDouble(ESTIMATED_WORKUNIT_SIZE);
@@ -271,7 +282,7 @@ public abstract class KafkaWorkUnitPacker {
   /**
    * Add a list of partitions of the same topic to a {@link WorkUnit}.
    */
-  private static void populateMultiPartitionWorkUnit(List<KafkaPartition> partitions, WorkUnit workUnit) {
+  static void populateMultiPartitionWorkUnit(List<KafkaPartition> partitions, WorkUnit workUnit) {
     Preconditions.checkArgument(!partitions.isEmpty(), "There should be at least one partition");
     GobblinMetrics.addCustomTagToState(workUnit, new Tag<>("kafkaTopic", partitions.get(0).getTopicName()));
     for (int i = 0; i < partitions.size(); i++) {
@@ -289,7 +300,6 @@ public abstract class KafkaWorkUnitPacker {
     for (WorkUnit workUnit : multiWorkUnit.getWorkUnits()) {
       partitions.add(KafkaUtils.getPartition(workUnit));
     }
-
     return partitions;
   }
 

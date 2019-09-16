@@ -87,14 +87,6 @@ public class KafkaBiLevelWorkUnitPacker extends KafkaWorkUnitPacker {
     return worstFitDecreasingBinPacking(groups, numContainers);
   }
 
-  private static double calcTotalEstSizeForTopic(List<WorkUnit> workUnitsForTopic) {
-    double totalSize = 0;
-    for (WorkUnit w : workUnitsForTopic) {
-      totalSize += getWorkUnitEstSize(w);
-    }
-    return totalSize;
-  }
-
   private static double getPreGroupingSizeFactor(State state) {
     return state.getPropAsDouble(WORKUNIT_PRE_GROUPING_SIZE_FACTOR, DEFAULT_WORKUNIT_PRE_GROUPING_SIZE_FACTOR);
   }
