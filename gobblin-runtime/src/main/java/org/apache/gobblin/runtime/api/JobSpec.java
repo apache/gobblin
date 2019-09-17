@@ -67,6 +67,8 @@ public class JobSpec implements Configurable, Spec {
   Properties configAsProperties;
   /** URI of {@link org.apache.gobblin.runtime.api.JobTemplate} to use. */
   Optional<URI> templateURI;
+  /** Specific instance of template. */
+  transient Optional<JobTemplate> jobTemplate;
 
   /** Metadata can contain properties which are not a part of config, e.g. Verb */
   Map<String, String> metadata;
@@ -141,6 +143,7 @@ public class JobSpec implements Configurable, Spec {
     private Optional<String> description = Optional.absent();
     private Optional<URI> jobCatalogURI = Optional.absent();
     private Optional<URI> templateURI = Optional.absent();
+    private Optional<JobTemplate> jobTemplate = Optional.absent();
     private Optional<Map> metadata = Optional.absent();
 
     public Builder(URI jobSpecUri) {
@@ -167,7 +170,7 @@ public class JobSpec implements Configurable, Spec {
       Preconditions.checkNotNull(this.uri);
       Preconditions.checkNotNull(this.version);
       return new JobSpec(getURI(), getVersion(), getDescription(), getConfig(),
-                         getConfigAsProperties(), getTemplateURI(), getMetadata());
+                         getConfigAsProperties(), getTemplateURI(), getTemplate(), getMetadata());
     }
 
     /** The scheme and authority of the job catalog URI are used to generate JobSpec URIs from
@@ -298,6 +301,16 @@ public class JobSpec implements Configurable, Spec {
     public Builder withTemplate(URI templateURI) {
       Preconditions.checkNotNull(templateURI);
       this.templateURI = Optional.of(templateURI);
+      return this;
+    }
+
+    public Optional<JobTemplate> getTemplate() {
+      return this.jobTemplate;
+    }
+
+    public Builder withTemplate(JobTemplate template) {
+      Preconditions.checkNotNull(template);
+      this.jobTemplate = Optional.of(template);
       return this;
     }
 
