@@ -82,10 +82,21 @@ public class OrcCompactionTaskTest {
     orcStruct_3.setFieldValue("i", new IntWritable(4));
     orcStruct_3.setFieldValue("j", new IntWritable(5));
 
+    // Writing a file with evolved schema.
+    TypeDescription evolvedSchema = TypeDescription.fromString("struct<i:int,j:int,k:int>");
+    OrcStruct orcStruct_4 = (OrcStruct) OrcStruct.createValue(evolvedSchema);
+    orcStruct_4.setFieldValue("i", new IntWritable(5));
+    orcStruct_4.setFieldValue("j", new IntWritable(6));
+    orcStruct_4.setFieldValue("k", new IntWritable(7));
+
     File file_0 = new File(jobDir, "file_0");
     File file_1 = new File(jobDir, "file_1");
+    File file_2 = new File(jobDir, "file_2");
     writeOrcRecordsInFile(new Path(file_0.getAbsolutePath()), schema, ImmutableList.of(orcStruct_0, orcStruct_2));
     writeOrcRecordsInFile(new Path(file_1.getAbsolutePath()), schema, ImmutableList.of(orcStruct_1, orcStruct_3));
+    writeOrcRecordsInFile(new Path(file_2.getAbsolutePath()), evolvedSchema, ImmutableList.of(orcStruct_4));
+    // Make this is the newest.
+    file_2.setLastModified(Long.MAX_VALUE);
 
     // Verify execution
 
@@ -113,13 +124,19 @@ public class OrcCompactionTaskTest {
 
     Assert.assertTrue(statuses.size() == 1);
     List<OrcStruct> result = readOrcFile(statuses.get(0).getPath());
-    Assert.assertEquals(result.size(), 3);
+    Assert.assertEquals(result.size(), 4);
     Assert.assertEquals(result.get(0).getFieldValue("i"), new IntWritable(1));
     Assert.assertEquals(result.get(0).getFieldValue("j"), new IntWritable(2));
+    Assert.assertNull(result.get(0).getFieldValue("k"));
     Assert.assertEquals(result.get(1).getFieldValue("i"), new IntWritable(2));
     Assert.assertEquals(result.get(1).getFieldValue("j"), new IntWritable(3));
+    Assert.assertNull(result.get(1).getFieldValue("k"));
     Assert.assertEquals(result.get(2).getFieldValue("i"), new IntWritable(4));
     Assert.assertEquals(result.get(2).getFieldValue("j"), new IntWritable(5));
+    Assert.assertNull(result.get(2).getFieldValue("k"));
+    Assert.assertEquals(result.get(3).getFieldValue("i"), new IntWritable(5));
+    Assert.assertEquals(result.get(3).getFieldValue("j"), new IntWritable(6));
+    Assert.assertEquals(result.get(3).getFieldValue("k"), new IntWritable(7));
   }
 
   /**
@@ -143,8 +160,12 @@ public class OrcCompactionTaskTest {
   private OrcStruct copyIntOrcStruct(OrcStruct record) {
     OrcStruct result = new OrcStruct(record.getSchema());
     for (int i = 0 ; i < record.getNumFields() ; i ++ ) {
-      IntWritable newCopy = new IntWritable(((IntWritable) record.getFieldValue(i)).get());
-      result.setFieldValue(i, newCopy);
+      if (record.getFieldValue(i) != null) {
+        IntWritable newCopy = new IntWritable(((IntWritable) record.getFieldValue(i)).get());
+        result.setFieldValue(i, newCopy);
+      } else {
+        result.setFieldValue(i, null);
+      }
     }
     return result;
   }
