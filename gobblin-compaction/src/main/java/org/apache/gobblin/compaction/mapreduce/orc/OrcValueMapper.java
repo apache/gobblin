@@ -44,6 +44,7 @@ public class OrcValueMapper extends RecordKeyMapperBase<NullWritable, OrcStruct,
 
   private OrcKey outKey;
   private OrcValue outValue;
+  private TypeDescription mapperSchema;
 
   @Override
   protected void setup(Context context)
@@ -51,6 +52,7 @@ public class OrcValueMapper extends RecordKeyMapperBase<NullWritable, OrcStruct,
     super.setup(context);
     this.outKey = new OrcKey();
     this.outValue = new OrcValue();
+    this.mapperSchema = TypeDescription.fromString(context.getConfiguration().get(OrcConf.MAPRED_INPUT_SCHEMA.getAttribute()));
   }
 
   @Override
@@ -73,21 +75,22 @@ public class OrcValueMapper extends RecordKeyMapperBase<NullWritable, OrcStruct,
    * newest schema seen by the MR job), all the other ORC object will need to be up-converted.
    */
   OrcStruct upConvertOrcStruct(OrcStruct orcStruct, Context context) {
-    TypeDescription newestSchema =
-        TypeDescription.fromString(context.getConfiguration().get(OrcConf.MAPRED_INPUT_SCHEMA.getAttribute()));
-
     // For ORC schema, if schema object differs that means schema itself is different while for Avro,
     // there are chances that documentation or attributes' difference lead to the schema object difference.
-    if (!orcStruct.getSchema().equals(newestSchema)) {
-      OrcStruct newStruct = new OrcStruct(newestSchema);
+    if (!orcStruct.getSchema().equals(mapperSchema)) {
+      OrcStruct newStruct = new OrcStruct(mapperSchema);
 
       int indexInNewSchema = 0;
-      for (String field : newestSchema.getFieldNames()) {
-        if (orcStruct.getSchema().getFieldNames().contains(field)) {
-          int fieldIndex = orcStruct.getSchema().getFieldNames().indexOf(field);
+      List<String> oldSchemaFieldNames = orcStruct.getSchema().getFieldNames();
+      List<TypeDescription> oldSchemaTypes = orcStruct.getSchema().getChildren();
+      List<TypeDescription> newSchemaTypes = mapperSchema.getChildren();
 
-          TypeDescription fileType = orcStruct.getSchema().getChildren().get(fieldIndex);
-          TypeDescription readerType = newestSchema.getChildren().get(indexInNewSchema);
+      for (String field : mapperSchema.getFieldNames()) {
+        if (oldSchemaFieldNames.contains(field)) {
+          int fieldIndex = oldSchemaFieldNames.indexOf(field);
+
+          TypeDescription fileType = oldSchemaTypes.get(fieldIndex);
+          TypeDescription readerType = newSchemaTypes.get(indexInNewSchema);
 
           if (isEvolutionValid(fileType, readerType)) {
             newStruct.setFieldValue(field, orcStruct.getFieldValue(field));

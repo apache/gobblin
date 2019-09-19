@@ -127,10 +127,13 @@ public class OrcCompactionTaskTest {
     Assert.assertEquals(result.size(), 4);
     Assert.assertEquals(result.get(0).getFieldValue("i"), new IntWritable(1));
     Assert.assertEquals(result.get(0).getFieldValue("j"), new IntWritable(2));
+    Assert.assertNull(result.get(0).getFieldValue("k"));
     Assert.assertEquals(result.get(1).getFieldValue("i"), new IntWritable(2));
     Assert.assertEquals(result.get(1).getFieldValue("j"), new IntWritable(3));
+    Assert.assertNull(result.get(1).getFieldValue("k"));
     Assert.assertEquals(result.get(2).getFieldValue("i"), new IntWritable(4));
     Assert.assertEquals(result.get(2).getFieldValue("j"), new IntWritable(5));
+    Assert.assertNull(result.get(2).getFieldValue("k"));
     Assert.assertEquals(result.get(3).getFieldValue("i"), new IntWritable(5));
     Assert.assertEquals(result.get(3).getFieldValue("j"), new IntWritable(6));
     Assert.assertEquals(result.get(3).getFieldValue("k"), new IntWritable(7));
