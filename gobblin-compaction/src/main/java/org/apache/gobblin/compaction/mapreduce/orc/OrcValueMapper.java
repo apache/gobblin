@@ -113,7 +113,7 @@ public class OrcValueMapper extends RecordKeyMapperBase<NullWritable, OrcStruct,
    * Determine if two types are following valid evolution.
    * Implementation stolen and manipulated from {@link SchemaEvolution} as that was package-private.
    */
-  boolean isEvolutionValid(TypeDescription fileType, TypeDescription readerType) {
+  static boolean isEvolutionValid(TypeDescription fileType, TypeDescription readerType) {
     boolean isOk = true;
     if (fileType.getCategory() == readerType.getCategory()) {
       switch (readerType.getCategory()) {
@@ -153,9 +153,6 @@ public class OrcValueMapper extends RecordKeyMapperBase<NullWritable, OrcStruct,
         case STRUCT: {
           List<TypeDescription> readerChildren = readerType.getChildren();
           List<TypeDescription> fileChildren = fileType.getChildren();
-          if (fileChildren.size() != readerChildren.size()) {
-            return false;
-          }
 
           List<String> readerFieldNames = readerType.getFieldNames();
           List<String> fileFieldNames = fileType.getFieldNames();
