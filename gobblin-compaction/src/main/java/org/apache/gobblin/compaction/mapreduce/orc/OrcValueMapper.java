@@ -42,7 +42,6 @@ import org.apache.orc.mapreduce.OrcMapreduceRecordReader;
  */
 public class OrcValueMapper extends RecordKeyMapperBase<NullWritable, OrcStruct, Object, OrcValue> {
 
-//  private OrcKey outKey;
   private OrcValue outValue;
   private TypeDescription mapperSchema;
 
@@ -50,7 +49,6 @@ public class OrcValueMapper extends RecordKeyMapperBase<NullWritable, OrcStruct,
   protected void setup(Context context)
       throws IOException, InterruptedException {
     super.setup(context);
-//    this.outKey = new OrcKey();
     this.outValue = new OrcValue();
     this.mapperSchema = TypeDescription.fromString(context.getConfiguration().get(OrcConf.MAPRED_INPUT_SCHEMA.getAttribute()));
   }
@@ -60,7 +58,6 @@ public class OrcValueMapper extends RecordKeyMapperBase<NullWritable, OrcStruct,
       throws IOException, InterruptedException {
     OrcStruct upConvertedStruct = upConvertOrcStruct(orcStruct, context);
     if (context.getNumReduceTasks() == 0) {
-//      this.outKey.key = upConvertedStruct;
       this.outValue.value = upConvertedStruct;
       context.write(NullWritable.get(), this.outValue);
     } else {
