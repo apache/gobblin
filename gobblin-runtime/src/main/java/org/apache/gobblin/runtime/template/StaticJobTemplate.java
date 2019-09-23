@@ -27,7 +27,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.typesafe.config.Config;
@@ -37,6 +36,7 @@ import org.apache.gobblin.runtime.api.JobCatalogWithTemplates;
 import org.apache.gobblin.runtime.api.JobTemplate;
 import org.apache.gobblin.runtime.api.SecureJobTemplate;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
+import org.apache.gobblin.util.ConfigUtils;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -47,8 +47,6 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class StaticJobTemplate extends InheritingJobTemplate implements SecureJobTemplate {
-
-  private static final Splitter SPLITTER = Splitter.on(",").trimResults().omitEmptyStrings();
 
   public static final String SUPER_TEMPLATE_KEY = "gobblin.template.inherit";
   public static final String IS_SECURE_KEY = "gobblin.template.isSecure";
@@ -89,7 +87,7 @@ public class StaticJobTemplate extends InheritingJobTemplate implements SecureJo
       throws TemplateException {
     if (config.hasPath(SUPER_TEMPLATE_KEY)) {
       List<URI> uris = Lists.newArrayList();
-      for (String uriString : SPLITTER.split(config.getString(SUPER_TEMPLATE_KEY))) {
+      for (String uriString : ConfigUtils.getStringList(config, SUPER_TEMPLATE_KEY)) {
         try {
           uris.add(new URI(uriString));
         } catch (URISyntaxException use) {
@@ -120,11 +118,11 @@ public class StaticJobTemplate extends InheritingJobTemplate implements SecureJo
 
   @Override
   public boolean isSecure() {
-    return this.rawConfig.hasPath(IS_SECURE_KEY) && this.rawConfig.getBoolean(IS_SECURE_KEY);
+    return ConfigUtils.getBoolean(this.rawConfig, IS_SECURE_KEY, false);
   }
 
   @Override
   public Collection<String> overridableProperties() {
-    return isSecure() ? SPLITTER.splitToList(this.rawConfig.getString(SECURE_OVERRIDABLE_PROPERTIES_KEYS)) : Collections.emptyList();
+    return isSecure() ? ConfigUtils.getStringList(this.rawConfig, SECURE_OVERRIDABLE_PROPERTIES_KEYS) : Collections.emptyList();
   }
 }

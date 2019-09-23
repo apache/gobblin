@@ -70,7 +70,7 @@ public class StaticFlowTemplate implements FlowTemplate {
 
   private transient Config rawConfig;
 
-  private final JobSpecResolver jobSpecResolver;
+  private final transient JobSpecResolver jobSpecResolver;
 
   public StaticFlowTemplate(URI flowTemplateDirUri, String version, String description, Config config,
       FlowCatalogWithTemplates catalog)
