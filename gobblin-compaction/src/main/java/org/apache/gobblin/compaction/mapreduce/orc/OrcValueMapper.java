@@ -40,9 +40,8 @@ import org.apache.orc.mapreduce.OrcMapreduceRecordReader;
  * {@link RecordReader} with {@link NullWritable} as the key and generic type of value, the ORC Mapper will
  * read in the record as the input value.
  */
-public class OrcValueMapper extends RecordKeyMapperBase<NullWritable, OrcStruct, OrcKey, Object> {
+public class OrcValueMapper extends RecordKeyMapperBase<NullWritable, OrcStruct, Object, OrcValue> {
 
-  private OrcKey outKey;
   private OrcValue outValue;
   private TypeDescription mapperSchema;
 
@@ -50,7 +49,6 @@ public class OrcValueMapper extends RecordKeyMapperBase<NullWritable, OrcStruct,
   protected void setup(Context context)
       throws IOException, InterruptedException {
     super.setup(context);
-    this.outKey = new OrcKey();
     this.outValue = new OrcValue();
     this.mapperSchema = TypeDescription.fromString(context.getConfiguration().get(OrcConf.MAPRED_INPUT_SCHEMA.getAttribute()));
   }
@@ -60,8 +58,8 @@ public class OrcValueMapper extends RecordKeyMapperBase<NullWritable, OrcStruct,
       throws IOException, InterruptedException {
     OrcStruct upConvertedStruct = upConvertOrcStruct(orcStruct, context);
     if (context.getNumReduceTasks() == 0) {
-      this.outKey.key = upConvertedStruct;
-      context.write(this.outKey, NullWritable.get());
+      this.outValue.value = upConvertedStruct;
+      context.write(NullWritable.get(), this.outValue);
     } else {
       this.outValue.value = upConvertedStruct;
       context.write(getDedupKey(upConvertedStruct), this.outValue);
