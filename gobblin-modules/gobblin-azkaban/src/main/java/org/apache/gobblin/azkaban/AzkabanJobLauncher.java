@@ -32,6 +32,9 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.job_spec.JobSpecResolver;
+import org.apache.gobblin.runtime.job_spec.ResolvedJobSpec;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.Credentials;
 import org.apache.log4j.Level;
@@ -66,7 +69,6 @@ import org.apache.gobblin.runtime.JobLauncherFactory;
 import org.apache.gobblin.runtime.app.ApplicationException;
 import org.apache.gobblin.runtime.app.ApplicationLauncher;
 import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
-import org.apache.gobblin.runtime.job_catalog.PackagedTemplatesJobCatalogDecorator;
 import org.apache.gobblin.runtime.listeners.CompositeJobListener;
 import org.apache.gobblin.runtime.listeners.EmailNotificationJobListener;
 import org.apache.gobblin.runtime.listeners.JobListener;
@@ -199,10 +201,13 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
 
     Properties jobProps = this.props;
     if (jobProps.containsKey(TEMPLATE_KEY)) {
+      Config config = ConfigUtils.propertiesToConfig(jobProps);
+      JobSpecResolver resolver = JobSpecResolver.builder(config).build();
+
       URI templateUri = new URI(jobProps.getProperty(TEMPLATE_KEY));
-      Config resolvedJob = new PackagedTemplatesJobCatalogDecorator().getTemplate(templateUri)
-          .getResolvedConfig(ConfigUtils.propertiesToConfig(jobProps));
-      jobProps = ConfigUtils.configToProperties(resolvedJob);
+      JobSpec jobSpec = JobSpec.builder().withConfig(config).withTemplate(templateUri).build();
+      ResolvedJobSpec resolvedJob = resolver.resolveJobSpec(jobSpec);
+      jobProps = ConfigUtils.configToProperties(resolvedJob.getConfig());
     }
 
     GobblinMetrics.addCustomTagsToProperties(jobProps, tags);

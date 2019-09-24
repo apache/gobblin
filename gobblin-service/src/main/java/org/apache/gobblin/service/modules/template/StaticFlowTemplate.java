@@ -29,6 +29,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigException;
 import com.typesafe.config.ConfigResolveOptions;
 import com.typesafe.config.ConfigValueFactory;
 
@@ -37,8 +38,11 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.JobTemplate;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
+import org.apache.gobblin.runtime.job_spec.JobSpecResolver;
+import org.apache.gobblin.runtime.job_spec.ResolvedJobSpec;
 import org.apache.gobblin.service.modules.dataset.DatasetDescriptor;
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
 import org.apache.gobblin.service.modules.template_catalog.FlowCatalogWithTemplates;
@@ -66,6 +70,8 @@ public class StaticFlowTemplate implements FlowTemplate {
 
   private transient Config rawConfig;
 
+  private final transient JobSpecResolver jobSpecResolver;
+
   public StaticFlowTemplate(URI flowTemplateDirUri, String version, String description, Config config,
       FlowCatalogWithTemplates catalog)
       throws IOException, SpecNotFoundException, JobTemplate.TemplateException, URISyntaxException {
@@ -75,6 +81,7 @@ public class StaticFlowTemplate implements FlowTemplate {
     this.rawConfig = config;
     this.catalog = catalog;
     this.jobTemplates = this.catalog.getJobTemplatesForFlow(flowTemplateDirUri);
+    this.jobSpecResolver = JobSpecResolver.builder(config).build();
   }
 
   //Constructor for testing purposes
@@ -85,6 +92,11 @@ public class StaticFlowTemplate implements FlowTemplate {
     this.rawConfig = config;
     this.catalog = catalog;
     this.jobTemplates = jobTemplates;
+    try {
+      this.jobSpecResolver = JobSpecResolver.builder(config).build();
+    } catch (IOException ioe) {
+      throw new RuntimeException(ioe);
+    }
   }
 
 
@@ -153,17 +165,17 @@ public class StaticFlowTemplate implements FlowTemplate {
    * @return true if the {@link FlowTemplate} is resolvable
    */
   @Override
-  public boolean isResolvable(Config userConfig, DatasetDescriptor inputDescriptor, DatasetDescriptor outputDescriptor)
-      throws SpecNotFoundException, JobTemplate.TemplateException {
+  public boolean isResolvable(Config userConfig, DatasetDescriptor inputDescriptor, DatasetDescriptor outputDescriptor) {
     Config inputDescriptorConfig = inputDescriptor.getRawConfig().atPath(DatasetDescriptorConfigKeys.FLOW_EDGE_INPUT_DATASET_DESCRIPTOR_PREFIX);
     Config outputDescriptorConfig = outputDescriptor.getRawConfig().atPath(DatasetDescriptorConfigKeys.FLOW_EDGE_OUTPUT_DATASET_DESCRIPTOR_PREFIX);
     userConfig = userConfig.withFallback(inputDescriptorConfig).withFallback(outputDescriptorConfig);
 
-    ConfigResolveOptions resolveOptions = ConfigResolveOptions.defaults().setAllowUnresolved(true);
+    JobSpec.Builder jobSpecBuilder = JobSpec.builder().withConfig(userConfig);
 
     for (JobTemplate template: this.jobTemplates) {
-      Config templateConfig = template.getResolvedConfig(userConfig).resolve(resolveOptions);
-      if (!template.getResolvedConfig(userConfig).resolve(resolveOptions).isResolved()) {
+      try {
+        this.jobSpecResolver.resolveJobSpec(jobSpecBuilder.withTemplate(template).build());
+      } catch (JobTemplate.TemplateException | ConfigException | SpecNotFoundException exc) {
         return false;
       }
     }
@@ -179,9 +191,11 @@ public class StaticFlowTemplate implements FlowTemplate {
     userConfig = userConfig.withFallback(inputDescriptorConfig).withFallback(outputDescriptorConfig);
 
     List<Config> resolvedJobConfigs = new ArrayList<>();
+    JobSpec.Builder jobSpecBuilder = JobSpec.builder().withConfig(userConfig);
     for (JobTemplate jobTemplate: getJobTemplates()) {
-      Config resolvedJobConfig = jobTemplate.getResolvedConfig(userConfig).resolve().withValue(
-          ConfigurationKeys.JOB_TEMPLATE_PATH, ConfigValueFactory.fromAnyRef(jobTemplate.getUri().toString()));;
+      ResolvedJobSpec resolvedJobSpec = this.jobSpecResolver.resolveJobSpec(jobSpecBuilder.withTemplate(jobTemplate).build());
+      Config resolvedJobConfig = resolvedJobSpec.getConfig().withValue(
+          ConfigurationKeys.JOB_TEMPLATE_PATH, ConfigValueFactory.fromAnyRef(jobTemplate.getUri().toString()));
       resolvedJobConfigs.add(resolvedJobConfig);
     }
     return resolvedJobConfigs;
