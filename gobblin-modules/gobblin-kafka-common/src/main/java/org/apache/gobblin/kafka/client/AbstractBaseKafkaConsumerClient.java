@@ -85,15 +85,15 @@ public abstract class AbstractBaseKafkaConsumerClient implements GobblinKafkaCon
 
   /**
    * A helper method that returns the canonical metric name for a kafka metric. A typical canonicalized metric name would
-   * be of the following format: "{metric-group}_{client-id}_{metric-name}". This method is invoked in {@link GobblinKafkaConsumerClient#metrics()}
+   * be of the following format: "{metric-group}_{client-id}_{metric-name}". This method is invoked in {@link GobblinKafkaConsumerClient#getMetrics()}
    * implementations to convert KafkaMetric names to a Coda Hale metric name. Note that the canonicalization is done on every invocation of the
-   * {@link GobblinKafkaConsumerClient#metrics()} API.
+   * {@link GobblinKafkaConsumerClient#getMetrics()} ()} API.
    * @param metricGroup the type of the Kafka metric e.g."consumer-fetch-manager-metrics", "consumer-coordinator-metrics" etc.
    * @param metricTags any tags associated with the Kafka metric, typically include the kafka client id, topic name, partition number etc.
    * @param metricName the name of the Kafka metric e.g. "records-lag-max", "fetch-throttle-time-max" etc.
    * @return the canonicalized metric name.
    */
-  String canonicalMetricName(String metricGroup, Collection<String> metricTags, String metricName) {
+  public String canonicalMetricName(String metricGroup, Collection<String> metricTags, String metricName) {
     List<String> nameParts = new ArrayList<>();
     nameParts.add(metricGroup);
     nameParts.addAll(metricTags);

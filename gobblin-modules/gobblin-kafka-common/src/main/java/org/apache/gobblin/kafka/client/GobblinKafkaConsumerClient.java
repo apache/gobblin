@@ -94,7 +94,7 @@ public interface GobblinKafkaConsumerClient extends Closeable {
    * org.apache.kafka.common.Metric to Coda Hale Metrics.
    * @return
    */
-  public default Map<String, Metric> metrics() {
+  public default Map<String, Metric> getMetrics() {
     return Maps.newHashMap();
   }
 

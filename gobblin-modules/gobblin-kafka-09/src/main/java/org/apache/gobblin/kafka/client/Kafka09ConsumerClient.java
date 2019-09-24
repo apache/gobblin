@@ -171,7 +171,7 @@ public class Kafka09ConsumerClient<K, V> extends AbstractBaseKafkaConsumerClient
   }
 
   @Override
-  public Map<String, Metric> metrics() {
+  public Map<String, Metric> getMetrics() {
     Map<MetricName, KafkaMetric> kafkaMetrics = (Map<MetricName, KafkaMetric>) this.consumer.metrics();
     Map<String, Metric> codaHaleMetricMap = new HashMap<>();
 
