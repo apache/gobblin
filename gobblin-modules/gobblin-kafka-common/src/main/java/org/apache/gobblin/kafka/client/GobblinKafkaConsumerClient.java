@@ -91,7 +91,8 @@ public interface GobblinKafkaConsumerClient extends Closeable {
 
   /**
    * API to return underlying Kafka consumer metrics. The individual implementations must translate
-   * org.apache.kafka.common.Metric to Coda Hale Metrics.
+   * org.apache.kafka.common.Metric to Coda Hale Metrics. A typical use case for reporting the consumer metrics
+   * will call this method inside a scheduled thread.
    * @return
    */
   public default Map<String, Metric> getMetrics() {
