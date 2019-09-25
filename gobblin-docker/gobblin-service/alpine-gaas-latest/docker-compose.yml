@@ -4,5 +4,14 @@ services:
     build:
       context: ../../../
       dockerfile: gobblin-docker/gobblin-service/alpine-gaas-latest/Dockerfile
+    volumes:
+      - "${LOCAL_DATAPACK_DIR}:/tmp/templateCatalog"
+      - "${LOCAL_JOB_DIR}:/tmp/gobblin-as-service/jobs"
     ports:
       - 6956:6956
+  gobblin-standalone:
+    build:
+      context: ../../../
+      dockerfile: gobblin-docker/gobblin-standalone/alpine-gobblin-latest/Dockerfile
+    volumes:
+      - "${LOCAL_JOB_DIR}:/tmp/gobblin-standalone/jobs"

@@ -17,6 +17,5 @@
 #
 GOBBLIN_HOME="$(cd `dirname $0`/..; pwd)"
 
-./bin/gobblin.sh service gobblin-as-service start alpine-gaas-latest_gobblin-standalone
-busybox tail -F $GOBBLIN_HOME/logs/gobblin-as-service.out
-
+./bin/gobblin.sh service standalone start
+busybox tail -F ${GOBBLIN_HOME}/logs/standalone.out
