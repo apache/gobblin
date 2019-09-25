@@ -156,7 +156,7 @@ public class SimpleKafkaSpecProducer implements SpecProducer<Spec>, Closeable  {
     }
   }
 
-  class KafkaWriteCallback implements WriteCallback {
+  static class KafkaWriteCallback implements WriteCallback {
     AvroJobSpec avroJobSpec;
 
     KafkaWriteCallback(AvroJobSpec avroJobSpec) {
