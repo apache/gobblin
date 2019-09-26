@@ -53,5 +53,15 @@ public class DateRangeIteratorTest {
     dateTime = dateRangeIterator.next();
     Assert.assertEquals(dateTime.toString(format), "2017/01/01");
     Assert.assertEquals(dateRangeIterator.hasNext(), false);
+
+    datePattern = "yyyy-MM-dd-HH-mm";
+    format = DateTimeFormat.forPattern(datePattern);
+    startDate = endDate.minusHours(1);
+    dateRangeIterator = new TimeAwareRecursiveCopyableDataset.DateRangeIterator(startDate, endDate, false, true);
+    dateTime = dateRangeIterator.next();
+    Assert.assertEquals(dateTime.toString(format), "2016-12-31-23-00");
+    dateTime = dateRangeIterator.next();
+    Assert.assertEquals(dateTime.toString(format), "2016-12-31-23-01");
+    Assert.assertEquals(dateRangeIterator.hasNext(), true);
   }
 }
