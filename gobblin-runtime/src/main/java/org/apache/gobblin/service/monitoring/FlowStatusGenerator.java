@@ -44,7 +44,9 @@ public class FlowStatusGenerator {
    * @param flowName
    * @param flowGroup
    * @param count
+   * @param tag
    * @return the latest <code>count</code>{@link FlowStatus}es. null is returned if there is no flow execution found.
+   * If tag is not null, the job status list only contains jobs matching the tag.
    */
   public List<FlowStatus> getLatestFlowStatus(String flowName, String flowGroup, int count, String tag) {
     List<Long> flowExecutionIds = jobStatusRetriever.getLatestExecutionIdsForFlow(flowName, flowGroup, count);
@@ -64,7 +66,7 @@ public class FlowStatusGenerator {
    * @param flowName
    * @param flowGroup
    * @param flowExecutionId
-   * @param tag
+   * @param tag String to filter the returned job statuses
    * @return the flow status, null is returned if the flow status does not exist. If tag is not null, the job status
    * list only contains jobs matching the tag.
    */

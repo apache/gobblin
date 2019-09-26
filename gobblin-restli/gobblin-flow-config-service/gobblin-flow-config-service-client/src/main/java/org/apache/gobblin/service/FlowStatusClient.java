@@ -131,7 +131,8 @@ public class FlowStatusClient implements Closeable {
   /**
    * Get the latest flow status
    * @param flowId identifier of flow status to get
-   * @return a list of {@link FlowStatus}es corresponding to the latest <code>count</code> executions.
+   * @return a list of {@link FlowStatus}es corresponding to the latest <code>count</code> executions, containing only
+   * jobStatuses that match the given tag.
    * @throws RemoteInvocationException
    */
   public List<FlowStatus> getLatestFlowStatus(FlowId flowId, Integer count, String tag)
