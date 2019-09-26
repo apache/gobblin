@@ -18,8 +18,10 @@ package org.apache.gobblin.kafka.client;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 
@@ -27,9 +29,13 @@ import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.metrics.KafkaMetric;
 
+import com.codahale.metrics.Gauge;
+import com.codahale.metrics.Metric;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
@@ -43,6 +49,7 @@ import com.typesafe.config.ConfigFactory;
 import javax.annotation.Nonnull;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaOffsetRetrievalFailureException;
@@ -58,6 +65,7 @@ import org.apache.gobblin.util.ConfigUtils;
  * @param <K> Message key type
  * @param <V> Message value type
  */
+@Slf4j
 public class Kafka09ConsumerClient<K, V> extends AbstractBaseKafkaConsumerClient {
 
   private static final String KAFKA_09_CLIENT_BOOTSTRAP_SERVERS_KEY = "bootstrap.servers";
@@ -161,6 +169,35 @@ public class Kafka09ConsumerClient<K, V> extends AbstractBaseKafkaConsumerClient
       }
     });
   }
+
+  @Override
+  public Map<String, Metric> getMetrics() {
+    Map<MetricName, KafkaMetric> kafkaMetrics = (Map<MetricName, KafkaMetric>) this.consumer.metrics();
+    Map<String, Metric> codaHaleMetricMap = new HashMap<>();
+
+    kafkaMetrics
+        .forEach((key, value) -> codaHaleMetricMap.put(canonicalMetricName(value), kafkaToCodaHaleMetric(value)));
+    return codaHaleMetricMap;
+  }
+
+  /**
+   * Convert a {@link KafkaMetric} instance to a {@link Metric}.
+   * @param kafkaMetric
+   * @return
+   */
+  private Metric kafkaToCodaHaleMetric(final KafkaMetric kafkaMetric) {
+    if (log.isDebugEnabled()) {
+      log.debug("Processing a metric change for {}", kafkaMetric.metricName().toString());
+    }
+    Gauge<Double> gauge = () -> kafkaMetric.value();
+    return gauge;
+  }
+
+  private String canonicalMetricName(KafkaMetric kafkaMetric) {
+    MetricName name = kafkaMetric.metricName();
+    return canonicalMetricName(name.group(), name.tags().values(), name.name());
+  }
+
 
   @Override
   public void close() throws IOException {
