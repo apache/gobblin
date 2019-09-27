@@ -26,6 +26,7 @@ import java.io.Writer;
 import java.util.List;
 import java.util.Properties;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
@@ -34,6 +35,8 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.lang.StringUtils;
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.runtime.cli.CliApplication;
 import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,7 +57,9 @@ import org.apache.gobblin.util.JobConfigurationUtils;
  *
  * @author Yinan Li
  */
-public class JobStateToJsonConverter {
+@Slf4j
+@Alias(value = "job-state-to-json", description = "To convert Job state to JSON")
+public class JobStateToJsonConverter implements CliApplication {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(JobStateToJsonConverter.class);
 
@@ -154,7 +159,8 @@ public class JobStateToJsonConverter {
   }
 
   @SuppressWarnings("all")
-  public static void main(String[] args) throws Exception {
+  @Override
+  public void run(String[] args) throws Exception {
     Option sysConfigOption = Option.builder("sc").argName("system configuration file")
         .desc("Gobblin system configuration file (required if no state store URL specified)").longOpt("sysconfig").hasArg().build();
     Option storeUrlOption = Option.builder("u").argName("gobblin state store URL")
@@ -186,13 +192,13 @@ public class JobStateToJsonConverter {
     } catch (ParseException pe) {
       HelpFormatter formatter = new HelpFormatter();
       formatter.printHelp("JobStateToJsonConverter", options);
-      System.exit(1);
+      return;
     }
 
     if (!cmd.hasOption(sysConfigOption.getLongOpt()) && !cmd.hasOption(storeUrlOption.getLongOpt()) ){
       HelpFormatter formatter = new HelpFormatter();
       formatter.printHelp("JobStateToJsonConverter", options);
-      System.exit(1);
+      return;
     }
 
     Properties sysConfig = new Properties();

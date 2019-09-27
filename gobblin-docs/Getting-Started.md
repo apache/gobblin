@@ -1,3 +1,4 @@
+
 Table of Contents
 -----------------
 
@@ -54,18 +55,18 @@ This page explains how to run the job from the terminal. You may also run this j
 
 ## Steps
 
-* cd to the unpacked Gobblin distribution and run `bin/gobblin run` to get usage.
-* Running `bin/gobblin run listQuickApps` will list the available easy-to-configure apps. Note the line with the wikipedia example:
+* cd to the unpacked Gobblin distribution and run `bin/gobblin cli run` to get usage.
+* Running `bin/gobblin cli run listQuickApps` will list the available easy-to-configure apps. Note the line with the wikipedia example:
 ```bash
 wikipedia	-	Gobblin example that downloads revisions from Wikipedia.
 ```
-* Running `bin/gobblin run wikipedia` will show the usage of this application. Notice the usage and one of the options listed for this job:
+* Running `bin/gobblin cli run wikipedia` will show the usage of this application. Notice the usage and one of the options listed for this job:
 ```bash
-usage: gobblin run wikipedia [OPTIONS] <article-title> [<article-title>...]
+usage: gobblin cli run wikipedia [OPTIONS] <article-title> [<article-title>...]
  -lookback <arg>             Sets the period for which articles should be
                              pulled in ISO time format (e.g. P2D, PT1H)
 ```
-* Run `bin/gobblin run wikipedia -lookback P10D LinkedIn Wikipedia:Sandbox`. This will print a lot of logs, but somewhere in there you will see a few json entries with the revisions for those articles. For example:
+* Run `bin/gobblin cli run wikipedia -lookback P10D LinkedIn Wikipedia:Sandbox`. This will print a lot of logs, but somewhere in there you will see a few json entries with the revisions for those articles. For example:
 ```bash
 {"revid":746260034,"parentid":745444076,"user":"2605:8D80:580:5824:B108:82BD:693D:CFA1","anon":"","userid":0,"timestamp":"2016-10-26T08:12:09Z","size":69527,"pageid":970755,"title":"LinkedIn"}
 ```
@@ -74,7 +75,7 @@ usage: gobblin run wikipedia [OPTIONS] <article-title> [<article-title>...]
  -avroOutput <arg>           Write output to Avro files. Specify the
                              output directory as argument.
 ```
-Running `bin/gobblin run wikipedia -lookback P10D -avroOutput /tmp/wikiSample LinkedIn Wikipedia:Sandbox` will create a directory `/tmp/wikiSample` with two subdirectories `LinkedIn` and `Wikipedia_Sandbox` each one with one avro file.
+Running `bin/gobblin cli run wikipedia -lookback P10D -avroOutput /tmp/wikiSample LinkedIn Wikipedia:Sandbox` will create a directory `/tmp/wikiSample` with two subdirectories `LinkedIn` and `Wikipedia_Sandbox` each one with one avro file.
 
 # Running Gobblin as a Daemon
 
@@ -100,15 +101,13 @@ A list of commonly used configuration properties can be found here: [Configurati
 
 * Unpack Gobblin distribution:
 
-* Launch Gobblin:
+* Launch Gobblin in one of the execution mode [for more info refer: [Gobblin-CLI](/gobblin-docs/user-guide/Gobblin-CLI.md)] :
 
 ```bash
-bin/gobblin-standalone.sh start
+gobblin service standalone start
 ```
 
-This script will launch Gobblin and pass the Gobblin configuration file ([gobblin-standalone.properties](https://github.com/apache/incubator-gobblin/blob/master/conf/gobblin-standalone-v2.properties)) as an argument.
-
-The job log, which contains the progress and status of the job, will be written into `logs/gobblin-current.log` (to change where the log is written, modify the Log4j configuration file `conf/log4j-standalone.xml`). Stdout will be written into `nohup.out`.
+The job log, which contains the progress and status of the job, will be written into `logs/<execution-mode>.out` & `logs/<execution-mode>.err` (to change where the log is written, modify the Log4j configuration file `conf/log4j.properties`).
 
 Among the job logs there should be the following information:
 
@@ -138,7 +137,7 @@ INFO  AbstractJobLauncher - Persisting job/task states of job job_PullFromWikipe
 * After the job is done, stop Gobblin by running
 
 ```bash
-bin/gobblin-standalone.sh stop
+gobblin service standalone stop
 ```
 
 The job output is written in `GOBBLIN_WORK_DIR/job-output` folder as an Avro file.

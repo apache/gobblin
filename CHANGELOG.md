@@ -1172,9 +1172,9 @@ GOBBLIN 0.6.0
 NEW FEATURES
 
 * [Compaction] Added M/R compaction/de-duping for hourly data
-* [Compaction] Added late data handling for hourly and daily M/R compaction: https://github.com/linkedin/gobblin/wiki/Compaction#handling-late-records; added support for triggering M/R compaction if late data exceeds a threshold
+* [Compaction] Added late data handling for hourly and daily M/R compaction: https://github.com/apache/incubator-gobblin/wiki/Compaction#handling-late-records; added support for triggering M/R compaction if late data exceeds a threshold
 * [I/O] Added support for using Hive SerDe's through HiveWritableHdfsDataWriter
-* [I/O] Added the concept of data partitioning to writers: https://github.com/linkedin/gobblin/wiki/Partitioned-Writers
+* [I/O] Added the concept of data partitioning to writers: https://github.com/apache/incubator-gobblin/wiki/Partitioned-Writers
 * [Runtime] Added CliLocalJobLauncher for launching single jobs from the command line.
 * [Converters] Added AvroSchemaFieldRemover that can remove specific fields from a (possibly recursive) Avro schema.
 * [DQ] Added new row-level policies RecordTimestampLowerBoundPolicy and AvroRecordTimestampLowerBoundPolicy for checking if a record timestamp is too far in the past.

@@ -3,11 +3,14 @@ Table of Contents
 
 [TOC]
 
-Deployment Overview <a name="Standalone-Overview"></a>
---------------------
+Gobblin Execution Modes Overview <a name="gobblin-execution-modes-Overview"></a>
+--------------------------------------------------------------------------------
 One important feature of Gobblin is that it can be run on different platforms. Currently, Gobblin can run in standalone mode (which runs on a single machine), and on Hadoop MapReduce mode (which runs on a Hadoop cluster). This page summarizes the different deployment modes of Gobblin. It is important to understand the architecture of Gobblin in a specific deployment mode, so this page also describes the architecture of each deployment mode.  
 
 Gobblin supports Java 7 and up, but can only run on Hadoop 2.x. By default, Gobblin will build against Hadoop 2.x, run `./gradlew clean build`. More information on how to build Gobblin can be found [here](https://github.com/apache/incubator-gobblin/blob/master/README.md). All directories/paths referred below are relative to `gobblin-dist`.
+
+To run gobblin in any of the following executuon mode using ```gobblin.sh```, refer [Gobblin-CLI](/gobblin-docs/user-guide/Gobblin-CLI.md) for the usage.
+
 
 Standalone Architecture <a name="Standalone-Architecture"></a>
 --------------------
@@ -25,73 +28,8 @@ Each `LocalJobLauncher` starts and manages a few components for executing tasks 
 4. Waiting for all the submitted tasks to finish.
 5. Upon completion of all the submitted tasks, collecting tasks states and persisting them to the state store, and publishing the extracted data.  
 
-Standalone Deployment <a name="Standalone-Deployment"></a>
---------------------
 
-Gobblin ships with a script `bin/gobblin-standalone.sh` for starting and stopping the standalone Gobblin daemon on a single node. Below is the usage of this launch script:
-
-```
-gobblin-standalone.sh <start | status | restart | stop> [OPTION]
-Where:
-  --workdir <job work dir>                       Gobblin's base work directory: if not set, taken from ${GOBBLIN_WORK_DIR}
-  --jars <comma-separated list of job jars>      Job jar(s): if not set, lib is examined
-  --conf <directory of job configuration files>  Directory of job configuration files: if not set, taken from 
-  --help                                         Display this help and exit
-```
-
-In the standalone mode, the `JobScheduler`, upon startup, will pick up job configuration files from a user-defined directory and schedule the jobs to run. The job configuration file directory can be specified using the `--conf` command-line option of `bin/gobblin-standalone.sh` or through an environment variable named `GOBBLIN_JOB_CONFIG_DIR`. The `--conf` option takes precedence and will take the value of `GOBBLIN_JOB_CONFIG_DIR` if not set. Note that this job configuration directory is different from `conf`, which stores Gobblin system configuration files, in which deployment-specific configuration properties applicable to all jobs are stored. In comparison, job configuration files store job-specific configuration properties such as the `Source` and `Converter` classes used.
-
-The `JobScheduler` is backed by a [Quartz](http://quartz-scheduler.org/) scheduler and it supports cron-based triggers using the configuration property `job.schedule` for defining the cron schedule. Please refer to this [tutorial](http://quartz-scheduler.org/documentation/quartz-2.2.x/tutorials/tutorial-lesson-06) for more information on how to use and configure a cron-based trigger.  
- 
-Gobblin needs a working directory at runtime, which can be specified using the command-line option `--workdir` of `bin/gobblin-standalone.sh` or an environment variable named `GOBBLIN_WORK_DIR`. The `--workdir` option takes precedence and will take the value of `GOBBLIN_WORK_DIR` if not set. Once started, Gobblin will create some subdirectories under the root working directory, as follows: 
-```
-GOBBLIN_WORK_DIR\
-    task-staging\ # Staging area where data pulled by individual tasks lands
-    task-output\  # Output area where data pulled by individual tasks lands
-    job-output\   # Final output area of data pulled by jobs
-    state-store\  # Persisted job/task state store
-    metrics\      # Metrics store (in the form of metric log files), one subdirectory per job.
-```
-
-Before starting the Gobblin standalone daemon, make sure the environment variable `JAVA_HOME` is properly set to point to the home directory of the Java Runtime Environment (JRE) of choice. When starting the JVM process of the Gobblin standalone daemon, a default set of jars will be included on the `classpath`. Additional jars needed by your Gobblin jobs can be specified as a comma-separated list using the command-line option `--jars` of `bin/gobblin-standaline.sh`. If the `--jar` option is not set, only the jars under `lib` will be included.
-
-Below is a summary of the environment variables that may be set for standalone deployment.
-
-* `GOBBLIN_JOB_CONFIG_DIR`: this variable defines the directory where job configuration files are stored. 
-* `GOBBLIN_WORK_DIR`: this variable defines the working directory for Gobblin to operate.
-* `JAVA_HOME`: this variable defines the path to the home directory of the Java Runtime Environment (JRE) used to run the daemon process.
-
-To start the Gobblin standalone daemon, run the following command:
-```
-bin/gobblin-standalone.sh start [OPTION]
-```
-After the Gobblin standalone daemon is started, the logs can be found under `logs`. Gobblin uses [SLF4J](http://www.slf4j.org/) and the [slf4j-log4j12](http://mvnrepository.com/artifact/org.slf4j/slf4j-log4j12) binding for logging. The [log4j](http://logging.apache.org/log4j/1.2/) configuration can be found at `conf/log4j-standalone.xml`.
-
-By default, the Gobblin standalone daemon uses the following JVM settings. Change the settings in `bin/gobblin-standalone.sh` if necessary for your deployment.
-
-```
--Xmx2g -Xms1g
--XX:+UseConcMarkSweepGC -XX:+UseParNewGC
--XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+PrintTenuringDistribution
--XX:+UseCompressedOops
--XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=<gobblin log dir>
-```
-
-To restart the Gobblin standalone daemon, run the following command:
-```
-bin/gobblin-standalone.sh restart [OPTION]
-```
-
-To stop the running Gobblin standalone daemon, run the following command:
-```
-bin/gobblin-standalone.sh stop
-```
-
-If there are any additional jars that any jobs depend on, the jars can be added to the classpath using the `--jars` option.
-
-The script also supports checking the status of the running daemon process using the `bin/gobblin-standalone.sh status` command.
-
-Hadoop MapReduce Architecture <a name="Hadoop-MapReduce-Architecture"></a>
+MapReduce architecture <a name="MapReduce-Architecture"></a>
 --------------------
 The digram below shows the architecture of Gobblin on Hadoop MapReduce. As the diagram shows, a Gobblin job runs as a mapper-only MapReduce job that runs tasks of the Gobblin job in the mappers. The basic idea here is to use the mappers purely as _containers_ to run Gobblin tasks. This design also makes it easier to integrate with Yarn. Unlike in the standalone mode, task retries are not handled by Gobblin itself in the Hadoop MapReduce mode. Instead, Gobblin relies on the task retry mechanism of Hadoop MapReduce.  
 
@@ -118,41 +56,33 @@ A mapper in a Gobblin MapReduce job follows the step below to run tasks assigned
 5. Upon completion of all the submitted tasks, writing out the state of each task into a file that will be read by the `MRJobLauncher` when collecting task states.
 6. Going back to step 2 and reading the next input record if available.
 
-Hadoop MapReduce Deployment <a name="Hadoop-MapReduce-Deployment"></a>
---------------------
-Gobblin out-of-the-box ships with a script `bin/gobblin-mapreduce.sh` for launching a Gobblin job on Hadoop MapReduce. Below is the usage of this launch script:
+Master-Worker architecture
+----------------------------------
 
-```
-Usage: gobblin-mapreduce.sh [OPTION] --conf <job configuration file>
-Where OPTION can be:
-  --jt <job tracker / resource manager URL>      Job submission URL: if not set, taken from ${HADOOP_HOME}/conf
-  --fs <file system URL>                         Target file system: if not set, taken from ${HADOOP_HOME}/conf
-  --jars <comma-separated list of job jars>      Job jar(s): if not set, lib is examined
-  --workdir <job work dir>                       Gobblin's base work directory: if not set, taken from ${GOBBLIN_WORK_DIR}
-  --projectversion <version>                     Gobblin version to be used. If set, overrides the distribution build version
-  --logdir <log dir>                             Gobblin's log directory: if not set, taken from ${GOBBLIN_LOG_DIR} if present. Otherwise ./logs is used
-  --help                                         Display this help and exit
-```
 
-It is assumed that you already have Hadoop (both MapReduce and HDFS) setup and running somewhere. Before launching any Gobblin jobs on Hadoop MapReduce, check the Gobblin system configuration file located at `conf/gobblin-mapreduce.properties` for property `fs.uri`, which defines the file system URI used. The default value is `hdfs://localhost:8020`, which points to the local HDFS on the default port 8020. Change it to the right value depending on your Hadoop/HDFS setup. For example, if you have HDFS setup somwhere on port 9000, then set the property as follows:
 
-```
-fs.uri=hdfs://<namenode host name>:9000/
-```
 
-Note that if the option `--fs` of `bin/gobblin-mapreduce.sh` is set, the value of `--fs` should be consistent with the value of `fs.uri`. 
 
-All job data and persisted job/task states will be written to the specified file system. Before launching any jobs, make sure the environment variable `HADOOP_BIN_DIR` is set to point to the `bin` directory under the Hadoop installation directory. Similarly to the standalone deployment, the Hadoop MapReduce deployment also needs a working directory, which can be specified using the command-line option `--workdir` of `bin/gobblin-mapreduce.sh` or the environment variable `GOBBLIN_WORK_DIR`. Note that the Gobblin working directory will be created on the file system specified above. Below is a summary of the environment variables that may be set for deployment on Hadoop MapReduce:
+AWS architecture
+---------------
 
-* `GOBBLIN_WORK_DIR`: this variable defines the working directory for Gobblin to operate.
-* `HADOOP_BIN_DIR`: this variable defines the path to the `bin` directory under the Hadoop installation directory.
 
-This setup will have the minimum set of jars Gobblin needs to run the job added to the Hadoop `DistributedCache` for use in the mappers. If a job has additional jars needed for task executions (in the mappers), those jars can also be included by using the `--jars` option of `bin/gobblin-mapreduce.sh` or the following job configuration property in the job configuration file:
 
-```
-job.jars=<comma-separated list of jars the job depends on>
-```
 
-The `--projectversion` controls which version of the Gobblin jars to look for. Typically, this value is dynamically set during the build process. Users should use the `bin/gobblin-mapreduce.sh` script that is copied into the `gobblin-distribution-[project-version].tar.gz` file. This version of the script has the project version already set, in which case users do not need to specify the `--projectversion` parameter. If users want to use the `gobblin/bin/gobblin-mapreduce.sh` script they have to specify this parameter.
 
-The `--logdir` parameter controls the directory where log files are written to. If not set log files are written under a the `./logs` directory.
+YARN architecture
+---------------
+
+
+
+
+
+
+Gobblin-As-A-Service  architecture
+----------------------------------
+
+
+
+
+
+
