@@ -62,9 +62,9 @@ CLUSTER_WORKER_MODE='cluster-worker'
 AWS_MODE='aws'
 YARN_MODE='yarn'
 MAPREDUCE_MODE='mapreduce'
-SERVICE_MANAGER_MODE='service-manager'
+GOBBLIN_AS_SERVICE_MODE='gobblin-as-service'
 
-GOBBLIN_EXEC_MODE_LIST="$STANDALONE_MODE $CLUSTER_MASTER_MODE $CLUSTER_WORKER_MODE $AWS_MODE $YARN_MODE $MAPREDUCE_MODE $SERVICE_MANAGER_MODE "
+GOBBLIN_EXEC_MODE_LIST="$STANDALONE_MODE $CLUSTER_MASTER_MODE $CLUSTER_WORKER_MODE $AWS_MODE $YARN_MODE $MAPREDUCE_MODE $GOBBLIN_AS_SERVICE_MODE"
 
 # CLI Command class
 CLI_CLASS='org.apache.gobblin.runtime.cli.GobblinCli'
@@ -331,19 +331,6 @@ function get_gobblin_mapreduce_libs() {
 
     GOBBLIN_MR_JARS=(
         commons-cli-1.3.1.jar
-        gobblin-api-$GOBBLIN_VERSION.jar
-        gobblin-avro-json-$GOBBLIN_VERSION.jar
-        gobblin-codecs-$GOBBLIN_VERSION.jar
-        gobblin-core-$GOBBLIN_VERSION.jar
-        gobblin-core-base-$GOBBLIN_VERSION.jar
-        gobblin-crypto-$GOBBLIN_VERSION.jar
-        gobblin-crypto-provider-$GOBBLIN_VERSION.jar
-        gobblin-data-management-$GOBBLIN_VERSION.jar
-        gobblin-metastore-$GOBBLIN_VERSION.jar
-        gobblin-metrics-$GOBBLIN_VERSION.jar
-        gobblin-metrics-base-$GOBBLIN_VERSION.jar
-        gobblin-metadata-$GOBBLIN_VERSION.jar
-        gobblin-utility-$GOBBLIN_VERSION.jar
         mysql-connector-java-*.jar
         avro-*.jar
         commons-lang3-*.jar
@@ -364,6 +351,7 @@ function get_gobblin_mapreduce_libs() {
         reactive-streams-*.jar
         retrofit-*.jar
         reflections-*.jar
+        gobblin-*.jar
     )
 
     old_IFS=$IFS
@@ -440,8 +428,8 @@ function start() {
             elif [[ "$GOBBLIN_MODE" = "$CLUSTER_MASTER_MODE" ]]; then
                 CLASS_N_ARGS="$CLUSTER_MASTER_CLASS --standalone_cluster true --app_name $CLUSTER_NAME "
 
-            elif [[ "$GOBBLIN_MODE" = "$SERVICE_MANAGER_MODE" ]]; then
-                CLASS_N_ARGS="$SERVICE_MANAGER_CLASS --service_name Gobblin-$SERVICE_MANAGER_MODE --service_id GAAS-1"
+            elif [[ "$GOBBLIN_MODE" = "$GOBBLIN_AS_SERVICE_MODE" ]]; then
+                CLASS_N_ARGS="$SERVICE_MANAGER_CLASS --service_name Gobblin-$GOBBLIN_AS_SERVICE_MODE --service_id GAAS-1"
 
             elif [[ "$GOBBLIN_MODE" = "$CLUSTER_WORKER_MODE" ]]; then
                 #Find largest worker id and use next one to start worker in incremental order, starts with 1
@@ -500,7 +488,7 @@ function stop() {
                         class_to_search="$AWS_CLASS"
                     elif [[ "$GOBBLIN_MODE" = "$YARN_MODE" ]]; then
                         class_to_search="$YARN_CLASS"
-                    elif [[ "$GOBBLIN_MODE" = "$SERVICE_MANAGER_MODE" ]]; then
+                    elif [[ "$GOBBLIN_MODE" = "$GOBBLIN_AS_SERVICE_MODE" ]]; then
                         class_to_search="$SERVICE_MANAGER_CLASS"
                     elif [[ "$GOBBLIN_MODE" = "$CLUSTER_MASTER_MODE" ]]; then
                         class_to_search="$CLUSTER_MASTER_CLASS"
