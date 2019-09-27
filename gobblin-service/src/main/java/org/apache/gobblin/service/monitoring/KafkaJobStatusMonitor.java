@@ -197,4 +197,5 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   }
 
   public abstract org.apache.gobblin.configuration.State parseJobStatus(byte[] message) throws IOException;
+
 }

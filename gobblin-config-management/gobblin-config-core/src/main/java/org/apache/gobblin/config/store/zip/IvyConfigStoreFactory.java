@@ -25,19 +25,16 @@ import java.nio.file.FileSystems;
 import java.nio.file.Paths;
 import java.util.Properties;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.Path;
-import org.apache.http.NameValuePair;
-import org.apache.http.client.utils.URLEncodedUtils;
-
-import com.sun.nio.zipfs.ZipFileSystem;
-
 import org.apache.gobblin.config.store.api.ConfigStoreCreationException;
 import org.apache.gobblin.config.store.api.ConfigStoreFactory;
 import org.apache.gobblin.config.store.hdfs.SimpleHDFSConfigStoreFactory;
 import org.apache.gobblin.config.store.hdfs.SimpleHDFSStoreMetadata;
 import org.apache.gobblin.config.store.hdfs.SimpleHadoopFilesystemConfigStore;
 import org.apache.gobblin.util.DownloadUtils;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+
+import com.sun.nio.zipfs.ZipFileSystem;
 
 
 /**
@@ -46,21 +43,18 @@ import org.apache.gobblin.util.DownloadUtils;
  *
  * An ivy settings file must be present on the classpath named {@link DownloadUtils#IVY_SETTINGS_FILE_NAME}
  */
-public class IvyConfigStoreFactory implements ConfigStoreFactory<ZipFileConfigStore> {
+public class IvyConfigStoreFactory extends SimpleLocalIvyConfigStoreFactory {
 
-  private static final String IVY_SCHEME_PREFIX = "ivy-";
-  private static final String ORG_KEY = "org";
-  private static final String MODULE_KEY = "module";
-  private static final String STORE_PATH_KEY = "storePath";
-  private static final String STORE_PREFIX_KEY = "storePrefix";
+  /**
+   * Ivy coordinates required for downloading jar file.
+   */
+  protected static final String ORG_KEY = "org";
+  protected static final String MODULE_KEY = "module";
+  protected static final String STORE_PATH_KEY = "storePath";
 
   @Override
   public String getScheme() {
     return getSchemePrefix() + SimpleHDFSConfigStoreFactory.HDFS_SCHEME_NAME;
-  }
-
-  public String getSchemePrefix() {
-    return IVY_SCHEME_PREFIX;
   }
 
   /**
@@ -80,10 +74,7 @@ public class IvyConfigStoreFactory implements ConfigStoreFactory<ZipFileConfigSt
       throw new ConfigStoreCreationException(configKey, "Config key URI must have scheme " + getScheme());
     }
 
-    Properties factoryProps = new Properties();
-    for (NameValuePair param : URLEncodedUtils.parse(configKey, "UTF-8")) {
-      factoryProps.setProperty(param.getName(), param.getValue());
-    }
+    Properties factoryProps = parseUriIntoParameterSet(configKey);
 
     String jarOrg = factoryProps.getProperty(ORG_KEY);
     String jarModule = factoryProps.getProperty(MODULE_KEY);
@@ -115,13 +106,6 @@ public class IvyConfigStoreFactory implements ConfigStoreFactory<ZipFileConfigSt
     } catch (IOException | URISyntaxException e) {
       throw new ConfigStoreCreationException(configKey, e);
     }
-  }
-
-  /**
-   * Base URI for a config store should be root of the zip file, so change path part of URI to be null
-   */
-  private URI getBaseURI(URI configKey) throws URISyntaxException {
-    return new URI(configKey.getScheme(), configKey.getAuthority(), null, configKey.getQuery(), configKey.getFragment());
   }
 }
 

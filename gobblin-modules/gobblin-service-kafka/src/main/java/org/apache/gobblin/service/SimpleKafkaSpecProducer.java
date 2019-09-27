@@ -89,7 +89,7 @@ public class SimpleKafkaSpecProducer implements SpecProducer<Spec>, Closeable  {
 
     log.info("Adding Spec: " + addedSpec + " using Kafka.");
 
-    return getKafkaProducer().write(_serializer.serializeRecord(avroJobSpec), WriteCallback.EMPTY);
+    return getKafkaProducer().write(_serializer.serializeRecord(avroJobSpec), new KafkaWriteCallback(avroJobSpec));
   }
 
   @Override
@@ -98,7 +98,7 @@ public class SimpleKafkaSpecProducer implements SpecProducer<Spec>, Closeable  {
 
     log.info("Updating Spec: " + updatedSpec + " using Kafka.");
 
-    return getKafkaProducer().write(_serializer.serializeRecord(avroJobSpec), WriteCallback.EMPTY);
+    return getKafkaProducer().write(_serializer.serializeRecord(avroJobSpec), new KafkaWriteCallback(avroJobSpec));
   }
 
   @Override
@@ -110,7 +110,7 @@ public class SimpleKafkaSpecProducer implements SpecProducer<Spec>, Closeable  {
 
     log.info("Deleting Spec: " + deletedSpecURI + " using Kafka.");
 
-    return getKafkaProducer().write(_serializer.serializeRecord(avroJobSpec), WriteCallback.EMPTY);
+    return getKafkaProducer().write(_serializer.serializeRecord(avroJobSpec), new KafkaWriteCallback(avroJobSpec));
   }
 
   @Override
@@ -131,7 +131,6 @@ public class SimpleKafkaSpecProducer implements SpecProducer<Spec>, Closeable  {
             ConfigUtils.configToProperties(_config));
       } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InstantiationException | InvocationTargetException e) {
         log.error("Failed to instantiate Kafka consumer from class " + _kafkaProducerClassName, e);
-
         throw new RuntimeException("Failed to instantiate Kafka consumer", e);
       }
     }
@@ -154,6 +153,24 @@ public class SimpleKafkaSpecProducer implements SpecProducer<Spec>, Closeable  {
       return avroJobSpecBuilder.build();
     } else {
       throw new RuntimeException("Unsupported spec type " + spec.getClass());
+    }
+  }
+
+  static class KafkaWriteCallback implements WriteCallback {
+    AvroJobSpec avroJobSpec;
+
+    KafkaWriteCallback(AvroJobSpec avroJobSpec) {
+      this.avroJobSpec = avroJobSpec;
+    }
+
+    @Override
+    public void onSuccess(Object result) {
+
+    }
+
+    @Override
+    public void onFailure(Throwable throwable) {
+      log.error("Error while writing the following record to Kafka {}", avroJobSpec.toString(), throwable);
     }
   }
 }

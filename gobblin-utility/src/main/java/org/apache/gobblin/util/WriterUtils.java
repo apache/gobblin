@@ -24,6 +24,7 @@ import java.util.concurrent.ExecutionException;
 import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileConstants;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileContext;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
@@ -314,11 +315,15 @@ public class WriterUtils {
     }
   }
 
+  public static URI getWriterFsUri(State state, int numBranches, int branchId) {
+    return URI.create(state.getProp(
+            ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, numBranches, branchId),
+            ConfigurationKeys.LOCAL_FS_URI));
+  }
+
   public static FileSystem getWriterFS(State state, int numBranches, int branchId)
       throws IOException {
-    URI uri = URI.create(state.getProp(
-        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, numBranches, branchId),
-        ConfigurationKeys.LOCAL_FS_URI));
+    URI uri = getWriterFsUri(state, numBranches, branchId);
 
     Configuration hadoopConf = getFsConfiguration(state);
     if (state.getPropAsBoolean(ConfigurationKeys.SHOULD_FS_PROXY_AS_USER,

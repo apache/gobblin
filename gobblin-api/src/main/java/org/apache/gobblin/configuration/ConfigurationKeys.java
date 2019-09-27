@@ -243,6 +243,7 @@ public class ConfigurationKeys {
   public static final String TASK_ATTEMPT_ID_KEY = "task.AttemptId";
   public static final String JOB_CONFIG_FILE_PATH_KEY = "job.config.path";
   public static final String TASK_FAILURE_EXCEPTION_KEY = "task.failure.exception";
+  public static final String JOB_FAILURE_EXCEPTION_KEY = "job.failure.exception";
   public static final String TASK_RETRIES_KEY = "task.retries";
   public static final String TASK_IGNORE_CLOSE_FAILURES = "task.ignoreCloseFailures";
   public static final String JOB_FAILURES_KEY = "job.failures";
@@ -890,6 +891,9 @@ public class ConfigurationKeys {
    * Configuration properties related to Flows
    */
   public static final String FLOW_RUN_IMMEDIATELY = "flow.runImmediately";
+  public static final String GOBBLIN_FLOW_SLA_TIME = "gobblin.flow.sla.time";
+  public static final String GOBBLIN_FLOW_SLA_TIME_UNIT = "gobblin.flow.sla.timeunit";
+  public static final String DEFAULT_GOBBLIN_FLOW_SLA_TIME_UNIT = "MINUTES";
 
   /***
    * Configuration properties related to TopologySpec Store
@@ -903,6 +907,11 @@ public class ConfigurationKeys {
    */
   public static final String SPECEXECUTOR_INSTANCE_URI_KEY = "specExecInstance.uri";
   public static final String SPECEXECUTOR_INSTANCE_CAPABILITIES_KEY = "specExecInstance.capabilities";
+
+  /***
+   * Configuration properties related to Spec Producer
+   */
+  public static final String SPEC_PRODUCER_SERIALIZED_FUTURE = "specProducer.serialized.future";
 
   /***
    * Configuration properties related to Compaction Suite

@@ -56,7 +56,7 @@ public class MysqlJobStatusRetriever extends JobStatusRetriever {
     String storeName = KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, flowName);
     try {
       List<State> jobStatusStates = this.stateStore.getAll(storeName, flowExecutionId);
-      return filterAndGetJobStatuses(jobStatusStates);
+      return getJobStatuses(jobStatusStates);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -70,7 +70,7 @@ public class MysqlJobStatusRetriever extends JobStatusRetriever {
 
     try {
       List<State> jobStatusStates = this.stateStore.getAll(storeName, tableName);
-      return filterAndGetJobStatuses(jobStatusStates);
+      return getJobStatuses(jobStatusStates);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -91,13 +91,7 @@ public class MysqlJobStatusRetriever extends JobStatusRetriever {
     }
   }
 
-  private Iterator<JobStatus> filterAndGetJobStatuses(List<State> jobStatusStates) {
-    int totalJobStatuses = jobStatusStates.size();
-
-    return jobStatusStates.stream()
-        .filter(state -> !(totalJobStatuses > 1 && state.getProp(JobStatusRetriever.EVENT_NAME_FIELD)
-            .equals(ExecutionStatus.COMPILED.name())))
-        .map(this::getJobStatus)
-        .iterator();
+  private Iterator<JobStatus> getJobStatuses(List<State> jobStatusStates) {
+    return jobStatusStates.stream().map(this::getJobStatus).iterator();
   }
 }

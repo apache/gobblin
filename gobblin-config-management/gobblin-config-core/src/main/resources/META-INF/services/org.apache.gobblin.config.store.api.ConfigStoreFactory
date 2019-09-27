@@ -19,3 +19,4 @@ org.apache.gobblin.config.store.hdfs.SimpleHDFSConfigStoreFactory
 org.apache.gobblin.config.store.hdfs.SimpleLocalHDFSConfigStoreFactory
 org.apache.gobblin.config.store.hdfs.DefaultCapableLocalConfigStoreFactory
 org.apache.gobblin.config.store.zip.IvyConfigStoreFactory
+org.apache.gobblin.config.store.zip.SimpleLocalIvyConfigStoreFactory

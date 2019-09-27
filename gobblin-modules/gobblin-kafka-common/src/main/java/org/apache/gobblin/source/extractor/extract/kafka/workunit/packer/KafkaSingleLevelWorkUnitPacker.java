@@ -43,7 +43,7 @@ import org.apache.gobblin.source.workunit.WorkUnit;
  */
 public class KafkaSingleLevelWorkUnitPacker extends KafkaWorkUnitPacker {
 
-  protected KafkaSingleLevelWorkUnitPacker(AbstractSource<?, ?> source, SourceState state) {
+  public KafkaSingleLevelWorkUnitPacker(AbstractSource<?, ?> source, SourceState state) {
     super(source, state);
   }
 

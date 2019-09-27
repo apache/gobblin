@@ -62,6 +62,8 @@ pages:
         - SQL Server: sources/SqlServerSource.md
         - Teradata: sources/TeradataSource.md
         - Wikipedia: sources/WikipediaSource.md
+    - Writers:
+        - CouchbaseWriter: CouchbaseWriter.md
     - Record Sinks:
         - Avro HDFS: sinks/AvroHdfsDataWriter.md
         - Parquet HDFS: sinks/ParquetHdfsDataWriter.md

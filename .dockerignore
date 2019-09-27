@@ -1,0 +1,25 @@
+.classpath
+.codecov_bash
+.dockerignore
+.github
+.gradle
+.git
+.gitignore
+.project
+*.md
+
+gobblin-docker/
+gobblin-docs/
+
+# Intellij related
+**/.idea
+**/*.iml
+**/*.iws
+**/*.ipr
+.shelf/
+
+travis/
+temp/
+
+# allow entrypoint scripts
+!/gobblin-docker/**/*.sh

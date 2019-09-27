@@ -34,7 +34,7 @@ import org.apache.gobblin.annotation.Alpha;
 @Alpha
 @Builder
 public class FlowStatusGenerator {
-  public static final List<String> FINISHED_JOB_STATUSES = Lists.newArrayList("FAILED", "COMPLETE", "CANCELLED");
+  public static final List<String> FINISHED_STATUSES = Lists.newArrayList("FAILED", "COMPLETE", "CANCELLED");
 
   private final JobStatusRetriever jobStatusRetriever;
 
@@ -94,8 +94,8 @@ public class FlowStatusGenerator {
 
       while (jobStatusIterator.hasNext()) {
         JobStatus jobStatus = jobStatusIterator.next();
-        if (isJobRunning(jobStatus)) {
-          return true;
+        if (JobStatusRetriever.isFlowStatus(jobStatus)) {
+          return isJobRunning(jobStatus);
         }
       }
       return false;
@@ -108,6 +108,6 @@ public class FlowStatusGenerator {
    */
   private boolean isJobRunning(JobStatus jobStatus) {
     String status = jobStatus.getEventName().toUpperCase();
-    return !FINISHED_JOB_STATUSES.contains(status);
+    return !FINISHED_STATUSES.contains(status);
   }
 }

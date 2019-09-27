@@ -84,7 +84,7 @@ public class GobblinAWSTaskRunner extends GobblinTaskRunner {
 
   @Override
   public List<Service> getServices() {
-    return Collections.emptyList();
+    return super.getServices();
   }
 
   @Override

@@ -37,6 +37,7 @@ import com.linkedin.restli.server.annotations.RestLiCollection;
 import com.linkedin.restli.server.resources.ComplexKeyResourceTemplate;
 
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
+import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 
 
 /**
@@ -106,14 +107,22 @@ public class FlowStatusResource extends ComplexKeyResourceTemplate<FlowStatusId,
     JobStatusArray jobStatusArray = new JobStatusArray();
     FlowId flowId = new FlowId().setFlowName(monitoringFlowStatus.getFlowName())
         .setFlowGroup(monitoringFlowStatus.getFlowGroup());
-    long flowStartTime = Long.MAX_VALUE;
-    long flowEndTime = -1L;
-    // flow execution status is complete unless job status indicates it is running or failed
-    ExecutionStatus flowExecutionStatus = ExecutionStatus.COMPLETE;
+
+    long flowEndTime = 0L;
+    ExecutionStatus flowExecutionStatus = ExecutionStatus.$UNKNOWN;
+
     StringBuffer flowMessagesStringBuffer = new StringBuffer();
 
     while (jobStatusIter.hasNext()) {
       org.apache.gobblin.service.monitoring.JobStatus queriedJobStatus = jobStatusIter.next();
+
+      // Check if this is the flow status instead of a single job status
+      if (JobStatusRetriever.isFlowStatus(queriedJobStatus)) {
+        flowEndTime = queriedJobStatus.getEndTime();
+        flowExecutionStatus = ExecutionStatus.valueOf(queriedJobStatus.getEventName());
+        continue;
+      }
+
       JobStatus jobStatus = new JobStatus();
 
       jobStatus.setFlowId(flowId)
@@ -130,22 +139,10 @@ public class FlowStatusResource extends ComplexKeyResourceTemplate<FlowStatusId,
 
       jobStatusArray.add(jobStatus);
 
-      if (queriedJobStatus.getStartTime() < flowStartTime){
-        flowStartTime = queriedJobStatus.getStartTime();
-      }
-
-      // TODO: end time should be left as -1 if not all jobs have started for the flow
-      // need to have flow job count to determine this
-      if (queriedJobStatus.getEndTime() > flowEndTime){
-        flowEndTime = queriedJobStatus.getEndTime();
-      }
-
       if (!queriedJobStatus.getMessage().isEmpty()) {
         flowMessagesStringBuffer.append(queriedJobStatus.getMessage());
         flowMessagesStringBuffer.append(MESSAGE_SEPARATOR);
       }
-
-      flowExecutionStatus = updatedFlowExecutionStatus(jobStatus.getExecutionStatus(), flowExecutionStatus);
     }
 
     String flowMessages = flowMessagesStringBuffer.length() > 0 ?
@@ -155,7 +152,7 @@ public class FlowStatusResource extends ComplexKeyResourceTemplate<FlowStatusId,
     return new FlowStatus()
         .setId(new FlowStatusId().setFlowGroup(flowId.getFlowGroup()).setFlowName(flowId.getFlowName())
             .setFlowExecutionId(monitoringFlowStatus.getFlowExecutionId()))
-        .setExecutionStatistics(new FlowStatistics().setExecutionStartTime(flowStartTime)
+        .setExecutionStatistics(new FlowStatistics().setExecutionStartTime(getFlowStartTime(monitoringFlowStatus))
             .setExecutionEndTime(flowEndTime))
         .setMessage(flowMessages)
         .setExecutionStatus(flowExecutionStatus)
@@ -163,40 +160,11 @@ public class FlowStatusResource extends ComplexKeyResourceTemplate<FlowStatusId,
   }
 
   /**
-   * Determines the new flow status based on the current flow status and new job status
-   * @param jobExecutionStatus job status
-   * @param currentFlowExecutionStatus current flow status
-   * @return updated flow status
+   * Return the flow start time given a {@link org.apache.gobblin.service.monitoring.FlowStatus}. Flow execution ID is
+   * assumed to be the flow start time.
    */
-  static ExecutionStatus updatedFlowExecutionStatus(ExecutionStatus jobExecutionStatus,
-      ExecutionStatus currentFlowExecutionStatus) {
-
-    // if any job failed or flow has failed then return failed status
-    if (currentFlowExecutionStatus == ExecutionStatus.FAILED ||
-        jobExecutionStatus == ExecutionStatus.FAILED) {
-      return ExecutionStatus.FAILED;
-    }
-
-    // if any job is cancelled or flow has failed then return failed status
-    if (currentFlowExecutionStatus == ExecutionStatus.CANCELLED ||
-        jobExecutionStatus == ExecutionStatus.CANCELLED) {
-      return ExecutionStatus.CANCELLED;
-    }
-
-    if (currentFlowExecutionStatus == ExecutionStatus.COMPLETE &&
-        jobExecutionStatus == ExecutionStatus.PENDING) {
-      return ExecutionStatus.PENDING;
-    }
-
-    if (currentFlowExecutionStatus == ExecutionStatus.RUNNING ||
-        jobExecutionStatus == ExecutionStatus.RUNNING ||
-        jobExecutionStatus == ExecutionStatus.ORCHESTRATED ||
-        jobExecutionStatus == ExecutionStatus.COMPILED ||
-        jobExecutionStatus == ExecutionStatus.PENDING) {
-      return ExecutionStatus.RUNNING;
-    }
-
-    return currentFlowExecutionStatus;
+  private static long getFlowStartTime(org.apache.gobblin.service.monitoring.FlowStatus flowStatus) {
+    return flowStatus.getFlowExecutionId();
   }
 }
 

@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.net.URI;
 
 import org.apache.avro.Schema;
+import org.apache.avro.SchemaBuilder;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
@@ -33,6 +34,7 @@ import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.google.common.base.Optional;
 import com.google.common.io.Files;
 
 import lombok.extern.slf4j.Slf4j;
@@ -72,8 +74,11 @@ public class AvroCompactionTaskTest {
 
     GenericRecord r1 = createRandomRecord();
     GenericRecord r2 = createRandomRecord();
+    GenericRecord r3= createEvolvedSchemaRecord();
     writeFileWithContent(jobDir, "file1", r1, 20);
     writeFileWithContent(jobDir, "file2", r2, 18);
+    File newestFile = writeFileWithContent(jobDir, "file3", r3, 10, r3.getSchema());
+    newestFile.setLastModified(Long.MAX_VALUE);
 
     EmbeddedGobblin embeddedGobblin = createEmbeddedGobblin("dedup", basePath.getAbsolutePath().toString());
     JobExecutionResult result = embeddedGobblin.run();
@@ -128,10 +133,19 @@ public class AvroCompactionTaskTest {
     Assert.assertTrue(fs.exists(new Path (basePath, "Identity/MemberAccount/hourly/2017/04/03/10")));
   }
 
-  private void writeFileWithContent(File dir, String fileName, GenericRecord r, int count) throws IOException {
+  // Returning file handler for setting modfication time.
+  private File writeFileWithContent(File dir, String fileName, GenericRecord r, int count) throws IOException {
     File file = new File(dir, fileName + "." + count + ".avro");
     Assert.assertTrue(file.createNewFile());
-    this.createAvroFileWithRepeatingRecords(file, r, count);
+    this.createAvroFileWithRepeatingRecords(file, r, count, Optional.absent());
+    return file;
+  }
+
+  private File writeFileWithContent(File dir, String fileName, GenericRecord r, int count, Schema schema) throws IOException {
+    File file = new File(dir, fileName + "." + count + ".avro");
+    Assert.assertTrue(file.createNewFile());
+    this.createAvroFileWithRepeatingRecords(file, r, count, Optional.of(schema));
+    return file;
   }
 
   public Schema getSchema() {
@@ -154,9 +168,21 @@ public class AvroCompactionTaskTest {
     return record;
   }
 
-  public void createAvroFileWithRepeatingRecords(File file, GenericRecord r, int count) throws IOException {
+  public GenericRecord createEvolvedSchemaRecord() {
+    Schema evolvedSchema =
+        SchemaBuilder.record("evolved").fields()
+            .requiredLong("partitionKey").requiredString("environment").requiredString("subKey").optionalString("oppo").endRecord();
+    GenericRecordBuilder keyRecordBuilder = new GenericRecordBuilder(evolvedSchema);
+    keyRecordBuilder.set("partitionKey", new Long(1));
+    keyRecordBuilder.set("environment", "test");
+    keyRecordBuilder.set("subKey", "2");
+    keyRecordBuilder.set("oppo", "poop");
+    return keyRecordBuilder.build();
+  }
+
+  public void createAvroFileWithRepeatingRecords(File file, GenericRecord r, int count, Optional<Schema> schema) throws IOException {
       DataFileWriter<GenericRecord> writer = new DataFileWriter<>(new GenericDatumWriter<GenericRecord>());
-      writer.create(getSchema(), new FileOutputStream(file));
+      writer.create(schema.isPresent() ? schema.get() : getSchema(), new FileOutputStream(file));
       for (int i = 0; i < count; ++i) {
         writer.append(r);
       }

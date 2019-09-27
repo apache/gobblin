@@ -17,8 +17,8 @@
 
 package org.apache.gobblin.couchbase;
 
+import com.couchbase.mock.CouchbaseMock;
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
@@ -47,11 +47,7 @@ import org.apache.gobblin.test.TestUtils;
 @Slf4j
 public class CouchbaseTestServer {
 
-  private static final String COUCHBASE_JAR_PATH="gobblin-modules/gobblin-couchbase/mock-couchbase/target/";
-  private static final String COUCHBASE_MOCK_JAR=COUCHBASE_JAR_PATH + "CouchbaseMock-1.5.18.jar";
 
-
-  private Process couchbaseProcess;
   private int _port;
   private int _serverPort;
 
@@ -62,12 +58,8 @@ public class CouchbaseTestServer {
 
   public void start()
   {
-
     log.info("Starting couchbase server on port " + _port);
-    String[] commands = {"/usr/bin/java",
-      "-cp",
-      COUCHBASE_MOCK_JAR,
-      "com.couchbase.mock.CouchbaseMock",
+    String[] commands = {
       "--port",
       _port +"",
       "-n",
@@ -81,7 +73,7 @@ public class CouchbaseTestServer {
 
     try {
       System.out.println("Will run command " + Arrays.toString(commands));
-      couchbaseProcess = new ProcessBuilder().inheritIO().command(commands).start();
+      CouchbaseMock.main(commands);
     }
     catch (Exception e)
     {
@@ -157,16 +149,7 @@ public class CouchbaseTestServer {
   public int getPort() { return _port; }
 
 
-  public void stop() {
-
-    if (couchbaseProcess != null) {
-      try {
-        couchbaseProcess.destroy();
-      } catch (Exception e) {
-        log.warn("Failed to stop the couchbase server", e);
-      }
-    }
-  }
+  public void stop() {}
 
 
   @Test

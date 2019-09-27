@@ -50,6 +50,7 @@ public class HiveRegistrationUnit {
 
   protected final String dbName;
   protected final String tableName;
+  protected final boolean registerSchema;
   protected final List<Column> columns = Lists.newArrayList();
   protected final State props = new State();
   protected final State storageProps = new State();
@@ -85,6 +86,7 @@ public class HiveRegistrationUnit {
 
     this.dbName = builder.dbName;
     this.tableName = builder.tableName;
+    this.registerSchema = builder.registerSchema;
     this.columns.addAll(builder.columns);
     this.props.addAll(builder.props);
     this.storageProps.addAll(builder.storageProps);
@@ -400,6 +402,7 @@ public class HiveRegistrationUnit {
   static abstract class Builder<T extends Builder<?>> {
     private String dbName;
     private String tableName;
+    private boolean registerSchema = true;
     private List<Column> columns = Lists.newArrayList();
     private State props = new State();
     private State storageProps = new State();
@@ -415,6 +418,11 @@ public class HiveRegistrationUnit {
     @SuppressWarnings("unchecked")
     public T withTableName(String tableName) {
       this.tableName = tableName;
+      return (T) this;
+    }
+
+    public T withRegisterSchema(boolean registerSchema) {
+      this.registerSchema = registerSchema;
       return (T) this;
     }
 

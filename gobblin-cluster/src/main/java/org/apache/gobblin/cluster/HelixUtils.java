@@ -156,13 +156,16 @@ public class HelixUtils {
   }
 
   static void waitJobCompletion(HelixManager helixManager, String workFlowName, String jobName,
-      Optional<Long> timeoutInSeconds) throws InterruptedException, TimeoutException {
-
+      Optional<Long> timeoutInSeconds, Long stoppingStateTimeoutInSeconds) throws InterruptedException, TimeoutException {
     log.info("Waiting for job {} to complete...", jobName);
     long endTime = 0;
+    long currentTimeMillis = System.currentTimeMillis();
+
     if (timeoutInSeconds.isPresent()) {
-      endTime = System.currentTimeMillis() + timeoutInSeconds.get() * 1000;
+      endTime = currentTimeMillis + timeoutInSeconds.get() * 1000;
     }
+
+    long stoppingStateEndTime = currentTimeMillis + stoppingStateTimeoutInSeconds * 1000;
 
     while (!timeoutInSeconds.isPresent() || System.currentTimeMillis() <= endTime) {
       WorkflowContext workflowContext = TaskDriver.getWorkflowContext(helixManager, workFlowName);
@@ -177,6 +180,16 @@ public class HelixUtils {
           case FAILED:
           case COMPLETED:
           return;
+          case STOPPING:
+            log.info("Waiting for job {} to complete... State - {}", jobName, jobState);
+            Thread.sleep(1000);
+            // Workaround for a Helix bug where a job may be stuck in the STOPPING state due to an unresponsive task.
+            if (System.currentTimeMillis() > stoppingStateEndTime) {
+              log.info("Deleting workflow {}", workFlowName);
+              new TaskDriver(helixManager).delete(workFlowName);
+              log.info("Deleted workflow {}", workFlowName);
+            }
+            return;
           default:
             log.info("Waiting for job {} to complete... State - {}", jobName, jobState);
             Thread.sleep(1000);
@@ -257,6 +270,7 @@ public class HelixUtils {
     new TaskDriver(helixManager).deleteAndWaitForCompletion(workFlowName, 10000L);
     log.info("Workflow deleted.");
   }
+
   /**
    * Returns the Helix Workflow Ids given {@link Iterable} of Gobblin job names. The method returns a
    * {@link java.util.Map} from Gobblin job name to the corresponding Helix Workflow Id. This method iterates

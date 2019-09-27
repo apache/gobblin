@@ -96,6 +96,8 @@ import org.apache.gobblin.service.modules.utils.HelixUtils;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.service.monitoring.FsJobStatusRetriever;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
+import org.apache.gobblin.service.monitoring.KafkaJobStatusMonitor;
+import org.apache.gobblin.service.monitoring.KafkaJobStatusMonitorFactory;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
@@ -130,6 +132,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
   protected final boolean isTopologySpecFactoryEnabled;
   protected final boolean isGitConfigMonitorEnabled;
   protected final boolean isDagManagerEnabled;
+  protected final boolean isJobStatusMonitorEnabled;
 
   protected TopologyCatalog topologyCatalog;
   @Getter
@@ -154,6 +157,8 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
   protected GitConfigMonitor gitConfigMonitor;
 
   protected DagManager dagManager;
+
+  protected KafkaJobStatusMonitor jobStatusMonitor;
 
   @Getter
   protected Config config;
@@ -224,6 +229,13 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     if (this.isDagManagerEnabled) {
       this.dagManager = new DagManager(config);
       this.serviceLauncher.addService(this.dagManager);
+    }
+
+    this.isJobStatusMonitorEnabled = ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_JOB_STATUS_MONITOR_ENABLED_KEY, true) ;
+    // Initialize JobStatusMonitor
+    if (this.isJobStatusMonitorEnabled) {
+      this.jobStatusMonitor = new KafkaJobStatusMonitorFactory().createJobStatusMonitor(config);
+      this.serviceLauncher.addService(this.jobStatusMonitor);
     }
 
     // Initialize ServiceScheduler
@@ -389,6 +401,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     } else if (this.helixManager.isPresent()) {
       LOGGER.info("Leader lost notification for {} HM.isLeader {}", this.helixManager.get().getInstanceName(),
           this.helixManager.get().isLeader());
+
       if (this.isSchedulerEnabled) {
         LOGGER.info("Gobblin Service is now running in slave instance mode, disabling Scheduler.");
         this.scheduler.setActive(false);
