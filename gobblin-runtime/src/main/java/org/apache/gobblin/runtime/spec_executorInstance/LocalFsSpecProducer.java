@@ -57,14 +57,16 @@ public class LocalFsSpecProducer implements SpecProducer<Spec> {
   }
 
   /** Add a {@link Spec} for execution on {@link org.apache.gobblin.runtime.api.SpecExecutor}.
-   * @param addedSpec*/
+   * @param addedSpec
+   */
   @Override
   public Future<?> addSpec(Spec addedSpec) {
     return writeSpec(addedSpec, SpecExecutor.Verb.ADD);
   }
 
   /** Update a {@link Spec} being executed on {@link org.apache.gobblin.runtime.api.SpecExecutor}.
-   * @param updatedSpec*/
+   * @param updatedSpec
+   */
   @Override
   public Future<?> updateSpec(Spec updatedSpec) {
     return writeSpec(updatedSpec, SpecExecutor.Verb.UPDATE);
@@ -92,7 +94,8 @@ public class LocalFsSpecProducer implements SpecProducer<Spec> {
 
   /** Delete a {@link Spec} being executed on {@link org.apache.gobblin.runtime.api.SpecExecutor}.
    * @param deletedSpecURI
-   * @param headers*/
+   * @param headers
+   */
   @Override
   public Future<?> deleteSpec(URI deletedSpecURI, Properties headers) {
     String jobFileName = getJobFileName(deletedSpecURI);
