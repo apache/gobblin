@@ -350,7 +350,7 @@ public class HiveCopyEntityHelper {
         }
 
         // Constructing CommitStep object for table registration
-        Path targetPath = getTargetLocation(dataset.fs, this.targetFs, dataset.table.getDataLocation(),
+        Path targetPath = getTargetLocation(this.dataset.fs, this.targetFs, this.dataset.table.getDataLocation(),
             Optional.<Partition> absent());
         this.targetTable = getTargetTable(this.dataset.table, targetPath);
         HiveSpec tableHiveSpec = new SimpleHiveSpec.Builder<>(targetPath)
@@ -363,7 +363,7 @@ public class HiveCopyEntityHelper {
         if (this.existingTargetTable.isPresent() && this.existingTargetTable.get().isPartitioned()) {
           checkPartitionedTableCompatibility(this.targetTable, this.existingTargetTable.get());
         }
-        if (HiveUtils.isPartitioned(this.dataset.table)) {
+        if (this.dataset.table.isPartitioned()) {
           this.sourcePartitions = HiveUtils.getPartitionsMap(multiClient.getClient(source_client), this.dataset.table,
               this.partitionFilter, this.hivePartitionExtendedFilter);
           HiveAvroCopyEntityHelper.updatePartitionAttributesIfAvro(this.targetTable, this.sourcePartitions, this);
@@ -407,7 +407,7 @@ public class HiveCopyEntityHelper {
    */
   Iterator<FileSet<CopyEntity>> getCopyEntities(CopyConfiguration configuration, Comparator<FileSet<CopyEntity>> prioritizer,
       PushDownRequestor<FileSet<CopyEntity>> requestor) throws IOException {
-    if (HiveUtils.isPartitioned(this.dataset.table)) {
+    if (this.dataset.table.isPartitioned()) {
       return new PartitionIterator(this.sourcePartitions, configuration, prioritizer, requestor);
     } else {
       FileSet<CopyEntity> fileSet = new UnpartitionedTableFileSet(this.dataset.table.getCompleteName(), this.dataset, this);
@@ -645,12 +645,12 @@ public class HiveCopyEntityHelper {
         // destination has higher version, skip the copy
         if (srcVer.compareTo(dstVer) <= 0) {
           if (!helper.isEnforceFileSizeMatch() || existingTargetStatus.getLen() == sourcePath.getLen()) {
-            log.debug("Copy from src {} (v:{}) to dst {} (v:{}) can be skipped.",
-                sourcePath.getPath(), srcVer, existingTargetStatus.getPath(), dstVer);
+            log.debug("Copy from src {} (version:{}) to dst {} (version:{}) can be skipped since file size ({} bytes) is matching",
+                sourcePath.getPath(), srcVer, existingTargetStatus.getPath(), dstVer, sourcePath.getLen());
             shouldCopy = false;
           } else {
-            log.debug("Copy from src {} (v:{}) to dst {} (v:{}) can not be skipped due to unmatched file length.",
-                sourcePath.getPath(), srcVer, existingTargetStatus.getPath(), dstVer);
+            log.debug("Copy from src {} (version:{}) to dst {} (version:{}) can not be skipped because the file size is not matching or it is enforced by this config: {}",
+                sourcePath.getPath(), srcVer, existingTargetStatus.getPath(), dstVer, CopyConfiguration.ENFORCE_FILE_LENGTH_MATCH);
           }
         } else {
           log.debug("Copy from src {} (v:{}) to dst {} (v:{}) is needed due to a higher version.",
@@ -707,11 +707,11 @@ public class HiveCopyEntityHelper {
           existingTargetTable.getDataLocation());
     }
 
-    if (HiveUtils.isPartitioned(desiredTargetTable) != HiveUtils.isPartitioned(existingTargetTable)) {
+    if (desiredTargetTable.isPartitioned() != existingTargetTable.isPartitioned()) {
       throw new IOException(String.format(
           "%s: Desired target table %s partitioned, existing target table %s partitioned. Tables are incompatible.",
-          this.dataset.tableIdentifier, HiveUtils.isPartitioned(desiredTargetTable) ? "is" : "is not",
-          HiveUtils.isPartitioned(existingTargetTable) ? "is" : "is not"));
+          this.dataset.tableIdentifier, desiredTargetTable.isPartitioned() ? "is" : "is not",
+          existingTargetTable.isPartitioned() ? "is" : "is not"));
     }
     if (desiredTargetTable.isPartitioned()
         && !desiredTargetTable.getPartitionKeys().equals(existingTargetTable.getPartitionKeys())) {
