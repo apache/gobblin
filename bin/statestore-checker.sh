@@ -17,18 +17,7 @@
 # limitations under the License.
 #
 
-FWDIR="$(cd `dirname $0`/..; pwd)"
+# @depricated: This script is kept for backward compatibility only and will be removed in future. Use gobblin.sh
 
-GOBBLIN_JARS=""
-for jar in $(ls -d $FWDIR/lib/*); do
-  if [ "$GOBBLIN_JARS" != "" ]; then
-    GOBBLIN_JARS+=":$jar"
-  else
-    GOBBLIN_JARS=$jar
-  fi
-done
-
-CLASSPATH=$GOBBLIN_JARS
-CLASSPATH+=":$FWDIR/conf"
-
-java -cp $CLASSPATH org.apache.gobblin.runtime.util.JobStateToJsonConverter $@
+CURRENT_DIR="$(cd `dirname $0`/..; pwd)"
+$CURRENT_DIR/bin/gobblin cli job-state-to-json $@

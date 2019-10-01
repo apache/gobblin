@@ -21,6 +21,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 
 import lombok.Builder;
@@ -34,7 +35,7 @@ import org.apache.gobblin.annotation.Alpha;
 @Alpha
 @Builder
 public class FlowStatusGenerator {
-  public static final List<String> FINISHED_JOB_STATUSES = Lists.newArrayList("FAILED", "COMPLETE", "CANCELLED");
+  public static final List<String> FINISHED_STATUSES = Lists.newArrayList("FAILED", "COMPLETE", "CANCELLED");
 
   private final JobStatusRetriever jobStatusRetriever;
 
@@ -43,16 +44,18 @@ public class FlowStatusGenerator {
    * @param flowName
    * @param flowGroup
    * @param count
+   * @param tag
    * @return the latest <code>count</code>{@link FlowStatus}es. null is returned if there is no flow execution found.
+   * If tag is not null, the job status list only contains jobs matching the tag.
    */
-  public List<FlowStatus> getLatestFlowStatus(String flowName, String flowGroup, int count) {
+  public List<FlowStatus> getLatestFlowStatus(String flowName, String flowGroup, int count, String tag) {
     List<Long> flowExecutionIds = jobStatusRetriever.getLatestExecutionIdsForFlow(flowName, flowGroup, count);
 
     if (flowExecutionIds == null || flowExecutionIds.isEmpty()) {
       return null;
     }
     List<FlowStatus> flowStatuses =
-        flowExecutionIds.stream().map(flowExecutionId -> getFlowStatus(flowName, flowGroup, flowExecutionId))
+        flowExecutionIds.stream().map(flowExecutionId -> getFlowStatus(flowName, flowGroup, flowExecutionId, tag))
             .collect(Collectors.toList());
 
     return flowStatuses;
@@ -63,12 +66,19 @@ public class FlowStatusGenerator {
    * @param flowName
    * @param flowGroup
    * @param flowExecutionId
-   * @return the flow status, null is returned if the flow status does not exist
+   * @param tag String to filter the returned job statuses
+   * @return the flow status, null is returned if the flow status does not exist. If tag is not null, the job status
+   * list only contains jobs matching the tag.
    */
-  public FlowStatus getFlowStatus(String flowName, String flowGroup, long flowExecutionId) {
+  public FlowStatus getFlowStatus(String flowName, String flowGroup, long flowExecutionId, String tag) {
     FlowStatus flowStatus = null;
     Iterator<JobStatus> jobStatusIterator =
         jobStatusRetriever.getJobStatusesForFlowExecution(flowName, flowGroup, flowExecutionId);
+
+    if (tag != null) {
+      jobStatusIterator = Iterators.filter(jobStatusIterator, js -> JobStatusRetriever.isFlowStatus(js) ||
+          (js.getJobTag() != null && js.getJobTag().equals(tag)));
+    }
 
     if (jobStatusIterator.hasNext()) {
       flowStatus = new FlowStatus(flowName, flowGroup, flowExecutionId, jobStatusIterator);
@@ -85,7 +95,7 @@ public class FlowStatusGenerator {
    * @return true, if any jobs of the flow are RUNNING.
    */
   public boolean isFlowRunning(String flowName, String flowGroup) {
-    List<FlowStatus> flowStatusList = getLatestFlowStatus(flowName, flowGroup, 1);
+    List<FlowStatus> flowStatusList = getLatestFlowStatus(flowName, flowGroup, 1, null);
     if (flowStatusList == null || flowStatusList.isEmpty()) {
       return false;
     } else {
@@ -94,8 +104,8 @@ public class FlowStatusGenerator {
 
       while (jobStatusIterator.hasNext()) {
         JobStatus jobStatus = jobStatusIterator.next();
-        if (isJobRunning(jobStatus)) {
-          return true;
+        if (JobStatusRetriever.isFlowStatus(jobStatus)) {
+          return isJobRunning(jobStatus);
         }
       }
       return false;
@@ -108,6 +118,6 @@ public class FlowStatusGenerator {
    */
   private boolean isJobRunning(JobStatus jobStatus) {
     String status = jobStatus.getEventName().toUpperCase();
-    return !FINISHED_JOB_STATUSES.contains(status);
+    return !FINISHED_STATUSES.contains(status);
   }
 }

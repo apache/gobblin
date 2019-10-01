@@ -17,6 +17,8 @@
 # limitations under the License.
 #
 
+# @depricated: This script is kept for backward compatibility only and will be removed in future. Use gobblin.sh
+
 FWDIR="$(cd `dirname $0`/..; pwd)"
 
 GOBBLIN_JARS=""

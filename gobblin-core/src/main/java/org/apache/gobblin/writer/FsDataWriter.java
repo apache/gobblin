@@ -104,7 +104,9 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
     // Add all job configuration properties so they are picked up by Hadoop
     JobConfigurationUtils.putStateIntoConfiguration(properties, conf);
     this.fs = WriterUtils.getWriterFS(properties, this.numBranches, this.branchId);
-    this.fileContext = FileContext.getFileContext(conf);
+    this.fileContext = FileContext.getFileContext(
+            WriterUtils.getWriterFsUri(properties, this.numBranches, this.branchId),
+            conf);
 
     // Initialize staging/output directory
     Path writerStagingDir = this.writerAttemptIdOptional.isPresent() ? WriterUtils

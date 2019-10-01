@@ -40,7 +40,7 @@ public class AzkabanProjectConfigTest {
 
     Properties properties = new Properties();
     JobSpec jobSpec = new JobSpec(new URI("uri"), "0.0", "test job spec",
-        ConfigUtils.propertiesToConfig(properties), properties, Optional.absent(), Collections.EMPTY_MAP);
+        ConfigUtils.propertiesToConfig(properties), properties, Optional.absent(), Optional.absent(), Collections.EMPTY_MAP);
     AzkabanProjectConfig azkabanProjectConfig = new AzkabanProjectConfig(jobSpec);
 
     String actualProjectName = azkabanProjectConfig.getAzkabanProjectName();
@@ -55,7 +55,7 @@ public class AzkabanProjectConfigTest {
     Properties properties = new Properties();
     properties.setProperty("gobblin.service.azkaban.project.namePrefix", "randomPrefix");
     JobSpec jobSpec = new JobSpec(new URI("http://localhost:8000/context"), "0.0", "test job spec",
-        ConfigUtils.propertiesToConfig(properties), properties, Optional.absent(), Collections.EMPTY_MAP);
+        ConfigUtils.propertiesToConfig(properties), properties, Optional.absent(), Optional.absent(), Collections.EMPTY_MAP);
     AzkabanProjectConfig azkabanProjectConfig = new AzkabanProjectConfig(jobSpec);
 
     String actualProjectName = azkabanProjectConfig.getAzkabanProjectName();
@@ -70,7 +70,8 @@ public class AzkabanProjectConfigTest {
     Properties properties = new Properties();
     properties.setProperty("gobblin.service.azkaban.project.namePrefix", "randomPrefixWithReallyLongName");
     JobSpec jobSpec = new JobSpec(new URI("http://localhost:8000/context/that-keeps-expanding-and-explanding"),
-        "0.0", "test job spec", ConfigUtils.propertiesToConfig(properties), properties, Optional.absent(), Collections.EMPTY_MAP);
+        "0.0", "test job spec", ConfigUtils.propertiesToConfig(properties), properties, Optional.absent(),
+        Optional.absent(), Collections.EMPTY_MAP);
     AzkabanProjectConfig azkabanProjectConfig = new AzkabanProjectConfig(jobSpec);
 
     String actualProjectName = azkabanProjectConfig.getAzkabanProjectName();
@@ -85,7 +86,7 @@ public class AzkabanProjectConfigTest {
     Properties properties = new Properties();
     properties.setProperty("gobblin.service.azkaban.project.namePrefix", "randomPrefix");
     JobSpec jobSpec = new JobSpec(new URI("http://localhost:8000/context"), "0.0", "test job spec",
-        ConfigUtils.propertiesToConfig(properties), properties, Optional.absent(), Collections.EMPTY_MAP);
+        ConfigUtils.propertiesToConfig(properties), properties, Optional.absent(), Optional.absent(), Collections.EMPTY_MAP);
     AzkabanProjectConfig azkabanProjectConfig = new AzkabanProjectConfig(jobSpec);
 
     String actualZipFileName = azkabanProjectConfig.getAzkabanProjectZipFilename();
@@ -100,7 +101,8 @@ public class AzkabanProjectConfigTest {
     Properties properties = new Properties();
     properties.setProperty("gobblin.service.azkaban.project.namePrefix", "randomPrefixWithReallyLongName");
     JobSpec jobSpec = new JobSpec(new URI("http://localhost:8000/context/that-keeps-expanding-and-explanding"),
-        "0.0", "test job spec", ConfigUtils.propertiesToConfig(properties), properties, Optional.absent(), Collections.EMPTY_MAP);
+        "0.0", "test job spec", ConfigUtils.propertiesToConfig(properties), properties, Optional.absent(),
+        Optional.absent(), Collections.EMPTY_MAP);
     AzkabanProjectConfig azkabanProjectConfig = new AzkabanProjectConfig(jobSpec);
 
     String actualZipFileName = azkabanProjectConfig.getAzkabanProjectZipFilename();

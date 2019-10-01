@@ -17,9 +17,11 @@
 
 package org.apache.gobblin.util;
 
+import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.io.StringReader;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -30,6 +32,8 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
 
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 
 import com.google.common.base.Function;
@@ -67,6 +71,13 @@ public class ConfigUtils {
    * property keys. This is used during Properties -> Config -> Properties conversion since
    * typesafe config does not allow such properties. */
   public static final String STRIP_SUFFIX = ".ROOT_VALUE";
+
+  /**
+   * Available TimeUnit values that can be parsed from a given String
+   */
+  private static final Set<String> validTimeUnits = Arrays.stream(TimeUnit.values())
+      .map(TimeUnit::name)
+      .collect(Collectors.toSet());
 
   public ConfigUtils(FileUtils fileUtils) {
     this.fileUtils = fileUtils;
@@ -322,6 +333,23 @@ public class ConfigUtils {
   public static String getString(Config config, String path, String def) {
     if (config.hasPath(path)) {
       return config.getString(path);
+    }
+    return def;
+  }
+
+  /**
+   * Return TimeUnit value at <code>path</code> if <code>config</code> has path. If not return <code>def</code>
+   *
+   * @param config in which the path may be present
+   * @param path key to look for in the config object
+   * @return TimeUnit value at <code>path</code> if <code>config</code> has path. If not return <code>def</code>
+   */
+  public static TimeUnit getTimeUnit(Config config, String path, TimeUnit def) {
+    if (config.hasPath(path)) {
+      String timeUnit = config.getString(path).toUpperCase();
+      Preconditions.checkArgument(validTimeUnits.contains(timeUnit),
+          "Passed invalid TimeUnit for documentTTLUnits: '%s'".format(timeUnit));
+      return TimeUnit.valueOf(timeUnit);
     }
     return def;
   }

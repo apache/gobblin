@@ -32,6 +32,7 @@ import lombok.Getter;
 public class JobStatus {
   private final String jobName;
   private final String jobGroup;
+  private final String jobTag;
   private final long jobExecutionId;
   private final long flowExecutionId;
   private final String flowName;

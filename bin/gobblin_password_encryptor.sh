@@ -1,3 +1,5 @@
+#!/bin/bash
+
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -15,6 +17,9 @@
 # limitations under the License.
 #
 
-org.quartz.scheduler.instanceName = LocalJobScheduler
-org.quartz.threadPool.threadCount = 3
-org.quartz.jobStore.class = org.quartz.simpl.RAMJobStore
+# @depricated: This script is kept for backward compatibility only and will be removed in future. Use gobblin.sh
+
+script_dir=$(dirname $0)
+lib_dir=${script_dir}/../lib
+
+java -cp ${lib_dir}'/*' org.apache.gobblin.util.CLIPasswordEncryptor "$@"

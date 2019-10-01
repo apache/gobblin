@@ -36,6 +36,7 @@ import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.SerDeInfo;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.ql.io.avro.AvroContainerInputFormat;
 import org.apache.hadoop.hive.serde2.Deserializer;
 import org.apache.hadoop.hive.serde2.SerDeException;
 import org.apache.hadoop.hive.serde2.SerDeUtils;
@@ -211,7 +212,9 @@ public class HiveMetaStoreUtils {
     State props = unit.getStorageProps();
     StorageDescriptor sd = new StorageDescriptor();
     sd.setParameters(getParameters(props));
-    if (unit.isRegisterSchema()) {
+    //Treat AVRO and other formats differently. Details can be found in GOBBLIN-877
+    if (unit.isRegisterSchema() ||
+        (unit.getInputFormat().isPresent() && !unit.getInputFormat().get().equals(AvroContainerInputFormat.class.getName()))) {
       sd.setCols(getFieldSchemas(unit));
     }
     if (unit.getLocation().isPresent()) {

@@ -14,11 +14,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gobblin.cli;
+
+package org.apache.gobblin.runtime.job_spec;
+
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.api.JobTemplate;
+
 
 /**
- * Represents a single command for the CLI
+ * Callbacks executed during job resolution by {@link JobSpecResolver}.
  */
-public interface Command {
-    void execute(Cli.GlobalOptions globalOptions, String[] otherArgs);
+@Alpha
+public interface JobResolutionCallbacks {
+
+	/**
+	 * Called before a job is resolved, providing the original job spec and template to be used.
+	 */
+	void beforeResolution(JobSpecResolver jobSpecResolver, JobSpec jobSpec, JobTemplate jobTemplate)
+			throws JobTemplate.TemplateException;
+
+	/**
+	 * Called after a job is resolved, providing the final resolved spec.
+	 */
+	void afterResolution(JobSpecResolver jobSpecResolver, ResolvedJobSpec resolvedJobSpec);
+
 }

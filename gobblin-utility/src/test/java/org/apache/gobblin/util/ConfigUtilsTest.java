@@ -29,6 +29,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
 
+import java.util.concurrent.TimeUnit;
 import org.jasypt.util.text.BasicTextEncryptor;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -297,6 +298,37 @@ public class ConfigUtilsTest {
       Assert.assertEquals(val, entry.getValue());
     }
     keyFile.delete();
+  }
+
+  @Test
+  public void testGetTimeUnitValid() {
+    String key = "a.b.c";
+    TimeUnit expectedTimeUnit = TimeUnit.DAYS;
+    TimeUnit defaultTimeUnit = TimeUnit.MILLISECONDS;
+    Config cfg = ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
+        .put(key, TimeUnit.DAYS.name())
+        .build());
+    TimeUnit timeUnit = ConfigUtils.getTimeUnit(cfg, key, defaultTimeUnit);
+    Assert.assertEquals(timeUnit, expectedTimeUnit);
+  }
+
+  @Test
+  public void testGetTimeUnitInvalid() {
+    String key = "a.b.c";
+    final Config cfg = ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
+        .put(key, "INVALID_TIME_UNIT")
+        .build());
+    Assert.assertThrows(IllegalArgumentException.class, () -> {
+      ConfigUtils.getTimeUnit(cfg, key, TimeUnit.SECONDS);
+    });
+  }
+
+  @Test
+  public void testGetTimeUnitDefault() {
+    String key = "a.b.c";
+    TimeUnit defaultTimeUnit = TimeUnit.MINUTES;
+    final Config cfg = ConfigFactory.empty();
+    Assert.assertEquals(ConfigUtils.getTimeUnit(cfg, key, defaultTimeUnit), defaultTimeUnit);
   }
 
   private File newKeyFile(String masterPwd) throws IOException {

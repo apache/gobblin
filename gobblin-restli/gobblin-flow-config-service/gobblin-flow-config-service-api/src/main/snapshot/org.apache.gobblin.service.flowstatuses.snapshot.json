@@ -144,6 +144,11 @@
       "type" : "JobId",
       "doc" : "Identifier of the job"
     }, {
+      "name" : "jobTag",
+      "type" : "string",
+      "doc" : "Tag of the job",
+      "optional" : true
+    }, {
       "name" : "executionStatus",
       "type" : "ExecutionStatus",
       "doc" : "Job execution status"
@@ -224,6 +229,10 @@
         }, {
           "name" : "count",
           "type" : "int",
+          "optional" : true
+        }, {
+          "name" : "tag",
+          "type" : "string",
           "optional" : true
         } ]
       } ],

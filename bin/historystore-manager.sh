@@ -17,44 +17,7 @@
 # limitations under the License.
 #
 
+# @depricated: This script is kept for backward compatibility only and will be removed in future. Use gobblin.sh
 
-FWDIR="$(cd `dirname $0`/..; pwd)"
-
-GOBBLIN_JARS=""
-for jar in $(ls -d $FWDIR/lib/*); do
-  if [ "$GOBBLIN_JARS" != "" ]; then
-    GOBBLIN_JARS+=":$jar"
-  else
-    GOBBLIN_JARS=$jar
-  fi
-done
-
-CLASSPATH=$GOBBLIN_JARS
-CLASSPATH+=":$FWDIR/conf"
-
-if [[ $# -gt 0 ]]; then
-  action=$1
-  options=( "$@" );
-  args=( "$@" );
-  unset options[$1];
-  unset args[$1];
-fi
-
-index=1
-for var in "${options[@]}"
-do
-  if [[ $var == -D=* ]]; then
-    unset options[$index];
-  fi
-  index=$((index+1))
-done
-index=1
-for var in "${args[@]}"
-do
-  if [[ $var != -D=* ]]; then
-    unset args[$index];
-  fi
-  index=$((index+1))
-done
-
-java "${options[@]}" -cp $CLASSPATH org.apache.gobblin.metastore.util.DatabaseJobHistoryStoreSchemaManager $action "${args[@]}"
+CURRENT_DIR="$(cd `dirname $0`/..; pwd)"
+$CURRENT_DIR/bin/gobblin cli job-store-schema-manager $@

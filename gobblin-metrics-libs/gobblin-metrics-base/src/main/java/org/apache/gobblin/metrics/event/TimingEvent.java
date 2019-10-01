@@ -78,6 +78,7 @@ public class TimingEvent extends GobblinEventBuilder implements Closeable {
     public static final String FLOW_EXECUTION_ID_FIELD = "flowExecutionId";
     public static final String JOB_NAME_FIELD = "jobName";
     public static final String JOB_GROUP_FIELD = "jobGroup";
+    public static final String JOB_TAG_FIELD = "jobTag";
     public static final String JOB_EXECUTION_ID_FIELD = "jobExecutionId";
     public static final String SPEC_EXECUTOR_FIELD = "specExecutor";
     public static final String LOW_WATERMARK_FIELD = "lowWatermark";

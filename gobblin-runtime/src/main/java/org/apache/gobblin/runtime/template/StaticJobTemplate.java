@@ -22,6 +22,7 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -33,17 +34,23 @@ import com.typesafe.config.Config;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.JobCatalogWithTemplates;
 import org.apache.gobblin.runtime.api.JobTemplate;
+import org.apache.gobblin.runtime.api.SecureJobTemplate;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
+import org.apache.gobblin.util.ConfigUtils;
 
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
  * A {@link JobTemplate} using a static {@link Config} as the raw configuration for the template.
  */
-public class StaticJobTemplate extends InheritingJobTemplate {
+@Slf4j
+public class StaticJobTemplate extends InheritingJobTemplate implements SecureJobTemplate {
 
   public static final String SUPER_TEMPLATE_KEY = "gobblin.template.inherit";
+  public static final String IS_SECURE_KEY = "gobblin.template.isSecure";
+  public static final String SECURE_OVERRIDABLE_PROPERTIES_KEYS = "gobblin.template.secure.overridableProperties";
 
   private Config rawConfig;
   private Set<String> requiredAttributes;
@@ -80,7 +87,7 @@ public class StaticJobTemplate extends InheritingJobTemplate {
       throws TemplateException {
     if (config.hasPath(SUPER_TEMPLATE_KEY)) {
       List<URI> uris = Lists.newArrayList();
-      for (String uriString : config.getString(SUPER_TEMPLATE_KEY).split(",")) {
+      for (String uriString : ConfigUtils.getStringList(config, SUPER_TEMPLATE_KEY)) {
         try {
           uris.add(new URI(uriString));
         } catch (URISyntaxException use) {
@@ -105,6 +112,17 @@ public class StaticJobTemplate extends InheritingJobTemplate {
 
   @Override
   protected Config getLocallyResolvedConfig(Config userConfig) {
-    return userConfig.withFallback(this.rawConfig);
+    Config filteredUserConfig = SecureJobTemplate.filterUserConfig(this, userConfig, log);
+    return filteredUserConfig.withFallback(this.rawConfig);
+  }
+
+  @Override
+  public boolean isSecure() {
+    return ConfigUtils.getBoolean(this.rawConfig, IS_SECURE_KEY, false);
+  }
+
+  @Override
+  public Collection<String> overridableProperties() {
+    return isSecure() ? ConfigUtils.getStringList(this.rawConfig, SECURE_OVERRIDABLE_PROPERTIES_KEYS) : Collections.emptyList();
   }
 }
