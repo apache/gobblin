@@ -218,7 +218,7 @@ public class TimeAwareRecursiveCopyableDatasetTest {
 
   }
 
-  @Test (expectedExceptions = AssertionError.class)
+  @Test (expectedExceptions = IllegalArgumentException.class)
   public void testInstantiationError() {
     //Daily directories, but look back time has days and hours. We should expect an assertion error.
     Properties properties = new Properties();

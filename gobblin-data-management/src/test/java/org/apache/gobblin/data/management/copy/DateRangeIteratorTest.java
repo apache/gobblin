@@ -35,7 +35,7 @@ public class DateRangeIteratorTest {
     String datePattern = "HH/yyyy/MM/dd";
     DateTimeFormatter format = DateTimeFormat.forPattern(datePattern);
     TimeAwareRecursiveCopyableDataset.DateRangeIterator dateRangeIterator =
-        new TimeAwareRecursiveCopyableDataset.DateRangeIterator(startDate, endDate, true, false);
+        new TimeAwareRecursiveCopyableDataset.DateRangeIterator(startDate, endDate, TimeAwareRecursiveCopyableDataset.DatePattern.HOURLY);
     LocalDateTime dateTime = dateRangeIterator.next();
     Assert.assertEquals(dateTime.toString(format), "22/2016/12/31");
     dateTime = dateRangeIterator.next();
@@ -47,7 +47,7 @@ public class DateRangeIteratorTest {
     datePattern = "yyyy/MM/dd";
     format = DateTimeFormat.forPattern(datePattern);
     startDate = endDate.minusDays(1);
-    dateRangeIterator = new TimeAwareRecursiveCopyableDataset.DateRangeIterator(startDate, endDate, false, false);
+    dateRangeIterator = new TimeAwareRecursiveCopyableDataset.DateRangeIterator(startDate, endDate, TimeAwareRecursiveCopyableDataset.DatePattern.DAILY);
     dateTime = dateRangeIterator.next();
     Assert.assertEquals(dateTime.toString(format), "2016/12/31");
     dateTime = dateRangeIterator.next();
@@ -57,7 +57,7 @@ public class DateRangeIteratorTest {
     datePattern = "yyyy-MM-dd-HH-mm";
     format = DateTimeFormat.forPattern(datePattern);
     startDate = endDate.minusHours(1);
-    dateRangeIterator = new TimeAwareRecursiveCopyableDataset.DateRangeIterator(startDate, endDate, false, true);
+    dateRangeIterator = new TimeAwareRecursiveCopyableDataset.DateRangeIterator(startDate, endDate, TimeAwareRecursiveCopyableDataset.DatePattern.MINUTELY);
     dateTime = dateRangeIterator.next();
     Assert.assertEquals(dateTime.toString(format), "2016-12-31-23-00");
     dateTime = dateRangeIterator.next();
