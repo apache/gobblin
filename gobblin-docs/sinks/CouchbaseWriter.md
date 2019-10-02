@@ -1,7 +1,7 @@
 [TOC]
 
 # Introduction
-A CouchbaseWriter is both an AsyncDataWriter a SyncDataWriter that pushes Documents to a couchbase bucket though the [JAVA SDK](https://docs.couchbase.com/java-sdk/current/start-using-sdk.html). Note that CouchbaseWiter only supports writing to a single bucket as there should be only 1 CouchbaseEnvironment per JVM.
+The [CouchbaseWriter](https://github.com/apache/incubator-gobblin/blob/master/gobblin-modules/gobblin-couchbase/src/main/java/org/apache/gobblin/couchbase/writer/CouchbaseWriter.java) supports writing documents to a Couchbase bucket though the [Couchbase Java SDK](https://docs.couchbase.com/java-sdk/current/start-using-sdk.html). Note that CouchbaseWriter only supports writing to a single bucket as there should be only 1 CouchbaseEnvironment per JVM.
 
 
 # Record format
@@ -89,7 +89,7 @@ Note that the key can be other than string if needed.
 | `writer.couchbase.documentTTLOriginUnits` | `MILLISECONDS` | Unit for `writer.couchbase.documentTTL`. Must be one of [java.util.concurrent.TimeUnit](https://docs.oracle.com/javase/7/docs/api/java/util/concurrent/TimeUnit.html). Case insensitive. As an example a `writer.couchbase.documentTTLOriginField` value of `1568240399000` and `writer.couchbase.documentTTLOriginUnits` value of `MILLISECONDS` timeunit would be `Wed Sep 11 15:19:59 PDT 2019` |
 | `writer.couchbase.retriesEnabled` | `false` | Enable write retries on failures |
 | `writer.couchbase.maxRetries` | `5` | Maximum number of retries |
-| `writer.couchbase.failureAllowancePercentage` | `0.0` | The percentage of failures that you are willing to tolerate while writing to Couchbase. Gobblin will mark the workunit successful and move on if there are failures but not enough to trip the failure threshold. Only successfully acknowledged writes are counted as successful, all others are considered as failures. The default for the failureAllowancePercentage is set to 0.0. For example, if the value is set to 0.2 This means that as long as 80% of the data is acknowledged by Kafka, Gobblin will move on. If you want higher guarantees, set this config value to a lower value. e.g. If you want 99% delivery guarantees, set this value to 0.01 |
+| `writer.couchbase.failureAllowancePercentage` | `0.0` | The percentage of failures that you are willing to tolerate while writing to Couchbase. Gobblin will mark the workunit successful and move on if there are failures but not enough to trip the failure threshold. Only successfully acknowledged writes are counted as successful, all others are considered as failures. The default for the failureAllowancePercentage is set to 0.0. For example, if the value is set to 0.2 This means that as long as 80% of the data is acknowledged by Couchbase, Gobblin will move on. If you want higher guarantees, set this config value to a lower value. e.g. If you want 99% delivery guarantees, set this value to 0.01 |
 |`operationTimeoutMillis` | `10000` | Global timeout for couchbase communication operations |
 
 ## Authentication
