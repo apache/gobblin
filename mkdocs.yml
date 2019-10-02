@@ -62,14 +62,12 @@ pages:
         - SQL Server: sources/SqlServerSource.md
         - Teradata: sources/TeradataSource.md
         - Wikipedia: sources/WikipediaSource.md
-    - Writers:
-        - CouchbaseWriter: CouchbaseWriter.md
-    - Record Sinks:
+    - Sinks (Writers):
         - Avro HDFS: sinks/AvroHdfsDataWriter.md
         - Parquet HDFS: sinks/ParquetHdfsDataWriter.md
         - HDFS Byte array: sinks/SimpleBytesWriter.md
         - Console: sinks/ConsoleWriter.md
-        - Couchbase: sinks/Couchbase-Writer.md
+        - Couchbase: sinks/CouchbaseWriter.md
         - HTTP: sinks/Http.md
         - JDBC: sinks/Gobblin-JDBC-Writer.md
         - Kafka: sinks/Kafka.md
