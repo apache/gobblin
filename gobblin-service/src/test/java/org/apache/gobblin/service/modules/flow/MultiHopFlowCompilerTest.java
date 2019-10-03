@@ -66,6 +66,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.data.management.retention.profile.ConfigurableGlobDatasetFinder;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
@@ -258,7 +259,7 @@ public class MultiHopFlowCompilerTest {
     String targetFsUri = jobConfig.getString("target.filebased.fs.uri");
     Assert.assertEquals(targetFsUri, "hdfs://hadoopnn01.grid.linkedin.com:8888/");
     Assert.assertEquals(jobConfig.getString("writer.fs.uri"), targetFsUri);
-    Assert.assertEquals(jobConfig.getString("gobblin.dataset.pattern"), from);
+    Assert.assertEquals(new Path(jobConfig.getString("gobblin.dataset.pattern")), new Path(from));
     Assert.assertEquals(jobConfig.getString("data.publisher.final.dir"), to);
     Assert.assertEquals(jobConfig.getString("type"), "java");
     Assert.assertEquals(jobConfig.getString("job.class"), "org.apache.gobblin.runtime.local.LocalJobLauncher");
@@ -431,7 +432,7 @@ public class MultiHopFlowCompilerTest {
     String targetFsUri = jobConfig.getString("target.filebased.fs.uri");
     Assert.assertEquals(targetFsUri, "hdfs://hadoopnn02.grid.linkedin.com:8888/");
     Assert.assertEquals(jobConfig.getString("writer.fs.uri"), targetFsUri);
-    Assert.assertEquals(jobConfig.getString("gobblin.dataset.pattern"), from);
+    Assert.assertEquals(new Path(jobConfig.getString("gobblin.dataset.pattern")), new Path(from));
     Assert.assertEquals(jobConfig.getString("data.publisher.final.dir"), to);
     Assert.assertEquals(jobConfig.getString("type"), "java");
     Assert.assertEquals(jobConfig.getString("job.class"), "org.apache.gobblin.runtime.local.LocalJobLauncher");
@@ -611,6 +612,32 @@ public class MultiHopFlowCompilerTest {
       String jobName = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
       Assert.assertTrue(jobName.startsWith(retentionJobName));
     }
+  }
+
+  @Test (dependsOnMethods = "testCompileMultiDatasetFlow")
+  public void testCompileCombinedDatasetFlow() throws Exception {
+    FlowSpec spec = createFlowSpec("flow/flow4.conf", "HDFS-1", "HDFS-3", true, false);
+
+    Dag<JobExecutionPlan> dag = specCompiler.compileFlow(spec);
+
+    // Should be 2 jobs, each containing 3 datasets
+    Assert.assertEquals(dag.getNodes().size(), 2);
+    Assert.assertEquals(dag.getEndNodes().size(), 1);
+    Assert.assertEquals(dag.getStartNodes().size(), 1);
+
+    String copyJobName = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
+        join("testFlowGroup", "testFlowName", "Distcp", "HDFS-1", "HDFS-3", "hdfsToHdfs");
+    Config jobConfig = dag.getStartNodes().get(0).getValue().getJobSpec().getConfig();
+    String jobName = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
+    Assert.assertTrue(jobName.startsWith(copyJobName));
+    Assert.assertTrue(jobConfig.getString(ConfigurableGlobDatasetFinder.DATASET_FINDER_PATTERN_KEY).endsWith("{dataset0,dataset1,dataset2}"));
+
+    String retentionJobName = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
+        join("testFlowGroup", "testFlowName", "SnapshotRetention", "HDFS-3", "HDFS-3", "hdfsRetention");
+    Config jobConfig2 = dag.getEndNodes().get(0).getValue().getJobSpec().getConfig();
+    String jobName2 = jobConfig2.getString(ConfigurationKeys.JOB_NAME_KEY);
+    Assert.assertTrue(jobName2.startsWith(retentionJobName));
+    Assert.assertTrue(jobConfig2.getString(ConfigurableGlobDatasetFinder.DATASET_FINDER_PATTERN_KEY).endsWith("{dataset0,dataset1,dataset2}"));
   }
 
   @Test (dependsOnMethods = "testCompileMultiDatasetFlow")

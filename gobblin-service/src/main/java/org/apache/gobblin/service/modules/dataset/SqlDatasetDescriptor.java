@@ -89,7 +89,7 @@ public class SqlDatasetDescriptor extends BaseDatasetDescriptor implements Datas
     return Enums.getIfPresent(Platform.class, getPlatform().toUpperCase()).isPresent();
   }
   /**
-   * Check if the dbName and tableName specified in {@param otherPath} are accepted by the set of dbName.tableName
+   * Check if the dbName and tableName specified in {@param other}'s path are accepted by the set of dbName.tableName
    * combinations defined by the current {@link SqlDatasetDescriptor}. For example, let:
    * this.path = "test_.*;test_table_.*". Then:
    * isPathContaining("test_db1;test_table_1") = true
@@ -98,10 +98,11 @@ public class SqlDatasetDescriptor extends BaseDatasetDescriptor implements Datas
    * NOTE: otherPath cannot be a globPattern. So:
    * isPathContaining("test_db.*;test_table_*") = false
    *
-   * @param otherPath which should be in the format of dbName.tableName
+   * @param other whose path should be in the format of dbName.tableName
    */
   @Override
-  protected boolean isPathContaining(String otherPath) {
+  protected boolean isPathContaining(DatasetDescriptor other) {
+    String otherPath = other.getPath();
     if (otherPath == null) {
       return false;
     }
