@@ -17,7 +17,7 @@
 # limitations under the License.
 #
 
-# @depricated: This script is kept for backward compatibility only and will be removed in future. Use gobblin.sh
+# @deprecated: This script is kept for backward compatibility only and will be removed in future. Use gobblin.sh
 
 CURRENT_DIR="$(cd `dirname $0`/..; pwd)"
 $CURRENT_DIR/bin/gobblin service aws $@
