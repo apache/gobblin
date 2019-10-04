@@ -17,19 +17,22 @@
 
 package org.apache.gobblin.data.management.version;
 
-import org.apache.gobblin.metastore.metadata.DatasetStateStoreEntryManager;
 import org.joda.time.DateTime;
+
 import lombok.Getter;
 
+import org.apache.gobblin.metastore.metadata.StateStoreEntryManager;
+
+
 /**
- * {@link TimestampedDatasetVersion} that has a {@link DatasetStateStoreEntryManager}
+ * {@link TimestampedDatasetVersion} that has a {@link StateStoreEntryManager}
  */
 @Getter
-public class TimestampedDatasetStateStoreVersion extends TimestampedDatasetVersion implements DatasetStateStoreVersion<DatasetStateStoreEntryManager> {
+public class TimestampedStateStoreVersion extends TimestampedDatasetVersion implements DatasetStateStoreVersion<StateStoreEntryManager> {
 
-  private final DatasetStateStoreEntryManager entry;
+  private final StateStoreEntryManager entry;
 
-  public TimestampedDatasetStateStoreVersion(DatasetStateStoreEntryManager entry) {
+  public TimestampedStateStoreVersion(StateStoreEntryManager entry) {
     super(new DateTime(entry.getTimestamp()), null);
     this.entry = entry;
   }
@@ -50,8 +53,8 @@ public class TimestampedDatasetStateStoreVersion extends TimestampedDatasetVersi
       return false;
     }
 
-    if (obj instanceof TimestampedDatasetStateStoreVersion) {
-      TimestampedDatasetStateStoreVersion other = (TimestampedDatasetStateStoreVersion)obj;
+    if (obj instanceof TimestampedStateStoreVersion) {
+      TimestampedStateStoreVersion other = (TimestampedStateStoreVersion)obj;
 
       if (this.entry.equals(other.getEntry())) {
         return super.equals(obj);

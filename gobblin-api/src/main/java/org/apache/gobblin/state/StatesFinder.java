@@ -15,16 +15,29 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.data.management.version;
+package org.apache.gobblin.state;
 
-import org.apache.gobblin.metastore.metadata.DatasetStateStoreEntryManager;
+import java.io.IOException;
+import java.util.List;
+
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.dataset.Dataset;
 
 
 /**
- * {@link DatasetVersion} that has a {@link DatasetStateStoreEntryManager}
+ * Finds states and return them as {@link Dataset} objects.
+ *
+ * <p>
+ *   Concrete subclasses should have a constructor with signature
+ *   ({@link org.apache.hadoop.fs.FileSystem}, {@link java.util.Properties}).
+ * </p>
  */
-public interface DatasetStateStoreVersion<T> extends DatasetVersion {
+public interface StatesFinder<T extends State> {
 
-  T getEntry();
-
+  /**
+   * Find all {@link Dataset}s in the file system.
+   * @return List of {@link Dataset}s in the file system.
+   * @throws IOException
+   */
+  List<? extends Dataset> findStates() throws IOException;
 }

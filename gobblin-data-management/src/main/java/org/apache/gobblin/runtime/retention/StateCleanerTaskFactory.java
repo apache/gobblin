@@ -15,16 +15,25 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.data.management.version;
+package org.apache.gobblin.runtime.retention;
 
-import org.apache.gobblin.metastore.metadata.DatasetStateStoreEntryManager;
+import org.apache.gobblin.publisher.DataPublisher;
+import org.apache.gobblin.publisher.NoopPublisher;
+import org.apache.gobblin.runtime.JobState;
+import org.apache.gobblin.runtime.TaskContext;
+import org.apache.gobblin.runtime.task.TaskFactory;
+import org.apache.gobblin.runtime.task.TaskIFace;
 
 
-/**
- * {@link DatasetVersion} that has a {@link DatasetStateStoreEntryManager}
- */
-public interface DatasetStateStoreVersion<T> extends DatasetVersion {
+public class StateCleanerTaskFactory implements TaskFactory {
+  @Override
+  public TaskIFace createTask(TaskContext taskContext) {
+    return new StateCleanerTask(taskContext);
+  }
 
-  T getEntry();
-
+  @Override
+  // this should not have been JobState.DatasetState but doesnt matter here because it is anyway returning noop publisher
+  public DataPublisher createDataPublisher(JobState.DatasetState datasetState) {
+    return new NoopPublisher(datasetState);
+  }
 }

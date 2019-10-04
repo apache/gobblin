@@ -15,29 +15,31 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.data.management.retention.dataset;
+package org.apache.gobblin.data.management.retention.state;
 
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+
+import com.google.common.collect.Lists;
+
 import org.apache.gobblin.data.management.policy.VersionSelectionPolicy;
+import org.apache.gobblin.data.management.retention.dataset.CleanableDataset;
 import org.apache.gobblin.data.management.version.DatasetStateStoreVersion;
 import org.apache.gobblin.data.management.version.DatasetVersion;
 import org.apache.gobblin.data.management.version.finder.VersionFinder;
 import org.apache.gobblin.metastore.DatasetStoreDataset;
-import org.apache.gobblin.metastore.metadata.DatasetStateStoreEntryManager;
+import org.apache.gobblin.metastore.StateStoreDataset;
 import org.apache.gobblin.metastore.metadata.StateStoreEntryManager;
-
-import com.google.common.collect.Lists;
 
 
 /**
- * A cleanable {@link DatasetStoreDataset}
+ * A cleanable {@link StateStoreDataset}
  */
-public abstract class CleanableDatasetStoreDataset<T extends DatasetVersion> extends DatasetStoreDataset implements CleanableDataset {
+public abstract class CleanableStateStoreDataset<T extends DatasetVersion> extends StateStoreDataset implements CleanableDataset {
 
-  public CleanableDatasetStoreDataset(DatasetStoreDataset.Key key, List<DatasetStateStoreEntryManager> entries) {
+  public CleanableStateStoreDataset(Key key, List<StateStoreEntryManager> entries) {
     super(key, entries);
   }
 
