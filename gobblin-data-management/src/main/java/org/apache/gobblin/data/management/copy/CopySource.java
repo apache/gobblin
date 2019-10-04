@@ -32,6 +32,7 @@ import javax.annotation.Nullable;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.data.management.copy.replication.ReplicationConfiguration;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 
@@ -358,7 +359,9 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
           WorkUnit workUnit = new WorkUnit(extract);
           workUnit.addAll(this.state);
-          if(this.copyableDataset instanceof ConfigBasedDataset && ((ConfigBasedDataset)this.copyableDataset).getExpectedSchema() != null) {
+          boolean schemaCheckEnabled = this.copyableDataset instanceof ConfigBasedDataset && ((ConfigBasedDataset)this.copyableDataset).schemaCheckEnabled();
+          workUnit.setProp(ReplicationConfiguration.COPY_SCHEMA_CHECK_ENABLED, schemaCheckEnabled);
+          if(schemaCheckEnabled && ((ConfigBasedDataset)this.copyableDataset).getExpectedSchema() != null) {
             workUnit.setProp(ConfigurationKeys.COPY_EXPECTED_SCHEMA, ((ConfigBasedDataset)this.copyableDataset).getExpectedSchema());
           }
           serializeCopyEntity(workUnit, copyEntity);

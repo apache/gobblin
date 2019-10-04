@@ -71,6 +71,8 @@ public class ReplicationConfiguration {
   public static final String REPLICATION_DATA_CATETORY_TYPE = "replicationDataCategoryType";
   public static final String REPLICATION_DATA_FINITE_INSTANCE = "replicationDataFiniteInstance";
 
+  public static final String COPY_SCHEMA_CHECK_ENABLED = "gobblin.selected.schemaCheck.enabled";
+
   //copy route generator
   public static final String DELETE_TARGET_IFNOT_ON_SOURCE = "deleteTarget";
 
@@ -96,6 +98,9 @@ public class ReplicationConfiguration {
 
   @Getter
   private final ReplicationCopyMode copyMode;
+
+  @Getter
+  private final boolean schemaCheckEnabled;
 
   @Getter
   private final Config selectionConfig;
@@ -142,6 +147,7 @@ public class ReplicationConfiguration {
         .withDeleteTarget(config)
         .withVersionStrategyFromConfigStore(config)
         .withEnforceFileSizeMatchFromConfigStore(config)
+        .withSchemaCheckEnabled(config)
         .build();
   }
 
@@ -156,9 +162,11 @@ public class ReplicationConfiguration {
     this.deleteTargetIfNotExistOnSource = builder.deleteTargetIfNotExistOnSource;
     this.versionStrategyFromConfigStore = builder.versionStrategyFromConfigStore;
     this.enforceFileSizeMatchFromConfigStore = builder.enforceFileMatchFromConfigStore;
+    this.schemaCheckEnabled = builder.schemaCheckEnabled;
   }
 
   private static class Builder {
+    private boolean schemaCheckEnabled;
 
     private ReplicationMetaData metaData;
 
@@ -190,6 +198,11 @@ public class ReplicationConfiguration {
       this.enforceFileMatchFromConfigStore = config.hasPath(CopyConfiguration.ENFORCE_FILE_LENGTH_MATCH)?
           Optional.of(config.getBoolean(CopyConfiguration.ENFORCE_FILE_LENGTH_MATCH)) :
           Optional.absent();
+      return this;
+    }
+
+    public Builder withSchemaCheckEnabled(Config config) {
+      this.schemaCheckEnabled = config.hasPath(COPY_SCHEMA_CHECK_ENABLED) && config.getBoolean(COPY_SCHEMA_CHECK_ENABLED);
       return this;
     }
 
