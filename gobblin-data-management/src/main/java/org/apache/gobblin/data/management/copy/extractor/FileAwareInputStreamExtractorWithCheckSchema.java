@@ -67,7 +67,7 @@ public class FileAwareInputStreamExtractorWithCheckSchema extends FileAwareInput
    * @throws IOException
    */
   protected boolean schemaChecking(FileSystem fsFromFile) throws IOException {
-    if( !this.state.getPropAsBoolean(ReplicationConfiguration.COPY_SCHEMA_CHECK_ENABLED, true) ) {
+    if( !this.state.getPropAsBoolean(ReplicationConfiguration.COPY_SCHEMA_CHECK_ENABLED, false) ) {
       return true;
     }
     DatumReader<GenericRecord> datumReader = new GenericDatumReader<>();

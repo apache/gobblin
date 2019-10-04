@@ -202,7 +202,7 @@ public class ReplicationConfiguration {
     }
 
     public Builder withSchemaCheckEnabled(Config config) {
-      this.schemaCheckEnabled = config.hasPath(COPY_SCHEMA_CHECK_ENABLED) && config.getBoolean(COPY_SCHEMA_CHECK_ENABLED);
+      this.schemaCheckEnabled = !config.hasPath(COPY_SCHEMA_CHECK_ENABLED) || config.getBoolean(COPY_SCHEMA_CHECK_ENABLED);
       return this;
     }
 
