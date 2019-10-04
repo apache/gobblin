@@ -77,7 +77,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
 
   // Class of the state objects to be put into the store
   private final Class<T> stateClass;
-  private final DataSource dataSource;
+  protected final DataSource dataSource;
   private final boolean compressedValues;
 
   private static final String UPSERT_JOB_STATE_TEMPLATE =
@@ -133,7 +133,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
   private final String DELETE_JOB_STATE_SQL;
   private final String CLONE_JOB_STATE_SQL;
   private final String SELECT_STORE_NAMES_SQL;
-  private final String SELECT_METADATA_SQL;
+  protected final String SELECT_METADATA_SQL;
 
   /**
    * Manages the persistence and retrieval of {@link State} in a MySQL database

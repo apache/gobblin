@@ -19,8 +19,12 @@ package org.apache.gobblin.metastore;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -37,8 +41,13 @@ import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.metastore.metadata.StateStoreEntryManager;
+import org.apache.gobblin.metastore.predicates.StateStorePredicate;
+import org.apache.gobblin.metastore.predicates.StoreNamePredicate;
+import org.apache.gobblin.runtime.metastore.filesystem.FsStateStoreEntryManager;
 import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.WritableShimSerialization;
+import org.apache.gobblin.util.filters.HiddenFilter;
 import org.apache.gobblin.util.hadoop.GobblinSequenceFileReader;
 
 import static org.apache.gobblin.util.HadoopUtils.FS_SCHEMES_NON_ATOMIC;
@@ -62,7 +71,7 @@ import static org.apache.gobblin.util.HadoopUtils.FS_SCHEMES_NON_ATOMIC;
  *
  * @author Yinan Li
  */
-public class FsStateStore<T extends State> implements StateStore<T> {
+public class FsStateStore<T extends State> implements StateStore<T>, DatasetStateStore<T> {
 
   public static final String TMP_FILE_PREFIX = "_tmp_";
 
@@ -376,6 +385,50 @@ public class FsStateStore<T extends State> implements StateStore<T> {
     Path storePath = new Path(this.storeRootDir, storeName);
     if (this.fs.exists(storePath)) {
       this.fs.delete(storePath, true);
+    }
+  }
+
+  @Override
+  public Map<String, T> getLatestDatasetStatesByUrns(String jobName) throws IOException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public T getLatestDatasetState(String storeName, String datasetUrn) throws IOException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void persistDatasetState(String datasetUrn, T datasetState) throws IOException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void persistDatasetURNs(String storeName, Collection<String> datasetUrns) throws IOException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public List<? extends StateStoreEntryManager> getMetadataForTables(StateStorePredicate predicate) {
+    Stream<Path> stores = predicate instanceof StoreNamePredicate
+        ? Stream.of(new Path(this.storeRootDir, ((StoreNamePredicate) predicate).getStoreName()))
+        : lsStream(this.fs, new Path(this.storeRootDir)).map(FileStatus::getPath);
+
+    Stream<FileStatus> tables = stores.flatMap(path -> lsStream(this.fs, path));
+
+    return tables.map(this::parseMetadataFromPath).filter(predicate::apply).collect(Collectors.toList());
+  }
+
+  protected StateStoreEntryManager parseMetadataFromPath(FileStatus status) {
+    return new FsStateStoreEntryManager(status, this);
+  }
+
+  protected static Stream<FileStatus> lsStream(FileSystem fs, Path path) {
+    try {
+      FileStatus[] ls = fs.listStatus(path, new HiddenFilter());
+      return ls == null ? Stream.empty() : Arrays.stream(ls);
+    } catch (IOException ioe) {
+      return Stream.empty();
     }
   }
 }

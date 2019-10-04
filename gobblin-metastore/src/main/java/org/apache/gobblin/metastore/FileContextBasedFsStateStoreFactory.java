@@ -33,9 +33,9 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.util.ConfigUtils;
 
 @Alias("fc")
-public class FileContextBasedFsStateStoreFactory implements StateStore.Factory {
+public class FileContextBasedFsStateStoreFactory implements StateStore.Factory, DatasetStateStore.Factory {
   @Override
-  public <T extends State> StateStore<T> createStateStore(Config config, Class<T> stateClass) {
+  public <T extends State> FileContextBasedFsStateStore<T> createStateStore(Config config, Class<T> stateClass) {
     // Add all job configuration properties so they are picked up by Hadoop
     Configuration conf = new Configuration();
     for (Map.Entry<String, ConfigValue> entry : config.entrySet()) {
@@ -48,10 +48,14 @@ public class FileContextBasedFsStateStoreFactory implements StateStore.Factory {
       FileSystem stateStoreFs = FileSystem.get(URI.create(stateStoreFsUri), conf);
       String stateStoreRootDir = config.getString(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY);
 
-      return new FileContextBasedFsStateStore<T>(stateStoreFs, stateStoreRootDir, stateClass);
+      return new FileContextBasedFsStateStore<>(stateStoreFs, stateStoreRootDir, stateClass);
     } catch (IOException e) {
       throw new RuntimeException("Failed to create FsStateStore with factory", e);
     }
+  }
 
+  @Override
+  public FileContextBasedFsStateStore createStateStore(Config config) {
+    return createStateStore(config, State.class);
   }
 }
