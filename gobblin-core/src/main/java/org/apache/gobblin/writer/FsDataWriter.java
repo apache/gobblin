@@ -27,7 +27,6 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
-import org.mortbay.log.Log;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,7 +40,6 @@ import org.apache.gobblin.codec.StreamCodec;
 import org.apache.gobblin.commit.SpeculativeAttemptAwareConstruct;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.dataset.DatasetConstants;
 import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.gobblin.dataset.Descriptor;
 import org.apache.gobblin.dataset.PartitionDescriptor;
@@ -266,7 +264,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
     // For the same reason as deleting the staging file if it already exists, overwrite
     // the output file if it already exists to prevent task retry from being blocked.
     HadoopUtils.renamePath(this.fileContext, this.stagingFile, this.outputFile, true);
-    if (Log.isDebugEnabled()){
+    if (LOG.isDebugEnabled()){
       FileStatus outputFileStatus = this.fs.getFileStatus(this.outputFile);
       Optional<Long> outoutFilelen  = Optional.of(outputFileStatus.getLen());
       LOG.debug(String.format("length of moved file:%s is %s", outputFileStatus, outoutFilelen.get()));
