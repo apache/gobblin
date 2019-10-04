@@ -27,6 +27,7 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
+import org.mortbay.log.Log;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -254,15 +255,22 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
 
     // Double check permission of staging file
     if (!stagingFileStatus.getPermission().equals(this.filePermission)) {
+      LOG.debug(String.format("Setting %s permissions to file: %s as per the config", this.filePermission, this.stagingFile));
       this.fs.setPermission(this.stagingFile, this.filePermission);
     }
 
     this.bytesWritten = Optional.of(Long.valueOf(stagingFileStatus.getLen()));
 
     LOG.info(String.format("Moving data from %s to %s", this.stagingFile, this.outputFile));
+    LOG.debug(String.format("length of staging file:%s is %s", this.stagingFile, bytesWritten()));
     // For the same reason as deleting the staging file if it already exists, overwrite
     // the output file if it already exists to prevent task retry from being blocked.
     HadoopUtils.renamePath(this.fileContext, this.stagingFile, this.outputFile, true);
+    if (Log.isDebugEnabled()){
+      FileStatus outputFileStatus = this.fs.getFileStatus(this.outputFile);
+      Optional<Long> outoutFilelen  = Optional.of(outputFileStatus.getLen());
+      LOG.debug(String.format("length of moved file:%s is %s", outputFileStatus, outoutFilelen.get()));
+    }
 
     // The staging file is moved to the output path in commit, so rename to add record count after that
     if (this.shouldIncludeRecordCountInFileName) {
