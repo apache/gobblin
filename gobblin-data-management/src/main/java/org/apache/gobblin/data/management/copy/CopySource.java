@@ -32,7 +32,6 @@ import javax.annotation.Nullable;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.gobblin.data.management.copy.replication.ReplicationConfiguration;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 
@@ -359,11 +358,8 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
           WorkUnit workUnit = new WorkUnit(extract);
           workUnit.addAll(this.state);
-          if(this.copyableDataset instanceof ConfigBasedDataset && ((ConfigBasedDataset)this.copyableDataset).schemaCheckEnabled()) {
-            workUnit.setProp(ReplicationConfiguration.COPY_SCHEMA_CHECK_ENABLED, true);
-            if (((ConfigBasedDataset) this.copyableDataset).getExpectedSchema() != null) {
-              workUnit.setProp(ConfigurationKeys.COPY_EXPECTED_SCHEMA, ((ConfigBasedDataset) this.copyableDataset).getExpectedSchema());
-            }
+          if(this.copyableDataset instanceof ConfigBasedDataset && ((ConfigBasedDataset)this.copyableDataset).getExpectedSchema() != null) {
+            workUnit.setProp(ConfigurationKeys.COPY_EXPECTED_SCHEMA, ((ConfigBasedDataset)this.copyableDataset).getExpectedSchema());
           }
           serializeCopyEntity(workUnit, copyEntity);
           serializeCopyableDataset(workUnit, metadata);
@@ -407,11 +403,11 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
     private void addLineageInfo(CopyEntity copyEntity, WorkUnit workUnit) {
       if (copyEntity instanceof CopyableFile) {
         CopyableFile copyableFile = (CopyableFile) copyEntity;
-      /*
-       * In Gobblin Distcp, the source and target path info of a CopyableFile are determined by its dataset found by
-       * a DatasetFinder. Consequently, the source and destination dataset for the CopyableFile lineage are expected
-       * to be set by the same logic
-       */
+        /*
+         * In Gobblin Distcp, the source and target path info of a CopyableFile are determined by its dataset found by
+         * a DatasetFinder. Consequently, the source and destination dataset for the CopyableFile lineage are expected
+         * to be set by the same logic
+         */
         if (lineageInfo.isPresent() && copyableFile.getSourceData() != null
             && copyableFile.getDestinationData() != null) {
           lineageInfo.get().setSource(copyableFile.getSourceData(), workUnit);

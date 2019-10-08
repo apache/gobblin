@@ -164,8 +164,6 @@ public class ConfigBasedDataset implements CopyableDataset {
     }
   }
 
-  public boolean schemaCheckEnabled() { return this.rc.isSchemaCheckEnabled(); }
-
   @Override
   public String datasetURN() {
     return this.datasetURN;
