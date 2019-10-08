@@ -144,7 +144,7 @@ import static org.apache.hadoop.security.UserGroupInformation.HADOOP_TOKEN_FILE_
  */
 public class GobblinYarnAppLauncher {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(GobblinYarnAppLauncher.class);
+  protected static final Logger LOGGER = LoggerFactory.getLogger(GobblinYarnAppLauncher.class);
 
   private static final Splitter SPLITTER = Splitter.on(',').omitEmptyStrings().trimResults();
 
@@ -163,22 +163,22 @@ public class GobblinYarnAppLauncher {
       YarnApplicationState.RUNNING
   );
 
-  private final String applicationName;
+  protected final String applicationName;
   private final String appQueueName;
   private final String appViewAcl;
 
-  private final Config config;
+  protected final Config config;
 
-  private final HelixManager helixManager;
+  protected final HelixManager helixManager;
 
   private final Configuration yarnConfiguration;
-  private final YarnClient yarnClient;
-  private final FileSystem fs;
+  protected final YarnClient yarnClient;
+  protected final FileSystem fs;
 
-  private final EventBus eventBus = new EventBus(GobblinYarnAppLauncher.class.getSimpleName());
+  protected final EventBus eventBus = new EventBus(GobblinYarnAppLauncher.class.getSimpleName());
 
-  private final ScheduledExecutorService applicationStatusMonitor;
-  private final long appReportIntervalMinutes;
+  protected final ScheduledExecutorService applicationStatusMonitor;
+  protected final long appReportIntervalMinutes;
 
   private final Optional<String> appMasterJvmArgs;
 
@@ -187,7 +187,7 @@ public class GobblinYarnAppLauncher {
   private final Closer closer = Closer.create();
 
   // Yarn application ID
-  private volatile Optional<ApplicationId> applicationId = Optional.absent();
+  protected volatile Optional<ApplicationId> applicationId = Optional.absent();
 
   private volatile Optional<ServiceManager> serviceManager = Optional.absent();
 
@@ -305,6 +305,10 @@ public class GobblinYarnAppLauncher {
       }
     }, 0, this.appReportIntervalMinutes, TimeUnit.MINUTES);
 
+    addServices();
+  }
+
+  protected void addServices() throws IOException{
     List<Service> services = Lists.newArrayList();
     if (this.config.hasPath(GobblinYarnConfigurationKeys.KEYTAB_FILE_PATH)) {
       LOGGER.info("Adding YarnAppSecurityManager since login is keytab based");
@@ -313,8 +317,8 @@ public class GobblinYarnAppLauncher {
     if (!this.config.hasPath(GobblinYarnConfigurationKeys.LOG_COPIER_DISABLE_DRIVER_COPY) ||
         !this.config.getBoolean(GobblinYarnConfigurationKeys.LOG_COPIER_DISABLE_DRIVER_COPY)) {
       services.add(buildLogCopier(this.config,
-        new Path(this.sinkLogRootDir, this.applicationName + Path.SEPARATOR + this.applicationId.get().toString()),
-        GobblinClusterUtils.getAppWorkDirPath(this.fs, this.applicationName, this.applicationId.get().toString())));
+          new Path(this.sinkLogRootDir, this.applicationName + Path.SEPARATOR + this.applicationId.get().toString()),
+          GobblinClusterUtils.getAppWorkDirPath(this.fs, this.applicationName, this.applicationId.get().toString())));
     }
     if (config.getBoolean(ConfigurationKeys.JOB_EXECINFO_SERVER_ENABLED_KEY)) {
       LOGGER.info("Starting the job execution info server since it is enabled");
@@ -324,7 +328,7 @@ public class GobblinYarnAppLauncher {
       if (config.getBoolean(ConfigurationKeys.ADMIN_SERVER_ENABLED_KEY)) {
         LOGGER.info("Starting the admin UI server since it is enabled");
         services.add(ServiceBasedAppLauncher.createAdminServer(properties,
-                                                               executionInfoServer.getAdvertisedServerUri()));
+            executionInfoServer.getAdvertisedServerUri()));
       }
     } else if (config.getBoolean(ConfigurationKeys.ADMIN_SERVER_ENABLED_KEY)) {
       LOGGER.warn("NOT starting the admin UI because the job execution info server is NOT enabled");
@@ -435,7 +439,7 @@ public class GobblinYarnAppLauncher {
   }
 
   @VisibleForTesting
-  void connectHelixManager() {
+  protected void connectHelixManager() {
     try {
       this.helixManager.connect();
     } catch (Exception e) {
@@ -452,7 +456,7 @@ public class GobblinYarnAppLauncher {
   }
 
   @VisibleForTesting
-  void startYarnClient() {
+  protected void startYarnClient() {
     this.yarnClient.start();
   }
 
@@ -461,7 +465,7 @@ public class GobblinYarnAppLauncher {
     this.yarnClient.stop();
   }
 
-  private Optional<ApplicationId> getApplicationId() throws YarnException, IOException {
+  protected Optional<ApplicationId> getApplicationId() throws YarnException, IOException {
     Optional<ApplicationId> reconnectableApplicationId = getReconnectableApplicationId();
     if (reconnectableApplicationId.isPresent()) {
       LOGGER.info("Found reconnectable application with application ID: " + reconnectableApplicationId.get());
@@ -734,11 +738,11 @@ public class GobblinYarnAppLauncher {
     rawLocalFs.initialize(URI.create(ConfigurationKeys.LOCAL_FS_URI), new Configuration());
 
     LogCopier.Builder builder = LogCopier.newBuilder()
-            .useSrcFileSystem(this.fs)
-            .useDestFileSystem(rawLocalFs)
-            .readFrom(getHdfsLogDir(appWorkDir))
-            .writeTo(sinkLogDir)
-            .acceptsLogFileExtensions(ImmutableSet.of(ApplicationConstants.STDOUT, ApplicationConstants.STDERR));
+        .useSrcFileSystem(this.fs)
+        .useDestFileSystem(rawLocalFs)
+        .readFrom(getHdfsLogDir(appWorkDir))
+        .writeTo(sinkLogDir)
+        .acceptsLogFileExtensions(ImmutableSet.of(ApplicationConstants.STDOUT, ApplicationConstants.STDERR));
     return builder.build();
   }
 
@@ -751,7 +755,7 @@ public class GobblinYarnAppLauncher {
     return logRootDir;
   }
 
-  private YarnAppSecurityManager buildYarnAppSecurityManager() throws IOException {
+  protected YarnAppSecurityManager buildYarnAppSecurityManager() throws IOException {
     Path tokenFilePath = new Path(this.fs.getHomeDirectory(), this.applicationName + Path.SEPARATOR +
         GobblinYarnConfigurationKeys.TOKEN_FILE_NAME);
     return new YarnAppSecurityManager(this.config, this.helixManager, this.fs, tokenFilePath);

@@ -259,6 +259,10 @@ public class YarnAppSecurityManager extends AbstractIdleService {
 
   @VisibleForTesting
   void sendTokenFileUpdatedMessage(InstanceType instanceType) {
+    sendTokenFileUpdatedMessage(instanceType, this.helixManager);
+  }
+
+  public static void sendTokenFileUpdatedMessage(InstanceType instanceType, HelixManager helixManager) {
     Criteria criteria = new Criteria();
     criteria.setInstanceName("%");
     criteria.setResource("%");
@@ -268,9 +272,9 @@ public class YarnAppSecurityManager extends AbstractIdleService {
     /**
      * #HELIX-0.6.7-WORKAROUND
      * Add back when LIVESTANCES messaging is ported to 0.6 branch
-    if (instanceType == InstanceType.PARTICIPANT) {
-      criteria.setDataSource(Criteria.DataSource.LIVEINSTANCES);
-    }
+     if (instanceType == InstanceType.PARTICIPANT) {
+     criteria.setDataSource(Criteria.DataSource.LIVEINSTANCES);
+     }
      **/
     criteria.setSessionSpecific(true);
 
@@ -286,7 +290,7 @@ public class YarnAppSecurityManager extends AbstractIdleService {
     // Temporarily bypass the default messaging service to allow upgrade to 0.6.7 which is missing support
     // for messaging to instances
     //int messagesSent = this.helixManager.getMessagingService().send(criteria, tokenFileUpdatedMessage);
-    GobblinHelixMessagingService messagingService = new GobblinHelixMessagingService(this.helixManager);
+    GobblinHelixMessagingService messagingService = new GobblinHelixMessagingService(helixManager);
 
     int messagesSent = messagingService.send(criteria, tokenFileUpdatedMessage);
     LOGGER.info(String.format("Sent %d token file updated message(s) to the %s", messagesSent, instanceType));
