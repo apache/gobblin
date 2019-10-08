@@ -32,6 +32,7 @@ import com.typesafe.config.Config;
 
 import org.apache.gobblin.data.management.copy.CopyConfiguration;
 import org.apache.gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.filesystem.DataFileVersionStrategy;
 
 import lombok.Getter;
@@ -71,7 +72,9 @@ public class ReplicationConfiguration {
   public static final String REPLICATION_DATA_CATETORY_TYPE = "replicationDataCategoryType";
   public static final String REPLICATION_DATA_FINITE_INSTANCE = "replicationDataFiniteInstance";
 
-  public static final String COPY_SCHEMA_CHECK_ENABLED = "gobblin.selected.schemaCheck.enabled";
+  public static final String COPY_SCHEMA_CHECK_ENABLED = "gobblin.copy.schemaCheck.enabled";
+
+  public static final boolean DEFAULT_COPY_SCHEMA_CHECK_ENABLED = true;
 
   //copy route generator
   public static final String DELETE_TARGET_IFNOT_ON_SOURCE = "deleteTarget";
@@ -202,7 +205,7 @@ public class ReplicationConfiguration {
     }
 
     public Builder withSchemaCheckEnabled(Config config) {
-      this.schemaCheckEnabled = !config.hasPath(COPY_SCHEMA_CHECK_ENABLED) || config.getBoolean(COPY_SCHEMA_CHECK_ENABLED);
+      this.schemaCheckEnabled = ConfigUtils.getBoolean(config, COPY_SCHEMA_CHECK_ENABLED, DEFAULT_COPY_SCHEMA_CHECK_ENABLED);
       return this;
     }
 

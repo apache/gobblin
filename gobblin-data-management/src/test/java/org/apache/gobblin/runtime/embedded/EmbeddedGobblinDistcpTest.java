@@ -29,8 +29,8 @@ import java.util.concurrent.TimeUnit;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.converter.GobblinMetricsPinotFlattenerConverter;
 import org.apache.gobblin.data.management.copy.CopyConfiguration;
+import org.apache.gobblin.data.management.copy.CopySource;
 import org.apache.gobblin.data.management.copy.SchemaCheckedCopySource;
-import org.apache.gobblin.data.management.copy.replication.ReplicationConfiguration;
 import org.apache.gobblin.runtime.api.JobExecutionResult;
 import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.filesystem.DataFileVersionStrategy;
@@ -116,7 +116,7 @@ public class EmbeddedGobblinDistcpTest {
 
     EmbeddedGobblinDistcp embedded = new EmbeddedGobblinDistcp(new Path(tmpSource.getAbsolutePath()),
         new Path(tmpTarget.getAbsolutePath()));
-    embedded.setConfiguration(ReplicationConfiguration.COPY_SCHEMA_CHECK_ENABLED, "true");
+    embedded.setConfiguration(CopySource.SCHEMA_CHECK_ENABLED, "true");
     embedded.setLaunchTimeout(30, TimeUnit.SECONDS);
     embedded.setConfiguration(ConfigurationKeys.SOURCE_CLASS_KEY, SchemaCheckedCopySource.class.getName());
     embedded.setConfiguration(ConfigurationKeys.AVRO_SCHEMA_CHECK_STRATEGY, "org.apache.gobblin.util.schema_check.AvroSchemaCheckDefaultStrategy");
