@@ -283,8 +283,11 @@ public class GobblinYarnAppLauncher {
     this.eventBus.register(this);
 
     String clusterName = this.config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
+    boolean overwriteExistingCluster = ConfigUtils.getBoolean(this.config, GobblinClusterConfigurationKeys.HELIX_CLUSTER_OVERWRITE_KEY,
+        GobblinClusterConfigurationKeys.DEFAULT_HELIX_CLUSTER_OVERWRITE);
+    LOGGER.info("Creating Helix cluster {} with overwrite: {}", clusterName, overwriteExistingCluster);
     HelixUtils.createGobblinHelixCluster(
-        this.config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY), clusterName);
+        this.config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY), clusterName, overwriteExistingCluster);
     LOGGER.info("Created Helix cluster " + clusterName);
 
     connectHelixManager();
