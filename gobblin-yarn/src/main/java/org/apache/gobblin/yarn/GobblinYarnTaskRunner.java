@@ -69,7 +69,7 @@ public class GobblinYarnTaskRunner extends GobblinTaskRunner {
     List<Service> services = new ArrayList<>();
     services.addAll(super.getServices());
     if (UserGroupInformation.isSecurityEnabled()) {
-      LOGGER.info("Adding YarnContainerSecurityManager since login is keytab based");
+      LOGGER.info("Adding YarnContainerSecurityManager since security is enabled");
       services.add(new YarnContainerSecurityManager(this.config, this.fs, this.eventBus));
     }
 
