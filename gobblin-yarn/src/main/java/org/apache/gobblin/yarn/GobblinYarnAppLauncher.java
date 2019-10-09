@@ -317,8 +317,8 @@ public class GobblinYarnAppLauncher {
     if (!this.config.hasPath(GobblinYarnConfigurationKeys.LOG_COPIER_DISABLE_DRIVER_COPY) ||
         !this.config.getBoolean(GobblinYarnConfigurationKeys.LOG_COPIER_DISABLE_DRIVER_COPY)) {
       services.add(buildLogCopier(this.config,
-          new Path(this.sinkLogRootDir, this.applicationName + Path.SEPARATOR + this.applicationId.get().toString()),
-          GobblinClusterUtils.getAppWorkDirPath(this.fs, this.applicationName, this.applicationId.get().toString())));
+        new Path(this.sinkLogRootDir, this.applicationName + Path.SEPARATOR + this.applicationId.get().toString()),
+        GobblinClusterUtils.getAppWorkDirPath(this.fs, this.applicationName, this.applicationId.get().toString())));
     }
     if (config.getBoolean(ConfigurationKeys.JOB_EXECINFO_SERVER_ENABLED_KEY)) {
       LOGGER.info("Starting the job execution info server since it is enabled");
@@ -328,7 +328,7 @@ public class GobblinYarnAppLauncher {
       if (config.getBoolean(ConfigurationKeys.ADMIN_SERVER_ENABLED_KEY)) {
         LOGGER.info("Starting the admin UI server since it is enabled");
         services.add(ServiceBasedAppLauncher.createAdminServer(properties,
-            executionInfoServer.getAdvertisedServerUri()));
+                                                               executionInfoServer.getAdvertisedServerUri()));
       }
     } else if (config.getBoolean(ConfigurationKeys.ADMIN_SERVER_ENABLED_KEY)) {
       LOGGER.warn("NOT starting the admin UI because the job execution info server is NOT enabled");
@@ -738,11 +738,11 @@ public class GobblinYarnAppLauncher {
     rawLocalFs.initialize(URI.create(ConfigurationKeys.LOCAL_FS_URI), new Configuration());
 
     LogCopier.Builder builder = LogCopier.newBuilder()
-        .useSrcFileSystem(this.fs)
-        .useDestFileSystem(rawLocalFs)
-        .readFrom(getHdfsLogDir(appWorkDir))
-        .writeTo(sinkLogDir)
-        .acceptsLogFileExtensions(ImmutableSet.of(ApplicationConstants.STDOUT, ApplicationConstants.STDERR));
+            .useSrcFileSystem(this.fs)
+            .useDestFileSystem(rawLocalFs)
+            .readFrom(getHdfsLogDir(appWorkDir))
+            .writeTo(sinkLogDir)
+            .acceptsLogFileExtensions(ImmutableSet.of(ApplicationConstants.STDOUT, ApplicationConstants.STDERR));
     return builder.build();
   }
 
