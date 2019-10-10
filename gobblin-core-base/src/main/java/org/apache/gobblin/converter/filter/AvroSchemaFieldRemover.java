@@ -22,6 +22,7 @@ import java.util.Map;
 
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
+import org.codehaus.jackson.JsonNode;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
@@ -105,6 +106,9 @@ public class AvroSchemaFieldRemover {
   private Schema removeFieldsFromRecords(Schema schema, Map<String, Schema> schemaMap) {
 
     Schema newRecord = Schema.createRecord(schema.getName(), schema.getDoc(), schema.getNamespace(), schema.isError());
+    for (Map.Entry<String, JsonNode> stringJsonNodeEntry : schema.getJsonProps().entrySet()) {
+      newRecord.addProp(stringJsonNodeEntry.getKey(), stringJsonNodeEntry.getValue());
+    }
 
     // Put an incomplete schema into schemaMap to avoid re-processing a recursive field.
     // The fields in the incomplete schema will be populated once the current schema is completely processed.
@@ -120,6 +124,9 @@ public class AvroSchemaFieldRemover {
         } else {
           newField = new Field(field.name(), DO_NOTHING_INSTANCE.removeFields(field.schema(), schemaMap), field.doc(),
               field.defaultValue());
+        }
+        for (Map.Entry<String, JsonNode> stringJsonNodeEntry : field.getJsonProps().entrySet()) {
+          newField.addProp(stringJsonNodeEntry.getKey(), stringJsonNodeEntry.getValue());
         }
         newFields.add(newField);
       }
