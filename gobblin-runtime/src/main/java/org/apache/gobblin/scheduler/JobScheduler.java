@@ -168,6 +168,8 @@ public class JobScheduler extends AbstractIdleService {
         this.properties.getProperty(ConfigurationKeys.SCHEDULER_WAIT_FOR_JOB_COMPLETION_KEY,
             ConfigurationKeys.DEFAULT_SCHEDULER_WAIT_FOR_JOB_COMPLETION));
 
+    this.jobSpecResolver = JobSpecResolver.builder(ConfigUtils.propertiesToConfig(properties)).build();
+
     if (this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY)) {
       this.jobConfigFileDirPath = new Path(this.properties.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY));
       this.listener = new PathAlterationListenerAdaptorForMonitor(jobConfigFileDirPath, this);
@@ -177,7 +179,6 @@ public class JobScheduler extends AbstractIdleService {
       this.listener = null;
     }
 
-    this.jobSpecResolver = JobSpecResolver.builder(ConfigUtils.propertiesToConfig(properties)).build();
   }
 
   @Override
