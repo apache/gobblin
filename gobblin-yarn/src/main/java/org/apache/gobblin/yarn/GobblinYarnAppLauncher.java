@@ -211,7 +211,7 @@ public class GobblinYarnAppLauncher {
   private final int appMasterMemoryMbs;
   private final int jvmMemoryOverheadMbs;
   private final double jvmMemoryXmxRatio;
-  private Optional<YarnAppSecurityManager> securityManager = Optional.absent();
+  private Optional<AbstractYarnAppSecurityManager> securityManager = Optional.absent();
 
   private final String containerTimezone;
 
@@ -298,7 +298,7 @@ public class GobblinYarnAppLauncher {
     // Before setup application, first login to make sure ugi has the right token.
     if(ConfigUtils.getBoolean(config, GobblinYarnConfigurationKeys.ENABLE_KEY_MANAGEMENT, false)) {
       this.securityManager = Optional.of(buildSecurityManager());
-      this.securityManager.get().loginAdnScheduleTokenRenew();
+      this.securityManager.get().loginAndScheduleTokenRenewal();
     }
 
     this.applicationId = getApplicationId();
@@ -765,14 +765,15 @@ public class GobblinYarnAppLauncher {
     return logRootDir;
   }
 
-  private YarnAppSecurityManager buildSecurityManager() throws IOException {
+  private AbstractYarnAppSecurityManager buildSecurityManager() throws IOException {
     Path tokenFilePath = new Path(this.fs.getHomeDirectory(), this.applicationName + Path.SEPARATOR +
         GobblinYarnConfigurationKeys.TOKEN_FILE_NAME);
 
-    ClassAliasResolver<YarnAppSecurityManager> aliasResolver = new ClassAliasResolver<>(YarnAppSecurityManager.class);
+    ClassAliasResolver<AbstractYarnAppSecurityManager> aliasResolver = new ClassAliasResolver<>(
+        AbstractYarnAppSecurityManager.class);
     try {
-     return (YarnAppSecurityManager)ConstructorUtils.invokeConstructor(Class.forName(aliasResolver.resolve(
-          ConfigUtils.getString(config, GobblinYarnConfigurationKeys.KEY_MANAGEMENT_CLASS, GobblinYarnConfigurationKeys.DEFAULT_KEY_MANAGEMENT_CLASS))), this.config, this.helixManager, this.fs,
+     return (AbstractYarnAppSecurityManager)ConstructorUtils.invokeConstructor(Class.forName(aliasResolver.resolve(
+          ConfigUtils.getString(config, GobblinYarnConfigurationKeys.SECURITY_MANAGER_CLASS, GobblinYarnConfigurationKeys.DEFAULT_DECURITY_MANAGEER_CLASS))), this.config, this.helixManager, this.fs,
           tokenFilePath);
     } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
         | ClassNotFoundException e) {

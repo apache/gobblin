@@ -69,16 +69,12 @@ import com.typesafe.config.Config;
  *
  * @author Yinan Li
  */
-public class YarnAppSecurityManagerWithKeytabe extends YarnAppSecurityManager {
+public class YarnAppSecurityManagerWithKeytabes extends AbstractYarnAppSecurityManager {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(YarnAppSecurityManagerWithKeytabe.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(YarnAppSecurityManagerWithKeytabes.class);
 
-
-  private final HelixManager helixManager;
-  private final FileSystem fs;
-  private final Path tokenFilePath;
   private UserGroupInformation loginUser;
-  private Token<? extends TokenIdentifier> token;
+  protected Token<? extends TokenIdentifier> token;
   private Optional<ScheduledFuture<?>> scheduledTokenRenewTask = Optional.absent();
 
   // This flag is used to tell if this is the first login. If yes, no token updated message will be
@@ -86,13 +82,9 @@ public class YarnAppSecurityManagerWithKeytabe extends YarnAppSecurityManager {
   // happens after this class starts up so the token gets regularly refreshed before the next login.
   private volatile boolean firstLogin = true;
 
-  public YarnAppSecurityManagerWithKeytabe(Config config, HelixManager helixManager, FileSystem fs, Path tokenFilePath)
+  public YarnAppSecurityManagerWithKeytabes(Config config, HelixManager helixManager, FileSystem fs, Path tokenFilePath)
       throws IOException {
-    super(config);
-    this.helixManager = helixManager;
-    this.fs = fs;
-    this.tokenFilePath = tokenFilePath;
-    this.fs.makeQualified(tokenFilePath);
+    super(config, helixManager, fs, tokenFilePath);
     this.loginUser = UserGroupInformation.getLoginUser();
   }
 
@@ -101,7 +93,7 @@ public class YarnAppSecurityManagerWithKeytabe extends YarnAppSecurityManager {
    */
   protected synchronized void renewDelegationToken() throws IOException, InterruptedException {
     this.token.renew(this.fs.getConf());
-    writeDelegationTokenToFile();
+    writeDelegationTokenToFile(this.token);
 
     if (!this.firstLogin) {
       // Send a message to the controller and all the participants if this is not the first login
@@ -146,7 +138,7 @@ public class YarnAppSecurityManagerWithKeytabe extends YarnAppSecurityManager {
     this.loginUser = UserGroupInformation.getLoginUser();
 
     getNewDelegationTokenForLoginUser();
-    writeDelegationTokenToFile();
+    writeDelegationTokenToFile(this.token);
 
     if (!this.firstLogin) {
       // Send a message to the controller and all the participants
@@ -155,58 +147,4 @@ public class YarnAppSecurityManagerWithKeytabe extends YarnAppSecurityManager {
     }
   }
 
-  /**
-   * Write the current delegation token to the token file.
-   */
-  @VisibleForTesting
-  synchronized void writeDelegationTokenToFile() throws IOException {
-    if (this.fs.exists(this.tokenFilePath)) {
-      LOGGER.info("Deleting existing token file " + this.tokenFilePath);
-      this.fs.delete(this.tokenFilePath, false);
-    }
-
-    LOGGER.info("Writing new or renewed token to token file " + this.tokenFilePath);
-    YarnHelixUtils.writeTokenToFile(this.token, this.tokenFilePath, this.fs.getConf());
-    // Only grand access to the token file to the login user
-    this.fs.setPermission(this.tokenFilePath, new FsPermission(FsAction.READ_WRITE, FsAction.NONE, FsAction.NONE));
-  }
-
-  @VisibleForTesting
-  void sendTokenFileUpdatedMessage(InstanceType instanceType) {
-    sendTokenFileUpdatedMessage(instanceType, this.helixManager);
-  }
-
-  public static void sendTokenFileUpdatedMessage(InstanceType instanceType, HelixManager helixManager) {
-    Criteria criteria = new Criteria();
-    criteria.setInstanceName("%");
-    criteria.setResource("%");
-    criteria.setPartition("%");
-    criteria.setPartitionState("%");
-    criteria.setRecipientInstanceType(instanceType);
-    /**
-     * #HELIX-0.6.7-WORKAROUND
-     * Add back when LIVESTANCES messaging is ported to 0.6 branch
-     if (instanceType == InstanceType.PARTICIPANT) {
-     criteria.setDataSource(Criteria.DataSource.LIVEINSTANCES);
-     }
-     **/
-    criteria.setSessionSpecific(true);
-
-    Message tokenFileUpdatedMessage = new Message(Message.MessageType.USER_DEFINE_MSG,
-        HelixMessageSubTypes.TOKEN_FILE_UPDATED.toString().toLowerCase() + UUID.randomUUID().toString());
-    tokenFileUpdatedMessage.setMsgSubType(HelixMessageSubTypes.TOKEN_FILE_UPDATED.toString());
-    tokenFileUpdatedMessage.setMsgState(Message.MessageState.NEW);
-    if (instanceType == InstanceType.CONTROLLER) {
-      tokenFileUpdatedMessage.setTgtSessionId("*");
-    }
-
-    // #HELIX-0.6.7-WORKAROUND
-    // Temporarily bypass the default messaging service to allow upgrade to 0.6.7 which is missing support
-    // for messaging to instances
-    //int messagesSent = this.helixManager.getMessagingService().send(criteria, tokenFileUpdatedMessage);
-    GobblinHelixMessagingService messagingService = new GobblinHelixMessagingService(helixManager);
-
-    int messagesSent = messagingService.send(criteria, tokenFileUpdatedMessage);
-    LOGGER.info(String.format("Sent %d token file updated message(s) to the %s", messagesSent, instanceType));
-  }
 }

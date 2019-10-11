@@ -77,8 +77,8 @@ public class GobblinYarnConfigurationKeys {
   public static final String HELIX_INSTANCE_MAX_RETRIES = GOBBLIN_YARN_PREFIX + "helix.instance.max.retries";
 
   // Security and authentication configuration properties.
-  public static final String KEY_MANAGEMENT_CLASS = GOBBLIN_YARN_PREFIX + "key.management.class";
-  public static final String DEFAULT_KEY_MANAGEMENT_CLASS = "org.apache.gobblin.yarn.YarnAppSecurityManagerWithKeytabe";
+  public static final String SECURITY_MANAGER_CLASS = GOBBLIN_YARN_PREFIX + "security.manager.class";
+  public static final String DEFAULT_DECURITY_MANAGEER_CLASS = "org.apache.gobblin.yarn.YarnAppSecurityManagerWithKeytabs";
   public static final String ENABLE_KEY_MANAGEMENT = GOBBLIN_YARN_PREFIX + "enable.key.management";
   public static final String KEYTAB_FILE_PATH = GOBBLIN_YARN_PREFIX + "keytab.file.path";
   public static final String KEYTAB_PRINCIPAL_NAME = GOBBLIN_YARN_PREFIX + "keytab.principal.name";
