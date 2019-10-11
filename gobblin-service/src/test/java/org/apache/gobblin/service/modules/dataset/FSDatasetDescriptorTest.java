@@ -72,6 +72,14 @@ public class FSDatasetDescriptorTest {
     Assert.assertFalse(descriptor3.contains(descriptor5));
     Assert.assertFalse(descriptor2.contains(descriptor5));
     Assert.assertFalse(descriptor1.contains(descriptor5));
+
+    // Test subpaths
+    Config subPathConfig = ConfigFactory.empty().withValue(DatasetDescriptorConfigKeys.PATH_KEY, ConfigValueFactory.fromAnyRef("/a/b/c"))
+        .withValue(DatasetDescriptorConfigKeys.SUBPATHS_KEY, ConfigValueFactory.fromAnyRef("{e,f,g}"))
+        .withValue(DatasetDescriptorConfigKeys.PLATFORM_KEY, ConfigValueFactory.fromAnyRef("hdfs"));
+    FSDatasetDescriptor descriptor6 = new FSDatasetDescriptor(subPathConfig);
+    Assert.assertTrue(descriptor1.contains(descriptor6));
+    Assert.assertFalse(descriptor2.contains(descriptor6));
   }
 
   @Test

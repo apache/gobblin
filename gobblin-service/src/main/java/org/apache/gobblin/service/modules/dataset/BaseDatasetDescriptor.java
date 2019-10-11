@@ -62,7 +62,7 @@ public abstract class BaseDatasetDescriptor implements DatasetDescriptor {
   /**
    * {@inheritDoc}
    */
-  protected abstract boolean isPathContaining(String otherPath);
+  protected abstract boolean isPathContaining(DatasetDescriptor other);
 
   /**
    * @return true if this {@link DatasetDescriptor} contains the other {@link DatasetDescriptor} i.e. the
@@ -75,7 +75,7 @@ public abstract class BaseDatasetDescriptor implements DatasetDescriptor {
     if (this == other) {
       return true;
     }
-    
+
     if (other == null || !getClass().equals(other.getClass())) {
       return false;
     }
@@ -88,6 +88,6 @@ public abstract class BaseDatasetDescriptor implements DatasetDescriptor {
       return false;
     }
 
-    return isPathContaining(other.getPath()) && getFormatConfig().contains(other.getFormatConfig());
+    return isPathContaining(other) && getFormatConfig().contains(other.getFormatConfig());
   }
 }

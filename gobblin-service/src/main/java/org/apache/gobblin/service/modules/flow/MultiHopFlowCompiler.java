@@ -32,6 +32,7 @@ import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
@@ -212,26 +213,49 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
   private static List<FlowSpec> splitFlowSpec(FlowSpec flowSpec) {
     long flowExecutionId = FlowUtils.getOrCreateFlowExecutionId(flowSpec);
     List<FlowSpec> flowSpecs = new ArrayList<>();
+    Config flowConfig = flowSpec.getConfig();
 
-    if (flowSpec.getConfig().hasPath(ConfigurationKeys.DATASET_SUBPATHS_KEY)) {
-      List<String> datasetSubpaths = ConfigUtils.getStringList(flowSpec.getConfig(), ConfigurationKeys.DATASET_SUBPATHS_KEY);
-      String baseInputPath = ConfigUtils.getString(flowSpec.getConfig(), ConfigurationKeys.DATASET_BASE_INPUT_PATH_KEY, "/");
-      String baseOutputPath = ConfigUtils.getString(flowSpec.getConfig(), ConfigurationKeys.DATASET_BASE_OUTPUT_PATH_KEY, "/");
+    if (flowConfig.hasPath(ConfigurationKeys.DATASET_SUBPATHS_KEY)) {
+      List<String> datasetSubpaths = ConfigUtils.getStringList(flowConfig, ConfigurationKeys.DATASET_SUBPATHS_KEY);
+      String baseInputPath = ConfigUtils.getString(flowConfig, ConfigurationKeys.DATASET_BASE_INPUT_PATH_KEY, "/");
+      String baseOutputPath = ConfigUtils.getString(flowConfig, ConfigurationKeys.DATASET_BASE_OUTPUT_PATH_KEY, "/");
 
-      for (String subPath : datasetSubpaths) {
-        Config newConfig = flowSpec.getConfig().withoutPath(ConfigurationKeys.DATASET_SUBPATHS_KEY)
-            .withValue(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, ConfigValueFactory.fromAnyRef(flowExecutionId))
+      if (ConfigUtils.getBoolean(flowConfig, ConfigurationKeys.DATASET_COMBINE_KEY, false)) {
+        Config newConfig = flowConfig.withoutPath(ConfigurationKeys.DATASET_SUBPATHS_KEY)
             .withValue(DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX + "." + DatasetDescriptorConfigKeys.PATH_KEY,
-                ConfigValueFactory.fromAnyRef(new Path(baseInputPath, subPath).toString()))
+                ConfigValueFactory.fromAnyRef(baseInputPath))
             .withValue(DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX + "." + DatasetDescriptorConfigKeys.PATH_KEY,
-                ConfigValueFactory.fromAnyRef(new Path(baseOutputPath, subPath).toString()));
+                ConfigValueFactory.fromAnyRef(baseOutputPath))
+            .withValue(DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX + ".subPaths",
+                ConfigValueFactory.fromAnyRef(convertStringListToGlobPattern(datasetSubpaths)))
+            .withValue(DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX + ".subPaths",
+                ConfigValueFactory.fromAnyRef(convertStringListToGlobPattern(datasetSubpaths)));
         flowSpecs.add(copyFlowSpecWithNewConfig(flowSpec, newConfig));
+      } else {
+        for (String subPath : datasetSubpaths) {
+          Config newConfig = flowConfig.withoutPath(ConfigurationKeys.DATASET_SUBPATHS_KEY)
+              .withValue(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, ConfigValueFactory.fromAnyRef(flowExecutionId))
+              .withValue(DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX + "." + DatasetDescriptorConfigKeys.PATH_KEY,
+                  ConfigValueFactory.fromAnyRef(new Path(baseInputPath, subPath).toString()))
+              .withValue(DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX + "." + DatasetDescriptorConfigKeys.PATH_KEY,
+                  ConfigValueFactory.fromAnyRef(new Path(baseOutputPath, subPath).toString()));
+          flowSpecs.add(copyFlowSpecWithNewConfig(flowSpec, newConfig));
+        }
       }
     } else {
       flowSpecs.add(flowSpec);
     }
 
     return flowSpecs;
+  }
+
+  /**
+   * Convert string list to string pattern that will work for globs.
+   *
+   * e.g. ["test1", "test2", test3"] -> "{test1,test2,test}"
+   */
+  private static String convertStringListToGlobPattern(List<String> stringList) {
+    return "{" + Joiner.on(",").join(stringList) + "}";
   }
 
   private static FlowSpec copyFlowSpecWithNewConfig(FlowSpec flowSpec, Config newConfig) {
