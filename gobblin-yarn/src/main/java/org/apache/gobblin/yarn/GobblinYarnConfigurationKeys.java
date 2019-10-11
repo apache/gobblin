@@ -77,12 +77,16 @@ public class GobblinYarnConfigurationKeys {
   public static final String HELIX_INSTANCE_MAX_RETRIES = GOBBLIN_YARN_PREFIX + "helix.instance.max.retries";
 
   // Security and authentication configuration properties.
+  public static final String SECURITY_MANAGER_CLASS = GOBBLIN_YARN_PREFIX + "security.manager.class";
+  public static final String DEFAULT_SECURITY_MANAGER_CLASS = "org.apache.gobblin.yarn.YarnAppSecurityManagerWithKeytabs";
+  public static final String ENABLE_KEY_MANAGEMENT = GOBBLIN_YARN_PREFIX + "enable.key.management";
   public static final String KEYTAB_FILE_PATH = GOBBLIN_YARN_PREFIX + "keytab.file.path";
   public static final String KEYTAB_PRINCIPAL_NAME = GOBBLIN_YARN_PREFIX + "keytab.principal.name";
   public static final String TOKEN_FILE_NAME = ".token";
   public static final String LOGIN_INTERVAL_IN_MINUTES = GOBBLIN_YARN_PREFIX + "login.interval.minutes";
+  public static final Long DEFAULT_LOGIN_INTERVAL_IN_MINUTES = Long.MAX_VALUE;
   public static final String TOKEN_RENEW_INTERVAL_IN_MINUTES = GOBBLIN_YARN_PREFIX + "token.renew.interval.minutes";
-
+  public static final Long DEFAULT_TOKEN_RENEW_INTERVAL_IN_MINUTES = Long.MAX_VALUE;
   // Resource/dependencies configuration properties.
   public static final String LIB_JARS_DIR_KEY = GOBBLIN_YARN_PREFIX + "lib.jars.dir";
 

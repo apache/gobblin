@@ -19,6 +19,7 @@ package org.apache.gobblin.yarn;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.EnumSet;
@@ -34,7 +35,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.commons.mail.EmailException;
+import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -208,6 +211,7 @@ public class GobblinYarnAppLauncher {
   private final int appMasterMemoryMbs;
   private final int jvmMemoryOverheadMbs;
   private final double jvmMemoryXmxRatio;
+  private Optional<AbstractYarnAppSecurityManager> securityManager = Optional.absent();
 
   private final String containerTimezone;
 
@@ -294,6 +298,12 @@ public class GobblinYarnAppLauncher {
 
     startYarnClient();
 
+    // Before setup application, first login to make sure ugi has the right token.
+    if(ConfigUtils.getBoolean(config, GobblinYarnConfigurationKeys.ENABLE_KEY_MANAGEMENT, false)) {
+      this.securityManager = Optional.of(buildSecurityManager());
+      this.securityManager.get().loginAndScheduleTokenRenewal();
+    }
+
     this.applicationId = getApplicationId();
 
     this.applicationStatusMonitor.scheduleAtFixedRate(new Runnable() {
@@ -308,10 +318,14 @@ public class GobblinYarnAppLauncher {
       }
     }, 0, this.appReportIntervalMinutes, TimeUnit.MINUTES);
 
+    addServices();
+  }
+
+  private void addServices() throws IOException{
     List<Service> services = Lists.newArrayList();
-    if (this.config.hasPath(GobblinYarnConfigurationKeys.KEYTAB_FILE_PATH)) {
-      LOGGER.info("Adding YarnAppSecurityManager since login is keytab based");
-      services.add(buildYarnAppSecurityManager());
+    if (this.securityManager.isPresent()) {
+      LOGGER.info("Adding KeyManagerService since key management is enabled");
+      services.add(this.securityManager.get());
     }
     if (!this.config.hasPath(GobblinYarnConfigurationKeys.LOG_COPIER_DISABLE_DRIVER_COPY) ||
         !this.config.getBoolean(GobblinYarnConfigurationKeys.LOG_COPIER_DISABLE_DRIVER_COPY)) {
@@ -754,10 +768,20 @@ public class GobblinYarnAppLauncher {
     return logRootDir;
   }
 
-  private YarnAppSecurityManager buildYarnAppSecurityManager() throws IOException {
+  private AbstractYarnAppSecurityManager buildSecurityManager() throws IOException {
     Path tokenFilePath = new Path(this.fs.getHomeDirectory(), this.applicationName + Path.SEPARATOR +
         GobblinYarnConfigurationKeys.TOKEN_FILE_NAME);
-    return new YarnAppSecurityManager(this.config, this.helixManager, this.fs, tokenFilePath);
+
+    ClassAliasResolver<AbstractYarnAppSecurityManager> aliasResolver = new ClassAliasResolver<>(
+        AbstractYarnAppSecurityManager.class);
+    try {
+     return (AbstractYarnAppSecurityManager)ConstructorUtils.invokeConstructor(Class.forName(aliasResolver.resolve(
+          ConfigUtils.getString(config, GobblinYarnConfigurationKeys.SECURITY_MANAGER_CLASS, GobblinYarnConfigurationKeys.DEFAULT_SECURITY_MANAGER_CLASS))), this.config, this.helixManager, this.fs,
+          tokenFilePath);
+    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
+        | ClassNotFoundException e) {
+      throw new IOException(e);
+    }
   }
 
   @VisibleForTesting

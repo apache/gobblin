@@ -25,7 +25,9 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.util.ConverterUtils;
@@ -66,8 +68,8 @@ public class GobblinYarnTaskRunner extends GobblinTaskRunner {
   public List<Service> getServices() {
     List<Service> services = new ArrayList<>();
     services.addAll(super.getServices());
-    if (this.config.hasPath(GobblinYarnConfigurationKeys.KEYTAB_FILE_PATH)) {
-      LOGGER.info("Adding YarnContainerSecurityManager since login is keytab based");
+    if (UserGroupInformation.isSecurityEnabled()) {
+      LOGGER.info("Adding YarnContainerSecurityManager since security is enabled");
       services.add(new YarnContainerSecurityManager(this.config, this.fs, this.eventBus));
     }
 
