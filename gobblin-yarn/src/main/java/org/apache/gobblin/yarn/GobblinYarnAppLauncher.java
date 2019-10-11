@@ -19,6 +19,7 @@ package org.apache.gobblin.yarn;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.EnumSet;
@@ -34,7 +35,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.commons.mail.EmailException;
+import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -144,7 +147,7 @@ import static org.apache.hadoop.security.UserGroupInformation.HADOOP_TOKEN_FILE_
  */
 public class GobblinYarnAppLauncher {
 
-  protected static final Logger LOGGER = LoggerFactory.getLogger(GobblinYarnAppLauncher.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(GobblinYarnAppLauncher.class);
 
   private static final Splitter SPLITTER = Splitter.on(',').omitEmptyStrings().trimResults();
 
@@ -163,22 +166,22 @@ public class GobblinYarnAppLauncher {
       YarnApplicationState.RUNNING
   );
 
-  protected final String applicationName;
+  private final String applicationName;
   private final String appQueueName;
   private final String appViewAcl;
 
-  protected final Config config;
+  private final Config config;
 
-  protected final HelixManager helixManager;
+  private final HelixManager helixManager;
 
   private final Configuration yarnConfiguration;
-  protected final YarnClient yarnClient;
-  protected final FileSystem fs;
+  private final YarnClient yarnClient;
+  private final FileSystem fs;
 
-  protected final EventBus eventBus = new EventBus(GobblinYarnAppLauncher.class.getSimpleName());
+  private final EventBus eventBus = new EventBus(GobblinYarnAppLauncher.class.getSimpleName());
 
-  protected final ScheduledExecutorService applicationStatusMonitor;
-  protected final long appReportIntervalMinutes;
+  private final ScheduledExecutorService applicationStatusMonitor;
+  private final long appReportIntervalMinutes;
 
   private final Optional<String> appMasterJvmArgs;
 
@@ -187,7 +190,7 @@ public class GobblinYarnAppLauncher {
   private final Closer closer = Closer.create();
 
   // Yarn application ID
-  protected volatile Optional<ApplicationId> applicationId = Optional.absent();
+  private volatile Optional<ApplicationId> applicationId = Optional.absent();
 
   private volatile Optional<ServiceManager> serviceManager = Optional.absent();
 
@@ -208,6 +211,7 @@ public class GobblinYarnAppLauncher {
   private final int appMasterMemoryMbs;
   private final int jvmMemoryOverheadMbs;
   private final double jvmMemoryXmxRatio;
+  private Optional<YarnAppSecurityManager> securityManager = Optional.absent();
 
   private final String containerTimezone;
 
@@ -291,6 +295,12 @@ public class GobblinYarnAppLauncher {
 
     startYarnClient();
 
+    // Before setup application, first login to make sure ugi has the right token.
+    if(ConfigUtils.getBoolean(config, GobblinYarnConfigurationKeys.ENABLE_KEY_MANAGEMENT, false)) {
+      this.securityManager = Optional.of(buildSecurityManager());
+      this.securityManager.get().loginAdnScheduleTokenRenew();
+    }
+
     this.applicationId = getApplicationId();
 
     this.applicationStatusMonitor.scheduleAtFixedRate(new Runnable() {
@@ -308,11 +318,11 @@ public class GobblinYarnAppLauncher {
     addServices();
   }
 
-  protected void addServices() throws IOException{
+  private void addServices() throws IOException{
     List<Service> services = Lists.newArrayList();
-    if (this.config.hasPath(GobblinYarnConfigurationKeys.KEYTAB_FILE_PATH)) {
-      LOGGER.info("Adding YarnAppSecurityManager since login is keytab based");
-      services.add(buildYarnAppSecurityManager());
+    if (this.securityManager.isPresent()) {
+      LOGGER.info("Adding KeyManagerService since key management is enabled");
+      services.add(this.securityManager.get());
     }
     if (!this.config.hasPath(GobblinYarnConfigurationKeys.LOG_COPIER_DISABLE_DRIVER_COPY) ||
         !this.config.getBoolean(GobblinYarnConfigurationKeys.LOG_COPIER_DISABLE_DRIVER_COPY)) {
@@ -439,7 +449,7 @@ public class GobblinYarnAppLauncher {
   }
 
   @VisibleForTesting
-  protected void connectHelixManager() {
+  void connectHelixManager() {
     try {
       this.helixManager.connect();
     } catch (Exception e) {
@@ -456,7 +466,7 @@ public class GobblinYarnAppLauncher {
   }
 
   @VisibleForTesting
-  protected void startYarnClient() {
+  void startYarnClient() {
     this.yarnClient.start();
   }
 
@@ -465,7 +475,7 @@ public class GobblinYarnAppLauncher {
     this.yarnClient.stop();
   }
 
-  protected Optional<ApplicationId> getApplicationId() throws YarnException, IOException {
+  private Optional<ApplicationId> getApplicationId() throws YarnException, IOException {
     Optional<ApplicationId> reconnectableApplicationId = getReconnectableApplicationId();
     if (reconnectableApplicationId.isPresent()) {
       LOGGER.info("Found reconnectable application with application ID: " + reconnectableApplicationId.get());
@@ -755,10 +765,19 @@ public class GobblinYarnAppLauncher {
     return logRootDir;
   }
 
-  protected YarnAppSecurityManager buildYarnAppSecurityManager() throws IOException {
+  private YarnAppSecurityManager buildSecurityManager() throws IOException {
     Path tokenFilePath = new Path(this.fs.getHomeDirectory(), this.applicationName + Path.SEPARATOR +
         GobblinYarnConfigurationKeys.TOKEN_FILE_NAME);
-    return new YarnAppSecurityManager(this.config, this.helixManager, this.fs, tokenFilePath);
+
+    ClassAliasResolver<YarnAppSecurityManager> aliasResolver = new ClassAliasResolver<>(YarnAppSecurityManager.class);
+    try {
+     return (YarnAppSecurityManager)ConstructorUtils.invokeConstructor(Class.forName(aliasResolver.resolve(
+          ConfigUtils.getString(config, GobblinYarnConfigurationKeys.KEY_MANAGEMENT_CLASS, GobblinYarnConfigurationKeys.DEFAULT_KEY_MANAGEMENT_CLASS))), this.config, this.helixManager, this.fs,
+          tokenFilePath);
+    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
+        | ClassNotFoundException e) {
+      throw new IOException(e);
+    }
   }
 
   @VisibleForTesting

@@ -19,13 +19,10 @@ package org.apache.gobblin.azkaban;
 
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.util.Properties;
 import java.util.concurrent.TimeoutException;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang3.reflect.ConstructorUtils;
-import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.log4j.Logger;
 
@@ -58,8 +55,6 @@ import azkaban.jobExecutor.AbstractJob;
 public class AzkabanGobblinYarnAppLauncher extends AbstractJob {
   // if this is set then the Azkaban config will be written to the specified file path
   public static final String AZKABAN_CONFIG_OUTPUT_PATH = "gobblin.yarn.akabanConfigOutputPath";
-  public static final String GOBBLIN_YARN_APP_LAUNCHER_CLASS = "gobblin.yarn.app.launcher.class";
-  public static final String DEFAULT_GOBBLIN_YARN_APP_LAUNCHER_CLASS = "org.apache.gobblin.yarn.GobblinYarnAppLauncher";
 
   private static final Logger LOGGER = Logger.getLogger(AzkabanJobLauncher.class);
 
@@ -71,14 +66,7 @@ public class AzkabanGobblinYarnAppLauncher extends AbstractJob {
 
     outputConfigToFile(gobblinConfig);
 
-    ClassAliasResolver<GobblinYarnAppLauncher> aliasResolver = new ClassAliasResolver<>(GobblinYarnAppLauncher.class);
-    try {
-      this.gobblinYarnAppLauncher = (GobblinYarnAppLauncher) ConstructorUtils.invokeConstructor(Class.forName(aliasResolver.resolve(
-          props.getProperty(GOBBLIN_YARN_APP_LAUNCHER_CLASS, DEFAULT_GOBBLIN_YARN_APP_LAUNCHER_CLASS))), gobblinConfig, new YarnConfiguration());
-    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
-        | ClassNotFoundException e) {
-      throw new RuntimeException(e);
-    }
+    this.gobblinYarnAppLauncher = new GobblinYarnAppLauncher(gobblinConfig, new YarnConfiguration());
   }
 
   @Override

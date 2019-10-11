@@ -56,17 +56,17 @@ import org.apache.gobblin.testing.AssertWithBackoff;
 
 
 /**
- * Unit tests for {@link YarnAppSecurityManager} and {@link YarnContainerSecurityManager}.
+ * Unit tests for {@link YarnAppSecurityManagerWithKeytabe} and {@link YarnContainerSecurityManager}.
  *
  * <p>
- *   This class tests {@link YarnAppSecurityManager} and {@link YarnContainerSecurityManager} together
+ *   This class tests {@link YarnAppSecurityManagerWithKeytabe} and {@link YarnContainerSecurityManager} together
  *   as it is more convenient to test both here where all dependencies are setup between the two.
  * </p>
  *
  * <p>
  *   This class uses a {@link TestingServer} as an embedded ZooKeeper server for testing. The Curator
  *   framework is used to provide a ZooKeeper client. This class also uses a {@link HelixManager} as
- *   being required by {@link YarnAppSecurityManager}. The local file system as returned by
+ *   being required by {@link YarnAppSecurityManagerWithKeytabe}. The local file system as returned by
  *   {@link FileSystem#getLocal(Configuration)} is used for writing the testing delegation token, which
  *   is acquired by mocking the method {@link FileSystem#getDelegationToken(String)} on the local
  *   {@link FileSystem} instance.
@@ -87,7 +87,7 @@ public class YarnSecurityManagerTest {
   private Path tokenFilePath;
   private Token<?> token;
 
-  private YarnAppSecurityManager yarnAppSecurityManager;
+  private YarnAppSecurityManagerWithKeytabe _yarnAppYarnAppSecurityManagerWithKeyTabe;
   private YarnContainerSecurityManager yarnContainerSecurityManager;
 
   private final Closer closer = Closer.create();
@@ -131,19 +131,19 @@ public class YarnSecurityManagerTest {
 
     this.baseDir = new Path(YarnSecurityManagerTest.class.getSimpleName());
     this.tokenFilePath = new Path(this.baseDir, GobblinYarnConfigurationKeys.TOKEN_FILE_NAME);
-    this.yarnAppSecurityManager =
-        new YarnAppSecurityManager(config, this.helixManager, this.localFs, this.tokenFilePath);
+    this._yarnAppYarnAppSecurityManagerWithKeyTabe =
+        new YarnAppSecurityManagerWithKeytabe(config, this.helixManager, this.localFs, this.tokenFilePath);
     this.yarnContainerSecurityManager = new YarnContainerSecurityManager(config, this.localFs, new EventBus());
   }
 
   @Test
   public void testGetNewDelegationTokenForLoginUser() throws IOException {
-    this.yarnAppSecurityManager.getNewDelegationTokenForLoginUser();
+    this._yarnAppYarnAppSecurityManagerWithKeyTabe.getNewDelegationTokenForLoginUser();
   }
 
   @Test(dependsOnMethods = "testGetNewDelegationTokenForLoginUser")
   public void testWriteDelegationTokenToFile() throws IOException {
-    this.yarnAppSecurityManager.writeDelegationTokenToFile();
+    this._yarnAppYarnAppSecurityManagerWithKeyTabe.writeDelegationTokenToFile();
     Assert.assertTrue(this.localFs.exists(this.tokenFilePath));
     assertToken(YarnHelixUtils.readTokensFromFile(this.tokenFilePath, this.configuration));
   }
@@ -173,7 +173,7 @@ public class YarnSecurityManagerTest {
   @Test
   public void testSendTokenFileUpdatedMessage() throws Exception {
     Logger log = LoggerFactory.getLogger("testSendTokenFileUpdatedMessage");
-    this.yarnAppSecurityManager.sendTokenFileUpdatedMessage(InstanceType.CONTROLLER);
+    this._yarnAppYarnAppSecurityManagerWithKeyTabe.sendTokenFileUpdatedMessage(InstanceType.CONTROLLER);
     Assert.assertEquals(this.curatorFramework.checkExists().forPath(
         String.format("/%s/CONTROLLER/MESSAGES", YarnSecurityManagerTest.class.getSimpleName())).getVersion(), 0);
     AssertWithBackoff.create().logger(log).timeoutMs(20000)
