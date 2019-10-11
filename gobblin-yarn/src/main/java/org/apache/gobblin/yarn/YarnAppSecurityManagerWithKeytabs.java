@@ -17,28 +17,19 @@
 
 package org.apache.gobblin.yarn;
 
-import org.apache.gobblin.cluster.GobblinHelixMessagingService;
 import java.io.File;
 import java.io.IOException;
-import java.util.UUID;
 import java.util.concurrent.ScheduledFuture;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.permission.FsAction;
-import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
 
-import org.apache.helix.Criteria;
 import org.apache.helix.HelixManager;
 import org.apache.helix.InstanceType;
-import org.apache.helix.model.Message;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
@@ -69,9 +60,7 @@ import com.typesafe.config.Config;
  *
  * @author Yinan Li
  */
-public class YarnAppSecurityManagerWithKeytabes extends AbstractYarnAppSecurityManager {
-
-  private static final Logger LOGGER = LoggerFactory.getLogger(YarnAppSecurityManagerWithKeytabes.class);
+public class YarnAppSecurityManagerWithKeytabs extends AbstractYarnAppSecurityManager {
 
   private UserGroupInformation loginUser;
   protected Token<? extends TokenIdentifier> token;
@@ -82,7 +71,7 @@ public class YarnAppSecurityManagerWithKeytabes extends AbstractYarnAppSecurityM
   // happens after this class starts up so the token gets regularly refreshed before the next login.
   private volatile boolean firstLogin = true;
 
-  public YarnAppSecurityManagerWithKeytabes(Config config, HelixManager helixManager, FileSystem fs, Path tokenFilePath)
+  public YarnAppSecurityManagerWithKeytabs(Config config, HelixManager helixManager, FileSystem fs, Path tokenFilePath)
       throws IOException {
     super(config, helixManager, fs, tokenFilePath);
     this.loginUser = UserGroupInformation.getLoginUser();
