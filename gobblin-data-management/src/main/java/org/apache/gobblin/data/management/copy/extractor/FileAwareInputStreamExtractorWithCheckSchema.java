@@ -26,6 +26,7 @@ import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.mapred.FsInput;
+import org.apache.gobblin.data.management.copy.CopySource;
 import org.apache.gobblin.util.schema_check.AvroSchemaCheckStrategy;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -66,14 +67,19 @@ public class FileAwareInputStreamExtractorWithCheckSchema extends FileAwareInput
    * @throws IOException
    */
   protected boolean schemaChecking(FileSystem fsFromFile) throws IOException {
+    if( !this.state.getPropAsBoolean(CopySource.SCHEMA_CHECK_ENABLED, CopySource.DEFAULT_SCHEMA_CHECK_ENABLED) ) {
+      return true;
+    }
     DatumReader<GenericRecord> datumReader = new GenericDatumReader<>();
     DataFileReader<GenericRecord> dataFileReader =
         new DataFileReader(new FsInput(this.file.getFileStatus().getPath(), new Configuration()), datumReader);
     Schema schema = dataFileReader.getSchema();
+    if(this.state.getProp(ConfigurationKeys.COPY_EXPECTED_SCHEMA) == null) {
+      throw new IOException("Expected schema is not set properly");
+    }
     Schema expectedSchema = new Schema.Parser().parse(this.state.getProp(ConfigurationKeys.COPY_EXPECTED_SCHEMA));
     AvroSchemaCheckStrategy strategy = AvroSchemaCheckStrategy.AvroSchemaCheckStrategyFactory.create(this.state);
-    if(strategy == null)
-    {
+    if(strategy == null) {
       throw new IOException("schema check strategy cannot be initialized");
     }
     return strategy.compare(expectedSchema,schema);

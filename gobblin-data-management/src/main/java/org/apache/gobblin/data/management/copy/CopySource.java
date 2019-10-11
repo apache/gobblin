@@ -129,6 +129,8 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   public static final String FILESET_NAME = "fileset.name";
   public static final String FILESET_TOTAL_ENTITIES = "fileset.total.entities";
   public static final String FILESET_TOTAL_SIZE_IN_BYTES = "fileset.total.size";
+  public static final String SCHEMA_CHECK_ENABLED = "shcema.check.enabled";
+  public final static boolean DEFAULT_SCHEMA_CHECK_ENABLED = false;
 
   private static final String WORK_UNIT_WEIGHT = CopyConfiguration.COPY_PREFIX + ".workUnitWeight";
   private final WorkUnitWeighter weighter = new FieldWeighter(WORK_UNIT_WEIGHT);
@@ -358,8 +360,11 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
           WorkUnit workUnit = new WorkUnit(extract);
           workUnit.addAll(this.state);
-          if(this.copyableDataset instanceof ConfigBasedDataset && ((ConfigBasedDataset)this.copyableDataset).getExpectedSchema() != null) {
-            workUnit.setProp(ConfigurationKeys.COPY_EXPECTED_SCHEMA, ((ConfigBasedDataset)this.copyableDataset).getExpectedSchema());
+          if(this.copyableDataset instanceof ConfigBasedDataset && ((ConfigBasedDataset)this.copyableDataset).schemaCheckEnabled()) {
+            workUnit.setProp(SCHEMA_CHECK_ENABLED, true);
+            if (((ConfigBasedDataset) this.copyableDataset).getExpectedSchema() != null) {
+              workUnit.setProp(ConfigurationKeys.COPY_EXPECTED_SCHEMA, ((ConfigBasedDataset) this.copyableDataset).getExpectedSchema());
+            }
           }
           serializeCopyEntity(workUnit, copyEntity);
           serializeCopyableDataset(workUnit, metadata);
