@@ -17,7 +17,7 @@
 # limitations under the License.
 #
 
-# @depricated: This script is kept for backward compatibility only and will be removed in future. Use gobblin.sh
+# @deprecated: This script is kept for backward compatibility only and will be removed in future. Use gobblin.sh
 
 script_dir=$(dirname $0)
 lib_dir=${script_dir}/../lib

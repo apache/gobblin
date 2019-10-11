@@ -17,7 +17,7 @@
 # limitations under the License.
 #
 
-# @depricated: This script is kept for backward compatibility only and will be removed in future. Use gobblin.sh
+# @deprecated: This script is kept for backward compatibility only and will be removed in future. Use gobblin.sh
 
 ##############################################################
 ############### Run Gobblin Jobs on Hadoop MR ################

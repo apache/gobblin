@@ -238,6 +238,11 @@ if [[ "$GOBBLIN_MODE_TYPE" == "$CLI" ]]; then
     fi
 fi
 
+CHECK_ENV_VARS=false
+if [ $ACTION == "start" ] || [ $ACTION == "restart" ]; then
+  CHECK_ENV_VARS=true
+fi
+
 # derived based on input from user, $GOBBLIN_MODE
 PID_FILE_NAME=".gobblin-$GOBBLIN_MODE.pid"
 PID_FILE="$GOBBLIN_HOME/$PID_FILE_NAME"
@@ -262,6 +267,10 @@ if [[ -n "$USER_LOG4J_FILE" ]]; then
 #preference to log4j2.xml for log4j2 support
 elif [[ -f ${GOBBLIN_CONF}/log4j2.xml ]]; then
     LOG4J_FILE_PATH=file://${GOBBLIN_CONF}/log4j2.xml
+    LOG4J_OPTS="-Dlog4j.configuration=$LOG4J_FILE_PATH"
+#prefer log4j.xml
+elif [[ -f ${GOBBLIN_CONF}/log4j.xml ]]; then
+    LOG4J_FILE_PATH=file://${GOBBLIN_CONF}/log4j.xml
     LOG4J_OPTS="-Dlog4j.configuration=$LOG4J_FILE_PATH"
 #defaults to log4j.properties
 elif [[ -f ${GOBBLIN_CONF}/log4j.properties ]]; then
@@ -372,6 +381,7 @@ function start() {
 
     LOG_OUT_FILE="${GOBBLIN_LOGS}/${GOBBLIN_MODE}.out"
     LOG_ERR_FILE="${GOBBLIN_LOGS}/${GOBBLIN_MODE}.err"
+    ADDITIONAL_ARGS=""
 
     # for all gobblin commands
     if [[ "$GOBBLIN_MODE_TYPE" == "$CLI" ]]; then
@@ -417,7 +427,15 @@ function start() {
             CLASS_N_ARGS=''
             if [[ "$GOBBLIN_MODE" = "$STANDALONE_MODE" ]]; then
                 CLASS_N_ARGS="$STANDALONE_CLASS $GOBBLIN_CONF/application.conf"
+                ADDITIONAL_ARGS="-Dgobblin.logs.dir=${GOBBLIN_LOGS}"
 
+                if [ -z "$GOBBLIN_WORK_DIR" ] && [ "$CHECK_ENV_VARS" == true ]; then
+                  die "GOBBLIN_WORK_DIR is not set!"
+                fi
+
+                if [ -z "$GOBBLIN_JOB_CONFIG_DIR" ] && [ "$CHECK_ENV_VARS" == true ]; then
+                  die "Environment variable GOBBLIN_JOB_CONFIG_DIR not set!"
+                fi
             elif [[ "$GOBBLIN_MODE" = "$AWS_MODE" ]]; then
                 CLASS_N_ARGS="$AWS_CLASS"
 
@@ -442,7 +460,7 @@ function start() {
                 echo "Invalid gobblin command or execution mode... [EXITING]"
                 exit 1
             fi
-            GOBBLIN_COMMAND="$JAVA_HOME/bin/java -cp $GOBBLIN_CLASSPATH $GC_OPTS $JVM_OPTS $LOG4J_OPTS $CLASS_N_ARGS"
+            GOBBLIN_COMMAND="$JAVA_HOME/bin/java -cp $GOBBLIN_CLASSPATH $GC_OPTS $JVM_OPTS $LOG4J_OPTS $ADDITIONAL_ARGS $CLASS_N_ARGS"
         fi
 
         # execute the command
