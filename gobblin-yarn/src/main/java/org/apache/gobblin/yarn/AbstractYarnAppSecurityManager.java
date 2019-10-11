@@ -63,6 +63,7 @@ public abstract class AbstractYarnAppSecurityManager extends AbstractIdleService
   protected final HelixManager helixManager;
   protected final FileSystem fs;
   protected final Path tokenFilePath;
+  protected Token<? extends TokenIdentifier> token;
   private final long loginIntervalInMinutes;
   private final long tokenRenewIntervalInMinutes;
 
@@ -203,7 +204,7 @@ public abstract class AbstractYarnAppSecurityManager extends AbstractIdleService
    * Write the current delegation token to the token file.
    */
   @VisibleForTesting
-  synchronized void writeDelegationTokenToFile(Token<? extends TokenIdentifier> token) throws IOException {
+  protected synchronized void writeDelegationTokenToFile() throws IOException {
     if (this.fs.exists(this.tokenFilePath)) {
       LOGGER.info("Deleting existing token file " + this.tokenFilePath);
       this.fs.delete(this.tokenFilePath, false);

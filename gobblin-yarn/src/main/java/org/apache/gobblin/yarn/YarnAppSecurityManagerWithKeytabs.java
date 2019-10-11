@@ -63,7 +63,6 @@ import com.typesafe.config.Config;
 public class YarnAppSecurityManagerWithKeytabs extends AbstractYarnAppSecurityManager {
 
   private UserGroupInformation loginUser;
-  protected Token<? extends TokenIdentifier> token;
   private Optional<ScheduledFuture<?>> scheduledTokenRenewTask = Optional.absent();
 
   // This flag is used to tell if this is the first login. If yes, no token updated message will be
@@ -82,7 +81,7 @@ public class YarnAppSecurityManagerWithKeytabs extends AbstractYarnAppSecurityMa
    */
   protected synchronized void renewDelegationToken() throws IOException, InterruptedException {
     this.token.renew(this.fs.getConf());
-    writeDelegationTokenToFile(this.token);
+    writeDelegationTokenToFile();
 
     if (!this.firstLogin) {
       // Send a message to the controller and all the participants if this is not the first login
@@ -127,7 +126,7 @@ public class YarnAppSecurityManagerWithKeytabs extends AbstractYarnAppSecurityMa
     this.loginUser = UserGroupInformation.getLoginUser();
 
     getNewDelegationTokenForLoginUser();
-    writeDelegationTokenToFile(this.token);
+    writeDelegationTokenToFile();
 
     if (!this.firstLogin) {
       // Send a message to the controller and all the participants

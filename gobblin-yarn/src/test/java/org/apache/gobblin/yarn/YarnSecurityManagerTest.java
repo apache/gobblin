@@ -143,7 +143,7 @@ public class YarnSecurityManagerTest {
 
   @Test(dependsOnMethods = "testGetNewDelegationTokenForLoginUser")
   public void testWriteDelegationTokenToFile() throws IOException {
-    this._yarnAppYarnAppSecurityManagerWithKeytabs.writeDelegationTokenToFile(this._yarnAppYarnAppSecurityManagerWithKeytabs.token);
+    this._yarnAppYarnAppSecurityManagerWithKeytabs.writeDelegationTokenToFile();
     Assert.assertTrue(this.localFs.exists(this.tokenFilePath));
     assertToken(YarnHelixUtils.readTokensFromFile(this.tokenFilePath, this.configuration));
   }
