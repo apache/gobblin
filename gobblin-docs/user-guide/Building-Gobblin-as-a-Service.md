@@ -19,10 +19,16 @@ Currently the setup only runs a portion of the service, but work will be done to
 The service can now be accessed on `localhost:6956`
 
 # Running Gobblin as a Service with Docker
-There is also a Dockerfile to create new images of Gobblin based on the source code that can be easily run.
+There are also Dockerfiles to create new images of Gobblin based on the source code that can be easily run independently.
 
-1. `export GOBBLIN_WORK_DIR=<root_directory_of_gobblin>`
-2. `docker compose -f gobblin-docker/gobblin-service/alpine-gaas-latest/docker-compose.yml build`
-3. `docker compose -f gobblin-docker/gobblin-service/alpine-gaas-latest/docker-compose.yml up`
+The Docker compose is set up to easily create a working end-to-end workflow of Gobblin as a Service, which communicates Gobblin Standalone through a local volume filesystem.
+
+To run the full docker compose:
+
+1. `export GOBBLIN_ROOT_DIR=<root_directory_of_gobblin>`
+2. `export LOCAL_DATAPACK_DIR=<local_directory_of_templateUris>`
+3. `export LOCAL_JOB_DIR=<local_directory_to_read_and_write_jobs>`
+4. `docker compose -f gobblin-docker/gobblin-service/alpine-gaas-latest/docker-compose.yml build`
+5. `docker compose -f gobblin-docker/gobblin-service/alpine-gaas-latest/docker-compose.yml up`
  
-The docker container exposes the endpoints which can be accessed on `localhost:6956`
+The docker container exposes the endpoints from Gobblin as a Service which can be accessed on `localhost:6956`

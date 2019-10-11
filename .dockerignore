@@ -8,8 +8,10 @@
 .project
 *.md
 
+build/
 gobblin-docker/
 gobblin-docs/
+gobblin-dist/
 
 # Intellij related
 **/.idea

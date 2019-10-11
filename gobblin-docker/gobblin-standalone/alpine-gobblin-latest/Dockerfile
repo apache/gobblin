@@ -11,13 +11,13 @@ RUN apk add --no-cache bash && \
 
 FROM openjdk:8-jre-alpine
 WORKDIR /home/gobblin/
-COPY ${GOBBLIN_ROOT}/gobblin-docker/gobblin-service/alpine-gaas-latest/entrypoint.sh ./bin/entrypoint.sh
+COPY ${GOBBLIN_ROOT}/gobblin-docker/gobblin-standalone/alpine-gobblin-latest/entrypoint.sh ./bin/entrypoint.sh
 COPY --from=build /home/gobblin/gobblin-dist .
-
 RUN apk add --no-cache bash && \
-    mkdir /tmp/templateCatalog && \
-    mkdir /tmp/gobblin-as-service && \
-    mkdir /tmp/gobblin-as-service/logs && \
+    mkdir /tmp/gobblin-standalone && \
+    mkdir /tmp/gobblin-standalone/jobs && \
     chmod +x ./bin/entrypoint.sh
+ENV GOBBLIN_WORK_DIR=/tmp/gobblin-standalone/jobs
+ENV GOBBLIN_JOB_CONFIG_DIR=/tmp/gobblin-standalone/jobs
 
 CMD ["./bin/entrypoint.sh"]
