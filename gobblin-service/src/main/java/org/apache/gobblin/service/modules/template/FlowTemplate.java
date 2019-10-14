@@ -51,10 +51,10 @@ public interface FlowTemplate extends Spec {
 
   /**
    * @param userConfig a list of user customized attributes.
-   * @return list of input/output {@link DatasetDescriptor}s that fully resolve the {@link FlowTemplate} using the
-   * provided userConfig.
+   * @param resolvable if true, only return descriptors that resolve the {@link FlowTemplate}
+   * @return list of input/output {@link DatasetDescriptor}s corresponding to the provied userConfig.
    */
-  List<Pair<DatasetDescriptor, DatasetDescriptor>> getResolvingDatasetDescriptors(Config userConfig)
+  List<Pair<DatasetDescriptor, DatasetDescriptor>> getDatasetDescriptors(Config userConfig, boolean resolvable)
       throws IOException, ReflectiveOperationException, SpecNotFoundException, JobTemplate.TemplateException;
 
   /**
@@ -65,7 +65,7 @@ public interface FlowTemplate extends Spec {
    * @param outputDescriptor output {@link DatasetDescriptor}
    * @return true if the {@link FlowTemplate} is resolvable
    */
-  boolean isResolvable(Config userConfig, DatasetDescriptor inputDescriptor, DatasetDescriptor outputDescriptor)
+  Exception isResolvable(Config userConfig, DatasetDescriptor inputDescriptor, DatasetDescriptor outputDescriptor)
       throws SpecNotFoundException, JobTemplate.TemplateException;
 
   /**

@@ -170,7 +170,11 @@ public abstract class AbstractPathFinder implements PathFinder {
   List<FlowEdgeContext> getNextEdges(DataNode dataNode, DatasetDescriptor currentDatasetDescriptor,
       DatasetDescriptor destDatasetDescriptor) {
     List<FlowEdgeContext> prioritizedEdgeList = new LinkedList<>();
+    List<String> edgeIds = ConfigUtils.getStringList(this.flowConfig, ConfigurationKeys.WHITELISTED_EDGE_IDS);
     for (FlowEdge flowEdge : this.flowGraph.getEdges(dataNode)) {
+      if (!edgeIds.isEmpty() && !edgeIds.contains(flowEdge.getId())) {
+        continue;
+      }
       try {
         DataNode edgeDestination = this.flowGraph.getNode(flowEdge.getDest());
         //Base condition: Skip this FLowEdge, if it is inactive or if the destination of this edge is inactive.
@@ -183,10 +187,16 @@ public abstract class AbstractPathFinder implements PathFinder {
         for (SpecExecutor specExecutor : flowEdge.getExecutors()) {
           Config mergedConfig = getMergedConfig(flowEdge);
           List<Pair<DatasetDescriptor, DatasetDescriptor>> datasetDescriptorPairs =
-              flowEdge.getFlowTemplate().getResolvingDatasetDescriptors(mergedConfig);
+              flowEdge.getFlowTemplate().getDatasetDescriptors(mergedConfig, false);
           for (Pair<DatasetDescriptor, DatasetDescriptor> datasetDescriptorPair : datasetDescriptorPairs) {
             DatasetDescriptor inputDatasetDescriptor = datasetDescriptorPair.getLeft();
             DatasetDescriptor outputDatasetDescriptor = datasetDescriptorPair.getRight();
+
+            Exception e = flowEdge.getFlowTemplate().isResolvable(mergedConfig, datasetDescriptorPair.getLeft(), datasetDescriptorPair.getRight());
+            if (e != null) {
+              this.flowSpec.getCompilationErrors().add(e.toString());
+              continue;
+            }
 
             if (inputDatasetDescriptor.contains(currentDatasetDescriptor)) {
               DatasetDescriptor edgeOutputDescriptor = makeOutputDescriptorSpecific(currentDatasetDescriptor, outputDatasetDescriptor);

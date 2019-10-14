@@ -103,11 +103,12 @@ public class StaticFlowTemplate implements FlowTemplate {
   /**
    * Generate the input/output dataset descriptors for the {@link FlowTemplate}.
    * @param userConfig
-   * @return a List of Input/Output DatasetDescriptors that resolve this {@link FlowTemplate}.
+   * @param resolvable
+   * @return a List of Input/Output DatasetDescriptors that correspond to this {@link FlowTemplate}. If resolvable is true,
+   * only return descriptors that fully resolve it.
    */
   @Override
-  public List<Pair<DatasetDescriptor, DatasetDescriptor>> getResolvingDatasetDescriptors(Config userConfig)
-      throws IOException, SpecNotFoundException, JobTemplate.TemplateException {
+  public List<Pair<DatasetDescriptor, DatasetDescriptor>> getDatasetDescriptors(Config userConfig, boolean resolvable) throws IOException {
     Config config = this.getResolvedFlowConfig(userConfig).resolve(ConfigResolveOptions.defaults().setAllowUnresolved(true));
 
     if (!config.hasPath(DatasetDescriptorConfigKeys.FLOW_EDGE_INPUT_DATASET_DESCRIPTOR_PREFIX)
@@ -127,7 +128,8 @@ public class StaticFlowTemplate implements FlowTemplate {
         Config outputDescriptorConfig = config.getConfig(outputPrefix);
         DatasetDescriptor outputDescriptor = getDatasetDescriptor(outputDescriptorConfig);
 
-        if (isResolvable(userConfig, inputDescriptor, outputDescriptor)) {
+        Exception e = isResolvable(userConfig, inputDescriptor, outputDescriptor);
+        if (e == null || !resolvable) {
           result.add(ImmutablePair.of(inputDescriptor, outputDescriptor));
         }
       } catch (ReflectiveOperationException e) {
@@ -165,7 +167,7 @@ public class StaticFlowTemplate implements FlowTemplate {
    * @return true if the {@link FlowTemplate} is resolvable
    */
   @Override
-  public boolean isResolvable(Config userConfig, DatasetDescriptor inputDescriptor, DatasetDescriptor outputDescriptor) {
+  public Exception isResolvable(Config userConfig, DatasetDescriptor inputDescriptor, DatasetDescriptor outputDescriptor) {
     Config inputDescriptorConfig = inputDescriptor.getRawConfig().atPath(DatasetDescriptorConfigKeys.FLOW_EDGE_INPUT_DATASET_DESCRIPTOR_PREFIX);
     Config outputDescriptorConfig = outputDescriptor.getRawConfig().atPath(DatasetDescriptorConfigKeys.FLOW_EDGE_OUTPUT_DATASET_DESCRIPTOR_PREFIX);
     userConfig = userConfig.withFallback(inputDescriptorConfig).withFallback(outputDescriptorConfig);
@@ -176,10 +178,10 @@ public class StaticFlowTemplate implements FlowTemplate {
       try {
         this.jobSpecResolver.resolveJobSpec(jobSpecBuilder.withTemplate(template).build());
       } catch (JobTemplate.TemplateException | ConfigException | SpecNotFoundException exc) {
-        return false;
+        return exc;
       }
     }
-    return true;
+    return null;
   }
 
   @Override

@@ -20,6 +20,7 @@ package org.apache.gobblin.runtime.api;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
@@ -73,6 +74,9 @@ public class FlowSpec implements Configurable, Spec {
   /** Child {@link Spec}s to this {@link FlowSpec} **/
   // Note that a FlowSpec can be materialized into multiple FlowSpec or JobSpec hierarchy
   final Optional<List<Spec>> childSpecs;
+
+  /** List of exceptions that occurred during compilation of this FlowSpec **/
+  final Set<String> compilationErrors = new HashSet<>();
 
   public static FlowSpec.Builder builder(URI flowSpecUri) {
     return new FlowSpec.Builder(flowSpecUri);

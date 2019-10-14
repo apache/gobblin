@@ -77,7 +77,7 @@ public class FSFlowTemplateCatalogTest {
     Config flowConfig = ConfigFactory.empty().withValue("team.name", ConfigValueFactory.fromAnyRef("test-team"))
         .withValue("dataset.name", ConfigValueFactory.fromAnyRef("test-dataset"));
 
-    List<Pair<DatasetDescriptor, DatasetDescriptor>> inputOutputDescriptors = flowTemplate.getResolvingDatasetDescriptors(flowConfig);
+    List<Pair<DatasetDescriptor, DatasetDescriptor>> inputOutputDescriptors = flowTemplate.getDatasetDescriptors(flowConfig, true);
     Assert.assertTrue(inputOutputDescriptors.size() == 2);
     List<String> dirs = Lists.newArrayList("inbound", "outbound");
     for (int i = 0; i < 2; i++) {

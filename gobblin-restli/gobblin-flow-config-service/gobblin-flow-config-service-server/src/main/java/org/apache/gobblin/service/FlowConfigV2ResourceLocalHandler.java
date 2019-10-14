@@ -69,7 +69,7 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
       StringMap props = flowConfig.getProperties();
       AddSpecResponse<String> addSpecResponse = responseMap.getOrDefault(GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS, null);
       props.put("gobblin.flow.compiled",
-          addSpecResponse != null ? StringEscapeUtils.escapeJson(addSpecResponse.getValue()) : "");
+          addSpecResponse != null && addSpecResponse.getValue() != null ? StringEscapeUtils.escapeJson(addSpecResponse.getValue()) : "");
       flowConfig.setProperties(props);
       //Return response with 200 status code, since no resource is actually created.
       httpStatus = HttpStatus.S_200_OK;
