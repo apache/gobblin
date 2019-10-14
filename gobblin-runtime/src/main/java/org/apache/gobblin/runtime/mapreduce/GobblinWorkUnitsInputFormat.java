@@ -23,7 +23,11 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Properties;
 
+import org.apache.commons.configuration.ConfigurationUtils;
+import org.apache.gobblin.util.HadoopUtils;
+import org.apache.gobblin.util.JobConfigurationUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -170,6 +174,8 @@ public class GobblinWorkUnitsInputFormat extends InputFormat<LongWritable, Text>
     private int currentIdx = -1;
     private final List<String> paths;
     private final int totalPaths;
+    private Properties properties;
+
 
     public GobblinRecordReader(GobblinSplit split) {
       this.paths = split.getPaths();
@@ -179,6 +185,7 @@ public class GobblinWorkUnitsInputFormat extends InputFormat<LongWritable, Text>
     @Override
     public void initialize(InputSplit split, TaskAttemptContext context)
         throws IOException, InterruptedException {
+      this.properties = HadoopUtils.getStateFromConf(context.getConfiguration()).getProperties();
     }
 
     @Override
@@ -203,7 +210,11 @@ public class GobblinWorkUnitsInputFormat extends InputFormat<LongWritable, Text>
     @Override
     public float getProgress()
         throws IOException, InterruptedException {
-      return (float) this.currentIdx / (float) this.totalPaths;
+      if (MRJobLauncher.isCustomizedProgressReportEnabled(properties)) {
+        return 0.0f;
+      } else {
+        return (float) this.currentIdx / (float) this.totalPaths;
+      }
     }
 
     @Override
