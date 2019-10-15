@@ -22,6 +22,9 @@ import com.google.common.collect.Sets;
 import org.apache.gobblin.annotation.Alias;
 import org.apache.gobblin.util.ClassAliasResolver;
 
+import java.util.ArrayList;
+import java.util.List;
+
 
 /**
  * Instantiates a {@link CliApplication} and runs it.
@@ -51,10 +54,10 @@ public class GobblinCli {
   }
 
   private static void printUsage(ClassAliasResolver<CliApplication> resolver) {
-    System.out.println("Usage: gobblin <command>");
+    System.out.println("Usage: gobblin cli <command>");
     System.out.println("Available commands:");
     for (Alias alias : resolver.getAliasObjects()) {
-      System.out.println("\t" + alias.value() + "\t" + alias.description());
+      System.out.println("\t" + alias.value() + "\t\t" + alias.description());
     }
   }
 

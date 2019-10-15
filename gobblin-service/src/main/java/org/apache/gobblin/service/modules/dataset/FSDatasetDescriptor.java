@@ -18,10 +18,13 @@
 package org.apache.gobblin.service.modules.dataset;
 
 import java.io.IOException;
+import java.util.List;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.GlobPattern;
 import org.apache.hadoop.fs.Path;
 
+import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -46,6 +49,8 @@ public class FSDatasetDescriptor extends BaseDatasetDescriptor implements Datase
   @Getter
   private final String path;
   @Getter
+  private final String subPaths;
+  @Getter
   private final boolean isCompacted;
   @Getter
   private final boolean isCompactedAndDeduped;
@@ -65,10 +70,36 @@ public class FSDatasetDescriptor extends BaseDatasetDescriptor implements Datase
     this.path = PathUtils
         .getPathWithoutSchemeAndAuthority(new Path(ConfigUtils.getString(config, DatasetDescriptorConfigKeys.PATH_KEY,
             DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY))).toString();
+    this.subPaths = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.SUBPATHS_KEY, null);
     this.isCompacted = ConfigUtils.getBoolean(config, DatasetDescriptorConfigKeys.IS_COMPACTED_KEY, false);
     this.isCompactedAndDeduped = ConfigUtils.getBoolean(config, DatasetDescriptorConfigKeys.IS_COMPACTED_AND_DEDUPED_KEY, false);
     this.partitionConfig = new FSDatasetPartitionConfig(ConfigUtils.getConfigOrEmpty(config, DatasetDescriptorConfigKeys.PARTITION_PREFIX));
     this.rawConfig = config.withFallback(getPartitionConfig().getRawConfig()).withFallback(DEFAULT_FALLBACK).withFallback(super.getRawConfig());
+  }
+
+  /**
+   * If other descriptor has subpaths, this method checks that each concatenation of path + subpath is matched by this
+   * path. Otherwise, it just checks the path.
+   *
+   * @param other descriptor whose path/subpaths to check
+   * @return true if all subpaths are matched by this {@link DatasetDescriptor}'s path, or if subpaths is null and
+   * the other's path matches this path.
+   */
+  @Override
+  protected boolean isPathContaining(DatasetDescriptor other) {
+    String otherPath = other.getPath();
+    String otherSubPaths = ((FSDatasetDescriptor) other).getSubPaths();
+    if (otherSubPaths != null) {
+      List<String> subPaths = Splitter.on(",").splitToList(StringUtils.stripEnd(StringUtils.stripStart(otherSubPaths, "{"), "}"));
+      for (String subPath : subPaths) {
+        if (!isPathContaining(new Path(otherPath, subPath).toString())) {
+          return false;
+        }
+      }
+      return true;
+    } else {
+      return isPathContaining(otherPath);
+    }
   }
 
   /**
@@ -79,7 +110,7 @@ public class FSDatasetDescriptor extends BaseDatasetDescriptor implements Datase
    * @param otherPath a glob pattern that describes a set of paths.
    * @return true if the glob pattern described by the otherPath matches the path in this {@link DatasetDescriptor}.
    */
-  protected boolean isPathContaining(String otherPath) {
+  private boolean isPathContaining(String otherPath) {
     if (otherPath == null) {
       return false;
     }

@@ -23,6 +23,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
+import org.apache.hadoop.fs.Path;
+
+import com.google.common.base.Optional;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigValueFactory;
+
 import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.JobSpec;
@@ -33,11 +39,8 @@ import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlanDagFactory;
+import org.apache.gobblin.util.CompletedFuture;
 import org.apache.gobblin.util.ConfigUtils;
-import org.apache.hadoop.fs.Path;
-
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigValueFactory;
 
 
 public class DagTestUtils {
@@ -86,6 +89,11 @@ public class DagTestUtils {
       SpecExecutor specExecutor = buildNaiveTopologySpec("mySpecExecutor").getSpecExecutor();
       JobExecutionPlan jobExecutionPlan = new JobExecutionPlan(js, specExecutor);
       jobExecutionPlan.setExecutionStatus(ExecutionStatus.RUNNING);
+
+      // Future of type CompletedFuture is used because in tests InMemorySpecProducer is used and that responds with CompletedFuture
+      CompletedFuture future = new CompletedFuture<>(Boolean.TRUE, null);
+      jobExecutionPlan.setJobFuture(Optional.of(future));
+
       jobExecutionPlans.add(jobExecutionPlan);
     }
     return new JobExecutionPlanDagFactory().createDag(jobExecutionPlans);

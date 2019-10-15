@@ -36,14 +36,15 @@
     "name" : "ExecutionStatus",
     "namespace" : "org.apache.gobblin.service",
     "doc" : "Execution status for a flow or job",
-    "symbols" : [ "COMPILED", "ORCHESTRATED", "RUNNING", "FAILED", "CANCELLED", "COMPLETE" ],
+    "symbols" : [ "COMPILED", "ORCHESTRATED", "RUNNING", "FAILED", "CANCELLED", "COMPLETE", "PENDING" ],
     "symbolDocs" : {
       "COMPILED" : "Flow compiled to jobs.",
       "ORCHESTRATED" : "Job(s) orchestrated to spec executors.",
       "RUNNING" : "Flow or job is currently executing",
       "FAILED" : "Flow or job failed",
       "CANCELLED" : "Flow cancelled.",
-      "COMPLETE" : "Flow or job completed execution"
+      "COMPLETE" : "Flow or job completed execution",
+      "PENDING" : "Flow or job is in pending state."
     }
   }, {
     "type" : "record",
@@ -143,6 +144,11 @@
       "type" : "JobId",
       "doc" : "Identifier of the job"
     }, {
+      "name" : "jobTag",
+      "type" : "string",
+      "doc" : "Tag of the job",
+      "optional" : true
+    }, {
       "name" : "executionStatus",
       "type" : "ExecutionStatus",
       "doc" : "Job execution status"
@@ -223,6 +229,10 @@
         }, {
           "name" : "count",
           "type" : "int",
+          "optional" : true
+        }, {
+          "name" : "tag",
+          "type" : "string",
           "optional" : true
         } ]
       } ],

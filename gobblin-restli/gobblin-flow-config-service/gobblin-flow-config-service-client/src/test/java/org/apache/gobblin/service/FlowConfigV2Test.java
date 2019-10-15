@@ -21,7 +21,7 @@ import java.io.File;
 import java.util.Map;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.gobblin.runtime.spec_store.FSSpecStore;
+import org.apache.commons.io.IOUtils;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -35,8 +35,13 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Module;
 import com.google.inject.name.Names;
+import com.linkedin.data.DataMap;
 import com.linkedin.data.template.StringMap;
+import com.linkedin.restli.client.RestLiResponseException;
+import com.linkedin.restli.common.PatchRequest;
+import com.linkedin.restli.internal.server.util.DataMapUtils;
 import com.linkedin.restli.server.resources.BaseResource;
+import com.linkedin.restli.server.util.PatchApplier;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
@@ -44,6 +49,7 @@ import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.restli.EmbeddedRestliServer;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
+import org.apache.gobblin.runtime.spec_store.FSSpecStore;
 
 
 @Test(groups = { "gobblin.service" })
@@ -122,6 +128,52 @@ public class FlowConfigV2Test {
     Assert.assertEquals(_client.createFlowConfig(flowConfig).getFlowExecutionId().longValue(), -1L);
   }
 
+  @Test
+  public void testPartialUpdate() throws Exception {
+    FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME);
+
+    Map<String, String> flowProperties = Maps.newHashMap();
+    flowProperties.put("param1", "value1");
+    flowProperties.put("param2", "value2");
+    flowProperties.put("param3", "value3");
+
+    FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME))
+        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).setRunImmediately(false))
+        .setProperties(new StringMap(flowProperties));
+
+    // Set some initial config
+    _client.updateFlowConfig(flowConfig);
+
+    // Change param2 to value4, delete param3
+    String patchJson = "{\"schedule\":{\"$set\":{\"runImmediately\":true}},"
+        + "\"properties\":{\"$set\":{\"param2\":\"value4\"},\"$delete\":[\"param3\"]}}";
+    DataMap dataMap = DataMapUtils.readMap(IOUtils.toInputStream(patchJson));
+    PatchRequest<FlowConfig> flowConfigPatch = PatchRequest.createFromPatchDocument(dataMap);
+
+    PatchApplier.applyPatch(flowConfig, flowConfigPatch);
+
+    _client.updateFlowConfig(flowConfig);
+
+    FlowConfig retrievedFlowConfig = _client.getFlowConfig(flowId);
+
+    Assert.assertTrue(retrievedFlowConfig.getSchedule().isRunImmediately());
+    Assert.assertEquals(retrievedFlowConfig.getProperties().get("param1"), "value1");
+    Assert.assertEquals(retrievedFlowConfig.getProperties().get("param2"), "value4");
+    Assert.assertFalse(retrievedFlowConfig.getProperties().containsKey("param3"));
+  }
+
+  @Test (expectedExceptions = RestLiResponseException.class)
+  public void testBadPartialUpdate() throws Exception {
+    FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME);
+
+    String patchJson = "{\"schedule\":{\"$set\":{\"runImmediately\":true}},"
+        + "\"properties\":{\"$set\":{\"param2\":\"value4\"},\"$delete\":[\"param3\"]}}";
+    DataMap dataMap = DataMapUtils.readMap(IOUtils.toInputStream(patchJson));
+    PatchRequest<FlowConfig> flowConfigPatch = PatchRequest.createFromPatchDocument(dataMap);
+
+    // Throws exception since local handlers don't support partial update
+    _client.partialUpdateFlowConfig(flowId, flowConfigPatch);
+  }
 
   @AfterClass(alwaysRun = true)
   public void tearDown() throws Exception {

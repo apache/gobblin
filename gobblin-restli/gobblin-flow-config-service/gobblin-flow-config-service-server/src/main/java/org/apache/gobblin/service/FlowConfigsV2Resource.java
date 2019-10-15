@@ -26,7 +26,9 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableSet;
 import com.linkedin.restli.common.ComplexResourceKey;
+import com.linkedin.restli.common.EmptyRecord;
 import com.linkedin.restli.common.HttpStatus;
+import com.linkedin.restli.common.PatchRequest;
 import com.linkedin.restli.server.CreateKVResponse;
 import com.linkedin.restli.server.CreateResponse;
 import com.linkedin.restli.server.UpdateResponse;
@@ -117,6 +119,20 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
     String flowName = key.getKey().getFlowName();
     FlowId flowId = new FlowId().setFlowGroup(flowGroup).setFlowName(flowName);
     return this.getFlowConfigResourceHandler().updateFlowConfig(flowId, flowConfig);
+  }
+
+  /**
+   * Partial update the flowConfig specified
+   * @param key composite key containing group name and flow name that identifies the flow to update
+   * @param flowConfigPatch patch describing what fields to change
+   * @return {@link UpdateResponse}
+   */
+  @Override
+  public UpdateResponse update(ComplexResourceKey<FlowId, FlowStatusId> key, PatchRequest<FlowConfig> flowConfigPatch) {
+    String flowGroup = key.getKey().getFlowGroup();
+    String flowName = key.getKey().getFlowName();
+    FlowId flowId = new FlowId().setFlowGroup(flowGroup).setFlowName(flowName);
+    return this.getFlowConfigResourceHandler().partialUpdateFlowConfig(flowId, flowConfigPatch);
   }
 
   /**

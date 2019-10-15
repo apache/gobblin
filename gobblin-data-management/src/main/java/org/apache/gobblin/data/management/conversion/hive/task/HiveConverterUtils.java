@@ -435,7 +435,7 @@ public class HiveConverterUtils {
         table = Optional.of(client.get().getTable(dbName, tableName));
         if (table.isPresent()) {
           org.apache.hadoop.hive.ql.metadata.Table qlTable = new org.apache.hadoop.hive.ql.metadata.Table(table.get());
-          if (HiveUtils.isPartitioned(qlTable)) {
+          if (qlTable.isPartitioned()) {
             partitions = Optional.of(HiveUtils.getPartitions(client.get(), qlTable, Optional.<String>absent()));
           }
         }

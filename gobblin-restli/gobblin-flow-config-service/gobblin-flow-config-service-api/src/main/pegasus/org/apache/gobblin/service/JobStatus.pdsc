@@ -15,6 +15,12 @@
       "doc" : "Identifier of the job"
     },
     {
+      "name" : "jobTag",
+      "type" : "string",
+      "optional" : true,
+      "doc" : "Tag of the job"
+    },
+    {
       "name" : "executionStatus",
       "type" : "ExecutionStatus",
       "doc" : "Job execution status"

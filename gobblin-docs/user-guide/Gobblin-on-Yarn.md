@@ -225,7 +225,7 @@ qualitychecker.row.err.file=${gobblin.yarn.work.dir}/err
 
 # Use zookeeper for maintaining the job lock
 job.lock.enabled=true
-job.lock.type=org.apache.gobblin.runtime.locks.ZookeeperBasedJobLock
+job.lock.type=ZookeeperBasedJobLock
 
 # Directory where job locks are stored
 job.lock.dir=${gobblin.yarn.work.dir}/locks

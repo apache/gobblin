@@ -16,24 +16,23 @@
  */
 package org.apache.gobblin.kafka.client;
 
-import com.google.common.base.Function;
-import com.google.common.base.Predicate;
-import com.google.common.collect.FluentIterable;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-import org.apache.gobblin.source.extractor.extract.kafka.KafkaTopic;
-import org.apache.gobblin.util.DatasetFilterUtils;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.util.ConfigUtils;
-import java.util.Map;
-import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.source.extractor.extract.kafka.KafkaTopic;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.DatasetFilterUtils;
 
 
 /**
@@ -83,6 +82,35 @@ public abstract class AbstractBaseKafkaConsumerClient implements GobblinKafkaCon
       }
     }));
   }
+
+  /**
+   * A helper method that returns the canonical metric name for a kafka metric. A typical canonicalized metric name would
+   * be of the following format: "{metric-group}_{client-id}_{metric-name}". This method is invoked in {@link GobblinKafkaConsumerClient#getMetrics()}
+   * implementations to convert KafkaMetric names to a Coda Hale metric name. Note that the canonicalization is done on every invocation of the
+   * {@link GobblinKafkaConsumerClient#getMetrics()} ()} API.
+   * @param metricGroup the type of the Kafka metric e.g."consumer-fetch-manager-metrics", "consumer-coordinator-metrics" etc.
+   * @param metricTags any tags associated with the Kafka metric, typically include the kafka client id, topic name, partition number etc.
+   * @param metricName the name of the Kafka metric e.g. "records-lag-max", "fetch-throttle-time-max" etc.
+   * @return the canonicalized metric name.
+   */
+  protected String canonicalMetricName(String metricGroup, Collection<String> metricTags, String metricName) {
+    List<String> nameParts = new ArrayList<>();
+    nameParts.add(metricGroup);
+    nameParts.addAll(metricTags);
+    nameParts.add(metricName);
+
+    StringBuilder builder = new StringBuilder();
+    for (String namePart : nameParts) {
+      builder.append(namePart);
+      builder.append(".");
+    }
+    // Remove the trailing dot.
+    builder.setLength(builder.length() - 1);
+    String processedName = builder.toString().replace(' ', '_').replace("\\.", "_");
+
+    return processedName;
+  }
+
 
   /**
    * Get a list of all kafka topics

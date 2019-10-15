@@ -29,9 +29,12 @@ before_install:
 before_script:
   - mysql -uroot -e "create user testUser identified by 'testPassword';"
 
-script: ./travis/test.sh
+script:
+  - ./travis/test.sh
+  - ./gradlew jacocoTestReport
 
-after_success: ./gradlew coveralls
+after_success:
+  - bash <(cat .codecov_bash)
 after_failure: ./travis/junit-errors-to-stdout.sh
 
 

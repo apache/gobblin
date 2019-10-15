@@ -40,6 +40,8 @@ import org.apache.gobblin.hive.HiveRegistrationUnit;
 import org.apache.gobblin.hive.HiveTable;
 import org.apache.gobblin.util.HadoopUtils;
 
+import static org.apache.gobblin.hive.orc.HiveOrcSerDeManager.ENABLED_ORC_TYPE_CHECK;
+
 
 @Test(singleThreaded = true)
 public class HiveOrcSerDeManagerTest {
@@ -96,6 +98,7 @@ public class HiveOrcSerDeManagerTest {
   @Test
   public void testEmptyExtension() throws IOException {
     State state = new State();
+    state.setProp(ENABLED_ORC_TYPE_CHECK, true);
     state.setProp(HiveOrcSerDeManager.FILE_EXTENSIONS_KEY, ",");
     HiveOrcSerDeManager manager = new HiveOrcSerDeManager(state);
     HiveRegistrationUnit registrationUnit = (new HiveTable.Builder()).withDbName(TEST_DB).withTableName(TEST_TABLE).build();
@@ -134,6 +137,7 @@ public class HiveOrcSerDeManagerTest {
   @Test(expectedExceptions = FileNotFoundException.class, expectedExceptionsMessageRegExp = "No files in Dataset:orctestdir/register found for schema retrieval")
   public void testNoOrcFiles() throws IOException {
     State state = new State();
+    state.setProp(ENABLED_ORC_TYPE_CHECK, true);
     state.setProp(HiveOrcSerDeManager.FILE_EXTENSIONS_KEY, ".notOrc");
     HiveOrcSerDeManager manager = new HiveOrcSerDeManager(state);
     HiveRegistrationUnit registrationUnit = (new HiveTable.Builder()).withDbName(TEST_DB).withTableName(TEST_TABLE).build();

@@ -83,6 +83,9 @@ public class HiveOrcSerDeManager extends HiveSerDeManager {
 
   public static final String HIVE_SPEC_SCHEMA_READING_TIMER = "hiveOrcSerdeManager.schemaReadTimer";
 
+  public static final String ENABLED_ORC_TYPE_CHECK = "hiveOrcSerdeManager.enableFormatCheck";
+  public static final boolean DEFAULT_ENABLED_ORC_TYPE_CHECK = false;
+
   private static final int EXPECTED_FOOTER_SIZE = 16 * 1024;
   private static final String ORC_FORMAT = "ORC";
   private static final ByteBuffer MAGIC_BUFFER = ByteBuffer.wrap(ORC_FORMAT.getBytes(Charsets.UTF_8));
@@ -91,6 +94,7 @@ public class HiveOrcSerDeManager extends HiveSerDeManager {
   private final HiveSerDeWrapper serDeWrapper;
   private final List<String> fileExtensions;
   private final List<String> ignoredFilePrefixes;
+  private final boolean checkOrcFormat;
   private final MetricContext metricContext;
 
   public HiveOrcSerDeManager(State props)
@@ -102,6 +106,7 @@ public class HiveOrcSerDeManager extends HiveSerDeManager {
     this.fileExtensions = extensions.isEmpty() ? ImmutableList.of("") : extensions;
 
     this.ignoredFilePrefixes = props.getPropAsList(IGNORED_FILE_PREFIXES_KEY, DEFAULT_IGNORED_FILE_PREFIXES);
+    this.checkOrcFormat = props.getPropAsBoolean(ENABLED_ORC_TYPE_CHECK, DEFAULT_ENABLED_ORC_TYPE_CHECK);
     this.metricContext = Instrumented.getMetricContext(props, HiveOrcSerDeManager.class);
     this.serDeWrapper = HiveSerDeWrapper.get(props.getProp(SERDE_TYPE_KEY, DEFAULT_SERDE_TYPE),
         Optional.of(props.getProp(INPUT_FORMAT_CLASS_KEY, DEFAULT_INPUT_FORMAT_CLASS)),
@@ -177,7 +182,7 @@ public class HiveOrcSerDeManager extends HiveSerDeManager {
           try {
             return ignoredFilePrefixes.stream().noneMatch(e -> path.getName().startsWith(e))
                 && fileExtensions.stream().anyMatch(e -> path.getName().endsWith(e))
-                && isORC(path, fs);
+                && (!checkOrcFormat || isORC(path, fs));
           } catch(IOException e) {
             log.error("Error checking file for schema retrieval", e);
             return false;
@@ -199,6 +204,10 @@ public class HiveOrcSerDeManager extends HiveSerDeManager {
   /**
    * Determine if a file is ORC format.
    * Steal ideas & code from presto/OrcReader under Apache License 2.0.
+   *
+   * Note: This operation is pretty expensive when it comes to checking magicBytes for each file while listing,
+   * as itself require getFileStatus and open the file.  In normal cases, consider disable it if the confidene level
+   * of format consistency is high enough.
    */
   private static boolean isORC(Path file, FileSystem fs)
       throws IOException {

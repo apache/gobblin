@@ -87,7 +87,9 @@ public class EventSubmitter {
     if(eventBuilder.namespace == null) {
       eventBuilder.setNamespace(this.namespace);
     }
-    this.metricContext.get().submitEvent(eventBuilder.build());
+    if (metricContext.isPresent()) {
+      this.metricContext.get().submitEvent(eventBuilder.build());
+    }
   }
 
   /**

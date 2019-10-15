@@ -122,8 +122,7 @@ public class HiveAvroSerDeManager extends HiveSerDeManager {
     hiveUnit.setSerDeType(this.serDeWrapper.getSerDe().getClass().getName());
     hiveUnit.setInputFormat(this.serDeWrapper.getInputFormatClassName());
     hiveUnit.setOutputFormat(this.serDeWrapper.getOutputFormatClassName());
-
-    addSchemaProperties(path, hiveUnit, schema);
+    addSchemaPropertiesIfRequired(path, hiveUnit, schema);
   }
 
   @Override
@@ -145,13 +144,15 @@ public class HiveAvroSerDeManager extends HiveSerDeManager {
     }
   }
 
-  private void addSchemaProperties(Path path, HiveRegistrationUnit hiveUnit, Schema schema) throws IOException {
-    Path schemaFile = new Path(path, this.schemaFileName);
-    if (this.useSchemaFile) {
-      hiveUnit.setSerDeProp(SCHEMA_URL, schemaFile.toString());
-    } else {
-      try (Timer.Context context = metricContext.timer(HIVE_SPEC_SCHEMA_WRITING_TIMER).time()) {
-        addSchemaFromAvroFile(schema, schemaFile, hiveUnit);
+  private void addSchemaPropertiesIfRequired(Path path, HiveRegistrationUnit hiveUnit, Schema schema) throws IOException {
+    if (hiveUnit.isRegisterSchema()) {
+      Path schemaFile = new Path(path, this.schemaFileName);
+      if (this.useSchemaFile) {
+        hiveUnit.setSerDeProp(SCHEMA_URL, schemaFile.toString());
+      } else {
+        try (Timer.Context context = metricContext.timer(HIVE_SPEC_SCHEMA_WRITING_TIMER).time()) {
+          addSchemaFromAvroFile(schema, schemaFile, hiveUnit);
+        }
       }
     }
   }

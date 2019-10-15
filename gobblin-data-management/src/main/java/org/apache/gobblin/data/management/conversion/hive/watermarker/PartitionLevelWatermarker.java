@@ -306,8 +306,8 @@ public class PartitionLevelWatermarker implements HiveSourceWatermarker {
 
         // Watermark workunits are required only for Partitioned tables
         // tableKey is table complete name in the format db@table
-        if (!HiveUtils.isPartitioned(new org.apache.hadoop.hive.ql.metadata.Table(client.get().getTable(
-            tableKey.split("@")[0], tableKey.split("@")[1])))) {
+        if (!(new org.apache.hadoop.hive.ql.metadata.Table(client.get().getTable(
+            tableKey.split("@")[0], tableKey.split("@")[1])).isPartitioned())) {
           continue;
         }
         // We only keep watermarks for partitions that were updated after leastWatermarkToPersistInState

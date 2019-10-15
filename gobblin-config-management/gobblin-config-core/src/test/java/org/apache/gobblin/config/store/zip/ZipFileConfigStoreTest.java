@@ -49,6 +49,17 @@ public class ZipFileConfigStoreTest {
   private ConfigKeyPath child1Path = testPath.createChild("child1");
   private ConfigKeyPath child2Path = testPath.createChild("child2");
 
+  /**
+   * Layout of testing config store:
+   * /_CONFIG_STORE
+   *        /test
+   *            /child1
+   *                main.conf (gobblin.test.property = "string2")
+   *                includes.conf (test/child1)
+   *            /child2
+   *                main.conf (gobblin.test.property = "string3")
+   *        main.conf
+   */
   @BeforeClass
   public void setUp() throws URISyntaxException, ConfigStoreCreationException, IOException {
     Path path = Paths.get(this.getClass().getClassLoader().getResource("zipStoreTest.zip").getPath());

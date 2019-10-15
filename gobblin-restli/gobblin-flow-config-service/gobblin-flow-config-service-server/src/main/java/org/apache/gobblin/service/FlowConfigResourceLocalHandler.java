@@ -26,15 +26,19 @@ import org.apache.commons.lang.StringUtils;
 import com.codahale.metrics.MetricRegistry;
 import com.google.common.collect.Maps;
 import com.linkedin.data.template.StringMap;
+import com.linkedin.data.transform.DataProcessingException;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
 import com.linkedin.restli.common.HttpStatus;
+import com.linkedin.restli.common.PatchRequest;
 import com.linkedin.restli.server.CreateResponse;
 import com.linkedin.restli.server.RestLiServiceException;
 import com.linkedin.restli.server.UpdateResponse;
+import com.linkedin.restli.server.util.PatchApplier;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import javax.naming.OperationNotSupportedException;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -188,6 +192,11 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
     return updateFlowConfig(flowId, flowConfig, true);
   }
 
+  @Override
+  public UpdateResponse partialUpdateFlowConfig(FlowId flowId, PatchRequest<FlowConfig> flowConfigPatch) throws FlowConfigLoggedException {
+    throw new UnsupportedOperationException("Partial update only supported by GobblinServiceFlowConfigResourceHandler");
+  }
+
   /**
    * Delete flowConfig locally and trigger all listeners iff @param triggerListener is set to true
    */
@@ -234,7 +243,18 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
       // If it is not a run-once job, we should not add flow execution id here,
       // because execution id is generated for every scheduled execution of the flow and cannot be materialized to
       // the flow catalog. In this case, this id is added during flow compilation.
-      configBuilder.addPrimitive(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, String.valueOf(System.currentTimeMillis()));
+      String flowExecutionId;
+      if (flowConfig.getProperties().containsKey(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
+        flowExecutionId = flowConfig.getProperties().get(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
+        // FLOW_EXECUTION_ID may already be present in FlowSpec in cases
+        // where the FlowSpec is forwarded by a slave to the master.
+        log.info("Using the existing flowExecutionId {} for {},{}", flowExecutionId, flowConfig.getId().getFlowGroup(), flowConfig.getId().getFlowName());
+      } else {
+        flowExecutionId = String.valueOf(System.currentTimeMillis());
+        log.info("Created a flowExecutionId {} for {},{}", flowExecutionId, flowConfig.getId().getFlowGroup(), flowConfig.getId().getFlowName());
+      }
+      flowConfig.getProperties().put(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, flowExecutionId);
+      configBuilder.addPrimitive(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, flowExecutionId);
     }
 
     if (flowConfig.hasExplain()) {

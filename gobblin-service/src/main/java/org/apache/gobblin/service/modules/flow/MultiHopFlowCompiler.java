@@ -20,6 +20,7 @@ package org.apache.gobblin.service.modules.flow;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -27,14 +28,17 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ServiceManager;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigValueFactory;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -51,10 +55,10 @@ import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.core.GitFlowGraphMonitor;
 import org.apache.gobblin.service.modules.flowgraph.BaseFlowGraph;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraph;
 import org.apache.gobblin.service.modules.flowgraph.pathfinder.PathFinder;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
-import org.apache.gobblin.service.modules.spec.JobExecutionPlanDagFactory;
 import org.apache.gobblin.service.modules.template_catalog.ObservingFSFlowEdgeTemplateCatalog;
 import org.apache.gobblin.util.ConfigUtils;
 
@@ -169,18 +173,23 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
         ConfigUtils.getString(flowSpec.getConfig(), ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, "");
     log.info(String.format("Compiling flow for source: %s and destination: %s", source, destination));
 
-    Dag<JobExecutionPlan> jobExecutionPlanDag;
+    List<FlowSpec> flowSpecs = splitFlowSpec(flowSpec);
+    Dag<JobExecutionPlan> jobExecutionPlanDag = new Dag<>(new ArrayList<>());
     try {
       this.rwLock.readLock().lock();
-      //Compute the path from source to destination.
-      FlowGraphPath flowGraphPath = flowGraph.findPath(flowSpec);
-      //Convert the path into a Dag of JobExecutionPlans.
-      if (flowGraphPath != null) {
-        jobExecutionPlanDag = flowGraphPath.asDag(this.config);
-      } else {
+      for (FlowSpec datasetFlowSpec : flowSpecs) {
+        //Compute the path from source to destination.
+        FlowGraphPath flowGraphPath = flowGraph.findPath(datasetFlowSpec);
+        if (flowGraphPath != null) {
+          //Convert the path into a Dag of JobExecutionPlans.
+          jobExecutionPlanDag = jobExecutionPlanDag.merge(flowGraphPath.asDag(this.config));
+        }
+      }
+
+      if (jobExecutionPlanDag.isEmpty()) {
         Instrumented.markMeter(flowCompilationFailedMeter);
         log.info(String.format("No path found from source: %s and destination: %s", source, destination));
-        return new JobExecutionPlanDagFactory().createDag(new ArrayList<>());
+        return jobExecutionPlanDag;
       }
     } catch (PathFinder.PathFinderException | SpecNotFoundException | JobTemplate.TemplateException | URISyntaxException | ReflectiveOperationException e) {
       Instrumented.markMeter(flowCompilationFailedMeter);
@@ -195,6 +204,73 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
     Instrumented.updateTimer(flowCompilationTimer, System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
 
     return jobExecutionPlanDag;
+  }
+
+  /**
+   * If {@link FlowSpec} has {@link ConfigurationKeys#DATASET_SUBPATHS_KEY}, split it into multiple flowSpecs using a
+   * provided base input and base output path to generate multiple source/destination paths.
+   */
+  private static List<FlowSpec> splitFlowSpec(FlowSpec flowSpec) {
+    long flowExecutionId = FlowUtils.getOrCreateFlowExecutionId(flowSpec);
+    List<FlowSpec> flowSpecs = new ArrayList<>();
+    Config flowConfig = flowSpec.getConfig();
+
+    if (flowConfig.hasPath(ConfigurationKeys.DATASET_SUBPATHS_KEY)) {
+      List<String> datasetSubpaths = ConfigUtils.getStringList(flowConfig, ConfigurationKeys.DATASET_SUBPATHS_KEY);
+      String baseInputPath = ConfigUtils.getString(flowConfig, ConfigurationKeys.DATASET_BASE_INPUT_PATH_KEY, "/");
+      String baseOutputPath = ConfigUtils.getString(flowConfig, ConfigurationKeys.DATASET_BASE_OUTPUT_PATH_KEY, "/");
+
+      if (ConfigUtils.getBoolean(flowConfig, ConfigurationKeys.DATASET_COMBINE_KEY, false)) {
+        Config newConfig = flowConfig.withoutPath(ConfigurationKeys.DATASET_SUBPATHS_KEY)
+            .withValue(DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX + "." + DatasetDescriptorConfigKeys.PATH_KEY,
+                ConfigValueFactory.fromAnyRef(baseInputPath))
+            .withValue(DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX + "." + DatasetDescriptorConfigKeys.PATH_KEY,
+                ConfigValueFactory.fromAnyRef(baseOutputPath))
+            .withValue(DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX + ".subPaths",
+                ConfigValueFactory.fromAnyRef(convertStringListToGlobPattern(datasetSubpaths)))
+            .withValue(DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX + ".subPaths",
+                ConfigValueFactory.fromAnyRef(convertStringListToGlobPattern(datasetSubpaths)));
+        flowSpecs.add(copyFlowSpecWithNewConfig(flowSpec, newConfig));
+      } else {
+        for (String subPath : datasetSubpaths) {
+          Config newConfig = flowConfig.withoutPath(ConfigurationKeys.DATASET_SUBPATHS_KEY)
+              .withValue(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, ConfigValueFactory.fromAnyRef(flowExecutionId))
+              .withValue(DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX + "." + DatasetDescriptorConfigKeys.PATH_KEY,
+                  ConfigValueFactory.fromAnyRef(new Path(baseInputPath, subPath).toString()))
+              .withValue(DatasetDescriptorConfigKeys.FLOW_OUTPUT_DATASET_DESCRIPTOR_PREFIX + "." + DatasetDescriptorConfigKeys.PATH_KEY,
+                  ConfigValueFactory.fromAnyRef(new Path(baseOutputPath, subPath).toString()));
+          flowSpecs.add(copyFlowSpecWithNewConfig(flowSpec, newConfig));
+        }
+      }
+    } else {
+      flowSpecs.add(flowSpec);
+    }
+
+    return flowSpecs;
+  }
+
+  /**
+   * Convert string list to string pattern that will work for globs.
+   *
+   * e.g. ["test1", "test2", test3"] -> "{test1,test2,test}"
+   */
+  private static String convertStringListToGlobPattern(List<String> stringList) {
+    return "{" + Joiner.on(",").join(stringList) + "}";
+  }
+
+  private static FlowSpec copyFlowSpecWithNewConfig(FlowSpec flowSpec, Config newConfig) {
+    FlowSpec.Builder builder = FlowSpec.builder(flowSpec.getUri()).withVersion(flowSpec.getVersion())
+        .withDescription(flowSpec.getDescription()).withConfig(newConfig);
+
+    if (flowSpec.getTemplateURIs().isPresent()) {
+      builder = builder.withTemplates(flowSpec.getTemplateURIs().get());
+    }
+
+    if (flowSpec.getChildSpecs().isPresent()) {
+      builder = builder.withTemplates(flowSpec.getChildSpecs().get());
+    }
+
+    return builder.build();
   }
 
   /**

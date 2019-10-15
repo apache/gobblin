@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.data.management.copy;
 
+import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
@@ -49,35 +50,49 @@ public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset 
   private final String lookbackTime;
   private final String datePattern;
   private final Period lookbackPeriod;
+  private final boolean isPatternDaily;
   private final boolean isPatternHourly;
+  private final boolean isPatternMinutely;
   private final LocalDateTime currentTime;
+  private final DatePattern pattern;
+
+  enum DatePattern {
+    MINUTELY, HOURLY, DAILY
+  }
 
   public TimeAwareRecursiveCopyableDataset(FileSystem fs, Path rootPath, Properties properties, Path glob) {
     super(fs, rootPath, properties, glob);
     this.lookbackTime = properties.getProperty(LOOKBACK_TIME_KEY);
-    PeriodFormatter periodFormatter = new PeriodFormatterBuilder().appendDays().appendSuffix("d").appendHours().appendSuffix("h").toFormatter();
+    PeriodFormatter periodFormatter = new PeriodFormatterBuilder().appendDays().appendSuffix("d").appendHours().appendSuffix("h").appendMinutes().appendSuffix("m").toFormatter();
     this.lookbackPeriod = periodFormatter.parsePeriod(lookbackTime);
     this.datePattern = properties.getProperty(DATE_PATTERN_KEY);
-    this.isPatternHourly = isDatePatternHourly(datePattern);
+    this.isPatternMinutely = isDatePatternMinutely(datePattern);
+    this.isPatternHourly = !this.isPatternMinutely && isDatePatternHourly(datePattern);
+    this.isPatternDaily = !this.isPatternMinutely && !this.isPatternHourly;
     this.currentTime = properties.containsKey(DATE_PATTERN_TIMEZONE_KEY) ? LocalDateTime.now(
         DateTimeZone.forID(DATE_PATTERN_TIMEZONE_KEY))
         : LocalDateTime.now(DateTimeZone.forID(DEFAULT_DATE_PATTERN_TIMEZONE));
 
-    //Daily directories cannot have a "hourly" lookback pattern. But hourly directories can accept lookback pattern with days.
-    if (!this.isPatternHourly) {
-      Assert.assertTrue(isLookbackTimeStringDaily(this.lookbackTime), "Expected day format for lookback time; found hourly format");
+    if (this.isPatternDaily) {
+      Preconditions.checkArgument(isLookbackTimeStringDaily(this.lookbackTime), "Expected day format for lookback time; found hourly or minutely format");
+      pattern = DatePattern.DAILY;
+    } else if (this.isPatternHourly) {
+      Preconditions.checkArgument(isLookbackTimeStringHourly(this.lookbackTime), "Expected hourly format for lookback time; found minutely format");
+      pattern = DatePattern.HOURLY;
+    } else {
+      pattern = DatePattern.MINUTELY;
     }
   }
 
   public static class DateRangeIterator implements Iterator {
     private LocalDateTime startDate;
     private LocalDateTime endDate;
-    private boolean isDatePatternHourly;
+    private DatePattern datePattern;
 
-    public DateRangeIterator(LocalDateTime startDate, LocalDateTime endDate, boolean isDatePatternHourly) {
+    public DateRangeIterator(LocalDateTime startDate, LocalDateTime endDate, DatePattern datePattern) {
       this.startDate = startDate;
       this.endDate = endDate;
-      this.isDatePatternHourly = isDatePatternHourly;
+      this.datePattern = datePattern;
     }
 
     @Override
@@ -88,7 +103,19 @@ public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset 
     @Override
     public LocalDateTime next() {
       LocalDateTime dateTime = startDate;
-      startDate = this.isDatePatternHourly ? startDate.plusHours(1) : startDate.plusDays(1);
+
+      switch (datePattern) {
+        case MINUTELY:
+          startDate = startDate.plusMinutes(1);
+          break;
+        case HOURLY:
+          startDate = startDate.plusHours(1);
+          break;
+        case DAILY:
+          startDate = startDate.plusDays(1);
+          break;
+      }
+
       return dateTime;
     }
 
@@ -107,8 +134,27 @@ public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset 
     return !refDateTimeString.equals(refDateTimeStringAtStartOfDay);
   }
 
+  private boolean isDatePatternMinutely(String datePattern) {
+    DateTimeFormatter formatter = DateTimeFormat.forPattern(datePattern);
+    LocalDateTime refDateTime = new LocalDateTime(2017, 01, 01, 10, 59, 0);
+    String refDateTimeString = refDateTime.toString(formatter);
+    LocalDateTime refDateTimeAtStartOfHour = refDateTime.withMinuteOfHour(0);
+    String refDateTimeStringAtStartOfHour = refDateTimeAtStartOfHour.toString(formatter);
+    return !refDateTimeString.equals(refDateTimeStringAtStartOfHour);
+  }
+
   private boolean isLookbackTimeStringDaily(String lookbackTime) {
     PeriodFormatter periodFormatter = new PeriodFormatterBuilder().appendDays().appendSuffix("d").toFormatter();
+    try {
+      periodFormatter.parsePeriod(lookbackTime);
+      return true;
+    } catch (Exception e) {
+      return false;
+    }
+  }
+
+  private boolean isLookbackTimeStringHourly(String lookbackTime) {
+    PeriodFormatter periodFormatter = new PeriodFormatterBuilder().appendDays().appendSuffix("d").appendHours().appendSuffix("h").toFormatter();
     try {
       periodFormatter.parsePeriod(lookbackTime);
       return true;
@@ -123,7 +169,7 @@ public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset 
     LocalDateTime endDate = currentTime;
     LocalDateTime startDate = endDate.minus(this.lookbackPeriod);
 
-    DateRangeIterator dateRangeIterator = new DateRangeIterator(startDate, endDate, isPatternHourly);
+    DateRangeIterator dateRangeIterator = new DateRangeIterator(startDate, endDate, pattern);
     List<FileStatus> fileStatuses = Lists.newArrayList();
     while (dateRangeIterator.hasNext()) {
       Path pathWithDateTime = new Path(path, dateRangeIterator.next().toString(formatter));

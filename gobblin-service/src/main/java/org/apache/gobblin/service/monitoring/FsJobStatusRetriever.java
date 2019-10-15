@@ -76,9 +76,7 @@ public class FsJobStatusRetriever extends JobStatusRetriever {
         if (jobStates.isEmpty()) {
           return Iterators.emptyIterator();
         }
-        if (!shouldFilterJobStatus(tableNames, tableName)) {
-          jobStatuses.add(getJobStatus(jobStates.get(0)));
-        }
+        jobStatuses.add(getJobStatus(jobStates.get(0)));
       }
       return jobStatuses.iterator();
     } catch (IOException e) {
@@ -130,17 +128,5 @@ public class FsJobStatusRetriever extends JobStatusRetriever {
     } catch (Exception e) {
       return null;
     }
-  }
-
-  /**
-   * A helper method to determine if {@link JobStatus}es for jobs without a jobGroup/jobName should be filtered out.
-   * Once a job has been orchestrated, {@link JobStatus}es without a jobGroup/jobName can be filtered out.
-   * @param tableNames
-   * @param tableName
-   * @return
-   */
-  private boolean shouldFilterJobStatus(List<String> tableNames, String tableName) {
-    return tableNames.size() > 1 && JobStatusRetriever.NA_KEY
-        .equals(Splitter.on(KafkaJobStatusMonitor.STATE_STORE_KEY_SEPARATION_CHARACTER).splitToList(tableName).get(1));
   }
 }

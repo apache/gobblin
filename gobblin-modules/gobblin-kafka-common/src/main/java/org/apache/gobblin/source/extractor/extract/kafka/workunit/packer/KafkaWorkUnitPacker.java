@@ -23,6 +23,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,7 +44,6 @@ import org.apache.gobblin.source.extractor.extract.kafka.KafkaPartition;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaSource;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaUtils;
 import org.apache.gobblin.source.extractor.extract.kafka.MultiLongWatermark;
-import org.apache.gobblin.source.workunit.Extract;
 import org.apache.gobblin.source.workunit.MultiWorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnit;
 
@@ -58,20 +58,33 @@ public abstract class KafkaWorkUnitPacker {
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaWorkUnitPacker.class);
 
+  /**
+   * For customized type of the following enums, it will try to find declared class in classpath
+   * and fallback to exception if ClassNotFound. This way the sizeEstimator and packer could be easier to
+   * extend. The major purpose for keeping this enum instead of using reflection only to construct the instance
+   * of packer or sizeEstimator is to maintain backward-compatibility.
+   *
+   * The constructor of customized type needs to be annotated with public access-modifier as it is instantiated by
+   * {@link GobblinConstructorUtils} which reside in different package, and it needs to have the same signature
+   * as other implementation under the enum.
+   */
   public enum PackerType {
     SINGLE_LEVEL,
-    BI_LEVEL
+    BI_LEVEL,
+    CUSTOM
   }
 
   public enum SizeEstimatorType {
     AVG_RECORD_TIME,
-    AVG_RECORD_SIZE
+    AVG_RECORD_SIZE, CUSTOM
   }
 
   public static final String KAFKA_WORKUNIT_PACKER_TYPE = "kafka.workunit.packer.type";
+  public static final String KAFKA_WORKUNIT_PACKER_CUSTOMIZED_TYPE = "kafka.workunit.packer.customizedType";
   private static final PackerType DEFAULT_PACKER_TYPE = PackerType.SINGLE_LEVEL;
 
   public static final String KAFKA_WORKUNIT_SIZE_ESTIMATOR_TYPE = "kafka.workunit.size.estimator.type";
+  public static final String KAFKA_WORKUNIT_SIZE_ESTIMATOR_CUSTOMIZED_TYPE = "kafka.workunit.size.estimator.customizedType";
   private static final SizeEstimatorType DEFAULT_SIZE_ESTIMATOR_TYPE = SizeEstimatorType.AVG_RECORD_TIME;
 
   protected static final double EPS = 0.01;
@@ -109,7 +122,8 @@ public abstract class KafkaWorkUnitPacker {
     workUnit.setProp(ESTIMATED_WORKUNIT_SIZE, this.sizeEstimator.calcEstimatedSize(workUnit));
   }
 
-  private KafkaWorkUnitSizeEstimator getWorkUnitSizeEstimator() {
+  // Setting to package-private for unit-testing purpose.
+  KafkaWorkUnitSizeEstimator getWorkUnitSizeEstimator() {
     if (this.state.contains(KAFKA_WORKUNIT_SIZE_ESTIMATOR_TYPE)) {
       String sizeEstimatorTypeString = this.state.getProp(KAFKA_WORKUNIT_SIZE_ESTIMATOR_TYPE);
       Optional<SizeEstimatorType> sizeEstimatorType =
@@ -128,6 +142,10 @@ public abstract class KafkaWorkUnitPacker {
         return new KafkaAvgRecordTimeBasedWorkUnitSizeEstimator(this.state);
       case AVG_RECORD_SIZE:
         return new KafkaAvgRecordSizeBasedWorkUnitSizeEstimator(this.state);
+      case CUSTOM:
+        Preconditions.checkArgument(this.state.contains(KAFKA_WORKUNIT_SIZE_ESTIMATOR_CUSTOMIZED_TYPE));
+        String className = this.state.getProp(KAFKA_WORKUNIT_SIZE_ESTIMATOR_CUSTOMIZED_TYPE);
+        return GobblinConstructorUtils.invokeConstructor(KafkaWorkUnitSizeEstimator.class, className, this.state);
       default:
         throw new IllegalArgumentException("WorkUnit size estimator type " + sizeEstimatorType + " not found");
     }
@@ -135,6 +153,17 @@ public abstract class KafkaWorkUnitPacker {
 
   private static void setWorkUnitEstSize(WorkUnit workUnit, double estSize) {
     workUnit.setProp(ESTIMATED_WORKUNIT_SIZE, estSize);
+  }
+
+  /**
+   * Calculate estimated size for a topic from all {@link WorkUnit}s belong to it.
+   */
+  static double calcTotalEstSizeForTopic(List<WorkUnit> workUnitsForTopic) {
+    double totalSize = 0;
+    for (WorkUnit w : workUnitsForTopic) {
+      totalSize += getWorkUnitEstSize(w);
+    }
+    return totalSize;
   }
 
   protected static double getWorkUnitEstSize(WorkUnit workUnit) {
@@ -253,7 +282,7 @@ public abstract class KafkaWorkUnitPacker {
   /**
    * Add a list of partitions of the same topic to a {@link WorkUnit}.
    */
-  private static void populateMultiPartitionWorkUnit(List<KafkaPartition> partitions, WorkUnit workUnit) {
+  static void populateMultiPartitionWorkUnit(List<KafkaPartition> partitions, WorkUnit workUnit) {
     Preconditions.checkArgument(!partitions.isEmpty(), "There should be at least one partition");
     GobblinMetrics.addCustomTagToState(workUnit, new Tag<>("kafkaTopic", partitions.get(0).getTopicName()));
     for (int i = 0; i < partitions.size(); i++) {
@@ -265,13 +294,12 @@ public abstract class KafkaWorkUnitPacker {
     }
   }
 
-  private static List<KafkaPartition> getPartitionsFromMultiWorkUnit(MultiWorkUnit multiWorkUnit) {
+  static List<KafkaPartition> getPartitionsFromMultiWorkUnit(MultiWorkUnit multiWorkUnit) {
     List<KafkaPartition> partitions = Lists.newArrayList();
 
     for (WorkUnit workUnit : multiWorkUnit.getWorkUnits()) {
       partitions.add(KafkaUtils.getPartition(workUnit));
     }
-
     return partitions;
   }
 
@@ -357,6 +385,10 @@ public abstract class KafkaWorkUnitPacker {
         return new KafkaSingleLevelWorkUnitPacker(source, state);
       case BI_LEVEL:
         return new KafkaBiLevelWorkUnitPacker(source, state);
+      case CUSTOM:
+        Preconditions.checkArgument(state.contains(KAFKA_WORKUNIT_PACKER_CUSTOMIZED_TYPE));
+        String className = state.getProp(KAFKA_WORKUNIT_PACKER_CUSTOMIZED_TYPE);
+        return GobblinConstructorUtils.invokeConstructor(KafkaWorkUnitPacker.class, className, source, state);
       default:
         throw new IllegalArgumentException("WorkUnit packer type " + packerType + " not found");
     }

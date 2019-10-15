@@ -45,22 +45,22 @@ public class CouchbaseEnvironmentFactory {
     String sslTruststoreFile = ConfigUtils.getString(config, CouchbaseWriterConfigurationKeys.SSL_TRUSTSTORE_FILE, "");
     String sslTruststorePassword = ConfigUtils.getString(config, CouchbaseWriterConfigurationKeys.SSL_TRUSTSTORE_PASSWORD, "");
     Boolean certAuthEnabled = ConfigUtils.getBoolean(config, CouchbaseWriterConfigurationKeys.CERT_AUTH_ENABLED, false);
+    Boolean dnsSrvEnabled = ConfigUtils.getBoolean(config, CouchbaseWriterConfigurationKeys.DNS_SRV_ENABLED, false);
 
-    DefaultCouchbaseEnvironment.Builder builder = DefaultCouchbaseEnvironment
-	.builder()
+
+    DefaultCouchbaseEnvironment.Builder builder = DefaultCouchbaseEnvironment.builder()
         .sslEnabled(sslEnabled)
         .sslKeystoreFile(sslKeystoreFile)
         .sslKeystorePassword(sslKeystorePassword)
         .sslTruststoreFile(sslTruststoreFile)
         .sslTruststorePassword(sslTruststorePassword)
-        .certAuthEnabled(certAuthEnabled);
+        .certAuthEnabled(certAuthEnabled)
+        .dnsSrvEnabled(dnsSrvEnabled);
 
     if (couchbaseEnvironment == null)
     {
-      return builder.build();
+      couchbaseEnvironment = builder.build();
     }
-    else {
-      return couchbaseEnvironment;
-    }
+    return couchbaseEnvironment;
   }
 }

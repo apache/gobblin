@@ -94,9 +94,9 @@ public class BaseFlowEdge implements FlowEdge {
       if (this.flowTemplateCatalog != null) {
         this.flowTemplate = this.flowTemplateCatalog.getFlowTemplate(this.flowTemplate.getUri());
       }
-    } catch (SpecNotFoundException | JobTemplate.TemplateException | IOException | URISyntaxException e) {
+    } catch (Exception e) {
       // If loading template fails, use the template that was successfully loaded on construction
-      log.warn("Failed to get flow template at " + this.flowTemplate.getUri() + ", using in-memory flow template");
+      log.warn("Failed to get flow template " + this.flowTemplate.getUri() + ", using in-memory flow template", e);
     }
     return this.flowTemplate;
   }

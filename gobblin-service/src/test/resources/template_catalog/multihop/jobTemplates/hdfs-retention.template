@@ -4,7 +4,7 @@
 job.name=SnapshotRetention
 job.class=gobblin.data.management.retention.DatasetCleanerJob
 #Dataset pattern
-gobblin.dataset.pattern=${gobblin.flow.edge.input.dataset.descriptor.path}
+gobblin.dataset.pattern=${gobblin.flow.edge.input.dataset.descriptor.path}/${?gobblin.flow.edge.input.dataset.descriptor.subPaths}
 #Dataset finder class
 gobblin.dataset.profile.class="org.apache.gobblin.data.management.retention.profile.SnapshotDatasetProfile"
 # Dataset version finder

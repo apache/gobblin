@@ -19,6 +19,7 @@ package org.apache.gobblin.cli;
 import java.util.List;
 import java.util.Map;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
@@ -31,13 +32,17 @@ import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.linkedin.r2.RemoteInvocationException;
 
+import org.apache.gobblin.annotation.Alias;
 import org.apache.gobblin.rest.JobExecutionInfo;
 import org.apache.gobblin.rest.QueryListType;
+import org.apache.gobblin.runtime.cli.CliApplication;
 
 /**
  * Logic to print out job state
  */
-public class JobCommand implements Command {
+@Slf4j
+@Alias(value = "jobs", description = "Command line job info and operations")
+public class JobCommand implements CliApplication {
     private Options options;
 
     private static class CommandException extends Exception {
@@ -53,6 +58,10 @@ public class JobCommand implements Command {
                 throws CommandException;
     }
 
+    private static final String ADMIN_SERVER = "host";
+    private static final String DEFAULT_ADMIN_SERVER = "localhost";
+    private static final int DEFAULT_ADMIN_PORT = 8080;
+    private static final String ADMIN_PORT = "port";
     private static final String HELP_OPT = "help";
     private static final String DETAILS_OPT = "details";
     private static final String LIST_OPT = "list";
@@ -79,27 +88,38 @@ public class JobCommand implements Command {
             }
         }
 
-        printHelpAndExit("Unknown subcommand");
+        printHelpAndExit("Unknown subcommand", false);
         throw new IllegalStateException("unreached...");
     }
 
     @Override
-    public void execute(Cli.GlobalOptions globalOptions, String[] otherArgs) {
+    public void run(String[] args) throws Exception {
         this.options = createCommandLineOptions();
         DefaultParser parser = new DefaultParser();
         AdminClient adminClient = null;
 
         try {
-            CommandLine parsedOpts = parser.parse(options, otherArgs);
+            CommandLine parsedOpts = parser.parse(options, args);
             int resultLimit = parseResultsLimit(parsedOpts);
-            adminClient = new AdminClient(globalOptions.getAdminServerHost(), globalOptions.getAdminServerPort());
+            String host = parsedOpts.hasOption(ADMIN_SERVER) ?
+                parsedOpts.getOptionValue(ADMIN_SERVER) : DEFAULT_ADMIN_SERVER;
+            int port = DEFAULT_ADMIN_PORT;
+            try {
+                if (parsedOpts.hasOption(ADMIN_PORT)) {
+                    port = Integer.parseInt(parsedOpts.getOptionValue(ADMIN_PORT));
+                }
+            } catch (NumberFormatException e) {
+                printHelpAndExit("The port must be a valid integer.", false);
+            }
+
+            adminClient = new AdminClient(host, port);
             try {
                 getAction(parsedOpts).execute(parsedOpts, adminClient, resultLimit);
             } catch (CommandException e) {
-                printHelpAndExit(e.getMessage());
+                printHelpAndExit(e.getMessage(), false);
             }
         } catch (ParseException e) {
-            printHelpAndExit("Failed to parse jobs arguments: " + e.getMessage());
+            printHelpAndExit("Failed to parse jobs arguments: " + e.getMessage(), true);
         } finally {
             if (adminClient != null) adminClient.close();
         }
@@ -183,6 +203,8 @@ public class JobCommand implements Command {
 
         options.addOption("n", true, "Limit the number of results returned. (default:" + DEFAULT_RESULTS_LIMIT + ")");
         options.addOption("r", RECENT_OPT, false, "List the most recent jobs (instead of a list of unique jobs)");
+        options.addOption("H", ADMIN_SERVER, true, "hostname of admin server");
+        options.addOption("P", ADMIN_PORT, true, "port of admin server");
 
         return options;
     }
@@ -192,7 +214,7 @@ public class JobCommand implements Command {
             try {
                 return Integer.parseInt(parsedOpts.getOptionValue("n"));
             } catch (NumberFormatException e) {
-                printHelpAndExit("Could not parse integer value for option n.");
+                printHelpAndExit("Could not parse integer value for option n.", false);
                 return 0;
             }
         } else {
@@ -203,13 +225,12 @@ public class JobCommand implements Command {
     /**
      * Print help and exit with the specified code.
      */
-    private void printHelpAndExit(String errorMsg) {
+    private void printHelpAndExit(String errorMsg, boolean printHelp) {
         System.out.println(errorMsg);
-
-        HelpFormatter hf = new HelpFormatter();
-
-        hf.printHelp("gobblin-admin.sh jobs [options]", this.options);
-
+        if (printHelp) {
+            HelpFormatter hf = new HelpFormatter();
+            hf.printHelp("gobblin-admin.sh jobs [options]", this.options);
+        }
         System.exit(1);
     }
 }

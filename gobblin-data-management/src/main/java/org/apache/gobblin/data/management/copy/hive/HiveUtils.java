@@ -60,7 +60,7 @@ public class HiveUtils {
    * @param table the {@link Table} for which we should get partitions.
    * @param filter an optional filter for partitions as would be used in Hive. Can only filter on String columns.
    *               (e.g. "part = \"part1\"" or "date > \"2015\"".
-   * @return a map of values to {@link Partition} for input {@link Table}.
+   * @return a map of values to {@link Partition} for input {@link Table} filtered and non-nullified.
    */
   public static Map<List<String>, Partition> getPartitionsMap(IMetaStoreClient client, Table table,
       Optional<String> filter, Optional<? extends HivePartitionExtendedFilter> hivePartitionExtendedFilterOptional) throws IOException {
@@ -165,6 +165,7 @@ public class HiveUtils {
 
   /**
    * @return true if {@link Table} is partitioned.
+   * @deprecated use {@link Table}'s isPartitioned method directly.
    */
   public static boolean isPartitioned(Table table) {
     return table.isPartitioned();

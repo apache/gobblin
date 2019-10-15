@@ -25,6 +25,8 @@ import java.util.Properties;
 import java.util.Set;
 
 import org.apache.commons.configuration.ConfigurationException;
+import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.job_spec.JobSpecResolver;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
@@ -65,7 +67,7 @@ public class SchedulerUtils {
    * @param sysProps Gobblin framework configuration properties
    * @return a list of job configurations in the form of {@link java.util.Properties}
    */
-  public static List<Properties> loadGenericJobConfigs(Properties sysProps)
+  public static List<Properties> loadGenericJobConfigs(Properties sysProps, JobSpecResolver resolver)
       throws ConfigurationException, IOException {
     Path rootPath = new Path(sysProps.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY));
     PullFileLoader loader = new PullFileLoader(rootPath, rootPath.getFileSystem(new Configuration()),
@@ -77,7 +79,7 @@ public class SchedulerUtils {
     List<Properties> jobConfigs = Lists.newArrayList();
     for (Config config : configs) {
       try {
-        jobConfigs.add(resolveTemplate(ConfigUtils.configToProperties(config)));
+        jobConfigs.add(resolveTemplate(ConfigUtils.configToProperties(config), resolver));
       } catch (IOException ioe) {
         LOGGER.error("Could not parse job config at " + ConfigUtils.getString(config,
             ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY, "Unknown path"), ioe);
@@ -96,7 +98,7 @@ public class SchedulerUtils {
    * @return a list of job configurations in the form of {@link java.util.Properties}
    */
   public static List<Properties> loadGenericJobConfigs(Properties sysProps, Path commonPropsPath,
-      Path jobConfigPathDir)
+      Path jobConfigPathDir, JobSpecResolver resolver)
       throws ConfigurationException, IOException {
 
     PullFileLoader loader = new PullFileLoader(jobConfigPathDir, jobConfigPathDir.getFileSystem(new Configuration()),
@@ -108,7 +110,7 @@ public class SchedulerUtils {
     List<Properties> jobConfigs = Lists.newArrayList();
     for (Config config : configs) {
       try {
-        jobConfigs.add(resolveTemplate(ConfigUtils.configToProperties(config)));
+        jobConfigs.add(resolveTemplate(ConfigUtils.configToProperties(config), resolver));
       } catch (IOException ioe) {
         LOGGER.error("Could not parse job config at " + ConfigUtils.getString(config,
             ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY, "Unknown path"), ioe);
@@ -126,15 +128,15 @@ public class SchedulerUtils {
    * @param jobConfigPathDir root job configuration file directory
    * @return a job configuration in the form of {@link java.util.Properties}
    */
-  public static Properties loadGenericJobConfig(Properties sysProps, Path jobConfigPath, Path jobConfigPathDir)
-      throws ConfigurationException, IOException {
+  public static Properties loadGenericJobConfig(Properties sysProps, Path jobConfigPath, Path jobConfigPathDir,
+      JobSpecResolver resolver) throws ConfigurationException, IOException {
 
     PullFileLoader loader = new PullFileLoader(jobConfigPathDir, jobConfigPathDir.getFileSystem(new Configuration()),
         getJobConfigurationFileExtensions(sysProps), PullFileLoader.DEFAULT_HOCON_PULL_FILE_EXTENSIONS);
 
     Config sysConfig = ConfigUtils.propertiesToConfig(sysProps);
     Config config = loader.loadPullFile(jobConfigPath, sysConfig, true);
-    return resolveTemplate(ConfigUtils.configToProperties(config));
+    return resolveTemplate(ConfigUtils.configToProperties(config), resolver);
   }
 
   /**
@@ -168,18 +170,16 @@ public class SchedulerUtils {
     }));
   }
 
-  private static Properties resolveTemplate(Properties jobProps) throws IOException {
+  private static Properties resolveTemplate(Properties jobProps, JobSpecResolver resolver) throws IOException {
     try {
+      JobSpec.Builder jobSpecBuilder = JobSpec.builder().withConfig(ConfigUtils.propertiesToConfig(jobProps));
       if (jobProps.containsKey(ConfigurationKeys.JOB_TEMPLATE_PATH)) {
-        Config jobConfig = ConfigUtils.propertiesToConfig(jobProps);
-        Properties resolvedProps = ConfigUtils.configToProperties((ResourceBasedJobTemplate
+        JobTemplate jobTemplate = ResourceBasedJobTemplate
             .forResourcePath(jobProps.getProperty(ConfigurationKeys.JOB_TEMPLATE_PATH),
-                new PackagedTemplatesJobCatalogDecorator()))
-            .getResolvedConfig(jobConfig));
-        return resolvedProps;
-      } else {
-        return jobProps;
+                new PackagedTemplatesJobCatalogDecorator());
+        jobSpecBuilder.withTemplate(jobTemplate);
       }
+      return ConfigUtils.configToProperties(resolver.resolveJobSpec(jobSpecBuilder.build()).getConfig());
     } catch (JobTemplate.TemplateException | SpecNotFoundException | URISyntaxException exc) {
       throw new IOException(exc);
     }

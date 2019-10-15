@@ -38,6 +38,7 @@ import com.linkedin.r2.transport.http.client.HttpClientFactory;
 import com.linkedin.restli.client.CreateIdEntityRequest;
 import com.linkedin.restli.client.DeleteRequest;
 import com.linkedin.restli.client.GetRequest;
+import com.linkedin.restli.client.PartialUpdateRequest;
 import com.linkedin.restli.client.Response;
 import com.linkedin.restli.client.ResponseFuture;
 import com.linkedin.restli.client.RestClient;
@@ -45,6 +46,7 @@ import com.linkedin.restli.client.UpdateRequest;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
 import com.linkedin.restli.common.IdEntityResponse;
+import com.linkedin.restli.common.PatchRequest;
 
 
 /**
@@ -69,8 +71,7 @@ public class FlowConfigV2Client implements Closeable {
     _httpClientFactory = Optional.of(new HttpClientFactory());
     Client r2Client = new TransportClientAdapter(_httpClientFactory.get().getClient(Collections.<String, String>emptyMap()));
     _restClient = Optional.of(new RestClient(r2Client, serverUri));
-
-    _flowconfigsV2RequestBuilders = new FlowconfigsV2RequestBuilders();
+    _flowconfigsV2RequestBuilders = createRequestBuilders();
   }
 
   /**
@@ -82,8 +83,13 @@ public class FlowConfigV2Client implements Closeable {
 
     _httpClientFactory = Optional.absent();
     _restClient = Optional.of(restClient);
+    _flowconfigsV2RequestBuilders = createRequestBuilders();
+  }
 
-    _flowconfigsV2RequestBuilders = new FlowconfigsV2RequestBuilders();
+  // Clients using different service name can override this method
+  // RequestBuilders decide the name of the service requests go to.
+  protected FlowconfigsV2RequestBuilders createRequestBuilders() {
+    return new FlowconfigsV2RequestBuilders();
   }
 
   /**
@@ -143,6 +149,25 @@ public class FlowConfigV2Client implements Closeable {
             .input(flowConfig).build();
 
     ResponseFuture<EmptyRecord> response = _restClient.get().sendRequest(updateRequest);
+
+    response.getResponse();
+  }
+
+  /**
+   * Partially update a flow configuration
+   * @param flowId flow ID to update
+   * @param flowConfigPatch {@link PatchRequest} containing changes to the flowConfig
+   * @throws RemoteInvocationException
+   */
+  public void partialUpdateFlowConfig(FlowId flowId, PatchRequest<FlowConfig> flowConfigPatch) throws RemoteInvocationException {
+    LOG.debug("partialUpdateFlowConfig with groupName " + flowId.getFlowGroup() + " flowName " +
+        flowId.getFlowName());
+
+    PartialUpdateRequest<FlowConfig> partialUpdateRequest =
+        _flowconfigsV2RequestBuilders.partialUpdate().id(new ComplexResourceKey<>(flowId, new FlowStatusId()))
+            .input(flowConfigPatch).build();
+
+    ResponseFuture<EmptyRecord> response = _restClient.get().sendRequest(partialUpdateRequest);
 
     response.getResponse();
   }

@@ -169,7 +169,7 @@ public class HiveSource implements Source {
           log.debug(String.format("Processing dataset: %s", hiveDataset));
 
           // Create workunits for partitions
-          if (HiveUtils.isPartitioned(hiveDataset.getTable())
+          if (hiveDataset.getTable().isPartitioned()
               && state.getPropAsBoolean(HIVE_SOURCE_CREATE_WORKUNITS_FOR_PARTITIONS,
               DEFAULT_HIVE_SOURCE_CREATE_WORKUNITS_FOR_PARTITIONS)) {
             createWorkunitsForPartitionedTable(hiveDataset, client);

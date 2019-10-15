@@ -31,4 +31,5 @@ public class SerializationConstants {
   public static final String SPEC_EXECUTOR_URI_KEY = "uri";
 
   public static final String EXECUTION_STATUS_KEY = "executionStatus";
+  public static final String JOB_EXECUTION_FUTURE = "jobExecutionFuture";
 }

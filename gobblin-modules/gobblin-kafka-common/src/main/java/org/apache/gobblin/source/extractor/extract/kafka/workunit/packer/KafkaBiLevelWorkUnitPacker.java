@@ -58,7 +58,7 @@ public class KafkaBiLevelWorkUnitPacker extends KafkaWorkUnitPacker {
   public static final String WORKUNIT_PRE_GROUPING_SIZE_FACTOR = "workunit.pre.grouping.size.factor";
   public static final double DEFAULT_WORKUNIT_PRE_GROUPING_SIZE_FACTOR = 3.0;
 
-  protected KafkaBiLevelWorkUnitPacker(AbstractSource<?, ?> source, SourceState state) {
+  public KafkaBiLevelWorkUnitPacker(AbstractSource<?, ?> source, SourceState state) {
     super(source, state);
   }
 
@@ -87,14 +87,6 @@ public class KafkaBiLevelWorkUnitPacker extends KafkaWorkUnitPacker {
     return worstFitDecreasingBinPacking(groups, numContainers);
   }
 
-  private static double calcTotalEstSizeForTopic(List<WorkUnit> workUnitsForTopic) {
-    double totalSize = 0;
-    for (WorkUnit w : workUnitsForTopic) {
-      totalSize += getWorkUnitEstSize(w);
-    }
-    return totalSize;
-  }
-
   private static double getPreGroupingSizeFactor(State state) {
     return state.getPropAsDouble(WORKUNIT_PRE_GROUPING_SIZE_FACTOR, DEFAULT_WORKUNIT_PRE_GROUPING_SIZE_FACTOR);
   }
@@ -103,7 +95,7 @@ public class KafkaBiLevelWorkUnitPacker extends KafkaWorkUnitPacker {
    * Group {@link WorkUnit}s into groups. Each group is a {@link MultiWorkUnit}. Each group has a capacity of
    * avgGroupSize. If there's a single {@link WorkUnit} whose size is larger than avgGroupSize, it forms a group itself.
    */
-  private static List<MultiWorkUnit> bestFitDecreasingBinPacking(List<WorkUnit> workUnits, double avgGroupSize) {
+  static List<MultiWorkUnit> bestFitDecreasingBinPacking(List<WorkUnit> workUnits, double avgGroupSize) {
 
     // Sort workunits by data size desc
     Collections.sort(workUnits, LOAD_DESC_COMPARATOR);

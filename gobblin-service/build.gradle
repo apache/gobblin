@@ -30,6 +30,7 @@ dependencies {
   compile project(":gobblin-restli:gobblin-flow-config-service:gobblin-flow-config-service-server")
   compile project(":gobblin-restli:gobblin-flow-config-service:gobblin-flow-config-service-client")
   compile project(":gobblin-restli:gobblin-restli-utils")
+  compile project(":gobblin-modules:gobblin-azkaban")
 
   compile externalDependency.avro
   compile externalDependency.avroMapredH2

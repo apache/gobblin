@@ -367,7 +367,9 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         if (workUnitStream == null || workUnitStream.getWorkUnits() == null) {
           this.eventSubmitter.submit(JobEvent.WORK_UNITS_MISSING);
           jobState.setState(JobState.RunningState.FAILED);
-          throw new JobException("Failed to get work units for job " + jobId);
+          String errMsg = "Failed to get work units for job " + jobId;
+          this.jobContext.getJobState().setJobFailureMessage(errMsg);
+          throw new JobException(errMsg);
         }
 
         // No work unit to run
@@ -468,6 +470,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         jobState.setState(JobState.RunningState.FAILED);
         String errMsg = "Failed to launch and run job " + jobId;
         LOG.error(errMsg + ": " + t, t);
+        this.jobContext.getJobState().setJobFailureException(t);
       } finally {
         try {
           TimingEvent jobCleanupTimer = this.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.JOB_CLEANUP);

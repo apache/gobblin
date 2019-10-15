@@ -27,6 +27,7 @@ import com.typesafe.config.Config;
  */
 public class AdlsDataNode extends FileSystemDataNode {
   public static final String ADLS_SCHEME = "adl";
+  public static final String ABFS_SCHEME = "abfs";
 
   public AdlsDataNode(Config nodeProps) throws DataNodeCreationException {
     super(nodeProps);
@@ -40,7 +41,7 @@ public class AdlsDataNode extends FileSystemDataNode {
   public boolean isUriValid(URI fsUri) {
     String scheme = fsUri.getScheme();
     //Check that the scheme is "adl"
-    if (!scheme.equals(ADLS_SCHEME)) {
+    if (!scheme.equals(ADLS_SCHEME) && !scheme.equals(ABFS_SCHEME)) {
       return false;
     }
     //Ensure that the authority is not empty

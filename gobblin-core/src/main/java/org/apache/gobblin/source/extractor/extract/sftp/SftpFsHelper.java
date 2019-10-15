@@ -64,6 +64,9 @@ public class SftpFsHelper implements TimestampAwareFileBasedHelper {
   private Session session;
   private State state;
 
+  private static final String SFTP_CONNECTION_TIMEOUT_KEY = "sftpConn.timeout";
+  private static final int DEFAULT_SFTP_CONNECTION_TIMEOUT = 3000;
+
   public SftpFsHelper(State state) {
 
     this.state = state;
@@ -99,7 +102,10 @@ public class SftpFsHelper implements TimestampAwareFileBasedHelper {
 
     try {
       ChannelSftp channelSftp = (ChannelSftp) this.session.openChannel("sftp");
-      channelSftp.connect();
+
+      // In millsec
+      int connTimeout = state.getPropAsInt(SFTP_CONNECTION_TIMEOUT_KEY, DEFAULT_SFTP_CONNECTION_TIMEOUT);
+      channelSftp.connect(connTimeout);
       return channelSftp;
     } catch (JSchException e) {
       throw new SftpException(0, "Cannot open a channel to SFTP server", e);
