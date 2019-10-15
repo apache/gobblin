@@ -711,6 +711,11 @@ public class MRJobLauncher extends AbstractJobLauncher {
     private boolean isSpeculativeEnabled;
     private boolean customizedProgressEnabled;
     private final JobState jobState = new JobState();
+    private CustomizedProgresser customizedProgresser;
+
+    private static final String CUSTOMIZED_PROGRESSER_FACTORY_CLASS = "customizedProgresser.factoryClass";
+    private static final String DEFAULT_CUSTOMIZED_PROGRESSER_FACTORY_CLASS =
+        "org.apache.gobblin.runtime.mapreduce.CustomizedProgresserBase$BaseFactory";
 
     // A list of WorkUnits (flattened for MultiWorkUnits) to be run by this mapper
     private final List<WorkUnit> workUnits = Lists.newArrayList();
@@ -722,6 +727,12 @@ public class MRJobLauncher extends AbstractJobLauncher {
         // Default for customizedProgressEnabled is false.
         this.customizedProgressEnabled = isCustomizedProgressReportEnabled(gobblinJobState.getProperties());
         this.isSpeculativeEnabled = isSpeculativeExecutionEnabled(gobblinJobState.getProperties());
+
+        String factoryClassName = gobblinJobState.getProperties().getProperty(
+            CUSTOMIZED_PROGRESSER_FACTORY_CLASS, DEFAULT_CUSTOMIZED_PROGRESSER_FACTORY_CLASS);
+        this.customizedProgresser = Class.forName(factoryClassName).asSubclass(CustomizedProgresser.Factory.class)
+            .newInstance().createCustomizedProgresser(context);
+
         this.fs = FileSystem.get(context.getConfiguration());
         this.taskStateStore =
             new FsStateStore<>(this.fs, FileOutputFormat.getOutputPath(context).toUri().getPath(), TaskState.class);
@@ -739,8 +750,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
         if (!foundStateFile) {
           throw new IOException("Job state file not found.");
         }
-      } catch (IOException ioe) {
-        throw new RuntimeException("Failed to setup the mapper task", ioe);
+      } catch (IOException | ReflectiveOperationException e) {
+        throw new RuntimeException("Failed to setup the mapper task", e);
       }
 
 
@@ -792,10 +803,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
         while (context.nextKeyValue()) {
           this.map(context.getCurrentKey(), context.getCurrentValue(), context);
         }
-        // Note that  0.5f was a randomly selected number which is not accurate. At this point, it is only finishing
-        // workunit-deserialization. The accurate progress will rely on different application to implement based on certain metrics.
         if (customizedProgressEnabled) {
-          setProgressInMapper(0.5f, context);
+          setProgressInMapper(customizedProgresser.getCustomizedProgress(), context);
         }
 
         GobblinMultiTaskAttempt.CommitPolicy multiTaskAttemptCommitPolicy =
