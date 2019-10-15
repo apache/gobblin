@@ -88,6 +88,7 @@ import org.apache.hadoop.mapreduce.filecache.DistributedCache;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.map.WrappedMapper;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.task.MapContextImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -896,9 +897,9 @@ public class MRJobLauncher extends AbstractJobLauncher {
     void setProgressInMapper(float progress, Context context) {
       try {
         WrappedMapper.Context wrappedContext = ((WrappedMapper.Context) context);
-        Object contextImpl = RestrictedFieldAccessingUtils.getRestrictedFieldByReflection(wrappedContext, "mapContext");
+        Object contextImpl = RestrictedFieldAccessingUtils.getRestrictedFieldByReflection(wrappedContext, "mapContext", wrappedContext.getClass());
         ((org.apache.hadoop.mapred.Task.TaskReporter)RestrictedFieldAccessingUtils
-            .getRestrictedFieldByReflectionRecursively(contextImpl, "reporter")).setProgress(progress);
+            .getRestrictedFieldByReflectionRecursively(contextImpl, "reporter", MapContextImpl.class)).setProgress(progress);
       } catch (NoSuchFieldException | IllegalAccessException e) {
         throw new RuntimeException(e);
       }
