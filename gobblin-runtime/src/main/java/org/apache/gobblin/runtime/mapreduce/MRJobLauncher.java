@@ -803,6 +803,9 @@ public class MRJobLauncher extends AbstractJobLauncher {
         while (context.nextKeyValue()) {
           this.map(context.getCurrentKey(), context.getCurrentValue(), context);
         }
+
+        // org.apache.hadoop.util.Progress.complete will set the progress to 1.0f eventually so we don't have to
+        // set it in finally block.
         if (customizedProgressEnabled) {
           setProgressInMapper(customizedProgresser.getCustomizedProgress(), context);
         }
@@ -870,10 +873,6 @@ public class MRJobLauncher extends AbstractJobLauncher {
         } else {
           LOG.info("Adding additional commit step");
           gobblinMultiTaskAttempt.addCleanupCommitStep(cleanUpCommitStep);
-        }
-        // Finishing of Mapper declares the actually execution finished, safe to report 1.0f.
-        if (customizedProgressEnabled) {
-          setProgressInMapper(1.0f, context);
         }
       }
     }
