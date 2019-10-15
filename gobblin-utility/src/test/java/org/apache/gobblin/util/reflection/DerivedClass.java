@@ -18,19 +18,7 @@
 package org.apache.gobblin.util.reflection;
 
 public class DerivedClass extends BaseClass {
-  private int b;
-  private BaseClass base;
-
-  public DerivedClass(int a, int b) {
+  public DerivedClass(int a) {
     super(a);
-    this.b = b;
-    base = new BaseClass(b);
-  }
-
-  /**
-   * Exposed field inside base to verify object's exposure and set-type of method.
-   */
-  public int getBaseValue() {
-    return this.base.a;
   }
 }

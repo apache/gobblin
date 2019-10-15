@@ -32,9 +32,9 @@ public class RestrictedFieldAccessingUtils {
   /**
    * Getting field defined in containingObj which was not publicly-accessible, using java-reflection.
    */
-  public static Object getRestrictedFieldByReflection(Object containingObj, String fieldName)
+  public static Object getRestrictedFieldByReflection(Object containingObj, String fieldName, Class clazz)
       throws NoSuchFieldException, IllegalAccessException {
-    Field field = containingObj.getClass().getDeclaredField(fieldName);
+    Field field = clazz.getDeclaredField(fieldName);
     field.setAccessible(true);
     return field.get(containingObj);
   }
@@ -42,22 +42,20 @@ public class RestrictedFieldAccessingUtils {
   /**
    * Getting field defined in superclass(es) which was not publicly-accessible, using java-reflection.
    */
-  public static Object getRestrictedFieldByReflectionRecursively(Object containingObj, String fieldName)
+  public static Object getRestrictedFieldByReflectionRecursively(Object containingObj, String fieldName, Class clazz)
       throws NoSuchFieldException, IllegalAccessException {
 
     // When it reaches Object.class level and still not find the field, throw exception.
-    if (containingObj.getClass().getName().equals("java.lang.Class") &&
-        ((Class) containingObj).getCanonicalName().equals("java.lang.Object")) {
+    if (clazz.getCanonicalName().equals("java.lang.Object")) {
       throw new NoSuchFieldException(
           String.format("Field %s doesn't exist in specified class and its ancestors", fieldName));
     }
 
-
-    if (!Arrays.asList(containingObj.getClass().getDeclaredFields()).stream()
+    if (!Arrays.asList(clazz.getDeclaredFields()).stream()
         .anyMatch(x -> x.getName().equals(fieldName))) {
-      return getRestrictedFieldByReflectionRecursively(containingObj.getClass().getSuperclass(), fieldName);
+      return getRestrictedFieldByReflectionRecursively(containingObj, fieldName, clazz.getSuperclass());
     } else {
-      return getRestrictedFieldByReflection(containingObj, fieldName);
+      return getRestrictedFieldByReflection(containingObj, fieldName, clazz);
     }
   }
 }

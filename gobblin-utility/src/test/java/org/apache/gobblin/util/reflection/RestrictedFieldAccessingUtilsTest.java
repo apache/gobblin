@@ -27,25 +27,27 @@ public class RestrictedFieldAccessingUtilsTest {
   public void testGetRestrictedFieldByReflection()
       throws Exception {
     BaseClass baseClass = new BaseClass(5);
-    int a = (int) RestrictedFieldAccessingUtils.getRestrictedFieldByReflection(baseClass, "a");
+    int a = (int) RestrictedFieldAccessingUtils.getRestrictedFieldByReflection(baseClass, "a", baseClass.getClass());
     Assert.assertEquals(a, 5);
   }
 
   @Test
   public void testGetRestrictedFieldByReflectionRecursively()
       throws Exception {
-    DerivedClass derivedClass = new DerivedClass(5, 10);
-    Assert.assertEquals(derivedClass.getBaseValue(), 10);
-    ((BaseClass) RestrictedFieldAccessingUtils.getRestrictedFieldByReflectionRecursively(derivedClass, "base"))
-        .setValue(100);
-    Assert.assertEquals(derivedClass.getBaseValue(), 100);
+    DerivedClass derivedClass = new DerivedClass(5);
+    Assert.assertEquals(derivedClass.getEnclosingValue(), 5);
+    ((EnclosedClass) RestrictedFieldAccessingUtils
+        .getRestrictedFieldByReflectionRecursively(derivedClass, "enclose", derivedClass.getClass())).setValue(100);
+    Assert.assertEquals(derivedClass.getEnclosingValue(), 100);
   }
 
   @Test
-  public void testNoSuchFieldException() throws Exception {
-    DerivedClass derivedClass = new DerivedClass(5, 10);
+  public void testNoSuchFieldException()
+      throws Exception {
+    DerivedClass derivedClass = new DerivedClass(5);
     try {
-      RestrictedFieldAccessingUtils.getRestrictedFieldByReflectionRecursively(derivedClass, "non");
+      RestrictedFieldAccessingUtils
+          .getRestrictedFieldByReflectionRecursively(derivedClass, "non", derivedClass.getClass());
     } catch (NoSuchFieldException ne) {
       Assert.assertTrue(true);
       return;

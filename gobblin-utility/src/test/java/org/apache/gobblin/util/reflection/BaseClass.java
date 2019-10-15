@@ -21,13 +21,18 @@ package org.apache.gobblin.util.reflection;
  * A testing Class for {@link RestrictedFieldAccessingUtilsTest}.
  */
 public class BaseClass {
-  protected int a;
+  private EnclosedClass enclose;
+  int a;
 
   public BaseClass(int a) {
+    enclose = new EnclosedClass(a);
     this.a = a;
   }
 
-  public void setValue(int aa) {
-    this.a = aa;
+  /**
+   * Exposed field inside enclose to verify object's exposure and set-type of method.
+   */
+  public int getEnclosingValue() {
+    return enclose.getValue();
   }
 }
