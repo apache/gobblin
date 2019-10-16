@@ -64,7 +64,13 @@ public class HiveWritableHdfsDataWriter extends FsDataWriter<Writable> {
       Class<? extends Writable> writableClass = (Class<? extends Writable>) Class
           .forName(this.properties.getProp(HiveWritableHdfsDataWriterBuilder.WRITER_WRITABLE_CLASS));
 
-      return outputFormat.getHiveRecordWriter(new JobConf(), this.stagingFile, writableClass, true,
+      // Merging Job Properties into JobConf for easy tuning
+      JobConf loadedJobConf = new JobConf();
+      for (Object key : this.properties.getProperties().keySet()) {
+        loadedJobConf.set((String)key, this.properties.getProp((String)key));
+      }
+
+      return outputFormat.getHiveRecordWriter(loadedJobConf, this.stagingFile, writableClass, true,
           this.properties.getProperties(), null);
     } catch (Throwable t) {
       throw new IOException(String.format("Failed to create writer"), t);
