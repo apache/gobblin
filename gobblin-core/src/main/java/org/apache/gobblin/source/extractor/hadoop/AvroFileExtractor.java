@@ -35,13 +35,15 @@ import org.apache.gobblin.source.extractor.filebased.FileBasedHelperException;
  * A custom type of {@link FileBasedExtractor}s for extracting data from Avro files.
  */
 public class AvroFileExtractor extends FileBasedExtractor<Schema, GenericRecord> {
+  private Schema extractorCachedSchema;
 
   public AvroFileExtractor(WorkUnitState workUnitState) {
     super(workUnitState, new AvroFsHelper(workUnitState));
   }
 
   @Override
-  public Iterator<GenericRecord> downloadFile(String file) throws IOException {
+  public Iterator<GenericRecord> downloadFile(String file)
+      throws IOException {
     try {
       return this.closer.register(((AvroFsHelper) this.fsHelper).getAvroFile(file));
     } catch (FileBasedHelperException e) {
@@ -51,7 +53,8 @@ public class AvroFileExtractor extends FileBasedExtractor<Schema, GenericRecord>
   }
 
   /**
-   * Assumption is that all files in the input directory have the same schema
+   * Assumption is that all files in the input directory have the same schema.
+   * This method is being invoked in org.apache.gobblin.runtime.Task#runSynchronousModel()
    */
   @Override
   public Schema getSchema() {
@@ -59,15 +62,21 @@ public class AvroFileExtractor extends FileBasedExtractor<Schema, GenericRecord>
       return new Schema.Parser().parse(this.workUnit.getProp(ConfigurationKeys.SOURCE_SCHEMA));
     }
 
+    if (extractorCachedSchema != null) {
+      return extractorCachedSchema;
+    }
+
     AvroFsHelper hfsHelper = (AvroFsHelper) this.fsHelper;
     if (this.filesToPull.isEmpty()) {
       return null;
     }
     try {
-      return hfsHelper.getAvroSchema(this.filesToPull.get(0));
+      extractorCachedSchema = hfsHelper.getAvroSchema(this.filesToPull.get(0));
     } catch (FileBasedHelperException e) {
       Throwables.propagate(e);
       return null;
     }
+
+    return extractorCachedSchema;
   }
 }
