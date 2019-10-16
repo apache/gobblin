@@ -27,13 +27,48 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
+import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import org.apache.gobblin.broker.gobblin_scopes.JobScopeInstance;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.commit.CommitStep;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.DynamicConfigGenerator;
+import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.fsm.FiniteStateMachine;
-import org.apache.gobblin.fsm.StateWithCallbacks;
+import org.apache.gobblin.metastore.FsStateStore;
+import org.apache.gobblin.metastore.StateStore;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.metrics.event.CountEventBuilder;
-import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.JobEvent;
 import org.apache.gobblin.metrics.event.JobStateEventBuilder;
+import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.password.PasswordManager;
+import org.apache.gobblin.runtime.AbstractJobLauncher;
+import org.apache.gobblin.runtime.DynamicConfigGeneratorFactory;
+import org.apache.gobblin.runtime.GobblinMultiTaskAttempt;
+import org.apache.gobblin.runtime.JobLauncher;
+import org.apache.gobblin.runtime.JobState;
+import org.apache.gobblin.runtime.Task;
+import org.apache.gobblin.runtime.TaskExecutor;
+import org.apache.gobblin.runtime.TaskState;
+import org.apache.gobblin.runtime.TaskStateCollectorService;
+import org.apache.gobblin.runtime.TaskStateTracker;
 import org.apache.gobblin.runtime.job.GobblinJobFiniteStateMachine;
+import org.apache.gobblin.runtime.job.GobblinJobFiniteStateMachine.JobFSMState;
+import org.apache.gobblin.runtime.job.GobblinJobFiniteStateMachine.StateType;
+import org.apache.gobblin.runtime.util.JobMetrics;
+import org.apache.gobblin.runtime.util.MetricGroup;
+import org.apache.gobblin.source.workunit.MultiWorkUnit;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.HadoopUtils;
+import org.apache.gobblin.util.JobConfigurationUtils;
+import org.apache.gobblin.util.JobLauncherUtils;
+import org.apache.gobblin.util.ParallelRunner;
+import org.apache.gobblin.util.SerializationUtils;
+import org.apache.gobblin.util.reflection.RestrictedFieldAccessingUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -51,7 +86,9 @@ import org.apache.hadoop.mapreduce.JobStatus;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.filecache.DistributedCache;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.map.WrappedMapper;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.task.MapContextImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,42 +103,6 @@ import com.google.common.util.concurrent.ServiceManager;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValue;
-
-import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
-import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
-import org.apache.gobblin.broker.gobblin_scopes.JobScopeInstance;
-import org.apache.gobblin.broker.iface.SharedResourcesBroker;
-import org.apache.gobblin.commit.CommitStep;
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.configuration.DynamicConfigGenerator;
-import org.apache.gobblin.metastore.FsStateStore;
-import org.apache.gobblin.metastore.StateStore;
-import org.apache.gobblin.metrics.GobblinMetrics;
-import org.apache.gobblin.metrics.Tag;
-import org.apache.gobblin.metrics.event.TimingEvent;
-import org.apache.gobblin.password.PasswordManager;
-import org.apache.gobblin.runtime.AbstractJobLauncher;
-import org.apache.gobblin.runtime.DynamicConfigGeneratorFactory;
-import org.apache.gobblin.runtime.GobblinMultiTaskAttempt;
-import org.apache.gobblin.runtime.JobLauncher;
-import org.apache.gobblin.runtime.JobState;
-import org.apache.gobblin.runtime.Task;
-import org.apache.gobblin.runtime.TaskExecutor;
-import org.apache.gobblin.runtime.TaskState;
-import org.apache.gobblin.runtime.TaskStateCollectorService;
-import org.apache.gobblin.runtime.TaskStateTracker;
-import org.apache.gobblin.runtime.job.GobblinJobFiniteStateMachine.JobFSMState;
-import org.apache.gobblin.runtime.job.GobblinJobFiniteStateMachine.StateType;
-import org.apache.gobblin.runtime.util.JobMetrics;
-import org.apache.gobblin.runtime.util.MetricGroup;
-import org.apache.gobblin.source.workunit.MultiWorkUnit;
-import org.apache.gobblin.source.workunit.WorkUnit;
-import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.util.HadoopUtils;
-import org.apache.gobblin.util.JobConfigurationUtils;
-import org.apache.gobblin.util.JobLauncherUtils;
-import org.apache.gobblin.util.ParallelRunner;
-import org.apache.gobblin.util.SerializationUtils;
 
 
 /**
@@ -131,9 +132,13 @@ public class MRJobLauncher extends AbstractJobLauncher {
   private static final String FILES_DIR_NAME = "_files";
   static final String INPUT_DIR_NAME = "input";
   private static final String OUTPUT_DIR_NAME = "output";
-  private static final String WORK_UNIT_LIST_FILE_EXTENSION = ".wulist";
   private static final String SERIALIZE_PREVIOUS_WORKUNIT_STATES_KEY = "MRJobLauncher.serializePreviousWorkunitStates";
   private static final boolean DEFAULT_SERIALIZE_PREVIOUS_WORKUNIT_STATES = true;
+
+  /**
+   * In MR-mode, it is necessary to enable customized progress if speculative execution is required.
+   */
+  private static final String ENABLED_CUSTOMIZED_PROGRESS = "MRJobLauncher.enabledCustomizedProgress";
 
   // Configuration that make uploading of jar files more reliable,
   // since multiple Gobblin Jobs are sharing the same jar directory.
@@ -288,6 +293,10 @@ public class MRJobLauncher extends AbstractJobLauncher {
         if (!jobState.contains(ConfigurationKeys.JOB_TRACKING_URL_KEY)) {
           jobState.setProp(ConfigurationKeys.JOB_TRACKING_URL_KEY, this.job.getTrackingURL());
         }
+        /**
+         * Catch {@link UnallowedTransitionException} only, leaving other failure while submitting MR jobs to catch
+         * block afterwards.
+         */
       } catch (FiniteStateMachine.UnallowedTransitionException unallowed) {
         LOG.error("Cannot start MR job.", unallowed);
       }
@@ -309,12 +318,20 @@ public class MRJobLauncher extends AbstractJobLauncher {
       // Create a metrics set for this job run from the Hadoop counters.
       // The metrics set is to be persisted to the metrics store later.
       countersToMetrics(JobMetrics.get(jobName, this.jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY)));
+    } catch (Throwable t) {
+      throw new RuntimeException("The MR job cannot be submitted due to:", t);
     } finally {
       JobStateEventBuilder eventBuilder = new JobStateEventBuilder(JobStateEventBuilder.MRJobState.MR_JOB_STATE);
-      eventBuilder.jobTrackingURL = this.job.getTrackingURL();
-      eventBuilder.status = JobStateEventBuilder.Status.SUCCEEDED;
-      if (this.job.getJobState() != JobStatus.State.SUCCEEDED) {
+
+      if (!hadoopJobSubmitted) {
+        eventBuilder.jobTrackingURL = "";
         eventBuilder.status = JobStateEventBuilder.Status.FAILED;
+      } else {
+        eventBuilder.jobTrackingURL = this.job.getTrackingURL();
+        eventBuilder.status = JobStateEventBuilder.Status.SUCCEEDED;
+        if (this.job.getJobState() != JobStatus.State.SUCCEEDED) {
+          eventBuilder.status = JobStateEventBuilder.Status.FAILED;
+        }
       }
       this.eventSubmitter.submit(eventBuilder);
 
@@ -463,6 +480,11 @@ public class MRJobLauncher extends AbstractJobLauncher {
   static boolean isSpeculativeExecutionEnabled(Properties props) {
     return Boolean.valueOf(
         props.getProperty(JobContext.MAP_SPECULATIVE, ConfigurationKeys.DEFAULT_ENABLE_MR_SPECULATIVE_EXECUTION));
+  }
+
+  static boolean isCustomizedProgressReportEnabled(Properties properties) {
+    return properties.containsKey(ENABLED_CUSTOMIZED_PROGRESS)
+        && Boolean.parseBoolean(properties.getProperty(ENABLED_CUSTOMIZED_PROGRESS));
   }
 
   @VisibleForTesting
@@ -687,16 +709,30 @@ public class MRJobLauncher extends AbstractJobLauncher {
     private ServiceManager serviceManager;
     private Optional<JobMetrics> jobMetrics = Optional.absent();
     private boolean isSpeculativeEnabled;
+    private boolean customizedProgressEnabled;
     private final JobState jobState = new JobState();
+    private CustomizedProgresser customizedProgresser;
+
+    private static final String CUSTOMIZED_PROGRESSER_FACTORY_CLASS = "customizedProgresser.factoryClass";
+    private static final String DEFAULT_CUSTOMIZED_PROGRESSER_FACTORY_CLASS =
+        "org.apache.gobblin.runtime.mapreduce.CustomizedProgresserBase$BaseFactory";
 
     // A list of WorkUnits (flattened for MultiWorkUnits) to be run by this mapper
     private final List<WorkUnit> workUnits = Lists.newArrayList();
 
     @Override
     protected void setup(Context context) {
+      final State gobblinJobState = HadoopUtils.getStateFromConf(context.getConfiguration());
       try (Closer closer = Closer.create()) {
-        this.isSpeculativeEnabled =
-            isSpeculativeExecutionEnabled(HadoopUtils.getStateFromConf(context.getConfiguration()).getProperties());
+        // Default for customizedProgressEnabled is false.
+        this.customizedProgressEnabled = isCustomizedProgressReportEnabled(gobblinJobState.getProperties());
+        this.isSpeculativeEnabled = isSpeculativeExecutionEnabled(gobblinJobState.getProperties());
+
+        String factoryClassName = gobblinJobState.getProperties().getProperty(
+            CUSTOMIZED_PROGRESSER_FACTORY_CLASS, DEFAULT_CUSTOMIZED_PROGRESSER_FACTORY_CLASS);
+        this.customizedProgresser = Class.forName(factoryClassName).asSubclass(CustomizedProgresser.Factory.class)
+            .newInstance().createCustomizedProgresser(context);
+
         this.fs = FileSystem.get(context.getConfiguration());
         this.taskStateStore =
             new FsStateStore<>(this.fs, FileOutputFormat.getOutputPath(context).toUri().getPath(), TaskState.class);
@@ -714,8 +750,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
         if (!foundStateFile) {
           throw new IOException("Job state file not found.");
         }
-      } catch (IOException ioe) {
-        throw new RuntimeException("Failed to setup the mapper task", ioe);
+      } catch (IOException | ReflectiveOperationException e) {
+        throw new RuntimeException("Failed to setup the mapper task", e);
       }
 
 
@@ -747,8 +783,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
           configuration.get(ConfigurationKeys.METRICS_ENABLED_KEY, ConfigurationKeys.DEFAULT_METRICS_ENABLED))) {
         this.jobMetrics = Optional.of(JobMetrics.get(this.jobState));
         this.jobMetrics.get()
-            .startMetricReportingWithFileSuffix(HadoopUtils.getStateFromConf(configuration),
-                context.getTaskAttemptID().toString());
+            .startMetricReportingWithFileSuffix(gobblinJobState, context.getTaskAttemptID().toString());
       }
     }
 
@@ -768,6 +803,13 @@ public class MRJobLauncher extends AbstractJobLauncher {
         while (context.nextKeyValue()) {
           this.map(context.getCurrentKey(), context.getCurrentValue(), context);
         }
+
+        // org.apache.hadoop.util.Progress.complete will set the progress to 1.0f eventually so we don't have to
+        // set it in finally block.
+        if (customizedProgressEnabled) {
+          setProgressInMapper(customizedProgresser.getCustomizedProgress(), context);
+        }
+
         GobblinMultiTaskAttempt.CommitPolicy multiTaskAttemptCommitPolicy =
             isSpeculativeEnabled ? GobblinMultiTaskAttempt.CommitPolicy.CUSTOMIZED
                 : GobblinMultiTaskAttempt.CommitPolicy.IMMEDIATE;
@@ -847,6 +889,27 @@ public class MRJobLauncher extends AbstractJobLauncher {
         this.workUnits.addAll(flattenedWorkUnits);
       } else {
         this.workUnits.add(workUnit);
+      }
+    }
+
+    /**
+     * Setting progress within implementation of {@link Mapper} for reporting progress.
+     * Gobblin (when running in MR mode) used to report progress only in {@link GobblinWorkUnitsInputFormat} while
+     * deserializing {@link WorkUnit} in MapReduce job. In that scenario, whenever workunit is deserialized (but not yet
+     * executed) the progress will be reported as 1.0f. This could implicitly disable the feature of speculative-execution
+     * provided by MR-framework as the latter is looking at the progress to determine if speculative-execution is necessary
+     * to trigger or not.
+     *
+     * Different application of Gobblin should have customized logic on calculating progress.
+     */
+    void setProgressInMapper(float progress, Context context) {
+      try {
+        WrappedMapper.Context wrappedContext = ((WrappedMapper.Context) context);
+        Object contextImpl = RestrictedFieldAccessingUtils.getRestrictedFieldByReflection(wrappedContext, "mapContext", wrappedContext.getClass());
+        ((org.apache.hadoop.mapred.Task.TaskReporter)RestrictedFieldAccessingUtils
+            .getRestrictedFieldByReflectionRecursively(contextImpl, "reporter", MapContextImpl.class)).setProgress(progress);
+      } catch (NoSuchFieldException | IllegalAccessException e) {
+        throw new RuntimeException(e);
       }
     }
   }
