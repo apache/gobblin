@@ -63,7 +63,7 @@ public interface FlowTemplate extends Spec {
    * @param userConfig User supplied Config
    * @param inputDescriptor input {@link DatasetDescriptor}
    * @param outputDescriptor output {@link DatasetDescriptor}
-   * @return true if the {@link FlowTemplate} is resolvable
+   * @return any exception that occurred when resolving or null if the {@link FlowTemplate} is resolvable
    */
   Exception isResolvable(Config userConfig, DatasetDescriptor inputDescriptor, DatasetDescriptor outputDescriptor)
       throws SpecNotFoundException, JobTemplate.TemplateException;

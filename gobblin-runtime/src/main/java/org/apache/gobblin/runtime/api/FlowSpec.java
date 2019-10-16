@@ -39,6 +39,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.util.ConfigUtils;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 
 /**
@@ -50,6 +51,7 @@ import lombok.Data;
  */
 @Alpha
 @Data
+@EqualsAndHashCode(exclude={"compilationErrors"})
 public class FlowSpec implements Configurable, Spec {
   /** An URI identifying the flow. */
   final URI uri;

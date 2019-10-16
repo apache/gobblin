@@ -102,8 +102,8 @@ public class StaticFlowTemplate implements FlowTemplate {
 
   /**
    * Generate the input/output dataset descriptors for the {@link FlowTemplate}.
-   * @param userConfig
-   * @param resolvable
+   * @param userConfig User supplied Config
+   * @param resolvable Whether to return only resolvable dataset descriptors
    * @return a List of Input/Output DatasetDescriptors that correspond to this {@link FlowTemplate}. If resolvable is true,
    * only return descriptors that fully resolve it.
    */
@@ -164,7 +164,7 @@ public class StaticFlowTemplate implements FlowTemplate {
    * Checks if the {@link FlowTemplate} is resolvable using the provided {@link Config} object. A {@link FlowTemplate}
    * is resolvable only if each of the {@link JobTemplate}s in the flow is resolvable
    * @param userConfig User supplied Config
-   * @return true if the {@link FlowTemplate} is resolvable
+   * @return any exception that occurred when resolving or null if the {@link FlowTemplate} is resolvable
    */
   @Override
   public Exception isResolvable(Config userConfig, DatasetDescriptor inputDescriptor, DatasetDescriptor outputDescriptor) {

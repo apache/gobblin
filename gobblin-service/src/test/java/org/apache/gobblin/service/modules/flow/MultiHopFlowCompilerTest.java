@@ -641,7 +641,7 @@ public class MultiHopFlowCompilerTest {
   }
 
   @Test (dependsOnMethods = "testCompileCombinedDatasetFlow")
-  public void testUnresovedFlow() throws Exception {
+  public void testUnresolvedFlow() throws Exception {
     FlowSpec spec = createFlowSpec("flow/flow5.conf", "HDFS-1", "HDFS-3", false, false);
 
     Dag<JobExecutionPlan> dag = specCompiler.compileFlow(spec);
@@ -651,7 +651,7 @@ public class MultiHopFlowCompilerTest {
     Assert.assertTrue(spec.getCompilationErrors().iterator().next().contains("user.to.proxy"));
   }
 
-  @Test (dependsOnMethods = "testUnresovedFlow")
+  @Test (dependsOnMethods = "testUnresolvedFlow")
   public void testGitFlowGraphMonitorService()
       throws IOException, GitAPIException, URISyntaxException, InterruptedException {
     File remoteDir = new File(TESTDIR + "/remote");
