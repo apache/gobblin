@@ -26,6 +26,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.pool2.impl.GenericObjectPool;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
+import org.apache.gobblin.util.PropertiesUtils;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 
@@ -58,6 +59,17 @@ public class HiveMetastoreClientPool {
   private static final long DEFAULT_POOL_CACHE_TTL_MINUTES = 30;
 
   public static final String POOL_CACHE_TTL_MINUTES_KEY = "hive.metaStorePoolCache.ttl";
+
+  public static final String POOL_EVICTION_POLICY_CLASS_NAME = "org.apache.commons.pool2.impl.DefaultEvictionPolicy";
+
+  public static final String POOL_MIN_EVICTABLE_IDLE_TIME_MILLIS = "pool.min.evictable.idle.time.millis";
+
+  public static final long DEFAULT_POOL_MIN_EVICTABLE_IDLE_TIME_MILLIS = 600000L;
+
+  public static final String POOL_TIME_BETWEEN_EVICTION_MILLIS = "pool.time.between eviction.millis";
+
+  public static final long DEFAULT_POOL_TIME_BETWEEN_EVICTION_MILLIS = 60000L;
+
 
   private static Cache<Optional<String>, HiveMetastoreClientPool> poolCache = null;
 
@@ -119,6 +131,10 @@ public class HiveMetastoreClientPool {
 
     this.factory = new HiveMetaStoreClientFactory(metastoreURI);
     this.pool = new GenericObjectPool<>(this.factory, config);
+    //Set the eviction policy for the client pool
+    this.pool.setEvictionPolicyClassName(POOL_EVICTION_POLICY_CLASS_NAME);
+    this.pool.setMinEvictableIdleTimeMillis(PropertiesUtils.getPropAsLong(properties, POOL_MIN_EVICTABLE_IDLE_TIME_MILLIS, DEFAULT_POOL_MIN_EVICTABLE_IDLE_TIME_MILLIS));
+    this.pool.setTimeBetweenEvictionRunsMillis(PropertiesUtils.getPropAsLong(properties, POOL_TIME_BETWEEN_EVICTION_MILLIS, DEFAULT_POOL_TIME_BETWEEN_EVICTION_MILLIS));
     this.hiveConf = this.factory.getHiveConf();
   }
 

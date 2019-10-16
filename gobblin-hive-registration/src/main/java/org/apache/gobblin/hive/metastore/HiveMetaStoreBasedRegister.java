@@ -230,7 +230,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
         if(shouldUpdateLatestSchema) {
           updateSchema(spec, table);
         }
-        if (needToUpdateTable(existingTable, spec.getTable())) {
+        if (needToUpdateTable(existingTable, HiveMetaStoreUtils.getHiveTable(table))) {
           try (Timer.Context context = this.metricContext.timer(ALTER_TABLE).time()) {
             client.alter_table(dbName, tableName, getNewTblByMergingExistingTblProps(table, existingTable));
           }
