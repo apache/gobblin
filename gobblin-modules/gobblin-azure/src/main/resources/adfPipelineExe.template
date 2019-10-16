@@ -1,0 +1,50 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+gobblin.template.required_attributes="subscription_id,aad_id,rg_name,akv_url,data_factory_name,pieline_name,pipline_params,adf_exe_id,adf_exe_secret"
+
+source.class=org.apache.gobblin.azure.adf.ADFPipelineSource
+gobblin.httptask.class=org.apache.gobblin.azure.adf.ADFPipelineExecutionTask
+gobblin.httptask.type=POST
+
+job.name=ChenJob
+job.group=K2-conflation
+job.description=Execute ADF conflation pipeline for K2
+
+taskexecutor.threadpool.size=6
+taskretry.threadpool.coresize=2
+
+
+azure.subscription.id=${subscription_id}
+azure.aad.id=${aad_id}
+azure.resource-group.name=${rg_name}
+azure.key-vault.url=${akv_url}
+azure.data-factory.name=${data_factory_name}
+azure.data-factory.pipeline.name=${pipeline_name}
+azure.data-factory.pipeline.params=${pipeline_params}
+azure.data-factory.api.version=2018-06-01
+
+azure.service-principal.adf-executor.id=${adf_exe_id}
+
+# Either provide the secret for the SP adf-executor directly through the configuration "azure.service-principal.adf-executor.secret"
+# Or provide the secret name of this SP such that the secret can be fetched from the AKV through the SP key-vault-reader
+# Use settings below
+# azure.key-vault.secret-name.adf-executor=${adf_exe_secret_name}
+# azure.service-principal.key-vault-reader.id=${azure.service-principal.adf-executor.id}
+# azure.service-principal.key-vault-reader.secret=${akv_reader_secret}
+
+azure.service-principal.adf-executor.secret=${adf_exe_secret}
