@@ -50,9 +50,6 @@ import org.apache.gobblin.configuration.WorkUnitState;
  */
 public class Extract extends State {
 
-  static final String EXTRACT_ID_TIME_ZONE = "extract.extractIdTimeZone";
-  static final DateTimeZone DEFAULT_EXTRACT_ID_TIME_ZONE = DateTimeZone.UTC;
-
   public enum TableType {
     SNAPSHOT_ONLY,
     SNAPSHOT_APPEND,
@@ -104,8 +101,8 @@ public class Extract extends State {
   }
 
   DateTimeZone getTimeZoneHelper(SourceState state) {
-    return state.contains(EXTRACT_ID_TIME_ZONE) ? DateTimeZone.forID(state.getProp(EXTRACT_ID_TIME_ZONE))
-        : DEFAULT_EXTRACT_ID_TIME_ZONE;
+    return DateTimeZone.forID(state.getProp(ConfigurationKeys.EXTRACT_ID_TIME_ZONE,
+            ConfigurationKeys.DEFAULT_EXTRACT_ID_TIME_ZONE));
   }
 
   /**

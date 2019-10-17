@@ -20,25 +20,23 @@ package org.apache.gobblin.source.workunit;
 import java.time.ZoneId;
 import java.util.TimeZone;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
 import org.joda.time.DateTimeZone;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import static org.apache.gobblin.source.workunit.Extract.EXTRACT_ID_TIME_ZONE;
-
 
 public class TimeZoneUtilsTest {
   @Test
   public void testConfigurableTimeZone()
       throws Exception {
     SourceState state = new SourceState();
-    state.setProp(EXTRACT_ID_TIME_ZONE, "America/Los_Angeles");
+    state.setProp(ConfigurationKeys.EXTRACT_ID_TIME_ZONE, "America/Los_Angeles");
     Extract extract = new Extract(state, Extract.TableType.APPEND_ONLY, "random", "table");
     Assert.assertEquals(extract.getTimeZoneHelper(state).toTimeZone(),
         TimeZone.getTimeZone(ZoneId.of("America/Los_Angeles")));
 
-    state.removeProp(EXTRACT_ID_TIME_ZONE);
+    state.removeProp(ConfigurationKeys.EXTRACT_ID_TIME_ZONE);
     extract = new Extract(state, Extract.TableType.APPEND_ONLY, "random", "table");
     Assert.assertEquals(extract.getTimeZoneHelper(state), DateTimeZone.UTC);
   }
