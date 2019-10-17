@@ -32,10 +32,10 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.gobblin.util.executors.ScalingThreadPoolExecutor;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -231,7 +231,7 @@ public class YarnService extends AbstractIdleService {
         Optional.of(config.getString(GobblinYarnConfigurationKeys.CONTAINER_JVM_ARGS_KEY)) :
         Optional.<String>absent();
 
-    this.containerLaunchExecutor = Executors.newFixedThreadPool(10,
+    this.containerLaunchExecutor = ScalingThreadPoolExecutor.newScalingThreadPool(5, Integer.MAX_VALUE, 0L,
         ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("ContainerLaunchExecutor")));
 
     this.tokens = getSecurityTokens();
@@ -610,6 +610,9 @@ public class YarnService extends AbstractIdleService {
    */
   private void handleContainerCompletion(ContainerStatus containerStatus) {
     Map.Entry<Container, String> completedContainerEntry = this.containerMap.remove(containerStatus.getContainerId());
+    if(completedContainerEntry == null) {
+      LOGGER.warn(String.format("Container %s already been removed from containerMap before completed, there may be something wrong when starting the container", containerStatus.getContainerId()));
+    }
     String completedInstanceName = completedContainerEntry.getValue();
 
     LOGGER.info(String.format("Container %s running Helix instance %s has completed with exit status %d",
