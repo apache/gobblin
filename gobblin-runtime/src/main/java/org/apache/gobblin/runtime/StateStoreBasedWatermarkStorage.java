@@ -50,7 +50,12 @@ public class StateStoreBasedWatermarkStorage implements WatermarkStorage {
   public static final String WATERMARK_STORAGE_TYPE_KEY ="streaming.watermarkStateStore.type";
   public static final String WATERMARK_STORAGE_TYPE_DEFAULT ="zk";
   public static final String WATERMARK_STORAGE_CONFIG_PREFIX="streaming.watermarkStateStore.config.";
-  private static final String WATERMARK_STORAGE_PREFIX="streamingWatermarks:";
+
+  /**
+   * The prefix need to be fitting with different storage layer. e.g. some of characters won't be allowed in URI and
+   * they shall not be appearing here.
+   */
+  private static final String WATERMARK_STORAGE_PREFIX="streamingWatermarks_";
 
   public final StateStore<CheckpointableWatermarkState> _stateStore;
   private final String _storeName;
