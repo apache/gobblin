@@ -60,7 +60,9 @@ public class HiveMetastoreClientPool {
 
   public static final String POOL_CACHE_TTL_MINUTES_KEY = "hive.metaStorePoolCache.ttl";
 
-  public static final String POOL_EVICTION_POLICY_CLASS_NAME = "org.apache.commons.pool2.impl.DefaultEvictionPolicy";
+  public static final String POOL_EVICTION_POLICY_CLASS_NAME = "pool.eviction.policy.class.name";
+
+  public static final String DEFAULT_POOL_EVICTION_POLICY_CLASS_NAME = "org.apache.commons.pool2.impl.DefaultEvictionPolicy";
 
   public static final String POOL_MIN_EVICTABLE_IDLE_TIME_MILLIS = "pool.min.evictable.idle.time.millis";
 
@@ -119,6 +121,14 @@ public class HiveMetastoreClientPool {
 
   /**
    * Constructor for {@link HiveMetastoreClientPool}.
+   * By default we will using the default eviction strategy for the client pool. Client will be evicted if the following conditions are met:
+   *  * <ul>
+   *  * <li>the object has been idle longer than
+   *  *     {@link GenericObjectPool#getMinEvictableIdleTimeMillis()}</li>
+   *  * <li>there are more than {@link GenericObjectPool#getMinIdle()} idle objects in
+   *  *     the pool and the object has been idle for longer than
+   *  *     {@link GenericObjectPool#getSoftMinEvictableIdleTimeMillis()} </li>
+   *  * </ul>
    * @deprecated It is recommended to use the static {@link #get} method instead. Use this constructor only if you
    *             different pool configurations are required.
    */
@@ -132,7 +142,7 @@ public class HiveMetastoreClientPool {
     this.factory = new HiveMetaStoreClientFactory(metastoreURI);
     this.pool = new GenericObjectPool<>(this.factory, config);
     //Set the eviction policy for the client pool
-    this.pool.setEvictionPolicyClassName(POOL_EVICTION_POLICY_CLASS_NAME);
+    this.pool.setEvictionPolicyClassName(properties.getProperty(POOL_EVICTION_POLICY_CLASS_NAME, DEFAULT_POOL_EVICTION_POLICY_CLASS_NAME));
     this.pool.setMinEvictableIdleTimeMillis(PropertiesUtils.getPropAsLong(properties, POOL_MIN_EVICTABLE_IDLE_TIME_MILLIS, DEFAULT_POOL_MIN_EVICTABLE_IDLE_TIME_MILLIS));
     this.pool.setTimeBetweenEvictionRunsMillis(PropertiesUtils.getPropAsLong(properties, POOL_TIME_BETWEEN_EVICTION_MILLIS, DEFAULT_POOL_TIME_BETWEEN_EVICTION_MILLIS));
     this.hiveConf = this.factory.getHiveConf();
