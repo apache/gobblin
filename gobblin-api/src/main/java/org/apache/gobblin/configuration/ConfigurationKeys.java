@@ -302,6 +302,9 @@ public class ConfigurationKeys {
   public static final String EXTRACT_SCHEMA = "extract.schema";
   public static final String EXTRACT_LIMIT_ENABLED_KEY = "extract.limit.enabled";
   public static final boolean DEFAULT_EXTRACT_LIMIT_ENABLED = false;
+  public static final String EXTRACT_ID_TIME_ZONE = "extract.extractIdTimeZone";
+  public static final String DEFAULT_EXTRACT_ID_TIME_ZONE = "UTC";
+
 
   /**
    * Converter configuration properties.

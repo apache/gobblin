@@ -183,8 +183,17 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
 
       // Distribute the files across the workunits
       for (int fileOffset = 0; fileOffset < filesToPull.size(); fileOffset += filesPerPartition) {
-        // Use extract table name to create extract
-        Extract extract = new Extract(tableType, nameSpaceName, extractTableName);
+        /* Use extract table name to create extract
+         *
+         * We don't want to pass in the whole SourceState object just to avoid any side effect, because
+         * the constructor with state argument has been deprecated for a long time. Here we selectively
+         * chose the configuration needed for Extract constructor, to manually form a source state.
+         */
+        SourceState extractState = new SourceState();
+        extractState.setProp(ConfigurationKeys.EXTRACT_ID_TIME_ZONE,
+                state.getProp(ConfigurationKeys.EXTRACT_ID_TIME_ZONE, ConfigurationKeys.DEFAULT_EXTRACT_ID_TIME_ZONE));
+        Extract extract = new Extract(extractState, tableType, nameSpaceName, extractTableName);
+
         WorkUnit workUnit = WorkUnit.create(extract);
 
         // Eventually these setters should be integrated with framework support for generalized watermark handling
