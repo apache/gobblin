@@ -142,7 +142,7 @@ public class HiveMetastoreClientPool {
     this.factory = new HiveMetaStoreClientFactory(metastoreURI);
     this.pool = new GenericObjectPool<>(this.factory, config);
     //Set the eviction policy for the client pool
-    this.pool.setEvictionPolicyClassName(properties.getProperty(POOL_EVICTION_POLICY_CLASS_NAME, DEFAULT_POOL_EVICTION_POLICY_CLASS_NAME));=
+    this.pool.setEvictionPolicyClassName(properties.getProperty(POOL_EVICTION_POLICY_CLASS_NAME, DEFAULT_POOL_EVICTION_POLICY_CLASS_NAME));
     this.pool.setMinEvictableIdleTimeMillis(PropertiesUtils.getPropAsLong(properties, POOL_MIN_EVICTABLE_IDLE_TIME_MILLIS, DEFAULT_POOL_MIN_EVICTABLE_IDLE_TIME_MILLIS));
     this.pool.setTimeBetweenEvictionRunsMillis(PropertiesUtils.getPropAsLong(properties, POOL_TIME_BETWEEN_EVICTION_MILLIS, DEFAULT_POOL_TIME_BETWEEN_EVICTION_MILLIS));
     this.hiveConf = this.factory.getHiveConf();
