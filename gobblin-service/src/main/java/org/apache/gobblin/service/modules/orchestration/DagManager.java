@@ -491,7 +491,7 @@ public class DagManager extends AbstractIdleService {
 
         JobStatus jobStatus = pollJobStatus(node);
 
-        boolean killOrphanFlow = killOrphanFlows(node, jobStatus);
+        boolean killOrphanFlow = killJobIfOrphaned(node, jobStatus);
 
         ExecutionStatus status = getJobExecutionStatus(slaKilled, killOrphanFlow, jobStatus);
 
@@ -542,14 +542,20 @@ public class DagManager extends AbstractIdleService {
       }
     }
 
-    // cancel the job and returns true if the job status remains ORCHESTRATED for some specific time
-    private boolean killOrphanFlows(DagNode<JobExecutionPlan> node, JobStatus jobStatus)
+    /**
+     * Cancel the job if the job has been "orphaned". A job is orphaned if has been in ORCHESTRATED
+     * {@link ExecutionStatus} for some specific amount of time.
+     * @param node {@link DagNode} representing the job
+     * @param jobStatus current {@link JobStatus} of the job
+     * @return true if the job status remains ORCHESTRATED for some specific time
+     */
+    private boolean killJobIfOrphaned(DagNode<JobExecutionPlan> node, JobStatus jobStatus)
         throws ExecutionException, InterruptedException {
       if (jobStatus == null) {
         return false;
       }
       ExecutionStatus executionStatus = valueOf(jobStatus.getEventName());
-      long timeoutForFlowStart = DagManagerUtils.getFlowSLA(node);
+      long timeoutForFlowStart = DagManagerUtils.getFlowStartSLA(node);
       long flowStartTime = jobStatus.getFlowExecutionId();
 
       if (executionStatus == ORCHESTRATED && System.currentTimeMillis() - flowStartTime > timeoutForFlowStart) {
