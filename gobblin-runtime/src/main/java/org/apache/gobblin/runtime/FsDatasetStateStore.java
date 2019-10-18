@@ -53,6 +53,7 @@ import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValue;
 
+import org.apache.gobblin.metastore.FsStateStoreEntryManager;
 import org.apache.gobblin.metastore.predicates.StateStorePredicate;
 import org.apache.gobblin.metastore.predicates.StoreNamePredicate;
 import org.apache.gobblin.metastore.DatasetStateStore;
