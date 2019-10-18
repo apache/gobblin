@@ -107,7 +107,7 @@ public class UnixTimestampRecursiveCopyableDatasetTest {
     properties.setProperty(TimeAwareRecursiveCopyableDataset.DATE_PATTERN_TIMEZONE_KEY,
         TimeAwareRecursiveCopyableDataset.DEFAULT_DATE_PATTERN_TIMEZONE);
     properties.setProperty(TimeAwareRecursiveCopyableDataset.LOOKBACK_TIME_KEY, NUM_LOOKBACK_DAYS_STR);
-    properties.setProperty(UnixTimestampRecursiveCopyableDataset.SNAPSHOT_SELECTION_POLICY, "ALL");
+    properties.setProperty(UnixTimestampRecursiveCopyableDataset.VERSION_SELECTION_POLICY, "ALL");
     properties.setProperty(UnixTimestampRecursiveCopyableDataset.TIMESTAMP_REGEEX, ".*/([0-9]{13})-PT-.*/.*");
 
     UnixTimestampCopyableDatasetFinder finder = new UnixTimestampCopyableDatasetFinder(fs, properties);
@@ -118,15 +118,15 @@ public class UnixTimestampRecursiveCopyableDatasetTest {
     List<FileStatus> fileStatusList = dataset.getFilesAtPath(fs, baseSrcDir, ACCEPT_ALL_PATH_FILTER);
     Assert.assertTrue(fileStatusList.size() == 30);
 
-    // Snapshot selection policy = EARLIEST
-    properties.setProperty(UnixTimestampRecursiveCopyableDataset.SNAPSHOT_SELECTION_POLICY, "EARLIEST");
+    // version selection policy = EARLIEST
+    properties.setProperty(UnixTimestampRecursiveCopyableDataset.VERSION_SELECTION_POLICY, "EARLIEST");
     finder = new UnixTimestampCopyableDatasetFinder(fs, properties);
     dataset = (UnixTimestampRecursiveCopyableDataset) finder.datasetAtPath(new Path(datasetRoot));
     fileStatusList = dataset.getFilesAtPath(fs, baseSrcDir, ACCEPT_ALL_PATH_FILTER);
     Assert.assertTrue(fileStatusList.size() == 6);
 
-    // Snapshot selection policy = LATEST
-    properties.setProperty(UnixTimestampRecursiveCopyableDataset.SNAPSHOT_SELECTION_POLICY, "latest");
+    // version selection policy = LATEST
+    properties.setProperty(UnixTimestampRecursiveCopyableDataset.VERSION_SELECTION_POLICY, "latest");
     finder = new UnixTimestampCopyableDatasetFinder(fs, properties);
     dataset = (UnixTimestampRecursiveCopyableDataset) finder.datasetAtPath(new Path(datasetRoot));
     fileStatusList = dataset.getFilesAtPath(fs, baseSrcDir, ACCEPT_ALL_PATH_FILTER);
@@ -141,20 +141,20 @@ public class UnixTimestampRecursiveCopyableDatasetTest {
     datasetRoot = rootPath + "/" + databaseName + "/" + tableName;
 
     // Snap shot selection policy = ALL
-    properties.setProperty(UnixTimestampRecursiveCopyableDataset.SNAPSHOT_SELECTION_POLICY, "ALL");
+    properties.setProperty(UnixTimestampRecursiveCopyableDataset.VERSION_SELECTION_POLICY, "ALL");
     dataset = (UnixTimestampRecursiveCopyableDataset) finder.datasetAtPath(new Path(datasetRoot));
     fileStatusList = dataset.getFilesAtPath(fs, baseSrcDir, ACCEPT_ALL_PATH_FILTER);
     Assert.assertTrue(fileStatusList.size() == 30);
 
     // Snap shot selection policy = EARLIEST
-    properties.setProperty(UnixTimestampRecursiveCopyableDataset.SNAPSHOT_SELECTION_POLICY, "EARLIEST");
+    properties.setProperty(UnixTimestampRecursiveCopyableDataset.VERSION_SELECTION_POLICY, "EARLIEST");
     finder = new UnixTimestampCopyableDatasetFinder(fs, properties);
     dataset = (UnixTimestampRecursiveCopyableDataset) finder.datasetAtPath(new Path(datasetRoot));
     fileStatusList = dataset.getFilesAtPath(fs, baseSrcDir, ACCEPT_ALL_PATH_FILTER);
     Assert.assertTrue(fileStatusList.size() == 6);
 
     // Snap shot selection policy = LATEST
-    properties.setProperty(UnixTimestampRecursiveCopyableDataset.SNAPSHOT_SELECTION_POLICY, "latest");
+    properties.setProperty(UnixTimestampRecursiveCopyableDataset.VERSION_SELECTION_POLICY, "latest");
     finder = new UnixTimestampCopyableDatasetFinder(fs, properties);
     dataset = (UnixTimestampRecursiveCopyableDataset) finder.datasetAtPath(new Path(datasetRoot));
     fileStatusList = dataset.getFilesAtPath(fs, baseSrcDir, ACCEPT_ALL_PATH_FILTER);
@@ -164,7 +164,7 @@ public class UnixTimestampRecursiveCopyableDatasetTest {
 
   @Test
   public void testRegex() {
-    String dbRegex = ".*/([0-9]{13})-PT-.*/.*";
+    String dbRegex = ".*/([0-9]{13}).*/.*";
     long now = System.currentTimeMillis();
     String path = "tableName/" + now + "-PT-12345/part1.avro";
     Pattern pattern = Pattern.compile(dbRegex);
@@ -172,7 +172,7 @@ public class UnixTimestampRecursiveCopyableDatasetTest {
     Assert.assertTrue(matcher.matches());
     Assert.assertEquals(Long.parseLong(matcher.group(1)), now);
 
-    String tableRegex = "([0-9]{13})-PT-.*/.*";
+    String tableRegex = "([0-9]{13}).*/.*";
     path = now + "-PT-12345/part1.avro";
     pattern = Pattern.compile(tableRegex);
     matcher = pattern.matcher(path);

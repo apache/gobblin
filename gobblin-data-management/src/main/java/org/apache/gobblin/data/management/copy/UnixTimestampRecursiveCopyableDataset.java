@@ -45,7 +45,7 @@ import org.apache.gobblin.util.filters.AndPathFilter;
 
 
 /**
- * This dataset filters file paths based on a {@link #timestampPattern} and {@link #snapshotSelectionPolicy}
+ * This dataset filters file paths based on a {@link #timestampPattern} and {@link #versionSelectionPolicy}
  *
  * The default regex will match the first occurrence of a directory matching the pattern after the dataset root
  *
@@ -53,21 +53,21 @@ import org.apache.gobblin.util.filters.AndPathFilter;
 public class UnixTimestampRecursiveCopyableDataset extends RecursiveCopyableDataset {
 
   private static final String CONFIG_PREFIX = CopyConfiguration.COPY_PREFIX + ".recursive";
-  public static final String SNAPSHOT_SELECTION_POLICY = CONFIG_PREFIX + ".snapshot.selection.policy";
+  public static final String VERSION_SELECTION_POLICY = CONFIG_PREFIX + ".version.selection.policy";
   public static final String TIMESTAMP_REGEEX = CONFIG_PREFIX + ".timestamp.pattern";
-  public static final String DEFAULT_TIMESTAMP_REGEX = ".*/([0-9]{13})-PT-.*/.*";
+  public static final String DEFAULT_TIMESTAMP_REGEX = ".*/([0-9]{13}).*/.*";
   private final String lookbackTime;
   private final Period lookbackPeriod;
   private final LocalDateTime currentTime;
-  private final SnapshotSelectionPolicy snapshotSelectionPolicy;
+  private final VersionSelectionPolicy versionSelectionPolicy;
   private final DateTimeZone dateTimeZone;
   private final Pattern timestampPattern;
 
   public UnixTimestampRecursiveCopyableDataset(FileSystem fs, Path rootPath, Properties properties, Path glob) {
     super(fs, rootPath, properties, glob);
     this.lookbackTime = properties.getProperty(TimeAwareRecursiveCopyableDataset.LOOKBACK_TIME_KEY);
-    this.snapshotSelectionPolicy =
-        SnapshotSelectionPolicy.valueOf(properties.getProperty(SNAPSHOT_SELECTION_POLICY).toUpperCase());
+    this.versionSelectionPolicy =
+        VersionSelectionPolicy.valueOf(properties.getProperty(VERSION_SELECTION_POLICY).toUpperCase());
     PeriodFormatter periodFormatter = new PeriodFormatterBuilder().appendDays().appendSuffix("d").toFormatter();
     this.lookbackPeriod = periodFormatter.parsePeriod(lookbackTime);
     String timestampRegex = properties.getProperty(TIMESTAMP_REGEEX, DEFAULT_TIMESTAMP_REGEX);
@@ -78,10 +78,15 @@ public class UnixTimestampRecursiveCopyableDataset extends RecursiveCopyableData
     this.currentTime = LocalDateTime.now(this.dateTimeZone);
   }
 
-  private enum SnapshotSelectionPolicy {
+  private enum VersionSelectionPolicy {
     EARLIEST, LATEST, ALL
   }
 
+  /**
+   * Given a lookback period, this filter extracts the timestamp from the path
+   * based on {@link #timestampPattern} and filters out the paths that are out the date range
+   *
+   */
   class TimestampPathFilter implements PathFilter {
 
     @Override
@@ -109,12 +114,12 @@ public class UnixTimestampRecursiveCopyableDataset extends RecursiveCopyableData
     PathFilter andPathFilter = new AndPathFilter(fileFilter, new TimestampPathFilter());
     List<FileStatus> files = super.getFilesAtPath(fs, path, andPathFilter);
 
-    if (SnapshotSelectionPolicy.ALL == snapshotSelectionPolicy) {
+    if (VersionSelectionPolicy.ALL == versionSelectionPolicy) {
       return files;
     }
 
     Map<Pair<String, LocalDate>, TreeMap<Long, List<FileStatus>>> pathTimestampFilesMap = new HashMap<>();
-    // Now select files per day based on snapshot selection policy
+    // Now select files per day based on version selection policy
     for (FileStatus fileStatus : files) {
       String relativePath = PathUtils.relativizePath(PathUtils.getPathWithoutSchemeAndAuthority(fileStatus.getPath()), datasetRoot()).toString();
       Matcher matcher = timestampPattern.matcher(relativePath);
@@ -122,10 +127,10 @@ public class UnixTimestampRecursiveCopyableDataset extends RecursiveCopyableData
         continue;
       }
       String timestampStr = matcher.group(1);
-      String pathToSnapshotFolder = relativePath.substring(0, relativePath.indexOf(timestampStr));
+      String rootPath = relativePath.substring(0, relativePath.indexOf(timestampStr));
       Long unixTimestamp = Long.parseLong(timestampStr);
       LocalDate localDate = new LocalDateTime(unixTimestamp,dateTimeZone).toLocalDate();
-      Pair<String, LocalDate> key = new Pair<>(pathToSnapshotFolder, localDate);
+      Pair<String, LocalDate> key = new Pair<>(rootPath, localDate);
       if (!pathTimestampFilesMap.containsKey(key)) {
         pathTimestampFilesMap.put(key, new TreeMap<Long, List<FileStatus>>());
       }
@@ -144,7 +149,7 @@ public class UnixTimestampRecursiveCopyableDataset extends RecursiveCopyableData
       if(timestampFileStatus.size() <=0 ) {
         continue;
       }
-      switch (snapshotSelectionPolicy) {
+      switch (versionSelectionPolicy) {
         case EARLIEST:
           result.addAll(timestampFileStatus.firstEntry().getValue());
           break;
@@ -152,7 +157,7 @@ public class UnixTimestampRecursiveCopyableDataset extends RecursiveCopyableData
           result.addAll(timestampFileStatus.lastEntry().getValue());
           break;
         default:
-          throw new RuntimeException("Unsupported snapshot selection policy");
+          throw new RuntimeException("Unsupported version selection policy");
       }
     }
     return result;
