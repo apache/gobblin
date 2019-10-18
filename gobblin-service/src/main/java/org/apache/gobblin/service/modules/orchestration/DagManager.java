@@ -74,12 +74,7 @@ import org.apache.gobblin.service.monitoring.KafkaJobStatusMonitorFactory;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
-import static org.apache.gobblin.service.ExecutionStatus.CANCELLED;
-import static org.apache.gobblin.service.ExecutionStatus.COMPLETE;
-import static org.apache.gobblin.service.ExecutionStatus.FAILED;
-import static org.apache.gobblin.service.ExecutionStatus.RUNNING;
-import static org.apache.gobblin.service.ExecutionStatus.PENDING;
-import static org.apache.gobblin.service.ExecutionStatus.valueOf;
+import static org.apache.gobblin.service.ExecutionStatus.*;
 
 
 /**
@@ -491,12 +486,14 @@ public class DagManager extends AbstractIdleService {
       Map<String, Set<DagNode<JobExecutionPlan>>> nextSubmitted = Maps.newHashMap();
       List<DagNode<JobExecutionPlan>> nodesToCleanUp = Lists.newArrayList();
 
-      for (DagNode<JobExecutionPlan> node: this.jobToDag.keySet()) {
+      for (DagNode<JobExecutionPlan> node : this.jobToDag.keySet()) {
         boolean slaKilled = slaKillIfNeeded(node);
 
         JobStatus jobStatus = pollJobStatus(node);
 
-        ExecutionStatus status = getJobExecutionStatus(slaKilled, jobStatus);
+        boolean killOrphanFlow = killJobIfOrphaned(node, jobStatus);
+
+        ExecutionStatus status = getJobExecutionStatus(slaKilled, killOrphanFlow, jobStatus);
 
         JobExecutionPlan jobExecutionPlan = DagManagerUtils.getJobExecutionPlan(node);
 
@@ -545,8 +542,32 @@ public class DagManager extends AbstractIdleService {
       }
     }
 
-    private ExecutionStatus getJobExecutionStatus(boolean slaKilled, JobStatus jobStatus) {
-      if (slaKilled) {
+    /**
+     * Cancel the job if the job has been "orphaned". A job is orphaned if has been in ORCHESTRATED
+     * {@link ExecutionStatus} for some specific amount of time.
+     * @param node {@link DagNode} representing the job
+     * @param jobStatus current {@link JobStatus} of the job
+     * @return true if the job status remains ORCHESTRATED for some specific time
+     */
+    private boolean killJobIfOrphaned(DagNode<JobExecutionPlan> node, JobStatus jobStatus)
+        throws ExecutionException, InterruptedException {
+      if (jobStatus == null) {
+        return false;
+      }
+      ExecutionStatus executionStatus = valueOf(jobStatus.getEventName());
+      long timeoutForFlowStart = DagManagerUtils.getFlowStartSLA(node);
+      long flowStartTime = jobStatus.getFlowExecutionId();
+
+      if (executionStatus == ORCHESTRATED && System.currentTimeMillis() - flowStartTime > timeoutForFlowStart) {
+        cancelDagNode(node);
+        return true;
+      } else {
+        return false;
+      }
+    }
+
+    private ExecutionStatus getJobExecutionStatus(boolean slaKilled, boolean killOrphanFlow, JobStatus jobStatus) {
+      if (slaKilled || killOrphanFlow) {
         return CANCELLED;
       } else {
         if (jobStatus == null) {

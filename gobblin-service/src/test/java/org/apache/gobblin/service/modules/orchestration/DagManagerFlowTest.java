@@ -201,6 +201,46 @@ public class DagManagerFlowTest {
     // check the SLA value
     Assert.assertEquals(dagManager.dagManagerThreads[queue].dagToSLA.get(dagId).longValue(), TimeUnit.SECONDS.toMillis(7L));
 
+    // check existence of dag in dagToJobs map
+    AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).
+        assertTrue(input -> dagManager.dagManagerThreads[queue].dagToJobs.containsKey(dagId), ERROR_MESSAGE);
+
+    // verify deleteSpec() of specProducer is called once
+    // which means job cancellation was triggered
+    AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).assertTrue(new DeletePredicate(dag), ERROR_MESSAGE);
+
+    // check removal of dag from dagToSLA map
+    AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).
+        assertTrue(input -> !dagManager.dagManagerThreads[queue].dagToSLA.containsKey(dagId), ERROR_MESSAGE);
+  }
+
+  @Test()
+  void testOrphanFlowKill() throws Exception {
+    Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("6", 234567891L, "FINISH_RUNNING", 1);
+    String dagId = DagManagerUtils.generateDagId(dag);
+    int queue = DagManagerUtils.getDagQueueId(dag, dagNumThreads);
+
+    when(this.dagManager.getJobStatusRetriever().getLatestExecutionIdsForFlow(eq("flow4"), eq("group4"), anyInt()))
+        .thenReturn(Collections.singletonList(234567891L));
+
+    // change config to set a small sla
+    Config jobConfig = dag.getStartNodes().get(0).getValue().getJobSpec().getConfig();
+    jobConfig = jobConfig
+        .withValue(ConfigurationKeys.GOBBLIN_FLOW_START_SLA_TIME, ConfigValueFactory.fromAnyRef("7"))
+        .withValue(ConfigurationKeys.GOBBLIN_FLOW_START_SLA_TIME_UNIT, ConfigValueFactory.fromAnyRef(TimeUnit.SECONDS.name()));
+    dag.getStartNodes().get(0).getValue().getJobSpec().setConfig(jobConfig);
+
+    // mock add spec
+    dagManager.addDag(dag);
+
+    // check existence of dag in dagToSLA map
+    AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).
+        assertTrue(input -> dagManager.dagManagerThreads[queue].dagToSLA.containsKey(dagId), ERROR_MESSAGE);
+
+    Mockito.doReturn(DagManagerTest.getMockJobStatus("flow6", "group6", 234567891L,
+        "group0", "job0", String.valueOf(ExecutionStatus.ORCHESTRATED)))
+        .when(dagManager.getJobStatusRetriever()).getJobStatusesForFlowExecution("flow6", "group6",
+        234567891L, "job0", "group6");
 
     // check existence of dag in dagToJobs map
     AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).
@@ -213,7 +253,6 @@ public class DagManagerFlowTest {
     // check removal of dag from dagToSLA map
     AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).
         assertTrue(input -> !dagManager.dagManagerThreads[queue].dagToSLA.containsKey(dagId), ERROR_MESSAGE);
-
   }
 
   @Test

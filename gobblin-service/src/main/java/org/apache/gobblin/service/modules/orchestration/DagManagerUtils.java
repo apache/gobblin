@@ -238,6 +238,22 @@ public class DagManagerUtils {
         : NO_SLA;
   }
 
+  /**
+   * get the sla from the dag node config.
+   * if time unit is not provided, it assumes time unit is minute.
+   * @param dagNode dag node for which sla is to be retrieved
+   * @return sla if it is provided, {@value NO_SLA} otherwise
+   */
+  static long getFlowStartSLA(DagNode<JobExecutionPlan> dagNode) {
+    Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
+    TimeUnit slaTimeUnit = TimeUnit.valueOf(ConfigUtils.getString(
+        jobConfig, ConfigurationKeys.GOBBLIN_FLOW_START_SLA_TIME_UNIT, ConfigurationKeys.DEFAULT_GOBBLIN_FLOW_START_SLA_TIME_UNIT));
+
+    return jobConfig.hasPath(ConfigurationKeys.GOBBLIN_FLOW_START_SLA_TIME)
+        ? slaTimeUnit.toMillis(jobConfig.getLong(ConfigurationKeys.GOBBLIN_FLOW_START_SLA_TIME))
+        : ConfigurationKeys.DEFAULT_GOBBLIN_FLOW_START_SLA;
+  }
+
   static int getDagQueueId(Dag<JobExecutionPlan> dag, int numThreads) {
     return getDagQueueId(DagManagerUtils.getFlowExecId(dag), numThreads);
   }
