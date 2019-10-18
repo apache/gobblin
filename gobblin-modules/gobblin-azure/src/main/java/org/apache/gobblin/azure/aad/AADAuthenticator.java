@@ -23,17 +23,23 @@ import java.net.MalformedURLException;
 import java.util.concurrent.ExecutionException;
 
 /**
- * A class that authenticate a service principal against an Azure Active Directory
+ * A class that authenticates a service principal against an Azure Active Directory through {@link AADTokenRequester}
  */
 public interface AADAuthenticator {
   /**
    * @return the full authority uri for your azure active directory
    * the pattern "https://login.microsoftonline.com/<aad_id>"
    */
-  public String getAuthorityUri();
+  String getAuthorityUri();
 
   /**
-   * Fetch an authentication token from Azure Active Directory
+   * @return the {@link AADTokenRequester} who does the actual token request
+   */
+  AADTokenRequester getTokenRequester();
+
+  /**
+   * Fetch an authentication token from Azure Active Directory.
+   * The job will be dispatched to the underlying {@link AADTokenRequester}
    *
    * @param targetResource         identifier of the target resource that is the recipient of the requested token
    * @param servicePrincipalId     the service principal id

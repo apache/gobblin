@@ -39,10 +39,52 @@ import java.util.concurrent.TimeUnit;
 public class CachedAADAuthenticator implements AADAuthenticator {
   private static final long CACHE_SIZE = 100;
   /**
-   * Build a cache for all CachedAADAuthenticator instances
+   * Build a cache for all CachedAADAuthenticator instances. It relies on a {@link AADTokenRequester} to get AAD tokens
    */
-  private static LoadingCache<CacheKey, AuthenticationResult> cache = createTokenCache(AADTokenRequesterImpl.getInstance());
+  private static LoadingCache<CacheKey, AuthenticationResult> cache;
   private final String authorityUri;
+  private final AADTokenRequester aadTokenRequester;
+
+  /**
+   * @param authorityUri the full authority uri, which is of the pattern "https://login.microsoftonline.com/<aad_id>"
+   */
+  public CachedAADAuthenticator(final String authorityUri) {
+    this(AADTokenRequesterImpl.getInstance(), authorityUri);
+  }
+
+  /**
+   * For test only
+   */
+  @VisibleForTesting
+  CachedAADAuthenticator(final AADTokenRequester aadTokenRequester, final String authorityUri) {
+    this.authorityUri = authorityUri;
+    this.aadTokenRequester = aadTokenRequester;
+    createCache(aadTokenRequester);
+  }
+
+  /**
+   * @param aadId the azure active directory id
+   * @return an AADAuthenticatorImpl for your AD
+   */
+  public static CachedAADAuthenticator buildWithAADId(String aadId) {
+    return new CachedAADAuthenticator(String.format("https://login.microsoftonline.com/%s", aadId));
+  }
+
+  @Override
+  public String getAuthorityUri() {
+    return this.authorityUri;
+  }
+
+  @Override
+  public AADTokenRequester getTokenRequester() {
+    return this.aadTokenRequester;
+  }
+
+  private synchronized static void createCache(final AADTokenRequester aadTokenRequester) {
+    if (cache == null) {
+      cache = createTokenCache(aadTokenRequester);
+    }
+  }
 
   /**
    * @param aadTokenRequester the token requester that retrieves tokens to be kept in the cache
@@ -62,35 +104,6 @@ public class CachedAADAuthenticator implements AADAuthenticator {
             throw new NullTokenException(cacheKey);
           }
         });
-  }
-
-  /**
-   * @param authorityUri the full authority uri, which is of the pattern "https://login.microsoftonline.com/<aad_id>"
-   */
-  public CachedAADAuthenticator(final String authorityUri) {
-    this.authorityUri = authorityUri;
-  }
-
-  /**
-   * For test only
-   */
-  @VisibleForTesting
-  CachedAADAuthenticator(final AADTokenRequester aadTokenRequester, final String authorityUri) {
-    this.authorityUri = authorityUri;
-    this.cache = createTokenCache(aadTokenRequester);
-  }
-
-  /**
-   * @param aadId the azure active directory id
-   * @return an AADAuthenticatorImpl for your AD
-   */
-  public static CachedAADAuthenticator buildWithAADId(String aadId) {
-    return new CachedAADAuthenticator(String.format("https://login.microsoftonline.com/%s", aadId));
-  }
-
-  @Override
-  public String getAuthorityUri() {
-    return this.authorityUri;
   }
 
   /**

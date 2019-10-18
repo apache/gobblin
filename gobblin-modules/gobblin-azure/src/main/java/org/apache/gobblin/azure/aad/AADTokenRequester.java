@@ -22,6 +22,9 @@ import com.microsoft.aad.adal4j.AuthenticationResult;
 import java.net.MalformedURLException;
 import java.util.concurrent.ExecutionException;
 
+/**
+ * The entity that sends the actual request to get AAD Token
+ */
 public interface AADTokenRequester {
   /**
    * @param key a {@link org.apache.gobblin.azure.aad.CachedAADAuthenticator.CacheKey} that is used to retrieve
