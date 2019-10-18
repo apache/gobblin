@@ -44,10 +44,6 @@ import java.util.List;
 @Slf4j
 public class ADFPipelineSource extends AbstractSource<JsonArray, JsonElement> {
 
-  public ADFPipelineSource() {
-    log.info("Hi");
-  }
-
   @Override
   public List<WorkUnit> getWorkunits(SourceState state) {
     log.info("State: " + state);
