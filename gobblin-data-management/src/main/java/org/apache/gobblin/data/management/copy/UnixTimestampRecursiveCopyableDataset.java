@@ -26,6 +26,8 @@ import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -37,8 +39,6 @@ import org.joda.time.Period;
 import org.joda.time.format.PeriodFormatter;
 import org.joda.time.format.PeriodFormatterBuilder;
 import org.testng.collections.Lists;
-
-import javafx.util.Pair;
 
 import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.filters.AndPathFilter;
@@ -130,7 +130,7 @@ public class UnixTimestampRecursiveCopyableDataset extends RecursiveCopyableData
       String rootPath = relativePath.substring(0, relativePath.indexOf(timestampStr));
       Long unixTimestamp = Long.parseLong(timestampStr);
       LocalDate localDate = new LocalDateTime(unixTimestamp,dateTimeZone).toLocalDate();
-      Pair<String, LocalDate> key = new Pair<>(rootPath, localDate);
+      Pair<String, LocalDate> key = new ImmutablePair<>(rootPath, localDate);
       if (!pathTimestampFilesMap.containsKey(key)) {
         pathTimestampFilesMap.put(key, new TreeMap<Long, List<FileStatus>>());
       }
