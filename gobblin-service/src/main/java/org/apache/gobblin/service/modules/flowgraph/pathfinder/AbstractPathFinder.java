@@ -31,6 +31,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigException;
 import com.typesafe.config.ConfigValue;
 import com.typesafe.config.ConfigValueFactory;
 
@@ -192,8 +193,9 @@ public abstract class AbstractPathFinder implements PathFinder {
             DatasetDescriptor inputDatasetDescriptor = datasetDescriptorPair.getLeft();
             DatasetDescriptor outputDatasetDescriptor = datasetDescriptorPair.getRight();
 
-            Exception e = flowEdge.getFlowTemplate().isResolvable(mergedConfig, datasetDescriptorPair.getLeft(), datasetDescriptorPair.getRight());
-            if (e != null) {
+            try {
+              flowEdge.getFlowTemplate().tryResolving(mergedConfig, datasetDescriptorPair.getLeft(), datasetDescriptorPair.getRight());
+            } catch (JobTemplate.TemplateException | ConfigException | SpecNotFoundException e) {
               this.flowSpec.getCompilationErrors().add(e.toString());
               continue;
             }

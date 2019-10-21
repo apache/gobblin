@@ -300,11 +300,6 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
           }
         } else {
           //Return a compiled flow.
-          try {
-            this.orchestrator.getSpecCompiler().awaitHealthy();
-          } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-          }
           Dag<JobExecutionPlan> dag = this.orchestrator.getSpecCompiler().compileFlow(flowSpec);
           if (dag != null && !dag.isEmpty()) {
             response = dag.toString();
