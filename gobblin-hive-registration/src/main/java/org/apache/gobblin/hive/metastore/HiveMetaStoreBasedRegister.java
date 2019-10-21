@@ -604,7 +604,10 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
   }
 
   private void onPartitionExistWithoutComputingDiff(Table table, Partition nativePartition, TException e) throws TException {
-    if (e != null && e instanceof AlreadyExistsException) {
+    if(e == null) {
+      return;
+    }
+    if (e instanceof AlreadyExistsException) {
       log.debug(String.format("Partition %s in table %s with location %s already exists and no need to update",
           stringifyPartition(nativePartition), table.getTableName(), nativePartition.getSd().getLocation()));
     }
