@@ -610,9 +610,7 @@ public class YarnService extends AbstractIdleService {
    */
   private void handleContainerCompletion(ContainerStatus containerStatus) {
     Map.Entry<Container, String> completedContainerEntry = this.containerMap.remove(containerStatus.getContainerId());
-    if(completedContainerEntry == null) {
-      LOGGER.warn(String.format("Container %s already been removed from containerMap before completed, there may be something wrong when starting the container", containerStatus.getContainerId()));
-    }
+
     String completedInstanceName = completedContainerEntry.getValue();
 
     LOGGER.info(String.format("Container %s running Helix instance %s has completed with exit status %d",
@@ -829,7 +827,6 @@ public class YarnService extends AbstractIdleService {
       }
 
       LOGGER.info(String.format("Container %s has been stopped", containerId));
-      containerMap.remove(containerId);
       if (containerMap.isEmpty()) {
         synchronized (allContainersStopped) {
           allContainersStopped.notify();
@@ -846,7 +843,6 @@ public class YarnService extends AbstractIdleService {
       }
 
       LOGGER.error(String.format("Failed to start container %s due to error %s", containerId, t));
-      containerMap.remove(containerId);
     }
 
     @Override

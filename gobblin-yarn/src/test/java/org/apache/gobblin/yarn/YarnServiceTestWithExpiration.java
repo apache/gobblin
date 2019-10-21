@@ -68,13 +68,13 @@ import org.testng.annotations.Test;
 /**
  * Tests for {@link YarnService}.
  */
-@Test(groups = {"gobblin.yarn", "disabledOnTravis"}, singleThreaded=true)
-public class YarnServiceTest {
+@Test(groups = {"gobblin.yarn", "disabledOnTravis"})
+public class YarnServiceTestWithExpiration {
   final Logger LOG = LoggerFactory.getLogger(YarnServiceTest.class);
 
   private YarnClient yarnClient;
   private MiniYARNCluster yarnCluster;
-  private TestYarnService yarnService;
+  private TestExpiredYarnService expiredYarnService;
   private Config config;
   private YarnConfiguration clusterConf;
   private ApplicationId applicationId;
@@ -106,6 +106,7 @@ public class YarnServiceTest {
     this.clusterConf.set(YarnConfiguration.RM_NM_HEARTBEAT_INTERVAL_MS, "100");
     this.clusterConf.set(YarnConfiguration.RESOURCEMANAGER_CONNECT_MAX_WAIT_MS, "10000");
     this.clusterConf.set(YarnConfiguration.YARN_CLIENT_APPLICATION_CLIENT_PROTOCOL_POLL_TIMEOUT_MS, "60000");
+    this.clusterConf.set(YarnConfiguration.RM_CONTAINER_ALLOC_EXPIRY_INTERVAL_MS, "1000");
 
     this.yarnCluster =
         this.closer.register(new MiniYARNCluster("YarnServiceTestCluster", 4, 1,
@@ -135,11 +136,11 @@ public class YarnServiceTest {
     startApp();
 
     // create and start the test yarn service
-    this.yarnService = new TestYarnService(this.config, "testApp", "appId",
+    this.expiredYarnService = new TestExpiredYarnService(this.config, "testApp", "appId",
         this.clusterConf,
         FileSystem.getLocal(new Configuration()), this.eventBus);
 
-   this.yarnService.startUp();
+    this.expiredYarnService.startUp();
   }
 
   private void startApp() throws Exception {
@@ -187,148 +188,47 @@ public class YarnServiceTest {
   public void tearDown() throws IOException, TimeoutException, YarnException {
     try {
       this.yarnClient.killApplication(this.applicationAttemptId.getApplicationId());
-      this.yarnService.shutDown();
+      this.expiredYarnService.shutDown();
+      Assert.assertEquals(this.expiredYarnService.getContainerMap().size(), 0);
     } finally {
       this.closer.close();
     }
   }
 
   /**
-   * Test that the dynamic config is added to the config specified when the {@link GobblinApplicationMaster}
-   * is instantiated.
+   * Test that the yarn service can handle onStartContainerError right
    */
+
   @Test(groups = {"gobblin.yarn", "disabledOnTravis"})
-  public void testScaleUp() {
-    this.yarnService.requestTargetNumberOfContainers(10, Collections.EMPTY_SET);
+  public void testStartError() throws Exception{
+    this.expiredYarnService.requestTargetNumberOfContainers(10, Collections.EMPTY_SET);
 
-    Assert.assertFalse(this.yarnService.getMatchingRequestsList(64, 1).isEmpty());
-    Assert.assertEquals(this.yarnService.getNumRequestedContainers(), 10);
-    Assert.assertTrue(this.yarnService.waitForContainerCount(10, 60000));
+    Assert.assertFalse(this.expiredYarnService.getMatchingRequestsList(64, 1).isEmpty());
+    Assert.assertEquals(this.expiredYarnService.getNumRequestedContainers(), 10);
 
-    // container request list that had entries earlier should now be empty
-    Assert.assertEquals(this.yarnService.getMatchingRequestsList(64, 1).size(), 0);
-  }
-
-  @Test(groups = {"gobblin.yarn", "disabledOnTravis"}, dependsOnMethods = "testScaleUp")
-  public void testScaleDownWithInUseInstances() {
-    Set<String> inUseInstances = new HashSet<>();
-
-    for (int i = 1; i <= 8; i++) {
-      inUseInstances.add("GobblinYarnTaskRunner_" + i);
+    try {
+      Thread.sleep(10000);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
     }
-
-    this.yarnService.requestTargetNumberOfContainers(6, inUseInstances);
-
-    Assert.assertEquals(this.yarnService.getNumRequestedContainers(), 6);
-
-    // will only be able to shrink to 8
-    Assert.assertTrue(this.yarnService.waitForContainerCount(8, 60000));
-
-    // will not be able to shrink to 6 due to 8 in-use instances
-    Assert.assertFalse(this.yarnService.waitForContainerCount(6, 10000));
-
+    Assert.assertNotEquals(this.expiredYarnService.getContainerMap().size(), 10);
   }
 
-  @Test(groups = {"gobblin.yarn", "disabledOnTravis"}, dependsOnMethods = "testScaleDownWithInUseInstances")
-  public void testScaleDown() throws Exception {
-    this.yarnService.requestTargetNumberOfContainers(4, Collections.EMPTY_SET);
-
-    Assert.assertEquals(this.yarnService.getNumRequestedContainers(), 4);
-    Assert.assertTrue(this.yarnService.waitForContainerCount(4, 60000));
-  }
-
-  // Keep this test last since it interferes with the container counts in the prior tests.
-  @Test(groups = {"gobblin.yarn", "disabledOnTravis"}, dependsOnMethods = "testScaleDown")
-  public void testReleasedContainerCache() throws Exception {
-    Config modifiedConfig = this.config
-        .withValue(GobblinYarnConfigurationKeys.RELEASED_CONTAINERS_CACHE_EXPIRY_SECS, ConfigValueFactory.fromAnyRef("2"));
-    TestYarnService yarnService =
-        new TestYarnService(modifiedConfig, "testApp1", "appId1",
-            this.clusterConf, FileSystem.getLocal(new Configuration()), this.eventBus);
-
-    ContainerId containerId1 = ContainerId.newInstance(ApplicationAttemptId.newInstance(ApplicationId.newInstance(1, 0),
-        0), 0);
-
-    yarnService.getReleasedContainerCache().put(containerId1, "");
-
-    Assert.assertTrue(yarnService.getReleasedContainerCache().getIfPresent(containerId1) != null);
-
-    // give some time for element to expire
-    Thread.sleep(4000);
-    Assert.assertTrue(yarnService.getReleasedContainerCache().getIfPresent(containerId1) == null);
-  }
-
-  @Test(groups = {"gobblin.yarn", "disabledOnTravis"}, dependsOnMethods = "testReleasedContainerCache")
-  public void testBuildContainerCommand() throws Exception {
-    Config modifiedConfig = this.config
-        .withValue(GobblinYarnConfigurationKeys.CONTAINER_JVM_MEMORY_OVERHEAD_MBS_KEY, ConfigValueFactory.fromAnyRef("10"))
-        .withValue(GobblinYarnConfigurationKeys.CONTAINER_JVM_MEMORY_XMX_RATIO_KEY, ConfigValueFactory.fromAnyRef("0.8"));
-
-    TestYarnService yarnService =
-        new TestYarnService(modifiedConfig, "testApp2", "appId2",
-            this.clusterConf, FileSystem.getLocal(new Configuration()), this.eventBus);
-
-    ContainerId containerId = ContainerId.newInstance(ApplicationAttemptId.newInstance(ApplicationId.newInstance(1, 0),
-        0), 0);
-    Resource resource = Resource.newInstance(2048, 1);
-    Container container = Container.newInstance(containerId, null, null, resource, null, null);
-
-    String command = yarnService.buildContainerCommand(container, "helixInstance1");
-
-    // 1628 is from 2048 * 0.8 - 10
-    Assert.assertTrue(command.contains("-Xmx1628"));
-  }
-
-   static class TestYarnService extends YarnService {
-    public TestYarnService(Config config, String applicationName, String applicationId, YarnConfiguration yarnConfiguration,
+  private static class TestExpiredYarnService extends YarnServiceTest.TestYarnService {
+    public TestExpiredYarnService(Config config, String applicationName, String applicationId, YarnConfiguration yarnConfiguration,
         FileSystem fs, EventBus eventBus) throws Exception {
       super(config, applicationName, applicationId, yarnConfiguration, fs, eventBus);
     }
 
     protected ContainerLaunchContext newContainerLaunchContext(Container container, String helixInstanceName)
         throws IOException {
-      return BuilderUtils.newContainerLaunchContext(Collections.emptyMap(), Collections.emptyMap(),
-              Arrays.asList("sleep", "60000"), Collections.emptyMap(), null, Collections.emptyMap());
-    }
-
-    /**
-     * Get the list of matching container requests for the specified resource memory and cores.
-     */
-    public List<? extends Collection<AMRMClient.ContainerRequest>> getMatchingRequestsList(int memory, int cores) {
-      Resource resource = Resource.newInstance(memory, cores);
-      Priority priority = Priority.newInstance(0);
-
-      return getAmrmClientAsync().getMatchingRequests(priority, ResourceRequest.ANY, resource);
-    }
-
-    /**
-     * Wait to reach the expected count.
-     *
-     * @param expectedCount the expected count
-     * @param waitMillis amount of time in milliseconds to wait
-     * @return true if the count was reached within the allowed wait time
-     */
-    public boolean waitForContainerCount(int expectedCount, int waitMillis) {
-      final int waitInterval = 1000;
-      int waitedMillis = 0;
-      boolean success = false;
-
-      while (waitedMillis < waitMillis) {
-        try {
-          Thread.sleep(waitInterval);
-          waitedMillis += waitInterval;
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          break;
-        }
-
-        if (expectedCount == getContainerMap().size()) {
-          success = true;
-          break;
-        }
+      try {
+        Thread.sleep(1000);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
       }
-
-      return success;
+      return BuilderUtils.newContainerLaunchContext(Collections.emptyMap(), Collections.emptyMap(),
+          Arrays.asList("sleep", "60000"), Collections.emptyMap(), null, Collections.emptyMap());
     }
   }
 }
