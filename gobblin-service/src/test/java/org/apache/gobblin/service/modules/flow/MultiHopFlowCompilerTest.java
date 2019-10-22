@@ -640,7 +640,18 @@ public class MultiHopFlowCompilerTest {
     Assert.assertTrue(jobConfig2.getString(ConfigurableGlobDatasetFinder.DATASET_FINDER_PATTERN_KEY).endsWith("{dataset0,dataset1,dataset2}"));
   }
 
-  @Test (dependsOnMethods = "testCompileMultiDatasetFlow")
+  @Test (dependsOnMethods = "testCompileCombinedDatasetFlow")
+  public void testUnresolvedFlow() throws Exception {
+    FlowSpec spec = createFlowSpec("flow/flow5.conf", "HDFS-1", "HDFS-3", false, false);
+
+    Dag<JobExecutionPlan> dag = specCompiler.compileFlow(spec);
+
+    Assert.assertTrue(dag.isEmpty());
+    Assert.assertEquals(spec.getCompilationErrors().size(), 1);
+    Assert.assertTrue(spec.getCompilationErrors().iterator().next().contains("user.to.proxy"));
+  }
+
+  @Test (dependsOnMethods = "testUnresolvedFlow")
   public void testGitFlowGraphMonitorService()
       throws IOException, GitAPIException, URISyntaxException, InterruptedException {
     File remoteDir = new File(TESTDIR + "/remote");

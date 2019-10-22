@@ -31,6 +31,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigException;
 import com.typesafe.config.ConfigValue;
 import com.typesafe.config.ConfigValueFactory;
 
@@ -170,7 +171,11 @@ public abstract class AbstractPathFinder implements PathFinder {
   List<FlowEdgeContext> getNextEdges(DataNode dataNode, DatasetDescriptor currentDatasetDescriptor,
       DatasetDescriptor destDatasetDescriptor) {
     List<FlowEdgeContext> prioritizedEdgeList = new LinkedList<>();
+    List<String> edgeIds = ConfigUtils.getStringList(this.flowConfig, ConfigurationKeys.WHITELISTED_EDGE_IDS);
     for (FlowEdge flowEdge : this.flowGraph.getEdges(dataNode)) {
+      if (!edgeIds.isEmpty() && !edgeIds.contains(flowEdge.getId())) {
+        continue;
+      }
       try {
         DataNode edgeDestination = this.flowGraph.getNode(flowEdge.getDest());
         //Base condition: Skip this FLowEdge, if it is inactive or if the destination of this edge is inactive.
@@ -183,10 +188,17 @@ public abstract class AbstractPathFinder implements PathFinder {
         for (SpecExecutor specExecutor : flowEdge.getExecutors()) {
           Config mergedConfig = getMergedConfig(flowEdge);
           List<Pair<DatasetDescriptor, DatasetDescriptor>> datasetDescriptorPairs =
-              flowEdge.getFlowTemplate().getResolvingDatasetDescriptors(mergedConfig);
+              flowEdge.getFlowTemplate().getDatasetDescriptors(mergedConfig, false);
           for (Pair<DatasetDescriptor, DatasetDescriptor> datasetDescriptorPair : datasetDescriptorPairs) {
             DatasetDescriptor inputDatasetDescriptor = datasetDescriptorPair.getLeft();
             DatasetDescriptor outputDatasetDescriptor = datasetDescriptorPair.getRight();
+
+            try {
+              flowEdge.getFlowTemplate().tryResolving(mergedConfig, datasetDescriptorPair.getLeft(), datasetDescriptorPair.getRight());
+            } catch (JobTemplate.TemplateException | ConfigException | SpecNotFoundException e) {
+              this.flowSpec.getCompilationErrors().add(e.toString());
+              continue;
+            }
 
             if (inputDatasetDescriptor.contains(currentDatasetDescriptor)) {
               DatasetDescriptor edgeOutputDescriptor = makeOutputDescriptorSpecific(currentDatasetDescriptor, outputDatasetDescriptor);
