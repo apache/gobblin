@@ -455,7 +455,7 @@ function start() {
                 WORKER_ID=$((LAST_WORKER_ID+1))
                 LOG_OUT_FILE="${GOBBLIN_LOGS}/${GOBBLIN_MODE}.$WORKER_ID.out"
                 LOG_ERR_FILE="${GOBBLIN_LOGS}/${GOBBLIN_MODE}.$WORKER_ID.err"
-                CLASS_N_ARGS="$CLUSTER_WORKER_CLASS --app_name $CLUSTER_NAME --helix_instance_name ${GOBBLIN_MODE}.$WORKER_ID "
+                CLASS_N_ARGS="$CLUSTER_WORKER_CLASS --app_name $CLUSTER_NAME --helix_instance_name ${GOBBLIN_MODE}.$WORKER_ID --worker.id $WORKER_ID"
             else
                 echo "Invalid gobblin command or execution mode... [EXITING]"
                 exit 1
