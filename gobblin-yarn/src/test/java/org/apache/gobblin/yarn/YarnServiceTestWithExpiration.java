@@ -18,6 +18,7 @@
 package org.apache.gobblin.yarn;
 
 import com.google.common.base.Predicate;
+import com.google.common.base.Throwables;
 import com.google.common.eventbus.EventBus;
 import com.google.common.io.Closer;
 import com.typesafe.config.Config;
@@ -46,6 +47,7 @@ import org.apache.hadoop.yarn.api.records.ApplicationSubmissionContext;
 import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
+import org.apache.hadoop.yarn.api.records.ContainerStatus;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.ResourceRequest;
@@ -207,17 +209,32 @@ public class YarnServiceTestWithExpiration {
     Assert.assertEquals(this.expiredYarnService.getNumRequestedContainers(), 10);
 
     try {
-      Thread.sleep(10000);
+      Thread.sleep(20000);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
     }
-    Assert.assertNotEquals(this.expiredYarnService.getContainerMap().size(), 10);
+    //Since it may retry to request the container and start again, so the number may lager than 10
+    Assert.assertTrue(this.expiredYarnService.completedContainers.size() >= 10);
+    Assert.assertTrue(this.expiredYarnService.startErrorContainers.size() >= 10);
   }
 
   private static class TestExpiredYarnService extends YarnServiceTest.TestYarnService {
+    public HashSet<ContainerId> startErrorContainers = new HashSet<>();
+    public HashSet<ContainerStatus> completedContainers = new HashSet<>();
     public TestExpiredYarnService(Config config, String applicationName, String applicationId, YarnConfiguration yarnConfiguration,
         FileSystem fs, EventBus eventBus) throws Exception {
       super(config, applicationName, applicationId, yarnConfiguration, fs, eventBus);
+    }
+
+    @Override
+    protected NMClientCallbackHandler getNMClientCallbackHandler() {
+      return new TestNMClientCallbackHandler();
+    }
+
+    @Override
+    protected void handleContainerCompletion(ContainerStatus containerStatus){
+      super.handleContainerCompletion(containerStatus);
+      completedContainers.add(containerStatus);
     }
 
     protected ContainerLaunchContext newContainerLaunchContext(Container container, String helixInstanceName)
@@ -229,6 +246,12 @@ public class YarnServiceTestWithExpiration {
       }
       return BuilderUtils.newContainerLaunchContext(Collections.emptyMap(), Collections.emptyMap(),
           Arrays.asList("sleep", "60000"), Collections.emptyMap(), null, Collections.emptyMap());
+    }
+    private class TestNMClientCallbackHandler extends YarnService.NMClientCallbackHandler {
+      @Override
+      public void onStartContainerError(ContainerId containerId, Throwable t) {
+        startErrorContainers.add(containerId);
+      }
     }
   }
 }

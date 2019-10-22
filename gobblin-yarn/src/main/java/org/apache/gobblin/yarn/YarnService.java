@@ -35,6 +35,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import lombok.Setter;
 import org.apache.gobblin.util.executors.ScalingThreadPoolExecutor;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -217,7 +218,7 @@ public class YarnService extends AbstractIdleService {
     this.amrmClientAsync = closer.register(
         AMRMClientAsync.createAMRMClientAsync(1000, new AMRMClientCallbackHandler()));
     this.amrmClientAsync.init(this.yarnConfiguration);
-    this.nmClientAsync = closer.register(NMClientAsync.createNMClientAsync(new NMClientCallbackHandler()));
+    this.nmClientAsync = closer.register(NMClientAsync.createNMClientAsync(getNMClientCallbackHandler()));
     this.nmClientAsync.init(this.yarnConfiguration);
 
     this.initialContainers = config.getInt(GobblinYarnConfigurationKeys.INITIAL_CONTAINERS_KEY);
@@ -280,6 +281,10 @@ public class YarnService extends AbstractIdleService {
         return container.getNodeId().getHost();
       }
     }));
+  }
+
+  protected NMClientCallbackHandler getNMClientCallbackHandler() {
+    return new NMClientCallbackHandler();
   }
 
   @SuppressWarnings("unused")
@@ -608,7 +613,7 @@ public class YarnService extends AbstractIdleService {
    * preempted by the ResourceManager, or 4) the container gets stopped by the ApplicationMaster.
    * A replacement container is needed in all but the last case.
    */
-  private void handleContainerCompletion(ContainerStatus containerStatus) {
+  protected void handleContainerCompletion(ContainerStatus containerStatus) {
     Map.Entry<Container, String> completedContainerEntry = this.containerMap.remove(containerStatus.getContainerId());
 
     String completedInstanceName = completedContainerEntry.getValue();
@@ -797,7 +802,7 @@ public class YarnService extends AbstractIdleService {
   /**
    * A custom implementation of {@link NMClientAsync.CallbackHandler}.
    */
-  private class NMClientCallbackHandler implements NMClientAsync.CallbackHandler {
+   class NMClientCallbackHandler implements NMClientAsync.CallbackHandler {
 
     @Override
     public void onContainerStarted(ContainerId containerId, Map<String, ByteBuffer> allServiceResponse) {
