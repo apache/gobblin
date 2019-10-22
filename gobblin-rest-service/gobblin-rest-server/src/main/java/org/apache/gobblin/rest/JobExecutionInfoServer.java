@@ -72,7 +72,7 @@ public class JobExecutionInfoServer extends AbstractIdleService {
   }
 
   @Override
-  protected void startUp()
+  public void startUp()
       throws Exception {
     // Server configuration
     RestLiConfig config = new RestLiConfig();

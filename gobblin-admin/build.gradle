@@ -26,6 +26,7 @@ repositories {
 
 dependencies {
     compile project(":gobblin-rest-service:gobblin-rest-client")
+    compile project(":gobblin-rest-service:gobblin-rest-server")
     compile project(":gobblin-core")
 
     compile externalDependency.jetty

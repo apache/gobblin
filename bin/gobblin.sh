@@ -63,8 +63,9 @@ AWS_MODE='aws'
 YARN_MODE='yarn'
 MAPREDUCE_MODE='mapreduce'
 GOBBLIN_AS_SERVICE_MODE='gobblin-as-service'
+GOBBLIN_UI_MODE='gobblin-ui'
 
-GOBBLIN_EXEC_MODE_LIST="$STANDALONE_MODE $CLUSTER_MASTER_MODE $CLUSTER_WORKER_MODE $AWS_MODE $YARN_MODE $MAPREDUCE_MODE $GOBBLIN_AS_SERVICE_MODE"
+GOBBLIN_EXEC_MODE_LIST="$STANDALONE_MODE $CLUSTER_MASTER_MODE $CLUSTER_WORKER_MODE $AWS_MODE $YARN_MODE $MAPREDUCE_MODE $GOBBLIN_AS_SERVICE_MODE $GOBBLIN_UI_MODE"
 
 # CLI Command class
 CLI_CLASS='org.apache.gobblin.runtime.cli.GobblinCli'
@@ -77,6 +78,7 @@ AWS_CLASS='org.apache.gobblin.aws.GobblinAWSClusterLauncher'
 YARN_CLASS='org.apache.gobblin.yarn.GobblinYarnAppLauncher'
 MAPREDUCE_CLASS='org.apache.gobblin.runtime.mapreduce.CliMRJobLauncher'
 SERVICE_MANAGER_CLASS='org.apache.gobblin.service.modules.core.GobblinServiceManager'
+GOBBLIN_UI_CLASS='org.apache.gobblin.admin.AdminWebServer'
 
 function print_gobblin_usage() {
     echo "Usage:"
@@ -447,7 +449,10 @@ function start() {
                 CLASS_N_ARGS="$CLUSTER_MASTER_CLASS --standalone_cluster true --app_name $CLUSTER_NAME "
 
             elif [[ "$GOBBLIN_MODE" = "$GOBBLIN_AS_SERVICE_MODE" ]]; then
-                CLASS_N_ARGS="$SERVICE_MANAGER_CLASS --service_name Gobblin-$GOBBLIN_AS_SERVICE_MODE --service_id GAAS-1"
+                CLASS_N_ARGS="$SERVICE_MANAGER_CLASS --service_name $GOBBLIN_AS_SERVICE_MODE --service_id GAAS-1"
+
+            elif [[ "$GOBBLIN_MODE" = "$GOBBLIN_UI_MODE" ]]; then
+                CLASS_N_ARGS="$GOBBLIN_UI_CLASS"
 
             elif [[ "$GOBBLIN_MODE" = "$CLUSTER_WORKER_MODE" ]]; then
                 #Find largest worker id and use next one to start worker in incremental order, starts with 1
@@ -508,6 +513,8 @@ function stop() {
                         class_to_search="$YARN_CLASS"
                     elif [[ "$GOBBLIN_MODE" = "$GOBBLIN_AS_SERVICE_MODE" ]]; then
                         class_to_search="$SERVICE_MANAGER_CLASS"
+                    elif [[ "$GOBBLIN_MODE" = "$GOBBLIN_UI_MODE" ]]; then
+                        class_to_search="$GOBBLIN_UI_CLASS"
                     elif [[ "$GOBBLIN_MODE" = "$CLUSTER_MASTER_MODE" ]]; then
                         class_to_search="$CLUSTER_MASTER_CLASS"
                     elif [[ "$GOBBLIN_MODE" = "$CLUSTER_WORKER_MODE" ]]; then
