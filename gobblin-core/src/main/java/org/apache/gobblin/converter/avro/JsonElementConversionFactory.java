@@ -530,7 +530,7 @@ public class JsonElementConversionFactory {
       List<Object> list = new ArrayList<>();
 
       for (JsonElement elem : (JsonArray) value) {
-        list.add(getElementConverter().convertField(elem));
+        list.add(getElementConverter().convert(elem));
       }
 
       return new GenericData.Array<>(arraySchema(), list);
@@ -566,7 +566,7 @@ public class JsonElementConversionFactory {
       Map<String, Object> map = new HashMap<>();
 
       for (Map.Entry<String, JsonElement> entry : ((JsonObject) value).entrySet()) {
-        map.put(entry.getKey(), getElementConverter().convertField(entry.getValue()));
+        map.put(entry.getKey(), getElementConverter().convert(entry.getValue()));
       }
 
       return map;
