@@ -61,8 +61,6 @@ import org.apache.gobblin.util.HadoopUtils;
  */
 @Slf4j
 public class HiveOrcSerDeManager extends HiveSerDeManager {
-  // Schema is in the format of TypeDescriptor
-  public static final String SCHEMA_LITERAL = "orc.schema.literal";
 
   // Extensions of files containing ORC data
   public static final String FILE_EXTENSIONS_KEY = "hiveOrcSerdeManager.fileExtensions";
@@ -114,13 +112,10 @@ public class HiveOrcSerDeManager extends HiveSerDeManager {
   }
 
   @Override
+  //Unsupported operation since we remove the orc.schema.literal
   public boolean haveSameSchema(HiveRegistrationUnit unit1, HiveRegistrationUnit unit2)
       throws IOException {
-    if (unit1.getSerDeProps().contains(SCHEMA_LITERAL) && unit2.getSerDeProps().contains(SCHEMA_LITERAL)) {
-      return unit1.getSerDeProps().getProp(SCHEMA_LITERAL).equals(unit2.getSerDeProps().getProp(SCHEMA_LITERAL));
-    } else {
-      return false;
-    }
+      throw new UnsupportedOperationException();
   }
 
   /**
@@ -152,18 +147,12 @@ public class HiveOrcSerDeManager extends HiveSerDeManager {
     if (source.getOutputFormat().isPresent()) {
       target.setOutputFormat(source.getOutputFormat().get());
     }
-    if (source.getSerDeProps().contains(SCHEMA_LITERAL)) {
-      target.setSerDeProp(SCHEMA_LITERAL, source.getSerDeProps().getProp(SCHEMA_LITERAL));
-    }
   }
 
   @Override
   public void updateSchema(HiveRegistrationUnit existingUnit, HiveRegistrationUnit newUnit)
       throws IOException {
-    Preconditions.checkArgument(
-        newUnit.getSerDeProps().contains(SCHEMA_LITERAL));
-
-    existingUnit.setSerDeProp(SCHEMA_LITERAL, newUnit.getSerDeProps().getProp(SCHEMA_LITERAL));
+    log.debug("Do nothing to update schema since orc.schema.literal is removed");
   }
 
   /**
@@ -261,14 +250,11 @@ public class HiveOrcSerDeManager extends HiveSerDeManager {
    * org.apache.hadoop.hive.serde.serdeConstants#LIST_COLUMNS and
    * org.apache.hadoop.hive.serde.serdeConstants#LIST_COLUMN_TYPES
    *
-   * Keeping {@link #SCHEMA_LITERAL} will be a nice-to-have thing but not actually necessary in terms of functionality.
    */
   protected void addSchemaPropertiesHelper(Path path, HiveRegistrationUnit hiveUnit) throws IOException {
     TypeInfo schema = getSchemaFromLatestFile(path, this.fs);
     if (schema instanceof StructTypeInfo) {
       StructTypeInfo structTypeInfo = (StructTypeInfo) schema;
-
-      hiveUnit.setSerDeProp(SCHEMA_LITERAL, schema);
       hiveUnit.setSerDeProp(serdeConstants.LIST_COLUMNS,
           Joiner.on(",").join(structTypeInfo.getAllStructFieldNames()));
       hiveUnit.setSerDeProp(serdeConstants.LIST_COLUMN_TYPES,
