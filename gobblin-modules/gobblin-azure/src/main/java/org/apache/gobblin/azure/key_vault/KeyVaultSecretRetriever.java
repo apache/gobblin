@@ -22,8 +22,11 @@ import com.microsoft.azure.keyvault.KeyVaultClient;
 import com.microsoft.azure.keyvault.authentication.KeyVaultCredentials;
 import com.microsoft.azure.keyvault.models.SecretBundle;
 import com.microsoft.rest.credentials.ServiceClientCredentials;
+
 import lombok.extern.slf4j.Slf4j;
-import org.apache.gobblin.azure.aad.CachedAADAuthenticator;
+
+import org.apache.gobblin.azure.aad.AADAuthenticator;
+
 
 /**
  * A class that handles Azure Key Vault secret retrieving requests
@@ -32,12 +35,15 @@ import org.apache.gobblin.azure.aad.CachedAADAuthenticator;
 @Slf4j
 public class KeyVaultSecretRetriever {
   private final String keyVaultUrl;
+  private final AADAuthenticator cachedAADAuthenticator;
 
   /**
    * @param keyVaultUrl the key vault url, e.g. https://chen-vault.vault.azure.net/
+   * @param cachedAADAuthenticator the AADAuthenticator to fetch authentication token against AAD
    */
-  public KeyVaultSecretRetriever(String keyVaultUrl) {
+  public KeyVaultSecretRetriever(String keyVaultUrl, AADAuthenticator cachedAADAuthenticator) {
     this.keyVaultUrl = keyVaultUrl;
+    this.cachedAADAuthenticator = cachedAADAuthenticator;
   }
 
   /**
@@ -72,7 +78,7 @@ public class KeyVaultSecretRetriever {
    * @param spSecret the service principal secret
    * @return the key vault client for a service principal
    */
-  private static KeyVaultClient createKeyVaultClient(String spId, String spSecret) {
+  private KeyVaultClient createKeyVaultClient(String spId, String spSecret) {
     ServiceClientCredentials credentials = createCredentials(spId, spSecret);
     return new KeyVaultClient(credentials);
   }
@@ -84,7 +90,8 @@ public class KeyVaultSecretRetriever {
    * @param spSecret the service principal secret
    * @return a new key vault ServiceClientCredentials based on ADAL authentication for this service principal
    */
-  private static ServiceClientCredentials createCredentials(String spId, String spSecret) {
+  private ServiceClientCredentials createCredentials(String spId, String spSecret) {
+    final AADAuthenticator cachedAADAuthenticator = this.cachedAADAuthenticator;
     return new KeyVaultCredentials() {
       /**
        * Callback that supplies and access token on request.
@@ -100,7 +107,6 @@ public class KeyVaultSecretRetriever {
         log.debug("Performing OAuth Authentication for Service Principal: " + spId);
 
         try {
-          CachedAADAuthenticator cachedAADAuthenticator = new CachedAADAuthenticator(authorization);
           AuthenticationResult token = cachedAADAuthenticator.getToken(resource, spId, spSecret);
           return token.getAccessToken();
         } catch (Exception e) {

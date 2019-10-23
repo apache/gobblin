@@ -17,9 +17,13 @@
 
 package org.apache.gobblin.azure.aad;
 
-import com.microsoft.aad.adal4j.AuthenticationResult;
+import java.util.Properties;
+
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import com.microsoft.aad.adal4j.AuthenticationResult;
+
 
 @Test
 public class CachedAADAuthenticatorTest {
@@ -32,17 +36,18 @@ public class CachedAADAuthenticatorTest {
   private final static String sp2Secret = "sp2-secret";
   public final static String url1s1sp1token2AccessToken = "accessToken2";
   //This token expires in 9999 seconds
-  public final static AuthenticationResult url1s1sp1token2 = new AuthenticationResult("tokenType", url1s1sp1token2AccessToken, "refreshToken",
-      9999, "id1Token", null, false);
-  private final static AuthenticationResult url1s2sp1token = new AuthenticationResult("tokenType", "accessToken", "refreshToken",
-      9999, "id1Token-r2", null, false);
-  private final static AuthenticationResult url1s1sp2token = new AuthenticationResult("tokenType", "accessToken", "refreshToken",
-      9999, "id2Token", null, false);
+  public final static AuthenticationResult url1s1sp1token2 =
+      new AuthenticationResult("tokenType", url1s1sp1token2AccessToken, "refreshToken", 9999, "id1Token", null, false);
+  private final static AuthenticationResult url1s2sp1token =
+      new AuthenticationResult("tokenType", "accessToken", "refreshToken", 9999, "id1Token-r2", null, false);
+  private final static AuthenticationResult url1s1sp2token =
+      new AuthenticationResult("tokenType", "accessToken", "refreshToken", 9999, "id2Token", null, false);
 
   @Test
-  public void testGetTokenInCache() throws Exception {
+  public void testGetTokenInCache()
+      throws Exception {
     AADTokenRequesterMock mock = new AADTokenRequesterMock();
-    CachedAADAuthenticator authenticator = new CachedAADAuthenticator(mock, url1);
+    CachedAADAuthenticator authenticator = new CachedAADAuthenticator(mock, url1, new Properties());
 
     Assert.assertEquals(authenticator.getToken(targetResource1, sp1, sp1Secret), mock.sp1FirstToken);
     Assert.assertEquals(authenticator.getToken(targetResource1, sp1, sp1Secret), mock.sp1FirstToken); //Load again
@@ -69,21 +74,21 @@ public class CachedAADAuthenticatorTest {
     public AuthenticationResult sp1FirstToken;
 
     @Override
-    public AuthenticationResult getToken(CachedAADAuthenticator.CacheKey key) {
-      if (key.equals(new CachedAADAuthenticator.CacheKey(url1, targetResource1, sp1, sp1Secret))) {
+    public AuthenticationResult getToken(AADTokenIdentifier tokenId) {
+      if (tokenId.equals(new AADTokenIdentifier(url1, targetResource1, sp1, sp1Secret))) {
         ++sp1s1LoadTimes;
         if (sp1s1LoadTimes == 1) {
           //This token expires in 1 second
-          sp1FirstToken = new AuthenticationResult("tokenType", "accessToken", "refreshToken",
-              1, "id1Token", null, false);
+          sp1FirstToken =
+              new AuthenticationResult("tokenType", "accessToken", "refreshToken", 1, "id1Token", null, false);
           return sp1FirstToken; //return url1s1sp1token1 for the first time.
         }
         //return url1s1sp1token2 later
         return url1s1sp1token2;
-      } else if (key.equals(new CachedAADAuthenticator.CacheKey(url1, targetResource2, sp1, sp1Secret))) {
+      } else if (tokenId.equals(new AADTokenIdentifier(url1, targetResource2, sp1, sp1Secret))) {
         ++sp1s2LoadTimes;
         return url1s2sp1token;
-      } else if (key.equals(new CachedAADAuthenticator.CacheKey(url1, targetResource1, sp2, sp2Secret))) {
+      } else if (tokenId.equals(new AADTokenIdentifier(url1, targetResource1, sp2, sp2Secret))) {
         ++sp2s1LoadTimes;
         return url1s1sp2token;
       }

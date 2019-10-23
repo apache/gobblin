@@ -19,6 +19,7 @@ package org.apache.gobblin.azure.adf;
 
 import lombok.Data;
 
+
 /**
  * A helper class that builds the Azure Data Factory HTTP endpoint URL as documented
  * in <a href="https://docs.microsoft.com/en-us/rest/api/datafactory/">
@@ -48,7 +49,6 @@ public class ADFPipelineExecutionUriBuilder {
    * the api version of the ADF rest endpoint
    */
   private final String apiVersion;
-
 
   /**
    * @return the resolved URL prefix up to data factory level

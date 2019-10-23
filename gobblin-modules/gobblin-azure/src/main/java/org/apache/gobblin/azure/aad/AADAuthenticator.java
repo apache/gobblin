@@ -17,10 +17,11 @@
 
 package org.apache.gobblin.azure.aad;
 
-import com.microsoft.aad.adal4j.AuthenticationResult;
-
 import java.net.MalformedURLException;
 import java.util.concurrent.ExecutionException;
+
+import com.microsoft.aad.adal4j.AuthenticationResult;
+
 
 /**
  * A class that authenticates a service principal against an Azure Active Directory through {@link AADTokenRequester}

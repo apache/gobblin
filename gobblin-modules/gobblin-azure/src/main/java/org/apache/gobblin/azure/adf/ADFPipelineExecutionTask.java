@@ -17,37 +17,64 @@
 
 package org.apache.gobblin.azure.adf;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Map;
+
 import com.microsoft.aad.adal4j.AuthenticationResult;
 import com.microsoft.azure.keyvault.models.SecretBundle;
-import joptsimple.internal.Strings;
+
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.azure.aad.AADTokenRequesterImpl;
 import org.apache.gobblin.azure.aad.CachedAADAuthenticator;
 import org.apache.gobblin.azure.key_vault.KeyVaultSecretRetriever;
+import org.apache.gobblin.azure.util.JsonUtils;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.runtime.TaskContext;
 import org.apache.gobblin.runtime.TaskState;
 import org.apache.gobblin.source.workunit.WorkUnit;
 
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * An example implementation of AbstractADFPipelineExecutionTask
- * - The pipeline parameters are passed using the configuration {@link ADFConfKeys#AZURE_DATA_FACTORY_PIPELINE_PARAM}
+ * - The pipeline parameters are passed using the configuration {@link #AZURE_DATA_FACTORY_PIPELINE_PARAM}
  * - The authentication token are fetched against AAD through either
- * 1. {@link ADFConfKeys#AZURE_SERVICE_PRINCIPAL_ADF_EXECUTOR_ID} + {@link ADFConfKeys#AZURE_SERVICE_PRINCIPAL_ADF_EXECUTOR_SECRET}
- * 2. {@link ADFConfKeys#AZURE_SERVICE_PRINCIPAL_ADF_EXECUTOR_ID} + key vault settings like
- * -- --  {@link ADFConfKeys#AZURE_KEY_VAULT_URL}
- * -- --  {@link ADFConfKeys#AZURE_SERVICE_PRINCIPAL_KEY_VAULT_READER_ID}
- * -- --  {@link ADFConfKeys#AZURE_SERVICE_PRINCIPAL_KEY_VAULT_READER_SECRET}
- * -- --  {@link ADFConfKeys#AZURE_KEY_VAULT_SECRET_ADF_EXEC}
+ * 1. {@link #AZURE_SERVICE_PRINCIPAL_ADF_EXECUTOR_ID} + {@link #AZURE_SERVICE_PRINCIPAL_ADF_EXECUTOR_SECRET}
+ * 2. {@link #AZURE_SERVICE_PRINCIPAL_ADF_EXECUTOR_ID} + key vault settings like
+ * -- --  {@link #AZURE_KEY_VAULT_URL}
+ * -- --  {@link #AZURE_SERVICE_PRINCIPAL_KEY_VAULT_READER_ID}
+ * -- --  {@link #AZURE_SERVICE_PRINCIPAL_KEY_VAULT_READER_SECRET}
+ * -- --  {@link #AZURE_KEY_VAULT_SECRET_ADF_EXEC}
  */
 @Slf4j
 public class ADFPipelineExecutionTask extends AbstractADFPipelineExecutionTask {
+  public static final String AZURE_CONF_PREFIX = "azure.";
+  static final String AZURE_SUBSCRIPTION_ID = AZURE_CONF_PREFIX + "subscription.id";
+  static final String AZURE_ACTIVE_DIRECTORY_ID = AZURE_CONF_PREFIX + "aad.id";
+  static final String AZURE_RESOURCE_GROUP_NAME = AZURE_CONF_PREFIX + "resource-group.name";
+
+  // service principal configuration
+  static final String AZURE_SERVICE_PRINCIPAL_PREFIX = AZURE_CONF_PREFIX + "service-principal.";
+  static final String AZURE_SERVICE_PRINCIPAL_ADF_EXECUTOR_ID = AZURE_SERVICE_PRINCIPAL_PREFIX + "adf-executor.id";
+  static final String AZURE_SERVICE_PRINCIPAL_ADF_EXECUTOR_SECRET =
+      AZURE_SERVICE_PRINCIPAL_PREFIX + "adf-executor.secret";
+  static final String AZURE_SERVICE_PRINCIPAL_KEY_VAULT_READER_ID =
+      AZURE_SERVICE_PRINCIPAL_PREFIX + "key-vault-reader.id";
+  static final String AZURE_SERVICE_PRINCIPAL_KEY_VAULT_READER_SECRET =
+      AZURE_SERVICE_PRINCIPAL_PREFIX + "key-vault-reader.secret";
+
+  // data factory configuration
+  static final String AZURE_DATA_FACTORY_PREFIX = AZURE_CONF_PREFIX + "data-factory.";
+  static final String AZURE_DATA_FACTORY_NAME = AZURE_DATA_FACTORY_PREFIX + "name";
+  static final String AZURE_DATA_FACTORY_PIPELINE_NAME = AZURE_DATA_FACTORY_PREFIX + "pipeline.name";
+  static final String AZURE_DATA_FACTORY_PIPELINE_PARAM = AZURE_DATA_FACTORY_PREFIX + "pipeline.params";
+  static final String AZURE_DATA_FACTORY_API_VERSION = AZURE_DATA_FACTORY_PREFIX + "api.version";
+
+  // key vault configuration
+  public static final String AZURE_KEY_VAULT_PREFIX = AZURE_CONF_PREFIX + "key-vault.";
+  public static final String AZURE_KEY_VAULT_URL = AZURE_KEY_VAULT_PREFIX + "url";
+  public static final String AZURE_KEY_VAULT_SECRET_PREFIX = AZURE_KEY_VAULT_PREFIX + "secret-name.";
+  public static final String AZURE_KEY_VAULT_SECRET_ADF_EXEC = AZURE_KEY_VAULT_SECRET_PREFIX + "adf-executor";
+
   private final WorkUnit wu;
 
   public ADFPipelineExecutionTask(TaskContext taskContext) {
@@ -61,7 +88,7 @@ public class ADFPipelineExecutionTask extends AbstractADFPipelineExecutionTask {
    */
   @Override
   protected Map<String, String> providePayloads() {
-    return jsonToMap(this.wu.getProp(ADFConfKeys.AZURE_DATA_FACTORY_PIPELINE_PARAM, ""));
+    return JsonUtils.jsonToMap(this.wu.getProp(AZURE_DATA_FACTORY_PIPELINE_PARAM, ""));
   }
 
   /**
@@ -71,43 +98,37 @@ public class ADFPipelineExecutionTask extends AbstractADFPipelineExecutionTask {
   protected AuthenticationResult getAuthenticationToken() {
     //First: get ADF executor credential
     //Check whether it's provided directly
-    String spAdfExeSecret = this.wu.getProp(ADFConfKeys.AZURE_SERVICE_PRINCIPAL_ADF_EXECUTOR_SECRET, "");
+    String spAdfExeSecret = this.wu.getProp(AZURE_SERVICE_PRINCIPAL_ADF_EXECUTOR_SECRET, "");
+    String aadId = this.wu.getProp(AZURE_ACTIVE_DIRECTORY_ID);
+    CachedAADAuthenticator cachedAADAuthenticator = CachedAADAuthenticator.buildWithAADId(aadId, wu.getProperties());
+
     if (spAdfExeSecret.isEmpty()) {
       //get ADF executor credential from key vault if not explicitly provided
-      String spAkvReaderId = this.wu.getProp(ADFConfKeys.AZURE_SERVICE_PRINCIPAL_KEY_VAULT_READER_ID);
-      String spAkvReaderSecret = this.wu.getProp(ADFConfKeys.AZURE_SERVICE_PRINCIPAL_KEY_VAULT_READER_SECRET);
-      String keyVaultUrl = this.wu.getProp(ADFConfKeys.AZURE_KEY_VAULT_URL);
-      String spAdfExeSecretName = this.wu.getProp(ADFConfKeys.AZURE_KEY_VAULT_SECRET_ADF_EXEC);
+      String spAkvReaderId = this.wu.getProp(AZURE_SERVICE_PRINCIPAL_KEY_VAULT_READER_ID);
+      String spAkvReaderSecret = this.wu.getProp(AZURE_SERVICE_PRINCIPAL_KEY_VAULT_READER_SECRET);
+      String keyVaultUrl = this.wu.getProp(AZURE_KEY_VAULT_URL);
+      String spAdfExeSecretName = this.wu.getProp(AZURE_KEY_VAULT_SECRET_ADF_EXEC);
 
-      SecretBundle fetchedSecret = new KeyVaultSecretRetriever(keyVaultUrl).getSecret(spAkvReaderId, spAkvReaderSecret, spAdfExeSecretName);
+      SecretBundle fetchedSecret = new KeyVaultSecretRetriever(keyVaultUrl, cachedAADAuthenticator)
+          .getSecret(spAkvReaderId, spAkvReaderSecret, spAdfExeSecretName);
       spAdfExeSecret = fetchedSecret.value();
     }
-    String aadId = this.wu.getProp(ADFConfKeys.AZURE_ACTIVE_DIRECTORY_ID);
-    String spAdfExeId = this.wu.getProp(ADFConfKeys.AZURE_SERVICE_PRINCIPAL_ADF_EXECUTOR_ID);
+    String spAdfExeId = this.wu.getProp(AZURE_SERVICE_PRINCIPAL_ADF_EXECUTOR_ID);
 
     //Second: get ADF executor token from AAD based on the id and secret
     AuthenticationResult token;
     try {
-      CachedAADAuthenticator cachedAADAuthenticator = CachedAADAuthenticator.buildWithAADId(aadId);
-      token = cachedAADAuthenticator.getToken(AADTokenRequesterImpl.TOKEN_TARGET_RESOURCE_MANAGEMENT, spAdfExeId, spAdfExeSecret);
+      token = cachedAADAuthenticator
+          .getToken(AADTokenRequesterImpl.TOKEN_TARGET_RESOURCE_MANAGEMENT, spAdfExeId, spAdfExeSecret);
     } catch (Exception e) {
       this.workingState = WorkUnitState.WorkingState.FAILED;
       throw new RuntimeException(e);
     }
+
+    if (token == null) {
+      throw new RuntimeException(
+          String.format("Cannot fetch authentication token for SP %s against AAD %s", spAdfExeId, aadId));
+    }
     return token;
-  }
-
-  public static Map<String, String> jsonToMap(String json) {
-    if (Strings.isNullOrEmpty(json)) {
-      return new HashMap<>();
-    }
-
-    ObjectMapper mapper = new ObjectMapper();
-    try {
-      return mapper.readValue(json, new TypeReference<HashMap<String, String>>() {
-      });
-    } catch (IOException e) {
-      throw new RuntimeException(String.format("Fail to convert the string %s to a map", json), e);
-    }
   }
 }

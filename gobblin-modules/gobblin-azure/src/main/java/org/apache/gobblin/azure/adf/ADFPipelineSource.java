@@ -17,10 +17,17 @@
 
 package org.apache.gobblin.azure.adf;
 
+import java.io.IOException;
+import java.util.List;
+
+import org.tukaani.xz.UnsupportedOptionsException;
+
 import com.google.common.collect.Lists;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
+
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.WorkUnitState;
@@ -31,10 +38,6 @@ import org.apache.gobblin.runtime.task.TaskUtils;
 import org.apache.gobblin.source.extractor.Extractor;
 import org.apache.gobblin.source.extractor.extract.AbstractSource;
 import org.apache.gobblin.source.workunit.WorkUnit;
-import org.tukaani.xz.UnsupportedOptionsException;
-
-import java.io.IOException;
-import java.util.List;
 
 
 /**
@@ -58,7 +61,8 @@ public class ADFPipelineSource extends AbstractSource<JsonArray, JsonElement> {
     return Lists.newArrayList(wu);
   }
 
-  public Extractor<JsonArray, JsonElement> getExtractor(WorkUnitState state) throws IOException {
+  public Extractor<JsonArray, JsonElement> getExtractor(WorkUnitState state)
+      throws IOException {
     throw new UnsupportedOptionsException(String.format("Depending %s to create a %s instead of the default Task",
         ADFExecutionTaskFactory.class.getSimpleName(), AbstractADFPipelineExecutionTask.class.getSimpleName()));
   }

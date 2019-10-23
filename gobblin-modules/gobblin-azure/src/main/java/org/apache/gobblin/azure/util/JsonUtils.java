@@ -15,30 +15,30 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.azure.adf;
+package org.apache.gobblin.azure.util;
 
-import java.util.List;
-import java.util.Properties;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
-import org.testng.Assert;
-import org.testng.annotations.Test;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
-import org.apache.gobblin.configuration.SourceState;
-import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.source.workunit.WorkUnit;
+import joptsimple.internal.Strings;
 
 
-@Test
-public class ADFPipelineSourceTest {
-  @Test
-  public void testGetWorkunits() {
-    Properties prop = new Properties();
-    prop.put("k1", "v1");
-    State state = new State(prop);
-    SourceState sourceState = new SourceState(state);
-    List<WorkUnit> workunits = new ADFPipelineSource().getWorkunits(sourceState);
+public class JsonUtils {
+  public static Map<String, String> jsonToMap(String json) {
+    if (Strings.isNullOrEmpty(json)) {
+      return new HashMap<>();
+    }
 
-    Assert.assertEquals(workunits.size(), 1);
-    Assert.assertEquals(workunits.get(0).getProp("k1"), "v1");
+    ObjectMapper mapper = new ObjectMapper();
+    try {
+      return mapper.readValue(json, new TypeReference<HashMap<String, String>>() {
+      });
+    } catch (IOException e) {
+      throw new RuntimeException(String.format("Fail to convert the string %s to a map", json), e);
+    }
   }
 }

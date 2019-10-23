@@ -17,23 +17,24 @@
 
 package org.apache.gobblin.azure.aad;
 
-import com.microsoft.aad.adal4j.AuthenticationResult;
-
 import java.net.MalformedURLException;
 import java.util.concurrent.ExecutionException;
+
+import com.microsoft.aad.adal4j.AuthenticationResult;
+
 
 /**
  * The entity that sends the actual request to get AAD Token
  */
 public interface AADTokenRequester {
   /**
-   * @param key a {@link org.apache.gobblin.azure.aad.CachedAADAuthenticator.CacheKey} that is used to retrieve
-   *            the authentication against azure active directory
-   * @return the authentication token for the service principal described in the key
+   * @param tokenId a {@link AADTokenIdentifier} that is used to retrieve
+   *                the authentication against azure active directory
+   * @return the authentication token for the service principal described in the tokenId
    * @throws MalformedURLException thrown if URL is invalid
    * @throws ExecutionException    if the AuthenticationResult computation threw an exception
    * @throws InterruptedException  if the AuthenticationResult was interrupted while waiting
    */
-  AuthenticationResult getToken(CachedAADAuthenticator.CacheKey key)
+  AuthenticationResult getToken(AADTokenIdentifier tokenId)
       throws MalformedURLException, ExecutionException, InterruptedException;
 }

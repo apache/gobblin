@@ -17,24 +17,27 @@
 
 package org.apache.gobblin.azure.adf;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.microsoft.aad.adal4j.AuthenticationResult;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.runtime.TaskContext;
-import org.apache.gobblin.runtime.TaskState;
-import org.apache.gobblin.source.workunit.WorkUnit;
-import org.apache.gobblin.task.HttpExecutionTask;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.client.methods.HttpUriRequest;
-import org.apache.http.client.utils.URIBuilder;
-
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Map;
+
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.methods.HttpUriRequest;
+import org.apache.http.client.utils.URIBuilder;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.microsoft.aad.adal4j.AuthenticationResult;
+
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.runtime.TaskContext;
+import org.apache.gobblin.runtime.TaskState;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.task.HttpExecutionTask;
 
 
 /**
@@ -58,13 +61,14 @@ public abstract class AbstractADFPipelineExecutionTask extends HttpExecutionTask
     TaskState taskState = this.taskContext.getTaskState();
     WorkUnit wu = taskState.getWorkunit();
 
-    String subscriptionId = wu.getProp(ADFConfKeys.AZURE_SUBSCRIPTION_ID);
-    String resourceGroupName = wu.getProp(ADFConfKeys.AZURE_RESOURCE_GROUP_NAME);
-    String dataFactoryName = wu.getProp(ADFConfKeys.AZURE_DATA_FACTORY_NAME);
-    String apiVersion = wu.getProp(ADFConfKeys.AZURE_DATA_FACTORY_API_VERSION);
-    ADFPipelineExecutionUriBuilder builder = new ADFPipelineExecutionUriBuilder(subscriptionId, resourceGroupName, dataFactoryName, apiVersion);
+    String subscriptionId = wu.getProp(ADFPipelineExecutionTask.AZURE_SUBSCRIPTION_ID);
+    String resourceGroupName = wu.getProp(ADFPipelineExecutionTask.AZURE_RESOURCE_GROUP_NAME);
+    String dataFactoryName = wu.getProp(ADFPipelineExecutionTask.AZURE_DATA_FACTORY_NAME);
+    String apiVersion = wu.getProp(ADFPipelineExecutionTask.AZURE_DATA_FACTORY_API_VERSION);
+    ADFPipelineExecutionUriBuilder builder =
+        new ADFPipelineExecutionUriBuilder(subscriptionId, resourceGroupName, dataFactoryName, apiVersion);
 
-    String pipelineName = wu.getProp(ADFConfKeys.AZURE_DATA_FACTORY_PIPELINE_NAME);
+    String pipelineName = wu.getProp(ADFPipelineExecutionTask.AZURE_DATA_FACTORY_PIPELINE_NAME);
     URI uri;
     try {
       String url = builder.buildPipelineRunUri(pipelineName);
@@ -81,7 +85,8 @@ public abstract class AbstractADFPipelineExecutionTask extends HttpExecutionTask
       case GET:
         return new HttpGet(uri);
       default:
-        throw new UnsupportedOperationException(String.format("Type HttpTask of type %s is not supported", wu.getProp(CONF_HTTPTASK_TYPE)));
+        throw new UnsupportedOperationException(
+            String.format("Type HttpTask of type %s is not supported", wu.getProp(CONF_HTTPTASK_TYPE)));
     }
   }
 
@@ -99,7 +104,8 @@ public abstract class AbstractADFPipelineExecutionTask extends HttpExecutionTask
   /**
    * Override to allow it to be tested
    */
-  protected HttpUriRequest createHttpUriRequest() throws JsonProcessingException, UnsupportedEncodingException {
+  protected HttpUriRequest createHttpUriRequest()
+      throws JsonProcessingException, UnsupportedEncodingException {
     return super.createHttpUriRequest();
   }
 }

@@ -17,19 +17,21 @@
 
 package org.apache.gobblin.azure.aad;
 
-import avro.shaded.com.google.common.annotations.VisibleForTesting;
+import java.net.MalformedURLException;
+import java.util.Properties;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+
+import com.google.common.base.Throwables;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.microsoft.aad.adal4j.AuthenticationResult;
-import lombok.AllArgsConstructor;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
+
 import lombok.extern.slf4j.Slf4j;
 
-import java.net.MalformedURLException;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
+import static org.apache.gobblin.azure.adf.ADFPipelineExecutionTask.AZURE_CONF_PREFIX;
+
 
 /**
  * An implementation of {@link AADAuthenticator} with caching capability.
@@ -37,41 +39,50 @@ import java.util.concurrent.TimeUnit;
  */
 @Slf4j
 public class CachedAADAuthenticator implements AADAuthenticator {
+  private static final String CONF_CACHE_SIZE = AZURE_CONF_PREFIX + "aad.auth.cache.size";
+  private static final String CONF_CACHE_EXPIRATION_MINUTES = AZURE_CONF_PREFIX + "aad.auth.cache.expiration";
+  private static final long DEFAULT_CACHE_SIZE = 100;
+  private static final long DEFAULT_CACHE_EXPIRATION_MINUTES = 60;
+
   /**
    * URL of the authenticating authority for a specific Azure Active Directory
    */
   private static final String AUTHORITY_URL_PATTERN = "https://login.microsoftonline.com/%s";
-  private static final long CACHE_SIZE = 100;
+
   /**
    * Build a cache for all CachedAADAuthenticator instances. It relies on a {@link AADTokenRequester} to get AAD tokens
    */
-  private static LoadingCache<CacheKey, AuthenticationResult> cache;
+  private static LoadingCache<AADTokenIdentifier, AuthenticationResult> cache;
   private final String authorityUri;
   private final AADTokenRequester aadTokenRequester;
 
   /**
    * @param authorityUri the full authority uri, which is of the pattern "https://login.microsoftonline.com/<aad_id>"
+   * @param properties the configuration properties for the token cache
    */
-  public CachedAADAuthenticator(final String authorityUri) {
-    this(AADTokenRequesterImpl.getInstance(), authorityUri);
+  public CachedAADAuthenticator(final String authorityUri, Properties properties) {
+    this(AADTokenRequesterImpl.getInstance(), authorityUri, properties);
   }
 
   /**
-   * For test only
+   * @param aadTokenRequester the underlying token requester
+   * @param authorityUri the full authority uri, which is of the pattern "https://login.microsoftonline.com/<aad_id>"
+   * @param properties the configuration properties for the token cache
    */
-  @VisibleForTesting
-  CachedAADAuthenticator(final AADTokenRequester aadTokenRequester, final String authorityUri) {
+  public CachedAADAuthenticator(final AADTokenRequester aadTokenRequester, final String authorityUri,
+      final Properties properties) {
     this.authorityUri = authorityUri;
     this.aadTokenRequester = aadTokenRequester;
-    createCache(aadTokenRequester);
+    createCache(aadTokenRequester, properties);
   }
 
   /**
    * @param aadId the azure active directory id
+   * @param properties the configuration properties for the token cache
    * @return an AADAuthenticatorImpl for your AD
    */
-  public static CachedAADAuthenticator buildWithAADId(String aadId) {
-    return new CachedAADAuthenticator(String.format(AUTHORITY_URL_PATTERN, aadId));
+  public static CachedAADAuthenticator buildWithAADId(String aadId, Properties properties) {
+    return new CachedAADAuthenticator(String.format(AUTHORITY_URL_PATTERN, aadId), properties);
   }
 
   @Override
@@ -84,22 +95,33 @@ public class CachedAADAuthenticator implements AADAuthenticator {
     return this.aadTokenRequester;
   }
 
-  private synchronized static void createCache(final AADTokenRequester aadTokenRequester) {
+  private synchronized static void createCache(final AADTokenRequester aadTokenRequester, Properties properties) {
     if (cache == null) {
-      cache = createTokenCache(aadTokenRequester);
+      cache = createTokenCache(aadTokenRequester, properties);
     }
   }
 
   /**
    * @param aadTokenRequester the token requester that retrieves tokens to be kept in the cache
+   * @param properties the configurations for the cache
    * @return a cache based on a {@link AADTokenRequester} instance
    */
-  private static LoadingCache<CacheKey, AuthenticationResult> createTokenCache(AADTokenRequester aadTokenRequester) {
-    return CacheBuilder.newBuilder().maximumSize(CACHE_SIZE)
-        .expireAfterWrite(60, TimeUnit.MINUTES)
-        .build(new CacheLoader<CacheKey, AuthenticationResult>() {
+  private static LoadingCache<AADTokenIdentifier, AuthenticationResult> createTokenCache(
+      AADTokenRequester aadTokenRequester, Properties properties) {
+    String cacheSizeProp = properties.getProperty(CONF_CACHE_SIZE, Long.toString(DEFAULT_CACHE_SIZE));
+    Long cacheSize = Long.valueOf(cacheSizeProp);
+    log.info("Creating the token cache with cache size: " + cacheSize);
+    String expirationMinuteProp =
+        properties.getProperty(CONF_CACHE_EXPIRATION_MINUTES, Long.toString(DEFAULT_CACHE_EXPIRATION_MINUTES));
+    Long expirationMinutes = Long.valueOf(expirationMinuteProp);
+    log.info("Creating the token cache with expiration minutes: " + expirationMinutes);
+
+    return CacheBuilder.newBuilder().maximumSize(DEFAULT_CACHE_SIZE)
+        .expireAfterWrite(expirationMinutes, TimeUnit.MINUTES)
+        .build(new CacheLoader<AADTokenIdentifier, AuthenticationResult>() {
           @Override
-          public AuthenticationResult load(CacheKey cacheKey) throws Exception {
+          public AuthenticationResult load(AADTokenIdentifier cacheKey)
+              throws Exception {
             log.info("Authenticate against AAD for " + cacheKey);
             AuthenticationResult token = aadTokenRequester.getToken(cacheKey);
             if (token != null) {
@@ -116,11 +138,12 @@ public class CachedAADAuthenticator implements AADAuthenticator {
   @Override
   public AuthenticationResult getToken(String targetResource, String servicePrincipalId, String servicePrincipalSecret)
       throws MalformedURLException, ExecutionException, InterruptedException {
-    CacheKey key = new CacheKey(getAuthorityUri(), targetResource, servicePrincipalId, servicePrincipalSecret);
+    AADTokenIdentifier key =
+        new AADTokenIdentifier(getAuthorityUri(), targetResource, servicePrincipalId, servicePrincipalSecret);
     return getToken(key);
   }
 
-  private AuthenticationResult getToken(CacheKey key)
+  private AuthenticationResult getToken(AADTokenIdentifier key)
       throws MalformedURLException, ExecutionException, InterruptedException {
     AuthenticationResult token;
     try {
@@ -133,16 +156,13 @@ public class CachedAADAuthenticator implements AADAuthenticator {
         log.warn("No token found for " + key);
         return null;
       }
+
       //Restore the original cause while value loading
-      else if (cause instanceof MalformedURLException) {
-        throw (MalformedURLException) cause;
-      } else if (cause instanceof ExecutionException) {
-        throw (ExecutionException) cause;
-      } else if (cause instanceof InterruptedException) {
-        throw (InterruptedException) cause;
-      }
+      Throwables.propagateIfInstanceOf(cause, MalformedURLException.class);
+      Throwables.propagateIfInstanceOf(cause, ExecutionException.class);
+      Throwables.propagateIfInstanceOf(cause, InterruptedException.class);
       //Throw other value load errors
-      throw e;
+      throw new RuntimeException(cause);
     }
     //fetched a token, it won't be null here
     if (System.currentTimeMillis() >= token.getExpiresOnDate().getTime()) {
@@ -159,36 +179,10 @@ public class CachedAADAuthenticator implements AADAuthenticator {
   }
 
   /**
-   * The key that uniquely identifies a token
-   */
-  @AllArgsConstructor
-  @Getter
-  @EqualsAndHashCode
-  public static class CacheKey {
-    //an azure active directory authority url of the pattern "https://login.microsoftonline.com/<aad_id>"
-    private final String authorityUrl;
-    //identifier of the target resource that is the recipient of the requested token
-    private final String targetResource;
-    //the service principal id
-    private final String servicePrincipalId;
-    //the service principal secret
-    private final String servicePrincipalSecret;
-
-    @Override
-    public String toString() {
-      /**
-       * Avoid printing the service principal's secret in the log
-       */
-      return String.format("%s{authorityUrl='%s', targetResource='%s', servicePrincipalId='%s'}",
-          CacheKey.class.getSimpleName(), authorityUrl, targetResource, servicePrincipalId);
-    }
-  }
-
-  /**
-   * An exception to throw when there is no token retrieved for a {@link CacheKey}
+   * An exception to throw when there is no token retrieved for a {@link AADTokenIdentifier}
    */
   public static class NullTokenException extends Exception {
-    NullTokenException(CacheKey cacheKey) {
+    NullTokenException(AADTokenIdentifier cacheKey) {
       super("No authentication token found for the key " + cacheKey);
     }
   }

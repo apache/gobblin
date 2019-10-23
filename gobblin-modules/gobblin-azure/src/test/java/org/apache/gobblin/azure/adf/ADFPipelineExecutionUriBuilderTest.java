@@ -20,11 +20,13 @@ package org.apache.gobblin.azure.adf;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+
 @Test
 public class ADFPipelineExecutionUriBuilderTest {
   @Test
   public void testBuildUri() {
     ADFPipelineExecutionUriBuilder builder = new ADFPipelineExecutionUriBuilder("123", "rg1", "df1", "2018-06-01");
-    Assert.assertEquals(builder.buildPipelineRunUri("p1"), "https://management.azure.com/subscriptions/123/resourceGroups/rg1/providers/Microsoft.DataFactory/factories/df1/pipelines/p1/createRun?api-version=2018-06-01");
+    Assert.assertEquals(builder.buildPipelineRunUri("p1"),
+        "https://management.azure.com/subscriptions/123/resourceGroups/rg1/providers/Microsoft.DataFactory/factories/df1/pipelines/p1/createRun?api-version=2018-06-01");
   }
 }

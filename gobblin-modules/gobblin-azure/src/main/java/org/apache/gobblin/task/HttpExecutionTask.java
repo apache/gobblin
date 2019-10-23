@@ -17,13 +17,9 @@
 
 package org.apache.gobblin.task;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.configuration.WorkUnitState;
-import org.apache.gobblin.runtime.TaskContext;
-import org.apache.gobblin.runtime.task.BaseAbstractTask;
+import java.io.UnsupportedEncodingException;
+import java.util.Map;
+
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
@@ -33,8 +29,16 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 
-import java.io.UnsupportedEncodingException;
-import java.util.Map;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.runtime.TaskContext;
+import org.apache.gobblin.runtime.task.BaseAbstractTask;
+
 
 /**
  * An abstract task class that handles a Http request
@@ -47,8 +51,7 @@ public abstract class HttpExecutionTask extends BaseAbstractTask {
   protected final TaskContext taskContext;
 
   public enum HttpMethod {
-    POST,
-    GET
+    POST, GET
   }
 
   public HttpExecutionTask(TaskContext taskContext) {
@@ -103,7 +106,8 @@ public abstract class HttpExecutionTask extends BaseAbstractTask {
    *
    * @return the constructed Http Request
    */
-  protected HttpUriRequest createHttpUriRequest() throws JsonProcessingException, UnsupportedEncodingException {
+  protected HttpUriRequest createHttpUriRequest()
+      throws JsonProcessingException, UnsupportedEncodingException {
     HttpUriRequest request = createHttpRequest();
     log.debug("Created Http request: " + request.toString());
     Map<String, String> headerSettings = provideHeaderSettings();
@@ -114,7 +118,8 @@ public abstract class HttpExecutionTask extends BaseAbstractTask {
     if (!body.isEmpty()) {
       if (!(request instanceof HttpEntityEnclosingRequestBase)) {
         this.workingState = WorkUnitState.WorkingState.FAILED;
-        throw new RuntimeException(String.format("The Http request type %s doesn't support payload", request.getClass().getName()));
+        throw new RuntimeException(
+            String.format("The Http request type %s doesn't support payload", request.getClass().getName()));
       }
       String bodyJson = new ObjectMapper().writeValueAsString(body);
       log.debug("Json Payload is: " + bodyJson);

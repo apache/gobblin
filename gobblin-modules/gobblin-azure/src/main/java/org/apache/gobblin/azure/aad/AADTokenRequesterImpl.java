@@ -17,20 +17,22 @@
 
 package org.apache.gobblin.azure.aad;
 
-import com.google.common.base.Optional;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.microsoft.aad.adal4j.AuthenticationCallback;
-import com.microsoft.aad.adal4j.AuthenticationContext;
-import com.microsoft.aad.adal4j.AuthenticationResult;
-import com.microsoft.aad.adal4j.ClientCredential;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.gobblin.util.LoggingUncaughtExceptionHandler;
-
 import java.net.MalformedURLException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
+
+import com.google.common.base.Optional;
+import com.microsoft.aad.adal4j.AuthenticationCallback;
+import com.microsoft.aad.adal4j.AuthenticationContext;
+import com.microsoft.aad.adal4j.AuthenticationResult;
+import com.microsoft.aad.adal4j.ClientCredential;
+
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.util.ExecutorsUtils;
+
 
 /**
  * An implementation of AADTokenRequester that retrieves authentication token from an Azure Active Directory
@@ -55,11 +57,8 @@ public class AADTokenRequesterImpl implements AADTokenRequester {
   private final static AADTokenRequesterImpl instance = new AADTokenRequesterImpl();
 
   static {
-    ThreadFactory threadFactory = new ThreadFactoryBuilder()
-        .setNameFormat("aad-authentication-%d")
-        .setDaemon(true)
-        .setUncaughtExceptionHandler(new LoggingUncaughtExceptionHandler(Optional.of(log)))
-        .build();
+    ThreadFactory threadFactory =
+        ExecutorsUtils.newDaemonThreadFactory(Optional.of(log), Optional.of("aad-authentication-%d"));
     authServiceThreadPool = Executors.newCachedThreadPool(threadFactory);
   }
 
@@ -77,30 +76,33 @@ public class AADTokenRequesterImpl implements AADTokenRequester {
   /**
    * {@inheritDoc}
    */
-  public AuthenticationResult getToken(CachedAADAuthenticator.CacheKey key)
+  public AuthenticationResult getToken(AADTokenIdentifier tokenId)
       throws MalformedURLException, ExecutionException, InterruptedException {
-    AuthenticationContext authContext = new AuthenticationContext(key.getAuthorityUrl(), false, authServiceThreadPool);
-    ClientCredential credential = new ClientCredential(key.getServicePrincipalId(), key.getServicePrincipalSecret());
-    AuthenticationResult token = authContext.acquireToken(key.getTargetResource(), credential, new AuthenticationCallback() {
-      @Override
-      public void onSuccess(Object result) {
-        log.debug("Successfully got AAD authentication token: " + result.toString());
-      }
+    AuthenticationContext authContext =
+        new AuthenticationContext(tokenId.getAuthorityUrl(), false, authServiceThreadPool);
+    ClientCredential credential =
+        new ClientCredential(tokenId.getServicePrincipalId(), tokenId.getServicePrincipalSecret());
+    AuthenticationResult token =
+        authContext.acquireToken(tokenId.getTargetResource(), credential, new AuthenticationCallback() {
+          @Override
+          public void onSuccess(Object result) {
+            log.debug("Successfully got AAD authentication token: " + result.toString());
+          }
 
-      @Override
-      public void onFailure(Throwable exc) {
-        log.error("Failed to get AAD authentication token: " + exc.getMessage());
-        throw new RuntimeException("Failed to get AAD authentication token", exc);
-      }
-    }).get();
+          @Override
+          public void onFailure(Throwable exc) {
+            log.error("Failed to get AAD authentication token: " + exc.getMessage());
+            throw new RuntimeException("Failed to get AAD authentication token", exc);
+          }
+        }).get();
 
-//    log.debug("****** Acquired Token ******");
-//    log.debug("Access Token: " + token.getAccessToken());
-//    log.debug("Token Expiration" + token.getExpiresOnDate());
-//    log.debug("Token User Info" + token.getUserInfo());
+    log.debug("****** Acquired Token ******");
+    log.debug("Token User Info" + token.getUserInfo());
+    log.debug("Token Expiration" + token.getExpiresOnDate());
+    //Shouldn't save the token in the log
 //    log.debug("Refresh Token" + token.getRefreshToken());
-//    log.debug("****** Acquired Token ******");
-//    log.debug("****** ****** ****** ****** ");
+//    log.debug("Access Token: " + token.getAccessToken());
+    log.debug("****** ****** ****** ****** ");
 
     return token;
   }

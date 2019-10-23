@@ -17,14 +17,6 @@
 
 package org.apache.gobblin.azure.adf;
 
-import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.configuration.WorkUnitState;
-import org.apache.gobblin.runtime.TaskContext;
-import org.apache.gobblin.runtime.TaskState;
-import org.apache.gobblin.runtime.task.TaskIFace;
-import org.apache.gobblin.runtime.util.TaskMetrics;
-import org.apache.gobblin.source.workunit.WorkUnit;
-import org.apache.gobblin.task.HttpExecutionTask;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.testng.PowerMockObjectFactory;
@@ -34,8 +26,18 @@ import org.testng.IObjectFactory;
 import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
 
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.runtime.TaskContext;
+import org.apache.gobblin.runtime.TaskState;
+import org.apache.gobblin.runtime.task.TaskIFace;
+import org.apache.gobblin.runtime.util.TaskMetrics;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.task.HttpExecutionTask;
+
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+
 
 @Test
 @PrepareForTest({TaskMetrics.class})
@@ -55,7 +57,6 @@ public class ADFExecutionTaskFactoryTest extends PowerMockTestCase {
     TaskMetrics taskMetrics = mock(TaskMetrics.class);
     when(taskMetrics.getMetricContext()).thenReturn(null);
     when(TaskMetrics.get(taskState)).thenReturn(taskMetrics);
-
 
     TaskIFace task = new ADFExecutionTaskFactory().createTask(taskContext);
     Assert.assertTrue(task instanceof ADFPipelineExecutionTask);
