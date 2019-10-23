@@ -70,10 +70,10 @@ public class ADFPipelineExecutionTask extends AbstractADFPipelineExecutionTask {
   static final String AZURE_DATA_FACTORY_API_VERSION = AZURE_DATA_FACTORY_PREFIX + "api.version";
 
   // key vault configuration
-  public static final String AZURE_KEY_VAULT_PREFIX = AZURE_CONF_PREFIX + "key-vault.";
-  public static final String AZURE_KEY_VAULT_URL = AZURE_KEY_VAULT_PREFIX + "url";
-  public static final String AZURE_KEY_VAULT_SECRET_PREFIX = AZURE_KEY_VAULT_PREFIX + "secret-name.";
-  public static final String AZURE_KEY_VAULT_SECRET_ADF_EXEC = AZURE_KEY_VAULT_SECRET_PREFIX + "adf-executor";
+  static final String AZURE_KEY_VAULT_PREFIX = AZURE_CONF_PREFIX + "key-vault.";
+  static final String AZURE_KEY_VAULT_URL = AZURE_KEY_VAULT_PREFIX + "url";
+  static final String AZURE_KEY_VAULT_SECRET_PREFIX = AZURE_KEY_VAULT_PREFIX + "secret-name.";
+  static final String AZURE_KEY_VAULT_SECRET_ADF_EXEC = AZURE_KEY_VAULT_SECRET_PREFIX + "adf-executor";
 
   private final WorkUnit wu;
 

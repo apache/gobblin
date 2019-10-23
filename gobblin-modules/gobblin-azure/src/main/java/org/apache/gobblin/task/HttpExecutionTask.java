@@ -86,12 +86,16 @@ public abstract class HttpExecutionTask extends BaseAbstractTask {
       HttpUriRequest request = createHttpUriRequest();
       HttpResponse response = httpclient.execute(request);
       HttpEntity entity = response.getEntity();
+      String entityString = entity == null ? "" : EntityUtils.toString(entity);
+      log.info("Http response entity: " + entityString);
 
-      if (entity != null) {
-        log.info(EntityUtils.toString(entity));
+      int statusCode = response.getStatusLine().getStatusCode();
+      if (statusCode == 200) {
+        this.workingState = WorkUnitState.WorkingState.SUCCESSFUL;
+      } else {
+        log.error(String.format("ADF pipeline triggering failed: %s", response.getStatusLine().toString()));
+        this.workingState = WorkUnitState.WorkingState.FAILED;
       }
-
-      this.workingState = WorkUnitState.WorkingState.SUCCESSFUL;
     } catch (Exception e) {
       log.error("ADF pipeline execution failed with error message: " + e.getMessage());
       throw new RuntimeException(e);

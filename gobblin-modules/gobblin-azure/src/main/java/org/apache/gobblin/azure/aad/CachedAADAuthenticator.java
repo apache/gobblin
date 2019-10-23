@@ -116,7 +116,7 @@ public class CachedAADAuthenticator implements AADAuthenticator {
     Long expirationMinutes = Long.valueOf(expirationMinuteProp);
     log.info("Creating the token cache with expiration minutes: " + expirationMinutes);
 
-    return CacheBuilder.newBuilder().maximumSize(DEFAULT_CACHE_SIZE)
+    return CacheBuilder.newBuilder().maximumSize(cacheSize)
         .expireAfterWrite(expirationMinutes, TimeUnit.MINUTES)
         .build(new CacheLoader<AADTokenIdentifier, AuthenticationResult>() {
           @Override
