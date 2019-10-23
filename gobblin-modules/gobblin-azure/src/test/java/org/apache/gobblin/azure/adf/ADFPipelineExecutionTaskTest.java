@@ -36,6 +36,7 @@ import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.util.EntityUtils;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.testng.PowerMockObjectFactory;
 import org.powermock.modules.testng.PowerMockTestCase;
 import org.testng.Assert;
 import org.testng.IObjectFactory;
@@ -139,6 +140,6 @@ public class ADFPipelineExecutionTaskTest extends PowerMockTestCase {
 
   @ObjectFactory
   public IObjectFactory getObjectFactory() {
-    return new org.powermock.modules.testng.PowerMockObjectFactory();
+    return new PowerMockObjectFactory();
   }
 }

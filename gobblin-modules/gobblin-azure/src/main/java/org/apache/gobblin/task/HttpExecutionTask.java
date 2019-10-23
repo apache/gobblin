@@ -26,10 +26,10 @@ import org.apache.gobblin.runtime.TaskContext;
 import org.apache.gobblin.runtime.task.BaseAbstractTask;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
-import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 
@@ -79,8 +79,7 @@ public abstract class HttpExecutionTask extends BaseAbstractTask {
    */
   @Override
   public void run() {
-    HttpClient httpclient = HttpClients.createDefault();
-    try {
+    try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
       HttpUriRequest request = createHttpUriRequest();
       HttpResponse response = httpclient.execute(request);
       HttpEntity entity = response.getEntity();

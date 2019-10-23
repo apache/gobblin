@@ -37,6 +37,10 @@ import java.util.concurrent.TimeUnit;
  */
 @Slf4j
 public class CachedAADAuthenticator implements AADAuthenticator {
+  /**
+   * URL of the authenticating authority for a specific Azure Active Directory
+   */
+  private static final String AUTHORITY_URL_PATTERN = "https://login.microsoftonline.com/%s";
   private static final long CACHE_SIZE = 100;
   /**
    * Build a cache for all CachedAADAuthenticator instances. It relies on a {@link AADTokenRequester} to get AAD tokens
@@ -67,7 +71,7 @@ public class CachedAADAuthenticator implements AADAuthenticator {
    * @return an AADAuthenticatorImpl for your AD
    */
   public static CachedAADAuthenticator buildWithAADId(String aadId) {
-    return new CachedAADAuthenticator(String.format("https://login.microsoftonline.com/%s", aadId));
+    return new CachedAADAuthenticator(String.format(AUTHORITY_URL_PATTERN, aadId));
   }
 
   @Override

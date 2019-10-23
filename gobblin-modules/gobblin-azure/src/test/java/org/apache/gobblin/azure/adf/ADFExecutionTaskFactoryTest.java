@@ -27,6 +27,7 @@ import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.task.HttpExecutionTask;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.testng.PowerMockObjectFactory;
 import org.powermock.modules.testng.PowerMockTestCase;
 import org.testng.Assert;
 import org.testng.IObjectFactory;
@@ -44,7 +45,7 @@ public class ADFExecutionTaskFactoryTest extends PowerMockTestCase {
     WorkUnit wu = WorkUnit.createEmpty();
     WorkUnitState wuState = new WorkUnitState(wu, new State());
     TaskState taskState = new TaskState(wuState);
-    taskState.setProp(HttpExecutionTask.CONF_HTTPTASK_CLASS, "org.apache.gobblin.azure.adf.ADFPipelineExecutionTask");
+    taskState.setProp(HttpExecutionTask.CONF_HTTPTASK_CLASS, ADFPipelineExecutionTask.class.getName());
 
     TaskContext taskContext = mock(TaskContext.class);
     when(taskContext.getTaskState()).thenReturn(taskState);
@@ -62,6 +63,6 @@ public class ADFExecutionTaskFactoryTest extends PowerMockTestCase {
 
   @ObjectFactory
   public IObjectFactory getObjectFactory() {
-    return new org.powermock.modules.testng.PowerMockObjectFactory();
+    return new PowerMockObjectFactory();
   }
 }
