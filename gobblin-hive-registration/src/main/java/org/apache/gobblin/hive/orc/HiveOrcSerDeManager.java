@@ -112,10 +112,16 @@ public class HiveOrcSerDeManager extends HiveSerDeManager {
   }
 
   @Override
-  //Unsupported operation since we remove the orc.schema.literal
+  //Using LIST_COLUMNS and LIST_COLUMN_TYPES to compare schema
   public boolean haveSameSchema(HiveRegistrationUnit unit1, HiveRegistrationUnit unit2)
       throws IOException {
-      throw new UnsupportedOperationException();
+    if (unit1.getSerDeProps().contains(serdeConstants.LIST_COLUMNS) && unit2.getSerDeProps().contains(serdeConstants.LIST_COLUMNS)
+    && unit1.getSerDeProps().contains(serdeConstants.LIST_COLUMN_TYPES) && unit2.getSerDeProps().contains(serdeConstants.LIST_COLUMN_TYPES)) {
+      return unit1.getSerDeProps().getProp(serdeConstants.LIST_COLUMNS).equals(unit2.getSerDeProps().getProp(serdeConstants.LIST_COLUMNS))
+          && unit1.getSerDeProps().getProp(serdeConstants.LIST_COLUMN_TYPES).equals(unit2.getSerDeProps().getProp(serdeConstants.LIST_COLUMN_TYPES));
+    } else {
+      return false;
+    }
   }
 
   /**
@@ -152,7 +158,13 @@ public class HiveOrcSerDeManager extends HiveSerDeManager {
   @Override
   public void updateSchema(HiveRegistrationUnit existingUnit, HiveRegistrationUnit newUnit)
       throws IOException {
-    log.debug("Do nothing to update schema since orc.schema.literal is removed");
+    Preconditions.checkArgument(
+        newUnit.getSerDeProps().contains(serdeConstants.LIST_COLUMNS));
+    Preconditions.checkArgument(
+        newUnit.getSerDeProps().contains(serdeConstants.LIST_COLUMN_TYPES));
+
+    existingUnit.setSerDeProp(serdeConstants.LIST_COLUMNS, newUnit.getSerDeProps().getProp(serdeConstants.LIST_COLUMNS));
+    existingUnit.setSerDeProp(serdeConstants.LIST_COLUMN_TYPES, newUnit.getSerDeProps().getProp(serdeConstants.LIST_COLUMN_TYPES));
   }
 
   /**
