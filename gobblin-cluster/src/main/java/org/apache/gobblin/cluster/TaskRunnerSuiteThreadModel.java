@@ -42,7 +42,7 @@ import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PathUtils;
 
 /**
- * A sub-type of {@link TaskRunnerSuiteBase} suite which runs tasks in a thread pool.
+ * A implementation of {@link TaskRunnerSuiteBase} suite which runs tasks in a thread pool.
  */
 class TaskRunnerSuiteThreadModel extends TaskRunnerSuiteBase {
   protected final GobblinHelixTaskFactory taskFactory;

@@ -381,7 +381,8 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   }
 
   /**
-   * Add a single {@link WorkUnit} (flattened).
+   * Add a single {@link WorkUnit} (flattened) to persisted storage so that worker could fetch that based on information
+   * fetched in Helix task.
    */
   private void addWorkUnit(WorkUnit workUnit, ParallelRunner stateSerDeRunner,
       Map<String, TaskConfig> taskConfigMap) throws IOException {

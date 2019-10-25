@@ -87,10 +87,8 @@ import static org.apache.gobblin.cluster.GobblinClusterConfigurationKeys.CLUSTER
  * {@link org.apache.gobblin.source.workunit.WorkUnit}s.
  *
  * <p>
- *   This class presents a Helix participant and uses a {@link HelixManager} to communicate with Helix.
- *   It also uses Helix task execution framework and {@link GobblinHelixTaskFactory} class to generate
- *   {@link GobblinHelixTask}s which handles real Gobblin tasks. All the Helix related task framework is
- *   encapsulated in {@link TaskRunnerSuiteBase}.
+ *   This class presents a Helix participant that uses a {@link HelixManager} to communicate with Helix.
+ *   It uses Helix task execution framework and details are encapsulated in {@link TaskRunnerSuiteBase}.
  * </p>
  *
  * <p>
