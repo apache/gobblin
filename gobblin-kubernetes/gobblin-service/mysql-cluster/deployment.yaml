@@ -22,6 +22,9 @@ spec:
         - name: shared-jobs
           persistentVolumeClaim:
             claimName: shared-jobs-claim
+        - name: flowconfig-templates
+          configMap:
+            name: flowconfig-templates
         - name: gaas-config
           configMap:
             name: gaas-config
@@ -44,6 +47,8 @@ spec:
           volumeMounts:
             - name: shared-jobs
               mountPath: /tmp/gobblin-as-service/jobs
+            - name: flowconfig-templates
+              mountPath: /tmp/templateCatalog
             - name: gaas-config
               mountPath: /home/gobblin/conf/gobblin-as-service/application.conf
               subPath: gaas-application.conf
@@ -51,7 +56,7 @@ spec:
       initContainers:
         - name: init-mysql
           image: busybox:1.28
-          command: ["sh", "-c", "until nslookup mysql; do echo waiting for mysql; sleep 2; done;"]
+          command: ['sh', '-c', 'until nslookup mysql; do echo waiting for mysql; sleep 2; done;']
 
 
 ---
@@ -88,18 +93,3 @@ spec:
             - name: standalone-config
               mountPath: /home/gobblin/conf/standalone/application.conf
               subPath: standalone-application.conf
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: gaas-svc
-  labels:
-    app: gobblin-service
-spec:
-  type: NodePort
-  ports:
-    - port: 6956
-      protocol: TCP
-      targetPort: 6956
-  selector:
-    app: gaas

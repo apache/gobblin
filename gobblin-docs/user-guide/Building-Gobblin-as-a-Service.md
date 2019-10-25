@@ -32,3 +32,22 @@ To run the full docker compose:
 5. `docker compose -f gobblin-docker/gobblin-service/alpine-gaas-latest/docker-compose.yml up`
  
 The docker container exposes the endpoints from Gobblin as a Service which can be accessed on `localhost:6956`
+
+# Running Gobblin as a Service with Kubernetes
+Gobblin as a service also has a kubernetes cluster, which can be deployed to any K8s environment.
+
+Currently, the yamls use [Kustomize](https://kubernetes.io/docs/tasks/manage-kubernetes-objects/kustomization/) for configuration management. In the future, we may utilise Helm instead.
+
+To cluster is split into 3 environments
+1) base-cluster (deploys one pod of GaaS and Gobblin standalone, where GaaS writes jobSpecs to a folder tracked by the standalone instance)
+2) mysql-cluster (utilises MySQL for storing specStores instead of FS, future work may involve writing to a job queue to be picked by gobblin standalone)
+3) azure-cluster (deploys Dev on Microsoft Azure), more docs [here](./Azure-Kubernetes-Deployment.md)
+
+To add any flow config template for GaaS to use, add the `.template` file to `gobblin-kubernetes/gobblin-service/base-cluster/` and add the file to the configmap
+
+To deploy any of these clusters, run the following command from the repository root.
+```
+kubectl apply -k gobblin-kubernetes/gobblin-service/<ENV>/
+```
+
+There, find the external IP of the cluster and start sending requests.

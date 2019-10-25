@@ -24,31 +24,3 @@ spec:
   resources:
     requests:
       storage: 100Mi
----
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: shared-template-catalogs-volume
-spec:
-  capacity:
-    storage: 50Mi
-  volumeMode: Filesystem
-  accessModes:
-    - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Delete
-  storageClassName: manual
-  hostPath:
-    path: "/tmp/templateCatalog"
----
-kind: PersistentVolumeClaim
-apiVersion: v1
-metadata:
-  name: shared-template-catalogs-claim
-spec:
-  accessModes:
-    - ReadWriteOnce
-  storageClassName: manual
-  resources:
-    requests:
-      storage: 50Mi
-

@@ -1,0 +1,9 @@
+resources:
+  - deployment.yaml
+  - storage.yaml
+  - service.yaml
+  - ingress.yaml
+configMapGenerator:
+  - name: flowconfig-templates
+    files:
+      - flowconfig-templates/distcp.template
