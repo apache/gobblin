@@ -17,5 +17,4 @@
 #
 GOBBLIN_HOME="$(cd `dirname $0`/..; pwd)"
 
-./bin/gobblin.sh service standalone start
-busybox tail -F ${GOBBLIN_HOME}/logs/standalone.out
+./bin/gobblin.sh service standalone start --log-to-stdout $@

@@ -46,6 +46,7 @@ EXTRA_JARS=''
 VERBOSE=0
 ENABLE_GC_LOGS=0
 CMD_PARAMS=''
+LOG_TO_STDOUT=0
 
 # Gobblin Commands, Modes & respective Classes
 GOBBLIN_MODE_TYPE=''
@@ -133,6 +134,7 @@ function print_gobblin_service_usage() {
     echo "    --jt <resource manager URL>           Only for mapreduce mode: Job submission URL, if not set, taken from \${HADOOP_HOME}/conf."
     echo "    --fs <file system URL>                Only for mapreduce mode: Target file system, if not set, taken from \${HADOOP_HOME}/conf."
     echo "    --job-conf-file <job-conf-file-path>  Only for mapreduce mode: configuration file for the job to run"
+    echo "    --log-to-stdout                     Outputs to stdout rather than to a log file"
     echo "    --help                                Display this help."
     echo "    --verbose                             Display full command used to start the process."
     echo "                                          Gobblin Version: $GOBBLIN_VERSION"
@@ -220,6 +222,9 @@ do
         --job-conf-file)
             JOB_CONF_FILE="$2"
             shift
+        ;;
+        --log-to-stdout)
+            LOG_TO_STDOUT=1
         ;;
         *)
             CMD_PARAMS="$CMD_PARAMS $1"
@@ -464,10 +469,16 @@ function start() {
         fi
 
         # execute the command
-        if [[ $VERBOSE -eq 1 ]]; then
+        if [ $VERBOSE -eq 1 ] && [ $LOG_TO_STDOUT -eq 1 ]; then
+            echo "Running command: $GOBBLIN_COMMAND"
+        elif [[ $VERBOSE -eq 1 ]]; then
             echo "Running command: $GOBBLIN_COMMAND 1>> ${LOG_OUT_FILE} 2>> ${LOG_ERR_FILE}";
         fi
-        nohup $GOBBLIN_COMMAND 1>> ${LOG_OUT_FILE} 2>> ${LOG_ERR_FILE} &
+        if [[ LOG_TO_STDOUT -eq 1 ]]; then
+          $GOBBLIN_COMMAND
+        else
+          nohup $GOBBLIN_COMMAND 1>> ${LOG_OUT_FILE} 2>> ${LOG_ERR_FILE} &
+        fi
         PID=$!
         echo $PID >> $PID_FILE
         if [[ $? != 0 ]]; then
