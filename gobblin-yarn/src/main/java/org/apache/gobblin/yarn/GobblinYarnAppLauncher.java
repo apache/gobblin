@@ -347,9 +347,12 @@ public class GobblinYarnAppLauncher {
       LOGGER.warn("NOT starting the admin UI because the job execution info server is NOT enabled");
     }
 
-    this.serviceManager = Optional.of(new ServiceManager(services));
-    // Start all the services running in the ApplicationMaster
-    this.serviceManager.get().startAsync();
+    if (services.size() > 0 ) {
+      this.serviceManager = Optional.of(new ServiceManager(services));
+      this.serviceManager.get().startAsync();
+    } else {
+      serviceManager = Optional.absent();
+    }
   }
 
   /**
