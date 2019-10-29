@@ -52,6 +52,7 @@ public class SqlDatasetDescriptor extends BaseDatasetDescriptor implements Datas
   private final Config rawConfig;
 
   public enum  Platform {
+    HIVE("hive"),
     SQLSERVER("sqlserver"),
     MYSQL("mysql"),
     ORACLE("oracle"),
