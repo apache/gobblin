@@ -346,7 +346,7 @@ public class HiveAvroORCQueryGenerator {
    * @return Commands to create a partition.
    */
   public static List<String> generateCreatePartitionDDL(String dbName, String tableName, String partitionLocation,
-      Map<String, String> partitionsDMLInfo, Optional<String> format) {
+      Map<String, String> partitionsDMLInfo, Optional<Schema> schema, Optional<String> format) {
 
     if (null == partitionsDMLInfo || partitionsDMLInfo.size() == 0) {
       return Collections.emptyList();
@@ -380,15 +380,33 @@ public class HiveAvroORCQueryGenerator {
       ddls.add(String.format("ALTER TABLE `%s` ADD IF NOT EXISTS %s LOCATION '%s' ", tableName, partitionSpecs,
           partitionLocation));
     }
+    if(schema.isPresent()) {
+      Schema avroSchema = schema.get();
+
+      try {
+        AvroObjectInspectorGenerator objectInspectorGenerator = new AvroObjectInspectorGenerator(avroSchema);
+        String columns = Joiner.on(",").join(objectInspectorGenerator.getColumnNames());
+        String columnTypes = Joiner.on(",").join(
+                objectInspectorGenerator.getColumnTypes().stream().map(x -> x.getTypeName())
+                    .collect(Collectors.toList()));
+        ddls.add(String.format("ALTER TABLE `%s` %s SET SERDEPROPERTIES ('columns'='%s', 'columns.types'='%s')", tableName,
+            partitionSpecs, columns, columnTypes));
+
+      } catch (Exception e) {
+        log.error("Cannot generate add partition DDL due to ", e);
+        throw new RuntimeException(e);
+      }
+    }
+
 
 
     return ddls;
   }
 
   public static List<String> generateCreatePartitionDDL(String dbName, String tableName, String partitionLocation,
-      Map<String, String> partitionsDMLInfo) {
+      Map<String, String> partitionsDMLInfo, Schema schema) {
     return generateCreatePartitionDDL(dbName, tableName, partitionLocation, partitionsDMLInfo,
-        Optional.<String>absent());
+        Optional.fromNullable(schema), Optional.<String>absent());
   }
 
   /***
