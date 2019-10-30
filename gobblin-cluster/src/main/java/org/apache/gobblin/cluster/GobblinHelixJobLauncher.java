@@ -151,7 +151,6 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
     this.stateSerDeRunnerThreads = Integer.parseInt(jobProps.getProperty(ParallelRunner.PARALLEL_RUNNER_THREADS_KEY,
         Integer.toString(ParallelRunner.DEFAULT_PARALLEL_RUNNER_THREADS)));
-
     jobConfig = ConfigUtils.propertiesToConfig(jobProps);
 
     this.workFlowExpiryTimeSeconds = ConfigUtils.getLong(jobConfig,

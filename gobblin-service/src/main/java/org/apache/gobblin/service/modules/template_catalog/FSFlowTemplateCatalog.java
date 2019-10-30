@@ -47,6 +47,8 @@ import org.apache.gobblin.service.modules.template.FlowTemplate;
 import org.apache.gobblin.service.modules.template.HOCONInputStreamFlowTemplate;
 import org.apache.gobblin.util.PathUtils;
 
+import static org.apache.gobblin.runtime.AbstractJobLauncher.GOBBLIN_JOB_TEMPLATE_KEY;
+
 
 /**
  * An implementation of a catalog for {@link FlowTemplate}s. Provides basic API for retrieving a {@link FlowTemplate}
@@ -67,7 +69,6 @@ public class FSFlowTemplateCatalog extends FSJobCatalog implements FlowCatalogWi
   public static final String JOBS_DIR_NAME = "jobs";
   public static final String FLOW_CONF_FILE_NAME = "flow.conf";
   public static final List<String> JOB_FILE_EXTENSIONS = Arrays.asList(".job", ".template");
-  public static final String JOB_TEMPLATE_KEY = "gobblin.template.uri";
 
   protected static final String FS_SCHEME = "FS";
 
@@ -145,8 +146,8 @@ public class FSFlowTemplateCatalog extends FSJobCatalog implements FlowCatalogWi
     for (FileStatus fileStatus : fs.listStatus(jobFilePath, extensionFilter)) {
       Config jobConfig = loadHoconFileAtPath(fileStatus.getPath());
       //Check if the .job file has an underlying job template
-      if (jobConfig.hasPath(JOB_TEMPLATE_KEY)) {
-        URI jobTemplateRelativeUri = new URI(jobConfig.getString(JOB_TEMPLATE_KEY));
+      if (jobConfig.hasPath(GOBBLIN_JOB_TEMPLATE_KEY)) {
+        URI jobTemplateRelativeUri = new URI(jobConfig.getString(GOBBLIN_JOB_TEMPLATE_KEY));
         if (!jobTemplateRelativeUri.getScheme().equals(FS_SCHEME)) {
           throw new RuntimeException(
               "Expected scheme " + FS_SCHEME + " got unsupported scheme " + flowTemplateDirURI.getScheme());

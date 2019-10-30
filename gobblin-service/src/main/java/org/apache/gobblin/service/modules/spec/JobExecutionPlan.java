@@ -49,6 +49,8 @@ import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.template_catalog.FSFlowTemplateCatalog;
 import org.apache.gobblin.util.ConfigUtils;
 
+import static org.apache.gobblin.service.modules.template_catalog.FSFlowTemplateCatalog.JOB_TEMPLATE_KEY;
+
 
 /**
  * A data class that encapsulates information for executing a job. This includes a {@link JobSpec} and a {@link SpecExecutor}
@@ -120,7 +122,7 @@ public class JobExecutionPlan {
       jobSpec.setConfig(jobSpec.getConfig().withoutPath(ConfigurationKeys.JOB_SCHEDULE_KEY));
 
       //Remove template uri
-      jobSpec.setConfig(jobSpec.getConfig().withoutPath(FSFlowTemplateCatalog.JOB_TEMPLATE_KEY));
+      jobSpec.setConfig(jobSpec.getConfig().withoutPath(JOB_TEMPLATE_KEY));
 
       // Add job.name and job.group
       jobSpec.setConfig(jobSpec.getConfig().withValue(ConfigurationKeys.JOB_NAME_KEY, ConfigValueFactory.fromAnyRef(jobName)));

@@ -15,12 +15,19 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.runtime.local;
+package org.apache.gobblin.runtime;
 
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.Properties;
 
+import org.apache.gobblin.runtime.AbstractJobLauncher;
+import org.apache.gobblin.runtime.JobContext;
+import org.apache.gobblin.runtime.JobLauncher;
+import org.apache.gobblin.runtime.JobLauncherFactory;
+import org.apache.gobblin.runtime.local.LocalJobLauncher;
+import org.apache.gobblin.util.JobLauncherUtils;
+import org.junit.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -37,6 +44,10 @@ import org.apache.gobblin.util.limiter.BaseLimiterType;
 import org.apache.gobblin.util.limiter.DefaultLimiterFactory;
 import org.apache.gobblin.writer.Destination;
 import org.apache.gobblin.writer.WriterOutputFormat;
+
+import com.google.common.io.Closer;
+
+import static org.apache.gobblin.runtime.AbstractJobLauncher.GOBBLIN_JOB_TEMPLATE_KEY;
 
 
 /**
@@ -79,6 +90,32 @@ public class LocalJobLauncherTest {
     } finally {
       this.jobLauncherTestHelper.deleteStateStore(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
     }
+  }
+
+  @Test
+  public void testJobTemplateResolutionInAbstractLauncher() throws Exception {
+    Properties jobProps = loadJobProps();
+    String jobId = JobLauncherUtils.newJobId("beforeResolution");
+    jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, jobId);
+    jobProps.setProperty("job.name", "beforeResolution");
+    jobProps.setProperty(GOBBLIN_JOB_TEMPLATE_KEY, "resource:///templates/distcp-ng.template");
+
+
+    JobContext jobContext = null;
+    Closer closer = Closer.create();
+    try {
+      JobLauncher jobLauncher = closer.register(JobLauncherFactory.newJobLauncher(this.launcherProps, jobProps));
+      jobContext = ((AbstractJobLauncher) jobLauncher).getJobContext();
+    } finally {
+      closer.close();
+    }
+
+    // Indicating resolution succeeded.
+    // 1) User config not being overloaded by template
+    // 2) Conf that not appearing in the user-config being populated by template
+    System.out.println(jobContext.getJobState());
+    Assert.assertEquals(jobContext.getJobState().getProp("job.name"), "beforeResolution");
+    Assert.assertEquals(jobContext.getJobState().getProp("distcp.persist.dir"), "/tmp/distcp-persist-dir");
   }
 
   @Test
