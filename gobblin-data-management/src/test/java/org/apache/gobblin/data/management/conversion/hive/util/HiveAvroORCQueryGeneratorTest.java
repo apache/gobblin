@@ -300,13 +300,26 @@ public class HiveAvroORCQueryGeneratorTest {
   @Test
   public void testCreatePartitionDDL() throws Exception {
     List<String> ddl = HiveAvroORCQueryGenerator.generateCreatePartitionDDL("db1", "table1", "/tmp",
-        ImmutableMap.of("datepartition", "2016-01-01", "sizepartition", "10"));
+        ImmutableMap.of("datepartition", "2016-01-01", "sizepartition", "10"),null);
 
     Assert.assertEquals(ddl.size(), 2);
     Assert.assertEquals(ddl.get(0), "USE db1\n");
     Assert.assertEquals(ddl.get(1),
         "ALTER TABLE `table1` ADD IF NOT EXISTS PARTITION (`datepartition`='2016-01-01', `sizepartition`='10') \n"
             + " LOCATION '/tmp' ");
+    String schemaName = "testRecordWithinRecordWithinRecordDDL";
+    Schema schema = ConversionHiveTestUtils.readSchemaFromJsonFile(resourceDir,
+        "recordWithinRecordWithinRecord_nested.json");
+    List<String> ddl1 = HiveAvroORCQueryGenerator.generateCreatePartitionDDL("db1", "table1", "/tmp",
+        ImmutableMap.of("datepartition", "2016-01-01", "sizepartition", "10"), schema);
+
+    Assert.assertEquals(ddl1.size(), 3);
+    Assert.assertEquals(ddl1.get(0), "USE db1\n");
+    Assert.assertEquals(ddl1.get(1),
+        "ALTER TABLE `table1` ADD IF NOT EXISTS PARTITION (`datepartition`='2016-01-01', `sizepartition`='10') \n"
+            + " LOCATION '/tmp' ");
+    Assert.assertEquals(ddl1.get(2),"ALTER TABLE `table1` PARTITION (`datepartition`='2016-01-01', `sizepartition`='10') \n"
+        + " SET SERDEPROPERTIES ('columns'='parentFieldRecord,parentFieldInt', 'columns.types'='struct<nestedFieldRecord:struct<superNestedFieldString:string,superNestedFieldInt:int>,nestedFieldString:string,nestedFieldInt:int>,int')");
   }
 
   @Test

@@ -85,6 +85,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
    * Subdirectory within destination ORC table directory to publish data
    */
   private static final String PUBLISHED_TABLE_SUBDIRECTORY = "final";
+  public static final String OUTPUT_AVRO_SCHEMA_KEY = "output.avro.schema";
 
   private static final String ORC_FORMAT = "orc";
 
@@ -326,6 +327,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     conversionEntity.getQueries().add(String
         .format("SET %s=%s", GOBBLIN_WORKUNIT_CREATE_TIME_KEY,
             workUnit.getWorkunit().getProp(SlaEventKeys.ORIGIN_TS_IN_MILLI_SECS_KEY)));
+    workUnit.setProp(OUTPUT_AVRO_SCHEMA_KEY, outputAvroSchema.toString());
 
     // Create DDL statement for table
     Map<String, String> hiveColumns = new LinkedHashMap<>();
@@ -356,7 +358,8 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
           HiveAvroORCQueryGenerator.generateCreatePartitionDDL(orcTableDatabase,
               orcStagingTableName,
               orcStagingDataPartitionLocation,
-              partitionsDMLInfo);
+              partitionsDMLInfo,
+              outputAvroSchema);
 
       conversionEntity.getQueries().addAll(createStagingPartitionDDL);
       log.debug("Create staging partition DDL: " + createStagingPartitionDDL);
@@ -514,6 +517,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
                 orcTableName,
                 orcFinalDataPartitionLocation,
                 partitionsDMLInfo,
+                Optional.fromNullable(outputAvroSchema),
                 Optional.<String>absent());
 
         log.debug("Create final partition DDL: " + createFinalPartitionDDL);
@@ -534,6 +538,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
                 orcTableName,
                 orcFinalDataPartitionLocation,
                 partitionsDMLInfo,
+                Optional.fromNullable(outputAvroSchema),
                 Optional.fromNullable(ORC_FORMAT));
 
         log.debug("Create final partition DDL: " + createFinalPartitionDDL);

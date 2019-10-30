@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.avro.Schema;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.converter.DataConversionException;
 import org.apache.gobblin.data.management.conversion.hive.converter.AbstractAvroToOrcConverter;
@@ -118,6 +119,10 @@ public abstract class HiveMaterializerFromEntityQueryGenerator extends HiveMater
     Map<String, String> publishDirectories = publishEntity.getPublishDirectories();
     List<String> cleanupQueries = publishEntity.getCleanupQueries();
     List<String> cleanupDirectories = publishEntity.getCleanupDirectories();
+    Optional<Schema> avroSchema = Optional.absent();
+    if(workUnitState.contains(AbstractAvroToOrcConverter.OUTPUT_AVRO_SCHEMA_KEY)) {
+      avroSchema = Optional.fromNullable(new Schema.Parser().parse(workUnitState.getProp(AbstractAvroToOrcConverter.OUTPUT_AVRO_SCHEMA_KEY)));
+    }
 
     String createFinalTableDDL =
         HiveConverterUtils.generateCreateDuplicateTableDDL(outputDatabaseName, stagingTableName, outputTableName,
@@ -152,7 +157,7 @@ public abstract class HiveMaterializerFromEntityQueryGenerator extends HiveMater
       publishQueries.addAll(dropPartitionsDDL);
       List<String> createFinalPartitionDDL =
           HiveAvroORCQueryGenerator.generateCreatePartitionDDL(outputDatabaseName, outputTableName,
-              finalDataPartitionLocation, partitionsDMLInfo, Optional.<String>absent());
+              finalDataPartitionLocation, partitionsDMLInfo, avroSchema, Optional.<String>absent());
 
       log.debug("Create final partition DDL: " + createFinalPartitionDDL);
       publishQueries.addAll(createFinalPartitionDDL);
