@@ -17,5 +17,4 @@
 #
 GOBBLIN_HOME="$(cd `dirname $0`/..; pwd)"
 
-./bin/gobblin.sh service gobblin-as-service start --log-to-stdout $@
-
+./bin/gobblin.sh service gobblin-as-service start --log-to-stdout "$@"
