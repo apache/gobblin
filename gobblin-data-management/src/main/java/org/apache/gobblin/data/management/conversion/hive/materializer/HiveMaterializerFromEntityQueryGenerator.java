@@ -161,7 +161,7 @@ public abstract class HiveMaterializerFromEntityQueryGenerator extends HiveMater
       publishQueries.addAll(dropPartitionsDDL);
       List<String> createFinalPartitionDDL =
           HiveAvroORCQueryGenerator.generateCreatePartitionDDL(outputDatabaseName, outputTableName,
-              finalDataPartitionLocation, partitionsDMLInfo, Optional.<String>absent());
+              finalDataPartitionLocation, partitionsDMLInfo, avroSchema, Optional.<String>absent());
 
       log.debug("Create final partition DDL: " + createFinalPartitionDDL);
       publishQueries.addAll(createFinalPartitionDDL);
