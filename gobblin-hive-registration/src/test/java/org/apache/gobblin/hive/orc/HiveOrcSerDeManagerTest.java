@@ -81,8 +81,6 @@ public class HiveOrcSerDeManagerTest {
 
     manager.addSerDeProperties(this.testRegisterPath, registrationUnit);
 
-    Assert.assertTrue(registrationUnit.getSerDeProps().getProp(HiveOrcSerDeManager.SCHEMA_LITERAL).contains(
-        "name:string,timestamp:bigint"));
 
     List<String> columns = Arrays.asList(registrationUnit.getSerDeProps().getProp(serdeConstants.LIST_COLUMNS).split(","));
     Assert.assertTrue(columns.get(0).equals("name"));
@@ -105,8 +103,7 @@ public class HiveOrcSerDeManagerTest {
 
     manager.addSerDeProperties(this.testRegisterPath, registrationUnit);
 
-    Assert.assertTrue(registrationUnit.getSerDeProps().getProp(HiveOrcSerDeManager.SCHEMA_LITERAL).contains(
-        "name:string,timestamp:bigint"));
+    examineSchema(registrationUnit);
   }
 
   /**
@@ -124,8 +121,7 @@ public class HiveOrcSerDeManagerTest {
 
     manager.addSerDeProperties(this.testRegisterPath, registrationUnit);
 
-    Assert.assertTrue(registrationUnit.getSerDeProps().getProp(HiveOrcSerDeManager.SCHEMA_LITERAL).contains(
-        "name:string,timestamp:bigint"));
+    examineSchema(registrationUnit);
     Assert.assertEquals(registrationUnit.getSerDeType().get(), OrcSerde.class.getName());
     Assert.assertEquals(registrationUnit.getInputFormat().get(), "customInputFormat");
     Assert.assertEquals(registrationUnit.getOutputFormat().get(), "customOutputFormat");
@@ -156,6 +152,15 @@ public class HiveOrcSerDeManagerTest {
     HiveRegistrationUnit registrationUnit = (new HiveTable.Builder()).withDbName(TEST_DB).withTableName(TEST_TABLE).build();
 
     manager.addSerDeProperties(this.testRegisterPath, registrationUnit);
+  }
+
+  public void examineSchema(HiveRegistrationUnit registrationUnit) {
+    List<String> columns = Arrays.asList(registrationUnit.getSerDeProps().getProp(serdeConstants.LIST_COLUMNS).split(","));
+    Assert.assertTrue(columns.get(0).equals("name"));
+    Assert.assertTrue(columns.get(1).equals("timestamp"));
+    List<String> columnTypes = Arrays.asList(registrationUnit.getSerDeProps().getProp(serdeConstants.LIST_COLUMN_TYPES).split(","));
+    Assert.assertTrue(columnTypes.get(0).equals("string"));
+    Assert.assertTrue(columnTypes.get(1).equals("bigint"));
   }
 
   @AfterClass
