@@ -359,8 +359,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
           HiveAvroORCQueryGenerator.generateCreatePartitionDDL(orcTableDatabase,
               orcStagingTableName,
               orcStagingDataPartitionLocation,
-              partitionsDMLInfo,
-              outputAvroSchema);
+              partitionsDMLInfo);
 
       conversionEntity.getQueries().addAll(createStagingPartitionDDL);
       log.debug("Create staging partition DDL: " + createStagingPartitionDDL);
@@ -518,7 +517,6 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
                 orcTableName,
                 orcFinalDataPartitionLocation,
                 partitionsDMLInfo,
-                Optional.fromNullable(outputAvroSchema),
                 Optional.<String>absent());
 
         log.debug("Create final partition DDL: " + createFinalPartitionDDL);
@@ -539,7 +537,6 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
                 orcTableName,
                 orcFinalDataPartitionLocation,
                 partitionsDMLInfo,
-                Optional.fromNullable(outputAvroSchema),
                 Optional.fromNullable(ORC_FORMAT));
 
         log.debug("Create final partition DDL: " + createFinalPartitionDDL);
