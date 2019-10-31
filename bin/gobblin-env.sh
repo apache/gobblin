@@ -18,5 +18,5 @@
 #
 
 # export environment variables here to be used in gobblin.sh scripts and gobblin platform configs.
-export GOBBLIN_WORK_DIR=$GOBBLIN_HOME/gobblin-work-dir
-export GOBBLIN_JOB_CONFIG_DIR=$GOBBLIN_HOME/gobblin-job-config-dir
+GOBBLIN_WORK_DIR=$GOBBLIN_HOME/work
+GOBBLIN_JOB_CONFIG_DIR=$GOBBLIN_HOME/jobs

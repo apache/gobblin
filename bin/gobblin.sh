@@ -80,7 +80,7 @@ MAPREDUCE_CLASS='org.apache.gobblin.runtime.mapreduce.CliMRJobLauncher'
 SERVICE_MANAGER_CLASS='org.apache.gobblin.service.modules.core.GobblinServiceManager'
 
 function print_gobblin_usage() {
-    echo "Usage:"
+    echo "Usage:                                          (for Gobblin Version: $GOBBLIN_VERSION)"
     echo "gobblin.sh  cli     <cli-command>    <params>"
     echo "gobblin.sh  service <execution-mode> <start|stop|restart|status>"
     echo ""
@@ -88,7 +88,7 @@ function print_gobblin_usage() {
 }
 
 function print_gobblin_cli_usage() {
-    echo "Usage:              (for Gobblin Version: $GOBBLIN_VERSION)"
+    echo "Usage:                                          (for Gobblin Version: $GOBBLIN_VERSION)"
     echo "gobblin.sh  cli     <cli-command>    <params>"
     echo ""
     echo "options:"
@@ -106,9 +106,11 @@ function print_gobblin_cli_usage() {
                 job-store-schema-manager    Database job history store schema manager
                 gobblin-classpath           shows the constructed gobblin classpath"
     echo ""
-    echo "    --conf-dir <gobblin-conf-dir-path>    Gobblon config path. default is '\$GOBBLIN_HOME/conf/cli'."
-    echo "    --log4j-conf <path-of-log4j-file>     default is '<gobblin-conf-dir-path>/cli/log4j.properties'."
-    echo "    --jvmopts <jvm or gc options>         JVM or GC parameters for the java process to append to the default params: \"$JVM_OPTS\"."
+    echo "    --conf-dir <gobblin-conf-dir-path>    Gobblon config path. default is '\$GOBBLIN_HOME/conf/<exe-mode-name>'."
+    echo "    --log4j-conf <path-of-log4j-file>     default is '<gobblin-conf-dir-path>/<execution-mode>/log4j.properties'."
+    echo "    --work-dir <gobblin-work-dir>         Gobblin work dir. default is $GOBBLIN_WORK_DIR."
+    echo "    --job-conf-dir <path-of-log4j-file>   Job configuration dir to pick up the jobs to run. default is $GOBBLIN_JOB_CONFIG_DIR."
+    echo "    --jvmopts <jvm or gc options>         String containing JVM flags to include, in addition to \"$JVM_OPTS\"."
     echo "    --jars <csv list of extra jars>       Column-separated list of extra jars to put on the CLASSPATH."
     echo "    --enable-gc-logs                      enables gc logs & dumps."
     echo "    --show-classpath                      prints gobblin runtime classpath."
@@ -117,15 +119,17 @@ function print_gobblin_cli_usage() {
 }
 
 function print_gobblin_service_usage() {
-    echo "Usage:              (for Gobblin Version: $GOBBLIN_VERSION)"
-    echo "gobblin.sh  service <execution-mode> <start|stop|restart|status>"
+    echo "Usage:                                          (for Gobblin Version: $GOBBLIN_VERSION)"
+    echo "gobblin.sh  service <execution-mode> <start|stop|status>"
     echo ""
     echo "Argument Options:"
     echo "    <execution-mode>                      $GOBBLIN_EXEC_MODE_LIST."
     echo ""
     echo "    --conf-dir <gobblin-conf-dir-path>    Gobblin config path. default is '\$GOBBLIN_HOME/conf/<execution-mode>'."
     echo "    --log4j-conf <path-of-log4j-file>     default is '<gobblin-conf-dir-path>/<execution-mode>/log4j.properties'."
-    echo "    --jvmopts <jvm or gc options>         JVM or GC parameters for the java process to append to the default params: \"$JVM_OPTS\"."
+    echo "    --work-dir <gobblin-work-dir>         Gobblin work dir. default is $GOBBLIN_WORK_DIR."
+    echo "    --job-conf-dir <path-of-log4j-file>   Job configuration dir to pick up the jobs to run. default is $GOBBLIN_JOB_CONFIG_DIR."
+    echo "    --jvmopts <jvm or gc options>         String containing JVM flags to include, in addition to \"$JVM_OPTS\"."
     echo "    --jars <csv list of extra jars>       Column-separated list of extra jars to put on the CLASSPATH."
     echo "    --enable-gc-logs                      enables gc logs & dumps."
     echo "    --show-classpath                      prints gobblin runtime classpath."
@@ -186,6 +190,14 @@ do
         ;;
         --conf-dir)
             USER_CONF_DIR="$2"
+            shift
+        ;;
+        --work-dir)
+            GOBBLIN_WORK_DIR="$2"
+            shift
+        ;;
+        --job-conf-dir)
+            GOBBLIN_JOB_CONFIG_DIR="$2"
             shift
         ;;
         --log4j-conf)
@@ -473,6 +485,9 @@ function start() {
             fi
             GOBBLIN_COMMAND="$JAVA_HOME/bin/java -cp $GOBBLIN_CLASSPATH $GC_OPTS $JVM_OPTS $LOG4J_OPTS $ADDITIONAL_ARGS $CLASS_N_ARGS"
         fi
+
+        #Export all Gobblin variables to be used by job config
+        export GOBBLIN_HOME GOBBLIN_CONF GOBBLIN_WORK_DIR GOBBLIN_JOB_CONFIG_DIR
 
         # execute the command
         if [ $VERBOSE -eq 1 ] && [ $LOG_TO_STDOUT -eq 1 ]; then
