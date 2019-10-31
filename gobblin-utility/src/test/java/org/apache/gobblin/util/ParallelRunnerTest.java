@@ -28,6 +28,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.gobblin.testing.AssertWithBackoff;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -208,17 +209,15 @@ public class ParallelRunnerTest {
       }
     });
     Mockito.when(fs.exists(src2)).thenReturn(true);
+
+    final int max_waiting = 70000;
     Mockito.when(fs.delete(src2, true)).thenAnswer(new Answer<Boolean>() {
       @Override
       public Boolean answer(InvocationOnMock invocation) throws Throwable {
         latch1.await();
-        long end = System.currentTimeMillis() + 70000;
-        while (System.currentTimeMillis() < end) {
-          try {
-            Thread.sleep(Math.max(1, end - System.currentTimeMillis()));
-          } catch (Exception ignored) {
-          }
-        }
+        long end = System.currentTimeMillis() + max_waiting;
+        AssertWithBackoff.create().maxSleepMs(max_waiting).backoffFactor(2).
+            assertTrue(input -> System.currentTimeMillis() < end, "Something wrong with waiting on condition");
         flag.set(true);
         latch2.countDown();
         return true;
@@ -235,11 +234,9 @@ public class ParallelRunnerTest {
     } catch (IOException e) {
       caughtException = true;
     }
-    Assert.assertTrue(caughtException);
-    System.out.println(System.currentTimeMillis() + ": END   - ParallelRunner.close()");
-    System.out.println(System.currentTimeMillis() + ": Waiting for unkillable task to finish...");
-    latch2.await();
-    System.out.println(System.currentTimeMillis() + ": Unkillable task completed.");
+    // Close method will wait until all tasks finished.
+    Assert.assertFalse(caughtException);
+    Assert.assertEquals(latch2.getCount(), 0);
     Assert.assertTrue(flag.get());
   }
 
