@@ -10,5 +10,7 @@ OUTPUTFORMAT
 LOCATION 
   'file:/user/hive/warehouse/testRecordWithinOptionWithinRecordDDL' 
 TBLPROPERTIES ( 
+  'columns'='parentFieldUnion,parentFieldInt', 
   'orc.compress'='ZLIB', 
+  'columns.types'='struct<unionRecordMemberFieldLong:bigint,unionRecordMemberFieldString:string>,int', 
   'orc.row.index.stride'='268435456')

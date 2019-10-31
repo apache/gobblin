@@ -128,6 +128,10 @@ public abstract class HiveMaterializerFromEntityQueryGenerator extends HiveMater
         HiveConverterUtils.generateCreateDuplicateTableDDL(outputDatabaseName, stagingTableName, outputTableName,
             outputDataLocation, Optional.of(outputDatabaseName));
     publishQueries.add(createFinalTableDDL);
+    if(avroSchema.isPresent()) {
+      String alterSchemaDml = HiveConverterUtils.generateAlterSchemaDML(outputTableName, Optional.of(outputDatabaseName), avroSchema.get());
+      publishQueries.add(alterSchemaDml);
+    }
     log.debug("Create final table DDL:\n" + createFinalTableDDL);
 
     if (!this.supportTargetPartitioning || partitionsDDLInfo.size() == 0) {
@@ -157,7 +161,7 @@ public abstract class HiveMaterializerFromEntityQueryGenerator extends HiveMater
       publishQueries.addAll(dropPartitionsDDL);
       List<String> createFinalPartitionDDL =
           HiveAvroORCQueryGenerator.generateCreatePartitionDDL(outputDatabaseName, outputTableName,
-              finalDataPartitionLocation, partitionsDMLInfo, avroSchema, Optional.<String>absent());
+              finalDataPartitionLocation, partitionsDMLInfo, Optional.<String>absent());
 
       log.debug("Create final partition DDL: " + createFinalPartitionDDL);
       publishQueries.addAll(createFinalPartitionDDL);
