@@ -84,7 +84,7 @@ function print_gobblin_usage() {
     echo "gobblin.sh  cli     <cli-command>    <params>"
     echo "gobblin.sh  service <execution-mode> <start|stop|restart|status>"
     echo ""
-    echo "Use \"gobblin <cli|service> --help\" for more information.         (Gobblin Version: $GOBBLIN_VERSION)"
+    echo "Use \"gobblin <cli|service> --help\" for more information."
 }
 
 function print_gobblin_cli_usage() {
@@ -106,7 +106,7 @@ function print_gobblin_cli_usage() {
                 job-store-schema-manager    Database job history store schema manager
                 gobblin-classpath           shows the constructed gobblin classpath"
     echo ""
-    echo "    --conf-dir <gobblin-conf-dir-path>    Gobblon config path. default is '\$GOBBLIN_HOME/conf/<exe-mode-name>'."
+    echo "    --conf-dir <gobblin-conf-dir-path>    Gobblon config path. default is '\$GOBBLIN_HOME/conf/<execution-mode>'."
     echo "    --log4j-conf <path-of-log4j-file>     default is '<gobblin-conf-dir-path>/<execution-mode>/log4j.properties'."
     echo "    --work-dir <gobblin-work-dir>         Gobblin work dir. default is $GOBBLIN_WORK_DIR."
     echo "    --job-conf-dir <path-of-log4j-file>   Job configuration dir to pick up the jobs to run. default is $GOBBLIN_JOB_CONFIG_DIR."

@@ -12,7 +12,7 @@ Gobblin has a built in Quartz scheduler as part of the [`JobScheduler`](https://
 
 So in order to take advantage of the Quartz scheduler two steps need to be taken:
 
-* Use the `bin/gobblin-standalone.sh` script
+* Use the `bin/gobblin.sh` script to start the gobblin process in standalone mode ex: `bin/gobblin.sh service standalone start `
 * Add the property `job.schedule` to the `.pull` file
     * The value for this property should be a [CRONTrigger](http://quartz-scheduler.org/api/2.2.0/org/quartz/CronTrigger.html)
 

@@ -10,20 +10,20 @@ The Gobblin distribution comes with a script `./bin/gobblin` for all commands an
 Here is the usage:  
 
 ```bash
-Usage:
+Usage:                                          (for Gobblin Version: 0.15.0)
 gobblin.sh  cli     <cli-command>    <params>
-gobblin.sh  service <execution-mode> <start|stop|status>
+gobblin.sh  service <execution-mode> <start|stop|restart|status>
 
-Use "gobblin <cli|service> --help" for more information.         (Gobblin Version: 0.15.0)
+Use "gobblin <cli|service> --help" for more information.
 ```
 
 For Gobblin CLI commands, run following:  
 ```bash
-Usage:
+Usage:              (for Gobblin Version: 0.15.0)
 gobblin.sh  cli     <cli-command>    <params>
 
 options:
-    cli-commands:
+   cli-commands:
                 passwordManager             Encrypt or decrypt strings for the password manager.
                 decrypt                     Decryption utilities
                 run                         Run a Gobblin application.
@@ -35,23 +35,27 @@ options:
                 keystore                    Examine JCE Keystore files
                 watermarks                  Inspect streaming watermarks
                 job-store-schema-manager    Database job history store schema manager
+                gobblin-classpath           shows the constructed gobblin classpath
 
-    --conf-dir <gobblin-conf-dir-path> Gobblon config path. default is '$GOBBLIN_HOME/conf/<exe-mode-name>'.
-    --log4j-conf <path-of-log4j-file>  default is '<gobblin-conf-dir-path>/<execution-mode>/log4j.properties'.
-    --jvmopts <jvm or gc options>      String containing JVM flags to include, in addition to "-Xmx1g -Xms512m".
-    --jars <csv list of extra jars>    Column-separated list of extra jars to put on the CLASSPATH.
-    --enable-gc-logs                   enables gc logs & dumps.
-    --show-classpath                   prints gobblin runtime classpath.
-    --help                             Display this help.
-    --verbose                          Display full command used to start the process.
-                                       Gobblin Version: 0.15.0
+    --conf-dir <gobblin-conf-dir-path>    Gobblon config path. default is '$GOBBLIN_HOME/conf/cli'.
+    --log4j-conf <path-of-log4j-file>     default is '<gobblin-conf-dir-path>/cli/log4j.properties'.
+    --work-dir <gobblin-work-dir>         Gobblin work dir. default is /Users/jsenjaliya/tools/gobblin-dist/gobblin-cluster-data.
+    --job-conf-dir <path-of-log4j-file>   Job configuration dir to pick up the jobs to run. default is /Users/jsenjaliya/tools/gobblin-dist/gobblin-jobs.
+    --jvmopts <jvm or gc options>         JVM or GC parameters for the java process to append to the default params: "-Xmx1g -Xms512m".
+    --jars <csv list of extra jars>       Column-separated list of extra jars to put on the CLASSPATH.
+    --enable-gc-logs                      enables gc logs & dumps.
+    --show-classpath                      prints gobblin runtime classpath.
+    --help                                Display this help.
+    --verbose                             Display full command used to start the process.
 ```
 
 
 Argument details:
-* `--conf-dir`: specifies the path to directory containing gobblin system configuration files, like `application.conf` or `reference.conf`, `log4j.properties` and `quartz.properties`.
+* `--conf-dir`: specifies the path to directory containing gobblin system configuration files, like `application.conf` or `reference.conf`, `log4j.properties` and `quartz.properties`, as this is provided as classpath for config file look up.
 * `--log4j-conf`: specify the path of log4j config file to override the one in config directory (default is `<conf>/<gobblin-mode>/log4j.properties`. Gobblin uses [SLF4J](http://www.slf4j.org/) and the [slf4j-log4j12](http://mvnrepository.com/artifact/org.slf4j/slf4j-log4j12) binding for logging.
-* `--jvmopts`: to specify any JVM parameters, default is `-Xmx1g -Xms512m`.
+* `--work-dir`: The work dir specifies the path at which gobblin will create data required to execute and finish the job. 
+* `--job-conf-dir`: The dir from which Gobblin picks up job configurations and executes it. It is also monitored for any changes to existing job configs or any new job additions. 
+* `--jvmopts`: to specify any JVM parameters to pass while starting Gobblin java process, default is `-Xmx1g -Xms512m`.
 * `--enable-gc-logs`: adds GC options to JVM parameters:  ``` -XX:+UseConcMarkSweepGC -XX:+UseParNewGC -XX:+UseCompressedOops -XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+PrintTenuringDistribution -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=$GOBBLIN_LOGS/ -Xloggc:$GOBBLIN_LOGS/gobblin-$GOBBLIN_MODE-gc.log ```
 * `--show-classpath`: It prints the full value of the classpath that gobblin uses.
 * all other arguments are sell-explanatory.
@@ -62,17 +66,18 @@ Gobblin Commands
 Gobblin provides following CLI commands:
 
     Available commands:
-        job-state-to-json	        To convert Job state to JSON
-        jobs		                Command line job info and operations
-        passwordManager		        Encrypt or decrypt strings for the password manager.
-        run		                    Run a Gobblin application.
-        decrypt		                Decryption utilities
-        job-store-schema-manager	Database job history store schema manager
-        stateMigration		        Command line tools for migrating state store
-        keystore		            Examine JCE Keystore files
-        config		                Query the config library
-        watermarks		            Inspect streaming watermarks
-        cleaner		                Data retention utility
+        passwordManager             Encrypt or decrypt strings for the password manager.
+        decrypt                     Decryption utilities
+        run                         Run a Gobblin application.
+        config                      Query the config library
+        jobs                        Command line job info and operations
+        stateMigration              Command line tools for migrating state store
+        job-state-to-json           To convert Job state to JSON
+        cleaner                     Data retention utility
+        keystore                    Examine JCE Keystore files
+        watermarks                  Inspect streaming watermarks
+        job-store-schema-manager    Database job history store schema manager
+        gobblin-classpath           shows the constructed gobblin classpath
 
 Details on how to use `run` command: 
  
@@ -141,24 +146,27 @@ Gobblin Service Execution Modes ( as Daemon )
 
 For more info on Gobblin service execution modes, run `bin/gobblin service --help`: 
 ```bash
-Usage:
-gobblin.sh  service <execution-mode> <start|stop|status>
+Usage:              (for Gobblin Version: 0.15.0)
+gobblin.sh  service <execution-mode> <start|stop|restart|status>
 
 Argument Options:
-    <execution-mode>                   standalone, cluster-master, cluster-worker, aws,
-                                                 yarn, mapreduce, service-manager.
+    <execution-mode>                      standalone cluster-master cluster-worker aws yarn mapreduce gobblin-as-service gobblin-ui.
 
-    --conf-dir <gobblin-conf-dir-path> Gobblon config path. default is '$GOBBLIN_HOME/conf/<exe-mode-name>'.
-    --log4j-conf <path-of-log4j-file>  default is '<gobblin-conf-dir-path>/<execution-mode>/log4j.properties'.    --jvmopts <jvm or gc options>      String containing JVM flags to include, in addition to "-Xmx1g -Xms512m".
-    --jars <csv list of extra jars>    Column-separated list of extra jars to put on the CLASSPATH.
-    --enable-gc-logs                   enables gc logs & dumps.
-    --show-classpath                   prints gobblin runtime classpath.
-    --cluster-name                     Name of the cluster to be used by helix & other services. ( default: gobblin_cluster).
-    --jt <resource manager URL>        Only for mapreduce mode: Job submission URL, if not set, taken from ${HADOOP_HOME}/conf.
-    --fs <file system URL>             Only for mapreduce mode: Target file system, if not set, taken from ${HADOOP_HOME}/conf.
-    --help                             Display this help.
-    --verbose                          Display full command used to start the process.
-                                       Gobblin Version: 0.15.0
+    --conf-dir <gobblin-conf-dir-path>    Gobblin config path. default is '$GOBBLIN_HOME/conf/<execution-mode>'.
+    --log4j-conf <path-of-log4j-file>     default is '<gobblin-conf-dir-path>/<execution-mode>/log4j.properties'.
+    --work-dir <gobblin-work-dir>         Gobblin work dir. default is /Users/jsenjaliya/tools/gobblin-dist/gobblin-cluster-data.
+    --job-conf-dir <path-of-log4j-file>   Job configuration dir to pick up the jobs to run. default is /Users/jsenjaliya/tools/gobblin-dist/gobblin-jobs.
+    --jvmopts <jvm or gc options>         JVM or GC parameters for the java process to append to the default params: "-Xmx1g -Xms512m".
+    --jars <csv list of extra jars>       Column-separated list of extra jars to put on the CLASSPATH.
+    --enable-gc-logs                      enables gc logs & dumps.
+    --show-classpath                      prints gobblin runtime classpath.
+    --cluster-name                        Name of the cluster to be used by helix & other services. ( default: gobblin_cluster).
+    --jt <resource manager URL>           Only for mapreduce mode: Job submission URL, if not set, taken from ${HADOOP_HOME}/conf.
+    --fs <file system URL>                Only for mapreduce mode: Target file system, if not set, taken from ${HADOOP_HOME}/conf.
+    --job-conf-file <job-conf-file-path>  Only for mapreduce mode: configuration file for the job to run
+    --log-to-stdout                     Outputs to stdout rather than to a log file
+    --help                                Display this help.
+    --verbose                             Display full command used to start the process.
 ```
 
 
@@ -186,7 +194,6 @@ Argument Options:
     
     An important side effect of this is that (depending on the application) non-fully-qualified paths (like `/my/path`) will default to local file system if `HADOOP_HOME` is not set, while they will default to HDFS if the variable is set. When referring to local paths, it is always a good idea to use the fully qualified path (e.g. `file:///my/path`).
     
-
 3. Cluster Mode (master & worker)
     This is a cluster mode consist of master and worker process. 
     ```
@@ -212,6 +219,8 @@ Gobblin System Configurations
 
 Following values can be override by setting it in `gobblin-env.sh`
 
+`GOBBLIN_WORK_DIR` : default is set to $GOBBLIN_HOME/work, but this can be overridable in `gobblin-env.sh` or via command line parameters
+`GOBBLIN_JOB_CONFIG_DIR` : default is set to $GOBBLIN_HOME/jobs, but this can be overridable in `gobblin-env.sh` or via command line parameters
 `GOBBLIN_LOGS` : by default the logs are written to `$GOBBLIN_HOME/logs`, it can be override by setting `GOBBLIN_LOGS`\
 `GOBBLIN_VERSION` : by default gobblin version is set by the build process, it can be override by setting `GOBBLIN_VERSION`\
 
