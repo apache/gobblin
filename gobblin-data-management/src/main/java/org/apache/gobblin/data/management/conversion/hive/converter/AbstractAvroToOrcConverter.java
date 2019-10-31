@@ -42,6 +42,7 @@ import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.metadata.Partition;
+import org.apache.hadoop.hive.serde2.avro.AvroObjectInspectorGenerator;
 import org.apache.thrift.TException;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -358,8 +359,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
           HiveAvroORCQueryGenerator.generateCreatePartitionDDL(orcTableDatabase,
               orcStagingTableName,
               orcStagingDataPartitionLocation,
-              partitionsDMLInfo,
-              outputAvroSchema);
+              partitionsDMLInfo);
 
       conversionEntity.getQueries().addAll(createStagingPartitionDDL);
       log.debug("Create staging partition DDL: " + createStagingPartitionDDL);
@@ -517,7 +517,6 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
                 orcTableName,
                 orcFinalDataPartitionLocation,
                 partitionsDMLInfo,
-                Optional.fromNullable(outputAvroSchema),
                 Optional.<String>absent());
 
         log.debug("Create final partition DDL: " + createFinalPartitionDDL);
@@ -538,7 +537,6 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
                 orcTableName,
                 orcFinalDataPartitionLocation,
                 partitionsDMLInfo,
-                Optional.fromNullable(outputAvroSchema),
                 Optional.fromNullable(ORC_FORMAT));
 
         log.debug("Create final partition DDL: " + createFinalPartitionDDL);
