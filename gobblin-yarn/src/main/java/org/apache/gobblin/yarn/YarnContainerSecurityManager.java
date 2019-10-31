@@ -98,11 +98,18 @@ public class YarnContainerSecurityManager extends AbstractIdleService {
 
   @VisibleForTesting
   void addDelegationTokens(Collection<Token<? extends TokenIdentifier>> tokens) throws IOException {
+    for(Token _token: UserGroupInformation.getCurrentUser().getCredentials().getAllTokens()) {
+      LOGGER.info("old "+_token.toString());
+    }
     for (Token<? extends TokenIdentifier> token : tokens) {
+      LOGGER.info("updating "+token.toString());
       if (!UserGroupInformation.getCurrentUser().addToken(token)) {
         LOGGER.error(String.format("Failed to add token %s to user %s",
             token.toString(), UserGroupInformation.getLoginUser().getShortUserName()));
       }
+    }
+    for(Token _token: UserGroupInformation.getCurrentUser().getCredentials().getAllTokens()) {
+      LOGGER.info("new "+_token.toString());
     }
   }
 }
