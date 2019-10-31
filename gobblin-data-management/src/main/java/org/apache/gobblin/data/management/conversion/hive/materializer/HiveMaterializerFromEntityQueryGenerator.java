@@ -129,7 +129,7 @@ public abstract class HiveMaterializerFromEntityQueryGenerator extends HiveMater
             outputDataLocation, Optional.of(outputDatabaseName));
     publishQueries.add(createFinalTableDDL);
     if(avroSchema.isPresent()) {
-      String alterSchemaDml = HiveConverterUtils.generateAlterSchemaDML(outputTableName, Optional.of(outputDatabaseName), avroSchema.get());
+      String alterSchemaDml = HiveConverterUtils.generateAlterTblPropsDML(outputTableName, Optional.of(outputDatabaseName), avroSchema.get());
       publishQueries.add(alterSchemaDml);
     }
     log.debug("Create final table DDL:\n" + createFinalTableDDL);

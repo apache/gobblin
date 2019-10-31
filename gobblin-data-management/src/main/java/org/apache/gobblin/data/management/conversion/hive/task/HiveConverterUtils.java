@@ -154,7 +154,7 @@ public class HiveConverterUtils {
         dbName, tblName, inputDbName, inputTblName, tblLocation);
   }
 
-  public static String generateAlterSchemaDML(
+  public static String generateAlterTblPropsDML(
       String tableName,
       Optional<String> optionalDbName,
       Schema schema
@@ -169,7 +169,7 @@ public class HiveConverterUtils {
       String columnTypes = Joiner.on(",").join(
           objectInspectorGenerator.getColumnTypes().stream().map(x -> x.getTypeName())
               .collect(Collectors.toList()));
-    String dml = String.format("ALTER TABLE `%s`.`%s` SET SERDEPROPERTIES ('columns'='%s', 'columns.types'='%s')", dbName, tableName,
+    String dml = String.format("ALTER TABLE `%s`.`%s` SET TBLPROPERTIES ('columns'='%s', 'columns.types'='%s')", dbName, tableName,
         columns, columnTypes);
     return dml;
     } catch (Exception e) {
