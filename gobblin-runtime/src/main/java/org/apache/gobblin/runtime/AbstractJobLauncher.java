@@ -18,6 +18,8 @@
 package org.apache.gobblin.runtime;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -26,6 +28,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.api.JobTemplate;
+import org.apache.gobblin.runtime.api.SpecNotFoundException;
+import org.apache.gobblin.runtime.job_spec.JobSpecResolver;
+import org.apache.gobblin.runtime.job_spec.ResolvedJobSpec;
+import org.apache.gobblin.util.ConfigUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -40,6 +48,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.eventbus.EventBus;
 import com.google.common.io.Closer;
+import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import javax.annotation.Nullable;
@@ -88,6 +97,7 @@ import org.apache.gobblin.util.ParallelRunner;
 import org.apache.gobblin.writer.initializer.WriterInitializerFactory;
 
 
+
 /**
  * An abstract implementation of {@link JobLauncher} that handles common tasks for launching and running a job.
  *
@@ -103,6 +113,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
   public static final String WORK_UNIT_FILE_EXTENSION = ".wu";
   public static final String MULTI_WORK_UNIT_FILE_EXTENSION = ".mwu";
+
+  public static final String GOBBLIN_JOB_TEMPLATE_KEY = "gobblin.template.uri";
 
   // Job configuration properties
   protected final Properties jobProps;
@@ -160,9 +172,10 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     clusterNameTags.addAll(Tag.fromMap(ClusterNameTags.getClusterNameTags()));
     GobblinMetrics.addCustomTagsToProperties(jobProps, clusterNameTags);
 
-    // Make a copy for both the system and job configuration properties
+    // Make a copy for both the system and job configuration properties and resolve the job-template if any.
     this.jobProps = new Properties();
     this.jobProps.putAll(jobProps);
+    resolveGobblinJobTemplateIfNecessary(this.jobProps);
 
     if (!tryLockJob(this.jobProps)) {
       throw new JobException(String.format("Previous instance of job %s is still running, skipping this scheduled run",
@@ -210,6 +223,27 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     } catch (Exception e) {
       unlockJob();
       throw e;
+    }
+  }
+
+
+  /**
+   * To supporting 'gobblin.template.uri' in any types of jobLauncher, place this resolution as a public-static method
+   * to make it accessible for all implementation of JobLauncher and **AzkabanJobLauncher**.
+   *
+   * @param jobProps Gobblin Job-level properties.
+   */
+  public static void resolveGobblinJobTemplateIfNecessary(Properties jobProps) throws IOException, URISyntaxException,
+                                                                                      SpecNotFoundException,
+                                                                                      JobTemplate.TemplateException {
+    if (jobProps.containsKey(GOBBLIN_JOB_TEMPLATE_KEY)) {
+      Config config = ConfigUtils.propertiesToConfig(jobProps);
+      JobSpecResolver resolver = JobSpecResolver.builder(config).build();
+
+      URI templateUri = new URI(jobProps.getProperty(GOBBLIN_JOB_TEMPLATE_KEY));
+      JobSpec jobSpec = JobSpec.builder().withConfig(config).withTemplate(templateUri).build();
+      ResolvedJobSpec resolvedJob = resolver.resolveJobSpec(jobSpec);
+      jobProps.putAll(ConfigUtils.configToProperties(resolvedJob.getConfig()));
     }
   }
 
