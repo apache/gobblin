@@ -88,7 +88,7 @@ function print_gobblin_usage() {
 }
 
 function print_gobblin_cli_usage() {
-    echo "Usage:"
+    echo "Usage:              (for Gobblin Version: $GOBBLIN_VERSION)"
     echo "gobblin.sh  cli     <cli-command>    <params>"
     echo ""
     echo "options:"
@@ -106,27 +106,26 @@ function print_gobblin_cli_usage() {
                 job-store-schema-manager    Database job history store schema manager
                 gobblin-classpath           shows the constructed gobblin classpath"
     echo ""
-    echo "    --conf-dir <gobblin-conf-dir-path>    Gobblon config path. default is '\$GOBBLIN_HOME/conf/<exe-mode-name>'."
-    echo "    --log4j-conf <path-of-log4j-file>     default is '<gobblin-conf-dir-path>/<execution-mode>/log4j.properties'."
-    echo "    --jvmopts <jvm or gc options>         String containing JVM flags or GC options to include, in addition to \"$JVM_OPTS\"."
+    echo "    --conf-dir <gobblin-conf-dir-path>    Gobblon config path. default is '\$GOBBLIN_HOME/conf/cli'."
+    echo "    --log4j-conf <path-of-log4j-file>     default is '<gobblin-conf-dir-path>/cli/log4j.properties'."
+    echo "    --jvmopts <jvm or gc options>         JVM or GC parameters for the java process to append to the default params: \"$JVM_OPTS\"."
     echo "    --jars <csv list of extra jars>       Column-separated list of extra jars to put on the CLASSPATH."
     echo "    --enable-gc-logs                      enables gc logs & dumps."
     echo "    --show-classpath                      prints gobblin runtime classpath."
     echo "    --help                                Display this help."
     echo "    --verbose                             Display full command used to start the process."
-    echo "                                          Gobblin Version: $GOBBLIN_VERSION"
 }
 
 function print_gobblin_service_usage() {
-    echo "Usage:"
-    echo "gobblin.sh  service <execution-mode> <start|stop|status>"
+    echo "Usage:              (for Gobblin Version: $GOBBLIN_VERSION)"
+    echo "gobblin.sh  service <execution-mode> <start|stop|restart|status>"
     echo ""
     echo "Argument Options:"
     echo "    <execution-mode>                      $GOBBLIN_EXEC_MODE_LIST."
     echo ""
-    echo "    --conf-dir <gobblin-conf-dir-path>    Gobblin config path. default is '\$GOBBLIN_HOME/conf/<exe-mode-name>'."
+    echo "    --conf-dir <gobblin-conf-dir-path>    Gobblin config path. default is '\$GOBBLIN_HOME/conf/<execution-mode>'."
     echo "    --log4j-conf <path-of-log4j-file>     default is '<gobblin-conf-dir-path>/<execution-mode>/log4j.properties'."
-    echo "    --jvmopts <jvm or gc options>         String containing JVM flags or GC options to include, in addition to \"$JVM_OPTS\"."
+    echo "    --jvmopts <jvm or gc options>         JVM or GC parameters for the java process to append to the default params: \"$JVM_OPTS\"."
     echo "    --jars <csv list of extra jars>       Column-separated list of extra jars to put on the CLASSPATH."
     echo "    --enable-gc-logs                      enables gc logs & dumps."
     echo "    --show-classpath                      prints gobblin runtime classpath."
@@ -137,7 +136,6 @@ function print_gobblin_service_usage() {
     echo "    --log-to-stdout                     Outputs to stdout rather than to a log file"
     echo "    --help                                Display this help."
     echo "    --verbose                             Display full command used to start the process."
-    echo "                                          Gobblin Version: $GOBBLIN_VERSION"
 }
 
 function print_help_n_exit() {
