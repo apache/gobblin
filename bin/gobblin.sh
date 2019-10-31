@@ -256,6 +256,14 @@ if [[ -n "$USER_JVM_FLAGS" ]]; then
     JVM_OPTS="$JVM_OPTS $USER_JVM_FLAGS"
 fi
 
+GC_OPTS=''
+if [[ ${ENABLE_GC_LOGS} -eq 1 ]]; then
+    GC_OPTS+="-XX:+UseConcMarkSweepGC -XX:+UseParNewGC -XX:+UseCompressedOops "
+    GC_OPTS+="-XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+PrintTenuringDistribution "
+    GC_OPTS+="-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=$GOBBLIN_LOGS/ "
+    GC_OPTS+="-Xloggc:$GOBBLIN_LOGS/gobblin-$GOBBLIN_MODE-gc.log "
+fi
+
 # gobblin config
 if [[ -n "$USER_CONF_DIR" ]]; then
     GOBBLIN_CONF=$USER_CONF_DIR
@@ -281,18 +289,18 @@ elif [[ -f ${GOBBLIN_CONF}/log4j.properties ]]; then
     LOG4J_OPTS="-Dlog4j.configuration=$LOG4J_FILE_PATH"
 fi
 
+#Create required directories
 if [[ ! -d "$GOBBLIN_LOGS" ]]; then
     mkdir -p $GOBBLIN_LOGS
 fi
 
-GC_OPTS=''
-if [[ ${ENABLE_GC_LOGS} -eq 1 ]]; then
-    GC_OPTS+="-XX:+UseConcMarkSweepGC -XX:+UseParNewGC -XX:+UseCompressedOops "
-    GC_OPTS+="-XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+PrintTenuringDistribution "
-    GC_OPTS+="-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=$GOBBLIN_LOGS/ "
-    GC_OPTS+="-Xloggc:$GOBBLIN_LOGS/gobblin-$GOBBLIN_MODE-gc.log "
+if [[ ! -d "$GOBBLIN_WORK_DIR" ]]; then
+    mkdir -p $GOBBLIN_WORK_DIR
 fi
 
+if [[ ! -d "$GOBBLIN_JOB_CONFIG_DIR" ]]; then
+    mkdir -p $GOBBLIN_JOB_CONFIG_DIR
+fi
 
 function build_classpath(){
     GOBBLIN_CLASSPATH=''
