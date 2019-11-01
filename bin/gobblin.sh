@@ -496,7 +496,6 @@ function stop() {
     fi
 
     if [[ -z "$PID" ]]; then
-        echo "Can not find any pid at $PID_FILE for Gobblin $GOBBLIN_MODE process."
         while true; do
             read -p "Do you want to search for gobblin $GOBBLIN_MODE process and stop it? (y/n): " search_and_kill
             case ${search_and_kill} in
