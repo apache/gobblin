@@ -18,17 +18,15 @@
 package org.apache.gobblin.converter.avro;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
-import org.json.JSONObject;
-
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.converter.DataConversionException;
-import org.apache.gobblin.converter.json.JsonSchema;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -190,7 +188,7 @@ public class JsonElementConversionWithAvroSchemaFactory extends JsonElementConve
     WorkUnitState state;
 
     public RecordConverter(String fieldName, boolean nullable, String sourceType, Schema schemaNode,
-        WorkUnitState state, List<String> ignoreFields) throws UnsupportedDateTypeException {
+        WorkUnitState state, List<String> ignoreFields) {
       super(fieldName, nullable, sourceType);
       this.schema = schemaNode;
       this.state = state;
@@ -219,55 +217,42 @@ public class JsonElementConversionWithAvroSchemaFactory extends JsonElementConve
   }
 
   public static class UnionConverter extends ComplexConverter {
-    // todo : make them final
-    private  Schema firstSchema;
-    private  Schema secondSchema;
-    private  JsonElementConverter firstConverter;
-    private  JsonElementConverter secondConverter;
-    List<String> ignoreFields;
-    Schema schema;
-    WorkUnitState state;
-
+    private final Schema firstSchema;
+    private final Schema secondSchema;
+    private final JsonElementConverter firstConverter;
+    private final JsonElementConverter secondConverter;
 
     public UnionConverter(String fieldName, boolean nullable, String sourceType, Schema schemaNode,
         WorkUnitState state, List<String> ignoreFields) throws UnsupportedDateTypeException {
       super(fieldName, nullable, sourceType);
-      //firstConverter = g
-      Schema.Type type = schemaNode.getType();
-      Schema schema;
-      if (type.equals(Schema.Type.UNION)) {
-        nullable = true;
-        List<Schema> types = schemaNode.getTypes();
-        if (types.size() != 2) {
-          throw new RuntimeException("Unions must be size 2, and contain one null");
-        }
-        if (schemaNode.getTypes().get(0).getType().equals(Schema.Type.NULL)) {
-          schema = schemaNode.getTypes().get(1);
-          type = schema.getType();
-        } else if (schemaNode.getTypes().get(1).getType().equals(Schema.Type.NULL)) {
-          schema = schemaNode.getTypes().get(0);
-          type = schema.getType();
-        } else {
-          throw new RuntimeException("Unions must be size 2, and contain one null");
-        }
+      List<Schema> types = schemaNode.getTypes();
+      if (types.size() != 2) {
+        throw new RuntimeException("Unions must be size 2.");
       }
-      super.setElementConverter(getConvertor(fieldName, type.getName(), schemaNode, state, isNullable(), ignoreFields));
+      this.firstSchema = schemaNode.getTypes().get(0);
+      this.secondSchema = schemaNode.getTypes().get(1);
+      this.firstConverter = getConvertor(fieldName, firstSchema.getType().getName(), schemaNode, state, isNullable(), ignoreFields);
+      this.secondConverter = getConvertor(fieldName, secondSchema.getType().getName(), schemaNode, state, isNullable(), ignoreFields);
     }
 
     @Override
     Object convertField(JsonElement value) {
-      return getElementConverter().convert(value);
+      try {
+        // usually first converter is NullConverter, so we will try with the second converter first
+        return secondConverter.convert(value);
+      } catch (Exception e) {
+        return firstConverter.convert(value);
+      }
     }
 
     @Override
     public Schema.Type getTargetType() {
-      return Schema.Type.RECORD;
+      return Schema.Type.UNION;
     }
 
     @Override
     public Schema schema() {
-      // todo : why first?
-      return this.schema;
+      return Schema.createUnion(Arrays.asList(firstSchema, secondSchema));
     }
   }
 }
