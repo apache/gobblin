@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
+import java.util.stream.Collectors;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
@@ -33,6 +34,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.serde.serdeConstants;
+import org.apache.hadoop.hive.serde2.avro.AvroObjectInspectorGenerator;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.ListTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.MapTypeInfo;
@@ -203,6 +205,19 @@ public class HiveAvroORCQueryGenerator {
     if (isEvolutionEnabled || !destinationTableMeta.isPresent()) {
       log.info("Generating DDL using source schema");
       ddl.append(generateAvroToHiveColumnMapping(schema, Optional.of(hiveColumns), true, dbName + "." + tblName));
+      try {
+        AvroObjectInspectorGenerator objectInspectorGenerator = new AvroObjectInspectorGenerator(schema);
+        String columns = Joiner.on(",").join(objectInspectorGenerator.getColumnNames());
+        String columnTypes = Joiner.on(",").join(
+            objectInspectorGenerator.getColumnTypes().stream().map(x -> x.getTypeName())
+                .collect(Collectors.toList()));
+        tableProperties.setProperty("columns", columns);
+        tableProperties.setProperty("columns.types", columnTypes);
+
+      } catch (Exception e) {
+        log.error("Cannot generate add partition DDL due to ", e);
+        throw new RuntimeException(e);
+      }
     } else {
       log.info("Generating DDL using destination schema");
       ddl.append(generateDestinationToHiveColumnMapping(Optional.of(hiveColumns), destinationTableMeta.get()));
@@ -309,7 +324,7 @@ public class HiveAvroORCQueryGenerator {
 
   private static Properties getTableProperties(Properties tableProperties) {
     if (null == tableProperties || tableProperties.size() == 0) {
-      return DEFAULT_TBL_PROPERTIES;
+      return (Properties) DEFAULT_TBL_PROPERTIES.clone();
     }
 
     for (String property : DEFAULT_TBL_PROPERTIES.stringPropertyNames()) {
@@ -365,6 +380,7 @@ public class HiveAvroORCQueryGenerator {
       ddls.add(String.format("ALTER TABLE `%s` ADD IF NOT EXISTS %s LOCATION '%s' ", tableName, partitionSpecs,
           partitionLocation));
     }
+
 
     return ddls;
   }

@@ -13,5 +13,7 @@ OUTPUTFORMAT
 LOCATION 
   'file:/user/hive/warehouse/sourceSchema' 
 TBLPROPERTIES ( 
+  'columns'='parentFieldRecord__nestedFieldRecord__superNestedFieldString,parentFieldRecord__nestedFieldRecord__superNestedFieldInt,parentFieldRecord__nestedFieldString,parentFieldRecord__nestedFieldInt,parentFieldInt', 
   'orc.compress'='ZLIB', 
+  'columns.types'='string,int,string,int,int', 
   'orc.row.index.stride'='268435456') 
