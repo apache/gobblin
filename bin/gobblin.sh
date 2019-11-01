@@ -120,7 +120,7 @@ function print_gobblin_cli_usage() {
 
 function print_gobblin_service_usage() {
     echo "Usage:                                          (for Gobblin Version: $GOBBLIN_VERSION)"
-    echo "gobblin.sh  service <execution-mode> <start|stop|status>"
+    echo "gobblin.sh  service <execution-mode> <start|stop|restart|status>"
     echo ""
     echo "Argument Options:"
     echo "    <execution-mode>                      $GOBBLIN_EXEC_MODE_LIST."
