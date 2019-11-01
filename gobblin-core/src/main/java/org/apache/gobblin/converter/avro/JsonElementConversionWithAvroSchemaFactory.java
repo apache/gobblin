@@ -24,8 +24,11 @@ import java.util.Map;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
+import org.json.JSONObject;
+
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.converter.DataConversionException;
+import org.apache.gobblin.converter.json.JsonSchema;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -70,7 +73,11 @@ public class JsonElementConversionWithAvroSchemaFactory extends JsonElementConve
         return new JsonElementConversionWithAvroSchemaFactory.RecordConverter(fieldName, nullable, type.toString(),
             schemaNode, state, ignoreFields);
 
-      default:
+      case UNION:
+        return new JsonElementConversionWithAvroSchemaFactory.UnionConverter(fieldName, nullable, type.toString(),
+            schemaNode, state, ignoreFields);
+
+        default:
         return JsonElementConversionFactory.getConvertor(fieldName, fieldType, new JsonObject(), state, nullable);
     }
   }
@@ -207,6 +214,59 @@ public class JsonElementConversionWithAvroSchemaFactory extends JsonElementConve
 
     @Override
     public Schema schema() {
+      return this.schema;
+    }
+  }
+
+  public static class UnionConverter extends ComplexConverter {
+    // todo : make them final
+    private  Schema firstSchema;
+    private  Schema secondSchema;
+    private  JsonElementConverter firstConverter;
+    private  JsonElementConverter secondConverter;
+    List<String> ignoreFields;
+    Schema schema;
+    WorkUnitState state;
+
+
+    public UnionConverter(String fieldName, boolean nullable, String sourceType, Schema schemaNode,
+        WorkUnitState state, List<String> ignoreFields) throws UnsupportedDateTypeException {
+      super(fieldName, nullable, sourceType);
+      //firstConverter = g
+      Schema.Type type = schemaNode.getType();
+      Schema schema;
+      if (type.equals(Schema.Type.UNION)) {
+        nullable = true;
+        List<Schema> types = schemaNode.getTypes();
+        if (types.size() != 2) {
+          throw new RuntimeException("Unions must be size 2, and contain one null");
+        }
+        if (schemaNode.getTypes().get(0).getType().equals(Schema.Type.NULL)) {
+          schema = schemaNode.getTypes().get(1);
+          type = schema.getType();
+        } else if (schemaNode.getTypes().get(1).getType().equals(Schema.Type.NULL)) {
+          schema = schemaNode.getTypes().get(0);
+          type = schema.getType();
+        } else {
+          throw new RuntimeException("Unions must be size 2, and contain one null");
+        }
+      }
+      super.setElementConverter(getConvertor(fieldName, type.getName(), schemaNode, state, isNullable(), ignoreFields));
+    }
+
+    @Override
+    Object convertField(JsonElement value) {
+      return getElementConverter().convert(value);
+    }
+
+    @Override
+    public Schema.Type getTargetType() {
+      return Schema.Type.RECORD;
+    }
+
+    @Override
+    public Schema schema() {
+      // todo : why first?
       return this.schema;
     }
   }
