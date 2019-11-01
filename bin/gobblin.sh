@@ -487,10 +487,7 @@ function start() {
     fi
 }
 
-
-
 function stop() {
-    #    echo "Stopping the Gobblin $MODE_TYPE process..."
     PID=''
     if [[ ! -f $PID_FILE ]]; then
         echo "Gobblin process id file not found at $PID_FILE"
@@ -499,14 +496,16 @@ function stop() {
     fi
 
     if [[ -z "$PID" ]]; then
-        echo "Can not find any running Gobblin $GOBBLIN_MODE process..."
+        echo "Can not find any pid at $PID_FILE for Gobblin $GOBBLIN_MODE process."
         while true; do
-            read -p "Do you want to search gobblin $GOBBLIN_MODE process and stop it? (y/n): " search_and_kill
+            read -p "Do you want to search for gobblin $GOBBLIN_MODE process and stop it? (y/n): " search_and_kill
             case ${search_and_kill} in
                 [Yy]*)
                     class_to_search=''
                     if [[ "$GOBBLIN_MODE" = "$MAPREDUCE_MODE" ]]; then
                         class_to_search="$MAPREDUCE_CLASS"
+                    elif [[ "$GOBBLIN_MODE" = "$GOBBLIN_UI_MODE" ]]; then
+                        class_to_search="$GOBBLIN_UI_CLASS"
                     elif [[ "$GOBBLIN_MODE" = "$CLI" ]]; then
                         class_to_search="$CLI_CLASS"
                     elif [[ "$GOBBLIN_MODE" = "$STANDALONE_MODE" ]]; then
@@ -543,12 +542,17 @@ function stop() {
     fi
 
     if [[ -n "$PID" ]]; then
-            if kill -0 $PID > /dev/null 2>&1; then
+        if kill -0 $PID > /dev/null 2>&1; then
             kill $PID
-            printf "Stopping the Gobblin $GOBBLIN_MODE process (pid: $PID)... "; sleep 1; printf "[DONE]\n"
+            printf "Stopping the Gobblin %s process (pid: %s)... " "$GOBBLIN_MODE" "$PID" ; sleep 1; printf "[DONE]\n"
         else
             echo "Gobblin $GOBBLIN_MODE process (pid: $PID) is not running."
         fi
+    else
+        echo "Can not find any running Gobblin $GOBBLIN_MODE process...[FAILED]"
+    fi
+
+    if [[ -f $PID_FILE ]]; then
         # remove the pid from pid_file, and remove the file if no more pid's left.
         case "$(uname -s)" in
             Darwin)
@@ -565,11 +569,10 @@ function stop() {
                 # do nothing
             ;;
         esac
-        if [[ -s $PID_FILE ]]; then
+        # clean up $PID_FILE
+        if [[ ! -s $PID_FILE ]]; then
             rm $PID_FILE;
         fi
-    else
-        echo "Can not find any running Gobblin $GOBBLIN_MODE process...[FAILED]"
     fi
 }
 
