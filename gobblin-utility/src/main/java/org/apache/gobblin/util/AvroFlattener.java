@@ -34,7 +34,7 @@ import com.google.common.collect.ImmutableList;
 
 /***
  * This class provides methods to flatten an Avro Schema to make it more optimal for ORC
- * (Hive does not support predicate pushdown for ORC with nested fields: ETL-7214)
+ * (Hive does not support predicate pushdown for ORC with nested fields)
  *
  * The behavior of Avro Schema un-nesting is listed below:
  *
