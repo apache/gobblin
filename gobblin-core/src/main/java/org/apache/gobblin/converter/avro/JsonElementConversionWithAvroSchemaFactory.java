@@ -254,5 +254,10 @@ public class JsonElementConversionWithAvroSchemaFactory extends JsonElementConve
     public Schema schema() {
       return Schema.createUnion(Arrays.asList(firstSchema, secondSchema));
     }
+
+    @Override
+    public boolean isNullable() {
+      return this.firstSchema.getType() == Schema.Type.NULL || this.secondSchema.getType() == Schema.Type.NULL;
+    }
   }
 }
