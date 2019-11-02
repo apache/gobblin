@@ -30,6 +30,13 @@
       }
     },
     {
+      "name": "arrayFieldWithUnion2",
+      "type": {
+        "type": "array",
+        "items": ["string","null"]
+      }
+    },
+    {
       "name": "nullArrayFieldWithUnion",
       "type": {
         "type": "array",

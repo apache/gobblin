@@ -97,5 +97,11 @@ public class JsonRecordAvroSchemaToAvroConverterTest {
     GenericArray nullArrayWithUnion =  (GenericArray) record.get("nullArrayFieldWithUnion");
     Assert.assertEquals(nullArrayWithUnion.size(), 1);
     Assert.assertNull(nullArrayWithUnion.get(0));
-  }
+
+    Assert.assertTrue(record.get("arrayFieldWithUnion2") instanceof GenericArray);
+    GenericArray arrayWithUnion2 =  (GenericArray) record.get("arrayFieldWithUnion2");
+    Assert.assertEquals(arrayWithUnion2.size(), 3);
+    Assert.assertEquals(arrayWithUnion2.get(0).toString(), "arrU1");
+    Assert.assertNull(arrayWithUnion2.get(1));
+    Assert.assertEquals(arrayWithUnion2.get(2).toString(), "arrU3");  }
 }

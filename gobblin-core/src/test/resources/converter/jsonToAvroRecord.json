@@ -1,4 +1,5 @@
 {
+  "arrayFieldWithUnion2": ["arrU1", null, "arrU3"],
   "arrayFieldWithUnion": ["arrU1", "arrU2", "arrU3"],
   "nullArrayFieldWithUnion": [null],
   "nullableField": null,
