@@ -51,12 +51,21 @@ public abstract class BaseDatasetDescriptor implements DatasetDescriptor {
           .build());
 
   public BaseDatasetDescriptor(Config config) throws IOException {
-    Preconditions.checkArgument(config.hasPath(DatasetDescriptorConfigKeys.PLATFORM_KEY), "Dataset descriptor config must specify platform");
-    this.platform = config.getString(DatasetDescriptorConfigKeys.PLATFORM_KEY).toLowerCase();
+    this.platform = extractPlatform(config);
     this.formatConfig = new FormatConfig(config);
     this.isRetentionApplied = ConfigUtils.getBoolean(config, DatasetDescriptorConfigKeys.IS_RETENTION_APPLIED_KEY, false);
     this.description = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.DESCRIPTION_KEY, "");
     this.rawConfig = config.withFallback(this.formatConfig.getRawConfig()).withFallback(DEFAULT_FALLBACK);
+  }
+
+  /**
+   * Provide the default way of extracting the platform field from a {@code config} parameter
+   * @param config the configuration for current DatasetDescriptor
+   * @return the platform extracted
+   */
+  protected String extractPlatform(Config config) {
+    Preconditions.checkArgument(config.hasPath(DatasetDescriptorConfigKeys.PLATFORM_KEY), "Dataset descriptor config must specify platform");
+    return config.getString(DatasetDescriptorConfigKeys.PLATFORM_KEY).toLowerCase();
   }
 
   /**
