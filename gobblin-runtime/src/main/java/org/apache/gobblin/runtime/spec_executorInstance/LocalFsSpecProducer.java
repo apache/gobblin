@@ -16,9 +16,6 @@
  */
 
 package org.apache.gobblin.runtime.spec_executorInstance;
-
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import com.typesafe.config.Config;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -33,7 +30,6 @@ import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.util.CompletedFuture;
-import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
