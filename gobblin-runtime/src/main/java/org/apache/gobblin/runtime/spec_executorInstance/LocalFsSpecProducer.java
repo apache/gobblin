@@ -45,12 +45,13 @@ public class LocalFsSpecProducer implements SpecProducer<Spec> {
   public static final String LOCAL_FS_PRODUCER_PATH_KEY = "gobblin.cluster.localSpecProducer.dir";
 
   public LocalFsSpecProducer(Config config) {
-    this.specProducerPath = ConfigUtils.getString(config, LOCAL_FS_PRODUCER_PATH_KEY, "");
-    Preconditions.checkArgument(!Strings.isNullOrEmpty(this.specProducerPath), "Missing argument: " + LOCAL_FS_PRODUCER_PATH_KEY);
+    this.specProducerPath = config.getString(LOCAL_FS_PRODUCER_PATH_KEY);
     File parentDir = new File(specProducerPath);
     if (!parentDir.exists()) {
       if (parentDir.mkdirs()) {
         log.info("Creating directory path at {}", this.specProducerPath);
+      } else {
+        throw new RuntimeException(String.format("Unable to create folder to write specs to at %s", this.specProducerPath));
       }
     }
   }
@@ -71,9 +72,10 @@ public class LocalFsSpecProducer implements SpecProducer<Spec> {
 
   private Future<?> writeSpec(Spec spec, SpecExecutor.Verb verb) {
     if (spec instanceof JobSpec) {
-      String specString = spec.toString();
+      URI specUri = spec.getUri();
       // format the JobSpec to have file of <flowGroup>_<flowName>.job
-      String jobFileName = specString.replace('/', '_').substring(specString.lastIndexOf(':')+2, specString.length()-1) + ".job";
+      String[] uriTokens = specUri.getPath().split("/");
+      String jobFileName = String.join("_", uriTokens) + ".job";
       try (
         FileOutputStream fStream = new FileOutputStream(this.specProducerPath + File.separatorChar + jobFileName);
       ) {
@@ -94,7 +96,14 @@ public class LocalFsSpecProducer implements SpecProducer<Spec> {
    * @param headers*/
   @Override
   public Future<?> deleteSpec(URI deletedSpecURI, Properties headers) {
-    return new CompletedFuture<>(Boolean.TRUE, null);
+    String[] uriTokens = deletedSpecURI.getPath().split("/");
+    String jobFileName = String.join("_", uriTokens) + ".job";
+    File file = new File(jobFileName);
+    if (file.delete()) {
+      log.info("Deleted spec: {}", jobFileName);
+      return new CompletedFuture<>(Boolean.TRUE, null);
+    }
+    throw new RuntimeException(String.format("Failed to delete file with uri %s", deletedSpecURI));
   }
 
   /** List all {@link Spec} being executed on {@link org.apache.gobblin.runtime.api.SpecExecutor}. */
