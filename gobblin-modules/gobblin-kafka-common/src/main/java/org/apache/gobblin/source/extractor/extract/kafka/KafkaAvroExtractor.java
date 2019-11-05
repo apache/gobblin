@@ -19,8 +19,6 @@ package org.apache.gobblin.source.extractor.extract.kafka;
 
 import java.io.IOException;
 
-import lombok.extern.slf4j.Slf4j;
-
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData.Record;
@@ -30,6 +28,8 @@ import org.apache.avro.io.Decoder;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.kafka.client.ByteArrayBasedKafkaRecord;
@@ -116,7 +116,7 @@ public abstract class KafkaAvroExtractor<K> extends KafkaExtractor<Schema, Gener
       record = convertRecord(record);
       return record;
     } catch (IOException e) {
-      log.error(String.format("Error during decoding record for partition %s: ", this.getCurrentPartition()));
+      log.error(String.format("Error during decoding record for partition %s: ", getCurrentPartition()));
       throw e;
     }
   }

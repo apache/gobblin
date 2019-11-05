@@ -31,6 +31,7 @@ public final class KafkaPartition {
   private final int id;
   private final String topicName;
   private KafkaLeader leader;
+  private int hashCode;
 
   public static class Builder {
     private int id = 0;
@@ -103,10 +104,14 @@ public final class KafkaPartition {
 
   @Override
   public int hashCode() {
-    final int prime = 31;
-    int result = 1;
-    result = prime * result + this.id;
-    result = prime * result + ((this.topicName == null) ? 0 : this.topicName.hashCode());
+    int result = hashCode;
+    if (result == 0) {
+      final int prime = 31;
+      result = 1;
+      result = prime * result + this.id;
+      result = prime * result + ((this.topicName == null) ? 0 : this.topicName.hashCode());
+      hashCode = result;
+    }
     return result;
   }
 

@@ -17,6 +17,7 @@
 package org.apache.gobblin.kafka.client;
 
 import java.io.Closeable;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -71,6 +72,15 @@ public interface GobblinKafkaConsumerClient extends Closeable {
    * @throws UnsupportedOperationException - If the underlying kafka-client does not support getting latest offset
    */
   public long getLatestOffset(KafkaPartition partition) throws KafkaOffsetRetrievalFailureException;
+
+  /**
+   * Get the latest available offset for a <code>partition</code>
+   *
+   * @param partitions for which latest offset is retrieved
+   *
+   * @throws UnsupportedOperationException - If the underlying kafka-client does not support getting latest offset
+   */
+  public Map<KafkaPartition, Long> getLatestOffsets(Collection<KafkaPartition> partitions) throws KafkaOffsetRetrievalFailureException;
 
   /**
    * API to consume records from kakfa starting from <code>nextOffset</code> till <code>maxOffset</code>.
