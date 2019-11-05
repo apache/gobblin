@@ -30,6 +30,12 @@ public class FlowGraphConfigurationKeys {
   public static final String DATA_NODE_IS_ACTIVE_KEY = DATA_NODE_PREFIX + "isActive";
 
   /**
+   *   {@link org.apache.gobblin.service.modules.flowgraph.datanodes.HttpDataNode} related configuration keys.
+   */
+  public static final String DATA_NODE_HTTP_DOMAIN_KEY = DATA_NODE_PREFIX + "http.domain";
+  public static final String DATA_NODE_HTTP_AUTHENTICATION_TYPE_KEY = DATA_NODE_PREFIX + "http.authentication.type";
+
+  /**
    * {@link FlowEdge} related configuration keys.
    */
   public static final String FLOW_EDGE_FACTORY_CLASS = FLOW_EDGE_PREFIX + "factory.class";

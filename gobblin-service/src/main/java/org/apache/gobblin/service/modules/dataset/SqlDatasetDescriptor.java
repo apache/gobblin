@@ -51,7 +51,7 @@ public class SqlDatasetDescriptor extends BaseDatasetDescriptor implements Datas
   @Getter
   private final Config rawConfig;
 
-  public enum  Platform {
+  public enum Platform {
     SQLSERVER("sqlserver"),
     MYSQL("mysql"),
     ORACLE("oracle"),
