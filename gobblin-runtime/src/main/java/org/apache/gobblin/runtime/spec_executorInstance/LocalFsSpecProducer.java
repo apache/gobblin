@@ -74,8 +74,7 @@ public class LocalFsSpecProducer implements SpecProducer<Spec> {
     if (spec instanceof JobSpec) {
       URI specUri = spec.getUri();
       // format the JobSpec to have file of <flowGroup>_<flowName>.job
-      String[] uriTokens = specUri.getPath().split("/");
-      String jobFileName = String.join("_", uriTokens) + ".job";
+      String jobFileName = getJobFileName(specUri);
       try (
         FileOutputStream fStream = new FileOutputStream(this.specProducerPath + File.separatorChar + jobFileName);
       ) {
@@ -96,8 +95,7 @@ public class LocalFsSpecProducer implements SpecProducer<Spec> {
    * @param headers*/
   @Override
   public Future<?> deleteSpec(URI deletedSpecURI, Properties headers) {
-    String[] uriTokens = deletedSpecURI.getPath().split("/");
-    String jobFileName = String.join("_", uriTokens) + ".job";
+    String jobFileName = getJobFileName(deletedSpecURI);
     File file = new File(jobFileName);
     if (file.delete()) {
       log.info("Deleted spec: {}", jobFileName);
@@ -110,6 +108,11 @@ public class LocalFsSpecProducer implements SpecProducer<Spec> {
   @Override
   public Future<? extends List<Spec>> listSpecs() {
     throw new UnsupportedOperationException();
+  }
+
+  private String getJobFileName(URI specUri) {
+    String[] uriTokens = specUri.getPath().split("/");
+    return String.join("_", uriTokens) + ".job";
   }
 
 }
