@@ -30,6 +30,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.Lock;
 
 import org.apache.hadoop.conf.Configuration;
@@ -80,6 +82,8 @@ import org.apache.gobblin.configuration.State;
 public class ParallelRunner implements Closeable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ParallelRunner.class);
+
+  private static final long DEFAULT_PARALLEL_RUNNER_WAIT_ON_FINISH_TIMEOUT = 10000;
 
   public static final String PARALLEL_RUNNER_THREADS_KEY = "parallel.runner.threads";
   public static final int DEFAULT_PARALLEL_RUNNER_THREADS = 10;
@@ -354,7 +358,7 @@ public class ParallelRunner implements Closeable {
    * Wait for all submitted tasks to complete. The {@link ParallelRunner} can be reused after this call.
    * @throws IOException
    */
-  public void waitForTasks() throws IOException {
+  public void waitForTasks(long timeoutInMills) throws IOException {
     // Wait for all submitted tasks to complete
     boolean wasInterrupted = false;
     IOException exception = null;
@@ -363,7 +367,7 @@ public class ParallelRunner implements Closeable {
         if (wasInterrupted) {
           future.getFuture().cancel(true);
         } else {
-          future.getFuture().get();
+          future.getFuture().get(timeoutInMills, TimeUnit.MILLISECONDS);
         }
       } catch (InterruptedException ie) {
         LOGGER.warn("Task was interrupted: " + future.getName());
@@ -376,6 +380,11 @@ public class ParallelRunner implements Closeable {
         if (exception == null) {
           exception = new IOException(ee.getCause());
         }
+      } catch (TimeoutException te) {
+        LOGGER.warn("Tasks not fully finished before Parallel runner waiting until timeout due to:", te);
+        if (exception == null) {
+          exception = new IOException(te.getCause());
+        }
       }
     }
     if (wasInterrupted) {
@@ -387,6 +396,13 @@ public class ParallelRunner implements Closeable {
 
     // clear so that more tasks can be submitted to this ParallelRunner
     futures.clear();
+  }
+
+  /**
+   * Wait until default timeout reached for all tasks under this parallel runner.
+   */
+  public void waitForTasks() throws IOException{
+    this.waitForTasks(DEFAULT_PARALLEL_RUNNER_WAIT_ON_FINISH_TIMEOUT);
   }
 
   @Override

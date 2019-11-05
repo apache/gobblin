@@ -192,9 +192,18 @@ public class ParallelRunnerTest {
     Assert.assertEquals(actual.toString(), expected);
   }
 
-  @Test(groups = { "ignore" })
+  /**
+   * A test verifying when {@link ParallelRunner#close()} is called, everything inside runner has been collected.
+   * Positive case: Both files get mock-deleted and parallelRunner returns.
+   * Negative case: Using countdown-latch to specify causality between two deletion of files and construct a deadlock.
+   * The src2 deletion won't happen as it depends on src1's deletion and vice versa.
+   * {@link ParallelRunner#close()} will finally timeout and expect to catch the {@link java.util.concurrent.TimeoutException}.
+   */
   public void testWaitsForFuturesWhenClosing() throws IOException, InterruptedException {
+
+    // Indicate if deadlock is being constructed.
     final AtomicBoolean flag = new AtomicBoolean();
+    flag.set(true);
     final CountDownLatch latch1 = new CountDownLatch(1);
     final CountDownLatch latch2 = new CountDownLatch(1);
     Path src1 = new Path("/src/file1.txt");
@@ -204,21 +213,23 @@ public class ParallelRunnerTest {
     Mockito.when(fs.delete(src1, true)).thenAnswer(new Answer<Boolean>() {
       @Override
       public Boolean answer(InvocationOnMock invocation) throws Throwable {
+        if (flag.get()) {
+          latch2.await();
+        }
         latch1.countDown();
-        return false;
+        return true;
       }
     });
     Mockito.when(fs.exists(src2)).thenReturn(true);
 
-    final int max_waiting = 70000;
+    /** Will make deletion of files from parallelRunner to be timeout after 5 seconds.*/
+    final int timeout = 5000;
     Mockito.when(fs.delete(src2, true)).thenAnswer(new Answer<Boolean>() {
       @Override
       public Boolean answer(InvocationOnMock invocation) throws Throwable {
-        latch1.await();
-        long end = System.currentTimeMillis() + max_waiting;
-        AssertWithBackoff.create().maxSleepMs(max_waiting).backoffFactor(2).
-            assertTrue(input -> System.currentTimeMillis() < end, "Something wrong with waiting on condition");
-        flag.set(true);
+        if (flag.get()) {
+          latch1.await();
+        }
         latch2.countDown();
         return true;
       }
@@ -227,17 +238,30 @@ public class ParallelRunnerTest {
     boolean caughtException = false;
     ParallelRunner parallelRunner = new ParallelRunner(2, fs);
     try {
-      parallelRunner.deletePath(src1, true);
       parallelRunner.deletePath(src2, true);
-      System.out.println(System.currentTimeMillis() + ": START - ParallelRunner.close()");
-      parallelRunner.close();
+      parallelRunner.deletePath(src1, true);
+      parallelRunner.waitForTasks(timeout);
     } catch (IOException e) {
       caughtException = true;
     }
-    // Close method will wait until all tasks finished.
+    Assert.assertTrue(caughtException);
+    Assert.assertEquals(latch2.getCount(), 1);
+    Assert.assertEquals(latch1.getCount(), 1);
+
+    // Remove deadlock
+    flag.set(false);
+    caughtException = false;
+    parallelRunner = new ParallelRunner(2, fs);
+    try {
+      parallelRunner.deletePath(src2, true);
+      parallelRunner.deletePath(src1, true);
+      parallelRunner.waitForTasks(timeout);
+    } catch (IOException e) {
+      caughtException = true;
+    }
     Assert.assertFalse(caughtException);
     Assert.assertEquals(latch2.getCount(), 0);
-    Assert.assertTrue(flag.get());
+    Assert.assertEquals(latch1.getCount(), 0);
   }
 
   @AfterClass

@@ -295,8 +295,8 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
         SerializationUtils.serializeState(this.fs, jobStateFilePath, this.jobContext.getJobState());
       }
 
-      // Block on all persistency of workunits finished
-      // It is necessary when underlying storage being and Helix activate task-execution before the workunit being persisted.
+      // Block on persistence of all workunits to be finished.
+      // It is necessary when underlying storage being slow and Helix activate task-execution before the workunit being persisted.
       stateSerDeRunner.waitForTasks();
 
       LOGGER.debug("GobblinHelixJobLauncher.createHelixJob: jobStateFilePath {}, jobState {} jobProperties {}",
