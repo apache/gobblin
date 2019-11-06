@@ -41,7 +41,7 @@ import org.apache.gobblin.util.PathUtils;
 @ToString (exclude = {"rawConfig"})
 @EqualsAndHashCode (exclude = {"rawConfig"}, callSuper = true)
 public class SqlDatasetDescriptor extends BaseDatasetDescriptor implements DatasetDescriptor {
-  private static final String SEPARATION_CHAR = ";";
+  protected static final String SEPARATION_CHAR = ";";
 
   private final String databaseName;
   private final String tableName;
@@ -52,7 +52,6 @@ public class SqlDatasetDescriptor extends BaseDatasetDescriptor implements Datas
   private final Config rawConfig;
 
   public enum  Platform {
-    HIVE("hive"),
     SQLSERVER("sqlserver"),
     MYSQL("mysql"),
     ORACLE("oracle"),
@@ -86,9 +85,10 @@ public class SqlDatasetDescriptor extends BaseDatasetDescriptor implements Datas
     return Joiner.on(SEPARATION_CHAR).join(databaseName, tableName);
   }
 
-  private boolean isPlatformValid() {
+  protected boolean isPlatformValid() {
     return Enums.getIfPresent(Platform.class, getPlatform().toUpperCase()).isPresent();
   }
+
   /**
    * Check if the dbName and tableName specified in {@param other}'s path are accepted by the set of dbName.tableName
    * combinations defined by the current {@link SqlDatasetDescriptor}. For example, let:

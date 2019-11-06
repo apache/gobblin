@@ -33,12 +33,12 @@ public class HiveDatasetDescriptorTest {
 
   @Test
   public void objectCreation() throws IOException {
-    Config config1 = ConfigFactory.empty().withValue(DatasetDescriptorConfigKeys.PLATFORM_KEY, ConfigValueFactory.fromAnyRef("sqlserver"))
+    Config baseConfig = ConfigFactory.empty().withValue(DatasetDescriptorConfigKeys.PLATFORM_KEY, ConfigValueFactory.fromAnyRef("hive"))
         .withValue(DatasetDescriptorConfigKeys.DATABASE_KEY, ConfigValueFactory.fromAnyRef("testDb_Db1"))
         .withValue(DatasetDescriptorConfigKeys.TABLE_KEY, ConfigValueFactory.fromAnyRef("testTable_Table1"));;
 
-    SqlDatasetDescriptor descriptor1 = new SqlDatasetDescriptor(config1);
-    SqlDatasetDescriptor descriptor2 = new HiveDatasetDescriptor(config1);
+    SqlDatasetDescriptor descriptor1 = new HiveDatasetDescriptor(baseConfig.withValue(HiveDatasetDescriptor.IS_PARTITIONED_KEY, ConfigValueFactory.fromAnyRef(true)));
+    SqlDatasetDescriptor descriptor2 = new HiveDatasetDescriptor(baseConfig.withValue(HiveDatasetDescriptor.IS_PARTITIONED_KEY, ConfigValueFactory.fromAnyRef(false)));
 
     Assert.assertNotEquals(descriptor1, descriptor2);
   }

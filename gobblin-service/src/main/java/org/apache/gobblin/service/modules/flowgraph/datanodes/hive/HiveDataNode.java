@@ -28,7 +28,6 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
 import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.service.modules.flowgraph.BaseDataNode;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraphConfigurationKeys;
 import org.apache.gobblin.service.modules.flowgraph.datanodes.fs.HdfsDataNode;
 import org.apache.gobblin.util.ConfigUtils;
@@ -47,7 +46,7 @@ public class HiveDataNode extends HdfsDataNode {
   private String metastoreUri;
 
   /**
-   * Constructor. An HDFS DataNode must have fs.uri property specified in addition to a node Id.
+   * Constructor. A HiveDataNode must have hive.metastore.uri property specified in addition to a node Id and fs.uri.
    */
   public HiveDataNode(Config nodeProps) throws DataNodeCreationException {
     super(nodeProps);
