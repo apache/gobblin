@@ -219,7 +219,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
           if (helixMetrics.isPresent()) {
             helixMetrics.get().submitMeter.mark();
           }
-          submitJobToHelix(createJob(workUnits));
+          submitJobToHelix(createHelixJob(workUnits));
           if (helixMetrics.isPresent()) {
             this.helixMetrics.get().updateTimeForHelixSubmit(submitStart);
           }
@@ -271,7 +271,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
   /**
    * Create a job from a given batch of {@link WorkUnit}s.
    */
-  private JobConfig.Builder createJob(List<WorkUnit> workUnits) throws IOException {
+  JobConfig.Builder createHelixJob(List<WorkUnit> workUnits) throws IOException {
     Map<String, TaskConfig> taskConfigMap = Maps.newHashMap();
 
     try (ParallelRunner stateSerDeRunner = new ParallelRunner(this.stateSerDeRunnerThreads, this.fs)) {
@@ -295,23 +295,34 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
         SerializationUtils.serializeState(this.fs, jobStateFilePath, this.jobContext.getJobState());
       }
 
-      LOGGER.debug("GobblinHelixJobLauncher.createJob: jobStateFilePath {}, jobState {} jobProperties {}",
-          jobStateFilePath, this.jobContext.getJobState().toString(), this.jobContext.getJobState().getProperties());
-    }
+      // Block on persistence of all workunits to be finished.
+      // It is necessary when underlying storage being slow and Helix activate task-execution before the workunit being persisted.
+      stateSerDeRunner.waitForTasks();
 
+      LOGGER.debug("GobblinHelixJobLauncher.createHelixJob: jobStateFilePath {}, jobState {} jobProperties {}",
+          jobStateFilePath, this.jobContext.getJobState().toString(), this.jobContext.getJobState().getProperties());
+
+      return translateGobblinJobConfigToHelixJobConfig(this.jobContext.getJobState(), workUnits, taskConfigMap);
+    }
+  }
+
+  /**
+   * Populate {@link JobConfig.Builder} with relevant gobblin job-configurations.
+   */
+  JobConfig.Builder translateGobblinJobConfigToHelixJobConfig(JobState gobblinJobState, List<WorkUnit> workUnits,
+      Map<String, TaskConfig> taskConfigMap) {
     JobConfig.Builder jobConfigBuilder = new JobConfig.Builder();
 
     // Helix task attempts = retries + 1 (fallback to general task retry for backward compatibility)
-    jobConfigBuilder.setMaxAttemptsPerTask(this.jobContext.getJobState().getPropAsInt(
-        GobblinClusterConfigurationKeys.HELIX_TASK_MAX_ATTEMPTS_KEY,
-        this.jobContext.getJobState().getPropAsInt(
+    jobConfigBuilder.setMaxAttemptsPerTask(gobblinJobState.getPropAsInt(
+        GobblinClusterConfigurationKeys.HELIX_TASK_MAX_ATTEMPTS_KEY, gobblinJobState.getPropAsInt(
             ConfigurationKeys.MAX_TASK_RETRIES_KEY,
             ConfigurationKeys.DEFAULT_MAX_TASK_RETRIES)) + 1);
 
     // Helix task timeout (fallback to general task timeout for backward compatibility)
-    jobConfigBuilder.setTimeoutPerTask(this.jobContext.getJobState().getPropAsLong(
+    jobConfigBuilder.setTimeoutPerTask(gobblinJobState.getPropAsLong(
         GobblinClusterConfigurationKeys.HELIX_TASK_TIMEOUT_SECONDS,
-        this.jobContext.getJobState().getPropAsLong(
+        gobblinJobState.getPropAsLong(
             ConfigurationKeys.TASK_TIMEOUT_SECONDS,
             ConfigurationKeys.DEFAULT_TASK_TIMEOUT_SECONDS)) * 1000);
 
@@ -337,7 +348,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
       jobConfigBuilder.setRebalanceRunningTask(true);
     }
 
-    jobConfigBuilder.setExpiry(this.jobContext.getJobState().getPropAsLong(
+    jobConfigBuilder.setExpiry(gobblinJobState.getPropAsLong(
         GobblinClusterConfigurationKeys.HELIX_WORKFLOW_EXPIRY_TIME_SECONDS, GobblinClusterConfigurationKeys.DEFAULT_HELIX_WORKFLOW_EXPIRY_TIME_SECONDS));
 
     return jobConfigBuilder;

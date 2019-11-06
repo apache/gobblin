@@ -59,20 +59,17 @@ dependencies {
 }
 
 configurations {
-    compile {
-        transitive = true
-    }
-    archives
+  compile {
+    transitive = true
+  }
+  archives
 }
 
 test {
-    workingDir rootProject.rootDir
+  workingDir rootProject.rootDir
 }
 
-
-
-ext.classification="library"
-
+ext.classification = "library"
 
 task utilityTar(type: Tar) {
   //there seems to be a bug in the Gradle signing module where X.tar.gz will generate
@@ -83,8 +80,8 @@ task utilityTar(type: Tar) {
   compression = Compression.GZIP
 
   into("lib") { from configurations.runtime }
-  into("lib") { from "${project.rootDir}/build/${project.name}/libs/${project.name}.jar"}
-  into("lib") { from "${project.rootDir}/build/${project.name}/libs/${project.name}-${project.version}.jar"}
+  into("lib") { from "${project.rootDir}/build/${project.name}/libs/${project.name}.jar" }
+  into("lib") { from "${project.rootDir}/build/${project.name}/libs/${project.name}-${project.version}.jar" }
   into("bin") {
     from "src/main/bash"
     fileMode = 0755
