@@ -363,8 +363,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     context.close();
 
     List<WorkUnit> workUnits = Lists.newArrayList();
-    List<KafkaPartition> topicPartitions = topic.getPartitions();
-    for (KafkaPartition partition : topicPartitions) {
+    for (KafkaPartition partition : topic.getPartitions()) {
       WorkUnit workUnit = getWorkUnitForTopicPartition(partition, state, topicSpecificState);
       if (workUnit != null) {
         // For disqualified topics, for each of its workunits set the high watermark to be the same
@@ -372,7 +371,6 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
         if (!topicQualified) {
           skipWorkUnit(workUnit);
         }
-        workUnit.setProp(NUM_TOPIC_PARTITIONS, topicPartitions.size());
         workUnits.add(workUnit);
       }
     }

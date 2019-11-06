@@ -17,7 +17,6 @@
 package org.apache.gobblin.kafka.client;
 
 import java.io.IOException;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -150,11 +149,6 @@ public class Kafka09ConsumerClient<K, V> extends AbstractBaseKafkaConsumerClient
     this.consumer.seekToEnd(topicPartition);
 
     return this.consumer.position(topicPartition);
-  }
-
-  @Override
-  public Map<KafkaPartition, Long> getLatestOffsets(Collection<KafkaPartition> partitions) {
-    throw new UnsupportedOperationException();
   }
 
   @Override

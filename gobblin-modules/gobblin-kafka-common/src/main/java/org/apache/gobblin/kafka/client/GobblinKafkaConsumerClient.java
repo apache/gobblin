@@ -74,13 +74,23 @@ public interface GobblinKafkaConsumerClient extends Closeable {
   public long getLatestOffset(KafkaPartition partition) throws KafkaOffsetRetrievalFailureException;
 
   /**
-   * Get the latest available offset for a <code>partition</code>
+   * Get the latest available offset for a {@link Collection} of {@link KafkaPartition}s. NOTE: The default implementation
+   * is not efficient i.e. it will make a getLatestOffset() call for every {@link KafkaPartition}. Individual implementations
+   * of {@link GobblinKafkaConsumerClient} should override this method to use more advanced APIs of the underlying KafkaConsumer
+   * to retrieve the latest offsets for a collection of partitions.
    *
    * @param partitions for which latest offset is retrieved
    *
-   * @throws UnsupportedOperationException - If the underlying kafka-client does not support getting latest offset
+   * @throws KafkaOffsetRetrievalFailureException - If the underlying kafka-client does not support getting latest offset
    */
-  public Map<KafkaPartition, Long> getLatestOffsets(Collection<KafkaPartition> partitions) throws KafkaOffsetRetrievalFailureException;
+  public default Map<KafkaPartition, Long> getLatestOffsets(Collection<KafkaPartition> partitions)
+      throws KafkaOffsetRetrievalFailureException {
+    Map<KafkaPartition, Long> offsetMap = Maps.newHashMap();
+    for (KafkaPartition partition: partitions) {
+      offsetMap.put(partition, getLatestOffset(partition));
+    }
+    return offsetMap;
+  }
 
   /**
    * API to consume records from kakfa starting from <code>nextOffset</code> till <code>maxOffset</code>.

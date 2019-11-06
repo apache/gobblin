@@ -19,7 +19,6 @@ package org.apache.gobblin.kafka.client;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -199,11 +198,6 @@ public class Kafka08ConsumerClient extends AbstractBaseKafkaConsumerClient {
         Collections.singletonMap(new TopicAndPartition(partition.getTopicName(), partition.getId()),
             new PartitionOffsetRequestInfo(kafka.api.OffsetRequest.LatestTime(), 1));
     return getOffset(partition, offsetRequestInfo);
-  }
-
-  @Override
-  public Map<KafkaPartition, Long> getLatestOffsets(Collection<KafkaPartition> partitions) {
-    throw new UnsupportedOperationException();
   }
 
   private long getOffset(KafkaPartition partition, Map<TopicAndPartition, PartitionOffsetRequestInfo> offsetRequestInfo)

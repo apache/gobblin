@@ -168,19 +168,6 @@ public class KafkaExtractorStatsTracker {
   }
 
   /**
-   * A method that is called after a batch of records has been fetched from Kafka e.g. via a consumer.poll().
-   * @param fetchStartTime the time instant immediately before fetching records from Kafka.
-   */
-  public void onFetchNextMessageBuffer(long fetchStartTime) {
-    for (KafkaPartition partition: this.partitions) {
-      this.statsMap.computeIfPresent(partition, (k, v) -> {
-        v.fetchMessageBufferTime += System.nanoTime() - fetchStartTime;
-        return v;
-      });
-    }
-  }
-
-  /**
    * A method when a partition has been processed.
    * @param partitionIdx the index of Kafka partition
    * @param readStartTime the start time when readRecord.
