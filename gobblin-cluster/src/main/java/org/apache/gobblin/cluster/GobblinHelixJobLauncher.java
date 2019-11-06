@@ -93,8 +93,8 @@ import org.apache.gobblin.util.SerializationUtils;
  * </p>
  *
  * <p>
- *   This class runs in the {@link GobblinClusterManager}. The actual task execution happens in the in the
- *   {@link GobblinTaskRunner}.
+ *   The instance of this class is instantiated and run in the {@link GobblinHelixJobScheduler}.
+ *   The actual task execution happens in the in the {@link GobblinTaskRunner}.
  * </p>
  *
  * @author Yinan Li
