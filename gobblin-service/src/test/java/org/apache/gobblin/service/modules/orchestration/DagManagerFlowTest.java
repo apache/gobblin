@@ -90,9 +90,9 @@ public class DagManagerFlowTest {
         .thenReturn(Collections.singletonList(123456782L));
 
     // mock add spec
-    dagManager.addDag(dag1);
-    dagManager.addDag(dag2);
-    dagManager.addDag(dag3);
+    dagManager.addDag(dag1, true);
+    dagManager.addDag(dag2, true);
+    dagManager.addDag(dag3, true);
 
     // check existence of dag in dagToJobs map
     AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).
@@ -148,7 +148,7 @@ public class DagManagerFlowTest {
         .thenReturn(Collections.singletonList(flowExecutionId));
 
     // mock add spec
-    dagManager.addDag(dag);
+    dagManager.addDag(dag, true);
 
     // check existence of dag in dagToJobs map
     AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).
@@ -192,7 +192,7 @@ public class DagManagerFlowTest {
     dag.getStartNodes().get(0).getValue().getJobSpec().setConfig(jobConfig);
 
     // mock add spec
-    dagManager.addDag(dag);
+    dagManager.addDag(dag, true);
 
     // check existence of dag in dagToSLA map
     AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).
@@ -231,7 +231,7 @@ public class DagManagerFlowTest {
     dag.getStartNodes().get(0).getValue().getJobSpec().setConfig(jobConfig);
 
     // mock add spec
-    dagManager.addDag(dag);
+    dagManager.addDag(dag, true);
 
     // check existence of dag in dagToSLA map
     AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).
