@@ -1,0 +1,79 @@
+# In the future, build the kubernetes cluster from the official docker account
+# Also ensure that proper tagging/versioning is done i.e. remove :latest tag and instead use the digest of the container
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: 'gaas-deployment'
+  labels:
+    app: gaas-deployment
+spec:
+  selector:
+    matchLabels:
+      app: gaas
+  replicas: 1
+  template:
+    metadata:
+      name: 'gaas'
+      labels:
+        app: gaas
+    spec:
+      volumes:
+        - name: 'shared-jobs'
+          persistentVolumeClaim:
+            claimName: shared-jobs-claim
+        - name: 'shared-template-catalogs'
+          persistentVolumeClaim:
+            claimName: shared-template-catalogs-claim
+      containers:
+        - name: gobblin-service
+          image: will97/gobblin-as-a-service:latest
+          volumeMounts:
+            - name: shared-jobs
+              mountPath: /tmp/gobblin-as-service/jobs
+            - name: shared-template-catalogs
+              mountPath: /tmp/templateCatalog
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: 'gobblin-standalone-deployment'
+  labels:
+    app: gobblin-standalone-deployment
+spec:
+  selector:
+    matchLabels:
+      app: gobblin-standalone
+  replicas: 1
+  template:
+    metadata:
+      name: 'gobblin-standalone'
+      labels:
+        app: gobblin-standalone
+    spec:
+      volumes:
+        - name: 'shared-jobs'
+          persistentVolumeClaim:
+            claimName: shared-jobs-claim
+      containers:
+        - name: gobblin-standalone
+          image: will97/gobblin-standalone:latest
+          volumeMounts:
+            - name: shared-jobs
+              mountPath: /tmp/gobblin-standalone/jobs
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gaas-svc
+  labels:
+    app: gobblin-service
+spec:
+  type: ClusterIP
+  ports:
+    - protocol: TCP
+      port: 6956
+      targetPort: 6956
+  selector:
+    app: gaas
