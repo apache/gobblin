@@ -1,4 +1,8 @@
-{"nullableField": null,
+{
+  "arrayFieldWithUnion2": ["arrU1", null, "arrU3"],
+  "arrayFieldWithUnion": ["arrU1", "arrU2", "arrU3", 123],
+  "nullArrayFieldWithUnion": [null],
+  "nullableField": null,
   "longField": 1234,
   "arrayField": ["arr1", "arr2", "arr3"],
   "mapField": {

@@ -17,7 +17,9 @@
 
 package org.apache.gobblin.converter.avro;
 
+import com.sun.javafx.binding.StringFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -68,6 +70,10 @@ public class JsonElementConversionWithAvroSchemaFactory extends JsonElementConve
 
       case RECORD:
         return new JsonElementConversionWithAvroSchemaFactory.RecordConverter(fieldName, nullable, type.toString(),
+            schemaNode, state, ignoreFields);
+
+      case UNION:
+        return new JsonElementConversionWithAvroSchemaFactory.UnionConverter(fieldName, nullable, type.toString(),
             schemaNode, state, ignoreFields);
 
       default:
@@ -183,7 +189,7 @@ public class JsonElementConversionWithAvroSchemaFactory extends JsonElementConve
     WorkUnitState state;
 
     public RecordConverter(String fieldName, boolean nullable, String sourceType, Schema schemaNode,
-        WorkUnitState state, List<String> ignoreFields) throws UnsupportedDateTypeException {
+        WorkUnitState state, List<String> ignoreFields) {
       super(fieldName, nullable, sourceType);
       this.schema = schemaNode;
       this.state = state;
@@ -208,6 +214,72 @@ public class JsonElementConversionWithAvroSchemaFactory extends JsonElementConve
     @Override
     public Schema schema() {
       return this.schema;
+    }
+  }
+
+  public static class UnionConverter extends ComplexConverter {
+    private final List<Schema> schemas;
+    private final List<JsonElementConverter> converters;
+    private final Schema schemaNode;
+
+    public UnionConverter(String fieldName, boolean nullable, String sourceType, Schema schemaNode,
+        WorkUnitState state, List<String> ignoreFields) throws UnsupportedDateTypeException {
+      super(fieldName, nullable, sourceType);
+      this.schemas = schemaNode.getTypes();
+      converters = new ArrayList<>();
+      for(Schema schema: schemas) {
+        converters.add(getConvertor(fieldName, schema.getType().getName(), schemaNode, state, isNullable(), ignoreFields));
+      }
+      this.schemaNode = schemaNode;
+    }
+
+    @Override
+    Object convertField(JsonElement value) {
+       for(JsonElementConverter converter: converters)
+       {
+         try {
+           Object o = converter.convert(value);
+           return o;
+         } catch (Exception e){}
+       }
+       throw new RuntimeException(StringFormatter.format("Cannot convert %s to avro using schema %s", value.getAsString(), schemaNode.toString()).toString());
+    }
+
+    @Override
+    public Schema.Type getTargetType() {
+      if(schemas.size() == 2 && isNullable())
+      {
+        if(schemas.get(0).getType() == Schema.Type.NULL) {
+          return schemas.get(1).getType();
+        } else {
+          return schemas.get(0).getType();
+        }
+      }
+      return Schema.Type.UNION;
+    }
+
+    @Override
+    public Schema schema() {
+      if(schemas.size() == 2 && isNullable())
+      {
+        if(schemas.get(0).getType() == Schema.Type.NULL) {
+          return schemas.get(1);
+        } else {
+          return schemas.get(0);
+        }
+      }
+      return Schema.createUnion(schemas);
+    }
+
+    @Override
+    public boolean isNullable() {
+      boolean isNullable = false;
+      for(Schema schema: schemas) {
+        if(schema.getType() == Schema.Type.NULL) {
+          isNullable = true;
+        }
+      }
+      return isNullable;
     }
   }
 }
