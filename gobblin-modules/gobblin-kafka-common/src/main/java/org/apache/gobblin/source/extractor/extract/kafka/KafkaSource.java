@@ -30,14 +30,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 
-import org.apache.gobblin.dataset.DatasetConstants;
-import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.Timer;
-import com.google.common.base.Joiner;
 import com.google.common.base.Function;
+import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
@@ -48,12 +46,19 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.typesafe.config.Config;
 
+import lombok.Getter;
+import lombok.Setter;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.dataset.DatasetConstants;
+import org.apache.gobblin.dataset.DatasetDescriptor;
+import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.kafka.client.GobblinKafkaConsumerClient;
 import org.apache.gobblin.kafka.client.GobblinKafkaConsumerClient.GobblinKafkaConsumerClientFactory;
+import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.lineage.LineageInfo;
 import org.apache.gobblin.source.extractor.extract.EventBasedSource;
 import org.apache.gobblin.source.extractor.extract.kafka.workunit.packer.KafkaWorkUnitPacker;
@@ -66,13 +71,7 @@ import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.DatasetFilterUtils;
 import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.dataset.DatasetUtils;
-import org.apache.gobblin.instrumented.Instrumented;
-import org.apache.gobblin.metrics.MetricContext;
 
-import lombok.Getter;
-import lombok.Setter;
-
-import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
 
 
@@ -124,6 +123,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       "gobblin.kafka.shouldEnableDatasetStateStore";
   public static final boolean DEFAULT_GOBBLIN_KAFKA_SHOULD_ENABLE_DATASET_STATESTORE = false;
   public static final String OFFSET_FETCH_TIMER = "offsetFetchTimer";
+  public static final String NUM_TOPIC_PARTITIONS = "numTopicPartitions";
 
   private final Set<String> moveToLatestTopics = Sets.newTreeSet(String.CASE_INSENSITIVE_ORDER);
   private final Map<KafkaPartition, Long> previousOffsets = Maps.newConcurrentMap();
@@ -363,7 +363,8 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     context.close();
 
     List<WorkUnit> workUnits = Lists.newArrayList();
-    for (KafkaPartition partition : topic.getPartitions()) {
+    List<KafkaPartition> topicPartitions = topic.getPartitions();
+    for (KafkaPartition partition : topicPartitions) {
       WorkUnit workUnit = getWorkUnitForTopicPartition(partition, state, topicSpecificState);
       if (workUnit != null) {
         // For disqualified topics, for each of its workunits set the high watermark to be the same
@@ -371,6 +372,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
         if (!topicQualified) {
           skipWorkUnit(workUnit);
         }
+        workUnit.setProp(NUM_TOPIC_PARTITIONS, topicPartitions.size());
         workUnits.add(workUnit);
       }
     }
