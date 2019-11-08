@@ -307,8 +307,7 @@ public class JsonElementConversionWithAvroSchemaFactory extends JsonElementConve
 
     @Override
     public Schema schema() {
-      if(schemas.size() == 2 && isNullable())
-      {
+      if(schemas.size() == 2 && isNullable()) {
         if(schemas.get(0).getType() == Schema.Type.NULL) {
           return schemas.get(1);
         } else {
