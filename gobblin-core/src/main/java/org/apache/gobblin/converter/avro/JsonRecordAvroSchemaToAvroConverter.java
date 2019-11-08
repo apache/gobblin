@@ -120,7 +120,7 @@ public class JsonRecordAvroSchemaToAvroConverter<SI> extends ToAvroConverterBase
         }
       } else {
         try {
-          converter = JsonElementConversionWithAvroSchemaFactory.getConvertor(field.name(), type.getName(), schema,
+          converter = JsonElementConversionWithAvroSchemaFactory.getConverter(field.name(), type.getName(), schema,
               workUnit, nullable, ignoreFields);
           avroRecord.put(field.name(), converter.convert(inputRecord.get(field.name())));
         } catch (Exception e) {

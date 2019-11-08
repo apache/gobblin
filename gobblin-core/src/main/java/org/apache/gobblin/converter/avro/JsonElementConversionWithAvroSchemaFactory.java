@@ -19,14 +19,12 @@ package org.apache.gobblin.converter.avro;
 
 import com.sun.javafx.binding.StringFormatter;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.converter.DataConversionException;
 
@@ -46,7 +44,7 @@ public class JsonElementConversionWithAvroSchemaFactory extends JsonElementConve
    * Use to create a converter for a single field from a schema.
    */
 
-  public static JsonElementConverter getConvertor(String fieldName, String fieldType, Schema schemaNode,
+  public static JsonElementConverter getConverter(String fieldName, String fieldType, Schema schemaNode,
       WorkUnitState state, boolean nullable, List<String> ignoreFields) throws UnsupportedDateTypeException {
 
     Type type;
@@ -88,7 +86,7 @@ public class JsonElementConversionWithAvroSchemaFactory extends JsonElementConve
         List<String> ignoreFields) throws UnsupportedDateTypeException {
       super(fieldName, nullable, sourceType);
       super.setElementConverter(
-          getConvertor(fieldName, schemaNode.getElementType().getType().getName(), schemaNode.getElementType(), state,
+          getConverter(fieldName, schemaNode.getElementType().getType().getName(), schemaNode.getElementType(), state,
               isNullable(), ignoreFields));
     }
 
@@ -122,7 +120,7 @@ public class JsonElementConversionWithAvroSchemaFactory extends JsonElementConve
         List<String> ignoreFields) throws UnsupportedDateTypeException {
       super(fieldName, nullable, sourceType);
       super.setElementConverter(
-          getConvertor(fieldName, schemaNode.getValueType().getType().getName(), schemaNode.getValueType(), state,
+          getConverter(fieldName, schemaNode.getValueType().getType().getName(), schemaNode.getValueType(), state,
               isNullable(), ignoreFields));
     }
 
@@ -222,8 +220,8 @@ public class JsonElementConversionWithAvroSchemaFactory extends JsonElementConve
    * A converter to convert Union type to avro
    * Here it will try all the possible converters for one type, for example, to convert an int value, it will try all Number converters
    * until meet the first workable one.
-   * So a known bug here is if there are long and double inside the union type, it's possible that all the value will be parse as long
-   * We're doing this since there is no way to determine what exact type it is for a JasonElement
+   * So a known bug here is there's no guarantee on preserving precision from Json to Avro type as the exact type information is clear from JsonElement
+   * We're doing this since there is no way to determine what exact type it is for a JsonElement
    */
   public static class UnionConverter extends ComplexConverter {
     private final List<Schema> schemas;
@@ -236,7 +234,7 @@ public class JsonElementConversionWithAvroSchemaFactory extends JsonElementConve
       this.schemas = schemaNode.getTypes();
       converters = new ArrayList<>();
       for(Schema schema: schemas) {
-        converters.add(getConvertor(fieldName, schema.getType().getName(), schemaNode, state, isNullable(), ignoreFields));
+        converters.add(getConverter(fieldName, schema.getType().getName(), schemaNode, state, isNullable(), ignoreFields));
       }
       this.schemaNode = schemaNode;
     }
