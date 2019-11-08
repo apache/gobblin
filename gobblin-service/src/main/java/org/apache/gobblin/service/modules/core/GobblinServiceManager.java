@@ -168,17 +168,18 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
   public GobblinServiceManager(String serviceName, String serviceId, Config config,
       Optional<Path> serviceWorkDirOptional) throws Exception {
 
+    Properties appLauncherProperties = ConfigUtils.configToProperties(ConfigUtils.getConfigOrEmpty(config,
+        ServiceConfigKeys.GOBBLIN_SERVICE_APP_LAUNCHER_PREFIX).withFallback(config));
     // Done to preserve backwards compatibility with the previously hard-coded timeout of 5 minutes
-    Properties properties = ConfigUtils.configToProperties(config);
-    if (!properties.contains(ServiceBasedAppLauncher.APP_STOP_TIME_SECONDS)) {
-      properties.setProperty(ServiceBasedAppLauncher.APP_STOP_TIME_SECONDS, Long.toString(300));
+    if (!appLauncherProperties.contains(ServiceBasedAppLauncher.APP_STOP_TIME_SECONDS)) {
+      appLauncherProperties.setProperty(ServiceBasedAppLauncher.APP_STOP_TIME_SECONDS, Long.toString(300));
     }
     this.config = config;
     this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), this.getClass());
     this.metrics = new Metrics(this.metricContext, config);
     this.serviceName = serviceName;
     this.serviceId = serviceId;
-    this.serviceLauncher = new ServiceBasedAppLauncher(properties, serviceName);
+    this.serviceLauncher = new ServiceBasedAppLauncher(appLauncherProperties, serviceName);
 
     this.fs = buildFileSystem(config);
     this.serviceWorkDir = serviceWorkDirOptional.isPresent() ? serviceWorkDirOptional.get()
@@ -243,7 +244,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
         ServiceConfigKeys.GOBBLIN_SERVICE_SCHEDULER_ENABLED_KEY, true);
     if (isSchedulerEnabled) {
       this.orchestrator = new Orchestrator(config, Optional.of(this.topologyCatalog), Optional.fromNullable(this.dagManager), Optional.of(LOGGER));
-      SchedulerService schedulerService = new SchedulerService(properties);
+      SchedulerService schedulerService = new SchedulerService(ConfigUtils.configToProperties(config));
 
       this.scheduler = new GobblinServiceJobScheduler(this.serviceName, config, this.helixManager,
           Optional.of(this.flowCatalog), Optional.of(this.topologyCatalog), this.orchestrator,
