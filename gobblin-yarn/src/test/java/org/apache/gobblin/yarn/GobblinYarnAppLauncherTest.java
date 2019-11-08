@@ -116,7 +116,7 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
 
   private final Closer closer = Closer.create();
 
-  private static void setEnv(String key, String value) {
+  public static void setEnv(String key, String value) {
     try {
       Map<String, String> env = System.getenv();
       Class<?> cl = env.getClass();
@@ -137,6 +137,9 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
 
     final YarnConfiguration clusterConf = new YarnConfiguration();
     clusterConf.set("yarn.resourcemanager.connect.max-wait.ms", "10000");
+    //TODO: See if hanging is due to resource limitation.
+    clusterConf.set("yarn.nodemanager.resource.memory-mb", "1024");
+    clusterConf.set("yarn.scheduler.maximum-allocation-mb", "2048");
 
     MiniYARNCluster miniYARNCluster = this.closer.register(new MiniYARNCluster("TestCluster", 1, 1, 1));
     miniYARNCluster.init(clusterConf);
@@ -248,8 +251,15 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
    * application successfully. This works fine on local machine though. So disabling this and the test
    * below that depends on it on Travis-CI.
    */
-  @Test(enabled=false, groups = { "disabledOnTravis" }, dependsOnMethods = "testCreateHelixCluster")
+//  @Test(enabled=false, groups = { "disabledOnTravis" }, dependsOnMethods = "testCreateHelixCluster")
+//  @Test(groups = { "disabledOnTravis" }, dependsOnMethods = "testCreateHelixCluster")
+//  @Test(dependsOnMethods = "testCreateHelixCluster")
   public void testSetupAndSubmitApplication() throws Exception {
+    HelixUtils.createGobblinHelixCluster(
+        this.config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY),
+        this.config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY));
+
+
     this.gobblinYarnAppLauncher.startYarnClient();
     this.applicationId = this.gobblinYarnAppLauncher.setupAndSubmitApplication();
 

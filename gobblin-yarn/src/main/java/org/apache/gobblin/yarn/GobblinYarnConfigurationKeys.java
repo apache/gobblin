@@ -88,6 +88,7 @@ public class GobblinYarnConfigurationKeys {
   public static final String TOKEN_RENEW_INTERVAL_IN_MINUTES = GOBBLIN_YARN_PREFIX + "token.renew.interval.minutes";
   public static final Long DEFAULT_TOKEN_RENEW_INTERVAL_IN_MINUTES = Long.MAX_VALUE;
   // Resource/dependencies configuration properties.
+  // Missing this configuration should throw fatal exceptions to avoid harder-to-debug situation from Yarn container side.
   public static final String LIB_JARS_DIR_KEY = GOBBLIN_YARN_PREFIX + "lib.jars.dir";
 
   public static final String LIB_JARS_DIR_NAME = "_libjars";

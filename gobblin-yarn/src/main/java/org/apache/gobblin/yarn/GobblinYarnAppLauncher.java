@@ -656,6 +656,10 @@ public class GobblinYarnAppLauncher {
   private void addLibJars(Path srcLibJarDir, Optional<Map<String, LocalResource>> resourceMap, Path destDir)
       throws IOException {
     FileSystem localFs = FileSystem.getLocal(this.yarnConfiguration);
+    if (! this.fs.exists(srcLibJarDir)) {
+      throw new IllegalStateException("The library directory are not being found, abort the application");
+    }
+
     FileStatus[] libJarFiles = localFs.listStatus(srcLibJarDir);
     if (libJarFiles == null || libJarFiles.length == 0) {
       return;
@@ -687,9 +691,13 @@ public class GobblinYarnAppLauncher {
     for (String localFilePath : SPLITTER.split(localFilePathList)) {
       Path srcFilePath = new Path(localFilePath);
       Path destFilePath = new Path(destDir, srcFilePath.getName());
-      this.fs.copyFromLocalFile(srcFilePath, destFilePath);
-      if (resourceMap.isPresent()) {
-        YarnHelixUtils.addFileAsLocalResource(this.fs, destFilePath, LocalResourceType.FILE, resourceMap.get());
+      if (fs.exists(srcFilePath)) {
+        this.fs.copyFromLocalFile(srcFilePath, destFilePath);
+        if (resourceMap.isPresent()) {
+          YarnHelixUtils.addFileAsLocalResource(this.fs, destFilePath, LocalResourceType.FILE, resourceMap.get());
+        }
+      } else {
+        throw new IllegalStateException(String.format("The request file %s doesn't exist", srcFilePath));
       }
     }
   }

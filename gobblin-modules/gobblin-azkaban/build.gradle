@@ -28,6 +28,9 @@ dependencies {
   compile project(":gobblin-metrics-libs:gobblin-metrics")
   compile project(":gobblin-utility")
   compile project(":gobblin-yarn")
+  compile externalDependency.curatorFramework
+  compile externalDependency.hadoopYarnMiniCluster
+  compile externalDependency.curatorTest
 
   compile externalDependency.azkaban
   compile externalDependency.log4j
@@ -44,6 +47,7 @@ dependencies {
 
   testCompile externalDependency.mockito
   testCompile externalDependency.powermock
+
 }
 
 test {

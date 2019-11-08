@@ -129,6 +129,7 @@ test {
   workingDir rootProject.rootDir
   maxParallelForks = 1
   forkEvery = 1
+  jvmArgs "-agentlib:jdwp=transport=dt_socket,server=n,address=lesun-mn3.linkedin.biz:5005,suspend=y"
 }
 
 clean {
