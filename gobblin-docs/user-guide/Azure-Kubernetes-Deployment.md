@@ -81,6 +81,3 @@ kubernetes                                      ClusterIP      10.0.0.1       <n
 ```
 
 5\) Send a request to the IP for the `honorary-possum-nginx-ingress-controller`
-
-
-
