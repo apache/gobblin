@@ -23,6 +23,27 @@
       }
     },
     {
+      "name": "arrayFieldWithUnion",
+      "type": {
+        "type": "array",
+        "items": ["null","string","long"]
+      }
+    },
+    {
+      "name": "arrayFieldWithUnion2",
+      "type": {
+        "type": "array",
+        "items": ["string","null"]
+      }
+    },
+    {
+      "name": "nullArrayFieldWithUnion",
+      "type": {
+        "type": "array",
+        "items": ["null","string"]
+      }
+    },
+    {
       "name": "mapField",
       "type": {
         "type": "map",

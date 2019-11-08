@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.converter.avro;
 
+import com.sun.javafx.binding.StringFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -43,7 +44,7 @@ public class JsonElementConversionWithAvroSchemaFactory extends JsonElementConve
    * Use to create a converter for a single field from a schema.
    */
 
-  public static JsonElementConverter getConvertor(String fieldName, String fieldType, Schema schemaNode,
+  public static JsonElementConverter getConverter(String fieldName, String fieldType, Schema schemaNode,
       WorkUnitState state, boolean nullable, List<String> ignoreFields) throws UnsupportedDateTypeException {
 
     Type type;
@@ -70,6 +71,10 @@ public class JsonElementConversionWithAvroSchemaFactory extends JsonElementConve
         return new JsonElementConversionWithAvroSchemaFactory.RecordConverter(fieldName, nullable, type.toString(),
             schemaNode, state, ignoreFields);
 
+      case UNION:
+        return new JsonElementConversionWithAvroSchemaFactory.UnionConverter(fieldName, nullable, type.toString(),
+            schemaNode, state, ignoreFields);
+
       default:
         return JsonElementConversionFactory.getConvertor(fieldName, fieldType, new JsonObject(), state, nullable);
     }
@@ -81,7 +86,7 @@ public class JsonElementConversionWithAvroSchemaFactory extends JsonElementConve
         List<String> ignoreFields) throws UnsupportedDateTypeException {
       super(fieldName, nullable, sourceType);
       super.setElementConverter(
-          getConvertor(fieldName, schemaNode.getElementType().getType().getName(), schemaNode.getElementType(), state,
+          getConverter(fieldName, schemaNode.getElementType().getType().getName(), schemaNode.getElementType(), state,
               isNullable(), ignoreFields));
     }
 
@@ -115,7 +120,7 @@ public class JsonElementConversionWithAvroSchemaFactory extends JsonElementConve
         List<String> ignoreFields) throws UnsupportedDateTypeException {
       super(fieldName, nullable, sourceType);
       super.setElementConverter(
-          getConvertor(fieldName, schemaNode.getValueType().getType().getName(), schemaNode.getValueType(), state,
+          getConverter(fieldName, schemaNode.getValueType().getType().getName(), schemaNode.getValueType(), state,
               isNullable(), ignoreFields));
     }
 
@@ -183,7 +188,7 @@ public class JsonElementConversionWithAvroSchemaFactory extends JsonElementConve
     WorkUnitState state;
 
     public RecordConverter(String fieldName, boolean nullable, String sourceType, Schema schemaNode,
-        WorkUnitState state, List<String> ignoreFields) throws UnsupportedDateTypeException {
+        WorkUnitState state, List<String> ignoreFields) {
       super(fieldName, nullable, sourceType);
       this.schema = schemaNode;
       this.state = state;
@@ -208,6 +213,117 @@ public class JsonElementConversionWithAvroSchemaFactory extends JsonElementConve
     @Override
     public Schema schema() {
       return this.schema;
+    }
+  }
+
+  /**
+   * A converter to convert Union type to avro
+   * Here it will try all the possible converters for one type, for example, to convert an int value, it will try all Number converters
+   * until meet the first workable one.
+   * So a known bug here is there's no guarantee on preserving precision from Json to Avro type as the exact type information is clear from JsonElement
+   * We're doing this since there is no way to determine what exact type it is for a JsonElement
+   */
+  public static class UnionConverter extends ComplexConverter {
+    private final List<Schema> schemas;
+    private final List<JsonElementConverter> converters;
+    private final Schema schemaNode;
+
+    public UnionConverter(String fieldName, boolean nullable, String sourceType, Schema schemaNode,
+        WorkUnitState state, List<String> ignoreFields) throws UnsupportedDateTypeException {
+      super(fieldName, nullable, sourceType);
+      this.schemas = schemaNode.getTypes();
+      converters = new ArrayList<>();
+      for(Schema schema: schemas) {
+        converters.add(getConverter(fieldName, schema.getType().getName(), schemaNode, state, isNullable(), ignoreFields));
+      }
+      this.schemaNode = schemaNode;
+    }
+
+    @Override
+    Object convertField(JsonElement value) {
+       for(JsonElementConverter converter: converters)
+       {
+         try {
+           switch (converter.getTargetType()) {
+             case STRING: {
+               if (value.isJsonPrimitive() && value.getAsJsonPrimitive().isString()) {
+                 return converter.convert(value);
+               }
+               break;
+             }
+             case FIXED:
+             case BYTES:
+             case INT:
+             case LONG:
+             case FLOAT:
+             case DOUBLE: {
+               if (value.isJsonPrimitive() && value.getAsJsonPrimitive().isNumber()) {
+                 return converter.convert(value);
+               }
+               break;
+             }
+             case BOOLEAN:{
+               if (value.isJsonPrimitive() && value.getAsJsonPrimitive().isBoolean()) {
+                 return converter.convert(value);
+               }
+               break;
+             }
+             case ARRAY:{
+               if (value.isJsonArray()) {
+                 return converter.convert(value);
+               }
+               break;
+             }
+             case MAP:
+             case ENUM:
+             case RECORD:{
+               if (value.isJsonObject()) {
+                 return converter.convert(value);
+               }
+               break;
+             }
+             case NULL:{
+               if(value.isJsonNull()) {
+                 return converter.convert(value);
+               }
+               break;
+             }
+             case UNION:
+               return new UnsupportedDateTypeException("does not support union type in union");
+             default:
+               return converter.convert(value);
+           }
+         } catch (Exception e){}
+       }
+       throw new RuntimeException(StringFormatter.format("Cannot convert %s to avro using schema %s", value.getAsString(), schemaNode.toString()).toString());
+    }
+
+    @Override
+    public Schema.Type getTargetType() {
+      return schema().getType();
+    }
+
+    @Override
+    public Schema schema() {
+      if(schemas.size() == 2 && isNullable()) {
+        if(schemas.get(0).getType() == Schema.Type.NULL) {
+          return schemas.get(1);
+        } else {
+          return schemas.get(0);
+        }
+      }
+      return Schema.createUnion(schemas);
+    }
+
+    @Override
+    public boolean isNullable() {
+      boolean isNullable = false;
+      for(Schema schema: schemas) {
+        if(schema.getType() == Schema.Type.NULL) {
+          isNullable = true;
+        }
+      }
+      return isNullable;
     }
   }
 }
