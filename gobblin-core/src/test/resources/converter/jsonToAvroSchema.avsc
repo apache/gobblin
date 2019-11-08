@@ -26,7 +26,7 @@
       "name": "arrayFieldWithUnion",
       "type": {
         "type": "array",
-        "items": ["null","long","string"]
+        "items": ["null","string","long"]
       }
     },
     {

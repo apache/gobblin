@@ -26,6 +26,7 @@ import java.util.Map;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.converter.DataConversionException;
 
@@ -217,6 +218,13 @@ public class JsonElementConversionWithAvroSchemaFactory extends JsonElementConve
     }
   }
 
+  /**
+   * A converter to convert Union type to avro
+   * Here it will try all the possible converters for one type, for example, to convert an int value, it will try all Number converters
+   * until meet the first workable one.
+   * So a known bug here is if there are long and double inside the union type, it's possible that all the value will be parse as long
+   * We're doing this since there is no way to determine what exact type it is for a JasonElement
+   */
   public static class UnionConverter extends ComplexConverter {
     private final List<Schema> schemas;
     private final List<JsonElementConverter> converters;
@@ -238,8 +246,55 @@ public class JsonElementConversionWithAvroSchemaFactory extends JsonElementConve
        for(JsonElementConverter converter: converters)
        {
          try {
-           Object o = converter.convert(value);
-           return o;
+           switch (converter.getTargetType()) {
+             case STRING: {
+               if (value.isJsonPrimitive() && value.getAsJsonPrimitive().isString()) {
+                 return converter.convert(value);
+               }
+               break;
+             }
+             case FIXED:
+             case BYTES:
+             case INT:
+             case LONG:
+             case FLOAT:
+             case DOUBLE: {
+               if (value.isJsonPrimitive() && value.getAsJsonPrimitive().isNumber()) {
+                 return converter.convert(value);
+               }
+               break;
+             }
+             case BOOLEAN:{
+               if (value.isJsonPrimitive() && value.getAsJsonPrimitive().isBoolean()) {
+                 return converter.convert(value);
+               }
+               break;
+             }
+             case ARRAY:{
+               if (value.isJsonArray()) {
+                 return converter.convert(value);
+               }
+               break;
+             }
+             case MAP:
+             case ENUM:
+             case RECORD:{
+               if (value.isJsonObject()) {
+                 return converter.convert(value);
+               }
+               break;
+             }
+             case NULL:{
+               if(value.isJsonNull()) {
+                 return converter.convert(value);
+               }
+               break;
+             }
+             case UNION:
+               return new UnsupportedDateTypeException("does not support union type in union");
+             default:
+               return converter.convert(value);
+           }
          } catch (Exception e){}
        }
        throw new RuntimeException(StringFormatter.format("Cannot convert %s to avro using schema %s", value.getAsString(), schemaNode.toString()).toString());
@@ -247,15 +302,7 @@ public class JsonElementConversionWithAvroSchemaFactory extends JsonElementConve
 
     @Override
     public Schema.Type getTargetType() {
-      if(schemas.size() == 2 && isNullable())
-      {
-        if(schemas.get(0).getType() == Schema.Type.NULL) {
-          return schemas.get(1).getType();
-        } else {
-          return schemas.get(0).getType();
-        }
-      }
-      return Schema.Type.UNION;
+      return schema().getType();
     }
 
     @Override
