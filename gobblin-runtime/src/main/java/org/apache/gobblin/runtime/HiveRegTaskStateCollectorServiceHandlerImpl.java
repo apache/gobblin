@@ -20,11 +20,13 @@ package org.apache.gobblin.runtime;
 import java.io.IOException;
 import java.util.Collection;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.publisher.HiveRegistrationPublisher;
 
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * A {@link TaskStateCollectorServiceHandler} implementation that execute hive registration on driver level.
@@ -39,16 +41,25 @@ public class HiveRegTaskStateCollectorServiceHandlerImpl implements TaskStateCol
   private HiveRegistrationPublisher hiveRegHandler;
 
   public HiveRegTaskStateCollectorServiceHandlerImpl(JobState jobState) {
-    hiveRegHandler = new HiveRegistrationPublisher(jobState);
+    String className = jobState
+        .getProp(ConfigurationKeys.HIVE_REG_PUBLISHER_CLASS, ConfigurationKeys.DEFAULT_HIVE_REG_PUBLISHER_CLASS);
+    try {
+      hiveRegHandler =
+          (HiveRegistrationPublisher) Class.forName(className).getConstructor(State.class).newInstance(jobState);
+    } catch (Exception e) {
+      throw new RuntimeException("Unable to initialize HiveRegistrationPublisher " + e);
+    }
   }
 
   @Override
-  public void handle(Collection<? extends WorkUnitState> taskStates) throws IOException {
+  public void handle(Collection<? extends WorkUnitState> taskStates)
+      throws IOException {
     this.hiveRegHandler.publishData(taskStates);
   }
 
   @Override
-  public void close() throws IOException {
+  public void close()
+      throws IOException {
     hiveRegHandler.close();
   }
 }
