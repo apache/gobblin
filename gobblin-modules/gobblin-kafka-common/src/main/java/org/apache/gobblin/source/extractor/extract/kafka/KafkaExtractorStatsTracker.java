@@ -16,7 +16,6 @@
  */
 package org.apache.gobblin.source.extractor.extract.kafka;
 
-import java.util.Calendar;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -44,9 +43,6 @@ public class KafkaExtractorStatsTracker {
   public static final String TOPIC = "topic";
   public static final String PARTITION = "partition";
 
-  //Small values of exponential decay factor implies that recent values are weighted less heavily.
-  private static final Double EXPONENTIAL_DECAY_FACTOR = 0.125;
-  private static final Calendar CALENDAR = Calendar.getInstance();
   private static final String GOBBLIN_KAFKA_NAMESPACE = "gobblin.kafka";
   private static final String KAFKA_EXTRACTOR_TOPIC_METADATA_EVENT_NAME = "KafkaExtractorTopicMetadata";
   private static final String LOW_WATERMARK = "lowWatermark";
@@ -314,13 +310,10 @@ public class KafkaExtractorStatsTracker {
         //Compute average record size
         if (stats.getProcessedRecordCount() != 0) {
           return stats.getPartitionTotalSize() / stats.getProcessedRecordCount();
-        } else {
-          return 0;
         }
       }
-    } else {
-      return 0;
     }
+    return 0;
   }
 
   /**
