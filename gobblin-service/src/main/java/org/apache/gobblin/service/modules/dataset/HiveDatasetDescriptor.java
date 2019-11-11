@@ -20,9 +20,11 @@ package org.apache.gobblin.service.modules.dataset;
 import java.io.IOException;
 
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigValueFactory;
 
 import lombok.EqualsAndHashCode;
 
+import org.apache.gobblin.data.management.copy.hive.HiveCopyEntityHelper;
 import org.apache.gobblin.data.management.version.finder.DatePartitionHiveVersionFinder;
 import org.apache.gobblin.util.ConfigUtils;
 
@@ -36,6 +38,7 @@ public class HiveDatasetDescriptor extends SqlDatasetDescriptor {
   static final String IS_PARTITIONED_KEY = "isPartitioned";
   static final String PARTITION_COLUMN = "partition.column";
   static final String PARTITION_FORMAT = "partition.format";
+  static final String CONFLICT_POLICY = "conflict.policy";
   private final boolean isPartitioned;
   private final String partitionColumn;
   private final String partitionFormat;
@@ -47,9 +50,15 @@ public class HiveDatasetDescriptor extends SqlDatasetDescriptor {
     if (isPartitioned) {
       partitionColumn = ConfigUtils.getString(config, PARTITION_COLUMN, DatePartitionHiveVersionFinder.DEFAULT_PARTITION_KEY_NAME);
       partitionFormat = ConfigUtils.getString(config, PARTITION_FORMAT, DatePartitionHiveVersionFinder.DEFAULT_PARTITION_VALUE_DATE_TIME_PATTERN);
+      this.setRawConfig(this.getRawConfig().withValue(CONFLICT_POLICY,
+          ConfigValueFactory.fromAnyRef(HiveCopyEntityHelper.ExistingEntityPolicy.REPLACE_PARTITIONS.name())));
+      this.setRawConfig(this.getRawConfig().withValue(PARTITION_COLUMN, ConfigValueFactory.fromAnyRef(partitionColumn)));
+      this.setRawConfig(this.getRawConfig().withValue(PARTITION_FORMAT, ConfigValueFactory.fromAnyRef(partitionFormat)));
     } else {
       partitionColumn = "";
       partitionFormat = "";
+      this.setRawConfig(this.getRawConfig().withValue(CONFLICT_POLICY,
+          ConfigValueFactory.fromAnyRef(HiveCopyEntityHelper.ExistingEntityPolicy.REPLACE_TABLE.name())));
     }
   }
 

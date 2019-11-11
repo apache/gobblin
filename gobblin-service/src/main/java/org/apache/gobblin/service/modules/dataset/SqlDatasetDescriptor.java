@@ -29,6 +29,7 @@ import com.typesafe.config.ConfigValueFactory;
 
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
@@ -49,7 +50,8 @@ public class SqlDatasetDescriptor extends BaseDatasetDescriptor implements Datas
   @Getter
   private final String path;
   @Getter
-  private final Config rawConfig;
+  @Setter
+  private Config rawConfig;
 
   public enum  Platform {
     SQLSERVER("sqlserver"),
