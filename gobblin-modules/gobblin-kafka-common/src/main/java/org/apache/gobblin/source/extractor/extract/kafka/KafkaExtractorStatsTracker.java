@@ -16,6 +16,7 @@
  */
 package org.apache.gobblin.source.extractor.extract.kafka;
 
+import java.util.Calendar;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -43,6 +44,9 @@ public class KafkaExtractorStatsTracker {
   public static final String TOPIC = "topic";
   public static final String PARTITION = "partition";
 
+  //Small values of exponential decay factor implies that recent values are weighted less heavily.
+  private static final Double EXPONENTIAL_DECAY_FACTOR = 0.125;
+  private static final Calendar CALENDAR = Calendar.getInstance();
   private static final String GOBBLIN_KAFKA_NAMESPACE = "gobblin.kafka";
   private static final String KAFKA_EXTRACTOR_TOPIC_METADATA_EVENT_NAME = "KafkaExtractorTopicMetadata";
   private static final String LOW_WATERMARK = "lowWatermark";
@@ -292,6 +296,30 @@ public class KafkaExtractorStatsTracker {
     for (Map.Entry<KafkaPartition, Map<String, String>> eventTags : tagsForPartitionsMap.entrySet()) {
       new EventSubmitter.Builder(context, GOBBLIN_KAFKA_NAMESPACE).build()
           .submit(KAFKA_EXTRACTOR_TOPIC_METADATA_EVENT_NAME, eventTags.getValue());
+    }
+  }
+
+  /**
+   *
+   * @param partitionIdx the index of Kafka partition
+   * @return the average record size of records for a given {@link KafkaPartition}
+   */
+  public long getAvgRecordSize(int partitionIdx) {
+    ExtractorStats stats = this.statsMap.getOrDefault(this.partitions.get(partitionIdx), null);
+    if (stats != null) {
+      if (stats.getAvgRecordSize() != 0) {
+        //Average record size already computed.
+        return stats.getAvgRecordSize();
+      } else {
+        //Compute average record size
+        if (stats.getProcessedRecordCount() != 0) {
+          return stats.getPartitionTotalSize() / stats.getProcessedRecordCount();
+        } else {
+          return 0;
+        }
+      }
+    } else {
+      return 0;
     }
   }
 
