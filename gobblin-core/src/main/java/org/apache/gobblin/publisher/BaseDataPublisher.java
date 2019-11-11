@@ -290,6 +290,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
       for (Path path : this.publisherOutputDirs) {
         this.state.appendToSetProp(ConfigurationKeys.PUBLISHER_DIRS, path.toString());
       }
+      this.state.setProp(ConfigurationKeys.PUBLISHER_LATEST_FILE_ARRIVAL_TIMESTAMP, System.currentTimeMillis());
     } finally {
       this.closer.close();
     }

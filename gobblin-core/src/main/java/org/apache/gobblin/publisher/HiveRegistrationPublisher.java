@@ -18,6 +18,7 @@
 package org.apache.gobblin.publisher;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -36,21 +37,21 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.annotation.Alias;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.hive.HiveRegProps;
 import org.apache.gobblin.hive.HiveRegister;
+import org.apache.gobblin.hive.metastore.HiveMetaStoreUtils;
 import org.apache.gobblin.hive.policy.HiveRegistrationPolicy;
 import org.apache.gobblin.hive.policy.HiveRegistrationPolicyBase;
-import org.apache.gobblin.hive.metastore.HiveMetaStoreUtils;
 import org.apache.gobblin.hive.spec.HiveSpec;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.util.ExecutorsUtils;
-
-import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -97,20 +98,28 @@ public class HiveRegistrationPublisher extends DataPublisher {
   private static Set<String> pathsToRegisterFromSingleState = Sets.newHashSet();
 
   /**
+   * This collection represents all specs that were sent for Hive Registration
+   * This is collected right before calling {@link HiveRegister#register(HiveSpec)}
+   */
+  protected static final Collection<HiveSpec> allRegisteredPartitions = new ArrayList<>();
+
+  /**
    * @param state This is a Job State
    */
   public HiveRegistrationPublisher(State state) {
     super(state);
     this.hiveRegister = this.closer.register(HiveRegister.get(state));
-    this.hivePolicyExecutor = ExecutorsUtils.loggingDecorator(Executors.newFixedThreadPool(new HiveRegProps(state).getNumThreads(),
-        ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("HivePolicyExecutor-%d"))));
+    this.hivePolicyExecutor = ExecutorsUtils.loggingDecorator(Executors
+        .newFixedThreadPool(new HiveRegProps(state).getNumThreads(),
+            ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("HivePolicyExecutor-%d"))));
     this.metricContext = Instrumented.getMetricContext(state, HiveRegistrationPublisher.class);
 
     isPathDedupeEnabled = state.getPropAsBoolean(PATH_DEDUPE_ENABLED, this.DEFAULT_PATH_DEDUPE_ENABLED);
   }
 
   @Override
-  public void close() throws IOException {
+  public void close()
+      throws IOException {
     try {
       ExecutorsUtils.shutdownExecutorService(this.hivePolicyExecutor, Optional.of(log));
     } finally {
@@ -118,7 +127,8 @@ public class HiveRegistrationPublisher extends DataPublisher {
     }
   }
 
-  protected int computeSpecs(Collection<? extends WorkUnitState> states, CompletionService<Collection<HiveSpec>> completionService) {
+  protected int computeSpecs(Collection<? extends WorkUnitState> states,
+      CompletionService<Collection<HiveSpec>> completionService) {
     // Each state in states is task-level State, while superState is the Job-level State.
     // Using both State objects to distinguish each HiveRegistrationPolicy so that
     // they can carry task-level information to pass into Hive Partition and its corresponding Hive Table.
@@ -126,24 +136,24 @@ public class HiveRegistrationPublisher extends DataPublisher {
     // Here all runtime task-level props are injected into superstate which installed in each Policy Object.
     // runtime.props are comma-separated props collected in runtime.
     int toRegisterPathCount = 0;
-    for (State state:states) {
+    for (State state : states) {
       State taskSpecificState = state;
       if (state.contains(ConfigurationKeys.PUBLISHER_DIRS)) {
 
         // Upstream data attribute is specified, need to inject these info into superState as runtimeTableProps.
         if (this.hiveRegister.getProps().getUpstreamDataAttrName().isPresent()) {
-          for (String attrName:
-              LIST_SPLITTER_COMMA.splitToList(this.hiveRegister.getProps().getUpstreamDataAttrName().get())){
+          for (String attrName : LIST_SPLITTER_COMMA
+              .splitToList(this.hiveRegister.getProps().getUpstreamDataAttrName().get())) {
             if (state.contains(attrName)) {
-              taskSpecificState.appendToListProp(HiveMetaStoreUtils.RUNTIME_PROPS,
-                  attrName + ":" + state.getProp(attrName));
+              taskSpecificState
+                  .appendToListProp(HiveMetaStoreUtils.RUNTIME_PROPS, attrName + ":" + state.getProp(attrName));
             }
           }
         }
 
         final HiveRegistrationPolicy policy = HiveRegistrationPolicyBase.getPolicy(taskSpecificState);
-        for ( final String path : state.getPropAsList(ConfigurationKeys.PUBLISHER_DIRS) ) {
-          if (isPathDedupeEnabled){
+        for (final String path : state.getPropAsList(ConfigurationKeys.PUBLISHER_DIRS)) {
+          if (isPathDedupeEnabled) {
             if (pathsToRegisterFromSingleState.contains(path)) {
               continue;
             } else {
@@ -153,7 +163,8 @@ public class HiveRegistrationPublisher extends DataPublisher {
           toRegisterPathCount += 1;
           completionService.submit(new Callable<Collection<HiveSpec>>() {
             @Override
-            public Collection<HiveSpec> call() throws Exception {
+            public Collection<HiveSpec> call()
+                throws Exception {
               try (Timer.Context context = metricContext.timer(HIVE_SPEC_COMPUTATION_TIMER).time()) {
                 return policy.getHiveSpecs(new Path(path));
               }
@@ -164,15 +175,19 @@ public class HiveRegistrationPublisher extends DataPublisher {
     }
     return toRegisterPathCount;
   }
+
   @Deprecated
   @Override
-  public void initialize() throws IOException {}
+  public void initialize()
+      throws IOException {
+  }
 
   /**
    * @param states This is a collection of TaskState.
    */
   @Override
-  public void publishData(Collection<? extends WorkUnitState> states) throws IOException {
+  public void publishData(Collection<? extends WorkUnitState> states)
+      throws IOException {
     CompletionService<Collection<HiveSpec>> completionService =
         new ExecutorCompletionService<>(this.hivePolicyExecutor);
 
@@ -180,6 +195,7 @@ public class HiveRegistrationPublisher extends DataPublisher {
     for (int i = 0; i < toRegisterPathCount; i++) {
       try {
         for (HiveSpec spec : completionService.take().get()) {
+          allRegisteredPartitions.add(spec);
           this.hiveRegister.register(spec);
         }
       } catch (InterruptedException | ExecutionException e) {
@@ -191,13 +207,14 @@ public class HiveRegistrationPublisher extends DataPublisher {
   }
 
   @Override
-  public void publishMetadata(Collection<? extends WorkUnitState> states) throws IOException {
+  public void publishMetadata(Collection<? extends WorkUnitState> states)
+      throws IOException {
     // Nothing to do
   }
 
   private static void addRuntimeHiveRegistrationProperties(State state) {
     // Use seconds instead of milliseconds to be consistent with other times stored in hive
-    state.appendToListProp(HiveRegProps.HIVE_TABLE_PARTITION_PROPS,
-        String.format("%s:%d", DATA_PUBLISH_TIME, TimeUnit.SECONDS.convert(System.currentTimeMillis(), TimeUnit.MILLISECONDS)));
+    state.appendToListProp(HiveRegProps.HIVE_TABLE_PARTITION_PROPS, String.format("%s:%d", DATA_PUBLISH_TIME,
+        TimeUnit.SECONDS.convert(System.currentTimeMillis(), TimeUnit.MILLISECONDS)));
   }
 }
