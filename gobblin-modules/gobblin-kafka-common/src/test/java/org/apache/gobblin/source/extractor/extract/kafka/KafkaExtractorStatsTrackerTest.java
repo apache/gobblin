@@ -134,4 +134,16 @@ public class KafkaExtractorStatsTrackerTest {
     Assert.assertTrue(this.extractorStatsTracker.getStatsMap().get(kafkaPartitions.get(1)).getAvgMillisPerRecord() > 0);
     Assert.assertEquals(this.extractorStatsTracker.getStatsMap().get(kafkaPartitions.get(1)).getAvgRecordSize(), 100);
   }
+
+  @Test (dependsOnMethods = "testUpdateStatisticsForCurrentPartition")
+  public void testGetAvgRecordSize() {
+    Assert.assertEquals(this.extractorStatsTracker.getAvgRecordSize(0), 100);
+    Assert.assertEquals(this.extractorStatsTracker.getAvgRecordSize(1), 100);
+    this.extractorStatsTracker.reset();
+    Assert.assertEquals(this.extractorStatsTracker.getAvgRecordSize(0), 0);
+    long readStartTime = System.nanoTime();
+    long decodeStartTime = readStartTime + 1;
+    this.extractorStatsTracker.onDecodeableRecord(1, readStartTime, decodeStartTime, 150);
+    Assert.assertEquals(this.extractorStatsTracker.getAvgRecordSize(1), 150);
+  }
 }

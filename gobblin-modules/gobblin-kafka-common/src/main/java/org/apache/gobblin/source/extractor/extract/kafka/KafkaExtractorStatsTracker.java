@@ -296,6 +296,27 @@ public class KafkaExtractorStatsTracker {
   }
 
   /**
+   *
+   * @param partitionIdx the index of Kafka partition
+   * @return the average record size of records for a given {@link KafkaPartition}
+   */
+  public long getAvgRecordSize(int partitionIdx) {
+    ExtractorStats stats = this.statsMap.getOrDefault(this.partitions.get(partitionIdx), null);
+    if (stats != null) {
+      if (stats.getAvgRecordSize() != 0) {
+        //Average record size already computed.
+        return stats.getAvgRecordSize();
+      } else {
+        //Compute average record size
+        if (stats.getProcessedRecordCount() != 0) {
+          return stats.getPartitionTotalSize() / stats.getProcessedRecordCount();
+        }
+      }
+    }
+    return 0;
+  }
+
+  /**
    * Reset all KafkaExtractor stats.
    */
   public void reset() {
