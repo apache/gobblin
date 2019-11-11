@@ -23,11 +23,13 @@ import com.typesafe.config.Config;
 
 import lombok.EqualsAndHashCode;
 
+import org.apache.gobblin.data.management.version.finder.DatePartitionHiveVersionFinder;
 import org.apache.gobblin.util.ConfigUtils;
 
 /**
  * As of now, {@link HiveDatasetDescriptor} has same implementation as that of {@link SqlDatasetDescriptor}.
- * It can have partitioning related information in the future.
+ * Fields {@link HiveDatasetDescriptor#isPartitioned}, {@link HiveDatasetDescriptor#partitionColumn} and
+ * {@link HiveDatasetDescriptor#partitionFormat} are used for methods 'equals' and 'hashCode'.
  */
 @EqualsAndHashCode (callSuper = true)
 public class HiveDatasetDescriptor extends SqlDatasetDescriptor {
@@ -40,11 +42,11 @@ public class HiveDatasetDescriptor extends SqlDatasetDescriptor {
 
   public HiveDatasetDescriptor(Config config) throws IOException {
     super(config);
-    this.isPartitioned = config.getBoolean(IS_PARTITIONED_KEY);
+    this.isPartitioned = ConfigUtils.getBoolean(config, IS_PARTITIONED_KEY, true);
 
     if (isPartitioned) {
-      partitionColumn = ConfigUtils.getString(config, PARTITION_COLUMN, "datepartition");
-      partitionFormat = ConfigUtils.getString(config, PARTITION_FORMAT, "YYYY-MM-dd-HH");
+      partitionColumn = ConfigUtils.getString(config, PARTITION_COLUMN, DatePartitionHiveVersionFinder.DEFAULT_PARTITION_KEY_NAME);
+      partitionFormat = ConfigUtils.getString(config, PARTITION_FORMAT, DatePartitionHiveVersionFinder.DEFAULT_PARTITION_VALUE_DATE_TIME_PATTERN);
     } else {
       partitionColumn = "";
       partitionFormat = "";
