@@ -120,7 +120,7 @@ public class AvroFlattener {
 
   private static final String FLATTENED_NAME_JOINER = "__";
   private static final String FLATTENED_SOURCE_JOINER = ".";
-  private static final String FLATTENED_SOURCE_KEY = "flatten_source";
+  public static final String FLATTENED_SOURCE_KEY = "flatten_source";
 
   private String flattenedNameJoiner;
   private String flattenedSourceJoiner;
