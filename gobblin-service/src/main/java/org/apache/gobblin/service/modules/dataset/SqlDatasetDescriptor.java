@@ -44,8 +44,8 @@ import org.apache.gobblin.util.PathUtils;
 public class SqlDatasetDescriptor extends BaseDatasetDescriptor implements DatasetDescriptor {
   protected static final String SEPARATION_CHAR = ";";
 
-  private final String databaseName;
-  private final String tableName;
+  protected final String databaseName;
+  protected final String tableName;
 
   @Getter
   private final String path;
