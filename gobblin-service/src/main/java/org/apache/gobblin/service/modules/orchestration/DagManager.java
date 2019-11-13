@@ -386,15 +386,18 @@ public class DagManager extends AbstractIdleService {
           cancelDag(nextDagToCancel);
         }
 
-        Dag<JobExecutionPlan> dag = queue.poll();
-        //Poll the queue for a new Dag to execute.
-        if (dag != null) {
-          if (dag.isEmpty()) {
-            log.info("Empty dag; ignoring the dag");
+        while (!queue.isEmpty()) {
+          Dag<JobExecutionPlan> dag = queue.poll();
+          //Poll the queue for a new Dag to execute.
+          if (dag != null) {
+            if (dag.isEmpty()) {
+              log.info("Empty dag; ignoring the dag");
+            }
+            //Initialize dag.
+            initialize(dag);
           }
-          //Initialize dag.
-          initialize(dag);
         }
+
         log.debug("Polling job statuses..");
         //Poll and update the job statuses of running jobs.
         pollAndAdvanceDag();
