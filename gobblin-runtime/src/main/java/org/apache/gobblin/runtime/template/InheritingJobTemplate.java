@@ -85,14 +85,14 @@ public abstract class InheritingJobTemplate implements JobTemplate {
       for (URI uri : this.superTemplateUris) {
         if (!loadedTemplates.containsKey(uri)) {
           JobTemplate newTemplate = this.catalog.getTemplate(uri);
-          resolveTemplateRecursionHelper(newTemplate, loadedTemplates);
+          resolveTemplateRecursionHelper(newTemplate, uri, loadedTemplates);
         }
         this.superTemplates.add(loadedTemplates.get(uri));
       }
     } else if (superTemplates != null ) {
       for (JobTemplate newTemplate : this.superTemplates) {
         if (!loadedTemplates.containsKey(newTemplate.getUri())) {
-          resolveTemplateRecursionHelper(newTemplate, loadedTemplates);
+          resolveTemplateRecursionHelper(newTemplate, newTemplate.getUri(), loadedTemplates);
         }
       }
     }
@@ -100,9 +100,14 @@ public abstract class InheritingJobTemplate implements JobTemplate {
     this.resolved = true;
   }
 
-  private void resolveTemplateRecursionHelper(JobTemplate newTemplate, Map<URI, JobTemplate> loadedTemplates)
-      throws SpecNotFoundException, TemplateException{
-    loadedTemplates.put(newTemplate.getUri(), newTemplate);
+  /**
+   * The canonicalURI needs to be there when the template needs to loaded from catalog, as the format are adjusted
+   * while constructing the template.
+   * Essentially, jobCatalog.load(templateUris.get(0)).getUri().equal(templateUris.get(0)) return false.
+   */
+  private void resolveTemplateRecursionHelper(JobTemplate newTemplate, URI canonicalURI, Map<URI, JobTemplate> loadedTemplates)
+      throws SpecNotFoundException, TemplateException {
+    loadedTemplates.put(canonicalURI, newTemplate);
     if (newTemplate instanceof InheritingJobTemplate) {
       ((InheritingJobTemplate) newTemplate).resolveTemplates(loadedTemplates);
     }

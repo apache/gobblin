@@ -106,6 +106,7 @@ public class LocalJobLauncherTest {
   @Test
   public void testMultipleJobTemplatesResoluion() throws Exception {
     Properties jobProps = loadJobProps();
+    // Job Name shouldn't be overwritten by any templates and the precedence of template is lower than job configuration.
     String jobId = JobLauncherUtils.newJobId("beforeResolution");
     jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, jobId);
     jobProps.setProperty("job.name", "beforeResolution");
@@ -126,6 +127,17 @@ public class LocalJobLauncherTest {
     Assert.assertEquals(jobContext.getJobState().getProp("job.name"), "beforeResolution");
     Assert.assertEquals(jobContext.getJobState().getProp("templated0"), "x");
     Assert.assertEquals(jobContext.getJobState().getProp("templated1"), "y");
+
+
+    // Verify multi-resolution with inheritance.
+    jobProps.setProperty(GOBBLIN_JOB_MULTI_TEMPLATE_KEY,
+        "resource:///templates/test-multitemplate-with-inheritance.template,resource:///templates/test.template");
+    jobContext = dummyJobContextInitHelper(jobProps);
+    Assert.assertEquals(jobContext.getJobState().getProp("templated0"), "x");
+    Assert.assertEquals(jobContext.getJobState().getProp("templated1"), "y");
+    Assert.assertEquals(jobContext.getJobState().getProp("job.name"), "beforeResolution");
+    // Picked an distcp-specific configuration that there's no default value being set in jobConf.
+    Assert.assertEquals(jobContext.getJobState().getProp("distcp.persist.dir"), "/tmp/distcp-persist-dir");
   }
 
   /**
