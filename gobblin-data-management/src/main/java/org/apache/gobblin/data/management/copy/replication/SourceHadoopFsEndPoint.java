@@ -75,8 +75,11 @@ public class SourceHadoopFsEndPoint extends HadoopFsEndPoint {
 
       Collection<Path> validPaths = ReplicationDataValidPathPicker.getValidPaths(this);
       for (Path p : validPaths) {
-        this.allFileStatus.addAll(
-            FileListUtils.listFilesRecursively(fs, p, super.getPathFilter(), super.isApplyFilterToDirectories()));
+        try {
+          this.allFileStatus.addAll(FileListUtils.listFilesRecursively(fs, p, super.getPathFilter(), super.isApplyFilterToDirectories()));
+        } catch (Exception e) {
+          log.error("Error while try read file in directory" + p.toString() +" to get watermark");
+        }
       }
 
       for (FileStatus f : this.allFileStatus) {
