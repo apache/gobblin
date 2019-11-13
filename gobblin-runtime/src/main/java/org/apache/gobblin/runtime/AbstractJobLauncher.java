@@ -257,8 +257,9 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       }
       jobSpec = JobSpec.builder().withConfig(config).withResourceTemplates(templatesURIs).build();
     }
-    ResolvedJobSpec resolvedJob = resolver.resolveJobSpec(jobSpec);
-    jobProps.putAll(ConfigUtils.configToProperties(resolvedJob.getConfig()));
+    if (jobSpec != null ) {
+      jobProps.putAll(ConfigUtils.configToProperties(resolver.resolveJobSpec(jobSpec).getConfig()));
+    }
   }
 
   private static SharedResourcesBroker<GobblinScopeTypes> createDefaultInstanceBroker(Properties jobProps) {
