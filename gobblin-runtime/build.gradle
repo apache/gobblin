@@ -154,7 +154,6 @@ test {
     systemProperty "org.jboss.byteman.verbose", "true"
     workingDir rootProject.rootDir
     maxParallelForks = 1
-//  jvmArgs "-agentlib:jdwp=transport=dt_socket,server=n,address=10.0.0.176:5005,suspend=y"
 }
 
 clean {
