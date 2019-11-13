@@ -18,13 +18,17 @@
 package org.apache.gobblin.runtime.template;
 
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 
+import org.apache.gobblin.runtime.api.JobTemplate;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -75,6 +79,29 @@ public class StaticJobTemplateTest {
   }
 
   @Test
+  public void testMultipleTemplates() throws Exception {
+    Map<String, String> confMap = Maps.newHashMap();
+    confMap.put("key", "value");
+
+    InheritingJobTemplateTest.TestTemplate
+        template1 = new InheritingJobTemplateTest.TestTemplate(new URI("template1"), Lists.<JobTemplate>newArrayList(), ImmutableMap.of("key1", "value1"),
+        ImmutableList.of());
+    InheritingJobTemplateTest.TestTemplate
+        template2 = new InheritingJobTemplateTest.TestTemplate(new URI("template2"), Lists.<JobTemplate>newArrayList(), ImmutableMap.of("key2", "value2"),
+        ImmutableList.of());
+    List<JobTemplate> templateList = new ArrayList<>();
+    templateList.add(template1);
+    templateList.add(template2);
+
+    StaticJobTemplate template =
+        new StaticJobTemplate(new URI("template"), "1", "desc", ConfigFactory.parseMap(confMap), templateList);
+    Config resolved = template.getResolvedConfig(ConfigFactory.empty());
+    Assert.assertEquals(resolved.getString("key"), "value");
+    Assert.assertEquals(resolved.getString("key1"), "value1");
+    Assert.assertEquals(resolved.getString("key2"), "value2");
+  }
+
+  @Test
   public void testSecure() throws Exception {
     Map<String, Object> confMap = Maps.newHashMap();
     confMap.put("nonOverridableKey", "value1");
@@ -82,7 +109,7 @@ public class StaticJobTemplateTest {
     confMap.put(StaticJobTemplate.IS_SECURE_KEY, true);
     confMap.put(StaticJobTemplate.SECURE_OVERRIDABLE_PROPERTIES_KEYS, "overridableKey, overridableKey2");
 
-    StaticJobTemplate template = new StaticJobTemplate(URI.create("my://template"), "1", "desc", ConfigFactory.parseMap(confMap), null);
+    StaticJobTemplate template = new StaticJobTemplate(URI.create("my://template"), "1", "desc", ConfigFactory.parseMap(confMap), (JobCatalogWithTemplates) null);
 
     Config userConfig = ConfigFactory.parseMap(ImmutableMap.of(
         "overridableKey", "override",

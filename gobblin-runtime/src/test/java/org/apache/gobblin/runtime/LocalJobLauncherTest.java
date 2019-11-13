@@ -21,32 +21,25 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.Properties;
 
-import org.apache.gobblin.runtime.AbstractJobLauncher;
-import org.apache.gobblin.runtime.JobContext;
-import org.apache.gobblin.runtime.JobLauncher;
-import org.apache.gobblin.runtime.JobLauncherFactory;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metastore.FsStateStore;
+import org.apache.gobblin.metastore.StateStore;
+import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
+import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.apache.gobblin.runtime.local.LocalJobLauncher;
 import org.apache.gobblin.util.JobLauncherUtils;
+import org.apache.gobblin.util.limiter.BaseLimiterType;
+import org.apache.gobblin.util.limiter.DefaultLimiterFactory;
+import org.apache.gobblin.writer.Destination;
+import org.apache.gobblin.writer.WriterOutputFormat;
 import org.junit.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.metastore.FsStateStore;
-import org.apache.gobblin.metastore.StateStore;
-
-import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
-import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
-import org.apache.gobblin.runtime.JobLauncherTestHelper;
-import org.apache.gobblin.runtime.JobState;
-import org.apache.gobblin.util.limiter.BaseLimiterType;
-import org.apache.gobblin.util.limiter.DefaultLimiterFactory;
-import org.apache.gobblin.writer.Destination;
-import org.apache.gobblin.writer.WriterOutputFormat;
-
 import com.google.common.io.Closer;
 
+import static org.apache.gobblin.runtime.AbstractJobLauncher.GOBBLIN_JOB_MULTI_TEMPLATE_KEY;
 import static org.apache.gobblin.runtime.AbstractJobLauncher.GOBBLIN_JOB_TEMPLATE_KEY;
 
 
@@ -100,15 +93,7 @@ public class LocalJobLauncherTest {
     jobProps.setProperty("job.name", "beforeResolution");
     jobProps.setProperty(GOBBLIN_JOB_TEMPLATE_KEY, "resource:///templates/distcp-ng.template");
 
-
-    JobContext jobContext = null;
-    Closer closer = Closer.create();
-    try {
-      JobLauncher jobLauncher = closer.register(JobLauncherFactory.newJobLauncher(this.launcherProps, jobProps));
-      jobContext = ((AbstractJobLauncher) jobLauncher).getJobContext();
-    } finally {
-      closer.close();
-    }
+    JobContext jobContext = dummyJobContextInitHelper(jobProps);
 
     // Indicating resolution succeeded.
     // 1) User config not being overloaded by template
@@ -116,6 +101,46 @@ public class LocalJobLauncherTest {
     System.out.println(jobContext.getJobState());
     Assert.assertEquals(jobContext.getJobState().getProp("job.name"), "beforeResolution");
     Assert.assertEquals(jobContext.getJobState().getProp("distcp.persist.dir"), "/tmp/distcp-persist-dir");
+  }
+
+  @Test
+  public void testMultipleJobTemplatesResoluion() throws Exception {
+    Properties jobProps = loadJobProps();
+    String jobId = JobLauncherUtils.newJobId("beforeResolution");
+    jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, jobId);
+    jobProps.setProperty("job.name", "beforeResolution");
+    jobProps.setProperty(GOBBLIN_JOB_MULTI_TEMPLATE_KEY,
+        "resource:///templates/test.template,resource:///templates/test-overwrite.template");
+
+    JobContext jobContext = dummyJobContextInitHelper(jobProps);
+
+    // Verifying multi-resolution happens and it respect the precedency.
+    Assert.assertEquals(jobContext.getJobState().getProp("job.name"), "beforeResolution");
+    Assert.assertEquals(jobContext.getJobState().getProp("templated0"), "x_x");
+    Assert.assertEquals(jobContext.getJobState().getProp("templated1"), "y_y");
+
+    // Verifying the order of template list matters.
+    jobProps.setProperty(GOBBLIN_JOB_MULTI_TEMPLATE_KEY,
+        "resource:///templates/test-overwrite.template,resource:///templates/test.template");
+    jobContext = dummyJobContextInitHelper(jobProps);
+    Assert.assertEquals(jobContext.getJobState().getProp("job.name"), "beforeResolution");
+    Assert.assertEquals(jobContext.getJobState().getProp("templated0"), "x");
+    Assert.assertEquals(jobContext.getJobState().getProp("templated1"), "y");
+  }
+
+  /**
+   * Initialize a jobContext by initializing jobLauncher. This code is mostly used for
+   * testing job templates resolution.
+   */
+  private JobContext dummyJobContextInitHelper(Properties jobProps) throws Exception {
+    JobContext jobContext = null;
+    Closer closer = Closer.create();
+    try {
+      JobLauncher jobLauncher = closer.register(JobLauncherFactory.newJobLauncher(this.launcherProps, jobProps));
+      return ((AbstractJobLauncher) jobLauncher).getJobContext();
+    } finally {
+      closer.close();
+    }
   }
 
   @Test
