@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.data.management.copy.replication;
 
-import com.sun.javafx.binding.StringFormatter;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
@@ -79,7 +78,7 @@ public class SourceHadoopFsEndPoint extends HadoopFsEndPoint {
         try {
           this.allFileStatus.addAll(FileListUtils.listFilesRecursively(fs, p, super.getPathFilter(), super.isApplyFilterToDirectories()));
         } catch (Exception e) {
-          log.error(StringFormatter.format("Error while try read file in directory %s to get watermark", p.toString()).toString());
+          log.error(String.format("Error while try read file in directory %s to get watermark", p.toString()));
         }
       }
 
