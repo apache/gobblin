@@ -303,7 +303,7 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
 
   @Override
   public void close() throws IOException {
-    if (!allPartitionsFinished()) {
+    if (!allPartitionsFinished() && currentPartitionIdx != INITIAL_PARTITION_IDX) {
       this.statsTracker.updateStatisticsForCurrentPartition(currentPartitionIdx, readStartTime, getLastSuccessfulRecordHeaderTimestamp());
     }
     // Add error partition count and error message count to workUnitState
