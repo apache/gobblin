@@ -19,8 +19,17 @@ package org.apache.gobblin.runtime.api;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.JobState;
+import org.apache.gobblin.runtime.template.ResourceBasedJobTemplate;
+import org.apache.gobblin.runtime.template.StaticJobTemplate;
+import org.apache.gobblin.util.ConfigUtils;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
@@ -28,11 +37,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-
-import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.runtime.JobState;
-import org.apache.gobblin.util.ConfigUtils;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -75,6 +79,7 @@ public class JobSpec implements Configurable, Spec {
 
   /** A Verb identifies if the Spec is for Insert/Update/Delete */
   public static final String VERB_KEY = "Verb";
+  private static final String IN_MEMORY_TEMPLATE_URI = "inmemory";
 
   public static Builder builder(URI jobSpecUri) {
     return new Builder(jobSpecUri);
@@ -301,6 +306,29 @@ public class JobSpec implements Configurable, Spec {
     public Builder withTemplate(URI templateURI) {
       Preconditions.checkNotNull(templateURI);
       this.templateURI = Optional.of(templateURI);
+      return this;
+    }
+
+    /**
+     * As the public interface of {@link JobSpec} doesn't really support multiple templates,
+     * for incoming list of template uris we will consolidate them as well as resolving. The resolved Config
+     * will not be materialized but reside only in memory through the lifecycle.
+     *
+     * Restriction: This method assumes no customized jobTemplateCatalog and uses classpath resources as the input.
+     * Also, the order of list matters: The former one will be overwritten by the latter.
+     */
+    public Builder withResourceTemplates(List<URI> templateURIs) {
+      try {
+        List<JobTemplate> templates = new ArrayList<>();
+        for(URI uri : templateURIs) {
+          templates.add(ResourceBasedJobTemplate.forResourcePath(uri.getPath()));
+        }
+        this.jobTemplate = Optional.of(new StaticJobTemplate(new URI(IN_MEMORY_TEMPLATE_URI), "", "",
+            ConfigFactory.empty(), templates));
+
+      } catch (URISyntaxException | SpecNotFoundException | JobTemplate.TemplateException | IOException e) {
+        throw new RuntimeException("Fatal exception: Templates couldn't be resolved properly, ", e);
+      }
       return this;
     }
 

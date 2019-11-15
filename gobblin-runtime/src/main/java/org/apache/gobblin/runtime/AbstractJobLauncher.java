@@ -20,6 +20,8 @@ package org.apache.gobblin.runtime;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -115,6 +117,12 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   public static final String MULTI_WORK_UNIT_FILE_EXTENSION = ".mwu";
 
   public static final String GOBBLIN_JOB_TEMPLATE_KEY = "gobblin.template.uri";
+
+  /** Making {@link AbstractJobLauncher} capable of loading multiple job templates.
+   * Keep the original {@link #GOBBLIN_JOB_TEMPLATE_KEY} for backward-compatibility.
+   * TODO: Expand support to Gobblin-as-a-Service in FlowTemplateCatalog.
+   * */
+  public static final String GOBBLIN_JOB_MULTI_TEMPLATE_KEY = "gobblin.template.uris";
 
   // Job configuration properties
   protected final Properties jobProps;
@@ -236,14 +244,21 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   public static void resolveGobblinJobTemplateIfNecessary(Properties jobProps) throws IOException, URISyntaxException,
                                                                                       SpecNotFoundException,
                                                                                       JobTemplate.TemplateException {
+    Config config = ConfigUtils.propertiesToConfig(jobProps);
+    JobSpecResolver resolver = JobSpecResolver.builder(config).build();
+    JobSpec jobSpec = null;
     if (jobProps.containsKey(GOBBLIN_JOB_TEMPLATE_KEY)) {
-      Config config = ConfigUtils.propertiesToConfig(jobProps);
-      JobSpecResolver resolver = JobSpecResolver.builder(config).build();
-
       URI templateUri = new URI(jobProps.getProperty(GOBBLIN_JOB_TEMPLATE_KEY));
-      JobSpec jobSpec = JobSpec.builder().withConfig(config).withTemplate(templateUri).build();
-      ResolvedJobSpec resolvedJob = resolver.resolveJobSpec(jobSpec);
-      jobProps.putAll(ConfigUtils.configToProperties(resolvedJob.getConfig()));
+      jobSpec = JobSpec.builder().withConfig(config).withTemplate(templateUri).build();
+    } else if (jobProps.containsKey(GOBBLIN_JOB_MULTI_TEMPLATE_KEY)) {
+      List<URI> templatesURIs = new ArrayList<>();
+      for (String uri : jobProps.getProperty(GOBBLIN_JOB_MULTI_TEMPLATE_KEY).split(",")) {
+        templatesURIs.add(new URI(uri));
+      }
+      jobSpec = JobSpec.builder().withConfig(config).withResourceTemplates(templatesURIs).build();
+    }
+    if (jobSpec != null ) {
+      jobProps.putAll(ConfigUtils.configToProperties(resolver.resolveJobSpec(jobSpec).getConfig()));
     }
   }
 

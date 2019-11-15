@@ -51,11 +51,15 @@ public abstract class InheritingJobTemplate implements JobTemplate {
     this.resolved = false;
   }
 
-  public InheritingJobTemplate(List<JobTemplate> superTemplates) {
+  public InheritingJobTemplate(List<JobTemplate> superTemplates, boolean skipResolve) {
     this.superTemplateUris = Lists.newArrayList();
     this.catalog = null;
     this.superTemplates = superTemplates;
-    this.resolved = true;
+    this.resolved = skipResolve;
+  }
+
+  public InheritingJobTemplate(List<JobTemplate> superTemplates) {
+    this(superTemplates, true);
   }
 
   /**
@@ -71,27 +75,62 @@ public abstract class InheritingJobTemplate implements JobTemplate {
     resolveTemplates(loadedTemplates);
   }
 
+  /**
+   * Resolve all superTemplates being field variables within the class.
+   * There are two types of resolution being involved in this method:
+   * 1) When all templates are being represented as {@link #superTemplateUris}, the actual template will be loaded from
+   * catalog first and enter resolution process. The physical {@link #superTemplates} are being materialized after that.
+   * 2) org.apache.gobblin.runtime.template.InheritingJobTemplate#InheritingJobTemplate(java.util.List, boolean) provides
+   * interface to directly provide physical {@link #superTemplates}. This case is determined by non-null containers of
+   * {@link #superTemplates}.
+   *
+   */
   private void resolveTemplates(Map<URI, JobTemplate> loadedTemplates) throws SpecNotFoundException, TemplateException {
     if (this.resolved) {
       return;
     }
-    this.superTemplates = Lists.newArrayList();
-    for (URI uri : this.superTemplateUris) {
-      if (!loadedTemplates.containsKey(uri)) {
-        JobTemplate newTemplate = this.catalog.getTemplate(uri);
-        loadedTemplates.put(uri, newTemplate);
-        if (newTemplate instanceof InheritingJobTemplate) {
-          ((InheritingJobTemplate) newTemplate).resolveTemplates(loadedTemplates);
+
+    if (this.superTemplateUris.size() > 0) {
+      this.superTemplates = Lists.newArrayList();
+      for (URI uri : this.superTemplateUris) {
+        if (!loadedTemplates.containsKey(uri)) {
+          JobTemplate newTemplate = this.catalog.getTemplate(uri);
+          resolveTemplateRecursionHelper(newTemplate, uri, loadedTemplates);
+        }
+        this.superTemplates.add(loadedTemplates.get(uri));
+      }
+    } else if (superTemplates != null ) {
+      for (JobTemplate newTemplate : this.superTemplates) {
+        if (!loadedTemplates.containsKey(newTemplate.getUri())) {
+          resolveTemplateRecursionHelper(newTemplate, newTemplate.getUri(), loadedTemplates);
         }
       }
-      this.superTemplates.add(loadedTemplates.get(uri));
     }
+
     this.resolved = true;
+  }
+
+  /**
+   * The canonicalURI needs to be there when the template needs to loaded from catalog, as the format are adjusted
+   * while constructing the template.
+   * Essentially, jobCatalog.load(templateUris.get(0)).getUri().equal(templateUris.get(0)) return false.
+   */
+  private void resolveTemplateRecursionHelper(JobTemplate newTemplate, URI canonicalURI, Map<URI, JobTemplate> loadedTemplates)
+      throws SpecNotFoundException, TemplateException {
+    loadedTemplates.put(canonicalURI, newTemplate);
+    if (newTemplate instanceof InheritingJobTemplate) {
+      ((InheritingJobTemplate) newTemplate).resolveTemplates(loadedTemplates);
+    }
   }
 
   public Collection<JobTemplate> getSuperTemplates() throws SpecNotFoundException, TemplateException {
     ensureTemplatesResolved();
-    return ImmutableList.copyOf(this.superTemplates);
+
+    if (superTemplates != null ) {
+      return ImmutableList.copyOf(this.superTemplates);
+    } else {
+      return ImmutableList.of();
+    }
   }
 
   @Override
@@ -103,13 +142,14 @@ public abstract class InheritingJobTemplate implements JobTemplate {
   private Config getRawTemplateConfigHelper(Set<JobTemplate> alreadyInheritedTemplates)
       throws SpecNotFoundException, TemplateException {
     Config rawTemplate = getLocalRawTemplate();
-    for (JobTemplate template : Lists.reverse(this.superTemplates)) {
-      if (!alreadyInheritedTemplates.contains(template)) {
-        alreadyInheritedTemplates.add(template);
-        Config thisFallback = template instanceof InheritingJobTemplate
-            ? ((InheritingJobTemplate) template).getRawTemplateConfigHelper(alreadyInheritedTemplates)
-            : template.getRawTemplateConfig();
-        rawTemplate = rawTemplate.withFallback(thisFallback);
+    if (this.superTemplates != null) {
+      for (JobTemplate template : Lists.reverse(this.superTemplates)) {
+        if (!alreadyInheritedTemplates.contains(template)) {
+          alreadyInheritedTemplates.add(template);
+          Config thisFallback = template instanceof InheritingJobTemplate ? ((InheritingJobTemplate) template).getRawTemplateConfigHelper(alreadyInheritedTemplates)
+              : template.getRawTemplateConfig();
+          rawTemplate = rawTemplate.withFallback(thisFallback);
+        }
       }
     }
     return rawTemplate;
@@ -136,12 +176,13 @@ public abstract class InheritingJobTemplate implements JobTemplate {
   private Set<String> getRequiredConfigListHelper(Set<JobTemplate> alreadyLoadedTemplates)
       throws SpecNotFoundException, TemplateException {
     Set<String> requiredConfigs = Sets.newHashSet(getLocallyRequiredConfigList());
-    for (JobTemplate template : this.superTemplates) {
-      if (!alreadyLoadedTemplates.contains(template)) {
-        alreadyLoadedTemplates.add(template);
-        requiredConfigs.addAll(template instanceof InheritingJobTemplate
-            ? ((InheritingJobTemplate) template).getRequiredConfigListHelper(alreadyLoadedTemplates)
-            : template.getRequiredConfigList());
+    if (this.superTemplates != null) {
+      for (JobTemplate template : this.superTemplates) {
+        if (!alreadyLoadedTemplates.contains(template)) {
+          alreadyLoadedTemplates.add(template);
+          requiredConfigs.addAll(template instanceof InheritingJobTemplate ? ((InheritingJobTemplate) template).getRequiredConfigListHelper(alreadyLoadedTemplates)
+              : template.getRequiredConfigList());
+        }
       }
     }
     return requiredConfigs;
@@ -158,13 +199,14 @@ public abstract class InheritingJobTemplate implements JobTemplate {
   private Config getResolvedConfigHelper(Config userConfig, Set<JobTemplate> alreadyLoadedTemplates)
       throws SpecNotFoundException, TemplateException {
     Config config = getLocallyResolvedConfig(userConfig);
-    for (JobTemplate template : Lists.reverse(this.superTemplates)) {
-      if (!alreadyLoadedTemplates.contains(template)) {
-        alreadyLoadedTemplates.add(template);
-        Config fallback = template instanceof InheritingJobTemplate
-            ? ((InheritingJobTemplate) template).getResolvedConfigHelper(config, alreadyLoadedTemplates)
-            : template.getResolvedConfig(config);
-        config = config.withFallback(fallback);
+    if (superTemplates != null ) {
+      for (JobTemplate template : Lists.reverse(this.superTemplates)) {
+        if (!alreadyLoadedTemplates.contains(template)) {
+          alreadyLoadedTemplates.add(template);
+          Config fallback = template instanceof InheritingJobTemplate ? ((InheritingJobTemplate) template)
+              .getResolvedConfigHelper(config, alreadyLoadedTemplates) : template.getResolvedConfig(config);
+          config = config.withFallback(fallback);
+        }
       }
     }
     return config;

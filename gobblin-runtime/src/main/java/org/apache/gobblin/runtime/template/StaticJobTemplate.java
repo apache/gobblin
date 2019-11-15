@@ -64,13 +64,23 @@ public class StaticJobTemplate extends InheritingJobTemplate implements SecureJo
   private Collection<String> dependencies;
 
   public StaticJobTemplate(URI uri, String version, String description, Config config, JobCatalogWithTemplates catalog)
-      throws SpecNotFoundException, TemplateException {
+      throws TemplateException {
     this(uri, version, description, config, getSuperTemplateUris(config), catalog);
   }
 
+  /** An constructor that materialize multiple templates into a single static template
+   * The constructor provided multiple in-memory templates as the input instead of templateURIs
+   * */
+  public StaticJobTemplate(URI uri, String version, String description, Config config, List<JobTemplate> templates) {
+    super(templates, false);
+    this.uri = uri;
+    this.version = version;
+    this.rawConfig = config;
+    this.description = description;
+  }
+
   protected StaticJobTemplate(URI uri, String version, String description, Config config, List<URI> superTemplateUris,
-      JobCatalogWithTemplates catalog)
-      throws SpecNotFoundException, TemplateException {
+      JobCatalogWithTemplates catalog) {
     super(superTemplateUris, catalog);
     this.uri = uri;
     this.version = version;
