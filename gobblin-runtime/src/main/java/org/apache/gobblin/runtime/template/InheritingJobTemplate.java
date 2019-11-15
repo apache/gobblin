@@ -75,6 +75,16 @@ public abstract class InheritingJobTemplate implements JobTemplate {
     resolveTemplates(loadedTemplates);
   }
 
+  /**
+   * Resolve all superTemplates being field variables within the class.
+   * There are two types of resolution being involved in this method:
+   * 1) When all templates are being represented as {@link #superTemplateUris}, the actual template will be loaded from
+   * catalog first and enter resolution process. The physical {@link #superTemplates} are being materialized after that.
+   * 2) org.apache.gobblin.runtime.template.InheritingJobTemplate#InheritingJobTemplate(java.util.List, boolean) provides
+   * interface to directly provide physical {@link #superTemplates}. This case is determined by non-null containers of
+   * {@link #superTemplates}.
+   *
+   */
   private void resolveTemplates(Map<URI, JobTemplate> loadedTemplates) throws SpecNotFoundException, TemplateException {
     if (this.resolved) {
       return;

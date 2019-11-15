@@ -69,7 +69,7 @@ public class StaticJobTemplate extends InheritingJobTemplate implements SecureJo
   }
 
   /** An constructor that materialize multiple templates into a single static template
-   * The constructor provided multiple existing templates as the input instead of templateURIs
+   * The constructor provided multiple in-memory templates as the input instead of templateURIs
    * */
   public StaticJobTemplate(URI uri, String version, String description, Config config, List<JobTemplate> templates) {
     super(templates, false);
