@@ -57,7 +57,10 @@ import org.testng.annotations.Test;
 import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
 
+import lombok.extern.slf4j.Slf4j;
 
+
+@Slf4j
 public class AvroUtilsTest {
   private static final String AVRO_DIR = "gobblin-utility/src/test/resources/avroDirParent/";
 
@@ -539,6 +542,27 @@ public class AvroUtilsTest {
     Assert.assertEquals(newSchema.getName(), outputName);
     Assert.assertEquals(newSchema.getNamespace(), outputNamespace);
   }
+
+
+  @Test
+  public void testisSchemaRecursive()
+      throws IOException {
+    for (String scenario : new String[]{"norecursion", "simple", "union", "multiple", "nested", "array", "map"}) {
+      System.out.println("Processing scenario for " + scenario);
+
+      Schema inputSchema = new Schema.Parser()
+          .parse(getClass().getClassLoader().getResourceAsStream("recursive_schemas/recursive_" + scenario + ".avsc"));
+
+      if (scenario.equals("norecursion")) {
+        Assert.assertFalse(AvroUtils.isSchemaRecursive(inputSchema, Optional.of(log)),
+            "Schema for scenario " + scenario + " should not be recursive");
+      } else {
+        Assert.assertTrue(AvroUtils.isSchemaRecursive(inputSchema, Optional.of(log)),
+            "Schema for scenario " + scenario + " should be recursive");
+      }
+    }
+  }
+
 
   @Test
   public void testDropRecursiveSchema()

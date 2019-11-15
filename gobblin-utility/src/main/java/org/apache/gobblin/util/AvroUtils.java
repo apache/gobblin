@@ -953,6 +953,27 @@ public class AvroUtils {
   }
 
   /**
+   * Check if a schema has recursive fields inside it
+   * @param schema
+   * @param logger : Optional logger if you want the method to log why it thinks the schema was recursive
+   * @return true / false
+   */
+  public static boolean isSchemaRecursive(Schema schema, Optional<Logger> logger) {
+    List<SchemaEntry> recursiveFields = new ArrayList<>();
+    dropRecursive(new SchemaEntry(null, schema), Collections.EMPTY_LIST, recursiveFields);
+    if (recursiveFields.isEmpty()) {
+      return false;
+    } else {
+      if (logger.isPresent()) {
+        logger.get().info("Found recursive fields [{}] in schema {}", recursiveFields.stream().map(f -> f.fieldName).collect(Collectors.joining(",")),
+            schema.getFullName());
+      }
+      return true;
+    }
+  }
+
+
+  /**
    * Drop recursive fields from a Schema. Recursive fields are fields that refer to types that are part of the
    * parent tree.
    * e.g. consider this Schema for a User
@@ -1074,8 +1095,15 @@ public class AvroUtils {
     }
   }
 
-  private static void copyFieldProperties(Schema.Field field, Schema.Field copiedField) {
-    field.getProps().forEach((key, value) -> copiedField.addProp(key, value));
+  /**
+   * Annoyingly, Avro doesn't provide a field constructor where you can pass in "unknown to Avro" properties
+   * to attach to the field object in the schema even though the Schema language and object model supports it.
+   * This method allows for such copiers to explicitly copy the properties from a source field to a destination field.
+   * @param sourceField
+   * @param copiedField
+   */
+  private static void copyFieldProperties(Schema.Field sourceField, Schema.Field copiedField) {
+    sourceField.getProps().forEach((key, value) -> copiedField.addProp(key, value));
   }
 
 }
