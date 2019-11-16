@@ -1,0 +1,32 @@
+{"namespace": "example.avro",
+ "type": "record",
+ "name": "User",
+ "fields": [
+     {"name": "name", "type": "string"},
+     {"name": "favorite_number",  "type": ["int", "null"]},
+     {"name": "favorite_color", "type": ["string", "null"]},
+     {"name": "date_of_birth", "type": "long"},
+     {"name": "last_modified", "type": "long"},
+     {"name": "created", "type": "long"},
+     {"name": "friends",
+      "type" : {
+                   "type": "array",
+                   "items": "User"
+               }
+     },
+     {"name": "places",
+      "type": {
+                "type": "array",
+                "items": {
+                  "type": "record",
+                  "name": "Place",
+                  "fields": [
+                    {"name": "name", "type": "string"},
+                    {"name": "innerPlace", "type": "Place"}
+                  ]
+                }
+     }},
+     {"name": "friend", "type": ["null", "User"]}
+ ],
+ "recursive_fields": ["places.innerPlace","friends", "friend"] 
+}

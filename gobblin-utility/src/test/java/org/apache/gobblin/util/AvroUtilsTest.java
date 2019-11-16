@@ -23,8 +23,11 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.Schema;
@@ -42,17 +45,22 @@ import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.mapred.FsInput;
+import org.apache.commons.math3.util.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
+import org.codehaus.jackson.node.ArrayNode;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
 
+import lombok.extern.slf4j.Slf4j;
 
+
+@Slf4j
 public class AvroUtilsTest {
   private static final String AVRO_DIR = "gobblin-utility/src/test/resources/avroDirParent/";
 
@@ -535,4 +543,63 @@ public class AvroUtilsTest {
     Assert.assertEquals(newSchema.getNamespace(), outputNamespace);
   }
 
+
+  @Test
+  public void testisSchemaRecursive()
+      throws IOException {
+    for (String scenario : new String[]{"norecursion", "simple", "union", "multiple", "nested", "array", "map"}) {
+      System.out.println("Processing scenario for " + scenario);
+
+      Schema inputSchema = new Schema.Parser()
+          .parse(getClass().getClassLoader().getResourceAsStream("recursive_schemas/recursive_" + scenario + ".avsc"));
+
+      if (scenario.equals("norecursion")) {
+        Assert.assertFalse(AvroUtils.isSchemaRecursive(inputSchema, Optional.of(log)),
+            "Schema for scenario " + scenario + " should not be recursive");
+      } else {
+        Assert.assertTrue(AvroUtils.isSchemaRecursive(inputSchema, Optional.of(log)),
+            "Schema for scenario " + scenario + " should be recursive");
+      }
+    }
+  }
+
+
+  @Test
+  public void testDropRecursiveSchema()
+      throws IOException {
+
+    for (String scenario : new String[]{"norecursion", "simple", "union", "multiple", "nested", "array", "map"}) {
+      System.out.println("Processing scenario for " + scenario);
+
+      Schema inputSchema = new Schema.Parser().parse(getClass().getClassLoader()
+          .getResourceAsStream("recursive_schemas/recursive_" + scenario + ".avsc"));
+
+      Schema solutionSchema = new Schema.Parser().parse(getClass().getClassLoader()
+          .getResourceAsStream("recursive_schemas/recursive_" + scenario + "_solution.avsc"));
+
+      // get the answer from the input schema (test author needs to provide this)
+      ArrayNode foo = (ArrayNode) inputSchema.getJsonProp("recursive_fields");
+      HashSet<String> answers = new HashSet<>();
+      for (JsonNode fieldsWithRecursion: foo) {
+        answers.add(fieldsWithRecursion.getTextValue());
+      }
+
+      Pair<Schema, List<AvroUtils.SchemaEntry>> results = AvroUtils.dropRecursiveFields(inputSchema);
+      List<AvroUtils.SchemaEntry> fieldsWithRecursion = results.getSecond();
+      Schema transformedSchema = results.getFirst();
+
+      // Prove that fields with recursion are no longer present
+      for (String answer: answers) {
+        Assert.assertFalse(AvroUtils.getField(transformedSchema, answer).isPresent());
+      }
+
+      // Additionally compare schema with solution schema
+      Assert.assertEquals(solutionSchema, transformedSchema,"Transformed schema differs from solution schema for scenario " + scenario);
+
+      Set<String> recursiveFieldNames = fieldsWithRecursion.stream().map(se -> se.fieldName).collect(Collectors.toSet());
+      Assert.assertEquals(recursiveFieldNames, answers,
+          "Found recursive fields differ from answers listed in the schema for scenario " + scenario);
+
+    }
+  }
 }
