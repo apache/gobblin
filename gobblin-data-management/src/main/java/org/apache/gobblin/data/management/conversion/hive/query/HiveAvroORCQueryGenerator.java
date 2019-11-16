@@ -382,7 +382,6 @@ public class HiveAvroORCQueryGenerator {
     }
 
 
-
     return ddls;
   }
 
