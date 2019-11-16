@@ -29,6 +29,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
 import org.apache.helix.HelixManager;
@@ -183,9 +184,9 @@ public class YarnSecurityManagerTest {
 
   @Test(dependsOnMethods = "testWriteDelegationTokenToFile")
   public void testYarnContainerSecurityManager() throws IOException {
-    Collection<Token<?>> tokens = this.yarnContainerSecurityManager.readDelegationTokens(this.tokenFilePath);
-    assertToken(tokens);
-    this.yarnContainerSecurityManager.addDelegationTokens(tokens);
+    Credentials credentials = this.yarnContainerSecurityManager.readCredentials(this.tokenFilePath);
+    assertToken(credentials.getAllTokens());
+    this.yarnContainerSecurityManager.addCredentials(credentials);
     assertToken(UserGroupInformation.getCurrentUser().getTokens());
   }
 

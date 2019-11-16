@@ -18,10 +18,10 @@
 package org.apache.gobblin.yarn;
 
 import java.io.IOException;
-import java.util.Collection;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
@@ -71,7 +71,7 @@ public class YarnContainerSecurityManager extends AbstractIdleService {
   @Subscribe
   public void handleTokenFileUpdatedEvent(DelegationTokenUpdatedEvent delegationTokenUpdatedEvent) {
     try {
-      addDelegationTokens(readDelegationTokens(this.tokenFilePath));
+      addCredentials(readCredentials(this.tokenFilePath));
     } catch (IOException ioe) {
       throw Throwables.propagate(ioe);
     }
@@ -91,18 +91,16 @@ public class YarnContainerSecurityManager extends AbstractIdleService {
    * Read the {@link Token}s stored in the token file.
    */
   @VisibleForTesting
-  Collection<Token<? extends TokenIdentifier>> readDelegationTokens(Path tokenFilePath) throws IOException {
-    LOGGER.info("Reading updated token from token file: " + tokenFilePath);
-    return YarnHelixUtils.readTokensFromFile(tokenFilePath, this.fs.getConf());
+  Credentials readCredentials(Path tokenFilePath) throws IOException {
+    LOGGER.info("Reading updated credentials from token file: " + tokenFilePath);
+    return Credentials.readTokenStorageFile(tokenFilePath, this.fs.getConf());
   }
 
   @VisibleForTesting
-  void addDelegationTokens(Collection<Token<? extends TokenIdentifier>> tokens) throws IOException {
-    for (Token<? extends TokenIdentifier> token : tokens) {
-      if (!UserGroupInformation.getCurrentUser().addToken(token)) {
-        LOGGER.error(String.format("Failed to add token %s to user %s",
-            token.toString(), UserGroupInformation.getLoginUser().getShortUserName()));
-      }
+  void addCredentials(Credentials credentials) throws IOException {
+    for (Token<? extends TokenIdentifier> token : credentials.getAllTokens()) {
+      LOGGER.info("updating "+token.toString());
     }
+    UserGroupInformation.getCurrentUser().addCredentials(credentials);
   }
 }
