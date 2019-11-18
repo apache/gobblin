@@ -78,6 +78,8 @@ public abstract class HadoopFileInputSource<S, D, K, V> extends AbstractSource<S
   public static final String FILE_SPLITS_DESIRED_KEY = HADOOP_SOURCE_KEY_PREFIX + "file.splits.desired";
   public static final int DEFAULT_FILE_SPLITS_DESIRED = 1;
   public static final String FILE_INPUT_PATHS_KEY = HADOOP_SOURCE_KEY_PREFIX + "file.input.paths";
+  public static final String FILE_INPUT_SPLIT_MINSIZE = HADOOP_SOURCE_KEY_PREFIX + "file.input.split.minsize";
+  public static final String FILE_INPUT_SPLIT_MAXSIZE = HADOOP_SOURCE_KEY_PREFIX + "file.input.split.maxsize";
   public static final String FILE_INPUT_READ_KEYS_KEY = HADOOP_SOURCE_KEY_PREFIX + "file.read.keys";
   public static final boolean DEFAULT_FILE_INPUT_READ_KEYS = false;
   public static final String FILE_SPLIT_PATH_KEY = HADOOP_SOURCE_KEY_PREFIX + "file.split.path";
@@ -92,6 +94,14 @@ public abstract class HadoopFileInputSource<S, D, K, V> extends AbstractSource<S
         for (String inputPath : state.getPropAsList(FILE_INPUT_PATHS_KEY)) {
           FileInputFormat.addInputPath(job, new Path(inputPath));
         }
+      }
+
+      if (state.contains(FILE_INPUT_SPLIT_MINSIZE)) {
+        FileInputFormat.setMinInputSplitSize(job, state.getPropAsLong(FILE_INPUT_SPLIT_MINSIZE));
+      }
+
+      if (state.contains(FILE_INPUT_SPLIT_MAXSIZE)) {
+        FileInputFormat.setMaxInputSplitSize(job, state.getPropAsLong(FILE_INPUT_SPLIT_MAXSIZE));
       }
 
       FileInputFormat<K, V> fileInputFormat = getFileInputFormat(state, job.getConfiguration());
