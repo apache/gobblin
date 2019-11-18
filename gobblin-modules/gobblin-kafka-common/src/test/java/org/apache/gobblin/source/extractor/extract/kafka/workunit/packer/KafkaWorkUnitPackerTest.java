@@ -20,13 +20,16 @@ package org.apache.gobblin.source.extractor.extract.kafka.workunit.packer;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.gobblin.configuration.SourceState;
-import org.apache.gobblin.source.extractor.extract.AbstractSource;
-import org.apache.gobblin.source.workunit.WorkUnit;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
+import com.google.common.base.Optional;
+
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.source.extractor.extract.AbstractSource;
+import org.apache.gobblin.source.workunit.WorkUnit;
 
 import static org.apache.gobblin.source.extractor.extract.kafka.workunit.packer.KafkaWorkUnitPacker.KAFKA_WORKUNIT_PACKER_CUSTOMIZED_TYPE;
 import static org.apache.gobblin.source.extractor.extract.kafka.workunit.packer.KafkaWorkUnitPacker.KAFKA_WORKUNIT_PACKER_TYPE;
@@ -61,7 +64,7 @@ public class KafkaWorkUnitPackerTest {
 
   @Test
   public void testGetInstance() {
-    KafkaWorkUnitPacker anotherPacker = KafkaWorkUnitPacker.getInstance(source, state);
+    KafkaWorkUnitPacker anotherPacker = KafkaWorkUnitPacker.getInstance(source, state, Optional.absent());
     Assert.assertTrue(anotherPacker instanceof KafkaSingleLevelWorkUnitPacker);
   }
 
