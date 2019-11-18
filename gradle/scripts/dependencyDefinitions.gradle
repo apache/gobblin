@@ -167,7 +167,7 @@ ext.externalDependency = [
     "opencsv": "com.opencsv:opencsv:3.8",
     "grok": "io.thekraken:grok:0.1.5",
     "hadoopAdl" : "org.apache.hadoop:hadoop-azure-datalake:3.0.0-alpha2",
-    "orcMapreduce":"org.apache.orc:orc-mapreduce:1.6.0",
+    "orcMapreduce":"org.apache.orc:orc-mapreduce:1.6.1",
     'parquet': 'com.twitter:parquet-hadoop-bundle:1.5.0',
     'reactivex': 'io.reactivex.rxjava2:rxjava:2.1.0',
     "slf4j": [
