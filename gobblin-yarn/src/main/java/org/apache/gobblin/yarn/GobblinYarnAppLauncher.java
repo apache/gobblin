@@ -657,7 +657,7 @@ public class GobblinYarnAppLauncher {
       throws IOException {
     FileSystem localFs = FileSystem.getLocal(this.yarnConfiguration);
     if (! this.fs.exists(srcLibJarDir)) {
-      throw new IllegalStateException("The library directory are not being found, abort the application");
+      throw new IllegalStateException(String.format("The library directory[%s] are not being found, abort the application", srcLibJarDir));
     }
 
     FileStatus[] libJarFiles = localFs.listStatus(srcLibJarDir);

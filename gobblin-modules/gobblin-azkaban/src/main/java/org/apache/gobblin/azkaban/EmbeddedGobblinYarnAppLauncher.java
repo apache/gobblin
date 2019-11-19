@@ -39,6 +39,7 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * TODO: Move this to a better place.
+ * Given a set up Azkaban job configuration, launch the Gobblin-on-Yarn job in an embedded mode.
  */
 @Slf4j
 public class EmbeddedGobblinYarnAppLauncher extends AzkabanJobRunner {
@@ -57,7 +58,6 @@ public class EmbeddedGobblinYarnAppLauncher extends AzkabanJobRunner {
 
     final YarnConfiguration clusterConf = new YarnConfiguration();
     clusterConf.set("yarn.resourcemanager.connect.max-wait.ms", "10000");
-    //TODO: See if hanging is due to resource limitation.
     clusterConf.set("yarn.nodemanager.resource.memory-mb", "1024");
     clusterConf.set("yarn.scheduler.maximum-allocation-mb", "2048");
 
