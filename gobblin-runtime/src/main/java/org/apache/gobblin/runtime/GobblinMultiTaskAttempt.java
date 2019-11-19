@@ -78,7 +78,9 @@ public class GobblinMultiTaskAttempt {
     /**
      * Commit {@link GobblinMultiTaskAttempt} immediately after running is done.
      */
-    IMMEDIATE, /**
+    IMMEDIATE,
+
+    /**
      * Not committing {@link GobblinMultiTaskAttempt} but leaving it to user customized launcher.
      */
     CUSTOMIZED
