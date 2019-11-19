@@ -37,6 +37,8 @@ import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import static org.apache.gobblin.qualitychecker.row.RowLevelPolicyChecker.ALLOW_SPECULATIVE_EXECUTION_WITH_ERR_FILE_POLICY;
+
 
 @Test(groups = {"gobblin.qualitychecker"})
 public class RowLevelQualityCheckerTest {
@@ -70,6 +72,13 @@ public class RowLevelQualityCheckerTest {
     Pattern pattern = Pattern.compile("test\\/org.apache.gobblin.qualitychecker.TestRowLevelPolicy-\\d+\\.err");
     Matcher matcher = pattern.matcher(path.toString());
     Assert.assertTrue(matcher.matches());
+
+    // Negative case
+    state.setProp(ConfigurationKeys.ROW_LEVEL_POLICY_LIST_TYPE, "FAIL");
+    state.setProp(ALLOW_SPECULATIVE_EXECUTION_WITH_ERR_FILE_POLICY, false);
+    checker =
+        new RowLevelPolicyCheckerBuilderFactory().newPolicyCheckerBuilder(state, -1).build();
+    Assert.assertFalse(checker.isSpeculativeAttemptSafe());
   }
 
   @Test(groups = {"ignore"})

@@ -77,7 +77,7 @@ public class RowLevelPolicyChecker<S, D> implements Closeable, FinalState, Recor
    * */
   private boolean allowSpeculativeExecWhenWriteErrFile;
 
-  private static final String ALLOW_SPECULATIVE_EXECUTION_WITH_ERR_FILE_POLICY = "allowSpeculativeExecutionWithErrFilePolicy";
+  static final String ALLOW_SPECULATIVE_EXECUTION_WITH_ERR_FILE_POLICY = "allowSpeculativeExecutionWithErrFilePolicy";
 
   public RowLevelPolicyChecker(List<RowLevelPolicy> list, String stateId, FileSystem fs) {
     this(list, stateId, fs, new State());
