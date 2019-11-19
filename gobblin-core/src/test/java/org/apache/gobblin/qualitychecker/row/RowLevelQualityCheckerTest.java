@@ -15,15 +15,16 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.qualitychecker;
+package org.apache.gobblin.qualitychecker.row;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
-import org.apache.gobblin.qualitychecker.row.RowLevelPolicyChecker;
-import org.apache.gobblin.qualitychecker.row.RowLevelPolicyCheckerBuilderFactory;
+import org.apache.gobblin.qualitychecker.TestConstants;
+import org.apache.gobblin.qualitychecker.TestRowLevelPolicy;
 import java.io.File;
 import java.net.URI;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.file.FileReader;
@@ -55,6 +56,20 @@ public class RowLevelQualityCheckerTest {
     for (GenericRecord datum : fileReader) {
       Assert.assertTrue(checker.executePolicies(datum, results));
     }
+  }
+
+  public void testFileNameWithTimestamp() throws Exception {
+    State state = new State();
+    state.setProp(ConfigurationKeys.ROW_LEVEL_POLICY_LIST_TYPE, "ERR_FILE");
+    state.setProp(ConfigurationKeys.ROW_LEVEL_ERR_FILE, TestConstants.TEST_ERR_FILE);
+    RowLevelPolicyChecker checker =
+        new RowLevelPolicyCheckerBuilderFactory().newPolicyCheckerBuilder(state, -1).build();
+    Path path = checker.getErrFilePath(new TestRowLevelPolicy(state, RowLevelPolicy.Type.ERR_FILE));
+
+    // Verify that path follows the structure which contains timestamp.
+    Pattern pattern = Pattern.compile("test\\/org.apache.gobblin.qualitychecker.TestRowLevelPolicy-\\d+\\.err");
+    Matcher matcher = pattern.matcher(path.toString());
+    Assert.assertTrue(matcher.matches());
   }
 
   @Test(groups = {"ignore"})
