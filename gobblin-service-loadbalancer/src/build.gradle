@@ -1,0 +1,144 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+apply plugin: 'java'
+
+dependencies {
+  compile project(":gobblin-admin")
+  compile project(":gobblin-api")
+  compile project(":gobblin-core")
+  compile project(":gobblin-metrics-libs:gobblin-metrics")
+  compile project(":gobblin-metastore")
+  compile project(":gobblin-runtime")
+  compile project(":gobblin-utility")
+  compile project(path: ':gobblin-restli:gobblin-flow-config-service:gobblin-flow-config-service-api', configuration: 'restClient')
+  compile project(path: ':gobblin-restli:gobblin-flow-config-service:gobblin-flow-config-service-api', configuration: 'dataTemplate')
+  compile project(":gobblin-restli:gobblin-flow-config-service:gobblin-flow-config-service-server")
+  compile project(":gobblin-restli:gobblin-flow-config-service:gobblin-flow-config-service-client")
+  compile project(":gobblin-restli:gobblin-restli-utils")
+  compile project(":gobblin-modules:gobblin-azkaban")
+
+  compile externalDependency.avro
+  compile externalDependency.avroMapredH2
+  compile externalDependency.commonsCli
+  compile externalDependency.commonsConfiguration
+  compile externalDependency.commonsEmail
+  compile externalDependency.commonsIo
+  compile externalDependency.commonsLang
+  compile externalDependency.commonsLang3
+  compile externalDependency.curatorFramework
+  compile externalDependency.curatorClient
+  compile externalDependency.curatorRecipes
+  compile externalDependency.findBugsAnnotations
+  compile externalDependency.gson
+  compile externalDependency.guava
+  compile externalDependency.guavaretrying
+  compile externalDependency.guice
+  compile externalDependency.hadoopClientCommon
+  compile externalDependency.hadoopCommon
+  compile externalDependency.helix
+  compile externalDependency.hiveCommon
+  compile externalDependency.httpclient
+  compile externalDependency.httpcore
+  compile externalDependency.jacksonCore
+  compile externalDependency.jacksonMapper
+  compile externalDependency.javaxInject
+  compile externalDependency.jgit
+  compile externalDependency.jodaTime
+  compile externalDependency.jgrapht
+  compile externalDependency.kafka08
+  compile externalDependency.log4j
+  compile externalDependency.lombok
+  compile externalDependency.metricsCore
+  compile externalDependency.metricsJvm
+  compile externalDependency.pegasus.data
+  compile externalDependency.quartz
+  compile externalDependency.slf4j
+  compile externalDependency.typesafeConfig
+  compile externalDependency.zkClient
+
+  testCompile project(":gobblin-example")
+
+  // Required for adding Test class into classpath
+  testCompile project(":gobblin-runtime").sourceSets.test.output
+  testCompile project(path: ":gobblin-modules:gobblin-kafka-08:", configuration: "tests")
+  testCompile project(path: ":gobblin-metastore", configuration: "testFixtures")
+  testCompile project(":gobblin-test-utils")
+  testCompile externalDependency.byteman
+  testCompile externalDependency.bytemanBmunit
+  testCompile externalDependency.calciteCore
+  testCompile externalDependency.calciteAvatica
+  testCompile externalDependency.curatorClient
+  testCompile externalDependency.curatorTest
+  testRuntime externalDependency.derby
+  testCompile externalDependency.hamcrest
+  testCompile externalDependency.jhyde
+  testCompile externalDependency.mockito
+  testCompile externalDependency.kafka08Test
+}
+
+// Begin HACK to get around POM being depenendent on the (empty) gobblin-rest-api instead of gobblin-rest-api-rest-client
+def installer = install.repositories.mavenInstaller
+[installer]*.pom*.whenConfigured {pom ->
+  pom.dependencies.find {dep -> dep.groupId == project.group && dep.artifactId == 'gobblin-flow-config-service-api' }.artifactId = 'gobblin-flow-config-service-api-rest-client'
+  pom.dependencies.find {dep -> dep.groupId == project.group && dep.artifactId == 'gobblin-flow-config-service-api' }.artifactId = 'gobblin-flow-config-service-api-data-template'
+}
+if (rootProject.publishToMaven || rootProject.publishToNexus) {
+  def deployer = uploadArchives.repositories.mavenDeployer
+  [deployer]*.pom*.whenConfigured {pom ->
+    pom.dependencies.find {dep -> dep.groupId == project.group && dep.artifactId == 'gobblin-flow-config-service-api' }.artifactId = 'gobblin-flow-config-service-api-rest-client'
+    pom.dependencies.find {dep -> dep.groupId == project.group && dep.artifactId == 'gobblin-flow-config-service-api' }.artifactId = 'gobblin-flow-config-service-api-data-template'
+  }
+}
+// End HACK
+
+task testJar(type: Jar, dependsOn: testClasses) {
+  baseName = "test-${project.archivesBaseName}"
+  from sourceSets.test.output
+}
+
+configurations {
+  tests
+}
+
+configurations {
+  compile {
+    transitive = false
+  }
+
+  testRuntime {
+    resolutionStrategy {
+      force 'com.google.inject:guice:3.0'
+    }
+  }
+}
+
+artifacts {
+  tests testJar
+}
+
+test {
+  workingDir rootProject.rootDir
+  maxParallelForks = 1
+}
+
+clean {
+  delete "../gobblin-test/locks"
+  delete "../gobblin-test/basicTest"
+}
+
+ext.classification="library"

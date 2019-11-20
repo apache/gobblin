@@ -74,7 +74,7 @@ import static org.apache.gobblin.service.ServiceConfigKeys.GOBBLIN_SERVICE_PREFI
  * and runs them via {@link Orchestrator}.
  */
 @Alpha
-public class GobblinServiceJobScheduler extends JobScheduler implements SpecCatalogListener {
+public class GobblinServiceJobScheduler extends AbstractIdleService {
 
   // Scheduler related configuration
   // A boolean function indicating if current instance will handle DR traffic or not.
