@@ -55,7 +55,7 @@ public class RowLevelPolicyChecker<S, D> implements Closeable, FinalState, Recor
    */
   @Override
   public boolean isSpeculativeAttemptSafe() {
-    return !this.list.stream().allMatch(x -> x.getType().equals(RowLevelPolicy.Type.ERR_FILE)) || this.allowSpeculativeExecWhenWriteErrFile;
+    return this.list.stream().noneMatch(x -> x.getType().equals(RowLevelPolicy.Type.ERR_FILE)) || this.allowSpeculativeExecWhenWriteErrFile;
   }
 
   private final List<RowLevelPolicy> list;

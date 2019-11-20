@@ -62,6 +62,7 @@ public class RowLevelQualityCheckerTest {
 
   public void testFileNameWithTimestamp() throws Exception {
     State state = new State();
+    state.setProp(ConfigurationKeys.ROW_LEVEL_POLICY_LIST, "org.apache.gobblin.qualitychecker.TestRowLevelPolicy");
     state.setProp(ConfigurationKeys.ROW_LEVEL_POLICY_LIST_TYPE, "ERR_FILE");
     state.setProp(ConfigurationKeys.ROW_LEVEL_ERR_FILE, TestConstants.TEST_ERR_FILE);
     RowLevelPolicyChecker checker =
@@ -73,9 +74,16 @@ public class RowLevelQualityCheckerTest {
     Matcher matcher = pattern.matcher(path.toString());
     Assert.assertTrue(matcher.matches());
 
-    // Negative case
-    state.setProp(ConfigurationKeys.ROW_LEVEL_POLICY_LIST_TYPE, "FAIL");
+    // Positive case with multiple non-err_file policy specified.
+    state.setProp(ConfigurationKeys.ROW_LEVEL_POLICY_LIST, "org.apache.gobblin.qualitychecker.TestRowLevelPolicy,org.apache.gobblin.qualitychecker.TestRowLevelPolicy");
+    state.setProp(ConfigurationKeys.ROW_LEVEL_POLICY_LIST_TYPE, "FAIL,OPTIONAL");
     state.setProp(ALLOW_SPECULATIVE_EXECUTION_WITH_ERR_FILE_POLICY, false);
+    checker =
+        new RowLevelPolicyCheckerBuilderFactory().newPolicyCheckerBuilder(state, -1).build();
+    Assert.assertTrue(checker.isSpeculativeAttemptSafe());
+
+    // Negative case with multiple policy containing err_file
+    state.setProp(ConfigurationKeys.ROW_LEVEL_POLICY_LIST_TYPE, "FAIL,ERR_FILE");
     checker =
         new RowLevelPolicyCheckerBuilderFactory().newPolicyCheckerBuilder(state, -1).build();
     Assert.assertFalse(checker.isSpeculativeAttemptSafe());
