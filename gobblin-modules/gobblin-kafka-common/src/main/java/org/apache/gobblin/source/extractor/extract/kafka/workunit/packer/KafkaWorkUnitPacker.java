@@ -368,7 +368,12 @@ public abstract class KafkaWorkUnitPacker {
     return partitions;
   }
 
-  public static KafkaWorkUnitPacker getInstance(AbstractSource<?, ?> source, SourceState state, Optional<MetricContext> metricContext) {
+  public static KafkaWorkUnitPacker getInstance(AbstractSource<?, ?> source, SourceState state) {
+    return getInstance(source, state, Optional.absent());
+  }
+
+  public static KafkaWorkUnitPacker getInstance(AbstractSource<?, ?> source, SourceState state,
+      Optional<MetricContext> metricContext) {
     if (state.contains(KAFKA_WORKUNIT_PACKER_TYPE)) {
       String packerTypeStr = state.getProp(KAFKA_WORKUNIT_PACKER_TYPE);
       Optional<PackerType> packerType = Enums.getIfPresent(PackerType.class, packerTypeStr);

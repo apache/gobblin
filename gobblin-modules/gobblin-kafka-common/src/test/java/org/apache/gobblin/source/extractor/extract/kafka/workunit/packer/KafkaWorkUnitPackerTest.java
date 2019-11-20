@@ -25,8 +25,6 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import com.google.common.base.Optional;
-
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.source.extractor.extract.AbstractSource;
 import org.apache.gobblin.source.workunit.WorkUnit;
@@ -64,7 +62,7 @@ public class KafkaWorkUnitPackerTest {
 
   @Test
   public void testGetInstance() {
-    KafkaWorkUnitPacker anotherPacker = KafkaWorkUnitPacker.getInstance(source, state, Optional.absent());
+    KafkaWorkUnitPacker anotherPacker = KafkaWorkUnitPacker.getInstance(source, state);
     Assert.assertTrue(anotherPacker instanceof KafkaSingleLevelWorkUnitPacker);
   }
 
