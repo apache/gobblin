@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.apache.gobblin.commit.SpeculativeAttemptAwareConstruct;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -45,7 +46,17 @@ import javax.annotation.concurrent.ThreadSafe;
 import lombok.Getter;
 
 
-public class RowLevelPolicyChecker<S, D> implements Closeable, FinalState, RecordStreamProcessor<S, S, D, D> {
+public class RowLevelPolicyChecker<S, D> implements Closeable, FinalState, RecordStreamProcessor<S, S, D, D>,
+                                                    SpeculativeAttemptAwareConstruct {
+
+  /**
+   * Given the existence of writer object when the policy is set to {@link RowLevelPolicy.Type#ERR_FILE}, objects of
+   * this class needs to be speculative-attempt-aware.
+   */
+  @Override
+  public boolean isSpeculativeAttemptSafe() {
+    return this.list.stream().noneMatch(x -> x.getType().equals(RowLevelPolicy.Type.ERR_FILE)) || this.allowSpeculativeExecWhenWriteErrFile;
+  }
 
   private final List<RowLevelPolicy> list;
   private final String stateId;
@@ -56,6 +67,17 @@ public class RowLevelPolicyChecker<S, D> implements Closeable, FinalState, Recor
   private RowLevelErrFileWriter writer;
   @Getter
   private final RowLevelPolicyCheckResults results;
+  /** Flag to determine if it is safe to enable speculative execution when policy is set to ERR_FILE
+   * Users are suggested to turn this off since it could potentially run into HDFS file lease contention if multiple
+   * speculative execution are appending to the same ERR_FILE.
+   *
+   * When there are ERR_FILE policy appears and users are enforcing to set it to true, RowPolicyChecker will created
+   * different ERR_FILE with timestamp in name to avoid contention but there's no guarantee as
+   * different containers' clock is hard to coordinate.
+   * */
+  private boolean allowSpeculativeExecWhenWriteErrFile;
+
+  static final String ALLOW_SPECULATIVE_EXECUTION_WITH_ERR_FILE_POLICY = "allowSpeculativeExecutionWithErrFilePolicy";
 
   public RowLevelPolicyChecker(List<RowLevelPolicy> list, String stateId, FileSystem fs) {
     this(list, stateId, fs, new State());
@@ -71,6 +93,9 @@ public class RowLevelPolicyChecker<S, D> implements Closeable, FinalState, Recor
     this.results = new RowLevelPolicyCheckResults();
     this.sampler = new FrontLoadedSampler(state.getPropAsLong(ConfigurationKeys.ROW_LEVEL_ERR_FILE_RECORDS_PER_TASK,
         ConfigurationKeys.DEFAULT_ROW_LEVEL_ERR_FILE_RECORDS_PER_TASK), 1.5);
+
+    /** By default set to true as to maintain backward-compatibility */
+    this.allowSpeculativeExecWhenWriteErrFile = state.getPropAsBoolean(ALLOW_SPECULATIVE_EXECUTION_WITH_ERR_FILE_POLICY, true);
   }
 
   public boolean executePolicies(Object record, RowLevelPolicyCheckResults results) throws IOException {
@@ -98,11 +123,15 @@ public class RowLevelPolicyChecker<S, D> implements Closeable, FinalState, Recor
     return true;
   }
 
-  private Path getErrFilePath(RowLevelPolicy policy) {
+  Path getErrFilePath(RowLevelPolicy policy) {
     String errFileName = HadoopUtils.sanitizePath(policy.toString(), "-");
     if (!Strings.isNullOrEmpty(this.stateId)) {
       errFileName += "-" + this.stateId;
     }
+    if (allowSpeculativeExecWhenWriteErrFile) {
+      errFileName += "-" + System.currentTimeMillis();
+    }
+
     errFileName += ".err";
     return new Path(policy.getErrFileLocation(), errFileName);
   }
