@@ -164,7 +164,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
       }
     }
 
-    jobStatus = mergedProperties(storeName, tableName, jobStatus, stateStore);
+    jobStatus = mergedProperties(jobStatus, states);
 
     modifyStateIfRetryRequired(jobStatus);
 
@@ -181,17 +181,12 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
     }
   }
 
-  private static org.apache.gobblin.configuration.State mergedProperties(
-      String storeName, String tableName, org.apache.gobblin.configuration.State jobStatus, StateStore stateStore) {
+  private static org.apache.gobblin.configuration.State mergedProperties(org.apache.gobblin.configuration.State jobStatus,
+      List<org.apache.gobblin.configuration.State> states) {
     Properties mergedProperties = new Properties();
 
-    try {
-      List<org.apache.gobblin.configuration.State> states = stateStore.getAll(storeName, tableName);
-      if (states.size() > 0) {
-        mergedProperties.putAll(states.get(states.size() - 1).getProperties());
-      }
-    } catch (Exception e) {
-      log.warn("Could not get previous state for {} {}", storeName, tableName, e);
+    if (states.size() > 0) {
+      mergedProperties.putAll(states.get(states.size() - 1).getProperties());
     }
     mergedProperties.putAll(jobStatus.getProperties());
 
