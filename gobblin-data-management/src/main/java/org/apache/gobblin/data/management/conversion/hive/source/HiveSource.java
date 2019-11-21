@@ -276,7 +276,7 @@ public class HiveSource implements Source {
 
   protected HiveWorkUnit workUnitForTable(HiveDataset hiveDataset, boolean disableAvroCheck) throws IOException {
     HiveWorkUnit hiveWorkUnit = new HiveWorkUnit(hiveDataset);
-    if (isAvro(hiveDataset.getTable()) || disableAvroCheck) {
+    if (disableAvroCheck || isAvro(hiveDataset.getTable())) {
       hiveWorkUnit.setTableSchemaUrl(this.avroSchemaManager.getSchemaUrl(hiveDataset.getTable()));
     }
     return hiveWorkUnit;
@@ -356,7 +356,7 @@ public class HiveSource implements Source {
 
   protected HiveWorkUnit workUnitForPartition(HiveDataset hiveDataset, Partition partition, boolean disableAvroCheck) throws IOException {
     HiveWorkUnit hiveWorkUnit = new HiveWorkUnit(hiveDataset, partition);
-    if (isAvro(hiveDataset.getTable()) || disableAvroCheck) {
+    if (disableAvroCheck || isAvro(hiveDataset.getTable())) {
       hiveWorkUnit.setTableSchemaUrl(this.avroSchemaManager.getSchemaUrl(hiveDataset.getTable()));
       hiveWorkUnit.setPartitionSchemaUrl(this.avroSchemaManager.getSchemaUrl(partition));
     }
