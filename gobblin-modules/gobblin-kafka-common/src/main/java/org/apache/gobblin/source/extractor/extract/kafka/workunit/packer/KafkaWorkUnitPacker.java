@@ -23,7 +23,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,6 +36,7 @@ import com.google.common.primitives.Doubles;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.source.extractor.WatermarkInterval;
 import org.apache.gobblin.source.extractor.extract.AbstractSource;
@@ -46,6 +46,7 @@ import org.apache.gobblin.source.extractor.extract.kafka.KafkaUtils;
 import org.apache.gobblin.source.extractor.extract.kafka.MultiLongWatermark;
 import org.apache.gobblin.source.workunit.MultiWorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**
@@ -368,18 +369,23 @@ public abstract class KafkaWorkUnitPacker {
   }
 
   public static KafkaWorkUnitPacker getInstance(AbstractSource<?, ?> source, SourceState state) {
+    return getInstance(source, state, Optional.absent());
+  }
+
+  public static KafkaWorkUnitPacker getInstance(AbstractSource<?, ?> source, SourceState state,
+      Optional<MetricContext> metricContext) {
     if (state.contains(KAFKA_WORKUNIT_PACKER_TYPE)) {
       String packerTypeStr = state.getProp(KAFKA_WORKUNIT_PACKER_TYPE);
       Optional<PackerType> packerType = Enums.getIfPresent(PackerType.class, packerTypeStr);
       if (packerType.isPresent()) {
-        return getInstance(packerType.get(), source, state);
+        return getInstance(packerType.get(), source, state, metricContext);
       }
       throw new IllegalArgumentException("WorkUnit packer type " + packerTypeStr + " not found");
     }
-    return getInstance(DEFAULT_PACKER_TYPE, source, state);
+    return getInstance(DEFAULT_PACKER_TYPE, source, state, metricContext);
   }
 
-  public static KafkaWorkUnitPacker getInstance(PackerType packerType, AbstractSource<?, ?> source, SourceState state) {
+  public static KafkaWorkUnitPacker getInstance(PackerType packerType, AbstractSource<?, ?> source, SourceState state, Optional<MetricContext> metricContext) {
     switch (packerType) {
       case SINGLE_LEVEL:
         return new KafkaSingleLevelWorkUnitPacker(source, state);
@@ -388,7 +394,11 @@ public abstract class KafkaWorkUnitPacker {
       case CUSTOM:
         Preconditions.checkArgument(state.contains(KAFKA_WORKUNIT_PACKER_CUSTOMIZED_TYPE));
         String className = state.getProp(KAFKA_WORKUNIT_PACKER_CUSTOMIZED_TYPE);
-        return GobblinConstructorUtils.invokeConstructor(KafkaWorkUnitPacker.class, className, source, state);
+        try {
+          return (KafkaWorkUnitPacker) GobblinConstructorUtils.invokeLongestConstructor(Class.forName(className), source, state, metricContext);
+        } catch (ReflectiveOperationException e) {
+          throw new RuntimeException(e);
+        }
       default:
         throw new IllegalArgumentException("WorkUnit packer type " + packerType + " not found");
     }

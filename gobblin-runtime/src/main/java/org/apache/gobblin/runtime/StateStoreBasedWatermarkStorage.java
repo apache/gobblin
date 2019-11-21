@@ -137,7 +137,7 @@ public class StateStoreBasedWatermarkStorage implements WatermarkStorage {
     return committed;
   }
 
-  Iterable<CheckpointableWatermarkState> getAllCommittedWatermarks() throws IOException {
+  public Iterable<CheckpointableWatermarkState> getAllCommittedWatermarks() throws IOException {
     return _stateStore.getAll(_storeName);
   }
 

@@ -263,7 +263,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       //determine the number of mappers
       int maxMapperNum =
           state.getPropAsInt(ConfigurationKeys.MR_JOB_MAX_MAPPERS_KEY, ConfigurationKeys.DEFAULT_MR_JOB_MAX_MAPPERS);
-      KafkaWorkUnitPacker kafkaWorkUnitPacker = KafkaWorkUnitPacker.getInstance(this, state);
+      KafkaWorkUnitPacker kafkaWorkUnitPacker = KafkaWorkUnitPacker.getInstance(this, state, Optional.of(this.metricContext));
       int numOfMultiWorkunits = maxMapperNum;
       if(state.contains(ConfigurationKeys.MR_TARGET_MAPPER_SIZE)) {
         double totalEstDataSize = kafkaWorkUnitPacker.setWorkUnitEstSizes(workUnits);
