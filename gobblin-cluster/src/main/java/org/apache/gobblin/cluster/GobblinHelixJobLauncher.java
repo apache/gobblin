@@ -27,8 +27,6 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;
 
-import org.apache.gobblin.metrics.event.CountEventBuilder;
-import org.apache.gobblin.metrics.event.JobEvent;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -53,6 +51,8 @@ import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.metrics.event.CountEventBuilder;
+import org.apache.gobblin.metrics.event.JobEvent;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.rest.LauncherTypeEnum;
 import org.apache.gobblin.runtime.AbstractJobLauncher;
@@ -297,7 +297,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
 
       // Block on persistence of all workunits to be finished.
       // It is necessary when underlying storage being slow and Helix activate task-execution before the workunit being persisted.
-      stateSerDeRunner.waitForTasks();
+      stateSerDeRunner.waitForTasks(Long.MAX_VALUE);
 
       LOGGER.debug("GobblinHelixJobLauncher.createHelixJob: jobStateFilePath {}, jobState {} jobProperties {}",
           jobStateFilePath, this.jobContext.getJobState().toString(), this.jobContext.getJobState().getProperties());
