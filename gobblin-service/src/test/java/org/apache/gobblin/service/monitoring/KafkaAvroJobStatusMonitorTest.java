@@ -106,6 +106,10 @@ public class KafkaAvroJobStatusMonitorTest {
     context.submitEvent(event5);
     kafkaReporter.report();
 
+    GobblinTrackingEvent event6 = createJobStartEvent();
+    context.submitEvent(event6);
+    kafkaReporter.report();
+
     try {
       Thread.sleep(1000);
     } catch(InterruptedException ex) {
@@ -159,6 +163,15 @@ public class KafkaAvroJobStatusMonitorTest {
 
     messageAndMetadata = iterator.next();
     Assert.assertNull(jobStatusMonitor.parseJobStatus(messageAndMetadata.message()));
+
+    // Check that state didn't get set to running since it was already complete
+    messageAndMetadata = iterator.next();
+    jobStatusMonitor.processMessage(messageAndMetadata);
+
+    stateList  = stateStore.getAll(storeName, tableName);
+    Assert.assertEquals(stateList.size(), 1);
+    state = stateList.get(0);
+    Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.COMPLETE.name());
   }
 
   private GobblinTrackingEvent createFlowCompiledEvent() {

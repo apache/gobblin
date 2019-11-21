@@ -27,6 +27,7 @@ import java.util.concurrent.TimeUnit;
 import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -73,6 +74,10 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   private final ScheduledExecutorService scheduledExecutorService;
   private static final Config DEFAULTS = ConfigFactory.parseMap(ImmutableMap.of(
       KAFKA_AUTO_OFFSET_RESET_KEY, KAFKA_AUTO_OFFSET_RESET_SMALLEST));
+
+  private static final List<ExecutionStatus> ORDERED_EXECUTION_STATUSES = ImmutableList
+      .of(ExecutionStatus.COMPILED, ExecutionStatus.PENDING, ExecutionStatus.ORCHESTRATED, ExecutionStatus.RUNNING,
+          ExecutionStatus.COMPLETE, ExecutionStatus.FAILED, ExecutionStatus.CANCELLED);
 
   public KafkaJobStatusMonitor(String topic, Config config, int numThreads)
       throws ReflectiveOperationException {
@@ -146,7 +151,20 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
     String storeName = jobStatusStoreName(flowGroup, flowName);
     String tableName = jobStatusTableName(flowExecutionId, jobGroup, jobName);
 
-    jobStatus = mergedProperties(storeName, tableName, jobStatus, stateStore);
+    List<org.apache.gobblin.configuration.State> states = stateStore.getAll(storeName, tableName);
+    if (states.size() > 0) {
+      String previousStatus = states.get(states.size() - 1).getProp(JobStatusRetriever.EVENT_NAME_FIELD);
+      String currentStatus = jobStatus.getProp(JobStatusRetriever.EVENT_NAME_FIELD);
+
+      if (previousStatus != null && currentStatus != null && ORDERED_EXECUTION_STATUSES.indexOf(ExecutionStatus.valueOf(currentStatus))
+          < ORDERED_EXECUTION_STATUSES.indexOf(ExecutionStatus.valueOf(previousStatus))) {
+        log.warn(String.format("Received status %s when status is already %s for flow (%s, %s, %s), job (%s, %s)",
+            currentStatus, previousStatus, flowGroup, flowName, flowExecutionId, jobGroup, jobName));
+        return;
+      }
+    }
+
+    jobStatus = mergedProperties(jobStatus, states);
 
     modifyStateIfRetryRequired(jobStatus);
 
@@ -163,17 +181,12 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
     }
   }
 
-  private static org.apache.gobblin.configuration.State mergedProperties(
-      String storeName, String tableName, org.apache.gobblin.configuration.State jobStatus, StateStore stateStore) {
+  private static org.apache.gobblin.configuration.State mergedProperties(org.apache.gobblin.configuration.State jobStatus,
+      List<org.apache.gobblin.configuration.State> states) {
     Properties mergedProperties = new Properties();
 
-    try {
-      List<org.apache.gobblin.configuration.State> states = stateStore.getAll(storeName, tableName);
-      if (states.size() > 0) {
-        mergedProperties.putAll(states.get(states.size() - 1).getProperties());
-      }
-    } catch (Exception e) {
-      log.warn("Could not get previous state for {} {}", storeName, tableName, e);
+    if (states.size() > 0) {
+      mergedProperties.putAll(states.get(states.size() - 1).getProperties());
     }
     mergedProperties.putAll(jobStatus.getProperties());
 
