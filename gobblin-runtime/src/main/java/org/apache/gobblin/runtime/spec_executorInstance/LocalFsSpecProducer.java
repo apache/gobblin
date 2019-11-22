@@ -71,6 +71,7 @@ public class LocalFsSpecProducer implements SpecProducer<Spec> {
   private Future<?> writeSpec(Spec spec, SpecExecutor.Verb verb) {
     if (spec instanceof JobSpec) {
       URI specUri = spec.getUri();
+      ((JobSpec) spec).getMetadata().get()
       // format the JobSpec to have file of <flowGroup>_<flowName>.job
       String jobFileName = getJobFileName(specUri);
       try (
@@ -109,7 +110,7 @@ public class LocalFsSpecProducer implements SpecProducer<Spec> {
     throw new UnsupportedOperationException();
   }
 
-  private String getJobFileName(URI specUri) {
+  public static String getJobFileName(URI specUri) {
     String[] uriTokens = specUri.getPath().split("/");
     return String.join("_", uriTokens) + ".job";
   }
