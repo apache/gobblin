@@ -27,7 +27,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
@@ -59,7 +60,7 @@ import org.apache.gobblin.config.store.api.VersionDoesNotExistException;
  *
  */
 public class ConfigClient {
-  private static final Logger LOG = Logger.getLogger(ConfigClient.class);
+  private static final Logger LOG = LogManager.getLogger(ConfigClient.class);
 
   private final VersionStabilityPolicy policy;
 

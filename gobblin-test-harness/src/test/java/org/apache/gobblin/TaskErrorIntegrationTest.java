@@ -32,10 +32,10 @@ import org.apache.gobblin.runtime.task.BaseAbstractTask;
 import org.apache.gobblin.runtime.task.TaskFactory;
 import org.apache.gobblin.runtime.task.TaskIFace;
 import org.apache.gobblin.runtime.task.TaskUtils;
-import org.apache.log4j.AppenderSkeleton;
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
-import org.apache.log4j.spi.LoggingEvent;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.Logger;
+import org.apache.logging.log4j.core.LogEvent;
+import org.apache.logging.log4j.core.appender.AbstractAppender;
 import org.jboss.byteman.contrib.bmunit.BMNGRunner;
 import org.jboss.byteman.contrib.bmunit.BMRule;
 import org.testng.Assert;
@@ -73,8 +73,8 @@ public class TaskErrorIntegrationTest extends BMNGRunner {
   @Test
   public void extractorCreationError()
       throws Exception {
-    TestAppender testAppender = new TestAppender();
-    Logger logger = LogManager.getLogger(GobblinMultiTaskAttempt.class.getName() + "-noattempt");
+    TestAppender testAppender = new TestAppender(GobblinMultiTaskAttempt.class.getName() + "-noattempt");
+    Logger logger = (Logger) LogManager.getLogger(GobblinMultiTaskAttempt.class.getName() + "-noattempt");
     logger.addAppender(testAppender);
 
     Properties jobProperties =
@@ -85,8 +85,7 @@ public class TaskErrorIntegrationTest extends BMNGRunner {
 
     GobblinLocalJobLauncherUtils.invokeLocalJobLauncher(jobProperties);
 
-    Assert.assertTrue(testAppender.events.stream().anyMatch(e -> e.getRenderedMessage()
-        .startsWith("Could not create task for workunit")));
+    Assert.assertTrue(testAppender.events.stream().anyMatch(e -> e.getMessage().getFormattedMessage().startsWith("Could not create task for workunit")));
 
     logger.removeAppender(testAppender);
   }
@@ -102,8 +101,8 @@ public class TaskErrorIntegrationTest extends BMNGRunner {
       action = "throw new RuntimeException(\"Exception for testErrorDuringSubmission\")")
   public void testErrorDuringSubmission()
       throws Exception {
-    TestAppender testAppender = new TestAppender();
-    Logger logger = LogManager.getLogger(GobblinMultiTaskAttempt.class.getName() + "-noattempt");
+    TestAppender testAppender = new TestAppender(GobblinMultiTaskAttempt.class.getName() + "-noattempt");
+    Logger logger = (Logger) LogManager.getLogger(GobblinMultiTaskAttempt.class.getName() + "-noattempt");
     logger.addAppender(testAppender);
 
     Properties jobProperties =
@@ -114,7 +113,7 @@ public class TaskErrorIntegrationTest extends BMNGRunner {
 
     GobblinLocalJobLauncherUtils.invokeLocalJobLauncher(jobProperties);
 
-    Assert.assertTrue(testAppender.events.stream().anyMatch(e -> e.getRenderedMessage()
+    Assert.assertTrue(testAppender.events.stream().anyMatch(e -> e.getMessage().getFormattedMessage()
         .startsWith("Could not submit task for workunit")));
 
     logger.removeAppender(testAppender);
@@ -122,8 +121,8 @@ public class TaskErrorIntegrationTest extends BMNGRunner {
 
   @Test
   public void testCustomizedTaskFrameworkFailureInTaskCreation() throws Exception {
-    TestAppender testAppender = new TestAppender();
-    Logger logger = LogManager.getLogger(GobblinMultiTaskAttempt.class.getName() + "-noattempt");
+    TestAppender testAppender = new TestAppender(GobblinMultiTaskAttempt.class.getName() + "-noattempt");
+    Logger logger = (Logger) LogManager.getLogger(GobblinMultiTaskAttempt.class.getName() + "-noattempt");
     logger.addAppender(testAppender);
 
     Properties jobProperties =
@@ -131,7 +130,7 @@ public class TaskErrorIntegrationTest extends BMNGRunner {
     jobProperties.setProperty(ConfigurationKeys.SOURCE_CLASS_KEY, CustomizedTaskTestSource.class.getName());
 
     GobblinLocalJobLauncherUtils.invokeLocalJobLauncher(jobProperties);
-    Assert.assertTrue(testAppender.events.stream().anyMatch(e -> e.getRenderedMessage()
+    Assert.assertTrue(testAppender.events.stream().anyMatch(e -> e.getMessage().getFormattedMessage()
         .startsWith("Encountering memory error")));
 
     logger.removeAppender(testAppender);
@@ -232,12 +231,16 @@ public class TaskErrorIntegrationTest extends BMNGRunner {
     }
   }
 
-  private class TestAppender extends AppenderSkeleton {
-    List<LoggingEvent> events = new ArrayList<LoggingEvent>();
-    public void close() {}
-    public boolean requiresLayout() {return false;}
+  public class TestAppender extends AbstractAppender {
+
+    private List<LogEvent> events = new ArrayList<LogEvent>();
+
+    public TestAppender(String name) {
+      super(name, null, null);
+    }
+
     @Override
-    protected void append(LoggingEvent event) {
+    public void append(LogEvent event) {
       events.add(event);
     }
   }

@@ -103,7 +103,7 @@ public class AssertWithBackoffTest {
   }
 
   public static void setLogjLevelForLogger(Logger log, Level logLevel) {
-    org.apache.log4j.Logger log4jLogger = org.apache.log4j.Logger.getLogger(log.getName());
+    org.apache.log4j.Logger log4jLogger = org.apache.log4j.LogManager.getLogger(log.getName());
     log4jLogger.setLevel(logLevel);
   }
 
