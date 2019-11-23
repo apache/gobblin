@@ -63,8 +63,8 @@ public interface DatasetDescriptor {
 
   /**
    * @return true if this {@link DatasetDescriptor} contains the other {@link DatasetDescriptor} i.e. the
-   * datasets described by this {@link DatasetDescriptor} is a subset of the datasets described by the other
-   * {@link DatasetDescriptor}. This operation is non-commutative.
+   * datasets described by the other {@link DatasetDescriptor} is a subset of this {@link DatasetDescriptor}.
+   * This operation is non-commutative.
    */
   public boolean contains(DatasetDescriptor other);
 

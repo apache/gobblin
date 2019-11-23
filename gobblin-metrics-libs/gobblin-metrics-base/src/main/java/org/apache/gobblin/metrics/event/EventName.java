@@ -34,6 +34,7 @@ public enum EventName {
   JOB_CLEANUP("JobCleanupTimer"),
   JOB_CANCEL("JobCancelTimer"),
   JOB_COMPLETE("JobCompleteTimer"),
+  JOB_SUCCEEDED("JobSucceededTimer"),
   JOB_FAILED("JobFailedTimer"),
   MR_STAGING_DATA_CLEAN("JobMrStagingDataCleanTimer"),
   UNKNOWN("Unknown");

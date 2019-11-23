@@ -225,13 +225,17 @@ public class DagManager extends AbstractIdleService {
   }
 
   /**
-   * Method to submit a {@link Dag} to the {@link DagManager}. The {@link DagManager} first persists the
+   * Method to submit a {@link Dag} to the {@link DagManager}. The {@link DagManager} optionally persists the
    * submitted dag to the {@link DagStateStore} and then adds the dag to a {@link BlockingQueue} to be picked up
    * by one of the {@link DagManagerThread}s.
+   * @param dag {@link Dag} to be added
+   * @param persist whether to persist the dag to the {@link DagStateStore}
    */
-  synchronized void addDag(Dag<JobExecutionPlan> dag) throws IOException {
-    //Persist the dag
-    this.dagStateStore.writeCheckpoint(dag);
+  synchronized void addDag(Dag<JobExecutionPlan> dag, boolean persist) throws IOException {
+    if (persist) {
+      //Persist the dag
+      this.dagStateStore.writeCheckpoint(dag);
+    }
     int queueId = DagManagerUtils.getDagQueueId(dag, this.numThreads);
     // Add the dag to the specific queue determined by flowExecutionId
     // Flow cancellation request has to be forwarded to the same DagManagerThread where the
@@ -306,7 +310,7 @@ public class DagManager extends AbstractIdleService {
           this.scheduledExecutorPool.scheduleAtFixedRate(dagManagerThread, 0, this.pollingInterval, TimeUnit.SECONDS);
         }
         for (Dag<JobExecutionPlan> dag : dagStateStore.getDags()) {
-          addDag(dag);
+          addDag(dag, false);
         }
       } else { //Mark the DagManager inactive.
         log.info("Inactivating the DagManager. Shutting down all DagManager threads");
@@ -382,15 +386,18 @@ public class DagManager extends AbstractIdleService {
           cancelDag(nextDagToCancel);
         }
 
-        Dag<JobExecutionPlan> dag = queue.poll();
-        //Poll the queue for a new Dag to execute.
-        if (dag != null) {
-          if (dag.isEmpty()) {
-            log.info("Empty dag; ignoring the dag");
+        while (!queue.isEmpty()) {
+          Dag<JobExecutionPlan> dag = queue.poll();
+          //Poll the queue for a new Dag to execute.
+          if (dag != null) {
+            if (dag.isEmpty()) {
+              log.info("Empty dag; ignoring the dag");
+            }
+            //Initialize dag.
+            initialize(dag);
           }
-          //Initialize dag.
-          initialize(dag);
         }
+
         log.debug("Polling job statuses..");
         //Poll and update the job statuses of running jobs.
         pollAndAdvanceDag();

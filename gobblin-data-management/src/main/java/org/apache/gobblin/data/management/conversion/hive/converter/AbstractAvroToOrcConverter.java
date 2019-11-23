@@ -42,6 +42,7 @@ import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.metadata.Partition;
+import org.apache.hadoop.hive.serde2.avro.AvroObjectInspectorGenerator;
 import org.apache.thrift.TException;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -85,6 +86,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
    * Subdirectory within destination ORC table directory to publish data
    */
   private static final String PUBLISHED_TABLE_SUBDIRECTORY = "final";
+  public static final String OUTPUT_AVRO_SCHEMA_KEY = "output.avro.schema";
 
   private static final String ORC_FORMAT = "orc";
 
@@ -326,6 +328,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     conversionEntity.getQueries().add(String
         .format("SET %s=%s", GOBBLIN_WORKUNIT_CREATE_TIME_KEY,
             workUnit.getWorkunit().getProp(SlaEventKeys.ORIGIN_TS_IN_MILLI_SECS_KEY)));
+    workUnit.setProp(OUTPUT_AVRO_SCHEMA_KEY, outputAvroSchema.toString());
 
     // Create DDL statement for table
     Map<String, String> hiveColumns = new LinkedHashMap<>();

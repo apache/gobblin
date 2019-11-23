@@ -20,11 +20,12 @@ package org.apache.gobblin.runtime;
 import java.io.IOException;
 import java.util.Collection;
 
-import org.apache.gobblin.configuration.ConfigurationKeys;
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.publisher.HiveRegistrationPublisher;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * A {@link TaskStateCollectorServiceHandler} implementation that execute hive registration on driver level.
@@ -36,19 +37,32 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class HiveRegTaskStateCollectorServiceHandlerImpl implements TaskStateCollectorServiceHandler {
 
+  private static final String TASK_COLLECTOR_SERVICE_PREFIX = "task.collector.service";
+  private static final String HIVE_REG_PUBLISHER_CLASS = "hive.reg.publisher.class";
+  private static final String HIVE_REG_PUBLISHER_CLASS_KEY = TASK_COLLECTOR_SERVICE_PREFIX + "." + HIVE_REG_PUBLISHER_CLASS;
+  private static final String DEFAULT_HIVE_REG_PUBLISHER_CLASS =
+      "org.apache.gobblin.publisher.HiveRegistrationPublisher";
   private HiveRegistrationPublisher hiveRegHandler;
 
   public HiveRegTaskStateCollectorServiceHandlerImpl(JobState jobState) {
-    hiveRegHandler = new HiveRegistrationPublisher(jobState);
+    String className = jobState
+        .getProp(HIVE_REG_PUBLISHER_CLASS_KEY, DEFAULT_HIVE_REG_PUBLISHER_CLASS);
+      try {
+        hiveRegHandler = (HiveRegistrationPublisher) GobblinConstructorUtils.invokeLongestConstructor(Class.forName(className), jobState);
+      }catch (ReflectiveOperationException e) {
+        throw new RuntimeException("Could not instantiate HiveRegistrationPublisher " + className, e);
+      }
   }
 
   @Override
-  public void handle(Collection<? extends WorkUnitState> taskStates) throws IOException {
+  public void handle(Collection<? extends WorkUnitState> taskStates)
+      throws IOException {
     this.hiveRegHandler.publishData(taskStates);
   }
 
   @Override
-  public void close() throws IOException {
+  public void close()
+      throws IOException {
     hiveRegHandler.close();
   }
 }

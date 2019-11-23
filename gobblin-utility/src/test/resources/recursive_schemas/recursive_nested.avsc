@@ -1,0 +1,26 @@
+{"namespace": "example.avro",
+ "type": "record",
+ "name": "User",
+ "fields": [
+     {"name": "name", "type": "string"},
+     {"name": "favorite_number",  "type": ["int", "null"]},
+     {"name": "favorite_color", "type": ["string", "null"]},
+     {"name": "date_of_birth", "type": "long"},
+     {"name": "last_modified", "type": "long"},
+     {"name": "created", "type": "long"},
+     {"name": "home_address",
+      "type" : {
+                   "type": "record",
+                   "name": "dummy_address",
+                   "fields": [
+                       {"name": "city", "type": "string"},
+                       {"name": "street_number",  "type": ["int", "null"]},
+                       {"name": "previous_address", "type": ["null", "dummy_address"]}
+                   ]
+               }
+     },
+     {"name": "office_address", "type": "dummy_address"},
+     {"name": "friend", "type": ["null", "User"]}
+ ],
+ "recursive_fields": ["home_address.previous_address","office_address.previous_address","friend"] 
+}

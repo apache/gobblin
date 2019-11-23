@@ -55,7 +55,8 @@ import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 import org.apache.hadoop.yarn.ipc.YarnRPC;
 import org.apache.hadoop.yarn.util.ConverterUtils;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
 import org.apache.thrift.TException;
 
 
@@ -68,7 +69,7 @@ import org.apache.thrift.TException;
  */
 public class TokenUtils {
 
-  private static final Logger LOG = Logger.getLogger(TokenUtils.class);
+  private static final Logger LOG = LogManager.getLogger(TokenUtils.class);
 
   private static final String USER_TO_PROXY = "tokens.user.to.proxy";
   private static final String KEYTAB_USER = "keytab.user";

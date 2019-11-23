@@ -17,12 +17,6 @@
 
 package org.apache.gobblin.hive;
 
-import com.google.common.base.Optional;
-import com.google.common.base.Predicate;
-import com.google.common.base.Throwables;
-import com.google.common.collect.Maps;
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.ListeningExecutorService;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Arrays;
@@ -32,9 +26,19 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+
+import org.apache.commons.lang3.reflect.ConstructorUtils;
+
+import com.google.common.base.Optional;
+import com.google.common.base.Predicate;
+import com.google.common.base.Throwables;
+import com.google.common.collect.Maps;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.ListeningExecutorService;
+
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.reflect.ConstructorUtils;
+
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.hive.HiveRegistrationUnit.Column;
@@ -57,7 +61,8 @@ import org.apache.gobblin.util.executors.ScalingThreadPoolExecutor;
 public abstract class HiveRegister implements Closeable {
 
   public static final String HIVE_REGISTER_TYPE = "hive.register.type";
-  public static final String DEFAULT_HIVE_REGISTER_TYPE = "org.apache.gobblin.hive.metastore.HiveMetaStoreBasedRegister";
+  public static final String DEFAULT_HIVE_REGISTER_TYPE =
+      "org.apache.gobblin.hive.metastore.HiveMetaStoreBasedRegister";
   public static final String HIVE_TABLE_COMPARATOR_TYPE = "hive.table.comparator.type";
   public static final String DEFAULT_HIVE_TABLE_COMPARATOR_TYPE = HiveTableComparator.class.getName();
   public static final String HIVE_PARTITION_COMPARATOR_TYPE = "hive.partition.comparator.type";
@@ -76,8 +81,8 @@ public abstract class HiveRegister implements Closeable {
   protected HiveRegister(State state) {
     this.props = new HiveRegProps(state);
     this.hiveDbRootDir = this.props.getDbRootDir();
-    this.executor = ExecutorsUtils.loggingDecorator(
-        ScalingThreadPoolExecutor.newScalingThreadPool(0, this.props.getNumThreads(), TimeUnit.SECONDS.toMillis(10),
+    this.executor = ExecutorsUtils.loggingDecorator(ScalingThreadPoolExecutor
+        .newScalingThreadPool(0, this.props.getNumThreads(), TimeUnit.SECONDS.toMillis(10),
             ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of(getClass().getSimpleName()))));
   }
 
@@ -93,7 +98,8 @@ public abstract class HiveRegister implements Closeable {
     ListenableFuture<Void> future = this.executor.submit(new Callable<Void>() {
 
       @Override
-      public Void call() throws Exception {
+      public Void call()
+          throws Exception {
         try {
           if (spec instanceof HiveSpecWithPredicates && !evaluatePredicates((HiveSpecWithPredicates) spec)) {
             log.info("Skipping " + spec + " since predicates return false");
@@ -152,7 +158,8 @@ public abstract class HiveRegister implements Closeable {
    *   the {@link HiveSpec}, since these are done in {@link #register(HiveSpec)}.
    * </p>
    */
-  protected abstract void registerPath(HiveSpec spec) throws IOException;
+  protected abstract void registerPath(HiveSpec spec)
+      throws IOException;
 
   /**
    * Create a Hive database if not exists.
@@ -161,7 +168,8 @@ public abstract class HiveRegister implements Closeable {
    * @return true if the db is successfully created; false if the db already exists.
    * @throws IOException
    */
-  public abstract boolean createDbIfNotExists(String dbName) throws IOException;
+  public abstract boolean createDbIfNotExists(String dbName)
+      throws IOException;
 
   /**
    * Create a Hive table if not exists.
@@ -170,7 +178,8 @@ public abstract class HiveRegister implements Closeable {
    * @return true if the table is successfully created; false if the table already exists.
    * @throws IOException
    */
-  public abstract boolean createTableIfNotExists(HiveTable table) throws IOException;
+  public abstract boolean createTableIfNotExists(HiveTable table)
+      throws IOException;
 
   /**
    * Add a Hive partition to a table if not exists.
@@ -180,7 +189,8 @@ public abstract class HiveRegister implements Closeable {
    * @return true if the partition is successfully added; false if the partition already exists.
    * @throws IOException
    */
-  public abstract boolean addPartitionIfNotExists(HiveTable table, HivePartition partition) throws IOException;
+  public abstract boolean addPartitionIfNotExists(HiveTable table, HivePartition partition)
+      throws IOException;
 
   /**
    * Determines whether a Hive table exists.
@@ -190,7 +200,8 @@ public abstract class HiveRegister implements Closeable {
    * @return true if the table exists, false otherwise.
    * @throws IOException
    */
-  public abstract boolean existsTable(String dbName, String tableName) throws IOException;
+  public abstract boolean existsTable(String dbName, String tableName)
+      throws IOException;
 
   /**
    * Determines whether a Hive partition exists.
@@ -203,7 +214,8 @@ public abstract class HiveRegister implements Closeable {
    * @throws IOException
    */
   public abstract boolean existsPartition(String dbName, String tableName, List<Column> partitionKeys,
-      List<String> partitionValues) throws IOException;
+      List<String> partitionValues)
+      throws IOException;
 
   /**
    * Drop a table if exists.
@@ -212,7 +224,8 @@ public abstract class HiveRegister implements Closeable {
    * @param tableName the table name
    * @throws IOException
    */
-  public abstract void dropTableIfExists(String dbName, String tableName) throws IOException;
+  public abstract void dropTableIfExists(String dbName, String tableName)
+      throws IOException;
 
   /**
    * Drop a partition if exists.
@@ -224,7 +237,8 @@ public abstract class HiveRegister implements Closeable {
    * @throws IOException
    */
   public abstract void dropPartitionIfExists(String dbName, String tableName, List<Column> partitionKeys,
-      List<String> partitionValues) throws IOException;
+      List<String> partitionValues)
+      throws IOException;
 
   /**
    * Get a {@link HiveTable} using the given db name and table name.
@@ -234,7 +248,8 @@ public abstract class HiveRegister implements Closeable {
    * @return an {@link Optional} of {@link HiveTable} if the table exists, otherwise {@link Optional#absent()}.
    * @throws IOException
    */
-  public abstract Optional<HiveTable> getTable(String dbName, String tableName) throws IOException;
+  public abstract Optional<HiveTable> getTable(String dbName, String tableName)
+      throws IOException;
 
   /**
    * Get a {@link HivePartition} using the given db name, table name, partition keys and partition values.
@@ -247,7 +262,8 @@ public abstract class HiveRegister implements Closeable {
    * @throws IOException
    */
   public abstract Optional<HivePartition> getPartition(String dbName, String tableName, List<Column> partitionKeys,
-      List<String> partitionValues) throws IOException;
+      List<String> partitionValues)
+      throws IOException;
 
   /**
    * Alter the given {@link HiveTable}. An Exception should be thrown if the table does not exist.
@@ -255,7 +271,8 @@ public abstract class HiveRegister implements Closeable {
    * @param table a {@link HiveTable} to which the existing table should be updated.
    * @throws IOException
    */
-  public abstract void alterTable(HiveTable table) throws IOException;
+  public abstract void alterTable(HiveTable table)
+      throws IOException;
 
   /**
    * Alter the given {@link HivePartition}. An Exception should be thrown if the partition does not exist.
@@ -264,7 +281,8 @@ public abstract class HiveRegister implements Closeable {
    * @param partition a {@link HivePartition} to which the existing partition should be updated.
    * @throws IOException
    */
-  public abstract void alterPartition(HiveTable table, HivePartition partition) throws IOException;
+  public abstract void alterPartition(HiveTable table, HivePartition partition)
+      throws IOException;
 
   /**
    * Create a table if not exists, or alter a table if exists.
@@ -272,7 +290,8 @@ public abstract class HiveRegister implements Closeable {
    * @param table a {@link HiveTable} to be created or altered
    * @throws IOException
    */
-  public void createOrAlterTable(HiveTable table) throws IOException {
+  public void createOrAlterTable(HiveTable table)
+      throws IOException {
     if (!createTableIfNotExists(table)) {
       alterTable(table);
     }
@@ -285,7 +304,8 @@ public abstract class HiveRegister implements Closeable {
    * @param partition a {@link HivePartition} to which the existing partition should be updated.
    * @throws IOException
    */
-  public void addOrAlterPartition(HiveTable table, HivePartition partition) throws IOException {
+  public void addOrAlterPartition(HiveTable table, HivePartition partition)
+      throws IOException {
     if (!addPartitionIfNotExists(table, partition)) {
       alterPartition(table, partition);
     }
@@ -311,8 +331,8 @@ public abstract class HiveRegister implements Closeable {
     try {
       Class<?> clazz =
           Class.forName(this.props.getProp(HIVE_PARTITION_COMPARATOR_TYPE, DEFAULT_HIVE_PARTITION_COMPARATOR_TYPE));
-      return (HiveRegistrationUnitComparator<?>) ConstructorUtils.invokeConstructor(clazz, existingPartition,
-          newPartition);
+      return (HiveRegistrationUnitComparator<?>) ConstructorUtils
+          .invokeConstructor(clazz, existingPartition, newPartition);
     } catch (ReflectiveOperationException e) {
       log.error("Unable to instantiate Hive partition comparator", e);
       throw Throwables.propagate(e);
@@ -329,19 +349,23 @@ public abstract class HiveRegister implements Closeable {
    * @throws IOException if any registration failed or was interrupted.
    */
   @Override
-  public void close() throws IOException {
+  public void close()
+      throws IOException {
     try {
-      for (Map.Entry<String, Future<Void>> entry : this.futures.entrySet()) {
-        try {
-          entry.getValue().get();
-        } catch (ExecutionException ee) {
-          throw new IOException("Failed to finish registration for " + entry.getKey(), ee.getCause());
-        }
-      }
-    } catch (InterruptedException e) {
-      throw new IOException(e);
+      waitOnFuturesToFinish();
     } finally {
       ExecutorsUtils.shutdownExecutorService(this.executor, Optional.of(log));
+    }
+  }
+
+  public void waitOnFuturesToFinish()
+      throws IOException {
+    for (Map.Entry<String, Future<Void>> entry : this.futures.entrySet()) {
+      try {
+        entry.getValue().get();
+      } catch (InterruptedException | ExecutionException ee) {
+        throw new IOException("Failed to finish registration for " + entry.getKey(), ee.getCause());
+      }
     }
   }
 
@@ -353,8 +377,7 @@ public abstract class HiveRegister implements Closeable {
    * will be returned. This {@link State} object is also used to instantiate the {@link HiveRegister} object.
    */
   public static HiveRegister get(State props) {
-    Optional<String> metastoreUri =
-        Optional.fromNullable(props.getProperties().getProperty(HIVE_METASTORE_URI_KEY));
+    Optional<String> metastoreUri = Optional.fromNullable(props.getProperties().getProperty(HIVE_METASTORE_URI_KEY));
 
     return get(props, metastoreUri);
   }
@@ -383,5 +406,4 @@ public abstract class HiveRegister implements Closeable {
       throw Throwables.propagate(e);
     }
   }
-
 }

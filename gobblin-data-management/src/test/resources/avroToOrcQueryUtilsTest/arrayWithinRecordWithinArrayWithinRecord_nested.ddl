@@ -9,5 +9,7 @@ OUTPUTFORMAT
 LOCATION 
   'file:/user/hive/warehouse/testArrayWithinRecordWithinArrayWithinRecordDDL' 
 TBLPROPERTIES ( 
+  'columns'='parentRecordFieldName', 
   'orc.compress'='ZLIB', 
+  'columns.types'='array<struct<nestedRecordFieldName:array<string>>>', 
   'orc.row.index.stride'='268435456') 
