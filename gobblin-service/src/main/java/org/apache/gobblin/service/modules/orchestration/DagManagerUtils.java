@@ -27,7 +27,6 @@ import java.util.concurrent.TimeUnit;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -47,7 +46,11 @@ public class DagManagerUtils {
   static long NO_SLA = -1L;
 
   static FlowId getFlowId(Dag<JobExecutionPlan> dag) {
-    Config jobConfig = dag.getStartNodes().get(0).getValue().getJobSpec().getConfig();
+    return getFlowId(dag.getStartNodes().get(0));
+  }
+
+  static FlowId getFlowId(DagNode<JobExecutionPlan> dagNode) {
+    Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
     String flowGroup = jobConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
     String flowName = jobConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
     return new FlowId().setFlowGroup(flowGroup).setFlowName(flowName);
@@ -110,6 +113,17 @@ public class DagManagerUtils {
   static String getFullyQualifiedDagName(Dag<JobExecutionPlan> dag) {
     FlowId flowid = getFlowId(dag);
     long flowExecutionId = getFlowExecId(dag);
+    return "(flowGroup: " + flowid.getFlowGroup() + ", flowName: " + flowid.getFlowName() + ", flowExecutionId: " + flowExecutionId + ")";
+  }
+
+  /**
+   * Returns a fully-qualified {@link Dag} name that includes: (flowGroup, flowName, flowExecutionId).
+   * @param dagNode
+   * @return fully qualified name of the underlying {@link Dag}.
+   */
+  static String getFullyQualifiedDagName(DagNode<JobExecutionPlan> dagNode) {
+    FlowId flowid = getFlowId(dagNode);
+    long flowExecutionId = getFlowExecId(dagNode);
     return "(flowGroup: " + flowid.getFlowGroup() + ", flowName: " + flowid.getFlowName() + ", flowExecutionId: " + flowExecutionId + ")";
   }
 
@@ -239,19 +253,19 @@ public class DagManagerUtils {
   }
 
   /**
-   * get the flow start sla from the dag node config.
+   * get the job start sla from the dag node config.
    * if time unit is not provided, it assumes time unit is minute.
    * @param dagNode dag node for which flow start sla is to be retrieved
-   * @return flow start sla in ms
+   * @return job start sla in ms
    */
-  static long getFlowStartSLA(DagNode<JobExecutionPlan> dagNode) {
+  static long getJobStartSla(DagNode<JobExecutionPlan> dagNode) {
     Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
     TimeUnit slaTimeUnit = TimeUnit.valueOf(ConfigUtils.getString(
-        jobConfig, ConfigurationKeys.GOBBLIN_FLOW_START_SLA_TIME_UNIT, ConfigurationKeys.DEFAULT_GOBBLIN_FLOW_START_SLA_TIME_UNIT));
+        jobConfig, ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME_UNIT, ConfigurationKeys.DEFAULT_GOBBLIN_JOB_START_SLA_TIME_UNIT));
 
-    return slaTimeUnit.toMillis(jobConfig.hasPath(ConfigurationKeys.GOBBLIN_FLOW_START_SLA_TIME)
-        ? jobConfig.getLong(ConfigurationKeys.GOBBLIN_FLOW_START_SLA_TIME)
-        : ConfigurationKeys.DEFAULT_GOBBLIN_FLOW_START_SLA);
+    return slaTimeUnit.toMillis(jobConfig.hasPath(ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME)
+        ? jobConfig.getLong(ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME)
+        : ConfigurationKeys.DEFAULT_GOBBLIN_JOB_START_SLA_TIME);
   }
 
   static int getDagQueueId(Dag<JobExecutionPlan> dag, int numThreads) {

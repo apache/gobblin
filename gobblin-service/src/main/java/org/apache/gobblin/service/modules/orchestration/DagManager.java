@@ -554,7 +554,8 @@ public class DagManager extends AbstractIdleService {
      * {@link ExecutionStatus} for some specific amount of time.
      * @param node {@link DagNode} representing the job
      * @param jobStatus current {@link JobStatus} of the job
-     * @return true if the job status remains ORCHESTRATED for some specific time
+     * @return true if the total time that the job remains in the ORCHESTRATED state exceeds
+     * {@value ConfigurationKeys#GOBBLIN_JOB_START_SLA_TIME}.
      */
     private boolean killJobIfOrphaned(DagNode<JobExecutionPlan> node, JobStatus jobStatus)
         throws ExecutionException, InterruptedException {
@@ -562,10 +563,14 @@ public class DagManager extends AbstractIdleService {
         return false;
       }
       ExecutionStatus executionStatus = valueOf(jobStatus.getEventName());
-      long timeoutForFlowStart = DagManagerUtils.getFlowStartSLA(node);
-      long flowStartTime = jobStatus.getFlowExecutionId();
+      long timeOutForJobStart = DagManagerUtils.getJobStartSla(node);
+      long jobStartTime = jobStatus.getStartTime();
 
-      if (executionStatus == ORCHESTRATED && System.currentTimeMillis() - flowStartTime > timeoutForFlowStart) {
+      if (executionStatus == ORCHESTRATED && System.currentTimeMillis() - jobStartTime > timeOutForJobStart) {
+        log.info("Job {} of flow {} exceeded the job start SLA of {} ms. Killing the job now...",
+            DagManagerUtils.getJobName(node),
+            DagManagerUtils.getFullyQualifiedDagName(node),
+            timeOutForJobStart);
         cancelDagNode(node);
         return true;
       } else {
@@ -694,6 +699,10 @@ public class DagManager extends AbstractIdleService {
         if (this.metricContext != null) {
           getRunningJobsCounter(dagNode).inc();
         }
+
+        addSpecFuture.get();
+
+        jobMetadata.put(TimingEvent.METADATA_MESSAGE, producer.getExecutionLink(addSpecFuture, specExecutorUri));
 
         if (jobOrchestrationTimer != null) {
           jobOrchestrationTimer.stop(jobMetadata);

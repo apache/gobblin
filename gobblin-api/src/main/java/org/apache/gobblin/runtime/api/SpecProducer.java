@@ -50,6 +50,10 @@ public interface SpecProducer<V> {
   /** List all {@link Spec} being executed on {@link SpecExecutor}. */
   Future<? extends List<V>> listSpecs();
 
+  default String getExecutionLink(Future<?> future, String specExecutorUri) {
+    return "";
+  }
+
   default String serializeAddSpecResponse(Future<?> response) {
     return "";
   }

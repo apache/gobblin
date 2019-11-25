@@ -139,7 +139,7 @@ public class DagManagerTest {
 
   private static Iterator<JobStatus> getMockJobStatus(String flowName, String flowGroup,  Long flowExecutionId, String jobGroup, String jobName, String eventName, boolean shouldRetry) {
     return Iterators.singletonIterator(JobStatus.builder().flowName(flowName).flowGroup(flowGroup).jobGroup(jobGroup).jobName(jobName).flowExecutionId(flowExecutionId).
-        message("Test message").eventName(eventName).startTime(5000L).shouldRetry(shouldRetry).build());
+        message("Test message").eventName(eventName).startTime(flowExecutionId + 10).shouldRetry(shouldRetry).build());
   }
 
   @Test
