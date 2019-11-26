@@ -222,7 +222,10 @@ public class HiveSource implements Source {
     silenceHiveLoggers();
   }
 
-
+  @Deprecated
+  protected void createWorkunitForNonPartitionedTable(HiveDataset hiveDataset) throws IOException {
+    this.createWorkunitForNonPartitionedTable(hiveDataset, false);
+  }
   protected void createWorkunitForNonPartitionedTable(HiveDataset hiveDataset, boolean disableAvroCheck) throws IOException {
     // Create workunits for tables
     try {
@@ -276,12 +279,22 @@ public class HiveSource implements Source {
     }
   }
 
+  @Deprecated
+  protected HiveWorkUnit workUnitForTable(HiveDataset hiveDataset) throws IOException {
+    return this.workUnitForTable(hiveDataset, false);
+  }
+
   protected HiveWorkUnit workUnitForTable(HiveDataset hiveDataset, boolean disableAvroCheck) throws IOException {
     HiveWorkUnit hiveWorkUnit = new HiveWorkUnit(hiveDataset);
     if (disableAvroCheck || isAvro(hiveDataset.getTable())) {
       hiveWorkUnit.setTableSchemaUrl(this.avroSchemaManager.getSchemaUrl(hiveDataset.getTable()));
     }
     return hiveWorkUnit;
+  }
+
+  @Deprecated
+  protected void createWorkunitsForPartitionedTable(HiveDataset hiveDataset, AutoReturnableObject<IMetaStoreClient> client) throws IOException {
+     this.createWorkunitsForPartitionedTable(hiveDataset, client, false);
   }
 
   protected void createWorkunitsForPartitionedTable(HiveDataset hiveDataset, AutoReturnableObject<IMetaStoreClient> client, boolean disableAvroCheck) throws IOException {
@@ -354,6 +367,11 @@ public class HiveSource implements Source {
             sourcePartition.getCompleteName(), e.getMessage()));
       }
     }
+  }
+
+  @Deprecated
+  protected HiveWorkUnit workUnitForPartition(HiveDataset hiveDataset, Partition partition) throws IOException {
+    return this.workUnitForPartition(hiveDataset, partition, false);
   }
 
   protected HiveWorkUnit workUnitForPartition(HiveDataset hiveDataset, Partition partition, boolean disableAvroCheck) throws IOException {
