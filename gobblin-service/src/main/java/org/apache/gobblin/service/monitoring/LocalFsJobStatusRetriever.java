@@ -76,7 +76,6 @@ public class LocalFsJobStatusRetriever extends JobStatusRetriever {
   public Iterator<JobStatus> getJobStatusesForFlowExecution(String flowName, String flowGroup, long flowExecutionId) {
     Preconditions.checkArgument(flowName != null, "FlowName cannot be null");
     Preconditions.checkArgument(flowGroup != null, "FlowGroup cannot be null");
-    List<JobStatus> jobStatuses = new ArrayList<>();
 
     // Instead of looking directly at state store, first check the local FS job workspace to determine if the job is finished
     // Then update the state store with the correct state, instead of having a monitor watch the file system
@@ -98,6 +97,7 @@ public class LocalFsJobStatusRetriever extends JobStatusRetriever {
         }
         jobStatuses.add(getJobStatus(jobStates.get(0)));
       }
+      return jobStatuses.iterator();
     } catch (IOException e) {
       log.error("IOException encountered when retrieving job statuses for flow: {},{},{}", flowGroup, flowName, flowExecutionId, e);
       return Iterators.emptyIterator();
