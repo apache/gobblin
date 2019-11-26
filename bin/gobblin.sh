@@ -346,12 +346,16 @@ function get_gobblin_mapreduce_libs() {
         mysql-connector-java-*.jar
         avro-*.jar
         commons-lang3-*.jar
+        commons-dbcp-*.jar
+        commons-pool-*.jar
         config-*.jar
+        calcite-core-*.jar
         data-*.jar
         gson-*.jar
         guava-*.jar
         joda-time-*.jar
         javassist-*.jar
+        jasypt-*.jar
         kafka_2.11-*.jar
         kafka-clients-0.8.2.2.jar
         metrics-core-*.jar
