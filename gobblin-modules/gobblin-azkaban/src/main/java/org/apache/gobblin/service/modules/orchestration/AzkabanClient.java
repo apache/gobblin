@@ -425,8 +425,10 @@ public class AzkabanClient implements Closeable {
   private <T> T runWithRetry(Callable callable, Class<T> cls) throws AzkabanClientException {
     try {
       AzkabanClientStatus status = this.retryer.call(callable);
-      if (status.getClass().equals(cls)) {
+      if (cls.isAssignableFrom(status.getClass())) {
         return ((T)status);
+      } else {
+        throw new AzkabanClientException(String.format("Unexpected response type, expected: %s actual: %s", cls, status.getClass()));
       }
     } catch (ExecutionException e) {
       Throwables.propagateIfPossible(e.getCause(), AzkabanClientException.class);
