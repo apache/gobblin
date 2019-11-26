@@ -124,6 +124,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       "gobblin.kafka.shouldEnableDatasetStateStore";
   public static final boolean DEFAULT_GOBBLIN_KAFKA_SHOULD_ENABLE_DATASET_STATESTORE = false;
   public static final String OFFSET_FETCH_TIMER = "offsetFetchTimer";
+  public static final String NUM_TOPIC_PARTITIONS = "numTopicPartitions";
 
   private final Set<String> moveToLatestTopics = Sets.newTreeSet(String.CASE_INSENSITIVE_ORDER);
   private final Map<KafkaPartition, Long> previousOffsets = Maps.newConcurrentMap();
@@ -363,7 +364,8 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     context.close();
 
     List<WorkUnit> workUnits = Lists.newArrayList();
-    for (KafkaPartition partition : topic.getPartitions()) {
+    List<KafkaPartition> topicPartitions = topic.getPartitions();
+    for (KafkaPartition partition : topicPartitions) {
       WorkUnit workUnit = getWorkUnitForTopicPartition(partition, state, topicSpecificState);
       if (workUnit != null) {
         // For disqualified topics, for each of its workunits set the high watermark to be the same
@@ -371,6 +373,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
         if (!topicQualified) {
           skipWorkUnit(workUnit);
         }
+        workUnit.setProp(NUM_TOPIC_PARTITIONS, topicPartitions.size());
         workUnits.add(workUnit);
       }
     }
