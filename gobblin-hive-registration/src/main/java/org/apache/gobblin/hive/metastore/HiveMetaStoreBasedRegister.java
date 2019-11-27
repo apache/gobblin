@@ -669,14 +669,15 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
   @Override
   public void alterTable(HiveTable table) throws IOException {
     try (AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient()) {
-      boolean tableExists;
-      try (Timer.Context context = this.metricContext.timer(TABLE_EXISTS).time()) {
-        tableExists = client.get().tableExists(table.getDbName(), table.getTableName());
-      }
-      if (!tableExists) {
-        throw new IOException("Table " + table.getTableName() + " in db " + table.getDbName() + " does not exist");
+      Table existingTable;
+      //During alter table we need to persist the existing property of iceberg in HMS
+      try (Timer.Context context = this.metricContext.timer(GET_HIVE_TABLE).time()) {
+        existingTable = client.get().getTable(table.getDbName(), table.getTableName());
+      } catch (Exception e){
+        throw new IOException("Cannot get table " + table.getTableName() + " in db " + table.getDbName(), e);
       }
       try (Timer.Context context = this.metricContext.timer(ALTER_TABLE).time()) {
+        table.getProps().addAllIfNotExist(HiveMetaStoreUtils.getTableProps(existingTable));
         client.get().alter_table(table.getDbName(), table.getTableName(),
             getTableWithCreateTimeNow(HiveMetaStoreUtils.getTable(table)));
       }
