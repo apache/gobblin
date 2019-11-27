@@ -84,7 +84,7 @@ public class IntegrationBasicSuite {
   protected Collection<GobblinTaskRunner> taskDrivers = Lists.newArrayList();
   protected GobblinClusterManager manager;
 
-  // This filename should match the log file specified in log4j2.xml
+  // This filename should match the log file specified in log4j.xml
   public static Path jobLogOutputFile = Paths.get("gobblin-integration-test-log-dir/gobblin-cluster-test.log");;
   protected Path workPath;
   protected Path jobConfigPath;
@@ -197,10 +197,7 @@ public class IntegrationBasicSuite {
   }
 
   protected Collection<Config> getTaskDriverConfigs() {
-    URL url = Resources.getResource("BasicTaskDriver.conf");
-    Config taskDriverConfig = ConfigFactory.parseURL(url);
-    taskDriverConfig = taskDriverConfig.withFallback(getClusterConfig());
-    return Lists.newArrayList(taskDriverConfig.resolve());
+    return new ArrayList<>();
   }
 
   protected Collection<Config> getWorkerConfigs() {
@@ -326,4 +323,3 @@ public class IntegrationBasicSuite {
     HelixUtils.createGobblinHelixCluster(zkConnectionString, helix_cluster_name);
   }
 }
-

@@ -25,8 +25,7 @@ import java.util.Map;
 import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.Schema;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.LogManager;
+import org.apache.log4j.Logger;
 import org.codehaus.jackson.JsonNode;
 
 import com.google.common.base.Optional;
@@ -117,7 +116,7 @@ import com.google.common.collect.ImmutableList;
  */
 public class AvroFlattener {
 
-  private static final Logger LOG = LogManager.getLogger(AvroFlattener.class);
+  private static final Logger LOG = Logger.getLogger(AvroFlattener.class);
 
   private static final String FLATTENED_NAME_JOINER = "__";
   private static final String FLATTENED_SOURCE_JOINER = ".";
