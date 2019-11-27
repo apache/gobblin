@@ -72,3 +72,4 @@ gobblin-integration-test-log-dir/
 gobblin-modules/gobblin-elasticsearch/test-elasticsearch/
 
 temp/
+ligradle/*

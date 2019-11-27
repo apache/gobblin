@@ -29,7 +29,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.Set;
 
 import java.util.stream.Collectors;
@@ -80,16 +79,14 @@ import lombok.extern.slf4j.Slf4j;
 
 import static org.apache.gobblin.configuration.ConfigurationKeys.*;
 import static org.apache.gobblin.salesforce.SalesforceConfigurationKeys.*;
-
-import org.apache.gobblin.salesforce.SalesforceExtractor.SalesforceBulkJobId;
+import org.apache.gobblin.salesforce.SalesforceExtractor.JobIdAndBatchIdResultIdList;
 import org.apache.gobblin.salesforce.SalesforceExtractor.BatchIdAndResultId;
+
 /**
  * An implementation of {@link QueryBasedSource} for salesforce data sources.
  */
 @Slf4j
 public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
-  // partition pk-chunking
-  private static final String PARTITION_TYPE = "salesforce.partitionType";
   public static final String USE_ALL_OBJECTS = "use.all.objects";
   public static final boolean DEFAULT_USE_ALL_OBJECTS = false;
 
@@ -156,35 +153,38 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
 
   @Override
   protected List<WorkUnit> generateWorkUnits(SourceEntity sourceEntity, SourceState state, long previousWatermark) {
-    String partitionType = state.getProp(PARTITION_TYPE, "");
+    log.info("====sfdc connector with pkchk===="); // TODO: remove this after merge back to OS.
+    List<WorkUnit> workUnits = null;
+    String partitionType = state.getProp(SALESFORCE_PARTITION_TYPE, "");
     if (partitionType.equals("PK_CHUNKING")) {
       // pk-chunking only supports start-time by source.querybased.start.value, and does not support end-time.
       // always ingest data later than or equal source.querybased.start.value.
       // we should only pk chunking based work units only in case of snapshot/full ingestion
-      return generateWorkUnitsPkChunking(sourceEntity, state, previousWatermark);
+      workUnits = generateWorkUnitsPkChunking(sourceEntity, state, previousWatermark);
     } else {
-      return generateWorkUnitsStrategy(sourceEntity, state, previousWatermark);
+      workUnits = generateWorkUnitsStrategy(sourceEntity, state, previousWatermark);
     }
+    log.info("====Generated {} workUnit(s)====", workUnits.size());
+    return workUnits;
   }
 
   /**
-   * generate workUnit with noQuery=true
+   * generate workUnit for pk chunking
    */
   private List<WorkUnit> generateWorkUnitsPkChunking(SourceEntity sourceEntity, SourceState state, long previousWatermark) {
-      SalesforceBulkJobId salesforceBulkJobId = executeQueryWithPkChunking(state, previousWatermark);
-      List<WorkUnit> ret = createWorkUnits(sourceEntity, state, salesforceBulkJobId);
-      return ret;
+    JobIdAndBatchIdResultIdList jobIdAndBatchIdResultIdList = executeQueryWithPkChunking(state, previousWatermark);
+    return createWorkUnits(sourceEntity, state, jobIdAndBatchIdResultIdList);
   }
 
-  private SalesforceBulkJobId executeQueryWithPkChunking(
+  private JobIdAndBatchIdResultIdList executeQueryWithPkChunking(
       SourceState sourceState,
       long previousWatermark
   ) throws RuntimeException {
     State state = new State(sourceState);
     WorkUnit workUnit = WorkUnit.createEmpty();
+    WorkUnitState workUnitState = new WorkUnitState(workUnit, state);
+    workUnitState.setId("Execute pk-chunking");
     try {
-      WorkUnitState workUnitState = new WorkUnitState(workUnit, state);
-      workUnitState.setId("Execute pk-chunking");
       SalesforceExtractor salesforceExtractor = (SalesforceExtractor) this.getExtractor(workUnitState);
       Partitioner partitioner = new Partitioner(sourceState);
       if (isEarlyStopEnabled(state) && partitioner.isFullDump()) {
@@ -204,17 +204,30 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
       Predicate predicate = new Predicate(null, 0, condition, "", null);
       List<Predicate> predicateList = Arrays.asList(predicate);
       String entity = sourceState.getProp(ConfigurationKeys.SOURCE_ENTITY);
-      SalesforceBulkJobId salesforceBulkJobId = salesforceExtractor.getQueryResultIdsPkChunking(entity, predicateList);
-      return salesforceBulkJobId;
+
+      if (state.contains(PK_CHUNKING_TEST_JOB_ID)) {
+        String jobId = state.getProp(PK_CHUNKING_TEST_JOB_ID, "");
+        log.info("---Skip query, fetching result files directly for [jobId={}]", jobId);
+        String batchIdListStr = state.getProp(PK_CHUNKING_TEST_BATCH_ID_LIST);
+        return salesforceExtractor.getQueryResultIdsPkChunkingFetchOnly(jobId, batchIdListStr);
+      } else {
+        log.info("---Pk Chunking query submit.");
+        return salesforceExtractor.getQueryResultIdsPkChunking(entity, predicateList);
+      }
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
   }
 
+  /**
+   *  Create work units by taking a bulkJobId.
+   *  The work units won't contain a query in this case. Instead they will contain a BulkJobId and a list of `batchId:resultId`
+   *  So in extractor, the work to do is just to fetch the resultSet files.
+   */
   private List<WorkUnit> createWorkUnits(
       SourceEntity sourceEntity,
       SourceState state,
-      SalesforceBulkJobId salesforceBulkJobId
+      JobIdAndBatchIdResultIdList jobIdAndBatchIdResultIdList
   ) {
     String nameSpaceName = state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY);
     Extract.TableType tableType = Extract.TableType.valueOf(state.getProp(ConfigurationKeys.EXTRACT_TABLE_TYPE_KEY).toUpperCase());
@@ -223,12 +236,15 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
 
     List<WorkUnit> workUnits = Lists.newArrayList();
     int partitionNumber = state.getPropAsInt(SOURCE_MAX_NUMBER_OF_PARTITIONS, 1);
-    List<BatchIdAndResultId> batchResultIds = salesforceBulkJobId.getBatchIdAndResultIdList();
-    int maxPartition = (batchResultIds.size() + partitionNumber - 1)/partitionNumber;
-    List<List<BatchIdAndResultId>> partitionedResultIds = Lists.partition(batchResultIds, maxPartition);
-    for (List<BatchIdAndResultId> resultIds : partitionedResultIds){
+    List<BatchIdAndResultId> batchResultIds = jobIdAndBatchIdResultIdList.getBatchIdAndResultIdList();
+    int total = batchResultIds.size();
+    // size of every partition should be: math.ceil(total/partitionNumber), use simpler way: (total+partitionNumber-1)/partitionNumber
+    int sizeOfPartition = (total + partitionNumber - 1) / partitionNumber;
+    List<List<BatchIdAndResultId>> partitionedResultIds = Lists.partition(batchResultIds, sizeOfPartition);
+    log.info("----partition strategy: max-parti={}, size={}, actual-parti={}, total={}", partitionNumber, sizeOfPartition, partitionedResultIds.size(), total);
+    for (List<BatchIdAndResultId> resultIds : partitionedResultIds) {
       WorkUnit workunit = new WorkUnit(extract);
-      String bulkJobId = salesforceBulkJobId.getJobId();
+      String bulkJobId = jobIdAndBatchIdResultIdList.getJobId();
       workunit.setProp(PK_CHUNKING_JOB_ID, bulkJobId);
       String resultIdStr = resultIds.stream().map(x -> x.getBatchId() + ":" + x.getResultId()).collect(Collectors.joining(","));
       workunit.setProp(PK_CHUNKING_BATCH_RESULT_IDS, resultIdStr);
@@ -242,7 +258,7 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
   }
 
   /**
-   * the 2 pre-partition algorithms
+   *
    */
   private List<WorkUnit> generateWorkUnitsStrategy(SourceEntity sourceEntity, SourceState state, long previousWatermark) {
     WatermarkType watermarkType = WatermarkType.valueOf(
@@ -290,11 +306,13 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     if (histogramAdjust.getGroups().size() < histogram.getGroups().size()) {
       HistogramGroup lastPlusOne = histogram.get(histogramAdjust.getGroups().size());
       long earlyStopHighWatermark = Long.parseLong(Utils.toDateTimeFormat(lastPlusOne.getKey(), SECONDS_FORMAT, Partitioner.WATERMARKTIMEFORMAT));
-      log.info("Job {} will be stopped earlier. [LW : {}, early-stop HW : {}, expected HW : {}]", state.getProp(ConfigurationKeys.JOB_NAME_KEY), partition.getLowWatermark(), earlyStopHighWatermark, expectedHighWatermark);
+      log.info("Job {} will be stopped earlier. [LW : {}, early-stop HW : {}, expected HW : {}]",
+          state.getProp(ConfigurationKeys.JOB_NAME_KEY), partition.getLowWatermark(), earlyStopHighWatermark, expectedHighWatermark);
       this.isEarlyStopped = true;
       expectedHighWatermark = earlyStopHighWatermark;
     } else {
-      log.info("Job {} will be finished in a single run. [LW : {}, expected HW : {}]", state.getProp(ConfigurationKeys.JOB_NAME_KEY), partition.getLowWatermark(), expectedHighWatermark);
+      log.info("Job {} will be finished in a single run. [LW : {}, expected HW : {}]",
+          state.getProp(ConfigurationKeys.JOB_NAME_KEY), partition.getLowWatermark(), expectedHighWatermark);
     }
 
     String specifiedPartitions = generateSpecifiedPartitions(histogramAdjust, minTargetPartitionSize, maxPartitions,
@@ -303,10 +321,13 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     state.setProp(Partitioner.USER_SPECIFIED_PARTITIONS, specifiedPartitions);
     state.setProp(Partitioner.IS_EARLY_STOPPED, isEarlyStopped);
 
-    return super.generateWorkUnits(sourceEntity, state, previousWatermark);
+    List<WorkUnit> workUnits = super.generateWorkUnits(sourceEntity, state, previousWatermark);
+    Boolean disableSoft = state.getPropAsBoolean(SOURCE_QUERYBASED_SALESFORCE_IS_SOFT_DELETES_PULL_DISABLED, false);
+    workUnits.stream().forEach(x -> x.setProp(SOURCE_QUERYBASED_SALESFORCE_IS_SOFT_DELETES_PULL_DISABLED, disableSoft));
+    return workUnits;
   }
 
-  private boolean isEarlyStopEnabled (State state) {
+  private boolean isEarlyStopEnabled(State state) {
     return state.getPropAsBoolean(ConfigurationKeys.SOURCE_EARLY_STOP_ENABLED, ConfigurationKeys.DEFAULT_SOURCE_EARLY_STOP_ENABLED);
   }
 
@@ -384,7 +405,7 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
    * Compute the target partition size.
    */
   private int computeTargetPartitionSize(Histogram histogram, int minTargetPartitionSize, int maxPartitions) {
-     return Math.max(minTargetPartitionSize,
+    return Math.max(minTargetPartitionSize,
         DoubleMath.roundToInt((double) histogram.totalRecordCount / maxPartitions, RoundingMode.CEILING));
   }
 
@@ -486,8 +507,7 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
    */
   private Histogram getRefinedHistogram(SalesforceConnector connector, String entity, String watermarkColumn,
       SourceState state, Partition partition, Histogram histogram) {
-    final int maxPartitions = state.getPropAsInt(SOURCE_MAX_NUMBER_OF_PARTITIONS,
-        ConfigurationKeys.DEFAULT_MAX_NUMBER_OF_PARTITIONS);
+    final int maxPartitions = state.getPropAsInt(SOURCE_MAX_NUMBER_OF_PARTITIONS, DEFAULT_MAX_NUMBER_OF_PARTITIONS);
     final int probeLimit = state.getPropAsInt(DYNAMIC_PROBING_LIMIT, DEFAULT_DYNAMIC_PROBING_LIMIT);
     final int minTargetPartitionSize = state.getPropAsInt(MIN_TARGET_PARTITION_SIZE, DEFAULT_MIN_TARGET_PARTITION_SIZE);
     final Histogram outputHistogram = new Histogram();
@@ -750,3 +770,4 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     private int probeCount = 0;
   }
 }
+
