@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.Future;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecExecutor;
@@ -70,10 +71,8 @@ public class LocalFsSpecProducer implements SpecProducer<Spec> {
 
   private Future<?> writeSpec(Spec spec, SpecExecutor.Verb verb) {
     if (spec instanceof JobSpec) {
-      URI specUri = spec.getUri();
-      ((JobSpec) spec).getMetadata().get()
       // format the JobSpec to have file of <flowGroup>_<flowName>.job
-      String jobFileName = getJobFileName(specUri);
+      String jobFileName = getJobFileName(spec);
       try (
         FileOutputStream fStream = new FileOutputStream(this.specProducerPath + File.separatorChar + jobFileName);
       ) {
@@ -95,12 +94,18 @@ public class LocalFsSpecProducer implements SpecProducer<Spec> {
    */
   @Override
   public Future<?> deleteSpec(URI deletedSpecURI, Properties headers) {
-    String jobFileName = getJobFileName(deletedSpecURI);
-    File file = new File(jobFileName);
-    if (file.delete()) {
-      log.info("Deleted spec: {}", jobFileName);
-      return new CompletedFuture<>(Boolean.TRUE, null);
+    String prefix = String.join("_", deletedSpecURI.getPath().split("/"));
+    // delete all of the jobs related to the spec
+    File dir = new File(this.specProducerPath);
+    File[] foundFiles = dir.listFiles((File file, String name) -> {
+        // only delete the jobs in progress
+        return name.startsWith(prefix) && name.endsWith(".job");
+    });
+
+    for (int i = 0; i < foundFiles.length; i++) {
+        foundFiles[i].delete();
     }
+
     throw new RuntimeException(String.format("Failed to delete file with uri %s", deletedSpecURI));
   }
 
@@ -110,9 +115,10 @@ public class LocalFsSpecProducer implements SpecProducer<Spec> {
     throw new UnsupportedOperationException();
   }
 
-  public static String getJobFileName(URI specUri) {
-    String[] uriTokens = specUri.getPath().split("/");
-    return String.join("_", uriTokens) + ".job";
+  public static String getJobFileName(Spec spec) {
+    String[] uriTokens = spec.getUri().getPath().split("/");
+    String flowExecutionId = ((JobSpec) spec).getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
+    return String.join("_", uriTokens) + "_" + flowExecutionId + ".job";
   }
 
 }

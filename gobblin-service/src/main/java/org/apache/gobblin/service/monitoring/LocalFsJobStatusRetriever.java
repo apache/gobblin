@@ -53,10 +53,9 @@ public class LocalFsJobStatusRetriever extends JobStatusRetriever {
   private final FileContextBasedFsStateStore<State> stateStore;
 
 
+  // Do not use a state store for this implementation, just look at the job folder that @LocalFsSpecProducer writes to
   public LocalFsJobStatusRetriever(Config config) {
     this.specProducerPath = config.getString(LocalFsSpecProducer.LOCAL_FS_PRODUCER_PATH_KEY);
-    this.stateStore = (FileContextBasedFsStateStore<State>) new FileContextBasedFsStateStoreFactory().
-        createStateStore(config.getConfig(CONF_PREFIX), State.class);
   }
 
   private boolean isJobDone(String flowName, String flowGroup) {
@@ -116,8 +115,11 @@ public class LocalFsJobStatusRetriever extends JobStatusRetriever {
     try {
       String storeName = KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, flowName);
       String tableName = KafkaJobStatusMonitor.jobStatusTableName(flowExecutionId, jobGroup, jobName);
+      log.info(storeName);
+      log.info(tableName);
       List<State> jobStates = this.stateStore.getAll(storeName, tableName);
       if (jobStates.isEmpty()) {
+        log.info("I AM EMPTY");
         return Iterators.emptyIterator();
       } else {
         if (isJobDone(flowName, flowGroup)) {
