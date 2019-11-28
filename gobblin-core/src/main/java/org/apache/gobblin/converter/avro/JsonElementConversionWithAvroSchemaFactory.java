@@ -25,6 +25,7 @@ import java.util.Map;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
+import org.apache.commons.lang3.Validate;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.converter.DataConversionException;
 
@@ -165,7 +166,10 @@ public class JsonElementConversionWithAvroSchemaFactory extends JsonElementConve
 
     @Override
     Object convertField(JsonElement value) {
-      return new GenericData.EnumSymbol(this.schema, value.getAsString());
+      String valueString = value.getAsString();
+      Validate.isTrue(this.enumSet.contains(valueString),
+          String.format("%s is not one of the valid symbols for this enum: %s", valueString, this.enumSet));
+      return new GenericData.EnumSymbol(this.schema, valueString);
     }
 
     @Override
