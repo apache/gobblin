@@ -30,7 +30,7 @@ dependencies {
   compile project(":gobblin-yarn")
 
   compile externalDependency.azkaban
-  compile externalDependency.log4j2
+  compile externalDependency.log4j
   compile externalDependency.guava
   compile externalDependency.commonsLang
   compile externalDependency.httpclient

@@ -22,7 +22,7 @@ dependencies {
     compile project(':gobblin-utility')
 
     compile externalDependency.slf4j
-    compile externalDependency.log4j2
+    compile externalDependency.log4j
     compile externalDependency.lombok
     compile externalDependency.typesafeConfig
     compile externalDependency.commonsLang

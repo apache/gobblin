@@ -33,7 +33,7 @@ dependencies {
   compile externalDependency.guava
   compile externalDependency.commonsLang
   compile externalDependency.slf4j
-  compile externalDependency.log4j2
+  compile externalDependency.log4j
   compile externalDependency.commonsCli
   compile externalDependency.gson
   compile externalDependency.hiveCommon

@@ -21,7 +21,6 @@ import javax.tools.ToolProvider
 subprojects {
   plugins.withType(JavaPlugin) {
     configurations {
-
       compile
       dependencies {
         if (!project.name.contains('gobblin-elasticsearch-deps')) {
@@ -41,23 +40,10 @@ subprojects {
             force = true
           }
 
-        if (!project.name.contains('gobblin-data-management')){
-            // Apache Hive 1.2 still uses log4j, specifically WriterAppender that is not bridged in log4j2
-            // so we still need this transitive dependency, This can be removed while migrating to Hive 2.x since
-            // it has moved to log4j2 already.
-          all*.exclude group: 'log4j', module: 'log4j'
-        }
-
         // Required to add JDK's tool jar, which is required to run byteman tests.
         testCompile (files(((URLClassLoader) ToolProvider.getSystemToolClassLoader()).getURLs()))
       }
       all*.exclude group: 'org.apache.calcite', module: 'calcite-avatica' // replaced by org.apache.calcite.avatica:avatica-core
-
-      // To make sure there is no log4j lib to interfere with log4j2 libraries. This is required for log4j2 migration.
-      all*.exclude group: 'org.slf4j', module: 'slf4j-log4j12'
-      all*.exclude group: 'org.apache.logging.log4j', module: 'log4j-to-slf4j'
-      all*.exclude group: 'log4j', module: 'apache-log4j-extras'
     }
   }
 }
-

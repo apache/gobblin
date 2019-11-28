@@ -19,14 +19,10 @@ package org.apache.gobblin.metrics.kafka;
 import java.util.ArrayList;
 import java.util.List;
 
-//import org.apache.log4j.LogManager;
-//import org.apache.log4j.Logger;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.core.Logger;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.core.LogEvent;
-import org.apache.logging.log4j.core.appender.AbstractAppender;
-import org.apache.logging.log4j.core.config.Configurator;
+import org.apache.log4j.AppenderSkeleton;
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
+import org.apache.log4j.spi.LoggingEvent;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -42,9 +38,8 @@ public class LoggingPusherTest {
   @Test
   public void testKafkaReporter() {
 
-    TestAppender testAppender = new TestAppender("TestAppender" );
-    Logger logger = (org.apache.logging.log4j.core.Logger) LogManager.getLogger(LoggingPusher.class.getName());
-    Configurator.setRootLevel(Level.INFO);
+    TestAppender testAppender = new TestAppender();
+    Logger logger = LogManager.getLogger(LoggingPusher.class.getName());
     logger.addAppender(testAppender);
 
     KeyValuePusher<String, String> loggingPusher =
@@ -54,26 +49,26 @@ public class LoggingPusherTest {
     loggingPusher.pushKeyValueMessages(ImmutableList.of(org.apache.commons.lang3.tuple.Pair.of("key", "message3")));
 
     Assert.assertEquals(testAppender.events.size(), 3);
-    Assert.assertEquals(testAppender.events.get(0).getMessage().getFormattedMessage(), "Pushing to broker:topic: message1");
-    Assert.assertEquals(testAppender.events.get(1).getMessage().getFormattedMessage(), "Pushing to broker:topic: message2");
-    Assert.assertEquals(testAppender.events.get(2).getMessage().getFormattedMessage(), "Pushing to broker:topic: key - message3");
+    Assert.assertEquals(testAppender.events.get(0).getRenderedMessage(), "Pushing to broker:topic: message1");
+    Assert.assertEquals(testAppender.events.get(1).getRenderedMessage(), "Pushing to broker:topic: message2");
+    Assert.assertEquals(testAppender.events.get(2).getRenderedMessage(), "Pushing to broker:topic: key - message3");
 
     logger.removeAppender(testAppender);
   }
 
-  public class TestAppender extends AbstractAppender {
+  private class TestAppender extends AppenderSkeleton {
+    List<LoggingEvent> events = new ArrayList<LoggingEvent>();
 
-    private List<LogEvent> events = new ArrayList<LogEvent>();
+    public void close() {
+    }
 
-    public TestAppender(String name) {
-      super(name, null, null);
+    public boolean requiresLayout() {
+      return false;
     }
 
     @Override
-    public void append(LogEvent event) {
+    protected void append(LoggingEvent event) {
       events.add(event);
     }
   }
-
-
 }
