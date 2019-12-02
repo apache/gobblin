@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.converter.avro;
 
+import com.google.common.base.Preconditions;
 import com.sun.javafx.binding.StringFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -158,14 +159,17 @@ public class JsonElementConversionWithAvroSchemaFactory extends JsonElementConve
 
       this.enumSet.addAll(schemaNode.getEnumSymbols());
 
-      this.enumName = schemaNode.getType().getName();
+      this.enumName = schemaNode.getFullName();
 
       this.schema = schemaNode;
     }
 
     @Override
     Object convertField(JsonElement value) {
-      return new GenericData.EnumSymbol(this.schema, value.getAsString());
+      String valueString = value.getAsString();
+      Preconditions.checkArgument(this.enumSet.contains(valueString),
+          "%s is not one of the valid symbols for the %s enum: %s", valueString, this.enumName, this.enumSet);
+      return new GenericData.EnumSymbol(this.schema, valueString);
     }
 
     @Override

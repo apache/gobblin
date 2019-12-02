@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.converter.avro;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.apache.avro.Schema;
@@ -26,9 +27,9 @@ import org.apache.commons.io.IOUtils;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.DataConversionException;
 import org.apache.gobblin.source.workunit.Extract.TableType;
 import org.testng.Assert;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -39,37 +40,20 @@ import com.google.gson.JsonParser;
  */
 @Test(groups = {"gobblin.converter"})
 public class JsonRecordAvroSchemaToAvroConverterTest {
-  private JsonObject jsonRecord;
-  private WorkUnitState state;
-
-  @BeforeClass
-  public void setUp()
-      throws Exception {
-    String avroSchemaString = IOUtils.toString(this.getClass().getResourceAsStream("/converter/jsonToAvroSchema.avsc"), StandardCharsets.UTF_8);
-
-    this.jsonRecord = new JsonParser().parse(IOUtils.toString(this.getClass().getResourceAsStream(
-        "/converter/jsonToAvroRecord.json"), StandardCharsets.UTF_8)).getAsJsonObject();
-
-    SourceState source = new SourceState();
-    this.state = new WorkUnitState(
-        source.createWorkUnit(source.createExtract(TableType.SNAPSHOT_ONLY, "test_table", "test_namespace")));
-    this.state.setProp(ConfigurationKeys.CONVERTER_AVRO_SCHEMA_KEY, avroSchemaString);
-    this.state.setProp(ConfigurationKeys.CONVERTER_IGNORE_FIELDS, "fieldToIgnore");
-  }
 
   @Test
-  public void testConverter()
-      throws Exception {
+  public void testConverter() throws Exception {
+    String avroSchemaString = readResource("/converter/jsonToAvroSchema.avsc");
+    WorkUnitState workUnitState = createWorkUnitState(avroSchemaString, "fieldToIgnore");
+    JsonObject jsonObject = new JsonParser().parse(readResource("/converter/jsonToAvroRecord.json")).getAsJsonObject();
+
     JsonRecordAvroSchemaToAvroConverter<String> converter = new JsonRecordAvroSchemaToAvroConverter<>();
+    converter.init(workUnitState);
+    Schema avroSchema = converter.convertSchema(avroSchemaString, workUnitState);
+    GenericRecord record = converter.convertRecord(avroSchema, jsonObject, workUnitState).iterator().next();
 
-    converter.init(this.state);
-
-    Schema avroSchema = converter.convertSchema("dummy", this.state);
-
-    GenericRecord record = converter.convertRecord(avroSchema, this.jsonRecord, this.state).iterator().next();
-
-    Assert.assertEquals(record.get("fieldToIgnore"), null);
-    Assert.assertEquals(record.get("nullableField"), null);
+    Assert.assertNull(record.get("fieldToIgnore"));
+    Assert.assertNull(record.get("nullableField"));
     Assert.assertEquals(record.get("longField"), 1234L);
 
     Assert.assertTrue(record.get("arrayField") instanceof GenericArray);
@@ -105,4 +89,46 @@ public class JsonRecordAvroSchemaToAvroConverterTest {
     Assert.assertEquals(arrayWithUnion2.get(0).toString(), "arrU1");
     Assert.assertNull(arrayWithUnion2.get(1));
     Assert.assertEquals(arrayWithUnion2.get(2).toString(), "arrU3");  }
+
+  @Test(expectedExceptions = DataConversionException.class)
+  public void testConverterThrowsOnUnrecognizedEnumSymbols() throws IOException, DataConversionException {
+    String avroSchemaString = "{\"name\": \"TestRecord\", "
+        + "\"type\": \"record\","
+        + "\"namespace\": \"org.apache.gobblin.test\", "
+        + "\"fields\": [ "
+        + "    { "
+        + "      \"name\": \"color\", "
+        + "      \"type\": { "
+        + "         \"type\": \"enum\","
+        + "         \"name\": \"Colors\","
+        + "         \"symbols\" : [\"RED\", \"GREEN\", \"BLUE\"]"
+        + "       }"
+        + "    } "
+        + "  ]"
+        + "}";
+    String jsonString = "{\"color\": \"PURPLE\"}";  // PURPLE isn't a member of the Colors enum
+
+    WorkUnitState workUnitState = createWorkUnitState(avroSchemaString, null);
+    JsonObject jsonObject = new JsonParser().parse(jsonString).getAsJsonObject();
+    JsonRecordAvroSchemaToAvroConverter<String> converter = new JsonRecordAvroSchemaToAvroConverter<>();
+    converter.init(workUnitState);
+    Schema avroSchema = converter.convertSchema(avroSchemaString, workUnitState);
+
+    converter.convertRecord(avroSchema, jsonObject, workUnitState);
+  }
+
+  private static WorkUnitState createWorkUnitState(String avroSchemaString, String fieldToIgnore) {
+    SourceState sourceState = new SourceState();
+    WorkUnitState workUnitState = new WorkUnitState(
+        sourceState.createWorkUnit(sourceState.createExtract(TableType.SNAPSHOT_ONLY, "test_table", "test_namespace")));
+    workUnitState.setProp(ConfigurationKeys.CONVERTER_AVRO_SCHEMA_KEY, avroSchemaString);
+    if (fieldToIgnore != null) {
+      workUnitState.setProp(ConfigurationKeys.CONVERTER_IGNORE_FIELDS, fieldToIgnore);
+    }
+    return workUnitState;
+  }
+
+  private static String readResource(String path) throws IOException {
+    return IOUtils.toString(JsonRecordAvroSchemaToAvroConverterTest.class.getResourceAsStream(path), StandardCharsets.UTF_8);
+  }
 }
