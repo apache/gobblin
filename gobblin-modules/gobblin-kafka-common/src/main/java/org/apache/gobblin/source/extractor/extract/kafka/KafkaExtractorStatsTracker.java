@@ -161,10 +161,10 @@ public class KafkaExtractorStatsTracker {
       v.decodeRecordTime += currentTime - decodeStartTime;
       v.readRecordTime += currentTime - readStartTime;
       if (this.isSlaConfigured) {
+        if (v.slaMissedRecordCount < 0) {
+          v.slaMissedRecordCount = 0;
+        }
         if (logAppendTimestamp > 0 && (System.currentTimeMillis() - logAppendTimestamp > recordLevelSlaMillis)) {
-          if (v.slaMissedRecordCount < 0) {
-            v.slaMissedRecordCount = 0;
-          }
           v.slaMissedRecordCount++;
         }
       }
