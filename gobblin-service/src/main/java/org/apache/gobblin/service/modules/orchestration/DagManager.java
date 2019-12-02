@@ -694,7 +694,6 @@ public class DagManager extends AbstractIdleService {
         // The SpecProducer implementations submit the job to the underlying executor and return when the submission is complete,
         // either successfully or unsuccessfully. To catch any exceptions in the job submission, the DagManagerThread
         // blocks (by calling Future#get()) until the submission is completed.
-        dagNode.getValue().getExecutionStatus();
         Future addSpecFuture = producer.addSpec(jobSpec);
         dagNode.getValue().setJobFuture(Optional.of(addSpecFuture));
         //Persist the dag
