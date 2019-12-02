@@ -99,7 +99,7 @@ public class KafkaExtractorStatsTracker {
     private long avgRecordSize;
     private long elapsedTime;
     private long processedRecordCount;
-    private long slaMissedRecordCount;
+    private long slaMissedRecordCount = -1L;
     private long partitionTotalSize;
     private long decodeRecordTime;
     private long fetchMessageBufferTime;
@@ -162,6 +162,9 @@ public class KafkaExtractorStatsTracker {
       v.readRecordTime += currentTime - readStartTime;
       if (this.isSlaConfigured) {
         if (logAppendTimestamp > 0 && (System.currentTimeMillis() - logAppendTimestamp > recordLevelSlaMillis)) {
+          if (v.slaMissedRecordCount < 0) {
+            v.slaMissedRecordCount = 0;
+          }
           v.slaMissedRecordCount++;
         }
       }

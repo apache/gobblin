@@ -372,10 +372,6 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
         if (!topicQualified) {
           skipWorkUnit(workUnit);
         }
-        //Copy the SLA config from SourceState to WorkUnitState.
-        if (state.contains(KafkaSource.RECORD_LEVEL_SLA_MINUTES_KEY)) {
-          workUnit.setProp(KafkaSource.RECORD_LEVEL_SLA_MINUTES_KEY, state.getProp(KafkaSource.RECORD_LEVEL_SLA_MINUTES_KEY));
-        }
         workUnits.add(workUnit);
       }
     }
@@ -539,8 +535,21 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
         }
       }
     }
+    WorkUnit workUnit = getWorkUnitForTopicPartition(partition, offsets, topicSpecificState);
+    addSourceStatePropsToWorkUnit(workUnit, state);
+    return workUnit;
+  }
 
-    return getWorkUnitForTopicPartition(partition, offsets, topicSpecificState);
+  /**
+   * A method to copy specific properties from the {@link SourceState} object to {@link WorkUnitState}.
+   * @param workUnit WorkUnit state
+   * @param state Source state
+   */
+  private void addSourceStatePropsToWorkUnit(WorkUnit workUnit, SourceState state) {
+    //Copy the SLA config from SourceState to WorkUnitState.
+    if (state.contains(KafkaSource.RECORD_LEVEL_SLA_MINUTES_KEY)) {
+      workUnit.setProp(KafkaSource.RECORD_LEVEL_SLA_MINUTES_KEY, state.getProp(KafkaSource.RECORD_LEVEL_SLA_MINUTES_KEY));
+    }
   }
 
   private long getPreviousStartFetchEpochTimeForPartition(KafkaPartition partition, SourceState state) {
