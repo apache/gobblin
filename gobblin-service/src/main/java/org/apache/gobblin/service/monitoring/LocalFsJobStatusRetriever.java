@@ -33,8 +33,6 @@ import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.runtime.spec_executorInstance.LocalFsSpecProducer;
 import org.apache.gobblin.service.ExecutionStatus;
 
-import java.net.URISyntaxException;
-
 import lombok.extern.slf4j.Slf4j;
 
 
