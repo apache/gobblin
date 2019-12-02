@@ -38,4 +38,16 @@ public interface KafkaConsumerRecord {
    * does not provide size (like Kafka 09 clients)
    */
   public long getValueSizeInBytes();
+
+  /**
+   * @return the timestamp of the underlying ConsumerRecord.
+   */
+  public default long getTimestamp() { return 0; }
+
+  /**
+   * @return true if the timestamp in the ConsumerRecord is the timestamp when the record is written to Kafka.
+   */
+  public default boolean isTimestampLogAppend() {
+    return false;
+  }
 }

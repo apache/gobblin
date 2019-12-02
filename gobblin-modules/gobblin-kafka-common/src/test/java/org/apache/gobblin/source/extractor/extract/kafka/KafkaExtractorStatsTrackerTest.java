@@ -34,7 +34,9 @@ public class KafkaExtractorStatsTrackerTest {
   public void setUp() {
     kafkaPartitions.add(new KafkaPartition.Builder().withTopicName("test-topic").withId(0).build());
     kafkaPartitions.add(new KafkaPartition.Builder().withTopicName("test-topic").withId(1).build());
-    this.extractorStatsTracker = new KafkaExtractorStatsTracker(new WorkUnitState(), kafkaPartitions);
+    WorkUnitState workUnitState = new WorkUnitState();
+    workUnitState.setProp("gobblin.kafka.recordLevelSlaMinutes", 10L);
+    this.extractorStatsTracker = new KafkaExtractorStatsTracker(workUnitState, kafkaPartitions);
   }
 
   @Test
@@ -69,29 +71,33 @@ public class KafkaExtractorStatsTrackerTest {
     long readStartTime = System.nanoTime();
     Thread.sleep(1);
     long decodeStartTime = System.nanoTime();
-
+    long logAppendTimestamp = System.currentTimeMillis() - 15 * 60 * 1000L;
     Assert.assertEquals(this.extractorStatsTracker.getStatsMap().get(kafkaPartitions.get(0)).getProcessedRecordCount(), 0);
     Assert.assertEquals(this.extractorStatsTracker.getStatsMap().get(kafkaPartitions.get(0)).getPartitionTotalSize(), 0);
     Assert.assertTrue(this.extractorStatsTracker.getStatsMap().get(kafkaPartitions.get(0)).getDecodeRecordTime() == 0);
     Assert.assertTrue(this.extractorStatsTracker.getStatsMap().get(kafkaPartitions.get(0)).getReadRecordTime() == 0);
+    Assert.assertEquals(this.extractorStatsTracker.getStatsMap().get(kafkaPartitions.get(0)).getSlaMissedRecordCount(), 0);
 
-    this.extractorStatsTracker.onDecodeableRecord(0, readStartTime, decodeStartTime, 100);
+    this.extractorStatsTracker.onDecodeableRecord(0, readStartTime, decodeStartTime, 100, logAppendTimestamp);
     Assert.assertEquals(this.extractorStatsTracker.getStatsMap().get(kafkaPartitions.get(0)).getProcessedRecordCount(), 1);
     Assert.assertEquals(this.extractorStatsTracker.getStatsMap().get(kafkaPartitions.get(0)).getPartitionTotalSize(), 100);
     Assert.assertTrue(this.extractorStatsTracker.getStatsMap().get(kafkaPartitions.get(0)).getDecodeRecordTime() > 0);
     Assert.assertTrue(this.extractorStatsTracker.getStatsMap().get(kafkaPartitions.get(0)).getReadRecordTime() > 0);
+    Assert.assertEquals(this.extractorStatsTracker.getStatsMap().get(kafkaPartitions.get(0)).getSlaMissedRecordCount(), 1);
 
     readStartTime = System.nanoTime();
     Thread.sleep(1);
     decodeStartTime = System.nanoTime();
+    logAppendTimestamp = System.currentTimeMillis() - 10;
     long previousDecodeRecordTime = this.extractorStatsTracker.getStatsMap().get(kafkaPartitions.get(0)).getDecodeRecordTime();
     long previousReadRecordTime = this.extractorStatsTracker.getStatsMap().get(kafkaPartitions.get(0)).getReadRecordTime();
 
-    this.extractorStatsTracker.onDecodeableRecord(0, readStartTime, decodeStartTime, 100);
+    this.extractorStatsTracker.onDecodeableRecord(0, readStartTime, decodeStartTime, 100, logAppendTimestamp);
     Assert.assertEquals(this.extractorStatsTracker.getStatsMap().get(kafkaPartitions.get(0)).getProcessedRecordCount(), 2);
     Assert.assertEquals(this.extractorStatsTracker.getStatsMap().get(kafkaPartitions.get(0)).getPartitionTotalSize(), 200);
     Assert.assertTrue(this.extractorStatsTracker.getStatsMap().get(kafkaPartitions.get(0)).getDecodeRecordTime() > previousDecodeRecordTime);
     Assert.assertTrue(this.extractorStatsTracker.getStatsMap().get(kafkaPartitions.get(0)).getReadRecordTime() > previousReadRecordTime);
+    Assert.assertEquals(this.extractorStatsTracker.getStatsMap().get(kafkaPartitions.get(0)).getSlaMissedRecordCount(), 1);
   }
 
   @Test
@@ -126,13 +132,15 @@ public class KafkaExtractorStatsTrackerTest {
     Assert.assertEquals(this.extractorStatsTracker.getStatsMap().get(kafkaPartitions.get(0)).getAvgRecordSize(), 100);
 
     readStartTime = System.nanoTime();
+    long logAppendTimestamp = System.currentTimeMillis() - 10;
     Thread.sleep(1);
     long decodeStartTime = System.nanoTime();
-    this.extractorStatsTracker.onDecodeableRecord(1, readStartTime, decodeStartTime, 100);
+    this.extractorStatsTracker.onDecodeableRecord(1, readStartTime, decodeStartTime, 100, logAppendTimestamp);
     this.extractorStatsTracker.updateStatisticsForCurrentPartition(1, readStartTime, 0);
     Assert.assertTrue(this.extractorStatsTracker.getStatsMap().get(kafkaPartitions.get(1)).getElapsedTime() > 0);
     Assert.assertTrue(this.extractorStatsTracker.getStatsMap().get(kafkaPartitions.get(1)).getAvgMillisPerRecord() > 0);
     Assert.assertEquals(this.extractorStatsTracker.getStatsMap().get(kafkaPartitions.get(1)).getAvgRecordSize(), 100);
+    Assert.assertEquals(this.extractorStatsTracker.getStatsMap().get(kafkaPartitions.get(1)).getSlaMissedRecordCount(), 0);
   }
 
   @Test (dependsOnMethods = "testUpdateStatisticsForCurrentPartition")
@@ -143,7 +151,8 @@ public class KafkaExtractorStatsTrackerTest {
     Assert.assertEquals(this.extractorStatsTracker.getAvgRecordSize(0), 0);
     long readStartTime = System.nanoTime();
     long decodeStartTime = readStartTime + 1;
-    this.extractorStatsTracker.onDecodeableRecord(1, readStartTime, decodeStartTime, 150);
+    long logAppendTimeStamp = System.currentTimeMillis() - 10;
+    this.extractorStatsTracker.onDecodeableRecord(1, readStartTime, decodeStartTime, 150, logAppendTimeStamp);
     Assert.assertEquals(this.extractorStatsTracker.getAvgRecordSize(1), 150);
   }
 }
