@@ -102,10 +102,13 @@ public class LocalFsSpecProducer implements SpecProducer<Spec> {
     });
 
     for (int i = 0; i < foundFiles.length; i++) {
-        foundFiles[i].delete();
+        Boolean didDelete = foundFiles[i].delete();
+        if (!didDelete) {
+          return new CompletedFuture<>(Boolean.TRUE, new RuntimeException(String.format("Failed to delete file with uri %s", deletedSpecURI)));
+        }
     }
 
-    throw new RuntimeException(String.format("Failed to delete file with uri %s", deletedSpecURI));
+    return new CompletedFuture<>(Boolean.TRUE, null);
   }
 
   /** List all {@link Spec} being executed on {@link org.apache.gobblin.runtime.api.SpecExecutor}. */
