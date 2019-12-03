@@ -176,7 +176,8 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
 
           D record = decodeKafkaMessage(nextValidMessage);
 
-          this.statsTracker.onDecodeableRecord(this.currentPartitionIdx, readStartTime, decodeStartTime, nextValidMessage.getValueSizeInBytes());
+          this.statsTracker.onDecodeableRecord(this.currentPartitionIdx, readStartTime, decodeStartTime,
+              nextValidMessage.getValueSizeInBytes(), nextValidMessage.isTimestampLogAppend() ? nextValidMessage.getTimestamp() : 0L);
           this.currentPartitionLastSuccessfulRecord = record;
           return record;
         } catch (Throwable t) {

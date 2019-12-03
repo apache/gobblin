@@ -50,6 +50,7 @@ public class KafkaExtractorStatsTracker {
   private static final String EXPECTED_HIGH_WATERMARK = "expectedHighWatermark";
   private static final String ELAPSED_TIME = "elapsedTime";
   private static final String PROCESSED_RECORD_COUNT = "processedRecordCount";
+  private static final String SLA_MISSED_RECORD_COUNT = "slaMissedRecordCount";
   private static final String UNDECODABLE_MESSAGE_COUNT = "undecodableMessageCount";
   private static final String PARTITION_TOTAL_SIZE = "partitionTotalSize";
   private static final String AVG_RECORD_PULL_TIME = "avgRecordPullTime";
@@ -63,6 +64,8 @@ public class KafkaExtractorStatsTracker {
   private final Map<KafkaPartition, ExtractorStats> statsMap;
   private final Set<Integer> errorPartitions;
   private final WorkUnitState workUnitState;
+  private boolean isSlaConfigured;
+  private long recordLevelSlaMillis;
 
   //A global count of number of undecodeable messages encountered by the KafkaExtractor across all Kafka
   //TopicPartitions.
@@ -76,6 +79,10 @@ public class KafkaExtractorStatsTracker {
     this.statsMap = Maps.newHashMapWithExpectedSize(this.partitions.size());
     this.partitions.forEach(partition -> this.statsMap.put(partition, new ExtractorStats()));
     this.errorPartitions = Sets.newHashSet();
+    if (this.workUnitState.contains(KafkaSource.RECORD_LEVEL_SLA_MINUTES_KEY)) {
+      this.isSlaConfigured = true;
+      this.recordLevelSlaMillis = TimeUnit.MINUTES.toMillis(this.workUnitState.getPropAsLong(KafkaSource.RECORD_LEVEL_SLA_MINUTES_KEY));
+    }
   }
 
   public int getErrorPartitionCount() {
@@ -92,6 +99,7 @@ public class KafkaExtractorStatsTracker {
     private long avgRecordSize;
     private long elapsedTime;
     private long processedRecordCount;
+    private long slaMissedRecordCount = -1L;
     private long partitionTotalSize;
     private long decodeRecordTime;
     private long fetchMessageBufferTime;
@@ -143,14 +151,23 @@ public class KafkaExtractorStatsTracker {
    * @param readStartTime the start time when readRecord() is invoked.
    * @param decodeStartTime the time instant immediately before a record decoding begins.
    * @param recordSizeInBytes the size of the decoded record in bytes.
+   * @param logAppendTimestamp the log append time of the {@link org.apache.gobblin.kafka.client.KafkaConsumerRecord}.
    */
-  public void onDecodeableRecord(int partitionIdx, long readStartTime, long decodeStartTime, long recordSizeInBytes) {
+  public void onDecodeableRecord(int partitionIdx, long readStartTime, long decodeStartTime, long recordSizeInBytes, long logAppendTimestamp) {
     this.statsMap.computeIfPresent(this.partitions.get(partitionIdx), (k, v) -> {
       long currentTime = System.nanoTime();
       v.processedRecordCount++;
       v.partitionTotalSize += recordSizeInBytes;
       v.decodeRecordTime += currentTime - decodeStartTime;
       v.readRecordTime += currentTime - readStartTime;
+      if (this.isSlaConfigured) {
+        if (v.slaMissedRecordCount < 0) {
+          v.slaMissedRecordCount = 0;
+        }
+        if (logAppendTimestamp > 0 && (System.currentTimeMillis() - logAppendTimestamp > recordLevelSlaMillis)) {
+          v.slaMissedRecordCount++;
+        }
+      }
       return v;
     });
   }
@@ -249,6 +266,7 @@ public class KafkaExtractorStatsTracker {
     this.workUnitState.setProp(KafkaUtils.getPartitionPropName(KafkaSource.STOP_FETCH_EPOCH_TIME, partitionId),
         Long.toString(stats.getStopFetchEpochTime()));
     tagsForPartition.put(PROCESSED_RECORD_COUNT, Long.toString(stats.getProcessedRecordCount()));
+    tagsForPartition.put(SLA_MISSED_RECORD_COUNT, Long.toString(stats.getSlaMissedRecordCount()));
     tagsForPartition.put(PARTITION_TOTAL_SIZE, Long.toString(stats.getPartitionTotalSize()));
     tagsForPartition.put(AVG_RECORD_SIZE, Long.toString(stats.getAvgRecordSize()));
     tagsForPartition.put(ELAPSED_TIME, Long.toString(stats.getElapsedTime()));

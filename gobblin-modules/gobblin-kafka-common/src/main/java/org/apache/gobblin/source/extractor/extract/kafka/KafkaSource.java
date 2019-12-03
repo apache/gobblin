@@ -124,6 +124,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       "gobblin.kafka.shouldEnableDatasetStateStore";
   public static final boolean DEFAULT_GOBBLIN_KAFKA_SHOULD_ENABLE_DATASET_STATESTORE = false;
   public static final String OFFSET_FETCH_TIMER = "offsetFetchTimer";
+  public static final String RECORD_LEVEL_SLA_MINUTES_KEY = "gobblin.kafka.recordLevelSlaMinutes";
 
   private final Set<String> moveToLatestTopics = Sets.newTreeSet(String.CASE_INSENSITIVE_ORDER);
   private final Map<KafkaPartition, Long> previousOffsets = Maps.newConcurrentMap();
@@ -534,8 +535,21 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
         }
       }
     }
+    WorkUnit workUnit = getWorkUnitForTopicPartition(partition, offsets, topicSpecificState);
+    addSourceStatePropsToWorkUnit(workUnit, state);
+    return workUnit;
+  }
 
-    return getWorkUnitForTopicPartition(partition, offsets, topicSpecificState);
+  /**
+   * A method to copy specific properties from the {@link SourceState} object to {@link WorkUnitState}.
+   * @param workUnit WorkUnit state
+   * @param state Source state
+   */
+  private void addSourceStatePropsToWorkUnit(WorkUnit workUnit, SourceState state) {
+    //Copy the SLA config from SourceState to WorkUnitState.
+    if (state.contains(KafkaSource.RECORD_LEVEL_SLA_MINUTES_KEY)) {
+      workUnit.setProp(KafkaSource.RECORD_LEVEL_SLA_MINUTES_KEY, state.getProp(KafkaSource.RECORD_LEVEL_SLA_MINUTES_KEY));
+    }
   }
 
   private long getPreviousStartFetchEpochTimeForPartition(KafkaPartition partition, SourceState state) {
