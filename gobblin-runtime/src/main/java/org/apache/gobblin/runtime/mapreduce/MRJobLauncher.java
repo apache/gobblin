@@ -105,9 +105,6 @@ import org.apache.gobblin.util.ParallelRunner;
 import org.apache.gobblin.util.SerializationUtils;
 import org.apache.gobblin.util.reflection.RestrictedFieldAccessingUtils;
 
-import static org.apache.gobblin.util.ParallelRunner.PARALLEL_RUNNER_WAIT_ON_FINISH_TIMEOUT;
-
-
 /**
  * An implementation of {@link JobLauncher} that launches a Gobblin job as a Hadoop MR job.
  *
@@ -623,8 +620,6 @@ public class MRJobLauncher extends AbstractJobLauncher {
   private void prepareJobInput(List<WorkUnit> workUnits) throws IOException {
     Closer closer = Closer.create();
     try {
-      // Specify timeout on waiting for all workunits to be persisted as usually it could take long when
-      // underlying HDFS is slow.
       ParallelRunner parallelRunner = closer.register(new ParallelRunner(this.parallelRunnerThreads, this.fs));
 
       int multiTaskIdSequence = 0;
