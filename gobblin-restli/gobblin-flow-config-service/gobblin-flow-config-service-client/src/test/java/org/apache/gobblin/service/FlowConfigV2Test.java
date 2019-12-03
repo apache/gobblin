@@ -58,9 +58,10 @@ public class FlowConfigV2Test {
   private EmbeddedRestliServer _server;
   private File _testDirectory;
 
-  private static final String TEST_SPEC_STORE_DIR = "/tmp/flowConfigTest/";
+  private static final String TEST_SPEC_STORE_DIR = "/tmp/flowConfigV2Test/";
   private static final String TEST_GROUP_NAME = "testGroup1";
   private static final String TEST_FLOW_NAME = "testFlow1";
+  private static final String TEST_FLOW_NAME_2 = "testFlow2";
   private static final String TEST_SCHEDULE = "0 1/0 * ? * *";
   private static final String TEST_TEMPLATE_URI = "FS:///templates/test.template";
 
@@ -122,7 +123,7 @@ public class FlowConfigV2Test {
     Assert.assertEquals(TEST_FLOW_NAME, flowStatusId.getFlowName());
     Assert.assertTrue(flowStatusId.getFlowExecutionId() != -1);
 
-    flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME))
+    flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_2))
         .setTemplateUris(TEST_TEMPLATE_URI).setProperties(new StringMap(flowProperties))
         .setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).setRunImmediately(true));
     Assert.assertEquals(_client.createFlowConfig(flowConfig).getFlowExecutionId().longValue(), -1L);
