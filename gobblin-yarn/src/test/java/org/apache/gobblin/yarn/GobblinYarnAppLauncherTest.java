@@ -137,9 +137,6 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
 
     final YarnConfiguration clusterConf = new YarnConfiguration();
     clusterConf.set("yarn.resourcemanager.connect.max-wait.ms", "10000");
-    //TODO: See if hanging is due to resource limitation.
-    clusterConf.set("yarn.nodemanager.resource.memory-mb", "1024");
-    clusterConf.set("yarn.scheduler.maximum-allocation-mb", "2048");
 
     MiniYARNCluster miniYARNCluster = this.closer.register(new MiniYARNCluster("TestCluster", 1, 1, 1));
     miniYARNCluster.init(clusterConf);

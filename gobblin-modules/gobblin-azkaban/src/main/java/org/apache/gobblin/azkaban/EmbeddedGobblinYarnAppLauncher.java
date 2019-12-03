@@ -58,8 +58,8 @@ public class EmbeddedGobblinYarnAppLauncher extends AzkabanJobRunner {
 
     final YarnConfiguration clusterConf = new YarnConfiguration();
     clusterConf.set("yarn.resourcemanager.connect.max-wait.ms", "10000");
-    clusterConf.set("yarn.nodemanager.resource.memory-mb", "1024");
-    clusterConf.set("yarn.scheduler.maximum-allocation-mb", "2048");
+    clusterConf.set("yarn.nodemanager.resource.memory-mb", "512");
+    clusterConf.set("yarn.scheduler.maximum-allocation-mb", "1024");
 
     MiniYARNCluster miniYARNCluster = closer.register(new MiniYARNCluster("TestCluster", 1, 1, 1));
     miniYARNCluster.init(clusterConf);

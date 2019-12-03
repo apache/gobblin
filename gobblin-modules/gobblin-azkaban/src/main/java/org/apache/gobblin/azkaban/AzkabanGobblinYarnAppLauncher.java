@@ -86,8 +86,8 @@ public class AzkabanGobblinYarnAppLauncher extends AbstractJob {
       yarnConfiguration.addResource(new Path(gobblinProps.getProperty("yarn-site-address")));
     } else {
       yarnConfiguration.set("yarn.resourcemanager.connect.max-wait.ms", "10000");
-      yarnConfiguration.set("yarn.nodemanager.resource.memory-mb", "1024");
-      yarnConfiguration.set("yarn.scheduler.maximum-allocation-mb", "2048");
+      yarnConfiguration.set("yarn.nodemanager.resource.memory-mb", "512");
+      yarnConfiguration.set("yarn.scheduler.maximum-allocation-mb", "1024");
     }
     return yarnConfiguration;
   }
