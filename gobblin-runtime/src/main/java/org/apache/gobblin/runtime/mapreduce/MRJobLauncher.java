@@ -625,9 +625,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
     try {
       // Specify timeout on waiting for all workunits to be persisted as usually it could take long when
       // underlying HDFS is slow.
-      ParallelRunner parallelRunner = closer.register(new ParallelRunner(this.parallelRunnerThreads, this.fs,
-          Long.parseLong(jobProps.getProperty(PARALLEL_RUNNER_WAIT_ON_FINISH_TIMEOUT,
-          ParallelRunner.DEFAULT_PARALLEL_RUNNER_WAIT_ON_FINISH_TIMEOUT + ""))));
+      ParallelRunner parallelRunner = closer.register(new ParallelRunner(this.parallelRunnerThreads, this.fs, Long.MAX_VALUE));
 
       int multiTaskIdSequence = 0;
       // Serialize each work unit into a file named after the task ID
