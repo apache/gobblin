@@ -83,7 +83,8 @@ public class ParallelRunner implements Closeable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ParallelRunner.class);
 
-  private static final long DEFAULT_PARALLEL_RUNNER_WAIT_ON_FINISH_TIMEOUT = 10000;
+  public static final long DEFAULT_PARALLEL_RUNNER_WAIT_ON_FINISH_TIMEOUT = 10000;
+  public static final String PARALLEL_RUNNER_WAIT_ON_FINISH_TIMEOUT = "parallel.runner.timeoutOnWait";
 
   public static final String PARALLEL_RUNNER_THREADS_KEY = "parallel.runner.threads";
   public static final int DEFAULT_PARALLEL_RUNNER_THREADS = 10;
@@ -104,8 +105,15 @@ public class ParallelRunner implements Closeable {
 
   private final FailPolicy failPolicy;
 
+  private long timeoutOnWait = DEFAULT_PARALLEL_RUNNER_WAIT_ON_FINISH_TIMEOUT;
+
   public ParallelRunner(int threads, FileSystem fs) {
     this(threads, fs, FailPolicy.FAIL_ONE_FAIL_ALL);
+  }
+
+  public ParallelRunner(int threads, FileSystem fs, long timeoutOnWait) {
+    this(threads, fs, FailPolicy.FAIL_ONE_FAIL_ALL);
+    this.timeoutOnWait = timeoutOnWait;
   }
 
   public ParallelRunner(int threads, FileSystem fs, FailPolicy failPolicy) {
@@ -399,10 +407,11 @@ public class ParallelRunner implements Closeable {
   }
 
   /**
-   * Wait until default timeout reached for all tasks under this parallel runner.
+   * Wait until default timeout reached for all tasks under this parallel runner if {@link #PARALLEL_RUNNER_WAIT_ON_FINISH_TIMEOUT}
+   * not specified. Other wise, follow the value given by user.
    */
   public void waitForTasks() throws IOException{
-    this.waitForTasks(DEFAULT_PARALLEL_RUNNER_WAIT_ON_FINISH_TIMEOUT);
+    this.waitForTasks(timeoutOnWait);
   }
 
   @Override
