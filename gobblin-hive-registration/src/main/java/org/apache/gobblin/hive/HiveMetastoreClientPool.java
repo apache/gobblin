@@ -24,6 +24,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.pool2.impl.GenericObjectPool;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.apache.gobblin.util.PropertiesUtils;
@@ -42,11 +43,13 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.util.AutoReturnableObject;
 
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
  * A pool of {@link IMetaStoreClient} for querying the Hive metastore.
  */
+@Slf4j
 public class HiveMetastoreClientPool {
 
   private final GenericObjectPool<IMetaStoreClient> pool;
@@ -65,6 +68,10 @@ public class HiveMetastoreClientPool {
   public static final String DEFAULT_POOL_EVICTION_POLICY_CLASS_NAME = "org.apache.commons.pool2.impl.DefaultEvictionPolicy";
 
   public static final String POOL_MIN_EVICTABLE_IDLE_TIME_MILLIS = "pool.min.evictable.idle.time.millis";
+
+  public static final String POOL_HIVE_EXTRA_CONFIG_PREFIX = "hive.extraConfig.";
+
+  public static final String POOL_HIVE_EXTRA_CONFIG_TARGET = POOL_HIVE_EXTRA_CONFIG_PREFIX + "targetUri";
 
   public static final long DEFAULT_POOL_MIN_EVICTABLE_IDLE_TIME_MILLIS = 600000L;
 
@@ -139,7 +146,21 @@ public class HiveMetastoreClientPool {
     config.setMaxTotal(this.hiveRegProps.getNumThreads());
     config.setMaxIdle(this.hiveRegProps.getNumThreads());
 
+    String extraConfigTarget = properties.getProperty(POOL_HIVE_EXTRA_CONFIG_TARGET, "");
+
     this.factory = new HiveMetaStoreClientFactory(metastoreURI);
+    if (metastoreURI.isPresent() && StringUtils.isNotEmpty(extraConfigTarget)
+        && metastoreURI.get().equals(extraConfigTarget)) {
+      log.info("Setting extra hive config for metastore {}", extraConfigTarget);
+      properties.forEach((key, value) -> {
+        String configKey = key.toString();
+        if (configKey.startsWith(POOL_HIVE_EXTRA_CONFIG_PREFIX) && !configKey.equals(POOL_HIVE_EXTRA_CONFIG_TARGET)) {
+          log.info("Set extra hive config {}={}", configKey.substring(POOL_HIVE_EXTRA_CONFIG_PREFIX.length()),
+              value.toString());
+          this.factory.getHiveConf().set(configKey.substring(POOL_HIVE_EXTRA_CONFIG_PREFIX.length()), value.toString());
+        }
+      });
+    }
     this.pool = new GenericObjectPool<>(this.factory, config);
     //Set the eviction policy for the client pool
     this.pool.setEvictionPolicyClassName(properties.getProperty(POOL_EVICTION_POLICY_CLASS_NAME, DEFAULT_POOL_EVICTION_POLICY_CLASS_NAME));
