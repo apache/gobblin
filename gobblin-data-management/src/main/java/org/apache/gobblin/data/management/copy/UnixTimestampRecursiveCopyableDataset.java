@@ -38,7 +38,8 @@ import org.joda.time.LocalDateTime;
 import org.joda.time.Period;
 import org.joda.time.format.PeriodFormatter;
 import org.joda.time.format.PeriodFormatterBuilder;
-import org.testng.collections.Lists;
+
+import com.google.common.collect.Lists;
 
 import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.filters.AndPathFilter;
