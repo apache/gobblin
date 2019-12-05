@@ -38,6 +38,7 @@ import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.util.ConfigUtils;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -52,6 +53,8 @@ import lombok.EqualsAndHashCode;
 @Alpha
 @Data
 @EqualsAndHashCode(exclude={"compilationErrors"})
+@SuppressFBWarnings(value="SE_BAD_FIELD",
+    justification = "FindBugs complains about Config not being serializable, but the implementation of Config is serializable")
 public class FlowSpec implements Configurable, Spec {
   private static final long serialVersionUID = -5511988862945107734L;
 
