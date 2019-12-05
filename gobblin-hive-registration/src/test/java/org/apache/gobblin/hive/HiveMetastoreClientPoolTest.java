@@ -32,15 +32,15 @@ public class HiveMetastoreClientPoolTest {
 
   public void testExtraHiveConf()
       throws IOException {
-    String extraHiveConf = "hive.extraConfig.hive.metastore.sasl.enabled";
+    String additionalHiveConf = "myhive.metastore.sasl.enabled";
     Properties props = new Properties();
-    props.setProperty("hive.extraConfig.targetUri", "test-target");
-    props.setProperty("hive.extraConfig." + extraHiveConf, "false");
+    props.setProperty("hive.additionalConfig.targetUri", "test-target");
+    props.setProperty("hive.additionalConfig." + additionalHiveConf, "false");
 
     HiveMetastoreClientPool pool = HiveMetastoreClientPool.get(props, Optional.of("test"));
-    Assert.assertNull(pool.getHiveConf().get(extraHiveConf));
+    Assert.assertNull(pool.getHiveConf().get(additionalHiveConf));
 
     pool = HiveMetastoreClientPool.get(props, Optional.of("test-target"));
-    Assert.assertFalse(Boolean.valueOf(pool.getHiveConf().get(extraHiveConf)));
+    Assert.assertFalse(Boolean.valueOf(pool.getHiveConf().get(additionalHiveConf)));
   }
 }
