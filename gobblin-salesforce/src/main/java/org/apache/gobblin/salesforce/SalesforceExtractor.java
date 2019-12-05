@@ -696,12 +696,20 @@ public class SalesforceExtractor extends RestApiExtractor {
       config.setRestEndpoint(restEndpoint);
 
 
-      this.bulkConnection = new BulkConnection(config);
+      this.bulkConnection = getBulkConnection(config);
       success = true;
     } catch (RuntimeException e) {
       throw new RuntimeException("Failed to connect to salesforce bulk api; error - " + e, e);
     }
     return success;
+  }
+
+  /**
+   * get BulkConnection instance
+   * @return
+   */
+  public BulkConnection getBulkConnection(ConnectorConfig config) throws AsyncApiException {
+    return new BulkConnection(config);
   }
 
   /**
