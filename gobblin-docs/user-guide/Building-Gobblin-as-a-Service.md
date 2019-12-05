@@ -43,7 +43,8 @@ To cluster is split into 3 environments
 2) mysql-cluster (utilises MySQL for storing specStores instead of FS, future work may involve writing to a job queue to be picked by gobblin standalone)
 3) azure-cluster (deploys Dev on Microsoft Azure), more docs [here](./Azure-Kubernetes-Deployment.md)
 
-To add any flow config template for GaaS to use, add the `.template` file to `gobblin-kubernetes/gobblin-service/base-cluster/` and add the file to the configmap
+To add any flow config template for GaaS to use, add the `.template` file to `gobblin-kubernetes/gobblin-service/base-cluster/` and add the file to the configmap.
+For production purposes, flow config templates should be stored in a proper file system or a database instead of being added to the configmap.
 
 To deploy any of these clusters, run the following command from the repository root.
 ```
