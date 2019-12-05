@@ -53,6 +53,8 @@ import lombok.EqualsAndHashCode;
 @Data
 @EqualsAndHashCode(exclude={"compilationErrors"})
 public class FlowSpec implements Configurable, Spec {
+  private static final long serialVersionUID = -5511988862945107734L;
+
   /** An URI identifying the flow. */
   final URI uri;
 
