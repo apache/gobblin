@@ -37,7 +37,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.commons.mail.EmailException;
-import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -99,11 +98,12 @@ import org.apache.gobblin.cluster.HelixUtils;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.rest.JobExecutionInfoServer;
 import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
+import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.EmailUtils;
 import org.apache.gobblin.util.ExecutorsUtils;
-import org.apache.gobblin.util.io.StreamUtils;
 import org.apache.gobblin.util.JvmUtils;
+import org.apache.gobblin.util.io.StreamUtils;
 import org.apache.gobblin.util.logs.LogCopier;
 import org.apache.gobblin.yarn.event.ApplicationReportArrivalEvent;
 import org.apache.gobblin.yarn.event.GetApplicationReportFailureEvent;
@@ -286,13 +286,19 @@ public class GobblinYarnAppLauncher {
   public void launch() throws IOException, YarnException {
     this.eventBus.register(this);
 
-    String clusterName = this.config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
-    boolean overwriteExistingCluster = ConfigUtils.getBoolean(this.config, GobblinClusterConfigurationKeys.HELIX_CLUSTER_OVERWRITE_KEY,
-        GobblinClusterConfigurationKeys.DEFAULT_HELIX_CLUSTER_OVERWRITE);
-    LOGGER.info("Creating Helix cluster {} with overwrite: {}", clusterName, overwriteExistingCluster);
-    HelixUtils.createGobblinHelixCluster(
-        this.config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY), clusterName, overwriteExistingCluster);
-    LOGGER.info("Created Helix cluster " + clusterName);
+    boolean isHelixClusterManaged = ConfigUtils.getBoolean(this.config, GobblinClusterConfigurationKeys.IS_HELIX_CLUSTER_MANAGED,
+        GobblinClusterConfigurationKeys.DEFAULT_IS_HELIX_CLUSTER_MANAGED);
+    if (isHelixClusterManaged) {
+      LOGGER.info("Helix cluster is managed; skipping creation of Helix cluster");
+    } else {
+      String clusterName = this.config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
+      boolean overwriteExistingCluster = ConfigUtils.getBoolean(this.config, GobblinClusterConfigurationKeys.HELIX_CLUSTER_OVERWRITE_KEY,
+          GobblinClusterConfigurationKeys.DEFAULT_HELIX_CLUSTER_OVERWRITE);
+      LOGGER.info("Creating Helix cluster {} with overwrite: {}", clusterName, overwriteExistingCluster);
+      HelixUtils.createGobblinHelixCluster(this.config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY),
+          clusterName, overwriteExistingCluster);
+      LOGGER.info("Created Helix cluster " + clusterName);
+    }
 
     connectHelixManager();
 

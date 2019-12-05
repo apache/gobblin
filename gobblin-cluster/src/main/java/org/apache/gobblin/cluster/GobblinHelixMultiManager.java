@@ -227,10 +227,12 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
     } else {
       log.info("We will use same cluster to manage GobblinClusterManager and job distribution.");
       // This will create and register a Helix controller in ZooKeeper
+      boolean isHelixClusterManaged = ConfigUtils.getBoolean(this.config, GobblinClusterConfigurationKeys.IS_HELIX_CLUSTER_MANAGED,
+          GobblinClusterConfigurationKeys.DEFAULT_IS_HELIX_CLUSTER_MANAGED);
       this.managerClusterHelixManager = buildHelixManager(this.config,
           zkConnectionString,
           GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY,
-          InstanceType.CONTROLLER);
+          isHelixClusterManaged ? InstanceType.ADMINISTRATOR : InstanceType.CONTROLLER);
       this.jobClusterHelixManager = this.managerClusterHelixManager;
     }
   }
