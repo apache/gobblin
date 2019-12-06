@@ -22,7 +22,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 
 import java.util.stream.Collectors;
 import lombok.ToString;
@@ -31,6 +30,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.Schema;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.gobblin.util.HiveAvroTypeConstants;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.serde.serdeConstants;
@@ -47,12 +47,9 @@ import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
@@ -85,45 +82,6 @@ public class HiveAvroORCQueryGenerator {
         DEFAULT_TBL_PROPERTIES.setProperty(ORC_COMPRESSION_KEY, DEFAULT_ORC_COMPRESSION);
         DEFAULT_TBL_PROPERTIES.setProperty(ORC_ROW_INDEX_STRIDE_KEY, DEFAULT_ORC_ROW_INDEX_STRIDE);
       }
-
-  // Avro to Hive schema mapping
-  private static final Map<Schema.Type, String> AVRO_TO_HIVE_COLUMN_MAPPING_V_12 = ImmutableMap
-      .<Schema.Type, String>builder()
-      .put(Schema.Type.NULL,    "void")
-      .put(Schema.Type.BOOLEAN, "boolean")
-      .put(Schema.Type.INT,     "int")
-      .put(Schema.Type.LONG,    "bigint")
-      .put(Schema.Type.FLOAT,   "float")
-      .put(Schema.Type.DOUBLE,  "double")
-      .put(Schema.Type.BYTES,   "binary")
-      .put(Schema.Type.STRING,  "string")
-      .put(Schema.Type.RECORD,  "struct")
-      .put(Schema.Type.MAP,     "map")
-      .put(Schema.Type.ARRAY,   "array")
-      .put(Schema.Type.UNION,   "uniontype")
-      .put(Schema.Type.ENUM,    "string")
-      .put(Schema.Type.FIXED,   "binary")
-      .build();
-
-  // Hive evolution types supported
-  private static final Map<String, Set<String>> HIVE_COMPATIBLE_TYPES = ImmutableMap
-      .<String, Set<String>>builder()
-      .put("tinyint", ImmutableSet.<String>builder()
-          .add("smallint", "int", "bigint", "float", "double", "decimal", "string", "varchar").build())
-      .put("smallint",  ImmutableSet.<String>builder().add("int", "bigint", "float", "double", "decimal", "string",
-          "varchar").build())
-      .put("int",       ImmutableSet.<String>builder().add("bigint", "float", "double", "decimal", "string", "varchar")
-          .build())
-      .put("bigint",    ImmutableSet.<String>builder().add("float", "double", "decimal", "string", "varchar").build())
-      .put("float",     ImmutableSet.<String>builder().add("double", "decimal", "string", "varchar").build())
-      .put("double",    ImmutableSet.<String>builder().add("decimal", "string", "varchar").build())
-      .put("decimal",   ImmutableSet.<String>builder().add("string", "varchar").build())
-      .put("string",    ImmutableSet.<String>builder().add("double", "decimal", "varchar").build())
-      .put("varchar",   ImmutableSet.<String>builder().add("double", "string", "varchar").build())
-      .put("timestamp", ImmutableSet.<String>builder().add("string", "varchar").build())
-      .put("date",      ImmutableSet.<String>builder().add("string", "varchar").build())
-      .put("binary",    Sets.<String>newHashSet())
-      .put("boolean",    Sets.<String>newHashSet()).build();
 
   @ToString
   public static enum COLUMN_SORT_ORDER {
@@ -439,7 +397,7 @@ public class HiveAvroORCQueryGenerator {
             columns.append(String.format("  `%s` %s COMMENT 'from flatten_source %s'", field.name(), type,flattenSource));
           }
         } else {
-          columns.append(AVRO_TO_HIVE_COLUMN_MAPPING_V_12.get(schema.getType())).append("<");
+          columns.append(HiveAvroTypeConstants.AVRO_TO_HIVE_COLUMN_MAPPING_V_12.get(schema.getType())).append("<");
           for (Schema.Field field : schema.getFields()) {
             if (isFirst) {
               isFirst = false;
@@ -458,7 +416,7 @@ public class HiveAvroORCQueryGenerator {
           Schema optionalTypeSchema = optionalType.get();
           columns.append(generateAvroToHiveColumnMapping(optionalTypeSchema, hiveColumns, false, datasetName));
         } else {
-          columns.append(AVRO_TO_HIVE_COLUMN_MAPPING_V_12.get(schema.getType())).append("<");
+          columns.append(HiveAvroTypeConstants.AVRO_TO_HIVE_COLUMN_MAPPING_V_12.get(schema.getType())).append("<");
           isFirst = true;
           for (Schema unionMember : schema.getTypes()) {
             if (Schema.Type.NULL.equals(unionMember.getType())) {
@@ -475,13 +433,13 @@ public class HiveAvroORCQueryGenerator {
         }
         break;
       case MAP:
-        columns.append(AVRO_TO_HIVE_COLUMN_MAPPING_V_12.get(schema.getType())).append("<");
+        columns.append(HiveAvroTypeConstants.AVRO_TO_HIVE_COLUMN_MAPPING_V_12.get(schema.getType())).append("<");
         columns.append("string,")
             .append(generateAvroToHiveColumnMapping(schema.getValueType(), hiveColumns, false, datasetName));
         columns.append(">");
         break;
       case ARRAY:
-        columns.append(AVRO_TO_HIVE_COLUMN_MAPPING_V_12.get(schema.getType())).append("<");
+        columns.append(HiveAvroTypeConstants.AVRO_TO_HIVE_COLUMN_MAPPING_V_12.get(schema.getType())).append("<");
         columns.append(generateAvroToHiveColumnMapping(schema.getElementType(), hiveColumns, false, datasetName));
         columns.append(">");
         break;
@@ -496,7 +454,7 @@ public class HiveAvroORCQueryGenerator {
       case LONG:
       case STRING:
       case BOOLEAN:
-        columns.append(AVRO_TO_HIVE_COLUMN_MAPPING_V_12.get(schema.getType()));
+        columns.append(HiveAvroTypeConstants.AVRO_TO_HIVE_COLUMN_MAPPING_V_12.get(schema.getType()));
         break;
       default:
         String exceptionMessage =
@@ -1094,8 +1052,8 @@ public class HiveAvroORCQueryGenerator {
       return false;
     }
     // Look for compatibility in evolved type
-    if (HIVE_COMPATIBLE_TYPES.containsKey(destinationType)) {
-      if (HIVE_COMPATIBLE_TYPES.get(destinationType).contains(evolvedType)) {
+    if (HiveAvroTypeConstants.HIVE_COMPATIBLE_TYPES.containsKey(destinationType)) {
+      if (HiveAvroTypeConstants.HIVE_COMPATIBLE_TYPES.get(destinationType).contains(evolvedType)) {
         return true;
       } else {
         throw new RuntimeException(String.format("Incompatible type evolution from: %s to: %s",
