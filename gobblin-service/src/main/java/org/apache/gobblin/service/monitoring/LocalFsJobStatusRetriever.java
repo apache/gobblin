@@ -40,6 +40,7 @@ import lombok.extern.slf4j.Slf4j;
 public class LocalFsJobStatusRetriever extends JobStatusRetriever {
 
   public static final String CONF_PREFIX = "localFsJobStatusRetriever";
+  private String JOB_DONE_SUFFIX = ".done";
   private String specProducerPath;
 
   // Do not use a state store for this implementation, just look at the job folder that @LocalFsSpecProducer writes to
@@ -47,24 +48,15 @@ public class LocalFsJobStatusRetriever extends JobStatusRetriever {
     this.specProducerPath = config.getString(LocalFsSpecProducer.LOCAL_FS_PRODUCER_PATH_KEY);
   }
 
-  private Boolean isJobPending(String flowName, String flowGroup, long flowExecutionId) {
-    // Local FS has no monitor to update job state yet, for now check if standalone is completed with job, and mark as done
-    // Otherwise the job is pending
-    try {
-      String fileName = LocalFsSpecProducer.getJobFileName(new URI(File.separatorChar + flowGroup + File.separatorChar + flowName), String.valueOf(flowExecutionId));
-      return new File(this.specProducerPath + File.separatorChar + fileName).exists();
-    } catch (URISyntaxException e) {
-      log.error("URISyntaxException occurred when retrieving job status for flow: {},{}", flowGroup, flowName, e);
-    }
-    return false;
-  }
+  private String
 
-  private Boolean isJobDone(String flowName, String flowGroup, long flowExecutionId) {
+
+  private Boolean doesJobExist(String flowName, String flowGroup, long flowExecutionId, String suffix) {
     // Local FS has no monitor to update job state yet, for now check if standalone is completed with job, and mark as done
     // Otherwise the job is pending
     try {
-      String fileName = LocalFsSpecProducer.getJobFileName(new URI(File.separatorChar + flowGroup + File.separatorChar + flowName), String.valueOf(flowExecutionId));
-      return new File(this.specProducerPath + File.separatorChar + fileName + ".done").exists();
+      String fileName = LocalFsSpecProducer.getJobFileName(new URI(File.separatorChar + flowGroup + File.separatorChar + flowName), String.valueOf(flowExecutionId)) + suffix;
+      return new File(this.specProducerPath + File.separatorChar + fileName).exists();
     } catch (URISyntaxException e) {
       log.error("URISyntaxException occurred when retrieving job status for flow: {},{}", flowGroup, flowName, e);
     }
@@ -77,21 +69,7 @@ public class LocalFsJobStatusRetriever extends JobStatusRetriever {
     Preconditions.checkArgument(flowGroup != null, "FlowGroup cannot be null");
 
     // For the FS use case, JobExecutionID == FlowExecutionID
-
-    List<JobStatus> jobStatuses = new ArrayList<>();
-    JobStatus jobStatus;
-
-    if (this.isJobDone(flowName, flowGroup, flowExecutionId)) {
-      jobStatus = JobStatus.builder().flowName(flowName).flowGroup(flowGroup).flowExecutionId(flowExecutionId).jobExecutionId(flowExecutionId).eventName(ExecutionStatus.COMPLETE.name()).build();
-    } else if (this.isJobPending(flowName, flowGroup, flowExecutionId)) {
-      jobStatus = JobStatus.builder().flowName(flowName).flowGroup(flowGroup).flowExecutionId(flowExecutionId).jobExecutionId(flowExecutionId).eventName(ExecutionStatus.PENDING.name()).build();
-    } else {
-      return Iterators.emptyIterator();
-    }
-
-    jobStatuses.add(jobStatus);
-    return jobStatuses.iterator();
-
+    return getJobStatusesForFlowExecution(flowName, flowGroup, flowExecutionId, flowName, flowGroup);
   }
 
   @Override
@@ -104,10 +82,10 @@ public class LocalFsJobStatusRetriever extends JobStatusRetriever {
     List<JobStatus> jobStatuses = new ArrayList<>();
     JobStatus jobStatus;
 
-    if (this.isJobDone(flowName, flowGroup, flowExecutionId)) {
+    if (this.doesJobExist(flowName, flowGroup, flowExecutionId, JOB_DONE_SUFFIX)) {
       jobStatus = JobStatus.builder().flowName(flowName).flowGroup(flowGroup).flowExecutionId(flowExecutionId).
           jobName(jobName).jobGroup(jobGroup).jobExecutionId(flowExecutionId).eventName(ExecutionStatus.COMPLETE.name()).build();
-    } else if (this.isJobPending(flowName, flowGroup, flowExecutionId)) {
+    } else if (this.doesJobExist(flowName, flowGroup, flowExecutionId, "")) {
       jobStatus = JobStatus.builder().flowName(flowName).flowGroup(flowGroup).flowExecutionId(flowExecutionId).
           jobName(jobName).jobGroup(jobGroup).jobExecutionId(flowExecutionId).eventName(ExecutionStatus.PENDING.name()).build();
     } else {
