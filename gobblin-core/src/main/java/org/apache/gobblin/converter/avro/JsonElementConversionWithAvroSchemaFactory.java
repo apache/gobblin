@@ -18,7 +18,6 @@
 package org.apache.gobblin.converter.avro;
 
 import com.google.common.base.Preconditions;
-import com.sun.javafx.binding.StringFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -299,7 +298,7 @@ public class JsonElementConversionWithAvroSchemaFactory extends JsonElementConve
            }
          } catch (Exception e){}
        }
-       throw new RuntimeException(StringFormatter.format("Cannot convert %s to avro using schema %s", value.getAsString(), schemaNode.toString()).toString());
+       throw new RuntimeException(String.format("Cannot convert %s to avro using schema %s", value.getAsString(), schemaNode.toString()));
     }
 
     @Override
