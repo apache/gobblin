@@ -182,7 +182,7 @@ public class DagManagerUtils {
       DagNode<JobExecutionPlan> node = nodesToExpand.poll();
       ExecutionStatus executionStatus = getExecutionStatus(node);
       boolean addFlag = true;
-      if (executionStatus == ExecutionStatus.PENDING) {
+      if (executionStatus == ExecutionStatus.PENDING || executionStatus == ExecutionStatus.PENDING_RETRY) {
         //Add a node to be executed next, only if all of its parent nodes are COMPLETE.
         List<DagNode<JobExecutionPlan>> parentNodes = dag.getParents(node);
         for (DagNode<JobExecutionPlan> parentNode : parentNodes) {
