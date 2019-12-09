@@ -317,17 +317,23 @@ public class GobblinServiceHATest {
         .setProperties(new StringMap(flowProperties));
 
     // Try create on both nodes
+    RestLiResponseException exception1 = null;
     try {
       this.node1FlowConfigClient.createFlowConfig(flowConfig1);
     } catch (RestLiResponseException e) {
-      Assert.fail("Create Again should pass without complaining that the spec already exists.");
+      exception1 = e;
     }
+    Assert.assertNotNull(exception1);
+    Assert.assertEquals(exception1.getStatus(), com.linkedin.restli.common.HttpStatus.S_409_CONFLICT.getCode());
 
+    RestLiResponseException exception2 = null;
     try {
       this.node2FlowConfigClient.createFlowConfig(flowConfig2);
     } catch (RestLiResponseException e) {
-      Assert.fail("Create Again should pass without complaining that the spec already exists.");
+      exception2 = e;
     }
+    Assert.assertNotNull(exception2);
+    Assert.assertEquals(exception2.getStatus(), com.linkedin.restli.common.HttpStatus.S_409_CONFLICT.getCode());
 
     logger.info("+++++++++++++++++++ testCreateAgain END");
   }

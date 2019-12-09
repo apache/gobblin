@@ -207,11 +207,14 @@ public class GobblinServiceManagerTest {
         .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE))
         .setProperties(new StringMap(flowProperties));
 
+    RestLiResponseException exception = null;
     try {
       this.flowConfigClient.createFlowConfig(flowConfig);
     } catch (RestLiResponseException e) {
-      Assert.fail("Create Again should pass without complaining that the spec already exists.");
+      exception = e;
     }
+    Assert.assertNotNull(exception);
+    Assert.assertEquals(exception.getStatus(), com.linkedin.restli.common.HttpStatus.S_409_CONFLICT.getCode());
   }
 
   @Test (dependsOnMethods = "testCreateAgain")
@@ -223,7 +226,7 @@ public class GobblinServiceManagerTest {
     Assert.assertEquals(flowConfig.getId().getFlowName(), TEST_FLOW_NAME);
     Assert.assertEquals(flowConfig.getSchedule().getCronSchedule(), TEST_SCHEDULE);
     Assert.assertEquals(flowConfig.getTemplateUris(), TEST_TEMPLATE_URI);
-    Assert.assertFalse(flowConfig.getSchedule().isRunImmediately());
+    Assert.assertTrue(flowConfig.getSchedule().isRunImmediately());
     // Add this assert back when getFlowSpec() is changed to return the raw flow spec
     //Assert.assertEquals(flowConfig.getProperties().size(), 1);
     Assert.assertEquals(flowConfig.getProperties().get("param1"), "value1");
