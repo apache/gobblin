@@ -48,9 +48,6 @@ public class LocalFsJobStatusRetriever extends JobStatusRetriever {
     this.specProducerPath = config.getString(LocalFsSpecProducer.LOCAL_FS_PRODUCER_PATH_KEY);
   }
 
-  private String
-
-
   private Boolean doesJobExist(String flowName, String flowGroup, long flowExecutionId, String suffix) {
     // Local FS has no monitor to update job state yet, for now check if standalone is completed with job, and mark as done
     // Otherwise the job is pending
