@@ -51,6 +51,8 @@ public class KafkaExtractorStatsTracker {
   private static final String ELAPSED_TIME = "elapsedTime";
   private static final String PROCESSED_RECORD_COUNT = "processedRecordCount";
   private static final String SLA_MISSED_RECORD_COUNT = "slaMissedRecordCount";
+  private static final String MIN_LOG_APPEND_TIMESTAMP = "minLogAppendTimestamp";
+  private static final String MAX_LOG_APPEND_TIMESTAMP = "maxLogAppendTimestamp";
   private static final String UNDECODABLE_MESSAGE_COUNT = "undecodableMessageCount";
   private static final String PARTITION_TOTAL_SIZE = "partitionTotalSize";
   private static final String AVG_RECORD_PULL_TIME = "avgRecordPullTime";
@@ -107,6 +109,8 @@ public class KafkaExtractorStatsTracker {
     private long startFetchEpochTime;
     private long stopFetchEpochTime;
     private long lastSuccessfulRecordHeaderTimestamp;
+    private long minLogAppendTime = -1L;
+    private long maxLogAppendTime = -1L;
   }
 
   /**
@@ -163,6 +167,15 @@ public class KafkaExtractorStatsTracker {
       if (this.isSlaConfigured) {
         if (v.slaMissedRecordCount < 0) {
           v.slaMissedRecordCount = 0;
+          v.minLogAppendTime = logAppendTimestamp;
+          v.maxLogAppendTime = logAppendTimestamp;
+        } else {
+          if (logAppendTimestamp < v.minLogAppendTime) {
+            v.minLogAppendTime = logAppendTimestamp;
+          }
+          if (logAppendTimestamp > v.maxLogAppendTime) {
+            v.maxLogAppendTime = logAppendTimestamp;
+          }
         }
         if (logAppendTimestamp > 0 && (System.currentTimeMillis() - logAppendTimestamp > recordLevelSlaMillis)) {
           v.slaMissedRecordCount++;
@@ -267,6 +280,8 @@ public class KafkaExtractorStatsTracker {
         Long.toString(stats.getStopFetchEpochTime()));
     tagsForPartition.put(PROCESSED_RECORD_COUNT, Long.toString(stats.getProcessedRecordCount()));
     tagsForPartition.put(SLA_MISSED_RECORD_COUNT, Long.toString(stats.getSlaMissedRecordCount()));
+    tagsForPartition.put(MIN_LOG_APPEND_TIMESTAMP, Long.toString(stats.getMinLogAppendTime()));
+    tagsForPartition.put(MAX_LOG_APPEND_TIMESTAMP, Long.toString(stats.getMaxLogAppendTime()));
     tagsForPartition.put(PARTITION_TOTAL_SIZE, Long.toString(stats.getPartitionTotalSize()));
     tagsForPartition.put(AVG_RECORD_SIZE, Long.toString(stats.getAvgRecordSize()));
     tagsForPartition.put(ELAPSED_TIME, Long.toString(stats.getElapsedTime()));
