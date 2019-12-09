@@ -133,11 +133,8 @@ public class SalesforceExtractor extends RestApiExtractor {
 
   private final boolean bulkApiUseQueryAll;
 
-  public WorkUnitState workUnitState;
-
   public SalesforceExtractor(WorkUnitState state) {
     super(state);
-    this.workUnitState = state;
 
     this.sfConnector = (SalesforceConnector) this.connector;
     this.pkChunkingSize =
@@ -569,11 +566,12 @@ public class SalesforceExtractor extends RestApiExtractor {
 
   private Boolean isPkChunkingFetchDone = false;
 
-  private Iterator<JsonElement> getRecordSetPkchunking(WorkUnit workUnit) throws RuntimeException {
+  private Iterator<JsonElement> getRecordSetPkChunking(WorkUnit workUnit) throws RuntimeException {
     if (isPkChunkingFetchDone) {
       return null; // must return null to represent no more data.
     }
     isPkChunkingFetchDone = true; // set to true, never come here twice.
+
     try {
       if (!bulkApiLogin()) {
         throw new IllegalArgumentException("Invalid Login");
@@ -581,6 +579,7 @@ public class SalesforceExtractor extends RestApiExtractor {
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
+
     String jobId = workUnit.getProp(PK_CHUNKING_JOB_ID);
     String batchIdResultIdString = workUnit.getProp(PK_CHUNKING_BATCH_RESULT_IDS);
     return new ResultIterator(bulkConnection, jobId, batchIdResultIdString, fetchRetryLimit);
@@ -594,7 +593,7 @@ public class SalesforceExtractor extends RestApiExtractor {
     // new version of extractor: bulk api with pk-chunking in pre-partitioning of SalesforceSource
     if (workUnit.contains(PK_CHUNKING_JOB_ID)) {
       log.info("----pk-chunking get record set----" + workUnit.getProp(PK_CHUNKING_JOB_ID));
-      return getRecordSetPkchunking(workUnit);
+      return getRecordSetPkChunking(workUnit);
     }
     log.info("----bulk get record set----");
     try {
@@ -708,6 +707,11 @@ public class SalesforceExtractor extends RestApiExtractor {
     return success;
   }
 
+  /**
+   * same as getQueryResultIdsPkChunking but the arguments are different.
+   * this function can take existing batch ids to return JobIdAndBatchIdResultIdList
+   * It is for test/debug. developers may want to skip execute query on SFDC, use a list of existing batch ids
+   */
   public JobIdAndBatchIdResultIdList getQueryResultIdsPkChunkingFetchOnly(String jobId, String batchIdListStr) {
     try {
       if (!bulkApiLogin()) {

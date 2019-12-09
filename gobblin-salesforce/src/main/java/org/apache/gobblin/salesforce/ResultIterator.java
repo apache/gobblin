@@ -65,7 +65,7 @@ public class ResultIterator implements Iterator {
     } else {
       throw new RuntimeException("No batch-result id found.");
     }
-    this.fulfilCurrentRecord();
+    this.fulfillCurrentRecord();
     this.csvHeader = this.currentRecord;
     this.columnSize = this.csvHeader.size();
     // after fetching cvs header, clean up status
@@ -75,7 +75,7 @@ public class ResultIterator implements Iterator {
   /**
    * call reader.next and set up currentRecord
    */
-  private void fulfilCurrentRecord() {
+  private void fulfillCurrentRecord() {
     if (this.isLoadedCurrentRecord) {
       return; // skip, since CurrentRecord was loaded.
     }
@@ -106,13 +106,13 @@ public class ResultIterator implements Iterator {
 
   @Override
   public boolean hasNext() {
-    this.fulfilCurrentRecord();
+    this.fulfillCurrentRecord();
     return this.currentRecord != null;
   }
 
   @Override
   public JsonElement next() {
-    this.fulfilCurrentRecord();
+    this.fulfillCurrentRecord();
     List<String> csvRecord = this.currentRecord;
     this.resetCurrentRecordStatus();
     if (csvRecord == null) {
@@ -154,7 +154,7 @@ public class ResultIterator implements Iterator {
   }
 
   @Data
-  class ResultStruct {
+  static class ResultStruct {
     private final String jobId;
     private final String batchId;
     private final String resultId;

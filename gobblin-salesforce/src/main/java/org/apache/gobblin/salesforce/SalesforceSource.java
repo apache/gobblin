@@ -153,7 +153,6 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
 
   @Override
   protected List<WorkUnit> generateWorkUnits(SourceEntity sourceEntity, SourceState state, long previousWatermark) {
-    log.info("====sfdc connector with pkchk===="); // TODO: remove this after merge back to OS.
     List<WorkUnit> workUnits = null;
     String partitionType = state.getProp(SALESFORCE_PARTITION_TYPE, "");
     if (partitionType.equals("PK_CHUNKING")) {
@@ -238,10 +237,12 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     int partitionNumber = state.getPropAsInt(SOURCE_MAX_NUMBER_OF_PARTITIONS, 1);
     List<BatchIdAndResultId> batchResultIds = jobIdAndBatchIdResultIdList.getBatchIdAndResultIdList();
     int total = batchResultIds.size();
+
     // size of every partition should be: math.ceil(total/partitionNumber), use simpler way: (total+partitionNumber-1)/partitionNumber
     int sizeOfPartition = (total + partitionNumber - 1) / partitionNumber;
     List<List<BatchIdAndResultId>> partitionedResultIds = Lists.partition(batchResultIds, sizeOfPartition);
     log.info("----partition strategy: max-parti={}, size={}, actual-parti={}, total={}", partitionNumber, sizeOfPartition, partitionedResultIds.size(), total);
+
     for (List<BatchIdAndResultId> resultIds : partitionedResultIds) {
       WorkUnit workunit = new WorkUnit(extract);
       String bulkJobId = jobIdAndBatchIdResultIdList.getJobId();
