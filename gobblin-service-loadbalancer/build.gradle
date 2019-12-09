@@ -18,22 +18,13 @@
 apply plugin: 'java'
 
 dependencies {
-  compile project(":gobblin-admin")
   compile project(":gobblin-api")
   compile project(":gobblin-core")
-  compile project(":gobblin-metrics-libs:gobblin-metrics")
   compile project(":gobblin-metastore")
   compile project(":gobblin-runtime")
   compile project(":gobblin-utility")
-  compile project(path: ':gobblin-restli:gobblin-flow-config-service:gobblin-flow-config-service-api', configuration: 'restClient')
-  compile project(path: ':gobblin-restli:gobblin-flow-config-service:gobblin-flow-config-service-api', configuration: 'dataTemplate')
-  compile project(":gobblin-restli:gobblin-flow-config-service:gobblin-flow-config-service-server")
-  compile project(":gobblin-restli:gobblin-flow-config-service:gobblin-flow-config-service-client")
-  compile project(":gobblin-restli:gobblin-restli-utils")
-  compile project(":gobblin-modules:gobblin-azkaban")
 
-  compile externalDependency.avro
-  compile externalDependency.avroMapredH2
+  compile externalDependency.jetty
   compile externalDependency.commonsCli
   compile externalDependency.commonsConfiguration
   compile externalDependency.commonsEmail
