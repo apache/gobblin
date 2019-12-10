@@ -141,6 +141,7 @@ public class MysqlDatasetStateStoreTest {
         dbDatasetStateStore.CURRENT_DATASET_STATE_FILE_SUFFIX + dbDatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX,
         TEST_JOB_ID);
 
+    Assert.assertEquals(jobState.getId(), TEST_JOB_ID);
     Assert.assertEquals(jobState.getJobName(), TEST_JOB_NAME);
     Assert.assertEquals(jobState.getJobId(), TEST_JOB_ID);
     Assert.assertEquals(jobState.getProp("foo"), "bar");
@@ -163,6 +164,7 @@ public class MysqlDatasetStateStoreTest {
         dbDatasetStateStore.CURRENT_DATASET_STATE_FILE_SUFFIX + dbDatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX,
         TEST_JOB_ID);
 
+    Assert.assertEquals(jobState.getId(), TEST_JOB_ID);
     Assert.assertEquals(jobState.getJobName(), TEST_JOB_NAME_LOWER);
     Assert.assertEquals(jobState.getJobId(), TEST_JOB_ID);
     Assert.assertEquals(jobState.getProp("foo"), "bar");
@@ -200,7 +202,7 @@ public class MysqlDatasetStateStoreTest {
 
     // persist a colliding lowercase dataset state to test that retrieval is case sensitive
     datasetState.setDatasetUrn(TEST_DATASET_URN_LOWER);
-    datasetState.setId(TEST_DATASET_URN_LOWER );
+    datasetState.setId(TEST_DATASET_URN_LOWER);
     datasetState.setDuration(3000);
 
     dbDatasetStateStore.persistDatasetState(TEST_DATASET_URN_LOWER, datasetState);
@@ -215,6 +217,7 @@ public class MysqlDatasetStateStoreTest {
     JobState.DatasetState datasetState =
         dbDatasetStateStore.getLatestDatasetState(TEST_JOB_NAME, TEST_DATASET_URN);
 
+    Assert.assertEquals(datasetState.getId(), TEST_DATASET_URN);
     Assert.assertEquals(datasetState.getDatasetUrn(), TEST_DATASET_URN);
     Assert.assertEquals(datasetState.getJobName(), TEST_JOB_NAME);
     Assert.assertEquals(datasetState.getJobId(), TEST_JOB_ID);
@@ -259,6 +262,7 @@ public class MysqlDatasetStateStoreTest {
     Assert.assertEquals(datasetStatesByUrns.size(), 3);
 
     JobState.DatasetState datasetState = datasetStatesByUrns.get(TEST_DATASET_URN);
+    Assert.assertEquals(datasetState.getId(), TEST_DATASET_URN);
     Assert.assertEquals(datasetState.getDatasetUrn(), TEST_DATASET_URN);
     Assert.assertEquals(datasetState.getJobName(), TEST_JOB_NAME);
     Assert.assertEquals(datasetState.getJobId(), TEST_JOB_ID);
@@ -268,6 +272,7 @@ public class MysqlDatasetStateStoreTest {
     Assert.assertEquals(datasetState.getDuration(), 1000);
 
     datasetState = datasetStatesByUrns.get(TEST_DATASET_URN2);
+    Assert.assertEquals(datasetState.getId(), TEST_DATASET_URN2);
     Assert.assertEquals(datasetState.getDatasetUrn(), TEST_DATASET_URN2);
     Assert.assertEquals(datasetState.getJobName(), TEST_JOB_NAME);
     Assert.assertEquals(datasetState.getJobId(), TEST_JOB_ID);
@@ -277,6 +282,7 @@ public class MysqlDatasetStateStoreTest {
     Assert.assertEquals(datasetState.getDuration(), 2000);
 
     datasetState = datasetStatesByUrns.get(TEST_DATASET_URN_LOWER);
+    Assert.assertEquals(datasetState.getId(), TEST_DATASET_URN_LOWER);
     Assert.assertEquals(datasetState.getDatasetUrn(), TEST_DATASET_URN_LOWER);
     Assert.assertEquals(datasetState.getJobName(), TEST_JOB_NAME);
     Assert.assertEquals(datasetState.getJobId(), TEST_JOB_ID);

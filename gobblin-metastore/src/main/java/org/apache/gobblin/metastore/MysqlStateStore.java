@@ -47,6 +47,8 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
+import javax.sql.DataSource;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metastore.metadata.StateStoreEntryManager;
@@ -55,8 +57,6 @@ import org.apache.gobblin.metastore.predicates.StoreNamePredicate;
 import org.apache.gobblin.password.PasswordManager;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.io.StreamUtils;
-
-import javax.sql.DataSource;
 
 /**
  * An implementation of {@link StateStore} backed by MySQL.
@@ -312,7 +312,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
 
               key.readFields(dis);
               state.readFields(dis);
-
+              state.setId(key.toString());
               if (key.toString().equals(stateId)) {
                 return state;
               }
@@ -395,8 +395,9 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
           // keep deserializing while we have data
           while (dis.available() > 0) {
             T state = this.stateClass.newInstance();
-            key.readString(dis);
+            String stateId = key.readString(dis);
             state.readFields(dis);
+            state.setId(stateId);
             states.add(state);
           }
         } catch (EOFException e) {

@@ -121,6 +121,7 @@ public class ZkDatasetStateStoreTest {
         zkDatasetStateStore.CURRENT_DATASET_STATE_FILE_SUFFIX + zkDatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX,
         TEST_JOB_ID);
 
+    Assert.assertEquals(jobState.getId(), TEST_JOB_ID);
     Assert.assertEquals(jobState.getJobName(), TEST_JOB_NAME);
     Assert.assertEquals(jobState.getJobId(), TEST_JOB_ID);
     Assert.assertEquals(jobState.getState(), JobState.RunningState.COMMITTED);
@@ -184,6 +185,7 @@ public class ZkDatasetStateStoreTest {
     Assert.assertEquals(datasetState.getStartTime(), this.startTime);
     Assert.assertEquals(datasetState.getEndTime(), this.startTime + 1000);
     Assert.assertEquals(datasetState.getDuration(), 1000);
+    Assert.assertEquals(datasetState.getId(), TEST_DATASET_URN);
 
     Assert.assertEquals(datasetState.getCompletedTasks(), 3);
     for (int i = 0; i < datasetState.getCompletedTasks(); i++) {
@@ -219,6 +221,7 @@ public class ZkDatasetStateStoreTest {
     Assert.assertEquals(datasetStatesByUrns.size(), 2);
 
     JobState.DatasetState datasetState = datasetStatesByUrns.get(TEST_DATASET_URN);
+    Assert.assertEquals(datasetState.getId(), TEST_DATASET_URN);
     Assert.assertEquals(datasetState.getDatasetUrn(), TEST_DATASET_URN);
     Assert.assertEquals(datasetState.getJobName(), TEST_JOB_NAME);
     Assert.assertEquals(datasetState.getJobId(), TEST_JOB_ID);
@@ -228,6 +231,7 @@ public class ZkDatasetStateStoreTest {
     Assert.assertEquals(datasetState.getDuration(), 1000);
 
     datasetState = datasetStatesByUrns.get(TEST_DATASET_URN2);
+    Assert.assertEquals(datasetState.getId(), TEST_DATASET_URN2);
     Assert.assertEquals(datasetState.getDatasetUrn(), TEST_DATASET_URN2);
     Assert.assertEquals(datasetState.getJobName(), TEST_JOB_NAME);
     Assert.assertEquals(datasetState.getJobId(), TEST_JOB_ID);

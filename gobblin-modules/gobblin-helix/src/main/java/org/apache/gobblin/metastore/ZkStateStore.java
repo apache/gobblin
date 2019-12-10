@@ -322,6 +322,7 @@ public class ZkStateStore<T extends State> implements StateStore<T> {
 
           key.readFields(dis);
           state.readFields(dis);
+          state.setId(key.toString());
           states.add(state);
 
           if (stateId != null && key.toString().equals(stateId)) {
