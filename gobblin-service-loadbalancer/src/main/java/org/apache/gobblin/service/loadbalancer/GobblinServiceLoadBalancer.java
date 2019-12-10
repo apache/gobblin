@@ -10,9 +10,11 @@ import org.apache.commons.cli.ParseException;
 import org.apache.gobblin.runtime.app.ApplicationException;
 import org.apache.gobblin.runtime.app.ApplicationLauncher;
 import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHandler;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.Connector;
+import org.eclipse.jetty.servlet.ServletHolder;
 
 
 public class GobblinServiceLoadBalancer implements ApplicationLauncher {
@@ -20,13 +22,17 @@ public class GobblinServiceLoadBalancer implements ApplicationLauncher {
 
   @Override
   public void start() throws ApplicationException {
-    this.server = new Server(6956);
+    this.server = new Server(8080);
     try {
-      ServletHandler servletHandler = new ServletHandler();
-      this.server.setHandler(servletHandler);
-      servletHandler.addServletWithMapping(ForwardRequestServlet.class, "/");
+      String sessionPath = "/";
+      ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
+      context.setContextPath(sessionPath);
+      System.out.println("Set session path");
+      server.setHandler(context);
+      ForwardRequestServlet forwardRequestServlet = new ForwardRequestServlet();
+      ServletHolder servletHolder = new ServletHolder("default", forwardRequestServlet);
+      context.addServlet(servletHolder, "/");
       this.server.start();
-      this.server.join();
 
       System.out.println("Started server");
 

@@ -1,14 +1,18 @@
 package org.apache.gobblin.service.loadbalancer;
 
+import java.io.IOException;
+import java.util.Enumeration;
 import java.util.concurrent.Future;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.ServletException;
+import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpRequestBase;
+import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
 import org.apache.http.impl.nio.client.HttpAsyncClients;
 
@@ -16,6 +20,8 @@ import org.apache.http.impl.nio.client.HttpAsyncClients;
 public class ForwardRequestServlet extends HttpServlet {
 
   public CloseableHttpAsyncClient client;
+
+  private String forwardedURI = "http://localhost:6956";
 
   ForwardRequestServlet() {
     this.client = HttpAsyncClients.createDefault();
@@ -25,19 +31,47 @@ public class ForwardRequestServlet extends HttpServlet {
 
   protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException {
     System.out.println("GET Request");
-    System.out.println(request.getQueryString());
-    HttpGet req = new HttpGet("http://localhost:6956");
+    System.out.println(request.getRequestURI() + "?" + request.getQueryString());
+    String requestURI = forwardedURI + request.getRequestURI();
+    if (request.getQueryString() != null) {
+      requestURI += "?" + request.getQueryString();
+    }
+    HttpGet forwardRequest = new HttpGet(requestURI);
+    parseAndAddHeaders(forwardRequest, request);
 
-    forwardRequestToServer(req, response);
+    forwardRequestToServer(forwardRequest, response);
   }
 
   protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException {
     System.out.println("POST Request");
-    HttpPost req  = new HttpPost("http://localhost:6956");
-    forwardRequestToServer(req, response);
+    System.out.println(request.getRequestURI() + "?" + request.getQueryString());
+    String requestURI = forwardedURI + request.getRequestURI();
+    if (request.getQueryString() != null) {
+      requestURI += "?" + request.getQueryString();
+    }
+    HttpPost forwardRequest = new HttpPost(requestURI);
+    parseAndAddHeaders(forwardRequest, request);
+    try {
+      String body = IOUtils.toString(request.getReader());
+      System.out.println(body);
+      StringEntity requestBody = new StringEntity(body);
+      forwardRequest.setEntity(requestBody);
+    } catch (IOException e) {
+      // TODO: do something useful with the error
+    }
+
+     forwardRequestToServer(forwardRequest, response);
   }
 
-  protected void forwardRequestToServer(HttpRequestBase req, HttpServletResponse response) throws ServletException {
+  private void parseAndAddHeaders(HttpRequestBase forwardRequest, HttpServletRequest request) {
+    Enumeration<String> headerNames = request.getHeaderNames();
+    while (headerNames.hasMoreElements()) {
+      String header = headerNames.nextElement();
+      forwardRequest.addHeader(header, request.getHeader(header));
+    }
+  }
+
+  private void forwardRequestToServer(HttpRequestBase req, HttpServletResponse response) throws ServletException {
     Future<org.apache.http.HttpResponse> future = client.execute(req, null);
     try {
       HttpResponse resp = future.get();
@@ -49,4 +83,5 @@ public class ForwardRequestServlet extends HttpServlet {
       System.out.println(e.toString());
     }
   }
+
 }
