@@ -39,6 +39,10 @@ public class CheckpointableWatermarkState extends State {
     super.setId(watermark.getSource());
   }
 
+  public String getSource() {
+    return getId();
+  }
+
   /**
    * Needed for reflection based construction.
    */
