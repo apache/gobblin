@@ -523,6 +523,9 @@ public class DagManager extends AbstractIdleService {
           case PENDING:
             jobExecutionPlan.setExecutionStatus(PENDING);
             break;
+          case PENDING_RETRY:
+            jobExecutionPlan.setExecutionStatus(PENDING_RETRY);
+            break;
           default:
             jobExecutionPlan.setExecutionStatus(RUNNING);
             break;
