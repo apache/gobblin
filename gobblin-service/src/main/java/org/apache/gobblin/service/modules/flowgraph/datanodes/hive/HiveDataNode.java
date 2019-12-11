@@ -30,18 +30,19 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.service.modules.flowgraph.BaseDataNode;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraphConfigurationKeys;
 import org.apache.gobblin.service.modules.flowgraph.datanodes.fs.FileSystemDataNode;
 import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
- * An abstract {@link HiveDataNode} implementation. In addition to the required properties of a {@link FileSystemDataNode}, an {@link HiveDataNode}
+ * An {@link HiveDataNode} implementation. In addition to the required properties of a {@link FileSystemDataNode}, an {@link HiveDataNode}
  * must have a metastore URI specified.
  */
 @Alpha
 @EqualsAndHashCode (callSuper = true)
-public class HiveDataNode extends FileSystemDataNode {
+public class HiveDataNode extends BaseDataNode {
   public static final String METASTORE_URI_KEY = FlowGraphConfigurationKeys.DATA_NODE_PREFIX + "hive.metastore.uri";
   private static final String[] HIVE_SUPPORTED_SCHEME = {"adl", "abfs", "hdfs"};
 
@@ -77,25 +78,6 @@ public class HiveDataNode extends FileSystemDataNode {
     }
     //Ensure that the authority is not empty
     if (com.google.common.base.Strings.isNullOrEmpty(metastoreUri.getAuthority())) {
-      return false;
-    }
-    return true;
-  }
-
-  /**
-   * @param fsUri FileSystem URI
-   * @return true if the scheme has a value of {"adl", "abfs", "hdfs"} and authority is not empty.
-   */
-
-  @Override
-  public boolean isUriValid(URI fsUri) {
-    String scheme = fsUri.getScheme();
-    //Check that the scheme is "adl"
-    if (!Arrays.asList(HIVE_SUPPORTED_SCHEME).contains(scheme)) {
-      return false;
-    }
-    //Ensure that the authority is not empty
-    if (com.google.common.base.Strings.isNullOrEmpty(fsUri.getAuthority())) {
       return false;
     }
     return true;

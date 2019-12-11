@@ -1,6 +1,5 @@
 package org.apache.gobblin.service.modules.flowgraph.datanodes.hive;
 
-import java.net.URI;
 import org.apache.gobblin.service.modules.flowgraph.DataNode;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraphConfigurationKeys;
 
@@ -48,54 +47,4 @@ public class HiveDataNodeTest {
     HiveDataNode hiveDataNode = new HiveDataNode(config);
   }
 
-  @Test
-  public void testIsUriValidHdfs() throws Exception{
-    String expectedHdfsFsUri = "hdfs://hdfs.company.com:9000";
-
-    config = config.withValue(FlowGraphConfigurationKeys.DATA_NODE_PREFIX + "fs.uri", ConfigValueFactory.fromAnyRef(expectedHdfsFsUri));
-    HiveDataNode hiveDataNode = new HiveDataNode(config);
-    boolean isValidFs = hiveDataNode.isUriValid(new URI(hiveDataNode.getFsUri()));
-    Assert.assertTrue(isValidFs);
-  }
-
-  @Test(expectedExceptions = DataNode.DataNodeCreationException.class)
-  public void testIsUriInValidHdfs() throws Exception{
-    String expectedHdfsFsUri = "hdf://hdfs.company.com:9000";
-
-    config = config.withValue(FlowGraphConfigurationKeys.DATA_NODE_PREFIX + "fs.uri", ConfigValueFactory.fromAnyRef(expectedHdfsFsUri));
-    HiveDataNode hiveDataNode = new HiveDataNode(config);
-  }
-
-  @Test
-  public void testIsUriValidAdl() throws Exception{
-    String expectedAdlFsUri = "adl://azure-adl.azuredatalake.net/";
-    config = config.withValue(FlowGraphConfigurationKeys.DATA_NODE_PREFIX + "fs.uri", ConfigValueFactory.fromAnyRef(expectedAdlFsUri));
-    HiveDataNode hiveDataNode = new HiveDataNode(config);
-    boolean isValidFs = hiveDataNode.isUriValid(new URI(hiveDataNode.getFsUri()));
-    Assert.assertTrue(isValidFs);
-  }
-
-  @Test(expectedExceptions = DataNode.DataNodeCreationException.class)
-  public void testIsUriInValidAdl() throws Exception{
-    String expectedAdlFsUri = "adlss://azure-adl.azuredatalake.net/";
-    config = config.withValue(FlowGraphConfigurationKeys.DATA_NODE_PREFIX + "fs.uri", ConfigValueFactory.fromAnyRef(expectedAdlFsUri));
-    HiveDataNode hiveDataNode = new HiveDataNode(config);;
-  }
-
-  @Test
-  public void testIsUriValidAdls() throws Exception{
-    String expectedAdlFsUri = "abfs://data@adl.dfs.core.windows.net";
-    config = config.withValue(FlowGraphConfigurationKeys.DATA_NODE_PREFIX + "fs.uri", ConfigValueFactory.fromAnyRef(expectedAdlFsUri));
-    HiveDataNode hiveDataNode = new HiveDataNode(config);
-    boolean isValidFs = hiveDataNode.isUriValid(new URI(hiveDataNode.getFsUri()));
-    Assert.assertTrue(isValidFs);
-  }
-
-  @Test(expectedExceptions = DataNode.DataNodeCreationException.class)
-  public void testIsUriInValidAdls() throws Exception{
-    String expectedAdlFsUri = "abfs2://data@adl.dfs.core.windows.net";
-    config = config.withValue(FlowGraphConfigurationKeys.DATA_NODE_PREFIX + "fs.uri", ConfigValueFactory.fromAnyRef(expectedAdlFsUri));
-    HiveDataNode hiveDataNode = new HiveDataNode(config);
-
-  }
 }
