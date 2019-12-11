@@ -17,30 +17,33 @@
 
 package org.apache.gobblin.service.modules.flowgraph.datanodes.hive;
 
+
 import java.io.IOException;
 import java.net.URI;
 
 import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 
+import java.util.Arrays;
 import joptsimple.internal.Strings;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraphConfigurationKeys;
-import org.apache.gobblin.service.modules.flowgraph.datanodes.fs.HdfsDataNode;
+import org.apache.gobblin.service.modules.flowgraph.datanodes.fs.FileSystemDataNode;
 import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
- * An abstract {@link HiveDataNode} implementation. In addition to the required properties of a {@link HdfsDataNode}, an {@link HiveDataNode}
+ * An abstract {@link HiveDataNode} implementation. In addition to the required properties of a {@link FileSystemDataNode}, an {@link HiveDataNode}
  * must have a metastore URI specified.
  */
 @Alpha
 @EqualsAndHashCode (callSuper = true)
-public class HiveDataNode extends HdfsDataNode {
+public class HiveDataNode extends FileSystemDataNode {
   public static final String METASTORE_URI_KEY = FlowGraphConfigurationKeys.DATA_NODE_PREFIX + "hive.metastore.uri";
+  private static final String[] HIVE_SUPPORTED_SCHEME = {"adl", "abfs", "hdfs"};
 
   @Getter
   private String metastoreUri;
@@ -63,6 +66,10 @@ public class HiveDataNode extends HdfsDataNode {
     }
   }
 
+  /**
+   * @param metastoreUri hive metastore URI
+   * @return true if the scheme is "thrift" and authority is not empty.
+   */
   public boolean isMetastoreUriValid(URI metastoreUri) {
     String scheme = metastoreUri.getScheme();
     if (!scheme.equals("thrift")) {
@@ -74,4 +81,24 @@ public class HiveDataNode extends HdfsDataNode {
     }
     return true;
   }
+
+  /**
+   * @param fsUri FileSystem URI
+   * @return true if the scheme has a value of {"adl", "abfs", "hdfs"} and authority is not empty.
+   */
+
+  @Override
+  public boolean isUriValid(URI fsUri) {
+    String scheme = fsUri.getScheme();
+    //Check that the scheme is "adl"
+    if (!Arrays.asList(HIVE_SUPPORTED_SCHEME).contains(scheme)) {
+      return false;
+    }
+    //Ensure that the authority is not empty
+    if (com.google.common.base.Strings.isNullOrEmpty(fsUri.getAuthority())) {
+      return false;
+    }
+    return true;
+  }
+
 }
