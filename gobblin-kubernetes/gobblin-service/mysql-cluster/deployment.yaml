@@ -12,6 +12,7 @@ spec:
     matchLabels:
       app: gaas
   replicas: 3
+  serviceName: 'gaas-svc'
   template:
     metadata:
       name: 'gaas'
