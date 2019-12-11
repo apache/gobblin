@@ -3,6 +3,8 @@ resources:
   - storage.yaml
   - service.yaml
   - ingress.yaml
+  - load-balancer-deployment.yaml
+  - load-balancer-service.yaml
 configMapGenerator:
   # only used for development purposes to allow an easy way to expose template files to GaaS
   # add flow templates here

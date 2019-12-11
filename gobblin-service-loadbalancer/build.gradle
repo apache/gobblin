@@ -27,40 +27,17 @@ dependencies {
   compile externalDependency.jetty
   compile externalDependency.commonsCli
   compile externalDependency.commonsConfiguration
-  compile externalDependency.commonsEmail
   compile externalDependency.commonsIo
   compile externalDependency.commonsLang
   compile externalDependency.commonsLang3
-  compile externalDependency.curatorFramework
-  compile externalDependency.curatorClient
-  compile externalDependency.curatorRecipes
   compile externalDependency.findBugsAnnotations
   compile externalDependency.gson
   compile externalDependency.guava
-  compile externalDependency.guavaretrying
-  compile externalDependency.guice
-  compile externalDependency.hadoopClientCommon
-  compile externalDependency.hadoopCommon
-  compile externalDependency.helix
-  compile externalDependency.hiveCommon
-  compile externalDependency.httpclient
   compile externalDependency.httpcore
-  compile externalDependency.jacksonCore
-  compile externalDependency.jacksonMapper
-  compile externalDependency.javaxInject
-  compile externalDependency.jgit
-  compile externalDependency.jodaTime
-  compile externalDependency.jgrapht
-  compile externalDependency.kafka08
   compile externalDependency.log4j
-  compile externalDependency.lombok
   compile externalDependency.metricsCore
-  compile externalDependency.metricsJvm
-  compile externalDependency.pegasus.data
-  compile externalDependency.quartz
   compile externalDependency.slf4j
   compile externalDependency.typesafeConfig
-  compile externalDependency.zkClient
 
   testCompile project(":gobblin-example")
 

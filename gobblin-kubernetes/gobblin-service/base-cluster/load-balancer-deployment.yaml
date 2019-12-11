@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: 'gaas-loadbalancer'
+  labels:
+    app: gaas-loadbalancer
+spec:
+  selector:
+    matchLabels:
+      app: gaas-loadbalancer
+  replicas: 1
+  template:
+    metadata:
+      name: 'gaas-loadbalancer'
+      labels:
+        app: gaas-loadbalancer
+    spec:
+      containers:
+        - name: gobblin-service
+          image: will97/gobblin-service-loadbalancer:latest

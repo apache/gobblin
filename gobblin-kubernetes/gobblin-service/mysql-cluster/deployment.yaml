@@ -2,7 +2,7 @@
 # Also ensure that proper tagging/versioning is done i.e. remove :latest tag and instead use the digest of the container
 
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: 'gaas-deployment'
   labels:
@@ -11,7 +11,7 @@ spec:
   selector:
     matchLabels:
       app: gaas
-  replicas: 1
+  replicas: 3
   template:
     metadata:
       name: 'gaas'

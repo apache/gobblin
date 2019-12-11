@@ -4,5 +4,5 @@ metadata:
   name: gaas-ingress
 spec:
   backend:
-    serviceName: gaas-svc
-    servicePort: 6956
+    serviceName: gaas-loadbalancer-svc
+    servicePort: 8080

@@ -29,7 +29,7 @@ public class ForwardRequestServlet extends HttpServlet {
 
   private String statefulSetBaseURL = "http://gaas-deployment-";
   // TODO: split this up into configuration or something
-  private String restOfTheURL = ".default.svc.cluster.local";
+  private String restOfTheURL = ":6956.default.svc.cluster.local";
   private int numSchedulers = 3;
 
   ForwardRequestServlet() {
