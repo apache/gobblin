@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.service.modules.flowgraph.datanodes.hive;
 
-
 import java.io.IOException;
 import java.net.URI;
 
@@ -42,7 +41,6 @@ import org.apache.gobblin.util.ConfigUtils;
 @EqualsAndHashCode (callSuper = true)
 public class HiveDataNode extends BaseDataNode {
   public static final String METASTORE_URI_KEY = FlowGraphConfigurationKeys.DATA_NODE_PREFIX + "hive.metastore.uri";
-  private static final String[] HIVE_SUPPORTED_SCHEME = {"adl", "abfs", "hdfs"};
 
   @Getter
   private String metastoreUri;
@@ -80,5 +78,4 @@ public class HiveDataNode extends BaseDataNode {
     }
     return true;
   }
-
 }
