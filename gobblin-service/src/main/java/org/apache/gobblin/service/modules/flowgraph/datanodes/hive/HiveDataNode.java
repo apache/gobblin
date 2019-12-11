@@ -24,7 +24,6 @@ import java.net.URI;
 import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 
-import java.util.Arrays;
 import joptsimple.internal.Strings;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -32,12 +31,11 @@ import lombok.Getter;
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.service.modules.flowgraph.BaseDataNode;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraphConfigurationKeys;
-import org.apache.gobblin.service.modules.flowgraph.datanodes.fs.FileSystemDataNode;
 import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
- * An {@link HiveDataNode} implementation. In addition to the required properties of a {@link FileSystemDataNode}, an {@link HiveDataNode}
+ * An {@link HiveDataNode} implementation. In addition to the required properties of a {@link BaseDataNode}, an {@link HiveDataNode}
  * must have a metastore URI specified.
  */
 @Alpha
