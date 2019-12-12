@@ -1,6 +1,8 @@
 .classpath*
 .project*
 .settings
+.DS_Store
+*.tar.gz
 
 # Intellij related
 **/.idea
@@ -62,5 +64,12 @@ package-lock.json
 
 # generated config files by tests
 **/generated-gobblin-cluster.conf
+ligradle/findbugs/findbugsInclude.xml
+ligradle/checkstyle/linkedin-checkstyle.xml
+ligradle/checkstyle/suppressions.xml
+gobblin-core/src/test/resources/serde/output-staging/
+gobblin-integration-test-log-dir/
+gobblin-modules/gobblin-elasticsearch/test-elasticsearch/
 
 temp/
+ligradle/*
