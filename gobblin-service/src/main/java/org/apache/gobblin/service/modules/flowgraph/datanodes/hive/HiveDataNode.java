@@ -28,18 +28,18 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.service.modules.flowgraph.BaseDataNode;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraphConfigurationKeys;
-import org.apache.gobblin.service.modules.flowgraph.datanodes.fs.HdfsDataNode;
 import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
- * An abstract {@link HiveDataNode} implementation. In addition to the required properties of a {@link HdfsDataNode}, an {@link HiveDataNode}
+ * An {@link HiveDataNode} implementation. In addition to the required properties of a {@link BaseDataNode}, an {@link HiveDataNode}
  * must have a metastore URI specified.
  */
 @Alpha
 @EqualsAndHashCode (callSuper = true)
-public class HiveDataNode extends HdfsDataNode {
+public class HiveDataNode extends BaseDataNode {
   public static final String METASTORE_URI_KEY = FlowGraphConfigurationKeys.DATA_NODE_PREFIX + "hive.metastore.uri";
 
   @Getter
@@ -63,6 +63,10 @@ public class HiveDataNode extends HdfsDataNode {
     }
   }
 
+  /**
+   * @param metastoreUri hive metastore URI
+   * @return true if the scheme is "thrift" and authority is not empty.
+   */
   public boolean isMetastoreUriValid(URI metastoreUri) {
     String scheme = metastoreUri.getScheme();
     if (!scheme.equals("thrift")) {
