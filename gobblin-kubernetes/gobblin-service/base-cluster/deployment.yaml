@@ -4,15 +4,15 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: 'gaas-deployment'
+  name: 'gaas'
   labels:
-    app: gaas-deployment
+    app: gaas
 spec:
   selector:
     matchLabels:
       app: gaas
   replicas: 3
-  serviceName: 'gaas-svc'
+  serviceName: 'gaas'
   template:
     metadata:
       name: 'gaas'

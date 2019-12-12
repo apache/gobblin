@@ -27,9 +27,9 @@ public class ForwardRequestServlet extends HttpServlet {
 
   public CloseableHttpAsyncClient client;
 
-  private String statefulSetBaseURL = "http://gaas-deployment-";
+  private String statefulSetBaseURL = "http://gaas-";
   // TODO: split this up into configuration or something
-  private String restOfTheURL = ":6956.default.svc.cluster.local";
+  private String restOfTheURL = ".gaas.default.svc.cluster.local:6956";
   private int numSchedulers = 3;
 
   ForwardRequestServlet() {
