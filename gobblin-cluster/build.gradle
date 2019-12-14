@@ -51,7 +51,6 @@ dependencies {
   compile externalDependency.helix
 
   runtime project(":gobblin-modules:gobblin-service-kafka")
-  runtime "org.apache.helix:helix-core:0.9.1"
 
   testCompile project(":gobblin-example")
 
