@@ -25,9 +25,15 @@ import org.apache.gobblin.dataset.FileSystemDataset;
 public class SimpleFileSystemDataset implements FileSystemDataset {
 
   private final Path path;
+  private final boolean isVirtual;
 
   public SimpleFileSystemDataset(Path path) {
+    this(path, false);
+  }
+
+  public SimpleFileSystemDataset(Path path, boolean isVirtual) {
     this.path = path;
+    this.isVirtual = isVirtual;
   }
 
   @Override
@@ -38,5 +44,9 @@ public class SimpleFileSystemDataset implements FileSystemDataset {
   @Override
   public String datasetURN() {
     return path.toString();
+  }
+
+  public boolean getIsVirtual() {
+    return isVirtual;
   }
 }
