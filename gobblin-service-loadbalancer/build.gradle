@@ -59,21 +59,6 @@ dependencies {
   testCompile externalDependency.kafka08Test
 }
 
-// Begin HACK to get around POM being depenendent on the (empty) gobblin-rest-api instead of gobblin-rest-api-rest-client
-def installer = install.repositories.mavenInstaller
-[installer]*.pom*.whenConfigured {pom ->
-  pom.dependencies.find {dep -> dep.groupId == project.group && dep.artifactId == 'gobblin-flow-config-service-api' }.artifactId = 'gobblin-flow-config-service-api-rest-client'
-  pom.dependencies.find {dep -> dep.groupId == project.group && dep.artifactId == 'gobblin-flow-config-service-api' }.artifactId = 'gobblin-flow-config-service-api-data-template'
-}
-if (rootProject.publishToMaven || rootProject.publishToNexus) {
-  def deployer = uploadArchives.repositories.mavenDeployer
-  [deployer]*.pom*.whenConfigured {pom ->
-    pom.dependencies.find {dep -> dep.groupId == project.group && dep.artifactId == 'gobblin-flow-config-service-api' }.artifactId = 'gobblin-flow-config-service-api-rest-client'
-    pom.dependencies.find {dep -> dep.groupId == project.group && dep.artifactId == 'gobblin-flow-config-service-api' }.artifactId = 'gobblin-flow-config-service-api-data-template'
-  }
-}
-// End HACK
-
 task testJar(type: Jar, dependsOn: testClasses) {
   baseName = "test-${project.archivesBaseName}"
   from sourceSets.test.output
@@ -94,19 +79,3 @@ configurations {
     }
   }
 }
-
-artifacts {
-  tests testJar
-}
-
-test {
-  workingDir rootProject.rootDir
-  maxParallelForks = 1
-}
-
-clean {
-  delete "../gobblin-test/locks"
-  delete "../gobblin-test/basicTest"
-}
-
-ext.classification="library"

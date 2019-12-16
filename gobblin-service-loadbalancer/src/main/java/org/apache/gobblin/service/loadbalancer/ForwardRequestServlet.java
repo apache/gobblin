@@ -1,5 +1,6 @@
 package org.apache.gobblin.service.loadbalancer;
 
+import com.google.common.base.Splitter;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.IOException;
@@ -27,9 +28,11 @@ public class ForwardRequestServlet extends HttpServlet {
 
   public CloseableHttpAsyncClient client;
 
-  private String statefulSetBaseURL = "http://gaas-";
+  private final String STATEFULSET_URL_PREFIX = "http://gaas-";
   // TODO: split this up into configuration or something
-  private String restOfTheURL = ".gaas.default.svc.cluster.local:6956";
+  private final String STATEFULSET_URL_SUFFIX = ".gaas.default.svc.cluster.local:6956";
+  private final String FLOW_NAME_KEY = "flowName";
+  private final String FLOW_GROUP_KEY = "flowName";
   private int numSchedulers = 3;
 
   ForwardRequestServlet() {
@@ -39,13 +42,23 @@ public class ForwardRequestServlet extends HttpServlet {
 
   protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException {
     System.out.println("GET Request");
-    System.out.println(request.getRequestURI() + "?" + request.getQueryString());
-    String forwardedURI = statefulSetBaseURL + "0";
-    String requestURI = forwardedURI + request.getRequestURI();
-    if (request.getQueryString() != null) {
-      requestURI += "?" + request.getQueryString();
+
+    final Map<String, String> queryParams = Splitter.on('&').trimResults().withKeyValueSeparator('=').split(request.getQueryString());
+    String flowName = queryParams.get(this.FLOW_NAME_KEY);
+    String flowGroup = queryParams.get(this.FLOW_GROUP_KEY);
+
+    if (flowName == null || flowGroup == null) {
+      response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+      return;
     }
-    HttpGet forwardRequest = new HttpGet(requestURI);
+
+    String requestUri = this.determineServerUrl(flowName + flowGroup);
+
+    if (request.getQueryString() != null) {
+      requestUri += "?" + request.getQueryString();
+    }
+
+    HttpGet forwardRequest = new HttpGet(requestUri);
     parseAndAddHeaders(forwardRequest, request);
 
     forwardRequestToServer(forwardRequest, response);
@@ -59,53 +72,43 @@ public class ForwardRequestServlet extends HttpServlet {
       System.out.println(body);
       // get the flowName and flowGroup to hash
       JsonParser parser = new JsonParser();
-      JsonObject jsonBody =  parser.parse(body).getAsJsonObject();
-      System.out.println("parsed body");
+      JsonObject jsonBody = parser.parse(body).getAsJsonObject();
 
       JsonObject flowIDMap = ((JsonObject) jsonBody.get("id"));
 
-      System.out.println("got id map");
-
-      if (flowIDMap.get("flowName") == null || flowIDMap.get("flowGroup") == null) {
+      if (flowIDMap.get(this.FLOW_NAME_KEY) == null || flowIDMap.get(this.FLOW_GROUP_KEY) == null) {
         response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
         return;
       }
 
-      String flowID = flowIDMap.get("flowName").getAsString() + flowIDMap.get("flowGroup").getAsString();
+      String flowID = flowIDMap.get(this.FLOW_NAME_KEY).getAsString() + flowIDMap.get(this.FLOW_GROUP_KEY).getAsString();
 
-      System.out.println(flowID);
-
-      System.out.println(Hashing.sha256().hashString(flowID, StandardCharsets.UTF_8).asInt());
-
-      int hashID = Hashing.sha256().hashString(flowID, StandardCharsets.UTF_8).asInt() % this.numSchedulers;
-      if (hashID < 0) {
-        hashID *= -1;
+      String requestUri = this.determineServerUrl(flowID);
+      if (request.getQueryString() != null) {
+        requestUri += "?" + request.getQueryString();
       }
-      System.out.println(hashID);
 
-      String forwardedURI = statefulSetBaseURL + hashID + this.restOfTheURL;
-      System.out.println(forwardedURI);
-
-      String requestURI = forwardedURI +  request.getRequestURI();
-      HttpPost forwardRequest = new HttpPost(requestURI);
+      HttpPost forwardRequest = new HttpPost(requestUri);
       parseAndAddHeaders(forwardRequest, request);
-
       StringEntity requestBody = new StringEntity(body);
       forwardRequest.setEntity(requestBody);
-
-      if (request.getQueryString() != null) {
-        requestURI += "?" + request.getQueryString();
-      }
-      System.out.println(requestURI);
-
       forwardRequestToServer(forwardRequest, response);
+
     } catch (IOException e) {
       response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
     } catch (ClassCastException e) {
       response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
       System.out.println(e.toString());
     }
+  }
 
+  private String determineServerUrl(String flowID) {
+    int hashID = Hashing.sha256().hashString(flowID, StandardCharsets.UTF_8).asInt() % this.numSchedulers;
+    if (hashID < 0) {
+      hashID *= -1;
+    }
+    String forwardedURI = this.STATEFULSET_URL_PREFIX + hashID + this.STATEFULSET_URL_SUFFIX;
+    return forwardedURI;
   }
 
   private void parseAndAddHeaders(HttpRequestBase forwardRequest, HttpServletRequest request) {
@@ -122,13 +125,13 @@ public class ForwardRequestServlet extends HttpServlet {
     forwardRequest.removeHeaders(HTTP.CONTENT_LEN);
   }
 
-  private void forwardRequestToServer(HttpRequestBase req, HttpServletResponse response) throws ServletException {
+  private void forwardRequestToServer(HttpRequestBase req, HttpServletResponse response) {
     Future<org.apache.http.HttpResponse> future = client.execute(req, null);
     try {
       HttpResponse resp = future.get();
       response.setContentType("application/json");
       response.setStatus(resp.getStatusLine().getStatusCode());
-      System.out.println("Finished forwarding request");
+      System.out.println(String.format("Finished forwarding request to: %s", req.getURI().toString()));
     } catch (Exception e) {
       // TODO: log exception properly
       System.out.println(e.toString());
