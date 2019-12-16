@@ -32,7 +32,7 @@ spec:
         - name: gobblin-service
           image: will97/gobblin-as-a-service:latest
           command: ["./bin/entrypoint.sh"]
-          args: ["--jvmopts", "-DmysqlCredentials.user=$(MYSQL_USERNAME) -DmysqlCredentials.password=$(MYSQL_PASSWORD)"]
+          args: ["--jvmopts", "-DmysqlCredentials.user=$(MYSQL_USERNAME) -DmysqlCredentials.password=$(MYSQL_PASSWORD) -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap"]
           env:
             - name: MYSQL_USERNAME
               valueFrom:
