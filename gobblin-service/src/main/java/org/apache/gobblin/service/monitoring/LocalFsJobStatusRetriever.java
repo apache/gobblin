@@ -39,13 +39,13 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class LocalFsJobStatusRetriever extends JobStatusRetriever {
 
-  public static final String CONF_PREFIX = "localFsJobStatusRetriever";
+  public static final String CONF_PREFIX = "localFsJobStatusRetriever.";
   private String JOB_DONE_SUFFIX = ".done";
   private String specProducerPath;
 
   // Do not use a state store for this implementation, just look at the job folder that @LocalFsSpecProducer writes to
   public LocalFsJobStatusRetriever(Config config) {
-    this.specProducerPath = config.getString(LocalFsSpecProducer.LOCAL_FS_PRODUCER_PATH_KEY);
+    this.specProducerPath = config.getString(CONF_PREFIX + LocalFsSpecProducer.LOCAL_FS_PRODUCER_PATH_KEY);
   }
 
   private Boolean doesJobExist(String flowName, String flowGroup, long flowExecutionId, String suffix) {

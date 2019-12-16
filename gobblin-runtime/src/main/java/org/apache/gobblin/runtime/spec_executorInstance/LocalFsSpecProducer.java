@@ -39,7 +39,7 @@ import org.apache.gobblin.util.CompletedFuture;
 @Slf4j
 public class LocalFsSpecProducer implements SpecProducer<Spec> {
   private String specProducerPath;
-  public static final String LOCAL_FS_PRODUCER_PATH_KEY = "gobblin.cluster.localSpecProducer.dir";
+  public static final String LOCAL_FS_PRODUCER_PATH_KEY = "localFsSpecProducer.dir";
 
   public LocalFsSpecProducer(Config config) {
     this.specProducerPath = config.getString(LOCAL_FS_PRODUCER_PATH_KEY);
