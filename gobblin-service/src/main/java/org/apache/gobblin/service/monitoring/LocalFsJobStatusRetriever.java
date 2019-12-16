@@ -35,7 +35,10 @@ import org.apache.gobblin.service.ExecutionStatus;
 
 import lombok.extern.slf4j.Slf4j;
 
-
+/**
+ * A job status monitor for jobs completed by a Gobblin Standalone instance running on the same machine. Mainly used for sandboxing/testing
+ * Considers a job done when Gobblin standalone appends ".done" to the job. Otherwise it will assume the job is in progress
+ */
 @Slf4j
 public class LocalFsJobStatusRetriever extends JobStatusRetriever {
 
