@@ -222,6 +222,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     String orcDataLocation = getOrcDataLocation();
     String orcStagingDataLocation = getOrcStagingDataLocation(orcStagingTableName);
     boolean isEvolutionEnabled = getConversionConfig().isEvolutionEnabled();
+    boolean isCasePreserved = getConversionConfig().isCasePreserved();
     Pair<Optional<Table>, Optional<List<Partition>>> destinationMeta = HiveConverterUtils.getDestinationTableMeta(orcTableDatabase,
         orcTableName, workUnit.getProperties());
     Optional<Table> destinationTableMeta = destinationMeta.getLeft();
@@ -346,6 +347,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
             Optional.<String>absent(),
             tableProperties,
             isEvolutionEnabled,
+            isCasePreserved,
             destinationTableMeta,
             hiveColumns);
     conversionEntity.getQueries().add(createStagingTableDDL);
@@ -435,6 +437,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
               Optional.<String>absent(),
               Optional.<String>absent(),
               tableProperties,
+              isCasePreserved,
               isEvolutionEnabled,
               destinationTableMeta,
               new HashMap<String, String>());

@@ -40,6 +40,7 @@ import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.metadata.Partition;
+import org.apache.hadoop.hive.serde2.SerDeException;
 import org.apache.hadoop.hive.serde2.avro.AvroObjectInspectorGenerator;
 import org.apache.thrift.TException;
 
@@ -164,18 +165,23 @@ public class HiveConverterUtils {
 
     String dbName = optionalDbName.isPresent() ? optionalDbName.get() : "default";
     try {
-      AvroObjectInspectorGenerator objectInspectorGenerator = new AvroObjectInspectorGenerator(schema);
-      String columns = Joiner.on(",").join(objectInspectorGenerator.getColumnNames());
-      String columnTypes = Joiner.on(",").join(
-          objectInspectorGenerator.getColumnTypes().stream().map(x -> x.getTypeName())
-              .collect(Collectors.toList()));
-    String dml = String.format("ALTER TABLE `%s`.`%s` SET TBLPROPERTIES ('columns'='%s', 'columns.types'='%s')", dbName, tableName,
-        columns, columnTypes);
+      Pair<String, String> orcSchemaProps = getORCSchemaPropsFromAvroSchema(schema);
+      String dml = String.format("ALTER TABLE `%s`.`%s` SET TBLPROPERTIES ('columns'='%s', 'columns.types'='%s')", dbName, tableName,
+          orcSchemaProps.getLeft(), orcSchemaProps.getRight());
     return dml;
     } catch (Exception e) {
       log.error("Cannot generate add partition DDL due to ", e);
       throw new RuntimeException(e);
     }
+  }
+
+  public static Pair<String, String> getORCSchemaPropsFromAvroSchema(Schema avroSchema) throws SerDeException {
+    AvroObjectInspectorGenerator objectInspectorGenerator = new AvroObjectInspectorGenerator(avroSchema);
+    String columns = Joiner.on(",").join(objectInspectorGenerator.getColumnNames());
+    String columnTypes = Joiner.on(",").join(
+        objectInspectorGenerator.getColumnTypes().stream().map(x -> x.getTypeName())
+            .collect(Collectors.toList()));
+    return new ImmutablePair<>(columns, columnTypes);
   }
 
   /**

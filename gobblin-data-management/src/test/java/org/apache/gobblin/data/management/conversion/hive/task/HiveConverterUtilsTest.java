@@ -19,11 +19,16 @@ package org.apache.gobblin.data.management.conversion.hive.task;
 
 import java.util.Map;
 
+import org.apache.avro.Schema;
+import org.apache.commons.lang3.tuple.Pair;
 import org.junit.Test;
 import org.testng.Assert;
 import org.testng.collections.Maps;
 
 import com.google.common.base.Optional;
+
+import static org.apache.gobblin.data.management.conversion.hive.task.HiveConverterUtils.getORCSchemaPropsFromAvroSchema;
+
 
 public class HiveConverterUtilsTest {
   private final String inputDbName = "testdb";
