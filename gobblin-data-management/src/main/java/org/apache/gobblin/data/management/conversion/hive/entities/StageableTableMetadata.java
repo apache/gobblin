@@ -102,7 +102,7 @@ public class StageableTableMetadata {
    * Attributes like "avro.schema.literal" are usually used in offline system as the source-of-truth of schema.
    * This configuration's value should be the key name that users expects to preserve to schema string if necessary.
    */
-  public static final String SCHEMA_SOURCE_OF_TRUTH = "schema.sourceOfTruth";
+  public static final String SCHEMA_SOURCE_OF_TRUTH = "schema.original";
 
 
   /** Table name of the destination table. */

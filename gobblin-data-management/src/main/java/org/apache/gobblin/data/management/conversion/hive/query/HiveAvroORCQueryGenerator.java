@@ -57,6 +57,7 @@ import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 import static org.apache.gobblin.data.management.conversion.hive.entities.StageableTableMetadata.SCHEMA_SOURCE_OF_TRUTH;
+import static org.apache.gobblin.util.AvroUtils.sanitizeSchemaString;
 
 
 /***
@@ -166,7 +167,7 @@ public class HiveAvroORCQueryGenerator {
     // Make sure the schema attribute will be updated in source-of-truth attribute.
     // Or fall back to default attribute-pair used in Hive for ORC format.
     if (tableProperties.containsKey(SCHEMA_SOURCE_OF_TRUTH)) {
-      tableProperties.setProperty(tableProperties.getProperty(SCHEMA_SOURCE_OF_TRUTH), schema.toString());
+      tableProperties.setProperty(tableProperties.getProperty(SCHEMA_SOURCE_OF_TRUTH), sanitizeSchemaString(schema.toString()));
       tableProperties.remove(SCHEMA_SOURCE_OF_TRUTH);
     }
 
@@ -511,7 +512,7 @@ public class HiveAvroORCQueryGenerator {
   public static String escapeHiveType(String type) {
     TypeInfo typeInfo = TypeInfoUtils.getTypeInfoFromTypeString(type);
 
-    // Primitve
+    // Primitive
     if (ObjectInspector.Category.PRIMITIVE.equals(typeInfo.getCategory())) {
       return type;
     }
@@ -786,7 +787,8 @@ public class HiveAvroORCQueryGenerator {
   }
 
   /***
-   * Generate DDLs to evolve final destination table.
+   * Generate DDLs to evolve final destination table. This DDL should not only contains schema evolution but also
+   * include table-property updates.
    * @param stagingTableName Staging table.
    * @param finalTableName Un-evolved final destination table.
    * @param optionalStagingDbName Optional staging database name, defaults to default.
@@ -804,7 +806,9 @@ public class HiveAvroORCQueryGenerator {
       Schema evolvedSchema,
       boolean isEvolutionEnabled,
       Map<String, String> evolvedColumns,
-      Optional<Table> destinationTableMeta) {
+      Optional<Table> destinationTableMeta,
+      Properties tableProperties
+      ) {
     // If schema evolution is disabled, then do nothing OR
     // If destination table does not exists, then do nothing
     if (!isEvolutionEnabled || !destinationTableMeta.isPresent()) {
@@ -819,7 +823,7 @@ public class HiveAvroORCQueryGenerator {
     // Evolve schema
     Table destinationTable = destinationTableMeta.get();
     if (destinationTable.getSd().getCols().size() == 0) {
-      log.warn("Desination Table: " + destinationTable + " does not has column details in StorageDescriptor. "
+      log.warn("Destination Table: " + destinationTable + " does not has column details in StorageDescriptor. "
           + "It is probably of Avro type. Cannot evolve via traditional HQL, so skipping evolution checks.");
       return ddl;
     }
@@ -860,6 +864,13 @@ public class HiveAvroORCQueryGenerator {
         ddl.add(String.format("ALTER TABLE `%s` ADD COLUMNS (`%s` %s COMMENT 'from flatten_source %s')",
             finalTableName, evolvedColumn.getKey(), evolvedColumn.getValue(), flattenSource));
       }
+    }
+
+    // Updating table properties.
+    ddl.add(String.format("USE %s%n", finalDbName));
+    for (String property :tableProperties.stringPropertyNames()) {
+      ddl.add(String.format("ALTER TABLE `%s` SET TBLPROPERTIES ('%s'='%s')", finalTableName,
+          property, tableProperties.getProperty(property)));
     }
 
     return ddl;

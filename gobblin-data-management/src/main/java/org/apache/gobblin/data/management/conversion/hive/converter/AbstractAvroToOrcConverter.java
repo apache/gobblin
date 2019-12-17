@@ -446,7 +446,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     }
 
     // Step:
-    // A.2.1: If table pre-exists (destinationTableMeta would be present), evolve table
+    // A.2.1: If table pre-exists (destinationTableMeta would be present), evolve table and update table properties
     // B.2.1: No-op
     List<String> evolutionDDLs = HiveAvroORCQueryGenerator.generateEvolutionDDL(orcStagingTableName,
         orcTableName,
@@ -455,7 +455,8 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
         outputAvroSchema,
         isEvolutionEnabled,
         hiveColumns,
-        destinationTableMeta);
+        destinationTableMeta,
+        tableProperties);
     log.debug("Evolve final table DDLs: " + evolutionDDLs);
     EventWorkunitUtils.setEvolutionMetadata(workUnit, evolutionDDLs);
 
