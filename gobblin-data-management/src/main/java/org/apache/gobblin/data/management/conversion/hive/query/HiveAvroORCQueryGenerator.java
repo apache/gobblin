@@ -23,18 +23,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import java.util.stream.Collectors;
-import lombok.ToString;
-import lombok.extern.slf4j.Slf4j;
-
 import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.Schema;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.data.management.conversion.hive.entities.QueryBasedHivePublishEntity;
+import org.apache.gobblin.data.management.conversion.hive.task.HiveConverterUtils;
 import org.apache.gobblin.util.HiveAvroTypeConstants;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.serde.serdeConstants;
-import org.apache.hadoop.hive.serde2.avro.AvroObjectInspectorGenerator;
+import org.apache.hadoop.hive.serde2.SerDeException;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.ListTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.MapTypeInfo;
@@ -53,8 +53,11 @@ import com.google.common.collect.Maps;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
-import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.data.management.conversion.hive.entities.QueryBasedHivePublishEntity;
+import lombok.ToString;
+import lombok.extern.slf4j.Slf4j;
+
+import static org.apache.gobblin.data.management.conversion.hive.entities.StageableTableMetadata.SCHEMA_SOURCE_OF_TRUTH;
+import static org.apache.gobblin.util.AvroUtils.sanitizeSchemaString;
 
 
 /***
@@ -126,6 +129,7 @@ public class HiveAvroORCQueryGenerator {
       Optional<String> optionalOutputFormat,
       Properties tableProperties,
       boolean isEvolutionEnabled,
+      boolean casePreserved,
       Optional<Table> destinationTableMeta,
       Map<String, String> hiveColumns) {
 
@@ -160,21 +164,25 @@ public class HiveAvroORCQueryGenerator {
     //    (evolution does not matter if its new destination table)
     // 4. If evolution is disabled, and destination table does exists
     //    .. use columns from destination schema
+    // Make sure the schema attribute will be updated in source-of-truth attribute.
+    // Or fall back to default attribute-pair used in Hive for ORC format.
+    if (tableProperties.containsKey(SCHEMA_SOURCE_OF_TRUTH)) {
+      tableProperties.setProperty(tableProperties.getProperty(SCHEMA_SOURCE_OF_TRUTH), sanitizeSchemaString(schema.toString()));
+      tableProperties.remove(SCHEMA_SOURCE_OF_TRUTH);
+    }
+
     if (isEvolutionEnabled || !destinationTableMeta.isPresent()) {
       log.info("Generating DDL using source schema");
       ddl.append(generateAvroToHiveColumnMapping(schema, Optional.of(hiveColumns), true, dbName + "." + tblName));
-      try {
-        AvroObjectInspectorGenerator objectInspectorGenerator = new AvroObjectInspectorGenerator(schema);
-        String columns = Joiner.on(",").join(objectInspectorGenerator.getColumnNames());
-        String columnTypes = Joiner.on(",").join(
-            objectInspectorGenerator.getColumnTypes().stream().map(x -> x.getTypeName())
-                .collect(Collectors.toList()));
-        tableProperties.setProperty("columns", columns);
-        tableProperties.setProperty("columns.types", columnTypes);
-
-      } catch (Exception e) {
-        log.error("Cannot generate add partition DDL due to ", e);
-        throw new RuntimeException(e);
+      if (casePreserved) {
+        try {
+          Pair<String, String> orcSchemaProps = HiveConverterUtils.getORCSchemaPropsFromAvroSchema(schema);
+          tableProperties.setProperty("columns", orcSchemaProps.getLeft());
+          tableProperties.setProperty("columns.types", orcSchemaProps.getRight());
+        } catch (SerDeException e) {
+          log.error("Cannot generate add partition DDL due to ", e);
+          throw new RuntimeException(e);
+        }
       }
     } else {
       log.info("Generating DDL using destination schema");
@@ -504,7 +512,7 @@ public class HiveAvroORCQueryGenerator {
   public static String escapeHiveType(String type) {
     TypeInfo typeInfo = TypeInfoUtils.getTypeInfoFromTypeString(type);
 
-    // Primitve
+    // Primitive
     if (ObjectInspector.Category.PRIMITIVE.equals(typeInfo.getCategory())) {
       return type;
     }
@@ -779,7 +787,8 @@ public class HiveAvroORCQueryGenerator {
   }
 
   /***
-   * Generate DDLs to evolve final destination table.
+   * Generate DDLs to evolve final destination table. This DDL should not only contains schema evolution but also
+   * include table-property updates.
    * @param stagingTableName Staging table.
    * @param finalTableName Un-evolved final destination table.
    * @param optionalStagingDbName Optional staging database name, defaults to default.
@@ -797,7 +806,9 @@ public class HiveAvroORCQueryGenerator {
       Schema evolvedSchema,
       boolean isEvolutionEnabled,
       Map<String, String> evolvedColumns,
-      Optional<Table> destinationTableMeta) {
+      Optional<Table> destinationTableMeta,
+      Properties tableProperties
+      ) {
     // If schema evolution is disabled, then do nothing OR
     // If destination table does not exists, then do nothing
     if (!isEvolutionEnabled || !destinationTableMeta.isPresent()) {
@@ -812,7 +823,7 @@ public class HiveAvroORCQueryGenerator {
     // Evolve schema
     Table destinationTable = destinationTableMeta.get();
     if (destinationTable.getSd().getCols().size() == 0) {
-      log.warn("Desination Table: " + destinationTable + " does not has column details in StorageDescriptor. "
+      log.warn("Destination Table: " + destinationTable + " does not has column details in StorageDescriptor. "
           + "It is probably of Avro type. Cannot evolve via traditional HQL, so skipping evolution checks.");
       return ddl;
     }
@@ -853,6 +864,13 @@ public class HiveAvroORCQueryGenerator {
         ddl.add(String.format("ALTER TABLE `%s` ADD COLUMNS (`%s` %s COMMENT 'from flatten_source %s')",
             finalTableName, evolvedColumn.getKey(), evolvedColumn.getValue(), flattenSource));
       }
+    }
+
+    // Updating table properties.
+    ddl.add(String.format("USE %s%n", finalDbName));
+    for (String property :tableProperties.stringPropertyNames()) {
+      ddl.add(String.format("ALTER TABLE `%s` SET TBLPROPERTIES ('%s'='%s')", finalTableName,
+          property, tableProperties.getProperty(property)));
     }
 
     return ddl;

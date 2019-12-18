@@ -856,6 +856,15 @@ public class AvroUtils {
   }
 
   /**
+   * Escaping ";" and "'" character in the schema string when it is being used in DDL.
+   * These characters are not allowed to show as part of column name but could possibly appear in documentation field.
+   * Therefore the escaping behavior won't cause correctness issues.
+   */
+  public static String sanitizeSchemaString(String schemaString) {
+    return schemaString.replaceAll(";",  "\\\\;").replaceAll("'", "\\\\'");
+  }
+
+  /**
    * Deserialize a {@link GenericRecord} from a byte array. This method is not intended for high performance.
    */
   public static GenericRecord slowDeserializeGenericRecord(byte[] serializedRecord, Schema schema) throws IOException {
