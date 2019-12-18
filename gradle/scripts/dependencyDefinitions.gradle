@@ -100,7 +100,7 @@ ext.externalDependency = [
     "jdo2": "javax.jdo:jdo2-api:2.1",
     "azkaban": "com.linkedin.azkaban:azkaban:2.5.0",
     "commonsVfs": "org.apache.commons:commons-vfs2:2.0",
-    "mysqlConnector": "mysql:mysql-connector-java:5.1.38",
+    "mysqlConnector": "mysql:mysql-connector-java:5.1.44",
     "javaxInject": "javax.inject:javax.inject:1",
     "guice": "com.google.inject:guice:4.0",
     "guiceServlet": "com.google.inject.extensions:guice-servlet:4.0",
