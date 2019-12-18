@@ -330,7 +330,7 @@ public class JsonElementConversionFactory {
 
     @Override
     JsonSchema getElementSchema() {
-      JsonSchema jsonSchema = JsonSchema.buildBaseSchema(this.elementType);
+      JsonSchema jsonSchema = JsonSchema.buildBaseSchema(this.elementType, true);
       jsonSchema.setColumnName(ARRAY_KEY);
       return jsonSchema;
     }
@@ -347,7 +347,7 @@ public class JsonElementConversionFactory {
 
     @Override
     Object convertField(JsonElement value) {
-      if (symbols.contains(value.getAsString()) || this.jsonSchema.isNullable()) {
+      if (symbols.contains(value.getAsString()) || (this.jsonSchema.isNullable() && value.isJsonNull())) {
         return this.elementConverter.convert(value);
       }
       throw new RuntimeException("Symbol " + value.getAsString() + " does not belong to set " + symbols.toString());
@@ -360,7 +360,7 @@ public class JsonElementConversionFactory {
 
     @Override
     JsonSchema getElementSchema() {
-      JsonSchema jsonSchema = JsonSchema.buildBaseSchema(STRING);
+      JsonSchema jsonSchema = JsonSchema.buildBaseSchema(STRING, this.jsonSchema.isNullable());
       jsonSchema.setColumnName(this.jsonSchema.getColumnName());
       return jsonSchema;
     }
@@ -475,13 +475,13 @@ public class JsonElementConversionFactory {
 
     @Override
     JsonSchema getElementSchema() {
-      JsonSchema jsonSchema = JsonSchema.buildBaseSchema(this.elementType);
+      JsonSchema jsonSchema = JsonSchema.buildBaseSchema(this.elementType, false);
       jsonSchema.setColumnName(MAP_VALUE_COLUMN_NAME);
       return jsonSchema;
     }
 
     public JsonElementConverter getKeyConverter() {
-      JsonSchema jsonSchema = JsonSchema.buildBaseSchema(STRING);
+      JsonSchema jsonSchema = JsonSchema.buildBaseSchema(STRING, false);
       jsonSchema.setColumnName(MAP_KEY_COLUMN_NAME);
       return getConverter(jsonSchema, false);
     }
