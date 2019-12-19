@@ -18,20 +18,23 @@
 apply plugin: 'java'
 
 dependencies {
-  testCompile project(":gobblin-api")
-  testCompile project(":gobblin-core")
-  testCompile project(":gobblin-runtime")
-  testCompile project(":gobblin-data-management")
+  compile project(":gobblin-core")
 
-  testCompile externalDependency.bytemanBmunit
-  testCompile externalDependency.calciteCore
-  testCompile externalDependency.calciteAvatica
-  testCompile externalDependency.jhyde
+  compile externalDependency.gson
+
   testCompile externalDependency.testng
-  testCompile externalDependency.twitterParquet
+  testCompile externalDependency.mockito
+  testCompile externalDependency.mockRunnerJdbc
 }
 
-configurations { compile { transitive = false } }
+configurations {
+  compile { transitive = false }
+  // Remove xerces dependencies because of versioning issues. Standard JRE implementation should
+  // work. See also http://stackoverflow.com/questions/11677572/dealing-with-xerces-hell-in-java-maven
+  // HADOOP-5254 and MAPREDUCE-5664
+  all*.exclude group: 'xml-apis'
+  all*.exclude group: 'xerces'
+}
 
 test {
   workingDir rootProject.rootDir

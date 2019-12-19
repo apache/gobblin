@@ -15,12 +15,11 @@
  * limitations under the License.
  */
 package org.apache.gobblin.converter.parquet;
+import org.apache.parquet.example.data.Group;
+import org.apache.parquet.schema.MessageType;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-
-import parquet.example.data.Group;
-import parquet.schema.MessageType;
 
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.converter.Converter;
