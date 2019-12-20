@@ -2,6 +2,7 @@
 .codecov_bash
 .dockerignore
 .github
+.gradle
 .git
 .gitignore
 .project
