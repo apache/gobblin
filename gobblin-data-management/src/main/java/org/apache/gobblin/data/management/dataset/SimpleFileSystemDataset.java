@@ -22,6 +22,10 @@ import org.apache.hadoop.fs.Path;
 import org.apache.gobblin.dataset.FileSystemDataset;
 
 
+/**
+ * A basic implementation of {@link FileSystemDataset}. It can represent a virtual
+ * file system dataset which doesn't have a physical file/folder
+ */
 public class SimpleFileSystemDataset implements FileSystemDataset {
 
   private final Path path;
@@ -46,6 +50,9 @@ public class SimpleFileSystemDataset implements FileSystemDataset {
     return path.toString();
   }
 
+  /**
+   * @return true if the dataset doesn't have a physical file/folder
+   */
   public boolean getIsVirtual() {
     return isVirtual;
   }
