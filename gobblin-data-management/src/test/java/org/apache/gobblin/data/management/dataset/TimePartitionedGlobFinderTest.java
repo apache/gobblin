@@ -144,23 +144,37 @@ public class TimePartitionedGlobFinderTest {
     String slashTimeFormat = "yyyy/MM/dd";
     String dashTimeFormat = "yyyy-MM-dd";
 
-    // Case 1: 2019/11/30 - 2019/12/3
+    // 2019/12/1 - 2019/12/3
     LocalDateTime localTime = LocalDateTime.of(2019,12,3,0,0);
     ZonedDateTime end = ZonedDateTime.of(localTime, zone);
-    ZonedDateTime start = end.withMonth(11).withDayOfMonth(30);
+    ZonedDateTime start = end.withDayOfMonth(1);
+    Assert.assertEquals(TimePartitionGlobFinder.derivePartitionPattern(start, end, slashTimeFormat),
+        "{2019}/{12}/*");
+    Assert.assertEquals(TimePartitionGlobFinder.derivePartitionPattern(start, end, dashTimeFormat),
+        "{2019}-{12}*");
+
+    // 2019/11/30 - 2019/12/3
+    start = end.withMonth(11).withDayOfMonth(30);
     Assert.assertEquals(TimePartitionGlobFinder.derivePartitionPattern(start, end, slashTimeFormat),
         "{2019}/{11,12}/*");
     Assert.assertEquals(TimePartitionGlobFinder.derivePartitionPattern(start, end, dashTimeFormat),
         "{2019}-{11,12}*");
 
-    // Case 2: 2018/11/30 - 2019/12/3
+    // 2018/12/1 - 2019/12/3
+    start = end.withYear(2018).withMonth(12).withDayOfMonth(1);
+    Assert.assertEquals(TimePartitionGlobFinder.derivePartitionPattern(start, end, slashTimeFormat),
+        "{2018,2019}/*/*");
+    Assert.assertEquals(TimePartitionGlobFinder.derivePartitionPattern(start, end, dashTimeFormat),
+        "{2018,2019}-*");
+
+    // 2018/11/30 - 2019/12/3
     start = end.withYear(2018).withMonth(11).withDayOfMonth(30);
     Assert.assertEquals(TimePartitionGlobFinder.derivePartitionPattern(start, end, slashTimeFormat),
         "{2018,2019}/*/*");
     Assert.assertEquals(TimePartitionGlobFinder.derivePartitionPattern(start, end, dashTimeFormat),
         "{2018,2019}-*");
 
-    // Case 3: 2018/11/30 - 2019/01/3
+    // 2018/11/30 - 2019/01/3
     end = end.withMonth(1);
     Assert.assertEquals(TimePartitionGlobFinder.derivePartitionPattern(start, end, slashTimeFormat),
         "{2018,2019}/{11,12,01}/*");

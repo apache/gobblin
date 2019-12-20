@@ -170,12 +170,12 @@ public class TimePartitionGlobFinder implements DatasetsFinder<FileSystemDataset
     int startMonth = start.getMonthValue();
     int endMonth = end.getMonthValue();
     int yearDiff = end.getYear() - start.getYear();
-    if ( yearDiff > 1 || (yearDiff == 1 && endMonth > startMonth)) {
+    if ( yearDiff > 1 || (yearDiff == 1 && endMonth >= startMonth)) {
       // All 12 months
       return new StringBuilder("*");
     }
     StringBuilder monthOptions = new StringBuilder("{" + startMonth);
-    if (endMonth > startMonth) {
+    if (endMonth >= startMonth) {
       appendOptions(monthOptions, startMonth + 1, endMonth);
     } else {
       // from [startMonth + 1, 12] of start year
