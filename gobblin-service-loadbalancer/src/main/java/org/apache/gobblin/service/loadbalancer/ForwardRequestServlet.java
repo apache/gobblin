@@ -164,7 +164,7 @@ public class ForwardRequestServlet extends HttpServlet {
       _log.error(e.toString());
       try {
         response.getWriter().println(e.toString());
-      } catch (IOException e) {
+      } catch (IOException err) {
         _log.error("Could not output error to user");
       }
       response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
