@@ -20,6 +20,8 @@ The service can now be accessed on `localhost:6956`
 
 # Running Gobblin as a Service with Docker
 There are also Dockerfiles to create new images of Gobblin based on the source code that can be easily run independently.
+They can be built using the following command
+`docker build -f gobblin-docker/gobblin-{GOBBLIN_MODE}/{VERSION}/Dockerfile .`
 
 The Docker compose is set up to easily create a working end-to-end workflow of Gobblin as a Service, which communicates Gobblin Standalone through a local volume filesystem.
 
@@ -52,3 +54,7 @@ kubectl apply -k gobblin-kubernetes/gobblin-service/<ENV>/
 ```
 
 There, find the external IP of the cluster and start sending requests.
+
+
+To test a request for Gobblin on Kubernetes, the loadbalancer requires 2 additional headers to determine the ID of the FlowSpec,
+`flowName` and `flowGroup`. They should match the specified ID of the FlowSpec to be operated on.

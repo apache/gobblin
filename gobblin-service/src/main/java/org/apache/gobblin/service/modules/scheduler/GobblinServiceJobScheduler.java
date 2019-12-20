@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Properties;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.gobblin.util.HashingUtils;
 import org.apache.helix.HelixManager;
 import org.quartz.DisallowConcurrentExecution;
 import org.quartz.InterruptableJob;
@@ -79,6 +80,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   // Scheduler related configuration
   // A boolean function indicating if current instance will handle DR traffic or not.
   public static final String GOBBLIN_SERVICE_SCHEDULER_DR_NOMINATED = GOBBLIN_SERVICE_PREFIX + "drNominatedInstance";
+  public static final String GOBBLIN_KUBERNETES_STATEFULSET_KEY="HOSTNAME";
 
   protected final Logger _log;
 
@@ -90,7 +92,8 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   @Getter
   private volatile boolean isActive;
   private String serviceName;
-
+  private final Boolean isKubeEnabled;
+  private final int numSchedulers;
   /**
    * If current instances is nominated as a handler for DR traffic from down GaaS-Instance.
    * Note this is, currently, different from leadership change/fail-over handling, where the traffice could come
@@ -119,6 +122,9 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     this.scheduledFlowSpecs = Maps.newHashMap();
     this.isNominatedDRHandler = config.hasPath(GOBBLIN_SERVICE_SCHEDULER_DR_NOMINATED)
         && config.hasPath(GOBBLIN_SERVICE_SCHEDULER_DR_NOMINATED);
+    this.isKubeEnabled = ConfigUtils.getBoolean(config, ServiceConfigKeys.KUBERNETES_ENABLED_KEY, false);
+    this.numSchedulers = ConfigUtils.getInt(config, ServiceConfigKeys.NUM_SCHEDULERS, 1);
+    _log.info("THIS IS THE CONFIG ARGS, SCHEDULERS: {}, ENABLED: {}", this.numSchedulers, this.isKubeEnabled);
   }
 
   public GobblinServiceJobScheduler(String serviceName, Config config, Optional<HelixManager> helixManager,
@@ -184,9 +190,22 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       throw new RuntimeException("Failed to get the iterator of all Spec URIS", e);
     }
 
+    Config config = ConfigFactory.parseProperties(properties);
+    _log.info("Loading schedules from store {}", this.isKubeEnabled);
     try {
       while (specUris.hasNext()) {
         Spec spec = this.flowCatalog.get().getSpecWrapper(specUris.next());
+
+        if (this.isKubeEnabled) {
+          // Kubernetes Statefulset ID has to be parsed from $HOSTNAME, which is populated from kubernetes
+          String hostName = System.getenv(GOBBLIN_KUBERNETES_STATEFULSET_KEY);
+          int schedulerId = Integer.valueOf(StringUtils.substringAfterLast(hostName, "-"));
+          int hashId = HashingUtils.hashFlowSpec(spec.getUri(), this.numSchedulers);
+          // If the scheduler ID does not match the hash ID, then the spec does not belong to this scheduler
+          if (schedulerId != hashId) {
+            continue;
+          }
+        }
         //Disable FLOW_RUN_IMMEDIATELY on service startup or leadership change
         if (spec instanceof FlowSpec) {
           Spec modifiedSpec = disableFlowRunImmediatelyOnStart((FlowSpec) spec);

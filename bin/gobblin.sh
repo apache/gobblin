@@ -64,8 +64,9 @@ AWS_MODE='aws'
 YARN_MODE='yarn'
 MAPREDUCE_MODE='mapreduce'
 GOBBLIN_AS_SERVICE_MODE='gobblin-as-service'
+SERVICE_LOAD_BALANCER_MODE='gobblin-service-loadbalancer'
 
-GOBBLIN_EXEC_MODE_LIST="$STANDALONE_MODE $CLUSTER_MASTER_MODE $CLUSTER_WORKER_MODE $AWS_MODE $YARN_MODE $MAPREDUCE_MODE $GOBBLIN_AS_SERVICE_MODE"
+GOBBLIN_EXEC_MODE_LIST="$STANDALONE_MODE $CLUSTER_MASTER_MODE $CLUSTER_WORKER_MODE $AWS_MODE $YARN_MODE $MAPREDUCE_MODE $GOBBLIN_AS_SERVICE_MODE $SERVICE_LOAD_BALANCER_MODE"
 
 # CLI Command class
 CLI_CLASS='org.apache.gobblin.runtime.cli.GobblinCli'
@@ -78,6 +79,7 @@ AWS_CLASS='org.apache.gobblin.aws.GobblinAWSClusterLauncher'
 YARN_CLASS='org.apache.gobblin.yarn.GobblinYarnAppLauncher'
 MAPREDUCE_CLASS='org.apache.gobblin.runtime.mapreduce.CliMRJobLauncher'
 SERVICE_MANAGER_CLASS='org.apache.gobblin.service.modules.core.GobblinServiceManager'
+SERVICE_LOAD_BALANCER_CLASS='org.apache.gobblin.service.loadbalancer.GobblinServiceLoadBalancer'
 
 function print_gobblin_usage() {
     echo "Usage:"
@@ -459,6 +461,8 @@ function start() {
                 LOG_OUT_FILE="${GOBBLIN_LOGS}/${GOBBLIN_MODE}.$WORKER_ID.out"
                 LOG_ERR_FILE="${GOBBLIN_LOGS}/${GOBBLIN_MODE}.$WORKER_ID.err"
                 CLASS_N_ARGS="$CLUSTER_WORKER_CLASS --app_name $CLUSTER_NAME --helix_instance_name ${GOBBLIN_MODE}.$WORKER_ID "
+            elif [[ "$GOBBLIN_MODE" = "$SERVICE_LOAD_BALANCER_MODE" ]]; then
+                CLASS_N_ARGS="$SERVICE_LOAD_BALANCER_CLASS"
             else
                 echo "Invalid gobblin command or execution mode... [EXITING]"
                 exit 1
@@ -521,6 +525,8 @@ function stop() {
                         class_to_search="$CLUSTER_MASTER_CLASS"
                     elif [[ "$GOBBLIN_MODE" = "$CLUSTER_WORKER_MODE" ]]; then
                         class_to_search=$CLUSTER_WORKER_CLASS
+                    elif [[ "$GOBBLIN_MODE" = "$SERVICE_LOAD_BALANCER_MODE" ]]; then
+                        class_to_search=$SERVICE_LOAD_BALANCER_CLASS
                     fi
 
                     if [[ -z "$class_to_search" ]]; then

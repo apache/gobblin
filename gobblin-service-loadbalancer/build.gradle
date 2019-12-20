@@ -30,33 +30,11 @@ dependencies {
   compile externalDependency.commonsIo
   compile externalDependency.commonsLang
   compile externalDependency.commonsLang3
-  compile externalDependency.findBugsAnnotations
-  compile externalDependency.gson
-  compile externalDependency.guava
   compile externalDependency.httpcore
   compile externalDependency.log4j
-  compile externalDependency.metricsCore
   compile externalDependency.slf4j
   compile externalDependency.typesafeConfig
 
-  testCompile project(":gobblin-example")
-
-  // Required for adding Test class into classpath
-  testCompile project(":gobblin-runtime").sourceSets.test.output
-  testCompile project(path: ":gobblin-modules:gobblin-kafka-08:", configuration: "tests")
-  testCompile project(path: ":gobblin-metastore", configuration: "testFixtures")
-  testCompile project(":gobblin-test-utils")
-  testCompile externalDependency.byteman
-  testCompile externalDependency.bytemanBmunit
-  testCompile externalDependency.calciteCore
-  testCompile externalDependency.calciteAvatica
-  testCompile externalDependency.curatorClient
-  testCompile externalDependency.curatorTest
-  testRuntime externalDependency.derby
-  testCompile externalDependency.hamcrest
-  testCompile externalDependency.jhyde
-  testCompile externalDependency.mockito
-  testCompile externalDependency.kafka08Test
 }
 
 task testJar(type: Jar, dependsOn: testClasses) {
@@ -71,11 +49,5 @@ configurations {
 configurations {
   compile {
     transitive = false
-  }
-
-  testRuntime {
-    resolutionStrategy {
-      force 'com.google.inject:guice:3.0'
-    }
   }
 }

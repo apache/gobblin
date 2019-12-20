@@ -34,7 +34,6 @@ public class ServiceConfigKeys {
   public static final String GOBBLIN_SERVICE_GIT_CONFIG_MONITOR_ENABLED_KEY = GOBBLIN_SERVICE_PREFIX + "gitConfigMonitor.enabled";
   public static final String GOBBLIN_SERVICE_DAG_MANAGER_ENABLED_KEY = GOBBLIN_SERVICE_PREFIX + "dagManager.enabled";
   public static final String GOBBLIN_SERVICE_JOB_STATUS_MONITOR_ENABLED_KEY = GOBBLIN_SERVICE_PREFIX + "jobStatusMonitor.enabled";
-
   // Helix / ServiceScheduler Keys
   public static final String HELIX_CLUSTER_NAME_KEY = GOBBLIN_SERVICE_PREFIX + "helix.cluster.name";
   public static final String ZK_CONNECTION_STRING_KEY = GOBBLIN_SERVICE_PREFIX + "zk.connection.string";
@@ -115,4 +114,9 @@ public class ServiceConfigKeys {
 
   // Prefix for config to ServiceBasedAppLauncher that will only be used by GaaS and not orchestrated jobs
   public static final String GOBBLIN_SERVICE_APP_LAUNCHER_PREFIX = "gobblinServiceAppLauncher";
+
+  // Kubernetes load balancer Keys
+  public static final String KUBERNETES_PREFIX = "kubernetes.";
+  public static final String KUBERNETES_ENABLED_KEY = KUBERNETES_PREFIX + "enabled";
+  public static final String NUM_SCHEDULERS = KUBERNETES_PREFIX + "numSchedulers";
 }

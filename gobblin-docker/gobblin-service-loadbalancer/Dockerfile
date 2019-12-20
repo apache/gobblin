@@ -14,4 +14,4 @@ WORKDIR /home/gobblin/
 COPY --from=build /home/gobblin/gobblin-dist .
 RUN apk add --no-cache bash
 
-CMD ["./bin/gobblin-service-load-balancer.sh"]
+CMD ["./bin/gobblin.sh", "service", "gobblin-service-loadbalancer", "start", "--log-to-stdout"]
