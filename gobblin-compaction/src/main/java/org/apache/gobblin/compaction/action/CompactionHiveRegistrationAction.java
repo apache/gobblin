@@ -34,6 +34,7 @@ import org.apache.gobblin.compaction.parser.CompactionPathParser;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.data.management.dataset.SimpleFileSystemDataset;
 import org.apache.gobblin.dataset.FileSystemDataset;
 import org.apache.gobblin.hive.HiveRegister;
 import org.apache.gobblin.hive.policy.HiveRegistrationPolicy;
@@ -57,6 +58,11 @@ public class CompactionHiveRegistrationAction implements CompactionCompleteActio
   }
 
   public void onCompactionJobComplete(FileSystemDataset dataset) throws IOException {
+    if (dataset instanceof SimpleFileSystemDataset
+        && ((SimpleFileSystemDataset) dataset).getIsVirtual()) {
+      return;
+    }
+
     if (state.contains(ConfigurationKeys.HIVE_REGISTRATION_POLICY)) {
       HiveRegister hiveRegister = HiveRegister.get(state);
       HiveRegistrationPolicy hiveRegistrationPolicy = HiveRegistrationPolicyBase.getPolicy(state);

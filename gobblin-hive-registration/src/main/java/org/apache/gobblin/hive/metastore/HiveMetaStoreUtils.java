@@ -96,7 +96,8 @@ public class HiveMetaStoreUtils {
     Table table = new Table();
     table.setDbName(hiveTable.getDbName());
     table.setTableName(hiveTable.getTableName());
-    table.setParameters(getParameters(props));
+    table.setParameters(Maps.newHashMap(hiveTable.getTableParameters()));
+    table.getParameters().putAll(getParameters(props));
     if (hiveTable.getCreateTime().isPresent()) {
       table.setCreateTime(Ints.checkedCast(hiveTable.getCreateTime().get()));
     }
@@ -131,7 +132,7 @@ public class HiveMetaStoreUtils {
     State serDeProps = getSerDeProps(table.getSd().getSerdeInfo());
     HiveTable hiveTable = new HiveTable.Builder().withDbName(table.getDbName()).withTableName(table.getTableName())
         .withPartitionKeys(getColumns(table.getPartitionKeys())).withProps(tableProps).withStorageProps(storageProps)
-        .withSerdeProps(serDeProps).build();
+        .withSerdeProps(serDeProps).withTableParameters(table.getParameters()).build();
     if (table.getCreateTime() > 0) {
       hiveTable.setCreateTime(table.getCreateTime());
     }
@@ -255,9 +256,6 @@ public class HiveMetaStoreUtils {
 
   public static State getTableProps(Table table) {
     State tableProps = new State();
-    for (Map.Entry<String, String> entry : table.getParameters().entrySet()) {
-      tableProps.setProp(entry.getKey(), entry.getValue());
-    }
     if (table.isSetCreateTime()) {
       tableProps.setProp(HiveConstants.CREATE_TIME, table.getCreateTime());
     }

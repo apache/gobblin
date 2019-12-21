@@ -32,6 +32,7 @@ import org.apache.gobblin.compaction.event.CompactionSlaEventHelper;
 import org.apache.gobblin.compaction.suite.CompactionSuite;
 import org.apache.gobblin.compaction.suite.CompactionSuiteUtils;
 import org.apache.gobblin.compaction.verify.CompactionVerifier;
+import org.apache.gobblin.data.management.dataset.SimpleFileSystemDataset;
 import org.apache.gobblin.dataset.Dataset;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.runtime.TaskContext;
@@ -77,6 +78,13 @@ public class MRCompactionTask extends MRTask {
         this.onMRTaskComplete (false, new IOException("Compaction verification for MR is failed"));
         return;
       }
+    }
+
+    if (dataset instanceof SimpleFileSystemDataset
+        && ((SimpleFileSystemDataset)dataset).getIsVirtual()) {
+      log.info("A trivial compaction job as there is no data. Will trigger success complete directly");
+      this.onMRTaskComplete(true, null);
+      return;
     }
 
     super.run();

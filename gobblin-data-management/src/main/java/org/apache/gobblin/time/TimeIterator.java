@@ -49,27 +49,46 @@ public class TimeIterator implements Iterator {
   @Override
   public ZonedDateTime next() {
     ZonedDateTime dateTime = startTime;
-
-    switch (granularity) {
-      case MINUTE:
-        startTime = startTime.plusMinutes(1);
-        break;
-      case HOUR:
-        startTime = startTime.plusHours(1);
-        break;
-      case DAY:
-        startTime = startTime.plusDays(1);
-        break;
-      case MONTH:
-        startTime = startTime.plusMonths(1);
-        break;
-    }
-
+    startTime = inc(startTime, granularity, 1);
     return dateTime;
   }
 
   @Override
   public void remove() {
     throw new UnsupportedOperationException();
+  }
+
+  /**
+   * Increase the given time by {@code units}, which must be positive, of {@code granularity}
+   */
+  public static ZonedDateTime inc(ZonedDateTime time, Granularity granularity, long units) {
+    switch (granularity) {
+      case MINUTE:
+        return time.plusMinutes(units);
+      case HOUR:
+        return time.plusHours(units);
+      case DAY:
+        return time.plusDays(units);
+      case MONTH:
+        return time.plusMonths(units);
+    }
+    throw new RuntimeException("Unsupported granularity: " + granularity);
+  }
+
+  /**
+   * Decrease the given time by {@code units}, which must be positive, of {@code granularity}
+   */
+  public static ZonedDateTime dec(ZonedDateTime time, Granularity granularity, long units) {
+    switch (granularity) {
+      case MINUTE:
+        return time.minusMinutes(units);
+      case HOUR:
+        return time.minusHours(units);
+      case DAY:
+        return time.minusDays(units);
+      case MONTH:
+        return time.minusMonths(units);
+    }
+    throw new RuntimeException("Unsupported granularity: " + granularity);
   }
 }

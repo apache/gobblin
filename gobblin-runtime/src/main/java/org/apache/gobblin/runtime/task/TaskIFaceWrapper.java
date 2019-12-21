@@ -23,6 +23,8 @@ import java.util.concurrent.CountDownLatch;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.runtime.Task;
@@ -35,6 +37,7 @@ import org.apache.gobblin.runtime.fork.Fork;
 /**
  * An extension of {@link Task} that wraps a generic {@link TaskIFace} for backwards compatibility.
  */
+@Slf4j
 public class TaskIFaceWrapper extends Task {
 
   private final TaskIFace underlyingTask;
@@ -75,6 +78,8 @@ public class TaskIFaceWrapper extends Task {
   public void run() {
     try {
       this.underlyingTask.run();
+    } catch (Exception e) {
+      log.error(String.format("Task %s completed with exception", this.taskContext.getTaskState().getTaskId()), e);
     } finally {
       this.taskStateTracker.onTaskRunCompletion(this);
     }

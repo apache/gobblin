@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import lombok.extern.slf4j.Slf4j;
@@ -48,6 +49,7 @@ import org.joda.time.DateTime;
 import com.codahale.metrics.Timer;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
 
 import org.apache.gobblin.annotation.Alpha;
@@ -473,6 +475,10 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
   public void dropPartitionIfExists(String dbName, String tableName, List<Column> partitionKeys,
       List<String> partitionValues) throws IOException {
     try (AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient()) {
+      if (client.get().getPartition(dbName, tableName, partitionValues) == null) {
+        // Partition does not exist. Nothing to do
+        return;
+      }
       try (Timer.Context context = this.metricContext.timer(DROP_TABLE).time()) {
         client.get().dropPartition(dbName, tableName, partitionValues, false);
       }
@@ -678,6 +684,11 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
       }
       try (Timer.Context context = this.metricContext.timer(ALTER_TABLE).time()) {
         table.getProps().addAllIfNotExist(HiveMetaStoreUtils.getTableProps(existingTable));
+        // Merge table parameters
+        Map<String, String> allParameters = Maps.newHashMap(existingTable.getParameters());
+        allParameters.putAll(table.getTableParameters());
+        table.setTableParameters(allParameters);
+        // Alter table
         client.get().alter_table(table.getDbName(), table.getTableName(),
             getTableWithCreateTimeNow(HiveMetaStoreUtils.getTable(table)));
       }
@@ -755,6 +766,13 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
    * @param existingTable
    */
   protected Table getNewTblByMergingExistingTblProps(Table newTable, HiveTable existingTable) {
-    return getTableWithCreateTime(newTable, existingTable);
+    Table table = getTableWithCreateTime(newTable, existingTable);
+    Map<String, String> newTableParameters = Maps.newHashMap();
+    // First, put all existing parameters
+    newTableParameters.putAll(existingTable.getTableParameters());
+    // Then, apply new parameters
+    newTableParameters.putAll(newTable.getParameters());
+    newTable.setParameters(newTableParameters);
+    return table;
   }
 }
