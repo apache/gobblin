@@ -82,7 +82,7 @@ public class MRCompactionTask extends MRTask {
 
     if (dataset instanceof SimpleFileSystemDataset
         && ((SimpleFileSystemDataset)dataset).getIsVirtual()) {
-      log.info("A trivial compaction job as there is no data. Will trigger success complete directly");
+      log.info("A trivial compaction job as there is no physical data. Will trigger a success complete directly");
       this.onMRTaskComplete(true, null);
       return;
     }

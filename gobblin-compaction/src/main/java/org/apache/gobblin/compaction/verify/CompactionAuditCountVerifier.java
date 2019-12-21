@@ -138,7 +138,7 @@ public class CompactionAuditCountVerifier implements CompactionVerifier<FileSyst
 
     CompactionPathParser.CompactionParserResult result = new CompactionPathParser(state).parse(dataset);
     ZonedDateTime startTime = ZonedDateTime.ofInstant(Instant.ofEpochMilli(result.getTime().getMillis()), zone);
-    ZonedDateTime endTime = TimeIterator.inc(startTime, granularity, 1L);
+    ZonedDateTime endTime = TimeIterator.inc(startTime, granularity, 1);
     String datasetName = result.getDatasetName();
     try {
       Map<String, Long> countsByTier = auditCountClient.fetch(datasetName,

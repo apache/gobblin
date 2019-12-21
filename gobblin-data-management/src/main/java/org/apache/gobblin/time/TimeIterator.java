@@ -19,6 +19,7 @@ package org.apache.gobblin.time;
 
 import java.time.ZonedDateTime;
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 
 
 /**
@@ -48,6 +49,9 @@ public class TimeIterator implements Iterator {
 
   @Override
   public ZonedDateTime next() {
+    if (startTime.isAfter(endTime)) {
+      throw new NoSuchElementException();
+    }
     ZonedDateTime dateTime = startTime;
     startTime = inc(startTime, granularity, 1);
     return dateTime;

@@ -47,7 +47,9 @@ import org.apache.gobblin.compaction.verify.CompactionAuditCountVerifier;
 import org.apache.gobblin.compaction.verify.CompactionVerifier;
 import org.apache.gobblin.compaction.verify.InputRecordCountHelper;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.data.management.dataset.DatasetUtils;
 import org.apache.gobblin.data.management.dataset.SimpleDatasetHierarchicalPrioritizer;
+import org.apache.gobblin.data.management.dataset.TimePartitionGlobFinder;
 import org.apache.gobblin.data.management.retention.profile.ConfigurableGlobDatasetFinder;
 import org.apache.gobblin.runtime.api.JobExecutionResult;
 import org.apache.gobblin.runtime.embedded.EmbeddedGobblin;
@@ -99,6 +101,41 @@ public class AvroCompactionTaskTest {
     writeFileWithContent(jobDir, "file2", r2, 18);
 
     EmbeddedGobblin embeddedGobblin = createEmbeddedGobblin("non-dedup", basePath.getAbsolutePath().toString());
+    JobExecutionResult result = embeddedGobblin.run();
+    Assert.assertTrue(result.isSuccessful());
+  }
+
+  @Test
+  public void testCompactVirtualDataset() throws Exception {
+
+    File basePath = Files.createTempDir();
+    basePath.deleteOnExit();
+
+    File jobDir = new File(basePath, "PageViewEvent");
+    Assert.assertTrue(jobDir.mkdirs());
+
+    String pattern = new Path(basePath.getAbsolutePath(), "*").toString();
+    String jobName = "compaction-virtual";
+
+    EmbeddedGobblin embeddedGobblin = new EmbeddedGobblin(jobName)
+        .setConfiguration(ConfigurationKeys.SOURCE_CLASS_KEY, CompactionSource.class.getName())
+        .setConfiguration(ConfigurableGlobDatasetFinder.DATASET_FINDER_PATTERN_KEY, pattern)
+        .setConfiguration(MRCompactor.COMPACTION_INPUT_DIR, basePath.toString())
+        .setConfiguration(MRCompactor.COMPACTION_INPUT_SUBDIR, "hourly")
+        .setConfiguration(MRCompactor.COMPACTION_DEST_DIR, basePath.toString())
+        .setConfiguration(MRCompactor.COMPACTION_DEST_SUBDIR, "daily")
+        .setConfiguration(MRCompactor.COMPACTION_TMP_DEST_DIR, "/tmp/compaction/" + jobName)
+        .setConfiguration(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MAX_TIME_AGO, "3d")
+        .setConfiguration(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MIN_TIME_AGO, "1d")
+        .setConfiguration(ConfigurationKeys.MAX_TASK_RETRIES_KEY, "0")
+        .setConfiguration(DatasetUtils.DATASET_PROFILE_CLASS_KEY,
+            "org.apache.gobblin.data.management.dataset.TimePartitionGlobFinder")
+        .setConfiguration(TimePartitionGlobFinder.PARTITION_PREFIX, "hourly/")
+        .setConfiguration(TimePartitionGlobFinder.TIME_FORMAT, "yyyy/MM/dd")
+        .setConfiguration(TimePartitionGlobFinder.GRANULARITY, "DAY")
+        .setConfiguration(TimePartitionGlobFinder.LOOKBACK_SPEC, "P3D")
+        .setConfiguration(TimePartitionGlobFinder.ENABLE_VIRTUAL_PARTITION, "true");
+
     JobExecutionResult result = embeddedGobblin.run();
     Assert.assertTrue(result.isSuccessful());
   }

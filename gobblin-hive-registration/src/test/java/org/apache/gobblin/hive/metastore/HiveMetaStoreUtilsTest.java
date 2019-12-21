@@ -18,6 +18,7 @@
 package org.apache.gobblin.hive.metastore;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 import org.apache.hadoop.conf.Configuration;
@@ -32,6 +33,8 @@ import org.apache.hadoop.hive.ql.io.orc.OrcSerde;
 import org.apache.hadoop.hive.serde2.avro.AvroSerDe;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import com.google.common.collect.Maps;
 
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.hive.HiveTable;
@@ -51,6 +54,14 @@ public class HiveMetaStoreUtilsTest {
     serdeProps.setProp("avro.schema.literal", "{\"type\": \"record\", \"name\": \"TestEvent\","
         + " \"namespace\": \"test.namespace\", \"fields\": [{\"name\":\"a\"," + " \"type\": \"int\"}]}");
     builder.withSerdeProps(serdeProps);
+    Map<String, String> tableParameters = Maps.newHashMap();
+    tableParameters.put("param1", "value1");
+    tableParameters.put("param2", "value2");
+    builder.withTableParameters(tableParameters);
+
+    State tableProps = new State();
+    tableProps.setProp(HiveMetaStoreUtils.RUNTIME_PROPS, "param1:value0");
+    builder.withProps(tableProps);
 
     HiveTable hiveTable = builder.build();
     hiveTable.setInputFormat(AvroContainerInputFormat.class.getName());
@@ -60,6 +71,10 @@ public class HiveMetaStoreUtilsTest {
     Table table = HiveMetaStoreUtils.getTable(hiveTable);
     Assert.assertEquals(table.getDbName(), databaseName);
     Assert.assertEquals(table.getTableName(), tableName);
+
+    Map<String, String> parameters = table.getParameters();
+    Assert.assertEquals(parameters.get("param1"), "value0");
+    Assert.assertEquals(parameters.get("param2"), "value2");
 
     StorageDescriptor sd = table.getSd();
     Assert.assertEquals(sd.getInputFormat(), AvroContainerInputFormat.class.getName());
