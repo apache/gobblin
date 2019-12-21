@@ -14,25 +14,46 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.gobblin.data.management.dataset;
 
-import org.apache.gobblin.data.management.retention.profile.ConfigurableGlobDatasetFinder;
-import org.apache.gobblin.dataset.FileSystemDataset;
-import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import java.io.IOException;
-import java.util.Properties;
+
+import org.apache.gobblin.dataset.FileSystemDataset;
+
 
 /**
- * A subclass of {@link ConfigurableGlobDatasetFinder} which find all the {@link FileSystemDataset}
- * that matches a given glob pattern.
+ * A basic implementation of {@link FileSystemDataset}. It can represent a virtual
+ * file system dataset which doesn't have a physical file/folder
  */
-public class DefaultFileSystemGlobFinder extends ConfigurableGlobDatasetFinder<FileSystemDataset> {
-  public DefaultFileSystemGlobFinder(FileSystem fs, Properties properties) throws IOException {
-    super(fs, properties);
+public class SimpleFileSystemDataset implements FileSystemDataset {
+
+  private final Path path;
+  private final boolean isVirtual;
+
+  public SimpleFileSystemDataset(Path path) {
+    this(path, false);
   }
 
-  public FileSystemDataset datasetAtPath(final Path path) throws IOException {
-    return new SimpleFileSystemDataset(path);
+  public SimpleFileSystemDataset(Path path, boolean isVirtual) {
+    this.path = path;
+    this.isVirtual = isVirtual;
+  }
+
+  @Override
+  public Path datasetRoot() {
+    return path;
+  }
+
+  @Override
+  public String datasetURN() {
+    return path.toString();
+  }
+
+  /**
+   * @return true if the dataset doesn't have a physical file/folder
+   */
+  public boolean getIsVirtual() {
+    return isVirtual;
   }
 }
