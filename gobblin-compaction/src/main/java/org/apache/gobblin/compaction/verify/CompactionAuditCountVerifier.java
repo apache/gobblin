@@ -131,7 +131,10 @@ public class CompactionAuditCountVerifier implements CompactionVerifier<FileSyst
    * @return If verification is succeeded
    */
   public Result verify (FileSystemDataset dataset) {
-    if (!enabled || auditCountClient == null) {
+    if (!enabled) {
+      return new Result(true, "");
+    }
+    if (auditCountClient == null) {
       log.debug("No audit count client specified, skipped");
       return new Result(true, "");
     }
