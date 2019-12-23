@@ -484,6 +484,8 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
       String metastoreURI = this.clientPool.getHiveConf().get(HiveMetaStoreClientFactory.HIVE_METASTORE_TOKEN_SIGNATURE, "null");
       HiveMetaStoreEventHelper.submitSuccessfulPartitionDrop(eventSubmitter, dbName, tableName, partitionValues, metastoreURI);
       log.info("Dropped partition " + partitionValues + " in table " + tableName + " in db " + dbName);
+    } catch (NoSuchObjectException e) {
+      // Partition does not exist. Nothing to do
     } catch (TException e) {
       HiveMetaStoreEventHelper.submitFailedPartitionDrop(eventSubmitter, dbName, tableName, partitionValues, e);
       throw new IOException(String.format("Unable to check existence of Hive partition %s in table %s in db %s",
