@@ -38,6 +38,7 @@ import org.apache.gobblin.compaction.verify.CompactionAuditCountVerifier;
 import org.apache.gobblin.compaction.verify.CompactionThresholdVerifier;
 import org.apache.gobblin.compaction.verify.CompactionTimeRangeVerifier;
 import org.apache.gobblin.compaction.verify.CompactionVerifier;
+import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.dataset.FileSystemDataset;
 import org.apache.gobblin.util.io.GsonInterfaceAdapter;
@@ -49,9 +50,13 @@ import org.apache.gobblin.util.io.GsonInterfaceAdapter;
  */
 @Slf4j
 public class CompactionSuiteBase implements CompactionSuite<FileSystemDataset> {
-  public static final String SERIALIZE_COMPACTION_FILE_PATH_NAME = "compaction-file-path-name";
+
   protected State state;
-  protected CompactionJobConfigurator configurator;
+  /**
+   * Require lazy evaluation for now to support feature in
+   * {@link org.apache.gobblin.compaction.source.CompactionSource#optionalInit(SourceState)}
+   */
+  private CompactionJobConfigurator configurator;
   private static final Gson GSON = GsonInterfaceAdapter.getGson(FileSystemDataset.class);
   private static final String SERIALIZED_DATASET = "compaction.serializedDataset";
 
@@ -60,7 +65,6 @@ public class CompactionSuiteBase implements CompactionSuite<FileSystemDataset> {
    */
   public CompactionSuiteBase(State state) {
     this.state = state;
-    configurator = CompactionJobConfigurator.instantiateConfigurator(this.state);
   }
 
   /**
@@ -113,9 +117,9 @@ public class CompactionSuiteBase implements CompactionSuite<FileSystemDataset> {
    */
   public List<CompactionCompleteAction<FileSystemDataset>> getCompactionCompleteActions() {
     ArrayList<CompactionCompleteAction<FileSystemDataset>> array = new ArrayList<>();
-    array.add(new CompactionCompleteFileOperationAction(state, configurator));
+    array.add(new CompactionCompleteFileOperationAction(state, getConfigurator()));
     array.add(new CompactionHiveRegistrationAction(state));
-    array.add(new CompactionMarkDirectoryAction(state, configurator));
+    array.add(new CompactionMarkDirectoryAction(state, getConfigurator()));
     return array;
   }
 
@@ -127,6 +131,15 @@ public class CompactionSuiteBase implements CompactionSuite<FileSystemDataset> {
    * @return a map-reduce job which will compact files against {@link org.apache.gobblin.dataset.Dataset}
    */
   public Job createJob (FileSystemDataset dataset) throws IOException {
-    return configurator.createJob(dataset);
+    return getConfigurator().createJob(dataset);
+  }
+
+  protected CompactionJobConfigurator getConfigurator() {
+    if (configurator == null) {
+      synchronized(this) {
+        configurator = CompactionJobConfigurator.instantiateConfigurator(this.state);
+      }
+    }
+    return configurator;
   }
 }

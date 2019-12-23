@@ -18,13 +18,10 @@
 package org.apache.gobblin.hive;
 
 import java.util.List;
-import java.util.Map;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
 
 import org.apache.gobblin.annotation.Alpha;
@@ -57,12 +54,10 @@ public class HiveTable extends HiveRegistrationUnit {
   private Optional<String> owner;
   private Optional<String> tableType;
   private Optional<Long> retention;
-  private Map<String, String> tableParameters;
 
   private HiveTable(Builder builder) {
     super(builder);
     this.partitionKeys = ImmutableList.<Column> copyOf(builder.partitionKeys);
-    this.tableParameters = ImmutableMap.copyOf(builder.tableParameters);
   }
 
   @SuppressWarnings("serial")
@@ -84,10 +79,6 @@ public class HiveTable extends HiveRegistrationUnit {
 
   public void setRetention(long retention) {
     this.retention = Optional.of(retention);
-  }
-
-  public void setTableParameters(Map<String, String> tableParameters) {
-    this.tableParameters = ImmutableMap.copyOf(tableParameters);
   }
 
   @Override
@@ -114,15 +105,9 @@ public class HiveTable extends HiveRegistrationUnit {
 
   public static class Builder extends HiveRegistrationUnit.Builder<Builder> {
     private List<Column> partitionKeys = Lists.newArrayList();
-    private Map<String, String> tableParameters = Maps.newHashMap();
 
     public Builder withPartitionKeys(List<Column> partitionKeys) {
       this.partitionKeys = partitionKeys;
-      return this;
-    }
-
-    public Builder withTableParameters(Map<String, String> tableParameters) {
-      this.tableParameters = tableParameters;
       return this;
     }
 
@@ -131,4 +116,5 @@ public class HiveTable extends HiveRegistrationUnit {
       return new HiveTable(this);
     }
   }
+
 }

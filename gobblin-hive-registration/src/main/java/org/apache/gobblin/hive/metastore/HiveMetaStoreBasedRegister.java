@@ -49,7 +49,6 @@ import org.joda.time.DateTime;
 import com.codahale.metrics.Timer;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
 
 import org.apache.gobblin.annotation.Alpha;
@@ -485,8 +484,6 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
       String metastoreURI = this.clientPool.getHiveConf().get(HiveMetaStoreClientFactory.HIVE_METASTORE_TOKEN_SIGNATURE, "null");
       HiveMetaStoreEventHelper.submitSuccessfulPartitionDrop(eventSubmitter, dbName, tableName, partitionValues, metastoreURI);
       log.info("Dropped partition " + partitionValues + " in table " + tableName + " in db " + dbName);
-    } catch (NoSuchObjectException e) {
-      // Partition does not exist. Nothing to do
     } catch (TException e) {
       HiveMetaStoreEventHelper.submitFailedPartitionDrop(eventSubmitter, dbName, tableName, partitionValues, e);
       throw new IOException(String.format("Unable to check existence of Hive partition %s in table %s in db %s",
@@ -684,11 +681,6 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
       }
       try (Timer.Context context = this.metricContext.timer(ALTER_TABLE).time()) {
         table.getProps().addAllIfNotExist(HiveMetaStoreUtils.getTableProps(existingTable));
-        // Merge table parameters
-        Map<String, String> allParameters = Maps.newHashMap(existingTable.getParameters());
-        allParameters.putAll(table.getTableParameters());
-        table.setTableParameters(allParameters);
-        // Alter table
         client.get().alter_table(table.getDbName(), table.getTableName(),
             getTableWithCreateTimeNow(HiveMetaStoreUtils.getTable(table)));
       }
@@ -767,12 +759,11 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
    */
   protected Table getNewTblByMergingExistingTblProps(Table newTable, HiveTable existingTable) {
     Table table = getTableWithCreateTime(newTable, existingTable);
-    Map<String, String> newTableParameters = Maps.newHashMap();
-    // First, put all existing parameters
-    newTableParameters.putAll(existingTable.getTableParameters());
-    // Then, apply new parameters
-    newTableParameters.putAll(newTable.getParameters());
-    newTable.setParameters(newTableParameters);
+    // Get existing parameters
+    Map<String, String> allParameters = HiveMetaStoreUtils.getParameters(existingTable.getProps());
+    // Apply new parameters
+    allParameters.putAll(table.getParameters());
+    table.setParameters(allParameters);
     return table;
   }
 }
