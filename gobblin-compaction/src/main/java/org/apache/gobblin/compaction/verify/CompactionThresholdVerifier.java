@@ -76,8 +76,7 @@ public class CompactionThresholdVerifier implements CompactionVerifier<FileSyste
     InputRecordCountHelper helper = new InputRecordCountHelper(state);
     try {
       double newRecords = 0;
-      if (!(dataset instanceof SimpleFileSystemDataset)
-          || !((SimpleFileSystemDataset) dataset).getIsVirtual()) {
+      if (!dataset.isVirtual()) {
         newRecords = helper.calculateRecordCount (Lists.newArrayList(new Path(dataset.datasetURN())));
       }
       double oldRecords = helper.readRecordCount (new Path(result.getDstAbsoluteDir()));

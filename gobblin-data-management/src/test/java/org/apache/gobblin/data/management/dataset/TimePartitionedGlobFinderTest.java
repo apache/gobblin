@@ -97,11 +97,11 @@ public class TimePartitionedGlobFinderTest {
     datasets = finder.findDatasets();
     Assert.assertEquals(datasets.size(), 6);
     // Verify virtual partitions for /db1/table1
-    Assert.assertTrue(find(getPartitionPath(ds1, hourlyPrefix, -1, dayFormat), datasets).getIsVirtual());
-    Assert.assertTrue(find(getPartitionPath(ds1, hourlyPrefix, -2, dayFormat), datasets).getIsVirtual());
+    Assert.assertTrue(find(getPartitionPath(ds1, hourlyPrefix, -1, dayFormat), datasets).isVirtual());
+    Assert.assertTrue(find(getPartitionPath(ds1, hourlyPrefix, -2, dayFormat), datasets).isVirtual());
     // Verify virtual partitions for /db2/table2
-    Assert.assertTrue(find(getPartitionPath(ds2, hourlyPrefix, 0, dayFormat), datasets).getIsVirtual());
-    Assert.assertTrue(find(getPartitionPath(ds2, hourlyPrefix, -2, dayFormat), datasets).getIsVirtual());
+    Assert.assertTrue(find(getPartitionPath(ds2, hourlyPrefix, 0, dayFormat), datasets).isVirtual());
+    Assert.assertTrue(find(getPartitionPath(ds2, hourlyPrefix, -2, dayFormat), datasets).isVirtual());
   }
 
   private Path getPartitionPath(Path dataset, String prefix, int dayOffset, String format) {

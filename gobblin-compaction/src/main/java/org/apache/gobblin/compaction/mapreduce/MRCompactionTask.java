@@ -34,6 +34,7 @@ import org.apache.gobblin.compaction.suite.CompactionSuiteUtils;
 import org.apache.gobblin.compaction.verify.CompactionVerifier;
 import org.apache.gobblin.data.management.dataset.SimpleFileSystemDataset;
 import org.apache.gobblin.dataset.Dataset;
+import org.apache.gobblin.dataset.FileSystemDataset;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.runtime.TaskContext;
 import org.apache.gobblin.runtime.mapreduce.MRTask;
@@ -80,8 +81,8 @@ public class MRCompactionTask extends MRTask {
       }
     }
 
-    if (dataset instanceof SimpleFileSystemDataset
-        && ((SimpleFileSystemDataset)dataset).getIsVirtual()) {
+    if (dataset instanceof FileSystemDataset
+        && ((FileSystemDataset)dataset).isVirtual()) {
       log.info("A trivial compaction job as there is no physical data. Will trigger a success complete directly");
       this.onMRTaskComplete(true, null);
       return;

@@ -58,8 +58,7 @@ public class CompactionHiveRegistrationAction implements CompactionCompleteActio
   }
 
   public void onCompactionJobComplete(FileSystemDataset dataset) throws IOException {
-    if (dataset instanceof SimpleFileSystemDataset
-        && ((SimpleFileSystemDataset) dataset).getIsVirtual()) {
+    if (dataset.isVirtual()) {
       return;
     }
 

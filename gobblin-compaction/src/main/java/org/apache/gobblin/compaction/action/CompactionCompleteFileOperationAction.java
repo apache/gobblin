@@ -74,8 +74,7 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
    * Create a record count file containing the number of records that have been processed .
    */
   public void onCompactionJobComplete (FileSystemDataset dataset) throws IOException {
-    if (dataset instanceof SimpleFileSystemDataset
-        && ((SimpleFileSystemDataset) dataset).getIsVirtual()) {
+    if (dataset.isVirtual()) {
       return;
     }
 

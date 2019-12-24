@@ -58,8 +58,7 @@ public class CompactionMarkDirectoryAction implements CompactionCompleteAction<F
   }
 
   public void onCompactionJobComplete (FileSystemDataset dataset) throws IOException {
-    if (dataset instanceof SimpleFileSystemDataset
-        && ((SimpleFileSystemDataset) dataset).getIsVirtual()) {
+    if (dataset.isVirtual()) {
       return;
     }
 
