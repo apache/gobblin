@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import lombok.extern.slf4j.Slf4j;
@@ -473,6 +474,10 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
   public void dropPartitionIfExists(String dbName, String tableName, List<Column> partitionKeys,
       List<String> partitionValues) throws IOException {
     try (AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient()) {
+      if (client.get().getPartition(dbName, tableName, partitionValues) == null) {
+        // Partition does not exist. Nothing to do
+        return;
+      }
       try (Timer.Context context = this.metricContext.timer(DROP_TABLE).time()) {
         client.get().dropPartition(dbName, tableName, partitionValues, false);
       }
@@ -755,6 +760,12 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
    * @param existingTable
    */
   protected Table getNewTblByMergingExistingTblProps(Table newTable, HiveTable existingTable) {
-    return getTableWithCreateTime(newTable, existingTable);
+    Table table = getTableWithCreateTime(newTable, existingTable);
+    // Get existing parameters
+    Map<String, String> allParameters = HiveMetaStoreUtils.getParameters(existingTable.getProps());
+    // Apply new parameters
+    allParameters.putAll(table.getParameters());
+    table.setParameters(allParameters);
+    return table;
   }
 }

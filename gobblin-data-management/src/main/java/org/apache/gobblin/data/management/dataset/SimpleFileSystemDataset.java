@@ -29,7 +29,7 @@ import org.apache.gobblin.dataset.FileSystemDataset;
 public class SimpleFileSystemDataset implements FileSystemDataset {
 
   private final Path path;
-  private final boolean isVirtual;
+  private final boolean _isVirtual;
 
   public SimpleFileSystemDataset(Path path) {
     this(path, false);
@@ -37,7 +37,7 @@ public class SimpleFileSystemDataset implements FileSystemDataset {
 
   public SimpleFileSystemDataset(Path path, boolean isVirtual) {
     this.path = path;
-    this.isVirtual = isVirtual;
+    _isVirtual = isVirtual;
   }
 
   @Override
@@ -50,10 +50,8 @@ public class SimpleFileSystemDataset implements FileSystemDataset {
     return path.toString();
   }
 
-  /**
-   * @return true if the dataset doesn't have a physical file/folder
-   */
-  public boolean getIsVirtual() {
-    return isVirtual;
+  @Override
+  public boolean isVirtual() {
+    return _isVirtual;
   }
 }
