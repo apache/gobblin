@@ -21,16 +21,15 @@ import java.util.Optional;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
+import org.apache.parquet.column.ParquetProperties;
+import org.apache.parquet.example.data.Group;
+import org.apache.parquet.hadoop.ParquetWriter;
+import org.apache.parquet.hadoop.example.GroupWriteSupport;
+import org.apache.parquet.hadoop.metadata.CompressionCodecName;
+import org.apache.parquet.schema.MessageType;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-
-import parquet.column.ParquetProperties;
-import parquet.example.data.Group;
-import parquet.hadoop.ParquetWriter;
-import parquet.hadoop.example.GroupWriteSupport;
-import parquet.hadoop.metadata.CompressionCodecName;
-import parquet.schema.MessageType;
 
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.util.ForkOperatorUtils;
@@ -39,10 +38,10 @@ import static org.apache.gobblin.configuration.ConfigurationKeys.LOCAL_FS_URI;
 import static org.apache.gobblin.configuration.ConfigurationKeys.WRITER_CODEC_TYPE;
 import static org.apache.gobblin.configuration.ConfigurationKeys.WRITER_FILE_SYSTEM_URI;
 import static org.apache.gobblin.configuration.ConfigurationKeys.WRITER_PREFIX;
-import static parquet.hadoop.ParquetWriter.DEFAULT_BLOCK_SIZE;
-import static parquet.hadoop.ParquetWriter.DEFAULT_IS_DICTIONARY_ENABLED;
-import static parquet.hadoop.ParquetWriter.DEFAULT_IS_VALIDATING_ENABLED;
-import static parquet.hadoop.ParquetWriter.DEFAULT_PAGE_SIZE;
+import static org.apache.parquet.hadoop.ParquetWriter.DEFAULT_BLOCK_SIZE;
+import static org.apache.parquet.hadoop.ParquetWriter.DEFAULT_IS_DICTIONARY_ENABLED;
+import static org.apache.parquet.hadoop.ParquetWriter.DEFAULT_IS_VALIDATING_ENABLED;
+import static org.apache.parquet.hadoop.ParquetWriter.DEFAULT_PAGE_SIZE;
 
 
 public class ParquetDataWriterBuilder extends FsDataWriterBuilder<MessageType, Group> {

@@ -19,15 +19,14 @@ package org.apache.gobblin.converter.parquet;
 import java.io.InputStreamReader;
 import java.lang.reflect.Type;
 
+import org.apache.parquet.example.data.Group;
+import org.apache.parquet.schema.MessageType;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
-
-import parquet.example.data.Group;
-import parquet.schema.MessageType;
 
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.WorkUnitState;

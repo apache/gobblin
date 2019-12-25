@@ -16,19 +16,15 @@
  */
 package org.apache.gobblin.converter.parquet;
 
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.source.extractor.schema.Schema;
-
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 
-import parquet.schema.Type.Repetition;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.source.extractor.schema.Schema;
 
 import static org.apache.gobblin.converter.parquet.JsonSchema.InputType.ENUM;
 import static org.apache.gobblin.converter.parquet.JsonSchema.InputType.RECORD;
-import static parquet.schema.Type.Repetition.OPTIONAL;
-import static parquet.schema.Type.Repetition.REQUIRED;
 
 
 /**
@@ -133,12 +129,10 @@ public class JsonSchema extends Schema {
   }
 
   /**
-   * Parquet {@link Repetition} for this {@link JsonSchema}.
+   * Parquet {@link RepetitionType} for this {@link JsonSchema}.
    * @return
    */
-  public Repetition optionalOrRequired() {
-    return this.isNullable() ? OPTIONAL : REQUIRED;
-  }
+  //public abstract RepetitionType optionalOrRequired();
 
   /**
    * Set properties for {@link JsonSchema} from a {@link JsonObject}.
