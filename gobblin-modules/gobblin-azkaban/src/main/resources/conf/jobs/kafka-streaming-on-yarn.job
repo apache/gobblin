@@ -1,0 +1,85 @@
+# This job starts up a Gobblin on YARN application master
+# that runs jobs specified in the gobblin_jobs directory
+job.name=kafka-streaming-on-yarn
+# gobblin.yarn.app.queue=default
+# gobblin.yarn.app.name=GobblinStreamingYarnTest3
+# [DIFF]
+gobblin.yarn.app.master.memory.mbs=1024
+gobblin.yarn.app.master.cores=1
+gobblin.yarn.app.report.interval.minutes=5
+gobblin.yarn.max.get.app.report.failures=4
+gobblin.yarn.email.notification.on.shutdown=false
+
+# [DIFF]
+gobblin.yarn.initial.containers=1
+gobblin.yarn.autoScaling.minContainers=11
+
+# [DIFF]
+gobblin.yarn.app.master.jvm.args=-agentlib:jdwp=transport=dt_socket,server=n,address=lesun-mn2.linkedin.biz:5005,suspend=y
+
+gobblin.yarn.container.memory.mbs=1024
+gobblin.yarn.container.jvmMemoryOverheadMbs=600
+# The following is sample config to enable error injection and gc logging
+#gobblin.yarn.container.jvm.args=-javaagent:byteman-4.0.5.jar=script:app.btm -XX:+PrintGCDetails -XX:+PrintGCDateStamps
+gobblin.yarn.container.cores=1
+gobblin.yarn.container.affinity.enabled=true
+gobblin.yarn.helix.instance.max.retries=2
+# gobblin.yarn.work.dir=/tmp/kafkaetl/gobblin-streaming-yarn-test
+
+# Use config set in the Azkaban job for initializing the yarn containers
+gobblin.yarn.akabanConfigOutputDir=./gobblin_config
+gobblin.yarn.akabanConfigOutputPath=${gobblin.yarn.akabanConfigOutputDir}/application.conf
+
+# TODO: Something needs to be changed here:
+gobblin.yarn.conf.dir=./conf
+gobblin.yarn.lib.jars.dir=/Users/lesun/Documents/debug/streaming_lib
+gobblin.yarn.app.master.files.local=/Users/lesun/Documents/gobblin-proxy_trunk/gobblin-github/yarn-site.xml,${gobblin.yarn.conf.dir}/app.btm,${gobblin.yarn.conf.dir}/log4j-yarn.properties,${gobblin.yarn.akabanConfigOutputDir}/application.conf
+gobblin.yarn.container.files.local=${gobblin.yarn.app.master.files.local}
+gobblin.yarn.log.copier.disable.driver.copy=true
+
+gobblin.yarn.app.master.serviceClasses=org.apache.gobblin.yarn.YarnAutoScalingManager
+
+# Cluster configuration properties
+# gobblin.cluster.helix.cluster.name=${gobblin.yarn.app.name}
+
+# Job Configuration manager properties
+gobblin.cluster.job.configuration.manager=org.apache.gobblin.cluster.FsJobConfigurationManager
+gobblin.cluster.specConsumer.class=org.apache.gobblin.runtime.api.FsSpecConsumer
+
+# This config is to restrict assignment to one task per container
+gobblin.cluster.helixTaskQuotaConfig=DEFAULT:1,UNUSED:39
+
+job.execinfo.server.enabled=false
+admin.server.enabled=false
+
+# File system URIs
+# writer.fs.uri=${fs.uri}
+# state.store.fs.uri=${fs.uri}
+
+# state.store.dir=${gobblin.yarn.work.dir}/state-store
+# qualitychecker.row.err.file=${gobblin.yarn.work.dir}/err
+job.lock.enabled=false
+# job.lock.dir=${gobblin.yarn.work.dir}/locks
+
+writer.include.record.count.in.file.names=true
+
+# metrics and events config
+# metrics.enabled=true
+# kafka.schema.registry.url=http://ltx1-schemaregistry-vip-1.corp.linkedin.com:12250/schemaRegistry/schemas
+# kafka.schema.registry.class=org.apache.gobblin.metrics.kafka.KafkaAvroSchemaRegistry
+# metrics.reporting.kafka.brokers=ltx1-kafka-kafka-local-metrics-vip.corp.linkedin.com:16637
+# metrics.reporting.kafkaPusherClass=org.apache.gobblin.metrics.kafka.KafkaProducerPusher
+# metrics.reporting.kafka.topic.events=GobblinTrackingEvent_Streaming
+# metrics.reporting.kafka.topic.metrics=MetricReport_Streaming
+# metrics.reporting.kafka.enabled=true
+# metrics.reporting.kafka.avro.use.schema.registry=true
+# metrics.reporting.kafka.format=avro
+# metrics.report.interval=300000
+# metrics.reporting.custom.builders=com.linkedin.gobblinjobmetrics.MetricReportUtf8ReporterFactory
+
+# enabling record metadata
+# gobblin.kafka.converter.recordMetadata.enable=true
+# job.work.dir=${gobblin.yarn.work.dir}
+
+# No. of ms to wait between sending a SIGTERM and SIGKILL to a container
+# yarn.nodemanager.sleep-delay-before-sigkill.ms=30000
