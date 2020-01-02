@@ -36,7 +36,7 @@ import org.apache.gobblin.dataset.FileSystemDataset;
 
 /**
  * Compaction suite with watermark checking and publishing for file system dataset of
- * path pattern, [path prefix]/[dataset name]/[partition suffix]/yyyy/MM/[dd/HH/mm], for
+ * path pattern, [path prefix]/[dataset name]/[partition prefix]/yyyy/MM/[dd/HH/mm], for
  * example:
  * <ul>
  *   <li> home/PageViewEvent/hourly/2019/12/31 </li>

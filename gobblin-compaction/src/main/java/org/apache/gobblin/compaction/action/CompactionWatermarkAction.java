@@ -40,7 +40,10 @@ import org.apache.gobblin.time.TimeIterator;
 
 
 /**
- * The class publishes compaction watermarks, reported by {@link CompactionWatermarkChecker}, to hive metastore
+ * The class publishes compaction watermarks, reported by {@link CompactionWatermarkChecker}, as hive table parameters.
+ * It guarantees compaction watermark is updated continuously and errors out if there is a gap, which indicates a
+ * compaction hole. At the time of writing, one should manually fill the compaction hole and update the existing
+ * watermarks in hive table parameters to recover automatic watermark publish
  */
 @Slf4j
 public class CompactionWatermarkAction implements CompactionCompleteAction<FileSystemDataset> {
