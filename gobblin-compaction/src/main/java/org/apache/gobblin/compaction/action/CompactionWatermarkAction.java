@@ -49,7 +49,7 @@ import org.apache.gobblin.time.TimeIterator;
 public class CompactionWatermarkAction implements CompactionCompleteAction<FileSystemDataset> {
 
   public static final String CONF_PREFIX = "compactionWatermarkAction";
-  public static final String GRANULARITY = CONF_PREFIX + "granularity";
+  public static final String GRANULARITY = CONF_PREFIX + ".granularity";
   public static final String DEFAULT_HIVE_DB = CONF_PREFIX + ".defaultHiveDb";
 
   private EventSubmitter submitter;

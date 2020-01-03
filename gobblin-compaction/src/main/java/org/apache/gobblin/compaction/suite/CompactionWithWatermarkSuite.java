@@ -39,8 +39,8 @@ import org.apache.gobblin.dataset.FileSystemDataset;
  * path pattern, [path prefix]/[dataset name]/[partition prefix]/yyyy/MM/[dd/HH/mm], for
  * example:
  * <ul>
- *   <li> home/PageViewEvent/hourly/2019/12/31 </li>
- *   <li> home/PageViewEvent/hourly/2019/12/31/10 </li>
+ *   <li> home/event1/hourly/2019/12/31 </li>
+ *   <li> home/event2/hourly/2019/12/31/10 </li>
  *   <li> home/dbName/tableName/hourly/2019/12/31 </li>
  * </ul>
  *

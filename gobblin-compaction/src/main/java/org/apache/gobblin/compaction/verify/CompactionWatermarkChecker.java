@@ -50,7 +50,7 @@ import org.apache.gobblin.time.TimeIterator;
 @Slf4j
 public class CompactionWatermarkChecker extends CompactionAuditCountVerifier {
 
-  public static final String TIME_FORMAT = "liCompactionWatermarkChecker.timeFormat";
+  public static final String TIME_FORMAT = "compactionWatermarkChecker.timeFormat";
   public static final String COMPACTION_WATERMARK = "compactionWatermark";
   public static final String COMPLETION_COMPACTION_WATERMARK = "completionAndCompactionWatermark";
 

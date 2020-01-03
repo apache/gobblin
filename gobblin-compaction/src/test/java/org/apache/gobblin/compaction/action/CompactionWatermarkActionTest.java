@@ -46,8 +46,8 @@ public class CompactionWatermarkActionTest {
   @Test
   public void testUpdateWatermark()
       throws Exception {
-    doTestUpdateWatermark("tracking","PageViewEvent", "PageViewEvent");
-    doTestUpdateWatermark("OMS","ORDERS2", "OMS/ORDERS2");
+    doTestUpdateWatermark("tracking","event1", "event1");
+    doTestUpdateWatermark("db1","table1", "db1/table1");
   }
 
   private void doTestUpdateWatermark(String db, String table, String dataset)
