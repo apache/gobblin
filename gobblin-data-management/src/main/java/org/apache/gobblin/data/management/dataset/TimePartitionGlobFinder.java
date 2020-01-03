@@ -174,7 +174,14 @@ public class TimePartitionGlobFinder implements DatasetsFinder<FileSystemDataset
       // All 12 months
       return new StringBuilder("*");
     }
-    StringBuilder monthOptions = new StringBuilder("{" + startMonth);
+
+    // Append start month
+    StringBuilder monthOptions = new StringBuilder("{");
+    if (startMonth < 10) {
+      monthOptions.append("0");
+    }
+    monthOptions.append(startMonth);
+
     if (endMonth >= startMonth) {
       appendOptions(monthOptions, startMonth + 1, endMonth);
     } else {

@@ -75,7 +75,7 @@ public class MRCompactionTask extends MRTask {
     List<CompactionVerifier> verifiers = this.suite.getMapReduceVerifiers();
     for (CompactionVerifier verifier : verifiers) {
       if (!verifier.verify(dataset).isSuccessful()) {
-        log.error("Verification {} for {} is not passed.", verifier.getName(), dataset.datasetURN());
+        log.error("Verification {} for {} is not passed.", verifier.getName(), dataset.getUrn());
         this.onMRTaskComplete (false, new IOException("Compaction verification for MR is failed"));
         return;
       }
@@ -83,7 +83,8 @@ public class MRCompactionTask extends MRTask {
 
     if (dataset instanceof FileSystemDataset
         && ((FileSystemDataset)dataset).isVirtual()) {
-      log.info("A trivial compaction job as there is no physical data. Will trigger a success complete directly");
+      log.info("A trivial compaction job as there is no physical data for {}."
+          + "Will trigger a success complete directly", dataset.getUrn());
       this.onMRTaskComplete(true, null);
       return;
     }

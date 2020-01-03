@@ -186,6 +186,13 @@ public class TimePartitionedGlobFinderTest {
         "{2018,2019}/{11,12,01}/*/*");
     Assert.assertEquals(TimePartitionGlobFinder.derivePartitionPattern(start, end, "yyyy-MM-dd-HH"),
         "{2018,2019}-{11,12,01}*");
+
+    // 2019/1/1 - 2019/1/3
+    start = start.withYear(2019).withMonth(1).withDayOfMonth(1);
+    Assert.assertEquals(TimePartitionGlobFinder.derivePartitionPattern(start, end, slashTimeFormat),
+        "{2019}/{01}/*");
+    Assert.assertEquals(TimePartitionGlobFinder.derivePartitionPattern(start, end, dashTimeFormat),
+        "{2019}-{01}*");
   }
 
   @Test
