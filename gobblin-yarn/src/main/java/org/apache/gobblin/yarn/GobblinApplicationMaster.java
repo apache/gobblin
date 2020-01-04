@@ -88,6 +88,8 @@ public class GobblinApplicationMaster extends GobblinClusterManager {
         Optional.<Path>absent());
 
     String containerLogDir = config.getString(GobblinYarnConfigurationKeys.LOGS_SINK_ROOT_DIR_KEY);
+    LOGGER.info("[Streaming-Debug] containerLogDir" + containerLogDir);
+
     GobblinYarnLogSource gobblinYarnLogSource = new GobblinYarnLogSource();
     if (gobblinYarnLogSource.isLogSourcePresent()) {
       Path appWorkDir = PathUtils.combinePaths(containerLogDir, GobblinClusterUtils.getAppWorkDirPath(this.clusterName, this.applicationId), "AppMaster");
@@ -213,6 +215,7 @@ public class GobblinApplicationMaster extends GobblinClusterManager {
   }
 
   public static void main(String[] args) throws Exception {
+    LOGGER.info("[Streaming-debug] Starting application master main method");
     Options options = buildOptions();
     try {
       CommandLine cmd = new DefaultParser().parse(options, args);

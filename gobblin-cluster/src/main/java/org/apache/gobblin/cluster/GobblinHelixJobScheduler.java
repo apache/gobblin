@@ -425,6 +425,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
       } catch (JobException je) {
         LOGGER.error("Failed to run job " + this.jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), je);
       }
+      // TODO: Inspect why the program stuck after catching the exception and log the error.
     }
   }
 }

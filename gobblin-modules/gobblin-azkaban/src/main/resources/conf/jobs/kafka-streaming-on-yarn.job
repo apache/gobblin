@@ -12,10 +12,11 @@ gobblin.yarn.email.notification.on.shutdown=false
 
 # [DIFF]
 gobblin.yarn.initial.containers=1
-gobblin.yarn.autoScaling.minContainers=11
+# [DIFF] Set the minimum number of containers to 1 for ease of observing.
+gobblin.yarn.autoScaling.minContainers=1
 
 # [DIFF]
-# gobblin.yarn.app.master.jvm.args=-agentlib:jdwp=transport=dt_socket,server=n,address=lesun-mn2.linkedin.biz:5005,suspend=y
+gobblin.yarn.app.master.jvm.args=-agentlib:jdwp=transport=dt_socket,server=n,address=lesun-mn2.linkedin.biz:5005,suspend=y
 
 gobblin.yarn.container.memory.mbs=1024
 gobblin.yarn.container.jvmMemoryOverheadMbs=600

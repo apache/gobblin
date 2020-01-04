@@ -143,6 +143,7 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
 
   public GobblinClusterManager(String clusterName, String applicationId, Config config,
       Optional<Path> appWorkDirOptional) throws Exception {
+    LOGGER.info("[Streaming-Debug] GobblinClusterManager started");
     this.clusterName = clusterName;
     this.config = config;
     this.isStandaloneMode = ConfigUtils.getBoolean(config, GobblinClusterConfigurationKeys.STANDALONE_CLUSTER_MODE_KEY,
@@ -171,7 +172,7 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
     }
     this.applicationLauncher = new ServiceBasedAppLauncher(properties, this.clusterName);
 
-    // create a job catalog for keeping track of received jobs if a job config path is specified
+    // create a job catalog for keeping track of received jobs if a job config p:qath is specified
     if (this.config.hasPath(GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_PREFIX
         + ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY)) {
       String jobCatalogClassName = ConfigUtils.getString(config, GobblinClusterConfigurationKeys.JOB_CATALOG_KEY,

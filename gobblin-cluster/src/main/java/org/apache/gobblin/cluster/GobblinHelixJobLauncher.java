@@ -164,7 +164,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     Config stateStoreJobConfig = ConfigUtils.propertiesToConfig(jobProps)
         .withValue(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigValueFactory.fromAnyRef(
             new URI(appWorkDir.toUri().getScheme(), null, appWorkDir.toUri().getHost(),
-                appWorkDir.toUri().getPort(), null, null, null).toString()));
+                appWorkDir.toUri().getPort(), "/", null, null).toString()));
 
     this.stateStores = new StateStores(stateStoreJobConfig, appWorkDir,
         GobblinClusterConfigurationKeys.OUTPUT_TASK_STATE_DIR_NAME, appWorkDir,
