@@ -35,6 +35,7 @@ import java.util.concurrent.TimeoutException;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.hadoop.conf.Configuration;
@@ -196,8 +197,10 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
     this.services.addAll(getServices());
 
     if (this.services.isEmpty()) {
+      logger.debug("There are no services defined, setting serviceManager to null");
       this.serviceManager = null;
     } else {
+      logger.debug("adding services: {}.", this.services);
       this.serviceManager = new ServiceManager(services);
     }
 
@@ -592,16 +595,15 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
     return "1";
   }
 
-  private static String getTaskRunnerId() {
-    return UUID.randomUUID().toString();
-  }
-
   public static Options buildOptions() {
     Options options = new Options();
     options.addOption("a", GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME, true,
         "Application name");
     options.addOption("i", GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_OPTION_NAME, true,
         "Helix instance name");
+    Option workerIdOption = Option.builder("w").longOpt(GobblinClusterConfigurationKeys.TASK_RUNNER_WORKERID)
+            .hasArg().desc("Id of the task runner(worker) process").required().build();
+    options.addOption(workerIdOption);
     return options;
   }
 
@@ -615,8 +617,9 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
     Options options = buildOptions();
     try {
       CommandLine cmd = new DefaultParser().parse(options, args);
-      if (!cmd.hasOption(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME) || !cmd
-          .hasOption(GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_OPTION_NAME)) {
+      if (!cmd.hasOption(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME) ||
+              !cmd.hasOption(GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_OPTION_NAME)) {
+        logger.info(String.format("Missing required parameters: %s, %s", GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME,  GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_OPTION_NAME) );
         printUsage(options);
         System.exit(1);
       }
@@ -628,9 +631,16 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
       String helixInstanceName =
           cmd.getOptionValue(GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_OPTION_NAME);
 
+      String workerId = null;
+      if (cmd.hasOption(GobblinClusterConfigurationKeys.TASK_RUNNER_WORKERID)){
+        workerId = cmd.getOptionValue(GobblinClusterConfigurationKeys.TASK_RUNNER_WORKERID);
+      }else{
+        workerId = UUID.randomUUID().toString();
+      }
+
       GobblinTaskRunner gobblinWorkUnitRunner =
           new GobblinTaskRunner(applicationName, helixInstanceName, getApplicationId(),
-              getTaskRunnerId(), ConfigFactory.load(), Optional.<Path>absent());
+              workerId, ConfigFactory.load(), Optional.<Path>absent());
       gobblinWorkUnitRunner.start();
     } catch (ParseException pe) {
       printUsage(options);
