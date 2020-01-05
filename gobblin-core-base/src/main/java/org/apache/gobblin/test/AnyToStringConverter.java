@@ -26,10 +26,10 @@ import org.apache.gobblin.converter.SingleRecordIterable;
 /**
  * Converts any Object into a String
  */
-public class AnyToStringConverter extends Converter<String, String, Object, String> {
+public class AnyToStringConverter extends Converter<Object, String, Object, String> {
 
   @Override
-  public String convertSchema(String inputSchema, WorkUnitState workUnit)
+  public String convertSchema(Object inputSchema, WorkUnitState workUnit)
       throws SchemaConversionException {
     return "";
   }

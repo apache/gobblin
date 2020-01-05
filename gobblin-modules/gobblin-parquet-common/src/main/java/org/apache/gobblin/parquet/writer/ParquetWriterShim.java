@@ -14,24 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.gobblin.parquet.writer;
 
-repositories {
-  mavenCentral()
-}
+import java.io.Closeable;
+import java.io.IOException;
 
-subprojects {
-  repositories {
-    mavenCentral()
-    maven {
-      url "https://repository.cloudera.com/artifactory/cloudera-repos/"
-    }
-    maven {
-      url "http://conjars.org/repo"
-    }
-    maven {
-      url "https://maven.twttr.com/"
-    }
-  }
 
-  project.buildDir = new File(project.rootProject.buildDir, project.name)
+/**
+ * An interface to shield gobblin-parquet-common integration from different parquet version specific interfaces
+ * @param <D>
+ */
+public interface ParquetWriterShim<D> extends Closeable {
+  void write(D record)
+      throws IOException;
 }

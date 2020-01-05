@@ -23,6 +23,8 @@ dependencies {
 
   compile externalDependency.gson
   compile externalDependency.twitterParquet
+  compile externalDependency.twitterParquetAvro
+  compile externalDependency.twitterParquetProto
 
   testCompile externalDependency.testng
   testCompile externalDependency.mockito

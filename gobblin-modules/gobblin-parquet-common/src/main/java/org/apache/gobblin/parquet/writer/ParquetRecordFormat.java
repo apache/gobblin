@@ -14,24 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.gobblin.parquet.writer;
 
-repositories {
-  mavenCentral()
-}
+/**
+ * Enum to hold the supported values for formats supported by the Parquet writer
+ * @see {@link ParquetWriterConfiguration} for configuration keys to set them
+ */
+public enum ParquetRecordFormat {
+    GROUP,
+    AVRO,
+    PROTOBUF;
 
-subprojects {
-  repositories {
-    mavenCentral()
-    maven {
-      url "https://repository.cloudera.com/artifactory/cloudera-repos/"
-    }
-    maven {
-      url "http://conjars.org/repo"
-    }
-    maven {
-      url "https://maven.twttr.com/"
-    }
-  }
-
-  project.buildDir = new File(project.rootProject.buildDir, project.name)
 }

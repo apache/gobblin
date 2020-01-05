@@ -18,11 +18,13 @@
 apply plugin: 'java'
 apply plugin: 'me.champeau.gradle.jmh'
 
+
 dependencies {
   compile project(":gobblin-api")
   compile project(":gobblin-utility")
   compile project(":gobblin-metrics-libs:gobblin-metrics")
   compile project(":gobblin-modules:gobblin-codecs")
+  compile project(":gobblin-test-utils")
 
   compile externalDependency.reactivex
   compile externalDependency.avroMapredH2
@@ -34,7 +36,6 @@ dependencies {
   compile externalDependency.typesafeConfig
   compile externalDependency.findBugsAnnotations
 
-  testCompile project(":gobblin-test-utils")
   testCompile externalDependency.testng
   testCompile externalDependency.mockito
 
@@ -50,6 +51,5 @@ jmh {
     zip64 = true
     duplicateClassesStrategy = "EXCLUDE"
 }
-
 
 ext.classification="library"
