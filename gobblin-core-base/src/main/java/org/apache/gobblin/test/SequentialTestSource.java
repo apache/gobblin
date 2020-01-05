@@ -47,6 +47,10 @@ import org.apache.gobblin.source.workunit.ExtractFactory;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.test.proto.TestRecordProtos;
+import org.apache.gobblin.test.generator.DataGenerator;
+import org.apache.gobblin.test.generator.Field;
+import org.apache.gobblin.test.type.Type;
+>>>>>>> datagen : first commit
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.writer.WatermarkStorage;
 
@@ -71,6 +75,8 @@ public class SequentialTestSource implements Source<Object, Object> {
   private static final Long DEFAULT_SLEEP_TIME_PER_RECORD_MILLIS = 10L;
   public static final String MEMORY_FORMAT_KEY = "inMemoryFormat";
   public static final String DEFAULT_IN_MEMORY_FORMAT = InMemoryFormat.POJO.toString();
+  //private static final String FORMAT_KEY = "source.inMemFormat";
+  //private static final Formats.InMemoryFormat DEFAULT_FORMAT = Formats.InMemoryFormat.POJO;
 
 
   private final AtomicBoolean configured = new AtomicBoolean(false);
@@ -83,6 +89,7 @@ public class SequentialTestSource implements Source<Object, Object> {
   private final Extract.TableType tableType = Extract.TableType.APPEND_ONLY;
   private final ExtractFactory _extractFactory = new ExtractFactory("yyyyMMddHHmmss");
   private boolean streaming = false;
+  private Formats.InMemoryFormat format;
 
   private void configureIfNeeded(Config config)
   {
@@ -103,6 +110,9 @@ public class SequentialTestSource implements Source<Object, Object> {
           + "table: {}, numRecordsPerExtract: {}, sleepTimePerRecord: {}, streaming: {}, inMemFormat: {}",
           this.num_parallelism, this.namespace,
           this.table, this.numRecordsPerExtract, this.sleepTimePerRecord, this.streaming, this.inMemFormat);
+      //format = Formats.InMemoryFormat.valueOf(
+          ConfigUtils.getString(config, FORMAT_KEY, DEFAULT_FORMAT.name()).toUpperCase());
+
       configured.set(true);
     }
   }
@@ -115,7 +125,6 @@ public class SequentialTestSource implements Source<Object, Object> {
     if (!previousWorkUnitStates.isEmpty())
     {
       List<WorkUnit> newWorkUnits = Lists.newArrayListWithCapacity(previousWorkUnitStates.size());
-      int i = 0;
       for (WorkUnitState workUnitState: previousWorkUnitStates)
       {
         WorkUnit workUnit;
@@ -140,6 +149,8 @@ public class SequentialTestSource implements Source<Object, Object> {
           workUnit.setProp(WORK_UNIT_INDEX, workUnitState.getWorkunit().getProp(WORK_UNIT_INDEX));
           workUnit.setProp(MEMORY_FORMAT_KEY, this.inMemFormat.toString());
         }
+        copyProperty(WORK_UNIT_INDEX, workUnitState.getWorkunit(), workUnit);
+        //copyProperty(ConfigurationKeys.SOURCE_SCHEMA, workUnitState.getWorkunit(), workUnit);
         newWorkUnits.add(workUnit);
       }
       return newWorkUnits;
@@ -149,8 +160,14 @@ public class SequentialTestSource implements Source<Object, Object> {
     }
   }
 
+  private void copyProperty(String propertyKey, WorkUnit sourceWorkunit, WorkUnit destinationWorkUnit) {
+    destinationWorkUnit.setProp(propertyKey, sourceWorkunit.getProp(propertyKey));
+  }
+
   private List<WorkUnit> initialWorkUnits() {
     List<WorkUnit> workUnits = Lists.newArrayList();
+    List<Field> schemaFields = FormatUtils.generateRandomFields();
+    // serialize the fields into a schema string
     for (int i=0; i < num_parallelism; i++)
     {
       WorkUnit workUnit = WorkUnit.create(newExtract(Extract.TableType.APPEND_ONLY, namespace,
@@ -179,12 +196,14 @@ public class SequentialTestSource implements Source<Object, Object> {
     private final InMemoryFormat inMemoryFormat;
     private final Object schema;
     WorkUnitState workUnitState;
+    private final DataGenerator dataGenerator;
 
 
     public TestBatchExtractor(int partition,
         LongWatermark lowWatermark,
         long numRecordsPerExtract,
         long sleepTimePerRecord,
+        Formats.InMemoryFormat inMemoryFormat,
         WorkUnitState wuState) {
       this.partition = partition;
       this.currentWatermark = lowWatermark;
@@ -193,11 +212,35 @@ public class SequentialTestSource implements Source<Object, Object> {
       this.workUnitState = wuState;
       this.inMemoryFormat = InMemoryFormat.valueOf(this.workUnitState.getProp(MEMORY_FORMAT_KEY));
       this.schema = getSchema(inMemoryFormat);
+      this.dataGenerator = DataGenerator.builder()
+          .inMemoryFormat(inMemoryFormat)
+          .totalRecords(numRecordsPerExtract)
+          .keepLocalCopy(false)
+          .withField(Field.builder()
+              .name("partition")
+              .type(Type.Integer)
+              .optionality(Optionality.REQUIRED)
+              .valueGenerator(IntValueGenerator.builder()
+                  .generatorAlgo(GeneratorAlgo.CONSTANT)
+                  .initValue(this.partition)
+                  .build())
+              .build())
+          .withField(Field.builder()
+              .name("sequence")
+              .type(Type.Integer)
+              .optionality(Optionality.REQUIRED)
+              .valueGenerator(IntValueGenerator.builder()
+                  .generatorAlgo(GeneratorAlgo.SEQUENTIAL)
+                  .initValue(0)
+                  .build())
+            .build())
+          .build();
     }
 
       @Override
       public Object getSchema()
           throws IOException {
+        //return this.dataGenerator.getSchema();
         return this.schema;
       }
 
@@ -218,7 +261,7 @@ public class SequentialTestSource implements Source<Object, Object> {
       }
 
       @Override
-      public RecordEnvelope readRecordEnvelope()
+      public RecordEnvelope<Object> readRecordEnvelope()
           throws DataRecordException, IOException {
         if (recordsExtracted < numRecordsPerExtract) {
           try {
@@ -257,6 +300,17 @@ public class SequentialTestSource implements Source<Object, Object> {
           currentWatermark.increment();
           recordsExtracted++;
           return re;
+          /** TODO: Merge
+          Object record = dataGenerator.next();
+          //TestRecord record = new TestRecord(this.partition, (int) this.currentWatermark.getValue(), null);
+          log.debug("Extracted record -> {}", record);
+          RecordEnvelope recordEnvelope = new RecordEnvelope<>(record,
+              new DefaultCheckpointableWatermark(""+this.partition,
+              new LongWatermark(currentWatermark.getValue())));
+          currentWatermark.increment();
+          recordsExtracted++;
+          return recordEnvelope;
+          **/
         } else {
           return null;
         }
@@ -359,8 +413,9 @@ public class SequentialTestSource implements Source<Object, Object> {
     final LongWatermark lowWatermark = state.getWorkunit().getLowWatermark(LongWatermark.class);
     final WorkUnitState workUnitState = state;
     final int index = state.getPropAsInt(WORK_UNIT_INDEX);
+    log.info("Work Unit index = " + index);
     final TestBatchExtractor extractor = new TestBatchExtractor(index, lowWatermark, numRecordsPerExtract,
-        sleepTimePerRecord, workUnitState);
+        sleepTimePerRecord, format, workUnitState);
     if (!streaming) {
       return extractor;
     } else {

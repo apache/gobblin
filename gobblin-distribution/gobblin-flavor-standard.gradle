@@ -16,10 +16,13 @@
  */
 
 dependencies {
+  compile project(':gobblin-test-utils')
+  compile project(':gobblin-core')
   compile project(':gobblin-example')
   compile project(':gobblin-modules:gobblin-azkaban')
   compile project(':gobblin-modules:gobblin-crypto-provider')
   compile project(':gobblin-modules:gobblin-kafka-08')
   compile project(':gobblin-modules:google-ingestion')
   compile project(':gobblin-modules:gobblin-elasticsearch') 
+  compile project(':gobblin-modules:gobblin-parquet') 
 }
