@@ -45,6 +45,8 @@ public class ConstantSchemaStructGeneratorTest {
     structConfig.setValueGen("constant");
     structConfig.setFields(fieldConfigList);
 
+    config.setFieldConfig(structConfig);
+
     ConstantSchemaStructGenerator generator = new ConstantSchemaStructGenerator(config);
     GenericRecord record = generator.get();
     System.out.println(record);

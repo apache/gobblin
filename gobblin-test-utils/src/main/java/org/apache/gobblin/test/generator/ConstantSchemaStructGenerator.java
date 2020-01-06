@@ -14,6 +14,7 @@ import org.apache.avro.generic.GenericEnumSymbol;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.util.Utf8;
 
+import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
@@ -110,6 +111,8 @@ public class ConstantSchemaStructGenerator implements StructValueGenerator<Gener
   }
 
   public ConstantSchemaStructGenerator(ConstantSchemaGeneratorConfig config) {
+    Preconditions.checkArgument(config != null);
+    Preconditions.checkArgument(config.getFieldConfig() != null);
     this.logicalFields = resolveFields(config.getFieldConfig().getFields());
 
     // Set up Avro Schema
