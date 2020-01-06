@@ -113,7 +113,7 @@ ext.externalDependency = [
     "influxdbJava": "org.influxdb:influxdb-java:2.1",
     "kryo": "com.esotericsoftware.kryo:kryo:2.22",
     "libthrift":"org.apache.thrift:libthrift:0.9.3",
-    "lombok":"org.projectlombok:lombok:1.16.6",
+    "lombok":"org.projectlombok:lombok:1.18.10",
     "mockRunnerJdbc":"com.mockrunner:mockrunner-jdbc:1.0.8",
     "xerces":"xerces:xercesImpl:2.11.0",
     "typesafeConfig": "com.typesafe:config:1.4.0",
