@@ -161,12 +161,15 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
         GobblinClusterConfigurationKeys.HELIX_JOB_STOP_TIMEOUT_SECONDS,
         GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_STOP_TIMEOUT_SECONDS);
 
-    Config stateStoreJobConfig = ConfigUtils.propertiesToConfig(jobProps)
-        .withValue(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigValueFactory.fromAnyRef(
-            new URI(appWorkDir.toUri().getScheme(), null, appWorkDir.toUri().getHost(),
-                appWorkDir.toUri().getPort(), "/", null, null).toString()));
+//    Config stateStoreJobConfig = ConfigUtils.propertiesToConfig(jobProps)
+//        .withValue(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigValueFactory.fromAnyRef(
+//            new URI(appWorkDir.toUri().getScheme(), null, appWorkDir.toUri().getHost(),
+//                appWorkDir.toUri().getPort(), "/", null, null).toString()));
+//
+      Config stateStoreJobConfig_2 = ConfigUtils.propertiesToConfig(jobProps)
+      .withValue(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigValueFactory.fromAnyRef("file:///"));
 
-    this.stateStores = new StateStores(stateStoreJobConfig, appWorkDir,
+    this.stateStores = new StateStores(stateStoreJobConfig_2, appWorkDir,
         GobblinClusterConfigurationKeys.OUTPUT_TASK_STATE_DIR_NAME, appWorkDir,
         GobblinClusterConfigurationKeys.INPUT_WORK_UNIT_DIR_NAME, appWorkDir,
         GobblinClusterConfigurationKeys.JOB_STATE_DIR_NAME);

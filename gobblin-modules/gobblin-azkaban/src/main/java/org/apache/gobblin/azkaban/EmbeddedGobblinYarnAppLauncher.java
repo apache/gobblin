@@ -78,11 +78,15 @@ public class EmbeddedGobblinYarnAppLauncher extends AzkabanJobRunner {
     log.info("Testing ZK Server listening on: " + testingZKServer.getConnectString());
 
     // the zk port is dynamically configured
-    try (PrintWriter pw = new PrintWriter(DYNAMIC_CONF_PATH)) {
+    try (PrintWriter pw = new PrintWriter(DYNAMIC_CONF_PATH, "UTF-8")) {
       File dir = new File("target/dummydir");
 
       // dummy directory specified in configuration
-      dir.mkdir();
+      // TODO: Somehow if throwing RuntimeException here, the program is not able to be recovered.
+      if (!dir.mkdir()) {
+        log.error("The dummy folder's creation is not successful");
+      }
+      dir.deleteOnExit();
 
       pw.println("gobblin.cluster.zk.connection.string=\"" + testingZKServer.getConnectString() + "\"");
       pw.println("jobconf.fullyQualifiedPath=\"" + dir.getAbsolutePath() + "\"");
