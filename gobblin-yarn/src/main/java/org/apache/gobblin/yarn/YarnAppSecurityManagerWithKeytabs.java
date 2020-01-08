@@ -25,17 +25,16 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.hadoop.security.token.Token;
-import org.apache.hadoop.security.token.TokenIdentifier;
-
 import org.apache.helix.HelixManager;
 import org.apache.helix.InstanceType;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Strings;
-
 import com.typesafe.config.Config;
+
+import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
@@ -69,11 +68,14 @@ public class YarnAppSecurityManagerWithKeytabs extends AbstractYarnAppSecurityMa
   // sent to the controller and the participants as they may not be up running yet. The first login
   // happens after this class starts up so the token gets regularly refreshed before the next login.
   private volatile boolean firstLogin = true;
+  private final boolean isHelixClusterManaged;
 
   public YarnAppSecurityManagerWithKeytabs(Config config, HelixManager helixManager, FileSystem fs, Path tokenFilePath)
       throws IOException {
     super(config, helixManager, fs, tokenFilePath);
     this.loginUser = UserGroupInformation.getLoginUser();
+    this.isHelixClusterManaged = ConfigUtils.getBoolean(config, GobblinClusterConfigurationKeys.IS_HELIX_CLUSTER_MANAGED,
+        GobblinClusterConfigurationKeys.DEFAULT_IS_HELIX_CLUSTER_MANAGED);
   }
 
   /**
@@ -130,7 +132,12 @@ public class YarnAppSecurityManagerWithKeytabs extends AbstractYarnAppSecurityMa
 
     if (!this.firstLogin) {
       // Send a message to the controller and all the participants
-      sendTokenFileUpdatedMessage(InstanceType.CONTROLLER);
+      if (this.isHelixClusterManaged) {
+        sendTokenFileUpdatedMessage(InstanceType.CONTROLLER);
+      } else {
+        //In managed mode, Gobblin ApplicationMaster joins cluster as ADMINISTRATOR.
+        sendTokenFileUpdatedMessage(InstanceType.ADMINISTRATOR);
+      }
       sendTokenFileUpdatedMessage(InstanceType.PARTICIPANT);
     }
   }

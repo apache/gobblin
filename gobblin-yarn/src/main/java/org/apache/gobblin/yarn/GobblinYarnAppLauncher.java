@@ -207,6 +207,7 @@ public class GobblinYarnAppLauncher {
   private volatile boolean stopped = false;
 
   private final boolean emailNotificationOnShutdown;
+  private final boolean isHelixClusterManaged;
 
   private final int appMasterMemoryMbs;
   private final int jvmMemoryOverheadMbs;
@@ -275,6 +276,10 @@ public class GobblinYarnAppLauncher {
         GobblinYarnConfigurationKeys.DEFAULT_APP_VIEW_ACL);
     this.containerTimezone = ConfigUtils.getString(this.config, GobblinYarnConfigurationKeys.GOBBLIN_YARN_CONTAINER_TIMEZONE,
         GobblinYarnConfigurationKeys.DEFAULT_GOBBLIN_YARN_CONTAINER_TIMEZONE);
+
+    this.isHelixClusterManaged = ConfigUtils.getBoolean(this.config, GobblinClusterConfigurationKeys.IS_HELIX_CLUSTER_MANAGED,
+        GobblinClusterConfigurationKeys.DEFAULT_IS_HELIX_CLUSTER_MANAGED);
+
   }
 
   /**
@@ -286,9 +291,7 @@ public class GobblinYarnAppLauncher {
   public void launch() throws IOException, YarnException {
     this.eventBus.register(this);
 
-    boolean isHelixClusterManaged = ConfigUtils.getBoolean(this.config, GobblinClusterConfigurationKeys.IS_HELIX_CLUSTER_MANAGED,
-        GobblinClusterConfigurationKeys.DEFAULT_IS_HELIX_CLUSTER_MANAGED);
-    if (isHelixClusterManaged) {
+    if (this.isHelixClusterManaged) {
       LOGGER.info("Helix cluster is managed; skipping creation of Helix cluster");
     } else {
       String clusterName = this.config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
@@ -800,7 +803,12 @@ public class GobblinYarnAppLauncher {
     criteria.setResource("%");
     criteria.setPartition("%");
     criteria.setPartitionState("%");
-    criteria.setRecipientInstanceType(InstanceType.CONTROLLER);
+    if (this.isHelixClusterManaged) {
+      //In the managed mode, the Gobblin Yarn Application Master connects to the Helix cluster in the Administrator role.
+      criteria.setRecipientInstanceType(InstanceType.ADMINISTRATOR);
+    } else {
+      criteria.setRecipientInstanceType(InstanceType.CONTROLLER);
+    }
     criteria.setSessionSpecific(true);
 
     Message shutdownRequest = new Message(GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE,
