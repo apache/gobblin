@@ -168,9 +168,9 @@
     } ]
   }, {
     "type" : "record",
-    "name" : "FlowStatus",
+    "name" : "FlowExecution",
     "namespace" : "org.apache.gobblin.service",
-    "doc" : "Status of a flow",
+    "doc" : "Represents an execution of a flow",
     "fields" : [ {
       "name" : "id",
       "type" : "FlowStatusId",
@@ -194,8 +194,7 @@
         "items" : "JobStatus"
       },
       "doc" : "Status of jobs belonging to the flow"
-    } ],
-    "deprecated" : "Use FlowExecution instead"
+    } ]
   }, {
     "type" : "record",
     "name" : "EmptyRecord",
@@ -207,24 +206,27 @@
     }
   } ],
   "schema" : {
-    "name" : "flowstatuses",
+    "name" : "flowexecutions",
     "namespace" : "org.apache.gobblin.service",
-    "path" : "/flowstatuses",
-    "schema" : "org.apache.gobblin.service.FlowStatus",
-    "doc" : "Resource for handling flow status requests\n\ngenerated from: org.apache.gobblin.service.FlowStatusResource",
+    "path" : "/flowexecutions",
+    "schema" : "org.apache.gobblin.service.FlowExecution",
+    "doc" : "Resource for handling flow execution requests\n\ngenerated from: org.apache.gobblin.service.FlowExecutionResource",
     "collection" : {
       "identifier" : {
         "name" : "id",
         "type" : "org.apache.gobblin.service.FlowStatusId",
         "params" : "com.linkedin.restli.common.EmptyRecord"
       },
-      "supports" : [ "get" ],
+      "supports" : [ "delete", "get" ],
       "methods" : [ {
         "method" : "get",
-        "doc" : "Retrieve the FlowStatus with the given key"
+        "doc" : "Retrieve the FlowExecution with the given key"
+      }, {
+        "method" : "delete",
+        "doc" : "Kill the FlowExecution with the given key"
       } ],
       "finders" : [ {
-        "name" : "latestFlowStatus",
+        "name" : "latestFlowExecution",
         "parameters" : [ {
           "name" : "flowId",
           "type" : "org.apache.gobblin.service.FlowId"
@@ -239,7 +241,7 @@
         } ]
       } ],
       "entity" : {
-        "path" : "/flowstatuses/{id}"
+        "path" : "/flowexecutions/{id}"
       }
     }
   }

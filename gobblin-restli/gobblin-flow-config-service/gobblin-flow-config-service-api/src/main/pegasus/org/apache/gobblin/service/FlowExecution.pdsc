@@ -1,9 +1,8 @@
 {
   "type" : "record",
-  "name" : "FlowStatus",
+  "name" : "FlowExecution",
   "namespace" : "org.apache.gobblin.service",
-  "doc" : "Status of a flow",
-  "deprecated" : "Use FlowExecution instead",
+  "doc" : "Represents an execution of a flow",
   "fields" : [
     {
       "name" : "id",

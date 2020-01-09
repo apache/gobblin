@@ -118,6 +118,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
   private volatile boolean stopInProgress = false;
 
   // An EventBus used for communications between services running in the ApplicationMaster
+  @Getter
   protected final EventBus eventBus = new EventBus(GobblinServiceManager.class.getSimpleName());
 
   protected final FileSystem fs;
@@ -490,6 +491,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     if (!this.helixManager.isPresent() || this.helixManager.get().isLeader()){
       if (this.isDagManagerEnabled) {
         this.dagManager.setActive(true);
+        this.eventBus.register(this.dagManager);
       }
     }
   }

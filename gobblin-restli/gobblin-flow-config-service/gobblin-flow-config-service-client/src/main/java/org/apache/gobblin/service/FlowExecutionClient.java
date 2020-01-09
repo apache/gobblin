@@ -43,117 +43,115 @@ import com.linkedin.restli.common.EmptyRecord;
 
 
 /**
- * Flow status client for REST flow status server
- * @deprecated Use {@link FlowExecutionClient}
+ * Flow execution client for REST flow execution server
  */
-@Deprecated
-public class FlowStatusClient implements Closeable {
-  private static final Logger LOG = LoggerFactory.getLogger(FlowStatusClient.class);
+public class FlowExecutionClient implements Closeable {
+  private static final Logger LOG = LoggerFactory.getLogger(FlowExecutionClient.class);
 
   private Optional<HttpClientFactory> _httpClientFactory;
   private Optional<RestClient> _restClient;
-  private final FlowstatusesRequestBuilders _flowstatusesRequestBuilders;
+  private final FlowexecutionsRequestBuilders _flowexecutionsRequestBuilders;
 
   /**
-   * Construct a {@link FlowStatusClient} to communicate with http flow status server at URI serverUri
+   * Construct a {@link FlowExecutionClient} to communicate with http flow execution server at URI serverUri
    * @param serverUri address and port of the REST server
    */
-  public FlowStatusClient(String serverUri) {
+  public FlowExecutionClient(String serverUri) {
     LOG.debug("FlowConfigClient with serverUri " + serverUri);
 
     _httpClientFactory = Optional.of(new HttpClientFactory());
     Client r2Client = new TransportClientAdapter(_httpClientFactory.get().getClient(Collections.<String, String>emptyMap()));
     _restClient = Optional.of(new RestClient(r2Client, serverUri));
 
-    _flowstatusesRequestBuilders = createRequestBuilders();
+    _flowexecutionsRequestBuilders = createRequestBuilders();
   }
 
   /**
-   * Construct a {@link FlowStatusClient} to communicate with http flow status server at URI serverUri
+   * Construct a {@link FlowExecutionClient} to communicate with http flow execution server at URI serverUri
    * @param restClient restClient to send restli request
    */
-  public FlowStatusClient(RestClient restClient) {
+  public FlowExecutionClient(RestClient restClient) {
     LOG.debug("FlowConfigClient with restClient " + restClient);
 
     _httpClientFactory = Optional.absent();
     _restClient = Optional.of(restClient);
 
-    _flowstatusesRequestBuilders = createRequestBuilders();
+    _flowexecutionsRequestBuilders = createRequestBuilders();
   }
 
-  protected FlowstatusesRequestBuilders createRequestBuilders() {
-    return new FlowstatusesRequestBuilders();
+  protected FlowexecutionsRequestBuilders createRequestBuilders() {
+    return new FlowexecutionsRequestBuilders();
   }
 
   /**
-   * Get a flow status
-   * @param flowStatusId identifier of flow status to get
-   * @return a {@link FlowStatus} with the flow status
+   * Get a flow execution
+   * @param flowStatusId identifier of flow execution to get
+   * @return a {@link FlowExecution} with the flow execution
    * @throws RemoteInvocationException
    */
-  public FlowStatus getFlowStatus(FlowStatusId flowStatusId)
+  public FlowExecution getFlowExecution(FlowStatusId flowStatusId)
       throws RemoteInvocationException {
     LOG.debug("getFlowConfig with groupName " + flowStatusId.getFlowGroup() + " flowName " +
         flowStatusId.getFlowName());
 
-    GetRequest<FlowStatus> getRequest = _flowstatusesRequestBuilders.get()
+    GetRequest<FlowExecution> getRequest = _flowexecutionsRequestBuilders.get()
         .id(new ComplexResourceKey<>(flowStatusId, new EmptyRecord())).build();
 
-    Response<FlowStatus> response =
+    Response<FlowExecution> response =
         _restClient.get().sendRequest(getRequest).getResponse();
     return response.getEntity();
   }
 
   /**
-   * Get the latest flow status
-   * @param flowId identifier of flow status to get
-   * @return a {@link FlowStatus} with the flow status
+   * Get the latest flow execution
+   * @param flowId identifier of flow execution to get
+   * @return a {@link FlowExecution}
    * @throws RemoteInvocationException
    */
-  public FlowStatus getLatestFlowStatus(FlowId flowId)
+  public FlowExecution getLatestFlowExecution(FlowId flowId)
       throws RemoteInvocationException {
     LOG.debug("getFlowConfig with groupName " + flowId.getFlowGroup() + " flowName " +
         flowId.getFlowName());
 
-    FindRequest<FlowStatus> findRequest = _flowstatusesRequestBuilders.findByLatestFlowStatus().flowIdParam(flowId).build();
+    FindRequest<FlowExecution> findRequest = _flowexecutionsRequestBuilders.findByLatestFlowExecution().flowIdParam(flowId).build();
 
-    Response<CollectionResponse<FlowStatus>> response =
+    Response<CollectionResponse<FlowExecution>> response =
         _restClient.get().sendRequest(findRequest).getResponse();
 
-    List<FlowStatus> flowStatusList = response.getEntity().getElements();
+    List<FlowExecution> flowExecutionList = response.getEntity().getElements();
 
-    if (flowStatusList.isEmpty()) {
+    if (flowExecutionList.isEmpty()) {
       return null;
     } else {
-      Preconditions.checkArgument(flowStatusList.size() == 1);
-      return flowStatusList.get(0);
+      Preconditions.checkArgument(flowExecutionList.size() == 1);
+      return flowExecutionList.get(0);
     }
   }
 
   /**
-   * Get the latest flow status
-   * @param flowId identifier of flow status to get
-   * @return a list of {@link FlowStatus}es corresponding to the latest <code>count</code> executions, containing only
+   * Get the latest flow execution
+   * @param flowId identifier of flow execution to get
+   * @return a list of {@link FlowExecution}es corresponding to the latest <code>count</code> executions, containing only
    * jobStatuses that match the given tag.
    * @throws RemoteInvocationException
    */
-  public List<FlowStatus> getLatestFlowStatus(FlowId flowId, Integer count, String tag)
+  public List<FlowExecution> getLatestFlowExecution(FlowId flowId, Integer count, String tag)
       throws RemoteInvocationException {
     LOG.debug("getFlowConfig with groupName " + flowId.getFlowGroup() + " flowName " +
         flowId.getFlowName() + " count " + Integer.toString(count));
 
-    FindRequest<FlowStatus> findRequest = _flowstatusesRequestBuilders.findByLatestFlowStatus().flowIdParam(flowId).
+    FindRequest<FlowExecution> findRequest = _flowexecutionsRequestBuilders.findByLatestFlowExecution().flowIdParam(flowId).
         addReqParam("count", count, Integer.class).addParam("tag", tag, String.class).build();
 
-    Response<CollectionResponse<FlowStatus>> response =
+    Response<CollectionResponse<FlowExecution>> response =
         _restClient.get().sendRequest(findRequest).getResponse();
 
-    List<FlowStatus> flowStatusList = response.getEntity().getElements();
+    List<FlowExecution> flowExecutionList = response.getEntity().getElements();
 
-    if (flowStatusList.isEmpty()) {
+    if (flowExecutionList.isEmpty()) {
       return null;
     } else {
-      return flowStatusList;
+      return flowExecutionList;
     }
   }
 
