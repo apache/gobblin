@@ -34,6 +34,7 @@ import com.google.common.base.Strings;
 import com.typesafe.config.Config;
 
 import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
+import org.apache.gobblin.cluster.GobblinClusterManager;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -61,6 +62,7 @@ import org.apache.gobblin.util.ConfigUtils;
  */
 public class YarnAppSecurityManagerWithKeytabs extends AbstractYarnAppSecurityManager {
 
+  private final String helixInstanceName;
   private UserGroupInformation loginUser;
   private Optional<ScheduledFuture<?>> scheduledTokenRenewTask = Optional.absent();
 
@@ -76,6 +78,8 @@ public class YarnAppSecurityManagerWithKeytabs extends AbstractYarnAppSecurityMa
     this.loginUser = UserGroupInformation.getLoginUser();
     this.isHelixClusterManaged = ConfigUtils.getBoolean(config, GobblinClusterConfigurationKeys.IS_HELIX_CLUSTER_MANAGED,
         GobblinClusterConfigurationKeys.DEFAULT_IS_HELIX_CLUSTER_MANAGED);
+    this.helixInstanceName = ConfigUtils.getString(config, GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_KEY,
+        GobblinClusterManager.class.getSimpleName());
   }
 
   /**
@@ -87,8 +91,11 @@ public class YarnAppSecurityManagerWithKeytabs extends AbstractYarnAppSecurityMa
 
     if (!this.firstLogin) {
       // Send a message to the controller and all the participants if this is not the first login
-      sendTokenFileUpdatedMessage(InstanceType.CONTROLLER);
-      sendTokenFileUpdatedMessage(InstanceType.PARTICIPANT);
+      if (this.isHelixClusterManaged) {
+        sendTokenFileUpdatedMessage(InstanceType.PARTICIPANT, this.helixInstanceName);
+      } else {
+        sendTokenFileUpdatedMessage(InstanceType.CONTROLLER);
+      }
     }
   }
 
@@ -133,12 +140,10 @@ public class YarnAppSecurityManagerWithKeytabs extends AbstractYarnAppSecurityMa
     if (!this.firstLogin) {
       // Send a message to the controller and all the participants
       if (this.isHelixClusterManaged) {
-        sendTokenFileUpdatedMessage(InstanceType.CONTROLLER);
+        sendTokenFileUpdatedMessage(InstanceType.PARTICIPANT, this.helixInstanceName);
       } else {
-        //In managed mode, Gobblin ApplicationMaster joins cluster as ADMINISTRATOR.
-        sendTokenFileUpdatedMessage(InstanceType.ADMINISTRATOR);
+        sendTokenFileUpdatedMessage(InstanceType.CONTROLLER);
       }
-      sendTokenFileUpdatedMessage(InstanceType.PARTICIPANT);
     }
   }
 

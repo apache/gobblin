@@ -232,7 +232,7 @@ public class GobblinHelixMultiManager implements StandardMetricsBridge {
       this.managerClusterHelixManager = buildHelixManager(this.config,
           zkConnectionString,
           GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY,
-          isHelixClusterManaged ? InstanceType.ADMINISTRATOR : InstanceType.CONTROLLER);
+          isHelixClusterManaged ? InstanceType.PARTICIPANT : InstanceType.CONTROLLER);
       this.jobClusterHelixManager = this.managerClusterHelixManager;
     }
   }

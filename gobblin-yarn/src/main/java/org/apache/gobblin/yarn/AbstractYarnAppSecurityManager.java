@@ -39,6 +39,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
+import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
@@ -170,8 +171,13 @@ public abstract class AbstractYarnAppSecurityManager extends AbstractIdleService
    */
   @VisibleForTesting
   protected void sendTokenFileUpdatedMessage(InstanceType instanceType) {
+    sendTokenFileUpdatedMessage(instanceType, "");
+  }
+
+  @VisibleForTesting
+  protected void sendTokenFileUpdatedMessage(InstanceType instanceType, String instanceName) {
     Criteria criteria = new Criteria();
-    criteria.setInstanceName("%");
+    criteria.setInstanceName(Strings.isNullOrEmpty(instanceName) ? "%" : instanceName);
     criteria.setResource("%");
     criteria.setPartition("%");
     criteria.setPartitionState("%");
@@ -189,7 +195,7 @@ public abstract class AbstractYarnAppSecurityManager extends AbstractIdleService
         HelixMessageSubTypes.TOKEN_FILE_UPDATED.toString().toLowerCase() + UUID.randomUUID().toString());
     tokenFileUpdatedMessage.setMsgSubType(HelixMessageSubTypes.TOKEN_FILE_UPDATED.toString());
     tokenFileUpdatedMessage.setMsgState(Message.MessageState.NEW);
-    if ((instanceType == InstanceType.CONTROLLER) || (instanceType == InstanceType.ADMINISTRATOR)) {
+    if (instanceType == InstanceType.CONTROLLER) {
       tokenFileUpdatedMessage.setTgtSessionId("*");
     }
 
