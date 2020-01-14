@@ -329,29 +329,6 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
     assertWithBackoff.assertEquals(getInstanceMessageNum, 0, "all controller messages processed");
   }
 
-  /*static class GetInstanceMessageFunc implements Function<Void, Integer> {
-    private final CuratorFramework curatorFramework;
-    private final String testName;
-    private final String instanceName;
-
-    public GetInstanceMessageFunc(String testName, String instanceName, CuratorFramework curatorFramework) {
-      this.curatorFramework = curatorFramework;
-      this.testName = testName;
-      this.instanceName = instanceName;
-    }
-
-    @Override
-    public Integer apply(Void input) {
-      try {
-        return this.curatorFramework.getChildren().forPath().size();
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
-    }
-
-  }*/
-
-
   @AfterClass
   public void tearDown() throws IOException, TimeoutException {
     try {

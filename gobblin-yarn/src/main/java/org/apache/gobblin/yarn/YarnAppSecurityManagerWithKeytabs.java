@@ -90,12 +90,12 @@ public class YarnAppSecurityManagerWithKeytabs extends AbstractYarnAppSecurityMa
     writeDelegationTokenToFile();
 
     if (!this.firstLogin) {
-      // Send a message to the controller and all the participants if this is not the first login
-      if (this.isHelixClusterManaged) {
-        sendTokenFileUpdatedMessage(InstanceType.PARTICIPANT, this.helixInstanceName);
-      } else {
+      // Send a message to the controller (when the cluster is not managed)
+      // and all the participants if this is not the first login
+      if (!this.isHelixClusterManaged) {
         sendTokenFileUpdatedMessage(InstanceType.CONTROLLER);
       }
+      sendTokenFileUpdatedMessage(InstanceType.PARTICIPANT, this.helixInstanceName);
     }
   }
 
@@ -138,13 +138,11 @@ public class YarnAppSecurityManagerWithKeytabs extends AbstractYarnAppSecurityMa
     writeDelegationTokenToFile();
 
     if (!this.firstLogin) {
-      // Send a message to the controller and all the participants
-      if (this.isHelixClusterManaged) {
-        sendTokenFileUpdatedMessage(InstanceType.PARTICIPANT, this.helixInstanceName);
-      } else {
+      // Send a message to the controller (when the cluster is not managed) and all the participants
+      if (!this.isHelixClusterManaged) {
         sendTokenFileUpdatedMessage(InstanceType.CONTROLLER);
       }
+      sendTokenFileUpdatedMessage(InstanceType.PARTICIPANT, this.helixInstanceName);
     }
   }
-
 }
