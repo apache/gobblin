@@ -25,7 +25,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 
 import com.google.common.util.concurrent.AbstractScheduledService;
 import com.google.common.util.concurrent.AtomicDouble;
@@ -77,19 +76,19 @@ public class ContainerHealthMetricsService extends AbstractScheduledService {
   AtomicDouble processCpuLoad = new AtomicDouble(0);
   AtomicDouble systemCpuLoad = new AtomicDouble(0);
   AtomicDouble systemLoadAvg = new AtomicDouble(0);
-  AtomicLong committedVmemSize = new AtomicLong(0);
-  AtomicLong processCpuTime = new AtomicLong(0);
-  AtomicLong freeSwapSpaceSize = new AtomicLong(0);
-  AtomicLong numAvailableProcessors = new AtomicLong(0);
-  AtomicLong totalPhysicalMemSize = new AtomicLong(0);
-  AtomicLong totalSwapSpaceSize = new AtomicLong(0);
-  AtomicLong freePhysicalMemSize = new AtomicLong(0);
-  AtomicLong processHeapUsedSize = new AtomicLong(0);
+  AtomicDouble committedVmemSize = new AtomicDouble(0);
+  AtomicDouble processCpuTime = new AtomicDouble(0);
+  AtomicDouble freeSwapSpaceSize = new AtomicDouble(0);
+  AtomicDouble numAvailableProcessors = new AtomicDouble(0);
+  AtomicDouble totalPhysicalMemSize = new AtomicDouble(0);
+  AtomicDouble totalSwapSpaceSize = new AtomicDouble(0);
+  AtomicDouble freePhysicalMemSize = new AtomicDouble(0);
+  AtomicDouble processHeapUsedSize = new AtomicDouble(0);
 
   //GC stats and counters
-  AtomicLong minorGcCount = new AtomicLong(0);
-  AtomicLong majorGcCount = new AtomicLong(0);
-  AtomicLong unknownGcCount = new AtomicLong(0);
+  AtomicDouble minorGcCount = new AtomicDouble(0);
+  AtomicDouble majorGcCount = new AtomicDouble(0);
+  AtomicDouble unknownGcCount = new AtomicDouble(0);
   AtomicDouble minorGcDuration = new AtomicDouble(0);
   AtomicDouble majorGcDuration = new AtomicDouble(0);
   AtomicDouble unknownGcDuration = new AtomicDouble(0);
@@ -148,34 +147,28 @@ public class ContainerHealthMetricsService extends AbstractScheduledService {
   protected List<ContextAwareGauge<Double>> buildGaugeList() {
     List<ContextAwareGauge<Double>> gaugeList = new ArrayList<>();
 
-    gaugeList.add(getGauge(ContainerHealthMetrics.PROCESS_CPU_LOAD, this.processCpuLoad));
-    gaugeList.add(getGauge(ContainerHealthMetrics.SYSTEM_CPU_LOAD, this.systemCpuLoad));
-    gaugeList.add(getGauge(ContainerHealthMetrics.SYSTEM_LOAD_AVG, this.systemLoadAvg));
-    gaugeList.add(getGauge(ContainerHealthMetrics.COMMITTED_VMEM_SIZE, this.committedVmemSize));
-    gaugeList.add(getGauge(ContainerHealthMetrics.PROCESS_CPU_TIME, this.processCpuTime));
-    gaugeList.add(getGauge(ContainerHealthMetrics.FREE_SWAP_SPACE_SIZE, this.freeSwapSpaceSize));
-    gaugeList.add(getGauge(ContainerHealthMetrics.NUM_AVAILABLE_PROCESSORS, this.numAvailableProcessors));
-    gaugeList.add(getGauge(ContainerHealthMetrics.TOTAL_PHYSICAL_MEM_SIZE, this.totalPhysicalMemSize));
-    gaugeList.add(getGauge(ContainerHealthMetrics.TOTAL_SWAP_SPACE_SIZE, this.totalSwapSpaceSize));
-    gaugeList.add(getGauge(ContainerHealthMetrics.FREE_PHYSICAL_MEM_SIZE, this.freePhysicalMemSize));
-    gaugeList.add(getGauge(ContainerHealthMetrics.PROCESS_HEAP_USED_SIZE, this.processHeapUsedSize));
-    gaugeList.add(getGauge(ContainerHealthMetrics.MINOR_GC_COUNT, this.minorGcCount));
-    gaugeList.add(getGauge(ContainerHealthMetrics.MINOR_GC_DURATION, this.minorGcDuration));
-    gaugeList.add(getGauge(ContainerHealthMetrics.MAJOR_GC_COUNT, this.majorGcCount));
-    gaugeList.add(getGauge(ContainerHealthMetrics.MAJOR_GC_DURATION, this.majorGcDuration));
-    gaugeList.add(getGauge(ContainerHealthMetrics.UNKNOWN_GC_COUNT, this.unknownGcCount));
-    gaugeList.add(getGauge(ContainerHealthMetrics.UNKNOWN_GC_DURATION, this.unknownGcDuration));
+    gaugeList.add(createGauge(ContainerHealthMetrics.PROCESS_CPU_LOAD, this.processCpuLoad));
+    gaugeList.add(createGauge(ContainerHealthMetrics.SYSTEM_CPU_LOAD, this.systemCpuLoad));
+    gaugeList.add(createGauge(ContainerHealthMetrics.SYSTEM_LOAD_AVG, this.systemLoadAvg));
+    gaugeList.add(createGauge(ContainerHealthMetrics.COMMITTED_VMEM_SIZE, this.committedVmemSize));
+    gaugeList.add(createGauge(ContainerHealthMetrics.PROCESS_CPU_TIME, this.processCpuTime));
+    gaugeList.add(createGauge(ContainerHealthMetrics.FREE_SWAP_SPACE_SIZE, this.freeSwapSpaceSize));
+    gaugeList.add(createGauge(ContainerHealthMetrics.NUM_AVAILABLE_PROCESSORS, this.numAvailableProcessors));
+    gaugeList.add(createGauge(ContainerHealthMetrics.TOTAL_PHYSICAL_MEM_SIZE, this.totalPhysicalMemSize));
+    gaugeList.add(createGauge(ContainerHealthMetrics.TOTAL_SWAP_SPACE_SIZE, this.totalSwapSpaceSize));
+    gaugeList.add(createGauge(ContainerHealthMetrics.FREE_PHYSICAL_MEM_SIZE, this.freePhysicalMemSize));
+    gaugeList.add(createGauge(ContainerHealthMetrics.PROCESS_HEAP_USED_SIZE, this.processHeapUsedSize));
+    gaugeList.add(createGauge(ContainerHealthMetrics.MINOR_GC_COUNT, this.minorGcCount));
+    gaugeList.add(createGauge(ContainerHealthMetrics.MINOR_GC_DURATION, this.minorGcDuration));
+    gaugeList.add(createGauge(ContainerHealthMetrics.MAJOR_GC_COUNT, this.majorGcCount));
+    gaugeList.add(createGauge(ContainerHealthMetrics.MAJOR_GC_DURATION, this.majorGcDuration));
+    gaugeList.add(createGauge(ContainerHealthMetrics.UNKNOWN_GC_COUNT, this.unknownGcCount));
+    gaugeList.add(createGauge(ContainerHealthMetrics.UNKNOWN_GC_DURATION, this.unknownGcDuration));
     return gaugeList;
   }
 
-  private ContextAwareGauge<Double> getGauge(String name, Object metric) {
-    if (metric instanceof AtomicLong) {
-      return RootMetricContext.get().newContextAwareGauge(name, () -> Long.valueOf(((AtomicLong) metric).get()).doubleValue());
-    } else if (metric instanceof AtomicDouble) {
-      return RootMetricContext.get().newContextAwareGauge(name, () -> ((AtomicDouble) metric).get());
-    } else {
-      throw new RuntimeException(String.format("Unexpected metric type: %s for metric %s", metric.getClass().getName(), name));
-    }
+  private ContextAwareGauge<Double> createGauge(String name, AtomicDouble metric) {
+    return RootMetricContext.get().newContextAwareGauge(name, () -> metric.get());
   }
 
   private GcStats collectGcStats() {
