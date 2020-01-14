@@ -486,6 +486,9 @@ public class ConfigurationKeys {
   public static final String PUBLISHER_LATEST_FILE_ARRIVAL_TIMESTAMP =
       DATA_PUBLISHER_PREFIX + ".latest.file.arrival.timestamp";
 
+  public static final String DATA_PUBLISHER_METADATA_FIRST = DATA_PUBLISHER_PREFIX + ".metadataFirst";
+  public static final boolean DEFAULT_DATA_PUBLISHER_METADATA_FIRST = true;
+
   /**
    * Configuration properties used by the extractor.
    */

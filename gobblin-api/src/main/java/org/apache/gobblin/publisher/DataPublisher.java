@@ -130,7 +130,8 @@ public abstract class DataPublisher implements Closeable, CapabilityAware {
    * if they are dependent on data getting published first.
    */
   protected boolean shouldPublishMetadataFirst() {
-    return true;
+    return this.state.getPropAsBoolean(ConfigurationKeys.DATA_PUBLISHER_METADATA_FIRST,
+            ConfigurationKeys.DEFAULT_DATA_PUBLISHER_METADATA_FIRST);
   }
 
   @Override
