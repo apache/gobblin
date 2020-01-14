@@ -76,7 +76,4 @@ public class HiveAvroTypeConstants {
   public static final String DECIMAL = "decimal";
   public static final String DATE = "date";
   public static final String TIME_MILLIS = "time-millis";
-
-  public static final Map<String, String> LOGICAL_TYPE_MAPPING = ImmutableMap
-      .<String, String>builder().put(DECIMAL, "decimal").put(DATE, "date").put("TIME_MILLIS", "timestamps").build();
 }
