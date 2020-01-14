@@ -242,7 +242,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
   @Override
   public void commit()
       throws IOException {
-    this.closer.close();
+    this.close();
 
     setStagingFileGroup();
 
