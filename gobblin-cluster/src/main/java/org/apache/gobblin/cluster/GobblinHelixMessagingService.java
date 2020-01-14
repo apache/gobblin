@@ -184,8 +184,6 @@ public class GobblinHelixMessagingService extends DefaultMessagingService {
           && stringMatches(resourceName, Strings.nullToEmpty(row.getRecordId()))
           && stringMatches(partitionName, Strings.nullToEmpty(row.getMapKey()))
           && stringMatches(partitionState, Strings.nullToEmpty(row.getMapValue()));
-      //return stringMatches(instanceName, row.getMapSubKey()) && stringMatches(resourceName, row.getRecordId())
-      //    && stringMatches(partitionName, row.getMapKey()) && stringMatches(partitionState, row.getMapValue());
     }
 
     /**
