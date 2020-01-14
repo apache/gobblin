@@ -79,7 +79,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import static org.apache.gobblin.configuration.ConfigurationKeys.*;
 import static org.apache.gobblin.salesforce.SalesforceConfigurationKeys.*;
-import org.apache.gobblin.salesforce.SalesforceExtractor.JobIdAndBatchIdResultIdList;
+
 import org.apache.gobblin.salesforce.SalesforceExtractor.BatchIdAndResultId;
 
 /**
@@ -171,11 +171,11 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
    * generate workUnit for pk chunking
    */
   private List<WorkUnit> generateWorkUnitsPkChunking(SourceEntity sourceEntity, SourceState state, long previousWatermark) {
-    JobIdAndBatchIdResultIdList jobIdAndBatchIdResultIdList = executeQueryWithPkChunking(state, previousWatermark);
-    return createWorkUnits(sourceEntity, state, jobIdAndBatchIdResultIdList);
+    SalesforceExtractor.ResultFileIdsStruct resultFileIdsStruct = executeQueryWithPkChunking(state, previousWatermark);
+    return createWorkUnits(sourceEntity, state, resultFileIdsStruct);
   }
 
-  private JobIdAndBatchIdResultIdList executeQueryWithPkChunking(
+  private SalesforceExtractor.ResultFileIdsStruct executeQueryWithPkChunking(
       SourceState sourceState,
       long previousWatermark
   ) throws RuntimeException {
@@ -204,10 +204,10 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
       List<Predicate> predicateList = Arrays.asList(predicate);
       String entity = sourceState.getProp(ConfigurationKeys.SOURCE_ENTITY);
 
-      if (state.contains(PK_CHUNKING_TEST_JOB_ID)) {
-        String jobId = state.getProp(PK_CHUNKING_TEST_JOB_ID, "");
+      if (state.contains(BULK_TEST_JOB_ID)) {
+        String jobId = state.getProp(BULK_TEST_JOB_ID, "");
         log.info("---Skip query, fetching result files directly for [jobId={}]", jobId);
-        String batchIdListStr = state.getProp(PK_CHUNKING_TEST_BATCH_ID_LIST);
+        String batchIdListStr = state.getProp(BULK_TEST_BATCH_ID_LIST);
         return salesforceExtractor.getQueryResultIdsPkChunkingFetchOnly(jobId, batchIdListStr);
       } else {
         log.info("---Pk Chunking query submit.");
@@ -226,7 +226,7 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
   private List<WorkUnit> createWorkUnits(
       SourceEntity sourceEntity,
       SourceState state,
-      JobIdAndBatchIdResultIdList jobIdAndBatchIdResultIdList
+      SalesforceExtractor.ResultFileIdsStruct resultFileIdsStruct
   ) {
     String nameSpaceName = state.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY);
     Extract.TableType tableType = Extract.TableType.valueOf(state.getProp(ConfigurationKeys.EXTRACT_TABLE_TYPE_KEY).toUpperCase());
@@ -235,7 +235,7 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
 
     List<WorkUnit> workUnits = Lists.newArrayList();
     int partitionNumber = state.getPropAsInt(SOURCE_MAX_NUMBER_OF_PARTITIONS, 1);
-    List<BatchIdAndResultId> batchResultIds = jobIdAndBatchIdResultIdList.getBatchIdAndResultIdList();
+    List<BatchIdAndResultId> batchResultIds = resultFileIdsStruct.getBatchIdAndResultIdList();
     int total = batchResultIds.size();
 
     // size of every partition should be: math.ceil(total/partitionNumber), use simpler way: (total+partitionNumber-1)/partitionNumber
@@ -245,10 +245,10 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
 
     for (List<BatchIdAndResultId> resultIds : partitionedResultIds) {
       WorkUnit workunit = new WorkUnit(extract);
-      String bulkJobId = jobIdAndBatchIdResultIdList.getJobId();
+      String bulkJobId = resultFileIdsStruct.getJobId();
       workunit.setProp(PK_CHUNKING_JOB_ID, bulkJobId);
       String resultIdStr = resultIds.stream().map(x -> x.getBatchId() + ":" + x.getResultId()).collect(Collectors.joining(","));
-      workunit.setProp(PK_CHUNKING_BATCH_RESULT_IDS, resultIdStr);
+      workunit.setProp(PK_CHUNKING_BATCH_RESULT_ID_PAIRS, resultIdStr);
       workunit.setProp(ConfigurationKeys.SOURCE_ENTITY, sourceEntity.getSourceEntityName());
       workunit.setProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY, sourceEntity.getDestTableName());
       workunit.setProp(WORK_UNIT_STATE_VERSION_KEY, CURRENT_WORK_UNIT_STATE_VERSION);
@@ -771,4 +771,3 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     private int probeCount = 0;
   }
 }
-
