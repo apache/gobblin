@@ -25,17 +25,17 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.hadoop.security.token.Token;
-import org.apache.hadoop.security.token.TokenIdentifier;
-
 import org.apache.helix.HelixManager;
 import org.apache.helix.InstanceType;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Strings;
-
 import com.typesafe.config.Config;
+
+import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
+import org.apache.gobblin.cluster.GobblinClusterManager;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
@@ -62,6 +62,7 @@ import com.typesafe.config.Config;
  */
 public class YarnAppSecurityManagerWithKeytabs extends AbstractYarnAppSecurityManager {
 
+  private final String helixInstanceName;
   private UserGroupInformation loginUser;
   private Optional<ScheduledFuture<?>> scheduledTokenRenewTask = Optional.absent();
 
@@ -69,11 +70,16 @@ public class YarnAppSecurityManagerWithKeytabs extends AbstractYarnAppSecurityMa
   // sent to the controller and the participants as they may not be up running yet. The first login
   // happens after this class starts up so the token gets regularly refreshed before the next login.
   private volatile boolean firstLogin = true;
+  private final boolean isHelixClusterManaged;
 
   public YarnAppSecurityManagerWithKeytabs(Config config, HelixManager helixManager, FileSystem fs, Path tokenFilePath)
       throws IOException {
     super(config, helixManager, fs, tokenFilePath);
     this.loginUser = UserGroupInformation.getLoginUser();
+    this.isHelixClusterManaged = ConfigUtils.getBoolean(config, GobblinClusterConfigurationKeys.IS_HELIX_CLUSTER_MANAGED,
+        GobblinClusterConfigurationKeys.DEFAULT_IS_HELIX_CLUSTER_MANAGED);
+    this.helixInstanceName = ConfigUtils.getString(config, GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_KEY,
+        GobblinClusterManager.class.getSimpleName());
   }
 
   /**
@@ -84,9 +90,12 @@ public class YarnAppSecurityManagerWithKeytabs extends AbstractYarnAppSecurityMa
     writeDelegationTokenToFile();
 
     if (!this.firstLogin) {
-      // Send a message to the controller and all the participants if this is not the first login
-      sendTokenFileUpdatedMessage(InstanceType.CONTROLLER);
-      sendTokenFileUpdatedMessage(InstanceType.PARTICIPANT);
+      // Send a message to the controller (when the cluster is not managed)
+      // and all the participants if this is not the first login
+      if (!this.isHelixClusterManaged) {
+        sendTokenFileUpdatedMessage(InstanceType.CONTROLLER);
+      }
+      sendTokenFileUpdatedMessage(InstanceType.PARTICIPANT, this.helixInstanceName);
     }
   }
 
@@ -129,10 +138,11 @@ public class YarnAppSecurityManagerWithKeytabs extends AbstractYarnAppSecurityMa
     writeDelegationTokenToFile();
 
     if (!this.firstLogin) {
-      // Send a message to the controller and all the participants
-      sendTokenFileUpdatedMessage(InstanceType.CONTROLLER);
-      sendTokenFileUpdatedMessage(InstanceType.PARTICIPANT);
+      // Send a message to the controller (when the cluster is not managed) and all the participants
+      if (!this.isHelixClusterManaged) {
+        sendTokenFileUpdatedMessage(InstanceType.CONTROLLER);
+      }
+      sendTokenFileUpdatedMessage(InstanceType.PARTICIPANT, this.helixInstanceName);
     }
   }
-
 }

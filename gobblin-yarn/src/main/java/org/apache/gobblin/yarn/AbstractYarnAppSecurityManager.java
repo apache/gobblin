@@ -17,20 +17,13 @@
 
 package org.apache.gobblin.yarn;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
-import com.google.common.base.Throwables;
-import com.google.common.util.concurrent.AbstractIdleService;
-import com.typesafe.config.Config;
 import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import org.apache.gobblin.cluster.GobblinHelixMessagingService;
-import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.util.ExecutorsUtils;
+
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
@@ -43,6 +36,17 @@ import org.apache.helix.InstanceType;
 import org.apache.helix.model.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
+import com.google.common.base.Strings;
+import com.google.common.base.Throwables;
+import com.google.common.util.concurrent.AbstractIdleService;
+import com.typesafe.config.Config;
+
+import org.apache.gobblin.cluster.GobblinHelixMessagingService;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.ExecutorsUtils;
 
 /**
  * <p>
@@ -167,8 +171,13 @@ public abstract class AbstractYarnAppSecurityManager extends AbstractIdleService
    */
   @VisibleForTesting
   protected void sendTokenFileUpdatedMessage(InstanceType instanceType) {
+    sendTokenFileUpdatedMessage(instanceType, "");
+  }
+
+  @VisibleForTesting
+  protected void sendTokenFileUpdatedMessage(InstanceType instanceType, String instanceName) {
     Criteria criteria = new Criteria();
-    criteria.setInstanceName("%");
+    criteria.setInstanceName(Strings.isNullOrEmpty(instanceName) ? "%" : instanceName);
     criteria.setResource("%");
     criteria.setPartition("%");
     criteria.setPartitionState("%");

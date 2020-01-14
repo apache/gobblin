@@ -77,10 +77,12 @@ import org.apache.gobblin.testing.AssertWithBackoff;
 @Test(groups = { "gobblin.yarn" })
 public class YarnSecurityManagerTest {
   final Logger LOG = LoggerFactory.getLogger(YarnSecurityManagerTest.class);
+  private static final String HELIX_TEST_INSTANCE_PARTICIPANT = HelixUtils.getHelixInstanceName("TestInstance", 1);
 
   private CuratorFramework curatorFramework;
 
   private HelixManager helixManager;
+  private HelixManager helixManagerParticipant;
 
   private Configuration configuration;
   private FileSystem localFs;
@@ -121,6 +123,10 @@ public class YarnSecurityManagerTest {
         helixClusterName, TestHelper.TEST_HELIX_INSTANCE_NAME, InstanceType.SPECTATOR, zkConnectingString);
     this.helixManager.connect();
 
+    this.helixManagerParticipant = HelixManagerFactory.getZKHelixManager(
+        helixClusterName, HELIX_TEST_INSTANCE_PARTICIPANT, InstanceType.PARTICIPANT, zkConnectingString);
+    this.helixManagerParticipant.connect();
+
     this.configuration = new Configuration();
     this.localFs = Mockito.spy(FileSystem.getLocal(this.configuration));
 
@@ -150,20 +156,34 @@ public class YarnSecurityManagerTest {
   }
 
 
-  static class GetControllerMessageNumFunc implements Function<Void, Integer> {
+  static class GetHelixMessageNumFunc implements Function<Void, Integer> {
     private final CuratorFramework curatorFramework;
     private final String testName;
+    private final String instanceName;
+    private final InstanceType instanceType;
+    private final String path;
 
-    public GetControllerMessageNumFunc(String testName, CuratorFramework curatorFramework) {
+    public GetHelixMessageNumFunc(String testName, InstanceType instanceType, String instanceName, CuratorFramework curatorFramework) {
       this.curatorFramework = curatorFramework;
       this.testName = testName;
+      this.instanceType = instanceType;
+      this.instanceName = instanceName;
+      switch (instanceType) {
+        case CONTROLLER:
+          this.path = String.format("/%s/CONTROLLER/MESSAGES", this.testName);
+          break;
+        case PARTICIPANT:
+          this.path = String.format("/%s/INSTANCES/%s/MESSAGES", this.testName, this.instanceName);
+          break;
+        default:
+          throw new RuntimeException("Invalid instance type " + instanceType.name());
+      }
     }
 
     @Override
     public Integer apply(Void input) {
       try {
-        return this.curatorFramework.getChildren().forPath(String.format("/%s/CONTROLLER/MESSAGES",
-            this.testName)).size();
+        return this.curatorFramework.getChildren().forPath(this.path).size();
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
@@ -178,8 +198,15 @@ public class YarnSecurityManagerTest {
     Assert.assertEquals(this.curatorFramework.checkExists().forPath(
         String.format("/%s/CONTROLLER/MESSAGES", YarnSecurityManagerTest.class.getSimpleName())).getVersion(), 0);
     AssertWithBackoff.create().logger(log).timeoutMs(20000)
-      .assertEquals(new GetControllerMessageNumFunc(YarnSecurityManagerTest.class.getSimpleName(),
+      .assertEquals(new GetHelixMessageNumFunc(YarnSecurityManagerTest.class.getSimpleName(), InstanceType.CONTROLLER, "",
           this.curatorFramework), 1, "1 controller message queued");
+
+    this._yarnAppYarnAppSecurityManagerWithKeytabs.sendTokenFileUpdatedMessage(InstanceType.PARTICIPANT, HELIX_TEST_INSTANCE_PARTICIPANT);
+    Assert.assertEquals(this.curatorFramework.checkExists().forPath(
+        String.format("/%s/INSTANCES/%s/MESSAGES", YarnSecurityManagerTest.class.getSimpleName(), HELIX_TEST_INSTANCE_PARTICIPANT)).getVersion(), 0);
+    AssertWithBackoff.create().logger(log).timeoutMs(20000)
+        .assertEquals(new GetHelixMessageNumFunc(YarnSecurityManagerTest.class.getSimpleName(), InstanceType.PARTICIPANT, HELIX_TEST_INSTANCE_PARTICIPANT,
+            this.curatorFramework), 1, "1 controller message queued");
   }
 
   @Test(dependsOnMethods = "testWriteDelegationTokenToFile")
@@ -195,6 +222,9 @@ public class YarnSecurityManagerTest {
     try {
       if (this.helixManager.isConnected()) {
         this.helixManager.disconnect();
+      }
+      if (this.helixManagerParticipant.isConnected()) {
+        this.helixManagerParticipant.disconnect();
       }
       this.localFs.delete(this.baseDir, true);
     } catch (Throwable t) {

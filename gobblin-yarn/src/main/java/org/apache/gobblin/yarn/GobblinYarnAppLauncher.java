@@ -92,8 +92,10 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
+import org.apache.gobblin.cluster.GobblinClusterManager;
 import org.apache.gobblin.cluster.GobblinClusterUtils;
 import org.apache.gobblin.cluster.GobblinHelixConstants;
+import org.apache.gobblin.cluster.GobblinHelixMessagingService;
 import org.apache.gobblin.cluster.HelixUtils;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.rest.JobExecutionInfoServer;
@@ -188,6 +190,8 @@ public class GobblinYarnAppLauncher {
   private final Path sinkLogRootDir;
 
   private final Closer closer = Closer.create();
+  private final String helixInstanceName;
+  private final GobblinHelixMessagingService messagingService;
 
   // Yarn application ID
   private volatile Optional<ApplicationId> applicationId = Optional.absent();
@@ -207,6 +211,7 @@ public class GobblinYarnAppLauncher {
   private volatile boolean stopped = false;
 
   private final boolean emailNotificationOnShutdown;
+  private final boolean isHelixClusterManaged;
 
   private final int appMasterMemoryMbs;
   private final int jvmMemoryOverheadMbs;
@@ -275,6 +280,14 @@ public class GobblinYarnAppLauncher {
         GobblinYarnConfigurationKeys.DEFAULT_APP_VIEW_ACL);
     this.containerTimezone = ConfigUtils.getString(this.config, GobblinYarnConfigurationKeys.GOBBLIN_YARN_CONTAINER_TIMEZONE,
         GobblinYarnConfigurationKeys.DEFAULT_GOBBLIN_YARN_CONTAINER_TIMEZONE);
+
+    this.isHelixClusterManaged = ConfigUtils.getBoolean(this.config, GobblinClusterConfigurationKeys.IS_HELIX_CLUSTER_MANAGED,
+        GobblinClusterConfigurationKeys.DEFAULT_IS_HELIX_CLUSTER_MANAGED);
+    this.helixInstanceName = ConfigUtils.getString(config, GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_KEY,
+        GobblinClusterManager.class.getSimpleName());
+
+    this.messagingService = new GobblinHelixMessagingService(this.helixManager);
+
   }
 
   /**
@@ -286,9 +299,7 @@ public class GobblinYarnAppLauncher {
   public void launch() throws IOException, YarnException {
     this.eventBus.register(this);
 
-    boolean isHelixClusterManaged = ConfigUtils.getBoolean(this.config, GobblinClusterConfigurationKeys.IS_HELIX_CLUSTER_MANAGED,
-        GobblinClusterConfigurationKeys.DEFAULT_IS_HELIX_CLUSTER_MANAGED);
-    if (isHelixClusterManaged) {
+    if (this.isHelixClusterManaged) {
       LOGGER.info("Helix cluster is managed; skipping creation of Helix cluster");
     } else {
       String clusterName = this.config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
@@ -797,10 +808,16 @@ public class GobblinYarnAppLauncher {
   void sendShutdownRequest() {
     Criteria criteria = new Criteria();
     criteria.setInstanceName("%");
-    criteria.setResource("%");
     criteria.setPartition("%");
     criteria.setPartitionState("%");
-    criteria.setRecipientInstanceType(InstanceType.CONTROLLER);
+    criteria.setResource("%");
+    if (this.isHelixClusterManaged) {
+      //In the managed mode, the Gobblin Yarn Application Master connects to the Helix cluster in the Participant role.
+      criteria.setRecipientInstanceType(InstanceType.PARTICIPANT);
+      criteria.setInstanceName(this.helixInstanceName);
+    } else {
+      criteria.setRecipientInstanceType(InstanceType.CONTROLLER);
+    }
     criteria.setSessionSpecific(true);
 
     Message shutdownRequest = new Message(GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE,
@@ -809,7 +826,7 @@ public class GobblinYarnAppLauncher {
     shutdownRequest.setMsgState(Message.MessageState.NEW);
     shutdownRequest.setTgtSessionId("*");
 
-    int messagesSent = this.helixManager.getMessagingService().send(criteria, shutdownRequest);
+    int messagesSent = this.messagingService.send(criteria, shutdownRequest);
     if (messagesSent == 0) {
       LOGGER.error(String.format("Failed to send the %s message to the controller", shutdownRequest.getMsgSubType()));
     }

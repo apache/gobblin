@@ -173,13 +173,17 @@ public class GobblinHelixMessagingService extends DefaultMessagingService {
      * @param row row of currently persisted data
      * @return true if it matches, false otherwise
      */
+
     private boolean rowMatches(Criteria criteria, ZNRecordRow row) {
       String instanceName = normalizePattern(criteria.getInstanceName());
       String resourceName = normalizePattern(criteria.getResource());
       String partitionName = normalizePattern(criteria.getPartition());
       String partitionState = normalizePattern(criteria.getPartitionState());
-      return stringMatches(instanceName, row.getMapSubKey()) && stringMatches(resourceName, row.getRecordId())
-          && stringMatches(partitionName, row.getMapKey()) && stringMatches(partitionState, row.getMapValue());
+      return (stringMatches(instanceName, Strings.nullToEmpty(row.getMapSubKey())) ||
+          stringMatches(instanceName, Strings.nullToEmpty(row.getRecordId())))
+          && stringMatches(resourceName, Strings.nullToEmpty(row.getRecordId()))
+          && stringMatches(partitionName, Strings.nullToEmpty(row.getMapKey()))
+          && stringMatches(partitionState, Strings.nullToEmpty(row.getMapValue()));
     }
 
     /**
