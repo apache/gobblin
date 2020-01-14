@@ -45,6 +45,29 @@ public class HiveAvroORCQueryGeneratorTest {
   private static boolean isEvolutionEnabled = true;
   private static Optional<Integer> rowLimit = Optional.absent();
 
+  /**
+   * Testing DDL generation for schema containing logical types.
+   * DDL comparison doesn't include any spacing and blank.
+   * @throws Exception
+   */
+  public void testLogicalTypeResolutionWithDDL() throws Exception {
+    String schemaName = "schemaWithLogicalFieldDDL";
+    Schema schema = ConversionHiveTestUtils.readSchemaFromJsonFile(resourceDir,
+        "schemaWithLogicalField.json");
+
+    String q = HiveAvroORCQueryGenerator
+        .generateCreateTableDDL(schema, schemaName, "file:/user/hive/warehouse/" + schemaName,
+            Optional.<String>absent(), Optional.<Map<String, String>>absent(), Optional.<List<String>>absent(),
+            Optional.<Map<String, HiveAvroORCQueryGenerator.COLUMN_SORT_ORDER>>absent(), Optional.<Integer>absent(),
+            Optional.<String>absent(), Optional.<String>absent(), Optional.<String>absent(),
+            null, isEvolutionEnabled, true, destinationTableMeta,
+            new HashMap<String, String>());
+
+    Assert.assertEquals(q.trim().replaceAll("\\s+",""),
+        ConversionHiveTestUtils.readQueryFromFile(resourceDir, "schemaWithLogicalField.ddl").trim().replaceAll("\\s+",""));
+  }
+
+
   /***
    * Test DDL generation for schema structured as: Array within record within array within record
    * @throws IOException

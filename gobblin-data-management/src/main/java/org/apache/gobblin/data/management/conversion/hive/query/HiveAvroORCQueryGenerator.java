@@ -24,6 +24,8 @@ import java.util.Map;
 import java.util.Properties;
 
 import org.apache.avro.AvroRuntimeException;
+import org.apache.avro.LogicalType;
+import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -57,6 +59,7 @@ import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 import static org.apache.gobblin.data.management.conversion.hive.entities.StageableTableMetadata.SCHEMA_SOURCE_OF_TRUTH;
+import static org.apache.gobblin.util.AvroUtils.convertFieldToSchemaWithProps;
 import static org.apache.gobblin.util.AvroUtils.sanitizeSchemaString;
 
 
@@ -394,6 +397,7 @@ public class HiveAvroORCQueryGenerator {
             } else {
               columns.append(", \n");
             }
+            convertFieldToSchemaWithProps(field.getJsonProps(), field.schema());
             String type = generateAvroToHiveColumnMapping(field.schema(), hiveColumns, false, datasetName);
             if (hiveColumns.isPresent()) {
               hiveColumns.get().put(field.name(), type);
@@ -402,7 +406,8 @@ public class HiveAvroORCQueryGenerator {
             if (StringUtils.isBlank(flattenSource)) {
               flattenSource = field.name();
             }
-            columns.append(String.format("  `%s` %s COMMENT 'from flatten_source %s'", field.name(), type,flattenSource));
+            columns.append(
+                String.format("  `%s` %s COMMENT 'from flatten_source %s'", field.name(), type, flattenSource));
           }
         } else {
           columns.append(HiveAvroTypeConstants.AVRO_TO_HIVE_COLUMN_MAPPING_V_12.get(schema.getType())).append("<");
@@ -412,6 +417,7 @@ public class HiveAvroORCQueryGenerator {
             } else {
               columns.append(",");
             }
+            convertFieldToSchemaWithProps(field.getJsonProps(), field.schema());
             String type = generateAvroToHiveColumnMapping(field.schema(), hiveColumns, false, datasetName);
             columns.append("`").append(field.name()).append("`").append(":").append(type);
           }
@@ -462,7 +468,37 @@ public class HiveAvroORCQueryGenerator {
       case LONG:
       case STRING:
       case BOOLEAN:
-        columns.append(HiveAvroTypeConstants.AVRO_TO_HIVE_COLUMN_MAPPING_V_12.get(schema.getType()));
+        // Handling Avro Logical Types which should always sit in leaf-level.
+        boolean isLogicalTypeSet = false;
+        LogicalType logicalType = LogicalTypes.fromSchemaIgnoreInvalid(schema);
+        if (logicalType != null) {
+          switch (logicalType.getName()) {
+            case HiveAvroTypeConstants.DATE:
+              LogicalTypes.Date dateType = (LogicalTypes.Date) logicalType;
+              dateType.validate(schema);
+              columns.append("date");
+              isLogicalTypeSet = true;
+              break;
+            case HiveAvroTypeConstants.DECIMAL:
+              LogicalTypes.Decimal decimalType = (LogicalTypes.Decimal) logicalType;
+              decimalType.validate(schema);
+              columns.append(String.format("decimal(%s, %s)", decimalType.getPrecision(), decimalType.getScale()));
+              isLogicalTypeSet = true;
+              break;
+            case HiveAvroTypeConstants.TIME_MILLIS:
+              LogicalTypes.TimeMillis timeMillsType = (LogicalTypes.TimeMillis) logicalType;
+              timeMillsType.validate(schema);
+              columns.append("timestamp");
+              isLogicalTypeSet = true;
+              break;
+            default:
+              log.error("Unsupported logical type" + schema.getLogicalType().getName() +  ", fallback to physical type");
+          }
+        }
+
+        if (!isLogicalTypeSet) {
+          columns.append(HiveAvroTypeConstants.AVRO_TO_HIVE_COLUMN_MAPPING_V_12.get(schema.getType()));
+        }
         break;
       default:
         String exceptionMessage =
