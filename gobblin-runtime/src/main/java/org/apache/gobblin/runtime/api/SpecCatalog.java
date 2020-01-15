@@ -119,7 +119,7 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, Instrumentab
     }
 
     public void updateGetSpecTime(long startTime) {
-      log.info("updateGetSpecTime...");
+      log.debug("updateGetSpecTime...");
       Instrumented.updateTimer(Optional.of(this.timeForSpecCatalogGet), System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
     }
 
