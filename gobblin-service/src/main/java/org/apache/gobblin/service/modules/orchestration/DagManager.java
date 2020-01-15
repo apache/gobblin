@@ -63,6 +63,8 @@ import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.FlowConfigResourceLocalHandler;
+import org.apache.gobblin.service.RequesterService;
+import org.apache.gobblin.service.ServiceRequester;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.Dag.DagNode;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
@@ -701,6 +703,7 @@ public class DagManager extends AbstractIdleService {
 
         if (this.metricContext != null) {
           getRunningJobsCounter(dagNode).inc();
+          getRunningJobsCounterForUser(dagNode).forEach(counter -> counter.inc());
         }
 
         addSpecFuture.get();
@@ -738,6 +741,7 @@ public class DagManager extends AbstractIdleService {
 
       if (this.metricContext != null) {
         getRunningJobsCounter(dagNode).dec();
+        getRunningJobsCounterForUser(dagNode).forEach(counter -> counter.dec());
       }
 
       switch (jobStatus) {
@@ -788,6 +792,33 @@ public class DagManager extends AbstractIdleService {
               dagNode.getValue().getSpecExecutor().getUri().toString()));
     }
 
+    private List<ContextAwareCounter> getRunningJobsCounterForUser(DagNode<JobExecutionPlan> dagNode) {
+      Properties props = dagNode.getValue().getJobSpec().getConfigAsProperties();
+      String proxy = props.getProperty("user.to.proxy");
+      List<ContextAwareCounter> counters = new ArrayList<>();
+
+      if (proxy != null) {
+        counters.add(metricContext.contextAwareCounter(
+            MetricRegistry.name(
+                MetricReportUtils.GOBBLIN_SERVICE_METRICS_PREFIX,
+                ServiceMetricNames.SERVICE_USERS, proxy)));
+      }
+
+      try {
+        List<ServiceRequester> requesters = RequesterService.deserialize(props.getProperty("gobblin.service.requester.list"));
+        for (ServiceRequester requester : requesters) {
+          counters.add(metricContext.contextAwareCounter(
+              MetricRegistry.name(
+                  MetricReportUtils.GOBBLIN_SERVICE_METRICS_PREFIX,
+                  ServiceMetricNames.SERVICE_USERS,
+                  requester.getName())));
+        }
+      } catch (IOException e) {
+        log.error("Error while fetching requester list.", e);
+      }
+
+      return counters;
+    }
     /**
      * Perform clean up. Remove a dag from the dagstore if the dag is complete and update internal state.
      */
