@@ -84,6 +84,7 @@ import org.apache.gobblin.service.modules.flowgraph.FlowEdge;
 import org.apache.gobblin.service.modules.flowgraph.FlowEdgeFactory;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraph;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraphConfigurationKeys;
+import org.apache.gobblin.service.modules.orchestration.AzkabanProjectConfig;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.modules.template_catalog.FSFlowTemplateCatalog;
 import org.apache.gobblin.util.CompletedFuture;
@@ -648,7 +649,7 @@ public class MultiHopFlowCompilerTest {
 
     Assert.assertTrue(dag.isEmpty());
     Assert.assertEquals(spec.getCompilationErrors().size(), 1);
-    Assert.assertTrue(spec.getCompilationErrors().iterator().next().contains("user.to.proxy"));
+    Assert.assertTrue(spec.getCompilationErrors().iterator().next().contains(AzkabanProjectConfig.USER_TO_PROXY));
   }
 
   @Test (dependsOnMethods = "testUnresolvedFlow")
