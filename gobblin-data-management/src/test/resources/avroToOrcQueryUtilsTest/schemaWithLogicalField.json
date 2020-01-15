@@ -14,15 +14,19 @@
           },
           {
             "name": "nestedLogicalFieldDecimal",
-            "type": "bytes",
-            "logicalType": "decimal",
-            "precision": 4,
-            "scale": 2
+            "type": {
+              "type": "bytes",
+              "logicalType": "decimal",
+              "precision": 4,
+              "scale": 2
+            }
           },
           {
             "name": "nestedLogicalFieldDate",
-            "type": "int",
-            "logicalType": "date"
+            "type": {
+              "type": "int",
+              "logicalType": "date"
+            }
           }
         ]
       }
@@ -33,8 +37,10 @@
     },
     {
       "name": "parentFieldLogicalDate",
-      "type": "int",
-      "logicalType": "date"
+      "type": {
+        "type": "int",
+        "logicalType": "date"
+      }
     }
   ]
 }
