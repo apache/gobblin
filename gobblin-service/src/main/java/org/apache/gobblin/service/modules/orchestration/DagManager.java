@@ -36,6 +36,8 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.lang3.StringUtils;
+
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
 import com.google.common.base.Optional;
@@ -805,13 +807,13 @@ public class DagManager extends AbstractIdleService {
       }
 
       try {
-        List<ServiceRequester> requesters = RequesterService.deserialize(props.getProperty("gobblin.service.requester.list"));
-        for (ServiceRequester requester : requesters) {
-          counters.add(metricContext.contextAwareCounter(
-              MetricRegistry.name(
-                  MetricReportUtils.GOBBLIN_SERVICE_METRICS_PREFIX,
-                  ServiceMetricNames.SERVICE_USERS,
-                  requester.getName())));
+        String serializedRequesters = props.getProperty("gobblin.service.requester.list");
+        if (StringUtils.isNotEmpty(serializedRequesters)) {
+          List<ServiceRequester> requesters = RequesterService.deserialize(props.getProperty("gobblin.service.requester.list"));
+          for (ServiceRequester requester : requesters) {
+            counters.add(metricContext.contextAwareCounter(MetricRegistry
+                .name(MetricReportUtils.GOBBLIN_SERVICE_METRICS_PREFIX, ServiceMetricNames.SERVICE_USERS, requester.getName())));
+          }
         }
       } catch (IOException e) {
         log.error("Error while fetching requester list.", e);
