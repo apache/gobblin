@@ -29,6 +29,8 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
+import static org.apache.gobblin.util.AvroUtils.convertFieldToSchemaWithProps;
+
 
 /**
  * A class that removes specific fields from a (possibly recursive) Avro schema.
@@ -106,9 +108,7 @@ public class AvroSchemaFieldRemover {
   private Schema removeFieldsFromRecords(Schema schema, Map<String, Schema> schemaMap) {
 
     Schema newRecord = Schema.createRecord(schema.getName(), schema.getDoc(), schema.getNamespace(), schema.isError());
-    for (Map.Entry<String, JsonNode> stringJsonNodeEntry : schema.getJsonProps().entrySet()) {
-      newRecord.addProp(stringJsonNodeEntry.getKey(), stringJsonNodeEntry.getValue());
-    }
+    convertFieldToSchemaWithProps(schema.getJsonProps(), newRecord);
 
     // Put an incomplete schema into schemaMap to avoid re-processing a recursive field.
     // The fields in the incomplete schema will be populated once the current schema is completely processed.

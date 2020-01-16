@@ -126,6 +126,17 @@ public class AvroUtils {
         .collect(Collectors.toList());
   }
 
+  /**
+   * Generate a {@link Schema} object from {@link Schema.Field} with Field's properties carried over to the new object.
+   * Common use cases for this method is in traversing {@link Schema} object into nested level and create {@link Schema}
+   * object for non-root level.
+   */
+  public static void convertFieldToSchemaWithProps(Map<String,JsonNode> fieldProps, Schema targetSchemaObj) {
+    for (Map.Entry<String, JsonNode> stringJsonNodeEntry : fieldProps.entrySet()) {
+      targetSchemaObj.addProp(stringJsonNodeEntry.getKey(), stringJsonNodeEntry.getValue());
+    }
+  }
+
 
   public static class AvroPathFilter implements PathFilter {
     @Override

@@ -66,4 +66,14 @@ public class HiveAvroTypeConstants {
       .put("date",      ImmutableSet.<String>builder().add("string", "varchar").build())
       .put("binary",    Sets.<String>newHashSet())
       .put("boolean",    Sets.<String>newHashSet()).build();
+
+  /**
+   * Following are supported Avro logical types where they would be mapped to corresponding Hive types:
+   * Decimal -> "decimal"
+   * Date -> "date"
+   * TIME_MILLIS = "timestamp"
+   */
+  public static final String DECIMAL = "decimal";
+  public static final String DATE = "date";
+  public static final String TIME_MILLIS = "time-millis";
 }

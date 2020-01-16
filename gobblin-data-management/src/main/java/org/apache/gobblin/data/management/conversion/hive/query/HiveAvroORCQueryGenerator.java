@@ -24,6 +24,8 @@ import java.util.Map;
 import java.util.Properties;
 
 import org.apache.avro.AvroRuntimeException;
+import org.apache.avro.LogicalType;
+import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -35,6 +37,8 @@ import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.SerDeException;
+import org.apache.hadoop.hive.serde2.avro.AvroSerDe;
+import org.apache.hadoop.hive.serde2.avro.AvroSerdeException;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.ListTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.MapTypeInfo;
@@ -57,6 +61,7 @@ import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 import static org.apache.gobblin.data.management.conversion.hive.entities.StageableTableMetadata.SCHEMA_SOURCE_OF_TRUTH;
+import static org.apache.gobblin.util.AvroUtils.convertFieldToSchemaWithProps;
 import static org.apache.gobblin.util.AvroUtils.sanitizeSchemaString;
 
 
@@ -394,6 +399,7 @@ public class HiveAvroORCQueryGenerator {
             } else {
               columns.append(", \n");
             }
+            convertFieldToSchemaWithProps(field.getJsonProps(), field.schema());
             String type = generateAvroToHiveColumnMapping(field.schema(), hiveColumns, false, datasetName);
             if (hiveColumns.isPresent()) {
               hiveColumns.get().put(field.name(), type);
@@ -402,7 +408,8 @@ public class HiveAvroORCQueryGenerator {
             if (StringUtils.isBlank(flattenSource)) {
               flattenSource = field.name();
             }
-            columns.append(String.format("  `%s` %s COMMENT 'from flatten_source %s'", field.name(), type,flattenSource));
+            columns.append(
+                String.format("  `%s` %s COMMENT 'from flatten_source %s'", field.name(), type, flattenSource));
           }
         } else {
           columns.append(HiveAvroTypeConstants.AVRO_TO_HIVE_COLUMN_MAPPING_V_12.get(schema.getType())).append("<");
@@ -412,6 +419,7 @@ public class HiveAvroORCQueryGenerator {
             } else {
               columns.append(",");
             }
+            convertFieldToSchemaWithProps(field.getJsonProps(), field.schema());
             String type = generateAvroToHiveColumnMapping(field.schema(), hiveColumns, false, datasetName);
             columns.append("`").append(field.name()).append("`").append(":").append(type);
           }
@@ -462,7 +470,48 @@ public class HiveAvroORCQueryGenerator {
       case LONG:
       case STRING:
       case BOOLEAN:
-        columns.append(HiveAvroTypeConstants.AVRO_TO_HIVE_COLUMN_MAPPING_V_12.get(schema.getType()));
+        // Handling Avro Logical Types which should always sit in leaf-level.
+        boolean isLogicalTypeSet = false;
+        try {
+          String hiveSpecificLogicalType = generateHiveSpecificLogicalType(schema);
+          if (StringUtils.isNoneEmpty(hiveSpecificLogicalType)) {
+            isLogicalTypeSet = true;
+            columns.append(hiveSpecificLogicalType);
+            break;
+          }
+        } catch (AvroSerdeException ae) {
+          log.error("Failed to generate logical type string for field" + schema.getName() + " due to:", ae);
+        }
+
+        LogicalType logicalType = LogicalTypes.fromSchemaIgnoreInvalid(schema);
+        if (logicalType != null) {
+          switch (logicalType.getName().toLowerCase()) {
+            case HiveAvroTypeConstants.DATE:
+              LogicalTypes.Date dateType = (LogicalTypes.Date) logicalType;
+              dateType.validate(schema);
+              columns.append("date");
+              isLogicalTypeSet = true;
+              break;
+            case HiveAvroTypeConstants.DECIMAL:
+              LogicalTypes.Decimal decimalType = (LogicalTypes.Decimal) logicalType;
+              decimalType.validate(schema);
+              columns.append(String.format("decimal(%s, %s)", decimalType.getPrecision(), decimalType.getScale()));
+              isLogicalTypeSet = true;
+              break;
+            case HiveAvroTypeConstants.TIME_MILLIS:
+              LogicalTypes.TimeMillis timeMillsType = (LogicalTypes.TimeMillis) logicalType;
+              timeMillsType.validate(schema);
+              columns.append("timestamp");
+              isLogicalTypeSet = true;
+              break;
+            default:
+              log.error("Unsupported logical type" + schema.getLogicalType().getName() +  ", fallback to physical type");
+          }
+        }
+
+        if (!isLogicalTypeSet) {
+          columns.append(HiveAvroTypeConstants.AVRO_TO_HIVE_COLUMN_MAPPING_V_12.get(schema.getType()));
+        }
         break;
       default:
         String exceptionMessage =
@@ -472,6 +521,33 @@ public class HiveAvroORCQueryGenerator {
     }
 
     return columns.toString();
+  }
+
+  /**
+   * Referencing org.apache.hadoop.hive.serde2.avro.SchemaToTypeInfo#generateTypeInfo(org.apache.avro.Schema) on
+   * how to deal with logical types that supported by Hive but not by Avro(e.g. VARCHAR).
+   *
+   * If unsupported logical types found, return empty string as a result.
+   * @param schema Avro schema
+   * @return
+   * @throws AvroSerdeException
+   */
+  public static String generateHiveSpecificLogicalType(Schema schema) throws AvroSerdeException {
+    // For bytes type, it can be mapped to decimal.
+    Schema.Type type = schema.getType();
+
+    if (type == Schema.Type.STRING && AvroSerDe.VARCHAR_TYPE_NAME
+        .equalsIgnoreCase(schema.getProp(AvroSerDe.AVRO_PROP_LOGICAL_TYPE))) {
+      int maxLength = 0;
+      try {
+        maxLength = schema.getJsonProp(AvroSerDe.AVRO_PROP_MAX_LENGTH).getValueAsInt();
+      } catch (Exception ex) {
+        throw new AvroSerdeException("Failed to obtain maxLength value from file schema: " + schema, ex);
+      }
+      return String.format("varchar(%s)", maxLength);
+    } else {
+      return StringUtils.EMPTY;
+    }
   }
 
   /***
