@@ -45,6 +45,7 @@ import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
 
 import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
+import org.apache.gobblin.cluster.GobblinClusterManager;
 import org.apache.gobblin.cluster.GobblinHelixMessagingService;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.ExecutorsUtils;
@@ -68,14 +69,15 @@ public abstract class AbstractYarnAppSecurityManager extends AbstractIdleService
   protected final HelixManager helixManager;
   protected final FileSystem fs;
   protected final Path tokenFilePath;
-  protected final boolean isHelixClusterManaged;
 
   protected Token<? extends TokenIdentifier> token;
   private final long loginIntervalInMinutes;
   private final long tokenRenewIntervalInMinutes;
-
+  private final boolean isHelixClusterManaged;
+  private final String helixInstanceName;
   private final ScheduledExecutorService loginExecutor;
   private final ScheduledExecutorService tokenRenewExecutor;
+
   private Optional<ScheduledFuture<?>> scheduledTokenRenewTask = Optional.absent();
 
   // This flag is used to tell if this is the first login. If yes, no token updated message will be
@@ -100,6 +102,8 @@ public abstract class AbstractYarnAppSecurityManager extends AbstractIdleService
         ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("TokenRenewExecutor")));
     this.isHelixClusterManaged = ConfigUtils.getBoolean(config, GobblinClusterConfigurationKeys.IS_HELIX_CLUSTER_MANAGED,
         GobblinClusterConfigurationKeys.DEFAULT_IS_HELIX_CLUSTER_MANAGED);
+    this.helixInstanceName = ConfigUtils.getString(config, GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_KEY,
+        GobblinClusterManager.class.getSimpleName());
   }
 
   @Override
@@ -169,6 +173,15 @@ public abstract class AbstractYarnAppSecurityManager extends AbstractIdleService
       LOGGER.error("Failed to login from keytab", ioe);
       throw Throwables.propagate(ioe);
     }
+  }
+
+  protected void sendTokenFileUpdatedMessage() {
+    // Send a message to the controller (when the cluster is not managed)
+    // and all the participants if this is not the first login
+    if (!this.isHelixClusterManaged) {
+      sendTokenFileUpdatedMessage(InstanceType.CONTROLLER);
+    }
+    sendTokenFileUpdatedMessage(InstanceType.PARTICIPANT);
   }
 
   /**
