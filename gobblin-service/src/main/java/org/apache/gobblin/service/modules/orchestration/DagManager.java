@@ -799,7 +799,7 @@ public class DagManager extends AbstractIdleService {
       String proxy = ConfigUtils.getString(configs, AzkabanProjectConfig.USER_TO_PROXY, null);
       List<ContextAwareCounter> counters = new ArrayList<>();
 
-      if (proxy != null) {
+      if (StringUtils.isNotEmpty(proxy)) {
         counters.add(metricContext.contextAwareCounter(
             MetricRegistry.name(
                 MetricReportUtils.GOBBLIN_SERVICE_METRICS_PREFIX,
