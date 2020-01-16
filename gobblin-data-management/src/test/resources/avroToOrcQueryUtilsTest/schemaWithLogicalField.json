@@ -36,10 +36,11 @@
       "type": "int"
     },
     {
-      "name": "parentFieldLogicalDate",
+      "name": "parentFieldLogicalVarchar",
       "type": {
-        "type": "int",
-        "logicalType": "date"
+        "type": "string",
+        "logicalType": "varchar",
+        "maxLength": "256"
       }
     }
   ]

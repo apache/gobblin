@@ -37,6 +37,8 @@ import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.SerDeException;
+import org.apache.hadoop.hive.serde2.avro.AvroSerDe;
+import org.apache.hadoop.hive.serde2.avro.AvroSerdeException;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.ListTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.MapTypeInfo;
@@ -470,9 +472,20 @@ public class HiveAvroORCQueryGenerator {
       case BOOLEAN:
         // Handling Avro Logical Types which should always sit in leaf-level.
         boolean isLogicalTypeSet = false;
+        try {
+          String hiveSpecificLogicalType = generateHiveSpecificLogicalType(schema);
+          if (StringUtils.isNoneEmpty(hiveSpecificLogicalType)) {
+            isLogicalTypeSet = true;
+            columns.append(hiveSpecificLogicalType);
+            break;
+          }
+        } catch (AvroSerdeException ae) {
+          log.error("Failed to generate logical type string for field" + schema.getName() + " due to:", ae);
+        }
+
         LogicalType logicalType = LogicalTypes.fromSchemaIgnoreInvalid(schema);
         if (logicalType != null) {
-          switch (logicalType.getName()) {
+          switch (logicalType.getName().toLowerCase()) {
             case HiveAvroTypeConstants.DATE:
               LogicalTypes.Date dateType = (LogicalTypes.Date) logicalType;
               dateType.validate(schema);
@@ -508,6 +521,33 @@ public class HiveAvroORCQueryGenerator {
     }
 
     return columns.toString();
+  }
+
+  /**
+   * Referencing org.apache.hadoop.hive.serde2.avro.SchemaToTypeInfo#generateTypeInfo(org.apache.avro.Schema) on
+   * how to deal with logical types that supported by Hive but not by Avro(e.g. VARCHAR).
+   *
+   * If unsupported logical types found, return empty string as a result.
+   * @param schema Avro schema
+   * @return
+   * @throws AvroSerdeException
+   */
+  public static String generateHiveSpecificLogicalType(Schema schema) throws AvroSerdeException {
+    // For bytes type, it can be mapped to decimal.
+    Schema.Type type = schema.getType();
+
+    if (type == Schema.Type.STRING && AvroSerDe.VARCHAR_TYPE_NAME
+        .equalsIgnoreCase(schema.getProp(AvroSerDe.AVRO_PROP_LOGICAL_TYPE))) {
+      int maxLength = 0;
+      try {
+        maxLength = schema.getJsonProp(AvroSerDe.AVRO_PROP_MAX_LENGTH).getValueAsInt();
+      } catch (Exception ex) {
+        throw new AvroSerdeException("Failed to obtain maxLength value from file schema: " + schema, ex);
+      }
+      return String.format("varchar(%s)", maxLength);
+    } else {
+      return StringUtils.EMPTY;
+    }
   }
 
   /***
