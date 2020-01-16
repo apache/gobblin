@@ -70,14 +70,11 @@ public class YarnAppSecurityManagerWithKeytabs extends AbstractYarnAppSecurityMa
   // sent to the controller and the participants as they may not be up running yet. The first login
   // happens after this class starts up so the token gets regularly refreshed before the next login.
   private volatile boolean firstLogin = true;
-  private final boolean isHelixClusterManaged;
 
   public YarnAppSecurityManagerWithKeytabs(Config config, HelixManager helixManager, FileSystem fs, Path tokenFilePath)
       throws IOException {
     super(config, helixManager, fs, tokenFilePath);
     this.loginUser = UserGroupInformation.getLoginUser();
-    this.isHelixClusterManaged = ConfigUtils.getBoolean(config, GobblinClusterConfigurationKeys.IS_HELIX_CLUSTER_MANAGED,
-        GobblinClusterConfigurationKeys.DEFAULT_IS_HELIX_CLUSTER_MANAGED);
     this.helixInstanceName = ConfigUtils.getString(config, GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_KEY,
         GobblinClusterManager.class.getSimpleName());
   }

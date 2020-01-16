@@ -44,6 +44,7 @@ import com.google.common.base.Throwables;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
 
+import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
 import org.apache.gobblin.cluster.GobblinHelixMessagingService;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.ExecutorsUtils;
@@ -67,6 +68,8 @@ public abstract class AbstractYarnAppSecurityManager extends AbstractIdleService
   protected final HelixManager helixManager;
   protected final FileSystem fs;
   protected final Path tokenFilePath;
+  protected final boolean isHelixClusterManaged;
+
   protected Token<? extends TokenIdentifier> token;
   private final long loginIntervalInMinutes;
   private final long tokenRenewIntervalInMinutes;
@@ -95,6 +98,8 @@ public abstract class AbstractYarnAppSecurityManager extends AbstractIdleService
         ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("KeytabReLoginExecutor")));
     this.tokenRenewExecutor = Executors.newSingleThreadScheduledExecutor(
         ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("TokenRenewExecutor")));
+    this.isHelixClusterManaged = ConfigUtils.getBoolean(config, GobblinClusterConfigurationKeys.IS_HELIX_CLUSTER_MANAGED,
+        GobblinClusterConfigurationKeys.DEFAULT_IS_HELIX_CLUSTER_MANAGED);
   }
 
   @Override
