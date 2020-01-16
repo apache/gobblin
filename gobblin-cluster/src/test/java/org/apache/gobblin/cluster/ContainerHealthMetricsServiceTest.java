@@ -30,6 +30,9 @@ public class ContainerHealthMetricsServiceTest {
     Config config = ConfigFactory.empty();
     ContainerHealthMetricsService service = new ContainerHealthMetricsService(config);
     service.runOneIteration();
+    //Ensure lastGcStats updated after each iteration
+    Assert.assertTrue(service.getCurrentGcStats() == service.getLastGcStats());
+    ContainerHealthMetricsService.GcStats previousLastGcStats = service.getLastGcStats();
     Assert.assertTrue( service.minorGcCount.get() >= 0);
     Assert.assertTrue( service.minorGcDuration.get() >= 0);
     Assert.assertTrue( service.majorGcCount.get() >= 0);
@@ -39,6 +42,8 @@ public class ContainerHealthMetricsServiceTest {
     double processCpuTime1 = service.processCpuTime.get();
     Thread.sleep(10);
     service.runOneIteration();
+    Assert.assertTrue(service.getCurrentGcStats() == service.getLastGcStats());
+    Assert.assertTrue(service.getLastGcStats() != previousLastGcStats);
     double processCpuTime2 = service.processCpuTime.get();
     Assert.assertTrue( processCpuTime1 <= processCpuTime2);
     Assert.assertTrue( service.minorGcCount.get() >= 0);

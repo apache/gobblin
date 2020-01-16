@@ -32,6 +32,7 @@ import com.sun.management.OperatingSystemMXBean;
 import com.typesafe.config.Config;
 
 import lombok.Data;
+import lombok.Getter;
 
 import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.RootMetricContext;
@@ -72,6 +73,11 @@ public class ContainerHealthMetricsService extends AbstractScheduledService {
   private final MemoryMXBean memoryMXBean;
   private final List<GarbageCollectorMXBean> garbageCollectorMXBeans;
 
+  @Getter
+  private GcStats lastGcStats;
+  @Getter
+  private GcStats currentGcStats;
+
   //Heap stats
   AtomicDouble processCpuLoad = new AtomicDouble(0);
   AtomicDouble systemCpuLoad = new AtomicDouble(0);
@@ -98,6 +104,8 @@ public class ContainerHealthMetricsService extends AbstractScheduledService {
     this.operatingSystemMXBean = ManagementFactory.getPlatformMXBean(OperatingSystemMXBean.class);
     this.memoryMXBean = ManagementFactory.getMemoryMXBean();
     this.garbageCollectorMXBeans = ManagementFactory.getGarbageCollectorMXBeans();
+    this.lastGcStats = new GcStats();
+    this.currentGcStats = new GcStats();
 
     //Build all the gauges and register them with the metrics registry.
     List<ContextAwareGauge<Double>> systemMetrics = buildGaugeList();
@@ -133,15 +141,19 @@ public class ContainerHealthMetricsService extends AbstractScheduledService {
     this.freePhysicalMemSize.set(this.operatingSystemMXBean.getFreePhysicalMemorySize());
     this.processHeapUsedSize.set(this.memoryMXBean.getHeapMemoryUsage().getUsed());
 
-    GcStats gcStats = collectGcStats();
-    //Since GC Beans report accumulated counts/durations, we need to subtract the previous values to obtain the counts/durations
+    //Get the new GC stats
+    this.currentGcStats = collectGcStats();
+    // Since GC Beans report accumulated counts/durations, we need to subtract the previous values to obtain the counts/durations
     // since the last measurement time.
-    this.minorGcCount.set(gcStats.getMinorCount() - this.minorGcCount.get());
-    this.minorGcDuration.set(gcStats.getMinorDuration() - this.minorGcDuration.get());
-    this.majorGcCount.set(gcStats.getMajorCount() - this.majorGcCount.get());
-    this.majorGcDuration.set(gcStats.getMajorDuration() - this.majorGcDuration.get());
-    this.unknownGcCount.set(gcStats.getUnknownCount() - this.unknownGcCount.get());
-    this.unknownGcDuration.set(gcStats.getUnknownDuration() - this.unknownGcDuration.get());
+    this.minorGcCount.set(this.currentGcStats.getMinorCount() - this.lastGcStats.getMinorCount());
+    this.minorGcDuration.set(this.currentGcStats.getMinorDuration() - this.lastGcStats.getMinorDuration());
+    this.majorGcCount.set(this.currentGcStats.getMajorCount() - this.lastGcStats.getMajorCount());
+    this.majorGcDuration.set(this.currentGcStats.getMajorDuration() - this.lastGcStats.getMajorDuration());
+    this.unknownGcCount.set(this.currentGcStats.getUnknownCount() - this.lastGcStats.getUnknownCount());
+    this.unknownGcDuration.set(this.currentGcStats.getUnknownDuration() - this.lastGcStats.getUnknownDuration());
+
+    //Update last collected stats
+    this.lastGcStats = this.currentGcStats;
   }
 
   protected List<ContextAwareGauge<Double>> buildGaugeList() {
