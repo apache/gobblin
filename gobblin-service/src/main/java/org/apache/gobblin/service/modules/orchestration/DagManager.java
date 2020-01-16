@@ -795,8 +795,8 @@ public class DagManager extends AbstractIdleService {
     }
 
     private List<ContextAwareCounter> getRunningJobsCounterForUser(DagNode<JobExecutionPlan> dagNode) {
-      Properties props = dagNode.getValue().getJobSpec().getConfigAsProperties();
-      String proxy = props.getProperty(AzkabanProjectConfig.USER_TO_PROXY);
+      Config configs = dagNode.getValue().getJobSpec().getConfig();
+      String proxy = ConfigUtils.getString(configs, AzkabanProjectConfig.USER_TO_PROXY, null);
       List<ContextAwareCounter> counters = new ArrayList<>();
 
       if (proxy != null) {
@@ -807,9 +807,9 @@ public class DagManager extends AbstractIdleService {
       }
 
       try {
-        String serializedRequesters = props.getProperty(RequesterService.REQUESTER_LIST);
+        String serializedRequesters = ConfigUtils.getString(configs, RequesterService.REQUESTER_LIST, null);
         if (StringUtils.isNotEmpty(serializedRequesters)) {
-          List<ServiceRequester> requesters = RequesterService.deserialize(props.getProperty(RequesterService.REQUESTER_LIST));
+          List<ServiceRequester> requesters = RequesterService.deserialize(serializedRequesters);
           for (ServiceRequester requester : requesters) {
             counters.add(metricContext.contextAwareCounter(MetricRegistry
                 .name(MetricReportUtils.GOBBLIN_SERVICE_METRICS_PREFIX, ServiceMetricNames.SERVICE_USERS, requester.getName())));
