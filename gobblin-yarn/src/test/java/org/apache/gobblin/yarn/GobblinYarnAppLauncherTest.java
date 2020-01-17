@@ -248,14 +248,11 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
    * application successfully. This works fine on local machine though. So disabling this and the test
    * below that depends on it on Travis-CI.
    */
-//  @Test(enabled=false, groups = { "disabledOnTravis" }, dependsOnMethods = "testCreateHelixCluster")
-//  @Test(groups = { "disabledOnTravis" }, dependsOnMethods = "testCreateHelixCluster")
-//  @Test(dependsOnMethods = "testCreateHelixCluster")
+  @Test(enabled=false, groups = { "disabledOnTravis" }, dependsOnMethods = "testCreateHelixCluster")
   public void testSetupAndSubmitApplication() throws Exception {
     HelixUtils.createGobblinHelixCluster(
         this.config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY),
         this.config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY));
-
 
     this.gobblinYarnAppLauncher.startYarnClient();
     this.applicationId = this.gobblinYarnAppLauncher.setupAndSubmitApplication();

@@ -507,7 +507,7 @@ public class LogCopier extends AbstractScheduledService {
     }
 
     /**
-     * Copy changes for a single log file.
+     * Copy log files that have been rolled over.
      */
     private void copyChangesOfLogFile(Path srcFile, Path destFile) throws IOException {
       LOGGER.info("Copying changes from {} to {}", srcFile.toString(), destFile.toString());
@@ -516,8 +516,6 @@ public class LogCopier extends AbstractScheduledService {
         return;
       }
 
-      // The following comment doesn't seem to be valid anymore.
-      // We need to use fsDataInputStream in the finally clause so it has to be defined outside try-catch-finally
       FSDataInputStream fsDataInputStream = null;
 
       try (Closer closer = Closer.create()) {

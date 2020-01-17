@@ -47,7 +47,6 @@ dependencies {
 
   testCompile externalDependency.mockito
   testCompile externalDependency.powermock
-
 }
 
 test {

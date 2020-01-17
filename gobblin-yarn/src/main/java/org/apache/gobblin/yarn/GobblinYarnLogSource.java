@@ -41,12 +41,6 @@ import org.apache.gobblin.util.logs.LogCopier;
 /**
  * A base class for container processes that are sources of Gobblin Yarn application logs.
  *
- * <p>
- *   TODO: This documentation is no longer accurate as the source is not necessary localFS anymore.
- *   The source log files are supposed to be on the local {@link FileSystem} and will
- *   be copied to a given destination {@link FileSystem}, which is typically HDFS.
- * </p>
- *
  * @author Yinan Li
  */
 class GobblinYarnLogSource {

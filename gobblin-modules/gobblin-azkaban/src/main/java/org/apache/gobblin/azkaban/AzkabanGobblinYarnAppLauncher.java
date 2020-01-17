@@ -23,6 +23,8 @@ import java.util.Properties;
 import java.util.concurrent.TimeoutException;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.yarn.GobblinYarnAppLauncher;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.log4j.Logger;
@@ -31,9 +33,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigRenderOptions;
-
-import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.yarn.GobblinYarnAppLauncher;
 
 import azkaban.jobExecutor.AbstractJob;
 import lombok.Getter;
@@ -77,19 +76,10 @@ public class AzkabanGobblinYarnAppLauncher extends AbstractJob {
   }
 
   /**
-   * Extended class can override this method by providing their own Yarn configuration.
+   * Extended class can override this method by providing their own YARN configuration.
    */
   protected YarnConfiguration initYarnConf(Properties gobblinProps) {
-    YarnConfiguration yarnConfiguration = new YarnConfiguration();
-
-    if (gobblinProps.containsKey("yarn-site-address")) {
-      yarnConfiguration.addResource(new Path(gobblinProps.getProperty("yarn-site-address")));
-    } else {
-      yarnConfiguration.set("yarn.resourcemanager.connect.max-wait.ms", "10000");
-      yarnConfiguration.set("yarn.nodemanager.resource.memory-mb", "512");
-      yarnConfiguration.set("yarn.scheduler.maximum-allocation-mb", "1024");
-    }
-    return yarnConfiguration;
+    return new YarnConfiguration();
   }
 
   @Override

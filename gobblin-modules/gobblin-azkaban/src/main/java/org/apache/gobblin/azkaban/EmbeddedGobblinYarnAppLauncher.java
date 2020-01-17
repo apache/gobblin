@@ -29,6 +29,7 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.server.MiniYARNCluster;
 import org.testng.collections.Lists;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Closer;
@@ -38,7 +39,8 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * Given a set up Azkaban job configuration, launch the Gobblin-on-Yarn job in a semi-embedded mode:
- * - Uses external Kafka cluster
+ * - Uses external Kafka cluster and requires external Zookeeper(Non-embedded TestingServer) to be set up.
+ * - Uses MiniYARNCluster so YARN components don't have to be installed.
  */
 @Slf4j
 public class EmbeddedGobblinYarnAppLauncher extends AzkabanJobRunner {
@@ -47,7 +49,12 @@ public class EmbeddedGobblinYarnAppLauncher extends AzkabanJobRunner {
   private static String zkString = "zk-ltx1-gobblin.stg.linkedin.com:6312";
   private static String fileAddress = "";
 
-  private static void setup() throws Exception {
+  private static void setup(String[] args)
+      throws Exception {
+    // Parsing zk-string
+    Preconditions.checkArgument(args.length == 1);
+    zkString = args[0];
+
     // Initialize necessary external components: Yarn and Helix
     Closer closer = Closer.create();
 
@@ -65,23 +72,17 @@ public class EmbeddedGobblinYarnAppLauncher extends AzkabanJobRunner {
     miniYARNCluster.start();
 
     // YARN client should not be started before the Resource Manager is up
-    AssertWithBackoff.create().logger(log).timeoutMs(10000)
-        .assertTrue(new Predicate<Void>() {
-          @Override public boolean apply(Void input) {
-            return !clusterConf.get(YarnConfiguration.RM_ADDRESS).contains(":0");
-          }
-        }, "Waiting for RM");
+    AssertWithBackoff.create().logger(log).timeoutMs(10000).assertTrue(new Predicate<Void>() {
+      @Override
+      public boolean apply(Void input) {
+        return !clusterConf.get(YarnConfiguration.RM_ADDRESS).contains(":0");
+      }
+    }, "Waiting for RM");
 
-    // Use a random ZK port
-//    TestingServer testingZKServer = closer.register(new TestingServer(40086));
-//    log.info("Testing ZK Server listening on: " + testingZKServer.getConnectString());
-
-    // the zk port is dynamically configured
     try (PrintWriter pw = new PrintWriter(DYNAMIC_CONF_PATH, "UTF-8")) {
       File dir = new File("target/dummydir");
 
       // dummy directory specified in configuration
-      // TODO: Somehow if throwing RuntimeException here, the program is not able to be recovered.
       if (!dir.mkdir()) {
         log.error("The dummy folder's creation is not successful");
       }
@@ -98,8 +99,6 @@ public class EmbeddedGobblinYarnAppLauncher extends AzkabanJobRunner {
 
     /** Have to pass the same yarn-site.xml to the GobblinYarnAppLauncher to initialize Yarn Client. */
     fileAddress = new File(YARN_SITE_XML_PATH).getAbsolutePath();
-
-    EmbeddedGobblinYarnAppLauncher.zkString = "zk-ltx1-gobblin.stg.linkedin.com:6312";
   }
 
   public static void setEnv(String key, String value) {
@@ -117,7 +116,7 @@ public class EmbeddedGobblinYarnAppLauncher extends AzkabanJobRunner {
 
   public static void main(String[] args)
       throws Exception {
-    setup();
+    setup(args);
     AzkabanJobRunner.doMain(EmbeddedGobblinYarnAppLauncher.class, args);
   }
 
@@ -125,10 +124,9 @@ public class EmbeddedGobblinYarnAppLauncher extends AzkabanJobRunner {
     super(Lists.newArrayList("gobblin-modules/gobblin-azkaban/src/main/resources/conf/properties/common.properties",
         "gobblin-modules/gobblin-azkaban/src/main/resources/conf/properties/local.properties"),
         Lists.newArrayList("gobblin-modules/gobblin-azkaban/src/main/resources/conf/jobs/kafka-streaming-on-yarn.job"),
-        ImmutableMap.of("yarn.resourcemanager.connect.max-wait.ms", "10000",
-            "gobblin.cluster.zk.connection.string", EmbeddedGobblinYarnAppLauncher.zkString,
-        "gobblin.cluster.job.conf.path", "gobblin-modules/gobblin-azkaban/src/main/resources/conf/gobblin_jobs",
-        "gobblin.yarn.conf.dir", "gobblin-modules/gobblin-azkaban/src/main/resources/conf/gobblin_conf",
-            "yarn-site-address", fileAddress));
+        ImmutableMap.of("yarn.resourcemanager.connect.max-wait.ms", "10000", "gobblin.cluster.zk.connection.string",
+            EmbeddedGobblinYarnAppLauncher.zkString, "gobblin.cluster.job.conf.path",
+            "gobblin-modules/gobblin-azkaban/src/main/resources/conf/gobblin_jobs", "gobblin.yarn.conf.dir",
+            "gobblin-modules/gobblin-azkaban/src/main/resources/conf/gobblin_conf", "yarn-site-address", fileAddress));
   }
 }

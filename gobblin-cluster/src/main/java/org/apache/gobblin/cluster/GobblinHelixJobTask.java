@@ -52,7 +52,6 @@ import org.apache.gobblin.util.PropertiesUtils;
 
 /**
  * An implementation of Helix's {@link org.apache.helix.task.Task} that runs original {@link GobblinHelixJobLauncher}.
- * TODO: Document the usage of this class. 
  */
 @Slf4j
 class GobblinHelixJobTask implements Task {
