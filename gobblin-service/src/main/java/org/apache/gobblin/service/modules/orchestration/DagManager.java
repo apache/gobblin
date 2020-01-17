@@ -36,6 +36,8 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.lang3.StringUtils;
+
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
 import com.google.common.base.Optional;
@@ -63,6 +65,8 @@ import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.FlowConfigResourceLocalHandler;
+import org.apache.gobblin.service.RequesterService;
+import org.apache.gobblin.service.ServiceRequester;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.Dag.DagNode;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
@@ -701,6 +705,7 @@ public class DagManager extends AbstractIdleService {
 
         if (this.metricContext != null) {
           getRunningJobsCounter(dagNode).inc();
+          getRunningJobsCounterForUser(dagNode).forEach(counter -> counter.inc());
         }
 
         addSpecFuture.get();
@@ -738,6 +743,7 @@ public class DagManager extends AbstractIdleService {
 
       if (this.metricContext != null) {
         getRunningJobsCounter(dagNode).dec();
+        getRunningJobsCounterForUser(dagNode).forEach(counter -> counter.dec());
       }
 
       switch (jobStatus) {
@@ -788,6 +794,33 @@ public class DagManager extends AbstractIdleService {
               dagNode.getValue().getSpecExecutor().getUri().toString()));
     }
 
+    private List<ContextAwareCounter> getRunningJobsCounterForUser(DagNode<JobExecutionPlan> dagNode) {
+      Config configs = dagNode.getValue().getJobSpec().getConfig();
+      String proxy = ConfigUtils.getString(configs, AzkabanProjectConfig.USER_TO_PROXY, null);
+      List<ContextAwareCounter> counters = new ArrayList<>();
+
+      if (StringUtils.isNotEmpty(proxy)) {
+        counters.add(metricContext.contextAwareCounter(
+            MetricRegistry.name(
+                MetricReportUtils.GOBBLIN_SERVICE_METRICS_PREFIX,
+                ServiceMetricNames.SERVICE_USERS, proxy)));
+      }
+
+      try {
+        String serializedRequesters = ConfigUtils.getString(configs, RequesterService.REQUESTER_LIST, null);
+        if (StringUtils.isNotEmpty(serializedRequesters)) {
+          List<ServiceRequester> requesters = RequesterService.deserialize(serializedRequesters);
+          for (ServiceRequester requester : requesters) {
+            counters.add(metricContext.contextAwareCounter(MetricRegistry
+                .name(MetricReportUtils.GOBBLIN_SERVICE_METRICS_PREFIX, ServiceMetricNames.SERVICE_USERS, requester.getName())));
+          }
+        }
+      } catch (IOException e) {
+        log.error("Error while fetching requester list.", e);
+      }
+
+      return counters;
+    }
     /**
      * Perform clean up. Remove a dag from the dagstore if the dag is complete and update internal state.
      */
