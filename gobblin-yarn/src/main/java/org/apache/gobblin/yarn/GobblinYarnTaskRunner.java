@@ -73,6 +73,7 @@ public class GobblinYarnTaskRunner extends GobblinTaskRunner {
       services.add(new YarnContainerSecurityManager(this.config, this.fs, this.eventBus));
     }
 
+    // TODO: Code duplication
     if (config.hasPath(GobblinYarnConfigurationKeys.LOGS_SINK_ROOT_DIR_KEY)) {
       GobblinYarnLogSource gobblinYarnLogSource = new GobblinYarnLogSource();
       String containerLogDir = config.getString(GobblinYarnConfigurationKeys.LOGS_SINK_ROOT_DIR_KEY);

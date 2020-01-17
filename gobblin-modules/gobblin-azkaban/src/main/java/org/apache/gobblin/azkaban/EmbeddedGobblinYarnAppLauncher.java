@@ -24,7 +24,6 @@ import java.io.PrintWriter;
 import java.lang.reflect.Field;
 import java.util.Map;
 
-import org.apache.curator.test.TestingServer;
 import org.apache.gobblin.testing.AssertWithBackoff;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.server.MiniYARNCluster;
@@ -38,14 +37,14 @@ import lombok.extern.slf4j.Slf4j;
 
 
 /**
- * TODO: Move this to a better place.
- * Given a set up Azkaban job configuration, launch the Gobblin-on-Yarn job in an embedded mode.
+ * Given a set up Azkaban job configuration, launch the Gobblin-on-Yarn job in a semi-embedded mode:
+ * - Uses external Kafka cluster
  */
 @Slf4j
 public class EmbeddedGobblinYarnAppLauncher extends AzkabanJobRunner {
   public static final String DYNAMIC_CONF_PATH = "dynamic.conf";
   public static final String YARN_SITE_XML_PATH = "yarn-site.xml";
-  private static String zkString = "";
+  private static String zkString = "zk-ltx1-gobblin.stg.linkedin.com:6312";
   private static String fileAddress = "";
 
   private static void setup() throws Exception {
@@ -74,8 +73,8 @@ public class EmbeddedGobblinYarnAppLauncher extends AzkabanJobRunner {
         }, "Waiting for RM");
 
     // Use a random ZK port
-    TestingServer testingZKServer = closer.register(new TestingServer(-1));
-    log.info("Testing ZK Server listening on: " + testingZKServer.getConnectString());
+//    TestingServer testingZKServer = closer.register(new TestingServer(40086));
+//    log.info("Testing ZK Server listening on: " + testingZKServer.getConnectString());
 
     // the zk port is dynamically configured
     try (PrintWriter pw = new PrintWriter(DYNAMIC_CONF_PATH, "UTF-8")) {
@@ -88,7 +87,7 @@ public class EmbeddedGobblinYarnAppLauncher extends AzkabanJobRunner {
       }
       dir.deleteOnExit();
 
-      pw.println("gobblin.cluster.zk.connection.string=\"" + testingZKServer.getConnectString() + "\"");
+      pw.println("gobblin.cluster.zk.connection.string=\"" + zkString + "\"");
       pw.println("jobconf.fullyQualifiedPath=\"" + dir.getAbsolutePath() + "\"");
     }
 
@@ -100,7 +99,7 @@ public class EmbeddedGobblinYarnAppLauncher extends AzkabanJobRunner {
     /** Have to pass the same yarn-site.xml to the GobblinYarnAppLauncher to initialize Yarn Client. */
     fileAddress = new File(YARN_SITE_XML_PATH).getAbsolutePath();
 
-    EmbeddedGobblinYarnAppLauncher.zkString = testingZKServer.getConnectString();
+    EmbeddedGobblinYarnAppLauncher.zkString = "zk-ltx1-gobblin.stg.linkedin.com:6312";
   }
 
   public static void setEnv(String key, String value) {

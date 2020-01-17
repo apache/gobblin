@@ -64,7 +64,7 @@ import org.apache.gobblin.util.FileListUtils;
 
 
 /**
- * A utility class that periodically reads log files in a source log file directory for changes
+ * A utility service that periodically reads log files in a source log file directory for changes
  * since the last reads and appends the changes to destination log files with the same names as
  * the source log files in a destination log directory. The source and destination log files
  * can be on different {@link FileSystem}s.
@@ -516,6 +516,7 @@ public class LogCopier extends AbstractScheduledService {
         return;
       }
 
+      // The following comment doesn't seem to be valid anymore.
       // We need to use fsDataInputStream in the finally clause so it has to be defined outside try-catch-finally
       FSDataInputStream fsDataInputStream = null;
 

@@ -161,15 +161,12 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
         GobblinClusterConfigurationKeys.HELIX_JOB_STOP_TIMEOUT_SECONDS,
         GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_STOP_TIMEOUT_SECONDS);
 
-//    Config stateStoreJobConfig = ConfigUtils.propertiesToConfig(jobProps)
-//        .withValue(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigValueFactory.fromAnyRef(
-//            new URI(appWorkDir.toUri().getScheme(), null, appWorkDir.toUri().getHost(),
-//                appWorkDir.toUri().getPort(), "/", null, null).toString()));
-//
-      Config stateStoreJobConfig_2 = ConfigUtils.propertiesToConfig(jobProps)
-      .withValue(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigValueFactory.fromAnyRef("file:///"));
+    Config stateStoreJobConfig = ConfigUtils.propertiesToConfig(jobProps)
+        .withValue(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigValueFactory.fromAnyRef(
+            new URI(appWorkDir.toUri().getScheme(), null, appWorkDir.toUri().getHost(),
+                appWorkDir.toUri().getPort(), "/", null, null).toString()));
 
-    this.stateStores = new StateStores(stateStoreJobConfig_2, appWorkDir,
+    this.stateStores = new StateStores(stateStoreJobConfig, appWorkDir,
         GobblinClusterConfigurationKeys.OUTPUT_TASK_STATE_DIR_NAME, appWorkDir,
         GobblinClusterConfigurationKeys.INPUT_WORK_UNIT_DIR_NAME, appWorkDir,
         GobblinClusterConfigurationKeys.JOB_STATE_DIR_NAME);
@@ -374,6 +371,8 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
     this.jobListener = jobListener;
     boolean isLaunched = false;
     this.runningMap.putIfAbsent(this.jobContext.getJobName(), false);
+
+    Throwable errorInJobLaunching = null;
     try {
       if (this.runningMap.replace(this.jobContext.getJobName(), false, true)) {
         LOGGER.info ("Job {} will be executed, add into running map.", this.jobContext.getJobId());
@@ -382,12 +381,16 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
       } else {
         LOGGER.warn ("Job {} will not be executed because other jobs are still running.", this.jobContext.getJobId());
       }
+      // TODO: Better error handling
+    } catch (Throwable t) {
+      errorInJobLaunching = t;
     } finally {
       if (isLaunched) {
         if (this.runningMap.replace(this.jobContext.getJobName(), true, false)) {
           LOGGER.info ("Job {} is done, remove from running map.", this.jobContext.getJobId());
         } else {
-          throw new IllegalStateException("A launched job should have running state equal to true in the running map.");
+          throw errorInJobLaunching == null ? new IllegalStateException("A launched job should have running state equal to true in the running map.")
+              : new RuntimeException("Failure in launching job:", errorInJobLaunching);
         }
       }
     }

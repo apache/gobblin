@@ -536,6 +536,7 @@ public class YarnService extends AbstractIdleService {
     }
   }
 
+  // TODO: Not fully understand the purpose of this method.
   private ByteBuffer getSecurityTokens() throws IOException {
     Credentials credentials = UserGroupInformation.getCurrentUser().getCredentials();
     Closer closer = Closer.create();
