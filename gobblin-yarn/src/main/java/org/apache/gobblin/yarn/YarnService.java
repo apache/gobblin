@@ -32,10 +32,9 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
+import org.apache.gobblin.util.executors.ScalingThreadPoolExecutor;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -217,7 +216,7 @@ public class YarnService extends AbstractIdleService {
     this.amrmClientAsync = closer.register(
         AMRMClientAsync.createAMRMClientAsync(1000, new AMRMClientCallbackHandler()));
     this.amrmClientAsync.init(this.yarnConfiguration);
-    this.nmClientAsync = closer.register(NMClientAsync.createNMClientAsync(new NMClientCallbackHandler()));
+    this.nmClientAsync = closer.register(NMClientAsync.createNMClientAsync(getNMClientCallbackHandler()));
     this.nmClientAsync.init(this.yarnConfiguration);
 
     this.initialContainers = config.getInt(GobblinYarnConfigurationKeys.INITIAL_CONTAINERS_KEY);
@@ -231,7 +230,7 @@ public class YarnService extends AbstractIdleService {
         Optional.of(config.getString(GobblinYarnConfigurationKeys.CONTAINER_JVM_ARGS_KEY)) :
         Optional.<String>absent();
 
-    this.containerLaunchExecutor = Executors.newFixedThreadPool(10,
+    this.containerLaunchExecutor = ScalingThreadPoolExecutor.newScalingThreadPool(5, Integer.MAX_VALUE, 0L,
         ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("ContainerLaunchExecutor")));
 
     this.tokens = getSecurityTokens();
@@ -280,6 +279,10 @@ public class YarnService extends AbstractIdleService {
         return container.getNodeId().getHost();
       }
     }));
+  }
+
+  protected NMClientCallbackHandler getNMClientCallbackHandler() {
+    return new NMClientCallbackHandler();
   }
 
   @SuppressWarnings("unused")
@@ -608,8 +611,9 @@ public class YarnService extends AbstractIdleService {
    * preempted by the ResourceManager, or 4) the container gets stopped by the ApplicationMaster.
    * A replacement container is needed in all but the last case.
    */
-  private void handleContainerCompletion(ContainerStatus containerStatus) {
+  protected void handleContainerCompletion(ContainerStatus containerStatus) {
     Map.Entry<Container, String> completedContainerEntry = this.containerMap.remove(containerStatus.getContainerId());
+
     String completedInstanceName = completedContainerEntry.getValue();
 
     LOGGER.info(String.format("Container %s running Helix instance %s has completed with exit status %d",
@@ -796,7 +800,7 @@ public class YarnService extends AbstractIdleService {
   /**
    * A custom implementation of {@link NMClientAsync.CallbackHandler}.
    */
-  private class NMClientCallbackHandler implements NMClientAsync.CallbackHandler {
+   class NMClientCallbackHandler implements NMClientAsync.CallbackHandler {
 
     @Override
     public void onContainerStarted(ContainerId containerId, Map<String, ByteBuffer> allServiceResponse) {
@@ -826,7 +830,6 @@ public class YarnService extends AbstractIdleService {
       }
 
       LOGGER.info(String.format("Container %s has been stopped", containerId));
-      containerMap.remove(containerId);
       if (containerMap.isEmpty()) {
         synchronized (allContainersStopped) {
           allContainersStopped.notify();
@@ -843,7 +846,6 @@ public class YarnService extends AbstractIdleService {
       }
 
       LOGGER.error(String.format("Failed to start container %s due to error %s", containerId, t));
-      containerMap.remove(containerId);
     }
 
     @Override

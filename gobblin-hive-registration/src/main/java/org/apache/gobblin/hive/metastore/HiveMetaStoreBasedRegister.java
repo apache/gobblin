@@ -133,7 +133,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
    * when the first time a table/database is loaded into the cache, whether they existed on the remote hiveMetaStore side.
    */
   CacheLoader<String, Boolean> cacheLoader = new CacheLoader<String, Boolean>() {
-  @Override
+    @Override
     public Boolean load(String key) throws Exception {
       return true;
     }
