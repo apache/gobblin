@@ -8,8 +8,8 @@ import org.testng.annotations.Test;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import org.apache.gobblin.test.generator.OptionalValueGenerator;
-import org.apache.gobblin.test.generator.ValueGenerator;
+import org.apache.gobblin.test.generator.java.JavaValueGenerator;
+import org.apache.gobblin.test.generator.common.OptionalValueGenerator;
 import org.apache.gobblin.test.type.Type;
 
 
@@ -22,7 +22,7 @@ public class OptionalValueGeneratorTest {
     configProps.setProperty("nullPercentage", "100");
     Config hoconConfig = ConfigFactory.parseProperties(configProps);
 
-    OptionalValueGenerator optionalValueGenerator = new OptionalValueGenerator(new ValueGenerator() {
+    OptionalValueGenerator optionalValueGenerator = new OptionalValueGenerator(new JavaValueGenerator() {
       @Override
       public Type getLogicalType() {
         return Type.Integer;
@@ -47,7 +47,7 @@ public class OptionalValueGeneratorTest {
       configProps.setProperty("nullPercentage", "0");
       Config hoconConfig = ConfigFactory.parseProperties(configProps);
 
-      OptionalValueGenerator<Integer> optionalValueGenerator = new OptionalValueGenerator<>(new ValueGenerator<Integer>() {
+      OptionalValueGenerator<Integer> optionalValueGenerator = new OptionalValueGenerator<>(new JavaValueGenerator<Integer>() {
       @Override
       public Type getLogicalType() {
         return Type.Integer;

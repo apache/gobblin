@@ -37,6 +37,11 @@ public class AvroGenericFormat implements Format<Schema, GenericRecord>, ValueGe
   }
 
   @Override
+  public Object getPhysicalType() {
+    return this.schema;
+  }
+
+  @Override
   public GenericRecord get() {
     return generateRandomRecord();
   }

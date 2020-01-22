@@ -11,36 +11,46 @@ import com.typesafe.config.ConfigFactory;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.test.ConfigurableValueGenerator;
-import org.apache.gobblin.test.config.MagicFactory;
+import org.apache.gobblin.test.InMemoryFormat;
+import org.apache.gobblin.test.config.MagicConfiguringFactory;
+import org.apache.gobblin.test.generator.config.FieldConfig;
+import org.apache.gobblin.test.generator.config.FieldConfigAware;
 import org.apache.gobblin.test.type.Type;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
+
+/**
+ * A single format Value Generator factory that holds value generators for different logical types of data.
+ */
 @Slf4j
-public class ValueGeneratorFactory extends MagicFactory<ValueGenerator, ConfigurableValueGenerator> {
+public class ValueGeneratorFactory extends MagicConfiguringFactory<ValueGenerator, ConfigurableValueGenerator> {
 
   private static BiFunction<String, Type, String> uuidGenerator =
-      (name, type) -> name.toLowerCase() + ":" + type.toString().toLowerCase();
+    (name, type) -> name.toLowerCase() + ":" + type.toString().toLowerCase();
 
-  private ValueGeneratorFactory() {
-    super("ValueGenerator", "org.apache.gobblin", ValueGenerator.class, ConfigurableValueGenerator.class,
-        namedValueGenerator -> Stream.of(namedValueGenerator.targetTypes())
+  protected ValueGeneratorFactory(InMemoryFormat inMemoryFormat) {
+    super("ValueGenerator",
+        "org.apache.gobblin",
+        ValueGenerator.class,
+        ConfigurableValueGenerator.class,
+        namedValueGenerator ->
+            Stream.of(namedValueGenerator)
+            .filter(annotation -> annotation.targetFormat().equals(inMemoryFormat))
+            .flatMap(annotation -> Stream.of(annotation.targetTypes()))
             .map(type -> uuidGenerator.apply(namedValueGenerator.name(), type)),
-        namedValueGenerator -> namedValueGenerator.configuration()
+        namedValueGenerator -> namedValueGenerator.configClass()
         );
   }
 
-  private static ValueGeneratorFactory INSTANCE = new ValueGeneratorFactory();
-
-  public static ValueGeneratorFactory getInstance() {
-    return INSTANCE;
-  }
-
-  public ValueGenerator getValueGenerator(String name, FieldConfig config)
-      throws ClassNotFoundException {
-    log.info("Get value generator for {} with config {}", name, config);
-    String uuid = uuidGenerator.apply(name, config.getType());
+  public ValueGenerator getValueGenerator(String alias, FieldConfig config)
+      throws ValueGeneratorNotFoundException {
+    log.info("Get value generator for {} with config {}", alias, config);
+    String uuid = uuidGenerator.apply(alias, config.getType());
 
     Class valueGeneratorClass = super.getInstanceClass(uuid);
+    if (valueGeneratorClass == null) {
+      throw new ValueGeneratorNotFoundException("Could not find value generator with alias " + alias + " uuid: " + uuid);
+    }
     Class configClass = super.getConfigClass(valueGeneratorClass);
 
     Config valueGenConfig = config.getValueGenConfig();

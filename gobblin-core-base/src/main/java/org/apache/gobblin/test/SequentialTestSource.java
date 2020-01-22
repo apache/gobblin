@@ -27,6 +27,7 @@ import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigBeanFactory;
 import com.typesafe.config.ConfigFactory;
 
 import avro.shaded.com.google.common.base.Throwables;
@@ -46,9 +47,16 @@ import org.apache.gobblin.source.workunit.Extract;
 import org.apache.gobblin.source.workunit.ExtractFactory;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.stream.RecordEnvelope;
+<<<<<<< HEAD
 import org.apache.gobblin.test.proto.TestRecordProtos;
+=======
+import org.apache.gobblin.test.generator.config.FixedSchemaGeneratorConfig;
+>>>>>>> Lots of refactoring, support for json
 import org.apache.gobblin.test.generator.DataGenerator;
-import org.apache.gobblin.test.generator.Field;
+import org.apache.gobblin.test.generator.config.DataGeneratorConfig;
+import org.apache.gobblin.test.generator.config.FieldConfig;
+import org.apache.gobblin.test.generator.common.RandomStructSchemaGenerator;
+import org.apache.gobblin.test.generator.config.RandomStructGeneratorConfig;
 import org.apache.gobblin.test.type.Type;
 >>>>>>> datagen : first commit
 import org.apache.gobblin.util.ConfigUtils;
@@ -73,10 +81,15 @@ public class SequentialTestSource implements Source<Object, Object> {
   private static final Integer DEFAULT_NUM_RECORDS_PER_EXTRACT = 100;
   public static final String WORK_UNIT_INDEX = "workUnitIndex";
   private static final Long DEFAULT_SLEEP_TIME_PER_RECORD_MILLIS = 10L;
+<<<<<<< HEAD
   public static final String MEMORY_FORMAT_KEY = "inMemoryFormat";
   public static final String DEFAULT_IN_MEMORY_FORMAT = InMemoryFormat.POJO.toString();
   //private static final String FORMAT_KEY = "source.inMemFormat";
   //private static final Formats.InMemoryFormat DEFAULT_FORMAT = Formats.InMemoryFormat.POJO;
+=======
+  private static final String FORMAT_KEY = "source.inMemFormat";
+  private static final InMemoryFormat DEFAULT_FORMAT = InMemoryFormat.POJO;
+>>>>>>> Lots of refactoring, support for json
 
 
   private final AtomicBoolean configured = new AtomicBoolean(false);
@@ -89,7 +102,9 @@ public class SequentialTestSource implements Source<Object, Object> {
   private final Extract.TableType tableType = Extract.TableType.APPEND_ONLY;
   private final ExtractFactory _extractFactory = new ExtractFactory("yyyyMMddHHmmss");
   private boolean streaming = false;
-  private Formats.InMemoryFormat format;
+  private InMemoryFormat format;
+  private FixedSchemaGeneratorConfig schemaConfig;
+
 
   private void configureIfNeeded(Config config)
   {
@@ -104,6 +119,7 @@ public class SequentialTestSource implements Source<Object, Object> {
       if (streaming) {
         numRecordsPerExtract = Integer.MAX_VALUE;
       }
+<<<<<<< HEAD
       inMemFormat = InMemoryFormat.valueOf(ConfigUtils.getString(config, "source." + MEMORY_FORMAT_KEY,
           DEFAULT_IN_MEMORY_FORMAT));
       log.info("Source configured with: num_parallelism: {}, namespace: {}, "
@@ -111,8 +127,21 @@ public class SequentialTestSource implements Source<Object, Object> {
           this.num_parallelism, this.namespace,
           this.table, this.numRecordsPerExtract, this.sleepTimePerRecord, this.streaming, this.inMemFormat);
       //format = Formats.InMemoryFormat.valueOf(
+=======
+      format = InMemoryFormat.valueOf(
+>>>>>>> Lots of refactoring, support for json
           ConfigUtils.getString(config, FORMAT_KEY, DEFAULT_FORMAT.name()).toUpperCase());
-
+      RandomStructGeneratorConfig randomSchemaConfig = ConfigBeanFactory.create(config, RandomStructGeneratorConfig.class);
+      this.schemaConfig =
+          RandomStructSchemaGenerator.generateSchemaConfig(randomSchemaConfig);
+      // add two fields
+      this.schemaConfig.getFieldConfig().getFields()
+          .add(FieldConfig.builder()
+                .name("sequence")
+                .type(Type.Integer)
+                .optional(Optionality.REQUIRED)
+                .valueGen("sequential")
+                .build());
       configured.set(true);
     }
   }
@@ -166,7 +195,7 @@ public class SequentialTestSource implements Source<Object, Object> {
 
   private List<WorkUnit> initialWorkUnits() {
     List<WorkUnit> workUnits = Lists.newArrayList();
-    List<Field> schemaFields = FormatUtils.generateRandomFields();
+
     // serialize the fields into a schema string
     for (int i=0; i < num_parallelism; i++)
     {
@@ -203,16 +232,36 @@ public class SequentialTestSource implements Source<Object, Object> {
         LongWatermark lowWatermark,
         long numRecordsPerExtract,
         long sleepTimePerRecord,
-        Formats.InMemoryFormat inMemoryFormat,
+        InMemoryFormat inMemoryFormat,
         WorkUnitState wuState) {
       this.partition = partition;
       this.currentWatermark = lowWatermark;
       this.numRecordsPerExtract = numRecordsPerExtract;
       this.sleepTimePerRecord = sleepTimePerRecord;
       this.workUnitState = wuState;
+<<<<<<< HEAD
       this.inMemoryFormat = InMemoryFormat.valueOf(this.workUnitState.getProp(MEMORY_FORMAT_KEY));
       this.schema = getSchema(inMemoryFormat);
       this.dataGenerator = DataGenerator.builder()
+=======
+      this.dataGenerator = new DataGenerator(
+          DataGeneratorConfig.builder()
+              .inMemoryFormat(inMemoryFormat)
+              .totalRecords(numRecordsPerExtract)
+              .fieldConfig(FieldConfig.builder()
+              .type(Type.Struct)
+                  .name("testRecord")
+                  .valueGen("constant")
+                  .field(FieldConfig.builder()
+                    .type(Type.Integer)
+                    .name("sequence")
+                    .valueGen("sequential")
+                    .build())
+                  .build())
+              .build());
+      /**
+      ).builder()
+>>>>>>> Lots of refactoring, support for json
           .inMemoryFormat(inMemoryFormat)
           .totalRecords(numRecordsPerExtract)
           .keepLocalCopy(false)
@@ -235,6 +284,7 @@ public class SequentialTestSource implements Source<Object, Object> {
                   .build())
             .build())
           .build();
+       **/
     }
 
       @Override
@@ -302,7 +352,6 @@ public class SequentialTestSource implements Source<Object, Object> {
           return re;
           /** TODO: Merge
           Object record = dataGenerator.next();
-          //TestRecord record = new TestRecord(this.partition, (int) this.currentWatermark.getValue(), null);
           log.debug("Extracted record -> {}", record);
           RecordEnvelope recordEnvelope = new RecordEnvelope<>(record,
               new DefaultCheckpointableWatermark(""+this.partition,

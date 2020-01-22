@@ -9,4 +9,7 @@ public interface BaseStringValueGenerator extends ValueGenerator<String> {
   default Type getLogicalType() {
     return Type.String;
   }
+
+  @Override
+  default Object getPhysicalType() { return String.class; }
 }

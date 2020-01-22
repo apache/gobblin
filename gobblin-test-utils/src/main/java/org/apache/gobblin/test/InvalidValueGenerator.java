@@ -1,10 +1,10 @@
 package org.apache.gobblin.test;
 
-import org.apache.gobblin.test.generator.ValueGenerator;
+import org.apache.gobblin.test.generator.java.JavaValueGenerator;
 import org.apache.gobblin.test.type.Type;
 
 
-public class InvalidValueGenerator implements ValueGenerator {
+public class InvalidValueGenerator extends JavaValueGenerator {
   private Type type;
   InvalidValueGenerator(Type logicalType) {
     type = logicalType;

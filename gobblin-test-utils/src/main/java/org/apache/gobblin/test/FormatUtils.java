@@ -6,11 +6,13 @@ import java.util.Map;
 import java.util.Random;
 
 import org.apache.gobblin.test.generator.Field;
-import org.apache.gobblin.test.generator.OptionalValueGenerator;
+import org.apache.gobblin.test.generator.java.JavaValueGenerator;
+import org.apache.gobblin.test.generator.common.OptionalValueGenerator;
 import org.apache.gobblin.test.generator.ValueGenerator;
+import org.apache.gobblin.test.generator.java.StringValueGenerator;
 import org.apache.gobblin.test.type.Type;
 
-
+@Deprecated
 public class FormatUtils {
   static Random random = new Random();
 
@@ -27,7 +29,7 @@ public class FormatUtils {
   static {
 
     logicalToRandomValueGenerators.put(Type.Integer, new IntValueGenerator(GeneratorAlgo.RANDOM, 0));
-    logicalToRandomValueGenerators.put(Type.Long, new ValueGenerator<Long>() {
+    logicalToRandomValueGenerators.put(Type.Long, new JavaValueGenerator<Long>() {
       @Override
       public Type getLogicalType() {
         return Type.Long;
@@ -39,7 +41,7 @@ public class FormatUtils {
       }
     });
     logicalToRandomValueGenerators.put(Type.String, new StringValueGenerator(GeneratorAlgo.RANDOM, ""));
-    logicalToRandomValueGenerators.put(Type.Bytes, new ValueGenerator<byte[]>() {
+    logicalToRandomValueGenerators.put(Type.Bytes, new JavaValueGenerator<byte[]>() {
       @Override
       public Type getLogicalType() {
         return Type.Bytes;
@@ -50,7 +52,7 @@ public class FormatUtils {
         return TestUtils.generateRandomBytes(10);
       }
     });
-    logicalToRandomValueGenerators.put(Type.Boolean, new ValueGenerator() {
+    logicalToRandomValueGenerators.put(Type.Boolean, new JavaValueGenerator() {
       @Override
       public Type getLogicalType() {
         return Type.Boolean;

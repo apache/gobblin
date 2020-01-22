@@ -3,55 +3,43 @@ package org.apache.gobblin.test.generator;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
 
-import org.apache.gobblin.test.Format;
-import org.apache.gobblin.test.Formats;
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.test.InMemoryFormat;
+import org.apache.gobblin.test.generator.avro.AvroValueGeneratorFactory;
+import org.apache.gobblin.test.generator.config.DataGeneratorConfig;
 
 
+@Slf4j
 public class DataGenerator implements Iterator<Object> {
 
-  final Formats.InMemoryFormat inMemoryFormat;
-  final boolean keepLocalCopy;
-  final long totalRecords;
-  final Format format;
-  private List<Field> fields = new ArrayList<>();
+  private final InMemoryFormat inMemoryFormat;
+  private final boolean keepLocalCopy;
+  private final long totalRecords;
+  private final List replayRecords;
   private long _recordsGenerated = 0;
-  private Object schema = null;
+  private ValueGenerator valueGenerator;
 
-
-  public DataGenerator(DataGeneratorConfig config)
-      throws ClassNotFoundException {
+  public DataGenerator(DataGeneratorConfig config) {
     inMemoryFormat = config.getInMemoryFormat();
-    keepLocalCopy = false;
+    keepLocalCopy = config.getKeepLocalCopy();
     totalRecords = config.getTotalRecords();
-    /**
-
-
-    fields = new ArrayList<>();
-    for (FieldConfig fieldConfig : config.getSchema().getFields()) {
-      String valueGeneratorName = fieldConfig.getValueGen();
-      Config valueGeneratorConfig = fieldConfig.valueGenConfig;
-      if (valueGeneratorConfig == null) {
-        valueGeneratorConfig = ConfigFactory.empty();
-      }
-      // Get the registered value generator for this name and target type
-      ValueGenerator valueGenerator = ValueGeneratorFactory.getInstance()
-          .getValueGenerator(valueGeneratorName, fieldConfig);
-      Field field = new Field(fieldConfig.name, fieldConfig.type, fieldConfig.optional, valueGenerator, null);
-      fields.add(field);
+    ValueGeneratorFactory factory = null;
+    switch (inMemoryFormat) {
+      case AVRO_GENERIC: factory = AvroValueGeneratorFactory.getInstance(); break;
+      default: throw new RuntimeException(inMemoryFormat.name() + " not implemented");
     }
-     **/
-    format = Formats.getInstance().get(this.inMemoryFormat);
+    try {
+      valueGenerator = factory.getValueGenerator(config.getFieldConfig().getValueGen(), config.getFieldConfig());
+    } catch (ValueGeneratorNotFoundException e) {
+      throw new RuntimeException(e);
+    }
+    replayRecords = new ArrayList<Object>();
+    log.info("Data generator configured with {}", config);
   }
 
-  public DataGenerator(Formats.InMemoryFormat inMemoryFormat, long totalRecords, boolean keepLocalCopy,
-      List<Field> fields) {
-    this.inMemoryFormat = inMemoryFormat == null? Formats.InMemoryFormat.AVRO_GENERIC : inMemoryFormat;
-    this.totalRecords = totalRecords == 0? 1: totalRecords;
-    this.keepLocalCopy = keepLocalCopy;
-    this.format = Formats.getInstance().get(this.inMemoryFormat);
-    this.fields = fields;
-  }
 
   @Override
   public boolean hasNext() {
@@ -64,53 +52,25 @@ public class DataGenerator implements Iterator<Object> {
 
   @Override
   public Object next() {
-    return this.format.generateRandomRecord();
+    if (hasNext()) {
+      _recordsGenerated++;
+      Object result = this.valueGenerator.get();
+      if (this.keepLocalCopy) {
+        this.replayRecords.add(result);
+      }
+      return result;
+    }
+    else {
+      throw new NoSuchElementException();
+    }
   }
 
   public Object getSchema() {
-    this.schema = this.format.generateRandomSchema(this.fields);
-    return this.schema;
+    return this.valueGenerator.getPhysicalType();
   }
 
-  public static DataGenerator.Builder builder() {
-    return new DataGenerator.Builder();
-  }
-
-  public static class Builder {
-
-    private long totalRecords = 0;
-    private boolean keepLocalCopy = false;
-    private Formats.InMemoryFormat inMemoryFormat;
-    private List<Field> fieldList = new ArrayList();
-
-    public Builder inMemoryFormat(Formats.InMemoryFormat inMemoryFormat) {
-      this.inMemoryFormat = inMemoryFormat;
-      return this;
-    }
-
-    public Builder totalRecords(long totalRecords) {
-      this.totalRecords = totalRecords;
-      return this;
-    }
-
-    public Builder keepLocalCopy(boolean keepLocalCopy) {
-      this.keepLocalCopy = keepLocalCopy;
-      return this;
-    }
-
-    public Builder withField(Field singleField) {
-      this.fieldList.add(singleField);
-      return this;
-    }
-
-    public DataGenerator build() {
-      return new DataGenerator(this.inMemoryFormat,
-          this.totalRecords,
-          this.keepLocalCopy,
-          this.fieldList);
-    }
-
-
+  public Iterator<Object> replay() {
+    return this.replayRecords.iterator();
   }
 
 }

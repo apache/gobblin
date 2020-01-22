@@ -7,6 +7,7 @@ import java.util.Map;
 /**
  * TODO: Move to runtime FormatFactory pattern: Format classes register themselves under a specific string format key.
  */
+@Deprecated
 public class Formats {
 
   public static Formats getInstance() {
@@ -22,14 +23,6 @@ public class Formats {
           + " New entry is of type: " + format.getClass().getCanonicalName());
     }
     this.formatRegistry.put(key, format);
-  }
-
-  public enum InMemoryFormat {
-    AVRO_GENERIC,
-    AVRO_SPECIFIC,
-    PROTOBUF,
-    JSON,
-    POJO
   }
 
   public Formats() {

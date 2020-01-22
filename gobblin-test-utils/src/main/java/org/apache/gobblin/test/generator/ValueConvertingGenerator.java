@@ -21,6 +21,11 @@ public class ValueConvertingGenerator<I, O> implements ValueGenerator<O> {
   }
 
   @Override
+  public Object getPhysicalType() {
+    return wrappedValueGenerator.getPhysicalType();
+  }
+
+  @Override
   public final O get() {
     I innerValue = wrappedValueGenerator.get();
     if (innerValue != null) {

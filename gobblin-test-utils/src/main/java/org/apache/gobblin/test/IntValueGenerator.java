@@ -2,6 +2,7 @@ package org.apache.gobblin.test;
 
 import lombok.Builder;
 
+import org.apache.gobblin.test.generator.java.BaseValueGenerator;
 import org.apache.gobblin.test.type.Type;
 
 

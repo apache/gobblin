@@ -120,6 +120,12 @@ public class JsonFormat implements Format<JsonArray, JsonObject>, ValueGenerator
   }
 
   @Override
+  public Object getPhysicalType() {
+    //TODO: wrong...
+    return typeToJsonTypeName.get(this.getLogicalType());
+  }
+
+  @Override
   public JsonObject get() {
     return generateRandomRecord();
   }
