@@ -67,6 +67,9 @@ public class GobblinClusterConfigurationKeys {
   public static final String WORK_UNIT_FILE_PATH = GOBBLIN_CLUSTER_PREFIX + "work.unit.file.path";
   public static final String HELIX_INSTANCE_NAME_OPTION_NAME = "helix_instance_name";
   public static final String HELIX_INSTANCE_NAME_KEY = GOBBLIN_CLUSTER_PREFIX + "helixInstanceName";
+
+  public static final String HELIX_INSTANCE_TAGS_OPTION_NAME = "helix_instance_tags";
+
   // The number of tasks that can be running concurrently in the same worker process
   public static final String HELIX_CLUSTER_TASK_CONCURRENCY = GOBBLIN_CLUSTER_PREFIX + "helix.taskConcurrency";
   public static final int HELIX_CLUSTER_TASK_CONCURRENCY_DEFAULT = 40;
