@@ -25,7 +25,6 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-import org.apache.gobblin.util.ConfigUtils;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
@@ -40,6 +39,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Strings;
 import com.google.common.util.concurrent.Service;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -189,9 +189,15 @@ public class GobblinYarnTaskRunner extends GobblinTaskRunner {
           ConverterUtils.toContainerId(System.getenv().get(ApplicationConstants.Environment.CONTAINER_ID.key()));
       String applicationName = cmd.getOptionValue(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME);
       String helixInstanceName = cmd.getOptionValue(GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_OPTION_NAME);
+      String helixInstanceTags = cmd.getOptionValue(GobblinClusterConfigurationKeys.HELIX_INSTANCE_TAGS_OPTION_NAME);
 
+      Config config = ConfigFactory.load();
+      if (!Strings.isNullOrEmpty(helixInstanceTags)) {
+        config = config.withValue(GobblinClusterConfigurationKeys.HELIX_INSTANCE_TAGS_KEY, ConfigValueFactory.fromAnyRef(helixInstanceTags));
+      }
+        
       GobblinTaskRunner gobblinTaskRunner =
-          new GobblinYarnTaskRunner(applicationName, helixInstanceName, containerId, ConfigFactory.load(),
+          new GobblinYarnTaskRunner(applicationName, helixInstanceName, containerId, config,
               Optional.<Path>absent());
       gobblinTaskRunner.start();
     } catch (ParseException pe) {

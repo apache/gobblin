@@ -35,6 +35,7 @@ import java.util.concurrent.TimeoutException;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.hadoop.conf.Configuration;
@@ -371,7 +372,7 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
    * {@link HelixManager#connect()}. However this will still work because tagged jobs won't be sent to a non-tagged instance. Hence
    * the job with EXAMPLE_INSTANCE_TAG will remain in the ZK until an instance with EXAMPLE_INSTANCE_TAG was found.
    */
-  private void addInstanceTags() {
+  private void  addInstanceTags() {
     List<String> tags = ConfigUtils.getStringList(this.config, GobblinClusterConfigurationKeys.HELIX_INSTANCE_TAGS_KEY);
     HelixManager receiverManager = getReceiverManager();
     if (receiverManager.isConnected()) {
@@ -602,6 +603,8 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
         "Application name");
     options.addOption("i", GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_OPTION_NAME, true,
         "Helix instance name");
+    options.addOption(Option.builder("t").longOpt(GobblinClusterConfigurationKeys.HELIX_INSTANCE_TAGS_OPTION_NAME)
+        .hasArg(true).required(false).desc("Helix instance tags").build());
     return options;
   }
 
