@@ -372,7 +372,7 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
    * {@link HelixManager#connect()}. However this will still work because tagged jobs won't be sent to a non-tagged instance. Hence
    * the job with EXAMPLE_INSTANCE_TAG will remain in the ZK until an instance with EXAMPLE_INSTANCE_TAG was found.
    */
-  private void  addInstanceTags() {
+  private void addInstanceTags() {
     List<String> tags = ConfigUtils.getStringList(this.config, GobblinClusterConfigurationKeys.HELIX_INSTANCE_TAGS_KEY);
     HelixManager receiverManager = getReceiverManager();
     if (receiverManager.isConnected()) {
