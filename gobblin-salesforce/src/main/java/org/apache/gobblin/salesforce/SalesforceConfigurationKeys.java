@@ -34,6 +34,7 @@ public final class SalesforceConfigurationKeys {
   public static final String PK_CHUNKING_BATCH_RESULT_IDS = "_salesforce.result.ids";
   public static final int MAX_PK_CHUNKING_SIZE = 250_000; // this number is from SFDC's doc - https://tinyurl.com/ycjvgwv2
   public static final int MIN_PK_CHUNKING_SIZE = 20_000;
+
   public static final int DEFAULT_PK_CHUNKING_SIZE = 250_000; // default to max for saving request quota
 }
 
