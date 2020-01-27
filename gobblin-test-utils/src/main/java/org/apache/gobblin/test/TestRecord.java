@@ -29,6 +29,6 @@ import lombok.ToString;
 @AllArgsConstructor
 public class TestRecord {
   private int partition;
-  private int sequence;
+  private long sequence;
   private String payload;
 }

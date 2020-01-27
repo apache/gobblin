@@ -47,18 +47,14 @@ import org.apache.gobblin.source.workunit.Extract;
 import org.apache.gobblin.source.workunit.ExtractFactory;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.stream.RecordEnvelope;
-<<<<<<< HEAD
 import org.apache.gobblin.test.proto.TestRecordProtos;
-=======
 import org.apache.gobblin.test.generator.config.FixedSchemaGeneratorConfig;
->>>>>>> Lots of refactoring, support for json
 import org.apache.gobblin.test.generator.DataGenerator;
 import org.apache.gobblin.test.generator.config.DataGeneratorConfig;
 import org.apache.gobblin.test.generator.config.FieldConfig;
 import org.apache.gobblin.test.generator.common.RandomStructSchemaGenerator;
 import org.apache.gobblin.test.generator.config.RandomStructGeneratorConfig;
 import org.apache.gobblin.test.type.Type;
->>>>>>> datagen : first commit
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.writer.WatermarkStorage;
 
@@ -68,28 +64,14 @@ import org.apache.gobblin.writer.WatermarkStorage;
 @Slf4j
 public class SequentialTestSource implements Source<Object, Object> {
 
-  private enum InMemoryFormat {
-    POJO,
-    AVRO,
-    PROTOBUF
-  }
-
-
   private static final int DEFAULT_NUM_PARALLELISM = 1;
   private static final String DEFAULT_NAMESPACE = "TestDB";
   private static final String DEFAULT_TABLE = "TestTable";
   private static final Integer DEFAULT_NUM_RECORDS_PER_EXTRACT = 100;
   public static final String WORK_UNIT_INDEX = "workUnitIndex";
   private static final Long DEFAULT_SLEEP_TIME_PER_RECORD_MILLIS = 10L;
-<<<<<<< HEAD
-  public static final String MEMORY_FORMAT_KEY = "inMemoryFormat";
-  public static final String DEFAULT_IN_MEMORY_FORMAT = InMemoryFormat.POJO.toString();
-  //private static final String FORMAT_KEY = "source.inMemFormat";
-  //private static final Formats.InMemoryFormat DEFAULT_FORMAT = Formats.InMemoryFormat.POJO;
-=======
   private static final String FORMAT_KEY = "source.inMemFormat";
   private static final InMemoryFormat DEFAULT_FORMAT = InMemoryFormat.POJO;
->>>>>>> Lots of refactoring, support for json
 
 
   private final AtomicBoolean configured = new AtomicBoolean(false);
@@ -98,7 +80,6 @@ public class SequentialTestSource implements Source<Object, Object> {
   private String table;
   private int numRecordsPerExtract;
   private long sleepTimePerRecord;
-  private InMemoryFormat inMemFormat;
   private final Extract.TableType tableType = Extract.TableType.APPEND_ONLY;
   private final ExtractFactory _extractFactory = new ExtractFactory("yyyyMMddHHmmss");
   private boolean streaming = false;
@@ -119,18 +100,12 @@ public class SequentialTestSource implements Source<Object, Object> {
       if (streaming) {
         numRecordsPerExtract = Integer.MAX_VALUE;
       }
-<<<<<<< HEAD
-      inMemFormat = InMemoryFormat.valueOf(ConfigUtils.getString(config, "source." + MEMORY_FORMAT_KEY,
-          DEFAULT_IN_MEMORY_FORMAT));
+      format = InMemoryFormat.valueOf(
+          ConfigUtils.getString(config, FORMAT_KEY, DEFAULT_FORMAT.name()).toUpperCase());
       log.info("Source configured with: num_parallelism: {}, namespace: {}, "
           + "table: {}, numRecordsPerExtract: {}, sleepTimePerRecord: {}, streaming: {}, inMemFormat: {}",
           this.num_parallelism, this.namespace,
-          this.table, this.numRecordsPerExtract, this.sleepTimePerRecord, this.streaming, this.inMemFormat);
-      //format = Formats.InMemoryFormat.valueOf(
-=======
-      format = InMemoryFormat.valueOf(
->>>>>>> Lots of refactoring, support for json
-          ConfigUtils.getString(config, FORMAT_KEY, DEFAULT_FORMAT.name()).toUpperCase());
+          this.table, this.numRecordsPerExtract, this.sleepTimePerRecord, this.streaming, this.format);
       RandomStructGeneratorConfig randomSchemaConfig = ConfigBeanFactory.create(config, RandomStructGeneratorConfig.class);
       this.schemaConfig =
           RandomStructSchemaGenerator.generateSchemaConfig(randomSchemaConfig);
@@ -165,7 +140,7 @@ public class SequentialTestSource implements Source<Object, Object> {
           workUnit = WorkUnit.create(newExtract(tableType, namespace, table), watermarkInterval);
           log.debug("Will be setting watermark interval to " + watermarkInterval.toJson());
           workUnit.setProp(WORK_UNIT_INDEX, workUnitState.getWorkunit().getProp(WORK_UNIT_INDEX));
-          workUnit.setProp(MEMORY_FORMAT_KEY, this.inMemFormat.toString());
+          workUnit.setProp(FORMAT_KEY, this.format.toString());
         }
         else
         {
@@ -176,7 +151,7 @@ public class SequentialTestSource implements Source<Object, Object> {
           workUnit = WorkUnit.create(newExtract(tableType, namespace, table), watermarkInterval);
           log.debug("Will be setting watermark interval to " + watermarkInterval.toJson());
           workUnit.setProp(WORK_UNIT_INDEX, workUnitState.getWorkunit().getProp(WORK_UNIT_INDEX));
-          workUnit.setProp(MEMORY_FORMAT_KEY, this.inMemFormat.toString());
+          workUnit.setProp(FORMAT_KEY, this.format.toString());
         }
         copyProperty(WORK_UNIT_INDEX, workUnitState.getWorkunit(), workUnit);
         //copyProperty(ConfigurationKeys.SOURCE_SCHEMA, workUnitState.getWorkunit(), workUnit);
@@ -205,7 +180,7 @@ public class SequentialTestSource implements Source<Object, Object> {
       LongWatermark expectedHighWatermark = new LongWatermark((i + 1) * numRecordsPerExtract);
       workUnit.setWatermarkInterval(new WatermarkInterval(lowWatermark, expectedHighWatermark));
       workUnit.setProp(WORK_UNIT_INDEX, i);
-      workUnit.setProp(MEMORY_FORMAT_KEY, this.inMemFormat.toString());
+      workUnit.setProp(FORMAT_KEY, this.format.toString());
       workUnits.add(workUnit);
     }
     return workUnits;
@@ -239,11 +214,8 @@ public class SequentialTestSource implements Source<Object, Object> {
       this.numRecordsPerExtract = numRecordsPerExtract;
       this.sleepTimePerRecord = sleepTimePerRecord;
       this.workUnitState = wuState;
-<<<<<<< HEAD
-      this.inMemoryFormat = InMemoryFormat.valueOf(this.workUnitState.getProp(MEMORY_FORMAT_KEY));
+      this.inMemoryFormat = InMemoryFormat.valueOf(this.workUnitState.getProp(FORMAT_KEY));
       this.schema = getSchema(inMemoryFormat);
-      this.dataGenerator = DataGenerator.builder()
-=======
       this.dataGenerator = new DataGenerator(
           DataGeneratorConfig.builder()
               .inMemoryFormat(inMemoryFormat)
@@ -259,32 +231,6 @@ public class SequentialTestSource implements Source<Object, Object> {
                     .build())
                   .build())
               .build());
-      /**
-      ).builder()
->>>>>>> Lots of refactoring, support for json
-          .inMemoryFormat(inMemoryFormat)
-          .totalRecords(numRecordsPerExtract)
-          .keepLocalCopy(false)
-          .withField(Field.builder()
-              .name("partition")
-              .type(Type.Integer)
-              .optionality(Optionality.REQUIRED)
-              .valueGenerator(IntValueGenerator.builder()
-                  .generatorAlgo(GeneratorAlgo.CONSTANT)
-                  .initValue(this.partition)
-                  .build())
-              .build())
-          .withField(Field.builder()
-              .name("sequence")
-              .type(Type.Integer)
-              .optionality(Optionality.REQUIRED)
-              .valueGenerator(IntValueGenerator.builder()
-                  .generatorAlgo(GeneratorAlgo.SEQUENTIAL)
-                  .initValue(0)
-                  .build())
-            .build())
-          .build();
-       **/
     }
 
       @Override
@@ -299,7 +245,7 @@ public class SequentialTestSource implements Source<Object, Object> {
           case POJO: {
             return TestRecord.class;
           }
-          case AVRO: {
+          case AVRO_GENERIC: {
             return org.apache.gobblin.test.avro.TestRecord.getClassSchema();
           }
           case PROTOBUF: {
@@ -325,7 +271,7 @@ public class SequentialTestSource implements Source<Object, Object> {
               record = new TestRecord(this.partition, this.currentWatermark.getValue(), "I am a POJO message");
               break;
             }
-            case AVRO: {
+            case AVRO_GENERIC: {
               record = org.apache.gobblin.test.avro.TestRecord.newBuilder()
                   .setPartition(this.partition)
                   .setSequence(this.currentWatermark.getValue())
@@ -350,16 +296,6 @@ public class SequentialTestSource implements Source<Object, Object> {
           currentWatermark.increment();
           recordsExtracted++;
           return re;
-          /** TODO: Merge
-          Object record = dataGenerator.next();
-          log.debug("Extracted record -> {}", record);
-          RecordEnvelope recordEnvelope = new RecordEnvelope<>(record,
-              new DefaultCheckpointableWatermark(""+this.partition,
-              new LongWatermark(currentWatermark.getValue())));
-          currentWatermark.increment();
-          recordsExtracted++;
-          return recordEnvelope;
-          **/
         } else {
           return null;
         }
@@ -468,7 +404,7 @@ public class SequentialTestSource implements Source<Object, Object> {
     if (!streaming) {
       return extractor;
     } else {
-      return (Extractor) new TestStreamingExtractor(extractor);
+      return new TestStreamingExtractor(extractor);
   }
   }
 
