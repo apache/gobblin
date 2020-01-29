@@ -76,7 +76,7 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
   // NOTE: this config must be set only in streaming mode. For batch mode, setting this config will result
   // in incorrect behavior.
   public static final String PARTITIONED_WRITER_CACHE_TTL_SECONDS = "partitionedDataWriter.cache.ttl.seconds";
-  public static final Long DEFAULT_PARTITIONED_WRITER_CACHE_TTL_SECONDS = 3600L;
+  public static final Long DEFAULT_PARTITIONED_WRITER_CACHE_TTL_SECONDS = Long.MAX_VALUE;
 
   private static final GenericRecord NON_PARTITIONED_WRITER_KEY =
       new GenericData.Record(SchemaBuilder.record("Dummy").fields().endRecord());
@@ -136,6 +136,8 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
               writer.close();
             } catch (IOException e) {
               log.error("Exception {} encountered when closing data writer on cache eviction", e);
+              //Should propagate the exception to avoid committing/publishing corrupt files.
+              throw new RuntimeException(e);
             }
           }
         }
