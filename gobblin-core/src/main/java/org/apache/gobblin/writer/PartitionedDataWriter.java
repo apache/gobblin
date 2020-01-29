@@ -73,6 +73,8 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
 
   public static final String WRITER_LATEST_SCHEMA = "writer.latest.schema";
   //Config to control when a writer is evicted from Partitioned data writer cache.
+  // NOTE: this config must be set only in streaming mode. For batch mode, setting this config will result
+  // in incorrect behavior.
   public static final String PARTITIONED_WRITER_CACHE_TTL_SECONDS = "partitionedDataWriter.cache.ttl.seconds";
   public static final Long DEFAULT_PARTITIONED_WRITER_CACHE_TTL_SECONDS = 3600L;
 
@@ -225,7 +227,7 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
   }
 
   @Override
-  public void commit()
+  public synchronized void commit()
       throws IOException {
     int writersCommitted = 0;
     for (Map.Entry<GenericRecord, DataWriter<D>> entry : this.partitionWriters.asMap().entrySet()) {
@@ -242,7 +244,7 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
   }
 
   @Override
-  public void cleanup()
+  public synchronized void cleanup()
       throws IOException {
     int writersCleanedUp = 0;
     for (Map.Entry<GenericRecord, DataWriter<D>> entry : this.partitionWriters.asMap().entrySet()) {
@@ -278,7 +280,7 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
   }
 
   @Override
-  public void close()
+  public synchronized void close()
       throws IOException {
     try {
       serializePartitionInfoToState();
@@ -307,7 +309,7 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
   }
 
   @Override
-  public State getFinalState() {
+  public synchronized State getFinalState() {
 
     State state = new State();
     try {
@@ -373,9 +375,11 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
             .getGlobalMetadata().getSchema());
       }
 
-      for (DataWriter writer : PartitionedDataWriter.this.partitionWriters.asMap().values()) {
-        ControlMessage cloned = (ControlMessage) cloner.getClone();
-        writer.getMessageHandler().handleMessage(cloned);
+      synchronized (PartitionedDataWriter.this) {
+        for (DataWriter writer : PartitionedDataWriter.this.partitionWriters.asMap().values()) {
+          ControlMessage cloned = (ControlMessage) cloner.getClone();
+          writer.getMessageHandler().handleMessage(cloned);
+        }
       }
 
       cloner.close();
