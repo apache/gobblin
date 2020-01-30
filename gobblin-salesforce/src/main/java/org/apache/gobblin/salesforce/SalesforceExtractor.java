@@ -18,11 +18,8 @@
 package org.apache.gobblin.salesforce;
 
 import com.google.common.collect.Iterators;
-import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.io.FileNotFoundException;
-import java.io.InputStreamReader;
 import java.net.URI;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -34,7 +31,9 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.apache.commons.lang.StringUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.methods.HttpGet;
@@ -77,10 +76,7 @@ import org.apache.gobblin.source.extractor.extract.restapi.RestApiCommand;
 import org.apache.gobblin.source.extractor.extract.restapi.RestApiCommand.RestApiCommandType;
 import org.apache.gobblin.source.extractor.extract.restapi.RestApiConnector;
 import org.apache.gobblin.source.extractor.extract.restapi.RestApiExtractor;
-import org.apache.gobblin.source.extractor.resultset.RecordSet;
-import org.apache.gobblin.source.extractor.resultset.RecordSetList;
 import org.apache.gobblin.source.extractor.schema.Schema;
-import org.apache.gobblin.source.extractor.utils.InputStreamCSVReader;
 import org.apache.gobblin.source.extractor.utils.Utils;
 import org.apache.gobblin.source.extractor.watermark.Predicate;
 import org.apache.gobblin.source.extractor.watermark.WatermarkType;
@@ -90,7 +86,6 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
 import static org.apache.gobblin.salesforce.SalesforceConfigurationKeys.*;
-
 
 /**
  * An implementation of salesforce extractor for extracting data from SFDC
@@ -108,28 +103,18 @@ public class SalesforceExtractor extends RestApiExtractor {
   private static final String FETCH_RETRY_LIMIT_KEY = "salesforce.fetchRetryLimit";
   private static final boolean DEFAULT_BULK_API_USE_QUERY_ALL = false;
 
-
   private boolean pullStatus = true;
   private String nextUrl;
 
   private BulkConnection bulkConnection = null;
-  private boolean bulkApiInitialRun = true;
   private JobInfo bulkJob = new JobInfo();
-  private BufferedReader bulkBufferedReader = null;
-  private List<BatchIdAndResultId> bulkResultIdList = Lists.newArrayList();
-  private int bulkResultIdCount = 0;
+  private List<BatchIdAndResultId> bulkResultIdList;
   private boolean bulkJobFinished = true;
-  private List<String> bulkRecordHeader;
-  private int bulkResultColumCount;
   private boolean newBulkResultSet = true;
-  private int bulkRecordCount = 0;
-  private int prevBulkRecordCount = 0;
-  private List<String> csvRecord;
 
   private final int pkChunkingSize;
   private final SalesforceConnector sfConnector;
-  private final int fetchRetryLimit;
-  private final int batchSize;
+  private final int retryLimit;
 
   private final boolean bulkApiUseQueryAll;
 
@@ -142,13 +127,7 @@ public class SalesforceExtractor extends RestApiExtractor {
             Math.min(MAX_PK_CHUNKING_SIZE, workUnitState.getPropAsInt(PARTITION_PK_CHUNKING_SIZE, DEFAULT_PK_CHUNKING_SIZE)));
 
     this.bulkApiUseQueryAll = workUnitState.getPropAsBoolean(BULK_API_USE_QUERY_ALL, DEFAULT_BULK_API_USE_QUERY_ALL);
-
-    // Get batch size from .pull file
-    int tmpBatchSize = workUnitState.getPropAsInt(ConfigurationKeys.SOURCE_QUERYBASED_FETCH_SIZE,
-        ConfigurationKeys.DEFAULT_SOURCE_FETCH_SIZE);
-
-    this.batchSize = tmpBatchSize == 0 ? ConfigurationKeys.DEFAULT_SOURCE_FETCH_SIZE : tmpBatchSize;
-    this.fetchRetryLimit = workUnitState.getPropAsInt(FETCH_RETRY_LIMIT_KEY, DEFAULT_FETCH_RETRY_LIMIT);
+    this.retryLimit = workUnitState.getPropAsInt(FETCH_RETRY_LIMIT_KEY, DEFAULT_FETCH_RETRY_LIMIT);
   }
 
   @Override
@@ -563,75 +542,63 @@ public class SalesforceExtractor extends RestApiExtractor {
     return dataTypeMap;
   }
 
-
   private Boolean isPkChunkingFetchDone = false;
 
-  private Iterator<JsonElement> getRecordSetPkChunking(WorkUnit workUnit) throws RuntimeException {
+  private Iterator<JsonElement> fetchRecordSetPkChunking(WorkUnit workUnit) {
     if (isPkChunkingFetchDone) {
       return null; // must return null to represent no more data.
     }
+    log.info("----Get records for pk-chunking----" + workUnit.getProp(PK_CHUNKING_JOB_ID));
     isPkChunkingFetchDone = true; // set to true, never come here twice.
-
-    try {
-      if (!bulkApiLogin()) {
-        throw new IllegalArgumentException("Invalid Login");
-      }
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
-
+    bulkApiLogin();
     String jobId = workUnit.getProp(PK_CHUNKING_JOB_ID);
-    String batchIdResultIdString = workUnit.getProp(PK_CHUNKING_BATCH_RESULT_IDS);
-    return new ResultIterator(bulkConnection, jobId, batchIdResultIdString, fetchRetryLimit);
+    String batchIdResultIdPairString = workUnit.getProp(PK_CHUNKING_BATCH_RESULT_ID_PAIRS);
+    List<FileIdVO> fileIdList = this.parseBatchIdResultIdString(jobId, batchIdResultIdPairString);
+    return new ResultChainingIterator(bulkConnection, fileIdList, retryLimit);
+  }
+
+  private List<FileIdVO> parseBatchIdResultIdString(String jobId, String batchIdResultIdString) {
+    return Arrays.stream(batchIdResultIdString.split(","))
+        .map( x -> x.split(":")).map(x -> new FileIdVO(jobId, x[0], x[1]))
+        .collect(Collectors.toList());
+  }
+
+  private Boolean isBulkFetchDone = false;
+
+  private Iterator<JsonElement> fetchRecordSet(
+      String schema,
+      String entity,
+      WorkUnit workUnit,
+      List<Predicate> predicateList
+) {
+    if (isBulkFetchDone) {
+      return null; // need to return null to indicate no more data.
+    }
+    isBulkFetchDone = true;
+    log.info("----Get records for bulk batch job----");
+    try {
+      // set finish status to false before starting the bulk job
+      this.setBulkJobFinished(false);
+      this.bulkResultIdList = getQueryResultIds(entity, predicateList);
+      log.info("Number of bulk api resultSet Ids:" + this.bulkResultIdList.size());
+      List<FileIdVO> fileIdVoList = this.bulkResultIdList.stream()
+          .map(x -> new FileIdVO(this.bulkJob.getId(), x.batchId, x.resultId))
+          .collect(Collectors.toList());
+      ResultChainingIterator chainingIter = new ResultChainingIterator(this.bulkConnection, fileIdVoList, this.retryLimit);
+      chainingIter.add(getSoftDeletedRecords(schema, entity, workUnit, predicateList));
+      return chainingIter;
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to get records using bulk api; error - " + e.getMessage(), e);
+    }
   }
 
   @Override
-  public Iterator<JsonElement> getRecordSetFromSourceApi(String schema, String entity, WorkUnit workUnit,
-      List<Predicate> predicateList) throws IOException {
+  public Iterator<JsonElement> getRecordSetFromSourceApi(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList) {
     log.debug("Getting salesforce data using bulk api");
-
-    // new version of extractor: bulk api with pk-chunking in pre-partitioning of SalesforceSource
     if (workUnit.contains(PK_CHUNKING_JOB_ID)) {
-      log.info("----pk-chunking get record set----" + workUnit.getProp(PK_CHUNKING_JOB_ID));
-      return getRecordSetPkChunking(workUnit);
-    }
-    log.info("----bulk get record set----");
-    try {
-      //Get query result ids in the first run
-      //result id is used to construct url while fetching data
-      if (this.bulkApiInitialRun) {
-        // set finish status to false before starting the bulk job
-        this.setBulkJobFinished(false);
-        this.bulkResultIdList = getQueryResultIds(entity, predicateList);
-        log.info("Number of bulk api resultSet Ids:" + this.bulkResultIdList.size());
-      }
-
-      // Get data from input stream
-      // If bulk load is not finished, get data from the stream
-      // Skip empty result sets since they will cause the extractor to terminate early
-      RecordSet<JsonElement> rs = null;
-      while (!this.isBulkJobFinished() && (rs == null || rs.isEmpty())) {
-        rs = getBulkData();
-      }
-
-      // Set bulkApiInitialRun to false after the completion of first run
-      this.bulkApiInitialRun = false;
-
-      // If bulk job is finished, get soft deleted records using Rest API
-      boolean disableSoftDeletePull = this.workUnit.getPropAsBoolean(SOURCE_QUERYBASED_SALESFORCE_IS_SOFT_DELETES_PULL_DISABLED);
-      if (rs == null || rs.isEmpty()) { // TODO: Only when the rs is empty, we need to fetch soft deleted records. WHY?
-        // Get soft delete records only if IsDeleted column exists and soft deletes pull is not disabled
-        if (this.columnList.contains("IsDeleted") && !disableSoftDeletePull) {
-          log.info("Pull soft delete records");
-          return this.getSoftDeletedRecords(schema, entity, workUnit, predicateList);
-        }
-        log.info("Ignoring soft delete records");
-      }
-
-      return rs.iterator();
-
-    } catch (Exception e) {
-      throw new IOException("Failed to get records using bulk api; error - " + e.getMessage(), e);
+      return fetchRecordSetPkChunking(workUnit);
+    } else {
+      return fetchRecordSet(schema, entity, workUnit, predicateList);
     }
   }
 
@@ -639,16 +606,31 @@ public class SalesforceExtractor extends RestApiExtractor {
    * Get soft deleted records using Rest Api
    * @return iterator with deleted records
    */
-  private Iterator<JsonElement> getSoftDeletedRecords(String schema, String entity, WorkUnit workUnit,
-      List<Predicate> predicateList) throws DataRecordException {
-    return this.getRecordSet(schema, entity, workUnit, predicateList);
+  private Iterator<JsonElement> getSoftDeletedRecords(String schema, String entity, WorkUnit workUnit, List<Predicate> predicateList)
+      throws DataRecordException {
+    boolean disableSoftDeletePull = this.workUnit.getPropAsBoolean(SOURCE_QUERYBASED_SALESFORCE_IS_SOFT_DELETES_PULL_DISABLED);
+    if (this.columnList.contains("IsDeleted") && !disableSoftDeletePull) {
+      return new QueryResultIterator(this, schema, entity, workUnit, predicateList);
+    } else {
+      log.info("Ignoring soft delete records");
+      return null;
+    }
   }
 
+  private void bulkApiLogin() {
+    try {
+      if (!doBulkApiLogin()) {
+        throw new RuntimeException("invalid login");
+      }
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+  }
   /**
    * Login to salesforce
    * @return login status
    */
-  private boolean bulkApiLogin() throws Exception {
+  private boolean doBulkApiLogin() throws Exception {
     log.info("Authenticating salesforce bulk api");
     boolean success = false;
     String hostName = this.workUnitState.getProp(ConfigurationKeys.SOURCE_CONN_HOST_NAME);
@@ -709,20 +691,23 @@ public class SalesforceExtractor extends RestApiExtractor {
 
   /**
    * same as getQueryResultIdsPkChunking but the arguments are different.
-   * this function can take existing batch ids to return JobIdAndBatchIdResultIdList
+   * this function can take existing batch ids to return ResultFileIdsStruct
    * It is for test/debug. developers may want to skip execute query on SFDC, use a list of existing batch ids
    */
-  public JobIdAndBatchIdResultIdList getQueryResultIdsPkChunkingFetchOnly(String jobId, String batchIdListStr) {
+  public ResultFileIdsStruct getQueryResultIdsPkChunkingFetchOnly(String jobId, String batchIdListStr) {
+    bulkApiLogin();
     try {
-      if (!bulkApiLogin()) {
-        throw new IllegalArgumentException("Invalid Login");
-      }
       int retryInterval = Math.min(MAX_RETRY_INTERVAL_SECS * 1000, 30 + this.pkChunkingSize  * 2);
-      if (batchIdListStr != null) {
-        log.info("The batchId was specified.");
+      if (StringUtils.isNotEmpty(batchIdListStr)) {
+        log.info("The batchId is specified.");
         return retrievePkChunkingResultIdsByBatchId(this.bulkConnection, jobId, batchIdListStr);
       } else {
-        return retrievePkChunkingResultIds(this.bulkConnection, jobId, retryInterval);
+        ResultFileIdsStruct resultStruct = retrievePkChunkingResultIds(this.bulkConnection, jobId, retryInterval);
+        if (resultStruct.getBatchIdAndResultIdList().isEmpty()) {
+          String msg = String.format("There are no result for the [jobId: %s, batchIds: %s]", jobId, batchIdListStr);
+          throw new RuntimeException(msg);
+        }
+        return resultStruct;
       }
     } catch (Exception e) {
       throw new RuntimeException(e);
@@ -741,11 +726,9 @@ public class SalesforceExtractor extends RestApiExtractor {
    *  TODO: abstract this function to a common function: arguments need to add connetion, header, output-format
    *  TODO: make it and its related functions pure function (no side effect). Currently still unnecesarily changing this.bulkJob)
    */
-  public JobIdAndBatchIdResultIdList getQueryResultIdsPkChunking(String entity, List<Predicate> predicateList) {
+  public ResultFileIdsStruct getQueryResultIdsPkChunking(String entity, List<Predicate> predicateList) {
+    bulkApiLogin();
     try {
-      if (!bulkApiLogin()) {
-        throw new IllegalArgumentException("Invalid Login");
-      }
       BulkConnection connection = this.bulkConnection;
       JobInfo jobRequest = new JobInfo();
       jobRequest.setObject(entity);
@@ -798,8 +781,8 @@ public class SalesforceExtractor extends RestApiExtractor {
         log.error("Bulk batch failed: " + batchResponse.toString());
         throw new Exception("Failed to get bulk batch info for jobId " + jobId + " error - " + batchResponse.getStateMessage());
       }
-      JobIdAndBatchIdResultIdList jobIdAndBatchIdResultIdList = retrievePkChunkingResultIds(connection, jobId, waitMilliSecond);
-      return jobIdAndBatchIdResultIdList;
+      ResultFileIdsStruct resultFileIdsStruct = retrievePkChunkingResultIds(connection, jobId, waitMilliSecond);
+      return resultFileIdsStruct;
     } catch (Exception e) {
       throw new RuntimeException("getQueryResultIdsPkChunking: error - " + e.getMessage(), e);
     }
@@ -812,10 +795,7 @@ public class SalesforceExtractor extends RestApiExtractor {
    * @return iterator with batch of records
    */
   private List<BatchIdAndResultId> getQueryResultIds(String entity, List<Predicate> predicateList) throws Exception {
-    if (!bulkApiLogin()) {
-      throw new IllegalArgumentException("Invalid Login");
-    }
-
+    bulkApiLogin();
     try {
       // Set bulk job attributes
       this.bulkJob.setObject(entity);
@@ -879,7 +859,6 @@ public class SalesforceExtractor extends RestApiExtractor {
 
       for (BatchInfo bi : batchInfoList.getBatchInfo()) {
         QueryResultList list = this.bulkConnection.getQueryResultList(this.bulkJob.getId(), bi.getId());
-
         for (String result : list.getResult()) {
           batchIdAndResultIdList.add(new BatchIdAndResultId(bi.getId(), result));
         }
@@ -895,176 +874,6 @@ public class SalesforceExtractor extends RestApiExtractor {
     }
   }
 
-
-  /**
-   * Get a buffered reader wrapping the query result stream for the result with the specified index
-   * @param index index the {@link #bulkResultIdList}
-   * @return a {@link BufferedReader}
-   * @throws AsyncApiException
-   */
-  private BufferedReader getBulkBufferedReader(int index) throws AsyncApiException {
-    return new BufferedReader(new InputStreamReader(
-        this.bulkConnection.getQueryResultStream(this.bulkJob.getId(), this.bulkResultIdList.get(index).getBatchId(),
-            this.bulkResultIdList.get(index).getResultId()), ConfigurationKeys.DEFAULT_CHARSET_ENCODING));
-  }
-
-  /**
-   * Fetch records into a {@link RecordSetList} up to the configured batch size {@link #batchSize}. This batch is not
-   * the entire Salesforce result batch. It is an internal batch in the extractor for buffering a subset of the result
-   * stream that comes from a Salesforce batch for more efficient processing.
-   * @param rs the record set to fetch into
-   * @param initialRecordCount Initial record count to use. This should correspond to the number of records already in rs.
-   *                           This is used to limit the number of records returned in rs to {@link #batchSize}.
-   * @throws DataRecordException
-   * @throws IOException
-   */
-  private void fetchResultBatch(RecordSetList<JsonElement> rs, int initialRecordCount)
-      throws DataRecordException, IOException {
-    int recordCount = initialRecordCount;
-
-    // Stream the resultset through CSV reader to identify columns in each record
-    InputStreamCSVReader reader = new InputStreamCSVReader(this.bulkBufferedReader);
-
-    // Get header if it is first run of a new resultset
-    if (this.isNewBulkResultSet()) {
-      this.bulkRecordHeader = reader.nextRecord();
-      this.bulkResultColumCount = this.bulkRecordHeader.size();
-      this.setNewBulkResultSet(false);
-    }
-
-    // Get record from CSV reader stream
-    while ((this.csvRecord = reader.nextRecord()) != null) {
-      // Convert CSV record to JsonObject
-      JsonObject jsonObject = Utils.csvToJsonObject(this.bulkRecordHeader, this.csvRecord, this.bulkResultColumCount);
-      rs.add(jsonObject);
-      recordCount++;
-      this.bulkRecordCount++;
-
-      // Insert records in record set until it reaches the batch size
-      if (recordCount >= batchSize) {
-        log.info("Total number of records processed so far: " + this.bulkRecordCount);
-        break;
-      }
-    }
-  }
-
-  /**
-   * Reinitialize the state of {@link #bulkBufferedReader} to handle network disconnects
-   * @throws IOException
-   * @throws AsyncApiException
-   */
-  private void reinitializeBufferedReader() throws IOException, AsyncApiException {
-    // close reader and get a new input stream to reconnect to resolve intermittent network errors
-    this.bulkBufferedReader.close();
-    this.bulkBufferedReader = getBulkBufferedReader(this.bulkResultIdCount - 1);
-
-    // if the result set is partially processed then we need to skip over processed records
-    if (!isNewBulkResultSet()) {
-      List<String> lastCsvRecord = null;
-      InputStreamCSVReader reader = new InputStreamCSVReader(this.bulkBufferedReader);
-
-      // skip header
-      reader.nextRecord();
-
-      int recordsToSkip = this.bulkRecordCount - this.prevBulkRecordCount;
-      log.info("Skipping {} records on retry: ", recordsToSkip);
-
-      for (int i = 0; i < recordsToSkip; i++) {
-        lastCsvRecord = reader.nextRecord();
-      }
-
-      // make sure the last record processed before the error was the last record skipped so that the next
-      // unprocessed record is processed in the next call to fetchResultBatch()
-      if (recordsToSkip > 0) {
-        if (!this.csvRecord.equals(lastCsvRecord)) {
-          throw new RuntimeException("Repositioning after reconnecting did not point to the expected record");
-        }
-      }
-    }
-  }
-
-
-
-  /**
-   * Fetch a result batch with retry for network errors
-   * @param rs the {@link RecordSetList} to fetch into
-   */
-  private void fetchResultBatchWithRetry(RecordSetList<JsonElement> rs)
-      throws AsyncApiException, DataRecordException, IOException {
-    boolean success = false;
-    int retryCount = 0;
-    int recordCountBeforeFetch = this.bulkRecordCount;
-
-    do {
-      try {
-        // reinitialize the reader to establish a new connection to handle transient network errors
-        if (retryCount > 0) {
-          reinitializeBufferedReader();
-        }
-
-        // on retries there may already be records in rs, so pass the number of records as the initial count
-        fetchResultBatch(rs, this.bulkRecordCount - recordCountBeforeFetch);
-        success = true;
-      } catch (IOException e) {
-        if (retryCount < this.fetchRetryLimit) {
-          log.info("Exception while fetching data, retrying: " + e.getMessage(), e);
-          retryCount++;
-        } else {
-          log.error("Exception while fetching data: " + e.getMessage(), e);
-          throw e;
-        }
-      }
-    } while (!success);
-  }
-
-  /**
-   * Get data from the bulk api input stream
-   * @return record set with each record as a JsonObject
-   */
-  private RecordSet<JsonElement> getBulkData() throws DataRecordException {
-    log.debug("Processing bulk api batch...");
-    RecordSetList<JsonElement> rs = new RecordSetList<>();
-
-    try {
-      // if Buffer is empty then get stream for the new resultset id
-      if (this.bulkBufferedReader == null || !this.bulkBufferedReader.ready()) {
-
-        // log the number of records from each result set after it is processed (bulkResultIdCount > 0)
-        if (this.bulkResultIdCount > 0) {
-          log.info("Result set {} had {} records", this.bulkResultIdCount,
-              this.bulkRecordCount - this.prevBulkRecordCount);
-        }
-
-        // if there is unprocessed resultset id then get result stream for that id
-        if (this.bulkResultIdCount < this.bulkResultIdList.size()) {
-          log.info("Stream resultset for resultId:" + this.bulkResultIdList.get(this.bulkResultIdCount));
-          this.setNewBulkResultSet(true);
-
-          if (this.bulkBufferedReader != null) {
-            this.bulkBufferedReader.close();
-          }
-
-          this.bulkBufferedReader = getBulkBufferedReader(this.bulkResultIdCount);
-          this.bulkResultIdCount++;
-          this.prevBulkRecordCount = bulkRecordCount;
-        } else {
-          // if result stream processed for all resultset ids then finish the bulk job
-          log.info("Bulk job is finished");
-          this.setBulkJobFinished(true);
-          return rs;
-        }
-      }
-
-      // fetch a batch of results with retry for network errors
-      fetchResultBatchWithRetry(rs);
-
-    } catch (Exception e) {
-      throw new DataRecordException("Failed to get records from salesforce; error - " + e.getMessage(), e);
-    }
-
-    return rs;
-  }
-
   @Override
   public void closeConnection() throws Exception {
     if (this.bulkConnection != null
@@ -1078,12 +887,11 @@ public class SalesforceExtractor extends RestApiExtractor {
     return Arrays.asList(new RestApiCommand().build(Arrays.asList(restQuery), RestApiCommandType.GET));
   }
 
-
-  private JobIdAndBatchIdResultIdList retrievePkChunkingResultIdsByBatchId(BulkConnection connection, String jobId, String batchIdListStr) {
+  private ResultFileIdsStruct retrievePkChunkingResultIdsByBatchId(BulkConnection connection, String jobId, String batchIdListStr) {
     Iterator<String> batchIds = Arrays.stream(batchIdListStr.split(",")).map(x -> x.trim()).filter(x -> !x.equals("")).iterator();
     try {
       List<BatchIdAndResultId> batchIdAndResultIdList = fetchBatchResultIds(connection, jobId, batchIds);
-      return new JobIdAndBatchIdResultIdList(jobId, batchIdAndResultIdList);
+      return new ResultFileIdsStruct(jobId, batchIdAndResultIdList);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
@@ -1092,7 +900,7 @@ public class SalesforceExtractor extends RestApiExtractor {
   /**
    * Waits for the PK batches to complete. The wait will stop after all batches are complete or on the first failed batch
    */
-  private JobIdAndBatchIdResultIdList retrievePkChunkingResultIds(BulkConnection connection, String jobId, int waitMilliSecond) {
+  private ResultFileIdsStruct retrievePkChunkingResultIds(BulkConnection connection, String jobId, int waitMilliSecond) {
     log.info("Waiting for completion of the the bulk job [jobId={}])'s sub queries.", jobId);
     try {
       while (true) {
@@ -1107,7 +915,7 @@ public class SalesforceExtractor extends RestApiExtractor {
         Stream<BatchInfo> stream = Arrays.stream(batchInfos);
         Iterator<String> batchIds = stream.filter(x -> x.getNumberRecordsProcessed() != 0).map(x -> x.getId()).iterator();
         List<BatchIdAndResultId> batchIdAndResultIdList = fetchBatchResultIds(connection, jobId, batchIds);
-        return new JobIdAndBatchIdResultIdList(jobId, batchIdAndResultIdList);
+        return new ResultFileIdsStruct(jobId, batchIdAndResultIdList);
       }
     } catch (Exception e) {
       throw new RuntimeException(e);
@@ -1177,7 +985,7 @@ public class SalesforceExtractor extends RestApiExtractor {
   }
 
   @Data
-  public static class JobIdAndBatchIdResultIdList {
+  public static class ResultFileIdsStruct {
     private final String jobId;
     private final List<BatchIdAndResultId> batchIdAndResultIdList;
   }

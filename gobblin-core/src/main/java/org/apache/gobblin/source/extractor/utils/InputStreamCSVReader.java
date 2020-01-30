@@ -42,6 +42,8 @@ public class InputStreamCSVReader {
   private int maxFieldCount;
   private boolean atEOF;
 
+  private BufferedReader bufferedReader;
+
   public InputStreamCSVReader(Reader input) {
     this(new BufferedReader(input));
   }
@@ -90,6 +92,7 @@ public class InputStreamCSVReader {
   }
 
   public InputStreamCSVReader(BufferedReader input, char separator, char enclosedChar) {
+    this.bufferedReader = input;
     this.separator = separator;
     // parser settings for the separator and escape chars
     this.parser = new StreamTokenizer(input);
@@ -258,5 +261,12 @@ public class InputStreamCSVReader {
     public int getRecordNumber() {
       return this.recordNumber;
     }
+  }
+
+  /**
+   * close the bufferedReader
+   */
+  public void close() throws IOException {
+    this.bufferedReader.close();
   }
 }

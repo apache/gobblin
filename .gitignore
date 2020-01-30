@@ -73,3 +73,7 @@ gobblin-modules/gobblin-elasticsearch/test-elasticsearch/
 
 temp/
 ligradle/*
+FsDatasetStateStoreTest/
+GobblinHelixTaskTest/
+commit-sequence-store-test/
+gobblin-test-harness/src/test/resources/runtime_test/state_store/
