@@ -23,6 +23,7 @@ import java.util.stream.Collectors;
 
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import com.google.common.eventbus.EventBus;
 
 import lombok.Builder;
 
@@ -38,6 +39,7 @@ public class FlowStatusGenerator {
   public static final List<String> FINISHED_STATUSES = Lists.newArrayList("FAILED", "COMPLETE", "CANCELLED");
 
   private final JobStatusRetriever jobStatusRetriever;
+  private final EventBus eventBus;
 
   /**
    * Get the flow statuses of last <code>count</code> (or fewer) executions
@@ -119,5 +121,12 @@ public class FlowStatusGenerator {
   private boolean isJobRunning(JobStatus jobStatus) {
     String status = jobStatus.getEventName().toUpperCase();
     return !FINISHED_STATUSES.contains(status);
+  }
+
+  /**
+   * Send kill request for the given flow
+   */
+  public void killFlow(String flowGroup, String flowName, Long flowExecutionId) {
+    this.eventBus.post(new KillFlowEvent(flowGroup, flowName, flowExecutionId));
   }
 }
