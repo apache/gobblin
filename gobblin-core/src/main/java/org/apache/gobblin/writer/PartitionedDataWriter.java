@@ -120,7 +120,8 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
     if(builder.schema != null) {
       this.state.setProp(WRITER_LATEST_SCHEMA, builder.getSchema());
     }
-    Long cacheExpiryInterval = this.state.getPropAsLong(PARTITIONED_WRITER_CACHE_TTL_SECONDS, DEFAULT_PARTITIONED_WRITER_CACHE_TTL_SECONDS);
+    long cacheExpiryInterval = this.state.getPropAsLong(PARTITIONED_WRITER_CACHE_TTL_SECONDS, DEFAULT_PARTITIONED_WRITER_CACHE_TTL_SECONDS);
+    log.debug("PartitionedDataWriter: Setting cache expiry interval to {} seconds", cacheExpiryInterval);
 
     this.partitionWriters = CacheBuilder.newBuilder()
         .expireAfterAccess(cacheExpiryInterval, TimeUnit.SECONDS)
