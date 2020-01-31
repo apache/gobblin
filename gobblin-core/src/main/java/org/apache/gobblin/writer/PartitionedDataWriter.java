@@ -22,6 +22,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
@@ -58,6 +60,7 @@ import org.apache.gobblin.stream.MetadataUpdateControlMessage;
 import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.stream.StreamEntity;
 import org.apache.gobblin.util.AvroUtils;
+import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.FinalState;
 import org.apache.gobblin.writer.partitioner.WriterPartitioner;
 
@@ -98,6 +101,8 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
   private boolean isSpeculativeAttemptSafe;
   private boolean isWatermarkCapable;
 
+  private ScheduledExecutorService cacheCleanUpExecutor;
+
   //Counters to keep track of records and bytes of writers which have been evicted from cache.
   @Getter
   @VisibleForTesting
@@ -105,6 +110,7 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
   @Getter
   @VisibleForTesting
   private long totalBytesFromEvictedWriters;
+
 
   public PartitionedDataWriter(DataWriterBuilder<S, D> builder, final State state)
       throws IOException {
@@ -161,6 +167,19 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
                 }, state), state, key);
       }
     });
+
+    //Schedule a DataWriter cache clean up operation, since LoadingCache may keep the object
+    // in memory even after it has been evicted from the cache.
+    if (cacheExpiryInterval < Long.MAX_VALUE) {
+      this.cacheCleanUpExecutor = Executors.newSingleThreadScheduledExecutor(
+          ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("CacheCleanupExecutor")));
+      this.cacheCleanUpExecutor.scheduleAtFixedRate(new Runnable() {
+        @Override
+        public void run() {
+          PartitionedDataWriter.this.partitionWriters.cleanUp();
+        }
+      }, 0, cacheExpiryInterval, TimeUnit.SECONDS);
+    }
 
     if (state.contains(ConfigurationKeys.WRITER_PARTITIONER_CLASS)) {
       Preconditions.checkArgument(builder instanceof PartitionAwareDataWriterBuilder, String
