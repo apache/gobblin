@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.net.URL;
 
 import org.apache.curator.test.TestingServer;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,6 +53,8 @@ import org.apache.gobblin.testing.AssertWithBackoff;
 public class GobblinTaskRunnerTest {
   public final static Logger LOG = LoggerFactory.getLogger(GobblinTaskRunnerTest.class);
 
+  public static final String HADOOP_OVERRIDE_PROPERTY_NAME = "prop";
+
   private TestingServer testingZKServer;
 
   private GobblinTaskRunner gobblinTaskRunner;
@@ -70,6 +73,10 @@ public class GobblinTaskRunnerTest {
     Config config = ConfigFactory.parseURL(url)
         .withValue("gobblin.cluster.zk.connection.string",
                    ConfigValueFactory.fromAnyRef(testingZKServer.getConnectString()))
+        .withValue(GobblinClusterConfigurationKeys.HADOOP_CONFIG_OVERRIDES_PREFIX + "." + HADOOP_OVERRIDE_PROPERTY_NAME,
+            ConfigValueFactory.fromAnyRef("value"))
+        .withValue(GobblinClusterConfigurationKeys.HADOOP_CONFIG_OVERRIDES_PREFIX + "." + "fs.file.impl.disable.cache",
+            ConfigValueFactory.fromAnyRef("true"))
         .resolve();
 
     String zkConnectionString = config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
@@ -102,6 +109,12 @@ public class GobblinTaskRunnerTest {
           return GobblinTaskRunnerTest.this.gobblinTaskRunner.isStopped();
         }
       }, "gobblinTaskRunner stopped");
+  }
+
+  @Test
+  public void testBuildFileSystemConfig() {
+    FileSystem fileSystem = this.gobblinTaskRunner.getFs();
+    Assert.assertEquals(fileSystem.getConf().get(HADOOP_OVERRIDE_PROPERTY_NAME), "value");
   }
 
   @AfterClass

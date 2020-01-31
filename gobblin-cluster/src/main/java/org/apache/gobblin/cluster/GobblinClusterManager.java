@@ -73,6 +73,7 @@ import org.apache.gobblin.runtime.app.ApplicationLauncher;
 import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
 import org.apache.gobblin.scheduler.SchedulerService;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.JobConfigurationUtils;
 import org.apache.gobblin.util.JvmUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
@@ -114,6 +115,7 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
 
   protected final Path appWorkDir;
 
+  @Getter
   protected final FileSystem fs;
 
   protected final String applicationId;
@@ -353,9 +355,15 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
    * Build the {@link FileSystem} for the Application Master.
    */
   private FileSystem buildFileSystem(Config config) throws IOException {
+    Config hadoopOverrides = ConfigUtils.getConfigOrEmpty(config, GobblinClusterConfigurationKeys.HADOOP_CONFIG_OVERRIDES_PREFIX);
+
+    Configuration conf = new Configuration();
+    //Add any Hadoop-specific overrides into the Configuration object
+    JobConfigurationUtils.putPropertiesIntoConfiguration(ConfigUtils.configToProperties(hadoopOverrides), conf);
+
     return config.hasPath(ConfigurationKeys.FS_URI_KEY) ? FileSystem
-        .get(URI.create(config.getString(ConfigurationKeys.FS_URI_KEY)), new Configuration())
-        : FileSystem.get(new Configuration());
+        .get(URI.create(config.getString(ConfigurationKeys.FS_URI_KEY)), conf)
+        : FileSystem.get(conf);
   }
 
   /**

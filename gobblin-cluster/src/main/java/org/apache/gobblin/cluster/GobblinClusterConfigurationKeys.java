@@ -181,4 +181,6 @@ public class GobblinClusterConfigurationKeys {
   // the cluster
   public static final String IS_HELIX_CLUSTER_MANAGED = GOBBLIN_CLUSTER_PREFIX + "isHelixClusterManaged";
   public static final boolean DEFAULT_IS_HELIX_CLUSTER_MANAGED = false;
+
+  public static final String HADOOP_CONFIG_OVERRIDES_PREFIX = GOBBLIN_CLUSTER_PREFIX + "hadoop.inject";
 }
