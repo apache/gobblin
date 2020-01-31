@@ -69,6 +69,8 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
+import lombok.Getter;
+
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
@@ -77,6 +79,7 @@ import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.FileUtils;
 import org.apache.gobblin.util.HadoopUtils;
+import org.apache.gobblin.util.JobConfigurationUtils;
 import org.apache.gobblin.util.JvmUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
@@ -108,7 +111,6 @@ import static org.apache.gobblin.cluster.GobblinClusterConfigurationKeys.CLUSTER
  */
 @Alpha
 public class GobblinTaskRunner implements StandardMetricsBridge {
-
   private static final Logger logger = LoggerFactory.getLogger(GobblinTaskRunner.class);
   static final java.nio.file.Path CLUSTER_CONF_PATH = Paths.get("generated-gobblin-cluster.conf");
 
@@ -140,6 +142,7 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
 
   protected final Config config;
 
+  @Getter
   protected final FileSystem fs;
   private final List<Service> services = Lists.newArrayList();
   protected final String applicationName;
@@ -420,6 +423,10 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
 
   private FileSystem buildFileSystem(Config config, Configuration conf)
       throws IOException {
+    Config hadoopOverrides = ConfigUtils.getConfigOrEmpty(config, GobblinClusterConfigurationKeys.HADOOP_CONFIG_OVERRIDES_PREFIX);
+
+    //Add any Hadoop-specific overrides into the Configuration object
+    JobConfigurationUtils.putPropertiesIntoConfiguration(ConfigUtils.configToProperties(hadoopOverrides), conf);
     return config.hasPath(ConfigurationKeys.FS_URI_KEY) ? FileSystem
         .get(URI.create(config.getString(ConfigurationKeys.FS_URI_KEY)), conf)
         : FileSystem.get(conf);
