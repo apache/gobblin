@@ -22,6 +22,8 @@ import java.net.URI;
 import com.google.common.base.Strings;
 import com.typesafe.config.Config;
 
+import lombok.Getter;
+
 import org.apache.gobblin.annotation.Alpha;
 
 
@@ -32,6 +34,8 @@ import org.apache.gobblin.annotation.Alpha;
 @Alpha
 public class HdfsDataNode extends FileSystemDataNode {
   public static final String HDFS_SCHEME = "hdfs";
+  @Getter
+  public final String defaultDatasetDescriptorPlatform = "hdfs";
 
   public HdfsDataNode(Config nodeProps) throws DataNodeCreationException {
     super(nodeProps);

@@ -42,6 +42,10 @@ public class BaseDataNode implements DataNode {
   private Config rawConfig;
   @Getter
   private boolean active = true;
+  @Getter
+  public final String defaultDatasetDescriptorClass = null;
+  @Getter
+  public final String defaultDatasetDescriptorPlatform = null;
 
   public BaseDataNode(Config nodeProps) throws DataNodeCreationException {
     try {

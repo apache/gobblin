@@ -23,6 +23,9 @@ import org.apache.gobblin.annotation.Alpha;
 
 import com.typesafe.config.Config;
 
+import lombok.Getter;
+
+
 /**
  * An implementation of {@link LocalFSDataNode}. All the properties specific to a LocalFS based data node (e.g. fs.uri)
  * are validated here.
@@ -30,6 +33,8 @@ import com.typesafe.config.Config;
 @Alpha
 public class LocalFSDataNode extends FileSystemDataNode {
   public static final String LOCAL_FS_SCHEME = "file";
+  @Getter
+  public final String defaultDatasetDescriptorPlatform = "local";
 
   public LocalFSDataNode(Config nodeProps) throws DataNodeCreationException {
     super(nodeProps);

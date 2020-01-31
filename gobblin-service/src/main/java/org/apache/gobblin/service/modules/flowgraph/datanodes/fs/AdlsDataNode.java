@@ -21,6 +21,10 @@ import java.net.URI;
 import com.google.common.base.Strings;
 import com.typesafe.config.Config;
 
+import lombok.Getter;
+
+import org.apache.gobblin.service.modules.dataset.FSDatasetDescriptor;
+
 
 /**
  * An implementation of an ADL (Azure Data Lake) {@link org.apache.gobblin.service.modules.flowgraph.DataNode}.
@@ -28,6 +32,8 @@ import com.typesafe.config.Config;
 public class AdlsDataNode extends FileSystemDataNode {
   public static final String ADLS_SCHEME = "adl";
   public static final String ABFS_SCHEME = "abfs";
+  @Getter
+  public final String defaultDatasetDescriptorPlatform = "adl";
 
   public AdlsDataNode(Config nodeProps) throws DataNodeCreationException {
     super(nodeProps);
