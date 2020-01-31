@@ -22,6 +22,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 import org.apache.avro.SchemaBuilder;
@@ -29,15 +32,19 @@ import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import com.google.common.cache.RemovalListener;
+import com.google.common.cache.RemovalNotification;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.commit.SpeculativeAttemptAwareConstruct;
@@ -53,6 +60,7 @@ import org.apache.gobblin.stream.MetadataUpdateControlMessage;
 import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.stream.StreamEntity;
 import org.apache.gobblin.util.AvroUtils;
+import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.FinalState;
 import org.apache.gobblin.writer.partitioner.WriterPartitioner;
 
@@ -67,6 +75,12 @@ import org.apache.gobblin.writer.partitioner.WriterPartitioner;
 public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements FinalState, SpeculativeAttemptAwareConstruct, WatermarkAwareWriter<D> {
 
   public static final String WRITER_LATEST_SCHEMA = "writer.latest.schema";
+  //Config to control when a writer is evicted from Partitioned data writer cache.
+  // NOTE: this config must be set only in streaming mode. For batch mode, setting this config will result
+  // in incorrect behavior.
+  public static final String PARTITIONED_WRITER_CACHE_TTL_SECONDS = "partitionedDataWriter.cache.ttl.seconds";
+  public static final Long DEFAULT_PARTITIONED_WRITER_CACHE_TTL_SECONDS = Long.MAX_VALUE;
+
   private static final GenericRecord NON_PARTITIONED_WRITER_KEY =
       new GenericData.Record(SchemaBuilder.record("Dummy").fields().endRecord());
 
@@ -76,6 +90,8 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
   private final int branchId;
 
   private final Optional<WriterPartitioner> partitioner;
+  @Getter
+  @VisibleForTesting
   private final LoadingCache<GenericRecord, DataWriter<D>> partitionWriters;
   private final Optional<PartitionAwareDataWriterBuilder> builder;
   private final DataWriterBuilder writerBuilder;
@@ -84,6 +100,17 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
   private final ControlMessageHandler controlMessageHandler;
   private boolean isSpeculativeAttemptSafe;
   private boolean isWatermarkCapable;
+
+  private ScheduledExecutorService cacheCleanUpExecutor;
+
+  //Counters to keep track of records and bytes of writers which have been evicted from cache.
+  @Getter
+  @VisibleForTesting
+  private long totalRecordsFromEvictedWriters;
+  @Getter
+  @VisibleForTesting
+  private long totalBytesFromEvictedWriters;
+
 
   public PartitionedDataWriter(DataWriterBuilder<S, D> builder, final State state)
       throws IOException {
@@ -99,13 +126,35 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
     if(builder.schema != null) {
       this.state.setProp(WRITER_LATEST_SCHEMA, builder.getSchema());
     }
-    this.partitionWriters = CacheBuilder.newBuilder().build(new CacheLoader<GenericRecord, DataWriter<D>>() {
+    long cacheExpiryInterval = this.state.getPropAsLong(PARTITIONED_WRITER_CACHE_TTL_SECONDS, DEFAULT_PARTITIONED_WRITER_CACHE_TTL_SECONDS);
+    log.debug("PartitionedDataWriter: Setting cache expiry interval to {} seconds", cacheExpiryInterval);
+
+    this.partitionWriters = CacheBuilder.newBuilder()
+        .expireAfterAccess(cacheExpiryInterval, TimeUnit.SECONDS)
+        .removalListener(new RemovalListener<GenericRecord, DataWriter<D>>() {
+      @Override
+      public void onRemoval(RemovalNotification<GenericRecord, DataWriter<D>> notification) {
+        synchronized (PartitionedDataWriter.this) {
+          if (notification.getValue() != null) {
+            try {
+              DataWriter<D> writer = notification.getValue();
+              totalRecordsFromEvictedWriters += writer.recordsWritten();
+              totalBytesFromEvictedWriters += writer.bytesWritten();
+              writer.close();
+            } catch (IOException e) {
+              log.error("Exception {} encountered when closing data writer on cache eviction", e);
+              //Should propagate the exception to avoid committing/publishing corrupt files.
+              throw new RuntimeException(e);
+            }
+          }
+        }
+      }
+    }).build(new CacheLoader<GenericRecord, DataWriter<D>>() {
       @Override
       public DataWriter<D> load(final GenericRecord key)
           throws Exception {
         /* wrap the data writer to allow the option to close the writer on flush */
-        return PartitionedDataWriter.this.closer
-            .register(new InstrumentedPartitionedDataWriterDecorator<>(
+        return new InstrumentedPartitionedDataWriterDecorator<>(
                 new CloseOnFlushWriterWrapper<D>(new Supplier<DataWriter<D>>() {
                   @Override
                   public DataWriter<D> get() {
@@ -115,9 +164,22 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
                       throw new RuntimeException("Error creating writer", e);
                     }
                   }
-                }, state), state, key));
+                }, state), state, key);
       }
     });
+
+    //Schedule a DataWriter cache clean up operation, since LoadingCache may keep the object
+    // in memory even after it has been evicted from the cache.
+    if (cacheExpiryInterval < Long.MAX_VALUE) {
+      this.cacheCleanUpExecutor = Executors.newSingleThreadScheduledExecutor(
+          ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("CacheCleanupExecutor")));
+      this.cacheCleanUpExecutor.scheduleAtFixedRate(new Runnable() {
+        @Override
+        public void run() {
+          PartitionedDataWriter.this.partitionWriters.cleanUp();
+        }
+      }, 0, cacheExpiryInterval, TimeUnit.SECONDS);
+    }
 
     if (state.contains(ConfigurationKeys.WRITER_PARTITIONER_CLASS)) {
       Preconditions.checkArgument(builder instanceof PartitionAwareDataWriterBuilder, String
@@ -187,7 +249,7 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
   }
 
   @Override
-  public void commit()
+  public synchronized void commit()
       throws IOException {
     int writersCommitted = 0;
     for (Map.Entry<GenericRecord, DataWriter<D>> entry : this.partitionWriters.asMap().entrySet()) {
@@ -204,7 +266,7 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
   }
 
   @Override
-  public void cleanup()
+  public synchronized void cleanup()
       throws IOException {
     int writersCleanedUp = 0;
     for (Map.Entry<GenericRecord, DataWriter<D>> entry : this.partitionWriters.asMap().entrySet()) {
@@ -221,31 +283,38 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
   }
 
   @Override
-  public long recordsWritten() {
+  public synchronized long recordsWritten() {
     long totalRecords = 0;
     for (Map.Entry<GenericRecord, DataWriter<D>> entry : this.partitionWriters.asMap().entrySet()) {
       totalRecords += entry.getValue().recordsWritten();
     }
-    return totalRecords;
+    return totalRecords + this.totalRecordsFromEvictedWriters;
   }
 
   @Override
-  public long bytesWritten()
+  public synchronized long bytesWritten()
       throws IOException {
     long totalBytes = 0;
     for (Map.Entry<GenericRecord, DataWriter<D>> entry : this.partitionWriters.asMap().entrySet()) {
       totalBytes += entry.getValue().bytesWritten();
     }
-    return totalBytes;
+    return totalBytes + this.totalBytesFromEvictedWriters;
   }
 
   @Override
-  public void close()
+  public synchronized void close()
       throws IOException {
     try {
       serializePartitionInfoToState();
     } finally {
+      closeWritersInCache();
       this.closer.close();
+    }
+  }
+
+  private void closeWritersInCache() throws IOException {
+    for (Map.Entry<GenericRecord, DataWriter<D>> entry : this.partitionWriters.asMap().entrySet()) {
+      entry.getValue().close();
     }
   }
 
@@ -262,7 +331,7 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
   }
 
   @Override
-  public State getFinalState() {
+  public synchronized State getFinalState() {
 
     State state = new State();
     try {
@@ -328,9 +397,11 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
             .getGlobalMetadata().getSchema());
       }
 
-      for (DataWriter writer : PartitionedDataWriter.this.partitionWriters.asMap().values()) {
-        ControlMessage cloned = (ControlMessage) cloner.getClone();
-        writer.getMessageHandler().handleMessage(cloned);
+      synchronized (PartitionedDataWriter.this) {
+        for (DataWriter writer : PartitionedDataWriter.this.partitionWriters.asMap().values()) {
+          ControlMessage cloned = (ControlMessage) cloner.getClone();
+          writer.getMessageHandler().handleMessage(cloned);
+        }
       }
 
       cloner.close();
