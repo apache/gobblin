@@ -87,6 +87,8 @@ public class GobblinClusterManagerTest implements HelixMessageTestBase {
             ConfigValueFactory.fromAnyRef("DEFAULT:1,OTHER:10"))
         .withValue(GobblinClusterConfigurationKeys.HADOOP_CONFIG_OVERRIDES_PREFIX + "." + HADOOP_OVERRIDE_PROPERTY_NAME,
             ConfigValueFactory.fromAnyRef("value"))
+        .withValue(GobblinClusterConfigurationKeys.HADOOP_CONFIG_OVERRIDES_PREFIX + "." + "fs.file.impl.disable.cache",
+            ConfigValueFactory.fromAnyRef("true"))
         .resolve();
 
     String zkConnectionString = config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);

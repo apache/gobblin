@@ -75,6 +75,8 @@ public class GobblinTaskRunnerTest {
                    ConfigValueFactory.fromAnyRef(testingZKServer.getConnectString()))
         .withValue(GobblinClusterConfigurationKeys.HADOOP_CONFIG_OVERRIDES_PREFIX + "." + HADOOP_OVERRIDE_PROPERTY_NAME,
             ConfigValueFactory.fromAnyRef("value"))
+        .withValue(GobblinClusterConfigurationKeys.HADOOP_CONFIG_OVERRIDES_PREFIX + "." + "fs.file.impl.disable.cache",
+            ConfigValueFactory.fromAnyRef("true"))
         .resolve();
 
     String zkConnectionString = config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
