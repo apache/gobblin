@@ -34,7 +34,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-
+@Test(enabled = false)
 public class UnixTimestampRecursiveCopyableDatasetTest {
 
   String rootPath = "/tmp/src";
@@ -69,7 +69,7 @@ public class UnixTimestampRecursiveCopyableDatasetTest {
     fs.mkdirs(baseDstDir);
   }
 
-  @Test
+  @Test(enabled = false)
   public void testGetFilesAtPath()
       throws IOException {
     //1570544993735-PT-499913495
@@ -132,7 +132,6 @@ public class UnixTimestampRecursiveCopyableDatasetTest {
     fileStatusList = dataset.getFilesAtPath(fs, baseSrcDir, ACCEPT_ALL_PATH_FILTER);
     Assert.assertTrue(fileStatusList.size() == 6);
 
-
     //
     // Test table level copy, Qualifying Regex: ".*/([0-9]{13})-PT-.*/.*")\, dataset root = /tmp/src/databaseName/tableName
     //
@@ -162,7 +161,7 @@ public class UnixTimestampRecursiveCopyableDatasetTest {
 
   }
 
-  @Test
+  @Test(enabled = false)
   public void testRegex() {
     String dbRegex = ".*/([0-9]{13}).*/.*";
     long now = System.currentTimeMillis();
