@@ -148,7 +148,7 @@ public final class LineageInfo {
       return;
     }
 
-    log.info(String.format("Put destination %s for branch %d", Descriptor.toJson(descriptors), branchId));
+    log.debug(String.format("Put destination %s for branch %d", Descriptor.toJson(descriptors), branchId));
 
     synchronized (state.getProp(getKey(NAME_KEY))) {
       List<Descriptor> resolvedDescriptors = new ArrayList<>();
