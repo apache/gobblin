@@ -79,6 +79,8 @@ public class HiveDatasetDescriptor extends SqlDatasetDescriptor {
         ));
   }
 
+  // Using Hadoop's GlobPattern instead of java.util.regex, because could not find any API in java.util.regex
+  // which tells if the string is a plain string or contains special characters.
   // If the db name contains wildcards, whitelist is created as <regex_db>.*
   // Otherwise, whitelist is created as <db>.tables.
   // This is the format which HiveDatasetFinder understands.
