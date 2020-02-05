@@ -40,13 +40,16 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * Given a set up Azkaban job configuration, launch the Gobblin-on-Yarn job in a semi-embedded mode:
  * - Uses external Kafka cluster and requires external Zookeeper(Non-embedded TestingServer) to be set up.
+ * The Kafka Cluster was intentionally set to be external due to the data availability. External ZK was unintentional
+ * as the helix version (0.9) being used cannot finish state transition in the Embedded ZK.
+ * TODO: Adding embedded Kafka cluster and set golden datasets for data-validation.
  * - Uses MiniYARNCluster so YARN components don't have to be installed.
  */
 @Slf4j
 public class EmbeddedGobblinYarnAppLauncher extends AzkabanJobRunner {
   public static final String DYNAMIC_CONF_PATH = "dynamic.conf";
   public static final String YARN_SITE_XML_PATH = "yarn-site.xml";
-  private static String zkString = "zk-ltx1-gobblin.stg.linkedin.com:6312";
+  private static String zkString = "";
   private static String fileAddress = "";
 
   private static void setup(String[] args)

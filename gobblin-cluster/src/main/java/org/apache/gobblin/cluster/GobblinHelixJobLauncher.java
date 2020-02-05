@@ -93,8 +93,8 @@ import org.apache.gobblin.util.SerializationUtils;
  * </p>
  *
  * <p>
- *   The instance of this class is instantiated and runing along with the {@link GobblinHelixJobScheduler}.
- *   The actual task execution happens in the in the {@link GobblinTaskRunner}, usually in a different process.
+ *   This class is instantiated by the {@link GobblinHelixJobScheduler} on every job submission to launch the Gobblin job.
+ *   The actual task execution happens in the {@link GobblinTaskRunner}, usually in a different process.
  * </p>
  *
  * @author Yinan Li
