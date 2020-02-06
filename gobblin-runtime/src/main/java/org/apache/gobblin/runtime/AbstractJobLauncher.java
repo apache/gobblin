@@ -416,12 +416,16 @@ public abstract class AbstractJobLauncher implements JobLauncher {
             EventName.WORK_UNITS_CREATION));
 
         String workunitCreationGaugeName = MetricRegistry.name(
-            MetricReportUtils.GOBBLIN_SERVICE_METRICS_PREFIX,
-            TimingEvent.LauncherTimings.WORK_UNITS_CREATION, jobState.getId());
+            MetricReportUtils.GOBBLIN_JOB_METRICS_PREFIX,
+            TimingEvent.LauncherTimings.WORK_UNITS_CREATION, jobState.getJobName());
         long workUnitsCreationTime = workUnitsCreationTimer.getDuration() / TimeUnit.SECONDS.toMillis(1);
         ContextAwareGauge<Integer> workunitCreationGauge = RootMetricContext
             .get().newContextAwareGauge(workunitCreationGaugeName, () -> (int) workUnitsCreationTime);
-        RootMetricContext.get().register(workunitCreationGaugeName, workunitCreationGauge);
+        try {
+          RootMetricContext.get().register(workunitCreationGaugeName, workunitCreationGauge);
+        } catch (IllegalArgumentException e) {
+          LOG.warn(e.getMessage());
+        }
 
         // The absence means there is something wrong getting the work units
         if (workUnitStream == null || workUnitStream.getWorkUnits() == null) {
