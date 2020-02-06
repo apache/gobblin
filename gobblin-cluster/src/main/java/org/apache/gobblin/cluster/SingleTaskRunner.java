@@ -49,9 +49,9 @@ import static org.apache.gobblin.cluster.GobblinClusterConfigurationKeys.CLUSTER
 class SingleTaskRunner {
   private static final Logger logger = LoggerFactory.getLogger(SingleTaskRunner.class);
 
-  private final String jobId;
-  private final String workUnitFilePath;
-  private final Config clusterConfig;
+  protected final String jobId;
+  protected final String workUnitFilePath;
+  protected final Config clusterConfig;
   private final Path appWorkPath;
   private SingleTask task;
   private TaskExecutor taskExecutor;
@@ -69,9 +69,17 @@ class SingleTaskRunner {
 
   void run()
       throws IOException, InterruptedException {
+    this.run(false);
+  }
+
+  /**
+   *
+   * @param fail set to false in normal cases, when set to true, the underlying task will fail.
+   */
+  void run(boolean fail) throws IOException, InterruptedException{
     logger.info("SingleTaskRunner running.");
     startServices();
-    runTask();
+    runTask(fail);
     shutdownServices();
   }
 
@@ -96,14 +104,14 @@ class SingleTaskRunner {
     }
   }
 
-  private void runTask()
+  private void runTask(boolean fail)
       throws IOException, InterruptedException {
     logger.info("SingleTaskRunner running task.");
-    getSingleHelixTask();
+    getClusterSingleTask(fail);
     this.task.run();
   }
 
-  private void getSingleHelixTask()
+  private void getClusterSingleTask(boolean fail)
       throws IOException {
     final FileSystem fs = getFileSystem();
     final StateStores stateStores = new StateStores(this.clusterConfig, this.appWorkPath,
@@ -115,7 +123,12 @@ class SingleTaskRunner {
 
     final TaskAttemptBuilder taskAttemptBuilder = getTaskAttemptBuilder(stateStores);
 
-    this.task = new SingleTask(this.jobId, new Path(this.workUnitFilePath), jobStateFilePath, fs,
+    this.task = createTaskAttempt(taskAttemptBuilder, fs, stateStores, jobStateFilePath, fail);
+  }
+
+  protected SingleTask createTaskAttempt(TaskAttemptBuilder taskAttemptBuilder, FileSystem fs,
+      StateStores stateStores, Path jobStateFilePath, boolean fail) {
+    return new SingleTask(this.jobId, new Path(this.workUnitFilePath), jobStateFilePath, fs,
         taskAttemptBuilder, stateStores, GobblinClusterUtils.getDynamicConfig(this.clusterConfig));
   }
 
