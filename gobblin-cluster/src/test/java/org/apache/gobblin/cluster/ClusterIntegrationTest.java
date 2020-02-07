@@ -180,11 +180,11 @@ public class ClusterIntegrationTest {
     }, "Waiting for Workflow TargetState to be START");
   }
 
-  private Predicate<Void> isTaskStarted(HelixManager helixManager, String jobId) {
+  public static Predicate<Void> isTaskStarted(HelixManager helixManager, String jobId) {
     return input -> TaskDriver.getWorkflowContext(helixManager, jobId) != null;
   }
 
-  private Predicate<Void> isTaskRunning(String taskStateFileName) {
+  public static Predicate<Void> isTaskRunning(String taskStateFileName) {
     return input -> {
       File taskStateFile = new File(taskStateFileName);
       return taskStateFile.exists();

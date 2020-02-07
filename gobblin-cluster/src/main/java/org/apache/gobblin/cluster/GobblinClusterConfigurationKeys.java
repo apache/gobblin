@@ -144,10 +144,12 @@ public class GobblinClusterConfigurationKeys {
   public static final long DEFAULT_HELIX_JOB_STOP_TIMEOUT_SECONDS = 10L;
   public static final String TASK_RUNNER_SUITE_BUILDER = GOBBLIN_CLUSTER_PREFIX + "taskRunnerSuite.builder";
 
+  public static final String HELIX_JOB_NAME_KEY = GOBBLIN_CLUSTER_PREFIX + "helixJobName";
   public static final String HELIX_JOB_TIMEOUT_ENABLED_KEY = "helix.job.timeout.enabled";
   public static final String DEFAULT_HELIX_JOB_TIMEOUT_ENABLED = "false";
   public static final String HELIX_JOB_TIMEOUT_SECONDS = "helix.job.timeout.seconds";
   public static final String DEFAULT_HELIX_JOB_TIMEOUT_SECONDS = "10800";
+  public static final String HELIX_TASK_NAME_KEY = GOBBLIN_CLUSTER_PREFIX + "helixTaskName";
   public static final String HELIX_TASK_TIMEOUT_SECONDS = "helix.task.timeout.seconds";
   public static final String HELIX_TASK_MAX_ATTEMPTS_KEY = "helix.task.maxAttempts";
 
@@ -183,4 +185,12 @@ public class GobblinClusterConfigurationKeys {
   public static final boolean DEFAULT_IS_HELIX_CLUSTER_MANAGED = false;
 
   public static final String HADOOP_CONFIG_OVERRIDES_PREFIX = GOBBLIN_CLUSTER_PREFIX + "hadoop.inject";
+
+  //Configurations that will be set dynamically when a GobblinTaskRunner/GobblinHelixTask are instantiated.
+  public static final String GOBBLIN_HELIX_PREFIX = "gobblin.helix.";
+  public static final String HELIX_JOB_ID_KEY = GOBBLIN_HELIX_PREFIX + "jobId";
+  public static final String HELIX_TASK_ID_KEY = GOBBLIN_HELIX_PREFIX + "taskId";
+  public static final String HELIX_PARTITION_ID_KEY = GOBBLIN_HELIX_PREFIX + "partitionId" ;
+  public static final String TASK_RUNNER_HOST_NAME_KEY = GOBBLIN_HELIX_PREFIX + "hostName";
+  public static final String CONTAINER_ID_KEY = GOBBLIN_HELIX_PREFIX + "containerId";
 }

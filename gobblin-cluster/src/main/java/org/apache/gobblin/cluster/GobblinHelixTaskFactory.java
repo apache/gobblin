@@ -21,11 +21,13 @@ import org.apache.hadoop.fs.Path;
 import org.apache.helix.HelixManager;
 import org.apache.helix.task.Task;
 import org.apache.helix.task.TaskCallbackContext;
+import org.apache.helix.task.TaskDriver;
 import org.apache.helix.task.TaskFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.Counter;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 
@@ -54,6 +56,7 @@ public class GobblinHelixTaskFactory implements TaskFactory {
 
   private final Optional<ContainerMetrics> containerMetrics;
   private final HelixManager helixManager;
+  private Optional<TaskDriver> taskDriver;
   private TaskRunnerSuiteBase.Builder builder;
 
   /**
@@ -70,9 +73,23 @@ public class GobblinHelixTaskFactory implements TaskFactory {
   private final TaskAttemptBuilder taskAttemptBuilder;
 
   public GobblinHelixTaskFactory(TaskRunnerSuiteBase.Builder builder,
+      MetricContext metricContext,
+      TaskStateTracker taskStateTracker,
+      Config stateStoreConfig) {
+    this(builder, metricContext, taskStateTracker, stateStoreConfig, Optional.absent());
+  }
+
+  /**
+   * Constructor that allows passing in a {@link TaskDriver} instance. This constructor is exposed purely for
+   * testing purposes to allow passing in a mock {@link TaskDriver} (e.g. see GobblinHelixTaskTest). For other cases, use
+   * the constructor {@link #GobblinHelixTaskFactory(TaskRunnerSuiteBase.Builder, MetricContext, TaskStateTracker, Config)}.
+   */
+  @VisibleForTesting
+  public GobblinHelixTaskFactory(TaskRunnerSuiteBase.Builder builder,
                                  MetricContext metricContext,
                                  TaskStateTracker taskStateTracker,
-                                 Config stateStoreConfig) {
+                                 Config stateStoreConfig,
+                                 Optional<TaskDriver> taskDriver) {
 
     // initialize task related metrics
     int windowSizeInMin = ConfigUtils.getInt(builder.getConfig(),
@@ -98,6 +115,7 @@ public class GobblinHelixTaskFactory implements TaskFactory {
         appWorkDir,
         GobblinClusterConfigurationKeys.JOB_STATE_DIR_NAME);
     this.taskAttemptBuilder = createTaskAttemptBuilder();
+    this.taskDriver = taskDriver;
   }
 
   private TaskAttemptBuilder createTaskAttemptBuilder() {
@@ -113,6 +131,11 @@ public class GobblinHelixTaskFactory implements TaskFactory {
     if (this.newTasksCounter.isPresent()) {
       this.newTasksCounter.get().inc();
     }
-    return new GobblinHelixTask(builder, context, this.taskAttemptBuilder, this.stateStores, this.taskMetrics);
+
+    if (!this.taskDriver.isPresent()) {
+      this.taskDriver = Optional.of(new TaskDriver(context.getManager()));
+    }
+
+    return new GobblinHelixTask(builder, context, this.taskAttemptBuilder, this.stateStores, this.taskMetrics, this.taskDriver.get());
   }
 }
