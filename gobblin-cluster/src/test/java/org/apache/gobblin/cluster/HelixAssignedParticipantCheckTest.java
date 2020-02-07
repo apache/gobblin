@@ -16,12 +16,14 @@
  */
 package org.apache.gobblin.cluster;
 
+import java.io.IOException;
 import java.util.Map;
 
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
 import org.testng.Assert;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Joiner;
@@ -37,21 +39,30 @@ import org.apache.gobblin.testing.AssertWithBackoff;
 
 
 public class HelixAssignedParticipantCheckTest {
-  @Test (groups = {"disabledOnTravis"})
-  //Test disabled on Travis because cluster integration tests are generally flaky on Travis.
-  public void testExecute() throws Exception {
-    //Set up a Gobblin Helix cluster
-    IntegrationJobSuite suite = new IntegrationJobSuite();
-    suite.startCluster();
+  private IntegrationJobSuite suite;
+  private HelixManager helixManager;
+  private Config helixConfig;
 
-    Config helixConfig = suite.getManagerConfig();
+  @BeforeClass
+  public void setUp()
+      throws Exception {
+    //Set up a Gobblin Helix cluster
+    suite = new IntegrationJobSuite();
+
+    helixConfig = suite.getManagerConfig();
     String clusterName = helixConfig.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
     String zkConnectString = helixConfig.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
-    HelixManager helixManager = HelixManagerFactory.getZKHelixManager(clusterName, "TestManager",
+    helixManager = HelixManagerFactory.getZKHelixManager(clusterName, "TestManager",
         InstanceType.SPECTATOR, zkConnectString);
 
     //Connect to the previously started Helix cluster
     helixManager.connect();
+  }
+
+  @Test (groups = {"disabledOnTravis"})
+  //Test disabled on Travis because cluster integration tests are generally flaky on Travis.
+  public void testExecute() throws Exception {
+    suite.startCluster();
 
     //Ensure that Helix has created a workflow
     AssertWithBackoff.create().maxSleepMs(1000).backoffFactor(1).
@@ -83,9 +94,14 @@ public class HelixAssignedParticipantCheckTest {
     } catch (CommitStepException e) {
       //Do nothing; Expected to throw exception
     }
+  }
 
+  public void tearDown() throws IOException, InterruptedException {
     //Shutdown cluster
     suite.shutdownCluster();
+    if (helixManager.isConnected()) {
+      helixManager.disconnect();
+    }
   }
 
   public static class IntegrationJobSuite extends IntegrationBasicSuite {

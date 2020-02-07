@@ -77,7 +77,6 @@ public class GobblinHelixTask implements Task {
   private GobblinHelixTaskMetrics taskMetrics;
   private SingleTask task;
   private String helixTaskId;
-  private TaskDriver taskDriver;
 
   public GobblinHelixTask(TaskRunnerSuiteBase.Builder builder,
                           TaskCallbackContext taskCallbackContext,
@@ -106,10 +105,13 @@ public class GobblinHelixTask implements Task {
         .withValue(GobblinClusterConfigurationKeys.HELIX_TASK_ID_KEY, ConfigValueFactory.fromAnyRef(this.helixTaskId));
 
     Integer partitionNum = getPartitionForHelixTask(taskDriver);
-    if (partitionNum != null) {
-        dynamicConfig = dynamicConfig.withValue(GobblinClusterConfigurationKeys.HELIX_PARTITION_ID_KEY, ConfigValueFactory.fromAnyRef(getPartitionForHelixTask(taskDriver)));
+
+    if (partitionNum == null) {
+      throw new IllegalStateException(String.format("Task %s, job %s on instance %s has no partition assigned",
+          this.helixTaskId, builder.getInstanceName(), this.helixJobId));
     }
 
+    dynamicConfig = dynamicConfig.withValue(GobblinClusterConfigurationKeys.HELIX_PARTITION_ID_KEY, ConfigValueFactory.fromAnyRef(getPartitionForHelixTask(taskDriver)));
     this.task = new SingleTask(this.jobId,
                                this.workUnitFilePath,
                                jobStateFilePath,
@@ -117,10 +119,6 @@ public class GobblinHelixTask implements Task {
                                taskAttemptBuilder,
                                stateStores,
                                dynamicConfig);
-  }
-
-  public void setTaskDriver(TaskDriver taskDriver) {
-    this.taskDriver = taskDriver;
   }
 
   private void getInfoFromTaskConfig() {
