@@ -27,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.Counter;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 
@@ -78,6 +79,12 @@ public class GobblinHelixTaskFactory implements TaskFactory {
     this(builder, metricContext, taskStateTracker, stateStoreConfig, Optional.absent());
   }
 
+  /**
+   * Constructor that allows passing in a {@link TaskDriver} instance. This constructor is exposed purely for
+   * testing purposes to allow passing in a mock {@link TaskDriver} (e.g. see GobblinHelixTaskTest). For other cases, use
+   * the constructor {@link #GobblinHelixTaskFactory(TaskRunnerSuiteBase.Builder, MetricContext, TaskStateTracker, Config)}.
+   */
+  @VisibleForTesting
   public GobblinHelixTaskFactory(TaskRunnerSuiteBase.Builder builder,
                                  MetricContext metricContext,
                                  TaskStateTracker taskStateTracker,

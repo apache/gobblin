@@ -54,15 +54,15 @@ public class HelixAssignedParticipantCheckTest {
     String zkConnectString = helixConfig.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
     helixManager = HelixManagerFactory.getZKHelixManager(clusterName, "TestManager",
         InstanceType.SPECTATOR, zkConnectString);
-
-    //Connect to the previously started Helix cluster
-    helixManager.connect();
   }
 
   @Test (groups = {"disabledOnTravis"})
   //Test disabled on Travis because cluster integration tests are generally flaky on Travis.
   public void testExecute() throws Exception {
     suite.startCluster();
+
+    //Connect to the previously started Helix cluster
+    helixManager.connect();
 
     //Ensure that Helix has created a workflow
     AssertWithBackoff.create().maxSleepMs(1000).backoffFactor(1).
@@ -92,7 +92,8 @@ public class HelixAssignedParticipantCheckTest {
       check.execute();
       Assert.fail("Expected to throw CommitStepException");
     } catch (CommitStepException e) {
-      //Do nothing; Expected to throw exception
+      //Expected to throw CommitStepException
+      Assert.assertTrue(e.getClass().equals(CommitStepException.class));
     }
   }
 

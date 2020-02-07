@@ -111,7 +111,7 @@ public class GobblinHelixTask implements Task {
           this.helixTaskId, builder.getInstanceName(), this.helixJobId));
     }
 
-    dynamicConfig = dynamicConfig.withValue(GobblinClusterConfigurationKeys.HELIX_PARTITION_ID_KEY, ConfigValueFactory.fromAnyRef(getPartitionForHelixTask(taskDriver)));
+    dynamicConfig = dynamicConfig.withValue(GobblinClusterConfigurationKeys.HELIX_PARTITION_ID_KEY, ConfigValueFactory.fromAnyRef(partitionNum));
     this.task = new SingleTask(this.jobId,
                                this.workUnitFilePath,
                                jobStateFilePath,
