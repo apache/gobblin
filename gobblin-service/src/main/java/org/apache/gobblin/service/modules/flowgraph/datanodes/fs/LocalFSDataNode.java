@@ -19,11 +19,9 @@ package org.apache.gobblin.service.modules.flowgraph.datanodes.fs;
 
 import java.net.URI;
 
-import org.apache.gobblin.annotation.Alpha;
-
 import com.typesafe.config.Config;
 
-import lombok.Getter;
+import org.apache.gobblin.annotation.Alpha;
 
 
 /**
@@ -33,8 +31,7 @@ import lombok.Getter;
 @Alpha
 public class LocalFSDataNode extends FileSystemDataNode {
   public static final String LOCAL_FS_SCHEME = "file";
-  @Getter
-  public final String defaultDatasetDescriptorPlatform = "local";
+  public static final String PLATFORM = "local";
 
   public LocalFSDataNode(Config nodeProps) throws DataNodeCreationException {
     super(nodeProps);
@@ -52,5 +49,10 @@ public class LocalFSDataNode extends FileSystemDataNode {
       return true;
     }
     return false;
+  }
+
+  @Override
+  public String getDefaultDatasetDescriptorPlatform() {
+    return PLATFORM;
   }
 }

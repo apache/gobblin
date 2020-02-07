@@ -40,8 +40,6 @@ public class SqlDataNode extends BaseDataNode {
   private Integer port;
   @Getter
   private String jdbcDriver;
-  @Getter
-  public final String defaultDatasetDescriptorClass = SqlDatasetDescriptor.class.getCanonicalName();
 
   public SqlDataNode(Config nodeProps) throws DataNodeCreationException {
     super(nodeProps);
@@ -55,5 +53,10 @@ public class SqlDataNode extends BaseDataNode {
     } catch (Exception e) {
       throw new DataNodeCreationException(e);
     }
+  }
+
+  @Override
+  public String getDefaultDatasetDescriptorClass() {
+    return SqlDatasetDescriptor.class.getCanonicalName();
   }
 }

@@ -28,7 +28,6 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
 import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.service.modules.dataset.FSDatasetDescriptor;
 import org.apache.gobblin.service.modules.dataset.HiveDatasetDescriptor;
 import org.apache.gobblin.service.modules.flowgraph.BaseDataNode;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraphConfigurationKeys;
@@ -43,10 +42,7 @@ import org.apache.gobblin.util.ConfigUtils;
 @EqualsAndHashCode (callSuper = true)
 public class HiveDataNode extends BaseDataNode {
   public static final String METASTORE_URI_KEY = FlowGraphConfigurationKeys.DATA_NODE_PREFIX + "hive.metastore.uri";
-  @Getter
-  public final String defaultDatasetDescriptorClass = HiveDatasetDescriptor.class.getCanonicalName();
-  @Getter
-  public final String defaultDatasetDescriptorPlatform = "hive";
+  public static final String PLATFORM = "hive";
 
   @Getter
   private String metastoreUri;
@@ -83,5 +79,15 @@ public class HiveDataNode extends BaseDataNode {
       return false;
     }
     return true;
+  }
+
+  @Override
+  public String getDefaultDatasetDescriptorClass() {
+    return HiveDatasetDescriptor.class.getCanonicalName();
+  }
+
+  @Override
+  public String getDefaultDatasetDescriptorPlatform() {
+    return PLATFORM;
   }
 }

@@ -42,10 +42,7 @@ public class HttpDataNode extends BaseDataNode  {
   private String httpDomain;
   @Getter
   private String authenticationType;
-  @Getter
-  public final String defaultDatasetDescriptorClass = HttpDatasetDescriptor.class.getCanonicalName();
-  @Getter
-  public final String defaultDatasetDescriptorPlatform = "http";
+  public static final String PLATFORM = "http";
 
   public HttpDataNode(Config nodeProps) throws DataNode.DataNodeCreationException {
     super(nodeProps);
@@ -62,5 +59,15 @@ public class HttpDataNode extends BaseDataNode  {
     } catch (Exception e) {
       throw new DataNode.DataNodeCreationException(e);
     }
+  }
+
+  @Override
+  public String getDefaultDatasetDescriptorClass() {
+    return HttpDatasetDescriptor.class.getCanonicalName();
+  }
+
+  @Override
+  public String getDefaultDatasetDescriptorPlatform() {
+    return PLATFORM;
   }
 }

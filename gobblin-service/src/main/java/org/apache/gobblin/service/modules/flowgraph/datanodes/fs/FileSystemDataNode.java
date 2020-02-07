@@ -42,8 +42,6 @@ import org.apache.gobblin.util.ConfigUtils;
 @EqualsAndHashCode (callSuper = true)
 public abstract class FileSystemDataNode extends BaseDataNode {
   public static final String FS_URI_KEY = FlowGraphConfigurationKeys.DATA_NODE_PREFIX + "fs.uri";
-  @Getter
-  public final String defaultDatasetDescriptorClass = FSDatasetDescriptor.class.getCanonicalName();
 
   @Getter
   private String fsUri;
@@ -67,4 +65,9 @@ public abstract class FileSystemDataNode extends BaseDataNode {
   }
 
   public abstract boolean isUriValid(URI fsUri);
+
+  @Override
+  public String getDefaultDatasetDescriptorClass() {
+    return FSDatasetDescriptor.class.getCanonicalName();
+  }
 }
