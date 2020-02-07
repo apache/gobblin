@@ -18,7 +18,9 @@
 package org.apache.gobblin.cluster;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.URI;
+import java.net.UnknownHostException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -180,6 +182,13 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
         GobblinClusterConfigurationKeys.TASK_RUNNER_SUITE_BUILDER,
         TaskRunnerSuiteBase.Builder.class.getName());
 
+    String hostName = "";
+    try {
+      hostName = InetAddress.getLocalHost().getHostName();
+    } catch (UnknownHostException e) {
+      logger.warn("Cannot find host name for Helix instance: {}", this.helixInstanceName);
+    }
+
     TaskRunnerSuiteBase.Builder builder = GobblinConstructorUtils.<TaskRunnerSuiteBase.Builder>invokeLongestConstructor(
           new ClassAliasResolver(TaskRunnerSuiteBase.Builder.class)
               .resolveClass(builderStr), this.config);
@@ -191,6 +200,8 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
         .setApplicationId(applicationId)
         .setApplicationName(applicationName)
         .setInstanceName(helixInstanceName)
+        .setContainerId(taskRunnerId)
+        .setHostName(hostName)
         .build();
 
     this.taskStateModelFactory = createTaskStateModelFactory(suite.getTaskFactoryMap());
