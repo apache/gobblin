@@ -415,16 +415,14 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         workUnitsCreationTimer.stop(this.eventMetadataGenerator.getMetadata(this.jobContext,
             EventName.WORK_UNITS_CREATION));
 
-        String workunitCreationGaugeName = MetricRegistry.name(
-            MetricReportUtils.GOBBLIN_JOB_METRICS_PREFIX,
-            TimingEvent.LauncherTimings.WORK_UNITS_CREATION, jobState.getJobName());
-        long workUnitsCreationTime = workUnitsCreationTimer.getDuration() / TimeUnit.SECONDS.toMillis(1);
-        ContextAwareGauge<Integer> workunitCreationGauge = RootMetricContext
-            .get().newContextAwareGauge(workunitCreationGaugeName, () -> (int) workUnitsCreationTime);
-        try {
-          RootMetricContext.get().register(workunitCreationGaugeName, workunitCreationGauge);
-        } catch (IllegalArgumentException e) {
-          LOG.warn(e.getMessage());
+        if (this.runtimeMetricContext.isPresent()) {
+          String workunitCreationGaugeName = MetricRegistry
+              .name(MetricReportUtils.GOBBLIN_JOB_METRICS_PREFIX, TimingEvent.LauncherTimings.WORK_UNITS_CREATION,
+                  jobState.getJobName());
+          long workUnitsCreationTime = workUnitsCreationTimer.getDuration() / TimeUnit.SECONDS.toMillis(1);
+          ContextAwareGauge<Integer> workunitCreationGauge = RootMetricContext.get()
+              .newContextAwareGauge(workunitCreationGaugeName, () -> (int) workUnitsCreationTime);
+          this.runtimeMetricContext.get().register(workunitCreationGaugeName, workunitCreationGauge);
         }
 
         // The absence means there is something wrong getting the work units

@@ -938,7 +938,7 @@ public class ConfigurationKeys {
    */
   public static final String SPECEXECUTOR_INSTANCE_URI_KEY = "specExecInstance.uri";
   public static final String SPECEXECUTOR_INSTANCE_CAPABILITIES_KEY = "specExecInstance.capabilities";
-  public static final String SPECEXECUTOR_CONFIGS_PREFIX_KEY = "additional.configs.key";
+  public static final String SPECEXECUTOR_CONFIGS_PREFIX_KEY = "specExecutor.additional.configs.key";
 
   /***
    * Configuration properties related to Spec Producer
