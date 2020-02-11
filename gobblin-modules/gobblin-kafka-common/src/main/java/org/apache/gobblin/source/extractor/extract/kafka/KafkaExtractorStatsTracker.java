@@ -31,6 +31,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.runtime.api.TaskEventMetadataGenerator;
+import org.apache.gobblin.util.TaskEventMetadataUtils;
 
 
 /**
@@ -66,6 +68,7 @@ public class KafkaExtractorStatsTracker {
   private final Map<KafkaPartition, ExtractorStats> statsMap;
   private final Set<Integer> errorPartitions;
   private final WorkUnitState workUnitState;
+  private final TaskEventMetadataGenerator taskEventMetadataGenerator;
   private boolean isSlaConfigured;
   private long recordLevelSlaMillis;
 
@@ -85,6 +88,7 @@ public class KafkaExtractorStatsTracker {
       this.isSlaConfigured = true;
       this.recordLevelSlaMillis = TimeUnit.MINUTES.toMillis(this.workUnitState.getPropAsLong(KafkaSource.RECORD_LEVEL_SLA_MINUTES_KEY));
     }
+    this.taskEventMetadataGenerator = TaskEventMetadataUtils.getTaskEventMetadataGenerator(workUnitState);
   }
 
   public int getErrorPartitionCount() {
@@ -323,8 +327,9 @@ public class KafkaExtractorStatsTracker {
           .put(this.partitions.get(i), createTagsForPartition(i, lowWatermark, highWatermark, nextWatermark));
     }
     for (Map.Entry<KafkaPartition, Map<String, String>> eventTags : tagsForPartitionsMap.entrySet()) {
-      new EventSubmitter.Builder(context, GOBBLIN_KAFKA_NAMESPACE).build()
-          .submit(KAFKA_EXTRACTOR_TOPIC_METADATA_EVENT_NAME, eventTags.getValue());
+      EventSubmitter.Builder eventSubmitterBuilder = new EventSubmitter.Builder(context, GOBBLIN_KAFKA_NAMESPACE);
+      eventSubmitterBuilder.addMetadata(this.taskEventMetadataGenerator.getMetadata(workUnitState, KAFKA_EXTRACTOR_TOPIC_METADATA_EVENT_NAME));
+      eventSubmitterBuilder.build().submit(KAFKA_EXTRACTOR_TOPIC_METADATA_EVENT_NAME, eventTags.getValue());
     }
   }
 
