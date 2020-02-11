@@ -71,6 +71,8 @@ import org.apache.gobblin.metrics.event.sla.SlaEventKeys;
 import org.apache.gobblin.util.AutoReturnableObject;
 import org.apache.gobblin.util.HadoopUtils;
 
+import static org.apache.gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset.getFinalizedDestinationLocation;
+
 
 /**
  * Builds the Hive avro to ORC conversion query. The record type for this converter is {@link QueryBasedHiveConversionEntity}. A {@link QueryBasedHiveConversionEntity}
@@ -637,8 +639,8 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
    */
   private String getOrcDataLocation() {
     String orcDataLocation = getConversionConfig().getDestinationDataPath();
-
-    return orcDataLocation + Path.SEPARATOR + PUBLISHED_TABLE_SUBDIRECTORY;
+    return getConversionConfig().getDataDstPathUseSubdir() ? getFinalizedDestinationLocation(orcDataLocation)
+        : orcDataLocation;
   }
 
   /***

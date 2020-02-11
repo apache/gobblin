@@ -141,12 +141,21 @@ public class ConvertibleHiveDataset extends HiveDataset {
       String destTable = conversionConfigForFormat.get().getDestinationDbName() + "." + conversionConfigForFormat.get()
           .getDestinationTableName();
       DatasetDescriptor dest = new DatasetDescriptor(DatasetConstants.PLATFORM_HIVE, destTable);
-      String destLocation = conversionConfigForFormat.get().getDestinationDataPath() + Path.SEPARATOR + "final";
+      String destLocation = conversionConfigForFormat.get().getDataDstPathUseSubdir()
+          ? getFinalizedDestinationLocation(conversionConfigForFormat.get().getDestinationDataPath())
+          : conversionConfigForFormat.get().getDestinationDataPath();
       dest.addMetadata(DatasetConstants.FS_SCHEME, getSourceDataset().getMetadata().get(DatasetConstants.FS_SCHEME));
       dest.addMetadata(DatasetConstants.FS_LOCATION, destLocation);
       destDatasets.add(dest);
     }
     return destDatasets;
+  }
+
+  /**
+   *  The default behavior for ORC output in Avro2ORC is to add subdir "/final" under destination path from Config.
+   */
+  public static final String getFinalizedDestinationLocation(String destinationDataPathFromConfig) {
+    return destinationDataPathFromConfig + Path.SEPARATOR + "final";
   }
 
   private DatasetDescriptor createSourceDataset() {

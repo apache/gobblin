@@ -87,6 +87,7 @@ public class HiveConverterUtils {
    */
   private static final String PUBLISHED_TABLE_SUBDIRECTORY = "final";
 
+
   /***
    * Separators used by Hive
    */
