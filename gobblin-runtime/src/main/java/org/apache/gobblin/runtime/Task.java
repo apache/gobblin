@@ -28,6 +28,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.BooleanUtils;
 import org.slf4j.Logger;
@@ -366,8 +368,17 @@ public class Task implements TaskIFace {
       this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXTRACTED, this.recordsPulled);
       this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED, extractor.getExpectedRecordCount());
 
+      // If there are folks not successfully being executed, get the aggregated exceptions and throw RuntimeException.
       if (!this.forks.keySet().stream().map(Optional::get).allMatch(Fork::isSucceeded)) {
-        throw new RuntimeException("Some forks failed.");
+        List<Integer> failedForksId = this.forks.keySet().stream().map(Optional::get).
+            filter(not(Fork::isSucceeded)).map(x -> x.getIndex()).collect(Collectors.toList());
+        ForkThrowableHolder holder = Task.getForkThrowableHolder(this.taskState.getTaskBroker());
+
+        Exception e = null;
+        if (!holder.isEmpty()) {
+          e = holder.getAggregatedException(failedForksId, this.taskId);
+        }
+        throw e == null ? new RuntimeException("Some forks failed") : new RuntimeException("Forks failed with exception:", e);
       }
 
       //TODO: Move these to explicit shutdown phase
@@ -390,6 +401,13 @@ public class Task implements TaskIFace {
         }
       }
     }
+  }
+
+  /**
+   * TODO: Remove this method after Java-11 as JDK offers similar built-in solution.
+   */
+  public static <T> Predicate<T> not(Predicate<T> t) {
+    return t.negate();
   }
 
   @Deprecated
