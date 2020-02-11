@@ -420,7 +420,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
               .name(MetricReportUtils.GOBBLIN_JOB_METRICS_PREFIX, TimingEvent.LauncherTimings.WORK_UNITS_CREATION,
                   jobState.getJobName());
           long workUnitsCreationTime = workUnitsCreationTimer.getDuration() / TimeUnit.SECONDS.toMillis(1);
-          ContextAwareGauge<Integer> workunitCreationGauge = RootMetricContext.get()
+          ContextAwareGauge<Integer> workunitCreationGauge = this.runtimeMetricContext.get()
               .newContextAwareGauge(workunitCreationGaugeName, () -> (int) workUnitsCreationTime);
           this.runtimeMetricContext.get().register(workunitCreationGaugeName, workunitCreationGauge);
         }
