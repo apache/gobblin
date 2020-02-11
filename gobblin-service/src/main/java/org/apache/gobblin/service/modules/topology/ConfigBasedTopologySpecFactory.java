@@ -88,7 +88,11 @@ public class ConfigBasedTopologySpecFactory implements TopologySpecFactory {
                 .resolve(specExecutorClass)), topologyConfig);
       } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
           | ClassNotFoundException e) {
-        throw new RuntimeException(e);
+        if (e.getCause() != null) {
+          throw new RuntimeException(e.getCause());
+        } else {
+          throw new RuntimeException(e);
+        }
       }
 
       TopologySpec.Builder topologySpecBuilder = TopologySpec
