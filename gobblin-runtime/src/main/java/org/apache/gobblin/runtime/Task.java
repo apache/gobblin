@@ -75,6 +75,7 @@ import org.apache.gobblin.publisher.SingleTaskDataPublisher;
 import org.apache.gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
 import org.apache.gobblin.qualitychecker.row.RowLevelPolicyChecker;
 import org.apache.gobblin.records.RecordStreamProcessor;
+import org.apache.gobblin.runtime.api.TaskEventMetadataGenerator;
 import org.apache.gobblin.runtime.fork.AsynchronousFork;
 import org.apache.gobblin.runtime.fork.Fork;
 import org.apache.gobblin.runtime.fork.SynchronousFork;
@@ -86,6 +87,7 @@ import org.apache.gobblin.source.extractor.StreamingExtractor;
 import org.apache.gobblin.state.ConstructState;
 import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.TaskEventMetadataUtils;
 import org.apache.gobblin.writer.AcknowledgableWatermark;
 import org.apache.gobblin.writer.DataWriter;
 import org.apache.gobblin.writer.FineGrainedWatermarkTracker;
@@ -156,6 +158,7 @@ public class Task implements TaskIFace {
   private final List<RecordStreamProcessor<?,?,?,?>> recordStreamProcessors;
 
   private final Closer closer;
+  private final TaskEventMetadataGenerator taskEventMetadataGenerator;
 
   private long startTime;
   private volatile long lastRecordPulledTimestampMillis;
@@ -267,6 +270,7 @@ public class Task implements TaskIFace {
       this.watermarkTracker = Optional.absent();
       this.watermarkStorage = Optional.absent();
     }
+    this.taskEventMetadataGenerator = TaskEventMetadataUtils.getTaskEventMetadataGenerator(taskState);
   }
 
   /**
@@ -568,6 +572,7 @@ public class Task implements TaskIFace {
     FailureEventBuilder failureEvent = new FailureEventBuilder(FAILED_TASK_EVENT);
     failureEvent.setRootCause(t);
     failureEvent.addMetadata(TASK_STATE, this.taskState.toString());
+    failureEvent.addAdditionalMetadata(this.taskEventMetadataGenerator.getMetadata(this.taskState, failureEvent.getName()));
     failureEvent.submit(taskContext.getTaskMetrics().getMetricContext());
   }
 
@@ -985,9 +990,12 @@ public class Task implements TaskIFace {
   protected void submitTaskCommittedEvent() {
     MetricContext taskMetricContext = TaskMetrics.get(this.taskState).getMetricContext();
     EventSubmitter eventSubmitter = new EventSubmitter.Builder(taskMetricContext, "gobblin.runtime.task").build();
-    eventSubmitter.submit(TaskEvent.TASK_COMMITTED_EVENT_NAME, ImmutableMap
+    Map<String, String> metadataMap = Maps.newHashMap();
+    metadataMap.putAll(this.taskEventMetadataGenerator.getMetadata(this.taskState, TaskEvent.TASK_COMMITTED_EVENT_NAME));
+    metadataMap.putAll(ImmutableMap
         .of(TaskEvent.METADATA_TASK_ID, this.taskId, TaskEvent.METADATA_TASK_ATTEMPT_ID,
             this.taskState.getTaskAttemptId().or("")));
+    eventSubmitter.submit(TaskEvent.TASK_COMMITTED_EVENT_NAME, metadataMap);
   }
 
   /**

@@ -988,4 +988,10 @@ public class ConfigurationKeys {
   public static final String AVRO_SCHEMA_CHECK_STRATEGY = "avro.schema.check.strategy";
   public static final String AVRO_SCHEMA_CHECK_STRATEGY_DEFAULT =
       "org.apache.gobblin.util.schema_check.AvroSchemaCheckDefaultStrategy";
+
+  /**
+   * Configuration for emitting task events
+   */
+  public static final String TASK_EVENT_METADATA_GENERATOR_CLASS_KEY = "gobblin.task.event.metadata.generator.class";
+  public static final String DEFAULT_TASK_EVENT_METADATA_GENERATOR_CLASS_KEY = "nooptask";
 }
