@@ -61,7 +61,7 @@ public class MRTask extends BaseAbstractTask {
     }
   }
 
-  private final TaskContext taskContext;
+  protected final TaskContext taskContext;
   private final EventSubmitter eventSubmitter;
   protected Job mrJob;
 

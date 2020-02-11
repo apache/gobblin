@@ -30,16 +30,17 @@ import com.google.common.collect.ImmutableMap;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.compaction.event.CompactionSlaEventHelper;
+import org.apache.gobblin.compaction.mapreduce.MRCompactionTask;
 import org.apache.gobblin.compaction.parser.CompactionPathParser;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
-import org.apache.gobblin.data.management.dataset.SimpleFileSystemDataset;
 import org.apache.gobblin.dataset.FileSystemDataset;
 import org.apache.gobblin.hive.HiveRegister;
 import org.apache.gobblin.hive.policy.HiveRegistrationPolicy;
 import org.apache.gobblin.hive.policy.HiveRegistrationPolicyBase;
 import org.apache.gobblin.hive.spec.HiveSpec;
+import org.apache.gobblin.metrics.event.CountEventBuilder;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 
 
@@ -48,8 +49,14 @@ import org.apache.gobblin.metrics.event.EventSubmitter;
  */
 @Slf4j
 public class CompactionHiveRegistrationAction implements CompactionCompleteAction<FileSystemDataset> {
+
+  private static final String NUM_FILES = "numFiles";
+  private static final String NUM_ROWS = "numRows";
+  private static final String TOTAL_SIZE = "totalSize";
+
   private final State state;
   private EventSubmitter eventSubmitter;
+
   public CompactionHiveRegistrationAction (State state) {
     if (!(state instanceof WorkUnitState)) {
       throw new UnsupportedOperationException(this.getClass().getName() + " only supports workunit state");
@@ -62,10 +69,18 @@ public class CompactionHiveRegistrationAction implements CompactionCompleteActio
       return;
     }
 
+    CompactionPathParser.CompactionParserResult result = new CompactionPathParser(state).parse(dataset);
+
+    long numFiles = state.getPropAsLong(MRCompactionTask.FILE_COUNT, -1);
+    emitCountEvent(NUM_FILES, numFiles, result.getDstAbsoluteDir());
+    long numRows = state.getPropAsLong(MRCompactionTask.RECORD_COUNT, -1);
+    emitCountEvent(NUM_ROWS, numRows, result.getDstAbsoluteDir());
+    long totalSize = state.getPropAsLong(MRCompactionTask.BYTE_COUNT, -1);
+    emitCountEvent(TOTAL_SIZE, totalSize, result.getDstAbsoluteDir());
+
     if (state.contains(ConfigurationKeys.HIVE_REGISTRATION_POLICY)) {
       HiveRegister hiveRegister = HiveRegister.get(state);
       HiveRegistrationPolicy hiveRegistrationPolicy = HiveRegistrationPolicyBase.getPolicy(state);
-      CompactionPathParser.CompactionParserResult result = new CompactionPathParser(state).parse(dataset);
 
       List<String> paths = new ArrayList<>();
       for (HiveSpec spec : hiveRegistrationPolicy.getHiveSpecs(new Path(result.getDstAbsoluteDir()))) {
@@ -81,6 +96,12 @@ public class CompactionHiveRegistrationAction implements CompactionCompleteActio
         this.eventSubmitter.submit(CompactionSlaEventHelper.COMPACTION_HIVE_REGISTRATION_EVENT, eventMetadataMap);
       }
     }
+  }
+
+  private void emitCountEvent(String eventName, long count, String datasetUrn) {
+    CountEventBuilder recordCountEvent = new CountEventBuilder(eventName, count);
+    recordCountEvent.addMetadata("datasetUrn", datasetUrn);
+    this.eventSubmitter.submit(recordCountEvent);
   }
 
   public void addEventSubmitter(EventSubmitter submitter) {
