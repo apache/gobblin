@@ -33,6 +33,7 @@ import org.testng.annotations.Test;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 
 import org.apache.gobblin.util.ConfigUtils;
 
@@ -78,6 +79,23 @@ public class HelixUtilsTest {
     Assert.assertEquals(properties.getProperty("k3"), "1000");
     Assert.assertEquals(properties.getProperty("k4"), "true");
     Assert.assertEquals(properties.getProperty("k5"), "10000");
+  }
+
+  @Test
+  public void testSetSystemProperties() {
+    //Set a dummy property before calling HelixUtils#setSystemProperties() and assert that this property and value
+    //exists even after the call to the setSystemProperties() method.
+    System.setProperty("prop1", "val1");
+
+    Config config = ConfigFactory.empty().withValue(GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_SYSTEM_PROPERTY_PREFIX + ".prop2",
+        ConfigValueFactory.fromAnyRef("val2"))
+        .withValue(GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_SYSTEM_PROPERTY_PREFIX + ".prop3", ConfigValueFactory.fromAnyRef("val3"));
+
+    HelixUtils.setSystemProperties(config);
+
+    Assert.assertEquals(System.getProperty("prop1"), "val1");
+    Assert.assertEquals(System.getProperty("prop2"), "val2");
+    Assert.assertEquals(System.getProperty("prop3"), "val3");
   }
 
   @AfterClass
