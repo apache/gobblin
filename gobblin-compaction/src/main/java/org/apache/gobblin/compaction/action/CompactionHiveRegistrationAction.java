@@ -50,9 +50,9 @@ import org.apache.gobblin.metrics.event.EventSubmitter;
 @Slf4j
 public class CompactionHiveRegistrationAction implements CompactionCompleteAction<FileSystemDataset> {
 
-  public static final String NUM_FILES = "numFiles";
-  public static final String NUM_ROWS = "numRows";
-  public static final String TOTAL_SIZE = "totalSize";
+  public static final String NUM_OUTPUT_FILES = "numOutputFiles";
+  public static final String RECORD_COUNT = "recordCount";
+  public static final String BYTE_COUNT = "byteCount";
   public static final String DATASET_URN = "datasetUrn";
 
   private final State state;
@@ -73,10 +73,10 @@ public class CompactionHiveRegistrationAction implements CompactionCompleteActio
     CompactionPathParser.CompactionParserResult result = new CompactionPathParser(state).parse(dataset);
 
     long numFiles = state.getPropAsLong(MRCompactionTask.FILE_COUNT, -1);
-    CountEventBuilder fileCountEvent = new CountEventBuilder(NUM_FILES, numFiles);
+    CountEventBuilder fileCountEvent = new CountEventBuilder(NUM_OUTPUT_FILES, numFiles);
     fileCountEvent.addMetadata(DATASET_URN, result.getDstAbsoluteDir());
-    fileCountEvent.addMetadata(NUM_ROWS, state.getProp(MRCompactionTask.RECORD_COUNT, "-1"));
-    fileCountEvent.addMetadata(TOTAL_SIZE, state.getProp(MRCompactionTask.BYTE_COUNT, "-1"));
+    fileCountEvent.addMetadata(RECORD_COUNT, state.getProp(MRCompactionTask.RECORD_COUNT, "-1"));
+    fileCountEvent.addMetadata(BYTE_COUNT, state.getProp(MRCompactionTask.BYTE_COUNT, "-1"));
     this.eventSubmitter.submit(fileCountEvent);
 
     if (state.contains(ConfigurationKeys.HIVE_REGISTRATION_POLICY)) {

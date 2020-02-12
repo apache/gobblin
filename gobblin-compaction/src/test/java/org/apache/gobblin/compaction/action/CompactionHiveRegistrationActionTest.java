@@ -73,12 +73,12 @@ public class CompactionHiveRegistrationActionTest {
     Assert.assertEquals(mockMetricContext.events.size(), 1);
     CountEventBuilder fileCountEvent = CountEventBuilder.fromEvent(mockMetricContext.events.get(0));
     Assert.assertEquals(fileCountEvent.getNamespace(), namespace);
-    Assert.assertEquals(fileCountEvent.getName(), CompactionHiveRegistrationAction.NUM_FILES);
+    Assert.assertEquals(fileCountEvent.getName(), CompactionHiveRegistrationAction.NUM_OUTPUT_FILES);
     Assert.assertEquals(fileCountEvent.getCount(), 10);
     Map<String, String> metadata = fileCountEvent.getMetadata();
     Assert.assertEquals(metadata.get(CompactionHiveRegistrationAction.DATASET_URN), destinationPath);
-    Assert.assertEquals(metadata.get(CompactionHiveRegistrationAction.NUM_ROWS), "100");
-    Assert.assertEquals(metadata.get(CompactionHiveRegistrationAction.TOTAL_SIZE), "-1");
+    Assert.assertEquals(metadata.get(CompactionHiveRegistrationAction.RECORD_COUNT), "100");
+    Assert.assertEquals(metadata.get(CompactionHiveRegistrationAction.BYTE_COUNT), "-1");
   }
 
   private class MockMetricContext extends MetricContext {
