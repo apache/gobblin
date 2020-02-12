@@ -39,6 +39,16 @@ public interface DataNode {
   Config getRawConfig();
 
   /**
+   * @return a default dataset descriptor class for this DataNode, or null if a default should not be used.
+   */
+  String getDefaultDatasetDescriptorClass();
+
+  /**
+   * @return a default dataset descriptor platform for this DataNode, or null if a default should not be used.
+   */
+  String getDefaultDatasetDescriptorPlatform();
+
+  /**
    * @return true if the {@link DataNode} is active
    */
   boolean isActive();

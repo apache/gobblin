@@ -23,6 +23,7 @@ import joptsimple.internal.Strings;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
+import org.apache.gobblin.service.modules.dataset.SqlDatasetDescriptor;
 import org.apache.gobblin.service.modules.flowgraph.BaseDataNode;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraphConfigurationKeys;
 import org.apache.gobblin.util.ConfigUtils;
@@ -52,5 +53,10 @@ public class SqlDataNode extends BaseDataNode {
     } catch (Exception e) {
       throw new DataNodeCreationException(e);
     }
+  }
+
+  @Override
+  public String getDefaultDatasetDescriptorClass() {
+    return SqlDatasetDescriptor.class.getCanonicalName();
   }
 }

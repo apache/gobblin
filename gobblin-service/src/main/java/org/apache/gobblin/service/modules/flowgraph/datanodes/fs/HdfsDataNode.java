@@ -55,4 +55,9 @@ public class HdfsDataNode extends FileSystemDataNode {
     }
     return true;
   }
+
+  @Override
+  public String getDefaultDatasetDescriptorPlatform() {
+    return HDFS_SCHEME;
+  }
 }
