@@ -193,4 +193,6 @@ public class GobblinClusterConfigurationKeys {
   public static final String HELIX_PARTITION_ID_KEY = GOBBLIN_HELIX_PREFIX + "partitionId" ;
   public static final String TASK_RUNNER_HOST_NAME_KEY = GOBBLIN_HELIX_PREFIX + "hostName";
   public static final String CONTAINER_ID_KEY = GOBBLIN_HELIX_PREFIX + "containerId";
+
+  public static final String GOBBLIN_CLUSTER_SYSTEM_PROPERTY_PREFIX = GOBBLIN_CLUSTER_PREFIX + "sysProps";
 }
