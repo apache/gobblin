@@ -46,6 +46,7 @@ public class StageableTableMetadata {
   public static final String DESTINATION_TABLE_KEY = "destination.tableName";
   public static final String DESTINATION_DB_KEY = "destination.dbName";
   public static final String DESTINATION_DATA_PATH_KEY = "destination.dataPath";
+  public static final String DESTINATION_DATA_PATH_ADD_SUBDIR = "destination.dataPathAddSubDir";
   public static final String DESTINATION_TABLE_PROPERTIES_LIST_KEY = "destination.tableProperties";
   public static final String CLUSTER_BY_KEY = "clusterByList";
   public static final String NUM_BUCKETS_KEY = "numBuckets";
@@ -113,6 +114,8 @@ public class StageableTableMetadata {
   private final String destinationDbName;
   /** Path where files of the destination table should be located. */
   private final String destinationDataPath;
+  /** Flag whether adding a subdirectory after destinationDataPath */
+  private final Boolean dataDstPathUseSubdir;
   /** Table properties of destination table. */
   private final Properties destinationTableProperties;
   /** List of columns to cluster by. */
@@ -139,6 +142,9 @@ public class StageableTableMetadata {
         : HiveDataset.resolveTemplate(config.getString(DESTINATION_DB_KEY), referenceTable);
     this.destinationDataPath = referenceTable == null ? config.getString(DESTINATION_DATA_PATH_KEY)
         : HiveDataset.resolveTemplate(config.getString(DESTINATION_DATA_PATH_KEY), referenceTable);
+
+    // By default, this value is true and subDir "/final" is being added into orc output location.
+    this.dataDstPathUseSubdir = !config.hasPath(DESTINATION_DATA_PATH_ADD_SUBDIR) || config.getBoolean(DESTINATION_DATA_PATH_ADD_SUBDIR);
 
     // Optional
     this.destinationTableProperties =

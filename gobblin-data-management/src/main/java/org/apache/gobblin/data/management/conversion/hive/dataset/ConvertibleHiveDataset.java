@@ -47,6 +47,8 @@ import org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder;
 import org.apache.gobblin.hive.HiveMetastoreClientPool;
 import org.apache.gobblin.util.ConfigUtils;
 
+import static org.apache.gobblin.data.management.conversion.hive.task.HiveConverterUtils.getOutputDataLocation;
+
 
 /**
  * <p>
@@ -141,7 +143,9 @@ public class ConvertibleHiveDataset extends HiveDataset {
       String destTable = conversionConfigForFormat.get().getDestinationDbName() + "." + conversionConfigForFormat.get()
           .getDestinationTableName();
       DatasetDescriptor dest = new DatasetDescriptor(DatasetConstants.PLATFORM_HIVE, destTable);
-      String destLocation = conversionConfigForFormat.get().getDestinationDataPath() + Path.SEPARATOR + "final";
+      String destLocation = conversionConfigForFormat.get().getDataDstPathUseSubdir()
+          ? getOutputDataLocation(conversionConfigForFormat.get().getDestinationDataPath())
+          : conversionConfigForFormat.get().getDestinationDataPath();
       dest.addMetadata(DatasetConstants.FS_SCHEME, getSourceDataset().getMetadata().get(DatasetConstants.FS_SCHEME));
       dest.addMetadata(DatasetConstants.FS_LOCATION, destLocation);
       destDatasets.add(dest);
