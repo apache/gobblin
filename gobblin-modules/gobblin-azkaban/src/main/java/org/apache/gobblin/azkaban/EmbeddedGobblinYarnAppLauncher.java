@@ -104,7 +104,7 @@ public class EmbeddedGobblinYarnAppLauncher extends AzkabanJobRunner {
     fileAddress = new File(YARN_SITE_XML_PATH).getAbsolutePath();
   }
 
-  public static void setEnv(String key, String value) {
+  static void setEnv(String key, String value) {
     try {
       Map<String, String> env = System.getenv();
       Class<?> cl = env.getClass();

@@ -697,7 +697,7 @@ public class GobblinYarnAppLauncher {
           YarnHelixUtils.addFileAsLocalResource(this.fs, destFilePath, LocalResourceType.FILE, resourceMap.get());
         }
       } else {
-        throw new IllegalStateException(String.format("The request file %s doesn't exist", srcFilePath));
+        LOGGER.warn(String.format("The request file %s doesn't exist", srcFilePath));
       }
     }
   }
