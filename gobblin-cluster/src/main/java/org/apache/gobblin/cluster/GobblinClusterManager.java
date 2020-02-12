@@ -150,7 +150,8 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
 
     this.applicationId = applicationId;
 
-    //Helix uses System#getProperty() for ZK configuration overrides such as sessionTimeout. The overrides specified
+    //Set system properties passed in via application config. As an example, Helix uses System#getProperty() for ZK configuration
+    // overrides such as sessionTimeout. In this case, the overrides specified
     // in the application configuration have to be extracted and set before initializing HelixManager.
     HelixUtils.setSystemProperties(config);
 
