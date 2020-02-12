@@ -50,9 +50,10 @@ import org.apache.gobblin.metrics.event.EventSubmitter;
 @Slf4j
 public class CompactionHiveRegistrationAction implements CompactionCompleteAction<FileSystemDataset> {
 
-  private static final String NUM_FILES = "numFiles";
-  private static final String NUM_ROWS = "numRows";
-  private static final String TOTAL_SIZE = "totalSize";
+  public static final String NUM_FILES = "numFiles";
+  public static final String NUM_ROWS = "numRows";
+  public static final String TOTAL_SIZE = "totalSize";
+  public static final String DATASET_URN = "datasetUrn";
 
   private final State state;
   private EventSubmitter eventSubmitter;
@@ -72,11 +73,11 @@ public class CompactionHiveRegistrationAction implements CompactionCompleteActio
     CompactionPathParser.CompactionParserResult result = new CompactionPathParser(state).parse(dataset);
 
     long numFiles = state.getPropAsLong(MRCompactionTask.FILE_COUNT, -1);
-    emitCountEvent(NUM_FILES, numFiles, result.getDstAbsoluteDir());
-    long numRows = state.getPropAsLong(MRCompactionTask.RECORD_COUNT, -1);
-    emitCountEvent(NUM_ROWS, numRows, result.getDstAbsoluteDir());
-    long totalSize = state.getPropAsLong(MRCompactionTask.BYTE_COUNT, -1);
-    emitCountEvent(TOTAL_SIZE, totalSize, result.getDstAbsoluteDir());
+    CountEventBuilder fileCountEvent = new CountEventBuilder(NUM_FILES, numFiles);
+    fileCountEvent.addMetadata(DATASET_URN, result.getDstAbsoluteDir());
+    fileCountEvent.addMetadata(NUM_ROWS, state.getProp(MRCompactionTask.RECORD_COUNT, "-1"));
+    fileCountEvent.addMetadata(TOTAL_SIZE, state.getProp(MRCompactionTask.BYTE_COUNT, "-1"));
+    this.eventSubmitter.submit(fileCountEvent);
 
     if (state.contains(ConfigurationKeys.HIVE_REGISTRATION_POLICY)) {
       HiveRegister hiveRegister = HiveRegister.get(state);
@@ -96,12 +97,6 @@ public class CompactionHiveRegistrationAction implements CompactionCompleteActio
         this.eventSubmitter.submit(CompactionSlaEventHelper.COMPACTION_HIVE_REGISTRATION_EVENT, eventMetadataMap);
       }
     }
-  }
-
-  private void emitCountEvent(String eventName, long count, String datasetUrn) {
-    CountEventBuilder recordCountEvent = new CountEventBuilder(eventName, count);
-    recordCountEvent.addMetadata("datasetUrn", datasetUrn);
-    this.eventSubmitter.submit(recordCountEvent);
   }
 
   public void addEventSubmitter(EventSubmitter submitter) {

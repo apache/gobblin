@@ -70,7 +70,8 @@ public class EntityMissingEventBuilder extends GobblinEventBuilder {
 
     Map<String, String> metadata = event.getMetadata();
     String instance = metadata.get(INSTANCE_KEY);
-    EntityMissingEventBuilder eventBuilder = new EntityMissingEventBuilder(event.getName(), instance);
+    EntityMissingEventBuilder eventBuilder = new EntityMissingEventBuilder(
+        event.getName(), event.getNamespace(), instance);
     metadata.forEach((key, value) -> {
       switch (key) {
         case INSTANCE_KEY:

@@ -71,7 +71,7 @@ public class JobStateEventBuilder extends GobblinEventBuilder {
     }
 
     Map<String, String> metadata = event.getMetadata();
-    JobStateEventBuilder eventBuilder = new JobStateEventBuilder(event.getName());
+    JobStateEventBuilder eventBuilder = new JobStateEventBuilder(event.getName(), event.getNamespace());
     metadata.forEach((key, value) -> {
       switch (key) {
         case STATUS_KEY:
