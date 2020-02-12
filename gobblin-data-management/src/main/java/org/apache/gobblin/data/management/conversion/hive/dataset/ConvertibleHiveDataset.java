@@ -47,6 +47,8 @@ import org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder;
 import org.apache.gobblin.hive.HiveMetastoreClientPool;
 import org.apache.gobblin.util.ConfigUtils;
 
+import static org.apache.gobblin.data.management.conversion.hive.task.HiveConverterUtils.getOutputDataLocation;
+
 
 /**
  * <p>
@@ -142,20 +144,13 @@ public class ConvertibleHiveDataset extends HiveDataset {
           .getDestinationTableName();
       DatasetDescriptor dest = new DatasetDescriptor(DatasetConstants.PLATFORM_HIVE, destTable);
       String destLocation = conversionConfigForFormat.get().getDataDstPathUseSubdir()
-          ? getFinalizedDestinationLocation(conversionConfigForFormat.get().getDestinationDataPath())
+          ? getOutputDataLocation(conversionConfigForFormat.get().getDestinationDataPath())
           : conversionConfigForFormat.get().getDestinationDataPath();
       dest.addMetadata(DatasetConstants.FS_SCHEME, getSourceDataset().getMetadata().get(DatasetConstants.FS_SCHEME));
       dest.addMetadata(DatasetConstants.FS_LOCATION, destLocation);
       destDatasets.add(dest);
     }
     return destDatasets;
-  }
-
-  /**
-   *  The default behavior for ORC output in Avro2ORC is to add subdir "/final" under destination path from Config.
-   */
-  public static final String getFinalizedDestinationLocation(String destinationDataPathFromConfig) {
-    return destinationDataPathFromConfig + Path.SEPARATOR + "final";
   }
 
   private DatasetDescriptor createSourceDataset() {

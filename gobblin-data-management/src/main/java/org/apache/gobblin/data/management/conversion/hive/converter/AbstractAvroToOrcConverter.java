@@ -71,7 +71,7 @@ import org.apache.gobblin.metrics.event.sla.SlaEventKeys;
 import org.apache.gobblin.util.AutoReturnableObject;
 import org.apache.gobblin.util.HadoopUtils;
 
-import static org.apache.gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset.getFinalizedDestinationLocation;
+import static org.apache.gobblin.data.management.conversion.hive.task.HiveConverterUtils.getOutputDataLocation;
 
 
 /**
@@ -639,7 +639,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
    */
   private String getOrcDataLocation() {
     String orcDataLocation = getConversionConfig().getDestinationDataPath();
-    return getConversionConfig().getDataDstPathUseSubdir() ? getFinalizedDestinationLocation(orcDataLocation)
+    return getConversionConfig().getDataDstPathUseSubdir() ? getOutputDataLocation(orcDataLocation)
         : orcDataLocation;
   }
 
