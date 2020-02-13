@@ -345,8 +345,7 @@ public class JobLauncherTestHelper {
       Assert.assertEquals(datasetState.getState(), JobState.RunningState.COMMITTED);
       Assert.assertEquals(datasetState.getTaskCount(), 1);
       TaskState taskState = datasetState.getTaskStates().get(0);
-      // BaseDataPublisher will change the state to COMMITTED
-      Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
+      Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.FAILED);
     } else {
       // Task 0 should have failed
       Assert.assertTrue(this.datasetStateStore.getAll(jobName, "Dataset0-current.jst").isEmpty());
