@@ -365,13 +365,6 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
     }
 
     this.parallelRunnerCloser.close();
-
-    for (WorkUnitState workUnitState : states) {
-      // Upon successfully committing the data to the final output directory, set states
-      // of successful tasks to COMMITTED. leaving states of unsuccessful ones unchanged.
-      // This makes sense to the COMMIT_ON_PARTIAL_SUCCESS policy.
-      workUnitState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
-    }
   }
 
   /**
