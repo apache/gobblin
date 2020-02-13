@@ -30,6 +30,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 
+import org.apache.gobblin.metrics.GobblinMetrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -278,10 +279,11 @@ public class GobblinMultiTaskAttempt {
     }
 
     if (hasTaskFailure) {
+      String errorMsg ="";
       for (Task task : tasks) {
         if (task.getTaskState().contains(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY)) {
-          log.error(String.format("Task %s failed due to exception: %s", task.getTaskId(),
-              task.getTaskState().getProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY)));
+          errorMsg = String.format("Task %s failed due to exception: %s", task.getTaskId(),
+              task.getTaskState().getProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY));
         }
 
         // If there are task failures then the tasks may be reattempted. Save a copy of the task state that is used
@@ -294,7 +296,8 @@ public class GobblinMultiTaskAttempt {
       }
 
       throw new IOException(
-          String.format("Not all tasks running in container %s completed successfully", containerIdOptional.or("")));
+          String.format("Not all tasks running in container %s completed successfully, last recorded exception[%s]",
+              containerIdOptional.or(""), errorMsg));
     }
   }
 
@@ -323,7 +326,7 @@ public class GobblinMultiTaskAttempt {
   }
 
   /**
-   * Determine if the task executed successfully in a prior attempt by checkitn the task state store for the success
+   * Determine if the task executed successfully in a prior attempt by checking the task state store for the success
    * marker.
    * @param taskId task id to check
    * @return whether the task was processed successfully in a prior attempt
@@ -367,7 +370,7 @@ public class GobblinMultiTaskAttempt {
       WorkUnit workUnit = this.workUnits.next();
       String taskId = workUnit.getProp(ConfigurationKeys.TASK_ID_KEY);
 
-      // skip tasks that executed successsfully in a prior attempt
+      // skip tasks that executed successfully in a prior attempt
       if (taskSuccessfulInPriorAttempt(taskId)) {
         continue;
       }

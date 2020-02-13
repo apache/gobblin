@@ -109,7 +109,7 @@ public class JobMetrics extends GobblinMetrics {
    * @return a {@link JobMetrics} instance
    */
   public static JobMetrics get(final JobState jobState, final MetricContext parentContext, CreatorTag creatorTag) {
-    return (JobMetrics) GOBBLIN_METRICS_REGISTRY.getOrDefault(name(jobState), new Callable<GobblinMetrics>() {
+    return (JobMetrics) GOBBLIN_METRICS_REGISTRY.getOrCreate(name(jobState), new Callable<GobblinMetrics>() {
       @Override
       public GobblinMetrics call() throws Exception {
         return new JobMetrics(jobState, parentContext, creatorTag);
@@ -126,7 +126,7 @@ public class JobMetrics extends GobblinMetrics {
    */
   @Deprecated
   public static JobMetrics get(final JobState jobState) {
-    return (JobMetrics) GOBBLIN_METRICS_REGISTRY.getOrDefault(name(jobState), new Callable<GobblinMetrics>() {
+    return (JobMetrics) GOBBLIN_METRICS_REGISTRY.getOrCreate(name(jobState), new Callable<GobblinMetrics>() {
       @Override
       public GobblinMetrics call() throws Exception {
         return new JobMetrics(jobState, DEFAULT_CREATOR_TAG);
@@ -142,7 +142,7 @@ public class JobMetrics extends GobblinMetrics {
    * @return a {@link JobMetrics} instance
    */
   public static JobMetrics get(final JobState jobState, CreatorTag creatorTag) {
-    return (JobMetrics) GOBBLIN_METRICS_REGISTRY.getOrDefault(name(jobState), new Callable<GobblinMetrics>() {
+    return (JobMetrics) GOBBLIN_METRICS_REGISTRY.getOrCreate(name(jobState), new Callable<GobblinMetrics>() {
       @Override
       public GobblinMetrics call() throws Exception {
         return new JobMetrics(jobState, creatorTag);

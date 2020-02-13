@@ -44,6 +44,9 @@ import org.apache.gobblin.util.JobLauncherUtils;
 import org.apache.gobblin.util.SerializationUtils;
 
 
+/**
+ * A standalone unit to initialize and execute {@link GobblinMultiTaskAttempt} through deserialized {@link WorkUnit}
+ */
 public class SingleTask {
 
   private static final Logger _logger = LoggerFactory.getLogger(SingleTask.class);
@@ -88,6 +91,7 @@ public class SingleTask {
       _taskattempt = _taskAttemptBuilder.build(workUnits.iterator(), _jobId, jobState, jobBroker);
       _taskattempt.runAndOptionallyCommitTaskAttempt(GobblinMultiTaskAttempt.CommitPolicy.IMMEDIATE);
     } finally {
+      _logger.info("Clearing all metrics object in cache.");
       _taskattempt.cleanMetrics();
     }
   }
@@ -102,7 +106,7 @@ public class SingleTask {
     return ConfigFactory.parseProperties(jobProperties);
   }
 
-  private JobState getJobState()
+  protected JobState getJobState()
       throws java.io.IOException {
     JobState jobState;
 
@@ -119,7 +123,10 @@ public class SingleTask {
     return jobState;
   }
 
-  private List<WorkUnit> getWorkUnits()
+  /**
+   * Deserialize {@link WorkUnit}s from a path.
+   */
+  protected List<WorkUnit> getWorkUnits()
       throws IOException {
     String fileName = _workUnitFilePath.getName();
     String storeName = _workUnitFilePath.getParent().getName();
