@@ -48,7 +48,9 @@ public class InMemoryWuSingleTask extends SingleTask {
   @Override
   protected List<WorkUnit> getWorkUnits()
       throws IOException {
-    WorkUnit workUnit = super.getWorkUnits().get(0);
+    WorkUnit workUnit = new WorkUnit();
+    workUnit.setProp(ConfigurationKeys.TASK_ID_KEY, "randomTask");
+    workUnit.setProp("source.class", "org.apache.gobblin.cluster.DummySource");
     // Missing this line leads to failure in precondition check of avro writer.
     workUnit.setProp(ConfigurationKeys.WRITER_BUILDER_CLASS, DummyDataWriterBuilder.class.getName());
     return Lists.newArrayList(workUnit);
