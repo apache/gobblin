@@ -24,7 +24,7 @@ import org.testng.annotations.Test;
 /**
  * Notes & Usage:
  * 0. This test could be used to reproduce task-execution issue in Gobblin-Cluster, within each container.
- * 1. The workunit is being drafted in {@link InMemoryWuFailedSingleTask}.
+ * 1. The workunit is being created in {@link InMemoryWuFailedSingleTask}.
  * 2. When needed to reproduce certain errors, replace org.apache.gobblin.cluster.DummySource.DummyExtractor or
  * {@link DummySource} to plug in required logic.
  */

@@ -33,10 +33,8 @@ import com.typesafe.config.Config;
 
 /**
  * Instead of deserializing {@link JobState} and {@link WorkUnit} from filesystem, create them in memory.
- * This base task will be failing due to missing the declaration of writerBuilder class thereby failing a Precondition
+ * This derived class will be failing due to missing the declaration of writerBuilder class thereby failing a Precondition
  * check in AvroWriterBuilder which is used by default.
- * The extension class of this added a declared dummyWriterBuilder so that the task execution will go through.
- * This class is primarily designed for testing purpose.
  */
 public class InMemoryWuFailedSingleTask extends SingleTask {
   public InMemoryWuFailedSingleTask(String jobId, Path workUnitFilePath, Path jobStateFilePath, FileSystem fs,

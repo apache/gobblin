@@ -35,8 +35,11 @@ import com.typesafe.config.Config;
 /**
  * Instead of deserializing {@link JobState} and {@link WorkUnit} from filesystem, create them in memory.
  * Uses {@link DummyDataWriter} so that the execution of a Task goes through.
+ *
+ * This extension class added a declared dummyWriterBuilder so that the task execution will go through.
+ * This class is primarily designed for testing purpose.
  */
-public class InMemoryWuSingleTask extends InMemoryWuFailedSingleTask {
+public class InMemoryWuSingleTask extends SingleTask {
   public InMemoryWuSingleTask(String jobId, Path workUnitFilePath, Path jobStateFilePath, FileSystem fs,
       TaskAttemptBuilder taskAttemptBuilder, StateStores stateStores, Config dynamicConfig) {
     super(jobId, workUnitFilePath, jobStateFilePath, fs, taskAttemptBuilder, stateStores, dynamicConfig);
@@ -49,6 +52,13 @@ public class InMemoryWuSingleTask extends InMemoryWuFailedSingleTask {
     // Missing this line leads to failure in precondition check of avro writer.
     workUnit.setProp(ConfigurationKeys.WRITER_BUILDER_CLASS, DummyDataWriterBuilder.class.getName());
     return Lists.newArrayList(workUnit);
+  }
+
+  @Override
+  protected JobState getJobState()
+      throws IOException {
+    JobState jobState = new JobState("randomJobName", "randomJobId");
+    return jobState;
   }
 
   public static class DummyDataWriterBuilder extends DataWriterBuilder<String, Integer> {

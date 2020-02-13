@@ -407,20 +407,15 @@ public class GobblinMultiTaskAttempt {
           // task could not be created, so directly count down
           countDownLatch.countDown();
           log.error("Could not create task for workunit {}", workUnit, e);
+        } else if (!task.hasTaskFuture()) {
+          // Task was created and may have been registered, but not submitted, so call the
+          // task state tracker task run completion directly since the task cancel does nothing if not submitted
+          this.taskStateTracker.onTaskRunCompletion(task);
+          log.error("Could not submit task for workunit {}", workUnit, e);
         } else {
-          if (!task.hasTaskFuture()) {
-            // Task was created and may have been registered, but not submitted, so call the
-            // task state tracker task run completion directly since the task cancel does nothing if not submitted
-            this.taskStateTracker.onTaskRunCompletion(task);
-            log.error("Could not submit task for workunit {}", workUnit, e);
-          } else {
-            // task was created and submitted, but failed later, so cancel the task to decrement the CountDownLatch
-            task.cancel();
-            log.error("Failure after task submitted for workunit {}", workUnit, e);
-          }
-
-          // Remove entry in the metrics registry when task failed to be executed .
-          this.cleanMetrics();
+          // task was created and submitted, but failed later, so cancel the task to decrement the CountDownLatch
+          task.cancel();
+          log.error("Failure after task submitted for workunit {}", workUnit, e);
         }
       }
     }
