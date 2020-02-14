@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.service.modules.core;
 
+import com.codahale.metrics.MetricRegistry;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
@@ -25,12 +26,17 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
+import lombok.Setter;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
+import org.apache.gobblin.metrics.ContextAwareGauge;
+import org.apache.gobblin.metrics.RootMetricContext;
+import org.apache.gobblin.metrics.ServiceMetricNames;
+import org.apache.gobblin.metrics.reporter.util.MetricReportUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -161,6 +167,8 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
 
   protected KafkaJobStatusMonitor jobStatusMonitor;
 
+  private HelixLeaderState helixLeaderGauges;
+
   @Getter
   protected Config config;
   private final MetricContext metricContext;
@@ -213,6 +221,13 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     } else {
       this.isGitConfigMonitorEnabled = false;
     }
+
+    // Initialize HelixLeader Gauges
+    String helixLeaderStateGaugeName = MetricRegistry.name(MetricReportUtils.GOBBLIN_SERVICE_METRICS_PREFIX, ServiceMetricNames.HELIX_LEADER_STATE);
+    helixLeaderGauges =  new HelixLeaderState();
+    ContextAwareGauge<Integer> gauge = RootMetricContext.get().newContextAwareGauge(helixLeaderStateGaugeName, () -> helixLeaderGauges.state.value);
+    RootMetricContext.get().register(helixLeaderStateGaugeName, gauge);
+
 
     // Initialize Helix
     Optional<String> zkConnectionString = Optional.fromNullable(ConfigUtils.getString(config,
@@ -390,6 +405,8 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
         this.scheduler.setActive(true);
       }
 
+      helixLeaderGauges.setState(LeaderState.MASTER);
+
       if (this.isGitConfigMonitorEnabled) {
         this.gitConfigMonitor.setActive(true);
       }
@@ -408,6 +425,8 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
         LOGGER.info("Gobblin Service is now running in slave instance mode, disabling Scheduler.");
         this.scheduler.setActive(false);
       }
+
+      helixLeaderGauges.setState(LeaderState.SLAVE);
 
       if (this.isGitConfigMonitorEnabled) {
         this.gitConfigMonitor.setActive(false);
@@ -439,6 +458,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
         }
       });
 
+
       // Update for first time since there might be no notification
       if (helixManager.get().isLeader()) {
         if (this.isSchedulerEnabled) {
@@ -450,10 +470,14 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
           this.gitConfigMonitor.setActive(true);
         }
 
+        helixLeaderGauges.setState(LeaderState.MASTER);
+
       } else {
         if (this.isSchedulerEnabled) {
           LOGGER.info("[Init] Gobblin Service is running in slave instance mode, not enabling Scheduler.");
         }
+
+        helixLeaderGauges.setState(LeaderState.SLAVE);
       }
     } else {
       // No Helix manager, hence standalone service instance
@@ -643,6 +667,23 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
       client.createFlowConfig(flowConfig);
     } catch (RemoteInvocationException e) {
       throw new RuntimeException(e);
+    }
+  }
+
+  @Setter
+  private static class HelixLeaderState {
+    private LeaderState state = LeaderState.UNKNOWN;
+  }
+
+  private enum LeaderState {
+    UNKNOWN(-1),
+    SLAVE(0),
+    MASTER(1);
+
+    public int value;
+
+    LeaderState(int value) {
+      this.value = value;
     }
   }
 }
