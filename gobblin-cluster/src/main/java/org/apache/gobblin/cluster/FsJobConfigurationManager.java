@@ -99,8 +99,8 @@ public class FsJobConfigurationManager extends JobConfigurationManager {
         try {
           fetchJobSpecs();
         } catch (InterruptedException | ExecutionException e) {
-          log.error("Failed to fetch job specs", e);
-          throw new RuntimeException("Failed to fetch specs", e);
+          //Log error and swallow exception to allow executor to continue scheduling the thread
+          log.error("Failed to fetch job specs due to: {}", e);
         }
       }
     }, 0, this.refreshIntervalInSeconds, TimeUnit.SECONDS);
@@ -110,6 +110,7 @@ public class FsJobConfigurationManager extends JobConfigurationManager {
     List<Pair<SpecExecutor.Verb, JobSpec>> jobSpecs =
         (List<Pair<SpecExecutor.Verb, JobSpec>>) this._specConsumer.changedSpecs().get();
 
+    log.info("Fetched {} job specs", jobSpecs.size());
     for (Pair<SpecExecutor.Verb, JobSpec> entry : jobSpecs) {
       JobSpec jobSpec = entry.getValue();
       SpecExecutor.Verb verb = entry.getKey();

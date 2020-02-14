@@ -59,6 +59,9 @@ public class FsSpecConsumer implements SpecConsumer<Spec> {
     this.specDirPath = new Path(config.getString(SPEC_PATH_KEY));
     try {
       this.fs = this.specDirPath.getFileSystem(new Configuration());
+      if (!this.fs.exists(specDirPath)) {
+        this.fs.mkdirs(specDirPath);
+      }
     } catch (IOException e) {
       throw new RuntimeException("Unable to detect spec directory file system: " + e, e);
     }
@@ -77,6 +80,7 @@ public class FsSpecConsumer implements SpecConsumer<Spec> {
       log.error("Error when listing files at path: {}", this.specDirPath.toString(), e);
       return null;
     }
+    log.debug("Found {} files at path {}", fileStatuses.length, this.specDirPath.toString());
 
     //Sort the {@link JobSpec}s in increasing order of their modification times.
     //This is done so that the {JobSpec}s can be handled in FIFO order by the
@@ -118,6 +122,7 @@ public class FsSpecConsumer implements SpecConsumer<Spec> {
         SpecExecutor.Verb verb = SpecExecutor.Verb.valueOf(verbName);
 
         JobSpec jobSpec = jobSpecBuilder.build();
+        log.debug("Successfully built jobspec: {}", jobSpec.getUri().toString());
         specList.add(new ImmutablePair<SpecExecutor.Verb, Spec>(verb, jobSpec));
         this.specToPathMap.put(jobSpec.getUri(), fileStatus.getPath());
       }
@@ -130,7 +135,10 @@ public class FsSpecConsumer implements SpecConsumer<Spec> {
   public void commit(Spec spec) throws IOException {
     Path path = this.specToPathMap.get(spec.getUri());
     if (path != null) {
+      log.debug("Calling delete on path: {}", path.toString());
       this.fs.delete(path, false);
+    } else {
+      log.debug("No path found for job: {}", spec.getUri().toString());
     }
   }
 }
