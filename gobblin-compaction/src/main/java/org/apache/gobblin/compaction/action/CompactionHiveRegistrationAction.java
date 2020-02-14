@@ -77,7 +77,11 @@ public class CompactionHiveRegistrationAction implements CompactionCompleteActio
     fileCountEvent.addMetadata(DATASET_URN, result.getDstAbsoluteDir());
     fileCountEvent.addMetadata(RECORD_COUNT, state.getProp(MRCompactionTask.RECORD_COUNT, "-1"));
     fileCountEvent.addMetadata(BYTE_COUNT, state.getProp(MRCompactionTask.BYTE_COUNT, "-1"));
-    this.eventSubmitter.submit(fileCountEvent);
+    if (this.eventSubmitter != null) {
+      this.eventSubmitter.submit(fileCountEvent);
+    } else {
+      log.warn("Will not emit events in {} as EventSubmitter is null", getClass().getName());
+    }
 
     if (state.contains(ConfigurationKeys.HIVE_REGISTRATION_POLICY)) {
       HiveRegister hiveRegister = HiveRegister.get(state);
