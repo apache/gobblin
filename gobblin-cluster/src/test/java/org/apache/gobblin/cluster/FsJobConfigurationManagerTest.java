@@ -32,6 +32,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.eventbus.EventBus;
 import com.google.common.io.Files;
+import com.google.common.util.concurrent.Service;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
@@ -198,13 +199,14 @@ public class FsJobConfigurationManagerTest {
 
     //Add wait to ensure that fetchJobSpecExecutor thread is scheduled at least once.
     Thread.sleep(2000);
-    Mockito.verify(jobConfigurationManager, Mockito.times(1)).fetchJobSpecs();
+    int numInvocations = Mockito.mockingDetails(jobConfigurationManager).getInvocations().size();
+    Mockito.verify(jobConfigurationManager, Mockito.atLeast(1)).fetchJobSpecs();
 
     Thread.sleep(2000);
-    //Verify that there are no new invocations of fetchJobSpecs()
-    Mockito.verify(jobConfigurationManager, Mockito.times(1)).fetchJobSpecs();
-    //Ensure that the JobConfigurationManager Service is not running.
-    Assert.assertFalse(jobConfigurationManager.isRunning());
+    //Verify that there new invocations of fetchJobSpecs()
+    Mockito.verify(jobConfigurationManager, Mockito.atLeast(numInvocations + 1)).fetchJobSpecs();
+    //Ensure that the JobConfigurationManager Service is running.
+    Assert.assertTrue(!jobConfigurationManager.state().equals(Service.State.FAILED) && !jobConfigurationManager.state().equals(Service.State.TERMINATED));
   }
 
   @AfterClass
