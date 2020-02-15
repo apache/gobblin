@@ -118,7 +118,6 @@ public class TimestampBasedCopyableDataset implements CopyableDataset, FileSyste
     Collection<TimestampedDatasetVersion> copyableVersions = this.versionSelectionPolicy.listSelectedVersions(versions);
     ConcurrentLinkedQueue<CopyableFile> copyableFileList = new ConcurrentLinkedQueue<>();
     List<Future<?>> futures = Lists.newArrayList();
-    //this.copyableFileFilter.filter(this.fs, targetFs, copyableFiles)
     for (TimestampedDatasetVersion copyableVersion : copyableVersions) {
       futures.add(this.executor.submit(
           this.getCopyableFileGenetator(targetFs, configuration, copyableVersion, copyableFileList)));

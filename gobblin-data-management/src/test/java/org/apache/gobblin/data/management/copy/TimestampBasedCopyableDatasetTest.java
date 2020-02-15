@@ -114,7 +114,7 @@ public class TimestampBasedCopyableDatasetTest {
   public void testCopyWithFilter() throws IOException {
 
     /** source setup **/
-    Path srcRoot = new Path(this.testTempPath, "src/slt/eqp/daily");
+    Path srcRoot = new Path(this.testTempPath, "src/data/dataset1/daily");
 
     if (this.localFs.exists(srcRoot)) {
       this.localFs.delete(srcRoot, true);
@@ -138,7 +138,7 @@ public class TimestampBasedCopyableDatasetTest {
     }
 
     /** destination setup **/
-    Path destRoot = new Path(this.testTempPath, "dest/slt/eqp");
+    Path destRoot = new Path(this.testTempPath, "dest/data/dataset1");
     if (this.localFs.exists(destRoot)) {
       this.localFs.delete(destRoot, true);
     }
