@@ -30,16 +30,17 @@ import com.google.common.collect.ImmutableMap;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.compaction.event.CompactionSlaEventHelper;
+import org.apache.gobblin.compaction.mapreduce.MRCompactionTask;
 import org.apache.gobblin.compaction.parser.CompactionPathParser;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
-import org.apache.gobblin.data.management.dataset.SimpleFileSystemDataset;
 import org.apache.gobblin.dataset.FileSystemDataset;
 import org.apache.gobblin.hive.HiveRegister;
 import org.apache.gobblin.hive.policy.HiveRegistrationPolicy;
 import org.apache.gobblin.hive.policy.HiveRegistrationPolicyBase;
 import org.apache.gobblin.hive.spec.HiveSpec;
+import org.apache.gobblin.metrics.event.CountEventBuilder;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 
 
@@ -48,8 +49,15 @@ import org.apache.gobblin.metrics.event.EventSubmitter;
  */
 @Slf4j
 public class CompactionHiveRegistrationAction implements CompactionCompleteAction<FileSystemDataset> {
+
+  public static final String NUM_OUTPUT_FILES = "numOutputFiles";
+  public static final String RECORD_COUNT = "recordCount";
+  public static final String BYTE_COUNT = "byteCount";
+  public static final String DATASET_URN = "datasetUrn";
+
   private final State state;
   private EventSubmitter eventSubmitter;
+
   public CompactionHiveRegistrationAction (State state) {
     if (!(state instanceof WorkUnitState)) {
       throw new UnsupportedOperationException(this.getClass().getName() + " only supports workunit state");
@@ -62,10 +70,22 @@ public class CompactionHiveRegistrationAction implements CompactionCompleteActio
       return;
     }
 
+    CompactionPathParser.CompactionParserResult result = new CompactionPathParser(state).parse(dataset);
+
+    long numFiles = state.getPropAsLong(MRCompactionTask.FILE_COUNT, -1);
+    CountEventBuilder fileCountEvent = new CountEventBuilder(NUM_OUTPUT_FILES, numFiles);
+    fileCountEvent.addMetadata(DATASET_URN, result.getDstAbsoluteDir());
+    fileCountEvent.addMetadata(RECORD_COUNT, state.getProp(MRCompactionTask.RECORD_COUNT, "-1"));
+    fileCountEvent.addMetadata(BYTE_COUNT, state.getProp(MRCompactionTask.BYTE_COUNT, "-1"));
+    if (this.eventSubmitter != null) {
+      this.eventSubmitter.submit(fileCountEvent);
+    } else {
+      log.warn("Will not emit events in {} as EventSubmitter is null", getClass().getName());
+    }
+
     if (state.contains(ConfigurationKeys.HIVE_REGISTRATION_POLICY)) {
       HiveRegister hiveRegister = HiveRegister.get(state);
       HiveRegistrationPolicy hiveRegistrationPolicy = HiveRegistrationPolicyBase.getPolicy(state);
-      CompactionPathParser.CompactionParserResult result = new CompactionPathParser(state).parse(dataset);
 
       List<String> paths = new ArrayList<>();
       for (HiveSpec spec : hiveRegistrationPolicy.getHiveSpecs(new Path(result.getDstAbsoluteDir()))) {
