@@ -31,6 +31,7 @@ import org.apache.helix.HelixManager;
 import org.apache.helix.manager.zk.ZKHelixManager;
 import org.apache.helix.model.HelixConfigScope;
 import org.apache.helix.task.JobConfig;
+import org.apache.helix.task.TargetState;
 import org.apache.helix.task.TaskConfig;
 import org.apache.helix.task.TaskDriver;
 import org.apache.helix.task.TaskState;
@@ -293,6 +294,10 @@ public class HelixUtils {
     Map<String, WorkflowConfig> workflowConfigMap = taskDriver.getWorkflows();
     for (String workflow : workflowConfigMap.keySet()) {
       WorkflowConfig workflowConfig = taskDriver.getWorkflowConfig(workflow);
+      //Filter out any stale Helix workflows which are not running.
+      if (workflowConfig.getTargetState() != TargetState.START) {
+        continue;
+      }
       Set<String> helixJobs = workflowConfig.getJobDag().getAllNodes();
       for (String helixJob : helixJobs) {
         Iterator<TaskConfig> taskConfigIterator = taskDriver.getJobConfig(helixJob).getTaskConfigMap().values().iterator();

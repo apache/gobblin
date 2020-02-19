@@ -51,6 +51,8 @@ import org.apache.gobblin.runtime.api.MutableJobCatalog;
 import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.runtime.job_catalog.NonObservingFSJobCatalog;
+import org.apache.gobblin.util.filters.HiddenFilter;
+
 
 @Slf4j
 public class FsJobConfigurationManagerTest {
@@ -97,16 +99,15 @@ public class FsJobConfigurationManagerTest {
 
     Config config = ConfigFactory.empty()
         .withValue(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, ConfigValueFactory.fromAnyRef(jobConfDir))
-        .withValue(GobblinClusterConfigurationKeys.SPEC_CONSUMER_CLASS_KEY, ConfigValueFactory.fromAnyRef(FsSpecConsumer.class.getName()))
         .withValue(FsSpecConsumer.SPEC_PATH_KEY, ConfigValueFactory.fromAnyRef(fsSpecConsumerPathString))
         .withValue(GobblinClusterConfigurationKeys.JOB_SPEC_REFRESH_INTERVAL, ConfigValueFactory.fromAnyRef(1));
 
     this._jobCatalog = new NonObservingFSJobCatalog(config);
     ((NonObservingFSJobCatalog) this._jobCatalog).startAsync().awaitRunning();
 
-    jobConfigurationManager = new FsJobConfigurationManager(eventBus, config, this._jobCatalog);
+    jobConfigurationManager = new FsJobConfigurationManager(eventBus, config, this._jobCatalog, this.fs);
 
-    _specProducer = new FsSpecProducer(config);
+    _specProducer = new FsSpecProducer(this.fs, config);
   }
 
   private void addJobSpec(String jobSpecName, String version, String verb)
@@ -150,7 +151,7 @@ public class FsJobConfigurationManagerTest {
 
     //Ensure the JobSpec is deleted from the FsSpecConsumer path.
     Path fsSpecConsumerPath = new Path(fsSpecConsumerPathString);
-    Assert.assertEquals(this.fs.listStatus(fsSpecConsumerPath).length, 0);
+    Assert.assertEquals(this.fs.listStatus(fsSpecConsumerPath, new HiddenFilter()).length, 0);
 
     //Ensure NewJobConfigArrivalEvent is posted to EventBus
     Assert.assertEquals(newJobConfigArrivalEventCount, 1);
@@ -167,7 +168,7 @@ public class FsJobConfigurationManagerTest {
     Assert.assertTrue(jobSpec.getVersion().equals(version2));
 
     //Ensure the updated JobSpec is deleted from the FsSpecConsumer path.
-    Assert.assertEquals(this.fs.listStatus(fsSpecConsumerPath).length, 0);
+    Assert.assertEquals(this.fs.listStatus(fsSpecConsumerPath, new HiddenFilter()).length, 0);
 
     //Ensure UpdateJobConfigArrivalEvent is posted to EventBus
     Assert.assertEquals(newJobConfigArrivalEventCount, 1);
@@ -180,7 +181,7 @@ public class FsJobConfigurationManagerTest {
     this.jobConfigurationManager.fetchJobSpecs();
 
     //Ensure the JobSpec is deleted from the FsSpecConsumer path.
-    Assert.assertEquals(this.fs.listStatus(fsSpecConsumerPath).length, 0);
+    Assert.assertEquals(this.fs.listStatus(fsSpecConsumerPath, new HiddenFilter()).length, 0);
     this._jobCatalog.getJobSpec(new URI(jobSpecUriString));
 
     //Ensure DeleteJobConfigArrivalEvent is posted to EventBus

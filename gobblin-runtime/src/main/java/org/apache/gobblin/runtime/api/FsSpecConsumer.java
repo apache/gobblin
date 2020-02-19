@@ -33,7 +33,6 @@ import org.apache.avro.mapred.FsInput;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -44,6 +43,8 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.runtime.job_spec.AvroJobSpec;
 import org.apache.gobblin.util.CompletedFuture;
+import org.apache.gobblin.util.filters.HiddenFilter;
+
 
 @Slf4j
 public class FsSpecConsumer implements SpecConsumer<Spec> {
@@ -55,10 +56,10 @@ public class FsSpecConsumer implements SpecConsumer<Spec> {
   private Map<URI, Path> specToPathMap = new HashMap<>();
 
 
-  public FsSpecConsumer(Config config) {
+  public FsSpecConsumer(FileSystem fs, Config config) {
     this.specDirPath = new Path(config.getString(SPEC_PATH_KEY));
     try {
-      this.fs = this.specDirPath.getFileSystem(new Configuration());
+      this.fs = fs;
       if (!this.fs.exists(specDirPath)) {
         this.fs.mkdirs(specDirPath);
       }
@@ -75,12 +76,12 @@ public class FsSpecConsumer implements SpecConsumer<Spec> {
     List<Pair<SpecExecutor.Verb, Spec>> specList = new ArrayList<>();
     FileStatus[] fileStatuses;
     try {
-      fileStatuses = this.fs.listStatus(this.specDirPath);
+      fileStatuses = this.fs.listStatus(this.specDirPath, new HiddenFilter());
     } catch (IOException e) {
       log.error("Error when listing files at path: {}", this.specDirPath.toString(), e);
       return null;
     }
-    log.debug("Found {} files at path {}", fileStatuses.length, this.specDirPath.toString());
+    log.info("Found {} files at path {}", fileStatuses.length, this.specDirPath.toString());
 
     //Sort the {@link JobSpec}s in increasing order of their modification times.
     //This is done so that the {JobSpec}s can be handled in FIFO order by the
@@ -138,7 +139,7 @@ public class FsSpecConsumer implements SpecConsumer<Spec> {
       log.debug("Calling delete on path: {}", path.toString());
       this.fs.delete(path, false);
     } else {
-      log.debug("No path found for job: {}", spec.getUri().toString());
+      log.error("No path found for job: {}", spec.getUri().toString());
     }
   }
 }

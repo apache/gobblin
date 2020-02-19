@@ -17,6 +17,7 @@
 package org.apache.gobblin.runtime.api;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
@@ -24,6 +25,8 @@ import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -39,12 +42,14 @@ public class FsSpecProducerTest {
   private FsSpecConsumer _fsSpecConsumer;
 
   @BeforeMethod
-  public void setUp() {
+  public void setUp()
+      throws IOException {
     File tmpDir = Files.createTempDir();
     Config config = ConfigFactory.empty().withValue(FsSpecConsumer.SPEC_PATH_KEY, ConfigValueFactory.fromAnyRef(
         tmpDir.getAbsolutePath()));
-    this._fsSpecProducer = new FsSpecProducer(config);
-    this._fsSpecConsumer = new FsSpecConsumer(config);
+    FileSystem fs = FileSystem.getLocal(new Configuration());
+    this._fsSpecProducer = new FsSpecProducer(fs, config);
+    this._fsSpecConsumer = new FsSpecConsumer(fs, config);
   }
 
   private JobSpec createTestJobSpec() throws URISyntaxException {
