@@ -17,6 +17,9 @@
 
 package org.apache.gobblin.service.modules.core;
 
+import lombok.Getter;
+import lombok.Setter;
+
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
@@ -24,6 +27,9 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
@@ -38,9 +44,8 @@ import org.apache.helix.ControllerChangeListener;
 import org.apache.helix.HelixManager;
 import org.apache.helix.NotificationContext;
 import org.apache.helix.model.Message;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+import com.codahale.metrics.MetricRegistry;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
@@ -59,14 +64,15 @@ import com.linkedin.restli.server.resources.BaseResource;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import lombok.Getter;
-
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
+import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.ContextAwareHistogram;
 import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.ServiceMetricNames;
+import org.apache.gobblin.metrics.reporter.util.MetricReportUtils;
 import org.apache.gobblin.restli.EmbeddedRestliServer;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.runtime.app.ApplicationException;
@@ -161,6 +167,9 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
 
   protected KafkaJobStatusMonitor jobStatusMonitor;
 
+  protected Optional<HelixLeaderState> helixLeaderGauges;
+
+
   @Getter
   protected Config config;
   private final MetricContext metricContext;
@@ -213,6 +222,14 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     } else {
       this.isGitConfigMonitorEnabled = false;
     }
+
+    // Initialize Helix leader guage
+    helixLeaderGauges = Optional.of(new HelixLeaderState());
+    String helixLeaderStateGaugeName =
+        MetricRegistry.name(MetricReportUtils.GOBBLIN_SERVICE_METRICS_PREFIX, ServiceMetricNames.HELIX_LEADER_STATE);
+    ContextAwareGauge<Integer> gauge = metricContext.newContextAwareGauge(helixLeaderStateGaugeName, () -> helixLeaderGauges.get().state.getValue());
+    metricContext.register(helixLeaderStateGaugeName, gauge);
+
 
     // Initialize Helix
     Optional<String> zkConnectionString = Optional.fromNullable(ConfigUtils.getString(config,
@@ -390,6 +407,10 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
         this.scheduler.setActive(true);
       }
 
+      if (helixLeaderGauges.isPresent()) {
+        helixLeaderGauges.get().setState(LeaderState.MASTER);
+      }
+
       if (this.isGitConfigMonitorEnabled) {
         this.gitConfigMonitor.setActive(true);
       }
@@ -407,6 +428,10 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
       if (this.isSchedulerEnabled) {
         LOGGER.info("Gobblin Service is now running in slave instance mode, disabling Scheduler.");
         this.scheduler.setActive(false);
+      }
+
+      if (helixLeaderGauges.isPresent()) {
+        helixLeaderGauges.get().setState(LeaderState.SLAVE);
       }
 
       if (this.isGitConfigMonitorEnabled) {
@@ -439,6 +464,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
         }
       });
 
+
       // Update for first time since there might be no notification
       if (helixManager.get().isLeader()) {
         if (this.isSchedulerEnabled) {
@@ -450,9 +476,16 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
           this.gitConfigMonitor.setActive(true);
         }
 
+        if (helixLeaderGauges.isPresent()) {
+          helixLeaderGauges.get().setState(LeaderState.MASTER);
+        }
+
       } else {
         if (this.isSchedulerEnabled) {
           LOGGER.info("[Init] Gobblin Service is running in slave instance mode, not enabling Scheduler.");
+        }
+        if (helixLeaderGauges.isPresent()) {
+          helixLeaderGauges.get().setState(LeaderState.SLAVE);
         }
       }
     } else {
@@ -643,6 +676,23 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
       client.createFlowConfig(flowConfig);
     } catch (RemoteInvocationException e) {
       throw new RuntimeException(e);
+    }
+  }
+
+  @Setter
+  private static class HelixLeaderState {
+    private LeaderState state = LeaderState.UNKNOWN;
+  }
+
+  private enum LeaderState {
+    UNKNOWN(-1),
+    SLAVE(0),
+    MASTER(1);
+
+    @Getter private int value;
+
+    LeaderState(int value) {
+      this.value = value;
     }
   }
 }
