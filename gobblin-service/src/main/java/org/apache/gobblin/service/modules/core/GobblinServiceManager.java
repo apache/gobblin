@@ -227,7 +227,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     helixLeaderGauges = Optional.of(new HelixLeaderState());
     String helixLeaderStateGaugeName =
         MetricRegistry.name(MetricReportUtils.GOBBLIN_SERVICE_METRICS_PREFIX, ServiceMetricNames.HELIX_LEADER_STATE);
-    ContextAwareGauge<Integer> gauge = metricContext.newContextAwareGauge(helixLeaderStateGaugeName, () -> helixLeaderGauges.get().state.value);
+    ContextAwareGauge<Integer> gauge = metricContext.newContextAwareGauge(helixLeaderStateGaugeName, () -> helixLeaderGauges.get().state.getValue());
     metricContext.register(helixLeaderStateGaugeName, gauge);
 
 
@@ -689,7 +689,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     SLAVE(0),
     MASTER(1);
 
-    public int value;
+    @Getter private int value;
 
     LeaderState(int value) {
       this.value = value;
