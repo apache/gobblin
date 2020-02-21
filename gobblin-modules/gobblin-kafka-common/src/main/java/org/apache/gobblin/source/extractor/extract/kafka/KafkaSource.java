@@ -141,8 +141,8 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   private final AtomicInteger offsetTooLateCount = new AtomicInteger(0);
 
   // sharing the kafka consumer may result in contention, so support thread local consumers
-  private final ConcurrentLinkedQueue<GobblinKafkaConsumerClient> kafkaConsumerClientPool = new ConcurrentLinkedQueue();
-  private static final ThreadLocal<GobblinKafkaConsumerClient> kafkaConsumerClient =
+  protected final ConcurrentLinkedQueue<GobblinKafkaConsumerClient> kafkaConsumerClientPool = new ConcurrentLinkedQueue();
+  protected static final ThreadLocal<GobblinKafkaConsumerClient> kafkaConsumerClient =
           new ThreadLocal<GobblinKafkaConsumerClient>();
   private GobblinKafkaConsumerClient sharedKafkaConsumerClient = null;
   private final ClassAliasResolver<GobblinKafkaConsumerClientFactory> kafkaConsumerClientResolver =
@@ -241,9 +241,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
         this.sharedKafkaConsumerClient = this.kafkaConsumerClient.get();
       } else {
         // preallocate one client per thread
-        for (int i = 0; i < numOfThreads; i++) {
-          kafkaConsumerClientPool.offer(kafkaConsumerClientFactory.create(config));
-        }
+        populateClientPool(numOfThreads, kafkaConsumerClientFactory, config);
       }
 
       Stopwatch createWorkUnitStopwatch = Stopwatch.createStarted();
@@ -292,6 +290,14 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       } catch (IOException e) {
         throw new RuntimeException("Exception closing kafkaConsumerClient");
       }
+    }
+  }
+
+  protected void populateClientPool(int count,
+      GobblinKafkaConsumerClientFactory kafkaConsumerClientFactory,
+      Config config) {
+    for (int i = 0; i < count; i++) {
+      kafkaConsumerClientPool.offer(kafkaConsumerClientFactory.create(config));
     }
   }
 
