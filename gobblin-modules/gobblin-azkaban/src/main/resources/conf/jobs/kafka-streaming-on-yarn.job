@@ -1,0 +1,53 @@
+# This job starts up a Gobblin on YARN application master
+# that runs jobs specified in the gobblin_jobs directory
+job.name=kafka-streaming-on-yarn
+gobblin.yarn.app.master.memory.mbs=1024
+gobblin.yarn.app.master.cores=1
+gobblin.yarn.app.report.interval.minutes=5
+gobblin.yarn.max.get.app.report.failures=4
+gobblin.yarn.email.notification.on.shutdown=false
+
+#Set the minimum number of containers to 1 for ease of observing.
+gobblin.yarn.initial.containers=1
+gobblin.yarn.autoScaling.minContainers=1
+
+gobblin.yarn.container.memory.mbs=1024
+gobblin.yarn.container.jvmMemoryOverheadMbs=600
+gobblin.yarn.container.cores=1
+gobblin.yarn.container.affinity.enabled=true
+gobblin.yarn.helix.instance.max.retries=2
+
+# Use config set in the Azkaban job for initializing the yarn containers
+gobblin.yarn.akabanConfigOutputDir=./gobblin_config
+gobblin.yarn.akabanConfigOutputPath=${gobblin.yarn.akabanConfigOutputDir}/application.conf
+
+gobblin.yarn.conf.dir=./conf
+gobblin.yarn.lib.jars.dir=<path to where the gobblin libraries sit>
+gobblin.yarn.app.master.files.local=<Path to yarn-site.xml>,${gobblin.yarn.conf.dir}/app.btm,${gobblin.yarn.conf.dir}/log4j-yarn.properties,${gobblin.yarn.akabanConfigOutputDir}/application.conf
+gobblin.yarn.container.files.local=${gobblin.yarn.app.master.files.local}
+gobblin.yarn.log.copier.disable.driver.copy=true
+gobblin.yarn.app.master.serviceClasses=org.apache.gobblin.yarn.YarnAutoScalingManager
+
+# Cluster configuration properties
+# gobblin.cluster.helix.cluster.name=${gobblin.yarn.app.name}
+
+# Job Configuration manager properties
+gobblin.cluster.job.configuration.manager=org.apache.gobblin.cluster.FsJobConfigurationManager
+gobblin.cluster.specConsumer.class=org.apache.gobblin.runtime.api.FsSpecConsumer
+
+# This config is to restrict assignment to one task per container
+gobblin.cluster.helixTaskQuotaConfig=DEFAULT:1,UNUSED:39
+
+job.execinfo.server.enabled=false
+admin.server.enabled=false
+
+# File system URIs
+# writer.fs.uri=${fs.uri}
+# state.store.fs.uri=${fs.uri}
+
+# state.store.dir=${gobblin.yarn.work.dir}/state-store
+# qualitychecker.row.err.file=${gobblin.yarn.work.dir}/err
+job.lock.enabled=false
+# job.lock.dir=${gobblin.yarn.work.dir}/locks
+
+writer.include.record.count.in.file.names=true

@@ -116,7 +116,7 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
 
   private final Closer closer = Closer.create();
 
-  private static void setEnv(String key, String value) {
+  public static void setEnv(String key, String value) {
     try {
       Map<String, String> env = System.getenv();
       Class<?> cl = env.getClass();
@@ -250,6 +250,10 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
    */
   @Test(enabled=false, groups = { "disabledOnTravis" }, dependsOnMethods = "testCreateHelixCluster")
   public void testSetupAndSubmitApplication() throws Exception {
+    HelixUtils.createGobblinHelixCluster(
+        this.config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY),
+        this.config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY));
+
     this.gobblinYarnAppLauncher.startYarnClient();
     this.applicationId = this.gobblinYarnAppLauncher.setupAndSubmitApplication();
 

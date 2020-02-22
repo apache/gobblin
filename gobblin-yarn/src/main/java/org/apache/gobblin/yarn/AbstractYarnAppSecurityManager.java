@@ -53,7 +53,7 @@ import org.apache.gobblin.util.ExecutorsUtils;
 /**
  * <p>
  *   The super class for key management
- *   This class uses a scheduled task to do re-login to refetch token on a
+ *   This class uses a scheduled task to do re-login to re-fetch token on a
  *   configurable schedule. It also uses a second scheduled task
  *   to renew the delegation token after each login. Both the re-login interval and the token
  *   renewing interval are configurable.

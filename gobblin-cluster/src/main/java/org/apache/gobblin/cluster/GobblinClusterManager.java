@@ -234,7 +234,9 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
   }
 
   /**
-   * Configure Helix quota-based task scheduling
+   * Configure Helix quota-based task scheduling.
+   * This config controls the number of tasks that are concurrently assigned to a single Helix instance.
+   * Reference: https://helix.apache.org/0.9.1-docs/quota_scheduling.html
    */
   @VisibleForTesting
   void configureHelixQuotaBasedTaskScheduling() {

@@ -196,6 +196,8 @@ public class YarnAutoScalingManager extends AbstractIdleService {
       // adjust the number of target containers based on the configured min and max container values.
       numTargetContainers = Math.max(this.minContainers, Math.min(this.maxContainers, numTargetContainers));
 
+      log.info("There are {} containers being requested", numTargetContainers);
+
       this.yarnService.requestTargetNumberOfContainers(numTargetContainers, inUseInstances);
     }
   }
