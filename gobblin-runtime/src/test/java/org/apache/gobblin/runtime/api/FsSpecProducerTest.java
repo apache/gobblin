@@ -25,8 +25,6 @@ import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -47,9 +45,8 @@ public class FsSpecProducerTest {
     File tmpDir = Files.createTempDir();
     Config config = ConfigFactory.empty().withValue(FsSpecConsumer.SPEC_PATH_KEY, ConfigValueFactory.fromAnyRef(
         tmpDir.getAbsolutePath()));
-    FileSystem fs = FileSystem.getLocal(new Configuration());
-    this._fsSpecProducer = new FsSpecProducer(fs, config);
-    this._fsSpecConsumer = new FsSpecConsumer(fs, config);
+    this._fsSpecProducer = new FsSpecProducer(config);
+    this._fsSpecConsumer = new FsSpecConsumer(config);
   }
 
   private JobSpec createTestJobSpec() throws URISyntaxException {

@@ -278,7 +278,7 @@ public class HelixUtils {
   }
 
   /**
-   * Returns the Helix Workflow Ids given {@link Iterable} of Gobblin job names. The method returns a
+   * Returns the currently running Helix Workflow Ids given an {@link Iterable} of Gobblin job names. The method returns a
    * {@link java.util.Map} from Gobblin job name to the corresponding Helix Workflow Id. This method iterates
    * over all Helix workflows, and obtains the jobs of each workflow from its jobDag.
    *

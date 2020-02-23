@@ -26,6 +26,7 @@ import java.util.concurrent.Future;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.specific.SpecificDatumWriter;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -35,6 +36,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 
+import javax.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.runtime.job_spec.AvroJobSpec;
@@ -54,11 +56,19 @@ public class FsSpecProducer implements SpecProducer<Spec> {
   private Path specConsumerPath;
   private FileSystem fs;
 
-  public FsSpecProducer(FileSystem fs, Config config) {
+  public FsSpecProducer(Config config) {
+    this(null, config);
+  }
+
+  public FsSpecProducer(@Nullable FileSystem fs, Config config) {
     String specConsumerDir = ConfigUtils.getString(config, FsSpecConsumer.SPEC_PATH_KEY, "");
     Preconditions.checkArgument(!Strings.isNullOrEmpty(specConsumerDir), "Missing argument: " + FsSpecConsumer.SPEC_PATH_KEY);
     this.specConsumerPath = new Path(specConsumerDir);
-    this.fs = fs;
+    try {
+      this.fs = (fs == null) ? FileSystem.get(new Configuration()) : fs;
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   /** Add a {@link Spec} for execution on {@link org.apache.gobblin.runtime.api.SpecExecutor}.

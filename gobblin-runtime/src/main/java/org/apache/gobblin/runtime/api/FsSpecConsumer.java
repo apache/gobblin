@@ -33,12 +33,14 @@ import org.apache.avro.mapred.FsInput;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import com.typesafe.config.Config;
 
+import javax.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.runtime.job_spec.AvroJobSpec;
@@ -56,10 +58,14 @@ public class FsSpecConsumer implements SpecConsumer<Spec> {
   private Map<URI, Path> specToPathMap = new HashMap<>();
 
 
-  public FsSpecConsumer(FileSystem fs, Config config) {
+  public FsSpecConsumer(Config config) {
+    this(null, config);
+  }
+
+  public FsSpecConsumer(@Nullable FileSystem fs, Config config) {
     this.specDirPath = new Path(config.getString(SPEC_PATH_KEY));
     try {
-      this.fs = fs;
+      this.fs = (fs == null) ? FileSystem.get(new Configuration()) : fs;
       if (!this.fs.exists(specDirPath)) {
         this.fs.mkdirs(specDirPath);
       }
