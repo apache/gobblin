@@ -22,6 +22,7 @@ import org.apache.gobblin.data.management.copy.PreserveAttributes.Option;
 import org.apache.gobblin.dataset.DatasetConstants;
 import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.gobblin.dataset.Descriptor;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.guid.Guid;
 
@@ -54,6 +55,8 @@ import com.google.common.collect.Lists;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @EqualsAndHashCode(callSuper = true)
 public class CopyableFile extends CopyEntity implements File {
+  private static final byte[] EMPTY_CHECKSUM = new byte[0];
+
   /**
    * The source data the file belongs to. For now, since it's only used before copying, set it to be
    * transient so that it won't be serialized, avoid unnecessary data transfer
@@ -250,8 +253,12 @@ public class CopyableFile extends CopyEntity implements File {
             this.configuration.getTargetFs(), this.destination);
       }
       if (this.checksum == null) {
-        FileChecksum checksumTmp = this.origin.isDirectory() ? null : this.originFs.getFileChecksum(this.origin.getPath());
-        this.checksum = checksumTmp == null ? new byte[0] : checksumTmp.getBytes();
+        if (ConfigUtils.getBoolean(this.configuration.getConfig(), "copy.skipChecksum", true)) {
+          this.checksum = EMPTY_CHECKSUM;
+        } else {
+          FileChecksum checksumTmp = this.origin.isDirectory() ? null : this.originFs.getFileChecksum(this.origin.getPath());
+          this.checksum = checksumTmp == null ? EMPTY_CHECKSUM : checksumTmp.getBytes();
+        }
       }
       if (this.fileSet == null) {
         // Default file set per dataset
