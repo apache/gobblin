@@ -377,7 +377,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
           Collections.singletonList(deleteJobArrival.getJobName()));
       Retryer<Map<String, String>> retryer = RetryerBuilder.<Map<String, String>>newBuilder()
           .retryIfException()
-          .withStopStrategy(StopStrategies.stopAfterAttempt(1))
+          .withStopStrategy(StopStrategies.stopAfterAttempt(5))
           .withAttemptTimeLimiter(AttemptTimeLimiters.fixedTimeLimit(this.helixWorkflowListingTimeoutMillis, TimeUnit.MILLISECONDS)).build();
       Map<String, String> jobNameToWorkflowIdMap;
       try {

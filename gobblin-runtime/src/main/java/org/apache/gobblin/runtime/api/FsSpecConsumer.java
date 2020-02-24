@@ -40,10 +40,13 @@ import org.apache.hadoop.fs.Path;
 
 import com.typesafe.config.Config;
 
+import javax.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.runtime.job_spec.AvroJobSpec;
 import org.apache.gobblin.util.CompletedFuture;
+import org.apache.gobblin.util.filters.HiddenFilter;
+
 
 @Slf4j
 public class FsSpecConsumer implements SpecConsumer<Spec> {
@@ -56,9 +59,16 @@ public class FsSpecConsumer implements SpecConsumer<Spec> {
 
 
   public FsSpecConsumer(Config config) {
+    this(null, config);
+  }
+
+  public FsSpecConsumer(@Nullable FileSystem fs, Config config) {
     this.specDirPath = new Path(config.getString(SPEC_PATH_KEY));
     try {
-      this.fs = this.specDirPath.getFileSystem(new Configuration());
+      this.fs = (fs == null) ? FileSystem.get(new Configuration()) : fs;
+      if (!this.fs.exists(specDirPath)) {
+        this.fs.mkdirs(specDirPath);
+      }
     } catch (IOException e) {
       throw new RuntimeException("Unable to detect spec directory file system: " + e, e);
     }
@@ -72,11 +82,12 @@ public class FsSpecConsumer implements SpecConsumer<Spec> {
     List<Pair<SpecExecutor.Verb, Spec>> specList = new ArrayList<>();
     FileStatus[] fileStatuses;
     try {
-      fileStatuses = this.fs.listStatus(this.specDirPath);
+      fileStatuses = this.fs.listStatus(this.specDirPath, new HiddenFilter());
     } catch (IOException e) {
       log.error("Error when listing files at path: {}", this.specDirPath.toString(), e);
       return null;
     }
+    log.info("Found {} files at path {}", fileStatuses.length, this.specDirPath.toString());
 
     //Sort the {@link JobSpec}s in increasing order of their modification times.
     //This is done so that the {JobSpec}s can be handled in FIFO order by the
@@ -118,6 +129,7 @@ public class FsSpecConsumer implements SpecConsumer<Spec> {
         SpecExecutor.Verb verb = SpecExecutor.Verb.valueOf(verbName);
 
         JobSpec jobSpec = jobSpecBuilder.build();
+        log.debug("Successfully built jobspec: {}", jobSpec.getUri().toString());
         specList.add(new ImmutablePair<SpecExecutor.Verb, Spec>(verb, jobSpec));
         this.specToPathMap.put(jobSpec.getUri(), fileStatus.getPath());
       }
@@ -130,7 +142,10 @@ public class FsSpecConsumer implements SpecConsumer<Spec> {
   public void commit(Spec spec) throws IOException {
     Path path = this.specToPathMap.get(spec.getUri());
     if (path != null) {
+      log.debug("Calling delete on path: {}", path.toString());
       this.fs.delete(path, false);
+    } else {
+      log.error("No path found for job: {}", spec.getUri().toString());
     }
   }
 }

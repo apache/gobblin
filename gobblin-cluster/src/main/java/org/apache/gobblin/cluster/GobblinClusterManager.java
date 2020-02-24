@@ -18,7 +18,6 @@
 package org.apache.gobblin.cluster;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -398,16 +397,15 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
 
   private JobConfigurationManager create(Config config) {
     try {
-      List<Object> argumentList = (this.jobCatalog != null)? ImmutableList.of(this.eventBus, config, this.jobCatalog) :
-          ImmutableList.of(this.eventBus, config);
+      List<Object> argumentList = (this.jobCatalog != null)? ImmutableList.of(this.eventBus, config, this.jobCatalog, this.fs) :
+          ImmutableList.of(this.eventBus, config, this.fs);
       if (config.hasPath(GobblinClusterConfigurationKeys.JOB_CONFIGURATION_MANAGER_KEY)) {
-        return (JobConfigurationManager) GobblinConstructorUtils.invokeFirstConstructor(Class.forName(
-            config.getString(GobblinClusterConfigurationKeys.JOB_CONFIGURATION_MANAGER_KEY)), argumentList);
+        return (JobConfigurationManager) GobblinConstructorUtils.invokeLongestConstructor(Class.forName(
+            config.getString(GobblinClusterConfigurationKeys.JOB_CONFIGURATION_MANAGER_KEY)), argumentList.toArray(new Object[argumentList.size()]));
       } else {
         return new JobConfigurationManager(this.eventBus, config);
       }
-    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException |
-        ClassNotFoundException e) {
+    } catch (ReflectiveOperationException e) {
       throw new RuntimeException(e);
     }
   }

@@ -31,6 +31,7 @@ import org.apache.helix.HelixManager;
 import org.apache.helix.manager.zk.ZKHelixManager;
 import org.apache.helix.model.HelixConfigScope;
 import org.apache.helix.task.JobConfig;
+import org.apache.helix.task.TargetState;
 import org.apache.helix.task.TaskConfig;
 import org.apache.helix.task.TaskDriver;
 import org.apache.helix.task.TaskState;
@@ -277,7 +278,7 @@ public class HelixUtils {
   }
 
   /**
-   * Returns the Helix Workflow Ids given {@link Iterable} of Gobblin job names. The method returns a
+   * Returns the currently running Helix Workflow Ids given an {@link Iterable} of Gobblin job names. The method returns a
    * {@link java.util.Map} from Gobblin job name to the corresponding Helix Workflow Id. This method iterates
    * over all Helix workflows, and obtains the jobs of each workflow from its jobDag.
    *
@@ -293,6 +294,10 @@ public class HelixUtils {
     Map<String, WorkflowConfig> workflowConfigMap = taskDriver.getWorkflows();
     for (String workflow : workflowConfigMap.keySet()) {
       WorkflowConfig workflowConfig = taskDriver.getWorkflowConfig(workflow);
+      //Filter out any stale Helix workflows which are not running.
+      if (workflowConfig.getTargetState() != TargetState.START) {
+        continue;
+      }
       Set<String> helixJobs = workflowConfig.getJobDag().getAllNodes();
       for (String helixJob : helixJobs) {
         Iterator<TaskConfig> taskConfigIterator = taskDriver.getJobConfig(helixJob).getTaskConfigMap().values().iterator();
