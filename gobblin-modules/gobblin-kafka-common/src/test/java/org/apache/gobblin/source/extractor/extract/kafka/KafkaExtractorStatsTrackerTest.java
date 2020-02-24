@@ -17,7 +17,9 @@
 package org.apache.gobblin.source.extractor.extract.kafka;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
@@ -25,15 +27,19 @@ import org.testng.annotations.Test;
 
 import org.apache.gobblin.configuration.WorkUnitState;
 
+import com.google.common.collect.ImmutableMap;
+
 
 public class KafkaExtractorStatsTrackerTest {
   List<KafkaPartition> kafkaPartitions = new ArrayList<>();
   private KafkaExtractorStatsTracker extractorStatsTracker;
+  final static KafkaPartition PARTITION0 =  new KafkaPartition.Builder().withTopicName("test-topic").withId(0).build();
+  final static KafkaPartition PARTITION1 =  new KafkaPartition.Builder().withTopicName("test-topic").withId(1).build();
 
   @BeforeClass
   public void setUp() {
-    kafkaPartitions.add(new KafkaPartition.Builder().withTopicName("test-topic").withId(0).build());
-    kafkaPartitions.add(new KafkaPartition.Builder().withTopicName("test-topic").withId(1).build());
+    kafkaPartitions.add(PARTITION0);
+    kafkaPartitions.add(PARTITION1);
     WorkUnitState workUnitState = new WorkUnitState();
     workUnitState.setProp("gobblin.kafka.recordLevelSlaMinutes", 10L);
     this.extractorStatsTracker = new KafkaExtractorStatsTracker(workUnitState, kafkaPartitions);
@@ -163,5 +169,19 @@ public class KafkaExtractorStatsTrackerTest {
     long logAppendTimeStamp = System.currentTimeMillis() - 10;
     this.extractorStatsTracker.onDecodeableRecord(1, readStartTime, decodeStartTime, 150, logAppendTimeStamp);
     Assert.assertEquals(this.extractorStatsTracker.getAvgRecordSize(1), 150);
+  }
+
+  @Test
+  public void testGenerateTagsForPartitions() throws Exception {
+    MultiLongWatermark lowWatermark = new MultiLongWatermark(Arrays.asList(new Long(10), new Long(20)));
+    MultiLongWatermark highWatermark = new MultiLongWatermark(Arrays.asList(new Long(20), new Long(30)));
+    MultiLongWatermark nextWatermark = new MultiLongWatermark(Arrays.asList(new Long(15), new Long(25)));
+    Map<KafkaPartition, Map<String, String>> addtionalTags =
+        ImmutableMap.of(PARTITION0, ImmutableMap.of("testKey", "testValue"));
+    Map<KafkaPartition, Map<String, String>> result =
+        extractorStatsTracker.generateTagsForPartitions(lowWatermark, highWatermark, nextWatermark, addtionalTags);
+    Assert.assertTrue(result.get(PARTITION0).containsKey("testKey"));
+    Assert.assertEquals(result.get(PARTITION0).get("testKey"), "testValue");
+    Assert.assertFalse(result.get(PARTITION1).containsKey("testKey"));
   }
 }

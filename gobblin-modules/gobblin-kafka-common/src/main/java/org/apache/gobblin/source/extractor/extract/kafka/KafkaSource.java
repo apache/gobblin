@@ -278,7 +278,9 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       setLimiterReportKeyListToWorkUnits(workUnitList, getLimiterExtractorReportKeys());
       return workUnitList;
     } catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
-      throw new RuntimeException(e);
+      throw new RuntimeException("Checked exception caught", e);
+    } catch (Throwable t) {
+      throw new RuntimeException("Unexpected throwable caught, ", t);
     } finally {
       try {
         if (this.kafkaConsumerClient.get() != null) {
