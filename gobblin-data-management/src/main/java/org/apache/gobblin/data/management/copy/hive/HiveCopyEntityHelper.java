@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.gobblin.util.filesystem.ModTimeDataFileVersionStrategy;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -635,12 +636,18 @@ public class HiveCopyEntityHelper {
       // For each source path
       Path newPath = helper.getTargetPathHelper().getTargetPath(sourcePath.getPath(), desiredTargetLocation.getFileSystem(), partition, true);
       boolean shouldCopy = true;
+      // Can optimize by using the mod time that has already been fetched
+      boolean useDirectGetModTime = sourceLocation.versionStrategy.isPresent()
+          && sourceLocation.versionStrategy.get().getClass().getName().equals(
+              ModTimeDataFileVersionStrategy.class.getName());
+
       if (desiredTargetExistingPaths.containsKey(newPath)) {
         // If the file exists at the destination, check whether it should be replaced, if not, no need to copy
         FileStatus existingTargetStatus = desiredTargetExistingPaths.get(newPath);
-
-        Comparable srcVer = sourceLocation.versionStrategy.get().getVersion(sourcePath.getPath());
-        Comparable dstVer = desiredTargetLocation.versionStrategy.get().getVersion(existingTargetStatus.getPath());
+        Comparable srcVer = useDirectGetModTime ? sourcePath.getModificationTime() :
+            sourceLocation.versionStrategy.get().getVersion(sourcePath.getPath());
+        Comparable dstVer = useDirectGetModTime ? existingTargetStatus.getModificationTime() :
+            desiredTargetLocation.versionStrategy.get().getVersion(existingTargetStatus.getPath());
 
         // destination has higher version, skip the copy
         if (srcVer.compareTo(dstVer) <= 0) {
