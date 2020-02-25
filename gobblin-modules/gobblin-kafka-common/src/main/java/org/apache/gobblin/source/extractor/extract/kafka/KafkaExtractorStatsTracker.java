@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
@@ -319,18 +320,53 @@ public class KafkaExtractorStatsTracker {
    */
   public void emitTrackingEvents(MetricContext context, MultiLongWatermark lowWatermark, MultiLongWatermark highWatermark,
       MultiLongWatermark nextWatermark) {
-    Map<KafkaPartition, Map<String, String>> tagsForPartitionsMap = Maps.newHashMap();
-    for (int i = 0; i < this.partitions.size(); i++) {
-      log.info(String.format("Actual high watermark for partition %s=%d, expected=%d", this.partitions.get(i),
-          nextWatermark.get(i), highWatermark.get(i)));
-      tagsForPartitionsMap
-          .put(this.partitions.get(i), createTagsForPartition(i, lowWatermark, highWatermark, nextWatermark));
-    }
+    emitTrackingEventsWithAdditionalTags(context, lowWatermark, highWatermark, nextWatermark, Maps.newHashMap());
+  }
+
+  /**
+   * Emit Tracking events reporting the various statistics to be consumed by a monitoring application, with additional
+   * map representing tags beyond what are constructed in {@link #createTagsForPartition(int, MultiLongWatermark, MultiLongWatermark, MultiLongWatermark) }
+   *
+   * Choose to not to make createTagsForPartition extensible to avoid additional derived class just for additional k-v pairs
+   * in the tag maps.
+   *
+   * @param additionalTags caller-provided mapping from {@link KafkaPartition} to {@link Map<String, String>}, which will
+   *                       be merged with result of {@link #createTagsForPartition}.
+   */
+  public void emitTrackingEventsWithAdditionalTags(MetricContext context, MultiLongWatermark lowWatermark, MultiLongWatermark highWatermark,
+      MultiLongWatermark nextWatermark, Map<KafkaPartition, Map<String, String>> additionalTags) {
+    Map<KafkaPartition, Map<String, String>> tagsForPartitionsMap =
+        generateTagsForPartitions(lowWatermark, highWatermark, nextWatermark, additionalTags);
+
     for (Map.Entry<KafkaPartition, Map<String, String>> eventTags : tagsForPartitionsMap.entrySet()) {
       EventSubmitter.Builder eventSubmitterBuilder = new EventSubmitter.Builder(context, GOBBLIN_KAFKA_NAMESPACE);
       eventSubmitterBuilder.addMetadata(this.taskEventMetadataGenerator.getMetadata(workUnitState, KAFKA_EXTRACTOR_TOPIC_METADATA_EVENT_NAME));
       eventSubmitterBuilder.build().submit(KAFKA_EXTRACTOR_TOPIC_METADATA_EVENT_NAME, eventTags.getValue());
     }
+  }
+
+  /**
+   * A helper function to merge tags for KafkaPartition. Separate into a package-private method for ease of testing.
+   */
+  @VisibleForTesting
+  Map<KafkaPartition, Map<String, String>> generateTagsForPartitions(MultiLongWatermark lowWatermark, MultiLongWatermark highWatermark,
+      MultiLongWatermark nextWatermark, Map<KafkaPartition, Map<String, String>> additionalTags) {
+    Map<KafkaPartition, Map<String, String>> tagsForPartitionsMap = Maps.newHashMap();
+    for (int i = 0; i < this.partitions.size(); i++) {
+      KafkaPartition partitionKey = this.partitions.get(i);
+
+      log.info(String.format("Actual high watermark for partition %s=%d, expected=%d", this.partitions.get(i),
+          nextWatermark.get(i), highWatermark.get(i)));
+      tagsForPartitionsMap
+          .put(this.partitions.get(i), createTagsForPartition(i, lowWatermark, highWatermark, nextWatermark));
+
+      // Merge with additionalTags from argument-provided map if exists.
+      if (additionalTags.containsKey(partitionKey)) {
+        tagsForPartitionsMap.get(partitionKey).putAll(additionalTags.get(partitionKey));
+      }
+    }
+
+    return tagsForPartitionsMap;
   }
 
   /**
