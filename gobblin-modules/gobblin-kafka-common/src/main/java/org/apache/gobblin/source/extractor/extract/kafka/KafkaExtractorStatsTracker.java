@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
@@ -347,6 +348,7 @@ public class KafkaExtractorStatsTracker {
   /**
    * A helper function to merge tags for KafkaPartition. Separate into a package-private method for ease of testing.
    */
+  @VisibleForTesting
   Map<KafkaPartition, Map<String, String>> generateTagsForPartitions(MultiLongWatermark lowWatermark, MultiLongWatermark highWatermark,
       MultiLongWatermark nextWatermark, Map<KafkaPartition, Map<String, String>> additionalTags) {
     Map<KafkaPartition, Map<String, String>> tagsForPartitionsMap = Maps.newHashMap();
