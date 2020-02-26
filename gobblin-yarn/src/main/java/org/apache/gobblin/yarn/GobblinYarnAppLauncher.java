@@ -608,21 +608,22 @@ public class GobblinYarnAppLauncher {
     Path appMasterWorkDir = new Path(appWorkDir, GobblinYarnConfigurationKeys.APP_MASTER_WORK_DIR_NAME);
 
     Map<String, LocalResource> appMasterResources = Maps.newHashMap();
+    FileSystem localFs = FileSystem.getLocal(new Configuration());
 
     if (this.config.hasPath(GobblinYarnConfigurationKeys.LIB_JARS_DIR_KEY)) {
       Path libJarsDestDir = new Path(appWorkDir, GobblinYarnConfigurationKeys.LIB_JARS_DIR_NAME);
       addLibJars(new Path(this.config.getString(GobblinYarnConfigurationKeys.LIB_JARS_DIR_KEY)),
-          Optional.of(appMasterResources), libJarsDestDir);
+          Optional.of(appMasterResources), libJarsDestDir, localFs);
     }
     if (this.config.hasPath(GobblinYarnConfigurationKeys.APP_MASTER_JARS_KEY)) {
       Path appJarsDestDir = new Path(appMasterWorkDir, GobblinYarnConfigurationKeys.APP_JARS_DIR_NAME);
       addAppJars(this.config.getString(GobblinYarnConfigurationKeys.APP_MASTER_JARS_KEY),
-          Optional.of(appMasterResources), appJarsDestDir);
+          Optional.of(appMasterResources), appJarsDestDir, localFs);
     }
     if (this.config.hasPath(GobblinYarnConfigurationKeys.APP_MASTER_FILES_LOCAL_KEY)) {
       Path appFilesDestDir = new Path(appMasterWorkDir, GobblinYarnConfigurationKeys.APP_FILES_DIR_NAME);
       addAppLocalFiles(this.config.getString(GobblinYarnConfigurationKeys.APP_MASTER_FILES_LOCAL_KEY),
-          Optional.of(appMasterResources), appFilesDestDir);
+          Optional.of(appMasterResources), appFilesDestDir, localFs);
     }
     if (this.config.hasPath(GobblinYarnConfigurationKeys.APP_MASTER_FILES_REMOTE_KEY)) {
       addAppRemoteFiles(this.config.getString(GobblinYarnConfigurationKeys.APP_MASTER_FILES_REMOTE_KEY),
@@ -640,23 +641,25 @@ public class GobblinYarnAppLauncher {
   private void addContainerLocalResources(ApplicationId applicationId) throws IOException {
     Path appWorkDir = GobblinClusterUtils.getAppWorkDirPath(this.fs, this.applicationName, applicationId.toString());
     Path containerWorkDir = new Path(appWorkDir, GobblinYarnConfigurationKeys.CONTAINER_WORK_DIR_NAME);
+    FileSystem localFs = FileSystem.getLocal(new Configuration());
 
     if (this.config.hasPath(GobblinYarnConfigurationKeys.CONTAINER_JARS_KEY)) {
       Path appJarsDestDir = new Path(containerWorkDir, GobblinYarnConfigurationKeys.APP_JARS_DIR_NAME);
       addAppJars(this.config.getString(GobblinYarnConfigurationKeys.CONTAINER_JARS_KEY),
-          Optional.<Map<String, LocalResource>>absent(), appJarsDestDir);
+          Optional.<Map<String, LocalResource>>absent(), appJarsDestDir, localFs);
     }
     if (this.config.hasPath(GobblinYarnConfigurationKeys.CONTAINER_FILES_LOCAL_KEY)) {
       Path appFilesDestDir = new Path(containerWorkDir, GobblinYarnConfigurationKeys.APP_FILES_DIR_NAME);
       addAppLocalFiles(this.config.getString(GobblinYarnConfigurationKeys.CONTAINER_FILES_LOCAL_KEY),
-          Optional.<Map<String, LocalResource>>absent(), appFilesDestDir);
+          Optional.<Map<String, LocalResource>>absent(), appFilesDestDir, localFs);
     }
   }
 
-  private void addLibJars(Path srcLibJarDir, Optional<Map<String, LocalResource>> resourceMap, Path destDir)
-      throws IOException {
-    FileSystem localFs = FileSystem.getLocal(this.yarnConfiguration);
-    if (! this.fs.exists(srcLibJarDir)) {
+  private void addLibJars(Path srcLibJarDir, Optional<Map<String, LocalResource>> resourceMap, Path destDir,
+      FileSystem localFs) throws IOException {
+
+    // Missing classpath-jars will be a fatal error.
+    if (!localFs.exists(srcLibJarDir)) {
       throw new IllegalStateException(String.format("The library directory[%s] are not being found, abort the application", srcLibJarDir));
     }
 
@@ -675,11 +678,15 @@ public class GobblinYarnAppLauncher {
   }
 
   private void addAppJars(String jarFilePathList, Optional<Map<String, LocalResource>> resourceMap,
-      Path destDir) throws IOException {
+      Path destDir, FileSystem localFs) throws IOException {
     for (String jarFilePath : SPLITTER.split(jarFilePathList)) {
       Path srcFilePath = new Path(jarFilePath);
       Path destFilePath = new Path(destDir, srcFilePath.getName());
-      this.fs.copyFromLocalFile(srcFilePath, destFilePath);
+      if (localFs.exists(srcFilePath)) {
+        this.fs.copyFromLocalFile(srcFilePath, destFilePath);
+      } else {
+        LOGGER.warn("The src destination " + srcFilePath + " doesn't exists");
+      }
       if (resourceMap.isPresent()) {
         YarnHelixUtils.addFileAsLocalResource(this.fs, destFilePath, LocalResourceType.FILE, resourceMap.get());
       }
@@ -687,11 +694,12 @@ public class GobblinYarnAppLauncher {
   }
 
   private void addAppLocalFiles(String localFilePathList, Optional<Map<String, LocalResource>> resourceMap,
-      Path destDir) throws IOException {
+      Path destDir, FileSystem localFs) throws IOException {
+
     for (String localFilePath : SPLITTER.split(localFilePathList)) {
       Path srcFilePath = new Path(localFilePath);
       Path destFilePath = new Path(destDir, srcFilePath.getName());
-      if (fs.exists(srcFilePath)) {
+      if (localFs.exists(srcFilePath)) {
         this.fs.copyFromLocalFile(srcFilePath, destFilePath);
         if (resourceMap.isPresent()) {
           YarnHelixUtils.addFileAsLocalResource(this.fs, destFilePath, LocalResourceType.FILE, resourceMap.get());
