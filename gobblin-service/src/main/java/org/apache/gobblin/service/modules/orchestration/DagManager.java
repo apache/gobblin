@@ -332,7 +332,9 @@ public class DagManager extends AbstractIdleService {
           this.dagManagerThreads[i] = dagManagerThread;
           this.scheduledExecutorPool.scheduleAtFixedRate(dagManagerThread, 0, this.pollingInterval, TimeUnit.SECONDS);
         }
-        for (Dag<JobExecutionPlan> dag : dagStateStore.getDags()) {
+        List<Dag<JobExecutionPlan>> dags = dagStateStore.getDags();
+        log.info("Loading " + dags.size() + " dags from dag state store");
+        for (Dag<JobExecutionPlan> dag : dags) {
           addDag(dag, false);
         }
       } else { //Mark the DagManager inactive.
