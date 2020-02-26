@@ -352,7 +352,7 @@ public class GobblinServiceManagerTest {
     try {
       this.flowConfigClient.updateFlowConfig(flowConfig);
     } catch (RestLiResponseException e) {
-      Assert.fail("Bad update should pass without complaining that the spec does not exists.");
+      Assert.assertEquals(e.getStatus(), HttpStatus.NOT_FOUND_404);
     }
     cleanUpDir(FLOW_SPEC_STORE_DIR);
   }
