@@ -32,7 +32,6 @@ import org.apache.avro.io.Decoder;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.specific.SpecificDatumReader;
 
-import com.codahale.metrics.Counter;
 import com.codahale.metrics.Meter;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;

@@ -18,63 +18,74 @@
 package org.apache.gobblin.runtime.kafka;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import org.apache.commons.lang3.reflect.ConstructorUtils;
 
 import com.codahale.metrics.Counter;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
-import kafka.consumer.Consumer;
-import kafka.consumer.ConsumerConfig;
-import kafka.consumer.ConsumerIterator;
-import kafka.consumer.KafkaStream;
-import kafka.javaapi.consumer.ConsumerConnector;
-import kafka.message.MessageAndMetadata;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
+import org.apache.gobblin.kafka.client.GobblinKafkaConsumerClient;
+import org.apache.gobblin.kafka.client.KafkaConsumerRecord;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.runtime.metrics.RuntimeMetrics;
+import org.apache.gobblin.source.extractor.extract.kafka.KafkaPartition;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.ExecutorsUtils;
 
 
 /**
- * A high level consumer for Kafka topics. Subclasses should implement {@link HighLevelConsumer#processMessage(MessageAndMetadata)}
+ * A high level consumer for Kafka topics. Subclasses should implement {@link HighLevelConsumer#processMessage(DecodeableKafkaRecord)}
  *
- * Note each thread will block for each message until {@link #processMessage(MessageAndMetadata)} returns, so for high
- * volume topics with few partitions {@link #processMessage(MessageAndMetadata)} must be fast or itself spawn more
- * threads.
+ * Note: each thread (queue) will block for each message until {@link #processMessage(DecodeableKafkaRecord)} returns
  *
- * If threads > partitions in topic, extra threads will be idle.
+ * If threads(queues) > partitions in topic, extra threads(queues) will be idle.
  *
- * @param <K> type of the key.
- * @param <V> type of the value.
  */
 @Slf4j
-public abstract class HighLevelConsumer<K, V> extends AbstractIdleService {
+public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
+
+  public static final String CONSUMER_CLIENT_FACTORY_CLASS_KEY = "kafka.consumerClientClassFactory";
+  private static final String DEFAULT_CONSUMER_CLIENT_FACTORY_CLASS =
+      "org.apache.gobblin.kafka.client.Kafka09ConsumerClient$Factory";
+  public static final String ENABLE_AUTO_COMMIT_KEY = "enable.auto.commit";
+  public static final boolean DEFAULT_AUTO_COMMIT_VALUE = true;
 
   public static final String GROUP_ID_KEY = "group.id";
   // NOTE: changing this will break stored offsets
   private static final String DEFAULT_GROUP_ID = "KafkaJobSpecMonitor";
+  public static final String OFFSET_COMMIT_NUM_RECORDS_THRESHOLD_KEY = "offsets.commit.num.records.threshold";
+  public static final int DEFAULT_OFFSET_COMMIT_NUM_RECORDS_THRESHOLD = 100;
+  public static final String OFFSET_COMMIT_TIME_THRESHOLD_SECS_KEY = "offsets.commit.time.threshold.secs";
+  public static final int DEFAULT_OFFSET_COMMIT_TIME_THRESHOLD_SECS = 10;
 
   @Getter
   protected final String topic;
   protected final Config config;
   private final int numThreads;
-  private final ConsumerConfig consumerConfig;
 
   /**
    * {@link MetricContext} for the consumer. Note this is instantiated when {@link #startUp()} is called, so
@@ -83,14 +94,61 @@ public abstract class HighLevelConsumer<K, V> extends AbstractIdleService {
   @Getter
   private MetricContext metricContext;
   private Counter messagesRead;
-  private ConsumerConnector consumer;
-  private ExecutorService executor;
+  @Getter
+  private final GobblinKafkaConsumerClient gobblinKafkaConsumerClient;
+  private final ExecutorService mainExecutor;
+  private final ExecutorService queueExecutor;
+  private ExecutorService offsetCommitExecutor;
+  private final BlockingQueue[] queues;
+  private final AtomicInteger recordsProcessed;
+  private final Map<KafkaPartition, Long> partitionOffsetsToCommit;
+  private final boolean enableAutoCommit;
+  private final int offsetsCommitNumRecordsThreshold;
+  private final int offsetsCommitTimeThresholdSecs;
 
-  public HighLevelConsumer(String topic, Config config, int numThreads) {
+  private static final Config FALLBACK =
+      ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
+          .put(GROUP_ID_KEY, DEFAULT_GROUP_ID)
+          .put(ENABLE_AUTO_COMMIT_KEY, DEFAULT_AUTO_COMMIT_VALUE)
+          .build());
+
+  public HighLevelConsumer(String topic, Config config, int numThreads, Optional<GobblinKafkaConsumerClient> clientOverride) {
     this.topic = topic;
     this.numThreads = numThreads;
-    this.config = config;
-    this.consumerConfig = createConsumerConfig(config);
+    this.config = config.withFallback(FALLBACK);
+    this.gobblinKafkaConsumerClient = clientOverride.isPresent() ? clientOverride.get() : createConsumerClient(config);
+    this.gobblinKafkaConsumerClient.subscribe(this.topic);
+    this.mainExecutor = Executors.newSingleThreadExecutor();
+    this.queueExecutor = Executors.newFixedThreadPool(this.numThreads);
+    this.queues = new LinkedBlockingQueue[numThreads];
+    for(int i=0;i<queues.length;i++) {
+      this.queues[i] = new LinkedBlockingQueue();
+    }
+    this.recordsProcessed = new AtomicInteger(0);
+    this.partitionOffsetsToCommit = new ConcurrentHashMap<>();
+    this.enableAutoCommit = ConfigUtils.getBoolean(config, ENABLE_AUTO_COMMIT_KEY, DEFAULT_AUTO_COMMIT_VALUE);
+    this.offsetsCommitNumRecordsThreshold = ConfigUtils.getInt(config, OFFSET_COMMIT_NUM_RECORDS_THRESHOLD_KEY, DEFAULT_OFFSET_COMMIT_NUM_RECORDS_THRESHOLD);
+    this.offsetsCommitTimeThresholdSecs = ConfigUtils.getInt(config, OFFSET_COMMIT_TIME_THRESHOLD_SECS_KEY, DEFAULT_OFFSET_COMMIT_TIME_THRESHOLD_SECS);
+  }
+
+  public HighLevelConsumer(String topic, Config config, int numThreads) {
+    this(topic, config, numThreads, Optional.absent());
+  }
+
+  protected GobblinKafkaConsumerClient createConsumerClient(Config config) {
+    String kafkaConsumerClientClass = ConfigUtils.getString(config, CONSUMER_CLIENT_FACTORY_CLASS_KEY,
+        DEFAULT_CONSUMER_CLIENT_FACTORY_CLASS);
+
+    try {
+      Class clientFactoryClass = Class.forName(kafkaConsumerClientClass);
+      final GobblinKafkaConsumerClient.GobblinKafkaConsumerClientFactory factory =
+          (GobblinKafkaConsumerClient.GobblinKafkaConsumerClientFactory)
+              ConstructorUtils.invokeConstructor(clientFactoryClass);
+
+      return factory.create(config);
+    } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InstantiationException | InvocationTargetException e) {
+      throw new RuntimeException("Failed to instantiate Kafka consumer client " + kafkaConsumerClientClass, e);
+    }
   }
 
   /**
@@ -125,81 +183,124 @@ public abstract class HighLevelConsumer<K, V> extends AbstractIdleService {
   protected List<Tag<?>> getTagsForMetrics() {
     List<Tag<?>> tags = Lists.newArrayList();
     tags.add(new Tag<>(RuntimeMetrics.TOPIC, this.topic));
-    tags.add(new Tag<>(RuntimeMetrics.GROUP_ID, this.consumerConfig.groupId()));
+    tags.add(new Tag<>(RuntimeMetrics.GROUP_ID, ConfigUtils.getString(this.config, GROUP_ID_KEY, DEFAULT_GROUP_ID)));
     return tags;
   }
 
   /**
-   * Called every time a message is read from the stream. Implementation must be thread-safe if {@link #numThreads} is
+   * Called every time a message is read from the queue. Implementation must be thread-safe if {@link #numThreads} is
    * set larger than 1.
    */
-  protected abstract void processMessage(MessageAndMetadata<K, V> message);
+  protected abstract void processMessage(DecodeableKafkaRecord<K,V> message);
 
   @Override
   protected void startUp() {
     buildMetricsContextAndMetrics();
-    this.consumer = createConsumerConnector();
-
-    List<KafkaStream<byte[], byte[]>> streams = createStreams();
-    this.executor = Executors.newFixedThreadPool(this.numThreads);
-
-    // now create an object to consume the messages
-    //
-    int threadNumber = 0;
-    for (final KafkaStream stream : streams) {
-      this.executor.execute(new MonitorConsumer(stream));
-      threadNumber++;
+    processQueues();
+    if(!enableAutoCommit) {
+      offsetCommitExecutor = Executors.newSingleThreadExecutor();
+      offsetCommitExecutor.execute(() -> startOffsetCommitter());
     }
+    mainExecutor.execute(() -> startConsume());
   }
 
-  protected ConsumerConfig createConsumerConfig(Config config) {
-    Properties props = ConfigUtils.configToProperties(config);
-
-    if (!props.containsKey(GROUP_ID_KEY)) {
-      props.setProperty(GROUP_ID_KEY, DEFAULT_GROUP_ID);
-    }
-    return new ConsumerConfig(props);
-  }
-
-  protected ConsumerConnector createConsumerConnector() {
-    return Consumer.createJavaConsumerConnector(this.consumerConfig);
-  }
-
-  protected List<KafkaStream<byte[], byte[]>> createStreams() {
-    Map<String, Integer> topicCountMap = Maps.newHashMap();
-    topicCountMap.put(this.topic, this.numThreads);
-    Map<String, List<KafkaStream<byte[], byte[]>>> consumerMap = this.consumer.createMessageStreams(topicCountMap);
-    return consumerMap.get(this.topic);
-  }
-
-  @Override
-  public void shutDown() {
-    if (this.consumer != null) {
-      this.consumer.shutdown();
-    }
-    if (this.executor != null) {
-      ExecutorsUtils.shutdownExecutorService(this.executor, Optional.of(log), 5000, TimeUnit.MILLISECONDS);
-    }
+  /**
+   * Consumes {@link KafkaConsumerRecord}s and adds to a queue
+   * Note: All records from a KafkaPartition are added to the same queue.
+   * A queue can contain records from multiple partitions if partitions > numThreads(queues)
+   */
+  private void startConsume() {
+    log.info("Starting consumption.. " + Thread.currentThread().getName());
     try {
-      this.shutdownMetrics();
-    } catch (IOException ioe) {
-      log.warn("Failed to shutdown metrics for " + this.getClass().getSimpleName());
+      while (true) {
+        Iterator<KafkaConsumerRecord> itr = this.gobblinKafkaConsumerClient.consume();
+        while (itr.hasNext()) {
+          KafkaConsumerRecord record = itr.next();
+          int idx = record.getPartition() % numThreads;
+          queues[idx].put(record);
+        }
+
+        Thread.sleep(50);
+      }
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
+  }
+
+  private void processQueues() {
+    for(BlockingQueue queue : queues) {
+      queueExecutor.execute(new QueueProcessor(queue));
     }
   }
 
   /**
-   * A monitor for a Kafka stream.
+   * A thread that commits offsets to kafka at regular intervals
    */
-  @AllArgsConstructor
-  public class MonitorConsumer implements Runnable {
-    private final KafkaStream stream;
+  private void startOffsetCommitter() {
+    log.info("Starting offset committer.. ");
+    long startTime = System.currentTimeMillis();
+    while(true) {
+      try {
+        Thread.sleep(100);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
 
+      if(recordsProcessed.intValue() >= offsetsCommitNumRecordsThreshold || ((System.currentTimeMillis() - startTime) / 1000 >= offsetsCommitTimeThresholdSecs)) {
+        Map<KafkaPartition, Long> copy = new HashMap<>(partitionOffsetsToCommit);
+        partitionOffsetsToCommit.clear();
+        recordsProcessed.set(0);
+        startTime = System.currentTimeMillis();
+        gobblinKafkaConsumerClient.commitOffsets(copy);
+      }
+    }
+  }
+
+  @Override
+  public void shutDown() {
+    ExecutorsUtils.shutdownExecutorService(this.mainExecutor, Optional.of(log), 5000, TimeUnit.MILLISECONDS);
+    ExecutorsUtils.shutdownExecutorService(this.queueExecutor, Optional.of(log), 5000, TimeUnit.MILLISECONDS);
+    if(this.offsetCommitExecutor != null) {
+      ExecutorsUtils.shutdownExecutorService(this.offsetCommitExecutor, Optional.of(log), 5000, TimeUnit.MILLISECONDS);
+    }
+    try {
+      this.gobblinKafkaConsumerClient.close();
+      this.shutdownMetrics();
+    } catch (IOException e) {
+      log.warn("Failed to shut down consumer client or metrics ", e);
+    }
+  }
+
+  /**
+   * Polls a {@link BlockingQueue} indefinitely for {@link KafkaConsumerRecord}
+   * Processes each record and maintains a count for #recordsProcessed
+   * Also records the latest offset for every {@link KafkaPartition} if auto commit is disabled
+   * Note: Messages in this queue will always be in order for every {@link KafkaPartition}
+   */
+  class QueueProcessor implements Runnable {
+    private final BlockingQueue<KafkaConsumerRecord> queue;
+
+    public QueueProcessor(BlockingQueue queue) {
+      this.queue = queue;
+    }
+
+    @Override
     public void run() {
-      ConsumerIterator<K, V> it = this.stream.iterator();
-      while (it.hasNext()) {
-        MessageAndMetadata<K, V> message = it.next();
-        HighLevelConsumer.this.messagesRead.inc();
-        HighLevelConsumer.this.processMessage(message);
+      log.info("Starting queue processing.. " + Thread.currentThread().getName());
+      try {
+        while(true) {
+          KafkaConsumerRecord record = queue.take();
+          messagesRead.inc();
+          processMessage((DecodeableKafkaRecord)record);
+          recordsProcessed.incrementAndGet();
+
+          if(!HighLevelConsumer.this.enableAutoCommit) {
+            KafkaPartition partition = new KafkaPartition.Builder().withId(record.getPartition()).withTopicName(HighLevelConsumer.this.topic).build();
+            partitionOffsetsToCommit.put(partition, record.getOffset());
+          }
+        }
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
       }
     }
   }

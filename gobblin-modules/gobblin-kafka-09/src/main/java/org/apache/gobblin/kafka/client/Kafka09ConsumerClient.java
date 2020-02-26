@@ -24,11 +24,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
+import java.util.stream.Collectors;
 
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.clients.consumer.OffsetCommitCallback;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
@@ -39,6 +42,7 @@ import com.codahale.metrics.Metric;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
@@ -76,7 +80,7 @@ public class Kafka09ConsumerClient<K, V> extends AbstractBaseKafkaConsumerClient
   private static final String KAFKA_09_CLIENT_GROUP_ID = "group.id";
 
   private static final String KAFKA_09_DEFAULT_ENABLE_AUTO_COMMIT = Boolean.toString(false);
-  private static final String KAFKA_09_DEFAULT_KEY_DESERIALIZER =
+  public static final String KAFKA_09_DEFAULT_KEY_DESERIALIZER =
       "org.apache.kafka.common.serialization.StringDeserializer";
   private static final String KAFKA_09_DEFAULT_GROUP_ID = "kafka09";
 
@@ -160,14 +164,30 @@ public class Kafka09ConsumerClient<K, V> extends AbstractBaseKafkaConsumerClient
 
     this.consumer.assign(Lists.newArrayList(new TopicPartition(partition.getTopicName(), partition.getId())));
     this.consumer.seek(new TopicPartition(partition.getTopicName(), partition.getId()), nextOffset);
-    ConsumerRecords<K, V> consumerRecords = consumer.poll(super.fetchTimeoutMillis);
-    return Iterators.transform(consumerRecords.iterator(), new Function<ConsumerRecord<K, V>, KafkaConsumerRecord>() {
+    return consume();
+  }
 
-      @Override
-      public KafkaConsumerRecord apply(ConsumerRecord<K, V> input) {
-        return new Kafka09ConsumerRecord<>(input);
-      }
-    });
+  @Override
+  public Iterator<KafkaConsumerRecord> consume() {
+    try {
+      ConsumerRecords<K, V> consumerRecords = consumer.poll(super.fetchTimeoutMillis);
+
+      return Iterators.transform(consumerRecords.iterator(), input -> {
+        try {
+          return new Kafka09ConsumerRecord(input);
+        } catch (Throwable t) {
+          throw Throwables.propagate(t);
+        }
+      });
+    } catch (Exception e) {
+      log.error("Exception on polling records", e);
+      throw new RuntimeException(e);
+    }
+  }
+
+  @Override
+  public void subscribe(String topic) {
+    this.consumer.subscribe(Lists.newArrayList(topic));
   }
 
   @Override
@@ -178,6 +198,22 @@ public class Kafka09ConsumerClient<K, V> extends AbstractBaseKafkaConsumerClient
     kafkaMetrics
         .forEach((key, value) -> codaHaleMetricMap.put(canonicalMetricName(value), kafkaToCodaHaleMetric(value)));
     return codaHaleMetricMap;
+  }
+
+  @Override
+  public void commitOffsets(Map<KafkaPartition, Long> partitionOffsets) {
+
+    Map<TopicPartition, OffsetAndMetadata> offsets = partitionOffsets.entrySet().stream().collect(Collectors.toMap(e -> new TopicPartition(e.getKey().getTopicName(),e.getKey().getId()), e -> new OffsetAndMetadata(e.getValue())));
+    consumer.commitAsync(offsets, new OffsetCommitCallback() {
+      @Override
+      public void onComplete(Map<TopicPartition, OffsetAndMetadata> offsets, Exception exception) {
+        if(exception != null) {
+          log.error("Exception while committing offsets " + partitionOffsets, exception);
+          return;
+        }
+        log.info("Successfully committed offsets " + partitionOffsets);
+      }
+    });
   }
 
   /**
@@ -240,7 +276,7 @@ public class Kafka09ConsumerClient<K, V> extends AbstractBaseKafkaConsumerClient
     public Kafka09ConsumerRecord(ConsumerRecord<K, V> consumerRecord) {
       // Kafka 09 consumerRecords do not provide value size.
       // Only 08 and 10 versions provide them.
-      super(consumerRecord.offset(), BaseKafkaConsumerRecord.VALUE_SIZE_UNAVAILABLE);
+      super(consumerRecord.offset(), BaseKafkaConsumerRecord.VALUE_SIZE_UNAVAILABLE, consumerRecord.partition(), consumerRecord.topic());
       this.consumerRecord = consumerRecord;
     }
 

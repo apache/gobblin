@@ -95,6 +95,8 @@ dependencies {
   testCompile externalDependency.curatorTest
   testCompile externalDependency.mockito
   testRuntime externalDependency.derby
+  testCompile project(":gobblin-modules:gobblin-kafka-09")
+  testCompile project(path: ":gobblin-modules:gobblin-kafka-09:", configuration: "tests")
 
   jmh 'org.openjdk.jmh:jmh-core:1.17.3'
 }

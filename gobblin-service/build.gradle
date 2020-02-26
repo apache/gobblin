@@ -60,7 +60,7 @@ dependencies {
   compile externalDependency.jgit
   compile externalDependency.jodaTime
   compile externalDependency.jgrapht
-  compile externalDependency.kafka08
+  compile externalDependency.kafka09
   compile externalDependency.log4j
   compile externalDependency.lombok
   compile externalDependency.metricsCore
@@ -75,9 +75,10 @@ dependencies {
 
   // Required for adding Test class into classpath
   testCompile project(":gobblin-runtime").sourceSets.test.output
-  testCompile project(path: ":gobblin-modules:gobblin-kafka-08:", configuration: "tests")
+  testCompile project(path: ":gobblin-modules:gobblin-kafka-09:", configuration: "tests")
   testCompile project(path: ":gobblin-metastore", configuration: "testFixtures")
   testCompile project(":gobblin-test-utils")
+  testCompile project(":gobblin-modules:gobblin-kafka-09")
   testCompile externalDependency.byteman
   testCompile externalDependency.bytemanBmunit
   testCompile externalDependency.calciteCore
@@ -88,7 +89,7 @@ dependencies {
   testCompile externalDependency.hamcrest
   testCompile externalDependency.jhyde
   testCompile externalDependency.mockito
-  testCompile externalDependency.kafka08Test
+  testCompile externalDependency.kafka09Test
 }
 
 // Begin HACK to get around POM being depenendent on the (empty) gobblin-rest-api instead of gobblin-rest-api-rest-client

@@ -49,6 +49,7 @@ dependencies {
   runtime externalDependency.confluentSchemaRegistryClient
   runtime externalDependency.protobuf
 
+  testCompile project(":gobblin-modules:gobblin-service-kafka")
   testCompile project(":gobblin-runtime")
   testCompile project(":gobblin-test-utils")
   testCompile externalDependency.jsonAssert
@@ -68,6 +69,16 @@ configurations {
   // HADOOP-5254 and MAPREDUCE-5664
   all*.exclude group: 'xml-apis'
   all*.exclude group: 'xerces'
+  tests
+}
+
+task testJar(type: Jar, dependsOn: testClasses) {
+  baseName = "test-${project.archivesBaseName}"
+  from sourceSets.test.output
+}
+
+artifacts {
+  tests testJar
 }
 
 test {

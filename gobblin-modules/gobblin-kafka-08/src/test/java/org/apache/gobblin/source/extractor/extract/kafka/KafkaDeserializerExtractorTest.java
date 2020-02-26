@@ -297,7 +297,7 @@ public class KafkaDeserializerExtractorTest {
     Message mockMessage = mock(Message.class);
     when(mockMessage.payload()).thenReturn(payload);
     when(mockMessageAndOffset.message()).thenReturn(mockMessage);
-    return new Kafka08ConsumerRecord(mockMessageAndOffset);
+    return new Kafka08ConsumerRecord(mockMessageAndOffset, 0, "test");
   }
 
   @AllArgsConstructor

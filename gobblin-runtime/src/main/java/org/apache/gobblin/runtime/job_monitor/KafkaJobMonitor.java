@@ -24,8 +24,11 @@ import java.util.Collection;
 import com.codahale.metrics.Counter;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
+import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 
+import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
+import org.apache.gobblin.kafka.client.GobblinKafkaConsumerClient;
 import org.apache.gobblin.metastore.DatasetStateStore;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.JobSpecMonitor;
@@ -67,7 +70,11 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
   public abstract Collection<Either<JobSpec, URI>> parseJobSpec(byte[] message) throws IOException;
 
   public KafkaJobMonitor(String topic, MutableJobCatalog catalog, Config config) {
-    super(topic, ConfigUtils.getConfigOrEmpty(config, KAFKA_JOB_MONITOR_PREFIX), 1);
+    this(topic, catalog, config, Optional.absent());
+  }
+
+  public KafkaJobMonitor(String topic, MutableJobCatalog catalog, Config config, Optional<GobblinKafkaConsumerClient> clientOverride) {
+    super(topic, ConfigUtils.getConfigOrEmpty(config, KAFKA_JOB_MONITOR_PREFIX), 1, clientOverride);
     this.jobCatalog = catalog;
     try {
       this.datasetStateStore = DatasetStateStore.buildDatasetStateStore(config);
@@ -97,9 +104,9 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
   }
 
   @Override
-  protected void processMessage(MessageAndMetadata<byte[], byte[]> message) {
+  protected void processMessage(DecodeableKafkaRecord<byte[],byte[]> message) {
     try {
-      Collection<Either<JobSpec, URI>> parsedCollection = parseJobSpec(message.message());
+      Collection<Either<JobSpec, URI>> parsedCollection = parseJobSpec(message.getValue());
       for (Either<JobSpec, URI> parsedMessage : parsedCollection) {
         if (parsedMessage instanceof Either.Left) {
           this.newSpecs.inc();
@@ -113,8 +120,8 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
         }
       }
     } catch (IOException ioe) {
-      String messageStr = new String(message.message(), Charsets.UTF_8);
-      log.error(String.format("Failed to parse kafka message with offset %d: %s.", message.offset(), messageStr), ioe);
+      String messageStr = new String(message.getValue(), Charsets.UTF_8);
+      log.error(String.format("Failed to parse kafka message with offset %d: %s.", message.getOffset(), messageStr), ioe);
     }
   }
 

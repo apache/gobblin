@@ -247,6 +247,11 @@ public class Kafka08ConsumerClient extends AbstractBaseKafkaConsumerClient {
     }
   }
 
+  @Override
+  public Iterator<KafkaConsumerRecord> consume() {
+    throw new UnsupportedOperationException("consume() not supported by " + this.getClass().getSimpleName() + " Please use Kafka09ConsumerClient or above");
+  }
+
   private synchronized FetchResponse getFetchResponseForFetchRequest(FetchRequest fetchRequest, KafkaPartition partition) {
     SimpleConsumer consumer = getSimpleConsumer(partition.getLeader().getHostAndPort());
 
@@ -265,7 +270,7 @@ public class Kafka08ConsumerClient extends AbstractBaseKafkaConsumerClient {
           new Function<kafka.message.MessageAndOffset, KafkaConsumerRecord>() {
             @Override
             public KafkaConsumerRecord apply(kafka.message.MessageAndOffset input) {
-              return new Kafka08ConsumerRecord(input);
+              return new Kafka08ConsumerRecord(input, partition.getId(), partition.getTopicName());
             }
           });
     } catch (Exception e) {
@@ -345,8 +350,8 @@ public class Kafka08ConsumerClient extends AbstractBaseKafkaConsumerClient {
 
     private final MessageAndOffset messageAndOffset;
 
-    public Kafka08ConsumerRecord(MessageAndOffset messageAndOffset) {
-      super(messageAndOffset.offset(), messageAndOffset.message().size());
+    public Kafka08ConsumerRecord(MessageAndOffset messageAndOffset, int partition, String topic) {
+      super(messageAndOffset.offset(), messageAndOffset.message().size(), partition, topic);
       this.messageAndOffset = messageAndOffset;
     }
 

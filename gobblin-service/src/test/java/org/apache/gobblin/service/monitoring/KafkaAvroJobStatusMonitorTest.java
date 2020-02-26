@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -43,6 +44,8 @@ import kafka.message.MessageAndMetadata;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.kafka.KafkaTestBase;
+import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
+import org.apache.gobblin.kafka.client.Kafka09ConsumerClient;
 import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
@@ -123,14 +126,16 @@ public class KafkaAvroJobStatusMonitorTest {
       Thread.currentThread().interrupt();
     }
 
-    Config config = ConfigFactory.empty().withValue(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, ConfigValueFactory.fromAnyRef(stateStoreDir))
+    Config config = ConfigFactory.empty().withValue(ConfigurationKeys.KAFKA_BROKERS, ConfigValueFactory.fromAnyRef("localhost:0000"))
+        .withValue(Kafka09ConsumerClient.GOBBLIN_CONFIG_VALUE_DESERIALIZER_CLASS_KEY, ConfigValueFactory.fromAnyRef("org.apache.kafka.common.serialization.ByteArrayDeserializer"))
+        .withValue(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, ConfigValueFactory.fromAnyRef(stateStoreDir))
         .withValue("zookeeper.connect", ConfigValueFactory.fromAnyRef("localhost:2121"));
     KafkaJobStatusMonitor jobStatusMonitor =  new KafkaAvroJobStatusMonitor("test",config, 1);
 
     ConsumerIterator<byte[], byte[]> iterator = this.kafkaTestHelper.getIteratorForTopic(TOPIC);
 
     MessageAndMetadata<byte[], byte[]> messageAndMetadata = iterator.next();
-    jobStatusMonitor.processMessage(messageAndMetadata);
+    jobStatusMonitor.processMessage(convertMessageAndMetadataToDecodableKafkaRecord(messageAndMetadata));
 
     StateStore stateStore = jobStatusMonitor.getStateStore();
     String storeName = KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, flowName);
@@ -141,7 +146,7 @@ public class KafkaAvroJobStatusMonitorTest {
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.COMPILED.name());
 
     messageAndMetadata = iterator.next();
-    jobStatusMonitor.processMessage(messageAndMetadata);
+    jobStatusMonitor.processMessage(convertMessageAndMetadataToDecodableKafkaRecord(messageAndMetadata));
 
     tableName = KafkaJobStatusMonitor.jobStatusTableName(this.flowExecutionId, this.jobGroup, this.jobName);
     stateList  = stateStore.getAll(storeName, tableName);
@@ -150,7 +155,7 @@ public class KafkaAvroJobStatusMonitorTest {
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.ORCHESTRATED.name());
 
     messageAndMetadata = iterator.next();
-    jobStatusMonitor.processMessage(messageAndMetadata);
+    jobStatusMonitor.processMessage(convertMessageAndMetadataToDecodableKafkaRecord(messageAndMetadata));
 
     stateList  = stateStore.getAll(storeName, tableName);
     Assert.assertEquals(stateList.size(), 1);
@@ -158,7 +163,7 @@ public class KafkaAvroJobStatusMonitorTest {
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.RUNNING.name());
 
     messageAndMetadata = iterator.next();
-    jobStatusMonitor.processMessage(messageAndMetadata);
+    jobStatusMonitor.processMessage(convertMessageAndMetadataToDecodableKafkaRecord(messageAndMetadata));
 
     stateList  = stateStore.getAll(storeName, tableName);
     Assert.assertEquals(stateList.size(), 1);
@@ -170,12 +175,14 @@ public class KafkaAvroJobStatusMonitorTest {
 
     // Check that state didn't get set to running since it was already complete
     messageAndMetadata = iterator.next();
-    jobStatusMonitor.processMessage(messageAndMetadata);
+    jobStatusMonitor.processMessage(convertMessageAndMetadataToDecodableKafkaRecord(messageAndMetadata));
 
     stateList  = stateStore.getAll(storeName, tableName);
     Assert.assertEquals(stateList.size(), 1);
     state = stateList.get(0);
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.COMPLETE.name());
+
+    jobStatusMonitor.shutDown();
   }
 
   @Test
@@ -222,14 +229,16 @@ public class KafkaAvroJobStatusMonitorTest {
       Thread.currentThread().interrupt();
     }
 
-    Config config = ConfigFactory.empty().withValue(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, ConfigValueFactory.fromAnyRef(stateStoreDir))
+    Config config = ConfigFactory.empty().withValue(ConfigurationKeys.KAFKA_BROKERS, ConfigValueFactory.fromAnyRef("localhost:0000"))
+        .withValue(Kafka09ConsumerClient.GOBBLIN_CONFIG_VALUE_DESERIALIZER_CLASS_KEY, ConfigValueFactory.fromAnyRef("org.apache.kafka.common.serialization.ByteArrayDeserializer"))
+        .withValue(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, ConfigValueFactory.fromAnyRef(stateStoreDir))
         .withValue("zookeeper.connect", ConfigValueFactory.fromAnyRef("localhost:2121"));
     KafkaJobStatusMonitor jobStatusMonitor =  new KafkaAvroJobStatusMonitor("test",config, 1);
 
     ConsumerIterator<byte[], byte[]> iterator = this.kafkaTestHelper.getIteratorForTopic(TOPIC);
 
     MessageAndMetadata<byte[], byte[]> messageAndMetadata = iterator.next();
-    jobStatusMonitor.processMessage(messageAndMetadata);
+    jobStatusMonitor.processMessage(convertMessageAndMetadataToDecodableKafkaRecord(messageAndMetadata));
 
     StateStore stateStore = jobStatusMonitor.getStateStore();
     String storeName = KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, flowName);
@@ -240,7 +249,7 @@ public class KafkaAvroJobStatusMonitorTest {
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.COMPILED.name());
 
     messageAndMetadata = iterator.next();
-    jobStatusMonitor.processMessage(messageAndMetadata);
+    jobStatusMonitor.processMessage(convertMessageAndMetadataToDecodableKafkaRecord(messageAndMetadata));
 
     tableName = KafkaJobStatusMonitor.jobStatusTableName(this.flowExecutionId, this.jobGroup, this.jobName);
     stateList  = stateStore.getAll(storeName, tableName);
@@ -249,7 +258,7 @@ public class KafkaAvroJobStatusMonitorTest {
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.ORCHESTRATED.name());
 
     messageAndMetadata = iterator.next();
-    jobStatusMonitor.processMessage(messageAndMetadata);
+    jobStatusMonitor.processMessage(convertMessageAndMetadataToDecodableKafkaRecord(messageAndMetadata));
 
     stateList  = stateStore.getAll(storeName, tableName);
     Assert.assertEquals(stateList.size(), 1);
@@ -257,7 +266,7 @@ public class KafkaAvroJobStatusMonitorTest {
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.RUNNING.name());
 
     messageAndMetadata = iterator.next();
-    jobStatusMonitor.processMessage(messageAndMetadata);
+    jobStatusMonitor.processMessage(convertMessageAndMetadataToDecodableKafkaRecord(messageAndMetadata));
 
     stateList  = stateStore.getAll(storeName, tableName);
     Assert.assertEquals(stateList.size(), 1);
@@ -267,7 +276,7 @@ public class KafkaAvroJobStatusMonitorTest {
     Assert.assertEquals(state.getProp(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD), Boolean.toString(true));
 
     messageAndMetadata = iterator.next();
-    jobStatusMonitor.processMessage(messageAndMetadata);
+    jobStatusMonitor.processMessage(convertMessageAndMetadataToDecodableKafkaRecord(messageAndMetadata));
 
     stateList  = stateStore.getAll(storeName, tableName);
     Assert.assertEquals(stateList.size(), 1);
@@ -276,7 +285,7 @@ public class KafkaAvroJobStatusMonitorTest {
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.ORCHESTRATED.name());
 
     messageAndMetadata = iterator.next();
-    jobStatusMonitor.processMessage(messageAndMetadata);
+    jobStatusMonitor.processMessage(convertMessageAndMetadataToDecodableKafkaRecord(messageAndMetadata));
 
     stateList  = stateStore.getAll(storeName, tableName);
     Assert.assertEquals(stateList.size(), 1);
@@ -285,7 +294,7 @@ public class KafkaAvroJobStatusMonitorTest {
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.RUNNING.name());
 
     messageAndMetadata = iterator.next();
-    jobStatusMonitor.processMessage(messageAndMetadata);
+    jobStatusMonitor.processMessage(convertMessageAndMetadataToDecodableKafkaRecord(messageAndMetadata));
 
     stateList  = stateStore.getAll(storeName, tableName);
     Assert.assertEquals(stateList.size(), 1);
@@ -293,6 +302,8 @@ public class KafkaAvroJobStatusMonitorTest {
     //Because the maximum attempt is set to 2, so the state is set to Failed after trying twice
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.FAILED.name());
     Assert.assertEquals(state.getProp(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD), Boolean.toString(false));
+
+    jobStatusMonitor.shutDown();
   }
 
   private GobblinTrackingEvent createFlowCompiledEvent() {
@@ -403,6 +414,11 @@ public class KafkaAvroJobStatusMonitorTest {
 
     GobblinTrackingEvent event = new GobblinTrackingEvent(timestamp, namespace, name, metadata);
     return event;
+  }
+
+  private DecodeableKafkaRecord convertMessageAndMetadataToDecodableKafkaRecord(MessageAndMetadata messageAndMetadata) {
+    ConsumerRecord consumerRecord = new ConsumerRecord<>(TOPIC, messageAndMetadata.partition(), messageAndMetadata.offset(), messageAndMetadata.key(), messageAndMetadata.message());
+    return new Kafka09ConsumerClient.Kafka09ConsumerRecord(consumerRecord);
   }
 
   private void cleanUpDir(String dir) throws Exception {
