@@ -133,7 +133,9 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, Empt
 
   /**
    * Check that all {@link ServiceRequester}s in this request are contained within the original service requester list
-   * when the flow was submitted and throw a {@link FlowConfigLoggedException} if they are not.
+   * when the flow was submitted. If they are not, throw a {@link FlowConfigLoggedException} with {@link HttpStatus#S_401_UNAUTHORIZED}.
+   * If there is a failure when deserializing the original requester list, throw a {@link FlowConfigLoggedException} with
+   * {@link HttpStatus#S_400_BAD_REQUEST}.
    *
    * @param originalFlowConfig original flow config to find original requester
    * @param requesterList list of requesters for this request
