@@ -18,7 +18,6 @@
 package org.apache.gobblin.data.management.copy.hive.filter;
 
 import java.util.Properties;
-
 import org.apache.gobblin.data.management.copy.hive.PartitionFilterGenerator;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.joda.time.DateTime;
@@ -28,8 +27,9 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+
 @Test(groups = { "SystemTimeTests"})
-public class LookbackPartitionFilterGeneratorTest {
+public class DateRangePartitionFilterGeneratorTest {
 
   @BeforeMethod
   public void setUp()
@@ -46,25 +46,23 @@ public class LookbackPartitionFilterGeneratorTest {
   @Test
   public void testInitialization() {
     PartitionFilterGenerator filter = GobblinConstructorUtils.invokeConstructor(PartitionFilterGenerator.class,
-              LookbackPartitionFilterGenerator.class.getName(), System.getProperties());
-    Assert.assertTrue(filter instanceof LookbackPartitionFilterGenerator);
+        DateRangePartitionFilterGenerator.class.getName(), System.getProperties());
+    Assert.assertTrue(filter instanceof DateRangePartitionFilterGenerator);
   }
   @Test
   public void test() {
-    doTest("datePartition", "P1D", "YYYY-MM-dd-HH", "datePartition >= \"2016-03-14-10\"");
-    doTest("datePartition", "P2D", "YYYY-MM-dd-HH", "datePartition >= \"2016-03-13-10\"");
-    doTest("datePartition", "PT4H", "YYYY-MM-dd-HH", "datePartition >= \"2016-03-15-06\"");
-    doTest("myColumn", "PT4H", "YYYY-MM-dd-HH", "myColumn >= \"2016-03-15-06\"");
+    doTest("datePartition", "2020-01-01", "2020-01-10", "datePartition between \"2020-01-01\" and \"2020-01-10\"");
   }
 
-  private void doTest(String column, String lookback, String format, String expected) {
+
+  private void doTest(String column, String sDate, String eDate, String expected) {
     Properties properties = new Properties();
-    properties.put(LookbackPartitionFilterGenerator.PARTITION_COLUMN, column);
-    properties.put(LookbackPartitionFilterGenerator.LOOKBACK, lookback);
-    properties.put(LookbackPartitionFilterGenerator.DATETIME_FORMAT, format);
+    properties.put(DateRangePartitionFilterGenerator.PARTITION_COLUMN, column);
+    properties.put(DateRangePartitionFilterGenerator.START_DATE, sDate);
+    properties.put(DateRangePartitionFilterGenerator.END_DATE, eDate);
 
     PartitionFilterGenerator filterImpl = GobblinConstructorUtils.invokeConstructor(PartitionFilterGenerator.class,
-        LookbackPartitionFilterGenerator.class.getName(), properties);
+        DateRangePartitionFilterGenerator.class.getName(), properties);
 
     Assert.assertEquals(filterImpl.getFilter(null), expected);
   }

@@ -19,37 +19,34 @@ package org.apache.gobblin.data.management.copy.hive.filter;
 
 import java.util.Arrays;
 import java.util.Properties;
-
 import lombok.extern.slf4j.Slf4j;
+import org.apache.gobblin.data.management.copy.hive.HiveDataset;
+import org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder;
+import org.apache.gobblin.data.management.copy.hive.PartitionFilterGenerator;
 import org.joda.time.DateTime;
 import org.joda.time.Period;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
-import org.apache.gobblin.data.management.copy.hive.HiveDataset;
-import org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder;
-import org.apache.gobblin.data.management.copy.hive.PartitionFilterGenerator;
-
 
 /**
- * Filters partitions according to a lookback period. The partition values must be time formatted. User must specify
- * the partition column, lookback period (as ISO 8601 period), and datetime format of the column values.
+ * Filters hive partitions using BETWEEN START AND END date range.
+ * Requires PARTITION_COLUMN, START_DATE, END_DATE
  *
  * <p>
- *   The generated filter is of the form "datePartition >= 'date'", so the column must be of string type and its format
- *   must be such that lexycographical string and date ordering are compatible.
+ *   The generated filter is of the form "datePartition between 'start_date' and 'end_date' ".
  * </p>
  */
 @Slf4j
-public class LookbackPartitionFilterGenerator implements PartitionFilterGenerator {
+public class DateRangePartitionFilterGenerator implements PartitionFilterGenerator {
 
   public static final String PARTITION_COLUMN = HiveDatasetFinder.HIVE_DATASET_PREFIX + ".partition.filter.datetime.column";
-  public static final String LOOKBACK = HiveDatasetFinder.HIVE_DATASET_PREFIX + ".partition.filter.datetime.lookback";
-  public static final String DATETIME_FORMAT = HiveDatasetFinder.HIVE_DATASET_PREFIX + ".partition.filter.datetime.format";
+  public static final String START_DATE = HiveDatasetFinder.HIVE_DATASET_PREFIX + ".partition.filter.datetime.startdate";
+  public static final String END_DATE = HiveDatasetFinder.HIVE_DATASET_PREFIX + ".partition.filter.datetime.enddate";
 
   private final Properties prop;
 
-  public LookbackPartitionFilterGenerator(Properties properties) {
+  public DateRangePartitionFilterGenerator(Properties properties) {
     this.prop = (properties == null) ? System.getProperties(): properties;
   }
 
@@ -58,26 +55,25 @@ public class LookbackPartitionFilterGenerator implements PartitionFilterGenerato
 
     if (isValidConfig()) {
       String partitionColumn = this.prop.getProperty(PARTITION_COLUMN);
-      Period lookback = Period.parse(this.prop.getProperty(LOOKBACK));
-      DateTimeFormatter formatter = DateTimeFormat.forPattern(this.prop.getProperty(DATETIME_FORMAT));
+      String startDate = this.prop.getProperty(START_DATE);
+      String endDate = this.prop.getProperty(END_DATE);
 
-      DateTime limitDate = (new DateTime()).minus(lookback);
+      String partitionFilter =String.format("%s between \"%s\" and \"%s\"", partitionColumn, startDate, endDate);
 
-      String partitionFilter = String.format("%s >= \"%s\"", partitionColumn, formatter.print(limitDate));
       log.info(String.format("Getting partitions for %s using partition filter %s", ((hiveDataset == null) ? "null" :  hiveDataset.getTable()
           .getCompleteName()), partitionFilter));
       return partitionFilter;
     } else {
-      log.error(LookbackPartitionFilterGenerator.class.getName()
-          + " requires the following properties " + Arrays.toString(new String[]{PARTITION_COLUMN, LOOKBACK, DATETIME_FORMAT}));
+      log.error(DateRangePartitionFilterGenerator.class.getName()
+          + " requires the following properties " + Arrays.toString(new String[]{PARTITION_COLUMN, START_DATE, END_DATE}));
 
       return null;
     }
   }
 
   private boolean isValidConfig() {
-    return this.prop.containsKey(LookbackPartitionFilterGenerator.PARTITION_COLUMN)
-        && this.prop.containsKey(LookbackPartitionFilterGenerator.DATETIME_FORMAT)
-        && this.prop.containsKey(LookbackPartitionFilterGenerator.LOOKBACK);
+    return this.prop.containsKey(DateRangePartitionFilterGenerator.PARTITION_COLUMN)
+        && this.prop.containsKey(DateRangePartitionFilterGenerator.START_DATE)
+        && this.prop.containsKey(DateRangePartitionFilterGenerator.END_DATE);
   }
 }
