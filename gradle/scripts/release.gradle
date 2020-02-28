@@ -34,17 +34,19 @@ println String.format("Release Version: %s", releaseVersion)
 // Modify the gradle.properties to indicate whether this is a release.  This results in the
 // source releases generating artifacts without -SNAPSHOT appended to the version when they are
 // built.
-task prepare_release_config(type: Copy) {
-    from "$rootDir/gradle.properties"
-    into "$rootDir"
-    rename { filename ->
-        filename + ".release" }
-    filter { line ->
-        if (isRelease && line.startsWith("release=")) {
-            "release=true"
+task prepare_release_config() {
+    project.copy {
+        from "$rootDir/gradle.properties"
+        into "$rootDir"
+        rename { filename ->
+            filename + ".release"
         }
-        else {
-            line
+        filter { line ->
+            if (isRelease && line.startsWith("release=")) {
+                "release=true"
+            } else {
+                line
+            }
         }
     }
 }
