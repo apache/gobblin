@@ -165,6 +165,7 @@ public class Task implements TaskIFace {
   private final AtomicLong recordsPulled;
 
   private final AtomicBoolean shutdownRequested;
+  // TODO: Where does this shutdown-requested time being used ?
   private volatile long shutdownRequestedTime = Long.MAX_VALUE;
   private final CountDownLatch shutdownLatch;
   protected Future<?> taskFuture;
@@ -313,6 +314,7 @@ public class Task implements TaskIFace {
     this.shutdownLatch.countDown();
   }
 
+  // TODO: Does it has to be compareAndSwap ?
   private boolean shutdownRequested() {
     if (!this.shutdownRequested.get()) {
       this.shutdownRequested.set(Thread.currentThread().isInterrupted());
@@ -562,9 +564,14 @@ public class Task implements TaskIFace {
     this.lastRecordPulledTimestampMillis = System.currentTimeMillis();
   }
 
+  /**
+   * Marking down the WorkUnitState and also keep the exception for each workunit's execution.
+   */
   private void failTask(Throwable t) {
     LOG.error(String.format("Task %s failed", this.taskId), t);
     this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
+
+    // Setting this field makes exception within workunit level propagated to GobblinMultiTaskAttempt level.
     this.taskState.setProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY, Throwables.getStackTraceAsString(t));
 
     // Send task failure event

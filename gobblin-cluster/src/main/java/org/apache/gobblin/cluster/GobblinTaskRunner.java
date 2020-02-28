@@ -481,7 +481,7 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
   }
 
   @VisibleForTesting
-  void disconnectHelixManager() {
+  public void disconnectHelixManager() {
     if (this.jobHelixManager.isConnected()) {
       this.jobHelixManager.disconnect();
     }

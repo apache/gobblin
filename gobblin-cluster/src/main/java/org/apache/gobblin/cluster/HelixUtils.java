@@ -167,7 +167,11 @@ public class HelixUtils {
     waitJobInitialization(helixManager, workFlowName, jobName, Long.MAX_VALUE);
   }
 
-  static void waitJobCompletion(HelixManager helixManager, String workFlowName, String jobName,
+  /**
+   * Return if job to be waited is completed successfully. Note that only jobState "COMPLETE" returns true
+   * while other abnormal state will return false.
+   */
+  static boolean waitJobCompletion(HelixManager helixManager, String workFlowName, String jobName,
       Optional<Long> timeoutInSeconds, Long stoppingStateTimeoutInSeconds) throws InterruptedException, TimeoutException {
     log.info("Waiting for job {} to complete...", jobName);
     long endTime = 0;
@@ -188,10 +192,10 @@ public class HelixUtils {
             // user requested cancellation, which is executed by executeCancellation()
             log.info("Job {} is cancelled, it will be deleted now.", jobName);
             HelixUtils.deleteStoppedHelixJob(helixManager, workFlowName, jobName);
-            return;
+            return false;
           case FAILED:
           case COMPLETED:
-          return;
+          return true;
           case STOPPING:
             log.info("Waiting for job {} to complete... State - {}", jobName, jobState);
             Thread.sleep(1000);
@@ -201,7 +205,7 @@ public class HelixUtils {
               new TaskDriver(helixManager).delete(workFlowName);
               log.info("Deleted workflow {}", workFlowName);
             }
-            return;
+            return false;
           default:
             log.info("Waiting for job {} to complete... State - {}", jobName, jobState);
             Thread.sleep(1000);
@@ -210,7 +214,7 @@ public class HelixUtils {
         // We have waited for WorkflowContext to get initialized,
         // so it is found null here, it must have been deleted in job cancellation process.
         log.info("WorkflowContext not found. Job is probably cancelled.");
-        return;
+        return false;
       }
     }
 

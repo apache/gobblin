@@ -20,27 +20,35 @@ package org.apache.gobblin.cluster;
 import java.io.File;
 import java.io.IOException;
 
+import org.apache.gobblin.runtime.TaskContext;
+import org.apache.gobblin.runtime.task.BaseAbstractTask;
+
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.io.Files;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.gobblin.runtime.TaskContext;
-import org.apache.gobblin.runtime.TaskState;
-import org.apache.gobblin.runtime.task.BaseAbstractTask;
-
 @Slf4j
 public class SleepingTask extends BaseAbstractTask {
   public static final String TASK_STATE_FILE_KEY = "task.state.file.path";
+  public static final String SLEEPING_TASK_SLEEP_TIME = "data.publisher.sleep.time.in.seconds";
+  public static final String SLEEPING_TASK_SUICIDE_TIME = "timeBeforeSuicideAfterStart.in.seconds";
 
   private final long sleepTime;
+  private final long suicideTime;
   private File taskStateFile;
+  private final TaskContext taskContext;
 
   public SleepingTask(TaskContext taskContext) {
     super(taskContext);
-    TaskState taskState = taskContext.getTaskState();
-    sleepTime = taskState.getPropAsLong("data.publisher.sleep.time.in.seconds", 10L);
-    taskStateFile = new File(taskState.getProp(TASK_STATE_FILE_KEY));
+    this.taskContext = taskContext;
+    sleepTime = taskContext.getTaskState().getPropAsLong(SLEEPING_TASK_SLEEP_TIME, 10L);
+    suicideTime = taskContext.getTaskState().getPropAsLong(SLEEPING_TASK_SUICIDE_TIME, 2L);
+
+    // We need to suicide the task before sleeping finish if we configure the task to commit suicide.
+    Preconditions.checkArgument(suicideTime < sleepTime);
+    taskStateFile = new File(taskContext.getTaskState().getProp(TASK_STATE_FILE_KEY));
     try {
       if (taskStateFile.exists()) {
         if (!taskStateFile.delete()) {
@@ -73,10 +81,10 @@ public class SleepingTask extends BaseAbstractTask {
     } catch (InterruptedException e) {
       log.error("Sleep interrupted.");
       Thread.currentThread().interrupt();
-      Throwables.propagate(e);
+      failTask(e, taskContext);
     } catch (IOException e) {
       log.error("IOException encountered when creating {}", taskStateFile.getName(), e);
-      Throwables.propagate(e);
+      failTask(e, taskContext);
     }
   }
 }

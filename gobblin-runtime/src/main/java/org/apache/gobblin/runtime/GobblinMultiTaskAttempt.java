@@ -243,6 +243,8 @@ public class GobblinMultiTaskAttempt {
       throws InterruptedException {
     log.info("Shutting down tasks");
     for (Task task : this.tasks) {
+      // TODO: Verifying that calling this leads to 1. showdownRequested being called .
+      // 2. subsequently leads to extractor being shutdown and calling finally block completeShutdown method which resets the shutdownlatch.
       task.shutdown();
     }
 
@@ -412,13 +414,14 @@ public class GobblinMultiTaskAttempt {
           printMemoryUsage();
         }
 
+        // TODO:Better to incorporate some retry logic since the fault-tolerance of streaming should be more proactive than batch.
         if (task == null) {
           // task could not be created, so directly count down
           countDownLatch.countDown();
           log.error("Could not create task for workunit {}", workUnit, e);
         } else if (!task.hasTaskFuture()) {
           // Task was created and may have been registered, but not submitted, so call the
-          // task state tracker task run completion directly since the task cancel does nothing if not submitted
+          // taskStateTracker.onTaskRunCompletion directly since the task cancel does nothing if not submitted
           this.taskStateTracker.onTaskRunCompletion(task);
           log.error("Could not submit task for workunit {}", workUnit, e);
         } else {

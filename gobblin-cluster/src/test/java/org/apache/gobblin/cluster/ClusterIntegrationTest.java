@@ -91,7 +91,7 @@ public class ClusterIntegrationTest {
 
     //Ensure that Helix has created a workflow
     AssertWithBackoff.create().maxSleepMs(1000).backoffFactor(1).
-        assertTrue(isTaskStarted(helixManager, IntegrationJobCancelSuite.JOB_ID), "Waiting for the job to start...");
+        assertTrue(isWorkflowStarted(helixManager, IntegrationJobCancelSuite.JOB_ID), "Waiting for the workflow to start...");
 
     //Ensure that the SleepingTask is running
     AssertWithBackoff.create().maxSleepMs(100).timeoutMs(2000).backoffFactor(1).
@@ -136,7 +136,7 @@ public class ClusterIntegrationTest {
     helixManager.connect();
 
     AssertWithBackoff.create().timeoutMs(30000).maxSleepMs(1000).backoffFactor(1).
-        assertTrue(isTaskStarted(helixManager, IntegrationJobRestartViaSpecSuite.JOB_ID), "Waiting for the job to start...");
+        assertTrue(isWorkflowStarted(helixManager, IntegrationJobRestartViaSpecSuite.JOB_ID), "Waiting for the workflow to start...");
 
     AssertWithBackoff.create().maxSleepMs(100).timeoutMs(2000).backoffFactor(1).
         assertTrue(isTaskRunning(IntegrationJobRestartViaSpecSuite.TASK_STATE_FILE), "Waiting for the task to enter running state");
@@ -184,7 +184,7 @@ public class ClusterIntegrationTest {
     }, "Waiting for Workflow TargetState to be START");
   }
 
-  public static Predicate<Void> isTaskStarted(HelixManager helixManager, String jobId) {
+  public static Predicate<Void> isWorkflowStarted(HelixManager helixManager, String jobId) {
     return input -> TaskDriver.getWorkflowContext(helixManager, jobId) != null;
   }
 

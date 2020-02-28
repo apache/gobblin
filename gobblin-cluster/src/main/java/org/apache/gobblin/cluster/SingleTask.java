@@ -163,6 +163,11 @@ public class SingleTask {
     return workUnits;
   }
 
+  /**
+   * TODO: Now the question is:
+   * What triggers this to be called in terms of Helix
+   * and When this cancel happened,
+   */
   public void cancel() {
     if (_taskAttempt != null) {
       try {

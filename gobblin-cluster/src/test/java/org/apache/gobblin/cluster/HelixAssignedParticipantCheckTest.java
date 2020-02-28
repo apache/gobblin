@@ -17,21 +17,24 @@
 package org.apache.gobblin.cluster;
 
 import java.io.IOException;
+import java.util.Map;
+import java.util.Optional;
 
+import org.apache.gobblin.cluster.suite.IntegrationBasicSuite;
+import org.apache.gobblin.commit.CommitStepException;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.testing.AssertWithBackoff;
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Joiner;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
-
-import org.apache.gobblin.cluster.suite.IntegrationBasicSuite;
-import org.apache.gobblin.commit.CommitStepException;
-import org.apache.gobblin.testing.AssertWithBackoff;
 
 
 public class HelixAssignedParticipantCheckTest {
@@ -66,13 +69,13 @@ public class HelixAssignedParticipantCheckTest {
 
     //Ensure that Helix has created a workflow
     AssertWithBackoff.create().maxSleepMs(1000).backoffFactor(1).
-        assertTrue(ClusterIntegrationTest.isTaskStarted(helixManager, JOB_ID), "Waiting for the job to start...");
+        assertTrue(ClusterIntegrationTest.isWorkflowStarted(helixManager, IntegrationJobSuite.JOB_ID), "Waiting for the job to start...");
 
     //Instantiate config for HelixAssignedParticipantCheck
-    String helixJobId = Joiner.on("_").join(JOB_ID, JOB_ID);
+    String namespacedJobId = Joiner.on("_").join(IntegrationJobSuite.JOB_ID, IntegrationJobSuite.JOB_ID);
     helixConfig = helixConfig.withValue(GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_KEY,
         ConfigValueFactory.fromAnyRef(IntegrationBasicSuite.WORKER_INSTANCE_0))
-        .withValue(GobblinClusterConfigurationKeys.HELIX_JOB_ID_KEY, ConfigValueFactory.fromAnyRef(helixJobId))
+        .withValue(GobblinClusterConfigurationKeys.HELIX_JOB_ID_KEY, ConfigValueFactory.fromAnyRef(namespacedJobId))
         .withValue(GobblinClusterConfigurationKeys.HELIX_PARTITION_ID_KEY, ConfigValueFactory.fromAnyRef(0));
     HelixAssignedParticipantCheck check = new HelixAssignedParticipantCheck(helixConfig);
 
@@ -95,8 +98,18 @@ public class HelixAssignedParticipantCheckTest {
       //Expected to throw CommitStepException
       Assert.assertTrue(e.getClass().equals(CommitStepException.class));
     }
+    Assert.assertTrue(HelixUtils.waitJobCompletion(helixManager, IntegrationJobSuite.JOB_ID, IntegrationJobSuite.JOB_ID, Optional.of(20L), 20L));
   }
 
+  /**
+   * it is executed before the {@link SleepingTask} finishes but
+   * right after the test finished, which is blocked on {@link SleepingTask} start to be running but not finished.
+   *
+   * So to put AfterClass we need to wait for Helix task to be finished.
+   * When using debugging mode, note that we shouldn't interrupt the normal execution since that leaves certain unclean
+   * state in ZK to prevent subsequent execution from being successful normally.
+   */
+  @AfterClass
   public void tearDown() throws IOException, InterruptedException {
     //Shutdown cluster
     suite.shutdownCluster();
