@@ -309,8 +309,11 @@ public class FlowConfigTest {
     try {
       _client.updateFlowConfig(flowConfig);
     } catch (RestLiResponseException e) {
-      Assert.fail("Bad update should pass without complaining that the spec does not exists.");
+      Assert.assertEquals(e.getStatus(), HttpStatus.S_404_NOT_FOUND.getCode());
+      return;
     }
+
+    Assert.fail("Update should have raised a 404 error");
   }
 
   @AfterClass(alwaysRun = true)

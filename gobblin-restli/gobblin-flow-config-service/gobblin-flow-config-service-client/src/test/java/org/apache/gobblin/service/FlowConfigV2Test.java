@@ -18,6 +18,7 @@
 package org.apache.gobblin.service;
 
 import java.io.File;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.io.FileUtils;
@@ -45,6 +46,8 @@ import com.linkedin.restli.server.util.PatchApplier;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import lombok.Setter;
+
 import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.restli.EmbeddedRestliServer;
@@ -57,11 +60,13 @@ public class FlowConfigV2Test {
   private FlowConfigV2Client _client;
   private EmbeddedRestliServer _server;
   private File _testDirectory;
+  private TestRequesterService _requesterService;
 
   private static final String TEST_SPEC_STORE_DIR = "/tmp/flowConfigV2Test/";
   private static final String TEST_GROUP_NAME = "testGroup1";
   private static final String TEST_FLOW_NAME = "testFlow1";
   private static final String TEST_FLOW_NAME_2 = "testFlow2";
+  private static final String TEST_FLOW_NAME_3 = "testFlow3";
   private static final String TEST_SCHEDULE = "0 1/0 * ? * *";
   private static final String TEST_TEMPLATE_URI = "FS:///templates/test.template";
 
@@ -82,6 +87,8 @@ public class FlowConfigV2Test {
     flowCatalog.startAsync();
     flowCatalog.awaitRunning();
 
+    _requesterService = new TestRequesterService(ConfigFactory.empty());
+
     Injector injector = Guice.createInjector(new Module() {
       @Override
       public void configure(Binder binder) {
@@ -89,8 +96,7 @@ public class FlowConfigV2Test {
         // indicate that we are in unit testing since the resource is being blocked until flow catalog changes have
         // been made
         binder.bindConstant().annotatedWith(Names.named(FlowConfigsV2Resource.INJECT_READY_TO_USE)).to(Boolean.TRUE);
-        binder.bind(RequesterService.class).annotatedWith(Names.named(FlowConfigsV2Resource.INJECT_REQUESTER_SERVICE)).toInstance(new NoopRequesterService(
-            ConfigFactory.empty()));
+        binder.bind(RequesterService.class).annotatedWith(Names.named(FlowConfigsV2Resource.INJECT_REQUESTER_SERVICE)).toInstance(_requesterService);
       }
     });
 
@@ -131,19 +137,19 @@ public class FlowConfigV2Test {
 
   @Test
   public void testPartialUpdate() throws Exception {
-    FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME);
+    FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_3);
 
     Map<String, String> flowProperties = Maps.newHashMap();
     flowProperties.put("param1", "value1");
     flowProperties.put("param2", "value2");
     flowProperties.put("param3", "value3");
 
-    FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME))
+    FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_3))
         .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).setRunImmediately(false))
         .setProperties(new StringMap(flowProperties));
 
     // Set some initial config
-    _client.updateFlowConfig(flowConfig);
+    _client.createFlowConfig(flowConfig);
 
     // Change param2 to value4, delete param3
     String patchJson = "{\"schedule\":{\"$set\":{\"runImmediately\":true}},"
@@ -176,6 +182,22 @@ public class FlowConfigV2Test {
     _client.partialUpdateFlowConfig(flowId, flowConfigPatch);
   }
 
+  @Test (expectedExceptions = RestLiResponseException.class)
+  public void testDisallowedRequester() throws Exception {
+    ServiceRequester testRequester = new ServiceRequester("testName", "testType", "testFrom");
+    _requesterService.setRequester(testRequester);
+
+    Map<String, String> flowProperties = Maps.newHashMap();
+    flowProperties.put("param1", "value1");
+
+    FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME))
+        .setTemplateUris(TEST_TEMPLATE_URI).setProperties(new StringMap(flowProperties));
+    _client.createFlowConfig(flowConfig);
+
+    testRequester.setName("testName2");
+    _client.deleteFlowConfig(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME));
+  }
+
   @AfterClass(alwaysRun = true)
   public void tearDown() throws Exception {
     if (_client != null) {
@@ -187,5 +209,19 @@ public class FlowConfigV2Test {
     }
     _testDirectory.delete();
     cleanUpDir(TEST_SPEC_STORE_DIR);
+  }
+
+  public class TestRequesterService extends RequesterService {
+    @Setter
+    private ServiceRequester requester;
+
+    public TestRequesterService(Config config) {
+      super(config);
+    }
+
+    @Override
+    public List<ServiceRequester> findRequesters(BaseResource resource) {
+      return requester == null ? Lists.newArrayList() : Lists.newArrayList(requester);
+    }
   }
 }

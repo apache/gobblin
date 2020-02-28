@@ -483,13 +483,13 @@ public class GobblinServiceHATest {
     try {
       this.node1FlowConfigClient.updateFlowConfig(flowConfig);
     } catch (RestLiResponseException e) {
-      Assert.fail("Bad update should pass without complaining that the spec does not exists.");
+      Assert.assertEquals(e.getStatus(), HttpStatus.NOT_FOUND_404);
     }
 
     try {
       this.node2FlowConfigClient.updateFlowConfig(flowConfig);
     } catch (RestLiResponseException e) {
-      Assert.fail("Bad update should pass without complaining that the spec does not exists.");
+      Assert.assertEquals(e.getStatus(), HttpStatus.NOT_FOUND_404);
     }
 
     logger.info("+++++++++++++++++++ testBadUpdate END");
