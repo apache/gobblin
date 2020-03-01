@@ -22,6 +22,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.kafka.clients.consumer.Consumer;
+
 import com.google.api.client.util.Lists;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Maps;
@@ -37,16 +39,14 @@ import org.apache.gobblin.source.extractor.extract.kafka.KafkaTopic;
  * each time consume called.
  * Returns empty iterator if all {@link #records} have been consumed.
  */
-public class MockBatchKafkaConsumerClient extends AbstractBaseKafkaConsumerClient {
+public class MockBatchKafkaConsumerClient extends Kafka09ConsumerClient {
 
-  private final Map<KafkaPartition, Long> latestOffsets;
   private final List<KafkaConsumerRecord> records;
   private int currRecordIdx = 0;
   private final int iteratorBatchSize;
 
-  public MockBatchKafkaConsumerClient(Config config, List<KafkaConsumerRecord> records, int batchSize) {
-    super(config);
-    this.latestOffsets = Maps.newHashMap();
+  public MockBatchKafkaConsumerClient(Config config, Consumer consumer, List<KafkaConsumerRecord> records, int batchSize) {
+    super(config, consumer);
     this.records = records;
     this.iteratorBatchSize = batchSize;
   }
@@ -85,14 +85,6 @@ public class MockBatchKafkaConsumerClient extends AbstractBaseKafkaConsumerClien
       return iterator;
     }
     return Iterators.emptyIterator();
-  }
-
-  public void commitOffsets(Map<KafkaPartition, Long> partitionOffsets) {
-    latestOffsets.putAll(partitionOffsets);
-  }
-
-  public Map<KafkaPartition, Long> getCommittedOffsets() {
-    return latestOffsets;
   }
 
   public void addToRecords(KafkaConsumerRecord record) {

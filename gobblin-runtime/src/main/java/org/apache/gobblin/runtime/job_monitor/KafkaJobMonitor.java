@@ -38,7 +38,6 @@ import org.apache.gobblin.runtime.metrics.RuntimeMetrics;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.Either;
 
-import kafka.message.MessageAndMetadata;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -70,11 +69,7 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
   public abstract Collection<Either<JobSpec, URI>> parseJobSpec(byte[] message) throws IOException;
 
   public KafkaJobMonitor(String topic, MutableJobCatalog catalog, Config config) {
-    this(topic, catalog, config, Optional.absent());
-  }
-
-  public KafkaJobMonitor(String topic, MutableJobCatalog catalog, Config config, Optional<GobblinKafkaConsumerClient> clientOverride) {
-    super(topic, ConfigUtils.getConfigOrEmpty(config, KAFKA_JOB_MONITOR_PREFIX), 1, clientOverride);
+    super(topic, ConfigUtils.getConfigOrEmpty(config, KAFKA_JOB_MONITOR_PREFIX), 1);
     this.jobCatalog = catalog;
     try {
       this.datasetStateStore = DatasetStateStore.buildDatasetStateStore(config);

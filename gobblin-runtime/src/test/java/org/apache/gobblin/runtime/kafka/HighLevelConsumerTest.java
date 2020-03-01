@@ -21,30 +21,66 @@ import java.io.File;
 import java.util.List;
 import java.util.Properties;
 
-import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.mockito.Mockito;
 import org.testng.Assert;
+import org.testng.annotations.AfterSuite;
+import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.Test;
 
 import com.google.api.client.util.Lists;
 import com.google.common.base.Optional;
+import com.google.common.io.Closer;
 import com.google.common.io.Files;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import lombok.extern.slf4j.Slf4j;
-
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.kafka.KafkaTestBase;
+import org.apache.gobblin.kafka.client.GobblinKafkaConsumerClient;
 import org.apache.gobblin.kafka.client.Kafka09ConsumerClient;
-import org.apache.gobblin.kafka.client.KafkaConsumerRecord;
-import org.apache.gobblin.kafka.client.MockBatchKafkaConsumerClient;
+import org.apache.gobblin.kafka.writer.Kafka09DataWriter;
+import org.apache.gobblin.kafka.writer.KafkaWriterConfigurationKeys;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaPartition;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.writer.AsyncDataWriter;
+import org.apache.gobblin.writer.WriteCallback;
 
-@Slf4j
-public class HighLevelConsumerTest {
+
+@Test
+public class HighLevelConsumerTest extends KafkaTestBase {
+
+  private static final String TOPIC = HighLevelConsumerTest.class.getSimpleName();
+  private static final int NUM_PARTITIONS = 2;
+  private static final int NUM_MSGS = 10;
+
+  private Closer _closer;
+  private String _kafkaBrokers;
+  private AsyncDataWriter dataWriter;
 
   public HighLevelConsumerTest()
       throws InterruptedException, RuntimeException {
+    super();
+    _kafkaBrokers = "localhost:" + this.getKafkaServerPort();
+  }
+
+  @BeforeSuite
+  public void beforeSuite() throws Exception {
+    startServers();
+    _closer = Closer.create();
+    Properties producerProps = new Properties();
+    producerProps.setProperty(KafkaWriterConfigurationKeys.KAFKA_TOPIC, TOPIC);
+    producerProps.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + "bootstrap.servers", _kafkaBrokers);
+    producerProps.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + "value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
+    producerProps.setProperty(KafkaWriterConfigurationKeys.CLUSTER_ZOOKEEPER, this.getZkConnectString());
+    producerProps.setProperty("writer.kafka.partitionCount", String.valueOf(NUM_PARTITIONS));
+    dataWriter = _closer.register(new Kafka09DataWriter(producerProps));
+
+    List<byte[]> records = createByteArrayMessages(NUM_MSGS);
+    WriteCallback mock = Mockito.mock(WriteCallback.class);
+    for(byte[] record : records) {
+      dataWriter.write(record, mock);
+    }
+    dataWriter.flush();
   }
 
   public static Config getSimpleConfig(Optional<String> prefix) {
@@ -65,68 +101,69 @@ public class HighLevelConsumerTest {
   }
 
   @Test
-  public void testConsumer() throws Exception {
-    String topic = this.getClass().getSimpleName();
-    Properties properties = new Properties();
-    properties.put(ConfigurationKeys.KAFKA_BROKERS, "dummy_broker");
-    int numPartitions = 5;
-    int msgsPerPartition = 10;
-    int consumeBatchSize = 10;
-    List<KafkaConsumerRecord> records = createMessages(topic, numPartitions, msgsPerPartition);
-    MockedHighLevelConsumer consumer = new MockedHighLevelConsumer(topic, ConfigUtils.propertiesToConfig(properties), numPartitions, records, consumeBatchSize);
-    consumer.startAsync();
-    consumer.awaitRunning();
+  public void testConsumerAutoOffsetCommit() throws Exception {
+    Properties consumerProps = new Properties();
+    consumerProps.setProperty(ConfigurationKeys.KAFKA_BROKERS, _kafkaBrokers);
+    consumerProps.setProperty(Kafka09ConsumerClient.GOBBLIN_CONFIG_VALUE_DESERIALIZER_CLASS_KEY, "org.apache.kafka.common.serialization.ByteArrayDeserializer");
+    consumerProps.setProperty("source.kafka.consumerConfig.auto.offset.reset", "earliest");
 
-    try {
-      Thread.sleep(1000);
-    } catch (InterruptedException e) {
-    }
+    MockedHighLevelConsumer consumer = new MockedHighLevelConsumer(TOPIC, ConfigUtils.propertiesToConfig(consumerProps), NUM_PARTITIONS);
+    consumer.startAsync().awaitRunning();
 
-    Assert.assertEquals(consumer.getMessages().size(), numPartitions * msgsPerPartition);
+    consumer.awaitExactlyNMessages(NUM_MSGS, 5000);
     consumer.shutDown();
   }
 
   @Test
-  public void testManualOffsetCommit() throws Exception {
-    String topic = this.getClass().getSimpleName();
-    Properties properties = new Properties();
-    properties.put(ConfigurationKeys.KAFKA_BROKERS, "dummy_broker");
-    properties.put("enable.auto.commit", false);
+  public void testConsumerManualOffsetCommit() throws Exception {
+    Properties consumerProps = new Properties();
+    consumerProps.setProperty(ConfigurationKeys.KAFKA_BROKERS, _kafkaBrokers);
+    consumerProps.setProperty(Kafka09ConsumerClient.GOBBLIN_CONFIG_VALUE_DESERIALIZER_CLASS_KEY, "org.apache.kafka.common.serialization.ByteArrayDeserializer");
+    consumerProps.setProperty("source.kafka.consumerConfig.auto.offset.reset", "earliest");
+    consumerProps.put("enable.auto.commit", false);
     // Setting this to a second to make sure we are committing offsets frequently
-    properties.put(HighLevelConsumer.OFFSET_COMMIT_TIME_THRESHOLD_SECS_KEY, 1);
-    int numPartitions = 3;
-    int msgsPerPartition = 10;
-    int consumeBatchSize = 10;
-    List<KafkaConsumerRecord> records = createMessages(topic, numPartitions, msgsPerPartition);
-    MockedHighLevelConsumer consumer = new MockedHighLevelConsumer(topic, ConfigUtils.propertiesToConfig(properties), numPartitions, records, consumeBatchSize);
-    consumer.startAsync();
-    consumer.awaitRunning();
+    consumerProps.put(HighLevelConsumer.OFFSET_COMMIT_TIME_THRESHOLD_SECS_KEY, 1);
 
+    MockedHighLevelConsumer consumer = new MockedHighLevelConsumer(TOPIC, ConfigUtils.propertiesToConfig(consumerProps),
+        NUM_PARTITIONS);
+    consumer.startAsync().awaitRunning();
+
+    consumer.awaitExactlyNMessages(NUM_MSGS, 5000);
     try {
       Thread.sleep(2000);
     } catch (InterruptedException e) {
-
     }
-
-    Assert.assertEquals(consumer.getMessages().size(), numPartitions * msgsPerPartition);
-    MockBatchKafkaConsumerClient client  = (MockBatchKafkaConsumerClient) consumer.getGobblinKafkaConsumerClient();
-    Assert.assertEquals(client.getCommittedOffsets().size(), numPartitions);
-    for(int i=0;i< numPartitions;i++) {
-      Assert.assertTrue(client.getCommittedOffsets().get(new KafkaPartition.Builder().withId(i).withTopicName(topic).build()) == msgsPerPartition - 1);
+    GobblinKafkaConsumerClient client  = consumer.getGobblinKafkaConsumerClient();
+    for(int i=0; i< NUM_PARTITIONS; i++) {
+      KafkaPartition partition = new KafkaPartition.Builder().withTopicName(TOPIC).withId(i).build();
+      Assert.assertTrue(consumer.getCommittedOffsets().containsKey(partition));
+      Assert.assertTrue(consumer.getCommittedOffsets().get(partition) == client.committed(partition));
     }
     consumer.shutDown();
   }
 
-  private List<KafkaConsumerRecord> createMessages(String topic, int numPartitions, int msgsPerPartition) {
-    List<KafkaConsumerRecord> records = Lists.newArrayList();
+  private List<byte[]> createByteArrayMessages(int numMsgs) {
+    List<byte[]> records = Lists.newArrayList();
 
-    for(int i=0; i<numPartitions; i++) {
-      for(int j=0; j<msgsPerPartition; j++) {
-        KafkaConsumerRecord record = new Kafka09ConsumerClient.Kafka09ConsumerRecord<>(new ConsumerRecord<>(topic, i, j, null, "partition_" + i + "_msg_" + j));
-        records.add(record);
+    for(int i=0; i<numMsgs; i++) {
+      byte[] msg = ("msg_" + i).getBytes();
+      records.add(msg);
+    }
+    return records;
+  }
+
+  @AfterSuite
+  public void afterSuite() {
+    try {
+      _closer.close();
+    } catch (Exception e) {
+      System.out.println("Failed to close data writer." +  e);
+    } finally {
+      try {
+        close();
+      } catch (Exception e) {
+        System.out.println("Failed to close Kafka server."+ e);
       }
     }
-
-    return records;
   }
 }

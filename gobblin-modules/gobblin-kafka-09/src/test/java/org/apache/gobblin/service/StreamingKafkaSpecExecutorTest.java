@@ -28,7 +28,6 @@ import java.util.Properties;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.Test;
@@ -38,11 +37,9 @@ import com.typesafe.config.Config;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.kafka.KafkaTestBase;
-import org.apache.gobblin.kafka.client.AbstractBaseKafkaConsumerClient;
 import org.apache.gobblin.kafka.client.Kafka09ConsumerClient;
 import org.apache.gobblin.kafka.writer.KafkaWriterConfigurationKeys;
 import org.apache.gobblin.runtime.api.JobSpec;
-import org.apache.gobblin.runtime.api.JobSpecMonitor;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.job_catalog.NonObservingFSJobCatalog;
 import org.apache.gobblin.runtime.job_monitor.KafkaJobMonitor;
@@ -94,7 +91,7 @@ public class StreamingKafkaSpecExecutorTest extends KafkaTestBase {
     }
   }
 
-  @Test (enabled = false)
+  @Test
   public void testAddSpec() throws Exception {
     _closer = Closer.create();
     _properties = new Properties();
@@ -104,16 +101,13 @@ public class StreamingKafkaSpecExecutorTest extends KafkaTestBase {
     _properties.setProperty("spec.kafka.dataWriterClass", "org.apache.gobblin.kafka.writer.Kafka09DataWriter");
     _properties.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + "bootstrap.servers", _kafkaBrokers);
     _properties.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
-    //_properties.setProperty(KafkaWriterConfigurationKeys.CLUSTER_ZOOKEEPER, this.getZkConnectString());
 
     // Properties for Consumer
     _properties.setProperty(KafkaJobMonitor.KAFKA_JOB_MONITOR_PREFIX + "." + ConfigurationKeys.KAFKA_BROKERS, _kafkaBrokers);
     _properties.setProperty(KafkaJobMonitor.KAFKA_JOB_MONITOR_PREFIX + "." + Kafka09ConsumerClient.GOBBLIN_CONFIG_VALUE_DESERIALIZER_CLASS_KEY, "org.apache.kafka.common.serialization.ByteArrayDeserializer");
-    _properties.setProperty("jobSpecMonitor.kafka.zookeeper.connect", this.getZkConnectString());
-//    _properties.setProperty("jobSpecMonitor.kafka." + Kafka09ConsumerClient.CONFIG_PREFIX + Kafka09ConsumerClient.CONSUMER_CONFIG + ".zookeeper.connect", this.getZkConnectString());
     _properties.setProperty(SimpleKafkaSpecExecutor.SPEC_KAFKA_TOPICS_KEY, TOPIC);
     _properties.setProperty("gobblin.cluster.jobconf.fullyQualifiedPath", _JOBS_DIR_PATH);
-
+    _properties.setProperty(KafkaJobMonitor.KAFKA_JOB_MONITOR_PREFIX + "." + Kafka09ConsumerClient.CONFIG_PREFIX + Kafka09ConsumerClient.CONSUMER_CONFIG + ".auto.offset.reset", "earliest");
 
     Config config = ConfigUtils.propertiesToConfig(_properties);
 
@@ -141,7 +135,7 @@ public class StreamingKafkaSpecExecutorTest extends KafkaTestBase {
     Assert.assertTrue(consumedSpecAction.getValue() instanceof JobSpec, "Expected JobSpec");
   }
 
-  @Test (enabled = false, dependsOnMethods = "testAddSpec")
+  @Test (dependsOnMethods = "testAddSpec")
   public void testUpdateSpec() throws Exception {
     // update is only treated as an update for existing job specs
     String updatedSpecUriString = "/foo/bar/addedSpec";
@@ -158,7 +152,7 @@ public class StreamingKafkaSpecExecutorTest extends KafkaTestBase {
     Assert.assertTrue(consumedSpecAction.getValue() instanceof JobSpec, "Expected JobSpec");
   }
 
-  @Test (enabled = false, dependsOnMethods = "testUpdateSpec")
+  @Test (dependsOnMethods = "testUpdateSpec")
   public void testDeleteSpec() throws Exception {
     // delete needs to be on a job spec that exists to get notification
     String deletedSpecUriString = "/foo/bar/addedSpec";
@@ -183,7 +177,7 @@ public class StreamingKafkaSpecExecutorTest extends KafkaTestBase {
         .build();
   }
 
-  @AfterClass
+  @AfterSuite
   public void after() {
     try {
       _closer.close();
@@ -200,10 +194,6 @@ public class StreamingKafkaSpecExecutorTest extends KafkaTestBase {
       _jobCatalog.stopAsync().awaitTerminated();
     }
 
-    //cleanupTestDir();
-  }
-
-  @AfterSuite
-  public void afterSuite() {
+    cleanupTestDir();
   }
 }

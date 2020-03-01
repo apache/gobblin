@@ -168,7 +168,7 @@ public class Kafka09ConsumerClient<K, V> extends AbstractBaseKafkaConsumerClient
   }
 
   @Override
-  public Iterator<KafkaConsumerRecord> consume() {
+  public synchronized Iterator<KafkaConsumerRecord> consume() {
     try {
       ConsumerRecords<K, V> consumerRecords = consumer.poll(super.fetchTimeoutMillis);
 
@@ -201,8 +201,7 @@ public class Kafka09ConsumerClient<K, V> extends AbstractBaseKafkaConsumerClient
   }
 
   @Override
-  public void commitOffsets(Map<KafkaPartition, Long> partitionOffsets) {
-
+  public synchronized void commitOffsets(Map<KafkaPartition, Long> partitionOffsets) {
     Map<TopicPartition, OffsetAndMetadata> offsets = partitionOffsets.entrySet().stream().collect(Collectors.toMap(e -> new TopicPartition(e.getKey().getTopicName(),e.getKey().getId()), e -> new OffsetAndMetadata(e.getValue())));
     consumer.commitAsync(offsets, new OffsetCommitCallback() {
       @Override
@@ -211,9 +210,14 @@ public class Kafka09ConsumerClient<K, V> extends AbstractBaseKafkaConsumerClient
           log.error("Exception while committing offsets " + partitionOffsets, exception);
           return;
         }
-        log.info("Successfully committed offsets " + partitionOffsets);
       }
     });
+  }
+
+  @Override
+  public synchronized long committed(KafkaPartition partition) {
+    OffsetAndMetadata offsetAndMetadata =  consumer.committed(new TopicPartition(partition.getTopicName(), partition.getId()));
+    return offsetAndMetadata != null ? offsetAndMetadata.offset() : -1l;
   }
 
   /**

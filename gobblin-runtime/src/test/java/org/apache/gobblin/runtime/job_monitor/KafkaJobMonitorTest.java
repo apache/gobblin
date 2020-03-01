@@ -21,53 +21,82 @@ import java.net.URI;
 import java.util.Properties;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.mockito.Mockito;
 import org.testng.Assert;
+import org.testng.annotations.AfterSuite;
+import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Charsets;
-import com.google.common.base.Optional;
-import com.google.common.collect.Lists;
-import com.typesafe.config.Config;
+import com.google.common.io.Closer;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.kafka.KafkaTestBase;
 import org.apache.gobblin.kafka.client.Kafka09ConsumerClient;
 import org.apache.gobblin.kafka.client.KafkaConsumerRecord;
-import org.apache.gobblin.kafka.client.MockBatchKafkaConsumerClient;
-import org.apache.gobblin.runtime.kafka.HighLevelConsumerTest;
+import org.apache.gobblin.kafka.writer.Kafka09DataWriter;
+import org.apache.gobblin.kafka.writer.KafkaWriterConfigurationKeys;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.writer.AsyncDataWriter;
+import org.apache.gobblin.writer.WriteCallback;
 
 
-public class KafkaJobMonitorTest {
+public class KafkaJobMonitorTest extends KafkaTestBase {
+
+  private static final String TOPIC = KafkaJobMonitorTest.class.getSimpleName();
+  private static final int NUM_PARTITIONS = 2;
+
+  private Closer _closer;
+  private String _kafkaBrokers;
+  private AsyncDataWriter dataWriter;
+
+  public KafkaJobMonitorTest()
+      throws InterruptedException, RuntimeException {
+    super();
+    _kafkaBrokers = "localhost:" + this.getKafkaServerPort();
+  }
+
+  @BeforeSuite
+  public void beforeSuite() throws Exception {
+    startServers();
+    _closer = Closer.create();
+    Properties producerProps = new Properties();
+    producerProps.setProperty(KafkaWriterConfigurationKeys.KAFKA_TOPIC, TOPIC);
+    producerProps.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + "bootstrap.servers", _kafkaBrokers);
+    producerProps.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
+    producerProps.setProperty(KafkaWriterConfigurationKeys.CLUSTER_ZOOKEEPER, this.getZkConnectString());
+    producerProps.setProperty("writer.kafka.partitionCount", String.valueOf(NUM_PARTITIONS));
+    dataWriter = _closer.register(new Kafka09DataWriter(producerProps));
+  }
 
   @Test
   public void test() throws Exception {
 
     Properties consumerProps = new Properties();
-    consumerProps.put(ConfigurationKeys.KAFKA_BROKERS, "localhost:1234");
-    consumerProps.put(Kafka09ConsumerClient.GOBBLIN_CONFIG_VALUE_DESERIALIZER_CLASS_KEY, "org.apache.kafka.common.serialization.StringDeserializer");
-    MockBatchKafkaConsumerClient consumerClient = new MockBatchKafkaConsumerClient(ConfigUtils.propertiesToConfig(consumerProps), Lists.newArrayList(), 1);
+    consumerProps.put(KafkaJobMonitor.KAFKA_JOB_MONITOR_PREFIX + "." + ConfigurationKeys.KAFKA_BROKERS, _kafkaBrokers);
+    consumerProps.put(KafkaJobMonitor.KAFKA_JOB_MONITOR_PREFIX + "." + Kafka09ConsumerClient.GOBBLIN_CONFIG_VALUE_DESERIALIZER_CLASS_KEY, "org.apache.kafka.common.serialization.ByteArrayDeserializer");
+    consumerProps.setProperty(KafkaJobMonitor.KAFKA_JOB_MONITOR_PREFIX + "." + "source.kafka.consumerConfig.auto.offset.reset", "earliest");
 
-    Config config = HighLevelConsumerTest.getSimpleConfig(Optional.of(KafkaJobMonitor.KAFKA_JOB_MONITOR_PREFIX));
+    MockedKafkaJobMonitor monitor = MockedKafkaJobMonitor.create(TOPIC, ConfigUtils.propertiesToConfig(consumerProps));
+    monitor.startAsync().awaitRunning();
 
-    MockedKafkaJobMonitor monitor = MockedKafkaJobMonitor.create(config, Optional.of(consumerClient));
-    monitor.startAsync();
-
-    consumerClient.addToRecords(getRecord("job1:1"));
+    WriteCallback mockCallback = Mockito.mock(WriteCallback.class);
+    dataWriter.write("job1:1".getBytes(), mockCallback);
     monitor.awaitExactlyNSpecs(1);
     Assert.assertTrue(monitor.getJobSpecs().containsKey(new URI("job1")));
     Assert.assertEquals(monitor.getJobSpecs().get(new URI("job1")).getVersion(), "1");
 
-    consumerClient.addToRecords(getRecord("job2:1"));
+    dataWriter.write("job2:1".getBytes(), mockCallback);
     monitor.awaitExactlyNSpecs(2);
     Assert.assertTrue(monitor.getJobSpecs().containsKey(new URI("job2")));
     Assert.assertEquals(monitor.getJobSpecs().get(new URI("job2")).getVersion(), "1");
 
-    consumerClient.addToRecords(getRecord(MockedKafkaJobMonitor.REMOVE + ":job1"));
+    dataWriter.write((MockedKafkaJobMonitor.REMOVE + ":job1").getBytes(), mockCallback);
     monitor.awaitExactlyNSpecs(1);
     Assert.assertFalse(monitor.getJobSpecs().containsKey(new URI("job1")));
     Assert.assertTrue(monitor.getJobSpecs().containsKey(new URI("job2")));
 
-    consumerClient.addToRecords(getRecord("job2:2,job1:2"));
+    dataWriter.write(("job2:2,job1:2").getBytes(), mockCallback);
     monitor.awaitExactlyNSpecs(2);
     Assert.assertTrue(monitor.getJobSpecs().containsKey(new URI("job1")));
     Assert.assertEquals(monitor.getJobSpecs().get(new URI("job1")).getVersion(), "2");
@@ -77,8 +106,19 @@ public class KafkaJobMonitorTest {
     monitor.shutDown();
   }
 
-  private KafkaConsumerRecord getRecord(String message) {
-    return new Kafka09ConsumerClient.Kafka09ConsumerRecord<>(new ConsumerRecord<>("topic",0,0,null, message.getBytes(
-        Charsets.UTF_8)));
+  @AfterSuite
+  public void afterSuite() {
+    try {
+      _closer.close();
+    } catch (Exception e) {
+      System.out.println("Failed to close data writer." +  e);
+    } finally {
+      try {
+        close();
+      } catch (Exception e) {
+        System.out.println("Failed to close Kafka server."+ e);
+      }
+    }
   }
+
 }

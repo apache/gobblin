@@ -144,6 +144,15 @@ public interface GobblinKafkaConsumerClient extends Closeable {
   }
 
   /**
+   * returns the last committed offset for a KafkaPartition
+   * @param partition
+   * @return last committed offset or -1 for invalid KafkaPartition
+   */
+  default long committed(KafkaPartition partition) {
+    return -1L;
+  }
+
+  /**
    * A factory to create {@link GobblinKafkaConsumerClient}s
    */
   public interface GobblinKafkaConsumerClientFactory {

@@ -59,12 +59,12 @@ class MockedKafkaJobMonitor extends KafkaJobMonitor {
   @Getter
   private final Map<URI, JobSpec> jobSpecs;
 
-  public static MockedKafkaJobMonitor create(Config config, Optional<GobblinKafkaConsumerClient> clientOverride) {
-    return new MockedKafkaJobMonitor(config, Maps.<URI, JobSpec>newConcurrentMap(), clientOverride);
+  public static MockedKafkaJobMonitor create(String topic, Config config) {
+    return new MockedKafkaJobMonitor(topic, config, Maps.<URI, JobSpec>newConcurrentMap());
   }
 
-  private MockedKafkaJobMonitor(Config config, Map<URI, JobSpec> jobSpecs, Optional<GobblinKafkaConsumerClient> clientOverride) {
-    super("topic", createMockCatalog(jobSpecs), config, clientOverride);
+  private MockedKafkaJobMonitor(String topic, Config config, Map<URI, JobSpec> jobSpecs) {
+    super(topic, createMockCatalog(jobSpecs), config);
 
     this.jobSpecs = jobSpecs;
   }
