@@ -63,7 +63,7 @@ public class KafkaAvroSchemaRegistry extends KafkaSchemaRegistry<String, Schema>
   public static final int SCHEMA_ID_LENGTH_BYTE = 16;
   public static final byte MAGIC_BYTE = 0x0;
 
-  private final GenericObjectPool<HttpClient> httpClientPool;
+  protected final GenericObjectPool<HttpClient> httpClientPool;
   private final String url;
   private final Optional<Map<String, String>> namespaceOverride;
 
