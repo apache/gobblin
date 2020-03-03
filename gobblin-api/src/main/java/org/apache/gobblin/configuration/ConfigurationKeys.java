@@ -395,7 +395,6 @@ public class ConfigurationKeys {
   /**
    * Writer configuration properties used internally.
    */
-  public static final String WRITER_SCHEMA = WRITER_PREFIX + ".schema";
   public static final String WRITER_FINAL_OUTPUT_FILE_PATHS = WRITER_PREFIX + ".final.output.file.paths";
   public static final String WRITER_RECORDS_WRITTEN = WRITER_PREFIX + ".records.written";
   public static final String WRITER_BYTES_WRITTEN = WRITER_PREFIX + ".bytes.written";
