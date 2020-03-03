@@ -17,6 +17,7 @@
 package org.apache.gobblin.kafka.client;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -24,14 +25,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import org.apache.kafka.clients.consumer.Consumer;
+import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.consumer.OffsetCommitCallback;
+import org.apache.kafka.clients.consumer.internals.NoOpConsumerRebalanceListener;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
@@ -52,6 +56,7 @@ import com.typesafe.config.ConfigFactory;
 
 import javax.annotation.Nonnull;
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
@@ -168,7 +173,7 @@ public class Kafka09ConsumerClient<K, V> extends AbstractBaseKafkaConsumerClient
   }
 
   @Override
-  public synchronized Iterator<KafkaConsumerRecord> consume() {
+  public Iterator<KafkaConsumerRecord> consume() {
     try {
       ConsumerRecords<K, V> consumerRecords = consumer.poll(super.fetchTimeoutMillis);
 
@@ -185,9 +190,34 @@ public class Kafka09ConsumerClient<K, V> extends AbstractBaseKafkaConsumerClient
     }
   }
 
+  /**
+   * Subscribe to a kafka topic
+   * TODO Add multi topic support
+   * @param topic
+   */
   @Override
   public void subscribe(String topic) {
-    this.consumer.subscribe(Lists.newArrayList(topic));
+    this.consumer.subscribe(Lists.newArrayList(topic), new NoOpConsumerRebalanceListener());
+  }
+
+  /**
+   * Subscribe to a kafka topic with a {#GobblinConsumerRebalanceListener}
+   * TODO Add multi topic support
+   * @param topic
+   */
+  @Override
+  public void subscribe(String topic, GobblinConsumerRebalanceListener listener) {
+    this.consumer.subscribe(Lists.newArrayList(topic), new ConsumerRebalanceListener() {
+      @Override
+      public void onPartitionsRevoked(Collection<TopicPartition> partitions) {
+        listener.onPartitionsRevoked(partitions.stream().map(a -> new KafkaPartition.Builder().withTopicName(a.topic()).withId(a.partition()).build()).collect(Collectors.toList()));
+      }
+
+      @Override
+      public void onPartitionsAssigned(Collection<TopicPartition> partitions) {
+        listener.onPartitionsAssigned(partitions.stream().map(a -> new KafkaPartition.Builder().withTopicName(a.topic()).withId(a.partition()).build()).collect(Collectors.toList()));
+      }
+    });
   }
 
   @Override
@@ -200,22 +230,39 @@ public class Kafka09ConsumerClient<K, V> extends AbstractBaseKafkaConsumerClient
     return codaHaleMetricMap;
   }
 
+  /**
+   * Commit offsets to Kafka asynchronously
+   */
   @Override
-  public synchronized void commitOffsets(Map<KafkaPartition, Long> partitionOffsets) {
+  public void commitOffsetsAsync(Map<KafkaPartition, Long> partitionOffsets) {
     Map<TopicPartition, OffsetAndMetadata> offsets = partitionOffsets.entrySet().stream().collect(Collectors.toMap(e -> new TopicPartition(e.getKey().getTopicName(),e.getKey().getId()), e -> new OffsetAndMetadata(e.getValue())));
     consumer.commitAsync(offsets, new OffsetCommitCallback() {
       @Override
       public void onComplete(Map<TopicPartition, OffsetAndMetadata> offsets, Exception exception) {
         if(exception != null) {
-          log.error("Exception while committing offsets " + partitionOffsets, exception);
+          log.error("Exception while committing offsets " + offsets, exception);
           return;
         }
       }
     });
   }
 
+  /**
+   * Commit offsets to Kafka synchronously
+   */
   @Override
-  public synchronized long committed(KafkaPartition partition) {
+  public void commitOffsetsSync(Map<KafkaPartition, Long> partitionOffsets) {
+    Map<TopicPartition, OffsetAndMetadata> offsets = partitionOffsets.entrySet().stream().collect(Collectors.toMap(e -> new TopicPartition(e.getKey().getTopicName(),e.getKey().getId()), e -> new OffsetAndMetadata(e.getValue())));
+    consumer.commitSync(offsets);
+  }
+
+  /**
+   * returns the last committed offset for a KafkaPartition
+   * @param partition
+   * @return last committed offset or -1 for invalid KafkaPartition
+   */
+  @Override
+  public long committed(KafkaPartition partition) {
     OffsetAndMetadata offsetAndMetadata =  consumer.committed(new TopicPartition(partition.getTopicName(), partition.getId()));
     return offsetAndMetadata != null ? offsetAndMetadata.offset() : -1l;
   }
@@ -280,7 +327,7 @@ public class Kafka09ConsumerClient<K, V> extends AbstractBaseKafkaConsumerClient
     public Kafka09ConsumerRecord(ConsumerRecord<K, V> consumerRecord) {
       // Kafka 09 consumerRecords do not provide value size.
       // Only 08 and 10 versions provide them.
-      super(consumerRecord.offset(), BaseKafkaConsumerRecord.VALUE_SIZE_UNAVAILABLE, consumerRecord.partition(), consumerRecord.topic());
+      super(consumerRecord.offset(), BaseKafkaConsumerRecord.VALUE_SIZE_UNAVAILABLE, consumerRecord.topic(), consumerRecord.partition());
       this.consumerRecord = consumerRecord;
     }
 
@@ -294,4 +341,23 @@ public class Kafka09ConsumerClient<K, V> extends AbstractBaseKafkaConsumerClient
       return this.consumerRecord.value();
     }
   }
+
+//  class SaveOffsetListener implements GobblinConsumerRebalanceListener {
+//
+//    private ConsumerRebalanceListener crl;
+//
+//    public SaveOffsetListener(ConsumerRebalanceListener crl) {
+//      this.crl = crl;
+//    }
+//
+//    @Override
+//    public void onPartitionsRevoked(Collection<KafkaPartition> partitions) {
+//      //return crl.onPartitionsRevoked(partitions.stream().map(a -> new TopicPartition(a.getTopicName(), a.getId())).collect(Collectors.toList()));
+//    }
+//
+//    @Override
+//    public void onPartitionsAssigned(Collection<KafkaPartition> partitions) {
+//
+//    }
+//  }
 }

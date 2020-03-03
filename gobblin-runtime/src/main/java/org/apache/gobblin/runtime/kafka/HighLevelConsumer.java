@@ -18,7 +18,7 @@
 package org.apache.gobblin.runtime.kafka;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -31,6 +31,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 
@@ -48,6 +49,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
+import org.apache.gobblin.kafka.client.GobblinConsumerRebalanceListener;
 import org.apache.gobblin.kafka.client.GobblinKafkaConsumerClient;
 import org.apache.gobblin.kafka.client.KafkaConsumerRecord;
 import org.apache.gobblin.metrics.MetricContext;
@@ -73,7 +75,7 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
   private static final String DEFAULT_CONSUMER_CLIENT_FACTORY_CLASS =
       "org.apache.gobblin.kafka.client.Kafka09ConsumerClient$Factory";
   public static final String ENABLE_AUTO_COMMIT_KEY = "enable.auto.commit";
-  public static final boolean DEFAULT_AUTO_COMMIT_VALUE = true;
+  public static final boolean DEFAULT_AUTO_COMMIT_VALUE = false;
 
   public static final String GROUP_ID_KEY = "group.id";
   // NOTE: changing this will break stored offsets
@@ -97,9 +99,8 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
   private Counter messagesRead;
   @Getter
   private final GobblinKafkaConsumerClient gobblinKafkaConsumerClient;
-  private final ScheduledExecutorService mainExecutor;
+  private final ScheduledExecutorService consumerExecutor;
   private final ExecutorService queueExecutor;
-  private ScheduledExecutorService offsetCommitExecutor;
   private final BlockingQueue[] queues;
   private final AtomicInteger recordsProcessed;
   private final Map<KafkaPartition, Long> partitionOffsetsToCommit;
@@ -112,15 +113,30 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
       ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
           .put(GROUP_ID_KEY, DEFAULT_GROUP_ID)
           .put(ENABLE_AUTO_COMMIT_KEY, DEFAULT_AUTO_COMMIT_VALUE)
+          .put(CONSUMER_CLIENT_FACTORY_CLASS_KEY, DEFAULT_CONSUMER_CLIENT_FACTORY_CLASS)
+          .put(OFFSET_COMMIT_NUM_RECORDS_THRESHOLD_KEY, DEFAULT_OFFSET_COMMIT_NUM_RECORDS_THRESHOLD)
+          .put(OFFSET_COMMIT_TIME_THRESHOLD_SECS_KEY, DEFAULT_OFFSET_COMMIT_TIME_THRESHOLD_SECS)
           .build());
 
   public HighLevelConsumer(String topic, Config config, int numThreads) {
     this.topic = topic;
     this.numThreads = numThreads;
     this.config = config.withFallback(FALLBACK);
-    this.gobblinKafkaConsumerClient = createConsumerClient(config);
-    this.gobblinKafkaConsumerClient.subscribe(this.topic);
-    this.mainExecutor = Executors.newSingleThreadScheduledExecutor(ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("HighLevelConsumerThread")));
+    this.gobblinKafkaConsumerClient = createConsumerClient(this.config);
+    // On Partition rebalance, commit exisiting offsets and reset.
+    this.gobblinKafkaConsumerClient.subscribe(this.topic, new GobblinConsumerRebalanceListener() {
+      @Override
+      public void onPartitionsRevoked(Collection<KafkaPartition> partitions) {
+        copyAndCommit();
+        partitionOffsetsToCommit.clear();
+      }
+
+      @Override
+      public void onPartitionsAssigned(Collection<KafkaPartition> partitions) {
+        // No op
+      }
+    });
+    this.consumerExecutor = Executors.newSingleThreadScheduledExecutor(ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("HighLevelConsumerThread")));
     this.queueExecutor = Executors.newFixedThreadPool(this.numThreads, ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("QueueProcessor-%d")));
     this.queues = new LinkedBlockingQueue[numThreads];
     for(int i=0;i<queues.length;i++) {
@@ -134,8 +150,7 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
   }
 
   protected GobblinKafkaConsumerClient createConsumerClient(Config config) {
-    String kafkaConsumerClientClass = ConfigUtils.getString(config, CONSUMER_CLIENT_FACTORY_CLASS_KEY,
-        DEFAULT_CONSUMER_CLIENT_FACTORY_CLASS);
+    String kafkaConsumerClientClass = config.getString(CONSUMER_CLIENT_FACTORY_CLASS_KEY);
 
     try {
       Class clientFactoryClass = Class.forName(kafkaConsumerClientClass);
@@ -144,7 +159,7 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
               ConstructorUtils.invokeConstructor(clientFactoryClass);
 
       return factory.create(config);
-    } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InstantiationException | InvocationTargetException e) {
+    } catch (ReflectiveOperationException e) {
       throw new RuntimeException("Failed to instantiate Kafka consumer client " + kafkaConsumerClientClass, e);
     }
   }
@@ -181,7 +196,7 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
   protected List<Tag<?>> getTagsForMetrics() {
     List<Tag<?>> tags = Lists.newArrayList();
     tags.add(new Tag<>(RuntimeMetrics.TOPIC, this.topic));
-    tags.add(new Tag<>(RuntimeMetrics.GROUP_ID, ConfigUtils.getString(this.config, GROUP_ID_KEY, DEFAULT_GROUP_ID)));
+    tags.add(new Tag<>(RuntimeMetrics.GROUP_ID, this.config.getString(GROUP_ID_KEY)));
     return tags;
   }
 
@@ -194,18 +209,10 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
   @Override
   protected void startUp() {
     buildMetricsContextAndMetrics();
+    // Method that starts threads that processes queues
     processQueues();
-    if(!enableAutoCommit) {
-      offsetCommitExecutor = Executors.newSingleThreadScheduledExecutor();
-      offsetCommitExecutor.scheduleAtFixedRate(new Runnable() {
-        @Override
-        public void run() {
-          offsetCommitter();
-        }
-      }, 0,100, TimeUnit.MILLISECONDS);
-    }
-
-    mainExecutor.scheduleAtFixedRate(new Runnable() {
+    // Main thread that constantly polls messages from kafka
+    consumerExecutor.scheduleAtFixedRate(new Runnable() {
       @Override
       public void run() {
         consume();
@@ -221,6 +228,9 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
   private void consume() {
     try {
       Iterator<KafkaConsumerRecord> itr = gobblinKafkaConsumerClient.consume();
+      if(!enableAutoCommit) {
+        commitOffsets();
+      }
       while (itr.hasNext()) {
         KafkaConsumerRecord record = itr.next();
         int idx = record.getPartition() % numThreads;
@@ -231,7 +241,10 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
     }
   }
 
-
+  /**
+   * Assigns a queue to each thread of the {@link #queueExecutor}
+   * Note: Assumption here is that {@link #numThreads} is same a number of queues
+   */
   private void processQueues() {
     for(BlockingQueue queue : queues) {
       queueExecutor.execute(new QueueProcessor(queue));
@@ -239,31 +252,34 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
   }
 
   /**
-   * A thread that commits offsets to kafka at regular intervals
+   * Commits offsets to kafka
    */
-  private void offsetCommitter() {
-    if(recordsProcessed.intValue() >= offsetsCommitNumRecordsThreshold || ((System.currentTimeMillis() - lastCommitTime) / 1000 >= offsetsCommitTimeThresholdSecs)) {
-      Map<KafkaPartition, Long> copy = new HashMap<>(partitionOffsetsToCommit);
-      partitionOffsetsToCommit.clear();
-      recordsProcessed.set(0);
-      lastCommitTime = System.currentTimeMillis();
-      commitOffsets(copy);
+  private void commitOffsets() {
+    if(shouldCommitOffsets()) {
+      copyAndCommit();
     }
   }
 
+  @VisibleForTesting
   protected void commitOffsets(Map<KafkaPartition, Long> partitionOffsets) {
-    gobblinKafkaConsumerClient.commitOffsets(partitionOffsets);
+    this.gobblinKafkaConsumerClient.commitOffsetsAsync(partitionOffsets);
   }
 
+  private void copyAndCommit() {
+    Map<KafkaPartition, Long> copy = new HashMap<>(partitionOffsetsToCommit);
+    recordsProcessed.set(0);
+    lastCommitTime = System.currentTimeMillis();
+    commitOffsets(copy);
+  }
+
+  private boolean shouldCommitOffsets() {
+    return recordsProcessed.intValue() >= offsetsCommitNumRecordsThreshold || ((System.currentTimeMillis() - lastCommitTime) / 1000 >= offsetsCommitTimeThresholdSecs);
+  }
 
   @Override
   public void shutDown() {
-    //mainExecutor.shutdown();
-    ExecutorsUtils.shutdownExecutorService(this.mainExecutor, Optional.of(log), 5000, TimeUnit.MILLISECONDS);
+    ExecutorsUtils.shutdownExecutorService(this.consumerExecutor, Optional.of(log), 5000, TimeUnit.MILLISECONDS);
     ExecutorsUtils.shutdownExecutorService(this.queueExecutor, Optional.of(log), 5000, TimeUnit.MILLISECONDS);
-    if(this.offsetCommitExecutor != null) {
-      ExecutorsUtils.shutdownExecutorService(this.offsetCommitExecutor, Optional.of(log), 5000, TimeUnit.MILLISECONDS);
-    }
     try {
       this.gobblinKafkaConsumerClient.close();
       this.shutdownMetrics();
@@ -297,6 +313,7 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
 
           if(!HighLevelConsumer.this.enableAutoCommit) {
             KafkaPartition partition = new KafkaPartition.Builder().withId(record.getPartition()).withTopicName(HighLevelConsumer.this.topic).build();
+            // Committed offset should always be the offset of the next record to be read (hence +1)
             partitionOffsetsToCommit.put(partition, record.getOffset() + 1);
           }
         }

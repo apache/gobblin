@@ -270,7 +270,7 @@ public class Kafka08ConsumerClient extends AbstractBaseKafkaConsumerClient {
           new Function<kafka.message.MessageAndOffset, KafkaConsumerRecord>() {
             @Override
             public KafkaConsumerRecord apply(kafka.message.MessageAndOffset input) {
-              return new Kafka08ConsumerRecord(input, partition.getId(), partition.getTopicName());
+              return new Kafka08ConsumerRecord(input, partition.getTopicName(), partition.getId());
             }
           });
     } catch (Exception e) {
@@ -350,8 +350,8 @@ public class Kafka08ConsumerClient extends AbstractBaseKafkaConsumerClient {
 
     private final MessageAndOffset messageAndOffset;
 
-    public Kafka08ConsumerRecord(MessageAndOffset messageAndOffset, int partition, String topic) {
-      super(messageAndOffset.offset(), messageAndOffset.message().size(), partition, topic);
+    public Kafka08ConsumerRecord(MessageAndOffset messageAndOffset, String topic, int partition) {
+      super(messageAndOffset.offset(), messageAndOffset.message().size(), topic, partition);
       this.messageAndOffset = messageAndOffset;
     }
 

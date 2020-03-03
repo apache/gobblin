@@ -30,8 +30,8 @@ public abstract class BaseKafkaConsumerRecord implements KafkaConsumerRecord {
 
   private final long offset;
   private final long valueSizeInBytes;
-  private final int partitionId;
   private final String topic;
+  private final int partitionId;
   public static final long VALUE_SIZE_UNAVAILABLE = -1l;
 
   @Override

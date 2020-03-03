@@ -125,6 +125,14 @@ public interface GobblinKafkaConsumerClient extends Closeable {
   default void subscribe(String topic) {
     return;
   }
+
+  /**
+   * Subscribe to a topic along with a GobblinKafkaRebalanceListener
+   * @param topic
+   */
+  default void subscribe(String topic, GobblinConsumerRebalanceListener listener) {
+    return;
+  }
   /**
    * API to return underlying Kafka consumer metrics. The individual implementations must translate
    * org.apache.kafka.common.Metric to Coda Hale Metrics. A typical use case for reporting the consumer metrics
@@ -136,10 +144,16 @@ public interface GobblinKafkaConsumerClient extends Closeable {
   }
 
   /**
-   * Commit offsets manually to Kafka
-   * @param partitionOffsets
+   * Commit offsets manually to Kafka asynchronously
    */
-  default void commitOffsets(Map<KafkaPartition, Long> partitionOffsets) {
+  default void commitOffsetsAsync(Map<KafkaPartition, Long> partitionOffsets) {
+    return;
+  }
+
+  /**
+   * Commit offsets manually to Kafka synchronously
+   */
+  default void commitOffsetsSync(Map<KafkaPartition, Long> partitionOffsets) {
     return;
   }
 

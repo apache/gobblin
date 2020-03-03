@@ -45,7 +45,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
-import org.apache.gobblin.kafka.client.GobblinKafkaConsumerClient;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
@@ -75,10 +74,6 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
   private final Metrics _metrics;
 
   public StreamingKafkaSpecConsumer(Config config, MutableJobCatalog jobCatalog, Optional<Logger> log) {
-    this(config, jobCatalog, log, Optional.absent());
-  }
-
-  public StreamingKafkaSpecConsumer(Config config, MutableJobCatalog jobCatalog, Optional<Logger> log, Optional<GobblinKafkaConsumerClient> consumerClient) {
     String topic = config.getString(SPEC_KAFKA_TOPICS_KEY);
     Config defaults = ConfigFactory.parseMap(ImmutableMap.of(AvroJobSpecKafkaJobMonitor.TOPIC_KEY, topic,
         KafkaJobMonitor.KAFKA_AUTO_OFFSET_RESET_KEY, KafkaJobMonitor.KAFKA_AUTO_OFFSET_RESET_SMALLEST));
