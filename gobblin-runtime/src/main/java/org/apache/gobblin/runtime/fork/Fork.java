@@ -19,7 +19,6 @@ package org.apache.gobblin.runtime.fork;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
@@ -542,9 +541,6 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
       Preconditions.checkArgument(taskStartTime != null, ConfigurationKeys.TASK_START_TIME_MILLIS_KEY + " has not been set");
 
       writerId = this.taskId + "_" + taskStartTime;
-    }
-    if(this.convertedSchema.isPresent()) {
-      this.forkTaskState.setProp(ConfigurationKeys.WRITER_SCHEMA, convertedSchema.get().toString());
     }
     DataWriterBuilder<Object, Object> builder = this.taskContext.getDataWriterBuilder(this.branches, this.index)
         .writeTo(Destination.of(this.taskContext.getDestinationType(this.branches, this.index), this.taskState))
