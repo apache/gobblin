@@ -167,7 +167,7 @@ public class SingleTask {
     if (_taskAttempt != null) {
       try {
         _logger.info("Task cancelled: Shutdown starting for tasks with jobId: {}", _jobId);
-        _taskAttempt.shutdownTasks();
+        _taskattempt.cancelGobblinMultiAttempts();
         _logger.info("Task cancelled: Shutdown complete for tasks with jobId: {}", _jobId);
       } catch (InterruptedException e) {
         throw new RuntimeException("Interrupted while shutting down task with jobId: " + _jobId, e);

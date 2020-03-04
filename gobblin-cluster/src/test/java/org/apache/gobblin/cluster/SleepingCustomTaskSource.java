@@ -24,7 +24,6 @@ import org.apache.gobblin.runtime.task.TaskUtils;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.test.HelloWorldSource;
 
-
 public class SleepingCustomTaskSource extends HelloWorldSource {
   @Override
   public List<WorkUnit> getWorkunits(SourceState state) {

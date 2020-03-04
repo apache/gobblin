@@ -20,9 +20,6 @@ package org.apache.gobblin.runtime.task;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 
-import com.google.common.base.Optional;
-import com.google.common.collect.Lists;
-
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.runtime.Task;
@@ -30,6 +27,9 @@ import org.apache.gobblin.runtime.TaskContext;
 import org.apache.gobblin.runtime.TaskState;
 import org.apache.gobblin.runtime.TaskStateTracker;
 import org.apache.gobblin.runtime.fork.Fork;
+
+import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
 
 
 /**
@@ -169,21 +169,5 @@ public class TaskIFaceWrapper extends Task {
   @Override
   public boolean isSpeculativeExecutionSafe() {
     return this.underlyingTask.isSpeculativeExecutionSafe();
-  }
-
-  /**
-   * return true if the task is successfully cancelled.
-   * This method is a copy of the method in parent class.
-   * We need this copy so TaskIFaceWrapper variables are not shared between this class and its parent class
-   * @return
-   */
-  @Override
-  public synchronized boolean cancel() {
-    if (this.taskFuture != null && this.taskFuture.cancel(true)) {
-      this.taskStateTracker.onTaskRunCompletion(this);
-      return true;
-    } else {
-      return false;
-    }
   }
 }
