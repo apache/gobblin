@@ -620,7 +620,10 @@ public class YarnService extends AbstractIdleService {
    */
   protected void handleContainerCompletion(ContainerStatus containerStatus) {
     Map.Entry<Container, String> completedContainerEntry = this.containerMap.remove(containerStatus.getContainerId());
-
+    if(completedContainerEntry == null) {
+      //No map for this container means we don't maintain this container, directly return
+      return;
+    }
     String completedInstanceName = completedContainerEntry.getValue();
 
     LOGGER.info(String.format("Container %s running Helix instance %s has completed with exit status %d",
