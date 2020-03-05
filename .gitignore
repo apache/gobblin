@@ -80,3 +80,7 @@ FsDatasetStateStoreTest/
 GobblinHelixTaskTest/
 commit-sequence-store-test/
 gobblin-test-harness/src/test/resources/runtime_test/state_store/
+gobblin-integration-test-work-dir/
+
+gobblin-test-utils/src/main/gen-avro/
+gobblin-test-utils/src/main/gen-proto/

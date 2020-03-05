@@ -25,6 +25,15 @@ import com.typesafe.config.Config;
 public class IntegrationJobCancelSuite extends IntegrationBasicSuite {
   public static final String JOB_ID = "job_HelloWorldTestJob_1234";
   public static final String TASK_STATE_FILE = "/tmp/IntegrationJobCancelSuite/taskState/_RUNNING";
+  private int sleepingTime = 10;
+
+  public IntegrationJobCancelSuite() {
+    // for backward compatible.
+  }
+
+  public IntegrationJobCancelSuite(int sleepingTime) {
+    this.sleepingTime = sleepingTime;
+  }
 
   public IntegrationJobCancelSuite(Config jobConfigOverrides) {
     super(jobConfigOverrides);
