@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.runtime.kafka;
+package org.apache.gobblin.runtime;
 
 import java.io.File;
 import java.util.List;
@@ -41,6 +41,8 @@ import org.apache.gobblin.kafka.client.GobblinKafkaConsumerClient;
 import org.apache.gobblin.kafka.client.Kafka09ConsumerClient;
 import org.apache.gobblin.kafka.writer.Kafka09DataWriter;
 import org.apache.gobblin.kafka.writer.KafkaWriterConfigurationKeys;
+import org.apache.gobblin.runtime.kafka.HighLevelConsumer;
+import org.apache.gobblin.runtime.kafka.MockedHighLevelConsumer;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaPartition;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.writer.AsyncDataWriter;

@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gobblin.service.monitoring;
+package org.apache.gobblin.runtime;
 
 import java.io.File;
 import java.io.IOException;
@@ -55,6 +55,9 @@ import org.apache.gobblin.metrics.kafka.KafkaEventReporter;
 import org.apache.gobblin.metrics.kafka.KafkaKeyValueProducerPusher;
 import org.apache.gobblin.metrics.kafka.Pusher;
 import org.apache.gobblin.service.ExecutionStatus;
+import org.apache.gobblin.service.monitoring.JobStatusRetriever;
+import org.apache.gobblin.service.monitoring.KafkaAvroJobStatusMonitor;
+import org.apache.gobblin.service.monitoring.KafkaJobStatusMonitor;
 
 
 public class KafkaAvroJobStatusMonitorTest {
@@ -130,7 +133,7 @@ public class KafkaAvroJobStatusMonitorTest {
         .withValue(Kafka09ConsumerClient.GOBBLIN_CONFIG_VALUE_DESERIALIZER_CLASS_KEY, ConfigValueFactory.fromAnyRef("org.apache.kafka.common.serialization.ByteArrayDeserializer"))
         .withValue(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, ConfigValueFactory.fromAnyRef(stateStoreDir))
         .withValue("zookeeper.connect", ConfigValueFactory.fromAnyRef("localhost:2121"));
-    KafkaJobStatusMonitor jobStatusMonitor =  new KafkaAvroJobStatusMonitor("test",config, 1);
+    MockKafkaAvroJobStatusMonitor jobStatusMonitor =  new MockKafkaAvroJobStatusMonitor("test",config, 1);
 
     ConsumerIterator<byte[], byte[]> iterator = this.kafkaTestHelper.getIteratorForTopic(TOPIC);
 
@@ -233,7 +236,7 @@ public class KafkaAvroJobStatusMonitorTest {
         .withValue(Kafka09ConsumerClient.GOBBLIN_CONFIG_VALUE_DESERIALIZER_CLASS_KEY, ConfigValueFactory.fromAnyRef("org.apache.kafka.common.serialization.ByteArrayDeserializer"))
         .withValue(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, ConfigValueFactory.fromAnyRef(stateStoreDir))
         .withValue("zookeeper.connect", ConfigValueFactory.fromAnyRef("localhost:2121"));
-    KafkaJobStatusMonitor jobStatusMonitor =  new KafkaAvroJobStatusMonitor("test",config, 1);
+    MockKafkaAvroJobStatusMonitor jobStatusMonitor = new MockKafkaAvroJobStatusMonitor("test",config, 1);
 
     ConsumerIterator<byte[], byte[]> iterator = this.kafkaTestHelper.getIteratorForTopic(TOPIC);
 
@@ -443,6 +446,19 @@ public class KafkaAvroJobStatusMonitorTest {
       this.kafkaTestHelper.close();
     } catch(Exception e) {
       System.err.println("Failed to close Kafka server.");
+    }
+  }
+
+  class MockKafkaAvroJobStatusMonitor extends KafkaAvroJobStatusMonitor {
+
+    public MockKafkaAvroJobStatusMonitor(String topic, Config config, int numThreads)
+        throws IOException, ReflectiveOperationException {
+      super(topic, config, numThreads);
+    }
+
+    @Override
+    protected void processMessage(DecodeableKafkaRecord record) {
+      super.processMessage(record);
     }
   }
 }

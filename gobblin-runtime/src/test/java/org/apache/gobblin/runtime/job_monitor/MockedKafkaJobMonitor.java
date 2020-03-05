@@ -50,7 +50,7 @@ import lombok.extern.slf4j.Slf4j;
 
 
 @Slf4j
-class MockedKafkaJobMonitor extends KafkaJobMonitor {
+public class MockedKafkaJobMonitor extends KafkaJobMonitor {
 
   private static final Splitter SPLITTER_COMMA = Splitter.on(",");
   private static final Splitter SPLITTER_COLON = Splitter.on(":");

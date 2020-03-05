@@ -15,28 +15,27 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.runtime.job_monitor;
+package org.apache.gobblin.runtime;
 
 import java.net.URI;
 import java.util.Properties;
 
-import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.Test;
 
-import com.google.common.base.Charsets;
 import com.google.common.io.Closer;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.kafka.KafkaTestBase;
 import org.apache.gobblin.kafka.client.AbstractBaseKafkaConsumerClient;
 import org.apache.gobblin.kafka.client.Kafka09ConsumerClient;
-import org.apache.gobblin.kafka.client.KafkaConsumerRecord;
 import org.apache.gobblin.kafka.writer.Kafka09DataWriter;
 import org.apache.gobblin.kafka.writer.KafkaWriterConfigurationKeys;
+import org.apache.gobblin.runtime.job_monitor.KafkaJobMonitor;
+import org.apache.gobblin.runtime.job_monitor.MockedKafkaJobMonitor;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.writer.AsyncDataWriter;
 import org.apache.gobblin.writer.WriteCallback;

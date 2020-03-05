@@ -33,7 +33,6 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import avro.shaded.com.google.common.annotations.VisibleForTesting;
-import kafka.message.MessageAndMetadata;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
