@@ -18,7 +18,11 @@
 package org.apache.gobblin.cluster;
 
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
 
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.retry.RetryerFactory;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.helix.task.JobContext;
@@ -29,6 +33,7 @@ import org.apache.helix.task.TaskDriver;
 import org.apache.helix.task.TaskResult;
 import org.slf4j.MDC;
 
+import com.github.rholder.retry.Retryer;
 import com.google.common.base.Throwables;
 import com.google.common.io.Closer;
 import com.typesafe.config.Config;
@@ -43,6 +48,9 @@ import org.apache.gobblin.runtime.util.StateStores;
 import org.apache.gobblin.source.workunit.MultiWorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.Id;
+
+import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_INTERVAL_MS;
+import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_TIME_OUT_MS;
 
 
 /**
@@ -97,28 +105,35 @@ public class GobblinHelixTask implements Task {
                              builder.getAppWorkPath(),
                              this.jobId);
 
-    Config dynamicConfig = builder.getDynamicConfig()
-        .withValue(GobblinClusterConfigurationKeys.TASK_RUNNER_HOST_NAME_KEY, ConfigValueFactory.fromAnyRef(builder.getHostName()))
-        .withValue(GobblinClusterConfigurationKeys.CONTAINER_ID_KEY, ConfigValueFactory.fromAnyRef(builder.getContainerId()))
-        .withValue(GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_KEY, ConfigValueFactory.fromAnyRef(builder.getInstanceName()))
-        .withValue(GobblinClusterConfigurationKeys.HELIX_JOB_ID_KEY, ConfigValueFactory.fromAnyRef(this.helixJobId))
-        .withValue(GobblinClusterConfigurationKeys.HELIX_TASK_ID_KEY, ConfigValueFactory.fromAnyRef(this.helixTaskId));
-
     Integer partitionNum = getPartitionForHelixTask(taskDriver);
-
     if (partitionNum == null) {
       throw new IllegalStateException(String.format("Task %s, job %s on instance %s has no partition assigned",
           this.helixTaskId, builder.getInstanceName(), this.helixJobId));
     }
 
-    dynamicConfig = dynamicConfig.withValue(GobblinClusterConfigurationKeys.HELIX_PARTITION_ID_KEY, ConfigValueFactory.fromAnyRef(partitionNum));
-    this.task = new SingleTask(this.jobId,
-                               this.workUnitFilePath,
-                               jobStateFilePath,
-                               builder.getFs(),
-                               taskAttemptBuilder,
-                               stateStores,
-                               dynamicConfig);
+    final Config taskLevelConfig = builder.getConfig()
+        .withValue(GobblinClusterConfigurationKeys.TASK_RUNNER_HOST_NAME_KEY, ConfigValueFactory.fromAnyRef(builder.getHostName()))
+        .withValue(GobblinClusterConfigurationKeys.CONTAINER_ID_KEY, ConfigValueFactory.fromAnyRef(builder.getContainerId()))
+        .withValue(GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_KEY, ConfigValueFactory.fromAnyRef(builder.getInstanceName()))
+        .withValue(GobblinClusterConfigurationKeys.HELIX_JOB_ID_KEY, ConfigValueFactory.fromAnyRef(this.helixJobId))
+        .withValue(GobblinClusterConfigurationKeys.HELIX_TASK_ID_KEY, ConfigValueFactory.fromAnyRef(this.helixTaskId))
+        .withValue(GobblinClusterConfigurationKeys.HELIX_PARTITION_ID_KEY, ConfigValueFactory.fromAnyRef(partitionNum));
+
+    Retryer<SingleTask> retryer = RetryerFactory.newInstance(taskLevelConfig);
+
+    try {
+      this.task = retryer.call(new Callable<SingleTask>() {
+        @Override
+        public SingleTask call()
+            throws Exception {
+          return new SingleTask(jobId, workUnitFilePath, jobStateFilePath, builder.getFs(), taskAttemptBuilder,
+              stateStores,
+              taskLevelConfig);
+        }
+      });
+    } catch (Exception e) {
+      throw new RuntimeException("Execution in creating a SingleTask-with-retry failed", e);
+    }
   }
 
   private void getInfoFromTaskConfig() {
@@ -170,7 +185,9 @@ public class GobblinHelixTask implements Task {
 
   @Override
   public void cancel() {
-    log.warn("Gobblin helix task cancellation invoked.");
-    this.task.cancel();
+    log.info("Gobblin helix task cancellation invoked.");
+    if (this.task != null ) {
+      this.task.cancel();
+    }
   }
 }

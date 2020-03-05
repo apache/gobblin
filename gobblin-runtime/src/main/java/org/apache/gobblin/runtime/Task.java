@@ -237,7 +237,6 @@ public class Task implements TaskIFace {
     this.shutdownLatch = new CountDownLatch(1);
 
     // Setup Streaming constructs
-
     if (isStreamingTask()) {
       Extractor underlyingExtractor = this.taskContext.getRawSourceExtractor();
       if (!(underlyingExtractor instanceof StreamingExtractor)) {
