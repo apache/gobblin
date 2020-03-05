@@ -25,6 +25,7 @@ import org.apache.helix.task.TaskDriver;
 import org.apache.helix.task.TaskState;
 import org.apache.helix.task.WorkflowConfig;
 import org.apache.helix.task.WorkflowContext;
+import org.junit.Assert;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
@@ -40,6 +41,9 @@ import static org.mockito.Mockito.times;
  */
 @Test(groups = { "gobblin.yarn" })
 public class YarnAutoScalingManagerTest {
+  // A queue within size == 1 and upperBound == "infinite" should impose no impact on the execution.
+  private final static YarnAutoScalingManager.MaxValueEvictingQueue noopQueue =
+      new YarnAutoScalingManager.MaxValueEvictingQueue(1, Integer.MAX_VALUE);
   /**
    * Test for one workflow with one job
    */
@@ -69,7 +73,7 @@ public class YarnAutoScalingManagerTest {
     Mockito.when(mockTaskDriver.getJobContext("job1")).thenReturn(mockJobContext);
 
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable =
-        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1, 1, 10);
+        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1, 1, 10, noopQueue);
 
     runnable.run();
 
@@ -111,7 +115,7 @@ public class YarnAutoScalingManagerTest {
     Mockito.when(mockTaskDriver.getJobContext("job2")).thenReturn(mockJobContext2);
 
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable =
-        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1, 1, 10);
+        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1, 1, 10, noopQueue);
 
     runnable.run();
 
@@ -171,7 +175,7 @@ public class YarnAutoScalingManagerTest {
         .thenReturn(ImmutableMap.of("workflow1", mockWorkflowConfig1, "workflow2", mockWorkflowConfig2));
 
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable =
-        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1, 1, 10);
+        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1, 1, 10, noopQueue);
 
     runnable.run();
 
@@ -233,7 +237,7 @@ public class YarnAutoScalingManagerTest {
         .thenReturn(ImmutableMap.of("workflow1", mockWorkflowConfig1, "workflow2", mockWorkflowConfig2));
 
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable =
-        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1, 1, 10);
+        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1, 1, 10, noopQueue);
 
     runnable.run();
 
@@ -271,7 +275,7 @@ public class YarnAutoScalingManagerTest {
     Mockito.when(mockTaskDriver.getJobContext("job1")).thenReturn(mockJobContext);
 
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable =
-        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 2, 1, 10);
+        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 2, 1, 10, noopQueue);
 
     runnable.run();
 
@@ -309,7 +313,7 @@ public class YarnAutoScalingManagerTest {
     Mockito.when(mockTaskDriver.getJobContext("job1")).thenReturn(mockJobContext);
 
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable =
-        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1, 5, 10);
+        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1, 5, 10, noopQueue);
 
     runnable.run();
 
@@ -347,7 +351,7 @@ public class YarnAutoScalingManagerTest {
     Mockito.when(mockTaskDriver.getJobContext("job1")).thenReturn(mockJobContext);
 
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable =
-        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1, 1, 1);
+        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1, 1, 1, noopQueue);
 
     runnable.run();
 
@@ -396,12 +400,32 @@ public class YarnAutoScalingManagerTest {
     Mockito.verify(mockYarnService, times(1)).requestTargetNumberOfContainers(1, ImmutableSet.of("worker1"));
   }
 
+  public void testMaxValueEvictingQueue() throws Exception {
+    YarnAutoScalingManager.MaxValueEvictingQueue window = new YarnAutoScalingManager.MaxValueEvictingQueue(3, 10);
+
+    // Normal insertion with eviction of originally largest value
+    window.add(3);
+    window.add(1);
+    window.add(2);
+    // Now it contains [3,1,2]
+    Assert.assertEquals(window.getMax(), 3);
+    window.add(1);
+    // Now it contains [1,2,1]
+    Assert.assertEquals(window.getMax(), 2);
+    window.add(5);
+    Assert.assertEquals(window.getMax(), 5);
+    // Now it contains [2,1,5]
+    window.add(11);
+    // Still [2,1,5] as 11 > 10 thereby being rejected.
+    Assert.assertEquals(window.getMax(), 5);
+  }
+
   private static class TestYarnAutoScalingRunnable extends YarnAutoScalingManager.YarnAutoScalingRunnable {
     boolean raiseException = false;
 
     public TestYarnAutoScalingRunnable(TaskDriver taskDriver, YarnService yarnService, int partitionsPerContainer,
         int minContainers, int maxContainers) {
-      super(taskDriver, yarnService, partitionsPerContainer, minContainers, maxContainers);
+      super(taskDriver, yarnService, partitionsPerContainer, minContainers, maxContainers, noopQueue);
     }
 
     @Override

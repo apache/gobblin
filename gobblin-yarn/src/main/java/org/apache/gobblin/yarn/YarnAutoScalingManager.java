@@ -17,14 +17,19 @@
 
 package org.apache.gobblin.yarn;
 
+import java.util.ArrayDeque;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.helix.HelixManager;
 import org.apache.helix.task.JobContext;
 import org.apache.helix.task.JobDag;
@@ -41,9 +46,6 @@ import com.typesafe.config.Config;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
-import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.util.ExecutorsUtils;
 
 
 /**
@@ -62,9 +64,12 @@ public class YarnAutoScalingManager extends AbstractIdleService {
   private final String AUTO_SCALING_MIN_CONTAINERS = AUTO_SCALING_PREFIX + "minContainers";
   private final int DEFAULT_AUTO_SCALING_MIN_CONTAINERS = 1;
   private final String AUTO_SCALING_MAX_CONTAINERS = AUTO_SCALING_PREFIX + "maxContainers";
-  private final int DEFAULT_AUTO_SCALING_MAX_CONTAINERS = Integer.MAX_VALUE;
+  // A rough value of how much containers should be an intolerable number.
+  private final int DEFAULT_AUTO_SCALING_MAX_CONTAINERS = 5000;
   private final String AUTO_SCALING_INITIAL_DELAY = AUTO_SCALING_PREFIX + "initialDelay";
   private final int DEFAULT_AUTO_SCALING_INITIAL_DELAY_SECS = 60;
+
+  private final String WINDOW_SIZE_OBSERVING_CONTAINER_REQUEST = AUTO_SCALING_PREFIX + "windowSize";
 
   private final Config config;
   private final HelixManager helixManager;
@@ -73,6 +78,7 @@ public class YarnAutoScalingManager extends AbstractIdleService {
   private final int partitionsPerContainer;
   private final int minContainers;
   private final int maxContainers;
+  private final MaxValueEvictingQueue slidingFixedSizeWindow;
 
   public YarnAutoScalingManager(GobblinApplicationMaster appMaster) {
     this.config = appMaster.getConfig();
@@ -100,6 +106,10 @@ public class YarnAutoScalingManager extends AbstractIdleService {
         DEFAULT_AUTO_SCALING_MAX_CONTAINERS + " needs to be greater than or equal to "
             + DEFAULT_AUTO_SCALING_MIN_CONTAINERS);
 
+    this.slidingFixedSizeWindow = config.hasPath(WINDOW_SIZE_OBSERVING_CONTAINER_REQUEST)
+        ? new MaxValueEvictingQueue(maxContainers, config.getInt(WINDOW_SIZE_OBSERVING_CONTAINER_REQUEST))
+        : new MaxValueEvictingQueue(maxContainers);
+
     this.autoScalingExecutor = Executors.newSingleThreadScheduledExecutor(
         ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("AutoScalingExecutor")));
   }
@@ -114,8 +124,8 @@ public class YarnAutoScalingManager extends AbstractIdleService {
     log.info("Scheduling the auto scaling task with an interval of {} seconds", scheduleInterval);
 
     this.autoScalingExecutor.scheduleAtFixedRate(new YarnAutoScalingRunnable(new TaskDriver(this.helixManager),
-            this.yarnService, this.partitionsPerContainer, this.minContainers, this.maxContainers), initialDelay,
-        scheduleInterval, TimeUnit.SECONDS);
+            this.yarnService, this.partitionsPerContainer, this.minContainers, this.maxContainers,
+            this.slidingFixedSizeWindow), initialDelay, scheduleInterval, TimeUnit.SECONDS);
   }
 
   @Override
@@ -137,6 +147,7 @@ public class YarnAutoScalingManager extends AbstractIdleService {
     private final int partitionsPerContainer;
     private final int minContainers;
     private final int maxContainers;
+    private final MaxValueEvictingQueue slidingFixedWindow;
 
 
     @Override
@@ -196,9 +207,84 @@ public class YarnAutoScalingManager extends AbstractIdleService {
       // adjust the number of target containers based on the configured min and max container values.
       numTargetContainers = Math.max(this.minContainers, Math.min(this.maxContainers, numTargetContainers));
 
+      slidingFixedWindow.add(numTargetContainers);
+
       log.info("There are {} containers being requested", numTargetContainers);
 
-      this.yarnService.requestTargetNumberOfContainers(numTargetContainers, inUseInstances);
+      this.yarnService.requestTargetNumberOfContainers(slidingFixedWindow.getMax(), inUseInstances);
+    }
+  }
+
+  /**
+   * A FIFO queue with fixed size and returns maxValue among all elements within the queue in constant time.
+   * This data structure prevent temporary fluctuation in the number of active helix partitions as the size of queue
+   * grows and will be less sensitive when scaling down is actually required.
+   *
+   * The interface for this lass is implemented in a minimal-necessity manner to serve only as a sliding-sized-window
+   * which captures max value. It is NOT built for general purpose.
+   */
+  static class MaxValueEvictingQueue {
+    private ArrayDeque<Integer> evictQueue;
+    private PriorityQueue<Integer> priorityQueue;
+
+    // Queue Size
+    private int maxSize;
+    private static final int DEFAULT_MAX_SIZE = 10;
+
+    // Upper-bound of value within the queue.
+    private int upperBound;
+
+    public MaxValueEvictingQueue(int maxSize, int upperBound) {
+      Preconditions.checkArgument(maxSize > 0, "maxSize has to be a value larger than 0");
+
+      this.maxSize = maxSize;
+      this.upperBound = upperBound;
+      this.evictQueue = new ArrayDeque<>(maxSize);
+      this.priorityQueue = new PriorityQueue<>(maxSize, new Comparator<Integer>() {
+        @Override
+        public int compare(Integer o1, Integer o2) {
+          return o2.compareTo(o1);
+        }
+      });
+    }
+
+    public MaxValueEvictingQueue(int upperBound) {
+      this(DEFAULT_MAX_SIZE, upperBound);
+    }
+
+    /**
+     * Add element into data structure.
+     * When a new element is larger than value-upper-bound, reject the value for safety consideration.
+     * When queue is full, evict head of FIFO-queue (In FIFO queue, elements are inserted from tail).
+     */
+    public void add(int e) {
+      if (e > upperBound) {
+        log.error(String.format("Request of getting %s containers seems to be excessive, rejected", e));
+        return;
+      }
+
+      if (evictQueue.size() == maxSize) {
+        Integer removedElement = evictQueue.remove();
+        priorityQueue.remove(removedElement);
+      }
+
+      if (evictQueue.size() == priorityQueue.size()) {
+        evictQueue.add(e);
+        priorityQueue.add(e);
+      } else {
+        throw new IllegalStateException("Queue has its internal data structure being inconsistent.");
+      }
+    }
+
+    /**
+     * If queue if empty, throw {@link IllegalStateException}.
+     */
+    public int getMax() {
+      if (priorityQueue.size() > 0) {
+        return this.priorityQueue.peek();
+      } else {
+        throw new IllegalStateException("Queried before elements added into the queue.");
+      }
     }
   }
 }
