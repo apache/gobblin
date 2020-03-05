@@ -621,7 +621,8 @@ public class YarnService extends AbstractIdleService {
   protected void handleContainerCompletion(ContainerStatus containerStatus) {
     Map.Entry<Container, String> completedContainerEntry = this.containerMap.remove(containerStatus.getContainerId());
     if (completedContainerEntry == null) {
-      //No map for this container means we don't maintain this container, directly return
+      //No map for this container means the container completed before we allocate works to it.
+      this.eventBus.post(new NewContainerRequest(Optional.<Container>absent()));
       return;
     }
     String completedInstanceName = completedContainerEntry.getValue();
