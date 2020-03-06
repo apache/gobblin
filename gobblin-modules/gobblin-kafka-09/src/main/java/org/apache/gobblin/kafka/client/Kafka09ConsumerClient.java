@@ -341,23 +341,4 @@ public class Kafka09ConsumerClient<K, V> extends AbstractBaseKafkaConsumerClient
       return this.consumerRecord.value();
     }
   }
-
-//  class SaveOffsetListener implements GobblinConsumerRebalanceListener {
-//
-//    private ConsumerRebalanceListener crl;
-//
-//    public SaveOffsetListener(ConsumerRebalanceListener crl) {
-//      this.crl = crl;
-//    }
-//
-//    @Override
-//    public void onPartitionsRevoked(Collection<KafkaPartition> partitions) {
-//      //return crl.onPartitionsRevoked(partitions.stream().map(a -> new TopicPartition(a.getTopicName(), a.getId())).collect(Collectors.toList()));
-//    }
-//
-//    @Override
-//    public void onPartitionsAssigned(Collection<KafkaPartition> partitions) {
-//
-//    }
-//  }
 }
