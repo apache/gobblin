@@ -620,15 +620,6 @@ public class YarnService extends AbstractIdleService {
    */
   protected void handleContainerCompletion(ContainerStatus containerStatus) {
     Map.Entry<Container, String> completedContainerEntry = this.containerMap.remove(containerStatus.getContainerId());
-    if (completedContainerEntry == null) {
-      //No map for this container means the container completed before we allocate works to it.
-      this.eventBus.post(new NewContainerRequest(Optional.<Container>absent()));
-      return;
-    }
-    String completedInstanceName = completedContainerEntry.getValue();
-
-    LOGGER.info(String.format("Container %s running Helix instance %s has completed with exit status %d",
-        containerStatus.getContainerId(), completedInstanceName, containerStatus.getExitStatus()));
 
     if (!Strings.isNullOrEmpty(containerStatus.getDiagnostics())) {
       LOGGER.info(String.format("Received the following diagnostics information for container %s: %s",
@@ -644,42 +635,46 @@ public class YarnService extends AbstractIdleService {
     if (this.shutdownInProgress) {
       return;
     }
+    if(completedContainerEntry != null) {
+      String completedInstanceName = completedContainerEntry.getValue();
 
-    this.helixInstanceRetryCount.putIfAbsent(completedInstanceName, new AtomicInteger(0));
-    int retryCount =
-    	 this.helixInstanceRetryCount.get(completedInstanceName).incrementAndGet();
+      LOGGER.info(String.format("Container %s running Helix instance %s has completed with exit status %d",
+          containerStatus.getContainerId(), completedInstanceName, containerStatus.getExitStatus()));
 
-    // Populate event metadata
-    Optional<ImmutableMap.Builder<String, String>> eventMetadataBuilder = Optional.absent();
-    if (this.eventSubmitter.isPresent()) {
-      eventMetadataBuilder = Optional.of(buildContainerStatusEventMetadata(containerStatus));
-      eventMetadataBuilder.get().put(GobblinYarnEventConstants.EventMetadata.HELIX_INSTANCE_ID, completedInstanceName);
-      eventMetadataBuilder.get().put(GobblinYarnEventConstants.EventMetadata.CONTAINER_STATUS_RETRY_ATTEMPT, retryCount + "");
-    }
+      this.helixInstanceRetryCount.putIfAbsent(completedInstanceName, new AtomicInteger(0));
+      int retryCount = this.helixInstanceRetryCount.get(completedInstanceName).incrementAndGet();
 
-    if (this.helixInstanceMaxRetries > 0 && retryCount > this.helixInstanceMaxRetries) {
+      // Populate event metadata
+      Optional<ImmutableMap.Builder<String, String>> eventMetadataBuilder = Optional.absent();
       if (this.eventSubmitter.isPresent()) {
-        this.eventSubmitter.get().submit(GobblinYarnEventConstants.EventNames.HELIX_INSTANCE_COMPLETION,
-            eventMetadataBuilder.get().build());
+        eventMetadataBuilder = Optional.of(buildContainerStatusEventMetadata(containerStatus));
+        eventMetadataBuilder.get().put(GobblinYarnEventConstants.EventMetadata.HELIX_INSTANCE_ID, completedInstanceName);
+        eventMetadataBuilder.get().put(GobblinYarnEventConstants.EventMetadata.CONTAINER_STATUS_RETRY_ATTEMPT, retryCount + "");
       }
 
-      LOGGER.warn("Maximum number of retries has been achieved for Helix instance " + completedInstanceName);
-      return;
+      if (this.helixInstanceMaxRetries > 0 && retryCount > this.helixInstanceMaxRetries) {
+        if (this.eventSubmitter.isPresent()) {
+          this.eventSubmitter.get()
+              .submit(GobblinYarnEventConstants.EventNames.HELIX_INSTANCE_COMPLETION, eventMetadataBuilder.get().build());
+        }
+
+        LOGGER.warn("Maximum number of retries has been achieved for Helix instance " + completedInstanceName);
+        return;
+      }
+
+      // Add the Helix instance name of the completed container to the queue of unused
+      // instance names so they can be reused by a replacement container.
+      this.unusedHelixInstanceNames.offer(completedInstanceName);
+
+      if (this.eventSubmitter.isPresent()) {
+        this.eventSubmitter.get()
+            .submit(GobblinYarnEventConstants.EventNames.HELIX_INSTANCE_COMPLETION, eventMetadataBuilder.get().build());
+      }
+
+      LOGGER.info(String.format("Requesting a new container to replace %s to run Helix instance %s", containerStatus.getContainerId(), completedInstanceName));
     }
-
-    // Add the Helix instance name of the completed container to the queue of unused
-    // instance names so they can be reused by a replacement container.
-    this.unusedHelixInstanceNames.offer(completedInstanceName);
-
-    if (this.eventSubmitter.isPresent()) {
-      this.eventSubmitter.get().submit(GobblinYarnEventConstants.EventNames.HELIX_INSTANCE_COMPLETION,
-          eventMetadataBuilder.get().build());
-    }
-
-    LOGGER.info(String.format("Requesting a new container to replace %s to run Helix instance %s",
-        containerStatus.getContainerId(), completedInstanceName));
     this.eventBus.post(new NewContainerRequest(
-        shouldStickToTheSameNode(containerStatus.getExitStatus()) ?
+        shouldStickToTheSameNode(containerStatus.getExitStatus()) && completedContainerEntry != null ?
             Optional.of(completedContainerEntry.getKey()) : Optional.<Container>absent()));
   }
 
