@@ -628,6 +628,9 @@ public class YarnService extends AbstractIdleService {
     LOGGER.info(String.format("Container %s running Helix instance %s has completed with exit status %d",
         containerStatus.getContainerId(), completedInstanceName, containerStatus.getExitStatus()));
 
+    LOGGER.info(String.format("Container %s running Helix instance %s has completed with exit status %d",
+        containerStatus.getContainerId(), completedContainerEntry == null? "unknown" : completedContainerEntry.getValue(), containerStatus.getExitStatus()));
+
     if (!Strings.isNullOrEmpty(containerStatus.getDiagnostics())) {
       LOGGER.info(String.format("Received the following diagnostics information for container %s: %s",
           containerStatus.getContainerId(), containerStatus.getDiagnostics()));
