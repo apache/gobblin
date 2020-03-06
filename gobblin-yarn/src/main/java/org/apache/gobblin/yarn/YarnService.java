@@ -620,9 +620,10 @@ public class YarnService extends AbstractIdleService {
    */
   protected void handleContainerCompletion(ContainerStatus containerStatus) {
     Map.Entry<Container, String> completedContainerEntry = this.containerMap.remove(containerStatus.getContainerId());
+    String completedInstanceName = completedContainerEntry == null? "unknown" : completedContainerEntry.getValue();
 
     LOGGER.info(String.format("Container %s running Helix instance %s has completed with exit status %d",
-        containerStatus.getContainerId(), completedContainerEntry == null? "unknown" : completedContainerEntry.getValue(), containerStatus.getExitStatus()));
+        containerStatus.getContainerId(), completedInstanceName, containerStatus.getExitStatus()));
 
     if (!Strings.isNullOrEmpty(containerStatus.getDiagnostics())) {
       LOGGER.info(String.format("Received the following diagnostics information for container %s: %s",
@@ -639,8 +640,6 @@ public class YarnService extends AbstractIdleService {
       return;
     }
     if(completedContainerEntry != null) {
-      String completedInstanceName = completedContainerEntry.getValue();
-
       this.helixInstanceRetryCount.putIfAbsent(completedInstanceName, new AtomicInteger(0));
       int retryCount = this.helixInstanceRetryCount.get(completedInstanceName).incrementAndGet();
 
@@ -670,9 +669,8 @@ public class YarnService extends AbstractIdleService {
         this.eventSubmitter.get()
             .submit(GobblinYarnEventConstants.EventNames.HELIX_INSTANCE_COMPLETION, eventMetadataBuilder.get().build());
       }
-
-      LOGGER.info(String.format("Requesting a new container to replace %s to run Helix instance %s", containerStatus.getContainerId(), completedInstanceName));
     }
+    LOGGER.info(String.format("Requesting a new container to replace %s to run Helix instance %s", containerStatus.getContainerId(), completedInstanceName));
     this.eventBus.post(new NewContainerRequest(
         shouldStickToTheSameNode(containerStatus.getExitStatus()) && completedContainerEntry != null ?
             Optional.of(completedContainerEntry.getKey()) : Optional.<Container>absent()));
