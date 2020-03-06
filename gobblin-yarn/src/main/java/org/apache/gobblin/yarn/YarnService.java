@@ -621,6 +621,9 @@ public class YarnService extends AbstractIdleService {
   protected void handleContainerCompletion(ContainerStatus containerStatus) {
     Map.Entry<Container, String> completedContainerEntry = this.containerMap.remove(containerStatus.getContainerId());
 
+    LOGGER.info(String.format("Container %s running Helix instance %s has completed with exit status %d",
+        containerStatus.getContainerId(), completedContainerEntry == null? "unknown" : completedContainerEntry.getValue(), containerStatus.getExitStatus()));
+
     if (!Strings.isNullOrEmpty(containerStatus.getDiagnostics())) {
       LOGGER.info(String.format("Received the following diagnostics information for container %s: %s",
           containerStatus.getContainerId(), containerStatus.getDiagnostics()));
@@ -637,9 +640,6 @@ public class YarnService extends AbstractIdleService {
     }
     if(completedContainerEntry != null) {
       String completedInstanceName = completedContainerEntry.getValue();
-
-      LOGGER.info(String.format("Container %s running Helix instance %s has completed with exit status %d",
-          containerStatus.getContainerId(), completedInstanceName, containerStatus.getExitStatus()));
 
       this.helixInstanceRetryCount.putIfAbsent(completedInstanceName, new AtomicInteger(0));
       int retryCount = this.helixInstanceRetryCount.get(completedInstanceName).incrementAndGet();
