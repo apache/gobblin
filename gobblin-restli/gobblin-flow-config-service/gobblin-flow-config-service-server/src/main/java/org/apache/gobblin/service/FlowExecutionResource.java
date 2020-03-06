@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.service;
 
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -168,6 +169,8 @@ public class FlowExecutionResource extends ComplexKeyResourceTemplate<FlowStatus
         flowMessagesStringBuffer.append(MESSAGE_SEPARATOR);
       }
     }
+
+    jobStatusArray.sort(Comparator.comparing((JobStatus js) -> js.getExecutionStatistics().getExecutionStartTime()));
 
     String flowMessages = flowMessagesStringBuffer.length() > 0 ?
         flowMessagesStringBuffer.substring(0, flowMessagesStringBuffer.length() -
