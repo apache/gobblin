@@ -77,8 +77,6 @@ public class GobblinHelixMessagingService extends DefaultMessagingService {
     if (instanceType == InstanceType.CONTROLLER) {
       List<Message> messages = generateMessagesForController(message);
       messagesToSendMap.put(InstanceType.CONTROLLER, messages);
-      // _dataAccessor.setControllerProperty(PropertyType.MESSAGES,
-      // newMessage.getRecord(), CreateMode.PERSISTENT);
     } else if (instanceType == InstanceType.PARTICIPANT) {
       List<Message> messages = new ArrayList<Message>();
       List<Map<String, String>> matchedList =

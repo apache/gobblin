@@ -19,14 +19,17 @@ package org.apache.gobblin.yarn;
 
 import java.io.IOException;
 
+import org.apache.helix.HelixDataAccessor;
+import org.apache.helix.HelixProperty;
+import org.apache.helix.PropertyKey;
 import org.apache.helix.task.JobContext;
 import org.apache.helix.task.JobDag;
 import org.apache.helix.task.TaskDriver;
 import org.apache.helix.task.TaskState;
 import org.apache.helix.task.WorkflowConfig;
 import org.apache.helix.task.WorkflowContext;
-import org.junit.Assert;
 import org.mockito.Mockito;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.ImmutableMap;
@@ -68,17 +71,24 @@ public class YarnAutoScalingManagerTest {
     JobContext mockJobContext = mock(JobContext.class);
     Mockito.when(mockJobContext.getPartitionSet())
         .thenReturn(ImmutableSet.of(Integer.valueOf(1), Integer.valueOf(2)));
-    Mockito.when(mockJobContext.getAssignedParticipant(2)).thenReturn("worker1");
+    Mockito.when(mockJobContext.getAssignedParticipant(2)).thenReturn("GobblinYarnTaskRunner-1");
 
     Mockito.when(mockTaskDriver.getJobContext("job1")).thenReturn(mockJobContext);
 
+    HelixDataAccessor helixDataAccessor = mock(HelixDataAccessor.class);
+    Mockito.when(helixDataAccessor.keyBuilder()).thenReturn(new PropertyKey.Builder("cluster"));
+    Mockito.when(helixDataAccessor.getChildValuesMap(Mockito.any()))
+        .thenReturn(ImmutableMap.of("GobblinYarnTaskRunner-1", new HelixProperty("")));
+
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable =
-        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1, 1, 10, noopQueue);
+        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1,
+            1, 10, noopQueue, helixDataAccessor);
 
     runnable.run();
 
     // 2 containers requested and one worker in use
-    Mockito.verify(mockYarnService, times(1)).requestTargetNumberOfContainers(2, ImmutableSet.of("worker1"));
+    Mockito.verify(mockYarnService, times(1)).
+        requestTargetNumberOfContainers(2, ImmutableSet.of("GobblinYarnTaskRunner-1"));
   }
 
   /**
@@ -105,22 +115,30 @@ public class YarnAutoScalingManagerTest {
     JobContext mockJobContext1 = mock(JobContext.class);
     Mockito.when(mockJobContext1.getPartitionSet())
         .thenReturn(ImmutableSet.of(Integer.valueOf(1), Integer.valueOf(2)));
-    Mockito.when(mockJobContext1.getAssignedParticipant(2)).thenReturn("worker1");
+    Mockito.when(mockJobContext1.getAssignedParticipant(2)).thenReturn("GobblinYarnTaskRunner-1");
     Mockito.when(mockTaskDriver.getJobContext("job1")).thenReturn(mockJobContext1);
 
     JobContext mockJobContext2 = mock(JobContext.class);
     Mockito.when(mockJobContext2.getPartitionSet())
         .thenReturn(ImmutableSet.of(Integer.valueOf(3)));
-    Mockito.when(mockJobContext2.getAssignedParticipant(3)).thenReturn("worker2");
+    Mockito.when(mockJobContext2.getAssignedParticipant(3)).thenReturn("GobblinYarnTaskRunner-2");
     Mockito.when(mockTaskDriver.getJobContext("job2")).thenReturn(mockJobContext2);
 
+    HelixDataAccessor helixDataAccessor = mock(HelixDataAccessor.class);
+    Mockito.when(helixDataAccessor.keyBuilder()).thenReturn(new PropertyKey.Builder("cluster"));
+    Mockito.when(helixDataAccessor.getChildValuesMap(Mockito.any()))
+        .thenReturn(ImmutableMap.of("GobblinYarnTaskRunner-1", new HelixProperty(""),
+            "GobblinYarnTaskRunner-2", new HelixProperty("")));
+
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable =
-        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1, 1, 10, noopQueue);
+        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService,
+            1, 1, 10, noopQueue, helixDataAccessor);
 
     runnable.run();
 
     // 3 containers requested and 2 workers in use
-    Mockito.verify(mockYarnService, times(1)).requestTargetNumberOfContainers(3, ImmutableSet.of("worker1", "worker2"));
+    Mockito.verify(mockYarnService, times(1))
+        .requestTargetNumberOfContainers(3, ImmutableSet.of("GobblinYarnTaskRunner-1", "GobblinYarnTaskRunner-2"));
   }
 
   /**
@@ -145,13 +163,13 @@ public class YarnAutoScalingManagerTest {
     JobContext mockJobContext1 = mock(JobContext.class);
     Mockito.when(mockJobContext1.getPartitionSet())
         .thenReturn(ImmutableSet.of(Integer.valueOf(1), Integer.valueOf(2)));
-    Mockito.when(mockJobContext1.getAssignedParticipant(2)).thenReturn("worker1");
+    Mockito.when(mockJobContext1.getAssignedParticipant(2)).thenReturn("GobblinYarnTaskRunner-1");
     Mockito.when(mockTaskDriver.getJobContext("job1")).thenReturn(mockJobContext1);
 
     JobContext mockJobContext2 = mock(JobContext.class);
     Mockito.when(mockJobContext2.getPartitionSet())
         .thenReturn(ImmutableSet.of(Integer.valueOf(3)));
-    Mockito.when(mockJobContext2.getAssignedParticipant(3)).thenReturn("worker2");
+    Mockito.when(mockJobContext2.getAssignedParticipant(3)).thenReturn("GobblinYarnTaskRunner-2");
     Mockito.when(mockTaskDriver.getJobContext("job2")).thenReturn(mockJobContext2);
 
     WorkflowConfig mockWorkflowConfig2 = mock(WorkflowConfig.class);
@@ -168,20 +186,28 @@ public class YarnAutoScalingManagerTest {
     JobContext mockJobContext3 = mock(JobContext.class);
     Mockito.when(mockJobContext3.getPartitionSet())
         .thenReturn(ImmutableSet.of(Integer.valueOf(4), Integer.valueOf(5)));
-    Mockito.when(mockJobContext3.getAssignedParticipant(4)).thenReturn("worker3");
+    Mockito.when(mockJobContext3.getAssignedParticipant(4)).thenReturn("GobblinYarnTaskRunner-");
     Mockito.when(mockTaskDriver.getJobContext("job3")).thenReturn(mockJobContext3);
 
     Mockito.when(mockTaskDriver.getWorkflows())
         .thenReturn(ImmutableMap.of("workflow1", mockWorkflowConfig1, "workflow2", mockWorkflowConfig2));
 
+    HelixDataAccessor helixDataAccessor = mock(HelixDataAccessor.class);
+    Mockito.when(helixDataAccessor.keyBuilder()).thenReturn(new PropertyKey.Builder("cluster"));
+    Mockito.when(helixDataAccessor.getChildValuesMap(Mockito.any()))
+        .thenReturn(ImmutableMap.of("GobblinYarnTaskRunner-1", new HelixProperty(""),
+            "GobblinYarnTaskRunner-2", new HelixProperty(""),
+            "GobblinYarnTaskRunner-3", new HelixProperty("")));
+
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable =
-        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1, 1, 10, noopQueue);
+        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService,
+            1, 1, 10, noopQueue, helixDataAccessor);
 
     runnable.run();
 
     // 5 containers requested and 3 workers in use
     Mockito.verify(mockYarnService, times(1)).requestTargetNumberOfContainers(5,
-        ImmutableSet.of("worker1", "worker2", "worker3"));
+        ImmutableSet.of("GobblinYarnTaskRunner-1", "GobblinYarnTaskRunner-2", "GobblinYarnTaskRunner-3"));
   }
 
   /**
@@ -207,13 +233,13 @@ public class YarnAutoScalingManagerTest {
     JobContext mockJobContext1 = mock(JobContext.class);
     Mockito.when(mockJobContext1.getPartitionSet())
         .thenReturn(ImmutableSet.of(Integer.valueOf(1), Integer.valueOf(2)));
-    Mockito.when(mockJobContext1.getAssignedParticipant(2)).thenReturn("worker1");
+    Mockito.when(mockJobContext1.getAssignedParticipant(2)).thenReturn("GobblinYarnTaskRunner-1");
     Mockito.when(mockTaskDriver.getJobContext("job1")).thenReturn(mockJobContext1);
 
     JobContext mockJobContext2 = mock(JobContext.class);
     Mockito.when(mockJobContext2.getPartitionSet())
         .thenReturn(ImmutableSet.of(Integer.valueOf(3)));
-    Mockito.when(mockJobContext2.getAssignedParticipant(3)).thenReturn("worker2");
+    Mockito.when(mockJobContext2.getAssignedParticipant(3)).thenReturn("GobblinYarnTaskRunner-2");
     Mockito.when(mockTaskDriver.getJobContext("job2")).thenReturn(mockJobContext2);
 
     WorkflowConfig mockWorkflowConfig2 = mock(WorkflowConfig.class);
@@ -230,20 +256,27 @@ public class YarnAutoScalingManagerTest {
     JobContext mockJobContext3 = mock(JobContext.class);
     Mockito.when(mockJobContext3.getPartitionSet())
         .thenReturn(ImmutableSet.of(Integer.valueOf(4), Integer.valueOf(5)));
-    Mockito.when(mockJobContext3.getAssignedParticipant(4)).thenReturn("worker3");
+    Mockito.when(mockJobContext3.getAssignedParticipant(4)).thenReturn("GobblinYarnTaskRunner-3");
     Mockito.when(mockTaskDriver.getJobContext("job3")).thenReturn(mockJobContext3);
 
     Mockito.when(mockTaskDriver.getWorkflows())
         .thenReturn(ImmutableMap.of("workflow1", mockWorkflowConfig1, "workflow2", mockWorkflowConfig2));
 
+    HelixDataAccessor helixDataAccessor = mock(HelixDataAccessor.class);
+    Mockito.when(helixDataAccessor.keyBuilder()).thenReturn(new PropertyKey.Builder("cluster"));
+    Mockito.when(helixDataAccessor.getChildValuesMap(Mockito.any()))
+        .thenReturn(ImmutableMap.of("GobblinYarnTaskRunner-1", new HelixProperty(""),
+            "GobblinYarnTaskRunner-2", new HelixProperty("")));
+
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable =
-        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1, 1, 10, noopQueue);
+        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService,
+            1, 1, 10, noopQueue, helixDataAccessor);
 
     runnable.run();
 
     // 3 containers requested and 2 workers in use
     Mockito.verify(mockYarnService, times(1)).requestTargetNumberOfContainers(3,
-        ImmutableSet.of("worker1", "worker2"));
+        ImmutableSet.of("GobblinYarnTaskRunner-1", "GobblinYarnTaskRunner-2"));
   }
 
   /**
@@ -270,17 +303,24 @@ public class YarnAutoScalingManagerTest {
     JobContext mockJobContext = mock(JobContext.class);
     Mockito.when(mockJobContext.getPartitionSet())
         .thenReturn(ImmutableSet.of(Integer.valueOf(1), Integer.valueOf(2)));
-    Mockito.when(mockJobContext.getAssignedParticipant(2)).thenReturn("worker1");
+    Mockito.when(mockJobContext.getAssignedParticipant(2)).thenReturn("GobblinYarnTaskRunner-1");
 
     Mockito.when(mockTaskDriver.getJobContext("job1")).thenReturn(mockJobContext);
 
+    HelixDataAccessor helixDataAccessor = mock(HelixDataAccessor.class);
+    Mockito.when(helixDataAccessor.keyBuilder()).thenReturn(new PropertyKey.Builder("cluster"));
+    Mockito.when(helixDataAccessor.getChildValuesMap(Mockito.any()))
+        .thenReturn(ImmutableMap.of("GobblinYarnTaskRunner-1", new HelixProperty("")));
+
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable =
-        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 2, 1, 10, noopQueue);
+        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService,
+            2, 1, 10, noopQueue, helixDataAccessor);
 
     runnable.run();
 
     // 1 container requested since 2 partitions and limit is 2 partitions per container. One worker in use.
-    Mockito.verify(mockYarnService, times(1)).requestTargetNumberOfContainers(1, ImmutableSet.of("worker1"));
+    Mockito.verify(mockYarnService, times(1))
+        .requestTargetNumberOfContainers(1, ImmutableSet.of("GobblinYarnTaskRunner-1"));
   }
 
 
@@ -308,17 +348,24 @@ public class YarnAutoScalingManagerTest {
     JobContext mockJobContext = mock(JobContext.class);
     Mockito.when(mockJobContext.getPartitionSet())
         .thenReturn(ImmutableSet.of(Integer.valueOf(1), Integer.valueOf(2)));
-    Mockito.when(mockJobContext.getAssignedParticipant(2)).thenReturn("worker1");
+    Mockito.when(mockJobContext.getAssignedParticipant(2)).thenReturn("GobblinYarnTaskRunner-1");
 
     Mockito.when(mockTaskDriver.getJobContext("job1")).thenReturn(mockJobContext);
 
+    HelixDataAccessor helixDataAccessor = mock(HelixDataAccessor.class);
+    Mockito.when(helixDataAccessor.keyBuilder()).thenReturn(new PropertyKey.Builder("cluster"));
+    Mockito.when(helixDataAccessor.getChildValuesMap(Mockito.any()))
+        .thenReturn(ImmutableMap.of("GobblinYarnTaskRunner-1", new HelixProperty("")));
+
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable =
-        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1, 5, 10, noopQueue);
+        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService,
+            1, 5, 10, noopQueue, helixDataAccessor);
 
     runnable.run();
 
     // 5 containers requested due to min and one worker in use
-    Mockito.verify(mockYarnService, times(1)).requestTargetNumberOfContainers(5, ImmutableSet.of("worker1"));
+    Mockito.verify(mockYarnService, times(1))
+        .requestTargetNumberOfContainers(5, ImmutableSet.of("GobblinYarnTaskRunner-1"));
   }
 
 
@@ -346,17 +393,24 @@ public class YarnAutoScalingManagerTest {
     JobContext mockJobContext = mock(JobContext.class);
     Mockito.when(mockJobContext.getPartitionSet())
         .thenReturn(ImmutableSet.of(Integer.valueOf(1), Integer.valueOf(2)));
-    Mockito.when(mockJobContext.getAssignedParticipant(2)).thenReturn("worker1");
+    Mockito.when(mockJobContext.getAssignedParticipant(2)).thenReturn("GobblinYarnTaskRunner-1");
 
     Mockito.when(mockTaskDriver.getJobContext("job1")).thenReturn(mockJobContext);
 
+    HelixDataAccessor helixDataAccessor = mock(HelixDataAccessor.class);
+    Mockito.when(helixDataAccessor.keyBuilder()).thenReturn(new PropertyKey.Builder("cluster"));
+    Mockito.when(helixDataAccessor.getChildValuesMap(Mockito.any()))
+        .thenReturn(ImmutableMap.of("GobblinYarnTaskRunner-1", new HelixProperty("")));
+
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable =
-        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1, 1, 1, noopQueue);
+        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService,
+            1, 1, 1, noopQueue, helixDataAccessor);
 
     runnable.run();
 
     // 1 container requested to max and one worker in use
-    Mockito.verify(mockYarnService, times(1)).requestTargetNumberOfContainers(1, ImmutableSet.of("worker1"));
+    Mockito.verify(mockYarnService, times(1))
+        .requestTargetNumberOfContainers(1, ImmutableSet.of("GobblinYarnTaskRunner-1"));
   }
 
   /**
@@ -387,17 +441,22 @@ public class YarnAutoScalingManagerTest {
 
     Mockito.when(mockTaskDriver.getJobContext("job1")).thenReturn(mockJobContext);
 
+    HelixDataAccessor helixDataAccessor = mock(HelixDataAccessor.class);
+    Mockito.when(helixDataAccessor.keyBuilder()).thenReturn(new PropertyKey.Builder("cluster"));
+    Mockito.when(helixDataAccessor.getChildValuesMap(Mockito.any()))
+        .thenReturn(ImmutableMap.of("GobblinYarnTaskRunner-1", new HelixProperty("")));
+
     TestYarnAutoScalingRunnable runnable =
-        new TestYarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1, 1, 1);
+        new TestYarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1, 1, 1, helixDataAccessor);
 
     runnable.setRaiseException(true);
     runnable.run();
-    Mockito.verify(mockYarnService, times(0)).requestTargetNumberOfContainers(1, ImmutableSet.of("worker1"));
+    Mockito.verify(mockYarnService, times(0)).requestTargetNumberOfContainers(1, ImmutableSet.of("GobblinYarnTaskRunner-1"));
 
     runnable.setRaiseException(false);
     runnable.run();
     // 1 container requested to max and one worker in use
-    Mockito.verify(mockYarnService, times(1)).requestTargetNumberOfContainers(1, ImmutableSet.of("worker1"));
+    Mockito.verify(mockYarnService, times(1)).requestTargetNumberOfContainers(1, ImmutableSet.of("GobblinYarnTaskRunner-1"));
   }
 
   public void testMaxValueEvictingQueue() throws Exception {
@@ -424,8 +483,8 @@ public class YarnAutoScalingManagerTest {
     boolean raiseException = false;
 
     public TestYarnAutoScalingRunnable(TaskDriver taskDriver, YarnService yarnService, int partitionsPerContainer,
-        int minContainers, int maxContainers) {
-      super(taskDriver, yarnService, partitionsPerContainer, minContainers, maxContainers, noopQueue);
+        int minContainers, int maxContainers, HelixDataAccessor helixDataAccessor) {
+      super(taskDriver, yarnService, partitionsPerContainer, minContainers, maxContainers, noopQueue, helixDataAccessor);
     }
 
     @Override

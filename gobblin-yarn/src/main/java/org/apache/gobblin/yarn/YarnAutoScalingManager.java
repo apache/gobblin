@@ -19,6 +19,7 @@ package org.apache.gobblin.yarn;
 
 import java.util.ArrayDeque;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.PriorityQueue;
@@ -30,7 +31,9 @@ import java.util.stream.Collectors;
 
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.ExecutorsUtils;
+import org.apache.helix.HelixDataAccessor;
 import org.apache.helix.HelixManager;
+import org.apache.helix.PropertyKey;
 import org.apache.helix.task.JobContext;
 import org.apache.helix.task.JobDag;
 import org.apache.helix.task.TaskDriver;
@@ -71,6 +74,8 @@ public class YarnAutoScalingManager extends AbstractIdleService {
 
   private final String WINDOW_SIZE_OBSERVING_CONTAINER_REQUEST = AUTO_SCALING_PREFIX + "windowSize";
 
+  private final static int DEFAULT_MAX_IDLE_TIME_BEFORE_SCALING_DOWN_MIN = 10;
+
   private final Config config;
   private final HelixManager helixManager;
   private final ScheduledExecutorService autoScalingExecutor;
@@ -79,6 +84,7 @@ public class YarnAutoScalingManager extends AbstractIdleService {
   private final int minContainers;
   private final int maxContainers;
   private final MaxValueEvictingQueue slidingFixedSizeWindow;
+  private static int maxIdleTimeInMinBeforeScalingDown = DEFAULT_MAX_IDLE_TIME_BEFORE_SCALING_DOWN_MIN;
 
   public YarnAutoScalingManager(GobblinApplicationMaster appMaster) {
     this.config = appMaster.getConfig();
@@ -125,7 +131,8 @@ public class YarnAutoScalingManager extends AbstractIdleService {
 
     this.autoScalingExecutor.scheduleAtFixedRate(new YarnAutoScalingRunnable(new TaskDriver(this.helixManager),
             this.yarnService, this.partitionsPerContainer, this.minContainers, this.maxContainers,
-            this.slidingFixedSizeWindow), initialDelay, scheduleInterval, TimeUnit.SECONDS);
+            this.slidingFixedSizeWindow, this.helixManager.getHelixDataAccessor()), initialDelay, scheduleInterval,
+        TimeUnit.SECONDS);
   }
 
   @Override
@@ -148,6 +155,12 @@ public class YarnAutoScalingManager extends AbstractIdleService {
     private final int minContainers;
     private final int maxContainers;
     private final MaxValueEvictingQueue slidingFixedWindow;
+    private final HelixDataAccessor helixDataAccessor;
+    /**
+     * A static map that keep track of an idle instance and its latest beginning idle time.
+     * If an instance is no long idle when inspected, it will be dropped from this map.
+     */
+    private static final Map<String, Long> instanceIdleSinceWhen = new HashMap<>();
 
 
     @Override
@@ -158,6 +171,17 @@ public class YarnAutoScalingManager extends AbstractIdleService {
       } catch (Throwable t) {
         log.warn("Suppressing error from YarnAutoScalingRunnable.run()", t);
       }
+    }
+
+    /**
+     * Getting all instances (Helix Participants) in cluster at this moment.
+     * Note that the raw result could contains AppMaster node and replanner node.
+     * @param filterString Helix instances whose name containing fitlerString will pass filtering.
+     */
+    private Set<String> getParticipants(String filterString) {
+      PropertyKey.Builder keyBuilder = helixDataAccessor.keyBuilder();
+      return helixDataAccessor.getChildValuesMap(keyBuilder.instances())
+          .keySet().stream().filter(x -> filterString.isEmpty() || x.contains(filterString)).collect(Collectors.toSet());
     }
 
     /**
@@ -200,6 +224,28 @@ public class YarnAutoScalingManager extends AbstractIdleService {
         }
       }
 
+      // Find all participants appearing in this cluster. Note that Helix instances can contain cluster-manager
+      // and potentially replanner-instance.
+      Set<String> allParticipants = getParticipants(GobblinYarnTaskRunner.class.getSimpleName());
+
+      // Find all joined participants not in-use for this round of inspection.
+      // If idle time is beyond tolerance, mark the instance as unused by assigning timestamp as -1.
+      for (String participant : allParticipants) {
+        if (!inUseInstances.contains(participant)) {
+          instanceIdleSinceWhen.putIfAbsent(participant, System.currentTimeMillis());
+          if (System.currentTimeMillis() - instanceIdleSinceWhen.get(participant) >
+              TimeUnit.MINUTES.toMillis(maxIdleTimeInMinBeforeScalingDown)) {
+            allParticipants.remove(participant);
+          }
+        } else {
+          // An instance that has been previously detected as idle but now back to in-use.
+          // Remove this instance if existed in the tracking map.
+          instanceIdleSinceWhen.remove(participant);
+        }
+      }
+
+
+
       // compute the target containers as a ceiling of number of partitions divided by the number of containers
       // per partition.
       int numTargetContainers = (int) Math.ceil((double)numPartitions / this.partitionsPerContainer);
@@ -211,7 +257,7 @@ public class YarnAutoScalingManager extends AbstractIdleService {
 
       log.info("There are {} containers being requested", numTargetContainers);
 
-      this.yarnService.requestTargetNumberOfContainers(slidingFixedWindow.getMax(), inUseInstances);
+      this.yarnService.requestTargetNumberOfContainers(slidingFixedWindow.getMax(), allParticipants);
     }
   }
 
