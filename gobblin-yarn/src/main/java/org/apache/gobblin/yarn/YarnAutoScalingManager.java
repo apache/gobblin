@@ -233,9 +233,8 @@ public class YarnAutoScalingManager extends AbstractIdleService {
       for (String participant : allParticipants) {
         if (!inUseInstances.contains(participant)) {
           instanceIdleSinceWhen.putIfAbsent(participant, System.currentTimeMillis());
-          if (System.currentTimeMillis() - instanceIdleSinceWhen.get(participant) >
-              TimeUnit.MINUTES.toMillis(maxIdleTimeInMinBeforeScalingDown)) {
-            allParticipants.remove(participant);
+          if (absenceUnderTolerance(participant)) {
+            inUseInstances.add(participant);
           }
         } else {
           // An instance that has been previously detected as idle but now back to in-use.
@@ -257,7 +256,18 @@ public class YarnAutoScalingManager extends AbstractIdleService {
 
       log.info("There are {} containers being requested", numTargetContainers);
 
-      this.yarnService.requestTargetNumberOfContainers(slidingFixedWindow.getMax(), allParticipants);
+      this.yarnService.requestTargetNumberOfContainers(slidingFixedWindow.getMax(), inUseInstances);
+    }
+
+    @VisibleForTesting
+    /**
+     * Pass a participant if condition hold, where the condition, by default is that if an instance went back to
+     * active (having partition running on it) within {@link #maxIdleTimeInMinBeforeScalingDown} mins, we will
+     * not tag that instance as "unused" and have that as the candidate for scaling down.
+     */
+    boolean absenceUnderTolerance(String participant){
+      return System.currentTimeMillis() - instanceIdleSinceWhen.get(participant) <
+          TimeUnit.MINUTES.toMillis(maxIdleTimeInMinBeforeScalingDown);
     }
   }
 

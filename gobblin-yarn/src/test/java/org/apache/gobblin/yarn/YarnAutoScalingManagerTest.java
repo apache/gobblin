@@ -186,7 +186,7 @@ public class YarnAutoScalingManagerTest {
     JobContext mockJobContext3 = mock(JobContext.class);
     Mockito.when(mockJobContext3.getPartitionSet())
         .thenReturn(ImmutableSet.of(Integer.valueOf(4), Integer.valueOf(5)));
-    Mockito.when(mockJobContext3.getAssignedParticipant(4)).thenReturn("GobblinYarnTaskRunner-");
+    Mockito.when(mockJobContext3.getAssignedParticipant(4)).thenReturn("GobblinYarnTaskRunner-3");
     Mockito.when(mockTaskDriver.getJobContext("job3")).thenReturn(mockJobContext3);
 
     Mockito.when(mockTaskDriver.getWorkflows())
@@ -437,7 +437,7 @@ public class YarnAutoScalingManagerTest {
     JobContext mockJobContext = mock(JobContext.class);
     Mockito.when(mockJobContext.getPartitionSet())
         .thenReturn(ImmutableSet.of(Integer.valueOf(1), Integer.valueOf(2)));
-    Mockito.when(mockJobContext.getAssignedParticipant(2)).thenReturn("worker1");
+    Mockito.when(mockJobContext.getAssignedParticipant(2)).thenReturn("GobblinYarnTaskRunner-1");
 
     Mockito.when(mockTaskDriver.getJobContext("job1")).thenReturn(mockJobContext);
 
@@ -453,6 +453,7 @@ public class YarnAutoScalingManagerTest {
     runnable.run();
     Mockito.verify(mockYarnService, times(0)).requestTargetNumberOfContainers(1, ImmutableSet.of("GobblinYarnTaskRunner-1"));
 
+    Mockito.reset(mockYarnService);
     runnable.setRaiseException(false);
     runnable.run();
     // 1 container requested to max and one worker in use
@@ -479,8 +480,65 @@ public class YarnAutoScalingManagerTest {
     Assert.assertEquals(window.getMax(), 5);
   }
 
+  /**
+   * Test the scenarios when an instance in cluster has no participants assigned for too long and got tagged as the
+   * candidate for scaling-down.
+   */
+  @Test
+  public void testInstanceIdleBeyondTolerance() throws IOException {
+    YarnService mockYarnService = mock(YarnService.class);
+    TaskDriver mockTaskDriver = mock(TaskDriver.class);
+    WorkflowConfig mockWorkflowConfig = mock(WorkflowConfig.class);
+    JobDag mockJobDag = mock(JobDag.class);
+
+    Mockito.when(mockJobDag.getAllNodes()).thenReturn(ImmutableSet.of("job1"));
+    Mockito.when(mockWorkflowConfig.getJobDag()).thenReturn(mockJobDag);
+
+    Mockito.when(mockTaskDriver.getWorkflows())
+        .thenReturn(ImmutableMap.of("workflow1", mockWorkflowConfig));
+
+    WorkflowContext mockWorkflowContext = mock(WorkflowContext.class);
+    Mockito.when(mockWorkflowContext.getWorkflowState()).thenReturn(TaskState.IN_PROGRESS);
+
+    Mockito.when(mockTaskDriver.getWorkflowContext("workflow1")).thenReturn(mockWorkflowContext);
+
+    // Having both partition assigned to single instance initially, in this case, GobblinYarnTaskRunner-2
+    JobContext mockJobContext = mock(JobContext.class);
+    Mockito.when(mockJobContext.getPartitionSet())
+        .thenReturn(ImmutableSet.of(Integer.valueOf(1), Integer.valueOf(2)));
+    Mockito.when(mockJobContext.getAssignedParticipant(1)).thenReturn("GobblinYarnTaskRunner-2");
+    Mockito.when(mockJobContext.getAssignedParticipant(2)).thenReturn("GobblinYarnTaskRunner-2");
+
+    Mockito.when(mockTaskDriver.getJobContext("job1")).thenReturn(mockJobContext);
+
+    HelixDataAccessor helixDataAccessor = mock(HelixDataAccessor.class);
+    Mockito.when(helixDataAccessor.keyBuilder()).thenReturn(new PropertyKey.Builder("cluster"));
+    Mockito.when(helixDataAccessor.getChildValuesMap(Mockito.any()))
+        .thenReturn(ImmutableMap.of("GobblinYarnTaskRunner-1", new HelixProperty(""),
+            "GobblinYarnTaskRunner-2", new HelixProperty("")));
+
+    TestYarnAutoScalingRunnable runnable = new TestYarnAutoScalingRunnable(mockTaskDriver, mockYarnService,
+            1, 1, 10, helixDataAccessor);
+
+    runnable.run();
+
+    // 2 containers requested and one worker in use, while the evaluation will hold for true if not set externally,
+    // still tell YarnService there are two instances being used.
+    Mockito.verify(mockYarnService, times(1)).
+        requestTargetNumberOfContainers(2, ImmutableSet.of("GobblinYarnTaskRunner-1", "GobblinYarnTaskRunner-2"));
+
+    // Set failEvaluation which simulates the "beyond tolerance" case.
+    Mockito.reset(mockYarnService);
+    runnable.setFailEvaluation(false);
+    runnable.run();
+
+    Mockito.verify(mockYarnService, times(1)).
+        requestTargetNumberOfContainers(2, ImmutableSet.of("GobblinYarnTaskRunner-2"));
+  }
+
   private static class TestYarnAutoScalingRunnable extends YarnAutoScalingManager.YarnAutoScalingRunnable {
     boolean raiseException = false;
+    boolean failEvaluation = true;
 
     public TestYarnAutoScalingRunnable(TaskDriver taskDriver, YarnService yarnService, int partitionsPerContainer,
         int minContainers, int maxContainers, HelixDataAccessor helixDataAccessor) {
@@ -498,6 +556,15 @@ public class YarnAutoScalingManagerTest {
 
     void setRaiseException(boolean raiseException) {
       this.raiseException = raiseException;
+    }
+
+    void setFailEvaluation(boolean failEvaluation) {
+      this.failEvaluation = failEvaluation;
+    }
+
+    @Override
+    boolean absenceUnderTolerance(String participant) {
+      return failEvaluation && super.absenceUnderTolerance(participant);
     }
   }
 }
