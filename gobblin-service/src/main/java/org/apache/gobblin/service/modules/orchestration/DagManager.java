@@ -125,7 +125,7 @@ public class DagManager extends AbstractIdleService {
   private static final String DEFAULT_JOB_STATUS_RETRIEVER_CLASS = FsJobStatusRetriever.class.getName();
   private static final String DAG_STATESTORE_CLASS_KEY = DAG_MANAGER_PREFIX + "dagStateStoreClass";
   private static final String USER_JOB_QUOTA_KEY = DAG_MANAGER_PREFIX + "userJobQuota";
-  private static final Integer DEFAULT_USER_JOB_QUOTA = 5;
+  private static final Integer DEFAULT_USER_JOB_QUOTA = Integer.MAX_VALUE;
   private static final String UNLIMITED_QUOTA_WHITELIST = DAG_MANAGER_PREFIX + "unlimitedQuotaWhitelist";
 
   /**
@@ -729,7 +729,7 @@ public class DagManager extends AbstractIdleService {
         String proxyUser = dagNode.getValue().getJobSpec().getConfig().getString(AzkabanProjectConfig.USER_TO_PROXY);
         boolean proxyUserCheck = true;
         if (proxyUser != null) {
-          proxyUserCheck = incrementAndCheckQuota(proxyUserToJobCount, proxyUser, dagNode);
+          proxyUserCheck = incrementAndCheckQuota(proxyUserToJobCount, proxyUser, specExecutorUri, dagNode);
         }
 
         String serializedRequesters = dagNode.getValue().getJobSpec().getConfig().getString(RequesterService.REQUESTER_LIST);
@@ -737,18 +737,18 @@ public class DagManager extends AbstractIdleService {
         String requesterMessage = null;
         if (serializedRequesters != null) {
           for (ServiceRequester requester : RequesterService.deserialize(serializedRequesters)) {
-            requesterCheck &= incrementAndCheckQuota(requesterToJobCount, requester.toString(), dagNode);
+            requesterCheck &= incrementAndCheckQuota(requesterToJobCount, requester.toString(), specExecutorUri, dagNode);
             if (!requesterCheck && requesterMessage == null) {
-              requesterMessage = "Quota exceeded for requester " + requester + ": quota=" + quota + ", runningJobs=" +
-                  requesterToJobCount.get(requester.toString());
+              requesterMessage = "Quota exceeded for requester " + requester + " on executor " + specExecutorUri + ": quota="
+                  + quota + ", runningJobs=" + requesterToJobCount.get(requester.toString() + "," + specExecutorUri);
             }
           }
         }
 
         // Throw errors for reach quota at the end to avoid inconsistent job counts
         if (!proxyUserCheck) {
-          throw new RuntimeException("Quota exceeded for proxy user " + proxyUser + ": quota=" + quota +
-              ", runningJobs=" + proxyUserToJobCount.get(proxyUser));
+          throw new RuntimeException("Quota exceeded for proxy user " + proxyUser + " on executor " + specExecutorUri +
+              ": quota=" + quota + ", runningJobs=" + proxyUserToJobCount.get(proxyUser + "," + specExecutorUri));
         }
 
         if (!requesterCheck) {
@@ -795,13 +795,14 @@ public class DagManager extends AbstractIdleService {
      * Increment quota by one for the given map and key.
      * @return true if quota is not reached for this user or user is whitelisted, false otherwise.
      */
-    private boolean incrementAndCheckQuota(Map<String, Integer> quotaMap, String user, DagNode<JobExecutionPlan> dagNode) {
-      int jobCount = quotaMap.getOrDefault(user, 0);
+    private boolean incrementAndCheckQuota(Map<String, Integer> quotaMap, String user, String specExecutorUri, DagNode<JobExecutionPlan> dagNode) {
+      String key = user + "," + specExecutorUri;
+      int jobCount = quotaMap.getOrDefault(key, 0);
 
       // Only increment job count for first attempt, since job is considered running between retries
       if (dagNode.getValue().getCurrentAttempts() == 1) {
         jobCount++;
-        quotaMap.put(user, jobCount);
+        quotaMap.put(key, jobCount);
       }
 
       return jobCount <= quota || quotaWhitelist.contains(user);
@@ -852,16 +853,21 @@ public class DagManager extends AbstractIdleService {
      */
     private void releaseQuota(DagNode<JobExecutionPlan> dagNode) {
       String proxyUser = dagNode.getValue().getJobSpec().getConfig().getString(AzkabanProjectConfig.USER_TO_PROXY);
-      if (proxyUser != null && proxyUserToJobCount.containsKey(proxyUser) && proxyUserToJobCount.get(proxyUser) > 0) {
-        proxyUserToJobCount.put(proxyUser, proxyUserToJobCount.get(proxyUser) - 1);
+      String specExecutorUri = dagNode.getValue().getSpecExecutor().getUri().toString();
+      String proxyUserKey = proxyUser + "," + specExecutorUri;
+
+      if (proxyUserToJobCount.containsKey(proxyUserKey) && proxyUserToJobCount.get(proxyUserKey) > 0) {
+        proxyUserToJobCount.put(proxyUserKey, proxyUserToJobCount.get(proxyUserKey) - 1);
       }
 
       String serializedRequesters = dagNode.getValue().getJobSpec().getConfig().getString(RequesterService.REQUESTER_LIST);
       if (serializedRequesters != null) {
         try {
           for (ServiceRequester requester : RequesterService.deserialize(serializedRequesters)) {
-            if (requesterToJobCount.containsKey(requester.toString()) && requesterToJobCount.get(requester.toString()) > 0)
-            requesterToJobCount.put(requester.toString(), requesterToJobCount.get(requester.toString()) - 1);
+            String requesterKey = requester.toString() + "," + specExecutorUri;
+            if (requesterToJobCount.containsKey(requesterKey) && requesterToJobCount.get(requesterKey) > 0) {
+              requesterToJobCount.put(requesterKey, requesterToJobCount.get(requesterKey) - 1);
+            }
           }
         } catch (IOException e) {
           log.error("Failed to release quota for requester list " + serializedRequesters, e);
