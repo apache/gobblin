@@ -59,6 +59,7 @@ import org.apache.gobblin.util.retry.RetryerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.github.rholder.retry.RetryException;
 import com.github.rholder.retry.Retryer;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
@@ -482,12 +483,12 @@ public class GobblinMultiTaskAttempt {
         public Task call()
             throws Exception {
           counter.incrementAndGet();
-          log.info(String.format("The %s time that trying create Task object", counter.get()));
+          log.info(String.format("Task creation attempt %s", counter.get()));
           return createTaskRunnable(workUnitState, countDownLatch);
         }
       });
-    } catch (Exception e) {
-      throw new RuntimeException("Execution in creating a Task-with-retry failed", e);
+    } catch (ExecutionException | RetryException e) {
+      throw new RuntimeException(String.format("Exception creating Task after %s retries", counter), e);
     }
   }
 
