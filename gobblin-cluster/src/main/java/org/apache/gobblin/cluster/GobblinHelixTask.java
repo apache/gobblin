@@ -49,9 +49,6 @@ import org.apache.gobblin.source.workunit.MultiWorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.Id;
 
-import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_INTERVAL_MS;
-import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_TIME_OUT_MS;
-
 
 /**
  * An implementation of Helix's {@link org.apache.helix.task.Task} that wraps and runs one or more Gobblin

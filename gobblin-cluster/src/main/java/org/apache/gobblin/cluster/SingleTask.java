@@ -20,10 +20,6 @@ package org.apache.gobblin.cluster;
 import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -65,14 +61,7 @@ public class SingleTask {
   private TaskAttemptBuilder _taskAttemptBuilder;
   private StateStores _stateStores;
   private Config _dynamicConfig;
-  private List<WorkUnit> _workUnits;
   private JobState _jobState;
-
-  // Preventing Helix calling cancel before taskAttempt is created
-  // Checking if taskAttempt is empty is not enough, since canceller runs in different thread as runner, the case to
-  // to avoided here is taskAttempt being created and start to run after cancel has been called.
-  private Condition _taskAttemptBuilt;
-  private Lock _lock;
 
   /**
    * Do all heavy-lifting of initialization in constructor which could be retried if failed,
@@ -87,15 +76,12 @@ public class SingleTask {
     _taskAttemptBuilder = taskAttemptBuilder;
     _stateStores = stateStores;
     _dynamicConfig = dynamicConfig;
-
-    _workUnits = getWorkUnits();
     _jobState = getJobState();
-    _lock = new ReentrantLock();
-    _taskAttemptBuilt = _lock.newCondition();
   }
 
   public void run()
       throws IOException, InterruptedException {
+    List<WorkUnit> workUnits = getWorkUnits();
 
     // Add dynamic configuration to the job state
     _dynamicConfig.entrySet().forEach(e -> _jobState.setProp(e.getKey(), e.getValue().unwrapped().toString()));
@@ -109,15 +95,8 @@ public class SingleTask {
         .createDefaultTopLevelBroker(jobConfig, GobblinScopeTypes.GLOBAL.defaultScopeInstance())) {
       SharedResourcesBroker<GobblinScopeTypes> jobBroker = getJobBroker(_jobState, globalBroker);
 
-      // Secure atomicity of taskAttempt's execution.
-      _lock.lock();
-      try {
-        _taskAttempt = _taskAttemptBuilder.build(_workUnits.iterator(), _jobId, _jobState, jobBroker);
-        _taskAttempt.runAndOptionallyCommitTaskAttempt(GobblinMultiTaskAttempt.CommitPolicy.IMMEDIATE);
-        _taskAttemptBuilt.signal();
-      } finally {
-        _lock.unlock();
-      }
+      _taskAttempt = _taskAttemptBuilder.build(workUnits.iterator(), _jobId, _jobState, jobBroker);
+      _taskAttempt.runAndOptionallyCommitTaskAttempt(GobblinMultiTaskAttempt.CommitPolicy.IMMEDIATE);
 
     } finally {
       _logger.info("Clearing all metrics object in cache.");
@@ -181,32 +160,16 @@ public class SingleTask {
   }
 
   public void cancel() {
-    int retryCount = 0 ;
-    int maxRetry = this._dynamicConfig.hasPath(MAX_RETRY_WAITING_FOR_INIT_KEY)
-        ? this._dynamicConfig.getInt(MAX_RETRY_WAITING_FOR_INIT_KEY) : DEFAULT_MAX_RETRY_WAITING_FOR_INIT;
-
-    try {
-      _lock.lock();
+    if (_taskAttempt != null) {
       try {
-        while (_taskAttempt == null) {
-          // await return false if timeout on this around
-          if (!_taskAttemptBuilt.await(5, TimeUnit.SECONDS) && ++retryCount > maxRetry) {
-            throw new IllegalStateException("Failed to initialize taskAttempt object before cancel");
-          }
-        }
-      } finally {
-        _lock.unlock();
-      }
-
-      if (_taskAttempt != null) {
         _logger.info("Task cancelled: Shutdown starting for tasks with jobId: {}", _jobId);
         _taskAttempt.shutdownTasks();
         _logger.info("Task cancelled: Shutdown complete for tasks with jobId: {}", _jobId);
-      } else {
-        throw new IllegalStateException("This should never happen: TaskAttempt not initialized while passing conditional barrier");
+      } catch (InterruptedException e) {
+        throw new RuntimeException("Interrupted while shutting down task with jobId: " + _jobId, e);
       }
-    } catch (InterruptedException e) {
-      throw new RuntimeException("Interrupted while shutting down task with jobId: " + _jobId, e);
+    } else {
+      _logger.error("Task cancelled but _taskattempt is null, so ignoring.");
     }
   }
 }
