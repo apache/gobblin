@@ -108,7 +108,8 @@ public class GobblinHelixTask implements Task {
           this.helixTaskId, builder.getInstanceName(), this.helixJobId));
     }
 
-    final Config taskLevelConfig = builder.getConfig()
+    // Dynamic config is considered as part of JobState in SingleTask
+    final Config dynamicConfig = builder.getDynamicConfig()
         .withValue(GobblinClusterConfigurationKeys.TASK_RUNNER_HOST_NAME_KEY, ConfigValueFactory.fromAnyRef(builder.getHostName()))
         .withValue(GobblinClusterConfigurationKeys.CONTAINER_ID_KEY, ConfigValueFactory.fromAnyRef(builder.getContainerId()))
         .withValue(GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_KEY, ConfigValueFactory.fromAnyRef(builder.getInstanceName()))
@@ -116,7 +117,7 @@ public class GobblinHelixTask implements Task {
         .withValue(GobblinClusterConfigurationKeys.HELIX_TASK_ID_KEY, ConfigValueFactory.fromAnyRef(this.helixTaskId))
         .withValue(GobblinClusterConfigurationKeys.HELIX_PARTITION_ID_KEY, ConfigValueFactory.fromAnyRef(partitionNum));
 
-    Retryer<SingleTask> retryer = RetryerFactory.newInstance(taskLevelConfig);
+    Retryer<SingleTask> retryer = RetryerFactory.newInstance(dynamicConfig);
 
     try {
       this.task = retryer.call(new Callable<SingleTask>() {
@@ -125,7 +126,7 @@ public class GobblinHelixTask implements Task {
             throws Exception {
           return new SingleTask(jobId, workUnitFilePath, jobStateFilePath, builder.getFs(), taskAttemptBuilder,
               stateStores,
-              taskLevelConfig);
+              dynamicConfig);
         }
       });
     } catch (Exception e) {
