@@ -109,6 +109,7 @@ public class GobblinHelixTask implements Task {
     }
 
     // Dynamic config is considered as part of JobState in SingleTask
+    // Important to distinguish between dynamicConfig and Config
     final Config dynamicConfig = builder.getDynamicConfig()
         .withValue(GobblinClusterConfigurationKeys.TASK_RUNNER_HOST_NAME_KEY, ConfigValueFactory.fromAnyRef(builder.getHostName()))
         .withValue(GobblinClusterConfigurationKeys.CONTAINER_ID_KEY, ConfigValueFactory.fromAnyRef(builder.getContainerId()))
@@ -117,7 +118,7 @@ public class GobblinHelixTask implements Task {
         .withValue(GobblinClusterConfigurationKeys.HELIX_TASK_ID_KEY, ConfigValueFactory.fromAnyRef(this.helixTaskId))
         .withValue(GobblinClusterConfigurationKeys.HELIX_PARTITION_ID_KEY, ConfigValueFactory.fromAnyRef(partitionNum));
 
-    Retryer<SingleTask> retryer = RetryerFactory.newInstance(dynamicConfig);
+    Retryer<SingleTask> retryer = RetryerFactory.newInstance(builder.getConfig());
 
     try {
       this.task = retryer.call(new Callable<SingleTask>() {
