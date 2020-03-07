@@ -44,9 +44,9 @@ import static org.mockito.Mockito.times;
  */
 @Test(groups = { "gobblin.yarn" })
 public class YarnAutoScalingManagerTest {
-  // A queue within size == 1 and upperBound == "infinite" should impose no impact on the execution.
-  private final static YarnAutoScalingManager.MaxValueEvictingQueue noopQueue =
-      new YarnAutoScalingManager.MaxValueEvictingQueue(1, Integer.MAX_VALUE);
+  // A queue within size == 1 and upperBound == "infinite" should not impact on the execution.
+  private final static YarnAutoScalingManager.SlidingWindowReservoir noopQueue =
+      new YarnAutoScalingManager.SlidingWindowReservoir(1, Integer.MAX_VALUE);
   /**
    * Test for one workflow with one job
    */
@@ -461,7 +461,7 @@ public class YarnAutoScalingManagerTest {
   }
 
   public void testMaxValueEvictingQueue() throws Exception {
-    YarnAutoScalingManager.MaxValueEvictingQueue window = new YarnAutoScalingManager.MaxValueEvictingQueue(3, 10);
+    YarnAutoScalingManager.SlidingWindowReservoir window = new YarnAutoScalingManager.SlidingWindowReservoir(3, 10);
 
     // Normal insertion with eviction of originally largest value
     window.add(3);
@@ -529,7 +529,7 @@ public class YarnAutoScalingManagerTest {
 
     // Set failEvaluation which simulates the "beyond tolerance" case.
     Mockito.reset(mockYarnService);
-    runnable.setFailEvaluation(false);
+    runnable.setAlwaysTagUnused(true);
     runnable.run();
 
     Mockito.verify(mockYarnService, times(1)).
@@ -538,7 +538,7 @@ public class YarnAutoScalingManagerTest {
 
   private static class TestYarnAutoScalingRunnable extends YarnAutoScalingManager.YarnAutoScalingRunnable {
     boolean raiseException = false;
-    boolean failEvaluation = true;
+    boolean alwaysUnused = false;
 
     public TestYarnAutoScalingRunnable(TaskDriver taskDriver, YarnService yarnService, int partitionsPerContainer,
         int minContainers, int maxContainers, HelixDataAccessor helixDataAccessor) {
@@ -558,13 +558,13 @@ public class YarnAutoScalingManagerTest {
       this.raiseException = raiseException;
     }
 
-    void setFailEvaluation(boolean failEvaluation) {
-      this.failEvaluation = failEvaluation;
+    void setAlwaysTagUnused(boolean alwaysUnused) {
+      this.alwaysUnused = alwaysUnused;
     }
 
     @Override
-    boolean absenceUnderTolerance(String participant) {
-      return failEvaluation && super.absenceUnderTolerance(participant);
+    boolean isInstanceUnused(String participant) {
+      return alwaysUnused || super.isInstanceUnused(participant);
     }
   }
 }
