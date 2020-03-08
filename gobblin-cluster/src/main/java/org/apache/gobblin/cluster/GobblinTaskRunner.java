@@ -142,7 +142,7 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
 
   protected final EventBus eventBus = new EventBus(GobblinTaskRunner.class.getSimpleName());
 
-  protected final Config config;
+  protected final Config clusterConfig;
 
   @Getter
   protected final FileSystem fs;
@@ -171,8 +171,8 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
     Configuration conf = HadoopUtils.newConfiguration();
     this.fs = buildFileSystem(config, conf);
     this.appWorkPath = initAppWorkDir(config, appWorkDirOptional);
-    this.config = saveConfigToFile(config);
-    this.clusterName = this.config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
+    this.clusterConfig = saveConfigToFile(config);
+    this.clusterName = this.clusterConfig.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
 
     //Set system properties passed in via application config. As an example, Helix uses System#getProperty() for ZK configuration
     // overrides such as sessionTimeout. In this case, the overrides specified
@@ -183,7 +183,7 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
 
     this.containerMetrics = buildContainerMetrics();
 
-    String builderStr = ConfigUtils.getString(this.config,
+    String builderStr = ConfigUtils.getString(this.clusterConfig,
         GobblinClusterConfigurationKeys.TASK_RUNNER_SUITE_BUILDER,
         TaskRunnerSuiteBase.Builder.class.getName());
 
@@ -196,7 +196,7 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
 
     TaskRunnerSuiteBase.Builder builder = GobblinConstructorUtils.<TaskRunnerSuiteBase.Builder>invokeLongestConstructor(
           new ClassAliasResolver(TaskRunnerSuiteBase.Builder.class)
-              .resolveClass(builderStr), this.config);
+              .resolveClass(builderStr), this.clusterConfig);
 
     TaskRunnerSuiteBase suite = builder.setAppWorkPath(this.appWorkPath)
         .setContainerMetrics(this.containerMetrics)
@@ -238,13 +238,13 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
 
   private void initHelixManager() {
     String zkConnectionString =
-        this.config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
+        this.clusterConfig.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
     logger.info("Using ZooKeeper connection string: " + zkConnectionString);
 
     if (this.isTaskDriver && this.dedicatedTaskDriverCluster) {
       // This will create a Helix manager to receive the planning job
       this.taskDriverHelixManager = Optional.of(HelixManagerFactory.getZKHelixManager(
-          ConfigUtils.getString(this.config, GobblinClusterConfigurationKeys.TASK_DRIVER_CLUSTER_NAME_KEY, ""),
+          ConfigUtils.getString(this.clusterConfig, GobblinClusterConfigurationKeys.TASK_DRIVER_CLUSTER_NAME_KEY, ""),
           this.helixInstanceName,
           InstanceType.PARTICIPANT,
           zkConnectionString));
@@ -301,7 +301,7 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
     // Start metric reporting
     if (this.containerMetrics.isPresent()) {
       this.containerMetrics.get()
-          .startMetricReportingWithFileSuffix(ConfigUtils.configToState(this.config),
+          .startMetricReportingWithFileSuffix(ConfigUtils.configToState(this.clusterConfig),
               this.taskRunnerId);
     }
 
@@ -355,9 +355,9 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
    */
   protected List<Service> getServices() {
     List<Service> serviceList = new ArrayList<>();
-    if (ConfigUtils.getBoolean(this.config, GobblinClusterConfigurationKeys.CONTAINER_HEALTH_METRICS_SERVICE_ENABLED,
+    if (ConfigUtils.getBoolean(this.clusterConfig, GobblinClusterConfigurationKeys.CONTAINER_HEALTH_METRICS_SERVICE_ENABLED,
         GobblinClusterConfigurationKeys.DEFAULT_CONTAINER_HEALTH_METRICS_SERVICE_ENABLED)) {
-      serviceList.add(new ContainerHealthMetricsService(config));
+      serviceList.add(new ContainerHealthMetricsService(clusterConfig));
     }
     return serviceList;
   }
@@ -392,7 +392,7 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
    * the job with EXAMPLE_INSTANCE_TAG will remain in the ZK until an instance with EXAMPLE_INSTANCE_TAG was found.
    */
   private void addInstanceTags() {
-    List<String> tags = ConfigUtils.getStringList(this.config, GobblinClusterConfigurationKeys.HELIX_INSTANCE_TAGS_KEY);
+    List<String> tags = ConfigUtils.getStringList(this.clusterConfig, GobblinClusterConfigurationKeys.HELIX_INSTANCE_TAGS_KEY);
     HelixManager receiverManager = getReceiverManager();
     if (receiverManager.isConnected()) {
       if (!tags.isEmpty()) {
@@ -449,10 +449,10 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
   }
 
   private Optional<ContainerMetrics> buildContainerMetrics() {
-    Properties properties = ConfigUtils.configToProperties(this.config);
+    Properties properties = ConfigUtils.configToProperties(this.clusterConfig);
     if (GobblinMetrics.isEnabled(properties)) {
       return Optional.of(ContainerMetrics
-          .get(ConfigUtils.configToState(config), this.applicationName, this.taskRunnerId));
+          .get(ConfigUtils.configToState(clusterConfig), this.applicationName, this.taskRunnerId));
     } else {
       return Optional.absent();
     }

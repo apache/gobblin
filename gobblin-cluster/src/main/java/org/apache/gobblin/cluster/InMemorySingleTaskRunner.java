@@ -17,25 +17,43 @@
 
 package org.apache.gobblin.cluster;
 
+import java.io.IOException;
+
 import org.apache.gobblin.runtime.util.StateStores;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+
 
 /**
  * An taskRunner for in-memory {@link SingleTask} that can be switched to run a meant-to-failed task.
+ * This class is primarily used for testing purpose.
  */
 public class InMemorySingleTaskRunner extends SingleTaskRunner {
+  // Inject configuration by calling set method.
+  private Config injectedConfig = ConfigFactory.empty();
+
   public InMemorySingleTaskRunner(String clusterConfigFilePath, String jobId, String workUnitFilePath) {
     super(clusterConfigFilePath, jobId, workUnitFilePath);
   }
 
   @Override
-  protected SingleTask createTaskAttempt(TaskAttemptBuilder taskAttemptBuilder, FileSystem fs, StateStores stateStores,
-      Path jobStateFilePath, boolean fail) {
+  protected SingleTask createSingleTaskHelper(TaskAttemptBuilder taskAttemptBuilder, FileSystem fs,
+      StateStores stateStores, Path jobStateFilePath, boolean fail)
+      throws IOException {
     return !fail ? new InMemoryWuSingleTask(this.jobId, new Path(this.workUnitFilePath), jobStateFilePath, fs,
-        taskAttemptBuilder, stateStores, GobblinClusterUtils.getDynamicConfig(this.clusterConfig))
+        taskAttemptBuilder, stateStores,
+        GobblinClusterUtils.getDynamicConfig(this.clusterConfig).withFallback(injectedConfig))
         : new InMemoryWuFailedSingleTask(this.jobId, new Path(this.workUnitFilePath), jobStateFilePath, fs,
-            taskAttemptBuilder, stateStores, GobblinClusterUtils.getDynamicConfig(this.clusterConfig));
+            taskAttemptBuilder, stateStores,
+            GobblinClusterUtils.getDynamicConfig(this.clusterConfig).withFallback(injectedConfig));
+  }
+
+  @VisibleForTesting
+  void setInjectedConfig(Config injectedConfig) {
+    this.injectedConfig = injectedConfig;
   }
 }

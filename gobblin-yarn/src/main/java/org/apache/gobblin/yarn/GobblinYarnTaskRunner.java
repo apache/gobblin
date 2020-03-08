@@ -70,16 +70,16 @@ public class GobblinYarnTaskRunner extends GobblinTaskRunner {
     services.addAll(super.getServices());
     if (UserGroupInformation.isSecurityEnabled()) {
       LOGGER.info("Adding YarnContainerSecurityManager since security is enabled");
-      services.add(new YarnContainerSecurityManager(this.config, this.fs, this.eventBus));
+      services.add(new YarnContainerSecurityManager(this.clusterConfig, this.fs, this.eventBus));
     }
 
-    if (config.hasPath(GobblinYarnConfigurationKeys.LOGS_SINK_ROOT_DIR_KEY)) {
+    if (clusterConfig.hasPath(GobblinYarnConfigurationKeys.LOGS_SINK_ROOT_DIR_KEY)) {
       GobblinYarnLogSource gobblinYarnLogSource = new GobblinYarnLogSource();
-      String containerLogDir = config.getString(GobblinYarnConfigurationKeys.LOGS_SINK_ROOT_DIR_KEY);
+      String containerLogDir = clusterConfig.getString(GobblinYarnConfigurationKeys.LOGS_SINK_ROOT_DIR_KEY);
 
       if (gobblinYarnLogSource.isLogSourcePresent()) {
         try {
-            services.add(gobblinYarnLogSource.buildLogCopier(this.config, this.taskRunnerId, this.fs,
+            services.add(gobblinYarnLogSource.buildLogCopier(this.clusterConfig, this.taskRunnerId, this.fs,
                 new Path(containerLogDir, GobblinClusterUtils.getAppWorkDirPath(this.applicationName, this.applicationId))));
         } catch (Exception e) {
           LOGGER.warn("Cannot add LogCopier service to the service manager due to {}", e);
@@ -195,7 +195,7 @@ public class GobblinYarnTaskRunner extends GobblinTaskRunner {
       if (!Strings.isNullOrEmpty(helixInstanceTags)) {
         config = config.withValue(GobblinClusterConfigurationKeys.HELIX_INSTANCE_TAGS_KEY, ConfigValueFactory.fromAnyRef(helixInstanceTags));
       }
-        
+
       GobblinTaskRunner gobblinTaskRunner =
           new GobblinYarnTaskRunner(applicationName, helixInstanceName, containerId, config,
               Optional.<Path>absent());

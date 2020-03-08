@@ -17,8 +17,21 @@
 
 package org.apache.gobblin.cluster;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.FutureTask;
+
+import org.apache.gobblin.testing.AssertWithBackoff;
 import org.junit.Assert;
 import org.testng.annotations.Test;
+
+import com.google.common.base.Predicate;
+import com.google.common.collect.ImmutableMap;
+import com.typesafe.config.ConfigFactory;
+
+import javax.annotation.Nullable;
+
+import static org.apache.gobblin.cluster.SingleTask.MAX_RETRY_WAITING_FOR_INIT_KEY;
 
 
 /**
@@ -28,7 +41,18 @@ import org.testng.annotations.Test;
  * 2. When needed to reproduce certain errors, replace org.apache.gobblin.cluster.DummySource.DummyExtractor or
  * {@link DummySource} to plug in required logic.
  */
-public class TestSingleTaskRerun {
+public class TestSingleTask {
+
+  private InMemorySingleTaskRunner createInMemoryTaskRunner() {
+    final String clusterConfigPath = "clusterConf";
+    final String wuPath = "_workunits/store/workunit.wu";
+    String clusterConfPath = this.getClass().getClassLoader().getResource(clusterConfigPath).getPath();
+
+    InMemorySingleTaskRunner inMemorySingleTaskRunner = new InMemorySingleTaskRunner(clusterConfPath, "testJob",
+        this.getClass().getClassLoader().getResource(wuPath).getPath());
+
+    return inMemorySingleTaskRunner;
+  }
 
   /**
    * An in-memory {@link SingleTask} runner that could be used to simulate how it works in Gobblin-Cluster.
@@ -36,15 +60,9 @@ public class TestSingleTaskRerun {
    * re-run it again.
    */
   @Test
-  public void testMetricObjectCasting()
+  public void testSingleTaskRerunAfterFailure()
       throws Exception {
-    final String clusterConfigPath = "clusterConf";
-    final String wuPath = "_workunits/store/workunit.wu";
-    String clusterConfPath = this.getClass().getClassLoader().getResource(clusterConfigPath).getPath();
-
-    InMemorySingleTaskRunner inMemorySingleTaskRunner =
-        new InMemorySingleTaskRunner(clusterConfPath, "testJob",
-            this.getClass().getClassLoader().getResource(wuPath).getPath());
+    SingleTaskRunner inMemorySingleTaskRunner = createInMemoryTaskRunner();
     try {
       inMemorySingleTaskRunner.run(true);
     } catch (Exception e) {
