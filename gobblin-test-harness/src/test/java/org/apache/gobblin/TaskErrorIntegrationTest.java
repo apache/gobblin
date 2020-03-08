@@ -160,11 +160,12 @@ public class TaskErrorIntegrationTest extends BMNGRunner {
     Properties jobProperties =
         GobblinLocalJobLauncherUtils.getJobProperties("runtime_test/skip_workunits_test.properties");
     jobProperties.setProperty(ConfigurationKeys.SOURCE_CLASS_KEY, CustomizedTaskTestSource.class.getName());
+    // To demonstrate failure caught in task creation in test setting, disabled retry in task creation.
+    jobProperties.setProperty(RETRY_TIMES, "1");
+    jobProperties.setProperty(RETRY_TYPE, RetryerFactory.RetryType.FIXED_ATTEMPT.name());
 
     GobblinLocalJobLauncherUtils.invokeLocalJobLauncher(jobProperties);
-    Assert.assertTrue(testAppender.events.stream().anyMatch(e -> e.getRenderedMessage()
-        .startsWith("Encountering memory error")));
-
+    Assert.assertTrue(testAppender.events.stream().anyMatch(e -> e.getRenderedMessage().contains("Encountering memory error")));
     logger.removeAppender(testAppender);
   }
 

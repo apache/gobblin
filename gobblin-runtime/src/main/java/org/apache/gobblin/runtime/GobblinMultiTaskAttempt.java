@@ -61,9 +61,9 @@ import org.slf4j.LoggerFactory;
 
 import com.github.rholder.retry.RetryException;
 import com.github.rholder.retry.Retryer;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
+import com.google.common.base.Throwables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
@@ -487,8 +487,11 @@ public class GobblinMultiTaskAttempt {
           return createTaskRunnable(workUnitState, countDownLatch);
         }
       });
-    } catch (ExecutionException | RetryException e) {
-      throw new RuntimeException(String.format("Exception creating Task after %s retries", counter), e);
+    } catch (RetryException re) {
+      log.error(String.format("Fatal Exception creating Task after %s retries", counter));
+      throw Throwables.propagate(re.getLastFailedAttempt().getExceptionCause());
+    } catch (ExecutionException ee) {
+      throw new RuntimeException("Failure in executing retryer due to, ", ee);
     }
   }
 
