@@ -108,6 +108,8 @@ import org.apache.gobblin.yarn.event.ContainerReleaseRequest;
 import org.apache.gobblin.yarn.event.ContainerShutdownRequest;
 import org.apache.gobblin.yarn.event.NewContainerRequest;
 
+import static org.apache.gobblin.yarn.GobblinYarnTaskRunner.HELIX_YARN_INSTANCE_NAME_PREFIX;
+
 
 /**
  * This class is responsible for all Yarn-related stuffs including ApplicationMaster registration,
@@ -135,6 +137,7 @@ public class YarnService extends AbstractIdleService {
 
   private final Optional<GobblinMetrics> gobblinMetrics;
   private final Optional<EventSubmitter> eventSubmitter;
+
 
   @VisibleForTesting
   @Getter(AccessLevel.PROTECTED)
@@ -720,7 +723,7 @@ public class YarnService extends AbstractIdleService {
         String instanceName = unusedHelixInstanceNames.poll();
         if (Strings.isNullOrEmpty(instanceName)) {
           // No unused instance name, so generating a new one.
-          instanceName = HelixUtils.getHelixInstanceName(GobblinYarnTaskRunner.class.getSimpleName(),
+          instanceName = HelixUtils.getHelixInstanceName(HELIX_YARN_INSTANCE_NAME_PREFIX,
               helixInstanceIdGenerator.incrementAndGet());
         }
 
