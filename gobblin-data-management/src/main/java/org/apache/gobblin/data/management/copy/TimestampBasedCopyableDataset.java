@@ -120,7 +120,7 @@ public class TimestampBasedCopyableDataset implements CopyableDataset, FileSyste
     List<Future<?>> futures = Lists.newArrayList();
     for (TimestampedDatasetVersion copyableVersion : copyableVersions) {
       futures.add(this.executor.submit(
-          this.getCopyableFileGenetator(targetFs, configuration, copyableVersion, copyableFileList)));
+          this.getCopyableFileGenerator(targetFs, configuration, copyableVersion, copyableFileList)));
     }
 
     try {
@@ -140,7 +140,7 @@ public class TimestampBasedCopyableDataset implements CopyableDataset, FileSyste
   }
 
   @VisibleForTesting
-  protected CopyableFileGenerator getCopyableFileGenetator(FileSystem targetFs, CopyConfiguration configuration,
+  protected CopyableFileGenerator getCopyableFileGenerator(FileSystem targetFs, CopyConfiguration configuration,
       TimestampedDatasetVersion copyableVersion, ConcurrentLinkedQueue<CopyableFile> copyableFileList) {
     return new CopyableFileGenerator(this.srcFs, targetFs, configuration, this.datasetRoot,
         this.getTargetRoot(configuration.getPublishDir()), copyableVersion.getDateTime(), copyableVersion.getPaths(),

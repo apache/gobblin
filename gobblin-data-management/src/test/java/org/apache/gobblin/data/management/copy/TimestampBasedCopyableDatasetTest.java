@@ -35,6 +35,7 @@ import com.google.common.io.Files;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
+import org.apache.gobblin.data.management.dataset.DatasetUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -151,7 +152,7 @@ public class TimestampBasedCopyableDatasetTest {
     props.setProperty(SelectBetweenTimeBasedPolicy.TIME_BASED_SELECTION_MIN_LOOK_BACK_TIME_KEY, "1d");
     props.setProperty(SelectBetweenTimeBasedPolicy.TIME_BASED_SELECTION_MAX_LOOK_BACK_TIME_KEY, "6d");
     props.setProperty(DateTimeDatasetVersionFinder.DATE_TIME_PATTERN_KEY, "yyyy/MM/dd");
-    props.setProperty("gobblin.dataset.copyable.file.filter.class",
+    props.setProperty(DatasetUtils.COPYABLE_FILE_FILTER_KEY,
         "org.apache.gobblin.data.management.copy.ModifiedDateRangeBasedFileFilter");
     props.setProperty(ModifiedDateRangeBasedFileFilter.MODIFIED_MIN_LOOK_BACK_TIME_KEY, "0d");
     props.setProperty(ModifiedDateRangeBasedFileFilter.MODIFIED_MAX_LOOK_BACK_TIME_KEY, "1d");
@@ -277,14 +278,14 @@ public class TimestampBasedCopyableDatasetTest {
     // The src path is empty.
     TimestampedDatasetVersion emptyVersion = new TimestampedDatasetVersion(new DateTime(), new Path("dummy2"));
     TimestampBasedCopyableDataset.CopyableFileGenerator emptyGenerator =
-        copyabledataset.getCopyableFileGenetator(localFs, configuration, emptyVersion, copyableFileList);
+        copyabledataset.getCopyableFileGenerator(localFs, configuration, emptyVersion, copyableFileList);
     emptyGenerator.run();
     Assert.assertEquals(copyableFileList.size(), 0);
 
     // The src path is null.
     TimestampedDatasetVersion versionHasNullPath = new TimestampedDatasetVersion(new DateTime(), null);
     TimestampBasedCopyableDataset.CopyableFileGenerator exceptionGenerator =
-        copyabledataset.getCopyableFileGenetator(localFs, configuration, versionHasNullPath, copyableFileList);
+        copyabledataset.getCopyableFileGenerator(localFs, configuration, versionHasNullPath, copyableFileList);
     exceptionGenerator.run();
   }
 
@@ -322,7 +323,7 @@ public class TimestampBasedCopyableDatasetTest {
     }
 
     @Override
-    protected CopyableFileGenerator getCopyableFileGenetator(FileSystem targetFs, CopyConfiguration configuration,
+    protected CopyableFileGenerator getCopyableFileGenerator(FileSystem targetFs, CopyConfiguration configuration,
         TimestampedDatasetVersion copyableVersion, ConcurrentLinkedQueue<CopyableFile> copyableFileList) {
       return new CopyableFileGeneratorForTest(copyableFileList, copyableVersion);
     }

@@ -43,7 +43,7 @@ public class DatasetUtils {
   public static final String CONFIGURATION_KEY_PREFIX = "gobblin.dataset.";
   public static final String DATASET_PROFILE_CLASS_KEY = CONFIGURATION_KEY_PREFIX + "profile.class";
   private static final String PATH_FILTER_KEY = CONFIGURATION_KEY_PREFIX + "path.filter.class";
-  private static final String COPYABLE_FILE_FILTER_KEY = CONFIGURATION_KEY_PREFIX + "copyable.file.filter.class";
+  public static final String COPYABLE_FILE_FILTER_KEY = CONFIGURATION_KEY_PREFIX + "copyable.file.filter.class";
 
   private static final PathFilter ACCEPT_ALL_PATH_FILTER = new PathFilter() {
 
