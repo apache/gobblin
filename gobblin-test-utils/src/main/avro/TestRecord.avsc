@@ -1,0 +1,23 @@
+{
+  "type": "record",
+  "name": "TestRecord",
+  "namespace" : "org.apache.gobblin.test.avro",
+  "fields": [
+    {
+      "name": "partition",
+      "type": "int",
+      "doc": "Partition id for the record"
+    },
+    {
+      "name": "sequence",
+      "type": "long",
+      "doc": "The sequence number"
+    },
+    {
+      "name": "payload",
+      "type": "string",
+      "default" : "",
+      "doc": "Human-readable payload"
+    }
+  ]
+}

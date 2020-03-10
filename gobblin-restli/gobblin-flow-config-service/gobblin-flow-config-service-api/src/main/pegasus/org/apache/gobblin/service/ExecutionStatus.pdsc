@@ -3,14 +3,15 @@
   "name" : "ExecutionStatus",
   "namespace" : "org.apache.gobblin.service",
   "doc" : "Execution status for a flow or job",
-  "symbols" : ["COMPILED", "ORCHESTRATED", "RUNNING", "FAILED", "CANCELLED", "COMPLETE", "PENDING"],
+  "symbols" : ["COMPILED", "PENDING", "PENDING_RETRY", "ORCHESTRATED", "RUNNING", "COMPLETE", "FAILED", "CANCELLED" ],
   "symbolDocs" : {
     "COMPILED":"Flow compiled to jobs.",
+    "PENDING":"Flow or job is in pending state.",
+    "PENDING_RETRY":"Flow or job is pending retry.",
     "ORCHESTRATED":"Job(s) orchestrated to spec executors.",
     "RUNNING": "Flow or job is currently executing",
-    "FAILED":"Flow or job failed",
-    "CANCELLED":"Flow cancelled.",
     "COMPLETE":"Flow or job completed execution",
-    "PENDING":"Flow or job is in pending state."
+    "FAILED":"Flow or job failed",
+    "CANCELLED":"Flow cancelled."
   }
 }

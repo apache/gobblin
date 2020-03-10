@@ -130,7 +130,7 @@ ext.externalDependency = [
     "curatorTest": "org.apache.curator:curator-test:2.10.0",
     "hamcrest": "org.hamcrest:hamcrest-all:1.3",
     "joptSimple": "net.sf.jopt-simple:jopt-simple:4.9",
-    "protobuf": "com.google.protobuf:protobuf-java:2.5.0",
+    "protobuf": "com.google.protobuf:protobuf-java:3.6.1",
     "pegasus" : [
         "data" : "com.linkedin.pegasus:data:" + pegasusVersion,
         "generator" : "com.linkedin.pegasus:generator:" + pegasusVersion,
@@ -168,7 +168,12 @@ ext.externalDependency = [
     "grok": "io.thekraken:grok:0.1.5",
     "hadoopAdl" : "org.apache.hadoop:hadoop-azure-datalake:3.0.0-alpha2",
     "orcMapreduce":"org.apache.orc:orc-mapreduce:1.6.1",
-    'parquet': 'com.twitter:parquet-hadoop-bundle:1.5.0',
+    'parquet': 'org.apache.parquet:parquet-hadoop:1.10.1',
+    'parquetAvro': 'org.apache.parquet:parquet-avro:1.10.1',
+    'parquetProto': 'org.apache.parquet:parquet-protobuf:1.10.1',
+    'twitterParquet': 'com.twitter:parquet-hadoop-bundle:1.5.0',
+    'twitterParquetAvro': 'com.twitter:parquet-avro:1.5.0',
+    'twitterParquetProto': 'com.twitter:parquet-protobuf:1.5.0',
     'reactivex': 'io.reactivex.rxjava2:rxjava:2.1.0',
     "slf4j": [
         "org.slf4j:slf4j-api:" + slf4jVersion,
@@ -181,6 +186,7 @@ ext.externalDependency = [
     ],
     "postgresConnector": "org.postgresql:postgresql:42.1.4",
     "assertj": 'org.assertj:assertj-core:3.8.0',
+    "protobuf": 'com.google.protobuf:protobuf-java:3.6.1',
 ]
 
 if (!isDefaultEnvironment)

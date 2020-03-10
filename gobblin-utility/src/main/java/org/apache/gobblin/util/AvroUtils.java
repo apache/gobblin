@@ -126,6 +126,17 @@ public class AvroUtils {
         .collect(Collectors.toList());
   }
 
+  /**
+   * Generate a {@link Schema} object from {@link Schema.Field} with Field's properties carried over to the new object.
+   * Common use cases for this method is in traversing {@link Schema} object into nested level and create {@link Schema}
+   * object for non-root level.
+   */
+  public static void convertFieldToSchemaWithProps(Map<String,JsonNode> fieldProps, Schema targetSchemaObj) {
+    for (Map.Entry<String, JsonNode> stringJsonNodeEntry : fieldProps.entrySet()) {
+      targetSchemaObj.addProp(stringJsonNodeEntry.getKey(), stringJsonNodeEntry.getValue());
+    }
+  }
+
 
   public static class AvroPathFilter implements PathFilter {
     @Override
@@ -853,6 +864,15 @@ public class AvroUtils {
       }
     }
     return new Path(Joiner.on(Path.SEPARATOR).join(tokens));
+  }
+
+  /**
+   * Escaping ";" and "'" character in the schema string when it is being used in DDL.
+   * These characters are not allowed to show as part of column name but could possibly appear in documentation field.
+   * Therefore the escaping behavior won't cause correctness issues.
+   */
+  public static String sanitizeSchemaString(String schemaString) {
+    return schemaString.replaceAll(";",  "\\\\;").replaceAll("'", "\\\\'");
   }
 
   /**

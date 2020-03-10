@@ -16,9 +16,6 @@
  */
 
 package org.apache.gobblin.runtime.spec_executorInstance;
-
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import com.typesafe.config.Config;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -28,12 +25,12 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.Future;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.util.CompletedFuture;
-import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
@@ -42,7 +39,7 @@ import org.apache.gobblin.util.ConfigUtils;
 @Slf4j
 public class LocalFsSpecProducer implements SpecProducer<Spec> {
   private String specProducerPath;
-  public static final String LOCAL_FS_PRODUCER_PATH_KEY = "gobblin.cluster.localSpecProducer.dir";
+  public static final String LOCAL_FS_PRODUCER_PATH_KEY = "localFsSpecProducer.dir";
 
   public LocalFsSpecProducer(Config config) {
     this.specProducerPath = config.getString(LOCAL_FS_PRODUCER_PATH_KEY);
@@ -72,9 +69,9 @@ public class LocalFsSpecProducer implements SpecProducer<Spec> {
 
   private Future<?> writeSpec(Spec spec, SpecExecutor.Verb verb) {
     if (spec instanceof JobSpec) {
-      URI specUri = spec.getUri();
       // format the JobSpec to have file of <flowGroup>_<flowName>.job
-      String jobFileName = getJobFileName(specUri);
+      String flowExecutionId = ((JobSpec) spec).getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
+      String jobFileName = getJobFileName(spec.getUri(), flowExecutionId);
       try (
         FileOutputStream fStream = new FileOutputStream(this.specProducerPath + File.separatorChar + jobFileName);
       ) {
@@ -92,16 +89,26 @@ public class LocalFsSpecProducer implements SpecProducer<Spec> {
 
   /** Delete a {@link Spec} being executed on {@link org.apache.gobblin.runtime.api.SpecExecutor}.
    * @param deletedSpecURI
-   * @param headers*/
+   * @param headers
+   */
   @Override
   public Future<?> deleteSpec(URI deletedSpecURI, Properties headers) {
-    String jobFileName = getJobFileName(deletedSpecURI);
-    File file = new File(jobFileName);
-    if (file.delete()) {
-      log.info("Deleted spec: {}", jobFileName);
-      return new CompletedFuture<>(Boolean.TRUE, null);
+    String prefix = String.join("_", deletedSpecURI.getPath().split("/"));
+    // delete all of the jobs related to the spec
+    File dir = new File(this.specProducerPath);
+    File[] foundFiles = dir.listFiles((File file, String name) -> {
+        // only delete the jobs in progress
+        return name.startsWith(prefix) && name.endsWith(".job");
+    });
+
+    for (int i = 0; i < foundFiles.length; i++) {
+        Boolean didDelete = foundFiles[i].delete();
+        if (!didDelete) {
+          return new CompletedFuture<>(Boolean.TRUE, new RuntimeException(String.format("Failed to delete file with uri %s", deletedSpecURI)));
+        }
     }
-    throw new RuntimeException(String.format("Failed to delete file with uri %s", deletedSpecURI));
+
+    return new CompletedFuture<>(Boolean.TRUE, null);
   }
 
   /** List all {@link Spec} being executed on {@link org.apache.gobblin.runtime.api.SpecExecutor}. */
@@ -110,9 +117,9 @@ public class LocalFsSpecProducer implements SpecProducer<Spec> {
     throw new UnsupportedOperationException();
   }
 
-  private String getJobFileName(URI specUri) {
+  public static String getJobFileName(URI specUri, String flowExecutionId) {
     String[] uriTokens = specUri.getPath().split("/");
-    return String.join("_", uriTokens) + ".job";
+    return String.join("_", uriTokens) + "_" + flowExecutionId + ".job";
   }
 
 }

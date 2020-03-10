@@ -18,12 +18,16 @@ package org.apache.gobblin;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
 import java.util.Properties;
 
 import org.apache.commons.io.FileUtils;
+import org.testng.Assert;
 import org.testng.annotations.AfterTest;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
+
+import com.google.common.io.Files;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.hive.HiveSerDeWrapper;
@@ -70,10 +74,19 @@ public class WriterOutputFormatIntegrationTest {
       throws IOException {
     Properties jobProperties =
         GobblinLocalJobLauncherUtils.getJobProperties("runtime_test/writer_output_format_test.properties");
-    FileUtils.copyFile(new File(GobblinLocalJobLauncherUtils.RESOURCE_DIR + SAMPLE_FILE),
-        new File(GobblinLocalJobLauncherUtils.RESOURCE_DIR + GobblinLocalJobLauncherUtils.SAMPLE_DIR + SAMPLE_FILE));
+    URL resource = getClass().getClassLoader().getResource("runtime_test/" + SAMPLE_FILE);
+    Assert.assertNotNull(resource, "Sample file should be present");
+    File sampleFile = new File(resource.getFile());
+    File testFile = File.createTempFile("writerTest", ".avro");
+    FileUtils.copyFile(sampleFile, testFile);
     jobProperties.setProperty(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL,
-        GobblinLocalJobLauncherUtils.RESOURCE_DIR + GobblinLocalJobLauncherUtils.SAMPLE_DIR + SAMPLE_FILE);
+        testFile.getAbsolutePath());
+
+    String outputRootDirectory = Files.createTempDir().getAbsolutePath() + "/";
+    jobProperties.setProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, outputRootDirectory + "state_store");
+    jobProperties.setProperty(ConfigurationKeys.WRITER_STAGING_DIR, outputRootDirectory + "writer_staging");
+    jobProperties.setProperty(ConfigurationKeys.WRITER_OUTPUT_DIR, outputRootDirectory + "writer_output");
+    jobProperties.setProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, outputRootDirectory + "final_dir");
     return jobProperties;
   }
 }

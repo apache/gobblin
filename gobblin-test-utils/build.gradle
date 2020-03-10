@@ -14,6 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+plugins {
+  id "com.google.protobuf" version "0.8.8"
+  id "com.commercehub.gradle.plugin.avro-base" version "0.9.0"
+}
 
 apply plugin: 'java'
 
@@ -28,13 +32,72 @@ dependencies {
   compile externalDependency.lombok
   compile externalDependency.typesafeConfig
   compile externalDependency.findBugsAnnotations
+  compile externalDependency.protobuf
+
 
   testCompile externalDependency.testng
   testCompile externalDependency.mockito
 }
 
+sourceSets {
+  main {
+    java {
+      srcDir 'src/main/gen-proto'
+      srcDir 'src/main/gen-avro'
+    }
+    resources {
+      srcDir 'src/main/proto'
+      srcDir 'src/main/avro'
+    }
+
+  }
+}
+
+/**
+clean.doFirst {
+  delete file("${projectDir}/src/main/gen-proto/").listFiles()
+  delete file("${projectDir}/src/main/gen-avro/").listFiles()
+}
+**/
+
 test {
   workingDir rootProject.rootDir
+}
+
+protobuf {
+  generatedFilesBaseDir = "$projectDir/src/main/gen-proto"
+  protoc {
+    artifact = "com.google.protobuf:protoc:3.6.1"
+  }
+  plugins {
+    grpc {
+      artifact = "io.grpc:protoc-gen-grpc-java:1.19.0"
+    }
+  }
+  generateProtoTasks {
+    all()*.plugins {
+      grpc {}
+    }
+  }
+}
+
+avro {
+  stringType = "string"
+}
+
+task generateAvro(type: com.commercehub.gradle.plugin.avro.GenerateAvroJavaTask) {
+  source("src/main/avro")
+  outputDir = file("src/main/gen-avro")
+}
+
+compileJava {
+  dependsOn tasks.generateAvro
+}
+
+checkstyleMain.source = ['src/main/java','src/test/java']
+
+findbugs {
+  excludeFilter = file("buildConfig/findbugs-exclude-filter.xml")
 }
 
 ext.classification="library"

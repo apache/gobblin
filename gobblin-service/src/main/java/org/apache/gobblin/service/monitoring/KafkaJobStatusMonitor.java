@@ -76,8 +76,9 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
       KAFKA_AUTO_OFFSET_RESET_KEY, KAFKA_AUTO_OFFSET_RESET_SMALLEST));
 
   private static final List<ExecutionStatus> ORDERED_EXECUTION_STATUSES = ImmutableList
-      .of(ExecutionStatus.COMPILED, ExecutionStatus.PENDING, ExecutionStatus.ORCHESTRATED, ExecutionStatus.RUNNING,
-          ExecutionStatus.COMPLETE, ExecutionStatus.FAILED, ExecutionStatus.CANCELLED);
+      .of(ExecutionStatus.COMPILED, ExecutionStatus.PENDING, ExecutionStatus.PENDING_RETRY,
+          ExecutionStatus.ORCHESTRATED, ExecutionStatus.RUNNING, ExecutionStatus.COMPLETE,
+          ExecutionStatus.FAILED, ExecutionStatus.CANCELLED);
 
   public KafkaJobStatusMonitor(String topic, Config config, int numThreads)
       throws ReflectiveOperationException {
@@ -176,7 +177,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
     int currentAttempts = state.getPropAsInt(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD, 1);
     if (state.getProp(JobStatusRetriever.EVENT_NAME_FIELD).equals(ExecutionStatus.FAILED.name()) && currentAttempts < maxAttempts) {
       state.setProp(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD, true);
-      state.setProp(JobStatusRetriever.EVENT_NAME_FIELD, ExecutionStatus.RUNNING.name());
+      state.setProp(JobStatusRetriever.EVENT_NAME_FIELD, ExecutionStatus.PENDING_RETRY.name());
       state.removeProp(TimingEvent.JOB_END_TIME);
     }
   }

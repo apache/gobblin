@@ -19,6 +19,8 @@ package org.apache.gobblin.data.management.copy.hive.filter;
 
 import java.util.Properties;
 
+import org.apache.gobblin.data.management.copy.hive.PartitionFilterGenerator;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeUtils;
 import org.testng.Assert;
@@ -42,6 +44,12 @@ public class LookbackPartitionFilterGeneratorTest {
   }
 
   @Test
+  public void testInitialization() {
+    PartitionFilterGenerator filter = GobblinConstructorUtils.invokeConstructor(PartitionFilterGenerator.class,
+              LookbackPartitionFilterGenerator.class.getName(), System.getProperties());
+    Assert.assertTrue(filter instanceof LookbackPartitionFilterGenerator);
+  }
+  @Test
   public void test() {
     doTest("datePartition", "P1D", "YYYY-MM-dd-HH", "datePartition >= \"2016-03-14-10\"");
     doTest("datePartition", "P2D", "YYYY-MM-dd-HH", "datePartition >= \"2016-03-13-10\"");
@@ -55,7 +63,10 @@ public class LookbackPartitionFilterGeneratorTest {
     properties.put(LookbackPartitionFilterGenerator.LOOKBACK, lookback);
     properties.put(LookbackPartitionFilterGenerator.DATETIME_FORMAT, format);
 
-    Assert.assertEquals(new LookbackPartitionFilterGenerator(properties).getFilter(null), expected);
+    PartitionFilterGenerator filterImpl = GobblinConstructorUtils.invokeConstructor(PartitionFilterGenerator.class,
+        LookbackPartitionFilterGenerator.class.getName(), properties);
+
+    Assert.assertEquals(filterImpl.getFilter(null), expected);
   }
 
 }

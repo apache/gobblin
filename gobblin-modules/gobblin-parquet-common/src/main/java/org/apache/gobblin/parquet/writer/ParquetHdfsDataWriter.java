@@ -14,40 +14,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.gobblin.writer;
+package org.apache.gobblin.parquet.writer;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
-
-import parquet.example.data.Group;
-import parquet.hadoop.ParquetWriter;
+import org.apache.gobblin.writer.FsDataWriter;
 
 
 /**
- * An extension to {@link FsDataWriter} that writes in Parquet format in the form of {@link Group}s.
+ * An extension to {@link FsDataWriter} that writes in Parquet formats.
  *
  * <p>
- *   This implementation allows users to specify the {@link parquet.hadoop.CodecFactory} to use through the configuration
- *   property {@link ConfigurationKeys#WRITER_CODEC_TYPE}. By default, the deflate codec is used.
+ *   This implementation allows users to specify different formats and codecs
+ *   through {@link ParquetWriterConfiguration} to write data.
  * </p>
  *
  * @author tilakpatidar
  */
-public class ParquetHdfsDataWriter extends FsDataWriter<Group> {
-  private final ParquetWriter<Group> writer;
+public class ParquetHdfsDataWriter<D> extends FsDataWriter<D> {
+  private final ParquetWriterShim writer;
   protected final AtomicLong count = new AtomicLong(0);
 
-  public ParquetHdfsDataWriter(ParquetDataWriterBuilder builder, State state)
+  public ParquetHdfsDataWriter(AbstractParquetDataWriterBuilder builder, State state)
       throws IOException {
     super(builder, state);
     this.writer = builder.getWriter((int) this.blockSize, this.stagingFile);
   }
 
   @Override
-  public void write(Group record)
+  public void write(D record)
       throws IOException {
     this.writer.write(record);
     this.count.incrementAndGet();

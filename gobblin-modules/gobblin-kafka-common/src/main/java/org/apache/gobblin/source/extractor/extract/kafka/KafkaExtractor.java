@@ -101,7 +101,7 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
     } catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
       throw new RuntimeException(e);
     }
-    this.statsTracker = new KafkaExtractorStatsTracker(state,partitions);
+    this.statsTracker = new KafkaExtractorStatsTracker(state, partitions);
 
     // The actual high watermark starts with the low watermark
     this.workUnitState.setActualHighWatermark(this.lowWatermark);

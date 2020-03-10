@@ -134,6 +134,8 @@ public class JobExecutionPlan {
       //Add tracking config to JobSpec.
       addTrackingEventConfig(jobSpec, sysConfig);
 
+      addAdditionalConfig(jobSpec, sysConfig);
+
       // Add dynamic config to jobSpec if a dynamic config generator is specified in sysConfig
       DynamicConfigGenerator dynamicConfigGenerator = DynamicConfigGeneratorFactory.createDynamicConfigGenerator(sysConfig);
       Config dynamicConfig = dynamicConfigGenerator.generateDynamicConfig(jobSpec.getConfig().withFallback(sysConfig));
@@ -143,6 +145,29 @@ public class JobExecutionPlan {
       jobSpec.setConfigAsProperties(ConfigUtils.configToProperties(jobSpec.getConfig()));
 
       return jobSpec;
+    }
+
+    /**
+     * A method to add any additional configurations to a JobSpec which need to be passed to the {@link SpecExecutor}.
+     * This enables {@link org.apache.gobblin.metrics.GobblinTrackingEvent}s
+     * to be emitted from each Gobblin job orchestrated by Gobblin-as-a-Service, which will then be used for tracking the
+     * execution status of the job.
+     * @param jobSpec representing a fully resolved {@link JobSpec}.
+     */
+    private static void addAdditionalConfig(JobSpec jobSpec, Config sysConfig) {
+      if (!(sysConfig.hasPath(ConfigurationKeys.SPECEXECUTOR_CONFIGS_PREFIX_KEY)
+          && !Strings.isNullOrEmpty(ConfigUtils.getString(sysConfig, ConfigurationKeys.SPECEXECUTOR_CONFIGS_PREFIX_KEY, ""))
+          && sysConfig.hasPath(sysConfig.getString(ConfigurationKeys.SPECEXECUTOR_CONFIGS_PREFIX_KEY)))) {
+        return;
+      }
+
+      String additionalConfigsPrefix = sysConfig.getString(ConfigurationKeys.SPECEXECUTOR_CONFIGS_PREFIX_KEY);
+
+      Config config = jobSpec.getConfig().withFallback(ConfigUtils.getConfigOrEmpty(sysConfig, additionalConfigsPrefix));
+
+      if (!config.isEmpty()) {
+        jobSpec.setConfig(config);
+      }
     }
 
     /**

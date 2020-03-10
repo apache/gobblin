@@ -28,18 +28,8 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.common.base.Function;
-import com.google.common.base.Optional;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.Lists;
-
-import javax.annotation.Nullable;
-import lombok.Setter;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
@@ -53,15 +43,37 @@ import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.JobEvent;
+import org.apache.gobblin.runtime.api.TaskEventMetadataGenerator;
 import org.apache.gobblin.runtime.task.TaskFactory;
 import org.apache.gobblin.runtime.task.TaskIFaceWrapper;
 import org.apache.gobblin.runtime.task.TaskUtils;
 import org.apache.gobblin.runtime.util.JobMetrics;
 import org.apache.gobblin.runtime.util.TaskMetrics;
 import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.Either;
 import org.apache.gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.util.TaskEventMetadataUtils;
 import org.apache.gobblin.util.executors.IteratorExecutor;
+import org.apache.gobblin.util.retry.RetryerFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.github.rholder.retry.RetryException;
+import com.github.rholder.retry.Retryer;
+import com.google.common.base.Function;
+import com.google.common.base.Optional;
+import com.google.common.base.Throwables;
+import com.google.common.collect.Iterators;
+import com.google.common.collect.Lists;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigValueFactory;
+
+import javax.annotation.Nullable;
+import lombok.Setter;
+
+import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_INTERVAL_MS;
+import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_TIME_OUT_MS;
 
 
 /**
@@ -97,6 +109,7 @@ public class GobblinMultiTaskAttempt {
   private final Optional<String> containerIdOptional;
   private final Optional<StateStore<TaskState>> taskStateStoreOptional;
   private final SharedResourcesBroker<GobblinScopeTypes> jobBroker;
+  private final TaskEventMetadataGenerator taskEventMetadataGenerator;
   @Setter
   private Predicate<GobblinMultiTaskAttempt> interruptionPredicate = (gmta) -> false;
   private List<Task> tasks;
@@ -123,6 +136,7 @@ public class GobblinMultiTaskAttempt {
         LoggerFactory.getLogger(GobblinMultiTaskAttempt.class.getName() + "-" + containerIdOptional.or("noattempt"));
     this.jobBroker = jobBroker;
     this.tasks = new ArrayList<>();
+    this.taskEventMetadataGenerator = TaskEventMetadataUtils.getTaskEventMetadataGenerator(jobState);
   }
 
   /**
@@ -274,10 +288,11 @@ public class GobblinMultiTaskAttempt {
     }
 
     if (hasTaskFailure) {
+      String errorMsg ="";
       for (Task task : tasks) {
         if (task.getTaskState().contains(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY)) {
-          log.error(String.format("Task %s failed due to exception: %s", task.getTaskId(),
-              task.getTaskState().getProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY)));
+          errorMsg = String.format("Task %s failed due to exception: %s", task.getTaskId(),
+              task.getTaskState().getProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY));
         }
 
         // If there are task failures then the tasks may be reattempted. Save a copy of the task state that is used
@@ -290,7 +305,8 @@ public class GobblinMultiTaskAttempt {
       }
 
       throw new IOException(
-          String.format("Not all tasks running in container %s completed successfully", containerIdOptional.or("")));
+          String.format("Not all tasks running in container %s completed successfully, last recorded exception[%s]",
+              containerIdOptional.or(""), errorMsg));
     }
   }
 
@@ -319,7 +335,7 @@ public class GobblinMultiTaskAttempt {
   }
 
   /**
-   * Determine if the task executed successfully in a prior attempt by checkitn the task state store for the success
+   * Determine if the task executed successfully in a prior attempt by checking the task state store for the success
    * marker.
    * @param taskId task id to check
    * @return whether the task was processed successfully in a prior attempt
@@ -363,7 +379,7 @@ public class GobblinMultiTaskAttempt {
       WorkUnit workUnit = this.workUnits.next();
       String taskId = workUnit.getProp(ConfigurationKeys.TASK_ID_KEY);
 
-      // skip tasks that executed successsfully in a prior attempt
+      // skip tasks that executed successfully in a prior attempt
       if (taskSuccessfulInPriorAttempt(taskId)) {
         continue;
       }
@@ -386,7 +402,7 @@ public class GobblinMultiTaskAttempt {
       Task task = null;
       try {
         countDownLatch.countUp();
-        task = createTaskRunnable(workUnitState, countDownLatch);
+        task = createTaskWithRetry(workUnitState, countDownLatch);
         this.taskStateTracker.registerNewTask(task);
         task.setTaskFuture(this.taskExecutor.submit(task));
         tasks.add(task);
@@ -413,9 +429,10 @@ public class GobblinMultiTaskAttempt {
       }
     }
 
-    new EventSubmitter.Builder(JobMetrics.get(this.jobId, new JobMetrics.CreatorTag(this.attemptId)).getMetricContext(),
-        "gobblin.runtime").build()
-        .submit(JobEvent.TASKS_SUBMITTED, "tasksCount", Long.toString(countDownLatch.getRegisteredParties()));
+    EventSubmitter.Builder eventSubmitterBuilder = new EventSubmitter.Builder(JobMetrics.get(this.jobId, new JobMetrics.CreatorTag(this.attemptId)).getMetricContext(),
+        "gobblin.runtime");
+    eventSubmitterBuilder.addMetadata(this.taskEventMetadataGenerator.getMetadata(jobState, JobEvent.TASKS_SUBMITTED));
+    eventSubmitterBuilder.build().submit(JobEvent.TASKS_SUBMITTED, "tasksCount", Long.toString(countDownLatch.getRegisteredParties()));
 
     return tasks;
   }
@@ -445,6 +462,36 @@ public class GobblinMultiTaskAttempt {
           this.taskStateTracker);
     } else {
       return new Task(taskContext, this.taskStateTracker, this.taskExecutor, Optional.of(countDownLatch));
+    }
+  }
+
+  /**
+   * As the initialization of {@link Task} could have unstable external connection which could be healed through
+   * retry, adding retry-wrapper here for the sake of fault-tolerance.
+   */
+  private Task createTaskWithRetry(WorkUnitState workUnitState, CountDownLatch countDownLatch) {
+    Config config = ConfigUtils.propertiesToConfig(this.jobState.getProperties())
+        .withValue(RETRY_TIME_OUT_MS, ConfigValueFactory.fromAnyRef(TimeUnit.MINUTES.toMillis(1L)))
+        .withValue(RETRY_INTERVAL_MS, ConfigValueFactory.fromAnyRef(TimeUnit.SECONDS.toMillis(2L)));
+    Retryer<Task> retryer = RetryerFactory.newInstance(config);
+    // An "effectively final" variable for counting how many retried has been done, mostly for logging purpose.
+    final AtomicInteger counter = new AtomicInteger(0);
+
+    try {
+      return retryer.call(new Callable<Task>() {
+        @Override
+        public Task call()
+            throws Exception {
+          counter.incrementAndGet();
+          log.info(String.format("Task creation attempt %s", counter.get()));
+          return createTaskRunnable(workUnitState, countDownLatch);
+        }
+      });
+    } catch (RetryException re) {
+      log.error(String.format("Fatal Exception creating Task after %s retries", counter));
+      throw Throwables.propagate(re.getLastFailedAttempt().getExceptionCause());
+    } catch (ExecutionException ee) {
+      throw new RuntimeException("Failure in executing retryer due to, ", ee);
     }
   }
 

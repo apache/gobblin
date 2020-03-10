@@ -33,16 +33,6 @@ public class DefaultFileSystemGlobFinder extends ConfigurableGlobDatasetFinder<F
   }
 
   public FileSystemDataset datasetAtPath(final Path path) throws IOException {
-    return new FileSystemDataset() {
-      @Override
-      public Path datasetRoot() {
-        return path;
-      }
-
-      @Override
-      public String datasetURN() {
-        return path.toString();
-      }
-    };
+    return new SimpleFileSystemDataset(path);
   }
 }

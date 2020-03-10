@@ -50,4 +50,9 @@ public class AdlsDataNode extends FileSystemDataNode {
     }
     return true;
   }
+
+  @Override
+  public String getDefaultDatasetDescriptorPlatform() {
+    return ADLS_SCHEME;
+  }
 }

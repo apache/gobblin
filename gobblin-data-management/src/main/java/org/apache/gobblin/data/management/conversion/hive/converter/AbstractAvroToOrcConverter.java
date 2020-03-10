@@ -71,6 +71,8 @@ import org.apache.gobblin.metrics.event.sla.SlaEventKeys;
 import org.apache.gobblin.util.AutoReturnableObject;
 import org.apache.gobblin.util.HadoopUtils;
 
+import static org.apache.gobblin.data.management.conversion.hive.task.HiveConverterUtils.getOutputDataLocation;
+
 
 /**
  * Builds the Hive avro to ORC conversion query. The record type for this converter is {@link QueryBasedHiveConversionEntity}. A {@link QueryBasedHiveConversionEntity}
@@ -222,6 +224,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     String orcDataLocation = getOrcDataLocation();
     String orcStagingDataLocation = getOrcStagingDataLocation(orcStagingTableName);
     boolean isEvolutionEnabled = getConversionConfig().isEvolutionEnabled();
+    boolean isCasePreserved = getConversionConfig().isCasePreserved();
     Pair<Optional<Table>, Optional<List<Partition>>> destinationMeta = HiveConverterUtils.getDestinationTableMeta(orcTableDatabase,
         orcTableName, workUnit.getProperties());
     Optional<Table> destinationTableMeta = destinationMeta.getLeft();
@@ -346,6 +349,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
             Optional.<String>absent(),
             tableProperties,
             isEvolutionEnabled,
+            isCasePreserved,
             destinationTableMeta,
             hiveColumns);
     conversionEntity.getQueries().add(createStagingTableDDL);
@@ -435,6 +439,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
               Optional.<String>absent(),
               Optional.<String>absent(),
               tableProperties,
+              isCasePreserved,
               isEvolutionEnabled,
               destinationTableMeta,
               new HashMap<String, String>());
@@ -443,7 +448,7 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
     }
 
     // Step:
-    // A.2.1: If table pre-exists (destinationTableMeta would be present), evolve table
+    // A.2.1: If table pre-exists (destinationTableMeta would be present), evolve table and update table properties
     // B.2.1: No-op
     List<String> evolutionDDLs = HiveAvroORCQueryGenerator.generateEvolutionDDL(orcStagingTableName,
         orcTableName,
@@ -452,7 +457,8 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
         outputAvroSchema,
         isEvolutionEnabled,
         hiveColumns,
-        destinationTableMeta);
+        destinationTableMeta,
+        tableProperties);
     log.debug("Evolve final table DDLs: " + evolutionDDLs);
     EventWorkunitUtils.setEvolutionMetadata(workUnit, evolutionDDLs);
 
@@ -633,8 +639,8 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
    */
   private String getOrcDataLocation() {
     String orcDataLocation = getConversionConfig().getDestinationDataPath();
-
-    return orcDataLocation + Path.SEPARATOR + PUBLISHED_TABLE_SUBDIRECTORY;
+    return getConversionConfig().getDataDstPathUseSubdir() ? getOutputDataLocation(orcDataLocation)
+        : orcDataLocation;
   }
 
   /***

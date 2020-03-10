@@ -25,6 +25,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -65,6 +66,8 @@ public class KafkaAvroJobStatusMonitorTest {
   private String jobExecutionId = "1111";
   private String message = "https://myServer:8143/1234/1111";
   private String stateStoreDir = "/tmp/jobStatusMonitor/statestore";
+  private MetricContext context;
+  private KafkaAvroEventKeyValueReporter.Builder<?> builder;
 
   @BeforeClass
   public void setUp() throws Exception {
@@ -79,18 +82,22 @@ public class KafkaAvroJobStatusMonitorTest {
             ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:" + this.kafkaTestHelper.getKafkaServerPort()))));
 
     //Create an event reporter instance
-    MetricContext context = MetricContext.builder("context").build();
-    KafkaAvroEventKeyValueReporter.Builder<?> builder = KafkaAvroEventKeyValueReporter.Factory.forContext(context);
+    context = MetricContext.builder("context").build();
+    builder = KafkaAvroEventKeyValueReporter.Factory.forContext(context);
     builder = builder.withKafkaPusher(pusher).withKeys(Lists.newArrayList(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD,
         TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD));
-    KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic");
+  }
+
+  @Test
+  public void testProcessMessageForSuccessfulFlow() throws IOException, ReflectiveOperationException {
+    KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic1");
 
     //Submit GobblinTrackingEvents to Kafka
     GobblinTrackingEvent event1 = createFlowCompiledEvent();
     context.submitEvent(event1);
     kafkaReporter.report();
 
-    GobblinTrackingEvent event2 = createJobOrchestratedEvent();
+    GobblinTrackingEvent event2 = createJobOrchestratedEvent(1);
     context.submitEvent(event2);
     kafkaReporter.report();
 
@@ -115,10 +122,7 @@ public class KafkaAvroJobStatusMonitorTest {
     } catch(InterruptedException ex) {
       Thread.currentThread().interrupt();
     }
-  }
 
-  @Test
-  public void testProcessMessage() throws IOException, ReflectiveOperationException {
     Config config = ConfigFactory.empty().withValue(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, ConfigValueFactory.fromAnyRef(stateStoreDir))
         .withValue("zookeeper.connect", ConfigValueFactory.fromAnyRef("localhost:2121"));
     KafkaJobStatusMonitor jobStatusMonitor =  new KafkaAvroJobStatusMonitor("test",config, 1);
@@ -174,6 +178,123 @@ public class KafkaAvroJobStatusMonitorTest {
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.COMPLETE.name());
   }
 
+  @Test
+  public void testProcessMessageForFailedFlow() throws IOException, ReflectiveOperationException {
+    KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic2");
+
+    //Submit GobblinTrackingEvents to Kafka
+    GobblinTrackingEvent event1 = createFlowCompiledEvent();
+    context.submitEvent(event1);
+    kafkaReporter.report();
+
+    //set maximum attempt to 2, and current attempt to 1
+    GobblinTrackingEvent event2 = createJobOrchestratedEvent(1);
+    context.submitEvent(event2);
+    kafkaReporter.report();
+
+    GobblinTrackingEvent event3 = createJobStartEvent();
+    context.submitEvent(event3);
+    kafkaReporter.report();
+
+    GobblinTrackingEvent event4 = createJobFailedEvent();
+    context.submitEvent(event4);
+    kafkaReporter.report();
+
+    //Mimic retrying - job orchestration
+    //set maximum attempt to 2, and current attempt to 2
+    GobblinTrackingEvent event5 = createJobOrchestratedEvent(2);
+    context.submitEvent(event5);
+    kafkaReporter.report();
+
+    //Mimic retrying - job start (current attempt = 2)
+    GobblinTrackingEvent event6 = createJobStartEvent();
+    context.submitEvent(event6);
+    kafkaReporter.report();
+
+    //Mimic retrying - job failed again (current attempt = 2)
+    GobblinTrackingEvent event7 = createJobFailedEvent();
+    context.submitEvent(event7);
+    kafkaReporter.report();
+
+    try {
+      Thread.sleep(1000);
+    } catch(InterruptedException ex) {
+      Thread.currentThread().interrupt();
+    }
+
+    Config config = ConfigFactory.empty().withValue(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, ConfigValueFactory.fromAnyRef(stateStoreDir))
+        .withValue("zookeeper.connect", ConfigValueFactory.fromAnyRef("localhost:2121"));
+    KafkaJobStatusMonitor jobStatusMonitor =  new KafkaAvroJobStatusMonitor("test",config, 1);
+
+    ConsumerIterator<byte[], byte[]> iterator = this.kafkaTestHelper.getIteratorForTopic(TOPIC);
+
+    MessageAndMetadata<byte[], byte[]> messageAndMetadata = iterator.next();
+    jobStatusMonitor.processMessage(messageAndMetadata);
+
+    StateStore stateStore = jobStatusMonitor.getStateStore();
+    String storeName = KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, flowName);
+    String tableName = KafkaJobStatusMonitor.jobStatusTableName(this.flowExecutionId, "NA", "NA");
+    List<State> stateList  = stateStore.getAll(storeName, tableName);
+    Assert.assertEquals(stateList.size(), 1);
+    State state = stateList.get(0);
+    Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.COMPILED.name());
+
+    messageAndMetadata = iterator.next();
+    jobStatusMonitor.processMessage(messageAndMetadata);
+
+    tableName = KafkaJobStatusMonitor.jobStatusTableName(this.flowExecutionId, this.jobGroup, this.jobName);
+    stateList  = stateStore.getAll(storeName, tableName);
+    Assert.assertEquals(stateList.size(), 1);
+    state = stateList.get(0);
+    Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.ORCHESTRATED.name());
+
+    messageAndMetadata = iterator.next();
+    jobStatusMonitor.processMessage(messageAndMetadata);
+
+    stateList  = stateStore.getAll(storeName, tableName);
+    Assert.assertEquals(stateList.size(), 1);
+    state = stateList.get(0);
+    Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.RUNNING.name());
+
+    messageAndMetadata = iterator.next();
+    jobStatusMonitor.processMessage(messageAndMetadata);
+
+    stateList  = stateStore.getAll(storeName, tableName);
+    Assert.assertEquals(stateList.size(), 1);
+    state = stateList.get(0);
+    //Because the maximum attempt is set to 2, so the state is set to PENDING_RETRY after the first failure
+    Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.PENDING_RETRY.name());
+    Assert.assertEquals(state.getProp(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD), Boolean.toString(true));
+
+    messageAndMetadata = iterator.next();
+    jobStatusMonitor.processMessage(messageAndMetadata);
+
+    stateList  = stateStore.getAll(storeName, tableName);
+    Assert.assertEquals(stateList.size(), 1);
+    state = stateList.get(0);
+    //Job orchestrated for retrying
+    Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.ORCHESTRATED.name());
+
+    messageAndMetadata = iterator.next();
+    jobStatusMonitor.processMessage(messageAndMetadata);
+
+    stateList  = stateStore.getAll(storeName, tableName);
+    Assert.assertEquals(stateList.size(), 1);
+    state = stateList.get(0);
+    //Because the maximum attempt is set to 2, so the state is set to PENDING_RETRY after the first failure
+    Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.RUNNING.name());
+
+    messageAndMetadata = iterator.next();
+    jobStatusMonitor.processMessage(messageAndMetadata);
+
+    stateList  = stateStore.getAll(storeName, tableName);
+    Assert.assertEquals(stateList.size(), 1);
+    state = stateList.get(0);
+    //Because the maximum attempt is set to 2, so the state is set to Failed after trying twice
+    Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.FAILED.name());
+    Assert.assertEquals(state.getProp(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD), Boolean.toString(false));
+  }
+
   private GobblinTrackingEvent createFlowCompiledEvent() {
     String namespace = "org.apache.gobblin.metrics";
     Long timestamp = System.currentTimeMillis();
@@ -188,11 +309,19 @@ public class KafkaAvroJobStatusMonitorTest {
     return event;
   }
 
-  private GobblinTrackingEvent createJobOrchestratedEvent() {
+  /**
+   * Create a Job Orchestrated Event with a configurable currentAttempt
+   * @param currentAttempt specify the number of attempts for the JobOrchestration event
+   * @return the {@link GobblinTrackingEvent}
+   */
+  private GobblinTrackingEvent createJobOrchestratedEvent(int currentAttempt) {
     String namespace = "org.apache.gobblin.metrics";
     Long timestamp = System.currentTimeMillis();
     String name = TimingEvent.LauncherTimings.JOB_ORCHESTRATED;
     Map<String, String> metadata = Maps.newHashMap();
+    metadata.put(TimingEvent.FlowEventConstants.MAX_ATTEMPTS_FIELD, "2");
+    metadata.put(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD, String.valueOf(currentAttempt));
+    metadata.put(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD, Boolean.toString(false));
     metadata.put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, this.flowGroup);
     metadata.put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, this.flowName);
     metadata.put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, this.flowExecutionId);
@@ -243,6 +372,24 @@ public class KafkaAvroJobStatusMonitorTest {
     return event;
   }
 
+  private GobblinTrackingEvent createJobFailedEvent() {
+    String namespace = "org.apache.gobblin.metrics";
+    Long timestamp = System.currentTimeMillis();
+    String name = TimingEvent.LauncherTimings.JOB_FAILED;
+    Map<String, String> metadata = Maps.newHashMap();
+    metadata.put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, this.flowGroup);
+    metadata.put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, this.flowName);
+    metadata.put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, this.flowExecutionId);
+    metadata.put(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, this.jobName);
+    metadata.put(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, this.jobGroup);
+    metadata.put(TimingEvent.FlowEventConstants.JOB_EXECUTION_ID_FIELD, this.jobExecutionId);
+    metadata.put(TimingEvent.METADATA_MESSAGE, this.message);
+    metadata.put(TimingEvent.METADATA_START_TIME, "7");
+    metadata.put(TimingEvent.METADATA_END_TIME, "8");
+
+    GobblinTrackingEvent event = new GobblinTrackingEvent(timestamp, namespace, name, metadata);
+    return event;
+  }
   /**
    *   Create a dummy event to test if it is filtered out by the consumer.
    */
@@ -265,11 +412,19 @@ public class KafkaAvroJobStatusMonitorTest {
     }
   }
 
+  @AfterMethod
+  public void cleanUpStateStore() {
+    try {
+      cleanUpDir(stateStoreDir);
+    } catch(Exception e) {
+      System.err.println("Failed to clean up the state store.");
+    }
+  }
+
   @AfterClass
   public void tearDown() {
     try {
       this.kafkaTestHelper.close();
-      cleanUpDir(stateStoreDir);
     } catch(Exception e) {
       System.err.println("Failed to close Kafka server.");
     }

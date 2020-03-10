@@ -238,6 +238,7 @@ public class FsStateStore<T extends State> implements StateStore<T> {
         while (reader.next(key)) {
           state = (T)reader.getCurrentValue(state);
           if (key.toString().equals(stateId)) {
+            state.setId(stateId);
             return state;
           }
         }
@@ -272,6 +273,7 @@ public class FsStateStore<T extends State> implements StateStore<T> {
         T state = this.stateClass.newInstance();
         while (reader.next(key)) {
           state = (T)reader.getCurrentValue(state);
+          state.setId(key.toString());
           states.add(state);
           // We need a new object for each read state
           state = this.stateClass.newInstance();

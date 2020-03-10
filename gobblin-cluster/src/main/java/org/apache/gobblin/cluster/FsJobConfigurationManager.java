@@ -17,15 +17,14 @@
 package org.apache.gobblin.cluster;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.hadoop.fs.FileSystem;
 
 import com.google.common.base.Optional;
 import com.google.common.eventbus.EventBus;
@@ -38,7 +37,6 @@ import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
 import org.apache.gobblin.runtime.api.SpecConsumer;
 import org.apache.gobblin.runtime.api.SpecExecutor;
-import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.ExecutorsUtils;
 
@@ -55,42 +53,26 @@ public class FsJobConfigurationManager extends JobConfigurationManager {
   private static final long DEFAULT_JOB_SPEC_REFRESH_INTERVAL = 60;
 
   private final long refreshIntervalInSeconds;
-
   private final ScheduledExecutorService fetchJobSpecExecutor;
+  private final Optional<MutableJobCatalog> jobCatalogOptional;
+  private final SpecConsumer specConsumer;
 
-  protected final SpecConsumer _specConsumer;
-
-  private final ClassAliasResolver<SpecConsumer> aliasResolver;
-
-  private final Optional<MutableJobCatalog> _jobCatalogOptional;
-
-  public FsJobConfigurationManager(EventBus eventBus, Config config) {
-    this(eventBus, config, null);
+  public FsJobConfigurationManager(EventBus eventBus, Config config, FileSystem fs) {
+    this(eventBus, config, null, fs);
   }
 
-  public FsJobConfigurationManager(EventBus eventBus, Config config, MutableJobCatalog jobCatalog) {
+  public FsJobConfigurationManager(EventBus eventBus, Config config, MutableJobCatalog jobCatalog, FileSystem fs) {
     super(eventBus, config);
-    this._jobCatalogOptional = jobCatalog != null ? Optional.of(jobCatalog) : Optional.absent();
+    this.jobCatalogOptional = jobCatalog != null ? Optional.of(jobCatalog) : Optional.absent();
     this.refreshIntervalInSeconds = ConfigUtils.getLong(config, GobblinClusterConfigurationKeys.JOB_SPEC_REFRESH_INTERVAL,
         DEFAULT_JOB_SPEC_REFRESH_INTERVAL);
 
     this.fetchJobSpecExecutor = Executors.newSingleThreadScheduledExecutor(
         ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("FetchJobSpecExecutor")));
-
-    this.aliasResolver = new ClassAliasResolver<>(SpecConsumer.class);
-    try {
-      String specConsumerClassName = ConfigUtils.getString(config, GobblinClusterConfigurationKeys.SPEC_CONSUMER_CLASS_KEY,
-          GobblinClusterConfigurationKeys.DEFAULT_SPEC_CONSUMER_CLASS);
-      log.info("Using SpecConsumer ClassNameclass name/alias " + specConsumerClassName);
-      this._specConsumer = (SpecConsumer) ConstructorUtils
-          .invokeConstructor(Class.forName(this.aliasResolver.resolve(specConsumerClassName)), config);
-    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
-        | ClassNotFoundException e) {
-      throw new RuntimeException(e);
-    }
+    this.specConsumer = new FsSpecConsumer(fs, config);
   }
 
-  protected void startUp() throws Exception{
+  protected void startUp() throws Exception {
     super.startUp();
     // Schedule the job config fetch task
     this.fetchJobSpecExecutor.scheduleAtFixedRate(new Runnable() {
@@ -98,9 +80,9 @@ public class FsJobConfigurationManager extends JobConfigurationManager {
       public void run() {
         try {
           fetchJobSpecs();
-        } catch (InterruptedException | ExecutionException e) {
-          log.error("Failed to fetch job specs", e);
-          throw new RuntimeException("Failed to fetch specs", e);
+        } catch (Exception e) {
+          //Log error and swallow exception to allow executor service to continue scheduling the thread
+          log.error("Failed to fetch job specs due to: ", e);
         }
       }
     }, 0, this.refreshIntervalInSeconds, TimeUnit.SECONDS);
@@ -108,27 +90,28 @@ public class FsJobConfigurationManager extends JobConfigurationManager {
 
   void fetchJobSpecs() throws ExecutionException, InterruptedException {
     List<Pair<SpecExecutor.Verb, JobSpec>> jobSpecs =
-        (List<Pair<SpecExecutor.Verb, JobSpec>>) this._specConsumer.changedSpecs().get();
+        (List<Pair<SpecExecutor.Verb, JobSpec>>) this.specConsumer.changedSpecs().get();
 
+    log.info("Fetched {} job specs", jobSpecs.size());
     for (Pair<SpecExecutor.Verb, JobSpec> entry : jobSpecs) {
       JobSpec jobSpec = entry.getValue();
       SpecExecutor.Verb verb = entry.getKey();
       if (verb.equals(SpecExecutor.Verb.ADD)) {
         // Handle addition
-        if (this._jobCatalogOptional.isPresent()) {
-          this._jobCatalogOptional.get().put(jobSpec);
+        if (this.jobCatalogOptional.isPresent()) {
+          this.jobCatalogOptional.get().put(jobSpec);
         }
         postNewJobConfigArrival(jobSpec.getUri().toString(), jobSpec.getConfigAsProperties());
       } else if (verb.equals(SpecExecutor.Verb.UPDATE)) {
         //Handle update.
-        if (this._jobCatalogOptional.isPresent()) {
-          this._jobCatalogOptional.get().put(jobSpec);
+        if (this.jobCatalogOptional.isPresent()) {
+          this.jobCatalogOptional.get().put(jobSpec);
         }
         postUpdateJobConfigArrival(jobSpec.getUri().toString(), jobSpec.getConfigAsProperties());
       } else if (verb.equals(SpecExecutor.Verb.DELETE)) {
         // Handle delete
-        if (this._jobCatalogOptional.isPresent()) {
-          this._jobCatalogOptional.get().remove(jobSpec.getUri());
+        if (this.jobCatalogOptional.isPresent()) {
+          this.jobCatalogOptional.get().remove(jobSpec.getUri());
         }
         postDeleteJobConfigArrival(jobSpec.getUri().toString(), jobSpec.getConfigAsProperties());
       }
@@ -136,7 +119,7 @@ public class FsJobConfigurationManager extends JobConfigurationManager {
       try {
         //Acknowledge the successful consumption of the JobSpec back to the SpecConsumer, so that the
         //SpecConsumer can delete the JobSpec.
-        this._specConsumer.commit(jobSpec);
+        this.specConsumer.commit(jobSpec);
       } catch (IOException e) {
         log.error("Error when committing to FsSpecConsumer: ", e);
       }

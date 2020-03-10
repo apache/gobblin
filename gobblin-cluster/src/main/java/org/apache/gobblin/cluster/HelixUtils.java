@@ -22,6 +22,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -30,6 +31,7 @@ import org.apache.helix.HelixManager;
 import org.apache.helix.manager.zk.ZKHelixManager;
 import org.apache.helix.model.HelixConfigScope;
 import org.apache.helix.task.JobConfig;
+import org.apache.helix.task.TargetState;
 import org.apache.helix.task.TaskConfig;
 import org.apache.helix.task.TaskDriver;
 import org.apache.helix.task.TaskState;
@@ -39,11 +41,15 @@ import org.apache.helix.task.WorkflowConfig;
 import org.apache.helix.task.WorkflowContext;
 import org.apache.helix.tools.ClusterSetup;
 
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.JobException;
 import org.apache.gobblin.runtime.listeners.JobListener;
+import org.apache.gobblin.util.ConfigUtils;
 
 import static org.apache.helix.task.TaskState.STOPPED;
 
@@ -272,7 +278,7 @@ public class HelixUtils {
   }
 
   /**
-   * Returns the Helix Workflow Ids given {@link Iterable} of Gobblin job names. The method returns a
+   * Returns the currently running Helix Workflow Ids given an {@link Iterable} of Gobblin job names. The method returns a
    * {@link java.util.Map} from Gobblin job name to the corresponding Helix Workflow Id. This method iterates
    * over all Helix workflows, and obtains the jobs of each workflow from its jobDag.
    *
@@ -288,6 +294,10 @@ public class HelixUtils {
     Map<String, WorkflowConfig> workflowConfigMap = taskDriver.getWorkflows();
     for (String workflow : workflowConfigMap.keySet()) {
       WorkflowConfig workflowConfig = taskDriver.getWorkflowConfig(workflow);
+      //Filter out any stale Helix workflows which are not running.
+      if (workflowConfig.getTargetState() != TargetState.START) {
+        continue;
+      }
       Set<String> helixJobs = workflowConfig.getJobDag().getAllNodes();
       for (String helixJob : helixJobs) {
         Iterator<TaskConfig> taskConfigIterator = taskDriver.getJobConfig(helixJob).getTaskConfigMap().values().iterator();
@@ -307,5 +317,18 @@ public class HelixUtils {
       }
     }
     return jobNameToWorkflowId;
+  }
+
+  /**
+   * Return the system properties from the input {@link Config} instance
+   * @param config
+   */
+  public static void setSystemProperties(Config config) {
+    Properties properties = ConfigUtils.configToProperties(ConfigUtils.getConfig(config, GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_SYSTEM_PROPERTY_PREFIX,
+        ConfigFactory.empty()));
+
+    for (Map.Entry<Object, Object> entry: properties.entrySet()) {
+      System.setProperty(entry.getKey().toString(), entry.getValue().toString());
+    }
   }
 }

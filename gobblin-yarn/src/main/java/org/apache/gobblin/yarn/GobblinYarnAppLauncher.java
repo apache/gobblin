@@ -37,7 +37,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.commons.mail.EmailException;
-import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -93,17 +92,20 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
+import org.apache.gobblin.cluster.GobblinClusterManager;
 import org.apache.gobblin.cluster.GobblinClusterUtils;
 import org.apache.gobblin.cluster.GobblinHelixConstants;
+import org.apache.gobblin.cluster.GobblinHelixMessagingService;
 import org.apache.gobblin.cluster.HelixUtils;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.rest.JobExecutionInfoServer;
 import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
+import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.EmailUtils;
 import org.apache.gobblin.util.ExecutorsUtils;
-import org.apache.gobblin.util.io.StreamUtils;
 import org.apache.gobblin.util.JvmUtils;
+import org.apache.gobblin.util.io.StreamUtils;
 import org.apache.gobblin.util.logs.LogCopier;
 import org.apache.gobblin.yarn.event.ApplicationReportArrivalEvent;
 import org.apache.gobblin.yarn.event.GetApplicationReportFailureEvent;
@@ -188,6 +190,8 @@ public class GobblinYarnAppLauncher {
   private final Path sinkLogRootDir;
 
   private final Closer closer = Closer.create();
+  private final String helixInstanceName;
+  private final GobblinHelixMessagingService messagingService;
 
   // Yarn application ID
   private volatile Optional<ApplicationId> applicationId = Optional.absent();
@@ -207,6 +211,7 @@ public class GobblinYarnAppLauncher {
   private volatile boolean stopped = false;
 
   private final boolean emailNotificationOnShutdown;
+  private final boolean isHelixClusterManaged;
 
   private final int appMasterMemoryMbs;
   private final int jvmMemoryOverheadMbs;
@@ -275,6 +280,14 @@ public class GobblinYarnAppLauncher {
         GobblinYarnConfigurationKeys.DEFAULT_APP_VIEW_ACL);
     this.containerTimezone = ConfigUtils.getString(this.config, GobblinYarnConfigurationKeys.GOBBLIN_YARN_CONTAINER_TIMEZONE,
         GobblinYarnConfigurationKeys.DEFAULT_GOBBLIN_YARN_CONTAINER_TIMEZONE);
+
+    this.isHelixClusterManaged = ConfigUtils.getBoolean(this.config, GobblinClusterConfigurationKeys.IS_HELIX_CLUSTER_MANAGED,
+        GobblinClusterConfigurationKeys.DEFAULT_IS_HELIX_CLUSTER_MANAGED);
+    this.helixInstanceName = ConfigUtils.getString(config, GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_KEY,
+        GobblinClusterManager.class.getSimpleName());
+
+    this.messagingService = new GobblinHelixMessagingService(this.helixManager);
+
   }
 
   /**
@@ -286,13 +299,17 @@ public class GobblinYarnAppLauncher {
   public void launch() throws IOException, YarnException {
     this.eventBus.register(this);
 
-    String clusterName = this.config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
-    boolean overwriteExistingCluster = ConfigUtils.getBoolean(this.config, GobblinClusterConfigurationKeys.HELIX_CLUSTER_OVERWRITE_KEY,
-        GobblinClusterConfigurationKeys.DEFAULT_HELIX_CLUSTER_OVERWRITE);
-    LOGGER.info("Creating Helix cluster {} with overwrite: {}", clusterName, overwriteExistingCluster);
-    HelixUtils.createGobblinHelixCluster(
-        this.config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY), clusterName, overwriteExistingCluster);
-    LOGGER.info("Created Helix cluster " + clusterName);
+    if (this.isHelixClusterManaged) {
+      LOGGER.info("Helix cluster is managed; skipping creation of Helix cluster");
+    } else {
+      String clusterName = this.config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
+      boolean overwriteExistingCluster = ConfigUtils.getBoolean(this.config, GobblinClusterConfigurationKeys.HELIX_CLUSTER_OVERWRITE_KEY,
+          GobblinClusterConfigurationKeys.DEFAULT_HELIX_CLUSTER_OVERWRITE);
+      LOGGER.info("Creating Helix cluster {} with overwrite: {}", clusterName, overwriteExistingCluster);
+      HelixUtils.createGobblinHelixCluster(this.config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY),
+          clusterName, overwriteExistingCluster);
+      LOGGER.info("Created Helix cluster " + clusterName);
+    }
 
     connectHelixManager();
 
@@ -591,21 +608,22 @@ public class GobblinYarnAppLauncher {
     Path appMasterWorkDir = new Path(appWorkDir, GobblinYarnConfigurationKeys.APP_MASTER_WORK_DIR_NAME);
 
     Map<String, LocalResource> appMasterResources = Maps.newHashMap();
+    FileSystem localFs = FileSystem.getLocal(new Configuration());
 
     if (this.config.hasPath(GobblinYarnConfigurationKeys.LIB_JARS_DIR_KEY)) {
       Path libJarsDestDir = new Path(appWorkDir, GobblinYarnConfigurationKeys.LIB_JARS_DIR_NAME);
       addLibJars(new Path(this.config.getString(GobblinYarnConfigurationKeys.LIB_JARS_DIR_KEY)),
-          Optional.of(appMasterResources), libJarsDestDir);
+          Optional.of(appMasterResources), libJarsDestDir, localFs);
     }
     if (this.config.hasPath(GobblinYarnConfigurationKeys.APP_MASTER_JARS_KEY)) {
       Path appJarsDestDir = new Path(appMasterWorkDir, GobblinYarnConfigurationKeys.APP_JARS_DIR_NAME);
       addAppJars(this.config.getString(GobblinYarnConfigurationKeys.APP_MASTER_JARS_KEY),
-          Optional.of(appMasterResources), appJarsDestDir);
+          Optional.of(appMasterResources), appJarsDestDir, localFs);
     }
     if (this.config.hasPath(GobblinYarnConfigurationKeys.APP_MASTER_FILES_LOCAL_KEY)) {
       Path appFilesDestDir = new Path(appMasterWorkDir, GobblinYarnConfigurationKeys.APP_FILES_DIR_NAME);
       addAppLocalFiles(this.config.getString(GobblinYarnConfigurationKeys.APP_MASTER_FILES_LOCAL_KEY),
-          Optional.of(appMasterResources), appFilesDestDir);
+          Optional.of(appMasterResources), appFilesDestDir, localFs);
     }
     if (this.config.hasPath(GobblinYarnConfigurationKeys.APP_MASTER_FILES_REMOTE_KEY)) {
       addAppRemoteFiles(this.config.getString(GobblinYarnConfigurationKeys.APP_MASTER_FILES_REMOTE_KEY),
@@ -623,22 +641,28 @@ public class GobblinYarnAppLauncher {
   private void addContainerLocalResources(ApplicationId applicationId) throws IOException {
     Path appWorkDir = GobblinClusterUtils.getAppWorkDirPath(this.fs, this.applicationName, applicationId.toString());
     Path containerWorkDir = new Path(appWorkDir, GobblinYarnConfigurationKeys.CONTAINER_WORK_DIR_NAME);
+    FileSystem localFs = FileSystem.getLocal(new Configuration());
 
     if (this.config.hasPath(GobblinYarnConfigurationKeys.CONTAINER_JARS_KEY)) {
       Path appJarsDestDir = new Path(containerWorkDir, GobblinYarnConfigurationKeys.APP_JARS_DIR_NAME);
       addAppJars(this.config.getString(GobblinYarnConfigurationKeys.CONTAINER_JARS_KEY),
-          Optional.<Map<String, LocalResource>>absent(), appJarsDestDir);
+          Optional.<Map<String, LocalResource>>absent(), appJarsDestDir, localFs);
     }
     if (this.config.hasPath(GobblinYarnConfigurationKeys.CONTAINER_FILES_LOCAL_KEY)) {
       Path appFilesDestDir = new Path(containerWorkDir, GobblinYarnConfigurationKeys.APP_FILES_DIR_NAME);
       addAppLocalFiles(this.config.getString(GobblinYarnConfigurationKeys.CONTAINER_FILES_LOCAL_KEY),
-          Optional.<Map<String, LocalResource>>absent(), appFilesDestDir);
+          Optional.<Map<String, LocalResource>>absent(), appFilesDestDir, localFs);
     }
   }
 
-  private void addLibJars(Path srcLibJarDir, Optional<Map<String, LocalResource>> resourceMap, Path destDir)
-      throws IOException {
-    FileSystem localFs = FileSystem.getLocal(this.yarnConfiguration);
+  private void addLibJars(Path srcLibJarDir, Optional<Map<String, LocalResource>> resourceMap, Path destDir,
+      FileSystem localFs) throws IOException {
+
+    // Missing classpath-jars will be a fatal error.
+    if (!localFs.exists(srcLibJarDir)) {
+      throw new IllegalStateException(String.format("The library directory[%s] are not being found, abort the application", srcLibJarDir));
+    }
+
     FileStatus[] libJarFiles = localFs.listStatus(srcLibJarDir);
     if (libJarFiles == null || libJarFiles.length == 0) {
       return;
@@ -654,11 +678,15 @@ public class GobblinYarnAppLauncher {
   }
 
   private void addAppJars(String jarFilePathList, Optional<Map<String, LocalResource>> resourceMap,
-      Path destDir) throws IOException {
+      Path destDir, FileSystem localFs) throws IOException {
     for (String jarFilePath : SPLITTER.split(jarFilePathList)) {
       Path srcFilePath = new Path(jarFilePath);
       Path destFilePath = new Path(destDir, srcFilePath.getName());
-      this.fs.copyFromLocalFile(srcFilePath, destFilePath);
+      if (localFs.exists(srcFilePath)) {
+        this.fs.copyFromLocalFile(srcFilePath, destFilePath);
+      } else {
+        LOGGER.warn("The src destination " + srcFilePath + " doesn't exists");
+      }
       if (resourceMap.isPresent()) {
         YarnHelixUtils.addFileAsLocalResource(this.fs, destFilePath, LocalResourceType.FILE, resourceMap.get());
       }
@@ -666,13 +694,18 @@ public class GobblinYarnAppLauncher {
   }
 
   private void addAppLocalFiles(String localFilePathList, Optional<Map<String, LocalResource>> resourceMap,
-      Path destDir) throws IOException {
+      Path destDir, FileSystem localFs) throws IOException {
+
     for (String localFilePath : SPLITTER.split(localFilePathList)) {
       Path srcFilePath = new Path(localFilePath);
       Path destFilePath = new Path(destDir, srcFilePath.getName());
-      this.fs.copyFromLocalFile(srcFilePath, destFilePath);
-      if (resourceMap.isPresent()) {
-        YarnHelixUtils.addFileAsLocalResource(this.fs, destFilePath, LocalResourceType.FILE, resourceMap.get());
+      if (localFs.exists(srcFilePath)) {
+        this.fs.copyFromLocalFile(srcFilePath, destFilePath);
+        if (resourceMap.isPresent()) {
+          YarnHelixUtils.addFileAsLocalResource(this.fs, destFilePath, LocalResourceType.FILE, resourceMap.get());
+        }
+      } else {
+        LOGGER.warn(String.format("The request file %s doesn't exist", srcFilePath));
       }
     }
   }
@@ -791,10 +824,16 @@ public class GobblinYarnAppLauncher {
   void sendShutdownRequest() {
     Criteria criteria = new Criteria();
     criteria.setInstanceName("%");
-    criteria.setResource("%");
     criteria.setPartition("%");
     criteria.setPartitionState("%");
-    criteria.setRecipientInstanceType(InstanceType.CONTROLLER);
+    criteria.setResource("%");
+    if (this.isHelixClusterManaged) {
+      //In the managed mode, the Gobblin Yarn Application Master connects to the Helix cluster in the Participant role.
+      criteria.setRecipientInstanceType(InstanceType.PARTICIPANT);
+      criteria.setInstanceName(this.helixInstanceName);
+    } else {
+      criteria.setRecipientInstanceType(InstanceType.CONTROLLER);
+    }
     criteria.setSessionSpecific(true);
 
     Message shutdownRequest = new Message(GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE,
@@ -803,7 +842,7 @@ public class GobblinYarnAppLauncher {
     shutdownRequest.setMsgState(Message.MessageState.NEW);
     shutdownRequest.setTgtSessionId("*");
 
-    int messagesSent = this.helixManager.getMessagingService().send(criteria, shutdownRequest);
+    int messagesSent = this.messagingService.send(criteria, shutdownRequest);
     if (messagesSent == 0) {
       LOGGER.error(String.format("Failed to send the %s message to the controller", shutdownRequest.getMsgSubType()));
     }

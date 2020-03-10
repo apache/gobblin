@@ -24,6 +24,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -32,6 +33,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigException;
+import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValue;
 import com.typesafe.config.ConfigValueFactory;
 
@@ -103,6 +105,11 @@ public abstract class AbstractPathFinder implements PathFinder {
       this.destNodes.add(destNode);
     }
 
+    // All dest nodes should be the same class
+    if (this.destNodes != null && this.destNodes.stream().map(Object::getClass).collect(Collectors.toSet()).size() > 1) {
+      throw new RuntimeException("All destination nodes must use the same DataNode class");
+    }
+
     //Should apply retention?
     boolean shouldApplyRetention = ConfigUtils.getBoolean(flowConfig, ConfigurationKeys.FLOW_APPLY_RETENTION, true);
     //Should apply retention on input dataset?
@@ -144,6 +151,11 @@ public abstract class AbstractPathFinder implements PathFinder {
     flowConfig = flowConfig.withValue(ConfigurationKeys.FLOW_APPLY_RETENTION, ConfigValueFactory.fromAnyRef(shouldApplyRetention));
     flowConfig = flowConfig.withValue(ConfigurationKeys.FLOW_APPLY_INPUT_RETENTION, ConfigValueFactory.fromAnyRef(shouldApplyRetentionOnInput));
 
+    srcDatasetDescriptorConfig = srcDatasetDescriptorConfig.withFallback(getDefaultConfig(this.srcNode));
+    if (this.destNodes != null) {
+      destDatasetDescriptorConfig = destDatasetDescriptorConfig.withFallback(getDefaultConfig(this.destNodes.get(0)));
+    }
+
     Class srcdatasetDescriptorClass =
         Class.forName(srcDatasetDescriptorConfig.getString(DatasetDescriptorConfigKeys.CLASS_KEY));
     this.srcDatasetDescriptor = (DatasetDescriptor) GobblinConstructorUtils
@@ -153,6 +165,20 @@ public abstract class AbstractPathFinder implements PathFinder {
     this.destDatasetDescriptor = (DatasetDescriptor) GobblinConstructorUtils
         .invokeLongestConstructor(destDatasetDescriptorClass, destDatasetDescriptorConfig);
 
+  }
+
+  private Config getDefaultConfig(DataNode dataNode) {
+    Config defaultConfig = ConfigFactory.empty();
+
+    if (dataNode.getDefaultDatasetDescriptorClass() != null) {
+      defaultConfig = defaultConfig.withValue(DatasetDescriptorConfigKeys.CLASS_KEY, ConfigValueFactory.fromAnyRef(dataNode.getDefaultDatasetDescriptorClass()));
+    }
+
+    if (dataNode.getDefaultDatasetDescriptorPlatform() != null) {
+      defaultConfig = defaultConfig.withValue(DatasetDescriptorConfigKeys.PLATFORM_KEY, ConfigValueFactory.fromAnyRef(dataNode.getDefaultDatasetDescriptorPlatform()));
+    }
+
+    return defaultConfig;
   }
 
   boolean isPathFound(DataNode currentNode, DataNode destNode, DatasetDescriptor currentDatasetDescriptor,

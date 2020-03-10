@@ -40,20 +40,19 @@ import com.typesafe.config.ConfigFactory;
  */
 public class AzkabanProjectConfig {
   private final String azkabanServerUrl;
-
   private final String azkabanProjectName;
   private final String azkabanProjectDescription;
   private final String azkabanProjectFlowName;
   private final String azkabanGroupAdminUsers;
   private final Optional<String> azkabanUserToProxy;
-
   private final Optional<List<String>> azkabanZipJarNames;
   private final Optional<String> azkabanZipJarUrlTemplate;
   private final Optional<String> azkabanZipJarVersion;
   private final Optional<List<String>> azkabanZipAdditionalFiles;
   private final Boolean failIfJarNotFound;
-
   private final JobSpec jobSpec;
+
+  public static final String USER_TO_PROXY = "user.to.proxy";
 
   public AzkabanProjectConfig(JobSpec jobSpec) {
     // Extract config objects

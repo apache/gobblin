@@ -36,11 +36,14 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.lang3.StringUtils;
+
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.eventbus.Subscribe;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -63,6 +66,8 @@ import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.FlowConfigResourceLocalHandler;
+import org.apache.gobblin.service.RequesterService;
+import org.apache.gobblin.service.ServiceRequester;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.Dag.DagNode;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
@@ -71,6 +76,7 @@ import org.apache.gobblin.service.monitoring.JobStatus;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.service.monitoring.KafkaJobStatusMonitor;
 import org.apache.gobblin.service.monitoring.KafkaJobStatusMonitorFactory;
+import org.apache.gobblin.service.monitoring.KillFlowEvent;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
@@ -110,7 +116,7 @@ public class DagManager extends AbstractIdleService {
 
   private static final String JOB_STATUS_RETRIEVER_KEY = DAG_MANAGER_PREFIX + "jobStatusRetriever";
   private static final Integer DEFAULT_JOB_STATUS_POLLING_INTERVAL = 10;
-  private static final Integer DEFAULT_NUM_THREADS = 3;
+  public static final Integer DEFAULT_NUM_THREADS = 3;
   private static final Integer TERMINATION_TIMEOUT = 30;
   public static final String NUM_THREADS_KEY = DAG_MANAGER_PREFIX + "numThreads";
   public static final String JOB_STATUS_POLLING_INTERVAL_KEY = DAG_MANAGER_PREFIX + "pollingInterval";
@@ -270,11 +276,28 @@ public class DagManager extends AbstractIdleService {
     log.info("Found {} flows to cancel.", flowExecutionIds.size());
 
     for (long flowExecutionId : flowExecutionIds) {
-      int queueId =  DagManagerUtils.getDagQueueId(flowExecutionId, this.numThreads);
-      String dagId = DagManagerUtils.generateDagId(flowGroup, flowName, flowExecutionId);
-      if (!this.cancelQueue[queueId].offer(dagId)) {
-        throw new IOException("Could not add dag " + dagId + " to cancellation queue.");
-      }
+      killFlow(flowGroup, flowName, flowExecutionId);
+    }
+  }
+
+  /**
+   * Add the specified flow to {@link DagManager#cancelQueue}
+   */
+  private void killFlow(String flowGroup, String flowName, long flowExecutionId) throws IOException {
+    int queueId =  DagManagerUtils.getDagQueueId(flowExecutionId, this.numThreads);
+    String dagId = DagManagerUtils.generateDagId(flowGroup, flowName, flowExecutionId);
+    if (!this.cancelQueue[queueId].offer(dagId)) {
+      throw new IOException("Could not add dag " + dagId + " to cancellation queue.");
+    }
+  }
+
+  @Subscribe
+  public void handleKillFlowEvent(KillFlowEvent killFlowEvent) {
+    log.info("Received kill request for flow ({}, {}, {})", killFlowEvent.getFlowGroup(), killFlowEvent.getFlowName(), killFlowEvent.getFlowExecutionId());
+    try {
+      killFlow(killFlowEvent.getFlowGroup(), killFlowEvent.getFlowName(), killFlowEvent.getFlowExecutionId());
+    } catch (IOException e) {
+      log.warn("Failed to kill flow", e);
     }
   }
 
@@ -309,7 +332,9 @@ public class DagManager extends AbstractIdleService {
           this.dagManagerThreads[i] = dagManagerThread;
           this.scheduledExecutorPool.scheduleAtFixedRate(dagManagerThread, 0, this.pollingInterval, TimeUnit.SECONDS);
         }
-        for (Dag<JobExecutionPlan> dag : dagStateStore.getDags()) {
+        List<Dag<JobExecutionPlan>> dags = dagStateStore.getDags();
+        log.info("Loading " + dags.size() + " dags from dag state store");
+        for (Dag<JobExecutionPlan> dag : dags) {
           addDag(dag, false);
         }
       } else { //Mark the DagManager inactive.
@@ -523,6 +548,9 @@ public class DagManager extends AbstractIdleService {
           case PENDING:
             jobExecutionPlan.setExecutionStatus(PENDING);
             break;
+          case PENDING_RETRY:
+            jobExecutionPlan.setExecutionStatus(PENDING_RETRY);
+            break;
           default:
             jobExecutionPlan.setExecutionStatus(RUNNING);
             break;
@@ -698,6 +726,7 @@ public class DagManager extends AbstractIdleService {
 
         if (this.metricContext != null) {
           getRunningJobsCounter(dagNode).inc();
+          getRunningJobsCounterForUser(dagNode).forEach(counter -> counter.inc());
         }
 
         addSpecFuture.get();
@@ -735,6 +764,7 @@ public class DagManager extends AbstractIdleService {
 
       if (this.metricContext != null) {
         getRunningJobsCounter(dagNode).dec();
+        getRunningJobsCounterForUser(dagNode).forEach(counter -> counter.dec());
       }
 
       switch (jobStatus) {
@@ -785,6 +815,33 @@ public class DagManager extends AbstractIdleService {
               dagNode.getValue().getSpecExecutor().getUri().toString()));
     }
 
+    private List<ContextAwareCounter> getRunningJobsCounterForUser(DagNode<JobExecutionPlan> dagNode) {
+      Config configs = dagNode.getValue().getJobSpec().getConfig();
+      String proxy = ConfigUtils.getString(configs, AzkabanProjectConfig.USER_TO_PROXY, null);
+      List<ContextAwareCounter> counters = new ArrayList<>();
+
+      if (StringUtils.isNotEmpty(proxy)) {
+        counters.add(metricContext.contextAwareCounter(
+            MetricRegistry.name(
+                MetricReportUtils.GOBBLIN_SERVICE_METRICS_PREFIX,
+                ServiceMetricNames.SERVICE_USERS, proxy)));
+      }
+
+      try {
+        String serializedRequesters = ConfigUtils.getString(configs, RequesterService.REQUESTER_LIST, null);
+        if (StringUtils.isNotEmpty(serializedRequesters)) {
+          List<ServiceRequester> requesters = RequesterService.deserialize(serializedRequesters);
+          for (ServiceRequester requester : requesters) {
+            counters.add(metricContext.contextAwareCounter(MetricRegistry
+                .name(MetricReportUtils.GOBBLIN_SERVICE_METRICS_PREFIX, ServiceMetricNames.SERVICE_USERS, requester.getName())));
+          }
+        }
+      } catch (IOException e) {
+        log.error("Error while fetching requester list.", e);
+      }
+
+      return counters;
+    }
     /**
      * Perform clean up. Remove a dag from the dagstore if the dag is complete and update internal state.
      */

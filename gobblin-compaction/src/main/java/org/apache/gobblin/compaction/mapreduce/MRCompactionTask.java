@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormatCounter;
 
 import com.google.common.collect.ImmutableMap;
 
@@ -33,8 +34,10 @@ import org.apache.gobblin.compaction.suite.CompactionSuite;
 import org.apache.gobblin.compaction.suite.CompactionSuiteUtils;
 import org.apache.gobblin.compaction.verify.CompactionVerifier;
 import org.apache.gobblin.dataset.Dataset;
+import org.apache.gobblin.dataset.FileSystemDataset;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.runtime.TaskContext;
+import org.apache.gobblin.runtime.TaskState;
 import org.apache.gobblin.runtime.mapreduce.MRTask;
 
 
@@ -47,6 +50,11 @@ import org.apache.gobblin.runtime.mapreduce.MRTask;
  */
 @Slf4j
 public class MRCompactionTask extends MRTask {
+
+  public static final String RECORD_COUNT = "counter.recordCount";
+  public static final String FILE_COUNT = "counter.fileCount";
+  public static final String BYTE_COUNT = "counter.byteCount";
+
   protected final CompactionSuite suite;
   protected final Dataset dataset;
   protected final EventSubmitter eventSubmitter;
@@ -73,10 +81,18 @@ public class MRCompactionTask extends MRTask {
     List<CompactionVerifier> verifiers = this.suite.getMapReduceVerifiers();
     for (CompactionVerifier verifier : verifiers) {
       if (!verifier.verify(dataset).isSuccessful()) {
-        log.error("Verification {} for {} is not passed.", verifier.getName(), dataset.datasetURN());
+        log.error("Verification {} for {} is not passed.", verifier.getName(), dataset.getUrn());
         this.onMRTaskComplete (false, new IOException("Compaction verification for MR is failed"));
         return;
       }
+    }
+
+    if (dataset instanceof FileSystemDataset
+        && ((FileSystemDataset)dataset).isVirtual()) {
+      log.info("A trivial compaction job as there is no physical data for {}."
+          + "Will trigger a success complete directly", dataset.getUrn());
+      this.onMRTaskComplete(true, null);
+      return;
     }
 
     super.run();
@@ -85,6 +101,8 @@ public class MRCompactionTask extends MRTask {
   public void onMRTaskComplete (boolean isSuccess, Throwable throwable) {
     if (isSuccess) {
       try {
+        setCounterInfo(taskContext.getTaskState());
+
         List<CompactionCompleteAction> actions = this.suite.getCompactionCompleteActions();
         for (CompactionCompleteAction action: actions) {
           action.addEventSubmitter(eventSubmitter);
@@ -100,6 +118,28 @@ public class MRCompactionTask extends MRTask {
       submitEvent(CompactionSlaEventHelper.COMPACTION_FAILED_EVENT_NAME);
       super.onMRTaskComplete(false, throwable);
     }
+  }
+
+  private void setCounterInfo(TaskState taskState)
+      throws IOException {
+
+    if (mrJob == null) {
+      return;
+    }
+
+    long recordCount = getCounterValue(mrJob, RecordKeyDedupReducerBase.EVENT_COUNTER.RECORD_COUNT);
+    if (recordCount == 0) {
+      // map only job
+      recordCount = getCounterValue(mrJob, RecordKeyMapperBase.EVENT_COUNTER.RECORD_COUNT);
+    }
+    taskState.setProp(RECORD_COUNT, recordCount);
+    taskState.setProp(FILE_COUNT, getCounterValue(mrJob, CompactorOutputCommitter.EVENT_COUNTER.OUTPUT_FILE_COUNT));
+    taskState.setProp(BYTE_COUNT, getCounterValue(mrJob, FileOutputFormatCounter.BYTES_WRITTEN));
+  }
+
+  private long getCounterValue(Job job, Enum<?> key)
+      throws IOException {
+    return job.getCounters().findCounter(key).getValue();
   }
 
   private void submitEvent(String eventName) {

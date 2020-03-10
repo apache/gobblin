@@ -25,16 +25,11 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.hadoop.security.token.Token;
-import org.apache.hadoop.security.token.TokenIdentifier;
-
 import org.apache.helix.HelixManager;
-import org.apache.helix.InstanceType;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Strings;
-
 import com.typesafe.config.Config;
 
 
@@ -61,7 +56,6 @@ import com.typesafe.config.Config;
  * @author Yinan Li
  */
 public class YarnAppSecurityManagerWithKeytabs extends AbstractYarnAppSecurityManager {
-
   private UserGroupInformation loginUser;
   private Optional<ScheduledFuture<?>> scheduledTokenRenewTask = Optional.absent();
 
@@ -84,9 +78,7 @@ public class YarnAppSecurityManagerWithKeytabs extends AbstractYarnAppSecurityMa
     writeDelegationTokenToFile();
 
     if (!this.firstLogin) {
-      // Send a message to the controller and all the participants if this is not the first login
-      sendTokenFileUpdatedMessage(InstanceType.CONTROLLER);
-      sendTokenFileUpdatedMessage(InstanceType.PARTICIPANT);
+      sendTokenFileUpdatedMessage();
     }
   }
 
@@ -129,10 +121,7 @@ public class YarnAppSecurityManagerWithKeytabs extends AbstractYarnAppSecurityMa
     writeDelegationTokenToFile();
 
     if (!this.firstLogin) {
-      // Send a message to the controller and all the participants
-      sendTokenFileUpdatedMessage(InstanceType.CONTROLLER);
-      sendTokenFileUpdatedMessage(InstanceType.PARTICIPANT);
+      sendTokenFileUpdatedMessage();
     }
   }
-
 }

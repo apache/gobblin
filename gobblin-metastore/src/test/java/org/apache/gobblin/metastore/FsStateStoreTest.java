@@ -103,8 +103,11 @@ public class FsStateStoreTest {
     Assert.assertEquals(states.size(), 3);
 
     Assert.assertEquals(states.get(0).getProp("k1"), "v1");
+    Assert.assertEquals(states.get(0).getId(),  "s1");
     Assert.assertEquals(states.get(1).getProp("k2"), "v2");
+    Assert.assertEquals(states.get(1).getId(),  "s2");
     Assert.assertEquals(states.get(2).getProp("k3"), "v3");
+    Assert.assertEquals(states.get(2).getId(),  "s3");
   }
 
   @Test(dependsOnMethods = { "testPut" })
@@ -119,8 +122,11 @@ public class FsStateStoreTest {
     Assert.assertEquals(states.size(), 3);
 
     Assert.assertEquals(states.get(0).getProp("k1"), "v1");
+    Assert.assertEquals(states.get(0).getId(),  "s1");
     Assert.assertEquals(states.get(1).getProp("k2"), "v2");
+    Assert.assertEquals(states.get(1).getId(),  "s2");
     Assert.assertEquals(states.get(2).getProp("k3"), "v3");
+    Assert.assertEquals(states.get(2).getId(),  "s3");
   }
 
   @Test(dependsOnMethods = { "testGetAlias" })
@@ -152,8 +158,11 @@ public class FsStateStoreTest {
     Assert.assertEquals(states.size(), 3);
 
     Assert.assertEquals(states.get(0).getProp("k1"), "v1");
+    Assert.assertEquals(states.get(0).getId(),  "s1");
     Assert.assertEquals(states.get(1).getProp("k2"), "v2");
+    Assert.assertEquals(states.get(1).getId(),  "s2");
     Assert.assertEquals(states.get(2).getProp("k3"), "v3");
+    Assert.assertEquals(states.get(2).getId(),  "s3");
   }
 
   @AfterClass

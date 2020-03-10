@@ -30,10 +30,27 @@ public class ContainerHealthMetricsServiceTest {
     Config config = ConfigFactory.empty();
     ContainerHealthMetricsService service = new ContainerHealthMetricsService(config);
     service.runOneIteration();
-    long processCpuTime1 = service.processCpuTime.get();
+    //Ensure lastGcStats updated after each iteration
+    Assert.assertTrue(service.getCurrentGcStats() == service.getLastGcStats());
+    ContainerHealthMetricsService.GcStats previousLastGcStats = service.getLastGcStats();
+    Assert.assertTrue( service.minorGcCount.get() >= 0);
+    Assert.assertTrue( service.minorGcDuration.get() >= 0);
+    Assert.assertTrue( service.majorGcCount.get() >= 0);
+    Assert.assertTrue( service.minorGcDuration.get() >= 0);
+    Assert.assertTrue( service.unknownGcCount.get() >= 0);
+    Assert.assertTrue( service.unknownGcDuration.get() >= 0);
+    double processCpuTime1 = service.processCpuTime.get();
     Thread.sleep(10);
     service.runOneIteration();
-    long processCpuTime2 = service.processCpuTime.get();
+    Assert.assertTrue(service.getCurrentGcStats() == service.getLastGcStats());
+    Assert.assertTrue(service.getLastGcStats() != previousLastGcStats);
+    double processCpuTime2 = service.processCpuTime.get();
     Assert.assertTrue( processCpuTime1 <= processCpuTime2);
+    Assert.assertTrue( service.minorGcCount.get() >= 0);
+    Assert.assertTrue( service.minorGcDuration.get() >= 0);
+    Assert.assertTrue( service.majorGcCount.get() >= 0);
+    Assert.assertTrue( service.minorGcDuration.get() >= 0);
+    Assert.assertTrue( service.unknownGcCount.get() >= 0);
+    Assert.assertTrue( service.unknownGcDuration.get() >= 0);
   }
 }

@@ -30,5 +30,10 @@ public class ContainerHealthMetrics {
   public static final String NUM_AVAILABLE_PROCESSORS = CONTAINER_METRICS_PREFIX + "numAvailableProcessors";
   public static final String TOTAL_PHYSICAL_MEM_SIZE = CONTAINER_METRICS_PREFIX + "totalPhysicalMemSize";
   public static final String FREE_PHYSICAL_MEM_SIZE = CONTAINER_METRICS_PREFIX + "freePhysicalMemSize";
-
+  public static final String MINOR_GC_COUNT = CONTAINER_METRICS_PREFIX + "minorGcCount";
+  public static final String MINOR_GC_DURATION = CONTAINER_METRICS_PREFIX + "minorGcDuration";
+  public static final String MAJOR_GC_COUNT = CONTAINER_METRICS_PREFIX + "majorGcCount";
+  public static final String MAJOR_GC_DURATION = CONTAINER_METRICS_PREFIX + "majorGcDuration";
+  public static final String UNKNOWN_GC_COUNT = CONTAINER_METRICS_PREFIX + "unknownGcCount";
+  public static final String UNKNOWN_GC_DURATION = CONTAINER_METRICS_PREFIX + "unknownGcDuration";
 }

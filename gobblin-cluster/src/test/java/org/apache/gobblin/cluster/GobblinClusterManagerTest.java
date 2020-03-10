@@ -21,6 +21,7 @@ import java.net.URL;
 
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.test.TestingServer;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
@@ -61,6 +62,7 @@ import org.apache.gobblin.testing.AssertWithBackoff;
 @Test(groups = { "gobblin.cluster" })
 public class GobblinClusterManagerTest implements HelixMessageTestBase {
   public final static Logger LOG = LoggerFactory.getLogger(GobblinClusterManagerTest.class);
+  public static final String HADOOP_OVERRIDE_PROPERTY_NAME = "prop";
 
   private TestingServer testingZKServer;
 
@@ -83,6 +85,10 @@ public class GobblinClusterManagerTest implements HelixMessageTestBase {
                    ConfigValueFactory.fromAnyRef(testingZKServer.getConnectString()))
         .withValue(GobblinClusterConfigurationKeys.HELIX_TASK_QUOTA_CONFIG_KEY,
             ConfigValueFactory.fromAnyRef("DEFAULT:1,OTHER:10"))
+        .withValue(GobblinClusterConfigurationKeys.HADOOP_CONFIG_OVERRIDES_PREFIX + "." + HADOOP_OVERRIDE_PROPERTY_NAME,
+            ConfigValueFactory.fromAnyRef("value"))
+        .withValue(GobblinClusterConfigurationKeys.HADOOP_CONFIG_OVERRIDES_PREFIX + "." + "fs.file.impl.disable.cache",
+            ConfigValueFactory.fromAnyRef("true"))
         .resolve();
 
     String zkConnectionString = config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
@@ -174,6 +180,12 @@ public class GobblinClusterManagerTest implements HelixMessageTestBase {
             return !GobblinClusterManagerTest.this.gobblinClusterManager.isHelixManagerConnected();
           }
         }, "Cluster Manager shutdown");
+  }
+
+  @Test
+  public void testBuildFileSystemConfig() {
+    FileSystem fileSystem = this.gobblinClusterManager.getFs();
+    Assert.assertEquals(fileSystem.getConf().get(HADOOP_OVERRIDE_PROPERTY_NAME), "value");
   }
 
   @AfterClass

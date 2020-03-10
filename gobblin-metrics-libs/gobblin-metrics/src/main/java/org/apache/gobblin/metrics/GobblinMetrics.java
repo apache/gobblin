@@ -62,6 +62,8 @@ import org.apache.gobblin.metrics.reporter.ScheduledReporter;
 import org.apache.gobblin.password.PasswordManager;
 import org.apache.gobblin.util.PropertiesUtils;
 
+import lombok.Getter;
+
 
 /**
  * A class that represents a set of metrics associated with a given name.
@@ -73,6 +75,7 @@ public class GobblinMetrics {
   public static final String METRICS_ID_PREFIX = "gobblin.metrics.";
   public static final String METRICS_STATE_CUSTOM_TAGS = "metrics.state.custom.tags";
 
+  @Getter
   protected static final GobblinMetricsRegistry GOBBLIN_METRICS_REGISTRY = GobblinMetricsRegistry.getInstance();
 
   /**
@@ -148,7 +151,7 @@ public class GobblinMetrics {
    * @return a {@link GobblinMetrics} instance
    */
   public static GobblinMetrics get(final String id, final MetricContext parentContext, final List<Tag<?>> tags) {
-    return GOBBLIN_METRICS_REGISTRY.getOrDefault(id, new Callable<GobblinMetrics>() {
+    return GOBBLIN_METRICS_REGISTRY.getOrCreate(id, new Callable<GobblinMetrics>() {
       @Override
       public GobblinMetrics call()
           throws Exception {

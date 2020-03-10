@@ -31,6 +31,7 @@ import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Service;
 import com.google.common.util.concurrent.ServiceManager;
@@ -49,11 +50,12 @@ import static org.apache.gobblin.cluster.GobblinClusterConfigurationKeys.CLUSTER
 class SingleTaskRunner {
   private static final Logger logger = LoggerFactory.getLogger(SingleTaskRunner.class);
 
-  private final String jobId;
-  private final String workUnitFilePath;
-  private final Config clusterConfig;
+  protected final String jobId;
+  protected final String workUnitFilePath;
+  protected final Config clusterConfig;
   private final Path appWorkPath;
-  private SingleTask task;
+  @VisibleForTesting
+  SingleTask task;
   private TaskExecutor taskExecutor;
   private GobblinHelixTaskStateTracker taskStateTracker;
   private ServiceManager serviceManager;
@@ -69,15 +71,24 @@ class SingleTaskRunner {
 
   void run()
       throws IOException, InterruptedException {
+    this.run(false);
+  }
+
+  /**
+   *
+   * @param fail set to false in normal cases, when set to true, the underlying task will fail.
+   */
+  void run(boolean fail) throws IOException, InterruptedException{
     logger.info("SingleTaskRunner running.");
     startServices();
-    runTask();
+    runTask(fail);
     shutdownServices();
   }
 
-  private void startServices() {
+  @VisibleForTesting
+  void startServices() {
     logger.info("SingleTaskRunner start services.");
-    getServices();
+    initServices();
     this.serviceManager.startAsync();
     try {
       this.serviceManager.awaitHealthy(10, TimeUnit.SECONDS);
@@ -96,14 +107,14 @@ class SingleTaskRunner {
     }
   }
 
-  private void runTask()
+  private void runTask(boolean fail)
       throws IOException, InterruptedException {
     logger.info("SingleTaskRunner running task.");
-    getSingleHelixTask();
+    initClusterSingleTask(fail);
     this.task.run();
   }
 
-  private void getSingleHelixTask()
+  void initClusterSingleTask(boolean fail)
       throws IOException {
     final FileSystem fs = getFileSystem();
     final StateStores stateStores = new StateStores(this.clusterConfig, this.appWorkPath,
@@ -115,7 +126,12 @@ class SingleTaskRunner {
 
     final TaskAttemptBuilder taskAttemptBuilder = getTaskAttemptBuilder(stateStores);
 
-    this.task = new SingleTask(this.jobId, new Path(this.workUnitFilePath), jobStateFilePath, fs,
+    this.task = createSingleTaskHelper(taskAttemptBuilder, fs, stateStores, jobStateFilePath, fail);
+  }
+
+  protected SingleTask createSingleTaskHelper(TaskAttemptBuilder taskAttemptBuilder, FileSystem fs,
+      StateStores stateStores, Path jobStateFilePath, boolean fail) throws IOException {
+    return new SingleTask(this.jobId, new Path(this.workUnitFilePath), jobStateFilePath, fs,
         taskAttemptBuilder, stateStores, GobblinClusterUtils.getDynamicConfig(this.clusterConfig));
   }
 
@@ -127,7 +143,7 @@ class SingleTaskRunner {
     return taskAttemptBuilder;
   }
 
-  private void getServices() {
+  private void initServices() {
     final Properties properties = ConfigUtils.configToProperties(this.clusterConfig);
     this.taskExecutor = new TaskExecutor(properties);
     this.taskStateTracker = new GobblinHelixTaskStateTracker(properties);

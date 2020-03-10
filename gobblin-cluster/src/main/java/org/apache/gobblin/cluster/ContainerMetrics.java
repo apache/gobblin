@@ -48,7 +48,7 @@ public class ContainerMetrics extends GobblinMetrics {
    */
   public static ContainerMetrics get(final State containerState, final String applicationName,
       final String workerId) {
-    return (ContainerMetrics) GOBBLIN_METRICS_REGISTRY.getOrDefault(name(workerId), new Callable<GobblinMetrics>() {
+    return (ContainerMetrics) GOBBLIN_METRICS_REGISTRY.getOrCreate(name(workerId), new Callable<GobblinMetrics>() {
       @Override public GobblinMetrics call() throws Exception {
         return new ContainerMetrics(containerState, applicationName, workerId);
       }

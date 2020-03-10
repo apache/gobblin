@@ -18,18 +18,18 @@ package org.apache.gobblin.service.modules.orchestration;
 
 import java.util.concurrent.Future;
 
+import org.slf4j.Logger;
+
+import com.google.common.base.Optional;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.runtime.spec_executorInstance.AbstractSpecExecutor;
 import org.apache.gobblin.util.CompletedFuture;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
-
-import org.slf4j.Logger;
-
-import com.google.common.base.Optional;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
 
 
 public class AzkabanSpecExecutor extends AbstractSpecExecutor {
@@ -55,7 +55,11 @@ public class AzkabanSpecExecutor extends AbstractSpecExecutor {
       azkabanSpecProducer = (SpecProducer<Spec>) GobblinConstructorUtils
           .invokeLongestConstructor(producerClass, _config);
     } catch (ReflectiveOperationException e) {
-      throw new RuntimeException("Could not instantiate kafka pusher", e);
+      if (e.getCause() != null) {
+        throw new RuntimeException("Could not instantiate spec producer", e.getCause());
+      } else {
+        throw new RuntimeException("Could not instantiate spec producer", e);
+      }
     }
   }
 

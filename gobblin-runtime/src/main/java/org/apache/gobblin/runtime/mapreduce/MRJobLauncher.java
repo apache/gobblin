@@ -105,7 +105,6 @@ import org.apache.gobblin.util.ParallelRunner;
 import org.apache.gobblin.util.SerializationUtils;
 import org.apache.gobblin.util.reflection.RestrictedFieldAccessingUtils;
 
-
 /**
  * An implementation of {@link JobLauncher} that launches a Gobblin job as a Hadoop MR job.
  *

@@ -33,6 +33,7 @@ import org.apache.gobblin.compaction.parser.CompactionPathParser;
 import org.apache.gobblin.compaction.verify.InputRecordCountHelper;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.data.management.dataset.SimpleFileSystemDataset;
 import org.apache.gobblin.dataset.FileSystemDataset;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.util.HadoopUtils;
@@ -73,6 +74,10 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
    * Create a record count file containing the number of records that have been processed .
    */
   public void onCompactionJobComplete (FileSystemDataset dataset) throws IOException {
+    if (dataset.isVirtual()) {
+      return;
+    }
+
     if (configurator != null && configurator.isJobCreated()) {
       CompactionPathParser.CompactionParserResult result = new CompactionPathParser(state).parse(dataset);
       Path tmpPath = configurator.getMrOutputPath();

@@ -39,28 +39,38 @@ import org.apache.gobblin.source.extractor.CheckpointableWatermark;
 import org.apache.gobblin.source.extractor.DataRecordException;
 import org.apache.gobblin.source.extractor.DefaultCheckpointableWatermark;
 import org.apache.gobblin.source.extractor.Extractor;
-import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.source.extractor.StreamingExtractor;
 import org.apache.gobblin.source.extractor.WatermarkInterval;
 import org.apache.gobblin.source.extractor.extract.LongWatermark;
 import org.apache.gobblin.source.workunit.Extract;
 import org.apache.gobblin.source.workunit.ExtractFactory;
 import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.stream.RecordEnvelope;
+import org.apache.gobblin.test.proto.TestRecordProtos;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.writer.WatermarkStorage;
-
 
 /**
  * A Test source that generates a sequence of records, works in batch and streaming mode.
  */
 @Slf4j
-public class SequentialTestSource implements Source<String, Object> {
+public class SequentialTestSource implements Source<Object, Object> {
+
+  private enum InMemoryFormat {
+    POJO,
+    AVRO,
+    PROTOBUF
+  }
+
+
   private static final int DEFAULT_NUM_PARALLELISM = 1;
   private static final String DEFAULT_NAMESPACE = "TestDB";
   private static final String DEFAULT_TABLE = "TestTable";
   private static final Integer DEFAULT_NUM_RECORDS_PER_EXTRACT = 100;
   public static final String WORK_UNIT_INDEX = "workUnitIndex";
   private static final Long DEFAULT_SLEEP_TIME_PER_RECORD_MILLIS = 10L;
+  public static final String MEMORY_FORMAT_KEY = "inMemoryFormat";
+  public static final String DEFAULT_IN_MEMORY_FORMAT = InMemoryFormat.POJO.toString();
 
 
   private final AtomicBoolean configured = new AtomicBoolean(false);
@@ -69,6 +79,7 @@ public class SequentialTestSource implements Source<String, Object> {
   private String table;
   private int numRecordsPerExtract;
   private long sleepTimePerRecord;
+  private InMemoryFormat inMemFormat;
   private final Extract.TableType tableType = Extract.TableType.APPEND_ONLY;
   private final ExtractFactory _extractFactory = new ExtractFactory("yyyyMMddHHmmss");
   private boolean streaming = false;
@@ -86,6 +97,12 @@ public class SequentialTestSource implements Source<String, Object> {
       if (streaming) {
         numRecordsPerExtract = Integer.MAX_VALUE;
       }
+      inMemFormat = InMemoryFormat.valueOf(ConfigUtils.getString(config, "source." + MEMORY_FORMAT_KEY,
+          DEFAULT_IN_MEMORY_FORMAT));
+      log.info("Source configured with: num_parallelism: {}, namespace: {}, "
+          + "table: {}, numRecordsPerExtract: {}, sleepTimePerRecord: {}, streaming: {}, inMemFormat: {}",
+          this.num_parallelism, this.namespace,
+          this.table, this.numRecordsPerExtract, this.sleepTimePerRecord, this.streaming, this.inMemFormat);
       configured.set(true);
     }
   }
@@ -110,6 +127,7 @@ public class SequentialTestSource implements Source<String, Object> {
           workUnit = WorkUnit.create(newExtract(tableType, namespace, table), watermarkInterval);
           log.debug("Will be setting watermark interval to " + watermarkInterval.toJson());
           workUnit.setProp(WORK_UNIT_INDEX, workUnitState.getWorkunit().getProp(WORK_UNIT_INDEX));
+          workUnit.setProp(MEMORY_FORMAT_KEY, this.inMemFormat.toString());
         }
         else
         {
@@ -120,6 +138,7 @@ public class SequentialTestSource implements Source<String, Object> {
           workUnit = WorkUnit.create(newExtract(tableType, namespace, table), watermarkInterval);
           log.debug("Will be setting watermark interval to " + watermarkInterval.toJson());
           workUnit.setProp(WORK_UNIT_INDEX, workUnitState.getWorkunit().getProp(WORK_UNIT_INDEX));
+          workUnit.setProp(MEMORY_FORMAT_KEY, this.inMemFormat.toString());
         }
         newWorkUnits.add(workUnit);
       }
@@ -140,6 +159,7 @@ public class SequentialTestSource implements Source<String, Object> {
       LongWatermark expectedHighWatermark = new LongWatermark((i + 1) * numRecordsPerExtract);
       workUnit.setWatermarkInterval(new WatermarkInterval(lowWatermark, expectedHighWatermark));
       workUnit.setProp(WORK_UNIT_INDEX, i);
+      workUnit.setProp(MEMORY_FORMAT_KEY, this.inMemFormat.toString());
       workUnits.add(workUnit);
     }
     return workUnits;
@@ -150,12 +170,14 @@ public class SequentialTestSource implements Source<String, Object> {
   }
 
 
-  static class TestBatchExtractor implements Extractor<String, Object> {
+  static class TestBatchExtractor implements Extractor<Object, Object> {
     private long recordsExtracted = 0;
     private final long numRecordsPerExtract;
     private LongWatermark currentWatermark;
     private long sleepTimePerRecord;
     private int partition;
+    private final InMemoryFormat inMemoryFormat;
+    private final Object schema;
     WorkUnitState workUnitState;
 
 
@@ -169,16 +191,34 @@ public class SequentialTestSource implements Source<String, Object> {
       this.numRecordsPerExtract = numRecordsPerExtract;
       this.sleepTimePerRecord = sleepTimePerRecord;
       this.workUnitState = wuState;
+      this.inMemoryFormat = InMemoryFormat.valueOf(this.workUnitState.getProp(MEMORY_FORMAT_KEY));
+      this.schema = getSchema(inMemoryFormat);
     }
 
       @Override
-      public String getSchema()
+      public Object getSchema()
           throws IOException {
-        return "";
+        return this.schema;
+      }
+
+      private Object getSchema(InMemoryFormat inMemoryFormat) {
+        switch (inMemoryFormat) {
+          case POJO: {
+            return TestRecord.class;
+          }
+          case AVRO: {
+            return org.apache.gobblin.test.avro.TestRecord.getClassSchema();
+          }
+          case PROTOBUF: {
+            return TestRecordProtos.TestRecord.class;
+          }
+          default:
+            throw new RuntimeException("Not implemented " + inMemoryFormat.name());
+        }
       }
 
       @Override
-      public Object readRecord(@Deprecated Object reuse)
+      public RecordEnvelope readRecordEnvelope()
           throws DataRecordException, IOException {
         if (recordsExtracted < numRecordsPerExtract) {
           try {
@@ -186,11 +226,37 @@ public class SequentialTestSource implements Source<String, Object> {
           } catch (InterruptedException e) {
             Throwables.propagate(e);
           }
-          TestRecord record = new TestRecord(this.partition, this.currentWatermark.getValue(), null);
+          Object record;
+          switch (this.inMemoryFormat) {
+            case POJO: {
+              record = new TestRecord(this.partition, this.currentWatermark.getValue(), "I am a POJO message");
+              break;
+            }
+            case AVRO: {
+              record = org.apache.gobblin.test.avro.TestRecord.newBuilder()
+                  .setPartition(this.partition)
+                  .setSequence(this.currentWatermark.getValue())
+                  .setPayload("I am an Avro message")
+                  .build();
+              break;
+            }
+            case PROTOBUF: {
+              record = TestRecordProtos.TestRecord.newBuilder()
+                  .setPartition(this.partition)
+                  .setSequence(this.currentWatermark.getValue())
+                  .setPayload("I am a Protobuf message")
+                  .build();
+              break;
+            }
+            default: throw new RuntimeException("");
+          }
           log.debug("Extracted record -> {}", record);
+          RecordEnvelope re = new RecordEnvelope<>(record,
+              new DefaultCheckpointableWatermark(String.valueOf(this.partition),
+              new LongWatermark(this.currentWatermark.getValue())));
           currentWatermark.increment();
           recordsExtracted++;
-          return record;
+          return re;
         } else {
           return null;
         }
@@ -218,7 +284,7 @@ public class SequentialTestSource implements Source<String, Object> {
   }
 
 
-  static class TestStreamingExtractor implements StreamingExtractor<String, Object> {
+  static class TestStreamingExtractor implements StreamingExtractor<Object, Object> {
     private Optional<WatermarkStorage> watermarkStorage;
     private final TestBatchExtractor extractor;
 
@@ -233,7 +299,7 @@ public class SequentialTestSource implements Source<String, Object> {
     }
 
     @Override
-    public String getSchema()
+    public Object getSchema()
     throws IOException {
       return extractor.getSchema();
     }
@@ -241,9 +307,7 @@ public class SequentialTestSource implements Source<String, Object> {
     @Override
     public RecordEnvelope<Object> readRecordEnvelope()
     throws DataRecordException, IOException {
-      TestRecord record = (TestRecord) extractor.readRecord(null);
-      return new RecordEnvelope<>((Object) record, new DefaultCheckpointableWatermark(""+record.getPartition(),
-          new LongWatermark(record.getSequence())));
+      return extractor.readRecordEnvelope();
     }
 
     @Override
@@ -288,7 +352,7 @@ public class SequentialTestSource implements Source<String, Object> {
 
 
   @Override
-  public Extractor<String, Object> getExtractor(WorkUnitState state)
+  public Extractor<Object, Object> getExtractor(WorkUnitState state)
       throws IOException {
     Config config = ConfigFactory.parseProperties(state.getProperties());
     configureIfNeeded(config);

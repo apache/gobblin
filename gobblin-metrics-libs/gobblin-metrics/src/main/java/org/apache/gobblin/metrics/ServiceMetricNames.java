@@ -37,5 +37,8 @@ public class ServiceMetricNames {
   public static final String RUN_IMMEDIATELY_FLOW_METER = "RunImmediatelyFlow";
 
   public static final String RUNNING_FLOWS_COUNTER = "RunningFlows";
+  public static final String SERVICE_USERS = "ServiceUsers";
   public static final String COMPILED = "Compiled";
+
+  public static final String HELIX_LEADER_STATE = "HelixLeaderState";
 }

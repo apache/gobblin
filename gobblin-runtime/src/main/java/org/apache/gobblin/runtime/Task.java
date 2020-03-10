@@ -28,6 +28,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.BooleanUtils;
 import org.slf4j.Logger;
@@ -73,6 +75,7 @@ import org.apache.gobblin.publisher.SingleTaskDataPublisher;
 import org.apache.gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
 import org.apache.gobblin.qualitychecker.row.RowLevelPolicyChecker;
 import org.apache.gobblin.records.RecordStreamProcessor;
+import org.apache.gobblin.runtime.api.TaskEventMetadataGenerator;
 import org.apache.gobblin.runtime.fork.AsynchronousFork;
 import org.apache.gobblin.runtime.fork.Fork;
 import org.apache.gobblin.runtime.fork.SynchronousFork;
@@ -84,6 +87,7 @@ import org.apache.gobblin.source.extractor.StreamingExtractor;
 import org.apache.gobblin.state.ConstructState;
 import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.TaskEventMetadataUtils;
 import org.apache.gobblin.writer.AcknowledgableWatermark;
 import org.apache.gobblin.writer.DataWriter;
 import org.apache.gobblin.writer.FineGrainedWatermarkTracker;
@@ -154,6 +158,7 @@ public class Task implements TaskIFace {
   private final List<RecordStreamProcessor<?,?,?,?>> recordStreamProcessors;
 
   private final Closer closer;
+  private final TaskEventMetadataGenerator taskEventMetadataGenerator;
 
   private long startTime;
   private volatile long lastRecordPulledTimestampMillis;
@@ -232,7 +237,6 @@ public class Task implements TaskIFace {
     this.shutdownLatch = new CountDownLatch(1);
 
     // Setup Streaming constructs
-
     if (isStreamingTask()) {
       Extractor underlyingExtractor = this.taskContext.getRawSourceExtractor();
       if (!(underlyingExtractor instanceof StreamingExtractor)) {
@@ -265,6 +269,7 @@ public class Task implements TaskIFace {
       this.watermarkTracker = Optional.absent();
       this.watermarkStorage = Optional.absent();
     }
+    this.taskEventMetadataGenerator = TaskEventMetadataUtils.getTaskEventMetadataGenerator(taskState);
   }
 
   /**
@@ -366,8 +371,17 @@ public class Task implements TaskIFace {
       this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXTRACTED, this.recordsPulled);
       this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED, extractor.getExpectedRecordCount());
 
+      // If there are folks not successfully being executed, get the aggregated exceptions and throw RuntimeException.
       if (!this.forks.keySet().stream().map(Optional::get).allMatch(Fork::isSucceeded)) {
-        throw new RuntimeException("Some forks failed.");
+        List<Integer> failedForksId = this.forks.keySet().stream().map(Optional::get).
+            filter(not(Fork::isSucceeded)).map(x -> x.getIndex()).collect(Collectors.toList());
+        ForkThrowableHolder holder = Task.getForkThrowableHolder(this.taskState.getTaskBroker());
+
+        Exception e = null;
+        if (!holder.isEmpty()) {
+          e = holder.getAggregatedException(failedForksId, this.taskId);
+        }
+        throw e == null ? new RuntimeException("Some forks failed") : new RuntimeException("Forks failed with exception:", e);
       }
 
       //TODO: Move these to explicit shutdown phase
@@ -390,6 +404,13 @@ public class Task implements TaskIFace {
         }
       }
     }
+  }
+
+  /**
+   * TODO: Remove this method after Java-11 as JDK offers similar built-in solution.
+   */
+  public static <T> Predicate<T> not(Predicate<T> t) {
+    return t.negate();
   }
 
   @Deprecated
@@ -550,6 +571,7 @@ public class Task implements TaskIFace {
     FailureEventBuilder failureEvent = new FailureEventBuilder(FAILED_TASK_EVENT);
     failureEvent.setRootCause(t);
     failureEvent.addMetadata(TASK_STATE, this.taskState.toString());
+    failureEvent.addAdditionalMetadata(this.taskEventMetadataGenerator.getMetadata(this.taskState, failureEvent.getName()));
     failureEvent.submit(taskContext.getTaskMetrics().getMetricContext());
   }
 
@@ -967,9 +989,12 @@ public class Task implements TaskIFace {
   protected void submitTaskCommittedEvent() {
     MetricContext taskMetricContext = TaskMetrics.get(this.taskState).getMetricContext();
     EventSubmitter eventSubmitter = new EventSubmitter.Builder(taskMetricContext, "gobblin.runtime.task").build();
-    eventSubmitter.submit(TaskEvent.TASK_COMMITTED_EVENT_NAME, ImmutableMap
+    Map<String, String> metadataMap = Maps.newHashMap();
+    metadataMap.putAll(this.taskEventMetadataGenerator.getMetadata(this.taskState, TaskEvent.TASK_COMMITTED_EVENT_NAME));
+    metadataMap.putAll(ImmutableMap
         .of(TaskEvent.METADATA_TASK_ID, this.taskId, TaskEvent.METADATA_TASK_ATTEMPT_ID,
             this.taskState.getTaskAttemptId().or("")));
+    eventSubmitter.submit(TaskEvent.TASK_COMMITTED_EVENT_NAME, metadataMap);
   }
 
   /**

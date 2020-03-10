@@ -279,8 +279,7 @@ public class YarnServiceTest {
     Assert.assertTrue(command.contains("-Xmx1628"));
   }
 
-
-  private static class TestYarnService extends YarnService {
+   static class TestYarnService extends YarnService {
     public TestYarnService(Config config, String applicationName, String applicationId, YarnConfiguration yarnConfiguration,
         FileSystem fs, EventBus eventBus) throws Exception {
       super(config, applicationName, applicationId, yarnConfiguration, fs, eventBus);

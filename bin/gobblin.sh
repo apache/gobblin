@@ -153,6 +153,11 @@ function print_help_n_exit() {
     exit 1;
 }
 
+function die() {
+  echo -e "\nError: $@\n" 1>&2
+  exit 1
+}
+
 # TODO: use getopts
 shopt -s nocasematch
 for i in "$@"

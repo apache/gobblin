@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: gaas-svc
+  labels:
+    app: gobblin-service
+spec:
+  type: ClusterIP
+  ports:
+    - protocol: TCP
+      port: 6956
+      targetPort: 6956
+  selector:
+    app: gaas

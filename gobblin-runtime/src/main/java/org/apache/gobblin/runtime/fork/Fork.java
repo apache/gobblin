@@ -19,7 +19,6 @@ package org.apache.gobblin.runtime.fork;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
@@ -543,7 +542,6 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
 
       writerId = this.taskId + "_" + taskStartTime;
     }
-
     DataWriterBuilder<Object, Object> builder = this.taskContext.getDataWriterBuilder(this.branches, this.index)
         .writeTo(Destination.of(this.taskContext.getDestinationType(this.branches, this.index), this.taskState))
         .writeInFormat(this.taskContext.getWriterOutputFormat(this.branches, this.index)).withWriterId(writerId)

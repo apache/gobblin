@@ -349,7 +349,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
         this.fs.setOwner(path, owner, group);
       }
     } catch (IOException ioe) {
-      log.warn("Failed to set owner and/or group for path " + path, ioe);
+      log.warn("Failed to set owner and/or group for path " + path + " to " + owner + ":" + group, ioe);
     }
   }
 

@@ -23,8 +23,10 @@ import java.util.LinkedList;
 import java.util.List;
 
 import org.apache.gobblin.compaction.mapreduce.CompactionJobConfigurator;
-import org.apache.hadoop.fs.Path;
+
 import org.apache.hadoop.mapreduce.Job;
+
+import com.google.gson.Gson;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -36,8 +38,11 @@ import org.apache.gobblin.compaction.verify.CompactionAuditCountVerifier;
 import org.apache.gobblin.compaction.verify.CompactionThresholdVerifier;
 import org.apache.gobblin.compaction.verify.CompactionTimeRangeVerifier;
 import org.apache.gobblin.compaction.verify.CompactionVerifier;
+import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.dataset.FileSystemDataset;
+import org.apache.gobblin.util.io.GsonInterfaceAdapter;
+
 
 /**
  * A type of {@link CompactionSuite} which implements all components needed for file compaction.
@@ -45,9 +50,15 @@ import org.apache.gobblin.dataset.FileSystemDataset;
  */
 @Slf4j
 public class CompactionSuiteBase implements CompactionSuite<FileSystemDataset> {
-  public static final String SERIALIZE_COMPACTION_FILE_PATH_NAME = "compaction-file-path-name";
-  private State state;
-  private CompactionJobConfigurator configurator = null;
+
+  protected State state;
+  /**
+   * Require lazy evaluation for now to support feature in
+   * {@link org.apache.gobblin.compaction.source.CompactionSource#optionalInit(SourceState)}
+   */
+  private CompactionJobConfigurator configurator;
+  private static final Gson GSON = GsonInterfaceAdapter.getGson(FileSystemDataset.class);
+  private static final String SERIALIZED_DATASET = "compaction.serializedDataset";
 
   /**
    * Constructor
@@ -85,7 +96,7 @@ public class CompactionSuiteBase implements CompactionSuite<FileSystemDataset> {
    * @param state   A state that is used to save {@link org.apache.gobblin.dataset.Dataset}
    */
   public void save (FileSystemDataset dataset, State state) {
-    state.setProp(SERIALIZE_COMPACTION_FILE_PATH_NAME, dataset.datasetURN());
+    state.setProp(SERIALIZED_DATASET, GSON.toJson(dataset));
   }
 
   /**
@@ -95,17 +106,7 @@ public class CompactionSuiteBase implements CompactionSuite<FileSystemDataset> {
    * @return A new instance of {@link FileSystemDataset}
    */
   public FileSystemDataset load (final State state) {
-    return new FileSystemDataset() {
-      @Override
-      public Path datasetRoot() {
-        return new Path(state.getProp(SERIALIZE_COMPACTION_FILE_PATH_NAME));
-      }
-
-      @Override
-      public String datasetURN() {
-        return state.getProp(SERIALIZE_COMPACTION_FILE_PATH_NAME);
-      }
-    };
+    return GSON.fromJson(state.getProp(SERIALIZED_DATASET), FileSystemDataset.class);
   }
 
   /**
@@ -116,9 +117,9 @@ public class CompactionSuiteBase implements CompactionSuite<FileSystemDataset> {
    */
   public List<CompactionCompleteAction<FileSystemDataset>> getCompactionCompleteActions() {
     ArrayList<CompactionCompleteAction<FileSystemDataset>> array = new ArrayList<>();
-    array.add(new CompactionCompleteFileOperationAction(state, configurator));
+    array.add(new CompactionCompleteFileOperationAction(state, getConfigurator()));
     array.add(new CompactionHiveRegistrationAction(state));
-    array.add(new CompactionMarkDirectoryAction(state, configurator));
+    array.add(new CompactionMarkDirectoryAction(state, getConfigurator()));
     return array;
   }
 
@@ -130,7 +131,15 @@ public class CompactionSuiteBase implements CompactionSuite<FileSystemDataset> {
    * @return a map-reduce job which will compact files against {@link org.apache.gobblin.dataset.Dataset}
    */
   public Job createJob (FileSystemDataset dataset) throws IOException {
-    configurator = CompactionJobConfigurator.instantiateConfigurator(this.state);
-    return configurator.createJob(dataset);
+    return getConfigurator().createJob(dataset);
+  }
+
+  protected CompactionJobConfigurator getConfigurator() {
+    if (configurator == null) {
+      synchronized(this) {
+        configurator = CompactionJobConfigurator.instantiateConfigurator(this.state);
+      }
+    }
+    return configurator;
   }
 }

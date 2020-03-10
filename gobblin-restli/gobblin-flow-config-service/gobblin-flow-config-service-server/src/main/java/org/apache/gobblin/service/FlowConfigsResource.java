@@ -33,7 +33,6 @@ import javax.inject.Named;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
 import com.linkedin.restli.common.HttpStatus;
-import com.linkedin.restli.common.PatchRequest;
 import com.linkedin.restli.server.CreateResponse;
 import com.linkedin.restli.server.UpdateResponse;
 import com.linkedin.restli.server.annotations.RestLiCollection;
@@ -111,6 +110,7 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, Empt
    */
   @Override
   public UpdateResponse update(ComplexResourceKey<FlowId, EmptyRecord> key, FlowConfig flowConfig) {
+    checkRequester(get(key), this.requesterService.findRequesters(this));
     String flowGroup = key.getKey().getFlowGroup();
     String flowName = key.getKey().getFlowName();
     FlowId flowId = new FlowId().setFlowGroup(flowGroup).setFlowName(flowName);
@@ -124,10 +124,38 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, Empt
    */
   @Override
   public UpdateResponse delete(ComplexResourceKey<FlowId, EmptyRecord> key) {
+    checkRequester(get(key), this.requesterService.findRequesters(this));
     String flowGroup = key.getKey().getFlowGroup();
     String flowName = key.getKey().getFlowName();
     FlowId flowId = new FlowId().setFlowGroup(flowGroup).setFlowName(flowName);
     return this.flowConfigsResourceHandler.deleteFlowConfig(flowId, getHeaders());
+  }
+
+  /**
+   * Check that all {@link ServiceRequester}s in this request are contained within the original service requester list
+   * when the flow was submitted. If they are not, throw a {@link FlowConfigLoggedException} with {@link HttpStatus#S_401_UNAUTHORIZED}.
+   * If there is a failure when deserializing the original requester list, throw a {@link FlowConfigLoggedException} with
+   * {@link HttpStatus#S_400_BAD_REQUEST}.
+   *
+   * @param originalFlowConfig original flow config to find original requester
+   * @param requesterList list of requesters for this request
+   */
+  public static void checkRequester(FlowConfig originalFlowConfig, List<ServiceRequester> requesterList) {
+    if (requesterList == null) {
+      return;
+    }
+
+    try {
+      String serializedOriginalRequesterList = originalFlowConfig.getProperties().get(RequesterService.REQUESTER_LIST);
+      if (serializedOriginalRequesterList != null) {
+        List<ServiceRequester> originalRequesterList = RequesterService.deserialize(serializedOriginalRequesterList);
+        if (!originalRequesterList.isEmpty() && (requesterList.isEmpty() || !originalRequesterList.containsAll(requesterList))) {
+          throw new FlowConfigLoggedException(HttpStatus.S_401_UNAUTHORIZED, "Requester not in original requester list");
+        }
+      }
+    } catch (IOException e) {
+      throw new FlowConfigLoggedException(HttpStatus.S_400_BAD_REQUEST, "Failed to get original requester list", e);
+    }
   }
 
   private Properties getHeaders() {

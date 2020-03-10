@@ -52,7 +52,6 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
     }
     log.info(createLog);
     FlowSpec flowSpec = createFlowSpecForConfig(flowConfig);
-    Map<String, AddSpecResponse> responseMap = this.flowCatalog.put(flowSpec, triggerListener);
     FlowStatusId flowStatusId = new FlowStatusId()
         .setFlowName(flowSpec.getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_NAME_KEY))
         .setFlowGroup(flowSpec.getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_GROUP_KEY));
@@ -61,6 +60,14 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
     } else {
       flowStatusId.setFlowExecutionId(-1L);
     }
+
+    // Return conflict and take no action if flowSpec has already been created
+    if (this.flowCatalog.exists(flowSpec.getUri())) {
+      log.warn("Flowspec with URI {} already exists, no action will be taken");
+      return new CreateKVResponse(new ComplexResourceKey<>(flowConfig.getId(), flowStatusId), flowConfig, HttpStatus.S_409_CONFLICT);
+    }
+
+    Map<String, AddSpecResponse> responseMap = this.flowCatalog.put(flowSpec, triggerListener);
     HttpStatus httpStatus = HttpStatus.S_201_CREATED;
 
     if (flowConfig.hasExplain() && flowConfig.isExplain()) {

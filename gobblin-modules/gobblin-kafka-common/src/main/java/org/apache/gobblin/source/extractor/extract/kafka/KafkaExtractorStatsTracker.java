@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
@@ -31,6 +32,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.runtime.api.TaskEventMetadataGenerator;
+import org.apache.gobblin.util.TaskEventMetadataUtils;
 
 
 /**
@@ -51,6 +54,8 @@ public class KafkaExtractorStatsTracker {
   private static final String ELAPSED_TIME = "elapsedTime";
   private static final String PROCESSED_RECORD_COUNT = "processedRecordCount";
   private static final String SLA_MISSED_RECORD_COUNT = "slaMissedRecordCount";
+  private static final String MIN_LOG_APPEND_TIMESTAMP = "minLogAppendTimestamp";
+  private static final String MAX_LOG_APPEND_TIMESTAMP = "maxLogAppendTimestamp";
   private static final String UNDECODABLE_MESSAGE_COUNT = "undecodableMessageCount";
   private static final String PARTITION_TOTAL_SIZE = "partitionTotalSize";
   private static final String AVG_RECORD_PULL_TIME = "avgRecordPullTime";
@@ -64,6 +69,7 @@ public class KafkaExtractorStatsTracker {
   private final Map<KafkaPartition, ExtractorStats> statsMap;
   private final Set<Integer> errorPartitions;
   private final WorkUnitState workUnitState;
+  private final TaskEventMetadataGenerator taskEventMetadataGenerator;
   private boolean isSlaConfigured;
   private long recordLevelSlaMillis;
 
@@ -83,6 +89,7 @@ public class KafkaExtractorStatsTracker {
       this.isSlaConfigured = true;
       this.recordLevelSlaMillis = TimeUnit.MINUTES.toMillis(this.workUnitState.getPropAsLong(KafkaSource.RECORD_LEVEL_SLA_MINUTES_KEY));
     }
+    this.taskEventMetadataGenerator = TaskEventMetadataUtils.getTaskEventMetadataGenerator(workUnitState);
   }
 
   public int getErrorPartitionCount() {
@@ -107,6 +114,8 @@ public class KafkaExtractorStatsTracker {
     private long startFetchEpochTime;
     private long stopFetchEpochTime;
     private long lastSuccessfulRecordHeaderTimestamp;
+    private long minLogAppendTime = -1L;
+    private long maxLogAppendTime = -1L;
   }
 
   /**
@@ -163,6 +172,15 @@ public class KafkaExtractorStatsTracker {
       if (this.isSlaConfigured) {
         if (v.slaMissedRecordCount < 0) {
           v.slaMissedRecordCount = 0;
+          v.minLogAppendTime = logAppendTimestamp;
+          v.maxLogAppendTime = logAppendTimestamp;
+        } else {
+          if (logAppendTimestamp < v.minLogAppendTime) {
+            v.minLogAppendTime = logAppendTimestamp;
+          }
+          if (logAppendTimestamp > v.maxLogAppendTime) {
+            v.maxLogAppendTime = logAppendTimestamp;
+          }
         }
         if (logAppendTimestamp > 0 && (System.currentTimeMillis() - logAppendTimestamp > recordLevelSlaMillis)) {
           v.slaMissedRecordCount++;
@@ -267,6 +285,8 @@ public class KafkaExtractorStatsTracker {
         Long.toString(stats.getStopFetchEpochTime()));
     tagsForPartition.put(PROCESSED_RECORD_COUNT, Long.toString(stats.getProcessedRecordCount()));
     tagsForPartition.put(SLA_MISSED_RECORD_COUNT, Long.toString(stats.getSlaMissedRecordCount()));
+    tagsForPartition.put(MIN_LOG_APPEND_TIMESTAMP, Long.toString(stats.getMinLogAppendTime()));
+    tagsForPartition.put(MAX_LOG_APPEND_TIMESTAMP, Long.toString(stats.getMaxLogAppendTime()));
     tagsForPartition.put(PARTITION_TOTAL_SIZE, Long.toString(stats.getPartitionTotalSize()));
     tagsForPartition.put(AVG_RECORD_SIZE, Long.toString(stats.getAvgRecordSize()));
     tagsForPartition.put(ELAPSED_TIME, Long.toString(stats.getElapsedTime()));
@@ -300,17 +320,53 @@ public class KafkaExtractorStatsTracker {
    */
   public void emitTrackingEvents(MetricContext context, MultiLongWatermark lowWatermark, MultiLongWatermark highWatermark,
       MultiLongWatermark nextWatermark) {
+    emitTrackingEventsWithAdditionalTags(context, lowWatermark, highWatermark, nextWatermark, Maps.newHashMap());
+  }
+
+  /**
+   * Emit Tracking events reporting the various statistics to be consumed by a monitoring application, with additional
+   * map representing tags beyond what are constructed in {@link #createTagsForPartition(int, MultiLongWatermark, MultiLongWatermark, MultiLongWatermark) }
+   *
+   * Choose to not to make createTagsForPartition extensible to avoid additional derived class just for additional k-v pairs
+   * in the tag maps.
+   *
+   * @param additionalTags caller-provided mapping from {@link KafkaPartition} to {@link Map<String, String>}, which will
+   *                       be merged with result of {@link #createTagsForPartition}.
+   */
+  public void emitTrackingEventsWithAdditionalTags(MetricContext context, MultiLongWatermark lowWatermark, MultiLongWatermark highWatermark,
+      MultiLongWatermark nextWatermark, Map<KafkaPartition, Map<String, String>> additionalTags) {
+    Map<KafkaPartition, Map<String, String>> tagsForPartitionsMap =
+        generateTagsForPartitions(lowWatermark, highWatermark, nextWatermark, additionalTags);
+
+    for (Map.Entry<KafkaPartition, Map<String, String>> eventTags : tagsForPartitionsMap.entrySet()) {
+      EventSubmitter.Builder eventSubmitterBuilder = new EventSubmitter.Builder(context, GOBBLIN_KAFKA_NAMESPACE);
+      eventSubmitterBuilder.addMetadata(this.taskEventMetadataGenerator.getMetadata(workUnitState, KAFKA_EXTRACTOR_TOPIC_METADATA_EVENT_NAME));
+      eventSubmitterBuilder.build().submit(KAFKA_EXTRACTOR_TOPIC_METADATA_EVENT_NAME, eventTags.getValue());
+    }
+  }
+
+  /**
+   * A helper function to merge tags for KafkaPartition. Separate into a package-private method for ease of testing.
+   */
+  @VisibleForTesting
+  Map<KafkaPartition, Map<String, String>> generateTagsForPartitions(MultiLongWatermark lowWatermark, MultiLongWatermark highWatermark,
+      MultiLongWatermark nextWatermark, Map<KafkaPartition, Map<String, String>> additionalTags) {
     Map<KafkaPartition, Map<String, String>> tagsForPartitionsMap = Maps.newHashMap();
     for (int i = 0; i < this.partitions.size(); i++) {
+      KafkaPartition partitionKey = this.partitions.get(i);
+
       log.info(String.format("Actual high watermark for partition %s=%d, expected=%d", this.partitions.get(i),
           nextWatermark.get(i), highWatermark.get(i)));
       tagsForPartitionsMap
           .put(this.partitions.get(i), createTagsForPartition(i, lowWatermark, highWatermark, nextWatermark));
+
+      // Merge with additionalTags from argument-provided map if exists.
+      if (additionalTags.containsKey(partitionKey)) {
+        tagsForPartitionsMap.get(partitionKey).putAll(additionalTags.get(partitionKey));
+      }
     }
-    for (Map.Entry<KafkaPartition, Map<String, String>> eventTags : tagsForPartitionsMap.entrySet()) {
-      new EventSubmitter.Builder(context, GOBBLIN_KAFKA_NAMESPACE).build()
-          .submit(KAFKA_EXTRACTOR_TOPIC_METADATA_EVENT_NAME, eventTags.getValue());
-    }
+
+    return tagsForPartitionsMap;
   }
 
   /**

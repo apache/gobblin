@@ -3,6 +3,7 @@
   "name" : "FlowStatus",
   "namespace" : "org.apache.gobblin.service",
   "doc" : "Status of a flow",
+  "deprecated" : "Use FlowExecution instead",
   "fields" : [
     {
       "name" : "id",

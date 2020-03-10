@@ -1,0 +1,47 @@
+{
+  "type": "record",
+  "name": "SchemaWithLogicalType",
+  "fields": [
+    {
+      "name": "parentFieldRecord",
+      "type": {
+        "type": "record",
+        "name": "nestedRecordName",
+        "fields": [
+          {
+            "name": "nestedFieldString",
+            "type": "string"
+          },
+          {
+            "name": "nestedLogicalFieldDecimal",
+            "type": {
+              "type": "bytes",
+              "logicalType": "decimal",
+              "precision": 4,
+              "scale": 2
+            }
+          },
+          {
+            "name": "nestedLogicalFieldDate",
+            "type": {
+              "type": "int",
+              "logicalType": "date"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "parentFieldInt",
+      "type": "int"
+    },
+    {
+      "name": "parentFieldLogicalVarchar",
+      "type": {
+        "type": "string",
+        "logicalType": "varchar",
+        "maxLength": "256"
+      }
+    }
+  ]
+}

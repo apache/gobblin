@@ -91,6 +91,8 @@ public abstract class TaskRunnerSuiteBase {
     private String applicationId;
     private String applicationName;
     private String instanceName;
+    private String hostName;
+    private String containerId;
 
     public Builder(Config config) {
       this.dynamicConfig = GobblinClusterUtils.getDynamicConfig(config);
@@ -109,6 +111,16 @@ public abstract class TaskRunnerSuiteBase {
 
     public Builder setInstanceName(String instanceName) {
       this.instanceName = instanceName;
+      return this;
+    }
+
+    public Builder setContainerId (String containerId) {
+      this.containerId = containerId;
+      return this;
+    }
+
+    public Builder setHostName(String hostName) {
+      this.hostName = hostName;
       return this;
     }
 

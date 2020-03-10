@@ -28,6 +28,7 @@ dependencies {
   testCompile externalDependency.calciteAvatica
   testCompile externalDependency.jhyde
   testCompile externalDependency.testng
+  testCompile externalDependency.twitterParquet
 }
 
 configurations { compile { transitive = false } }

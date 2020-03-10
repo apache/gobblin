@@ -38,15 +38,11 @@ public class ForkMetrics extends GobblinMetrics {
   private static final String FORK_METRICS_BRANCH_NAME_KEY = "forkBranchName";
 
   protected ForkMetrics(TaskState taskState, int index) {
-    super(name(taskState, index), parentContextForFork(taskState), getForkMetricsTags(taskState, index));
-  }
-
-  private static MetricContext parentContextForFork(TaskState taskState) {
-    return TaskMetrics.get(METRICS_ID_PREFIX + taskState.getJobId() + "." + taskState.getTaskId()).getMetricContext();
+    super(name(taskState, index), TaskMetrics.get(taskState).getMetricContext(), getForkMetricsTags(taskState, index));
   }
 
   public static ForkMetrics get(final TaskState taskState, int index) {
-    return (ForkMetrics) GOBBLIN_METRICS_REGISTRY.getOrDefault(name(taskState, index), new Callable<GobblinMetrics>() {
+    return (ForkMetrics) GOBBLIN_METRICS_REGISTRY.getOrCreate(name(taskState, index), new Callable<GobblinMetrics>() {
       @Override
       public GobblinMetrics call() throws Exception {
         return new ForkMetrics(taskState, index);

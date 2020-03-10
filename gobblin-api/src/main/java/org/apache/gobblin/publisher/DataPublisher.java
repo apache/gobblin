@@ -81,6 +81,15 @@ public abstract class DataPublisher implements Closeable, CapabilityAware {
       publishData(states);
       publishMetadata(states);
     }
+    markCommit(states);
+  }
+
+  protected void markCommit(Collection<? extends WorkUnitState> states) {
+    for (WorkUnitState workUnitState : states) {
+      if (workUnitState.getWorkingState() == WorkUnitState.WorkingState.SUCCESSFUL) {
+        workUnitState.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
+      }
+    }
   }
 
   public State getState() {
