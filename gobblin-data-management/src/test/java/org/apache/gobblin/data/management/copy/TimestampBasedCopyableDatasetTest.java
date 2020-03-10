@@ -35,7 +35,6 @@ import com.google.common.io.Files;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
-import org.apache.gobblin.data.management.dataset.DatasetUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -48,8 +47,10 @@ import org.testng.Assert;
 import org.testng.annotations.AfterTest;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
+import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.data.management.dataset.DatasetUtils;
 import org.apache.gobblin.data.management.policy.SelectBetweenTimeBasedPolicy;
 import org.apache.gobblin.data.management.version.finder.DateTimeDatasetVersionFinder;
 import org.apache.gobblin.data.management.policy.VersionSelectionPolicy;
@@ -166,6 +167,7 @@ public class TimestampBasedCopyableDatasetTest {
     when(copyConfig.getPreserve()).thenReturn(PreserveAttributes.fromMnemonicString("g"));
     when(copyConfig.getCopyContext()).thenReturn(new CopyContext());
     when(copyConfig.getTargetGroup()).thenReturn(Optional.<String>absent());
+    when(copyConfig.getConfig()).thenReturn(ConfigFactory.empty());
 
     TimestampBasedCopyableDataset tCopyableDs = new TimestampBasedCopyableDataset(this.localFs, props, srcRoot);
     ConcurrentLinkedQueue<CopyableFile> copyableFiles =
