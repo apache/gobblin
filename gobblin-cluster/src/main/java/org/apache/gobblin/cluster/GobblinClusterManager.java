@@ -18,7 +18,6 @@
 package org.apache.gobblin.cluster;
 
 import java.io.IOException;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -72,7 +71,6 @@ import org.apache.gobblin.runtime.app.ApplicationLauncher;
 import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
 import org.apache.gobblin.scheduler.SchedulerService;
 import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.util.JobConfigurationUtils;
 import org.apache.gobblin.util.JvmUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
@@ -156,7 +154,7 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
 
     initializeHelixManager();
 
-    this.fs = buildFileSystem(config);
+    this.fs = GobblinClusterUtils.buildFileSystem(config, new Configuration());
     this.appWorkDir = appWorkDirOptional.isPresent() ? appWorkDirOptional.get()
         : GobblinClusterUtils.getAppWorkDirPathFromConfig(config, this.fs, clusterName, applicationId);
 
@@ -355,21 +353,6 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
     return Tag.fromMap(
         new ImmutableMap.Builder<String, Object>().put(GobblinClusterMetricTagNames.APPLICATION_NAME, applicationName)
             .put(GobblinClusterMetricTagNames.APPLICATION_ID, applicationId).build());
-  }
-
-  /**
-   * Build the {@link FileSystem} for the Application Master.
-   */
-  private FileSystem buildFileSystem(Config config) throws IOException {
-    Config hadoopOverrides = ConfigUtils.getConfigOrEmpty(config, GobblinClusterConfigurationKeys.HADOOP_CONFIG_OVERRIDES_PREFIX);
-
-    Configuration conf = new Configuration();
-    //Add any Hadoop-specific overrides into the Configuration object
-    JobConfigurationUtils.putPropertiesIntoConfiguration(ConfigUtils.configToProperties(hadoopOverrides), conf);
-
-    return config.hasPath(ConfigurationKeys.FS_URI_KEY) ? FileSystem
-        .get(URI.create(config.getString(ConfigurationKeys.FS_URI_KEY)), conf)
-        : FileSystem.get(conf);
   }
 
   /**
