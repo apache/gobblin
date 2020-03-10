@@ -18,6 +18,7 @@ package org.apache.gobblin.data.management.copy.hive;
 
 import java.io.IOException;
 
+import org.apache.gobblin.util.ConfigUtils;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -31,10 +32,10 @@ import org.apache.gobblin.data.management.retention.version.HiveDatasetVersionCl
 public class HiveDatasetTest {
 
   private static String DUMMY_CONFIG_KEY_WITH_DB_TOKEN = "dummyConfig.withDB";
-  private static String DUMMY_CONFIG_KEY_WITH_ROOT_VALUE = "dummyConfig.ROOT_VALUE";
+  private static String DUMMY_CONFIG_KEY_WITH_STRIP_SUFFIX = "dummyConfig" + ConfigUtils.STRIP_SUFFIX;
   private static String DUMMY_CONFIG_KEY_WITH_TABLE_TOKEN = "dummyConfig.withTable";
   private static Config config = ConfigFactory.parseMap(ImmutableMap.<String,String> builder()
-      .put(DUMMY_CONFIG_KEY_WITH_ROOT_VALUE, "testRoot")
+      .put(DUMMY_CONFIG_KEY_WITH_STRIP_SUFFIX, "testRoot")
       .put(HiveDatasetVersionCleaner.REPLACEMENT_HIVE_DB_NAME_KEY, "resPrefix_$LOGICAL_DB_resPostfix")
       .put(HiveDatasetVersionCleaner.REPLACEMENT_HIVE_TABLE_NAME_KEY, "resPrefix_$LOGICAL_TABLE_resPostfix")
       .put(DUMMY_CONFIG_KEY_WITH_DB_TOKEN, "resPrefix_$DB_resPostfix")
@@ -164,6 +165,6 @@ public class HiveDatasetTest {
         "resPrefix_logicalDb_resPostfix", "Logical DB not resolved correctly");
     Assert.assertEquals(resolvedConfig.getString(HiveDatasetVersionCleaner.REPLACEMENT_HIVE_TABLE_NAME_KEY),
         "resPrefix_logicalTable_resPostfix", "Logical Table not resolved correctly");
-    Assert.assertEquals(resolvedConfig.getString(DUMMY_CONFIG_KEY_WITH_ROOT_VALUE),"testRoot");
+    Assert.assertEquals(resolvedConfig.getString(DUMMY_CONFIG_KEY_WITH_STRIP_SUFFIX),"testRoot");
   }
 }
