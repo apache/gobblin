@@ -32,11 +32,12 @@ public class HiveDatasetTest {
 
   private static String DUMMY_CONFIG_KEY_WITH_DB_TOKEN = "dummyConfig.withDB";
   private static String DUMMY_CONFIG_KEY_WITH_TABLE_TOKEN = "dummyConfig.withTable";
-  private static Config config = ConfigFactory.parseMap(ImmutableMap.<String, String> of(
-      HiveDatasetVersionCleaner.REPLACEMENT_HIVE_DB_NAME_KEY, "resPrefix_$LOGICAL_DB_resPostfix",
-      HiveDatasetVersionCleaner.REPLACEMENT_HIVE_TABLE_NAME_KEY, "resPrefix_$LOGICAL_TABLE_resPostfix",
-      DUMMY_CONFIG_KEY_WITH_DB_TOKEN, "resPrefix_$DB_resPostfix",
-      DUMMY_CONFIG_KEY_WITH_TABLE_TOKEN, "resPrefix_$TABLE_resPostfix"));
+  private static Config config = ConfigFactory.parseMap(ImmutableMap.<String,String> builder().put("testRoot.ROOT_VALUE", "123")
+      .put("testRoot.sub", "testRoot2")
+      .put(HiveDatasetVersionCleaner.REPLACEMENT_HIVE_DB_NAME_KEY, "resPrefix_$LOGICAL_DB_resPostfix")
+      .put(HiveDatasetVersionCleaner.REPLACEMENT_HIVE_TABLE_NAME_KEY, "resPrefix_$LOGICAL_TABLE_resPostfix")
+      .put(DUMMY_CONFIG_KEY_WITH_DB_TOKEN, "resPrefix_$DB_resPostfix")
+      .put(DUMMY_CONFIG_KEY_WITH_TABLE_TOKEN, "resPrefix_$TABLE_resPostfix").build());
 
   @Test
   public void testParseLogicalDbAndTable() throws IOException {
@@ -162,5 +163,7 @@ public class HiveDatasetTest {
         "resPrefix_logicalDb_resPostfix", "Logical DB not resolved correctly");
     Assert.assertEquals(resolvedConfig.getString(HiveDatasetVersionCleaner.REPLACEMENT_HIVE_TABLE_NAME_KEY),
         "resPrefix_logicalTable_resPostfix", "Logical Table not resolved correctly");
+    Assert.assertEquals(resolvedConfig.getString("testRoot.ROOT_VALUE"),"123" );
+    Assert.assertEquals(resolvedConfig.getString("testRoot.sub"),"testRoot2" );
   }
 }
