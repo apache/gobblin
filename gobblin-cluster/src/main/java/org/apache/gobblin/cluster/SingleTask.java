@@ -50,8 +50,6 @@ import org.apache.gobblin.util.SerializationUtils;
 public class SingleTask {
 
   private static final Logger _logger = LoggerFactory.getLogger(SingleTask.class);
-  public static final String MAX_RETRY_WAITING_FOR_INIT_KEY = "maxRetryBlockedOnTaskAttemptInit";
-  public static final int DEFAULT_MAX_RETRY_WAITING_FOR_INIT = 2;
 
   private GobblinMultiTaskAttempt _taskAttempt;
   private String _jobId;

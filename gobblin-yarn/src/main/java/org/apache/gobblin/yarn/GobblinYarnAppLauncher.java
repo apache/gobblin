@@ -603,7 +603,9 @@ public class GobblinYarnAppLauncher {
 
   private Map<String, LocalResource> addAppMasterLocalResources(ApplicationId applicationId) throws IOException {
     Path appWorkDir = GobblinClusterUtils.getAppWorkDirPathFromConfig(this.config, this.fs, this.applicationName, applicationId.toString());
+
     Path appMasterWorkDir = new Path(appWorkDir, GobblinYarnConfigurationKeys.APP_MASTER_WORK_DIR_NAME);
+    LOGGER.info("Configured GobblinApplicationMaster work directory to: {}", appMasterWorkDir.toString());
 
     Map<String, LocalResource> appMasterResources = Maps.newHashMap();
     FileSystem localFs = FileSystem.getLocal(new Configuration());
@@ -638,7 +640,10 @@ public class GobblinYarnAppLauncher {
 
   private void addContainerLocalResources(ApplicationId applicationId) throws IOException {
     Path appWorkDir = GobblinClusterUtils.getAppWorkDirPathFromConfig(this.config, this.fs, this.applicationName, applicationId.toString());
+
     Path containerWorkDir = new Path(appWorkDir, GobblinYarnConfigurationKeys.CONTAINER_WORK_DIR_NAME);
+    LOGGER.info("Configured Container work directory to: {}", containerWorkDir.toString());
+
     FileSystem localFs = FileSystem.getLocal(new Configuration());
 
     if (this.config.hasPath(GobblinYarnConfigurationKeys.CONTAINER_JARS_KEY)) {

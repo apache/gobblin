@@ -17,21 +17,21 @@
 
 package org.apache.gobblin.cluster;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.FutureTask;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
-import org.apache.gobblin.testing.AssertWithBackoff;
 import org.junit.Assert;
 import org.testng.annotations.Test;
 
-import com.google.common.base.Predicate;
-import com.google.common.collect.ImmutableMap;
+import com.google.common.io.Files;
+import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 
-import javax.annotation.Nullable;
-
-import static org.apache.gobblin.cluster.SingleTask.MAX_RETRY_WAITING_FOR_INIT_KEY;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.FileUtils;
 
 
 /**
@@ -43,14 +43,18 @@ import static org.apache.gobblin.cluster.SingleTask.MAX_RETRY_WAITING_FOR_INIT_K
  */
 public class TestSingleTask {
 
-  private InMemorySingleTaskRunner createInMemoryTaskRunner() {
-    final String clusterConfigPath = "clusterConf";
-    final String wuPath = "_workunits/store/workunit.wu";
-    String clusterConfPath = this.getClass().getClassLoader().getResource(clusterConfigPath).getPath();
+  private InMemorySingleTaskRunner createInMemoryTaskRunner()
+      throws IOException {
+    final File clusterWorkDirPath = Files.createTempDir();
+    Path clusterConfigPath = Paths.get(clusterWorkDirPath.getAbsolutePath(), "clusterConf");
+    Config config = ConfigFactory.empty().withValue(GobblinTaskRunner.CLUSTER_APP_WORK_DIR, ConfigValueFactory.fromAnyRef(clusterWorkDirPath.toString()));
+    ConfigUtils configUtils = new ConfigUtils(new FileUtils());
+    configUtils.saveConfigToFile(config, clusterConfigPath);
 
-    InMemorySingleTaskRunner inMemorySingleTaskRunner = new InMemorySingleTaskRunner(clusterConfPath, "testJob",
-        this.getClass().getClassLoader().getResource(wuPath).getPath());
+    final Path wuPath = Paths.get(clusterWorkDirPath.getAbsolutePath(), "_workunits/store/workunit.wu");
 
+    InMemorySingleTaskRunner inMemorySingleTaskRunner =
+        new InMemorySingleTaskRunner(clusterConfigPath.toString(), "testJob", wuPath.toString());
     return inMemorySingleTaskRunner;
   }
 
@@ -60,15 +64,13 @@ public class TestSingleTask {
    * re-run it again.
    */
   @Test
-  public void testSingleTaskRerunAfterFailure()
-      throws Exception {
-    SingleTaskRunner inMemorySingleTaskRunner = createInMemoryTaskRunner();
+  public void testSingleTaskRerunAfterFailure() throws Exception {
+    InMemorySingleTaskRunner inMemorySingleTaskRunner = createInMemoryTaskRunner();
     try {
       inMemorySingleTaskRunner.run(true);
     } catch (Exception e) {
       inMemorySingleTaskRunner.run();
     }
-
     Assert.assertTrue(true);
   }
 }

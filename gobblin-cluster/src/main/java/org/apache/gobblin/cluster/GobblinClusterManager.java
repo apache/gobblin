@@ -157,6 +157,7 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
     this.fs = GobblinClusterUtils.buildFileSystem(config, new Configuration());
     this.appWorkDir = appWorkDirOptional.isPresent() ? appWorkDirOptional.get()
         : GobblinClusterUtils.getAppWorkDirPathFromConfig(config, this.fs, clusterName, applicationId);
+    LOGGER.info("Configured GobblinClusterManager work dir to: {}", this.appWorkDir);
 
     initializeAppLauncherAndServices();
   }

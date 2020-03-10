@@ -170,6 +170,7 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
     this.appWorkPath = initAppWorkDir(config, appWorkDirOptional);
     this.clusterConfig = saveConfigToFile(config);
     this.clusterName = this.clusterConfig.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
+    logger.info("Configured GobblinTaskRunner work dir to: {}", this.appWorkPath.toString());
 
     //Set system properties passed in via application config. As an example, Helix uses System#getProperty() for ZK configuration
     // overrides such as sessionTimeout. In this case, the overrides specified
