@@ -296,6 +296,7 @@ public class ConfigurationKeys {
   public static final String EXTRACT_TABLE_NAME_KEY = "extract.table.name";
   public static final String EXTRACT_EXTRACT_ID_KEY = "extract.extract.id";
   public static final String EXTRACT_IS_FULL_KEY = "extract.is.full";
+  public static final String DEFAULT_EXTRACT_IS_FULL = "false";
   public static final String EXTRACT_FULL_RUN_TIME_KEY = "extract.full.run.time";
   public static final String EXTRACT_PRIMARY_KEY_FIELDS_KEY = "extract.primary.key.fields";
   public static final String EXTRACT_DELTA_FIELDS_KEY = "extract.delta.fields";

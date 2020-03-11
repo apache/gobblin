@@ -24,8 +24,6 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
@@ -50,9 +48,9 @@ import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.gobblin.metrics.event.lineage.LineageInfo;
 import org.apache.gobblin.source.extractor.extract.AbstractSource;
 import org.apache.gobblin.source.workunit.Extract;
+import org.apache.gobblin.source.workunit.Extract.TableType;
 import org.apache.gobblin.source.workunit.MultiWorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnit;
-import org.apache.gobblin.source.workunit.Extract.TableType;
 
 
 /**
@@ -192,6 +190,8 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
         SourceState extractState = new SourceState();
         extractState.setProp(ConfigurationKeys.EXTRACT_ID_TIME_ZONE,
                 state.getProp(ConfigurationKeys.EXTRACT_ID_TIME_ZONE, ConfigurationKeys.DEFAULT_EXTRACT_ID_TIME_ZONE));
+        extractState.setProp(ConfigurationKeys.EXTRACT_IS_FULL_KEY,
+                state.getProp(ConfigurationKeys.EXTRACT_IS_FULL_KEY, ConfigurationKeys.DEFAULT_EXTRACT_IS_FULL));
         Extract extract = new Extract(extractState, tableType, nameSpaceName, extractTableName);
 
         WorkUnit workUnit = WorkUnit.create(extract);
