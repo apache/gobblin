@@ -44,8 +44,6 @@ import org.apache.gobblin.runtime.util.StateStores;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.HadoopUtils;
 
-import static org.apache.gobblin.cluster.GobblinClusterConfigurationKeys.CLUSTER_WORK_DIR;
-
 
 class SingleTaskRunner {
   private static final Logger logger = LoggerFactory.getLogger(SingleTaskRunner.class);
@@ -65,7 +63,7 @@ class SingleTaskRunner {
     this.jobId = jobId;
     this.workUnitFilePath = workUnitFilePath;
     this.clusterConfig = ConfigFactory.parseFile(new File(clusterConfigFilePath));
-    final String workDir = this.clusterConfig.getString(CLUSTER_WORK_DIR);
+    final String workDir = this.clusterConfig.getString(GobblinTaskRunner.CLUSTER_APP_WORK_DIR);
     this.appWorkPath = new Path(workDir);
   }
 

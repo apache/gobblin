@@ -19,7 +19,6 @@ package org.apache.gobblin.cluster;
 
 import java.io.IOException;
 import java.net.InetAddress;
-import java.net.URI;
 import java.net.UnknownHostException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -74,19 +73,14 @@ import com.typesafe.config.ConfigValueFactory;
 import lombok.Getter;
 
 import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
 import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.FileUtils;
 import org.apache.gobblin.util.HadoopUtils;
-import org.apache.gobblin.util.JobConfigurationUtils;
 import org.apache.gobblin.util.JvmUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
-
-import static org.apache.gobblin.cluster.GobblinClusterConfigurationKeys.CLUSTER_WORK_DIR;
-
 
 /**
  * The main class running in the containers managing services for running Gobblin
@@ -113,6 +107,9 @@ import static org.apache.gobblin.cluster.GobblinClusterConfigurationKeys.CLUSTER
  */
 @Alpha
 public class GobblinTaskRunner implements StandardMetricsBridge {
+  // Working directory key for applications. This config is set dynamically.
+  public static final String CLUSTER_APP_WORK_DIR = GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_PREFIX + "appWorkDir";
+
   private static final Logger logger = LoggerFactory.getLogger(GobblinTaskRunner.class);
   static final java.nio.file.Path CLUSTER_CONF_PATH = Paths.get("generated-gobblin-cluster.conf");
 
@@ -169,10 +166,11 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
     this.dedicatedTaskDriverCluster = ConfigUtils.getBoolean(config,
         GobblinClusterConfigurationKeys.DEDICATED_TASK_DRIVER_CLUSTER_ENABLED, false);
     Configuration conf = HadoopUtils.newConfiguration();
-    this.fs = buildFileSystem(config, conf);
+    this.fs = GobblinClusterUtils.buildFileSystem(config, conf);
     this.appWorkPath = initAppWorkDir(config, appWorkDirOptional);
     this.clusterConfig = saveConfigToFile(config);
     this.clusterName = this.clusterConfig.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
+    logger.info("Configured GobblinTaskRunner work dir to: {}", this.appWorkPath.toString());
 
     //Set system properties passed in via application config. As an example, Helix uses System#getProperty() for ZK configuration
     // overrides such as sessionTimeout. In this case, the overrides specified
@@ -279,7 +277,7 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
   private Config saveConfigToFile(Config config)
       throws IOException {
     Config newConf = config
-        .withValue(CLUSTER_WORK_DIR, ConfigValueFactory.fromAnyRef(this.appWorkPath.toString()));
+        .withValue(CLUSTER_APP_WORK_DIR, ConfigValueFactory.fromAnyRef(this.appWorkPath.toString()));
     ConfigUtils configUtils = new ConfigUtils(new FileUtils());
     configUtils.saveConfigToFile(newConf, CLUSTER_CONF_PATH);
     return newConf;
@@ -435,17 +433,6 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
         GobblinTaskRunner.this.stop();
       }
     });
-  }
-
-  private FileSystem buildFileSystem(Config config, Configuration conf)
-      throws IOException {
-    Config hadoopOverrides = ConfigUtils.getConfigOrEmpty(config, GobblinClusterConfigurationKeys.HADOOP_CONFIG_OVERRIDES_PREFIX);
-
-    //Add any Hadoop-specific overrides into the Configuration object
-    JobConfigurationUtils.putPropertiesIntoConfiguration(ConfigUtils.configToProperties(hadoopOverrides), conf);
-    return config.hasPath(ConfigurationKeys.FS_URI_KEY) ? FileSystem
-        .get(URI.create(config.getString(ConfigurationKeys.FS_URI_KEY)), conf)
-        : FileSystem.get(conf);
   }
 
   private Optional<ContainerMetrics> buildContainerMetrics() {

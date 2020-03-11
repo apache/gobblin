@@ -17,9 +17,12 @@
 
 package org.apache.gobblin.cluster;
 
+import java.io.IOException;
 import java.net.InetAddress;
+import java.net.URI;
 import java.net.UnknownHostException;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -28,11 +31,13 @@ import com.typesafe.config.Config;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.DynamicConfigGenerator;
 import org.apache.gobblin.runtime.AbstractJobLauncher;
 import org.apache.gobblin.runtime.DynamicConfigGeneratorFactory;
-
-import static org.apache.gobblin.cluster.GobblinClusterConfigurationKeys.CLUSTER_WORK_DIR;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.JobConfigurationUtils;
+import org.apache.gobblin.util.PathUtils;
 
 @Alpha
 @Slf4j
@@ -63,8 +68,9 @@ public class GobblinClusterUtils {
 
   public static Path getAppWorkDirPathFromConfig(Config config, FileSystem fs,
       String applicationName, String applicationId) {
-    if (config.hasPath(CLUSTER_WORK_DIR)) {
-      return new Path(config.getString(CLUSTER_WORK_DIR));
+    if (config.hasPath(GobblinClusterConfigurationKeys.CLUSTER_WORK_DIR)) {
+      return new Path(new Path(fs.getUri()), PathUtils.combinePaths(config.getString(GobblinClusterConfigurationKeys.CLUSTER_WORK_DIR),
+          getAppWorkDirPath(applicationName, applicationId)));
     }
     return new Path(fs.getHomeDirectory(), getAppWorkDirPath(applicationName, applicationId));
   }
@@ -129,4 +135,22 @@ public class GobblinClusterUtils {
     return getDynamicConfig(config).withFallback(config);
   }
 
+  /**
+   * A utility method to construct a {@link FileSystem} object with the configured Hadoop overrides provided as part of
+   * the cluster configuration.
+   * @param config
+   * @param conf
+   * @return a {@link FileSystem} object that is instantiated with the appropriated Hadoop config overrides.
+   * @throws IOException
+   */
+  public static FileSystem buildFileSystem(Config config, Configuration conf)
+      throws IOException {
+    Config hadoopOverrides = ConfigUtils.getConfigOrEmpty(config, GobblinClusterConfigurationKeys.HADOOP_CONFIG_OVERRIDES_PREFIX);
+
+    //Add any Hadoop-specific overrides into the Configuration object
+    JobConfigurationUtils.putPropertiesIntoConfiguration(ConfigUtils.configToProperties(hadoopOverrides), conf);
+    return config.hasPath(ConfigurationKeys.FS_URI_KEY) ? FileSystem
+        .get(URI.create(config.getString(ConfigurationKeys.FS_URI_KEY)), conf)
+        : FileSystem.get(conf);
+  }
 }

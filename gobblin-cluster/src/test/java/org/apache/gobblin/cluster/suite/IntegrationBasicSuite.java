@@ -130,8 +130,8 @@ public class IntegrationBasicSuite {
   }
 
   private void initWorkDir() throws IOException {
-    // Relative to the current directory
-    this.workPath = Paths.get("gobblin-integration-test-work-dir");
+    this.workPath = Paths.get(ConfigFactory.parseURL(Resources.getResource("BasicCluster.conf"))
+        .getString(GobblinClusterConfigurationKeys.CLUSTER_WORK_DIR));
     log.info("Created a new work directory: " + this.workPath.toAbsolutePath());
 
     // Delete the working directory in case the previous test fails to delete the directory
@@ -182,7 +182,7 @@ public class IntegrationBasicSuite {
     Map<String, String> configMap = new HashMap<>();
     String zkConnectionString = this.testingZKServer.getConnectString();
     configMap.put(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY, zkConnectionString);
-    configMap.put(GobblinClusterConfigurationKeys.CLUSTER_WORK_DIR, this.workPath.toString());
+    configMap.put(GobblinTaskRunner.CLUSTER_APP_WORK_DIR, this.workPath.toString());
     Config overrideConfig = ConfigFactory.parseMap(configMap);
 
     return overrideConfig.withFallback(config);

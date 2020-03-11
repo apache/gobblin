@@ -487,7 +487,7 @@ public class YarnService extends AbstractIdleService {
 
   protected ContainerLaunchContext newContainerLaunchContext(Container container, String helixInstanceName)
       throws IOException {
-    Path appWorkDir = GobblinClusterUtils.getAppWorkDirPath(this.fs, this.applicationName, this.applicationId);
+    Path appWorkDir = GobblinClusterUtils.getAppWorkDirPathFromConfig(this.config, this.fs, this.applicationName, this.applicationId);
     Path containerWorkDir = new Path(appWorkDir, GobblinYarnConfigurationKeys.CONTAINER_WORK_DIR_NAME);
 
     Map<String, LocalResource> resourceMap = Maps.newHashMap();
