@@ -53,6 +53,7 @@ import org.apache.gobblin.runtime.api.SpecSerDe;
 import org.apache.gobblin.runtime.api.SpecStore;
 import org.apache.gobblin.runtime.spec_serde.JavaSpecSerDe;
 import org.apache.gobblin.runtime.spec_store.FSSpecStore;
+import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.callbacks.CallbackResult;
@@ -296,25 +297,42 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
    */
   public Map<String, AddSpecResponse> put(Spec spec, boolean triggerListener) {
     Map<String, AddSpecResponse> responseMap = new HashMap<>();
-    try {
-      Preconditions.checkState(state() == State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
-      Preconditions.checkNotNull(spec);
+    Preconditions.checkState(state() == State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
+    Preconditions.checkNotNull(spec);
 
-      long startTime = System.currentTimeMillis();
-      log.info(String.format("Adding FlowSpec with URI: %s and Config: %s", spec.getUri(),
-          ((FlowSpec) spec).getConfigAsProperties()));
-      specStore.addSpec(spec);
-      metrics.updatePutSpecTime(startTime);
-      if (triggerListener) {
-        AddSpecResponse<CallbacksDispatcher.CallbackResults<SpecCatalogListener, AddSpecResponse>> response = this.listeners.onAddSpec(spec);
-        for (Map.Entry<SpecCatalogListener, CallbackResult<AddSpecResponse>> entry: response.getValue().getSuccesses().entrySet()) {
-          responseMap.put(entry.getKey().getName(), entry.getValue().getResult());
-        }
+    log.info(String.format("Adding FlowSpec with URI: %s and Config: %s", spec.getUri(),
+        ((FlowSpec) spec).getConfigAsProperties()));
+    if (triggerListener) {
+      AddSpecResponse<CallbacksDispatcher.CallbackResults<SpecCatalogListener, AddSpecResponse>> response = this.listeners.onAddSpec(spec);
+      for (Map.Entry<SpecCatalogListener, CallbackResult<AddSpecResponse>> entry: response.getValue().getSuccesses().entrySet()) {
+        responseMap.put(entry.getKey().getName(), entry.getValue().getResult());
       }
-    } catch (IOException e) {
-      throw new RuntimeException("Cannot add Spec to Spec store: " + spec, e);
     }
+
+    boolean compileSuccess = isCompileSuccessful(responseMap);
+
+    if (compileSuccess) {
+      long startTime = System.currentTimeMillis();
+      metrics.updatePutSpecTime(startTime);
+      try {
+        specStore.addSpec(spec);
+      } catch (IOException e) {
+        throw new RuntimeException("Cannot add Spec to Spec store: " + spec, e);
+      }
+      responseMap.put(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>("true"));
+    } else {
+      responseMap.put(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>("false"));
+    }
+
     return responseMap;
+  }
+
+  private boolean isCompileSuccessful(Map<String, AddSpecResponse> responseMap) {
+    AddSpecResponse<String> addSpecResponse = responseMap.getOrDefault(ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS, null);
+
+    return addSpecResponse != null
+        && addSpecResponse.getValue() != null
+        && !addSpecResponse.getValue().contains("ConfigException");
   }
 
   @Override
