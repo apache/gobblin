@@ -764,14 +764,14 @@ public class DagManager extends AbstractIdleService {
     }
 
     private void checkQuota(DagNode<JobExecutionPlan> dagNode) throws IOException {
-      String proxyUser = dagNode.getValue().getJobSpec().getConfig().getString(AzkabanProjectConfig.USER_TO_PROXY);
+      String proxyUser = ConfigUtils.getString(dagNode.getValue().getJobSpec().getConfig(), AzkabanProjectConfig.USER_TO_PROXY, null);
       String specExecutorUri = dagNode.getValue().getSpecExecutor().getUri().toString();
       boolean proxyUserCheck = true;
       if (proxyUser != null) {
         proxyUserCheck = incrementMapAndCheckQuota(proxyUserToJobCount, proxyUser, dagNode);
       }
 
-      String serializedRequesters = dagNode.getValue().getJobSpec().getConfig().getString(RequesterService.REQUESTER_LIST);
+      String serializedRequesters = ConfigUtils.getString(dagNode.getValue().getJobSpec().getConfig(), RequesterService.REQUESTER_LIST, null);
       boolean requesterCheck = true;
       String requesterMessage = null;
       if (serializedRequesters != null) {
@@ -856,15 +856,17 @@ public class DagManager extends AbstractIdleService {
      * Decrement the quota by one for the proxy user and requesters corresponding to the provided {@link DagNode}.
      */
     private void releaseQuota(DagNode<JobExecutionPlan> dagNode) {
-      String proxyUser = dagNode.getValue().getJobSpec().getConfig().getString(AzkabanProjectConfig.USER_TO_PROXY);
-      String specExecutorUri = dagNode.getValue().getSpecExecutor().getUri().toString();
-      String proxyUserKey = proxyUser + "," + specExecutorUri;
+      String proxyUser = ConfigUtils.getString(dagNode.getValue().getJobSpec().getConfig(), AzkabanProjectConfig.USER_TO_PROXY, null);
+      String specExecutorUri = dagNode.getValue().getSpecExecutgor().getUri().toString();
 
-      if (proxyUserToJobCount.containsKey(proxyUserKey) && proxyUserToJobCount.get(proxyUserKey) > 0) {
-        proxyUserToJobCount.put(proxyUserKey, proxyUserToJobCount.get(proxyUserKey) - 1);
+      if (proxyUser != null) {
+        String proxyUserKey = proxyUser + "," + specExecutorUri;
+        if (proxyUserToJobCount.containsKey(proxyUserKey) && proxyUserToJobCount.get(proxyUserKey) > 0) {
+          proxyUserToJobCount.put(proxyUserKey, proxyUserToJobCount.get(proxyUserKey) - 1);
+        }
       }
 
-      String serializedRequesters = dagNode.getValue().getJobSpec().getConfig().getString(RequesterService.REQUESTER_LIST);
+      String serializedRequesters = ConfigUtils.getString(dagNode.getValue().getJobSpec().getConfig(), RequesterService.REQUESTER_LIST, null);
       if (serializedRequesters != null) {
         try {
           for (ServiceRequester requester : RequesterService.deserialize(serializedRequesters)) {
