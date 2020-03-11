@@ -15,8 +15,9 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.runtime.job_monitor;
+package org.apache.gobblin.runtime;
 
+import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
 import java.util.Map;
@@ -36,8 +37,11 @@ import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.event.sla.SlaEventKeys;
 import org.apache.gobblin.metrics.reporter.util.FixedSchemaVersionWriter;
 import org.apache.gobblin.metrics.reporter.util.NoopSchemaVersionWriter;
+import org.apache.gobblin.metrics.reporter.util.SchemaVersionWriter;
 import org.apache.gobblin.runtime.api.JobSpec;
-import org.apache.gobblin.runtime.kafka.HighLevelConsumerTest;
+import org.apache.gobblin.runtime.api.MutableJobCatalog;
+import org.apache.gobblin.runtime.job_monitor.KafkaJobMonitor;
+import org.apache.gobblin.runtime.job_monitor.SLAEventKafkaJobMonitor;
 import org.apache.gobblin.util.Either;
 
 
@@ -54,8 +58,8 @@ public class SLAEventKafkaJobMonitorTest {
   @Test
   public void testParseJobSpec() throws Exception {
 
-    SLAEventKafkaJobMonitor monitor =
-        new SLAEventKafkaJobMonitor("topic", null, new URI("/base/URI"),
+    MockSLAEventKafkaJobMonitor monitor =
+        new MockSLAEventKafkaJobMonitor("topic", null, new URI("/base/URI"),
             HighLevelConsumerTest.getSimpleConfig(Optional.of(KafkaJobMonitor.KAFKA_JOB_MONITOR_PREFIX)),
             new NoopSchemaVersionWriter(), Optional.<Pattern>absent(), Optional.<Pattern>absent(), this.templateURI,
             ImmutableMap.of("metadataKey1", "key1"));
@@ -79,8 +83,8 @@ public class SLAEventKafkaJobMonitorTest {
   @Test
   public void testFilterByName() throws Exception {
 
-    SLAEventKafkaJobMonitor monitor =
-        new SLAEventKafkaJobMonitor("topic", null, new URI("/base/URI"),
+    MockSLAEventKafkaJobMonitor monitor =
+        new MockSLAEventKafkaJobMonitor("topic", null, new URI("/base/URI"),
             HighLevelConsumerTest.getSimpleConfig(Optional.of(KafkaJobMonitor.KAFKA_JOB_MONITOR_PREFIX)),
             new NoopSchemaVersionWriter(), Optional.<Pattern>absent(), Optional.of(Pattern.compile("^accept.*")),
             this.templateURI, ImmutableMap.<String, String>of());
@@ -110,8 +114,8 @@ public class SLAEventKafkaJobMonitorTest {
     props.put(SLAEventKafkaJobMonitor.DATASET_URN_FILTER_KEY, "^/accept.*");
     Config config = ConfigFactory.parseProperties(props).withFallback(superConfig);
 
-    SLAEventKafkaJobMonitor monitor =
-        new SLAEventKafkaJobMonitor("topic", null, new URI("/base/URI"),
+    MockSLAEventKafkaJobMonitor monitor =
+        new MockSLAEventKafkaJobMonitor("topic", null, new URI("/base/URI"),
             HighLevelConsumerTest.getSimpleConfig(Optional.of(KafkaJobMonitor.KAFKA_JOB_MONITOR_PREFIX)),
             new NoopSchemaVersionWriter(), Optional.of(Pattern.compile("^/accept.*")), Optional.<Pattern>absent(),
             this.templateURI, ImmutableMap.<String, String>of());
@@ -169,6 +173,27 @@ public class SLAEventKafkaJobMonitorTest {
     metadata.put(SlaEventKeys.DATASET_URN_KEY, urn.toString());
     metadata.putAll(additionalMetadata);
     return new GobblinTrackingEvent(0L, "namespace", name, metadata);
+  }
+
+  class MockSLAEventKafkaJobMonitor extends SLAEventKafkaJobMonitor {
+
+    protected MockSLAEventKafkaJobMonitor(String topic, MutableJobCatalog catalog, URI baseURI,
+        Config limitedScopeConfig, SchemaVersionWriter<?> versionWriter, Optional<Pattern> urnFilter,
+        Optional<Pattern> nameFilter, URI template, Map<String, String> extractKeys)
+        throws IOException {
+      super(topic, catalog, baseURI, limitedScopeConfig, versionWriter, urnFilter, nameFilter, template, extractKeys);
+    }
+
+    @Override
+    protected void buildMetricsContextAndMetrics() {
+      super.buildMetricsContextAndMetrics();
+    }
+
+    @Override
+    protected void shutdownMetrics()
+        throws IOException {
+      super.shutdownMetrics();
+    }
   }
 
 }

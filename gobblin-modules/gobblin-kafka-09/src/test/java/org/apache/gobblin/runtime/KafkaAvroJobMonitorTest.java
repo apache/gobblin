@@ -15,8 +15,9 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.runtime.job_monitor;
+package org.apache.gobblin.runtime;
 
+import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
 import java.util.List;
@@ -38,7 +39,8 @@ import org.apache.gobblin.metrics.reporter.util.FixedSchemaVersionWriter;
 import org.apache.gobblin.metrics.reporter.util.NoopSchemaVersionWriter;
 import org.apache.gobblin.metrics.reporter.util.SchemaVersionWriter;
 import org.apache.gobblin.runtime.api.JobSpec;
-import org.apache.gobblin.runtime.kafka.HighLevelConsumerTest;
+import org.apache.gobblin.runtime.job_monitor.KafkaAvroJobMonitor;
+import org.apache.gobblin.runtime.job_monitor.KafkaJobMonitor;
 import org.apache.gobblin.util.Either;
 
 
@@ -134,6 +136,18 @@ public class KafkaAvroJobMonitorTest {
       this.events.add(message);
       return Lists.newArrayList(Either.<JobSpec, URI>left(JobSpec.builder(message.getName()).build()));
     }
+
+    @Override
+    protected void buildMetricsContextAndMetrics() {
+      super.buildMetricsContextAndMetrics();
+    }
+
+    @Override
+    protected void shutdownMetrics()
+        throws IOException {
+      super.shutdownMetrics();
+    }
+
   }
 
 

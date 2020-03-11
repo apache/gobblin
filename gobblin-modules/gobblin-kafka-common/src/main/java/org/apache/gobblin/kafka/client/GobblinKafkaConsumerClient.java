@@ -18,6 +18,7 @@ package org.apache.gobblin.kafka.client;
 
 import java.io.Closeable;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -94,7 +95,7 @@ public interface GobblinKafkaConsumerClient extends Closeable {
 
   /**
    * API to consume records from kakfa starting from <code>nextOffset</code> till <code>maxOffset</code>.
-   * If <code>maxOffset</code> is greater than <code>nextOffset</code>, returns a null.
+   * If <code>nextOffset</code> is greater than <code>maxOffset</code>, returns a null.
    * <code>nextOffset</code>
    * <p>
    *  <b>NOTE:</b> If the underlying kafka-client version does not support
@@ -110,6 +111,29 @@ public interface GobblinKafkaConsumerClient extends Closeable {
   public Iterator<KafkaConsumerRecord> consume(KafkaPartition partition, long nextOffset, long maxOffset);
 
   /**
+   * API to consume records from kakfa
+   * @return
+   */
+  default Iterator<KafkaConsumerRecord> consume() {
+    return Collections.emptyIterator();
+  }
+
+  /**
+   * Subscribe to a topic
+   * @param topic
+   */
+  default void subscribe(String topic) {
+    return;
+  }
+
+  /**
+   * Subscribe to a topic along with a GobblinKafkaRebalanceListener
+   * @param topic
+   */
+  default void subscribe(String topic, GobblinConsumerRebalanceListener listener) {
+    return;
+  }
+  /**
    * API to return underlying Kafka consumer metrics. The individual implementations must translate
    * org.apache.kafka.common.Metric to Coda Hale Metrics. A typical use case for reporting the consumer metrics
    * will call this method inside a scheduled thread.
@@ -117,6 +141,29 @@ public interface GobblinKafkaConsumerClient extends Closeable {
    */
   public default Map<String, Metric> getMetrics() {
     return Maps.newHashMap();
+  }
+
+  /**
+   * Commit offsets manually to Kafka asynchronously
+   */
+  default void commitOffsetsAsync(Map<KafkaPartition, Long> partitionOffsets) {
+    return;
+  }
+
+  /**
+   * Commit offsets manually to Kafka synchronously
+   */
+  default void commitOffsetsSync(Map<KafkaPartition, Long> partitionOffsets) {
+    return;
+  }
+
+  /**
+   * returns the last committed offset for a KafkaPartition
+   * @param partition
+   * @return last committed offset or -1 for invalid KafkaPartition
+   */
+  default long committed(KafkaPartition partition) {
+    return -1L;
   }
 
   /**

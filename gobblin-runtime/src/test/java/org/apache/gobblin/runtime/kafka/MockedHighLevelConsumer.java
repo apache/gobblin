@@ -18,66 +18,59 @@
 package org.apache.gobblin.runtime.kafka;
 
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
-import org.mockito.Mockito;
-
-import com.google.common.base.Charsets;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
-import org.apache.gobblin.runtime.job_monitor.MockKafkaStream;
-import org.apache.gobblin.testing.AssertWithBackoff;
-
 import javax.annotation.Nullable;
-import kafka.consumer.ConsumerConfig;
-import kafka.consumer.KafkaStream;
-import kafka.javaapi.consumer.ConsumerConnector;
-import kafka.message.MessageAndMetadata;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
+import org.apache.gobblin.source.extractor.extract.kafka.KafkaPartition;
+import org.apache.gobblin.testing.AssertWithBackoff;
 
 @Slf4j
-class MockedHighLevelConsumer extends HighLevelConsumer<byte[], byte[]> {
-  private final MockKafkaStream mockKafkaStream;
+public class MockedHighLevelConsumer extends HighLevelConsumer<byte[], byte[]> {
+
   @Getter
-  private final List<String> messages;
+  private final List<byte[]> messages;
+  @Getter
+  private final Map<KafkaPartition, Long> committedOffsets;
 
-  public MockedHighLevelConsumer(Config config, int numThreads, MockKafkaStream stream) {
-    super("topic", config, numThreads);
-
-    this.mockKafkaStream = stream;
+  public MockedHighLevelConsumer(String topic, Config config, int numThreads) {
+    super(topic, config, numThreads);
     this.messages = Lists.newArrayList();
+    this.committedOffsets = new ConcurrentHashMap<>();
   }
 
-  public void awaitAtLeastNMessages(final int n) throws Exception {
+  public void awaitExactlyNMessages(final int n, int timeoutMillis) throws Exception {
     AssertWithBackoff.assertTrue(new Predicate<Void>() {
       @Override
       public boolean apply(@Nullable Void input) {
-        return MockedHighLevelConsumer.this.messages.size() >= n;
+        return MockedHighLevelConsumer.this.messages.size() == n;
       }
-    }, 1000, n + " messages", log, 2, 1000);
+    }, timeoutMillis, n + " messages", log, 2, 1000);
   }
 
   @Override
-  protected void processMessage(MessageAndMetadata<byte[], byte[]> message) {
-    this.messages.add(new String(message.message(), Charsets.UTF_8));
+  protected void processMessage(DecodeableKafkaRecord<byte[], byte[]> message) {
+    this.messages.add(message.getValue());
   }
 
   @Override
-  protected List<KafkaStream<byte[], byte[]>> createStreams() {
-    return this.mockKafkaStream.getMockStreams();
-  }
-
-  @Override
-  protected ConsumerConnector createConsumerConnector() {
-    return Mockito.mock(ConsumerConnector.class);
+  protected void commitOffsets(Map<KafkaPartition, Long> partitionOffsets) {
+    super.commitOffsets(partitionOffsets);
+    committedOffsets.putAll(partitionOffsets.entrySet().stream().collect(Collectors
+        .toMap(e -> e.getKey(), e -> e.getValue())));
   }
 
   @Override
   public void shutDown() {
-    this.mockKafkaStream.shutdown();
     super.shutDown();
   }
 }

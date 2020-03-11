@@ -66,6 +66,7 @@ public class KafkaTestBase implements Closeable {
     if (serverStarted && serverClosed) {
       throw new RuntimeException("Kafka test server has already been closed. Cannot generate Kafka server twice.");
     }
+
     if (!serverStarted) {
       serverStarted = true;
       zkConnect = TestZKUtils.zookeeperConnect();

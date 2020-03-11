@@ -56,7 +56,7 @@ public class KafkaWriterConfigurationKeys {
   /** Kafka producer scoped configuration keys go here **/
   static final String KEY_SERIALIZER_CONFIG = "key.serializer";
   static final String DEFAULT_KEY_SERIALIZER = "org.apache.kafka.common.serialization.StringSerializer";
-  static final String VALUE_SERIALIZER_CONFIG = "value.serializer";
+  public static final String VALUE_SERIALIZER_CONFIG = "value.serializer";
   static final String DEFAULT_VALUE_SERIALIZER = "org.apache.kafka.common.serialization.ByteArraySerializer";
   static final String CLIENT_ID_CONFIG = "client.id";
   static final String CLIENT_ID_DEFAULT = "gobblin";
@@ -68,7 +68,7 @@ public class KafkaWriterConfigurationKeys {
   public static final String CLUSTER_ZOOKEEPER = KAFKA_TOPIC_CONFIG + "zookeeper";
   static final String REPLICATION_COUNT = KAFKA_TOPIC_CONFIG + "replicationCount";
   static final int REPLICATION_COUNT_DEFAULT = 1;
-  static final String PARTITION_COUNT = KAFKA_TOPIC_CONFIG + "partitionCount";
+  public static final String PARTITION_COUNT = KAFKA_TOPIC_CONFIG + "partitionCount";
   static final int PARTITION_COUNT_DEFAULT = 1;
   public static final String ZOOKEEPER_SESSION_TIMEOUT = CLUSTER_ZOOKEEPER + ".sto";
   static final int ZOOKEEPER_SESSION_TIMEOUT_DEFAULT = 10000; // 10 seconds
