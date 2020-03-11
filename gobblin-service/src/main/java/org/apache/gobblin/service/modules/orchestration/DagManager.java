@@ -857,7 +857,7 @@ public class DagManager extends AbstractIdleService {
      */
     private void releaseQuota(DagNode<JobExecutionPlan> dagNode) {
       String proxyUser = ConfigUtils.getString(dagNode.getValue().getJobSpec().getConfig(), AzkabanProjectConfig.USER_TO_PROXY, null);
-      String specExecutorUri = dagNode.getValue().getSpecExecutgor().getUri().toString();
+      String specExecutorUri = dagNode.getValue().getSpecExecutor().getUri().toString();
 
       if (proxyUser != null) {
         String proxyUserKey = proxyUser + "," + specExecutorUri;
