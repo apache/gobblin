@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.service.modules.core;
+package org.apache.gobblin.service;
 
 import java.io.File;
 import java.net.URI;
@@ -25,6 +25,8 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.io.FileUtils;
+
+import org.apache.gobblin.restli.EmbeddedRestliServer;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.hadoop.fs.Path;
 import org.eclipse.jetty.http.HttpStatus;
@@ -47,6 +49,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.linkedin.data.template.StringMap;
 import com.linkedin.restli.client.RestLiResponseException;
+import com.typesafe.config.Config;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.kafka.KafkaTestBase;
@@ -55,11 +58,8 @@ import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.Spec;
-import org.apache.gobblin.service.FlowConfig;
-import org.apache.gobblin.service.FlowConfigClient;
-import org.apache.gobblin.service.FlowId;
-import org.apache.gobblin.service.Schedule;
-import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.service.modules.core.GitConfigMonitor;
+import org.apache.gobblin.service.modules.core.GobblinServiceManager;
 import org.apache.gobblin.service.monitoring.FsJobStatusRetriever;
 import org.apache.gobblin.util.ConfigUtils;
 
@@ -89,7 +89,7 @@ public class GobblinServiceManagerTest {
   private static final String TEST_SOURCE_NAME = "testSource";
   private static final String TEST_SINK_NAME = "testSink";
 
-  private GobblinServiceManager gobblinServiceManager;
+  private MockGobblinServiceManager gobblinServiceManager;
   private FlowConfigClient flowConfigClient;
 
   private Git gitForPush;
@@ -143,12 +143,12 @@ public class GobblinServiceManagerTest {
     this.gitForPush.commit().setMessage("First commit").call();
     this.gitForPush.push().setRemote("origin").setRefSpecs(new RefSpec("master")).call();
 
-    this.gobblinServiceManager = new GobblinServiceManager("CoreService", "1",
+    this.gobblinServiceManager = new MockGobblinServiceManager("CoreService", "1",
         ConfigUtils.propertiesToConfig(serviceCoreProperties), Optional.of(new Path(SERVICE_WORK_DIR)));
     this.gobblinServiceManager.start();
 
     this.flowConfigClient = new FlowConfigClient(String.format("http://localhost:%s/",
-        this.gobblinServiceManager.restliServer.getPort()));
+        this.gobblinServiceManager.getRestLiServer().getPort()));
   }
 
   private void cleanUpDir(String dir) throws Exception {
@@ -192,7 +192,7 @@ public class GobblinServiceManagerTest {
         .setProperties(new StringMap(flowProperties));
 
     this.flowConfigClient.createFlowConfig(flowConfig);
-    Assert.assertTrue(this.gobblinServiceManager.flowCatalog.getSpecs().size() == 1, "Flow that was created is not "
+    Assert.assertTrue(this.gobblinServiceManager.getFlowCatalog().getSpecs().size() == 1, "Flow that was created is not "
         + "reflecting in FlowCatalog");
   }
 
@@ -289,7 +289,7 @@ public class GobblinServiceManagerTest {
 
     Files.write("flow.name=testFlow\nflow.group=testGroup\nparam1=value20\n", testFlowFile, Charsets.UTF_8);
 
-    Collection<Spec> specs = this.gobblinServiceManager.flowCatalog.getSpecs();
+    Collection<Spec> specs = this.gobblinServiceManager.getFlowCatalog().getSpecs();
     Assert.assertTrue(specs.size() == 0);
 
     // add, commit, push
@@ -300,7 +300,7 @@ public class GobblinServiceManagerTest {
     // polling is every 5 seconds, so wait twice as long and check
     TimeUnit.SECONDS.sleep(10);
 
-    specs = this.gobblinServiceManager.flowCatalog.getSpecs();
+    specs = this.gobblinServiceManager.getFlowCatalog().getSpecs();
     Assert.assertTrue(specs.size() == 1);
 
     FlowSpec spec = (FlowSpec) (specs.iterator().next());
@@ -355,5 +355,19 @@ public class GobblinServiceManagerTest {
       Assert.assertEquals(e.getStatus(), HttpStatus.NOT_FOUND_404);
     }
     cleanUpDir(FLOW_SPEC_STORE_DIR);
+  }
+
+  class MockGobblinServiceManager extends GobblinServiceManager {
+
+    public MockGobblinServiceManager(String serviceName, String serviceId, Config config,
+        Optional<Path> serviceWorkDirOptional)
+        throws Exception {
+      super(serviceName, serviceId, config, serviceWorkDirOptional);
+    }
+
+    protected EmbeddedRestliServer getRestLiServer() {
+      return this.restliServer;
+    }
+
   }
 }

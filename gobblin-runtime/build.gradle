@@ -79,7 +79,6 @@ dependencies {
   compile externalDependency.quartz
   compile externalDependency.slf4j
   compile externalDependency.typesafeConfig
-  compile externalDependency.kafka08
   compile externalDependency.guavaretrying
   compile externalDependency.hiveExec
   compile externalDependency.parquet

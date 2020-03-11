@@ -33,11 +33,11 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import avro.shaded.com.google.common.annotations.VisibleForTesting;
-import kafka.message.MessageAndMetadata;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
 import org.apache.gobblin.metastore.FileContextBasedFsStateStore;
 import org.apache.gobblin.metastore.FileContextBasedFsStateStoreFactory;
 import org.apache.gobblin.metastore.StateStore;
@@ -114,15 +114,15 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   }
 
   @Override
-  protected void processMessage(MessageAndMetadata<byte[],byte[]> message) {
+  protected void processMessage(DecodeableKafkaRecord<byte[],byte[]> message) {
     try {
-      org.apache.gobblin.configuration.State jobStatus = parseJobStatus(message.message());
+      org.apache.gobblin.configuration.State jobStatus = parseJobStatus(message.getValue());
       if (jobStatus != null) {
         addJobStatusToStateStore(jobStatus, this.stateStore);
       }
     } catch (IOException ioe) {
-      String messageStr = new String(message.message(), Charsets.UTF_8);
-      log.error(String.format("Failed to parse kafka message with offset %d: %s.", message.offset(), messageStr), ioe);
+      String messageStr = new String(message.getValue(), Charsets.UTF_8);
+      log.error(String.format("Failed to parse kafka message with offset %d: %s.", message.getOffset(), messageStr), ioe);
     }
   }
 

@@ -50,4 +50,23 @@ public interface KafkaConsumerRecord {
   public default boolean isTimestampLogAppend() {
     return false;
   }
+
+  default boolean isTimestampCreateTime() {
+    return false;
+  }
+
+  default boolean isTimestampNone() {
+    return false;
+  }
+
+  /**
+   * @return Partition id for this record
+   */
+  int getPartition();
+
+  /**
+   * @return topic for this record
+   */
+  String getTopic();
+
 }
