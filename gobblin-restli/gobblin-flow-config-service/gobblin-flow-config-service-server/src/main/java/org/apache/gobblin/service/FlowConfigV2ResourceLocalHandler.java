@@ -77,10 +77,6 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
       props.put("gobblin.flow.compiled",
           addSpecResponse != null && addSpecResponse.getValue() != null ? StringEscapeUtils.escapeJson(addSpecResponse.getValue()) : "");
       flowConfig.setProperties(props);
-    }
-
-    if (flowConfig.hasExplain() && flowConfig.isExplain()) {
-      //Return response with 200 status code, since no resource is actually created.
       httpStatus = HttpStatus.S_200_OK;
     } else if (Boolean.parseBoolean(responseMap.getOrDefault(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>("false")).getValue().toString())) {
       httpStatus = HttpStatus.S_201_CREATED;
