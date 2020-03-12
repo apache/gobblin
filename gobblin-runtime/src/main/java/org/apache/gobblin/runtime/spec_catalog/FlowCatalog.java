@@ -328,7 +328,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
   }
 
   private boolean isCompileSuccessful(Map<String, AddSpecResponse> responseMap) {
-    AddSpecResponse<String> addSpecResponse = responseMap.getOrDefault(ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS, null);
+    AddSpecResponse<String> addSpecResponse = responseMap.getOrDefault(ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS, new AddSpecResponse<>(""));
 
     return addSpecResponse != null
         && addSpecResponse.getValue() != null
