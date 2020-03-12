@@ -309,8 +309,8 @@ public class ConfigurationKeys {
   /**
    * Converter configuration properties.
    */
-  public static final String CONVERTER_PRESERVE_SCHEMA_CREATION_TIME = "converter.preserve.schema.creation.time";
-  public static final Boolean DEFAULT_CONVERTER_PRESERVE_SCHEMA_CREATION_TIME = true;
+  public static final String CONVERTER_AVRO_INCLUDE_SCHEMA_CREATION_TIME = "converter.avro.include.schema.creation.time";
+  public static final Boolean DEFAULT_CONVERTER_AVRO_INCLUDE_SCHEMA_CREATION_TIME = true;
   public static final String CONVERTER_AVRO_DATE_FORMAT = "converter.avro.date.format";
   public static final String CONVERTER_AVRO_DATE_TIMEZONE = "converter.avro.date.timezone";
   public static final String CONVERTER_AVRO_TIME_FORMAT = "converter.avro.time.format";

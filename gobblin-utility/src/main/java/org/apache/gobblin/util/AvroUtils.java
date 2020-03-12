@@ -117,7 +117,7 @@ public class AvroUtils {
     return SchemaCompatibility.checkReaderWriterCompatibility(readerSchema, writerSchema).getType().equals(SchemaCompatibility.SchemaCompatibilityType.COMPATIBLE);
   }
 
-  public static Schema preserveCreationTime(Schema inputSchema, Schema outputSchema) {
+  public static Schema addSchemaCreationTime(Schema inputSchema, Schema outputSchema) {
     if (inputSchema.getProp(ConfigurationKeys.SCHEMA_CREATION_TIME_KEY) != null && outputSchema.getProp(ConfigurationKeys.SCHEMA_CREATION_TIME_KEY) == null) {
       outputSchema.addProp(ConfigurationKeys.SCHEMA_CREATION_TIME_KEY, inputSchema.getProp(ConfigurationKeys.SCHEMA_CREATION_TIME_KEY));
     }

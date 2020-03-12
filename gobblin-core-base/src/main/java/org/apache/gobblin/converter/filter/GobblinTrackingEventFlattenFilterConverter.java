@@ -117,9 +117,9 @@ public class GobblinTrackingEventFlattenFilterConverter extends AvroToAvroConver
         .createRecord(ConfigUtils.getString(config, NEW_SCHEMA_NAME, inputSchema.getName()), inputSchema.getDoc(),
             inputSchema.getNamespace(), inputSchema.isError());
     outputSchema.setFields(newFields);
-    if(workUnit.getPropAsBoolean(ConfigurationKeys.CONVERTER_PRESERVE_SCHEMA_CREATION_TIME,
-        ConfigurationKeys.DEFAULT_CONVERTER_PRESERVE_SCHEMA_CREATION_TIME)) {
-      AvroUtils.preserveCreationTime(inputSchema, outputSchema);
+    if(workUnit.getPropAsBoolean(ConfigurationKeys.CONVERTER_AVRO_INCLUDE_SCHEMA_CREATION_TIME,
+        ConfigurationKeys.DEFAULT_CONVERTER_AVRO_INCLUDE_SCHEMA_CREATION_TIME)) {
+      AvroUtils.addSchemaCreationTime(inputSchema, outputSchema);
     }
     return outputSchema;
   }
