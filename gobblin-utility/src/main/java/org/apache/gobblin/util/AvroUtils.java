@@ -54,6 +54,7 @@ import org.apache.avro.mapred.FsInput;
 import org.apache.avro.util.Utf8;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.math3.util.Pair;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
@@ -114,6 +115,13 @@ public class AvroUtils {
     }
 
     return SchemaCompatibility.checkReaderWriterCompatibility(readerSchema, writerSchema).getType().equals(SchemaCompatibility.SchemaCompatibilityType.COMPATIBLE);
+  }
+
+  public static Schema preserveCreationTime(Schema inputSchema, Schema outputSchema) {
+    if (inputSchema.getProp(ConfigurationKeys.SCHEMA_CREATION_TIME_KEY) != null && outputSchema.getProp(ConfigurationKeys.SCHEMA_CREATION_TIME_KEY) == null) {
+      outputSchema.addProp(ConfigurationKeys.SCHEMA_CREATION_TIME_KEY, inputSchema.getProp(ConfigurationKeys.SCHEMA_CREATION_TIME_KEY));
+    }
+    return outputSchema;
   }
 
   public static List<Field> deepCopySchemaFields(Schema readerSchema) {

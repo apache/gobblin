@@ -74,10 +74,15 @@ public class AvroProjectionConverter extends AvroToAvroConverterBase {
    */
   @Override
   public Schema convertSchema(Schema inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
+    Schema outputSchema = inputSchema;
     if (this.fieldRemover.isPresent()) {
-      return this.fieldRemover.get().removeFields(inputSchema);
+      outputSchema = this.fieldRemover.get().removeFields(inputSchema);
     }
-    return inputSchema;
+    if(workUnit.getPropAsBoolean(ConfigurationKeys.CONVERTER_PRESERVE_SCHEMA_CREATION_TIME,
+        ConfigurationKeys.DEFAULT_CONVERTER_PRESERVE_SCHEMA_CREATION_TIME)) {
+      AvroUtils.preserveCreationTime(inputSchema, outputSchema);
+    }
+    return outputSchema;
   }
 
   /**
