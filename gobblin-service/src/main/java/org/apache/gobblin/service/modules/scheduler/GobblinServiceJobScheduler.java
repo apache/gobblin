@@ -284,6 +284,15 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
         }
         boolean isExplain = ConfigUtils.getBoolean(flowSpec.getConfig(), ConfigurationKeys.FLOW_EXPLAIN_KEY, false);
         String response = null;
+
+        // always try to compile the flow to verify if it is compilable
+        Dag<JobExecutionPlan> dag = this.orchestrator.getSpecCompiler().compileFlow(flowSpec);
+        if (dag != null && !dag.isEmpty()) {
+          response = dag.toString();
+        } else if (!flowSpec.getCompilationErrors().isEmpty()) {
+          response = Arrays.toString(flowSpec.getCompilationErrors().toArray());
+        }
+
         if (!isExplain) {
           this.scheduledFlowSpecs.put(addedSpec.getUri().toString(), addedSpec);
 
@@ -299,13 +308,6 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
             this.jobExecutor.execute(new NonScheduledJobRunner(flowSpec.getUri(), true, jobConfig, null));
           }
         } else {
-          //Return a compiled flow.
-          Dag<JobExecutionPlan> dag = this.orchestrator.getSpecCompiler().compileFlow(flowSpec);
-          if (dag != null && !dag.isEmpty()) {
-            response = dag.toString();
-          } else if (!flowSpec.getCompilationErrors().isEmpty()) {
-            response = Arrays.toString(flowSpec.getCompilationErrors().toArray());
-          }
           _log.info("{} Skipping adding flow spec: {}, since it is an EXPLAIN request", this.serviceName, addedSpec);
 
           if (this.flowCatalog.isPresent()) {
@@ -313,7 +315,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
             this.flowCatalog.get().remove(flowSpec.getUri(), new Properties(), false);
           }
         }
-        return new AddSpecResponse(response);
+        return new AddSpecResponse<>(response);
       } catch (JobException je) {
         _log.error("{} Failed to schedule or run FlowSpec {}", serviceName, addedSpec, je);
       }

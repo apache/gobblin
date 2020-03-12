@@ -23,6 +23,7 @@ import org.apache.gobblin.annotation.Alpha;
 public class ServiceConfigKeys {
 
   public static final String GOBBLIN_SERVICE_PREFIX = "gobblin.service.";
+  public static final String GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS = "org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler";
 
   // Gobblin Service Manager Keys
   public static final String GOBBLIN_SERVICE_TOPOLOGY_CATALOG_ENABLED_KEY = GOBBLIN_SERVICE_PREFIX + "topologyCatalog.enabled";
@@ -49,6 +50,7 @@ public class ServiceConfigKeys {
 
   // Flow Compiler Keys
   public static final String GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY = GOBBLIN_SERVICE_PREFIX + "flowCompiler.class";
+  public static final String COMPILATION_SUCCESSFUL = "compilation.successful";
 
   // Flow Catalog Keys
   public static final String GOBBLIN_SERVICE_FLOW_CATALOG_LOCAL_COMMIT = GOBBLIN_SERVICE_PREFIX + "flowCatalog.localCommit";
