@@ -35,6 +35,7 @@ import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.FlowId;
+import org.apache.gobblin.service.RequesterService;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.Dag.DagNode;
 import org.apache.gobblin.service.modules.orchestration.DagManager.FailureOption;
@@ -44,6 +45,7 @@ import org.apache.gobblin.util.ConfigUtils;
 
 public class DagManagerUtils {
   static long NO_SLA = -1L;
+  static String QUOTA_KEY_SEPERATOR = ",";
 
   static FlowId getFlowId(Dag<JobExecutionPlan> dag) {
     return getFlowId(dag.getStartNodes().get(0));
@@ -218,6 +220,18 @@ public class DagManagerUtils {
     String failureOption = ConfigUtils.getString(getJobConfig(dagNode),
         ConfigurationKeys.FLOW_FAILURE_OPTION, DagManager.DEFAULT_FLOW_FAILURE_OPTION);
     return FailureOption.valueOf(failureOption);
+  }
+
+  static String getSpecExecutorUri(DagNode<JobExecutionPlan> dagNode) {
+    return dagNode.getValue().getSpecExecutor().getUri().toString();
+  }
+
+  static String getSerializedRequesterList(DagNode<JobExecutionPlan> dagNode) {
+    return ConfigUtils.getString(dagNode.getValue().getJobSpec().getConfig(), RequesterService.REQUESTER_LIST, null);
+  }
+
+  static String getUserQuotaKey(String user, DagNode<JobExecutionPlan> dagNode) {
+    return user + QUOTA_KEY_SEPERATOR + getSpecExecutorUri(dagNode);
   }
 
   /**
