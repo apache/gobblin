@@ -265,6 +265,12 @@ public class CsvToJsonConverterV2 extends Converter<String, JsonArray, String[],
       JsonElement convert(String value) {
         return new JsonPrimitive(value);
       }
+    },
+    TIMESTAMP {
+      @Override
+      JsonElement convert(String value) {
+        return new JsonPrimitive(value);
+      }
     };
     abstract JsonElement convert(String value);
   }
