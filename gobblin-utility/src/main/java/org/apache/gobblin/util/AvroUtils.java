@@ -119,13 +119,20 @@ public class AvroUtils {
     return SchemaCompatibility.checkReaderWriterCompatibility(readerSchema, writerSchema).getType().equals(SchemaCompatibility.SchemaCompatibilityType.COMPATIBLE);
   }
 
+<<<<<<< HEAD
   public static Schema addSchemaCreationTime(Schema inputSchema, Schema outputSchema) {
     if (inputSchema.getProp(SCHEMA_CREATION_TIME_KEY) != null && outputSchema.getProp(SCHEMA_CREATION_TIME_KEY) == null) {
       outputSchema.addProp(SCHEMA_CREATION_TIME_KEY, inputSchema.getProp(SCHEMA_CREATION_TIME_KEY));
+=======
+  public static Schema preserveCreationTime(Schema inputSchema, Schema outputSchema) {
+    if (inputSchema.getProp(ConfigurationKeys.SCHEMA_CREATION_TIME_KEY) != null && outputSchema.getProp(ConfigurationKeys.SCHEMA_CREATION_TIME_KEY) == null) {
+      outputSchema.addProp(ConfigurationKeys.SCHEMA_CREATION_TIME_KEY, inputSchema.getProp(ConfigurationKeys.SCHEMA_CREATION_TIME_KEY));
+>>>>>>> Add configuration to preserve schema creation time in converter
     }
     return outputSchema;
   }
 
+<<<<<<< HEAD
   public static String getSchemaCreationTime(Schema inputSchema) {
     return inputSchema.getProp(SCHEMA_CREATION_TIME_KEY);
   }
@@ -135,6 +142,8 @@ public class AvroUtils {
     return inputSchema;
   }
 
+=======
+>>>>>>> Add configuration to preserve schema creation time in converter
   public static List<Field> deepCopySchemaFields(Schema readerSchema) {
     return readerSchema.getFields().stream()
         .map(field -> {
