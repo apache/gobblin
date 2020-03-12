@@ -309,6 +309,8 @@ public class ConfigurationKeys {
   /**
    * Converter configuration properties.
    */
+  public static final String CONVERTER_PRESERVE_SCHEMA_CREATION_TIME = "converter.preserve.schema.creation.time";
+  public static final Boolean DEFAULT_CONVERTER_PRESERVE_SCHEMA_CREATION_TIME = true;
   public static final String CONVERTER_AVRO_DATE_FORMAT = "converter.avro.date.format";
   public static final String CONVERTER_AVRO_DATE_TIMEZONE = "converter.avro.date.timezone";
   public static final String CONVERTER_AVRO_TIME_FORMAT = "converter.avro.time.format";
@@ -848,6 +850,7 @@ public class ConfigurationKeys {
   public static final String KAFKA_SCHEMA_REGISTRY_RETRY_TIMES = "kafka.schema.registry.retry.times";
   public static final String KAFKA_SCHEMA_REGISTRY_RETRY_INTERVAL_IN_MILLIS =
       "kafka.schema.registry.retry.interval.inMillis";
+  public static final String SCHEMA_CREATION_TIME_KEY = "CreatedOn";
 
   /**
    * Job execution info server and history store configuration properties.
