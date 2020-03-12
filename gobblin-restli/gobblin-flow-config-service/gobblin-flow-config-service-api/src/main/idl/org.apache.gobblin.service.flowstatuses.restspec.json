@@ -28,6 +28,10 @@
         "name" : "tag",
         "type" : "string",
         "optional" : true
+      }, {
+        "name" : "executionStatus",
+        "type" : "string",
+        "optional" : true
       } ]
     } ],
     "entity" : {
