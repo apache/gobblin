@@ -20,30 +20,17 @@ package org.apache.gobblin.cluster;
 import java.util.List;
 
 import org.apache.gobblin.configuration.SourceState;
-import org.apache.gobblin.runtime.task.TaskFactory;
 import org.apache.gobblin.runtime.task.TaskUtils;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.test.HelloWorldSource;
 
-import com.google.common.base.Optional;
 
-
-/**
- * A source that is primarily used for testing and simulate different scenarios within task execution.
- * Fallback to {@link SleepingTask} if there's no specific task factory being specified.
- */
 public class SleepingCustomTaskSource extends HelloWorldSource {
   @Override
   public List<WorkUnit> getWorkunits(SourceState state) {
-    // If specifying TaskFactory type using "org.apache.gobblin.runtime.taskFactoryClass", respect that or fall back to
-    // SleepingTaskFactory.
-    Optional<TaskFactory> taskFactoryOpt = TaskUtils.getTaskFactory(state);
-    Class<? extends TaskFactory> klazz =
-        taskFactoryOpt.isPresent() ? taskFactoryOpt.get().getClass() : SleepingTaskFactory.class;
-
     List<WorkUnit> workUnits = super.getWorkunits(state);
     for (WorkUnit workUnit : workUnits) {
-      TaskUtils.setTaskFactoryClass(workUnit, klazz);
+      TaskUtils.setTaskFactoryClass(workUnit, SleepingTaskFactory.class);
     }
     return workUnits;
   }

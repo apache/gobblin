@@ -165,7 +165,6 @@ public class Task implements TaskIFace {
   private final AtomicLong recordsPulled;
 
   private final AtomicBoolean shutdownRequested;
-  // TODO: Where does this shutdown-requested time being used ?
   private volatile long shutdownRequestedTime = Long.MAX_VALUE;
   private final CountDownLatch shutdownLatch;
   protected Future<?> taskFuture;
@@ -314,7 +313,6 @@ public class Task implements TaskIFace {
     this.shutdownLatch.countDown();
   }
 
-  // TODO: Does it has to be compareAndSwap ?
   private boolean shutdownRequested() {
     if (!this.shutdownRequested.get()) {
       this.shutdownRequested.set(Thread.currentThread().isInterrupted());

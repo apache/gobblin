@@ -117,4 +117,20 @@ public class HelixAssignedParticipantCheckTest {
       helixManager.disconnect();
     }
   }
+
+  public static class IntegrationJobSuite extends IntegrationBasicSuite {
+    public static final String JOB_ID = "job_testJob_345";
+    public static final String TASK_STATE_FILE = "/tmp/" + IntegrationJobSuite.class.getSimpleName() + "/taskState/_RUNNING";
+
+    @Override
+    protected Map<String, Config> overrideJobConfigs(Config rawJobConfig) {
+      Config newConfig = ConfigFactory.parseMap(ImmutableMap.of(
+          ConfigurationKeys.SOURCE_CLASS_KEY, "org.apache.gobblin.cluster.SleepingCustomTaskSource",
+          ConfigurationKeys.JOB_ID_KEY, JOB_ID,
+          GobblinClusterConfigurationKeys.HELIX_JOB_TIMEOUT_ENABLED_KEY, Boolean.TRUE,
+          GobblinClusterConfigurationKeys.HELIX_JOB_TIMEOUT_SECONDS, 10L,
+          SleepingTask.TASK_STATE_FILE_KEY, TASK_STATE_FILE)).withFallback(rawJobConfig);
+      return ImmutableMap.of(JOB_NAME, newConfig);
+    }
+  }
 }

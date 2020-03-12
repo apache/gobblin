@@ -33,7 +33,6 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.io.FileUtils;
@@ -51,7 +50,6 @@ import com.typesafe.config.ConfigParseOptions;
 import com.typesafe.config.ConfigRenderOptions;
 import com.typesafe.config.ConfigSyntax;
 
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.cluster.ClusterIntegrationTest;
@@ -84,7 +82,7 @@ public class IntegrationBasicSuite {
   protected Config managerConfig;
   protected Collection<Config> taskDriverConfigs = Lists.newArrayList();
   protected Collection<Config> workerConfigs = Lists.newArrayList();
-  protected List<GobblinTaskRunner> workers = Lists.newArrayList();
+  protected Collection<GobblinTaskRunner> workers = Lists.newArrayList();
   protected Collection<GobblinTaskRunner> taskDrivers = Lists.newArrayList();
   protected GobblinClusterManager manager;
 
@@ -95,8 +93,6 @@ public class IntegrationBasicSuite {
   protected Path jobOutputBasePath;
   protected URL jobConfResourceUrl;
   protected TestingServer testingZKServer;
-  @Getter
-  private int numOfWorkers;
 
   public IntegrationBasicSuite() {
     this(ConfigFactory.empty());
@@ -108,21 +104,17 @@ public class IntegrationBasicSuite {
       initWorkDir();
       initJobOutputDir();
       initZooKeeper();
-      initConfig(numOfWorkers);
+      initConfig();
       initJobConfDir();
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
   }
 
-  public IntegrationBasicSuite() {
-    this(1);
-  }
-
-  private void initConfig(int numOfWorkers) {
+  private void initConfig() {
     this.managerConfig = this.getManagerConfig();
     this.taskDriverConfigs = this.getTaskDriverConfigs();
-    this.workerConfigs = this.getWorkerConfigs(numOfWorkers);
+    this.workerConfigs = this.getWorkerConfigs();
   }
 
   private void initZooKeeper() throws Exception {
@@ -215,25 +207,12 @@ public class IntegrationBasicSuite {
     return new ArrayList<>();
   }
 
-  /**
-   * Added for backward-compatibility.
-   */
   protected Collection<Config> getWorkerConfigs() {
-    return this.getWorkerConfigs(1);
-  }
-
-  protected List<Config> getWorkerConfigs(int numOfWorkers) {
     // worker config initialization
     URL url = Resources.getResource("BasicWorker.conf");
-    ArrayList<Config> workerConfigs = new ArrayList<>();
-
-    for (int i = 0 ; i < numOfWorkers ; i ++) {
-      Config workerConfig = ConfigFactory.parseURL(url);
-      workerConfig = workerConfig.withFallback(getClusterConfig());
-      workerConfigs.add(workerConfig.resolve());
-    }
-
-    return workerConfigs;
+    Config workerConfig = ConfigFactory.parseURL(url);
+    workerConfig = workerConfig.withFallback(getClusterConfig());
+    return Lists.newArrayList(workerConfig.resolve());
   }
 
   protected Config addInstanceName(Config baseConfig, String instanceName) {
@@ -251,7 +230,7 @@ public class IntegrationBasicSuite {
   }
 
   /**
-   * verify if the file contains the provided message
+   * verify if the file containts the provided message
    * @param logFile file to be looked inside
    * @param message string to look for
    * @return true if the file contains the message
@@ -276,7 +255,7 @@ public class IntegrationBasicSuite {
   public void startCluster() throws Exception {
     this.testingZKServer.start();
     createHelixCluster();
-    startAllWorkers();
+    startWorker();
     startTaskDriver();
     startManager();
   }
@@ -304,7 +283,7 @@ public class IntegrationBasicSuite {
     }
   }
 
-  private void startAllWorkers() throws Exception {
+  private void startWorker() throws Exception {
     if (workerConfigs.size() == 1) {
       this.workers.add(new GobblinTaskRunner(TestHelper.TEST_APPLICATION_NAME, WORKER_INSTANCE_0,
           TestHelper.TEST_APPLICATION_ID, "1",
@@ -317,8 +296,6 @@ public class IntegrationBasicSuite {
     } else {
       // Each workerConfig corresponds to a worker instance
       for (Config workerConfig: this.workerConfigs) {
-
-        // TODO: Need to change the way of GobblinTaskRunner and make it get WorkerConfig.
         GobblinTaskRunner runner = new GobblinTaskRunner(TestHelper.TEST_APPLICATION_NAME,
             workerConfig.getString(TEST_INSTANCE_NAME_KEY),
             TestHelper.TEST_APPLICATION_ID, "1",
@@ -343,15 +320,6 @@ public class IntegrationBasicSuite {
     this.taskDrivers.forEach(runner->runner.stop());
     this.manager.stop();
     this.testingZKServer.close();
-  }
-
-  /**
-   * To simulate the scenarios that helix participants lost ZK connection, we could disconnect Helix Manager on purpose.
-   * @param index of the worker within {@link #workers} collection. Usually set to 0 if just want certain worker to be
-   *              disconnected.
-   */
-  public void shutdownWorkerHelixConnection(int index) {
-    workers.get(index).disconnectHelixManager();
   }
 
   protected void createHelixCluster() throws Exception {

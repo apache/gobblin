@@ -162,7 +162,7 @@ public class GobblinHelixTask implements Task {
       Thread.currentThread().interrupt();
       log.error("Actual task {} interrupted.", this.taskId);
       this.taskMetrics.helixTaskTotalFailed.incrementAndGet();
-      return new TaskResult(TaskResult.Status.CANCELED, "");
+      return new TaskResult(TaskResult.Status.FAILED, "");
     } catch (Throwable t) {
       log.error("Actual task {} failed due to {}", this.taskId, t.getMessage());
       this.taskMetrics.helixTaskTotalCancelled.incrementAndGet();
