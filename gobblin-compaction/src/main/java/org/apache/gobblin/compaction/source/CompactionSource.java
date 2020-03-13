@@ -111,21 +111,23 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
   @Override
   public WorkUnitStream getWorkunitStream(SourceState state) {
     try {
+      fs = getSourceFileSystem(state);
       DatasetsFinder<Dataset> finder = DatasetUtils.instantiateDatasetFinder(state.getProperties(),
-              getSourceFileSystem(state),
-              DefaultFileSystemGlobFinder.class.getName());
+          fs, DefaultFileSystemGlobFinder.class.getName());
 
       List<Dataset> datasets = finder.findDatasets();
       CompactionWorkUnitIterator workUnitIterator = new CompactionWorkUnitIterator();
 
-      if (datasets.size() > 0) {
-        initCompactionSource(state);
+      if (datasets.size() == 0) {
+        return new BasicWorkUnitStream.Builder(workUnitIterator).build();
       }
 
-      // Spawn a single thread to create work units
-      new Thread(new SingleWorkUnitGeneratorService (state, prioritize(datasets, state), workUnitIterator), "SingleWorkUnitGeneratorService").start();
-      return new BasicWorkUnitStream.Builder(workUnitIterator).build();
+      // initialize iff datasets are found
+      initCompactionSource(state);
 
+      // Spawn a single thread to create work units
+      new Thread(new SingleWorkUnitGeneratorService(state, prioritize(datasets, state), workUnitIterator), "SingleWorkUnitGeneratorService").start();
+      return new BasicWorkUnitStream.Builder(workUnitIterator).build();
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -225,7 +227,6 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
    * happening inside {@link #initCompactionSource(SourceState)} is compulsory.
    */
   private void initCompactionSource(SourceState state) throws IOException {
-    fs = getSourceFileSystem(state);
     state.setProp(COMPACTION_INIT_TIME, DateTimeUtils.currentTimeMillis());
     suite = CompactionSuiteUtils.getCompactionSuiteFactory(state).createSuite(state);
 
