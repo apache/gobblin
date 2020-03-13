@@ -25,6 +25,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.Path;
@@ -94,6 +96,7 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
   private final Map<URI, TopologySpec> topologySpecMap;
   private final Config emptyConfig = ConfigFactory.empty();
   private final CountDownLatch initComplete;
+  private final Lock lock = new ReentrantLock();
 
   public GitFlowGraphMonitor(Config config, Optional<? extends FSFlowTemplateCatalog> flowTemplateCatalog,
       FlowGraph graph, Map<URI, TopologySpec> topologySpecMap, CountDownLatch initComplete) {
@@ -128,11 +131,15 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
    */
   @Override
   void processGitConfigChanges() throws GitAPIException, IOException {
-    if (flowTemplateCatalog.isPresent() && (flowTemplateCatalog.get() instanceof ObservingFSFlowEdgeTemplateCatalog)) {
-      ObservingFSFlowEdgeTemplateCatalog catalog = (ObservingFSFlowEdgeTemplateCatalog) flowTemplateCatalog.get();
-      if (catalog.isShouldRefreshFlowGraph()) {
-        this.gitRepo.initRepository();
-        catalog.setShouldRefreshFlowGraph(false);
+    if (lock.tryLock()) {
+      try {
+        if (flowTemplateCatalog.isPresent() && flowTemplateCatalog.get().isShouldRefreshFlowGraph()) {
+          log.info("Change to template catalog detected, refreshing FlowGraph");
+          this.gitRepo.initRepository();
+          flowTemplateCatalog.get().setShouldRefreshFlowGraph(false);
+        }
+      } finally {
+        lock.unlock();
       }
     }
 
