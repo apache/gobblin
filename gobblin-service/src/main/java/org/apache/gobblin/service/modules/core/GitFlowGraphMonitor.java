@@ -50,6 +50,7 @@ import org.apache.gobblin.service.modules.flowgraph.FlowEdgeFactory;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraph;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraphConfigurationKeys;
 import org.apache.gobblin.service.modules.template_catalog.FSFlowTemplateCatalog;
+import org.apache.gobblin.service.modules.template_catalog.ObservingFSFlowEdgeTemplateCatalog;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
@@ -127,6 +128,14 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
    */
   @Override
   void processGitConfigChanges() throws GitAPIException, IOException {
+    if (flowTemplateCatalog.isPresent() && (flowTemplateCatalog.get() instanceof ObservingFSFlowEdgeTemplateCatalog)) {
+      ObservingFSFlowEdgeTemplateCatalog catalog = (ObservingFSFlowEdgeTemplateCatalog) flowTemplateCatalog.get();
+      if (catalog.isShouldRefreshFlowGraph()) {
+        this.gitRepo.initRepository();
+        catalog.setShouldRefreshFlowGraph(false);
+      }
+    }
+
     List<DiffEntry> changes = this.gitRepo.getChanges();
     Collections.sort(changes, (o1, o2) -> {
       Integer o1Depth = (o1.getNewPath() != null) ? (new Path(o1.getNewPath())).depth() : (new Path(o1.getOldPath())).depth();

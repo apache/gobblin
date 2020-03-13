@@ -29,6 +29,8 @@ import org.apache.hadoop.fs.Path;
 
 import com.typesafe.config.Config;
 
+import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.runtime.api.JobTemplate;
@@ -48,6 +50,10 @@ public class ObservingFSFlowEdgeTemplateCatalog extends FSFlowTemplateCatalog {
   private Map<URI, FlowTemplate> flowTemplateMap = new ConcurrentHashMap<>();
   private Map<URI, List<JobTemplate>> jobTemplateMap = new ConcurrentHashMap<>();
   private ReadWriteLock rwLock;
+
+  @Getter
+  @Setter
+  private boolean shouldRefreshFlowGraph = false;
 
   public ObservingFSFlowEdgeTemplateCatalog(Config sysConfig, ReadWriteLock rwLock) throws IOException {
     super(sysConfig);
@@ -94,12 +100,14 @@ public class ObservingFSFlowEdgeTemplateCatalog extends FSFlowTemplateCatalog {
 
   /**
    * Clear cached templates so they will be reloaded next time {@link #getFlowTemplate(URI)} is called.
+   * Also refresh git flow graph in case any edges that failed to be added on startup are successful now.
    */
   private void clearTemplates() {
     this.rwLock.writeLock().lock();
     log.info("Change detected, reloading flow templates.");
     flowTemplateMap.clear();
     jobTemplateMap.clear();
+    this.shouldRefreshFlowGraph = true;
     this.rwLock.writeLock().unlock();
   }
 
