@@ -25,8 +25,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.ReadWriteLock;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.Path;
@@ -52,7 +51,6 @@ import org.apache.gobblin.service.modules.flowgraph.FlowEdgeFactory;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraph;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraphConfigurationKeys;
 import org.apache.gobblin.service.modules.template_catalog.FSFlowTemplateCatalog;
-import org.apache.gobblin.service.modules.template_catalog.ObservingFSFlowEdgeTemplateCatalog;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
@@ -96,15 +94,16 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
   private final Map<URI, TopologySpec> topologySpecMap;
   private final Config emptyConfig = ConfigFactory.empty();
   private final CountDownLatch initComplete;
-  private final Lock lock = new ReentrantLock();
+  private final ReadWriteLock rwLock;
 
   public GitFlowGraphMonitor(Config config, Optional<? extends FSFlowTemplateCatalog> flowTemplateCatalog,
-      FlowGraph graph, Map<URI, TopologySpec> topologySpecMap, CountDownLatch initComplete) {
+      FlowGraph graph, Map<URI, TopologySpec> topologySpecMap, CountDownLatch initComplete, ReadWriteLock rwLock) {
     super(config.getConfig(GIT_FLOWGRAPH_MONITOR_PREFIX).withFallback(DEFAULT_FALLBACK));
     this.flowTemplateCatalog = flowTemplateCatalog;
     this.flowGraph = graph;
     this.topologySpecMap = topologySpecMap;
     this.initComplete = initComplete;
+    this.rwLock = rwLock;
   }
 
   /**
@@ -131,16 +130,15 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
    */
   @Override
   void processGitConfigChanges() throws GitAPIException, IOException {
-    if (lock.tryLock()) {
-      try {
-        if (flowTemplateCatalog.isPresent() && flowTemplateCatalog.get().isShouldRefreshFlowGraph()) {
+    try {
+      this.rwLock.writeLock().lock();
+      if (flowTemplateCatalog.isPresent() && flowTemplateCatalog.get().isShouldRefreshFlowGraph()) {
           log.info("Change to template catalog detected, refreshing FlowGraph");
           this.gitRepo.initRepository();
           flowTemplateCatalog.get().setShouldRefreshFlowGraph(false);
-        }
-      } finally {
-        lock.unlock();
       }
+    } finally {
+        this.rwLock.writeLock().unlock();
     }
 
     List<DiffEntry> changes = this.gitRepo.getChanges();
