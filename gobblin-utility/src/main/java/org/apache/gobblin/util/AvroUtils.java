@@ -128,26 +128,37 @@ public class AvroUtils {
   public static Schema preserveCreationTime(Schema inputSchema, Schema outputSchema) {
 =======
   public static Schema addSchemaCreationTime(Schema inputSchema, Schema outputSchema) {
+<<<<<<< HEAD
 >>>>>>> address commemnts
     if (inputSchema.getProp(ConfigurationKeys.SCHEMA_CREATION_TIME_KEY) != null && outputSchema.getProp(ConfigurationKeys.SCHEMA_CREATION_TIME_KEY) == null) {
       outputSchema.addProp(ConfigurationKeys.SCHEMA_CREATION_TIME_KEY, inputSchema.getProp(ConfigurationKeys.SCHEMA_CREATION_TIME_KEY));
 >>>>>>> Add configuration to preserve schema creation time in converter
+=======
+    if (inputSchema.getProp(SCHEMA_CREATION_TIME_KEY) != null && outputSchema.getProp(ConfigurationKeys.SCHEMA_CREATION_TIME_KEY) == null) {
+      outputSchema.addProp(SCHEMA_CREATION_TIME_KEY, inputSchema.getProp(ConfigurationKeys.SCHEMA_CREATION_TIME_KEY));
+>>>>>>> address comments
     }
     return outputSchema;
   }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
   public static String getSchemaCreationTime(Schema inputSchema) {
     return inputSchema.getProp(SCHEMA_CREATION_TIME_KEY);
   }
 
+=======
+>>>>>>> address comments
   public static Schema setSchemaCreationTime(Schema inputSchema, String creationTime) {
     inputSchema.addProp(SCHEMA_CREATION_TIME_KEY, creationTime);
     return inputSchema;
   }
 
+<<<<<<< HEAD
 =======
 >>>>>>> Add configuration to preserve schema creation time in converter
+=======
+>>>>>>> address comments
   public static List<Field> deepCopySchemaFields(Schema readerSchema) {
     return readerSchema.getFields().stream()
         .map(field -> {
