@@ -98,6 +98,8 @@ public class AvroUtils {
 
   private static final String AVRO_SUFFIX = ".avro";
 
+  private static final String SCHEMA_CREATION_TIME_KEY = "CreatedOn";
+
   /**
    * Validates that the provided reader schema can be used to decode avro data written with the
    * provided writer schema.
@@ -118,10 +120,15 @@ public class AvroUtils {
   }
 
   public static Schema addSchemaCreationTime(Schema inputSchema, Schema outputSchema) {
-    if (inputSchema.getProp(ConfigurationKeys.SCHEMA_CREATION_TIME_KEY) != null && outputSchema.getProp(ConfigurationKeys.SCHEMA_CREATION_TIME_KEY) == null) {
-      outputSchema.addProp(ConfigurationKeys.SCHEMA_CREATION_TIME_KEY, inputSchema.getProp(ConfigurationKeys.SCHEMA_CREATION_TIME_KEY));
+    if (inputSchema.getProp(SCHEMA_CREATION_TIME_KEY) != null && outputSchema.getProp(ConfigurationKeys.SCHEMA_CREATION_TIME_KEY) == null) {
+      outputSchema.addProp(SCHEMA_CREATION_TIME_KEY, inputSchema.getProp(ConfigurationKeys.SCHEMA_CREATION_TIME_KEY));
     }
     return outputSchema;
+  }
+
+  public static Schema setSchemaCreationTime(Schema inputSchema, String creationTime) {
+    inputSchema.addProp(SCHEMA_CREATION_TIME_KEY, creationTime);
+    return inputSchema;
   }
 
   public static List<Field> deepCopySchemaFields(Schema readerSchema) {
