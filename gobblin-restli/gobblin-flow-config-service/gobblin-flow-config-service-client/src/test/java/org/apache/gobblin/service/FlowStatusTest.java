@@ -174,62 +174,6 @@ public class FlowStatusTest {
   }
 
   /**
-   * Test finding the latest failed flow status
-   * @throws Exception
-   */
-  @Test
-  public void testFindLatestFailed() throws Exception {
-    org.apache.gobblin.service.monitoring.JobStatus js1 = org.apache.gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1")
-        .flowName("flow1").jobGroup("jgroup1").jobName("job1").startTime(1000L).endTime(5000L)
-        .eventName(ExecutionStatus.FAILED.name()).flowExecutionId(0).message("Test message 1")
-        .processedCount(100).jobExecutionId(1).lowWatermark("watermark:1").highWatermark("watermark:2").build();
-    org.apache.gobblin.service.monitoring.JobStatus fs1 = org.apache.gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1")
-        .flowName("flow1").jobGroup(JobStatusRetriever.NA_KEY).jobName(JobStatusRetriever.NA_KEY).endTime(5000L)
-        .eventName(ExecutionStatus.FAILED.name()).flowExecutionId(0).build();
-
-    org.apache.gobblin.service.monitoring.JobStatus js2 = org.apache.gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1")
-        .flowName("flow1").jobGroup("jgroup1").jobName("job1").jobTag("dataset1").startTime(2000L).endTime(6000L)
-        .eventName(ExecutionStatus.COMPLETE.name()).flowExecutionId(1).message("Test message 2")
-        .processedCount(200).jobExecutionId(2).lowWatermark("watermark:2").highWatermark("watermark:3").build();
-    org.apache.gobblin.service.monitoring.JobStatus js3 = org.apache.gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1")
-        .flowName("flow1").jobGroup("jgroup1").jobName("job2").jobTag("dataset2").startTime(2000L).endTime(6000L)
-        .eventName(ExecutionStatus.COMPLETE.name()).flowExecutionId(1).message("Test message 3")
-        .processedCount(200).jobExecutionId(2).lowWatermark("watermark:2").highWatermark("watermark:3").build();
-    org.apache.gobblin.service.monitoring.JobStatus fs2 = org.apache.gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1")
-        .flowName("flow1").jobGroup(JobStatusRetriever.NA_KEY).jobName(JobStatusRetriever.NA_KEY).endTime(7000L)
-        .eventName(ExecutionStatus.COMPLETE.name()).flowExecutionId(1).build();
-
-    org.apache.gobblin.service.monitoring.JobStatus js4 = org.apache.gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1")
-        .flowName("flow1").jobGroup("jgroup1").jobName("job1").startTime(1000L).endTime(5000L)
-        .eventName(ExecutionStatus.FAILED.name()).flowExecutionId(0).message("Test message 1")
-        .processedCount(100).jobExecutionId(1).lowWatermark("watermark:1").highWatermark("watermark:2").build();
-    org.apache.gobblin.service.monitoring.JobStatus fs3 = org.apache.gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1")
-        .flowName("flow1").jobGroup(JobStatusRetriever.NA_KEY).jobName(JobStatusRetriever.NA_KEY).endTime(5000L)
-        .eventName(ExecutionStatus.FAILED.name()).flowExecutionId(2).build();
-
-    List<org.apache.gobblin.service.monitoring.JobStatus> jobStatusList1 = Lists.newArrayList(js1, fs1);
-    List<org.apache.gobblin.service.monitoring.JobStatus> jobStatusList2 = Lists.newArrayList(js2, js3, fs2);
-    List<org.apache.gobblin.service.monitoring.JobStatus> jobStatusList3 = Lists.newArrayList(js4, fs3);
-    _listOfJobStatusLists = Lists.newArrayList();
-    _listOfJobStatusLists.add(jobStatusList1);
-    _listOfJobStatusLists.add(jobStatusList2);
-    _listOfJobStatusLists.add(jobStatusList3);
-
-    FlowId flowId = new FlowId().setFlowGroup("fgroup1").setFlowName("flow1");
-
-    List<FlowStatus> flowStatusList = _client.getLatestFlowStatus(flowId, 5, null);
-    Assert.assertEquals(flowStatusList.size(), 3);
-    Assert.assertEquals(flowStatusList.get(0).getId().getFlowExecutionId(), (Long) 2L);
-    Assert.assertEquals(flowStatusList.get(1).getId().getFlowExecutionId(), (Long) 1L);
-    Assert.assertEquals(flowStatusList.get(2).getId().getFlowExecutionId(), (Long) 0L);
-
-    List<FlowStatus> flowStatusList2 = _client.getLatestFlowStatus(flowId, 5, null, "FAILED");
-    Assert.assertEquals(flowStatusList2.size(), 2);
-    Assert.assertEquals(flowStatusList2.get(0).getId().getFlowExecutionId(), (Long) 2L);
-    Assert.assertEquals(flowStatusList2.get(1).getId().getFlowExecutionId(), (Long) 0L);
-  }
-
-  /**
    * Test a flow that has all jobs completed
    * @throws Exception
    */
