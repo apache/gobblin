@@ -94,16 +94,14 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
   private final Map<URI, TopologySpec> topologySpecMap;
   private final Config emptyConfig = ConfigFactory.empty();
   private final CountDownLatch initComplete;
-  private final ReadWriteLock rwLock;
 
   public GitFlowGraphMonitor(Config config, Optional<? extends FSFlowTemplateCatalog> flowTemplateCatalog,
-      FlowGraph graph, Map<URI, TopologySpec> topologySpecMap, CountDownLatch initComplete, ReadWriteLock rwLock) {
+      FlowGraph graph, Map<URI, TopologySpec> topologySpecMap, CountDownLatch initComplete) {
     super(config.getConfig(GIT_FLOWGRAPH_MONITOR_PREFIX).withFallback(DEFAULT_FALLBACK));
     this.flowTemplateCatalog = flowTemplateCatalog;
     this.flowGraph = graph;
     this.topologySpecMap = topologySpecMap;
     this.initComplete = initComplete;
-    this.rwLock = rwLock;
   }
 
   /**
@@ -130,15 +128,9 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
    */
   @Override
   void processGitConfigChanges() throws GitAPIException, IOException {
-    try {
-      this.rwLock.writeLock().lock();
-      if (flowTemplateCatalog.isPresent() && flowTemplateCatalog.get().isShouldRefreshFlowGraph()) {
-          log.info("Change to template catalog detected, refreshing FlowGraph");
-          this.gitRepo.initRepository();
-          flowTemplateCatalog.get().setShouldRefreshFlowGraph(false);
-      }
-    } finally {
-        this.rwLock.writeLock().unlock();
+    if (flowTemplateCatalog.isPresent() && flowTemplateCatalog.get().getAndSetShouldRefreshFlowGraph(false)) {
+      log.info("Change to template catalog detected, refreshing FlowGraph");
+      this.gitRepo.initRepository();
     }
 
     List<DiffEntry> changes = this.gitRepo.getChanges();

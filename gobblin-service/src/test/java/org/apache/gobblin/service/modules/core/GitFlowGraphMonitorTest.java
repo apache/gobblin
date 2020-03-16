@@ -125,7 +125,7 @@ public class GitFlowGraphMonitorTest {
     //Create a FlowGraph instance with defaults
     this.flowGraph = new BaseFlowGraph();
 
-    this.gitFlowGraphMonitor = new GitFlowGraphMonitor(this.config, this.flowCatalog, this.flowGraph, topologySpecMap, new CountDownLatch(1), new ReentrantReadWriteLock(true));
+    this.gitFlowGraphMonitor = new GitFlowGraphMonitor(this.config, this.flowCatalog, this.flowGraph, topologySpecMap, new CountDownLatch(1));
     this.gitFlowGraphMonitor.setActive(true);
   }
 

@@ -23,14 +23,13 @@ import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReadWriteLock;
 
 import org.apache.hadoop.fs.Path;
 
 import com.typesafe.config.Config;
 
-import lombok.Getter;
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.runtime.api.JobTemplate;
@@ -51,9 +50,7 @@ public class ObservingFSFlowEdgeTemplateCatalog extends FSFlowTemplateCatalog {
   private Map<URI, List<JobTemplate>> jobTemplateMap = new ConcurrentHashMap<>();
   private ReadWriteLock rwLock;
 
-  @Getter
-  @Setter
-  private boolean shouldRefreshFlowGraph = false;
+  private AtomicBoolean shouldRefreshFlowGraph = new AtomicBoolean(false);
 
   public ObservingFSFlowEdgeTemplateCatalog(Config sysConfig, ReadWriteLock rwLock) throws IOException {
     super(sysConfig);
@@ -98,6 +95,11 @@ public class ObservingFSFlowEdgeTemplateCatalog extends FSFlowTemplateCatalog {
     }
   }
 
+  @Override
+  public boolean getAndSetShouldRefreshFlowGraph(boolean value) {
+    return this.shouldRefreshFlowGraph.getAndSet(value);
+  }
+
   /**
    * Clear cached templates so they will be reloaded next time {@link #getFlowTemplate(URI)} is called.
    * Also refresh git flow graph in case any edges that failed to be added on startup are successful now.
@@ -107,7 +109,7 @@ public class ObservingFSFlowEdgeTemplateCatalog extends FSFlowTemplateCatalog {
     log.info("Change detected, reloading flow templates.");
     flowTemplateMap.clear();
     jobTemplateMap.clear();
-    this.shouldRefreshFlowGraph = true;
+    this.shouldRefreshFlowGraph.set(true);
     this.rwLock.writeLock().unlock();
   }
 
