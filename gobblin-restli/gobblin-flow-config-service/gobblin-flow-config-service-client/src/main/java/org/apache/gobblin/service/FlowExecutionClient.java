@@ -128,20 +128,25 @@ public class FlowExecutionClient implements Closeable {
     }
   }
 
+  public List<FlowExecution> getLatestFlowExecution(FlowId flowId, Integer count, String tag) throws RemoteInvocationException {
+    return getLatestFlowExecution(flowId, count, tag, null);
+  }
+
   /**
    * Get the latest k flow executions
    * @param flowId identifier of flow execution to get
    * @return a list of {@link FlowExecution}es corresponding to the latest <code>count</code> executions, containing only
-   * jobStatuses that match the given tag.
+   * jobStatuses that match the given tag. If <code>executionStatus</code> is not null, only flows with that status are
+   * returned.
    * @throws RemoteInvocationException
    */
-  public List<FlowExecution> getLatestFlowExecution(FlowId flowId, Integer count, String tag)
+  public List<FlowExecution> getLatestFlowExecution(FlowId flowId, Integer count, String tag, String executionStatus)
       throws RemoteInvocationException {
     LOG.debug("getFlowExecution with groupName " + flowId.getFlowGroup() + " flowName " +
         flowId.getFlowName() + " count " + Integer.toString(count));
 
     FindRequest<FlowExecution> findRequest = _flowexecutionsRequestBuilders.findByLatestFlowExecution().flowIdParam(flowId).
-        addReqParam("count", count, Integer.class).addParam("tag", tag, String.class).build();
+        addReqParam("count", count, Integer.class).addParam("tag", tag, String.class).addParam("executionStatus", executionStatus, String.class).build();
 
     Response<CollectionResponse<FlowExecution>> response =
         _restClient.get().sendRequest(findRequest).getResponse();

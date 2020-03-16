@@ -70,9 +70,9 @@ public class FlowExecutionResource extends ComplexKeyResourceTemplate<FlowStatus
   }
 
   @Finder("latestFlowExecution")
-  public List<FlowExecution> getLatestFlowExecution(@Context PagingContext context,
-      @QueryParam("flowId") FlowId flowId, @Optional @QueryParam("count") Integer count, @Optional @QueryParam("tag") String tag) {
-    List<org.apache.gobblin.service.monitoring.FlowStatus> flowStatuses = getLatestFlowStatusesFromGenerator(flowId, count, tag, this._flowStatusGenerator);
+  public List<FlowExecution> getLatestFlowExecution(@Context PagingContext context, @QueryParam("flowId") FlowId flowId,
+      @Optional @QueryParam("count") Integer count, @Optional @QueryParam("tag") String tag, @Optional @QueryParam("executionStatus") String executionStatus) {
+    List<org.apache.gobblin.service.monitoring.FlowStatus> flowStatuses = getLatestFlowStatusesFromGenerator(flowId, count, tag, executionStatus, this._flowStatusGenerator);
 
     if (flowStatuses != null) {
       return flowStatuses.stream().map(FlowExecutionResource::convertFlowStatus).collect(Collectors.toList());
@@ -108,13 +108,13 @@ public class FlowExecutionResource extends ComplexKeyResourceTemplate<FlowStatus
   }
 
   public static List<org.apache.gobblin.service.monitoring.FlowStatus> getLatestFlowStatusesFromGenerator(FlowId flowId,
-      Integer count, String tag, FlowStatusGenerator flowStatusGenerator) {
+      Integer count, String tag, String executionStatus, FlowStatusGenerator flowStatusGenerator) {
     if (count == null) {
       count = 1;
     }
     LOG.info("get latest called with flowGroup " + flowId.getFlowGroup() + " flowName " + flowId.getFlowName() + " count " + count);
 
-    return flowStatusGenerator.getLatestFlowStatus(flowId.getFlowName(), flowId.getFlowGroup(), count, tag);
+    return flowStatusGenerator.getLatestFlowStatus(flowId.getFlowName(), flowId.getFlowGroup(), count, tag, executionStatus);
   }
 
   /**
