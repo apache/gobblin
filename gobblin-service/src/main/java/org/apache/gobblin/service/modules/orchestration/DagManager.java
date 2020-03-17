@@ -613,9 +613,9 @@ public class DagManager extends AbstractIdleService {
       }
       ExecutionStatus executionStatus = valueOf(jobStatus.getEventName());
       long timeOutForJobStart = DagManagerUtils.getJobStartSla(node);
-      long jobOrchestrationTime = jobStatus.getOrchestratedTime();
+      long jobOrchestratedTime = jobStatus.getOrchestratedTime();
 
-      if (executionStatus == ORCHESTRATED && System.currentTimeMillis() - jobOrchestrationTime > timeOutForJobStart) {
+      if (executionStatus == ORCHESTRATED && System.currentTimeMillis() - jobOrchestratedTime > timeOutForJobStart) {
         log.info("Job {} of flow {} exceeded the job start SLA of {} ms. Killing the job now...",
             DagManagerUtils.getJobName(node),
             DagManagerUtils.getFullyQualifiedDagName(node),

@@ -182,6 +182,14 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
     }
   }
 
+  /**
+   * Merge states based on precedence defined by {@link #ORDERED_EXECUTION_STATUSES}.
+   * The state instance in the 1st argument reflects the more recent state of a job
+   * (and is thus, given higher priority) compared to the 2nd argument.
+   * @param state higher priority state
+   * @param fallbackState lower priority state
+   * @return merged state
+   */
   private static org.apache.gobblin.configuration.State mergeState(org.apache.gobblin.configuration.State state,
       org.apache.gobblin.configuration.State fallbackState) {
     Properties mergedState = new Properties();

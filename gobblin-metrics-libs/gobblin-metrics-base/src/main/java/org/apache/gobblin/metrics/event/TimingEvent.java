@@ -94,7 +94,7 @@ public class TimingEvent extends GobblinEventBuilder implements Closeable {
   public static final String METADATA_DURATION = "durationMillis";
   public static final String METADATA_TIMING_EVENT = "timingEvent";
   public static final String METADATA_MESSAGE = "message";
-  public static final String JOB_ORCHESTRATION_TIME = "jobOrchestrationTime";
+  public static final String JOB_ORCHESTRATED_TIME = "jobOrchestratedTime";
   public static final String JOB_START_TIME = "jobStartTime";
   public static final String JOB_END_TIME = "jobEndTime";
 

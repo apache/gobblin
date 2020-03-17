@@ -71,7 +71,7 @@ public abstract class JobStatusRetrieverTest {
     } else if (status.equals(ExecutionStatus.COMPLETE.name())) {
       properties.setProperty(TimingEvent.JOB_END_TIME, String.valueOf(endTime));
     } else if (status.equals(ExecutionStatus.ORCHESTRATED.name())) {
-      properties.setProperty(TimingEvent.JOB_ORCHESTRATION_TIME, String.valueOf(endTime));
+      properties.setProperty(TimingEvent.JOB_ORCHESTRATED_TIME, String.valueOf(endTime));
     }
     State jobStatus = new State(properties);
 
