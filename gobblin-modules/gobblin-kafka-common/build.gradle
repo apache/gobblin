@@ -47,8 +47,6 @@ dependencies {
   testCompile externalDependency.mockito
   testCompile externalDependency.testng
   testCompile externalDependency.jmh
-
-  //jmh group: 'org.openjdk.jmh', name: 'jmh-generator-annprocess', version: '1.17.3'
 }
 
 configurations {
