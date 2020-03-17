@@ -33,6 +33,7 @@ import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Warmup;
+import org.openjdk.jmh.infra.Blackhole;
 import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.options.ChainedOptionsBuilder;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
@@ -118,6 +119,29 @@ public class HdrHistogramPerformanceBenchmark {
     String histogramString = KafkaExtractorStatsTracker.convertHistogramToString(histogramState.histogram4);
     System.out.println("Histogram serialized string size: " + histogramString.length());
     return histogramString;
+  }
+
+  @Benchmark
+  public Histogram trackMergeHistogram(HistogramState histogramState) {
+    Histogram histogram = new Histogram(histogramState.MIN_VALUE, histogramState.MAX_VALUE, 3);
+    histogram.add(histogramState.histogram1);
+    histogram.add(histogramState.histogram2);
+    histogram.add(histogramState.histogram3);
+    histogram.add(histogramState.histogram4);
+    return histogram;
+  }
+
+  @Benchmark
+  public Histogram trackBuildHistogram(HistogramState histogramState) {
+    Histogram histogram = new Histogram(histogramState.MIN_VALUE, histogramState.MAX_VALUE, 3);
+    return histogram;
+  }
+
+  @Benchmark
+  public void trackResetHistogram(HistogramState histogramState, Blackhole blackhole) {
+    int dummyVal = 1;
+    histogramState.histogram4.reset();
+    blackhole.consume(dummyVal);
   }
 
   public static void main(String[] args) throws Exception {
