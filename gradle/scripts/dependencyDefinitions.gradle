@@ -86,7 +86,7 @@ ext.externalDependency = [
     "zkClient": "com.101tec:zkclient:0.7",
     "quartz": "org.quartz-scheduler:quartz:2.2.3",
     "testng": "org.testng:testng:6.9.10",
-    "junit": "junit:junit:4.12",
+    "junit": "org.junit.jupiter:junit-jupiter-api:5.3.2",
     "mockserver":"org.mock-server:mockserver-netty:3.10.4",
     "jacksonCore": "org.codehaus.jackson:jackson-core-asl:1.9.13",
     "jacksonMapper": "org.codehaus.jackson:jackson-mapper-asl:1.9.13",
