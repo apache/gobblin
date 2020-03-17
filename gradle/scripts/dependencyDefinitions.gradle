@@ -62,6 +62,7 @@ ext.externalDependency = [
     "hadoopYarnMiniCluster": "org.apache.hadoop:hadoop-minicluster:" + hadoopVersion,
     "hadoopAnnotations": "org.apache.hadoop:hadoop-annotations:" + hadoopVersion,
     "hadoopAws": "org.apache.hadoop:hadoop-aws:2.6.0",
+    "hdrHistogram": "org.hdrhistogram:HdrHistogram:2.1.11",
     "helix": "org.apache.helix:helix-core:0.8.2",
     "hiveCommon": "org.apache.hive:hive-common:" + hiveVersion,
     "hiveService": "org.apache.hive:hive-service:" + hiveVersion,

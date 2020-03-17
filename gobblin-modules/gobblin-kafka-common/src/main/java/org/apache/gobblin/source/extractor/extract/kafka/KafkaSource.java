@@ -114,7 +114,6 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   public static final String PREVIOUS_LATEST_OFFSET = "previousLatestOffset";
   public static final String OFFSET_FETCH_EPOCH_TIME = "offsetFetchEpochTime";
   public static final String PREVIOUS_OFFSET_FETCH_EPOCH_TIME = "previousOffsetFetchEpochTime";
-  public static final String NUM_TOPIC_PARTITIONS = "numTopicPartitions";
   public static final String GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS = "gobblin.kafka.consumerClient.class";
   public static final String GOBBLIN_KAFKA_EXTRACT_ALLOW_TABLE_TYPE_NAMESPACE_CUSTOMIZATION =
       "gobblin.kafka.extract.allowTableTypeAndNamspaceCustomization";
@@ -125,6 +124,14 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   public static final boolean DEFAULT_GOBBLIN_KAFKA_SHOULD_ENABLE_DATASET_STATESTORE = false;
   public static final String OFFSET_FETCH_TIMER = "offsetFetchTimer";
   public static final String RECORD_LEVEL_SLA_MINUTES_KEY = "gobblin.kafka.recordLevelSlaMinutes";
+  public static final String MAX_POSSIBLE_OBSERVED_LAG_IN_HOURS = "gobblin.kafka.maxObservedLagInHours";
+  public static final Integer DEFAULT_MAX_POSSIBLE_OBSERVED_LAG_IN_HOURS = 24;
+  public static final String OBSERVED_LAG_PRECISION = "gobblin.kafka.observedLagPrecision";
+  public static final Integer DEFAULT_OBSERVED_LAG_PRECISION = 3;
+  public static final String OBSERVED_LAG_MEASUREMENT_ENABLED = "gobblin.kafka.observedLagMeasurementEnabled";
+  public static final Boolean DEFAULT_OBSERVED_LAG_MEASUREMENT_ENABLED = false;
+  public static final String RECORD_CREATION_TIMESTAMP_FIELD = "gobblin.kafka.recordCreationTimestampField";
+  public static final String RECORD_CREATION_TIMESTAMP_UNIT = "gobblin.kafka.recordCreationTimestampUnit";
 
   private final Set<String> moveToLatestTopics = Sets.newTreeSet(String.CASE_INSENSITIVE_ORDER);
   private final Map<KafkaPartition, Long> previousOffsets = Maps.newConcurrentMap();
@@ -557,6 +564,17 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     //Copy the SLA config from SourceState to WorkUnitState.
     if (state.contains(KafkaSource.RECORD_LEVEL_SLA_MINUTES_KEY)) {
       workUnit.setProp(KafkaSource.RECORD_LEVEL_SLA_MINUTES_KEY, state.getProp(KafkaSource.RECORD_LEVEL_SLA_MINUTES_KEY));
+    }
+    boolean isObservedLagMeasurementEnabled = state.getPropAsBoolean(KafkaSource.OBSERVED_LAG_MEASUREMENT_ENABLED, DEFAULT_OBSERVED_LAG_MEASUREMENT_ENABLED);
+    if (isObservedLagMeasurementEnabled) {
+      Preconditions.checkArgument(state.contains(KafkaSource.RECORD_CREATION_TIMESTAMP_FIELD), "Missing config key: " + KafkaSource.RECORD_CREATION_TIMESTAMP_FIELD);
+      workUnit.setProp(KafkaSource.OBSERVED_LAG_MEASUREMENT_ENABLED, isObservedLagMeasurementEnabled);
+      workUnit.setProp(KafkaSource.MAX_POSSIBLE_OBSERVED_LAG_IN_HOURS,
+          state.getPropAsInt(KafkaSource.MAX_POSSIBLE_OBSERVED_LAG_IN_HOURS, DEFAULT_MAX_POSSIBLE_OBSERVED_LAG_IN_HOURS));
+      workUnit.setProp(KafkaSource.OBSERVED_LAG_PRECISION,
+          state.getPropAsInt(KafkaSource.OBSERVED_LAG_PRECISION, KafkaSource.DEFAULT_OBSERVED_LAG_PRECISION));
+      workUnit.setProp(KafkaSource.RECORD_CREATION_TIMESTAMP_FIELD, state.getProp(KafkaSource.RECORD_CREATION_TIMESTAMP_FIELD));
+      workUnit.setProp(KafkaSource.RECORD_CREATION_TIMESTAMP_UNIT, state.getProp(KafkaSource.RECORD_CREATION_TIMESTAMP_UNIT, TimeUnit.MILLISECONDS.name()));
     }
   }
 

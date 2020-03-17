@@ -20,6 +20,7 @@ package org.apache.gobblin.source.extractor.extract.kafka;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.slf4j.Logger;
@@ -60,6 +61,8 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
 
   private final ClassAliasResolver<GobblinKafkaConsumerClientFactory> kafkaConsumerClientResolver;
   private final AtomicBoolean shutdownRequested = new AtomicBoolean(false);
+  private final String recordCreationTimestampFieldName;
+  private final TimeUnit recordCreationTimestampUnit;
 
   private Iterator<KafkaConsumerRecord> messageIterator = null;
   @Getter
@@ -105,6 +108,9 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
 
     // The actual high watermark starts with the low watermark
     this.workUnitState.setActualHighWatermark(this.lowWatermark);
+
+    this.recordCreationTimestampFieldName = this.workUnitState.getProp(KafkaSource.RECORD_CREATION_TIMESTAMP_FIELD, null);
+    this.recordCreationTimestampUnit = TimeUnit.valueOf(this.workUnitState.getProp(KafkaSource.RECORD_CREATION_TIMESTAMP_UNIT, TimeUnit.MILLISECONDS.name()));
   }
 
   @Override
@@ -177,7 +183,9 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
           D record = decodeKafkaMessage(nextValidMessage);
 
           this.statsTracker.onDecodeableRecord(this.currentPartitionIdx, readStartTime, decodeStartTime,
-              nextValidMessage.getValueSizeInBytes(), nextValidMessage.isTimestampLogAppend() ? nextValidMessage.getTimestamp() : 0L);
+              nextValidMessage.getValueSizeInBytes(), nextValidMessage.isTimestampLogAppend() ? nextValidMessage.getTimestamp() : 0L,
+              (this.recordCreationTimestampFieldName != null) ? nextValidMessage
+                  .getRecordCreationTimestamp(this.recordCreationTimestampFieldName, this.recordCreationTimestampUnit) : 0L);
           this.currentPartitionLastSuccessfulRecord = record;
           return record;
         } catch (Throwable t) {
