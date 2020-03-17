@@ -109,7 +109,7 @@ public class ObservingFSFlowEdgeTemplateCatalog extends FSFlowTemplateCatalog {
     log.info("Change detected, reloading flow templates.");
     flowTemplateMap.clear();
     jobTemplateMap.clear();
-    this.shouldRefreshFlowGraph.set(true);
+    getAndSetShouldRefreshFlowGraph(true);
     this.rwLock.writeLock().unlock();
   }
 
