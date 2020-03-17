@@ -119,46 +119,22 @@ public class AvroUtils {
     return SchemaCompatibility.checkReaderWriterCompatibility(readerSchema, writerSchema).getType().equals(SchemaCompatibility.SchemaCompatibilityType.COMPATIBLE);
   }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
   public static Schema addSchemaCreationTime(Schema inputSchema, Schema outputSchema) {
     if (inputSchema.getProp(SCHEMA_CREATION_TIME_KEY) != null && outputSchema.getProp(SCHEMA_CREATION_TIME_KEY) == null) {
       outputSchema.addProp(SCHEMA_CREATION_TIME_KEY, inputSchema.getProp(SCHEMA_CREATION_TIME_KEY));
-=======
-  public static Schema preserveCreationTime(Schema inputSchema, Schema outputSchema) {
-=======
-  public static Schema addSchemaCreationTime(Schema inputSchema, Schema outputSchema) {
-<<<<<<< HEAD
->>>>>>> address commemnts
-    if (inputSchema.getProp(ConfigurationKeys.SCHEMA_CREATION_TIME_KEY) != null && outputSchema.getProp(ConfigurationKeys.SCHEMA_CREATION_TIME_KEY) == null) {
-      outputSchema.addProp(ConfigurationKeys.SCHEMA_CREATION_TIME_KEY, inputSchema.getProp(ConfigurationKeys.SCHEMA_CREATION_TIME_KEY));
->>>>>>> Add configuration to preserve schema creation time in converter
-=======
-    if (inputSchema.getProp(SCHEMA_CREATION_TIME_KEY) != null && outputSchema.getProp(ConfigurationKeys.SCHEMA_CREATION_TIME_KEY) == null) {
-      outputSchema.addProp(SCHEMA_CREATION_TIME_KEY, inputSchema.getProp(ConfigurationKeys.SCHEMA_CREATION_TIME_KEY));
->>>>>>> address comments
     }
     return outputSchema;
   }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
   public static String getSchemaCreationTime(Schema inputSchema) {
     return inputSchema.getProp(SCHEMA_CREATION_TIME_KEY);
   }
 
-=======
->>>>>>> address comments
   public static Schema setSchemaCreationTime(Schema inputSchema, String creationTime) {
     inputSchema.addProp(SCHEMA_CREATION_TIME_KEY, creationTime);
     return inputSchema;
   }
 
-<<<<<<< HEAD
-=======
->>>>>>> Add configuration to preserve schema creation time in converter
-=======
->>>>>>> address comments
   public static List<Field> deepCopySchemaFields(Schema readerSchema) {
     return readerSchema.getFields().stream()
         .map(field -> {
@@ -500,7 +476,7 @@ public class AvroUtils {
   }
 
   public static void writeSchemaToFile(Schema schema, Path filePath, FileSystem fs, boolean overwrite, FsPermission perm)
-    throws IOException {
+      throws IOException {
     writeSchemaToFile(schema, filePath, null, fs, overwrite, perm);
   }
 
@@ -938,7 +914,7 @@ public class AvroUtils {
     List<Field> newOutputFields = Stream.concat(outputFields.stream(), fieldList.stream()).collect(Collectors.toList());
 
     Schema outputSchema = Schema.createRecord(inputSchema.getName(), inputSchema.getDoc(),
-            inputSchema.getNamespace(), inputSchema.isError());
+        inputSchema.getNamespace(), inputSchema.isError());
     outputSchema.setFields(newOutputFields);
     copyProperties(inputSchema, outputSchema);
     return outputSchema;
@@ -956,7 +932,7 @@ public class AvroUtils {
    * @return an outputRecord that contains a union of the fields in the inputRecord and the field-values in the fieldMap
    */
   public static GenericRecord decorateRecord(GenericRecord inputRecord, @Nonnull Map<String, Object> fieldMap,
-          Schema outputSchema) {
+      Schema outputSchema) {
     GenericRecord outputRecord = new GenericData.Record(outputSchema);
     inputRecord.getSchema().getFields().forEach(f -> outputRecord.put(f.name(), inputRecord.get(f.name())));
     fieldMap.forEach((key, value) -> outputRecord.put(key, value));
