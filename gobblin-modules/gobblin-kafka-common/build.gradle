@@ -46,9 +46,9 @@ dependencies {
   testCompile project(":gobblin-test-utils")
   testCompile externalDependency.mockito
   testCompile externalDependency.testng
+  testCompile externalDependency.jmh
 
-  jmh 'org.openjdk.jmh:jmh-core:1.17.3'
-  jmh group: 'org.openjdk.jmh', name: 'jmh-generator-annprocess', version: '1.17.3'
+  //jmh group: 'org.openjdk.jmh', name: 'jmh-generator-annprocess', version: '1.17.3'
 }
 
 configurations {

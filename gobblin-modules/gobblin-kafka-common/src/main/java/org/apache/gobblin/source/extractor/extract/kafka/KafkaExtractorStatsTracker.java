@@ -72,7 +72,7 @@ public class KafkaExtractorStatsTracker {
   private static final String DECODE_RECORD_TIME = "decodeRecordTime";
   private static final String FETCH_MESSAGE_BUFFER_TIME = "fetchMessageBufferTime";
   private static final String LAST_RECORD_HEADER_TIMESTAMP = "lastRecordHeaderTimestamp";
-  private static final String OBSERVED_LAG_HISTOGRAM = "observedLagHistogram";
+  private static final String OBSERVED_LATENCY_HISTOGRAM = "observedLatencyHistogram";
 
   @Getter
   private final Map<KafkaPartition, ExtractorStats> statsMap;
@@ -80,10 +80,10 @@ public class KafkaExtractorStatsTracker {
   private final WorkUnitState workUnitState;
   private final TaskEventMetadataGenerator taskEventMetadataGenerator;
   @Getter
-  private final Histogram observedLagHistogram;
+  private final Histogram observedLatencyHistogram;
   private boolean isSlaConfigured;
   private long recordLevelSlaMillis;
-  //Minimum partition index processed by this task. Statistics that are aggregated across all partitions (e.g. observed lag histogram)
+  //Minimum partition index processed by this task. Statistics that are aggregated across all partitions (e.g. observed latency histogram)
   // processed by the task are reported against this partition index.
   private int minPartitionIdx = Integer.MAX_VALUE;
 
@@ -92,7 +92,7 @@ public class KafkaExtractorStatsTracker {
   @Getter
   private int undecodableMessageCount = 0;
   private List<KafkaPartition> partitions;
-  private long maxPossibleLag;
+  private long maxPossibleLatency;
 
   public KafkaExtractorStatsTracker(WorkUnitState state, List<KafkaPartition> partitions) {
     this.workUnitState = state;
@@ -110,10 +110,10 @@ public class KafkaExtractorStatsTracker {
       this.recordLevelSlaMillis = TimeUnit.MINUTES.toMillis(this.workUnitState.getPropAsLong(KafkaSource.RECORD_LEVEL_SLA_MINUTES_KEY));
     }
     this.taskEventMetadataGenerator = TaskEventMetadataUtils.getTaskEventMetadataGenerator(workUnitState);
-    if (state.getPropAsBoolean(KafkaSource.OBSERVED_LAG_MEASUREMENT_ENABLED, KafkaSource.DEFAULT_OBSERVED_LAG_MEASUREMENT_ENABLED)) {
-      this.observedLagHistogram = buildObservedLagHistogram(state);
+    if (state.getPropAsBoolean(KafkaSource.OBSERVED_LATENCY_MEASUREMENT_ENABLED, KafkaSource.DEFAULT_OBSERVED_LATENCY_MEASUREMENT_ENABLED)) {
+      this.observedLatencyHistogram = buildobservedLatencyHistogram(state);
     } else {
-      this.observedLagHistogram = null;
+      this.observedLatencyHistogram = null;
     }
   }
 
@@ -125,18 +125,18 @@ public class KafkaExtractorStatsTracker {
    * @param state
    * @return a non auto-resizing {@link Histogram} with a bounded range and precision.
    */
-  private Histogram buildObservedLagHistogram(WorkUnitState state) {
-    this.maxPossibleLag = TimeUnit.HOURS.toMillis(state.getPropAsInt(KafkaSource.MAX_POSSIBLE_OBSERVED_LAG_IN_HOURS,
-        KafkaSource.DEFAULT_MAX_POSSIBLE_OBSERVED_LAG_IN_HOURS));
-    int numSignificantDigits = state.getPropAsInt(KafkaSource.OBSERVED_LAG_PRECISION, KafkaSource.DEFAULT_OBSERVED_LAG_PRECISION);
+  private Histogram buildobservedLatencyHistogram(WorkUnitState state) {
+    this.maxPossibleLatency = TimeUnit.HOURS.toMillis(state.getPropAsInt(KafkaSource.MAX_POSSIBLE_OBSERVED_LATENCY_IN_HOURS,
+        KafkaSource.DEFAULT_MAX_POSSIBLE_OBSERVED_LATENCY_IN_HOURS));
+    int numSignificantDigits = state.getPropAsInt(KafkaSource.OBSERVED_LATENCY_PRECISION, KafkaSource.DEFAULT_OBSERVED_LATENCY_PRECISION);
     if (numSignificantDigits > 5) {
-      log.warn("Max precision must be <= 5; Setting precision for observed lag to 5.");
+      log.warn("Max precision must be <= 5; Setting precision for observed latency to 5.");
       numSignificantDigits = 5;
     } else if (numSignificantDigits < 1) {
       log.warn("Max precision must be >= 1; Setting precision to the default value of 3.");
       numSignificantDigits = 3;
     }
-    return new Histogram(1, maxPossibleLag, numSignificantDigits);
+    return new Histogram(1, maxPossibleLatency, numSignificantDigits);
   }
 
   public int getErrorPartitionCount() {
@@ -217,13 +217,13 @@ public class KafkaExtractorStatsTracker {
       v.partitionTotalSize += recordSizeInBytes;
       v.decodeRecordTime += currentTime - decodeStartTime;
       v.readRecordTime += currentTime - readStartTime;
-      if (this.observedLagHistogram != null && recordCreationTimestamp > 0) {
-        long observedLag = System.currentTimeMillis() - recordCreationTimestamp;
-        // Discard outliers larger than maxPossibleLag to avoid additional overhead that may otherwise be incurred due to dynamic
-        // re-sizing of Histogram when observedLag exceeds the maximum assumed lag. Essentially, we trade-off accuracy for
+      if (this.observedLatencyHistogram != null && recordCreationTimestamp > 0) {
+        long observedLatency = System.currentTimeMillis() - recordCreationTimestamp;
+        // Discard outliers larger than maxPossibleLatency to avoid additional overhead that may otherwise be incurred due to dynamic
+        // re-sizing of Histogram when observedLatency exceeds the maximum assumed latency. Essentially, we trade-off accuracy for
         // performance in a pessimistic scenario.
-        if (observedLag < this.maxPossibleLag) {
-          this.observedLagHistogram.recordValue(observedLag);
+        if (observedLatency < this.maxPossibleLatency) {
+          this.observedLatencyHistogram.recordValue(observedLatency);
         }
       }
       if (this.isSlaConfigured) {
@@ -365,9 +365,9 @@ public class KafkaExtractorStatsTracker {
       tagsForPartition.put(AVG_RECORD_PULL_TIME, Double.toString(-1));
     }
 
-    //Report observed lag histogram as part
-    if ((partitionId == minPartitionIdx) && (this.observedLagHistogram != null)) {
-      tagsForPartition.put(OBSERVED_LAG_HISTOGRAM, convertHistogramToString(this.observedLagHistogram));
+    //Report observed latency histogram as part
+    if ((partitionId == minPartitionIdx) && (this.observedLatencyHistogram != null)) {
+      tagsForPartition.put(OBSERVED_LATENCY_HISTOGRAM, convertHistogramToString(this.observedLatencyHistogram));
     }
     return tagsForPartition;
   }
@@ -377,15 +377,15 @@ public class KafkaExtractorStatsTracker {
    * compressed logging format provided by the {@link org.HdrHistogram.HistogramLogWriter}
    * to represent the Histogram as a string. The readers can use the {@link org.HdrHistogram.HistogramLogReader} to
    * deserialize the string back to a {@link Histogram} object.
-   * @param observedLagHistogram
+   * @param observedLatencyHistogram
    * @return
    */
   @VisibleForTesting
-  public static String convertHistogramToString(Histogram observedLagHistogram) {
+  public static String convertHistogramToString(Histogram observedLatencyHistogram) {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     try (PrintStream stream = new PrintStream(baos, true, Charsets.UTF_8.name())) {
       HistogramLogWriter histogramLogWriter = new HistogramLogWriter(stream);
-      histogramLogWriter.outputIntervalHistogram(observedLagHistogram);
+      histogramLogWriter.outputIntervalHistogram(observedLatencyHistogram);
       return new String(baos.toByteArray(), Charsets.UTF_8);
     } catch (UnsupportedEncodingException e) {
       log.error("Exception {} encountered when creating PrintStream; returning empty string", e);
@@ -480,8 +480,8 @@ public class KafkaExtractorStatsTracker {
     for (int partitionIdx = 0; partitionIdx < this.partitions.size(); partitionIdx++) {
       resetStartFetchEpochTime(partitionIdx);
     }
-    if (this.observedLagHistogram != null) {
-      this.observedLagHistogram.reset();
+    if (this.observedLatencyHistogram != null) {
+      this.observedLatencyHistogram.reset();
     }
   }
 }
