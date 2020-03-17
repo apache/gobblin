@@ -40,6 +40,7 @@ public abstract class JobStatusRetrieverTest {
   private static final String MY_JOB_NAME_2 = "myJobName2";
   private static final long JOB_EXECUTION_ID = 1111L;
   private static final String MESSAGE = "https://myServer:8143/1234/1111";
+  protected static final long JOB_ORCHESTRATED_TIME = 3;
   protected static final long JOB_START_TIME = 5;
   protected static final long JOB_END_TIME = 15;
   JobStatusRetriever jobStatusRetriever;
@@ -60,17 +61,17 @@ public abstract class JobStatusRetrieverTest {
       jobGroup = MY_JOB_GROUP;
       properties.setProperty(TimingEvent.FlowEventConstants.JOB_EXECUTION_ID_FIELD, String.valueOf(JOB_EXECUTION_ID));
       properties.setProperty(TimingEvent.METADATA_MESSAGE, MESSAGE);
-      properties.setProperty(JobStatusRetriever.EVENT_NAME_FIELD, status);
     } else {
       jobGroup = JobStatusRetriever.NA_KEY;
-      properties.setProperty(JobStatusRetriever.EVENT_NAME_FIELD, status);
     }
+    properties.setProperty(JobStatusRetriever.EVENT_NAME_FIELD, status);
     properties.setProperty(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, jobGroup);
     if (status.equals(ExecutionStatus.RUNNING.name())) {
       properties.setProperty(TimingEvent.JOB_START_TIME, String.valueOf(startTime));
-    }
-    if (status.equals(ExecutionStatus.COMPLETE.name())) {
+    } else if (status.equals(ExecutionStatus.COMPLETE.name())) {
       properties.setProperty(TimingEvent.JOB_END_TIME, String.valueOf(endTime));
+    } else if (status.equals(ExecutionStatus.ORCHESTRATED.name())) {
+      properties.setProperty(TimingEvent.JOB_ORCHESTRATION_TIME, String.valueOf(endTime));
     }
     State jobStatus = new State(properties);
 
@@ -79,7 +80,7 @@ public abstract class JobStatusRetrieverTest {
 
   @Test
   public void testGetJobStatusesForFlowExecution() throws IOException {
-    Long flowExecutionId = 1234L;
+    long flowExecutionId = 1234L;
     addJobStatusToStateStore(flowExecutionId, JobStatusRetriever.NA_KEY, ExecutionStatus.COMPILED.name());
 
     Iterator<JobStatus>
@@ -119,9 +120,29 @@ public abstract class JobStatusRetrieverTest {
 
   @Test (dependsOnMethods = "testGetJobStatusesForFlowExecution")
   public void testJobTiming() throws Exception {
-    addJobStatusToStateStore(1234L, MY_JOB_NAME_1, ExecutionStatus.COMPLETE.name(), JOB_END_TIME, JOB_END_TIME);
+    long flowExecutionId = 1233L;
+
+    addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.ORCHESTRATED.name(), JOB_ORCHESTRATED_TIME, JOB_ORCHESTRATED_TIME);
+    addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.RUNNING.name(), JOB_START_TIME, JOB_START_TIME);
+    addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.COMPLETE.name(), JOB_END_TIME, JOB_END_TIME);
     Iterator<JobStatus>
-        jobStatusIterator = this.jobStatusRetriever.getJobStatusesForFlowExecution(FLOW_NAME, FLOW_GROUP, 1234L);
+        jobStatusIterator = this.jobStatusRetriever.getJobStatusesForFlowExecution(FLOW_NAME, FLOW_GROUP, flowExecutionId, MY_JOB_NAME_1, MY_JOB_GROUP);
+    JobStatus jobStatus = jobStatusIterator.next();
+
+    Assert.assertEquals(jobStatus.getEventName(), ExecutionStatus.COMPLETE.name());
+    Assert.assertEquals(jobStatus.getStartTime(), JOB_START_TIME);
+    Assert.assertEquals(jobStatus.getEndTime(), JOB_END_TIME);
+    Assert.assertEquals(jobStatus.getOrchestratedTime(), JOB_ORCHESTRATED_TIME);
+  }
+
+  @Test (dependsOnMethods = "testJobTiming")
+  public void testOutOfOrderJobTimingEvents() throws IOException {
+    long flowExecutionId = 1232L;
+    addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.RUNNING.name(), JOB_START_TIME, JOB_START_TIME);
+    addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.ORCHESTRATED.name(), JOB_ORCHESTRATED_TIME, JOB_ORCHESTRATED_TIME);
+    addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.COMPLETE.name(), JOB_END_TIME, JOB_END_TIME);
+    Iterator<JobStatus>
+        jobStatusIterator = this.jobStatusRetriever.getJobStatusesForFlowExecution(FLOW_NAME, FLOW_GROUP, flowExecutionId);
     JobStatus jobStatus = jobStatusIterator.next();
     if (jobStatus.getJobName().equals(JobStatusRetriever.NA_KEY)) {
       jobStatus = jobStatusIterator.next();
@@ -129,6 +150,7 @@ public abstract class JobStatusRetrieverTest {
     Assert.assertEquals(jobStatus.getEventName(), ExecutionStatus.COMPLETE.name());
     Assert.assertEquals(jobStatus.getStartTime(), JOB_START_TIME);
     Assert.assertEquals(jobStatus.getEndTime(), JOB_END_TIME);
+    Assert.assertEquals(jobStatus.getOrchestratedTime(), JOB_ORCHESTRATED_TIME);
   }
 
   @Test (dependsOnMethods = "testJobTiming")
