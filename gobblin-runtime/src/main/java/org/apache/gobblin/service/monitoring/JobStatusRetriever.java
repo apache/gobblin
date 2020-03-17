@@ -74,7 +74,7 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
     String jobTag = jobState.getProp(TimingEvent.FlowEventConstants.JOB_TAG_FIELD);
     long jobExecutionId = Long.parseLong(jobState.getProp(TimingEvent.FlowEventConstants.JOB_EXECUTION_ID_FIELD, "0"));
     String eventName = jobState.getProp(JobStatusRetriever.EVENT_NAME_FIELD);
-    long orchestrationTime = Long.parseLong(jobState.getProp(TimingEvent.JOB_ORCHESTRATED_TIME, "0"));
+    long orchestratedTime = Long.parseLong(jobState.getProp(TimingEvent.JOB_ORCHESTRATED_TIME, "0"));
     long startTime = Long.parseLong(jobState.getProp(TimingEvent.JOB_START_TIME, "0"));
     long endTime = Long.parseLong(jobState.getProp(TimingEvent.JOB_END_TIME, "0"));
     String message = jobState.getProp(TimingEvent.METADATA_MESSAGE, "");
@@ -87,7 +87,7 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
 
     return JobStatus.builder().flowName(flowName).flowGroup(flowGroup).flowExecutionId(flowExecutionId).
         jobName(jobName).jobGroup(jobGroup).jobTag(jobTag).jobExecutionId(jobExecutionId).eventName(eventName).
-        lowWatermark(lowWatermark).highWatermark(highWatermark).orchestratedTime(orchestrationTime).startTime(startTime).endTime(endTime).
+        lowWatermark(lowWatermark).highWatermark(highWatermark).orchestratedTime(orchestratedTime).startTime(startTime).endTime(endTime).
         message(message).processedCount(processedCount).maxAttempts(maxAttempts).currentAttempts(currentAttempts).
         shouldRetry(shouldRetry).build();
   }
