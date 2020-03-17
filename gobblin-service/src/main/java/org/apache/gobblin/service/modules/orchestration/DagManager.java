@@ -613,9 +613,9 @@ public class DagManager extends AbstractIdleService {
       }
       ExecutionStatus executionStatus = valueOf(jobStatus.getEventName());
       long timeOutForJobStart = DagManagerUtils.getJobStartSla(node);
-      long jobStartTime = jobStatus.getStartTime();
+      long jobOrchestrationTime = jobStatus.getOrchestratedTime();
 
-      if (executionStatus == ORCHESTRATED && System.currentTimeMillis() - jobStartTime > timeOutForJobStart) {
+      if (executionStatus == ORCHESTRATED && System.currentTimeMillis() - jobOrchestrationTime > timeOutForJobStart) {
         log.info("Job {} of flow {} exceeded the job start SLA of {} ms. Killing the job now...",
             DagManagerUtils.getJobName(node),
             DagManagerUtils.getFullyQualifiedDagName(node),
@@ -737,7 +737,7 @@ public class DagManager extends AbstractIdleService {
         TimingEvent jobOrchestrationTimer = this.eventSubmitter.isPresent() ? this.eventSubmitter.get().
             getTimingEvent(TimingEvent.LauncherTimings.JOB_ORCHESTRATED) : null;
 
-        //Submit the job to the SpecProducer, which in turn performs the actual job submission to the SpecExecutor instance.
+        // Submit the job to the SpecProducer, which in turn performs the actual job submission to the SpecExecutor instance.
         // The SpecProducer implementations submit the job to the underlying executor and return when the submission is complete,
         // either successfully or unsuccessfully. To catch any exceptions in the job submission, the DagManagerThread
         // blocks (by calling Future#get()) until the submission is completed.
