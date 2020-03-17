@@ -120,8 +120,8 @@ public class AvroUtils {
   }
 
   public static Schema addSchemaCreationTime(Schema inputSchema, Schema outputSchema) {
-    if (inputSchema.getProp(SCHEMA_CREATION_TIME_KEY) != null && outputSchema.getProp(ConfigurationKeys.SCHEMA_CREATION_TIME_KEY) == null) {
-      outputSchema.addProp(SCHEMA_CREATION_TIME_KEY, inputSchema.getProp(ConfigurationKeys.SCHEMA_CREATION_TIME_KEY));
+    if (inputSchema.getProp(SCHEMA_CREATION_TIME_KEY) != null && outputSchema.getProp(SCHEMA_CREATION_TIME_KEY) == null) {
+      outputSchema.addProp(SCHEMA_CREATION_TIME_KEY, inputSchema.getProp(SCHEMA_CREATION_TIME_KEY));
     }
     return outputSchema;
   }
