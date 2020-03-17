@@ -78,10 +78,7 @@ public class AvroProjectionConverter extends AvroToAvroConverterBase {
     if (this.fieldRemover.isPresent()) {
       outputSchema = this.fieldRemover.get().removeFields(inputSchema);
     }
-    if(workUnit.getPropAsBoolean(ConfigurationKeys.CONVERTER_AVRO_INCLUDE_SCHEMA_CREATION_TIME_KEY,
-        ConfigurationKeys.DEFAULT_CONVERTER_AVRO_INCLUDE_SCHEMA_CREATION_TIME)) {
-      AvroUtils.addSchemaCreationTime(inputSchema, outputSchema);
-    }
+    AvroUtils.addSchemaCreationTime(inputSchema, outputSchema);
     return outputSchema;
   }
 
