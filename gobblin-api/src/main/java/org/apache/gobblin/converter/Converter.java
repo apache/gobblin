@@ -81,6 +81,7 @@ public abstract class Converter<SI, SO, DI, DO> implements Closeable, FinalState
    *
    * <p>
    *   Schema conversion is limited to have a 1-to-1 mapping between the input and output schema.
+   *   When try to convert avro schema, please call {@link AvroUtils.addSchemaCreationTime to preserve schame creationTime}
    * </p>
    *
    * @param inputSchema input schema to be converted
