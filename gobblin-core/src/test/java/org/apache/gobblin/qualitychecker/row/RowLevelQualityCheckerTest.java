@@ -22,7 +22,10 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.qualitychecker.TestConstants;
 import org.apache.gobblin.qualitychecker.TestRowLevelPolicy;
 import java.io.File;
+import java.io.Flushable;
+import java.io.IOException;
 import java.net.URI;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -31,6 +34,9 @@ import org.apache.avro.file.FileReader;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumReader;
+import org.apache.gobblin.records.ControlMessageHandler;
+import org.apache.gobblin.records.FlushControlMessageHandler;
+import org.apache.gobblin.stream.FlushControlMessage;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -38,6 +44,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import static org.apache.gobblin.qualitychecker.row.RowLevelPolicyChecker.ALLOW_SPECULATIVE_EXECUTION_WITH_ERR_FILE_POLICY;
+import static org.apache.gobblin.qualitychecker.row.RowLevelPolicyCheckerBuilder.ROW_LEVEL_POLICY_CHECKER_TYPE;
 
 
 @Test(groups = {"gobblin.qualitychecker"})
@@ -58,6 +65,16 @@ public class RowLevelQualityCheckerTest {
     for (GenericRecord datum : fileReader) {
       Assert.assertTrue(checker.executePolicies(datum, results));
     }
+  }
+
+  // Verify rowPolicyChecker is configurable.
+  public void testRowPolicyCheckerBuilder() throws Exception {
+    State state = new State();
+    state.setProp(ROW_LEVEL_POLICY_CHECKER_TYPE,
+        "org.apache.gobblin.qualitychecker.row.RowLevelQualityCheckerTest$TestRowLevelPolicyChecker");
+    RowLevelPolicyChecker checker = RowLevelPolicyCheckerBuilderFactory.newPolicyCheckerBuilder(state, 0).build();
+    Assert.assertTrue(checker instanceof TestRowLevelPolicyChecker);
+    Assert.assertTrue(checker.getMessageHandler() instanceof FlushControlMessageHandler);
   }
 
   public void testFileNameWithTimestamp() throws Exception {
@@ -120,5 +137,26 @@ public class RowLevelQualityCheckerTest {
     DatumReader<GenericRecord> reader = new GenericDatumReader<GenericRecord>();
     FileReader<GenericRecord> fileReader = DataFileReader.openReader(new File(TestConstants.TEST_FILE_NAME), reader);
     return fileReader;
+  }
+
+  /**
+   * An extension of {@link RowLevelPolicyChecker} just for verifying class type when specifying derived class
+   * from configuration.
+   */
+  public static class TestRowLevelPolicyChecker extends RowLevelPolicyChecker {
+    public TestRowLevelPolicyChecker(List list, String stateId, FileSystem fs, State state) {
+      super(list, stateId, fs, state);
+    }
+
+    @Override
+    protected ControlMessageHandler getMessageHandler() {
+      return new FlushControlMessageHandler(new Flushable() {
+        @Override
+        public void flush()
+            throws IOException {
+          // do nothing
+        }
+      });
+    }
   }
 }
