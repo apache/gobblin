@@ -23,6 +23,7 @@ import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReadWriteLock;
 
 import org.apache.hadoop.fs.Path;
@@ -48,6 +49,8 @@ public class ObservingFSFlowEdgeTemplateCatalog extends FSFlowTemplateCatalog {
   private Map<URI, FlowTemplate> flowTemplateMap = new ConcurrentHashMap<>();
   private Map<URI, List<JobTemplate>> jobTemplateMap = new ConcurrentHashMap<>();
   private ReadWriteLock rwLock;
+
+  private AtomicBoolean shouldRefreshFlowGraph = new AtomicBoolean(false);
 
   public ObservingFSFlowEdgeTemplateCatalog(Config sysConfig, ReadWriteLock rwLock) throws IOException {
     super(sysConfig);
@@ -92,14 +95,21 @@ public class ObservingFSFlowEdgeTemplateCatalog extends FSFlowTemplateCatalog {
     }
   }
 
+  @Override
+  public boolean getAndSetShouldRefreshFlowGraph(boolean value) {
+    return this.shouldRefreshFlowGraph.getAndSet(value);
+  }
+
   /**
    * Clear cached templates so they will be reloaded next time {@link #getFlowTemplate(URI)} is called.
+   * Also refresh git flow graph in case any edges that failed to be added on startup are successful now.
    */
   private void clearTemplates() {
     this.rwLock.writeLock().lock();
     log.info("Change detected, reloading flow templates.");
     flowTemplateMap.clear();
     jobTemplateMap.clear();
+    getAndSetShouldRefreshFlowGraph(true);
     this.rwLock.writeLock().unlock();
   }
 

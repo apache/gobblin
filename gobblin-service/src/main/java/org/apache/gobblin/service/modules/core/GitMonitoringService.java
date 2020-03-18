@@ -304,7 +304,7 @@ public abstract class GitMonitoringService extends AbstractIdleService {
      * @throws GitAPIException
      * @throws IOException
      */
-    private void initRepository() throws GitAPIException, IOException {
+    void initRepository() throws GitAPIException, IOException {
       File repoDirFile = new File(this.repoDir);
 
       try {
