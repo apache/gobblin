@@ -104,7 +104,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
      try {
        this.scheduledExecutorService.awaitTermination(30, TimeUnit.SECONDS);
      } catch (InterruptedException e) {
-       log.error("Exception {} encountered when shutting down state store cleaner", e);
+       log.error("Exception encountered when shutting down state store cleaner", e);
      }
   }
 
@@ -161,11 +161,11 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
           < ORDERED_EXECUTION_STATUSES.indexOf(ExecutionStatus.valueOf(previousStatus))) {
         log.warn(String.format("Received status %s when status is already %s for flow (%s, %s, %s), job (%s, %s)",
             currentStatus, previousStatus, flowGroup, flowName, flowExecutionId, jobGroup, jobName));
-        return;
+        jobStatus = mergeState(states.get(states.size() - 1), jobStatus);
+      } else {
+        jobStatus = mergeState(jobStatus, states.get(states.size() - 1));
       }
     }
-
-    jobStatus = mergedProperties(jobStatus, states);
 
     modifyStateIfRetryRequired(jobStatus);
 
@@ -182,16 +182,22 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
     }
   }
 
-  private static org.apache.gobblin.configuration.State mergedProperties(org.apache.gobblin.configuration.State jobStatus,
-      List<org.apache.gobblin.configuration.State> states) {
-    Properties mergedProperties = new Properties();
+  /**
+   * Merge states based on precedence defined by {@link #ORDERED_EXECUTION_STATUSES}.
+   * The state instance in the 1st argument reflects the more recent state of a job
+   * (and is thus, given higher priority) compared to the 2nd argument.
+   * @param state higher priority state
+   * @param fallbackState lower priority state
+   * @return merged state
+   */
+  private static org.apache.gobblin.configuration.State mergeState(org.apache.gobblin.configuration.State state,
+      org.apache.gobblin.configuration.State fallbackState) {
+    Properties mergedState = new Properties();
 
-    if (states.size() > 0) {
-      mergedProperties.putAll(states.get(states.size() - 1).getProperties());
-    }
-    mergedProperties.putAll(jobStatus.getProperties());
+    mergedState.putAll(fallbackState.getProperties());
+    mergedState.putAll(state.getProperties());
 
-    return new org.apache.gobblin.configuration.State(mergedProperties);
+    return new org.apache.gobblin.configuration.State(mergedState);
   }
 
   public static String jobStatusTableName(String flowExecutionId, String jobGroup, String jobName) {

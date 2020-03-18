@@ -38,6 +38,7 @@ public class JobStatus {
   private final String flowName;
   private final String flowGroup;
   private final String eventName;
+  private final long orchestratedTime;
   private final long startTime;
   private final long endTime;
   private final String message;

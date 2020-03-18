@@ -17,17 +17,14 @@
 
 package org.apache.gobblin.service.monitoring;
 
-import java.util.Iterator;
-
-import org.testng.Assert;
-import org.testng.annotations.BeforeClass;
-
+import java.io.IOException;
 import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.MysqlJobStatusStateStore;
 import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
-import org.apache.gobblin.service.ExecutionStatus;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 
 
 public class MysqlJobStatusRetrieverTest extends JobStatusRetrieverTest {
@@ -49,6 +46,31 @@ public class MysqlJobStatusRetrieverTest extends JobStatusRetrieverTest {
     this.jobStatusRetriever = new MysqlJobStatusRetriever(configBuilder.build());
     this.dbJobStateStore = ((MysqlJobStatusRetriever) this.jobStatusRetriever).getStateStore();
     cleanUpDir();
+  }
+
+  @Test
+  public void testGetJobStatusesForFlowExecution() throws IOException {
+    super.testGetJobStatusesForFlowExecution();
+  }
+
+  @Test (dependsOnMethods = "testGetJobStatusesForFlowExecution")
+  public void testJobTiming() throws Exception {
+    super.testJobTiming();
+  }
+
+  @Test (dependsOnMethods = "testJobTiming")
+  public void testOutOfOrderJobTimingEvents() throws IOException {
+    super.testOutOfOrderJobTimingEvents();
+  }
+
+  @Test (dependsOnMethods = "testJobTiming")
+  public void testGetJobStatusesForFlowExecution1() {
+    super.testGetJobStatusesForFlowExecution1();
+  }
+
+  @Test (dependsOnMethods = "testGetJobStatusesForFlowExecution1")
+  public void testGetLatestExecutionIdsForFlow() throws Exception {
+    super.testGetLatestExecutionIdsForFlow();
   }
 
   @Override
