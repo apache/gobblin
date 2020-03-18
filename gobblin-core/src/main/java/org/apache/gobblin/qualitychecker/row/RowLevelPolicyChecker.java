@@ -102,25 +102,35 @@ public class RowLevelPolicyChecker<S, D> implements Closeable, FinalState, Recor
     for (RowLevelPolicy p : this.list) {
       RowLevelPolicy.Result result = p.executePolicy(record);
       results.put(p, result);
-
-      if (result.equals(RowLevelPolicy.Result.FAILED)) {
-        if (p.getType().equals(RowLevelPolicy.Type.FAIL)) {
-          throw new RuntimeException("RowLevelPolicy " + p + " failed on record " + record);
-        } else if (p.getType().equals(RowLevelPolicy.Type.ERR_FILE)) {
-          if (this.sampler.acceptNext()) {
-            if (!this.errFileOpen) {
-              this.writer.open(getErrFilePath(p));
-              this.writer.write(record);
-            } else {
-              this.writer.write(record);
-            }
-            this.errFileOpen = true;
-          }
-        }
+      if (!handleCheckResult(result, p, record)) {
         return false;
       }
     }
     return true;
+  }
+
+  /**
+   * Handle the result of {@link RowLevelPolicy#executePolicy(Object)}
+   */
+  protected boolean handleCheckResult(RowLevelPolicy.Result checkResult, RowLevelPolicy p, Object record) throws IOException {
+    boolean result = true;
+    if (checkResult.equals(RowLevelPolicy.Result.FAILED)) {
+      if (p.getType().equals(RowLevelPolicy.Type.FAIL)) {
+        throw new RuntimeException("RowLevelPolicy " + p + " failed on record " + record);
+      } else if (p.getType().equals(RowLevelPolicy.Type.ERR_FILE)) {
+        if (this.sampler.acceptNext()) {
+          if (!this.errFileOpen) {
+            this.writer.open(getErrFilePath(p));
+            this.writer.write(record);
+          } else {
+            this.writer.write(record);
+          }
+          this.errFileOpen = true;
+        }
+      }
+      result = false;
+    }
+    return result;
   }
 
   Path getErrFilePath(RowLevelPolicy policy) {
