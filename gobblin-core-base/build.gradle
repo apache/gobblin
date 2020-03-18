@@ -38,8 +38,7 @@ dependencies {
 
   testCompile externalDependency.testng
   testCompile externalDependency.mockito
-
-  jmh 'org.openjdk.jmh:jmh-core:1.17.3'
+  testCompile externalDependency.jmh
 }
 
 test {
