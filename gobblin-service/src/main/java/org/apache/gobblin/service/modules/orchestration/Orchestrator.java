@@ -225,10 +225,6 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
     long startTime = System.nanoTime();
     if (spec instanceof FlowSpec) {
-      TimingEvent flowCompilationTimer = this.eventSubmitter.isPresent()
-          ? this.eventSubmitter.get().getTimingEvent(TimingEvent.FlowTimings.FLOW_COMPILED)
-          : null;
-
       Config flowConfig = ((FlowSpec) spec).getConfig();
       String flowGroup = flowConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
       String flowName = flowConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
@@ -247,11 +243,13 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       if (!canRun(flowName, flowGroup, allowConcurrentExecution)) {
         _log.warn("Another instance of flowGroup: {}, flowName: {} running; Skipping flow execution since "
             + "concurrent executions are disabled for this flow.", flowGroup, flowName);
-        flowGauges.get(spec.getUri().toString()).setState(CompiledState.FAILED);
+        flowGauges.get(spec.getUri().toString()).setState(CompiledState.SKIPPED);
         return;
-      } else {
-        flowGauges.get(spec.getUri().toString()).setState(CompiledState.SUCCESSFUL);
       }
+
+      TimingEvent flowCompilationTimer = this.eventSubmitter.isPresent()
+          ? this.eventSubmitter.get().getTimingEvent(TimingEvent.FlowTimings.FLOW_COMPILED)
+          : null;
 
       Dag<JobExecutionPlan> jobExecutionPlanDag = specCompiler.compileFlow(spec);
 
@@ -265,11 +263,14 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
         TimingEvent flowCompileFailedTimer = this.eventSubmitter.isPresent() ? this.eventSubmitter.get()
             .getTimingEvent(TimingEvent.FlowTimings.FLOW_COMPILE_FAILED) : null;
         Instrumented.markMeter(this.flowOrchestrationFailedMeter);
+        flowGauges.get(spec.getUri().toString()).setState(CompiledState.FAILED);
         _log.warn("Cannot determine an executor to run on for Spec: " + spec);
         if (flowCompileFailedTimer != null) {
           flowCompileFailedTimer.stop(flowMetadata);
         }
         return;
+      } else {
+        flowGauges.get(spec.getUri().toString()).setState(CompiledState.SUCCESSFUL);
       }
 
       //If it is a scheduled flow (and hence, does not have flowExecutionId in the FlowSpec) and the flow compilation is successful,
@@ -280,7 +281,6 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       if (flowCompilationTimer != null) {
         flowCompilationTimer.stop(flowMetadata);
       }
-
 
       if (this.dagManager.isPresent()) {
         //Send the dag to the DagManager.
@@ -406,7 +406,8 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   private enum CompiledState {
     FAILED(-1),
     UNKNOWN(0),
-    SUCCESSFUL(1);
+    SUCCESSFUL(1),
+    SKIPPED(2);
 
     public int value;
 
