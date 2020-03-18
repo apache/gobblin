@@ -27,6 +27,8 @@ import org.apache.avro.file.DataFileReader;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.io.DatumReader;
+import org.apache.gobblin.util.AvroUtils;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
@@ -50,7 +52,8 @@ import org.apache.gobblin.util.FinalState;
  */
 @Test(groups = { "gobblin.writer" })
 public class AvroHdfsDataWriterTest {
-
+  private static final String TEST_PROPERTY_KEY = "test.property";
+  private static final String TEST_PROPERTY_VALUE = "testValue";
   private static final Type FIELD_ENTRY_TYPE = new TypeToken<Map<String, Object>>() {}.getType();
 
   private Schema schema;
@@ -71,6 +74,7 @@ public class AvroHdfsDataWriterTest {
     }
 
     this.schema = new Schema.Parser().parse(TestConstants.AVRO_SCHEMA);
+    schema.addProp(TEST_PROPERTY_KEY, TEST_PROPERTY_VALUE);
 
     this.filePath = TestConstants.TEST_EXTRACT_NAMESPACE.replaceAll("\\.", "/") + "/" + TestConstants.TEST_EXTRACT_TABLE
         + "/" + TestConstants.TEST_EXTRACT_ID + "_" + TestConstants.TEST_EXTRACT_PULL_TYPE;
@@ -104,7 +108,9 @@ public class AvroHdfsDataWriterTest {
     File outputFile =
         new File(TestConstants.TEST_OUTPUT_DIR + Path.SEPARATOR + this.filePath, TestConstants.TEST_FILE_NAME);
     DataFileReader<GenericRecord> reader =
-        new DataFileReader<>(outputFile, new GenericDatumReader<GenericRecord>(this.schema));
+        new DataFileReader<>(outputFile, new GenericDatumReader<GenericRecord>());
+    Schema fileSchema = reader.getSchema();
+    Assert.assertEquals(fileSchema.getProp(TEST_PROPERTY_KEY), TEST_PROPERTY_VALUE);
 
     // Read the records back and assert they are identical to the ones written
     GenericRecord user1 = reader.next();

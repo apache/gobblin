@@ -54,6 +54,7 @@ import org.apache.avro.mapred.FsInput;
 import org.apache.avro.util.Utf8;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.math3.util.Pair;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
@@ -97,6 +98,8 @@ public class AvroUtils {
 
   private static final String AVRO_SUFFIX = ".avro";
 
+  private static final String SCHEMA_CREATION_TIME_KEY = "CreatedOn";
+
   /**
    * Validates that the provided reader schema can be used to decode avro data written with the
    * provided writer schema.
@@ -114,6 +117,22 @@ public class AvroUtils {
     }
 
     return SchemaCompatibility.checkReaderWriterCompatibility(readerSchema, writerSchema).getType().equals(SchemaCompatibility.SchemaCompatibilityType.COMPATIBLE);
+  }
+
+  public static Schema addSchemaCreationTime(Schema inputSchema, Schema outputSchema) {
+    if (inputSchema.getProp(SCHEMA_CREATION_TIME_KEY) != null && outputSchema.getProp(SCHEMA_CREATION_TIME_KEY) == null) {
+      outputSchema.addProp(SCHEMA_CREATION_TIME_KEY, inputSchema.getProp(SCHEMA_CREATION_TIME_KEY));
+    }
+    return outputSchema;
+  }
+
+  public static String getSchemaCreationTime(Schema inputSchema) {
+    return inputSchema.getProp(SCHEMA_CREATION_TIME_KEY);
+  }
+
+  public static Schema setSchemaCreationTime(Schema inputSchema, String creationTime) {
+    inputSchema.addProp(SCHEMA_CREATION_TIME_KEY, creationTime);
+    return inputSchema;
   }
 
   public static List<Field> deepCopySchemaFields(Schema readerSchema) {
