@@ -577,6 +577,8 @@ public class YarnService extends AbstractIdleService {
         .append(" ").append(GobblinYarnTaskRunner.class.getName())
         .append(" --").append(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME)
         .append(" ").append(this.applicationName)
+        .append(" --").append(GobblinClusterConfigurationKeys.APPLICATION_ID_OPTION_NAME)
+        .append(" ").append(this.applicationId)
         .append(" --").append(GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_OPTION_NAME)
         .append(" ").append(helixInstanceName);
 

@@ -138,10 +138,16 @@ public class SingleTask {
     String storeName = _workUnitFilePath.getParent().getName();
     WorkUnit workUnit;
 
-    if (_workUnitFilePath.getName().endsWith(AbstractJobLauncher.MULTI_WORK_UNIT_FILE_EXTENSION)) {
-      workUnit = _stateStores.getMwuStateStore().getAll(storeName, fileName).get(0);
-    } else {
-      workUnit = _stateStores.getWuStateStore().getAll(storeName, fileName).get(0);
+    try {
+      if (_workUnitFilePath.getName().endsWith(AbstractJobLauncher.MULTI_WORK_UNIT_FILE_EXTENSION)) {
+        workUnit = _stateStores.getMwuStateStore().getAll(storeName, fileName).get(0);
+      } else {
+        workUnit = _stateStores.getWuStateStore().getAll(storeName, fileName).get(0);
+      }
+    } catch (IOException e) {
+      //Add workunitFilePath to the IOException message to aid debugging
+      throw new IOException("Exception retrieving state from state store for workunit: " + _workUnitFilePath.toString(),
+          e);
     }
 
     // The list of individual WorkUnits (flattened) to run

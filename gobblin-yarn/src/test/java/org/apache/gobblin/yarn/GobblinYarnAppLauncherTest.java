@@ -209,7 +209,7 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
 
   @Test
   public void testBuildApplicationMasterCommand() {
-    String command = this.gobblinYarnAppLauncher.buildApplicationMasterCommand(64);
+    String command = this.gobblinYarnAppLauncher.buildApplicationMasterCommand("application_1234_3456", 64);
 
     // 41 is from 64 * 0.8 - 10
     Assert.assertTrue(command.contains("-Xmx41"));
@@ -434,7 +434,7 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
     public TestApplicationMaster(String applicationName, ContainerId containerId, Config config,
         YarnConfiguration yarnConfiguration)
         throws Exception {
-      super(applicationName, containerId, config, yarnConfiguration);
+      super(applicationName, containerId.getApplicationAttemptId().getApplicationId().toString(), containerId, config, yarnConfiguration);
     }
 
     @Override

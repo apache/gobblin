@@ -59,9 +59,9 @@ public class GobblinYarnTaskRunner extends GobblinTaskRunner {
 
   public static final String HELIX_YARN_INSTANCE_NAME_PREFIX = GobblinYarnTaskRunner.class.getSimpleName();
 
-  public GobblinYarnTaskRunner(String applicationName, String helixInstanceName, ContainerId containerId, Config config,
+  public GobblinYarnTaskRunner(String applicationName, String applicationId, String helixInstanceName, ContainerId containerId, Config config,
       Optional<Path> appWorkDirOptional) throws Exception {
-    super(applicationName, helixInstanceName, getApplicationId(containerId), getTaskRunnerId(containerId),
+    super(applicationName, helixInstanceName, applicationId, getTaskRunnerId(containerId),
         GobblinClusterUtils.addDynamicConfig(config.withValue(GobblinYarnConfigurationKeys.CONTAINER_NUM_KEY,
             ConfigValueFactory.fromAnyRef(YarnHelixUtils.getContainerNum(containerId.toString())))), appWorkDirOptional);
   }
@@ -176,7 +176,8 @@ public class GobblinYarnTaskRunner extends GobblinTaskRunner {
     try {
       CommandLine cmd = new DefaultParser().parse(options, args);
       if (!cmd.hasOption(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME) || !cmd
-          .hasOption(GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_OPTION_NAME)) {
+          .hasOption(GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_OPTION_NAME) || !cmd
+    .hasOption(GobblinClusterConfigurationKeys.APPLICATION_ID_OPTION_NAME)) {
         printUsage(options);
         System.exit(1);
       }
@@ -190,6 +191,7 @@ public class GobblinYarnTaskRunner extends GobblinTaskRunner {
       ContainerId containerId =
           ConverterUtils.toContainerId(System.getenv().get(ApplicationConstants.Environment.CONTAINER_ID.key()));
       String applicationName = cmd.getOptionValue(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME);
+      String applicationId = cmd.getOptionValue(GobblinClusterConfigurationKeys.APPLICATION_ID_OPTION_NAME);
       String helixInstanceName = cmd.getOptionValue(GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_OPTION_NAME);
       String helixInstanceTags = cmd.getOptionValue(GobblinClusterConfigurationKeys.HELIX_INSTANCE_TAGS_OPTION_NAME);
 
@@ -199,7 +201,7 @@ public class GobblinYarnTaskRunner extends GobblinTaskRunner {
       }
 
       GobblinTaskRunner gobblinTaskRunner =
-          new GobblinYarnTaskRunner(applicationName, helixInstanceName, containerId, config,
+          new GobblinYarnTaskRunner(applicationName, applicationId, helixInstanceName, containerId, config,
               Optional.<Path>absent());
       gobblinTaskRunner.start();
     } catch (ParseException pe) {
