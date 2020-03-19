@@ -103,7 +103,7 @@ public class RowLevelPolicyChecker<S, D> implements Closeable, FinalState, Recor
     for (RowLevelPolicy p : this.list) {
       RowLevelPolicy.Result result = p.executePolicy(record);
       results.put(p, result);
-      if (!handleCheckResult(result, p, record)) {
+      if (!checkResult(result, p, record)) {
         return false;
       }
     }
@@ -113,7 +113,7 @@ public class RowLevelPolicyChecker<S, D> implements Closeable, FinalState, Recor
   /**
    * Handle the result of {@link RowLevelPolicy#executePolicy(Object)}
    */
-  protected boolean handleCheckResult(RowLevelPolicy.Result checkResult, RowLevelPolicy p, Object record) throws IOException {
+  protected boolean checkResult(RowLevelPolicy.Result checkResult, RowLevelPolicy p, Object record) throws IOException {
     boolean result = true;
     if (checkResult.equals(RowLevelPolicy.Result.FAILED)) {
       if (p.getType().equals(RowLevelPolicy.Type.FAIL)) {
