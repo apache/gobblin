@@ -58,6 +58,7 @@ public class RowLevelPolicyChecker<S, D> implements Closeable, FinalState, Recor
     return this.list.stream().noneMatch(x -> x.getType().equals(RowLevelPolicy.Type.ERR_FILE)) || this.allowSpeculativeExecWhenWriteErrFile;
   }
 
+  @Getter
   private final List<RowLevelPolicy> list;
   private final String stateId;
   private final FileSystem fs;
