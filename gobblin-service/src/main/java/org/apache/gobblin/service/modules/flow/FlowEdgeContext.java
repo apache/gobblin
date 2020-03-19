@@ -43,4 +43,9 @@ public class FlowEdgeContext {
   private DatasetDescriptor outputDatasetDescriptor;
   private Config mergedConfig;
   private SpecExecutor specExecutor;
+
+  @Override
+  public String toString() {
+    return edge == null ? null : edge.toString();
+  }
 }

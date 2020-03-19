@@ -343,7 +343,7 @@ public class JobSpec implements Configurable, Spec {
     }
 
     public Map getDefaultMetadata() {
-      log.warn("Job Spec Verb is not provided, using type 'UNKNOWN'.");
+      log.debug("Job Spec Verb is not provided, using type 'UNKNOWN'.");
       return ImmutableMap.of(VERB_KEY, SpecExecutor.Verb.UNKNOWN.name());
     }
 

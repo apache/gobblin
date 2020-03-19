@@ -85,8 +85,8 @@ public class BFSPathFinder extends AbstractPathFinder {
       return new ArrayList<>();
     }
 
-    LinkedList<FlowEdgeContext> edgeQueue = new LinkedList<>();
-    edgeQueue.addAll(getNextEdges(srcNode, srcDatasetDescriptor, destDatasetDescriptor));
+    LinkedList<FlowEdgeContext> edgeQueue =
+        new LinkedList<>(getNextEdges(srcNode, srcDatasetDescriptor, destDatasetDescriptor));
     for (FlowEdgeContext flowEdgeContext : edgeQueue) {
       this.pathMap.put(flowEdgeContext, flowEdgeContext);
     }

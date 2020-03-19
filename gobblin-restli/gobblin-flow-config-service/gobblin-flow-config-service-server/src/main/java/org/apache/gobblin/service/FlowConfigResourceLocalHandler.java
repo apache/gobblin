@@ -141,7 +141,7 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
     FlowSpec flowSpec = createFlowSpecForConfig(flowConfig);
     // Return conflict and take no action if flowSpec has already been created
     if (this.flowCatalog.exists(flowSpec.getUri())) {
-      log.warn("Flowspec with URI {} already exists, no action will be taken");
+      log.warn("Flowspec with URI {} already exists, no action will be taken", flowSpec.getUri());
       return new CreateResponse(new ComplexResourceKey<>(flowConfig.getId(), new EmptyRecord()), HttpStatus.S_409_CONFLICT);
     } else {
       this.flowCatalog.put(flowSpec, triggerListener);
@@ -260,7 +260,7 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
     Config config = configBuilder.build();
 
     Config configWithFallback;
-    //We first attempt to process the REST.li request as a HOCON string. If the request is not a valid HOCON string
+    // We first attempt to process the REST.li request as a HOCON string. If the request is not a valid HOCON string
     // (e.g. when certain special characters such as ":" or "*" are not properly escaped), we catch the Typesafe ConfigException and
     // fallback to assuming that values are literal strings.
     try {

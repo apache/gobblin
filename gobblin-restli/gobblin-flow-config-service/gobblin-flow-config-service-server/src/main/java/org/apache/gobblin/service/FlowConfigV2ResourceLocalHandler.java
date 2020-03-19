@@ -62,7 +62,7 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
 
     // Return conflict and take no action if flowSpec has already been created
     if (this.flowCatalog.exists(flowSpec.getUri())) {
-      log.warn("Flowspec with URI {} already exists, no action will be taken");
+      log.warn("Flowspec with URI {} already exists, no action will be taken", flowSpec.getUri());
       return new CreateKVResponse(new ComplexResourceKey<>(flowConfig.getId(), flowStatusId), flowConfig, HttpStatus.S_409_CONFLICT);
     }
 
