@@ -548,7 +548,7 @@ public class GobblinYarnAppLauncher {
     ContainerLaunchContext amContainerLaunchContext = Records.newRecord(ContainerLaunchContext.class);
     amContainerLaunchContext.setLocalResources(appMasterLocalResources);
     amContainerLaunchContext.setEnvironment(YarnHelixUtils.getEnvironmentVariables(this.yarnConfiguration));
-    amContainerLaunchContext.setCommands(Lists.newArrayList(buildApplicationMasterCommand(resource.getMemory())));
+    amContainerLaunchContext.setCommands(Lists.newArrayList(buildApplicationMasterCommand(applicationId.toString(), resource.getMemory())));
 
     Map<ApplicationAccessType, String> acls = new HashMap<>(1);
     acls.put(ApplicationAccessType.VIEW_APP, this.appViewAcl);
@@ -729,7 +729,7 @@ public class GobblinYarnAppLauncher {
   }
 
   @VisibleForTesting
-  protected String buildApplicationMasterCommand(int memoryMbs) {
+  protected String buildApplicationMasterCommand(String applicationId, int memoryMbs) {
     String appMasterClassName = GobblinApplicationMaster.class.getSimpleName();
     return new StringBuilder()
         .append(ApplicationConstants.Environment.JAVA_HOME.$()).append("/bin/java")
@@ -741,6 +741,8 @@ public class GobblinYarnAppLauncher {
         .append(" ").append(GobblinApplicationMaster.class.getName())
         .append(" --").append(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME)
         .append(" ").append(this.applicationName)
+        .append(" --").append(GobblinClusterConfigurationKeys.APPLICATION_ID_OPTION_NAME)
+        .append(" ").append(applicationId)
         .append(" 1>").append(ApplicationConstants.LOG_DIR_EXPANSION_VAR).append(File.separator).append(
             appMasterClassName).append(".").append(ApplicationConstants.STDOUT)
         .append(" 2>").append(ApplicationConstants.LOG_DIR_EXPANSION_VAR).append(File.separator).append(
