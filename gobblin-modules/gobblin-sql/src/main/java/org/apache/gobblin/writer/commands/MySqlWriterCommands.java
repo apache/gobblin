@@ -17,8 +17,13 @@
 
 package org.apache.gobblin.writer.commands;
 
+import java.sql.DatabaseMetaData;
+import java.sql.JDBCType;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import lombok.Getter;
 import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.converter.jdbc.JdbcType;
 import org.apache.gobblin.converter.jdbc.JdbcEntryData;
 
 import java.sql.Connection;
@@ -37,16 +42,20 @@ import com.google.common.collect.ImmutableMap;
 /**
  * The implementation of JdbcWriterCommands for MySQL.
  */
-public class MySqlWriterCommands implements JdbcWriterCommands {
+public class MySqlWriterCommands implements JdbcWriterCommands, JdbcUpdater {
   private static final Logger LOG = LoggerFactory.getLogger(MySqlWriterCommands.class);
+  private static final JdbcExpressionGenerator JDBC_EXPRESSION_GENERATOR = new JdbcExpressionGenerator("`", "'");
 
   private static final String CREATE_TABLE_SQL_FORMAT = "CREATE TABLE %s.%s LIKE %s.%s";
   private static final String SELECT_SQL_FORMAT = "SELECT COUNT(*) FROM %s.%s";
   private static final String TRUNCATE_TABLE_FORMAT = "TRUNCATE TABLE %s.%s";
   private static final String DROP_TABLE_SQL_FORMAT = "DROP TABLE %s.%s";
   private static final String INFORMATION_SCHEMA_SELECT_SQL_PSTMT =
-      "SELECT column_name, column_type FROM information_schema.columns WHERE table_schema = ? AND table_name = ?";
+      "SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = ? AND table_name = ?";
+  private static final String RETRIEVE_KEYS_PSTMT = "SHOW KEYS FROM `%s`.`%s` WHERE Key_name = 'PRIMARY'";
   private static final String COPY_INSERT_STATEMENT_FORMAT = "INSERT INTO %s.%s SELECT * FROM %s.%s";
+  private static final String DELETE_RECORD_STATEMENT_FORMAT = "DELETE FROM `%s`.`%s` WHERE %s";
+  private static final String UPDATE_RECORD_STATEMENT_FORMAT = "UPDATE `%s`.`%s` SET %s WHERE %s";
   private static final String DELETE_STATEMENT_FORMAT = "DELETE FROM %s.%s";
 
   private final JdbcBufferedInserter jdbcBufferedWriter;
@@ -55,6 +64,24 @@ public class MySqlWriterCommands implements JdbcWriterCommands {
   public MySqlWriterCommands(State state, Connection conn) {
     this.conn = conn;
     this.jdbcBufferedWriter = new MySqlBufferedInserter(state, conn);
+  }
+
+  @Override
+  public void dispatch(String databaseName, String table, JdbcEntryData jdbcEntryData) throws SQLException {
+    switch (jdbcEntryData.getOperation()) {
+      case INSERT:
+        insert(databaseName, table, jdbcEntryData);
+        break;
+      case DELETE:
+        delete(databaseName, table, jdbcEntryData);
+        break;
+      case UPDATE:
+        update(databaseName, table, jdbcEntryData);
+        break;
+      case UPSERT:
+        upsert(databaseName, table, jdbcEntryData);
+        break;
+    }
   }
 
   @Override
@@ -74,10 +101,30 @@ public class MySqlWriterCommands implements JdbcWriterCommands {
   }
 
   @Override
+  public void update(String databaseName, String table, JdbcEntryData jdbcEntryData) throws SQLException {
+    String updateExpression = String.format(UPDATE_RECORD_STATEMENT_FORMAT, databaseName, table,
+        JDBC_EXPRESSION_GENERATOR.generateNonPrimaryKeyUpdateStatement(jdbcEntryData),
+        JDBC_EXPRESSION_GENERATOR.generatePrimaryKeyFilter(jdbcEntryData));
+    execute(updateExpression, false);
+  }
+
+  @Override
+  public void delete(String databaseName, String table, JdbcEntryData jdbcEntryData) throws SQLException {
+    String deleteExpression = String.format(DELETE_RECORD_STATEMENT_FORMAT, databaseName, table,
+        JDBC_EXPRESSION_GENERATOR.generatePrimaryKeyFilter(jdbcEntryData));
+    execute(deleteExpression, false);
+  }
+
+  @Override
+  public void upsert(String databaseName, String table, JdbcEntryData jdbcEntryData) throws SQLException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
   public void createTableStructure(String databaseName, String fromStructure, String targetTableName) throws SQLException {
     String sql = String.format(CREATE_TABLE_SQL_FORMAT, databaseName, targetTableName,
                                                         databaseName, fromStructure);
-    execute(sql);
+    execute(sql, true);
   }
 
   @Override
@@ -94,65 +141,78 @@ public class MySqlWriterCommands implements JdbcWriterCommands {
   @Override
   public void truncate(String database, String table) throws SQLException {
     String sql = String.format(TRUNCATE_TABLE_FORMAT, database, table);
-    execute(sql);
+    execute(sql, true);
   }
 
   @Override
   public void deleteAll(String database, String table) throws SQLException {
     String deleteSql = String.format(DELETE_STATEMENT_FORMAT, database, table);
-    execute(deleteSql);
+    execute(deleteSql, true);
   }
 
   @Override
   public void drop(String database, String table) throws SQLException {
     LOG.info("Dropping table " + table);
     String sql = String.format(DROP_TABLE_SQL_FORMAT, database, table);
-    execute(sql);
+    execute(sql, true);
   }
 
   /**
    * https://dev.mysql.com/doc/connector-j/en/connector-j-reference-type-conversions.html
    * {@inheritDoc}
-   * @see org.apache.gobblin.writer.commands.JdbcWriterCommands#retrieveDateColumns(java.sql.Connection, java.lang.String)
+   * @see org.apache.gobblin.writer.commands.JdbcWriterCommands#retrieveColumnTypes(String, String)
    */
   @Override
-  public Map<String, JdbcType> retrieveDateColumns(String database, String table) throws SQLException {
-    Map<String, JdbcType> targetDataTypes = ImmutableMap.<String, JdbcType> builder()
-                                                        .put("DATE", JdbcType.DATE)
-                                                        .put("DATETIME", JdbcType.TIMESTAMP)
-                                                        .put("TIME", JdbcType.TIME)
-                                                        .put("TIMESTAMP", JdbcType.TIMESTAMP)
-                                                        .build();
+  public Map<String, JDBCType> retrieveColumnTypes(String database, String table) throws SQLException {
+    DatabaseMetaData metaData = this.conn.getMetaData();
 
-    ImmutableMap.Builder<String, JdbcType> dateColumnsBuilder = ImmutableMap.builder();
-    try (PreparedStatement pstmt = this.conn.prepareStatement(INFORMATION_SCHEMA_SELECT_SQL_PSTMT)) {
-      pstmt.setString(1, database);
-      pstmt.setString(2, table);
-      LOG.info("Retrieving column type information from SQL: " + pstmt);
-      try (ResultSet rs = pstmt.executeQuery()) {
-        if (!rs.first()) {
-          throw new IllegalArgumentException("No result from information_schema.columns");
-        }
-        do {
-          String type = rs.getString("column_type").toUpperCase();
-          JdbcType convertedType = targetDataTypes.get(type);
-          if (convertedType != null) {
-            dateColumnsBuilder.put(rs.getString("column_name"), convertedType);
-          }
-        } while (rs.next());
+    ImmutableMap.Builder<String, JDBCType> columnsBuilder = ImmutableMap.builder();
+
+    try (ResultSet rsTmp = metaData.getColumns("privacy", null, "users", null)) {
+      while (rsTmp.next()) {
+        columnsBuilder.put(rsTmp.getString("COLUMN_NAME"), JDBCType.values()[rsTmp.getInt("DATA_TYPE")]);
       }
     }
-    return dateColumnsBuilder.build();
+
+    return columnsBuilder.build();
+  }
+
+  @Override
+  public List<String> retrievePrimaryKeys(String database, String table) throws SQLException {
+    DatabaseMetaData metaData = this.conn.getMetaData();
+
+    List<String> primaryKeys = new ArrayList<>();
+
+    try (ResultSet rsTmp = metaData.getPrimaryKeys("privacy", null, "users")) {
+      while (rsTmp.next()) {
+        int idx = rsTmp.getInt("KEY_SEQ") - 1;
+        String col = rsTmp.getString("COLUMN_NAME");
+        if (idx < primaryKeys.size()) {
+          primaryKeys.set(idx, col);
+        } else {
+          for (int i = primaryKeys.size(); i < idx; i ++) {
+            primaryKeys.add(null);
+          }
+          primaryKeys.add(col);
+        }
+      }
+    }
+
+    return primaryKeys;
   }
 
   @Override
   public void copyTable(String databaseName, String from, String to) throws SQLException {
     String sql = String.format(COPY_INSERT_STATEMENT_FORMAT, databaseName, to, databaseName, from);
-    execute(sql);
+    execute(sql, true);
   }
 
-  private void execute(String sql) throws SQLException {
-    LOG.info("Executing SQL " + sql);
+  private void execute(String sql, boolean logAtInfoLevel) throws SQLException {
+    if (logAtInfoLevel) {
+      LOG.info("Executing SQL " + sql);
+    } else {
+      LOG.debug("Executing SQL {}", sql);
+    }
     try (PreparedStatement pstmt = this.conn.prepareStatement(sql)) {
       pstmt.execute();
     }

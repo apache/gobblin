@@ -31,7 +31,7 @@ import org.apache.gobblin.configuration.WorkUnitState;
  * that are successful and marks them committed.
  */
 @Slf4j
-public class NoopPublisher extends DataPublisher {
+public class NoopPublisher extends SingleTaskDataPublisher {
   /**
    * @deprecated {@link DataPublisher} initialization should be done in the constructor.
    */
@@ -51,16 +51,25 @@ public class NoopPublisher extends DataPublisher {
    * @param states
    */
   @Override
-  public void publishData(Collection<? extends WorkUnitState> states)
-      throws IOException {
+  public void publishData(Collection<? extends WorkUnitState> states) throws IOException {
     for (WorkUnitState state: states)
     {
-      if (state.getWorkingState() == WorkUnitState.WorkingState.SUCCESSFUL)
-      {
-        state.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
-        log.info("Marking state committed");
-      }
+      publishData(state);
     }
+  }
+
+  @Override
+  public void publishData(WorkUnitState state) throws IOException {
+    if (state.getWorkingState() == WorkUnitState.WorkingState.SUCCESSFUL)
+    {
+      state.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
+      log.info("Marking state committed");
+    }
+  }
+
+  @Override
+  public void publishMetadata(WorkUnitState state) throws IOException {
+
   }
 
   /**

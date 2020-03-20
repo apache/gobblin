@@ -20,6 +20,7 @@ package org.apache.gobblin.converter.jdbc;
 import java.util.Iterator;
 import java.util.Map;
 
+import lombok.Getter;
 import lombok.ToString;
 
 import com.google.common.base.Preconditions;
@@ -27,17 +28,33 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSortedMap;
 
 
+/**
+ * Wraps parameters for a JDBC operation.
+ */
 @ToString
+@Getter
 public class JdbcEntryData implements Iterable<JdbcEntryDatum> {
+  public enum Operation {
+    INSERT, DELETE, UPDATE, UPSERT
+  }
+
+  private final Operation operation;
   private final Map<String, JdbcEntryDatum> jdbcEntryData; //Pair of column name and Object
+  private final JdbcEntrySchema schema;
 
   public JdbcEntryData(Iterable<JdbcEntryDatum> jdbcEntryDatumEntries) {
+    this(jdbcEntryDatumEntries, Operation.INSERT, null);
+  }
+
+  public JdbcEntryData(Iterable<JdbcEntryDatum> jdbcEntryDatumEntries, Operation operation, JdbcEntrySchema schema) {
     Preconditions.checkNotNull(jdbcEntryDatumEntries);
     ImmutableMap.Builder<String, JdbcEntryDatum> builder = ImmutableSortedMap.naturalOrder();
     for (JdbcEntryDatum datum : jdbcEntryDatumEntries) {
       builder.put(datum.getColumnName(), datum);
     }
     this.jdbcEntryData = builder.build();
+    this.operation = operation;
+    this.schema = schema;
   }
 
   /**

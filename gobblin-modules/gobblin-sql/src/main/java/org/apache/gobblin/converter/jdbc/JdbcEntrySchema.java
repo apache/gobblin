@@ -17,11 +17,14 @@
 
 package org.apache.gobblin.converter.jdbc;
 
+import java.sql.JDBCType;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.ToString;
 
 import com.google.common.base.Preconditions;
@@ -33,21 +36,24 @@ import com.google.common.collect.ImmutableSortedMap;
 @EqualsAndHashCode
 public class JdbcEntrySchema implements Iterable<JdbcEntryMetaDatum> {
   private final Map<String, JdbcEntryMetaDatum> jdbcMetaData; //Pair of column name and JdbcType
+  @Getter
+  private final List<String> primaryKeys;
 
-  public JdbcEntrySchema(Iterable<JdbcEntryMetaDatum> jdbcMetaDatumEntries) {
+  public JdbcEntrySchema(Iterable<JdbcEntryMetaDatum> jdbcMetaDatumEntries, List<String> primaryKeys) {
     Preconditions.checkNotNull(jdbcMetaDatumEntries);
     ImmutableMap.Builder<String, JdbcEntryMetaDatum> builder = ImmutableSortedMap.naturalOrder();
     for (JdbcEntryMetaDatum datum : jdbcMetaDatumEntries) {
       builder.put(datum.getColumnName(), datum);
     }
     this.jdbcMetaData = builder.build();
+    this.primaryKeys = primaryKeys;
   }
 
   /**
    * @param columnName Column name case sensitive, as most of RDBMS does.
    * @return Returns JdbcType. If column name does not exist, returns null.
    */
-  public JdbcType getJdbcType(String columnName) {
+  public JDBCType getJdbcType(String columnName) {
     JdbcEntryMetaDatum datum = this.jdbcMetaData.get(columnName);
     return datum == null ? null : datum.getJdbcType();
   }

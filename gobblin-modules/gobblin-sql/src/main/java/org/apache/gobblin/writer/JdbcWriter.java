@@ -129,7 +129,7 @@ public class JdbcWriter implements DataWriter<JdbcEntryData> {
       LOG.debug("Writing " + record);
     }
     try {
-      this.commands.insert(this.databaseName, this.tableName, record);
+      this.commands.dispatch(this.databaseName, this.tableName, record);
       this.recordWrittenCount++;
     } catch (Exception e) {
       this.failed = true;

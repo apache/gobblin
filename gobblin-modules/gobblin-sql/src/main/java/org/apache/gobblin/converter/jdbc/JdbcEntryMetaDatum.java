@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.converter.jdbc;
 
+import java.sql.JDBCType;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
@@ -27,9 +28,9 @@ import com.google.common.base.Preconditions;
 @EqualsAndHashCode(of = { "columnName" })
 public class JdbcEntryMetaDatum {
   private final String columnName;
-  private final JdbcType jdbcType;
+  private final JDBCType jdbcType;
 
-  public JdbcEntryMetaDatum(String columnName, JdbcType jdbcType) {
+  public JdbcEntryMetaDatum(String columnName, JDBCType jdbcType) {
     this.columnName = Preconditions.checkNotNull(columnName);
     this.jdbcType = Preconditions.checkNotNull(jdbcType);
   }
@@ -38,7 +39,7 @@ public class JdbcEntryMetaDatum {
     return this.columnName;
   }
 
-  public JdbcType getJdbcType() {
+  public JDBCType getJdbcType() {
     return this.jdbcType;
   }
 }

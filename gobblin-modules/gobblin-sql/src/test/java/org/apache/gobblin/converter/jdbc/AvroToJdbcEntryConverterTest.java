@@ -19,6 +19,8 @@ package org.apache.gobblin.converter.jdbc;
 
 import static org.mockito.Mockito.*;
 
+import java.sql.JDBCType;
+import java.util.Collections;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
@@ -43,7 +45,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileReader;
@@ -59,7 +60,6 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 
@@ -70,10 +70,10 @@ public class AvroToJdbcEntryConverterTest {
   public void testDateConversion() throws IOException, SchemaConversionException, SQLException {
     final String db = "db";
     final String table = "users";
-    Map<String, JdbcType> dateColums = new HashMap<>();
-    dateColums.put("date_of_birth", JdbcType.DATE);
-    dateColums.put("last_modified", JdbcType.TIME);
-    dateColums.put("created", JdbcType.TIMESTAMP);
+    Map<String, JDBCType> dateColums = new HashMap<>();
+    dateColums.put("date_of_birth", JDBCType.DATE);
+    dateColums.put("last_modified", JDBCType.TIME);
+    dateColums.put("created", JDBCType.TIMESTAMP);
 
     JdbcWriterCommands mockWriterCommands = mock(JdbcWriterCommands.class);
     when(mockWriterCommands.retrieveDateColumns(db, table)).thenReturn(dateColums);
@@ -82,24 +82,24 @@ public class AvroToJdbcEntryConverterTest {
     when(factory.newInstance(any(State.class), any(Connection.class))).thenReturn(mockWriterCommands);
 
     List<JdbcEntryMetaDatum> jdbcEntryMetaData = new ArrayList<>();
-    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("name", JdbcType.VARCHAR));
-    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("favorite_number", JdbcType.VARCHAR));
-    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("favorite_color", JdbcType.VARCHAR));
-    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("date_of_birth", JdbcType.DATE));
-    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("last_modified", JdbcType.TIME));
-    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("created", JdbcType.TIMESTAMP));
-    JdbcEntrySchema expected = new JdbcEntrySchema(jdbcEntryMetaData);
+    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("name", JDBCType.VARCHAR));
+    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("favorite_number", JDBCType.VARCHAR));
+    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("favorite_color", JDBCType.VARCHAR));
+    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("date_of_birth", JDBCType.DATE));
+    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("last_modified", JDBCType.TIME));
+    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("created", JDBCType.TIMESTAMP));
+    JdbcEntrySchema expected = new JdbcEntrySchema(jdbcEntryMetaData, Collections.emptyList());
 
     Schema inputSchema = new Schema.Parser().parse(getClass().getResourceAsStream("/converter/fieldPickInput.avsc"));
     WorkUnitState workUnitState = new WorkUnitState();
     workUnitState.appendToListProp(JdbcPublisher.JDBC_PUBLISHER_FINAL_TABLE_NAME, table);
     AvroToJdbcEntryConverter converter = new AvroToJdbcEntryConverter(workUnitState);
 
-    Map<String, JdbcType> dateColumnMapping = Maps.newHashMap();
-    dateColumnMapping.put("date_of_birth", JdbcType.DATE);
-    dateColumnMapping.put("last_modified", JdbcType.TIME);
-    dateColumnMapping.put("created", JdbcType.TIMESTAMP);
-    workUnitState.appendToListProp(AvroToJdbcEntryConverter.CONVERTER_AVRO_JDBC_DATE_FIELDS,
+    Map<String, JDBCType> dateColumnMapping = Maps.newHashMap();
+    dateColumnMapping.put("date_of_birth", JDBCType.DATE);
+    dateColumnMapping.put("last_modified", JDBCType.TIME);
+    dateColumnMapping.put("created", JDBCType.TIMESTAMP);
+    workUnitState.appendToListProp(AvroToJdbcEntryConverter.CONVERTER_AVRO_JDBC_FIELD_TYPES,
                                    new Gson().toJson(dateColumnMapping));
 
     JdbcEntrySchema actual = converter.convertSchema(inputSchema, workUnitState);
@@ -109,8 +109,8 @@ public class AvroToJdbcEntryConverterTest {
 
   @Test
   public void testFieldNameConversion() throws IOException, SchemaConversionException, SQLException {
-    Map<String, JdbcType> dateColums = new HashMap<>();
-    dateColums.put("last_updated", JdbcType.TIMESTAMP);
+    Map<String, JDBCType> dateColums = new HashMap<>();
+    dateColums.put("last_updated", JDBCType.TIMESTAMP);
 
     final String db = "db";
     final String table = "users";
@@ -131,21 +131,21 @@ public class AvroToJdbcEntryConverterTest {
     Schema inputSchema = new Schema.Parser().parse(getClass().getResourceAsStream("/converter/user.avsc"));
 
     List<JdbcEntryMetaDatum> jdbcEntryMetaData = new ArrayList<>();
-    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("user_id", JdbcType.VARCHAR));
-    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("member_id", JdbcType.BIGINT));
-    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("business_unit", JdbcType.VARCHAR));
-    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("level", JdbcType.VARCHAR));
-    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("geo_region", JdbcType.VARCHAR));
-    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("super_region", JdbcType.VARCHAR));
-    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("sub_region", JdbcType.VARCHAR));
-    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("currency", JdbcType.VARCHAR));
-    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("segment", JdbcType.VARCHAR));
-    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("vertical", JdbcType.VARCHAR));
+    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("user_id", JDBCType.VARCHAR));
+    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("member_id", JDBCType.BIGINT));
+    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("business_unit", JDBCType.VARCHAR));
+    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("level", JDBCType.VARCHAR));
+    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("geo_region", JDBCType.VARCHAR));
+    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("super_region", JDBCType.VARCHAR));
+    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("sub_region", JDBCType.VARCHAR));
+    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("currency", JDBCType.VARCHAR));
+    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("segment", JDBCType.VARCHAR));
+    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("vertical", JDBCType.VARCHAR));
 
-    JdbcEntrySchema expected = new JdbcEntrySchema(jdbcEntryMetaData);
+    JdbcEntrySchema expected = new JdbcEntrySchema(jdbcEntryMetaData, Collections.emptyList());
 
-    Map<String, JdbcType> dateColumnMapping = Maps.newHashMap();
-    workUnitState.appendToListProp(AvroToJdbcEntryConverter.CONVERTER_AVRO_JDBC_DATE_FIELDS,
+    Map<String, JDBCType> dateColumnMapping = Maps.newHashMap();
+    workUnitState.appendToListProp(AvroToJdbcEntryConverter.CONVERTER_AVRO_JDBC_FIELD_TYPES,
                                    new Gson().toJson(dateColumnMapping));
     JdbcEntrySchema actual = converter.convertSchema(inputSchema, workUnitState);
 
@@ -156,10 +156,10 @@ public class AvroToJdbcEntryConverterTest {
   public void testFlattening() throws IOException, SchemaConversionException, SQLException, URISyntaxException, DataConversionException {
     final String db = "db";
     final String table = "users";
-    Map<String, JdbcType> dateColums = new HashMap<>();
-    dateColums.put("date_of_birth", JdbcType.DATE);
-    dateColums.put("last_modified", JdbcType.TIME);
-    dateColums.put("created", JdbcType.TIMESTAMP);
+    Map<String, JDBCType> dateColums = new HashMap<>();
+    dateColums.put("date_of_birth", JDBCType.DATE);
+    dateColums.put("last_modified", JDBCType.TIME);
+    dateColums.put("created", JDBCType.TIMESTAMP);
 
     JdbcWriterCommands mockWriterCommands = mock(JdbcWriterCommands.class);
     when(mockWriterCommands.retrieveDateColumns(db, table)).thenReturn(dateColums);
@@ -168,28 +168,28 @@ public class AvroToJdbcEntryConverterTest {
     when(factory.newInstance(any(State.class), any(Connection.class))).thenReturn(mockWriterCommands);
 
     List<JdbcEntryMetaDatum> jdbcEntryMetaData = new ArrayList<>();
-    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("name", JdbcType.VARCHAR));
-    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("favorite_number", JdbcType.VARCHAR));
-    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("favorite_color", JdbcType.VARCHAR));
-    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("date_of_birth", JdbcType.DATE));
-    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("last_modified", JdbcType.TIME));
-    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("created", JdbcType.TIMESTAMP));
-    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("nested1_nested1_string", JdbcType.VARCHAR));
-    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("nested1_nested1_int", JdbcType.INTEGER));
-    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("nested1_nested2_union_nested2_string", JdbcType.VARCHAR));
-    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("nested1_nested2_union_nested2_int", JdbcType.INTEGER));
-    JdbcEntrySchema expected = new JdbcEntrySchema(jdbcEntryMetaData);
+    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("name", JDBCType.VARCHAR));
+    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("favorite_number", JDBCType.VARCHAR));
+    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("favorite_color", JDBCType.VARCHAR));
+    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("date_of_birth", JDBCType.DATE));
+    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("last_modified", JDBCType.TIME));
+    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("created", JDBCType.TIMESTAMP));
+    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("nested1_nested1_string", JDBCType.VARCHAR));
+    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("nested1_nested1_int", JDBCType.INTEGER));
+    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("nested1_nested2_union_nested2_string", JDBCType.VARCHAR));
+    jdbcEntryMetaData.add(new JdbcEntryMetaDatum("nested1_nested2_union_nested2_int", JDBCType.INTEGER));
+    JdbcEntrySchema expected = new JdbcEntrySchema(jdbcEntryMetaData, Collections.emptyList());
 
     Schema inputSchema = new Schema.Parser().parse(getClass().getResourceAsStream("/converter/pickfields_nested_with_union.avsc"));
     WorkUnitState workUnitState = new WorkUnitState();
     workUnitState.appendToListProp(JdbcPublisher.JDBC_PUBLISHER_FINAL_TABLE_NAME, table);
     AvroToJdbcEntryConverter converter = new AvroToJdbcEntryConverter(workUnitState);
 
-    Map<String, JdbcType> dateColumnMapping = Maps.newHashMap();
-    dateColumnMapping.put("date_of_birth", JdbcType.DATE);
-    dateColumnMapping.put("last_modified", JdbcType.TIME);
-    dateColumnMapping.put("created", JdbcType.TIMESTAMP);
-    workUnitState.appendToListProp(AvroToJdbcEntryConverter.CONVERTER_AVRO_JDBC_DATE_FIELDS,
+    Map<String, JDBCType> dateColumnMapping = Maps.newHashMap();
+    dateColumnMapping.put("date_of_birth", JDBCType.DATE);
+    dateColumnMapping.put("last_modified", JDBCType.TIME);
+    dateColumnMapping.put("created", JDBCType.TIMESTAMP);
+    workUnitState.appendToListProp(AvroToJdbcEntryConverter.CONVERTER_AVRO_JDBC_FIELD_TYPES,
                                    new Gson().toJson(dateColumnMapping));
 
     JdbcEntrySchema actualSchema = converter.convertSchema(inputSchema, workUnitState);

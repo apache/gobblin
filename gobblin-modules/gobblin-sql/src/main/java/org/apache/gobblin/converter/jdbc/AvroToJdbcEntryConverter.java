@@ -18,6 +18,7 @@
 package org.apache.gobblin.converter.jdbc;
 
 import java.sql.Date;
+import java.sql.JDBCType;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.HashMap;
@@ -28,6 +29,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import java.util.function.Function;
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 import org.apache.avro.Schema.Type;
@@ -71,35 +73,36 @@ import org.apache.gobblin.writer.commands.JdbcWriterCommandsFactory;
  */
 public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema, GenericRecord, JdbcEntryData> {
 
-  public static final String CONVERTER_AVRO_JDBC_DATE_FIELDS = "converter.avro.jdbc.date_fields";
+  public static final String CONVERTER_AVRO_JDBC_FIELD_TYPES = "converter.avro.jdbc.fieldTypes";
+  public static final String CONVERTER_AVRO_PKEYS = "converter.avro.jdbc.primaryKeys";
+
+  public static class SkipUpdate {
+    private SkipUpdate() {
+      // Cannot be instantiated
+    }
+  }
+  public static final SkipUpdate SKIP_UPDATE = new SkipUpdate();
+
   private static final String AVRO_NESTED_COLUMN_DELIMITER = ".";
   private static final String JDBC_FLATTENED_COLUMN_DELIMITER = "_";
   private static final String AVRO_NESTED_COLUMN_DELIMITER_REGEX_COMPATIBLE = "\\.";
   private static final Splitter AVRO_RECORD_LEVEL_SPLITTER = Splitter.on(AVRO_NESTED_COLUMN_DELIMITER).omitEmptyStrings();
 
-
   private static final Logger LOG = LoggerFactory.getLogger(AvroToJdbcEntryConverter.class);
-  private static final Map<Type, JdbcType> AVRO_TYPE_JDBC_TYPE_MAPPING =
-      ImmutableMap.<Type, JdbcType> builder()
-        .put(Type.BOOLEAN, JdbcType.BOOLEAN)
-        .put(Type.INT, JdbcType.INTEGER)
-        .put(Type.LONG, JdbcType.BIGINT)
-        .put(Type.FLOAT, JdbcType.FLOAT)
-        .put(Type.DOUBLE, JdbcType.DOUBLE)
-        .put(Type.STRING, JdbcType.VARCHAR)
-        .put(Type.ENUM, JdbcType.VARCHAR).build();
+  private static final Map<Type, JDBCType> AVRO_TYPE_JDBC_TYPE_MAPPING =
+      ImmutableMap.<Type, JDBCType> builder()
+        .put(Type.BOOLEAN, JDBCType.BOOLEAN)
+        .put(Type.INT, JDBCType.INTEGER)
+        .put(Type.LONG, JDBCType.BIGINT)
+        .put(Type.FLOAT, JDBCType.FLOAT)
+        .put(Type.DOUBLE, JDBCType.DOUBLE)
+        .put(Type.STRING, JDBCType.VARCHAR)
+        .put(Type.ENUM, JDBCType.VARCHAR).build();
   private static final Set<Type> AVRO_SUPPORTED_TYPES =
       ImmutableSet.<Type> builder()
         .addAll(AVRO_TYPE_JDBC_TYPE_MAPPING.keySet())
         .add(Type.UNION)
         .add(Type.RECORD)
-        .build();
-  private static final Set<JdbcType> JDBC_SUPPORTED_TYPES =
-      ImmutableSet.<JdbcType> builder()
-        .addAll(AVRO_TYPE_JDBC_TYPE_MAPPING.values())
-        .add(JdbcType.DATE)
-        .add(JdbcType.TIME)
-        .add(JdbcType.TIMESTAMP)
         .build();
 
   private Optional<Map<String, String>> avroToJdbcColPairs = Optional.absent();
@@ -181,25 +184,28 @@ public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema,
         Type.RECORD, inputSchema);
 
     Map<String, Type> avroColumnType = flatten(inputSchema);
-    String jsonStr = Preconditions.checkNotNull(workUnit.getProp(CONVERTER_AVRO_JDBC_DATE_FIELDS));
-    java.lang.reflect.Type typeOfMap = new TypeToken<Map<String, JdbcType>>() {}.getType();
-    Map<String, JdbcType> dateColumnMapping = new Gson().fromJson(jsonStr, typeOfMap);
-    LOG.info("Date column mapping: " + dateColumnMapping);
+    String jsonStr = Preconditions.checkNotNull(workUnit.getProp(CONVERTER_AVRO_JDBC_FIELD_TYPES));
+    java.lang.reflect.Type typeOfMap = new TypeToken<Map<String, JDBCType>>() {}.getType();
+    Map<String, JDBCType> columnTypeMapping = new Gson().fromJson(jsonStr, typeOfMap);
+    LOG.info("Column type mapping: " + columnTypeMapping);
 
     List<JdbcEntryMetaDatum> jdbcEntryMetaData = Lists.newArrayList();
     for (Map.Entry<String, Type> avroEntry : avroColumnType.entrySet()) {
       String colName = tryConvertAvroColNameToJdbcColName(avroEntry.getKey());
 
-      JdbcType JdbcType = dateColumnMapping.get(colName);
+      JDBCType JdbcType = columnTypeMapping.get(colName);
       if (JdbcType == null) {
         JdbcType = AVRO_TYPE_JDBC_TYPE_MAPPING.get(avroEntry.getValue());
       }
       Preconditions.checkNotNull(JdbcType, "Failed to convert " + avroEntry + " AVRO_TYPE_JDBC_TYPE_MAPPING: "
-          + AVRO_TYPE_JDBC_TYPE_MAPPING + " , dateColumnMapping: " + dateColumnMapping);
+          + AVRO_TYPE_JDBC_TYPE_MAPPING + " , column type mapping: " + columnTypeMapping);
       jdbcEntryMetaData.add(new JdbcEntryMetaDatum(colName, JdbcType));
     }
 
-    JdbcEntrySchema converted = new JdbcEntrySchema(jdbcEntryMetaData);
+    List<String> primaryKeys = Splitter.on(",").trimResults().omitEmptyStrings()
+        .splitToList(workUnit.getProp(CONVERTER_AVRO_PKEYS, ""));
+
+    JdbcEntrySchema converted = new JdbcEntrySchema(jdbcEntryMetaData, primaryKeys);
     LOG.info("Converted schema into " + converted);
     return converted;
   }
@@ -229,7 +235,7 @@ public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema,
    * @param colName
    * @return
    */
-  private String convertJdbcColNameToAvroColName(String colName) {
+  protected String convertJdbcColNameToAvroColName(String colName) {
     return Preconditions.checkNotNull(jdbcToAvroColPairs.get(colName));
   }
 
@@ -305,25 +311,56 @@ public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema,
     if (LOG.isDebugEnabled()) {
       LOG.debug("Converting " + record);
     }
+    JdbcEntryData converted = buildJdbcEntryData(outputSchema,
+        s -> avroRecordValueGet(record, AVRO_RECORD_LEVEL_SPLITTER.split(s).iterator()),
+        JdbcEntryData.Operation.INSERT);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("Converted data into " + converted);
+    }
+    return new SingleRecordIterable<>(converted);
+  }
+
+  /**
+   * Build a {@link JdbcEntryData} from a value generating function and an operation.
+   *
+   * For each column in the schema, the value generating function should return either
+   * 1) the value to set the column to, 2) null to set the column to null, or 3) SKIP_UPDATE to leave the column unchanged.
+   * @throws DataConversionException
+   */
+  protected JdbcEntryData buildJdbcEntryData(JdbcEntrySchema outputSchema, Function<String, Object> valueGenerator,
+      JdbcEntryData.Operation operation)
+    throws DataConversionException {
     List<JdbcEntryDatum> jdbcEntryData = Lists.newArrayList();
     for (JdbcEntryMetaDatum entry : outputSchema) {
       final String jdbcColName = entry.getColumnName();
-      final JdbcType jdbcType = entry.getJdbcType();
+      final JDBCType jdbcType = entry.getJdbcType();
 
       String avroColName = convertJdbcColNameToAvroColName(jdbcColName);
-      final Object val = avroRecordValueGet(record, AVRO_RECORD_LEVEL_SPLITTER.split(avroColName).iterator());
+      final Object val = valueGenerator.apply(avroColName);
+
+      if (val == SKIP_UPDATE) {
+        switch (operation) {
+          case INSERT:
+            jdbcEntryData.add(new JdbcEntryDatum(jdbcColName, null));
+            break;
+          case DELETE:
+          case UPDATE:
+          case UPSERT:
+            break;
+        }
+        continue;
+      }
 
       if (val == null) {
         jdbcEntryData.add(new JdbcEntryDatum(jdbcColName, null));
         continue;
       }
 
-      if (!JDBC_SUPPORTED_TYPES.contains(jdbcType)) {
-        throw new DataConversionException("Unsupported JDBC type detected " + jdbcType);
-      }
-
       switch (jdbcType) {
         case VARCHAR:
+        case LONGNVARCHAR:
+        case LONGVARCHAR:
+        case NVARCHAR:
           jdbcEntryData.add(new JdbcEntryDatum(jdbcColName, val.toString()));
           continue;
         case INTEGER:
@@ -331,6 +368,7 @@ public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema,
         case BIGINT:
         case FLOAT:
         case DOUBLE:
+        case SMALLINT:
           jdbcEntryData.add(new JdbcEntryDatum(jdbcColName, val));
           continue;
         case DATE:
@@ -346,11 +384,7 @@ public class AvroToJdbcEntryConverter extends Converter<Schema, JdbcEntrySchema,
           throw new DataConversionException(jdbcType + " is not supported");
       }
     }
-    JdbcEntryData converted = new JdbcEntryData(jdbcEntryData);
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("Converted data into " + converted);
-    }
-    return new SingleRecordIterable<>(converted);
+    return new JdbcEntryData(jdbcEntryData, operation, outputSchema);
   }
 
   private Object avroRecordValueGet(GenericRecord record, Iterator<String> recordNameIterator) {

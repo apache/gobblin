@@ -17,9 +17,9 @@
 
 package org.apache.gobblin.writer.commands;
 
+import java.sql.JDBCType;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.converter.jdbc.JdbcType;
 import org.apache.gobblin.source.extractor.JobCommitPolicy;
 import org.apache.gobblin.converter.jdbc.JdbcEntryData;
 
@@ -136,14 +136,14 @@ public class TeradataWriterCommands implements JdbcWriterCommands {
    * @see org.apache.gobblin.writer.commands.JdbcWriterCommands#retrieveDateColumns(java.sql.Connection, java.lang.String)
    */
   @Override
-  public Map<String, JdbcType> retrieveDateColumns(String database, String table) throws SQLException {
-    Map<String, JdbcType> targetDataTypes = ImmutableMap.<String, JdbcType> builder()
-                                                        .put("AT", JdbcType.TIME)
-                                                        .put("DA", JdbcType.DATE)
-                                                        .put("TS", JdbcType.TIMESTAMP)
+  public Map<String, JDBCType> retrieveDateColumns(String database, String table) throws SQLException {
+    Map<String, JDBCType> targetDataTypes = ImmutableMap.<String, JDBCType> builder()
+                                                        .put("AT", JDBCType.TIME)
+                                                        .put("DA", JDBCType.DATE)
+                                                        .put("TS", JDBCType.TIMESTAMP)
                                                         .build();
 
-    ImmutableMap.Builder<String, JdbcType> dateColumnsBuilder = ImmutableMap.builder();
+    ImmutableMap.Builder<String, JDBCType> dateColumnsBuilder = ImmutableMap.builder();
     try (PreparedStatement pstmt = this.conn.prepareStatement(DBC_COLUMNS_SELECT_SQL_PSTMT,
         ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_UPDATABLE)) {
       pstmt.setString(1, database);
@@ -155,7 +155,7 @@ public class TeradataWriterCommands implements JdbcWriterCommands {
         }
         do {
           String type = rs.getString("columnType").toUpperCase();
-          JdbcType convertedType = targetDataTypes.get(type);
+          JDBCType convertedType = targetDataTypes.get(type);
           if (convertedType != null) {
             dateColumnsBuilder.put(rs.getString("columnName"), convertedType);
           }
