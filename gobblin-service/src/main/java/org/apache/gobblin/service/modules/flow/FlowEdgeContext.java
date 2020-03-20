@@ -46,6 +46,6 @@ public class FlowEdgeContext {
 
   @Override
   public String toString() {
-    return edge == null ? null : edge.toString();
+    return edge == null ? "Null" : edge.toString();
   }
 }
