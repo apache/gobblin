@@ -62,7 +62,7 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
 
     // Return conflict and take no action if flowSpec has already been created
     if (this.flowCatalog.exists(flowSpec.getUri())) {
-      log.warn("Flowspec with URI {} already exists, no action will be taken");
+      log.warn("Flowspec with URI {} already exists, no action will be taken", flowSpec.getUri());
       return new CreateKVResponse(new ComplexResourceKey<>(flowConfig.getId(), flowStatusId), flowConfig, HttpStatus.S_409_CONFLICT);
     }
 
@@ -83,6 +83,11 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
     } else {
       httpStatus = HttpStatus.S_400_BAD_REQUEST;
     }
+
+    // Remove unnecessary properties
+    flowConfig.getProperties().remove(ConfigurationKeys.FLOW_GROUP_KEY);
+    flowConfig.getProperties().remove(ConfigurationKeys.FLOW_NAME_KEY);
+    flowConfig.getProperties().remove(RequesterService.REQUESTER_LIST);
 
     return new CreateKVResponse(new ComplexResourceKey<>(flowConfig.getId(), flowStatusId), flowConfig, httpStatus);
   }

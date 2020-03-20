@@ -17,6 +17,10 @@
 
 package org.apache.gobblin.runtime.spec_catalog;
 
+import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
+import com.google.common.util.concurrent.AbstractIdleService;
+import com.typesafe.config.Config;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
@@ -27,18 +31,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-
-import org.apache.commons.lang3.reflect.ConstructorUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
-import com.google.common.util.concurrent.AbstractIdleService;
-import com.typesafe.config.Config;
-
 import javax.annotation.Nonnull;
-
+import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
@@ -58,6 +52,8 @@ import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.callbacks.CallbackResult;
 import org.apache.gobblin.util.callbacks.CallbacksDispatcher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -293,7 +289,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
    *
    * @param spec The Spec to be added
    * @param triggerListener True if listeners should be notified.
-   * @return
+   * @return a map of listeners and their {@link AddSpecResponse}s
    */
   public Map<String, AddSpecResponse> put(Spec spec, boolean triggerListener) {
     Map<String, AddSpecResponse> responseMap = new HashMap<>();
@@ -315,7 +311,9 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
       long startTime = System.currentTimeMillis();
       metrics.updatePutSpecTime(startTime);
       try {
-        specStore.addSpec(spec);
+        if (!((FlowSpec) spec).isExplain()) {
+          specStore.addSpec(spec);
+        }
       } catch (IOException e) {
         throw new RuntimeException("Cannot add Spec to Spec store: " + spec, e);
       }
