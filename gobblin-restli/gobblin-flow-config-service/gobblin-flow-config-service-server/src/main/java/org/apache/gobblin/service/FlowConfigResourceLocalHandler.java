@@ -17,12 +17,6 @@
 
 package org.apache.gobblin.service;
 
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.Properties;
-
-import org.apache.commons.lang.StringUtils;
-
 import com.codahale.metrics.MetricRegistry;
 import com.google.common.collect.Maps;
 import com.linkedin.data.template.StringMap;
@@ -35,10 +29,12 @@ import com.linkedin.restli.server.RestLiServiceException;
 import com.linkedin.restli.server.UpdateResponse;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.Properties;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-
+import org.apache.commons.lang.StringUtils;
 import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.Instrumented;
@@ -110,6 +106,9 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
       // remove keys that were injected as part of flowSpec creation
       flowProps.remove(ConfigurationKeys.JOB_SCHEDULE_KEY);
       flowProps.remove(ConfigurationKeys.JOB_TEMPLATE_PATH);
+      flowProps.remove(ConfigurationKeys.FLOW_GROUP_KEY);
+      flowProps.remove(ConfigurationKeys.FLOW_NAME_KEY);
+      flowProps.remove(RequesterService.REQUESTER_LIST);
 
       StringMap flowPropsAsStringMap = new StringMap();
       flowPropsAsStringMap.putAll(Maps.fromProperties(flowProps));
