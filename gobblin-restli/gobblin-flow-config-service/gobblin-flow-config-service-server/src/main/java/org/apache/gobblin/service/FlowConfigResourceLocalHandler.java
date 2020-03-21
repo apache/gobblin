@@ -17,16 +17,9 @@
 
 package org.apache.gobblin.service;
 
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.Properties;
-
-import org.apache.commons.lang.StringUtils;
-
 import com.codahale.metrics.MetricRegistry;
 import com.google.common.collect.Maps;
 import com.linkedin.data.template.StringMap;
-import com.linkedin.data.transform.DataProcessingException;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
 import com.linkedin.restli.common.HttpStatus;
@@ -34,14 +27,14 @@ import com.linkedin.restli.common.PatchRequest;
 import com.linkedin.restli.server.CreateResponse;
 import com.linkedin.restli.server.RestLiServiceException;
 import com.linkedin.restli.server.UpdateResponse;
-import com.linkedin.restli.server.util.PatchApplier;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-
-import javax.naming.OperationNotSupportedException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.Properties;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-
+import org.apache.commons.lang.StringUtils;
 import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.Instrumented;
@@ -113,6 +106,9 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
       // remove keys that were injected as part of flowSpec creation
       flowProps.remove(ConfigurationKeys.JOB_SCHEDULE_KEY);
       flowProps.remove(ConfigurationKeys.JOB_TEMPLATE_PATH);
+      flowProps.remove(ConfigurationKeys.FLOW_GROUP_KEY);
+      flowProps.remove(ConfigurationKeys.FLOW_NAME_KEY);
+      flowProps.remove(RequesterService.REQUESTER_LIST);
 
       StringMap flowPropsAsStringMap = new StringMap();
       flowPropsAsStringMap.putAll(Maps.fromProperties(flowProps));
@@ -142,10 +138,9 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
     }
 
     FlowSpec flowSpec = createFlowSpecForConfig(flowConfig);
-    // Existence of a flow spec in the flow catalog implies that the flow is currently running.
-    // If the new flow spec has a schedule we should allow submission of the new flow to accept the new schedule.
-    // However, if the new flow spec does not have a schedule, we should allow submission only if it is not running.
-    if (!flowConfig.hasSchedule() && this.flowCatalog.exists(flowSpec.getUri())) {
+    // Return conflict and take no action if flowSpec has already been created
+    if (this.flowCatalog.exists(flowSpec.getUri())) {
+      log.warn("Flowspec with URI {} already exists, no action will be taken", flowSpec.getUri());
       return new CreateResponse(new ComplexResourceKey<>(flowConfig.getId(), new EmptyRecord()), HttpStatus.S_409_CONFLICT);
     } else {
       this.flowCatalog.put(flowSpec, triggerListener);
@@ -264,7 +259,7 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
     Config config = configBuilder.build();
 
     Config configWithFallback;
-    //We first attempt to process the REST.li request as a HOCON string. If the request is not a valid HOCON string
+    // We first attempt to process the REST.li request as a HOCON string. If the request is not a valid HOCON string
     // (e.g. when certain special characters such as ":" or "*" are not properly escaped), we catch the Typesafe ConfigException and
     // fallback to assuming that values are literal strings.
     try {

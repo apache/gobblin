@@ -83,6 +83,7 @@ public class ParquetGroup extends Group {
     return result.toString();
   }
 
+  @Override
   public Group addGroup(int fieldIndex) {
     ParquetGroup g = new ParquetGroup(this.schema.getType(fieldIndex).asGroupType());
     this.data[fieldIndex].add(g);

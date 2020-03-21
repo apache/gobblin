@@ -10,7 +10,7 @@
       "type" : "org.apache.gobblin.service.FlowId",
       "params" : "org.apache.gobblin.service.FlowStatusId"
     },
-    "supports" : [ "create", "delete", "get", "update", "partial_update" ],
+    "supports" : [ "create", "delete", "get", "partial_update", "update" ],
     "methods" : [ {
       "annotations" : {
         "returnEntity" : { }

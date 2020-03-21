@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.data.management.copy.hive;
 
+import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Comparator;
@@ -266,7 +267,7 @@ public class HiveDataset implements PrioritizedCopyableDataset {
     Preconditions.checkNotNull(realDbAndTable, "Real DB and table should not be null");
     Preconditions.checkNotNull(logicalDbAndTable, "Logical DB and table should not be null");
 
-    Properties resolvedProperties = new Properties();
+    ImmutableMap.Builder<String, Object> immutableMapBuilder = ImmutableMap.builder();
     Config resolvedConfig = datasetConfig.resolve();
     for (Map.Entry<String, ConfigValue> entry : resolvedConfig.entrySet()) {
       if (ConfigValueType.LIST.equals(entry.getValue().valueType())) {
@@ -285,16 +286,16 @@ public class HiveDataset implements PrioritizedCopyableDataset {
           }
           listToStringWithQuotes.append("\"").append(resolvedValueStr).append("\"");
         }
-        resolvedProperties.setProperty(entry.getKey(), listToStringWithQuotes.toString());
+        immutableMapBuilder.put(entry.getKey(), listToStringWithQuotes.toString());
       } else {
         String resolvedValue = StringUtils.replaceEach(resolvedConfig.getString(entry.getKey()),
           new String[] { DATABASE_TOKEN, TABLE_TOKEN, LOGICAL_DB_TOKEN, LOGICAL_TABLE_TOKEN },
           new String[] { realDbAndTable.getDb(), realDbAndTable.getTable(), logicalDbAndTable.getDb(), logicalDbAndTable.getTable() });
-        resolvedProperties.setProperty(entry.getKey(), resolvedValue);
+        immutableMapBuilder.put(entry.getKey(), resolvedValue);
       }
     }
 
-    return ConfigUtils.propertiesToConfig(resolvedProperties);
+    return ConfigFactory.parseMap(immutableMapBuilder.build());
   }
 
   /**

@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Map;
 
+import org.apache.gobblin.annotation.Alias;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 
@@ -31,7 +32,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.util.ConfigUtils;
 
-
+@Alias("fc")
 public class FileContextBasedFsStateStoreFactory implements StateStore.Factory {
   @Override
   public <T extends State> StateStore<T> createStateStore(Config config, Class<T> stateClass) {

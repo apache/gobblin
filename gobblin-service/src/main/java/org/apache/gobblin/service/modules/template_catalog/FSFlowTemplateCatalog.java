@@ -185,4 +185,8 @@ public class FSFlowTemplateCatalog extends FSJobCatalog implements FlowCatalogWi
 
     return true;
   }
+
+  public boolean getAndSetShouldRefreshFlowGraph(boolean value) {
+    return false;
+  }
 }

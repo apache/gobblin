@@ -17,26 +17,22 @@
 
 package org.apache.gobblin.service.modules.flowgraph.pathfinder;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ExecutionException;
-
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.tuple.Pair;
-
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigException;
+import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValue;
 import com.typesafe.config.ConfigValueFactory;
-
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
-
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.FlowSpec;
@@ -103,6 +99,11 @@ public abstract class AbstractPathFinder implements PathFinder {
       this.destNodes.add(destNode);
     }
 
+    // All dest nodes should be the same class
+    if (this.destNodes != null && this.destNodes.stream().map(Object::getClass).collect(Collectors.toSet()).size() > 1) {
+      throw new RuntimeException("All destination nodes must use the same DataNode class");
+    }
+
     //Should apply retention?
     boolean shouldApplyRetention = ConfigUtils.getBoolean(flowConfig, ConfigurationKeys.FLOW_APPLY_RETENTION, true);
     //Should apply retention on input dataset?
@@ -144,6 +145,11 @@ public abstract class AbstractPathFinder implements PathFinder {
     flowConfig = flowConfig.withValue(ConfigurationKeys.FLOW_APPLY_RETENTION, ConfigValueFactory.fromAnyRef(shouldApplyRetention));
     flowConfig = flowConfig.withValue(ConfigurationKeys.FLOW_APPLY_INPUT_RETENTION, ConfigValueFactory.fromAnyRef(shouldApplyRetentionOnInput));
 
+    srcDatasetDescriptorConfig = srcDatasetDescriptorConfig.withFallback(getDefaultConfig(this.srcNode));
+    if (this.destNodes != null) {
+      destDatasetDescriptorConfig = destDatasetDescriptorConfig.withFallback(getDefaultConfig(this.destNodes.get(0)));
+    }
+
     Class srcdatasetDescriptorClass =
         Class.forName(srcDatasetDescriptorConfig.getString(DatasetDescriptorConfigKeys.CLASS_KEY));
     this.srcDatasetDescriptor = (DatasetDescriptor) GobblinConstructorUtils
@@ -153,6 +159,20 @@ public abstract class AbstractPathFinder implements PathFinder {
     this.destDatasetDescriptor = (DatasetDescriptor) GobblinConstructorUtils
         .invokeLongestConstructor(destDatasetDescriptorClass, destDatasetDescriptorConfig);
 
+  }
+
+  private Config getDefaultConfig(DataNode dataNode) {
+    Config defaultConfig = ConfigFactory.empty();
+
+    if (dataNode.getDefaultDatasetDescriptorClass() != null) {
+      defaultConfig = defaultConfig.withValue(DatasetDescriptorConfigKeys.CLASS_KEY, ConfigValueFactory.fromAnyRef(dataNode.getDefaultDatasetDescriptorClass()));
+    }
+
+    if (dataNode.getDefaultDatasetDescriptorPlatform() != null) {
+      defaultConfig = defaultConfig.withValue(DatasetDescriptorConfigKeys.PLATFORM_KEY, ConfigValueFactory.fromAnyRef(dataNode.getDefaultDatasetDescriptorPlatform()));
+    }
+
+    return defaultConfig;
   }
 
   boolean isPathFound(DataNode currentNode, DataNode destNode, DatasetDescriptor currentDatasetDescriptor,
@@ -224,8 +244,7 @@ public abstract class AbstractPathFinder implements PathFinder {
             break;
           }
         }
-      } catch (IOException | ReflectiveOperationException | InterruptedException | ExecutionException | SpecNotFoundException
-          | JobTemplate.TemplateException e) {
+      } catch (IOException | ReflectiveOperationException | SpecNotFoundException | JobTemplate.TemplateException e) {
         //Skip the edge; and continue
         log.warn("Skipping edge {} with config {} due to exception: {}", flowEdge.getId(), flowConfig.toString(), e);
       }
@@ -270,9 +289,7 @@ public abstract class AbstractPathFinder implements PathFinder {
       throws ReflectiveOperationException {
     Config config = outputDescriptor.getRawConfig();
 
-    for (Iterator<Map.Entry<String, ConfigValue>> iterator = currentDescriptor.getRawConfig().entrySet().iterator();
-        iterator.hasNext(); ) {
-      Map.Entry<String, ConfigValue> entry = iterator.next();
+    for (Map.Entry<String, ConfigValue> entry : currentDescriptor.getRawConfig().entrySet()) {
       String entryValue = entry.getValue().unwrapped().toString();
       if (!isPlaceHolder(entryValue)) {
         String entryValueInOutputDescriptor = ConfigUtils.getString(config, entry.getKey(), StringUtils.EMPTY);
@@ -304,8 +321,7 @@ public abstract class AbstractPathFinder implements PathFinder {
    * @param flowEdge An instance of {@link FlowEdge}.
    * @return the merged config derived as described above.
    */
-  private Config getMergedConfig(FlowEdge flowEdge)
-      throws ExecutionException, InterruptedException {
+  private Config getMergedConfig(FlowEdge flowEdge) {
     Config srcNodeConfig = this.flowGraph.getNode(flowEdge.getSrc()).getRawConfig().atPath(SOURCE_PREFIX);
     Config destNodeConfig = this.flowGraph.getNode(flowEdge.getDest()).getRawConfig().atPath(DESTINATION_PREFIX);
     Config mergedConfig = flowConfig.withFallback(flowEdge.getConfig()).withFallback(srcNodeConfig).withFallback(destNodeConfig);
@@ -334,13 +350,15 @@ public abstract class AbstractPathFinder implements PathFinder {
   public FlowGraphPath findPath() throws PathFinderException {
 
     FlowGraphPath flowGraphPath = new FlowGraphPath(flowSpec, flowExecutionId);
-    //Path computation must be thread-safe to guarantee read consistency. In other words, we prevent concurrent read/write access to the
+    // Path computation must be thread-safe to guarantee read consistency. In other words, we prevent concurrent read/write access to the
     // flow graph.
     for (DataNode destNode : this.destNodes) {
       List<FlowEdgeContext> path = findPathUnicast(destNode);
       if (path != null) {
+        log.info("Path to destination node {} found for flow {}. Path - {}", destNode.getId(), flowSpec.getUri(), path);
         flowGraphPath.addPath(path);
       } else {
+        log.error("Path to destination node {} could not be found for flow {}.", destNode.getId(), flowSpec.getUri());
         //No path to at least one of the destination nodes.
         return null;
       }

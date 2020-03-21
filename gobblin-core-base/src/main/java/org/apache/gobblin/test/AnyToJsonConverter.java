@@ -31,12 +31,12 @@ import org.apache.gobblin.util.io.GsonInterfaceAdapter;
 /**
  * Converts any Object into a Json object
  */
-public class AnyToJsonConverter extends Converter<String, String, Object, JsonElement> {
+public class AnyToJsonConverter extends Converter<Object, String, Object, JsonElement> {
   private static final Gson GSON = GsonInterfaceAdapter.getGson(Object.class);
   private boolean stripTopLevelType = true; // TODO: Configure
 
   @Override
-  public String convertSchema(String inputSchema, WorkUnitState workUnit)
+  public String convertSchema(Object inputSchema, WorkUnitState workUnit)
       throws SchemaConversionException {
     return "";
   }

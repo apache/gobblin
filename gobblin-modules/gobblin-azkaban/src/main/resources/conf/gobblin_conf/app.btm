@@ -1,0 +1,32 @@
+RULE trace main entry
+CLASS GobblinYarnTaskRunner
+METHOD main
+AT ENTRY
+IF true
+DO traceln("entering main")
+ENDRULE
+
+RULE trace main exit
+CLASS GobblinYarnTaskRunner
+METHOD main
+AT EXIT
+IF true
+DO traceln("exiting main")
+ENDRULE
+
+RULE create countdown for converter
+CLASS LiKafkaConsumerRecordToGenericRecordConverter
+METHOD <init>
+IF TRUE
+DO createCountDown($0, 100000)
+ENDRULE
+
+RULE trace converter entry
+CLASS LiKafkaConsumerRecordToGenericRecordConverter
+METHOD convertRecordImpl
+AT ENTRY
+IF countDown($0)
+DO THROW new org.apache.gobblin.converter.DataConversionException("Injected exception")
+# The following line can be used to kill the JVM
+#DO traceln("killing JVM"), killJVM()
+ENDRULE

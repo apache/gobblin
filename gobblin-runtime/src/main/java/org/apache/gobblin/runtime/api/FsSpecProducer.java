@@ -36,11 +36,13 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 
+import javax.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.runtime.job_spec.AvroJobSpec;
 import org.apache.gobblin.util.CompletedFuture;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.HadoopUtils;
 
 
 /**
@@ -52,11 +54,21 @@ public class FsSpecProducer implements SpecProducer<Spec> {
   protected static final String VERB_KEY = "Verb";
 
   private Path specConsumerPath;
+  private FileSystem fs;
 
   public FsSpecProducer(Config config) {
+    this(null, config);
+  }
+
+  public FsSpecProducer(@Nullable FileSystem fs, Config config) {
     String specConsumerDir = ConfigUtils.getString(config, FsSpecConsumer.SPEC_PATH_KEY, "");
     Preconditions.checkArgument(!Strings.isNullOrEmpty(specConsumerDir), "Missing argument: " + FsSpecConsumer.SPEC_PATH_KEY);
     this.specConsumerPath = new Path(specConsumerDir);
+    try {
+      this.fs = (fs == null) ? FileSystem.get(new Configuration()) : fs;
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   /** Add a {@link Spec} for execution on {@link org.apache.gobblin.runtime.api.SpecExecutor}.
@@ -126,12 +138,23 @@ public class FsSpecProducer implements SpecProducer<Spec> {
     DataFileWriter<AvroJobSpec> dataFileWriter = new DataFileWriter<>(datumWriter);
 
     Path jobSpecPath = new Path(this.specConsumerPath, jobSpec.getUri());
-    FileSystem fs = jobSpecPath.getFileSystem(new Configuration());
-    OutputStream out = fs.create(jobSpecPath);
+
+    //Write the new JobSpec to a temporary path first.
+    Path tmpDir = new Path(this.specConsumerPath, "_tmp");
+    if (!fs.exists(tmpDir)) {
+      fs.mkdirs(tmpDir);
+    }
+
+    Path tmpJobSpecPath = new Path(tmpDir, jobSpec.getUri());
+
+    OutputStream out = fs.create(tmpJobSpecPath);
 
     dataFileWriter.create(AvroJobSpec.SCHEMA$, out);
     dataFileWriter.append(jobSpec);
     dataFileWriter.close();
+
+    //Rename the JobSpec from temporary to final location.
+    HadoopUtils.renamePath(fs, tmpJobSpecPath, jobSpecPath, true);
   }
 
 }

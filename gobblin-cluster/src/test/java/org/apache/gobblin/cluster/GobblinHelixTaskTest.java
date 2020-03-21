@@ -23,23 +23,6 @@ import java.util.Map;
 import java.util.Properties;
 
 import org.apache.avro.Schema;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.helix.HelixManager;
-import org.apache.helix.task.TaskCallbackContext;
-import org.apache.helix.task.TaskConfig;
-import org.apache.helix.task.TaskResult;
-import org.mockito.Mockito;
-import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
-
-import com.google.common.base.Optional;
-import com.google.common.collect.Maps;
-import com.typesafe.config.ConfigFactory;
-
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.example.simplejson.SimpleJsonConverter;
 import org.apache.gobblin.example.simplejson.SimpleJsonSource;
@@ -48,13 +31,38 @@ import org.apache.gobblin.runtime.AbstractJobLauncher;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.runtime.TaskExecutor;
 import org.apache.gobblin.source.workunit.WorkUnit;
-import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.Id;
 import org.apache.gobblin.util.SerializationUtils;
-import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
+import org.apache.gobblin.util.retry.RetryerFactory;
 import org.apache.gobblin.writer.AvroDataWriterBuilder;
 import org.apache.gobblin.writer.Destination;
 import org.apache.gobblin.writer.WriterOutputFormat;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.helix.HelixManager;
+import org.apache.helix.task.JobConfig;
+import org.apache.helix.task.JobContext;
+import org.apache.helix.task.TaskCallbackContext;
+import org.apache.helix.task.TaskConfig;
+import org.apache.helix.task.TaskDriver;
+import org.apache.helix.task.TaskResult;
+import org.mockito.Mockito;
+import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
+
+import com.google.common.base.Joiner;
+import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
+
+import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_TIMES;
+import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_TYPE;
+import static org.mockito.Mockito.when;
 
 
 /**
@@ -93,7 +101,7 @@ public class GobblinHelixTaskTest {
     this.taskExecutor = new TaskExecutor(configuration);
 
     this.helixManager = Mockito.mock(HelixManager.class);
-    Mockito.when(this.helixManager.getInstanceName()).thenReturn(GobblinHelixTaskTest.class.getSimpleName());
+    when(this.helixManager.getInstanceName()).thenReturn(GobblinHelixTaskTest.class.getSimpleName());
     this.taskStateTracker = new GobblinHelixTaskStateTracker(new Properties());
 
     this.localFs = FileSystem.getLocal(configuration);
@@ -102,7 +110,8 @@ public class GobblinHelixTaskTest {
   }
 
   @Test
-  public void testPrepareTask() throws IOException {
+  public void testPrepareTask()
+      throws IOException, InterruptedException {
     // Serialize the JobState that will be read later in GobblinHelixTask
     Path jobStateFilePath =
         new Path(appWorkDir, TestHelper.TEST_JOB_ID + "." + AbstractJobLauncher.JOB_STATE_FILE_NAME);
@@ -139,11 +148,14 @@ public class GobblinHelixTaskTest {
 
     TaskConfig taskConfig = new TaskConfig("", taskConfigMap, true);
     TaskCallbackContext taskCallbackContext = Mockito.mock(TaskCallbackContext.class);
-    Mockito.when(taskCallbackContext.getTaskConfig()).thenReturn(taskConfig);
-    Mockito.when(taskCallbackContext.getManager()).thenReturn(this.helixManager);
+    when(taskCallbackContext.getTaskConfig()).thenReturn(taskConfig);
+    when(taskCallbackContext.getManager()).thenReturn(this.helixManager);
+    TaskDriver taskDriver = createTaskDriverWithMockedAttributes(taskCallbackContext, taskConfig);
 
-
-    TaskRunnerSuiteBase.Builder builder = new TaskRunnerSuiteBase.Builder(ConfigFactory.empty());
+    TaskRunnerSuiteBase.Builder builder = new TaskRunnerSuiteBase.Builder(ConfigFactory.empty()
+        .withValue(RETRY_TYPE, ConfigValueFactory.fromAnyRef(RetryerFactory.RetryType.FIXED_ATTEMPT.name()))
+        .withValue(RETRY_TIMES, ConfigValueFactory.fromAnyRef(2))
+    );
     TaskRunnerSuiteBase sb = builder.setInstanceName("TestInstance")
         .setApplicationName("TestApplication")
         .setAppWorkPath(appWorkDir)
@@ -157,9 +169,49 @@ public class GobblinHelixTaskTest {
         new GobblinHelixTaskFactory(builder,
                                     sb.metricContext,
                                     this.taskStateTracker,
-                                    ConfigFactory.empty());
+                                    ConfigFactory.empty(),
+                                    Optional.of(taskDriver));
 
+    // Expect to go through.
     this.gobblinHelixTask = (GobblinHelixTask) gobblinHelixTaskFactory.createNewTask(taskCallbackContext);
+
+    // Mock the method getFs() which get called in SingleTask constructor, so that SingleTask could fail and trigger retry,
+    // which would also fail eventually with timeout.
+    TaskRunnerSuiteBase.Builder builderSpy = Mockito.spy(builder);
+    when(builderSpy.getFs()).thenThrow(new RuntimeException("failure on purpose"));
+    gobblinHelixTaskFactory =
+        new GobblinHelixTaskFactory(builderSpy,
+            sb.metricContext,
+            this.taskStateTracker,
+            ConfigFactory.empty(),
+            Optional.of(taskDriver));
+    try {
+      gobblinHelixTaskFactory.createNewTask(taskCallbackContext);
+    } catch (Exception e) {
+      Assert.assertTrue(e.getMessage().contains("Execution in creating a SingleTask-with-retry failed"));
+      return;
+    }
+    // Won't reach here.
+    Assert.fail();
+  }
+
+  /**
+   * To test against org.apache.gobblin.cluster.GobblinHelixTask#getPartitionForHelixTask(org.apache.helix.task.TaskDriver)
+   * we need to assign the right partition id for each helix task, which would be queried from taskDriver.
+   * This method encapsulate all mocking steps for taskDriver object to return expected value.
+   */
+  private TaskDriver createTaskDriverWithMockedAttributes(TaskCallbackContext taskCallbackContext,
+      TaskConfig taskConfig) {
+    String helixJobId = Joiner.on("_").join(TestHelper.TEST_JOB_ID, TestHelper.TEST_JOB_ID);
+    JobConfig jobConfig = Mockito.mock(JobConfig.class);
+    when(jobConfig.getJobId()).thenReturn(helixJobId);
+    when(taskCallbackContext.getJobConfig()).thenReturn(jobConfig);
+    JobContext mockJobContext = Mockito.mock(JobContext.class);
+    Map<String, Integer> taskIdPartitionMap = ImmutableMap.of(taskConfig.getId(), 0);
+    when(mockJobContext.getTaskIdPartitionMap()).thenReturn(taskIdPartitionMap);
+    TaskDriver taskDriver = Mockito.mock(TaskDriver.class);
+    when(taskDriver.getJobContext(Mockito.anyString())).thenReturn(mockJobContext);
+    return taskDriver;
   }
 
   @Test(dependsOnMethods = "testPrepareTask")

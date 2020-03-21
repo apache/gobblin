@@ -33,10 +33,8 @@ import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.hadoop.hive.serde2.avro.AvroSerDe;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.core.config.Configurator;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
 import org.joda.time.DateTime;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -63,6 +61,7 @@ import org.apache.gobblin.data.management.conversion.hive.watermarker.PartitionL
 import org.apache.gobblin.data.management.copy.hive.HiveDataset;
 import org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder;
 import org.apache.gobblin.data.management.copy.hive.HiveUtils;
+import org.apache.gobblin.data.management.copy.hive.PartitionFilterGenerator;
 import org.apache.gobblin.data.management.copy.hive.filter.LookbackPartitionFilterGenerator;
 import org.apache.gobblin.dataset.IterableDatasetFinder;
 import org.apache.gobblin.instrumented.Instrumented;
@@ -114,6 +113,9 @@ public class HiveSource implements Source {
   public static final String HIVE_SOURCE_DATASET_FINDER_CLASS_KEY = "hive.dataset.finder.class";
   public static final String DEFAULT_HIVE_SOURCE_DATASET_FINDER_CLASS = HiveDatasetFinder.class.getName();
 
+  public static final String HIVE_SOURCE_DATASET_FINDER_PARTITION_FILTER_KEY = "hive.dataset.finder.partitionfilter.class";
+  public static final String DEFAULT_HIVE_SOURCE_DATASET_FINDER_PARTITION_FILTER_CLASS = LookbackPartitionFilterGenerator.class.getName();
+
   public static final String DISTCP_REGISTRATION_GENERATION_TIME_KEY = "registrationGenerationTimeMillis";
   public static final String HIVE_SOURCE_WATERMARKER_FACTORY_CLASS_KEY = "hive.source.watermarker.factoryClass";
   public static final String DEFAULT_HIVE_SOURCE_WATERMARKER_FACTORY_CLASS = PartitionLevelWatermarker.Factory.class.getName();
@@ -149,6 +151,7 @@ public class HiveSource implements Source {
   protected HiveSourceWatermarker watermarker;
   protected IterableDatasetFinder<HiveDataset> datasetFinder;
   protected List<WorkUnit> workunits;
+  protected PartitionFilterGenerator partitionFilterGenerator;
   protected long maxLookBackTime;
   protected long beginGetWorkunitsTime;
   protected List<String> ignoreDataPathIdentifierList;
@@ -218,11 +221,17 @@ public class HiveSource implements Source {
     this.maxLookBackTime = new DateTime().minusDays(maxLookBackDays).getMillis();
     this.ignoreDataPathIdentifierList = COMMA_BASED_SPLITTER.splitToList(state.getProp(HIVE_SOURCE_IGNORE_DATA_PATH_IDENTIFIER_KEY,
         DEFAULT_HIVE_SOURCE_IGNORE_DATA_PATH_IDENTIFIER));
+    this.partitionFilterGenerator = GobblinConstructorUtils.invokeConstructor(PartitionFilterGenerator.class,
+        state.getProp(HIVE_SOURCE_DATASET_FINDER_PARTITION_FILTER_KEY,
+        DEFAULT_HIVE_SOURCE_DATASET_FINDER_PARTITION_FILTER_CLASS), state.getProperties());
 
     silenceHiveLoggers();
   }
 
-
+  @Deprecated
+  protected void createWorkunitForNonPartitionedTable(HiveDataset hiveDataset) throws IOException {
+    this.createWorkunitForNonPartitionedTable(hiveDataset, false);
+  }
   protected void createWorkunitForNonPartitionedTable(HiveDataset hiveDataset, boolean disableAvroCheck) throws IOException {
     // Create workunits for tables
     try {
@@ -276,6 +285,11 @@ public class HiveSource implements Source {
     }
   }
 
+  @Deprecated
+  protected HiveWorkUnit workUnitForTable(HiveDataset hiveDataset) throws IOException {
+    return this.workUnitForTable(hiveDataset, false);
+  }
+
   protected HiveWorkUnit workUnitForTable(HiveDataset hiveDataset, boolean disableAvroCheck) throws IOException {
     HiveWorkUnit hiveWorkUnit = new HiveWorkUnit(hiveDataset);
     if (disableAvroCheck || isAvro(hiveDataset.getTable())) {
@@ -284,22 +298,17 @@ public class HiveSource implements Source {
     return hiveWorkUnit;
   }
 
+  @Deprecated
+  protected void createWorkunitsForPartitionedTable(HiveDataset hiveDataset, AutoReturnableObject<IMetaStoreClient> client) throws IOException {
+     this.createWorkunitsForPartitionedTable(hiveDataset, client, false);
+  }
+
   protected void createWorkunitsForPartitionedTable(HiveDataset hiveDataset, AutoReturnableObject<IMetaStoreClient> client, boolean disableAvroCheck) throws IOException {
 
     long tableProcessTime = new DateTime().getMillis();
     this.watermarker.onTableProcessBegin(hiveDataset.getTable(), tableProcessTime);
 
-    Optional<String> partitionFilter = Optional.absent();
-
-    // If the table is date partitioned, use the partition name to filter partitions older than lookback
-    if (hiveDataset.getProperties().containsKey(LookbackPartitionFilterGenerator.PARTITION_COLUMN)
-        && hiveDataset.getProperties().containsKey(LookbackPartitionFilterGenerator.DATETIME_FORMAT)
-        && hiveDataset.getProperties().containsKey(LookbackPartitionFilterGenerator.LOOKBACK)) {
-      partitionFilter =
-          Optional.of(new LookbackPartitionFilterGenerator(hiveDataset.getProperties()).getFilter(hiveDataset));
-      log.info(String.format("Getting partitions for %s using partition filter %s", hiveDataset.getTable()
-          .getCompleteName(), partitionFilter.get()));
-    }
+    Optional<String> partitionFilter = Optional.fromNullable(this.partitionFilterGenerator.getFilter(hiveDataset));
 
     List<Partition> sourcePartitions = HiveUtils.getPartitions(client.get(), hiveDataset.getTable(), partitionFilter);
 
@@ -354,6 +363,11 @@ public class HiveSource implements Source {
             sourcePartition.getCompleteName(), e.getMessage()));
       }
     }
+  }
+
+  @Deprecated
+  protected HiveWorkUnit workUnitForPartition(HiveDataset hiveDataset, Partition partition) throws IOException {
+    return this.workUnitForPartition(hiveDataset, partition, false);
   }
 
   protected HiveWorkUnit workUnitForPartition(HiveDataset hiveDataset, Partition partition, boolean disableAvroCheck) throws IOException {
@@ -468,7 +482,10 @@ public class HiveSource implements Source {
   private void silenceHiveLoggers() {
     List<String> loggers = ImmutableList.of("org.apache.hadoop.hive", "org.apache.hive", "hive.ql.parse");
     for (String name : loggers) {
-      Configurator.setLevel(name, Level.WARN);
+      Logger logger = Logger.getLogger(name);
+      if (logger != null) {
+        logger.setLevel(Level.WARN);
+      }
     }
   }
 

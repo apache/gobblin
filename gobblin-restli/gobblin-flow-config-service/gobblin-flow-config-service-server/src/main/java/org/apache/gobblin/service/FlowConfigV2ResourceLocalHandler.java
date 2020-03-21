@@ -34,7 +34,6 @@ import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 @Slf4j
 public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHandler implements FlowConfigsResourceHandler {
-  public static final String GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS = "org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler";
 
   public FlowConfigV2ResourceLocalHandler(FlowCatalog flowCatalog) {
     super(flowCatalog);
@@ -52,7 +51,6 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
     }
     log.info(createLog);
     FlowSpec flowSpec = createFlowSpecForConfig(flowConfig);
-    Map<String, AddSpecResponse> responseMap = this.flowCatalog.put(flowSpec, triggerListener);
     FlowStatusId flowStatusId = new FlowStatusId()
         .setFlowName(flowSpec.getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_NAME_KEY))
         .setFlowGroup(flowSpec.getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_GROUP_KEY));
@@ -61,19 +59,36 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
     } else {
       flowStatusId.setFlowExecutionId(-1L);
     }
-    HttpStatus httpStatus = HttpStatus.S_201_CREATED;
+
+    // Return conflict and take no action if flowSpec has already been created
+    if (this.flowCatalog.exists(flowSpec.getUri())) {
+      log.warn("Flowspec with URI {} already exists, no action will be taken", flowSpec.getUri());
+      return new CreateKVResponse(new ComplexResourceKey<>(flowConfig.getId(), flowStatusId), flowConfig, HttpStatus.S_409_CONFLICT);
+    }
+
+    Map<String, AddSpecResponse> responseMap = this.flowCatalog.put(flowSpec, triggerListener);
+    HttpStatus httpStatus;
 
     if (flowConfig.hasExplain() && flowConfig.isExplain()) {
       //This is an Explain request. So no resource is actually created.
       //Enrich original FlowConfig entity by adding the compiledFlow to the properties map.
       StringMap props = flowConfig.getProperties();
-      AddSpecResponse<String> addSpecResponse = responseMap.getOrDefault(GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS, null);
+      AddSpecResponse<String> addSpecResponse = responseMap.getOrDefault(ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS, null);
       props.put("gobblin.flow.compiled",
           addSpecResponse != null && addSpecResponse.getValue() != null ? StringEscapeUtils.escapeJson(addSpecResponse.getValue()) : "");
       flowConfig.setProperties(props);
-      //Return response with 200 status code, since no resource is actually created.
       httpStatus = HttpStatus.S_200_OK;
+    } else if (Boolean.parseBoolean(responseMap.getOrDefault(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>("false")).getValue().toString())) {
+      httpStatus = HttpStatus.S_201_CREATED;
+    } else {
+      httpStatus = HttpStatus.S_400_BAD_REQUEST;
     }
+
+    // Remove unnecessary properties
+    flowConfig.getProperties().remove(ConfigurationKeys.FLOW_GROUP_KEY);
+    flowConfig.getProperties().remove(ConfigurationKeys.FLOW_NAME_KEY);
+    flowConfig.getProperties().remove(RequesterService.REQUESTER_LIST);
+
     return new CreateKVResponse(new ComplexResourceKey<>(flowConfig.getId(), flowStatusId), flowConfig, httpStatus);
   }
 

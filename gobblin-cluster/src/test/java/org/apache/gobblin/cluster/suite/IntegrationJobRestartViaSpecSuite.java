@@ -24,6 +24,9 @@ import java.io.Reader;
 import java.net.URI;
 import java.net.URISyntaxException;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Files;
 import com.google.common.io.Resources;
@@ -52,7 +55,8 @@ public class IntegrationJobRestartViaSpecSuite extends IntegrationJobCancelSuite
 
   public IntegrationJobRestartViaSpecSuite() throws IOException {
     super();
-    this._specProducer = new FsSpecProducer(ConfigFactory.empty().withValue(FsSpecConsumer.SPEC_PATH_KEY, ConfigValueFactory.fromAnyRef(FS_SPEC_CONSUMER_DIR)));
+    FileSystem fs = FileSystem.getLocal(new Configuration());
+    this._specProducer = new FsSpecProducer(fs, ConfigFactory.empty().withValue(FsSpecConsumer.SPEC_PATH_KEY, ConfigValueFactory.fromAnyRef(FS_SPEC_CONSUMER_DIR)));
   }
 
   private Config getJobConfig() throws IOException {
@@ -80,7 +84,6 @@ public class IntegrationJobRestartViaSpecSuite extends IntegrationJobCancelSuite
     Config managerConfig = super.getManagerConfig();
     managerConfig = managerConfig.withValue(GobblinClusterConfigurationKeys.JOB_CONFIGURATION_MANAGER_KEY,
         ConfigValueFactory.fromAnyRef(FsJobConfigurationManager.class.getName()))
-    .withValue(GobblinClusterConfigurationKeys.SPEC_CONSUMER_CLASS_KEY, ConfigValueFactory.fromAnyRef(FsSpecConsumer.class.getName()))
         .withValue(GobblinClusterConfigurationKeys.JOB_SPEC_REFRESH_INTERVAL, ConfigValueFactory.fromAnyRef(1L))
     .withValue(FsSpecConsumer.SPEC_PATH_KEY, ConfigValueFactory.fromAnyRef(FS_SPEC_CONSUMER_DIR));
     return managerConfig;

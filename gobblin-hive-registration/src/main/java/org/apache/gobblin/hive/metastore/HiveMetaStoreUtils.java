@@ -189,7 +189,7 @@ public class HiveMetaStoreUtils {
     return hivePartition;
   }
 
-  private static Map<String, String> getParameters(State props) {
+  public static Map<String, String> getParameters(State props) {
     Map<String, String> parameters = Maps.newHashMap();
     if (props.contains(RUNTIME_PROPS)) {
       String runtimePropsString = props.getProp(RUNTIME_PROPS);
@@ -253,7 +253,7 @@ public class HiveMetaStoreUtils {
     return si;
   }
 
-  private static State getTableProps(Table table) {
+  public static State getTableProps(Table table) {
     State tableProps = new State();
     for (Map.Entry<String, String> entry : table.getParameters().entrySet()) {
       tableProps.setProp(entry.getKey(), entry.getValue());

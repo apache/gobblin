@@ -21,25 +21,20 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang.StringUtils;
-import org.apache.gobblin.runtime.api.JobSpec;
-import org.apache.gobblin.runtime.api.JobTemplate;
-import org.apache.gobblin.runtime.api.SpecNotFoundException;
-import org.apache.gobblin.runtime.job_spec.JobSpecResolver;
-import org.apache.gobblin.runtime.job_spec.ResolvedJobSpec;
-import org.apache.gobblin.util.ConfigUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
+import com.codahale.metrics.MetricRegistry;
 import com.google.common.base.CaseFormat;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
@@ -65,15 +60,22 @@ import org.apache.gobblin.commit.DeliverySemantics;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.converter.initializer.ConverterInitializerFactory;
+import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.metrics.GobblinMetricsRegistry;
 import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.RootMetricContext;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.metrics.event.EventName;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.JobEvent;
 import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.metrics.reporter.util.MetricReportUtils;
 import org.apache.gobblin.runtime.api.EventMetadataGenerator;
+import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.api.JobTemplate;
+import org.apache.gobblin.runtime.api.SpecNotFoundException;
+import org.apache.gobblin.runtime.job_spec.JobSpecResolver;
 import org.apache.gobblin.runtime.listeners.CloseableJobListener;
 import org.apache.gobblin.runtime.listeners.JobExecutionEventSubmitterListener;
 import org.apache.gobblin.runtime.listeners.JobListener;
@@ -92,6 +94,7 @@ import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnitStream;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ClusterNameTags;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.Id;
 import org.apache.gobblin.util.JobLauncherUtils;
@@ -412,6 +415,16 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         workUnitsCreationTimer.stop(this.eventMetadataGenerator.getMetadata(this.jobContext,
             EventName.WORK_UNITS_CREATION));
 
+        if (this.runtimeMetricContext.isPresent()) {
+          String workunitCreationGaugeName = MetricRegistry
+              .name(MetricReportUtils.GOBBLIN_JOB_METRICS_PREFIX, TimingEvent.LauncherTimings.WORK_UNITS_CREATION,
+                  jobState.getJobName());
+          long workUnitsCreationTime = workUnitsCreationTimer.getDuration() / TimeUnit.SECONDS.toMillis(1);
+          ContextAwareGauge<Integer> workunitCreationGauge = this.runtimeMetricContext.get()
+              .newContextAwareGauge(workunitCreationGaugeName, () -> (int) workUnitsCreationTime);
+          this.runtimeMetricContext.get().register(workunitCreationGaugeName, workunitCreationGauge);
+        }
+
         // The absence means there is something wrong getting the work units
         if (workUnitStream == null || workUnitStream.getWorkUnits() == null) {
           this.eventSubmitter.submit(JobEvent.WORK_UNITS_MISSING);
@@ -517,7 +530,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         }
       } catch (Throwable t) {
         jobState.setState(JobState.RunningState.FAILED);
-        String errMsg = "Failed to launch and run job " + jobId;
+        String errMsg = "Failed to launch and run job " + jobId + " due to" + t.getMessage();
         LOG.error(errMsg + ": " + t, t);
         this.jobContext.getJobState().setJobFailureException(t);
       } finally {

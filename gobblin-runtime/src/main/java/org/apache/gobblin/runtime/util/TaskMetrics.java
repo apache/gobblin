@@ -52,7 +52,7 @@ public class TaskMetrics extends GobblinMetrics {
    * @return a {@link TaskMetrics} instance
    */
   public static TaskMetrics get(final TaskState taskState) {
-    return (TaskMetrics) GOBBLIN_METRICS_REGISTRY.getOrDefault(name(taskState), new Callable<GobblinMetrics>() {
+    return (TaskMetrics) GOBBLIN_METRICS_REGISTRY.getOrCreate(name(taskState), new Callable<GobblinMetrics>() {
       @Override
       public GobblinMetrics call() throws Exception {
         return new TaskMetrics(taskState);
@@ -85,7 +85,7 @@ public class TaskMetrics extends GobblinMetrics {
     remove(name(task));
   }
 
-  private static String name(TaskState taskState) {
+  public static String name(TaskState taskState) {
     return METRICS_ID_PREFIX + taskState.getJobId() + "." + taskState.getTaskId();
   }
 

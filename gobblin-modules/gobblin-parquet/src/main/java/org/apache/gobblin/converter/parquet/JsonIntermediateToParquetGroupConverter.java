@@ -16,18 +16,18 @@
  */
 package org.apache.gobblin.converter.parquet;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+
+import parquet.example.data.Group;
+import parquet.schema.MessageType;
+
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.converter.Converter;
 import org.apache.gobblin.converter.DataConversionException;
 import org.apache.gobblin.converter.SchemaConversionException;
 import org.apache.gobblin.converter.SingleRecordIterable;
 import org.apache.gobblin.converter.parquet.JsonElementConversionFactory.RecordConverter;
-
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
-
-import parquet.example.data.Group;
-import parquet.schema.MessageType;
 
 import static org.apache.gobblin.converter.parquet.JsonElementConversionFactory.RecordConverter.RecordType.ROOT;
 

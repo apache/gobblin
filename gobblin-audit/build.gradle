@@ -30,7 +30,7 @@ dependencies {
     compile externalDependency.reflections
 
     testCompile externalDependency.testng
-    testCompile externalDependency.log4j2
+    testCompile externalDependency.log4j
     testCompile externalDependency.mockito
 }
 

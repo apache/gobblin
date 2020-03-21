@@ -1,7 +1,10 @@
+bases:
+  - ../base-cluster
 resources:
-  - application.yaml
   - mysql-deployment.yaml
   - mysql-pv.yaml
+patchesStrategicMerge:
+  - deployment.yaml
 configMapGenerator:
   - name: gaas-config
     files:

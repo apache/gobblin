@@ -83,8 +83,6 @@ public class ParallelRunner implements Closeable {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ParallelRunner.class);
 
-  private static final long DEFAULT_PARALLEL_RUNNER_WAIT_ON_FINISH_TIMEOUT = 10000;
-
   public static final String PARALLEL_RUNNER_THREADS_KEY = "parallel.runner.threads";
   public static final int DEFAULT_PARALLEL_RUNNER_THREADS = 10;
 
@@ -399,10 +397,10 @@ public class ParallelRunner implements Closeable {
   }
 
   /**
-   * Wait until default timeout reached for all tasks under this parallel runner.
+   * Wait until default timeout(infinite long, if not specified) for all tasks under this parallel runner.
    */
   public void waitForTasks() throws IOException{
-    this.waitForTasks(DEFAULT_PARALLEL_RUNNER_WAIT_ON_FINISH_TIMEOUT);
+    this.waitForTasks(Long.MAX_VALUE);
   }
 
   @Override

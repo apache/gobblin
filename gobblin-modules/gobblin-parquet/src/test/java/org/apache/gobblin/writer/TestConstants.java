@@ -23,40 +23,28 @@ import parquet.schema.OriginalType;
 import parquet.schema.PrimitiveType;
 import parquet.schema.Types;
 
+import org.apache.gobblin.parquet.writer.test.TestConstantsBase;
+import org.apache.gobblin.test.TestRecord;
 
-public class TestConstants {
+
+public class TestConstants extends TestConstantsBase<Group> {
+
   public static final MessageType PARQUET_SCHEMA = Types.buildMessage()
-      .addFields(Types.required(PrimitiveType.PrimitiveTypeName.BINARY).as(OriginalType.UTF8).named("name"),
-          Types.optional(PrimitiveType.PrimitiveTypeName.INT32).named("age")).named("User");
+      .addFields(
+          Types.required(PrimitiveType.PrimitiveTypeName.BINARY).as(OriginalType.UTF8)
+              .named(TestConstants.PAYLOAD_FIELD_NAME),
+          Types.required(PrimitiveType.PrimitiveTypeName.INT32).named(TestConstants.PARTITION_FIELD_NAME),
+          // Sequence field is INT32 instead of INT64, because this version of parquet only supports INT32
+          Types.required(PrimitiveType.PrimitiveTypeName.INT32).named(TestConstants.SEQUENCE_FIELD_NAME))
+      .named("Data");
 
-  public static final Group PARQUET_RECORD_1 = new SimpleGroup(PARQUET_SCHEMA);
-
-  public static final Group PARQUET_RECORD_2 = new SimpleGroup(PARQUET_SCHEMA);
-
-  public static final String PARQUET_TEST_FILENAME = "test.parquet";
-
-  public static final String TEST_FS_URI = "file:///";
-
-  public static final String TEST_ROOT_DIR = System.getProperty("java.io.tmpdir");
-
-  public static final String TEST_STAGING_DIR = TEST_ROOT_DIR + "/staging";
-
-  public static final String TEST_OUTPUT_DIR = TEST_ROOT_DIR + "/output";
-
-  public static final String TEST_WRITER_ID = "writer-1";
-
-  public static final String TEST_EXTRACT_NAMESPACE = "com.linkedin.writer.test";
-
-  public static final String TEST_EXTRACT_ID = String.valueOf(System.currentTimeMillis());
-
-  public static final String TEST_EXTRACT_TABLE = "TestTable";
-
-  public static final String TEST_EXTRACT_PULL_TYPE = "FULL";
-
-  static {
-    PARQUET_RECORD_1.add("name", "tilak");
-    PARQUET_RECORD_1.add("age", 22);
-    PARQUET_RECORD_2.add("name", "other");
-    PARQUET_RECORD_2.add("age", 22);
+  @Override
+  public Group convertToParquetGroup(TestRecord record) {
+    Group group = new SimpleGroup(PARQUET_SCHEMA);
+    group.add(PAYLOAD_FIELD_NAME, record.getPayload());
+    group.add(SEQUENCE_FIELD_NAME, Long.valueOf(record.getSequence()).intValue());
+    group.add(PARTITION_FIELD_NAME, record.getPartition());
+    return group;
   }
+
 }

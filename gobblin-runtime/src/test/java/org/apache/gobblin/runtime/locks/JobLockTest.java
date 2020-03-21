@@ -67,7 +67,7 @@ public abstract class JobLockTest {
         public void run() {
           final Logger log = LoggerFactory.getLogger("testLocalJobLock.thread1");
           if (debugEnabled.get()) {
-            org.apache.log4j.LogManager.getLogger(log.getName()).setLevel(Level.DEBUG);
+            org.apache.log4j.Logger.getLogger(log.getName()).setLevel(Level.DEBUG);
           }
           try {
             stepsLock.lock();
@@ -106,7 +106,7 @@ public abstract class JobLockTest {
         public void run() {
           final Logger log = LoggerFactory.getLogger("testLocalJobLock.thread2");
           if (debugEnabled.get()) {
-            org.apache.log4j.LogManager.getLogger(log.getName()).setLevel(Level.DEBUG);
+            org.apache.log4j.Logger.getLogger(log.getName()).setLevel(Level.DEBUG);
           }
           try {
             stepsLock.lock();

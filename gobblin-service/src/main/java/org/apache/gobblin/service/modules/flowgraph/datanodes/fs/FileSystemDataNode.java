@@ -28,6 +28,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.service.modules.dataset.FSDatasetDescriptor;
 import org.apache.gobblin.service.modules.flowgraph.BaseDataNode;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraphConfigurationKeys;
 import org.apache.gobblin.util.ConfigUtils;
@@ -64,4 +65,9 @@ public abstract class FileSystemDataNode extends BaseDataNode {
   }
 
   public abstract boolean isUriValid(URI fsUri);
+
+  @Override
+  public String getDefaultDatasetDescriptorClass() {
+    return FSDatasetDescriptor.class.getCanonicalName();
+  }
 }

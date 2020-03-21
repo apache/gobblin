@@ -17,6 +17,7 @@
 package org.apache.gobblin.runtime.api;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
@@ -39,7 +40,8 @@ public class FsSpecProducerTest {
   private FsSpecConsumer _fsSpecConsumer;
 
   @BeforeMethod
-  public void setUp() {
+  public void setUp()
+      throws IOException {
     File tmpDir = Files.createTempDir();
     Config config = ConfigFactory.empty().withValue(FsSpecConsumer.SPEC_PATH_KEY, ConfigValueFactory.fromAnyRef(
         tmpDir.getAbsolutePath()));

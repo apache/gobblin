@@ -84,6 +84,10 @@ public class TimeAwareRecursiveCopyableDataset extends RecursiveCopyableDataset 
     }
   }
 
+  /**
+   * TODO: Replace it with {@link org.apache.gobblin.time.TimeIterator} as {@link LocalDateTime} will not adjust time
+   * to a given time zone
+   */
   public static class DateRangeIterator implements Iterator {
     private LocalDateTime startDate;
     private LocalDateTime endDate;

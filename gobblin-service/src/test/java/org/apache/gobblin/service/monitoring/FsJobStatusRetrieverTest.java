@@ -17,16 +17,15 @@
 
 package org.apache.gobblin.service.monitoring;
 
-import java.io.File;
-
-import org.apache.commons.io.FileUtils;
-import org.testng.annotations.BeforeClass;
-
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
-
+import java.io.File;
+import java.io.IOException;
+import org.apache.commons.io.FileUtils;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 
 
 public class FsJobStatusRetrieverTest extends JobStatusRetrieverTest {
@@ -39,6 +38,31 @@ public class FsJobStatusRetrieverTest extends JobStatusRetrieverTest {
     Config config = ConfigFactory.empty().withValue(FsJobStatusRetriever.CONF_PREFIX + "." + ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY,
         ConfigValueFactory.fromAnyRef(stateStoreDir));
     this.jobStatusRetriever = new FsJobStatusRetriever(config);
+  }
+
+  @Test
+  public void testGetJobStatusesForFlowExecution() throws IOException {
+    super.testGetJobStatusesForFlowExecution();
+  }
+
+  @Test (dependsOnMethods = "testGetJobStatusesForFlowExecution")
+  public void testJobTiming() throws Exception {
+    super.testJobTiming();
+  }
+
+  @Test (dependsOnMethods = "testJobTiming")
+  public void testOutOfOrderJobTimingEvents() throws IOException {
+    super.testOutOfOrderJobTimingEvents();
+  }
+
+  @Test (dependsOnMethods = "testJobTiming")
+  public void testGetJobStatusesForFlowExecution1() {
+    super.testGetJobStatusesForFlowExecution1();
+  }
+
+  @Test (dependsOnMethods = "testGetJobStatusesForFlowExecution1")
+  public void testGetLatestExecutionIdsForFlow() throws Exception {
+    super.testGetLatestExecutionIdsForFlow();
   }
 
   @Override

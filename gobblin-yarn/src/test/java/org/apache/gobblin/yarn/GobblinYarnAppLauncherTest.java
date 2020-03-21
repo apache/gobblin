@@ -17,15 +17,6 @@
 
 package org.apache.gobblin.yarn;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Predicate;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.eventbus.EventBus;
-import com.google.common.io.Closer;
-import com.google.common.util.concurrent.Service;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
-import com.typesafe.config.ConfigValueFactory;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -42,18 +33,6 @@ import java.util.concurrent.TimeoutException;
 
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.test.TestingServer;
-import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
-import org.apache.gobblin.cluster.GobblinHelixConstants;
-import org.apache.gobblin.cluster.GobblinHelixMultiManager;
-import org.apache.gobblin.cluster.HelixMessageTestBase;
-import org.apache.gobblin.cluster.HelixUtils;
-import org.apache.gobblin.cluster.TestHelper;
-import org.apache.gobblin.cluster.TestShutdownMessageHandlerFactory;
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.configuration.DynamicConfigGenerator;
-import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
-import org.apache.gobblin.testing.AssertWithBackoff;
-
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
@@ -74,6 +53,28 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Predicate;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.eventbus.EventBus;
+import com.google.common.io.Closer;
+import com.google.common.util.concurrent.Service;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
+
+import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
+import org.apache.gobblin.cluster.GobblinHelixConstants;
+import org.apache.gobblin.cluster.GobblinHelixMultiManager;
+import org.apache.gobblin.cluster.HelixMessageTestBase;
+import org.apache.gobblin.cluster.HelixUtils;
+import org.apache.gobblin.cluster.TestHelper;
+import org.apache.gobblin.cluster.TestShutdownMessageHandlerFactory;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.DynamicConfigGenerator;
+import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
+import org.apache.gobblin.testing.AssertWithBackoff;
+
 import static org.mockito.Mockito.times;
 
 
@@ -92,6 +93,8 @@ import static org.mockito.Mockito.times;
  */
 @Test(groups = { "gobblin.yarn" }, singleThreaded=true)
 public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
+  private static final Object MANAGED_HELIX_CLUSTER_NAME = "GobblinYarnAppLauncherTestManagedHelix";
+  public static final String TEST_HELIX_INSTANCE_NAME_MANAGED = HelixUtils.getHelixInstanceName("TestInstance", 1);
 
   public static final String DYNAMIC_CONF_PATH = "dynamic.conf";
   public static final String YARN_SITE_XML_PATH = "yarn-site.xml";
@@ -102,15 +105,18 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
   private CuratorFramework curatorFramework;
 
   private Config config;
+  private Config configManagedHelix;
 
   private HelixManager helixManager;
+  private HelixManager helixManagerManagedHelix;
 
   private GobblinYarnAppLauncher gobblinYarnAppLauncher;
+  private GobblinYarnAppLauncher gobblinYarnAppLauncherManagedHelix;
   private ApplicationId applicationId;
 
   private final Closer closer = Closer.create();
 
-  private static void setEnv(String key, String value) {
+  public static void setEnv(String key, String value) {
     try {
       Map<String, String> env = System.getenv();
       Class<?> cl = env.getClass();
@@ -185,11 +191,25 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
         InstanceType.CONTROLLER, zkConnectionString);
 
     this.gobblinYarnAppLauncher = new GobblinYarnAppLauncher(this.config, clusterConf);
+
+    this.configManagedHelix = ConfigFactory.parseURL(url)
+        .withValue("gobblin.cluster.zk.connection.string",
+            ConfigValueFactory.fromAnyRef(testingZKServer.getConnectString()))
+        .withValue(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY, ConfigValueFactory.fromAnyRef(MANAGED_HELIX_CLUSTER_NAME))
+        .withValue(GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_KEY, ConfigValueFactory.fromAnyRef(TEST_HELIX_INSTANCE_NAME_MANAGED))
+        .withValue(GobblinClusterConfigurationKeys.IS_HELIX_CLUSTER_MANAGED, ConfigValueFactory.fromAnyRef("true"))
+        .resolve();
+
+    this.helixManagerManagedHelix = HelixManagerFactory.getZKHelixManager(
+        this.configManagedHelix.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY), TEST_HELIX_INSTANCE_NAME_MANAGED,
+        InstanceType.PARTICIPANT, zkConnectionString);
+
+    this.gobblinYarnAppLauncherManagedHelix = new GobblinYarnAppLauncher(this.configManagedHelix, clusterConf);
   }
 
   @Test
   public void testBuildApplicationMasterCommand() {
-    String command = this.gobblinYarnAppLauncher.buildApplicationMasterCommand(64);
+    String command = this.gobblinYarnAppLauncher.buildApplicationMasterCommand("application_1234_3456", 64);
 
     // 41 is from 64 * 0.8 - 10
     Assert.assertTrue(command.contains("-Xmx41"));
@@ -208,6 +228,18 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
         this.curatorFramework.checkExists()
             .forPath(String.format("/%s/CONTROLLER", GobblinYarnAppLauncherTest.class.getSimpleName())).getVersion(),
         0);
+
+    //Create managed Helix cluster and test it is created successfully
+    HelixUtils.createGobblinHelixCluster(
+        this.configManagedHelix.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY),
+        this.configManagedHelix.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY));
+
+    Assert.assertEquals(this.curatorFramework.checkExists()
+        .forPath(String.format("/%s/CONTROLLER", MANAGED_HELIX_CLUSTER_NAME)).getVersion(), 0);
+    Assert.assertEquals(
+        this.curatorFramework.checkExists()
+            .forPath(String.format("/%s/CONTROLLER", MANAGED_HELIX_CLUSTER_NAME)).getVersion(),
+        0);
   }
 
   /**
@@ -218,6 +250,10 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
    */
   @Test(enabled=false, groups = { "disabledOnTravis" }, dependsOnMethods = "testCreateHelixCluster")
   public void testSetupAndSubmitApplication() throws Exception {
+    HelixUtils.createGobblinHelixCluster(
+        this.config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY),
+        this.config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY));
+
     this.gobblinYarnAppLauncher.startYarnClient();
     this.applicationId = this.gobblinYarnAppLauncher.setupAndSubmitApplication();
 
@@ -265,8 +301,8 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
     Assert.assertEquals(this.curatorFramework.checkExists()
         .forPath(String.format("/%s/CONTROLLER/MESSAGES", GobblinYarnAppLauncherTest.class.getSimpleName()))
         .getVersion(), 0);
-    YarnSecurityManagerTest.GetControllerMessageNumFunc getCtrlMessageNum =
-        new YarnSecurityManagerTest.GetControllerMessageNumFunc(GobblinYarnAppLauncherTest.class.getSimpleName(),
+    YarnSecurityManagerTest.GetHelixMessageNumFunc getCtrlMessageNum =
+        new YarnSecurityManagerTest.GetHelixMessageNumFunc(GobblinYarnAppLauncherTest.class.getSimpleName(), InstanceType.CONTROLLER, "",
             this.curatorFramework);
     AssertWithBackoff assertWithBackoff =
         AssertWithBackoff.create().logger(LoggerFactory.getLogger("testSendShutdownRequest")).timeoutMs(20000);
@@ -274,6 +310,27 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
 
     // Give Helix sometime to handle the message
     assertWithBackoff.assertEquals(getCtrlMessageNum, 0, "all controller messages processed");
+
+    this.helixManagerManagedHelix.connect();
+    this.helixManagerManagedHelix.getMessagingService().registerMessageHandlerFactory(GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE,
+        new TestShutdownMessageHandlerFactory(this));
+
+    this.gobblinYarnAppLauncherManagedHelix.connectHelixManager();
+    this.gobblinYarnAppLauncherManagedHelix.sendShutdownRequest();
+
+    Assert.assertEquals(this.curatorFramework.checkExists()
+        .forPath(String.format("/%s/INSTANCES/%s/MESSAGES", this.configManagedHelix.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY), TEST_HELIX_INSTANCE_NAME_MANAGED))
+        .getVersion(), 0);
+    YarnSecurityManagerTest.GetHelixMessageNumFunc getInstanceMessageNum =
+        new YarnSecurityManagerTest.GetHelixMessageNumFunc(this.configManagedHelix.getString(
+            GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY),
+            InstanceType.PARTICIPANT, TEST_HELIX_INSTANCE_NAME_MANAGED, this.curatorFramework);
+    assertWithBackoff =
+        AssertWithBackoff.create().logger(LoggerFactory.getLogger("testSendShutdownRequest")).timeoutMs(20000);
+    assertWithBackoff.assertEquals(getInstanceMessageNum, 1, "1 controller message queued");
+
+    // Give Helix sometime to handle the message
+    assertWithBackoff.assertEquals(getInstanceMessageNum, 0, "all controller messages processed");
   }
 
   @AfterClass
@@ -286,6 +343,10 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
 
       if (this.helixManager.isConnected()) {
         this.helixManager.disconnect();
+      }
+
+      if (this.helixManagerManagedHelix.isConnected()) {
+        this.helixManagerManagedHelix.disconnect();
       }
 
       this.gobblinYarnAppLauncher.disconnectHelixManager();
@@ -373,7 +434,7 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
     public TestApplicationMaster(String applicationName, ContainerId containerId, Config config,
         YarnConfiguration yarnConfiguration)
         throws Exception {
-      super(applicationName, containerId, config, yarnConfiguration);
+      super(applicationName, containerId.getApplicationAttemptId().getApplicationId().toString(), containerId, config, yarnConfiguration);
     }
 
     @Override

@@ -44,11 +44,14 @@ import org.apache.gobblin.util.JobLauncherUtils;
 import org.apache.gobblin.util.SerializationUtils;
 
 
+/**
+ * A standalone unit to initialize and execute {@link GobblinMultiTaskAttempt} through deserialized {@link WorkUnit}
+ */
 public class SingleTask {
 
   private static final Logger _logger = LoggerFactory.getLogger(SingleTask.class);
 
-  private GobblinMultiTaskAttempt _taskattempt;
+  private GobblinMultiTaskAttempt _taskAttempt;
   private String _jobId;
   private Path _workUnitFilePath;
   private Path _jobStateFilePath;
@@ -56,9 +59,14 @@ public class SingleTask {
   private TaskAttemptBuilder _taskAttemptBuilder;
   private StateStores _stateStores;
   private Config _dynamicConfig;
+  private JobState _jobState;
 
+  /**
+   * Do all heavy-lifting of initialization in constructor which could be retried if failed,
+   * see the example in {@link GobblinHelixTask}.
+   */
   SingleTask(String jobId, Path workUnitFilePath, Path jobStateFilePath, FileSystem fs,
-      TaskAttemptBuilder taskAttemptBuilder, StateStores stateStores, Config dynamicConfig) {
+      TaskAttemptBuilder taskAttemptBuilder, StateStores stateStores, Config dynamicConfig) throws IOException {
     _jobId = jobId;
     _workUnitFilePath = workUnitFilePath;
     _jobStateFilePath = jobStateFilePath;
@@ -66,29 +74,31 @@ public class SingleTask {
     _taskAttemptBuilder = taskAttemptBuilder;
     _stateStores = stateStores;
     _dynamicConfig = dynamicConfig;
+    _jobState = getJobState();
   }
 
   public void run()
       throws IOException, InterruptedException {
     List<WorkUnit> workUnits = getWorkUnits();
 
-    JobState jobState = getJobState();
     // Add dynamic configuration to the job state
-    _dynamicConfig.entrySet().forEach(e -> jobState.setProp(e.getKey(), e.getValue().unwrapped().toString()));
+    _dynamicConfig.entrySet().forEach(e -> _jobState.setProp(e.getKey(), e.getValue().unwrapped().toString()));
 
-    Config jobConfig = getConfigFromJobState(jobState);
+    Config jobConfig = getConfigFromJobState(_jobState);
 
     _logger.debug("SingleTask.run: jobId {} workUnitFilePath {} jobStateFilePath {} jobState {} jobConfig {}",
-        _jobId, _workUnitFilePath, _jobStateFilePath, jobState, jobConfig);
+        _jobId, _workUnitFilePath, _jobStateFilePath, _jobState, jobConfig);
 
     try (SharedResourcesBroker<GobblinScopeTypes> globalBroker = SharedResourcesBrokerFactory
         .createDefaultTopLevelBroker(jobConfig, GobblinScopeTypes.GLOBAL.defaultScopeInstance())) {
-      SharedResourcesBroker<GobblinScopeTypes> jobBroker = getJobBroker(jobState, globalBroker);
+      SharedResourcesBroker<GobblinScopeTypes> jobBroker = getJobBroker(_jobState, globalBroker);
 
-      _taskattempt = _taskAttemptBuilder.build(workUnits.iterator(), _jobId, jobState, jobBroker);
-      _taskattempt.runAndOptionallyCommitTaskAttempt(GobblinMultiTaskAttempt.CommitPolicy.IMMEDIATE);
+      _taskAttempt = _taskAttemptBuilder.build(workUnits.iterator(), _jobId, _jobState, jobBroker);
+      _taskAttempt.runAndOptionallyCommitTaskAttempt(GobblinMultiTaskAttempt.CommitPolicy.IMMEDIATE);
+
     } finally {
-      _taskattempt.cleanMetrics();
+      _logger.info("Clearing all metrics object in cache.");
+      _taskAttempt.cleanMetrics();
     }
   }
 
@@ -102,7 +112,7 @@ public class SingleTask {
     return ConfigFactory.parseProperties(jobProperties);
   }
 
-  private JobState getJobState()
+  protected JobState getJobState()
       throws java.io.IOException {
     JobState jobState;
 
@@ -119,16 +129,25 @@ public class SingleTask {
     return jobState;
   }
 
-  private List<WorkUnit> getWorkUnits()
+  /**
+   * Deserialize {@link WorkUnit}s from a path.
+   */
+  protected List<WorkUnit> getWorkUnits()
       throws IOException {
     String fileName = _workUnitFilePath.getName();
     String storeName = _workUnitFilePath.getParent().getName();
     WorkUnit workUnit;
 
-    if (_workUnitFilePath.getName().endsWith(AbstractJobLauncher.MULTI_WORK_UNIT_FILE_EXTENSION)) {
-      workUnit = _stateStores.getMwuStateStore().getAll(storeName, fileName).get(0);
-    } else {
-      workUnit = _stateStores.getWuStateStore().getAll(storeName, fileName).get(0);
+    try {
+      if (_workUnitFilePath.getName().endsWith(AbstractJobLauncher.MULTI_WORK_UNIT_FILE_EXTENSION)) {
+        workUnit = _stateStores.getMwuStateStore().getAll(storeName, fileName).get(0);
+      } else {
+        workUnit = _stateStores.getWuStateStore().getAll(storeName, fileName).get(0);
+      }
+    } catch (IOException e) {
+      //Add workunitFilePath to the IOException message to aid debugging
+      throw new IOException("Exception retrieving state from state store for workunit: " + _workUnitFilePath.toString(),
+          e);
     }
 
     // The list of individual WorkUnits (flattened) to run
@@ -145,10 +164,10 @@ public class SingleTask {
   }
 
   public void cancel() {
-    if (_taskattempt != null) {
+    if (_taskAttempt != null) {
       try {
         _logger.info("Task cancelled: Shutdown starting for tasks with jobId: {}", _jobId);
-        _taskattempt.shutdownTasks();
+        _taskAttempt.shutdownTasks();
         _logger.info("Task cancelled: Shutdown complete for tasks with jobId: {}", _jobId);
       } catch (InterruptedException e) {
         throw new RuntimeException("Interrupted while shutting down task with jobId: " + _jobId, e);

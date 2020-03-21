@@ -264,6 +264,16 @@ public class AvroUtilsTest {
     Assert.assertEquals(AvroUtils.serializeAsPath(partition, false, false), new Path("a/b_c_d_e/title"));
   }
 
+  @Test
+  public void testStringEscaping() {
+    String invalidString = "foo;foo'bar";
+    String expectedString = "foo\\;foo\\'bar";
+    String actualString = AvroUtils.sanitizeSchemaString(invalidString);
+    Assert.assertEquals(actualString, expectedString);
+    // Verify that there's only one slash being added.
+    Assert.assertEquals(actualString.length(), invalidString.length() + 2);
+  }
+
   public static List<GenericRecord> getRecordFromFile(String path)
       throws IOException {
     Configuration config = new Configuration();

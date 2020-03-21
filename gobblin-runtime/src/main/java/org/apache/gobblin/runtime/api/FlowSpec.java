@@ -17,6 +17,14 @@
 
 package org.apache.gobblin.runtime.api;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collection;
@@ -24,22 +32,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
-
-import com.typesafe.config.Config;
-
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import com.typesafe.config.ConfigFactory;
-
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.util.ConfigUtils;
-
-import lombok.Data;
-import lombok.EqualsAndHashCode;
 
 
 /**
@@ -52,7 +49,11 @@ import lombok.EqualsAndHashCode;
 @Alpha
 @Data
 @EqualsAndHashCode(exclude={"compilationErrors"})
+@SuppressFBWarnings(value="SE_BAD_FIELD",
+    justification = "FindBugs complains about Config not being serializable, but the implementation of Config is serializable")
 public class FlowSpec implements Configurable, Spec {
+  private static final long serialVersionUID = -5511988862945107734L;
+
   /** An URI identifying the flow. */
   final URI uri;
 
@@ -344,16 +345,17 @@ public class FlowSpec implements Configurable, Spec {
       this.childSpecs.get().addAll(childSpecs);
       return this;
     }
-
-
   }
 
   /**
    * get the private uri as the primary key for this object.
-   * @return
+   * @return URI of the FlowSpec
    */
   public URI getUri() {
     return this.uri;
   }
 
+  public Boolean isExplain() {
+    return ConfigUtils.getBoolean(getConfig(), ConfigurationKeys.FLOW_EXPLAIN_KEY, false);
+  }
 }

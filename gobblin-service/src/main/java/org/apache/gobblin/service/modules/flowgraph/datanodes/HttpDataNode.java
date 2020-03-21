@@ -24,6 +24,7 @@ import joptsimple.internal.Strings;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
+import org.apache.gobblin.service.modules.dataset.HttpDatasetDescriptor;
 import org.apache.gobblin.service.modules.flowgraph.BaseDataNode;
 import org.apache.gobblin.service.modules.flowgraph.DataNode;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraphConfigurationKeys;
@@ -41,6 +42,7 @@ public class HttpDataNode extends BaseDataNode  {
   private String httpDomain;
   @Getter
   private String authenticationType;
+  public static final String PLATFORM = "http";
 
   public HttpDataNode(Config nodeProps) throws DataNode.DataNodeCreationException {
     super(nodeProps);
@@ -57,5 +59,15 @@ public class HttpDataNode extends BaseDataNode  {
     } catch (Exception e) {
       throw new DataNode.DataNodeCreationException(e);
     }
+  }
+
+  @Override
+  public String getDefaultDatasetDescriptorClass() {
+    return HttpDatasetDescriptor.class.getCanonicalName();
+  }
+
+  @Override
+  public String getDefaultDatasetDescriptorPlatform() {
+    return PLATFORM;
   }
 }

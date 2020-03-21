@@ -33,8 +33,8 @@ import com.typesafe.config.Config;
 public class TableLikeStageableTableMetadata extends StageableTableMetadata {
 
   public TableLikeStageableTableMetadata(Table referenceTable, String destinationDB, String destinationTableName, String targetDataPath) {
-    super(destinationTableName, destinationTableName + "_STAGING", destinationDB, targetDataPath,
-        getTableProperties(referenceTable), new ArrayList<>(), Optional.of(referenceTable.getNumBuckets()), new Properties(), false, Optional.absent(),
+    super(destinationTableName, destinationTableName + "_STAGING", destinationDB, targetDataPath, true,
+        getTableProperties(referenceTable), new ArrayList<>(), Optional.of(referenceTable.getNumBuckets()), new Properties(), false, false, Optional.absent(),
         new ArrayList<>());
   }
 
@@ -43,8 +43,10 @@ public class TableLikeStageableTableMetadata extends StageableTableMetadata {
         HiveDataset.resolveTemplate(config.getString(StageableTableMetadata.DESTINATION_TABLE_KEY), referenceTable) + "_STAGING",
         HiveDataset.resolveTemplate(config.getString(StageableTableMetadata.DESTINATION_DB_KEY), referenceTable),
         HiveDataset.resolveTemplate(config.getString(DESTINATION_DATA_PATH_KEY), referenceTable),
+        (!config.hasPath(StageableTableMetadata.DESTINATION_DATA_PATH_ADD_SUBDIR) ||
+            Boolean.parseBoolean(HiveDataset.resolveTemplate(config.getString(StageableTableMetadata.DESTINATION_DATA_PATH_ADD_SUBDIR), referenceTable))),
         getTableProperties(referenceTable), new ArrayList<>(), Optional.of(referenceTable.getNumBuckets()),
-        new Properties(), false, Optional.absent(), new ArrayList<>());
+        new Properties(), false, false, Optional.absent(), new ArrayList<>());
   }
 
   private static Properties getTableProperties(Table table) {

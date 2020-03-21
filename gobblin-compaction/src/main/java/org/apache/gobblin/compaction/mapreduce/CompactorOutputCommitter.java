@@ -41,6 +41,11 @@ import org.slf4j.LoggerFactory;
  * {recordCount}.{timestamp}.<extensionName>(avro, orc, etc.).
  */
 public class CompactorOutputCommitter extends FileOutputCommitter {
+
+  public enum EVENT_COUNTER {
+    OUTPUT_FILE_COUNT
+  }
+
   /**
    * Note that the value of this key doesn't have dot.
    */
@@ -93,6 +98,7 @@ public class CompactorOutputCommitter extends FileOutputCommitter {
         Path newPath = new Path(status.getPath().getParent(), fileName);
         LOG.info(String.format("Renaming %s to %s", status.getPath(), newPath));
         fs.rename(status.getPath(), newPath);
+        context.getCounter(EVENT_COUNTER.OUTPUT_FILE_COUNT).increment(1);
       }
     }
 

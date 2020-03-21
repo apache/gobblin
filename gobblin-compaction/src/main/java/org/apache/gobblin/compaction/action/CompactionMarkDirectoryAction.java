@@ -36,6 +36,7 @@ import org.apache.gobblin.compaction.mapreduce.CompactionAvroJobConfigurator;
 import org.apache.gobblin.compaction.mapreduce.MRCompactor;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.data.management.dataset.SimpleFileSystemDataset;
 import org.apache.gobblin.dataset.FileSystemDataset;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 
@@ -57,6 +58,10 @@ public class CompactionMarkDirectoryAction implements CompactionCompleteAction<F
   }
 
   public void onCompactionJobComplete (FileSystemDataset dataset) throws IOException {
+    if (dataset.isVirtual()) {
+      return;
+    }
+
     boolean renamingRequired = this.state.getPropAsBoolean(MRCompactor.COMPACTION_RENAME_SOURCE_DIR_ENABLED,
             MRCompactor.DEFAULT_COMPACTION_RENAME_SOURCE_DIR_ENABLED);
 

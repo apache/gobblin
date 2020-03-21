@@ -19,9 +19,10 @@ package org.apache.gobblin.service.modules.flowgraph.datanodes.fs;
 
 import java.net.URI;
 
+import com.typesafe.config.Config;
+
 import org.apache.gobblin.annotation.Alpha;
 
-import com.typesafe.config.Config;
 
 /**
  * An implementation of {@link LocalFSDataNode}. All the properties specific to a LocalFS based data node (e.g. fs.uri)
@@ -30,6 +31,7 @@ import com.typesafe.config.Config;
 @Alpha
 public class LocalFSDataNode extends FileSystemDataNode {
   public static final String LOCAL_FS_SCHEME = "file";
+  public static final String PLATFORM = "local";
 
   public LocalFSDataNode(Config nodeProps) throws DataNodeCreationException {
     super(nodeProps);
@@ -47,5 +49,10 @@ public class LocalFSDataNode extends FileSystemDataNode {
       return true;
     }
     return false;
+  }
+
+  @Override
+  public String getDefaultDatasetDescriptorPlatform() {
+    return PLATFORM;
   }
 }

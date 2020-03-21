@@ -31,6 +31,22 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.lang.exception.ExceptionUtils;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocalFileSystem;
+import org.apache.hadoop.fs.Path;
+import org.joda.time.DateTimeUtils;
+
+import com.google.common.base.Function;
+import com.google.common.base.Optional;
+import com.google.common.base.Stopwatch;
+import com.google.common.collect.Iterators;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.compaction.mapreduce.MRCompactionTaskFactory;
 import org.apache.gobblin.compaction.mapreduce.MRCompactor;
 import org.apache.gobblin.compaction.suite.CompactionSuite;
@@ -70,21 +86,6 @@ import org.apache.gobblin.util.request_allocation.RequestAllocatorConfig;
 import org.apache.gobblin.util.request_allocation.RequestAllocatorUtils;
 import org.apache.gobblin.util.request_allocation.ResourceEstimator;
 import org.apache.gobblin.util.request_allocation.ResourcePool;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.LocalFileSystem;
-import org.apache.hadoop.fs.Path;
-import org.joda.time.DateTimeUtils;
-
-import com.google.common.base.Function;
-import com.google.common.base.Optional;
-import com.google.common.base.Stopwatch;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-
-import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 import static org.apache.gobblin.util.HadoopUtils.getSourceFileSystem;
 
@@ -110,19 +111,23 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
   @Override
   public WorkUnitStream getWorkunitStream(SourceState state) {
     try {
-      initCompactionSource(state);
-
-      DatasetsFinder finder = DatasetUtils.instantiateDatasetFinder(state.getProperties(),
-              getSourceFileSystem(state),
-              DefaultFileSystemGlobFinder.class.getName());
+      fs = getSourceFileSystem(state);
+      DatasetsFinder<Dataset> finder = DatasetUtils.instantiateDatasetFinder(state.getProperties(),
+          fs, DefaultFileSystemGlobFinder.class.getName());
 
       List<Dataset> datasets = finder.findDatasets();
-      CompactionWorkUnitIterator workUnitIterator = new CompactionWorkUnitIterator ();
+      CompactionWorkUnitIterator workUnitIterator = new CompactionWorkUnitIterator();
+
+      if (datasets.size() == 0) {
+        return new BasicWorkUnitStream.Builder(workUnitIterator).build();
+      }
+
+      // initialize iff datasets are found
+      initCompactionSource(state);
 
       // Spawn a single thread to create work units
-      new Thread(new SingleWorkUnitGeneratorService (state, prioritize(datasets, state), workUnitIterator), "SingleWorkUnitGeneratorService").start();
-      return new BasicWorkUnitStream.Builder (workUnitIterator).build();
-
+      new Thread(new SingleWorkUnitGeneratorService(state, prioritize(datasets, state), workUnitIterator), "SingleWorkUnitGeneratorService").start();
+      return new BasicWorkUnitStream.Builder(workUnitIterator).build();
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -222,7 +227,6 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
    * happening inside {@link #initCompactionSource(SourceState)} is compulsory.
    */
   private void initCompactionSource(SourceState state) throws IOException {
-    fs = getSourceFileSystem(state);
     state.setProp(COMPACTION_INIT_TIME, DateTimeUtils.currentTimeMillis());
     suite = CompactionSuiteUtils.getCompactionSuiteFactory(state).createSuite(state);
 

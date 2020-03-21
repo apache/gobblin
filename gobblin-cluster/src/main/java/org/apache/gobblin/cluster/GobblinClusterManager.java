@@ -18,8 +18,6 @@
 package org.apache.gobblin.cluster;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -114,6 +112,7 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
 
   protected final Path appWorkDir;
 
+  @Getter
   protected final FileSystem fs;
 
   protected final String applicationId;
@@ -148,11 +147,17 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
 
     this.applicationId = applicationId;
 
+    //Set system properties passed in via application config. As an example, Helix uses System#getProperty() for ZK configuration
+    // overrides such as sessionTimeout. In this case, the overrides specified
+    // in the application configuration have to be extracted and set before initializing HelixManager.
+    HelixUtils.setSystemProperties(config);
+
     initializeHelixManager();
 
-    this.fs = buildFileSystem(config);
+    this.fs = GobblinClusterUtils.buildFileSystem(config, new Configuration());
     this.appWorkDir = appWorkDirOptional.isPresent() ? appWorkDirOptional.get()
         : GobblinClusterUtils.getAppWorkDirPathFromConfig(config, this.fs, clusterName, applicationId);
+    LOGGER.info("Configured GobblinClusterManager work dir to: {}", this.appWorkDir);
 
     initializeAppLauncherAndServices();
   }
@@ -227,7 +232,9 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
   }
 
   /**
-   * Configure Helix quota-based task scheduling
+   * Configure Helix quota-based task scheduling.
+   * This config controls the number of tasks that are concurrently assigned to a single Helix instance.
+   * Reference: https://helix.apache.org/0.9.1-docs/quota_scheduling.html
    */
   @VisibleForTesting
   void configureHelixQuotaBasedTaskScheduling() {
@@ -350,15 +357,6 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
   }
 
   /**
-   * Build the {@link FileSystem} for the Application Master.
-   */
-  private FileSystem buildFileSystem(Config config) throws IOException {
-    return config.hasPath(ConfigurationKeys.FS_URI_KEY) ? FileSystem
-        .get(URI.create(config.getString(ConfigurationKeys.FS_URI_KEY)), new Configuration())
-        : FileSystem.get(new Configuration());
-  }
-
-  /**
    * Build the {@link GobblinHelixJobScheduler} for the Application Master.
    */
   private GobblinHelixJobScheduler buildGobblinHelixJobScheduler(Config config, Path appWorkDir,
@@ -383,16 +381,15 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
 
   private JobConfigurationManager create(Config config) {
     try {
-      List<Object> argumentList = (this.jobCatalog != null)? ImmutableList.of(this.eventBus, config, this.jobCatalog) :
-          ImmutableList.of(this.eventBus, config);
+      List<Object> argumentList = (this.jobCatalog != null)? ImmutableList.of(this.eventBus, config, this.jobCatalog, this.fs) :
+          ImmutableList.of(this.eventBus, config, this.fs);
       if (config.hasPath(GobblinClusterConfigurationKeys.JOB_CONFIGURATION_MANAGER_KEY)) {
-        return (JobConfigurationManager) GobblinConstructorUtils.invokeFirstConstructor(Class.forName(
-            config.getString(GobblinClusterConfigurationKeys.JOB_CONFIGURATION_MANAGER_KEY)), argumentList);
+        return (JobConfigurationManager) GobblinConstructorUtils.invokeLongestConstructor(Class.forName(
+            config.getString(GobblinClusterConfigurationKeys.JOB_CONFIGURATION_MANAGER_KEY)), argumentList.toArray(new Object[argumentList.size()]));
       } else {
         return new JobConfigurationManager(this.eventBus, config);
       }
-    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException |
-        ClassNotFoundException e) {
+    } catch (ReflectiveOperationException e) {
       throw new RuntimeException(e);
     }
   }

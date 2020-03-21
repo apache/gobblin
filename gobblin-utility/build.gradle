@@ -29,7 +29,6 @@ dependencies {
   compile externalDependency.commonsLang
   compile externalDependency.guava
   compile externalDependency.slf4j
-  compile externalDependency.log4j2
   compile externalDependency.avro
   compile externalDependency.hiveMetastore
   compile externalDependency.jodaTime

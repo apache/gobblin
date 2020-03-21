@@ -22,8 +22,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.gobblin.converter.parquet.JsonSchema.*;
-
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -43,15 +41,18 @@ import parquet.schema.PrimitiveType.PrimitiveTypeName;
 import parquet.schema.Type;
 import parquet.schema.Types;
 
-import static org.apache.gobblin.converter.parquet.JsonElementConversionFactory.RecordConverter.RecordType.CHILD;
+import org.apache.gobblin.converter.parquet.JsonSchema.*;
+
 import static org.apache.gobblin.converter.parquet.JsonSchema.*;
 import static org.apache.gobblin.converter.parquet.JsonSchema.InputType.STRING;
+import static org.apache.gobblin.converter.parquet.JsonElementConversionFactory.RecordConverter.RecordType.CHILD;
 import static parquet.schema.OriginalType.UTF8;
 import static parquet.schema.PrimitiveType.PrimitiveTypeName.BINARY;
 import static parquet.schema.PrimitiveType.PrimitiveTypeName.INT32;
 import static parquet.schema.PrimitiveType.PrimitiveTypeName.INT64;
 import static parquet.schema.Type.Repetition.OPTIONAL;
 import static parquet.schema.Type.Repetition.REPEATED;
+import static parquet.schema.Type.Repetition.REQUIRED;
 
 
 /**
@@ -177,7 +178,7 @@ public class JsonElementConversionFactory {
     }
 
     protected Type buildSchema() {
-      return new PrimitiveType(this.repeated ? REPEATED : this.jsonSchema.optionalOrRequired(), this.outputType,
+      return new PrimitiveType(this.repeated ? REPEATED : optionalOrRequired(this.jsonSchema), this.outputType,
           this.jsonSchema.getColumnName());
     }
 
@@ -294,7 +295,7 @@ public class JsonElementConversionFactory {
       if (this.repeated) {
         return Types.repeated(BINARY).as(UTF8).named(columnName);
       }
-      switch (this.jsonSchema.optionalOrRequired()) {
+      switch (optionalOrRequired(this.jsonSchema)) {
         case OPTIONAL:
           return Types.optional(BINARY).as(UTF8).named(columnName);
         case REQUIRED:
@@ -303,6 +304,10 @@ public class JsonElementConversionFactory {
           throw new RuntimeException("Unsupported Repetition type");
       }
     }
+  }
+
+  public static Type.Repetition optionalOrRequired(JsonSchema jsonBaseSchema) {
+    return jsonBaseSchema.isNullable() ? OPTIONAL : REQUIRED;
   }
 
   public static class ArrayConverter extends CollectionConverter {
@@ -325,12 +330,12 @@ public class JsonElementConversionFactory {
     protected Type buildSchema() {
       List<Type> fields = new ArrayList<>();
       fields.add(0, this.elementConverter.schema());
-      return new GroupType(this.jsonSchema.optionalOrRequired(), this.jsonSchema.getColumnName(), fields);
+      return new GroupType(optionalOrRequired(jsonSchema), this.jsonSchema.getColumnName(), fields);
     }
 
     @Override
     JsonSchema getElementSchema() {
-      JsonSchema jsonSchema = JsonSchema.buildBaseSchema(this.elementType);
+      JsonSchema jsonSchema = JsonSchema.buildBaseSchema(this.elementType, true);
       jsonSchema.setColumnName(ARRAY_KEY);
       return jsonSchema;
     }
@@ -347,7 +352,7 @@ public class JsonElementConversionFactory {
 
     @Override
     Object convertField(JsonElement value) {
-      if (symbols.contains(value.getAsString()) || this.jsonSchema.isNullable()) {
+      if (symbols.contains(value.getAsString()) || (this.jsonSchema.isNullable() && value.isJsonNull())) {
         return this.elementConverter.convert(value);
       }
       throw new RuntimeException("Symbol " + value.getAsString() + " does not belong to set " + symbols.toString());
@@ -360,7 +365,7 @@ public class JsonElementConversionFactory {
 
     @Override
     JsonSchema getElementSchema() {
-      JsonSchema jsonSchema = JsonSchema.buildBaseSchema(STRING);
+      JsonSchema jsonSchema = JsonSchema.buildBaseSchema(STRING, this.jsonSchema.isNullable());
       jsonSchema.setColumnName(this.jsonSchema.getColumnName());
       return jsonSchema;
     }
@@ -396,7 +401,7 @@ public class JsonElementConversionFactory {
         JsonElementConverter converter = this.converters.get(key);
         Object convertedValue = converter.convert(entry.getValue());
         boolean valueIsNull = convertedValue == null;
-        Type.Repetition repetition = converter.jsonSchema.optionalOrRequired();
+        Type.Repetition repetition = optionalOrRequired(converter.jsonSchema);
         if (valueIsNull && repetition.equals(OPTIONAL)) {
           continue;
         }
@@ -422,7 +427,7 @@ public class JsonElementConversionFactory {
         case ROOT:
           return new MessageType(docName, parquetTypes);
         case CHILD:
-          return new GroupType(this.jsonSchema.optionalOrRequired(), docName, parquetTypes);
+          return new GroupType(optionalOrRequired(this.jsonSchema), docName, parquetTypes);
         default:
           throw new RuntimeException("Unsupported Record type");
       }
@@ -463,7 +468,7 @@ public class JsonElementConversionFactory {
           Types.repeatedGroup().addFields(keyConverter.schema(), elementConverter.schema()).named(MAP_KEY)
               .asGroupType();
       String columnName = this.jsonSchema.getColumnName();
-      switch (this.jsonSchema.optionalOrRequired()) {
+      switch (optionalOrRequired(this.jsonSchema)) {
         case OPTIONAL:
           return Types.optionalGroup().addFields(mapGroup).named(columnName).asGroupType();
         case REQUIRED:
@@ -475,13 +480,13 @@ public class JsonElementConversionFactory {
 
     @Override
     JsonSchema getElementSchema() {
-      JsonSchema jsonSchema = JsonSchema.buildBaseSchema(this.elementType);
+      JsonSchema jsonSchema = JsonSchema.buildBaseSchema(this.elementType, false);
       jsonSchema.setColumnName(MAP_VALUE_COLUMN_NAME);
       return jsonSchema;
     }
 
     public JsonElementConverter getKeyConverter() {
-      JsonSchema jsonSchema = JsonSchema.buildBaseSchema(STRING);
+      JsonSchema jsonSchema = JsonSchema.buildBaseSchema(STRING, false);
       jsonSchema.setColumnName(MAP_KEY_COLUMN_NAME);
       return getConverter(jsonSchema, false);
     }

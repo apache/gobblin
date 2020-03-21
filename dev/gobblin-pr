@@ -41,6 +41,10 @@ import textwrap
 # import ssl
 # print(ssl.OPENSSL_VERSION)
 
+# Enabling following lines if you found SSL: CERTIFICATE_VERIFY_FAILED with Python3 
+#import ssl
+#ssl._create_default_https_context = ssl._create_unverified_context
+
 # Python 3 compatibility
 try:
     import urllib2 as urllib

@@ -18,15 +18,15 @@ package org.apache.gobblin.data.management.version.finder;
 
 import java.io.IOException;
 
-import org.apache.gobblin.data.management.version.TimestampedHiveDatasetVersion;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.joda.time.DateTime;
 
+import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 
-import parquet.Preconditions;
+import org.apache.gobblin.data.management.version.TimestampedHiveDatasetVersion;
 
 
 /**

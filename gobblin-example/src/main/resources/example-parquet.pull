@@ -1,0 +1,34 @@
+job.name=ExampleParquetWriter
+job.group=Parquet
+job.description=This is a job that generates test data and writes to Parquet
+job.lock.enabled=false
+task.execution.synchronousExecutionModel=false
+
+source.class=org.apache.gobblin.test.SequentialTestSource
+source.numParallelism=2
+source.inMemoryFormat=AVRO
+#source.inMemoryFormat = POJO
+#source.inMemoryFormat = PROTOBUF
+
+fs.uri=file:///
+#work.dir=SET_TO_WORK_DIRECTORY
+
+#converter.classes = CONVERTER_CLASSES_IF_ANY
+
+extract.table.name=TestData
+extract.namespace=org.apache.gobblin.example
+extract.table.type=APPEND_ONLY
+
+state.store.enabled=true
+state.store.fs.uri=${fs.uri}
+#state.store.dir=${work.dir}/store
+
+
+writer.destination.type=HDFS
+writer.output.format=PARQUET
+writer.parquet.format=AVRO
+#writer.parquet.format=PROTOBUF // use this for Protobuf data
+writer.fs.uri=${fs.uri}
+writer.builder.class=org.apache.gobblin.writer.ParquetDataWriterBuilder
+data.publisher.fs.uri=${fs.uri}
+data.publisher.type=org.apache.gobblin.publisher.BaseDataPublisher

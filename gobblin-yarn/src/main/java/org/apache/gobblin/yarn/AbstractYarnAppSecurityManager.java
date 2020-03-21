@@ -17,20 +17,13 @@
 
 package org.apache.gobblin.yarn;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
-import com.google.common.base.Throwables;
-import com.google.common.util.concurrent.AbstractIdleService;
-import com.typesafe.config.Config;
 import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import org.apache.gobblin.cluster.GobblinHelixMessagingService;
-import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.util.ExecutorsUtils;
+
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
@@ -44,10 +37,23 @@ import org.apache.helix.model.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
+import com.google.common.base.Strings;
+import com.google.common.base.Throwables;
+import com.google.common.util.concurrent.AbstractIdleService;
+import com.typesafe.config.Config;
+
+import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
+import org.apache.gobblin.cluster.GobblinClusterManager;
+import org.apache.gobblin.cluster.GobblinHelixMessagingService;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.ExecutorsUtils;
+
 /**
  * <p>
  *   The super class for key management
- *   This class uses a scheduled task to do re-login to refetch token on a
+ *   This class uses a scheduled task to do re-login to re-fetch token on a
  *   configurable schedule. It also uses a second scheduled task
  *   to renew the delegation token after each login. Both the re-login interval and the token
  *   renewing interval are configurable.
@@ -63,12 +69,15 @@ public abstract class AbstractYarnAppSecurityManager extends AbstractIdleService
   protected final HelixManager helixManager;
   protected final FileSystem fs;
   protected final Path tokenFilePath;
+
   protected Token<? extends TokenIdentifier> token;
   private final long loginIntervalInMinutes;
   private final long tokenRenewIntervalInMinutes;
-
+  private final boolean isHelixClusterManaged;
+  private final String helixInstanceName;
   private final ScheduledExecutorService loginExecutor;
   private final ScheduledExecutorService tokenRenewExecutor;
+
   private Optional<ScheduledFuture<?>> scheduledTokenRenewTask = Optional.absent();
 
   // This flag is used to tell if this is the first login. If yes, no token updated message will be
@@ -91,6 +100,10 @@ public abstract class AbstractYarnAppSecurityManager extends AbstractIdleService
         ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("KeytabReLoginExecutor")));
     this.tokenRenewExecutor = Executors.newSingleThreadScheduledExecutor(
         ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("TokenRenewExecutor")));
+    this.isHelixClusterManaged = ConfigUtils.getBoolean(config, GobblinClusterConfigurationKeys.IS_HELIX_CLUSTER_MANAGED,
+        GobblinClusterConfigurationKeys.DEFAULT_IS_HELIX_CLUSTER_MANAGED);
+    this.helixInstanceName = ConfigUtils.getString(config, GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_KEY,
+        GobblinClusterManager.class.getSimpleName());
   }
 
   @Override
@@ -162,13 +175,27 @@ public abstract class AbstractYarnAppSecurityManager extends AbstractIdleService
     }
   }
 
+  protected void sendTokenFileUpdatedMessage() {
+    // Send a message to the controller (when the cluster is not managed)
+    // and all the participants if this is not the first login
+    if (!this.isHelixClusterManaged) {
+      sendTokenFileUpdatedMessage(InstanceType.CONTROLLER);
+    }
+    sendTokenFileUpdatedMessage(InstanceType.PARTICIPANT);
+  }
+
   /**
    * This method is used to send TokenFileUpdatedMessage which will handle by {@link YarnContainerSecurityManager}
    */
   @VisibleForTesting
   protected void sendTokenFileUpdatedMessage(InstanceType instanceType) {
+    sendTokenFileUpdatedMessage(instanceType, "");
+  }
+
+  @VisibleForTesting
+  protected void sendTokenFileUpdatedMessage(InstanceType instanceType, String instanceName) {
     Criteria criteria = new Criteria();
-    criteria.setInstanceName("%");
+    criteria.setInstanceName(Strings.isNullOrEmpty(instanceName) ? "%" : instanceName);
     criteria.setResource("%");
     criteria.setPartition("%");
     criteria.setPartitionState("%");

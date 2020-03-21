@@ -19,11 +19,6 @@ package org.apache.gobblin.converter.parquet;
 import java.io.InputStreamReader;
 import java.lang.reflect.Type;
 
-import org.apache.gobblin.configuration.SourceState;
-import org.apache.gobblin.configuration.WorkUnitState;
-import org.apache.gobblin.converter.DataConversionException;
-import org.apache.gobblin.converter.SchemaConversionException;
-import org.apache.gobblin.source.workunit.Extract;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -33,6 +28,12 @@ import com.google.gson.reflect.TypeToken;
 
 import parquet.example.data.Group;
 import parquet.schema.MessageType;
+
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.DataConversionException;
+import org.apache.gobblin.converter.SchemaConversionException;
+import org.apache.gobblin.source.workunit.Extract;
 
 import static org.testng.Assert.assertEquals;
 
@@ -66,7 +67,6 @@ public class JsonIntermediateToParquetGroupConverterTest {
     MessageType schema = parquetConverter.convertSchema(test.get("schema").getAsJsonArray(), workUnit);
     Group record =
         parquetConverter.convertRecord(schema, test.get("record").getAsJsonObject(), workUnit).iterator().next();
-
     assertEqualsIgnoreSpaces(schema.toString(), test.get("expectedSchema").getAsString());
     assertEqualsIgnoreSpaces(record.toString(), test.get("expectedRecord").getAsString());
   }
@@ -74,7 +74,7 @@ public class JsonIntermediateToParquetGroupConverterTest {
   @Test(expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = "Symbol .* does not belong to set \\[.*?\\]")
   public void testEnumTypeBelongsToEnumSet()
       throws Exception {
-    JsonObject test = testCases.get("enum").getAsJsonObject();
+    JsonObject test = deepCopy(testCases.get("enum").getAsJsonObject(), JsonObject.class);
     parquetConverter = new JsonIntermediateToParquetGroupConverter();
 
     MessageType schema = parquetConverter.convertSchema(test.get("schema").getAsJsonArray(), workUnit);
@@ -97,9 +97,15 @@ public class JsonIntermediateToParquetGroupConverterTest {
   }
 
   @Test
-  public void testEnumType()
+  public void testEnumTypeWithNullableTrue()
       throws Exception {
     testCase("enum");
+  }
+
+  @Test
+  public void testEnumTypeWithNullableFalse()
+      throws Exception {
+    testCase("enum1");
   }
 
   @Test
@@ -124,5 +130,15 @@ public class JsonIntermediateToParquetGroupConverterTest {
   private void assertEqualsIgnoreSpaces(String actual, String expected) {
     assertEquals(actual.replaceAll("\\n", ";").replaceAll("\\s|\\t", ""),
         expected.replaceAll("\\n", ";").replaceAll("\\s|\\t", ""));
+  }
+
+  public <T> T deepCopy(T object, Class<T> type) {
+    try {
+      Gson gson = new Gson();
+      return gson.fromJson(gson.toJson(object, type), type);
+    } catch (Exception e) {
+      e.printStackTrace();
+      return null;
+    }
   }
 }

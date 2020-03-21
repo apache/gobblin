@@ -19,7 +19,7 @@ package org.apache.gobblin.cluster;
 
 class SingleTaskRunnerMainArgumentsDataProvider {
   static final String TEST_JOB_ID = "1";
-  static final String TEST_WORKUNIT = "/workunit.wu";
+  static final String TEST_WORKUNIT = "/_workunits/store/workunit.wu";
   static final String TEST_CLUSTER_CONF = "/cluster.conf";
 
   static String[] getArgs() {

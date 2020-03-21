@@ -91,7 +91,7 @@ public class GobblinMetricsRegistry {
    *
    * @return a {@link GobblinMetrics} instance associated with the id
    */
-  public GobblinMetrics getOrDefault(String id, Callable<? extends GobblinMetrics> valueLoader) {
+  public GobblinMetrics getOrCreate(String id, Callable<? extends GobblinMetrics> valueLoader) {
     try {
       return this.metricsCache.get(id, valueLoader);
     } catch (ExecutionException ee) {

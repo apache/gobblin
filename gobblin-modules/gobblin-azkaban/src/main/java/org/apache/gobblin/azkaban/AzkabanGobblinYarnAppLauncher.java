@@ -23,6 +23,9 @@ import java.util.Properties;
 import java.util.concurrent.TimeoutException;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.yarn.GobblinYarnAppLauncher;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.log4j.Logger;
 
@@ -31,10 +34,8 @@ import com.google.common.base.Charsets;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigRenderOptions;
 
-import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.yarn.GobblinYarnAppLauncher;
-
 import azkaban.jobExecutor.AbstractJob;
+import lombok.Getter;
 
 
 /**
@@ -60,13 +61,25 @@ public class AzkabanGobblinYarnAppLauncher extends AbstractJob {
 
   private final GobblinYarnAppLauncher gobblinYarnAppLauncher;
 
-  public AzkabanGobblinYarnAppLauncher(String jobId, Properties props) throws IOException {
+  @Getter
+  private final YarnConfiguration yarnConfiguration;
+
+  public AzkabanGobblinYarnAppLauncher(String jobId, Properties gobblinProps) throws IOException {
     super(jobId, LOGGER);
-    Config gobblinConfig = ConfigUtils.propertiesToConfig(props);
+    Config gobblinConfig = ConfigUtils.propertiesToConfig(gobblinProps);
 
     outputConfigToFile(gobblinConfig);
 
-    this.gobblinYarnAppLauncher = new GobblinYarnAppLauncher(gobblinConfig, new YarnConfiguration());
+    yarnConfiguration = initYarnConf(gobblinProps);
+
+    this.gobblinYarnAppLauncher = new GobblinYarnAppLauncher(gobblinConfig, this.yarnConfiguration);
+  }
+
+  /**
+   * Extended class can override this method by providing their own YARN configuration.
+   */
+  protected YarnConfiguration initYarnConf(Properties gobblinProps) {
+    return new YarnConfiguration();
   }
 
   @Override

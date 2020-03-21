@@ -114,7 +114,6 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   public static final String PREVIOUS_LATEST_OFFSET = "previousLatestOffset";
   public static final String OFFSET_FETCH_EPOCH_TIME = "offsetFetchEpochTime";
   public static final String PREVIOUS_OFFSET_FETCH_EPOCH_TIME = "previousOffsetFetchEpochTime";
-  public static final String NUM_TOPIC_PARTITIONS = "numTopicPartitions";
   public static final String GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS = "gobblin.kafka.consumerClient.class";
   public static final String GOBBLIN_KAFKA_EXTRACT_ALLOW_TABLE_TYPE_NAMESPACE_CUSTOMIZATION =
       "gobblin.kafka.extract.allowTableTypeAndNamspaceCustomization";
@@ -124,6 +123,15 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       "gobblin.kafka.shouldEnableDatasetStateStore";
   public static final boolean DEFAULT_GOBBLIN_KAFKA_SHOULD_ENABLE_DATASET_STATESTORE = false;
   public static final String OFFSET_FETCH_TIMER = "offsetFetchTimer";
+  public static final String RECORD_LEVEL_SLA_MINUTES_KEY = "gobblin.kafka.recordLevelSlaMinutes";
+  public static final String MAX_POSSIBLE_OBSERVED_LATENCY_IN_HOURS = "gobblin.kafka.maxobservedLatencyInHours";
+  public static final Integer DEFAULT_MAX_POSSIBLE_OBSERVED_LATENCY_IN_HOURS = 24;
+  public static final String OBSERVED_LATENCY_PRECISION = "gobblin.kafka.observedLatencyPrecision";
+  public static final Integer DEFAULT_OBSERVED_LATENCY_PRECISION = 3;
+  public static final String OBSERVED_LATENCY_MEASUREMENT_ENABLED = "gobblin.kafka.observedLatencyMeasurementEnabled";
+  public static final Boolean DEFAULT_OBSERVED_LATENCY_MEASUREMENT_ENABLED = false;
+  public static final String RECORD_CREATION_TIMESTAMP_FIELD = "gobblin.kafka.recordCreationTimestampField";
+  public static final String RECORD_CREATION_TIMESTAMP_UNIT = "gobblin.kafka.recordCreationTimestampUnit";
 
   private final Set<String> moveToLatestTopics = Sets.newTreeSet(String.CASE_INSENSITIVE_ORDER);
   private final Map<KafkaPartition, Long> previousOffsets = Maps.newConcurrentMap();
@@ -140,8 +148,8 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   private final AtomicInteger offsetTooLateCount = new AtomicInteger(0);
 
   // sharing the kafka consumer may result in contention, so support thread local consumers
-  private final ConcurrentLinkedQueue<GobblinKafkaConsumerClient> kafkaConsumerClientPool = new ConcurrentLinkedQueue();
-  private static final ThreadLocal<GobblinKafkaConsumerClient> kafkaConsumerClient =
+  protected final ConcurrentLinkedQueue<GobblinKafkaConsumerClient> kafkaConsumerClientPool = new ConcurrentLinkedQueue();
+  protected static final ThreadLocal<GobblinKafkaConsumerClient> kafkaConsumerClient =
           new ThreadLocal<GobblinKafkaConsumerClient>();
   private GobblinKafkaConsumerClient sharedKafkaConsumerClient = null;
   private final ClassAliasResolver<GobblinKafkaConsumerClientFactory> kafkaConsumerClientResolver =
@@ -240,9 +248,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
         this.sharedKafkaConsumerClient = this.kafkaConsumerClient.get();
       } else {
         // preallocate one client per thread
-        for (int i = 0; i < numOfThreads; i++) {
-          kafkaConsumerClientPool.offer(kafkaConsumerClientFactory.create(config));
-        }
+        populateClientPool(numOfThreads, kafkaConsumerClientFactory, config);
       }
 
       Stopwatch createWorkUnitStopwatch = Stopwatch.createStarted();
@@ -277,7 +283,9 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       setLimiterReportKeyListToWorkUnits(workUnitList, getLimiterExtractorReportKeys());
       return workUnitList;
     } catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
-      throw new RuntimeException(e);
+      throw new RuntimeException("Checked exception caught", e);
+    } catch (Throwable t) {
+      throw new RuntimeException("Unexpected throwable caught, ", t);
     } finally {
       try {
         if (this.kafkaConsumerClient.get() != null) {
@@ -289,8 +297,16 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
           client.close();
         }
       } catch (IOException e) {
-        throw new RuntimeException("Exception closing kafkaConsumerClient");
+        throw new RuntimeException("Exception closing kafkaConsumerClient", e);
       }
+    }
+  }
+
+  protected void populateClientPool(int count,
+      GobblinKafkaConsumerClientFactory kafkaConsumerClientFactory,
+      Config config) {
+    for (int i = 0; i < count; i++) {
+      kafkaConsumerClientPool.offer(kafkaConsumerClientFactory.create(config));
     }
   }
 
@@ -534,8 +550,32 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
         }
       }
     }
+    WorkUnit workUnit = getWorkUnitForTopicPartition(partition, offsets, topicSpecificState);
+    addSourceStatePropsToWorkUnit(workUnit, state);
+    return workUnit;
+  }
 
-    return getWorkUnitForTopicPartition(partition, offsets, topicSpecificState);
+  /**
+   * A method to copy specific properties from the {@link SourceState} object to {@link WorkUnitState}.
+   * @param workUnit WorkUnit state
+   * @param state Source state
+   */
+  private void addSourceStatePropsToWorkUnit(WorkUnit workUnit, SourceState state) {
+    //Copy the SLA config from SourceState to WorkUnitState.
+    if (state.contains(KafkaSource.RECORD_LEVEL_SLA_MINUTES_KEY)) {
+      workUnit.setProp(KafkaSource.RECORD_LEVEL_SLA_MINUTES_KEY, state.getProp(KafkaSource.RECORD_LEVEL_SLA_MINUTES_KEY));
+    }
+    boolean isobservedLatencyMeasurementEnabled = state.getPropAsBoolean(KafkaSource.OBSERVED_LATENCY_MEASUREMENT_ENABLED, DEFAULT_OBSERVED_LATENCY_MEASUREMENT_ENABLED);
+    if (isobservedLatencyMeasurementEnabled) {
+      Preconditions.checkArgument(state.contains(KafkaSource.RECORD_CREATION_TIMESTAMP_FIELD), "Missing config key: " + KafkaSource.RECORD_CREATION_TIMESTAMP_FIELD);
+      workUnit.setProp(KafkaSource.OBSERVED_LATENCY_MEASUREMENT_ENABLED, isobservedLatencyMeasurementEnabled);
+      workUnit.setProp(KafkaSource.MAX_POSSIBLE_OBSERVED_LATENCY_IN_HOURS,
+          state.getPropAsInt(KafkaSource.MAX_POSSIBLE_OBSERVED_LATENCY_IN_HOURS, DEFAULT_MAX_POSSIBLE_OBSERVED_LATENCY_IN_HOURS));
+      workUnit.setProp(KafkaSource.OBSERVED_LATENCY_PRECISION,
+          state.getPropAsInt(KafkaSource.OBSERVED_LATENCY_PRECISION, KafkaSource.DEFAULT_OBSERVED_LATENCY_PRECISION));
+      workUnit.setProp(KafkaSource.RECORD_CREATION_TIMESTAMP_FIELD, state.getProp(KafkaSource.RECORD_CREATION_TIMESTAMP_FIELD));
+      workUnit.setProp(KafkaSource.RECORD_CREATION_TIMESTAMP_UNIT, state.getProp(KafkaSource.RECORD_CREATION_TIMESTAMP_UNIT, TimeUnit.MILLISECONDS.name()));
+    }
   }
 
   private long getPreviousStartFetchEpochTimeForPartition(KafkaPartition partition, SourceState state) {

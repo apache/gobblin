@@ -27,4 +27,10 @@ public interface FileSystemDataset extends Dataset {
 
   public Path datasetRoot();
 
+  /**
+   * @return true if the dataset doesn't have a physical file/folder
+   */
+  default boolean isVirtual() {
+    return false;
+  }
 }

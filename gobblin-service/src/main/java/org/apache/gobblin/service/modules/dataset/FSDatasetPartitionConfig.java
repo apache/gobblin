@@ -78,7 +78,7 @@ public class FSDatasetPartitionConfig {
 
   public FSDatasetPartitionConfig(Config config) throws IOException {
     String partitionType = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.PARTITION_TYPE_KEY, DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY).toLowerCase();
-    String partitionPattern = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.PARTITION_PATTERN_KEY, DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY).toLowerCase();
+    String partitionPattern = ConfigUtils.getString(config, DatasetDescriptorConfigKeys.PARTITION_PATTERN_KEY, DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY);
     if (partitionType.equalsIgnoreCase(PartitionType.NONE.name())) {
       partitionPattern = DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_NONE;
     } else if(partitionType.equalsIgnoreCase(PartitionType.ANY.name())) {

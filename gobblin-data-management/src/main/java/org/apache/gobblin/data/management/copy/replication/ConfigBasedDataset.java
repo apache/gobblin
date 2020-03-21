@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
+import org.apache.gobblin.util.filesystem.ModTimeDataFileVersionStrategy;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -250,9 +251,16 @@ public class ConfigBasedDataset implements CopyableDataset {
 
 
       boolean shouldCopy = true;
+      // Can optimize by using the mod time that has already been fetched
+      boolean useDirectGetModTime = this.srcDataFileVersionStrategy.isPresent()
+          && this.srcDataFileVersionStrategy.get().getClass().getName().equals(
+              ModTimeDataFileVersionStrategy.class.getName());
+
       if (copyToFileMap.containsKey(newPath)) {
-        Comparable srcVer = this.srcDataFileVersionStrategy.get().getVersion(originFileStatus.getPath());
-        Comparable dstVer = this.dstDataFileVersionStrategy.get().getVersion(copyToFileMap.get(newPath).getPath());
+        Comparable srcVer = useDirectGetModTime ? originFileStatus.getModificationTime() :
+            this.srcDataFileVersionStrategy.get().getVersion(originFileStatus.getPath());
+        Comparable dstVer = useDirectGetModTime ? copyToFileMap.get(newPath).getModificationTime() :
+            this.dstDataFileVersionStrategy.get().getVersion(copyToFileMap.get(newPath).getPath());
 
         // destination has higher version, skip the copy
         if (srcVer.compareTo(dstVer) <= 0) {

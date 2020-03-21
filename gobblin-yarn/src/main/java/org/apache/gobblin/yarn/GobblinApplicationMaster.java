@@ -80,11 +80,11 @@ public class GobblinApplicationMaster extends GobblinClusterManager {
   @Getter
   private final YarnService yarnService;
 
-  public GobblinApplicationMaster(String applicationName, ContainerId containerId, Config config,
+  public GobblinApplicationMaster(String applicationName, String applicationId, ContainerId containerId, Config config,
       YarnConfiguration yarnConfiguration) throws Exception {
-    super(applicationName, containerId.getApplicationAttemptId().getApplicationId().toString(),
-        GobblinClusterUtils.addDynamicConfig(config.withValue(GobblinYarnConfigurationKeys.CONTAINER_NUM_KEY,
-            ConfigValueFactory.fromAnyRef(YarnHelixUtils.getContainerNum(containerId.toString())))),
+    super(applicationName, applicationId, GobblinClusterUtils.addDynamicConfig(config
+            .withValue(GobblinYarnConfigurationKeys.CONTAINER_NUM_KEY,
+                ConfigValueFactory.fromAnyRef(YarnHelixUtils.getContainerNum(containerId.toString())))),
         Optional.<Path>absent());
 
     String containerLogDir = config.getString(GobblinYarnConfigurationKeys.LOGS_SINK_ROOT_DIR_KEY);
@@ -204,6 +204,7 @@ public class GobblinApplicationMaster extends GobblinClusterManager {
   private static Options buildOptions() {
     Options options = new Options();
     options.addOption("a", GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME, true, "Yarn application name");
+    options.addOption("d", GobblinClusterConfigurationKeys.APPLICATION_ID_OPTION_NAME, true, "Yarn application id");
     return options;
   }
 
@@ -216,7 +217,8 @@ public class GobblinApplicationMaster extends GobblinClusterManager {
     Options options = buildOptions();
     try {
       CommandLine cmd = new DefaultParser().parse(options, args);
-      if (!cmd.hasOption(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME)) {
+      if (!cmd.hasOption(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME) ||
+          (!cmd.hasOption(GobblinClusterConfigurationKeys.APPLICATION_ID_OPTION_NAME))) {
         printUsage(options);
         System.exit(1);
       }
@@ -231,7 +233,8 @@ public class GobblinApplicationMaster extends GobblinClusterManager {
           ConverterUtils.toContainerId(System.getenv().get(ApplicationConstants.Environment.CONTAINER_ID.key()));
 
       try (GobblinApplicationMaster applicationMaster = new GobblinApplicationMaster(
-          cmd.getOptionValue(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME), containerId,
+          cmd.getOptionValue(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME),
+          cmd.getOptionValue(GobblinClusterConfigurationKeys.APPLICATION_ID_OPTION_NAME), containerId,
           ConfigFactory.load(), new YarnConfiguration())) {
 
         applicationMaster.start();

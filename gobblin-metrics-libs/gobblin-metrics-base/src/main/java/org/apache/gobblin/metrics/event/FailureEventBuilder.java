@@ -99,7 +99,7 @@ public class FailureEventBuilder extends GobblinEventBuilder {
     }
 
     Map<String, String> metadata = event.getMetadata();
-    FailureEventBuilder failureEvent = new FailureEventBuilder(event.getName());
+    FailureEventBuilder failureEvent = new FailureEventBuilder(event.getName(), event.getNamespace());
 
     metadata.forEach((key, value) -> {
       switch (key) {

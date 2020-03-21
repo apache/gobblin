@@ -18,32 +18,21 @@
 package org.apache.gobblin.writer;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
-import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericRecord;
-import org.apache.gobblin.ack.BasicAckableForTesting;
-import org.apache.gobblin.dataset.DatasetDescriptor;
-import org.apache.gobblin.dataset.PartitionDescriptor;
-import org.apache.gobblin.stream.FlushControlMessage;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 import org.testng.util.Strings;
 
+import org.apache.gobblin.ack.BasicAckableForTesting;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.source.extractor.CheckpointableWatermark;
-import org.apache.gobblin.source.extractor.DefaultCheckpointableWatermark;
+import org.apache.gobblin.dataset.DatasetDescriptor;
+import org.apache.gobblin.dataset.PartitionDescriptor;
+import org.apache.gobblin.stream.FlushControlMessage;
 import org.apache.gobblin.stream.RecordEnvelope;
-import org.apache.gobblin.source.extractor.extract.LongWatermark;
 import org.apache.gobblin.writer.test.TestPartitionAwareWriterBuilder;
 import org.apache.gobblin.writer.test.TestPartitioner;
-
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 
 /**
@@ -175,5 +164,32 @@ public class PartitionedWriterTest {
     Assert.assertEquals(ackable.acked, 1);
 
     writer.close();
+  }
+
+  @Test
+  public void testPartitionWriterCacheRemovalListener()
+      throws IOException, InterruptedException {
+    State state = new State();
+    state.setProp(ConfigurationKeys.WRITER_PARTITIONER_CLASS, TestPartitioner.class.getCanonicalName());
+    state.setProp(PartitionedDataWriter.PARTITIONED_WRITER_CACHE_TTL_SECONDS, 1);
+    TestPartitionAwareWriterBuilder builder = new TestPartitionAwareWriterBuilder();
+
+    PartitionedDataWriter writer = new PartitionedDataWriter<String, String>(builder, state);
+
+    String record1 = "abc";
+    writer.writeEnvelope(new RecordEnvelope(record1));
+
+    String record2 = "123";
+    writer.writeEnvelope(new RecordEnvelope(record2));
+
+    //Sleep for more than cache expiration interval
+    Thread.sleep(1500);
+
+    //Call cache clean up to ensure removal of expired entries.
+    writer.getPartitionWriters().cleanUp();
+
+    //Ensure the removal listener updates counters.
+    Assert.assertEquals(writer.getTotalRecordsFromEvictedWriters(), 2L);
+    Assert.assertEquals(writer.getTotalBytesFromEvictedWriters(), 2L);
   }
 }

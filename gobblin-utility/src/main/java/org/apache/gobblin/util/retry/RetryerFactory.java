@@ -38,7 +38,7 @@ import org.apache.gobblin.exception.NonTransientException;
  * It's recommended to use with ConfigBuilder so that with State and with prefix of the config key,
  * user can easily instantiate Retryer.
  *
- * @see GoogleAnalyticsUnsampledExtractor for some examples.
+ * see GoogleAnalyticsUnsampledExtractor for some examples.
  *
  * @param <T>
  */
@@ -48,6 +48,8 @@ public class RetryerFactory<T> {
   public static final String RETRY_INTERVAL_MS = "interval_ms";
   public static final String RETRY_TIME_OUT_MS = "time_out_ms";
   public static final String RETRY_TYPE = "retry_type";
+  // value large or equal to 1
+  public static final String RETRY_TIMES = "retry_times";
 
   private static final Predicate<Throwable> RETRY_EXCEPTION_PREDICATE;
   private static final Config DEFAULTS;
@@ -64,13 +66,15 @@ public class RetryerFactory<T> {
                                                 .put(RETRY_INTERVAL_MS, TimeUnit.SECONDS.toMillis(30L))
                                                 .put(RETRY_MULTIPLIER, 2L)
                                                 .put(RETRY_TYPE, RetryType.EXPONENTIAL.name())
+                                                .put(RETRY_TIMES, 2)
                                                 .build();
     DEFAULTS = ConfigFactory.parseMap(configMap);
   }
 
   public static enum RetryType {
     EXPONENTIAL,
-    FIXED;
+    FIXED,
+    FIXED_ATTEMPT;
   }
 
   /**
@@ -90,6 +94,8 @@ public class RetryerFactory<T> {
         return newExponentialRetryer(config);
       case FIXED:
         return newFixedRetryer(config);
+      case FIXED_ATTEMPT:
+        return newFixedAttemptBoundRetryer(config);
       default:
         throw new IllegalArgumentException(type + " is not supported");
     }
@@ -104,13 +110,20 @@ public class RetryerFactory<T> {
   }
 
   private static <T> Retryer<T> newExponentialRetryer(Config config) {
-
     return RetryerBuilder.<T> newBuilder()
         .retryIfException(RETRY_EXCEPTION_PREDICATE)
         .withWaitStrategy(WaitStrategies.exponentialWait(config.getLong(RETRY_MULTIPLIER),
                                                          config.getLong(RETRY_INTERVAL_MS),
                                                          TimeUnit.MILLISECONDS))
         .withStopStrategy(StopStrategies.stopAfterDelay(config.getLong(RETRY_TIME_OUT_MS), TimeUnit.MILLISECONDS))
+        .build();
+  }
+
+  private static <T> Retryer<T> newFixedAttemptBoundRetryer(Config config) {
+    return RetryerBuilder.<T> newBuilder()
+        .retryIfException(RETRY_EXCEPTION_PREDICATE)
+        .withWaitStrategy(WaitStrategies.fixedWait(config.getLong(RETRY_INTERVAL_MS), TimeUnit.MILLISECONDS))
+        .withStopStrategy(StopStrategies.stopAfterAttempt(config.getInt(RETRY_TIMES)))
         .build();
   }
 }

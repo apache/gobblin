@@ -54,6 +54,7 @@ import org.apache.avro.mapred.FsInput;
 import org.apache.avro.util.Utf8;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.math3.util.Pair;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
@@ -97,6 +98,8 @@ public class AvroUtils {
 
   private static final String AVRO_SUFFIX = ".avro";
 
+  private static final String SCHEMA_CREATION_TIME_KEY = "CreatedOn";
+
   /**
    * Validates that the provided reader schema can be used to decode avro data written with the
    * provided writer schema.
@@ -116,6 +119,22 @@ public class AvroUtils {
     return SchemaCompatibility.checkReaderWriterCompatibility(readerSchema, writerSchema).getType().equals(SchemaCompatibility.SchemaCompatibilityType.COMPATIBLE);
   }
 
+  public static Schema addSchemaCreationTime(Schema inputSchema, Schema outputSchema) {
+    if (inputSchema.getProp(SCHEMA_CREATION_TIME_KEY) != null && outputSchema.getProp(SCHEMA_CREATION_TIME_KEY) == null) {
+      outputSchema.addProp(SCHEMA_CREATION_TIME_KEY, inputSchema.getProp(SCHEMA_CREATION_TIME_KEY));
+    }
+    return outputSchema;
+  }
+
+  public static String getSchemaCreationTime(Schema inputSchema) {
+    return inputSchema.getProp(SCHEMA_CREATION_TIME_KEY);
+  }
+
+  public static Schema setSchemaCreationTime(Schema inputSchema, String creationTime) {
+    inputSchema.addProp(SCHEMA_CREATION_TIME_KEY, creationTime);
+    return inputSchema;
+  }
+
   public static List<Field> deepCopySchemaFields(Schema readerSchema) {
     return readerSchema.getFields().stream()
         .map(field -> {
@@ -124,6 +143,17 @@ public class AvroUtils {
           return f;
         })
         .collect(Collectors.toList());
+  }
+
+  /**
+   * Generate a {@link Schema} object from {@link Schema.Field} with Field's properties carried over to the new object.
+   * Common use cases for this method is in traversing {@link Schema} object into nested level and create {@link Schema}
+   * object for non-root level.
+   */
+  public static void convertFieldToSchemaWithProps(Map<String,JsonNode> fieldProps, Schema targetSchemaObj) {
+    for (Map.Entry<String, JsonNode> stringJsonNodeEntry : fieldProps.entrySet()) {
+      targetSchemaObj.addProp(stringJsonNodeEntry.getKey(), stringJsonNodeEntry.getValue());
+    }
   }
 
 
@@ -853,6 +883,15 @@ public class AvroUtils {
       }
     }
     return new Path(Joiner.on(Path.SEPARATOR).join(tokens));
+  }
+
+  /**
+   * Escaping ";" and "'" character in the schema string when it is being used in DDL.
+   * These characters are not allowed to show as part of column name but could possibly appear in documentation field.
+   * Therefore the escaping behavior won't cause correctness issues.
+   */
+  public static String sanitizeSchemaString(String schemaString) {
+    return schemaString.replaceAll(";",  "\\\\;").replaceAll("'", "\\\\'");
   }
 
   /**

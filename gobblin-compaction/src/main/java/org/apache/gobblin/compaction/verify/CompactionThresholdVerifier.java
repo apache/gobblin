@@ -32,6 +32,7 @@ import org.apache.gobblin.compaction.conditions.RecompactionConditionBasedOnRati
 import org.apache.gobblin.compaction.mapreduce.MRCompactor;
 import org.apache.gobblin.compaction.parser.CompactionPathParser;
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.data.management.dataset.SimpleFileSystemDataset;
 import org.apache.gobblin.dataset.FileSystemDataset;
 
 /**
@@ -74,7 +75,10 @@ public class CompactionThresholdVerifier implements CompactionVerifier<FileSyste
 
     InputRecordCountHelper helper = new InputRecordCountHelper(state);
     try {
-      double newRecords = helper.calculateRecordCount (Lists.newArrayList(new Path(dataset.datasetURN())));
+      double newRecords = 0;
+      if (!dataset.isVirtual()) {
+        newRecords = helper.calculateRecordCount (Lists.newArrayList(new Path(dataset.datasetURN())));
+      }
       double oldRecords = helper.readRecordCount (new Path(result.getDstAbsoluteDir()));
 
       if (oldRecords == 0) {

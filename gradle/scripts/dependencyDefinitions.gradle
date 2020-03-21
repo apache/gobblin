@@ -62,6 +62,7 @@ ext.externalDependency = [
     "hadoopYarnMiniCluster": "org.apache.hadoop:hadoop-minicluster:" + hadoopVersion,
     "hadoopAnnotations": "org.apache.hadoop:hadoop-annotations:" + hadoopVersion,
     "hadoopAws": "org.apache.hadoop:hadoop-aws:2.6.0",
+    "hdrHistogram": "org.hdrhistogram:HdrHistogram:2.1.11",
     "helix": "org.apache.helix:helix-core:0.8.2",
     "hiveCommon": "org.apache.hive:hive-common:" + hiveVersion,
     "hiveService": "org.apache.hive:hive-service:" + hiveVersion,
@@ -74,6 +75,8 @@ ext.externalDependency = [
     "httpcore": "org.apache.httpcomponents:httpcore:4.4.4",
     "httpasyncclient": "org.apache.httpcomponents:httpasyncclient:4.1.3",
     "jgit": "org.eclipse.jgit:org.eclipse.jgit:5.1.1.201809181055-r",
+    "jmh": "org.openjdk.jmh:jmh-core:1.17.3",
+    "jmhAnnotations": "org.openjdk.jmh:jmh-generator-annprocess:1.17.3",
     "kafka08": "org.apache.kafka:kafka_2.11:" + kafka08Version,
     "kafka08Test": "org.apache.kafka:kafka_2.11:" + kafka08Version + ":test",
     "kafka08Client": "org.apache.kafka:kafka-clients:" + kafka08Version,
@@ -130,7 +133,7 @@ ext.externalDependency = [
     "curatorTest": "org.apache.curator:curator-test:2.10.0",
     "hamcrest": "org.hamcrest:hamcrest-all:1.3",
     "joptSimple": "net.sf.jopt-simple:jopt-simple:4.9",
-    "protobuf": "com.google.protobuf:protobuf-java:2.5.0",
+    "protobuf": "com.google.protobuf:protobuf-java:3.6.1",
     "pegasus" : [
         "data" : "com.linkedin.pegasus:data:" + pegasusVersion,
         "generator" : "com.linkedin.pegasus:generator:" + pegasusVersion,
@@ -168,20 +171,25 @@ ext.externalDependency = [
     "grok": "io.thekraken:grok:0.1.5",
     "hadoopAdl" : "org.apache.hadoop:hadoop-azure-datalake:3.0.0-alpha2",
     "orcMapreduce":"org.apache.orc:orc-mapreduce:1.6.1",
-    'parquet': 'com.twitter:parquet-hadoop-bundle:1.5.0',
+    'parquet': 'org.apache.parquet:parquet-hadoop:1.10.1',
+    'parquetAvro': 'org.apache.parquet:parquet-avro:1.10.1',
+    'parquetProto': 'org.apache.parquet:parquet-protobuf:1.10.1',
+    'twitterParquet': 'com.twitter:parquet-hadoop-bundle:1.5.0',
+    'twitterParquetAvro': 'com.twitter:parquet-avro:1.5.0',
+    'twitterParquetProto': 'com.twitter:parquet-protobuf:1.5.0',
     'reactivex': 'io.reactivex.rxjava2:rxjava:2.1.0',
     "slf4j": [
         "org.slf4j:slf4j-api:" + slf4jVersion,
+        "org.slf4j:slf4j-log4j12:" + slf4jVersion,
         "org.slf4j:jcl-over-slf4j:" + slf4jVersion
     ],
-    "log4j2": [
-            "org.apache.logging.log4j:log4j-api:"+log4j2Version,
-            "org.apache.logging.log4j:log4j-core:" + log4j2Version,
-            "org.apache.logging.log4j:log4j-1.2-api:" + log4j2Version,
-            "org.apache.logging.log4j:log4j-slf4j-impl:" + log4j2Version,
+    "log4j": [
+        "log4j:log4j:" + log4jVersion,
+        "log4j:apache-log4j-extras:" + log4jVersion
     ],
     "postgresConnector": "org.postgresql:postgresql:42.1.4",
     "assertj": 'org.assertj:assertj-core:3.8.0',
+    "protobuf": 'com.google.protobuf:protobuf-java:3.6.1',
 ]
 
 if (!isDefaultEnvironment)

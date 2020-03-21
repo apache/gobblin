@@ -17,12 +17,14 @@
 
 package org.apache.gobblin.service.monitoring;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import com.google.common.eventbus.EventBus;
 
 import lombok.Builder;
 
@@ -36,8 +38,10 @@ import org.apache.gobblin.annotation.Alpha;
 @Builder
 public class FlowStatusGenerator {
   public static final List<String> FINISHED_STATUSES = Lists.newArrayList("FAILED", "COMPLETE", "CANCELLED");
+  public static final int MAX_LOOKBACK = 100;
 
   private final JobStatusRetriever jobStatusRetriever;
+  private final EventBus eventBus;
 
   /**
    * Get the flow statuses of last <code>count</code> (or fewer) executions
@@ -59,6 +63,53 @@ public class FlowStatusGenerator {
             .collect(Collectors.toList());
 
     return flowStatuses;
+  }
+
+  /**
+   * Get the flow statuses of last <code>count</code> (or fewer) executions
+   * @param flowName
+   * @param flowGroup
+   * @param count
+   * @param tag
+   * @param executionStatus
+   * @return the latest <code>count</code>{@link FlowStatus}es. null is returned if there is no flow execution found.
+   * If tag is not null, the job status list only contains jobs matching the tag.
+   * If executionStatus is not null, the latest <code>count</code> flow statuses with that status are returned (as long
+   * as they are within the last {@link #MAX_LOOKBACK} executions for this flow).
+   */
+  public List<FlowStatus> getLatestFlowStatus(String flowName, String flowGroup, int count, String tag, String executionStatus) {
+    if (executionStatus == null) {
+      return getLatestFlowStatus(flowName, flowGroup, count, tag);
+    } else {
+      List<FlowStatus> flowStatuses = getLatestFlowStatus(flowName, flowGroup, MAX_LOOKBACK, tag);
+      if (flowStatuses == null) {
+        return null;
+      }
+      List<FlowStatus> matchingFlowStatuses = new ArrayList<>();
+
+      for (FlowStatus flowStatus : flowStatuses) {
+        if (matchingFlowStatuses.size() == count) {
+          return matchingFlowStatuses;
+        }
+
+        String executionStatusFromFlow = getExecutionStatus(flowStatus);
+        if (executionStatusFromFlow.equals(executionStatus)) {
+          matchingFlowStatuses.add(getFlowStatus(flowName, flowGroup, flowStatus.getFlowExecutionId(), tag));
+        }
+      }
+
+      return matchingFlowStatuses;
+    }
+  }
+
+  /**
+   * Return the executionStatus of the given {@link FlowStatus}. Note that the {@link FlowStatus#jobStatusIterator}
+   * will have it's cursor moved forward by this.
+   */
+  private String getExecutionStatus(FlowStatus flowStatus) {
+    List<JobStatus> jobStatuses = Lists.newArrayList(flowStatus.getJobStatusIterator());
+    jobStatuses = jobStatuses.stream().filter(JobStatusRetriever::isFlowStatus).collect(Collectors.toList());
+    return jobStatuses.isEmpty() ? "" : jobStatuses.get(0).getEventName();
   }
 
   /**
@@ -119,5 +170,12 @@ public class FlowStatusGenerator {
   private boolean isJobRunning(JobStatus jobStatus) {
     String status = jobStatus.getEventName().toUpperCase();
     return !FINISHED_STATUSES.contains(status);
+  }
+
+  /**
+   * Send kill request for the given flow
+   */
+  public void killFlow(String flowGroup, String flowName, Long flowExecutionId) {
+    this.eventBus.post(new KillFlowEvent(flowGroup, flowName, flowExecutionId));
   }
 }

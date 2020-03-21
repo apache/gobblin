@@ -17,48 +17,47 @@
 
 package org.apache.gobblin.cluster;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.io.IOException;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.testng.annotations.Test;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
+
+import org.apache.gobblin.util.PathUtils;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 
 public class GobblinClusterUtilsTest {
-
-  FileSystem fs = mock(FileSystem.class);
-
-  @Test
-  public void work_dir_should_get_value_from_config_when_specified() throws Exception {
-    Map<String, String> configMap = new HashMap<>();
-    configMap.put("gobblin.cluster.workDir", "/foo/bar");
-
-    Config config = ConfigFactory.parseMap(configMap);
-
-    Path workDirPath = GobblinClusterUtils
-        .getAppWorkDirPathFromConfig(config, fs, "appName", "appid");
-
-    assertEquals(new Path("/foo/bar"), workDirPath);
-
-  }
+  private static final String TEST_APP_NAME = "appName";
+  private static final String TEST_APP_ID = "appId";
+  private static final String TEST_WORK_DIR = "file:///foo/bar";
+  private static final String DEFAULT_HOME_DIR = "file:///home";
 
   @Test
-  public void work_dir_should_get_default_calculated_value_when_not_specified() throws Exception {
-    Map<String, String> configMap = new HashMap<>();
-    Config config = ConfigFactory.parseMap(configMap);
+  public void testGetAppWorkDirPathFromConfig() throws IOException {
+    FileSystem localFs = FileSystem.getLocal(new Configuration());
+    FileSystem mockFs = mock(FileSystem.class);
 
-    when(fs.getHomeDirectory()).thenReturn(new Path("/home/"));
+    when(mockFs.getHomeDirectory()).thenReturn(new Path(DEFAULT_HOME_DIR));
+    when(mockFs.getUri()).thenReturn(localFs.getUri());
 
-    Path workDirPath = GobblinClusterUtils
-        .getAppWorkDirPathFromConfig(config, fs, "appName", "appid");
+    //Set gobblin.cluster.workDir config
+    Config config = ConfigFactory.empty().withValue(GobblinClusterConfigurationKeys.CLUSTER_WORK_DIR,
+        ConfigValueFactory.fromAnyRef(TEST_WORK_DIR));
+    Path workDirPath = GobblinClusterUtils.getAppWorkDirPathFromConfig(config, localFs, TEST_APP_NAME, TEST_APP_ID);
 
-    assertEquals(new Path("/home/appName/appid"), workDirPath);
+    assertEquals(PathUtils.combinePaths(TEST_WORK_DIR, TEST_APP_NAME, TEST_APP_ID), workDirPath);
+
+    //Get workdir when gobblin.cluster.workDir is not specified
+    workDirPath = GobblinClusterUtils
+        .getAppWorkDirPathFromConfig(ConfigFactory.empty(), mockFs, TEST_APP_NAME, TEST_APP_ID);
+    assertEquals(PathUtils.combinePaths(DEFAULT_HOME_DIR, TEST_APP_NAME, TEST_APP_ID), workDirPath);
   }
 }
