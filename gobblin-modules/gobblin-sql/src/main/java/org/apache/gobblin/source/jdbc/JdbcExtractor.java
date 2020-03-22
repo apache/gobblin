@@ -17,26 +17,11 @@
 
 package org.apache.gobblin.source.jdbc;
 
-import java.io.IOException;
-import java.sql.Blob;
-import java.sql.Clob;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.sql.Types;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-
+import com.google.common.base.Joiner;
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOrderBy;
@@ -45,15 +30,6 @@ import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.common.base.Joiner;
-import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.password.PasswordManager;
@@ -65,7 +41,6 @@ import org.apache.gobblin.source.extractor.extract.Command;
 import org.apache.gobblin.source.extractor.extract.CommandOutput;
 import org.apache.gobblin.source.extractor.extract.QueryBasedExtractor;
 import org.apache.gobblin.source.extractor.extract.SourceSpecificLayer;
-import org.apache.gobblin.source.jdbc.JdbcCommand.JdbcCommandType;
 import org.apache.gobblin.source.extractor.resultset.RecordSetList;
 import org.apache.gobblin.source.extractor.schema.ColumnAttributes;
 import org.apache.gobblin.source.extractor.schema.ColumnNameCase;
@@ -73,7 +48,17 @@ import org.apache.gobblin.source.extractor.schema.Schema;
 import org.apache.gobblin.source.extractor.utils.Utils;
 import org.apache.gobblin.source.extractor.watermark.Predicate;
 import org.apache.gobblin.source.extractor.watermark.WatermarkType;
+import org.apache.gobblin.source.jdbc.JdbcCommand.JdbcCommandType;
 import org.apache.gobblin.source.workunit.WorkUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.sql.*;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.*;
 
 
 /**
@@ -359,7 +344,6 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
       // this.escapeCharsInColumnName(this.workUnit.getProp(ConfigurationKeys.SOURCE_ENTITY),
       // ConfigurationKeys.ESCAPE_CHARS_IN_COLUMN_NAME, "_"));
       this.log.info("Schema:" + targetSchema);
-      this.log.info("Extract query: " + this.getExtractSql());
     } catch (RuntimeException | IOException | SchemaException e) {
       throw new SchemaException("Failed to get metadata using JDBC; error - " + e.getMessage(), e);
     }
@@ -710,7 +694,6 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
       }
     }
 
-    this.log.info("Executing query:" + query);
     ResultSet resultSet = null;
     try {
       this.jdbcSource = createJdbcSource();
@@ -725,12 +708,14 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
       if (queryParameters != null && queryParameters.size() > 0) {
         for (String parameter : queryParameters) {
           statement.setString(parameterPosition, parameter);
+          query = query.replaceFirst("\\?", parameter);
           parameterPosition++;
         }
       }
       if (fetchSize != 0) {
         statement.setFetchSize(fetchSize);
       }
+      this.log.info("Executing query: " + query);
       final boolean status = statement.execute();
       if (status == false) {
         this.log.error("Failed to execute sql:" + query);
