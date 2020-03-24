@@ -155,6 +155,8 @@ public class GobblinYarnAppLauncher {
 
   private static final String GOBBLIN_YARN_APPLICATION_TYPE = "GOBBLIN_YARN";
 
+  private static final String FAIL_RECONNECTABLE_APP = "failReconnectableAppMaster";
+
   // The set of Yarn application types this class is interested in. This is used to
   // lookup the application this class has launched previously upon restarting.
   private static final Set<String> APPLICATION_TYPES = ImmutableSet.of(GOBBLIN_YARN_APPLICATION_TYPE);
@@ -219,6 +221,8 @@ public class GobblinYarnAppLauncher {
   private Optional<AbstractYarnAppSecurityManager> securityManager = Optional.absent();
 
   private final String containerTimezone;
+
+  private final boolean failReconnectableApp ;
 
   public GobblinYarnAppLauncher(Config config, YarnConfiguration yarnConfiguration) throws IOException {
     this.config = config;
@@ -286,6 +290,7 @@ public class GobblinYarnAppLauncher {
 
     this.messagingService = new GobblinHelixMessagingService(this.helixManager);
 
+    this.failReconnectableApp = this.config.hasPath(FAIL_RECONNECTABLE_APP) && this.config.getBoolean(FAIL_RECONNECTABLE_APP);
   }
 
   /**
@@ -499,6 +504,14 @@ public class GobblinYarnAppLauncher {
   private Optional<ApplicationId> getApplicationId() throws YarnException, IOException {
     Optional<ApplicationId> reconnectableApplicationId = getReconnectableApplicationId();
     if (reconnectableApplicationId.isPresent()) {
+
+      // Fail the launching job if there's existing application. Avoid different launcher step toes on each other
+      // if mis-configured.
+      if (this.failReconnectableApp) {
+        throw new RuntimeException(String.format("There's existing execution for this AM [%s], abort the launch",
+            reconnectableApplicationId.get()));
+      }
+
       LOGGER.info("Found reconnectable application with application ID: " + reconnectableApplicationId.get());
       return reconnectableApplicationId;
     }
