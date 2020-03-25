@@ -45,7 +45,9 @@ public class ResultChainingIterator implements Iterator<JsonElement> {
   }
 
   public void add(Iterator<JsonElement> iter) {
-    this.iter = Iterators.concat(this.iter, iter);
+    if (iter != null) {
+      this.iter = Iterators.concat(this.iter, iter);
+    }
   }
 
   @Override
