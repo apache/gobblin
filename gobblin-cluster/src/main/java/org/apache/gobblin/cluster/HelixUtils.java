@@ -20,6 +20,7 @@ package org.apache.gobblin.cluster;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
@@ -27,9 +28,14 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import org.apache.helix.HelixAdmin;
+import org.apache.helix.HelixDataAccessor;
+import org.apache.helix.HelixException;
 import org.apache.helix.HelixManager;
+import org.apache.helix.PropertyKey;
 import org.apache.helix.manager.zk.ZKHelixManager;
 import org.apache.helix.model.HelixConfigScope;
+import org.apache.helix.model.InstanceConfig;
 import org.apache.helix.task.JobConfig;
 import org.apache.helix.task.TargetState;
 import org.apache.helix.task.TaskConfig;
@@ -329,6 +335,34 @@ public class HelixUtils {
 
     for (Map.Entry<Object, Object> entry: properties.entrySet()) {
       System.setProperty(entry.getKey().toString(), entry.getValue().toString());
+    }
+  }
+
+  /**
+   * A utility method that returns all current live instances in a given Helix cluster. This method assumes that
+   * the passed {@link HelixManager} instance is already connected.
+   * @param helixManager
+   * @return all live instances in the Helix cluster.
+   */
+  public static List<String> getLiveInstances(HelixManager helixManager) {
+    HelixDataAccessor accessor = helixManager.getHelixDataAccessor();
+    PropertyKey liveInstancesKey = accessor.keyBuilder().liveInstances();
+    return accessor.getChildNames(liveInstancesKey);
+  }
+
+  public static boolean isInstanceLive(HelixManager helixManager, String instanceName) {
+    HelixDataAccessor accessor = helixManager.getHelixDataAccessor();
+    PropertyKey liveInstanceKey = accessor.keyBuilder().liveInstance(instanceName);
+    return accessor.getProperty(liveInstanceKey) != null;
+  }
+
+  public static boolean dropInstanceIfExists(HelixAdmin admin, String clusterName, String helixInstanceName) {
+    try {
+      admin.dropInstance(clusterName, new InstanceConfig(helixInstanceName));
+      return true;
+    } catch (HelixException e) {
+      log.error("Could not drop instance: {} due to: {}", helixInstanceName, e);
+      return false;
     }
   }
 }

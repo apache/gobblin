@@ -56,6 +56,7 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -108,6 +109,7 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
   protected ServiceBasedAppLauncher applicationLauncher;
 
   // An EventBus used for communications between services running in the ApplicationMaster
+  @Getter(AccessLevel.PUBLIC)
   protected final EventBus eventBus = new EventBus(GobblinClusterManager.class.getSimpleName());
 
   protected final Path appWorkDir;
@@ -399,12 +401,6 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
   public void handleApplicationMasterShutdownRequest(ClusterManagerShutdownRequest shutdownRequest) {
     stop();
   }
-
-  @VisibleForTesting
-  EventBus getEventBus() {
-    return this.eventBus;
-  }
-
 
   /**
    * Creates and returns a {@link MessageHandlerFactory} for handling of Helix

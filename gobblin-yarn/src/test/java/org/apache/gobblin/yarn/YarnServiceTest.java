@@ -17,13 +17,6 @@
 
 package org.apache.gobblin.yarn;
 
-import com.google.common.base.Predicate;
-import com.google.common.eventbus.EventBus;
-import com.google.common.io.Closer;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
-import com.typesafe.config.ConfigValueFactory;
-
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.URL;
@@ -35,7 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeoutException;
-import org.apache.gobblin.testing.AssertWithBackoff;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -63,6 +56,15 @@ import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
+
+import com.google.common.base.Predicate;
+import com.google.common.eventbus.EventBus;
+import com.google.common.io.Closer;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
+
+import org.apache.gobblin.testing.AssertWithBackoff;
 
 
 /**
@@ -282,7 +284,7 @@ public class YarnServiceTest {
    static class TestYarnService extends YarnService {
     public TestYarnService(Config config, String applicationName, String applicationId, YarnConfiguration yarnConfiguration,
         FileSystem fs, EventBus eventBus) throws Exception {
-      super(config, applicationName, applicationId, yarnConfiguration, fs, eventBus);
+      super(config, applicationName, applicationId, yarnConfiguration, fs, eventBus, null);
     }
 
     protected ContainerLaunchContext newContainerLaunchContext(Container container, String helixInstanceName)

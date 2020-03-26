@@ -28,6 +28,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -42,12 +44,15 @@ import org.apache.commons.cli.ParseException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.helix.HelixAdmin;
 import org.apache.helix.HelixDataAccessor;
+import org.apache.helix.HelixException;
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.HelixProperty;
 import org.apache.helix.InstanceType;
 import org.apache.helix.NotificationContext;
+import org.apache.helix.manager.zk.ZKHelixAdmin;
 import org.apache.helix.messaging.handling.HelixTaskResult;
 import org.apache.helix.messaging.handling.MessageHandler;
 import org.apache.helix.messaging.handling.MessageHandlerFactory;
@@ -57,6 +62,10 @@ import org.apache.helix.task.TaskStateModelFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.github.rholder.retry.RetryException;
+import com.github.rholder.retry.Retryer;
+import com.github.rholder.retry.RetryerBuilder;
+import com.github.rholder.retry.StopStrategies;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -81,6 +90,7 @@ import org.apache.gobblin.util.FileUtils;
 import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.JvmUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
+
 
 /**
  * The main class running in the containers managing services for running Gobblin
@@ -121,6 +131,7 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
 
   private final String clusterName;
 
+  @Getter
   private HelixManager jobHelixManager;
 
   private Optional<HelixManager> taskDriverHelixManager = Optional.absent();
@@ -292,7 +303,7 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
     // Add a shutdown hook so the task scheduler gets properly shutdown
     addShutdownHook();
 
-    connectHelixManager();
+    connectHelixManagerWithRetry();
 
     addInstanceTags();
 
@@ -366,20 +377,74 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
   }
 
   @VisibleForTesting
-  void connectHelixManager() {
-    try {
-      this.jobHelixManager.connect();
-      this.jobHelixManager.getMessagingService()
-          .registerMessageHandlerFactory(GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE,
-              new ParticipantShutdownMessageHandlerFactory());
-      this.jobHelixManager.getMessagingService()
-          .registerMessageHandlerFactory(Message.MessageType.USER_DEFINE_MSG.toString(),
-              getUserDefinedMessageHandlerFactory());
-      if (this.taskDriverHelixManager.isPresent()) {
-        this.taskDriverHelixManager.get().connect();
+  void connectHelixManager() throws Exception {
+    this.jobHelixManager.connect();
+    //Ensure the instance is enabled.
+    this.jobHelixManager.getClusterManagmentTool().enableInstance(clusterName, helixInstanceName, true);
+    this.jobHelixManager.getMessagingService()
+        .registerMessageHandlerFactory(GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE,
+            new ParticipantShutdownMessageHandlerFactory());
+    this.jobHelixManager.getMessagingService()
+        .registerMessageHandlerFactory(Message.MessageType.USER_DEFINE_MSG.toString(),
+            getUserDefinedMessageHandlerFactory());
+    if (this.taskDriverHelixManager.isPresent()) {
+      this.taskDriverHelixManager.get().connect();
+      //Ensure the instance is enabled.
+      this.taskDriverHelixManager.get().getClusterManagmentTool().enableInstance(this.taskDriverHelixManager.get().getClusterName(), helixInstanceName, true);
+    }
+  }
+
+  /**
+   * A method to handle failures joining Helix cluster. The method will perform the following steps before attempting
+   * to re-join the cluster:
+   * <li>
+   *   <ul>Disconnect from Helix cluster, which would close any open clients</ul>
+   *   <ul>Drop instance from Helix cluster, to remove any partial instance structure from Helix</ul>
+   *   <ul>Re-construct helix manager instances, used to re-join the cluster</ul>
+   * </li>
+   */
+  private void onClusterJoinFailure() {
+    logger.warn("Disconnecting Helix manager..");
+    disconnectHelixManager();
+
+    HelixAdmin admin = new ZKHelixAdmin(clusterConfig.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY));
+    //Drop the helix Instance
+    logger.warn("Dropping instance: {} from cluster: {}", helixInstanceName, clusterName);
+    HelixUtils.dropInstanceIfExists(admin, clusterName, helixInstanceName);
+
+    if (this.taskDriverHelixManager.isPresent()) {
+      String taskDriverCluster = clusterConfig.getString(GobblinClusterConfigurationKeys.TASK_DRIVER_CLUSTER_NAME_KEY);
+      logger.warn("Dropping instance: {} from task driver cluster: {}", helixInstanceName, taskDriverCluster);
+      HelixUtils.dropInstanceIfExists(admin, taskDriverCluster, helixInstanceName);
+    }
+    admin.close();
+
+    logger.warn("Reinitializing Helix manager..");
+    initHelixManager();
+  }
+
+  @VisibleForTesting
+  void connectHelixManagerWithRetry() {
+    Callable<Void> connectHelixManagerCallable = () -> {
+      try {
+        logger.info("Instance: {} attempting to join cluster: {}", helixInstanceName, clusterName);
+        connectHelixManager();
+      } catch (HelixException e) {
+        logger.error("Exception encountered when joining cluster", e);
+        onClusterJoinFailure();
+        throw e;
       }
-    } catch (Exception e) {
-      logger.error("HelixManager failed to connect", e);
+      return null;
+    };
+
+    Retryer<Void> retryer = RetryerBuilder.<Void>newBuilder()
+        .retryIfException()
+        .withStopStrategy(StopStrategies.stopAfterAttempt(5)).build();
+
+    try {
+      retryer.call(connectHelixManagerCallable);
+    } catch (ExecutionException | RetryException e) {
+      logger.error("Connecting to Helix manager failed", e);
       throw Throwables.propagate(e);
     }
   }
