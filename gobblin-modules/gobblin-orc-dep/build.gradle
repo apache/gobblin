@@ -52,6 +52,12 @@ configurations {
 
 shadowJar {
   zip64 true
+
+  dependencies {
+    exclude dependency('org.slf4j:.*')
+    exclude dependency('commons-lang:.*')
+  }
+
   relocate 'org.apache.hadoop.hive', 'shadow.gobblin.orc.org.apache.hadoop.hive'
   relocate 'com.google', 'shadow.gobblin.orc.com.google'
 }
