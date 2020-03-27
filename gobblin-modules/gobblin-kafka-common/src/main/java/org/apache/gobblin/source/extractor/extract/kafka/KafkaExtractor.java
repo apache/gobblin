@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
 import lombok.Getter;
 
@@ -321,6 +322,11 @@ public abstract class KafkaExtractor<S, D> extends EventBasedExtractor<S, D> {
     this.workUnitState.setActualHighWatermark(this.nextWatermark);
     if (isInstrumentationEnabled()) {
       this.statsTracker.emitTrackingEvents(getMetricContext(), this.lowWatermark, this.highWatermark, this.nextWatermark);
+    } else {
+      // Need to call this even when not emitting metrics because some state, such as the average pull time,
+      // is updated when the tags are generated
+      this.statsTracker.generateTagsForPartitions(this.lowWatermark, this.highWatermark, this.nextWatermark,
+          Maps.newHashMap());
     }
   }
 
