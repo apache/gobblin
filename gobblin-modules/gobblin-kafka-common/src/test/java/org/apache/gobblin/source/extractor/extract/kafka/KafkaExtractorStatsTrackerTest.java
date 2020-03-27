@@ -33,10 +33,11 @@ import com.google.common.collect.ImmutableMap;
 
 import org.apache.gobblin.configuration.WorkUnitState;
 
-
+@Test(singleThreaded = true)
 public class KafkaExtractorStatsTrackerTest {
   List<KafkaPartition> kafkaPartitions = new ArrayList<>();
   private KafkaExtractorStatsTracker extractorStatsTracker;
+  private WorkUnitState workUnitState;
   final static KafkaPartition PARTITION0 =  new KafkaPartition.Builder().withTopicName("test-topic").withId(0).build();
   final static KafkaPartition PARTITION1 =  new KafkaPartition.Builder().withTopicName("test-topic").withId(1).build();
 
@@ -44,9 +45,9 @@ public class KafkaExtractorStatsTrackerTest {
   public void setUp() {
     kafkaPartitions.add(PARTITION0);
     kafkaPartitions.add(PARTITION1);
-    WorkUnitState workUnitState = new WorkUnitState();
-    workUnitState.setProp(KafkaSource.RECORD_LEVEL_SLA_MINUTES_KEY, 10L);
-    workUnitState.setProp(KafkaSource.OBSERVED_LATENCY_MEASUREMENT_ENABLED, true);
+    this.workUnitState = new WorkUnitState();
+    this.workUnitState.setProp(KafkaSource.RECORD_LEVEL_SLA_MINUTES_KEY, 10L);
+    this.workUnitState.setProp(KafkaSource.OBSERVED_LATENCY_MEASUREMENT_ENABLED, true);
     this.extractorStatsTracker = new KafkaExtractorStatsTracker(workUnitState, kafkaPartitions);
   }
 
@@ -195,8 +196,36 @@ public class KafkaExtractorStatsTrackerTest {
     MultiLongWatermark nextWatermark = new MultiLongWatermark(Arrays.asList(new Long(15), new Long(25)));
     Map<KafkaPartition, Map<String, String>> addtionalTags =
         ImmutableMap.of(PARTITION0, ImmutableMap.of("testKey", "testValue"));
+
+    this.workUnitState.removeProp(KafkaUtils.getPartitionPropName(KafkaSource.START_FETCH_EPOCH_TIME, 0));
+    this.workUnitState.removeProp(KafkaUtils.getPartitionPropName(KafkaSource.STOP_FETCH_EPOCH_TIME, 0));
+    KafkaUtils.setPartitionAvgRecordMillis(this.workUnitState, PARTITION0, 0);
+
+    KafkaExtractorStatsTracker.ExtractorStats extractorStats = this.extractorStatsTracker.getStatsMap()
+        .get(kafkaPartitions.get(0));
+
+    extractorStats.setStartFetchEpochTime(1000);
+    extractorStats.setStopFetchEpochTime(10000);
+    extractorStats.setAvgMillisPerRecord(10.1);
+
     Map<KafkaPartition, Map<String, String>> result =
         extractorStatsTracker.generateTagsForPartitions(lowWatermark, highWatermark, nextWatermark, addtionalTags);
+
+    // generateTagsForPartitions will set the following in the workUnitState
+    Assert.assertEquals(this.workUnitState.getPropAsLong(
+        KafkaUtils.getPartitionPropName(KafkaSource.START_FETCH_EPOCH_TIME, 0)),
+        extractorStats.getStartFetchEpochTime());
+    Assert.assertEquals(this.workUnitState.getPropAsLong(
+        KafkaUtils.getPartitionPropName(KafkaSource.STOP_FETCH_EPOCH_TIME, 0)),
+        extractorStats.getStopFetchEpochTime());
+    Assert.assertEquals(KafkaUtils.getPartitionAvgRecordMillis(this.workUnitState, PARTITION0),
+        extractorStats.getAvgMillisPerRecord());
+
+    // restore values since other tests check for them
+    extractorStats.setStartFetchEpochTime(0);
+    extractorStats.setStopFetchEpochTime(0);
+    extractorStats.setAvgMillisPerRecord(-1);
+
     Assert.assertTrue(result.get(PARTITION0).containsKey("testKey"));
     Assert.assertEquals(result.get(PARTITION0).get("testKey"), "testValue");
     Assert.assertFalse(result.get(PARTITION1).containsKey("testKey"));
