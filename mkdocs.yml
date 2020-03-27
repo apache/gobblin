@@ -99,6 +99,7 @@ pages:
         - Documentation Architecture: developer-guide/Documentation-Architecture.md
         - Contributing: developer-guide/Contributing.md
         - Gobblin Modules: developer-guide/GobblinModules.md
+        - High Level Consumer: developer-guide/HighLevelConsumer.md
     - Project:
         - Feature List: project/Feature-List.md
         - Contributors and Team: project/Team.md
