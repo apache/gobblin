@@ -193,7 +193,6 @@ public class YarnService extends AbstractIdleService {
   // into the queue if the container running the instance completes. Unused Helix
   // instance names get picked up when replacement containers get allocated.
   private final ConcurrentLinkedQueue<String> unusedHelixInstanceNames = Queues.newConcurrentLinkedQueue();
-  private boolean reuseUnusedHelixInstanceNames = true;
 
   private volatile boolean shutdownInProgress = false;
 
@@ -634,6 +633,9 @@ public class YarnService extends AbstractIdleService {
    */
   protected void handleContainerCompletion(ContainerStatus containerStatus) {
     Map.Entry<Container, String> completedContainerEntry = this.containerMap.remove(containerStatus.getContainerId());
+    //Get the Helix instance name for the completed container. Because callbacks are processed asynchronously, we might
+    //encounter situations where handleContainerCompletion() is called before onContainersAllocated(), resulting in the
+    //containerId missing from the containersMap.
     String completedInstanceName = completedContainerEntry == null?  UNKNOWN_HELIX_INSTANCE : completedContainerEntry.getValue();
 
     LOGGER.info(String.format("Container %s running Helix instance %s has completed with exit status %d",

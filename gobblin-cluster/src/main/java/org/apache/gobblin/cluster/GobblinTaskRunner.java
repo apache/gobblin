@@ -91,7 +91,6 @@ import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.JvmUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
-
 /**
  * The main class running in the containers managing services for running Gobblin
  * {@link org.apache.gobblin.source.workunit.WorkUnit}s.
@@ -415,7 +414,7 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
     if (this.taskDriverHelixManager.isPresent()) {
       String taskDriverCluster = clusterConfig.getString(GobblinClusterConfigurationKeys.TASK_DRIVER_CLUSTER_NAME_KEY);
       logger.warn("Dropping instance: {} from task driver cluster: {}", helixInstanceName, taskDriverCluster);
-      HelixUtils.dropInstanceIfExists(admin, taskDriverCluster, helixInstanceName);
+      HelixUtils.dropInstanceIfExists(admin, clusterName, helixInstanceName);
     }
     admin.close();
 
@@ -444,8 +443,7 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
     try {
       retryer.call(connectHelixManagerCallable);
     } catch (ExecutionException | RetryException e) {
-      logger.error("Connecting to Helix manager failed", e);
-      throw Throwables.propagate(e);
+      Throwables.propagate(e);
     }
   }
 

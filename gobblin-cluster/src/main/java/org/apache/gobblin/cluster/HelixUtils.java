@@ -356,13 +356,11 @@ public class HelixUtils {
     return accessor.getProperty(liveInstanceKey) != null;
   }
 
-  public static boolean dropInstanceIfExists(HelixAdmin admin, String clusterName, String helixInstanceName) {
+  public static void dropInstanceIfExists(HelixAdmin admin, String clusterName, String helixInstanceName) {
     try {
       admin.dropInstance(clusterName, new InstanceConfig(helixInstanceName));
-      return true;
     } catch (HelixException e) {
       log.error("Could not drop instance: {} due to: {}", helixInstanceName, e);
-      return false;
     }
   }
 }
