@@ -119,7 +119,8 @@ public class GobblinApplicationMaster extends GobblinClusterManager {
   protected YarnService buildYarnService(Config config, String applicationName, String applicationId,
       YarnConfiguration yarnConfiguration, FileSystem fs)
       throws Exception {
-    return new YarnService(config, applicationName, applicationId, yarnConfiguration, fs, this.eventBus);
+    return new YarnService(config, applicationName, applicationId, yarnConfiguration, fs, this.eventBus,
+        this.getMultiManager().getJobClusterHelixManager());
   }
 
   /**

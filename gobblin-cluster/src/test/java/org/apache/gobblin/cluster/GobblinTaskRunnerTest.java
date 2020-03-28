@@ -23,6 +23,9 @@ import java.net.URL;
 import org.apache.curator.test.TestingServer;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.helix.HelixException;
+import org.apache.helix.PropertyPathBuilder;
+import org.apache.helix.manager.zk.ZkClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -60,6 +63,9 @@ public class GobblinTaskRunnerTest {
   private GobblinTaskRunner gobblinTaskRunner;
 
   private GobblinClusterManager gobblinClusterManager;
+  private GobblinTaskRunner corruptGobblinTaskRunner;
+  private String clusterName;
+  private String corruptHelixInstance;
 
   @BeforeClass
   public void setUp() throws Exception {
@@ -80,8 +86,8 @@ public class GobblinTaskRunnerTest {
         .resolve();
 
     String zkConnectionString = config.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
-    HelixUtils.createGobblinHelixCluster(zkConnectionString,
-        config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY));
+    this.clusterName = config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
+    HelixUtils.createGobblinHelixCluster(zkConnectionString, this.clusterName);
 
     // Participant
     this.gobblinTaskRunner =
@@ -89,12 +95,17 @@ public class GobblinTaskRunnerTest {
             TestHelper.TEST_APPLICATION_ID, TestHelper.TEST_TASK_RUNNER_ID, config, Optional.<Path>absent());
     this.gobblinTaskRunner.connectHelixManager();
 
+    // Participant with a partial Instance set up on Helix/ZK
+    this.corruptHelixInstance = HelixUtils.getHelixInstanceName("CorruptHelixInstance", 0);
+    this.corruptGobblinTaskRunner =
+        new GobblinTaskRunner(TestHelper.TEST_APPLICATION_NAME, corruptHelixInstance,
+            TestHelper.TEST_APPLICATION_ID, TestHelper.TEST_TASK_RUNNER_ID, config, Optional.<Path>absent());
+
     // Controller
     this.gobblinClusterManager =
         new GobblinClusterManager(TestHelper.TEST_APPLICATION_NAME, TestHelper.TEST_APPLICATION_ID, config,
             Optional.<Path>absent());
     this.gobblinClusterManager.connectHelixManager();
-
   }
 
   @Test
@@ -115,6 +126,36 @@ public class GobblinTaskRunnerTest {
   public void testBuildFileSystemConfig() {
     FileSystem fileSystem = this.gobblinTaskRunner.getFs();
     Assert.assertEquals(fileSystem.getConf().get(HADOOP_OVERRIDE_PROPERTY_NAME), "value");
+  }
+
+  @Test
+  public void testConnectHelixManagerWithRetry() {
+    //Connect and disconnect the corrupt task runner to create a Helix Instance set up.
+    try {
+      this.corruptGobblinTaskRunner.connectHelixManager();
+      this.corruptGobblinTaskRunner.disconnectHelixManager();
+    } catch (Exception e) {
+      Assert.fail("Failed to connect to ZK");
+    }
+
+    //Delete ERRORS/HISTORY/STATUSUPDATES znodes under INSTANCES to simulate partial instance set up.
+    ZkClient zkClient = new ZkClient(testingZKServer.getConnectString());
+    zkClient.delete(PropertyPathBuilder.instanceError(clusterName, corruptHelixInstance));
+    zkClient.delete(PropertyPathBuilder.instanceHistory(clusterName, corruptHelixInstance));
+    zkClient.delete(PropertyPathBuilder.instanceStatusUpdate(clusterName, corruptHelixInstance));
+
+    //Ensure that the connecting to Helix without retry will throw a HelixException
+    try {
+      corruptGobblinTaskRunner.connectHelixManager();
+      Assert.fail("Unexpected success in connecting to HelixManager");
+    } catch (Exception e) {
+      //Assert that a HelixException is thrown.
+      Assert.assertTrue(e.getClass().equals(HelixException.class));
+    }
+
+    //Ensure that connect with retry succeeds
+    corruptGobblinTaskRunner.connectHelixManagerWithRetry();
+    Assert.assertTrue(true);
   }
 
   @AfterClass

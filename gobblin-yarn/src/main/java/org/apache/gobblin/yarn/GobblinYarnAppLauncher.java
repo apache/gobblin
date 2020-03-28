@@ -66,6 +66,7 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.util.Records;
 import org.apache.helix.Criteria;
+import org.apache.helix.HelixAdmin;
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
@@ -319,7 +320,12 @@ public class GobblinYarnAppLauncher {
       this.securityManager.get().loginAndScheduleTokenRenewal();
     }
 
-    this.applicationId = getApplicationId();
+    Optional<ApplicationId> reconnectableApplicationId = getReconnectableApplicationId();
+    if (!reconnectableApplicationId.isPresent()) {
+      disableLiveHelixInstances();
+      LOGGER.info("No reconnectable application found so submitting a new application");
+      this.applicationId = Optional.of(setupAndSubmitApplication());
+    }
 
     this.applicationStatusMonitor.scheduleAtFixedRate(new Runnable() {
       @Override
@@ -395,6 +401,9 @@ public class GobblinYarnAppLauncher {
       ExecutorsUtils.shutdownExecutorService(this.applicationStatusMonitor, Optional.of(LOGGER), 5, TimeUnit.MINUTES);
 
       stopYarnClient();
+
+      LOGGER.info("Disabling all live Helix instances..");
+      disableLiveHelixInstances();
 
       disconnectHelixManager();
     } finally {
@@ -479,6 +488,26 @@ public class GobblinYarnAppLauncher {
     }
   }
 
+  /**
+   * A method to disable pre-existing live instances in a Helix cluster. This can happen when a previous Yarn application
+   * leaves behind orphaned Yarn worker processes. Since Helix does not provide an API to drop a live instance, we use
+   * the disable instance API to fence off these orphaned instances and prevent them from becoming participants in the
+   * new cluster.
+   *
+   * NOTE: this is a workaround for an existing YARN bug. Once YARN has a fix to guarantee container kills on application
+   * completion, this method should be removed.
+   */
+  void disableLiveHelixInstances() {
+    String clusterName = this.helixManager.getClusterName();
+    HelixAdmin helixAdmin = this.helixManager.getClusterManagmentTool();
+    List<String> liveInstances = HelixUtils.getLiveInstances(this.helixManager);
+    LOGGER.warn("Found {} live instances in the cluster.", liveInstances.size());
+    for (String instanceName: liveInstances) {
+      LOGGER.warn("Disabling instance: {}", instanceName);
+      helixAdmin.enableInstance(clusterName, instanceName, false);
+    }
+  }
+
   @VisibleForTesting
   void disconnectHelixManager() {
     if (this.helixManager.isConnected()) {
@@ -496,17 +525,6 @@ public class GobblinYarnAppLauncher {
     this.yarnClient.stop();
   }
 
-  private Optional<ApplicationId> getApplicationId() throws YarnException, IOException {
-    Optional<ApplicationId> reconnectableApplicationId = getReconnectableApplicationId();
-    if (reconnectableApplicationId.isPresent()) {
-      LOGGER.info("Found reconnectable application with application ID: " + reconnectableApplicationId.get());
-      return reconnectableApplicationId;
-    }
-
-    LOGGER.info("No reconnectable application found so submitting a new application");
-    return Optional.of(setupAndSubmitApplication());
-  }
-
   @VisibleForTesting
   Optional<ApplicationId> getReconnectableApplicationId() throws YarnException, IOException {
     List<ApplicationReport> applicationReports =
@@ -518,6 +536,7 @@ public class GobblinYarnAppLauncher {
     // Try to find an application with a matching application name
     for (ApplicationReport applicationReport : applicationReports) {
       if (this.applicationName.equals(applicationReport.getName())) {
+        LOGGER.info("Found reconnectable application with application ID: " + applicationReport.getApplicationId());
         return Optional.of(applicationReport.getApplicationId());
       }
     }
