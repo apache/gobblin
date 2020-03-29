@@ -18,6 +18,8 @@
 package org.apache.gobblin.salesforce;
 
 import com.google.gson.JsonElement;
+import com.sforce.async.AsyncApiException;
+import com.sforce.async.AsyncExceptionCode;
 import com.sforce.async.BulkConnection;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -29,6 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.source.extractor.utils.InputStreamCSVReader;
 import org.apache.gobblin.source.extractor.utils.Utils;
+
 
 /**
  * Iterator for fetching result file of Bulk API.
@@ -62,24 +65,51 @@ public class BulkResultIterator implements Iterator<JsonElement> {
   }
 
   private List<String> nextLineWithRetry() {
-    Exception exception = null;
-    for (int i = 0; i < retryLimit; i++) {
+    Throwable rootCause = null;
+    int executeCount = 0;
+    while (executeCount < retryLimit + 1) {
+      executeCount ++;
       try {
         if (this.csvReader == null) {
-          this.csvReader = openAndSeekCsvReader(null);
+          this.csvReader = openAndSeekCsvReader(rootCause);
         }
         List<String> line = this.csvReader.nextRecord();
         this.lineCount++;
         return line;
       } catch (InputStreamCSVReader.CSVParseException e) {
         throw new RuntimeException(e); // don't retry if it is parse error
-      } catch (Exception e) { // if it is any other exception, retry may resolve the issue.
-        exception = e;
-        log.info("***Retrying***: {} - {}", fileIdVO, e.getMessage());
-        this.csvReader = openAndSeekCsvReader(e);
+      } catch (OpenAndSeekException e) {
+        rootCause = e.getCause();
+        // Each organization is allowed 10 concurrent long-running requests. If the limit is reached,
+        // any new synchronous Apex request results in a runtime exception.
+        if (e.isCurrentExceptionExceedQuta()) {
+          log.warn("--Caught ExceededQuota: " + e.getMessage());
+          threadSleep(5 * 60 * 1000); // 5 minutes
+          executeCount --; // if the current exception is Quota Exceeded, keep trying forever
+        }
+        log.info("***Retrying***1: {} - {}", fileIdVO, e.getMessage());
+        this.csvReader = null; // in next loop, call openAndSeekCsvReader
+      } catch (Exception e) {
+        // Retry may resolve other exceptions.
+        rootCause = e;
+        threadSleep(1 * 60 * 1000); // 1 minute
+        log.info("***Retrying***2: {} - {}", fileIdVO, e.getMessage());
+        this.csvReader = null; // in next loop, call openAndSeekCsvReader
       }
     }
-    throw new RuntimeException("***Retried***: Failed, tried " + retryLimit + " times - ", exception);
+    if (executeCount == 1) {
+      throw new RuntimeException("***Fetch***: Failed", rootCause);
+    } else {
+      throw new RuntimeException("***Retried***: Failed, tried " + retryLimit + " times - ", rootCause);
+    }
+  }
+
+  private void threadSleep(long millis) {
+    try {
+      Thread.sleep(millis);
+    } catch (Exception ee) {
+      log.warn("--sleep exception--");
+    }
   }
 
   @Override
@@ -103,7 +133,10 @@ public class BulkResultIterator implements Iterator<JsonElement> {
     return jsonObject;
   }
 
-  private InputStreamCSVReader openAndSeekCsvReader(Exception exceptionRetryFor) {
+  private InputStreamCSVReader openAndSeekCsvReader(Throwable rootCause) throws OpenAndSeekException {
+    while (rootCause != null) {
+      rootCause = rootCause.getCause();
+    }
     String jobId = fileIdVO.getJobId();
     String batchId = fileIdVO.getBatchId();
     String resultId = fileIdVO.getResultId();
@@ -117,14 +150,15 @@ public class BulkResultIterator implements Iterator<JsonElement> {
       for (int j = 0; j < lineCount; j++) {
         lastSkippedLine = csvReader.nextRecord(); // skip these records
       }
-      if ((lastSkippedLine == null && preLoadedLine != null) || (lastSkippedLine != null && !lastSkippedLine.equals(preLoadedLine))) {
+      if ((lastSkippedLine == null && preLoadedLine != null) || (lastSkippedLine != null && !lastSkippedLine.equals(
+          preLoadedLine))) {
         // check if last skipped line is same as the line before error
-        throw new RuntimeException("Failed to verify last skipped line - retrying for =>", exceptionRetryFor);
+        throw new OpenAndSeekException("Failed to verify last skipped line - root cause [" + rootCause.getMessage() + "]", rootCause);
       }
       return csvReader;
-    } catch (Exception e) { // failed to open reader and skip lineCount lines
-      exceptionRetryFor = exceptionRetryFor != null? exceptionRetryFor : e;
-      throw new RuntimeException("Failed to [" + e.getMessage() + "] - retrying for => " , exceptionRetryFor);
+    } catch (Exception e) { // failed to open reader and skip lineCount lines // ssl failures go here
+      rootCause = rootCause != null? rootCause : e;
+      throw new OpenAndSeekException("Failed to [" + rootCause.getMessage() + "]" , rootCause, e);
     }
   }
 
@@ -142,5 +176,26 @@ public class BulkResultIterator implements Iterator<JsonElement> {
         // ignore the exception
       }
     }
+  }
+}
+
+class OpenAndSeekException extends Exception {
+  private boolean _isCurrentExceptionExceedQuota;
+  public OpenAndSeekException(String msg, Throwable rootCause) {
+    super(msg, rootCause);
+    if (rootCause instanceof AsyncApiException &&
+        ((AsyncApiException) rootCause).getExceptionCode() == AsyncExceptionCode.ExceededQuota) {
+      _isCurrentExceptionExceedQuota = true;
+    }
+  }
+  public OpenAndSeekException(String msg, Throwable rootCause, Exception currentException) {
+    super(msg, rootCause);
+    if (currentException instanceof AsyncApiException &&
+        ((AsyncApiException) currentException).getExceptionCode() == AsyncExceptionCode.ExceededQuota) {
+      _isCurrentExceptionExceedQuota = true;
+    }
+  }
+  public boolean isCurrentExceptionExceedQuta() {
+    return _isCurrentExceptionExceedQuota;
   }
 }

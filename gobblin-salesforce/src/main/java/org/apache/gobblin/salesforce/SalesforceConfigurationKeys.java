@@ -25,7 +25,7 @@ public final class SalesforceConfigurationKeys {
   }
   public static final String SOURCE_QUERYBASED_SALESFORCE_IS_SOFT_DELETES_PULL_DISABLED =
       "source.querybased.salesforce.is.soft.deletes.pull.disabled";
-  public static final int DEFAULT_FETCH_RETRY_LIMIT = 5;
+  public static final int DEFAULT_FETCH_RETRY_LIMIT = 1;
   public static final String BULK_API_USE_QUERY_ALL = "salesforce.bulkApiUseQueryAll";
 
   // pk-chunking
