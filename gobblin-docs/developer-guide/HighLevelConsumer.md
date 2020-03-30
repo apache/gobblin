@@ -6,6 +6,8 @@ Problem Statement
 Current Gobblin Kafka [`High Level Consumer`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-runtime/src/main/java/org/apache/gobblin/runtime/kafka/HighLevelConsumer.java) uses Kafka Consumer (0.8) APIs and gobblin support for them will be deprecated. The Re-design's primary goal is to replace old kafka consumer APIs like [`ConsumerConnector`](https://archive.apache.org/dist/kafka/0.8.2.2/scaladoc/index.html#kafka.consumer.ConsumerConnector) and [`MessageAndMetadata`](https://archive.apache.org/dist/kafka/0.8.2.2/scaladoc/index.html#kafka.message.MessageAndMetadata) with a consumer abstraction [`GobblinKafkaConsumerClient`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-modules/gobblin-kafka-common/src/main/java/org/apache/gobblin/kafka/client/GobblinKafkaConsumerClient.java). 
 Additionally, the old design uses kafka auto commit feature which can cause potential loss of messages when offsets are committed and the system fails before messages are processed.
 
+Detailed design and implementation details can be found [here](https://cwiki.apache.org/confluence/display/GOBBLIN/GIP+5%3A+High+Level+Consumer+Re-design)
+
 New Design & Details 
 ====================
 
