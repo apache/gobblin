@@ -409,8 +409,7 @@ public class KafkaExtractorStatsTracker {
   /**
    * A helper function to merge tags for KafkaPartition. Separate into a package-private method for ease of testing.
    */
-  @VisibleForTesting
-  Map<KafkaPartition, Map<String, String>> generateTagsForPartitions(MultiLongWatermark lowWatermark, MultiLongWatermark highWatermark,
+  public Map<KafkaPartition, Map<String, String>> generateTagsForPartitions(MultiLongWatermark lowWatermark, MultiLongWatermark highWatermark,
       MultiLongWatermark nextWatermark, Map<KafkaPartition, Map<String, String>> additionalTags) {
     Map<KafkaPartition, Map<String, String>> tagsForPartitionsMap = Maps.newHashMap();
     for (int i = 0; i < this.partitions.size(); i++) {
