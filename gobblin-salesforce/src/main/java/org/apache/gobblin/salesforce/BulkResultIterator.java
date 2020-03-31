@@ -158,6 +158,7 @@ public class BulkResultIterator implements Iterator<JsonElement> {
         throw new OpenAndSeekException("Failed to verify last skipped line - root cause [" + msg + "]", rootCause);
       }
       return csvReader;
+
     } catch (Exception currentException) { // failed to open reader and skip lineCount lines // ssl failures go here
       Throwable cause = rootCause == null? currentException : rootCause;
       throw new OpenAndSeekException("Failed to [" + cause.getMessage() + "]" , cause, currentException);
