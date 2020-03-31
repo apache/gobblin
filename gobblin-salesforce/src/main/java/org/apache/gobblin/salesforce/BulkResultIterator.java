@@ -72,7 +72,7 @@ public class BulkResultIterator implements Iterator<JsonElement> {
     Throwable rootCause = null;
     int executeCount = 0;
     while (executeCount < retryLimit + 1) {
-      executeCount ++;
+      executeCount++;
       try {
         if (this.csvReader == null) {
           this.csvReader = openAndSeekCsvReader(rootCause);
@@ -89,7 +89,7 @@ public class BulkResultIterator implements Iterator<JsonElement> {
         if (e.isCurrentExceptionExceedQuota()) {
           log.warn("--Caught ExceededQuota: " + e.getMessage());
           threadSleep(retryExceedQuotaInterval);
-          executeCount --; // if the current exception is Quota Exceeded, keep trying forever
+          executeCount--; // if the current exception is Quota Exceeded, keep trying forever
         }
         log.info("***Retrying***1: {} - {}", fileIdVO, e.getMessage());
         this.csvReader = null; // in next loop, call openAndSeekCsvReader
@@ -158,13 +158,13 @@ public class BulkResultIterator implements Iterator<JsonElement> {
       if ((lastSkippedLine == null && preLoadedLine != null) || (lastSkippedLine != null && !lastSkippedLine.equals(
           preLoadedLine))) {
         // check if last skipped line is same as the line before error
-        String msg = rootCause == null? "null" : rootCause.getMessage();
+        String msg = rootCause == null ? "null" : rootCause.getMessage();
         throw new OpenAndSeekException("Failed to verify last skipped line - root cause [" + msg + "]", rootCause);
       }
       return csvReader;
 
     } catch (Exception currentException) { // failed to open reader and skip lineCount lines // ssl failures go here
-      Throwable cause = rootCause == null? currentException : rootCause;
+      Throwable cause = rootCause == null ? currentException : rootCause;
       throw new OpenAndSeekException("Failed to [" + cause.getMessage() + "]" , cause, currentException);
     }
   }
