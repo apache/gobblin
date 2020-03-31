@@ -82,7 +82,7 @@ public class BulkResultIterator implements Iterator<JsonElement> {
         rootCause = e.getCause();
         // Each organization is allowed 10 concurrent long-running requests. If the limit is reached,
         // any new synchronous Apex request results in a runtime exception.
-        if (e.isCurrentExceptionExceedQuta()) {
+        if (e.isCurrentExceptionExceedQuota()) {
           log.warn("--Caught ExceededQuota: " + e.getMessage());
           threadSleep(5 * 60 * 1000); // 5 minutes
           executeCount --; // if the current exception is Quota Exceeded, keep trying forever
@@ -196,7 +196,7 @@ class OpenAndSeekException extends Exception {
       _isCurrentExceptionExceedQuota = true;
     }
   }
-  public boolean isCurrentExceptionExceedQuta() {
+  public boolean isCurrentExceptionExceedQuota() {
     return _isCurrentExceptionExceedQuota;
   }
 }
