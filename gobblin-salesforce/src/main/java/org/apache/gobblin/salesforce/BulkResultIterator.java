@@ -135,8 +135,8 @@ public class BulkResultIterator implements Iterator<JsonElement> {
   }
 
   private InputStreamCSVReader openAndSeekCsvReader(Throwable rootCause) throws OpenAndSeekException {
-    while (rootCause != null) {
-      rootCause = rootCause.getCause();
+    while (rootCause != null && rootCause.getCause() != null) {
+      rootCause = rootCause.getCause(); // find the root cause
     }
     String jobId = fileIdVO.getJobId();
     String batchId = fileIdVO.getBatchId();
@@ -154,12 +154,13 @@ public class BulkResultIterator implements Iterator<JsonElement> {
       if ((lastSkippedLine == null && preLoadedLine != null) || (lastSkippedLine != null && !lastSkippedLine.equals(
           preLoadedLine))) {
         // check if last skipped line is same as the line before error
-        throw new OpenAndSeekException("Failed to verify last skipped line - root cause [" + rootCause.getMessage() + "]", rootCause);
+        String msg = rootCause == null? "null" : rootCause.getMessage();
+        throw new OpenAndSeekException("Failed to verify last skipped line - root cause [" + msg + "]", rootCause);
       }
       return csvReader;
-    } catch (Exception e) { // failed to open reader and skip lineCount lines // ssl failures go here
-      rootCause = rootCause != null? rootCause : e;
-      throw new OpenAndSeekException("Failed to [" + rootCause.getMessage() + "]" , rootCause, e);
+    } catch (Exception currentException) { // failed to open reader and skip lineCount lines // ssl failures go here
+      Throwable cause = rootCause == null? currentException : rootCause;
+      throw new OpenAndSeekException("Failed to [" + cause.getMessage() + "]" , cause, currentException);
     }
   }
 
