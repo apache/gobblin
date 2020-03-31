@@ -107,8 +107,9 @@ public class BulkResultIterator implements Iterator<JsonElement> {
   private void threadSleep(long millis) {
     try {
       Thread.sleep(millis);
-    } catch (Exception ee) {
-      log.warn("--sleep exception--");
+    } catch (Exception e) {
+      log.error("--Failed to sleep--", e);
+      throw new RuntimeException(e);
     }
   }
 
