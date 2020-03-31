@@ -114,9 +114,13 @@ public class SalesforceExtractor extends RestApiExtractor {
 
   private final int pkChunkingSize;
   private final SalesforceConnector sfConnector;
+
   private final int retryLimit;
+  private final long retryInterval;
+  private final long retryExceedQuotaInterval;
 
   private final boolean bulkApiUseQueryAll;
+
 
   public SalesforceExtractor(WorkUnitState state) {
     super(state);
@@ -128,6 +132,8 @@ public class SalesforceExtractor extends RestApiExtractor {
 
     this.bulkApiUseQueryAll = workUnitState.getPropAsBoolean(BULK_API_USE_QUERY_ALL, DEFAULT_BULK_API_USE_QUERY_ALL);
     this.retryLimit = workUnitState.getPropAsInt(FETCH_RETRY_LIMIT_KEY, DEFAULT_FETCH_RETRY_LIMIT);
+    this.retryInterval = workUnitState.getPropAsLong(RETRY_INTERVAL, RETRY_INTERVAL_DEFAULT);
+    this.retryExceedQuotaInterval = workUnitState.getPropAsLong(RETRY_EXCEED_QUOTA_INTERVAL, RETRY_EXCEED_QUOTA_INTERVAL_DEFAULT);
   }
 
   @Override
@@ -554,7 +560,7 @@ public class SalesforceExtractor extends RestApiExtractor {
     String jobId = workUnit.getProp(PK_CHUNKING_JOB_ID);
     String batchIdResultIdPairString = workUnit.getProp(PK_CHUNKING_BATCH_RESULT_ID_PAIRS);
     List<FileIdVO> fileIdList = this.parseBatchIdResultIdString(jobId, batchIdResultIdPairString);
-    return new ResultChainingIterator(bulkConnection, fileIdList, retryLimit);
+    return new ResultChainingIterator(bulkConnection, fileIdList, retryLimit, retryInterval, retryExceedQuotaInterval);
   }
 
   private List<FileIdVO> parseBatchIdResultIdString(String jobId, String batchIdResultIdString) {
@@ -584,7 +590,8 @@ public class SalesforceExtractor extends RestApiExtractor {
       List<FileIdVO> fileIdVoList = this.bulkResultIdList.stream()
           .map(x -> new FileIdVO(this.bulkJob.getId(), x.batchId, x.resultId))
           .collect(Collectors.toList());
-      ResultChainingIterator chainingIter = new ResultChainingIterator(this.bulkConnection, fileIdVoList, this.retryLimit);
+      ResultChainingIterator chainingIter = new ResultChainingIterator(
+          bulkConnection, fileIdVoList, retryLimit, retryInterval, retryExceedQuotaInterval);
       chainingIter.add(getSoftDeletedRecords(schema, entity, workUnit, predicateList));
       return chainingIter;
     } catch (Exception e) {

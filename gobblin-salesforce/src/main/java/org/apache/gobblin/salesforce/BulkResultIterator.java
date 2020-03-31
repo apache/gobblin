@@ -45,10 +45,14 @@ public class BulkResultIterator implements Iterator<JsonElement> {
   private List<String> header;
   private int columnSize;
   private int lineCount = 0; // this is different than currentFileRowCount. cvs file has header
+  private long retryInterval;
+  private long retryExceedQuotaInterval;
   private List<String> preLoadedLine = null;
 
-  public BulkResultIterator(BulkConnection conn, FileIdVO fileIdVO, int retryLimit) {
+  public BulkResultIterator(BulkConnection conn, FileIdVO fileIdVO, int retryLimit, long retryInterval, long retryExceedQuotaInterval) {
     log.info("create BulkResultIterator: " + fileIdVO);
+    this.retryInterval = retryInterval;
+    this.retryExceedQuotaInterval = retryExceedQuotaInterval;
     this.conn = conn;
     this.fileIdVO = fileIdVO;
     this.retryLimit = retryLimit;
@@ -84,7 +88,7 @@ public class BulkResultIterator implements Iterator<JsonElement> {
         // any new synchronous Apex request results in a runtime exception.
         if (e.isCurrentExceptionExceedQuota()) {
           log.warn("--Caught ExceededQuota: " + e.getMessage());
-          threadSleep(5 * 60 * 1000); // 5 minutes
+          threadSleep(retryExceedQuotaInterval);
           executeCount --; // if the current exception is Quota Exceeded, keep trying forever
         }
         log.info("***Retrying***1: {} - {}", fileIdVO, e.getMessage());
@@ -92,7 +96,7 @@ public class BulkResultIterator implements Iterator<JsonElement> {
       } catch (Exception e) {
         // Retry may resolve other exceptions.
         rootCause = e;
-        threadSleep(1 * 60 * 1000); // 1 minute
+        threadSleep(retryInterval);
         log.info("***Retrying***2: {} - {}", fileIdVO, e.getMessage());
         this.csvReader = null; // in next loop, call openAndSeekCsvReader
       }

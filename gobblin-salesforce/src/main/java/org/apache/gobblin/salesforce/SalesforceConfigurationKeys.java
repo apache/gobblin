@@ -28,6 +28,13 @@ public final class SalesforceConfigurationKeys {
   public static final int DEFAULT_FETCH_RETRY_LIMIT = 5;
   public static final String BULK_API_USE_QUERY_ALL = "salesforce.bulkApiUseQueryAll";
 
+  // bulk api retry sleep duration for avoid resource consuming peak.
+  public static final String RETRY_EXCEED_QUOTA_INTERVAL = "salesforce.retry.exceedQuotaInterval";
+  public static final long RETRY_EXCEED_QUOTA_INTERVAL_DEFAULT = 5 * 60 * 1000;
+
+  public static final String RETRY_INTERVAL = "salesforce.retry.interval";
+  public static final long RETRY_INTERVAL_DEFAULT = 1 * 60 * 1000;
+
   // pk-chunking
   public static final String BULK_TEST_JOB_ID = "salesforce.bulk.testJobId";
   public static final String BULK_TEST_BATCH_ID_LIST = "salesforce.bulk.testBatchIds";
