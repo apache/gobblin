@@ -186,6 +186,7 @@ public class BulkResultIterator implements Iterator<JsonElement> {
   }
 }
 
+
 class OpenAndSeekException extends Exception {
   private boolean _isCurrentExceptionExceedQuota;
   public OpenAndSeekException(String msg, Throwable rootCause) {
