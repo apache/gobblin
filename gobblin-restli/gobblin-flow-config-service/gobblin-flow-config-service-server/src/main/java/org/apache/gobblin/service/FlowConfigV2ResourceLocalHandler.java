@@ -84,11 +84,6 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
       httpStatus = HttpStatus.S_400_BAD_REQUEST;
     }
 
-    // Remove unnecessary properties
-    flowConfig.getProperties().remove(ConfigurationKeys.FLOW_GROUP_KEY);
-    flowConfig.getProperties().remove(ConfigurationKeys.FLOW_NAME_KEY);
-    flowConfig.getProperties().remove(RequesterService.REQUESTER_LIST);
-
     return new CreateKVResponse(new ComplexResourceKey<>(flowConfig.getId(), flowStatusId), flowConfig, httpStatus);
   }
 

@@ -106,9 +106,6 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
       // remove keys that were injected as part of flowSpec creation
       flowProps.remove(ConfigurationKeys.JOB_SCHEDULE_KEY);
       flowProps.remove(ConfigurationKeys.JOB_TEMPLATE_PATH);
-      flowProps.remove(ConfigurationKeys.FLOW_GROUP_KEY);
-      flowProps.remove(ConfigurationKeys.FLOW_NAME_KEY);
-      flowProps.remove(RequesterService.REQUESTER_LIST);
 
       StringMap flowPropsAsStringMap = new StringMap();
       flowPropsAsStringMap.putAll(Maps.fromProperties(flowProps));
