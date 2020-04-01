@@ -19,6 +19,8 @@ package org.apache.gobblin.cluster;
 
 import java.io.IOException;
 import java.net.URL;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.apache.curator.test.TestingServer;
 import org.apache.hadoop.fs.FileSystem;
@@ -110,6 +112,9 @@ public class GobblinTaskRunnerTest {
 
   @Test
   public void testSendReceiveShutdownMessage() throws Exception {
+    ExecutorService service = Executors.newSingleThreadExecutor();
+    service.submit(() -> GobblinTaskRunnerTest.this.gobblinTaskRunner.start());
+
     Logger log = LoggerFactory.getLogger("testSendReceiveShutdownMessage");
     this.gobblinClusterManager.sendShutdownRequest();
 
@@ -156,7 +161,10 @@ public class GobblinTaskRunnerTest {
     //Ensure that connect with retry succeeds
     corruptGobblinTaskRunner.connectHelixManagerWithRetry();
     Assert.assertTrue(true);
+
+    corruptGobblinTaskRunner.disconnectHelixManager();
   }
+
 
   @AfterClass
   public void tearDown() throws IOException {

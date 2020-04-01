@@ -120,47 +120,35 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
   public static final String CLUSTER_APP_WORK_DIR = GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_PREFIX + "appWorkDir";
 
   private static final Logger logger = LoggerFactory.getLogger(GobblinTaskRunner.class);
+
   static final java.nio.file.Path CLUSTER_CONF_PATH = Paths.get("generated-gobblin-cluster.conf");
-
   static final String GOBBLIN_TASK_FACTORY_NAME = "GobblinTaskFactory";
-
   static final String GOBBLIN_JOB_FACTORY_NAME = "GobblinJobFactory";
 
   private final String helixInstanceName;
-
   private final String clusterName;
+  private final Optional<ContainerMetrics> containerMetrics;
+  private final List<Service> services = Lists.newArrayList();
+  private final Path appWorkPath;
 
   @Getter
   private HelixManager jobHelixManager;
-
   private Optional<HelixManager> taskDriverHelixManager = Optional.absent();
-
-  private final ServiceManager serviceManager;
-
-  private final TaskStateModelFactory taskStateModelFactory;
-
-  private final Optional<ContainerMetrics> containerMetrics;
-
-  protected final String taskRunnerId;
-
-  private volatile boolean stopInProgress = false;
-
-  private volatile boolean isStopped = false;
-
-  protected final EventBus eventBus = new EventBus(GobblinTaskRunner.class.getSimpleName());
-
-  protected final Config clusterConfig;
-
-  @Getter
-  protected final FileSystem fs;
-  private final List<Service> services = Lists.newArrayList();
-  protected final String applicationName;
-  protected final String applicationId;
-  private final Path appWorkPath;
+  private ServiceManager serviceManager;
+  private TaskStateModelFactory taskStateModelFactory;
   private boolean isTaskDriver;
   private boolean dedicatedTaskDriverCluster;
+  private Collection<StandardMetricsBridge.StandardMetrics> metricsCollection;
+  private volatile boolean stopInProgress = false;
+  private volatile boolean isStopped = false;
 
-  private final Collection<StandardMetricsBridge.StandardMetrics> metricsCollection;
+  protected final String taskRunnerId;
+  protected final EventBus eventBus = new EventBus(GobblinTaskRunner.class.getSimpleName());
+  protected final Config clusterConfig;
+  @Getter
+  protected final FileSystem fs;
+  protected final String applicationName;
+  protected final String applicationId;
 
   public GobblinTaskRunner(String applicationName,
       String helixInstanceName,
@@ -191,6 +179,17 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
 
     this.containerMetrics = buildContainerMetrics();
 
+    logger.info("GobblinTaskRunner({}): applicationName {}, helixInstanceName {}, applicationId {}, taskRunnerId {}, config {}, appWorkDir {}",
+        this.isTaskDriver? "taskDriver" : "worker",
+        applicationName,
+        helixInstanceName,
+        applicationId,
+        taskRunnerId,
+        config,
+        appWorkDirOptional);
+  }
+
+  private synchronized TaskRunnerSuiteBase initTaskStateModelFactory() throws ReflectiveOperationException {
     String builderStr = ConfigUtils.getString(this.clusterConfig,
         GobblinClusterConfigurationKeys.TASK_RUNNER_SUITE_BUILDER,
         TaskRunnerSuiteBase.Builder.class.getName());
@@ -203,8 +202,8 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
     }
 
     TaskRunnerSuiteBase.Builder builder = GobblinConstructorUtils.<TaskRunnerSuiteBase.Builder>invokeLongestConstructor(
-          new ClassAliasResolver(TaskRunnerSuiteBase.Builder.class)
-              .resolveClass(builderStr), this.clusterConfig);
+        new ClassAliasResolver(TaskRunnerSuiteBase.Builder.class)
+            .resolveClass(builderStr), this.clusterConfig);
 
     TaskRunnerSuiteBase suite = builder.setAppWorkPath(this.appWorkPath)
         .setContainerMetrics(this.containerMetrics)
@@ -218,25 +217,7 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
         .build();
 
     this.taskStateModelFactory = createTaskStateModelFactory(suite.getTaskFactoryMap());
-    this.metricsCollection = suite.getMetricsCollection();
-    this.services.addAll(suite.getServices());
-
-    this.services.addAll(getServices());
-
-    if (this.services.isEmpty()) {
-      this.serviceManager = null;
-    } else {
-      this.serviceManager = new ServiceManager(services);
-    }
-
-    logger.info("GobblinTaskRunner({}): applicationName {}, helixInstanceName {}, applicationId {}, taskRunnerId {}, config {}, appWorkDir {}",
-        this.isTaskDriver?"taskDriver" : "worker",
-        applicationName,
-        helixInstanceName,
-        applicationId,
-        taskRunnerId,
-        config,
-        appWorkDirOptional);
+    return suite;
   }
 
   private Path initAppWorkDir(Config config, Optional<Path> appWorkDirOptional) {
@@ -303,6 +284,24 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
     addShutdownHook();
 
     connectHelixManagerWithRetry();
+
+    TaskRunnerSuiteBase suite;
+    try {
+      suite = initTaskStateModelFactory();
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+
+    this.metricsCollection = suite.getMetricsCollection();
+    this.services.addAll(suite.getServices());
+
+    this.services.addAll(getServices());
+
+    if (this.services.isEmpty()) {
+      this.serviceManager = null;
+    } else {
+      this.serviceManager = new ServiceManager(services);
+    }
 
     addInstanceTags();
 
