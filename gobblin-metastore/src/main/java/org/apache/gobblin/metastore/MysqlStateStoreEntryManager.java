@@ -20,7 +20,6 @@ package org.apache.gobblin.metastore;
 import java.io.IOException;
 
 import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.metastore.metadata.DatasetStateStoreEntryManager;
 import org.apache.gobblin.metastore.metadata.StateStoreEntryManager;
 
 

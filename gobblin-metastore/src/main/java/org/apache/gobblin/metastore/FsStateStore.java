@@ -41,7 +41,7 @@ import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 
 import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.metastore.metadata.StateStoreEntryManager;
+import org.apache.gobblin.metastore.metadata.DatasetStateStoreEntryManager;
 import org.apache.gobblin.metastore.predicates.StateStorePredicate;
 import org.apache.gobblin.metastore.predicates.StoreNamePredicate;
 import org.apache.gobblin.runtime.metastore.filesystem.FsStateStoreEntryManager;
@@ -409,7 +409,7 @@ public class FsStateStore<T extends State> implements StateStore<T>, DatasetStat
   }
 
   @Override
-  public List<? extends StateStoreEntryManager> getMetadataForTables(StateStorePredicate predicate) {
+  public List<DatasetStateStoreEntryManager<T>> getMetadataForTables(StateStorePredicate predicate) {
     Stream<Path> stores = predicate instanceof StoreNamePredicate
         ? Stream.of(new Path(this.storeRootDir, ((StoreNamePredicate) predicate).getStoreName()))
         : lsStream(this.fs, new Path(this.storeRootDir)).map(FileStatus::getPath);
@@ -419,8 +419,8 @@ public class FsStateStore<T extends State> implements StateStore<T>, DatasetStat
     return tables.map(this::parseMetadataFromPath).filter(predicate::apply).collect(Collectors.toList());
   }
 
-  protected StateStoreEntryManager parseMetadataFromPath(FileStatus status) {
-    return new FsStateStoreEntryManager(status, this);
+  protected DatasetStateStoreEntryManager<T> parseMetadataFromPath(FileStatus status) {
+    return new FsStateStoreEntryManager<>(status, this);
   }
 
   protected static Stream<FileStatus> lsStream(FileSystem fs, Path path) {
