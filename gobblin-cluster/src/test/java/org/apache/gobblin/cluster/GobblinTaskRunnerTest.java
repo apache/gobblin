@@ -243,7 +243,9 @@ public class GobblinTaskRunnerTest {
     try {
       this.gobblinClusterManager.disconnectHelixManager();
       this.gobblinTaskRunner.disconnectHelixManager();
-      this.suite.shutdownCluster();
+      if (this.suite != null) {
+        this.suite.shutdownCluster();
+      }
     } finally {
       this.testingZKServer.close();
     }
