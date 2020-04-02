@@ -189,7 +189,7 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
         appWorkDirOptional);
   }
 
-  private synchronized TaskRunnerSuiteBase initTaskStateModelFactory() throws ReflectiveOperationException {
+  private TaskRunnerSuiteBase initTaskRunnerSuiteBase() throws ReflectiveOperationException {
     String builderStr = ConfigUtils.getString(this.clusterConfig,
         GobblinClusterConfigurationKeys.TASK_RUNNER_SUITE_BUILDER,
         TaskRunnerSuiteBase.Builder.class.getName());
@@ -205,7 +205,7 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
         new ClassAliasResolver(TaskRunnerSuiteBase.Builder.class)
             .resolveClass(builderStr), this.clusterConfig);
 
-    TaskRunnerSuiteBase suite = builder.setAppWorkPath(this.appWorkPath)
+    return builder.setAppWorkPath(this.appWorkPath)
         .setContainerMetrics(this.containerMetrics)
         .setFileSystem(this.fs)
         .setJobHelixManager(this.jobHelixManager)
@@ -215,9 +215,6 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
         .setContainerId(taskRunnerId)
         .setHostName(hostName)
         .build();
-
-    this.taskStateModelFactory = createTaskStateModelFactory(suite.getTaskFactoryMap());
-    return suite;
   }
 
   private Path initAppWorkDir(Config config, Optional<Path> appWorkDirOptional) {
@@ -287,7 +284,10 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
 
     TaskRunnerSuiteBase suite;
     try {
-      suite = initTaskStateModelFactory();
+      suite = initTaskRunnerSuiteBase();
+      synchronized (this) {
+        this.taskStateModelFactory = createTaskStateModelFactory(suite.getTaskFactoryMap());
+      }
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

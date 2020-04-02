@@ -17,7 +17,6 @@
 package org.apache.gobblin.cluster;
 
 import java.io.IOException;
-import java.util.Map;
 
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
@@ -27,27 +26,28 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Joiner;
-import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
 import org.apache.gobblin.cluster.suite.IntegrationBasicSuite;
 import org.apache.gobblin.commit.CommitStepException;
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.testing.AssertWithBackoff;
 
 
 public class HelixAssignedParticipantCheckTest {
-  private IntegrationJobSuite suite;
+  private static final String JOB_ID = "job_testJob_345";
+  private static final String TASK_STATE_FILE = "/tmp/" + HelixAssignedParticipantCheckTest.class.getSimpleName() + "/taskState/_RUNNING";
+
+  private IntegrationBasicSuite suite;
   private HelixManager helixManager;
   private Config helixConfig;
 
   @BeforeClass
   public void setUp()
       throws Exception {
-    //Set up a Gobblin Helix cluster
-    suite = new IntegrationJobSuite();
+    Config jobConfigOverrides = ClusterIntegrationTestUtils.buildSleepingJob(JOB_ID, TASK_STATE_FILE);
+    //Set up a Gobblin Helix cluster integration job
+    suite = new IntegrationBasicSuite(jobConfigOverrides);
 
     helixConfig = suite.getManagerConfig();
     String clusterName = helixConfig.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
@@ -66,10 +66,10 @@ public class HelixAssignedParticipantCheckTest {
 
     //Ensure that Helix has created a workflow
     AssertWithBackoff.create().maxSleepMs(1000).backoffFactor(1).
-        assertTrue(ClusterIntegrationTest.isTaskStarted(helixManager, IntegrationJobSuite.JOB_ID), "Waiting for the job to start...");
+        assertTrue(ClusterIntegrationTest.isTaskStarted(helixManager, JOB_ID), "Waiting for the job to start...");
 
     //Instantiate config for HelixAssignedParticipantCheck
-    String helixJobId = Joiner.on("_").join(IntegrationJobSuite.JOB_ID, IntegrationJobSuite.JOB_ID);
+    String helixJobId = Joiner.on("_").join(JOB_ID, JOB_ID);
     helixConfig = helixConfig.withValue(GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_KEY,
         ConfigValueFactory.fromAnyRef(IntegrationBasicSuite.WORKER_INSTANCE_0))
         .withValue(GobblinClusterConfigurationKeys.HELIX_JOB_ID_KEY, ConfigValueFactory.fromAnyRef(helixJobId))
@@ -78,7 +78,7 @@ public class HelixAssignedParticipantCheckTest {
 
     //Ensure that the SleepingTask is running
     AssertWithBackoff.create().maxSleepMs(100).timeoutMs(2000).backoffFactor(1).
-        assertTrue(ClusterIntegrationTest.isTaskRunning(IntegrationJobSuite.TASK_STATE_FILE),"Waiting for the task to enter running state");
+        assertTrue(ClusterIntegrationTest.isTaskRunning(TASK_STATE_FILE),"Waiting for the task to enter running state");
 
     //Run the check. Ensure that the configured Helix instance is indeed the assigned participant
     // (i.e. no exceptions thrown).
@@ -102,23 +102,6 @@ public class HelixAssignedParticipantCheckTest {
     suite.shutdownCluster();
     if (helixManager.isConnected()) {
       helixManager.disconnect();
-    }
-  }
-
-  public static class IntegrationJobSuite extends IntegrationBasicSuite {
-    public static final String JOB_ID = "job_testJob_345";
-    public static final String TASK_STATE_FILE = "/tmp/" + IntegrationJobSuite.class.getSimpleName() + "/taskState/_RUNNING";
-
-
-    @Override
-    protected Map<String, Config> overrideJobConfigs(Config rawJobConfig) {
-      Config newConfig = ConfigFactory.parseMap(ImmutableMap.of(
-          ConfigurationKeys.SOURCE_CLASS_KEY, "org.apache.gobblin.cluster.SleepingCustomTaskSource",
-          ConfigurationKeys.JOB_ID_KEY, JOB_ID,
-          GobblinClusterConfigurationKeys.HELIX_JOB_TIMEOUT_ENABLED_KEY, Boolean.TRUE,
-          GobblinClusterConfigurationKeys.HELIX_JOB_TIMEOUT_SECONDS, 10L, SleepingTask.TASK_STATE_FILE_KEY, TASK_STATE_FILE))
-          .withFallback(rawJobConfig);
-      return ImmutableMap.of(JOB_NAME, newConfig);
     }
   }
 }
