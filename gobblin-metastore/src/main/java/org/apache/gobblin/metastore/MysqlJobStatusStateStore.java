@@ -34,7 +34,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metastore.metadata.DatasetStateStoreEntryManager;
-import org.apache.gobblin.metastore.metadata.StateStoreEntryManager;
 import org.apache.gobblin.metastore.predicates.StateStorePredicate;
 import org.apache.gobblin.metastore.predicates.StoreNamePredicate;
 
@@ -52,7 +51,7 @@ public class MysqlJobStatusStateStore<T extends State> extends MysqlStateStore<T
    * @param stateStoreTableName the table for storing the state in rows keyed by two levels (store_name, table_name)
    * @param compressedValues should values be compressed for storage?
    * @param stateClass class of the {@link State}s stored in this state store
-   * @throws IOException
+   * @throws IOException in case of failures
    */
   public MysqlJobStatusStateStore(DataSource dataSource, String stateStoreTableName, boolean compressedValues,
       Class<T> stateClass)
@@ -62,19 +61,19 @@ public class MysqlJobStatusStateStore<T extends State> extends MysqlStateStore<T
 
   /**
    * Returns all the job statuses for a flow group, flow name, flow execution id
-   * @param storeName
-   * @param flowExecutionId
-   * @return
-   * @throws IOException
+   * @param storeName store name in the state store
+   * @param flowExecutionId Flow Execution Id
+   * @return list of states
+   * @throws IOException in case of failures
    */
   public List<T> getAll(String storeName, long flowExecutionId) throws IOException {
     return getAll(storeName, flowExecutionId + "%", true);
   }
 
   @Override
-  public List<? extends StateStoreEntryManager> getMetadataForTables(StateStorePredicate predicate)
+  public List<DatasetStateStoreEntryManager<T>> getMetadataForTables(StateStorePredicate predicate)
       throws IOException {
-    List<MysqlJobStatusStateStoreEntryManager> entryManagers = Lists.newArrayList();
+    List<DatasetStateStoreEntryManager<T>> entryManagers = Lists.newArrayList();
 
     try (Connection connection = dataSource.getConnection();
         PreparedStatement queryStatement = connection.prepareStatement(SELECT_METADATA_SQL)) {
@@ -87,11 +86,11 @@ public class MysqlJobStatusStateStore<T extends State> extends MysqlStateStore<T
           String rsTableName = rs.getString(2);
           Timestamp timestamp = rs.getTimestamp(3);
 
-          DatasetStateStoreEntryManager entryManager =
-              new MysqlJobStatusStateStoreEntryManager(rsStoreName, rsTableName, timestamp.getTime(), this);
+          DatasetStateStoreEntryManager<T> entryManager =
+              new MysqlJobStatusStateStoreEntryManager<>(rsStoreName, rsTableName, timestamp.getTime(), this);
 
           if (predicate.apply(entryManager)) {
-            entryManagers.add(new MysqlJobStatusStateStoreEntryManager(rsStoreName, rsTableName, timestamp.getTime(), this));
+            entryManagers.add(new MysqlJobStatusStateStoreEntryManager<T>(rsStoreName, rsTableName, timestamp.getTime(), this));
           }
         }
       }
