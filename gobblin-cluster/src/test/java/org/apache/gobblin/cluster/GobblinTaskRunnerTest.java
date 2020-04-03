@@ -122,6 +122,15 @@ public class GobblinTaskRunnerTest {
     service.submit(() -> GobblinTaskRunnerTest.this.gobblinTaskRunner.start());
 
     Logger log = LoggerFactory.getLogger("testSendReceiveShutdownMessage");
+
+    // Give Helix some time to start the task runner
+    AssertWithBackoff.create().logger(log).timeoutMs(20000)
+        .assertTrue(new Predicate<Void>() {
+          @Override public boolean apply(Void input) {
+            return GobblinTaskRunnerTest.this.gobblinTaskRunner.isStarted();
+          }
+        }, "gobblinTaskRunner started");
+
     this.gobblinClusterManager.sendShutdownRequest();
 
     // Give Helix some time to handle the message

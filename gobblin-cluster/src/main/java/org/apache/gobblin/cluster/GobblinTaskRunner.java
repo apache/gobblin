@@ -139,6 +139,8 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
   private boolean isTaskDriver;
   private boolean dedicatedTaskDriverCluster;
   private Collection<StandardMetricsBridge.StandardMetrics> metricsCollection;
+  @Getter
+  private volatile boolean started = false;
   private volatile boolean stopInProgress = false;
   private volatile boolean isStopped = false;
 
@@ -314,7 +316,10 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
 
     if (this.serviceManager != null) {
       this.serviceManager.startAsync();
+      started = true;
       this.serviceManager.awaitStopped();
+    } else {
+      started = true;
     }
   }
 
