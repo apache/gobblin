@@ -29,8 +29,6 @@ import org.apache.helix.HelixException;
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
-import org.apache.helix.PropertyPathBuilder;
-import org.apache.helix.manager.zk.ZkClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -141,31 +139,13 @@ public class GobblinTaskRunnerTest {
     Assert.assertEquals(fileSystem.getConf().get(HADOOP_OVERRIDE_PROPERTY_NAME), "value");
   }
 
-  /**
-   * A helper method that creates a partial instance structure in ZK.
-   */
-  private static void createPartialInstanceStructure(HelixManager helixManager, String zkConnectString) {
-    //Connect and disconnect the helixManager to create a Helix Instance set up.
-    try {
-      helixManager.connect();
-      helixManager.disconnect();
-    } catch (Exception e) {
-      Assert.fail("Failed to connect to ZK");
-    }
-
-    //Delete ERRORS/HISTORY/STATUSUPDATES znodes under INSTANCES to simulate partial instance set up.
-    ZkClient zkClient = new ZkClient(zkConnectString);
-    zkClient.delete(PropertyPathBuilder.instanceError(helixManager.getClusterName(), helixManager.getInstanceName()));
-    zkClient.delete(PropertyPathBuilder.instanceHistory(helixManager.getClusterName(), helixManager.getInstanceName()));
-    zkClient.delete(PropertyPathBuilder.instanceStatusUpdate(helixManager.getClusterName(), helixManager.getInstanceName()));
-  }
 
   @Test
   public void testConnectHelixManagerWithRetry() {
     HelixManager instanceManager = HelixManagerFactory.getZKHelixManager(
         clusterName, corruptHelixInstance, InstanceType.PARTICIPANT, testingZKServer.getConnectString());
 
-    createPartialInstanceStructure(instanceManager, testingZKServer.getConnectString());
+    ClusterIntegrationTestUtils.createPartialInstanceStructure(instanceManager, testingZKServer.getConnectString());
 
     //Ensure that the connecting to Helix without retry will throw a HelixException
     try {
@@ -222,7 +202,7 @@ public class GobblinTaskRunnerTest {
           .getZKHelixManager(clusterName, IntegrationBasicSuite.WORKER_INSTANCE_0, InstanceType.PARTICIPANT, zkConnectString);
 
       //Create a partial instance setup
-      GobblinTaskRunnerTest.createPartialInstanceStructure(helixManager, zkConnectString);
+      ClusterIntegrationTestUtils.createPartialInstanceStructure(helixManager, zkConnectString);
     }
   }
 
