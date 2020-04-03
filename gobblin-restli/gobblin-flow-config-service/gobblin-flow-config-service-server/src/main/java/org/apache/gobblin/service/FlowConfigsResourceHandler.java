@@ -17,11 +17,14 @@
 
 package org.apache.gobblin.service;
 
+import java.util.List;
 import java.util.Properties;
 
 import com.linkedin.restli.common.PatchRequest;
 import com.linkedin.restli.server.CreateResponse;
 import com.linkedin.restli.server.UpdateResponse;
+
+import org.apache.gobblin.runtime.api.FlowSpecSearchObject;
 
 
 public interface FlowConfigsResourceHandler {
@@ -29,6 +32,14 @@ public interface FlowConfigsResourceHandler {
    * Get {@link FlowConfig}
    */
   FlowConfig getFlowConfig(FlowId flowId) throws FlowConfigLoggedException;
+  /**
+   * Get {@link FlowConfig}
+   */
+  List<FlowConfig> getFlowConfig(FlowSpecSearchObject flowSpecSearchObject) throws FlowConfigLoggedException;
+  /**
+   * Get all {@link FlowConfig}
+   */
+  List<FlowConfig> getAllFlowConfigs();
 
   /**
    * Add {@link FlowConfig}

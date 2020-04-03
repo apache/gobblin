@@ -229,7 +229,7 @@ public class TopologyCatalog extends AbstractIdleService implements SpecCatalog,
   }
 
   @Override
-  public Spec getSpec(URI uri) throws SpecNotFoundException {
+  public Spec getSpecs(URI uri) throws SpecNotFoundException {
     try {
       return specStore.getSpec(uri);
     } catch (IOException e) {

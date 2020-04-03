@@ -10,7 +10,7 @@
       "type" : "org.apache.gobblin.service.FlowId",
       "params" : "org.apache.gobblin.service.FlowStatusId"
     },
-    "supports" : [ "create", "delete", "get", "partial_update", "update" ],
+    "supports" : [ "create", "delete", "get", "get_all", "partial_update", "update" ],
     "methods" : [ {
       "annotations" : {
         "returnEntity" : { }
@@ -21,6 +21,9 @@
       "method" : "get",
       "doc" : "Retrieve the flow configuration with the given key"
     }, {
+      "method" : "get_all",
+      "doc" : "Retrieve all the flow configurations"
+    }, {
       "method" : "update",
       "doc" : "Update the flow configuration with the specified key. Running flows are not affected.\n An error is raised if the flow configuration does not exist."
     }, {
@@ -29,6 +32,46 @@
     }, {
       "method" : "delete",
       "doc" : "Delete a configured flow. Running flows are not affected. The schedule will be removed for scheduled flows."
+    } ],
+    "finders" : [ {
+      "name" : "flows",
+      "parameters" : [ {
+        "name" : "flowGroup",
+        "type" : "string",
+        "optional" : true
+      } ,{
+        "name" : "flowName",
+        "type" : "string",
+        "optional" : true
+      }, {
+        "name" : "templateUri",
+        "type" : "string",
+        "optional" : true
+      }, {
+        "name" : "userToProxy",
+        "type" : "string",
+        "optional" : true
+      }, {
+        "name" : "sourceIdentifier",
+        "type" : "string",
+        "optional" : true
+      }, {
+        "name" : "targetIdentifier",
+        "type" : "string",
+        "optional" : true
+      }, {
+        "name" : "schedule",
+        "type" : "string",
+        "optional" : true
+      }, {
+        "name" : "isRunImmediately",
+        "type" : "boolean",
+        "optional" : true
+      }, {
+        "name" : "owning_group",
+        "type" : "string",
+        "optional" : true
+      } ]
     } ],
     "entity" : {
       "path" : "/flowconfigsV2/{id}"

@@ -35,7 +35,7 @@ import com.linkedin.restli.server.RestLiServiceException;
 import com.linkedin.restli.server.UpdateResponse;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-
+import java.util.List;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -46,6 +46,7 @@ import org.apache.gobblin.metrics.ContextAwareMeter;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.runtime.api.FlowSpec;
+import org.apache.gobblin.runtime.api.FlowSpecSearchObject;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.util.ConfigUtils;
@@ -82,7 +83,7 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
 
     try {
       URI flowUri = FlowSpec.Utils.createFlowSpecUri(flowId);
-      FlowSpec spec = (FlowSpec) flowCatalog.getSpec(flowUri);
+      FlowSpec spec = (FlowSpec) flowCatalog.getSpecs(flowUri);
       FlowConfig flowConfig = new FlowConfig();
       Properties flowProps = spec.getConfigAsProperties();
       Schedule schedule = null;
@@ -120,6 +121,31 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
     } catch (SpecNotFoundException e) {
       throw new FlowConfigLoggedException(HttpStatus.S_404_NOT_FOUND, "Flow requested does not exist: " + flowId.getFlowName(), null);
     }
+  }
+
+  /**
+   * Get flow config
+   */
+  public List<FlowConfig> getFlowConfig(FlowSpecSearchObject flowSpecSearchObject) throws FlowConfigLoggedException {
+
+  }
+
+  private List<FlowConfig> getFlowConfigImpl() {
+
+  }
+
+
+    /**
+     * Get all flow configs
+     */
+  public List<FlowConfig> getAllFlowConfigs() {
+    log.info("[GAAS-REST] GetAll called");
+
+    List<FlowSpec> list = (List) flowCatalog.getAllSpecs();
+
+    return null;
+
+
   }
 
   /**

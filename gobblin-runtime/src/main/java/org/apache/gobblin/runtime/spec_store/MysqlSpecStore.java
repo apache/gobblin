@@ -31,6 +31,7 @@ import java.util.List;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
+import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.io.ByteStreams;
 import com.google.gson.Gson;
@@ -43,9 +44,11 @@ import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.MysqlDataSourceFactory;
 import org.apache.gobblin.runtime.api.FlowSpec;
+import org.apache.gobblin.runtime.api.FlowSpecSearchObject;
 import org.apache.gobblin.runtime.api.InstrumentedSpecStore;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
+import org.apache.gobblin.runtime.api.SpecSearchObject;
 import org.apache.gobblin.runtime.api.SpecSerDe;
 import org.apache.gobblin.runtime.api.SpecSerDeException;
 import org.apache.gobblin.runtime.api.SpecStore;
@@ -65,6 +68,7 @@ import static org.apache.gobblin.service.ServiceConfigKeys.FLOW_SOURCE_IDENTIFIE
  * but not removing it from {@link SpecStore}.
  */
 @Slf4j
+// todo : This should be renamed to MysqlFlowSpecStore, because there are SpecStore should be able to store TopologySpec also
 public class MysqlSpecStore extends InstrumentedSpecStore {
   public static final String CONFIG_PREFIX = "mysqlSpecStore";
   public static final String DEFAULT_TAG_VALUE = "";
@@ -82,7 +86,7 @@ public class MysqlSpecStore extends InstrumentedSpecStore {
       + "user_to_proxy, source_identifier, destination_identifier, schedule, tag, isRunImmediately, spec, " + NEW_COLUMN + ") "
       + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE spec = VALUES(spec), " + NEW_COLUMN + " = VALUES(" + NEW_COLUMN + ")";
   private static final String DELETE_STATEMENT = "DELETE FROM %s WHERE spec_uri = ?";
-  private static final String GET_STATEMENT = "SELECT spec, " + NEW_COLUMN + " FROM %s WHERE spec_uri = ?";
+  private static final String GET_STATEMENT = "SELECT spec_uri, spec, " + NEW_COLUMN + " FROM %s WHERE ";
   private static final String GET_ALL_STATEMENT = "SELECT spec_uri, spec, " + NEW_COLUMN + " FROM %s";
   private static final String GET_ALL_URIS_STATEMENT = "SELECT spec_uri FROM %s";
   private static final String GET_ALL_STATEMENT_WITH_TAG = "SELECT spec_uri FROM %s WHERE tag = ?";
@@ -136,7 +140,7 @@ public class MysqlSpecStore extends InstrumentedSpecStore {
   public void addSpec(Spec spec, String tagValue) throws IOException {
     try (Connection connection = this.dataSource.getConnection();
         PreparedStatement statement = connection.prepareStatement(String.format(INSERT_STATEMENT, this.tableName))) {
-      setPreparedStatement(statement, spec, tagValue);
+      setAddPreparedStatement(statement, spec, tagValue);
       statement.executeUpdate();
       connection.commit();
     } catch (SQLException | SpecSerDeException e) {
@@ -176,19 +180,22 @@ public class MysqlSpecStore extends InstrumentedSpecStore {
 
   @Override
   public Spec getSpecImpl(URI specUri) throws IOException, SpecNotFoundException {
-    try (Connection connection = this.dataSource.getConnection();
-        PreparedStatement statement = connection.prepareStatement(String.format(GET_STATEMENT, this.tableName))) {
-      statement.setString(1, specUri.toString());
+    Iterator<Spec> specsIterator = getSpecsImpl(FlowSpecSearchObject.builder().flowSpecUri(specUri).build()).iterator();
+    if (specsIterator.hasNext()) {
+      return specsIterator.next();
+    } else {
+      throw new SpecNotFoundException(specUri);
+    }
+  }
 
-      try (ResultSet rs = statement.executeQuery()) {
-        if (!rs.next()) {
-          throw new SpecNotFoundException(specUri);
-        }
-        return rs.getString(2) == null
-            ? this.specSerDe.deserialize(ByteStreams.toByteArray(rs.getBlob(1).getBinaryStream()))
-            : this.specSerDe.deserialize(rs.getString(2).getBytes(Charsets.UTF_8));
-      }
-    } catch (SQLException | SpecSerDeException e) {
+  public Collection<Spec> getSpecsImpl(SpecSearchObject specSearchObject) throws IOException {
+    FlowSpecSearchObject flowSpecSearchObject = (FlowSpecSearchObject) specSearchObject;
+
+    try (Connection connection = this.dataSource.getConnection();
+        PreparedStatement statement = connection.prepareStatement(createGetPreparedStatement(flowSpecSearchObject, this.tableName))) {
+      setGetPreparedStatement(statement, flowSpecSearchObject);
+      return getSpecsInternal(statement);
+    } catch (SQLException e) {
       throw new IOException(e);
     }
   }
@@ -207,25 +214,27 @@ public class MysqlSpecStore extends InstrumentedSpecStore {
   public Collection<Spec> getSpecsImpl() throws IOException {
     try (Connection connection = this.dataSource.getConnection();
         PreparedStatement statement = connection.prepareStatement(String.format(GET_ALL_STATEMENT, this.tableName))) {
-      List<Spec> specs = new ArrayList<>();
-
-      try (ResultSet rs = statement.executeQuery()) {
-        while (rs.next()) {
-          try {
-            specs.add(
-                rs.getString(3) == null
-                    ? this.specSerDe.deserialize(rs.getString(2).getBytes(Charsets.UTF_8))
-                    : this.specSerDe.deserialize(ByteStreams.toByteArray(rs.getBlob(3).getBinaryStream()))
-            );
-          } catch (SQLException | SpecSerDeException e) {
-            log.error("Failed to deserialize spec", e);
-          }
-        }
-      }
-      return specs;
+      return getSpecsInternal(statement);
     } catch (SQLException e) {
       throw new IOException(e);
     }
+  }
+
+  private Collection<Spec> getSpecsInternal(PreparedStatement statement) throws IOException {
+    List<Spec> specs = new ArrayList<>();
+    try (ResultSet rs = statement.executeQuery()) {
+      while (rs.next()) {
+        specs.add(
+            rs.getString(3) == null
+                ? this.specSerDe.deserialize(ByteStreams.toByteArray(rs.getBlob(2).getBinaryStream()))
+                : this.specSerDe.deserialize(rs.getString(2).getBytes(Charsets.UTF_8))
+        );
+      }
+    } catch (SQLException | SpecSerDeException e) {
+      log.error("Failed to deserialize spec", e);
+      throw new IOException(e);
+    }
+    return specs;
   }
 
   @Override
@@ -267,7 +276,129 @@ public class MysqlSpecStore extends InstrumentedSpecStore {
     return Optional.of(this.specStoreURI);
   }
 
-  protected void setPreparedStatement(PreparedStatement statement, Spec spec, String tagValue) throws SQLException {
+  static String createGetPreparedStatement(FlowSpecSearchObject flowSpecSearchObject, String tableName)
+      throws IOException {
+    String baseStatement = String.format(GET_STATEMENT, tableName);
+    List<String> conditions = new ArrayList<>();
+
+    if (flowSpecSearchObject.getFlowSpecUri() != null) {
+      conditions.add("spec_uri = ?");
+    }
+
+    if (flowSpecSearchObject.getFlowGroup() != null) {
+      conditions.add("flow_group = ?");
+    }
+
+    if (flowSpecSearchObject.getFlowName() != null) {
+      conditions.add("flow_name = ?");
+    }
+
+    if (flowSpecSearchObject.getTemplateURI() != null) {
+      conditions.add("template_uri = ?");
+    }
+
+    if (flowSpecSearchObject.getUserToProxy() != null) {
+      conditions.add("user_to_proxy = ?");
+    }
+
+    if (flowSpecSearchObject.getSourceIdentifier() != null) {
+      conditions.add("source_identifier = ?");
+    }
+
+    if (flowSpecSearchObject.getDestinationIdentifier() != null) {
+      conditions.add("destination_identifier = ?");
+    }
+
+    if (flowSpecSearchObject.getSchedule() != null) {
+      conditions.add("schedule = ?");
+    }
+
+    if (flowSpecSearchObject.getSchedule() != null) {
+      conditions.add("modified_time = ?");
+    }
+
+    if (flowSpecSearchObject.getIsRunImmediately() != null) {
+      conditions.add("isRunImmediately = ?");
+    }
+
+    if (flowSpecSearchObject.getOwningGroup() != null) {
+      conditions.add("owning_group = ?");
+    }
+
+    if (flowSpecSearchObject.getPropertyFilter() != null) {
+      String propertyFilter = flowSpecSearchObject.getPropertyFilter();
+      Splitter commaSplitter = Splitter.on(",").trimResults().omitEmptyStrings();
+      for (String property : commaSplitter.splitToList(propertyFilter)) {
+        if (property.contains("=")) {
+          String[] keyValue = property.split("=");
+          if (keyValue.length != 2) {
+            log.error("Incorrect flow config search query");
+            continue;
+          }
+          conditions.add("spec_json->'$.configAsProperties." + keyValue[0] + "' like " + "'%" + keyValue[1] + "%'");
+        } else {
+          conditions.add("spec_json->'$.configAsProperties." + property + "' is not null");
+        }
+      }
+    }
+
+    if (conditions.size() == 0) {
+      throw new IOException("At least one condition is required to query flow configs.");
+    }
+
+    return baseStatement + String.join(" AND ", conditions);
+  }
+
+  private static void setGetPreparedStatement(PreparedStatement statement, FlowSpecSearchObject flowSpecSearchObject)
+      throws SQLException {
+    int i = 0;
+
+    if (flowSpecSearchObject.getFlowSpecUri() != null) {
+      statement.setString(++i, flowSpecSearchObject.getFlowSpecUri().toString());
+    }
+
+    if (flowSpecSearchObject.getFlowGroup() != null) {
+      statement.setString(++i, flowSpecSearchObject.getFlowGroup());
+    }
+
+    if (flowSpecSearchObject.getFlowName() != null) {
+      statement.setString(++i, flowSpecSearchObject.getFlowName());
+    }
+
+    if (flowSpecSearchObject.getTemplateURI() != null) {
+      statement.setString(++i, flowSpecSearchObject.getTemplateURI());
+    }
+
+    if (flowSpecSearchObject.getUserToProxy() != null) {
+      statement.setString(++i, flowSpecSearchObject.getUserToProxy());
+    }
+
+    if (flowSpecSearchObject.getSourceIdentifier() != null) {
+      statement.setString(++i, flowSpecSearchObject.getSourceIdentifier());
+    }
+
+    if (flowSpecSearchObject.getDestinationIdentifier() != null) {
+      statement.setString(++i, flowSpecSearchObject.getDestinationIdentifier());
+    }
+
+    if (flowSpecSearchObject.getSchedule() != null) {
+      statement.setString(++i, flowSpecSearchObject.getModifiedTimestamp());
+    }
+
+    if (flowSpecSearchObject.getIsRunImmediately() != null) {
+      statement.setBoolean(++i, flowSpecSearchObject.getIsRunImmediately());
+    }
+
+    if (flowSpecSearchObject.getOwningGroup() != null) {
+      statement.setString(++i, flowSpecSearchObject.getOwningGroup());
+    }
+
+    //    (isRunImmediately = ? OR 'required' = ?)
+    //    statement.setBoolean(++i, isRunImmediately().or(false));
+    //    statement.setBoolean(++i, isRunImmediately.isPresent());
+  }
+
+  protected void setAddPreparedStatement(PreparedStatement statement, Spec spec, String tagValue) throws SQLException {
     FlowSpec flowSpec = (FlowSpec) spec;
     URI specUri = flowSpec.getUri();
     Config flowConfig = flowSpec.getConfig();

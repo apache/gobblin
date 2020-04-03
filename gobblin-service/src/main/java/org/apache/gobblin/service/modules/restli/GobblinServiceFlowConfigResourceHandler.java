@@ -18,6 +18,7 @@
 package org.apache.gobblin.service.modules.restli;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
 
@@ -77,6 +78,11 @@ public class GobblinServiceFlowConfigResourceHandler implements FlowConfigsResou
   public FlowConfig getFlowConfig(FlowId flowId)
       throws FlowConfigLoggedException {
     return this.localHandler.getFlowConfig(flowId);
+  }
+
+  @Override
+  public List<FlowConfig> getAllFlowConfigs() {
+    return this.localHandler.getAllFlowConfigs();
   }
 
   /**

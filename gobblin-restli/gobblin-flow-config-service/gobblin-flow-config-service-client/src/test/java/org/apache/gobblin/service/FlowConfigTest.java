@@ -186,6 +186,7 @@ public class FlowConfigTest {
   public void testGet() throws Exception {
     FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME);
     FlowConfig flowConfig = _client.getFlowConfig(flowId);
+    _client.getAllFlowConfigs();
 
     Assert.assertEquals(flowConfig.getId().getFlowGroup(), TEST_GROUP_NAME);
     Assert.assertEquals(flowConfig.getId().getFlowName(), TEST_FLOW_NAME);

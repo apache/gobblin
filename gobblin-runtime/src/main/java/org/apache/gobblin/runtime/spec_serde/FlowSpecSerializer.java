@@ -17,15 +17,12 @@
 
 package org.apache.gobblin.runtime.spec_serde;
 
-import java.io.IOException;
-import java.io.StringWriter;
 import java.lang.reflect.Type;
 import java.net.URI;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParseException;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 import com.typesafe.config.ConfigRenderOptions;
@@ -52,13 +49,7 @@ public class FlowSpecSerializer implements JsonSerializer<FlowSpec> {
     flowSpecJson.add(FLOW_SPEC_DESCRIPTION_KEY, context.serialize(src.getDescription()));
     flowSpecJson.add(FLOW_SPEC_CONFIG_KEY, context.serialize(src.getConfig().root().render(ConfigRenderOptions.concise())));
 
-    StringWriter writer = new StringWriter();
-    try {
-      src.getConfigAsProperties().store(writer, "");
-    } catch (IOException e) {
-      throw new JsonParseException(e);
-    }
-    flowSpecJson.add(FLOW_SPEC_CONFIG_AS_PROPERTIES_KEY, context.serialize(writer.getBuffer().toString()));
+    flowSpecJson.add(FLOW_SPEC_CONFIG_AS_PROPERTIES_KEY, context.serialize(src.getConfigAsProperties()));
 
     JsonArray templateURIs = new JsonArray();
     if (src.getTemplateURIs().isPresent()) {

@@ -128,6 +128,46 @@
         "method" : "delete",
         "doc" : "Delete a configured flow. Running flows are not affected. The schedule will be removed for scheduled flows."
       } ],
+      "finders" : [ {
+        "name" : "flows",
+        "parameters" : [ {
+          "name" : "flowGroup",
+          "type" : "string",
+          "optional" : true
+        } ,{
+          "name" : "flowName",
+          "type" : "string",
+          "optional" : true
+        }, {
+          "name" : "templateUri",
+          "type" : "string",
+          "optional" : true
+        }, {
+          "name" : "userToProxy",
+          "type" : "string",
+          "optional" : true
+        }, {
+          "name" : "sourceIdentifier",
+          "type" : "string",
+          "optional" : true
+        }, {
+          "name" : "targetIdentifier",
+          "type" : "string",
+          "optional" : true
+        }, {
+          "name" : "schedule",
+          "type" : "string",
+          "optional" : true
+        }, {
+          "name" : "isRunImmediately",
+          "type" : "boolean",
+          "optional" : true
+        }, {
+          "name" : "owning_group",
+          "type" : "string",
+          "optional" : true
+        } ]
+      } ],
       "entity" : {
         "path" : "/flowconfigsV2/{id}"
       }

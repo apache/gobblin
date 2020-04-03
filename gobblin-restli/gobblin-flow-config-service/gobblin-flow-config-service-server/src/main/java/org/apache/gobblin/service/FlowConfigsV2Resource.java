@@ -26,18 +26,24 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableSet;
 import com.linkedin.restli.common.ComplexResourceKey;
-import com.linkedin.restli.common.EmptyRecord;
 import com.linkedin.restli.common.HttpStatus;
 import com.linkedin.restli.common.PatchRequest;
 import com.linkedin.restli.server.CreateKVResponse;
 import com.linkedin.restli.server.CreateResponse;
+import com.linkedin.restli.server.PagingContext;
 import com.linkedin.restli.server.UpdateResponse;
+import com.linkedin.restli.server.annotations.Context;
+import com.linkedin.restli.server.annotations.Finder;
+import com.linkedin.restli.server.annotations.Optional;
+import com.linkedin.restli.server.annotations.QueryParam;
 import com.linkedin.restli.server.annotations.RestLiCollection;
 import com.linkedin.restli.server.annotations.ReturnEntity;
 import com.linkedin.restli.server.resources.ComplexKeyResourceTemplate;
 
 import javax.inject.Inject;
 import javax.inject.Named;
+
+import org.apache.gobblin.runtime.api.FlowSpecSearchObject;
 
 
 /**
@@ -80,10 +86,24 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
    */
   @Override
   public FlowConfig get(ComplexResourceKey<FlowId, FlowStatusId> key) {
-    String flowGroup = key.getKey().getFlowGroup();
-    String flowName = key.getKey().getFlowName();
-    FlowId flowId = new FlowId().setFlowGroup(flowGroup).setFlowName(flowName);
-    return this.getFlowConfigResourceHandler().getFlowConfig(flowId);
+    return this.getFlowConfigResourceHandler().getFlowConfig(key.getKey());
+  }
+
+  @Finder("flows")
+  public List<FlowConfig> getFlows(@Context PagingContext context,
+      @Optional @QueryParam("flowGroup") String flowGroup,
+      @Optional @QueryParam("flowName") String flowName,
+      @Optional @QueryParam("templateUri") String templateUri,
+      @Optional @QueryParam("userToProxy") String userToProxy,
+      @Optional @QueryParam("sourceIdentifier") String sourceIdentifier,
+      @Optional @QueryParam("destinationIdentifier") String destinationIdentifier,
+      @Optional @QueryParam("schedule") String schedule,
+      @Optional @QueryParam("isRunImmediately") Boolean isRunImmediately,
+      @Optional @QueryParam("owning_group") String owningGroup,
+      @Optional @QueryParam("propertyFilter") String propertyFilter) {
+    FlowSpecSearchObject flowSpecSearchObject = new FlowSpecSearchObject(null, flowGroup, flowName, templateUri,
+        userToProxy, sourceIdentifier, destinationIdentifier, schedule, null, isRunImmediately, owningGroup, propertyFilter);
+    return this.getFlowConfigResourceHandler().getFlowConfig(flowSpecSearchObject);
   }
 
   /**

@@ -117,6 +117,18 @@ public abstract class InstrumentedSpecStore implements SpecStore {
   }
 
   @Override
+  public Collection<Spec> getSpecs(SpecSearchObject specSearchObject) throws IOException, SpecNotFoundException {
+    if (!instrumentationEnabled) {
+      return getSpecsImpl(specSearchObject);
+    } else {
+      long startTimeMillis = System.currentTimeMillis();
+      Collection<Spec> specs = getSpecsImpl(specSearchObject);
+      Instrumented.updateTimer(this.getTimer, System.currentTimeMillis() - startTimeMillis, TimeUnit.MILLISECONDS);
+      return specs;
+    }
+  }
+
+  @Override
   public Spec updateSpec(Spec spec) throws IOException, SpecNotFoundException {
     if (!instrumentationEnabled) {
       return updateSpecImpl(spec);
@@ -159,4 +171,9 @@ public abstract class InstrumentedSpecStore implements SpecStore {
   public abstract boolean deleteSpecImpl(URI specUri) throws IOException;
   public abstract Collection<Spec> getSpecsImpl() throws IOException;
   public abstract Iterator<URI> getSpecURIsImpl() throws IOException;
+
+  /** child classes can implement this if they want to get specs using {@link SpecSearchObject} */
+  public Collection<Spec> getSpecsImpl(SpecSearchObject specUri) throws IOException, SpecNotFoundException {
+    throw new UnsupportedOperationException();
+  }
 }
