@@ -29,7 +29,7 @@ import com.typesafe.config.Config;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.metastore.metadata.StateStoreEntryManager;
+import org.apache.gobblin.metastore.metadata.DatasetStateStoreEntryManager;
 import org.apache.gobblin.metastore.predicates.StateStorePredicate;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
@@ -56,7 +56,7 @@ public interface DatasetStateStore<T extends State> extends StateStore<T> {
   public void persistDatasetURNs(String storeName, Collection<String> datasetUrns) throws IOException;
 
   @Override
-  default List<? extends StateStoreEntryManager> getMetadataForTables(StateStorePredicate predicate)
+  default List<? extends DatasetStateStoreEntryManager> getMetadataForTables(StateStorePredicate predicate)
       throws IOException {
     throw new UnsupportedOperationException();
   }

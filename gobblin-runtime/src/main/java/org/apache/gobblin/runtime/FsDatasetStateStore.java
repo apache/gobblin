@@ -53,13 +53,12 @@ import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValue;
 
-import org.apache.gobblin.metastore.DatasetStateStore;
-import org.apache.gobblin.metastore.FsStateStore;
-import org.apache.gobblin.metastore.metadata.StateStoreEntryManager;
-import org.apache.gobblin.metastore.nameParser.DatasetUrnStateStoreNameParser;
-import org.apache.gobblin.metastore.nameParser.SimpleDatasetUrnStateStoreNameParser;
 import org.apache.gobblin.metastore.predicates.StateStorePredicate;
 import org.apache.gobblin.metastore.predicates.StoreNamePredicate;
+import org.apache.gobblin.metastore.DatasetStateStore;
+import org.apache.gobblin.metastore.FsStateStore;
+import org.apache.gobblin.metastore.nameParser.DatasetUrnStateStoreNameParser;
+import org.apache.gobblin.metastore.nameParser.SimpleDatasetUrnStateStoreNameParser;
 import org.apache.gobblin.runtime.metastore.filesystem.FsDatasetStateStoreEntryManager;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.util.ConfigUtils;
@@ -68,6 +67,7 @@ import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.WritableShimSerialization;
 import org.apache.gobblin.util.executors.IteratorExecutor;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
+import org.apache.gobblin.util.filters.HiddenFilter;
 import org.apache.gobblin.util.hadoop.GobblinSequenceFileReader;
 
 
@@ -423,7 +423,32 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> imp
   }
 
   @Override
-  protected FsDatasetStateStoreEntryManager parseMetadataFromPath(FileStatus status) {
+  public List<FsDatasetStateStoreEntryManager> getMetadataForTables(StateStorePredicate predicate)
+      throws IOException {
+
+    Stream<Path> stores = predicate instanceof StoreNamePredicate ? Stream
+        .of(new Path(this.storeRootDir, ((StoreNamePredicate) predicate).getStoreName()))
+        : lsStream(new Path(this.storeRootDir)).map(FileStatus::getPath);
+
+    if (stores == null) {
+      return Lists.newArrayList();
+    }
+
+    Stream<FileStatus> tables = stores.flatMap(this::lsStream);
+
+    return tables.map(this::parseMetadataFromPath).filter(predicate::apply).collect(Collectors.toList());
+  }
+
+  private Stream<FileStatus> lsStream(Path path) {
+    try {
+      FileStatus[] ls = this.fs.listStatus(path, new HiddenFilter());
+      return ls == null ? Stream.empty() : Arrays.stream(ls);
+    } catch (IOException ioe) {
+      return Stream.empty();
+    }
+  }
+
+  private FsDatasetStateStoreEntryManager parseMetadataFromPath(FileStatus status) {
     return new FsDatasetStateStoreEntryManager(status, this);
   }
 }
