@@ -19,13 +19,16 @@ package org.apache.gobblin.cluster;
 
 import java.io.IOException;
 import java.net.URL;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.apache.curator.test.TestingServer;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.helix.HelixException;
-import org.apache.helix.PropertyPathBuilder;
-import org.apache.helix.manager.zk.ZkClient;
+import org.apache.helix.HelixManager;
+import org.apache.helix.HelixManagerFactory;
+import org.apache.helix.InstanceType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -39,6 +42,7 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
+import org.apache.gobblin.cluster.suite.IntegrationBasicSuite;
 import org.apache.gobblin.testing.AssertWithBackoff;
 
 
@@ -56,6 +60,9 @@ import org.apache.gobblin.testing.AssertWithBackoff;
 public class GobblinTaskRunnerTest {
   public final static Logger LOG = LoggerFactory.getLogger(GobblinTaskRunnerTest.class);
 
+  private static final String JOB_ID = "job_taskRunnerTestJob_" + System.currentTimeMillis();
+  private static final String TASK_STATE_FILE = "/tmp/" + GobblinTaskRunnerTest.class.getSimpleName() + "/taskState/_RUNNING";
+
   public static final String HADOOP_OVERRIDE_PROPERTY_NAME = "prop";
 
   private TestingServer testingZKServer;
@@ -66,6 +73,7 @@ public class GobblinTaskRunnerTest {
   private GobblinTaskRunner corruptGobblinTaskRunner;
   private String clusterName;
   private String corruptHelixInstance;
+  private TaskAssignmentAfterConnectionRetry suite;
 
   @BeforeClass
   public void setUp() throws Exception {
@@ -110,7 +118,19 @@ public class GobblinTaskRunnerTest {
 
   @Test
   public void testSendReceiveShutdownMessage() throws Exception {
+    ExecutorService service = Executors.newSingleThreadExecutor();
+    service.submit(() -> GobblinTaskRunnerTest.this.gobblinTaskRunner.start());
+
     Logger log = LoggerFactory.getLogger("testSendReceiveShutdownMessage");
+
+    // Give Helix some time to start the task runner
+    AssertWithBackoff.create().logger(log).timeoutMs(20000)
+        .assertTrue(new Predicate<Void>() {
+          @Override public boolean apply(Void input) {
+            return GobblinTaskRunnerTest.this.gobblinTaskRunner.isStarted();
+          }
+        }, "gobblinTaskRunner started");
+
     this.gobblinClusterManager.sendShutdownRequest();
 
     // Give Helix some time to handle the message
@@ -128,21 +148,13 @@ public class GobblinTaskRunnerTest {
     Assert.assertEquals(fileSystem.getConf().get(HADOOP_OVERRIDE_PROPERTY_NAME), "value");
   }
 
+
   @Test
   public void testConnectHelixManagerWithRetry() {
-    //Connect and disconnect the corrupt task runner to create a Helix Instance set up.
-    try {
-      this.corruptGobblinTaskRunner.connectHelixManager();
-      this.corruptGobblinTaskRunner.disconnectHelixManager();
-    } catch (Exception e) {
-      Assert.fail("Failed to connect to ZK");
-    }
+    HelixManager instanceManager = HelixManagerFactory.getZKHelixManager(
+        clusterName, corruptHelixInstance, InstanceType.PARTICIPANT, testingZKServer.getConnectString());
 
-    //Delete ERRORS/HISTORY/STATUSUPDATES znodes under INSTANCES to simulate partial instance set up.
-    ZkClient zkClient = new ZkClient(testingZKServer.getConnectString());
-    zkClient.delete(PropertyPathBuilder.instanceError(clusterName, corruptHelixInstance));
-    zkClient.delete(PropertyPathBuilder.instanceHistory(clusterName, corruptHelixInstance));
-    zkClient.delete(PropertyPathBuilder.instanceStatusUpdate(clusterName, corruptHelixInstance));
+    ClusterIntegrationTestUtils.createPartialInstanceStructure(instanceManager, testingZKServer.getConnectString());
 
     //Ensure that the connecting to Helix without retry will throw a HelixException
     try {
@@ -158,11 +170,62 @@ public class GobblinTaskRunnerTest {
     Assert.assertTrue(true);
   }
 
+  @Test (groups = {"disabledOnTravis"})
+  public void testTaskAssignmentAfterHelixConnectionRetry()
+      throws Exception {
+    Config jobConfigOverrides = ClusterIntegrationTestUtils.buildSleepingJob(JOB_ID, TASK_STATE_FILE);
+    this.suite = new TaskAssignmentAfterConnectionRetry(jobConfigOverrides);
+
+    String zkConnectString = suite.getManagerConfig().getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
+    String clusterName = suite.getManagerConfig().getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
+    //A test manager instance for observing the state of the cluster
+    HelixManager helixManager = HelixManagerFactory.getZKHelixManager(clusterName, "TestManager", InstanceType.SPECTATOR, zkConnectString);
+
+    suite.startCluster();
+
+    helixManager.connect();
+
+    //Ensure that Helix has created a workflow
+    AssertWithBackoff.create().maxSleepMs(1000).backoffFactor(1).
+        assertTrue(ClusterIntegrationTest.isTaskStarted(helixManager, JOB_ID), "Waiting for the job to start...");
+
+    //Ensure that the SleepingTask is running
+    AssertWithBackoff.create().maxSleepMs(100).timeoutMs(2000).backoffFactor(1).
+        assertTrue(ClusterIntegrationTest.isTaskRunning(TASK_STATE_FILE),"Waiting for the task to enter running state");
+
+    helixManager.disconnect();
+  }
+
+
+  public static class TaskAssignmentAfterConnectionRetry extends IntegrationBasicSuite {
+    TaskAssignmentAfterConnectionRetry(Config jobConfigOverrides) {
+      super(jobConfigOverrides);
+    }
+
+    @Override
+    protected void createHelixCluster() throws Exception {
+      super.createHelixCluster();
+      String clusterName = super.getManagerConfig().getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
+      String zkConnectString = super.getManagerConfig().getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
+      HelixManager helixManager = HelixManagerFactory
+          .getZKHelixManager(clusterName, IntegrationBasicSuite.WORKER_INSTANCE_0, InstanceType.PARTICIPANT, zkConnectString);
+
+      //Create a partial instance setup
+      ClusterIntegrationTestUtils.createPartialInstanceStructure(helixManager, zkConnectString);
+    }
+  }
+
+
   @AfterClass
-  public void tearDown() throws IOException {
+  public void tearDown()
+      throws IOException, InterruptedException {
     try {
       this.gobblinClusterManager.disconnectHelixManager();
       this.gobblinTaskRunner.disconnectHelixManager();
+      this.corruptGobblinTaskRunner.disconnectHelixManager();
+      if (this.suite != null) {
+        this.suite.shutdownCluster();
+      }
     } finally {
       this.testingZKServer.close();
     }

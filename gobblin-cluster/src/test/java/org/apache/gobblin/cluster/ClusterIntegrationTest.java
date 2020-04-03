@@ -80,7 +80,9 @@ public class ClusterIntegrationTest {
 
   @Test
   void testJobShouldGetCancelled() throws Exception {
-    this.suite =new IntegrationJobCancelSuite();
+    Config jobConfigOverrides = ClusterIntegrationTestUtils.buildSleepingJob(IntegrationJobCancelSuite.JOB_ID,
+        IntegrationJobCancelSuite.TASK_STATE_FILE);
+    this.suite =new IntegrationJobCancelSuite(jobConfigOverrides);
     HelixManager helixManager = getHelixManager();
     suite.startCluster();
     helixManager.connect();
@@ -121,7 +123,9 @@ public class ClusterIntegrationTest {
    */
   @Test (dependsOnMethods = { "testJobShouldGetCancelled" }, groups = {"disabledOnTravis"})
   public void testJobRestartViaSpec() throws Exception {
-    this.suite = new IntegrationJobRestartViaSpecSuite();
+    Config jobConfigOverrides = ClusterIntegrationTestUtils.buildSleepingJob(IntegrationJobCancelSuite.JOB_ID,
+        IntegrationJobCancelSuite.TASK_STATE_FILE);
+    this.suite = new IntegrationJobRestartViaSpecSuite(jobConfigOverrides);
     HelixManager helixManager = getHelixManager();
 
     IntegrationJobRestartViaSpecSuite restartViaSpecSuite = (IntegrationJobRestartViaSpecSuite) this.suite;
@@ -132,10 +136,10 @@ public class ClusterIntegrationTest {
     helixManager.connect();
 
     AssertWithBackoff.create().timeoutMs(30000).maxSleepMs(1000).backoffFactor(1).
-        assertTrue(isTaskStarted(helixManager, IntegrationJobCancelSuite.JOB_ID), "Waiting for the job to start...");
+        assertTrue(isTaskStarted(helixManager, IntegrationJobRestartViaSpecSuite.JOB_ID), "Waiting for the job to start...");
 
     AssertWithBackoff.create().maxSleepMs(100).timeoutMs(2000).backoffFactor(1).
-        assertTrue(isTaskRunning(IntegrationJobCancelSuite.TASK_STATE_FILE), "Waiting for the task to enter running state");
+        assertTrue(isTaskRunning(IntegrationJobRestartViaSpecSuite.TASK_STATE_FILE), "Waiting for the task to enter running state");
 
     ZkClient zkClient = new ZkClient(this.zkConnectString);
     PathBasedZkSerializer zkSerializer = ChainedPathZkSerializer.builder(new ZNRecordStreamingSerializer()).build();

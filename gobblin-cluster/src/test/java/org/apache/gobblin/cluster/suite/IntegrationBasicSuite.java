@@ -76,6 +76,8 @@ public class IntegrationBasicSuite {
   public static final String WORKER_INSTANCE_0 = "WorkerInstance_0";
   public static final String TEST_INSTANCE_NAME_KEY = "worker.instance.name";
 
+  protected final Config jobConfigOverrides;
+
   // manager and workers
   protected Config managerConfig;
   protected Collection<Config> taskDriverConfigs = Lists.newArrayList();
@@ -93,6 +95,11 @@ public class IntegrationBasicSuite {
   protected TestingServer testingZKServer;
 
   public IntegrationBasicSuite() {
+    this(ConfigFactory.empty());
+  }
+
+  public IntegrationBasicSuite(Config jobConfigOverrides) {
+    this.jobConfigOverrides = jobConfigOverrides;
     try {
       initWorkDir();
       initJobOutputDir();
@@ -163,7 +170,7 @@ public class IntegrationBasicSuite {
   }
 
   protected Map<String, Config> overrideJobConfigs(Config rawJobConfig) {
-    return ImmutableMap.of(JOB_NAME, rawJobConfig);
+    return ImmutableMap.of(JOB_NAME, this.jobConfigOverrides.withFallback(rawJobConfig));
   }
 
   private void writeJobConf(String jobName, Config jobConfig) throws IOException {
