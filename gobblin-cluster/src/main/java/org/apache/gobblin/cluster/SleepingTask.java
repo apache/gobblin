@@ -41,15 +41,11 @@ public class SleepingTask extends BaseAbstractTask {
 
   private final long sleepTime;
   private File taskStateFile;
-  // If sleepTime is configured to be a negative value, it indicates user wants to put it in long sleep until
-  // external interruption.
-  private boolean infiniteSleep;
 
   public SleepingTask(TaskContext taskContext) {
     super(taskContext);
     TaskState taskState = taskContext.getTaskState();
     sleepTime = taskState.getPropAsLong(SLEEPING_TASK_SLEEP_TIME, 10L);
-    infiniteSleep = sleepTime < 0;
     taskStateFile = new File(taskState.getProp(TASK_STATE_FILE_KEY));
     try {
       if (taskStateFile.exists()) {
@@ -79,7 +75,7 @@ public class SleepingTask extends BaseAbstractTask {
           assertTrue(new Predicate<Void>() {
             @Override
             public boolean apply(@Nullable Void input) {
-              return System.currentTimeMillis() > endTime && !infiniteSleep;
+              return System.currentTimeMillis() > endTime;
             }
           }, "Waiting for the job to start...");
 

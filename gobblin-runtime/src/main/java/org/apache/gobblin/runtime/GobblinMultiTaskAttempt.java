@@ -180,31 +180,26 @@ public class GobblinMultiTaskAttempt {
   }
 
   /**
-   * A helper function that shutting down all outstanding tasks and destroy taskExecutor if timeout on waiting for
-   * certain tasks' termination.
+   * A helper function that that shuts down all outstanding tasks and
+   * shuts down the taskExecutor if it times out on a task termination.
    */
   private void interruptTaskExecution(Optional<CountDownLatch> countDownLatch) throws InterruptedException {
     log.info("Job interrupted. Attempting a graceful shutdown of the job.");
     this.shutdownTasks();
     try {
-      if (countDownLatch.isPresent()) {
-        if (!countDownLatch.get().await(5, TimeUnit.SECONDS)) {
-          log.warn("Graceful shutdown of job timed out. Killing all outstanding tasks.");
-          this.taskExecutor.shutDown();
-        }
-      } else {
-        log.warn("Directly shutting down task executor, killing al outstanding tasks.");
+      if (!countDownLatch.isPresent() || !countDownLatch.get().await(5, TimeUnit.SECONDS)) {
+        log.warn("Shutting down TaskExecutor. Killing all outstanding tasks.");
         this.taskExecutor.shutDown();
       }
-    } catch (Throwable t) {
-      throw new RuntimeException("Failed to shutdown task executor.", t);
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to shutdown task executor.", e);
     }
   }
 
   /**
    * Shutting down the whole {@link GobblinMultiTaskAttempt} by shutting down all its outstanding tasks and taskExecutor.
    */
-  public void cancelGobblinMultiAttempts() throws InterruptedException{
+  public void cancel() throws InterruptedException{
     this.interruptTaskExecution(Optional.absent());
   }
 

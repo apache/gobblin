@@ -236,7 +236,7 @@ public class IntegrationBasicSuite {
    * @return true if the file contains the message
    * @throws IOException
    */
-  static boolean verifyFileForMessage(Path logFile, String message) throws IOException {
+  public static boolean verifyFileForMessage(Path logFile, String message) throws IOException {
     String content = new String(Files.readAllBytes(logFile));
     return content.contains(message);
   }

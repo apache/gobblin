@@ -30,12 +30,13 @@ public class IntegrationJobCancelSuite extends IntegrationBasicSuite {
   public static final String TASK_STATE_FILE = "/tmp/IntegrationJobCancelSuite/taskState/_RUNNING";
 
   public IntegrationJobCancelSuite(Config jobConfigOverrides) {
-    super(jobConfigOverrides.withFallback(SLEEPING_TASK_SLEEP_TIME, ConfigValueFactory.fromAnyRef(-1)));
+    // Put SleepingTask in long sleep allowing cancellation to happen.
+    super(jobConfigOverrides.withValue(SLEEPING_TASK_SLEEP_TIME, ConfigValueFactory.fromAnyRef(100)));
   }
 
   @Override
   public void waitForAndVerifyOutputFiles() throws Exception {
-    // Sleeing task is in infinite sleeping, so unless an cancelling is hitting task execution, this line won't be printed.
+    // SleepingTask is in an infinite sleep. The log line is printed only when a cancellation in invoked.
     Assert.assertTrue(verifyFileForMessage(this.jobLogOutputFile, "Sleep interrupted"));
 
     // If the job is cancelled, it should not have been able to write 'Hello World!'

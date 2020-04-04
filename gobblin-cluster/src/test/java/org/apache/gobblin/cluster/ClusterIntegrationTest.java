@@ -53,6 +53,9 @@ import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.testing.AssertWithBackoff;
 import org.apache.gobblin.util.ConfigUtils;
 
+import static org.apache.gobblin.cluster.suite.IntegrationBasicSuite.jobLogOutputFile;
+import static org.apache.gobblin.cluster.suite.IntegrationBasicSuite.verifyFileForMessage;
+
 
 @Slf4j
 @Test
@@ -121,7 +124,8 @@ public class ClusterIntegrationTest {
    *   We confirm the execution by again inspecting the zNode and ensuring its TargetState is START. </li>
    * </ul>
    */
-  @Test (dependsOnMethods = { "testJobShouldGetCancelled" }, groups = {"disabledOnTravis"})
+//  @Test (dependsOnMethods = { "testJobShouldGetCancelled" }, groups = {"disabledOnTravis"})
+  @Test
   public void testJobRestartViaSpec() throws Exception {
     Config jobConfigOverrides = ClusterIntegrationTestUtils.buildSleepingJob(IntegrationJobCancelSuite.JOB_ID,
         IntegrationJobCancelSuite.TASK_STATE_FILE);
@@ -167,9 +171,20 @@ public class ClusterIntegrationTest {
       return recordNew == null || targetStateNew.equals(TargetState.STOP.name());
     }, "Waiting for Workflow TargetState to be STOP");
 
-    //Ensure that the SleepingTask did not terminate normally i.e. it was interrupted. We check this by ensuring
-    // that the line "Hello World!" is not present in the logged output.
-    suite.waitForAndVerifyOutputFiles();
+    // Ensure that the SleepingTask did not terminate normally i.e. it was interrupted. We check this by ensuring
+    // that the line "Hello World!" is not present in the logged output but only "Sleeping interrupted"
+    // It is important to have back-off here since ZNode STOP state doesn't mean the actual sleeping task has been terminated
+    // since shutdown of task is async.
+    AssertWithBackoff.create().maxSleepMs(1000).timeoutMs(120000).backoffFactor(1).assertTrue(input -> {
+      try {
+        // SleepingTask is in an infinite sleep. The log line is printed only when a cancellation in invoked.
+        return verifyFileForMessage(jobLogOutputFile, "Sleep interrupted") &&
+        // If the job is cancelled, it should not have been able to write 'Hello World!'
+        !verifyFileForMessage(jobLogOutputFile, "Hello World!");
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    }, "Waiting for actual task to be shutdown.");
 
     AssertWithBackoff.create().maxSleepMs(1000).timeoutMs(120000).backoffFactor(1).assertTrue(input -> {
       //Inspect the zNode at the path corresponding to the Workflow resource. Ensure the target state of the resource is in
