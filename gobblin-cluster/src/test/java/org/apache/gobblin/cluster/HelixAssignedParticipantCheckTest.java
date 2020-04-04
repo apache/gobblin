@@ -68,13 +68,13 @@ public class HelixAssignedParticipantCheckTest {
 
     //Ensure that Helix has created a workflow
     AssertWithBackoff.create().maxSleepMs(1000).backoffFactor(1).
-        assertTrue(ClusterIntegrationTest.isWorkflowStarted(helixManager, IntegrationJobCancelSuite.JOB_ID), "Waiting for the job to start...");
+        assertTrue(ClusterIntegrationTest.isWorkflowStarted(helixManager, JOB_ID), "Waiting for the job to start...");
 
     //Instantiate config for HelixAssignedParticipantCheck
-    String namespacedJobId = Joiner.on("_").join(IntegrationJobCancelSuite.JOB_ID, IntegrationJobCancelSuite.JOB_ID);
+    String helixJobId = Joiner.on("_").join(JOB_ID, JOB_ID);
     helixConfig = helixConfig.withValue(GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_KEY,
         ConfigValueFactory.fromAnyRef(IntegrationBasicSuite.WORKER_INSTANCE_0))
-        .withValue(GobblinClusterConfigurationKeys.HELIX_JOB_ID_KEY, ConfigValueFactory.fromAnyRef(namespacedJobId))
+        .withValue(GobblinClusterConfigurationKeys.HELIX_JOB_ID_KEY, ConfigValueFactory.fromAnyRef(helixJobId))
         .withValue(GobblinClusterConfigurationKeys.HELIX_PARTITION_ID_KEY, ConfigValueFactory.fromAnyRef(0));
     HelixAssignedParticipantCheck check = new HelixAssignedParticipantCheck(helixConfig);
 
@@ -97,7 +97,6 @@ public class HelixAssignedParticipantCheckTest {
       //Expected to throw CommitStepException
       Assert.assertTrue(e.getClass().equals(CommitStepException.class));
     }
-    Assert.assertTrue(HelixUtils.waitJobCompletion(helixManager, IntegrationJobCancelSuite.JOB_ID, IntegrationJobCancelSuite.JOB_ID, Optional.of(20L), 20L));
   }
 
   /**

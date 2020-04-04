@@ -187,7 +187,7 @@ public class GobblinTaskRunnerTest {
 
     //Ensure that Helix has created a workflow
     AssertWithBackoff.create().maxSleepMs(1000).backoffFactor(1).
-        assertTrue(ClusterIntegrationTest.isTaskStarted(helixManager, JOB_ID), "Waiting for the job to start...");
+        assertTrue(ClusterIntegrationTest.isWorkflowStarted(helixManager, JOB_ID), "Waiting for the job to start...");
 
     //Ensure that the SleepingTask is running
     AssertWithBackoff.create().maxSleepMs(100).timeoutMs(2000).backoffFactor(1).
