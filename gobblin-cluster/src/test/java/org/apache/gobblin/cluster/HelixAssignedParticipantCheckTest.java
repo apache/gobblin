@@ -17,12 +17,11 @@
 package org.apache.gobblin.cluster;
 
 import java.io.IOException;
-import java.util.Map;
 import java.util.Optional;
 
 import org.apache.gobblin.cluster.suite.IntegrationBasicSuite;
+import org.apache.gobblin.cluster.suite.IntegrationJobCancelSuite;
 import org.apache.gobblin.commit.CommitStepException;
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.testing.AssertWithBackoff;
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
@@ -69,10 +68,10 @@ public class HelixAssignedParticipantCheckTest {
 
     //Ensure that Helix has created a workflow
     AssertWithBackoff.create().maxSleepMs(1000).backoffFactor(1).
-        assertTrue(ClusterIntegrationTest.isWorkflowStarted(helixManager, IntegrationJobSuite.JOB_ID), "Waiting for the job to start...");
+        assertTrue(ClusterIntegrationTest.isWorkflowStarted(helixManager, IntegrationJobCancelSuite.JOB_ID), "Waiting for the job to start...");
 
     //Instantiate config for HelixAssignedParticipantCheck
-    String namespacedJobId = Joiner.on("_").join(IntegrationJobSuite.JOB_ID, IntegrationJobSuite.JOB_ID);
+    String namespacedJobId = Joiner.on("_").join(IntegrationJobCancelSuite.JOB_ID, IntegrationJobCancelSuite.JOB_ID);
     helixConfig = helixConfig.withValue(GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_KEY,
         ConfigValueFactory.fromAnyRef(IntegrationBasicSuite.WORKER_INSTANCE_0))
         .withValue(GobblinClusterConfigurationKeys.HELIX_JOB_ID_KEY, ConfigValueFactory.fromAnyRef(namespacedJobId))
@@ -98,7 +97,7 @@ public class HelixAssignedParticipantCheckTest {
       //Expected to throw CommitStepException
       Assert.assertTrue(e.getClass().equals(CommitStepException.class));
     }
-    Assert.assertTrue(HelixUtils.waitJobCompletion(helixManager, IntegrationJobSuite.JOB_ID, IntegrationJobSuite.JOB_ID, Optional.of(20L), 20L));
+    Assert.assertTrue(HelixUtils.waitJobCompletion(helixManager, IntegrationJobCancelSuite.JOB_ID, IntegrationJobCancelSuite.JOB_ID, Optional.of(20L), 20L));
   }
 
   /**
@@ -115,22 +114,6 @@ public class HelixAssignedParticipantCheckTest {
     suite.shutdownCluster();
     if (helixManager.isConnected()) {
       helixManager.disconnect();
-    }
-  }
-
-  public static class IntegrationJobSuite extends IntegrationBasicSuite {
-    public static final String JOB_ID = "job_testJob_345";
-    public static final String TASK_STATE_FILE = "/tmp/" + IntegrationJobSuite.class.getSimpleName() + "/taskState/_RUNNING";
-
-    @Override
-    protected Map<String, Config> overrideJobConfigs(Config rawJobConfig) {
-      Config newConfig = ConfigFactory.parseMap(ImmutableMap.of(
-          ConfigurationKeys.SOURCE_CLASS_KEY, "org.apache.gobblin.cluster.SleepingCustomTaskSource",
-          ConfigurationKeys.JOB_ID_KEY, JOB_ID,
-          GobblinClusterConfigurationKeys.HELIX_JOB_TIMEOUT_ENABLED_KEY, Boolean.TRUE,
-          GobblinClusterConfigurationKeys.HELIX_JOB_TIMEOUT_SECONDS, 10L,
-          SleepingTask.TASK_STATE_FILE_KEY, TASK_STATE_FILE)).withFallback(rawJobConfig);
-      return ImmutableMap.of(JOB_NAME, newConfig);
     }
   }
 }
