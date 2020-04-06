@@ -255,9 +255,9 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
           // work flow should never be deleted explicitly because it has a expiry time
           // If cancellation is requested, we should set the job state to CANCELLED/ABORT
           this.helixTaskDriver.waitToStop(this.helixWorkFlowName, this.helixJobStopTimeoutSeconds);
-          log.info("stopped the workflow ", this.helixWorkFlowName);
+          log.info("stopped the workflow {}", this.helixWorkFlowName);
         }
-      } catch (HelixException e) {
+      } catch (RuntimeException e) {
         // Cancellation may throw an exception, but Helix set the job state to STOP and it should eventually stop
         // We will keep this.cancellationExecuted and this.cancellationRequested to true and not propagate the exception
         log.error("Failed to stop workflow {} in Helix", helixWorkFlowName, e);

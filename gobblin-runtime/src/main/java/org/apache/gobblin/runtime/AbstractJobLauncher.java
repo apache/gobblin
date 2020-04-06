@@ -714,6 +714,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
   /**
    * Execute the job cancellation.
+   * The implementation should not throw any exceptions because that will kill the `Cancellation Executor` thread
+   * and will create a deadlock.
    */
   protected abstract void executeCancellation();
 

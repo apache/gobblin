@@ -30,6 +30,7 @@ import org.apache.helix.NotificationContext;
 import org.apache.helix.messaging.handling.HelixTaskResult;
 import org.apache.helix.messaging.handling.MessageHandler;
 import org.apache.helix.messaging.handling.MessageHandlerFactory;
+import org.apache.helix.messaging.handling.MultiTypeMessageHandlerFactory;
 import org.apache.helix.model.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,15 +89,15 @@ public class GobblinAWSTaskRunner extends GobblinTaskRunner {
   }
 
   @Override
-  public MessageHandlerFactory getUserDefinedMessageHandlerFactory() {
+  public MultiTypeMessageHandlerFactory getUserDefinedMessageHandlerFactory() {
     return new ParticipantUserDefinedMessageHandlerFactory();
   }
 
   /**
-   * A custom {@link MessageHandlerFactory} for {@link ParticipantUserDefinedMessageHandler}s that
+   * A custom {@link MultiTypeMessageHandlerFactory} for {@link ParticipantUserDefinedMessageHandler}s that
    * handle messages of type {@link org.apache.helix.model.Message.MessageType#USER_DEFINE_MSG}.
    */
-  private static class ParticipantUserDefinedMessageHandlerFactory implements MessageHandlerFactory {
+  private static class ParticipantUserDefinedMessageHandlerFactory implements MultiTypeMessageHandlerFactory {
 
     @Override
     public MessageHandler createHandler(Message message, NotificationContext context) {
