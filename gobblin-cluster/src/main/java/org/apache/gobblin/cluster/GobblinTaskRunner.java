@@ -55,7 +55,7 @@ import org.apache.helix.NotificationContext;
 import org.apache.helix.manager.zk.ZKHelixAdmin;
 import org.apache.helix.messaging.handling.HelixTaskResult;
 import org.apache.helix.messaging.handling.MessageHandler;
-import org.apache.helix.messaging.handling.MessageHandlerFactory;
+import org.apache.helix.messaging.handling.MultiTypeMessageHandlerFactory;
 import org.apache.helix.model.Message;
 import org.apache.helix.task.TaskFactory;
 import org.apache.helix.task.TaskStateModelFactory;
@@ -172,7 +172,7 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
     this.clusterName = this.clusterConfig.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
     logger.info("Configured GobblinTaskRunner work dir to: {}", this.appWorkPath.toString());
 
-    //Set system properties passed in via application config. As an example, Helix uses System#getProperty() for ZK configuration
+    // Set system properties passed in via application config. As an example, Helix uses System#getProperty() for ZK configuration
     // overrides such as sessionTimeout. In this case, the overrides specified
     // in the application configuration have to be extracted and set before initializing HelixManager.
     HelixUtils.setSystemProperties(config);
@@ -182,7 +182,7 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
     this.containerMetrics = buildContainerMetrics();
 
     logger.info("GobblinTaskRunner({}): applicationName {}, helixInstanceName {}, applicationId {}, taskRunnerId {}, config {}, appWorkDir {}",
-        this.isTaskDriver? "taskDriver" : "worker",
+        this.isTaskDriver ? "taskDriver" : "worker",
         applicationName,
         helixInstanceName,
         applicationId,
@@ -324,7 +324,13 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
   }
 
   public synchronized void stop() {
-    if (this.isStopped || this.stopInProgress) {
+    if (this.isStopped) {
+      logger.info("Gobblin Task runner is already stopped.");
+      return;
+    }
+
+    if (this.stopInProgress) {
+      logger.info("Gobblin Task runner stop already in progress.");
       return;
     }
 
@@ -340,8 +346,8 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
     try {
       stopServices();
     } finally {
+      logger.info("All services are stopped.");
       this.taskStateModelFactory.shutdown();
-
       disconnectHelixManager();
     }
 
@@ -471,12 +477,12 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
   }
 
   /**
-   * Creates and returns a {@link MessageHandlerFactory} for handling of Helix
+   * Creates and returns a {@link MultiTypeMessageHandlerFactory} for handling of Helix
    * {@link org.apache.helix.model.Message.MessageType#USER_DEFINE_MSG}s.
    *
-   * @returns a {@link MessageHandlerFactory}.
+   * @returns a {@link MultiTypeMessageHandlerFactory}.
    */
-  protected MessageHandlerFactory getUserDefinedMessageHandlerFactory() {
+  protected MultiTypeMessageHandlerFactory getUserDefinedMessageHandlerFactory() {
     return new ParticipantUserDefinedMessageHandlerFactory();
   }
 
@@ -518,10 +524,10 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
   }
 
   /**
-   * A custom {@link MessageHandlerFactory} for {@link ParticipantShutdownMessageHandler}s that handle messages
+   * A custom {@link MultiTypeMessageHandlerFactory} for {@link ParticipantShutdownMessageHandler}s that handle messages
    * of type "SHUTDOWN" for shutting down the participants.
    */
-  private class ParticipantShutdownMessageHandlerFactory implements MessageHandlerFactory {
+  private class ParticipantShutdownMessageHandlerFactory implements MultiTypeMessageHandlerFactory {
 
     @Override
     public MessageHandler createHandler(Message message, NotificationContext context) {
@@ -553,13 +559,11 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
       }
 
       @Override
-      public HelixTaskResult handleMessage()
-          throws InterruptedException {
+      public HelixTaskResult handleMessage() {
         String messageSubType = this._message.getMsgSubType();
         Preconditions.checkArgument(messageSubType
             .equalsIgnoreCase(HelixMessageSubTypes.WORK_UNIT_RUNNER_SHUTDOWN.toString()), String
-            .format("Unknown %s message subtype: %s", GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE,
-                messageSubType));
+            .format("Unknown %s message subtype: %s", GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE, messageSubType));
 
         HelixTaskResult result = new HelixTaskResult();
 
@@ -568,8 +572,7 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
           return result;
         }
 
-        logger
-            .info("Handling message " + HelixMessageSubTypes.WORK_UNIT_RUNNER_SHUTDOWN.toString());
+        logger.info("Handling message " + HelixMessageSubTypes.WORK_UNIT_RUNNER_SHUTDOWN.toString());
 
         ScheduledExecutorService shutdownMessageHandlingCompletionWatcher =
             MoreExecutors.getExitingScheduledExecutorService(new ScheduledThreadPoolExecutor(1));
@@ -607,10 +610,10 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
   }
 
   /**
-   * A custom {@link MessageHandlerFactory} for {@link ParticipantUserDefinedMessageHandler}s that
+   * A custom {@link MultiTypeMessageHandlerFactory} for {@link ParticipantUserDefinedMessageHandler}s that
    * handle messages of type {@link org.apache.helix.model.Message.MessageType#USER_DEFINE_MSG}.
    */
-  private static class ParticipantUserDefinedMessageHandlerFactory implements MessageHandlerFactory {
+  private static class ParticipantUserDefinedMessageHandlerFactory implements MultiTypeMessageHandlerFactory {
 
     @Override
     public MessageHandler createHandler(Message message, NotificationContext context) {
@@ -647,8 +650,7 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
       }
 
       @Override
-      public HelixTaskResult handleMessage()
-          throws InterruptedException {
+      public HelixTaskResult handleMessage() {
         logger.warn(String.format("No handling setup for %s message of subtype: %s",
             Message.MessageType.USER_DEFINE_MSG.toString(), this._message.getMsgSubType()));
 

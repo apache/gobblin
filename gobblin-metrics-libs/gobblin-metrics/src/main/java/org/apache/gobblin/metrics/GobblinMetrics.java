@@ -771,15 +771,13 @@ public class GobblinMetrics {
           return;
         }
         this.codahaleReportersCloser.register(scheduledReporter);
-        String reporterSinkMsg = reporterSink.isPresent()?"to " + reporterSink.get():"";
+        String reporterSinkMsg = reporterSink.isPresent() ? "to " + reporterSink.get() : "";
         LOGGER.info("Will start reporting metrics " + reporterSinkMsg + " using " + reporterClass);
         this.codahaleScheduledReporters.add(scheduledReporter);
-
       } else if (CustomReporterFactory.class.isAssignableFrom(clazz)) {
         CustomReporterFactory customReporterFactory = ((CustomReporterFactory) clazz.getConstructor().newInstance());
         customReporterFactory.newScheduledReporter(properties);
         LOGGER.info("Will start reporting metrics using " + reporterClass);
-
       } else {
         throw new IllegalArgumentException("Class " + reporterClass +
             " specified by key " + ConfigurationKeys.METRICS_CUSTOM_BUILDERS + " must implement: "
@@ -789,11 +787,9 @@ public class GobblinMetrics {
       LOGGER.warn(String
           .format("Failed to create metric reporter: requested CustomReporterFactory %s not found.", reporterClass),
           exception);
-
     } catch (NoSuchMethodException exception) {
       LOGGER.warn(String.format("Failed to create metric reporter: requested CustomReporterFactory %s "
           + "does not have parameterless constructor.", reporterClass), exception);
-
     } catch (Exception exception) {
       LOGGER.warn("Could not create metric reporter from builder " + reporterClass + ".", exception);
     }
