@@ -35,8 +35,10 @@ public class ResultChainingIterator implements Iterator<JsonElement> {
   private Iterator<JsonElement> iter;
   private int recordCount = 0;
 
-  public ResultChainingIterator(BulkConnection conn, List<FileIdVO> fileIdList, int retryLimit) {
-    Iterator<BulkResultIterator> iterOfFiles = fileIdList.stream().map(x -> new BulkResultIterator(conn, x, retryLimit)).iterator();
+  public ResultChainingIterator(BulkConnection conn, List<FileIdVO> fileIdList, int retryLimit,
+      long retryInterval, long retryExceedQuotaInterval) {
+    Iterator<BulkResultIterator> iterOfFiles = fileIdList.stream().map(x ->
+        new BulkResultIterator(conn, x, retryLimit, retryInterval, retryExceedQuotaInterval)).iterator();
     iter = Iterators.<JsonElement>concat(iterOfFiles);
   }
 
