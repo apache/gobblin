@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.data.management.copy.hive;
 
+import com.google.common.base.Enums;
 import com.google.common.base.Throwables;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -58,6 +59,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.data.management.hive.HiveConfigClientUtils;
 import org.apache.gobblin.dataset.IterableDatasetFinder;
 import org.apache.gobblin.hive.HiveMetastoreClientPool;
+import org.apache.gobblin.hive.HiveSerDeWrapper;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.sla.SlaEventSubmitter;
 import org.apache.gobblin.util.AutoReturnableObject;
@@ -76,6 +78,12 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
   public static final String DB_KEY = HIVE_DATASET_PREFIX + ".database";
   public static final String TABLE_PATTERN_KEY = HIVE_DATASET_PREFIX + ".table.pattern";
   public static final String DEFAULT_TABLE_PATTERN = "*";
+
+  /*
+   * Hive datasets with some formats will not be transformed into a workunit.
+   * Value of this key is appearing as: Avro, ORC, ... regardless of case.
+   */
+  public static final String REJECTED_DATA_FORMAT_KEY = HIVE_DATASET_PREFIX + ".rejectedFormat";
 
   /*
    * By setting the prefix, only config keys with this prefix will be used to build a HiveDataset.
@@ -116,6 +124,7 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
   protected final String datasetConfigPrefix;
   protected final ConfigClient configClient;
   private final Config jobConfig;
+  private final HiveSerDeWrapper.BuiltInHiveSerDe rejectFormat;
 
   public HiveDatasetFinder(FileSystem fs, Properties properties) throws IOException {
     this(fs, properties, createClientPool(properties));
@@ -181,6 +190,11 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
       throw new RuntimeException(e);
     }
     this.jobConfig = ConfigUtils.propertiesToConfig(properties);
+
+    String rejectedFormatSerDe = properties.getProperty(REJECTED_DATA_FORMAT_KEY, StringUtils.EMPTY);
+    Optional<HiveSerDeWrapper.BuiltInHiveSerDe> serDe =
+        Enums.getIfPresent(HiveSerDeWrapper.BuiltInHiveSerDe.class, rejectedFormatSerDe.toUpperCase());
+    this.rejectFormat = serDe.isPresent() ? serDe.get() : null;
   }
 
   protected static HiveMetastoreClientPool createClientPool(Properties properties) throws IOException {
@@ -249,6 +263,11 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
 
           try (AutoReturnableObject<IMetaStoreClient> client = HiveDatasetFinder.this.clientPool.getClient()) {
             Table table = client.get().getTable(dbAndTable.getDb(), dbAndTable.getTable());
+
+            if (rejectFormat != null && table.getSd().getSerdeInfo().getSerializationLib().equals(rejectFormat.toString())) {
+              continue;
+            }
+
             Config datasetConfig = getDatasetConfig(table);
             if (ConfigUtils.getBoolean(datasetConfig, HIVE_DATASET_IS_BLACKLISTED_KEY, DEFAULT_HIVE_DATASET_IS_BLACKLISTED_KEY)) {
               continue;
