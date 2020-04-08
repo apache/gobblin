@@ -27,7 +27,7 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.util.ConfigUtils;
 
 
-public class MysqlJobStatusStateStoreFactory extends MysqlStateStoreFactory {
+public class MysqlJobStatusStateStoreFactory extends MysqlStateStoreFactory implements DatasetStateStore.Factory {
   @Override
   public <T extends State> MysqlJobStatusStateStore<T> createStateStore(Config config, Class<T> stateClass) {
     String stateStoreTableName = ConfigUtils.getString(config, ConfigurationKeys.STATE_STORE_DB_TABLE_KEY,
@@ -39,9 +39,14 @@ public class MysqlJobStatusStateStoreFactory extends MysqlStateStoreFactory {
       BasicDataSource basicDataSource = MysqlDataSourceFactory.get(config,
           SharedResourcesBrokerFactory.getImplicitBroker());
 
-      return new MysqlJobStatusStateStore(basicDataSource, stateStoreTableName, compressedValues, stateClass);
+      return new MysqlJobStatusStateStore<>(basicDataSource, stateStoreTableName, compressedValues, stateClass);
     } catch (Exception e) {
       throw new RuntimeException("Failed to create MysqlStateStore with factory", e);
     }
+  }
+
+  @Override
+  public <T extends State> MysqlJobStatusStateStore createStateStore(Config config) {
+    return createStateStore(config, State.class);
   }
 }

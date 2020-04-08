@@ -19,6 +19,8 @@ package org.apache.gobblin.metastore;
 
 import java.util.List;
 
+import com.google.common.base.Strings;
+
 import org.apache.gobblin.dataset.Dataset;
 import org.apache.gobblin.metastore.metadata.DatasetStateStoreEntryManager;
 
@@ -36,7 +38,8 @@ public class DatasetStoreDataset implements Dataset {
 
   @Override
   public String datasetURN() {
-    return this.key.getStoreName() + ":::" + this.key.getSanitizedDatasetUrn();
+    return this.key.getStoreName() +
+        (Strings.isNullOrEmpty(this.key.getSanitizedDatasetUrn()) ? "" : ":::" + this.key.getSanitizedDatasetUrn());
   }
 
   /**

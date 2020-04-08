@@ -79,12 +79,8 @@ public class HelixJobsMapping {
 
     try {
       stateStoreFactory = resolver.resolveClass(stateStoreType).newInstance();
-    } catch (ClassNotFoundException cnfe) {
-      throw new RuntimeException(cnfe);
-    } catch (InstantiationException ie) {
-      throw new RuntimeException(ie);
-    } catch (IllegalAccessException iae) {
-      throw new RuntimeException(iae);
+    } catch (ClassNotFoundException | InstantiationException | IllegalAccessException e) {
+      throw new RuntimeException(e);
     }
 
     String dbTableKey = ConfigUtils.getString(sysConfig, JOBS_MAPPING_DB_TABLE_KEY, DEFAULT_JOBS_MAPPING_DB_TABLE_KEY_NAME);

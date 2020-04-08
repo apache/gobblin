@@ -21,7 +21,6 @@ import org.apache.gobblin.annotation.Alias;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.util.ConfigUtils;
-import java.util.Properties;
 
 
 @Alias("zk")

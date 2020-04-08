@@ -43,12 +43,12 @@ public abstract class DatasetStateStoreEntryManager<T extends State> extends Sta
   private final DatasetStateStore datasetStateStore;
 
   public DatasetStateStoreEntryManager(String storeName, String tableName, long timestamp,
-      DatasetStateStore.TableNameParser tableNameParser, DatasetStateStore datasetStateStore) {
+      DatasetStateStore.TableNameParser tableNameParser, DatasetStateStore<T> datasetStateStore) {
     this(storeName, tableName, timestamp, tableNameParser.getSanitizedDatasetUrn(), tableNameParser.getStateId(), datasetStateStore);
   }
 
   public DatasetStateStoreEntryManager(String storeName, String tableName, long timestamp, String sanitizedDatasetUrn,
-      String stateId, DatasetStateStore datasetStateStore) {
+      String stateId, DatasetStateStore<T> datasetStateStore) {
     super(storeName, tableName, timestamp, datasetStateStore);
     this.sanitizedDatasetUrn = sanitizedDatasetUrn;
     this.stateId = stateId;

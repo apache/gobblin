@@ -39,7 +39,7 @@ public class MysqlStateStoreFactory implements StateStore.Factory {
       BasicDataSource basicDataSource = MysqlDataSourceFactory.get(config,
           SharedResourcesBrokerFactory.getImplicitBroker());
 
-      return new MysqlStateStore(basicDataSource, stateStoreTableName, compressedValues, stateClass);
+      return new MysqlStateStore<>(basicDataSource, stateStoreTableName, compressedValues, stateClass);
     } catch (Exception e) {
       throw new RuntimeException("Failed to create MysqlStateStore with factory", e);
     }
