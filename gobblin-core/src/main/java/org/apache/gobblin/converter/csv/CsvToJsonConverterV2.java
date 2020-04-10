@@ -163,9 +163,6 @@ public class CsvToJsonConverterV2 extends Converter<String, JsonArray, String[],
       outputRecord = createOutput(outputSchema, inputRecord);
     }
 
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("Converted into " + outputRecord);
-    }
     return new SingleRecordIterable<JsonObject>(outputRecord);
   }
 
