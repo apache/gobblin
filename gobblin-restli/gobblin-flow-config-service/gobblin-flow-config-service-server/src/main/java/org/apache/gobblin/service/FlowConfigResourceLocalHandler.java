@@ -163,12 +163,16 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
       throw new FlowConfigLoggedException(HttpStatus.S_400_BAD_REQUEST,
           "flowName and flowGroup cannot be changed in update", null);
     }
+    FlowConfig originalFlowConfig = getFlowConfig(flowId);
     if (isUnscheduleRequest(flowConfig)) {
       // flow config is not changed if it is just a request to un-schedule
-      FlowConfig originalFlowConfig = getFlowConfig(flowId);
+      originalFlowConfig = getFlowConfig(flowId);
       originalFlowConfig.setSchedule(NEVER_RUN_CRON_SCHEDULE);
       flowConfig = originalFlowConfig;
     }
+
+    // Carry forward the requester list property since it is added at time of creation
+    flowConfig.getProperties().put(RequesterService.REQUESTER_LIST, originalFlowConfig.getProperties().get(RequesterService.REQUESTER_LIST));
 
     this.flowCatalog.put(createFlowSpecForConfig(flowConfig), triggerListener);
     return new UpdateResponse(HttpStatus.S_200_OK);
