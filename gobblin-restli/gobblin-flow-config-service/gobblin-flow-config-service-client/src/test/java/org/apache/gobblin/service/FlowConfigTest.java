@@ -20,6 +20,7 @@ package org.apache.gobblin.service;
 import java.io.File;
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.util.ArrayList;
 import java.util.Map;
 
 import org.apache.commons.io.FileUtils;
@@ -220,6 +221,7 @@ public class FlowConfigTest {
     //Assert.assertEquals(flowConfig.getProperties().size(), 2);
     Assert.assertEquals(retrievedFlowConfig.getProperties().get("param1"), "value1b");
     Assert.assertEquals(retrievedFlowConfig.getProperties().get("param2"), "value2b");
+    Assert.assertEquals(retrievedFlowConfig.getProperties().get(RequesterService.REQUESTER_LIST), RequesterService.serialize(new ArrayList<>()));
   }
 
   @Test (dependsOnMethods = "testUpdate")
