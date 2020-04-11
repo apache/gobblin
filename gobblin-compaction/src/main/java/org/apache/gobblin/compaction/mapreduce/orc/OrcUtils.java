@@ -19,6 +19,7 @@ package org.apache.gobblin.compaction.mapreduce.orc;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import org.apache.gobblin.compaction.mapreduce.avro.MRCompactorAvroKeyDedupJobRunner;
@@ -70,6 +71,6 @@ public class OrcUtils {
     }
 
     throw new IllegalStateException(
-        String.format("There's no file carrying orc file schema in %s list", sourceDirs[0].toString()));
+        String.format("There's no file carrying orc file schema in the list of directories: %s", Arrays.asList(sourceDirs)));
   }
 }
