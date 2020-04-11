@@ -50,6 +50,9 @@ public class OrcUtils {
 
   public static TypeDescription getNewestSchemaFromSource(Job job, FileSystem fs) throws IOException {
     Path[] sourceDirs = FileInputFormat.getInputPaths(job);
+    if (sourceDirs.length == 0) {
+      throw new IllegalStateException("There should be at least one directory specified for the MR job");
+    }
 
     List<FileStatus> files = new ArrayList<FileStatus>();
 
@@ -67,6 +70,6 @@ public class OrcUtils {
     }
 
     throw new IllegalStateException(
-        String.format("There's no file carrying orc file schema in %s list", sourceDirs));
+        String.format("There's no file carrying orc file schema in %s list", sourceDirs[0].toString()));
   }
 }

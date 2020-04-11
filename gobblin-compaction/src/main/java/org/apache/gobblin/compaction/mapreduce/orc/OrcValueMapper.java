@@ -150,9 +150,11 @@ public class OrcValueMapper extends RecordKeyMapperBase<NullWritable, OrcStruct,
       }
     } else if (w instanceof OrcMap) {
       OrcMap castedMap = (OrcMap) w;
-      for (Object key : castedMap.keySet()) {
-        castedMap.put(key,
-            structConversionHelper((WritableComparable) castedMap.get(key), mapperSchema.getChildren().get(1)));
+      for (Object entry : castedMap.entrySet()) {
+        Map.Entry<WritableComparable, WritableComparable> castedEntry =
+            (Map.Entry<WritableComparable, WritableComparable>) entry;
+        castedMap.put(castedEntry.getKey(),
+            structConversionHelper(castedEntry.getValue(), mapperSchema.getChildren().get(1)));
       }
       return castedMap;
     } else if (w instanceof OrcUnion) {
