@@ -24,15 +24,23 @@ import java.util.Map;
 
 import org.apache.gobblin.compaction.mapreduce.RecordKeyMapperBase;
 import org.apache.hadoop.io.NullWritable;
+import org.apache.hadoop.io.WritableComparable;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.orc.OrcConf;
 import org.apache.orc.TypeDescription;
 import org.apache.orc.impl.ConvertTreeReaderFactory;
 import org.apache.orc.impl.SchemaEvolution;
 import org.apache.orc.mapred.OrcKey;
+import org.apache.orc.mapred.OrcList;
+import org.apache.orc.mapred.OrcMap;
 import org.apache.orc.mapred.OrcStruct;
+import org.apache.orc.mapred.OrcUnion;
 import org.apache.orc.mapred.OrcValue;
 import org.apache.orc.mapreduce.OrcMapreduceRecordReader;
+
+import com.google.common.annotations.VisibleForTesting;
+
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -40,42 +48,56 @@ import org.apache.orc.mapreduce.OrcMapreduceRecordReader;
  * {@link RecordReader} with {@link NullWritable} as the key and generic type of value, the ORC Mapper will
  * read in the record as the input value.
  */
+@Slf4j
 public class OrcValueMapper extends RecordKeyMapperBase<NullWritable, OrcStruct, Object, OrcValue> {
 
   private OrcValue outValue;
   private TypeDescription mapperSchema;
+
+  // This is added mostly for debuggability.
+  private static int writeCount = 0;
 
   @Override
   protected void setup(Context context)
       throws IOException, InterruptedException {
     super.setup(context);
     this.outValue = new OrcValue();
-    this.mapperSchema = TypeDescription.fromString(context.getConfiguration().get(OrcConf.MAPRED_INPUT_SCHEMA.getAttribute()));
+    this.mapperSchema =
+        TypeDescription.fromString(context.getConfiguration().get(OrcConf.MAPRED_INPUT_SCHEMA.getAttribute()));
   }
 
   @Override
   protected void map(NullWritable key, OrcStruct orcStruct, Context context)
       throws IOException, InterruptedException {
-    OrcStruct upConvertedStruct = upConvertOrcStruct(orcStruct, context);
-    if (context.getNumReduceTasks() == 0) {
-      this.outValue.value = upConvertedStruct;
-      context.write(NullWritable.get(), this.outValue);
-    } else {
-      this.outValue.value = upConvertedStruct;
-      context.write(getDedupKey(upConvertedStruct), this.outValue);
+    OrcStruct upConvertedStruct = upConvertOrcStruct(orcStruct, mapperSchema);
+    try {
+      if (context.getNumReduceTasks() == 0) {
+        this.outValue.value = upConvertedStruct;
+        context.write(NullWritable.get(), this.outValue);
+      } else {
+        this.outValue.value = upConvertedStruct;
+        context.write(getDedupKey(upConvertedStruct), this.outValue);
+      }
+    } catch (Exception e) {
+      throw new RuntimeException("Failure in write record no." + writeCount, e);
     }
+    writeCount += 1;
 
     context.getCounter(EVENT_COUNTER.RECORD_COUNT).increment(1);
   }
 
   /**
-   * If a {@link OrcStruct}'s schema differs from newest schema obtained when creating MR jobs (which is the
-   * newest schema seen by the MR job), all the other ORC object will need to be up-converted.
+   * Up convert the {@link OrcStruct} towards {@link #mapperSchema} recursively.
+   * Limitation:
+   * 1. Do not support up-convert key type in map.
+   * 2. Conversion only happens if that comply with org.apache.gobblin.compaction.mapreduce.orc.OrcValueMapper#isEvolutionValid return true.
    */
-  OrcStruct upConvertOrcStruct(OrcStruct orcStruct, Context context) {
+  @VisibleForTesting
+  OrcStruct upConvertOrcStruct(OrcStruct orcStruct, TypeDescription mapperSchema) {
     // For ORC schema, if schema object differs that means schema itself is different while for Avro,
     // there are chances that documentation or attributes' difference lead to the schema object difference.
     if (!orcStruct.getSchema().equals(mapperSchema)) {
+      log.info("There's schema mismatch identified from reader's schema and writer's schema");
       OrcStruct newStruct = new OrcStruct(mapperSchema);
 
       int indexInNewSchema = 0;
@@ -91,7 +113,9 @@ public class OrcValueMapper extends RecordKeyMapperBase<NullWritable, OrcStruct,
           TypeDescription readerType = newSchemaTypes.get(indexInNewSchema);
 
           if (isEvolutionValid(fileType, readerType)) {
-            newStruct.setFieldValue(field, orcStruct.getFieldValue(field));
+            WritableComparable oldField = orcStruct.getFieldValue(field);
+            oldField = structConversionHelper(oldField, mapperSchema.getChildren().get(fieldIndex));
+            newStruct.setFieldValue(field, oldField);
           } else {
             throw new SchemaEvolution.IllegalEvolutionException(String
                 .format("ORC does not support type conversion from file" + " type %s to reader type %s ",
@@ -108,6 +132,38 @@ public class OrcValueMapper extends RecordKeyMapperBase<NullWritable, OrcStruct,
     } else {
       return orcStruct;
     }
+  }
+
+  /**
+   * Suppress the warning of type checking: All casts are clearly valid as they are all (sub)elements Orc types.
+   * Check failure will trigger Cast exception and blow up the process.
+   */
+  @SuppressWarnings("unchecked")
+  private WritableComparable structConversionHelper(WritableComparable w, TypeDescription mapperSchema) {
+    if (w instanceof OrcStruct) {
+      return upConvertOrcStruct((OrcStruct) w, mapperSchema);
+    } else if (w instanceof OrcList) {
+      OrcList castedList = (OrcList) w;
+      TypeDescription elementType = mapperSchema.getChildren().get(0);
+      for (int i = 0; i < castedList.size(); i++) {
+        castedList.set(i, structConversionHelper((WritableComparable) castedList.get(i), elementType));
+      }
+    } else if (w instanceof OrcMap) {
+      OrcMap castedMap = (OrcMap) w;
+      for (Object key : castedMap.keySet()) {
+        castedMap.put(key,
+            structConversionHelper((WritableComparable) castedMap.get(key), mapperSchema.getChildren().get(1)));
+      }
+      return castedMap;
+    } else if (w instanceof OrcUnion) {
+      OrcUnion castedUnion = (OrcUnion) w;
+      byte tag = castedUnion.getTag();
+      castedUnion.set(tag,
+          structConversionHelper((WritableComparable) castedUnion.getObject(), mapperSchema.getChildren().get(tag)));
+    }
+
+    // Directly return if primitive object.
+    return w;
   }
 
   /**
