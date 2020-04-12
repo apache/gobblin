@@ -18,7 +18,6 @@
 package org.apache.gobblin.compaction.mapreduce.orc;
 
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -28,7 +27,6 @@ import org.apache.hadoop.io.WritableComparable;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.orc.OrcConf;
 import org.apache.orc.TypeDescription;
-import org.apache.orc.impl.ConvertTreeReaderFactory;
 import org.apache.orc.impl.SchemaEvolution;
 import org.apache.orc.mapred.OrcKey;
 import org.apache.orc.mapred.OrcList;
@@ -70,12 +68,11 @@ public class OrcValueMapper extends RecordKeyMapperBase<NullWritable, OrcStruct,
   protected void map(NullWritable key, OrcStruct orcStruct, Context context)
       throws IOException, InterruptedException {
     OrcStruct upConvertedStruct = upConvertOrcStruct(orcStruct, mapperSchema);
+    this.outValue.value = upConvertedStruct;
     try {
       if (context.getNumReduceTasks() == 0) {
-        this.outValue.value = upConvertedStruct;
         context.write(NullWritable.get(), this.outValue);
       } else {
-        this.outValue.value = upConvertedStruct;
         context.write(getDedupKey(upConvertedStruct), this.outValue);
       }
     } catch (Exception e) {
@@ -87,10 +84,10 @@ public class OrcValueMapper extends RecordKeyMapperBase<NullWritable, OrcStruct,
   }
 
   /**
-   * Up convert the {@link OrcStruct} towards {@link #mapperSchema} recursively.
+   * Recursively up-convert the {@link OrcStruct} into {@link #mapperSchema}
    * Limitation:
-   * 1. Do not support up-convert key type in map.
-   * 2. Conversion only happens if that comply with org.apache.gobblin.compaction.mapreduce.orc.OrcValueMapper#isEvolutionValid return true.
+   * 1. Does not support up-conversion of key types in Maps
+   * 2. Conversion only happens if org.apache.gobblin.compaction.mapreduce.orc.OrcValueMapper#isEvolutionValid return true.
    */
   @VisibleForTesting
   OrcStruct upConvertOrcStruct(OrcStruct orcStruct, TypeDescription mapperSchema) {
@@ -112,7 +109,7 @@ public class OrcValueMapper extends RecordKeyMapperBase<NullWritable, OrcStruct,
           TypeDescription fileType = oldSchemaTypes.get(fieldIndex);
           TypeDescription readerType = newSchemaTypes.get(indexInNewSchema);
 
-          if (isEvolutionValid(fileType, readerType)) {
+          if (OrcUtils.isEvolutionValid(fileType, readerType)) {
             WritableComparable oldField = orcStruct.getFieldValue(field);
             oldField = structConversionHelper(oldField, mapperSchema.getChildren().get(fieldIndex));
             newStruct.setFieldValue(field, oldField);
@@ -166,84 +163,6 @@ public class OrcValueMapper extends RecordKeyMapperBase<NullWritable, OrcStruct,
 
     // Directly return if primitive object.
     return w;
-  }
-
-  /**
-   * Determine if two types are following valid evolution.
-   * Implementation stolen and manipulated from {@link SchemaEvolution} as that was package-private.
-   */
-  static boolean isEvolutionValid(TypeDescription fileType, TypeDescription readerType) {
-    boolean isOk = true;
-    if (fileType.getCategory() == readerType.getCategory()) {
-      switch (readerType.getCategory()) {
-        case BOOLEAN:
-        case BYTE:
-        case SHORT:
-        case INT:
-        case LONG:
-        case DOUBLE:
-        case FLOAT:
-        case STRING:
-        case TIMESTAMP:
-        case BINARY:
-        case DATE:
-          // these are always a match
-          break;
-        case CHAR:
-        case VARCHAR:
-          break;
-        case DECIMAL:
-          break;
-        case UNION:
-        case MAP:
-        case LIST: {
-          // these must be an exact match
-          List<TypeDescription> fileChildren = fileType.getChildren();
-          List<TypeDescription> readerChildren = readerType.getChildren();
-          if (fileChildren.size() == readerChildren.size()) {
-            for (int i = 0; i < fileChildren.size(); ++i) {
-              isOk &= isEvolutionValid(fileChildren.get(i), readerChildren.get(i));
-            }
-            return isOk;
-          } else {
-            return false;
-          }
-        }
-        case STRUCT: {
-          List<TypeDescription> readerChildren = readerType.getChildren();
-          List<TypeDescription> fileChildren = fileType.getChildren();
-
-          List<String> readerFieldNames = readerType.getFieldNames();
-          List<String> fileFieldNames = fileType.getFieldNames();
-
-          final Map<String, TypeDescription> fileTypesIdx = new HashMap();
-          for (int i = 0; i < fileFieldNames.size(); i++) {
-            final String fileFieldName = fileFieldNames.get(i);
-            fileTypesIdx.put(fileFieldName, fileChildren.get(i));
-          }
-
-          for (int i = 0; i < readerFieldNames.size(); i++) {
-            final String readerFieldName = readerFieldNames.get(i);
-            TypeDescription readerField = readerChildren.get(i);
-            TypeDescription fileField = fileTypesIdx.get(readerFieldName);
-            if (fileField == null) {
-              continue;
-            }
-
-            isOk &= isEvolutionValid(fileField, readerField);
-          }
-          return isOk;
-        }
-        default:
-          throw new IllegalArgumentException("Unknown type " + readerType);
-      }
-      return isOk;
-    } else {
-      /*
-       * Check for the few cases where will not convert....
-       */
-      return ConvertTreeReaderFactory.canConvert(fileType, readerType);
-    }
   }
 
   /**

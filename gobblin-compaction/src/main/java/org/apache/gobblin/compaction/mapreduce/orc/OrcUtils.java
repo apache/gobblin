@@ -21,7 +21,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+
 import org.apache.gobblin.compaction.mapreduce.avro.MRCompactorAvroKeyDedupJobRunner;
 import org.apache.gobblin.util.FileListUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -33,6 +36,8 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.orc.OrcFile;
 import org.apache.orc.Reader;
 import org.apache.orc.TypeDescription;
+import org.apache.orc.impl.ConvertTreeReaderFactory;
+import org.apache.orc.impl.SchemaEvolution;
 
 
 public class OrcUtils {
@@ -71,6 +76,84 @@ public class OrcUtils {
     }
 
     throw new IllegalStateException(
-        String.format("There's no file carrying orc file schema in the list of directories: %s", Arrays.asList(sourceDirs)));
+        String.format("There's no file carrying orc file schema in the list of directories: %s", Arrays.toString(sourceDirs)));
+  }
+
+  /**
+   * Determine if two types are following valid evolution.
+   * Implementation stolen and manipulated from {@link SchemaEvolution} as that was package-private.
+   */
+  static boolean isEvolutionValid(TypeDescription fileType, TypeDescription readerType) {
+    boolean isOk = true;
+    if (fileType.getCategory() == readerType.getCategory()) {
+      switch (readerType.getCategory()) {
+        case BOOLEAN:
+        case BYTE:
+        case SHORT:
+        case INT:
+        case LONG:
+        case DOUBLE:
+        case FLOAT:
+        case STRING:
+        case TIMESTAMP:
+        case BINARY:
+        case DATE:
+          // these are always a match
+          break;
+        case CHAR:
+        case VARCHAR:
+          break;
+        case DECIMAL:
+          break;
+        case UNION:
+        case MAP:
+        case LIST: {
+          // these must be an exact match
+          List<TypeDescription> fileChildren = fileType.getChildren();
+          List<TypeDescription> readerChildren = readerType.getChildren();
+          if (fileChildren.size() == readerChildren.size()) {
+            for (int i = 0; i < fileChildren.size(); ++i) {
+              isOk &= isEvolutionValid(fileChildren.get(i), readerChildren.get(i));
+            }
+            return isOk;
+          } else {
+            return false;
+          }
+        }
+        case STRUCT: {
+          List<TypeDescription> readerChildren = readerType.getChildren();
+          List<TypeDescription> fileChildren = fileType.getChildren();
+
+          List<String> readerFieldNames = readerType.getFieldNames();
+          List<String> fileFieldNames = fileType.getFieldNames();
+
+          final Map<String, TypeDescription> fileTypesIdx = new HashMap();
+          for (int i = 0; i < fileFieldNames.size(); i++) {
+            final String fileFieldName = fileFieldNames.get(i);
+            fileTypesIdx.put(fileFieldName, fileChildren.get(i));
+          }
+
+          for (int i = 0; i < readerFieldNames.size(); i++) {
+            final String readerFieldName = readerFieldNames.get(i);
+            TypeDescription readerField = readerChildren.get(i);
+            TypeDescription fileField = fileTypesIdx.get(readerFieldName);
+            if (fileField == null) {
+              continue;
+            }
+
+            isOk &= isEvolutionValid(fileField, readerField);
+          }
+          return isOk;
+        }
+        default:
+          throw new IllegalArgumentException("Unknown type " + readerType);
+      }
+      return isOk;
+    } else {
+      /*
+       * Check for the few cases where will not convert....
+       */
+      return ConvertTreeReaderFactory.canConvert(fileType, readerType);
+    }
   }
 }

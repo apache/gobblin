@@ -31,10 +31,10 @@ public class OrcValueMapperTest {
     TypeDescription schema_2 = TypeDescription.fromString("struct<i:int,j:int,k:bigint>");
     TypeDescription schema_3 = TypeDescription.fromString("struct<i:int,j:int,k:tinyint>");
     TypeDescription schema_4 = TypeDescription.fromString("struct<i:int,j:int>");
-    Assert.assertTrue(OrcValueMapper.isEvolutionValid(schema_1, schema_2));
-    Assert.assertTrue(OrcValueMapper.isEvolutionValid(schema_1, schema_3));
-    Assert.assertTrue(OrcValueMapper.isEvolutionValid(schema_1, schema_4));
-    Assert.assertTrue(OrcValueMapper.isEvolutionValid(schema_4, schema_1));
+    Assert.assertTrue(OrcUtils.isEvolutionValid(schema_1, schema_2));
+    Assert.assertTrue(OrcUtils.isEvolutionValid(schema_1, schema_3));
+    Assert.assertTrue(OrcUtils.isEvolutionValid(schema_1, schema_4));
+    Assert.assertTrue(OrcUtils.isEvolutionValid(schema_4, schema_1));
   }
 
   @Test
