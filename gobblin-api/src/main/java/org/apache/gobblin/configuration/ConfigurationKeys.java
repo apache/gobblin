@@ -824,12 +824,22 @@ public class ConfigurationKeys {
   public static final String SHARED_KAFKA_CONFIG_PREFIX = "gobblin.kafka.sharedConfig";
 
   /**
-   * Kafka schema registry
+   * Kafka schema registry HTTP client configuration
    */
   public static final String KAFKA_SCHEMA_REGISTRY_HTTPCLIENT_SO_TIMEOUT =
       "kafka.schema.registry.httpclient.so.timeout";
   public static final String KAFKA_SCHEMA_REGISTRY_HTTPCLIENT_CONN_TIMEOUT =
       "kafka.schema.registry.httpclient.conn.timeout";
+  public static final String KAFKA_SCHEMA_REGISTRY_HTTPCLIENT_METHOD_RETRY_COUNT =
+      "kafka.schema.registry.httpclient.methodRetryCount";
+  public static final String KAFKA_SCHEMA_REGISTRY_HTTPCLIENT_REQUEST_RETRY_ENABLED =
+      "kafka.schema.registry.httpclient.requestRetryEnabled";
+  public static final String KAFKA_SCHEMA_REGISTRY_HTTPCLIENT_METHOD_RETRY_HANDLER_CLASS =
+      "kafka.schema.registry.httpclient.methodRetryHandlerClass";
+
+  /**
+   * Kafka schema registry retry configurations
+   */
   public static final String KAFKA_SCHEMA_REGISTRY_RETRY_TIMES = "kafka.schema.registry.retry.times";
   public static final String KAFKA_SCHEMA_REGISTRY_RETRY_INTERVAL_IN_MILLIS =
       "kafka.schema.registry.retry.interval.inMillis";

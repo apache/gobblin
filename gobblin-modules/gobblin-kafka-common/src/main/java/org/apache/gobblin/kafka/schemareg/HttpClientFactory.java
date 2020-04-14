@@ -17,12 +17,18 @@
 
 package org.apache.gobblin.kafka.schemareg;
 
+import org.apache.commons.httpclient.DefaultHttpMethodRetryHandler;
 import org.apache.commons.httpclient.HttpClient;
+import org.apache.commons.httpclient.HttpMethodRetryHandler;
+import org.apache.commons.httpclient.params.HttpMethodParams;
 import org.apache.commons.pool2.BasePooledObjectFactory;
 import org.apache.commons.pool2.PooledObject;
 import org.apache.commons.pool2.impl.DefaultPooledObject;
 
 import lombok.Setter;
+
+import org.apache.gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**
@@ -34,17 +40,28 @@ public class HttpClientFactory extends BasePooledObjectFactory<HttpClient>{
 
   @Setter private int soTimeout = -1;
   @Setter private int connTimeout = -1;
+  @Setter private int httpMethodRetryCount = 3;
+  @Setter private boolean httpRequestSentRetryEnabled = false;
+  @Setter private String httpMethodRetryHandlerClass = DefaultHttpMethodRetryHandler.class.getName();
 
   public HttpClientFactory() {
   }
 
   @Override
-  public HttpClient create() throws Exception {
-
+  public HttpClient create() {
     HttpClient client = new HttpClient();
     if (soTimeout >= 0) {
       client.getParams().setSoTimeout(soTimeout);
     }
+
+    ClassAliasResolver<HttpMethodRetryHandler> aliasResolver = new ClassAliasResolver<>(HttpMethodRetryHandler.class);
+    HttpMethodRetryHandler httpMethodRetryHandler;
+    try {
+      httpMethodRetryHandler = GobblinConstructorUtils.invokeLongestConstructor(aliasResolver.resolveClass(httpMethodRetryHandlerClass), httpMethodRetryCount, httpRequestSentRetryEnabled);
+    } catch (ReflectiveOperationException e) {
+      throw new RuntimeException(e);
+    }
+    client.getParams().setParameter(HttpMethodParams.RETRY_HANDLER, httpMethodRetryHandler);
 
     if (connTimeout >= 0) {
       client.getHttpConnectionManager().getParams().setConnectionTimeout(connTimeout);
