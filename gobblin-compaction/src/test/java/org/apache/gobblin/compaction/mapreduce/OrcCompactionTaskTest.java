@@ -86,7 +86,7 @@ public class OrcCompactionTaskTest {
   }
 
   @Test
-  public void basicTest() throws Exception {
+  public void basicTestWithRecompaction() throws Exception {
     File basePath = Files.createTempDir();
     basePath.deleteOnExit();
 
