@@ -43,8 +43,12 @@ import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.RecordCountProvider;
 import org.apache.gobblin.util.recordcount.IngestionRecordCountProvider;
 
+import static org.apache.gobblin.compaction.mapreduce.CompactorOutputCommitter.COMPACTION_OUTPUT_EXTENSION;
+import static org.apache.gobblin.compaction.mapreduce.CompactorOutputCommitter.DEFAULT_COMPACTION_OUTPUT_EXTENSION;
+
+
 /**
- * A class helps to calculate, serialize, deserialize record count.
+ * A class helps to calculate, serialize, deserialize record count. This will work for Avro and ORC formats.
  *
  * By using {@link IngestionRecordCountProvider}, the default input file name should be in format
  * {file_name}.{record_count}.{extension}. For example, given a file path: "/a/b/c/file.123.avro",
@@ -57,7 +61,7 @@ public class InputRecordCountHelper {
   private final FileSystem fs;
   private final State state;
   private final RecordCountProvider inputRecordCountProvider;
-  private final String AVRO = "avro";
+  private final String extensionName;
 
   @Deprecated
   public final static String RECORD_COUNT_FILE = "_record_count";
@@ -71,6 +75,7 @@ public class InputRecordCountHelper {
     try {
       this.fs = getSourceFileSystem (state);
       this.state = state;
+      this.extensionName = state.getProp(COMPACTION_OUTPUT_EXTENSION, DEFAULT_COMPACTION_OUTPUT_EXTENSION);
       this.inputRecordCountProvider = (RecordCountProvider) Class
               .forName(state.getProp(MRCompactor.COMPACTION_INPUT_RECORD_COUNT_PROVIDER,
                       MRCompactor.DEFAULT_COMPACTION_INPUT_RECORD_COUNT_PROVIDER))
@@ -88,7 +93,8 @@ public class InputRecordCountHelper {
   public long calculateRecordCount (Collection<Path> paths) throws IOException {
     long sum = 0;
     for (Path path: paths) {
-      sum += inputRecordCountProvider.getRecordCount(DatasetHelper.getApplicableFilePaths(this.fs, path, Lists.newArrayList(AVRO)));
+      sum += inputRecordCountProvider.getRecordCount(
+          DatasetHelper.getApplicableFilePaths(this.fs, path, Lists.newArrayList(extensionName)));
     }
     return sum;
   }
