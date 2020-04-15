@@ -201,7 +201,8 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
       for (FlowSpec datasetFlowSpec : flowSpecs) {
         for (DataNode destNode : destNodes) {
           if (!this.dataMovementAuthorizer.isMovementAuthorized(flowSpec, sourceNode, destNode)) {
-            log.error("Data movement is not authorized");
+            log.error(String.format("Data movement is not authorized for flow: %s, source: %s, destination: %s",
+                flowSpec.getUri().toString(), source, destination));
             return null;
           }
         }
