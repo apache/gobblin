@@ -35,6 +35,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.avro.Schema;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.commons.mail.EmailException;
 import org.apache.hadoop.conf.Configuration;
@@ -75,6 +77,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
@@ -91,6 +94,8 @@ import com.google.common.util.concurrent.Service;
 import com.google.common.util.concurrent.ServiceManager;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigRenderOptions;
+import com.typesafe.config.ConfigValueFactory;
 
 import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
 import org.apache.gobblin.cluster.GobblinClusterManager;
@@ -99,6 +104,9 @@ import org.apache.gobblin.cluster.GobblinHelixConstants;
 import org.apache.gobblin.cluster.GobblinHelixMessagingService;
 import org.apache.gobblin.cluster.HelixUtils;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metrics.kafka.KafkaAvroSchemaRegistry;
+import org.apache.gobblin.metrics.kafka.KafkaReporterUtils;
+import org.apache.gobblin.metrics.kafka.SchemaRegistryException;
 import org.apache.gobblin.rest.JobExecutionInfoServer;
 import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
 import org.apache.gobblin.util.ClassAliasResolver;
@@ -149,6 +157,8 @@ import static org.apache.hadoop.security.UserGroupInformation.HADOOP_TOKEN_FILE_
  * @author Yinan Li
  */
 public class GobblinYarnAppLauncher {
+  // if this is set then the Gobblin Yarn config will be written to the specified file path
+  public static final String GOBBLIN_YARN_CONFIG_OUTPUT_PATH = "gobblin.yarn.configOutputPath";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinYarnAppLauncher.class);
 
@@ -287,6 +297,12 @@ public class GobblinYarnAppLauncher {
 
     this.messagingService = new GobblinHelixMessagingService(this.helixManager);
 
+    try {
+      config = addDynamicConfig(config);
+      outputConfigToFile(config);
+    } catch (SchemaRegistryException e) {
+      throw new IOException(e);
+    }
   }
 
   /**
@@ -918,6 +934,87 @@ public class GobblinYarnAppLauncher {
       LOGGER.error("Failed to send email notification on shutdown", ee);
     }
   }
+
+  private static Config addDynamicConfig(Config config) throws IOException {
+    if (isKafkaReportingEnabled(config) && isKafkaAvroSchemaRegistryEnabled(config)) {
+      KafkaAvroSchemaRegistry registry = new KafkaAvroSchemaRegistry(ConfigUtils.configToProperties(config));
+      return addMetricReportingDynamicConfig(config, registry);
+    } else {
+      return config;
+    }
+  }
+
+  /**
+   * Write the config to the file specified with the config key {@value GOBBLIN_YARN_CONFIG_OUTPUT_PATH} if it
+   * is configured.
+   * @param config the config to output
+   * @throws IOException
+   */
+  @VisibleForTesting
+  static void outputConfigToFile(Config config)
+      throws IOException {
+    // If a file path is specified then write the Azkaban config to that path in HOCON format.
+    // This can be used to generate an application.conf file to pass to the yarn app master and containers.
+    if (config.hasPath(GOBBLIN_YARN_CONFIG_OUTPUT_PATH)) {
+      File configFile = new File(config.getString(GOBBLIN_YARN_CONFIG_OUTPUT_PATH));
+      File parentDir = configFile.getParentFile();
+
+      if (parentDir != null && !parentDir.exists()) {
+        if (!parentDir.mkdirs()) {
+          throw new IOException("Error creating directories for " + parentDir);
+        }
+      }
+
+      ConfigRenderOptions configRenderOptions = ConfigRenderOptions.defaults();
+      configRenderOptions = configRenderOptions.setComments(false);
+      configRenderOptions = configRenderOptions.setOriginComments(false);
+      configRenderOptions = configRenderOptions.setFormatted(true);
+      configRenderOptions = configRenderOptions.setJson(false);
+
+      String renderedConfig = config.root().render(configRenderOptions);
+
+      FileUtils.writeStringToFile(configFile, renderedConfig, Charsets.UTF_8);
+    }
+  }
+
+  /**
+   * A method that adds dynamic config related to Kafka-based metric reporting. In particular, if Kafka based metric
+   * reporting is enabled and {@link KafkaAvroSchemaRegistry} is configured, this method registers the metric reporting
+   * related schemas and adds the returned schema ids to the config to be used by metric reporters in {@link org.apache.gobblin.yarn.GobblinApplicationMaster}
+   * and the {@link org.apache.gobblin.cluster.GobblinTaskRunner}s. The advantage of doing this is that the TaskRunners
+   * do not have to initiate a connection with the schema registry server and reduces the chances of metric reporter
+   * instantiation failures in the {@link org.apache.gobblin.cluster.GobblinTaskRunner}s.
+   * @param config
+   */
+  @VisibleForTesting
+  static Config addMetricReportingDynamicConfig(Config config, KafkaAvroSchemaRegistry registry) throws IOException {
+    Properties properties = ConfigUtils.configToProperties(config);
+    if (KafkaReporterUtils.isEventsEnabled(properties)) {
+      Schema schema = new Schema.Parser()
+          .parse(GobblinYarnAppLauncher.class.getClassLoader().getResourceAsStream("GobblinTrackingEvent.avsc"));
+      String schemaId = registry.register(schema, KafkaReporterUtils.getEventsTopic(properties).get());
+      config = config.withValue(ConfigurationKeys.METRICS_REPORTING_EVENTS_KAFKA_AVRO_SCHEMA_ID,
+          ConfigValueFactory.fromAnyRef(schemaId));
+    }
+
+    if (KafkaReporterUtils.isMetricsEnabled(properties)) {
+      Schema schema = new Schema.Parser()
+          .parse(GobblinYarnAppLauncher.class.getClassLoader().getResourceAsStream("MetricReport.avsc"));
+      String schemaId = registry.register(schema, KafkaReporterUtils.getMetricsTopic(properties).get());
+      config = config.withValue(ConfigurationKeys.METRICS_REPORTING_METRICS_KAFKA_AVRO_SCHEMA_ID,
+          ConfigValueFactory.fromAnyRef(schemaId));
+    }
+    return config;
+  }
+
+  private static boolean isKafkaReportingEnabled(Config config) {
+    return Boolean.parseBoolean(ConfigUtils.getString(config, ConfigurationKeys.METRICS_REPORTING_KAFKA_ENABLED_KEY, ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_ENABLED));
+  }
+
+  private static boolean isKafkaAvroSchemaRegistryEnabled(Config config) {
+    return Boolean.parseBoolean(ConfigUtils.getString(config, ConfigurationKeys.METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY, ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY));
+  }
+
 
   public static void main(String[] args) throws Exception {
     final GobblinYarnAppLauncher gobblinYarnAppLauncher =

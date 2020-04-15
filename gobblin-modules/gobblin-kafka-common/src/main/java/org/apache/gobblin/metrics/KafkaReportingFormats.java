@@ -23,6 +23,7 @@ import java.util.Properties;
 
 import com.codahale.metrics.ScheduledReporter;
 import com.google.common.base.Splitter;
+import com.google.common.base.Strings;
 import com.typesafe.config.Config;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -53,6 +54,10 @@ public enum KafkaReportingFormats {
       if (Boolean.valueOf(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY,
           ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY))) {
         builder.withSchemaRegistry(new KafkaAvroSchemaRegistry(properties));
+        String schemaId = properties.getProperty(ConfigurationKeys.METRICS_REPORTING_METRICS_KAFKA_AVRO_SCHEMA_ID);
+        if (!Strings.isNullOrEmpty(schemaId)) {
+          builder.withSchemaId(schemaId);
+        }
       }
       builder.build(brokers, topic, properties);
     }
@@ -66,6 +71,10 @@ public enum KafkaReportingFormats {
       if (Boolean.valueOf(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY,
           ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY))) {
         builder.withSchemaRegistry(new KafkaAvroSchemaRegistry(properties));
+        String schemaId = properties.getProperty(ConfigurationKeys.METRICS_REPORTING_EVENTS_KAFKA_AVRO_SCHEMA_ID);
+        if (!Strings.isNullOrEmpty(schemaId)) {
+          builder.withSchemaId(schemaId);
+        }
       }
       String pusherClassName = properties.containsKey(PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY_FOR_EVENTS) ? properties
           .getProperty(PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY_FOR_EVENTS) : properties
@@ -104,6 +113,10 @@ public enum KafkaReportingFormats {
       if (Boolean.valueOf(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY,
           ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY))) {
         builder.withSchemaRegistry(new KafkaAvroSchemaRegistry(properties));
+        String schemaId = properties.getProperty(ConfigurationKeys.METRICS_REPORTING_EVENTS_KAFKA_AVRO_SCHEMA_ID);
+        if (!Strings.isNullOrEmpty(schemaId)) {
+          builder.withSchemaId(schemaId);
+        }
       }
       String pusherClassName = properties.containsKey(PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY_FOR_EVENTS) ? properties
           .getProperty(PusherUtils.KAFKA_PUSHER_CLASS_NAME_KEY_FOR_EVENTS) : properties

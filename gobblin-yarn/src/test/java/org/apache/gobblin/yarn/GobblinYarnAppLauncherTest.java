@@ -25,12 +25,15 @@ import java.io.PrintWriter;
 import java.lang.reflect.Field;
 import java.net.URL;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeoutException;
 
+import org.apache.avro.Schema;
+import org.apache.commons.io.FileUtils;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.test.TestingServer;
 import org.apache.hadoop.fs.FileSystem;
@@ -46,6 +49,8 @@ import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
 import org.apache.helix.model.Message;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -54,6 +59,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Charsets;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.eventbus.EventBus;
@@ -72,6 +78,8 @@ import org.apache.gobblin.cluster.TestHelper;
 import org.apache.gobblin.cluster.TestShutdownMessageHandlerFactory;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.DynamicConfigGenerator;
+import org.apache.gobblin.metrics.kafka.KafkaAvroSchemaRegistry;
+import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistry;
 import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
 import org.apache.gobblin.testing.AssertWithBackoff;
 
@@ -424,6 +432,45 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
     appMaster.start();
 
     Mockito.verify(mockMultiManager, times(1)).cleanUpJobs();
+  }
+
+  @Test
+  public void testOutputConfig() throws IOException {
+    File tmpTestDir = com.google.common.io.Files.createTempDir();
+
+    try {
+      Path outputPath = Paths.get(tmpTestDir.toString(), "application.conf");
+      Config config = ConfigFactory.empty()
+          .withValue(ConfigurationKeys.FS_URI_KEY, ConfigValueFactory.fromAnyRef("file:///"))
+          .withValue(GobblinYarnAppLauncher.GOBBLIN_YARN_CONFIG_OUTPUT_PATH,
+              ConfigValueFactory.fromAnyRef(outputPath.toString()));
+
+      GobblinYarnAppLauncher.outputConfigToFile(config);
+
+      String configString = com.google.common.io.Files.toString(outputPath.toFile(), Charsets.UTF_8);
+      Assert.assertTrue(configString.contains("fs"));
+    } finally {
+      FileUtils.deleteDirectory(tmpTestDir);
+    }
+  }
+
+  @Test
+  public void testAddMetricReportingDynamicConfig()
+      throws IOException {
+    KafkaAvroSchemaRegistry schemaRegistry = Mockito.mock(KafkaAvroSchemaRegistry.class);
+    Mockito.when(schemaRegistry.register(Mockito.any(Schema.class), Mockito.anyString())).thenAnswer(new Answer<String>() {
+      @Override
+      public String answer(InvocationOnMock invocation) {
+        return "testId";
+      }
+    });
+    Config config = ConfigFactory.empty().withValue(ConfigurationKeys.METRICS_KAFKA_TOPIC_EVENTS, ConfigValueFactory.fromAnyRef("topic"))
+        .withValue(ConfigurationKeys.METRICS_REPORTING_KAFKA_ENABLED_KEY, ConfigValueFactory.fromAnyRef(true))
+        .withValue(ConfigurationKeys.METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY, ConfigValueFactory.fromAnyRef(true))
+        .withValue(KafkaSchemaRegistry.KAFKA_SCHEMA_REGISTRY_URL, ConfigValueFactory.fromAnyRef("http://testSchemaReg:0000"));
+    config = GobblinYarnAppLauncher.addMetricReportingDynamicConfig(config, schemaRegistry);
+    Assert.assertEquals(config.getString(ConfigurationKeys.METRICS_REPORTING_EVENTS_KAFKA_AVRO_SCHEMA_ID), "testId");
+    Assert.assertFalse(config.hasPath(ConfigurationKeys.METRICS_REPORTING_METRICS_KAFKA_AVRO_SCHEMA_ID));
   }
 
   /**

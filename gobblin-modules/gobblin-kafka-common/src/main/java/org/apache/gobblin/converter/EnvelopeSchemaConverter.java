@@ -17,28 +17,31 @@
 
 package org.apache.gobblin.converter;
 
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.ExecutionException;
+
+import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericDatumReader;
+import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.io.Decoder;
+import org.apache.avro.io.DecoderFactory;
+
 import com.google.common.base.Optional;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+
+import javax.xml.bind.DatatypeConverter;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.converter.filter.AvroProjectionConverter;
 import org.apache.gobblin.converter.filter.AvroSchemaFieldRemover;
 import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistry;
 import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistryFactory;
-import org.apache.gobblin.metrics.kafka.SchemaRegistryException;
 import org.apache.gobblin.util.AvroUtils;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
-import java.util.concurrent.ExecutionException;
-import javax.xml.bind.DatatypeConverter;
-import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericDatumReader;
-import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.io.Decoder;
-import org.apache.avro.io.DecoderFactory;
 
 /**
  * A converter for extracting schema/records from an envelope schema.
@@ -123,7 +126,7 @@ public class EnvelopeSchemaConverter extends Converter<Schema, String, GenericRe
         payloadSchema = this.fieldRemover.get().removeFields(payloadSchema);
       }
       return new SingleRecordIterable<>(AvroUtils.convertRecordSchema(outputRecord, payloadSchema));
-    } catch (IOException | SchemaRegistryException | ExecutionException e) {
+    } catch (IOException | ExecutionException e) {
       throw new DataConversionException(e);
     }
   }

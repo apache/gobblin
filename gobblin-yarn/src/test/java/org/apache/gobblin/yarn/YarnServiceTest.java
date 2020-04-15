@@ -50,6 +50,11 @@ import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.server.MiniYARNCluster;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttempt;
 import org.apache.hadoop.yarn.server.utils.BuilderUtils;
+import org.apache.helix.HelixAdmin;
+import org.apache.helix.HelixDataAccessor;
+import org.apache.helix.HelixManager;
+import org.apache.helix.PropertyKey;
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -64,6 +69,7 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
+import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
 import org.apache.gobblin.testing.AssertWithBackoff;
 
 
@@ -284,7 +290,25 @@ public class YarnServiceTest {
    static class TestYarnService extends YarnService {
     public TestYarnService(Config config, String applicationName, String applicationId, YarnConfiguration yarnConfiguration,
         FileSystem fs, EventBus eventBus) throws Exception {
-      super(config, applicationName, applicationId, yarnConfiguration, fs, eventBus, null);
+      super(config, applicationName, applicationId, yarnConfiguration, fs, eventBus, getMockHelixManager(config));
+    }
+
+    private static HelixManager getMockHelixManager(Config config) {
+      HelixManager helixManager = Mockito.mock(HelixManager.class);
+      HelixAdmin helixAdmin = Mockito.mock(HelixAdmin.class);
+      HelixDataAccessor helixDataAccessor = Mockito.mock(HelixDataAccessor.class);
+      PropertyKey propertyKey = Mockito.mock(PropertyKey.class);
+      PropertyKey.Builder propertyKeyBuilder = Mockito.mock(PropertyKey.Builder.class);
+
+      Mockito.when(helixManager.getInstanceName()).thenReturn("helixInstance1");
+      Mockito.when(helixManager.getClusterName()).thenReturn(config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY));
+      Mockito.doNothing().when(helixAdmin).enableInstance(Mockito.anyString(), Mockito.anyString(), Mockito.anyBoolean());
+      Mockito.when(helixManager.getHelixDataAccessor()).thenReturn(helixDataAccessor);
+      Mockito.when(helixDataAccessor.keyBuilder()).thenReturn(propertyKeyBuilder);
+      Mockito.when(propertyKeyBuilder.liveInstance(Mockito.anyString())).thenReturn(propertyKey);
+      Mockito.when(helixDataAccessor.getProperty(propertyKey)).thenReturn(null);
+
+      return helixManager;
     }
 
     protected ContainerLaunchContext newContainerLaunchContext(Container container, String helixInstanceName)

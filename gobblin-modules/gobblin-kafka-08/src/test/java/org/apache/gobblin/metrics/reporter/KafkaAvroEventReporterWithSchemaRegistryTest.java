@@ -19,6 +19,7 @@ package org.apache.gobblin.metrics.reporter;
 
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
+import java.io.IOException;
 import java.util.Map;
 
 import org.apache.avro.Schema;
@@ -37,7 +38,6 @@ import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.kafka.KafkaAvroEventReporter;
 import org.apache.gobblin.metrics.kafka.KafkaAvroSchemaRegistry;
 import org.apache.gobblin.metrics.kafka.KafkaEventReporter;
-import org.apache.gobblin.metrics.kafka.SchemaRegistryException;
 
 
 public class KafkaAvroEventReporterWithSchemaRegistryTest {
@@ -46,28 +46,51 @@ public class KafkaAvroEventReporterWithSchemaRegistryTest {
 
   @Test
   public void test() throws Exception {
+    testHelper(false);
+  }
 
+  @Test
+  public void testWithSchemaId() throws IOException {
+    testHelper(true);
+  }
+
+  private String register(Schema schema) {
+    String id = DigestUtils.sha1Hex(schema.toString().getBytes());
+    this.schemas.put(id, schema);
+    return id;
+  }
+
+  private void testHelper(boolean isSchemaIdEnabled) throws IOException {
     MetricContext context = MetricContext.builder("context").build();
 
     MockKafkaPusher pusher = new MockKafkaPusher();
     KafkaAvroSchemaRegistry registry = Mockito.mock(KafkaAvroSchemaRegistry.class);
-    Mockito.when(registry.register(Mockito.any(Schema.class))).thenAnswer(new Answer<String>() {
-      @Override
-      public String answer(InvocationOnMock invocation)
-          throws Throwable {
-        return register((Schema) invocation.getArguments()[0]);
-      }
-    });
-    Mockito.when(registry.register(Mockito.any(Schema.class), Mockito.anyString())).thenAnswer(new Answer<String>() {
-      @Override
-      public String answer(InvocationOnMock invocation)
-          throws Throwable {
-        return register((Schema) invocation.getArguments()[0]);
-      }
-    });
-    KafkaEventReporter kafkaReporter =
-        KafkaAvroEventReporter.forContext(context).withKafkaPusher(pusher)
-            .withSchemaRegistry(registry).build("localhost:0000", "topic");
+    KafkaAvroEventReporter.Builder builder = KafkaAvroEventReporter.forContext(context).withKafkaPusher(pusher).withSchemaRegistry(registry);
+
+    Schema schema =
+        new Schema.Parser().parse(getClass().getClassLoader().getResourceAsStream("GobblinTrackingEvent.avsc"));
+    String schemaId = DigestUtils.sha1Hex(schema.toString().getBytes());
+
+    if (!isSchemaIdEnabled) {
+      Mockito.when(registry.register(Mockito.any(Schema.class))).thenAnswer(new Answer<String>() {
+        @Override
+        public String answer(InvocationOnMock invocation)
+            throws Throwable {
+          return register((Schema) invocation.getArguments()[0]);
+        }
+      });
+      Mockito.when(registry.register(Mockito.any(Schema.class), Mockito.anyString())).thenAnswer(new Answer<String>() {
+        @Override
+        public String answer(InvocationOnMock invocation)
+            throws Throwable {
+          return register((Schema) invocation.getArguments()[0]);
+        }
+      });
+    } else {
+      builder.withSchemaId(schemaId);
+    }
+
+    KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic");
 
     GobblinTrackingEvent event = new GobblinTrackingEvent(0l, "namespace", "name", Maps.<String, String>newHashMap());
 
@@ -93,19 +116,12 @@ public class KafkaAvroEventReporterWithSchemaRegistryTest {
     byte[] readId = new byte[20];
     Assert.assertEquals(is.read(readId), 20);
     String readStringId = Hex.encodeHexString(readId);
-    Assert.assertTrue(this.schemas.containsKey(readStringId));
-
-    Schema schema = this.schemas.get(readStringId);
-    Assert.assertFalse(schema.toString().contains("avro.java.string"));
-
+    if (!isSchemaIdEnabled) {
+      Assert.assertTrue(this.schemas.containsKey(readStringId));
+      Schema readSchema = this.schemas.get(readStringId);
+      Assert.assertFalse(readSchema.toString().contains("avro.java.string"));
+    }
+    Assert.assertEquals(readStringId, schemaId);
     is.close();
   }
-
-  private String register(Schema schema)
-      throws SchemaRegistryException {
-    String id = DigestUtils.sha1Hex(schema.toString().getBytes());
-    this.schemas.put(id, schema);
-    return id;
-  }
-
 }

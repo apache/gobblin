@@ -24,6 +24,7 @@ import java.io.IOException;
 import org.apache.avro.io.Decoder;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.specific.SpecificDatumReader;
+import org.apache.commons.codec.binary.Hex;
 
 import com.google.common.base.Optional;
 import com.google.common.io.Closer;
@@ -75,13 +76,13 @@ public class EventUtils {
   }
 
   /**
-   * Parses a {@link org.apache.gobblin.metrics.MetricReport} from a byte array Avro serialization.
-   * @param reuse MetricReport to reuse.
+   * Parses a {@link org.apache.gobblin.metrics.GobblinTrackingEvent} from a byte array Avro serialization.
+   * @param reuse GobblinTrackingEvent to reuse.
    * @param bytes Input bytes.
-   * @return MetricReport.
+   * @return GobblinTrackingEvent.
    * @throws java.io.IOException
    */
-  public synchronized static GobblinTrackingEvent deserializeReportFromAvroSerialization(GobblinTrackingEvent reuse, byte[] bytes)
+  public synchronized static GobblinTrackingEvent deserializeEventFromAvroSerialization(GobblinTrackingEvent reuse, byte[] bytes)
       throws IOException {
     if (!reader.isPresent()) {
       reader = Optional.of(new SpecificDatumReader<>(GobblinTrackingEvent.class));
@@ -109,5 +110,47 @@ public class EventUtils {
       closer.close();
     }
   }
-}
 
+  /**
+   * Parses a {@link org.apache.gobblin.metrics.GobblinTrackingEvent} from a byte array Avro serialization.
+   * @param reuse GobblinTrackingEvent to reuse.
+   * @param bytes Input bytes.
+   * @param schemaId Expected schemaId.
+   * @param schemaIdLengthBytes schemaId length in number of bytes.
+   * @return GobblinTrackingEvent.
+   * @throws java.io.IOException
+   */
+  public synchronized static GobblinTrackingEvent deserializeEventFromAvroSerialization(GobblinTrackingEvent reuse, byte[] bytes, String schemaId, int schemaIdLengthBytes)
+      throws IOException {
+    if (!reader.isPresent()) {
+      reader = Optional.of(new SpecificDatumReader<>(GobblinTrackingEvent.class));
+    }
+
+    Closer closer = Closer.create();
+
+    try {
+      DataInputStream inputStream = closer.register(new DataInputStream(new ByteArrayInputStream(bytes)));
+      //Read the magic byte
+      inputStream.readByte();
+
+      byte[] readId = new byte[schemaIdLengthBytes];
+      int numBytesRead = inputStream.read(readId, 0, schemaIdLengthBytes);
+      String readSchemaId = Hex.encodeHexString(readId);
+
+      // Check that schema versions match
+      if (numBytesRead != schemaIdLengthBytes || !readSchemaId.equals(schemaId)) {
+        throw new IOException(String
+            .format("GobblinTrackingEvent schema version not recognized. Found version %s, expected %s.", readSchemaId,
+                schemaId));
+      }
+
+      // Decode the rest
+      Decoder decoder = DecoderFactory.get().binaryDecoder(inputStream, null);
+      return reader.get().read(reuse, decoder);
+    } catch(Throwable t) {
+      throw closer.rethrow(t);
+    } finally {
+      closer.close();
+    }
+  }
+}

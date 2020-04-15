@@ -17,22 +17,20 @@
 
 package org.apache.gobblin.metrics.kafka;
 
+import java.io.IOException;
+
+import org.apache.avro.Schema;
+
+import com.google.common.base.Optional;
+
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.reporter.util.AvroBinarySerializer;
 import org.apache.gobblin.metrics.reporter.util.AvroSerializer;
 import org.apache.gobblin.metrics.reporter.util.SchemaRegistryVersionWriter;
 import org.apache.gobblin.metrics.reporter.util.SchemaVersionWriter;
-
-import java.io.IOException;
-import java.util.List;
-import java.util.Properties;
-
-import org.apache.avro.Schema;
-
-import com.google.common.base.Optional;
-import com.google.common.collect.Lists;
 
 
 /**
@@ -46,8 +44,10 @@ public class KafkaAvroEventKeyValueReporter extends KafkaEventKeyValueReporter {
     if(builder.registry.isPresent()) {
       Schema schema =
           new Schema.Parser().parse(getClass().getClassLoader().getResourceAsStream("GobblinTrackingEvent.avsc"));
-      this.serializer.setSchemaVersionWriter(new SchemaRegistryVersionWriter(builder.registry.get(), builder.topic,
-          Optional.of(schema)));
+      SchemaRegistryVersionWriter schemaVersionWriter =
+          builder.schemaId.isPresent() ? new SchemaRegistryVersionWriter(builder.registry.get(), builder.topic, schema,
+              builder.schemaId.get()) : new SchemaRegistryVersionWriter(builder.registry.get(), builder.topic, schema);
+      this.serializer.setSchemaVersionWriter(schemaVersionWriter);
     }
   }
 
@@ -86,6 +86,7 @@ public class KafkaAvroEventKeyValueReporter extends KafkaEventKeyValueReporter {
    */
   public static abstract class Builder<T extends Builder<T>> extends KafkaEventKeyValueReporter.Builder<T> {
     private Optional<KafkaAvroSchemaRegistry> registry = Optional.absent();
+    private Optional<String> schemaId = Optional.absent();
 
     private Builder(MetricContext context) {
       super(context);
@@ -93,6 +94,11 @@ public class KafkaAvroEventKeyValueReporter extends KafkaEventKeyValueReporter {
 
     public T withSchemaRegistry(KafkaAvroSchemaRegistry registry) {
       this.registry = Optional.of(registry);
+      return self();
+    }
+
+    public T withSchemaId(String schemaId) {
+      this.schemaId = Optional.of(schemaId);
       return self();
     }
 

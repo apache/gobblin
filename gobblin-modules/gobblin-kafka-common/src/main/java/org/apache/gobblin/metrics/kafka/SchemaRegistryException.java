@@ -17,7 +17,10 @@
 
 package org.apache.gobblin.metrics.kafka;
 
-public class SchemaRegistryException extends Exception {
+import java.io.IOException;
+
+
+public class SchemaRegistryException extends IOException {
 
   private static final long serialVersionUID = 1L;
 
