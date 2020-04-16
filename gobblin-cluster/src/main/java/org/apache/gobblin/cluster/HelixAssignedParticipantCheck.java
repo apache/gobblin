@@ -16,7 +16,6 @@
  */
 package org.apache.gobblin.cluster;
 
-import java.io.IOException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -32,8 +31,10 @@ import com.github.rholder.retry.RetryException;
 import com.github.rholder.retry.Retryer;
 import com.github.rholder.retry.RetryerBuilder;
 import com.github.rholder.retry.StopStrategies;
+import com.google.common.annotations.VisibleForTesting;
 import com.typesafe.config.Config;
 
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alias;
@@ -52,6 +53,8 @@ import org.apache.gobblin.commit.CommitStepException;
 @Slf4j
 @Alias (value = "HelixParticipantCheck")
 public class HelixAssignedParticipantCheck implements CommitStep {
+  @Getter
+  @VisibleForTesting
   private static volatile HelixManager helixManager = null;
   private static volatile Retryer<Boolean> retryer = RetryerBuilder.<Boolean>newBuilder()
       .retryIfException()
@@ -61,6 +64,7 @@ public class HelixAssignedParticipantCheck implements CommitStep {
   private final String helixInstanceName;
   private final String helixJob;
   private final int partitionNum;
+  private final Config config;
 
   private boolean isCompleted;
 
@@ -69,7 +73,7 @@ public class HelixAssignedParticipantCheck implements CommitStep {
    * @param config
    * @return
    */
-  public static HelixManager getHelixManager(Config config) {
+  public static void initHelixManager(Config config) throws Exception {
     if (helixManager == null) {
       synchronized (HelixAssignedParticipantCheck.class) {
         if (helixManager == null) {
@@ -77,14 +81,29 @@ public class HelixAssignedParticipantCheck implements CommitStep {
           String clusterName = config.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
           helixManager = HelixManagerFactory.getZKHelixManager(clusterName, HelixAssignedParticipantCheck.class.getSimpleName(),
               InstanceType.SPECTATOR, zkConnectString);
+          helixManager.connect();
         }
       }
     }
-    return helixManager;
   }
 
-  public HelixAssignedParticipantCheck(Config config) {
-    getHelixManager(config);
+  /**
+   * Refresh {@link HelixManager} instance. Invoked when the underlying ZkClient is closed causing Helix
+   * APIs to throw an Exception.
+   * @throws Exception
+   */
+  private void refreshHelixManager() throws Exception {
+    synchronized (HelixAssignedParticipantCheck.class) {
+      //Ensure existing instance is disconnected to close any open connections.
+      helixManager.disconnect();
+      helixManager = null;
+      initHelixManager(config);
+    }
+  }
+
+  public HelixAssignedParticipantCheck(Config config) throws Exception {
+    this.config = config;
+    initHelixManager(config);
     this.helixInstanceName = config.getString(GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_KEY);
     this.helixJob = config.getString(GobblinClusterConfigurationKeys.HELIX_JOB_ID_KEY);
     this.partitionNum = config.getInt(GobblinClusterConfigurationKeys.HELIX_PARTITION_ID_KEY);
@@ -94,8 +113,7 @@ public class HelixAssignedParticipantCheck implements CommitStep {
    * Determine whether the commit step has been completed.
    */
   @Override
-  public boolean isCompleted()
-      throws IOException {
+  public boolean isCompleted() {
     return isCompleted;
   }
 
@@ -104,20 +122,23 @@ public class HelixAssignedParticipantCheck implements CommitStep {
    */
   @Override
   public void execute() throws CommitStepException {
-    if (!helixManager.isConnected()) {
-      try {
-        helixManager.connect();
-      } catch (Exception e) {
-        throw new CommitStepException(String.format("Helix instance %s unable to connect to Helix/ZK", helixInstanceName));
-      }
-    }
-    TaskDriver taskDriver = new TaskDriver(helixManager);
     log.info(String.format("HelixParticipantCheck step called for Helix Instance: %s, Helix job: %s, Helix partition: %d",
         this.helixInstanceName, this.helixJob, this.partitionNum));
 
     //Query Helix to get the currently assigned participant for the Helix partitionNum
     Callable callable = () -> {
-      JobContext jobContext = taskDriver.getJobContext(helixJob);
+      JobContext jobContext;
+      try {
+        TaskDriver taskDriver = new TaskDriver(helixManager);
+        jobContext = taskDriver.getJobContext(helixJob);
+      } catch (Exception e) {
+        log.info("Encountered exception when executing " + getClass().getSimpleName(), e);
+        log.info("Refreshing Helix manager..");
+        refreshHelixManager();
+        //Rethrow the exception to trigger a retry.
+        throw e;
+      }
+
       if (jobContext != null) {
         String participant = jobContext.getAssignedParticipant(partitionNum);
         if (participant != null) {
