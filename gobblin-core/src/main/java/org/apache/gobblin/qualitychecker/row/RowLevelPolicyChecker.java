@@ -90,7 +90,6 @@ public class RowLevelPolicyChecker<S, D> implements Closeable, FinalState, Recor
     this.stateId = stateId;
     this.fs = fs;
     this.errFileOpen = false;
-    this.writer = new RowLevelErrFileWriter(this.fs);
     this.results = new RowLevelPolicyCheckResults();
     this.sampler = new FrontLoadedSampler(state.getPropAsLong(ConfigurationKeys.ROW_LEVEL_ERR_FILE_RECORDS_PER_TASK,
         ConfigurationKeys.DEFAULT_ROW_LEVEL_ERR_FILE_RECORDS_PER_TASK), 1.5);
@@ -121,6 +120,7 @@ public class RowLevelPolicyChecker<S, D> implements Closeable, FinalState, Recor
       } else if (p.getType().equals(RowLevelPolicy.Type.ERR_FILE)) {
         if (this.sampler.acceptNext()) {
           if (!this.errFileOpen) {
+            this.writer = new RowLevelErrFileWriter(this.fs);
             this.writer.open(getErrFilePath(p));
             this.writer.write(record);
           } else {
@@ -208,7 +208,6 @@ public class RowLevelPolicyChecker<S, D> implements Closeable, FinalState, Recor
         if (message instanceof FlushControlMessage ) {
           try {
             RowLevelPolicyChecker.this.close();
-            RowLevelPolicyChecker.this.writer = new RowLevelErrFileWriter(RowLevelPolicyChecker.this.fs);
           } catch (IOException ioe) {
             log.error("Failed to close errFile", ioe);
           }
