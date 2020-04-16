@@ -85,11 +85,11 @@ public class CompactionThresholdVerifier implements CompactionVerifier<FileSyste
       if (oldRecords == 0) {
         return new Result(true, "");
       }
-      if ((newRecords - oldRecords) / oldRecords > threshold) {
-        if (newRecords < oldRecords) {
-          return new Result(false, "Illegal state: Current records count should old be smaller.");
-        }
+      if (newRecords < oldRecords) {
+        return new Result(false, "Illegal state: Current records count should old be smaller.");
+      }
 
+      if ((newRecords - oldRecords) / oldRecords > threshold) {
         log.debug("Dataset {} records exceeded the threshold {}", dataset.datasetURN(), threshold);
         return new Result(true, "");
       }
