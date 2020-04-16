@@ -141,7 +141,7 @@ public class AvroCompactionTaskTest {
   }
 
   @Test
-  public void testRecompaction () throws Exception {
+  public void testAvroRecompaction() throws Exception {
     FileSystem fs = getFileSystem();
     String basePath = "/tmp/testRecompaction";
     fs.delete(new Path(basePath), true);

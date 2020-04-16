@@ -51,10 +51,13 @@ import org.testng.annotations.Test;
 
 import static org.apache.gobblin.compaction.mapreduce.AvroCompactionTaskTest.*;
 import static org.apache.gobblin.compaction.mapreduce.CompactorOutputCommitter.*;
+import static org.apache.gobblin.compaction.mapreduce.MRCompactor.COMPACTION_LATEDATA_THRESHOLD_FOR_RECOMPACT_PER_DATASET;
 import static org.apache.gobblin.compaction.mapreduce.MRCompactor.COMPACTION_SHOULD_DEDUPLICATE;
 
 
 public class OrcCompactionTaskTest {
+  final String extensionName = "orc";
+
   private void createTestingData(File jobDir) throws Exception {
     // Write some ORC file for compaction here.
     TypeDescription schema = TypeDescription.fromString("struct<i:int,j:int>");
@@ -74,15 +77,16 @@ public class OrcCompactionTaskTest {
     orcStruct_3.setFieldValue("i", new IntWritable(4));
     orcStruct_3.setFieldValue("j", new IntWritable(5));
 
-    File file_0 = new File(jobDir, "file_0");
-    File file_1 = new File(jobDir, "file_1");
+    // Following pattern: FILENAME.RECORDCOUNT.EXTENSION
+    File file_0 = new File(jobDir, "file_0.2." + extensionName);
+    File file_1 = new File(jobDir, "file_1.2." + extensionName);
 
     writeOrcRecordsInFile(new Path(file_0.getAbsolutePath()), schema, ImmutableList.of(orcStruct_0, orcStruct_2));
     writeOrcRecordsInFile(new Path(file_1.getAbsolutePath()), schema, ImmutableList.of(orcStruct_1, orcStruct_3));
   }
 
   @Test
-  public void basicTest() throws Exception {
+  public void basicTestWithRecompaction() throws Exception {
     File basePath = Files.createTempDir();
     basePath.deleteOnExit();
 
@@ -101,18 +105,18 @@ public class OrcCompactionTaskTest {
     orcStruct_4.setFieldValue("j", new IntWritable(6));
     orcStruct_4.setFieldValue("k", new IntWritable(7));
 
-    File file_2 = new File(jobDir, "file_2");
+    File file_2 = new File(jobDir, "file_2.1." + extensionName);
     writeOrcRecordsInFile(new Path(file_2.getAbsolutePath()), evolvedSchema, ImmutableList.of(orcStruct_4));
     // Make this is the newest.
     file_2.setLastModified(Long.MAX_VALUE);
 
     // Verify execution
     // Overwrite the job configurator factory key.
-    String extensionFileName = "orcavro";
     EmbeddedGobblin embeddedGobblin = createEmbeddedGobblin("basic", basePath.getAbsolutePath().toString())
         .setConfiguration(CompactionJobConfigurator.COMPACTION_JOB_CONFIGURATOR_FACTORY_CLASS_KEY,
         TestCompactionOrcJobConfigurator.Factory.class.getName())
-        .setConfiguration(COMPACTION_OUTPUT_EXTENSION, extensionFileName);
+        .setConfiguration(COMPACTION_OUTPUT_EXTENSION, extensionName)
+        .setConfiguration(COMPACTION_LATEDATA_THRESHOLD_FOR_RECOMPACT_PER_DATASET, "Identity.*:0.1");
     JobExecutionResult execution = embeddedGobblin.run();
     Assert.assertTrue(execution.isSuccessful());
 
@@ -120,14 +124,7 @@ public class OrcCompactionTaskTest {
     File outputDir = new File(basePath, hourlyPath);
     FileSystem fs = FileSystem.getLocal(new Configuration());
     List<FileStatus> statuses = new ArrayList<>();
-    for (FileStatus status : fs.listStatus(new Path(outputDir.getAbsolutePath()), new PathFilter() {
-      @Override
-      public boolean accept(Path path) {
-        return FilenameUtils.isExtension(path.getName(), extensionFileName);
-      }
-    })) {
-      statuses.add(status);
-    }
+    reloadFolder(statuses, outputDir, fs);
 
     Assert.assertTrue(statuses.size() == 1);
     List<OrcStruct> result = readOrcFile(statuses.get(0).getPath());
@@ -144,6 +141,35 @@ public class OrcCompactionTaskTest {
     Assert.assertEquals(result.get(3).getFieldValue("i"), new IntWritable(5));
     Assert.assertEquals(result.get(3).getFieldValue("j"), new IntWritable(6));
     Assert.assertEquals(result.get(3).getFieldValue("k"), new IntWritable(7));
+
+    // Adding new .orc file into the directory and verify if re-compaction is triggered.
+    File file_late = new File(jobDir, "file_late.1." + extensionName);
+    OrcStruct orcStruct_5 = (OrcStruct) OrcStruct.createValue(evolvedSchema);
+    orcStruct_5.setFieldValue("i", new IntWritable(10));
+    orcStruct_5.setFieldValue("j", new IntWritable(11));
+    orcStruct_5.setFieldValue("k", new IntWritable(12));
+
+    writeOrcRecordsInFile(new Path(file_late.getAbsolutePath()), evolvedSchema, ImmutableList.of(orcStruct_5));
+    execution = embeddedGobblin.run();
+    Assert.assertTrue(execution.isSuccessful());
+
+    reloadFolder(statuses, outputDir, fs);
+    result = readOrcFile(statuses.get(0).getPath());
+    // Note previous execution's inspection gives 4 result, given re-compaction, this should gives 1 late-record more.
+    Assert.assertEquals(result.size(), 4 + 1);
+  }
+
+  // A helper method to load all files in the output directory for compaction-result inspection.
+  private void reloadFolder(List<FileStatus> statuses, File outputDir, FileSystem fs) throws IOException {
+    statuses.clear();
+    for (FileStatus status : fs.listStatus(new Path(outputDir.getAbsolutePath()), new PathFilter() {
+      @Override
+      public boolean accept(Path path) {
+        return FilenameUtils.isExtension(path.getName(), extensionName);
+      }
+    })) {
+      statuses.add(status);
+    }
   }
 
   @Test
