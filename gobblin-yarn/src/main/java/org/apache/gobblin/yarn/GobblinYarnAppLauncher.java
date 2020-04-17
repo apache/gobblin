@@ -1000,15 +1000,12 @@ public class GobblinYarnAppLauncher {
     if (KafkaReporterUtils.isMetricsEnabled(properties)) {
       Schema schema = KafkaReporterUtils.getMetricReportSchema();
       String schemaId = registry.register(schema, KafkaReporterUtils.getMetricsTopic(properties).get());
-      LOGGER.info("Adding schemaId {} for GobblinTrackingEvent to the config", schemaId);
+      LOGGER.info("Adding schemaId {} for MetricReport to the config", schemaId);
       config = config.withValue(ConfigurationKeys.METRICS_REPORTING_METRICS_KAFKA_AVRO_SCHEMA_ID,
           ConfigValueFactory.fromAnyRef(schemaId));
     }
     return config;
   }
-
-
-
 
   public static void main(String[] args) throws Exception {
     final GobblinYarnAppLauncher gobblinYarnAppLauncher =
