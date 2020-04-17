@@ -18,6 +18,8 @@
 package org.apache.gobblin.compaction.mapreduce;
 
 import java.io.IOException;
+
+import org.apache.commons.lang3.StringUtils;
 import org.apache.gobblin.compaction.mapreduce.orc.OrcKeyCompactorOutputFormat;
 import org.apache.gobblin.compaction.mapreduce.orc.OrcKeyComparator;
 import org.apache.gobblin.compaction.mapreduce.orc.OrcKeyDedupReducer;
@@ -36,6 +38,10 @@ import static org.apache.gobblin.compaction.mapreduce.CompactorOutputCommitter.*
 
 
 public class CompactionOrcJobConfigurator extends CompactionJobConfigurator {
+
+  public static final String ORC_MAPPER_SHUFFLE_SCHEMA_KEY = "orcMapperShuffleSchema";
+  private String orcMapperShuffleSchemaString;
+
   public static class Factory implements CompactionJobConfigurator.ConfiguratorFactory {
     @Override
     public CompactionJobConfigurator createConfigurator(State state) throws IOException {
@@ -45,6 +51,7 @@ public class CompactionOrcJobConfigurator extends CompactionJobConfigurator {
 
   public CompactionOrcJobConfigurator(State state) throws IOException {
     super(state);
+    this.orcMapperShuffleSchemaString = state.getProp(ORC_MAPPER_SHUFFLE_SCHEMA_KEY, StringUtils.EMPTY);
   }
 
   @Override
@@ -56,7 +63,8 @@ public class CompactionOrcJobConfigurator extends CompactionJobConfigurator {
     TypeDescription schema = OrcUtils.getNewestSchemaFromSource(job, this.fs);
 
     job.getConfiguration().set(OrcConf.MAPRED_INPUT_SCHEMA.getAttribute(), schema.toString());
-    job.getConfiguration().set(OrcConf.MAPRED_SHUFFLE_KEY_SCHEMA.getAttribute(), schema.toString());
+    job.getConfiguration().set(OrcConf.MAPRED_SHUFFLE_KEY_SCHEMA.getAttribute(),
+        orcMapperShuffleSchemaString.isEmpty() ? orcMapperShuffleSchemaString : schema.toString());
     job.getConfiguration().set(OrcConf.MAPRED_SHUFFLE_VALUE_SCHEMA.getAttribute(), schema.toString());
     job.getConfiguration().set(OrcConf.MAPRED_OUTPUT_SCHEMA.getAttribute(), schema.toString());
   }

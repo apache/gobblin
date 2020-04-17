@@ -24,6 +24,7 @@ import java.util.Map;
 import org.apache.gobblin.compaction.mapreduce.RecordKeyMapperBase;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.WritableComparable;
+import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.orc.OrcConf;
 import org.apache.orc.TypeDescription;
@@ -37,6 +38,7 @@ import org.apache.orc.mapred.OrcValue;
 import org.apache.orc.mapreduce.OrcMapreduceRecordReader;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -49,8 +51,11 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class OrcValueMapper extends RecordKeyMapperBase<NullWritable, OrcStruct, Object, OrcValue> {
 
+  // This key will only be initialized lazily when dedup is enabled.
+  private OrcKey outKey;
   private OrcValue outValue;
-  private TypeDescription mapperSchema;
+  private TypeDescription mrOutputSchema;
+  private JobConf jobConf;
 
   // This is added mostly for debuggability.
   private static int writeCount = 0;
@@ -59,21 +64,23 @@ public class OrcValueMapper extends RecordKeyMapperBase<NullWritable, OrcStruct,
   protected void setup(Context context)
       throws IOException, InterruptedException {
     super.setup(context);
+    this.jobConf = new JobConf(context.getConfiguration());
+    this.outKey.configure(jobConf);
     this.outValue = new OrcValue();
-    this.mapperSchema =
+    this.mrOutputSchema =
         TypeDescription.fromString(context.getConfiguration().get(OrcConf.MAPRED_INPUT_SCHEMA.getAttribute()));
   }
 
   @Override
   protected void map(NullWritable key, OrcStruct orcStruct, Context context)
       throws IOException, InterruptedException {
-    OrcStruct upConvertedStruct = upConvertOrcStruct(orcStruct, mapperSchema);
-    this.outValue.value = upConvertedStruct;
+    upConvertOrcStruct(orcStruct, (OrcStruct) outValue.value, mrOutputSchema);
     try {
       if (context.getNumReduceTasks() == 0) {
         context.write(NullWritable.get(), this.outValue);
       } else {
-        context.write(getDedupKey(upConvertedStruct), this.outValue);
+//        fillDedupKey(upConvertedOrcStruct);
+        context.write(this.outKey, this.outValue);
       }
     } catch (Exception e) {
       throw new RuntimeException("Failure in write record no." + writeCount, e);
@@ -84,50 +91,51 @@ public class OrcValueMapper extends RecordKeyMapperBase<NullWritable, OrcStruct,
   }
 
   /**
-   * Recursively up-convert the {@link OrcStruct} into {@link #mapperSchema}
+   * Recursively up-convert the {@link OrcStruct} into newStruct's schema which is {@link #mrOutputSchema}.
    * Limitation:
    * 1. Does not support up-conversion of key types in Maps
    * 2. Conversion only happens if org.apache.gobblin.compaction.mapreduce.orc.OrcValueMapper#isEvolutionValid return true.
    */
   @VisibleForTesting
-  OrcStruct upConvertOrcStruct(OrcStruct orcStruct, TypeDescription mapperSchema) {
+  void upConvertOrcStruct(OrcStruct oldStruct, OrcStruct newStruct, TypeDescription targetSchema) {
+
+    // If target schema is not equal to newStruct's schema, it is a illegal state and doesn't make sense to work through.
+    Preconditions.checkArgument(newStruct.getSchema().equals(targetSchema));
+
     // For ORC schema, if schema object differs that means schema itself is different while for Avro,
     // there are chances that documentation or attributes' difference lead to the schema object difference.
-    if (!orcStruct.getSchema().equals(mapperSchema)) {
+    if (!oldStruct.getSchema().equals(targetSchema)) {
       log.info("There's schema mismatch identified from reader's schema and writer's schema");
-      OrcStruct newStruct = new OrcStruct(mapperSchema);
 
       int indexInNewSchema = 0;
-      List<String> oldSchemaFieldNames = orcStruct.getSchema().getFieldNames();
-      List<TypeDescription> oldSchemaTypes = orcStruct.getSchema().getChildren();
-      List<TypeDescription> newSchemaTypes = mapperSchema.getChildren();
+      List<String> oldSchemaFieldNames = oldStruct.getSchema().getFieldNames();
+      List<TypeDescription> oldSchemaTypes = oldStruct.getSchema().getChildren();
+      List<TypeDescription> newSchemaTypes = targetSchema.getChildren();
 
-      for (String field : mapperSchema.getFieldNames()) {
-        if (oldSchemaFieldNames.contains(field)) {
-          int fieldIndex = oldSchemaFieldNames.indexOf(field);
+      for (String fieldName : targetSchema.getFieldNames()) {
+        if (oldSchemaFieldNames.contains(fieldName)) {
+          int fieldIndex = oldSchemaFieldNames.indexOf(fieldName);
 
           TypeDescription fileType = oldSchemaTypes.get(fieldIndex);
           TypeDescription readerType = newSchemaTypes.get(indexInNewSchema);
 
           if (OrcUtils.isEvolutionValid(fileType, readerType)) {
-            WritableComparable oldField = orcStruct.getFieldValue(field);
-            oldField = structConversionHelper(oldField, mapperSchema.getChildren().get(fieldIndex));
-            newStruct.setFieldValue(field, oldField);
+            WritableComparable oldField = oldStruct.getFieldValue(fieldName);
+            WritableComparable newField = newStruct.getFieldValue(fieldName);
+            structConversionHelper(oldField, newField, targetSchema.getChildren().get(fieldIndex));
+            newStruct.setFieldValue(fieldName, oldField);
           } else {
             throw new SchemaEvolution.IllegalEvolutionException(String
                 .format("ORC does not support type conversion from file" + " type %s to reader type %s ",
                     fileType.toString(), readerType.toString()));
           }
         } else {
-          newStruct.setFieldValue(field, null);
+          newStruct.setFieldValue(fieldName, null);
         }
 
         indexInNewSchema++;
       }
 
-      return newStruct;
-    } else {
-      return orcStruct;
     }
   }
 
@@ -136,50 +144,40 @@ public class OrcValueMapper extends RecordKeyMapperBase<NullWritable, OrcStruct,
    * Check failure will trigger Cast exception and blow up the process.
    */
   @SuppressWarnings("unchecked")
-  private WritableComparable structConversionHelper(WritableComparable w, TypeDescription mapperSchema) {
+  private void structConversionHelper(WritableComparable w, WritableComparable v, TypeDescription mapperSchema) {
     if (w instanceof OrcStruct) {
-      return upConvertOrcStruct((OrcStruct) w, mapperSchema);
+      upConvertOrcStruct((OrcStruct) w, (OrcStruct) v, mapperSchema);
     } else if (w instanceof OrcList) {
       OrcList castedList = (OrcList) w;
+      OrcList targetList = (OrcList) v;
       TypeDescription elementType = mapperSchema.getChildren().get(0);
       for (int i = 0; i < castedList.size(); i++) {
-        castedList.set(i, structConversionHelper((WritableComparable) castedList.get(i), elementType));
+        structConversionHelper((WritableComparable) castedList.get(i), (WritableComparable) targetList.get(i), elementType);
       }
     } else if (w instanceof OrcMap) {
       OrcMap castedMap = (OrcMap) w;
+      OrcMap targetMap = (OrcMap) v;
       for (Object entry : castedMap.entrySet()) {
         Map.Entry<WritableComparable, WritableComparable> castedEntry =
             (Map.Entry<WritableComparable, WritableComparable>) entry;
-        castedMap.put(castedEntry.getKey(),
-            structConversionHelper(castedEntry.getValue(), mapperSchema.getChildren().get(1)));
+        structConversionHelper(castedEntry.getValue(),(WritableComparable) targetMap.get(((Map.Entry<WritableComparable, WritableComparable>) entry).getKey()) , mapperSchema.getChildren().get(1));
       }
-      return castedMap;
     } else if (w instanceof OrcUnion) {
       OrcUnion castedUnion = (OrcUnion) w;
+      OrcUnion targetUnion = (OrcUnion) v;
       byte tag = castedUnion.getTag();
-      castedUnion.set(tag,
-          structConversionHelper((WritableComparable) castedUnion.getObject(), mapperSchema.getChildren().get(tag)));
+      structConversionHelper((WritableComparable) castedUnion.getObject(),
+          (WritableComparable) targetUnion.getObject(), mapperSchema.getChildren().get(tag));
     }
 
-    // Directly return if primitive object.
-    return w;
+    // Do nothing if primitive object.
   }
 
   /**
    * By default, dedup key contains the whole ORC record, except MAP since {@link org.apache.orc.mapred.OrcMap} is
    * an implementation of {@link java.util.TreeMap} which doesn't accept difference of records within the map in comparison.
    */
-  protected OrcKey getDedupKey(OrcStruct originalRecord) {
-    return convertOrcStructToOrcKey(originalRecord);
-  }
-
-  /**
-   * The output key of mapper needs to be comparable. In the scenarios that we need the orc record itself
-   * to be the output key, this conversion will be necessary.
-   */
-  protected OrcKey convertOrcStructToOrcKey(OrcStruct struct) {
-    OrcKey orcKey = new OrcKey();
-    orcKey.key = struct;
-    return orcKey;
+  protected void fillDedupKey(OrcStruct originalRecord) {
+    // TODO: Should leverage upconvert method.
   }
 }
