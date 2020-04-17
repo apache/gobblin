@@ -105,8 +105,8 @@ import org.apache.gobblin.cluster.GobblinHelixMessagingService;
 import org.apache.gobblin.cluster.HelixUtils;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.kafka.KafkaAvroSchemaRegistry;
-import org.apache.gobblin.metrics.kafka.KafkaReporterUtils;
 import org.apache.gobblin.metrics.kafka.SchemaRegistryException;
+import org.apache.gobblin.metrics.reporter.util.KafkaReporterUtils;
 import org.apache.gobblin.rest.JobExecutionInfoServer;
 import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
 import org.apache.gobblin.util.ClassAliasResolver;
@@ -157,7 +157,6 @@ import static org.apache.hadoop.security.UserGroupInformation.HADOOP_TOKEN_FILE_
  * @author Yinan Li
  */
 public class GobblinYarnAppLauncher {
-  // if this is set then the Gobblin Yarn config will be written to the specified file path
   public static final String GOBBLIN_YARN_CONFIG_OUTPUT_PATH = "gobblin.yarn.configOutputPath";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinYarnAppLauncher.class);
@@ -936,8 +935,9 @@ public class GobblinYarnAppLauncher {
   }
 
   private static Config addDynamicConfig(Config config) throws IOException {
-    if (isKafkaReportingEnabled(config) && isKafkaAvroSchemaRegistryEnabled(config)) {
-      KafkaAvroSchemaRegistry registry = new KafkaAvroSchemaRegistry(ConfigUtils.configToProperties(config));
+    Properties properties = ConfigUtils.configToProperties(config);
+    if (KafkaReporterUtils.isKafkaReportingEnabled(properties) && KafkaReporterUtils.isKafkaAvroSchemaRegistryEnabled(properties)) {
+      KafkaAvroSchemaRegistry registry = new KafkaAvroSchemaRegistry(properties);
       return addMetricReportingDynamicConfig(config, registry);
     } else {
       return config;
@@ -990,30 +990,24 @@ public class GobblinYarnAppLauncher {
   static Config addMetricReportingDynamicConfig(Config config, KafkaAvroSchemaRegistry registry) throws IOException {
     Properties properties = ConfigUtils.configToProperties(config);
     if (KafkaReporterUtils.isEventsEnabled(properties)) {
-      Schema schema = new Schema.Parser()
-          .parse(GobblinYarnAppLauncher.class.getClassLoader().getResourceAsStream("GobblinTrackingEvent.avsc"));
+      Schema schema = KafkaReporterUtils.getGobblinTrackingEventSchema();
       String schemaId = registry.register(schema, KafkaReporterUtils.getEventsTopic(properties).get());
+      LOGGER.info("Adding schemaId {} for GobblinTrackingEvent to the config", schemaId);
       config = config.withValue(ConfigurationKeys.METRICS_REPORTING_EVENTS_KAFKA_AVRO_SCHEMA_ID,
           ConfigValueFactory.fromAnyRef(schemaId));
     }
 
     if (KafkaReporterUtils.isMetricsEnabled(properties)) {
-      Schema schema = new Schema.Parser()
-          .parse(GobblinYarnAppLauncher.class.getClassLoader().getResourceAsStream("MetricReport.avsc"));
+      Schema schema = KafkaReporterUtils.getMetricReportSchema();
       String schemaId = registry.register(schema, KafkaReporterUtils.getMetricsTopic(properties).get());
+      LOGGER.info("Adding schemaId {} for GobblinTrackingEvent to the config", schemaId);
       config = config.withValue(ConfigurationKeys.METRICS_REPORTING_METRICS_KAFKA_AVRO_SCHEMA_ID,
           ConfigValueFactory.fromAnyRef(schemaId));
     }
     return config;
   }
 
-  private static boolean isKafkaReportingEnabled(Config config) {
-    return Boolean.parseBoolean(ConfigUtils.getString(config, ConfigurationKeys.METRICS_REPORTING_KAFKA_ENABLED_KEY, ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_ENABLED));
-  }
 
-  private static boolean isKafkaAvroSchemaRegistryEnabled(Config config) {
-    return Boolean.parseBoolean(ConfigUtils.getString(config, ConfigurationKeys.METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY, ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY));
-  }
 
 
   public static void main(String[] args) throws Exception {

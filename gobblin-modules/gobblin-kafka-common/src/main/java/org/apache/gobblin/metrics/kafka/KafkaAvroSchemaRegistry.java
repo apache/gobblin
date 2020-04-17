@@ -41,7 +41,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.kafka.schemareg.HttpClientFactory;
-import org.apache.gobblin.metrics.reporter.util.KafkaAvroReporterUtil;
+import org.apache.gobblin.metrics.reporter.util.KafkaReporterUtils;
 import org.apache.gobblin.util.AvroUtils;
 
 
@@ -78,7 +78,7 @@ public class KafkaAvroSchemaRegistry extends KafkaSchemaRegistry<String, Schema>
         String.format("Property %s not provided.", KAFKA_SCHEMA_REGISTRY_URL));
 
     this.url = props.getProperty(KAFKA_SCHEMA_REGISTRY_URL);
-    this.namespaceOverride = KafkaAvroReporterUtil.extractOverrideNamespace(props);
+    this.namespaceOverride = KafkaReporterUtils.extractOverrideNamespace(props);
 
     int objPoolSize =
         Integer.parseInt(props.getProperty(ConfigurationKeys.KAFKA_SOURCE_WORK_UNITS_CREATION_THREADS,

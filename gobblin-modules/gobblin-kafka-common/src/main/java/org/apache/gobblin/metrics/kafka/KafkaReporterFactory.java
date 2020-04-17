@@ -31,6 +31,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.CustomCodahaleReporterFactory;
 import org.apache.gobblin.metrics.KafkaReportingFormats;
 import org.apache.gobblin.metrics.RootMetricContext;
+import org.apache.gobblin.metrics.reporter.util.KafkaReporterUtils;
 
 
 @Slf4j

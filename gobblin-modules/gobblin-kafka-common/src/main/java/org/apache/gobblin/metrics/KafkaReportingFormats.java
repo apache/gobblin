@@ -36,7 +36,7 @@ import org.apache.gobblin.metrics.reporter.KeyValueEventObjectReporter;
 import org.apache.gobblin.metrics.reporter.KeyValueMetricObjectReporter;
 import org.apache.gobblin.metrics.kafka.KafkaReporter;
 import org.apache.gobblin.metrics.kafka.PusherUtils;
-import org.apache.gobblin.metrics.reporter.util.KafkaAvroReporterUtil;
+import org.apache.gobblin.metrics.reporter.util.KafkaReporterUtils;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -168,7 +168,7 @@ public enum KafkaReportingFormats {
         throws IOException {
 
       KeyValueMetricObjectReporter.Builder builder = new KeyValueMetricObjectReporter.Builder();
-      builder.namespaceOverride(KafkaAvroReporterUtil.extractOverrideNamespace(properties));
+      builder.namespaceOverride(KafkaReporterUtils.extractOverrideNamespace(properties));
       Config allConfig = ConfigUtils.propertiesToConfig(properties);
       Config config = ConfigUtils.getConfigOrEmpty(allConfig, ConfigurationKeys.METRICS_REPORTING_CONFIGURATIONS_PREFIX)
           .withFallback(allConfig);
@@ -186,7 +186,7 @@ public enum KafkaReportingFormats {
           ConfigUtils.getConfigOrEmpty(allConfig, ConfigurationKeys.METRICS_REPORTING_EVENTS_CONFIGURATIONS_PREFIX)
               .withFallback(allConfig);
       builder.withConfig(config);
-      builder.namespaceOverride(KafkaAvroReporterUtil.extractOverrideNamespace(properties));
+      builder.namespaceOverride(KafkaReporterUtils.extractOverrideNamespace(properties));
       return builder.build(brokers, topic);
     }
   };

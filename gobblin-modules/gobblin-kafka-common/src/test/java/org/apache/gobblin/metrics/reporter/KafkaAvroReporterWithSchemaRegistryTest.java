@@ -100,6 +100,6 @@ public class KafkaAvroReporterWithSchemaRegistryTest extends KafkaAvroReporterTe
   protected MetricReport nextReport(Iterator<byte[]> it)
       throws IOException {
     Assert.assertTrue(it.hasNext());
-    return MetricReportUtils.deserializeReportFromAvroSerialization(new MetricReport(), it.next(), this.schemaId, SCHEMA_ID_LENGTH_BYTES);
+    return MetricReportUtils.deserializeReportFromAvroSerialization(new MetricReport(), it.next(), this.schemaId);
   }
 }

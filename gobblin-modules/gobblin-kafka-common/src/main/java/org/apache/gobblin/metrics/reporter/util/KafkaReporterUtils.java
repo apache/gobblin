@@ -16,19 +16,25 @@
  */
 package org.apache.gobblin.metrics.reporter.util;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import org.apache.gobblin.kafka.schemareg.KafkaSchemaRegistryConfigurationKeys;
+import org.apache.avro.Schema;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.kafka.schemareg.KafkaSchemaRegistryConfigurationKeys;
 
-public class KafkaAvroReporterUtil {
+
+public class KafkaReporterUtils {
+  public static final String METRIC_REPORT_AVRO_SCHEMA_FILE = "MetricReport.avsc";
+  public static final String GOBBLIN_TRACKING_EVENT_AVRO_SCHEMA_FILE = "GobblinTrackingEvent.avsc";
 
   private static final Splitter SPLIT_BY_COMMA = Splitter.on(",").omitEmptyStrings().trimResults();
   private static final Splitter SPLIT_BY_COLON = Splitter.on(":").omitEmptyStrings().trimResults();
@@ -71,5 +77,50 @@ public class KafkaAvroReporterUtil {
     }
 
     return Optional.<Map<String, String>>absent();
+  }
+
+  public static boolean isMetricsEnabled(Properties properties) {
+    Optional<String> defaultTopic = getDefaultTopic(properties);
+    Optional<String> metricsTopic = getMetricsTopic(properties);
+
+    return metricsTopic.or(defaultTopic).isPresent();
+  }
+
+  public static boolean isEventsEnabled(Properties properties) {
+    Optional<String> defaultTopic = getDefaultTopic(properties);
+    Optional<String> eventsTopic = getEventsTopic(properties);
+
+    return eventsTopic.or(defaultTopic).isPresent();
+  }
+
+  public static Optional<String> getDefaultTopic(Properties properties) {
+    return Optional.fromNullable(properties.getProperty(ConfigurationKeys.METRICS_KAFKA_TOPIC));
+  }
+
+  public static Optional<String> getMetricsTopic(Properties properties) {
+    return Optional.fromNullable(properties.getProperty(ConfigurationKeys.METRICS_KAFKA_TOPIC_METRICS));
+  }
+
+  public static Optional<String> getEventsTopic(Properties properties) {
+    return Optional.fromNullable(properties.getProperty(ConfigurationKeys.METRICS_KAFKA_TOPIC_EVENTS));
+  }
+
+  public static boolean isKafkaReportingEnabled(Properties properties) {
+    return Boolean.parseBoolean(
+        properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_ENABLED_KEY, ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_ENABLED));
+  }
+
+  public static boolean isKafkaAvroSchemaRegistryEnabled(Properties properties) {
+    return Boolean.parseBoolean(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY, ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY));
+  }
+
+  public static Schema getMetricReportSchema() throws IOException {
+    return new Schema.Parser()
+        .parse(KafkaReporterUtils.class.getClassLoader().getResourceAsStream(METRIC_REPORT_AVRO_SCHEMA_FILE));
+  }
+
+  public static Schema getGobblinTrackingEventSchema() throws IOException {
+    return new Schema.Parser()
+        .parse(KafkaReporterUtils.class.getClassLoader().getResourceAsStream(GOBBLIN_TRACKING_EVENT_AVRO_SCHEMA_FILE));
   }
 }

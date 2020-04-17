@@ -28,6 +28,7 @@ import com.typesafe.config.Config;
 import org.apache.gobblin.metrics.MetricReport;
 import org.apache.gobblin.metrics.reporter.util.AvroBinarySerializer;
 import org.apache.gobblin.metrics.reporter.util.AvroSerializer;
+import org.apache.gobblin.metrics.reporter.util.KafkaReporterUtils;
 import org.apache.gobblin.metrics.reporter.util.SchemaRegistryVersionWriter;
 import org.apache.gobblin.metrics.reporter.util.SchemaVersionWriter;
 
@@ -42,8 +43,7 @@ public class KafkaAvroReporter extends KafkaReporter {
   protected KafkaAvroReporter(Builder<?> builder, Config config) throws IOException {
     super(builder, config);
     if (builder.registry.isPresent()) {
-      Schema schema =
-          new Schema.Parser().parse(getClass().getClassLoader().getResourceAsStream("MetricReport.avsc"));
+      Schema schema = KafkaReporterUtils.getMetricReportSchema();
       SchemaRegistryVersionWriter schemaVersionWriter =
           builder.schemaId.isPresent() ? new SchemaRegistryVersionWriter(builder.registry.get(), builder.topic, schema,
               builder.schemaId.get()) : new SchemaRegistryVersionWriter(builder.registry.get(), builder.topic, schema);

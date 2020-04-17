@@ -64,8 +64,7 @@ public class KafkaAvroEventKeyValueReporterTest extends KafkaAvroEventReporterTe
     Assert.assertTrue(it.hasNext());
     Pair<String, byte[]> event = it.next();
     return isSchemaIdEnabled ? Pair.of(event.getKey(), EventUtils
-        .deserializeEventFromAvroSerialization(new GobblinTrackingEvent(), event.getValue(), schemaId,
-            SCHEMA_ID_LENGTH_BYTES)) : Pair.of(event.getKey(),
+        .deserializeEventFromAvroSerialization(new GobblinTrackingEvent(), event.getValue(), schemaId)) : Pair.of(event.getKey(),
         EventUtils.deserializeEventFromAvroSerialization(new GobblinTrackingEvent(), event.getValue()));
   }
 
