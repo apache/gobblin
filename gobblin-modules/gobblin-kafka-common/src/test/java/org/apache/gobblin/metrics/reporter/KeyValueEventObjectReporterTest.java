@@ -32,7 +32,7 @@ import com.google.common.collect.Maps;
 import org.apache.gobblin.kafka.schemareg.KafkaSchemaRegistryConfigurationKeys;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
-import org.apache.gobblin.metrics.reporter.util.KafkaAvroReporterUtil;
+import org.apache.gobblin.metrics.reporter.util.KafkaReporterUtils;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -65,7 +65,7 @@ public class KeyValueEventObjectReporterTest extends KeyValueEventObjectReporter
    */
   public static KeyValueEventObjectReporterTest.Builder getBuilder(MetricContext context, Properties props) {
     KeyValueEventObjectReporterTest.Builder builder = new KeyValueEventObjectReporterTest.Builder(context);
-    builder.namespaceOverride(KafkaAvroReporterUtil.extractOverrideNamespace(props))
+    builder.namespaceOverride(KafkaReporterUtils.extractOverrideNamespace(props))
         .withConfig(ConfigUtils.propertiesToConfig(props));
     return builder;
   }

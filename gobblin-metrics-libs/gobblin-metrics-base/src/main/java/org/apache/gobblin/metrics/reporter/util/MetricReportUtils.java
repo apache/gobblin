@@ -24,9 +24,12 @@ import java.io.IOException;
 import org.apache.avro.io.Decoder;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.specific.SpecificDatumReader;
+import org.apache.commons.codec.binary.Hex;
 
 import com.google.common.base.Optional;
 import com.google.common.io.Closer;
+
+import javax.annotation.Nullable;
 
 import org.apache.gobblin.metrics.MetricReport;
 
@@ -64,8 +67,8 @@ public class MetricReportUtils {
       // Check version byte
       int versionNumber = inputStream.readInt();
       if (versionNumber != SCHEMA_VERSION) {
-        throw new IOException(
-            String.format("MetricReport schema version not recognized. Found version %d, expected %d.", versionNumber,
+        throw new IOException(String
+            .format("MetricReport schema version not recognized. Found version %d, expected %d.", versionNumber,
                 SCHEMA_VERSION));
       }
 
@@ -88,6 +91,20 @@ public class MetricReportUtils {
    */
   public synchronized static MetricReport deserializeReportFromAvroSerialization(MetricReport reuse, byte[] bytes)
       throws IOException {
+    return deserializeReportFromAvroSerialization(reuse, bytes, null);
+  }
+
+  /**
+   * Parses a {@link org.apache.gobblin.metrics.MetricReport} from a byte array Avro serialization.
+   * @param reuse MetricReport to reuse.
+   * @param bytes Input bytes.
+   * @param schemaId Expected schemaId.
+   * @return MetricReport.
+   * @throws java.io.IOException
+   */
+  public synchronized static MetricReport deserializeReportFromAvroSerialization(MetricReport reuse, byte[] bytes,
+      @Nullable String schemaId)
+      throws IOException {
     if (!READER.isPresent()) {
       READER = Optional.of(new SpecificDatumReader<>(MetricReport.class));
     }
@@ -96,15 +113,11 @@ public class MetricReportUtils {
 
     try {
       DataInputStream inputStream = closer.register(new DataInputStream(new ByteArrayInputStream(bytes)));
-
-      // Check version byte
-      int versionNumber = inputStream.readInt();
-      if (versionNumber != SCHEMA_VERSION) {
-        throw new IOException(
-            String.format("MetricReport schema version not recognized. Found version %d, expected %d.", versionNumber,
-                SCHEMA_VERSION));
+      if (schemaId != null) {
+        readAndVerifySchemaId(inputStream, schemaId);
+      } else {
+        readAndVerifySchemaVersion(inputStream);
       }
-
       // Decode the rest
       Decoder decoder = DecoderFactory.get().binaryDecoder(inputStream, null);
       return READER.get().read(reuse, decoder);
@@ -112,6 +125,32 @@ public class MetricReportUtils {
       throw closer.rethrow(t);
     } finally {
       closer.close();
+    }
+  }
+
+  public static void readAndVerifySchemaId(DataInputStream inputStream, String schemaId)
+      throws IOException {
+    //Read the magic byte
+    inputStream.readByte();
+    int schemaIdLengthBytes = schemaId.length() / 2;
+    byte[] readId = new byte[schemaIdLengthBytes];
+    int numBytesRead = inputStream.read(readId, 0, schemaIdLengthBytes);
+    String readSchemaId = Hex.encodeHexString(readId);
+    if (numBytesRead != schemaIdLengthBytes || !schemaId.equals(readSchemaId)) {
+      throw new IOException(String
+          .format("Schema version not recognized. Found version %s, expected %s.", readSchemaId,
+              schemaId));
+    }
+  }
+
+  public static void readAndVerifySchemaVersion(DataInputStream inputStream)
+      throws IOException {
+    // Check version byte
+    int versionNumber = inputStream.readInt();
+    if (versionNumber != SCHEMA_VERSION) {
+      throw new IOException(String
+          .format("Schema version not recognized. Found version %d, expected %d.", versionNumber,
+              SCHEMA_VERSION));
     }
   }
 }

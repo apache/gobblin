@@ -27,6 +27,7 @@ import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.reporter.util.AvroBinarySerializer;
 import org.apache.gobblin.metrics.reporter.util.AvroSerializer;
+import org.apache.gobblin.metrics.reporter.util.KafkaReporterUtils;
 import org.apache.gobblin.metrics.reporter.util.SchemaRegistryVersionWriter;
 import org.apache.gobblin.metrics.reporter.util.SchemaVersionWriter;
 
@@ -39,10 +40,11 @@ public class KafkaAvroEventReporter extends KafkaEventReporter {
   protected KafkaAvroEventReporter(Builder<?> builder) throws IOException {
     super(builder);
     if(builder.registry.isPresent()) {
-      Schema schema =
-          new Schema.Parser().parse(getClass().getClassLoader().getResourceAsStream("GobblinTrackingEvent.avsc"));
-      this.serializer.setSchemaVersionWriter(new SchemaRegistryVersionWriter(builder.registry.get(), builder.topic,
-          Optional.of(schema)));
+      Schema schema = KafkaReporterUtils.getGobblinTrackingEventSchema();
+      SchemaRegistryVersionWriter schemaVersionWriter =
+          builder.schemaId.isPresent() ? new SchemaRegistryVersionWriter(builder.registry.get(), builder.topic, schema,
+              builder.schemaId.get()) : new SchemaRegistryVersionWriter(builder.registry.get(), builder.topic, schema);
+      this.serializer.setSchemaVersionWriter(schemaVersionWriter);
     }
   }
 
@@ -92,8 +94,8 @@ public class KafkaAvroEventReporter extends KafkaEventReporter {
    * Defaults to no filter, reporting rates in seconds and times in milliseconds.
    */
   public static abstract class Builder<T extends Builder<T>> extends KafkaEventReporter.Builder<T> {
-
     private Optional<KafkaAvroSchemaRegistry> registry = Optional.absent();
+    private Optional<String> schemaId = Optional.absent();
 
     private Builder(MetricContext context) {
       super(context);
@@ -101,6 +103,11 @@ public class KafkaAvroEventReporter extends KafkaEventReporter {
 
     public T withSchemaRegistry(KafkaAvroSchemaRegistry registry) {
       this.registry = Optional.of(registry);
+      return self();
+    }
+
+    public T withSchemaId(String schemaId) {
+      this.schemaId = Optional.of(schemaId);
       return self();
     }
 

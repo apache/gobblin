@@ -45,6 +45,6 @@ public class KafkaAvroEventReporterTest extends KafkaEventReporterTest {
   protected GobblinTrackingEvent nextEvent(Iterator<byte[]> it)
       throws IOException {
     Assert.assertTrue(it.hasNext());
-    return EventUtils.deserializeReportFromAvroSerialization(new GobblinTrackingEvent(), it.next());
+    return EventUtils.deserializeEventFromAvroSerialization(new GobblinTrackingEvent(), it.next());
   }
 }

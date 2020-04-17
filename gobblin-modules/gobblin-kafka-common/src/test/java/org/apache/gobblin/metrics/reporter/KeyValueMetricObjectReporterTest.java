@@ -30,7 +30,7 @@ import com.typesafe.config.Config;
 
 import org.apache.gobblin.kafka.schemareg.KafkaSchemaRegistryConfigurationKeys;
 import org.apache.gobblin.metrics.MetricContext;
-import org.apache.gobblin.metrics.reporter.util.KafkaAvroReporterUtil;
+import org.apache.gobblin.metrics.reporter.util.KafkaReporterUtils;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -62,7 +62,7 @@ public class KeyValueMetricObjectReporterTest extends KeyValueMetricObjectReport
    */
   public static KeyValueMetricObjectReporterTest.Builder getBuilder(Properties props) {
     KeyValueMetricObjectReporterTest.Builder builder = new KeyValueMetricObjectReporterTest.Builder();
-    builder.namespaceOverride(KafkaAvroReporterUtil.extractOverrideNamespace(props));
+    builder.namespaceOverride(KafkaReporterUtils.extractOverrideNamespace(props));
     return builder;
   }
 

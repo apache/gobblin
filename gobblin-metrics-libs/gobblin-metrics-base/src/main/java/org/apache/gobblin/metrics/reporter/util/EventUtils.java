@@ -28,6 +28,8 @@ import org.apache.avro.specific.SpecificDatumReader;
 import com.google.common.base.Optional;
 import com.google.common.io.Closer;
 
+import javax.annotation.Nullable;
+
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 
 
@@ -75,13 +77,26 @@ public class EventUtils {
   }
 
   /**
-   * Parses a {@link org.apache.gobblin.metrics.MetricReport} from a byte array Avro serialization.
-   * @param reuse MetricReport to reuse.
+   * Parses a {@link org.apache.gobblin.metrics.GobblinTrackingEvent} from a byte array Avro serialization.
+   * @param reuse GobblinTrackingEvent to reuse.
    * @param bytes Input bytes.
-   * @return MetricReport.
+   * @return GobblinTrackingEvent.
    * @throws java.io.IOException
    */
-  public synchronized static GobblinTrackingEvent deserializeReportFromAvroSerialization(GobblinTrackingEvent reuse, byte[] bytes)
+  public synchronized static GobblinTrackingEvent deserializeEventFromAvroSerialization(GobblinTrackingEvent reuse, byte[] bytes)
+      throws IOException {
+    return deserializeEventFromAvroSerialization(reuse, bytes, null);
+  }
+
+  /**
+   * Parses a {@link org.apache.gobblin.metrics.GobblinTrackingEvent} from a byte array Avro serialization.
+   * @param reuse GobblinTrackingEvent to reuse.
+   * @param bytes Input bytes.
+   * @param schemaId Expected schemaId.
+   * @return GobblinTrackingEvent.
+   * @throws java.io.IOException
+   */
+  public synchronized static GobblinTrackingEvent deserializeEventFromAvroSerialization(GobblinTrackingEvent reuse, byte[] bytes, @Nullable String schemaId)
       throws IOException {
     if (!reader.isPresent()) {
       reader = Optional.of(new SpecificDatumReader<>(GobblinTrackingEvent.class));
@@ -92,12 +107,10 @@ public class EventUtils {
     try {
       DataInputStream inputStream = closer.register(new DataInputStream(new ByteArrayInputStream(bytes)));
 
-      // Check version byte
-      int versionNumber = inputStream.readInt();
-      if (versionNumber != SCHEMA_VERSION) {
-        throw new IOException(String
-            .format("MetricReport schema version not recognized. Found version %d, expected %d.", versionNumber,
-                SCHEMA_VERSION));
+      if (schemaId != null) {
+        MetricReportUtils.readAndVerifySchemaId(inputStream, schemaId);
+      } else {
+        MetricReportUtils.readAndVerifySchemaVersion(inputStream);
       }
 
       // Decode the rest
@@ -110,4 +123,3 @@ public class EventUtils {
     }
   }
 }
-

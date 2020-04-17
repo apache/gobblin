@@ -30,7 +30,6 @@ import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.specific.SpecificDatumReader;
 
 import com.codahale.metrics.Meter;
-import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 
 import lombok.Getter;
@@ -69,7 +68,7 @@ public class KafkaAvroJobStatusMonitor extends KafkaJobStatusMonitor {
     if (ConfigUtils.getBoolean(config, ConfigurationKeys.METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY, false)) {
       KafkaAvroSchemaRegistry schemaRegistry = (KafkaAvroSchemaRegistry) new KafkaAvroSchemaRegistryFactory().
           create(ConfigUtils.configToProperties(config));
-      this.schemaVersionWriter = new SchemaRegistryVersionWriter(schemaRegistry, topic, Optional.of(GobblinTrackingEvent.SCHEMA$));
+      this.schemaVersionWriter = new SchemaRegistryVersionWriter(schemaRegistry, topic, GobblinTrackingEvent.SCHEMA$);
     } else {
       this.schemaVersionWriter = new FixedSchemaVersionWriter();
     }
