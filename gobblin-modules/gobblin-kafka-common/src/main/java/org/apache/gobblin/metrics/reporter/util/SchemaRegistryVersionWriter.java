@@ -62,7 +62,7 @@ public class SchemaRegistryVersionWriter implements SchemaVersionWriter<Schema> 
   public SchemaRegistryVersionWriter(KafkaAvroSchemaRegistry registry, @Nullable String overrideName) throws SchemaRegistryException {
     this(registry, overrideName, null);
   }
-  
+
   public SchemaRegistryVersionWriter(KafkaAvroSchemaRegistry registry, @Nullable String overrideName, @Nullable Schema singleSchema)
       throws SchemaRegistryException {
     this(registry, overrideName, singleSchema, null);
