@@ -223,5 +223,11 @@ public class FlowConfigV2Test {
     public List<ServiceRequester> findRequesters(BaseResource resource) {
       return requester == null ? Lists.newArrayList() : Lists.newArrayList(requester);
     }
+
+    @Override
+    protected void requesterAllowed(List<ServiceRequester> originalRequesterList, List<ServiceRequester> currentRequesterList)
+        throws FlowConfigLoggedException {
+
+    }
   }
 }
