@@ -59,6 +59,10 @@ public class SchemaRegistryVersionWriter implements SchemaVersionWriter<Schema> 
     this(new KafkaAvroSchemaRegistry(ConfigUtils.configToProperties(config)), null, null, null);
   }
 
+  public SchemaRegistryVersionWriter(KafkaAvroSchemaRegistry registry, @Nullable String overrideName) throws SchemaRegistryException {
+    this(registry, overrideName, null);
+  }
+  
   public SchemaRegistryVersionWriter(KafkaAvroSchemaRegistry registry, @Nullable String overrideName, @Nullable Schema singleSchema)
       throws SchemaRegistryException {
     this(registry, overrideName, singleSchema, null);
