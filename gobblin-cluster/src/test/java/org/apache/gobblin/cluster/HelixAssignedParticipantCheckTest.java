@@ -84,6 +84,14 @@ public class HelixAssignedParticipantCheckTest {
     // (i.e. no exceptions thrown).
     check.execute();
 
+    //Disconnect the helixmanager used to check the assigned participant to force an Exception on the first attempt.
+    //The test should succeed on the following attempt.
+    HelixManager helixManagerOriginal = HelixAssignedParticipantCheck.getHelixManager();
+    helixManagerOriginal.disconnect();
+    check.execute();
+    //Ensure that a new HelixManager instance is created.
+    Assert.assertTrue(HelixAssignedParticipantCheck.getHelixManager() != helixManagerOriginal);
+
     //Create Helix config with invalid partition num. Ensure HelixAssignedParticipantCheck fails.
     helixConfig = helixConfig.withValue(GobblinClusterConfigurationKeys.HELIX_PARTITION_ID_KEY, ConfigValueFactory.fromAnyRef(1));
     check = new HelixAssignedParticipantCheck(helixConfig);
