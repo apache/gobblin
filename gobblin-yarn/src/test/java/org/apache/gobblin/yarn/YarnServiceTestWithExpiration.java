@@ -59,6 +59,10 @@ import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.server.MiniYARNCluster;
 import org.apache.hadoop.yarn.server.resourcemanager.rmapp.attempt.RMAppAttempt;
 import org.apache.hadoop.yarn.server.utils.BuilderUtils;
+import org.apache.helix.HelixDataAccessor;
+import org.apache.helix.HelixManager;
+import org.apache.helix.PropertyKey;
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -137,10 +141,15 @@ public class YarnServiceTestWithExpiration {
     // Start a dummy application manager so that the YarnService can use the AM-RM token.
     startApp();
 
+    HelixManager manager = Mockito.mock(HelixManager.class);
+    HelixDataAccessor dataAccessor = Mockito.mock(HelixDataAccessor.class);
+    Mockito.doReturn(null).when(dataAccessor).getProperty(Mockito.any(PropertyKey.class));
+    Mockito.doReturn(new PropertyKey.Builder("test")).when(dataAccessor).keyBuilder();
+    Mockito.doReturn(dataAccessor).when(manager).getHelixDataAccessor();
     // create and start the test yarn service
     this.expiredYarnService = new TestExpiredYarnService(this.config, "testApp", "appId",
         this.clusterConf,
-        FileSystem.getLocal(new Configuration()), this.eventBus);
+        FileSystem.getLocal(new Configuration()), this.eventBus, manager);
 
     this.expiredYarnService.startUp();
   }
@@ -222,8 +231,8 @@ public class YarnServiceTestWithExpiration {
     public HashSet<ContainerId> startErrorContainers = new HashSet<>();
     public HashSet<ContainerStatus> completedContainers = new HashSet<>();
     public TestExpiredYarnService(Config config, String applicationName, String applicationId, YarnConfiguration yarnConfiguration,
-        FileSystem fs, EventBus eventBus) throws Exception {
-      super(config, applicationName, applicationId, yarnConfiguration, fs, eventBus);
+        FileSystem fs, EventBus eventBus, HelixManager manager) throws Exception {
+      super(config, applicationName, applicationId, yarnConfiguration, fs, eventBus, manager);
     }
 
     @Override
