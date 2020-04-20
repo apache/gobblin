@@ -150,7 +150,7 @@ public class YarnServiceTest {
     // create and start the test yarn service
     this.yarnService = new TestYarnService(this.config, "testApp", "appId",
         this.clusterConf,
-        FileSystem.getLocal(new Configuration()), this.eventBus, manager);
+        FileSystem.getLocal(new Configuration()), this.eventBus);
 
    this.yarnService.startUp();
   }
@@ -262,7 +262,7 @@ public class YarnServiceTest {
     Mockito.doReturn(dataAccessor).when(manager).getHelixDataAccessor();
     TestYarnService yarnService =
         new TestYarnService(modifiedConfig, "testApp1", "appId1",
-            this.clusterConf, FileSystem.getLocal(new Configuration()), this.eventBus, manager);
+            this.clusterConf, FileSystem.getLocal(new Configuration()), this.eventBus);
 
     ContainerId containerId1 = ContainerId.newInstance(ApplicationAttemptId.newInstance(ApplicationId.newInstance(1, 0),
         0), 0);
@@ -288,7 +288,7 @@ public class YarnServiceTest {
     Mockito.doReturn(dataAccessor).when(manager).getHelixDataAccessor();
     TestYarnService yarnService =
         new TestYarnService(modifiedConfig, "testApp2", "appId2",
-            this.clusterConf, FileSystem.getLocal(new Configuration()), this.eventBus, manager);
+            this.clusterConf, FileSystem.getLocal(new Configuration()), this.eventBus);
 
     ContainerId containerId = ContainerId.newInstance(ApplicationAttemptId.newInstance(ApplicationId.newInstance(1, 0),
         0), 0);
