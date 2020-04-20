@@ -141,11 +141,6 @@ public class YarnServiceTest {
 
     // Start a dummy application manager so that the YarnService can use the AM-RM token.
     startApp();
-    HelixManager manager = Mockito.mock(HelixManager.class);
-    HelixDataAccessor dataAccessor = Mockito.mock(HelixDataAccessor.class);
-    Mockito.doReturn(null).when(dataAccessor).getProperty(Mockito.any(PropertyKey.class));
-    Mockito.doReturn(new PropertyKey.Builder("test")).when(dataAccessor).keyBuilder();
-    Mockito.doReturn(dataAccessor).when(manager).getHelixDataAccessor();
 
     // create and start the test yarn service
     this.yarnService = new TestYarnService(this.config, "testApp", "appId",
@@ -255,11 +250,6 @@ public class YarnServiceTest {
   public void testReleasedContainerCache() throws Exception {
     Config modifiedConfig = this.config
         .withValue(GobblinYarnConfigurationKeys.RELEASED_CONTAINERS_CACHE_EXPIRY_SECS, ConfigValueFactory.fromAnyRef("2"));
-    HelixManager manager = Mockito.mock(HelixManager.class);
-    HelixDataAccessor dataAccessor = Mockito.mock(HelixDataAccessor.class);
-    Mockito.doReturn(null).when(dataAccessor).getProperty(Mockito.any(PropertyKey.class));
-    Mockito.doReturn(new PropertyKey.Builder("test")).when(dataAccessor).keyBuilder();
-    Mockito.doReturn(dataAccessor).when(manager).getHelixDataAccessor();
     TestYarnService yarnService =
         new TestYarnService(modifiedConfig, "testApp1", "appId1",
             this.clusterConf, FileSystem.getLocal(new Configuration()), this.eventBus);
@@ -281,11 +271,6 @@ public class YarnServiceTest {
     Config modifiedConfig = this.config
         .withValue(GobblinYarnConfigurationKeys.CONTAINER_JVM_MEMORY_OVERHEAD_MBS_KEY, ConfigValueFactory.fromAnyRef("10"))
         .withValue(GobblinYarnConfigurationKeys.CONTAINER_JVM_MEMORY_XMX_RATIO_KEY, ConfigValueFactory.fromAnyRef("0.8"));
-    HelixManager manager = Mockito.mock(HelixManager.class);
-    HelixDataAccessor dataAccessor = Mockito.mock(HelixDataAccessor.class);
-    Mockito.doReturn(null).when(dataAccessor).getProperty(Mockito.any(PropertyKey.class));
-    Mockito.doReturn(new PropertyKey.Builder("test")).when(dataAccessor).keyBuilder();
-    Mockito.doReturn(dataAccessor).when(manager).getHelixDataAccessor();
     TestYarnService yarnService =
         new TestYarnService(modifiedConfig, "testApp2", "appId2",
             this.clusterConf, FileSystem.getLocal(new Configuration()), this.eventBus);
