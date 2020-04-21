@@ -26,10 +26,10 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 
-public class YarnMasterSecurityManager extends YarnContainerSecurityManager{
+public class YarnAppMasterSecurityManager extends YarnContainerSecurityManager{
 
   private YarnService yarnService;
-  public YarnMasterSecurityManager(Config config, FileSystem fs, EventBus eventBus, YarnService yarnService) {
+  public YarnAppMasterSecurityManager(Config config, FileSystem fs, EventBus eventBus, YarnService yarnService) {
     super(config, fs, eventBus);
     this.yarnService = yarnService;
   }
