@@ -165,7 +165,7 @@ public class YarnService extends AbstractIdleService {
   private volatile Optional<Resource> maxResourceCapacity = Optional.absent();
 
   // Security tokens for accessing HDFS
-  private final ByteBuffer tokens;
+  private ByteBuffer tokens;
 
   private final Closer closer = Closer.create();
 
@@ -388,6 +388,10 @@ public class YarnService extends AbstractIdleService {
         }
       }
     }
+  }
+
+  public void updateToken() throws IOException{
+    this.tokens = getSecurityTokens();
   }
 
   private GobblinMetrics buildGobblinMetrics() {

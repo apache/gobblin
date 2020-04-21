@@ -271,7 +271,6 @@ public class YarnServiceTest {
     Config modifiedConfig = this.config
         .withValue(GobblinYarnConfigurationKeys.CONTAINER_JVM_MEMORY_OVERHEAD_MBS_KEY, ConfigValueFactory.fromAnyRef("10"))
         .withValue(GobblinYarnConfigurationKeys.CONTAINER_JVM_MEMORY_XMX_RATIO_KEY, ConfigValueFactory.fromAnyRef("0.8"));
-
     TestYarnService yarnService =
         new TestYarnService(modifiedConfig, "testApp2", "appId2",
             this.clusterConf, FileSystem.getLocal(new Configuration()), this.eventBus);
