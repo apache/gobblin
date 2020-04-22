@@ -36,6 +36,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -56,11 +57,11 @@ import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.ContextAwareCounter;
+import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.TimingEvent;
-import org.apache.gobblin.metrics.reporter.util.MetricReportUtils;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecProducer;
@@ -389,6 +390,7 @@ public class DagManager extends AbstractIdleService {
     private final Optional<Timer> jobStatusPolledTimer;
     private final int defaultQuota;
     private final Map<String, Integer> perUserQuota;
+    private final AtomicLong orchestrationDelay = new AtomicLong(0);
 
     private JobStatusRetriever jobStatusRetriever;
     private DagStateStore dagStateStore;
@@ -411,6 +413,9 @@ public class DagManager extends AbstractIdleService {
         this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
         this.eventSubmitter = Optional.of(new EventSubmitter.Builder(this.metricContext, "org.apache.gobblin.service").build());
         this.jobStatusPolledTimer = Optional.of(this.metricContext.timer(ServiceMetricNames.JOB_STATUS_POLLED_TIMER));
+        ContextAwareGauge<Long> orchestrationDelayMetric = metricContext.newContextAwareGauge(ServiceMetricNames.FLOW_ORCHESTRATION_DELAY,
+            () -> orchestrationDelay.get());
+        this.metricContext.register(orchestrationDelayMetric);
       } else {
         this.metricContext = null;
         this.eventSubmitter = Optional.absent();
@@ -511,13 +516,18 @@ public class DagManager extends AbstractIdleService {
 
       this.dags.put(dagId, dag);
       log.debug("Dag {} - determining if any jobs are already running.", DagManagerUtils.getFullyQualifiedDagName(dag));
+
+      //A flag to indicate if the flow is already running.
+      boolean isDagRunning = false;
       //Are there any jobs already in the running state? This check is for Dags already running
       //before a leadership change occurs.
       for (DagNode<JobExecutionPlan> dagNode : dag.getNodes()) {
         if (DagManagerUtils.getExecutionStatus(dagNode) == RUNNING) {
           addJobState(dagId, dagNode);
+          isDagRunning = true;
         }
       }
+
       log.debug("Dag {} submitting jobs ready for execution.", DagManagerUtils.getFullyQualifiedDagName(dag));
       //Determine the next set of jobs to run and submit them for execution
       Map<String, Set<DagNode<JobExecutionPlan>>> nextSubmitted = submitNext(dagId);
@@ -527,6 +537,13 @@ public class DagManager extends AbstractIdleService {
 
       // Set flow status to running
       DagManagerUtils.emitFlowEvent(this.eventSubmitter, dag, TimingEvent.FlowTimings.FLOW_RUNNING);
+
+      // Report the orchestration delay the first time the Dag is initialized. Orchestration delay is defined as
+      // the time difference between the instant when a flow first transitions to the running state and the instant
+      // when the flow is submitted to Gobblin service.
+      if (!isDagRunning) {
+        this.orchestrationDelay.set(System.currentTimeMillis() - DagManagerUtils.getFlowExecId(dag));
+      }
 
       log.info("Dag {} Initialization complete.", DagManagerUtils.getFullyQualifiedDagName(dag));
     }
@@ -914,7 +931,7 @@ public class DagManager extends AbstractIdleService {
     private ContextAwareCounter getRunningJobsCounter(DagNode<JobExecutionPlan> dagNode) {
       return metricContext.contextAwareCounter(
           MetricRegistry.name(
-              MetricReportUtils.GOBBLIN_SERVICE_METRICS_PREFIX,
+              ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
               ServiceMetricNames.RUNNING_FLOWS_COUNTER,
               dagNode.getValue().getSpecExecutor().getUri().toString()));
     }
@@ -927,7 +944,7 @@ public class DagManager extends AbstractIdleService {
       if (StringUtils.isNotEmpty(proxy)) {
         counters.add(metricContext.contextAwareCounter(
             MetricRegistry.name(
-                MetricReportUtils.GOBBLIN_SERVICE_METRICS_PREFIX,
+                ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
                 ServiceMetricNames.SERVICE_USERS, proxy)));
       }
 
@@ -937,7 +954,7 @@ public class DagManager extends AbstractIdleService {
           List<ServiceRequester> requesters = RequesterService.deserialize(serializedRequesters);
           for (ServiceRequester requester : requesters) {
             counters.add(metricContext.contextAwareCounter(MetricRegistry
-                .name(MetricReportUtils.GOBBLIN_SERVICE_METRICS_PREFIX, ServiceMetricNames.SERVICE_USERS, requester.getName())));
+                .name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, ServiceMetricNames.SERVICE_USERS, requester.getName())));
           }
         }
       } catch (IOException e) {
