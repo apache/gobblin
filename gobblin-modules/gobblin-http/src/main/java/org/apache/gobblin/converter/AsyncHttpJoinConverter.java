@@ -30,6 +30,7 @@ import com.typesafe.config.ConfigFactory;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.gobblin.async.AsyncRequest;
 import org.apache.gobblin.async.AsyncRequestBuilder;
 import org.apache.gobblin.async.BufferedRecord;
@@ -140,7 +141,8 @@ public abstract class AsyncHttpJoinConverter<SI, SO, DI, DO, RQ, RP> extends Asy
             justification = "CompletableFuture will replace null value with NIL")
         @Override
         public void onFailure(Throwable throwable) {
-          log.error ("Http converter on failure with request {}", request.getRawRequest());
+          String errorMsg = ExceptionUtils.getMessage(throwable);
+          log.error ("Http converter on failure with request {} and throwable {}", request.getRawRequest(), errorMsg);
 
           if (skipFailedRecord) {
             AsyncHttpJoinConverterContext.this.future.complete( null);
