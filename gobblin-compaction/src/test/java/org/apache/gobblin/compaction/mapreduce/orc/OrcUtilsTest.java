@@ -104,14 +104,14 @@ public class OrcUtilsTest {
     // This should be equivalent to deserialize(baseStruct).serialize(evolvedStruct, evolvedSchema);
     OrcUtils.upConvertOrcStruct(baseStruct, evolvedStruct, evolved_baseStructSchema);
     // Check if all value in baseStruct is populated and newly created column in evolvedStruct is filled with null.
-    org.junit.Assert.assertEquals(((IntWritable) evolvedStruct.getFieldValue("a")).get(), intValue);
-    org.junit.Assert.assertEquals(((Text) evolvedStruct.getFieldValue("b")).toString(), stringValue);
-    org.junit.Assert.assertNull(evolvedStruct.getFieldValue("c"));
+    Assert.assertEquals(((IntWritable) evolvedStruct.getFieldValue("a")).get(), intValue);
+    Assert.assertEquals(((Text) evolvedStruct.getFieldValue("b")).toString(), stringValue);
+    Assert.assertNull(evolvedStruct.getFieldValue("c"));
 
     // Base case: Reverse direction, which is column projection on top-level columns.
     OrcStruct baseStruct_shadow = (OrcStruct) OrcStruct.createValue(baseStructSchema);
     OrcUtils.upConvertOrcStruct(evolvedStruct, baseStruct_shadow, baseStructSchema);
-    org.junit.Assert.assertEquals(baseStruct, baseStruct_shadow);
+    Assert.assertEquals(baseStruct, baseStruct_shadow);
 
     // Simple Nested: List/Map/Union within Struct.
     // The element type of list contains a new field.
@@ -124,25 +124,25 @@ public class OrcUtilsTest {
     OrcStruct evolved_listInStruct = (OrcStruct) OrcUtils.createValueRecursively(evolved_listInStructSchema);
     // Convert and verify contents.
     OrcUtils.upConvertOrcStruct(listInStruct, evolved_listInStruct, evolved_listInStructSchema);
-    org.junit.Assert.assertEquals(
+    Assert.assertEquals(
         ((IntWritable) ((OrcStruct) ((OrcList) evolved_listInStruct.getFieldValue("a")).get(0)).getFieldValue("a"))
             .get(), intValue);
-    org.junit.Assert.assertEquals(
+    Assert.assertEquals(
         ((Text) ((OrcStruct) ((OrcList) evolved_listInStruct.getFieldValue("a")).get(0)).getFieldValue("b")).toString(),
         stringValue);
-    org.junit.Assert.assertNull((((OrcStruct) ((OrcList) evolved_listInStruct.getFieldValue("a")).get(0)).getFieldValue("c")));
+    Assert.assertNull((((OrcStruct) ((OrcList) evolved_listInStruct.getFieldValue("a")).get(0)).getFieldValue("c")));
     // Add cases when original OrcStruct has its list member having different number of elements then the destination OrcStruct.
     // original has list.size() = 2, target has list.size() = 1
     listInStruct = (OrcStruct) OrcUtils.createValueRecursively(listInStructSchema, 2);
     OrcUtils.orcStructFillerWithFixedValue(listInStruct, listInStructSchema, intValue, stringValue, boolValue);
-    org.junit.Assert.assertNotEquals(((OrcList)listInStruct.getFieldValue("a")).size(),
+    Assert.assertNotEquals(((OrcList)listInStruct.getFieldValue("a")).size(),
         ((OrcList)evolved_listInStruct.getFieldValue("a")).size());
     OrcUtils.upConvertOrcStruct(listInStruct, evolved_listInStruct, evolved_listInStructSchema);
-    org.junit.Assert.assertEquals(((OrcList) evolved_listInStruct.getFieldValue("a")).size(), 2);
+    Assert.assertEquals(((OrcList) evolved_listInStruct.getFieldValue("a")).size(), 2);
     // Original has lise.size()=0, target has list.size() = 1
     ((OrcList)listInStruct.getFieldValue("a")).clear();
     OrcUtils.upConvertOrcStruct(listInStruct, evolved_listInStruct, evolved_listInStructSchema);
-    org.junit.Assert.assertEquals(((OrcList) evolved_listInStruct.getFieldValue("a")).size(), 0);
+    Assert.assertEquals(((OrcList) evolved_listInStruct.getFieldValue("a")).size(), 0);
 
     // Map within Struct, contains a type-widening in the map-value type.
     TypeDescription mapInStructSchema = TypeDescription.fromString("struct<a:map<string,int>>");
@@ -163,16 +163,16 @@ public class OrcUtilsTest {
     // convert and verify: Type-widening is correct, and size of output file is correct.
     OrcUtils.upConvertOrcStruct(mapInStruct, evolved_mapInStruct, evolved_mapInStructSchema);
 
-    org.junit.Assert.assertEquals(((OrcMap) evolved_mapInStruct.getFieldValue("a")).get(new Text(stringValue)),
+    Assert.assertEquals(((OrcMap) evolved_mapInStruct.getFieldValue("a")).get(new Text(stringValue)),
         new LongWritable(intValue));
-    org.junit.Assert.assertEquals(((OrcMap) evolved_mapInStruct.getFieldValue("a")).size(), 1);
+    Assert.assertEquals(((OrcMap) evolved_mapInStruct.getFieldValue("a")).size(), 1);
     // re-use the same object but the source struct has fewer member in the map entry.
     mapEntry.put(new Text(""), new IntWritable(1));
     // sanity check
-    org.junit.Assert.assertEquals(((OrcMap) mapInStruct.getFieldValue("a")).size(), 2);
+    Assert.assertEquals(((OrcMap) mapInStruct.getFieldValue("a")).size(), 2);
     OrcUtils.upConvertOrcStruct(mapInStruct, evolved_mapInStruct, evolved_mapInStructSchema);
-    org.junit.Assert.assertEquals(((OrcMap) evolved_mapInStruct.getFieldValue("a")).size(), 2);
-    org.junit.Assert.assertEquals(((OrcMap) evolved_mapInStruct.getFieldValue("a")).get(new Text(stringValue)),
+    Assert.assertEquals(((OrcMap) evolved_mapInStruct.getFieldValue("a")).size(), 2);
+    Assert.assertEquals(((OrcMap) evolved_mapInStruct.getFieldValue("a")).get(new Text(stringValue)),
         new LongWritable(intValue));
 
     // Union in struct, type widening within the union's member field.
@@ -190,8 +190,8 @@ public class OrcUtilsTest {
     evolvedUnionInStruct.setFieldValue("a", evolvedPlaceHolderUnion);
     OrcUtils.upConvertOrcStruct(unionInStruct, evolvedUnionInStruct, evolved_unionInStructSchema);
     // Check in the tag 0(Default from value-filler) within evolvedUnionInStruct, the value is becoming type-widened with correct value.
-    org.junit.Assert.assertEquals(((OrcUnion) evolvedUnionInStruct.getFieldValue("a")).getTag(), 0);
-    org.junit.Assert.assertEquals(((OrcUnion) evolvedUnionInStruct.getFieldValue("a")).getObject(), new LongWritable(intValue));
+    Assert.assertEquals(((OrcUnion) evolvedUnionInStruct.getFieldValue("a")).getTag(), 0);
+    Assert.assertEquals(((OrcUnion) evolvedUnionInStruct.getFieldValue("a")).getObject(), new LongWritable(intValue));
 
     // Complex: List<Struct> within struct among others and evolution happens on multiple places, also type-widening in deeply nested level.
     TypeDescription complexOrcSchema =
@@ -204,10 +204,10 @@ public class OrcUtilsTest {
     OrcUtils.orcStructFillerWithFixedValue(evolvedComplexStruct, evolvedComplexOrcSchema, intValue, stringValue, boolValue);
     // Check if new columns are assigned with null value and type widening is working fine.
     OrcUtils.upConvertOrcStruct(complexOrcStruct, evolvedComplexStruct, evolvedComplexOrcSchema);
-    org.junit.Assert
+    Assert
         .assertEquals(((OrcStruct)((OrcList)evolvedComplexStruct.getFieldValue("a")).get(0)).getFieldValue("b"), new LongWritable(intValue));
-    org.junit.Assert.assertNull(((OrcStruct)((OrcList)evolvedComplexStruct.getFieldValue("a")).get(0)).getFieldValue("c"));
-    org.junit.Assert.assertEquals(((OrcUnion) ((OrcStruct)evolvedComplexStruct.getFieldValue("b")).getFieldValue("a")).getObject(), new LongWritable(intValue));
-    org.junit.Assert.assertNull(((OrcStruct)evolvedComplexStruct.getFieldValue("b")).getFieldValue("b"));
+    Assert.assertNull(((OrcStruct)((OrcList)evolvedComplexStruct.getFieldValue("a")).get(0)).getFieldValue("c"));
+    Assert.assertEquals(((OrcUnion) ((OrcStruct)evolvedComplexStruct.getFieldValue("b")).getFieldValue("a")).getObject(), new LongWritable(intValue));
+    Assert.assertNull(((OrcStruct)evolvedComplexStruct.getFieldValue("b")).getFieldValue("b"));
   }
 }
