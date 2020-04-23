@@ -17,7 +17,7 @@
 package org.apache.gobblin.metrics;
 
 public class ServiceMetricNames {
-  private static final String GOBBLIN_SERVICE_PREFIX = "gobblin.service.";
+  public static final String GOBBLIN_SERVICE_PREFIX = "GobblinService";
 
   // Flow Compilation Meters and Timer
   public static final String FLOW_COMPILATION_SUCCESSFUL_METER = GOBBLIN_SERVICE_PREFIX + "flowCompilation.successful";
