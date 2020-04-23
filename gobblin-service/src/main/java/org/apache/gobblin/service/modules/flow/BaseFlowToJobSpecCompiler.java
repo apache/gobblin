@@ -82,6 +82,8 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
   @Getter
   protected Optional<Timer> flowCompilationTimer;
   @Getter
+  protected Optional<Timer> dataAuthorizationTimer;
+  @Getter
   @Setter
   protected boolean active;
 
@@ -104,12 +106,14 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
       this.flowCompilationSuccessFulMeter = Optional.of(this.metricContext.meter(ServiceMetricNames.FLOW_COMPILATION_SUCCESSFUL_METER));
       this.flowCompilationFailedMeter = Optional.of(this.metricContext.meter(ServiceMetricNames.FLOW_COMPILATION_FAILED_METER));
       this.flowCompilationTimer = Optional.<Timer>of(this.metricContext.timer(ServiceMetricNames.FLOW_COMPILATION_TIMER));
+      this.dataAuthorizationTimer = Optional.<Timer>of(this.metricContext.timer(ServiceMetricNames.DATA_AUTHORIZATION_TIMER));
     }
     else {
       this.metricContext = null;
       this.flowCompilationSuccessFulMeter = Optional.absent();
       this.flowCompilationFailedMeter = Optional.absent();
       this.flowCompilationTimer = Optional.absent();
+      this.dataAuthorizationTimer = Optional.absent();
     }
 
     this.topologySpecMap = Maps.newConcurrentMap();

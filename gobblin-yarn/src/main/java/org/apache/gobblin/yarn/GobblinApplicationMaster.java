@@ -124,10 +124,10 @@ public class GobblinApplicationMaster extends GobblinClusterManager {
   }
 
   /**
-   * Build the {@link YarnContainerSecurityManager} for the Application Master.
+   * Build the {@link YarnAppMasterSecurityManager} for the Application Master.
    */
   private YarnContainerSecurityManager buildYarnContainerSecurityManager(Config config, FileSystem fs) {
-    return new YarnContainerSecurityManager(config, fs, this.eventBus);
+    return new YarnAppMasterSecurityManager(config, fs, this.eventBus, this.yarnService);
   }
 
   @Override
