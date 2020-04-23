@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -33,10 +34,17 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+
+import org.apache.hadoop.hive.serde2.io.DateWritable;
+import org.apache.hadoop.hive.serde2.io.HiveDecimalWritable;
 import org.apache.hadoop.io.BooleanWritable;
+import org.apache.hadoop.io.ByteWritable;
+import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.FloatWritable;
 import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.ShortWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.WritableComparable;
 import org.apache.hadoop.mapreduce.Job;
@@ -49,10 +57,16 @@ import org.apache.orc.impl.SchemaEvolution;
 import org.apache.orc.mapred.OrcList;
 import org.apache.orc.mapred.OrcMap;
 import org.apache.orc.mapred.OrcStruct;
+import org.apache.orc.mapred.OrcTimestamp;
 import org.apache.orc.mapred.OrcUnion;
-import org.apache.orc.mapred.OrcValue;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
+
+import lombok.extern.slf4j.Slf4j;
 
 
+@Slf4j
 public class OrcUtils {
   // For Util class to prevent initialization
   private OrcUtils() {
@@ -98,7 +112,7 @@ public class OrcUtils {
 
   /**
    * Determine if two types are following valid evolution.
-   * Implementation stolen and manipulated from {@link SchemaEvolution} as that was package-private.
+   * Implementation taken and manipulated from {@link SchemaEvolution} as that was package-private.
    */
   static boolean isEvolutionValid(TypeDescription fileType, TypeDescription readerType) {
     boolean isOk = true;
@@ -180,8 +194,10 @@ public class OrcUtils {
    * actual value type is only available in {@link TypeDescription} but not {@link org.apache.orc.mapred.OrcValue}.
    *
    * For simplicity here are some assumptions:
-   * - We only give 3 primitive values and use them to construct compound values.
+   * - We only give 3 primitive values and use them to construct compound values. To make it work for different types that
+   * can be widened or shrunk to each other, please use value within small range.
    * - For List, Map or Union, make sure there's at least one entry within the record-container.
+   * you may want to try {@link #createValueRecursively(TypeDescription)} instead of {@link OrcStruct#createValue(TypeDescription)}
    */
   public static void orcStructFillerWithFixedValue(WritableComparable w, TypeDescription schema, int intValue,
       String string, boolean booleanValue) {
@@ -190,10 +206,16 @@ public class OrcUtils {
         ((BooleanWritable) w).set(booleanValue);
         break;
       case BYTE:
+        ((ByteWritable) w).set((byte) intValue);
+        break;
       case SHORT:
+        ((ShortWritable) w).set((short) intValue);
+        break;
       case INT:
-      case LONG:
         ((IntWritable) w).set(intValue);
+        break;
+      case LONG:
+        ((LongWritable) w).set(intValue);
         break;
       case FLOAT:
         ((FloatWritable) w).set(intValue * 1.0f);
@@ -220,7 +242,8 @@ public class OrcUtils {
         // Here it is not trivial to create typed-object in element-type. So this method expect the value container
         // to at least contain one element, or the traversing within the list will be skipped.
         for (Object i : castedList) {
-          orcStructFillerWithFixedValue((WritableComparable) i, schema.getChildren().get(0), intValue, string, booleanValue);
+          orcStructFillerWithFixedValue((WritableComparable) i, schema.getChildren().get(0), intValue, string,
+              booleanValue);
         }
         break;
       case MAP:
@@ -228,8 +251,10 @@ public class OrcUtils {
         for (Object entry : castedMap.entrySet()) {
           Map.Entry<WritableComparable, WritableComparable> castedEntry =
               (Map.Entry<WritableComparable, WritableComparable>) entry;
-          orcStructFillerWithFixedValue(castedEntry.getKey(), schema.getChildren().get(0), intValue, string, booleanValue);
-          orcStructFillerWithFixedValue(castedEntry.getValue(), schema.getChildren().get(1), intValue, string, booleanValue);
+          orcStructFillerWithFixedValue(castedEntry.getKey(), schema.getChildren().get(0), intValue, string,
+              booleanValue);
+          orcStructFillerWithFixedValue(castedEntry.getValue(), schema.getChildren().get(1), intValue, string,
+              booleanValue);
         }
         break;
       case STRUCT:
@@ -242,7 +267,7 @@ public class OrcUtils {
         break;
       case UNION:
         OrcUnion castedUnion = (OrcUnion) w;
-        byte tag = castedUnion.getTag();
+        byte tag = 0;
         orcStructFillerWithFixedValue((WritableComparable) castedUnion.getObject(), schema.getChildren().get(tag),
             intValue, string, booleanValue);
         break;
@@ -268,5 +293,250 @@ public class OrcUtils {
     String generatedString = new String(array, StandardCharsets.UTF_8);
 
     orcStructFillerWithFixedValue(w, schema, randomNum, generatedString, randomNum % 2 == 0);
+  }
+
+  /**
+   * Suppress the warning of type checking: All casts are clearly valid as they are all (sub)elements Orc types.
+   * Check failure will trigger Cast exception and blow up the process.
+   */
+  @SuppressWarnings("unchecked")
+  private static WritableComparable structConversionHelper(WritableComparable w, WritableComparable v,
+      TypeDescription targetSchema) {
+
+    if (w instanceof OrcStruct) {
+      upConvertOrcStruct((OrcStruct) w, (OrcStruct) v, targetSchema);
+    } else if (w instanceof OrcList) {
+      OrcList castedList = (OrcList) w;
+      OrcList targetList = (OrcList) v;
+      TypeDescription elementType = targetSchema.getChildren().get(0);
+      WritableComparable targetListRecordContainer =
+          targetList.size() > 0 ? (WritableComparable) targetList.get(0) : createValueRecursively(elementType, 0);
+      targetList.clear();
+
+      for (int i = 0; i < castedList.size(); i++) {
+        targetList.add(i,
+            structConversionHelper((WritableComparable) castedList.get(i), targetListRecordContainer, elementType));
+      }
+    } else if (w instanceof OrcMap) {
+      OrcMap castedMap = (OrcMap) w;
+      OrcMap targetMap = (OrcMap) v;
+      TypeDescription valueSchema = targetSchema.getChildren().get(1);
+
+      // Create recordContainer with the schema of value.
+      Iterator targetMapEntries = targetMap.values().iterator();
+      WritableComparable targetMapRecordContainer =
+          targetMapEntries.hasNext() ? (WritableComparable) targetMapEntries.next()
+              : createValueRecursively(valueSchema);
+
+      targetMap.clear();
+
+      for (Object entry : castedMap.entrySet()) {
+        Map.Entry<WritableComparable, WritableComparable> castedEntry =
+            (Map.Entry<WritableComparable, WritableComparable>) entry;
+
+        targetMapRecordContainer =
+            structConversionHelper(castedEntry.getValue(), targetMapRecordContainer, valueSchema);
+        targetMap.put(castedEntry.getKey(), targetMapRecordContainer);
+      }
+    } else if (w instanceof OrcUnion) {
+      OrcUnion castedUnion = (OrcUnion) w;
+      OrcUnion targetUnion = (OrcUnion) v;
+      byte tag = castedUnion.getTag();
+
+      targetUnion.set(tag, structConversionHelper((WritableComparable) castedUnion.getObject(),
+          (WritableComparable) targetUnion.getObject(), targetSchema.getChildren().get(tag)));
+    } else {
+      // If primitive without type-widening, return the oldField's value which is inside w to avoid value-deepCopy from w to v.
+      if (w.getClass().equals(v.getClass())) {
+        return w;
+      } else {
+        // If type widening is required, this method copy the value of w into v.
+        writableComparableTypeWidening(w, v);
+      }
+    }
+
+    // If non-primitive or type-widening is required, v should already be populated by w's value recursively.
+    return v;
+  }
+
+  /**
+   * For nested structure like struct<a:array<struct<int,string>>>, calling OrcStruct.createValue doesn't create entry for the inner
+   * list, which would be required to assign a value if the entry-type has nested structure, or it just cannot see the
+   * entry's nested structure.
+   *
+   * This function should be fed back to open-source ORC.
+   */
+  public static WritableComparable createValueRecursively(TypeDescription schema, int elemNum) {
+    switch (schema.getCategory()) {
+      case BOOLEAN:
+        return new BooleanWritable();
+      case BYTE:
+        return new ByteWritable();
+      case SHORT:
+        return new ShortWritable();
+      case INT:
+        return new IntWritable();
+      case LONG:
+        return new LongWritable();
+      case FLOAT:
+        return new FloatWritable();
+      case DOUBLE:
+        return new DoubleWritable();
+      case BINARY:
+        return new BytesWritable();
+      case CHAR:
+      case VARCHAR:
+      case STRING:
+        return new Text();
+      case DATE:
+        return new DateWritable();
+      case TIMESTAMP:
+      case TIMESTAMP_INSTANT:
+        return new OrcTimestamp();
+      case DECIMAL:
+        return new HiveDecimalWritable();
+      case STRUCT: {
+        OrcStruct result = new OrcStruct(schema);
+        int c = 0;
+        for (TypeDescription child : schema.getChildren()) {
+          result.setFieldValue(c++, createValueRecursively(child, elemNum));
+        }
+        return result;
+      }
+      case UNION: {
+        OrcUnion result = new OrcUnion(schema);
+        result.set(0, createValueRecursively(schema.getChildren().get(0), elemNum));
+        return result;
+      }
+      case LIST: {
+        OrcList result = new OrcList(schema);
+        for (int i = 0; i < elemNum; i++) {
+          result.add(createValueRecursively(schema.getChildren().get(0), elemNum));
+        }
+        return result;
+      }
+      case MAP: {
+        OrcMap result = new OrcMap(schema);
+        for (int i = 0; i < elemNum; i++) {
+          result.put(createValueRecursively(schema.getChildren().get(0), elemNum),
+              createValueRecursively(schema.getChildren().get(1), elemNum));
+        }
+        return result;
+      }
+      default:
+        throw new IllegalArgumentException("Unknown type " + schema);
+    }
+  }
+
+  public static WritableComparable createValueRecursively(TypeDescription schema) {
+    return createValueRecursively(schema, 1);
+  }
+
+  /**
+   * Recursively convert the {@param oldStruct} into {@param newStruct} whose schema is {@param targetSchema}.
+   * This serves similar purpose like GenericDatumReader for Avro, which accepts an reader schema and writer schema
+   * to allow users convert bytes into reader's schema in a compatible approach.
+   * Calling this method SHALL NOT cause any side-effect for {@param oldStruct}
+   *
+   * Note that if newStruct containing things like List/Map (container-type), the up-conversion is doing two things:
+   * 1. Clear all elements in original containers.
+   * 2. Make value of container elements in {@param oldStruct} is populated into {@param newStruct} with element-type
+   * in {@param newStruct} if compatible.
+   *
+   * Limitation:
+   * 1. Does not support up-conversion of key types in Maps. The underlying reasoning is because of the primary format
+   * from upstream is Avro, which enforces key-type to be string only.
+   * 2. Conversion from a field A to field B only happens if
+   * org.apache.gobblin.compaction.mapreduce.orc.OrcValueMapper#isEvolutionValid(A,B) return true.
+   */
+  @VisibleForTesting
+  public static void upConvertOrcStruct(OrcStruct oldStruct, OrcStruct newStruct, TypeDescription targetSchema) {
+
+    // If target schema is not equal to newStruct's schema, it is a illegal state and doesn't make sense to work through.
+    Preconditions.checkArgument(newStruct.getSchema().equals(targetSchema));
+
+    // For ORC schema, if schema object differs that means schema itself is different while for Avro,
+    // there are chances that documentation or attributes' difference lead to the schema object difference.
+    if (!oldStruct.getSchema().equals(targetSchema)) {
+      log.info("There's schema mismatch identified from reader's schema and writer's schema");
+
+      int indexInNewSchema = 0;
+      List<String> oldSchemaFieldNames = oldStruct.getSchema().getFieldNames();
+      List<TypeDescription> oldSchemaTypes = oldStruct.getSchema().getChildren();
+      List<TypeDescription> newSchemaTypes = targetSchema.getChildren();
+
+      for (String fieldName : targetSchema.getFieldNames()) {
+        if (oldSchemaFieldNames.contains(fieldName)) {
+          int fieldIndex = oldSchemaFieldNames.indexOf(fieldName);
+
+          TypeDescription fileType = oldSchemaTypes.get(fieldIndex);
+          TypeDescription readerType = newSchemaTypes.get(indexInNewSchema);
+
+          if (isEvolutionValid(fileType, readerType)) {
+            WritableComparable oldField = oldStruct.getFieldValue(fieldName);
+            WritableComparable newField = newStruct.getFieldValue(fieldName);
+            // oldField is either the primitive-type value or actually points to newField, check structConversionHelper.
+            newStruct.setFieldValue(fieldName,
+                structConversionHelper(oldField, newField, targetSchema.getChildren().get(fieldIndex)));
+          } else {
+            throw new SchemaEvolution.IllegalEvolutionException(String
+                .format("ORC does not support type conversion from file" + " type %s to reader type %s ",
+                    fileType.toString(), readerType.toString()));
+          }
+        } else {
+          newStruct.setFieldValue(fieldName, null);
+        }
+
+        indexInNewSchema++;
+      }
+    }
+  }
+
+  /**
+   * For primitive types of {@link WritableComparable}, supporting ORC-allowed type-widening.
+   */
+  public static void writableComparableTypeWidening(WritableComparable from, WritableComparable to) {
+    if (from instanceof ByteWritable) {
+      if (to instanceof ShortWritable) {
+        ((ShortWritable) to).set(((ByteWritable) from).get());
+        return;
+      } else if (to instanceof IntWritable) {
+        ((IntWritable) to).set(((ByteWritable) from).get());
+        return;
+      } else if (to instanceof LongWritable) {
+        ((LongWritable) to).set(((ByteWritable) from).get());
+        return;
+      } else if (to instanceof DoubleWritable) {
+        ((DoubleWritable) to).set(((ByteWritable) from).get());
+        return;
+      }
+    } else if (from instanceof ShortWritable) {
+      if (to instanceof IntWritable) {
+        ((IntWritable) to).set(((ShortWritable) from).get());
+        return;
+      } else if (to instanceof LongWritable) {
+        ((LongWritable) to).set(((ShortWritable) from).get());
+        return;
+      } else if (to instanceof DoubleWritable) {
+        ((DoubleWritable) to).set(((ShortWritable) from).get());
+        return;
+      }
+    } else if (from instanceof IntWritable) {
+      if (to instanceof LongWritable) {
+        ((LongWritable) to).set(((IntWritable) from).get());
+        return;
+      } else if (to instanceof DoubleWritable) {
+        ((DoubleWritable) to).set(((IntWritable) from).get());
+        return;
+      }
+    } else if (from instanceof LongWritable) {
+      if (to instanceof DoubleWritable) {
+        ((DoubleWritable) to).set(((LongWritable) from).get());
+        return;
+      }
+    }
+    throw new UnsupportedOperationException(String
+        .format("The conversion of primitive-type WritableComparable object from %s to %s is not supported",
+            from.getClass(), to.getClass()));
   }
 }
