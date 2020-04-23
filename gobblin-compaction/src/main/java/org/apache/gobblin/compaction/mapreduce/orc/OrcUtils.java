@@ -360,79 +360,6 @@ public class OrcUtils {
   }
 
   /**
-   * For nested structure like struct<a:array<struct<int,string>>>, calling OrcStruct.createValue doesn't create entry for the inner
-   * list, which would be required to assign a value if the entry-type has nested structure, or it just cannot see the
-   * entry's nested structure.
-   *
-   * This function should be fed back to open-source ORC.
-   */
-  public static WritableComparable createValueRecursively(TypeDescription schema, int elemNum) {
-    switch (schema.getCategory()) {
-      case BOOLEAN:
-        return new BooleanWritable();
-      case BYTE:
-        return new ByteWritable();
-      case SHORT:
-        return new ShortWritable();
-      case INT:
-        return new IntWritable();
-      case LONG:
-        return new LongWritable();
-      case FLOAT:
-        return new FloatWritable();
-      case DOUBLE:
-        return new DoubleWritable();
-      case BINARY:
-        return new BytesWritable();
-      case CHAR:
-      case VARCHAR:
-      case STRING:
-        return new Text();
-      case DATE:
-        return new DateWritable();
-      case TIMESTAMP:
-      case TIMESTAMP_INSTANT:
-        return new OrcTimestamp();
-      case DECIMAL:
-        return new HiveDecimalWritable();
-      case STRUCT: {
-        OrcStruct result = new OrcStruct(schema);
-        int c = 0;
-        for (TypeDescription child : schema.getChildren()) {
-          result.setFieldValue(c++, createValueRecursively(child, elemNum));
-        }
-        return result;
-      }
-      case UNION: {
-        OrcUnion result = new OrcUnion(schema);
-        result.set(0, createValueRecursively(schema.getChildren().get(0), elemNum));
-        return result;
-      }
-      case LIST: {
-        OrcList result = new OrcList(schema);
-        for (int i = 0; i < elemNum; i++) {
-          result.add(createValueRecursively(schema.getChildren().get(0), elemNum));
-        }
-        return result;
-      }
-      case MAP: {
-        OrcMap result = new OrcMap(schema);
-        for (int i = 0; i < elemNum; i++) {
-          result.put(createValueRecursively(schema.getChildren().get(0), elemNum),
-              createValueRecursively(schema.getChildren().get(1), elemNum));
-        }
-        return result;
-      }
-      default:
-        throw new IllegalArgumentException("Unknown type " + schema);
-    }
-  }
-
-  public static WritableComparable createValueRecursively(TypeDescription schema) {
-    return createValueRecursively(schema, 1);
-  }
-
-  /**
    * Recursively convert the {@param oldStruct} into {@param newStruct} whose schema is {@param targetSchema}.
    * This serves similar purpose like GenericDatumReader for Avro, which accepts an reader schema and writer schema
    * to allow users convert bytes into reader's schema in a compatible approach.
@@ -538,5 +465,78 @@ public class OrcUtils {
     throw new UnsupportedOperationException(String
         .format("The conversion of primitive-type WritableComparable object from %s to %s is not supported",
             from.getClass(), to.getClass()));
+  }
+
+  /**
+   * For nested structure like struct<a:array<struct<int,string>>>, calling OrcStruct.createValue doesn't create entry for the inner
+   * list, which would be required to assign a value if the entry-type has nested structure, or it just cannot see the
+   * entry's nested structure.
+   *
+   * This function should be fed back to open-source ORC.
+   */
+  public static WritableComparable createValueRecursively(TypeDescription schema, int elemNum) {
+    switch (schema.getCategory()) {
+      case BOOLEAN:
+        return new BooleanWritable();
+      case BYTE:
+        return new ByteWritable();
+      case SHORT:
+        return new ShortWritable();
+      case INT:
+        return new IntWritable();
+      case LONG:
+        return new LongWritable();
+      case FLOAT:
+        return new FloatWritable();
+      case DOUBLE:
+        return new DoubleWritable();
+      case BINARY:
+        return new BytesWritable();
+      case CHAR:
+      case VARCHAR:
+      case STRING:
+        return new Text();
+      case DATE:
+        return new DateWritable();
+      case TIMESTAMP:
+      case TIMESTAMP_INSTANT:
+        return new OrcTimestamp();
+      case DECIMAL:
+        return new HiveDecimalWritable();
+      case STRUCT: {
+        OrcStruct result = new OrcStruct(schema);
+        int c = 0;
+        for (TypeDescription child : schema.getChildren()) {
+          result.setFieldValue(c++, createValueRecursively(child, elemNum));
+        }
+        return result;
+      }
+      case UNION: {
+        OrcUnion result = new OrcUnion(schema);
+        result.set(0, createValueRecursively(schema.getChildren().get(0), elemNum));
+        return result;
+      }
+      case LIST: {
+        OrcList result = new OrcList(schema);
+        for (int i = 0; i < elemNum; i++) {
+          result.add(createValueRecursively(schema.getChildren().get(0), elemNum));
+        }
+        return result;
+      }
+      case MAP: {
+        OrcMap result = new OrcMap(schema);
+        for (int i = 0; i < elemNum; i++) {
+          result.put(createValueRecursively(schema.getChildren().get(0), elemNum),
+              createValueRecursively(schema.getChildren().get(1), elemNum));
+        }
+        return result;
+      }
+      default:
+        throw new IllegalArgumentException("Unknown type " + schema);
+    }
+  }
+
+  public static WritableComparable createValueRecursively(TypeDescription schema) {
+    return createValueRecursively(schema, 1);
   }
 }
