@@ -21,21 +21,31 @@ import java.util.Iterator;
 import java.util.List;
 
 import com.google.common.collect.Iterators;
+import com.typesafe.config.ConfigFactory;
 
+import lombok.Getter;
 
-import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metastore.StateStore;
+import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
  * Retriever for {@link JobStatus}.
  */
-@Alpha
 public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker {
   public static final String EVENT_NAME_FIELD = "eventName";
   public static final String NA_KEY = "NA";
+
+  @Getter
+  protected final MetricContext metricContext;
+
+  protected JobStatusRetriever() {
+    this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
+  }
 
   public abstract Iterator<JobStatus> getJobStatusesForFlowExecution(String flowName, String flowGroup,
       long flowExecutionId);
