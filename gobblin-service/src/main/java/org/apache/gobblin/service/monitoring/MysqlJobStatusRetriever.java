@@ -23,7 +23,8 @@ import java.util.List;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
-import com.google.common.base.Joiner;
+import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.Timer;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.typesafe.config.Config;
@@ -33,21 +34,27 @@ import lombok.Getter;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metastore.MysqlJobStatusStateStore;
 import org.apache.gobblin.metastore.MysqlJobStatusStateStoreFactory;
+import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.event.TimingEvent;
-import org.apache.gobblin.service.ExecutionStatus;
 
 
 /**
  * Mysql based Retriever for {@link JobStatus}.
  */
 public class MysqlJobStatusRetriever extends JobStatusRetriever {
+  public static final String MYSQL_JOB_STATUS_RETRIEVER_PREFIX = "mysqlJobStatusRetriever";
+  public static final String GET_LATEST_JOB_STATUS_METRIC = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
+      MYSQL_JOB_STATUS_RETRIEVER_PREFIX, "getLatestJobStatus");
+  public static final String GET_LATEST_FLOW_STATUS_METRIC = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
+      MYSQL_JOB_STATUS_RETRIEVER_PREFIX, "getLatestFlowStatus");
+  public static final String GET_ALL_FLOW_STATUSES_METRIC = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
+      MYSQL_JOB_STATUS_RETRIEVER_PREFIX, "getAllFlowStatuses");
 
-  public static final String CONF_PREFIX = "mysqlJobStatusRetriever";
   @Getter
   private MysqlJobStatusStateStore<State> stateStore;
 
   public MysqlJobStatusRetriever(Config config) throws ReflectiveOperationException {
-    config = config.getConfig(CONF_PREFIX).withFallback(config);
+    config = config.getConfig(MYSQL_JOB_STATUS_RETRIEVER_PREFIX).withFallback(config);
     this.stateStore = (MysqlJobStatusStateStoreFactory.class.newInstance()).createStateStore(config, State.class);
   }
 
@@ -55,7 +62,10 @@ public class MysqlJobStatusRetriever extends JobStatusRetriever {
   public Iterator<JobStatus> getJobStatusesForFlowExecution(String flowName, String flowGroup, long flowExecutionId) {
     String storeName = KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, flowName);
     try {
-      List<State> jobStatusStates = this.stateStore.getAll(storeName, flowExecutionId);
+      List<State> jobStatusStates;
+      try (Timer.Context context = this.metricContext.contextAwareTimer(GET_LATEST_FLOW_STATUS_METRIC).time()) {
+        jobStatusStates = this.stateStore.getAll(storeName, flowExecutionId);
+      }
       return getJobStatuses(jobStatusStates);
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -69,7 +79,10 @@ public class MysqlJobStatusRetriever extends JobStatusRetriever {
     String tableName = KafkaJobStatusMonitor.jobStatusTableName(flowExecutionId, jobGroup, jobName);
 
     try {
-      List<State> jobStatusStates = this.stateStore.getAll(storeName, tableName);
+      List<State> jobStatusStates;
+      try (Timer.Context context = this.metricContext.contextAwareTimer(GET_LATEST_JOB_STATUS_METRIC).time()) {
+        jobStatusStates = this.stateStore.getAll(storeName, tableName);
+      }
       return getJobStatuses(jobStatusStates);
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -81,9 +94,11 @@ public class MysqlJobStatusRetriever extends JobStatusRetriever {
     String storeName = KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, flowName);
 
     try {
-      List<State> jobStatusStates = this.stateStore.getAll(storeName);
-      List<Long> flowExecutionIds = jobStatusStates.stream()
-          .map(state -> Long.parseLong(state.getProp(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD)))
+      List<State> jobStatusStates;
+      try (Timer.Context context = this.metricContext.contextAwareTimer(GET_ALL_FLOW_STATUSES_METRIC).time()) {
+        jobStatusStates = this.stateStore.getAll(storeName);
+      }
+      List<Long> flowExecutionIds = jobStatusStates.stream().map(state -> Long.parseLong(state.getProp(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD)))
           .collect(Collectors.toList());
       return ImmutableList.copyOf(Iterables.limit(new TreeSet<>(flowExecutionIds).descendingSet(), count));
     } catch (IOException e) {

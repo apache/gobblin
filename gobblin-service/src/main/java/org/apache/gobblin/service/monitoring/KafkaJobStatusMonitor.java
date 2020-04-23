@@ -24,6 +24,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.Timer;
 import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
@@ -42,6 +44,7 @@ import org.apache.gobblin.metastore.FileContextBasedFsStateStore;
 import org.apache.gobblin.metastore.FileContextBasedFsStateStoreFactory;
 import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.metastore.util.StateStoreCleanerRunnable;
+import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.kafka.HighLevelConsumer;
 import org.apache.gobblin.service.ExecutionStatus;
@@ -60,6 +63,8 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   //gst refers to the state store suffix for GaaS-orchestrated Gobblin jobs.
   public static final String STATE_STORE_TABLE_SUFFIX = "gst";
   public static final String STATE_STORE_KEY_SEPARATION_CHARACTER = ".";
+  public static final String GET_AND_SET_JOB_STATUS = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
+      JOB_STATUS_MONITOR_PREFIX,  "getAndSetJobStatus");
 
   static final String JOB_STATUS_MONITOR_TOPIC_KEY = "topic";
   static final String JOB_STATUS_MONITOR_NUM_THREADS_KEY = "numThreads";
@@ -118,7 +123,9 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
     try {
       org.apache.gobblin.configuration.State jobStatus = parseJobStatus(message.getValue());
       if (jobStatus != null) {
-        addJobStatusToStateStore(jobStatus, this.stateStore);
+        try(Timer.Context context = getMetricContext().timer(GET_AND_SET_JOB_STATUS).time()) {
+          addJobStatusToStateStore(jobStatus, this.stateStore);
+        }
       }
     } catch (IOException ioe) {
       String messageStr = new String(message.getValue(), Charsets.UTF_8);

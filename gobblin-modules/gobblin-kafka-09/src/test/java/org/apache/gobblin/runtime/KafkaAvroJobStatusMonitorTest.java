@@ -134,6 +134,7 @@ public class KafkaAvroJobStatusMonitorTest {
         .withValue(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, ConfigValueFactory.fromAnyRef(stateStoreDir))
         .withValue("zookeeper.connect", ConfigValueFactory.fromAnyRef("localhost:2121"));
     MockKafkaAvroJobStatusMonitor jobStatusMonitor =  new MockKafkaAvroJobStatusMonitor("test",config, 1);
+    jobStatusMonitor.buildMetricsContextAndMetrics();
 
     ConsumerIterator<byte[], byte[]> iterator = this.kafkaTestHelper.getIteratorForTopic(TOPIC);
 
@@ -237,6 +238,7 @@ public class KafkaAvroJobStatusMonitorTest {
         .withValue(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, ConfigValueFactory.fromAnyRef(stateStoreDir))
         .withValue("zookeeper.connect", ConfigValueFactory.fromAnyRef("localhost:2121"));
     MockKafkaAvroJobStatusMonitor jobStatusMonitor = new MockKafkaAvroJobStatusMonitor("test",config, 1);
+    jobStatusMonitor.buildMetricsContextAndMetrics();
 
     ConsumerIterator<byte[], byte[]> iterator = this.kafkaTestHelper.getIteratorForTopic(TOPIC);
 
@@ -459,6 +461,11 @@ public class KafkaAvroJobStatusMonitorTest {
     @Override
     protected void processMessage(DecodeableKafkaRecord record) {
       super.processMessage(record);
+    }
+
+    @Override
+    protected void buildMetricsContextAndMetrics() {
+      super.buildMetricsContextAndMetrics();
     }
   }
 }
