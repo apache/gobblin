@@ -83,6 +83,7 @@ public class ServiceConfigKeys {
   public static final String SPEC_EXECUTOR_KEY = "specExecutorInstance.class";
   public static final String EDGE_SECURITY_KEY = "edge.secured";
 
+  public static final String DATA_MOVEMENT_AUTHORIZER_CLASS = "dataMovementAuthorizer.class";
 
   // Template Catalog Keys
   public static final String TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY = GOBBLIN_SERVICE_PREFIX + "templateCatalogs.fullyQualifiedPath";
