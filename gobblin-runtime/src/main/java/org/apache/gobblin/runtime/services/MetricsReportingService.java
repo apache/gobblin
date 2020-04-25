@@ -21,12 +21,17 @@ import java.util.Properties;
 
 import com.google.common.util.concurrent.AbstractIdleService;
 
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.metrics.EventReporterException;
 import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.MetricReporterException;
 
 
 /**
  * A {@link com.google.common.util.concurrent.Service} for handling life cycle events around {@link GobblinMetrics}.
  */
+@Slf4j
 public class MetricsReportingService extends AbstractIdleService {
 
   private final Properties properties;
@@ -39,7 +44,13 @@ public class MetricsReportingService extends AbstractIdleService {
 
   @Override
   protected void startUp() throws Exception {
-    GobblinMetrics.get(this.appId).startMetricReporting(this.properties);
+    try {
+      GobblinMetrics.get(this.appId).startMetricReporting(this.properties);
+    } catch (MetricReporterException e) {
+      log.error("Failed to start {} metric reporter", e.getType().name(), e);
+    } catch (EventReporterException e) {
+      log.error("Failed to start {} event reporter", e.getType().name(), e);
+    }
   }
 
   @Override

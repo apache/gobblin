@@ -197,4 +197,11 @@ public class GobblinClusterConfigurationKeys {
   public static final String CONTAINER_ID_KEY = GOBBLIN_HELIX_PREFIX + "containerId";
 
   public static final String GOBBLIN_CLUSTER_SYSTEM_PROPERTY_PREFIX = GOBBLIN_CLUSTER_PREFIX + "sysProps";
+
+  //Gobblin TaskRunner configuration keys
+  public static final String GOBBLIN_CLUSTER_TASK_RUNNER_METRIC_REPORTING_FAILURE_FATAL = "gobblin.cluster.taskRunner.isMetricReportingFailureFatal";
+  public static final boolean DEFAULT_GOBBLIN_CLUSTER_TASK_RUNNER_METRIC_REPORTING_FAILURE_FATAL = false;
+
+  public static final String GOBBLIN_CLUSTER_TASK_RUNNER_EVENT_REPORTING_FAILURE_FATAL = "gobblin.cluster.taskRunner.isEventReportingFailureFatal";
+  public static final boolean DEFAULT_GOBBLIN_CLUSTER_TASK_RUNNER_EVENT_REPORTING_FAILURE_FATAL = false;
 }

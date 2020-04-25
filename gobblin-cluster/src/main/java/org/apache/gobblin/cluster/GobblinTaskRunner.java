@@ -83,7 +83,9 @@ import lombok.Getter;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
+import org.apache.gobblin.metrics.EventReporterException;
 import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.MetricReporterException;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.FileUtils;
@@ -151,6 +153,8 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
   protected final FileSystem fs;
   protected final String applicationName;
   protected final String applicationId;
+  private final boolean isMetricReportingFailureFatal;
+  private final boolean isEventReportingFailureFatal;
 
   public GobblinTaskRunner(String applicationName,
       String helixInstanceName,
@@ -170,6 +174,15 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
     this.appWorkPath = initAppWorkDir(config, appWorkDirOptional);
     this.clusterConfig = saveConfigToFile(config);
     this.clusterName = this.clusterConfig.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
+
+    this.isMetricReportingFailureFatal = ConfigUtils.getBoolean(this.clusterConfig,
+        GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_TASK_RUNNER_METRIC_REPORTING_FAILURE_FATAL,
+        GobblinClusterConfigurationKeys.DEFAULT_GOBBLIN_CLUSTER_TASK_RUNNER_METRIC_REPORTING_FAILURE_FATAL);
+
+    this.isEventReportingFailureFatal = ConfigUtils.getBoolean(this.clusterConfig,
+        GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_TASK_RUNNER_EVENT_REPORTING_FAILURE_FATAL,
+        GobblinClusterConfigurationKeys.DEFAULT_GOBBLIN_CLUSTER_TASK_RUNNER_EVENT_REPORTING_FAILURE_FATAL);
+
     logger.info("Configured GobblinTaskRunner work dir to: {}", this.appWorkPath.toString());
 
     // Set system properties passed in via application config. As an example, Helix uses System#getProperty() for ZK configuration
@@ -309,9 +322,22 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
 
     // Start metric reporting
     if (this.containerMetrics.isPresent()) {
-      this.containerMetrics.get()
-          .startMetricReportingWithFileSuffix(ConfigUtils.configToState(this.clusterConfig),
-              this.taskRunnerId);
+      try {
+        this.containerMetrics.get()
+            .startMetricReportingWithFileSuffix(ConfigUtils.configToState(this.clusterConfig), this.taskRunnerId);
+      } catch (MetricReporterException e) {
+        logger.error("Failed to start {} metric reporter", e.getType().name(), e);
+        if (this.isMetricReportingFailureFatal) {
+          logger.error("Failing TaskRunner since metric reporting failure is FATAL.");
+          Throwables.propagate(e);
+        }
+      } catch (EventReporterException e) {
+        logger.error("Failed to start {} event reporter", e.getType().name(), e);
+        if (this.isEventReportingFailureFatal) {
+          logger.error("Failing TaskRunner since event reporting failure is FATAL.");
+          Throwables.propagate(e);
+        }
+      }
     }
 
     if (this.serviceManager != null) {
