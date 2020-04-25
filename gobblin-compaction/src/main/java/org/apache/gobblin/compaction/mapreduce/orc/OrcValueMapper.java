@@ -99,7 +99,7 @@ public class OrcValueMapper extends RecordKeyMapperBase<NullWritable, OrcStruct,
    * an implementation of {@link java.util.TreeMap} which doesn't accept difference of records within the map in comparison.
    * Note: This method should have no side-effect on input record.
    */
-  protected void fillDedupKey(OrcStruct originalRecord) {
+  private void fillDedupKey(OrcStruct originalRecord) {
     if (!originalRecord.getSchema().equals(this.shuffleKeySchema)) {
       OrcUtils.upConvertOrcStruct(originalRecord, (OrcStruct) this.outKey.key, this.shuffleKeySchema);
     } else {

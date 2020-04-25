@@ -18,7 +18,6 @@
 package org.apache.gobblin.compaction.mapreduce.orc;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -26,7 +25,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 
 import org.apache.gobblin.compaction.mapreduce.avro.MRCompactorAvroKeyDedupJobRunner;
 import org.apache.gobblin.util.FileListUtils;
@@ -34,7 +32,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-
 import org.apache.hadoop.hive.serde2.io.DateWritable;
 import org.apache.hadoop.hive.serde2.io.HiveDecimalWritable;
 import org.apache.hadoop.io.BooleanWritable;
@@ -199,8 +196,8 @@ public class OrcUtils {
    * - For List, Map or Union, make sure there's at least one entry within the record-container.
    * you may want to try {@link #createValueRecursively(TypeDescription)} instead of {@link OrcStruct#createValue(TypeDescription)}
    */
-  public static void orcStructFillerWithFixedValue(WritableComparable w, TypeDescription schema, int intValue,
-      String string, boolean booleanValue) {
+  public static void orcStructFillerWithFixedValue(WritableComparable w, TypeDescription schema, int unionTag,
+      int intValue, String stringValue, boolean booleanValue) {
     switch (schema.getCategory()) {
       case BOOLEAN:
         ((BooleanWritable) w).set(booleanValue);
@@ -226,7 +223,7 @@ public class OrcUtils {
       case STRING:
       case CHAR:
       case VARCHAR:
-        ((Text) w).set(string);
+        ((Text) w).set(stringValue);
         break;
       case BINARY:
         throw new UnsupportedOperationException("Binary type is not supported in random orc data filler");
@@ -242,7 +239,7 @@ public class OrcUtils {
         // Here it is not trivial to create typed-object in element-type. So this method expect the value container
         // to at least contain one element, or the traversing within the list will be skipped.
         for (Object i : castedList) {
-          orcStructFillerWithFixedValue((WritableComparable) i, schema.getChildren().get(0), intValue, string,
+          orcStructFillerWithFixedValue((WritableComparable) i, schema.getChildren().get(0), unionTag, intValue, stringValue,
               booleanValue);
         }
         break;
@@ -251,9 +248,9 @@ public class OrcUtils {
         for (Object entry : castedMap.entrySet()) {
           Map.Entry<WritableComparable, WritableComparable> castedEntry =
               (Map.Entry<WritableComparable, WritableComparable>) entry;
-          orcStructFillerWithFixedValue(castedEntry.getKey(), schema.getChildren().get(0), intValue, string,
+          orcStructFillerWithFixedValue(castedEntry.getKey(), schema.getChildren().get(0), unionTag, intValue, stringValue,
               booleanValue);
-          orcStructFillerWithFixedValue(castedEntry.getValue(), schema.getChildren().get(1), intValue, string,
+          orcStructFillerWithFixedValue(castedEntry.getValue(), schema.getChildren().get(1), unionTag, intValue, stringValue,
               booleanValue);
         }
         break;
@@ -261,19 +258,28 @@ public class OrcUtils {
         OrcStruct castedStruct = (OrcStruct) w;
         int fieldIdx = 0;
         for (TypeDescription child : schema.getChildren()) {
-          orcStructFillerWithFixedValue(castedStruct.getFieldValue(fieldIdx), child, intValue, string, booleanValue);
+          orcStructFillerWithFixedValue(castedStruct.getFieldValue(fieldIdx), child, unionTag, intValue, stringValue, booleanValue);
           fieldIdx += 1;
         }
         break;
       case UNION:
         OrcUnion castedUnion = (OrcUnion) w;
-        byte tag = 0;
-        orcStructFillerWithFixedValue((WritableComparable) castedUnion.getObject(), schema.getChildren().get(tag),
-            intValue, string, booleanValue);
+        TypeDescription targetMemberSchema = schema.getChildren().get(unionTag);
+        castedUnion.set(unionTag, createValueRecursively(targetMemberSchema));
+        orcStructFillerWithFixedValue((WritableComparable) castedUnion.getObject(), targetMemberSchema, unionTag,
+            intValue, stringValue, booleanValue);
         break;
       default:
         throw new IllegalArgumentException("Unknown type " + schema.toString());
     }
+  }
+
+  /**
+   * The simple API: Union tag by default set to 0.
+   */
+  public static void orcStructFillerWithFixedValue(WritableComparable w, TypeDescription schema, int intValue,
+      String stringValue, boolean booleanValue) {
+    orcStructFillerWithFixedValue(w, schema, 0, intValue, stringValue, booleanValue);
   }
 
   /**
@@ -324,11 +330,16 @@ public class OrcUtils {
       OrcUnion targetUnion = (OrcUnion) v;
       byte tag = castedUnion.getTag();
 
+      // ORC doesn't support Union type widening
+      // Avro doesn't allow it either, reference: https://avro.apache.org/docs/current/spec.html#Schema+Resolution
+      // As a result, member schema within source and target should be identical.
+      TypeDescription targetMemberSchema = targetSchema.getChildren().get(tag);
       targetUnion.set(tag, structConversionHelper((WritableComparable) castedUnion.getObject(),
-          (WritableComparable) targetUnion.getObject(), targetSchema.getChildren().get(tag)));
+          (WritableComparable) OrcUtils.createValueRecursively(targetMemberSchema), targetMemberSchema));
     } else {
       // If primitive without type-widening, return the oldField's value which is inside w to avoid value-deepCopy from w to v.
       if (w.getClass().equals(v.getClass())) {
+        // TODO: should do a value copy
         return w;
       } else {
         // If type widening is required, this method copy the value of w into v.
@@ -489,9 +500,10 @@ public class OrcUtils {
         return result;
       }
       case UNION: {
-        OrcUnion result = new OrcUnion(schema);
-        result.set(0, createValueRecursively(schema.getChildren().get(0), elemNum));
-        return result;
+        // For union, there's no way to determine which tag's object type to create with only schema.
+        // It can be determined in the cases when a OrcUnion's value needs to be copied to another object recursively,
+        // and the source OrcUnion can provide this information.
+        return new OrcUnion(schema);
       }
       case LIST: {
         OrcList result = new OrcList(schema);

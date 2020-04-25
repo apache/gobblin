@@ -17,10 +17,12 @@
 
 package org.apache.gobblin.compaction.mapreduce.orc;
 
+import org.apache.gobblin.compaction.hive.HiveAttribute;
 import org.apache.hadoop.io.BooleanWritable;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.WritableComparable;
 import org.apache.orc.TypeDescription;
 import org.apache.orc.mapred.OrcList;
 import org.apache.orc.mapred.OrcMap;
@@ -32,6 +34,10 @@ import org.testng.annotations.Test;
 
 
 public class OrcUtilsTest {
+
+  final int intValue = 10;
+  final String stringValue = "testString";
+  final boolean boolValue = true;
 
   @Test
   public void testRandomFillOrcStructWithAnySchema() {
@@ -105,9 +111,6 @@ public class OrcUtilsTest {
 
   @Test
   public void testUpConvertOrcStruct() {
-    int intValue = 10;
-    String stringValue = "testString";
-    boolean boolValue = true;
 
     // Basic case, all primitives, newly added value will be set to null
     TypeDescription baseStructSchema = TypeDescription.fromString("struct<a:int,b:string>");
@@ -226,5 +229,44 @@ public class OrcUtilsTest {
     Assert.assertNull(((OrcStruct)((OrcList)evolvedComplexStruct.getFieldValue("a")).get(0)).getFieldValue("c"));
     Assert.assertEquals(((OrcUnion) ((OrcStruct)evolvedComplexStruct.getFieldValue("b")).getFieldValue("a")).getObject(), new LongWritable(intValue));
     Assert.assertNull(((OrcStruct)evolvedComplexStruct.getFieldValue("b")).getFieldValue("b"));
+  }
+
+  @Test
+  public void testNestedWithinUnionWithDiffTag() throws Exception {
+    // Construct union type with different tag for the src object dest object, check if up-convert happens correctly.
+    TypeDescription structInUnionAsStruct = TypeDescription.fromString("struct<a:uniontype<struct<a:int,b:string>,int>>");
+    OrcStruct structInUnionAsStructObject = (OrcStruct) OrcUtils.createValueRecursively(structInUnionAsStruct);
+    OrcUtils.orcStructFillerWithFixedValue(structInUnionAsStructObject, structInUnionAsStruct, 0, intValue, stringValue, boolValue);
+    Assert.assertEquals(((OrcStruct)((OrcUnion)structInUnionAsStructObject.getFieldValue("a")).getObject())
+        .getFieldValue("a"), new IntWritable(intValue));
+
+    OrcStruct structInUnionAsStructObject_2 = (OrcStruct) OrcUtils.createValueRecursively(structInUnionAsStruct);
+    OrcUtils.orcStructFillerWithFixedValue(structInUnionAsStructObject_2, structInUnionAsStruct, 1, intValue, stringValue, boolValue);
+    Assert.assertEquals(((OrcUnion)structInUnionAsStructObject_2.getFieldValue("a")).getObject(), new IntWritable(intValue));
+
+    // Create a new record container, do up-convert twice and check if the value is propagated properly.
+    OrcStruct container = (OrcStruct) OrcUtils.createValueRecursively(structInUnionAsStruct);
+    OrcUtils.upConvertOrcStruct(structInUnionAsStructObject, container, structInUnionAsStruct);
+    Assert.assertEquals(structInUnionAsStructObject, container);
+
+    OrcUtils.upConvertOrcStruct(structInUnionAsStructObject_2, container, structInUnionAsStruct);
+    Assert.assertEquals(structInUnionAsStructObject_2, container);
+  }
+
+  /**
+   * Just a sanity test for column project, should be no difference from other cases when provided reader schema.
+   */
+  @Test
+  public void testOrcStructProjection() throws Exception {
+    TypeDescription originalSchema = TypeDescription.fromString("struct<a:struct<a:int,b:int>,b:struct<c:int,d:int>,c:int>");
+    OrcStruct originalStruct = (OrcStruct) OrcUtils.createValueRecursively(originalSchema);
+    OrcUtils.orcStructFillerWithFixedValue(originalStruct, originalSchema, intValue, stringValue, boolValue);
+
+    TypeDescription projectedSchema = TypeDescription.fromString("struct<a:struct<b:int>,b:struct<c:int>>");
+    OrcStruct projectedStructExpectedValue = (OrcStruct) OrcUtils.createValueRecursively(projectedSchema);
+    OrcUtils.orcStructFillerWithFixedValue(projectedStructExpectedValue, projectedSchema, intValue, stringValue, boolValue);
+    OrcStruct projectColumnStruct = (OrcStruct) OrcUtils.createValueRecursively(projectedSchema);
+    OrcUtils.upConvertOrcStruct(originalStruct, projectColumnStruct, projectedSchema);
+    Assert.assertEquals(projectColumnStruct, projectedStructExpectedValue);
   }
 }
