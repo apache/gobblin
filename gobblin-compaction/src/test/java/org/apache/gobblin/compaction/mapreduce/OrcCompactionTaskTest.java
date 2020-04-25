@@ -86,7 +86,7 @@ public class OrcCompactionTaskTest {
   }
 
   @Test
-  public void basicTestWithRecompaction() throws Exception {
+  public void basicTestWithRecompactionAndBasicSchemaEvolution() throws Exception {
     File basePath = Files.createTempDir();
     basePath.deleteOnExit();
 
@@ -98,7 +98,7 @@ public class OrcCompactionTaskTest {
     // Writing some basic ORC files
     createTestingData(jobDir);
 
-    // Writing an additional file with evolved schema.
+    // Writing an additional file with ** evolved schema **.
     TypeDescription evolvedSchema = TypeDescription.fromString("struct<i:int,j:int,k:int>");
     OrcStruct orcStruct_4 = (OrcStruct) OrcStruct.createValue(evolvedSchema);
     orcStruct_4.setFieldValue("i", new IntWritable(5));

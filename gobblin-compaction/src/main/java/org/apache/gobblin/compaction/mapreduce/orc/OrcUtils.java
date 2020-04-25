@@ -277,25 +277,6 @@ public class OrcUtils {
   }
 
   /**
-   * Given a schema, fill some random value in each of field in the given record container {@param w},
-   * assuming {@param w} has exactly the same schema as the given schema.
-   *
-   * Only support limited value-type since this is mostly used for testing purpose when generating datasets given
-   * a schema is necessary since pulling original dataset could run into compliance concern.
-   */
-  @SuppressWarnings("unchecked")
-  public static void randomFillOrcStructWithAnySchema(WritableComparable w, TypeDescription schema, int seed) {
-
-    //Sort of give randomness for current method call.
-    int randomNum = new Random(seed).nextInt();
-    byte[] array = new byte[4]; // length is bounded by 4
-    new Random().nextBytes(array);
-    String generatedString = new String(array, StandardCharsets.UTF_8);
-
-    orcStructFillerWithFixedValue(w, schema, randomNum, generatedString, randomNum % 2 == 0);
-  }
-
-  /**
    * Suppress the warning of type checking: All casts are clearly valid as they are all (sub)elements Orc types.
    * Check failure will trigger Cast exception and blow up the process.
    */
@@ -363,7 +344,8 @@ public class OrcUtils {
    * Recursively convert the {@param oldStruct} into {@param newStruct} whose schema is {@param targetSchema}.
    * This serves similar purpose like GenericDatumReader for Avro, which accepts an reader schema and writer schema
    * to allow users convert bytes into reader's schema in a compatible approach.
-   * Calling this method SHALL NOT cause any side-effect for {@param oldStruct}
+   * Calling this method SHALL NOT cause any side-effect for {@param oldStruct}, also it will copy value of each fields
+   * in {@param oldStruct} into {@param newStruct} recursively. Please ensure avoiding unnecessary call.
    *
    * Note that if newStruct containing things like List/Map (container-type), the up-conversion is doing two things:
    * 1. Clear all elements in original containers.
@@ -381,41 +363,36 @@ public class OrcUtils {
 
     // If target schema is not equal to newStruct's schema, it is a illegal state and doesn't make sense to work through.
     Preconditions.checkArgument(newStruct.getSchema().equals(targetSchema));
+    log.info("There's schema mismatch identified from reader's schema and writer's schema");
 
-    // For ORC schema, if schema object differs that means schema itself is different while for Avro,
-    // there are chances that documentation or attributes' difference lead to the schema object difference.
-    if (!oldStruct.getSchema().equals(targetSchema)) {
-      log.info("There's schema mismatch identified from reader's schema and writer's schema");
+    int indexInNewSchema = 0;
+    List<String> oldSchemaFieldNames = oldStruct.getSchema().getFieldNames();
+    List<TypeDescription> oldSchemaTypes = oldStruct.getSchema().getChildren();
+    List<TypeDescription> newSchemaTypes = targetSchema.getChildren();
 
-      int indexInNewSchema = 0;
-      List<String> oldSchemaFieldNames = oldStruct.getSchema().getFieldNames();
-      List<TypeDescription> oldSchemaTypes = oldStruct.getSchema().getChildren();
-      List<TypeDescription> newSchemaTypes = targetSchema.getChildren();
+    for (String fieldName : targetSchema.getFieldNames()) {
+      if (oldSchemaFieldNames.contains(fieldName)) {
+        int fieldIndex = oldSchemaFieldNames.indexOf(fieldName);
 
-      for (String fieldName : targetSchema.getFieldNames()) {
-        if (oldSchemaFieldNames.contains(fieldName)) {
-          int fieldIndex = oldSchemaFieldNames.indexOf(fieldName);
+        TypeDescription oldFieldSchema = oldSchemaTypes.get(fieldIndex);
+        TypeDescription newFieldSchema = newSchemaTypes.get(indexInNewSchema);
 
-          TypeDescription fileType = oldSchemaTypes.get(fieldIndex);
-          TypeDescription readerType = newSchemaTypes.get(indexInNewSchema);
-
-          if (isEvolutionValid(fileType, readerType)) {
-            WritableComparable oldField = oldStruct.getFieldValue(fieldName);
-            WritableComparable newField = newStruct.getFieldValue(fieldName);
-            // oldField is either the primitive-type value or actually points to newField, check structConversionHelper.
-            newStruct.setFieldValue(fieldName,
-                structConversionHelper(oldField, newField, targetSchema.getChildren().get(fieldIndex)));
-          } else {
-            throw new SchemaEvolution.IllegalEvolutionException(String
-                .format("ORC does not support type conversion from file" + " type %s to reader type %s ",
-                    fileType.toString(), readerType.toString()));
-          }
+        if (isEvolutionValid(oldFieldSchema, newFieldSchema)) {
+          WritableComparable oldField = oldStruct.getFieldValue(fieldName);
+          oldField = (oldField == null) ? OrcUtils.createValueRecursively(oldFieldSchema) : oldField;
+          WritableComparable newField = newStruct.getFieldValue(fieldName);
+          newField = (newField == null) ? OrcUtils.createValueRecursively(newFieldSchema) : newField;
+          newStruct.setFieldValue(fieldName, structConversionHelper(oldField, newField, newFieldSchema));
         } else {
-          newStruct.setFieldValue(fieldName, null);
+          throw new SchemaEvolution.IllegalEvolutionException(String
+              .format("ORC does not support type conversion from file" + " type %s to reader type %s ",
+                  oldFieldSchema.toString(), newFieldSchema.toString()));
         }
-
-        indexInNewSchema++;
+      } else {
+        newStruct.setFieldValue(fieldName, null);
       }
+
+      indexInNewSchema++;
     }
   }
 

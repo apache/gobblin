@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.gobblin.compaction.mapreduce.orc;
 
 import org.apache.hadoop.io.BooleanWritable;
@@ -12,7 +29,6 @@ import org.apache.orc.mapred.OrcUnion;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import static org.testng.Assert.*;
 
 
 public class OrcUtilsTest {
@@ -192,6 +208,7 @@ public class OrcUtilsTest {
     // Check in the tag 0(Default from value-filler) within evolvedUnionInStruct, the value is becoming type-widened with correct value.
     Assert.assertEquals(((OrcUnion) evolvedUnionInStruct.getFieldValue("a")).getTag(), 0);
     Assert.assertEquals(((OrcUnion) evolvedUnionInStruct.getFieldValue("a")).getObject(), new LongWritable(intValue));
+    // Check the case when union field is created in different tag.
 
     // Complex: List<Struct> within struct among others and evolution happens on multiple places, also type-widening in deeply nested level.
     TypeDescription complexOrcSchema =

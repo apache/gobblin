@@ -64,7 +64,7 @@ public class CompactionOrcJobConfigurator extends CompactionJobConfigurator {
 
     job.getConfiguration().set(OrcConf.MAPRED_INPUT_SCHEMA.getAttribute(), schema.toString());
     job.getConfiguration().set(OrcConf.MAPRED_SHUFFLE_KEY_SCHEMA.getAttribute(),
-        orcMapperShuffleSchemaString.isEmpty() ? orcMapperShuffleSchemaString : schema.toString());
+        orcMapperShuffleSchemaString.isEmpty() ? schema.toString() : orcMapperShuffleSchemaString);
     job.getConfiguration().set(OrcConf.MAPRED_SHUFFLE_VALUE_SCHEMA.getAttribute(), schema.toString());
     job.getConfiguration().set(OrcConf.MAPRED_OUTPUT_SCHEMA.getAttribute(), schema.toString());
   }

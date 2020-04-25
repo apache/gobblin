@@ -56,8 +56,10 @@ public class OrcValueMapper extends RecordKeyMapperBase<NullWritable, OrcStruct,
       throws IOException, InterruptedException {
     super.setup(context);
     this.jobConf = new JobConf(context.getConfiguration());
+    this.outKey = new OrcKey();
     this.outKey.configure(jobConf);
     this.outValue = new OrcValue();
+    this.outValue.configure(jobConf);
     this.mrOutputSchema =
         TypeDescription.fromString(context.getConfiguration().get(OrcConf.MAPRED_INPUT_SCHEMA.getAttribute()));
     this.shuffleKeySchema =
@@ -68,13 +70,20 @@ public class OrcValueMapper extends RecordKeyMapperBase<NullWritable, OrcStruct,
   protected void map(NullWritable key, OrcStruct orcStruct, Context context)
       throws IOException, InterruptedException {
 
-    // Note that outValue.value is being re-used.
-    OrcUtils.upConvertOrcStruct(orcStruct, (OrcStruct) outValue.value, mrOutputSchema);
+    // Up-convert OrcStruct only if schema differs
+    if (!orcStruct.getSchema().equals(this.mrOutputSchema)) {
+      // Note that outValue.value is being re-used.
+      log.info("There's a schema difference between output schema and input schema");
+      OrcUtils.upConvertOrcStruct(orcStruct, (OrcStruct) outValue.value, mrOutputSchema);
+    } else {
+      this.outValue.value = orcStruct;
+    }
+
     try {
       if (context.getNumReduceTasks() == 0) {
         context.write(NullWritable.get(), this.outValue);
       } else {
-        fillDedupKey((OrcStruct) outKey.key);
+        fillDedupKey(orcStruct);
         context.write(this.outKey, this.outValue);
       }
     } catch (IOException e) {
@@ -88,8 +97,13 @@ public class OrcValueMapper extends RecordKeyMapperBase<NullWritable, OrcStruct,
   /**
    * By default, dedup key contains the whole ORC record, except MAP since {@link org.apache.orc.mapred.OrcMap} is
    * an implementation of {@link java.util.TreeMap} which doesn't accept difference of records within the map in comparison.
+   * Note: This method should have no side-effect on input record.
    */
   protected void fillDedupKey(OrcStruct originalRecord) {
-    OrcUtils.upConvertOrcStruct(originalRecord, (OrcStruct) this.outKey.key, this.shuffleKeySchema);
+    if (!originalRecord.getSchema().equals(this.shuffleKeySchema)) {
+      OrcUtils.upConvertOrcStruct(originalRecord, (OrcStruct) this.outKey.key, this.shuffleKeySchema);
+    } else {
+      this.outKey.key = originalRecord;
+    }
   }
 }
