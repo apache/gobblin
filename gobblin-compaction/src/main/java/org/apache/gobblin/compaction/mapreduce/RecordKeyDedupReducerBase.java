@@ -18,9 +18,12 @@
 package org.apache.gobblin.compaction.mapreduce;
 
 import com.google.common.base.Optional;
+
 import java.io.IOException;
 import java.util.Comparator;
+
 import lombok.Getter;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.Reducer;
@@ -31,9 +34,7 @@ import org.apache.hadoop.mapreduce.Reducer;
  */
 public abstract class RecordKeyDedupReducerBase<KI, VI, KO, VO> extends Reducer<KI, VI, KO, VO> {
   public enum EVENT_COUNTER {
-    MORE_THAN_1,
-    DEDUPED,
-    RECORD_COUNT
+    MORE_THAN_1, DEDUPED, RECORD_COUNT
   }
 
   /**
@@ -45,9 +46,7 @@ public abstract class RecordKeyDedupReducerBase<KI, VI, KO, VO> extends Reducer<
   @Getter
   protected VO outValue;
 
-
   protected Optional<Comparator<VI>> deltaComparatorOptional;
-
 
   protected abstract void initReusableObject();
 
@@ -65,7 +64,6 @@ public abstract class RecordKeyDedupReducerBase<KI, VI, KO, VO> extends Reducer<
 
   protected abstract void initDeltaComparator(Configuration conf);
 
-
   @Override
   protected void setup(Context context) {
     initReusableObject();
@@ -79,6 +77,7 @@ public abstract class RecordKeyDedupReducerBase<KI, VI, KO, VO> extends Reducer<
 
     VI valueToRetain = null;
 
+    // Preserve only one values among all duplicates.
     for (VI value : values) {
       if (valueToRetain == null) {
         valueToRetain = value;
@@ -88,15 +87,14 @@ public abstract class RecordKeyDedupReducerBase<KI, VI, KO, VO> extends Reducer<
       numVals++;
     }
 
+    writeRetainValue(valueToRetain, context);
+    updateCounter(numVals, context);
+  }
+
+  protected void writeRetainValue(VI valueToRetain, Context context)
+      throws IOException, InterruptedException {
     setOutKey(valueToRetain);
     setOutValue(valueToRetain);
-
-    if (numVals > 1) {
-      context.getCounter(EVENT_COUNTER.MORE_THAN_1).increment(1);
-      context.getCounter(EVENT_COUNTER.DEDUPED).increment(numVals - 1);
-    }
-
-    context.getCounter(EVENT_COUNTER.RECORD_COUNT).increment(1);
 
     // Safety check
     if (outKey == null || outValue == null) {
@@ -104,5 +102,18 @@ public abstract class RecordKeyDedupReducerBase<KI, VI, KO, VO> extends Reducer<
     }
 
     context.write(this.outKey, this.outValue);
+  }
+
+  /**
+   * Update the MR counter based on input {@param numDuplicates}, which indicates the times of duplication of a
+   * record seen in a reducer call.
+   */
+  protected void updateCounter(int numDuplicates, Context context) {
+    if (numDuplicates > 1) {
+      context.getCounter(EVENT_COUNTER.MORE_THAN_1).increment(1);
+      context.getCounter(EVENT_COUNTER.DEDUPED).increment(numDuplicates - 1);
+    }
+
+    context.getCounter(EVENT_COUNTER.RECORD_COUNT).increment(1);
   }
 }

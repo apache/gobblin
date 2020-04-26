@@ -356,7 +356,8 @@ public class OrcUtils {
    * This serves similar purpose like GenericDatumReader for Avro, which accepts an reader schema and writer schema
    * to allow users convert bytes into reader's schema in a compatible approach.
    * Calling this method SHALL NOT cause any side-effect for {@param oldStruct}, also it will copy value of each fields
-   * in {@param oldStruct} into {@param newStruct} recursively. Please ensure avoiding unnecessary call.
+   * in {@param oldStruct} into {@param newStruct} recursively. Please ensure avoiding unnecessary call as it could
+   * be pretty expensive if the struct schema is complicated, or contains container objects like array/map.
    *
    * Note that if newStruct containing things like List/Map (container-type), the up-conversion is doing two things:
    * 1. Clear all elements in original containers.

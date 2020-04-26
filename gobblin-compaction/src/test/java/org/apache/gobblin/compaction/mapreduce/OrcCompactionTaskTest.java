@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import org.apache.commons.io.FilenameUtils;
+import org.apache.gobblin.compaction.mapreduce.orc.OrcUtils;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.runtime.api.JobExecutionResult;
 import org.apache.gobblin.runtime.embedded.EmbeddedGobblin;
@@ -35,6 +36,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.NullWritable;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
@@ -50,9 +52,13 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import static org.apache.gobblin.compaction.mapreduce.AvroCompactionTaskTest.*;
+import static org.apache.gobblin.compaction.mapreduce.CompactionOrcJobConfigurator.ORC_MAPPER_SHUFFLE_SCHEMA_KEY;
 import static org.apache.gobblin.compaction.mapreduce.CompactorOutputCommitter.*;
 import static org.apache.gobblin.compaction.mapreduce.MRCompactor.COMPACTION_LATEDATA_THRESHOLD_FOR_RECOMPACT_PER_DATASET;
 import static org.apache.gobblin.compaction.mapreduce.MRCompactor.COMPACTION_SHOULD_DEDUPLICATE;
+import static org.apache.gobblin.compaction.mapreduce.orc.OrcKeyDedupReducer.ORC_DELTA_SCHEMA_PROVIDER;
+import static org.apache.gobblin.compaction.mapreduce.orc.OrcKeyDedupReducer.USING_WHOLE_RECORD_FOR_COMPARE;
+import static org.apache.orc.OrcConf.MAPRED_SHUFFLE_KEY_SCHEMA;
 
 
 public class OrcCompactionTaskTest {
@@ -159,6 +165,52 @@ public class OrcCompactionTaskTest {
     Assert.assertEquals(result.size(), 4 + 1);
   }
 
+  @Test
+  public void testReducerSideDedup() throws Exception {
+    File basePath = Files.createTempDir();
+    basePath.deleteOnExit();
+
+    String minutelyPath = "Identity/MemberAccount/minutely/2020/04/03/10/20_30/run_2020-04-03-10-20";
+    String hourlyPath = "Identity/MemberAccount/hourly/2020/04/03/10/";
+    File jobDir = new File(basePath, minutelyPath);
+    Assert.assertTrue(jobDir.mkdirs());
+
+    TypeDescription nestedSchema = TypeDescription.fromString("struct<a:struct<a:int,b:string,c:int>,b:string>");
+    // Create three records with same value except "b" column in the top-level.
+    OrcStruct nested_struct_1 = (OrcStruct) OrcUtils.createValueRecursively(nestedSchema);
+    OrcUtils.orcStructFillerWithFixedValue(nested_struct_1, nestedSchema, 1, "test1", true);
+    ((OrcStruct)nested_struct_1).setFieldValue("b", new Text("uno"));
+    OrcStruct nested_struct_2 = (OrcStruct) OrcUtils.createValueRecursively(nestedSchema);
+    OrcUtils.orcStructFillerWithFixedValue(nested_struct_2, nestedSchema, 1, "test2", false);
+    ((OrcStruct)nested_struct_2).setFieldValue("b", new Text("dos"));
+    OrcStruct nested_struct_3 = (OrcStruct) OrcUtils.createValueRecursively(nestedSchema);
+    OrcUtils.orcStructFillerWithFixedValue(nested_struct_3, nestedSchema, 1, "test3", false);
+    ((OrcStruct)nested_struct_3).setFieldValue("b", new Text("tres"));
+
+    // Following pattern: FILENAME.RECORDCOUNT.EXTENSION
+    File file_0 = new File(jobDir, "file_0.3." + extensionName);
+    writeOrcRecordsInFile(new Path(file_0.getAbsolutePath()), nestedSchema, ImmutableList.of(nested_struct_1,
+        nested_struct_2, nested_struct_3));
+
+    EmbeddedGobblin embeddedGobblin = createEmbeddedGobblin("basic", basePath.getAbsolutePath().toString())
+        .setConfiguration(CompactionJobConfigurator.COMPACTION_JOB_CONFIGURATOR_FACTORY_CLASS_KEY,
+            TestCompactionOrcJobConfigurator.Factory.class.getName())
+        .setConfiguration(COMPACTION_OUTPUT_EXTENSION, extensionName)
+        .setConfiguration(ORC_MAPPER_SHUFFLE_SCHEMA_KEY, "struct<a:struct<a:int,c:int>>");
+    JobExecutionResult execution = embeddedGobblin.run();
+    Assert.assertTrue(execution.isSuccessful());
+
+    // Verifying result: Reducer should catch all the false-duplicates
+    File outputDir = new File(basePath, hourlyPath);
+    FileSystem fs = FileSystem.getLocal(new Configuration());
+    List<FileStatus> statuses = new ArrayList<>();
+    reloadFolder(statuses, outputDir, fs);
+    Assert.assertEquals(statuses.size(), 1);
+    List<OrcStruct> result = readOrcFile(statuses.get(0).getPath());
+    // Should still contain original 3 records since they have different value in columns not included in shuffle key.
+    Assert.assertEquals(result.size(), 3);
+  }
+
   // A helper method to load all files in the output directory for compaction-result inspection.
   private void reloadFolder(List<FileStatus> statuses, File outputDir, FileSystem fs) throws IOException {
     statuses.clear();
@@ -227,6 +279,7 @@ public class OrcCompactionTaskTest {
 
   /**
    * Read a output ORC compacted file into memory.
+   * This only works if fields are int value.
    */
   public List<OrcStruct> readOrcFile(Path orcFilePath)
       throws IOException, InterruptedException {
@@ -237,7 +290,9 @@ public class OrcCompactionTaskTest {
     List<OrcStruct> result = new ArrayList<>();
 
     while (recordReader.nextKeyValue()) {
-      result.add(copyIntOrcStruct((OrcStruct) recordReader.getCurrentValue()));
+      OrcStruct recordContainer = (OrcStruct) OrcUtils.createValueRecursively(orcReader.getSchema());
+      OrcUtils.upConvertOrcStruct((OrcStruct) recordReader.getCurrentValue(), recordContainer, orcReader.getSchema());
+      result.add(recordContainer);
     }
 
     return result;
