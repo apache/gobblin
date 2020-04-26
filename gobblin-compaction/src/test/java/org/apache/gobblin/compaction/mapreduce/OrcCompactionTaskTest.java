@@ -209,6 +209,9 @@ public class OrcCompactionTaskTest {
     List<OrcStruct> result = readOrcFile(statuses.get(0).getPath());
     // Should still contain original 3 records since they have different value in columns not included in shuffle key.
     Assert.assertEquals(result.size(), 3);
+    Assert.assertTrue(result.contains(nested_struct_1));
+    Assert.assertTrue(result.contains(nested_struct_2));
+    Assert.assertTrue(result.contains(nested_struct_3));
   }
 
   // A helper method to load all files in the output directory for compaction-result inspection.
