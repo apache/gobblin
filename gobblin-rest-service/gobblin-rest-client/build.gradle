@@ -23,6 +23,7 @@ dependencies {
     compile externalDependency.pegasus.restliClient
     compile externalDependency.pegasus.r2
     compile externalDependency.pegasus.d2
+    compile externalDependency.pegasus.pegasusCommon
     compile externalDependency.guava
 }
 
