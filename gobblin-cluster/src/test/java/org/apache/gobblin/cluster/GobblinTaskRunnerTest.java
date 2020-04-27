@@ -156,7 +156,7 @@ public class GobblinTaskRunnerTest {
       }, "gobblinTaskRunner stopped");
   }
 
-  @Test (expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = ".*Missing Kafka configuration.*")
+  @Test (expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = ".*Could not create metric reporter.*")
   public void testStartUpFailsDueToMetricReporterFailure() {
       GobblinTaskRunnerTest.this.gobblinTaskRunnerFailedReporter.start();
   }

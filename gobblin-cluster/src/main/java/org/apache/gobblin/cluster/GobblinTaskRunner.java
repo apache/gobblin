@@ -321,24 +321,7 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
     addInstanceTags();
 
     // Start metric reporting
-    if (this.containerMetrics.isPresent()) {
-      try {
-        this.containerMetrics.get()
-            .startMetricReportingWithFileSuffix(ConfigUtils.configToState(this.clusterConfig), this.taskRunnerId);
-      } catch (MetricReporterException e) {
-        logger.error("Failed to start {} metric reporter", e.getType().name(), e);
-        if (this.isMetricReportingFailureFatal) {
-          logger.error("Failing TaskRunner since metric reporting failure is FATAL.");
-          Throwables.propagate(e);
-        }
-      } catch (EventReporterException e) {
-        logger.error("Failed to start {} event reporter", e.getType().name(), e);
-        if (this.isEventReportingFailureFatal) {
-          logger.error("Failing TaskRunner since event reporting failure is FATAL.");
-          Throwables.propagate(e);
-        }
-      }
-    }
+    initMetricReporter();
 
     if (this.serviceManager != null) {
       this.serviceManager.startAsync();
@@ -346,6 +329,27 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
       this.serviceManager.awaitStopped();
     } else {
       started = true;
+    }
+  }
+
+  private void initMetricReporter() {
+    if (this.containerMetrics.isPresent()) {
+      try {
+        this.containerMetrics.get()
+            .startMetricReportingWithFileSuffix(ConfigUtils.configToState(this.clusterConfig), this.taskRunnerId);
+      } catch (MetricReporterException e) {
+        if (this.isMetricReportingFailureFatal) {
+          Throwables.propagate(e);
+        } else {
+          logger.error("Failed to start {} event reporter", e.getType().name(), e);
+        }
+      } catch (EventReporterException e) {
+        if (this.isEventReportingFailureFatal) {
+          Throwables.propagate(e);
+        } else {
+          logger.error("Failed to start {} event reporter", e.getType().name(), e);
+        }
+      }
     }
   }
 
