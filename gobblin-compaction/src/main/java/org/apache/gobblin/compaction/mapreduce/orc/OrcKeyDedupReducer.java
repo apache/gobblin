@@ -57,18 +57,22 @@ public class OrcKeyDedupReducer extends RecordKeyDedupReducerBase<OrcKey, OrcVal
   protected void reduce(OrcKey key, Iterable<OrcValue> values, Context context)
       throws IOException, InterruptedException {
 
-    /* Need this additional data-structure for de-dup since OrcValue doesn't implement equal method but OrcStruct does.*/
-    /* Map from value(Typed in OrcStruct due to the reason above) object to its times of duplication*/
-    Map<OrcStruct, Integer> valuesToRetain = new HashMap<>();
+    /* Map from hash of value(Typed in OrcStruct) object to its times of duplication*/
+    Map<Integer, Integer> valuesToRetain = new HashMap<>();
+    int valueHash = 0;
 
     for (OrcValue value : values) {
-      valuesToRetain.putIfAbsent((OrcStruct) value.value, 0);
-      valuesToRetain.put((OrcStruct) value.value, valuesToRetain.get((OrcStruct) value.value) + 1);
+      valueHash = ((OrcStruct) value.value).hashCode();
+      if (valuesToRetain.containsKey(valueHash)) {
+        valuesToRetain.put(valueHash, valuesToRetain.get(valueHash) + 1);
+      } else {
+        valuesToRetain.put(valueHash, 1);
+        writeRetainValue(value, context);
+      }
     }
 
-    for (Map.Entry<OrcStruct, Integer> entry : valuesToRetain.entrySet()) {
-      outValue.value = entry.getKey();
-      writeRetainValue(outValue, context);
+    /* At this point, keyset of valuesToRetain should contains all different OrcValue. */
+    for (Map.Entry<Integer, Integer> entry : valuesToRetain.entrySet()) {
       updateCounter(entry.getValue(), context);
     }
   }

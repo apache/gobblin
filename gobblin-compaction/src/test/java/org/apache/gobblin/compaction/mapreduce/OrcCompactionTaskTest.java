@@ -292,25 +292,13 @@ public class OrcCompactionTaskTest {
     OrcMapreduceRecordReader recordReader = new OrcMapreduceRecordReader(orcReader, options);
     List<OrcStruct> result = new ArrayList<>();
 
+    OrcStruct recordContainer;
     while (recordReader.nextKeyValue()) {
-      OrcStruct recordContainer = (OrcStruct) OrcUtils.createValueRecursively(orcReader.getSchema());
+      recordContainer = (OrcStruct) OrcUtils.createValueRecursively(orcReader.getSchema());
       OrcUtils.upConvertOrcStruct((OrcStruct) recordReader.getCurrentValue(), recordContainer, orcReader.getSchema());
       result.add(recordContainer);
     }
 
-    return result;
-  }
-
-  private OrcStruct copyIntOrcStruct(OrcStruct record) {
-    OrcStruct result = new OrcStruct(record.getSchema());
-    for (int i = 0 ; i < record.getNumFields() ; i ++ ) {
-      if (record.getFieldValue(i) != null) {
-        IntWritable newCopy = new IntWritable(((IntWritable) record.getFieldValue(i)).get());
-        result.setFieldValue(i, newCopy);
-      } else {
-        result.setFieldValue(i, null);
-      }
-    }
     return result;
   }
 

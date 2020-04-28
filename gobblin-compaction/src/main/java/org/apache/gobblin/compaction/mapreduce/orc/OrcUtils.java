@@ -239,8 +239,8 @@ public class OrcUtils {
         // Here it is not trivial to create typed-object in element-type. So this method expect the value container
         // to at least contain one element, or the traversing within the list will be skipped.
         for (Object i : castedList) {
-          orcStructFillerWithFixedValue((WritableComparable) i, schema.getChildren().get(0), unionTag, intValue, stringValue,
-              booleanValue);
+          orcStructFillerWithFixedValue((WritableComparable) i, schema.getChildren().get(0), unionTag, intValue,
+              stringValue, booleanValue);
         }
         break;
       case MAP:
@@ -248,17 +248,18 @@ public class OrcUtils {
         for (Object entry : castedMap.entrySet()) {
           Map.Entry<WritableComparable, WritableComparable> castedEntry =
               (Map.Entry<WritableComparable, WritableComparable>) entry;
-          orcStructFillerWithFixedValue(castedEntry.getKey(), schema.getChildren().get(0), unionTag, intValue, stringValue,
-              booleanValue);
-          orcStructFillerWithFixedValue(castedEntry.getValue(), schema.getChildren().get(1), unionTag, intValue, stringValue,
-              booleanValue);
+          orcStructFillerWithFixedValue(castedEntry.getKey(), schema.getChildren().get(0), unionTag, intValue,
+              stringValue, booleanValue);
+          orcStructFillerWithFixedValue(castedEntry.getValue(), schema.getChildren().get(1), unionTag, intValue,
+              stringValue, booleanValue);
         }
         break;
       case STRUCT:
         OrcStruct castedStruct = (OrcStruct) w;
         int fieldIdx = 0;
         for (TypeDescription child : schema.getChildren()) {
-          orcStructFillerWithFixedValue(castedStruct.getFieldValue(fieldIdx), child, unionTag, intValue, stringValue, booleanValue);
+          orcStructFillerWithFixedValue(castedStruct.getFieldValue(fieldIdx), child, unionTag, intValue, stringValue,
+              booleanValue);
           fieldIdx += 1;
         }
         break;
@@ -337,14 +338,8 @@ public class OrcUtils {
       targetUnion.set(tag, structConversionHelper((WritableComparable) castedUnion.getObject(),
           (WritableComparable) OrcUtils.createValueRecursively(targetMemberSchema), targetMemberSchema));
     } else {
-      // If primitive without type-widening, return the oldField's value which is inside w to avoid value-deepCopy from w to v.
-      if (w.getClass().equals(v.getClass())) {
-        // TODO: should do a value copy
-        return w;
-      } else {
-        // If type widening is required, this method copy the value of w into v.
-        writableComparableTypeWidening(w, v);
-      }
+      // Regardless whether type-widening is happening or not, this method copy the value of w into v.
+        handlePrimitiveWritableComparable(w, v);
     }
 
     // If non-primitive or type-widening is required, v should already be populated by w's value recursively.
@@ -383,7 +378,7 @@ public class OrcUtils {
     List<TypeDescription> newSchemaTypes = targetSchema.getChildren();
 
     for (String fieldName : targetSchema.getFieldNames()) {
-      if (oldSchemaFieldNames.contains(fieldName)) {
+      if (oldSchemaFieldNames.contains(fieldName) && oldStruct.getFieldValue(fieldName) != null) {
         int fieldIndex = oldSchemaFieldNames.indexOf(fieldName);
 
         TypeDescription oldFieldSchema = oldSchemaTypes.get(fieldIndex);
@@ -391,7 +386,6 @@ public class OrcUtils {
 
         if (isEvolutionValid(oldFieldSchema, newFieldSchema)) {
           WritableComparable oldField = oldStruct.getFieldValue(fieldName);
-          oldField = (oldField == null) ? OrcUtils.createValueRecursively(oldFieldSchema) : oldField;
           WritableComparable newField = newStruct.getFieldValue(fieldName);
           newField = (newField == null) ? OrcUtils.createValueRecursively(newFieldSchema) : newField;
           newStruct.setFieldValue(fieldName, structConversionHelper(oldField, newField, newFieldSchema));
@@ -411,9 +405,12 @@ public class OrcUtils {
   /**
    * For primitive types of {@link WritableComparable}, supporting ORC-allowed type-widening.
    */
-  public static void writableComparableTypeWidening(WritableComparable from, WritableComparable to) {
+  public static void handlePrimitiveWritableComparable(WritableComparable from, WritableComparable to) {
     if (from instanceof ByteWritable) {
-      if (to instanceof ShortWritable) {
+      if (to instanceof ByteWritable) {
+        ((ByteWritable) to).set(((ByteWritable) from).get());
+        return;
+      } else if (to instanceof ShortWritable) {
         ((ShortWritable) to).set(((ByteWritable) from).get());
         return;
       } else if (to instanceof IntWritable) {
@@ -427,7 +424,10 @@ public class OrcUtils {
         return;
       }
     } else if (from instanceof ShortWritable) {
-      if (to instanceof IntWritable) {
+      if (to instanceof ShortWritable) {
+        ((ShortWritable) to).set(((ShortWritable) from).get());
+        return;
+      } else if (to instanceof IntWritable) {
         ((IntWritable) to).set(((ShortWritable) from).get());
         return;
       } else if (to instanceof LongWritable) {
@@ -438,7 +438,10 @@ public class OrcUtils {
         return;
       }
     } else if (from instanceof IntWritable) {
-      if (to instanceof LongWritable) {
+      if (to instanceof IntWritable) {
+        ((IntWritable) to).set(((IntWritable) from).get());
+        return;
+      } else if (to instanceof LongWritable) {
         ((LongWritable) to).set(((IntWritable) from).get());
         return;
       } else if (to instanceof DoubleWritable) {
@@ -446,10 +449,45 @@ public class OrcUtils {
         return;
       }
     } else if (from instanceof LongWritable) {
-      if (to instanceof DoubleWritable) {
+      if (to instanceof LongWritable) {
+        ((LongWritable) to).set(((LongWritable) from).get());
+        return;
+      } else if (to instanceof DoubleWritable) {
         ((DoubleWritable) to).set(((LongWritable) from).get());
         return;
       }
+      // Following from this branch, type-widening is not allowed and only value-copy will happen.
+    } else if (from instanceof DoubleWritable) {
+      if (to instanceof DoubleWritable) {
+        ((DoubleWritable) to).set(((DoubleWritable) from).get());
+        return;
+      }
+    } else if (from instanceof BytesWritable) {
+      if (to instanceof BytesWritable) {
+        ((BytesWritable) to).set((BytesWritable) from);
+        return;
+      }
+    } else if (from instanceof FloatWritable) {
+      if (to instanceof FloatWritable) {
+        ((FloatWritable) to).set(((FloatWritable) from).get());
+        return;
+      }
+    } else if (from instanceof Text) {
+      if (to instanceof Text) {
+        ((Text) to).set((Text) from);
+        return;
+      }
+    } else if (from instanceof DateWritable) {
+      if (to instanceof DateWritable) {
+        ((DateWritable) to).set(((DateWritable) from).get());
+        return;
+      }
+    } else if (from instanceof OrcTimestamp && to instanceof OrcTimestamp) {
+      ((OrcTimestamp) to).set(((OrcTimestamp) from).toString());
+      return;
+    } else if (from instanceof HiveDecimalWritable && to instanceof HiveDecimalWritable) {
+      ((HiveDecimalWritable) to).set(((HiveDecimalWritable) from).getHiveDecimal());
+      return;
     }
     throw new UnsupportedOperationException(String
         .format("The conversion of primitive-type WritableComparable object from %s to %s is not supported",
