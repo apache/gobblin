@@ -11,6 +11,9 @@
 **/*.ipr
 .shelf/
 
+# VS Code related 
+.vscode
+
 **/.classpath
 **/.project
 **/.settings
