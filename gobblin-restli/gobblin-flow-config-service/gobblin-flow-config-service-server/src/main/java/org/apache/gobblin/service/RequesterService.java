@@ -74,8 +74,14 @@ public abstract class RequesterService {
   protected abstract List<ServiceRequester> findRequesters(BaseResource resource);
 
   /**
-   * This method should throw {@link FlowConfigLoggedException}, if the requester is not allowed to make this request.
+   * returns true if the requester is allowed to make this request.
+   * This default implementation accepts all requesters.
+   * @param originalRequesterList original requester list
+   * @param currentRequesterList current requester list
+   * @return true if the requester is allowed to make this request, false otherwise
    */
-  protected abstract void requesterAllowed(List<ServiceRequester> originalRequesterList,
-      List<ServiceRequester> currentRequesterList) throws FlowConfigLoggedException;
+  protected boolean isRequesterAllowed(
+      List<ServiceRequester> originalRequesterList, List<ServiceRequester> currentRequesterList){
+    return true;
+  }
 }

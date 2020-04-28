@@ -114,7 +114,7 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
    */
   @Override
   public UpdateResponse update(ComplexResourceKey<FlowId, FlowStatusId> key, FlowConfig flowConfig) {
-    checkRequester(get(key), this.requesterService.findRequesters(this));
+    FlowConfigsResource.checkRequester(this.requesterService, get(key), this.requesterService.findRequesters(this));
     String flowGroup = key.getKey().getFlowGroup();
     String flowName = key.getKey().getFlowName();
     FlowId flowId = new FlowId().setFlowGroup(flowGroup).setFlowName(flowName);
@@ -129,7 +129,7 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
    */
   @Override
   public UpdateResponse update(ComplexResourceKey<FlowId, FlowStatusId> key, PatchRequest<FlowConfig> flowConfigPatch) {
-    checkRequester(get(key), this.requesterService.findRequesters(this));
+    FlowConfigsResource.checkRequester(this.requesterService, get(key), this.requesterService.findRequesters(this));
     String flowGroup = key.getKey().getFlowGroup();
     String flowName = key.getKey().getFlowName();
     FlowId flowId = new FlowId().setFlowGroup(flowGroup).setFlowName(flowName);
@@ -143,7 +143,7 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
    */
   @Override
   public UpdateResponse delete(ComplexResourceKey<FlowId, FlowStatusId> key) {
-    checkRequester(get(key), this.requesterService.findRequesters(this));
+    FlowConfigsResource.checkRequester(this.requesterService, get(key), this.requesterService.findRequesters(this));
     String flowGroup = key.getKey().getFlowGroup();
     String flowName = key.getKey().getFlowName();
     FlowId flowId = new FlowId().setFlowGroup(flowGroup).setFlowName(flowName);
@@ -155,23 +155,6 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
       return global_flowConfigsResourceHandler;
     }
     return flowConfigsResourceHandler;
-  }
-
-  // A duplicate method which should be removed when FlowConfigResource is removed.
-  public void checkRequester(FlowConfig originalFlowConfig, List<ServiceRequester> requesterList) {
-    if (requesterList == null) {
-      return;
-    }
-
-    try {
-      String serializedOriginalRequesterList = originalFlowConfig.getProperties().get(RequesterService.REQUESTER_LIST);
-      if (serializedOriginalRequesterList != null) {
-        List<ServiceRequester> originalRequesterList = RequesterService.deserialize(serializedOriginalRequesterList);
-        this.requesterService.requesterAllowed(originalRequesterList, requesterList);
-      }
-    } catch (IOException e) {
-      throw new FlowConfigLoggedException(HttpStatus.S_400_BAD_REQUEST, "Failed to get original requester list", e);
-    }
   }
 
   private Properties getHeaders() {

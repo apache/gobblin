@@ -109,7 +109,7 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, Empt
    */
   @Override
   public UpdateResponse update(ComplexResourceKey<FlowId, EmptyRecord> key, FlowConfig flowConfig) {
-    checkRequester(get(key), this.requesterService.findRequesters(this));
+    checkRequester(this.requesterService, get(key), this.requesterService.findRequesters(this));
     String flowGroup = key.getKey().getFlowGroup();
     String flowName = key.getKey().getFlowName();
     FlowId flowId = new FlowId().setFlowGroup(flowGroup).setFlowName(flowName);
@@ -123,7 +123,7 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, Empt
    */
   @Override
   public UpdateResponse delete(ComplexResourceKey<FlowId, EmptyRecord> key) {
-    checkRequester(get(key), this.requesterService.findRequesters(this));
+    checkRequester(this.requesterService, get(key), this.requesterService.findRequesters(this));
     String flowGroup = key.getKey().getFlowGroup();
     String flowName = key.getKey().getFlowName();
     FlowId flowId = new FlowId().setFlowGroup(flowGroup).setFlowName(flowName);
@@ -136,10 +136,12 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, Empt
    * If there is a failure when deserializing the original requester list, throw a {@link FlowConfigLoggedException} with
    * {@link HttpStatus#S_400_BAD_REQUEST}.
    *
+   * @param requesterService the {@link RequesterService} used to verify the requester
    * @param originalFlowConfig original flow config to find original requester
    * @param requesterList list of requesters for this request
    */
-  public void checkRequester(FlowConfig originalFlowConfig, List<ServiceRequester> requesterList) {
+  public static void checkRequester(
+      RequesterService requesterService, FlowConfig originalFlowConfig, List<ServiceRequester> requesterList) {
     if (requesterList == null) {
       return;
     }
@@ -148,7 +150,9 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, Empt
       String serializedOriginalRequesterList = originalFlowConfig.getProperties().get(RequesterService.REQUESTER_LIST);
       if (serializedOriginalRequesterList != null) {
         List<ServiceRequester> originalRequesterList = RequesterService.deserialize(serializedOriginalRequesterList);
-        this.requesterService.requesterAllowed(originalRequesterList, requesterList);
+        if (!requesterService.isRequesterAllowed(originalRequesterList, requesterList)) {
+          throw new FlowConfigLoggedException(HttpStatus.S_401_UNAUTHORIZED, "Requester not allowed to make this request");
+        }
       }
     } catch (IOException e) {
       throw new FlowConfigLoggedException(HttpStatus.S_400_BAD_REQUEST, "Failed to get original requester list", e);

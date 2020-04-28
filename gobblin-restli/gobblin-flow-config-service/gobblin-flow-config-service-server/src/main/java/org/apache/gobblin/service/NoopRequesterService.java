@@ -37,10 +37,4 @@ public class NoopRequesterService extends RequesterService {
   public List<ServiceRequester> findRequesters(BaseResource resource) {
     return Lists.newArrayList();
   }
-
-  @Override
-  protected void requesterAllowed(List<ServiceRequester> originalRequesterList, List<ServiceRequester> currentRequesterList)
-      throws FlowConfigLoggedException {
-
-  }
 }
