@@ -167,9 +167,9 @@ public abstract class RestApiConnector {
       }
 
       if (status.getStatusCode() >= 400) {
-        log.info("Unable to get response using: " + url);
+        log.info("Unable to get response using: {} got status code {}", url, status.getStatusCode());
         JsonElement jsonRet = GSON.fromJson(jsonStr, JsonArray.class);
-        throw new RestApiProcessingException(getFirstErrorMessage("Failed to retrieve response from", jsonRet));
+        throw new RestApiProcessingException(getFirstErrorMessage("Failed to retrieve response from ", jsonRet));
       }
     } catch (Exception e) {
       throw new RestApiProcessingException("Failed to process rest api request; error - " + e.getMessage(), e);

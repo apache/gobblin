@@ -96,12 +96,11 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
   public CreateKVResponse create(FlowConfig flowConfig) {
     List<ServiceRequester> requestorList = this.requesterService.findRequesters(this);
     try {
-      String serialized = this.requesterService.serialize(requestorList);
+      String serialized = RequesterService.serialize(requestorList);
       flowConfig.getProperties().put(RequesterService.REQUESTER_LIST, serialized);
       LOG.info("Rest requester list is " + serialized);
     } catch (IOException e) {
-      throw new FlowConfigLoggedException(HttpStatus.S_401_UNAUTHORIZED,
-          "cannot get who is the requester", e);
+      throw new FlowConfigLoggedException(HttpStatus.S_401_UNAUTHORIZED, "cannot get who is the requester", e);
     }
     return (CreateKVResponse) this.getFlowConfigResourceHandler().createFlowConfig(flowConfig);
   }
@@ -115,7 +114,7 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
    */
   @Override
   public UpdateResponse update(ComplexResourceKey<FlowId, FlowStatusId> key, FlowConfig flowConfig) {
-    FlowConfigsResource.checkRequester(get(key), this.requesterService.findRequesters(this));
+    FlowConfigsResource.checkRequester(this.requesterService, get(key), this.requesterService.findRequesters(this));
     String flowGroup = key.getKey().getFlowGroup();
     String flowName = key.getKey().getFlowName();
     FlowId flowId = new FlowId().setFlowGroup(flowGroup).setFlowName(flowName);
@@ -130,7 +129,7 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
    */
   @Override
   public UpdateResponse update(ComplexResourceKey<FlowId, FlowStatusId> key, PatchRequest<FlowConfig> flowConfigPatch) {
-    FlowConfigsResource.checkRequester(get(key), this.requesterService.findRequesters(this));
+    FlowConfigsResource.checkRequester(this.requesterService, get(key), this.requesterService.findRequesters(this));
     String flowGroup = key.getKey().getFlowGroup();
     String flowName = key.getKey().getFlowName();
     FlowId flowId = new FlowId().setFlowGroup(flowGroup).setFlowName(flowName);
@@ -144,7 +143,7 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
    */
   @Override
   public UpdateResponse delete(ComplexResourceKey<FlowId, FlowStatusId> key) {
-    FlowConfigsResource.checkRequester(get(key), this.requesterService.findRequesters(this));
+    FlowConfigsResource.checkRequester(this.requesterService, get(key), this.requesterService.findRequesters(this));
     String flowGroup = key.getKey().getFlowGroup();
     String flowName = key.getKey().getFlowName();
     FlowId flowId = new FlowId().setFlowGroup(flowGroup).setFlowName(flowName);

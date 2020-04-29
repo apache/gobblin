@@ -88,15 +88,14 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, Empt
    */
   @Override
   public CreateResponse create(FlowConfig flowConfig) {
-    List<ServiceRequester> requestorList = this.requesterService.findRequesters(this);
+    List<ServiceRequester> requesterList = this.requesterService.findRequesters(this);
 
     try {
-      String serialized = this.requesterService.serialize(requestorList);
+      String serialized = RequesterService.serialize(requesterList);
       flowConfig.getProperties().put(RequesterService.REQUESTER_LIST, serialized);
       LOG.info("Rest requester list is " + serialized);
     } catch (IOException e) {
-      throw new FlowConfigLoggedException(HttpStatus.S_401_UNAUTHORIZED,
-          "cannot get who is the requester", e);
+      throw new FlowConfigLoggedException(HttpStatus.S_401_UNAUTHORIZED, "cannot get who is the requester", e);
     }
     return this.flowConfigsResourceHandler.createFlowConfig(flowConfig);
   }
@@ -110,7 +109,7 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, Empt
    */
   @Override
   public UpdateResponse update(ComplexResourceKey<FlowId, EmptyRecord> key, FlowConfig flowConfig) {
-    checkRequester(get(key), this.requesterService.findRequesters(this));
+    checkRequester(this.requesterService, get(key), this.requesterService.findRequesters(this));
     String flowGroup = key.getKey().getFlowGroup();
     String flowName = key.getKey().getFlowName();
     FlowId flowId = new FlowId().setFlowGroup(flowGroup).setFlowName(flowName);
@@ -124,7 +123,7 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, Empt
    */
   @Override
   public UpdateResponse delete(ComplexResourceKey<FlowId, EmptyRecord> key) {
-    checkRequester(get(key), this.requesterService.findRequesters(this));
+    checkRequester(this.requesterService, get(key), this.requesterService.findRequesters(this));
     String flowGroup = key.getKey().getFlowGroup();
     String flowName = key.getKey().getFlowName();
     FlowId flowId = new FlowId().setFlowGroup(flowGroup).setFlowName(flowName);
@@ -137,10 +136,12 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, Empt
    * If there is a failure when deserializing the original requester list, throw a {@link FlowConfigLoggedException} with
    * {@link HttpStatus#S_400_BAD_REQUEST}.
    *
+   * @param requesterService the {@link RequesterService} used to verify the requester
    * @param originalFlowConfig original flow config to find original requester
    * @param requesterList list of requesters for this request
    */
-  public static void checkRequester(FlowConfig originalFlowConfig, List<ServiceRequester> requesterList) {
+  public static void checkRequester(
+      RequesterService requesterService, FlowConfig originalFlowConfig, List<ServiceRequester> requesterList) {
     if (requesterList == null) {
       return;
     }
@@ -149,8 +150,8 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, Empt
       String serializedOriginalRequesterList = originalFlowConfig.getProperties().get(RequesterService.REQUESTER_LIST);
       if (serializedOriginalRequesterList != null) {
         List<ServiceRequester> originalRequesterList = RequesterService.deserialize(serializedOriginalRequesterList);
-        if (!originalRequesterList.isEmpty() && (requesterList.isEmpty() || !originalRequesterList.containsAll(requesterList))) {
-          throw new FlowConfigLoggedException(HttpStatus.S_401_UNAUTHORIZED, "Requester not in original requester list");
+        if (!requesterService.isRequesterAllowed(originalRequesterList, requesterList)) {
+          throw new FlowConfigLoggedException(HttpStatus.S_401_UNAUTHORIZED, "Requester not allowed to make this request");
         }
       }
     } catch (IOException e) {

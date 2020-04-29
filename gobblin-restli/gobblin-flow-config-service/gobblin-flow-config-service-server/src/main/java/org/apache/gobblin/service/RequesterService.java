@@ -20,10 +20,15 @@ package org.apache.gobblin.service;
 import java.io.IOException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Base64;
+import java.util.Set;
+
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.type.TypeReference;
+
+import com.google.common.collect.ImmutableSet;
 import com.linkedin.restli.server.resources.BaseResource;
 import com.typesafe.config.Config;
 
@@ -50,8 +55,8 @@ public abstract class RequesterService {
    */
   public static String serialize(List<ServiceRequester> requesterList) throws IOException {
     String jsonList = objectMapper.writeValueAsString(requesterList);
-    String base64Str = Base64.getEncoder().encodeToString(jsonList.getBytes("UTF-8"));
-    return URLEncoder.encode(base64Str, "UTF-8");
+    String base64Str = Base64.getEncoder().encodeToString(jsonList.getBytes(StandardCharsets.UTF_8));
+    return URLEncoder.encode(base64Str, StandardCharsets.UTF_8.name());
   }
 
   /**
@@ -59,13 +64,24 @@ public abstract class RequesterService {
    * {@link #serialize(List)}.
    */
   public static List<ServiceRequester> deserialize(String encodedString) throws IOException {
-    String base64Str = URLDecoder.decode(encodedString, "UTF-8");
+    String base64Str = URLDecoder.decode(encodedString, StandardCharsets.UTF_8.name());
     byte[] decodedBytes = Base64.getDecoder().decode(base64Str);
-    String jsonList = new String(decodedBytes, "UTF-8");
+    String jsonList = new String(decodedBytes, StandardCharsets.UTF_8);
     TypeReference<List<ServiceRequester>> mapType = new TypeReference<List<ServiceRequester>>() {};
-    List<ServiceRequester> requesterList = objectMapper.readValue(jsonList, mapType);
-    return requesterList;
+    return objectMapper.readValue(jsonList, mapType);
   }
 
   protected abstract List<ServiceRequester> findRequesters(BaseResource resource);
+
+  /**
+   * returns true if the requester is allowed to make this request.
+   * This default implementation accepts all requesters.
+   * @param originalRequesterList original requester list
+   * @param currentRequesterList current requester list
+   * @return true if the requester is allowed to make this request, false otherwise
+   */
+  protected boolean isRequesterAllowed(
+      List<ServiceRequester> originalRequesterList, List<ServiceRequester> currentRequesterList){
+    return true;
+  }
 }
