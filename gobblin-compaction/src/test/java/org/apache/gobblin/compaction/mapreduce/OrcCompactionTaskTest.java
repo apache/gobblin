@@ -181,16 +181,24 @@ public class OrcCompactionTaskTest {
     OrcUtils.orcStructFillerWithFixedValue(nested_struct_1, nestedSchema, 1, "test1", true);
     ((OrcStruct)nested_struct_1).setFieldValue("b", new Text("uno"));
     OrcStruct nested_struct_2 = (OrcStruct) OrcUtils.createValueRecursively(nestedSchema);
-    OrcUtils.orcStructFillerWithFixedValue(nested_struct_2, nestedSchema, 1, "test2", false);
+    OrcUtils.orcStructFillerWithFixedValue(nested_struct_2, nestedSchema, 1, "test2", true);
     ((OrcStruct)nested_struct_2).setFieldValue("b", new Text("dos"));
     OrcStruct nested_struct_3 = (OrcStruct) OrcUtils.createValueRecursively(nestedSchema);
-    OrcUtils.orcStructFillerWithFixedValue(nested_struct_3, nestedSchema, 1, "test3", false);
+    OrcUtils.orcStructFillerWithFixedValue(nested_struct_3, nestedSchema, 1, "test3", true);
     ((OrcStruct)nested_struct_3).setFieldValue("b", new Text("tres"));
+    // Create another two records with different value from the above three, and these two differs in column b as well.
+    OrcStruct nested_struct_4 = (OrcStruct) OrcUtils.createValueRecursively(nestedSchema);
+    OrcUtils.orcStructFillerWithFixedValue(nested_struct_4, nestedSchema, 2, "test2", false);
+    ((OrcStruct)nested_struct_4).setFieldValue("b", new Text("uno"));
+    // This record will be considered as a duplication as nested_struct_4
+    OrcStruct nested_struct_5 = (OrcStruct) OrcUtils.createValueRecursively(nestedSchema);
+    OrcUtils.orcStructFillerWithFixedValue(nested_struct_5, nestedSchema, 2, "test2", false);
+    ((OrcStruct)nested_struct_5).setFieldValue("b", new Text("uno"));
 
     // Following pattern: FILENAME.RECORDCOUNT.EXTENSION
-    File file_0 = new File(jobDir, "file_0.3." + extensionName);
+    File file_0 = new File(jobDir, "file_0.5." + extensionName);
     writeOrcRecordsInFile(new Path(file_0.getAbsolutePath()), nestedSchema, ImmutableList.of(nested_struct_1,
-        nested_struct_2, nested_struct_3));
+        nested_struct_2, nested_struct_3, nested_struct_4, nested_struct_5));
 
     EmbeddedGobblin embeddedGobblin = createEmbeddedGobblin("basic", basePath.getAbsolutePath().toString())
         .setConfiguration(CompactionJobConfigurator.COMPACTION_JOB_CONFIGURATOR_FACTORY_CLASS_KEY,
@@ -208,10 +216,11 @@ public class OrcCompactionTaskTest {
     Assert.assertEquals(statuses.size(), 1);
     List<OrcStruct> result = readOrcFile(statuses.get(0).getPath());
     // Should still contain original 3 records since they have different value in columns not included in shuffle key.
-    Assert.assertEquals(result.size(), 3);
+    Assert.assertEquals(result.size(), 4);
     Assert.assertTrue(result.contains(nested_struct_1));
     Assert.assertTrue(result.contains(nested_struct_2));
     Assert.assertTrue(result.contains(nested_struct_3));
+    Assert.assertTrue(result.contains(nested_struct_4));
   }
 
   // A helper method to load all files in the output directory for compaction-result inspection.
