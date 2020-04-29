@@ -90,7 +90,7 @@ class AzkabanMultiCallables {
 
         CloseableHttpResponse response = client.httpClient.execute(httpPost);
         closer.register(response);
-        client.handleResponse(response);
+        AzkabanClient.handleResponse(response);
         return new AzkabanSuccess();
       } catch (InvalidSessionException e) {
         this.invalidSession = true;
@@ -130,7 +130,7 @@ class AzkabanMultiCallables {
 
         CloseableHttpResponse response = client.httpClient.execute(httpGet);
         closer.register(response);
-        client.handleResponse(response);
+        AzkabanClient.handleResponse(response);
         return new AzkabanSuccess();
       } catch (InvalidSessionException e) {
         this.invalidSession = true;
@@ -170,7 +170,7 @@ class AzkabanMultiCallables {
 
         CloseableHttpResponse response = client.httpClient.execute(httpPost);
         closer.register(response);
-        client.handleResponse(response);
+        AzkabanClient.handleResponse(response);
         return new AzkabanSuccess();
       } catch (InvalidSessionException e) {
         this.invalidSession = true;
@@ -218,7 +218,7 @@ class AzkabanMultiCallables {
 
         CloseableHttpResponse response = client.httpClient.execute(httpPost);
         closer.register(response);
-        Map<String, String> map = client.handleResponse(response);
+        Map<String, String> map = AzkabanClient.handleResponse(response);
         return new AzkabanExecuteFlowStatus(
             new AzkabanExecuteFlowStatus.ExecuteId(map.get(AzkabanClientParams.EXECID)));
       } catch (InvalidSessionException e) {
@@ -278,7 +278,7 @@ class AzkabanMultiCallables {
 
         CloseableHttpResponse response = client.httpClient.execute(httpGet);
         closer.register(response);
-        client.handleResponse(response);
+        AzkabanClient.handleResponse(response);
         return new AzkabanSuccess();
       } catch (InvalidSessionException e) {
         this.invalidSession = true;
@@ -317,7 +317,7 @@ class AzkabanMultiCallables {
 
         CloseableHttpResponse response = client.httpClient.execute(httpGet);
         closer.register(response);
-        Map<String, String> map = client.handleResponse(response);
+        Map<String, String> map = AzkabanClient.handleResponse(response);
         return new AzkabanFetchExecuteFlowStatus(new AzkabanFetchExecuteFlowStatus.Execution(map));
       } catch (InvalidSessionException e) {
         this.invalidSession = true;
@@ -363,7 +363,7 @@ class AzkabanMultiCallables {
 
         CloseableHttpResponse response = client.httpClient.execute(httpGet);
         closer.register(response);
-        Map<String, String> map = client.handleResponse(response);
+        Map<String, String> map = AzkabanClient.handleResponse(response);
         FileUtils.writeStringToFile(output, map.get(AzkabanClientParams.DATA), Charsets.UTF_8);
         return new AzkabanSuccess();
       } catch (InvalidSessionException e) {
@@ -372,6 +372,46 @@ class AzkabanMultiCallables {
       } catch (Exception e) {
         throw new AzkabanClientException("Azkaban client cannot "
             + "fetch execId " + execId, e);
+      }
+    }
+  }
+
+  /**
+   * A callable that will add a proxy user to a project on Azkaban
+   */
+  @Builder
+  static class AddProxyUserCallable implements Callable<AzkabanClientStatus> {
+    private AzkabanClient client;
+    private String projectName;
+    private String proxyUserName;
+    private boolean invalidSession = false;
+
+    @Override
+    public AzkabanClientStatus call()
+        throws AzkabanClientException {
+      try (Closer closer = Closer.create()) {
+        client.refreshSession(this.invalidSession);
+        List<NameValuePair> nvps = new ArrayList<>();
+        nvps.add(new BasicNameValuePair(AzkabanClientParams.AJAX, "addProxyUser"));
+        nvps.add(new BasicNameValuePair(AzkabanClientParams.SESSION_ID, client.sessionId));
+        nvps.add(new BasicNameValuePair(AzkabanClientParams.PROJECT, projectName));
+        nvps.add(new BasicNameValuePair(AzkabanClientParams.NAME, proxyUserName));
+
+        Header contentType = new BasicHeader(HttpHeaders.CONTENT_TYPE, "application/x-www-form-urlencoded");
+        Header requestType = new BasicHeader("X-Requested-With", "XMLHttpRequest");
+
+        HttpGet httpGet = new HttpGet(client.url + "/manager?" + URLEncodedUtils.format(nvps, "UTF-8"));
+        httpGet.setHeaders(new Header[]{contentType, requestType});
+
+        CloseableHttpResponse response = client.httpClient.execute(httpGet);
+        closer.register(response);
+        AzkabanClient.handleResponse(response);
+        return new AzkabanSuccess();
+      } catch (InvalidSessionException e) {
+        this.invalidSession = true;
+        throw e;
+      } catch (Exception e) {
+        throw new AzkabanClientException("Azkaban client cannot add proxy user " + proxyUserName, e);
       }
     }
   }

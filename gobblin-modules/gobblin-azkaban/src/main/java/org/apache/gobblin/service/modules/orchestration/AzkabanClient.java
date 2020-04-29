@@ -422,6 +422,24 @@ public class AzkabanClient implements Closeable {
     return runWithRetry(callable, AzkabanFetchExecuteFlowStatus.class);
   }
 
+  /**
+   * Given a project and user, add that user as a proxy user in the project.
+   *
+   * @param projectName project name
+   * @param proxyUserName proxy user
+   *
+   * @return A status object indicating if AJAX request is successful.
+   */
+  public AzkabanClientStatus addProxyUser(String projectName, String proxyUserName) throws AzkabanClientException {
+    AzkabanMultiCallables.AddProxyUserCallable callable = AzkabanMultiCallables.AddProxyUserCallable.builder()
+        .client(this)
+        .projectName(projectName)
+        .proxyUserName(proxyUserName)
+        .build();
+
+    return runWithRetry(callable, AzkabanClientStatus.class);
+  }
+
   private <T> T runWithRetry(Callable callable, Class<T> cls) throws AzkabanClientException {
     try {
       AzkabanClientStatus status = this.retryer.call(callable);
