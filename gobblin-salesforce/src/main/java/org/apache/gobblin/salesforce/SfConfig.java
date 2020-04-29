@@ -3,11 +3,12 @@ package org.apache.gobblin.salesforce;
 import java.util.Properties;
 import org.apache.gobblin.typedconfig.Default;
 import org.apache.gobblin.typedconfig.Key;
+import org.apache.gobblin.typedconfig.QueryBasedSourceConfig;
 import org.apache.gobblin.typedconfig.TypedConfig;
 import org.apache.gobblin.typedconfig.compiletime.IntRange;
 
 
-public class SfConfig extends TypedConfig {
+public class SfConfig extends QueryBasedSourceConfig {
   public SfConfig(Properties prop) {
     super(prop);
   }
