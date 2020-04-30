@@ -20,10 +20,13 @@ package org.apache.gobblin.compaction.action;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.gobblin.compaction.dataset.DatasetHelper;
 import org.apache.gobblin.compaction.event.CompactionSlaEventHelper;
 import org.apache.gobblin.compaction.mapreduce.CompactionJobConfigurator;
 import org.apache.gobblin.compaction.mapreduce.MRCompactor;
@@ -95,7 +98,7 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
 
       List<Path> goodPaths = CompactionJobConfigurator.getGoodFiles(job, tmpPath, this.fs,
           ImmutableList.of(configurator.getFileExtension()));
-
+      HashSet<Path> outputFiles = new HashSet<>();
       if (appendDeltaOutput) {
         FsPermission permission = HadoopUtils.deserializeFsPermission(this.state,
                 MRCompactorJobRunner.COMPACTION_JOB_OUTPUT_DIR_PERMISSION,
@@ -120,6 +123,7 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
         // (all previous run + current run) is possible.
         newTotalRecords = this.configurator.getFileNameRecordCount();
       } else {
+        this.configurator.getOldFiles().addAll(DatasetHelper.getApplicableFilePaths(this.fs, dstPath, Arrays.asList(configurator.getFileExtension())));
         this.fs.delete(dstPath, true);
         FsPermission permission = HadoopUtils.deserializeFsPermission(this.state,
                 MRCompactorJobRunner.COMPACTION_JOB_OUTPUT_DIR_PERMISSION,
@@ -138,6 +142,11 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
         Counter counter = job.getCounters().findCounter(RecordKeyMapperBase.EVENT_COUNTER.RECORD_COUNT);
         newTotalRecords = counter.getValue();
       }
+      goodPaths.stream().forEach(p -> {
+        String fileName = p.getName();
+        outputFiles.add(new Path(dstPath, fileName));
+      });
+      this.configurator.setDstNewFiles(outputFiles);
 
       State compactState = helper.loadState(new Path (result.getDstAbsoluteDir()));
       compactState.setProp(CompactionSlaEventHelper.RECORD_COUNT_TOTAL, Long.toString(newTotalRecords));

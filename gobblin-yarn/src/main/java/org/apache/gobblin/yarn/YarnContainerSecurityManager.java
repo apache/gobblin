@@ -85,6 +85,7 @@ public class YarnContainerSecurityManager extends AbstractIdleService {
   @Override
   protected void shutDown() throws Exception {
     // Nothing to do
+    LOGGER.info("Attempt to shut down YarnContainerSecurityManager");
   }
 
   /**

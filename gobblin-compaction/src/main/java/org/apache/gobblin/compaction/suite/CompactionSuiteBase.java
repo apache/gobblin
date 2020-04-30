@@ -115,7 +115,7 @@ public class CompactionSuiteBase implements CompactionSuite<FileSystemDataset> {
    * @return  A list of {@link CompactionCompleteAction}s which needs to be executed after
    *          map-reduce is done.
    */
-  public List<CompactionCompleteAction<FileSystemDataset>> getCompactionCompleteActions() {
+  public List<CompactionCompleteAction<FileSystemDataset>> getCompactionCompleteActions() throws IOException {
     ArrayList<CompactionCompleteAction<FileSystemDataset>> array = new ArrayList<>();
     array.add(new CompactionCompleteFileOperationAction(state, getConfigurator()));
     array.add(new CompactionHiveRegistrationAction(state));

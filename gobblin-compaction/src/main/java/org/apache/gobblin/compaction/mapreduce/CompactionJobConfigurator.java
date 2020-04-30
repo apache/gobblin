@@ -24,12 +24,14 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.math3.primes.Primes;
 import org.apache.gobblin.compaction.dataset.DatasetHelper;
@@ -89,6 +91,11 @@ public abstract class CompactionJobConfigurator {
   protected boolean isJobCreated = false;
   @Getter
   protected Collection<Path> mapReduceInputPaths = null;
+  @Getter
+  protected Collection<Path> oldFiles = null;
+  @Getter
+  @Setter
+  protected Collection<Path> dstNewFiles = null;
   @Getter
   protected long fileNameRecordCount = 0;
 
@@ -246,8 +253,9 @@ public abstract class CompactionJobConfigurator {
       this.mapReduceInputPaths.add(dataset.datasetRoot());
       emptyDirectoryFlag = true;
     }
-
+    this.oldFiles = new HashSet<>();
     for (Path path : mapReduceInputPaths) {
+      oldFiles.addAll(DatasetHelper.getApplicableFilePaths(this.fs, path, Arrays.asList(getFileExtension())));
       FileInputFormat.addInputPath(job, path);
     }
 
