@@ -53,7 +53,7 @@ public interface SpecExecutor {
 
   /** A communication socket for generating spec to assigned physical executors, paired with
    * a consumer on the physical executor side. */
-  Future<? extends SpecProducer> getProducer();
+  Future<? extends SpecProducer<Spec>> getProducer();
 
   public static enum Verb {
     ADD(1, "add"),

@@ -31,6 +31,7 @@ import com.google.common.io.Closer;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
 
+import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecConsumer;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.util.ConfigUtils;
@@ -182,7 +183,7 @@ public abstract class AbstractSpecExecutor extends AbstractIdleService implement
 
   abstract protected void shutDown() throws Exception;
 
-  abstract public Future<? extends SpecProducer> getProducer();
+  abstract public Future<? extends SpecProducer<Spec>> getProducer();
 
   abstract public Future<String> getDescription();
 }

@@ -761,7 +761,7 @@ public class MultiHopFlowCompilerTest {
     }
 
     @Override
-    public Future<? extends SpecProducer> getProducer() {
+    public Future<? extends SpecProducer<Spec>> getProducer() {
       return new CompletedFuture<>(this.azkabanSpecProducer, null);
     }
 

@@ -58,7 +58,7 @@ public class SimpleKafkaSpecExecutor extends AbstractSpecExecutor {
   }
 
   @Override
-  public Future<? extends SpecProducer> getProducer() {
+  public Future<? extends SpecProducer<Spec>> getProducer() {
     return new CompletedFuture<>(this.specProducer, null);
   }
 

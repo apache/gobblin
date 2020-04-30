@@ -351,7 +351,27 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
         _log.info("Forwarding cancel request for flow URI {} to DagManager.", spec.getUri());
         this.dagManager.get().stopDag(spec.getUri());
       } else {
-        _log.warn("Operation not supported.");
+        // If DagManager is not enabled, we need to recompile the flow to find the spec producer,
+        // If compilation results is different, it remove request can go to some different spec producer
+        Dag<JobExecutionPlan> jobExecutionPlanDag = specCompiler.compileFlow(spec);
+
+        if (jobExecutionPlanDag.isEmpty()) {
+          _log.warn("Cannot determine an executor to delete Spec: " + spec);
+          return;
+        }
+
+        // Delete all compiled JobSpecs on their respective Executor
+        for (Dag.DagNode<JobExecutionPlan> dagNode: jobExecutionPlanDag.getNodes()) {
+          JobExecutionPlan jobExecutionPlan = dagNode.getValue();
+          Spec jobSpec = jobExecutionPlan.getJobSpec();
+          try {
+            SpecProducer<Spec> producer = jobExecutionPlan.getSpecExecutor().getProducer().get();
+            _log.info(String.format("Going to delete JobSpec: %s on Executor: %s", jobSpec, producer));
+            producer.deleteSpec(jobSpec.getUri(), headers);
+          } catch (Exception e) {
+            _log.error(String.format("Could not delete JobSpec: %s for flow: %s", jobSpec, spec), e);
+          }
+        }
       }
     } else {
       throw new RuntimeException("Spec not of type FlowSpec, cannot delete: " + spec);
