@@ -54,7 +54,7 @@ public class MockedSpecExecutor extends InMemorySpecExecutor {
   }
 
   @Override
-  public Future<? extends SpecProducer> getProducer(){
-    return new CompletedFuture(this.mockedSpecProducer, null);
+  public Future<? extends SpecProducer<Spec>> getProducer(){
+    return new CompletedFuture<>(this.mockedSpecProducer, null);
   }
 }

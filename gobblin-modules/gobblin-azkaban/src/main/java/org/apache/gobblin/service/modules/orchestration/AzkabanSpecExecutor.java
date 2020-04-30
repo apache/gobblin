@@ -70,7 +70,7 @@ public class AzkabanSpecExecutor extends AbstractSpecExecutor {
 
 
   @Override
-  public Future<? extends SpecProducer> getProducer() {
+  public Future<? extends SpecProducer<Spec>> getProducer() {
     return new CompletedFuture<>(this.azkabanSpecProducer, null);
   }
 

@@ -76,8 +76,8 @@ public class InMemorySpecExecutor extends AbstractSpecExecutor {
   }
 
   @Override
-  public Future<? extends SpecProducer> getProducer(){
-    return new CompletedFuture(this.inMemorySpecProducer, null);
+  public Future<? extends SpecProducer<Spec>> getProducer(){
+    return new CompletedFuture<>(this.inMemorySpecProducer, null);
   }
 
   @Override
