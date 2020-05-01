@@ -28,7 +28,7 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**
- * Compaction suit with configurable complete actions
+ * Compaction suite with configurable complete actions
  */
 public class CompactionSuiteBaseWithConfigurableCompleteAction extends CompactionSuiteBase {
 
@@ -50,15 +50,15 @@ public class CompactionSuiteBaseWithConfigurableCompleteAction extends Compactio
   @Override
   public List<CompactionCompleteAction<FileSystemDataset>> getCompactionCompleteActions() throws IOException {
     Preconditions.checkArgument(state.contains(COMPACTION_COMPLETE_ACTIONS));
-    ArrayList<CompactionCompleteAction<FileSystemDataset>> array = new ArrayList<>();
+    ArrayList<CompactionCompleteAction<FileSystemDataset>> compactionCompleteActionsList = new ArrayList<>();
     try {
       for (String s : state.getPropAsList(COMPACTION_COMPLETE_ACTIONS)) {
-        array.add((CompactionCompleteAction<FileSystemDataset>) GobblinConstructorUtils.invokeLongestConstructor(
+        compactionCompleteActionsList.add((CompactionCompleteAction<FileSystemDataset>) GobblinConstructorUtils.invokeLongestConstructor(
             Class.forName(s), state, getConfigurator()));
       }
     } catch (ReflectiveOperationException e) {
       throw new IOException(e);
     }
-    return array;
+    return compactionCompleteActionsList;
   }
 }

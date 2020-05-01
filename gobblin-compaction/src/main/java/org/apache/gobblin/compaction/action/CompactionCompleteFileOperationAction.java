@@ -24,6 +24,8 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.compaction.dataset.DatasetHelper;
@@ -123,7 +125,11 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
       } else {
         this.configurator.getOldFiles()
             .addAll(
-                DatasetHelper.getApplicableFilePaths(this.fs, dstPath, Arrays.asList(configurator.getFileExtension())));
+                DatasetHelper.getApplicableFilePaths(this.fs, dstPath, Arrays.asList(configurator.getFileExtension()))
+                    .stream()
+                    .filter(Objects::nonNull)
+                    .map(Path::toString)
+                    .collect(Collectors.toList()));
         this.fs.delete(dstPath, true);
         FsPermission permission =
             HadoopUtils.deserializeFsPermission(this.state, MRCompactorJobRunner.COMPACTION_JOB_OUTPUT_DIR_PERMISSION,

@@ -111,11 +111,11 @@ public class CompactionSuiteBase implements CompactionSuite<FileSystemDataset> {
    *          map-reduce is done.
    */
   public List<CompactionCompleteAction<FileSystemDataset>> getCompactionCompleteActions() throws IOException {
-    ArrayList<CompactionCompleteAction<FileSystemDataset>> array = new ArrayList<>();
-    array.add(new CompactionCompleteFileOperationAction(state, getConfigurator()));
-    array.add(new CompactionHiveRegistrationAction(state));
-    array.add(new CompactionMarkDirectoryAction(state, getConfigurator()));
-    return array;
+    ArrayList<CompactionCompleteAction<FileSystemDataset>> compactionCompleteActionsList = new ArrayList<>();
+    compactionCompleteActionsList.add(new CompactionCompleteFileOperationAction(state, getConfigurator()));
+    compactionCompleteActionsList.add(new CompactionHiveRegistrationAction(state));
+    compactionCompleteActionsList.add(new CompactionMarkDirectoryAction(state, getConfigurator()));
+    return compactionCompleteActionsList;
   }
 
   /**
