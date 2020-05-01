@@ -30,9 +30,10 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 /**
  * Compaction suit with configurable complete actions
  */
-public class CompactionSuiteBaseWithConfigurableCompleteAction extends CompactionSuiteBase{
+public class CompactionSuiteBaseWithConfigurableCompleteAction extends CompactionSuiteBase {
 
   private final static String COMPACTION_COMPLETE_ACTIONS = "compaction.complete.actions";
+
   /**
    * Constructor
    */
@@ -43,7 +44,7 @@ public class CompactionSuiteBaseWithConfigurableCompleteAction extends Compactio
   /**
    * Some post actions are required after compaction job (map-reduce) is finished.
    *
-   * @return  A list of {@link CompactionCompleteAction}s which needs to be executed after
+   * @return A list of {@link CompactionCompleteAction}s which needs to be executed after
    *          map-reduce is done.
    */
   @Override
@@ -51,8 +52,9 @@ public class CompactionSuiteBaseWithConfigurableCompleteAction extends Compactio
     Preconditions.checkArgument(state.contains(COMPACTION_COMPLETE_ACTIONS));
     ArrayList<CompactionCompleteAction<FileSystemDataset>> array = new ArrayList<>();
     try {
-      for(String s : state.getPropAsList(COMPACTION_COMPLETE_ACTIONS)) {
-        array.add((CompactionCompleteAction<FileSystemDataset>) GobblinConstructorUtils.invokeLongestConstructor(Class.forName(s), state, getConfigurator()));
+      for (String s : state.getPropAsList(COMPACTION_COMPLETE_ACTIONS)) {
+        array.add((CompactionCompleteAction<FileSystemDataset>) GobblinConstructorUtils.invokeLongestConstructor(
+            Class.forName(s), state, getConfigurator()));
       }
     } catch (ReflectiveOperationException e) {
       throw new IOException(e);

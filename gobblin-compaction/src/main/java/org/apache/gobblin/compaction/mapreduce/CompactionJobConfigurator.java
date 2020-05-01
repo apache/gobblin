@@ -123,6 +123,7 @@ public abstract class CompactionJobConfigurator {
   }
 
   public abstract String getFileExtension();
+
   /**
    * Customized MR job creation for Avro.
    *

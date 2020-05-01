@@ -20,8 +20,8 @@ package org.apache.gobblin.compaction.suite;
 import org.apache.gobblin.configuration.State;
 
 
-public class CompactionSuiteBaseWithConfigurableCompleteActionFactory extends CompactionSuiteBaseFactory{
-  public CompactionSuiteBaseWithConfigurableCompleteAction createSuite (State state) {
+public class CompactionSuiteBaseWithConfigurableCompleteActionFactory extends CompactionSuiteBaseFactory {
+  public CompactionSuiteBaseWithConfigurableCompleteAction createSuite(State state) {
     return new CompactionSuiteBaseWithConfigurableCompleteAction(state);
   }
 }

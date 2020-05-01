@@ -36,7 +36,6 @@ import org.apache.gobblin.compaction.parser.CompactionPathParser;
 import org.apache.gobblin.compaction.verify.InputRecordCountHelper;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
-import org.apache.gobblin.data.management.dataset.SimpleFileSystemDataset;
 import org.apache.gobblin.dataset.FileSystemDataset;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.util.HadoopUtils;
@@ -62,7 +61,7 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
   private EventSubmitter eventSubmitter;
   private FileSystem fs;
 
-  public CompactionCompleteFileOperationAction (State state, CompactionJobConfigurator configurator) {
+  public CompactionCompleteFileOperationAction(State state, CompactionJobConfigurator configurator) {
     if (!(state instanceof WorkUnitState)) {
       throw new UnsupportedOperationException(this.getClass().getName() + " only supports workunit state");
     }
@@ -76,7 +75,7 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
    * Replace or append the destination folder with new files from map-reduce job
    * Create a record count file containing the number of records that have been processed .
    */
-  public void onCompactionJobComplete (FileSystemDataset dataset) throws IOException {
+  public void onCompactionJobComplete(FileSystemDataset dataset) throws IOException {
     if (dataset.isVirtual()) {
       return;
     }
@@ -84,35 +83,34 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
     if (configurator != null && configurator.isJobCreated()) {
       CompactionPathParser.CompactionParserResult result = new CompactionPathParser(state).parse(dataset);
       Path tmpPath = configurator.getMrOutputPath();
-      Path dstPath = new Path (result.getDstAbsoluteDir());
+      Path dstPath = new Path(result.getDstAbsoluteDir());
 
       // this is append delta mode due to the compaction rename source dir mode being enabled
       boolean appendDeltaOutput = this.state.getPropAsBoolean(MRCompactor.COMPACTION_RENAME_SOURCE_DIR_ENABLED,
-              MRCompactor.DEFAULT_COMPACTION_RENAME_SOURCE_DIR_ENABLED);
+          MRCompactor.DEFAULT_COMPACTION_RENAME_SOURCE_DIR_ENABLED);
 
       Job job = this.configurator.getConfiguredJob();
 
       long newTotalRecords = 0;
-      long oldTotalRecords = helper.readRecordCount(new Path (result.getDstAbsoluteDir()));
-      long executeCount = helper.readExecutionCount (new Path (result.getDstAbsoluteDir()));
+      long oldTotalRecords = helper.readRecordCount(new Path(result.getDstAbsoluteDir()));
+      long executeCount = helper.readExecutionCount(new Path(result.getDstAbsoluteDir()));
 
       List<Path> goodPaths = CompactionJobConfigurator.getGoodFiles(job, tmpPath, this.fs,
           ImmutableList.of(configurator.getFileExtension()));
       HashSet<Path> outputFiles = new HashSet<>();
       if (appendDeltaOutput) {
-        FsPermission permission = HadoopUtils.deserializeFsPermission(this.state,
-                MRCompactorJobRunner.COMPACTION_JOB_OUTPUT_DIR_PERMISSION,
+        FsPermission permission =
+            HadoopUtils.deserializeFsPermission(this.state, MRCompactorJobRunner.COMPACTION_JOB_OUTPUT_DIR_PERMISSION,
                 FsPermission.getDefault());
         WriterUtils.mkdirsWithRecursivePermission(this.fs, dstPath, permission);
         // append files under mr output to destination
-        for (Path filePath: goodPaths) {
+        for (Path filePath : goodPaths) {
           String fileName = filePath.getName();
           log.info(String.format("Adding %s to %s", filePath.toString(), dstPath));
-          Path outPath = new Path (dstPath, fileName);
+          Path outPath = new Path(dstPath, fileName);
 
           if (!this.fs.rename(filePath, outPath)) {
-            throw new IOException(
-                    String.format("Unable to move %s to %s", filePath.toString(), outPath.toString()));
+            throw new IOException(String.format("Unable to move %s to %s", filePath.toString(), outPath.toString()));
           }
         }
 
@@ -123,16 +121,17 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
         // (all previous run + current run) is possible.
         newTotalRecords = this.configurator.getFileNameRecordCount();
       } else {
-        this.configurator.getOldFiles().addAll(DatasetHelper.getApplicableFilePaths(this.fs, dstPath, Arrays.asList(configurator.getFileExtension())));
+        this.configurator.getOldFiles()
+            .addAll(
+                DatasetHelper.getApplicableFilePaths(this.fs, dstPath, Arrays.asList(configurator.getFileExtension())));
         this.fs.delete(dstPath, true);
-        FsPermission permission = HadoopUtils.deserializeFsPermission(this.state,
-                MRCompactorJobRunner.COMPACTION_JOB_OUTPUT_DIR_PERMISSION,
+        FsPermission permission =
+            HadoopUtils.deserializeFsPermission(this.state, MRCompactorJobRunner.COMPACTION_JOB_OUTPUT_DIR_PERMISSION,
                 FsPermission.getDefault());
 
         WriterUtils.mkdirsWithRecursivePermission(this.fs, dstPath.getParent(), permission);
         if (!this.fs.rename(tmpPath, dstPath)) {
-          throw new IOException(
-                  String.format("Unable to move %s to %s", tmpPath, dstPath));
+          throw new IOException(String.format("Unable to move %s to %s", tmpPath, dstPath));
         }
 
         // Obtain record count from map reduce job counter
@@ -148,33 +147,34 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
       });
       this.configurator.setDstNewFiles(outputFiles);
 
-      State compactState = helper.loadState(new Path (result.getDstAbsoluteDir()));
+      State compactState = helper.loadState(new Path(result.getDstAbsoluteDir()));
       compactState.setProp(CompactionSlaEventHelper.RECORD_COUNT_TOTAL, Long.toString(newTotalRecords));
       compactState.setProp(CompactionSlaEventHelper.EXEC_COUNT_TOTAL, Long.toString(executeCount + 1));
-      compactState.setProp(CompactionSlaEventHelper.MR_JOB_ID, this.configurator.getConfiguredJob().getJobID().toString());
-      helper.saveState(new Path (result.getDstAbsoluteDir()), compactState);
+      compactState.setProp(CompactionSlaEventHelper.MR_JOB_ID,
+          this.configurator.getConfiguredJob().getJobID().toString());
+      helper.saveState(new Path(result.getDstAbsoluteDir()), compactState);
 
-      log.info("Updating record count from {} to {} in {} [{}]", oldTotalRecords, newTotalRecords, dstPath, executeCount + 1);
+      log.info("Updating record count from {} to {} in {} [{}]", oldTotalRecords, newTotalRecords, dstPath,
+          executeCount + 1);
 
       // submit events for record count
       if (eventSubmitter != null) {
-        Map<String, String> eventMetadataMap = ImmutableMap.of(CompactionSlaEventHelper.DATASET_URN, dataset.datasetURN(),
-            CompactionSlaEventHelper.RECORD_COUNT_TOTAL, Long.toString(newTotalRecords),
-            CompactionSlaEventHelper.PREV_RECORD_COUNT_TOTAL, Long.toString(oldTotalRecords),
-            CompactionSlaEventHelper.EXEC_COUNT_TOTAL, Long.toString(executeCount + 1),
-            CompactionSlaEventHelper.MR_JOB_ID, this.configurator.getConfiguredJob().getJobID().toString());
+        Map<String, String> eventMetadataMap =
+            ImmutableMap.of(CompactionSlaEventHelper.DATASET_URN, dataset.datasetURN(),
+                CompactionSlaEventHelper.RECORD_COUNT_TOTAL, Long.toString(newTotalRecords),
+                CompactionSlaEventHelper.PREV_RECORD_COUNT_TOTAL, Long.toString(oldTotalRecords),
+                CompactionSlaEventHelper.EXEC_COUNT_TOTAL, Long.toString(executeCount + 1),
+                CompactionSlaEventHelper.MR_JOB_ID, this.configurator.getConfiguredJob().getJobID().toString());
         this.eventSubmitter.submit(CompactionSlaEventHelper.COMPACTION_RECORD_COUNT_EVENT, eventMetadataMap);
       }
     }
   }
 
-
-
   public void addEventSubmitter(EventSubmitter eventSubmitter) {
     this.eventSubmitter = eventSubmitter;
   }
 
-  public String getName () {
+  public String getName() {
     return CompactionCompleteFileOperationAction.class.getName();
   }
 }
