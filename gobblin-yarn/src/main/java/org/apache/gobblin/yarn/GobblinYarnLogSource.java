@@ -17,26 +17,23 @@
 
 package org.apache.gobblin.yarn;
 
+import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.io.Files;
+import com.typesafe.config.Config;
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 import java.util.stream.Collectors;
-
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.filesystem.FileSystemSupplier;
+import org.apache.gobblin.util.logs.LogCopier;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.ContainerId;
-
-import com.google.common.base.Splitter;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.io.Files;
-import com.typesafe.config.Config;
-
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.util.PathUtils;
-import org.apache.gobblin.util.logs.LogCopier;
 
 
 /**
@@ -75,21 +72,27 @@ class GobblinYarnLogSource {
   protected LogCopier buildLogCopier(Config config, String containerId, FileSystem destFs, Path appWorkDir)
       throws IOException {
     LogCopier.Builder builder = LogCopier.newBuilder()
-            .useSrcFileSystem(buildFileSystem(config, true))
-            .useDestFileSystem(buildFileSystem(config, false))
-            .useDestFsSupplier(new FileSystemSupplier() {
-              @Override
-              public FileSystem getFileSystem() throws IOException{
-                return buildFileSystem(config, false);
-              }
-            })
-            .readFrom(getLocalLogDirs())
-            .writeTo(getHdfsLogDir(containerId, destFs, appWorkDir))
-            .useCurrentLogFileName(Files.getNameWithoutExtension(System.getProperty(GobblinYarnConfigurationKeys.GOBBLIN_YARN_CONTAINER_LOG_FILE_NAME)));
+        .useDestFsSupplier(new FileSystemSupplier() {
+          @Override
+          public FileSystem getFileSystem() throws IOException {
+            return buildFileSystem(config, false);
+          }
+        })
+        .useSrcFsSupplier(new FileSystemSupplier() {
+          @Override
+          public FileSystem getFileSystem() throws IOException {
+            return buildFileSystem(config, true);
+          }
+        })
+        .readFrom(getLocalLogDirs())
+        .writeTo(getHdfsLogDir(containerId, destFs, appWorkDir))
+        .useCurrentLogFileName(Files.getNameWithoutExtension(
+            System.getProperty(GobblinYarnConfigurationKeys.GOBBLIN_YARN_CONTAINER_LOG_FILE_NAME)));
 
-    builder.acceptsLogFileExtensions(config.hasPath(GobblinYarnConfigurationKeys.LOG_FILE_EXTENSIONS) ? ImmutableSet
-        .copyOf(Splitter.on(",").splitToList(config.getString(GobblinYarnConfigurationKeys.LOG_FILE_EXTENSIONS)))
-        : ImmutableSet.of());
+    builder.acceptsLogFileExtensions(
+        config.hasPath(GobblinYarnConfigurationKeys.LOG_FILE_EXTENSIONS) ? ImmutableSet.copyOf(
+            Splitter.on(",").splitToList(config.getString(GobblinYarnConfigurationKeys.LOG_FILE_EXTENSIONS)))
+            : ImmutableSet.of());
 
     return builder.build();
   }
@@ -101,8 +104,8 @@ class GobblinYarnLogSource {
    */
   public static FileSystem buildFileSystem(Config config, boolean isLocal) throws IOException {
     return isLocal ? FileSystem.newInstanceLocal(AUTO_CLOSE_CONFIG)
-        : config.hasPath(ConfigurationKeys.FS_URI_KEY) ? FileSystem
-            .newInstance(URI.create(config.getString(ConfigurationKeys.FS_URI_KEY)), AUTO_CLOSE_CONFIG)
+        : config.hasPath(ConfigurationKeys.FS_URI_KEY) ? FileSystem.newInstance(
+            URI.create(config.getString(ConfigurationKeys.FS_URI_KEY)), AUTO_CLOSE_CONFIG)
             : FileSystem.newInstance(AUTO_CLOSE_CONFIG);
   }
 
@@ -117,7 +120,8 @@ class GobblinYarnLogSource {
   }
 
   private Path getHdfsLogDir(String containerId, FileSystem destFs, Path appWorkDir) throws IOException {
-    Path logRootDir = PathUtils.combinePaths(appWorkDir.toString(), GobblinYarnConfigurationKeys.APP_LOGS_DIR_NAME, containerId);
+    Path logRootDir =
+        PathUtils.combinePaths(appWorkDir.toString(), GobblinYarnConfigurationKeys.APP_LOGS_DIR_NAME, containerId);
     if (!destFs.exists(logRootDir)) {
       destFs.mkdirs(logRootDir);
     }
