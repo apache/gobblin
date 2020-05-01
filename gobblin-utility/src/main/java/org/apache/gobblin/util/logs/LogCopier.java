@@ -36,6 +36,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import lombok.Setter;
+import org.apache.gobblin.util.filesystem.FileSystemSupplier;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
@@ -113,13 +115,15 @@ public class LogCopier extends AbstractScheduledService {
 
   private static final int DEFAULT_NUM_COPY_THREADS = 10;
 
-  private final FileSystem srcFs;
-  private final FileSystem destFs;
+  private FileSystem srcFs;
+  private FileSystem destFs;
   private final List<Path> srcLogDirs;
   private final Path destLogDir;
 
   private final long sourceLogFileMonitorInterval;
   private final TimeUnit timeUnit;
+  private final FileSystemSupplier destFsSupplier;
+  private final FileSystemSupplier srcFsSupplier;
 
   private final Set<String> logFileExtensions;
   private final int numCopyThreads;
@@ -134,6 +138,10 @@ public class LogCopier extends AbstractScheduledService {
 
   private final ExecutorService executorService;
 
+  @Setter
+  private boolean needToUpdateDestFs;
+  @Setter
+  private boolean needToUpdateSrcFs;
   @Getter
   private final Set<String> copiedFileNames = Sets.newConcurrentHashSet();
   private boolean shouldCopyCurrentLogFile;
@@ -141,7 +149,8 @@ public class LogCopier extends AbstractScheduledService {
   private LogCopier(Builder builder) {
     this.srcFs = builder.srcFs;
     this.destFs = builder.destFs;
-
+    this.destFsSupplier = builder.destFsSupplier;
+    this.srcFsSupplier = builder.srcFsSupplier;
     this.srcLogDirs = builder.srcLogDirs.stream().map(d -> this.srcFs.makeQualified(d)).collect(Collectors.toList());
     this.destLogDir = this.destFs.makeQualified(builder.destLogDir);
 
@@ -151,6 +160,8 @@ public class LogCopier extends AbstractScheduledService {
     this.logFileExtensions = builder.logFileExtensions;
     this.currentLogFileName = builder.currentLogFileName;
     this.shouldCopyCurrentLogFile = false;
+    this.needToUpdateDestFs = false;
+    this.needToUpdateSrcFs = false;
 
     this.includingRegexPatterns = Optional.fromNullable(builder.includingRegexPatterns);
     this.excludingRegexPatterns = Optional.fromNullable(builder.excludingRegexPatterns);
@@ -271,7 +282,23 @@ public class LogCopier extends AbstractScheduledService {
         LOGGER.error("Failed LogCopyTask - {}", e);
       }
     }
+    if (needToUpdateDestFs) {
+      if(destFsSupplier == null) {
+        throw new IOException("Try to update dest fileSystem but destFsSupplier has not been set, there might be something wrong in code");
+      }
+      this.destFs.close();
+      this.destFs = destFsSupplier.getFileSystem();
+      LOGGER.info("Dest fs updated" + destFs.toString());
 
+    }
+    if (needToUpdateSrcFs) {
+      if(srcFsSupplier == null) {
+        throw new IOException("Try to update source fileSystem but srcFsSupplier has not been set, there might be something wrong in code");
+      }
+      this.srcFs.close();
+      this.srcFs = srcFsSupplier.getFileSystem();
+      LOGGER.info("Src fs updated" + srcFs.toString());
+    }
     pruneCopiedFileNames(srcLogFileNames);
   }
 
@@ -295,6 +322,8 @@ public class LogCopier extends AbstractScheduledService {
     private List<Path> srcLogDirs;
     private FileSystem destFs;
     private Path destLogDir;
+    private FileSystemSupplier destFsSupplier = null;
+    private FileSystemSupplier srcFsSupplier = null;
 
     private long sourceLogFileMonitorInterval = DEFAULT_SOURCE_LOG_FILE_MONITOR_INTERVAL;
 
@@ -334,6 +363,30 @@ public class LogCopier extends AbstractScheduledService {
     public Builder useTimeUnit(TimeUnit timeUnit) {
       Preconditions.checkNotNull(timeUnit);
       this.timeUnit = timeUnit;
+      return this;
+    }
+
+    /**
+     * Set the {@link FileSystemSupplier} used for generating new Dest FileSystem later when token been updated.
+     *
+     * @param supplier the {@link FileSystemSupplier} used for generating new Dest FileSystem
+     * @return this {@link LogCopier.Builder} instance
+     */
+    public Builder useDestFsSupplier(FileSystemSupplier supplier) {
+      Preconditions.checkNotNull(supplier);
+      this.destFsSupplier = supplier;
+      return this;
+    }
+
+    /**
+     * Set the {@link FileSystemSupplier} used for generating new source FileSystem later when token been updated.
+     *
+     * @param supplier the {@link FileSystemSupplier} used for generating new source FileSystem
+     * @return this {@link LogCopier.Builder} instance
+     */
+    public Builder useSrcFsSupplier(FileSystemSupplier supplier) {
+      Preconditions.checkNotNull(supplier);
+      this.srcFsSupplier = supplier;
       return this;
     }
 

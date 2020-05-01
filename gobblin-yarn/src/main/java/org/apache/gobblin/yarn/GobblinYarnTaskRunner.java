@@ -25,6 +25,7 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.apache.gobblin.util.logs.LogCopier;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
@@ -70,23 +71,24 @@ public class GobblinYarnTaskRunner extends GobblinTaskRunner {
   public List<Service> getServices() {
     List<Service> services = new ArrayList<>();
     services.addAll(super.getServices());
-    if (UserGroupInformation.isSecurityEnabled()) {
-      LOGGER.info("Adding YarnContainerSecurityManager since security is enabled");
-      services.add(new YarnContainerSecurityManager(this.clusterConfig, this.fs, this.eventBus));
-    }
-
+    LogCopier logCopier = null;
     if (clusterConfig.hasPath(GobblinYarnConfigurationKeys.LOGS_SINK_ROOT_DIR_KEY)) {
       GobblinYarnLogSource gobblinYarnLogSource = new GobblinYarnLogSource();
       String containerLogDir = clusterConfig.getString(GobblinYarnConfigurationKeys.LOGS_SINK_ROOT_DIR_KEY);
 
       if (gobblinYarnLogSource.isLogSourcePresent()) {
         try {
-            services.add(gobblinYarnLogSource.buildLogCopier(this.clusterConfig, this.taskRunnerId, this.fs,
-                new Path(containerLogDir, GobblinClusterUtils.getAppWorkDirPath(this.applicationName, this.applicationId))));
+          logCopier = gobblinYarnLogSource.buildLogCopier(this.clusterConfig, this.taskRunnerId, this.fs,
+              new Path(containerLogDir, GobblinClusterUtils.getAppWorkDirPath(this.applicationName, this.applicationId)));
+            services.add(logCopier);
         } catch (Exception e) {
           LOGGER.warn("Cannot add LogCopier service to the service manager due to", e);
         }
       }
+    }
+    if (UserGroupInformation.isSecurityEnabled()) {
+      LOGGER.info("Adding YarnContainerSecurityManager since security is enabled");
+      services.add(new YarnContainerSecurityManager(this.clusterConfig, this.fs, this.eventBus, logCopier));
     }
     return services;
   }

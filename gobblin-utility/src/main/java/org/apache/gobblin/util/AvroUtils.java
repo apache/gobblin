@@ -130,7 +130,7 @@ public class AvroUtils {
     return inputSchema.getProp(SCHEMA_CREATION_TIME_KEY);
   }
 
-  public static Schema addSchemaCreationTime(Schema inputSchema, String creationTime) {
+  public static Schema setSchemaCreationTime(Schema inputSchema, String creationTime) {
     inputSchema.addProp(SCHEMA_CREATION_TIME_KEY, creationTime);
     return inputSchema;
   }

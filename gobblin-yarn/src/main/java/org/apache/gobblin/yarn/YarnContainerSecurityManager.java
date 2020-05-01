@@ -19,6 +19,7 @@ package org.apache.gobblin.yarn;
 
 import java.io.IOException;
 
+import org.apache.gobblin.util.logs.LogCopier;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.security.Credentials;
@@ -58,13 +59,19 @@ public class YarnContainerSecurityManager extends AbstractIdleService {
   private final FileSystem fs;
   private final Path tokenFilePath;
   private final EventBus eventBus;
+  private final LogCopier logCopier;
 
   public YarnContainerSecurityManager(Config config, FileSystem fs, EventBus eventBus) {
+    this(config, fs, eventBus, null);
+  }
+
+  public YarnContainerSecurityManager(Config config, FileSystem fs, EventBus eventBus, LogCopier logCopier) {
     this.fs = fs;
     this.tokenFilePath = new Path(this.fs.getHomeDirectory(),
         config.getString(GobblinYarnConfigurationKeys.APPLICATION_NAME_KEY) + Path.SEPARATOR
             + GobblinYarnConfigurationKeys.TOKEN_FILE_NAME);
     this.eventBus = eventBus;
+    this.logCopier = logCopier;
   }
 
   @SuppressWarnings("unused")
@@ -72,6 +79,7 @@ public class YarnContainerSecurityManager extends AbstractIdleService {
   public void handleTokenFileUpdatedEvent(DelegationTokenUpdatedEvent delegationTokenUpdatedEvent) {
     try {
       addCredentials(readCredentials(this.tokenFilePath));
+      this.logCopier.setNeedToUpdateDestFs(true);
     } catch (IOException ioe) {
       throw Throwables.propagate(ioe);
     }

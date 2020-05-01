@@ -22,6 +22,7 @@ import java.net.URI;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.apache.gobblin.util.filesystem.FileSystemSupplier;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -76,6 +77,12 @@ class GobblinYarnLogSource {
     LogCopier.Builder builder = LogCopier.newBuilder()
             .useSrcFileSystem(buildFileSystem(config, true))
             .useDestFileSystem(buildFileSystem(config, false))
+            .useDestFsSupplier(new FileSystemSupplier() {
+              @Override
+              public FileSystem getFileSystem() throws IOException{
+                return buildFileSystem(config, false);
+              }
+            })
             .readFrom(getLocalLogDirs())
             .writeTo(getHdfsLogDir(containerId, destFs, appWorkDir))
             .useCurrentLogFileName(Files.getNameWithoutExtension(System.getProperty(GobblinYarnConfigurationKeys.GOBBLIN_YARN_CONTAINER_LOG_FILE_NAME)));
@@ -92,7 +99,7 @@ class GobblinYarnLogSource {
    * returned by the method has automatic closing disabled. The user of the instance needs to handle closing of the
    * instance, typically as part of its shutdown sequence.
    */
-  private FileSystem buildFileSystem(Config config, boolean isLocal) throws IOException {
+  public static FileSystem buildFileSystem(Config config, boolean isLocal) throws IOException {
     return isLocal ? FileSystem.newInstanceLocal(AUTO_CLOSE_CONFIG)
         : config.hasPath(ConfigurationKeys.FS_URI_KEY) ? FileSystem
             .newInstance(URI.create(config.getString(ConfigurationKeys.FS_URI_KEY)), AUTO_CLOSE_CONFIG)
