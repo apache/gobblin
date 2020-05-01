@@ -26,6 +26,7 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
+import org.apache.gobblin.util.logs.LogCopier;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -79,6 +80,7 @@ public class GobblinApplicationMaster extends GobblinClusterManager {
 
   @Getter
   private final YarnService yarnService;
+  private LogCopier logCopier;
 
   public GobblinApplicationMaster(String applicationName, String applicationId, ContainerId containerId, Config config,
       YarnConfiguration yarnConfiguration) throws Exception {
@@ -91,8 +93,9 @@ public class GobblinApplicationMaster extends GobblinClusterManager {
     GobblinYarnLogSource gobblinYarnLogSource = new GobblinYarnLogSource();
     if (gobblinYarnLogSource.isLogSourcePresent()) {
       Path appWorkDir = PathUtils.combinePaths(containerLogDir, GobblinClusterUtils.getAppWorkDirPath(this.clusterName, this.applicationId), "AppMaster");
+      logCopier = gobblinYarnLogSource.buildLogCopier(this.config, containerId.toString(), this.fs, appWorkDir);
       this.applicationLauncher
-          .addService(gobblinYarnLogSource.buildLogCopier(this.config, containerId.toString(), this.fs, appWorkDir));
+          .addService(logCopier);
     }
 
     this.yarnService = buildYarnService(this.config, applicationName, this.applicationId, yarnConfiguration, this.fs);
@@ -127,7 +130,7 @@ public class GobblinApplicationMaster extends GobblinClusterManager {
    * Build the {@link YarnAppMasterSecurityManager} for the Application Master.
    */
   private YarnContainerSecurityManager buildYarnContainerSecurityManager(Config config, FileSystem fs) {
-    return new YarnAppMasterSecurityManager(config, fs, this.eventBus, this.yarnService);
+    return new YarnAppMasterSecurityManager(config, fs, this.eventBus, this.logCopier, this.yarnService);
   }
 
   @Override

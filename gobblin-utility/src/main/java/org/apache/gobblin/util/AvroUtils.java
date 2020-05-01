@@ -476,7 +476,7 @@ public class AvroUtils {
   }
 
   public static void writeSchemaToFile(Schema schema, Path filePath, FileSystem fs, boolean overwrite, FsPermission perm)
-    throws IOException {
+      throws IOException {
     writeSchemaToFile(schema, filePath, null, fs, overwrite, perm);
   }
 
@@ -914,7 +914,7 @@ public class AvroUtils {
     List<Field> newOutputFields = Stream.concat(outputFields.stream(), fieldList.stream()).collect(Collectors.toList());
 
     Schema outputSchema = Schema.createRecord(inputSchema.getName(), inputSchema.getDoc(),
-            inputSchema.getNamespace(), inputSchema.isError());
+        inputSchema.getNamespace(), inputSchema.isError());
     outputSchema.setFields(newOutputFields);
     copyProperties(inputSchema, outputSchema);
     return outputSchema;
@@ -932,7 +932,7 @@ public class AvroUtils {
    * @return an outputRecord that contains a union of the fields in the inputRecord and the field-values in the fieldMap
    */
   public static GenericRecord decorateRecord(GenericRecord inputRecord, @Nonnull Map<String, Object> fieldMap,
-          Schema outputSchema) {
+      Schema outputSchema) {
     GenericRecord outputRecord = new GenericData.Record(outputSchema);
     inputRecord.getSchema().getFields().forEach(f -> outputRecord.put(f.name(), inputRecord.get(f.name())));
     fieldMap.forEach((key, value) -> outputRecord.put(key, value));

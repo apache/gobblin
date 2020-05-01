@@ -21,6 +21,7 @@ import com.google.common.base.Throwables;
 import com.google.common.eventbus.EventBus;
 import com.typesafe.config.Config;
 import java.io.IOException;
+import org.apache.gobblin.util.logs.LogCopier;
 import org.apache.gobblin.yarn.event.DelegationTokenUpdatedEvent;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -29,8 +30,8 @@ import org.apache.hadoop.fs.Path;
 public class YarnAppMasterSecurityManager extends YarnContainerSecurityManager{
 
   private YarnService yarnService;
-  public YarnAppMasterSecurityManager(Config config, FileSystem fs, EventBus eventBus, YarnService yarnService) {
-    super(config, fs, eventBus);
+  public YarnAppMasterSecurityManager(Config config, FileSystem fs, EventBus eventBus, LogCopier logCopier, YarnService yarnService) {
+    super(config, fs, eventBus, logCopier);
     this.yarnService = yarnService;
   }
 

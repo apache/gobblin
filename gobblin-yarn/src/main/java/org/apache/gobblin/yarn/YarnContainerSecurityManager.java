@@ -17,8 +17,15 @@
 
 package org.apache.gobblin.yarn;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Throwables;
+import com.google.common.eventbus.EventBus;
+import com.google.common.eventbus.Subscribe;
+import com.google.common.util.concurrent.AbstractIdleService;
+import com.typesafe.config.Config;
 import java.io.IOException;
-
+import org.apache.gobblin.util.logs.LogCopier;
+import org.apache.gobblin.yarn.event.DelegationTokenUpdatedEvent;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.security.Credentials;
@@ -27,16 +34,6 @@ import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.typesafe.config.Config;
-
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Throwables;
-import com.google.common.eventbus.EventBus;
-import com.google.common.eventbus.Subscribe;
-import com.google.common.util.concurrent.AbstractIdleService;
-
-import org.apache.gobblin.yarn.event.DelegationTokenUpdatedEvent;
 
 
 /**
@@ -58,13 +55,19 @@ public class YarnContainerSecurityManager extends AbstractIdleService {
   private final FileSystem fs;
   private final Path tokenFilePath;
   private final EventBus eventBus;
+  private final LogCopier logCopier;
 
   public YarnContainerSecurityManager(Config config, FileSystem fs, EventBus eventBus) {
+    this(config, fs, eventBus, null);
+  }
+
+  public YarnContainerSecurityManager(Config config, FileSystem fs, EventBus eventBus, LogCopier logCopier) {
     this.fs = fs;
     this.tokenFilePath = new Path(this.fs.getHomeDirectory(),
         config.getString(GobblinYarnConfigurationKeys.APPLICATION_NAME_KEY) + Path.SEPARATOR
             + GobblinYarnConfigurationKeys.TOKEN_FILE_NAME);
     this.eventBus = eventBus;
+    this.logCopier = logCopier;
   }
 
   @SuppressWarnings("unused")
@@ -72,6 +75,10 @@ public class YarnContainerSecurityManager extends AbstractIdleService {
   public void handleTokenFileUpdatedEvent(DelegationTokenUpdatedEvent delegationTokenUpdatedEvent) {
     try {
       addCredentials(readCredentials(this.tokenFilePath));
+      if (this.logCopier != null) {
+        this.logCopier.setNeedToUpdateDestFs(true);
+        this.logCopier.setNeedToUpdateSrcFs(true);
+      }
     } catch (IOException ioe) {
       throw Throwables.propagate(ioe);
     }
@@ -99,7 +106,7 @@ public class YarnContainerSecurityManager extends AbstractIdleService {
   @VisibleForTesting
   void addCredentials(Credentials credentials) throws IOException {
     for (Token<? extends TokenIdentifier> token : credentials.getAllTokens()) {
-      LOGGER.info("updating "+token.toString());
+      LOGGER.info("updating " + token.toString());
     }
     UserGroupInformation.getCurrentUser().addCredentials(credentials);
   }
