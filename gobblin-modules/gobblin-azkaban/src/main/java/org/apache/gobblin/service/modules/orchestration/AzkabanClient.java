@@ -440,6 +440,23 @@ public class AzkabanClient implements Closeable {
     return runWithRetry(callable, AzkabanClientStatus.class);
   }
 
+  /**
+   * Get the list of proxy users for a given project.
+   *
+   * @param projectName project name
+   *
+   * @return {@link AzkabanGetProxyUsersStatus} containing the response map. The response should have a key "proxyUsers"
+   * which will be in the format "[user1, user2, user3]"
+   */
+  public AzkabanGetProxyUsersStatus getProxyUsers(String projectName) throws AzkabanClientException {
+    AzkabanMultiCallables.GetProxyUserCallable callable = AzkabanMultiCallables.GetProxyUserCallable.builder()
+        .client(this)
+        .projectName(projectName)
+        .build();
+
+    return runWithRetry(callable, AzkabanGetProxyUsersStatus.class);
+  }
+
   private <T> T runWithRetry(Callable callable, Class<T> cls) throws AzkabanClientException {
     try {
       AzkabanClientStatus status = this.retryer.call(callable);
