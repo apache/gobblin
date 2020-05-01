@@ -415,4 +415,42 @@ class AzkabanMultiCallables {
       }
     }
   }
+
+  /**
+   * A callable that will get the list of proxy users from a project on Azkaban.
+   */
+  @Builder
+  static class GetProxyUserCallable implements Callable<AzkabanClientStatus> {
+    private AzkabanClient client;
+    private String projectName;
+    private boolean invalidSession = false;
+
+    @Override
+    public AzkabanClientStatus call()
+        throws AzkabanClientException {
+      try (Closer closer = Closer.create()) {
+        client.refreshSession(this.invalidSession);
+        List<NameValuePair> nvps = new ArrayList<>();
+        nvps.add(new BasicNameValuePair(AzkabanClientParams.AJAX, "getProxyUsers"));
+        nvps.add(new BasicNameValuePair(AzkabanClientParams.SESSION_ID, client.sessionId));
+        nvps.add(new BasicNameValuePair(AzkabanClientParams.PROJECT, projectName));
+
+        Header contentType = new BasicHeader(HttpHeaders.CONTENT_TYPE, "application/x-www-form-urlencoded");
+        Header requestType = new BasicHeader("X-Requested-With", "XMLHttpRequest");
+
+        HttpGet httpGet = new HttpGet(client.url + "/manager?" + URLEncodedUtils.format(nvps, "UTF-8"));
+        httpGet.setHeaders(new Header[]{contentType, requestType});
+
+        CloseableHttpResponse response = client.httpClient.execute(httpGet);
+        closer.register(response);
+        Map<String, String> map = AzkabanClient.handleResponse(response);
+        return new AzkabanGetProxyUsersStatus(new AzkabanGetProxyUsersStatus.ProxyUsers(map));
+      } catch (InvalidSessionException e) {
+        this.invalidSession = true;
+        throw e;
+      } catch (Exception e) {
+        throw new AzkabanClientException("Azkaban client failed to get proxy users", e);
+      }
+    }
+  }
 }
