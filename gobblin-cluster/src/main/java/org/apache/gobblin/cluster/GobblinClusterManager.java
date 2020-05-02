@@ -149,7 +149,7 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
 
     this.applicationId = applicationId;
 
-    //Set system properties passed in via application config. As an example, Helix uses System#getProperty() for ZK configuration
+    // Set system properties passed in via application config. As an example, Helix uses System#getProperty() for ZK configuration
     // overrides such as sessionTimeout. In this case, the overrides specified
     // in the application configuration have to be extracted and set before initializing HelixManager.
     HelixUtils.setSystemProperties(config);
@@ -363,8 +363,7 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
    */
   private GobblinHelixJobScheduler buildGobblinHelixJobScheduler(Config config, Path appWorkDir,
       List<? extends Tag<?>> metadataTags, SchedulerService schedulerService) throws Exception {
-    Properties properties = ConfigUtils.configToProperties(config);
-    return new GobblinHelixJobScheduler(properties,
+    return new GobblinHelixJobScheduler(config,
         this.multiManager.getJobClusterHelixManager(),
         this.multiManager.getTaskDriverHelixManager(),
         this.eventBus,

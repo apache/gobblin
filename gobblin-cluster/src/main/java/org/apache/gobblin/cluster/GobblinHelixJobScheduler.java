@@ -87,8 +87,9 @@ import org.apache.gobblin.util.PropertiesUtils;
 public class GobblinHelixJobScheduler extends JobScheduler implements StandardMetricsBridge{
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinHelixJobScheduler.class);
+  private static final String COMMON_JOB_PROPS = "gobblin.common.job.props";
 
-  private final Properties properties;
+  private final Properties commonJobProperties;
   private final HelixManager jobHelixManager;
   private final Optional<HelixManager> taskDriverHelixManager;
   private final EventBus eventBus;
@@ -109,7 +110,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
   private boolean startServicesCompleted;
   private final long helixJobStopTimeoutMillis;
 
-  public GobblinHelixJobScheduler(Properties properties,
+  public GobblinHelixJobScheduler(Config configs,
                                   HelixManager jobHelixManager,
                                   Optional<HelixManager> taskDriverHelixManager,
                                   EventBus eventBus,
@@ -117,8 +118,8 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
                                   SchedulerService schedulerService,
                                   MutableJobCatalog jobCatalog) throws Exception {
 
-    super(properties, schedulerService);
-    this.properties = properties;
+    super(ConfigUtils.configToProperties(configs), schedulerService);
+    this.commonJobProperties = ConfigUtils.configToProperties(ConfigUtils.getConfigOrEmpty(configs, COMMON_JOB_PROPS));
     this.jobHelixManager = jobHelixManager;
     this.taskDriverHelixManager = taskDriverHelixManager;
     this.eventBus = eventBus;
@@ -128,8 +129,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     this.jobCatalog = jobCatalog;
     this.metricContext = Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(properties), this.getClass());
 
-    Config jobConfig = ConfigUtils.propertiesToConfig(this.properties);
-    int metricsWindowSizeInMin = ConfigUtils.getInt(jobConfig,
+    int metricsWindowSizeInMin = ConfigUtils.getInt(configs,
                                                     ConfigurationKeys.METRIC_TIMER_WINDOW_SIZE_IN_MINUTES,
                                                     ConfigurationKeys.DEFAULT_METRIC_TIMER_WINDOW_SIZE_IN_MINUTES);
 
@@ -155,10 +155,10 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
 
     this.startServicesCompleted = false;
 
-    this.helixJobStopTimeoutMillis = ConfigUtils.getLong(jobConfig, GobblinClusterConfigurationKeys.HELIX_JOB_STOP_TIMEOUT_SECONDS,
+    this.helixJobStopTimeoutMillis = ConfigUtils.getLong(configs, GobblinClusterConfigurationKeys.HELIX_JOB_STOP_TIMEOUT_SECONDS,
         GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_STOP_TIMEOUT_SECONDS) * 1000;
 
-    this.helixWorkflowListingTimeoutMillis = ConfigUtils.getLong(jobConfig, GobblinClusterConfigurationKeys.HELIX_WORKFLOW_LISTING_TIMEOUT_SECONDS,
+    this.helixWorkflowListingTimeoutMillis = ConfigUtils.getLong(configs, GobblinClusterConfigurationKeys.HELIX_WORKFLOW_LISTING_TIMEOUT_SECONDS,
         GobblinClusterConfigurationKeys.DEFAULT_HELIX_WORKFLOW_LISTING_TIMEOUT_SECONDS) * 1000;
 
   }
@@ -304,10 +304,10 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     String jobUri = newJobArrival.getJobName();
     LOGGER.info("Received new job configuration of job " + jobUri);
     try {
-      Properties jobProps = new Properties();
+      Properties jobProps = new Properties(this.commonJobProperties);
       jobProps.putAll(newJobArrival.getJobConfig());
 
-      // set uri so that we can delete it later
+      // set uri so that we can delete this job later
       jobProps.setProperty(GobblinClusterConfigurationKeys.JOB_SPEC_URI, jobUri);
 
       this.jobSchedulerMetrics.updateTimeBeforeJobScheduling(jobProps);
