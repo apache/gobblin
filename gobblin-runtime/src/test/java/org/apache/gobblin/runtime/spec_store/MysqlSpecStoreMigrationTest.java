@@ -17,14 +17,12 @@
 
 package org.apache.gobblin.runtime.spec_store;
 
-import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 
 import java.util.List;
-import org.apache.commons.lang3.ArrayUtils;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -38,11 +36,11 @@ import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.Spec;
-import org.apache.gobblin.runtime.api.SpecSerDeException;
 import org.apache.gobblin.runtime.spec_serde.GsonFlowSpecSerDe;
 
-
-public class MysqlSpecStoreTest {
+// This is a copy of MysqlSpecStoreTest with a config change
+// It can be deleted after the migration is completed
+public class MysqlSpecStoreMigrationTest {
   private static final String USER = "testUser";
   private static final String PASSWORD = "testPassword";
   private static final String TABLE = "spec_store";
@@ -76,9 +74,11 @@ public class MysqlSpecStoreTest {
         .addPrimitive(ConfigurationKeys.STATE_STORE_DB_USER_KEY, USER)
         .addPrimitive(ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY, PASSWORD)
         .addPrimitive(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY, TABLE)
+        .addPrimitive(MysqlSpecStore.READ_FROM_OLD_TABLE_KEY, false)
+        .addPrimitive(MysqlSpecStore.WRITE_TO_OLD_TABLE_KEY, false)
         .build();
 
-    this.specStore = new MysqlSpecStore(config, new TestSpecSerDe());
+    this.specStore = new MysqlSpecStore(config, new GsonFlowSpecSerDe());
   }
 
   @Test
@@ -126,19 +126,16 @@ public class MysqlSpecStoreTest {
         .withVersion("Test version 5")
         .build();
 
+    this.specStore.addSpec(flowSpec3);
     this.specStore.addSpec(flowSpec4, "dr");
     this.specStore.addSpec(flowSpec5, "dr");
 
+    Assert.assertTrue(this.specStore.exists(uri3));
     Assert.assertTrue(this.specStore.exists(uri4));
     Assert.assertTrue(this.specStore.exists(uri5));
-    List<URI> result = new ArrayList<>();
+    List<URI> result = new ArrayList();
     this.specStore.getSpecURIsWithTag("dr").forEachRemaining(result::add);
     Assert.assertEquals(result.size(), 2);
-  }
-
-  @Test (expectedExceptions = {IOException.class})
-  public void testGetCorruptedSpec() throws Exception {
-    this.specStore.addSpec(this.flowSpec3);
   }
 
   @Test
@@ -148,17 +145,5 @@ public class MysqlSpecStoreTest {
 
     this.specStore.deleteSpec(this.uri1);
     Assert.assertFalse(this.specStore.exists(this.uri1));
-  }
-
-  public class TestSpecSerDe extends GsonFlowSpecSerDe {
-    @Override
-    public byte[] serialize(Spec spec) throws SpecSerDeException {
-      byte[] bytes = super.serialize(spec);
-      // Reverse bytes to simulate corrupted Spec
-      if (spec.getUri().equals(uri3)) {
-        ArrayUtils.reverse(bytes);
-      }
-      return bytes;
-    }
   }
 }

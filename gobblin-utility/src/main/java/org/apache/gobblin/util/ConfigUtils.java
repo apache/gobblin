@@ -235,7 +235,7 @@ public class ConfigUtils {
           !blacklistedKeys.contains(entryKey)) {
         if (fullPrefixKeys.contains(entryKey)) {
           entryKey = sanitizeFullPrefixKey(entryKey);
-        } else if (entryKey.endsWith(STRIP_SUFFIX)) {
+        } else if (sanitizedKey(entryKey)) {
           throw new RuntimeException("Properties are not allowed to end in " + STRIP_SUFFIX);
         }
         immutableMapBuilder.put(entryKey, entry.getValue());
@@ -248,8 +248,15 @@ public class ConfigUtils {
     return propKey + STRIP_SUFFIX;
   }
 
+  /**
+   * returns true if is it a sanitized key
+   */
+  public static boolean sanitizedKey(String propKey) {
+    return propKey.endsWith(STRIP_SUFFIX);
+  }
+
   public static String desanitizeKey(String propKey) {
-    propKey =  propKey.endsWith(STRIP_SUFFIX) ?
+    propKey =  sanitizedKey(propKey) ?
         propKey.substring(0, propKey.length() - STRIP_SUFFIX.length()) : propKey;
 
     // Also strip quotes that can get introduced by TypeSafe.Config
