@@ -370,7 +370,6 @@ public class OrcUtils {
 
     // If target schema is not equal to newStruct's schema, it is a illegal state and doesn't make sense to work through.
     Preconditions.checkArgument(newStruct.getSchema().equals(targetSchema));
-    log.info("There's schema mismatch identified from reader's schema and writer's schema");
 
     int indexInNewSchema = 0;
     List<String> oldSchemaFieldNames = oldStruct.getSchema().getFieldNames();
