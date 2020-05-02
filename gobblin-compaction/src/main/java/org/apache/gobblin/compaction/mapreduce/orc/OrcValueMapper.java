@@ -18,11 +18,17 @@
 package org.apache.gobblin.compaction.mapreduce.orc;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
+import java.util.Arrays;
 
 import org.apache.gobblin.compaction.mapreduce.RecordKeyMapperBase;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapreduce.RecordReader;
+import org.apache.hadoop.mapreduce.lib.input.CombineFileSplit;
+import org.apache.hadoop.mapreduce.lib.map.WrappedMapper;
+import org.apache.hadoop.mapreduce.task.MapContextImpl;
 import org.apache.orc.OrcConf;
 import org.apache.orc.TypeDescription;
 import org.apache.orc.mapred.OrcKey;
@@ -87,11 +93,24 @@ public class OrcValueMapper extends RecordKeyMapperBase<NullWritable, OrcStruct,
         context.write(this.outKey, this.outValue);
       }
     } catch (IOException e) {
-      throw new IOException("Failure in write record no." + writeCount, e);
+      String inputPathInString = getInputsplitHelper(context);
+      throw new IOException("Failure in write record no." + writeCount + " the processing split is:" + inputPathInString, e);
     }
     writeCount += 1;
 
     context.getCounter(EVENT_COUNTER.RECORD_COUNT).increment(1);
+  }
+
+  private String getInputsplitHelper(Context context) {
+    try {
+      Field mapContextField = WrappedMapper.Context.class.getDeclaredField("mapContext");
+      mapContextField.setAccessible(true);
+      Path[] inputPaths = ((CombineFileSplit) ((MapContextImpl) mapContextField.get((WrappedMapper.Context) context))
+          .getInputSplit()).getPaths();
+      return Arrays.toString(inputPaths);
+    } catch (NoSuchFieldException | IllegalAccessException ie) {
+      throw new RuntimeException(ie);
+    }
   }
 
   /**
