@@ -17,23 +17,17 @@
 
 package org.apache.gobblin.compaction.suite;
 
+import com.google.gson.Gson;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
-
-import org.apache.gobblin.compaction.mapreduce.CompactionJobConfigurator;
-
-import org.apache.hadoop.mapreduce.Job;
-
-import com.google.gson.Gson;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.gobblin.compaction.action.CompactionCompleteAction;
 import org.apache.gobblin.compaction.action.CompactionCompleteFileOperationAction;
 import org.apache.gobblin.compaction.action.CompactionHiveRegistrationAction;
 import org.apache.gobblin.compaction.action.CompactionMarkDirectoryAction;
+import org.apache.gobblin.compaction.mapreduce.CompactionJobConfigurator;
 import org.apache.gobblin.compaction.verify.CompactionAuditCountVerifier;
 import org.apache.gobblin.compaction.verify.CompactionThresholdVerifier;
 import org.apache.gobblin.compaction.verify.CompactionTimeRangeVerifier;
@@ -42,6 +36,7 @@ import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.dataset.FileSystemDataset;
 import org.apache.gobblin.util.io.GsonInterfaceAdapter;
+import org.apache.hadoop.mapreduce.Job;
 
 
 /**
@@ -95,7 +90,7 @@ public class CompactionSuiteBase implements CompactionSuite<FileSystemDataset> {
    * @param dataset A dataset needs serialization
    * @param state   A state that is used to save {@link org.apache.gobblin.dataset.Dataset}
    */
-  public void save (FileSystemDataset dataset, State state) {
+  public void save(FileSystemDataset dataset, State state) {
     state.setProp(SERIALIZED_DATASET, GSON.toJson(dataset));
   }
 
@@ -105,22 +100,22 @@ public class CompactionSuiteBase implements CompactionSuite<FileSystemDataset> {
    * @param state a type of {@link org.apache.gobblin.runtime.TaskState}
    * @return A new instance of {@link FileSystemDataset}
    */
-  public FileSystemDataset load (final State state) {
+  public FileSystemDataset load(final State state) {
     return GSON.fromJson(state.getProp(SERIALIZED_DATASET), FileSystemDataset.class);
   }
 
   /**
    * Some post actions are required after compaction job (map-reduce) is finished.
    *
-   * @return  A list of {@link CompactionCompleteAction}s which needs to be executed after
+   * @return A list of {@link CompactionCompleteAction}s which needs to be executed after
    *          map-reduce is done.
    */
-  public List<CompactionCompleteAction<FileSystemDataset>> getCompactionCompleteActions() {
-    ArrayList<CompactionCompleteAction<FileSystemDataset>> array = new ArrayList<>();
-    array.add(new CompactionCompleteFileOperationAction(state, getConfigurator()));
-    array.add(new CompactionHiveRegistrationAction(state));
-    array.add(new CompactionMarkDirectoryAction(state, getConfigurator()));
-    return array;
+  public List<CompactionCompleteAction<FileSystemDataset>> getCompactionCompleteActions() throws IOException {
+    ArrayList<CompactionCompleteAction<FileSystemDataset>> compactionCompleteActionsList = new ArrayList<>();
+    compactionCompleteActionsList.add(new CompactionCompleteFileOperationAction(state, getConfigurator()));
+    compactionCompleteActionsList.add(new CompactionHiveRegistrationAction(state));
+    compactionCompleteActionsList.add(new CompactionMarkDirectoryAction(state, getConfigurator()));
+    return compactionCompleteActionsList;
   }
 
   /**
@@ -130,13 +125,13 @@ public class CompactionSuiteBase implements CompactionSuite<FileSystemDataset> {
    * @param  dataset a top level input path which contains all files those need to be compacted
    * @return a map-reduce job which will compact files against {@link org.apache.gobblin.dataset.Dataset}
    */
-  public Job createJob (FileSystemDataset dataset) throws IOException {
+  public Job createJob(FileSystemDataset dataset) throws IOException {
     return getConfigurator().createJob(dataset);
   }
 
   protected CompactionJobConfigurator getConfigurator() {
     if (configurator == null) {
-      synchronized(this) {
+      synchronized (this) {
         configurator = CompactionJobConfigurator.instantiateConfigurator(this.state);
       }
     }

@@ -79,6 +79,6 @@ public interface CompactionSuite<D extends Dataset> {
   /**
    * Get a list of completion actions after compaction is finished. Actions are listed in order
    */
-  List<CompactionCompleteAction<D>> getCompactionCompleteActions();
+  List<CompactionCompleteAction<D>> getCompactionCompleteActions() throws IOException;
 
 }

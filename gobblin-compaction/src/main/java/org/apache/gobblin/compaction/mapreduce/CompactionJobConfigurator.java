@@ -24,12 +24,15 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.math3.primes.Primes;
 import org.apache.gobblin.compaction.dataset.DatasetHelper;
@@ -89,6 +92,13 @@ public abstract class CompactionJobConfigurator {
   protected boolean isJobCreated = false;
   @Getter
   protected Collection<Path> mapReduceInputPaths = null;
+  //All the old files, which is needed when emit GMCE to register iceberg data
+  @Getter
+  protected Collection<String> oldFiles = null;
+  //All the new files in the final publish dir, which is needed when emit GMCE to register iceberg data
+  @Getter
+  @Setter
+  protected Collection<Path> dstNewFiles = null;
   @Getter
   protected long fileNameRecordCount = 0;
 
@@ -116,6 +126,7 @@ public abstract class CompactionJobConfigurator {
   }
 
   public abstract String getFileExtension();
+
   /**
    * Customized MR job creation for Avro.
    *
@@ -246,8 +257,13 @@ public abstract class CompactionJobConfigurator {
       this.mapReduceInputPaths.add(dataset.datasetRoot());
       emptyDirectoryFlag = true;
     }
-
+    this.oldFiles = new HashSet<>();
     for (Path path : mapReduceInputPaths) {
+      oldFiles.addAll(DatasetHelper.getApplicableFilePaths(this.fs, path, Arrays.asList(getFileExtension()))
+          .stream()
+          .filter(Objects::nonNull)
+          .map(Path::toString)
+          .collect(Collectors.toList()));
       FileInputFormat.addInputPath(job, path);
     }
 
