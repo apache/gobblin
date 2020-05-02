@@ -92,9 +92,9 @@ public class OrcValueMapper extends RecordKeyMapperBase<NullWritable, OrcStruct,
         fillDedupKey(orcStruct);
         context.write(this.outKey, this.outValue);
       }
-    } catch (IOException e) {
+    } catch (Exception e) {
       String inputPathInString = getInputsplitHelper(context);
-      throw new IOException("Failure in write record no." + writeCount + " the processing split is:" + inputPathInString, e);
+      throw new RuntimeException("Failure in write record no." + writeCount + " the processing split is:" + inputPathInString, e);
     }
     writeCount += 1;
 
