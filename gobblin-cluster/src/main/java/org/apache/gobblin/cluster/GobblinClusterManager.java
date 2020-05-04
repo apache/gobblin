@@ -140,25 +140,25 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
   @Getter
   protected final Config config;
 
-  public GobblinClusterManager(String clusterName, String applicationId, Config config,
+  public GobblinClusterManager(String clusterName, String applicationId, Config sysConfig,
       Optional<Path> appWorkDirOptional) throws Exception {
     this.clusterName = clusterName;
-    this.config = config;
-    this.isStandaloneMode = ConfigUtils.getBoolean(config, GobblinClusterConfigurationKeys.STANDALONE_CLUSTER_MODE_KEY,
+    this.config = sysConfig;
+    this.isStandaloneMode = ConfigUtils.getBoolean(sysConfig, GobblinClusterConfigurationKeys.STANDALONE_CLUSTER_MODE_KEY,
         GobblinClusterConfigurationKeys.DEFAULT_STANDALONE_CLUSTER_MODE);
 
     this.applicationId = applicationId;
 
-    //Set system properties passed in via application config. As an example, Helix uses System#getProperty() for ZK configuration
+    // Set system properties passed in via application config. As an example, Helix uses System#getProperty() for ZK configuration
     // overrides such as sessionTimeout. In this case, the overrides specified
     // in the application configuration have to be extracted and set before initializing HelixManager.
-    HelixUtils.setSystemProperties(config);
+    HelixUtils.setSystemProperties(sysConfig);
 
     initializeHelixManager();
 
-    this.fs = GobblinClusterUtils.buildFileSystem(config, new Configuration());
+    this.fs = GobblinClusterUtils.buildFileSystem(sysConfig, new Configuration());
     this.appWorkDir = appWorkDirOptional.isPresent() ? appWorkDirOptional.get()
-        : GobblinClusterUtils.getAppWorkDirPathFromConfig(config, this.fs, clusterName, applicationId);
+        : GobblinClusterUtils.getAppWorkDirPathFromConfig(sysConfig, this.fs, clusterName, applicationId);
     LOGGER.info("Configured GobblinClusterManager work dir to: {}", this.appWorkDir);
 
     initializeAppLauncherAndServices();
@@ -361,10 +361,9 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
   /**
    * Build the {@link GobblinHelixJobScheduler} for the Application Master.
    */
-  private GobblinHelixJobScheduler buildGobblinHelixJobScheduler(Config config, Path appWorkDir,
+  private GobblinHelixJobScheduler buildGobblinHelixJobScheduler(Config sysConfig, Path appWorkDir,
       List<? extends Tag<?>> metadataTags, SchedulerService schedulerService) throws Exception {
-    Properties properties = ConfigUtils.configToProperties(config);
-    return new GobblinHelixJobScheduler(properties,
+    return new GobblinHelixJobScheduler(sysConfig,
         this.multiManager.getJobClusterHelixManager(),
         this.multiManager.getTaskDriverHelixManager(),
         this.eventBus,
