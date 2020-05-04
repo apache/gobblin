@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.gobblin.connector.aerospike;
 
 import com.aerospike.client.Bin;
@@ -10,20 +27,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Aerospike writer class to write key value data to Aerospike database using {@link AerospikeLocalClient}.
+ * Aerospike writer class to write key value data to Aerospike database.
  * <p>
  * Features (TODO)
- * 1. Basic key value writer
- * 2. Abstract writer with implementation with support for Avro schema
- * 3. Sync/Async write modes
- * 4. Throttling integration
- * 5. Unsecure and secure connection handling
- * 6. Error & retries handling ( retry queue for data delivery SLA )
- * 7. Metrics integration specific to the writer
- * </p>
- */
-/*
-
+ *      1. Basic key value writer
+ *      2. Abstract writer with implementation with support for Avro schema
+ *      3. Sync/Async write modes
+ *      4. Throttling integration
+ *      5. Unsecure and secure connection handling
+ *      6. Error & retries handling ( retry queue for data delivery SLA )
+ *      7. Metrics integration specific to the writer
  */
 public class AerospikeAvroWriter extends AerospikeLocalClient implements DataWriter<GenericRecord> {
 
