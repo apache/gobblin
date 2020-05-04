@@ -1,0 +1,74 @@
+job.name = test-aerospike-writer
+job.group = aerospike-writer
+
+source.class = org.apache.gobblin.source.extractor.filebased.TextFileBasedSource
+source.filebased.data.directory = test-data.txt
+source.filebased.fs.uri = "file:///"
+source.max.number.of.partitions = 10
+job.runonce = true
+
+extract.namespace = org.apache.gobblin.copy
+extract.table.type = SNAPSHOT_ONLY
+
+# Throttle setup
+gobblin.writer.throttle_type = QPS
+gobblin.writer.throttle_rate = 4000
+
+
+# For text to avro replication
+converter.classes = org.apache.gobblin.converter.IdentityConverter
+
+writer.destination = ${gobblin_sync_systems.Aero1}
+writer.builder.class = org.apache.gobblin.connector.aerospike.AerospikeWriterBuilder
+
+data.publisher.type = org.apache.gobblin.publisher.NoopPublisher
+
+# defines the target platform configs to be used by the writer builder class
+gobblin_sync_systems {
+  Aero1 {
+    bootstrapServers = "host1,host2,host3"
+    bootstrapServersPort = 4333
+    user = test-user
+    password = test-password
+    retries = 3
+    timeoutInMillis = 5000
+    tls {
+      enabled = false
+      hostname = "<provide TLS hostname when TLS is enabled>"
+    }
+    # these are the properties that will be set in system to facilitate the client connection, etc....
+    # <required only when TLS is enabled, providing sameple config here.
+    system {
+      jdk.tls {
+        client.protocols = "TLSv1.2"
+      }
+      javax.net {
+        # disable debugging on prod
+        debug = "ssl"
+        ssl {
+          trustStore = "<.ts location>"
+          keyStore = "<.jks location>"
+          trustStorePassword = "test-password"
+          keyStorePassword = "test-password"
+        }
+      }
+    }
+    #config for reading from Aero1
+    read {
+      timeoutInMillis = 10000
+      retries = 6
+    }
+    #config for writing to Aero1
+    write {
+      namespace = test-namespace
+      set = test-set1
+      bin = avro-values
+      key_columns = key
+      key_columns_separator = ","
+      bin_columns = value
+      bin_columns_separator = ","
+      retries = 4
+      timeoutInMillis = 5000
+    }
+  }
+}
