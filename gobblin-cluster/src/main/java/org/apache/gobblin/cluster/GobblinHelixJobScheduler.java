@@ -110,7 +110,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
   private boolean startServicesCompleted;
   private final long helixJobStopTimeoutMillis;
 
-  public GobblinHelixJobScheduler(Config configs,
+  public GobblinHelixJobScheduler(Config sysConfig,
                                   HelixManager jobHelixManager,
                                   Optional<HelixManager> taskDriverHelixManager,
                                   EventBus eventBus,
@@ -118,8 +118,8 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
                                   SchedulerService schedulerService,
                                   MutableJobCatalog jobCatalog) throws Exception {
 
-    super(ConfigUtils.configToProperties(configs), schedulerService);
-    this.commonJobProperties = ConfigUtils.configToProperties(ConfigUtils.getConfigOrEmpty(configs, COMMON_JOB_PROPS));
+    super(ConfigUtils.configToProperties(sysConfig), schedulerService);
+    this.commonJobProperties = ConfigUtils.configToProperties(ConfigUtils.getConfigOrEmpty(sysConfig, COMMON_JOB_PROPS));
     this.jobHelixManager = jobHelixManager;
     this.taskDriverHelixManager = taskDriverHelixManager;
     this.eventBus = eventBus;
@@ -129,7 +129,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     this.jobCatalog = jobCatalog;
     this.metricContext = Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(properties), this.getClass());
 
-    int metricsWindowSizeInMin = ConfigUtils.getInt(configs,
+    int metricsWindowSizeInMin = ConfigUtils.getInt(sysConfig,
                                                     ConfigurationKeys.METRIC_TIMER_WINDOW_SIZE_IN_MINUTES,
                                                     ConfigurationKeys.DEFAULT_METRIC_TIMER_WINDOW_SIZE_IN_MINUTES);
 
@@ -155,10 +155,10 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
 
     this.startServicesCompleted = false;
 
-    this.helixJobStopTimeoutMillis = ConfigUtils.getLong(configs, GobblinClusterConfigurationKeys.HELIX_JOB_STOP_TIMEOUT_SECONDS,
+    this.helixJobStopTimeoutMillis = ConfigUtils.getLong(sysConfig, GobblinClusterConfigurationKeys.HELIX_JOB_STOP_TIMEOUT_SECONDS,
         GobblinClusterConfigurationKeys.DEFAULT_HELIX_JOB_STOP_TIMEOUT_SECONDS) * 1000;
 
-    this.helixWorkflowListingTimeoutMillis = ConfigUtils.getLong(configs, GobblinClusterConfigurationKeys.HELIX_WORKFLOW_LISTING_TIMEOUT_SECONDS,
+    this.helixWorkflowListingTimeoutMillis = ConfigUtils.getLong(sysConfig, GobblinClusterConfigurationKeys.HELIX_WORKFLOW_LISTING_TIMEOUT_SECONDS,
         GobblinClusterConfigurationKeys.DEFAULT_HELIX_WORKFLOW_LISTING_TIMEOUT_SECONDS) * 1000;
 
   }
