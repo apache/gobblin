@@ -20,10 +20,12 @@ import org.apache.avro.Schema;
 
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset.ConversionConfig;
+import org.apache.gobblin.data.management.conversion.hive.source.HiveAvroToOrcSource;
 
 
 /**
- * An Avro to ORC converter for avro to nested ORC. {@link OrcFormats#NESTED_ORC}
+ * An Avro to ORC converter for avro to nested ORC.
+ * {@link org.apache.gobblin.data.management.conversion.hive.source.HiveAvroToOrcSource.OrcFormats#NESTED_ORC}
  */
 public class HiveAvroToNestedOrcConverter extends AbstractAvroToOrcConverter {
 
@@ -44,11 +46,11 @@ public class HiveAvroToNestedOrcConverter extends AbstractAvroToOrcConverter {
    */
   @Override
   protected boolean hasConversionConfig() {
-    return super.hiveDataset.getConversionConfigForFormat(OrcFormats.NESTED_ORC.getConfigPrefix()).isPresent();
+    return super.hiveDataset.getConversionConfigForFormat(HiveAvroToOrcSource.OrcFormats.NESTED_ORC.getConfigPrefix()).isPresent();
   }
 
   @Override
   protected ConversionConfig getConversionConfig() {
-    return super.hiveDataset.getConversionConfigForFormat(OrcFormats.NESTED_ORC.getConfigPrefix()).get();
+    return super.hiveDataset.getConversionConfigForFormat(HiveAvroToOrcSource.OrcFormats.NESTED_ORC.getConfigPrefix()).get();
   }
 }

@@ -108,23 +108,6 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
   protected final FileSystem fs;
 
   /**
-   * Supported destination ORC formats
-   */
-  protected enum OrcFormats {
-    FLATTENED_ORC("flattenedOrc"),
-    NESTED_ORC("nestedOrc");
-    private final String configPrefix;
-
-    OrcFormats(String configPrefix) {
-      this.configPrefix = configPrefix;
-    }
-
-    public String getConfigPrefix() {
-      return this.configPrefix;
-    }
-  }
-
-  /**
    * list of partitions that a partition has replaced. E.g. list of hourly partitons for a daily partition
    */
   public static final String REPLACED_PARTITIONS_HIVE_METASTORE_KEY = "gobblin.replaced.partitions";
@@ -171,7 +154,8 @@ public abstract class AbstractAvroToOrcConverter extends Converter<Schema, Schem
    * This method is called by {@link AbstractAvroToOrcConverter#convertRecord(Schema, QueryBasedHiveConversionEntity, WorkUnitState)} before building the
    * conversion query. Subclasses can find out if conversion is enabled for their format by calling
    * {@link ConvertibleHiveDataset#getConversionConfigForFormat(String)} on the <code>hiveDataset</code>.<br>
-   * Available ORC formats are defined by the enum {@link OrcFormats}
+   * Available ORC formats are defined by the enum
+   * {@link org.apache.gobblin.data.management.conversion.hive.source.HiveAvroToOrcSource.OrcFormats}.
    * </p>
    * <p>
    * If this method returns false, no Avro to to ORC conversion queries will be built for the ORC format.

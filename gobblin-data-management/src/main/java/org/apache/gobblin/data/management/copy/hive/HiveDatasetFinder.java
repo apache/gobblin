@@ -307,7 +307,7 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
    * @param table of the dataset to get config
    * @return the {@link Config} for <code>dbAndTable</code>
    */
-  private Config getDatasetConfig(Table table) throws ConfigStoreFactoryDoesNotExistsException,
+  protected Config getDatasetConfig(Table table) throws ConfigStoreFactoryDoesNotExistsException,
       ConfigStoreCreationException, URISyntaxException {
 
     Config datasetConfig;
