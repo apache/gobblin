@@ -62,6 +62,7 @@ import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.sla.SlaEventSubmitter;
 import org.apache.gobblin.util.AutoReturnableObject;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**
@@ -76,6 +77,7 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
   public static final String DB_KEY = HIVE_DATASET_PREFIX + ".database";
   public static final String TABLE_PATTERN_KEY = HIVE_DATASET_PREFIX + ".table.pattern";
   public static final String DEFAULT_TABLE_PATTERN = "*";
+  public static final String TABLE_FILTER = HIVE_DATASET_PREFIX + ".tableFilter";
 
   /*
    * By setting the prefix, only config keys with this prefix will be used to build a HiveDataset.
@@ -112,6 +114,7 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
 
   protected Optional<String> configStoreUri;
   protected final Function<Table, String> configStoreDatasetUriBuilder;
+  protected final Optional<Predicate<Table>> tableFilter;
 
   protected final String datasetConfigPrefix;
   protected final ConfigClient configClient;
@@ -181,6 +184,14 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
       throw new RuntimeException(e);
     }
     this.jobConfig = ConfigUtils.propertiesToConfig(properties);
+
+    String tableFilterPredicate = properties.getProperty(TABLE_FILTER);
+    if (StringUtils.isNotEmpty(tableFilterPredicate)) {
+      this.tableFilter = Optional.of((Predicate<Table>)GobblinConstructorUtils.invokeConstructor(
+          Predicate.class, tableFilterPredicate, properties));
+    } else {
+      this.tableFilter = Optional.absent();
+    }
   }
 
   protected static HiveMetastoreClientPool createClientPool(Properties properties) throws IOException {
@@ -249,6 +260,10 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
 
           try (AutoReturnableObject<IMetaStoreClient> client = HiveDatasetFinder.this.clientPool.getClient()) {
             Table table = client.get().getTable(dbAndTable.getDb(), dbAndTable.getTable());
+            if (tableFilter.isPresent() && !tableFilter.get().apply(table)) {
+              continue;
+            }
+
             Config datasetConfig = getDatasetConfig(table);
             if (ConfigUtils.getBoolean(datasetConfig, HIVE_DATASET_IS_BLACKLISTED_KEY, DEFAULT_HIVE_DATASET_IS_BLACKLISTED_KEY)) {
               continue;
