@@ -61,7 +61,7 @@ public class ConvertibleHiveDatasetFinder extends HiveDatasetFinder {
     String keyPrefix = props.getProperty(HiveDatasetFinder.HIVE_DATASET_CONFIG_PREFIX_KEY, StringUtils.EMPTY);
     String key = keyPrefix.isEmpty()? HiveAvroToOrcSource.CLEAN_STAGING_TABLES_IN_SEARCH :
             keyPrefix + "." + HiveAvroToOrcSource.CLEAN_STAGING_TABLES_IN_SEARCH;
-    return PropertiesUtils.getPropAsBoolean(props, key, HiveAvroToOrcSource.DEFAULT_CLEAN_STAGING_FROM_BEGINNING);
+    return PropertiesUtils.getPropAsBoolean(props, key, HiveAvroToOrcSource.DEFAULT_CLEAN_STAGING_TABLES_IN_SEARCH);
   }
 
   private boolean getCleaningStaging(Config config) {

@@ -118,7 +118,8 @@ public class ConvertibleHiveDatasetFinderTest {
       properties.put(HiveDatasetFinder.DB_KEY, "db1");
       properties.put(HiveDatasetFinder.TABLE_PATTERN_KEY, "table1|table2");
       properties.put(HiveDatasetFinder.HIVE_DATASET_CONFIG_PREFIX_KEY, avroConversionKeyPrefix);
-      properties.put(avroConversionKeyPrefix + "." + HiveAvroToOrcSource.CLEAN_STAGING_TABLES_IN_SEARCH, "true");
+      properties.put(avroConversionKeyPrefix + "." + HiveAvroToOrcSource.CLEAN_STAGING_TABLES_IN_SEARCH,
+              HiveAvroToOrcSource.DEFAULT_CLEAN_STAGING_TABLES_IN_SEARCH);
       HiveDatasetFinder finder = new TestConvertibleHiveDatasetFinder(FileSystem.getLocal(new Configuration()), properties, pool);
       List<HiveDataset> datasets = Lists.newArrayList(finder.getDatasetsIterator());
       Assert.assertEquals(datasets.size(), 2);

@@ -35,7 +35,7 @@ import org.apache.gobblin.source.workunit.WorkUnit;
 public class HiveAvroToOrcSource extends HiveSource {
   private Optional<LineageInfo> lineageInfo;
   public static final String CLEAN_STAGING_TABLES_IN_SEARCH = "cleanStagingTablesInSearch";
-  public static final String DEFAULT_CLEAN_STAGING_FROM_BEGINNING = "true";
+  public static final String DEFAULT_CLEAN_STAGING_TABLES_IN_SEARCH = "true";
 
   /**
    * Supported destination ORC formats
