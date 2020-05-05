@@ -25,6 +25,9 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import org.apache.gobblin.compaction.mapreduce.avro.MRCompactorAvroKeyDedupJobRunner;
 import org.apache.gobblin.util.FileListUtils;
@@ -186,104 +189,11 @@ public class OrcUtils {
   }
 
   /**
-   * Fill in value in OrcStruct with given schema, assuming {@param w} contains the same schema as {@param schema}.
-   * {@param schema} is still necessary to given given {@param w} do contains schema information itself, because the
-   * actual value type is only available in {@link TypeDescription} but not {@link org.apache.orc.mapred.OrcValue}.
+   * This method copies value in object {@param w} into object {@param v} recursively even if the schema of w and v
+   * differs in a compatible way, meaning if there's a field existing in v but not in w, the null value will be filled.
+   * It served as a helper method for {@link #upConvertOrcStruct(OrcStruct, OrcStruct, TypeDescription)} when OrcStruct
+   * contains nested structure as a member.
    *
-   * For simplicity here are some assumptions:
-   * - We only give 3 primitive values and use them to construct compound values. To make it work for different types that
-   * can be widened or shrunk to each other, please use value within small range.
-   * - For List, Map or Union, make sure there's at least one entry within the record-container.
-   * you may want to try {@link #createValueRecursively(TypeDescription)} instead of {@link OrcStruct#createValue(TypeDescription)}
-   */
-  public static void orcStructFillerWithFixedValue(WritableComparable w, TypeDescription schema, int unionTag,
-      int intValue, String stringValue, boolean booleanValue) {
-    switch (schema.getCategory()) {
-      case BOOLEAN:
-        ((BooleanWritable) w).set(booleanValue);
-        break;
-      case BYTE:
-        ((ByteWritable) w).set((byte) intValue);
-        break;
-      case SHORT:
-        ((ShortWritable) w).set((short) intValue);
-        break;
-      case INT:
-        ((IntWritable) w).set(intValue);
-        break;
-      case LONG:
-        ((LongWritable) w).set(intValue);
-        break;
-      case FLOAT:
-        ((FloatWritable) w).set(intValue * 1.0f);
-        break;
-      case DOUBLE:
-        ((DoubleWritable) w).set(intValue * 1.0);
-        break;
-      case STRING:
-      case CHAR:
-      case VARCHAR:
-        ((Text) w).set(stringValue);
-        break;
-      case BINARY:
-        throw new UnsupportedOperationException("Binary type is not supported in random orc data filler");
-      case DECIMAL:
-        throw new UnsupportedOperationException("Decimal type is not supported in random orc data filler");
-      case DATE:
-      case TIMESTAMP:
-      case TIMESTAMP_INSTANT:
-        throw new UnsupportedOperationException(
-            "Timestamp and its derived types is not supported in random orc data filler");
-      case LIST:
-        OrcList castedList = (OrcList) w;
-        // Here it is not trivial to create typed-object in element-type. So this method expect the value container
-        // to at least contain one element, or the traversing within the list will be skipped.
-        for (Object i : castedList) {
-          orcStructFillerWithFixedValue((WritableComparable) i, schema.getChildren().get(0), unionTag, intValue,
-              stringValue, booleanValue);
-        }
-        break;
-      case MAP:
-        OrcMap castedMap = (OrcMap) w;
-        for (Object entry : castedMap.entrySet()) {
-          Map.Entry<WritableComparable, WritableComparable> castedEntry =
-              (Map.Entry<WritableComparable, WritableComparable>) entry;
-          orcStructFillerWithFixedValue(castedEntry.getKey(), schema.getChildren().get(0), unionTag, intValue,
-              stringValue, booleanValue);
-          orcStructFillerWithFixedValue(castedEntry.getValue(), schema.getChildren().get(1), unionTag, intValue,
-              stringValue, booleanValue);
-        }
-        break;
-      case STRUCT:
-        OrcStruct castedStruct = (OrcStruct) w;
-        int fieldIdx = 0;
-        for (TypeDescription child : schema.getChildren()) {
-          orcStructFillerWithFixedValue(castedStruct.getFieldValue(fieldIdx), child, unionTag, intValue, stringValue,
-              booleanValue);
-          fieldIdx += 1;
-        }
-        break;
-      case UNION:
-        OrcUnion castedUnion = (OrcUnion) w;
-        TypeDescription targetMemberSchema = schema.getChildren().get(unionTag);
-        castedUnion.set(unionTag, createValueRecursively(targetMemberSchema));
-        orcStructFillerWithFixedValue((WritableComparable) castedUnion.getObject(), targetMemberSchema, unionTag,
-            intValue, stringValue, booleanValue);
-        break;
-      default:
-        throw new IllegalArgumentException("Unknown type " + schema.toString());
-    }
-  }
-
-  /**
-   * The simple API: Union tag by default set to 0.
-   */
-  public static void orcStructFillerWithFixedValue(WritableComparable w, TypeDescription schema, int intValue,
-      String stringValue, boolean booleanValue) {
-    orcStructFillerWithFixedValue(w, schema, 0, intValue, stringValue, booleanValue);
-  }
-
-  /**
    * Suppress the warning of type checking: All casts are clearly valid as they are all (sub)elements Orc types.
    * Check failure will trigger Cast exception and blow up the process.
    */
@@ -373,12 +283,15 @@ public class OrcUtils {
 
     int indexInNewSchema = 0;
     List<String> oldSchemaFieldNames = oldStruct.getSchema().getFieldNames();
+    /* Construct a fieldName -> Index map to efficient access within the loop below. */
+    Map<String, Integer> oldSchemaIndex = IntStream.range(0, oldSchemaFieldNames.size()).boxed()
+        .collect(Collectors.toMap(oldSchemaFieldNames::get, Function.identity()));
     List<TypeDescription> oldSchemaTypes = oldStruct.getSchema().getChildren();
     List<TypeDescription> newSchemaTypes = targetSchema.getChildren();
 
     for (String fieldName : targetSchema.getFieldNames()) {
       if (oldSchemaFieldNames.contains(fieldName) && oldStruct.getFieldValue(fieldName) != null) {
-        int fieldIndex = oldSchemaFieldNames.indexOf(fieldName);
+        int fieldIndex = oldSchemaIndex.get(fieldName);
 
         TypeDescription oldFieldSchema = oldSchemaTypes.get(fieldIndex);
         TypeDescription newFieldSchema = newSchemaTypes.get(indexInNewSchema);
@@ -402,7 +315,7 @@ public class OrcUtils {
   }
 
   /**
-   * For primitive types of {@link WritableComparable}, supporting ORC-allowed type-widening.
+   * Copy the value of {@param from} object into {@param to} with supporting of type-widening that ORC allowed.
    */
   public static void handlePrimitiveWritableComparable(WritableComparable from, WritableComparable to) {
     if (from instanceof ByteWritable) {

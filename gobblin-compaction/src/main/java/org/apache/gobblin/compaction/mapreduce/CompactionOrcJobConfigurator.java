@@ -39,7 +39,10 @@ import static org.apache.gobblin.compaction.mapreduce.CompactorOutputCommitter.*
 
 public class CompactionOrcJobConfigurator extends CompactionJobConfigurator {
 
-  public static final String ORC_MAPPER_SHUFFLE_SCHEMA_KEY = "orcMapperShuffleSchema";
+  /**
+   * The key schema for the shuffle output. 
+   */
+  public static final String ORC_MAPPER_SHUFFLE_KEY_SCHEMA = "orcMapperShuffleSchema";
   private String orcMapperShuffleSchemaString;
 
   public static class Factory implements CompactionJobConfigurator.ConfiguratorFactory {
@@ -51,7 +54,7 @@ public class CompactionOrcJobConfigurator extends CompactionJobConfigurator {
 
   public CompactionOrcJobConfigurator(State state) throws IOException {
     super(state);
-    this.orcMapperShuffleSchemaString = state.getProp(ORC_MAPPER_SHUFFLE_SCHEMA_KEY, StringUtils.EMPTY);
+    this.orcMapperShuffleSchemaString = state.getProp(ORC_MAPPER_SHUFFLE_KEY_SCHEMA, StringUtils.EMPTY);
   }
 
   @Override

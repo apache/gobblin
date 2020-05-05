@@ -88,7 +88,7 @@ public abstract class RecordKeyDedupReducerBase<KI, VI, KO, VO> extends Reducer<
     }
 
     writeRetainValue(valueToRetain, context);
-    updateCounter(numVals, context);
+    updateCounters(numVals, context);
   }
 
   protected void writeRetainValue(VI valueToRetain, Context context)
@@ -108,7 +108,7 @@ public abstract class RecordKeyDedupReducerBase<KI, VI, KO, VO> extends Reducer<
    * Update the MR counter based on input {@param numDuplicates}, which indicates the times of duplication of a
    * record seen in a reducer call.
    */
-  protected void updateCounter(int numDuplicates, Context context) {
+  protected void updateCounters(int numDuplicates, Context context) {
     if (numDuplicates > 1) {
       context.getCounter(EVENT_COUNTER.MORE_THAN_1).increment(1);
       context.getCounter(EVENT_COUNTER.DEDUPED).increment(numDuplicates - 1);

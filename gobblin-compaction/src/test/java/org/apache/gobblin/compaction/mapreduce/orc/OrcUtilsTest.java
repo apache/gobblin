@@ -17,12 +17,10 @@
 
 package org.apache.gobblin.compaction.mapreduce.orc;
 
-import org.apache.gobblin.compaction.hive.HiveAttribute;
 import org.apache.hadoop.io.BooleanWritable;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.io.WritableComparable;
 import org.apache.orc.TypeDescription;
 import org.apache.orc.mapred.OrcList;
 import org.apache.orc.mapred.OrcMap;
@@ -49,7 +47,7 @@ public class OrcUtilsTest {
     expectedStruct.setFieldValue("k", new IntWritable(3));
 
     OrcStruct actualStruct = (OrcStruct) OrcStruct.createValue(schema_1);
-    OrcUtils.orcStructFillerWithFixedValue(actualStruct, schema_1, 3, "", false);
+    OrcTestUtils.fillOrcStructWithFixedValue(actualStruct, schema_1, 3, "", false);
     Assert.assertEquals(actualStruct, expectedStruct);
 
     TypeDescription schema_2 = TypeDescription.fromString("struct<i:boolean,j:int,k:string>");
@@ -59,7 +57,7 @@ public class OrcUtilsTest {
     expectedStruct.setFieldValue("k", new Text(""));
     actualStruct = (OrcStruct) OrcStruct.createValue(schema_2);
 
-    OrcUtils.orcStructFillerWithFixedValue(actualStruct, schema_2, 3, "", false);
+    OrcTestUtils.fillOrcStructWithFixedValue(actualStruct, schema_2, 3, "", false);
     Assert.assertEquals(actualStruct, expectedStruct);
 
     // 2. Some simple nested cases: struct within struct
@@ -69,7 +67,7 @@ public class OrcUtilsTest {
     expectedStruct_nested_1.setFieldValue("j", expectedStruct);
     actualStruct = (OrcStruct) OrcStruct.createValue(schema_3);
 
-    OrcUtils.orcStructFillerWithFixedValue(actualStruct, schema_3, 3, "", false);
+    OrcTestUtils.fillOrcStructWithFixedValue(actualStruct, schema_3, 3, "", false);
     Assert.assertEquals(actualStruct, expectedStruct_nested_1);
 
     // 3. array of struct within struct
@@ -88,7 +86,7 @@ public class OrcUtilsTest {
     placeHolderList.add(placeHolderStruct);
     actualStruct.setFieldValue("j", placeHolderList);
 
-    OrcUtils.orcStructFillerWithFixedValue(actualStruct, schema_4, 3, "", false);
+    OrcTestUtils.fillOrcStructWithFixedValue(actualStruct, schema_4, 3, "", false);
     Assert.assertEquals(actualStruct, expectedStruct_nested_1);
 
     // 4. union of struct within struct
@@ -105,7 +103,7 @@ public class OrcUtilsTest {
     placeHolderUnion.set(0, placeHolderStruct);
     actualStruct.setFieldValue("j", placeHolderUnion);
 
-    OrcUtils.orcStructFillerWithFixedValue(actualStruct, schema_5, 3, "", false);
+    OrcTestUtils.fillOrcStructWithFixedValue(actualStruct, schema_5, 3, "", false);
     Assert.assertEquals(actualStruct, expectedStruct_nested_1);
   }
 
@@ -117,7 +115,7 @@ public class OrcUtilsTest {
     // This would be re-used in the following tests as the actual record using the schema.
     OrcStruct baseStruct = (OrcStruct) OrcStruct.createValue(baseStructSchema);
     // Fill in the baseStruct with specified value.
-    OrcUtils.orcStructFillerWithFixedValue(baseStruct, baseStructSchema, intValue, stringValue, boolValue);
+    OrcTestUtils.fillOrcStructWithFixedValue(baseStruct, baseStructSchema, intValue, stringValue, boolValue);
     TypeDescription evolved_baseStructSchema = TypeDescription.fromString("struct<a:int,b:string,c:int>");
     OrcStruct evolvedStruct = (OrcStruct) OrcStruct.createValue(evolved_baseStructSchema);
     // This should be equivalent to deserialize(baseStruct).serialize(evolvedStruct, evolvedSchema);
@@ -137,7 +135,7 @@ public class OrcUtilsTest {
     // Prepare two ListInStructs with different size ( the list field contains different number of members)
     TypeDescription listInStructSchema = TypeDescription.fromString("struct<a:array<struct<a:int,b:string>>>");
     OrcStruct listInStruct = (OrcStruct) OrcUtils.createValueRecursively(listInStructSchema);
-    OrcUtils.orcStructFillerWithFixedValue(listInStruct, listInStructSchema, intValue, stringValue, boolValue);
+    OrcTestUtils.fillOrcStructWithFixedValue(listInStruct, listInStructSchema, intValue, stringValue, boolValue);
     TypeDescription evolved_listInStructSchema =
         TypeDescription.fromString("struct<a:array<struct<a:int,b:string,c:int>>>");
     OrcStruct evolved_listInStruct = (OrcStruct) OrcUtils.createValueRecursively(evolved_listInStructSchema);
@@ -153,7 +151,7 @@ public class OrcUtilsTest {
     // Add cases when original OrcStruct has its list member having different number of elements then the destination OrcStruct.
     // original has list.size() = 2, target has list.size() = 1
     listInStruct = (OrcStruct) OrcUtils.createValueRecursively(listInStructSchema, 2);
-    OrcUtils.orcStructFillerWithFixedValue(listInStruct, listInStructSchema, intValue, stringValue, boolValue);
+    OrcTestUtils.fillOrcStructWithFixedValue(listInStruct, listInStructSchema, intValue, stringValue, boolValue);
     Assert.assertNotEquals(((OrcList)listInStruct.getFieldValue("a")).size(),
         ((OrcList)evolved_listInStruct.getFieldValue("a")).size());
     OrcUtils.upConvertOrcStruct(listInStruct, evolved_listInStruct, evolved_listInStructSchema);
@@ -170,7 +168,7 @@ public class OrcUtilsTest {
     OrcMap mapEntry = new OrcMap(mapSchema);
     mapEntry.put(new Text(""), new IntWritable());
     mapInStruct.setFieldValue("a", mapEntry);
-    OrcUtils.orcStructFillerWithFixedValue(mapEntry, mapSchema, intValue, stringValue, boolValue);
+    OrcTestUtils.fillOrcStructWithFixedValue(mapEntry, mapSchema, intValue, stringValue, boolValue);
     // Create the target struct with evolved schema
     TypeDescription evolved_mapInStructSchema = TypeDescription.fromString("struct<a:map<string,bigint>>");
     OrcStruct evolved_mapInStruct = (OrcStruct) OrcStruct.createValue(evolved_mapInStructSchema);
@@ -200,7 +198,7 @@ public class OrcUtilsTest {
     OrcUnion placeHolderUnion = new OrcUnion(TypeDescription.fromString("uniontype<int,string>"));
     placeHolderUnion.set(0, new IntWritable(1));
     unionInStruct.setFieldValue("a", placeHolderUnion);
-    OrcUtils.orcStructFillerWithFixedValue(unionInStruct, unionInStructSchema, intValue, stringValue, boolValue);
+    OrcTestUtils.fillOrcStructWithFixedValue(unionInStruct, unionInStructSchema, intValue, stringValue, boolValue);
     // Create new structWithUnion
     TypeDescription evolved_unionInStructSchema = TypeDescription.fromString("struct<a:uniontype<bigint,string>>");
     OrcStruct evolvedUnionInStruct = (OrcStruct) OrcStruct.createValue(evolved_unionInStructSchema);
@@ -217,11 +215,12 @@ public class OrcUtilsTest {
     TypeDescription complexOrcSchema =
         TypeDescription.fromString("struct<a:array<struct<a:string,b:int>>,b:struct<a:uniontype<int,string>>>");
     OrcStruct complexOrcStruct = (OrcStruct) OrcUtils.createValueRecursively(complexOrcSchema);
-    OrcUtils.orcStructFillerWithFixedValue(complexOrcStruct, complexOrcSchema, intValue, stringValue, boolValue);
+    OrcTestUtils.fillOrcStructWithFixedValue(complexOrcStruct, complexOrcSchema, intValue, stringValue, boolValue);
     TypeDescription evolvedComplexOrcSchema = TypeDescription
         .fromString("struct<a:array<struct<a:string,b:bigint,c:string>>,b:struct<a:uniontype<bigint,string>,b:int>>");
     OrcStruct evolvedComplexStruct = (OrcStruct) OrcUtils.createValueRecursively(evolvedComplexOrcSchema);
-    OrcUtils.orcStructFillerWithFixedValue(evolvedComplexStruct, evolvedComplexOrcSchema, intValue, stringValue, boolValue);
+    OrcTestUtils
+        .fillOrcStructWithFixedValue(evolvedComplexStruct, evolvedComplexOrcSchema, intValue, stringValue, boolValue);
     // Check if new columns are assigned with null value and type widening is working fine.
     OrcUtils.upConvertOrcStruct(complexOrcStruct, evolvedComplexStruct, evolvedComplexOrcSchema);
     Assert
@@ -236,12 +235,14 @@ public class OrcUtilsTest {
     // Construct union type with different tag for the src object dest object, check if up-convert happens correctly.
     TypeDescription structInUnionAsStruct = TypeDescription.fromString("struct<a:uniontype<struct<a:int,b:string>,int>>");
     OrcStruct structInUnionAsStructObject = (OrcStruct) OrcUtils.createValueRecursively(structInUnionAsStruct);
-    OrcUtils.orcStructFillerWithFixedValue(structInUnionAsStructObject, structInUnionAsStruct, 0, intValue, stringValue, boolValue);
+    OrcTestUtils
+        .fillOrcStructWithFixedValue(structInUnionAsStructObject, structInUnionAsStruct, 0, intValue, stringValue, boolValue);
     Assert.assertEquals(((OrcStruct)((OrcUnion)structInUnionAsStructObject.getFieldValue("a")).getObject())
         .getFieldValue("a"), new IntWritable(intValue));
 
     OrcStruct structInUnionAsStructObject_2 = (OrcStruct) OrcUtils.createValueRecursively(structInUnionAsStruct);
-    OrcUtils.orcStructFillerWithFixedValue(structInUnionAsStructObject_2, structInUnionAsStruct, 1, intValue, stringValue, boolValue);
+    OrcTestUtils
+        .fillOrcStructWithFixedValue(structInUnionAsStructObject_2, structInUnionAsStruct, 1, intValue, stringValue, boolValue);
     Assert.assertEquals(((OrcUnion)structInUnionAsStructObject_2.getFieldValue("a")).getObject(), new IntWritable(intValue));
 
     // Create a new record container, do up-convert twice and check if the value is propagated properly.
@@ -260,11 +261,12 @@ public class OrcUtilsTest {
   public void testOrcStructProjection() throws Exception {
     TypeDescription originalSchema = TypeDescription.fromString("struct<a:struct<a:int,b:int>,b:struct<c:int,d:int>,c:int>");
     OrcStruct originalStruct = (OrcStruct) OrcUtils.createValueRecursively(originalSchema);
-    OrcUtils.orcStructFillerWithFixedValue(originalStruct, originalSchema, intValue, stringValue, boolValue);
+    OrcTestUtils.fillOrcStructWithFixedValue(originalStruct, originalSchema, intValue, stringValue, boolValue);
 
     TypeDescription projectedSchema = TypeDescription.fromString("struct<a:struct<b:int>,b:struct<c:int>>");
     OrcStruct projectedStructExpectedValue = (OrcStruct) OrcUtils.createValueRecursively(projectedSchema);
-    OrcUtils.orcStructFillerWithFixedValue(projectedStructExpectedValue, projectedSchema, intValue, stringValue, boolValue);
+    OrcTestUtils
+        .fillOrcStructWithFixedValue(projectedStructExpectedValue, projectedSchema, intValue, stringValue, boolValue);
     OrcStruct projectColumnStruct = (OrcStruct) OrcUtils.createValueRecursively(projectedSchema);
     OrcUtils.upConvertOrcStruct(originalStruct, projectColumnStruct, projectedSchema);
     Assert.assertEquals(projectColumnStruct, projectedStructExpectedValue);

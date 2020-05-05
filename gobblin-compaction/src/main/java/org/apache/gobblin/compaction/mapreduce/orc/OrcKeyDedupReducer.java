@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.apache.commons.math3.util.Pair;
 import org.apache.gobblin.compaction.mapreduce.RecordKeyDedupReducerBase;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
@@ -73,7 +72,7 @@ public class OrcKeyDedupReducer extends RecordKeyDedupReducerBase<OrcKey, OrcVal
 
     /* At this point, keyset of valuesToRetain should contains all different OrcValue. */
     for (Map.Entry<Integer, Integer> entry : valuesToRetain.entrySet()) {
-      updateCounter(entry.getValue(), context);
+      updateCounters(entry.getValue(), context);
     }
   }
 
