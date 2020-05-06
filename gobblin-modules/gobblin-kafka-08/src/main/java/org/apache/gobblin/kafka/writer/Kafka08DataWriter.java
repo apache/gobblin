@@ -51,7 +51,7 @@ import org.apache.gobblin.writer.WriteResponseMapper;
 @Slf4j
 public class Kafka08DataWriter<K,V> implements AsyncDataWriter<V> {
 
-  private static final WriteResponseMapper<RecordMetadata> WRITE_RESPONSE_WRAPPER =
+  public static final WriteResponseMapper<RecordMetadata> WRITE_RESPONSE_WRAPPER =
       new WriteResponseMapper<RecordMetadata>() {
 
         @Override
