@@ -43,6 +43,7 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.gson.Gson;
 import com.opencsv.CSVReader;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigException;
@@ -101,6 +102,8 @@ public class ConfigUtils {
 
   /**
    * Convert a given {@link Config} instance to a {@link Properties} instance.
+   * If the config value is not of String type, it will try to get it as a generic Object type
+   * using {@see com.typesafe.config.Config#getAnyRef()} and then try to return its json representation as a string
    *
    * @param config the given {@link Config} instance
    * @param prefix an optional prefix; if present, only properties whose name starts with the prefix
@@ -114,7 +117,13 @@ public class ConfigUtils {
       for (Map.Entry<String, ConfigValue> entry : resolvedConfig.entrySet()) {
         if (!prefix.isPresent() || entry.getKey().startsWith(prefix.get())) {
           String propKey = desanitizeKey(entry.getKey());
-          properties.setProperty(propKey, resolvedConfig.getString(entry.getKey()));
+          String propVal;
+          try {
+            propVal = resolvedConfig.getString(entry.getKey());
+          } catch (ConfigException.WrongType wrongType) {
+            propVal = new Gson().toJson(resolvedConfig.getAnyRef(entry.getKey()));
+          }
+          properties.setProperty(propKey, propVal);
         }
       }
     }
