@@ -40,7 +40,6 @@ import org.apache.gobblin.codec.StreamCodec;
 import org.apache.gobblin.commit.SpeculativeAttemptAwareConstruct;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.dataset.DatasetConstants;
 import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.gobblin.dataset.Descriptor;
 import org.apache.gobblin.dataset.PartitionDescriptor;
@@ -254,15 +253,22 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
 
     // Double check permission of staging file
     if (!stagingFileStatus.getPermission().equals(this.filePermission)) {
+      LOG.debug(String.format("Setting %s permissions to file: %s as per the config", this.filePermission, this.stagingFile));
       this.fs.setPermission(this.stagingFile, this.filePermission);
     }
 
     this.bytesWritten = Optional.of(Long.valueOf(stagingFileStatus.getLen()));
 
     LOG.info(String.format("Moving data from %s to %s", this.stagingFile, this.outputFile));
+    LOG.debug(String.format("length of staging file:%s is %s", this.stagingFile, bytesWritten()));
     // For the same reason as deleting the staging file if it already exists, overwrite
     // the output file if it already exists to prevent task retry from being blocked.
     HadoopUtils.renamePath(this.fileContext, this.stagingFile, this.outputFile, true);
+    if (LOG.isDebugEnabled()){
+      FileStatus outputFileStatus = this.fs.getFileStatus(this.outputFile);
+      Optional<Long> outoutFilelen  = Optional.of(outputFileStatus.getLen());
+      LOG.debug(String.format("length of moved file:%s is %s", outputFileStatus, outoutFilelen.get()));
+    }
 
     // The staging file is moved to the output path in commit, so rename to add record count after that
     if (this.shouldIncludeRecordCountInFileName) {
