@@ -87,11 +87,11 @@ public abstract class RecordKeyDedupReducerBase<KI, VI, KO, VO> extends Reducer<
       numVals++;
     }
 
-    writeRetainValue(valueToRetain, context);
+    writeRetainedValue(valueToRetain, context);
     updateCounters(numVals, context);
   }
 
-  protected void writeRetainValue(VI valueToRetain, Context context)
+  protected void writeRetainedValue(VI valueToRetain, Context context)
       throws IOException, InterruptedException {
     setOutKey(valueToRetain);
     setOutValue(valueToRetain);

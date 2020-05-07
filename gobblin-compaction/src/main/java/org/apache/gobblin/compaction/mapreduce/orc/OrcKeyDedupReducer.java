@@ -66,7 +66,7 @@ public class OrcKeyDedupReducer extends RecordKeyDedupReducerBase<OrcKey, OrcVal
         valuesToRetain.put(valueHash, valuesToRetain.get(valueHash) + 1);
       } else {
         valuesToRetain.put(valueHash, 1);
-        writeRetainValue(value, context);
+        writeRetainedValue(value, context);
       }
     }
 
