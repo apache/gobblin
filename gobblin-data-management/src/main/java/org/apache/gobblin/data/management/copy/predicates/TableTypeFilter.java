@@ -58,8 +58,8 @@ public class TableTypeFilter implements Predicate<Table> {
         return input.getPartitionKeys() == null || input.getPartitionKeys().size() == 0;
       case PARTITIONED:
         return input.getPartitionKeys() != null && input.getPartitionKeys().size() > 0;
+      default:
+        throw new UnsupportedOperationException("Invalid state");
     }
-
-    throw new UnsupportedOperationException("Invalid state");
   }
 }
