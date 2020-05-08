@@ -28,6 +28,8 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
+
+import org.apache.gobblin.hive.HiveConstants;
 import org.apache.gobblin.util.filesystem.ModTimeDataFileVersionStrategy;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -486,10 +488,10 @@ public class HiveCopyEntityHelper {
       targetTable.getTTable().putToParameters(HiveDataset.REGISTERER, GOBBLIN_DISTCP);
       targetTable.getTTable().putToParameters(HiveDataset.REGISTRATION_GENERATION_TIME_MILLIS,
           Long.toString(this.startTime));
+      targetTable.getTTable().getSd().getSerdeInfo().getParameters().put(HiveConstants.PATH, targetLocation.toString());
       targetTable.getTTable().unsetCreateTime();
 
       HiveAvroCopyEntityHelper.updateTableAttributesIfAvro(targetTable, this);
-
       return targetTable;
     } catch (HiveException he) {
       throw new IOException(he);
