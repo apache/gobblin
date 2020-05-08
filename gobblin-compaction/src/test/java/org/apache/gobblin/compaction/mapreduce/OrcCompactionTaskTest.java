@@ -173,7 +173,7 @@ public class OrcCompactionTaskTest {
     File jobDir = new File(basePath, minutelyPath);
     Assert.assertTrue(jobDir.mkdirs());
 
-    TypeDescription nestedSchema = TypeDescription.fromString("struct<a:struct<a:int,b:string,c:int>,b:string>");
+    TypeDescription nestedSchema = TypeDescription.fromString("struct<a:struct<a:int,b:string,c:int>,b:string,c:uniontype<int,string>>");
     // Create three records with same value except "b" column in the top-level.
     OrcStruct nested_struct_1 = (OrcStruct) OrcUtils.createValueRecursively(nestedSchema);
     OrcTestUtils.fillOrcStructWithFixedValue(nested_struct_1, nestedSchema, 1, "test1", true);
