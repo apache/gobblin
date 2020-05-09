@@ -37,6 +37,7 @@ import org.apache.gobblin.data.management.copy.entities.PostPublishStep;
 import org.apache.gobblin.data.management.copy.entities.PrePublishStep;
 import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.gobblin.dataset.PartitionDescriptor;
+import org.apache.gobblin.hive.HiveConstants;
 import org.apache.gobblin.hive.HiveRegisterStep;
 import org.apache.gobblin.hive.metastore.HiveMetaStoreUtils;
 import org.apache.gobblin.hive.spec.HiveSpec;
@@ -185,6 +186,7 @@ public class HivePartitionFileSet extends HiveFileSet {
       targetPartition.getTPartition().putToParameters(HiveDataset.REGISTRATION_GENERATION_TIME_MILLIS,
           Long.toString(this.hiveCopyEntityHelper.getStartTime()));
       targetPartition.setLocation(targetLocation.toString());
+      targetPartition.getTPartition().getSd().getSerdeInfo().getParameters().put(HiveConstants.PATH, targetLocation.toString());
       targetPartition.getTPartition().unsetCreateTime();
       return targetPartition;
     } catch (HiveException he) {
