@@ -311,7 +311,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
             this.jobExecutor.execute(new NonScheduledJobRunner(flowSpecUri, true, jobConfig, null));
           }
         } else {
-          _log.info("Removing the flow spec: {}, since it is an EXPLAIN request or the flow compilation failed.", addedSpec);
+          _log.info("Removing the flow spec: {}, isExplain: {}, compileSuccess: {}", addedSpec, isExplain, compileSuccess);
           if (this.flowCatalog.isPresent()) {
             _log.debug("Removing flow spec from FlowCatalog: {}", flowSpec);
             GobblinServiceJobScheduler.this.flowCatalog.get().remove(flowSpecUri, new Properties(), false);
