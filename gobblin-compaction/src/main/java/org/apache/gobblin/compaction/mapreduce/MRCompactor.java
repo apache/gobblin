@@ -68,7 +68,9 @@ import org.apache.gobblin.compaction.verify.DataCompletenessVerifier;
 import org.apache.gobblin.compaction.verify.DataCompletenessVerifier.Results;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.metrics.EventReporterException;
 import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.MetricReporterException;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.util.ClassAliasResolver;
@@ -364,7 +366,13 @@ public class MRCompactor implements Compactor {
     tags.addAll(Tag.fromMap(ClusterNameTags.getClusterNameTags()));
     GobblinMetrics gobblinMetrics =
         GobblinMetrics.get(this.state.getProp(ConfigurationKeys.JOB_NAME_KEY), null, tags.build());
-    gobblinMetrics.startMetricReporting(this.state.getProperties());
+    try {
+      gobblinMetrics.startMetricReporting(this.state.getProperties());
+    } catch (MetricReporterException e) {
+      LOG.error("Failed to start {} metric reporter.", e.getType().name(), e);
+    } catch (EventReporterException e) {
+      LOG.error("Failed to start {} event reporter.", e.getType().name(), e);
+    }
     return gobblinMetrics;
   }
 
