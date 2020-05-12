@@ -59,8 +59,6 @@ public class PostgresWriterCommands implements JdbcWriterCommands {
   @Override
   public void setConnectionParameters(Properties properties, Connection conn)
       throws SQLException {
-    // Postgres writer always uses one single transaction
-    this.conn.setAutoCommit(false);
   }
 
   @Override
