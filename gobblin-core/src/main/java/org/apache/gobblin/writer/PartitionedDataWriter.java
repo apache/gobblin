@@ -274,7 +274,7 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
         entry.getValue().cleanup();
         writersCleanedUp++;
       } catch (Throwable throwable) {
-        log.error(String.format("Failed to cleanup writer for partition %s.", entry.getKey()));
+        log.error(String.format("Failed to cleanup writer for partition %s.", entry.getKey()), throwable);
       }
     }
     if (writersCleanedUp < this.partitionWriters.asMap().size()) {
