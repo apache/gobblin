@@ -30,7 +30,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 
-
+@Test(groups = {"gobblin.compaction"})
 public class OrcUtilsTest {
 
   final int intValue = 10;
@@ -252,6 +252,28 @@ public class OrcUtilsTest {
 
     OrcUtils.upConvertOrcStruct(structInUnionAsStructObject_2, container, structInUnionAsStruct);
     Assert.assertEquals(structInUnionAsStructObject_2, container);
+  }
+
+  /**
+   * This test mostly target at the following case:
+   * Schema: struct<a:array<struct<a:int,b:int>>>
+   * field a was set to null by one call of "upConvertOrcStruct", but the subsequent call should still have the nested
+   * field filled.
+   */
+  public void testNestedFieldSequenceSet() throws Exception {
+    TypeDescription schema = TypeDescription.fromString("struct<a:array<struct<a:int,b:int>>>");
+    OrcStruct struct = (OrcStruct) OrcUtils.createValueRecursively(schema);
+    OrcTestUtils.fillOrcStructWithFixedValue(struct, schema, 1, "test", true);
+    OrcStruct structWithEmptyArray = (OrcStruct) OrcUtils.createValueRecursively(schema);
+    OrcTestUtils.fillOrcStructWithFixedValue(structWithEmptyArray, schema, 1, "test", true);
+    structWithEmptyArray.setFieldValue("a", null);
+    OrcUtils.upConvertOrcStruct(structWithEmptyArray, struct, schema);
+    Assert.assertEquals(struct, structWithEmptyArray);
+
+    OrcStruct struct_2 = (OrcStruct) OrcUtils.createValueRecursively(schema);
+    OrcTestUtils.fillOrcStructWithFixedValue(struct_2, schema, 2, "test", true);
+    OrcUtils.upConvertOrcStruct(struct_2, struct, schema);
+    Assert.assertEquals(struct, struct_2);
   }
 
   /**

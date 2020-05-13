@@ -58,7 +58,7 @@ import static org.apache.gobblin.compaction.mapreduce.CompactorOutputCommitter.*
 import static org.apache.gobblin.compaction.mapreduce.MRCompactor.COMPACTION_LATEDATA_THRESHOLD_FOR_RECOMPACT_PER_DATASET;
 import static org.apache.gobblin.compaction.mapreduce.MRCompactor.COMPACTION_SHOULD_DEDUPLICATE;
 
-
+@Test(groups = {"gobblin.compaction"})
 public class OrcCompactionTaskTest {
   final String extensionName = "orc";
 

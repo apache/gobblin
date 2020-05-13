@@ -47,6 +47,7 @@ import static org.mockito.Mockito.when;
  * Test class for {@link org.apache.gobblin.compaction.mapreduce.RecordKeyDedupReducerBase}.
  * Will have test separately in both avro and orc.
  */
+@Test(groups = {"gobblin.compaction"})
 public class KeyDedupReducerTest {
   private static final String AVRO_KEY_SCHEMA =
       "{ \"type\" : \"record\",  \"name\" : \"etl\",\"namespace\" : \"reducerTest\",  \"fields\" : [ { \"name\" : "
