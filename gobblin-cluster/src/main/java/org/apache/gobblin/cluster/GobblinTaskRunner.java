@@ -418,8 +418,10 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
   @VisibleForTesting
   void connectHelixManager() throws Exception {
     this.jobHelixManager.connect();
-    //Ensure the instance is enabled.
-    this.jobHelixManager.getClusterManagmentTool().enableInstance(clusterName, helixInstanceName, true);
+    if (!(this.isTaskDriver && this.dedicatedTaskDriverCluster)) {
+      // Ensure the instance is enabled when jobHelixManager is a PARTICIPANT
+      this.jobHelixManager.getClusterManagmentTool().enableInstance(clusterName, helixInstanceName, true);
+    }
     this.jobHelixManager.getMessagingService()
         .registerMessageHandlerFactory(GobblinHelixConstants.SHUTDOWN_MESSAGE_TYPE,
             new ParticipantShutdownMessageHandlerFactory());
