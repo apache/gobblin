@@ -262,7 +262,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
     LOG.info(String.format("Moving data from %s to %s", this.stagingFile, this.outputFile));
     // For the same reason as deleting the staging file if it already exists, overwrite
     // the output file if it already exists to prevent task retry from being blocked.
-    HadoopUtils.renamePath(this.fileContext, this.stagingFile, this.outputFile, true);
+    HadoopUtils.renamePath(this.fs, this.stagingFile, this.outputFile, true);
 
     // The staging file is moved to the output path in commit, so rename to add record count after that
     if (this.shouldIncludeRecordCountInFileName) {
@@ -309,7 +309,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
     String filePath = getOutputFilePath();
     String filePathWithRecordCount = IngestionRecordCountProvider.constructFilePath(filePath, recordsWritten());
     LOG.info("Renaming " + filePath + " to " + filePathWithRecordCount);
-    HadoopUtils.renamePath(this.fileContext, new Path(filePath), new Path(filePathWithRecordCount), true);
+    HadoopUtils.renamePath(this.fs, new Path(filePath), new Path(filePathWithRecordCount), true);
     this.outputFile = new Path(filePathWithRecordCount);
     return filePathWithRecordCount;
   }

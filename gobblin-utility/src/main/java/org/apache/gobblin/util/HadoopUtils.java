@@ -43,6 +43,7 @@ import org.apache.hadoop.fs.FileAlreadyExistsException;
 import org.apache.hadoop.fs.FileContext;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.FileSystemAdapter;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Options;
@@ -266,20 +267,8 @@ public class HadoopUtils {
    * {@link FileSystem#rename(Path, Path)} returns False.
    */
   public static void renamePath(FileSystem fs, Path oldName, Path newName, boolean overwrite) throws IOException {
-    if (!fs.exists(oldName)) {
-      throw new FileNotFoundException(String.format("Failed to rename %s to %s: src not found", oldName, newName));
-    }
-    if (fs.exists(newName)) {
-      if (overwrite) {
-        HadoopUtils.moveToTrash(fs, newName);
-      } else {
-        throw new FileAlreadyExistsException(
-            String.format("Failed to rename %s to %s: dst already exists", oldName, newName));
-      }
-    }
-    if (!fs.rename(oldName, newName)) {
-      throw new IOException(String.format("Failed to rename %s to %s", oldName, newName));
-    }
+    Options.Rename renameOptions = (overwrite) ? Options.Rename.OVERWRITE : Options.Rename.NONE;
+    FileSystemAdapter.rename(fs, oldName, newName, renameOptions);
   }
 
   /**
