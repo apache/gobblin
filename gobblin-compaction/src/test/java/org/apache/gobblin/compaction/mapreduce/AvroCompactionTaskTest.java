@@ -56,6 +56,7 @@ import org.apache.gobblin.runtime.embedded.EmbeddedGobblin;
 
 
 @Slf4j
+@Test(groups = {"gobblin.compaction"})
 public class AvroCompactionTaskTest {
 
   protected FileSystem getFileSystem()
