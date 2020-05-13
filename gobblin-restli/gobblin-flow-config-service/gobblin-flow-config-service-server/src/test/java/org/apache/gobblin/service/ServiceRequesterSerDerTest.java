@@ -19,6 +19,7 @@ package org.apache.gobblin.service;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 
@@ -82,5 +83,13 @@ public class ServiceRequesterSerDerTest {
     // Assert.assertEquals(serialize2, serialize);
     List<ServiceRequester> list2 = RequesterService.deserialize(serialize);
     Assert.assertEquals(list2, list);
+  }
+
+  public void testOldSerde() throws IOException {
+    // test for backward compatibility
+    String serialized = "W3sibmFtZSI6ImNocmxpIiwidHlwZSI6IlVTRVJfUFJJTkNJUEFMIiwiZnJvbSI6ImR2X3Rva2VuIiwicHJvcGVydGllcyI6e319XQ%3D%3D";
+    List<ServiceRequester> list = RequesterService.deserialize(serialized);
+    List<ServiceRequester> list2 = Collections.singletonList(new ServiceRequester("chrli", "USER_PRINCIPAL", "dv_token"));
+    Assert.assertEquals(list, list2);
   }
 }
