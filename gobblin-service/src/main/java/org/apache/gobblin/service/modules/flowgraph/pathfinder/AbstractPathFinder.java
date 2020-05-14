@@ -150,15 +150,13 @@ public abstract class AbstractPathFinder implements PathFinder {
       destDatasetDescriptorConfig = destDatasetDescriptorConfig.withFallback(getDefaultConfig(this.destNodes.get(0)));
     }
 
-    Class srcdatasetDescriptorClass =
-        Class.forName(srcDatasetDescriptorConfig.getString(DatasetDescriptorConfigKeys.CLASS_KEY));
-    this.srcDatasetDescriptor = (DatasetDescriptor) GobblinConstructorUtils
-        .invokeLongestConstructor(srcdatasetDescriptorClass, srcDatasetDescriptorConfig);
-    Class destDatasetDescriptorClass =
-        Class.forName(destDatasetDescriptorConfig.getString(DatasetDescriptorConfigKeys.CLASS_KEY));
-    this.destDatasetDescriptor = (DatasetDescriptor) GobblinConstructorUtils
-        .invokeLongestConstructor(destDatasetDescriptorClass, destDatasetDescriptorConfig);
+    this.srcDatasetDescriptor = constructDatasetDescriptor(srcDatasetDescriptorConfig);
+    this.destDatasetDescriptor = constructDatasetDescriptor(destDatasetDescriptorConfig);
+  }
 
+  public static DatasetDescriptor constructDatasetDescriptor(Config config) throws ReflectiveOperationException {
+    Class datasetDescriptorClass = Class.forName(config.getString(DatasetDescriptorConfigKeys.CLASS_KEY));
+    return (DatasetDescriptor) GobblinConstructorUtils.invokeLongestConstructor(datasetDescriptorClass, config);
   }
 
   private Config getDefaultConfig(DataNode dataNode) {
