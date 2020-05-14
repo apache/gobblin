@@ -334,7 +334,7 @@ public class JobLauncherExecutionDriver extends FutureTask<JobExecutionResult> i
    * <p>Conventions
    * <ul>
    *  <li>If no jobLauncherType is specified, one will be determined by the JobSpec
-   *  (see {@link JobLauncherFactory).
+   *  (see {@link JobLauncherFactory}).
    *  <li> Convention for sysConfig: use the sysConfig of the gobblinInstance if specified,
    *       otherwise use empty config.
    *  <li> Convention for log: use gobblinInstance logger plus "." + jobSpec if specified, otherwise
