@@ -52,6 +52,7 @@ import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.fs.RawLocalFileSystem;
 import org.apache.hadoop.fs.Trash;
 import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.hdfs.DistributedFileSystem;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.util.ReflectionUtils;
@@ -267,8 +268,26 @@ public class HadoopUtils {
    * {@link FileSystem#rename(Path, Path)} returns False.
    */
   public static void renamePath(FileSystem fs, Path oldName, Path newName, boolean overwrite) throws IOException {
-    Options.Rename renameOptions = (overwrite) ? Options.Rename.OVERWRITE : Options.Rename.NONE;
-    FileSystemAdapter.rename(fs, oldName, newName, renameOptions);
+    //In default implementation of rename with rewrite option in FileSystem, if the parent dir of dst does not exist, it will throw exception,
+    //Which will fail some of our job unintentionally. So we only call that method when fs is an instance of DistributedFileSystem to avoid inconsistency problem
+    if(fs instanceof DistributedFileSystem) {
+      Options.Rename renameOptions = (overwrite) ? Options.Rename.OVERWRITE : Options.Rename.NONE;
+      FileSystemAdapter.rename(fs, oldName, newName, renameOptions);
+    } else {
+      if (!fs.exists(oldName)) {
+        throw new FileNotFoundException(String.format("Failed to rename %s to %s: src not found", oldName, newName));
+      }
+      if (fs.exists(newName)) {
+        if (overwrite) {
+          HadoopUtils.moveToTrash(fs, newName);
+        } else {
+          throw new FileAlreadyExistsException(String.format("Failed to rename %s to %s: dst already exists", oldName, newName));
+        }
+      }
+      if (!fs.rename(oldName, newName)) {
+        throw new IOException(String.format("Failed to rename %s to %s", oldName, newName));
+      }
+    }
   }
 
   /**
