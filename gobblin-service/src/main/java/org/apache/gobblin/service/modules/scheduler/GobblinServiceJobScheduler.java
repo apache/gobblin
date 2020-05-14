@@ -269,6 +269,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     if (addedSpec instanceof FlowSpec) {
       try {
         FlowSpec flowSpec = (FlowSpec) addedSpec;
+        URI flowSpecUri = flowSpec.getUri();
         Properties jobConfig = new Properties();
         Properties flowSpecProperties = ((FlowSpec) addedSpec).getConfigAsProperties();
         jobConfig.putAll(this.properties);
@@ -293,7 +294,9 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
           response = Arrays.toString(flowSpec.getCompilationErrors().toArray());
         }
 
-        if (!isExplain) {
+        boolean compileSuccess = FlowCatalog.isCompileSuccessful(response);
+
+        if (!isExplain && compileSuccess) {
           this.scheduledFlowSpecs.put(addedSpec.getUri().toString(), addedSpec);
 
           if (jobConfig.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
@@ -301,11 +304,17 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
             scheduleJob(jobConfig, null);
             if (PropertiesUtils.getPropAsBoolean(jobConfig, ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false")) {
               _log.info("RunImmediately requested, hence executing FlowSpec: " + addedSpec);
-              this.jobExecutor.execute(new NonScheduledJobRunner(flowSpec.getUri(), false, jobConfig, null));
+              this.jobExecutor.execute(new NonScheduledJobRunner(flowSpecUri, false, jobConfig, null));
             }
           } else {
             _log.info("No FlowSpec schedule found, so running FlowSpec: " + addedSpec);
-            this.jobExecutor.execute(new NonScheduledJobRunner(flowSpec.getUri(), true, jobConfig, null));
+            this.jobExecutor.execute(new NonScheduledJobRunner(flowSpecUri, true, jobConfig, null));
+          }
+        } else {
+          _log.info("Removing the flow spec: {}, isExplain: {}, compileSuccess: {}", addedSpec, isExplain, compileSuccess);
+          if (this.flowCatalog.isPresent()) {
+            _log.debug("Removing flow spec from FlowCatalog: {}", flowSpec);
+            GobblinServiceJobScheduler.this.flowCatalog.get().remove(flowSpecUri, new Properties(), false);
           }
         }
         return new AddSpecResponse<>(response);

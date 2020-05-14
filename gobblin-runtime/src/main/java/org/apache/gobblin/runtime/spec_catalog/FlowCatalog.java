@@ -21,6 +21,8 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigException;
+
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
@@ -33,6 +35,7 @@ import java.util.Map;
 import java.util.Properties;
 import javax.annotation.Nonnull;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
+
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
@@ -293,30 +296,27 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
    */
   public Map<String, AddSpecResponse> put(Spec spec, boolean triggerListener) {
     Map<String, AddSpecResponse> responseMap = new HashMap<>();
+    FlowSpec flowSpec = (FlowSpec) spec;
     Preconditions.checkState(state() == State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
-    Preconditions.checkNotNull(spec);
+    Preconditions.checkNotNull(flowSpec);
 
-    log.info(String.format("Adding FlowSpec with URI: %s and Config: %s", spec.getUri(),
-        ((FlowSpec) spec).getConfigAsProperties()));
+    log.info(String.format("Adding FlowSpec with URI: %s and Config: %s", flowSpec.getUri(), flowSpec.getConfigAsProperties()));
+    try {
+      long startTime = System.currentTimeMillis();
+      specStore.addSpec(flowSpec);
+      metrics.updatePutSpecTime(startTime);
+    } catch (IOException e) {
+      throw new RuntimeException("Cannot add Spec to Spec store: " + flowSpec, e);
+    }
+
     if (triggerListener) {
-      AddSpecResponse<CallbacksDispatcher.CallbackResults<SpecCatalogListener, AddSpecResponse>> response = this.listeners.onAddSpec(spec);
+      AddSpecResponse<CallbacksDispatcher.CallbackResults<SpecCatalogListener, AddSpecResponse>> response = this.listeners.onAddSpec(flowSpec);
       for (Map.Entry<SpecCatalogListener, CallbackResult<AddSpecResponse>> entry: response.getValue().getSuccesses().entrySet()) {
         responseMap.put(entry.getKey().getName(), entry.getValue().getResult());
       }
     }
 
-    boolean compileSuccess = isCompileSuccessful(responseMap);
-
-    if (compileSuccess) {
-      long startTime = System.currentTimeMillis();
-      metrics.updatePutSpecTime(startTime);
-      try {
-        if (!((FlowSpec) spec).isExplain()) {
-          specStore.addSpec(spec);
-        }
-      } catch (IOException e) {
-        throw new RuntimeException("Cannot add Spec to Spec store: " + spec, e);
-      }
+    if (isCompileSuccessful(responseMap)) {
       responseMap.put(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>("true"));
     } else {
       responseMap.put(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>("false"));
@@ -325,12 +325,14 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     return responseMap;
   }
 
-  private boolean isCompileSuccessful(Map<String, AddSpecResponse> responseMap) {
+  public static boolean isCompileSuccessful(Map<String, AddSpecResponse> responseMap) {
     AddSpecResponse<String> addSpecResponse = responseMap.getOrDefault(ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS, new AddSpecResponse<>(""));
 
-    return addSpecResponse != null
-        && addSpecResponse.getValue() != null
-        && !addSpecResponse.getValue().contains("ConfigException");
+    return isCompileSuccessful(addSpecResponse.getValue());
+  }
+
+  public static boolean isCompileSuccessful(String dag) {
+    return dag != null && !dag.contains(ConfigException.class.getSimpleName());
   }
 
   @Override
