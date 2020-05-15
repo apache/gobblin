@@ -44,7 +44,7 @@ env:
   - RUN_TEST_GROUP=coverage
 
 jdk:
-  - openjdk8
+  - openjdk9
 
 matrix:
   exclude:
