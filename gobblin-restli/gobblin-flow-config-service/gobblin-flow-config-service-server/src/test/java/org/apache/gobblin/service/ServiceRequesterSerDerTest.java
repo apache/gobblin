@@ -19,6 +19,7 @@ package org.apache.gobblin.service;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 
@@ -38,8 +39,7 @@ public class ServiceRequesterSerDerTest {
   public void testSerDerWithEmptyRequester() throws IOException {
     List<ServiceRequester> list = new ArrayList<>();
 
-    RequesterService rs = new NoopRequesterService(ConfigBuilder.create().build());
-    String serialize = rs.serialize(list);
+    String serialize = RequesterService.serialize(list);
     Properties props = new Properties();
 
     props.put(RequesterService.REQUESTER_LIST, serialize);
@@ -50,9 +50,10 @@ public class ServiceRequesterSerDerTest {
     Properties props2 = ConfigUtils.configToProperties(config);
     String serialize2 = props2.getProperty(RequesterService.REQUESTER_LIST);
 
-    Assert.assertTrue(serialize.equals(serialize2));
-    List<ServiceRequester> list2 = rs.deserialize(serialize);
-    Assert.assertTrue(list.equals(list2));
+    // This may not hold true unless we use/write a json comparator
+    // Assert.assertEquals(serialize2, serialize);
+    List<ServiceRequester> list2 = RequesterService.deserialize(serialize);
+    Assert.assertEquals(list2, list);
   }
 
   public void testSerDerWithConfig() throws IOException {
@@ -66,20 +67,29 @@ public class ServiceRequesterSerDerTest {
     list.add(sr2);
     list.add(sr3);
 
-    RequesterService rs = new NoopRequesterService(ConfigBuilder.create().build());
-    String serialize = rs.serialize(list);
+    String serialize = RequesterService.serialize(list);
     Properties props = new Properties();
 
     props.put(RequesterService.REQUESTER_LIST, serialize);
 
+    // config creation must happen this way because in FlowConfigResourceLocalHandler we read the flowconfig like this
     Config initConfig = ConfigBuilder.create().build();
     Config config = initConfig.withFallback(ConfigFactory.parseString(props.toString()).resolve());
 
     Properties props2 = ConfigUtils.configToProperties(config);
     String serialize2 = props2.getProperty(RequesterService.REQUESTER_LIST);
 
-    Assert.assertTrue(serialize.equals(serialize2));
-    List<ServiceRequester> list2 = rs.deserialize(serialize);
-    Assert.assertTrue(list.equals(list2));
+    // This may not hold true unless we use/write a json comparator
+    // Assert.assertEquals(serialize2, serialize);
+    List<ServiceRequester> list2 = RequesterService.deserialize(serialize);
+    Assert.assertEquals(list2, list);
+  }
+
+  public void testOldSerde() throws IOException {
+    // test for backward compatibility
+    String serialized = "W3sibmFtZSI6ImNocmxpIiwidHlwZSI6IlVTRVJfUFJJTkNJUEFMIiwiZnJvbSI6ImR2X3Rva2VuIiwicHJvcGVydGllcyI6e319XQ%3D%3D";
+    List<ServiceRequester> list = RequesterService.deserialize(serialized);
+    List<ServiceRequester> list2 = Collections.singletonList(new ServiceRequester("chrli", "USER_PRINCIPAL", "dv_token"));
+    Assert.assertEquals(list, list2);
   }
 }

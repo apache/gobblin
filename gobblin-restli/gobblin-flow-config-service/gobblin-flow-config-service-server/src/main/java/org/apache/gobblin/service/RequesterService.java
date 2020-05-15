@@ -19,16 +19,16 @@ package org.apache.gobblin.service;
 
 import java.io.IOException;
 import java.net.URLDecoder;
-import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 import java.util.Base64;
-import java.util.Set;
+import java.util.List;
 
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.type.TypeReference;
 
-import com.google.common.collect.ImmutableSet;
+import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
+import com.google.gson.reflect.TypeToken;
 import com.linkedin.restli.server.resources.BaseResource;
 import com.typesafe.config.Config;
 
@@ -45,18 +45,17 @@ public abstract class RequesterService {
 
   public static final String REQUESTER_LIST = "gobblin.service.requester.list";
 
-  private static final ObjectMapper objectMapper = new ObjectMapper();
+  private static final Gson gson = new Gson();
 
   /**
    * <p> This implementation converts a given list to a json string.
-   * Due to json string may have reserved keyword that can confuse
-   * {@link Config}, we first use Base64 to encode the json string,
-   * then use URL encoding to remove characters like '+,/,='.
    */
   public static String serialize(List<ServiceRequester> requesterList) throws IOException {
-    String jsonList = objectMapper.writeValueAsString(requesterList);
-    String base64Str = Base64.getEncoder().encodeToString(jsonList.getBytes(StandardCharsets.UTF_8));
-    return URLEncoder.encode(base64Str, StandardCharsets.UTF_8.name());
+    try {
+      return gson.toJson(requesterList);
+    } catch (RuntimeException e) {
+      throw new IOException(e);
+    }
   }
 
   /**
@@ -64,11 +63,18 @@ public abstract class RequesterService {
    * {@link #serialize(List)}.
    */
   public static List<ServiceRequester> deserialize(String encodedString) throws IOException {
-    String base64Str = URLDecoder.decode(encodedString, StandardCharsets.UTF_8.name());
-    byte[] decodedBytes = Base64.getDecoder().decode(base64Str);
-    String jsonList = new String(decodedBytes, StandardCharsets.UTF_8);
-    TypeReference<List<ServiceRequester>> mapType = new TypeReference<List<ServiceRequester>>() {};
-    return objectMapper.readValue(jsonList, mapType);
+    try {
+      return gson.fromJson(encodedString, new TypeToken<List<ServiceRequester>>() {}.getType());
+    } catch (JsonSyntaxException e) {
+      // For backward compatibility
+      String base64Str = URLDecoder.decode(encodedString, StandardCharsets.UTF_8.name());
+      byte[] decodedBytes = Base64.getDecoder().decode(base64Str);
+      String jsonList = new String(decodedBytes, StandardCharsets.UTF_8);
+      TypeReference<List<ServiceRequester>> mapType = new TypeReference<List<ServiceRequester>>() {};
+      return new ObjectMapper().readValue(jsonList, mapType);
+    } catch (RuntimeException e) {
+      throw new IOException(e);
+    }
   }
 
   protected abstract List<ServiceRequester> findRequesters(BaseResource resource);

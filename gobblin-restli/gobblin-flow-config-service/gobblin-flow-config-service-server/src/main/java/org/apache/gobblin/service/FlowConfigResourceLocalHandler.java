@@ -138,9 +138,9 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
     }
 
     FlowSpec flowSpec = createFlowSpecForConfig(flowConfig);
-    // Existence of a flow spec in the flow catalog implies that the flow is currently running.	    // Return conflict and take no action if flowSpec has already been created
-    // If the new flow spec has a schedule we should allow submission of the new flow to accept the new schedule.	    if (this.flowCatalog.exists(flowSpec.getUri())) {
-    // However, if the new flow spec does not have a schedule, we should allow submission only if it is not running.	      log.warn("Flowspec with URI {} already exists, no action will be taken");
+    // Existence of a flow spec in the flow catalog implies that the flow is currently running.
+    // If the new flow spec has a schedule we should allow submission of the new flow to accept the new schedule.
+    // However, if the new flow spec does not have a schedule, we should allow submission only if it is not running.
     if (!flowConfig.hasSchedule() && this.flowCatalog.exists(flowSpec.getUri())) {
       return new CreateResponse(new ComplexResourceKey<>(flowConfig.getId(), new EmptyRecord()), HttpStatus.S_409_CONFLICT);
     } else {
