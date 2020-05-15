@@ -43,7 +43,6 @@ import org.apache.hadoop.fs.FileAlreadyExistsException;
 import org.apache.hadoop.fs.FileContext;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.FileSystemAdapter;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Options;
@@ -272,7 +271,7 @@ public class HadoopUtils {
     //Which will fail some of our job unintentionally. So we only call that method when fs is an instance of DistributedFileSystem to avoid inconsistency problem
     if(fs instanceof DistributedFileSystem) {
       Options.Rename renameOptions = (overwrite) ? Options.Rename.OVERWRITE : Options.Rename.NONE;
-      FileSystemAdapter.rename(fs, oldName, newName, renameOptions);
+      ((DistributedFileSystem) fs).rename(oldName, newName, renameOptions);
     } else {
       if (!fs.exists(oldName)) {
         throw new FileNotFoundException(String.format("Failed to rename %s to %s: src not found", oldName, newName));
