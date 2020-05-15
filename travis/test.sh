@@ -30,10 +30,6 @@ RUN_TEST_GROUP=${RUN_TEST_GROUP:-default}
 script_dir=$(dirname $0)
 echo "Old GRADLE_OPTS=$GRADLE_OPTS"
 
-echo "arjun"
-
-echo $(java -version 2>&1)
-
 export java_version=$(java -version 2>&1 | grep 'openjdk version' | sed -e 's/openjdk version "\(1\..\).*/\1/')
 
 echo "Using Java version:${java_version}"
