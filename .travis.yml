@@ -1,6 +1,6 @@
 language: java
 
-dist: xenial
+dist: focal
 sudo: required
 
 addons:
