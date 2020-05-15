@@ -41,7 +41,7 @@ if (!project.hasProperty('version') || project.version == 'unspecified') {
 }
 
 if (!project.hasProperty('pegasusVersion')) {
-  project.ext.pegasusVersion = '6.0.12'
+  project.ext.pegasusVersion = '27.7.18'
 }
 
 if (project.hasProperty('jdkVersion')) {
