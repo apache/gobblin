@@ -98,11 +98,8 @@ public class MysqlSpecStoreTest {
     Assert.assertFalse(this.specStore.exists(URI.create("dummy")));
   }
 
-  @Test (dependsOnMethods = "testReadOldColumn")
+  @Test (dependsOnMethods = "testAddSpec")
   public void testGetSpec() throws Exception {
-    this.specStore.addSpec(this.flowSpec1);
-    this.specStore.addSpec(this.flowSpec2);
-
     FlowSpec result = (FlowSpec) this.specStore.getSpec(this.uri1);
     Assert.assertEquals(result, this.flowSpec1);
 
@@ -150,14 +147,11 @@ public class MysqlSpecStoreTest {
 
   @Test (dependsOnMethods = "testGetSpec")
   public void testDeleteSpec() throws Exception {
-    this.specStore.addSpec(this.flowSpec1);
-    Assert.assertTrue(this.specStore.exists(this.uri1));
-
     this.specStore.deleteSpec(this.uri1);
     Assert.assertFalse(this.specStore.exists(this.uri1));
   }
 
-  @Test (dependsOnMethods = "testAddSpec")
+  @Test (dependsOnMethods = "testDeleteSpec")
   public void testReadOldColumn() throws Exception {
     this.oldSpecStore.addSpec(this.flowSpec1);
 
