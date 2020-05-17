@@ -74,8 +74,8 @@ public class MysqlSpecStoreMigrationTest {
         .addPrimitive(ConfigurationKeys.STATE_STORE_DB_USER_KEY, USER)
         .addPrimitive(ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY, PASSWORD)
         .addPrimitive(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY, TABLE)
-        .addPrimitive(MysqlSpecStore.READ_FROM_OLD_TABLE_KEY, false)
-        .addPrimitive(MysqlSpecStore.WRITE_TO_OLD_TABLE_KEY, false)
+        .addPrimitive(MysqlSpecStore.READ_FROM_OLD_COLUMN, false)
+        .addPrimitive(MysqlSpecStore.WRITE_TO_OLD_COLUMN, false)
         .build();
 
     this.specStore = new MysqlSpecStore(config, new GsonFlowSpecSerDe());

@@ -62,32 +62,34 @@ import org.apache.gobblin.util.ConfigUtils;
 public class MysqlSpecStore implements SpecStore {
   public static final String CONFIG_PREFIX = "mysqlSpecStore";
   public static final String DEFAULT_TAG_VALUE = "";
+  private static final String NEW_COLUMN = "spec_json";
 
   private static final String CREATE_TABLE_STATEMENT =
-      "CREATE TABLE IF NOT EXISTS %s (spec_uri VARCHAR(128) NOT NULL, tag VARCHAR(128) NOT NULL, spec LONGBLOB, PRIMARY KEY (spec_uri))";
-  private static final String CREATE_TABLE_STATEMENT_V2 =
       "CREATE TABLE IF NOT EXISTS %s (spec_uri VARCHAR(128) NOT NULL, flow_group VARCHAR(128), flow_name VARCHAR(128), "
-          + "template_uri VARCHAR(128), user_to_proxy VARCHAR(128), source_identifier VARCHAR(128), destination_identifier VARCHAR(128), "
-          + "schedule VARCHAR(128), tag VARCHAR(128) NOT NULL, modified_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, "
-          + "spec JSON, PRIMARY KEY (spec_uri))";
+          + "template_uri VARCHAR(128), user_to_proxy VARCHAR(128), source_identifier VARCHAR(128), "
+          + "destination_identifier VARCHAR(128), schedule VARCHAR(128), tag VARCHAR(128) NOT NULL, "
+          + "modified_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, "
+          + "isRunImmediately BOOLEAN, timezone VARCHAR(128), owning_group VARCHAR(128), "
+          + "spec LONGBLOB, " + NEW_COLUMN + " JSON, PRIMARY KEY (spec_uri))";
   private static final String EXISTS_STATEMENT = "SELECT EXISTS(SELECT * FROM %s WHERE spec_uri = ?)";
-  private static final String INSERT_STATEMENT = "INSERT INTO %s (spec_uri, tag, spec) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE spec = VALUES(spec)";
+  private static final String INSERT_STATEMENT = "INSERT INTO %s (spec_uri, tag, spec, " + NEW_COLUMN + ") "
+      + "VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE spec = VALUES(spec), " + NEW_COLUMN + " = VALUES(" + NEW_COLUMN + ")";
   private static final String DELETE_STATEMENT = "DELETE FROM %s WHERE spec_uri = ?";
-  private static final String GET_STATEMENT = "SELECT spec FROM %s WHERE spec_uri = ?";
-  private static final String GET_ALL_STATEMENT = "SELECT spec_uri, spec FROM %s";
-  private static final String GET_ALL_STATEMENT_WITH_TAG = "SELECT spec_uri, spec FROM %s WHERE tag = ?";
-  static final String WRITE_TO_OLD_TABLE_KEY = "write.to.old.table";
-  static final String READ_FROM_OLD_TABLE_KEY = "read.from.old.table";
+  private static final String GET_STATEMENT = "SELECT %s FROM %s WHERE spec_uri = ?";
+  private static final String GET_ALL_STATEMENT = "SELECT spec_uri, %s FROM %s";
+  private static final String GET_ALL_URIS_STATEMENT = "SELECT spec_uri FROM %s";
+  private static final String GET_ALL_STATEMENT_WITH_TAG = "SELECT spec_uri FROM %s WHERE tag = ?";
+  static final String WRITE_TO_OLD_COLUMN = "write.to.old.column";
+  static final String READ_FROM_OLD_COLUMN = "read.from.old.column";
 
   private final DataSource dataSource;
   private final String tableName;
-  private final String tableNameV2;
   private final URI specStoreURI;
   private final SpecSerDe specSerDe;
 
   // temporary configs for migration
-  private final boolean writeToOldTable;
-  private final boolean readFromOldTable;
+  private final boolean writeToOldColumn;
+  private final boolean readFromOldColumn;
 
   public MysqlSpecStore(Config config, SpecSerDe specSerDe) throws IOException {
     if (config.hasPath(CONFIG_PREFIX)) {
@@ -96,18 +98,15 @@ public class MysqlSpecStore implements SpecStore {
 
     this.dataSource = MysqlDataSourceFactory.get(config, SharedResourcesBrokerFactory.getImplicitBroker());
     this.tableName = config.getString(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY);
-    this.tableNameV2 = this.tableName + "_V2";
     this.specStoreURI = URI.create(config.getString(ConfigurationKeys.STATE_STORE_DB_URL_KEY));
     this.specSerDe = specSerDe;
 
-    this.writeToOldTable = ConfigUtils.getBoolean(config, "write.to.old.table", true);
-    this.readFromOldTable = ConfigUtils.getBoolean(config, "read.from.old.table", true);
+    this.writeToOldColumn = ConfigUtils.getBoolean(config, WRITE_TO_OLD_COLUMN, true);
+    this.readFromOldColumn = ConfigUtils.getBoolean(config, READ_FROM_OLD_COLUMN, true);
 
     try (Connection connection = this.dataSource.getConnection();
-        PreparedStatement statement = connection.prepareStatement(String.format(CREATE_TABLE_STATEMENT, this.tableName));
-        PreparedStatement statementV2 = connection.prepareStatement(String.format(CREATE_TABLE_STATEMENT_V2, this.tableNameV2))) {
+        PreparedStatement statement = connection.prepareStatement(String.format(CREATE_TABLE_STATEMENT, this.tableName))) {
       statement.executeUpdate();
-      statementV2.executeUpdate();
     } catch (SQLException e) {
       throw new IOException(e);
     }
@@ -116,8 +115,7 @@ public class MysqlSpecStore implements SpecStore {
   @Override
   public boolean exists(URI specUri) throws IOException {
     try (Connection connection = this.dataSource.getConnection();
-        PreparedStatement statement = connection.prepareStatement(
-            String.format(EXISTS_STATEMENT, this.readFromOldTable ? this.tableName : this.tableNameV2))) {
+        PreparedStatement statement = connection.prepareStatement(String.format(EXISTS_STATEMENT, this.tableName))) {
       statement.setString(1, specUri.toString());
       try (ResultSet rs = statement.executeQuery()) {
         rs.next();
@@ -137,26 +135,13 @@ public class MysqlSpecStore implements SpecStore {
    * Temporarily only used for testing since tag it not exposed in endpoint of {@link org.apache.gobblin.runtime.api.FlowSpec}
    */
   public void addSpec(Spec spec, String tagValue) throws IOException {
-    if (this.writeToOldTable) {
-      try (Connection connection = this.dataSource.getConnection();
-          PreparedStatement statement = connection.prepareStatement(String.format(INSERT_STATEMENT, this.tableName))) {
-
-        statement.setString(1, spec.getUri().toString());
-        statement.setString(2, tagValue);
-        statement.setBlob(3, new ByteArrayInputStream(this.specSerDe.serialize(spec)));
-        statement.executeUpdate();
-
-        connection.commit();
-      } catch (SQLException | SpecSerDeException e) {
-        throw new IOException(e);
-      }
-    }
-
     try (Connection connection = this.dataSource.getConnection();
-        PreparedStatement statement = connection.prepareStatement(String.format(INSERT_STATEMENT, this.tableNameV2))) {
+        PreparedStatement statement = connection.prepareStatement(String.format(INSERT_STATEMENT, this.tableName))) {
       statement.setString(1, spec.getUri().toString());
       statement.setString(2, tagValue);
-      statement.setString(3, new String(this.specSerDe.serialize(spec), Charsets.UTF_8));
+      statement.setBlob(3,
+          this.writeToOldColumn ? new ByteArrayInputStream(this.specSerDe.serialize(spec)) : null);
+      statement.setString(4, new String(this.specSerDe.serialize(spec), Charsets.UTF_8));
       statement.executeUpdate();
       connection.commit();
     } catch (SQLException | SpecSerDeException e) {
@@ -172,22 +157,11 @@ public class MysqlSpecStore implements SpecStore {
   @Override
   public boolean deleteSpec(URI specUri) throws IOException {
     try (Connection connection = this.dataSource.getConnection();
-        PreparedStatement statement = connection.prepareStatement(String.format(DELETE_STATEMENT, this.tableName));
-        PreparedStatement statementV2 = connection.prepareStatement(String.format(DELETE_STATEMENT, this.tableNameV2))) {
-
+        PreparedStatement statement = connection.prepareStatement(String.format(DELETE_STATEMENT, this.tableName))) {
       statement.setString(1, specUri.toString());
-      statementV2.setString(1, specUri.toString());
-
-      int resultV2 = statementV2.executeUpdate();
-      if (this.writeToOldTable) {
-        int result = statement.executeUpdate();
-        if (resultV2 != result) {
-          log.error("Delete from the old table deleted {} rows, while that from the new table deleted {} rows.", result, resultV2);
-        }
-      }
-
+      int result = statement.executeUpdate();
       connection.commit();
-      return resultV2 != 0;
+      return result != 0;
     } catch (SQLException e) {
       throw new IOException(e);
     }
@@ -209,16 +183,14 @@ public class MysqlSpecStore implements SpecStore {
   public Spec getSpec(URI specUri) throws IOException, SpecNotFoundException {
     try (Connection connection = this.dataSource.getConnection();
         PreparedStatement statement = connection.prepareStatement(
-            String.format(GET_STATEMENT, this.readFromOldTable ? this.tableName : this.tableNameV2))) {
-
+            String.format(GET_STATEMENT, this.readFromOldColumn ? "spec" : NEW_COLUMN, this.tableName))) {
       statement.setString(1, specUri.toString());
 
       try (ResultSet rs = statement.executeQuery()) {
         if (!rs.next()) {
           throw new SpecNotFoundException(specUri);
         }
-
-        return this.readFromOldTable
+        return this.readFromOldColumn
             ? this.specSerDe.deserialize(ByteStreams.toByteArray(rs.getBlob(1).getBinaryStream()))
             : this.specSerDe.deserialize(rs.getString(1).getBytes(Charsets.UTF_8));
       }
@@ -241,15 +213,14 @@ public class MysqlSpecStore implements SpecStore {
   public Collection<Spec> getSpecs() throws IOException {
     try (Connection connection = this.dataSource.getConnection();
         PreparedStatement statement = connection.prepareStatement(
-            String.format(GET_ALL_STATEMENT, this.readFromOldTable ? this.tableName : this.tableNameV2))) {
-
+            String.format(GET_ALL_STATEMENT, this.readFromOldColumn ? "spec" : NEW_COLUMN, this.tableName))) {
       List<Spec> specs = new ArrayList<>();
 
       try (ResultSet rs = statement.executeQuery()) {
         while (rs.next()) {
           try {
             specs.add(
-                this.readFromOldTable
+                this.readFromOldColumn
                     ? this.specSerDe.deserialize(rs.getString(2).getBytes(Charsets.UTF_8))
                     : this.specSerDe.deserialize(ByteStreams.toByteArray(rs.getBlob(2).getBinaryStream()))
             );
@@ -268,8 +239,7 @@ public class MysqlSpecStore implements SpecStore {
   @Override
   public Iterator<URI> getSpecURIs() throws IOException {
     try (Connection connection = this.dataSource.getConnection();
-        PreparedStatement statement = connection.prepareStatement(
-            String.format(GET_ALL_STATEMENT, this.readFromOldTable ? this.tableName : this.tableNameV2))) {
+        PreparedStatement statement = connection.prepareStatement(String.format(GET_ALL_URIS_STATEMENT, this.tableName))) {
       return getURIIteratorByQuery(statement);
     } catch (SQLException e) {
       throw new IOException(e);
@@ -279,8 +249,7 @@ public class MysqlSpecStore implements SpecStore {
   @Override
   public Iterator<URI> getSpecURIsWithTag(String tag) throws IOException {
     try (Connection connection = this.dataSource.getConnection();
-        PreparedStatement statement = connection.prepareStatement(
-            String.format(GET_ALL_STATEMENT_WITH_TAG, this.readFromOldTable ? this.tableName : this.tableNameV2))) {
+        PreparedStatement statement = connection.prepareStatement(String.format(GET_ALL_STATEMENT_WITH_TAG, this.tableName))) {
       statement.setString(1, tag);
       return getURIIteratorByQuery(statement);
     } catch (SQLException e) {
