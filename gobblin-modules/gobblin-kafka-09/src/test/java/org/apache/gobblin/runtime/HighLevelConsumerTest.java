@@ -37,7 +37,6 @@ import com.typesafe.config.ConfigFactory;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.kafka.KafkaTestBase;
 import org.apache.gobblin.kafka.client.AbstractBaseKafkaConsumerClient;
-import org.apache.gobblin.kafka.client.GobblinKafkaConsumerClient;
 import org.apache.gobblin.kafka.client.Kafka09ConsumerClient;
 import org.apache.gobblin.kafka.writer.Kafka09DataWriter;
 import org.apache.gobblin.kafka.writer.KafkaWriterConfigurationKeys;
@@ -61,7 +60,6 @@ public class HighLevelConsumerTest extends KafkaTestBase {
 
   private Closer _closer;
   private String _kafkaBrokers;
-  private AsyncDataWriter dataWriter;
 
   public HighLevelConsumerTest()
       throws InterruptedException, RuntimeException {
@@ -79,9 +77,9 @@ public class HighLevelConsumerTest extends KafkaTestBase {
     producerProps.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + KafkaWriterConfigurationKeys.VALUE_SERIALIZER_CONFIG, "org.apache.kafka.common.serialization.ByteArraySerializer");
     producerProps.setProperty(KafkaWriterConfigurationKeys.CLUSTER_ZOOKEEPER, this.getZkConnectString());
     producerProps.setProperty(KafkaWriterConfigurationKeys.PARTITION_COUNT, String.valueOf(NUM_PARTITIONS));
-    dataWriter = _closer.register(new Kafka09DataWriter(producerProps));
+    AsyncDataWriter<byte[]> dataWriter = _closer.register(new Kafka09DataWriter<byte[], byte[]>(producerProps));
 
-    List<byte[]> records = createByteArrayMessages(NUM_MSGS);
+    List<byte[]> records = createByteArrayMessages();
     WriteCallback mock = Mockito.mock(WriteCallback.class);
     for(byte[] record : records) {
       dataWriter.write(record, mock);
@@ -135,13 +133,8 @@ public class HighLevelConsumerTest extends KafkaTestBase {
         NUM_PARTITIONS);
     consumer.startAsync().awaitRunning();
 
-    consumer.awaitExactlyNMessages(NUM_MSGS, 5000);
-    try {
-      Thread.sleep(2000);
-    } catch (InterruptedException e) {
-    }
+    consumer.awaitExactlyNMessages(NUM_MSGS, 10000);
 
-    GobblinKafkaConsumerClient client  = consumer.getGobblinKafkaConsumerClient();
     for(int i=0; i< NUM_PARTITIONS; i++) {
       KafkaPartition partition = new KafkaPartition.Builder().withTopicName(TOPIC).withId(i).build();
       Assert.assertTrue(consumer.getCommittedOffsets().containsKey(partition));
@@ -149,10 +142,10 @@ public class HighLevelConsumerTest extends KafkaTestBase {
     consumer.shutDown();
   }
 
-  private List<byte[]> createByteArrayMessages(int numMsgs) {
+  private List<byte[]> createByteArrayMessages() {
     List<byte[]> records = Lists.newArrayList();
 
-    for(int i=0; i<numMsgs; i++) {
+    for(int i=0; i<NUM_MSGS; i++) {
       byte[] msg = ("msg_" + i).getBytes();
       records.add(msg);
     }
