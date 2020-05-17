@@ -29,10 +29,14 @@ import org.testng.annotations.Test;
 
 import com.google.api.client.util.Lists;
 import com.google.common.base.Optional;
+import com.google.common.base.Predicate;
 import com.google.common.io.Closer;
 import com.google.common.io.Files;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+
+import javax.annotation.Nullable;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.kafka.KafkaTestBase;
@@ -43,12 +47,14 @@ import org.apache.gobblin.kafka.writer.KafkaWriterConfigurationKeys;
 import org.apache.gobblin.runtime.kafka.HighLevelConsumer;
 import org.apache.gobblin.runtime.kafka.MockedHighLevelConsumer;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaPartition;
+import org.apache.gobblin.testing.AssertWithBackoff;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.writer.AsyncDataWriter;
 import org.apache.gobblin.writer.WriteCallback;
 
 
 @Test
+@Slf4j
 public class HighLevelConsumerTest extends KafkaTestBase {
 
   private static final String BOOTSTRAP_SERVERS_KEY = "bootstrap.servers";
@@ -137,7 +143,8 @@ public class HighLevelConsumerTest extends KafkaTestBase {
 
     for(int i=0; i< NUM_PARTITIONS; i++) {
       KafkaPartition partition = new KafkaPartition.Builder().withTopicName(TOPIC).withId(i).build();
-      Assert.assertTrue(consumer.getCommittedOffsets().containsKey(partition));
+      AssertWithBackoff.assertTrue(input -> consumer.getCommittedOffsets().containsKey(partition),
+          5000, "waiting for committing offsets", log, 2, 1000);
     }
     consumer.shutDown();
   }
