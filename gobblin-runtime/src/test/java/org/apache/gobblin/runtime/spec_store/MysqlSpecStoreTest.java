@@ -17,8 +17,12 @@
 
 package org.apache.gobblin.runtime.spec_store;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.URI;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
@@ -38,6 +42,7 @@ import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.Spec;
+import org.apache.gobblin.runtime.api.SpecSerDe;
 import org.apache.gobblin.runtime.api.SpecSerDeException;
 import org.apache.gobblin.runtime.spec_serde.GsonFlowSpecSerDe;
 
@@ -48,6 +53,7 @@ public class MysqlSpecStoreTest {
   private static final String TABLE = "spec_store";
 
   private MysqlSpecStore specStore;
+  private MysqlSpecStore oldSpecStore;
   private URI uri1 = URI.create("flowspec1");
   private URI uri2 = URI.create("flowspec2");
   private URI uri3 = URI.create("flowspec3");
@@ -79,6 +85,7 @@ public class MysqlSpecStoreTest {
         .build();
 
     this.specStore = new MysqlSpecStore(config, new TestSpecSerDe());
+    this.oldSpecStore = new OldSpecStore(config, new TestSpecSerDe());
   }
 
   @Test
@@ -91,7 +98,7 @@ public class MysqlSpecStoreTest {
     Assert.assertFalse(this.specStore.exists(URI.create("dummy")));
   }
 
-  @Test
+  @Test (dependsOnMethods = "testReadOldColumn")
   public void testGetSpec() throws Exception {
     this.specStore.addSpec(this.flowSpec1);
     this.specStore.addSpec(this.flowSpec2);
@@ -141,13 +148,47 @@ public class MysqlSpecStoreTest {
     this.specStore.addSpec(this.flowSpec3);
   }
 
-  @Test
+  @Test (dependsOnMethods = "testGetSpec")
   public void testDeleteSpec() throws Exception {
     this.specStore.addSpec(this.flowSpec1);
     Assert.assertTrue(this.specStore.exists(this.uri1));
 
     this.specStore.deleteSpec(this.uri1);
     Assert.assertFalse(this.specStore.exists(this.uri1));
+  }
+
+  @Test (dependsOnMethods = "testAddSpec")
+  public void testReadOldColumn() throws Exception {
+    this.oldSpecStore.addSpec(this.flowSpec1);
+
+    FlowSpec spec = (FlowSpec) this.specStore.getSpec(this.uri1);
+    Assert.assertEquals(spec, this.flowSpec1);
+  }
+
+  /**
+   * A {@link MysqlSpecStore} which does not write into the new spec_json column
+   * to simulate behavior of a table with old data.
+   */
+  public static class OldSpecStore extends MysqlSpecStore {
+
+    public OldSpecStore(Config config, SpecSerDe specSerDe) throws IOException {
+      super(config, specSerDe);
+    }
+
+    @Override
+    public void addSpec(Spec spec, String tagValue) throws IOException {
+      try (Connection connection = this.dataSource.getConnection();
+          PreparedStatement statement = connection.prepareStatement(String.format(INSERT_STATEMENT, this.tableName))) {
+        statement.setString(1, spec.getUri().toString());
+        statement.setString(2, tagValue);
+        statement.setBlob(3, new ByteArrayInputStream(this.specSerDe.serialize(spec)));
+        statement.setString(4, null);
+        statement.executeUpdate();
+        connection.commit();
+      } catch (SQLException | SpecSerDeException e) {
+        throw new IOException(e);
+      }
+    }
   }
 
   public class TestSpecSerDe extends GsonFlowSpecSerDe {
