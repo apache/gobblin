@@ -44,9 +44,9 @@ import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.job_spec.JobSpecResolver;
 import org.apache.gobblin.runtime.job_spec.ResolvedJobSpec;
 import org.apache.gobblin.service.modules.dataset.DatasetDescriptor;
+import org.apache.gobblin.service.modules.dataset.DatasetDescriptorUtils;
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
 import org.apache.gobblin.service.modules.template_catalog.FlowCatalogWithTemplates;
-import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**
@@ -122,11 +122,11 @@ public class StaticFlowTemplate implements FlowTemplate {
     while (config.hasPath(inputPrefix)) {
       try {
         Config inputDescriptorConfig = config.getConfig(inputPrefix);
-        DatasetDescriptor inputDescriptor = getDatasetDescriptor(inputDescriptorConfig);
+        DatasetDescriptor inputDescriptor = DatasetDescriptorUtils.constructDatasetDescriptor(inputDescriptorConfig);
         String outputPrefix = Joiner.on(".")
             .join(DatasetDescriptorConfigKeys.FLOW_EDGE_OUTPUT_DATASET_DESCRIPTOR_PREFIX, Integer.toString(i));
         Config outputDescriptorConfig = config.getConfig(outputPrefix);
-        DatasetDescriptor outputDescriptor = getDatasetDescriptor(outputDescriptorConfig);
+        DatasetDescriptor outputDescriptor = DatasetDescriptorUtils.constructDatasetDescriptor(outputDescriptorConfig);
 
         if (resolvable) {
           try {
@@ -144,12 +144,6 @@ public class StaticFlowTemplate implements FlowTemplate {
       inputPrefix = Joiner.on(".").join(DatasetDescriptorConfigKeys.FLOW_EDGE_INPUT_DATASET_DESCRIPTOR_PREFIX, Integer.toString(++i));
     }
     return result;
-  }
-
-  private DatasetDescriptor getDatasetDescriptor(Config descriptorConfig)
-      throws ReflectiveOperationException {
-    Class datasetDescriptorClass = Class.forName(descriptorConfig.getString(DatasetDescriptorConfigKeys.CLASS_KEY));
-    return (DatasetDescriptor) GobblinConstructorUtils.invokeLongestConstructor(datasetDescriptorClass, descriptorConfig);
   }
 
   @Override

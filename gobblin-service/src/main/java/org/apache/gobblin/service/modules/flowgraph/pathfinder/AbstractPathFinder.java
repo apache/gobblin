@@ -41,6 +41,7 @@ import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.dataset.DatasetDescriptor;
+import org.apache.gobblin.service.modules.dataset.DatasetDescriptorUtils;
 import org.apache.gobblin.service.modules.flow.FlowEdgeContext;
 import org.apache.gobblin.service.modules.flow.FlowGraphPath;
 import org.apache.gobblin.service.modules.flow.FlowUtils;
@@ -150,13 +151,8 @@ public abstract class AbstractPathFinder implements PathFinder {
       destDatasetDescriptorConfig = destDatasetDescriptorConfig.withFallback(getDefaultConfig(this.destNodes.get(0)));
     }
 
-    this.srcDatasetDescriptor = constructDatasetDescriptor(srcDatasetDescriptorConfig);
-    this.destDatasetDescriptor = constructDatasetDescriptor(destDatasetDescriptorConfig);
-  }
-
-  public static DatasetDescriptor constructDatasetDescriptor(Config config) throws ReflectiveOperationException {
-    Class datasetDescriptorClass = Class.forName(config.getString(DatasetDescriptorConfigKeys.CLASS_KEY));
-    return (DatasetDescriptor) GobblinConstructorUtils.invokeLongestConstructor(datasetDescriptorClass, config);
+    this.srcDatasetDescriptor = DatasetDescriptorUtils.constructDatasetDescriptor(srcDatasetDescriptorConfig);
+    this.destDatasetDescriptor = DatasetDescriptorUtils.constructDatasetDescriptor(destDatasetDescriptorConfig);
   }
 
   private Config getDefaultConfig(DataNode dataNode) {
