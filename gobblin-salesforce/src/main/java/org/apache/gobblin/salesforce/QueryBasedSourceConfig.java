@@ -15,16 +15,15 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.typedconfig.compiletime;
+package org.apache.gobblin.salesforce;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import java.util.Properties;
+import org.apache.gobblin.typedconfig.TypedConfig;
 
 
-@Target({ElementType.FIELD, ElementType.TYPE})
-@Retention(RetentionPolicy.RUNTIME)
-public @interface LongRange {
-  long[] value();
+public class QueryBasedSourceConfig extends TypedConfig {
+
+  public QueryBasedSourceConfig(Properties prop) {
+    super(prop);
+  }
 }

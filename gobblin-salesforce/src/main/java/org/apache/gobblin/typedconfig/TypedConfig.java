@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.gobblin.typedconfig;
 
 import java.lang.reflect.Field;
@@ -13,21 +30,14 @@ public class TypedConfig {
 
   public TypedConfig(Properties prop) {
     if (prop != null) {
-      fulFillFields(this.getClass(), prop);
-      afterFulfill();
+      fulfillFields(this.getClass(), prop);
     }
   }
 
-  /**
-   * subclass could do something after fulfill by override afterFulfill
-   */
-  protected void afterFulfill() {
-  }
-
   @SneakyThrows
-  private void fulFillFields(Class<? extends TypedConfig> clazz, Properties prop) {
+  private void fulfillFields(Class<? extends TypedConfig> clazz, Properties prop) {
     if (!clazz.equals(TypedConfig.class)) {
-      this.fulFillFields((Class<? extends TypedConfig>) clazz.getSuperclass(), prop);
+      this.fulfillFields((Class<? extends TypedConfig>) clazz.getSuperclass(), prop);
     }
     for (Field field : clazz.getDeclaredFields()) {
       if (field.getAnnotations().length == 0) {
@@ -41,11 +51,10 @@ public class TypedConfig {
       if (configValue == null) {
         configValue = defaultValue;
       }
-      if (configValue == null) {
-        continue;
+      if (configValue != null) {
+        configValue = ConstraintUtil.constraint(field, configValue, defaultValue);
+        field.set(this, convert(configValue, field.getType()));
       }
-      configValue = ConstraintUtil.constraint(field, configValue, defaultValue);
-      field.set(this, convert(configValue, field.getType()));
     }
   }
 
@@ -62,7 +71,14 @@ public class TypedConfig {
     if (alias == null) {
       return null;
     }
-    return prop.get(alias.value()); // get ini config value by alias(2nd key)
+    // get ini config value by alias(2nd key)
+    for(String aliasKey: alias.value()) {
+      Object aliasConfigValue = prop.get(aliasKey);
+      if (aliasConfigValue != null) {
+        return aliasConfigValue;
+      }
+    }
+    return null;
   }
 
   private Object pickupValueByKey(Field field,  Properties prop) {
@@ -84,7 +100,7 @@ public class TypedConfig {
         if (clazz.isEnum()) {
           return Enum.valueOf(clazz, (String) value);
         } else if (clazz == Date.class) {
-          String dateStr = ((String) value).replaceAll("-| |:", "");
+          String dateStr = ((String) value).replaceAll("-| |:", ""); // date format: 1, 2020-01-02 03:04:59, 2, 20200102030459
           dateStr = String.format("%-14s", dateStr).replaceAll(" ", "0");
           Date date = new SimpleDateFormat("yyyyMMddHHmmss").parse(dateStr);
           return date;
@@ -97,17 +113,10 @@ public class TypedConfig {
   }
 
   /**
-   * subclass could do something before toProp by overriding
-   */
-  protected void beforeToProp() {
-  }
-
-  /**
    * convert data to property
    */
   @SneakyThrows
   public Properties toProp() {
-    beforeToProp();
     Properties prop = new Properties();
     for (Field field : this.getClass().getDeclaredFields()) {
       Key keyAnn = field.getAnnotation(Key.class);
