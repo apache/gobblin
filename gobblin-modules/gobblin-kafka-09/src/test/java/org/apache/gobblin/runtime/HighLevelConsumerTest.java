@@ -22,20 +22,17 @@ import java.util.List;
 import java.util.Properties;
 
 import org.mockito.Mockito;
-import org.testng.Assert;
 import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.Test;
 
 import com.google.api.client.util.Lists;
 import com.google.common.base.Optional;
-import com.google.common.base.Predicate;
 import com.google.common.io.Closer;
 import com.google.common.io.Files;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import javax.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
