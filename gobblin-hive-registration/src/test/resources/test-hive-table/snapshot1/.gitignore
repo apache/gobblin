@@ -1,0 +1,5 @@
+# Ignore everything in this directory
+*
+# Except this file for keeping this dummy directory.
+# This dummy directory is for testing the hive snapshot registration.
+!.gitignore

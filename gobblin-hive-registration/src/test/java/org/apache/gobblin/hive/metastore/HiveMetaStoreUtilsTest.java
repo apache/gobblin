@@ -171,7 +171,7 @@ public class HiveMetaStoreUtilsTest {
   }
 
   @Test
-  public void testgetHiveTable() throws Exception {
+  public void testGetHiveTable() throws Exception {
     final String databaseName = "testdb";
     final String tableName = "testtable";
     final String tableSdLoc = "/tmp/testtable";
