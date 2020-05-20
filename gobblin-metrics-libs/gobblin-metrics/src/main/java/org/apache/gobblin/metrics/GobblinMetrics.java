@@ -27,6 +27,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang.exception.ExceptionUtils;
+import org.apache.gobblin.metrics.reporter.FileFailureEventReporter;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -47,8 +48,6 @@ import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
 import com.typesafe.config.Config;
 
-import lombok.Getter;
-
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metrics.graphite.GraphiteConnectionType;
@@ -57,12 +56,13 @@ import org.apache.gobblin.metrics.graphite.GraphiteReporter;
 import org.apache.gobblin.metrics.influxdb.InfluxDBConnectionType;
 import org.apache.gobblin.metrics.influxdb.InfluxDBEventReporter;
 import org.apache.gobblin.metrics.influxdb.InfluxDBReporter;
-import org.apache.gobblin.metrics.reporter.FileFailureEventReporter;
 import org.apache.gobblin.metrics.reporter.OutputStreamEventReporter;
 import org.apache.gobblin.metrics.reporter.OutputStreamReporter;
 import org.apache.gobblin.metrics.reporter.ScheduledReporter;
 import org.apache.gobblin.password.PasswordManager;
 import org.apache.gobblin.util.PropertiesUtils;
+
+import lombok.Getter;
 
 
 /**
@@ -354,8 +354,7 @@ public class GobblinMetrics {
    * Starts metric reporting and appends the given metrics file suffix to the current value of
    * {@link ConfigurationKeys#METRICS_FILE_SUFFIX}.
    */
-  public void startMetricReportingWithFileSuffix(State state, String metricsFileSuffix)
-      throws MetricReporterException, EventReporterException {
+  public void startMetricReportingWithFileSuffix(State state, String metricsFileSuffix) {
     Properties metricsReportingProps = new Properties();
     metricsReportingProps.putAll(state.getProperties());
 
@@ -375,8 +374,7 @@ public class GobblinMetrics {
    *
    * @param configuration configuration properties
    */
-  public void startMetricReporting(Configuration configuration)
-      throws MetricReporterException, EventReporterException {
+  public void startMetricReporting(Configuration configuration) {
     Properties props = new Properties();
     for (Map.Entry<String, String> entry : configuration) {
       props.put(entry.getKey(), entry.getValue());
@@ -389,8 +387,7 @@ public class GobblinMetrics {
    *
    * @param properties configuration properties
    */
-  public void startMetricReporting(Properties properties)
-      throws MetricReporterException, EventReporterException {
+  public void startMetricReporting(Properties properties) {
     if (this.metricsReportingStarted) {
       LOGGER.warn("Metric reporting has already started");
       return;
@@ -476,8 +473,7 @@ public class GobblinMetrics {
     LOGGER.info("Metrics reporting stopped successfully");
   }
 
-  private void buildFileMetricReporter(Properties properties)
-      throws MetricReporterException {
+  private void buildFileMetricReporter(Properties properties) {
     if (!Boolean.valueOf(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_FILE_ENABLED_KEY,
         ConfigurationKeys.DEFAULT_METRICS_REPORTING_FILE_ENABLED))) {
       return;
@@ -485,8 +481,9 @@ public class GobblinMetrics {
     LOGGER.info("Reporting metrics to log files");
 
     if (!properties.containsKey(ConfigurationKeys.METRICS_LOG_DIR_KEY)) {
-      throw new MetricReporterException(
-          "Not reporting metrics to log files because " + ConfigurationKeys.METRICS_LOG_DIR_KEY + " is undefined", ReporterSinkType.FILE);
+      LOGGER.error(
+          "Not reporting metrics to log files because " + ConfigurationKeys.METRICS_LOG_DIR_KEY + " is undefined");
+      return;
     }
 
     try {
@@ -496,7 +493,8 @@ public class GobblinMetrics {
       // Each job gets its own metric log subdirectory
       Path metricsLogDir = new Path(properties.getProperty(ConfigurationKeys.METRICS_LOG_DIR_KEY), this.getName());
       if (!fs.exists(metricsLogDir) && !fs.mkdirs(metricsLogDir)) {
-        throw new MetricReporterException("Failed to create metric log directory for metrics " + this.getName(), ReporterSinkType.FILE);
+        LOGGER.error("Failed to create metric log directory for metrics " + this.getName());
+        return;
       }
 
       // Add a suffix to file name if specified in properties.
@@ -525,12 +523,11 @@ public class GobblinMetrics {
 
       LOGGER.info("Will start reporting metrics to directory " + metricsLogDir);
     } catch (IOException ioe) {
-      throw new MetricReporterException("Failed to build file metric reporter for job " + this.id, ioe, ReporterSinkType.FILE);
+      LOGGER.error("Failed to build file metric reporter for job " + this.id, ioe);
     }
   }
 
-  private void buildFileFailureEventReporter(Properties properties)
-      throws EventReporterException {
+  private void buildFileFailureEventReporter(Properties properties) {
     if (!Boolean.valueOf(properties.getProperty(ConfigurationKeys.FAILURE_REPORTING_FILE_ENABLED_KEY,
         ConfigurationKeys.DEFAULT_FAILURE_REPORTING_FILE_ENABLED))) {
       return;
@@ -538,8 +535,9 @@ public class GobblinMetrics {
     LOGGER.info("Reporting failure to log files");
 
     if (!properties.containsKey(ConfigurationKeys.FAILURE_LOG_DIR_KEY)) {
-      throw new EventReporterException(
-          "Not reporting failure to log files because " + ConfigurationKeys.FAILURE_LOG_DIR_KEY + " is undefined", ReporterSinkType.FILE);
+      LOGGER.error(
+          "Not reporting failure to log files because " + ConfigurationKeys.FAILURE_LOG_DIR_KEY + " is undefined");
+      return;
     }
 
     try {
@@ -549,7 +547,8 @@ public class GobblinMetrics {
       // Each job gets its own log subdirectory
       Path failureLogDir = new Path(properties.getProperty(ConfigurationKeys.FAILURE_LOG_DIR_KEY), this.getName());
       if (!fs.exists(failureLogDir) && !fs.mkdirs(failureLogDir)) {
-        throw new EventReporterException("Failed to create failure log directory for metrics " + this.getName(), ReporterSinkType.FILE);
+        LOGGER.error("Failed to create failure log directory for metrics " + this.getName());
+        return;
       }
 
       // Add a suffix to file name if specified in properties.
@@ -567,7 +566,7 @@ public class GobblinMetrics {
 
       LOGGER.info("Will start reporting failure to directory " + failureLogDir);
     } catch (IOException ioe) {
-      throw new EventReporterException("Failed to build file failure event reporter for job " + this.id, ioe, ReporterSinkType.FILE);
+      LOGGER.error("Failed to build file failure event reporter for job " + this.id, ioe);
     }
   }
 
@@ -582,8 +581,7 @@ public class GobblinMetrics {
         convertRatesTo(TimeUnit.SECONDS).convertDurationsTo(TimeUnit.MILLISECONDS).build()));
   }
 
-  private void buildKafkaMetricReporter(Properties properties)
-      throws MetricReporterException, EventReporterException {
+  private void buildKafkaMetricReporter(Properties properties) {
     if (!Boolean.valueOf(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_ENABLED_KEY,
         ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_ENABLED))) {
       return;
@@ -591,8 +589,7 @@ public class GobblinMetrics {
     buildScheduledReporter(properties, ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_REPORTER_CLASS, Optional.of("Kafka"));
   }
 
-  private void buildGraphiteMetricReporter(Properties properties)
-      throws MetricReporterException, EventReporterException {
+  private void buildGraphiteMetricReporter(Properties properties) {
     boolean metricsEnabled = PropertiesUtils
         .getPropAsBoolean(properties, ConfigurationKeys.METRICS_REPORTING_GRAPHITE_METRICS_ENABLED_KEY,
             ConfigurationKeys.DEFAULT_METRICS_REPORTING_GRAPHITE_METRICS_ENABLED);
@@ -615,7 +612,8 @@ public class GobblinMetrics {
       Preconditions.checkArgument(properties.containsKey(ConfigurationKeys.METRICS_REPORTING_GRAPHITE_HOSTNAME),
           "Graphite hostname is missing.");
     } catch (IllegalArgumentException exception) {
-      throw new MetricReporterException("Missing Graphite configuration(s).", exception, ReporterSinkType.GRAPHITE);
+      LOGGER.error("Not reporting to Graphite due to missing Graphite configuration(s).", exception);
+      return;
     }
 
     String hostname = properties.getProperty(ConfigurationKeys.METRICS_REPORTING_GRAPHITE_HOSTNAME);
@@ -643,7 +641,7 @@ public class GobblinMetrics {
             .withMetricsPrefix(prefix)
             .build(properties);
       } catch (IOException e) {
-        throw new MetricReporterException("Failed to create Graphite metrics reporter.", e, ReporterSinkType.GRAPHITE);
+        LOGGER.error("Failed to create Graphite metrics reporter. Will not report metrics to Graphite.", e);
       }
     }
 
@@ -665,13 +663,12 @@ public class GobblinMetrics {
         this.codahaleScheduledReporters.add(this.codahaleReportersCloser.register(eventReporter));
       }
       catch (IOException e) {
-        throw new EventReporterException("Failed to create Graphite event reporter.", e, ReporterSinkType.GRAPHITE);
+        LOGGER.error("Failed to create Graphite event reporter. Will not report events to Graphite.", e);
       }
     }
   }
 
-  private void buildInfluxDBMetricReporter(Properties properties)
-      throws MetricReporterException, EventReporterException {
+  private void buildInfluxDBMetricReporter(Properties properties) {
     boolean metricsEnabled = PropertiesUtils
         .getPropAsBoolean(properties, ConfigurationKeys.METRICS_REPORTING_INFLUXDB_METRICS_ENABLED_KEY,
             ConfigurationKeys.DEFAULT_METRICS_REPORTING_INFLUXDB_METRICS_ENABLED);
@@ -694,7 +691,8 @@ public class GobblinMetrics {
       Preconditions.checkArgument(properties.containsKey(ConfigurationKeys.METRICS_REPORTING_INFLUXDB_DATABASE),
           "InfluxDB database name is missing.");
     } catch (IllegalArgumentException exception) {
-      throw new MetricReporterException("Missing InfluxDB configuration(s)", exception, ReporterSinkType.INFLUXDB);
+      LOGGER.error("Not reporting to InfluxDB due to missing InfluxDB configuration(s).", exception);
+      return;
     }
 
     String url = properties.getProperty(ConfigurationKeys.METRICS_REPORTING_INFLUXDB_URL);
@@ -721,7 +719,7 @@ public class GobblinMetrics {
             this.metricContext.getName()) // contains the current job id
             .build(properties);
       } catch (IOException e) {
-        throw new MetricReporterException("Failed to create InfluxDB metrics reporter.", e, ReporterSinkType.INFLUXDB);
+        LOGGER.error("Failed to create InfluxDB metrics reporter. Will not report metrics to InfluxDB.", e);
       }
     }
 
@@ -737,7 +735,7 @@ public class GobblinMetrics {
         this.codahaleScheduledReporters.add(this.codahaleReportersCloser.register(eventReporter));
       }
       catch (IOException e) {
-        throw new EventReporterException("Failed to create InfluxDB event reporter.", e, ReporterSinkType.INFLUXDB);
+        LOGGER.error("Failed to create InfluxDB event reporter. Will not report events to InfluxDB.", e);
       }
     }
   }
@@ -747,8 +745,7 @@ public class GobblinMetrics {
    * {@link org.apache.gobblin.configuration.ConfigurationKeys#METRICS_CUSTOM_BUILDERS}. This allows users to specify custom
    * reporters for Gobblin runtime without having to modify the code.
    */
-  private void buildCustomMetricReporters(Properties properties)
-      throws MetricReporterException, EventReporterException {
+  private void buildCustomMetricReporters(Properties properties) {
     String reporterClasses = properties.getProperty(ConfigurationKeys.METRICS_CUSTOM_BUILDERS);
 
     if (Strings.isNullOrEmpty(reporterClasses)) {
@@ -760,8 +757,7 @@ public class GobblinMetrics {
     }
   }
 
-  private void buildScheduledReporter(Properties properties, String reporterClass, Optional<String> reporterSink)
-      throws MetricReporterException, EventReporterException {
+  private void buildScheduledReporter(Properties properties, String reporterClass, Optional<String> reporterSink) {
     try {
       Class<?> clazz = Class.forName(reporterClass);
 
@@ -783,21 +779,19 @@ public class GobblinMetrics {
         customReporterFactory.newScheduledReporter(properties);
         LOGGER.info("Will start reporting metrics using " + reporterClass);
       } else {
-        throw new MetricReporterException("Class " + reporterClass +
+        throw new IllegalArgumentException("Class " + reporterClass +
             " specified by key " + ConfigurationKeys.METRICS_CUSTOM_BUILDERS + " must implement: "
-            + CustomCodahaleReporterFactory.class + " or " + CustomReporterFactory.class, ReporterSinkType.CUSTOM);
+            + CustomCodahaleReporterFactory.class + " or " + CustomReporterFactory.class);
       }
     } catch (ClassNotFoundException exception) {
-      throw new MetricReporterException(String
+      LOGGER.warn(String
           .format("Failed to create metric reporter: requested CustomReporterFactory %s not found.", reporterClass),
-          exception, ReporterSinkType.CUSTOM);
+          exception);
     } catch (NoSuchMethodException exception) {
-      throw new MetricReporterException(String.format("Failed to create metric reporter: requested CustomReporterFactory %s "
-          + "does not have parameterless constructor.", reporterClass), exception, ReporterSinkType.CUSTOM);
-    } catch (EventReporterException exception) {
-      throw exception;
+      LOGGER.warn(String.format("Failed to create metric reporter: requested CustomReporterFactory %s "
+          + "does not have parameterless constructor.", reporterClass), exception);
     } catch (Exception exception) {
-      throw new MetricReporterException("Could not create metric reporter from builder " + reporterClass + ".", exception, ReporterSinkType.CUSTOM);
+      LOGGER.warn("Could not create metric reporter from builder " + reporterClass + ".", exception);
     }
   }
 }

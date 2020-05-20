@@ -43,7 +43,6 @@ import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
 import org.apache.gobblin.cluster.suite.IntegrationBasicSuite;
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.testing.AssertWithBackoff;
 
 
@@ -72,7 +71,6 @@ public class GobblinTaskRunnerTest {
 
   private GobblinClusterManager gobblinClusterManager;
   private GobblinTaskRunner corruptGobblinTaskRunner;
-  private GobblinTaskRunner gobblinTaskRunnerFailedReporter;
   private String clusterName;
   private String corruptHelixInstance;
   private TaskAssignmentAfterConnectionRetry suite;
@@ -104,18 +102,6 @@ public class GobblinTaskRunnerTest {
         new GobblinTaskRunner(TestHelper.TEST_APPLICATION_NAME, TestHelper.TEST_HELIX_INSTANCE_NAME,
             TestHelper.TEST_APPLICATION_ID, TestHelper.TEST_TASK_RUNNER_ID, config, Optional.<Path>absent());
     this.gobblinTaskRunner.connectHelixManager();
-
-    // Participant that fails to start due to metric reporter failures
-    String instanceName = HelixUtils.getHelixInstanceName("MetricReporterFailureInstance", 0);
-
-    Config metricConfig = config.withValue(ConfigurationKeys.METRICS_ENABLED_KEY, ConfigValueFactory.fromAnyRef(true))
-        .withValue(ConfigurationKeys.METRICS_REPORTING_KAFKA_ENABLED_KEY, ConfigValueFactory.fromAnyRef(true))
-        .withValue(ConfigurationKeys.METRICS_KAFKA_TOPIC_METRICS, ConfigValueFactory.fromAnyRef("metricTopic"))
-        .withValue(GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_TASK_RUNNER_METRIC_REPORTING_FAILURE_FATAL, ConfigValueFactory.fromAnyRef(true));
-
-    this.gobblinTaskRunnerFailedReporter =
-        new GobblinTaskRunner(TestHelper.TEST_APPLICATION_NAME, instanceName,
-            TestHelper.TEST_APPLICATION_ID, TestHelper.TEST_TASK_RUNNER_ID, metricConfig, Optional.<Path>absent());
 
     // Participant with a partial Instance set up on Helix/ZK
     this.corruptHelixInstance = HelixUtils.getHelixInstanceName("CorruptHelixInstance", 0);
@@ -154,11 +140,6 @@ public class GobblinTaskRunnerTest {
           return GobblinTaskRunnerTest.this.gobblinTaskRunner.isStopped();
         }
       }, "gobblinTaskRunner stopped");
-  }
-
-  @Test (expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = ".*Could not create metric reporter.*")
-  public void testStartUpFailsDueToMetricReporterFailure() {
-      GobblinTaskRunnerTest.this.gobblinTaskRunnerFailedReporter.start();
   }
 
   @Test
