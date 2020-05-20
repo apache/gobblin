@@ -73,9 +73,7 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.fsm.FiniteStateMachine;
 import org.apache.gobblin.metastore.FsStateStore;
 import org.apache.gobblin.metastore.StateStore;
-import org.apache.gobblin.metrics.EventReporterException;
 import org.apache.gobblin.metrics.GobblinMetrics;
-import org.apache.gobblin.metrics.MetricReporterException;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.metrics.event.CountEventBuilder;
 import org.apache.gobblin.metrics.event.JobEvent;
@@ -785,14 +783,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
       if (Boolean.valueOf(
           configuration.get(ConfigurationKeys.METRICS_ENABLED_KEY, ConfigurationKeys.DEFAULT_METRICS_ENABLED))) {
         this.jobMetrics = Optional.of(JobMetrics.get(this.jobState));
-        try {
-          this.jobMetrics.get()
-              .startMetricReportingWithFileSuffix(gobblinJobState, context.getTaskAttemptID().toString());
-        } catch (MetricReporterException e) {
-          LOG.error("Failed to start {} metric reporter.", e.getType().name(), e);
-        } catch (EventReporterException e) {
-          LOG.error("Failed to start {} event reporter.", e.getType().name(), e);
-        }
+        this.jobMetrics.get()
+            .startMetricReportingWithFileSuffix(gobblinJobState, context.getTaskAttemptID().toString());
       }
     }
 
