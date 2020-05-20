@@ -44,7 +44,7 @@ import lombok.Data;
 /**
  * A helper to dispatch callbacks to a set of listeners. The CallbacksDispatcher is responsible for
  * managing the list if listeners which implement a common interface L. Invocation happens through
- * the {@link #execCallbacks(CallbackFactory) method.
+ * the {@link #execCallbacks(CallbackFactory)} method.
  *
  * @param L     the listener type; it is strongly advised that the class implements toString() to
  *              provide useful logging

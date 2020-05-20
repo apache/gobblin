@@ -106,7 +106,7 @@ public abstract class JobStatusRetrieverTest {
     jobStatusIterator = this.jobStatusRetriever.getJobStatusesForFlowExecution(FLOW_NAME, FLOW_GROUP, flowExecutionId);
     Assert.assertTrue(jobStatusIterator.hasNext());
     jobStatus = jobStatusIterator.next();
-    if (jobStatus.getJobName().equals(JobStatusRetriever.NA_KEY)) {
+    if (JobStatusRetriever.isFlowStatus(jobStatus)) {
       jobStatus = jobStatusIterator.next();
     }
     Assert.assertTrue(jobStatus.getJobName().equals(MY_JOB_NAME_1) || jobStatus.getJobName().equals(MY_JOB_NAME_2));
@@ -115,6 +115,11 @@ public abstract class JobStatusRetrieverTest {
     String nextExpectedJobName = (MY_JOB_NAME_1.equals(jobName)) ? MY_JOB_NAME_2 : MY_JOB_NAME_1;
     Assert.assertTrue(jobStatusIterator.hasNext());
     jobStatus = jobStatusIterator.next();
+    if (JobStatusRetriever.isFlowStatus(jobStatus)) {
+      Assert.assertTrue(jobStatusIterator.hasNext());
+      jobStatus = jobStatusIterator.next();
+    }
+
     Assert.assertEquals(jobStatus.getJobName(), nextExpectedJobName);
   }
 

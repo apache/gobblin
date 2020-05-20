@@ -20,7 +20,6 @@ package org.apache.gobblin.runtime.spec_store;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.URI;
-import java.sql.Blob;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -30,6 +29,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
+import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.io.ByteStreams;
@@ -46,7 +46,7 @@ import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.api.SpecSerDe;
 import org.apache.gobblin.runtime.api.SpecSerDeException;
 import org.apache.gobblin.runtime.api.SpecStore;
-
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
@@ -62,20 +62,28 @@ import org.apache.gobblin.runtime.api.SpecStore;
 public class MysqlSpecStore implements SpecStore {
   public static final String CONFIG_PREFIX = "mysqlSpecStore";
   public static final String DEFAULT_TAG_VALUE = "";
+  private static final String NEW_COLUMN = "spec_json";
 
   private static final String CREATE_TABLE_STATEMENT =
-      "CREATE TABLE IF NOT EXISTS %s (spec_uri VARCHAR(128) NOT NULL, tag VARCHAR(128) NOT NULL, spec LONGBLOB, PRIMARY KEY (spec_uri))";
+      "CREATE TABLE IF NOT EXISTS %s (spec_uri VARCHAR(128) NOT NULL, flow_group VARCHAR(128), flow_name VARCHAR(128), "
+          + "template_uri VARCHAR(128), user_to_proxy VARCHAR(128), source_identifier VARCHAR(128), "
+          + "destination_identifier VARCHAR(128), schedule VARCHAR(128), tag VARCHAR(128) NOT NULL, "
+          + "modified_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, "
+          + "isRunImmediately BOOLEAN, timezone VARCHAR(128), owning_group VARCHAR(128), "
+          + "spec LONGBLOB, " + NEW_COLUMN + " JSON, PRIMARY KEY (spec_uri))";
   private static final String EXISTS_STATEMENT = "SELECT EXISTS(SELECT * FROM %s WHERE spec_uri = ?)";
-  private static final String INSERT_STATEMENT = "INSERT INTO %s (spec_uri, tag, spec) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE spec = VALUES(spec)";
+  protected static final String INSERT_STATEMENT = "INSERT INTO %s (spec_uri, tag, spec, " + NEW_COLUMN + ") "
+      + "VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE spec = VALUES(spec), " + NEW_COLUMN + " = VALUES(" + NEW_COLUMN + ")";
   private static final String DELETE_STATEMENT = "DELETE FROM %s WHERE spec_uri = ?";
-  private static final String GET_STATEMENT = "SELECT spec FROM %s WHERE spec_uri = ?";
-  private static final String GET_ALL_STATEMENT = "SELECT spec_uri, spec FROM %s";
-  private static final String GET_ALL_STATEMENT_WITH_TAG = "SELECT spec_uri, spec FROM %s WHERE tag = ?";
+  private static final String GET_STATEMENT = "SELECT spec, " + NEW_COLUMN + " FROM %s WHERE spec_uri = ?";
+  private static final String GET_ALL_STATEMENT = "SELECT spec_uri, spec, " + NEW_COLUMN + " FROM %s";
+  private static final String GET_ALL_URIS_STATEMENT = "SELECT spec_uri FROM %s";
+  private static final String GET_ALL_STATEMENT_WITH_TAG = "SELECT spec_uri FROM %s WHERE tag = ?";
 
-  private final DataSource dataSource;
-  private final String tableName;
+  protected final DataSource dataSource;
+  protected final String tableName;
   private final URI specStoreURI;
-  private final SpecSerDe specSerDe;
+  protected final SpecSerDe specSerDe;
 
   public MysqlSpecStore(Config config, SpecSerDe specSerDe) throws IOException {
     if (config.hasPath(CONFIG_PREFIX)) {
@@ -117,15 +125,14 @@ public class MysqlSpecStore implements SpecStore {
   /**
    * Temporarily only used for testing since tag it not exposed in endpoint of {@link org.apache.gobblin.runtime.api.FlowSpec}
    */
-  public void addSpec(Spec spec, String tagValue) throws IOException{
+  public void addSpec(Spec spec, String tagValue) throws IOException {
     try (Connection connection = this.dataSource.getConnection();
         PreparedStatement statement = connection.prepareStatement(String.format(INSERT_STATEMENT, this.tableName))) {
-
       statement.setString(1, spec.getUri().toString());
       statement.setString(2, tagValue);
       statement.setBlob(3, new ByteArrayInputStream(this.specSerDe.serialize(spec)));
+      statement.setString(4, new String(this.specSerDe.serialize(spec), Charsets.UTF_8));
       statement.executeUpdate();
-
       connection.commit();
     } catch (SQLException | SpecSerDeException e) {
       throw new IOException(e);
@@ -156,6 +163,7 @@ public class MysqlSpecStore implements SpecStore {
   }
 
   @Override
+  // TODO : this method is not doing what the contract is in the SpecStore interface
   public Spec updateSpec(Spec spec) throws IOException, SpecNotFoundException {
     addSpec(spec);
     return spec;
@@ -165,16 +173,15 @@ public class MysqlSpecStore implements SpecStore {
   public Spec getSpec(URI specUri) throws IOException, SpecNotFoundException {
     try (Connection connection = this.dataSource.getConnection();
         PreparedStatement statement = connection.prepareStatement(String.format(GET_STATEMENT, this.tableName))) {
-
       statement.setString(1, specUri.toString());
 
       try (ResultSet rs = statement.executeQuery()) {
         if (!rs.next()) {
           throw new SpecNotFoundException(specUri);
         }
-
-        Blob blob = rs.getBlob(1);
-        return this.specSerDe.deserialize(ByteStreams.toByteArray(blob.getBinaryStream()));
+        return rs.getString(2) == null
+            ? this.specSerDe.deserialize(ByteStreams.toByteArray(rs.getBlob(1).getBinaryStream()))
+            : this.specSerDe.deserialize(rs.getString(2).getBytes(Charsets.UTF_8));
       }
     } catch (SQLException | SpecSerDeException e) {
       throw new IOException(e);
@@ -195,14 +202,16 @@ public class MysqlSpecStore implements SpecStore {
   public Collection<Spec> getSpecs() throws IOException {
     try (Connection connection = this.dataSource.getConnection();
         PreparedStatement statement = connection.prepareStatement(String.format(GET_ALL_STATEMENT, this.tableName))) {
-
       List<Spec> specs = new ArrayList<>();
 
       try (ResultSet rs = statement.executeQuery()) {
         while (rs.next()) {
           try {
-            Blob blob = rs.getBlob(2);
-            specs.add(this.specSerDe.deserialize(ByteStreams.toByteArray(blob.getBinaryStream())));
+            specs.add(
+                rs.getString(3) == null
+                    ? this.specSerDe.deserialize(rs.getString(2).getBytes(Charsets.UTF_8))
+                    : this.specSerDe.deserialize(ByteStreams.toByteArray(rs.getBlob(3).getBinaryStream()))
+            );
           } catch (SQLException | SpecSerDeException e) {
             log.error("Failed to deserialize spec", e);
           }
@@ -218,7 +227,7 @@ public class MysqlSpecStore implements SpecStore {
   @Override
   public Iterator<URI> getSpecURIs() throws IOException {
     try (Connection connection = this.dataSource.getConnection();
-        PreparedStatement statement = connection.prepareStatement(String.format(GET_ALL_STATEMENT, this.tableName))) {
+        PreparedStatement statement = connection.prepareStatement(String.format(GET_ALL_URIS_STATEMENT, this.tableName))) {
       return getURIIteratorByQuery(statement);
     } catch (SQLException e) {
       throw new IOException(e);

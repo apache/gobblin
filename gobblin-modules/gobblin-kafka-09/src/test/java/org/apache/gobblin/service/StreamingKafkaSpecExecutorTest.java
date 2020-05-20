@@ -63,6 +63,8 @@ public class StreamingKafkaSpecExecutorTest extends KafkaTestBase {
   private String _kafkaBrokers;
   private static final String _TEST_DIR_PATH = "/tmp/StreamingKafkaSpecExecutorTest";
   private static final String _JOBS_DIR_PATH = _TEST_DIR_PATH + "/jobs";
+  String specUriString = "/foo/bar/spec";
+  Spec spec = initJobSpec(specUriString);
 
   @BeforeSuite
   public void beforeSuite() {
@@ -114,8 +116,6 @@ public class StreamingKafkaSpecExecutorTest extends KafkaTestBase {
     // SEI Producer
     _seip = _closer.register(new SimpleKafkaSpecProducer(config));
 
-    String addedSpecUriString = "/foo/bar/addedSpec";
-    Spec spec = initJobSpec(addedSpecUriString);
     WriteResponse writeResponse = (WriteResponse) _seip.addSpec(spec).get();
     log.info("WriteResponse: " + writeResponse);
 
@@ -131,15 +131,13 @@ public class StreamingKafkaSpecExecutorTest extends KafkaTestBase {
 
     Map.Entry<SpecExecutor.Verb, Spec> consumedSpecAction = consumedEvent.get(0);
     Assert.assertTrue(consumedSpecAction.getKey().equals(SpecExecutor.Verb.ADD), "Verb did not match");
-    Assert.assertTrue(consumedSpecAction.getValue().getUri().toString().equals(addedSpecUriString), "Expected URI did not match");
+    Assert.assertTrue(consumedSpecAction.getValue().getUri().toString().equals(specUriString), "Expected URI did not match");
     Assert.assertTrue(consumedSpecAction.getValue() instanceof JobSpec, "Expected JobSpec");
   }
 
   @Test (dependsOnMethods = "testAddSpec")
   public void testUpdateSpec() throws Exception {
     // update is only treated as an update for existing job specs
-    String updatedSpecUriString = "/foo/bar/addedSpec";
-    Spec spec = initJobSpec(updatedSpecUriString);
     WriteResponse writeResponse = (WriteResponse) _seip.updateSpec(spec).get();
     log.info("WriteResponse: " + writeResponse);
 
@@ -148,15 +146,14 @@ public class StreamingKafkaSpecExecutorTest extends KafkaTestBase {
 
     Map.Entry<SpecExecutor.Verb, Spec> consumedSpecAction = consumedEvent.get(0);
     Assert.assertTrue(consumedSpecAction.getKey().equals(SpecExecutor.Verb.UPDATE), "Verb did not match");
-    Assert.assertTrue(consumedSpecAction.getValue().getUri().toString().equals(updatedSpecUriString), "Expected URI did not match");
+    Assert.assertTrue(consumedSpecAction.getValue().getUri().toString().equals(specUriString), "Expected URI did not match");
     Assert.assertTrue(consumedSpecAction.getValue() instanceof JobSpec, "Expected JobSpec");
   }
 
   @Test (dependsOnMethods = "testUpdateSpec")
   public void testDeleteSpec() throws Exception {
     // delete needs to be on a job spec that exists to get notification
-    String deletedSpecUriString = "/foo/bar/addedSpec";
-    WriteResponse writeResponse = (WriteResponse) _seip.deleteSpec(new URI(deletedSpecUriString)).get();
+    WriteResponse writeResponse = (WriteResponse) _seip.deleteSpec(new URI(specUriString)).get();
     log.info("WriteResponse: " + writeResponse);
 
     List<Pair<SpecExecutor.Verb, Spec>> consumedEvent = _seic.changedSpecs().get();
@@ -164,11 +161,11 @@ public class StreamingKafkaSpecExecutorTest extends KafkaTestBase {
 
     Map.Entry<SpecExecutor.Verb, Spec> consumedSpecAction = consumedEvent.get(0);
     Assert.assertTrue(consumedSpecAction.getKey().equals(SpecExecutor.Verb.DELETE), "Verb did not match");
-    Assert.assertTrue(consumedSpecAction.getValue().getUri().toString().equals(deletedSpecUriString), "Expected URI did not match");
+    Assert.assertTrue(consumedSpecAction.getValue().getUri().toString().equals(specUriString), "Expected URI did not match");
     Assert.assertTrue(consumedSpecAction.getValue() instanceof JobSpec, "Expected JobSpec");
   }
 
-  private JobSpec initJobSpec(String specUri) {
+  private static JobSpec initJobSpec(String specUri) {
     Properties properties = new Properties();
     return JobSpec.builder(specUri)
         .withConfig(ConfigUtils.propertiesToConfig(properties))

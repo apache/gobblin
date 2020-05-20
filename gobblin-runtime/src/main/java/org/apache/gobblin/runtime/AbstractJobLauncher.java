@@ -625,7 +625,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    * Subclasses can override this method to do whatever processing on the {@link TaskState}s,
    * e.g., aggregate task-level metrics into job-level metrics.
    *
-   * @deprecated Use {@link #postProcessJobState(JobState)
+   * @deprecated Use {@link #postProcessJobState(JobState)}
    */
   @Deprecated
   protected void postProcessTaskStates(@SuppressWarnings("unused") List<TaskState> taskStates) {
