@@ -20,6 +20,7 @@ package org.apache.gobblin.runtime.spec_store;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -28,11 +29,14 @@ import java.util.Collection;
 import java.util.Iterator;
 
 import java.util.List;
+import java.util.Properties;
+
 import org.apache.commons.lang3.ArrayUtils;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import com.google.common.base.Charsets;
 import com.google.common.collect.Iterators;
 import com.typesafe.config.Config;
 
@@ -45,6 +49,10 @@ import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecSerDe;
 import org.apache.gobblin.runtime.api.SpecSerDeException;
 import org.apache.gobblin.runtime.spec_serde.GsonFlowSpecSerDe;
+import org.apache.gobblin.service.FlowId;
+
+import static org.apache.gobblin.service.ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY;
+import static org.apache.gobblin.service.ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY;
 
 
 public class MysqlSpecStoreTest {
@@ -54,24 +62,14 @@ public class MysqlSpecStoreTest {
 
   private MysqlSpecStore specStore;
   private MysqlSpecStore oldSpecStore;
-  private URI uri1 = URI.create("flowspec1");
-  private URI uri2 = URI.create("flowspec2");
-  private URI uri3 = URI.create("flowspec3");
-  private FlowSpec flowSpec1 = FlowSpec.builder(this.uri1)
-      .withConfig(ConfigBuilder.create().addPrimitive("key", "value").build())
-      .withDescription("Test flow spec")
-      .withVersion("Test version")
-      .build();
-  private FlowSpec flowSpec2 = FlowSpec.builder(this.uri2)
-      .withConfig(ConfigBuilder.create().addPrimitive("key2", "value2").build())
-      .withDescription("Test flow spec 2")
-      .withVersion("Test version 2")
-      .build();
-  private FlowSpec flowSpec3 = FlowSpec.builder(this.uri3)
-      .withConfig(ConfigBuilder.create().addPrimitive("key3", "value3").build())
-      .withDescription("Test flow spec 3")
-      .withVersion("Test version 3")
-      .build();
+  private URI uri1 = FlowSpec.Utils.createFlowSpecUri(new FlowId().setFlowName("fg1").setFlowGroup("fn1"));
+  private URI uri2 = FlowSpec.Utils.createFlowSpecUri(new FlowId().setFlowName("fg2").setFlowGroup("fn2"));
+  private URI uri3 = FlowSpec.Utils.createFlowSpecUri(new FlowId().setFlowName("fg3").setFlowGroup("fn3"));
+  private FlowSpec flowSpec1, flowSpec2, flowSpec3;
+
+  public MysqlSpecStoreTest()
+      throws URISyntaxException {
+  }
 
   @BeforeClass
   public void setUp() throws Exception {
@@ -86,6 +84,39 @@ public class MysqlSpecStoreTest {
 
     this.specStore = new MysqlSpecStore(config, new TestSpecSerDe());
     this.oldSpecStore = new OldSpecStore(config, new TestSpecSerDe());
+
+    Properties properties = new Properties();
+    properties.setProperty(FLOW_SOURCE_IDENTIFIER_KEY, "source");
+    properties.setProperty(FLOW_DESTINATION_IDENTIFIER_KEY, "destination");
+
+    flowSpec1 = FlowSpec.builder(this.uri1)
+        .withConfig(ConfigBuilder.create()
+            .addPrimitive("key", "value")
+            .addPrimitive(FLOW_SOURCE_IDENTIFIER_KEY, "source")
+            .addPrimitive(FLOW_DESTINATION_IDENTIFIER_KEY, "destination")
+            .addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, "fg1")
+            .addPrimitive(ConfigurationKeys.FLOW_NAME_KEY, "fn1").build())
+        .withDescription("Test flow spec")
+        .withVersion("Test version")
+        .build();
+    flowSpec2 = FlowSpec.builder(this.uri2)
+        .withConfig(ConfigBuilder.create().addPrimitive("key2", "value2")
+            .addPrimitive(FLOW_SOURCE_IDENTIFIER_KEY, "source")
+            .addPrimitive(FLOW_DESTINATION_IDENTIFIER_KEY, "destination")
+            .addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, "fg2")
+            .addPrimitive(ConfigurationKeys.FLOW_NAME_KEY, "fn2").build())
+        .withDescription("Test flow spec 2")
+        .withVersion("Test version 2")
+        .build();
+    flowSpec3 = FlowSpec.builder(this.uri3)
+        .withConfig(ConfigBuilder.create().addPrimitive("key3", "value3")
+            .addPrimitive(FLOW_SOURCE_IDENTIFIER_KEY, "source")
+            .addPrimitive(FLOW_DESTINATION_IDENTIFIER_KEY, "destination")
+            .addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, "fg3")
+            .addPrimitive(ConfigurationKeys.FLOW_NAME_KEY, "fn3").build())
+        .withDescription("Test flow spec 3")
+        .withVersion("Test version 3")
+        .build();
   }
 
   @Test
@@ -118,14 +149,24 @@ public class MysqlSpecStoreTest {
     //Creating and inserting flowspecs with tags
     URI uri4 = URI.create("flowspec4");
     FlowSpec flowSpec4 = FlowSpec.builder(uri4)
-        .withConfig(ConfigBuilder.create().addPrimitive("key4", "value4").build())
+        .withConfig(ConfigBuilder.create()
+            .addPrimitive(FLOW_SOURCE_IDENTIFIER_KEY, "source")
+            .addPrimitive(FLOW_DESTINATION_IDENTIFIER_KEY, "destination")
+            .addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, "fg4")
+            .addPrimitive(ConfigurationKeys.FLOW_NAME_KEY, "fn4")
+            .addPrimitive("key4", "value4").build())
         .withDescription("Test flow spec 4")
         .withVersion("Test version 4")
         .build();
 
     URI uri5 = URI.create("flowspec5");
     FlowSpec flowSpec5 = FlowSpec.builder(uri5)
-        .withConfig(ConfigBuilder.create().addPrimitive("key5", "value5").build())
+        .withConfig(ConfigBuilder.create()
+            .addPrimitive(FLOW_SOURCE_IDENTIFIER_KEY, "source")
+            .addPrimitive(FLOW_DESTINATION_IDENTIFIER_KEY, "destination")
+            .addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, "fg5")
+            .addPrimitive(ConfigurationKeys.FLOW_NAME_KEY, "fn5")
+            .addPrimitive("key5", "value5").build())
         .withDescription("Test flow spec 5")
         .withVersion("Test version 5")
         .build();
@@ -173,9 +214,7 @@ public class MysqlSpecStoreTest {
     public void addSpec(Spec spec, String tagValue) throws IOException {
       try (Connection connection = this.dataSource.getConnection();
           PreparedStatement statement = connection.prepareStatement(String.format(INSERT_STATEMENT, this.tableName))) {
-        statement.setString(1, spec.getUri().toString());
-        statement.setString(2, tagValue);
-        statement.setBlob(3, new ByteArrayInputStream(this.specSerDe.serialize(spec)));
+        setPreparedStatement(statement, spec, tagValue);
         statement.setString(4, null);
         statement.executeUpdate();
         connection.commit();
