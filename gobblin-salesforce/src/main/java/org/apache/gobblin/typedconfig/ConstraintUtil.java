@@ -21,6 +21,7 @@ import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.typedconfig.compiletime.EnumOptions;
 import org.apache.gobblin.typedconfig.compiletime.IntRange;
 import org.apache.gobblin.typedconfig.compiletime.LongRange;
@@ -31,6 +32,7 @@ import org.apache.gobblin.typedconfig.compiletime.StringRegex;
  * Util class for handling constrain annotation
  * supports: IntRange, LongRange, EnumOption, StringRegex
  */
+@Slf4j
 public class ConstraintUtil {
   private ConstraintUtil() {
   }
@@ -40,20 +42,22 @@ public class ConstraintUtil {
       return defaultValue;
     }
     Class type = field.getType();
-    if (type == int.class) {
-      return getIntValue(field, value, defaultValue);
-    } else if (type == long.class) {
-      return getLongValue(field, value, defaultValue);
-    } else if (type == String.class) {
-      return getStringValue(field, value, defaultValue);
-    } else if (type.isEnum()) {
+    if (type.isEnum()) {
       return getEnumValue(field, value, defaultValue);
-    } else if (type == Boolean.class || type == boolean.class) {
-      return value;
-    } else if (type == Date.class) {
-      return value;
-    } else {
-      throw new RuntimeException("not supported the return type: " + type.getName());
+    }
+    switch (type.getName()) {
+      case "int": case "java.lang.Integer":
+        return getIntValue(field, value, defaultValue);
+      case "long": case "java.lang.Long":
+        return getLongValue(field, value, defaultValue);
+      case "java.lang.String":
+        return getStringValue(field, value, defaultValue);
+      case "boolean": case "java.lang.Boolean":
+        return getBooleanValue(field, value, defaultValue);
+      case "java.util.Date":
+        return getDateValue(field, value, defaultValue);
+      default:
+          throw new RuntimeException("not supported the return type: " + type.getName());
     }
   }
 
@@ -99,6 +103,14 @@ public class ConstraintUtil {
     } else {
       return defaultValue;
     }
+  }
+
+  static private Object getBooleanValue(Field field, Object value, Object defaultValue) {
+    return value; // there is no restriction for boolean value.
+  }
+
+  static private Object getDateValue(Field field, Object value, Object defaultValue) {
+    return value; // there is no restriction for Date value.
   }
 
   static private Object getEnumValue(Field field, Object value, Object defaultValue) {
