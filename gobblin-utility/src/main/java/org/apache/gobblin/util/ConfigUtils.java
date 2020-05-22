@@ -341,14 +341,21 @@ public class ConfigUtils {
 
   /**
    * Return string value at <code>path</code> if <code>config</code> has path. If not return <code>def</code>
-   *
+   * If the config value is not of String type, it will try to get it as a generic Object type
+   * using {@see com.typesafe.config.Config#getAnyRef()} and then try to return its json representation as a string
    * @param config in which the path may be present
    * @param path key to look for in the config object
    * @return string value at <code>path</code> if <code>config</code> has path. If not return <code>def</code>
    */
   public static String getString(Config config, String path, String def) {
     if (config.hasPath(path)) {
-      return config.getString(path);
+      String value;
+      try {
+        value = config.getString(path);
+      } catch (ConfigException.WrongType wrongType) {
+        value = new Gson().toJson(config.getAnyRef(path));
+      }
+      return value;
     }
     return def;
   }
