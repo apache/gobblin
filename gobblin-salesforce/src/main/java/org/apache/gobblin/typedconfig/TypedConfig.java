@@ -71,14 +71,7 @@ public class TypedConfig {
     if (alias == null) {
       return null;
     }
-    // get ini config value by alias(2nd key)
-    for(String aliasKey: alias.value()) {
-      Object aliasConfigValue = prop.get(aliasKey);
-      if (aliasConfigValue != null) {
-        return aliasConfigValue;
-      }
-    }
-    return null;
+    return prop.get(alias.value()); // get ini config value by alias(2nd key)
   }
 
   private Object pickupValueByKey(Field field,  Properties prop) {
