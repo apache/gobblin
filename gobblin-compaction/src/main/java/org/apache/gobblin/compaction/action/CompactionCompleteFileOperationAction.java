@@ -148,6 +148,9 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
         outputFiles.add(new Path(dstPath, fileName));
       });
       this.configurator.setDstNewFiles(outputFiles);
+      for(String s: this.configurator.getOldFiles()){
+        log.info("$$$ old file prefixes", s);
+      }
 
       State compactState = helper.loadState(new Path(result.getDstAbsoluteDir()));
       if(executeCount!=0) {
