@@ -259,11 +259,7 @@ public abstract class CompactionJobConfigurator {
     }
     this.oldFiles = new HashSet<>();
     for (Path path : mapReduceInputPaths) {
-      oldFiles.addAll(DatasetHelper.getApplicableFilePaths(this.fs, path, Arrays.asList(getFileExtension()))
-          .stream()
-          .filter(Objects::nonNull)
-          .map(Path::toString)
-          .collect(Collectors.toList()));
+      oldFiles.add(this.fs.makeQualified(path).toString());
       FileInputFormat.addInputPath(job, path);
     }
 
