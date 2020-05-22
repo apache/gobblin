@@ -15,23 +15,25 @@
 # limitations under the License.
 #
 
-# Long-running Gradle process speeds up local builds
-# To stop the daemon run 'ligradle --stop'
-org.gradle.daemon=true
+#
+# Test script used by Travis to test the
+# hadoop1 or hadoop2 versions of gobblin.
+#
 
-# Configures only relevant projects to speed up the configuration of large projects
-# Useful when specific project/task is invoked
-org.gradle.configureondemand=false
+#!/bin/bash
+set -e
 
-# Gradle will run tasks from subprojects in parallel
-# Higher CPU usage, faster builds
-org.gradle.parallel=true
+echo "Starting $0 at " $(date)
+PROJECT_VERSION=$(./gradlew properties -q | grep "version:" | awk '{print $2}')
 
-# Allows generation of idea/eclipse metadata for a specific subproject and its upstream project dependencies
-ide.recursive=true
+echo "Project Version: $PROJECT_VERSION"
+BUILD_VERSION=$PROJECT_VERSION-dev-${TRAVIS_BUILD_NUMBER}
+echo "Build Version: $BUILD_VERSION"
 
-# Apache release specific
-version=0.15.0
-group=org.apache.gobblin
-release=false
-
+echo "Pull request: [$TRAVIS_PULL_REQUEST], Travis branch: [$TRAVIS_BRANCH]"
+# release only from master when no pull request build
+if [ "$TRAVIS_BRANCH" = "master" ] && [ "$TRAVIS_PULL_REQUEST" = "false" ]
+then
+    echo "Uploading artifacts to bintray for version $BUILD_VERSION"
+    ./gradlew -i bintrayUpload -Pversion=$BUILD_VERSION
+fi

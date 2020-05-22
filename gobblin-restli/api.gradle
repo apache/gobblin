@@ -94,6 +94,39 @@ if (file("${project.projectDir}/src/main/idl").exists()) {
   artifacts {
     archives mainRestClientJar, restClientSourcesJar, restClientJavadocJar
   }
+
+  publishing {
+    publications {
+      restClient(MavenPublication) {
+        //from components.java
+        artifactId restClientName
+        artifacts = [artifact(tasks.mainRestClientJar), restClientSourcesJar, restClientJavadocJar]
+        pom pomAttributes
+        pom.withXml {
+          def dependenciesNode = asNode().appendNode('dependencies')
+
+          configurations.runtime.allDependencies.each {
+            if (it.group != null && it.name != null) {
+              def dependencyNode = dependenciesNode.appendNode('dependency')
+              dependencyNode.appendNode('groupId', it.group)
+              dependencyNode.appendNode('artifactId', it.name)
+              dependencyNode.appendNode('version', it.version)
+
+              if (it.excludeRules.size() > 0) {
+                def exclusionsNode = dependencyNode.appendNode('exclusions')
+                it.excludeRules.each { rule ->
+                  def exclusionNode = exclusionsNode.appendNode('exclusion')
+                  exclusionNode.appendNode('groupId', rule.group)
+                  exclusionNode.appendNode('artifactId', rule.module)
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  addPublicationToBintray("restClient")
 }
 
 install {
@@ -123,3 +156,36 @@ if (rootProject.ext.publishToMaven || rootProject.ext.publishToNexus) {
     }
   }
 }
+
+publishing {
+  publications {
+    dataTemplate(MavenPublication) {
+      //from components.java
+      artifactId dataTemplateName
+      artifacts = [artifact(tasks.mainDataTemplateJar), dataTemplateSourcesJar, dataTemplateJavadocJar]
+      pom pomAttributes
+      pom.withXml {
+        def dependenciesNode = asNode().appendNode('dependencies')
+
+        configurations.runtime.allDependencies.each {
+          if (it.group != null && it.name != null) {
+            def dependencyNode = dependenciesNode.appendNode('dependency')
+            dependencyNode.appendNode('groupId', it.group)
+            dependencyNode.appendNode('artifactId', it.name)
+            dependencyNode.appendNode('version', it.version)
+
+            if (it.excludeRules.size() > 0) {
+              def exclusionsNode = dependencyNode.appendNode('exclusions')
+              it.excludeRules.each { rule ->
+                def exclusionNode = exclusionsNode.appendNode('exclusion')
+                exclusionNode.appendNode('groupId', rule.group)
+                exclusionNode.appendNode('artifactId', rule.module)
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+addPublicationToBintray("dataTemplate")

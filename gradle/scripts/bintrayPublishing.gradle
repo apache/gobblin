@@ -1,0 +1,97 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import org.gradle.api.internal.java.JavaLibrary
+
+ext.pomAttributes = {
+  packaging = 'jar'
+  // optionally artifactId can be defined here
+  name = 'Apache Gobblin (incubating)'
+  description = 'A distributed data integration framework for streaming and batch data ecosystems.'
+  url = 'https://gobblin.apache.org/'
+
+  scm {
+    url = 'https://git-wip-us.apache.org/repos/asf?p=incubator-gobblin.git;a=tree'
+    connection = 'scm:http://git-wip-us.apache.org/repos/asf/incubator-gobblin.git'
+    developerConnection = 'scm:https://git-wip-us.apache.org/repos/asf/incubator-gobblin.git'
+  }
+
+  licenses {
+    license {
+      name = 'The Apache License, Version 2.0'
+      url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+    }
+  }
+}
+
+subprojects{
+  plugins.withType(JavaPlugin) {
+    plugins.apply('maven-publish')
+    publishing {
+      publications {
+        mavenJava(MavenPublication) {
+          from components.java
+          artifact sourcesJar
+          artifact javadocJar
+
+          pom pomAttributes
+        }
+      }
+    }
+  }
+
+  plugins.apply('com.jfrog.bintray')
+  bintray {
+    user = project.hasProperty('bintrayUser') ? project.property('bintrayUser') : System.getenv('BINTRAY_USER')
+    key = project.hasProperty('bintrayApiKey') ? project.property('bintrayApiKey') : System.getenv('BINTRAY_API_KEY')
+    publications = ["mavenJava"]
+    publish = true
+    dryRun = project.hasProperty("bintray.dryRun")
+    pkg {
+      repo = 'maven'
+      name = 'gobblin-github'
+      userOrg = 'linkedin'
+      licenses = ['Apache-2.0']
+      vcsUrl = 'https://github.com/apache/incubator-gobblin.git'
+      version {
+        name = project.version
+        desc = 'Apache Gobblin'
+        released = new Date()
+        // disable gpg signing to speed up publishing
+        gpg {
+          sign = false
+        }
+        // disable upload to maven central
+        mavenCentralSync {
+          sync = false
+        }
+      }
+    }
+  }
+
+  tasks.bintrayUpload {
+    doFirst {
+      println "Running bintrayUpload for $project.name "
+    }
+  }
+
+  ext.addPublicationToBintray = { pubName ->
+    def newC = project.bintray.publications.collect()
+    newC.add(pubName)
+    project.bintray.publications = newC
+  }
+}

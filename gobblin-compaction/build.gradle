@@ -31,10 +31,10 @@ dependencies {
   // with hive-exec-core in older version(1.0.1), we need to shadow ord-mapreduce's transitive deps.
   // and include direct orc-mapreduce library just as a compileOnly dependency
   compileOnly externalDependency.orcMapreduce
-  compile project(path: ":gobblin-modules:gobblin-orc-dep", configuration:"shadow")
+  compile project(path: ":gobblin-modules:gobblin-orc-dep")
 
   compile externalDependency.calciteCore
-  compile externalDependency.calciteAvatica
+  testCompile externalDependency.calciteAvatica
   compile externalDependency.jhyde
   compile externalDependency.avro
   compile externalDependency.commonsLang
@@ -42,21 +42,21 @@ dependencies {
   compile externalDependency.mockito
   compile externalDependency.testng
 
-  runtime externalDependency.hadoopCommon
-  runtime externalDependency.hadoopClientCore
-  runtime externalDependency.hadoopHdfs
-  runtime externalDependency.hadoopAuth
+  runtimeOnly externalDependency.hadoopCommon
+  runtimeOnly externalDependency.hadoopClientCore
+  runtimeOnly externalDependency.hadoopHdfs
+  runtimeOnly externalDependency.hadoopAuth
 
-  runtime(externalDependency.hiveService) {
+  runtimeOnly(externalDependency.hiveService) {
     exclude group: 'org.apache.hive', module: 'hive-exec'
   }
-  runtime externalDependency.hiveJdbc
-  runtime externalDependency.hiveMetastore
-  runtime externalDependency.antlrRuntime
-  runtime externalDependency.derby
-  runtime externalDependency.jdo2
-  runtime externalDependency.datanucleusCore
-  runtime externalDependency.datanucleusRdbms
+  runtimeOnly externalDependency.hiveJdbc
+  runtimeOnly externalDependency.hiveMetastore
+  runtimeOnly externalDependency.antlrRuntime
+  runtimeOnly externalDependency.derby
+  runtimeOnly externalDependency.jdo2
+  runtimeOnly externalDependency.datanucleusCore
+  runtimeOnly externalDependency.datanucleusRdbms
 
   testCompile externalDependency.testng
 }
