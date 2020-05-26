@@ -34,6 +34,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import javax.annotation.Nonnull;
+import lombok.Getter;
+
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 
 import org.apache.gobblin.instrumented.Instrumented;
@@ -78,6 +80,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
   protected final Logger log;
   protected final MetricContext metricContext;
   protected final MutableStandardMetrics metrics;
+  @Getter
   protected final SpecStore specStore;
 
   private final ClassAliasResolver<SpecStore> aliasResolver;
@@ -280,7 +283,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     try {
       spec = getSpec(uri);
     } catch (SpecNotFoundException snfe) {
-      log.error(String.format("The URI %s discovered in SpecStore is missing in FlowCatlog"
+      log.error(String.format("The URI %s discovered in SpecStore is missing in FlowCatalog"
           + ", suspecting current modification on SpecStore", uri), snfe);
     }
     return spec;
@@ -289,6 +292,9 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
   /**
    * Persist {@link Spec} into {@link SpecStore} and notify {@link SpecCatalogListener} if triggerListener
    * is set to true.
+   * If the {@link Spec} is a {@link FlowSpec} it is persisted if it can be compiled at the time this method received
+   * the spec. `explain` specs are not persisted. The logic of this method is tightly coupled with the logic of
+   * {@link GobblinServiceJobScheduler#onAddSpec()}, which is one of the listener of {@link FlowCatalog}
    *
    * @param spec The Spec to be added
    * @param triggerListener True if listeners should be notified.
@@ -301,13 +307,6 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     Preconditions.checkNotNull(flowSpec);
 
     log.info(String.format("Adding FlowSpec with URI: %s and Config: %s", flowSpec.getUri(), flowSpec.getConfigAsProperties()));
-    try {
-      long startTime = System.currentTimeMillis();
-      specStore.addSpec(flowSpec);
-      metrics.updatePutSpecTime(startTime);
-    } catch (IOException e) {
-      throw new RuntimeException("Cannot add Spec to Spec store: " + flowSpec, e);
-    }
 
     if (triggerListener) {
       AddSpecResponse<CallbacksDispatcher.CallbackResults<SpecCatalogListener, AddSpecResponse>> response = this.listeners.onAddSpec(flowSpec);
@@ -317,7 +316,16 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     }
 
     if (isCompileSuccessful(responseMap)) {
-      responseMap.put(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>("true"));
+      try {
+        long startTime = System.currentTimeMillis();
+        if (!flowSpec.isExplain()) {
+          specStore.addSpec(spec);
+        }
+        metrics.updatePutSpecTime(startTime);
+        responseMap.put(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>("true"));
+      } catch (IOException e) {
+        throw new RuntimeException("Cannot add Spec to Spec store: " + flowSpec, e);
+      }
     } else {
       responseMap.put(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>("false"));
     }
@@ -326,7 +334,8 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
   }
 
   public static boolean isCompileSuccessful(Map<String, AddSpecResponse> responseMap) {
-    AddSpecResponse<String> addSpecResponse = responseMap.getOrDefault(ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS, new AddSpecResponse<>(""));
+    AddSpecResponse<String> addSpecResponse = responseMap.getOrDefault(
+        ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS, new AddSpecResponse<>(""));
 
     return isCompileSuccessful(addSpecResponse.getValue());
   }

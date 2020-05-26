@@ -362,6 +362,10 @@ public class FlowSpec implements Configurable, Spec {
     return ConfigUtils.getBoolean(getConfig(), ConfigurationKeys.FLOW_EXPLAIN_KEY, false);
   }
 
+  public boolean isScheduled() {
+    return getConfig().hasPath(ConfigurationKeys.JOB_SCHEDULE_KEY);
+  }
+
   @Slf4j
   public static class Utils {
     private final static String URI_SCHEME = "gobblin-flow";
@@ -371,7 +375,8 @@ public class FlowSpec implements Configurable, Spec {
     private final static String URI_FRAGMENT = null;
     private final static int EXPECTED_NUM_URI_PATH_TOKENS = 3;
 
-    public static URI createFlowSpecUri(FlowId flowId) throws URISyntaxException {
+    public static URI createFlowSpecUri(FlowId flowId)
+        throws URISyntaxException {
       return new URI(URI_SCHEME, URI_AUTHORITY, createUriPath(flowId), URI_QUERY, URI_FRAGMENT);
     }
 
