@@ -127,7 +127,7 @@ public class GobblinServiceJobSchedulerTest {
      * Override super method to only add spec into in-memory containers but not scheduling anything to simplify testing.
      */
     @Override
-    public AddSpecResponse onAddSpec(Spec addedSpec) {
+    public AddSpecResponse onAddSpec(Spec addedSpec, boolean deleteSpecOnCompilationFailure) {
       super.scheduledFlowSpecs.put(addedSpec.getUri().toString(), addedSpec);
       return new AddSpecResponse(addedSpec.getDescription());
     }
