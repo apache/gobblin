@@ -190,9 +190,9 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
         //Disable FLOW_RUN_IMMEDIATELY on service startup or leadership change
         if (spec instanceof FlowSpec) {
           Spec modifiedSpec = disableFlowRunImmediatelyOnStart((FlowSpec) spec);
-          onAddSpec(modifiedSpec);
+          onAddSpec(modifiedSpec, false);
         } else {
-          onAddSpec(spec);
+          onAddSpec(spec, false);
         }
       }
     } finally {
@@ -257,6 +257,10 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   /** {@inheritDoc} */
   @Override
   public AddSpecResponse onAddSpec(Spec addedSpec) {
+    return onAddSpec(addedSpec, true);
+  }
+
+  public AddSpecResponse onAddSpec(Spec addedSpec, boolean deleteSpecOnCompilationFailure) {
     if (this.helixManager.isPresent() && !this.helixManager.get().isConnected()) {
       // Specs in store will be notified when Scheduler is added as listener to FlowCatalog, so ignore
       // .. Specs if in cluster mode and Helix is not yet initialized
@@ -311,9 +315,8 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
             this.jobExecutor.execute(new NonScheduledJobRunner(flowSpecUri, true, jobConfig, null));
           }
         } else {
-          _log.info("Removing the flow spec: {}, isExplain: {}, compileSuccess: {}", addedSpec, isExplain, compileSuccess);
-          if (this.flowCatalog.isPresent()) {
-            _log.debug("Removing flow spec from FlowCatalog: {}", flowSpec);
+          if (this.flowCatalog.isPresent() && deleteSpecOnCompilationFailure) {
+            _log.info("Removing the flow spec: {}, isExplain: {}, compileSuccess: {}", addedSpec, isExplain, compileSuccess);
             GobblinServiceJobScheduler.this.flowCatalog.get().remove(flowSpecUri, new Properties(), false);
           }
         }
