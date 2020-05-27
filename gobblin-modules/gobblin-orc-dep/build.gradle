@@ -52,6 +52,7 @@ configurations {
 
 shadowJar {
   zip64 true
+  classifier ""
 
   dependencies {
     exclude dependency('org.slf4j:.*')
@@ -61,5 +62,16 @@ shadowJar {
   relocate 'org.apache.hadoop.hive', 'shadow.gobblin.orc.org.apache.hadoop.hive'
   relocate 'com.google', 'shadow.gobblin.orc.com.google'
 }
+
+publishing {
+  publications {
+    shadowPub(MavenPublication) {
+      artifacts = [shadowJar]
+      pom pomAttributes
+      pom.withXml addRuntimeDependenciesToPom
+    }
+  }
+}
+addPublicationToBintray("shadowPub")
 
 ext.classification="library"

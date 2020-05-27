@@ -50,10 +50,10 @@ dependencies {
   compile externalDependency.typesafeConfig
   compile externalDependency.findBugsAnnotations
 
-  runtime externalDependency.confluentAvroSerializer
-  runtime externalDependency.confluentJsonSerializer
-  runtime externalDependency.confluentSchemaRegistryClient
-  runtime externalDependency.protobuf
+  runtimeOnly externalDependency.confluentAvroSerializer
+  runtimeOnly externalDependency.confluentJsonSerializer
+  runtimeOnly externalDependency.confluentSchemaRegistryClient
+  runtimeOnly externalDependency.protobuf
 
   testCompile project(":gobblin-modules:gobblin-service-kafka")
   testCompile project(":gobblin-runtime")
