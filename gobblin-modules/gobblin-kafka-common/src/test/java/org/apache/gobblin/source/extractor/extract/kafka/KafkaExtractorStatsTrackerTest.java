@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import org.HdrHistogram.Histogram;
 import org.HdrHistogram.HistogramLogReader;
@@ -40,6 +41,7 @@ public class KafkaExtractorStatsTrackerTest {
   private WorkUnitState workUnitState;
   final static KafkaPartition PARTITION0 =  new KafkaPartition.Builder().withTopicName("test-topic").withId(0).build();
   final static KafkaPartition PARTITION1 =  new KafkaPartition.Builder().withTopicName("test-topic").withId(1).build();
+  private long epochDurationMs;
 
   @BeforeClass
   public void setUp() {
@@ -80,12 +82,13 @@ public class KafkaExtractorStatsTrackerTest {
 
   @Test
   public void testOnDecodeableRecord() throws InterruptedException {
+    this.extractorStatsTracker.reset();
     long readStartTime = System.nanoTime();
     Thread.sleep(1);
     long decodeStartTime = System.nanoTime();
     long currentTimeMillis = System.currentTimeMillis();
-    long logAppendTimestamp = currentTimeMillis - 15 * 60 * 1000L;
-    long recordCreationTimestamp = currentTimeMillis - 16 * 60 * 1000L;
+    long logAppendTimestamp = currentTimeMillis - TimeUnit.MINUTES.toMillis(15);
+    long recordCreationTimestamp = currentTimeMillis - TimeUnit.MINUTES.toMillis(16);
     Assert.assertEquals(this.extractorStatsTracker.getStatsMap().get(kafkaPartitions.get(0)).getProcessedRecordCount(), 0);
     Assert.assertEquals(this.extractorStatsTracker.getStatsMap().get(kafkaPartitions.get(0)).getPartitionTotalSize(), 0);
     Assert.assertTrue(this.extractorStatsTracker.getStatsMap().get(kafkaPartitions.get(0)).getDecodeRecordTime() == 0);
@@ -172,6 +175,20 @@ public class KafkaExtractorStatsTrackerTest {
     Assert.assertEquals(this.extractorStatsTracker.getStatsMap().get(kafkaPartitions.get(1)).getMinLogAppendTime(), logAppendTimestamp);
     Assert.assertEquals(this.extractorStatsTracker.getStatsMap().get(kafkaPartitions.get(1)).getMaxLogAppendTime(), logAppendTimestamp);
     Assert.assertEquals(this.extractorStatsTracker.getObservedLatencyHistogram().getTotalCount(), 3);
+
+    long startFetchEpochTime = this.extractorStatsTracker.getStatsMap().get(kafkaPartitions.get(0)).getStartFetchEpochTime();
+    long stopFetchEpochTime = this.extractorStatsTracker.getStatsMap().get(kafkaPartitions.get(1)).getStopFetchEpochTime();
+    this.epochDurationMs = stopFetchEpochTime - startFetchEpochTime;
+    long minLogAppendTimestamp = this.extractorStatsTracker.getStatsMap().get(kafkaPartitions.get(0)).getMinLogAppendTime();
+    long maxLogAppendTimestamp = this.extractorStatsTracker.getStatsMap().get(kafkaPartitions.get(1)).getMaxLogAppendTime();
+    //Ensure aggregate extractor stats have been updated correctly for the completed epoch
+    Assert.assertEquals(this.extractorStatsTracker.getAggregateExtractorStats().getMinStartFetchEpochTime(), startFetchEpochTime);
+    Assert.assertEquals(this.extractorStatsTracker.getAggregateExtractorStats().getMaxStopFetchEpochTime(), stopFetchEpochTime);
+    Assert.assertEquals(this.extractorStatsTracker.getAggregateExtractorStats().getMinLogAppendTime(), minLogAppendTimestamp);
+    Assert.assertEquals(this.extractorStatsTracker.getAggregateExtractorStats().getMaxLogAppendTime(), maxLogAppendTimestamp);
+    Assert.assertEquals(this.extractorStatsTracker.getAggregateExtractorStats().getNumBytesConsumed(), 300L);
+    Assert.assertEquals(this.extractorStatsTracker.getAggregateExtractorStats().getProcessedRecordCount(), 3L);
+    Assert.assertEquals(this.extractorStatsTracker.getAggregateExtractorStats().getSlaMissedRecordCount(), 1);
   }
 
   @Test (dependsOnMethods = "testUpdateStatisticsForCurrentPartition")
@@ -187,6 +204,17 @@ public class KafkaExtractorStatsTrackerTest {
     long recordCreationTimestamp = currentTimeMillis - 20;
     this.extractorStatsTracker.onDecodeableRecord(1, readStartTime, decodeStartTime, 150, logAppendTimestamp, recordCreationTimestamp);
     Assert.assertEquals(this.extractorStatsTracker.getAvgRecordSize(1), 150);
+  }
+
+  @Test (dependsOnMethods = "testGetAvgRecordSize")
+  public void testGetMaxLatency() {
+    Assert.assertTrue(this.extractorStatsTracker.getMaxIngestionLatency(TimeUnit.MINUTES) >= 15);
+  }
+
+  @Test (dependsOnMethods = "testGetAvgRecordSize")
+  public void testGetConsumptionRateMBps() {
+    double a = this.extractorStatsTracker.getConsumptionRateMBps();
+    Assert.assertEquals((new Double(Math.ceil(a * epochDurationMs * 1024 * 1024) / 1000)).longValue(), 300L);
   }
 
   @Test
