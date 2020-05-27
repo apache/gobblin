@@ -125,12 +125,7 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
         newTotalRecords = this.configurator.getFileNameRecordCount();
       } else {
         this.configurator.getOldFiles()
-            .addAll(
-                DatasetHelper.getApplicableFilePaths(this.fs, dstPath, Arrays.asList(configurator.getFileExtension()))
-                    .stream()
-                    .filter(Objects::nonNull)
-                    .map(Path::toString)
-                    .collect(Collectors.toList()));
+            .add(this.fs.makeQualified(dstPath).toString());
         this.fs.delete(dstPath, true);
         FsPermission permission =
             HadoopUtils.deserializeFsPermission(this.state, MRCompactorJobRunner.COMPACTION_JOB_OUTPUT_DIR_PERMISSION,
