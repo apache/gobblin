@@ -52,7 +52,7 @@ public class TypedConfig {
         configValue = defaultValue;
       }
       if (configValue != null) {
-        configValue = ConstraintUtil.constraint(field, configValue, defaultValue);
+        configValue = ConstraintUtil.constraint(field, configValue);
         field.set(this, convert(configValue, field.getType()));
       }
     }

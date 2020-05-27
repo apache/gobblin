@@ -29,7 +29,7 @@ import org.apache.gobblin.typedconfig.compiletime.StringRegex;
 
 
 /**
- * Util class for handling constrain annotation
+ * Util class for handling constraint annotation
  * supports: IntRange, LongRange, EnumOption, StringRegex
  */
 @Slf4j
@@ -37,58 +37,65 @@ public class ConstraintUtil {
   private ConstraintUtil() {
   }
 
-  public static Object constraint(Field field, Object value, Object defaultValue) {
-    if (value == null) {
-      return defaultValue;
-    }
+  public static Object constraint(Field field, Object value) {
     Class type = field.getType();
     if (type.isEnum()) {
-      return getEnumValue(field, value, defaultValue);
+      return getEnumValue(field, value);
     }
     switch (type.getName()) {
       case "int": case "java.lang.Integer":
-        return getIntValue(field, value, defaultValue);
+        return getIntValue(field, value);
       case "long": case "java.lang.Long":
-        return getLongValue(field, value, defaultValue);
+        return getLongValue(field, value);
       case "java.lang.String":
-        return getStringValue(field, value, defaultValue);
+        return getStringValue(field, value);
       case "boolean": case "java.lang.Boolean":
-        return getBooleanValue(field, value, defaultValue);
+        return getBooleanValue(field, value);
       case "java.util.Date":
-        return getDateValue(field, value, defaultValue);
+        return getDateValue(field, value);
       default:
-          throw new RuntimeException("not supported the return type: " + type.getName());
+        throw new RuntimeException("not supported the return type: " + type.getName());
     }
   }
 
-  static private Object getIntValue(Field field, Object value, Object defaultValue) {
+  static private Object getIntValue(Field field, Object value) {
     IntRange intRange = field.getAnnotation(IntRange.class);
     if (intRange == null) {
       return value;
     }
     int[] range = intRange.value();
     int intValue = Integer.parseInt(value.toString());
-    if (range.length != 2 || (range.length == 2 && intValue >= range[0] && intValue <= range[1])) {
+    if (range.length != 2) {
+      throw new RuntimeException(String.format("Field [%s]: Long range is invalid.", field.getName()));
+    }
+    if (intValue >= range[0] && intValue <= range[1]) {
       return value;
     } else {
-      return defaultValue;
+      throw new RuntimeException(
+          String.format("Field [%s]: value [%s] is out of range [%s, %s].", field.getName(), value, range[0], range[1])
+      );
     }
   }
-  static private Object getLongValue(Field field, Object value, Object defaultValue) {
+  static private Object getLongValue(Field field, Object value) {
     LongRange longRange = field.getAnnotation(LongRange.class);
     long[] range = longRange.value();
     if (range == null) {
       return value;
     }
     long longValue = Long.parseLong(value.toString());
-    if (range.length != 2 || (range.length == 2 && longValue > range[0] && longValue < range[1])) {
+    if (range.length != 2) {
+      throw new RuntimeException(String.format("Field [%s]: Long range is invalid.", field.getName()));
+    }
+    if (longValue > range[0] && longValue < range[1]) {
       return value;
     } else {
-      return defaultValue;
+      throw new RuntimeException(
+          String.format("Field [%s]: value [%s] is out of range [%s, %s].", field.getName(), value, range[0], range[1])
+      );
     }
   }
 
-  static private Object getStringValue(Field field, Object value, Object defaultValue) {
+  static private Object getStringValue(Field field, Object value) {
     StringRegex stringRegex = field.getAnnotation(StringRegex.class);
     if (stringRegex == null) {
       return value;
@@ -101,19 +108,19 @@ public class ConstraintUtil {
     if (isMatching) {
       return value;
     } else {
-      return defaultValue;
+      throw new RuntimeException(String.format("[%s] is not matching pattern [%s]", value, regex));
     }
   }
 
-  static private Object getBooleanValue(Field field, Object value, Object defaultValue) {
+  static private Object getBooleanValue(Field field, Object value) {
     return value; // there is no restriction for boolean value.
   }
 
-  static private Object getDateValue(Field field, Object value, Object defaultValue) {
+  static private Object getDateValue(Field field, Object value) {
     return value; // there is no restriction for Date value.
   }
 
-  static private Object getEnumValue(Field field, Object value, Object defaultValue) {
+  static private Object getEnumValue(Field field, Object value) {
     EnumOptions enumOptions = field.getAnnotation(EnumOptions.class);
     if (enumOptions == null) {
       return value;
@@ -122,7 +129,7 @@ public class ConstraintUtil {
     if (options.indexOf(value) >= 0) {
       return value;
     } else {
-      return defaultValue;
+      throw new RuntimeException(String.format("Enum [%s] is not allowed.", value));
     }
   }
 }
