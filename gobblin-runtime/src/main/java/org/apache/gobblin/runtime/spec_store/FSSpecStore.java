@@ -27,8 +27,11 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.function.Consumer;
+
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.GobblinInstanceEnvironment;
+import org.apache.gobblin.runtime.api.InstrumentedSpecStore;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.api.SpecSerDe;
@@ -45,6 +48,8 @@ import org.apache.hadoop.fs.RemoteIterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import avro.shaded.com.google.common.collect.Iterators;
+
 
 /**
  * The Spec Store for file system to persist the Spec information.
@@ -53,7 +58,7 @@ import org.slf4j.LoggerFactory;
  * 2. This implementation does not performs implicit version management.
  *    For implicit version management, please use a wrapper FSSpecStore.
  */
-public class FSSpecStore implements SpecStore {
+public class FSSpecStore extends InstrumentedSpecStore {
 
   /***
    * Configuration properties related to Spec Store
@@ -83,6 +88,7 @@ public class FSSpecStore implements SpecStore {
 
   public FSSpecStore(Config sysConfig, SpecSerDe specSerDe, Optional<Logger> log)
       throws IOException {
+    super(sysConfig, specSerDe);
     Preconditions.checkArgument(sysConfig.hasPath(SPECSTORE_FS_DIR_KEY),
         "FS SpecStore path must be specified.");
 
@@ -141,7 +147,7 @@ public class FSSpecStore implements SpecStore {
   }
 
   @Override
-  public boolean exists(URI specUri) throws IOException {
+  public boolean existsImpl(URI specUri) throws IOException {
     Preconditions.checkArgument(null != specUri, "Spec URI should not be null");
 
     Path specPath = getPathForURI(this.fsSpecStoreDirPath, specUri, FlowSpec.Builder.DEFAULT_VERSION);
@@ -149,7 +155,7 @@ public class FSSpecStore implements SpecStore {
   }
 
   @Override
-  public void addSpec(Spec spec) throws IOException {
+  public void addSpecImpl(Spec spec) throws IOException {
     Preconditions.checkArgument(null != spec, "Spec should not be null");
 
     log.info(String.format("Adding Spec with URI: %s in FSSpecStore: %s", spec.getUri(), this.fsSpecStoreDirPath));
@@ -165,10 +171,10 @@ public class FSSpecStore implements SpecStore {
   }
 
   @Override
-  public boolean deleteSpec(URI specUri) throws IOException {
+  public boolean deleteSpecImpl(URI specUri) throws IOException {
     Preconditions.checkArgument(null != specUri, "Spec URI should not be null");
 
-      return deleteSpec(specUri, FlowSpec.Builder.DEFAULT_VERSION);
+    return deleteSpec(specUri, FlowSpec.Builder.DEFAULT_VERSION);
   }
 
   @Override
@@ -186,13 +192,13 @@ public class FSSpecStore implements SpecStore {
   }
 
   @Override
-  public Spec updateSpec(Spec spec) throws IOException, SpecNotFoundException {
+  public Spec updateSpecImpl(Spec spec) throws IOException, SpecNotFoundException {
     addSpec(spec);
     return spec;
   }
 
   @Override
-  public Spec getSpec(URI specUri) throws SpecNotFoundException {
+  public Spec getSpecImpl(URI specUri) throws SpecNotFoundException {
     Preconditions.checkArgument(null != specUri, "Spec URI should not be null");
 
     Collection<Spec> specs = getAllVersionsOfSpec(specUri);
@@ -228,7 +234,7 @@ public class FSSpecStore implements SpecStore {
   }
 
   @Override
-  public Collection<Spec> getSpecs() throws IOException {
+  public Collection<Spec> getSpecsImpl() throws IOException {
     Collection<Spec> specs = Lists.newArrayList();
     try {
       getSpecs(this.fsSpecStoreDirPath, specs);
@@ -240,7 +246,7 @@ public class FSSpecStore implements SpecStore {
   }
 
   @Override
-  public Iterator<URI> getSpecURIs() throws IOException {
+  public Iterator<URI> getSpecURIsImpl() throws IOException {
     final RemoteIterator<LocatedFileStatus> it = fs.listFiles(this.fsSpecStoreDirPath, true);
     return new Iterator<URI>() {
       @Override

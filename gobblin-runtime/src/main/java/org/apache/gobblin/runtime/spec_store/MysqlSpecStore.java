@@ -43,6 +43,7 @@ import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.MysqlDataSourceFactory;
 import org.apache.gobblin.runtime.api.FlowSpec;
+import org.apache.gobblin.runtime.api.InstrumentedSpecStore;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.api.SpecSerDe;
@@ -64,7 +65,7 @@ import static org.apache.gobblin.service.ServiceConfigKeys.FLOW_SOURCE_IDENTIFIE
  * but not removing it from {@link SpecStore}.
  */
 @Slf4j
-public class MysqlSpecStore implements SpecStore {
+public class MysqlSpecStore extends InstrumentedSpecStore {
   public static final String CONFIG_PREFIX = "mysqlSpecStore";
   public static final String DEFAULT_TAG_VALUE = "";
   private static final String NEW_COLUMN = "spec_json";
@@ -92,6 +93,7 @@ public class MysqlSpecStore implements SpecStore {
   protected final SpecSerDe specSerDe;
 
   public MysqlSpecStore(Config config, SpecSerDe specSerDe) throws IOException {
+    super(config, specSerDe);
     if (config.hasPath(CONFIG_PREFIX)) {
       config = config.getConfig(CONFIG_PREFIX).withFallback(config);
     }
@@ -110,7 +112,7 @@ public class MysqlSpecStore implements SpecStore {
   }
 
   @Override
-  public boolean exists(URI specUri) throws IOException {
+  public boolean existsImpl(URI specUri) throws IOException {
     try (Connection connection = this.dataSource.getConnection();
         PreparedStatement statement = connection.prepareStatement(String.format(EXISTS_STATEMENT, this.tableName))) {
       statement.setString(1, specUri.toString());
@@ -124,7 +126,7 @@ public class MysqlSpecStore implements SpecStore {
   }
 
   @Override
-  public void addSpec(Spec spec) throws IOException {
+  public void addSpecImpl(Spec spec) throws IOException {
     this.addSpec(spec, DEFAULT_TAG_VALUE);
   }
 
@@ -148,7 +150,7 @@ public class MysqlSpecStore implements SpecStore {
   }
 
   @Override
-  public boolean deleteSpec(URI specUri) throws IOException {
+  public boolean deleteSpecImpl(URI specUri) throws IOException {
     try (Connection connection = this.dataSource.getConnection();
         PreparedStatement statement = connection.prepareStatement(String.format(DELETE_STATEMENT, this.tableName))) {
       statement.setString(1, specUri.toString());
@@ -167,13 +169,13 @@ public class MysqlSpecStore implements SpecStore {
 
   @Override
   // TODO : this method is not doing what the contract is in the SpecStore interface
-  public Spec updateSpec(Spec spec) throws IOException, SpecNotFoundException {
+  public Spec updateSpecImpl(Spec spec) throws IOException {
     addSpec(spec);
     return spec;
   }
 
   @Override
-  public Spec getSpec(URI specUri) throws IOException, SpecNotFoundException {
+  public Spec getSpecImpl(URI specUri) throws IOException, SpecNotFoundException {
     try (Connection connection = this.dataSource.getConnection();
         PreparedStatement statement = connection.prepareStatement(String.format(GET_STATEMENT, this.tableName))) {
       statement.setString(1, specUri.toString());
@@ -202,7 +204,7 @@ public class MysqlSpecStore implements SpecStore {
   }
 
   @Override
-  public Collection<Spec> getSpecs() throws IOException {
+  public Collection<Spec> getSpecsImpl() throws IOException {
     try (Connection connection = this.dataSource.getConnection();
         PreparedStatement statement = connection.prepareStatement(String.format(GET_ALL_STATEMENT, this.tableName))) {
       List<Spec> specs = new ArrayList<>();
@@ -227,7 +229,7 @@ public class MysqlSpecStore implements SpecStore {
   }
 
   @Override
-  public Iterator<URI> getSpecURIs() throws IOException {
+  public Iterator<URI> getSpecURIsImpl() throws IOException {
     try (Connection connection = this.dataSource.getConnection();
         PreparedStatement statement = connection.prepareStatement(String.format(GET_ALL_URIS_STATEMENT, this.tableName))) {
       return getURIIteratorByQuery(statement);
