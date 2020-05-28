@@ -252,9 +252,10 @@ public class GobblinServiceManagerTest {
     this.flowConfigClient.createFlowConfig(flowConfig);
 
     // runOnce job should not be persisted
-    Assert.assertEquals(this.gobblinServiceManager.getFlowCatalog().getSpecs().size(), 0,
-          "Flow that was created is not " + "reflecting in FlowCatalog");
     AssertWithBackoff.create().maxSleepMs(200L).timeoutMs(2000L).backoffFactor(1)
+        .assertTrue(input -> this.gobblinServiceManager.getFlowCatalog().getSpecs().size() == 0,
+          "Flow that was created is not " + "reflecting in FlowCatalog");
+    AssertWithBackoff.create().maxSleepMs(100L).timeoutMs(1000L).backoffFactor(1)
           .assertTrue(input -> !this.gobblinServiceManager.getScheduler().getScheduledFlowSpecs().containsKey(TEST_URI.toString()),
               "Waiting for job to get orchestrated...");
   }

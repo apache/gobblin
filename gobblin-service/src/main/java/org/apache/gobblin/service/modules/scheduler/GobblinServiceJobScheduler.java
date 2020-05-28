@@ -23,6 +23,8 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.helix.HelixManager;
@@ -301,6 +303,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
           return new AddSpecResponse<>(response);
         }
 
+        // todo : we should probably not schedule a flow if it is a runOnce flow
         this.scheduledFlowSpecs.put(addedSpec.getUri().toString(), addedSpec);
 
         if (jobConfig.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
@@ -433,10 +436,17 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       try {
         GobblinServiceJobScheduler.this.runJob(this.jobConfig, this.jobListener);
         if (flowCatalog.isPresent() && removeSpec) {
+          while (!GobblinServiceJobScheduler.this.flowCatalog.get().exists(specUri)) {
+            _log.warn("Waiting for spec {} to exist in flow catalog...", specUri);
+            Thread.sleep(300L);
+          }
+          GobblinServiceJobScheduler.this.flowCatalog.get().remove(specUri, new Properties(), false);
           GobblinServiceJobScheduler.this.scheduledFlowSpecs.remove(specUri.toString());
         }
       } catch (JobException je) {
         _log.error("Failed to run job " + this.jobConfig.getProperty(ConfigurationKeys.JOB_NAME_KEY), je);
+      } catch (InterruptedException e) {
+      _log.error("Failed to delete the spec " + specUri, e);
       }
     }
   }

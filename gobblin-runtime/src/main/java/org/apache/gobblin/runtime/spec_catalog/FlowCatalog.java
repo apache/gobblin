@@ -283,7 +283,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     try {
       spec = getSpec(uri);
     } catch (SpecNotFoundException snfe) {
-      log.error(String.format("The URI %s discovered in SpecStore is missing in FlowCatlog"
+      log.error(String.format("The URI %s discovered in SpecStore is missing in FlowCatalog"
           + ", suspecting current modification on SpecStore", uri), snfe);
     }
     return spec;
@@ -315,7 +315,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     if (isCompileSuccessful(responseMap)) {
       try {
         long startTime = System.currentTimeMillis();
-        if (flowSpec.shouldPersist()) {
+        if (!flowSpec.isExplain()) {
           specStore.addSpec(spec);
         }
         metrics.updatePutSpecTime(startTime);
