@@ -190,9 +190,9 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
         //Disable FLOW_RUN_IMMEDIATELY on service startup or leadership change
         if (spec instanceof FlowSpec) {
           Spec modifiedSpec = disableFlowRunImmediatelyOnStart((FlowSpec) spec);
-          onAddSpec(modifiedSpec, false);
+          onAddSpec(modifiedSpec);
         } else {
-          onAddSpec(spec, false);
+          onAddSpec(spec);
         }
       }
     } finally {
@@ -257,10 +257,6 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   /** {@inheritDoc} */
   @Override
   public AddSpecResponse onAddSpec(Spec addedSpec) {
-    return onAddSpec(addedSpec, true);
-  }
-
-  public AddSpecResponse onAddSpec(Spec addedSpec, boolean deleteSpecOnCompilationFailure) {
     if (this.helixManager.isPresent() && !this.helixManager.get().isConnected()) {
       // Specs in store will be notified when Scheduler is added as listener to FlowCatalog, so ignore
       // .. Specs if in cluster mode and Helix is not yet initialized
@@ -300,26 +296,25 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
 
         boolean compileSuccess = FlowCatalog.isCompileSuccessful(response);
 
-        if (!isExplain && compileSuccess) {
-          this.scheduledFlowSpecs.put(addedSpec.getUri().toString(), addedSpec);
+        if (isExplain || !compileSuccess) {
+          _log.info("Ignoring the spec {}. isExplain: {}, compileSuccess: {}", addedSpec, isExplain, compileSuccess);
+          return new AddSpecResponse<>(response);
+        }
 
-          if (jobConfig.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
-            _log.info("{} Scheduling flow spec: {} ", this.serviceName, addedSpec);
-            scheduleJob(jobConfig, null);
-            if (PropertiesUtils.getPropAsBoolean(jobConfig, ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false")) {
-              _log.info("RunImmediately requested, hence executing FlowSpec: " + addedSpec);
-              this.jobExecutor.execute(new NonScheduledJobRunner(flowSpecUri, false, jobConfig, null));
-            }
-          } else {
-            _log.info("No FlowSpec schedule found, so running FlowSpec: " + addedSpec);
-            this.jobExecutor.execute(new NonScheduledJobRunner(flowSpecUri, true, jobConfig, null));
+        this.scheduledFlowSpecs.put(addedSpec.getUri().toString(), addedSpec);
+
+        if (jobConfig.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
+          _log.info("{} Scheduling flow spec: {} ", this.serviceName, addedSpec);
+          scheduleJob(jobConfig, null);
+          if (PropertiesUtils.getPropAsBoolean(jobConfig, ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false")) {
+            _log.info("RunImmediately requested, hence executing FlowSpec: " + addedSpec);
+            this.jobExecutor.execute(new NonScheduledJobRunner(flowSpecUri, false, jobConfig, null));
           }
         } else {
-          if (this.flowCatalog.isPresent() && deleteSpecOnCompilationFailure) {
-            _log.info("Removing the flow spec: {}, isExplain: {}, compileSuccess: {}", addedSpec, isExplain, compileSuccess);
-            GobblinServiceJobScheduler.this.flowCatalog.get().remove(flowSpecUri, new Properties(), false);
-          }
+          _log.info("No FlowSpec schedule found, so running FlowSpec: " + addedSpec);
+          this.jobExecutor.execute(new NonScheduledJobRunner(flowSpecUri, true, jobConfig, null));
         }
+
         return new AddSpecResponse<>(response);
       } catch (JobException je) {
         _log.error("{} Failed to schedule or run FlowSpec {}", serviceName, addedSpec, je);
@@ -351,7 +346,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
         unscheduleJob(deletedSpecURI.toString());
       } else {
         _log.warn(String.format(
-            "Spec with URI: %s was not found in cache. May be it was cleaned, if not please " + "clean it manually",
+            "Spec with URI: %s was not found in cache. May be it was cleaned, if not please clean it manually",
             deletedSpecURI));
       }
     } catch (JobException | IOException e) {
@@ -438,7 +433,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       try {
         GobblinServiceJobScheduler.this.runJob(this.jobConfig, this.jobListener);
         if (flowCatalog.isPresent() && removeSpec) {
-          GobblinServiceJobScheduler.this.flowCatalog.get().remove(specUri, new Properties(), false);
+          GobblinServiceJobScheduler.this.scheduledFlowSpecs.remove(specUri.toString());
         }
       } catch (JobException je) {
         _log.error("Failed to run job " + this.jobConfig.getProperty(ConfigurationKeys.JOB_NAME_KEY), je);

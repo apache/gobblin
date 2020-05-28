@@ -358,4 +358,12 @@ public class FlowSpec implements Configurable, Spec {
   public Boolean isExplain() {
     return ConfigUtils.getBoolean(getConfig(), ConfigurationKeys.FLOW_EXPLAIN_KEY, false);
   }
+
+  public boolean isScheduled() {
+    return getConfig().hasPath(ConfigurationKeys.JOB_SCHEDULE_KEY);
+  }
+
+  public boolean shouldPersist() {
+    return !isExplain() && isScheduled();
+  }
 }

@@ -20,6 +20,7 @@ package org.apache.gobblin.service;
 import java.io.File;
 import java.net.URI;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
@@ -60,7 +61,9 @@ import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.service.modules.core.GitConfigMonitor;
 import org.apache.gobblin.service.modules.core.GobblinServiceManager;
+import org.apache.gobblin.service.modules.flow.MockedSpecCompiler;
 import org.apache.gobblin.service.monitoring.FsJobStatusRetriever;
+import org.apache.gobblin.testing.AssertWithBackoff;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -81,6 +84,8 @@ public class GobblinServiceManagerTest {
 
   private static final String TEST_GROUP_NAME = "testGroup";
   private static final String TEST_FLOW_NAME = "testFlow";
+  private static final FlowId TEST_FLOW_ID = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME);
+
   private static final String TEST_SCHEDULE = "0 1/0 * ? * *";
   private static final String TEST_TEMPLATE_URI = "FS:///templates/test.template";
   private static final String TEST_DUMMY_GROUP_NAME = "dummyGroup";
@@ -89,10 +94,15 @@ public class GobblinServiceManagerTest {
   private static final String TEST_SOURCE_NAME = "testSource";
   private static final String TEST_SINK_NAME = "testSink";
 
+  private final URI TEST_URI = FlowConfigResourceLocalHandler.FlowUriUtils.createFlowSpecUri(TEST_FLOW_ID);
   private MockGobblinServiceManager gobblinServiceManager;
-  private FlowConfigClient flowConfigClient;
+  private FlowConfigV2Client flowConfigClient;
 
   private Git gitForPush;
+  Properties serviceCoreProperties = new Properties();
+
+  public GobblinServiceManagerTest() throws Exception {
+  }
 
   @BeforeClass
   public void setup() throws Exception {
@@ -103,7 +113,6 @@ public class GobblinServiceManagerTest {
     KafkaTestBase kafkaTestHelper = new KafkaTestBase();
     kafkaTestHelper.startServers();
 
-    Properties serviceCoreProperties = new Properties();
     serviceCoreProperties.put(ConfigurationKeys.STATE_STORE_DB_USER_KEY, "testUser");
     serviceCoreProperties.put(ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY, "testPassword");
     serviceCoreProperties.put(ConfigurationKeys.STATE_STORE_DB_URL_KEY, testMetastoreDatabase.getJdbcUrl());
@@ -133,6 +142,8 @@ public class GobblinServiceManagerTest {
 
     serviceCoreProperties.put(ServiceConfigKeys.GOBBLIN_SERVICE_JOB_STATUS_MONITOR_ENABLED_KEY, false);
 
+    serviceCoreProperties.put(ServiceConfigKeys.GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY, MockedSpecCompiler.class.getCanonicalName());
+
     // Create a bare repository
     RepositoryCache.FileKey fileKey = RepositoryCache.FileKey.exact(new File(GIT_REMOTE_REPO_DIR), FS.DETECTED);
     fileKey.open(false).create(true);
@@ -147,7 +158,7 @@ public class GobblinServiceManagerTest {
         ConfigUtils.propertiesToConfig(serviceCoreProperties), Optional.of(new Path(SERVICE_WORK_DIR)));
     this.gobblinServiceManager.start();
 
-    this.flowConfigClient = new FlowConfigClient(String.format("http://localhost:%s/",
+    this.flowConfigClient = new FlowConfigV2Client(String.format("http://localhost:%s/",
         this.gobblinServiceManager.getRestLiServer().getPort()));
   }
 
@@ -181,19 +192,106 @@ public class GobblinServiceManagerTest {
   }
 
   @Test
-  public void testCreate() throws Exception {
+  public void testRestart() throws Exception {
+    Map<String, String> flowProperties = Maps.newHashMap();
+    flowProperties.put("param1", "value1");
+    flowProperties.put(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, TEST_SOURCE_NAME);
+    flowProperties.put(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, TEST_SINK_NAME);
+    FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(MockedSpecCompiler.UNCOMPILABLE_FLOW))
+        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).setRunImmediately(false))
+        .setProperties(new StringMap(flowProperties));
+    FlowSpec spec = FlowConfigResourceLocalHandler.createFlowSpecForConfig(flowConfig);
+
+    this.gobblinServiceManager.getFlowCatalog().getSpecStore().addSpec(spec);
+
+    serviceReboot();
+
+    List<Spec> specs = (List<Spec>) this.gobblinServiceManager.getFlowCatalog().getSpecs();
+    Assert.assertEquals(specs.size(), 1, "Flow that was created is not " + "reflecting in FlowCatalog");
+    Assert.assertEquals(specs.get(0).getUri(), spec.getUri());
+    Assert.assertFalse(flowConfig.getSchedule().isRunImmediately());
+
+    // clean it
+    this.gobblinServiceManager.getFlowCatalog().remove(spec.getUri());
+  }
+
+  @Test (dependsOnMethods = "testRestart")
+  public void testUncompilableJob() throws Exception {
+    Map<String, String> flowProperties = Maps.newHashMap();
+    flowProperties.put("param1", "value1");
+    flowProperties.put(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, TEST_SOURCE_NAME);
+    flowProperties.put(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, TEST_SINK_NAME);
+    FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(MockedSpecCompiler.UNCOMPILABLE_FLOW);
+    URI uri = FlowConfigResourceLocalHandler.FlowUriUtils.createFlowSpecUri(flowId);
+    FlowConfig flowConfig = new FlowConfig().setId(flowId)
+        .setTemplateUris(TEST_TEMPLATE_URI).setProperties(new StringMap(flowProperties));
+
+    RestLiResponseException exception = null;
+    try {
+      this.flowConfigClient.createFlowConfig(flowConfig);
+    } catch (RestLiResponseException e) {
+      exception = e;
+    }
+    Assert.assertEquals(exception.getStatus(), HttpStatus.BAD_REQUEST_400);
+    // uncompilable job should not be persisted
+    Assert.assertEquals(this.gobblinServiceManager.getFlowCatalog().getSpecs().size(), 0,
+        "Flow that was created is not " + "reflecting in FlowCatalog");
+    Assert.assertFalse(this.gobblinServiceManager.getScheduler().getScheduledFlowSpecs().containsKey(uri.toString()));
+  }
+
+  @Test (dependsOnMethods = "testUncompilableJob")
+  public void testRunOnceJob() throws Exception {
+    Map<String, String> flowProperties = Maps.newHashMap();
+    flowProperties.put("param1", "value1");
+    flowProperties.put(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, TEST_SOURCE_NAME);
+    flowProperties.put(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, TEST_SINK_NAME);
+
+    FlowConfig flowConfig = new FlowConfig().setId(TEST_FLOW_ID)
+        .setTemplateUris(TEST_TEMPLATE_URI).setProperties(new StringMap(flowProperties));
+
+    this.flowConfigClient.createFlowConfig(flowConfig);
+
+    // runOnce job should not be persisted
+    Assert.assertEquals(this.gobblinServiceManager.getFlowCatalog().getSpecs().size(), 0,
+          "Flow that was created is not " + "reflecting in FlowCatalog");
+    AssertWithBackoff.create().maxSleepMs(200L).timeoutMs(2000L).backoffFactor(1)
+          .assertTrue(input -> !this.gobblinServiceManager.getScheduler().getScheduledFlowSpecs().containsKey(TEST_URI.toString()),
+              "Waiting for job to get orchestrated...");
+  }
+
+  @Test (dependsOnMethods = "testRunOnceJob")
+  public void testExplainJob() throws Exception {
     Map<String, String> flowProperties = Maps.newHashMap();
     flowProperties.put("param1", "value1");
     flowProperties.put(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, TEST_SOURCE_NAME);
     flowProperties.put(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, TEST_SINK_NAME);
 
     FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME))
+        .setTemplateUris(TEST_TEMPLATE_URI).setProperties(new StringMap(flowProperties)).setExplain(true);
+
+    this.flowConfigClient.createFlowConfig(flowConfig);
+
+    // explain job should not be persisted
+    Assert.assertEquals(this.gobblinServiceManager.getFlowCatalog().getSpecs().size(), 0,
+        "Flow that was created is not " + "reflecting in FlowCatalog");
+    Assert.assertFalse(this.gobblinServiceManager.getScheduler().getScheduledFlowSpecs().containsKey(TEST_URI.toString()));
+  }
+
+  @Test (dependsOnMethods = "testExplainJob")
+  public void testCreate() throws Exception {
+    Map<String, String> flowProperties = Maps.newHashMap();
+    flowProperties.put("param1", "value1");
+    flowProperties.put(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, TEST_SOURCE_NAME);
+    flowProperties.put(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, TEST_SINK_NAME);
+
+    FlowConfig flowConfig = new FlowConfig().setId(TEST_FLOW_ID)
         .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).setRunImmediately(true))
         .setProperties(new StringMap(flowProperties));
 
     this.flowConfigClient.createFlowConfig(flowConfig);
-    Assert.assertTrue(this.gobblinServiceManager.getFlowCatalog().getSpecs().size() == 1, "Flow that was created is not "
-        + "reflecting in FlowCatalog");
+    Assert.assertEquals(this.gobblinServiceManager.getFlowCatalog().getSpecs().size(), 1,
+        "Flow that was created is not " + "reflecting in FlowCatalog");
+    Assert.assertTrue(this.gobblinServiceManager.getScheduler().getScheduledFlowSpecs().containsKey(TEST_URI.toString()));
   }
 
   @Test (dependsOnMethods = "testCreate")
@@ -203,27 +301,29 @@ public class GobblinServiceManagerTest {
     flowProperties.put(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, TEST_SOURCE_NAME);
     flowProperties.put(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, TEST_SINK_NAME);
 
-    FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME))
+    FlowConfig flowConfig = new FlowConfig().setId(TEST_FLOW_ID)
         .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE))
         .setProperties(new StringMap(flowProperties));
 
+    RestLiResponseException exception = null;
     try {
       this.flowConfigClient.createFlowConfig(flowConfig);
     } catch (RestLiResponseException e) {
-      Assert.fail("Create Again should pass without complaining that the spec already exists.");
+      exception = e;
     }
+    Assert.assertNotNull(exception);
+    Assert.assertEquals(exception.getStatus(), HttpStatus.CONFLICT_409);
   }
 
   @Test (dependsOnMethods = "testCreateAgain")
   public void testGet() throws Exception {
-    FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME);
-    FlowConfig flowConfig = this.flowConfigClient.getFlowConfig(flowId);
+    FlowConfig flowConfig = this.flowConfigClient.getFlowConfig(TEST_FLOW_ID);
 
     Assert.assertEquals(flowConfig.getId().getFlowGroup(), TEST_GROUP_NAME);
     Assert.assertEquals(flowConfig.getId().getFlowName(), TEST_FLOW_NAME);
     Assert.assertEquals(flowConfig.getSchedule().getCronSchedule(), TEST_SCHEDULE);
     Assert.assertEquals(flowConfig.getTemplateUris(), TEST_TEMPLATE_URI);
-    Assert.assertFalse(flowConfig.getSchedule().isRunImmediately());
+    Assert.assertTrue(flowConfig.getSchedule().isRunImmediately());
     // Add this assert back when getFlowSpec() is changed to return the raw flow spec
     //Assert.assertEquals(flowConfig.getProperties().size(), 1);
     Assert.assertEquals(flowConfig.getProperties().get("param1"), "value1");
@@ -247,6 +347,7 @@ public class GobblinServiceManagerTest {
 
     FlowConfig retrievedFlowConfig = this.flowConfigClient.getFlowConfig(flowId);
 
+    Assert.assertTrue(this.gobblinServiceManager.getScheduler().getScheduledFlowSpecs().containsKey(TEST_URI.toString()));
     Assert.assertEquals(retrievedFlowConfig.getId().getFlowGroup(), TEST_GROUP_NAME);
     Assert.assertEquals(retrievedFlowConfig.getId().getFlowName(), TEST_FLOW_NAME);
     Assert.assertEquals(retrievedFlowConfig.getSchedule().getCronSchedule(), TEST_SCHEDULE);
@@ -260,6 +361,7 @@ public class GobblinServiceManagerTest {
   @Test (dependsOnMethods = "testUpdate")
   public void testDelete() throws Exception {
     FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME);
+    URI uri = FlowConfigResourceLocalHandler.FlowUriUtils.createFlowSpecUri(flowId);
 
     // make sure flow config exists
     FlowConfig flowConfig = this.flowConfigClient.getFlowConfig(flowId);
@@ -272,6 +374,7 @@ public class GobblinServiceManagerTest {
       this.flowConfigClient.getFlowConfig(flowId);
     } catch (RestLiResponseException e) {
       Assert.assertEquals(e.getStatus(), HttpStatus.NOT_FOUND_404);
+      Assert.assertFalse(this.gobblinServiceManager.getScheduler().getScheduledFlowSpecs().containsKey(uri.toString()));
       return;
     }
 
@@ -287,7 +390,7 @@ public class GobblinServiceManagerTest {
     Files.write("flow.name=testFlow\nflow.group=testGroup\nparam1=value20\n", testFlowFile, Charsets.UTF_8);
 
     Collection<Spec> specs = this.gobblinServiceManager.getFlowCatalog().getSpecs();
-    Assert.assertTrue(specs.size() == 0);
+    Assert.assertEquals(specs.size(), 0);
 
     // add, commit, push
     this.gitForPush.add().addFilepattern("gobblin-config/testGroup/testFlow.pull").call();
@@ -297,14 +400,12 @@ public class GobblinServiceManagerTest {
     // polling is every 5 seconds, so wait twice as long and check
     TimeUnit.SECONDS.sleep(10);
 
-    specs = this.gobblinServiceManager.getFlowCatalog().getSpecs();
-    Assert.assertTrue(specs.size() == 1);
+    // spec generated using git monitor do not have schedule, so their life cycle should be similar to runOnce jobs
+    Assert.assertEquals(this.gobblinServiceManager.getFlowCatalog().getSpecs().size(), 0);
 
-    FlowSpec spec = (FlowSpec) (specs.iterator().next());
-    Assert.assertEquals(spec.getUri(), new URI("gobblin-flow:/testGroup/testFlow"));
-    Assert.assertEquals(spec.getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY), "testFlow");
-    Assert.assertEquals(spec.getConfig().getString(ConfigurationKeys.FLOW_GROUP_KEY), "testGroup");
-    Assert.assertEquals(spec.getConfig().getString("param1"), "value20");
+    AssertWithBackoff.create().maxSleepMs(200L).timeoutMs(2000L).backoffFactor(1)
+        .assertTrue(input -> !this.gobblinServiceManager.getScheduler().getScheduledFlowSpecs().containsKey(TEST_URI.toString()),
+            "Waiting for job to get orchestrated...");
   }
 
   @Test
@@ -351,7 +452,15 @@ public class GobblinServiceManagerTest {
     } catch (RestLiResponseException e) {
       Assert.assertEquals(e.getStatus(), HttpStatus.NOT_FOUND_404);
     }
-    cleanUpDir(FLOW_SPEC_STORE_DIR);
+  }
+
+  private void serviceReboot() throws Exception {
+    this.gobblinServiceManager.stop();
+    this.gobblinServiceManager = new MockGobblinServiceManager("CoreService", "1",
+        ConfigUtils.propertiesToConfig(serviceCoreProperties), Optional.of(new Path(SERVICE_WORK_DIR)));
+    this.flowConfigClient = new FlowConfigV2Client(String.format("http://localhost:%s/",
+        this.gobblinServiceManager.getRestLiServer().getPort()));
+    this.gobblinServiceManager.start();
   }
 
   class MockGobblinServiceManager extends GobblinServiceManager {
@@ -365,6 +474,5 @@ public class GobblinServiceManagerTest {
     protected EmbeddedRestliServer getRestLiServer() {
       return this.restliServer;
     }
-
   }
 }
