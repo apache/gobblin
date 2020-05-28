@@ -62,7 +62,7 @@ subprojects{
     publish = true
     dryRun = project.hasProperty("bintray.dryRun")
     pkg {
-      repo = 'test-repo'
+      repo = 'maven'
       name = 'gobblin-github'
       userOrg = 'linkedin'
       licenses = ['Apache-2.0']

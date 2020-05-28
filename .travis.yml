@@ -33,13 +33,15 @@ script:
 
 after_success:
   - bash <(cat .codecov_bash)
-#  - ./travis/bintrayDeploy.sh
 after_failure: ./travis/junit-errors-to-stdout.sh
 
 deploy:
   provider: script
   script: ./travis/bintrayDeploy.sh
   skip_cleanup: true
+  on:
+    branch: master
+
 
 env:
   global:
@@ -47,8 +49,8 @@ env:
       - secure: nTBLE5c295gwHfsMAGLhHz3Dr8eUFlEj/T6kRyVmlQ7ouvs8V97FUznlh0KwRazG0cZ5H0iXm8JxOYac3J04pvK+wOc4BpUq4WYlgBeypo0pcBp4G+5yM3+JoA0B3YbVIDKvZ6o3EBOMQ2vK/kjhe3SpOOTO4wJmfRsCx5bnbFmNKA2C8/DXDGhzfM5tfSapbc4QVYhKxSyUpq+izYGY9BZvcGxRPXLaiIxVLex3ZGpuOtrzl8gTwVnWqlQ5yYTUUdNcdJW7H1AwIlgkKKMS9+3q0KqXrJ0EtvRgbvnWdIKh1/0rOA6i4S0XgCV4mYTDqnZWO6sg3CUnAd2hFTyRI9acSWAzifkTyZD2gfsDgvsv/JQOuTOW1hZQ2g9et+vIW0wbRvIprf+wbRsNxdE7uUpGFJ9TYZJDPG6HJwqaoqyo6rcLS7T7kE6o0EZJTMw3Rq1TaSU65Ta4hvO2muEXtpPHEHh65GS0d1zcv++QQD7pedcgpIrFFbEyQJxivwXOvfklkCzTDFHI1lqK+WC1IWyC684ax+zJW8cos7I/U8kaE3w6tU9NUsOVk/yYMbqiu1YgBzMJmBjEev3RcUAyMldpdd4M2dXefdvX0PtYuZl1UOnXlpAvlhaNYb1D1+/xGgz0G0y5qR9n4nqwemjHVDzMhLPfeRjfiTnq6FP8MkI=
   jobs:
     - RUN_TEST_GROUP=build
-#    - RUN_TEST_GROUP=default
-#    - RUN_TEST_GROUP=group1
+    - RUN_TEST_GROUP=default
+    - RUN_TEST_GROUP=group1
     - RUN_TEST_GROUP=coverage
 
 jdk:
