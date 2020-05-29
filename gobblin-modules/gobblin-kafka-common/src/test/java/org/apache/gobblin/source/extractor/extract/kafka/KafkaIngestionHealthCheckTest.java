@@ -35,10 +35,10 @@ import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
 import org.apache.gobblin.util.event.ContainerHealthCheckFailureEvent;
 import org.apache.gobblin.util.eventbus.EventBusFactory;
 
-
+@Test (singleThreaded = true)
 public class KafkaIngestionHealthCheckTest {
   private EventBus eventBus;
-  private CountDownLatch countDownLatch = new CountDownLatch(1);
+  private CountDownLatch countDownLatch;
 
   @BeforeClass
   public void setUp() throws IOException {
@@ -53,8 +53,9 @@ public class KafkaIngestionHealthCheckTest {
   }
 
   @Test
-  public void testExecute()
+  public void testExecuteIncreasingLatencyCheckEnabled()
       throws InterruptedException {
+    this.countDownLatch = new CountDownLatch(1);
     Config config = ConfigFactory.empty().withValue(KafkaIngestionHealthCheck.KAFKA_INGESTION_HEALTH_CHECK_EXPECTED_CONSUMPTION_RATE_MBPS_KEY,
         ConfigValueFactory.fromAnyRef(5))
         .withValue(KafkaIngestionHealthCheck.KAFKA_INGESTION_HEALTH_CHECK_LATENCY_THRESHOLD_MINUTES_KEY, ConfigValueFactory.fromAnyRef(5));
@@ -88,6 +89,65 @@ public class KafkaIngestionHealthCheckTest {
     //Set the countdown latch back to 1.
     this.countDownLatch = new CountDownLatch(1);
     //Latency decreases from 10 to 5. So check.execute() should not post any event to EventBus.
+    check.execute();
+    this.countDownLatch.await(10, TimeUnit.MILLISECONDS);
+    Assert.assertEquals(this.countDownLatch.getCount(), 1);
+
+    config = config.withValue(KafkaIngestionHealthCheck.KAFKA_INGESTION_HEALTH_CHECK_INCREASING_LATENCY_CHECK_ENABLED_KEY, ConfigValueFactory.fromAnyRef(false));
+    extractorStatsTracker = Mockito.mock(KafkaExtractorStatsTracker.class);
+    Mockito.when(extractorStatsTracker.getMaxIngestionLatency(TimeUnit.MINUTES))
+        .thenReturn(10L)
+        .thenReturn(7L)
+        .thenReturn(5L);
+    Mockito.when(extractorStatsTracker.getConsumptionRateMBps())
+        .thenReturn(2.0)
+        .thenReturn(1.5)
+        .thenReturn(2.1);
+
+    check = new KafkaIngestionHealthCheck(config, extractorStatsTracker);
+
+    check.execute();
+  }
+
+  @Test
+  public void testExecuteIncreasingLatencyCheckDisabled()
+      throws InterruptedException {
+    this.countDownLatch = new CountDownLatch(1);
+
+    Config config = ConfigFactory.empty().withValue(KafkaIngestionHealthCheck.KAFKA_INGESTION_HEALTH_CHECK_EXPECTED_CONSUMPTION_RATE_MBPS_KEY,
+        ConfigValueFactory.fromAnyRef(5))
+        .withValue(KafkaIngestionHealthCheck.KAFKA_INGESTION_HEALTH_CHECK_LATENCY_THRESHOLD_MINUTES_KEY, ConfigValueFactory.fromAnyRef(5))
+        .withValue(KafkaIngestionHealthCheck.KAFKA_INGESTION_HEALTH_CHECK_INCREASING_LATENCY_CHECK_ENABLED_KEY, ConfigValueFactory.fromAnyRef(false));
+
+    KafkaExtractorStatsTracker extractorStatsTracker = Mockito.mock(KafkaExtractorStatsTracker.class);
+    Mockito.when(extractorStatsTracker.getMaxIngestionLatency(TimeUnit.MINUTES))
+        .thenReturn(10L)
+        .thenReturn(7L)
+        .thenReturn(6L)
+        .thenReturn(4L);
+    Mockito.when(extractorStatsTracker.getConsumptionRateMBps())
+        .thenReturn(2.0)
+        .thenReturn(1.5)
+        .thenReturn(2.1)
+        .thenReturn(2.5);
+
+    KafkaIngestionHealthCheck check = new KafkaIngestionHealthCheck(config, extractorStatsTracker);
+
+    //Latency consistently above 5 minutes for the first 3 calls to execute().
+    check.execute();
+    this.countDownLatch.await(10, TimeUnit.MILLISECONDS);
+    Assert.assertEquals(this.countDownLatch.getCount(), 1L);
+    check.execute();
+    this.countDownLatch.await(10, TimeUnit.MILLISECONDS);
+    Assert.assertEquals(this.countDownLatch.getCount(), 1L);
+    check.execute();
+    //Ensure that ContainerHealthCheckFailureEvent is posted to eventBus; countDownLatch should be back to 0.
+    this.countDownLatch.await(10, TimeUnit.MILLISECONDS);
+    Assert.assertEquals(this.countDownLatch.getCount(), 0);
+
+    //Set the countdown latch back to 1.
+    this.countDownLatch = new CountDownLatch(1);
+    //Latency decreases to 4. So check.execute() should not post any event to EventBus.
     check.execute();
     this.countDownLatch.await(10, TimeUnit.MILLISECONDS);
     Assert.assertEquals(this.countDownLatch.getCount(), 1);

@@ -41,11 +41,13 @@ public class KafkaIngestionHealthCheck implements CommitStep {
   public static final String KAFKA_INGESTION_HEALTH_CHECK_LATENCY_THRESHOLD_MINUTES_KEY = KAFKA_INGESTION_HEALTH_CHECK_PREFIX + "ingestionLatency.minutes";
   public static final String KAFKA_INGESTION_HEALTH_CHECK_CONSUMPTION_RATE_DROPOFF_FRACTION_KEY = KAFKA_INGESTION_HEALTH_CHECK_PREFIX + "consumptionRate.dropOffFraction";
   public static final String KAFKA_INGESTION_HEALTH_CHECK_EXPECTED_CONSUMPTION_RATE_MBPS_KEY = KAFKA_INGESTION_HEALTH_CHECK_PREFIX + "expected.consumptionRateMbps";
+  public static final String KAFKA_INGESTION_HEALTH_CHECK_INCREASING_LATENCY_CHECK_ENABLED_KEY = KAFKA_INGESTION_HEALTH_CHECK_PREFIX + "increasingLatencyCheckEnabled";
 
   public static final int DEFAULT_KAFKA_INGESTION_HEALTH_CHECK_SLIDING_WINDOW_SIZE = 3;
   public static final long DEFAULT_KAFKA_INGESTION_HEALTH_CHECK_LATENCY_THRESHOLD_MINUTES= 15;
   public static final double DEFAULT_KAFKA_INGESTION_HEALTH_CHECK_CONSUMPTION_RATE_DROPOFF_FRACTION = 0.7;
   public static final double DEFAULT_KAFKA_INGESTION_HEALTH_CHECK_EXPECTED_CONSUMPTION_RATE_MBPS = 10.0;
+  private static final boolean DEFAULT_KAFKA_INGESTION_HEALTH_CHECK_INCREASING_LATENCY_CHECK_ENABLED = true;
 
   private final Config config;
   private final EventBus eventBus;
@@ -56,6 +58,7 @@ public class KafkaIngestionHealthCheck implements CommitStep {
   private final int slidingWindowSize;
   private final EvictingQueue<Long> ingestionLatencies;
   private final EvictingQueue<Double> consumptionRateMBps;
+  private final boolean increasingLatencyCheckEnabled;
 
   public KafkaIngestionHealthCheck(Config config, KafkaExtractorStatsTracker statsTracker) {
     this.config = config;
@@ -63,6 +66,7 @@ public class KafkaIngestionHealthCheck implements CommitStep {
     this.ingestionLatencyThresholdMinutes = ConfigUtils.getLong(config, KAFKA_INGESTION_HEALTH_CHECK_LATENCY_THRESHOLD_MINUTES_KEY, DEFAULT_KAFKA_INGESTION_HEALTH_CHECK_LATENCY_THRESHOLD_MINUTES);
     this.consumptionRateDropOffFraction = ConfigUtils.getDouble(config, KAFKA_INGESTION_HEALTH_CHECK_CONSUMPTION_RATE_DROPOFF_FRACTION_KEY, DEFAULT_KAFKA_INGESTION_HEALTH_CHECK_CONSUMPTION_RATE_DROPOFF_FRACTION);
     this.expectedConsumptionRate = ConfigUtils.getDouble(config, KAFKA_INGESTION_HEALTH_CHECK_EXPECTED_CONSUMPTION_RATE_MBPS_KEY, DEFAULT_KAFKA_INGESTION_HEALTH_CHECK_EXPECTED_CONSUMPTION_RATE_MBPS);
+    this.increasingLatencyCheckEnabled = ConfigUtils.getBoolean(config, KAFKA_INGESTION_HEALTH_CHECK_INCREASING_LATENCY_CHECK_ENABLED_KEY, DEFAULT_KAFKA_INGESTION_HEALTH_CHECK_INCREASING_LATENCY_CHECK_ENABLED);
     this.ingestionLatencies = EvictingQueue.create(this.slidingWindowSize);
     this.consumptionRateMBps = EvictingQueue.create(this.slidingWindowSize);
     EventBus eventBus;
@@ -79,16 +83,22 @@ public class KafkaIngestionHealthCheck implements CommitStep {
 
   /**
    *
-   * @return true if ingestionLatency in the each of the recent epochs exceeds the threshold latency and the latency
+   * @return true if (i) ingestionLatency in the each of the recent epochs exceeds the threshold latency , AND (ii)
+   * if {@link KafkaIngestionHealthCheck#increasingLatencyCheckEnabled} is true, the latency
    * is increasing over these epochs.
    */
   private boolean checkIngestionLatency() {
     Long previousLatency = -1L;
     for (Long ingestionLatency: ingestionLatencies) {
-      if (ingestionLatency < this.ingestionLatencyThresholdMinutes || previousLatency > ingestionLatency) {
+      if (ingestionLatency < this.ingestionLatencyThresholdMinutes) {
         return false;
       } else {
-        previousLatency = ingestionLatency;
+        if (this.increasingLatencyCheckEnabled) {
+          if (previousLatency >= ingestionLatency) {
+            return false;
+          }
+          previousLatency = ingestionLatency;
+        }
       }
     }
     return true;
