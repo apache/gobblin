@@ -24,27 +24,37 @@ services:
   - xvfb
   - mysql
 
+stages:
+  - test
+  - name: deploy
+    if: branch = master
+
 before_script:
   - mysql -uroot -e "create user testUser identified by 'testPassword';"
-
 script:
   - ./travis/test.sh
   - ./gradlew jacocoTestReport
-
 after_success:
   - bash <(cat .codecov_bash)
 after_failure: ./travis/junit-errors-to-stdout.sh
 
-
+jobs:
+  include:
+    - stage: deploy
+      env: RUN_TEST_GROUP=none
+      install: skip
+      script:
+        - ./travis/bintrayDeploy.sh
 
 env:
-  - RUN_TEST_GROUP=build
-  - RUN_TEST_GROUP=default
-  - RUN_TEST_GROUP=group1
-  - RUN_TEST_GROUP=coverage
+  jobs:
+    - RUN_TEST_GROUP=build
+    - RUN_TEST_GROUP=default
+    - RUN_TEST_GROUP=group1
+    - RUN_TEST_GROUP=coverage
+  global:
+    - secure: U72nmzXq7kXcIabiwvrTF+WkNFQxov2ACd8oPxWSHsyzRsfVJN42vT7gS3dLbH5G5claXG2p+rur4ueVffzYSwJ8B9OP6gTB8sNJnGr9zyxni4OJchyKqOYuj+UBpEQC/7qXKMCKnuJndsf1OvndDh/V1SH0DSSUuA6mDtgO/eM=
+    - secure: WiK7tyFV68xdkIfUlWreUHgEGGjaCBd73O4SbjE9AsbqqF7D+Iu8iRo1OhKQj+6eajUH9Eoev9rVN74FQgUfeNzrOkYsgDysXmyZ7+UxFokijFcATJmIBompA3dySGU2qXeKbJMNuUjXgrRIludaV6h2ahL6Fji42cgK4I3s2qs=
 
 jdk:
   - openjdk8
-
-matrix:
-  exclude:
