@@ -60,7 +60,7 @@ subprojects{
     key = project.hasProperty('bintrayApiKey') ? project.property('bintrayApiKey') : System.getenv('BINTRAY_API_KEY')
     publications = ["mavenJava"]
     publish = true
-    dryRun = true //project.hasProperty("bintray.dryRun")
+    dryRun = project.hasProperty("bintray.dryRun")
     pkg {
       repo = 'maven'
       name = 'gobblin-github'
