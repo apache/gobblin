@@ -31,8 +31,10 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 import lombok.Getter;
+import lombok.Setter;
 
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.service.ExecutionStatus;
 
 
 /**
@@ -47,6 +49,11 @@ public class Dag<T> {
   // Map to maintain parent to children mapping.
   private Map<DagNode, List<DagNode<T>>> parentChildMap;
   private List<DagNode<T>> nodes;
+
+  @Setter
+  private String message;
+  @Setter
+  private String flowEvent;
 
   public Dag(List<DagNode<T>> dagNodes) {
     this.nodes = dagNodes;

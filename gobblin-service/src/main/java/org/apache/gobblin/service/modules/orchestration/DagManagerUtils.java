@@ -31,6 +31,7 @@ import com.typesafe.config.Config;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.service.ExecutionStatus;
@@ -295,6 +296,14 @@ public class DagManagerUtils {
       // Every dag node will contain the same flow metadata
       Config config = dag.getNodes().get(0).getValue().getJobSpec().getConfig();
       Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata(config);
+
+      if (dag.getFlowEvent() != null) {
+        flowEvent = dag.getFlowEvent();
+      }
+      if (dag.getMessage() != null) {
+        flowMetadata.put(TimingEvent.METADATA_MESSAGE, dag.getMessage());
+      }
+
       eventSubmitter.get().getTimingEvent(flowEvent).stop(flowMetadata);
     }
   }

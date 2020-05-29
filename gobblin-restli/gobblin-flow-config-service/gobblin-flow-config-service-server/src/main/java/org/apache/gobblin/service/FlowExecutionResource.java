@@ -32,6 +32,7 @@ import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
 import com.linkedin.restli.common.HttpStatus;
 import com.linkedin.restli.server.PagingContext;
+import com.linkedin.restli.server.RestLiServiceException;
 import com.linkedin.restli.server.UpdateResponse;
 import com.linkedin.restli.server.annotations.Context;
 import com.linkedin.restli.server.annotations.Finder;
@@ -65,8 +66,12 @@ public class FlowExecutionResource extends ComplexKeyResourceTemplate<FlowStatus
    */
   @Override
   public FlowExecution get(ComplexResourceKey<FlowStatusId, EmptyRecord> key) {
-    // this returns null to raise a 404 error if flowStatus is null
-    return convertFlowStatus(getFlowStatusFromGenerator(key, this._flowStatusGenerator));
+    FlowExecution flowExecution = convertFlowStatus(getFlowStatusFromGenerator(key, this._flowStatusGenerator));
+    if (flowExecution == null) {
+      throw new RestLiServiceException(HttpStatus.S_404_NOT_FOUND, "No flow execution found for flowStatusId " + key.getKey()
+      + ". The flowStatusId may be incorrect, or the flow execution may have been cleaned up.");
+    }
+    return flowExecution;
   }
 
   @Finder("latestFlowExecution")
@@ -78,8 +83,8 @@ public class FlowExecutionResource extends ComplexKeyResourceTemplate<FlowStatus
       return flowStatuses.stream().map(FlowExecutionResource::convertFlowStatus).collect(Collectors.toList());
     }
 
-    // will return 404 status code
-    return null;
+    throw new RestLiServiceException(HttpStatus.S_404_NOT_FOUND, "No flow execution found for flowId " + flowId
+        + ". The flowId may be incorrect, or the flow execution may have been cleaned up.");
   }
 
   /**
@@ -135,7 +140,7 @@ public class FlowExecutionResource extends ComplexKeyResourceTemplate<FlowStatus
     long flowEndTime = 0L;
     ExecutionStatus flowExecutionStatus = ExecutionStatus.$UNKNOWN;
 
-    StringBuffer flowMessagesStringBuffer = new StringBuffer();
+    String flowMessage = "";
 
     while (jobStatusIter.hasNext()) {
       org.apache.gobblin.service.monitoring.JobStatus queriedJobStatus = jobStatusIter.next();
@@ -144,6 +149,9 @@ public class FlowExecutionResource extends ComplexKeyResourceTemplate<FlowStatus
       if (JobStatusRetriever.isFlowStatus(queriedJobStatus)) {
         flowEndTime = queriedJobStatus.getEndTime();
         flowExecutionStatus = ExecutionStatus.valueOf(queriedJobStatus.getEventName());
+        if (queriedJobStatus.getMessage() != null) {
+          flowMessage = queriedJobStatus.getMessage();
+        }
         continue;
       }
 
@@ -163,25 +171,16 @@ public class FlowExecutionResource extends ComplexKeyResourceTemplate<FlowStatus
               setHighWatermark(queriedJobStatus.getHighWatermark()));
 
       jobStatusArray.add(jobStatus);
-
-      if (!queriedJobStatus.getMessage().isEmpty()) {
-        flowMessagesStringBuffer.append(queriedJobStatus.getMessage());
-        flowMessagesStringBuffer.append(MESSAGE_SEPARATOR);
-      }
     }
 
     jobStatusArray.sort(Comparator.comparing((JobStatus js) -> js.getExecutionStatistics().getExecutionStartTime()));
-
-    String flowMessages = flowMessagesStringBuffer.length() > 0 ?
-        flowMessagesStringBuffer.substring(0, flowMessagesStringBuffer.length() -
-            MESSAGE_SEPARATOR.length()) : StringUtils.EMPTY;
 
     return new FlowExecution()
         .setId(new FlowStatusId().setFlowGroup(flowId.getFlowGroup()).setFlowName(flowId.getFlowName())
             .setFlowExecutionId(monitoringFlowStatus.getFlowExecutionId()))
         .setExecutionStatistics(new FlowStatistics().setExecutionStartTime(getFlowStartTime(monitoringFlowStatus))
             .setExecutionEndTime(flowEndTime))
-        .setMessage(flowMessages)
+        .setMessage(flowMessage)
         .setExecutionStatus(flowExecutionStatus)
         .setJobStatuses(jobStatusArray);
   }
