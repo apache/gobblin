@@ -35,23 +35,13 @@ after_success:
   - bash <(cat .codecov_bash)
 after_failure: ./travis/junit-errors-to-stdout.sh
 
-deploy:
-  provider: script
-  script: ./travis/bintrayDeploy.sh
-  skip_cleanup: true
-  on:
-    branch: master
 
 
 env:
-  global:
-      - secure: f7aIQDgpWHIkYf19mtViOLwH/zBAeVuqOQtu9G4cfDl6R+lqYbTuSEA+HyP2EzT9E7w2bPdVRuwUEb3/FFCBcHTjSBiQ+Nnhtto1RvoXjYlzV9ImG/5s4dsYsrUGWyWxoWXHNRFLE8Xeq4pe6lHR/Md+MajuxdBxgd8AFefMvTEW7a9h8cc+w+kEkKZ9msyiJTzxiTy7d9Yob6bNOEfhTAIUk5jK+a9qqYjDILaps75Y6BMcI3fQZyZno3+/8KBNhk7ncQKf4voRwmQRcAaVM0isQ2kUW4MIRykXRQT3zZJcXxYUoNThn0T9RydjzSu14EM5iNY9IdJVTsojihI/Fvfac9K24UAV5d/k8vlrnTJ4feJfDR1LoHNtCa72U8/cuEKFu2WoJg+kmukcW3pOAshRVLaZw7eCUMS+HevG1uG2wLISN3lAyVoqJCyvu+HaoD1wWfnwfxdZxUXDi+T+Pv7niqVshXMRF8lRQ3+Xf52b40+xhJ78SUWDQgAfClQrJ52o8xEnGOskBAoaJGLlChPMFWhbgHZ8f0cRKPrW/+Q8KGkrcyoo/yxauMkdkiXmg2h0ebNZSfgRc4gn79mU0BKjmsZPKw9RqifGijjAfc0zPplMJMle0hplnuX0QvFALA0go2LInTCvYofk+PU/BMlDHCHJVEBiAarMXv/8P0w=
-      - secure: nTBLE5c295gwHfsMAGLhHz3Dr8eUFlEj/T6kRyVmlQ7ouvs8V97FUznlh0KwRazG0cZ5H0iXm8JxOYac3J04pvK+wOc4BpUq4WYlgBeypo0pcBp4G+5yM3+JoA0B3YbVIDKvZ6o3EBOMQ2vK/kjhe3SpOOTO4wJmfRsCx5bnbFmNKA2C8/DXDGhzfM5tfSapbc4QVYhKxSyUpq+izYGY9BZvcGxRPXLaiIxVLex3ZGpuOtrzl8gTwVnWqlQ5yYTUUdNcdJW7H1AwIlgkKKMS9+3q0KqXrJ0EtvRgbvnWdIKh1/0rOA6i4S0XgCV4mYTDqnZWO6sg3CUnAd2hFTyRI9acSWAzifkTyZD2gfsDgvsv/JQOuTOW1hZQ2g9et+vIW0wbRvIprf+wbRsNxdE7uUpGFJ9TYZJDPG6HJwqaoqyo6rcLS7T7kE6o0EZJTMw3Rq1TaSU65Ta4hvO2muEXtpPHEHh65GS0d1zcv++QQD7pedcgpIrFFbEyQJxivwXOvfklkCzTDFHI1lqK+WC1IWyC684ax+zJW8cos7I/U8kaE3w6tU9NUsOVk/yYMbqiu1YgBzMJmBjEev3RcUAyMldpdd4M2dXefdvX0PtYuZl1UOnXlpAvlhaNYb1D1+/xGgz0G0y5qR9n4nqwemjHVDzMhLPfeRjfiTnq6FP8MkI=
-  jobs:
-    - RUN_TEST_GROUP=build
-    - RUN_TEST_GROUP=default
-    - RUN_TEST_GROUP=group1
-    - RUN_TEST_GROUP=coverage
+  - RUN_TEST_GROUP=build
+  - RUN_TEST_GROUP=default
+  - RUN_TEST_GROUP=group1
+  - RUN_TEST_GROUP=coverage
 
 jdk:
   - openjdk8

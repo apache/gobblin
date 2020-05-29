@@ -23,7 +23,7 @@ dependencies {
 
   compile externalDependency.slf4j
 
-  runtimeOnly externalDependency.mysqlConnector
+  runtime externalDependency.mysqlConnector
 
   testCompile externalDependency.mockserver
   testCompile externalDependency.testng
