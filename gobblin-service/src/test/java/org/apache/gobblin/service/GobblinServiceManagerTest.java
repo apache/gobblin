@@ -276,10 +276,10 @@ public class GobblinServiceManagerTest {
 
     this.flowConfigClient.createFlowConfig(flowConfig);
 
-    // runOnce job should not be persisted
+    // runOnce job is deleted soon after it is run
     AssertWithBackoff.create().maxSleepMs(200L).timeoutMs(2000L).backoffFactor(1)
         .assertTrue(input -> this.gobblinServiceManager.getFlowCatalog().getSpecs().size() == 0,
-          "Flow that was created is not " + "reflecting in FlowCatalog");
+          "Waiting for job to get orchestrated...");
     AssertWithBackoff.create().maxSleepMs(100L).timeoutMs(1000L).backoffFactor(1)
           .assertTrue(input -> !this.gobblinServiceManager.getScheduler().getScheduledFlowSpecs().containsKey(TEST_URI.toString()),
               "Waiting for job to get orchestrated...");
@@ -293,8 +293,7 @@ public class GobblinServiceManagerTest {
     this.flowConfigClient.createFlowConfig(flowConfig);
 
     // explain job should not be persisted
-    Assert.assertEquals(this.gobblinServiceManager.getFlowCatalog().getSpecs().size(), 0,
-        "Flow that was created is not " + "reflecting in FlowCatalog");
+    Assert.assertEquals(this.gobblinServiceManager.getFlowCatalog().getSpecs().size(), 0);
     Assert.assertFalse(this.gobblinServiceManager.getScheduler().getScheduledFlowSpecs().containsKey(TEST_URI.toString()));
   }
 
@@ -305,8 +304,7 @@ public class GobblinServiceManagerTest {
         .setProperties(new StringMap(flowProperties));
 
     this.flowConfigClient.createFlowConfig(flowConfig);
-    Assert.assertEquals(this.gobblinServiceManager.getFlowCatalog().getSpecs().size(), 1,
-        "Flow that was created is not " + "reflecting in FlowCatalog");
+    Assert.assertEquals(this.gobblinServiceManager.getFlowCatalog().getSpecs().size(), 1);
     Assert.assertTrue(this.gobblinServiceManager.getScheduler().getScheduledFlowSpecs().containsKey(TEST_URI.toString()));
   }
 
