@@ -48,9 +48,9 @@ dependencies {
   compile externalDependency.hadoopHdfs
   compile externalDependency.groovy
 
-  runtime externalDependency.hadoopCommon
-  runtime externalDependency.hadoopClientCore
-  runtime externalDependency.hadoopAuth
+  runtimeOnly externalDependency.hadoopCommon
+  runtimeOnly externalDependency.hadoopClientCore
+  runtimeOnly externalDependency.hadoopAuth
 
   testCompile externalDependency.hamcrest
   testCompile externalDependency.testng
