@@ -87,6 +87,7 @@ subprojects{
     doFirst {
       println "Running bintrayUpload for $project.name "
     }
+    dependsOn publishToMavenLocal
   }
 
   ext.addPublicationToBintray = { pubName ->
