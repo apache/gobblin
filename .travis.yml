@@ -27,7 +27,7 @@ services:
 stages:
   - test
   - name: deploy
-    if: branch = master
+    if: branch = newTravis
 
 before_script:
   - mysql -uroot -e "create user testUser identified by 'testPassword';"
