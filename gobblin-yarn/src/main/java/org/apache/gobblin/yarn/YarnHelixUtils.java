@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -46,8 +47,9 @@ import com.google.common.collect.Maps;
  *
  * @author Yinan Li
  */
+@Slf4j
 public class YarnHelixUtils {
-
+   public static String ADDITIONAL_YARN_CLASSPATH = "additional.yarn.classpath";
   /**
    * Write a {@link Token} to a given file.
    *
@@ -124,6 +126,13 @@ public class YarnHelixUtils {
         YarnConfiguration.DEFAULT_YARN_APPLICATION_CLASSPATH);
     if (classpaths != null) {
       for (String classpath : classpaths) {
+        Apps.addToEnvironment(
+            environmentVariableMap, ApplicationConstants.Environment.CLASSPATH.key(), classpath.trim());
+      }
+    }
+    String[] additionalClassPath = yarnConfiguration.getStrings(ADDITIONAL_YARN_CLASSPATH);
+    if (additionalClassPath != null) {
+      for (String classpath : additionalClassPath) {
         Apps.addToEnvironment(
             environmentVariableMap, ApplicationConstants.Environment.CLASSPATH.key(), classpath.trim());
       }
