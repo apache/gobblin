@@ -42,17 +42,6 @@ jobs:
       after_failure: ./travis/junit-errors-to-stdout.sh
       env:
         - RUN_TEST_GROUP=build
-    - name: "test default"
-      before_script:
-        - mysql -uroot -e "create user testUser identified by 'testPassword';"
-      script:
-        - ./travis/test.sh
-        - ./gradlew jacocoTestReport
-      after_success:
-        - bash <(cat .codecov_bash)
-      after_failure: ./travis/junit-errors-to-stdout.sh
-      env:
-        - RUN_TEST_GROUP=default
     - name: "Test group1"
       before_script:
         - mysql -uroot -e "create user testUser identified by 'testPassword';"
