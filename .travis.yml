@@ -35,14 +35,6 @@ after_success:
   - bash <(cat .codecov_bash)
 after_failure: ./travis/junit-errors-to-stdout.sh
 
-deploy:
-  provider: script
-  script: ./travis/bintrayDeploy.sh
-  skip_cleanup: true
-  on:
-    branch: master
-
-
 env:
   global:
       - secure: f7aIQDgpWHIkYf19mtViOLwH/zBAeVuqOQtu9G4cfDl6R+lqYbTuSEA+HyP2EzT9E7w2bPdVRuwUEb3/FFCBcHTjSBiQ+Nnhtto1RvoXjYlzV9ImG/5s4dsYsrUGWyWxoWXHNRFLE8Xeq4pe6lHR/Md+MajuxdBxgd8AFefMvTEW7a9h8cc+w+kEkKZ9msyiJTzxiTy7d9Yob6bNOEfhTAIUk5jK+a9qqYjDILaps75Y6BMcI3fQZyZno3+/8KBNhk7ncQKf4voRwmQRcAaVM0isQ2kUW4MIRykXRQT3zZJcXxYUoNThn0T9RydjzSu14EM5iNY9IdJVTsojihI/Fvfac9K24UAV5d/k8vlrnTJ4feJfDR1LoHNtCa72U8/cuEKFu2WoJg+kmukcW3pOAshRVLaZw7eCUMS+HevG1uG2wLISN3lAyVoqJCyvu+HaoD1wWfnwfxdZxUXDi+T+Pv7niqVshXMRF8lRQ3+Xf52b40+xhJ78SUWDQgAfClQrJ52o8xEnGOskBAoaJGLlChPMFWhbgHZ8f0cRKPrW/+Q8KGkrcyoo/yxauMkdkiXmg2h0ebNZSfgRc4gn79mU0BKjmsZPKw9RqifGijjAfc0zPplMJMle0hplnuX0QvFALA0go2LInTCvYofk+PU/BMlDHCHJVEBiAarMXv/8P0w=
