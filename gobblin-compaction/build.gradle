@@ -31,7 +31,7 @@ dependencies {
   // with hive-exec-core in older version(1.0.1), we need to shadow ord-mapreduce's transitive deps.
   // and include direct orc-mapreduce library just as a compileOnly dependency
   compileOnly externalDependency.orcMapreduce
-  compile project(path: ":gobblin-modules:gobblin-orc-dep", configuration:"shadow")
+  compile project(path: ":gobblin-modules:gobblin-orc-dep")
 
   compile externalDependency.calciteCore
   testCompile externalDependency.calciteAvatica
