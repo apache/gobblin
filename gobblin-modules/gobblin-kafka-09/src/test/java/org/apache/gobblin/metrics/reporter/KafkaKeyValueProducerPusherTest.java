@@ -49,8 +49,6 @@ public class KafkaKeyValueProducerPusherTest {
 
   @BeforeClass
   public void setup() throws Exception {
-    System.out.println("1a");
-    System.err.println("1b");
     kafkaTestHelper = new KafkaTestBase();
     kafkaTestHelper.startServers();
 
@@ -59,8 +57,6 @@ public class KafkaKeyValueProducerPusherTest {
 
   @Test
   public void test() throws IOException {
-    System.out.println("2a");
-    System.err.println("2b");
     // Test that the scoped config overrides the generic config
     Pusher pusher = new KafkaKeyValueProducerPusher<byte[], byte[]>("localhost:dummy", TOPIC,
         Optional.of(ConfigFactory.parseMap(ImmutableMap.of(
@@ -68,24 +64,16 @@ public class KafkaKeyValueProducerPusherTest {
 
     String msg1 = "msg1";
     String msg2 = "msg2";
-    System.out.println("3a");
-    System.err.println("3b");
 
     pusher.pushMessages(Lists.newArrayList(Pair.of("key1", msg1.getBytes()), Pair.of("key2", msg2.getBytes())));
-    System.out.println("4a");
-    System.err.println("4b");
 
     try {
       Thread.sleep(1000);
     } catch(InterruptedException ex) {
       Thread.currentThread().interrupt();
     }
-    System.out.println("5a");
-    System.err.println("5b");
 
     ConsumerIterator<byte[], byte[]> iterator = this.kafkaTestHelper.getIteratorForTopic(TOPIC);
-    System.out.println("6a");
-    System.err.println("6b");
 
     assert(iterator.hasNext());
 
@@ -100,17 +88,11 @@ public class KafkaKeyValueProducerPusherTest {
     Assert.assertEquals(new String(messageAndMetadata.message()), msg2);
 
     pusher.close();
-    System.out.println("7a");
-    System.err.println("7b");
-
   }
 
   @AfterClass
   public void after() {
     try {
-      System.out.println("8a");
-      System.err.println("8b");
-
       this.kafkaTestHelper.close();
     } catch(Exception e) {
       System.err.println("Failed to close Kafka server.");
