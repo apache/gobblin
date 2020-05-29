@@ -37,7 +37,7 @@ dependencies {
     compile externalDependency.lombok
     compile externalDependency.reflections
 
-    runtimeOnly externalDependency.mysqlConnector
+    runtime externalDependency.mysqlConnector
 
     testCompile externalDependency.testng
     testCompile externalDependency.embeddedProcess

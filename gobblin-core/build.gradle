@@ -58,7 +58,7 @@ dependencies {
   compile externalDependency.opencsv
   compile externalDependency.hadoopHdfs
 
-  runtimeOnly externalDependency.protobuf
+  runtime externalDependency.protobuf
 
   testRuntime externalDependency.hadoopAws
   testCompile externalDependency.calciteCore
