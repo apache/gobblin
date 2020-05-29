@@ -55,19 +55,13 @@ public abstract class InstrumentedSpecStore implements SpecStore {
     this.instrumentationEnabled = GobblinMetrics.isEnabled(new State(ConfigUtils.configToProperties(config)));
     this.metricContext = Instrumented.getMetricContext(new State(), getClass());
     if (instrumentationEnabled) {
-      this.getTimer = Optional.of(this.metricContext.timer(getClass() + "-GET"));
-      this.existsTimer = Optional.of(this.metricContext.timer(
-          MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,getClass().getSimpleName(), "-EXISTS")));
-      this.deleteTimer = Optional.of(this.metricContext.timer(
-          MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,getClass().getSimpleName(), "-DELETE")));
-      this.addTimer = Optional.of(this.metricContext.timer(
-          MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,getClass().getSimpleName(), "-ADD")));
-      this.updateTimer = Optional.of(this.metricContext.timer(
-          MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,getClass().getSimpleName(), "-UPDATE")));
-      this.getAllTimer = Optional.of(this.metricContext.timer(
-          MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,getClass().getSimpleName(), "-GETALL")));
-      this.getURIsTimer = Optional.of(this.metricContext.timer(
-          MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,getClass().getSimpleName(), "-GETURIS")));
+      this.getTimer = createTimer("-GET");
+      this.existsTimer = createTimer("-EXISTS");
+      this.deleteTimer = createTimer("-DELETE");
+      this.addTimer = createTimer("-ADD");
+      this.updateTimer = createTimer("-UPDATE");
+      this.getAllTimer = createTimer("-GETALL");
+      this.getURIsTimer = createTimer("-GETURIS");
     } else {
       this.getTimer = Optional.absent();
       this.existsTimer = Optional.absent();
@@ -79,9 +73,14 @@ public abstract class InstrumentedSpecStore implements SpecStore {
     }
   }
 
+  private Optional<Timer> createTimer(String suffix) {
+    return Optional.of(this.metricContext.timer(
+        MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,getClass().getSimpleName(), suffix)));
+  }
+
   @Override
   public boolean exists(URI specUri) throws IOException {
-    if (instrumentationEnabled) {
+    if (!instrumentationEnabled) {
       return existsImpl(specUri);
     } else {
       long startTimeNanos = System.currentTimeMillis();
@@ -93,7 +92,7 @@ public abstract class InstrumentedSpecStore implements SpecStore {
 
   @Override
   public void addSpec(Spec spec) throws IOException {
-    if (instrumentationEnabled) {
+    if (!instrumentationEnabled) {
       addSpecImpl(spec);
     } else {
       long startTimeNanos = System.currentTimeMillis();
@@ -104,7 +103,7 @@ public abstract class InstrumentedSpecStore implements SpecStore {
 
   @Override
   public boolean deleteSpec(URI specUri) throws IOException {
-    if (instrumentationEnabled) {
+    if (!instrumentationEnabled) {
       return deleteSpecImpl(specUri);
     } else {
       long startTimeNanos = System.currentTimeMillis();
@@ -116,7 +115,7 @@ public abstract class InstrumentedSpecStore implements SpecStore {
 
   @Override
   public Spec getSpec(URI specUri) throws IOException, SpecNotFoundException {
-    if (instrumentationEnabled) {
+    if (!instrumentationEnabled) {
       return getSpecImpl(specUri);
     } else {
       long startTimeNanos = System.currentTimeMillis();
@@ -128,7 +127,7 @@ public abstract class InstrumentedSpecStore implements SpecStore {
 
   @Override
   public Spec updateSpec(Spec spec) throws IOException, SpecNotFoundException {
-    if (instrumentationEnabled) {
+    if (!instrumentationEnabled) {
       return updateSpecImpl(spec);
     } else {
       long startTimeNanos = System.currentTimeMillis();
@@ -140,7 +139,7 @@ public abstract class InstrumentedSpecStore implements SpecStore {
 
   @Override
   public Collection<Spec> getSpecs() throws IOException {
-    if (instrumentationEnabled) {
+    if (!instrumentationEnabled) {
       return getSpecsImpl();
     } else {
       long startTimeNanos = System.currentTimeMillis();
@@ -152,7 +151,7 @@ public abstract class InstrumentedSpecStore implements SpecStore {
 
   @Override
   public Iterator<URI> getSpecURIs() throws IOException {
-    if (instrumentationEnabled) {
+    if (!instrumentationEnabled) {
       return getSpecURIsImpl();
     } else {
       long startTimeNanos = System.currentTimeMillis();
