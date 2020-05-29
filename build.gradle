@@ -42,7 +42,6 @@ buildscript {
   }
   dependencies {
     classpath "gradle.plugin.nl.javadude.gradle.plugins:license-gradle-plugin:0.14.0"
-    classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.+'
   }
 }
 
@@ -132,7 +131,6 @@ apply from: 'gradle/scripts/sourcesJar.gradle'
 
 apply from: 'gradle/scripts/mavenPublishing.gradle'
 apply from: 'gradle/scripts/nexusPublishing.gradle'
-apply from: 'gradle/scripts/bintrayPublishing.gradle'
 apply from: 'gradle/scripts/javaVersionCheck.gradle'
 
 apply from: 'gradle/scripts/rat.gradle'
@@ -150,12 +148,6 @@ allprojects {
     doFirst {
       it.codegenClasspath += files("${System.getProperty('java.home')}/../lib/tools.jar")
     }
-  }
-}
-
-task printVersionName {
-  doLast {
-    println project.version
   }
 }
 

@@ -50,7 +50,7 @@ dependencies {
   compile externalDependency.findBugsAnnotations
   compile externalDependency.helix
 
-  runtimeOnly project(":gobblin-modules:gobblin-service-kafka")
+  runtime project(":gobblin-modules:gobblin-service-kafka")
 
   testCompile project(":gobblin-example")
 
@@ -71,7 +71,6 @@ configurations {
 
 artifacts {
   tests testJar
-  archives testJar
 }
 
 configurations {
@@ -85,18 +84,6 @@ configurations {
     }
   }
 }
-
-project.publishing {
-  publications {
-    testsPub(MavenPublication) {
-      artifactId "test-${project.archivesBaseName}"
-      artifacts = [testJar]
-      pom pomAttributes
-      pom.withXml addRuntimeDependenciesToPom
-    }
-  }
-}
-addPublicationToBintray("testsPub")
 
 test {
   workingDir rootProject.rootDir

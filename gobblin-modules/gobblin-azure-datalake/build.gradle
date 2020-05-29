@@ -18,7 +18,7 @@
 apply plugin: 'java'
 
 dependencies {
-    runtimeOnly externalDependency.hadoopAdl
+    runtime externalDependency.hadoopAdl
 }
 
 configurations {
