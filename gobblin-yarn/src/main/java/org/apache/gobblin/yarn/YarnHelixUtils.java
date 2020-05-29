@@ -49,10 +49,6 @@ import com.google.common.collect.Maps;
  */
 @Slf4j
 public class YarnHelixUtils {
-<<<<<<< HEAD
-=======
-   public static String ADDITIONAL_YARN_CLASSPATH = "additional.yarn.classpath";
->>>>>>> Add config to enable user to set additional yarn classpathes
   /**
    * Write a {@link Token} to a given file.
    *
@@ -133,11 +129,7 @@ public class YarnHelixUtils {
             environmentVariableMap, ApplicationConstants.Environment.CLASSPATH.key(), classpath.trim());
       }
     }
-<<<<<<< HEAD
     String[] additionalClassPath = yarnConfiguration.getStrings(GobblinYarnConfigurationKeys.GOBBLIN_YARN_ADDITIONAL_CLASSPATHS);
-=======
-    String[] additionalClassPath = yarnConfiguration.getStrings(ADDITIONAL_YARN_CLASSPATH);
->>>>>>> Add config to enable user to set additional yarn classpathes
     if (additionalClassPath != null) {
       for (String classpath : additionalClassPath) {
         Apps.addToEnvironment(
