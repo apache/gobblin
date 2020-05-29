@@ -60,7 +60,7 @@ subprojects{
     key = project.hasProperty('bintrayApiKey') ? project.property('bintrayApiKey') : System.getenv('BINTRAY_API_KEY')
     publications = ["mavenJava"]
     publish = true
-    dryRun = project.hasProperty("bintray.dryRun")
+    dryRun = true //project.hasProperty("bintray.dryRun")
     pkg {
       repo = 'maven'
       name = 'gobblin-github'
@@ -85,14 +85,13 @@ subprojects{
 
   tasks.bintrayUpload {
     doFirst {
-      println "Running bintrayUpload for $project.name "
+      println "Running bintrayUpload for $project.name, publications: $project.bintray.publications"
     }
+    dependsOn publishToMavenLocal
   }
 
   ext.addPublicationToBintray = { pubName ->
-    def newC = project.bintray.publications.collect()
-    newC.add(pubName)
-    project.bintray.publications = newC
+    project.bintray.publications += pubName
   }
 
   ext.addRuntimeDependenciesToPom = {

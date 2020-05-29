@@ -49,7 +49,9 @@ configurations {
     exclude group: "org.apache.hadoop"
   }
 }
-
+// changed classifier of shadow Jar to ""
+// to make it the main jar since shadow jar is only used
+// This will override the main jar on ./gradlew build
 shadowJar {
   zip64 true
   classifier ""
@@ -63,6 +65,12 @@ shadowJar {
   relocate 'com.google', 'shadow.gobblin.orc.com.google'
 }
 
+// assigning a differnet classifer to the main jar
+// so that it does not override the shadow jar
+jar {
+  classifier "thin"
+}
+
 publishing {
   publications {
     shadowPub(MavenPublication) {
@@ -72,6 +80,6 @@ publishing {
     }
   }
 }
-addPublicationToBintray("shadowPub")
+project.bintray.publications = ["shadowPub"]
 
 ext.classification="library"
