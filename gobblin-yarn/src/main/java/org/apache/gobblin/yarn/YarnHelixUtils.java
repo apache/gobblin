@@ -49,7 +49,7 @@ import com.google.common.collect.Maps;
  */
 @Slf4j
 public class YarnHelixUtils {
-   public static String ADDITIONAL_YARN_CLASSPATH = "additional.yarn.classpath";
+   public static final String ADDITIONAL_YARN_CLASSPATH = "additional.yarn.classpath";
   /**
    * Write a {@link Token} to a given file.
    *
