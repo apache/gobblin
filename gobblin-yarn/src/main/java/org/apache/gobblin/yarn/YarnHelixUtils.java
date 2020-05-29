@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -46,7 +47,12 @@ import com.google.common.collect.Maps;
  *
  * @author Yinan Li
  */
+@Slf4j
 public class YarnHelixUtils {
+<<<<<<< HEAD
+=======
+   public static String ADDITIONAL_YARN_CLASSPATH = "additional.yarn.classpath";
+>>>>>>> Add config to enable user to set additional yarn classpathes
   /**
    * Write a {@link Token} to a given file.
    *
@@ -127,7 +133,11 @@ public class YarnHelixUtils {
             environmentVariableMap, ApplicationConstants.Environment.CLASSPATH.key(), classpath.trim());
       }
     }
+<<<<<<< HEAD
     String[] additionalClassPath = yarnConfiguration.getStrings(GobblinYarnConfigurationKeys.GOBBLIN_YARN_ADDITIONAL_CLASSPATHS);
+=======
+    String[] additionalClassPath = yarnConfiguration.getStrings(ADDITIONAL_YARN_CLASSPATH);
+>>>>>>> Add config to enable user to set additional yarn classpathes
     if (additionalClassPath != null) {
       for (String classpath : additionalClassPath) {
         Apps.addToEnvironment(
