@@ -38,6 +38,9 @@ ext.pomAttributes = {
   }
 }
 
+// Default publication (mavenJava) to publish artifacts as maven modules
+// Uses maven-publish plugin and generates the default jar, sources, javadoc
+// and pom file (https://docs.gradle.org/current/userguide/publishing_maven.html)
 subprojects{
   plugins.withType(JavaPlugin) {
     plugins.apply('maven-publish')
@@ -54,6 +57,7 @@ subprojects{
     }
   }
 
+  // Using gradle bintray plugin to publish artifacts to Jfrog bintray
   plugins.apply('com.jfrog.bintray')
   bintray {
     user = project.hasProperty('bintrayUser') ? project.property('bintrayUser') : System.getenv('BINTRAY_USER')
