@@ -23,8 +23,6 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.helix.HelixManager;
@@ -454,9 +452,14 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       try {
         GobblinServiceJobScheduler.this.runJob(this.jobConfig, this.jobListener);
         if (flowCatalog.isPresent() && removeSpec) {
-          while (!GobblinServiceJobScheduler.this.flowCatalog.get().exists(specUri)) {
-            _log.warn("Waiting for spec {} to exist in flow catalog...", specUri);
-            Thread.sleep(300L);
+          if (GobblinServiceJobScheduler.this.flowCatalog.get().getSpecSyncObjects().containsKey(specUri.toString())) {
+            // if the sync object does not exist, this job must be set to run due to job submission at service restart
+            Object syncObject = GobblinServiceJobScheduler.this.flowCatalog.get().getSpecSyncObjects().get(specUri.toString());
+            synchronized (syncObject) {
+              while (!GobblinServiceJobScheduler.this.flowCatalog.get().exists(specUri)) {
+                syncObject.wait();
+              }
+            }
           }
           GobblinServiceJobScheduler.this.flowCatalog.get().remove(specUri, new Properties(), false);
           GobblinServiceJobScheduler.this.scheduledFlowSpecs.remove(specUri.toString());

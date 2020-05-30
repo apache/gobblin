@@ -209,25 +209,25 @@ public class GobblinServiceManagerTest {
    */
   @Test
   public void testRestart() throws Exception {
-    FlowConfig flowConfig = new FlowConfig().setId(UNCOMPILABLE_FLOW_ID).setTemplateUris(TEST_TEMPLATE_URI)
-        .setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).setRunImmediately(false))
+    FlowConfig uncompilableFlowConfig = new FlowConfig().setId(UNCOMPILABLE_FLOW_ID).setTemplateUris(TEST_TEMPLATE_URI)
+        .setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).setRunImmediately(true))
         .setProperties(new StringMap(flowProperties));
-    FlowSpec spec = FlowConfigResourceLocalHandler.createFlowSpecForConfig(flowConfig);
+    FlowSpec uncompilableSpec = FlowConfigResourceLocalHandler.createFlowSpecForConfig(uncompilableFlowConfig);
     FlowConfig runOnceFlowConfig = new FlowConfig().setId(TEST_FLOW_ID)
         .setTemplateUris(TEST_TEMPLATE_URI).setProperties(new StringMap(flowProperties));
     FlowSpec runOnceSpec = FlowConfigResourceLocalHandler.createFlowSpecForConfig(runOnceFlowConfig);
 
     // add the non compilable flow directly to the spec store skipping flow catalog which would not allow this
-    this.gobblinServiceManager.getFlowCatalog().getSpecStore().addSpec(spec);
+    this.gobblinServiceManager.getFlowCatalog().getSpecStore().addSpec(uncompilableSpec);
     this.gobblinServiceManager.getFlowCatalog().getSpecStore().addSpec(runOnceSpec);
 
     List<Spec> specs = (List<Spec>) this.gobblinServiceManager.getFlowCatalog().getSpecs();
 
     Assert.assertEquals(specs.size(), 2);
-    if (specs.get(0).getUri().equals(spec.getUri())) {
+    if (specs.get(0).getUri().equals(uncompilableSpec.getUri())) {
       Assert.assertEquals(specs.get(1).getUri(), runOnceSpec.getUri());
     } else if (specs.get(0).getUri().equals(runOnceSpec.getUri())) {
-      Assert.assertEquals(specs.get(1).getUri(), spec.getUri());
+      Assert.assertEquals(specs.get(1).getUri(), uncompilableSpec.getUri());
     } else {
       Assert.fail();
     }
@@ -235,17 +235,17 @@ public class GobblinServiceManagerTest {
     // restart the service
     serviceReboot();
 
-    // runOnce job should get deleted from the spec store after running and uncompilable job should stay
+    // runOnce job should get deleted from the spec store after running but uncompilable flow should stay
     AssertWithBackoff.create().maxSleepMs(200L).timeoutMs(20000L).backoffFactor(1)
         .assertTrue(input -> this.gobblinServiceManager.getFlowCatalog().getSpecs().size() == 1,
             "Waiting for the runOnce job to finish");
 
     specs = (List<Spec>) this.gobblinServiceManager.getFlowCatalog().getSpecs();
-    Assert.assertEquals(specs.get(0).getUri(), spec.getUri());
-    Assert.assertFalse(flowConfig.getSchedule().isRunImmediately());
+    Assert.assertEquals(specs.get(0).getUri(), uncompilableSpec.getUri());
+    Assert.assertTrue(uncompilableSpec.getConfig().getBoolean(ConfigurationKeys.FLOW_RUN_IMMEDIATELY));
 
     // clean it
-    this.gobblinServiceManager.getFlowCatalog().remove(spec.getUri());
+    this.gobblinServiceManager.getFlowCatalog().remove(uncompilableSpec.getUri());
     specs = (List<Spec>) this.gobblinServiceManager.getFlowCatalog().getSpecs();
     Assert.assertEquals(specs.size(), 0);
   }
@@ -276,7 +276,7 @@ public class GobblinServiceManagerTest {
 
     this.flowConfigClient.createFlowConfig(flowConfig);
 
-    // runOnce job is deleted soon after it is run
+    // runOnce job is deleted soon after it is orchestrated
     AssertWithBackoff.create().maxSleepMs(200L).timeoutMs(2000L).backoffFactor(1)
         .assertTrue(input -> this.gobblinServiceManager.getFlowCatalog().getSpecs().size() == 0,
           "Waiting for job to get orchestrated...");

@@ -17,12 +17,6 @@
 
 package org.apache.gobblin.runtime.spec_catalog;
 
-import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
-import com.google.common.util.concurrent.AbstractIdleService;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigException;
-
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
@@ -33,10 +27,19 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import javax.annotation.Nonnull;
-import lombok.Getter;
 
 import org.apache.commons.lang3.reflect.ConstructorUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
+import com.google.common.util.concurrent.AbstractIdleService;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigException;
+
+import javax.annotation.Nonnull;
+import lombok.Getter;
 
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
@@ -57,8 +60,6 @@ import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.callbacks.CallbackResult;
 import org.apache.gobblin.util.callbacks.CallbacksDispatcher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 
 /**
@@ -82,6 +83,10 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
   protected final MutableStandardMetrics metrics;
   @Getter
   protected final SpecStore specStore;
+  @Getter
+  // a map which keeps a handle of condition variables for each spec being added to the flow catalog
+  // to provide synchronization needed for flow specs
+  public final Map<String, Object> specSyncObjects = new HashMap<>();
 
   private final ClassAliasResolver<SpecStore> aliasResolver;
 
@@ -308,6 +313,9 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
 
     log.info(String.format("Adding FlowSpec with URI: %s and Config: %s", flowSpec.getUri(), flowSpec.getConfigAsProperties()));
 
+    Object syncObject = new Object();
+    specSyncObjects.put(flowSpec.getUri().toString(), syncObject);
+
     if (triggerListener) {
       AddSpecResponse<CallbacksDispatcher.CallbackResults<SpecCatalogListener, AddSpecResponse>> response = this.listeners.onAddSpec(flowSpec);
       for (Map.Entry<SpecCatalogListener, CallbackResult<AddSpecResponse>> entry: response.getValue().getSuccesses().entrySet()) {
@@ -316,15 +324,20 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     }
 
     if (isCompileSuccessful(responseMap)) {
-      try {
-        long startTime = System.currentTimeMillis();
-        if (!flowSpec.isExplain()) {
-          specStore.addSpec(spec);
+      synchronized (syncObject) {
+        try {
+          if (!flowSpec.isExplain()) {
+            long startTime = System.currentTimeMillis();
+            specStore.addSpec(spec);
+            metrics.updatePutSpecTime(startTime);
+          }
+          responseMap.put(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>("true"));
+        } catch (IOException e) {
+          throw new RuntimeException("Cannot add Spec to Spec store: " + flowSpec, e);
+        } finally {
+          syncObject.notifyAll();
+          this.specSyncObjects.remove(flowSpec.getUri().toString());
         }
-        metrics.updatePutSpecTime(startTime);
-        responseMap.put(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>("true"));
-      } catch (IOException e) {
-        throw new RuntimeException("Cannot add Spec to Spec store: " + flowSpec, e);
       }
     } else {
       responseMap.put(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>("false"));
