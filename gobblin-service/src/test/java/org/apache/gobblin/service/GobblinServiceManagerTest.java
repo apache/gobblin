@@ -166,7 +166,7 @@ public class GobblinServiceManagerTest {
         ConfigUtils.propertiesToConfig(serviceCoreProperties), Optional.of(new Path(SERVICE_WORK_DIR)));
     this.gobblinServiceManager.start();
 
-    this.flowConfigClient = new FlowConfigV2Client(String.format("http://localhost:%s/",
+    this.flowConfigClient = new FlowConfigV2Client(String.format("http://127.0.0.1:%s/",
         this.gobblinServiceManager.getRestLiServer().getListeningURI().getPort()));
   }
 
@@ -467,7 +467,7 @@ public class GobblinServiceManagerTest {
     this.gobblinServiceManager.stop();
     this.gobblinServiceManager = new MockGobblinServiceManager("CoreService", "1",
         ConfigUtils.propertiesToConfig(serviceCoreProperties), Optional.of(new Path(SERVICE_WORK_DIR)));
-    this.flowConfigClient = new FlowConfigV2Client(String.format("http://localhost:%s/",
+    this.flowConfigClient = new FlowConfigV2Client(String.format("http://127.0.0.1:%s/",
         this.gobblinServiceManager.getRestLiServer().getPort()));
     this.gobblinServiceManager.start();
   }

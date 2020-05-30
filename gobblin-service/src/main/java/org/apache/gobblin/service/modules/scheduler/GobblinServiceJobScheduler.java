@@ -452,9 +452,9 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       try {
         GobblinServiceJobScheduler.this.runJob(this.jobConfig, this.jobListener);
         if (flowCatalog.isPresent() && removeSpec) {
-          if (GobblinServiceJobScheduler.this.flowCatalog.get().getSpecSyncObjects().containsKey(specUri.toString())) {
+          Object syncObject = GobblinServiceJobScheduler.this.flowCatalog.get().getSyncObject(specUri.toString());
+          if (syncObject != null) {
             // if the sync object does not exist, this job must be set to run due to job submission at service restart
-            Object syncObject = GobblinServiceJobScheduler.this.flowCatalog.get().getSpecSyncObjects().get(specUri.toString());
             synchronized (syncObject) {
               while (!GobblinServiceJobScheduler.this.flowCatalog.get().exists(specUri)) {
                 syncObject.wait();

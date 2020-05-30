@@ -83,10 +83,9 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
   protected final MutableStandardMetrics metrics;
   @Getter
   protected final SpecStore specStore;
-  @Getter
   // a map which keeps a handle of condition variables for each spec being added to the flow catalog
   // to provide synchronization needed for flow specs
-  public final Map<String, Object> specSyncObjects = new HashMap<>();
+  private final Map<String, Object> specSyncObjects = new HashMap<>();
 
   private final ClassAliasResolver<SpecStore> aliasResolver;
 
@@ -299,7 +298,10 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
    * is set to true.
    * If the {@link Spec} is a {@link FlowSpec} it is persisted if it can be compiled at the time this method received
    * the spec. `explain` specs are not persisted. The logic of this method is tightly coupled with the logic of
-   * {@link GobblinServiceJobScheduler#onAddSpec()}, which is one of the listener of {@link FlowCatalog}
+   * {@link GobblinServiceJobScheduler#onAddSpec()}, which is one of the listener of {@link FlowCatalog}.
+   * We use condition variables {@link #specSyncObjects} to achieve synchronization between
+   * {@link GobblinServiceJobScheduler#NonScheduledJobRunner} thread and this thread to ensure deletion of
+   * {@link FlowSpec} happens after the corresponding run once flow is submitted to the orchestrator.
    *
    * @param spec The Spec to be added
    * @param triggerListener True if listeners should be notified.
@@ -385,5 +387,9 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     } catch (IOException e) {
       throw new RuntimeException("Cannot delete Spec from Spec store for URI: " + uri, e);
     }
+  }
+
+  public Object getSyncObject(String specUri) {
+    return this.specSyncObjects.getOrDefault(specUri, null);
   }
 }
