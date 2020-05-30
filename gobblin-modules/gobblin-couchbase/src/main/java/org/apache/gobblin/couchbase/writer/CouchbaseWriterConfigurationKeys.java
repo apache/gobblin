@@ -42,6 +42,7 @@ public class CouchbaseWriterConfigurationKeys {
   public static final String SSL_TRUSTSTORE_PASSWORD = prefix("sslTruststorePassword");
   public static final String CERT_AUTH_ENABLED = prefix("certAuthEnabled");
   public static final String DNS_SRV_ENABLED = prefix("dnsSrvEnabled");
+  public static final String SOCKET_CONNECT_TIMEOUT = prefix("socketConnectTimeout");
 
   public static final String DOCUMENT_TTL = prefix("documentTTL");
   public static final String DOCUMENT_TTL_UNIT = prefix("documentTTLUnits");

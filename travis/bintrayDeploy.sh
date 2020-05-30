@@ -23,24 +23,17 @@
 #!/bin/bash
 set -e
 
-#free
+echo "Starting $0 at " $(date)
+PROJECT_VERSION=$(./gradlew properties -q | grep "version:" | awk '{print $2}')
 
-RUN_TEST_GROUP=${RUN_TEST_GROUP:-default}
+echo "Project Version: $PROJECT_VERSION"
+BUILD_VERSION=$PROJECT_VERSION-dev-${TRAVIS_BUILD_NUMBER}
+echo "Build Version: $BUILD_VERSION"
 
-script_dir=$(dirname $0)
-echo "Old GRADLE_OPTS=$GRADLE_OPTS"
-
-export java_version=$(java -version 2>&1 | grep 'openjdk version' | sed -e 's/openjdk version "\(1\..\).*/\1/')
-
-echo "Using Java version:${java_version}"
-
-export GOBBLIN_GRADLE_OPTS="-Dorg.gradle.daemon=false -Dgobblin.metastore.testing.embeddedMysqlEnabled=false -PusePreinstalledMysql=true -PjdkVersion=${java_version}"
-
-TEST_SCRIPT=${script_dir}/test-${RUN_TEST_GROUP}.sh
-if [ -x $TEST_SCRIPT ] ; then
-  echo "Running test group $RUN_TEST_GROUP"
-  $TEST_SCRIPT "$@"
-else
-  echo "Test file $TEST_SCRIPT does not exist or is not executable!"
-  exit 1
+echo "Pull request: [$TRAVIS_PULL_REQUEST], Travis branch: [$TRAVIS_BRANCH]"
+# release only from master when no pull request build
+if [ "$TRAVIS_PULL_REQUEST" = "false" ]
+then
+    echo "Uploading artifacts to bintray for version $BUILD_VERSION"
+    ./gradlew -i bintrayUpload -Pversion=$BUILD_VERSION
 fi

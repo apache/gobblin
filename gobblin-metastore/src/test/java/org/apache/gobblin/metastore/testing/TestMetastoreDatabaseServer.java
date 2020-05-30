@@ -91,7 +91,7 @@ class TestMetastoreDatabaseServer implements Closeable {
                   this.dbHost,
                   this.dbPort);
 
-    config = MysqldConfig.aMysqldConfig(Version.v5_6_latest)
+    config = MysqldConfig.aMysqldConfig(Version.v8_latest)
         .withPort(this.dbPort)
         .withUser(this.dbUserName, this.dbUserPassword)
         .build();

@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.Properties;
 
 import org.mockito.Mockito;
-import org.testng.Assert;
 import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.Test;
@@ -34,10 +33,11 @@ import com.google.common.io.Files;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.kafka.KafkaTestBase;
 import org.apache.gobblin.kafka.client.AbstractBaseKafkaConsumerClient;
-import org.apache.gobblin.kafka.client.GobblinKafkaConsumerClient;
 import org.apache.gobblin.kafka.client.Kafka09ConsumerClient;
 import org.apache.gobblin.kafka.writer.Kafka09DataWriter;
 import org.apache.gobblin.kafka.writer.KafkaWriterConfigurationKeys;
@@ -45,12 +45,14 @@ import org.apache.gobblin.runtime.kafka.HighLevelConsumer;
 import org.apache.gobblin.runtime.kafka.MockedHighLevelConsumer;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaPartition;
 import org.apache.gobblin.test.TestUtils;
+import org.apache.gobblin.testing.AssertWithBackoff;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.writer.AsyncDataWriter;
 import org.apache.gobblin.writer.WriteCallback;
 
 
 @Test
+@Slf4j
 public class HighLevelConsumerTest extends KafkaTestBase {
 
   private static final String BOOTSTRAP_SERVERS_KEY = "bootstrap.servers";
@@ -62,7 +64,6 @@ public class HighLevelConsumerTest extends KafkaTestBase {
 
   private Closer _closer;
   private String _kafkaBrokers;
-  private AsyncDataWriter dataWriter;
 
   public HighLevelConsumerTest()
       throws InterruptedException, RuntimeException {
@@ -80,9 +81,9 @@ public class HighLevelConsumerTest extends KafkaTestBase {
     producerProps.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + KafkaWriterConfigurationKeys.VALUE_SERIALIZER_CONFIG, "org.apache.kafka.common.serialization.ByteArraySerializer");
     producerProps.setProperty(KafkaWriterConfigurationKeys.CLUSTER_ZOOKEEPER, this.getZkConnectString());
     producerProps.setProperty(KafkaWriterConfigurationKeys.PARTITION_COUNT, String.valueOf(NUM_PARTITIONS));
-    dataWriter = _closer.register(new Kafka09DataWriter(producerProps));
+    AsyncDataWriter<byte[]> dataWriter = _closer.register(new Kafka09DataWriter<byte[], byte[]>(producerProps));
 
-    List<byte[]> records = createByteArrayMessages(NUM_MSGS);
+    List<byte[]> records = createByteArrayMessages();
     WriteCallback mock = Mockito.mock(WriteCallback.class);
     for(byte[] record : records) {
       dataWriter.write(record, mock);
@@ -136,24 +137,20 @@ public class HighLevelConsumerTest extends KafkaTestBase {
         NUM_PARTITIONS);
     consumer.startAsync().awaitRunning();
 
-    consumer.awaitExactlyNMessages(NUM_MSGS, 5000);
-    try {
-      Thread.sleep(2000);
-    } catch (InterruptedException e) {
-    }
+    consumer.awaitExactlyNMessages(NUM_MSGS, 10000);
 
-    GobblinKafkaConsumerClient client  = consumer.getGobblinKafkaConsumerClient();
     for(int i=0; i< NUM_PARTITIONS; i++) {
       KafkaPartition partition = new KafkaPartition.Builder().withTopicName(TOPIC).withId(i).build();
-      Assert.assertTrue(consumer.getCommittedOffsets().containsKey(partition));
+      AssertWithBackoff.assertTrue(input -> consumer.getCommittedOffsets().containsKey(partition),
+          5000, "waiting for committing offsets", log, 2, 1000);
     }
     consumer.shutDown();
   }
 
-  private List<byte[]> createByteArrayMessages(int numMsgs) {
+  private List<byte[]> createByteArrayMessages() {
     List<byte[]> records = Lists.newArrayList();
 
-    for(int i=0; i<numMsgs; i++) {
+    for(int i=0; i<NUM_MSGS; i++) {
       byte[] msg = ("msg_" + i).getBytes();
       records.add(msg);
     }
