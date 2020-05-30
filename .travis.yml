@@ -32,7 +32,7 @@ stages:
 before_script:
   - mysql -uroot -e "create user testUser identified by 'testPassword';"
 script:
-  - travis_wait 40 ./travis/test.sh
+  - travis_retry ./travis/test.sh
   - ./gradlew jacocoTestReport
 after_success:
   - bash <(cat .codecov_bash)
