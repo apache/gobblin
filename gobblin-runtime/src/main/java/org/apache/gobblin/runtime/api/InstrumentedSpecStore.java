@@ -54,28 +54,19 @@ public abstract class InstrumentedSpecStore implements SpecStore {
   public InstrumentedSpecStore(Config config, SpecSerDe specSerDe) {
     this.instrumentationEnabled = GobblinMetrics.isEnabled(new State(ConfigUtils.configToProperties(config)));
     this.metricContext = Instrumented.getMetricContext(new State(), getClass());
-    if (instrumentationEnabled) {
-      this.getTimer = createTimer("-GET");
-      this.existsTimer = createTimer("-EXISTS");
-      this.deleteTimer = createTimer("-DELETE");
-      this.addTimer = createTimer("-ADD");
-      this.updateTimer = createTimer("-UPDATE");
-      this.getAllTimer = createTimer("-GETALL");
-      this.getURIsTimer = createTimer("-GETURIS");
-    } else {
-      this.getTimer = Optional.absent();
-      this.existsTimer = Optional.absent();
-      this.deleteTimer = Optional.absent();
-      this.addTimer = Optional.absent();
-      this.updateTimer = Optional.absent();
-      this.getAllTimer = Optional.absent();
-      this.getURIsTimer = Optional.absent();
-    }
+    this.getTimer = createTimer("-GET");
+    this.existsTimer = createTimer("-EXISTS");
+    this.deleteTimer = createTimer("-DELETE");
+    this.addTimer = createTimer("-ADD");
+    this.updateTimer = createTimer("-UPDATE");
+    this.getAllTimer = createTimer("-GETALL");
+    this.getURIsTimer = createTimer("-GETURIS");
   }
 
   private Optional<Timer> createTimer(String suffix) {
-    return Optional.of(this.metricContext.timer(
-        MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,getClass().getSimpleName(), suffix)));
+    return instrumentationEnabled
+        ? Optional.of(this.metricContext.timer(MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,getClass().getSimpleName(), suffix)))
+        : Optional.absent();
   }
 
   @Override
@@ -83,9 +74,9 @@ public abstract class InstrumentedSpecStore implements SpecStore {
     if (!instrumentationEnabled) {
       return existsImpl(specUri);
     } else {
-      long startTimeNanos = System.currentTimeMillis();
+      long startTimeMillis = System.currentTimeMillis();
       boolean ret = existsImpl(specUri);
-      Instrumented.updateTimer(this.existsTimer, System.currentTimeMillis() - startTimeNanos, TimeUnit.MILLISECONDS);
+      Instrumented.updateTimer(this.existsTimer, System.currentTimeMillis() - startTimeMillis, TimeUnit.MILLISECONDS);
       return ret;
     }
   }
@@ -95,9 +86,9 @@ public abstract class InstrumentedSpecStore implements SpecStore {
     if (!instrumentationEnabled) {
       addSpecImpl(spec);
     } else {
-      long startTimeNanos = System.currentTimeMillis();
+      long startTimeMillis = System.currentTimeMillis();
       addSpecImpl(spec);
-      Instrumented.updateTimer(this.addTimer, System.currentTimeMillis() - startTimeNanos, TimeUnit.MILLISECONDS);
+      Instrumented.updateTimer(this.addTimer, System.currentTimeMillis() - startTimeMillis, TimeUnit.MILLISECONDS);
     }
   }
 
@@ -106,9 +97,9 @@ public abstract class InstrumentedSpecStore implements SpecStore {
     if (!instrumentationEnabled) {
       return deleteSpecImpl(specUri);
     } else {
-      long startTimeNanos = System.currentTimeMillis();
+      long startTimeMillis = System.currentTimeMillis();
       boolean ret = deleteSpecImpl(specUri);
-      Instrumented.updateTimer(this.deleteTimer, System.currentTimeMillis() - startTimeNanos, TimeUnit.MILLISECONDS);
+      Instrumented.updateTimer(this.deleteTimer, System.currentTimeMillis() - startTimeMillis, TimeUnit.MILLISECONDS);
       return ret;
     }
   }
@@ -118,9 +109,9 @@ public abstract class InstrumentedSpecStore implements SpecStore {
     if (!instrumentationEnabled) {
       return getSpecImpl(specUri);
     } else {
-      long startTimeNanos = System.currentTimeMillis();
+      long startTimeMillis = System.currentTimeMillis();
       Spec spec = getSpecImpl(specUri);
-      Instrumented.updateTimer(this.getTimer, System.currentTimeMillis() - startTimeNanos, TimeUnit.MILLISECONDS);
+      Instrumented.updateTimer(this.getTimer, System.currentTimeMillis() - startTimeMillis, TimeUnit.MILLISECONDS);
       return spec;
     }
   }
@@ -130,9 +121,9 @@ public abstract class InstrumentedSpecStore implements SpecStore {
     if (!instrumentationEnabled) {
       return updateSpecImpl(spec);
     } else {
-      long startTimeNanos = System.currentTimeMillis();
+      long startTimeMillis = System.currentTimeMillis();
       Spec ret = updateSpecImpl(spec);
-      Instrumented.updateTimer(this.updateTimer, System.currentTimeMillis() - startTimeNanos, TimeUnit.MILLISECONDS);
+      Instrumented.updateTimer(this.updateTimer, System.currentTimeMillis() - startTimeMillis, TimeUnit.MILLISECONDS);
       return ret;
     }
   }
@@ -142,9 +133,9 @@ public abstract class InstrumentedSpecStore implements SpecStore {
     if (!instrumentationEnabled) {
       return getSpecsImpl();
     } else {
-      long startTimeNanos = System.currentTimeMillis();
+      long startTimeMillis = System.currentTimeMillis();
       Collection<Spec> spec = getSpecsImpl();
-      Instrumented.updateTimer(this.getAllTimer, System.currentTimeMillis() - startTimeNanos, TimeUnit.MILLISECONDS);
+      Instrumented.updateTimer(this.getAllTimer, System.currentTimeMillis() - startTimeMillis, TimeUnit.MILLISECONDS);
       return spec;
     }
   }
@@ -154,9 +145,9 @@ public abstract class InstrumentedSpecStore implements SpecStore {
     if (!instrumentationEnabled) {
       return getSpecURIsImpl();
     } else {
-      long startTimeNanos = System.currentTimeMillis();
+      long startTimeMillis = System.currentTimeMillis();
       Iterator<URI> specURIs = getSpecURIsImpl();
-      Instrumented.updateTimer(this.getURIsTimer, System.currentTimeMillis() - startTimeNanos, TimeUnit.MILLISECONDS);
+      Instrumented.updateTimer(this.getURIsTimer, System.currentTimeMillis() - startTimeMillis, TimeUnit.MILLISECONDS);
       return specURIs;
     }
   }
