@@ -96,7 +96,7 @@ public class GobblinServiceManagerTest {
 
   @BeforeClass
   public void setup() throws Exception {
-    logger.info(this.getClass().getSimpleName() + " setup started");
+    logger.debug(this.getClass().getSimpleName() + " setup started");
     cleanUpDir(SERVICE_WORK_DIR);
     cleanUpDir(SPEC_STORE_PARENT_DIR);
     ITestMetastoreDatabase testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
@@ -150,7 +150,7 @@ public class GobblinServiceManagerTest {
 
     this.flowConfigClient = new FlowConfigClient(String.format("http://localhost:%s/",
         this.gobblinServiceManager.getRestLiServer().getPort()));
-    logger.info(this.getClass().getSimpleName() + " setup ended");
+    logger.debug(this.getClass().getSimpleName() + " setup ended");
   }
 
   private void cleanUpDir(String dir) throws Exception {

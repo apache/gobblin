@@ -105,7 +105,7 @@ class KafkaServerSuite {
   void start()
     throws RuntimeException {
     if (_numStarted.incrementAndGet() == 1) {
-      log.warn("Starting up Kafka server suite. Zk at " + _zkConnectString + "; Kafka server at " + _kafkaServerPort);
+      log.debug("Starting up Kafka server suite. Zk at " + _zkConnectString + "; Kafka server at " + _kafkaServerPort);
       _zkServer = new EmbeddedZookeeper();
       _zkConnectString = "127.0.0.1:"+_zkServer.port();
       _zkClient = new ZkClient(_zkConnectString, 30000, 30000, ZKStringSerializer$.MODULE$);

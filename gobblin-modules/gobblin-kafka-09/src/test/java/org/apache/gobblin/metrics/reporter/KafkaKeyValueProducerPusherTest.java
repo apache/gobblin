@@ -53,18 +53,18 @@ public class KafkaKeyValueProducerPusherTest {
 
   @BeforeClass
   public void setup() throws Exception {
-    logger.info(this.getClass().getSimpleName() + " setup started");
+    logger.debug(this.getClass().getSimpleName() + " setup started");
     kafkaTestHelper = new KafkaTestBase();
     kafkaTestHelper.startServers();
 
     kafkaTestHelper.provisionTopic(TOPIC);
-    logger.info(this.getClass().getSimpleName() + " setup ended");
+    logger.debug(this.getClass().getSimpleName() + " setup ended");
   }
 
   @Test
   public void test() throws IOException {
     // Test that the scoped config overrides the generic config
-    logger.info("Starting " + TOPIC + " test case.... ");
+    logger.debug("Starting " + TOPIC + " test case.... ");
     Pusher pusher = new KafkaKeyValueProducerPusher<byte[], byte[]>("localhost:dummy", TOPIC,
         Optional.of(ConfigFactory.parseMap(ImmutableMap.of(
             ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:" + this.kafkaTestHelper.getKafkaServerPort()))));
@@ -72,17 +72,17 @@ public class KafkaKeyValueProducerPusherTest {
     String msg1 = "msg1";
     String msg2 = "msg2";
 
-    logger.info(TOPIC + " before pushing.... ");
+    logger.debug(TOPIC + " before pushing.... ");
     pusher.pushMessages(Lists.newArrayList(Pair.of("key1", msg1.getBytes()), Pair.of("key2", msg2.getBytes())));
-    logger.info(TOPIC + " after pushing.... ");
+    logger.debug(TOPIC + " after pushing.... ");
     try {
       Thread.sleep(1000);
     } catch(InterruptedException ex) {
       Thread.currentThread().interrupt();
     }
-    logger.info(TOPIC + " waiting for consuming.... ");
+    logger.debug(TOPIC + " waiting for consuming.... ");
     ConsumerIterator<byte[], byte[]> iterator = this.kafkaTestHelper.getIteratorForTopic(TOPIC);
-    logger.info(TOPIC + " after consuming.... ");
+    logger.debug(TOPIC + " after consuming.... ");
     assert(iterator.hasNext());
 
     MessageAndMetadata<byte[], byte[]> messageAndMetadata = iterator.next();
