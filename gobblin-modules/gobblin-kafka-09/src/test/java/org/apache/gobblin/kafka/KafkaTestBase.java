@@ -105,7 +105,7 @@ class KafkaServerSuite {
   void start()
     throws RuntimeException {
     if (_numStarted.incrementAndGet() == 1) {
-      log.debug("Starting up Kafka server suite. Zk at " + _zkConnectString + "; Kafka server at " + _kafkaServerPort);
+      log.warn("Starting up Kafka server suite. Zk at " + _zkConnectString + "; Kafka server at " + _kafkaServerPort);
       _zkServer = new EmbeddedZookeeper();
       _zkConnectString = "127.0.0.1:"+_zkServer.port();
       _zkClient = new ZkClient(_zkConnectString, 30000, 30000, ZKStringSerializer$.MODULE$);
@@ -134,20 +134,20 @@ class KafkaServerSuite {
     }
     else
     {
-      log.info("Kafka server suite already started... continuing");
+      log.warn("Kafka server suite already started... continuing");
     }
   }
 
 
   void shutdown() {
     if (_numStarted.decrementAndGet() == 0) {
-      log.info("Shutting down Kafka server suite");
+      log.warn("Shutting down Kafka server suite");
       _kafkaServer.shutdown();
       _zkClient.close();
       _zkServer.shutdown();
     }
     else {
-      log.info("Kafka server suite still in use ... not shutting down yet");
+      log.warn("Kafka server suite still in use ... not shutting down yet");
     }
   }
 
