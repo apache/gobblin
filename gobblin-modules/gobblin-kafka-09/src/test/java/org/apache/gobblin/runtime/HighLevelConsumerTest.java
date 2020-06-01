@@ -44,6 +44,7 @@ import org.apache.gobblin.kafka.writer.KafkaWriterConfigurationKeys;
 import org.apache.gobblin.runtime.kafka.HighLevelConsumer;
 import org.apache.gobblin.runtime.kafka.MockedHighLevelConsumer;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaPartition;
+import org.apache.gobblin.test.TestUtils;
 import org.apache.gobblin.testing.AssertWithBackoff;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.writer.AsyncDataWriter;
@@ -67,7 +68,7 @@ public class HighLevelConsumerTest extends KafkaTestBase {
   public HighLevelConsumerTest()
       throws InterruptedException, RuntimeException {
     super();
-    _kafkaBrokers = "localhost:" + this.getKafkaServerPort();
+    _kafkaBrokers = "127.0.0.1:" + this.getKafkaServerPort();
   }
 
   @BeforeSuite
@@ -92,7 +93,7 @@ public class HighLevelConsumerTest extends KafkaTestBase {
 
   public static Config getSimpleConfig(Optional<String> prefix) {
     Properties properties = new Properties();
-    properties.put(getConfigKey(prefix, ConfigurationKeys.KAFKA_BROKERS), "localhost:1234");
+    properties.put(getConfigKey(prefix, ConfigurationKeys.KAFKA_BROKERS), "127.0.0.1:" + TestUtils.findFreePort());
     properties.put(getConfigKey(prefix, Kafka09ConsumerClient.GOBBLIN_CONFIG_VALUE_DESERIALIZER_CLASS_KEY), Kafka09ConsumerClient.KAFKA_09_DEFAULT_KEY_DESERIALIZER);
     properties.put(getConfigKey(prefix, "zookeeper.connect"), "zookeeper");
     properties.put(ConfigurationKeys.STATE_STORE_ENABLED, "true");
