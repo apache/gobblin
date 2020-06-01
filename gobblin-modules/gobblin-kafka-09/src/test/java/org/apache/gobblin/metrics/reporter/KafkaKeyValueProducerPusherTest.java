@@ -42,6 +42,7 @@ import org.apache.gobblin.metrics.kafka.Pusher;
 /**
  * Test {@link KafkaKeyValueProducerPusher}.
  */
+@Test (groups = {"disabledOnTravis"})
 public class KafkaKeyValueProducerPusherTest {
   public static final String TOPIC = KafkaKeyValueProducerPusherTest.class.getSimpleName();
 
