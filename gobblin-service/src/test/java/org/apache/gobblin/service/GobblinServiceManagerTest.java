@@ -95,7 +95,7 @@ public class GobblinServiceManagerTest {
   private static final String TEST_SOURCE_NAME = "testSource";
   private static final String TEST_SINK_NAME = "testSink";
 
-  private final URI TEST_URI = FlowConfigResourceLocalHandler.FlowUriUtils.createFlowSpecUri(TEST_FLOW_ID);
+  private final URI TEST_URI = FlowSpec.Utils.createFlowSpecUri(TEST_FLOW_ID);
 
   private MockGobblinServiceManager gobblinServiceManager;
   private FlowConfigV2Client flowConfigClient;
@@ -252,7 +252,7 @@ public class GobblinServiceManagerTest {
   @Test (dependsOnMethods = "testRestart")
   public void testUncompilableJob() throws Exception {
     FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(MockedSpecCompiler.UNCOMPILABLE_FLOW);
-    URI uri = FlowConfigResourceLocalHandler.FlowUriUtils.createFlowSpecUri(flowId);
+    URI uri = FlowSpec.Utils.createFlowSpecUri(flowId);
     FlowConfig flowConfig = new FlowConfig().setId(flowId)
         .setTemplateUris(TEST_TEMPLATE_URI).setProperties(new StringMap(flowProperties));
 
@@ -369,7 +369,7 @@ public class GobblinServiceManagerTest {
   @Test (dependsOnMethods = "testUpdate")
   public void testDelete() throws Exception {
     FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME);
-    URI uri = FlowConfigResourceLocalHandler.FlowUriUtils.createFlowSpecUri(flowId);
+    URI uri = FlowSpec.Utils.createFlowSpecUri(flowId);
 
     // make sure flow config exists
     FlowConfig flowConfig = this.flowConfigClient.getFlowConfig(flowId);
