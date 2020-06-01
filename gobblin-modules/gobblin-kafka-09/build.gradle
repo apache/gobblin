@@ -87,6 +87,7 @@ artifacts {
 }
 
 test {
+  forkEvery = 1
   workingDir rootProject.rootDir
   systemProperty "live.newtopic", System.getProperty("live.newtopic")
   systemProperty "live.newtopic.replicationCount", System.getProperty("live.newtopic.replicationCount")

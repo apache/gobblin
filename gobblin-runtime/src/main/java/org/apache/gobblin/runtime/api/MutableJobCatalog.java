@@ -17,22 +17,18 @@
 package org.apache.gobblin.runtime.api;
 
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.TimeUnit;
-
-import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.instrumented.Instrumented;
-import org.apache.gobblin.metrics.ContextAwareMetric;
-import org.apache.gobblin.metrics.ContextAwareTimer;
-import org.apache.gobblin.util.ConfigUtils;
 
 import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.ContextAwareTimer;
 
 
 /**
@@ -52,6 +48,9 @@ public interface MutableJobCatalog extends JobCatalog {
    * Removes an existing JobSpec with the given URI. A no-op if such JobSpec does not exist.
    */
   void remove(URI uri);
+
+  default void cancel(JobSpec jobSpec) {
+  }
 
   @Slf4j
   public static class MutableStandardMetrics extends JobCatalog.StandardMetrics {

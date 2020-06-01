@@ -377,10 +377,6 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
    * Build the {@link JobConfigurationManager} for the Application Master.
    */
   private JobConfigurationManager buildJobConfigurationManager(Config config) {
-    return create(config);
-  }
-
-  private JobConfigurationManager create(Config config) {
     try {
       List<Object> argumentList = (this.jobCatalog != null)? ImmutableList.of(this.eventBus, config, this.jobCatalog, this.fs) :
           ImmutableList.of(this.eventBus, config, this.fs);

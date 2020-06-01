@@ -49,6 +49,7 @@ public abstract class JobCatalogBase extends AbstractIdleService implements JobC
   protected final Logger log;
   protected final MetricContext metricContext;
   protected final StandardMetrics metrics;
+  protected final boolean instrumentationEnabled;
 
   public JobCatalogBase() {
     this(Optional.<Logger>absent());
@@ -72,6 +73,7 @@ public abstract class JobCatalogBase extends AbstractIdleService implements JobC
       boolean instrumentationEnabled, Optional<Config> sysConfig) {
     this.log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
     this.listeners = new JobCatalogListenersList(log);
+    this.instrumentationEnabled = instrumentationEnabled;
     if (instrumentationEnabled) {
       MetricContext realParentCtx =
           parentMetricContext.or(Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(), getClass()));
@@ -109,14 +111,18 @@ public abstract class JobCatalogBase extends AbstractIdleService implements JobC
   private Collection<JobSpec> getJobsWithTimeUpdate() {
     long startTime = System.currentTimeMillis();
     Collection<JobSpec> jobSpecs = getJobs();
-    this.metrics.updateGetJobTime(startTime);
+    if (instrumentationEnabled) {
+      this.metrics.updateGetJobTime(startTime);
+    }
     return jobSpecs;
   }
 
   private Iterator<JobSpec> getJobSpecsWithTimeUpdate() {
     long startTime = System.currentTimeMillis();
     Iterator<JobSpec> jobSpecs = getJobSpecIterator();
-    this.metrics.updateGetJobTime(startTime);
+    if (instrumentationEnabled) {
+      this.metrics.updateGetJobTime(startTime);
+    }
     return jobSpecs;
   }
 
@@ -153,7 +159,7 @@ public abstract class JobCatalogBase extends AbstractIdleService implements JobC
   }
 
   @Override public boolean isInstrumentationEnabled() {
-    return null != this.metricContext;
+    return instrumentationEnabled;
   }
 
   @Override public List<Tag<?>> generateTags(org.apache.gobblin.configuration.State state) {

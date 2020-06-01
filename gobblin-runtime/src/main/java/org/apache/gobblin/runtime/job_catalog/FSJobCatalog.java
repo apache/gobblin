@@ -16,13 +16,6 @@
  */
 package org.apache.gobblin.runtime.job_catalog;
 
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.runtime.api.JobCatalog;
-import org.apache.gobblin.runtime.api.JobCatalogWithTemplates;
-import org.apache.gobblin.runtime.api.JobTemplate;
-import org.apache.gobblin.runtime.api.SpecNotFoundException;
-import org.apache.gobblin.runtime.template.HOCONInputStreamJobTemplate;
-import org.apache.gobblin.util.PathUtils;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -47,11 +40,18 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigRenderOptions;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.runtime.api.GobblinInstanceEnvironment;
+import org.apache.gobblin.runtime.api.JobCatalog;
+import org.apache.gobblin.runtime.api.JobCatalogWithTemplates;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.JobSpecNotFoundException;
+import org.apache.gobblin.runtime.api.JobTemplate;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
+import org.apache.gobblin.runtime.api.SpecNotFoundException;
+import org.apache.gobblin.runtime.template.HOCONInputStreamJobTemplate;
+import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.filesystem.PathAlterationObserver;
 
 /**
@@ -122,7 +122,9 @@ public class FSJobCatalog extends ImmutableFSJobCatalog implements MutableJobCat
       long startTime = System.currentTimeMillis();
       Path jobSpecPath = getPathForURI(this.jobConfDirPath, jobSpec.getUri());
       materializedJobSpec(jobSpecPath, jobSpec, this.fs);
-      this.mutableMetrics.updatePutJobTime(startTime);
+      if (this.instrumentationEnabled) {
+        this.mutableMetrics.updatePutJobTime(startTime);
+      }
     } catch (IOException e) {
       throw new RuntimeException("When persisting a new JobSpec, unexpected issues happen:" + e.getMessage());
     } catch (JobSpecNotFoundException e) {
@@ -144,7 +146,9 @@ public class FSJobCatalog extends ImmutableFSJobCatalog implements MutableJobCat
 
       if (fs.exists(jobSpecPath)) {
         fs.delete(jobSpecPath, false);
-        this.mutableMetrics.updateRemoveJobTime(startTime);
+        if (this.instrumentationEnabled) {
+          this.mutableMetrics.updateRemoveJobTime(startTime);
+        }
       } else {
         LOGGER.warn("No file with URI:" + jobSpecPath + " is found. Deletion failed.");
       }

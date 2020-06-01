@@ -59,7 +59,8 @@ public interface SpecExecutor {
     ADD(1, "add"),
     UPDATE(2, "update"),
     DELETE(3, "delete"),
-    UNKNOWN(4, "unknown");
+    CANCEL(4, "cancel"),
+    UNKNOWN(5, "unknown");
 
     private int _id;
     private String _verb;

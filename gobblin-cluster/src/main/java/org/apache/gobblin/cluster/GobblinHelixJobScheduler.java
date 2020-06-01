@@ -50,6 +50,7 @@ import com.google.common.util.concurrent.Striped;
 import com.typesafe.config.Config;
 
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.cluster.event.CancelJobConfigArrivalEvent;
 import org.apache.gobblin.cluster.event.DeleteJobConfigArrivalEvent;
 import org.apache.gobblin.cluster.event.NewJobConfigArrivalEvent;
 import org.apache.gobblin.cluster.event.UpdateJobConfigArrivalEvent;
@@ -366,37 +367,47 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     }
   }
 
+  @Subscribe
+  public void handleCancelJobConfigArrival(CancelJobConfigArrivalEvent cancelJobArrival) throws InterruptedException {
+    LOGGER.info("Received cancel for job configuration of job " + cancelJobArrival.getJobName());
+    cancelJob(cancelJobArrival.getJobName());
+  }
+
   private void cancelJobIfRequired(DeleteJobConfigArrivalEvent deleteJobArrival) throws InterruptedException {
     Properties jobConfig = deleteJobArrival.getJobConfig();
     if (PropertiesUtils.getPropAsBoolean(jobConfig, GobblinClusterConfigurationKeys.CANCEL_RUNNING_JOB_ON_DELETE,
         GobblinClusterConfigurationKeys.DEFAULT_CANCEL_RUNNING_JOB_ON_DELETE)) {
-      LOGGER.info("Cancelling workflow: {}", deleteJobArrival.getJobName());
+      cancelJob(deleteJobArrival.getJobName());
+    }
+  }
 
-      //Workaround for preventing indefinite hangs observed in TaskDriver.getWorkflows() call.
-      Callable<Map<String, String>> workflowsCallable = () -> HelixUtils.getWorkflowIdsFromJobNames(this.jobHelixManager,
-          Collections.singletonList(deleteJobArrival.getJobName()));
-      Retryer<Map<String, String>> retryer = RetryerBuilder.<Map<String, String>>newBuilder()
-          .retryIfException()
-          .withStopStrategy(StopStrategies.stopAfterAttempt(5))
-          .withAttemptTimeLimiter(AttemptTimeLimiters.fixedTimeLimit(this.helixWorkflowListingTimeoutMillis, TimeUnit.MILLISECONDS)).build();
-      Map<String, String> jobNameToWorkflowIdMap;
-      try {
-        jobNameToWorkflowIdMap = retryer.call(workflowsCallable);
-      } catch (ExecutionException | RetryException e) {
-        LOGGER.error("Exception encountered when getting workflows from Helix; likely a Helix/Zk issue.", e);
-        return;
-      }
+  private void cancelJob(String cancelJob) throws InterruptedException {
+    LOGGER.info("Cancelling workflow: {}", cancelJob);
 
-      if (jobNameToWorkflowIdMap.containsKey(deleteJobArrival.getJobName())) {
-        String workflowId = jobNameToWorkflowIdMap.get(deleteJobArrival.getJobName());
-        TaskDriver taskDriver = new TaskDriver(this.jobHelixManager);
-        taskDriver.waitToStop(workflowId, this.helixJobStopTimeoutMillis);
-        LOGGER.info("Stopped workflow: {}", deleteJobArrival.getJobName());
-        //Wait until the cancelled job is complete.
-        waitForJobCompletion(deleteJobArrival.getJobName());
-      } else {
-        LOGGER.warn("Could not find Helix Workflow Id for job: {}", deleteJobArrival.getJobName());
-      }
+    //Workaround for preventing indefinite hangs observed in TaskDriver.getWorkflows() call.
+    Callable<Map<String, String>> workflowsCallable = () -> HelixUtils.getWorkflowIdsFromJobNames(this.jobHelixManager,
+        Collections.singletonList(cancelJob));
+    Retryer<Map<String, String>> retryer = RetryerBuilder.<Map<String, String>>newBuilder()
+        .retryIfException()
+        .withStopStrategy(StopStrategies.stopAfterAttempt(5))
+        .withAttemptTimeLimiter(AttemptTimeLimiters.fixedTimeLimit(this.helixWorkflowListingTimeoutMillis, TimeUnit.MILLISECONDS)).build();
+    Map<String, String> jobNameToWorkflowIdMap;
+    try {
+      jobNameToWorkflowIdMap = retryer.call(workflowsCallable);
+    } catch (ExecutionException | RetryException e) {
+      LOGGER.error("Exception encountered when getting workflows from Helix; likely a Helix/Zk issue.", e);
+      return;
+    }
+
+    if (jobNameToWorkflowIdMap.containsKey(cancelJob)) {
+      String workflowId = jobNameToWorkflowIdMap.get(cancelJob);
+      TaskDriver taskDriver = new TaskDriver(this.jobHelixManager);
+      taskDriver.waitToStop(workflowId, this.helixJobStopTimeoutMillis);
+      LOGGER.info("Stopped workflow: {}", cancelJob);
+      //Wait until the cancelled job is complete.
+      waitForJobCompletion(cancelJob);
+    } else {
+      LOGGER.warn("Could not find Helix Workflow Id for job: {}", cancelJob);
     }
   }
 

@@ -45,7 +45,6 @@ import com.codahale.metrics.Timer;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.eventbus.Subscribe;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -78,7 +77,6 @@ import org.apache.gobblin.service.monitoring.JobStatus;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.service.monitoring.KafkaJobStatusMonitor;
 import org.apache.gobblin.service.monitoring.KafkaJobStatusMonitorFactory;
-import org.apache.gobblin.service.monitoring.KillFlowEvent;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
@@ -298,21 +296,11 @@ public class DagManager extends AbstractIdleService {
   /**
    * Add the specified flow to {@link DagManager#cancelQueue}
    */
-  private void killFlow(String flowGroup, String flowName, long flowExecutionId) throws IOException {
+  void killFlow(String flowGroup, String flowName, long flowExecutionId) throws IOException {
     int queueId =  DagManagerUtils.getDagQueueId(flowExecutionId, this.numThreads);
     String dagId = DagManagerUtils.generateDagId(flowGroup, flowName, flowExecutionId);
     if (!this.cancelQueue[queueId].offer(dagId)) {
       throw new IOException("Could not add dag " + dagId + " to cancellation queue.");
-    }
-  }
-
-  @Subscribe
-  public void handleKillFlowEvent(KillFlowEvent killFlowEvent) {
-    log.info("Received kill request for flow ({}, {}, {})", killFlowEvent.getFlowGroup(), killFlowEvent.getFlowName(), killFlowEvent.getFlowExecutionId());
-    try {
-      killFlow(killFlowEvent.getFlowGroup(), killFlowEvent.getFlowName(), killFlowEvent.getFlowExecutionId());
-    } catch (IOException e) {
-      log.warn("Failed to kill flow", e);
     }
   }
 

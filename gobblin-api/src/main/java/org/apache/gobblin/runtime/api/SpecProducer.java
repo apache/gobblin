@@ -59,6 +59,11 @@ public interface SpecProducer<V> {
   }
 
   default Future<?> deserializeAddSpecResponse(String serializedResponse) {
-    return new CompletedFuture(serializedResponse, null);
+    return new CompletedFuture<>(serializedResponse, null);
+  }
+
+  /** Cancel the job execution identified by jobURI */
+  default Future<?> cancelJob(URI jobURI) {
+    return new CompletedFuture<>(jobURI, null);
   }
 }

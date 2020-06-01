@@ -35,10 +35,10 @@ import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.JobSpecMonitor;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
+import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.kafka.HighLevelConsumer;
 import org.apache.gobblin.runtime.metrics.RuntimeMetrics;
 import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.util.Either;
 
 
 /**
@@ -54,6 +54,7 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
   public static final String KAFKA_AUTO_OFFSET_RESET_LARGEST = "largest";
   protected DatasetStateStore datasetStateStore;
   protected final MutableJobCatalog jobCatalog;
+  protected static final String VERB_KEY = "Verb";
 
   @Getter
   protected Counter newSpecs;
@@ -65,7 +66,7 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
    *        parsed from the Kafka message.
    * @throws IOException
    */
-  public abstract Collection<Either<JobSpec, URI>> parseJobSpec(byte[] message) throws IOException;
+  public abstract Collection<JobSpec> parseJobSpec(byte[] message) throws IOException;
 
   public KafkaJobMonitor(String topic, MutableJobCatalog catalog, Config config) {
     super(topic, ConfigUtils.getConfigOrEmpty(config, KAFKA_JOB_MONITOR_PREFIX), 1);
@@ -100,17 +101,28 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
   @Override
   protected void processMessage(DecodeableKafkaRecord<byte[],byte[]> message) {
     try {
-      Collection<Either<JobSpec, URI>> parsedCollection = parseJobSpec(message.getValue());
-      for (Either<JobSpec, URI> parsedMessage : parsedCollection) {
-        if (parsedMessage instanceof Either.Left) {
-          this.newSpecs.inc();
-          this.jobCatalog.put(((Either.Left<JobSpec, URI>) parsedMessage).getLeft());
-        } else if (parsedMessage instanceof Either.Right) {
-          this.removedSpecs.inc();
-          URI jobSpecUri = ((Either.Right<JobSpec, URI>) parsedMessage).getRight();
-          this.jobCatalog.remove(jobSpecUri);
-          // Delete the job state if it is a delete spec request
-          deleteStateStore(jobSpecUri);
+      Collection<JobSpec> parsedCollection = parseJobSpec(message.getValue());
+      for (JobSpec parsedMessage : parsedCollection) {
+        SpecExecutor.Verb verb = SpecExecutor.Verb.valueOf(parsedMessage.getMetadata().get(VERB_KEY));
+
+        switch (verb) {
+          case ADD:
+          case UPDATE:
+            this.newSpecs.inc();
+            this.jobCatalog.put(parsedMessage);
+            break;
+          case DELETE:
+            this.removedSpecs.inc();
+            URI jobSpecUri = parsedMessage.getUri();
+            this.jobCatalog.remove(jobSpecUri);
+            // Delete the job state if it is a delete spec request
+            deleteStateStore(jobSpecUri);
+            break;
+          case CANCEL:
+            this.jobCatalog.cancel(parsedMessage);
+            break;
+          default:
+            log.error("Unknown verb {} for spec {}", verb, parsedMessage.getUri());
         }
       }
     } catch (IOException ioe) {

@@ -158,8 +158,11 @@ public class StreamingJobConfigurationManager extends JobConfigurationManager {
         postUpdateJobConfigArrival(jobSpec.getUri().toString(), jobSpec.getConfigAsProperties());
       } else if (verb.equals(SpecExecutor.Verb.DELETE)) {
         // Handle delete
-        Spec anonymousSpec = (Spec) entry.getValue();
+        Spec anonymousSpec = entry.getValue();
         postDeleteJobConfigArrival(anonymousSpec.getUri().toString(), new Properties());
+      } else if (verb.equals(SpecExecutor.Verb.CANCEL)) {
+        Spec anonymousSpec = entry.getValue();
+        postCancelJobConfigArrival(anonymousSpec.getUri().toString(), new Properties());
       }
     }
   }

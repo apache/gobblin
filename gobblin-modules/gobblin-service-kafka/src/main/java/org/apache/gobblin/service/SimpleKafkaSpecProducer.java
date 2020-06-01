@@ -22,8 +22,8 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.util.List;
-import java.util.concurrent.Future;
 import java.util.Properties;
+import java.util.concurrent.Future;
 
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.slf4j.Logger;
@@ -32,6 +32,10 @@ import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
+
+import javax.annotation.concurrent.NotThreadSafe;
+import lombok.EqualsAndHashCode;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.metrics.reporter.util.AvroBinarySerializer;
 import org.apache.gobblin.metrics.reporter.util.AvroSerializer;
@@ -46,20 +50,20 @@ import org.apache.gobblin.writer.AsyncDataWriter;
 import org.apache.gobblin.writer.WriteCallback;
 
 import static org.apache.gobblin.service.SimpleKafkaSpecExecutor.VERB_KEY;
-import javax.annotation.concurrent.NotThreadSafe;
-import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @NotThreadSafe
+@EqualsAndHashCode(onlyExplicitlyIncluded = true, callSuper=false)
 public class SimpleKafkaSpecProducer implements SpecProducer<Spec>, Closeable  {
   private static final String KAFKA_DATA_WRITER_CLASS_KEY = "spec.kafka.dataWriterClass";
   private static final String DEFAULT_KAFKA_DATA_WRITER_CLASS =
       "org.apache.gobblin.kafka.writer.Kafka08DataWriter";
 
   // Producer
+  @EqualsAndHashCode.Include
   protected AsyncDataWriter<byte[]> _kafkaProducer;
   private final AvroSerializer<AvroJobSpec> _serializer;
-  private Config _config;
+  private final Config _config;
   private final String _kafkaProducerClassName;
 
   public SimpleKafkaSpecProducer(Config config, Optional<Logger> log) {
@@ -109,6 +113,16 @@ public class SimpleKafkaSpecProducer implements SpecProducer<Spec>, Closeable  {
         .setProperties(Maps.fromProperties(headers)).build();
 
     log.info("Deleting Spec: " + deletedSpecURI + " using Kafka.");
+
+    return getKafkaProducer().write(_serializer.serializeRecord(avroJobSpec), new KafkaWriteCallback(avroJobSpec));
+  }
+
+  @Override
+  public Future<?> cancelJob(URI jobURI) {
+    AvroJobSpec avroJobSpec = AvroJobSpec.newBuilder().setUri(jobURI.toString())
+        .setMetadata(ImmutableMap.of(VERB_KEY, SpecExecutor.Verb.CANCEL.name())).build();
+
+    log.info("Cancelling Job: " + jobURI + " using Kafka.");
 
     return getKafkaProducer().write(_serializer.serializeRecord(avroJobSpec), new KafkaWriteCallback(avroJobSpec));
   }

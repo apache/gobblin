@@ -98,7 +98,7 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
 
   /** Constructor with no logging */
   public StreamingKafkaSpecConsumer(Config config, MutableJobCatalog jobCatalog) {
-    this(config, jobCatalog, Optional.<Logger>absent());
+    this(config, jobCatalog, Optional.absent());
   }
 
   /**
@@ -150,14 +150,14 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
    */
   protected class JobSpecListener extends DefaultJobCatalogListenerImpl {
     public JobSpecListener() {
-      super(StreamingKafkaSpecConsumer.this.log);
+      super(StreamingKafkaSpecConsumer.log);
     }
 
     @Override public void onAddJob(JobSpec addedJob) {
       super.onAddJob(addedJob);
 
       try {
-        _jobSpecQueue.put(new ImmutablePair<SpecExecutor.Verb, Spec>(SpecExecutor.Verb.ADD, addedJob));
+        _jobSpecQueue.put(new ImmutablePair<>(SpecExecutor.Verb.ADD, addedJob));
         _metrics.jobSpecEnqCount.incrementAndGet();
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
@@ -172,8 +172,20 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
         Properties props = new Properties();
         jobSpecBuilder.withVersion(deletedJobVersion).withConfigAsProperties(props);
 
-        _jobSpecQueue.put(new ImmutablePair<SpecExecutor.Verb, Spec>(SpecExecutor.Verb.DELETE, jobSpecBuilder.build()));
+        _jobSpecQueue.put(new ImmutablePair<>(SpecExecutor.Verb.DELETE, jobSpecBuilder.build()));
         _metrics.jobSpecEnqCount.incrementAndGet();
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+    }
+
+    @Override
+    public void onCancelJob(JobSpec cancelledJob) {
+      super.onCancelJob(cancelledJob);
+      try {
+        JobSpec.Builder jobSpecBuilder = JobSpec.builder(cancelledJob.getUri());
+        jobSpecBuilder.withConfigAsProperties(new Properties());
+        _jobSpecQueue.put(new ImmutablePair<>(SpecExecutor.Verb.CANCEL, jobSpecBuilder.build()));
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
       }
@@ -192,8 +204,8 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
   }
 
   private class Metrics extends StandardMetricsBridge.StandardMetrics {
-    private AtomicLong jobSpecEnqCount = new AtomicLong(0);
-    private AtomicLong jobSpecDeqCount = new AtomicLong(0);
+    private final AtomicLong jobSpecEnqCount = new AtomicLong(0);
+    private final AtomicLong jobSpecDeqCount = new AtomicLong(0);
 
     public static final String SPEC_CONSUMER_JOB_SPEC_QUEUE_SIZE = "specConsumerJobSpecQueueSize";
     public static final String SPEC_CONSUMER_JOB_SPEC_ENQ = "specConsumerJobSpecEnq";

@@ -522,9 +522,9 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     if (!this.helixManager.isPresent() || this.helixManager.get().isLeader()){
       if (this.isDagManagerEnabled) {
         this.dagManager.setActive(true);
-        this.eventBus.register(this.dagManager);
       }
     }
+    this.eventBus.register(this.orchestrator);
   }
 
   @Override

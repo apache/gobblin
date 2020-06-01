@@ -82,7 +82,9 @@ public class NonObservingFSJobCatalog extends FSJobCatalog {
       boolean isUpdate = fs.exists(jobSpecPath);
 
       materializedJobSpec(jobSpecPath, jobSpec, this.fs);
-      this.mutableMetrics.updatePutJobTime(startTime);
+      if (this.instrumentationEnabled) {
+        this.mutableMetrics.updatePutJobTime(startTime);
+      }
       if (isUpdate) {
         this.listeners.onUpdateJob(jobSpec);
       } else {
@@ -110,7 +112,9 @@ public class NonObservingFSJobCatalog extends FSJobCatalog {
 
       if (fs.exists(jobSpecPath)) {
         fs.delete(jobSpecPath, false);
-        this.mutableMetrics.updateRemoveJobTime(startTime);
+        if (this.instrumentationEnabled) {
+          this.mutableMetrics.updateRemoveJobTime(startTime);
+        }
         this.listeners.onDeleteJob(jobURI, jobSpec.getVersion());
       } else {
         LOGGER.warn("No file with URI:" + jobSpecPath + " is found. Deletion failed.");
@@ -120,6 +124,12 @@ public class NonObservingFSJobCatalog extends FSJobCatalog {
     } catch (SpecNotFoundException e) {
       LOGGER.warn("No file with URI:" + jobURI + " is found. Deletion failed.");
     }
+  }
+
+  @Override
+  public synchronized void cancel(JobSpec jobSpec) {
+    Preconditions.checkState(state() == State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
+    this.listeners.onCancelJob(jobSpec);
   }
 }
 

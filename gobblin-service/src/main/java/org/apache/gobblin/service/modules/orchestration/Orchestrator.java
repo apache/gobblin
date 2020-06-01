@@ -20,10 +20,14 @@ package org.apache.gobblin.service.modules.orchestration;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang3.reflect.ConstructorUtils;
@@ -36,6 +40,7 @@ import com.codahale.metrics.Timer;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
+import com.google.common.eventbus.Subscribe;
 import com.typesafe.config.Config;
 
 import javax.annotation.Nonnull;
@@ -69,6 +74,7 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.service.monitoring.FsJobStatusRetriever;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
+import org.apache.gobblin.service.monitoring.KillFlowEvent;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
@@ -98,6 +104,8 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   private Optional<Timer> flowOrchestrationTimer;
   @Setter
   private FlowStatusGenerator flowStatusGenerator;
+  private Map<SpecProducer<Spec>, Set<URI>> specProducerToSpecs = new HashMap<>();
+
 
   private final ClassAliasResolver<SpecCompiler> aliasResolver;
 
@@ -293,27 +301,33 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
         this.dagManager.get().addDag(jobExecutionPlanDag, true);
       } else {
         // Schedule all compiled JobSpecs on their respective Executor
+        // This assumes that the JobSpecs do not have any dependency on each other and all can run together
         for (Dag.DagNode<JobExecutionPlan> dagNode : jobExecutionPlanDag.getNodes()) {
           DagManagerUtils.incrementJobAttempt(dagNode);
           JobExecutionPlan jobExecutionPlan = dagNode.getValue();
 
           // Run this spec on selected executor
-          SpecProducer producer = null;
+          SpecProducer<Spec> producer = null;
           try {
             producer = jobExecutionPlan.getSpecExecutor().getProducer().get();
-            Spec jobSpec = jobExecutionPlan.getJobSpec();
+            JobSpec jobSpec = jobExecutionPlan.getJobSpec();
 
-            if (!((JobSpec) jobSpec).getConfig().hasPath(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
+            if (!jobSpec.getConfig().hasPath(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
               _log.warn("JobSpec does not contain flowExecutionId.");
             }
 
             Map<String, String> jobMetadata = TimingEventUtils.getJobMetadata(flowMetadata, jobExecutionPlan);
-            _log.info(String.format("Going to orchestrate JobSpec: %s on Executor: %s", jobSpec, producer));
+            _log.info(String.format("Going to orchestrate JobSpec: %s on Executor: %s", jobSpec.toString(), producer));
 
             TimingEvent jobOrchestrationTimer = this.eventSubmitter.isPresent() ? this.eventSubmitter.get().
                 getTimingEvent(TimingEvent.LauncherTimings.JOB_ORCHESTRATED) : null;
 
             producer.addSpec(jobSpec);
+
+            if (!specProducerToSpecs.containsKey(producer)) {
+              specProducerToSpecs.put(producer, new HashSet<>());
+            }
+            specProducerToSpecs.get(producer).add(jobSpec.getUri());
 
             if (jobOrchestrationTimer != null) {
               jobOrchestrationTimer.stop(jobMetadata);
@@ -335,9 +349,9 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   /**
    * Check if a FlowSpec instance is allowed to run.
    *
-   * @param flowName
-   * @param flowGroup
-   * @param allowConcurrentExecution
+   * @param flowName flow name
+   * @param flowGroup flow group
+   * @param allowConcurrentExecution flag to determine if concurrent executions are allowed
    * @return true if the {@link FlowSpec} allows concurrent executions or if no other instance of the flow is currently RUNNING.
    */
   private boolean canRun(String flowName, String flowGroup, boolean allowConcurrentExecution) {
@@ -375,6 +389,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
             SpecProducer<Spec> producer = jobExecutionPlan.getSpecExecutor().getProducer().get();
             _log.info(String.format("Going to delete JobSpec: %s on Executor: %s", jobSpec, producer));
             producer.deleteSpec(jobSpec.getUri(), headers);
+            specProducerToSpecs.get(producer).remove(jobSpec.getUri());
           } catch (Exception e) {
             _log.error(String.format("Could not delete JobSpec: %s for flow: %s", jobSpec, spec), e);
           }
@@ -383,6 +398,42 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     } else {
       throw new RuntimeException("Spec not of type FlowSpec, cannot delete: " + spec);
     }
+  }
+
+  @Subscribe
+  public void handleKillFlowEvent(KillFlowEvent killFlowEvent) {
+    _log.info("Received kill request for flow ({}, {}, {})", killFlowEvent.getFlowGroup(), killFlowEvent.getFlowName(), killFlowEvent.getFlowExecutionId());
+    try {
+      if (dagManager.isPresent()) {
+        this.dagManager.get().killFlow(killFlowEvent.getFlowGroup(), killFlowEvent.getFlowName(), killFlowEvent.getFlowExecutionId());
+      } else {
+        URI flowSpecURI = FlowSpec.Utils.createFlowSpecUri(killFlowEvent.getFlowGroup(), killFlowEvent.getFlowName());
+        SpecProducer<Spec> producer = getSpecProducerForJob(flowSpecURI);
+        if (producer == null) {
+          _log.error("Cannot find the SpecProducer for the job {}", flowSpecURI);
+        } else {
+          _log.info("Cancelling flow execution of Spec: {} using Kafka.", flowSpecURI);
+          producer.cancelJob(flowSpecURI);
+        }
+      }
+    } catch (IOException | URISyntaxException e) {
+      _log.warn("Failed to kill flow", e);
+    }
+  }
+
+  /**
+   * Find the {@link SpecProducer} used to orchestrate the job identified by jobSpecURI
+   * @param jobSpecURI jobSpecURI for which {@link SpecProducer} is to be found
+   * @return {@link SpecProducer} used to orchestrate the job identified by jobSpecURI
+   *         or null is cannot find a {@link SpecProducer}
+   */
+  private SpecProducer<Spec> getSpecProducerForJob(URI jobSpecURI) {
+    for (Map.Entry<SpecProducer<Spec>, Set<URI>> entry : this.specProducerToSpecs.entrySet()) {
+      if (entry.getValue().contains(jobSpecURI)) {
+        return entry.getKey();
+      }
+    }
+    return null;
   }
 
   private FlowStatusGenerator buildFlowStatusGenerator(Config config) {

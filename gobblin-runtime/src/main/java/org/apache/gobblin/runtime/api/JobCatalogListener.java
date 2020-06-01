@@ -42,6 +42,9 @@ public interface JobCatalogListener {
    */
   public void onUpdateJob(JobSpec updatedJob);
 
+  default void onCancelJob(JobSpec cancelJob) {
+  }
+
   /** A standard implementation of onAddJob as a functional object */
   public static class AddJobCallback extends Callback<JobCatalogListener, Void> {
     private final JobSpec _addedJob;
@@ -91,4 +94,18 @@ public interface JobCatalogListener {
     }
   }
 
+  public static class CancelJobCallback extends Callback<JobCatalogListener, Void> {
+    private final JobSpec _cancelJob;
+
+    public CancelJobCallback(JobSpec cancelJob) {
+      super(Objects.toStringHelper("onCancelJob")
+          .add("cancelJob", cancelJob).toString());
+      _cancelJob = cancelJob;
+    }
+
+    @Override public Void apply(JobCatalogListener listener) {
+      listener.onCancelJob(_cancelJob);
+      return null;
+    }
+  }
 }
