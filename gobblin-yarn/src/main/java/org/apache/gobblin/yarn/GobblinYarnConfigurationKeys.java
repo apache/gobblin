@@ -113,4 +113,6 @@ public class GobblinYarnConfigurationKeys {
 
   //Configuration properties relating to container mode of execution e.g. Gobblin cluster runs on Yarn
   public static final String CONTAINER_NUM_KEY = "container.num";
+  //Container classpaths properties
+  public static final String GOBBLIN_YARN_ADDITIONAL_CLASSPATHS = GOBBLIN_YARN_PREFIX + "additional.classpaths";
 }
