@@ -98,9 +98,9 @@ public class GobblinApplicationMaster extends GobblinClusterManager {
       this.applicationLauncher
           .addService(logCopier);
     }
-    if (!ConfigUtils.emptyIfNotPresent(config, YarnHelixUtils.ADDITIONAL_YARN_CLASSPATH).equals(StringUtils.EMPTY)){
+    if (!ConfigUtils.emptyIfNotPresent(config, GobblinYarnConfigurationKeys.GOBBLIN_YARN_ADDITIONAL_CLASSPATHS).equals(StringUtils.EMPTY)){
       LOGGER.info("set additional yarn class path to yarnConfig");
-      yarnConfiguration.setStrings(YarnHelixUtils.ADDITIONAL_YARN_CLASSPATH, config.getString(YarnHelixUtils.ADDITIONAL_YARN_CLASSPATH));
+      yarnConfiguration.setStrings(GobblinYarnConfigurationKeys.GOBBLIN_YARN_ADDITIONAL_CLASSPATHS, config.getString(GobblinYarnConfigurationKeys.GOBBLIN_YARN_ADDITIONAL_CLASSPATHS));
     }
     this.yarnService = buildYarnService(this.config, applicationName, this.applicationId, yarnConfiguration, this.fs);
     this.applicationLauncher.addService(this.yarnService);
