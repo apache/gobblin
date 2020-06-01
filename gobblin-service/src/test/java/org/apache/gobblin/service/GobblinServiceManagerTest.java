@@ -115,7 +115,6 @@ public class GobblinServiceManagerTest {
     ITestMetastoreDatabase testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
 
     testingServer = new TestingServer(true);
-    Properties serviceCoreProperties = new Properties();
 
     flowProperties.put("param1", "value1");
     flowProperties.put(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, TEST_SOURCE_NAME);
