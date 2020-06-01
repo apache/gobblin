@@ -22,7 +22,6 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
 
-import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -47,7 +46,6 @@ import com.google.common.collect.Maps;
  *
  * @author Yinan Li
  */
-@Slf4j
 public class YarnHelixUtils {
   /**
    * Write a {@link Token} to a given file.
