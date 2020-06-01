@@ -28,6 +28,8 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
@@ -35,6 +37,7 @@ import org.apache.gobblin.source.extractor.Extractor;
 import org.apache.gobblin.source.extractor.filebased.FileBasedSource;
 
 
+@Slf4j
 public class AvroFileSource extends FileBasedSource<Schema, GenericRecord> {
   private static final Logger LOGGER = LoggerFactory.getLogger(AvroFileSource.class);
 
@@ -58,7 +61,10 @@ public class AvroFileSource extends FileBasedSource<Schema, GenericRecord> {
       LOGGER.info("Running ls command with input " + path);
       results = this.fsHelper.ls(path);
     } catch (FileBasedHelperException e) {
-      LOGGER.error("Not able to run ls command due to " + e.getMessage() + " will not pull any files", e);
+      String errMsg = String.format(
+          "Not able to run ls command due to %s. Will not pull any files", e.getMessage());
+      log.error(errMsg, e);
+      throw new RuntimeException(errMsg, e);
     }
     return results;
   }
