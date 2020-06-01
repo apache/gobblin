@@ -72,6 +72,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.eventbus.EventBus;
+import com.google.common.eventbus.Subscribe;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.Service;
 import com.google.common.util.concurrent.ServiceManager;
@@ -80,15 +81,25 @@ import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
 import lombok.Getter;
+import lombok.Setter;
 
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
+import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
 import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.RootMetricContext;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.metrics.event.GobblinEventBuilder;
+import org.apache.gobblin.runtime.api.TaskEventMetadataGenerator;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.FileUtils;
 import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.JvmUtils;
+import org.apache.gobblin.util.TaskEventMetadataUtils;
+import org.apache.gobblin.util.event.ContainerHealthCheckFailureEvent;
+import org.apache.gobblin.util.eventbus.EventBusFactory;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 /**
@@ -130,6 +141,10 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
   private final Optional<ContainerMetrics> containerMetrics;
   private final List<Service> services = Lists.newArrayList();
   private final Path appWorkPath;
+  //An EventBus instance that can be accessed from any component running within the worker process. The individual components can
+  // use the EventBus stream to communicate back application level health check results to the
+  // GobblinTaskRunner.
+  private final EventBus containerHealthEventBus;
 
   @Getter
   private HelixManager jobHelixManager;
@@ -138,11 +153,16 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
   private TaskStateModelFactory taskStateModelFactory;
   private boolean isTaskDriver;
   private boolean dedicatedTaskDriverCluster;
+  private boolean isContainerExitOnHealthCheckFailureEnabled;
+
   private Collection<StandardMetricsBridge.StandardMetrics> metricsCollection;
   @Getter
   private volatile boolean started = false;
   private volatile boolean stopInProgress = false;
   private volatile boolean isStopped = false;
+  @Getter
+  @Setter
+  private volatile boolean healthCheckFailed = false;
 
   protected final String taskRunnerId;
   protected final EventBus eventBus = new EventBus(GobblinTaskRunner.class.getSimpleName());
@@ -176,6 +196,23 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
     // overrides such as sessionTimeout. In this case, the overrides specified
     // in the application configuration have to be extracted and set before initializing HelixManager.
     HelixUtils.setSystemProperties(config);
+
+    this.isContainerExitOnHealthCheckFailureEnabled = ConfigUtils.getBoolean(config, GobblinClusterConfigurationKeys.CONTAINER_EXIT_ON_HEALTH_CHECK_FAILURE_ENABLED,
+        GobblinClusterConfigurationKeys.DEFAULT_CONTAINER_EXIT_ON_HEALTH_CHECK_FAILURE_ENABLED);
+
+    if (this.isContainerExitOnHealthCheckFailureEnabled) {
+      EventBus eventBus;
+      try {
+        eventBus = EventBusFactory.get(ContainerHealthCheckFailureEvent.CONTAINER_HEALTH_CHECK_EVENT_BUS_NAME,
+            SharedResourcesBrokerFactory.getImplicitBroker());
+      } catch (IOException e) {
+        logger.error("Could not find EventBus instance for container health check", e);
+        eventBus = null;
+      }
+      this.containerHealthEventBus = eventBus;
+    } else {
+      this.containerHealthEventBus = null;
+    }
 
     initHelixManager();
 
@@ -276,7 +313,7 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
   /**
    * Start this {@link GobblinTaskRunner} instance.
    */
-  public void start() {
+  public void start() throws ContainerHealthCheckException {
     logger.info(String.format("Starting %s in container %s", this.helixInstanceName, this.taskRunnerId));
 
     // Add a shutdown hook so the task scheduler gets properly shutdown
@@ -314,12 +351,25 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
               this.taskRunnerId);
     }
 
+    if (this.containerHealthEventBus != null) {
+      //Register itself with the container health event bus instance to receive container health events
+      logger.info("Registering GobblinTaskRunner with ContainerHealthCheckEventBus..");
+      this.containerHealthEventBus.register(this);
+    }
+
     if (this.serviceManager != null) {
       this.serviceManager.startAsync();
       started = true;
       this.serviceManager.awaitStopped();
     } else {
       started = true;
+    }
+
+    //Check if the TaskRunner shutdown is invoked due to a health check failure. If yes, throw a RuntimeException
+    // that will be propagated to the caller.
+    if (this.isContainerExitOnHealthCheckFailureEnabled && GobblinTaskRunner.this.isHealthCheckFailed()) {
+      logger.error("GobblinTaskRunner finished due to health check failure.");
+      throw new ContainerHealthCheckException();
     }
   }
 
@@ -668,6 +718,27 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
                 code, type));
       }
     }
+  }
+
+  @Subscribe
+  public void handleContainerHealthCheckFailureEvent(ContainerHealthCheckFailureEvent event) {
+    logger.error("Received {} from: {}", event.getClass().getSimpleName(), event.getClassName());
+    logger.error("Submitting a ContainerHealthCheckFailureEvent..");
+    submitEvent(event);
+    logger.error("Stopping GobblinTaskRunner...");
+    GobblinTaskRunner.this.setHealthCheckFailed(true);
+    GobblinTaskRunner.this.stop();
+  }
+
+  private void submitEvent(ContainerHealthCheckFailureEvent event) {
+    EventSubmitter eventSubmitter = new EventSubmitter.Builder(RootMetricContext.get(), getClass().getPackage().getName()).build();
+    GobblinEventBuilder eventBuilder = new GobblinEventBuilder(event.getClass().getSimpleName());
+    State taskState = ConfigUtils.configToState(event.getConfig());
+    //Add task metadata such as Helix taskId, containerId, and workflowId if configured
+    TaskEventMetadataGenerator taskEventMetadataGenerator = TaskEventMetadataUtils.getTaskEventMetadataGenerator(taskState);
+    eventBuilder.addAdditionalMetadata(taskEventMetadataGenerator.getMetadata(taskState, event.getClass().getSimpleName()));
+    eventBuilder.addAdditionalMetadata(event.getMetadata());
+    eventSubmitter.submit(eventBuilder);
   }
 
   private static String getApplicationId() {

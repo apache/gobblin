@@ -25,7 +25,6 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-import org.apache.gobblin.util.logs.LogCopier;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
@@ -46,11 +45,13 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
+import org.apache.gobblin.cluster.ContainerHealthCheckException;
 import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
 import org.apache.gobblin.cluster.GobblinClusterUtils;
 import org.apache.gobblin.cluster.GobblinTaskRunner;
 import org.apache.gobblin.util.JvmUtils;
 import org.apache.gobblin.util.logs.Log4jConfigurationHelper;
+import org.apache.gobblin.util.logs.LogCopier;
 import org.apache.gobblin.yarn.event.DelegationTokenUpdatedEvent;
 
 
@@ -208,6 +209,12 @@ public class GobblinYarnTaskRunner extends GobblinTaskRunner {
       gobblinTaskRunner.start();
     } catch (ParseException pe) {
       printUsage(options);
+      System.exit(1);
+    } catch (ContainerHealthCheckException e) {
+      // Ideally, we should not be catching this exception, as this is indicative of a non-recoverable exception. However,
+      // simply propagating the exception may prevent the container exit due to the presence of non-daemon threads present
+      // in the application. Hence, we catch this exception to invoke System.exit() which in turn ensures that all non-daemon threads are killed.
+      LOGGER.error("Exception encountered: {}", e);
       System.exit(1);
     }
   }

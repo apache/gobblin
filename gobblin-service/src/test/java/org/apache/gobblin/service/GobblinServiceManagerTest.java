@@ -25,9 +25,7 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.io.FileUtils;
-
-import org.apache.gobblin.restli.EmbeddedRestliServer;
-import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
+import org.apache.curator.test.TestingServer;
 import org.apache.hadoop.fs.Path;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jgit.api.Git;
@@ -52,12 +50,13 @@ import com.linkedin.restli.client.RestLiResponseException;
 import com.typesafe.config.Config;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.kafka.KafkaTestBase;
 import org.apache.gobblin.metastore.MysqlJobStatusStateStoreFactory;
 import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
+import org.apache.gobblin.restli.EmbeddedRestliServer;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.Spec;
+import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.modules.core.GitConfigMonitor;
 import org.apache.gobblin.service.modules.core.GobblinServiceManager;
 import org.apache.gobblin.service.monitoring.FsJobStatusRetriever;
@@ -93,6 +92,7 @@ public class GobblinServiceManagerTest {
   private FlowConfigClient flowConfigClient;
 
   private Git gitForPush;
+  private TestingServer testingServer;
 
   @BeforeClass
   public void setup() throws Exception {
@@ -100,14 +100,12 @@ public class GobblinServiceManagerTest {
     cleanUpDir(SPEC_STORE_PARENT_DIR);
     ITestMetastoreDatabase testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
 
-    KafkaTestBase kafkaTestHelper = new KafkaTestBase();
-    kafkaTestHelper.startServers();
-
+    testingServer = new TestingServer(true);
     Properties serviceCoreProperties = new Properties();
     serviceCoreProperties.put(ConfigurationKeys.STATE_STORE_DB_USER_KEY, "testUser");
     serviceCoreProperties.put(ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY, "testPassword");
     serviceCoreProperties.put(ConfigurationKeys.STATE_STORE_DB_URL_KEY, testMetastoreDatabase.getJdbcUrl());
-    serviceCoreProperties.put("zookeeper.connect", kafkaTestHelper.getZkConnectString());
+    serviceCoreProperties.put("zookeeper.connect", testingServer.getConnectString());
     serviceCoreProperties.put(ConfigurationKeys.STATE_STORE_FACTORY_CLASS_KEY, MysqlJobStatusStateStoreFactory.class.getName());
 
     serviceCoreProperties.put(ConfigurationKeys.TOPOLOGYSPEC_STORE_DIR_KEY, TOPOLOGY_SPEC_STORE_DIR);
@@ -177,6 +175,11 @@ public class GobblinServiceManagerTest {
       cleanUpDir(SPEC_STORE_PARENT_DIR);
     } catch (Exception e) {
       logger.warn("Could not completely cleanup Spec Store Parent Dir");
+    }
+    try {
+      this.testingServer.close();
+    } catch(Exception e) {
+      System.err.println("Failed to close ZK testing server.");
     }
   }
 
