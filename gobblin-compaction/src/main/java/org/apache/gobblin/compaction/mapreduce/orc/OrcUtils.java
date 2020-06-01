@@ -400,6 +400,9 @@ public class OrcUtils {
     } else if (from instanceof HiveDecimalWritable && to instanceof HiveDecimalWritable) {
       ((HiveDecimalWritable) to).set(((HiveDecimalWritable) from).getHiveDecimal());
       return;
+    } else if (from instanceof BooleanWritable && to instanceof BooleanWritable) {
+      ((BooleanWritable) to).set(((BooleanWritable) from).get());
+      return;
     }
     throw new UnsupportedOperationException(String
         .format("The conversion of primitive-type WritableComparable object from %s to %s is not supported",
