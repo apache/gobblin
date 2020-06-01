@@ -33,6 +33,7 @@ import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.io.ByteStreams;
+import com.google.gson.Gson;
 import com.typesafe.config.Config;
 
 import javax.sql.DataSource;
@@ -41,12 +42,17 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.MysqlDataSourceFactory;
+import org.apache.gobblin.runtime.api.FlowSpec;
+import org.apache.gobblin.runtime.api.InstrumentedSpecStore;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.api.SpecSerDe;
 import org.apache.gobblin.runtime.api.SpecSerDeException;
 import org.apache.gobblin.runtime.api.SpecStore;
 import org.apache.gobblin.util.ConfigUtils;
+
+import static org.apache.gobblin.service.ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY;
+import static org.apache.gobblin.service.ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY;
 
 
 /**
@@ -59,7 +65,7 @@ import org.apache.gobblin.util.ConfigUtils;
  * but not removing it from {@link SpecStore}.
  */
 @Slf4j
-public class MysqlSpecStore implements SpecStore {
+public class MysqlSpecStore extends InstrumentedSpecStore {
   public static final String CONFIG_PREFIX = "mysqlSpecStore";
   public static final String DEFAULT_TAG_VALUE = "";
   private static final String NEW_COLUMN = "spec_json";
@@ -72,8 +78,9 @@ public class MysqlSpecStore implements SpecStore {
           + "isRunImmediately BOOLEAN, timezone VARCHAR(128), owning_group VARCHAR(128), "
           + "spec LONGBLOB, " + NEW_COLUMN + " JSON, PRIMARY KEY (spec_uri))";
   private static final String EXISTS_STATEMENT = "SELECT EXISTS(SELECT * FROM %s WHERE spec_uri = ?)";
-  protected static final String INSERT_STATEMENT = "INSERT INTO %s (spec_uri, tag, spec, " + NEW_COLUMN + ") "
-      + "VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE spec = VALUES(spec), " + NEW_COLUMN + " = VALUES(" + NEW_COLUMN + ")";
+  protected static final String INSERT_STATEMENT = "INSERT INTO %s (spec_uri, flow_group, flow_name, template_uri, "
+      + "user_to_proxy, source_identifier, destination_identifier, schedule, tag, isRunImmediately, spec, " + NEW_COLUMN + ") "
+      + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE spec = VALUES(spec), " + NEW_COLUMN + " = VALUES(" + NEW_COLUMN + ")";
   private static final String DELETE_STATEMENT = "DELETE FROM %s WHERE spec_uri = ?";
   private static final String GET_STATEMENT = "SELECT spec, " + NEW_COLUMN + " FROM %s WHERE spec_uri = ?";
   private static final String GET_ALL_STATEMENT = "SELECT spec_uri, spec, " + NEW_COLUMN + " FROM %s";
@@ -86,6 +93,7 @@ public class MysqlSpecStore implements SpecStore {
   protected final SpecSerDe specSerDe;
 
   public MysqlSpecStore(Config config, SpecSerDe specSerDe) throws IOException {
+    super(config, specSerDe);
     if (config.hasPath(CONFIG_PREFIX)) {
       config = config.getConfig(CONFIG_PREFIX).withFallback(config);
     }
@@ -104,7 +112,7 @@ public class MysqlSpecStore implements SpecStore {
   }
 
   @Override
-  public boolean exists(URI specUri) throws IOException {
+  public boolean existsImpl(URI specUri) throws IOException {
     try (Connection connection = this.dataSource.getConnection();
         PreparedStatement statement = connection.prepareStatement(String.format(EXISTS_STATEMENT, this.tableName))) {
       statement.setString(1, specUri.toString());
@@ -118,7 +126,7 @@ public class MysqlSpecStore implements SpecStore {
   }
 
   @Override
-  public void addSpec(Spec spec) throws IOException {
+  public void addSpecImpl(Spec spec) throws IOException {
     this.addSpec(spec, DEFAULT_TAG_VALUE);
   }
 
@@ -128,10 +136,7 @@ public class MysqlSpecStore implements SpecStore {
   public void addSpec(Spec spec, String tagValue) throws IOException {
     try (Connection connection = this.dataSource.getConnection();
         PreparedStatement statement = connection.prepareStatement(String.format(INSERT_STATEMENT, this.tableName))) {
-      statement.setString(1, spec.getUri().toString());
-      statement.setString(2, tagValue);
-      statement.setBlob(3, new ByteArrayInputStream(this.specSerDe.serialize(spec)));
-      statement.setString(4, new String(this.specSerDe.serialize(spec), Charsets.UTF_8));
+      setPreparedStatement(statement, spec, tagValue);
       statement.executeUpdate();
       connection.commit();
     } catch (SQLException | SpecSerDeException e) {
@@ -145,7 +150,7 @@ public class MysqlSpecStore implements SpecStore {
   }
 
   @Override
-  public boolean deleteSpec(URI specUri) throws IOException {
+  public boolean deleteSpecImpl(URI specUri) throws IOException {
     try (Connection connection = this.dataSource.getConnection();
         PreparedStatement statement = connection.prepareStatement(String.format(DELETE_STATEMENT, this.tableName))) {
       statement.setString(1, specUri.toString());
@@ -164,13 +169,13 @@ public class MysqlSpecStore implements SpecStore {
 
   @Override
   // TODO : this method is not doing what the contract is in the SpecStore interface
-  public Spec updateSpec(Spec spec) throws IOException, SpecNotFoundException {
+  public Spec updateSpecImpl(Spec spec) throws IOException {
     addSpec(spec);
     return spec;
   }
 
   @Override
-  public Spec getSpec(URI specUri) throws IOException, SpecNotFoundException {
+  public Spec getSpecImpl(URI specUri) throws IOException, SpecNotFoundException {
     try (Connection connection = this.dataSource.getConnection();
         PreparedStatement statement = connection.prepareStatement(String.format(GET_STATEMENT, this.tableName))) {
       statement.setString(1, specUri.toString());
@@ -199,7 +204,7 @@ public class MysqlSpecStore implements SpecStore {
   }
 
   @Override
-  public Collection<Spec> getSpecs() throws IOException {
+  public Collection<Spec> getSpecsImpl() throws IOException {
     try (Connection connection = this.dataSource.getConnection();
         PreparedStatement statement = connection.prepareStatement(String.format(GET_ALL_STATEMENT, this.tableName))) {
       List<Spec> specs = new ArrayList<>();
@@ -217,7 +222,6 @@ public class MysqlSpecStore implements SpecStore {
           }
         }
       }
-
       return specs;
     } catch (SQLException e) {
       throw new IOException(e);
@@ -225,7 +229,7 @@ public class MysqlSpecStore implements SpecStore {
   }
 
   @Override
-  public Iterator<URI> getSpecURIs() throws IOException {
+  public Iterator<URI> getSpecURIsImpl() throws IOException {
     try (Connection connection = this.dataSource.getConnection();
         PreparedStatement statement = connection.prepareStatement(String.format(GET_ALL_URIS_STATEMENT, this.tableName))) {
       return getURIIteratorByQuery(statement);
@@ -261,5 +265,32 @@ public class MysqlSpecStore implements SpecStore {
   @Override
   public Optional<URI> getSpecStoreURI() {
     return Optional.of(this.specStoreURI);
+  }
+
+  protected void setPreparedStatement(PreparedStatement statement, Spec spec, String tagValue) throws SQLException {
+    FlowSpec flowSpec = (FlowSpec) spec;
+    URI specUri = flowSpec.getUri();
+    Config flowConfig = flowSpec.getConfig();
+    String flowGroup = flowConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
+    String flowName = flowConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
+    String templateURI = new Gson().toJson(flowSpec.getTemplateURIs());
+    String userToProxy = ConfigUtils.getString(flowSpec.getConfig(), "user.to.proxy", null);
+    String sourceIdentifier = flowConfig.getString(FLOW_SOURCE_IDENTIFIER_KEY);
+    String destinationIdentifier = flowConfig.getString(FLOW_DESTINATION_IDENTIFIER_KEY);
+    String schedule = ConfigUtils.getString(flowConfig, ConfigurationKeys.JOB_SCHEDULE_KEY, null);
+    boolean isRunImmediately = ConfigUtils.getBoolean(flowConfig, ConfigurationKeys.FLOW_RUN_IMMEDIATELY, false);
+
+    statement.setString(1, specUri.toString());
+    statement.setString(2, flowGroup);
+    statement.setString(3, flowName);
+    statement.setString(4, templateURI);
+    statement.setString(5, userToProxy);
+    statement.setString(6, sourceIdentifier);
+    statement.setString(7, destinationIdentifier);
+    statement.setString(8, schedule);
+    statement.setString(9, tagValue);
+    statement.setBoolean(10, isRunImmediately);
+    statement.setBlob(11, new ByteArrayInputStream(this.specSerDe.serialize(flowSpec)));
+    statement.setString(12, new String(this.specSerDe.serialize(flowSpec), Charsets.UTF_8));
   }
 }
