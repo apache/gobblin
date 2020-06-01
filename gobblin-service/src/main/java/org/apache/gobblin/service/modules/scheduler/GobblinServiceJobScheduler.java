@@ -254,7 +254,11 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     }
   }
 
-  /** {@inheritDoc} */
+  /**
+   *
+   * @param addedSpec spec to be added
+   * @return add spec response
+   */
   @Override
   public AddSpecResponse onAddSpec(Spec addedSpec) {
     if (this.helixManager.isPresent() && !this.helixManager.get().isConnected()) {
@@ -266,63 +270,55 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
 
     _log.info("New Flow Spec detected: " + addedSpec);
 
-    if (addedSpec instanceof FlowSpec) {
+    if (!(addedSpec instanceof FlowSpec)) {
+      return null;
+    }
+
+    FlowSpec flowSpec = (FlowSpec) addedSpec;
+    URI flowSpecUri = flowSpec.getUri();
+    Properties jobConfig = createJobConfig(flowSpec);
+    boolean isExplain = flowSpec.isExplain();
+    String response = null;
+
+    // always try to compile the flow to verify if it is compilable
+    Dag<JobExecutionPlan> dag = this.orchestrator.getSpecCompiler().compileFlow(flowSpec);
+    if (dag != null && !dag.isEmpty()) {
+      response = dag.toString();
+    } else if (!flowSpec.getCompilationErrors().isEmpty()) {
+      response = Arrays.toString(flowSpec.getCompilationErrors().toArray());
+    }
+
+    boolean compileSuccess = FlowCatalog.isCompileSuccessful(response);
+
+    if (isExplain || !compileSuccess) {
+      // todo: in case of a scheudled job, we should also check if the job schedule is a valid cron schedule
+      //  so it can be scheduled
+      _log.info("Ignoring the spec {}. isExplain: {}, compileSuccess: {}", addedSpec, isExplain, compileSuccess);
+      return new AddSpecResponse<>(response);
+    }
+
+    // todo : we should probably not schedule a flow if it is a runOnce flow
+    this.scheduledFlowSpecs.put(flowSpecUri.toString(), addedSpec);
+
+    if (jobConfig.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
+      _log.info("{} Scheduling flow spec: {} ", this.serviceName, addedSpec);
       try {
-        FlowSpec flowSpec = (FlowSpec) addedSpec;
-        URI flowSpecUri = flowSpec.getUri();
-        Properties jobConfig = new Properties();
-        Properties flowSpecProperties = ((FlowSpec) addedSpec).getConfigAsProperties();
-        jobConfig.putAll(this.properties);
-        jobConfig.setProperty(ConfigurationKeys.JOB_NAME_KEY, addedSpec.getUri().toString());
-        jobConfig.setProperty(ConfigurationKeys.JOB_GROUP_KEY,
-            flowSpec.getConfig().getValue(ConfigurationKeys.FLOW_GROUP_KEY).toString());
-        jobConfig.setProperty(ConfigurationKeys.FLOW_RUN_IMMEDIATELY,
-            ConfigUtils.getString((flowSpec).getConfig(), ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false"));
-        if (flowSpecProperties.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY) && StringUtils.isNotBlank(
-            flowSpecProperties.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY))) {
-          jobConfig.setProperty(ConfigurationKeys.JOB_SCHEDULE_KEY,
-              flowSpecProperties.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY));
-        }
-        boolean isExplain = ConfigUtils.getBoolean(flowSpec.getConfig(), ConfigurationKeys.FLOW_EXPLAIN_KEY, false);
-        String response = null;
-
-        // always try to compile the flow to verify if it is compilable
-        Dag<JobExecutionPlan> dag = this.orchestrator.getSpecCompiler().compileFlow(flowSpec);
-        if (dag != null && !dag.isEmpty()) {
-          response = dag.toString();
-        } else if (!flowSpec.getCompilationErrors().isEmpty()) {
-          response = Arrays.toString(flowSpec.getCompilationErrors().toArray());
-        }
-
-        boolean compileSuccess = FlowCatalog.isCompileSuccessful(response);
-
-        if (!isExplain && compileSuccess) {
-          this.scheduledFlowSpecs.put(addedSpec.getUri().toString(), addedSpec);
-
-          if (jobConfig.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
-            _log.info("{} Scheduling flow spec: {} ", this.serviceName, addedSpec);
-            scheduleJob(jobConfig, null);
-            if (PropertiesUtils.getPropAsBoolean(jobConfig, ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false")) {
-              _log.info("RunImmediately requested, hence executing FlowSpec: " + addedSpec);
-              this.jobExecutor.execute(new NonScheduledJobRunner(flowSpecUri, false, jobConfig, null));
-            }
-          } else {
-            _log.info("No FlowSpec schedule found, so running FlowSpec: " + addedSpec);
-            this.jobExecutor.execute(new NonScheduledJobRunner(flowSpecUri, true, jobConfig, null));
-          }
-        } else {
-          _log.info("Removing the flow spec: {}, isExplain: {}, compileSuccess: {}", addedSpec, isExplain, compileSuccess);
-          if (this.flowCatalog.isPresent()) {
-            _log.debug("Removing flow spec from FlowCatalog: {}", flowSpec);
-            GobblinServiceJobScheduler.this.flowCatalog.get().remove(flowSpecUri, new Properties(), false);
-          }
-        }
-        return new AddSpecResponse<>(response);
+        scheduleJob(jobConfig, null);
       } catch (JobException je) {
         _log.error("{} Failed to schedule or run FlowSpec {}", serviceName, addedSpec, je);
+        this.scheduledFlowSpecs.remove(addedSpec.getUri().toString());
+        return null;
       }
+      if (PropertiesUtils.getPropAsBoolean(jobConfig, ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false")) {
+        _log.info("RunImmediately requested, hence executing FlowSpec: " + addedSpec);
+        this.jobExecutor.execute(new NonScheduledJobRunner(flowSpecUri, false, jobConfig, null));
+      }
+    } else {
+      _log.info("No FlowSpec schedule found, so running FlowSpec: " + addedSpec);
+      this.jobExecutor.execute(new NonScheduledJobRunner(flowSpecUri, true, jobConfig, null));
     }
-    return null;
+
+    return new AddSpecResponse<>(response);
   }
 
   public void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion) {
@@ -348,7 +344,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
         unscheduleJob(deletedSpecURI.toString());
       } else {
         _log.warn(String.format(
-            "Spec with URI: %s was not found in cache. May be it was cleaned, if not please " + "clean it manually",
+            "Spec with URI: %s was not found in cache. May be it was cleaned, if not please clean it manually",
             deletedSpecURI));
       }
     } catch (JobException | IOException e) {
@@ -382,6 +378,27 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     } catch (Exception e) {
       _log.error("Failed to update Spec: " + updatedSpec, e);
     }
+  }
+
+  private Properties createJobConfig(FlowSpec flowSpec) {
+    Properties jobConfig = new Properties();
+    Properties flowSpecProperties = flowSpec.getConfigAsProperties();
+
+    jobConfig.putAll(this.properties);
+    jobConfig.setProperty(ConfigurationKeys.JOB_NAME_KEY, flowSpec.getUri().toString());
+    jobConfig.setProperty(ConfigurationKeys.JOB_GROUP_KEY,
+        flowSpec.getConfig().getValue(ConfigurationKeys.FLOW_GROUP_KEY).toString());
+    jobConfig.setProperty(ConfigurationKeys.FLOW_RUN_IMMEDIATELY,
+        ConfigUtils.getString((flowSpec).getConfig(), ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false"));
+
+    // todo : we should check if the job schedule is a valid cron schedule
+    if (flowSpecProperties.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY) && StringUtils.isNotBlank(
+        flowSpecProperties.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY))) {
+      jobConfig.setProperty(ConfigurationKeys.JOB_SCHEDULE_KEY,
+          flowSpecProperties.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY));
+    }
+
+    return jobConfig;
   }
 
   /**
@@ -435,10 +452,22 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       try {
         GobblinServiceJobScheduler.this.runJob(this.jobConfig, this.jobListener);
         if (flowCatalog.isPresent() && removeSpec) {
+          Object syncObject = GobblinServiceJobScheduler.this.flowCatalog.get().getSyncObject(specUri.toString());
+          if (syncObject != null) {
+            // if the sync object does not exist, this job must be set to run due to job submission at service restart
+            synchronized (syncObject) {
+              while (!GobblinServiceJobScheduler.this.flowCatalog.get().exists(specUri)) {
+                syncObject.wait();
+              }
+            }
+          }
           GobblinServiceJobScheduler.this.flowCatalog.get().remove(specUri, new Properties(), false);
+          GobblinServiceJobScheduler.this.scheduledFlowSpecs.remove(specUri.toString());
         }
       } catch (JobException je) {
         _log.error("Failed to run job " + this.jobConfig.getProperty(ConfigurationKeys.JOB_NAME_KEY), je);
+      } catch (InterruptedException e) {
+      _log.error("Failed to delete the spec " + specUri, e);
       }
     }
   }
