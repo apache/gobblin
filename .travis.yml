@@ -1,7 +1,10 @@
 language: java
 
-dist: xenial
+dist: bionic
 sudo: required
+
+jdk:
+  - openjdk8
 
 addons:
   apt:
