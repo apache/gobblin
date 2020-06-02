@@ -20,6 +20,9 @@ package org.apache.gobblin.cluster.suite;
 import org.junit.Assert;
 
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigValueFactory;
+
+import static org.apache.gobblin.cluster.SleepingTask.SLEEPING_TASK_SLEEP_TIME;
 
 
 public class IntegrationJobCancelSuite extends IntegrationBasicSuite {
@@ -27,13 +30,16 @@ public class IntegrationJobCancelSuite extends IntegrationBasicSuite {
   public static final String TASK_STATE_FILE = "/tmp/IntegrationJobCancelSuite/taskState/_RUNNING";
 
   public IntegrationJobCancelSuite(Config jobConfigOverrides) {
-    super(jobConfigOverrides);
+    // Put SleepingTask in long sleep allowing cancellation to happen.
+    super(jobConfigOverrides.withValue(SLEEPING_TASK_SLEEP_TIME, ConfigValueFactory.fromAnyRef(100)));
   }
 
   @Override
   public void waitForAndVerifyOutputFiles() throws Exception {
+    // SleepingTask is in an infinite sleep. The log line is printed only when a cancellation in invoked.
+    Assert.assertTrue(verifyFileForMessage(this.jobLogOutputFile, "Sleep interrupted"));
+
     // If the job is cancelled, it should not have been able to write 'Hello World!'
     Assert.assertFalse(verifyFileForMessage(this.jobLogOutputFile, "Hello World!"));
-    Assert.assertFalse(verifyFileForMessage(this.jobLogOutputFile, "java.lang.NullPointerException"));
   }
 }

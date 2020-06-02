@@ -27,10 +27,12 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import org.apache.gobblin.broker.gobblin_scopes.TaskScopeInstance;
@@ -113,6 +115,7 @@ public class GobblinMultiTaskAttempt {
   @Setter
   private Predicate<GobblinMultiTaskAttempt> interruptionPredicate = (gmta) -> false;
   private List<Task> tasks;
+  private List<Future<?>> taskFutures;
 
   /**
    * Additional commit steps that may be added by different launcher, and can be environment specific.
@@ -152,13 +155,15 @@ public class GobblinMultiTaskAttempt {
     }
 
     CountUpAndDownLatch countDownLatch = new CountUpAndDownLatch(0);
-    this.tasks = runWorkUnits(countDownLatch);
+    Pair<List<Task>, List<Future<?>>> taskExecutionResult = runWorkUnits(countDownLatch);
+    this.tasks = taskExecutionResult.getLeft();
+    this.taskFutures = taskExecutionResult.getRight();
     log.info("Waiting for submitted tasks of job {} to complete in container {}...", jobId, containerIdOptional.or(""));
     try {
       while (countDownLatch.getCount() > 0) {
         if (this.interruptionPredicate.test(this)) {
           log.info("Interrupting task execution due to satisfied predicate.");
-          interruptTaskExecution(countDownLatch);
+          interruptTaskExecution(Optional.of(countDownLatch));
           break;
         }
         log.info(String.format("%d out of %d tasks of job %s are running in container %s", countDownLatch.getCount(),
@@ -169,23 +174,33 @@ public class GobblinMultiTaskAttempt {
       }
     } catch (InterruptedException interrupt) {
       log.info("Job interrupted by InterrupedException.");
-      interruptTaskExecution(countDownLatch);
+      interruptTaskExecution(Optional.of(countDownLatch));
     }
     log.info("All assigned tasks of job {} have completed in container {}", jobId, containerIdOptional.or(""));
   }
 
-  private void interruptTaskExecution(CountDownLatch countDownLatch)
-      throws InterruptedException {
+  /**
+   * A helper function that that shuts down all outstanding tasks and
+   * shuts down the taskExecutor if it times out on a task termination.
+   */
+  private void interruptTaskExecution(Optional<CountDownLatch> countDownLatch) throws InterruptedException {
     log.info("Job interrupted. Attempting a graceful shutdown of the job.");
-    this.tasks.forEach(Task::shutdown);
-    if (!countDownLatch.await(5, TimeUnit.SECONDS)) {
-      log.warn("Graceful shutdown of job timed out. Killing all outstanding tasks.");
-      try {
+    this.shutdownTasks();
+    try {
+      if (!countDownLatch.isPresent() || !countDownLatch.get().await(5, TimeUnit.SECONDS)) {
+        log.warn("Shutting down TaskExecutor. Killing all outstanding tasks.");
         this.taskExecutor.shutDown();
-      } catch (Throwable t) {
-        throw new RuntimeException("Failed to shutdown task executor.", t);
       }
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to shutdown task executor.", e);
     }
+  }
+
+  /**
+   * Shutting down the whole {@link GobblinMultiTaskAttempt} by shutting down all its outstanding tasks and taskExecutor.
+   */
+  public void cancel() throws InterruptedException{
+    this.interruptTaskExecution(Optional.absent());
   }
 
   /**
@@ -236,11 +251,11 @@ public class GobblinMultiTaskAttempt {
   }
 
   /**
-   * A method that shuts down all running tasks managed by this instance.
-   * TODO: Call this from the right place.
+   * The way it works:
+   * {@link Task#shutdown()} method actually issued a shutdown requests so that the actual runner of the task get
+   * notified and terminates relevant constructs (e.g. extractor).
    */
-  public void shutdownTasks()
-      throws InterruptedException {
+  private void shutdownTasks() throws InterruptedException {
     log.info("Shutting down tasks");
     for (Task task : this.tasks) {
       task.shutdown();
@@ -248,14 +263,6 @@ public class GobblinMultiTaskAttempt {
 
     for (Task task : this.tasks) {
       task.awaitShutdown(1000);
-    }
-
-    for (Task task : this.tasks) {
-      if (task.cancel()) {
-        log.info("Task {} cancelled.", task.getTaskId());
-      } else {
-        log.info("Task {} could not be cancelled.", task.getTaskId());
-      }
     }
   }
 
@@ -372,9 +379,9 @@ public class GobblinMultiTaskAttempt {
    * @param countDownLatch a {@link java.util.concurrent.CountDownLatch} waited on for job completion
    * @return a list of {@link Task}s from the {@link WorkUnit}s
    */
-  private List<Task> runWorkUnits(CountUpAndDownLatch countDownLatch) {
-
+  private Pair<List<Task>, List<Future<?>>> runWorkUnits(CountUpAndDownLatch countDownLatch) {
     List<Task> tasks = Lists.newArrayList();
+    List<Future<?>> taskFutures = Lists.newArrayList();
     while (this.workUnits.hasNext()) {
       WorkUnit workUnit = this.workUnits.next();
       String taskId = workUnit.getProp(ConfigurationKeys.TASK_ID_KEY);
@@ -400,12 +407,14 @@ public class GobblinMultiTaskAttempt {
       // If an exception occurs here then the count down latch is decremented
       // to avoid being stuck waiting for a task that was not created and submitted successfully.
       Task task = null;
+      Future<?> taskFuture = null;
       try {
         countDownLatch.countUp();
         task = createTaskWithRetry(workUnitState, countDownLatch);
         this.taskStateTracker.registerNewTask(task);
-        task.setTaskFuture(this.taskExecutor.submit(task));
+        taskFuture = this.taskExecutor.submit(task);
         tasks.add(task);
+        taskFutures.add(taskFuture);
       } catch (Throwable e) {
         if (e instanceof OutOfMemoryError) {
           log.error("Encountering memory error in task creation/execution stage, please investigate memory usage:", e);
@@ -416,14 +425,17 @@ public class GobblinMultiTaskAttempt {
           // task could not be created, so directly count down
           countDownLatch.countDown();
           log.error("Could not create task for workunit {}", workUnit, e);
-        } else if (!task.hasTaskFuture()) {
+        } else if (taskFuture == null) {
           // Task was created and may have been registered, but not submitted, so call the
           // task state tracker task run completion directly since the task cancel does nothing if not submitted
           this.taskStateTracker.onTaskRunCompletion(task);
           log.error("Could not submit task for workunit {}", workUnit, e);
         } else {
-          // task was created and submitted, but failed later, so cancel the task to decrement the CountDownLatch
-          task.cancel();
+          // task was created and submitted, but failed later(and still pop back here), so cancel the task to decrement the CountDownLatch
+          if (!taskFuture.cancel(true)) {
+            log.error("Failure in terminating submitted task");
+          }
+          this.taskStateTracker.onTaskRunCompletion(task);
           log.error("Failure after task submitted for workunit {}", workUnit, e);
         }
       }
@@ -434,7 +446,7 @@ public class GobblinMultiTaskAttempt {
     eventSubmitterBuilder.addMetadata(this.taskEventMetadataGenerator.getMetadata(jobState, JobEvent.TASKS_SUBMITTED));
     eventSubmitterBuilder.build().submit(JobEvent.TASKS_SUBMITTED, "tasksCount", Long.toString(countDownLatch.getRegisteredParties()));
 
-    return tasks;
+    return Pair.of(tasks, taskFutures);
   }
 
   private void printMemoryUsage() {

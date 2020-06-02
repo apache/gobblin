@@ -32,23 +32,6 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.BooleanUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
-
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
-import com.google.common.io.Closer;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
-
-import lombok.NoArgsConstructor;
-
 import org.apache.gobblin.Constructs;
 import org.apache.gobblin.broker.EmptyKey;
 import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
@@ -95,6 +78,21 @@ import org.apache.gobblin.writer.TrackerBasedWatermarkManager;
 import org.apache.gobblin.writer.WatermarkAwareWriter;
 import org.apache.gobblin.writer.WatermarkManager;
 import org.apache.gobblin.writer.WatermarkStorage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
+
+import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
+import com.google.common.io.Closer;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+
+import lombok.NoArgsConstructor;
 
 
 /**
@@ -167,7 +165,6 @@ public class Task implements TaskIFace {
   private final AtomicBoolean shutdownRequested;
   private volatile long shutdownRequestedTime = Long.MAX_VALUE;
   private final CountDownLatch shutdownLatch;
-  protected Future<?> taskFuture;
 
   /**
    * Instantiate a new {@link Task}.
@@ -394,15 +391,8 @@ public class Task implements TaskIFace {
     } catch (Throwable t) {
       failTask(t);
     } finally {
-      synchronized (this) {
-        if (this.taskFuture == null || !this.taskFuture.isCancelled()) {
-          this.taskStateTracker.onTaskRunCompletion(this);
-          completeShutdown();
-          this.taskFuture = null;
-        } else {
-          LOG.info("will not decrease count down latch as this task is cancelled");
-        }
-      }
+      this.taskStateTracker.onTaskRunCompletion(this);
+      completeShutdown();
     }
   }
 
@@ -1019,28 +1009,5 @@ public class Task implements TaskIFace {
       }
     }
     return true;
-  }
-
-  public synchronized void setTaskFuture(Future<?> taskFuture) {
-    this.taskFuture = taskFuture;
-  }
-
-  @VisibleForTesting
-  boolean hasTaskFuture() {
-    return this.taskFuture != null;
-  }
-
-  /**
-   * return true if the task is successfully cancelled.
-   * @return
-   */
-  public synchronized boolean cancel() {
-    if (this.taskFuture != null && this.taskFuture.cancel(true)) {
-      this.taskStateTracker.onTaskRunCompletion(this);
-      this.completeShutdown();
-      return true;
-    } else {
-      return false;
-    }
   }
 }
