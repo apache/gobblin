@@ -52,6 +52,52 @@ subprojects{
           artifact javadocJar
 
           pom pomAttributes
+
+          pom.withXml {
+            //Ensures that correct dependencies are in the pom when subproject declares a project dependency
+            // with specific target configuration (restClient, dataTemplate, etc.)
+            //Needed because pom model is lossy and does not carry the 'configuration' information
+            def dependenciesNode = it.asNode().dependencies[0]
+            def removed = [] as Set; def added = [] //helps auditing
+            configurations.runtime.allDependencies.each { d ->
+              def confToPom = ['restClient': 'rest-client', 'dataTemplate': 'data-template']
+              if (d instanceof ProjectDependency && confToPom.containsKey(d.targetConfiguration)) {
+                boolean dependsOnMainModule = configurations.runtime.allDependencies.any {
+                  it.name == d.name && it.targetConfiguration == 'default'
+                }
+                if (!dependsOnMainModule) {
+                  //subproject declares a dependency on target configuration (i.e. path: 'gobblin-rest-api', configuration: 'restClient')
+                  // but does not declare a dependency on the 'default' artifact (i.e. 'gobblin-rest-api')
+                  //we need to remove the 'default' artifact from the pom file
+                  def mainModuleNode = dependenciesNode.find { it.artifactId.text() == d.name }
+                  dependenciesNode.remove(mainModuleNode)
+                  removed.add(d.name)
+                }
+
+                //adding explicit dependency on the artifact that corresponds to given target configuration
+                // (i.e. 'gobblin-rest-api-rest-client')
+                def dependencyNode = dependenciesNode.appendNode('dependency')
+                dependencyNode.appendNode('groupId', d.group)
+                def newArtifactId = d.name + "-" + confToPom[d.targetConfiguration]
+                dependencyNode.appendNode('artifactId', newArtifactId)
+                dependencyNode.appendNode('version', d.version)
+                added.add(newArtifactId)
+
+                //adding global exclude rules to the new dependency entries
+                if (configurations.runtime.excludeRules.size() > 0) {
+                  def exclusionsNode = dependencyNode.appendNode('exclusions')
+                  configurations.runtime.excludeRules.each { rule ->
+                    def exclusionNode = exclusionsNode.appendNode('exclusion')
+                    exclusionNode.appendNode('groupId', rule.group ?: "*")
+                    exclusionNode.appendNode('artifactId', rule.module)
+                  }
+                }
+              }
+            }
+            if (added || removed) {
+              logger.lifecycle("Updated pom dependencies in {}, added: {}, removed: {}", project.path, added, removed)
+            }
+          }
         }
       }
     }
