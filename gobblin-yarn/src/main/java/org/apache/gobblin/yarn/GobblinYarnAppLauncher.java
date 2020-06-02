@@ -639,7 +639,7 @@ public class GobblinYarnAppLauncher {
     LOGGER.info("Application successfully submitted and accepted");
     ApplicationReport applicationReport = this.yarnClient.getApplicationReport(applicationId);
     LOGGER.info("Application Name: " + applicationReport.getName());
-    //LOGGER.info("Application Tracking URL: " + applicationReport.getTrackingUrl());
+    LOGGER.info("Application Tracking URL: " + applicationReport.getTrackingUrl());
     LOGGER.info("Application User: " + applicationReport.getUser() + " Queue: " + applicationReport.getQueue());
 
     return applicationId;
