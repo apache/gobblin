@@ -476,6 +476,9 @@ public class DagManager extends AbstractIdleService {
         for (DagNode<JobExecutionPlan> dagNodeToCancel : dagNodesToCancel) {
           cancelDagNode(dagNodeToCancel);
         }
+
+        this.dags.get(dagToCancel).setFlowEvent(TimingEvent.FlowTimings.FLOW_CANCELLED);
+        this.dags.get(dagToCancel).setMessage("Flow killed by request");
       } else {
         log.warn("Did not find Dag with id {}, it might be already cancelled/finished.", dagToCancel);
       }
@@ -638,6 +641,11 @@ public class DagManager extends AbstractIdleService {
             DagManagerUtils.getFullyQualifiedDagName(node),
             timeOutForJobStart);
         cancelDagNode(node);
+
+        String dagId = DagManagerUtils.generateDagId(node);
+        this.dags.get(dagId).setFlowEvent(TimingEvent.FlowTimings.FLOW_CANCELLED);
+        this.dags.get(dagId).setMessage("Flow killed because no update received for " + timeOutForJobStart + " ms after orchestration");
+
         return true;
       } else {
         return false;
@@ -680,10 +688,13 @@ public class DagManager extends AbstractIdleService {
 
       if (flowSla != DagManagerUtils.NO_SLA && currentTime > flowStartTime + flowSla) {
         log.info("Flow {} exceeded the SLA of {} ms. Killing the job {} now...",
-            node.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY),
-            node.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.JOB_NAME_KEY),
-            flowSla);
+            node.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY), flowSla,
+            node.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.JOB_NAME_KEY));
         cancelDagNode(node);
+
+        this.dags.get(dagId).setFlowEvent(TimingEvent.FlowTimings.FLOW_CANCELLED);
+        this.dags.get(dagId).setMessage("Flow killed due to exceeding SLA of " + flowSla + " ms");
+
         return true;
       }
       return false;
@@ -779,7 +790,9 @@ public class DagManager extends AbstractIdleService {
       } catch (Exception e) {
         TimingEvent jobFailedTimer = this.eventSubmitter.isPresent() ? this.eventSubmitter.get().
             getTimingEvent(TimingEvent.LauncherTimings.JOB_FAILED) : null;
-        log.error("Cannot submit job: {} on Executor: {}", DagManagerUtils.getFullyQualifiedJobName(dagNode), specExecutorUri, e);
+        String message = "Cannot submit job " + DagManagerUtils.getFullyQualifiedJobName(dagNode) + " on executor " + specExecutorUri;
+        log.error(message, e);
+        jobMetadata.put(TimingEvent.METADATA_MESSAGE, message + " due to " + e.getMessage());
         if (jobFailedTimer != null) {
           jobFailedTimer.stop(jobMetadata);
         }
@@ -863,8 +876,15 @@ public class DagManager extends AbstractIdleService {
 
       switch (jobStatus) {
         // TODO : For now treat canceled as failed, till we introduce failure option - CANCEL
-        case CANCELLED:
         case FAILED:
+          dag.setMessage("Flow failed because job " + jobName + " failed");
+          if (DagManagerUtils.getFailureOption(dag) == FailureOption.FINISH_RUNNING) {
+            this.failedDagIdsFinishRunning.add(dagId);
+          } else {
+            this.failedDagIdsFinishAllPossible.add(dagId);
+          }
+          return Maps.newHashMap();
+        case CANCELLED:
           if (DagManagerUtils.getFailureOption(dag) == FailureOption.FINISH_RUNNING) {
             this.failedDagIdsFinishRunning.add(dagId);
           } else {
