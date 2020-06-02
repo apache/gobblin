@@ -29,8 +29,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.helix.HelixDataAccessor;
 import org.apache.helix.HelixManager;
 import org.apache.helix.PropertyKey;
@@ -49,6 +47,9 @@ import com.typesafe.config.Config;
 
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.ExecutorsUtils;
 
 import static org.apache.gobblin.yarn.GobblinYarnTaskRunner.HELIX_YARN_INSTANCE_NAME_PREFIX;
 
@@ -69,6 +70,9 @@ public class YarnAutoScalingManager extends AbstractIdleService {
   private final String AUTO_SCALING_MIN_CONTAINERS = AUTO_SCALING_PREFIX + "minContainers";
   private final int DEFAULT_AUTO_SCALING_MIN_CONTAINERS = 1;
   private final String AUTO_SCALING_MAX_CONTAINERS = AUTO_SCALING_PREFIX + "maxContainers";
+  private final String AUTO_SCALING_CONTAINER_OVERPROVISION_FACTOR = AUTO_SCALING_PREFIX + "overProvisionFactor";
+  private final double DEFAULT_AUTO_SCALING_CONTAINER_OVERPROVISION_FACTOR = 1.0;
+
   // A rough value of how much containers should be an intolerable number.
   private final int DEFAULT_AUTO_SCALING_MAX_CONTAINERS = Integer.MAX_VALUE;
   private final String AUTO_SCALING_INITIAL_DELAY = AUTO_SCALING_PREFIX + "initialDelay";
@@ -85,6 +89,7 @@ public class YarnAutoScalingManager extends AbstractIdleService {
   private final int partitionsPerContainer;
   private final int minContainers;
   private final int maxContainers;
+  private final double overProvisionFactor;
   private final SlidingWindowReservoir slidingFixedSizeWindow;
   private static int maxIdleTimeInMinutesBeforeScalingDown = DEFAULT_MAX_IDLE_TIME_BEFORE_SCALING_DOWN_MINUTES;
 
@@ -107,6 +112,9 @@ public class YarnAutoScalingManager extends AbstractIdleService {
     this.maxContainers = ConfigUtils.getInt(this.config, AUTO_SCALING_MAX_CONTAINERS,
         DEFAULT_AUTO_SCALING_MAX_CONTAINERS);
 
+    this.overProvisionFactor = ConfigUtils.getDouble(this.config, AUTO_SCALING_CONTAINER_OVERPROVISION_FACTOR,
+        DEFAULT_AUTO_SCALING_CONTAINER_OVERPROVISION_FACTOR);
+
     Preconditions.checkArgument(this.maxContainers > 0,
         DEFAULT_AUTO_SCALING_MAX_CONTAINERS + " needs to be greater than 0");
 
@@ -123,7 +131,7 @@ public class YarnAutoScalingManager extends AbstractIdleService {
   }
 
   @Override
-  protected void startUp() throws Exception {
+  protected void startUp() {
     int scheduleInterval = ConfigUtils.getInt(this.config, AUTO_SCALING_POLLING_INTERVAL_SECS,
         DEFAULT_AUTO_SCALING_POLLING_INTERVAL_SECS);
     int initialDelay = ConfigUtils.getInt(this.config, AUTO_SCALING_INITIAL_DELAY,
@@ -132,13 +140,13 @@ public class YarnAutoScalingManager extends AbstractIdleService {
     log.info("Scheduling the auto scaling task with an interval of {} seconds", scheduleInterval);
 
     this.autoScalingExecutor.scheduleAtFixedRate(new YarnAutoScalingRunnable(new TaskDriver(this.helixManager),
-            this.yarnService, this.partitionsPerContainer, this.minContainers, this.maxContainers,
+            this.yarnService, this.partitionsPerContainer, this.minContainers, this.maxContainers, this.overProvisionFactor,
             this.slidingFixedSizeWindow, this.helixManager.getHelixDataAccessor()), initialDelay, scheduleInterval,
         TimeUnit.SECONDS);
   }
 
   @Override
-  protected void shutDown() throws Exception {
+  protected void shutDown() {
     log.info("Stopping the " + YarnAutoScalingManager.class.getSimpleName());
 
     ExecutorsUtils.shutdownExecutorService(this.autoScalingExecutor, Optional.of(log));
@@ -156,6 +164,7 @@ public class YarnAutoScalingManager extends AbstractIdleService {
     private final int partitionsPerContainer;
     private final int minContainers;
     private final int maxContainers;
+    private final double overProvisionFactor;
     private final SlidingWindowReservoir slidingWindowReservoir;
     private final HelixDataAccessor helixDataAccessor;
     /**
@@ -245,11 +254,9 @@ public class YarnAutoScalingManager extends AbstractIdleService {
         }
       }
 
-
-
       // compute the target containers as a ceiling of number of partitions divided by the number of containers
-      // per partition.
-      int numTargetContainers = (int) Math.ceil((double)numPartitions / this.partitionsPerContainer);
+      // per partition. Scale the result by a constant overprovision factor.
+      int numTargetContainers = (int) Math.ceil(((double)numPartitions / this.partitionsPerContainer) * this.overProvisionFactor);
 
       // adjust the number of target containers based on the configured min and max container values.
       numTargetContainers = Math.max(this.minContainers, Math.min(this.maxContainers, numTargetContainers));
