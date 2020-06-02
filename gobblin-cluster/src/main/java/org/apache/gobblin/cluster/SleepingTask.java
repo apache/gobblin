@@ -32,6 +32,7 @@ import org.apache.gobblin.runtime.task.BaseAbstractTask;
 @Slf4j
 public class SleepingTask extends BaseAbstractTask {
   public static final String TASK_STATE_FILE_KEY = "task.state.file.path";
+  public static final String SLEEP_TIME_IN_SECONDS = "data.publisher.sleep.time.in.seconds";
 
   private final long sleepTime;
   private File taskStateFile;
@@ -39,7 +40,7 @@ public class SleepingTask extends BaseAbstractTask {
   public SleepingTask(TaskContext taskContext) {
     super(taskContext);
     TaskState taskState = taskContext.getTaskState();
-    sleepTime = taskState.getPropAsLong("data.publisher.sleep.time.in.seconds", 10L);
+    sleepTime = taskState.getPropAsLong(SLEEP_TIME_IN_SECONDS, 10L);
     taskStateFile = new File(taskState.getProp(TASK_STATE_FILE_KEY));
     try {
       if (taskStateFile.exists()) {

@@ -21,17 +21,26 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.FutureTask;
 
+import org.apache.gobblin.testing.AssertWithBackoff;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.FileUtils;
 import org.junit.Assert;
 import org.testng.annotations.Test;
 
+import com.google.common.base.Predicate;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Files;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
-import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.util.FileUtils;
+import javax.annotation.Nullable;
+
+import static org.apache.gobblin.cluster.SingleTask.MAX_RETRY_WAITING_FOR_INIT_KEY;
 
 
 /**
@@ -64,13 +73,125 @@ public class TestSingleTask {
    * re-run it again.
    */
   @Test
-  public void testSingleTaskRerunAfterFailure() throws Exception {
-    InMemorySingleTaskRunner inMemorySingleTaskRunner = createInMemoryTaskRunner();
+  public void testSingleTaskRerunAfterFailure()
+      throws Exception {
+    SingleTaskRunner inMemorySingleTaskRunner = createInMemoryTaskRunner();
     try {
       inMemorySingleTaskRunner.run(true);
     } catch (Exception e) {
       inMemorySingleTaskRunner.run();
     }
+
     Assert.assertTrue(true);
+  }
+
+  @Test
+  public void testTaskCancelBeforeRunFailure() throws Exception {
+    InMemorySingleTaskRunner inMemorySingleTaskRunner = createInMemoryTaskRunner();
+    inMemorySingleTaskRunner.initClusterSingleTask(false);
+
+    // Directly calling cancel without initializing taskAttempt, it will timeout until reaching illegal state defined
+    // in SingleTask.
+    try {
+      inMemorySingleTaskRunner.task.cancel();
+    } catch (Exception e) {
+      Assert.assertTrue(e instanceof IllegalStateException);
+      Assert.assertTrue(e.getMessage().contains("Failed to initialize"));
+    }
+  }
+
+  // Normal sequence means, run is executed before cancel method.
+  @Test
+  public void testNormalSequence() throws Exception {
+    InMemorySingleTaskRunner inMemorySingleTaskRunner = createInMemoryTaskRunner();
+
+    inMemorySingleTaskRunner.startServices();
+    inMemorySingleTaskRunner.initClusterSingleTask(false);
+    final SingleTask task = inMemorySingleTaskRunner.task;
+    ExecutorService executor = Executors.newFixedThreadPool(2);
+
+    Runnable cancelRunnable = () -> {
+      try {
+        task.cancel();
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    };
+    final FutureTask<String> cancelTask = new FutureTask<String>(cancelRunnable, "cancelled");
+
+    Runnable runRunnable = () -> {
+      try {
+        task.run();
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    };
+
+    FutureTask<String> runTask = new FutureTask<String>(runRunnable, "completed");
+    executor.submit(runTask);
+    AssertWithBackoff.create().timeoutMs(2000).backoffFactor(1).assertTrue(new Predicate<Void>() {
+                                                                             @Override
+                                                                             public boolean apply(@Nullable Void input) {
+                                                                               return task._taskAttempt != null;
+                                                                             }
+                                                                           }, "wait until task attempt available");
+
+    // Simulate the process that signal happened first.
+    executor.submit(cancelTask);
+
+    AssertWithBackoff.create().timeoutMs(2000).backoffFactor(1).assertTrue(new Predicate<Void>() {
+      @Override
+      public boolean apply(@Nullable Void input) {
+        return cancelTask.isDone();
+      }
+    }, "wait until task attempt available");
+    Assert.assertEquals(cancelTask.get(), "cancelled");
+  }
+
+  @Test
+  public void testTaskCancelBeforeRun()
+      throws Exception {
+    final InMemorySingleTaskRunner inMemorySingleTaskRunner = createInMemoryTaskRunner();
+
+    // Place cancellation into infinite wait while having another thread initialize the taskAttempt.
+    // Reset task and set the retry to be infinite large.
+    inMemorySingleTaskRunner
+        .setInjectedConfig(ConfigFactory.parseMap(ImmutableMap.of(MAX_RETRY_WAITING_FOR_INIT_KEY, Integer.MAX_VALUE)));
+    inMemorySingleTaskRunner.startServices();
+    inMemorySingleTaskRunner.initClusterSingleTask(false);
+    final SingleTask task = inMemorySingleTaskRunner.task;
+    ExecutorService executor = Executors.newFixedThreadPool(2);
+
+    Runnable cancelRunnable = () -> {
+      try {
+        task.cancel();
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    };
+    FutureTask<String> cancelTask = new FutureTask<String>(cancelRunnable, "cancelled");
+    executor.submit(cancelTask);
+
+    Runnable runRunnable = () -> {
+      try {
+        task.run();
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    };
+
+    FutureTask<String> runTask = new FutureTask<String>(runRunnable, "completed");
+    executor.submit(runTask);
+
+    AssertWithBackoff assertWithBackoff = AssertWithBackoff.create().backoffFactor(1).maxSleepMs(1000).timeoutMs(500000);
+    assertWithBackoff.assertTrue(new Predicate<Void>() {
+      @Override
+      public boolean apply(@Nullable Void input) {
+        return runTask.isDone();
+      }
+    }, "waiting for future to complete");
+    Assert.assertEquals(runTask.get(), "completed");
+    Assert.assertTrue(cancelTask.isDone());
+    Assert.assertEquals(cancelTask.get(), "cancelled");
   }
 }
