@@ -264,7 +264,7 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
    * directory
    */
   public List<String> getcurrentFsSnapshot(State state) {
-    List<String> results = new ArrayList<>();
+    List<String> results;
     String path = getLsPattern(state);
 
     try {

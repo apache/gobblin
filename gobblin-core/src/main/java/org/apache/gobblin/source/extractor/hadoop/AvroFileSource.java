@@ -54,7 +54,7 @@ public class AvroFileSource extends FileBasedSource<Schema, GenericRecord> {
 
   @Override
   public List<String> getcurrentFsSnapshot(State state) {
-    List<String> results = Lists.newArrayList();
+    List<String> results;
     String path = state.getProp(ConfigurationKeys.SOURCE_FILEBASED_DATA_DIRECTORY);
 
     try {
