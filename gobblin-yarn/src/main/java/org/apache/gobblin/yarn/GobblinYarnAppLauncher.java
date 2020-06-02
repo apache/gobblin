@@ -159,6 +159,11 @@ import static org.apache.hadoop.security.UserGroupInformation.HADOOP_TOKEN_FILE_
 public class GobblinYarnAppLauncher {
   public static final String GOBBLIN_YARN_CONFIG_OUTPUT_PATH = "gobblin.yarn.configOutputPath";
 
+  //Configuration key to signal the GobblinYarnAppLauncher mode
+  public static final String GOBBLIN_YARN_APP_LAUNCHER_MODE =  "gobblin.yarn.appLauncherMode";
+  public static final String DEFAULT_GOBBLIN_YARN_APP_LAUNCHER_MODE = "";
+  public static final String AZKABAN_APP_LAUNCHER_MODE_KEY = "azkaban";
+
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinYarnAppLauncher.class);
 
   private static final Splitter SPLITTER = Splitter.on(',').omitEmptyStrings().trimResults();
@@ -222,6 +227,7 @@ public class GobblinYarnAppLauncher {
 
   private final boolean emailNotificationOnShutdown;
   private final boolean isHelixClusterManaged;
+  private final boolean detachOnExitEnabled;
 
   private final int appMasterMemoryMbs;
   private final int jvmMemoryOverheadMbs;
@@ -229,6 +235,7 @@ public class GobblinYarnAppLauncher {
   private Optional<AbstractYarnAppSecurityManager> securityManager = Optional.absent();
 
   private final String containerTimezone;
+  private final String appLauncherMode;
 
   public GobblinYarnAppLauncher(Config config, YarnConfiguration yarnConfiguration) throws IOException {
     this.config = config;
@@ -293,6 +300,11 @@ public class GobblinYarnAppLauncher {
         GobblinClusterConfigurationKeys.DEFAULT_IS_HELIX_CLUSTER_MANAGED);
     this.helixInstanceName = ConfigUtils.getString(config, GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_KEY,
         GobblinClusterManager.class.getSimpleName());
+
+    this.detachOnExitEnabled = ConfigUtils
+        .getBoolean(config, GobblinYarnConfigurationKeys.GOBBLIN_YARN_DETACH_ON_EXIT_ENABLED,
+            GobblinYarnConfigurationKeys.DEFAULT_GOBBLIN_YARN_DETACH_ON_EXIT);
+    this.appLauncherMode = ConfigUtils.getString(config, GOBBLIN_YARN_APP_LAUNCHER_MODE, DEFAULT_GOBBLIN_YARN_APP_LAUNCHER_MODE);
 
     this.messagingService = new GobblinHelixMessagingService(this.helixManager);
 
@@ -404,7 +416,7 @@ public class GobblinYarnAppLauncher {
     LOGGER.info("Stopping the " + GobblinYarnAppLauncher.class.getSimpleName());
 
     try {
-      if (this.applicationId.isPresent() && !this.applicationCompleted) {
+      if (this.applicationId.isPresent() && !this.applicationCompleted && !this.detachOnExitEnabled) {
         // Only send the shutdown message if the application has been successfully submitted and is still running
         sendShutdownRequest();
       }
@@ -417,13 +429,15 @@ public class GobblinYarnAppLauncher {
 
       stopYarnClient();
 
-      LOGGER.info("Disabling all live Helix instances..");
-      disableLiveHelixInstances();
+      if (!this.detachOnExitEnabled) {
+        LOGGER.info("Disabling all live Helix instances..");
+        disableLiveHelixInstances();
+      }
 
       disconnectHelixManager();
     } finally {
       try {
-        if (this.applicationId.isPresent()) {
+        if (this.applicationId.isPresent() && !this.detachOnExitEnabled) {
           cleanUpAppWorkDirectory(this.applicationId.get());
         }
       } finally {
@@ -540,6 +554,21 @@ public class GobblinYarnAppLauncher {
     this.yarnClient.stop();
   }
 
+  /**
+   * A utility method that removes the "application_" prefix from the Yarn application id when the {@link GobblinYarnAppLauncher}
+   * is launched via Azkaban. This is because when an Azkaban application is killed, Azkaban finds the Yarn application id
+   * from the logs by searching for the pattern "application_". This is a hacky workaround to prevent Azkaban to detect the
+   * Yarn application id from the logs.
+   * @param applicationId
+   * @return a sanitized application Id in the Azkaban mode.
+   */
+  private String sanitizeApplicationId(String applicationId) {
+    if (this.detachOnExitEnabled && this.appLauncherMode.equalsIgnoreCase(AZKABAN_APP_LAUNCHER_MODE_KEY)) {
+      applicationId = applicationId.replaceAll("application_", "");
+    }
+    return applicationId;
+  }
+
   @VisibleForTesting
   Optional<ApplicationId> getReconnectableApplicationId() throws YarnException, IOException {
     List<ApplicationReport> applicationReports =
@@ -551,7 +580,9 @@ public class GobblinYarnAppLauncher {
     // Try to find an application with a matching application name
     for (ApplicationReport applicationReport : applicationReports) {
       if (this.applicationName.equals(applicationReport.getName())) {
-        LOGGER.info("Found reconnectable application with application ID: " + applicationReport.getApplicationId());
+        String applicationId = sanitizeApplicationId(applicationReport.getApplicationId().toString());
+
+        LOGGER.info("Found reconnectable application with application ID: " + applicationId);
         return Optional.of(applicationReport.getApplicationId());
       }
     }
@@ -602,13 +633,13 @@ public class GobblinYarnAppLauncher {
     addContainerLocalResources(applicationId);
 
     // Submit the application
-    LOGGER.info("Submitting application " + applicationId);
+    LOGGER.info("Submitting application " + sanitizeApplicationId(applicationId.toString()));
     this.yarnClient.submitApplication(appSubmissionContext);
 
     LOGGER.info("Application successfully submitted and accepted");
     ApplicationReport applicationReport = this.yarnClient.getApplicationReport(applicationId);
     LOGGER.info("Application Name: " + applicationReport.getName());
-    LOGGER.info("Application Tracking URL: " + applicationReport.getTrackingUrl());
+    //LOGGER.info("Application Tracking URL: " + applicationReport.getTrackingUrl());
     LOGGER.info("Application User: " + applicationReport.getUser() + " Queue: " + applicationReport.getQueue());
 
     return applicationId;

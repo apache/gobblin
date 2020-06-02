@@ -113,4 +113,11 @@ public class GobblinYarnConfigurationKeys {
 
   //Configuration properties relating to container mode of execution e.g. Gobblin cluster runs on Yarn
   public static final String CONTAINER_NUM_KEY = "container.num";
+
+  //Configuration to allow GobblinYarnAppLauncher to exit without killing the Gobblin-on-Yarn application
+  public static final String GOBBLIN_YARN_DETACH_ON_EXIT_ENABLED = GOBBLIN_YARN_PREFIX + "detach.on.exit.enabled";
+  public static final boolean DEFAULT_GOBBLIN_YARN_DETACH_ON_EXIT = false;
+
+  //Configuration to set log levels for classes in Azkaban mode
+  public static final String GOBBLIN_YARN_AZKABAN_CLASS_LOG_LEVELS = GOBBLIN_YARN_PREFIX + "azkaban.class.logLevels";
 }
