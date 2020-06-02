@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.source.extractor.extract.kafka;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -288,16 +287,18 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       throw new RuntimeException("Unexpected throwable caught, ", t);
     } finally {
       try {
-        if (this.kafkaConsumerClient.get() != null) {
-          this.kafkaConsumerClient.get().close();
+        GobblinKafkaConsumerClient consumerClient = this.kafkaConsumerClient.get();
+        if (consumerClient != null) {
+          consumerClient.close();
         }
-
         // cleanup clients from pool
         for (GobblinKafkaConsumerClient client: kafkaConsumerClientPool) {
           client.close();
         }
-      } catch (IOException e) {
-        throw new RuntimeException("Exception closing kafkaConsumerClient", e);
+      } catch (Throwable t) {
+        //Swallow any exceptions in the finally{..} block to allow potential exceptions from the main try{..} block to be
+        //propagated
+        LOG.error("Exception {} encountered closing GobblinKafkaConsumerClient ", t);
       }
     }
   }

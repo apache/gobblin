@@ -66,8 +66,6 @@ public class HelixAssignedParticipantCheck implements CommitStep {
   private final int partitionNum;
   private final Config config;
 
-  private boolean isCompleted;
-
   /**
    * A method that uses the Singleton pattern to instantiate a {@link HelixManager} instance.
    * @param config
@@ -114,7 +112,7 @@ public class HelixAssignedParticipantCheck implements CommitStep {
    */
   @Override
   public boolean isCompleted() {
-    return isCompleted;
+    return false;
   }
 
   /**
@@ -157,7 +155,6 @@ public class HelixAssignedParticipantCheck implements CommitStep {
       isParticipant = true;
     }
 
-    this.isCompleted = true;
     if (!isParticipant) {
       throw new CommitStepException(String.format("Helix instance %s not the assigned participant for partition %d",this.helixInstanceName, this.partitionNum));
     }

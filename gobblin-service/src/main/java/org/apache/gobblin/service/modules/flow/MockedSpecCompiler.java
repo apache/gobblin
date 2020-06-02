@@ -36,12 +36,14 @@ import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
- * This mocked SpecCompiler class creates 3 dummy job specs to emulate multi hop flow spec compiler.
+ * This mocked SpecCompiler class creates 3 dummy job specs to emulate flow spec compiler.
+ * It can also be used to compile in a certain way or not to compile at all to write negative test cases.
  * It uses {@link InMemorySpecExecutor} for these dummy specs.
  */
 public class MockedSpecCompiler extends IdentityFlowToJobSpecCompiler {
 
   private static final int NUMBER_OF_JOBS = 3;
+  public static final String UNCOMPILABLE_FLOW = "uncompilableFlow";
 
   public MockedSpecCompiler(Config config) {
     super(config);
@@ -49,6 +51,11 @@ public class MockedSpecCompiler extends IdentityFlowToJobSpecCompiler {
 
   @Override
   public Dag<JobExecutionPlan> compileFlow(Spec spec) {
+    String flowName = (String) ((FlowSpec) spec).getConfigAsProperties().get(ConfigurationKeys.FLOW_NAME_KEY);
+    if (flowName.equalsIgnoreCase(UNCOMPILABLE_FLOW)) {
+      return null;
+    }
+
     List<JobExecutionPlan> jobExecutionPlans = new ArrayList<>();
 
     long flowExecutionId = System.currentTimeMillis();
@@ -57,7 +64,7 @@ public class MockedSpecCompiler extends IdentityFlowToJobSpecCompiler {
     while(i++ < NUMBER_OF_JOBS) {
       String specUri = "/foo/bar/spec/" + i;
       Properties properties = new Properties();
-      properties.put(ConfigurationKeys.FLOW_NAME_KEY, ((FlowSpec)spec).getConfigAsProperties().get(ConfigurationKeys.FLOW_NAME_KEY));
+      properties.put(ConfigurationKeys.FLOW_NAME_KEY, flowName);
       properties.put(ConfigurationKeys.FLOW_GROUP_KEY, ((FlowSpec)spec).getConfigAsProperties().get(ConfigurationKeys.FLOW_GROUP_KEY));
       properties.put(ConfigurationKeys.JOB_NAME_KEY, ((FlowSpec)spec).getConfigAsProperties().get(ConfigurationKeys.FLOW_NAME_KEY) + "_" + i);
       properties.put(ConfigurationKeys.JOB_GROUP_KEY, ((FlowSpec)spec).getConfigAsProperties().get(ConfigurationKeys.FLOW_GROUP_KEY) + "_" + i);

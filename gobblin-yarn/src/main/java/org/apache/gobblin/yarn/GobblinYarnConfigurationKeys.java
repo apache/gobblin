@@ -120,4 +120,6 @@ public class GobblinYarnConfigurationKeys {
 
   //Configuration to set log levels for classes in Azkaban mode
   public static final String GOBBLIN_YARN_AZKABAN_CLASS_LOG_LEVELS = GOBBLIN_YARN_PREFIX + "azkaban.class.logLevels";
+  //Container classpaths properties
+  public static final String GOBBLIN_YARN_ADDITIONAL_CLASSPATHS = GOBBLIN_YARN_PREFIX + "additional.classpaths";
 }

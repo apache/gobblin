@@ -152,7 +152,7 @@ class ControllerUserDefinedMessageHandlerFactory implements MessageHandlerFactor
         FlowId id = FlowConfigUtils.deserializeFlowId(msg);
         if (flowCatalogLocalCommit) {
           // in balance mode, flow spec is already deleted in flow catalog on standby node.
-          URI flowUri = FlowConfigResourceLocalHandler.FlowUriUtils.createFlowSpecUri(id);
+          URI flowUri = FlowSpec.Utils.createFlowSpecUri(id);
           log.info("Only handle update {} scheduling because flow catalog is committed locally on standby.", flowUri);
           jobScheduler.onDeleteSpec(flowUri, FlowSpec.Builder.DEFAULT_VERSION);
         } else {
