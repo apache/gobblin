@@ -581,8 +581,8 @@ public class GobblinYarnAppLauncher {
     for (ApplicationReport applicationReport : applicationReports) {
       if (this.applicationName.equals(applicationReport.getName())) {
         String applicationId = sanitizeApplicationId(applicationReport.getApplicationId().toString());
-
         LOGGER.info("Found reconnectable application with application ID: " + applicationId);
+        LOGGER.info("Application Tracking URL: " + applicationReport.getTrackingUrl());
         return Optional.of(applicationReport.getApplicationId());
       }
     }
