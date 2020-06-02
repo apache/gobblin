@@ -29,6 +29,15 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.instrumented.Instrumentable;
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.source.extractor.CheckpointableWatermark;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.ExecutorsUtils;
 import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.Meter;
@@ -41,17 +50,6 @@ import com.typesafe.config.Config;
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.NotThreadSafe;
 import lombok.extern.slf4j.Slf4j;
-
-import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.instrumented.Instrumentable;
-import org.apache.gobblin.instrumented.Instrumented;
-import org.apache.gobblin.metrics.GobblinMetrics;
-import org.apache.gobblin.metrics.MetricContext;
-import org.apache.gobblin.metrics.MetricNames;
-import org.apache.gobblin.metrics.Tag;
-import org.apache.gobblin.source.extractor.CheckpointableWatermark;
-import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.util.ExecutorsUtils;
 
 
 /**
@@ -94,8 +92,6 @@ public class FineGrainedWatermarkTracker implements Instrumentable, Closeable {
   private final AtomicBoolean _abort;
 
   private boolean _autoStart = true;
-
-
 
   public FineGrainedWatermarkTracker(Config config) {
     _watermarksMap = new HashMap<>();

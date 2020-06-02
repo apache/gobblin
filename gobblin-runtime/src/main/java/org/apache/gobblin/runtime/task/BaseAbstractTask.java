@@ -17,11 +17,14 @@
 
 package org.apache.gobblin.runtime.task;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.runtime.TaskContext;
 import org.apache.gobblin.runtime.util.TaskMetrics;
+
+import com.google.common.base.Throwables;
 
 
 /**
@@ -90,5 +93,14 @@ public abstract class BaseAbstractTask implements TaskIFace {
   @Override
   public boolean isSpeculativeExecutionSafe() {
     return false;
+  }
+
+  /**
+   * Similar to org.apache.gobblin.runtime.Task#failTask(java.lang.Throwable), we need to propagate exception thrown
+   * in workunit level by setting {@link ConfigurationKeys#TASK_FAILURE_EXCEPTION_KEY}
+   */
+  protected void failTask(Throwable t, TaskContext taskContext) {
+    taskContext.getTaskState().setWorkingState(WorkUnitState.WorkingState.FAILED);
+    taskContext.getTaskState().setProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY, Throwables.getStackTraceAsString(t));
   }
 }

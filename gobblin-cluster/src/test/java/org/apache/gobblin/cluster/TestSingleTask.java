@@ -36,7 +36,10 @@ import org.apache.gobblin.util.FileUtils;
 
 /**
  * Notes & Usage:
- * 0. This test could be used to reproduce task-execution issue in Gobblin-Cluster, within each container.
+ * 0. This test could be used to reproduce task-execution issue in Gobblin-Cluster, within each container. It doesn't
+ * interact with Helix framework in any sense but focus on GobblinTask execution itself. In particular, {@link InMemorySingleTaskRunner}
+ * execute {@link SingleTask#run()} directly so that the whole execution and commit stack of
+ * {@link org.apache.gobblin.runtime.GobblinMultiTaskAttempt} will be covered.
  * 1. The workunit is being created in {@link InMemoryWuFailedSingleTask}.
  * 2. When needed to reproduce certain errors, replace org.apache.gobblin.cluster.DummySource.DummyExtractor or
  * {@link DummySource} to plug in required logic.

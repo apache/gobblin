@@ -17,21 +17,23 @@
 package org.apache.gobblin.cluster;
 
 import java.io.IOException;
+import java.util.Optional;
 
+import org.apache.gobblin.cluster.suite.IntegrationBasicSuite;
+import org.apache.gobblin.cluster.suite.IntegrationJobCancelSuite;
+import org.apache.gobblin.commit.CommitStepException;
+import org.apache.gobblin.testing.AssertWithBackoff;
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Joiner;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
-
-import org.apache.gobblin.cluster.suite.IntegrationBasicSuite;
-import org.apache.gobblin.commit.CommitStepException;
-import org.apache.gobblin.testing.AssertWithBackoff;
 
 
 public class HelixAssignedParticipantCheckTest {
@@ -66,7 +68,7 @@ public class HelixAssignedParticipantCheckTest {
 
     //Ensure that Helix has created a workflow
     AssertWithBackoff.create().maxSleepMs(1000).backoffFactor(1).
-        assertTrue(ClusterIntegrationTest.isTaskStarted(helixManager, JOB_ID), "Waiting for the job to start...");
+        assertTrue(ClusterIntegrationTest.isWorkflowStarted(helixManager, JOB_ID), "Waiting for the job to start...");
 
     //Instantiate config for HelixAssignedParticipantCheck
     String helixJobId = Joiner.on("_").join(JOB_ID, JOB_ID);
@@ -105,6 +107,15 @@ public class HelixAssignedParticipantCheckTest {
     }
   }
 
+  /**
+   * it is executed before the {@link SleepingTask} finishes but
+   * right after the test finished, which is blocked on {@link SleepingTask} start to be running but not finished.
+   *
+   * So to put AfterClass we need to wait for Helix task to be finished.
+   * When using debugging mode, note that we shouldn't interrupt the normal execution since that leaves certain unclean
+   * state in ZK to prevent subsequent execution from being successful normally.
+   */
+  @AfterClass
   public void tearDown() throws IOException, InterruptedException {
     //Shutdown cluster
     suite.shutdownCluster();

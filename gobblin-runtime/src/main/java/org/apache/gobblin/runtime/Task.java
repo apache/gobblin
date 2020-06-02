@@ -562,9 +562,14 @@ public class Task implements TaskIFace {
     this.lastRecordPulledTimestampMillis = System.currentTimeMillis();
   }
 
+  /**
+   * Marking down the WorkUnitState and also keep the exception for each workunit's execution.
+   */
   private void failTask(Throwable t) {
     LOG.error(String.format("Task %s failed", this.taskId), t);
     this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
+
+    // Setting this field makes exception within workunit level propagated to GobblinMultiTaskAttempt level.
     this.taskState.setProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY, Throwables.getStackTraceAsString(t));
 
     // Send task failure event

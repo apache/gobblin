@@ -16,19 +16,30 @@
  */
 package org.apache.gobblin.runtime.task;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.publisher.DataPublisher;
 import org.apache.gobblin.publisher.NoopPublisher;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.runtime.TaskContext;
+import org.apache.gobblin.runtime.TaskState;
 import org.apache.gobblin.source.workunit.WorkUnit;
 
+import com.google.common.base.Throwables;
+
+import groovy.util.logging.Slf4j;
+
+
 /**
- * A task which raise an exception when run
+ * A task which returns "FAILED" state directly.
  */
+@Slf4j
 public class FailedTask extends BaseAbstractTask {
-  public FailedTask (TaskContext taskContext) {
+  private final TaskContext taskContext;
+
+  public FailedTask(TaskContext taskContext) {
     super(taskContext);
+    this.taskContext = taskContext;
   }
 
   public void commit() {
@@ -37,13 +48,14 @@ public class FailedTask extends BaseAbstractTask {
 
   @Override
   public void run() {
+    failTask(new RuntimeException("On-Purpose failure of a workunit"), taskContext);
     this.workingState = WorkUnitState.WorkingState.FAILED;
   }
 
   public static class FailedWorkUnit extends WorkUnit {
 
-    public FailedWorkUnit () {
-      super ();
+    public FailedWorkUnit() {
+      super();
       TaskUtils.setTaskFactoryClass(this, FailedTaskFactory.class);
     }
   }
