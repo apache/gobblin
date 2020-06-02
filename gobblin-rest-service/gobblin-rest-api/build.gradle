@@ -112,8 +112,7 @@ artifacts {
     archives dataTemplateSourcesJar, dataTemplateJavadocJar, restClientSourcesJar, restClientJavadocJar
 }
 
-publishing {
-  publications {
+publishing.publications {
     dataTemplate(MavenPublication) {
       artifactId dataTemplateName
       artifacts = [mainDataTemplateJar, dataTemplateSourcesJar, dataTemplateJavadocJar]
@@ -126,7 +125,6 @@ publishing {
       pom pomAttributes
       pom.withXml addRuntimeDependenciesToPom
     }
-  }
 }
 addPublicationToBintray("dataTemplate")
 addPublicationToBintray("restClient")
