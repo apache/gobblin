@@ -385,7 +385,7 @@ public class GobblinMultiTaskAttempt {
   private Pair<List<Task>, Boolean> runWorkUnits(CountUpAndDownLatch countDownLatch) {
 
     List<Task> tasks = Lists.newArrayList();
-    boolean failureInTaskCreation = true;
+    boolean isTaskCreatedSuccessfully = true;
     while (this.workUnits.hasNext()) {
       WorkUnit workUnit = this.workUnits.next();
       String taskId = workUnit.getProp(ConfigurationKeys.TASK_ID_KEY);
@@ -426,7 +426,7 @@ public class GobblinMultiTaskAttempt {
         if (task == null) {
           if (e instanceof RetryException) {
             // Indicating task being null due to failure in creation even after retrying.
-            failureInTaskCreation = false;
+            isTaskCreatedSuccessfully = false;
           }
           // task could not be created, so directly count down
           countDownLatch.countDown();
@@ -449,7 +449,7 @@ public class GobblinMultiTaskAttempt {
     eventSubmitterBuilder.addMetadata(this.taskEventMetadataGenerator.getMetadata(jobState, JobEvent.TASKS_SUBMITTED));
     eventSubmitterBuilder.build().submit(JobEvent.TASKS_SUBMITTED, "tasksCount", Long.toString(countDownLatch.getRegisteredParties()));
 
-    return new Pair<>(tasks, failureInTaskCreation);
+    return new Pair<>(tasks, isTaskCreatedSuccessfully);
   }
 
   private void printMemoryUsage() {
