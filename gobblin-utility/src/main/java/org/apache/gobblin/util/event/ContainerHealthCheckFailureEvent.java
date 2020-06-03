@@ -32,6 +32,7 @@ import lombok.Getter;
 public class ContainerHealthCheckFailureEvent {
   public static final String CONTAINER_HEALTH_CHECK_EVENT_BUS_NAME = "ContainerHealthCheckEventBus";
 
+  // Context of emission of this event, like the task's state.
   @Getter
   private final Config config;
 

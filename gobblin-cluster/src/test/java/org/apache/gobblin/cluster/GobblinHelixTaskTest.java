@@ -228,6 +228,11 @@ public class GobblinHelixTaskTest {
     TestHelper.assertGenericRecords(outputAvroFile, schema);
   }
 
+  @Test( dependsOnMethods = "testPrepareTask")
+  public void testCreationFailureResultInHelixTaskFailure() throws Exception {
+
+  }
+
   @AfterClass
   public void tearDown() throws IOException {
     try {

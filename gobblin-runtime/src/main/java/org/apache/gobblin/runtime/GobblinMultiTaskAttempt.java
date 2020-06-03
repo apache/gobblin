@@ -24,6 +24,7 @@ import java.lang.management.MemoryUsage;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Properties;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -37,13 +38,12 @@ import org.slf4j.LoggerFactory;
 
 import com.github.rholder.retry.RetryException;
 import com.github.rholder.retry.Retryer;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
-import com.google.common.base.Throwables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
-import com.typesafe.config.ConfigValueFactory;
 
 import javax.annotation.Nullable;
 import lombok.Setter;
@@ -159,7 +159,7 @@ public class GobblinMultiTaskAttempt {
 
     // Indicating task creation failure, propagating exception as it should be noticeable to job launcher
     if (!executionResult.getSecond()) {
-      throw new IOException("Failing in creating task before execution.");
+      throw new TaskCreationException("Failing in creating task before execution.");
     }
 
     log.info("Waiting for submitted tasks of job {} to complete in container {}...", jobId, containerIdOptional.or(""));
@@ -379,7 +379,8 @@ public class GobblinMultiTaskAttempt {
    * </p>
    *
    * @param countDownLatch a {@link java.util.concurrent.CountDownLatch} waited on for job completion
-   * @return a list of {@link Task}s from the {@link WorkUnit}s
+   * @return a list of {@link Task}s from the {@link WorkUnit}s, as well as if there's a failure in task creation
+   * which should be handled separately to avoid silently starving on certain workunit.
    */
   private Pair<List<Task>, Boolean> runWorkUnits(CountUpAndDownLatch countDownLatch) {
 
@@ -483,10 +484,13 @@ public class GobblinMultiTaskAttempt {
    * As the initialization of {@link Task} could have unstable external connection which could be healed through
    * retry, adding retry-wrapper here for the sake of fault-tolerance.
    */
-  private Task createTaskWithRetry(WorkUnitState workUnitState, CountDownLatch countDownLatch) {
+  @VisibleForTesting
+  Task createTaskWithRetry(WorkUnitState workUnitState, CountDownLatch countDownLatch) throws RetryException {
+    Properties defaultRetryConfig = new Properties();
+    defaultRetryConfig.setProperty(RETRY_TIME_OUT_MS, TimeUnit.MINUTES.toMillis(1L) + "");
+    defaultRetryConfig.setProperty(RETRY_INTERVAL_MS, TimeUnit.SECONDS.toMillis(2L) + "");
     Config config = ConfigUtils.propertiesToConfig(this.jobState.getProperties())
-        .withValue(RETRY_TIME_OUT_MS, ConfigValueFactory.fromAnyRef(TimeUnit.MINUTES.toMillis(1L)))
-        .withValue(RETRY_INTERVAL_MS, ConfigValueFactory.fromAnyRef(TimeUnit.SECONDS.toMillis(2L)));
+        .withFallback(ConfigUtils.propertiesToConfig(defaultRetryConfig));
     Retryer<Task> retryer = RetryerFactory.newInstance(config);
     // An "effectively final" variable for counting how many retried has been done, mostly for logging purpose.
     final AtomicInteger counter = new AtomicInteger(0);
@@ -501,9 +505,6 @@ public class GobblinMultiTaskAttempt {
           return createTaskRunnable(workUnitState, countDownLatch);
         }
       });
-    } catch (RetryException re) {
-      log.error(String.format("Fatal Exception creating Task after %s retries", counter));
-      throw Throwables.propagate(re.getLastFailedAttempt().getExceptionCause());
     } catch (ExecutionException ee) {
       throw new RuntimeException("Failure in executing retryer due to, ", ee);
     }
