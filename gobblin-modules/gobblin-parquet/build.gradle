@@ -24,7 +24,11 @@ dependencies {
   compile externalDependency.gson
   compile externalDependency.twitterParquet
   compile externalDependency.twitterParquetAvro
-  compile externalDependency.twitterParquetProto
+
+  //parquet-protobuf dependency is not resolvable from MavenCentral
+  //compileOnly ensures that gobblin-parquet can be cleanly resolved from MavenCentral
+  compileOnly externalDependency.twitterParquetProto
+  testCompile configurations.compileOnly
 
   testCompile externalDependency.testng
   testCompile externalDependency.mockito
