@@ -58,9 +58,9 @@ public class KafkaKeyValueProducerPusherTest {
   @Test
   public void test() throws IOException {
     // Test that the scoped config overrides the generic config
-    Pusher pusher = new KafkaKeyValueProducerPusher<byte[], byte[]>("localhost:dummy", TOPIC,
+    Pusher pusher = new KafkaKeyValueProducerPusher<byte[], byte[]>("127.0.0.1:dummy", TOPIC,
         Optional.of(ConfigFactory.parseMap(ImmutableMap.of(
-            ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:" + this.kafkaTestHelper.getKafkaServerPort()))));
+            ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "127.0.0.1:" + this.kafkaTestHelper.getKafkaServerPort()))));
 
     String msg1 = "msg1";
     String msg2 = "msg2";

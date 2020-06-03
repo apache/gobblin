@@ -17,12 +17,6 @@
 
 package org.apache.gobblin.runtime.spec_catalog;
 
-import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
-import com.google.common.util.concurrent.AbstractIdleService;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigException;
-
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
@@ -33,8 +27,19 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import javax.annotation.Nonnull;
+
 import org.apache.commons.lang3.reflect.ConstructorUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
+import com.google.common.util.concurrent.AbstractIdleService;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigException;
+
+import javax.annotation.Nonnull;
+import lombok.Getter;
 
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
@@ -55,8 +60,6 @@ import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.callbacks.CallbackResult;
 import org.apache.gobblin.util.callbacks.CallbacksDispatcher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 
 /**
@@ -78,7 +81,11 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
   protected final Logger log;
   protected final MetricContext metricContext;
   protected final MutableStandardMetrics metrics;
+  @Getter
   protected final SpecStore specStore;
+  // a map which keeps a handle of condition variables for each spec being added to the flow catalog
+  // to provide synchronization needed for flow specs
+  private final Map<String, Object> specSyncObjects = new HashMap<>();
 
   private final ClassAliasResolver<SpecStore> aliasResolver;
 
@@ -280,7 +287,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     try {
       spec = getSpec(uri);
     } catch (SpecNotFoundException snfe) {
-      log.error(String.format("The URI %s discovered in SpecStore is missing in FlowCatlog"
+      log.error(String.format("The URI %s discovered in SpecStore is missing in FlowCatalog"
           + ", suspecting current modification on SpecStore", uri), snfe);
     }
     return spec;
@@ -289,6 +296,12 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
   /**
    * Persist {@link Spec} into {@link SpecStore} and notify {@link SpecCatalogListener} if triggerListener
    * is set to true.
+   * If the {@link Spec} is a {@link FlowSpec} it is persisted if it can be compiled at the time this method received
+   * the spec. `explain` specs are not persisted. The logic of this method is tightly coupled with the logic of
+   * {@link GobblinServiceJobScheduler#onAddSpec()}, which is one of the listener of {@link FlowCatalog}.
+   * We use condition variables {@link #specSyncObjects} to achieve synchronization between
+   * {@link GobblinServiceJobScheduler#NonScheduledJobRunner} thread and this thread to ensure deletion of
+   * {@link FlowSpec} happens after the corresponding run once flow is submitted to the orchestrator.
    *
    * @param spec The Spec to be added
    * @param triggerListener True if listeners should be notified.
@@ -301,13 +314,9 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     Preconditions.checkNotNull(flowSpec);
 
     log.info(String.format("Adding FlowSpec with URI: %s and Config: %s", flowSpec.getUri(), flowSpec.getConfigAsProperties()));
-    try {
-      long startTime = System.currentTimeMillis();
-      specStore.addSpec(flowSpec);
-      metrics.updatePutSpecTime(startTime);
-    } catch (IOException e) {
-      throw new RuntimeException("Cannot add Spec to Spec store: " + flowSpec, e);
-    }
+
+    Object syncObject = new Object();
+    specSyncObjects.put(flowSpec.getUri().toString(), syncObject);
 
     if (triggerListener) {
       AddSpecResponse<CallbacksDispatcher.CallbackResults<SpecCatalogListener, AddSpecResponse>> response = this.listeners.onAddSpec(flowSpec);
@@ -317,7 +326,21 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     }
 
     if (isCompileSuccessful(responseMap)) {
-      responseMap.put(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>("true"));
+      synchronized (syncObject) {
+        try {
+          if (!flowSpec.isExplain()) {
+            long startTime = System.currentTimeMillis();
+            specStore.addSpec(spec);
+            metrics.updatePutSpecTime(startTime);
+          }
+          responseMap.put(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>("true"));
+        } catch (IOException e) {
+          throw new RuntimeException("Cannot add Spec to Spec store: " + flowSpec, e);
+        } finally {
+          syncObject.notifyAll();
+          this.specSyncObjects.remove(flowSpec.getUri().toString());
+        }
+      }
     } else {
       responseMap.put(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>("false"));
     }
@@ -326,7 +349,8 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
   }
 
   public static boolean isCompileSuccessful(Map<String, AddSpecResponse> responseMap) {
-    AddSpecResponse<String> addSpecResponse = responseMap.getOrDefault(ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS, new AddSpecResponse<>(""));
+    AddSpecResponse<String> addSpecResponse = responseMap.getOrDefault(
+        ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS, new AddSpecResponse<>(""));
 
     return isCompileSuccessful(addSpecResponse.getValue());
   }
@@ -363,5 +387,9 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     } catch (IOException e) {
       throw new RuntimeException("Cannot delete Spec from Spec store for URI: " + uri, e);
     }
+  }
+
+  public Object getSyncObject(String specUri) {
+    return this.specSyncObjects.getOrDefault(specUri, null);
   }
 }

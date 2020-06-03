@@ -82,7 +82,7 @@ public class YarnAutoScalingManagerTest {
 
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable =
         new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1,
-            1, 10, noopQueue, helixDataAccessor);
+            1, 10, 1.0, noopQueue, helixDataAccessor);
 
     runnable.run();
 
@@ -132,7 +132,7 @@ public class YarnAutoScalingManagerTest {
 
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable =
         new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService,
-            1, 1, 10, noopQueue, helixDataAccessor);
+            1, 1, 10, 1.0, noopQueue, helixDataAccessor);
 
     runnable.run();
 
@@ -201,7 +201,7 @@ public class YarnAutoScalingManagerTest {
 
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable =
         new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService,
-            1, 1, 10, noopQueue, helixDataAccessor);
+            1, 1, 10, 1.0, noopQueue, helixDataAccessor);
 
     runnable.run();
 
@@ -270,7 +270,7 @@ public class YarnAutoScalingManagerTest {
 
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable =
         new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService,
-            1, 1, 10, noopQueue, helixDataAccessor);
+            1, 1, 10, 1.0, noopQueue, helixDataAccessor);
 
     runnable.run();
 
@@ -314,7 +314,7 @@ public class YarnAutoScalingManagerTest {
 
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable =
         new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService,
-            2, 1, 10, noopQueue, helixDataAccessor);
+            2, 1, 10, 1.0, noopQueue, helixDataAccessor);
 
     runnable.run();
 
@@ -359,7 +359,7 @@ public class YarnAutoScalingManagerTest {
 
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable =
         new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService,
-            1, 5, 10, noopQueue, helixDataAccessor);
+            1, 5, 10, 1.0, noopQueue, helixDataAccessor);
 
     runnable.run();
 
@@ -367,7 +367,6 @@ public class YarnAutoScalingManagerTest {
     Mockito.verify(mockYarnService, times(1))
         .requestTargetNumberOfContainers(5, ImmutableSet.of("GobblinYarnTaskRunner-1"));
   }
-
 
   /**
    * Test max containers
@@ -404,11 +403,79 @@ public class YarnAutoScalingManagerTest {
 
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable =
         new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService,
-            1, 1, 1, noopQueue, helixDataAccessor);
+            1, 1, 1, 1.0, noopQueue, helixDataAccessor);
 
     runnable.run();
 
     // 1 container requested to max and one worker in use
+    Mockito.verify(mockYarnService, times(1))
+        .requestTargetNumberOfContainers(1, ImmutableSet.of("GobblinYarnTaskRunner-1"));
+  }
+
+  @Test
+  public void testOverprovision() {
+    YarnService mockYarnService = mock(YarnService.class);
+    TaskDriver mockTaskDriver = mock(TaskDriver.class);
+    WorkflowConfig mockWorkflowConfig = mock(WorkflowConfig.class);
+    JobDag mockJobDag = mock(JobDag.class);
+
+    Mockito.when(mockJobDag.getAllNodes()).thenReturn(ImmutableSet.of("job1"));
+    Mockito.when(mockWorkflowConfig.getJobDag()).thenReturn(mockJobDag);
+
+    Mockito.when(mockTaskDriver.getWorkflows())
+        .thenReturn(ImmutableMap.of("workflow1", mockWorkflowConfig));
+
+    WorkflowContext mockWorkflowContext = mock(WorkflowContext.class);
+    Mockito.when(mockWorkflowContext.getWorkflowState()).thenReturn(TaskState.IN_PROGRESS);
+
+    Mockito.when(mockTaskDriver.getWorkflowContext("workflow1")).thenReturn(mockWorkflowContext);
+
+    JobContext mockJobContext = mock(JobContext.class);
+    Mockito.when(mockJobContext.getPartitionSet())
+        .thenReturn(ImmutableSet.of(Integer.valueOf(1), Integer.valueOf(2)));
+    Mockito.when(mockJobContext.getAssignedParticipant(2)).thenReturn("GobblinYarnTaskRunner-1");
+
+    Mockito.when(mockTaskDriver.getJobContext("job1")).thenReturn(mockJobContext);
+
+    HelixDataAccessor helixDataAccessor = mock(HelixDataAccessor.class);
+    Mockito.when(helixDataAccessor.keyBuilder()).thenReturn(new PropertyKey.Builder("cluster"));
+    Mockito.when(helixDataAccessor.getChildValuesMap(Mockito.any()))
+        .thenReturn(ImmutableMap.of("GobblinYarnTaskRunner-1", new HelixProperty("")));
+
+    YarnAutoScalingManager.YarnAutoScalingRunnable runnable1 =
+        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService,
+            1, 1, 10, 1.2, noopQueue, helixDataAccessor);
+
+    runnable1.run();
+
+    // 3 containers requested to max and one worker in use
+    // NumPartitions = 2, Partitions per container = 1 and overprovision = 1.2, Min containers = 1, Max = 10
+    // so targetNumContainers = Max (1, Min(10, Ceil((2/1) * 1.2))) = 3.
+    Mockito.verify(mockYarnService, times(1))
+        .requestTargetNumberOfContainers(3, ImmutableSet.of("GobblinYarnTaskRunner-1"));
+
+
+    YarnAutoScalingManager.YarnAutoScalingRunnable runnable2 =
+        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService,
+            1, 1, 10, 0.1, noopQueue, helixDataAccessor);
+
+    runnable2.run();
+
+    // 3 containers requested to max and one worker in use
+    // NumPartitions = 2, Partitions per container = 1 and overprovision = 1.2, Min containers = 1, Max = 10
+    // so targetNumContainers = Max (1, Min(10, Ceil((2/1) * 0.1))) = 1.
+    Mockito.verify(mockYarnService, times(1))
+        .requestTargetNumberOfContainers(1, ImmutableSet.of("GobblinYarnTaskRunner-1"));
+
+    YarnAutoScalingManager.YarnAutoScalingRunnable runnable3 =
+        new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService,
+            1, 1, 10, 6.0, noopQueue, helixDataAccessor);
+
+    runnable3.run();
+
+    // 3 containers requested to max and one worker in use
+    // NumPartitions = 2, Partitions per container = 1 and overprovision = 6.0,
+    // so targetNumContainers = Max (1, Min(10, Ceil((2/1) * 6.0))) = 10.
     Mockito.verify(mockYarnService, times(1))
         .requestTargetNumberOfContainers(1, ImmutableSet.of("GobblinYarnTaskRunner-1"));
   }
@@ -542,7 +609,7 @@ public class YarnAutoScalingManagerTest {
 
     public TestYarnAutoScalingRunnable(TaskDriver taskDriver, YarnService yarnService, int partitionsPerContainer,
         int minContainers, int maxContainers, HelixDataAccessor helixDataAccessor) {
-      super(taskDriver, yarnService, partitionsPerContainer, minContainers, maxContainers, noopQueue, helixDataAccessor);
+      super(taskDriver, yarnService, partitionsPerContainer, minContainers, maxContainers, 1.0, noopQueue, helixDataAccessor);
     }
 
     @Override

@@ -259,6 +259,13 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
         // In this case, the current time is used as the flow executionId.
         flowMetadata.putIfAbsent(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD,
             Long.toString(System.currentTimeMillis()));
+
+        String message = "Flow was not compiled successfully. It may be due to no path being found";
+        if (!((FlowSpec) spec).getCompilationErrors().isEmpty()) {
+          message = message + " or due to " + ((FlowSpec) spec).getCompilationErrors();
+        }
+        flowMetadata.put(TimingEvent.METADATA_MESSAGE, message);
+
         TimingEvent flowCompileFailedTimer = this.eventSubmitter.isPresent() ? this.eventSubmitter.get()
             .getTimingEvent(TimingEvent.FlowTimings.FLOW_COMPILE_FAILED) : null;
         Instrumented.markMeter(this.flowOrchestrationFailedMeter);

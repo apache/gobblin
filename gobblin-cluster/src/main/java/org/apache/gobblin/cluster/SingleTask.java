@@ -20,12 +20,17 @@ package org.apache.gobblin.cluster;
 import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -40,6 +45,7 @@ import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.runtime.util.StateStores;
 import org.apache.gobblin.source.workunit.MultiWorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.JobLauncherUtils;
 import org.apache.gobblin.util.SerializationUtils;
 
@@ -51,7 +57,11 @@ public class SingleTask {
 
   private static final Logger _logger = LoggerFactory.getLogger(SingleTask.class);
 
-  private GobblinMultiTaskAttempt _taskAttempt;
+  public static final String MAX_RETRY_WAITING_FOR_INIT_KEY = "maxRetryBlockedOnTaskAttemptInit";
+  public static final int DEFAULT_MAX_RETRY_WAITING_FOR_INIT = 2;
+
+  @VisibleForTesting
+  GobblinMultiTaskAttempt _taskAttempt;
   private String _jobId;
   private Path _workUnitFilePath;
   private Path _jobStateFilePath;
@@ -60,6 +70,12 @@ public class SingleTask {
   private StateStores _stateStores;
   private Config _dynamicConfig;
   private JobState _jobState;
+
+  // Preventing Helix calling cancel before taskAttempt is created
+  // Checking if taskAttempt is empty is not enough, since canceller runs in different thread as runner, the case to
+  // to avoid here is taskAttempt being created and start to run after cancel has been called.
+  private Condition _taskAttemptBuilt;
+  private Lock _lock;
 
   /**
    * Do all heavy-lifting of initialization in constructor which could be retried if failed,
@@ -75,11 +91,12 @@ public class SingleTask {
     _stateStores = stateStores;
     _dynamicConfig = dynamicConfig;
     _jobState = getJobState();
+    _lock = new ReentrantLock();
+    _taskAttemptBuilt = _lock.newCondition();
   }
 
   public void run()
       throws IOException, InterruptedException {
-    List<WorkUnit> workUnits = getWorkUnits();
 
     // Add dynamic configuration to the job state
     _dynamicConfig.entrySet().forEach(e -> _jobState.setProp(e.getKey(), e.getValue().unwrapped().toString()));
@@ -93,7 +110,18 @@ public class SingleTask {
         .createDefaultTopLevelBroker(jobConfig, GobblinScopeTypes.GLOBAL.defaultScopeInstance())) {
       SharedResourcesBroker<GobblinScopeTypes> jobBroker = getJobBroker(_jobState, globalBroker);
 
-      _taskAttempt = _taskAttemptBuilder.build(workUnits.iterator(), _jobId, _jobState, jobBroker);
+      // Secure atomicity of taskAttempt's execution.
+      // Signaling blocking threads if any whenever taskAttempt is nonNull.
+      _taskAttempt = _taskAttemptBuilder.build(getWorkUnits().iterator(), _jobId, _jobState, jobBroker);
+
+      _lock.lock();
+      try {
+        _taskAttemptBuilt.signal();
+      } finally {
+        _lock.unlock();
+      }
+
+      // This is a blocking call.
       _taskAttempt.runAndOptionallyCommitTaskAttempt(GobblinMultiTaskAttempt.CommitPolicy.IMMEDIATE);
 
     } finally {
@@ -164,16 +192,31 @@ public class SingleTask {
   }
 
   public void cancel() {
-    if (_taskAttempt != null) {
+    int retryCount = 0 ;
+    int maxRetry = ConfigUtils.getInt(_dynamicConfig, MAX_RETRY_WAITING_FOR_INIT_KEY, DEFAULT_MAX_RETRY_WAITING_FOR_INIT);
+
+    try {
+      _lock.lock();
       try {
+        while (_taskAttempt == null) {
+          // await return false if timeout on this around
+          if (!_taskAttemptBuilt.await(5, TimeUnit.SECONDS) && ++retryCount > maxRetry) {
+            throw new IllegalStateException("Failed to initialize taskAttempt object before cancel");
+          }
+        }
+      } finally {
+        _lock.unlock();
+      }
+
+      if (_taskAttempt != null) {
         _logger.info("Task cancelled: Shutdown starting for tasks with jobId: {}", _jobId);
         _taskAttempt.shutdownTasks();
         _logger.info("Task cancelled: Shutdown complete for tasks with jobId: {}", _jobId);
-      } catch (InterruptedException e) {
-        throw new RuntimeException("Interrupted while shutting down task with jobId: " + _jobId, e);
+      } else {
+        throw new IllegalStateException("TaskAttempt not initialized while passing conditional barrier");
       }
-    } else {
-      _logger.error("Task cancelled but _taskattempt is null, so ignoring.");
+    } catch (InterruptedException e) {
+      throw new RuntimeException("Interrupted while shutting down task with jobId: " + _jobId, e);
     }
   }
 }

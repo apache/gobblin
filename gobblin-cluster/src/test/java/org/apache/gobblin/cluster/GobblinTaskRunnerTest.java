@@ -19,8 +19,10 @@ package org.apache.gobblin.cluster;
 
 import java.io.IOException;
 import java.net.URL;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import org.apache.curator.test.TestingServer;
 import org.apache.hadoop.fs.FileSystem;
@@ -38,12 +40,16 @@ import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
+import com.google.common.eventbus.EventBus;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
+import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
 import org.apache.gobblin.cluster.suite.IntegrationBasicSuite;
 import org.apache.gobblin.testing.AssertWithBackoff;
+import org.apache.gobblin.util.event.ContainerHealthCheckFailureEvent;
+import org.apache.gobblin.util.eventbus.EventBusFactory;
 
 
 /**
@@ -68,9 +74,10 @@ public class GobblinTaskRunnerTest {
   private TestingServer testingZKServer;
 
   private GobblinTaskRunner gobblinTaskRunner;
+  private GobblinTaskRunner gobblinTaskRunnerHealthCheck;
+  private GobblinTaskRunner corruptGobblinTaskRunner;
 
   private GobblinClusterManager gobblinClusterManager;
-  private GobblinTaskRunner corruptGobblinTaskRunner;
   private String clusterName;
   private String corruptHelixInstance;
   private TaskAssignmentAfterConnectionRetry suite;
@@ -101,7 +108,14 @@ public class GobblinTaskRunnerTest {
     this.gobblinTaskRunner =
         new GobblinTaskRunner(TestHelper.TEST_APPLICATION_NAME, TestHelper.TEST_HELIX_INSTANCE_NAME,
             TestHelper.TEST_APPLICATION_ID, TestHelper.TEST_TASK_RUNNER_ID, config, Optional.<Path>absent());
-    this.gobblinTaskRunner.connectHelixManager();
+
+    // Participant
+    String healthCheckInstance = HelixUtils.getHelixInstanceName("HealthCheckHelixInstance", 0);
+    this.gobblinTaskRunnerHealthCheck =
+        new GobblinTaskRunner(TestHelper.TEST_APPLICATION_NAME, healthCheckInstance,
+            TestHelper.TEST_APPLICATION_ID, TestHelper.TEST_TASK_RUNNER_ID,
+            config.withValue(GobblinClusterConfigurationKeys.CONTAINER_EXIT_ON_HEALTH_CHECK_FAILURE_ENABLED, ConfigValueFactory.fromAnyRef(true))
+        , Optional.<Path>absent());
 
     // Participant with a partial Instance set up on Helix/ZK
     this.corruptHelixInstance = HelixUtils.getHelixInstanceName("CorruptHelixInstance", 0);
@@ -118,6 +132,8 @@ public class GobblinTaskRunnerTest {
 
   @Test
   public void testSendReceiveShutdownMessage() throws Exception {
+    this.gobblinTaskRunner.connectHelixManager();
+
     ExecutorService service = Executors.newSingleThreadExecutor();
     service.submit(() -> GobblinTaskRunnerTest.this.gobblinTaskRunner.start());
 
@@ -147,7 +163,6 @@ public class GobblinTaskRunnerTest {
     FileSystem fileSystem = this.gobblinTaskRunner.getFs();
     Assert.assertEquals(fileSystem.getConf().get(HADOOP_OVERRIDE_PROPERTY_NAME), "value");
   }
-
 
   @Test
   public void testConnectHelixManagerWithRetry() {
@@ -196,6 +211,38 @@ public class GobblinTaskRunnerTest {
     helixManager.disconnect();
   }
 
+  @Test (groups = {"disabledOnTravis"}, dependsOnMethods = "testSendReceiveShutdownMessage", expectedExceptions = ExecutionException.class, expectedExceptionsMessageRegExp = ".*ContainerHealthCheckException.*")
+  public void testShutdownOnHealthCheckFailure() throws Exception {
+    this.gobblinTaskRunnerHealthCheck.connectHelixManager();
+
+    ExecutorService service = Executors.newSingleThreadExecutor();
+    Future future = service.submit(() -> GobblinTaskRunnerTest.this.gobblinTaskRunnerHealthCheck.start());
+
+    Logger log = LoggerFactory.getLogger("testHandleContainerHealthCheckFailure");
+
+    // Give Helix some time to start the task runner
+    AssertWithBackoff.create().logger(log).timeoutMs(20000)
+        .assertTrue(new Predicate<Void>() {
+          @Override public boolean apply(Void input) {
+            return GobblinTaskRunnerTest.this.gobblinTaskRunnerHealthCheck.isStarted();
+          }
+        }, "gobblinTaskRunner started");
+
+    EventBus eventBus = EventBusFactory.get(ContainerHealthCheckFailureEvent.CONTAINER_HEALTH_CHECK_EVENT_BUS_NAME,
+        SharedResourcesBrokerFactory.getImplicitBroker());
+    eventBus.post(new ContainerHealthCheckFailureEvent(ConfigFactory.empty(), getClass().getName()));
+
+    // Give some time to allow GobblinTaskRunner to handle the ContainerHealthCheckFailureEvent
+    AssertWithBackoff.create().logger(log).timeoutMs(30000)
+        .assertTrue(new Predicate<Void>() {
+          @Override public boolean apply(Void input) {
+            return GobblinTaskRunnerTest.this.gobblinTaskRunnerHealthCheck.isStopped();
+          }
+        }, "gobblinTaskRunner stopped");
+
+    //Call Future#get() to check and ensure that ContainerHealthCheckException is thrown
+    future.get();
+  }
 
   public static class TaskAssignmentAfterConnectionRetry extends IntegrationBasicSuite {
     TaskAssignmentAfterConnectionRetry(Config jobConfigOverrides) {
@@ -223,6 +270,7 @@ public class GobblinTaskRunnerTest {
       this.gobblinClusterManager.disconnectHelixManager();
       this.gobblinTaskRunner.disconnectHelixManager();
       this.corruptGobblinTaskRunner.disconnectHelixManager();
+      this.gobblinTaskRunnerHealthCheck.disconnectHelixManager();
       if (this.suite != null) {
         this.suite.shutdownCluster();
       }

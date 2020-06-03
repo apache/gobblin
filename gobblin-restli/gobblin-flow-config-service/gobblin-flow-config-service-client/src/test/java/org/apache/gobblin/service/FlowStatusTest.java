@@ -28,7 +28,6 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import com.google.common.base.Joiner;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.inject.Binder;
@@ -38,7 +37,6 @@ import com.google.inject.Module;
 import com.google.inject.name.Names;
 import com.linkedin.restli.server.resources.BaseResource;
 
-import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.restli.EmbeddedRestliServer;
@@ -50,7 +48,6 @@ public class FlowStatusTest {
   private FlowStatusClient _client;
   private EmbeddedRestliServer _server;
   private List<List<org.apache.gobblin.service.monitoring.JobStatus>> _listOfJobStatusLists;
-  private Joiner messageJoiner;
 
   class TestJobStatusRetriever extends JobStatusRetriever {
     @Override
@@ -85,8 +82,6 @@ public class FlowStatusTest {
 
   @BeforeClass
   public void setUp() throws Exception {
-    ConfigBuilder configBuilder = ConfigBuilder.create();
-
     JobStatusRetriever jobStatusRetriever = new TestJobStatusRetriever();
     final FlowStatusGenerator flowStatusGenerator =
         FlowStatusGenerator.builder().jobStatusRetriever(jobStatusRetriever).build();
@@ -107,8 +102,6 @@ public class FlowStatusTest {
 
     _client =
         new FlowStatusClient(String.format("http://localhost:%s/", _server.getPort()));
-
-    messageJoiner = Joiner.on(FlowStatusResource.MESSAGE_SEPARATOR);
   }
 
   /**
@@ -134,7 +127,7 @@ public class FlowStatusTest {
         .processedCount(200).jobExecutionId(2).lowWatermark("watermark:2").highWatermark("watermark:3").build();
     org.apache.gobblin.service.monitoring.JobStatus fs2 = org.apache.gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1")
         .flowName("flow1").jobGroup(JobStatusRetriever.NA_KEY).jobName(JobStatusRetriever.NA_KEY).endTime(7000L)
-        .eventName(ExecutionStatus.COMPLETE.name()).flowExecutionId(1).build();
+        .eventName(ExecutionStatus.COMPLETE.name()).flowExecutionId(1).message("Flow message").build();
     List<org.apache.gobblin.service.monitoring.JobStatus> jobStatusList1 = Lists.newArrayList(js1, fs1);
     List<org.apache.gobblin.service.monitoring.JobStatus> jobStatusList2 = Lists.newArrayList(js2, js3, fs2);
     _listOfJobStatusLists = Lists.newArrayList();
@@ -148,7 +141,7 @@ public class FlowStatusTest {
     Assert.assertEquals(flowStatus.getId().getFlowName(), "flow1");
     Assert.assertEquals(flowStatus.getExecutionStatistics().getExecutionStartTime().longValue(), 1L);
     Assert.assertEquals(flowStatus.getExecutionStatistics().getExecutionEndTime().longValue(), 7000L);
-    Assert.assertEquals(flowStatus.getMessage(), messageJoiner.join(js2.getMessage(), js3.getMessage()));
+    Assert.assertEquals(flowStatus.getMessage(), fs2.getMessage());
     Assert.assertEquals(flowStatus.getExecutionStatus(), ExecutionStatus.COMPLETE);
 
     JobStatusArray jobStatuses = flowStatus.getJobStatuses();
@@ -189,7 +182,7 @@ public class FlowStatusTest {
         .processedCount(200).jobExecutionId(2).lowWatermark("watermark:2").highWatermark("watermark:3").build();
     org.apache.gobblin.service.monitoring.JobStatus fs1 = org.apache.gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1")
         .flowName("flow1").jobGroup(JobStatusRetriever.NA_KEY).jobName(JobStatusRetriever.NA_KEY).endTime(7000L)
-        .eventName(ExecutionStatus.COMPLETE.name()).flowExecutionId(0).build();
+        .eventName(ExecutionStatus.COMPLETE.name()).flowExecutionId(0).message("Flow message").build();
     List<org.apache.gobblin.service.monitoring.JobStatus> jobStatusList = Lists.newArrayList(js1, js2, fs1);
     _listOfJobStatusLists = Lists.newArrayList();
     _listOfJobStatusLists.add(jobStatusList);
@@ -201,7 +194,7 @@ public class FlowStatusTest {
     Assert.assertEquals(flowStatus.getId().getFlowName(), "flow1");
     Assert.assertEquals(flowStatus.getExecutionStatistics().getExecutionStartTime().longValue(), 0L);
     Assert.assertEquals(flowStatus.getExecutionStatistics().getExecutionEndTime().longValue(), 7000L);
-    Assert.assertEquals(flowStatus.getMessage(), messageJoiner.join(js1.getMessage(), js2.getMessage()));
+    Assert.assertEquals(flowStatus.getMessage(), fs1.getMessage());
     Assert.assertEquals(flowStatus.getExecutionStatus(), ExecutionStatus.COMPLETE);
 
     JobStatusArray jobStatuses = flowStatus.getJobStatuses();
@@ -232,7 +225,7 @@ public class FlowStatusTest {
         .processedCount(200).jobExecutionId(2).lowWatermark("watermark:2").highWatermark("watermark:3").build();
     org.apache.gobblin.service.monitoring.JobStatus fs1 = org.apache.gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1")
         .flowName("flow1").jobGroup(JobStatusRetriever.NA_KEY).jobName(JobStatusRetriever.NA_KEY)
-        .eventName(ExecutionStatus.RUNNING.name()).flowExecutionId(0).build();
+        .eventName(ExecutionStatus.RUNNING.name()).flowExecutionId(0).message("Flow message").build();
     List<org.apache.gobblin.service.monitoring.JobStatus> jobStatusList = Lists.newArrayList(js1, js2, fs1);
     _listOfJobStatusLists = Lists.newArrayList();
     _listOfJobStatusLists.add(jobStatusList);
@@ -244,7 +237,7 @@ public class FlowStatusTest {
     Assert.assertEquals(flowStatus.getId().getFlowName(), "flow1");
     Assert.assertEquals(flowStatus.getExecutionStatistics().getExecutionStartTime().longValue(), 0L);
     Assert.assertEquals(flowStatus.getExecutionStatistics().getExecutionEndTime().longValue(), 0L);
-    Assert.assertEquals(flowStatus.getMessage(), messageJoiner.join(js1.getMessage(), js2.getMessage()));
+    Assert.assertEquals(flowStatus.getMessage(), fs1.getMessage());
     Assert.assertEquals(flowStatus.getExecutionStatus(), ExecutionStatus.RUNNING);
 
     JobStatusArray jobStatuses = flowStatus.getJobStatuses();
@@ -275,7 +268,7 @@ public class FlowStatusTest {
         .processedCount(200).jobExecutionId(2).lowWatermark("watermark:2").highWatermark("watermark:3").build();
     org.apache.gobblin.service.monitoring.JobStatus fs1 = org.apache.gobblin.service.monitoring.JobStatus.builder().flowGroup("fgroup1")
         .flowName("flow1").jobGroup(JobStatusRetriever.NA_KEY).jobName(JobStatusRetriever.NA_KEY).endTime(7000L)
-        .eventName(ExecutionStatus.FAILED.name()).flowExecutionId(0).build();
+        .eventName(ExecutionStatus.FAILED.name()).flowExecutionId(0).message("Flow message").build();
     List<org.apache.gobblin.service.monitoring.JobStatus> jobStatusList = Lists.newArrayList(js1, js2, fs1);
     _listOfJobStatusLists = Lists.newArrayList();
     _listOfJobStatusLists.add(jobStatusList);
@@ -287,7 +280,7 @@ public class FlowStatusTest {
     Assert.assertEquals(flowStatus.getId().getFlowName(), "flow1");
     Assert.assertEquals(flowStatus.getExecutionStatistics().getExecutionStartTime().longValue(), 0L);
     Assert.assertEquals(flowStatus.getExecutionStatistics().getExecutionEndTime().longValue(), 7000L);
-    Assert.assertEquals(flowStatus.getMessage(), messageJoiner.join(js1.getMessage(), js2.getMessage()));
+    Assert.assertEquals(flowStatus.getMessage(), fs1.getMessage());
     Assert.assertEquals(flowStatus.getExecutionStatus(), ExecutionStatus.FAILED);
 
     JobStatusArray jobStatuses = flowStatus.getJobStatuses();

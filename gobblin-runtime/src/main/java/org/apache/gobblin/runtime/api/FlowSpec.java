@@ -34,8 +34,11 @@ import java.util.Properties;
 import java.util.Set;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -357,5 +360,56 @@ public class FlowSpec implements Configurable, Spec {
 
   public Boolean isExplain() {
     return ConfigUtils.getBoolean(getConfig(), ConfigurationKeys.FLOW_EXPLAIN_KEY, false);
+  }
+
+  public boolean isScheduled() {
+    return getConfig().hasPath(ConfigurationKeys.JOB_SCHEDULE_KEY);
+  }
+
+  @Slf4j
+  public static class Utils {
+    private final static String URI_SCHEME = "gobblin-flow";
+    private final static String URI_AUTHORITY = null;
+    private final static String URI_PATH_SEPARATOR = "/";
+    private final static String URI_QUERY = null;
+    private final static String URI_FRAGMENT = null;
+    private final static int EXPECTED_NUM_URI_PATH_TOKENS = 3;
+
+    public static URI createFlowSpecUri(FlowId flowId)
+        throws URISyntaxException {
+      return new URI(URI_SCHEME, URI_AUTHORITY, createUriPath(flowId), URI_QUERY, URI_FRAGMENT);
+    }
+
+    private static String createUriPath(FlowId flowId) {
+      return URI_PATH_SEPARATOR + flowId.getFlowGroup() + URI_PATH_SEPARATOR + flowId.getFlowName();
+    }
+
+    /**
+     * returns the flow name from the flowUri
+     * @param flowUri FlowUri
+     * @return null if the provided flowUri is not valid
+     */
+    public static String getFlowName(URI flowUri) {
+      String[] uriTokens = flowUri.getPath().split("/");
+      if (uriTokens.length != EXPECTED_NUM_URI_PATH_TOKENS) {
+        log.error("Invalid URI {}.", flowUri);
+        return null;
+      }
+      return uriTokens[EXPECTED_NUM_URI_PATH_TOKENS - 1];
+    }
+
+    /**
+     * returns the flow group from the flowUri
+     * @param flowUri FlowUri
+     * @return null if the provided flowUri is not valid
+     */
+    public static String getFlowGroup(URI flowUri) {
+      String[] uriTokens = flowUri.getPath().split("/");
+      if (uriTokens.length != EXPECTED_NUM_URI_PATH_TOKENS) {
+        log.error("Invalid URI {}.", flowUri);
+        return null;
+      }
+      return uriTokens[EXPECTED_NUM_URI_PATH_TOKENS - 2];
+    }
   }
 }

@@ -94,6 +94,16 @@ if (file("${project.projectDir}/src/main/idl").exists()) {
   artifacts {
     archives mainRestClientJar, restClientSourcesJar, restClientJavadocJar
   }
+
+  publishing.publications {
+      restClient(MavenPublication) {
+        artifactId restClientName
+        artifacts = [mainRestClientJar, restClientSourcesJar, restClientJavadocJar]
+        pom pomAttributes
+        pom.withXml addRuntimeDependenciesToPom
+      }
+  }
+  addPublicationToBintray("restClient")
 }
 
 install {
@@ -123,3 +133,13 @@ if (rootProject.ext.publishToMaven || rootProject.ext.publishToNexus) {
     }
   }
 }
+
+publishing.publications {
+    dataTemplate(MavenPublication) {
+      artifactId dataTemplateName
+      artifacts = [mainDataTemplateJar, dataTemplateSourcesJar, dataTemplateJavadocJar]
+      pom pomAttributes
+      pom.withXml addRuntimeDependenciesToPom
+    }
+}
+addPublicationToBintray("dataTemplate")

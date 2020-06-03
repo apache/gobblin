@@ -16,6 +16,7 @@
  */
 
 def modules = ['gobblin-admin',
+               'gobblin-all',
                'gobblin-api',
                'gobblin-compaction',
                'gobblin-config-management',

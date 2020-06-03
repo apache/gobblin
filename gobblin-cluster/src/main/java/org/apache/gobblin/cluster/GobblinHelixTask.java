@@ -19,9 +19,13 @@ package org.apache.gobblin.cluster;
 
 import java.util.Map;
 import java.util.concurrent.Callable;
-import java.util.concurrent.TimeUnit;
 
-import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.TaskState;
+import org.apache.gobblin.runtime.util.StateStores;
+import org.apache.gobblin.source.workunit.MultiWorkUnit;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.util.Id;
 import org.apache.gobblin.util.retry.RetryerFactory;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -41,14 +45,6 @@ import com.typesafe.config.ConfigValueFactory;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.runtime.TaskState;
-import org.apache.gobblin.runtime.util.StateStores;
-import org.apache.gobblin.source.workunit.MultiWorkUnit;
-import org.apache.gobblin.source.workunit.WorkUnit;
-import org.apache.gobblin.util.Id;
-
 
 /**
  * An implementation of Helix's {@link org.apache.helix.task.Task} that wraps and runs one or more Gobblin
@@ -65,7 +61,6 @@ import org.apache.gobblin.util.Id;
  *   a file that will be collected by the {@link GobblinHelixJobLauncher} later upon completion of the job.
  * </p>
  */
-@Alpha
 @Slf4j
 public class GobblinHelixTask implements Task {
 

@@ -47,7 +47,6 @@ import com.google.common.collect.Maps;
  * @author Yinan Li
  */
 public class YarnHelixUtils {
-
   /**
    * Write a {@link Token} to a given file.
    *
@@ -124,6 +123,13 @@ public class YarnHelixUtils {
         YarnConfiguration.DEFAULT_YARN_APPLICATION_CLASSPATH);
     if (classpaths != null) {
       for (String classpath : classpaths) {
+        Apps.addToEnvironment(
+            environmentVariableMap, ApplicationConstants.Environment.CLASSPATH.key(), classpath.trim());
+      }
+    }
+    String[] additionalClassPath = yarnConfiguration.getStrings(GobblinYarnConfigurationKeys.GOBBLIN_YARN_ADDITIONAL_CLASSPATHS);
+    if (additionalClassPath != null) {
+      for (String classpath : additionalClassPath) {
         Apps.addToEnvironment(
             environmentVariableMap, ApplicationConstants.Environment.CLASSPATH.key(), classpath.trim());
       }

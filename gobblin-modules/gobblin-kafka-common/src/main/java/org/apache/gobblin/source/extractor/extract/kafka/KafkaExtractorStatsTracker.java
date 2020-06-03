@@ -32,6 +32,7 @@ import com.google.common.base.Charsets;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
+import lombok.AccessLevel;
 import lombok.Data;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -94,6 +95,13 @@ public class KafkaExtractorStatsTracker {
   private List<KafkaPartition> partitions;
   private long maxPossibleLatency;
 
+  //Extractor stats aggregated across all partitions processed by the extractor.
+  @Getter (AccessLevel.PACKAGE)
+  @VisibleForTesting
+  private AggregateExtractorStats aggregateExtractorStats = new AggregateExtractorStats();
+  //Aggregate stats for the extractor derived from the most recently completed epoch
+  private AggregateExtractorStats lastAggregateExtractorStats;
+
   public KafkaExtractorStatsTracker(WorkUnitState state, List<KafkaPartition> partitions) {
     this.workUnitState = state;
     this.partitions = partitions;
@@ -144,7 +152,7 @@ public class KafkaExtractorStatsTracker {
   }
 
   /**
-   * A Java POJO that encapsulates various extractor stats.
+   * A Java POJO that encapsulates per-partition extractor stats.
    */
   @Data
   public static class ExtractorStats {
@@ -163,6 +171,21 @@ public class KafkaExtractorStatsTracker {
     private long lastSuccessfulRecordHeaderTimestamp;
     private long minLogAppendTime = -1L;
     private long maxLogAppendTime = -1L;
+  }
+
+  /**
+   * A Java POJO to track the aggregate extractor stats across all partitions processed by the extractor.
+   */
+  @Data
+  public static class AggregateExtractorStats {
+    private long maxIngestionLatency;
+    private long numBytesConsumed;
+    private long minStartFetchEpochTime = Long.MAX_VALUE;
+    private long maxStopFetchEpochTime;
+    private long minLogAppendTime = Long.MAX_VALUE;
+    private long maxLogAppendTime;
+    private long slaMissedRecordCount;
+    private long processedRecordCount;
   }
 
   /**
@@ -292,6 +315,31 @@ public class KafkaExtractorStatsTracker {
       return v;
     });
     onPartitionReadComplete(partitionIdx, readStartTime);
+    updateAggregateExtractorStats(partitionIdx);
+  }
+
+  private void updateAggregateExtractorStats(int partitionIdx) {
+    ExtractorStats partitionStats = this.statsMap.get(this.partitions.get(partitionIdx));
+
+    if (partitionStats.getStartFetchEpochTime() < aggregateExtractorStats.getMinStartFetchEpochTime()) {
+      aggregateExtractorStats.setMinStartFetchEpochTime(partitionStats.getStartFetchEpochTime());
+    }
+    if (partitionStats.getStopFetchEpochTime() > aggregateExtractorStats.getMaxStopFetchEpochTime()) {
+      aggregateExtractorStats.setMaxStopFetchEpochTime(partitionStats.getStopFetchEpochTime());
+    }
+    long partitionLatency = partitionStats.getStopFetchEpochTime() - partitionStats.getMinLogAppendTime();
+    if (aggregateExtractorStats.getMaxIngestionLatency() < partitionLatency) {
+      aggregateExtractorStats.setMaxIngestionLatency(partitionLatency);
+    }
+    if (aggregateExtractorStats.getMinLogAppendTime() > partitionStats.getMinLogAppendTime()) {
+      aggregateExtractorStats.setMinLogAppendTime(partitionStats.getMinLogAppendTime());
+    }
+    if (aggregateExtractorStats.getMaxLogAppendTime() < partitionStats.getMaxLogAppendTime()) {
+      aggregateExtractorStats.setMaxLogAppendTime(partitionStats.getMaxLogAppendTime());
+    }
+    aggregateExtractorStats.setProcessedRecordCount(aggregateExtractorStats.getProcessedRecordCount() + partitionStats.getProcessedRecordCount());
+    aggregateExtractorStats.setNumBytesConsumed(aggregateExtractorStats.getNumBytesConsumed() + partitionStats.getPartitionTotalSize());
+    aggregateExtractorStats.setSlaMissedRecordCount(aggregateExtractorStats.getSlaMissedRecordCount() + partitionStats.getSlaMissedRecordCount());
   }
 
   private Map<String, String> createTagsForPartition(int partitionId, MultiLongWatermark lowWatermark, MultiLongWatermark highWatermark, MultiLongWatermark nextWatermark) {
@@ -451,9 +499,31 @@ public class KafkaExtractorStatsTracker {
   }
 
   /**
+   * @param timeUnit the time unit for the ingestion latency.
+   * @return the maximum ingestion latency across all partitions processed by the extractor from the last
+   * completed epoch.
+   */
+  public long getMaxIngestionLatency(TimeUnit timeUnit) {
+    return timeUnit.convert(this.lastAggregateExtractorStats.getMaxIngestionLatency(), TimeUnit.MILLISECONDS);
+  }
+
+  /**
+   *
+   * @return the consumption rate in MB/s across all partitions processed by the extractor from the last
+   * completed epoch.
+   */
+  public double getConsumptionRateMBps() {
+    double consumptionDurationSecs = ((double) (this.lastAggregateExtractorStats.getMaxStopFetchEpochTime() - this.lastAggregateExtractorStats
+            .getMinStartFetchEpochTime())) / 1000;
+    return this.lastAggregateExtractorStats.getNumBytesConsumed() / (consumptionDurationSecs * (1024 * 1024L));
+  }
+
+  /**
    * Reset all KafkaExtractor stats.
    */
   public void reset() {
+    this.lastAggregateExtractorStats = this.aggregateExtractorStats;
+    this.aggregateExtractorStats = new AggregateExtractorStats();
     this.partitions.forEach(partition -> this.statsMap.put(partition, new ExtractorStats()));
     for (int partitionIdx = 0; partitionIdx < this.partitions.size(); partitionIdx++) {
       resetStartFetchEpochTime(partitionIdx);

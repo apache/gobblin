@@ -21,6 +21,9 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.FutureTask;
 
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
@@ -38,6 +41,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.base.Predicate;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigValueFactory;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -80,28 +84,49 @@ public class ClusterIntegrationTest {
 
   @Test
   void testJobShouldGetCancelled() throws Exception {
+    // Cancellation usually needs long time to successfully be executed, therefore setting the sleeping time to 100.
     Config jobConfigOverrides = ClusterIntegrationTestUtils.buildSleepingJob(IntegrationJobCancelSuite.JOB_ID,
-        IntegrationJobCancelSuite.TASK_STATE_FILE);
-    this.suite =new IntegrationJobCancelSuite(jobConfigOverrides);
+        IntegrationJobCancelSuite.TASK_STATE_FILE)
+        .withValue(SleepingTask.SLEEP_TIME_IN_SECONDS, ConfigValueFactory.fromAnyRef(100));
+    this.suite = new IntegrationJobCancelSuite(jobConfigOverrides);
     HelixManager helixManager = getHelixManager();
     suite.startCluster();
     helixManager.connect();
 
-    TaskDriver taskDriver = new TaskDriver(helixManager);
+    ExecutorService executor = Executors.newSingleThreadExecutor();
+    Runnable cancelAfterTaskInit = () -> {
+      try {
+        TaskDriver taskDriver = new TaskDriver(helixManager);
+        // The actual cancellation needs to be executed in separated thread to make the cancel of helix is not blocked by
+        // SleepingTask's thread in its own thread.
+        // Issue the cancel after ensuring the workflow is created and the SleepingTask is running
+        AssertWithBackoff.create().maxSleepMs(1000).backoffFactor(1).
+            assertTrue(isTaskStarted(helixManager, IntegrationJobCancelSuite.JOB_ID), "Waiting for the job to start...");
 
-    //Ensure that Helix has created a workflow
-    AssertWithBackoff.create().maxSleepMs(1000).backoffFactor(1).
-        assertTrue(isTaskStarted(helixManager, IntegrationJobCancelSuite.JOB_ID), "Waiting for the job to start...");
+        AssertWithBackoff.create().maxSleepMs(100).timeoutMs(2000).backoffFactor(1).
+            assertTrue(isTaskRunning(IntegrationJobCancelSuite.TASK_STATE_FILE),
+                "Waiting for the task to enter running state");
 
-    //Ensure that the SleepingTask is running
-    AssertWithBackoff.create().maxSleepMs(100).timeoutMs(2000).backoffFactor(1).
-        assertTrue(isTaskRunning(IntegrationJobCancelSuite.TASK_STATE_FILE),"Waiting for the task to enter running state");
+        log.info("Stopping the job");
+        taskDriver.stop(IntegrationJobCancelSuite.JOB_ID);
+        suite.shutdownCluster();
+      } catch (Exception e) {
+        throw new RuntimeException("Failure in canceling tasks");
+      }
+    };
 
-    log.info("Stopping the job");
-    taskDriver.stop(IntegrationJobCancelSuite.JOB_ID);
+    FutureTask<String> futureTask = new FutureTask<String>( cancelAfterTaskInit, "cancelled");
+    executor.submit(futureTask);
 
-    suite.shutdownCluster();
+    AssertWithBackoff assertWithBackoff = AssertWithBackoff.create().backoffFactor(1).maxSleepMs(1000).timeoutMs(500000);
+    assertWithBackoff.assertTrue(new Predicate<Void>() {
+      @Override
+      public boolean apply(Void input) {
+        return futureTask.isDone();
+      }
+    }, "waiting for future to complete");
 
+    Assert.assertEquals(futureTask.get(), "cancelled");
     suite.waitForAndVerifyOutputFiles();
   }
 
