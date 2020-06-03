@@ -54,6 +54,10 @@ dependencies {
   compile project(':gobblin-hive-registration')
   compile project(':gobblin-modules:gobblin-http')
   compile project(':gobblin-modules:gobblin-kafka-08')
+  //gobblin-kafka-09 is blacklisted for jacocoBuilds. check settings.xml
+  if (System.getProperty('jacocoBuild') == null) {
+    compile project(':gobblin-modules:gobblin-kafka-09')
+  }
   compile project(':gobblin-modules:gobblin-kafka-common')
   compile project(':gobblin-modules:gobblin-metadata')
   compile project(':gobblin-metastore')
