@@ -25,7 +25,8 @@ dependencies {
     runtimeOnly project(":gobblin-modules:gobblin-kafka-08")
     runtimeOnly project(":gobblin-modules:gobblin-eventhub")
     compile project(":gobblin-modules:gobblin-http")
-    compile project(":gobblin-modules:gobblin-parquet")
+    // GOBBLIN-1180 gobblin-parquet has dependency resolution issues in maven central
+    compile project(":gobblin-modules:gobblin-parquet-apache")
     compile externalDependency.avro
     compile externalDependency.commonsLang3
     compile externalDependency.guava

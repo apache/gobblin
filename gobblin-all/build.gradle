@@ -39,7 +39,6 @@ dependencies {
   compile project(':gobblin-modules:gobblin-crypto')
   compile project(':gobblin-modules:gobblin-crypto-provider')
   compile project(':gobblin-data-management')
-  compile project(':gobblin-distribution')
   compile project(':gobblin-modules:gobblin-elasticsearch')
   compile project(':gobblin-modules:gobblin-elasticsearch-deps')
   compile project(':gobblin-modules:gobblin-eventhub')
@@ -55,6 +54,10 @@ dependencies {
   compile project(':gobblin-hive-registration')
   compile project(':gobblin-modules:gobblin-http')
   compile project(':gobblin-modules:gobblin-kafka-08')
+  //gobblin-kafka-09 is blacklisted for jacocoBuilds. check settings.xml
+  if (System.getProperty('jacocoBuild') == null) {
+    compile project(':gobblin-modules:gobblin-kafka-09')
+  }
   compile project(':gobblin-modules:gobblin-kafka-common')
   compile project(':gobblin-modules:gobblin-metadata')
   compile project(':gobblin-metastore')
@@ -65,7 +68,6 @@ dependencies {
   compile project(':gobblin-modules:gobblin-metrics-influxdb')
   compile project(':gobblin-metrics-libs')
   compile project(':gobblin-modules:gobblin-orc-dep')
-  compile project(':gobblin-modules:gobblin-parquet')
   compile project(':gobblin-modules:gobblin-parquet-apache')
   compile project(':gobblin-modules:gobblin-parquet-common')
   compile project(':gobblin-rest-service:gobblin-rest-api')

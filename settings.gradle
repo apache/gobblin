@@ -55,7 +55,7 @@ modules.each { module ->
   include "${module}"
   file(module).eachDir { submodule ->
     if (!submodule.name.startsWith('.') && !submodule.name.equals('src') && !submodule.name.equals('bin')
-          && !submodule.name.equals('test-output')) {
+          && !submodule.name.equals('test-output') && !submodule.name.equals('jobconf')) {
         def submoduleId = "${module}:${submodule.name}"
         if (System.getProperty('jacocoBuild') == null || !jacocoBlacklist.contains(submoduleId.toString())) {
             include submoduleId
