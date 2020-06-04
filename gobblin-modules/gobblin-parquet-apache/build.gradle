@@ -24,7 +24,11 @@ dependencies {
   compile externalDependency.gson
   compile externalDependency.parquet
   compile externalDependency.parquetAvro
-  compile externalDependency.parquetProto
+
+  //parquet 1.10.1 is not resolvable from Central
+  //to make gobblin-parquet-apache resolvable from Central we need to use compileOnly declaration:
+  compileOnly externalDependency.parquetProto
+  testCompile configurations.compileOnly
 
   testCompile externalDependency.testng
   testCompile externalDependency.mockito
