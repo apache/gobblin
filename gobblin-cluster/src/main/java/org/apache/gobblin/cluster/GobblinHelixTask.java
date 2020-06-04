@@ -17,15 +17,20 @@
 
 package org.apache.gobblin.cluster;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.Callable;
 
+import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.TaskCreationException;
 import org.apache.gobblin.runtime.TaskState;
 import org.apache.gobblin.runtime.util.StateStores;
 import org.apache.gobblin.source.workunit.MultiWorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.Id;
+import org.apache.gobblin.util.event.ContainerHealthCheckFailureEvent;
+import org.apache.gobblin.util.eventbus.EventBusFactory;
 import org.apache.gobblin.util.retry.RetryerFactory;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -39,8 +44,10 @@ import org.slf4j.MDC;
 
 import com.github.rholder.retry.Retryer;
 import com.google.common.base.Throwables;
+import com.google.common.eventbus.EventBus;
 import com.google.common.io.Closer;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
 import lombok.extern.slf4j.Slf4j;
@@ -77,6 +84,7 @@ public class GobblinHelixTask implements Task {
   private GobblinHelixTaskMetrics taskMetrics;
   private SingleTask task;
   private String helixTaskId;
+  private EventBus eventBus;
 
   public GobblinHelixTask(TaskRunnerSuiteBase.Builder builder,
                           TaskCallbackContext taskCallbackContext,
@@ -116,6 +124,9 @@ public class GobblinHelixTask implements Task {
     Retryer<SingleTask> retryer = RetryerFactory.newInstance(builder.getConfig());
 
     try {
+      eventBus = EventBusFactory.get(ContainerHealthCheckFailureEvent.CONTAINER_HEALTH_CHECK_EVENT_BUS_NAME,
+          SharedResourcesBrokerFactory.getImplicitBroker());
+
       this.task = retryer.call(new Callable<SingleTask>() {
         @Override
         public SingleTask call()
@@ -158,6 +169,12 @@ public class GobblinHelixTask implements Task {
       log.error("Actual task {} interrupted.", this.taskId);
       this.taskMetrics.helixTaskTotalFailed.incrementAndGet();
       return new TaskResult(TaskResult.Status.CANCELED, "");
+    } catch (TaskCreationException te) {
+      eventBus.post(createTaskCreationEvent());
+      log.error("Actual task {} failed in creation due to {}, will request new container to schedule it",
+          this.taskId, te.getMessage());
+      this.taskMetrics.helixTaskTotalCancelled.incrementAndGet();
+      return new TaskResult(TaskResult.Status.FAILED, Throwables.getStackTraceAsString(te));
     } catch (Throwable t) {
       log.error("Actual task {} failed due to {}", this.taskId, t.getMessage());
       this.taskMetrics.helixTaskTotalCancelled.incrementAndGet();
@@ -166,6 +183,18 @@ public class GobblinHelixTask implements Task {
       this.taskMetrics.helixTaskTotalRunning.decrementAndGet();
       this.taskMetrics.updateTimeForTaskExecution(startTime);
     }
+  }
+
+  private ContainerHealthCheckFailureEvent createTaskCreationEvent() {
+    ContainerHealthCheckFailureEvent event = new ContainerHealthCheckFailureEvent(
+        ConfigFactory.parseMap(this.taskConfig.getConfigMap()) , getClass().getName());
+    event.addMetadata("jobName", this.jobName);
+    event.addMetadata("AppName", this.applicationName);
+    event.addMetadata("InstanceName", this.instanceName);
+    event.addMetadata("helixJobId", this.helixJobId);
+    event.addMetadata("helixTaskId", this.helixTaskId);
+    event.addMetadata("WUPath", this.workUnitFilePath.toString());
+    return event;
   }
 
   private Integer getPartitionForHelixTask(TaskDriver taskDriver) {
