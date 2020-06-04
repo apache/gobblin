@@ -24,5 +24,4 @@
 set -e
 
 echo "Starting $0 at " $(date)
-echo "Running gobblin-api build"
-time ./gradlew clean gobblin-api:build -x test -x javadoc -Dorg.gradle.parallel=true $GOBBLIN_GRADLE_OPTS
+time ./gradlew clean build -x test -x javadoc -Dorg.gradle.parallel=true $GOBBLIN_GRADLE_OPTS
