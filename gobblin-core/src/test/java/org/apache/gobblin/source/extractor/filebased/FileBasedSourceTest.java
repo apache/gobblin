@@ -104,6 +104,17 @@ public class FileBasedSourceTest {
     Assert.assertEquals(3, workUnits.size());
   }
 
+  @Test(expectedExceptions = RuntimeException.class)
+  public void testFailOnInvalidSourceDirectory() {
+    SourceState sourceState = new SourceState();
+    sourceState.setBroker(jobBroker);
+    AvroFileSource source = new AvroFileSource();
+    initState(sourceState);
+    Path path = new Path(sourceDir, "testFailOnInvalidSourceDirectory");
+    sourceState.setProp(ConfigurationKeys.SOURCE_FILEBASED_DATA_DIRECTORY, path.toString());
+    source.getWorkunits(sourceState);
+  }
+
   @Test
   public void testSourceLineage() {
     String dataset = Path.getPathWithoutSchemeAndAuthority(sourceDir).toString();

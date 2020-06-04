@@ -264,7 +264,7 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
    * directory
    */
   public List<String> getcurrentFsSnapshot(State state) {
-    List<String> results = new ArrayList<>();
+    List<String> results;
     String path = getLsPattern(state);
 
     try {
@@ -280,8 +280,10 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
         results.set(i, filePath + this.splitPattern + this.fsHelper.getFileMTime(filePath));
       }
     } catch (FileBasedHelperException | URISyntaxException e) {
-      log.error("Not able to fetch the filename/file modified time to " + e.getMessage() + " will not pull any files",
-          e);
+      String errMsg = String.format(
+          "Not able to fetch the filename/file modified time to %s. Will not pull any files", e.getMessage());
+      log.error(errMsg, e);
+      throw new RuntimeException(errMsg, e);
     }
     return results;
   }
