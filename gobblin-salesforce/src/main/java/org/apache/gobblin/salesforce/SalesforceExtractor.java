@@ -100,8 +100,6 @@ public class SalesforceExtractor extends RestApiExtractor {
   private static final String SALESFORCE_SOAP_SERVICE = "/services/Soap/u";
   private static final Gson GSON = new Gson();
   private static final int MAX_RETRY_INTERVAL_SECS = 600;
-  private static final String FETCH_RETRY_LIMIT_KEY = "salesforce.fetchRetryLimit";
-  private static final boolean DEFAULT_BULK_API_USE_QUERY_ALL = false;
 
   private boolean pullStatus = true;
   private String nextUrl;
@@ -120,20 +118,20 @@ public class SalesforceExtractor extends RestApiExtractor {
   private final long retryExceedQuotaInterval;
 
   private final boolean bulkApiUseQueryAll;
+  private SfConfig conf;
 
 
   public SalesforceExtractor(WorkUnitState state) {
     super(state);
+    conf = new SfConfig(state.getProperties());
 
     this.sfConnector = (SalesforceConnector) this.connector;
-    this.pkChunkingSize =
-        Math.max(MIN_PK_CHUNKING_SIZE,
-            Math.min(MAX_PK_CHUNKING_SIZE, workUnitState.getPropAsInt(PARTITION_PK_CHUNKING_SIZE, DEFAULT_PK_CHUNKING_SIZE)));
+    this.pkChunkingSize = conf.pkChunkingSize;
 
-    this.bulkApiUseQueryAll = workUnitState.getPropAsBoolean(BULK_API_USE_QUERY_ALL, DEFAULT_BULK_API_USE_QUERY_ALL);
-    this.retryLimit = workUnitState.getPropAsInt(FETCH_RETRY_LIMIT_KEY, DEFAULT_FETCH_RETRY_LIMIT);
     this.retryInterval = workUnitState.getPropAsLong(RETRY_INTERVAL, RETRY_INTERVAL_DEFAULT);
     this.retryExceedQuotaInterval = workUnitState.getPropAsLong(RETRY_EXCEED_QUOTA_INTERVAL, RETRY_EXCEED_QUOTA_INTERVAL_DEFAULT);
+    this.bulkApiUseQueryAll = conf.bulkApiUseQueryAll;
+    this.retryLimit = conf.fetchRetryLimit;
   }
 
   @Override
