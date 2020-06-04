@@ -24,7 +24,8 @@ dependencies {
   compile externalDependency.gson
   compile externalDependency.parquet
   compile externalDependency.parquetAvro
-  compile externalDependency.parquetProto
+  compileOnly externalDependency.parquetProto
+  testCompile externalDependency.parquetProto
 
   testCompile externalDependency.testng
   testCompile externalDependency.mockito
