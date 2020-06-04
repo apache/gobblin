@@ -89,7 +89,11 @@ public class TaskErrorIntegrationTest extends BMNGRunner {
     // Disable retry
     jobProperties.setProperty(RETRY_TIMES, "1");
 
-    GobblinLocalJobLauncherUtils.invokeLocalJobLauncher(jobProperties);
+    try {
+      GobblinLocalJobLauncherUtils.invokeLocalJobLauncher(jobProperties);
+    } catch (Exception e){
+      // Expecting to get exception, do nothing
+    }
 
     Assert.assertTrue(testAppender.events.stream().anyMatch(e -> e.getRenderedMessage()
         .startsWith("Could not create task for workunit")));
@@ -143,7 +147,11 @@ public class TaskErrorIntegrationTest extends BMNGRunner {
     jobProperties.setProperty(ConfigurationKeys.SOURCE_CLASS_KEY, BaseTestSource.class.getName());
     jobProperties.setProperty(TestExtractor.RAISE_ERROR, "false");
 
-    GobblinLocalJobLauncherUtils.invokeLocalJobLauncher(jobProperties);
+    try {
+      GobblinLocalJobLauncherUtils.invokeLocalJobLauncher(jobProperties);
+    } catch (Exception e){
+      // Expect to get exception, do nothing
+    }
 
     Assert.assertTrue(testAppender.events.stream().anyMatch(e -> e.getRenderedMessage()
         .startsWith("Could not submit task for workunit")));
@@ -164,8 +172,12 @@ public class TaskErrorIntegrationTest extends BMNGRunner {
     jobProperties.setProperty(RETRY_TIMES, "1");
     jobProperties.setProperty(RETRY_TYPE, RetryerFactory.RetryType.FIXED_ATTEMPT.name());
 
-    GobblinLocalJobLauncherUtils.invokeLocalJobLauncher(jobProperties);
-    Assert.assertTrue(testAppender.events.stream().anyMatch(e -> e.getRenderedMessage().contains("Encountering memory error")));
+    try {
+      GobblinLocalJobLauncherUtils.invokeLocalJobLauncher(jobProperties);
+    } catch (Throwable t){
+      // Expect to get exception, do nothing
+    }
+    Assert.assertTrue(testAppender.events.stream().anyMatch(e -> e.getRenderedMessage().contains("Could not create task for workunit")));
     logger.removeAppender(testAppender);
   }
 
