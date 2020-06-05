@@ -17,11 +17,14 @@
 
 package org.apache.gobblin.yarn;
 
+import com.typesafe.config.Config;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
 
+import org.apache.commons.lang3.StringUtils;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -136,6 +139,13 @@ public class YarnHelixUtils {
     }
 
     return environmentVariableMap;
+  }
+
+  public static void setAdditionalYarnClassPath(Config config, Configuration yarnConfiguration) {
+    if (!ConfigUtils.emptyIfNotPresent(config, GobblinYarnConfigurationKeys.GOBBLIN_YARN_ADDITIONAL_CLASSPATHS).equals(
+        StringUtils.EMPTY)){
+      yarnConfiguration.setStrings(GobblinYarnConfigurationKeys.GOBBLIN_YARN_ADDITIONAL_CLASSPATHS, config.getString(GobblinYarnConfigurationKeys.GOBBLIN_YARN_ADDITIONAL_CLASSPATHS));
+    }
   }
 
   /**

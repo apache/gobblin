@@ -47,6 +47,8 @@ public class GobblinYarnConfigurationKeys {
   public static final String APP_MASTER_WORK_DIR_NAME = "appmaster";
   public static final String APP_MASTER_JVM_ARGS_KEY = GOBBLIN_YARN_PREFIX + "app.master.jvm.args";
   public static final String APP_MASTER_SERVICE_CLASSES = GOBBLIN_YARN_PREFIX + "app.master.serviceClasses";
+  public static final String APP_MASTER_MAX_ATTEMPTS_KEY = GOBBLIN_YARN_PREFIX + "app.master.max.attempts";
+  public static final int DEFAULT_APP_MASTER_MAX_ATTEMPTS_KEY = 10;
   // Amount of overhead to subtract when computing the Xmx value. This is to account for non-heap memory, like metaspace
   // and stack memory
   public static final String APP_MASTER_JVM_MEMORY_OVERHEAD_MBS_KEY = GOBBLIN_YARN_PREFIX + "app.master.jvmMemoryOverheadMbs";
