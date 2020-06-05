@@ -85,7 +85,7 @@ configurations {
     }
   }
 }
-
+// Generates a maven test artifact (gobblin-cluster-test)
 project.publishing {
   publications {
     testsPub(MavenPublication) {
