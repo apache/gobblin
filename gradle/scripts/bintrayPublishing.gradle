@@ -60,7 +60,7 @@ subprojects{
             def dependenciesNode = it.asNode().dependencies[0]
             def removed = [] as Set; def added = [] //helps auditing
             configurations.runtime.allDependencies.each { d ->
-              def confToPom = ['restClient': 'rest-client', 'dataTemplate': 'data-template']
+              def confToPom = ['restClient': 'rest-client', 'dataTemplate': 'data-template', 'tests': 'test']
               if (d instanceof ProjectDependency && confToPom.containsKey(d.targetConfiguration)) {
                 boolean dependsOnMainModule = configurations.runtime.allDependencies.any {
                   it.name == d.name && it.targetConfiguration == 'default'

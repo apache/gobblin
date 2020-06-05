@@ -89,7 +89,7 @@ configurations {
 project.publishing {
   publications {
     testsPub(MavenPublication) {
-      artifactId "test-${project.archivesBaseName}"
+      artifactId "${project.archivesBaseName}-test"
       artifacts = [testJar]
       pom pomAttributes
       pom.withXml addRuntimeDependenciesToPom

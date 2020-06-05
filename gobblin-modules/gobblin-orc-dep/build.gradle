@@ -71,14 +71,12 @@ jar {
   classifier "thin"
 }
 
-publishing {
-  publications {
+publishing.publications {
     shadowPub(MavenPublication) {
       artifacts = [shadowJar]
       pom pomAttributes
       pom.withXml addRuntimeDependenciesToPom
     }
-  }
 }
 project.bintray.publications = ["shadowPub"]
 
