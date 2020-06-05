@@ -27,6 +27,7 @@ dependencies {
   compile project(':gobblin-modules:gobblin-azure-datalake')
   compile project(':gobblin-binary-management')
   compile project(':gobblin-cluster')
+  compile project(path: ':gobblin-cluster', configuration: 'tests')
   compile project(':gobblin-modules:gobblin-codecs')
   compile project(':gobblin-compaction')
   compile project(':gobblin-modules:gobblin-compliance')

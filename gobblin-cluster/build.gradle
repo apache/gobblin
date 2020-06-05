@@ -61,7 +61,7 @@ dependencies {
 }
 
 task testJar(type: Jar, dependsOn: testClasses) {
-  baseName = "test-${project.archivesBaseName}"
+  baseName = "${project.archivesBaseName}-test"
   from sourceSets.test.output
 }
 
@@ -85,11 +85,11 @@ configurations {
     }
   }
 }
-
+// Generates a maven test artifact (gobblin-cluster-test)
 project.publishing {
   publications {
     testsPub(MavenPublication) {
-      artifactId "test-${project.archivesBaseName}"
+      artifactId "${project.archivesBaseName}-test"
       artifacts = [testJar]
       pom pomAttributes
       pom.withXml addRuntimeDependenciesToPom

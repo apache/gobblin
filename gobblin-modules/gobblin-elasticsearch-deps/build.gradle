@@ -42,10 +42,27 @@ configurations {
     exclude group: "com.sun.jersey.contribs"
   }
 }
-
+// changed classifier of shadow Jar to ""
+// to make it the main jar since shadow jar is only used
+// This will override the main jar on ./gradlew build
 shadowJar {
   zip64 true
+  classifier ""
   relocate 'com.google.common', 'shadow.gobblin.elasticsearch.com.google.common'
 }
 
+// assigning a different classifier to the main jar
+// so that it does not override the shadow jar
+jar {
+  classifier "thin"
+}
+
+publishing.publications {
+  shadowPub(MavenPublication) {
+    artifacts = [shadowJar]
+    pom pomAttributes
+    pom.withXml addRuntimeDependenciesToPom
+  }
+}
+project.bintray.publications = ["shadowPub"]
 ext.classification="library"
