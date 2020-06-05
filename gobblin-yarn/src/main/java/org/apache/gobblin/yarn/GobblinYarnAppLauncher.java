@@ -37,6 +37,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.avro.Schema;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.commons.mail.EmailException;
 import org.apache.hadoop.conf.Configuration;
@@ -251,6 +252,7 @@ public class GobblinYarnAppLauncher {
         InstanceType.SPECTATOR, zkConnectionString);
 
     this.yarnConfiguration = yarnConfiguration;
+    YarnHelixUtils.setAdditionalYarnClassPath(config, this.yarnConfiguration);
     this.yarnConfiguration.set("fs.automatic.close", "false");
     this.yarnClient = YarnClient.createYarnClient();
     this.yarnClient.init(this.yarnConfiguration);
@@ -601,6 +603,7 @@ public class GobblinYarnAppLauncher {
     YarnClientApplication gobblinYarnApp = this.yarnClient.createApplication();
     ApplicationSubmissionContext appSubmissionContext = gobblinYarnApp.getApplicationSubmissionContext();
     appSubmissionContext.setApplicationType(GOBBLIN_YARN_APPLICATION_TYPE);
+    appSubmissionContext.setMaxAppAttempts(ConfigUtils.getInt(config, GobblinYarnConfigurationKeys.APP_MASTER_MAX_ATTEMPTS_KEY, GobblinYarnConfigurationKeys.DEFAULT_APP_MASTER_MAX_ATTEMPTS_KEY));
     ApplicationId applicationId = appSubmissionContext.getApplicationId();
 
     GetNewApplicationResponse newApplicationResponse = gobblinYarnApp.getNewApplicationResponse();
@@ -629,6 +632,7 @@ public class GobblinYarnAppLauncher {
     appSubmissionContext.setQueue(this.appQueueName);
     appSubmissionContext.setPriority(Priority.newInstance(0));
     appSubmissionContext.setAMContainerSpec(amContainerLaunchContext);
+    appSubmissionContext.setMaxAppAttempts();
     // Also setup container local resources by copying local jars and files the container need to HDFS
     addContainerLocalResources(applicationId);
 

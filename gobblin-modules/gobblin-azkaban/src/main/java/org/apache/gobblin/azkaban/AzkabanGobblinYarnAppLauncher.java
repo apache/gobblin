@@ -94,8 +94,9 @@ public class AzkabanGobblinYarnAppLauncher extends AbstractJob {
   /**
    * Extended class can override this method by providing their own YARN configuration.
    */
-  protected YarnConfiguration initYarnConf(Properties gobblinProps) {
-    return new YarnConfiguration();
+  public static YarnConfiguration initYarnConf(Properties gobblinProps) {
+    YarnConfiguration yarnConfiguration= new YarnConfiguration();
+
   }
 
   @Override
