@@ -632,7 +632,6 @@ public class GobblinYarnAppLauncher {
     appSubmissionContext.setQueue(this.appQueueName);
     appSubmissionContext.setPriority(Priority.newInstance(0));
     appSubmissionContext.setAMContainerSpec(amContainerLaunchContext);
-    appSubmissionContext.setMaxAppAttempts();
     // Also setup container local resources by copying local jars and files the container need to HDFS
     addContainerLocalResources(applicationId);
 
