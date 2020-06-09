@@ -122,6 +122,6 @@ public abstract class CleanableDatasetBase<T extends FileSystemDatasetVersion>
   @Override
   public List<VersionFinderAndPolicy<T>> getVersionFindersAndPolicies() {
     return ImmutableList
-        .<VersionFinderAndPolicy<T>> of(new VersionFinderAndPolicy<>(getRetentionPolicy(), getVersionFinder()));
+        .<VersionFinderAndPolicy<T>> of(new VersionFinderAndPolicy<>(getRetentionPolicy(), getVersionFinder(), null));
   }
 }
