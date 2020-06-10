@@ -64,7 +64,7 @@ public class KafkaIngestionHealthCheckTest {
     Mockito.when(extractorStatsTracker.getMaxIngestionLatency(TimeUnit.MINUTES))
         .thenReturn(6L)
         .thenReturn(7L)
-        .thenReturn(10L)
+        .thenReturn(7L)
         .thenReturn(5L);
     Mockito.when(extractorStatsTracker.getConsumptionRateMBps())
         .thenReturn(2.0)
