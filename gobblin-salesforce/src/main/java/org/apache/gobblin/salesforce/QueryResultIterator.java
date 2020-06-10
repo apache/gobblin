@@ -65,10 +65,6 @@ public class QueryResultIterator implements Iterator<JsonElement> {
     if (queryResultIter == null) {
       initQueryResultIter();
     }
-    if (!queryResultIter.hasNext()) {
-      // no more data, print out total
-      log.info("Rest API query records total:{}", recordCount);
-    }
     return queryResultIter.hasNext();
   }
 
@@ -85,11 +81,12 @@ public class QueryResultIterator implements Iterator<JsonElement> {
     if (queryResultIter == null) {
       initQueryResultIter();
     }
+    JsonElement jsonElement = queryResultIter.next();
     recordCount ++;
     if (!queryResultIter.hasNext()) {
-      // no more data, print out total
-      log.info("Rest API query records total:{}", recordCount);
+      // variable `jsonElement` has last record. no more data, print out total
+      log.info("----Rest API query records total:{}----", recordCount);
     }
-    return queryResultIter.next();
+    return jsonElement;
   }
 }
