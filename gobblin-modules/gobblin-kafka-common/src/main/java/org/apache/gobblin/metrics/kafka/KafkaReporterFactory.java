@@ -30,6 +30,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.CustomCodahaleReporterFactory;
 import org.apache.gobblin.metrics.KafkaReportingFormats;
+import org.apache.gobblin.metrics.MetricReporterException;
+import org.apache.gobblin.metrics.ReporterSinkType;
+import org.apache.gobblin.metrics.ReporterType;
 import org.apache.gobblin.metrics.RootMetricContext;
 import org.apache.gobblin.metrics.reporter.util.KafkaReporterUtils;
 
@@ -37,7 +40,8 @@ import org.apache.gobblin.metrics.reporter.util.KafkaReporterUtils;
 @Slf4j
 public class KafkaReporterFactory implements CustomCodahaleReporterFactory {
   @Override
-  public ScheduledReporter newScheduledReporter(MetricRegistry registry, Properties properties) {
+  public ScheduledReporter newScheduledReporter(MetricRegistry registry, Properties properties)
+      throws IOException {
     if (!Boolean.valueOf(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_ENABLED_KEY,
         ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_ENABLED))) {
       return null;
@@ -63,8 +67,7 @@ public class KafkaReporterFactory implements CustomCodahaleReporterFactory {
           "Kafka metrics brokers missing.");
       Preconditions.checkArgument(KafkaReporterUtils.getMetricsTopic(properties).or(eventsTopic).or(defaultTopic).isPresent(), "Kafka topic missing.");
     } catch (IllegalArgumentException exception) {
-      log.error("Not reporting metrics to Kafka due to missing Kafka configuration(s).", exception);
-      return null;
+      throw new MetricReporterException("Missing Kafka configuration(s).", exception, ReporterType.METRIC, ReporterSinkType.KAFKA);
     }
 
     String brokers = properties.getProperty(ConfigurationKeys.METRICS_KAFKA_BROKERS);
@@ -87,7 +90,7 @@ public class KafkaReporterFactory implements CustomCodahaleReporterFactory {
       try {
         formatEnum.buildMetricsReporter(brokers, metricsTopic.or(defaultTopic).get(), properties);
       } catch (IOException exception) {
-        log.error("Failed to create Kafka metrics reporter. Will not report metrics to Kafka.", exception);
+        throw new MetricReporterException("Failed to create Kafka metrics reporter.", exception, ReporterType.METRIC, ReporterSinkType.KAFKA);
       }
     }
 
@@ -115,7 +118,7 @@ public class KafkaReporterFactory implements CustomCodahaleReporterFactory {
 
         return reporter;
       } catch (IOException exception) {
-        log.error("Failed to create Kafka events reporter. Will not report events to Kafka.", exception);
+        throw new MetricReporterException("Failed to create Kafka events reporter.", exception, ReporterType.EVENT, ReporterSinkType.KAFKA);
       }
     }
 

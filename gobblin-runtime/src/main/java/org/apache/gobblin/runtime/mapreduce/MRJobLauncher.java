@@ -74,6 +74,9 @@ import org.apache.gobblin.fsm.FiniteStateMachine;
 import org.apache.gobblin.metastore.FsStateStore;
 import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.MetricReporterException;
+import org.apache.gobblin.metrics.MultiReporterException;
+import org.apache.gobblin.metrics.ReporterType;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.metrics.event.CountEventBuilder;
 import org.apache.gobblin.metrics.event.JobEvent;
@@ -783,8 +786,26 @@ public class MRJobLauncher extends AbstractJobLauncher {
       if (Boolean.valueOf(
           configuration.get(ConfigurationKeys.METRICS_ENABLED_KEY, ConfigurationKeys.DEFAULT_METRICS_ENABLED))) {
         this.jobMetrics = Optional.of(JobMetrics.get(this.jobState));
-        this.jobMetrics.get()
-            .startMetricReportingWithFileSuffix(gobblinJobState, context.getTaskAttemptID().toString());
+        try {
+          this.jobMetrics.get()
+              .startMetricReportingWithFileSuffix(gobblinJobState, context.getTaskAttemptID().toString());
+        } catch (MultiReporterException ex) {
+          //Fail the task if metric/event reporting failure is configured to be fatal.
+          boolean isMetricReportingFailureFatal = Boolean.valueOf(configuration
+              .get(ConfigurationKeys.GOBBLIN_TASK_METRIC_REPORTING_FAILURE_FATAL,
+                  Boolean.toString(ConfigurationKeys.DEFAULT_GOBBLIN_TASK_METRIC_REPORTING_FAILURE_FATAL)));
+          boolean isEventReportingFailureFatal = Boolean.valueOf(configuration
+              .get(ConfigurationKeys.GOBBLIN_TASK_EVENT_REPORTING_FAILURE_FATAL,
+                  Boolean.toString(ConfigurationKeys.DEFAULT_GOBBLIN_TASK_EVENT_REPORTING_FAILURE_FATAL)));
+          for (MetricReporterException e : ex.getExceptions()) {
+            if ((isMetricReportingFailureFatal && e.getReporterType().equals(ReporterType.METRIC)) || (
+                isEventReportingFailureFatal && e.getReporterType().equals(ReporterType.EVENT))) {
+              throw new RuntimeException(e);
+            } else {
+              LOG.error("Failed to start {} {} reporter", e.getSinkType().name(), e.getReporterType().name(), e);
+            }
+          }
+        }
       }
     }
 

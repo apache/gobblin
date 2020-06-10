@@ -21,25 +21,52 @@ import java.util.Properties;
 
 import com.google.common.util.concurrent.AbstractIdleService;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.MetricReporterException;
+import org.apache.gobblin.metrics.MultiReporterException;
+import org.apache.gobblin.metrics.ReporterType;
+import org.apache.gobblin.util.PropertiesUtils;
 
 
 /**
  * A {@link com.google.common.util.concurrent.Service} for handling life cycle events around {@link GobblinMetrics}.
  */
+@Slf4j
 public class MetricsReportingService extends AbstractIdleService {
+  public static final String METRICS_REPORTING_FAILURE_FATAL_KEY = "metrics.reporting.failure.fatal";
+  public static final String EVENT_REPORTING_FAILURE_FATAL_KEY = "event.reporting.failure.fatal";
+
+  public static final String DEFAULT_METRICS_REPORTING_FAILURE_FATAL = "false";
+  public static final String DEFAULT_EVENT_REPORTING_FAILURE_FATAL = "false";
 
   private final Properties properties;
   private final String appId;
+  private final boolean isMetricReportingFailureFatal;
+  private final boolean isEventReportingFailureFatal;
 
   public MetricsReportingService(Properties properties, String appId) {
     this.properties = properties;
     this.appId = appId;
+    this.isMetricReportingFailureFatal = PropertiesUtils.getPropAsBoolean(properties, METRICS_REPORTING_FAILURE_FATAL_KEY, DEFAULT_METRICS_REPORTING_FAILURE_FATAL);
+    this.isEventReportingFailureFatal = PropertiesUtils.getPropAsBoolean(properties, EVENT_REPORTING_FAILURE_FATAL_KEY, DEFAULT_EVENT_REPORTING_FAILURE_FATAL);
   }
 
   @Override
   protected void startUp() throws Exception {
-    GobblinMetrics.get(this.appId).startMetricReporting(this.properties);
+    try {
+      GobblinMetrics.get(this.appId).startMetricReporting(this.properties);
+    } catch (MultiReporterException ex) {
+      for (MetricReporterException e: ex.getExceptions()) {
+        if ((this.isMetricReportingFailureFatal && e.getReporterType().equals(ReporterType.METRIC)) || (
+            this.isEventReportingFailureFatal && e.getReporterType().equals(ReporterType.EVENT))) {
+          throw e;
+        } else {
+          log.error("Failed to start {} {} reporter", e.getSinkType().name(), e.getReporterType().name(), e);
+        }
+      }
+    }
   }
 
   @Override

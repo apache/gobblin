@@ -85,9 +85,13 @@ import lombok.Setter;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
 import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.MetricReporterException;
+import org.apache.gobblin.metrics.MultiReporterException;
+import org.apache.gobblin.metrics.ReporterType;
 import org.apache.gobblin.metrics.RootMetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.GobblinEventBuilder;
@@ -171,6 +175,8 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
   protected final FileSystem fs;
   protected final String applicationName;
   protected final String applicationId;
+  private final boolean isMetricReportingFailureFatal;
+  private final boolean isEventReportingFailureFatal;
 
   public GobblinTaskRunner(String applicationName,
       String helixInstanceName,
@@ -190,6 +196,15 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
     this.appWorkPath = initAppWorkDir(config, appWorkDirOptional);
     this.clusterConfig = saveConfigToFile(config);
     this.clusterName = this.clusterConfig.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
+
+    this.isMetricReportingFailureFatal = ConfigUtils.getBoolean(this.clusterConfig,
+        ConfigurationKeys.GOBBLIN_TASK_METRIC_REPORTING_FAILURE_FATAL,
+        ConfigurationKeys.DEFAULT_GOBBLIN_TASK_METRIC_REPORTING_FAILURE_FATAL);
+
+    this.isEventReportingFailureFatal = ConfigUtils.getBoolean(this.clusterConfig,
+        ConfigurationKeys.GOBBLIN_TASK_EVENT_REPORTING_FAILURE_FATAL,
+        ConfigurationKeys.DEFAULT_GOBBLIN_TASK_EVENT_REPORTING_FAILURE_FATAL);
+
     logger.info("Configured GobblinTaskRunner work dir to: {}", this.appWorkPath.toString());
 
     // Set system properties passed in via application config. As an example, Helix uses System#getProperty() for ZK configuration
@@ -313,7 +328,8 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
   /**
    * Start this {@link GobblinTaskRunner} instance.
    */
-  public void start() throws ContainerHealthCheckException {
+  public void start()
+      throws ContainerHealthCheckException {
     logger.info(String.format("Starting %s in container %s", this.helixInstanceName, this.taskRunnerId));
 
     // Add a shutdown hook so the task scheduler gets properly shutdown
@@ -345,11 +361,7 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
     addInstanceTags();
 
     // Start metric reporting
-    if (this.containerMetrics.isPresent()) {
-      this.containerMetrics.get()
-          .startMetricReportingWithFileSuffix(ConfigUtils.configToState(this.clusterConfig),
-              this.taskRunnerId);
-    }
+    initMetricReporter();
 
     if (this.containerHealthEventBus != null) {
       //Register itself with the container health event bus instance to receive container health events
@@ -370,6 +382,24 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
     if (this.isContainerExitOnHealthCheckFailureEnabled && GobblinTaskRunner.this.isHealthCheckFailed()) {
       logger.error("GobblinTaskRunner finished due to health check failure.");
       throw new ContainerHealthCheckException();
+    }
+  }
+
+  private void initMetricReporter() {
+    if (this.containerMetrics.isPresent()) {
+      try {
+        this.containerMetrics.get()
+            .startMetricReportingWithFileSuffix(ConfigUtils.configToState(this.clusterConfig), this.taskRunnerId);
+      } catch (MultiReporterException ex) {
+        for (MetricReporterException e: ex.getExceptions()) {
+          if ((this.isMetricReportingFailureFatal && e.getReporterType().equals(ReporterType.METRIC)) || (
+              this.isEventReportingFailureFatal && e.getReporterType().equals(ReporterType.EVENT))) {
+            throw new RuntimeException(e);
+          } else {
+            logger.error("Failed to start {} {} reporter", e.getSinkType().name(), e.getReporterType().name(), e);
+          }
+        }
+      }
     }
   }
 
