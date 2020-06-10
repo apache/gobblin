@@ -40,7 +40,6 @@ import org.apache.gobblin.runtime.api.JobSpecMonitor;
 import org.apache.gobblin.runtime.api.JobSpecMonitorFactory;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
 import org.apache.gobblin.runtime.job_spec.AvroJobSpec;
-import org.apache.gobblin.util.Either;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
@@ -103,7 +102,7 @@ public class AvroJobSpecKafkaJobMonitor extends KafkaAvroJobMonitor<AvroJobSpec>
   /**
    * Creates a {@link JobSpec} or {@link URI} from the {@link AvroJobSpec} record.
    * @param record the record as an {@link AvroJobSpec}
-   * @return a {@link JobSpec} or {@link URI} wrapped in a {@link Collection} of {@link Either}
+   * @return a {@link JobSpec}
    */
   @Override
   public Collection<JobSpec> parseJobSpec(AvroJobSpec record) {
