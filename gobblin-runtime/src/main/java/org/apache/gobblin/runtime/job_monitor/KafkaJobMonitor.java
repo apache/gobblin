@@ -108,6 +108,7 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
         switch (verb) {
           case ADD:
           case UPDATE:
+          case UNKNOWN: // unknown are considered as add request to maintain backward compatibility
             this.newSpecs.inc();
             this.jobCatalog.put(parsedMessage);
             break;

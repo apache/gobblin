@@ -31,6 +31,7 @@ import org.mockito.stubbing.Answer;
 import com.google.common.base.Charsets;
 import com.google.common.base.Predicate;
 import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
@@ -42,6 +43,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
+import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.testing.AssertWithBackoff;
 
 
@@ -104,12 +106,14 @@ public class MockedKafkaJobMonitor extends KafkaJobMonitor {
 
         if (tokens.get(0).equals(REMOVE)) {
           URI uri = new URI(tokens.get(1));
-          JobSpec jobSpec = new JobSpec.Builder(uri).withConfig(ConfigFactory.empty()).build();
+          JobSpec jobSpec = new JobSpec.Builder(uri).withConfig(ConfigFactory.empty())
+              .withMetadata(ImmutableMap.of(VERB_KEY, SpecExecutor.Verb.DELETE.name())).build();
           jobSpecs.add(jobSpec);
         } else {
           URI uri = new URI(tokens.get(0));
           String version = tokens.get(1);
-          JobSpec jobSpec = new JobSpec.Builder(uri).withConfig(ConfigFactory.empty()).withVersion(version).build();
+          JobSpec jobSpec = new JobSpec.Builder(uri).withConfig(ConfigFactory.empty()).withVersion(version)
+              .withMetadata(ImmutableMap.of(VERB_KEY, SpecExecutor.Verb.ADD.name())).build();
           jobSpecs.add(jobSpec);
         }
       }
