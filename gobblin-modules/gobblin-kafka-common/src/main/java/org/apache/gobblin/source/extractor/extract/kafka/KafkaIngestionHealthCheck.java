@@ -94,7 +94,7 @@ public class KafkaIngestionHealthCheck implements CommitStep {
         return false;
       } else {
         if (this.increasingLatencyCheckEnabled) {
-          if (previousLatency >= ingestionLatency) {
+          if (previousLatency > ingestionLatency) {
             return false;
           }
           previousLatency = ingestionLatency;
