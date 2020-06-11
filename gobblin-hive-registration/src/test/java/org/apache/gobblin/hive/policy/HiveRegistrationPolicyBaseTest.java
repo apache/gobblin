@@ -156,8 +156,7 @@ public class HiveRegistrationPolicyBaseTest {
     Assert.assertEquals(resultTable, "topic");
   }
 
-
-  private static void examine(HiveSpec spec, String dbName, String tableName) {
+  static void examine(HiveSpec spec, String dbName, String tableName) {
     Assert.assertEquals(spec.getClass(), SimpleHiveSpec.class);
     Assert.assertEquals(spec.getTable().getDbName(), dbName);
     Assert.assertEquals(spec.getTable().getTableName(), tableName);
