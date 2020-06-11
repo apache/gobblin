@@ -101,9 +101,7 @@ public class DatasetCleaner implements Instrumentable, Closeable {
     DynamicConfigGenerator dynamicConfigGenerator =
         DynamicConfigGeneratorFactory.createDynamicConfigGenerator(propsAsConfig);
     Config dynamicConfig = dynamicConfigGenerator.generateDynamicConfig(propsAsConfig);
-    for (Map.Entry<String, ConfigValue> entry : dynamicConfig.entrySet()) {
-      properties.put(entry.getKey(), entry.getValue().unwrapped().toString());
-    }
+    properties.putAll(ConfigUtils.configToProperties(dynamicConfig));
     State state = new State(properties);
     FileSystem targetFs =
         properties.containsKey(ConfigurationKeys.WRITER_FILE_SYSTEM_URI) ? WriterUtils.getWriterFs(state) : fs;
