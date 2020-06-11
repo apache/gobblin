@@ -293,4 +293,23 @@ public class OrcUtilsTest {
     OrcUtils.upConvertOrcStruct(originalStruct, projectColumnStruct, projectedSchema);
     Assert.assertEquals(projectColumnStruct, projectedStructExpectedValue);
   }
+
+  public void testSchemaContains() throws Exception {
+    // Simple case.
+    TypeDescription struct_0 = TypeDescription.fromString("struct<a:int,b:int>");
+    TypeDescription struct_1 = TypeDescription.fromString("struct<a:int>");
+    Assert.assertTrue(OrcUtils.schemaContains(struct_0, struct_1));
+
+    // Nested schema case.
+    TypeDescription struct_2 = TypeDescription.fromString("struct<a:struct<a:int,b:int>,b:struct<c:int,d:int>,c:int>");
+    TypeDescription struct_3 = TypeDescription.fromString("struct<a:struct<a:int>,b:struct<c:int>,c:int>");
+    Assert.assertTrue(OrcUtils.schemaContains(struct_2, struct_3));
+
+    // Negative case.
+    TypeDescription struct_4 = TypeDescription.fromString("struct<a:struct<a:int,b:int>,b:struct<c:int,d:int>,c:int>");
+    TypeDescription struct_5 = TypeDescription.fromString("struct<a:struct<a:int>,b:struct<c:int>,d:int>");
+    Assert.assertFalse(OrcUtils.schemaContains(struct_4, struct_5));
+    TypeDescription struct_6 = TypeDescription.fromString("struct<a:struct<a:int>,b:struct<e:int>,c:int>");
+    Assert.assertFalse(OrcUtils.schemaContains(struct_4, struct_6));
+  }
 }
