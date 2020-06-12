@@ -52,6 +52,10 @@ import com.typesafe.config.ConfigValueFactory;
 
 import lombok.extern.slf4j.Slf4j;
 
+import static org.apache.gobblin.cluster.HelixTaskEventMetadataGenerator.HELIX_INSTANCE_KEY;
+import static org.apache.gobblin.cluster.HelixTaskEventMetadataGenerator.HELIX_JOB_ID_KEY;
+import static org.apache.gobblin.cluster.HelixTaskEventMetadataGenerator.HELIX_TASK_ID_KEY;
+
 
 /**
  * An implementation of Helix's {@link org.apache.helix.task.Task} that wraps and runs one or more Gobblin
@@ -191,9 +195,9 @@ public class GobblinHelixTask implements Task {
         ConfigFactory.parseMap(this.taskConfig.getConfigMap()) , getClass().getName());
     event.addMetadata("jobName", this.jobName);
     event.addMetadata("AppName", this.applicationName);
-    event.addMetadata("InstanceName", this.instanceName);
-    event.addMetadata("helixJobId", this.helixJobId);
-    event.addMetadata("helixTaskId", this.helixTaskId);
+    event.addMetadata(HELIX_INSTANCE_KEY, this.instanceName);
+    event.addMetadata(HELIX_JOB_ID_KEY, this.helixJobId);
+    event.addMetadata(HELIX_TASK_ID_KEY, this.helixTaskId);
     event.addMetadata("WUPath", this.workUnitFilePath.toString());
     event.addMetadata("Phase", phase);
     return event;
