@@ -137,7 +137,8 @@ public class GobblinHelixTask implements Task {
         }
       });
     } catch (Exception e) {
-      throw new RuntimeException("Execution in creating a SingleTask-with-retry failed", e);
+      log.error("Execution in creating a SingleTask-with-retry failed, container will suicide ...", e);
+      eventBus.post(createTaskCreationEvent("Task Creation"));
     }
   }
 
@@ -170,7 +171,7 @@ public class GobblinHelixTask implements Task {
       this.taskMetrics.helixTaskTotalFailed.incrementAndGet();
       return new TaskResult(TaskResult.Status.CANCELED, "");
     } catch (TaskCreationException te) {
-      eventBus.post(createTaskCreationEvent());
+      eventBus.post(createTaskCreationEvent("Task Execution"));
       log.error("Actual task {} failed in creation due to {}, will request new container to schedule it",
           this.taskId, te.getMessage());
       this.taskMetrics.helixTaskTotalCancelled.incrementAndGet();
@@ -185,7 +186,7 @@ public class GobblinHelixTask implements Task {
     }
   }
 
-  private ContainerHealthCheckFailureEvent createTaskCreationEvent() {
+  private ContainerHealthCheckFailureEvent createTaskCreationEvent(String phase) {
     ContainerHealthCheckFailureEvent event = new ContainerHealthCheckFailureEvent(
         ConfigFactory.parseMap(this.taskConfig.getConfigMap()) , getClass().getName());
     event.addMetadata("jobName", this.jobName);
@@ -194,6 +195,7 @@ public class GobblinHelixTask implements Task {
     event.addMetadata("helixJobId", this.helixJobId);
     event.addMetadata("helixTaskId", this.helixTaskId);
     event.addMetadata("WUPath", this.workUnitFilePath.toString());
+    event.addMetadata("Phase", phase);
     return event;
   }
 
