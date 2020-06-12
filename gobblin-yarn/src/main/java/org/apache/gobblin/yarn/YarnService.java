@@ -187,8 +187,8 @@ public class YarnService extends AbstractIdleService {
   // A map from Helix instance names to the number times the instances are retried to be started
   private final ConcurrentMap<String, AtomicInteger> helixInstanceRetryCount = Maps.newConcurrentMap();
 
-  // A queue of unused Helix instance names. An unused Helix instance name gets put
-  // into the queue if the container running the instance completes. Unused Helix
+  // A concurrent HashSet of unused Helix instance names. An unused Helix instance name gets put
+  // into the set if the container running the instance completes. Unused Helix
   // instance names get picked up when replacement containers get allocated.
   private final Set<String> unusedHelixInstanceNames = ConcurrentHashMap.newKeySet();
 
@@ -698,7 +698,7 @@ public class YarnService extends AbstractIdleService {
         return;
       }
 
-      // Add the Helix instance name of the completed container to the queue of unused
+      // Add the Helix instance name of the completed container to the set of unused
       // instance names so they can be reused by a replacement container.
       LOGGER.info("Adding instance {} to the pool of unused instances", completedInstanceName);
       this.unusedHelixInstanceNames.add(completedInstanceName);
@@ -758,7 +758,8 @@ public class YarnService extends AbstractIdleService {
         //Iterate over the (thread-safe) set of unused instances to find the first instance that is not currently live.
         //Once we find a candidate instance, it is removed from the set.
         String instanceName = null;
-        for (Iterator<String> iterator = unusedHelixInstanceNames.iterator(); iterator.hasNext(); ) {
+        Iterator<String> iterator = unusedHelixInstanceNames.iterator();
+        while (iterator.hasNext()) {
           instanceName = iterator.next();
           if (!HelixUtils.isInstanceLive(helixManager, instanceName)) {
             iterator.remove();
