@@ -21,8 +21,11 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.CountDownLatch;
 
 import org.apache.avro.Schema;
+
+import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.example.simplejson.SimpleJsonConverter;
 import org.apache.gobblin.example.simplejson.SimpleJsonSource;
@@ -33,6 +36,8 @@ import org.apache.gobblin.runtime.TaskExecutor;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.Id;
 import org.apache.gobblin.util.SerializationUtils;
+import org.apache.gobblin.util.event.ContainerHealthCheckFailureEvent;
+import org.apache.gobblin.util.eventbus.EventBusFactory;
 import org.apache.gobblin.util.retry.RetryerFactory;
 import org.apache.gobblin.writer.AvroDataWriterBuilder;
 import org.apache.gobblin.writer.Destination;
@@ -57,6 +62,8 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
+import com.google.common.eventbus.EventBus;
+import com.google.common.eventbus.Subscribe;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
@@ -94,6 +101,8 @@ public class GobblinHelixTaskTest {
 
   private Path taskOutputDir;
 
+  private CountDownLatch countDownLatchForFailInTaskCreation;
+
   @BeforeClass
   public void setUp() throws IOException {
     Configuration configuration = new Configuration();
@@ -112,6 +121,13 @@ public class GobblinHelixTaskTest {
   @Test
   public void testPrepareTask()
       throws IOException, InterruptedException {
+
+    EventBus eventBus = EventBusFactory.get(ContainerHealthCheckFailureEvent.CONTAINER_HEALTH_CHECK_EVENT_BUS_NAME,
+        SharedResourcesBrokerFactory.getImplicitBroker());
+    eventBus.register(this);
+
+    countDownLatchForFailInTaskCreation = new CountDownLatch(1);
+
     // Serialize the JobState that will be read later in GobblinHelixTask
     Path jobStateFilePath =
         new Path(appWorkDir, TestHelper.TEST_JOB_ID + "." + AbstractJobLauncher.JOB_STATE_FILE_NAME);
@@ -185,14 +201,15 @@ public class GobblinHelixTaskTest {
             this.taskStateTracker,
             ConfigFactory.empty(),
             Optional.of(taskDriver));
-    try {
-      gobblinHelixTaskFactory.createNewTask(taskCallbackContext);
-    } catch (Exception e) {
-      Assert.assertTrue(e.getMessage().contains("Execution in creating a SingleTask-with-retry failed"));
-      return;
-    }
-    // Won't reach here.
-    Assert.fail();
+
+    // Expecting the eventBus containing the failure signal.
+    gobblinHelixTaskFactory.createNewTask(taskCallbackContext);
+    Assert.assertEquals(countDownLatchForFailInTaskCreation.getCount(), 0);
+  }
+
+  @Subscribe
+  public void handleContainerHealthCheckFailureEvent(ContainerHealthCheckFailureEvent event) {
+    this.countDownLatchForFailInTaskCreation.countDown();
   }
 
   /**
