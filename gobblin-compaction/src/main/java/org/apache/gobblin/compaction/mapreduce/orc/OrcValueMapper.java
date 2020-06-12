@@ -38,7 +38,7 @@ import org.apache.orc.mapreduce.OrcMapreduceRecordReader;
 
 import lombok.extern.slf4j.Slf4j;
 
-import static org.apache.gobblin.compaction.mapreduce.orc.OrcUtils.schemaContains;
+import static org.apache.gobblin.compaction.mapreduce.orc.OrcUtils.eligibleForUpConvert;
 
 
 /**
@@ -122,7 +122,7 @@ public class OrcValueMapper extends RecordKeyMapperBase<NullWritable, OrcStruct,
    */
   private void fillDedupKey(OrcStruct originalRecord) {
     if (!originalRecord.getSchema().equals(this.shuffleKeySchema)
-        && schemaContains(originalRecord.getSchema(), this.shuffleKeySchema)) {
+        && eligibleForUpConvert(originalRecord.getSchema(), this.shuffleKeySchema)) {
       OrcUtils.upConvertOrcStruct(originalRecord, (OrcStruct) this.outKey.key, this.shuffleKeySchema);
     } else {
       this.outKey.key = originalRecord;

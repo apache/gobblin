@@ -485,25 +485,30 @@ public class OrcUtils {
   }
 
   /**
-   * Check recursively if all fields in subSchema are contained in owningSchema.
-   * Assuming both of inputs are schema of OrcStruct
+   * Check recursively if owning schema is eligible to be up-converted to targetSchema:
+   * 1. TargetSchema is a subset of originalSchema.
+   * 2. TargetSchema is larger than originalSchema.
    */
-  public static boolean schemaContains(TypeDescription owningSchema, TypeDescription subSchema) {
-    if (!subSchema.getCategory().isPrimitive()) {
-      if (!owningSchema.getFieldNames().containsAll(subSchema.getFieldNames())) {
+  public static boolean eligibleForUpConvert(TypeDescription originalSchema, TypeDescription targetSchema) {
+    if (!targetSchema.getCategory().isPrimitive()) {
+      if (originalSchema.getFieldNames().size() < targetSchema.getFieldNames().size()) {
+        return true;
+      }
+
+      if (!originalSchema.getFieldNames().containsAll(targetSchema.getFieldNames())) {
         return false;
       }
       boolean result = true;
 
-      for (int i = 0; i < subSchema.getFieldNames().size() ; i ++ ) {
-        String subSchemaFieldName = subSchema.getFieldNames().get(i);
-        result &= schemaContains(owningSchema.findSubtype(subSchemaFieldName), subSchema.getChildren().get(i));
+      for (int i = 0; i < targetSchema.getFieldNames().size() ; i ++ ) {
+        String subSchemaFieldName = targetSchema.getFieldNames().get(i);
+        result &= eligibleForUpConvert(originalSchema.findSubtype(subSchemaFieldName), targetSchema.getChildren().get(i));
       }
 
       return result;
     } else {
       // Check the unit type: Only for the category.
-      return owningSchema.getCategory().equals(subSchema.getCategory());
+      return originalSchema.getCategory().equals(targetSchema.getCategory());
     }
   }
 }
