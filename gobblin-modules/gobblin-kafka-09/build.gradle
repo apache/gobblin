@@ -87,6 +87,8 @@ artifacts {
 }
 
 test {
+  // this module's test cases hang often when running in parallel.
+  // making every test class execute in a forked test process till tests are fixed
   forkEvery = 1
   workingDir rootProject.rootDir
   systemProperty "live.newtopic", System.getProperty("live.newtopic")
