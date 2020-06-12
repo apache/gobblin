@@ -17,9 +17,12 @@
 
 package org.apache.gobblin.data.management.retention;
 
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigValue;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
@@ -27,6 +30,9 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 
 import org.apache.commons.lang.exception.ExceptionUtils;
+import org.apache.gobblin.configuration.DynamicConfigGenerator;
+import org.apache.gobblin.runtime.DynamicConfigGeneratorFactory;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,33 +94,41 @@ public class DatasetCleaner implements Instrumentable, Closeable {
 
   public DatasetCleaner(FileSystem fs, Properties props) throws IOException {
 
-    State state = new State(props);
+    Properties properties = new Properties();
+    properties.putAll(props);
+    // load dynamic configuration and add them to the job properties
+    Config propsAsConfig = ConfigUtils.propertiesToConfig(props);
+    DynamicConfigGenerator dynamicConfigGenerator =
+        DynamicConfigGeneratorFactory.createDynamicConfigGenerator(propsAsConfig);
+    Config dynamicConfig = dynamicConfigGenerator.generateDynamicConfig(propsAsConfig);
+    properties.putAll(ConfigUtils.configToProperties(dynamicConfig));
+    State state = new State(properties);
     FileSystem targetFs =
-        props.containsKey(ConfigurationKeys.WRITER_FILE_SYSTEM_URI) ? WriterUtils.getWriterFs(state) : fs;
+        properties.containsKey(ConfigurationKeys.WRITER_FILE_SYSTEM_URI) ? WriterUtils.getWriterFs(state) : fs;
     this.closer = Closer.create();
     // TODO -- Remove the dependency on gobblin-core after new Gobblin Metrics does not depend on gobblin-core.
     List<Tag<?>> tags = Lists.newArrayList();
     tags.addAll(Tag.fromMap(AzkabanTags.getAzkabanTags()));
     this.metricContext =
-        this.closer.register(Instrumented.getMetricContext(new State(props), DatasetCleaner.class, tags));
-    this.isMetricEnabled = GobblinMetrics.isEnabled(props);
+        this.closer.register(Instrumented.getMetricContext(state, DatasetCleaner.class, tags));
+    this.isMetricEnabled = GobblinMetrics.isEnabled(properties);
     this.eventSubmitter = new EventSubmitter.Builder(this.metricContext, RetentionEvents.NAMESPACE).build();
     try {
       FileSystem optionalRateControlledFs = targetFs;
-      if (props.contains(DATASET_CLEAN_HDFS_CALLS_PER_SECOND_LIMIT)) {
+      if (properties.contains(DATASET_CLEAN_HDFS_CALLS_PER_SECOND_LIMIT)) {
         optionalRateControlledFs = this.closer.register(new RateControlledFileSystem(targetFs,
-            Long.parseLong(props.getProperty(DATASET_CLEAN_HDFS_CALLS_PER_SECOND_LIMIT))));
+            Long.parseLong(properties.getProperty(DATASET_CLEAN_HDFS_CALLS_PER_SECOND_LIMIT))));
         ((RateControlledFileSystem) optionalRateControlledFs).startRateControl();
       }
 
-      this.datasetFinder = new MultiCleanableDatasetFinder(optionalRateControlledFs, props, eventSubmitter);
+      this.datasetFinder = new MultiCleanableDatasetFinder(optionalRateControlledFs, properties, eventSubmitter);
     } catch (NumberFormatException exception) {
       throw new IOException(exception);
     } catch (ExecutionException exception) {
       throw new IOException(exception);
     }
     ExecutorService executor = ScalingThreadPoolExecutor.newScalingThreadPool(0,
-        Integer.parseInt(props.getProperty(MAX_CONCURRENT_DATASETS_CLEANED, DEFAULT_MAX_CONCURRENT_DATASETS_CLEANED)),
+        Integer.parseInt(properties.getProperty(MAX_CONCURRENT_DATASETS_CLEANED, DEFAULT_MAX_CONCURRENT_DATASETS_CLEANED)),
         100, ExecutorsUtils.newThreadFactory(Optional.of(LOG), Optional.of("Dataset-cleaner-pool-%d")));
     this.service = ExecutorsUtils.loggingDecorator(executor);
 

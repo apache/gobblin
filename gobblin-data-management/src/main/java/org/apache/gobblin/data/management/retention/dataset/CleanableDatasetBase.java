@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.data.management.retention.dataset;
 
+import com.typesafe.config.ConfigFactory;
 import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
@@ -122,6 +123,7 @@ public abstract class CleanableDatasetBase<T extends FileSystemDatasetVersion>
   @Override
   public List<VersionFinderAndPolicy<T>> getVersionFindersAndPolicies() {
     return ImmutableList
-        .<VersionFinderAndPolicy<T>> of(new VersionFinderAndPolicy<>(getRetentionPolicy(), getVersionFinder()));
+        .<VersionFinderAndPolicy<T>> of(new VersionFinderAndPolicy<>(getRetentionPolicy(), getVersionFinder(),
+            ConfigFactory.empty()));
   }
 }
