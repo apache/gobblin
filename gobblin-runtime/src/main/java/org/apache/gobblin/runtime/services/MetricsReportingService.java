@@ -24,9 +24,8 @@ import com.google.common.util.concurrent.AbstractIdleService;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.metrics.GobblinMetrics;
-import org.apache.gobblin.metrics.MetricReporterException;
 import org.apache.gobblin.metrics.MultiReporterException;
-import org.apache.gobblin.metrics.ReporterType;
+import org.apache.gobblin.metrics.reporter.util.MetricReportUtils;
 import org.apache.gobblin.util.PropertiesUtils;
 
 
@@ -58,13 +57,8 @@ public class MetricsReportingService extends AbstractIdleService {
     try {
       GobblinMetrics.get(this.appId).startMetricReporting(this.properties);
     } catch (MultiReporterException ex) {
-      for (MetricReporterException e: ex.getExceptions()) {
-        if ((this.isMetricReportingFailureFatal && e.getReporterType().equals(ReporterType.METRIC)) || (
-            this.isEventReportingFailureFatal && e.getReporterType().equals(ReporterType.EVENT))) {
-          throw e;
-        } else {
-          log.error("Failed to start {} {} reporter", e.getSinkType().name(), e.getReporterType().name(), e);
-        }
+      if (MetricReportUtils.shouldThrowException(log, ex, this.isMetricReportingFailureFatal, this.isEventReportingFailureFatal)) {
+        throw ex;
       }
     }
   }

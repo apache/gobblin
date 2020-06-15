@@ -89,12 +89,11 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.instrumented.StandardMetricsBridge;
 import org.apache.gobblin.metrics.GobblinMetrics;
-import org.apache.gobblin.metrics.MetricReporterException;
 import org.apache.gobblin.metrics.MultiReporterException;
-import org.apache.gobblin.metrics.ReporterType;
 import org.apache.gobblin.metrics.RootMetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.GobblinEventBuilder;
+import org.apache.gobblin.metrics.reporter.util.MetricReportUtils;
 import org.apache.gobblin.runtime.api.TaskEventMetadataGenerator;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
@@ -391,13 +390,8 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
         this.containerMetrics.get()
             .startMetricReportingWithFileSuffix(ConfigUtils.configToState(this.clusterConfig), this.taskRunnerId);
       } catch (MultiReporterException ex) {
-        for (MetricReporterException e: ex.getExceptions()) {
-          if ((this.isMetricReportingFailureFatal && e.getReporterType().equals(ReporterType.METRIC)) || (
-              this.isEventReportingFailureFatal && e.getReporterType().equals(ReporterType.EVENT))) {
-            throw new RuntimeException(e);
-          } else {
-            logger.error("Failed to start {} {} reporter", e.getSinkType().name(), e.getReporterType().name(), e);
-          }
+        if (MetricReportUtils.shouldThrowException(logger, ex, this.isMetricReportingFailureFatal, this.isEventReportingFailureFatal)) {
+          throw new RuntimeException(ex);
         }
       }
     }

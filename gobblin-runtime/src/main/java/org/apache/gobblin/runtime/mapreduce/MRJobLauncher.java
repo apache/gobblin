@@ -74,14 +74,13 @@ import org.apache.gobblin.fsm.FiniteStateMachine;
 import org.apache.gobblin.metastore.FsStateStore;
 import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.metrics.GobblinMetrics;
-import org.apache.gobblin.metrics.MetricReporterException;
 import org.apache.gobblin.metrics.MultiReporterException;
-import org.apache.gobblin.metrics.ReporterType;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.metrics.event.CountEventBuilder;
 import org.apache.gobblin.metrics.event.JobEvent;
 import org.apache.gobblin.metrics.event.JobStateEventBuilder;
 import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.metrics.reporter.util.MetricReportUtils;
 import org.apache.gobblin.password.PasswordManager;
 import org.apache.gobblin.runtime.AbstractJobLauncher;
 import org.apache.gobblin.runtime.DynamicConfigGeneratorFactory;
@@ -797,13 +796,8 @@ public class MRJobLauncher extends AbstractJobLauncher {
           boolean isEventReportingFailureFatal = Boolean.valueOf(configuration
               .get(ConfigurationKeys.GOBBLIN_TASK_EVENT_REPORTING_FAILURE_FATAL,
                   Boolean.toString(ConfigurationKeys.DEFAULT_GOBBLIN_TASK_EVENT_REPORTING_FAILURE_FATAL)));
-          for (MetricReporterException e : ex.getExceptions()) {
-            if ((isMetricReportingFailureFatal && e.getReporterType().equals(ReporterType.METRIC)) || (
-                isEventReportingFailureFatal && e.getReporterType().equals(ReporterType.EVENT))) {
-              throw new RuntimeException(e);
-            } else {
-              LOG.error("Failed to start {} {} reporter", e.getSinkType().name(), e.getReporterType().name(), e);
-            }
+          if (MetricReportUtils.shouldThrowException(LOG, ex, isMetricReportingFailureFatal, isEventReportingFailureFatal)) {
+            throw new RuntimeException(ex);
           }
         }
       }

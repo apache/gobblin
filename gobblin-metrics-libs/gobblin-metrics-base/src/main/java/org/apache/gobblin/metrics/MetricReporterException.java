@@ -26,12 +26,6 @@ public class MetricReporterException extends IOException {
   @Getter
   private final ReporterSinkType sinkType;
 
-  public MetricReporterException(Throwable t, ReporterType reporterType, ReporterSinkType sinkType) {
-    super(t);
-    this.reporterType = reporterType;
-    this.sinkType = sinkType;
-  }
-
   public MetricReporterException(String message, ReporterType reporterType, ReporterSinkType sinkType) {
     super(message);
     this.reporterType = reporterType;

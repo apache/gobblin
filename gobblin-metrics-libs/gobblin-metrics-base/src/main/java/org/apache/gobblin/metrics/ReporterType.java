@@ -16,8 +16,14 @@
  */
 package org.apache.gobblin.metrics;
 
-public enum  ReporterType {
-  METRIC,
-  EVENT,
-  CUSTOM
+public enum ReporterType {
+  METRIC, EVENT, METRIC_EVENT, CUSTOM;
+
+  public static boolean isReporterTypeMetric(ReporterType t) {
+    return t.equals(ReporterType.METRIC) || t.equals(ReporterType.METRIC_EVENT);
+  }
+
+  public static boolean isReporterTypeEvent(ReporterType t) {
+    return t.equals(ReporterType.EVENT) || t.equals(ReporterType.METRIC_EVENT);
+  }
 }
