@@ -17,5 +17,8 @@
 
 package org.apache.gobblin.runtime.api;
 
-public class SpecSearchObject {
+/**
+ * This is an interface to package all the parameters that should be used to search {@link Spec} in a {@link SpecStore}
+ */
+public interface SpecSearchObject {
 }

@@ -17,7 +17,7 @@
 
 package org.apache.gobblin.service;
 
-import java.util.List;
+import java.util.Collection;
 import java.util.Properties;
 
 import com.linkedin.restli.common.PatchRequest;
@@ -34,12 +34,13 @@ public interface FlowConfigsResourceHandler {
   FlowConfig getFlowConfig(FlowId flowId) throws FlowConfigLoggedException;
   /**
    * Get {@link FlowConfig}
+   * @return
    */
-  List<FlowConfig> getFlowConfig(FlowSpecSearchObject flowSpecSearchObject) throws FlowConfigLoggedException;
+  Collection<FlowConfig> getFlowConfig(FlowSpecSearchObject flowSpecSearchObject) throws FlowConfigLoggedException;
   /**
    * Get all {@link FlowConfig}
    */
-  List<FlowConfig> getAllFlowConfigs();
+  Collection<FlowConfig> getAllFlowConfigs();
 
   /**
    * Add {@link FlowConfig}

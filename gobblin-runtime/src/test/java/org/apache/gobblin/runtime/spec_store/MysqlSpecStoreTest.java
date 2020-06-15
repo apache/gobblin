@@ -116,6 +116,7 @@ public class MysqlSpecStoreTest {
 
   @Test(expectedExceptions = IOException.class)
   public void testSpecSearch() throws Exception {
+    // empty FlowSpecSearchObject should throw an error
     FlowSpecSearchObject flowSpecSearchObject = FlowSpecSearchObject.builder().build();
     MysqlSpecStore.createGetPreparedStatement(flowSpecSearchObject, "table");
   }

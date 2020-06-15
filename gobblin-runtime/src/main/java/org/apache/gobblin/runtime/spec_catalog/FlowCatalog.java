@@ -279,7 +279,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
   }
 
   @Override
-  public Collection<Spec> getSpecs(SpecSearchObject specSearchObject) throws SpecNotFoundException {
+  public Collection<Spec> getSpecs(SpecSearchObject specSearchObject) {
     try {
       return specStore.getSpecs(specSearchObject);
     } catch (IOException e) {

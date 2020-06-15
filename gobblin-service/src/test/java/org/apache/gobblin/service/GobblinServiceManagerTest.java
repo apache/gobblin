@@ -83,7 +83,9 @@ public class GobblinServiceManagerTest {
 
   private static final String TEST_GROUP_NAME = "testGroup";
   private static final String TEST_FLOW_NAME = "testFlow";
+  private static final String TEST_FLOW_NAME2 = "testFlow2";
   private static final FlowId TEST_FLOW_ID = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME);
+  private static final FlowId TEST_FLOW_ID2 = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME2);
   private static final FlowId UNCOMPILABLE_FLOW_ID = new FlowId().setFlowGroup(TEST_GROUP_NAME)
       .setFlowName(MockedSpecCompiler.UNCOMPILABLE_FLOW);
 
@@ -337,6 +339,36 @@ public class GobblinServiceManagerTest {
     Assert.assertEquals(flowConfig.getProperties().get("param1"), "value1");
   }
 
+  @Test (dependsOnMethods = "testCreateAgain")
+  public void testGetAll() throws Exception {
+    FlowConfig flowConfig2 = new FlowConfig().setId(TEST_FLOW_ID2)
+        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE))
+        .setProperties(new StringMap(flowProperties));
+    this.flowConfigClient.createFlowConfig(flowConfig2);
+    Collection<FlowConfig> flowConfigs = this.flowConfigClient.getAllFlowConfigs();
+
+    Assert.assertEquals(flowConfigs.size(), 2);
+
+    this.flowConfigClient.deleteFlowConfig(TEST_FLOW_ID2);
+  }
+
+  @Test (dependsOnMethods = "testCreateAgain", enabled = false)
+  public void testGetFilteredFlows() throws Exception {
+    // Not implemented for FsSpecStore
+
+    Collection<FlowConfig> flowConfigs = this.flowConfigClient.getFlowConfigs(TEST_GROUP_NAME, null, null, null, null, null,
+null, null, null, null);
+    Assert.assertEquals(flowConfigs.size(), 2);
+
+    flowConfigs = this.flowConfigClient.getFlowConfigs(TEST_GROUP_NAME, TEST_FLOW_NAME2, null, null, null, null,
+        null, null, null, null);
+    Assert.assertEquals(flowConfigs.size(), 1);
+
+    flowConfigs = this.flowConfigClient.getFlowConfigs(null, null, null, null, null, null,
+        TEST_SCHEDULE, null, null, null);
+    Assert.assertEquals(flowConfigs.size(), 2);
+  }
+
   @Test (dependsOnMethods = "testGet")
   public void testUpdate() throws Exception {
     FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME);
@@ -347,7 +379,7 @@ public class GobblinServiceManagerTest {
     flowProperties.put(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, TEST_SOURCE_NAME);
     flowProperties.put(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, TEST_SINK_NAME);
 
-    FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME))
+    FlowConfig flowConfig = new FlowConfig().setId(TEST_FLOW_ID)
         .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE))
         .setProperties(new StringMap(flowProperties));
 

@@ -33,13 +33,11 @@ import com.linkedin.r2.transport.common.bridge.client.TransportClientAdapter;
 import com.linkedin.r2.transport.http.client.HttpClientFactory;
 import com.linkedin.restli.client.CreateIdRequest;
 import com.linkedin.restli.client.DeleteRequest;
-import com.linkedin.restli.client.GetAllRequest;
 import com.linkedin.restli.client.GetRequest;
 import com.linkedin.restli.client.Response;
 import com.linkedin.restli.client.ResponseFuture;
 import com.linkedin.restli.client.RestClient;
 import com.linkedin.restli.client.UpdateRequest;
-import com.linkedin.restli.common.CollectionResponse;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
 import com.linkedin.restli.common.IdResponse;
@@ -137,29 +135,12 @@ public class FlowConfigClient implements Closeable {
    */
   public FlowConfig getFlowConfig(FlowId flowId)
       throws RemoteInvocationException {
-    LOG.debug("getFlowConfig with groupName " + flowId.getFlowGroup() + " flowName " +
-        flowId.getFlowName());
+    LOG.debug("getFlowConfig with groupName " + flowId.getFlowGroup() + " flowName " + flowId.getFlowName());
 
     GetRequest<FlowConfig> getRequest = _flowconfigsRequestBuilders.get()
         .id(new ComplexResourceKey<>(flowId, new EmptyRecord())).build();
 
     Response<FlowConfig> response =
-        _restClient.get().sendRequest(getRequest).getResponse();
-    return response.getEntity();
-  }
-
-  /**
-   * Get a flow configuration
-   * @return a {@link FlowConfig} with the flow configuration
-   * @throws RemoteInvocationException
-   */
-  public CollectionResponse<FlowConfig> getAllFlowConfigs()
-      throws RemoteInvocationException {
-    LOG.debug("getAllFlowConfigs");
-
-    GetAllRequest<FlowConfig> getRequest = null;//_flowconfigsRequestBuilders.getAll().build();
-
-    Response<CollectionResponse<FlowConfig>> response =
         _restClient.get().sendRequest(getRequest).getResponse();
     return response.getEntity();
   }

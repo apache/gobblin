@@ -108,7 +108,7 @@
         "type" : "org.apache.gobblin.service.FlowId",
         "params" : "org.apache.gobblin.service.FlowStatusId"
       },
-      "supports" : [ "create", "delete", "get", "partial_update", "update" ],
+      "supports" : [ "create", "delete", "get", "get_all", "partial_update", "update" ],
       "methods" : [ {
         "annotations" : {
           "returnEntity" : { }
@@ -118,6 +118,9 @@
       }, {
         "method" : "get",
         "doc" : "Retrieve the flow configuration with the given key"
+      }, {
+        "method" : "get_all",
+        "doc" : "Retrieve all the flow configurations"
       }, {
         "method" : "update",
         "doc" : "Update the flow configuration with the specified key. Running flows are not affected.\n An error is raised if the flow configuration does not exist."
@@ -129,7 +132,7 @@
         "doc" : "Delete a configured flow. Running flows are not affected. The schedule will be removed for scheduled flows."
       } ],
       "finders" : [ {
-        "name" : "flows",
+        "name" : "filterFlows",
         "parameters" : [ {
           "name" : "flowGroup",
           "type" : "string",
@@ -151,7 +154,7 @@
           "type" : "string",
           "optional" : true
         }, {
-          "name" : "targetIdentifier",
+          "name" : "destinationIdentifier",
           "type" : "string",
           "optional" : true
         }, {
@@ -163,7 +166,11 @@
           "type" : "boolean",
           "optional" : true
         }, {
-          "name" : "owning_group",
+          "name" : "owningGroup",
+          "type" : "string",
+          "optional" : true
+        }, {
+          "name" : "propertyFilter",
           "type" : "string",
           "optional" : true
         } ]

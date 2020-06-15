@@ -27,11 +27,14 @@ import lombok.ToString;
 import org.apache.gobblin.service.FlowId;
 
 
+/**
+ * This is a class to package all the parameters that should be used to search {@link FlowSpec} in a {@link SpecStore}
+ */
 @Getter
 @Builder
 @ToString
 @AllArgsConstructor
-public class FlowSpecSearchObject extends SpecSearchObject {
+public class FlowSpecSearchObject implements SpecSearchObject {
   private final URI flowSpecUri;
   private final String flowGroup;
   private final String flowName;

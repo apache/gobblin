@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 package org.apache.gobblin.service;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -89,8 +90,16 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
     return this.getFlowConfigResourceHandler().getFlowConfig(key.getKey());
   }
 
-  @Finder("flows")
-  public List<FlowConfig> getFlows(@Context PagingContext context,
+  /**
+   * Retrieve all the flow configurations
+   */
+  @Override
+  public List<FlowConfig> getAll(@Context PagingContext pagingContext) {
+    return (List) this.getFlowConfigResourceHandler().getAllFlowConfigs();
+  }
+
+  @Finder("filterFlows")
+  public List<FlowConfig> getFilteredFlows(@Context PagingContext context,
       @Optional @QueryParam("flowGroup") String flowGroup,
       @Optional @QueryParam("flowName") String flowName,
       @Optional @QueryParam("templateUri") String templateUri,
@@ -99,11 +108,12 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
       @Optional @QueryParam("destinationIdentifier") String destinationIdentifier,
       @Optional @QueryParam("schedule") String schedule,
       @Optional @QueryParam("isRunImmediately") Boolean isRunImmediately,
-      @Optional @QueryParam("owning_group") String owningGroup,
+      @Optional @QueryParam("owningGroup") String owningGroup,
       @Optional @QueryParam("propertyFilter") String propertyFilter) {
-    FlowSpecSearchObject flowSpecSearchObject = new FlowSpecSearchObject(null, flowGroup, flowName, templateUri,
-        userToProxy, sourceIdentifier, destinationIdentifier, schedule, null, isRunImmediately, owningGroup, propertyFilter);
-    return this.getFlowConfigResourceHandler().getFlowConfig(flowSpecSearchObject);
+    FlowSpecSearchObject flowSpecSearchObject = new FlowSpecSearchObject(null, flowGroup, flowName,
+        templateUri, userToProxy, sourceIdentifier, destinationIdentifier, schedule, null,
+        isRunImmediately, owningGroup, propertyFilter);
+    return (List) this.getFlowConfigResourceHandler().getFlowConfig(flowSpecSearchObject);
   }
 
   /**

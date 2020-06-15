@@ -87,12 +87,11 @@ public interface SpecStore {
   Spec getSpec(URI specUri) throws IOException, SpecNotFoundException;
 
   /***
-   * Retrieve the latest version of the {@link Spec} by {@link SpecSearchObject} from the {@link SpecStore}.
+   * Retrieve {@link Spec}s by {@link SpecSearchObject} from the {@link SpecStore}.
    * @param specSearchObject {@link SpecSearchObject} for the {@link Spec} to be retrieved.
    * @throws IOException Exception in retrieving the {@link Spec}.
-   * @throws SpecNotFoundException If {@link Spec} being retrieved is not present in store.
    */
-  Collection<Spec> getSpecs(SpecSearchObject specSearchObject) throws IOException, SpecNotFoundException;
+  Collection<Spec> getSpecs(SpecSearchObject specSearchObject) throws IOException;
 
   /***
    * Retrieve specified version of the {@link Spec} by URI from the {@link SpecStore}.

@@ -17,14 +17,6 @@
 
 package org.apache.gobblin.runtime.api;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collection;
@@ -32,13 +24,29 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
+
+import org.apache.commons.lang.StringUtils;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+import com.linkedin.data.template.StringMap;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.service.FlowConfig;
 import org.apache.gobblin.service.FlowId;
+import org.apache.gobblin.service.Schedule;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -410,6 +418,44 @@ public class FlowSpec implements Configurable, Spec {
         return null;
       }
       return uriTokens[EXPECTED_NUM_URI_PATH_TOKENS - 2];
+    }
+
+    public static FlowConfig toFlowConfig(Spec spec) {
+      FlowSpec flowSpec = (FlowSpec) spec;
+      FlowConfig flowConfig = new FlowConfig();
+      Properties flowProps = flowSpec.getConfigAsProperties();
+      Schedule schedule = null;
+
+      if (flowProps.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
+        schedule = new Schedule();
+        schedule.setCronSchedule(flowProps.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY));
+      }
+      if (flowProps.containsKey(ConfigurationKeys.JOB_TEMPLATE_PATH)) {
+        flowConfig.setTemplateUris(flowProps.getProperty(ConfigurationKeys.JOB_TEMPLATE_PATH));
+      } else if (flowSpec.getTemplateURIs().isPresent()) {
+        flowConfig.setTemplateUris(StringUtils.join(flowSpec.getTemplateURIs().get(), ","));
+      } else {
+        flowConfig.setTemplateUris("NA");
+      }
+      if (schedule != null) {
+        if (flowProps.containsKey(ConfigurationKeys.FLOW_RUN_IMMEDIATELY)) {
+          schedule.setRunImmediately(Boolean.valueOf(flowProps.getProperty(ConfigurationKeys.FLOW_RUN_IMMEDIATELY)));
+        }
+
+        flowConfig.setSchedule(schedule);
+      }
+
+      // remove keys that were injected as part of flowSpec creation
+      flowProps.remove(ConfigurationKeys.JOB_SCHEDULE_KEY);
+      flowProps.remove(ConfigurationKeys.JOB_TEMPLATE_PATH);
+
+      StringMap flowPropsAsStringMap = new StringMap();
+      flowPropsAsStringMap.putAll(Maps.fromProperties(flowProps));
+
+      return flowConfig.setId(new FlowId()
+          .setFlowGroup(flowProps.getProperty(ConfigurationKeys.FLOW_GROUP_KEY))
+          .setFlowName(flowProps.getProperty(ConfigurationKeys.FLOW_NAME_KEY)))
+          .setProperties(flowPropsAsStringMap);
     }
   }
 }

@@ -68,9 +68,8 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, Instrumentab
 
   /**
    * Get a {@link Spec} by {@link SpecSearchObject}.
-   * @throws SpecNotFoundException if no such Spec exists
    **/
-  default Collection<Spec> getSpecs(SpecSearchObject specSearchObject) throws SpecNotFoundException {
+  default Collection<Spec> getSpecs(SpecSearchObject specSearchObject) {
     throw new UnsupportedOperationException();
   }
 

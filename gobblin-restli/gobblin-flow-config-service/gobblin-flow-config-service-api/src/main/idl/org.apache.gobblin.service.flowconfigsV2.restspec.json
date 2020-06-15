@@ -34,7 +34,7 @@
       "doc" : "Delete a configured flow. Running flows are not affected. The schedule will be removed for scheduled flows."
     } ],
     "finders" : [ {
-      "name" : "flows",
+      "name" : "filterFlows",
       "parameters" : [ {
         "name" : "flowGroup",
         "type" : "string",
@@ -56,7 +56,7 @@
         "type" : "string",
         "optional" : true
       }, {
-        "name" : "targetIdentifier",
+        "name" : "destinationIdentifier",
         "type" : "string",
         "optional" : true
       }, {
@@ -68,7 +68,11 @@
         "type" : "boolean",
         "optional" : true
       }, {
-        "name" : "owning_group",
+        "name" : "owningGroup",
+        "type" : "string",
+        "optional" : true
+      }, {
+        "name" : "propertyFilter",
         "type" : "string",
         "optional" : true
       } ]

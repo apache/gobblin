@@ -117,7 +117,7 @@ public abstract class InstrumentedSpecStore implements SpecStore {
   }
 
   @Override
-  public Collection<Spec> getSpecs(SpecSearchObject specSearchObject) throws IOException, SpecNotFoundException {
+  public Collection<Spec> getSpecs(SpecSearchObject specSearchObject) throws IOException {
     if (!instrumentationEnabled) {
       return getSpecsImpl(specSearchObject);
     } else {
@@ -173,7 +173,7 @@ public abstract class InstrumentedSpecStore implements SpecStore {
   public abstract Iterator<URI> getSpecURIsImpl() throws IOException;
 
   /** child classes can implement this if they want to get specs using {@link SpecSearchObject} */
-  public Collection<Spec> getSpecsImpl(SpecSearchObject specUri) throws IOException, SpecNotFoundException {
+  public Collection<Spec> getSpecsImpl(SpecSearchObject specUri) throws IOException {
     throw new UnsupportedOperationException();
   }
 }

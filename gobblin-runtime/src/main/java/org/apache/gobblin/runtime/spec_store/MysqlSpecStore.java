@@ -68,7 +68,7 @@ import static org.apache.gobblin.service.ServiceConfigKeys.FLOW_SOURCE_IDENTIFIE
  * but not removing it from {@link SpecStore}.
  */
 @Slf4j
-// todo : This should be renamed to MysqlFlowSpecStore, because there are SpecStore should be able to store TopologySpec also
+// todo : This should be renamed to MysqlFlowSpecStore, because this implementation only stores FlowSpec, not a TopologySpec
 public class MysqlSpecStore extends InstrumentedSpecStore {
   public static final String CONFIG_PREFIX = "mysqlSpecStore";
   public static final String DEFAULT_TAG_VALUE = "";
@@ -325,6 +325,9 @@ public class MysqlSpecStore extends InstrumentedSpecStore {
       conditions.add("owning_group = ?");
     }
 
+    // If the propertyFilter is myKey=myValue, it looks for a config where key is `myKey` and value contains string `myValue`.
+    // If the propertyFilter string does not have `=`, it considers the string as a key and just looks for its existence.
+    // Multiple occurrences of `=` in  propertyFilter are not supported and ignored completely.
     if (flowSpecSearchObject.getPropertyFilter() != null) {
       String propertyFilter = flowSpecSearchObject.getPropertyFilter();
       Splitter commaSplitter = Splitter.on(",").trimResults().omitEmptyStrings();
@@ -392,10 +395,6 @@ public class MysqlSpecStore extends InstrumentedSpecStore {
     if (flowSpecSearchObject.getOwningGroup() != null) {
       statement.setString(++i, flowSpecSearchObject.getOwningGroup());
     }
-
-    //    (isRunImmediately = ? OR 'required' = ?)
-    //    statement.setBoolean(++i, isRunImmediately().or(false));
-    //    statement.setBoolean(++i, isRunImmediately.isPresent());
   }
 
   protected void setAddPreparedStatement(PreparedStatement statement, Spec spec, String tagValue) throws SQLException {
@@ -411,17 +410,18 @@ public class MysqlSpecStore extends InstrumentedSpecStore {
     String schedule = ConfigUtils.getString(flowConfig, ConfigurationKeys.JOB_SCHEDULE_KEY, null);
     boolean isRunImmediately = ConfigUtils.getBoolean(flowConfig, ConfigurationKeys.FLOW_RUN_IMMEDIATELY, false);
 
-    statement.setString(1, specUri.toString());
-    statement.setString(2, flowGroup);
-    statement.setString(3, flowName);
-    statement.setString(4, templateURI);
-    statement.setString(5, userToProxy);
-    statement.setString(6, sourceIdentifier);
-    statement.setString(7, destinationIdentifier);
-    statement.setString(8, schedule);
-    statement.setString(9, tagValue);
-    statement.setBoolean(10, isRunImmediately);
-    statement.setBlob(11, new ByteArrayInputStream(this.specSerDe.serialize(flowSpec)));
-    statement.setString(12, new String(this.specSerDe.serialize(flowSpec), Charsets.UTF_8));
+    int i = 0;
+    statement.setString(++i, specUri.toString());
+    statement.setString(++i, flowGroup);
+    statement.setString(++i, flowName);
+    statement.setString(++i, templateURI);
+    statement.setString(++i, userToProxy);
+    statement.setString(++i, sourceIdentifier);
+    statement.setString(++i, destinationIdentifier);
+    statement.setString(++i, schedule);
+    statement.setString(++i, tagValue);
+    statement.setBoolean(++i, isRunImmediately);
+    statement.setBlob(++i, new ByteArrayInputStream(this.specSerDe.serialize(flowSpec)));
+    statement.setString(++i, new String(this.specSerDe.serialize(flowSpec), Charsets.UTF_8));
   }
 }
