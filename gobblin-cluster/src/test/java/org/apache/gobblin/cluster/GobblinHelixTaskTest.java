@@ -32,6 +32,7 @@ import org.apache.gobblin.example.simplejson.SimpleJsonSource;
 import org.apache.gobblin.metastore.FsStateStore;
 import org.apache.gobblin.runtime.AbstractJobLauncher;
 import org.apache.gobblin.runtime.JobState;
+import org.apache.gobblin.runtime.TaskCreationException;
 import org.apache.gobblin.runtime.TaskExecutor;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.Id;
@@ -202,9 +203,13 @@ public class GobblinHelixTaskTest {
             ConfigFactory.empty(),
             Optional.of(taskDriver));
 
-    // Expecting the eventBus containing the failure signal.
-    gobblinHelixTaskFactory.createNewTask(taskCallbackContext);
-    Assert.assertEquals(countDownLatchForFailInTaskCreation.getCount(), 0);
+    // Expecting the eventBus containing the failure signal when run is called
+    try {
+      gobblinHelixTaskFactory.createNewTask(taskCallbackContext).run();
+    } catch (Throwable t){
+      return;
+    }
+    Assert.fail();
   }
 
   @Subscribe

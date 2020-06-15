@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.cluster;
 
-import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.Callable;
 
@@ -133,16 +132,16 @@ public class GobblinHelixTask implements Task {
 
       this.task = retryer.call(new Callable<SingleTask>() {
         @Override
-        public SingleTask call()
-            throws Exception {
+        public SingleTask call() {
           return new SingleTask(jobId, workUnitFilePath, jobStateFilePath, builder.getFs(), taskAttemptBuilder,
               stateStores,
               dynamicConfig);
         }
       });
     } catch (Exception e) {
-      log.error("Execution in creating a SingleTask-with-retry failed, container will suicide ...", e);
-      eventBus.post(createTaskCreationEvent("Task Creation"));
+      log.error("Execution in creating a SingleTask-with-retry failed, will create a failing task", e);
+      this.task = new SingleFailInCreationTask(jobId, workUnitFilePath, jobStateFilePath, builder.getFs(), taskAttemptBuilder,
+          stateStores, dynamicConfig);
     }
   }
 
