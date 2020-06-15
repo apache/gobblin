@@ -329,6 +329,7 @@ public class KafkaExtractorStatsTracker {
     }
 
     long partitionLatency = 0L;
+    //Check if there are any records consumed from this KafkaPartition.
     if (partitionStats.getMinLogAppendTime() > 0) {
       partitionLatency = partitionStats.getStopFetchEpochTime() - partitionStats.getMinLogAppendTime();
     }
