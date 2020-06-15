@@ -311,5 +311,15 @@ public class OrcUtilsTest {
     Assert.assertFalse(OrcUtils.eligibleForUpConvert(struct_4, struct_5));
     TypeDescription struct_6 = TypeDescription.fromString("struct<a:struct<a:int>,b:struct<e:int>,c:int>");
     Assert.assertFalse(OrcUtils.eligibleForUpConvert(struct_4, struct_6));
+
+    // Cases when target schema contains more
+    TypeDescription struct_7 = TypeDescription.fromString("struct<a:struct<a:int>,b:struct<e:int,f:int>,c:int>");
+    Assert.assertTrue(OrcUtils.eligibleForUpConvert(struct_6, struct_7));
+
+    // Negative case when target schema contains more but not all of the owning schema are there in the target schema.
+    // Note that struct_8 has a field "a.x".
+    TypeDescription struct_8 = TypeDescription.fromString("struct<a:struct<x:int>,b:struct<e:int>,c:int>");
+    TypeDescription struct_9 = TypeDescription.fromString("struct<a:struct<a:int>,b:struct<e:int,f:int>,c:int>");
+    Assert.assertFalse(OrcUtils.eligibleForUpConvert(struct_8, struct_9));
   }
 }

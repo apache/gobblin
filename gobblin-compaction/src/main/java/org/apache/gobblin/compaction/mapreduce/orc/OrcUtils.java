@@ -57,6 +57,7 @@ import org.apache.orc.mapred.OrcMap;
 import org.apache.orc.mapred.OrcStruct;
 import org.apache.orc.mapred.OrcTimestamp;
 import org.apache.orc.mapred.OrcUnion;
+import org.apache.parquet.format.TypeDefinedOrder;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -485,24 +486,20 @@ public class OrcUtils {
   }
 
   /**
-   * Check recursively if owning schema is eligible to be up-converted to targetSchema:
-   * 1. TargetSchema is a subset of originalSchema.
-   * 2. TargetSchema is larger than originalSchema.
+   * Check recursively if owning schema is eligible to be up-converted to targetSchema if
+   * TargetSchema is a subset of originalSchema
    */
-  public static boolean eligibleForUpConvert(TypeDescription originalSchema, TypeDescription targetSchema) {
+  public static boolean eligibleForUpConvertHelper(TypeDescription originalSchema, TypeDescription targetSchema) {
     if (!targetSchema.getCategory().isPrimitive()) {
-      if (originalSchema.getFieldNames().size() < targetSchema.getFieldNames().size()) {
-        return true;
-      }
-
       if (!originalSchema.getFieldNames().containsAll(targetSchema.getFieldNames())) {
         return false;
       }
       boolean result = true;
 
-      for (int i = 0; i < targetSchema.getFieldNames().size() ; i ++ ) {
+      for (int i = 0; i < targetSchema.getFieldNames().size(); i++) {
         String subSchemaFieldName = targetSchema.getFieldNames().get(i);
-        result &= eligibleForUpConvert(originalSchema.findSubtype(subSchemaFieldName), targetSchema.getChildren().get(i));
+        result &= eligibleForUpConvertHelper(originalSchema.findSubtype(subSchemaFieldName),
+            targetSchema.getChildren().get(i));
       }
 
       return result;
@@ -510,5 +507,12 @@ public class OrcUtils {
       // Check the unit type: Only for the category.
       return originalSchema.getCategory().equals(targetSchema.getCategory());
     }
+  }
+
+  // Eligibility for up-conversion: If targetSchema is a subset of originalSchema (Schema projection)
+  // and vice-versa (schema expansion).
+  public static boolean eligibleForUpConvert(TypeDescription originalSchema, TypeDescription targetSchema) {
+    return eligibleForUpConvertHelper(originalSchema, targetSchema) || eligibleForUpConvertHelper(targetSchema,
+        originalSchema);
   }
 }

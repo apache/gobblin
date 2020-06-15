@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 
-import org.apache.gobblin.compaction.mapreduce.RecordKeyMapperBase;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapred.JobConf;
@@ -37,6 +36,8 @@ import org.apache.orc.mapred.OrcValue;
 import org.apache.orc.mapreduce.OrcMapreduceRecordReader;
 
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.compaction.mapreduce.RecordKeyMapperBase;
 
 import static org.apache.gobblin.compaction.mapreduce.orc.OrcUtils.eligibleForUpConvert;
 
@@ -54,6 +55,9 @@ public class OrcValueMapper extends RecordKeyMapperBase<NullWritable, OrcStruct,
   private OrcValue outValue;
   private TypeDescription mrOutputSchema;
   private TypeDescription shuffleKeySchema;
+  // Lazily initiated flag indicating if shuffleKeySchema is eligible to be used.
+  // Check org.apache.gobblin.compaction.mapreduce.orc.OrcUtils.eligibleForUpConvert for details.
+  private Boolean isShuffleKeyEligible;
   private JobConf jobConf;
 
   // This is added mostly for debuggability.
@@ -121,8 +125,11 @@ public class OrcValueMapper extends RecordKeyMapperBase<NullWritable, OrcStruct,
    * Note: This method should have no side-effect on input record.
    */
   private void fillDedupKey(OrcStruct originalRecord) {
-    if (!originalRecord.getSchema().equals(this.shuffleKeySchema)
-        && eligibleForUpConvert(originalRecord.getSchema(), this.shuffleKeySchema)) {
+    if (this.isShuffleKeyEligible == null) {
+      this.isShuffleKeyEligible = eligibleForUpConvert(originalRecord.getSchema(), this.shuffleKeySchema);
+    }
+
+    if (!originalRecord.getSchema().equals(this.shuffleKeySchema) && isShuffleKeyEligible) {
       OrcUtils.upConvertOrcStruct(originalRecord, (OrcStruct) this.outKey.key, this.shuffleKeySchema);
     } else {
       this.outKey.key = originalRecord;
