@@ -98,6 +98,8 @@ import org.apache.gobblin.cluster.HelixUtils;
 import org.apache.gobblin.cluster.event.ClusterManagerShutdownRequest;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.MetricReporterException;
+import org.apache.gobblin.metrics.MultiReporterException;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.util.ConfigUtils;
@@ -399,7 +401,13 @@ public class YarnService extends AbstractIdleService {
 
     // Intialize Gobblin metrics and start reporters
     GobblinMetrics gobblinMetrics = GobblinMetrics.get(this.applicationId, null, tags.build());
-    gobblinMetrics.startMetricReporting(ConfigUtils.configToProperties(config));
+    try {
+      gobblinMetrics.startMetricReporting(ConfigUtils.configToProperties(config));
+    } catch (MultiReporterException ex) {
+      for (MetricReporterException e: ex.getExceptions()) {
+        LOGGER.error("Failed to start {} {} reporter.", e.getSinkType().name(), e.getReporterType().name(), e);
+      }
+    }
 
     return gobblinMetrics;
   }

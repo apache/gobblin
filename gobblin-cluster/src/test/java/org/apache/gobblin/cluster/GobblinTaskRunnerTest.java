@@ -47,6 +47,7 @@ import com.typesafe.config.ConfigValueFactory;
 
 import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
 import org.apache.gobblin.cluster.suite.IntegrationBasicSuite;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.testing.AssertWithBackoff;
 import org.apache.gobblin.util.event.ContainerHealthCheckFailureEvent;
 import org.apache.gobblin.util.eventbus.EventBusFactory;
@@ -76,6 +77,7 @@ public class GobblinTaskRunnerTest {
   private GobblinTaskRunner gobblinTaskRunner;
   private GobblinTaskRunner gobblinTaskRunnerHealthCheck;
   private GobblinTaskRunner corruptGobblinTaskRunner;
+  private GobblinTaskRunner gobblinTaskRunnerFailedReporter;
 
   private GobblinClusterManager gobblinClusterManager;
   private String clusterName;
@@ -117,6 +119,18 @@ public class GobblinTaskRunnerTest {
             config.withValue(GobblinClusterConfigurationKeys.CONTAINER_EXIT_ON_HEALTH_CHECK_FAILURE_ENABLED, ConfigValueFactory.fromAnyRef(true))
         , Optional.<Path>absent());
 
+    // Participant that fails to start due to metric reporter failures
+    String instanceName = HelixUtils.getHelixInstanceName("MetricReporterFailureInstance", 0);
+
+    Config metricConfig = config.withValue(ConfigurationKeys.METRICS_ENABLED_KEY, ConfigValueFactory.fromAnyRef(true))
+        .withValue(ConfigurationKeys.METRICS_REPORTING_KAFKA_ENABLED_KEY, ConfigValueFactory.fromAnyRef(true))
+        .withValue(ConfigurationKeys.METRICS_KAFKA_TOPIC_METRICS, ConfigValueFactory.fromAnyRef("metricTopic"))
+        .withValue(ConfigurationKeys.GOBBLIN_TASK_METRIC_REPORTING_FAILURE_FATAL, ConfigValueFactory.fromAnyRef(true));
+
+    this.gobblinTaskRunnerFailedReporter =
+        new GobblinTaskRunner(TestHelper.TEST_APPLICATION_NAME, instanceName,
+            TestHelper.TEST_APPLICATION_ID, "2", metricConfig, Optional.<Path>absent());
+
     // Participant with a partial Instance set up on Helix/ZK
     this.corruptHelixInstance = HelixUtils.getHelixInstanceName("CorruptHelixInstance", 0);
     this.corruptGobblinTaskRunner =
@@ -156,6 +170,11 @@ public class GobblinTaskRunnerTest {
           return GobblinTaskRunnerTest.this.gobblinTaskRunner.isStopped();
         }
       }, "gobblinTaskRunner stopped");
+  }
+
+  @Test (expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = ".*Could not create one or more reporters.*")
+  public void testStartUpFailsDueToMetricReporterFailure() {
+    GobblinTaskRunnerTest.this.gobblinTaskRunnerFailedReporter.start();
   }
 
   @Test
@@ -270,6 +289,7 @@ public class GobblinTaskRunnerTest {
       this.gobblinClusterManager.disconnectHelixManager();
       this.gobblinTaskRunner.disconnectHelixManager();
       this.corruptGobblinTaskRunner.disconnectHelixManager();
+      this.gobblinTaskRunnerFailedReporter.disconnectHelixManager();
       this.gobblinTaskRunnerHealthCheck.disconnectHelixManager();
       if (this.suite != null) {
         this.suite.shutdownCluster();

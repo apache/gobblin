@@ -684,6 +684,19 @@ public class ConfigurationKeys {
   public static final String METRICS_REPORTING_CONFIGURATIONS_PREFIX = "metrics.reporting";
   public static final String METRICS_REPORTING_EVENTS_CONFIGURATIONS_PREFIX =
       METRICS_REPORTING_CONFIGURATIONS_PREFIX + ".events";
+
+  //Configuration keys to trigger job/task failures on metric reporter instantiation failures. Useful
+  //when monitoring of Gobblin pipelines critically depend on events and metrics emitted by the metrics
+  //reporting service running in each container.
+  public static final String GOBBLIN_TASK_METRIC_REPORTING_FAILURE_FATAL = "gobblin.task.isMetricReportingFailureFatal";
+  public static final boolean DEFAULT_GOBBLIN_TASK_METRIC_REPORTING_FAILURE_FATAL = false;
+  public static final String GOBBLIN_TASK_EVENT_REPORTING_FAILURE_FATAL = "gobblin.task.isEventReportingFailureFatal";
+  public static final boolean DEFAULT_GOBBLIN_TASK_EVENT_REPORTING_FAILURE_FATAL = false;
+  public static final String GOBBLIN_JOB_METRIC_REPORTING_FAILURE_FATAL = "gobblin.job.isMetricReportingFailureFatal";
+  public static final boolean DEFAULT_GOBBLIN_JOB_METRIC_REPORTING_FAILURE_FATAL = false;
+  public static final String GOBBLIN_JOB_EVENT_REPORTING_FAILURE_FATAL = "gobblin.job.isEventReportingFailureFatal";
+  public static final boolean DEFAULT_GOBBLIN_JOB_EVENT_REPORTING_FAILURE_FATAL = false;
+
   // File-based reporting
   public static final String METRICS_REPORTING_FILE_ENABLED_KEY =
       METRICS_CONFIGURATIONS_PREFIX + "reporting.file.enabled";
@@ -705,7 +718,10 @@ public class ConfigurationKeys {
       METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.enabled";
   public static final String DEFAULT_METRICS_REPORTING_KAFKA_ENABLED = Boolean.toString(false);
   public static final String DEFAULT_METRICS_REPORTING_KAFKA_REPORTER_CLASS =
-      "org.apache.gobblin.metrics.kafka.KafkaReporterFactory";
+      "org.apache.gobblin.metrics.kafka.KafkaMetricReporterFactory";
+  public static final String DEFAULT_EVENTS_REPORTING_KAFKA_REPORTER_CLASS =
+      "org.apache.gobblin.metrics.kafka.KafkaEventReporterFactory";
+
   public static final String METRICS_REPORTING_KAFKA_FORMAT = METRICS_CONFIGURATIONS_PREFIX + "reporting.kafka.format";
   public static final String METRICS_REPORTING_EVENTS_KAFKA_FORMAT =
       METRICS_CONFIGURATIONS_PREFIX + "reporting.events.kafka.format";
