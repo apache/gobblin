@@ -56,7 +56,7 @@ import org.apache.gobblin.writer.WriteResponseMapper;
  *
  */
 @Slf4j
-public class Kafka09DataWriter<K, V> implements AsyncDataWriter<V> {
+public class Kafka09DataWriter<K, V> implements KafkaDataWriter<K, V> {
 
 
   public static final WriteResponseMapper<RecordMetadata> WRITE_RESPONSE_WRAPPER =
@@ -123,6 +123,14 @@ public class Kafka09DataWriter<K, V> implements AsyncDataWriter<V> {
   public Future<WriteResponse> write(final V record, final WriteCallback callback) {
     try {
       Pair<K, V> keyValuePair = KafkaWriterHelper.getKeyValuePair(record, this.commonConfig);
+      return write(keyValuePair, callback);
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to create a Kafka write request", e);
+    }
+  }
+
+  public Future<WriteResponse> write(Pair<K, V> keyValuePair, final WriteCallback callback) {
+    try {
       return new WriteResponseFuture<>(this.producer
           .send(new ProducerRecord<>(topic, keyValuePair.getKey(), keyValuePair.getValue()), new Callback() {
             @Override
