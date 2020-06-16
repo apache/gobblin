@@ -659,6 +659,7 @@ public class GobblinMetrics {
           "Graphite hostname is missing.");
     } catch (IllegalArgumentException exception) {
       reporterExceptionList.add(new MetricReporterException("Missing Graphite configuration(s).", exception, ReporterType.METRIC_EVENT, ReporterSinkType.GRAPHITE));
+      throw new MultiReporterException("Failed to start one or more Graphite reporters", reporterExceptionList);
     }
 
     String hostname = properties.getProperty(ConfigurationKeys.METRICS_REPORTING_GRAPHITE_HOSTNAME);
@@ -744,6 +745,7 @@ public class GobblinMetrics {
           "InfluxDB database name is missing.");
     } catch (IllegalArgumentException exception) {
       reporterExceptionList.add(new MetricReporterException("Missing InfluxDB configuration(s)", exception, ReporterType.METRIC_EVENT, ReporterSinkType.INFLUXDB));
+      throw new MultiReporterException("Failed to start one or more InfluxDB reporters", reporterExceptionList);
     }
 
     String url = properties.getProperty(ConfigurationKeys.METRICS_REPORTING_INFLUXDB_URL);

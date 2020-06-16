@@ -40,7 +40,6 @@ public class KafkaEventReporterFactory implements CustomCodahaleReporterFactory 
   @Override
   public ScheduledReporter newScheduledReporter(MetricRegistry registry, Properties properties)
       throws IOException {
-    ScheduledReporter reporter = null;
     if (!Boolean.valueOf(properties.getProperty(ConfigurationKeys.METRICS_REPORTING_KAFKA_ENABLED_KEY,
         ConfigurationKeys.DEFAULT_METRICS_REPORTING_KAFKA_ENABLED))) {
       return null;
