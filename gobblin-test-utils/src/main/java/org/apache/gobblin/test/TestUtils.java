@@ -97,7 +97,7 @@ public class TestUtils {
    * @return a free port number on localhost
    * @throws IllegalStateException if unable to find a free port
    */
-  public static int findFreePort() {
+  public synchronized static int findFreePort() {
     ServerSocket socket = null;
     try {
       socket = new ServerSocket(0);
