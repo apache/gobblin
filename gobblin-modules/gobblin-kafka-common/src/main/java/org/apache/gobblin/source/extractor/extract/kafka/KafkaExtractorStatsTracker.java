@@ -327,19 +327,31 @@ public class KafkaExtractorStatsTracker {
     if (partitionStats.getStopFetchEpochTime() > aggregateExtractorStats.getMaxStopFetchEpochTime()) {
       aggregateExtractorStats.setMaxStopFetchEpochTime(partitionStats.getStopFetchEpochTime());
     }
-    long partitionLatency = partitionStats.getStopFetchEpochTime() - partitionStats.getMinLogAppendTime();
+
+    long partitionLatency = 0L;
+    //Check if there are any records consumed from this KafkaPartition.
+    if (partitionStats.getMinLogAppendTime() > 0) {
+      partitionLatency = partitionStats.getStopFetchEpochTime() - partitionStats.getMinLogAppendTime();
+    }
+
     if (aggregateExtractorStats.getMaxIngestionLatency() < partitionLatency) {
       aggregateExtractorStats.setMaxIngestionLatency(partitionLatency);
     }
+
     if (aggregateExtractorStats.getMinLogAppendTime() > partitionStats.getMinLogAppendTime()) {
       aggregateExtractorStats.setMinLogAppendTime(partitionStats.getMinLogAppendTime());
     }
+
     if (aggregateExtractorStats.getMaxLogAppendTime() < partitionStats.getMaxLogAppendTime()) {
       aggregateExtractorStats.setMaxLogAppendTime(partitionStats.getMaxLogAppendTime());
     }
+
     aggregateExtractorStats.setProcessedRecordCount(aggregateExtractorStats.getProcessedRecordCount() + partitionStats.getProcessedRecordCount());
     aggregateExtractorStats.setNumBytesConsumed(aggregateExtractorStats.getNumBytesConsumed() + partitionStats.getPartitionTotalSize());
-    aggregateExtractorStats.setSlaMissedRecordCount(aggregateExtractorStats.getSlaMissedRecordCount() + partitionStats.getSlaMissedRecordCount());
+
+    if (partitionStats.getSlaMissedRecordCount() > 0) {
+      aggregateExtractorStats.setSlaMissedRecordCount(aggregateExtractorStats.getSlaMissedRecordCount() + partitionStats.getSlaMissedRecordCount());
+    }
   }
 
   private Map<String, String> createTagsForPartition(int partitionId, MultiLongWatermark lowWatermark, MultiLongWatermark highWatermark, MultiLongWatermark nextWatermark) {

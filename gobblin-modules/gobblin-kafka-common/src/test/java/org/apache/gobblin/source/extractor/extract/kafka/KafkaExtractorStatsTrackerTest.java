@@ -211,10 +211,24 @@ public class KafkaExtractorStatsTrackerTest {
     Assert.assertTrue(this.extractorStatsTracker.getMaxIngestionLatency(TimeUnit.MINUTES) >= 15);
   }
 
-  @Test (dependsOnMethods = "testGetAvgRecordSize")
+  @Test (dependsOnMethods = "testGetMaxLatency")
   public void testGetConsumptionRateMBps() {
     double a = this.extractorStatsTracker.getConsumptionRateMBps();
     Assert.assertEquals((new Double(Math.ceil(a * epochDurationMs * 1024 * 1024) / 1000)).longValue(), 300L);
+  }
+
+  @Test (dependsOnMethods = "testGetConsumptionRateMBps")
+  public void testGetMaxLatencyNoRecordsInEpoch() {
+    //Close the previous epoch
+    this.extractorStatsTracker.reset();
+    Long readStartTime = System.nanoTime();
+    //Call update on partitions 1 and 2 with no records cosumed from each partition
+    this.extractorStatsTracker.updateStatisticsForCurrentPartition(0, readStartTime, 0);
+    this.extractorStatsTracker.updateStatisticsForCurrentPartition(1, readStartTime, 0);
+    //Close the epoch
+    this.extractorStatsTracker.reset();
+    //Ensure the max latency is 0 when there are no records
+    Assert.assertEquals(this.extractorStatsTracker.getMaxIngestionLatency(TimeUnit.MINUTES), 0L);
   }
 
   @Test
