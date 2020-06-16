@@ -420,6 +420,12 @@ public class FlowSpec implements Configurable, Spec {
       return uriTokens[EXPECTED_NUM_URI_PATH_TOKENS - 2];
     }
 
+    /**
+     * Create a {@link FlowConfig} from a {@link Spec}.
+     * The {@link Spec} must have {@link ConfigurationKeys#FLOW_GROUP_KEY} and {@link ConfigurationKeys#FLOW_NAME_KEY} set.
+     * @param spec spec
+     * @return {@link FlowConfig}
+     */
     public static FlowConfig toFlowConfig(Spec spec) {
       FlowSpec flowSpec = (FlowSpec) spec;
       FlowConfig flowConfig = new FlowConfig();
