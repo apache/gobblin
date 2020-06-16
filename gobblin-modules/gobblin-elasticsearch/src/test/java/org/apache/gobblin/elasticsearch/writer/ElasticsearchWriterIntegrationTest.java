@@ -70,7 +70,7 @@ public class ElasticsearchWriterIntegrationTest {
     _esTestServer.start(60);
   }
 
-  @AfterSuite
+  @AfterSuite(alwaysRun=true)
   public void stopServers() {
     log.error("{}: Stopping Elasticsearch Server", pid);
     _esTestServer.stop();
