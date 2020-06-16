@@ -98,6 +98,10 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
     return (List) this.getFlowConfigResourceHandler().getAllFlowConfigs();
   }
 
+  /**
+   * Get all {@link FlowConfig}s that matches the provided parameters. All the parameters are optional.
+   * If a parameter is null, it is ignored. {@see FlowConfigV2Resource#getFilteredFlows}
+   */
   @Finder("filterFlows")
   public List<FlowConfig> getFilteredFlows(@Context PagingContext context,
       @Optional @QueryParam("flowGroup") String flowGroup,

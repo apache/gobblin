@@ -276,6 +276,7 @@ public class MysqlSpecStore extends InstrumentedSpecStore {
     return Optional.of(this.specStoreURI);
   }
 
+  /** This expects at least one parameter in {@link FlowSpecSearchObject} to be not null */
   static String createGetPreparedStatement(FlowSpecSearchObject flowSpecSearchObject, String tableName)
       throws IOException {
     String baseStatement = String.format(GET_STATEMENT, tableName);
@@ -313,7 +314,7 @@ public class MysqlSpecStore extends InstrumentedSpecStore {
       conditions.add("schedule = ?");
     }
 
-    if (flowSpecSearchObject.getSchedule() != null) {
+    if (flowSpecSearchObject.getModifiedTimestamp() != null) {
       conditions.add("modified_time = ?");
     }
 

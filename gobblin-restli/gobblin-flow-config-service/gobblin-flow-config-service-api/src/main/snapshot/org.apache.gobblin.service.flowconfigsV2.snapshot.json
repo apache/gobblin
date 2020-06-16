@@ -119,9 +119,6 @@
         "method" : "get",
         "doc" : "Retrieve the flow configuration with the given key"
       }, {
-        "method" : "get_all",
-        "doc" : "Retrieve all the flow configurations"
-      }, {
         "method" : "update",
         "doc" : "Update the flow configuration with the specified key. Running flows are not affected.\n An error is raised if the flow configuration does not exist."
       }, {
@@ -130,14 +127,18 @@
       }, {
         "method" : "delete",
         "doc" : "Delete a configured flow. Running flows are not affected. The schedule will be removed for scheduled flows."
+      }, {
+        "method" : "get_all",
+        "doc" : "Retrieve all the flow configurations"
       } ],
       "finders" : [ {
         "name" : "filterFlows",
+        "doc" : "Get all {@link FlowConfig}s that matches the provided parameters. All the parameters are optional.\n If a parameter is null, it is ignored. {@see FlowConfigV2Resource#getFilteredFlows}",
         "parameters" : [ {
           "name" : "flowGroup",
           "type" : "string",
           "optional" : true
-        } ,{
+        }, {
           "name" : "flowName",
           "type" : "string",
           "optional" : true
