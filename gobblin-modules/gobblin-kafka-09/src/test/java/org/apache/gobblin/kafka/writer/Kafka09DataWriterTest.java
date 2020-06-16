@@ -60,14 +60,14 @@ public class Kafka09DataWriterTest {
     _kafkaTestHelper = new KafkaTestBase();
   }
 
-  @BeforeSuite
+  @BeforeSuite(alwaysRun = true)
   public void beforeSuite() {
     log.warn("Process id = " + ManagementFactory.getRuntimeMXBean().getName());
 
     _kafkaTestHelper.startServers();
   }
 
-  @AfterSuite
+  @AfterSuite(alwaysRun = true)
   public void afterSuite()
       throws IOException {
     try {
@@ -161,10 +161,14 @@ public class Kafka09DataWriterTest {
       kafka09DataWriter.close();
     }
 
+    log.info("Kafka events written");
+
     verify(callback, times(1)).onSuccess(isA(WriteResponse.class));
     verify(callback, never()).onFailure(isA(Exception.class));
 
     byte[] message = _kafkaTestHelper.getIteratorForTopic(topic).next().message();
+
+    log.info("Kafka events read, start to check result... ");
     ConfigDrivenMd5SchemaRegistry schemaReg = new ConfigDrivenMd5SchemaRegistry(topic, record.getSchema());
     LiAvroDeserializer deser = new LiAvroDeserializer(schemaReg);
     GenericRecord receivedRecord = deser.deserialize(topic, message);
