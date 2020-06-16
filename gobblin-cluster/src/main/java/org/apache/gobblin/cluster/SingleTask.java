@@ -82,7 +82,7 @@ public class SingleTask {
    * see the example in {@link GobblinHelixTask}.
    */
   SingleTask(String jobId, Path workUnitFilePath, Path jobStateFilePath, FileSystem fs,
-      TaskAttemptBuilder taskAttemptBuilder, StateStores stateStores, Config dynamicConfig) throws IOException {
+      TaskAttemptBuilder taskAttemptBuilder, StateStores stateStores, Config dynamicConfig) {
     _jobId = jobId;
     _workUnitFilePath = workUnitFilePath;
     _jobStateFilePath = jobStateFilePath;
@@ -90,9 +90,14 @@ public class SingleTask {
     _taskAttemptBuilder = taskAttemptBuilder;
     _stateStores = stateStores;
     _dynamicConfig = dynamicConfig;
-    _jobState = getJobState();
     _lock = new ReentrantLock();
     _taskAttemptBuilt = _lock.newCondition();
+
+    try {
+      _jobState = getJobState();
+    } catch (IOException ioe) {
+      throw new RuntimeException("Failing in deserializing jobState...", ioe);
+    }
   }
 
   public void run()
@@ -140,8 +145,7 @@ public class SingleTask {
     return ConfigFactory.parseProperties(jobProperties);
   }
 
-  protected JobState getJobState()
-      throws java.io.IOException {
+  protected JobState getJobState() throws IOException {
     JobState jobState;
 
     // read the state from the state store if present, otherwise deserialize directly from the file

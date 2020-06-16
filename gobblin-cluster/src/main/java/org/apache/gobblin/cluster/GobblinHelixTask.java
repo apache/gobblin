@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.cluster;
 
-import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.Callable;
 
@@ -51,6 +50,10 @@ import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
 import lombok.extern.slf4j.Slf4j;
+
+import static org.apache.gobblin.cluster.HelixTaskEventMetadataGenerator.HELIX_INSTANCE_KEY;
+import static org.apache.gobblin.cluster.HelixTaskEventMetadataGenerator.HELIX_JOB_ID_KEY;
+import static org.apache.gobblin.cluster.HelixTaskEventMetadataGenerator.HELIX_TASK_ID_KEY;
 
 
 /**
@@ -129,15 +132,16 @@ public class GobblinHelixTask implements Task {
 
       this.task = retryer.call(new Callable<SingleTask>() {
         @Override
-        public SingleTask call()
-            throws Exception {
+        public SingleTask call() {
           return new SingleTask(jobId, workUnitFilePath, jobStateFilePath, builder.getFs(), taskAttemptBuilder,
               stateStores,
               dynamicConfig);
         }
       });
     } catch (Exception e) {
-      throw new RuntimeException("Execution in creating a SingleTask-with-retry failed", e);
+      log.error("Execution in creating a SingleTask-with-retry failed, will create a failing task", e);
+      this.task = new SingleFailInCreationTask(jobId, workUnitFilePath, jobStateFilePath, builder.getFs(), taskAttemptBuilder,
+          stateStores, dynamicConfig);
     }
   }
 
@@ -170,7 +174,7 @@ public class GobblinHelixTask implements Task {
       this.taskMetrics.helixTaskTotalFailed.incrementAndGet();
       return new TaskResult(TaskResult.Status.CANCELED, "");
     } catch (TaskCreationException te) {
-      eventBus.post(createTaskCreationEvent());
+      eventBus.post(createTaskCreationEvent("Task Execution"));
       log.error("Actual task {} failed in creation due to {}, will request new container to schedule it",
           this.taskId, te.getMessage());
       this.taskMetrics.helixTaskTotalCancelled.incrementAndGet();
@@ -185,15 +189,16 @@ public class GobblinHelixTask implements Task {
     }
   }
 
-  private ContainerHealthCheckFailureEvent createTaskCreationEvent() {
+  private ContainerHealthCheckFailureEvent createTaskCreationEvent(String phase) {
     ContainerHealthCheckFailureEvent event = new ContainerHealthCheckFailureEvent(
         ConfigFactory.parseMap(this.taskConfig.getConfigMap()) , getClass().getName());
     event.addMetadata("jobName", this.jobName);
     event.addMetadata("AppName", this.applicationName);
-    event.addMetadata("InstanceName", this.instanceName);
-    event.addMetadata("helixJobId", this.helixJobId);
-    event.addMetadata("helixTaskId", this.helixTaskId);
+    event.addMetadata(HELIX_INSTANCE_KEY, this.instanceName);
+    event.addMetadata(HELIX_JOB_ID_KEY, this.helixJobId);
+    event.addMetadata(HELIX_TASK_ID_KEY, this.helixTaskId);
     event.addMetadata("WUPath", this.workUnitFilePath.toString());
+    event.addMetadata("Phase", phase);
     return event;
   }
 
