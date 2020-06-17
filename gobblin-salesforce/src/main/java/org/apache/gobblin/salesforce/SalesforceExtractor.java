@@ -128,8 +128,8 @@ public class SalesforceExtractor extends RestApiExtractor {
     this.sfConnector = (SalesforceConnector) this.connector;
     this.pkChunkingSize = conf.pkChunkingSize;
 
-    this.retryInterval = workUnitState.getPropAsLong(RETRY_INTERVAL, RETRY_INTERVAL_DEFAULT);
-    this.retryExceedQuotaInterval = workUnitState.getPropAsLong(RETRY_EXCEED_QUOTA_INTERVAL, RETRY_EXCEED_QUOTA_INTERVAL_DEFAULT);
+    this.retryInterval = conf.retryInterval;
+    this.retryExceedQuotaInterval = conf.retryExceedQuotaInterval;
     this.bulkApiUseQueryAll = conf.bulkApiUseQueryAll;
     this.retryLimit = conf.fetchRetryLimit;
   }
