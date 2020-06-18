@@ -259,7 +259,7 @@ public class ConfigurationKeys {
   // This property is used to specify the URN of a dataset a job or WorkUnit extracts data for
   public static final String DATASET_URN_KEY = "dataset.urn";
   public static final String GLOBAL_WATERMARK_DATASET_URN = "__globalDatasetWatermark";
-  public static final String DEFAULT_DATASET_URN = "DEFAULT_DATASET_URN";
+  public static final String DEFAULT_DATASET_URN = "";
 
   /**
    * Work unit related configuration properties.
