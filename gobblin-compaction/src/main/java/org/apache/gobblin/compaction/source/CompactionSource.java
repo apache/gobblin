@@ -151,7 +151,7 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
       this.workUnitIterator = workUnitIterator;
     }
 
-    public void run () {
+    public void run() {
       try {
         Stopwatch stopwatch = Stopwatch.createStarted();
         int threads = this.state.getPropAsInt(CompactionVerifier.COMPACTION_VERIFICATION_THREADS, 5);
@@ -205,7 +205,7 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
           for (Dataset dataset: datasets) {
             log.info ("{} is timed out and give up the verification, adding a failed task", dataset.datasetURN());
             // create failed task for these failed datasets
-            this.workUnitIterator.addWorkUnit (createWorkUnitForFailure(dataset, failedReasonMap.get(dataset.getUrn())));
+            this.workUnitIterator.addWorkUnit(createWorkUnitForFailure(dataset, failedReasonMap.get(dataset.getUrn())));
           }
         }
 
@@ -316,11 +316,11 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
      * {@link VerifiedDataset} wraps original {@link Dataset} because if verification failed, we are able get original
      * datasets and restart the entire process of verification against those failed datasets.
      */
-    public VerifiedDataset call () throws DatasetVerificationException {
+    public VerifiedDataset call() throws DatasetVerificationException {
       try {
         VerifiedResult result = this.verify(dataset);
         if (result.allVerificationPassed) {
-          this.workUnitIterator.addWorkUnit (createWorkUnit(dataset));
+          this.workUnitIterator.addWorkUnit(createWorkUnit(dataset));
         }
         return new VerifiedDataset(dataset, result);
       } catch (Exception e) {
@@ -422,16 +422,18 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
     }
   }
 
-  protected WorkUnit createWorkUnit (Dataset dataset) throws IOException {
+  protected WorkUnit createWorkUnit(Dataset dataset) throws IOException {
     WorkUnit workUnit = new WorkUnit();
     TaskUtils.setTaskFactoryClass(workUnit, MRCompactionTaskFactory.class);
     suite.save(dataset, workUnit);
+    workUnit.setProp(ConfigurationKeys.DATASET_URN_KEY, dataset.getUrn());
     return workUnit;
   }
 
   protected WorkUnit createWorkUnitForFailure (Dataset dataset) throws IOException {
     WorkUnit workUnit = new FailedTask.FailedWorkUnit();
     TaskUtils.setTaskFactoryClass(workUnit, CompactionFailedTask.CompactionFailedTaskFactory.class);
+    workUnit.setProp(ConfigurationKeys.DATASET_URN_KEY, dataset.getUrn());
     suite.save(dataset, workUnit);
     return workUnit;
   }
@@ -440,6 +442,7 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
     WorkUnit workUnit = new FailedTask.FailedWorkUnit();
     workUnit.setProp(CompactionVerifier.COMPACTION_VERIFICATION_FAIL_REASON, reason);
     TaskUtils.setTaskFactoryClass(workUnit, CompactionFailedTask.CompactionFailedTaskFactory.class);
+    workUnit.setProp(ConfigurationKeys.DATASET_URN_KEY, dataset.getUrn());
     suite.save(dataset, workUnit);
     return workUnit;
   }
