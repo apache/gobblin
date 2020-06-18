@@ -266,7 +266,7 @@ public class AvroCompactionTaskTest {
   }
 
   @Test
-   public void testWorkUnitStream () throws Exception {
+   public void testWorkUnitStream() throws Exception {
      File basePath = Files.createTempDir();
      basePath.deleteOnExit();
      GenericRecord r1 = createRandomRecord();
