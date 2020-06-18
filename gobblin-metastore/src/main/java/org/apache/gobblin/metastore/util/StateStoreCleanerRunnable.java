@@ -32,6 +32,7 @@ import org.apache.gobblin.util.ConfigUtils;
  * A utility class that wraps the {@link StateStoreCleaner} implementation as a {@link Runnable}.
  */
 @Slf4j
+@Deprecated
 public class StateStoreCleanerRunnable implements Runnable {
   private Properties properties;
 

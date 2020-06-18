@@ -262,6 +262,8 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
    *
    */
   private List<WorkUnit> generateWorkUnitsStrategy(SourceEntity sourceEntity, SourceState state, long previousWatermark) {
+    Boolean disableSoft = state.getPropAsBoolean(SOURCE_QUERYBASED_SALESFORCE_IS_SOFT_DELETES_PULL_DISABLED, false);
+    log.info("disable soft delete pull: " + disableSoft);
     WatermarkType watermarkType = WatermarkType.valueOf(
         state.getProp(ConfigurationKeys.SOURCE_QUERYBASED_WATERMARK_TYPE, ConfigurationKeys.DEFAULT_WATERMARK_TYPE)
             .toUpperCase());
@@ -274,7 +276,9 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     // Only support time related watermark
     if (watermarkType == WatermarkType.SIMPLE || Strings.isNullOrEmpty(watermarkColumn) || !state.getPropAsBoolean(
         ENABLE_DYNAMIC_PARTITIONING) || maxPartitions <= 1) {
-      return super.generateWorkUnits(sourceEntity, state, previousWatermark);
+      List<WorkUnit> workUnits = super.generateWorkUnits(sourceEntity, state, previousWatermark);
+      workUnits.stream().forEach(x -> x.setProp(SOURCE_QUERYBASED_SALESFORCE_IS_SOFT_DELETES_PULL_DISABLED, disableSoft));
+      return workUnits;
     }
 
     Partitioner partitioner = new Partitioner(state);
@@ -323,7 +327,6 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
     state.setProp(Partitioner.IS_EARLY_STOPPED, isEarlyStopped);
 
     List<WorkUnit> workUnits = super.generateWorkUnits(sourceEntity, state, previousWatermark);
-    Boolean disableSoft = state.getPropAsBoolean(SOURCE_QUERYBASED_SALESFORCE_IS_SOFT_DELETES_PULL_DISABLED, false);
     workUnits.stream().forEach(x -> x.setProp(SOURCE_QUERYBASED_SALESFORCE_IS_SOFT_DELETES_PULL_DISABLED, disableSoft));
     return workUnits;
   }

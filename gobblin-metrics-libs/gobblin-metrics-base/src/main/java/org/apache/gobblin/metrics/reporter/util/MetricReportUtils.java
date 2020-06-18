@@ -25,6 +25,7 @@ import org.apache.avro.io.Decoder;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.commons.codec.binary.Hex;
+import org.slf4j.Logger;
 
 import com.google.common.base.Optional;
 import com.google.common.io.Closer;
@@ -32,6 +33,9 @@ import com.google.common.io.Closer;
 import javax.annotation.Nullable;
 
 import org.apache.gobblin.metrics.MetricReport;
+import org.apache.gobblin.metrics.MetricReporterException;
+import org.apache.gobblin.metrics.MultiReporterException;
+import org.apache.gobblin.metrics.ReporterType;
 
 
 /**
@@ -147,5 +151,17 @@ public class MetricReportUtils {
           .format("Schema version not recognized. Found version %d, expected %d.", versionNumber,
               SCHEMA_VERSION));
     }
+  }
+
+  public static boolean shouldThrowException(Logger log, MultiReporterException ex, boolean isMetricReportingFailureFatal, boolean isEventReportingFailureFatal) {
+    boolean shouldThrow = false;
+    for (MetricReporterException e: ex.getExceptions()) {
+      if ((isMetricReportingFailureFatal && ReporterType.isReporterTypeMetric(e.getReporterType())) || (
+          isEventReportingFailureFatal && ReporterType.isReporterTypeEvent(e.getReporterType()))) {
+        shouldThrow = true;
+      }
+      log.error("Failed to start {} {} reporter", e.getSinkType().name(), e.getReporterType().name(), e);
+    }
+    return shouldThrow;
   }
 }

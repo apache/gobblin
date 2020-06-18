@@ -62,7 +62,7 @@ public class ElasticsearchWriterIntegrationTest {
     recordGenerators = ImmutableList.of(new AvroRecordGenerator(), new JsonRecordGenerator());
   }
 
-  @BeforeSuite
+  @BeforeSuite(alwaysRun=true)
   public void startServers()
       throws IOException {
     log.error("{}: Starting Elasticsearch Server", pid);
@@ -70,10 +70,12 @@ public class ElasticsearchWriterIntegrationTest {
     _esTestServer.start(60);
   }
 
-  @AfterSuite
+  @AfterSuite(alwaysRun=true)
   public void stopServers() {
     log.error("{}: Stopping Elasticsearch Server", pid);
-    _esTestServer.stop();
+    if (_esTestServer != null ) {
+      _esTestServer.stop();
+    }
   }
 
 

@@ -31,28 +31,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.configuration.DynamicConfigGenerator;
-import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.metrics.GobblinMetrics;
-import org.apache.gobblin.metrics.RootMetricContext;
-import org.apache.gobblin.metrics.Tag;
-import org.apache.gobblin.metrics.event.TimingEvent;
-import org.apache.gobblin.runtime.DynamicConfigGeneratorFactory;
-import org.apache.gobblin.runtime.JobException;
-import org.apache.gobblin.runtime.JobLauncher;
-import org.apache.gobblin.runtime.JobLauncherFactory;
-import org.apache.gobblin.runtime.app.ApplicationException;
-import org.apache.gobblin.runtime.app.ApplicationLauncher;
-import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
-import org.apache.gobblin.runtime.listeners.CompositeJobListener;
-import org.apache.gobblin.runtime.listeners.EmailNotificationJobListener;
-import org.apache.gobblin.runtime.listeners.JobListener;
-import org.apache.gobblin.util.ClassAliasResolver;
-import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.util.HadoopUtils;
-import org.apache.gobblin.util.TimeRangeChecker;
-import org.apache.gobblin.util.hadoop.TokenUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.Credentials;
 import org.apache.log4j.Level;
@@ -72,6 +50,31 @@ import com.typesafe.config.ConfigValue;
 
 import azkaban.jobExecutor.AbstractJob;
 import javax.annotation.Nullable;
+
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.DynamicConfigGenerator;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.RootMetricContext;
+import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.runtime.DynamicConfigGeneratorFactory;
+import org.apache.gobblin.runtime.JobException;
+import org.apache.gobblin.runtime.JobLauncher;
+import org.apache.gobblin.runtime.JobLauncherFactory;
+import org.apache.gobblin.runtime.app.ApplicationException;
+import org.apache.gobblin.runtime.app.ApplicationLauncher;
+import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
+import org.apache.gobblin.runtime.listeners.CompositeJobListener;
+import org.apache.gobblin.runtime.listeners.EmailNotificationJobListener;
+import org.apache.gobblin.runtime.listeners.JobListener;
+import org.apache.gobblin.runtime.services.MetricsReportingService;
+import org.apache.gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.HadoopUtils;
+import org.apache.gobblin.util.PropertiesUtils;
+import org.apache.gobblin.util.TimeRangeChecker;
+import org.apache.gobblin.util.hadoop.TokenUtils;
 
 import static org.apache.gobblin.runtime.AbstractJobLauncher.resolveGobblinJobTemplateIfNecessary;
 import static org.apache.hadoop.security.UserGroupInformation.HADOOP_TOKEN_FILE_LOCATION;
@@ -222,6 +225,16 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
 
     // Since Java classes cannot extend multiple classes and Azkaban jobs must extend AbstractJob, we must use composition
     // verses extending ServiceBasedAppLauncher
+    boolean isMetricReportingFailureFatal = PropertiesUtils
+        .getPropAsBoolean(jobProps, ConfigurationKeys.GOBBLIN_JOB_METRIC_REPORTING_FAILURE_FATAL,
+            Boolean.toString(ConfigurationKeys.DEFAULT_GOBBLIN_JOB_METRIC_REPORTING_FAILURE_FATAL));
+    boolean isEventReportingFailureFatal = PropertiesUtils
+        .getPropAsBoolean(jobProps, ConfigurationKeys.GOBBLIN_JOB_EVENT_REPORTING_FAILURE_FATAL,
+            Boolean.toString(ConfigurationKeys.DEFAULT_GOBBLIN_JOB_EVENT_REPORTING_FAILURE_FATAL));
+
+    jobProps.setProperty(MetricsReportingService.METRICS_REPORTING_FAILURE_FATAL_KEY, Boolean.toString(isMetricReportingFailureFatal));
+    jobProps.setProperty(MetricsReportingService.EVENT_REPORTING_FAILURE_FATAL_KEY, Boolean.toString(isEventReportingFailureFatal));
+
     this.applicationLauncher =
         this.closer.register(new ServiceBasedAppLauncher(jobProps, "Azkaban-" + UUID.randomUUID()));
   }

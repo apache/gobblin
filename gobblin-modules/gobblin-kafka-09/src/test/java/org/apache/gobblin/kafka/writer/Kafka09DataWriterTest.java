@@ -60,14 +60,14 @@ public class Kafka09DataWriterTest {
     _kafkaTestHelper = new KafkaTestBase();
   }
 
-  @BeforeSuite
+  @BeforeSuite(alwaysRun = true)
   public void beforeSuite() {
     log.warn("Process id = " + ManagementFactory.getRuntimeMXBean().getName());
 
     _kafkaTestHelper.startServers();
   }
 
-  @AfterSuite
+  @AfterSuite(alwaysRun = true)
   public void afterSuite()
       throws IOException {
     try {
@@ -84,7 +84,7 @@ public class Kafka09DataWriterTest {
     _kafkaTestHelper.provisionTopic(topic);
     Properties props = new Properties();
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_TOPIC, topic);
-    props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"bootstrap.servers", "localhost:" + _kafkaTestHelper.getKafkaServerPort());
+    props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"bootstrap.servers", "127.0.0.1:" + _kafkaTestHelper.getKafkaServerPort());
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
     Kafka09DataWriter<String, String> kafka09DataWriter = new Kafka09DataWriter<>(props);
     String messageString = "foobar";
@@ -115,7 +115,7 @@ public class Kafka09DataWriterTest {
     _kafkaTestHelper.provisionTopic(topic);
     Properties props = new Properties();
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_TOPIC, topic);
-    props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"bootstrap.servers", "localhost:" + _kafkaTestHelper.getKafkaServerPort());
+    props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"bootstrap.servers", "127.0.0.1:" + _kafkaTestHelper.getKafkaServerPort());
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
     Kafka09DataWriter<String, byte[]> kafka09DataWriter = new Kafka09DataWriter<>(props);
     WriteCallback callback = mock(WriteCallback.class);
@@ -141,7 +141,7 @@ public class Kafka09DataWriterTest {
     Properties props = new Properties();
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_TOPIC, topic);
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + "bootstrap.servers",
-        "localhost:" + _kafkaTestHelper.getKafkaServerPort());
+        "127.0.0.1:" + _kafkaTestHelper.getKafkaServerPort());
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + "value.serializer",
         LiAvroSerializer.class.getName());
 
@@ -161,10 +161,14 @@ public class Kafka09DataWriterTest {
       kafka09DataWriter.close();
     }
 
+    log.info("Kafka events written");
+
     verify(callback, times(1)).onSuccess(isA(WriteResponse.class));
     verify(callback, never()).onFailure(isA(Exception.class));
 
     byte[] message = _kafkaTestHelper.getIteratorForTopic(topic).next().message();
+
+    log.info("Kafka events read, start to check result... ");
     ConfigDrivenMd5SchemaRegistry schemaReg = new ConfigDrivenMd5SchemaRegistry(topic, record.getSchema());
     LiAvroDeserializer deser = new LiAvroDeserializer(schemaReg);
     GenericRecord receivedRecord = deser.deserialize(topic, message);
@@ -180,7 +184,7 @@ public class Kafka09DataWriterTest {
     Properties props = new Properties();
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_TOPIC, topic);
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + "bootstrap.servers",
-        "localhost:" + _kafkaTestHelper.getKafkaServerPort());
+        "127.0.0.1:" + _kafkaTestHelper.getKafkaServerPort());
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + "value.serializer",
         LiAvroSerializer.class.getName());
     props.setProperty(KafkaWriterConfigurationKeys.WRITER_KAFKA_KEYED_CONFIG, "true");
@@ -224,7 +228,7 @@ public class Kafka09DataWriterTest {
     Properties props = new Properties();
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_TOPIC, topic);
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + "bootstrap.servers",
-        "localhost:" + _kafkaTestHelper.getKafkaServerPort());
+        "127.0.0.1:" + _kafkaTestHelper.getKafkaServerPort());
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + "value.serializer",
     "org.apache.kafka.common.serialization.StringSerializer");
     props.setProperty(KafkaWriterConfigurationKeys.WRITER_KAFKA_KEYED_CONFIG, "true");

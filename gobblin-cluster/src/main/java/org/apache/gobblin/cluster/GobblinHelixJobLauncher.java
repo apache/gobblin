@@ -30,7 +30,6 @@ import java.util.concurrent.TimeoutException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.helix.HelixException;
 import org.apache.helix.HelixManager;
 import org.apache.helix.task.JobConfig;
 import org.apache.helix.task.JobQueue;
@@ -254,7 +253,7 @@ public class GobblinHelixJobLauncher extends AbstractJobLauncher {
           // TODO : fix this when HELIX-1180 is completed
           // work flow should never be deleted explicitly because it has a expiry time
           // If cancellation is requested, we should set the job state to CANCELLED/ABORT
-          this.helixTaskDriver.waitToStop(this.helixWorkFlowName, this.helixJobStopTimeoutSeconds);
+          this.helixTaskDriver.waitToStop(this.helixWorkFlowName, this.helixJobStopTimeoutSeconds * 1000);
           log.info("stopped the workflow {}", this.helixWorkFlowName);
         }
       } catch (RuntimeException e) {

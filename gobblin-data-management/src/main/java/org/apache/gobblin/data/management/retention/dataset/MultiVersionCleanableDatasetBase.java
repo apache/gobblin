@@ -332,24 +332,25 @@ public abstract class MultiVersionCleanableDatasetBase<T extends FileSystemDatas
   @Builder
   @AllArgsConstructor
   public static class VersionFinderAndPolicy<T extends FileSystemDatasetVersion> {
-
     private final VersionSelectionPolicy<T> versionSelectionPolicy;
     private final VersionFinder<? extends T> versionFinder;
     @Singular
     private final List<RetentionAction> retentionActions;
+    private final Config config;
 
     /**
      * Constructor for backward compatibility
      * @deprecated use {@link VersionFinderAndPolicyBuilder}
      */
     @Deprecated
-    public VersionFinderAndPolicy(VersionSelectionPolicy<T> versionSelectionPolicy, VersionFinder<? extends T> versionFinder) {
+    public VersionFinderAndPolicy(VersionSelectionPolicy<T> versionSelectionPolicy, VersionFinder<? extends T> versionFinder, Config config) {
       this.versionSelectionPolicy = versionSelectionPolicy;
       this.versionFinder = versionFinder;
       this.retentionActions = Lists.newArrayList();
+      this.config = config;
     }
-    public VersionFinderAndPolicy(RetentionPolicy<T> retentionPolicy, VersionFinder<? extends T> versionFinder) {
-      this(new EmbeddedRetentionSelectionPolicy<>(retentionPolicy), versionFinder);
+    public VersionFinderAndPolicy(RetentionPolicy<T> retentionPolicy, VersionFinder<? extends T> versionFinder, Config config) {
+      this(new EmbeddedRetentionSelectionPolicy<>(retentionPolicy), versionFinder, config);
     }
 
     public static class VersionFinderAndPolicyBuilder<T extends FileSystemDatasetVersion> {
@@ -371,7 +372,7 @@ public abstract class MultiVersionCleanableDatasetBase<T extends FileSystemDatas
           localRetentionActions = Lists.newArrayList(this.retentionActions);
         }
         return new VersionFinderAndPolicy<T>(localVersionSelectionPolicy, this.versionFinder,
-            localRetentionActions);
+            localRetentionActions, this.config);
       }
     }
   }

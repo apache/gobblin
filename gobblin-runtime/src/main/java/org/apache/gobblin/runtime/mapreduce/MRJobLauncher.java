@@ -74,11 +74,13 @@ import org.apache.gobblin.fsm.FiniteStateMachine;
 import org.apache.gobblin.metastore.FsStateStore;
 import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.MultiReporterException;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.metrics.event.CountEventBuilder;
 import org.apache.gobblin.metrics.event.JobEvent;
 import org.apache.gobblin.metrics.event.JobStateEventBuilder;
 import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.metrics.reporter.util.MetricReportUtils;
 import org.apache.gobblin.password.PasswordManager;
 import org.apache.gobblin.runtime.AbstractJobLauncher;
 import org.apache.gobblin.runtime.DynamicConfigGeneratorFactory;
@@ -783,8 +785,21 @@ public class MRJobLauncher extends AbstractJobLauncher {
       if (Boolean.valueOf(
           configuration.get(ConfigurationKeys.METRICS_ENABLED_KEY, ConfigurationKeys.DEFAULT_METRICS_ENABLED))) {
         this.jobMetrics = Optional.of(JobMetrics.get(this.jobState));
-        this.jobMetrics.get()
-            .startMetricReportingWithFileSuffix(gobblinJobState, context.getTaskAttemptID().toString());
+        try {
+          this.jobMetrics.get()
+              .startMetricReportingWithFileSuffix(gobblinJobState, context.getTaskAttemptID().toString());
+        } catch (MultiReporterException ex) {
+          //Fail the task if metric/event reporting failure is configured to be fatal.
+          boolean isMetricReportingFailureFatal = Boolean.valueOf(configuration
+              .get(ConfigurationKeys.GOBBLIN_TASK_METRIC_REPORTING_FAILURE_FATAL,
+                  Boolean.toString(ConfigurationKeys.DEFAULT_GOBBLIN_TASK_METRIC_REPORTING_FAILURE_FATAL)));
+          boolean isEventReportingFailureFatal = Boolean.valueOf(configuration
+              .get(ConfigurationKeys.GOBBLIN_TASK_EVENT_REPORTING_FAILURE_FATAL,
+                  Boolean.toString(ConfigurationKeys.DEFAULT_GOBBLIN_TASK_EVENT_REPORTING_FAILURE_FATAL)));
+          if (MetricReportUtils.shouldThrowException(LOG, ex, isMetricReportingFailureFatal, isEventReportingFailureFatal)) {
+            throw new RuntimeException(ex);
+          }
+        }
       }
     }
 

@@ -17,13 +17,15 @@
 
 package org.apache.gobblin.hive.metastore;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import org.apache.gobblin.hive.HiveRegistrationUnit;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hive.metastore.api.FieldSchema;
-import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
-import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.metastore.api.*;
 import org.apache.hadoop.hive.ql.io.avro.AvroContainerInputFormat;
 import org.apache.hadoop.hive.ql.io.avro.AvroContainerOutputFormat;
 import org.apache.hadoop.hive.ql.io.orc.OrcInputFormat;
@@ -35,6 +37,8 @@ import org.testng.annotations.Test;
 
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.hive.HiveTable;
+
+import static org.apache.gobblin.hive.metastore.HiveMetaStoreUtils.getParameters;
 
 
 public class HiveMetaStoreUtilsTest {
@@ -164,5 +168,48 @@ public class HiveMetaStoreUtilsTest {
     } catch (Exception e) {
       Assert.assertFalse(e instanceof NoSuchMethodException);
     }
+  }
+
+  @Test
+  public void testGetHiveTable() throws Exception {
+    final String databaseName = "testdb";
+    final String tableName = "testtable";
+    final String tableSdLoc = "/tmp/testtable";
+    final String partitionName = "partitionName";
+
+    State serdeProps = new State();
+    serdeProps.setProp("avro.schema.literal", "{\"type\": \"record\", \"name\": \"TestEvent\","
+            + " \"namespace\": \"test.namespace\", \"fields\": [{\"name\":\"testName\"," + " \"type\": \"int\"}]}");
+
+    List<FieldSchema> fieldSchemas = new ArrayList<>();
+    fieldSchemas.add(new FieldSchema("testName","int", "testContent"));
+    SerDeInfo si = new SerDeInfo();
+    si.setParameters(getParameters(serdeProps));
+    si.setName(tableName);
+
+    StorageDescriptor sd = new StorageDescriptor(fieldSchemas, tableSdLoc,
+            AvroContainerInputFormat.class.getName(), AvroContainerOutputFormat.class.getName(),
+            false, 0, si, null, Lists.<Order>newArrayList(), null);
+    sd.setParameters(getParameters(serdeProps));
+    Table table = new Table(tableName, databaseName, "testOwner", 0, 0, 0, sd,
+            Lists.<FieldSchema>newArrayList(), Maps.<String,String>newHashMap(), "", "", "");
+    table.addToPartitionKeys(new FieldSchema(partitionName, "string", "some comment"));
+
+    HiveTable hiveTable = HiveMetaStoreUtils.getHiveTable(table);
+    Assert.assertEquals(hiveTable.getDbName(), databaseName);
+    Assert.assertEquals(hiveTable.getTableName(), tableName);
+
+    Assert.assertTrue(hiveTable.getInputFormat().isPresent());
+    Assert.assertTrue(hiveTable.getOutputFormat().isPresent());
+    Assert.assertEquals(hiveTable.getInputFormat().get(), AvroContainerInputFormat.class.getName());
+    Assert.assertEquals(hiveTable.getOutputFormat().get(), AvroContainerOutputFormat.class.getName());
+    Assert.assertNotNull(hiveTable.getSerDeType());
+
+    List<HiveRegistrationUnit.Column> fields = hiveTable.getColumns();
+    Assert.assertTrue(fields != null && fields.size() == 1);
+    HiveRegistrationUnit.Column fieldA = fields.get(0);
+    Assert.assertEquals(fieldA.getName(), "testName");
+    Assert.assertEquals(fieldA.getType(), "int");
+
   }
 }
