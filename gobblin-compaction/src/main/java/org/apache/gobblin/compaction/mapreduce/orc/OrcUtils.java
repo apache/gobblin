@@ -29,8 +29,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import org.apache.gobblin.compaction.mapreduce.avro.MRCompactorAvroKeyDedupJobRunner;
-import org.apache.gobblin.util.FileListUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -59,11 +57,15 @@ import org.apache.orc.mapred.OrcMap;
 import org.apache.orc.mapred.OrcStruct;
 import org.apache.orc.mapred.OrcTimestamp;
 import org.apache.orc.mapred.OrcUnion;
+import org.apache.parquet.format.TypeDefinedOrder;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.compaction.mapreduce.avro.MRCompactorAvroKeyDedupJobRunner;
+import org.apache.gobblin.util.FileListUtils;
 
 
 @Slf4j
@@ -249,7 +251,7 @@ public class OrcUtils {
           (WritableComparable) OrcUtils.createValueRecursively(targetMemberSchema), targetMemberSchema));
     } else {
       // Regardless whether type-widening is happening or not, this method copy the value of w into v.
-        handlePrimitiveWritableComparable(w, v);
+      handlePrimitiveWritableComparable(w, v);
     }
 
     // If non-primitive or type-widening is required, v should already be populated by w's value recursively.
@@ -481,5 +483,36 @@ public class OrcUtils {
 
   public static WritableComparable createValueRecursively(TypeDescription schema) {
     return createValueRecursively(schema, 1);
+  }
+
+  /**
+   * Check recursively if owning schema is eligible to be up-converted to targetSchema if
+   * TargetSchema is a subset of originalSchema
+   */
+  public static boolean eligibleForUpConvertHelper(TypeDescription originalSchema, TypeDescription targetSchema) {
+    if (!targetSchema.getCategory().isPrimitive()) {
+      if (!originalSchema.getFieldNames().containsAll(targetSchema.getFieldNames())) {
+        return false;
+      }
+      boolean result = true;
+
+      for (int i = 0; i < targetSchema.getFieldNames().size(); i++) {
+        String subSchemaFieldName = targetSchema.getFieldNames().get(i);
+        result &= eligibleForUpConvertHelper(originalSchema.findSubtype(subSchemaFieldName),
+            targetSchema.getChildren().get(i));
+      }
+
+      return result;
+    } else {
+      // Check the unit type: Only for the category.
+      return originalSchema.getCategory().equals(targetSchema.getCategory());
+    }
+  }
+
+  // Eligibility for up-conversion: If targetSchema is a subset of originalSchema (Schema projection)
+  // and vice-versa (schema expansion).
+  public static boolean eligibleForUpConvert(TypeDescription originalSchema, TypeDescription targetSchema) {
+    return eligibleForUpConvertHelper(originalSchema, targetSchema) || eligibleForUpConvertHelper(targetSchema,
+        originalSchema);
   }
 }
