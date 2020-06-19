@@ -49,9 +49,9 @@ import org.apache.gobblin.writer.WriteResponseMapper;
  *
  */
 @Slf4j
-public class Kafka08DataWriter<K,V> implements AsyncDataWriter<V> {
+public class Kafka08DataWriter<K,V> implements KafkaDataWriter<K, V> {
 
-  private static final WriteResponseMapper<RecordMetadata> WRITE_RESPONSE_WRAPPER =
+  public static final WriteResponseMapper<RecordMetadata> WRITE_RESPONSE_WRAPPER =
       new WriteResponseMapper<RecordMetadata>() {
 
         @Override
@@ -118,17 +118,28 @@ public class Kafka08DataWriter<K,V> implements AsyncDataWriter<V> {
   public Future<WriteResponse> write(final V record, final WriteCallback callback) {
     try {
       Pair<K, V> kvPair = KafkaWriterHelper.getKeyValuePair(record, commonConfig);
-      return new WriteResponseFuture<>(this.producer.send(new ProducerRecord<>(topic, kvPair.getKey(), kvPair.getValue()),
-          (metadata, exception) -> {
-            if (exception != null) {
-              callback.onFailure(exception);
-            } else {
-              callback.onSuccess(WRITE_RESPONSE_WRAPPER.wrap(metadata));
-            }
-          }), WRITE_RESPONSE_WRAPPER);
+      return write(kvPair, callback);
     }
     catch (Exception e) {
       throw new RuntimeException("Failed to generate write request", e);
+    }
+  }
+
+  public Future<WriteResponse> write(Pair<K, V> keyValuePair, final WriteCallback callback) {
+    try {
+      return new WriteResponseFuture<>(this.producer
+          .send(new ProducerRecord<>(topic, keyValuePair.getKey(), keyValuePair.getValue()), new Callback() {
+            @Override
+            public void onCompletion(final RecordMetadata metadata, Exception exception) {
+              if (exception != null) {
+                callback.onFailure(exception);
+              } else {
+                callback.onSuccess(WRITE_RESPONSE_WRAPPER.wrap(metadata));
+              }
+            }
+          }), WRITE_RESPONSE_WRAPPER);
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to create a Kafka write request", e);
     }
   }
 
