@@ -140,9 +140,13 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     this.fs = FileSystem.get(uri, conf);
     this.fileContext = FileContext.getFileContext(uri, conf);
 
-    this.stagingDir = this.writerAttemptIdOptional.isPresent() ? WriterUtils
-        .getWriterStagingDir(state, numBranches, branchId, this.writerAttemptIdOptional.get())
-        : WriterUtils.getWriterStagingDir(state, numBranches, branchId);
+    if (state.getPropAsBoolean(ConfigurationKeys.USER_DEFINED_STAGING_DIR_FLAG,false)) {
+      this.stagingDir = new Path(state.getProp(ConfigurationKeys.USER_DEFINED_STATIC_STAGING_DIR));
+    } else {
+      this.stagingDir = this.writerAttemptIdOptional.isPresent() ? WriterUtils.getWriterStagingDir(state, numBranches, branchId, this.writerAttemptIdOptional.get())
+          : WriterUtils.getWriterStagingDir(state, numBranches, branchId);
+    }
+
     this.outputDir = getOutputDir(state);
     this.copyableDatasetMetadata =
         CopyableDatasetMetadata.deserialize(state.getProp(CopySource.SERIALIZED_COPYABLE_DATASET));
