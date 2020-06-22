@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.Set;
 
 import java.util.stream.Collectors;
+import lombok.SneakyThrows;
 import org.apache.commons.lang3.text.StrSubstitutor;
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 
@@ -118,6 +119,8 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
   private boolean isEarlyStopped = false;
   protected SalesforceConnector salesforceConnector = null;
 
+  private SfConfig workUnitConf;
+
   public SalesforceSource() {
     this.lineageInfo = Optional.absent();
   }
@@ -150,10 +153,10 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
       lineageInfo.get().setSource(source, workUnit);
     }
   }
-
   @Override
   protected List<WorkUnit> generateWorkUnits(SourceEntity sourceEntity, SourceState state, long previousWatermark) {
     List<WorkUnit> workUnits = null;
+    workUnitConf = new SfConfig(state.getProperties());
     String partitionType = state.getProp(SALESFORCE_PARTITION_TYPE, "");
     if (partitionType.equals("PK_CHUNKING")) {
       // pk-chunking only supports start-time by source.querybased.start.value, and does not support end-time.
@@ -164,7 +167,12 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
       workUnits = generateWorkUnitsStrategy(sourceEntity, state, previousWatermark);
     }
     log.info("====Generated {} workUnit(s)====", workUnits.size());
-    return workUnits;
+    if (workUnitConf.partitionOnly) {
+      log.info("It is partitionOnly mode, return blank workUnit list");
+      return new ArrayList<>();
+    } else {
+      return workUnits;
+    }
   }
 
   /**
@@ -416,24 +424,34 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
   /**
    * Get a {@link JsonArray} containing the query results
    */
+  @SneakyThrows
   private JsonArray getRecordsForQuery(SalesforceConnector connector, String query) {
-    try {
-      String soqlQuery = SalesforceExtractor.getSoqlUrl(query);
-      List<Command> commands = RestApiConnector.constructGetCommand(connector.getFullUri(soqlQuery));
-      CommandOutput<?, ?> response = connector.getResponse(commands);
+    RestApiProcessingException exception = null;
+    for (int i = 0; i < workUnitConf.restApiRetryLimit; i++) {
+      try {
+        String soqlQuery = SalesforceExtractor.getSoqlUrl(query);
+        List<Command> commands = RestApiConnector.constructGetCommand(connector.getFullUri(soqlQuery));
+        CommandOutput<?, ?> response = connector.getResponse(commands);
 
-      String output;
-      Iterator<String> itr = (Iterator<String>) response.getResults().values().iterator();
-      if (itr.hasNext()) {
-        output = itr.next();
-      } else {
-        throw new DataRecordException("Failed to get data from salesforce; REST response has no output");
+        String output;
+        Iterator<String> itr = (Iterator<String>) response.getResults().values().iterator();
+        if (itr.hasNext()) {
+          output = itr.next();
+        } else {
+          throw new DataRecordException("Failed to get data from salesforce; REST response has no output");
+        }
+
+        return GSON.fromJson(output, JsonObject.class).getAsJsonArray("records");
+      } catch (RestApiClientException | DataRecordException e) {
+        throw new RuntimeException("Fail to get data from salesforce", e);
+      } catch (RestApiProcessingException e) {
+        exception = e;
+        log.info("Caught RestApiProcessingException, retrying({}) rest query: {}", i+1, query);
+        Thread.sleep(workUnitConf.restApiRetryInterval);
+        continue;
       }
-
-      return GSON.fromJson(output, JsonObject.class).getAsJsonArray("records");
-    } catch (RestApiClientException | RestApiProcessingException | DataRecordException e) {
-      throw new RuntimeException("Fail to get data from salesforce", e);
     }
+    throw new RuntimeException("Fail to get data from salesforce", exception);
   }
 
   /**

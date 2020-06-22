@@ -20,8 +20,8 @@ package org.apache.gobblin.salesforce;
 import java.util.Properties;
 import org.apache.gobblin.typedconfig.Default;
 import org.apache.gobblin.typedconfig.Key;
+import org.apache.gobblin.typedconfig.compiletime.EnumOptions;
 import org.apache.gobblin.typedconfig.compiletime.IntRange;
-
 
 public class SfConfig extends QueryBasedSourceConfig {
   public SfConfig(Properties prop) {
@@ -34,6 +34,23 @@ public class SfConfig extends QueryBasedSourceConfig {
   @Key("salesforce.bulkApiUseQueryAll")@Default("false")
   public boolean bulkApiUseQueryAll;
 
+  @Key("salesforce.retry.interval")@Default("60000")
+  public int retryInterval;
+
   @Key("salesforce.fetchRetryLimit")@Default("5")
   public int fetchRetryLimit;
+
+  @Key("salesforce.retry.exceedQuotaInterval")@Default("300000")
+  public int retryExceedQuotaInterval;
+
+  @Key("sf.rest.api.retryLimit")@Default("3")
+  public int restApiRetryLimit;
+
+  @Key("sf.rest.api.retryInterval")@Default("10000") // 10 seconds
+  public int restApiRetryInterval;
+
+  // it is for test. if true, it will only execute partition part and stop.
+  @Key("sf.test.partitionOnly")@Default("false")
+  public boolean partitionOnly;
+
 }
