@@ -43,8 +43,11 @@ public class SfConfig extends QueryBasedSourceConfig {
   @Key("salesforce.retry.exceedQuotaInterval")@Default("300000")
   public int retryExceedQuotaInterval;
 
-  @Key("sf.rest.api.retries")@Default("10")
-  public int restRetries;
+  @Key("sf.rest.api.retryLimit")@Default("3")
+  public int restApiRetryLimit;
+
+  @Key("sf.rest.api.retryInterval")@Default("10000") // 10 seconds
+  public int restApiRetryInterval;
 
   // it is for test. if true, it will only execute partition part and stop.
   @Key("sf.test.partitionOnly")@Default("false")

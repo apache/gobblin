@@ -424,9 +424,10 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
   /**
    * Get a {@link JsonArray} containing the query results
    */
+  @SneakyThrows
   private JsonArray getRecordsForQuery(SalesforceConnector connector, String query) {
     RestApiProcessingException exception = null;
-    for (int i = 0; i < workUnitConf.restRetries; i++) {
+    for (int i = 0; i < workUnitConf.restApiRetryLimit; i++) {
       try {
         String soqlQuery = SalesforceExtractor.getSoqlUrl(query);
         List<Command> commands = RestApiConnector.constructGetCommand(connector.getFullUri(soqlQuery));
@@ -445,7 +446,8 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
         throw new RuntimeException("Fail to get data from salesforce", e);
       } catch (RestApiProcessingException e) {
         exception = e;
-        log.info(String.format("Caught RestApiProcessingException, retry(%s) rest query: %s", i+1, query));
+        log.info("Caught RestApiProcessingException, retrying({}) rest query: {}", i+1, query);
+        Thread.sleep(workUnitConf.restApiRetryInterval);
         continue;
       }
     }
