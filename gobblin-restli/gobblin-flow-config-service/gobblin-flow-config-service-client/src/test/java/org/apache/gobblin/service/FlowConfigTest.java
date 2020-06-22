@@ -24,7 +24,6 @@ import java.util.ArrayList;
 import java.util.Map;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.gobblin.runtime.spec_store.FSSpecStore;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -48,6 +47,7 @@ import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.restli.EmbeddedRestliServer;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
+import org.apache.gobblin.runtime.spec_store.FSSpecStore;
 
 
 @Test(groups = { "gobblin.service" })

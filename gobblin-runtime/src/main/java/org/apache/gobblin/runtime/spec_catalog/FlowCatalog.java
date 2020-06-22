@@ -53,6 +53,7 @@ import org.apache.gobblin.runtime.api.SpecCatalogListener;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.api.SpecSerDe;
 import org.apache.gobblin.runtime.api.SpecStore;
+import org.apache.gobblin.runtime.api.SpecSearchObject;
 import org.apache.gobblin.runtime.spec_serde.JavaSpecSerDe;
 import org.apache.gobblin.runtime.spec_store.FSSpecStore;
 import org.apache.gobblin.service.ServiceConfigKeys;
@@ -269,7 +270,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
   }
 
   @Override
-  public Spec getSpec(URI uri) throws SpecNotFoundException {
+  public Spec getSpecs(URI uri) throws SpecNotFoundException {
     try {
       return specStore.getSpec(uri);
     } catch (IOException e) {
@@ -277,15 +278,32 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     }
   }
 
+  @Override
+  public Collection<Spec> getSpecs(SpecSearchObject specSearchObject) {
+    try {
+      return specStore.getSpecs(specSearchObject);
+    } catch (IOException e) {
+      throw new RuntimeException("Cannot retrieve Spec from Spec store for URI: " + specSearchObject, e);
+    }
+  }
+
+  public Collection<Spec> getAllSpecs() {
+    try {
+      return specStore.getSpecs();
+    } catch (IOException e) {
+      throw new RuntimeException("Cannot retrieve all specs from Spec stores", e);
+    }
+  }
+
   /**
-   * A wrapper of getSpec that handles {@link SpecNotFoundException} properly.
+   * A wrapper of getSpecs that handles {@link SpecNotFoundException} properly.
    * This is the most common way to fetch {@link Spec}. For customized way to deal with exception, one will
    * need to implement specific catch-block logic.
    */
   public Spec getSpecWrapper(URI uri) {
     Spec spec = null;
     try {
-      spec = getSpec(uri);
+      spec = getSpecs(uri);
     } catch (SpecNotFoundException snfe) {
       log.error(String.format("The URI %s discovered in SpecStore is missing in FlowCatalog"
           + ", suspecting current modification on SpecStore", uri), snfe);

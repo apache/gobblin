@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.runtime.spec_store;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -27,16 +26,13 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
-
 import java.util.List;
-import java.util.Properties;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import com.google.common.base.Charsets;
 import com.google.common.collect.Iterators;
 import com.typesafe.config.Config;
 
@@ -45,6 +41,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.apache.gobblin.runtime.api.FlowSpec;
+import org.apache.gobblin.runtime.api.FlowSpecSearchObject;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecSerDe;
 import org.apache.gobblin.runtime.api.SpecSerDeException;
@@ -62,9 +59,9 @@ public class MysqlSpecStoreTest {
 
   private MysqlSpecStore specStore;
   private MysqlSpecStore oldSpecStore;
-  private URI uri1 = FlowSpec.Utils.createFlowSpecUri(new FlowId().setFlowName("fg1").setFlowGroup("fn1"));
-  private URI uri2 = FlowSpec.Utils.createFlowSpecUri(new FlowId().setFlowName("fg2").setFlowGroup("fn2"));
-  private URI uri3 = FlowSpec.Utils.createFlowSpecUri(new FlowId().setFlowName("fg3").setFlowGroup("fn3"));
+  private final URI uri1 = FlowSpec.Utils.createFlowSpecUri(new FlowId().setFlowName("fg1").setFlowGroup("fn1"));
+  private final URI uri2 = FlowSpec.Utils.createFlowSpecUri(new FlowId().setFlowName("fg2").setFlowGroup("fn2"));
+  private final URI uri3 = FlowSpec.Utils.createFlowSpecUri(new FlowId().setFlowName("fg3").setFlowGroup("fn3"));
   private FlowSpec flowSpec1, flowSpec2, flowSpec3;
 
   public MysqlSpecStoreTest()
@@ -85,13 +82,10 @@ public class MysqlSpecStoreTest {
     this.specStore = new MysqlSpecStore(config, new TestSpecSerDe());
     this.oldSpecStore = new OldSpecStore(config, new TestSpecSerDe());
 
-    Properties properties = new Properties();
-    properties.setProperty(FLOW_SOURCE_IDENTIFIER_KEY, "source");
-    properties.setProperty(FLOW_DESTINATION_IDENTIFIER_KEY, "destination");
-
     flowSpec1 = FlowSpec.builder(this.uri1)
         .withConfig(ConfigBuilder.create()
             .addPrimitive("key", "value")
+            .addPrimitive("key3", "value3")
             .addPrimitive(FLOW_SOURCE_IDENTIFIER_KEY, "source")
             .addPrimitive(FLOW_DESTINATION_IDENTIFIER_KEY, "destination")
             .addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, "fg1")
@@ -100,7 +94,8 @@ public class MysqlSpecStoreTest {
         .withVersion("Test version")
         .build();
     flowSpec2 = FlowSpec.builder(this.uri2)
-        .withConfig(ConfigBuilder.create().addPrimitive("key2", "value2")
+        .withConfig(ConfigBuilder.create().addPrimitive("converter", "value1,value2,value3")
+            .addPrimitive("key3", "value3")
             .addPrimitive(FLOW_SOURCE_IDENTIFIER_KEY, "source")
             .addPrimitive(FLOW_DESTINATION_IDENTIFIER_KEY, "destination")
             .addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, "fg2")
@@ -119,6 +114,13 @@ public class MysqlSpecStoreTest {
         .build();
   }
 
+  @Test(expectedExceptions = IOException.class)
+  public void testSpecSearch() throws Exception {
+    // empty FlowSpecSearchObject should throw an error
+    FlowSpecSearchObject flowSpecSearchObject = FlowSpecSearchObject.builder().build();
+    MysqlSpecStore.createGetPreparedStatement(flowSpecSearchObject, "table");
+  }
+
   @Test
   public void testAddSpec() throws Exception {
     this.specStore.addSpec(this.flowSpec1);
@@ -135,15 +137,46 @@ public class MysqlSpecStoreTest {
     Assert.assertEquals(result, this.flowSpec1);
 
     Collection<Spec> specs = this.specStore.getSpecs();
+    Assert.assertEquals(specs.size(), 2);
     Assert.assertTrue(specs.contains(this.flowSpec1));
     Assert.assertTrue(specs.contains(this.flowSpec2));
 
     Iterator<URI> uris = this.specStore.getSpecURIs();
     Assert.assertTrue(Iterators.contains(uris, this.uri1));
     Assert.assertTrue(Iterators.contains(uris, this.uri2));
+
+    FlowSpecSearchObject flowSpecSearchObject = FlowSpecSearchObject.builder().flowGroup("fg1").build();
+    specs = this.specStore.getSpecs(flowSpecSearchObject);
+    Assert.assertEquals(specs.size(), 1);
+    Assert.assertTrue(specs.contains(this.flowSpec1));
+
+    flowSpecSearchObject = FlowSpecSearchObject.builder().flowName("fn2").build();
+    specs = this.specStore.getSpecs(flowSpecSearchObject);
+    Assert.assertEquals(specs.size(), 1);
+    Assert.assertTrue(specs.contains(this.flowSpec2));
+
+    flowSpecSearchObject = FlowSpecSearchObject.builder().flowName("fg1").flowGroup("fn2").build();
+    specs = this.specStore.getSpecs(flowSpecSearchObject);
+    Assert.assertEquals(specs.size(), 0);
+
+    flowSpecSearchObject = FlowSpecSearchObject.builder().propertyFilter("key=value").build();
+    specs = this.specStore.getSpecs(flowSpecSearchObject);
+    Assert.assertEquals(specs.size(), 1);
+    Assert.assertTrue(specs.contains(this.flowSpec1));
+
+    flowSpecSearchObject = FlowSpecSearchObject.builder().propertyFilter("converter=value2").build();
+    specs = this.specStore.getSpecs(flowSpecSearchObject);
+    Assert.assertEquals(specs.size(), 1);
+    Assert.assertTrue(specs.contains(this.flowSpec2));
+
+    flowSpecSearchObject = FlowSpecSearchObject.builder().propertyFilter("key3").build();
+    specs = this.specStore.getSpecs(flowSpecSearchObject);
+    Assert.assertEquals(specs.size(), 2);
+    Assert.assertTrue(specs.contains(this.flowSpec1));
+    Assert.assertTrue(specs.contains(this.flowSpec2));
   }
 
-  @Test
+  @Test  (dependsOnMethods = "testGetSpec")
   public void testGetSpecWithTag() throws Exception {
 
     //Creating and inserting flowspecs with tags
@@ -186,7 +219,7 @@ public class MysqlSpecStoreTest {
     this.specStore.addSpec(this.flowSpec3);
   }
 
-  @Test (dependsOnMethods = "testGetSpec")
+  @Test (dependsOnMethods = "testGetSpecWithTag")
   public void testDeleteSpec() throws Exception {
     this.specStore.deleteSpec(this.uri1);
     Assert.assertFalse(this.specStore.exists(this.uri1));
@@ -214,7 +247,7 @@ public class MysqlSpecStoreTest {
     public void addSpec(Spec spec, String tagValue) throws IOException {
       try (Connection connection = this.dataSource.getConnection();
           PreparedStatement statement = connection.prepareStatement(String.format(INSERT_STATEMENT, this.tableName))) {
-        setPreparedStatement(statement, spec, tagValue);
+        setAddPreparedStatement(statement, spec, tagValue);
         statement.setString(4, null);
         statement.executeUpdate();
         connection.commit();

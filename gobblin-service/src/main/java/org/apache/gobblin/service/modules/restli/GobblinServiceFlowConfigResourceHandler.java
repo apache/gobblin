@@ -18,6 +18,7 @@
 package org.apache.gobblin.service.modules.restli;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Properties;
 import java.util.UUID;
 
@@ -38,6 +39,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.api.FlowSpecSearchObject;
 import org.apache.gobblin.service.FlowConfig;
 import org.apache.gobblin.service.FlowConfigLoggedException;
 import org.apache.gobblin.service.FlowConfigResourceLocalHandler;
@@ -77,6 +79,16 @@ public class GobblinServiceFlowConfigResourceHandler implements FlowConfigsResou
   public FlowConfig getFlowConfig(FlowId flowId)
       throws FlowConfigLoggedException {
     return this.localHandler.getFlowConfig(flowId);
+  }
+
+  @Override
+  public Collection<FlowConfig> getFlowConfig(FlowSpecSearchObject flowSpecSearchObject) throws FlowConfigLoggedException {
+    return this.localHandler.getFlowConfig(flowSpecSearchObject);
+  }
+
+  @Override
+  public Collection<FlowConfig> getAllFlowConfigs() {
+    return this.localHandler.getAllFlowConfigs();
   }
 
   /**

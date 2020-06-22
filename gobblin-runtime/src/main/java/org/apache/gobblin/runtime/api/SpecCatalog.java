@@ -64,7 +64,14 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, Instrumentab
    * Get a {@link Spec} by uri.
    * @throws SpecNotFoundException if no such Spec exists
    **/
-  Spec getSpec(URI uri) throws SpecNotFoundException;
+  Spec getSpecs(URI uri) throws SpecNotFoundException;
+
+  /**
+   * Get a {@link Spec} by {@link SpecSearchObject}.
+   **/
+  default Collection<Spec> getSpecs(SpecSearchObject specSearchObject) {
+    throw new UnsupportedOperationException();
+  }
 
   @Slf4j
   class StandardMetrics extends StandardMetricsBridge.StandardMetrics implements SpecCatalogListener {

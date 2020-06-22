@@ -10,7 +10,7 @@
       "type" : "org.apache.gobblin.service.FlowId",
       "params" : "org.apache.gobblin.service.FlowStatusId"
     },
-    "supports" : [ "create", "delete", "get", "partial_update", "update" ],
+    "supports" : [ "create", "delete", "get", "get_all", "partial_update", "update" ],
     "methods" : [ {
       "annotations" : {
         "returnEntity" : { }
@@ -29,6 +29,54 @@
     }, {
       "method" : "delete",
       "doc" : "Delete a configured flow. Running flows are not affected. The schedule will be removed for scheduled flows."
+    }, {
+      "method" : "get_all",
+      "doc" : "Retrieve all the flow configurations"
+    } ],
+    "finders" : [ {
+      "name" : "filterFlows",
+      "doc" : "Get all {@link FlowConfig}s that matches the provided parameters. All the parameters are optional.\n If a parameter is null, it is ignored. {@see FlowConfigV2Resource#getFilteredFlows}",
+      "parameters" : [ {
+        "name" : "flowGroup",
+        "type" : "string",
+        "optional" : true
+      }, {
+        "name" : "flowName",
+        "type" : "string",
+        "optional" : true
+      }, {
+        "name" : "templateUri",
+        "type" : "string",
+        "optional" : true
+      }, {
+        "name" : "userToProxy",
+        "type" : "string",
+        "optional" : true
+      }, {
+        "name" : "sourceIdentifier",
+        "type" : "string",
+        "optional" : true
+      }, {
+        "name" : "destinationIdentifier",
+        "type" : "string",
+        "optional" : true
+      }, {
+        "name" : "schedule",
+        "type" : "string",
+        "optional" : true
+      }, {
+        "name" : "isRunImmediately",
+        "type" : "boolean",
+        "optional" : true
+      }, {
+        "name" : "owningGroup",
+        "type" : "string",
+        "optional" : true
+      }, {
+        "name" : "propertyFilter",
+        "type" : "string",
+        "optional" : true
+      } ]
     } ],
     "entity" : {
       "path" : "/flowconfigsV2/{id}"

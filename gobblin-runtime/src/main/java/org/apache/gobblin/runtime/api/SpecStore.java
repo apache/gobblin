@@ -17,11 +17,12 @@
 
 package org.apache.gobblin.runtime.api;
 
-import com.google.common.base.Optional;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
 import java.util.Iterator;
+
+import com.google.common.base.Optional;
 
 
 public interface SpecStore {
@@ -84,6 +85,13 @@ public interface SpecStore {
    * @throws SpecNotFoundException If {@link Spec} being retrieved is not present in store.
    */
   Spec getSpec(URI specUri) throws IOException, SpecNotFoundException;
+
+  /***
+   * Retrieve {@link Spec}s by {@link SpecSearchObject} from the {@link SpecStore}.
+   * @param specSearchObject {@link SpecSearchObject} for the {@link Spec} to be retrieved.
+   * @throws IOException Exception in retrieving the {@link Spec}.
+   */
+  Collection<Spec> getSpecs(SpecSearchObject specSearchObject) throws IOException;
 
   /***
    * Retrieve specified version of the {@link Spec} by URI from the {@link SpecStore}.

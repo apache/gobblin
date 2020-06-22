@@ -135,8 +135,7 @@ public class FlowConfigClient implements Closeable {
    */
   public FlowConfig getFlowConfig(FlowId flowId)
       throws RemoteInvocationException {
-    LOG.debug("getFlowConfig with groupName " + flowId.getFlowGroup() + " flowName " +
-        flowId.getFlowName());
+    LOG.debug("getFlowConfig with groupName " + flowId.getFlowGroup() + " flowName " + flowId.getFlowName());
 
     GetRequest<FlowConfig> getRequest = _flowconfigsRequestBuilders.get()
         .id(new ComplexResourceKey<>(flowId, new EmptyRecord())).build();

@@ -19,6 +19,7 @@ package org.apache.gobblin.service;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -37,12 +38,15 @@ import com.linkedin.r2.transport.common.bridge.client.TransportClientAdapter;
 import com.linkedin.r2.transport.http.client.HttpClientFactory;
 import com.linkedin.restli.client.CreateIdEntityRequest;
 import com.linkedin.restli.client.DeleteRequest;
+import com.linkedin.restli.client.FindRequest;
+import com.linkedin.restli.client.GetAllRequest;
 import com.linkedin.restli.client.GetRequest;
 import com.linkedin.restli.client.PartialUpdateRequest;
 import com.linkedin.restli.client.Response;
 import com.linkedin.restli.client.ResponseFuture;
 import com.linkedin.restli.client.RestClient;
 import com.linkedin.restli.client.UpdateRequest;
+import com.linkedin.restli.common.CollectionResponse;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
 import com.linkedin.restli.common.IdEntityResponse;
@@ -180,15 +184,45 @@ public class FlowConfigV2Client implements Closeable {
    */
   public FlowConfig getFlowConfig(FlowId flowId)
       throws RemoteInvocationException {
-    LOG.debug("getFlowConfig with groupName " + flowId.getFlowGroup() + " flowName " +
-        flowId.getFlowName());
+    LOG.debug("getFlowConfig with groupName " + flowId.getFlowGroup() + " flowName " + flowId.getFlowName());
 
     GetRequest<FlowConfig> getRequest = _flowconfigsV2RequestBuilders.get()
         .id(new ComplexResourceKey<>(flowId, new FlowStatusId())).build();
 
-    Response<FlowConfig> response =
-        _restClient.get().sendRequest(getRequest).getResponse();
+    Response<FlowConfig> response = _restClient.get().sendRequest(getRequest).getResponse();
     return response.getEntity();
+  }
+
+  /**
+   * Get all {@link FlowConfig}s
+   * @return all {@link FlowConfig}s
+   * @throws RemoteInvocationException
+   */
+  public Collection<FlowConfig> getAllFlowConfigs() throws RemoteInvocationException {
+    LOG.debug("getAllFlowConfigs called");
+
+    GetAllRequest<FlowConfig> getRequest = _flowconfigsV2RequestBuilders.getAll().build();
+    Response<CollectionResponse<FlowConfig>> response = _restClient.get().sendRequest(getRequest).getResponse();
+    return response.getEntity().getElements();
+  }
+
+  /**
+   * Get all {@link FlowConfig}s that matches the provided parameters. All the parameters are optional.
+   * If a parameter is null, it is ignored. {@see FlowConfigV2Resource#getFilteredFlows}
+   */
+  public Collection<FlowConfig> getFlowConfigs(String flowGroup, String flowName, String templateUri, String userToProxy,
+      String sourceIdentifier, String destinationIdentifier, String schedule, Boolean isRunImmediately, String owningGroup,
+      String propertyFilter) throws RemoteInvocationException {
+    LOG.debug("getAllFlowConfigs called");
+
+    FindRequest<FlowConfig> getRequest = _flowconfigsV2RequestBuilders.findByFilterFlows()
+        .flowGroupParam(flowGroup).flowNameParam(flowName).templateUriParam(templateUri).userToProxyParam(userToProxy)
+        .sourceIdentifierParam(sourceIdentifier).destinationIdentifierParam(destinationIdentifier).scheduleParam(schedule)
+        .isRunImmediatelyParam(isRunImmediately).owningGroupParam(owningGroup).propertyFilterParam(propertyFilter).build();
+
+    Response<CollectionResponse<FlowConfig>> response = _restClient.get().sendRequest(getRequest).getResponse();
+
+    return response.getEntity().getElements();
   }
 
   /**

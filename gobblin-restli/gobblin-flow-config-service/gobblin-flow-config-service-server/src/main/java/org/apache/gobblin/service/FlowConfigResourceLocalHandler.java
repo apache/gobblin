@@ -19,13 +19,13 @@ package org.apache.gobblin.service;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Collection;
 import java.util.Properties;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang.StringUtils;
 
 import com.codahale.metrics.MetricRegistry;
-import com.google.common.collect.Maps;
-import com.linkedin.data.template.StringMap;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
 import com.linkedin.restli.common.HttpStatus;
@@ -46,6 +46,7 @@ import org.apache.gobblin.metrics.ContextAwareMeter;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.runtime.api.FlowSpec;
+import org.apache.gobblin.runtime.api.FlowSpecSearchObject;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.util.ConfigUtils;
@@ -75,51 +76,37 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
   }
 
   /**
-   * Get flow config
+   * Get flow config given a {@link FlowId}
    */
   public FlowConfig getFlowConfig(FlowId flowId) throws FlowConfigLoggedException {
     log.info("[GAAS-REST] Get called with flowGroup {} flowName {}", flowId.getFlowGroup(), flowId.getFlowName());
 
     try {
       URI flowUri = FlowSpec.Utils.createFlowSpecUri(flowId);
-      FlowSpec spec = (FlowSpec) flowCatalog.getSpec(flowUri);
-      FlowConfig flowConfig = new FlowConfig();
-      Properties flowProps = spec.getConfigAsProperties();
-      Schedule schedule = null;
-
-      if (flowProps.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
-        schedule = new Schedule();
-        schedule.setCronSchedule(flowProps.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY));
-      }
-      if (flowProps.containsKey(ConfigurationKeys.JOB_TEMPLATE_PATH)) {
-        flowConfig.setTemplateUris(flowProps.getProperty(ConfigurationKeys.JOB_TEMPLATE_PATH));
-      } else if (spec.getTemplateURIs().isPresent()) {
-        flowConfig.setTemplateUris(StringUtils.join(spec.getTemplateURIs().get(), ","));
-      } else {
-        flowConfig.setTemplateUris("NA");
-      }
-      if (schedule != null) {
-        if (flowProps.containsKey(ConfigurationKeys.FLOW_RUN_IMMEDIATELY)) {
-          schedule.setRunImmediately(Boolean.valueOf(flowProps.getProperty(ConfigurationKeys.FLOW_RUN_IMMEDIATELY)));
-        }
-
-        flowConfig.setSchedule(schedule);
-      }
-
-      // remove keys that were injected as part of flowSpec creation
-      flowProps.remove(ConfigurationKeys.JOB_SCHEDULE_KEY);
-      flowProps.remove(ConfigurationKeys.JOB_TEMPLATE_PATH);
-
-      StringMap flowPropsAsStringMap = new StringMap();
-      flowPropsAsStringMap.putAll(Maps.fromProperties(flowProps));
-
-      return flowConfig.setId(new FlowId().setFlowGroup(flowId.getFlowGroup()).setFlowName(flowId.getFlowName()))
-          .setProperties(flowPropsAsStringMap);
+      FlowSpec spec = (FlowSpec) flowCatalog.getSpecs(flowUri);
+      return FlowSpec.Utils.toFlowConfig(spec);
     } catch (URISyntaxException e) {
       throw new FlowConfigLoggedException(HttpStatus.S_400_BAD_REQUEST, "bad URI " + flowId.getFlowName(), e);
     } catch (SpecNotFoundException e) {
       throw new FlowConfigLoggedException(HttpStatus.S_404_NOT_FOUND, "Flow requested does not exist: " + flowId.getFlowName(), null);
     }
+  }
+
+  /**
+   * Get flow config given a {@link FlowSpecSearchObject}
+   * @return all the {@link FlowConfig}s that satisfy the {@link FlowSpecSearchObject}
+   */
+  public Collection<FlowConfig> getFlowConfig(FlowSpecSearchObject flowSpecSearchObject) throws FlowConfigLoggedException {
+    log.info("[GAAS-REST] Get called with flowSpecSearchObject {}", flowSpecSearchObject);
+    return flowCatalog.getSpecs(flowSpecSearchObject).stream().map(FlowSpec.Utils::toFlowConfig).collect(Collectors.toList());
+  }
+
+  /**
+   * Get all flow configs
+   */
+  public Collection<FlowConfig> getAllFlowConfigs() {
+    log.info("[GAAS-REST] GetAll called");
+    return flowCatalog.getAllSpecs().stream().map(FlowSpec.Utils::toFlowConfig).collect(Collectors.toList());
   }
 
   /**
