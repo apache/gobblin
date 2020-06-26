@@ -20,6 +20,7 @@ package org.apache.gobblin.data.management.copy.hive;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -345,6 +346,23 @@ public class HiveCopyEntityHelperTest {
     Path prefixReplacement = new Path("/data/databases/_parallel");
     Path expected = new Path("/data/databases/_parallel/DB1/Table1/SS1/part1.avro");
     Assert.assertEquals(HiveCopyEntityHelper.replacedPrefix(sourcePath, prefixTobeReplaced, prefixReplacement), expected);
+  }
+
+  @Test
+  public void testAddMetadataToTargetTable() throws Exception {
+    org.apache.hadoop.hive.ql.metadata.Table meta_table =
+        new Table(Table.getEmptyTable("testDB", "testTable"));
+
+    Map<String, String> storageParams = new HashMap<>();
+    storageParams.put("path", "randomPath");
+    meta_table.getSd().getSerdeInfo().setParameters(storageParams);
+    HiveCopyEntityHelper.addMetadataToTargetTable(meta_table, new Path("newPath"), "testDB", 10L);
+    Assert.assertEquals(meta_table.getSd().getSerdeInfo().getParameters().get("path"), "newPath");
+
+    storageParams.clear();
+    meta_table.getSd().getSerdeInfo().setParameters(storageParams);
+    HiveCopyEntityHelper.addMetadataToTargetTable(meta_table, new Path("newPath"), "testDB", 10L);
+    Assert.assertFalse(meta_table.getSd().getSerdeInfo().getParameters().containsKey("path"));
   }
 
   private boolean containsPath(Collection<FileStatus> statuses, Path path) {

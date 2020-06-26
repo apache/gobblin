@@ -186,7 +186,11 @@ public class HivePartitionFileSet extends HiveFileSet {
       targetPartition.getTPartition().putToParameters(HiveDataset.REGISTRATION_GENERATION_TIME_MILLIS,
           Long.toString(this.hiveCopyEntityHelper.getStartTime()));
       targetPartition.setLocation(targetLocation.toString());
-      targetPartition.getTPartition().getSd().getSerdeInfo().getParameters().put(HiveConstants.PATH, targetLocation.toString());
+      /**
+       * Only set the this constants when source partition has it.
+       */
+      targetPartition.getTPartition().getSd().getSerdeInfo().getParameters()
+          .computeIfPresent(HiveConstants.PATH, (k,v) -> targetLocation.toString());
       targetPartition.getTPartition().unsetCreateTime();
       return targetPartition;
     } catch (HiveException he) {

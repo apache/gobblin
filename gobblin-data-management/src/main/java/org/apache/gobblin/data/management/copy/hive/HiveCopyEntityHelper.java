@@ -478,24 +478,33 @@ public class HiveCopyEntityHelper {
   private Table getTargetTable(Table originTable, Path targetLocation) throws IOException {
     try {
       Table targetTable = originTable.copy();
-
-      targetTable.setDbName(this.targetDatabase);
-      targetTable.setDataLocation(targetLocation);
-      /*
-       * Need to set the table owner as the flow executor
-       */
-      targetTable.setOwner(UserGroupInformation.getCurrentUser().getShortUserName());
-      targetTable.getTTable().putToParameters(HiveDataset.REGISTERER, GOBBLIN_DISTCP);
-      targetTable.getTTable().putToParameters(HiveDataset.REGISTRATION_GENERATION_TIME_MILLIS,
-          Long.toString(this.startTime));
-      targetTable.getTTable().getSd().getSerdeInfo().getParameters().put(HiveConstants.PATH, targetLocation.toString());
-      targetTable.getTTable().unsetCreateTime();
-
+      HiveCopyEntityHelper.addMetadataToTargetTable(targetTable, targetLocation, this.targetDatabase, this.startTime);
       HiveAvroCopyEntityHelper.updateTableAttributesIfAvro(targetTable, this);
       return targetTable;
     } catch (HiveException he) {
       throw new IOException(he);
     }
+  }
+
+  @VisibleForTesting
+  static void addMetadataToTargetTable(Table targetTable, Path targetLocation, String targetDatabase, long startTime)
+      throws IOException {
+    targetTable.setDbName(targetDatabase);
+    targetTable.setDataLocation(targetLocation);
+    /*
+     * Need to set the table owner as the flow executor
+     */
+    targetTable.setOwner(UserGroupInformation.getCurrentUser().getShortUserName());
+    targetTable.getTTable().putToParameters(HiveDataset.REGISTERER, GOBBLIN_DISTCP);
+    targetTable.getTTable().putToParameters(HiveDataset.REGISTRATION_GENERATION_TIME_MILLIS,
+        Long.toString(startTime));
+
+    /**
+     * Only set the this constants when source table has it.
+     */
+    targetTable.getTTable().getSd().getSerdeInfo().getParameters()
+        .computeIfPresent(HiveConstants.PATH, (k,v) -> targetLocation.toString());
+    targetTable.getTTable().unsetCreateTime();
   }
 
   int addPartitionDeregisterSteps(List<CopyEntity> copyEntities, String fileSet, int initialPriority,
