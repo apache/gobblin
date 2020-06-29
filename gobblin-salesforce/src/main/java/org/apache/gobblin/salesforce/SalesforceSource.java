@@ -427,7 +427,7 @@ public class SalesforceSource extends QueryBasedSource<JsonArray, JsonElement> {
   @SneakyThrows
   private JsonArray getRecordsForQuery(SalesforceConnector connector, String query) {
     RestApiProcessingException exception = null;
-    for (int i = 0; i < workUnitConf.restApiRetryLimit; i++) {
+    for (int i = 0; i < workUnitConf.restApiRetryLimit + 1; i++) {
       try {
         String soqlQuery = SalesforceExtractor.getSoqlUrl(query);
         List<Command> commands = RestApiConnector.constructGetCommand(connector.getFullUri(soqlQuery));
