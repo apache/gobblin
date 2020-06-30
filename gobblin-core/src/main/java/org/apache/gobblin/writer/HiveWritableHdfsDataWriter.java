@@ -42,7 +42,7 @@ import org.apache.gobblin.configuration.State;
  */
 public class HiveWritableHdfsDataWriter extends FsDataWriter<Writable> {
 
-  protected final RecordWriter writer;
+  protected RecordWriter writer;
   protected final AtomicLong count = new AtomicLong(0);
   // the close method may be invoked multiple times, but the underlying writer only supports close being called once
   private boolean closed = false;
@@ -101,24 +101,25 @@ public class HiveWritableHdfsDataWriter extends FsDataWriter<Writable> {
 
   @Override
   public void close() throws IOException {
-    // close the underlying writer if not already closed. The close can only be called once for the underlying writer,
-    // so remember the state
-    if (!this.closed) {
-      this.writer.close(false);
-      this.closed = true;
-    }
-
+    closeInternal();
     super.close();
   }
 
   @Override
   public void commit() throws IOException {
+    closeInternal();
+    super.commit();
+  }
+
+  private void closeInternal() throws IOException {
+    // close the underlying writer if not already closed. The close can only be called once for the underlying writer,
+    // so remember the state
     if (!this.closed) {
       this.writer.close(false);
+      // release reference to allow GC since this writer can hold onto large buffers for some formats like ORC.
+      this.writer = null;
       this.closed = true;
     }
-
-    super.commit();
   }
 
   @Override
