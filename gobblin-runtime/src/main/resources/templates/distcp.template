@@ -42,6 +42,7 @@ converter.classes=org.apache.gobblin.converter.IdentityConverter
 
 task.maxretries=0
 workunit.retry.enabled=false
+user.defined.staging.dir.flag=false
 
 distcp.persist.dir=/tmp/distcp-persist-dir
 
