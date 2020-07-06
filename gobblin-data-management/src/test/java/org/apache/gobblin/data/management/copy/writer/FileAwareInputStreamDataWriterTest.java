@@ -20,6 +20,7 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Properties;
 
@@ -61,11 +62,20 @@ import org.apache.gobblin.data.management.copy.TestCopyableDataset;
 import org.apache.gobblin.util.TestUtils;
 import org.apache.gobblin.util.io.StreamUtils;
 
+import static org.apache.gobblin.configuration.ConfigurationKeys.*;
+
 
 public class FileAwareInputStreamDataWriterTest {
-
   FileSystem fs;
   Path testTempPath;
+  String userDefStagingDir = System.getProperty("user.dir") + "/user_staging_dir";
+  private Path testRootDir = new Path(Paths.get("").toAbsolutePath().toString(), getClass().getSimpleName());
+  private FileSystem localFs = FileSystem.getLocal(new Configuration());
+  Path ds1 = createDatasetPath("db1");
+  String dataSetDefinedStagingDir = testRootDir + "/db1/staging";
+
+  public FileAwareInputStreamDataWriterTest() throws IOException {
+  }
 
   @BeforeClass
   public void setup() throws Exception {
@@ -76,49 +86,114 @@ public class FileAwareInputStreamDataWriterTest {
 
   @Test
   public void testWrite() throws Exception {
-    String streamString1 = "testContents1";
-    String streamString2 = "testContents2";
-    String userDefStagingDir = System.getProperty("user.dir") + "/user_staging_dir";
+    String streamString = "testContents";
+
     FileStatus status = fs.getFileStatus(testTempPath);
     OwnerAndPermission ownerAndPermission =
         new OwnerAndPermission(status.getOwner(), status.getGroup(), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
     CopyableFile cf = CopyableFileUtils.getTestCopyableFile(ownerAndPermission);
+
     CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(new TestCopyableDataset(new Path("/source")));
+
     WorkUnitState state = TestUtils.createTestWorkUnitState();
-    state.setProp(ConfigurationKeys.USER_DEFINED_STAGING_DIR_FLAG,false);
+    state.setProp(ConfigurationKeys.DATASET_STAGING_DIR, false);
+    state.setProp(ConfigurationKeys.USER_DEFINED_STAGING_DIR_FLAG, false);
     state.setProp(ConfigurationKeys.WRITER_STAGING_DIR, new Path(testTempPath, "staging").toString());
     state.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, new Path(testTempPath, "output").toString());
     state.setProp(ConfigurationKeys.WRITER_FILE_PATH, RandomStringUtils.randomAlphabetic(5));
     CopySource.serializeCopyEntity(state, cf);
     CopySource.serializeCopyableDataset(state, metadata);
+
     FileAwareInputStreamDataWriter dataWriter = new FileAwareInputStreamDataWriter(state, 1, 0);
+
     FileAwareInputStream fileAwareInputStream = FileAwareInputStream.builder().file(cf)
-        .inputStream(StreamUtils.convertStream(IOUtils.toInputStream(streamString1))).build();
-    Assert.assertNotEquals(dataWriter.stagingDir,userDefStagingDir);
+        .inputStream(StreamUtils.convertStream(IOUtils.toInputStream(streamString))).build();
+
+    Assert.assertNotEquals(dataWriter.stagingDir, userDefStagingDir);
+    Assert.assertNotEquals(dataWriter.stagingDir, dataSetDefinedStagingDir);
+
     dataWriter.write(fileAwareInputStream);
     dataWriter.commit();
     Path writtenFilePath = new Path(new Path(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR),
         cf.getDatasetAndPartition(metadata).identifier()), cf.getDestination());
-    Assert.assertEquals(IOUtils.toString(new FileInputStream(writtenFilePath.toString())), streamString1);
 
-    //testing user defined staging directory
+    Assert.assertEquals(IOUtils.toString(new FileInputStream(writtenFilePath.toString())), streamString);
+  }
+
+  //testing user defined staging directory
+  @Test
+  public void testUserStagingDir() throws Exception {
+    String streamString = "testContents";
+
+    FileStatus status = fs.getFileStatus(testTempPath);
+    OwnerAndPermission ownerAndPermission =
+        new OwnerAndPermission(status.getOwner(), status.getGroup(), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
+    CopyableFile cf = CopyableFileUtils.getTestCopyableFile(ownerAndPermission);
+
+    CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(new TestCopyableDataset(new Path("/source")));
+
     WorkUnitState state2 = TestUtils.createTestWorkUnitState();
-    state2.setProp(ConfigurationKeys.USER_DEFINED_STAGING_DIR_FLAG,true);
+    state2.setProp(ConfigurationKeys.DATASET_STAGING_DIR, false);
+    state2.setProp(ConfigurationKeys.USER_DEFINED_STAGING_DIR_FLAG, true);
     state2.setProp(ConfigurationKeys.WRITER_STAGING_DIR, new Path(testTempPath, "staging").toString());
     state2.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, new Path(testTempPath, "output2").toString());
-    state2.setProp(ConfigurationKeys.USER_DEFINED_STATIC_STAGING_DIR,userDefStagingDir);
+    state2.setProp(ConfigurationKeys.USER_DEFINED_STATIC_STAGING_DIR, userDefStagingDir);
     state2.setProp(ConfigurationKeys.WRITER_FILE_PATH, RandomStringUtils.randomAlphabetic(5));
     CopySource.serializeCopyEntity(state2, cf);
     CopySource.serializeCopyableDataset(state2, metadata);
-    dataWriter = new FileAwareInputStreamDataWriter(state2, 1, 0);
-    fileAwareInputStream = FileAwareInputStream.builder().file(cf)
-        .inputStream(StreamUtils.convertStream(IOUtils.toInputStream(streamString2))).build();
-    Assert.assertEquals(dataWriter.stagingDir.toUri().toString(),userDefStagingDir);
+
+    FileAwareInputStreamDataWriter dataWriter = new FileAwareInputStreamDataWriter(state2, 1, 0);
+
+    FileAwareInputStream fileAwareInputStream = FileAwareInputStream.builder().file(cf)
+        .inputStream(StreamUtils.convertStream(IOUtils.toInputStream(streamString))).build();
+
+    Assert.assertEquals(dataWriter.stagingDir.toUri().toString(), userDefStagingDir);
+    Assert.assertNotEquals(dataWriter.stagingDir, dataSetDefinedStagingDir);
+
     dataWriter.write(fileAwareInputStream);
     dataWriter.commit();
-    writtenFilePath = new Path(new Path(state2.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR),
+    Path writtenFilePath = new Path(new Path(state2.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR),
         cf.getDatasetAndPartition(metadata).identifier()), cf.getDestination());
-    Assert.assertEquals(IOUtils.toString(new FileInputStream(writtenFilePath.toString())), streamString2);
+
+    Assert.assertEquals(IOUtils.toString(new FileInputStream(writtenFilePath.toString())), streamString);
+  }
+
+  //testing dataset  staging directory
+  @Test
+  public void testDatasetStagingDir() throws Exception {
+    String streamString = "testContents";
+    FileStatus status = fs.getFileStatus(testTempPath);
+    OwnerAndPermission ownerAndPermission =
+        new OwnerAndPermission(status.getOwner(), status.getGroup(), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
+    CopyableFile cf = CopyableFileUtils.getTestCopyableFile(ownerAndPermission);
+
+    CopyableDatasetMetadata metadata =
+        new CopyableDatasetMetadata(new TestCopyableDataset(new Path(testRootDir + "/db1")));
+    WorkUnitState state3 = TestUtils.createTestWorkUnitState();
+    state3.setProp(ConfigurationKeys.DATASET_STAGING_DIR, true);
+    state3.setProp(ConfigurationKeys.USER_DEFINED_STAGING_DIR_FLAG, false);
+    state3.setProp(ConfigurationKeys.WRITER_STAGING_DIR, new Path(testTempPath, "staging").toString());
+    state3.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, new Path(testTempPath, "output2").toString());
+    state3.setProp(ConfigurationKeys.USER_DEFINED_STATIC_STAGING_DIR, userDefStagingDir);
+    state3.setProp(ConfigurationKeys.WRITER_FILE_PATH, RandomStringUtils.randomAlphabetic(5));
+
+    CopySource.serializeCopyEntity(state3, cf);
+    CopySource.serializeCopyableDataset(state3, metadata);
+
+    FileAwareInputStreamDataWriter dataWriter = new FileAwareInputStreamDataWriter(state3, 1, 0);
+
+    FileAwareInputStream fileAwareInputStream = FileAwareInputStream.builder().file(cf)
+        .inputStream(StreamUtils.convertStream(IOUtils.toInputStream(streamString))).build();
+
+    Assert.assertNotEquals(dataWriter.stagingDir, userDefStagingDir);
+    Assert.assertEquals(dataWriter.stagingDir.toUri().toString(), dataSetDefinedStagingDir);
+
+    dataWriter.write(fileAwareInputStream);
+    dataWriter.commit();
+    Path writtenFilePath = new Path(new Path(state3.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR),
+        cf.getDatasetAndPartition(metadata).identifier()), cf.getDestination());
+
+    Assert.assertEquals(IOUtils.toString(new FileInputStream(writtenFilePath.toString())), streamString);
   }
 
   @Test
@@ -148,10 +223,8 @@ public class FileAwareInputStreamDataWriterTest {
         String.format("%s.__PART%d__", cf.getDestination().getName(), 0));
     FSDataInputStream dataInputStream = StreamUtils.convertStream(IOUtils.toInputStream(streamString));
     dataInputStream.seek(split.getLowPosition());
-    FileAwareInputStream fileAwareInputStream = FileAwareInputStream.builder().file(cf)
-        .inputStream(dataInputStream)
-        .split(Optional.of(split))
-        .build();
+    FileAwareInputStream fileAwareInputStream =
+        FileAwareInputStream.builder().file(cf).inputStream(dataInputStream).split(Optional.of(split)).build();
     dataWriter.write(fileAwareInputStream);
     dataWriter.commit();
     Path writtenFilePath = new Path(new Path(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR),
@@ -235,13 +308,11 @@ public class FileAwareInputStreamDataWriterTest {
     IOUtils.readFully(GPGFileDecryptor.decryptFile(new FileInputStream(writtenFilePath.toString()), "testPassword"),
         decryptedContent);
 
-
     // encrypted string should not be the same as the plaintext
     Assert.assertNotEquals(encryptedContent, streamString);
 
     // decrypted string should be the same as the plaintext
     Assert.assertEquals(decryptedContent, streamString);
-
   }
 
   @Test
@@ -418,6 +489,12 @@ public class FileAwareInputStreamDataWriterTest {
         new FsPermission("311"));
     Assert.assertEquals(FileAwareInputStreamDataWriter.addExecutePermissionToOwner(new FsPermission("250")),
         new FsPermission("350"));
+  }
+
+  private Path createDatasetPath(String dataset) throws IOException {
+    Path datasetPath = new Path(testRootDir, dataset);
+    localFs.mkdirs(datasetPath);
+    return datasetPath;
   }
 
   @AfterClass
