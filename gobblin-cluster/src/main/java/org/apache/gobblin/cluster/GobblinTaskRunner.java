@@ -183,6 +183,14 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
       String taskRunnerId,
       Config config,
       Optional<Path> appWorkDirOptional) throws Exception {
+    // Set system properties passed in via application config. As an example, Helix uses System#getProperty() for ZK configuration
+    // overrides such as sessionTimeout. In this case, the overrides specified
+    // in the application configuration have to be extracted and set before initializing HelixManager.
+    GobblinClusterUtils.setSystemProperties(config);
+
+    //Add dynamic config
+    config = GobblinClusterUtils.addDynamicConfig(config);
+
     this.isTaskDriver = ConfigUtils.getBoolean(config, GobblinClusterConfigurationKeys.TASK_DRIVER_ENABLED,false);
     this.helixInstanceName = helixInstanceName;
     this.taskRunnerId = taskRunnerId;
@@ -205,11 +213,6 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
         ConfigurationKeys.DEFAULT_GOBBLIN_TASK_EVENT_REPORTING_FAILURE_FATAL);
 
     logger.info("Configured GobblinTaskRunner work dir to: {}", this.appWorkPath.toString());
-
-    // Set system properties passed in via application config. As an example, Helix uses System#getProperty() for ZK configuration
-    // overrides such as sessionTimeout. In this case, the overrides specified
-    // in the application configuration have to be extracted and set before initializing HelixManager.
-    HelixUtils.setSystemProperties(config);
 
     this.isContainerExitOnHealthCheckFailureEnabled = ConfigUtils.getBoolean(config, GobblinClusterConfigurationKeys.CONTAINER_EXIT_ON_HEALTH_CHECK_FAILURE_ENABLED,
         GobblinClusterConfigurationKeys.DEFAULT_CONTAINER_EXIT_ON_HEALTH_CHECK_FAILURE_ENABLED);

@@ -21,12 +21,16 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
+import java.util.Map;
+import java.util.Properties;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.yarn.api.ApplicationConstants;
 
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -42,6 +46,10 @@ import org.apache.gobblin.util.PathUtils;
 @Alpha
 @Slf4j
 public class GobblinClusterUtils {
+
+  public enum TMP_DIR {
+    YARN_CACHE
+  }
 
   /**
    * Get the name of the current host.
@@ -62,10 +70,6 @@ public class GobblinClusterUtils {
    * @param applicationId the application ID in string form
    * @return the cluster application working directory {@link Path}
    */
-  public static Path getAppWorkDirPath(FileSystem fs, String applicationName, String applicationId) {
-    return new Path(fs.getHomeDirectory(), getAppWorkDirPath(applicationName, applicationId));
-  }
-
   public static Path getAppWorkDirPathFromConfig(Config config, FileSystem fs,
       String applicationName, String applicationId) {
     if (config.hasPath(GobblinClusterConfigurationKeys.CLUSTER_WORK_DIR)) {
@@ -110,6 +114,26 @@ public class GobblinClusterUtils {
     log.info("job state file path: " + jobStateFilePath);
 
     return jobStateFilePath;
+  }
+
+  /**
+   * Return the system properties from the input {@link Config} instance
+   * @param config
+   */
+  public static void setSystemProperties(Config config) {
+    Properties properties = ConfigUtils.configToProperties(ConfigUtils.getConfig(config, GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_SYSTEM_PROPERTY_PREFIX,
+        ConfigFactory.empty()));
+
+    for (Map.Entry<Object, Object> entry: properties.entrySet()) {
+      if (entry.getKey().toString().equals("java.io.tmpdir")) {
+        if (entry.getValue().toString().equalsIgnoreCase(TMP_DIR.YARN_CACHE.toString())) {
+          log.info("Setting tmp directory to: {}", System.getenv(ApplicationConstants.Environment.PWD.key()));
+          System.setProperty(entry.getKey().toString(), System.getenv(ApplicationConstants.Environment.PWD.key()));
+          continue;
+        }
+      }
+      System.setProperty(entry.getKey().toString(), entry.getValue().toString());
+    }
   }
 
   /**
