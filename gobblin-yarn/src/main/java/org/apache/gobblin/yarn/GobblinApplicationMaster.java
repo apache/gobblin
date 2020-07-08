@@ -96,7 +96,9 @@ public class GobblinApplicationMaster extends GobblinClusterManager {
 
     if (UserGroupInformation.isSecurityEnabled()) {
       LOGGER.info("Adding YarnContainerSecurityManager since security is enabled");
-      this.applicationLauncher.addService(buildYarnContainerSecurityManager(this.config, this.fs));
+      YarnContainerSecurityManager yarnContainerSecurityManager = buildYarnContainerSecurityManager(this.config, this.fs);
+      this.applicationLauncher.addService(yarnContainerSecurityManager);
+      yarnContainerSecurityManager.handleTokenFileUpdatedEvent(new DelegationTokenUpdatedEvent());
     }
 
     // Add additional services

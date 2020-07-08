@@ -74,10 +74,12 @@ public class YarnContainerSecurityManager extends AbstractIdleService {
   @Subscribe
   public void handleTokenFileUpdatedEvent(DelegationTokenUpdatedEvent delegationTokenUpdatedEvent) {
     try {
-      addCredentials(readCredentials(this.tokenFilePath));
-      if (this.logCopier != null) {
-        this.logCopier.setNeedToUpdateDestFs(true);
-        this.logCopier.setNeedToUpdateSrcFs(true);
+      if(fs.exists(tokenFilePath)) {
+        addCredentials(readCredentials(this.tokenFilePath));
+        if (this.logCopier != null) {
+          this.logCopier.setNeedToUpdateDestFs(true);
+          this.logCopier.setNeedToUpdateSrcFs(true);
+        }
       }
     } catch (IOException ioe) {
       throw Throwables.propagate(ioe);
