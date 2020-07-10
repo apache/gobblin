@@ -64,6 +64,8 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValue;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
 import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import org.apache.gobblin.broker.gobblin_scopes.JobScopeInstance;
@@ -122,6 +124,7 @@ import org.apache.gobblin.util.reflection.RestrictedFieldAccessingUtils;
  *
  * @author Yinan Li
  */
+@Slf4j
 public class MRJobLauncher extends AbstractJobLauncher {
 
   private static final String INTERRUPT_JOB_FILE_NAME = "_INTERRUPT_JOB";
@@ -253,6 +256,9 @@ public class MRJobLauncher extends AbstractJobLauncher {
             jobProps.getProperty(ConfigurationKeys.MAXIMUM_JAR_COPY_RETRY_TIMES_KEY))
             : MAXIMUM_JAR_COPY_RETRY_TIMES_DEFAULT;
 
+    // One of the most common user mistakes is mis-configuring the FileSystem scheme (e.g. file versus hdfs)
+    log.info("Configured fs:{}", fs);
+    log.debug("Configuration: {}", conf);
     startCancellationExecutor();
   }
 

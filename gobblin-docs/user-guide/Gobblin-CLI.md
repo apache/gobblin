@@ -54,7 +54,7 @@ Argument details:
 * `--jvmopts`: to specify any JVM parameters, default is `-Xmx1g -Xms512m`.
 * `--enable-gc-logs`: adds GC options to JVM parameters:  ``` -XX:+UseConcMarkSweepGC -XX:+UseParNewGC -XX:+UseCompressedOops -XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+PrintTenuringDistribution -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=$GOBBLIN_LOGS/ -Xloggc:$GOBBLIN_LOGS/gobblin-$GOBBLIN_MODE-gc.log ```
 * `--show-classpath`: It prints the full value of the classpath that gobblin uses.
-* all other arguments are sell-explanatory.
+* all other arguments are self-explanatory.
 
 Gobblin Commands
 -------------------
@@ -96,6 +96,9 @@ will provide with a list of available quick apps. To run a quick app:
 
 Quick apps may require additional arguments. For the usage of a particular app, run `bin/gobblin cli run <quick-app-name> -h`.
 
+The Distcp Quick App
+--------------------
+
 For example, consider the quick app distcp:
 ```bash
 $ gobblin cli run distcp -h
@@ -119,6 +122,42 @@ usage: gobblin cli run distcp [OPTIONS] <source> <target>
 This provides usage for the app distcp, as well as listing all available options. Distcp could then be run:
 ```bash
 gobblin cli run distcp file:///source/path file:///target/path
+```
+
+The OneShot Quick App
+----------------------
+
+The Gobblin cli also ships with a generic job runner, the **oneShot** quick app. You can use it to run a single job using a standard config file. This is very useful during development, testing and also makes it easy to integrate with schedulers that just need to fire off a command line job. The **oneShot** app allows you to run a job in standalone mode or in map-reduce mode.
+```bash
+$ gobblin cli run oneShot -baseConf <base-config-file> -appConf <path-to-job-conf-file>
+# The Base Config file is an optional parameter and contains defaults for your mode of
+# execution (e.g. standalone modes would typically use
+# gobblin-dist/conf/standalone/application.conf and
+# mapreduce mode would typically use gobblin-dist/conf/mapreduce/application.conf)
+#
+# The Job Config file is your regular .pull or .conf file and is a required parameter.
+# You should use a fully qualified URI to your pull file. Otherwise Gobblin will pick the
+# default FS configured in the environment, which may not be what you want.
+# e.g file:///gobblin-conf/my-job/wikipedia.pull or hdfs:///gobblin-conf/my-job/kafka-hdfs.pull
+```
+
+The **oneShot** app comes with certain hardcoded defaults (that it inherits from EmbeddedGobblin [here](https://github.com/apache/incubator-gobblin/blob/master/gobblin-runtime/src/main/resources/embedded/embedded.conf)), that you may not be expecting. Make sure you understand what they do and override them in your baseConf or appConf files if needed.
+
+Notable differences at the time of this writing include:
+
+* state.store.enabled = false (set this to true in your appConfig or baseConfig if you want state storage for repeated oneshot runs)
+* data.publisher.appendExtractToFinalDir = false (set this to true in your appConfig or baseConfig if you want to see the extract name appended to the job output directory)
+
+The **oneShot** app allows for specifying the log4j file of your job execution which can be very helpful while debugging pesky failures.
+You can launch the job in MR-Mode by using the -mrMode switch.
+
+* oneShot execution of standalone with a log4j file.
+```bash
+$ gobblin cli run oneShot -baseConf /app/gobblin-dist/conf/standalone/application.conf -appConf file:///app/kafkaConfDir/kafka-simple-hdfs.pull --log4j-conf /app/gobblin-dist/conf/standalone/log4j.properties
+```
+* oneShot execution of map-reduce job with a log4j file
+```bash
+$ gobblin cli run oneShot -mrMode -baseConf /app/gobblin-dist/conf/standalone/application.conf -appConf file:///app/kafkaConfDir/kafka-simple-hdfs.pull --log4j-conf /app/gobblin-dist/conf/standalone/log4j.properties
 ```
 
 Developing quick apps for the CLI

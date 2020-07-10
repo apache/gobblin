@@ -22,9 +22,6 @@ import com.google.common.collect.Sets;
 import org.apache.gobblin.annotation.Alias;
 import org.apache.gobblin.util.ClassAliasResolver;
 
-import java.util.ArrayList;
-import java.util.List;
-
 
 /**
  * Instantiates a {@link CliApplication} and runs it.
@@ -47,9 +44,11 @@ public class GobblinCli {
     } catch (ReflectiveOperationException roe) {
       System.err.println("Could not find an application with alias " + alias);
       printUsage(resolver);
+      System.exit(1);
     } catch (Throwable t) {
       System.out.println("Error: " + t.getMessage());
       t.printStackTrace();
+      System.exit(2);
     }
   }
 

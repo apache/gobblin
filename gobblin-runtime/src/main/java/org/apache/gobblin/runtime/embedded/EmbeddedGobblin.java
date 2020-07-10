@@ -38,7 +38,6 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.avro.SchemaBuilder;
 import org.apache.commons.lang3.ClassUtils;
-import org.apache.gobblin.runtime.job_spec.JobSpecResolver;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -64,6 +63,13 @@ import com.linkedin.data.template.DataTemplate;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import javassist.bytecode.ClassFile;
+import javax.annotation.Nullable;
+import lombok.AccessLevel;
+import lombok.Data;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.instrumented.extractor.InstrumentedExtractorBase;
@@ -82,15 +88,16 @@ import org.apache.gobblin.runtime.api.JobExecutionResult;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.JobTemplate;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
-import org.apache.gobblin.runtime.cli.ConstructorAndPublicMethodsGobblinCliFactory;
 import org.apache.gobblin.runtime.cli.CliObjectOption;
 import org.apache.gobblin.runtime.cli.CliObjectSupport;
+import org.apache.gobblin.runtime.cli.ConstructorAndPublicMethodsGobblinCliFactory;
 import org.apache.gobblin.runtime.cli.NotOnCli;
 import org.apache.gobblin.runtime.instance.SimpleGobblinInstanceEnvironment;
 import org.apache.gobblin.runtime.instance.StandardGobblinInstanceDriver;
 import org.apache.gobblin.runtime.job_catalog.ImmutableFSJobCatalog;
 import org.apache.gobblin.runtime.job_catalog.PackagedTemplatesJobCatalogDecorator;
 import org.apache.gobblin.runtime.job_catalog.StaticJobCatalog;
+import org.apache.gobblin.runtime.job_spec.JobSpecResolver;
 import org.apache.gobblin.runtime.job_spec.ResolvedJobSpec;
 import org.apache.gobblin.runtime.plugins.GobblinInstancePluginUtils;
 import org.apache.gobblin.runtime.plugins.PluginStaticKeys;
@@ -101,13 +108,6 @@ import org.apache.gobblin.state.ConstructState;
 import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.PullFileLoader;
-
-import javassist.bytecode.ClassFile;
-import javax.annotation.Nullable;
-import lombok.AccessLevel;
-import lombok.Data;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -147,6 +147,7 @@ public class EmbeddedGobblin {
   private FullTimeout shutdownTimeout = new FullTimeout(100, TimeUnit.SECONDS);
   private boolean dumpJStackOnTimeout = false;
   private List<GobblinInstancePluginFactory> plugins = Lists.newArrayList();
+  @Getter
   private Optional<Path> jobFile = Optional.absent();
 
   public EmbeddedGobblin() {
@@ -417,10 +418,14 @@ public class EmbeddedGobblin {
   public JobExecutionDriver runAsync() throws TimeoutException, InterruptedException {
     // Run function to distribute jars to workers in distributed mode
     this.distributeJarsFunction.run();
+    log.debug("BuiltConfigMap: {}", this.builtConfigMap);
+    log.debug("DefaultSysConfig: {}", this.defaultSysConfig);
 
     Config sysProps = ConfigFactory.parseMap(this.builtConfigMap)
         .withFallback(this.defaultSysConfig);
+    log.debug("Merged SysProps:{}", sysProps);
     Config userConfig = ConfigFactory.parseMap(this.userConfigMap);
+    log.debug("UserConfig: {}", userConfig);
 
     JobSpec jobSpec;
     if (this.jobFile.isPresent()) {
@@ -431,6 +436,8 @@ public class EmbeddedGobblin {
                 PullFileLoader.DEFAULT_JAVA_PROPS_PULL_FILE_EXTENSIONS,
                 PullFileLoader.DEFAULT_HOCON_PULL_FILE_EXTENSIONS);
         Config jobConfig = userConfig.withFallback(loader.loadPullFile(jobFilePath, sysProps, false));
+        log.debug("JobConfig: {}", jobConfig);
+
         ImmutableFSJobCatalog.JobSpecConverter converter =
             new ImmutableFSJobCatalog.JobSpecConverter(jobFilePath.getParent(), Optional.<String>absent());
         jobSpec = converter.apply(jobConfig);
@@ -532,7 +539,8 @@ public class EmbeddedGobblin {
     }
   }
 
-  private Configurable getSysConfig() {
+  @VisibleForTesting
+  public Configurable getSysConfig() {
     return DefaultConfigurableImpl.createFromConfig(ConfigFactory.parseMap(this.sysConfigOverrides).withFallback(this.defaultSysConfig));
   }
 

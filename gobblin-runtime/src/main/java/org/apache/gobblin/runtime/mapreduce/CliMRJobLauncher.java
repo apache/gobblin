@@ -21,8 +21,6 @@ import java.io.IOException;
 import java.util.Properties;
 import java.util.UUID;
 
-import javax.annotation.Nullable;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.util.GenericOptionsParser;
@@ -30,6 +28,9 @@ import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 
 import com.google.common.io.Closer;
+
+import javax.annotation.Nullable;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.runtime.JobException;
 import org.apache.gobblin.runtime.JobLauncher;
@@ -45,6 +46,7 @@ import org.apache.gobblin.runtime.listeners.JobListener;
  *
  * @author Yinan Li
  */
+@Slf4j
 public class CliMRJobLauncher extends Configured implements ApplicationLauncher, JobLauncher, Tool {
 
   private final Closer closer = Closer.create();
@@ -53,6 +55,8 @@ public class CliMRJobLauncher extends Configured implements ApplicationLauncher,
   private final MRJobLauncher mrJobLauncher;
 
   public CliMRJobLauncher(Configuration conf, Properties jobProperties) throws Exception {
+    log.debug("Configuration: {}", conf);
+    log.debug("Job properties: {}", jobProperties);
     setConf(conf);
     this.applicationLauncher = this.closer.register(new ServiceBasedAppLauncher(jobProperties,
         jobProperties.getProperty(ServiceBasedAppLauncher.APP_NAME, "CliMRJob-" + UUID.randomUUID())));

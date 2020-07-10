@@ -398,12 +398,13 @@ function start() {
             echo "$GOBBLIN_CLASSPATH"
         else
             #prints the command
+            GOBBLIN_COMMAND="$JAVA_HOME/bin/java $GC_OPTS $JVM_OPTS $LOG4J_OPTS -cp $GOBBLIN_CLASSPATH $CLI_CLASS $CMD_PARAMS"
             if [[ $VERBOSE -eq 1 ]]; then
-                echo "Running command: $JAVA_HOME/bin/java $GC_OPTS $JVM_OPTS -cp $GOBBLIN_CLASSPATH $CLI_CLASS $CMD_PARAMS";
+                echo "Running command: $GOBBLIN_COMMAND";
             fi
 
             # execute the command
-            $JAVA_HOME/bin/java $GC_OPTS $JVM_OPTS -cp $GOBBLIN_CLASSPATH $CLI_CLASS $CMD_PARAMS
+            $GOBBLIN_COMMAND
         fi
     # for all gobblin execution modes
     else
@@ -429,7 +430,8 @@ function start() {
 
             GOBBLIN_COMMAND="hadoop jar $GOBBLIN_LIB/gobblin-runtime-$GOBBLIN_VERSION.jar $MAPREDUCE_CLASS \
             -D mapreduce.job.user.classpath.first=true $JT_COMMAND $FS_COMMAND \
-            -libjars $MR_MODE_LIB_JARS -sysconfig $GOBBLIN_CONF/application.conf -jobconfig $JOB_CONF_FILE"
+            -libjars $MR_MODE_LIB_JARS -sysconfig $GOBBLIN_CONF/application.conf -jobconfig $JOB_CONF_FILE \
+            $LOG4J_OPTS"
 
         else
             CLASS_N_ARGS=''
