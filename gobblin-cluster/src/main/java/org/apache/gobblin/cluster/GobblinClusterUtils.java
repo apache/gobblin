@@ -117,7 +117,7 @@ public class GobblinClusterUtils {
   }
 
   /**
-   * Return the system properties from the input {@link Config} instance
+   * Set the system properties from the input {@link Config} instance
    * @param config
    */
   public static void setSystemProperties(Config config) {
@@ -127,6 +127,8 @@ public class GobblinClusterUtils {
     for (Map.Entry<Object, Object> entry: properties.entrySet()) {
       if (entry.getKey().toString().equals("java.io.tmpdir")) {
         if (entry.getValue().toString().equalsIgnoreCase(TMP_DIR.YARN_CACHE.toString())) {
+          //When java.io.tmpdir is configured to "YARN_CACHE", it sets the tmp dir to the Yarn container's cache location.
+          // This setting will only be useful when the cluster is deployed in Yarn mode.
           log.info("Setting tmp directory to: {}", System.getenv(ApplicationConstants.Environment.PWD.key()));
           System.setProperty(entry.getKey().toString(), System.getenv(ApplicationConstants.Environment.PWD.key()));
           continue;
