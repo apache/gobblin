@@ -201,6 +201,7 @@ public class GobblinYarnTaskRunner extends GobblinTaskRunner {
       if (!Strings.isNullOrEmpty(helixInstanceTags)) {
         config = config.withValue(GobblinClusterConfigurationKeys.HELIX_INSTANCE_TAGS_KEY, ConfigValueFactory.fromAnyRef(helixInstanceTags));
       }
+      YarnHelixUtils.updateToken(config);
 
       GobblinTaskRunner gobblinTaskRunner =
           new GobblinYarnTaskRunner(applicationName, applicationId, helixInstanceName, containerId, config,
