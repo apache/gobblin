@@ -142,23 +142,25 @@ public class GobblinClusterManager implements ApplicationLauncher, StandardMetri
 
   public GobblinClusterManager(String clusterName, String applicationId, Config sysConfig,
       Optional<Path> appWorkDirOptional) throws Exception {
+    // Set system properties passed in via application config. As an example, Helix uses System#getProperty() for ZK configuration
+    // overrides such as sessionTimeout. In this case, the overrides specified
+    // in the application configuration have to be extracted and set before initializing HelixManager.
+    GobblinClusterUtils.setSystemProperties(sysConfig);
+
+    //Add dynamic config
+    this.config = GobblinClusterUtils.addDynamicConfig(sysConfig);
+
     this.clusterName = clusterName;
-    this.config = sysConfig;
-    this.isStandaloneMode = ConfigUtils.getBoolean(sysConfig, GobblinClusterConfigurationKeys.STANDALONE_CLUSTER_MODE_KEY,
+    this.isStandaloneMode = ConfigUtils.getBoolean(this.config, GobblinClusterConfigurationKeys.STANDALONE_CLUSTER_MODE_KEY,
         GobblinClusterConfigurationKeys.DEFAULT_STANDALONE_CLUSTER_MODE);
 
     this.applicationId = applicationId;
 
-    // Set system properties passed in via application config. As an example, Helix uses System#getProperty() for ZK configuration
-    // overrides such as sessionTimeout. In this case, the overrides specified
-    // in the application configuration have to be extracted and set before initializing HelixManager.
-    HelixUtils.setSystemProperties(sysConfig);
-
     initializeHelixManager();
 
-    this.fs = GobblinClusterUtils.buildFileSystem(sysConfig, new Configuration());
+    this.fs = GobblinClusterUtils.buildFileSystem(this.config, new Configuration());
     this.appWorkDir = appWorkDirOptional.isPresent() ? appWorkDirOptional.get()
-        : GobblinClusterUtils.getAppWorkDirPathFromConfig(sysConfig, this.fs, clusterName, applicationId);
+        : GobblinClusterUtils.getAppWorkDirPathFromConfig(this.config, this.fs, clusterName, applicationId);
     LOGGER.info("Configured GobblinClusterManager work dir to: {}", this.appWorkDir);
 
     initializeAppLauncherAndServices();

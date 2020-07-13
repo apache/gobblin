@@ -23,7 +23,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -47,15 +46,11 @@ import org.apache.helix.task.WorkflowConfig;
 import org.apache.helix.task.WorkflowContext;
 import org.apache.helix.tools.ClusterSetup;
 
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
-
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.JobException;
 import org.apache.gobblin.runtime.listeners.JobListener;
-import org.apache.gobblin.util.ConfigUtils;
 
 import static org.apache.helix.task.TaskState.STOPPED;
 
@@ -323,19 +318,6 @@ public class HelixUtils {
       }
     }
     return jobNameToWorkflowId;
-  }
-
-  /**
-   * Return the system properties from the input {@link Config} instance
-   * @param config
-   */
-  public static void setSystemProperties(Config config) {
-    Properties properties = ConfigUtils.configToProperties(ConfigUtils.getConfig(config, GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_SYSTEM_PROPERTY_PREFIX,
-        ConfigFactory.empty()));
-
-    for (Map.Entry<Object, Object> entry: properties.entrySet()) {
-      System.setProperty(entry.getKey().toString(), entry.getValue().toString());
-    }
   }
 
   /**
