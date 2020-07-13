@@ -46,6 +46,7 @@ import org.apache.gobblin.util.PathUtils;
 @Alpha
 @Slf4j
 public class GobblinClusterUtils {
+  public static final String JAVA_TMP_DIR_KEY = "java.io.tmpdir";
 
   public enum TMP_DIR {
     YARN_CACHE
@@ -125,7 +126,7 @@ public class GobblinClusterUtils {
         ConfigFactory.empty()));
 
     for (Map.Entry<Object, Object> entry: properties.entrySet()) {
-      if (entry.getKey().toString().equals("java.io.tmpdir")) {
+      if (entry.getKey().toString().equals(JAVA_TMP_DIR_KEY)) {
         if (entry.getValue().toString().equalsIgnoreCase(TMP_DIR.YARN_CACHE.toString())) {
           //When java.io.tmpdir is configured to "YARN_CACHE", it sets the tmp dir to the Yarn container's cache location.
           // This setting will only be useful when the cluster is deployed in Yarn mode.
