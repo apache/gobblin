@@ -62,9 +62,9 @@ public class GobblinYarnTaskRunner extends GobblinTaskRunner {
 
   public GobblinYarnTaskRunner(String applicationName, String applicationId, String helixInstanceName, ContainerId containerId, Config config,
       Optional<Path> appWorkDirOptional) throws Exception {
-    super(applicationName, helixInstanceName, applicationId, getTaskRunnerId(containerId),
-        GobblinClusterUtils.addDynamicConfig(config.withValue(GobblinYarnConfigurationKeys.CONTAINER_NUM_KEY,
-            ConfigValueFactory.fromAnyRef(YarnHelixUtils.getContainerNum(containerId.toString())))), appWorkDirOptional);
+    super(applicationName, helixInstanceName, applicationId, getTaskRunnerId(containerId), config
+        .withValue(GobblinYarnConfigurationKeys.CONTAINER_NUM_KEY,
+            ConfigValueFactory.fromAnyRef(YarnHelixUtils.getContainerNum(containerId.toString()))), appWorkDirOptional);
   }
 
   @Override

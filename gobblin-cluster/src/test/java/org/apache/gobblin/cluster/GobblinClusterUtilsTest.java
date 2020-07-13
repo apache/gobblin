@@ -22,6 +22,7 @@ import java.io.IOException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.typesafe.config.Config;
@@ -60,4 +61,22 @@ public class GobblinClusterUtilsTest {
         .getAppWorkDirPathFromConfig(ConfigFactory.empty(), mockFs, TEST_APP_NAME, TEST_APP_ID);
     assertEquals(PathUtils.combinePaths(DEFAULT_HOME_DIR, TEST_APP_NAME, TEST_APP_ID), workDirPath);
   }
+
+  @Test
+  public void testSetSystemProperties() {
+    //Set a dummy property before calling GobblinClusterUtils#setSystemProperties() and assert that this property and value
+    //exists even after the call to the setSystemProperties() method.
+    System.setProperty("prop1", "val1");
+
+    Config config = ConfigFactory.empty().withValue(GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_SYSTEM_PROPERTY_PREFIX + ".prop2",
+        ConfigValueFactory.fromAnyRef("val2"))
+        .withValue(GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_SYSTEM_PROPERTY_PREFIX + ".prop3", ConfigValueFactory.fromAnyRef("val3"));
+
+    GobblinClusterUtils.setSystemProperties(config);
+
+    Assert.assertEquals(System.getProperty("prop1"), "val1");
+    Assert.assertEquals(System.getProperty("prop2"), "val2");
+    Assert.assertEquals(System.getProperty("prop3"), "val3");
+  }
+
 }
