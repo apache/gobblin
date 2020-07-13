@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.gobblin.cluster.GobblinClusterUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -46,6 +47,8 @@ import org.slf4j.LoggerFactory;
 import com.typesafe.config.Config;
 
 import org.apache.gobblin.util.ConfigUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -72,6 +75,7 @@ public class YarnHelixUtils {
   }
 
   /**
+<<<<<<< HEAD
    * Update {@link Token} with token file in resources.
    *
    * @param
@@ -85,6 +89,25 @@ public class YarnHelixUtils {
         LOGGER.info("updating " + token.getKind() + " " + token.getService());
       }
       UserGroupInformation.getCurrentUser().addCredentials(credentials);
+=======
+   * Update {@link Token} with the configured token path.
+   *
+   * @param config a {@link Config} object carrying Hadoop configuration properties and token path config
+   * @throws IOException
+   */
+  public static void updateToken(Config config) throws IOException{
+    FileSystem fs = GobblinClusterUtils.buildFileSystem(config, new Configuration());
+    Path tokenPath = new Path(fs.getHomeDirectory(),
+        config.getString(GobblinYarnConfigurationKeys.APPLICATION_NAME_KEY) + Path.SEPARATOR
+            + GobblinYarnConfigurationKeys.TOKEN_FILE_NAME);
+    if(fs.exists(tokenPath)) {
+      Credentials credentials = Credentials.readTokenStorageFile(tokenPath, fs.getConf());
+      for (Token<? extends TokenIdentifier> token : credentials.getAllTokens()) {
+        LOGGER.info("updating " + token.toString());
+      }
+      UserGroupInformation.getCurrentUser()
+          .addCredentials(credentials);
+>>>>>>> 4b8de3653... address comments
     }
   }
 
