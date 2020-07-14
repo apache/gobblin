@@ -142,8 +142,6 @@ public class YarnService extends AbstractIdleService {
   private final Optional<GobblinMetrics> gobblinMetrics;
   private final Optional<EventSubmitter> eventSubmitter;
 
-  private final Object lock = new Object();
-
   @VisibleForTesting
   @Getter(AccessLevel.PROTECTED)
   private final AMRMClientAsync<AMRMClient.ContainerRequest> amrmClientAsync;
@@ -770,7 +768,7 @@ public class YarnService extends AbstractIdleService {
 
         //Ensure that updates to unusedHelixInstanceNames are visible to other threads that might concurrently
         //invoke the callback on container allocation.
-        synchronized (lock) {
+        synchronized (this) {
           Iterator<String> iterator = unusedHelixInstanceNames.iterator();
           while (iterator.hasNext()) {
             instanceName = iterator.next();
