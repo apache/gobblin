@@ -142,7 +142,6 @@ public class YarnService extends AbstractIdleService {
   private final Optional<GobblinMetrics> gobblinMetrics;
   private final Optional<EventSubmitter> eventSubmitter;
 
-
   @VisibleForTesting
   @Getter(AccessLevel.PROTECTED)
   private final AMRMClientAsync<AMRMClient.ContainerRequest> amrmClientAsync;
@@ -766,13 +765,21 @@ public class YarnService extends AbstractIdleService {
         //Iterate over the (thread-safe) set of unused instances to find the first instance that is not currently live.
         //Once we find a candidate instance, it is removed from the set.
         String instanceName = null;
-        Iterator<String> iterator = unusedHelixInstanceNames.iterator();
-        while (iterator.hasNext()) {
-          instanceName = iterator.next();
-          if (!HelixUtils.isInstanceLive(helixManager, instanceName)) {
-            iterator.remove();
-            LOGGER.info("Found an unused instance {}", instanceName);
-            break;
+
+        //Ensure that updates to unusedHelixInstanceNames are visible to other threads that might concurrently
+        //invoke the callback on container allocation.
+        synchronized (this) {
+          Iterator<String> iterator = unusedHelixInstanceNames.iterator();
+          while (iterator.hasNext()) {
+            instanceName = iterator.next();
+            if (!HelixUtils.isInstanceLive(helixManager, instanceName)) {
+              iterator.remove();
+              LOGGER.info("Found an unused instance {}", instanceName);
+              break;
+            } else {
+              //Reset the instance name to null, since this instance name is live.
+              instanceName = null;
+            }
           }
         }
 
