@@ -295,7 +295,7 @@ public class OrcUtilsTest {
   }
 
   @Test
-  public void complextTypeEligibilityCheck() throws Exception {
+  public void complexTypeEligibilityCheck() throws Exception {
     TypeDescription struct_array_0 = TypeDescription.fromString("struct<first:array<int>,second:int>");
     TypeDescription struct_array_1 = TypeDescription.fromString("struct<first:array<int>,second:int>");
     Assert.assertTrue(OrcUtils.eligibleForUpConvert(struct_array_0, struct_array_1));
@@ -305,8 +305,10 @@ public class OrcUtilsTest {
     TypeDescription struct_map_0 = TypeDescription.fromString("struct<first:map<string,string>,second:int>");
     TypeDescription struct_map_1 = TypeDescription.fromString("struct<first:map<string,string>,second:int>");
     TypeDescription struct_map_2 = TypeDescription.fromString("struct<first:map<string,int>,second:int>");
+    TypeDescription struct_map_3 = TypeDescription.fromString("struct<second:int>");
     Assert.assertTrue(OrcUtils.eligibleForUpConvert(struct_map_0, struct_map_1));
     Assert.assertFalse(OrcUtils.eligibleForUpConvert(struct_map_0, struct_map_2));
+    Assert.assertTrue(OrcUtils.eligibleForUpConvert(struct_map_0, struct_map_3));
   }
 
   public void testSchemaContains() throws Exception {

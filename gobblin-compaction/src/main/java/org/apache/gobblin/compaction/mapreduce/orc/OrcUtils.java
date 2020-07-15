@@ -490,13 +490,17 @@ public class OrcUtils {
    */
   public static boolean eligibleForUpConvertHelper(TypeDescription originalSchema, TypeDescription targetSchema) {
     if (!targetSchema.getCategory().isPrimitive()) {
+      if (originalSchema.getCategory() != targetSchema.getCategory()) {
+        return false;
+      }
+
       if (targetSchema.getCategory().equals(TypeDescription.Category.LIST)) {
         Preconditions
-            .checkArgument(originalSchema.getChildren() != null, "Illegal format of ORC schema as:" + targetSchema);
+            .checkArgument(originalSchema.getChildren() != null, "Illegal format of ORC schema as:" + originalSchema);
         return eligibleForUpConvertHelper(originalSchema.getChildren().get(0), targetSchema.getChildren().get(0));
       } else if (targetSchema.getCategory().equals(TypeDescription.Category.MAP)) {
         Preconditions
-            .checkArgument(originalSchema.getChildren() != null, "Illegal format of ORC schema as:" + targetSchema);
+            .checkArgument(originalSchema.getChildren() != null, "Illegal format of ORC schema as:" + originalSchema);
 
         return eligibleForUpConvertHelper(originalSchema.getChildren().get(0), targetSchema.getChildren().get(0))
             && eligibleForUpConvertHelper(originalSchema.getChildren().get(1), targetSchema.getChildren().get(1));
