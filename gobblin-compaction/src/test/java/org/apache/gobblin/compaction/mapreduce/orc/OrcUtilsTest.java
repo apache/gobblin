@@ -295,7 +295,7 @@ public class OrcUtilsTest {
   }
 
   @Test
-  public void reproduce() throws Exception {
+  public void complextTypeEligibilityCheck() throws Exception {
     TypeDescription struct_array_0 = TypeDescription.fromString("struct<first:array<int>,second:int>");
     TypeDescription struct_array_1 = TypeDescription.fromString("struct<first:array<int>,second:int>");
     Assert.assertTrue(OrcUtils.eligibleForUpConvert(struct_array_0, struct_array_1));
@@ -307,11 +307,6 @@ public class OrcUtilsTest {
     TypeDescription struct_map_2 = TypeDescription.fromString("struct<first:map<string,int>,second:int>");
     Assert.assertTrue(OrcUtils.eligibleForUpConvert(struct_map_0, struct_map_1));
     Assert.assertFalse(OrcUtils.eligibleForUpConvert(struct_map_0, struct_map_2));
-
-    // A complicated schema
-    TypeDescription struct_a = TypeDescription.fromString("struct<stone:struct<memberId:int,viewerUrn:string,aUrn:string,csUserUrn:string,time:bigint,server:string,service:string,environment:string,guid:binary,treeId:binary,requestId:int,impersonatorId:string,version:string,instance:string,appName:string,testId:string,testSegmentId:string,auditstone:struct<time:bigint,server:string,instance:string,appName:string,messageId:binary,auditVersion:int,fabricUrn:string,clusterConnectionString:string>,pageInstance:struct<pageUrn:string,trackingId:binary>,clientApplicationInstance:struct<applicationUrn:string,version:string,trackingId:binary>,originSource:string,sessionUrn:string,traceData:struct<treeId:binary,requestId:int,taskId:int,rpcTrace:string,forceTraceEnabled:boolean,context:map<string,string>,scaleFactor:double>>,requeststone:struct<browserId:string,sessionId:string,ip:string,pageKey:string,path:string,locale:string,interfaceLocale:string,trackingCode:string,referer:string,userAgent:string,ipAsBytes:binary,requestProtocol:string,requestDomain:string>,statusCode:int,bodyDataAnnotationGroups:array<struct<annotations:array<struct<domainType:struct<entityId:int,attributeId:int>,sourceUrn:string>>,groupId:int,childrenGroupIds:array<int>,hashedSchemaName:int>>,resourceName:string,info:struct<rm:string,actionOrFinderName:string,schemaName:string>,xId:struct<tenantUrn:string,eUrn:string,memberUrn:string,cloudUrn:string,clientId:string,userMetadata:struct<emad:string,accountAgeInSeconds:bigint>>>");
-    TypeDescription struct_b = TypeDescription.fromString("struct<stone:struct<memberId:int,viewerUrn:string,aUrn:string,csUserUrn:string,time:bigint,server:string,service:string,environment:string,guid:binary,treeId:binary,requestId:int,impersonatorId:string,version:string,instance:string,appName:string,testId:string,testSegmentId:string,auditstone:struct<time:bigint,server:string,instance:string,appName:string,messageId:binary,auditVersion:int,fabricUrn:string,clusterConnectionString:string>,pageInstance:struct<pageUrn:string,trackingId:binary>,clientApplicationInstance:struct<applicationUrn:string,version:string,trackingId:binary>,originSource:string,sessionUrn:string,traceData:struct<treeId:binary,requestId:int,taskId:int,rpcTrace:string,forceTraceEnabled:boolean,context:map<string,string>,scaleFactor:double>>,requeststone:struct<browserId:string,sessionId:string,ip:string,pageKey:string,path:string,locale:string,interfaceLocale:string,trackingCode:string,referer:string,userAgent:string,ipAsBytes:binary,requestProtocol:string,requestDomain:string>,statusCode:int,bodyDataAnnotationGroups:array<struct<annotations:array<struct<domainType:struct<entityId:int,attributeId:int>,sourceUrn:string>>,groupId:int,childrenGroupIds:array<int>,hashedSchemaName:int>>,resourceName:string,info:struct<rm:string,actionOrFinderName:string,schemaName:string>,xId:struct<tenantUrn:string,eUrn:string,memberUrn:string,cloudUrn:string,clientId:string,userMetadata:struct<emad:string,accountAgeInSeconds:bigint>>>");
-    Assert.assertTrue(OrcUtils.eligibleForUpConvert(struct_a, struct_b));
   }
 
   public void testSchemaContains() throws Exception {
