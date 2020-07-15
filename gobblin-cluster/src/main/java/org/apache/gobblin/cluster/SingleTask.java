@@ -81,10 +81,11 @@ public class SingleTask {
       TaskAttemptBuilder taskAttemptBuilder, StateStores stateStores, Config dynamicConfig) {
     this(jobId, workUnitFilePath, jobStateFilePath, fs, taskAttemptBuilder, stateStores, dynamicConfig, false);
   }
-    /**
-     * Do all heavy-lifting of initialization in constructor which could be retried if failed,
-     * see the example in {@link GobblinHelixTask}.
-     */
+
+  /**
+   * Do all heavy-lifting of initialization in constructor which could be retried if failed,
+   * see the example in {@link GobblinHelixTask}.
+   */
   SingleTask(String jobId, Path workUnitFilePath, Path jobStateFilePath, FileSystem fs,
       TaskAttemptBuilder taskAttemptBuilder, StateStores stateStores, Config dynamicConfig, boolean skipGetJobState) {
     _jobId = jobId;
