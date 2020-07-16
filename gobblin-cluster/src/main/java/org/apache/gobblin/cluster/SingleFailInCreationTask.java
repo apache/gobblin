@@ -36,7 +36,8 @@ import org.apache.gobblin.runtime.util.StateStores;
 public class SingleFailInCreationTask extends SingleTask {
   public SingleFailInCreationTask(String jobId, Path workUnitFilePath, Path jobStateFilePath, FileSystem fs,
       TaskAttemptBuilder taskAttemptBuilder, StateStores stateStores, Config dynamicConfig) {
-    super(jobId, workUnitFilePath, jobStateFilePath, fs, taskAttemptBuilder, stateStores, dynamicConfig);
+    //Since this is a dummy task that is designed to fail immediately on run(), we skip fetching the job state.
+    super(jobId, workUnitFilePath, jobStateFilePath, fs, taskAttemptBuilder, stateStores, dynamicConfig, true);
   }
 
   @Override
