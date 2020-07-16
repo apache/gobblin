@@ -57,7 +57,6 @@ import org.apache.orc.mapred.OrcMap;
 import org.apache.orc.mapred.OrcStruct;
 import org.apache.orc.mapred.OrcTimestamp;
 import org.apache.orc.mapred.OrcUnion;
-import org.apache.parquet.format.TypeDefinedOrder;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -491,18 +490,42 @@ public class OrcUtils {
    */
   public static boolean eligibleForUpConvertHelper(TypeDescription originalSchema, TypeDescription targetSchema) {
     if (!targetSchema.getCategory().isPrimitive()) {
-      if (!originalSchema.getFieldNames().containsAll(targetSchema.getFieldNames())) {
+      if (originalSchema.getCategory() != targetSchema.getCategory()) {
         return false;
       }
-      boolean result = true;
 
-      for (int i = 0; i < targetSchema.getFieldNames().size(); i++) {
-        String subSchemaFieldName = targetSchema.getFieldNames().get(i);
-        result &= eligibleForUpConvertHelper(originalSchema.findSubtype(subSchemaFieldName),
-            targetSchema.getChildren().get(i));
+      if (targetSchema.getCategory().equals(TypeDescription.Category.LIST)) {
+        Preconditions
+            .checkArgument(originalSchema.getChildren() != null, "Illegal format of ORC schema as:" + originalSchema);
+        return eligibleForUpConvertHelper(originalSchema.getChildren().get(0), targetSchema.getChildren().get(0));
+      } else if (targetSchema.getCategory().equals(TypeDescription.Category.MAP)) {
+        Preconditions
+            .checkArgument(originalSchema.getChildren() != null, "Illegal format of ORC schema as:" + originalSchema);
+
+        return eligibleForUpConvertHelper(originalSchema.getChildren().get(0), targetSchema.getChildren().get(0))
+            && eligibleForUpConvertHelper(originalSchema.getChildren().get(1), targetSchema.getChildren().get(1));
+      } else if (targetSchema.getCategory().equals(TypeDescription.Category.UNION)) {
+        // we don't project into union as shuffle key.
+        return true;
+      } else if (targetSchema.getCategory().equals(TypeDescription.Category.STRUCT)) {
+        if (!originalSchema.getFieldNames().containsAll(targetSchema.getFieldNames())) {
+          return false;
+        }
+
+        boolean result = true;
+
+        for (int i = 0; i < targetSchema.getFieldNames().size(); i++) {
+          String subSchemaFieldName = targetSchema.getFieldNames().get(i);
+          result &= eligibleForUpConvertHelper(originalSchema.findSubtype(subSchemaFieldName),
+              targetSchema.getChildren().get(i));
+        }
+
+        return result;
+      } else {
+        // There are totally 5 types of non-primitive. If falling into this branch, it means it is a TIMESTAMP_INSTANT
+        // and we will by default treated it as eligible.
+        return true;
       }
-
-      return result;
     } else {
       // Check the unit type: Only for the category.
       return originalSchema.getCategory().equals(targetSchema.getCategory());
