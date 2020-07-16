@@ -35,12 +35,13 @@ import org.apache.orc.mapred.OrcKey;
 import org.apache.orc.mapred.OrcValue;
 
 import static org.apache.gobblin.compaction.mapreduce.CompactorOutputCommitter.*;
+import static org.apache.gobblin.compaction.mapreduce.orc.OrcUtils.eligibleForUpConvert;
 
 
 public class CompactionOrcJobConfigurator extends CompactionJobConfigurator {
 
   /**
-   * The key schema for the shuffle output. 
+   * The key schema for the shuffle output.
    */
   public static final String ORC_MAPPER_SHUFFLE_KEY_SCHEMA = "orcMapperShuffleSchema";
   private String orcMapperShuffleSchemaString;
@@ -66,8 +67,16 @@ public class CompactionOrcJobConfigurator extends CompactionJobConfigurator {
     TypeDescription schema = OrcUtils.getNewestSchemaFromSource(job, this.fs);
 
     job.getConfiguration().set(OrcConf.MAPRED_INPUT_SCHEMA.getAttribute(), schema.toString());
-    job.getConfiguration().set(OrcConf.MAPRED_SHUFFLE_KEY_SCHEMA.getAttribute(),
-        orcMapperShuffleSchemaString.isEmpty() ? schema.toString() : orcMapperShuffleSchemaString);
+
+    // Determine the shuffle-schema: Only take the user-specified shuffle-schema if it is upconvertable
+    // Check the eligibleForUpConvert method for the definition of eligibility.
+    if (!orcMapperShuffleSchemaString.isEmpty()
+        && eligibleForUpConvert(schema, TypeDescription.fromString(orcMapperShuffleSchemaString))) {
+      job.getConfiguration().set(OrcConf.MAPRED_SHUFFLE_KEY_SCHEMA.getAttribute(), orcMapperShuffleSchemaString);
+    } else {
+      job.getConfiguration().set(OrcConf.MAPRED_SHUFFLE_KEY_SCHEMA.getAttribute(), schema.toString());
+    }
+
     job.getConfiguration().set(OrcConf.MAPRED_SHUFFLE_VALUE_SCHEMA.getAttribute(), schema.toString());
     job.getConfiguration().set(OrcConf.MAPRED_OUTPUT_SCHEMA.getAttribute(), schema.toString());
   }

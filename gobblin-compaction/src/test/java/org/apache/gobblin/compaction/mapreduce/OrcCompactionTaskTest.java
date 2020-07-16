@@ -90,6 +90,47 @@ public class OrcCompactionTaskTest {
   }
 
   @Test
+  public void basicTestWithShuffleKeySpecified() throws Exception {
+    File basePath = Files.createTempDir();
+    basePath.deleteOnExit();
+
+    String minutelyPath = "Identity/MemberAccount/minutely/2017/04/03/10/20_30/run_2017-04-03-10-20";
+    String hourlyPath = "Identity/MemberAccount/hourly/2017/04/03/10/";
+    File jobDir = new File(basePath, minutelyPath);
+    Assert.assertTrue(jobDir.mkdirs());
+
+    // Writing some basic ORC files
+    // Testing data is schema'ed with "struct<i:int,j:int>"
+    createTestingData(jobDir);
+
+    EmbeddedGobblin embeddedGobblin = createEmbeddedGobblin("basic", basePath.getAbsolutePath().toString())
+        .setConfiguration(CompactionJobConfigurator.COMPACTION_JOB_CONFIGURATOR_FACTORY_CLASS_KEY,
+            TestCompactionOrcJobConfigurator.Factory.class.getName())
+        .setConfiguration(COMPACTION_OUTPUT_EXTENSION, extensionName)
+        // A shuffle key that shouldn't be taken.
+        .setConfiguration(ORC_MAPPER_SHUFFLE_KEY_SCHEMA, "struct<k:int>");
+    JobExecutionResult execution = embeddedGobblin.run();
+    Assert.assertTrue(execution.isSuccessful());
+
+    // Result verification
+    File outputDir = new File(basePath, hourlyPath);
+    FileSystem fs = FileSystem.getLocal(new Configuration());
+    List<FileStatus> statuses = new ArrayList<>();
+    reloadFolder(statuses, outputDir, fs);
+
+    Assert.assertTrue(statuses.size() == 1);
+    List<OrcStruct> result = readOrcFile(statuses.get(0).getPath());
+    Assert.assertEquals(result.size(), 3);
+    Assert.assertEquals(result.get(0).getFieldValue("i"), new IntWritable(1));
+    Assert.assertEquals(result.get(0).getFieldValue("j"), new IntWritable(2));
+    Assert.assertEquals(result.get(1).getFieldValue("i"), new IntWritable(2));
+    Assert.assertEquals(result.get(1).getFieldValue("j"), new IntWritable(3));
+    Assert.assertEquals(result.get(2).getFieldValue("i"), new IntWritable(4));
+    Assert.assertEquals(result.get(2).getFieldValue("j"), new IntWritable(5));
+
+  }
+
+  @Test
   public void basicTestWithRecompactionAndBasicSchemaEvolution() throws Exception {
     File basePath = Files.createTempDir();
     basePath.deleteOnExit();

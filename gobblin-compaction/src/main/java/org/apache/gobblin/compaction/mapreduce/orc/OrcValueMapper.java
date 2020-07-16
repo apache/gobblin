@@ -39,7 +39,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.compaction.mapreduce.RecordKeyMapperBase;
 
-import static org.apache.gobblin.compaction.mapreduce.orc.OrcUtils.eligibleForUpConvert;
+import static org.apache.orc.OrcConf.MAPRED_SHUFFLE_KEY_SCHEMA;
 
 
 /**
@@ -53,11 +53,8 @@ public class OrcValueMapper extends RecordKeyMapperBase<NullWritable, OrcStruct,
   // This key will only be initialized lazily when dedup is enabled.
   private OrcKey outKey;
   private OrcValue outValue;
-  private TypeDescription mrOutputSchema;
+  private TypeDescription mrInputSchema;
   private TypeDescription shuffleKeySchema;
-  // Lazily initiated flag indicating if shuffleKeySchema is eligible to be used.
-  // Check org.apache.gobblin.compaction.mapreduce.orc.OrcUtils.eligibleForUpConvert for details.
-  private Boolean isShuffleKeyEligible;
   private JobConf jobConf;
 
   // This is added mostly for debuggability.
@@ -72,10 +69,12 @@ public class OrcValueMapper extends RecordKeyMapperBase<NullWritable, OrcStruct,
     this.outKey.configure(jobConf);
     this.outValue = new OrcValue();
     this.outValue.configure(jobConf);
-    this.mrOutputSchema =
+
+    // This is the consistent input-schema among all mappers.
+    this.mrInputSchema =
         TypeDescription.fromString(context.getConfiguration().get(OrcConf.MAPRED_INPUT_SCHEMA.getAttribute()));
     this.shuffleKeySchema =
-        TypeDescription.fromString(context.getConfiguration().get(OrcConf.MAPRED_SHUFFLE_KEY_SCHEMA.getAttribute()));
+        TypeDescription.fromString(context.getConfiguration().get(MAPRED_SHUFFLE_KEY_SCHEMA.getAttribute()));
   }
 
   @Override
@@ -83,10 +82,10 @@ public class OrcValueMapper extends RecordKeyMapperBase<NullWritable, OrcStruct,
       throws IOException, InterruptedException {
 
     // Up-convert OrcStruct only if schema differs
-    if (!orcStruct.getSchema().equals(this.mrOutputSchema)) {
+    if (!orcStruct.getSchema().equals(this.mrInputSchema)) {
       // Note that outValue.value is being re-used.
       log.info("There's a schema difference between output schema and input schema");
-      OrcUtils.upConvertOrcStruct(orcStruct, (OrcStruct) outValue.value, mrOutputSchema);
+      OrcUtils.upConvertOrcStruct(orcStruct, (OrcStruct) outValue.value, mrInputSchema);
     } else {
       this.outValue.value = orcStruct;
     }
@@ -125,11 +124,7 @@ public class OrcValueMapper extends RecordKeyMapperBase<NullWritable, OrcStruct,
    * Note: This method should have no side-effect on input record.
    */
   private void fillDedupKey(OrcStruct originalRecord) {
-    if (this.isShuffleKeyEligible == null) {
-      this.isShuffleKeyEligible = eligibleForUpConvert(originalRecord.getSchema(), this.shuffleKeySchema);
-    }
-
-    if (!originalRecord.getSchema().equals(this.shuffleKeySchema) && isShuffleKeyEligible) {
+    if (!originalRecord.getSchema().equals(this.shuffleKeySchema)) {
       OrcUtils.upConvertOrcStruct(originalRecord, (OrcStruct) this.outKey.key, this.shuffleKeySchema);
     } else {
       this.outKey.key = originalRecord;
