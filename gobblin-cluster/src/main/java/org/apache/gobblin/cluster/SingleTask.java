@@ -77,12 +77,17 @@ public class SingleTask {
   private Condition _taskAttemptBuilt;
   private Lock _lock;
 
+  SingleTask(String jobId, Path workUnitFilePath, Path jobStateFilePath, FileSystem fs,
+      TaskAttemptBuilder taskAttemptBuilder, StateStores stateStores, Config dynamicConfig) {
+    this(jobId, workUnitFilePath, jobStateFilePath, fs, taskAttemptBuilder, stateStores, dynamicConfig, false);
+  }
+
   /**
    * Do all heavy-lifting of initialization in constructor which could be retried if failed,
    * see the example in {@link GobblinHelixTask}.
    */
   SingleTask(String jobId, Path workUnitFilePath, Path jobStateFilePath, FileSystem fs,
-      TaskAttemptBuilder taskAttemptBuilder, StateStores stateStores, Config dynamicConfig) {
+      TaskAttemptBuilder taskAttemptBuilder, StateStores stateStores, Config dynamicConfig, boolean skipGetJobState) {
     _jobId = jobId;
     _workUnitFilePath = workUnitFilePath;
     _jobStateFilePath = jobStateFilePath;
@@ -93,10 +98,14 @@ public class SingleTask {
     _lock = new ReentrantLock();
     _taskAttemptBuilt = _lock.newCondition();
 
-    try {
-      _jobState = getJobState();
-    } catch (IOException ioe) {
-      throw new RuntimeException("Failing in deserializing jobState...", ioe);
+    if (!skipGetJobState) {
+      try {
+        _jobState = getJobState();
+      } catch (IOException ioe) {
+        throw new RuntimeException("Failing in deserializing jobState...", ioe);
+      }
+    } else {
+      this._jobState = null;
     }
   }
 
