@@ -17,14 +17,12 @@
 
 package org.apache.gobblin.yarn;
 
-import com.typesafe.config.Config;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.gobblin.util.ConfigUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -42,6 +40,9 @@ import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.Records;
 
 import com.google.common.collect.Maps;
+import com.typesafe.config.Config;
+
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**

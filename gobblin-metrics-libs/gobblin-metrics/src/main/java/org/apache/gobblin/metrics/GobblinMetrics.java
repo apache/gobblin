@@ -353,6 +353,13 @@ public class GobblinMetrics {
   /**
    * Starts metric reporting and appends the given metrics file suffix to the current value of
    * {@link ConfigurationKeys#METRICS_FILE_SUFFIX}.
+   * If {@link ConfigurationKeys#METRICS_FILE_SUFFIX} is a Map-Reduce task attempt id,
+   * it also adds {@link ConfigurationKeys#MR_TYPE_KEY}, {@link ConfigurationKeys#MAPPER_TASK_NUM_KEY},
+   * {@link ConfigurationKeys#MAPPER_TASK_ATTEMPT_NUM_KEY}, {@link ConfigurationKeys#REDUCER_TASK_NUM_KEY} and
+   * {@link ConfigurationKeys#REDUCER_TASK_ATTEMPT_NUM_KEY} to metrics properties.
+   * e.g. If task attempt id is 'attempt_1592863931636_2371636_m_000003_4' {@link ConfigurationKeys#MR_TYPE_KEY} is set
+   * to 'm', {@link ConfigurationKeys#MAPPER_TASK_NUM_KEY} is set to '000003' and
+   * {@link ConfigurationKeys#MAPPER_TASK_ATTEMPT_NUM_KEY} is set to '4'.
    */
   public void startMetricReportingWithFileSuffix(State state, String metricsFileSuffix)
       throws MultiReporterException {
@@ -367,6 +374,20 @@ public class GobblinMetrics {
       oldMetricsFileSuffix += "." + metricsFileSuffix;
     }
     metricsReportingProps.setProperty(ConfigurationKeys.METRICS_FILE_SUFFIX, oldMetricsFileSuffix);
+
+    if (!Strings.isNullOrEmpty(metricsFileSuffix)) {
+      String[] tokens = metricsFileSuffix.split("_");
+      if (tokens.length == 6) {
+        metricsReportingProps.setProperty(ConfigurationKeys.MR_TYPE_KEY, tokens[3]);
+        if (tokens[3].equals("m")) {
+          metricsReportingProps.setProperty(ConfigurationKeys.MAPPER_TASK_NUM_KEY, tokens[4]);
+          metricsReportingProps.setProperty(ConfigurationKeys.MAPPER_TASK_ATTEMPT_NUM_KEY, tokens[5]);
+        } else if (tokens[3].equals("r")) {
+          metricsReportingProps.setProperty(ConfigurationKeys.REDUCER_TASK_NUM_KEY, tokens[4]);
+          metricsReportingProps.setProperty(ConfigurationKeys.REDUCER_TASK_ATTEMPT_NUM_KEY, tokens[5]);
+        }
+      }
+    }
     startMetricReporting(metricsReportingProps);
   }
 
