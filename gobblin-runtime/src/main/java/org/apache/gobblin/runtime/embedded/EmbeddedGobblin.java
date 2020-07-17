@@ -142,9 +142,9 @@ public class EmbeddedGobblin {
   private Runnable distributeJarsFunction;
   private JobTemplate template;
   private Logger useLog = log;
-  private FullTimeout launchTimeout = new FullTimeout(10, TimeUnit.SECONDS);
-  private FullTimeout jobTimeout = new FullTimeout(10, TimeUnit.DAYS);
-  private FullTimeout shutdownTimeout = new FullTimeout(10, TimeUnit.SECONDS);
+  private FullTimeout launchTimeout = new FullTimeout(100, TimeUnit.SECONDS);
+  private FullTimeout jobTimeout = new FullTimeout(100, TimeUnit.DAYS);
+  private FullTimeout shutdownTimeout = new FullTimeout(100, TimeUnit.SECONDS);
   private boolean dumpJStackOnTimeout = false;
   private List<GobblinInstancePluginFactory> plugins = Lists.newArrayList();
   private Optional<Path> jobFile = Optional.absent();
