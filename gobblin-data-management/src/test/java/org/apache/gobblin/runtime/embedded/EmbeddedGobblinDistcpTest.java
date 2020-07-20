@@ -78,11 +78,9 @@ public class EmbeddedGobblinDistcpTest {
       SessionState.start(hiveConf);
       SessionState.get().initTxnMgr(hiveConf);
       metaStoreClient = new HiveMetaStoreClient(new HiveConf());
+      jdbcConnector = HiveJdbcConnector.newEmbeddedConnector(2);
     } catch (HiveException he) {
       throw new RuntimeException("Failed to start Hive session.", he);
-    }
-    try {
-      jdbcConnector = HiveJdbcConnector.newEmbeddedConnector(2);
     } catch (SQLException se) {
       throw new RuntimeException("Cannot initialize the jdbc-connector due to: ", se);
     }
@@ -120,22 +118,6 @@ public class EmbeddedGobblinDistcpTest {
 
   @Test
   public void hiveTest() throws Exception {
-    // Hive Environment set-up
-    HiveConf hiveConf = new HiveConf();
-
-    try {
-      // Start a Hive session in this thread and register the UDF
-      SessionState.start(hiveConf);
-      SessionState.get().initTxnMgr(hiveConf);
-    } catch (HiveException he) {
-      throw new RuntimeException("Failed to start Hive session.", he);
-    }
-    try {
-      jdbcConnector = HiveJdbcConnector.newEmbeddedConnector(2);
-    } catch (SQLException se) {
-      throw new RuntimeException("Cannot initialize the jdbc-connector due to: ", se);
-    }
-
     Statement statement = jdbcConnector.getConnection().createStatement();
 
     // Start from a fresh Hive backup: No DB, no table.
@@ -196,7 +178,10 @@ public class EmbeddedGobblinDistcpTest {
       if (metaStoreClient.getAllDatabases().contains(TARGET_DB)) {
         metaStoreClient.dropDatabase(TARGET_DB);
       }
+      metaStoreClient.close();
     }
+
+    jdbcConnector.close();
   }
 
   @Test
