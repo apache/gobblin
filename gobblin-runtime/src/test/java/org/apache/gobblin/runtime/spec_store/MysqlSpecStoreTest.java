@@ -86,6 +86,7 @@ public class MysqlSpecStoreTest {
         .withConfig(ConfigBuilder.create()
             .addPrimitive("key", "value")
             .addPrimitive("key3", "value3")
+            .addPrimitive("config.with.dot", "value4")
             .addPrimitive(FLOW_SOURCE_IDENTIFIER_KEY, "source")
             .addPrimitive(FLOW_DESTINATION_IDENTIFIER_KEY, "destination")
             .addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, "fg1")
@@ -174,6 +175,11 @@ public class MysqlSpecStoreTest {
     Assert.assertEquals(specs.size(), 2);
     Assert.assertTrue(specs.contains(this.flowSpec1));
     Assert.assertTrue(specs.contains(this.flowSpec2));
+
+    flowSpecSearchObject = FlowSpecSearchObject.builder().propertyFilter("config.with.dot=value4").build();
+    specs = this.specStore.getSpecs(flowSpecSearchObject);
+    Assert.assertEquals(specs.size(), 1);
+    Assert.assertTrue(specs.contains(this.flowSpec1));
   }
 
   @Test  (dependsOnMethods = "testGetSpec")

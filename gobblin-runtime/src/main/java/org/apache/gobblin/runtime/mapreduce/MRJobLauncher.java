@@ -782,7 +782,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
       }
 
       // Setup and start metrics reporting if metric reporting is enabled
-      if (Boolean.parseBoolean(
+      if (Boolean.valueOf(
           configuration.get(ConfigurationKeys.METRICS_ENABLED_KEY, ConfigurationKeys.DEFAULT_METRICS_ENABLED))) {
         this.jobMetrics = Optional.of(JobMetrics.get(this.jobState));
         try {
@@ -790,10 +790,10 @@ public class MRJobLauncher extends AbstractJobLauncher {
               .startMetricReportingWithFileSuffix(gobblinJobState, context.getTaskAttemptID().toString());
         } catch (MultiReporterException ex) {
           //Fail the task if metric/event reporting failure is configured to be fatal.
-          boolean isMetricReportingFailureFatal = Boolean.parseBoolean(configuration
+          boolean isMetricReportingFailureFatal = Boolean.valueOf(configuration
               .get(ConfigurationKeys.GOBBLIN_TASK_METRIC_REPORTING_FAILURE_FATAL,
                   Boolean.toString(ConfigurationKeys.DEFAULT_GOBBLIN_TASK_METRIC_REPORTING_FAILURE_FATAL)));
-          boolean isEventReportingFailureFatal = Boolean.parseBoolean(configuration
+          boolean isEventReportingFailureFatal = Boolean.valueOf(configuration
               .get(ConfigurationKeys.GOBBLIN_TASK_EVENT_REPORTING_FAILURE_FATAL,
                   Boolean.toString(ConfigurationKeys.DEFAULT_GOBBLIN_TASK_EVENT_REPORTING_FAILURE_FATAL)));
           if (MetricReportUtils.shouldThrowException(LOG, ex, isMetricReportingFailureFatal, isEventReportingFailureFatal)) {
