@@ -732,7 +732,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
     @Override
     protected void setup(Context context) {
       final State gobblinJobState = HadoopUtils.getStateFromConf(context.getConfiguration());
-      TaskAttemptID taskAttemptId = context.getTaskAttemptID();
+      TaskAttemptID taskAttemptID = context.getTaskAttemptID();
 
       try (Closer closer = Closer.create()) {
         // Default for customizedProgressEnabled is false.
@@ -782,16 +782,19 @@ public class MRJobLauncher extends AbstractJobLauncher {
 
       // add some more MR task related configs
 
-      String[] tokens = taskAttemptId.toString().split("_");
-      TaskType taskType = taskAttemptId.getTaskType();
+      String[] tokens = taskAttemptID.toString().split("_");
+      TaskType taskType = taskAttemptID.getTaskType();
       gobblinJobState.setProp(MR_TYPE_KEY, taskType.name());
 
-      if (taskType.equals(TaskType.MAP)) {
-        gobblinJobState.setProp(MAPPER_TASK_NUM_KEY, tokens[4]);
-        gobblinJobState.setProp(MAPPER_TASK_ATTEMPT_NUM_KEY, tokens[5]);
-      } else if (taskType.equals(TaskType.REDUCE)) {
-        gobblinJobState.setProp(REDUCER_TASK_NUM_KEY, tokens[4]);
-        gobblinJobState.setProp(REDUCER_TASK_ATTEMPT_NUM_KEY, tokens[5]);
+      // a task attempt id should be like 'attempt_1592863931636_2371636_m_000003_4'
+      if (tokens.length == 6) {
+        if (taskType.equals(TaskType.MAP)) {
+          gobblinJobState.setProp(MAPPER_TASK_NUM_KEY, tokens[tokens.length - 2]);
+          gobblinJobState.setProp(MAPPER_TASK_ATTEMPT_NUM_KEY, tokens[tokens.length - 1]);
+        } else if (taskType.equals(TaskType.REDUCE)) {
+          gobblinJobState.setProp(REDUCER_TASK_NUM_KEY, tokens[tokens.length - 2]);
+          gobblinJobState.setProp(REDUCER_TASK_ATTEMPT_NUM_KEY, tokens[tokens.length - 1]);
+        }
       }
 
       this.taskExecutor = new TaskExecutor(configuration);
@@ -808,7 +811,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
       if (Boolean.parseBoolean(configuration.get(ConfigurationKeys.METRICS_ENABLED_KEY, ConfigurationKeys.DEFAULT_METRICS_ENABLED))) {
         this.jobMetrics = Optional.of(JobMetrics.get(this.jobState));
         try {
-          this.jobMetrics.get().startMetricReportingWithFileSuffix(gobblinJobState, taskAttemptId.toString());
+          this.jobMetrics.get().startMetricReportingWithFileSuffix(gobblinJobState, taskAttemptID.toString());
         } catch (MultiReporterException ex) {
           //Fail the task if metric/event reporting failure is configured to be fatal.
           boolean isMetricReportingFailureFatal = configuration.getBoolean(ConfigurationKeys.GOBBLIN_TASK_METRIC_REPORTING_FAILURE_FATAL,
