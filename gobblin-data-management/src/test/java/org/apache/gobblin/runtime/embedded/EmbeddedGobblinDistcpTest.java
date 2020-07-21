@@ -21,28 +21,29 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.converter.GobblinMetricsPinotFlattenerConverter;
-import org.apache.gobblin.data.management.copy.CopyConfiguration;
-import org.apache.gobblin.data.management.copy.CopySource;
-import org.apache.gobblin.data.management.copy.SchemaCheckedCopySource;
-import org.apache.gobblin.runtime.api.JobExecutionResult;
-import org.apache.gobblin.util.PathUtils;
-import org.apache.gobblin.util.filesystem.DataFileVersionStrategy;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
+import org.apache.hadoop.hive.metastore.IMetaStoreClient;
+import org.apache.hadoop.hive.ql.metadata.HiveException;
+import org.apache.hadoop.hive.ql.session.SessionState;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.api.client.util.Charsets;
@@ -50,8 +51,40 @@ import com.google.common.collect.Sets;
 import com.google.common.io.Files;
 import com.typesafe.config.Config;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.converter.GobblinMetricsPinotFlattenerConverter;
+import org.apache.gobblin.data.management.copy.CopyConfiguration;
+import org.apache.gobblin.data.management.copy.CopySource;
+import org.apache.gobblin.data.management.copy.SchemaCheckedCopySource;
+import org.apache.gobblin.runtime.api.JobExecutionResult;
+import org.apache.gobblin.util.HiveJdbcConnector;
+import org.apache.gobblin.util.PathUtils;
+import org.apache.gobblin.util.filesystem.DataFileVersionStrategy;
+
 
 public class EmbeddedGobblinDistcpTest {
+  private HiveJdbcConnector jdbcConnector;
+  private IMetaStoreClient metaStoreClient;
+  private static final String TEST_DB = "testdb";
+  private static final String TEST_TABLE = "test_table";
+  private static final String TARGET_PATH = "/tmp/target";
+  private static final String TARGET_DB = "target";
+
+  @BeforeClass
+  public void setup() throws Exception {
+    try {
+      HiveConf hiveConf = new HiveConf();
+      // Start a Hive session in this thread and register the UDF
+      SessionState.start(hiveConf);
+      SessionState.get().initTxnMgr(hiveConf);
+      metaStoreClient = new HiveMetaStoreClient(new HiveConf());
+      jdbcConnector = HiveJdbcConnector.newEmbeddedConnector(2);
+    } catch (HiveException he) {
+      throw new RuntimeException("Failed to start Hive session.", he);
+    } catch (SQLException se) {
+      throw new RuntimeException("Cannot initialize the jdbc-connector due to: ", se);
+    }
+  }
 
   @Test
   public void test() throws Exception {
@@ -81,6 +114,74 @@ public class EmbeddedGobblinDistcpTest {
 
     Assert.assertTrue(new File(tmpSource, fileName).exists());
     Assert.assertTrue(new File(tmpTarget, fileName).exists());
+  }
+
+  @Test
+  public void hiveTest() throws Exception {
+    Statement statement = jdbcConnector.getConnection().createStatement();
+
+    // Start from a fresh Hive backup: No DB, no table.
+    // Create a DB.
+    statement.execute("CREATE database if not exists " + TEST_DB);
+
+    // Create a table.
+    String tableCreationSQL = "CREATE TABLE IF NOT EXISTS $testdb.$test_table (id int, name String)\n" + "ROW FORMAT DELIMITED\n"
+        + "FIELDS TERMINATED BY '\\t'\n" + "LINES TERMINATED BY '\\n'\n" + "STORED AS TEXTFILE";
+    statement.execute(tableCreationSQL.replace("$testdb",TEST_DB).replace("$test_table", TEST_TABLE));
+
+    // Insert data
+    String dataInsertionSQL = "INSERT INTO TABLE $testdb.$test_table VALUES (1, 'one'), (2, 'two'), (3, 'three')";
+    statement.execute(dataInsertionSQL.replace("$testdb",TEST_DB).replace("$test_table", TEST_TABLE));
+    String templateLoc = "templates/hiveDistcp.template";
+
+    // Either of the "from" or "to" will be used here since it is a Hive Distcp.
+    EmbeddedGobblinDistcp embeddedHiveDistcp =
+        new EmbeddedGobblinDistcp(templateLoc, new Path("a"), new Path("b"));
+    embeddedHiveDistcp.setConfiguration("hive.dataset.copy.target.database", TARGET_DB);
+    embeddedHiveDistcp.setConfiguration("hive.dataset.copy.target.table.prefixReplacement", TARGET_PATH);
+
+    String dbPathTemplate = "/$testdb.db/$test_table";
+    String rootPathOfSourceDate = metaStoreClient.getConfigValue("hive.metastore.warehouse.dir", "")
+        .concat(dbPathTemplate.replace("$testdb", TEST_DB).replace("$test_table",TEST_TABLE)
+    );
+    embeddedHiveDistcp.setConfiguration("hive.dataset.copy.target.table.prefixToBeReplaced", rootPathOfSourceDate);
+    embeddedHiveDistcp.run();
+
+    // Verify the table is existed in the target and file exists in the target location.
+    metaStoreClient.tableExists(TARGET_DB, TEST_TABLE);
+    FileSystem fs = FileSystem.getLocal(new Configuration());
+    fs.exists(new Path(TARGET_PATH));
+  }
+
+  // Tearing down the Hive components from derby driver if there's anything generated through the test.
+  @AfterClass
+  public void hiveTearDown() throws Exception {
+    FileSystem fs = FileSystem.getLocal(new Configuration());
+    Path targetPath = new Path(TARGET_PATH);
+    if (fs.exists(targetPath)) {
+      fs.delete(targetPath, true);
+    }
+
+    if (metaStoreClient != null) {
+      // Clean the source table and DB
+      if (metaStoreClient.tableExists(TEST_DB, TEST_TABLE)) {
+        metaStoreClient.dropTable(TEST_DB, TEST_TABLE);
+      }
+      if (metaStoreClient.getAllDatabases().contains(TEST_DB)) {
+        metaStoreClient.dropDatabase(TEST_DB);
+      }
+
+      // Clean the target table and DB
+      if (metaStoreClient.tableExists("target", TEST_TABLE)) {
+        metaStoreClient.dropTable("target", TEST_TABLE, true, true);
+      }
+      if (metaStoreClient.getAllDatabases().contains(TARGET_DB)) {
+        metaStoreClient.dropDatabase(TARGET_DB);
+      }
+      metaStoreClient.close();
+    }
+
+    jdbcConnector.close();
   }
 
   @Test
