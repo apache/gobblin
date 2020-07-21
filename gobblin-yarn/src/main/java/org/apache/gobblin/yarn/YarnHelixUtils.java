@@ -23,10 +23,7 @@ import java.util.Collection;
 import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
-<<<<<<< HEAD
-=======
 import org.apache.gobblin.util.ConfigUtils;
->>>>>>> b40e0e21b... address comments
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -47,7 +44,6 @@ import org.apache.hadoop.yarn.util.Records;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 
-import org.apache.gobblin.util.ConfigUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
