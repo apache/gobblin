@@ -290,10 +290,11 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
 
     boolean compileSuccess = FlowCatalog.isCompileSuccessful(response);
 
-    if (isExplain || !compileSuccess) {
+    if (isExplain || !compileSuccess || !this.isActive) {
       // todo: in case of a scheudled job, we should also check if the job schedule is a valid cron schedule
       //  so it can be scheduled
-      _log.info("Ignoring the spec {}. isExplain: {}, compileSuccess: {}", addedSpec, isExplain, compileSuccess);
+      _log.info("Ignoring the spec {}. isExplain: {}, compileSuccess: {}, master: {}",
+          addedSpec, isExplain, compileSuccess, this.isActive);
       return new AddSpecResponse<>(response);
     }
 

@@ -122,7 +122,7 @@ public class GobblinServiceFlowConfigResourceHandler implements FlowConfigsResou
         CreateResponse response = null;
         if (this.flowCatalogLocalCommit) {
           // We will handle FS I/O locally for load balance before forwarding to remote node.
-          response = this.localHandler.createFlowConfig(flowConfig, false);
+          response = this.localHandler.createFlowConfig(flowConfig, true);
         }
 
         if (!flowConfig.hasExplain() || !flowConfig.isExplain()) {
