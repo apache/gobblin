@@ -708,11 +708,6 @@ public class ConfigurationKeys {
   public static final String DEFAULT_METRICS_REPORTING_FILE_ENABLED = Boolean.toString(false);
   public static final String METRICS_LOG_DIR_KEY = METRICS_CONFIGURATIONS_PREFIX + "log.dir";
   public static final String METRICS_FILE_SUFFIX = METRICS_CONFIGURATIONS_PREFIX + "reporting.file.suffix";
-  public static final String MR_TYPE_KEY = METRICS_CONFIGURATIONS_PREFIX + "mr.type";
-  public static final String MAPPER_TASK_NUM_KEY = METRICS_CONFIGURATIONS_PREFIX + "reporting.mapper.task.num";
-  public static final String MAPPER_TASK_ATTEMPT_NUM_KEY = METRICS_CONFIGURATIONS_PREFIX + "reporting.mapper.task.attempt.num";
-  public static final String REDUCER_TASK_NUM_KEY = METRICS_CONFIGURATIONS_PREFIX + "reporting.reducer.task.num";
-  public static final String REDUCER_TASK_ATTEMPT_NUM_KEY = METRICS_CONFIGURATIONS_PREFIX + "reporting.reducer.task.attempt.num";
   public static final String DEFAULT_METRICS_FILE_SUFFIX = "";
   public static final String FAILURE_REPORTING_FILE_ENABLED_KEY = "failure.reporting.file.enabled";
   public static final String DEFAULT_FAILURE_REPORTING_FILE_ENABLED = Boolean.toString(true);
