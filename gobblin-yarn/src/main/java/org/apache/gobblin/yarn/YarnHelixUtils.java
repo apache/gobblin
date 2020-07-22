@@ -72,23 +72,19 @@ public class YarnHelixUtils {
   }
 
   /**
-   * Update {@link Token} with the configured token path.
+   * Update {@link Token} with token file in resources.
    *
-   * @param config a {@link Config} object carrying Hadoop configuration properties and token path config
+   * @param
    * @throws IOException
    */
-  public static void updateToken(Config config) throws IOException{
-    FileSystem fs = GobblinClusterUtils.buildFileSystem(config, new Configuration());
-    Path tokenPath = new Path(fs.getHomeDirectory(),
-        config.getString(GobblinYarnConfigurationKeys.APPLICATION_NAME_KEY) + Path.SEPARATOR
-            + GobblinYarnConfigurationKeys.TOKEN_FILE_NAME);
-    if(fs.exists(tokenPath)) {
-      Credentials credentials = Credentials.readTokenStorageFile(tokenPath, fs.getConf());
+  public void updateToken() throws IOException{
+    File tokenFile = new File(getClass().getClassLoader().getResource(GobblinYarnConfigurationKeys.TOKEN_FILE_NAME).getFile());
+    if(tokenFile.exists()) {
+      Credentials credentials = Credentials.readTokenStorageFile(tokenFile, new Configuration());
       for (Token<? extends TokenIdentifier> token : credentials.getAllTokens()) {
-        LOGGER.info("updating " + token.toString());
+        LOGGER.info("updating " + token.getKind() + " " + token.getService());
       }
-      UserGroupInformation.getCurrentUser()
-          .addCredentials(credentials);
+      UserGroupInformation.getCurrentUser().addCredentials(credentials);
     }
   }
 
