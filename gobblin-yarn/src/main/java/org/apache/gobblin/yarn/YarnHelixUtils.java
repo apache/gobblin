@@ -17,8 +17,6 @@
 
 package org.apache.gobblin.yarn;
 
-import com.google.common.collect.Maps;
-import com.typesafe.config.Config;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
@@ -40,6 +38,11 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.util.Apps;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.Records;
+
+import com.google.common.collect.Maps;
+import com.typesafe.config.Config;
+
+import org.apache.gobblin.util.ConfigUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
