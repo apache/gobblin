@@ -59,6 +59,8 @@ import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.PropertiesUtils;
+
 
 // Provide base implementation for constructing multi-hops route.
 @Alpha
@@ -226,7 +228,7 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
       jobSpecBuilder = jobSpecBuilder.withTemplate(flowSpec.getTemplateURIs().get().iterator().next());
       try {
         jobSpec = new ResolvedJobSpec(jobSpecBuilder.build(), templateCatalog.get());
-        log.info("Resolved JobSpec properties are: " + jobSpec.getConfigAsProperties());
+        log.info("Resolved JobSpec properties are: " + PropertiesUtils.prettyPrintProperties(jobSpec.getConfigAsProperties()));
       } catch (SpecNotFoundException | JobTemplate.TemplateException e) {
         throw new RuntimeException("Could not resolve template in JobSpec from TemplateCatalog", e);
       }
