@@ -40,6 +40,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.commons.mail.EmailException;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -343,13 +344,15 @@ public class GobblinYarnAppLauncher {
 
     startYarnClient();
 
+    Optional<ApplicationId> reconnectableApplicationId = getReconnectableApplicationId();
+
+    boolean isReconnected = reconnectableApplicationId.isPresent();
     // Before setup application, first login to make sure ugi has the right token.
     if(ConfigUtils.getBoolean(config, GobblinYarnConfigurationKeys.ENABLE_KEY_MANAGEMENT, false)) {
-      this.securityManager = Optional.of(buildSecurityManager());
+      this.securityManager = Optional.of(buildSecurityManager(isReconnected));
       this.securityManager.get().loginAndScheduleTokenRenewal();
     }
 
-    Optional<ApplicationId> reconnectableApplicationId = getReconnectableApplicationId();
     if (!reconnectableApplicationId.isPresent()) {
       disableLiveHelixInstances();
       LOGGER.info("No reconnectable application found so submitting a new application");
@@ -877,18 +880,17 @@ public class GobblinYarnAppLauncher {
     return logRootDir;
   }
 
-  private AbstractYarnAppSecurityManager buildSecurityManager() throws IOException {
+  private AbstractYarnAppSecurityManager buildSecurityManager(boolean isReconnected) throws IOException {
     Path tokenFilePath = new Path(this.fs.getHomeDirectory(), this.applicationName + Path.SEPARATOR +
         GobblinYarnConfigurationKeys.TOKEN_FILE_NAME);
 
     ClassAliasResolver<AbstractYarnAppSecurityManager> aliasResolver = new ClassAliasResolver<>(
         AbstractYarnAppSecurityManager.class);
     try {
-     return (AbstractYarnAppSecurityManager)ConstructorUtils.invokeConstructor(Class.forName(aliasResolver.resolve(
+     return (AbstractYarnAppSecurityManager) GobblinConstructorUtils.invokeLongestConstructor(Class.forName(aliasResolver.resolve(
           ConfigUtils.getString(config, GobblinYarnConfigurationKeys.SECURITY_MANAGER_CLASS, GobblinYarnConfigurationKeys.DEFAULT_SECURITY_MANAGER_CLASS))), this.config, this.helixManager, this.fs,
-          tokenFilePath);
-    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
-        | ClassNotFoundException e) {
+          tokenFilePath, isReconnected);
+    } catch (ReflectiveOperationException e) {
       throw new IOException(e);
     }
   }

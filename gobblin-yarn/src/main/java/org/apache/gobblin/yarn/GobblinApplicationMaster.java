@@ -222,9 +222,8 @@ public class GobblinApplicationMaster extends GobblinClusterManager {
         printUsage(options);
         System.exit(1);
       }
-      Config config = ConfigFactory.load();
-      YarnHelixUtils.updateToken(config);
-
+      YarnHelixUtils utils = new YarnHelixUtils();
+      utils.updateToken();
       Log4jConfigurationHelper.updateLog4jConfiguration(GobblinApplicationMaster.class,
           GobblinYarnConfigurationKeys.GOBBLIN_YARN_LOG4J_CONFIGURATION_FILE,
           GobblinYarnConfigurationKeys.GOBBLIN_YARN_LOG4J_CONFIGURATION_FILE);
