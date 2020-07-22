@@ -20,7 +20,6 @@ package org.apache.gobblin.util;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
-import java.util.Comparator;
 import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
@@ -30,7 +29,6 @@ import org.apache.commons.lang3.StringUtils;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
-import com.typesafe.config.Config;
 
 
 /**
