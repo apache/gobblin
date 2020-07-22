@@ -23,6 +23,10 @@ import java.util.Collection;
 import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
+<<<<<<< HEAD
+=======
+import org.apache.gobblin.util.ConfigUtils;
+>>>>>>> b40e0e21b... address comments
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -77,8 +81,8 @@ public class YarnHelixUtils {
    * @param
    * @throws IOException
    */
-  public void updateToken() throws IOException{
-    File tokenFile = new File(getClass().getClassLoader().getResource(GobblinYarnConfigurationKeys.TOKEN_FILE_NAME).getFile());
+  public static void updateToken() throws IOException{
+    File tokenFile = new File(YarnHelixUtils.class.getClassLoader().getResource(GobblinYarnConfigurationKeys.TOKEN_FILE_NAME).getFile());
     if(tokenFile.exists()) {
       Credentials credentials = Credentials.readTokenStorageFile(tokenFile, new Configuration());
       for (Token<? extends TokenIdentifier> token : credentials.getAllTokens()) {
