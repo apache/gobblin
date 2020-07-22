@@ -26,7 +26,6 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.gobblin.util.logs.LogCopier;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -227,8 +226,11 @@ public class GobblinApplicationMaster extends GobblinClusterManager {
         printUsage(options);
         System.exit(1);
       }
-      YarnHelixUtils utils = new YarnHelixUtils();
-      utils.updateToken();
+
+      //Because AM is restarted with the original AppSubmissionContext, it may have outdated delegation tokens.
+      //So the refreshed tokens should be added into the container's UGI before any HDFS/Hive/RM access is performed.
+      YarnHelixUtils.updateToken();
+
       Log4jConfigurationHelper.updateLog4jConfiguration(GobblinApplicationMaster.class,
           GobblinYarnConfigurationKeys.GOBBLIN_YARN_LOG4J_CONFIGURATION_FILE,
           GobblinYarnConfigurationKeys.GOBBLIN_YARN_LOG4J_CONFIGURATION_FILE);

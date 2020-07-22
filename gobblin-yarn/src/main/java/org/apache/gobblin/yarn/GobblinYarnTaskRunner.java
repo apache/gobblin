@@ -201,8 +201,9 @@ public class GobblinYarnTaskRunner extends GobblinTaskRunner {
       if (!Strings.isNullOrEmpty(helixInstanceTags)) {
         config = config.withValue(GobblinClusterConfigurationKeys.HELIX_INSTANCE_TAGS_KEY, ConfigValueFactory.fromAnyRef(helixInstanceTags));
       }
-      YarnHelixUtils utils = new YarnHelixUtils();
-      utils.updateToken();
+      //Because AM is restarted with the original AppSubmissionContext, it may have outdated delegation tokens.
+      //So the refreshed tokens should be added into the container's UGI before any HDFS/Hive/RM access is performed.
+      YarnHelixUtils.updateToken();
 
       GobblinTaskRunner gobblinTaskRunner =
           new GobblinYarnTaskRunner(applicationName, applicationId, helixInstanceName, containerId, config,

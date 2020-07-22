@@ -24,7 +24,6 @@ import java.util.Collection;
 import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.gobblin.cluster.GobblinClusterUtils;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -77,8 +76,8 @@ public class YarnHelixUtils {
    * @param
    * @throws IOException
    */
-  public void updateToken() throws IOException{
-    File tokenFile = new File(getClass().getClassLoader().getResource(GobblinYarnConfigurationKeys.TOKEN_FILE_NAME).getFile());
+  public static void updateToken() throws IOException{
+    File tokenFile = new File(YarnHelixUtils.class.getClassLoader().getResource(GobblinYarnConfigurationKeys.TOKEN_FILE_NAME).getFile());
     if(tokenFile.exists()) {
       Credentials credentials = Credentials.readTokenStorageFile(tokenFile, new Configuration());
       for (Token<? extends TokenIdentifier> token : credentials.getAllTokens()) {
