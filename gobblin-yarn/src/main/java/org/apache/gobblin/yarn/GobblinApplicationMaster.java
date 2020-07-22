@@ -223,8 +223,6 @@ public class GobblinApplicationMaster extends GobblinClusterManager {
         printUsage(options);
         System.exit(1);
       }
-      Config config = ConfigFactory.load();
-      YarnHelixUtils.updateToken(config);
 
       //Because AM is restarted with the original AppSubmissionContext, it may have outdated delegation tokens.
       //So the refreshed tokens should be added into the container's UGI before any HDFS/Hive/RM access is performed.
