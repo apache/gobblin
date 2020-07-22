@@ -17,6 +17,8 @@
 
 package org.apache.gobblin.runtime.spec_serde;
 
+import java.io.IOException;
+import java.io.StringReader;
 import java.lang.reflect.Type;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -48,7 +50,19 @@ public class FlowSpecDeserializer implements JsonDeserializer<FlowSpec> {
     String description = jsonObject.get(FlowSpecSerializer.FLOW_SPEC_DESCRIPTION_KEY).getAsString();
     Config config = ConfigFactory.parseString(jsonObject.get(FlowSpecSerializer.FLOW_SPEC_CONFIG_KEY).getAsString());
 
-    Properties properties = context.deserialize(jsonObject.get(FlowSpecSerializer.FLOW_SPEC_CONFIG_AS_PROPERTIES_KEY), Properties.class);
+    Properties properties;
+
+    try {
+      properties = context.deserialize(jsonObject.get(FlowSpecSerializer.FLOW_SPEC_CONFIG_AS_PROPERTIES_KEY), Properties.class);
+    } catch (JsonParseException e) {
+      // for backward compatibility
+      properties = new Properties();
+      try {
+        properties.load(new StringReader(jsonObject.get(FlowSpecSerializer.FLOW_SPEC_CONFIG_AS_PROPERTIES_KEY).getAsString()));
+      } catch (IOException ioe) {
+        throw new JsonParseException(e);
+      }
+    }
 
     Set<URI> templateURIs = new HashSet<>();
     try {

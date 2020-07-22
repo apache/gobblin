@@ -339,9 +339,9 @@ public class MysqlSpecStore extends InstrumentedSpecStore {
             log.error("Incorrect flow config search query");
             continue;
           }
-          conditions.add("spec_json->'$.configAsProperties." + keyValue[0] + "' like " + "'%" + keyValue[1] + "%'");
+          conditions.add("spec_json->'$.configAsProperties.\"" + keyValue[0] + "\"' like " + "'%" + keyValue[1] + "%'");
         } else {
-          conditions.add("spec_json->'$.configAsProperties." + property + "' is not null");
+          conditions.add("spec_json->'$.configAsProperties.\"" + property + "\"' is not null");
         }
       }
     }
