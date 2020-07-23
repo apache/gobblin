@@ -23,11 +23,13 @@ import java.util.Collection;
 import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.security.Credentials;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
@@ -42,7 +44,8 @@ import org.apache.hadoop.yarn.util.Records;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 
-import org.apache.gobblin.util.ConfigUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -51,6 +54,8 @@ import org.apache.gobblin.util.ConfigUtils;
  * @author Yinan Li
  */
 public class YarnHelixUtils {
+  private static final Logger LOGGER = LoggerFactory.getLogger(YarnHelixUtils.class);
+
   /**
    * Write a {@link Token} to a given file.
    *
@@ -64,6 +69,23 @@ public class YarnHelixUtils {
     Credentials credentials = new Credentials();
     credentials.addToken(token.getService(), token);
     credentials.writeTokenStorageFile(tokenFilePath, configuration);
+  }
+
+  /**
+   * Update {@link Token} with token file in resources.
+   *
+   * @param
+   * @throws IOException
+   */
+  public static void updateToken() throws IOException{
+    File tokenFile = new File(YarnHelixUtils.class.getClassLoader().getResource(GobblinYarnConfigurationKeys.TOKEN_FILE_NAME).getFile());
+    if(tokenFile.exists()) {
+      Credentials credentials = Credentials.readTokenStorageFile(tokenFile, new Configuration());
+      for (Token<? extends TokenIdentifier> token : credentials.getAllTokens()) {
+        LOGGER.info("updating " + token.getKind() + " " + token.getService());
+      }
+      UserGroupInformation.getCurrentUser().addCredentials(credentials);
+    }
   }
 
   /**
