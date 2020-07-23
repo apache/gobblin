@@ -310,7 +310,7 @@ class HelixRetriggeringJobCallable implements Callable {
         // make sure the planning job is initialized (or visible) to other parallel running threads,
         // so that the same critical section check (querying Helix for job completeness)
         // can be applied.
-        HelixUtils.waitJobInitialization(planningJobManager, newPlanningId, newPlanningId, 300_000);
+        HelixUtils.waitJobInitialization(planningJobManager, newPlanningId, newPlanningId);
 
       } finally {
         // end of the critical section to check if a job with same job name is running
@@ -320,7 +320,7 @@ class HelixRetriggeringJobCallable implements Callable {
       // we can remove the job spec from the catalog because Helix will drive this job to the end.
       this.deleteJobSpec();
 
-      // If we are using non-blocking mode, this get() only guarantees the plannning job is submitted.
+      // If we are using non-blocking mode, this get() only guarantees the planning job is submitted.
       // It doesn't guarantee the job will finish because internally we won't wait for Helix completion.
       this.currentJobMonitor.get();
       this.currentJobMonitor = null;

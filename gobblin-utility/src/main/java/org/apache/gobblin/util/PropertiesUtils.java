@@ -22,6 +22,7 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import java.util.Map;
 import java.util.Properties;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -105,5 +106,11 @@ public class PropertiesUtils {
     properties.load(reader);
     reader.close();
     return properties;
+  }
+
+  public static String prettyPrintProperties(Properties properties) {
+    return properties.entrySet().stream()
+        .map(entry -> "\"" + entry.getKey() + "\"" + " : " + "\"" + entry.getValue() + "\"")
+        .collect(Collectors.joining(",\n"));
   }
 }
