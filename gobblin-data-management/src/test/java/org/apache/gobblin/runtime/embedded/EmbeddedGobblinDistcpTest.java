@@ -163,10 +163,11 @@ public class EmbeddedGobblinDistcpTest {
     }
 
     if (metaStoreClient != null) {
-      // Clean the source table and DB
-      if (metaStoreClient.tableExists(TEST_DB, TEST_TABLE)) {
-        metaStoreClient.dropTable(TEST_DB, TEST_TABLE);
+      // Clean out all tables in case there are any, to avoid db-drop failure.
+      for (String tblName : metaStoreClient.getAllTables(TEST_DB)) {
+        metaStoreClient.dropTable(TEST_DB, tblName);
       }
+
       if (metaStoreClient.getAllDatabases().contains(TEST_DB)) {
         metaStoreClient.dropDatabase(TEST_DB);
       }
@@ -324,9 +325,8 @@ public class EmbeddedGobblinDistcpTest {
     embedded.run();
     Assert.assertTrue(new File(tmpSource, fileName).exists());
     Assert.assertTrue(new File(tmpTarget, fileName).exists());
-    Assert.assertNotEquals(fs.getFileStatus(new Path(new File(newTmpTarget, fileName).getAbsolutePath())).getModificationTime()
-        , originalModTime);
-
+    Assert.assertNotEquals(fs.getFileStatus(new Path(new File(newTmpTarget, fileName)
+            .getAbsolutePath())).getModificationTime(), originalModTime);
   }
 
   public static class MyDataFileVersion implements DataFileVersionStrategy<Long>, DataFileVersionStrategy.DataFileVersionFactory<Long> {
