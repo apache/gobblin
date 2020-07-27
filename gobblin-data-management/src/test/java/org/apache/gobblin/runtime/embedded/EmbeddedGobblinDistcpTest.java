@@ -300,6 +300,7 @@ public class EmbeddedGobblinDistcpTest {
     os.close();
 
     long originalModTime = fs.getFileStatus(new Path(tmpFile.getPath())).getModificationTime();
+    Assert.assertNotNull(originalModTime);
 
     Assert.assertTrue(new File(tmpSource, fileName).exists());
     Assert.assertFalse(new File(tmpTarget, fileName).exists());
@@ -314,19 +315,42 @@ public class EmbeddedGobblinDistcpTest {
     Assert.assertTrue(new File(tmpTarget, fileName).exists());
     Assert.assertEquals(fs.getFileStatus(new Path(new File(tmpTarget, fileName).getAbsolutePath())).getModificationTime()
         , originalModTime);
+  }
 
+  @Test
+  public void testWithModTimePreserveNegative() throws Exception {
+    FileSystem fs = FileSystem.getLocal(new Configuration());
+    String fileName = "file_oh";
 
-    // Negative case
-    File newTmpTarget = Files.createTempDir();
-    newTmpTarget.deleteOnExit();
-    embedded = new EmbeddedGobblinDistcp(new Path(tmpSource.getAbsolutePath()),
-        new Path(newTmpTarget.getAbsolutePath()));
+    File tmpSource = Files.createTempDir();
+    tmpSource.deleteOnExit();
+    File tmpTarget = Files.createTempDir();
+    tmpTarget.deleteOnExit();
+
+    File tmpFile = new File(tmpSource, fileName);
+    Assert.assertTrue(tmpFile.createNewFile());
+
+    FileOutputStream os = new FileOutputStream(tmpFile);
+    for (int i = 0; i < 100; i++) {
+      os.write("myString".getBytes(Charsets.UTF_8));
+    }
+    os.close();
+
+    long originalModTime = fs.getFileStatus(new Path(tmpFile.getPath())).getModificationTime();
+    Assert.assertFalse(new File(tmpTarget, fileName).exists());
+    // Give a minimal gap between file creation and copy
+    Thread.sleep(1000);
+
+    // Negative case, not preserving the timestamp.
+    tmpTarget.deleteOnExit();
+    EmbeddedGobblinDistcp embedded = new EmbeddedGobblinDistcp(new Path(tmpSource.getAbsolutePath()),
+        new Path(tmpTarget.getAbsolutePath()));
     embedded.setLaunchTimeout(30, TimeUnit.SECONDS);
     embedded.run();
     Assert.assertTrue(new File(tmpSource, fileName).exists());
     Assert.assertTrue(new File(tmpTarget, fileName).exists());
-    Assert.assertNotEquals(fs.getFileStatus(new Path(new File(newTmpTarget, fileName)
-            .getAbsolutePath())).getModificationTime(), originalModTime);
+    long newModTime = fs.getFileStatus(new Path(new File(tmpTarget, fileName).getAbsolutePath())).getModificationTime();
+    Assert.assertTrue(newModTime != originalModTime);
   }
 
   public static class MyDataFileVersion implements DataFileVersionStrategy<Long>, DataFileVersionStrategy.DataFileVersionFactory<Long> {
