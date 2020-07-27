@@ -88,6 +88,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
   public static final boolean DEFAULT_GOBBLIN_COPY_CHECK_FILESIZE = false;
   public static final String GOBBLIN_COPY_TASK_OVERWRITE_ON_COMMIT = "gobblin.copy.task.overwrite.on.commit";
   public static final boolean DEFAULT_GOBBLIN_COPY_TASK_OVERWRITE_ON_COMMIT = false;
+  public static final String STAGING_DIR_SUFFIX = "/taskstaging";
 
   protected final AtomicLong bytesWritten = new AtomicLong();
   protected final AtomicLong filesWritten = new AtomicLong();
@@ -139,17 +140,22 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     URI uri = URI.create(uriStr);
     this.fs = FileSystem.get(uri, conf);
     this.fileContext = FileContext.getFileContext(uri, conf);
+    this.copyableDatasetMetadata =
+        CopyableDatasetMetadata.deserialize(state.getProp(CopySource.SERIALIZED_COPYABLE_DATASET));
 
     if (state.getPropAsBoolean(ConfigurationKeys.USER_DEFINED_STAGING_DIR_FLAG,false)) {
       this.stagingDir = new Path(state.getProp(ConfigurationKeys.USER_DEFINED_STATIC_STAGING_DIR));
+    } else if ((state.getPropAsBoolean(ConfigurationKeys.DATASET_STAGING_DIR,false))) {
+      String stg_dir = state.getProp("hive.dataset.staging.path") + STAGING_DIR_SUFFIX + "/" + state.getProp(ConfigurationKeys.JOB_NAME_KEY ) + "/" + state.getProp(ConfigurationKeys.JOB_ID_KEY);
+      state.setProp(ConfigurationKeys.HIVE_DATASET_STAGING_DIR,stg_dir);
+      this.stagingDir = this.writerAttemptIdOptional.isPresent() ? WriterUtils.getHiveDatasetWriterStagingDir(state, numBranches, branchId, this.writerAttemptIdOptional.get())
+          : WriterUtils.getHiveDatasetWriterStagingDir(state, numBranches, branchId);
     } else {
       this.stagingDir = this.writerAttemptIdOptional.isPresent() ? WriterUtils.getWriterStagingDir(state, numBranches, branchId, this.writerAttemptIdOptional.get())
           : WriterUtils.getWriterStagingDir(state, numBranches, branchId);
     }
 
     this.outputDir = getOutputDir(state);
-    this.copyableDatasetMetadata =
-        CopyableDatasetMetadata.deserialize(state.getProp(CopySource.SERIALIZED_COPYABLE_DATASET));
     this.recoveryHelper = new RecoveryHelper(this.fs, state);
     this.actualProcessedCopyableFile = Optional.absent();
 

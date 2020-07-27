@@ -32,6 +32,8 @@ import javax.annotation.Nullable;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.data.management.copy.hive.HiveDataset;
+import org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 
@@ -194,6 +196,32 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
       IterableDatasetFinder<CopyableDatasetBase> iterableDatasetFinder =
           datasetFinder instanceof IterableDatasetFinder ? (IterableDatasetFinder<CopyableDatasetBase>) datasetFinder
               : new IterableDatasetFinderImpl<>(datasetFinder);
+
+      if (state.getPropAsBoolean(ConfigurationKeys.DATASET_STAGING_DIR,false)){
+        DatasetsFinder<HiveDataset> hiveDatasetFinder = DatasetUtils
+            .instantiateDatasetFinder(state.getProperties(), sourceFs, DEFAULT_DATASET_PROFILE_CLASS_KEY,
+                this.eventSubmitter, state);
+
+        IterableDatasetFinder<HiveDataset> hiveIterableDatasetFinder =
+            hiveDatasetFinder instanceof IterableDatasetFinder ? (IterableDatasetFinder<HiveDataset>) hiveDatasetFinder
+                : new IterableDatasetFinderImpl<>(hiveDatasetFinder);
+        HiveDatasetFinder hdf = (HiveDatasetFinder) hiveDatasetFinder;
+
+        Iterator<CopyableDatasetRequestor> hiveRequestorIteratorWithNulls = Iterators
+            .transform(hiveIterableDatasetFinder.getDatasetsIterator(),
+                new CopyableDatasetRequestor.Factory(targetFs, copyConfiguration, log));
+        Iterator<CopyableDatasetRequestor> hiveRequestorIterator =
+            Iterators.filter(hiveRequestorIteratorWithNulls, Predicates.<CopyableDatasetRequestor>notNull());
+
+        final SetMultimap<FileSet<CopyEntity>, WorkUnit> hiveWorkUnitsMap =
+            Multimaps.<FileSet<CopyEntity>, WorkUnit>synchronizedSetMultimap(
+                HashMultimap.<FileSet<CopyEntity>, WorkUnit>create());
+
+        RequestAllocator<FileSet<CopyEntity>> allocatorHive = createRequestAllocator(copyConfiguration, maxThreads);
+        Iterator<FileSet<CopyEntity>> prioritizedFileSets1 =
+            allocatorHive.allocateRequests(hiveRequestorIterator, copyConfiguration.getMaxToCopy());
+        state.setProp("hive.dataset.staging.path",hdf.getProperties().getProperty("dataset.staging.path"));
+      }
 
       Iterator<CopyableDatasetRequestor> requestorIteratorWithNulls = Iterators
           .transform(iterableDatasetFinder.getDatasetsIterator(),

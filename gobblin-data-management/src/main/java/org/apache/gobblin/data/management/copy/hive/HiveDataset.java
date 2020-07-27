@@ -103,6 +103,7 @@ public class HiveDataset implements PrioritizedCopyableDataset {
   // Only set if table has exactly one location
   protected final Optional<Path> tableRootPath;
   protected final String tableIdentifier;
+  protected final String datasetStagingDir;
   protected final Optional<String> datasetNamePattern;
   protected final DbAndTable dbAndTable;
   protected final DbAndTable logicalDbAndTable;
@@ -125,6 +126,8 @@ public class HiveDataset implements PrioritizedCopyableDataset {
         Optional.fromNullable(this.table.getDataLocation());
 
     this.tableIdentifier = this.table.getDbName() + "." + this.table.getTableName();
+    this.datasetStagingDir = properties.getProperty("hive.dataset.copy.target.table.prefixToBeReplaced") + "/" + this.table.getDbName() + "/" + this.table.getTableName();
+    properties.setProperty("dataset.staging.path",this.datasetStagingDir);
 
     this.datasetNamePattern = Optional.fromNullable(ConfigUtils.getString(datasetConfig, DATASET_NAME_PATTERN_KEY, null));
     this.dbAndTable = new DbAndTable(table.getDbName(), table.getTableName());
