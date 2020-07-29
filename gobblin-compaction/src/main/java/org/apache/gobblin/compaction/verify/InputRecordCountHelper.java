@@ -16,6 +16,7 @@
  */
 package org.apache.gobblin.compaction.verify;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -106,7 +107,8 @@ public class InputRecordCountHelper {
     return loadState(this.fs, dir);
   }
 
-  private static State loadState (FileSystem fs, Path dir) throws IOException {
+  @VisibleForTesting
+  public static State loadState (FileSystem fs, Path dir) throws IOException {
     State state = new State();
     if (fs.exists(new Path(dir, STATE_FILE))) {
       try (FSDataInputStream inputStream = fs.open(new Path(dir, STATE_FILE))) {
@@ -123,7 +125,8 @@ public class InputRecordCountHelper {
     saveState(this.fs, dir, state);
   }
 
-  private static void saveState (FileSystem fs, Path dir, State state) throws IOException {
+  @VisibleForTesting
+  public static void saveState (FileSystem fs, Path dir, State state) throws IOException {
     Path tmpFile = new Path(dir, STATE_FILE + ".tmp");
     Path newFile = new Path(dir, STATE_FILE);
     fs.delete(tmpFile, false);

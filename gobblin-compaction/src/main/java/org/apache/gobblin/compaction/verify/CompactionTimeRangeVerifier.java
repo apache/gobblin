@@ -24,11 +24,13 @@ import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.gobblin.compaction.dataset.TimeBasedSubDirDatasetsFinder;
+import org.apache.gobblin.compaction.event.CompactionSlaEventHelper;
 import org.apache.gobblin.compaction.mapreduce.MRCompactor;
 import org.apache.gobblin.compaction.parser.CompactionPathParser;
 import org.apache.gobblin.compaction.source.CompactionSource;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.dataset.FileSystemDataset;
+import org.apache.hadoop.fs.Path;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Period;
@@ -73,10 +75,28 @@ public class CompactionTimeRangeVerifier implements CompactionVerifier<FileSyste
       Period minTimeAgo = formatter.parsePeriod(minTimeAgoStr);
       latest = compactionStartTime.minus(minTimeAgo);
 
+      // get latest last run start time, we want to limit the duration between two compaction for the same dataset
+      if (state.contains(TimeBasedSubDirDatasetsFinder.MIN_RECOMPACTION_DURATION)) {
+        String minDurationStrList = this.state.getProp(TimeBasedSubDirDatasetsFinder.MIN_RECOMPACTION_DURATION);
+        String minDurationStr = getMachedLookbackTime(datasetName, minDurationStrList, TimeBasedSubDirDatasetsFinder.DEFAULT_MIN_RECOMPACTION_DURATION);
+        Period minDurationTime = formatter.parsePeriod(minDurationStr);
+        DateTime latestLastRunTime = compactionStartTime.minus(minDurationTime);
+        InputRecordCountHelper helper = new InputRecordCountHelper(state);
+        State compactState = helper.loadState(new Path(result.getDstAbsoluteDir()));
+        if (compactState.contains(CompactionSlaEventHelper.LAST_RUN_START_TIME)
+            && compactState.getPropAsLong(CompactionSlaEventHelper.LAST_RUN_START_TIME) > latestLastRunTime.getMillis()) {
+          log.warn("Last compaction for {} is {}, not before {}", dataset.datasetRoot(), new DateTime(compactState.getPropAsLong(CompactionSlaEventHelper.LAST_RUN_START_TIME), timeZone), latestLastRunTime);
+          return new Result(false, "Last compaction for " + dataset.datasetRoot() + " is not before" + latestLastRunTime);
+        }
+
+      }
+
       if (earliest.isBefore(folderTime) && latest.isAfter(folderTime)) {
         log.debug("{} falls in the user defined time range", dataset.datasetRoot());
         return new Result(true, "");
       }
+    } catch (RuntimeException e) {
+      throw e;
     } catch (Exception e) {
       log.error("{} cannot be verified because of {}", dataset.datasetRoot(), ExceptionUtils.getFullStackTrace(e));
       return new Result(false, e.toString());

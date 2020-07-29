@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.compaction.mapreduce;
 
+import com.sun.corba.se.spi.orbutil.fsm.InputImpl;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -28,6 +29,8 @@ import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
+import org.apache.gobblin.compaction.event.CompactionSlaEventHelper;
+import org.apache.gobblin.configuration.State;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -166,6 +169,47 @@ public class AvroCompactionTaskTest {
     Assert.assertTrue(result.isSuccessful());
 
     // If recompaction is succeeded, a new record count should be written.
+    recordCount = InputRecordCountHelper.readRecordCount(fs, (new Path (basePath, new Path("Identity/MemberAccount/hourly/2017/04/03/10"))));
+    Assert.assertEquals(recordCount, 42);
+    Assert.assertTrue(fs.exists(new Path (basePath, "Identity/MemberAccount/hourly/2017/04/03/10")));
+  }
+
+  public void testAvroRecompactionWithLimitation() throws Exception {
+    FileSystem fs = getFileSystem();
+    String basePath = "/tmp/testRecompaction";
+    fs.delete(new Path(basePath), true);
+
+    File jobDir = new File(basePath, "Identity/MemberAccount/minutely/2017/04/03/10/20_30/run_2017-04-03-10-20");
+    Assert.assertTrue(jobDir.mkdirs());
+
+    GenericRecord r1 = createRandomRecord();
+    writeFileWithContent(jobDir, "file1", r1, 20);
+
+    EmbeddedGobblin embeddedGobblin = createEmbeddedGobblin ("Recompaction-First", basePath);
+    JobExecutionResult result = embeddedGobblin.run();
+    long recordCount = InputRecordCountHelper.readRecordCount(fs, (new Path (basePath, new Path("Identity/MemberAccount/hourly/2017/04/03/10"))));
+    Assert.assertTrue(result.isSuccessful());
+    Assert.assertEquals(recordCount, 20);
+
+    // Now write more avro files to input dir
+    writeFileWithContent(jobDir, "file2", r1, 22);
+    EmbeddedGobblin embeddedGobblin_2 = createEmbeddedGobblin ("Recompaction-Second", basePath);
+    embeddedGobblin_2.setConfiguration(TimeBasedSubDirDatasetsFinder.MIN_RECOMPACTION_DURATION, "8h");
+    embeddedGobblin_2.run();
+    Assert.assertTrue(result.isSuccessful());
+
+    // Because it's not meet the criteria, we should not run the re-compaction
+    recordCount = InputRecordCountHelper.readRecordCount(fs, (new Path (basePath, new Path("Identity/MemberAccount/hourly/2017/04/03/10"))));
+    Assert.assertEquals(recordCount, 20);
+
+    State state = InputRecordCountHelper.loadState(fs, (new Path (basePath, new Path("Identity/MemberAccount/hourly/2017/04/03/10"))));
+    state.setProp(CompactionSlaEventHelper.LAST_RUN_START_TIME,
+        Long.toString(state.getPropAsLong(CompactionSlaEventHelper.LAST_RUN_START_TIME) - 8 * 60 * 60 * 1000));
+    InputRecordCountHelper.saveState(fs, (new Path (basePath, new Path("Identity/MemberAccount/hourly/2017/04/03/10"))), state);
+    embeddedGobblin_2.run();
+    Assert.assertTrue(result.isSuccessful());
+
+    // After two minutes, re-compaction can be trigger, a new record count should be written.
     recordCount = InputRecordCountHelper.readRecordCount(fs, (new Path (basePath, new Path("Identity/MemberAccount/hourly/2017/04/03/10"))));
     Assert.assertEquals(recordCount, 42);
     Assert.assertTrue(fs.exists(new Path (basePath, "Identity/MemberAccount/hourly/2017/04/03/10")));
