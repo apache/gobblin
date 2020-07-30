@@ -17,24 +17,16 @@
 package org.apache.gobblin.compaction.verify;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Charsets;
+import com.google.common.collect.Lists;
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URI;
 import java.util.Collection;
-
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-
-import com.google.common.base.Charsets;
-import com.google.common.collect.Lists;
-
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.gobblin.compaction.dataset.DatasetHelper;
 import org.apache.gobblin.compaction.event.CompactionSlaEventHelper;
 import org.apache.gobblin.compaction.mapreduce.MRCompactor;
@@ -43,9 +35,12 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.RecordCountProvider;
 import org.apache.gobblin.util.recordcount.IngestionRecordCountProvider;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 
-import static org.apache.gobblin.compaction.mapreduce.CompactorOutputCommitter.COMPACTION_OUTPUT_EXTENSION;
-import static org.apache.gobblin.compaction.mapreduce.CompactorOutputCommitter.DEFAULT_COMPACTION_OUTPUT_EXTENSION;
+import static org.apache.gobblin.compaction.mapreduce.CompactorOutputCommitter.*;
 
 
 /**
@@ -74,13 +69,12 @@ public class InputRecordCountHelper {
    */
   public InputRecordCountHelper(State state) {
     try {
-      this.fs = getSourceFileSystem (state);
+      this.fs = getSourceFileSystem(state);
       this.state = state;
       this.extensionName = state.getProp(COMPACTION_OUTPUT_EXTENSION, DEFAULT_COMPACTION_OUTPUT_EXTENSION);
-      this.inputRecordCountProvider = (RecordCountProvider) Class
-              .forName(state.getProp(MRCompactor.COMPACTION_INPUT_RECORD_COUNT_PROVIDER,
-                      MRCompactor.DEFAULT_COMPACTION_INPUT_RECORD_COUNT_PROVIDER))
-              .newInstance();
+      this.inputRecordCountProvider = (RecordCountProvider) Class.forName(
+          state.getProp(MRCompactor.COMPACTION_INPUT_RECORD_COUNT_PROVIDER,
+              MRCompactor.DEFAULT_COMPACTION_INPUT_RECORD_COUNT_PROVIDER)).newInstance();
     } catch (Exception e) {
       throw new RuntimeException("Failed to instantiate " + InputRecordCountHelper.class.getName(), e);
     }
@@ -91,9 +85,9 @@ public class InputRecordCountHelper {
    * @param  paths all paths where the record count are calculated
    * @return record count after parsing all files under given paths
    */
-  public long calculateRecordCount (Collection<Path> paths) throws IOException {
+  public long calculateRecordCount(Collection<Path> paths) throws IOException {
     long sum = 0;
-    for (Path path: paths) {
+    for (Path path : paths) {
       sum += inputRecordCountProvider.getRecordCount(
           DatasetHelper.getApplicableFilePaths(this.fs, path, Lists.newArrayList(extensionName)));
     }
@@ -103,12 +97,12 @@ public class InputRecordCountHelper {
   /**
    * Load compaction state file
    */
-  public State loadState (Path dir) throws IOException {
+  public State loadState(Path dir) throws IOException {
     return loadState(this.fs, dir);
   }
 
   @VisibleForTesting
-  public static State loadState (FileSystem fs, Path dir) throws IOException {
+  public static State loadState(FileSystem fs, Path dir) throws IOException {
     State state = new State();
     if (fs.exists(new Path(dir, STATE_FILE))) {
       try (FSDataInputStream inputStream = fs.open(new Path(dir, STATE_FILE))) {
@@ -121,12 +115,12 @@ public class InputRecordCountHelper {
   /**
    * Save compaction state file
    */
-  public void saveState (Path dir, State state) throws IOException {
+  public void saveState(Path dir, State state) throws IOException {
     saveState(this.fs, dir, state);
   }
 
   @VisibleForTesting
-  public static void saveState (FileSystem fs, Path dir, State state) throws IOException {
+  public static void saveState(FileSystem fs, Path dir, State state) throws IOException {
     Path tmpFile = new Path(dir, STATE_FILE + ".tmp");
     Path newFile = new Path(dir, STATE_FILE);
     fs.delete(tmpFile, false);
@@ -145,7 +139,7 @@ public class InputRecordCountHelper {
    * @param dir directory where a state file is located
    * @return record count
    */
-  public long readRecordCount (Path dir) throws IOException {
+  public long readRecordCount(Path dir) throws IOException {
     return readRecordCount(this.fs, dir);
   }
 
@@ -157,12 +151,13 @@ public class InputRecordCountHelper {
    * @return record count
    */
   @Deprecated
-  public static long readRecordCount (FileSystem fs, Path dir) throws IOException {
+  public static long readRecordCount(FileSystem fs, Path dir) throws IOException {
     State state = loadState(fs, dir);
 
     if (!state.contains(CompactionSlaEventHelper.RECORD_COUNT_TOTAL)) {
-      if (fs.exists(new Path (dir, RECORD_COUNT_FILE))){
-        try (BufferedReader br = new BufferedReader(new InputStreamReader(fs.open (new Path (dir, RECORD_COUNT_FILE)), Charsets.UTF_8))) {
+      if (fs.exists(new Path(dir, RECORD_COUNT_FILE))) {
+        try (BufferedReader br = new BufferedReader(
+            new InputStreamReader(fs.open(new Path(dir, RECORD_COUNT_FILE)), Charsets.UTF_8))) {
           long count = Long.parseLong(br.readLine());
           return count;
         }
@@ -180,7 +175,7 @@ public class InputRecordCountHelper {
    * @param dir directory where a state file is located
    * @return record count
    */
-  public long readExecutionCount (Path dir) throws IOException {
+  public long readExecutionCount(Path dir) throws IOException {
     State state = loadState(fs, dir);
     return Long.parseLong(state.getProp(CompactionSlaEventHelper.EXEC_COUNT_TOTAL, "0"));
   }
@@ -192,14 +187,13 @@ public class InputRecordCountHelper {
    * @param dir directory where a record file is located
    */
   @Deprecated
-  public static void writeRecordCount (FileSystem fs, Path dir, long count) throws IOException {
-     State state = loadState(fs, dir);
-     state.setProp(CompactionSlaEventHelper.RECORD_COUNT_TOTAL, count);
-     saveState(fs, dir, state);
+  public static void writeRecordCount(FileSystem fs, Path dir, long count) throws IOException {
+    State state = loadState(fs, dir);
+    state.setProp(CompactionSlaEventHelper.RECORD_COUNT_TOTAL, count);
+    saveState(fs, dir, state);
   }
 
-  protected FileSystem getSourceFileSystem (State state)
-          throws IOException {
+  protected FileSystem getSourceFileSystem(State state) throws IOException {
     Configuration conf = HadoopUtils.getConfFromState(state);
     String uri = state.getProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI, ConfigurationKeys.LOCAL_FS_URI);
     return HadoopUtils.getOptionallyThrottledFileSystem(FileSystem.get(URI.create(uri), conf), state);

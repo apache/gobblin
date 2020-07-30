@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.compaction.mapreduce;
 
-import com.sun.corba.se.spi.orbutil.fsm.InputImpl;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;

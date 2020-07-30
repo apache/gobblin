@@ -49,4 +49,8 @@
     <Class name="org.apache.gobblin.source.jdbc.JdbcExtractor" />
     <Bug pattern="OBL_UNSATISFIED_OBLIGATION,ODR_OPEN_DATABASE_RESOURCE" />
   </Match>
+  <Match>
+    <Class name="org.apache.gobblin.compaction.verify.CompactionTimeRangeVerifier" />
+    <Bug pattern="REC_CATCH_EXCEPTION" />
+  </Match>
 </FindBugsFilter>
