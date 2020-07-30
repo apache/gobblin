@@ -191,10 +191,9 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
    * and versionStrategy (usually relevant to modTime as well), since they are subject to change with Publish(rename)
    */
   private void preserveFileAttrInPublisher(CopyableFile copyableFile) throws IOException {
-    // Preserving File ModTime, keep the accessing time of the target file.
+    // Preserving File ModTime, and set the access time to an initializing value when ModTime is declared to be preserved.
     if (copyableFile.getPreserve().preserve(PreserveAttributes.Option.MOD_TIME)) {
-      fs.setTimes(copyableFile.getDestination(), copyableFile.getOriginTimestamp(),
-          fs.getFileStatus(copyableFile.getDestination()).getAccessTime());
+      fs.setTimes(copyableFile.getDestination(), copyableFile.getOriginTimestamp(), -1);
     }
 
     // Preserving File Version.
