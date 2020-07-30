@@ -186,8 +186,37 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
   }
 
   /**
+   * Unlike other preserving attributes of files (ownership, group, etc.), which is preserved in writer,
+   * some of the attributes have to be set during publish phase like ModTime,
+   * and versionStrategy (usually relevant to modTime as well), since they are subject to change with Publish(rename)
+   */
+  private void preserveFileAttrInPublisher(CopyableFile copyableFile) throws IOException {
+    // Preserving File ModTime, and set the access time to an initializing value when ModTime is declared to be preserved.
+    if (copyableFile.getPreserve().preserve(PreserveAttributes.Option.MOD_TIME)) {
+      fs.setTimes(copyableFile.getDestination(), copyableFile.getOriginTimestamp(), -1);
+    }
+
+    // Preserving File Version.
+    DataFileVersionStrategy srcVS = this.srcDataFileVersionStrategy;
+    DataFileVersionStrategy dstVS = this.dstDataFileVersionStrategy;
+
+    // Prefer to use copyableFile's specific version strategy
+    if (copyableFile.getDataFileVersionStrategy() != null) {
+      Config versionStrategyConfig = ConfigFactory.parseMap(ImmutableMap.of(
+          DataFileVersionStrategy.DATA_FILE_VERSION_STRATEGY_KEY, copyableFile.getDataFileVersionStrategy()));
+      srcVS = DataFileVersionStrategy.instantiateDataFileVersionStrategy(this.srcFs, versionStrategyConfig);
+      dstVS = DataFileVersionStrategy.instantiateDataFileVersionStrategy(this.fs, versionStrategyConfig);
+    }
+
+    if (copyableFile.getPreserve().preserve(PreserveAttributes.Option.VERSION)
+        && dstVS.hasCharacteristic(DataFileVersionStrategy.Characteristic.SETTABLE)) {
+      dstVS.setVersion(copyableFile.getDestination(),
+          srcVS.getVersion(copyableFile.getOrigin().getPath()));
+    }
+  }
+
+  /**
    * Publish data for a {@link CopyableDataset}.
-   *
    */
   private void publishFileSet(CopyEntity.DatasetAndPartition datasetAndPartition,
       Collection<WorkUnitState> datasetWorkUnitStates) throws IOException {
@@ -233,23 +262,7 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
       CopyEntity copyEntity = CopySource.deserializeCopyEntity(wus);
       if (copyEntity instanceof CopyableFile) {
         CopyableFile copyableFile = (CopyableFile) copyEntity;
-        DataFileVersionStrategy srcVS = this.srcDataFileVersionStrategy;
-        DataFileVersionStrategy dstVS = this.dstDataFileVersionStrategy;
-
-        // Prefer to use copyableFile's specific version strategy
-        if (copyableFile.getDataFileVersionStrategy() != null) {
-          Config versionStrategyConfig = ConfigFactory.parseMap(ImmutableMap.of(
-              DataFileVersionStrategy.DATA_FILE_VERSION_STRATEGY_KEY, copyableFile.getDataFileVersionStrategy()));
-          srcVS = DataFileVersionStrategy.instantiateDataFileVersionStrategy(this.srcFs, versionStrategyConfig);
-          dstVS = DataFileVersionStrategy.instantiateDataFileVersionStrategy(this.fs, versionStrategyConfig);
-        }
-
-        if (copyableFile.getPreserve().preserve(PreserveAttributes.Option.VERSION)
-            && dstVS.hasCharacteristic(DataFileVersionStrategy.Characteristic.SETTABLE)) {
-          dstVS.setVersion(copyableFile.getDestination(),
-              srcVS.getVersion(copyableFile.getOrigin().getPath()));
-        }
-
+        preserveFileAttrInPublisher(copyableFile);
         if (wus.getWorkingState() == WorkingState.COMMITTED) {
           CopyEventSubmitterHelper.submitSuccessfulFilePublish(this.eventSubmitter, copyableFile, wus);
           // Dataset Output path is injected in each copyableFile.
@@ -287,7 +300,8 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
     additionalMetadata.put(SlaEventKeys.DATASET_OUTPUT_PATH, fileSetRoot.or("Unknown"));
     CopyEventSubmitterHelper.submitSuccessfulDatasetPublish(this.eventSubmitter, datasetAndPartition,
         Long.toString(datasetOriginTimestamp), Long.toString(datasetUpstreamTimestamp), additionalMetadata);
-    }
+  }
+
 
   private static boolean hasCopyableFiles(Collection<WorkUnitState> workUnits) throws IOException {
     for (WorkUnitState wus : workUnits) {

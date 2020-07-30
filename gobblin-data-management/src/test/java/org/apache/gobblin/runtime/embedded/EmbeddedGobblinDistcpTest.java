@@ -163,10 +163,11 @@ public class EmbeddedGobblinDistcpTest {
     }
 
     if (metaStoreClient != null) {
-      // Clean the source table and DB
-      if (metaStoreClient.tableExists(TEST_DB, TEST_TABLE)) {
-        metaStoreClient.dropTable(TEST_DB, TEST_TABLE);
+      // Clean out all tables in case there are any, to avoid db-drop failure.
+      for (String tblName : metaStoreClient.getAllTables(TEST_DB)) {
+        metaStoreClient.dropTable(TEST_DB, tblName);
       }
+
       if (metaStoreClient.getAllDatabases().contains(TEST_DB)) {
         metaStoreClient.dropDatabase(TEST_DB);
       }
@@ -277,6 +278,79 @@ public class EmbeddedGobblinDistcpTest {
     Assert.assertTrue(new File(tmpSource, fileName).exists());
     Assert.assertTrue(new File(tmpTarget, fileName).exists());
     Assert.assertEquals((long) versionStrategy.getVersion(new Path(tmpTarget.getAbsolutePath(), fileName)), 123l);
+  }
+
+  @Test
+  public void testWithModTimePreserve() throws Exception {
+    FileSystem fs = FileSystem.getLocal(new Configuration());
+    String fileName = "file";
+
+    File tmpSource = Files.createTempDir();
+    tmpSource.deleteOnExit();
+    File tmpTarget = Files.createTempDir();
+    tmpTarget.deleteOnExit();
+
+    File tmpFile = new File(tmpSource, fileName);
+    Assert.assertTrue(tmpFile.createNewFile());
+
+    FileOutputStream os = new FileOutputStream(tmpFile);
+    for (int i = 0; i < 100; i++) {
+      os.write("myString".getBytes(Charsets.UTF_8));
+    }
+    os.close();
+
+    long originalModTime = fs.getFileStatus(new Path(tmpFile.getPath())).getModificationTime();
+    Assert.assertNotNull(originalModTime);
+
+    Assert.assertTrue(new File(tmpSource, fileName).exists());
+    Assert.assertFalse(new File(tmpTarget, fileName).exists());
+
+    EmbeddedGobblinDistcp embedded = new EmbeddedGobblinDistcp(new Path(tmpSource.getAbsolutePath()),
+        new Path(tmpTarget.getAbsolutePath()));
+    embedded.setLaunchTimeout(30, TimeUnit.SECONDS);
+    embedded.setConfiguration(CopyConfiguration.PRESERVE_ATTRIBUTES_KEY, "t");
+    embedded.run();
+
+    Assert.assertTrue(new File(tmpSource, fileName).exists());
+    Assert.assertTrue(new File(tmpTarget, fileName).exists());
+    Assert.assertEquals(fs.getFileStatus(new Path(new File(tmpTarget, fileName).getAbsolutePath())).getModificationTime()
+        , originalModTime);
+  }
+
+  @Test
+  public void testWithModTimePreserveNegative() throws Exception {
+    FileSystem fs = FileSystem.getLocal(new Configuration());
+    String fileName = "file_oh";
+
+    File tmpSource = Files.createTempDir();
+    tmpSource.deleteOnExit();
+    File tmpTarget = Files.createTempDir();
+    tmpTarget.deleteOnExit();
+
+    File tmpFile = new File(tmpSource, fileName);
+    Assert.assertTrue(tmpFile.createNewFile());
+
+    FileOutputStream os = new FileOutputStream(tmpFile);
+    for (int i = 0; i < 100; i++) {
+      os.write("myString".getBytes(Charsets.UTF_8));
+    }
+    os.close();
+
+    long originalModTime = fs.getFileStatus(new Path(tmpFile.getPath())).getModificationTime();
+    Assert.assertFalse(new File(tmpTarget, fileName).exists());
+    // Give a minimal gap between file creation and copy
+    Thread.sleep(1000);
+
+    // Negative case, not preserving the timestamp.
+    tmpTarget.deleteOnExit();
+    EmbeddedGobblinDistcp embedded = new EmbeddedGobblinDistcp(new Path(tmpSource.getAbsolutePath()),
+        new Path(tmpTarget.getAbsolutePath()));
+    embedded.setLaunchTimeout(30, TimeUnit.SECONDS);
+    embedded.run();
+    Assert.assertTrue(new File(tmpSource, fileName).exists());
+    Assert.assertTrue(new File(tmpTarget, fileName).exists());
+    long newModTime = fs.getFileStatus(new Path(new File(tmpTarget, fileName).getAbsolutePath())).getModificationTime();
+    Assert.assertTrue(newModTime != originalModTime);
   }
 
   public static class MyDataFileVersion implements DataFileVersionStrategy<Long>, DataFileVersionStrategy.DataFileVersionFactory<Long> {
