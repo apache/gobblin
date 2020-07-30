@@ -49,6 +49,7 @@ public class CompactionSlaEventHelper {
   public static final String REGULAR_RECORD_COUNT = "regularRecordCount";
   public static final String NEED_RECOMPACT = "needRecompact";
   public static final String PREV_RECORD_COUNT_TOTAL = "prevRecordCountTotal";
+  public static final String LAST_RUN_START_TIME = "lastRunStartTime";
   public static final String EXEC_COUNT_TOTAL = "executionCountTotal";
   public static final String MR_JOB_ID = "mrJobId";
   public static final String RECORD_COUNT_TOTAL = "recordCountTotal";

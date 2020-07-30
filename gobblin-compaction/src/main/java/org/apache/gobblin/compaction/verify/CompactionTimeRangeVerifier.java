@@ -24,16 +24,19 @@ import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.gobblin.compaction.dataset.TimeBasedSubDirDatasetsFinder;
+import org.apache.gobblin.compaction.event.CompactionSlaEventHelper;
 import org.apache.gobblin.compaction.mapreduce.MRCompactor;
 import org.apache.gobblin.compaction.parser.CompactionPathParser;
 import org.apache.gobblin.compaction.source.CompactionSource;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.dataset.FileSystemDataset;
+import org.apache.hadoop.fs.Path;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Period;
 import org.joda.time.format.PeriodFormatter;
 import org.joda.time.format.PeriodFormatterBuilder;
+
 
 /**
  * A simple class which verify current dataset belongs to a specific time range. Will skip to do
@@ -47,31 +50,62 @@ public class CompactionTimeRangeVerifier implements CompactionVerifier<FileSyste
 
   protected State state;
 
-  public Result verify (FileSystemDataset dataset) {
+  public Result verify(FileSystemDataset dataset) {
     final DateTime earliest;
     final DateTime latest;
     try {
       CompactionPathParser.CompactionParserResult result = new CompactionPathParser(state).parse(dataset);
       DateTime folderTime = result.getTime();
-      DateTimeZone timeZone = DateTimeZone.forID(this.state.getProp(MRCompactor.COMPACTION_TIMEZONE, MRCompactor.DEFAULT_COMPACTION_TIMEZONE));
-      DateTime compactionStartTime = new DateTime(this.state.getPropAsLong(CompactionSource.COMPACTION_INIT_TIME), timeZone);
-      PeriodFormatter formatter = new PeriodFormatterBuilder().appendMonths().appendSuffix("m").appendDays().appendSuffix("d").appendHours()
-              .appendSuffix("h").toFormatter();
+      DateTimeZone timeZone = DateTimeZone.forID(
+          this.state.getProp(MRCompactor.COMPACTION_TIMEZONE, MRCompactor.DEFAULT_COMPACTION_TIMEZONE));
+      DateTime compactionStartTime =
+          new DateTime(this.state.getPropAsLong(CompactionSource.COMPACTION_INIT_TIME), timeZone);
+      PeriodFormatter formatter = new PeriodFormatterBuilder().appendMonths()
+          .appendSuffix("m")
+          .appendDays()
+          .appendSuffix("d")
+          .appendHours()
+          .appendSuffix("h")
+          .toFormatter();
 
       // Dataset name is like 'Identity/MemberAccount' or 'PageViewEvent'
       String datasetName = result.getDatasetName();
 
       // get earliest time
-      String maxTimeAgoStrList = this.state.getProp(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MAX_TIME_AGO, TimeBasedSubDirDatasetsFinder.DEFAULT_COMPACTION_TIMEBASED_MAX_TIME_AGO);
-      String maxTimeAgoStr = getMachedLookbackTime(datasetName, maxTimeAgoStrList, TimeBasedSubDirDatasetsFinder.DEFAULT_COMPACTION_TIMEBASED_MAX_TIME_AGO);
+      String maxTimeAgoStrList = this.state.getProp(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MAX_TIME_AGO,
+          TimeBasedSubDirDatasetsFinder.DEFAULT_COMPACTION_TIMEBASED_MAX_TIME_AGO);
+      String maxTimeAgoStr = getMachedLookbackTime(datasetName, maxTimeAgoStrList,
+          TimeBasedSubDirDatasetsFinder.DEFAULT_COMPACTION_TIMEBASED_MAX_TIME_AGO);
       Period maxTimeAgo = formatter.parsePeriod(maxTimeAgoStr);
       earliest = compactionStartTime.minus(maxTimeAgo);
 
       // get latest time
-      String minTimeAgoStrList = this.state.getProp(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MIN_TIME_AGO, TimeBasedSubDirDatasetsFinder.DEFAULT_COMPACTION_TIMEBASED_MIN_TIME_AGO);
-      String minTimeAgoStr = getMachedLookbackTime(datasetName, minTimeAgoStrList, TimeBasedSubDirDatasetsFinder.DEFAULT_COMPACTION_TIMEBASED_MIN_TIME_AGO);
+      String minTimeAgoStrList = this.state.getProp(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MIN_TIME_AGO,
+          TimeBasedSubDirDatasetsFinder.DEFAULT_COMPACTION_TIMEBASED_MIN_TIME_AGO);
+      String minTimeAgoStr = getMachedLookbackTime(datasetName, minTimeAgoStrList,
+          TimeBasedSubDirDatasetsFinder.DEFAULT_COMPACTION_TIMEBASED_MIN_TIME_AGO);
       Period minTimeAgo = formatter.parsePeriod(minTimeAgoStr);
       latest = compactionStartTime.minus(minTimeAgo);
+
+      // get latest last run start time, we want to limit the duration between two compaction for the same dataset
+      if (state.contains(TimeBasedSubDirDatasetsFinder.MIN_RECOMPACTION_DURATION)) {
+        String minDurationStrList = this.state.getProp(TimeBasedSubDirDatasetsFinder.MIN_RECOMPACTION_DURATION);
+        String minDurationStr = getMachedLookbackTime(datasetName, minDurationStrList,
+            TimeBasedSubDirDatasetsFinder.DEFAULT_MIN_RECOMPACTION_DURATION);
+        Period minDurationTime = formatter.parsePeriod(minDurationStr);
+        DateTime latestEligibleCompactTime = compactionStartTime.minus(minDurationTime);
+        InputRecordCountHelper helper = new InputRecordCountHelper(state);
+        State compactState = helper.loadState(new Path(result.getDstAbsoluteDir()));
+        if (compactState.contains(CompactionSlaEventHelper.LAST_RUN_START_TIME)
+            && compactState.getPropAsLong(CompactionSlaEventHelper.LAST_RUN_START_TIME)
+            > latestEligibleCompactTime.getMillis()) {
+          log.warn("Last compaction for {} is {}, not before {}", dataset.datasetRoot(),
+              new DateTime(compactState.getPropAsLong(CompactionSlaEventHelper.LAST_RUN_START_TIME), timeZone),
+              latestEligibleCompactTime);
+          return new Result(false,
+              "Last compaction for " + dataset.datasetRoot() + " is not before" + latestEligibleCompactTime);
+        }
+      }
 
       if (earliest.isBefore(folderTime) && latest.isAfter(folderTime)) {
         log.debug("{} falls in the user defined time range", dataset.datasetRoot());
@@ -88,7 +122,7 @@ public class CompactionTimeRangeVerifier implements CompactionVerifier<FileSyste
     return COMPACTION_VERIFIER_TIME_RANGE;
   }
 
-  public boolean isRetriable () {
+  public boolean isRetriable() {
     return false;
   }
 
@@ -109,15 +143,15 @@ public class CompactionTimeRangeVerifier implements CompactionVerifier<FileSyste
    * @param datasetName A description of dataset without time partition information. Example 'Identity/MemberAccount' or 'PageViewEvent'
    * @return The lookback time matched with given dataset.
    */
-  public static String getMachedLookbackTime (String datasetName, String datasetsAndLookBacks, String sysDefaultLookback) {
+  public static String getMachedLookbackTime(String datasetName, String datasetsAndLookBacks,
+      String sysDefaultLookback) {
     String defaultLookback = sysDefaultLookback;
 
-    for (String entry : Splitter.on(";").trimResults()
-        .omitEmptyStrings().splitToList(datasetsAndLookBacks)) {
+    for (String entry : Splitter.on(";").trimResults().omitEmptyStrings().splitToList(datasetsAndLookBacks)) {
       List<String> datasetAndLookbackTime = Splitter.on(":").trimResults().omitEmptyStrings().splitToList(entry);
       if (datasetAndLookbackTime.size() == 1) {
         defaultLookback = datasetAndLookbackTime.get(0);
-      } else if (datasetAndLookbackTime.size() == 2)  {
+      } else if (datasetAndLookbackTime.size() == 2) {
         String regex = datasetAndLookbackTime.get(0);
         if (Pattern.compile(regex).matcher(datasetName).find()) {
           return datasetAndLookbackTime.get(1);
@@ -128,6 +162,4 @@ public class CompactionTimeRangeVerifier implements CompactionVerifier<FileSyste
     }
     return defaultLookback;
   }
-
-
 }

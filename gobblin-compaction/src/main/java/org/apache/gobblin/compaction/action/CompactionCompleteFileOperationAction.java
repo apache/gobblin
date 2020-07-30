@@ -36,6 +36,7 @@ import org.apache.gobblin.compaction.mapreduce.MRCompactorJobRunner;
 import org.apache.gobblin.compaction.mapreduce.RecordKeyDedupReducerBase;
 import org.apache.gobblin.compaction.mapreduce.RecordKeyMapperBase;
 import org.apache.gobblin.compaction.parser.CompactionPathParser;
+import org.apache.gobblin.compaction.source.CompactionSource;
 import org.apache.gobblin.compaction.verify.InputRecordCountHelper;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
@@ -161,6 +162,7 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
           this.configurator.getConfiguredJob().getJobID().toString());
       compactState.setProp("DuplicateRecordCount", job.getCounters().findCounter(
           RecordKeyDedupReducerBase.EVENT_COUNTER.DEDUPED).getValue());
+      compactState.setProp(CompactionSlaEventHelper.LAST_RUN_START_TIME, this.state.getProp(CompactionSource.COMPACTION_INIT_TIME));
       helper.saveState(new Path(result.getDstAbsoluteDir()), compactState);
       log.info("duplicated records count for "+ dstPath + " : " + compactState.getProp("DuplicateRecordCount"));
 
