@@ -132,6 +132,8 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
   public static final String FILESET_TOTAL_ENTITIES = "fileset.total.entities";
   public static final String FILESET_TOTAL_SIZE_IN_BYTES = "fileset.total.size";
   public static final String SCHEMA_CHECK_ENABLED = "shcema.check.enabled";
+  public static final String DATASET_STAGING_DIR_PATH = "dataset.staging.dir.path";
+  public static final String DATASET_STAGING_PATH = "dataset.staging.path";
   public final static boolean DEFAULT_SCHEMA_CHECK_ENABLED = false;
 
   private static final String WORK_UNIT_WEIGHT = CopyConfiguration.COPY_PREFIX + ".workUnitWeight";
@@ -197,31 +199,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
           datasetFinder instanceof IterableDatasetFinder ? (IterableDatasetFinder<CopyableDatasetBase>) datasetFinder
               : new IterableDatasetFinderImpl<>(datasetFinder);
 
-      if (state.getPropAsBoolean(ConfigurationKeys.DATASET_STAGING_DIR,false)){
-        DatasetsFinder<HiveDataset> hiveDatasetFinder = DatasetUtils
-            .instantiateDatasetFinder(state.getProperties(), sourceFs, DEFAULT_DATASET_PROFILE_CLASS_KEY,
-                this.eventSubmitter, state);
 
-        IterableDatasetFinder<HiveDataset> hiveIterableDatasetFinder =
-            hiveDatasetFinder instanceof IterableDatasetFinder ? (IterableDatasetFinder<HiveDataset>) hiveDatasetFinder
-                : new IterableDatasetFinderImpl<>(hiveDatasetFinder);
-        HiveDatasetFinder hdf = (HiveDatasetFinder) hiveDatasetFinder;
-
-        Iterator<CopyableDatasetRequestor> hiveRequestorIteratorWithNulls = Iterators
-            .transform(hiveIterableDatasetFinder.getDatasetsIterator(),
-                new CopyableDatasetRequestor.Factory(targetFs, copyConfiguration, log));
-        Iterator<CopyableDatasetRequestor> hiveRequestorIterator =
-            Iterators.filter(hiveRequestorIteratorWithNulls, Predicates.<CopyableDatasetRequestor>notNull());
-
-        final SetMultimap<FileSet<CopyEntity>, WorkUnit> hiveWorkUnitsMap =
-            Multimaps.<FileSet<CopyEntity>, WorkUnit>synchronizedSetMultimap(
-                HashMultimap.<FileSet<CopyEntity>, WorkUnit>create());
-
-        RequestAllocator<FileSet<CopyEntity>> allocatorHive = createRequestAllocator(copyConfiguration, maxThreads);
-        Iterator<FileSet<CopyEntity>> prioritizedFileSets1 =
-            allocatorHive.allocateRequests(hiveRequestorIterator, copyConfiguration.getMaxToCopy());
-        state.setProp("hive.dataset.staging.path",hdf.getProperties().getProperty("dataset.staging.path"));
-      }
 
       Iterator<CopyableDatasetRequestor> requestorIteratorWithNulls = Iterators
           .transform(iterableDatasetFinder.getDatasetsIterator(),
@@ -393,6 +371,9 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
             if (((ConfigBasedDataset) this.copyableDataset).getExpectedSchema() != null) {
               workUnit.setProp(ConfigurationKeys.COPY_EXPECTED_SCHEMA, ((ConfigBasedDataset) this.copyableDataset).getExpectedSchema());
             }
+          }
+          if ((this.copyableDataset instanceof HiveDataset) && (state.getPropAsBoolean(ConfigurationKeys.DATASET_STAGING_DIR,false))) {
+            workUnit.setProp(DATASET_STAGING_DIR_PATH, ((HiveDataset) this.copyableDataset).getProperties().getProperty(DATASET_STAGING_PATH));
           }
           serializeCopyEntity(workUnit, copyEntity);
           serializeCopyableDataset(workUnit, metadata);

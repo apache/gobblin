@@ -85,6 +85,8 @@ public class HiveDataset implements PrioritizedCopyableDataset {
   public static final String DATASET_NAME_PATTERN_KEY = "hive.datasetNamePattern";
   public static final String DATABASE = "Database";
   public static final String TABLE = "Table";
+  public static final String DATASET_STAGING_PATH = "dataset.staging.path";
+  public static final String DATASET_PREFIX_TOBEREPLACED = "hive.dataset.copy.target.table.prefixToBeReplaced";
 
   public static final String DATABASE_TOKEN = "$DB";
   public static final String TABLE_TOKEN = "$TABLE";
@@ -126,8 +128,8 @@ public class HiveDataset implements PrioritizedCopyableDataset {
         Optional.fromNullable(this.table.getDataLocation());
 
     this.tableIdentifier = this.table.getDbName() + "." + this.table.getTableName();
-    this.datasetStagingDir = properties.getProperty("hive.dataset.copy.target.table.prefixToBeReplaced") + "/" + this.table.getDbName() + "/" + this.table.getTableName();
-    properties.setProperty("dataset.staging.path",this.datasetStagingDir);
+    this.datasetStagingDir = properties.getProperty(DATASET_PREFIX_TOBEREPLACED) + "/" + this.table.getDbName() + "/" + this.table.getTableName();
+    properties.setProperty(DATASET_STAGING_PATH,this.datasetStagingDir);
 
     this.datasetNamePattern = Optional.fromNullable(ConfigUtils.getString(datasetConfig, DATASET_NAME_PATTERN_KEY, null));
     this.dbAndTable = new DbAndTable(table.getDbName(), table.getTableName());
@@ -332,5 +334,9 @@ public class HiveDataset implements PrioritizedCopyableDataset {
       return false;
     }
     return true;
+  }
+
+  public Properties getProperties() {
+    return properties;
   }
 }

@@ -89,6 +89,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
   public static final String GOBBLIN_COPY_TASK_OVERWRITE_ON_COMMIT = "gobblin.copy.task.overwrite.on.commit";
   public static final boolean DEFAULT_GOBBLIN_COPY_TASK_OVERWRITE_ON_COMMIT = false;
   public static final String STAGING_DIR_SUFFIX = "/taskstaging";
+  public static final String DATASET_STAGING_DIR_PATH = "dataset.staging.dir.path";
 
   protected final AtomicLong bytesWritten = new AtomicLong();
   protected final AtomicLong filesWritten = new AtomicLong();
@@ -143,10 +144,16 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     this.copyableDatasetMetadata =
         CopyableDatasetMetadata.deserialize(state.getProp(CopySource.SERIALIZED_COPYABLE_DATASET));
 
+    /**
+     * The staging directory defines the path of staging folder.
+     * USER_DEFINED_STATIC_STAGING_DIR_FLAG shall be set to true when user wants to specify the staging folder and the directory can be fetched through USER_DEFINED_STATIC_STAGING_DIR property.
+     * DATASET_STAGING_DIR when true creates the staging folder within a dataset location for hive dataset copying.
+     * Else system will calculate the staging directory automatically.
+     */
     if (state.getPropAsBoolean(ConfigurationKeys.USER_DEFINED_STAGING_DIR_FLAG,false)) {
       this.stagingDir = new Path(state.getProp(ConfigurationKeys.USER_DEFINED_STATIC_STAGING_DIR));
     } else if ((state.getPropAsBoolean(ConfigurationKeys.DATASET_STAGING_DIR,false))) {
-      String stg_dir = state.getProp("hive.dataset.staging.path") + STAGING_DIR_SUFFIX + "/" + state.getProp(ConfigurationKeys.JOB_NAME_KEY ) + "/" + state.getProp(ConfigurationKeys.JOB_ID_KEY);
+      String stg_dir = state.getProp(DATASET_STAGING_DIR_PATH) + STAGING_DIR_SUFFIX + "/" + state.getProp(ConfigurationKeys.JOB_NAME_KEY ) + "/" + state.getProp(ConfigurationKeys.JOB_ID_KEY);
       state.setProp(ConfigurationKeys.HIVE_DATASET_STAGING_DIR,stg_dir);
       this.stagingDir = this.writerAttemptIdOptional.isPresent() ? WriterUtils.getHiveDatasetWriterStagingDir(state, numBranches, branchId, this.writerAttemptIdOptional.get())
           : WriterUtils.getHiveDatasetWriterStagingDir(state, numBranches, branchId);
