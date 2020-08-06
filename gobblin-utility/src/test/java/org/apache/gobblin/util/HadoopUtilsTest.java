@@ -19,6 +19,7 @@ package org.apache.gobblin.util;
 
 import java.io.IOException;
 import java.net.URI;
+import java.nio.file.AccessDeniedException;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -87,6 +88,35 @@ public class HadoopUtilsTest {
       fs.create(new Path(hadoopUtilsTestDir, "testRenameStaging/a/b/c/e/t2.txt"));
 
       HadoopUtils.renameRecursively(fs, new Path(hadoopUtilsTestDir, "testRenameStaging"), new Path(hadoopUtilsTestDir, "testRename"));
+
+      Assert.assertTrue(fs.exists(new Path(hadoopUtilsTestDir, "testRename/a/b/c/t1.txt")));
+      Assert.assertTrue(fs.exists(new Path(hadoopUtilsTestDir, "testRename/a/b/c/e/t2.txt")));
+    } finally {
+      fs.delete(hadoopUtilsTestDir, true);
+    }
+
+  }
+
+  @Test
+  public void testRenameRecursivelyWithAccessDeniedOnExistenceCheck() throws Exception {
+    final Path hadoopUtilsTestDir = new Path(Files.createTempDir().getAbsolutePath(), "HadoopUtilsTestDir");
+    FileSystem fs = Mockito.spy(FileSystem.getLocal(new Configuration()));
+    Path targetDir = new Path(hadoopUtilsTestDir, "testRename");
+
+    // For testing that the rename works when the target
+    Mockito.doThrow(new AccessDeniedException("Test")).when(fs).exists(targetDir);
+
+    try {
+      fs.mkdirs(hadoopUtilsTestDir);
+
+      fs.mkdirs(new Path(hadoopUtilsTestDir, "testRename/a/b/c"));
+
+      fs.mkdirs(new Path(hadoopUtilsTestDir, "testRenameStaging/a/b/c"));
+      fs.mkdirs(new Path(hadoopUtilsTestDir, "testRenameStaging/a/b/c/e"));
+      fs.create(new Path(hadoopUtilsTestDir, "testRenameStaging/a/b/c/t1.txt"));
+      fs.create(new Path(hadoopUtilsTestDir, "testRenameStaging/a/b/c/e/t2.txt"));
+
+      HadoopUtils.renameRecursively(fs, new Path(hadoopUtilsTestDir, "testRenameStaging"), targetDir);
 
       Assert.assertTrue(fs.exists(new Path(hadoopUtilsTestDir, "testRename/a/b/c/t1.txt")));
       Assert.assertTrue(fs.exists(new Path(hadoopUtilsTestDir, "testRename/a/b/c/e/t2.txt")));

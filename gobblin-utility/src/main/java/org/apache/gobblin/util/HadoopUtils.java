@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
+import java.nio.file.AccessDeniedException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map.Entry;
@@ -47,7 +48,6 @@ import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.LocalFileSystem;
 import org.apache.hadoop.fs.Options;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.fs.RawLocalFileSystem;
 import org.apache.hadoop.fs.Trash;
 import org.apache.hadoop.fs.permission.FsPermission;
@@ -598,9 +598,20 @@ public class HadoopUtils {
       try {
 
         // Attempt to move safely if directory, unsafely if file (for performance, files are much less likely to collide on target)
-        boolean moveSucessful =
-            this.from.isDirectory() ? safeRenameIfNotExists(this.fileSystem, this.from.getPath(), this.to)
-                : unsafeRenameIfNotExists(this.fileSystem, this.from.getPath(), this.to);
+        boolean moveSucessful;
+
+        try {
+          moveSucessful = this.from.isDirectory() ? safeRenameIfNotExists(this.fileSystem, this.from.getPath(), this.to) : unsafeRenameIfNotExists(this.fileSystem, this.from.getPath(), this.to);
+        } catch (AccessDeniedException e) {
+          // If an AccessDeniedException occurs for a directory then assume that it exists and continue the
+          // recursive renaming. If the error occurs for a file then re-raise the exception since the existence check
+          // is required to determine whether to copy the file.
+          if (this.from.isDirectory()) {
+            moveSucessful = false;
+          } else {
+            throw e;
+          }
+        }
 
         if (!moveSucessful) {
           if (this.from.isDirectory()) {
