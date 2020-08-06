@@ -36,6 +36,10 @@ tasks.remove(tasks.uploadShadow)
 
 dependencies {
   compile externalDependency.orcMapreduce
+
+  compileOnly externalDependency.lombok
+
+  testCompile externalDependency.lombok
 }
 
 configurations {

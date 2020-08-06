@@ -49,9 +49,10 @@ dependencies {
   compile externalDependency.pegasus.restliCommon
   compile externalDependency.pegasus.restliNettyStandalone
   compile externalDependency.pegasus.restliGuiceBridge
-  compile externalDependency.lombok
+  compileOnly externalDependency.lombok
 
   testCompile externalDependency.testng
+  testCompile externalDependency.lombok
 }
 
 // Below is only used for running jetty from within gradle for demo purposes.

@@ -40,7 +40,7 @@ dependencies {
     exclude group: "javax.jms", module: "jms"
   }
   compile externalDependency.kafka09Client
-  compile externalDependency.lombok
+  compileOnly externalDependency.lombok
   compile externalDependency.metricsCore
   compile externalDependency.typesafeConfig
   compile externalDependency.findBugsAnnotations
@@ -65,6 +65,7 @@ dependencies {
   }
   testCompile externalDependency.pegasus.data
   testCompile externalDependency.pegasus.restliClient
+  testCompile externalDependency.lombok
 }
 
 configurations {

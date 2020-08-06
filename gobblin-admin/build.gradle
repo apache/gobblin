@@ -32,8 +32,10 @@ dependencies {
     compile externalDependency.commonsCli
     compile externalDependency.slf4j
     compile externalDependency.jodaTime
+    compileOnly externalDependency.lombok
 
     testCompile externalDependency.testng
+    testCompile externalDependency.lombok
 }
 
 ext.classification="library"

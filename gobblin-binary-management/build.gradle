@@ -30,7 +30,7 @@ dependencies {
   runtimeOnly externalDependency.hadoopAuth
   compile externalDependency.hiveMetastore
   compile externalDependency.hiveExec
-  compile externalDependency.lombok
+  compileOnly externalDependency.lombok
   compile externalDependency.orcMapreduce
   compile externalDependency.slf4j
 
@@ -38,6 +38,7 @@ dependencies {
   testCompile externalDependency.testng
   testCompile externalDependency.mockito
   testCompile externalDependency.assertj
+  testCompile externalDependency.lombok
 }
 
 configurations {

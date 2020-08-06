@@ -33,7 +33,7 @@ dependencies {
   compile externalDependency.slf4j
   compile externalDependency.httpclient
   compile externalDependency.httpcore
-  compile externalDependency.lombok
+  compileOnly externalDependency.lombok
   compile externalDependency.metricsCore
   compile externalDependency.typesafeConfig
   compile externalDependency.findBugsAnnotations
@@ -45,6 +45,7 @@ dependencies {
   testCompile externalDependency.jsonAssert
   testCompile externalDependency.mockito
   testCompile externalDependency.testng
+  testCompile externalDependency.lombok
 }
 
 test {

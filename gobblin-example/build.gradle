@@ -35,7 +35,7 @@ dependencies {
     compile externalDependency.gson
     compile externalDependency.commonsVfs
     compile externalDependency.avroMapredH2
-    compile externalDependency.lombok
+    compileOnly externalDependency.lombok
     compile externalDependency.jodaTime
     compile externalDependency.httpcore
     compile externalDependency.httpclient
@@ -43,6 +43,7 @@ dependencies {
     compile externalDependency.hiveJdbc
 
     testCompile externalDependency.testng
+    testCompile externalDependency.lombok
 }
 
 configurations {

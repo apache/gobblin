@@ -31,9 +31,11 @@ dependencies {
   compile externalDependency.jacksonCore
   compile externalDependency.jacksonMapper
   compile externalDependency.slf4j
+  compileOnly externalDependency.lombok
 
   testCompile project(":gobblin-test-utils")
   testCompile externalDependency.testng
+  testCompile externalDependency.lombok
 }
 
 ext.classification="library"

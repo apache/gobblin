@@ -23,7 +23,7 @@ dependencies {
 
     compile externalDependency.slf4j
     compile externalDependency.log4j
-    compile externalDependency.lombok
+    compileOnly externalDependency.lombok
     compile externalDependency.typesafeConfig
     compile externalDependency.commonsLang
     compile externalDependency.commonsIo
@@ -31,6 +31,7 @@ dependencies {
 
     testCompile externalDependency.mockito
     testCompile externalDependency.testng
+    testCompile externalDependency.lombok
 }
 
 configurations {

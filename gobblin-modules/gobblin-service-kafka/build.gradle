@@ -22,10 +22,11 @@ dependencies {
 
   compile externalDependency.avro
   compile externalDependency.slf4j
-  compile externalDependency.lombok
+  compileOnly externalDependency.lombok
   compile externalDependency.typesafeConfig
 
   testCompile externalDependency.testng
+  testCompile externalDependency.lombok
 }
 
 configurations {

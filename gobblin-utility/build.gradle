@@ -34,7 +34,7 @@ dependencies {
   compile externalDependency.jodaTime
   compile externalDependency.jacksonCore
   compile externalDependency.jasypt
-  compile externalDependency.lombok
+  compileOnly externalDependency.lombok
   compile externalDependency.metricsCore
   compile externalDependency.guavaretrying
   compile externalDependency.guice
@@ -56,6 +56,7 @@ dependencies {
   testCompile externalDependency.testng
   testCompile externalDependency.mockito
   testCompile externalDependency.assertj
+  testCompile externalDependency.lombok
 }
 
 configurations {

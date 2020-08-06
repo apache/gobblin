@@ -24,8 +24,10 @@ dependencies {
 
   compile externalDependency.grok
   compile externalDependency.slf4j
+  compileOnly externalDependency.lombok
 
   testCompile externalDependency.testng
+  testCompile externalDependency.lombok
 }
 
 ext.classification="library"

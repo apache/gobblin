@@ -26,7 +26,7 @@ dependencies {
   compile project(":gobblin-utility")
   compile project(":gobblin-config-management:gobblin-config-client")
   compile project(":gobblin-config-management:gobblin-config-core")
-  compile externalDependency.lombok
+  compileOnly externalDependency.lombok
   compile externalDependency.commonsLang
   compile externalDependency.commonsLang3
   compile externalDependency.guava
@@ -56,6 +56,7 @@ dependencies {
   testCompile externalDependency.hamcrest
   testCompile externalDependency.testng
   testCompile externalDependency.hiveJdbc
+  testCompile externalDependency.lombok
 
   testRuntime project(":gobblin-modules:gobblin-crypto-provider") // for GPG
   testCompile project(":gobblin-modules:gobblin-crypto") // for GPG

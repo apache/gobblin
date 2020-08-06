@@ -34,8 +34,10 @@ dependencies {
     compile externalDependency.pegasus.restliNettyStandalone
     compile externalDependency.guava
     compile externalDependency.javaxInject
+    compileOnly externalDependency.lombok
 
     testCompile externalDependency.testng
+    testCompile externalDependency.lombok
 }
 
 // Begin HACK to get around POM being depenendent on the (empty) gobblin-rest-api instead of gobblin-rest-api-data-template

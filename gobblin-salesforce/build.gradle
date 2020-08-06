@@ -25,7 +25,7 @@ dependencies {
 
     compile externalDependency.guava
     compile externalDependency.gson
-    compile externalDependency.lombok
+    compileOnly externalDependency.lombok
     compile externalDependency.slf4j
     compile externalDependency.jodaTime
     compile externalDependency.jacksonCore
@@ -38,6 +38,7 @@ dependencies {
     compile externalDependency.salesforcePartner
 
     testCompile externalDependency.testng
+    testCompile externalDependency.lombok
 }
 
 configurations {

@@ -51,7 +51,7 @@ dependencies {
   compile externalDependency.httpasyncclient
   compile externalDependency.httpcore
   compile externalDependency.metricsCore
-  compile externalDependency.lombok
+  compileOnly externalDependency.lombok
   compile externalDependency.typesafeConfig
   compile externalDependency.findBugsAnnotations
   compile externalDependency.oltu
@@ -71,6 +71,7 @@ dependencies {
   testCompile externalDependency.httpcore
   testCompile externalDependency.httpclient
   testCompile project(":gobblin-test-utils")
+  testCompile externalDependency.lombok
 }
 
 apply from: "${rootProject.rootDir}/gobblin-flavored-build.gradle"

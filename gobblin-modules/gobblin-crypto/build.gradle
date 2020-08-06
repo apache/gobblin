@@ -29,10 +29,12 @@ dependencies {
   compile externalDependency.bcpgJdk15on
   compile externalDependency.bcprovJdk15on
   compile externalDependency.slf4j
+  compileOnly externalDependency.lombok
 
   testCompile project(":gobblin-core-base") // for EncryptionConfigParser
   testCompile project(":gobblin-test-utils")
   testCompile externalDependency.testng
+  testCompile externalDependency.lombok
 }
 
 ext.classification="library"

@@ -21,10 +21,12 @@ dependencies {
   compile project(":gobblin-core")
 
   compile externalDependency.gson
+  compileOnly externalDependency.lombok
 
   testCompile externalDependency.testng
   testCompile externalDependency.mockito
   testCompile externalDependency.mockRunnerJdbc
+  testCompile externalDependency.lombok
 }
 
 configurations {

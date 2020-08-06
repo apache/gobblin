@@ -40,11 +40,13 @@ dependencies {
 
   compile externalDependency.pegasus.d2
   compile externalDependency.pegasus.restliCommon
+  compileOnly externalDependency.lombok
 
   testCompile externalDependency.curatorClient
   testCompile externalDependency.curatorTest
   testCompile externalDependency.testng
   testCompile externalDependency.mockito
+  testCompile externalDependency.lombok
 }
 
 configurations {
