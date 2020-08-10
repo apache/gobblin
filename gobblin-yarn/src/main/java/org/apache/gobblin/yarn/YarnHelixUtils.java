@@ -19,11 +19,11 @@ package org.apache.gobblin.yarn;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
 import java.util.Collection;
 import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.gobblin.util.ConfigUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -40,12 +40,13 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.util.Apps;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.Records;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
@@ -72,19 +73,22 @@ public class YarnHelixUtils {
   }
 
   /**
-   * Update {@link Token} with token file in resources.
+   * Update {@link Token} with token file localized by NM.
    *
-   * @param
+   * @param tokenFileName name of the token file
    * @throws IOException
    */
-  public static void updateToken() throws IOException{
-    File tokenFile = new File(YarnHelixUtils.class.getClassLoader().getResource(GobblinYarnConfigurationKeys.TOKEN_FILE_NAME).getFile());
-    if(tokenFile.exists()) {
-      Credentials credentials = Credentials.readTokenStorageFile(tokenFile, new Configuration());
-      for (Token<? extends TokenIdentifier> token : credentials.getAllTokens()) {
-        LOGGER.info("updating " + token.getKind() + " " + token.getService());
+  public static void updateToken(String tokenFileName) throws IOException{
+    URL tokenFileUrl = YarnHelixUtils.class.getClassLoader().getResource(tokenFileName);
+    if (tokenFileUrl != null) {
+      File tokenFile = new File(tokenFileUrl.getFile());
+      if (tokenFile.exists()) {
+        Credentials credentials = Credentials.readTokenStorageFile(tokenFile, new Configuration());
+        for (Token<? extends TokenIdentifier> token : credentials.getAllTokens()) {
+          LOGGER.info("updating " + token.getKind() + " " + token.getService());
+        }
+        UserGroupInformation.getCurrentUser().addCredentials(credentials);
       }
-      UserGroupInformation.getCurrentUser().addCredentials(credentials);
     }
   }
 
