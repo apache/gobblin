@@ -81,8 +81,7 @@ public class YarnHelixUtils {
   public static void updateToken(String tokenFileName) throws IOException{
     URL tokenFileUrl = YarnHelixUtils.class.getClassLoader().getResource(tokenFileName);
     if (tokenFileUrl != null) {
-      File tokenFile = new File(
-          YarnHelixUtils.class.getClassLoader().getResource(GobblinYarnConfigurationKeys.TOKEN_FILE_NAME).getFile());
+      File tokenFile = new File(tokenFileUrl.getFile());
       if (tokenFile.exists()) {
         Credentials credentials = Credentials.readTokenStorageFile(tokenFile, new Configuration());
         for (Token<? extends TokenIdentifier> token : credentials.getAllTokens()) {
