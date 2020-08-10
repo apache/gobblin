@@ -23,9 +23,9 @@ import org.apache.gobblin.configuration.State;
 
 
 /**
- * Singleton {@link DatasetResolver} to convert a Hive {@link DatasetDescriptor} to HDFS {@link DatasetDescriptor}
+ * Singleton {@link DescriptorResolver} to convert a Hive {@link DatasetDescriptor} to HDFS {@link DatasetDescriptor}
  */
-public class HiveToHdfsDatasetResolver implements DatasetResolver {
+public class HiveToHdfsDatasetResolver implements DescriptorResolver {
   public static final String HIVE_TABLE = "hiveTable";
   public static final HiveToHdfsDatasetResolver INSTANCE = new HiveToHdfsDatasetResolver();
 
@@ -39,7 +39,7 @@ public class HiveToHdfsDatasetResolver implements DatasetResolver {
     Preconditions.checkArgument(metadata.containsKey(DatasetConstants.FS_SCHEME),
         String.format("Hive Dataset Descriptor must contain metadata %s to create Hdfs Dataset Descriptor",
             DatasetConstants.FS_SCHEME));
-    Preconditions.checkArgument(metadata.containsKey(DatasetConstants.FS_SCHEME),
+    Preconditions.checkArgument(metadata.containsKey(DatasetConstants.FS_LOCATION),
         String.format("Hive Dataset Descriptor must contain metadata %s to create Hdfs Dataset Descriptor",
             DatasetConstants.FS_LOCATION));
     DatasetDescriptor datasetDescriptor =

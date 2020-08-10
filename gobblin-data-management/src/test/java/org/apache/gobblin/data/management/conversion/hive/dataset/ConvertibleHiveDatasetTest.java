@@ -85,10 +85,10 @@ public class ConvertibleHiveDatasetTest {
   public void testLineageInfo() throws Exception {
     String testConfFilePath = "convertibleHiveDatasetTest/flattenedAndNestedOrc.conf";
     Config config = ConfigFactory.parseResources(testConfFilePath).getConfig("hive.conversion.avro");
-    // Set datasetResolverFactory to convert Hive Lineage event to Hdfs Lineage event
+    // Set descriptorResolverFactory to convert Hive Lineage event to Hdfs Lineage event
     ConvertibleHiveDataset testConvertibleDataset = createTestConvertibleDataset(config);
     HiveWorkUnit workUnit = new HiveWorkUnit(testConvertibleDataset);
-    workUnit.setProp("gobblin.broker.lineageInfo.datasetResolverFactory",
+    workUnit.setProp("gobblin.broker.lineageInfo.descriptorResolverFactory",
         HiveToHdfsDatasetResolverFactory.class.getName());
     workUnit.setProp(ConfigurationKeys.JOB_ID_KEY, "123456");
 

@@ -31,5 +31,20 @@ public interface DescriptorResolver {
    * @param state configuration that helps resolve job specific descriptor
    * @return resolved descriptor for the job or {@code null} if failed to resolve
    */
-  Descriptor resolve(Descriptor raw, State state);
+  DatasetDescriptor resolve(DatasetDescriptor raw, State state);
+
+  default Descriptor resolve(Descriptor raw, State state) {
+    DatasetDescriptor rawDataset;
+
+    if (raw instanceof DatasetDescriptor) {
+      rawDataset = (DatasetDescriptor) raw;
+    } else if (raw instanceof PartitionDescriptor) {
+      rawDataset = ((PartitionDescriptor) raw).getDataset();
+    } else {
+      // type not supported
+      return null;
+    }
+
+    return resolve(rawDataset, state);
+  }
 }
