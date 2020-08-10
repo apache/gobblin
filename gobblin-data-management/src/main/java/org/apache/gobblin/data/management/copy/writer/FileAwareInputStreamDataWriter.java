@@ -147,16 +147,16 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     /**
      * The staging directory defines the path of staging folder.
      * USER_DEFINED_STATIC_STAGING_DIR_FLAG shall be set to true when user wants to specify the staging folder and the directory can be fetched through USER_DEFINED_STATIC_STAGING_DIR property.
-     * DATASET_STAGING_DIR when true creates the staging folder within a dataset location for hive dataset copying.
+     * IS_DATASET_STAGING_DIR_USED when true creates the staging folder within a dataset location for dataset copying.
      * Else system will calculate the staging directory automatically.
      */
     if (state.getPropAsBoolean(ConfigurationKeys.USER_DEFINED_STAGING_DIR_FLAG,false)) {
       this.stagingDir = new Path(state.getProp(ConfigurationKeys.USER_DEFINED_STATIC_STAGING_DIR));
-    } else if ((state.getPropAsBoolean(ConfigurationKeys.DATASET_STAGING_DIR,false))) {
+    } else if ((state.getPropAsBoolean(ConfigurationKeys.IS_DATASET_STAGING_DIR_USED,false))) {
       String stg_dir = state.getProp(DATASET_STAGING_DIR_PATH) + STAGING_DIR_SUFFIX + "/" + state.getProp(ConfigurationKeys.JOB_NAME_KEY ) + "/" + state.getProp(ConfigurationKeys.JOB_ID_KEY);
-      state.setProp(ConfigurationKeys.HIVE_DATASET_STAGING_DIR,stg_dir);
-      this.stagingDir = this.writerAttemptIdOptional.isPresent() ? WriterUtils.getHiveDatasetWriterStagingDir(state, numBranches, branchId, this.writerAttemptIdOptional.get())
-          : WriterUtils.getHiveDatasetWriterStagingDir(state, numBranches, branchId);
+      state.setProp(ConfigurationKeys.DATASET_STAGING_DIR,stg_dir);
+      this.stagingDir = this.writerAttemptIdOptional.isPresent() ? WriterUtils.getDatasetWriterStagingDir(state, numBranches, branchId, this.writerAttemptIdOptional.get())
+          : WriterUtils.getDatasetWriterStagingDir(state, numBranches, branchId);
     } else {
       this.stagingDir = this.writerAttemptIdOptional.isPresent() ? WriterUtils.getWriterStagingDir(state, numBranches, branchId, this.writerAttemptIdOptional.get())
           : WriterUtils.getWriterStagingDir(state, numBranches, branchId);

@@ -24,7 +24,6 @@ import java.util.concurrent.ExecutionException;
 import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileConstants;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileContext;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
@@ -92,15 +91,15 @@ public class WriterUtils {
         WriterUtils.getWriterFilePath(state, numBranches, branchId));
   }
 
-  public static Path getHiveDatasetWriterStagingDir(State state, int numBranches, int branchId) {
+  public static Path getDatasetWriterStagingDir(State state, int numBranches, int branchId) {
     String writerStagingDirKey =
-        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.HIVE_DATASET_STAGING_DIR, numBranches, branchId);
+        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.DATASET_STAGING_DIR, numBranches, branchId);
     Preconditions.checkArgument(state.contains(writerStagingDirKey),
         "Missing required property " + writerStagingDirKey);
 
     return new Path(
         state.getProp(
-            ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.HIVE_DATASET_STAGING_DIR, numBranches, branchId)),
+            ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.DATASET_STAGING_DIR, numBranches, branchId)),
         WriterUtils.getWriterFilePath(state, numBranches, branchId));
   }
   /**
@@ -111,9 +110,9 @@ public class WriterUtils {
     return new Path(getWriterStagingDir(state, numBranches, branchId), attemptId);
   }
 
-  public static Path getHiveDatasetWriterStagingDir(State state, int numBranches, int branchId, String attemptId) {
+  public static Path getDatasetWriterStagingDir(State state, int numBranches, int branchId, String attemptId) {
     Preconditions.checkArgument(attemptId != null && !attemptId.isEmpty(), "AttemptId cannot be null or empty: " + attemptId);
-    return new Path(getHiveDatasetWriterStagingDir(state, numBranches, branchId), attemptId);
+    return new Path(getDatasetWriterStagingDir(state, numBranches, branchId), attemptId);
   }
   /**
    * Get the {@link Path} corresponding the to the directory a given {@link org.apache.gobblin.writer.DataWriter} should be writing

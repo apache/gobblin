@@ -209,8 +209,8 @@ public class ConfigurationKeys {
   public static final String MAXIMUM_JAR_COPY_RETRY_TIMES_KEY = JOB_JAR_FILES_KEY + ".uploading.retry.maximum";
   public static final String USER_DEFINED_STATIC_STAGING_DIR = "user.defined.static.staging.dir";
   public static final String USER_DEFINED_STAGING_DIR_FLAG = "user.defined.staging.dir.flag";
+  public static final String IS_DATASET_STAGING_DIR_USED = "dataset.staging.dir.used";
   public static final String DATASET_STAGING_DIR = "dataset.staging.dir";
-  public static final String HIVE_DATASET_STAGING_DIR = "hive.dataset.staging.dir";
 
   public static final String QUEUED_TASK_TIME_MAX_SIZE = "taskexecutor.queued_task_time.history.max_size";
   public static final int DEFAULT_QUEUED_TASK_TIME_MAX_SIZE = 2048;

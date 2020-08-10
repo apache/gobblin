@@ -199,8 +199,6 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
           datasetFinder instanceof IterableDatasetFinder ? (IterableDatasetFinder<CopyableDatasetBase>) datasetFinder
               : new IterableDatasetFinderImpl<>(datasetFinder);
 
-
-
       Iterator<CopyableDatasetRequestor> requestorIteratorWithNulls = Iterators
           .transform(iterableDatasetFinder.getDatasetsIterator(),
               new CopyableDatasetRequestor.Factory(targetFs, copyConfiguration, log));
@@ -372,7 +370,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
               workUnit.setProp(ConfigurationKeys.COPY_EXPECTED_SCHEMA, ((ConfigBasedDataset) this.copyableDataset).getExpectedSchema());
             }
           }
-          if ((this.copyableDataset instanceof HiveDataset) && (state.getPropAsBoolean(ConfigurationKeys.DATASET_STAGING_DIR,false))) {
+          if ((this.copyableDataset instanceof HiveDataset) && (state.getPropAsBoolean(ConfigurationKeys.IS_DATASET_STAGING_DIR_USED,false))) {
             workUnit.setProp(DATASET_STAGING_DIR_PATH, ((HiveDataset) this.copyableDataset).getProperties().getProperty(DATASET_STAGING_PATH));
           }
           serializeCopyEntity(workUnit, copyEntity);

@@ -86,7 +86,7 @@ public class HiveDataset implements PrioritizedCopyableDataset {
   public static final String DATABASE = "Database";
   public static final String TABLE = "Table";
   public static final String DATASET_STAGING_PATH = "dataset.staging.path";
-  public static final String DATASET_PREFIX_TOBEREPLACED = "hive.dataset.copy.target.table.prefixToBeReplaced";
+  public static final String DATASET_PREFIX_REPLACEMENT = "hive.dataset.copy.target.table.prefixReplacement";
 
   public static final String DATABASE_TOKEN = "$DB";
   public static final String TABLE_TOKEN = "$TABLE";
@@ -95,6 +95,7 @@ public class HiveDataset implements PrioritizedCopyableDataset {
   public static final String LOGICAL_TABLE_TOKEN = "$LOGICAL_TABLE";
 
   // Will not be serialized/de-serialized
+  @Getter
   protected transient final Properties properties;
   protected transient final FileSystem fs;
   protected transient final HiveMetastoreClientPool clientPool;
@@ -104,6 +105,7 @@ public class HiveDataset implements PrioritizedCopyableDataset {
 
   // Only set if table has exactly one location
   protected final Optional<Path> tableRootPath;
+  protected final Path tableLocation;
   protected final String tableIdentifier;
   protected final String datasetStagingDir;
   protected final Optional<String> datasetNamePattern;
@@ -128,7 +130,8 @@ public class HiveDataset implements PrioritizedCopyableDataset {
         Optional.fromNullable(this.table.getDataLocation());
 
     this.tableIdentifier = this.table.getDbName() + "." + this.table.getTableName();
-    this.datasetStagingDir = properties.getProperty(DATASET_PREFIX_TOBEREPLACED) + "/" + this.table.getDbName() + "/" + this.table.getTableName();
+    this.tableLocation = this.table.getPath();
+    this.datasetStagingDir = properties.getProperty(DATASET_PREFIX_REPLACEMENT) + "/" + getLastSegment(this.tableLocation);
     properties.setProperty(DATASET_STAGING_PATH,this.datasetStagingDir);
 
     this.datasetNamePattern = Optional.fromNullable(ConfigUtils.getString(datasetConfig, DATASET_NAME_PATTERN_KEY, null));
@@ -336,7 +339,9 @@ public class HiveDataset implements PrioritizedCopyableDataset {
     return true;
   }
 
-  public Properties getProperties() {
-    return properties;
+  public String getLastSegment(Path location) {
+    String[] segments = location.toString().split("/");
+    String lastStr = segments[segments.length-1];
+    return lastStr;
   }
 }
