@@ -340,6 +340,9 @@ public class HiveDataset implements PrioritizedCopyableDataset {
   }
 
   public String getLastSegment(Path location) {
+    if (location == null) {
+      return null;
+    }
     String[] segments = location.toString().split("/");
     String lastStr = segments[segments.length-1];
     return lastStr;
