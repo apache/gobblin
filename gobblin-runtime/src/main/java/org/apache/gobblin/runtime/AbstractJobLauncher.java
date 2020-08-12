@@ -64,6 +64,7 @@ import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.metrics.GobblinMetricsRegistry;
 import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.MetricNames;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.metrics.event.EventName;
@@ -413,6 +414,9 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         }
         workUnitsCreationTimer.stop(this.eventMetadataGenerator.getMetadata(this.jobContext,
             EventName.WORK_UNITS_CREATION));
+
+        this.jobContext.getJobState().setProp(
+            MetricNames.NUM_WORKUNITS, workUnitStream.getMaterializedWorkUnitCollection().size());
 
         if (this.runtimeMetricContext.isPresent()) {
           String workunitCreationGaugeName = MetricRegistry

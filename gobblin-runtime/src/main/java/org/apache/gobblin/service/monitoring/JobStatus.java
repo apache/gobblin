@@ -17,10 +17,11 @@
 
 package org.apache.gobblin.service.monitoring;
 
-import org.apache.gobblin.annotation.Alpha;
-
 import lombok.Builder;
 import lombok.Getter;
+import lombok.Setter;
+
+import org.apache.gobblin.annotation.Alpha;
 
 
 /**
@@ -41,7 +42,8 @@ public class JobStatus {
   private final long orchestratedTime;
   private final long startTime;
   private final long endTime;
-  private final String message;
+  @Setter
+  private String message;
   private final long processedCount;
   private final String lowWatermark;
   private final String highWatermark;
