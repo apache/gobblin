@@ -33,9 +33,7 @@ dependencies {
   compile externalDependency.gson
   compile externalDependency.slf4j
   compile externalDependency.junit
-  compileOnly externalDependency.lombok
 
   testCompile externalDependency.mockito
   testCompile externalDependency.testng
-  testCompile externalDependency.lombok
 }

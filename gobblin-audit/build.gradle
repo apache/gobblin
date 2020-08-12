@@ -24,7 +24,6 @@ dependencies {
     compile externalDependency.guava
     compile externalDependency.commonsLang3
     compile externalDependency.slf4j
-    compileOnly externalDependency.lombok
     compile externalDependency.avro
     compile externalDependency.typesafeConfig
     compile externalDependency.reflections
@@ -32,7 +31,6 @@ dependencies {
     testCompile externalDependency.testng
     testCompile externalDependency.log4j
     testCompile externalDependency.mockito
-    testCompile externalDependency.lombok
 }
 
 configurations {

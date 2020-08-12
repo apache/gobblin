@@ -19,10 +19,8 @@ apply plugin: 'java'
 
 dependencies {
   compile project(":gobblin-api")
-  compileOnly externalDependency.lombok
 
   testCompile externalDependency.testng
-  testCompile externalDependency.lombok
 }
 
 ext.classification="library"

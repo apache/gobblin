@@ -34,7 +34,6 @@ dependencies {
   compile externalDependency.slf4j
   compile externalDependency.httpclient
   compile externalDependency.httpcore
-  compileOnly externalDependency.lombok
   compile externalDependency.metricsCore
   compile externalDependency.typesafeConfig
   compile externalDependency.findBugsAnnotations
@@ -45,7 +44,6 @@ dependencies {
   testCompile externalDependency.mockito
   testCompile externalDependency.testng
   testCompile "com.couchbase.mock:CouchbaseMock:1.5.23"
-  testCompile externalDependency.lombok
 }
 
 

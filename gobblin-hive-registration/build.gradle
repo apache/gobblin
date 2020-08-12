@@ -39,11 +39,9 @@ dependencies {
   compile externalDependency.commonsLang3
   compile externalDependency.commonsPool
   compile externalDependency.findBugsAnnotations
-  compileOnly externalDependency.lombok
   compile externalDependency.avroMapredH2
 
   testCompile externalDependency.testng
-  testCompile externalDependency.lombok
   testCompile project(":gobblin-binary-management")
 }
 

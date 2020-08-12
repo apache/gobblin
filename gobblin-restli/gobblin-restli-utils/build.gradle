@@ -20,10 +20,8 @@ dependencies {
 
   compile externalDependency.pegasus.restliServer
   compile externalDependency.pegasus.restliCommon
-  compileOnly externalDependency.lombok
   compile externalDependency.pegasus.restliNettyStandalone
   compile externalDependency.pegasus.restliGuiceBridge
 
   testCompile externalDependency.testng
-  testCompile externalDependency.lombok
 }

@@ -25,12 +25,10 @@ dependencies {
   compile externalDependency.twitterParquet
   compile externalDependency.twitterParquetAvro
   compile externalDependency.twitterParquetProto
-  compileOnly externalDependency.lombok
 
   testCompile externalDependency.testng
   testCompile externalDependency.mockito
   testCompile externalDependency.mockRunnerJdbc
-  testCompile externalDependency.lombok
 }
 
 configurations {

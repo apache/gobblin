@@ -22,12 +22,10 @@ dependencies {
 
   compile externalDependency.calciteCore
   compile externalDependency.postgresConnector
-  compileOnly externalDependency.lombok
 
   testCompile externalDependency.testng
   testCompile externalDependency.mockito
   testCompile externalDependency.mockRunnerJdbc
-  testCompile externalDependency.lombok
 }
 
 configurations {

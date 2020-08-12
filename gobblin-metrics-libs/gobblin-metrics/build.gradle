@@ -28,7 +28,6 @@ dependencies {
   compile externalDependency.guava
   compile externalDependency.metricsCore
   compile externalDependency.slf4j
-  compileOnly externalDependency.lombok
   compile externalDependency.jodaTime
   compile externalDependency.commonsLang3
   compile externalDependency.typesafeConfig
@@ -36,7 +35,6 @@ dependencies {
 
   testCompile externalDependency.testng
   testCompile externalDependency.mockito
-  testCompile externalDependency.lombok
 }
 
 test {

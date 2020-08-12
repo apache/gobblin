@@ -46,4 +46,9 @@ subprojects {
       all*.exclude group: 'org.apache.calcite', module: 'calcite-avatica' // replaced by org.apache.calcite.avatica:avatica-core
     }
   }
+
+  dependencies {
+    compileOnly externalDependency.lombok
+    testCompile externalDependency.lombok
+  }
 }

@@ -32,14 +32,12 @@ dependencies {
   compile externalDependency.avro
   compile externalDependency.guava
   compile externalDependency.slf4j
-  compileOnly externalDependency.lombok
   compile externalDependency.typesafeConfig
   compile externalDependency.findBugsAnnotations
 
   testCompile externalDependency.testng
   testCompile externalDependency.mockito
   testCompile externalDependency.jmh
-  testCompile externalDependency.lombok
 }
 
 test {

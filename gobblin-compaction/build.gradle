@@ -42,7 +42,6 @@ dependencies {
   compile externalDependency.commonsMath
   compile externalDependency.mockito
   compile externalDependency.testng
-  compileOnly externalDependency.lombok
 
   runtimeOnly externalDependency.hadoopCommon
   runtimeOnly externalDependency.hadoopClientCore
@@ -61,7 +60,6 @@ dependencies {
   runtimeOnly externalDependency.datanucleusRdbms
 
   testCompile externalDependency.testng
-  testCompile externalDependency.lombok
 }
 
 

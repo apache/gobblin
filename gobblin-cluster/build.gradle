@@ -49,7 +49,6 @@ dependencies {
   compile externalDependency.avroMapredH2
   compile externalDependency.findBugsAnnotations
   compile externalDependency.helix
-  compileOnly externalDependency.lombok
 
   runtimeOnly project(":gobblin-modules:gobblin-service-kafka")
 
@@ -59,7 +58,6 @@ dependencies {
   testCompile externalDependency.curatorFramework
   testCompile externalDependency.curatorTest
   testCompile externalDependency.assertj
-  testCompile externalDependency.lombok
 }
 
 task testJar(type: Jar, dependsOn: testClasses) {

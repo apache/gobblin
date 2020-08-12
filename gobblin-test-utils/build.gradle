@@ -29,7 +29,6 @@ dependencies {
   compile externalDependency.commonsCodec
   compile externalDependency.avro
   compile externalDependency.slf4j
-  compileOnly externalDependency.lombok
   compile externalDependency.typesafeConfig
   compile externalDependency.findBugsAnnotations
   compile externalDependency.protobuf
@@ -37,7 +36,6 @@ dependencies {
 
   testCompile externalDependency.testng
   testCompile externalDependency.mockito
-  testCompile externalDependency.lombok
 }
 
 sourceSets {

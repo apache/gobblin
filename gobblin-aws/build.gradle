@@ -59,7 +59,6 @@ dependencies {
   compile externalDependency.avroMapredH2
   compile externalDependency.findBugsAnnotations
   compile externalDependency.helix
-  compileOnly externalDependency.lombok
 
   testCompile project(path: ':gobblin-cluster', configuration: 'tests')
   testCompile project(":gobblin-example")
@@ -69,7 +68,6 @@ dependencies {
   testCompile externalDependency.curatorTest
   testCompile externalDependency.mockito
   testCompile externalDependency.powermock
-  testCompile externalDependency.lombok
 }
 
 task testJar(type: Jar, dependsOn: testClasses) {

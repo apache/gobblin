@@ -25,14 +25,12 @@ dependencies {
   compile externalDependency.slf4j
   compile externalDependency.commonsLang
   compile externalDependency.commonsLang3
-  compileOnly externalDependency.lombok
   compile externalDependency.reflections
   compile externalDependency.zkClient
   compile externalDependency.helix
 
   testCompile externalDependency.testng
   testCompile externalDependency.curatorTest
-  testCompile externalDependency.lombok
 }
 
 test {

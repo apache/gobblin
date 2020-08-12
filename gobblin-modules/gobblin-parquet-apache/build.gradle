@@ -24,14 +24,12 @@ dependencies {
   compile externalDependency.gson
   compile externalDependency.parquet
   compile externalDependency.parquetAvro
-  compileOnly externalDependency.lombok
   compileOnly externalDependency.parquetProto
   testCompile externalDependency.parquetProto
 
   testCompile externalDependency.testng
   testCompile externalDependency.mockito
   testCompile externalDependency.mockRunnerJdbc
-  testCompile externalDependency.lombok
 }
 
 configurations {

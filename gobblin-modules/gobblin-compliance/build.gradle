@@ -21,9 +21,6 @@ dependencies {
   compile project(":gobblin-data-management")
   compile externalDependency.azkaban
   compile externalDependency.hiveJdbc
-  compileOnly externalDependency.lombok
-
-  testCompile externalDependency.lombok
 }
 
 test {

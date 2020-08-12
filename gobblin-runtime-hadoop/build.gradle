@@ -25,11 +25,9 @@ dependencies {
   compile externalDependency.hadoopAuth
   compile externalDependency.slf4j
   compile externalDependency.typesafeConfig
-  compileOnly externalDependency.lombok
 
   testCompile externalDependency.testng
   testCompile externalDependency.mockito
-  testCompile externalDependency.lombok
 }
 
 test {

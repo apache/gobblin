@@ -41,7 +41,6 @@ dependencies {
   compile externalDependency.guava
   compile externalDependency.metricsCore
   compile externalDependency.slf4j
-  compileOnly externalDependency.lombok
   compile externalDependency.avro
   compile externalDependency.jacksonCore
   compile externalDependency.jacksonMapper
@@ -52,7 +51,6 @@ dependencies {
 
   testCompile externalDependency.testng
   testCompile externalDependency.mockito
-  testCompile externalDependency.lombok
 }
 
 test {
