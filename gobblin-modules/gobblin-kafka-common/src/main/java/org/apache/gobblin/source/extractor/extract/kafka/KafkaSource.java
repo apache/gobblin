@@ -102,6 +102,9 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   public static final Extract.TableType DEFAULT_TABLE_TYPE = Extract.TableType.APPEND_ONLY;
   public static final String DEFAULT_NAMESPACE_NAME = "KAFKA";
   public static final String ALL_TOPICS = "all";
+  //A workunit property that contains the number of topic partitions for a given topic. Useful for
+  //workunit size estimation to assign weights to a given topic partition.
+  public static final String NUM_TOPIC_PARTITIONS = "numTopicPartitions";
   public static final String AVG_RECORD_SIZE = "avg.record.size";
   public static final String AVG_RECORD_MILLIS = "avg.record.millis";
   public static final String START_FETCH_EPOCH_TIME = "startFetchEpochTime";
@@ -277,8 +280,8 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
         numOfMultiWorkunits = (int) (totalEstDataSize / targetMapperSize) + 1;
         numOfMultiWorkunits = Math.min(numOfMultiWorkunits, maxMapperNum);
       }
+      addTopicSpecificPropsToWorkUnits(workUnits, topicSpecificStateMap);
       List<WorkUnit> workUnitList = kafkaWorkUnitPacker.pack(workUnits, numOfMultiWorkunits);
-      addTopicSpecificPropsToWorkUnits(workUnitList, topicSpecificStateMap);
       setLimiterReportKeyListToWorkUnits(workUnitList, getLimiterExtractorReportKeys());
       return workUnitList;
     } catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
@@ -311,9 +314,11 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     }
   }
 
-  private void addTopicSpecificPropsToWorkUnits(List<WorkUnit> workUnits, Map<String, State> topicSpecificStateMap) {
-    for (WorkUnit workUnit : workUnits) {
-      addTopicSpecificPropsToWorkUnit(workUnit, topicSpecificStateMap);
+  private void addTopicSpecificPropsToWorkUnits(Map<String, List<WorkUnit>> workUnits, Map<String, State> topicSpecificStateMap) {
+    for (List<WorkUnit> workUnitList : workUnits.values()) {
+      for (WorkUnit workUnit : workUnitList) {
+        addTopicSpecificPropsToWorkUnit(workUnit, topicSpecificStateMap);
+      }
     }
   }
 
@@ -380,7 +385,8 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     context.close();
 
     List<WorkUnit> workUnits = Lists.newArrayList();
-    for (KafkaPartition partition : topic.getPartitions()) {
+    List<KafkaPartition> topicPartitions = topic.getPartitions();
+    for (KafkaPartition partition : topicPartitions) {
       WorkUnit workUnit = getWorkUnitForTopicPartition(partition, state, topicSpecificState);
       if (workUnit != null) {
         // For disqualified topics, for each of its workunits set the high watermark to be the same
@@ -388,6 +394,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
         if (!topicQualified) {
           skipWorkUnit(workUnit);
         }
+        workUnit.setProp(NUM_TOPIC_PARTITIONS, topicPartitions.size());
         workUnits.add(workUnit);
       }
     }
