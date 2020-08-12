@@ -131,8 +131,10 @@ public class HiveDataset implements PrioritizedCopyableDataset {
 
     this.tableIdentifier = this.table.getDbName() + "." + this.table.getTableName();
     this.tableLocation = this.table.getPath();
-    this.datasetStagingDir = properties.getProperty(DATASET_PREFIX_REPLACEMENT) + "/" + this.tableLocation.getName();
-    properties.setProperty(DATASET_STAGING_PATH,this.datasetStagingDir);
+    if(this.tableLocation) {
+      this.datasetStagingDir = properties.getProperty(DATASET_PREFIX_REPLACEMENT) + "/" + this.tableLocation.getName();
+      properties.setProperty(DATASET_STAGING_PATH,this.datasetStagingDir);
+    }
 
     this.datasetNamePattern = Optional.fromNullable(ConfigUtils.getString(datasetConfig, DATASET_NAME_PATTERN_KEY, null));
     this.dbAndTable = new DbAndTable(table.getDbName(), table.getTableName());
