@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileContext;
@@ -88,6 +89,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
   public static final boolean DEFAULT_GOBBLIN_COPY_CHECK_FILESIZE = false;
   public static final String GOBBLIN_COPY_TASK_OVERWRITE_ON_COMMIT = "gobblin.copy.task.overwrite.on.commit";
   public static final boolean DEFAULT_GOBBLIN_COPY_TASK_OVERWRITE_ON_COMMIT = false;
+  public static final String STAGING_DIR_SUFFIX = "/staging";
 
   protected final AtomicLong bytesWritten = new AtomicLong();
   protected final AtomicLong filesWritten = new AtomicLong();
@@ -139,17 +141,20 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     URI uri = URI.create(uriStr);
     this.fs = FileSystem.get(uri, conf);
     this.fileContext = FileContext.getFileContext(uri, conf);
+    this.copyableDatasetMetadata =
+        CopyableDatasetMetadata.deserialize(state.getProp(CopySource.SERIALIZED_COPYABLE_DATASET));
 
     if (state.getPropAsBoolean(ConfigurationKeys.USER_DEFINED_STAGING_DIR_FLAG,false)) {
       this.stagingDir = new Path(state.getProp(ConfigurationKeys.USER_DEFINED_STATIC_STAGING_DIR));
+    } else if ((state.getPropAsBoolean(ConfigurationKeys.DATASET_STAGING_DIR,false)) && (StringUtils.isNotEmpty(this.copyableDatasetMetadata.getDatasetURN()))) {
+      String stagingDirBasePath = this.copyableDatasetMetadata.getDatasetURN() + STAGING_DIR_SUFFIX;
+      this.stagingDir = new Path(ForkOperatorUtils.getPathForBranch(state, stagingDirBasePath, numBranches, branchId));
     } else {
       this.stagingDir = this.writerAttemptIdOptional.isPresent() ? WriterUtils.getWriterStagingDir(state, numBranches, branchId, this.writerAttemptIdOptional.get())
           : WriterUtils.getWriterStagingDir(state, numBranches, branchId);
     }
 
     this.outputDir = getOutputDir(state);
-    this.copyableDatasetMetadata =
-        CopyableDatasetMetadata.deserialize(state.getProp(CopySource.SERIALIZED_COPYABLE_DATASET));
     this.recoveryHelper = new RecoveryHelper(this.fs, state);
     this.actualProcessedCopyableFile = Optional.absent();
 
