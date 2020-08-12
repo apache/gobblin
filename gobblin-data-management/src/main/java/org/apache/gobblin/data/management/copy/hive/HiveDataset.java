@@ -107,7 +107,6 @@ public class HiveDataset implements PrioritizedCopyableDataset {
   protected final Optional<Path> tableRootPath;
   protected final Path tableLocation;
   protected final String tableIdentifier;
-  protected final String datasetStagingDir;
   protected final Optional<String> datasetNamePattern;
   protected final DbAndTable dbAndTable;
   protected final DbAndTable logicalDbAndTable;
@@ -132,8 +131,8 @@ public class HiveDataset implements PrioritizedCopyableDataset {
     this.tableIdentifier = this.table.getDbName() + "." + this.table.getTableName();
     this.tableLocation = this.table.getPath();
     if (!(this.tableLocation.getName().isEmpty())) {
-      this.datasetStagingDir = properties.getProperty(DATASET_PREFIX_REPLACEMENT) + "/" + this.tableLocation.getName();
-      properties.setProperty(DATASET_STAGING_PATH,this.datasetStagingDir);
+      String datasetStagingDir = properties.getProperty(DATASET_PREFIX_REPLACEMENT) + "/" + this.tableLocation.getName();
+      properties.setProperty(DATASET_STAGING_PATH,datasetStagingDir);
     }
 
     this.datasetNamePattern = Optional.fromNullable(ConfigUtils.getString(datasetConfig, DATASET_NAME_PATTERN_KEY, null));
