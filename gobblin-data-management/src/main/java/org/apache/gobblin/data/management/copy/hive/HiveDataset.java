@@ -131,7 +131,7 @@ public class HiveDataset implements PrioritizedCopyableDataset {
 
     this.tableIdentifier = this.table.getDbName() + "." + this.table.getTableName();
     this.tableLocation = this.table.getPath();
-    this.datasetStagingDir = properties.getProperty(DATASET_PREFIX_REPLACEMENT) + "/" + getLastSegment(this.tableLocation);
+    this.datasetStagingDir = properties.getProperty(DATASET_PREFIX_REPLACEMENT) + "/" + this.tableLocation.getName();
     properties.setProperty(DATASET_STAGING_PATH,this.datasetStagingDir);
 
     this.datasetNamePattern = Optional.fromNullable(ConfigUtils.getString(datasetConfig, DATASET_NAME_PATTERN_KEY, null));
@@ -337,14 +337,5 @@ public class HiveDataset implements PrioritizedCopyableDataset {
       return false;
     }
     return true;
-  }
-
-  public String getLastSegment(Path location) {
-    if (location == null) {
-      return null;
-    }
-    String[] segments = location.toString().split("/");
-    String lastStr = segments[segments.length-1];
-    return lastStr;
   }
 }

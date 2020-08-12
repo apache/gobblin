@@ -92,17 +92,6 @@ public class WriterUtils {
         WriterUtils.getWriterFilePath(state, numBranches, branchId));
   }
 
-  public static Path getDatasetWriterStagingDir(State state, int numBranches, int branchId) {
-    String writerStagingDirKey =
-        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.DATASET_STAGING_DIR, numBranches, branchId);
-    Preconditions.checkArgument(state.contains(writerStagingDirKey),
-        "Missing required property " + writerStagingDirKey);
-
-    return new Path(
-        state.getProp(
-            ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.DATASET_STAGING_DIR, numBranches, branchId)),
-        WriterUtils.getWriterFilePath(state, numBranches, branchId));
-  }
   /**
    * Get the staging {@link Path} for {@link org.apache.gobblin.writer.DataWriter} that has attemptId in the path.
    */
@@ -111,10 +100,6 @@ public class WriterUtils {
     return new Path(getWriterStagingDir(state, numBranches, branchId), attemptId);
   }
 
-  public static Path getDatasetWriterStagingDir(State state, int numBranches, int branchId, String attemptId) {
-    Preconditions.checkArgument(attemptId != null && !attemptId.isEmpty(), "AttemptId cannot be null or empty: " + attemptId);
-    return new Path(getDatasetWriterStagingDir(state, numBranches, branchId), attemptId);
-  }
   /**
    * Get the {@link Path} corresponding the to the directory a given {@link org.apache.gobblin.writer.DataWriter} should be writing
    * its output data. The output data directory is determined by combining the

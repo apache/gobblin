@@ -88,7 +88,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
   public static final boolean DEFAULT_GOBBLIN_COPY_CHECK_FILESIZE = false;
   public static final String GOBBLIN_COPY_TASK_OVERWRITE_ON_COMMIT = "gobblin.copy.task.overwrite.on.commit";
   public static final boolean DEFAULT_GOBBLIN_COPY_TASK_OVERWRITE_ON_COMMIT = false;
-  public static final String STAGING_DIR_SUFFIX = "/taskstaging";
+  public static final String STAGING_DIR_SUFFIX = "/taskStaging";
   public static final String DATASET_STAGING_DIR_PATH = "dataset.staging.dir.path";
 
   protected final AtomicLong bytesWritten = new AtomicLong();
@@ -153,10 +153,10 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     if (state.getPropAsBoolean(ConfigurationKeys.USER_DEFINED_STAGING_DIR_FLAG,false)) {
       this.stagingDir = new Path(state.getProp(ConfigurationKeys.USER_DEFINED_STATIC_STAGING_DIR));
     } else if ((state.getPropAsBoolean(ConfigurationKeys.IS_DATASET_STAGING_DIR_USED,false))) {
-      String stg_dir = state.getProp(DATASET_STAGING_DIR_PATH) + STAGING_DIR_SUFFIX + "/" + state.getProp(ConfigurationKeys.JOB_NAME_KEY ) + "/" + state.getProp(ConfigurationKeys.JOB_ID_KEY);
-      state.setProp(ConfigurationKeys.DATASET_STAGING_DIR,stg_dir);
-      this.stagingDir = this.writerAttemptIdOptional.isPresent() ? WriterUtils.getDatasetWriterStagingDir(state, numBranches, branchId, this.writerAttemptIdOptional.get())
-          : WriterUtils.getDatasetWriterStagingDir(state, numBranches, branchId);
+      String stgDir = state.getProp(DATASET_STAGING_DIR_PATH) + STAGING_DIR_SUFFIX + "/" + state.getProp(ConfigurationKeys.JOB_NAME_KEY ) + "/" + state.getProp(ConfigurationKeys.JOB_ID_KEY);
+      state.setProp(ConfigurationKeys.WRITER_STAGING_DIR,stgDir);
+      this.stagingDir = this.writerAttemptIdOptional.isPresent() ? WriterUtils.getWriterStagingDir(state, numBranches, branchId, this.writerAttemptIdOptional.get())
+          : WriterUtils.getWriterStagingDir(state, numBranches, branchId);
     } else {
       this.stagingDir = this.writerAttemptIdOptional.isPresent() ? WriterUtils.getWriterStagingDir(state, numBranches, branchId, this.writerAttemptIdOptional.get())
           : WriterUtils.getWriterStagingDir(state, numBranches, branchId);

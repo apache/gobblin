@@ -32,8 +32,6 @@ import javax.annotation.Nullable;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.gobblin.data.management.copy.hive.HiveDataset;
-import org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 
@@ -55,6 +53,8 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.data.management.copy.extractor.EmptyExtractor;
 import org.apache.gobblin.data.management.copy.extractor.FileAwareInputStreamExtractor;
+import org.apache.gobblin.data.management.copy.hive.HiveDataset;
+import org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder;
 import org.apache.gobblin.data.management.copy.prioritization.FileSetComparator;
 import org.apache.gobblin.data.management.copy.publisher.CopyEventSubmitterHelper;
 import org.apache.gobblin.data.management.copy.replication.ConfigBasedDataset;

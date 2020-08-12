@@ -29,6 +29,7 @@ import java.util.Properties;
 import javax.annotation.Nonnull;
 
 import lombok.Data;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.lang3.StringUtils;
@@ -106,8 +107,8 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
   private static final String DATASET_ERROR = "DatasetError";
   private static final String FAILURE_CONTEXT = "FailureContext";
 
+  @Getter
   protected final Properties properties;
-  public Properties getProperties() { return properties; }
   protected final HiveMetastoreClientPool clientPool;
   protected final FileSystem fs;
   private final WhitelistBlacklist whitelistBlacklist;
