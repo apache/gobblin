@@ -993,6 +993,13 @@ public class ConfigurationKeys {
   public static final String COMPACTION_PRIORITIZER_ALIAS = COMPACTION_PRIORITIZATION_PREFIX + "prioritizerAlias";
   public static final String COMPACTION_ESTIMATOR = COMPACTION_PRIORITIZATION_PREFIX + "estimator";
 
+  /***
+   * Configuration properties related to Re-compaction
+   */
+  public static String COMPACTION_DIRECTORY_FORMAT = "compaction_%s";
+  public static String RECOMPACTION_WRITE_TO_NEW_FOLDER = "recompaction.write.to.new.folder";
+
+
   /**
    * Configuration related to ConfigStore based copy/retention
    */

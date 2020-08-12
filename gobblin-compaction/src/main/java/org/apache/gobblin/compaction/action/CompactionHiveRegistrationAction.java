@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.gobblin.compaction.verify.InputRecordCountHelper;
 import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Joiner;
@@ -57,12 +58,14 @@ public class CompactionHiveRegistrationAction implements CompactionCompleteActio
 
   private final State state;
   private EventSubmitter eventSubmitter;
+  private InputRecordCountHelper helper;
 
   public CompactionHiveRegistrationAction (State state) {
     if (!(state instanceof WorkUnitState)) {
       throw new UnsupportedOperationException(this.getClass().getName() + " only supports workunit state");
     }
     this.state = state;
+    this.helper = new InputRecordCountHelper(state);
   }
 
   public void onCompactionJobComplete(FileSystemDataset dataset) throws IOException {
@@ -88,10 +91,16 @@ public class CompactionHiveRegistrationAction implements CompactionCompleteActio
       HiveRegistrationPolicy hiveRegistrationPolicy = HiveRegistrationPolicyBase.getPolicy(state);
 
       List<String> paths = new ArrayList<>();
-      for (HiveSpec spec : hiveRegistrationPolicy.getHiveSpecs(new Path(result.getDstAbsoluteDir()))) {
+      long executeCount = helper.readExecutionCount(new Path(result.getDstAbsoluteDir()));
+      Path dstPath = new Path(result.getDstAbsoluteDir());
+      if (state.getPropAsBoolean(ConfigurationKeys.RECOMPACTION_WRITE_TO_NEW_FOLDER, false)) {
+        // Use new output path to do registration
+        dstPath = new Path(dstPath, String.format(ConfigurationKeys.COMPACTION_DIRECTORY_FORMAT, executeCount));
+      }
+      for (HiveSpec spec : hiveRegistrationPolicy.getHiveSpecs(dstPath)) {
         hiveRegister.register(spec);
         paths.add(spec.getPath().toUri().toASCIIString());
-        log.info("Hive registration is done for {}", result.getDstAbsoluteDir());
+        log.info("Hive registration is done for {}", dstPath.toString());
       }
 
       // submit events for hive registration
