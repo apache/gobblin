@@ -36,6 +36,8 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
+import lombok.Getter;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.util.DatePartitionType;
@@ -74,6 +76,7 @@ public abstract class TimeBasedWriterPartitioner<D> implements WriterPartitioner
   private final String writerPartitionSuffix;
   private final DatePartitionType granularity;
   private final DateTimeZone timeZone;
+  @Getter
   protected final TimeUnit timeUnit;
   private final Optional<DateTimeFormatter> timestampToPathFormatter;
   private final Schema schema;

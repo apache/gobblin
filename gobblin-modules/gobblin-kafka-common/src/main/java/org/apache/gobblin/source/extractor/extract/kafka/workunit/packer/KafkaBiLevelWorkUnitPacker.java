@@ -64,6 +64,10 @@ public class KafkaBiLevelWorkUnitPacker extends KafkaWorkUnitPacker {
 
   @Override
   public List<WorkUnit> pack(Map<String, List<WorkUnit>> workUnitsByTopic, int numContainers) {
+    if (workUnitsByTopic == null || workUnitsByTopic.isEmpty()) {
+      return Lists.newArrayList();
+    }
+
     double totalEstDataSize = setWorkUnitEstSizes(workUnitsByTopic);
     double avgGroupSize = totalEstDataSize / numContainers / getPreGroupingSizeFactor(this.state);
 

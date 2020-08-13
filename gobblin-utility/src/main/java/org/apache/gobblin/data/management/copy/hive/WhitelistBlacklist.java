@@ -53,23 +53,36 @@ public class WhitelistBlacklist implements Serializable {
 
   public static final String WHITELIST = "whitelist";
   public static final String BLACKLIST = "blacklist";
+  public static final String IGNORE_CASE = "whitelistBlacklist.ignoreCase";
 
   private static final Pattern ALL_TABLES = Pattern.compile(".*");
 
   private final SetMultimap<Pattern, Pattern> whitelistMultimap;
   private final SetMultimap<Pattern, Pattern> blacklistMultimap;
+  private final boolean ignoreCase;
 
   public WhitelistBlacklist(Config config) throws IOException {
-    this(config.hasPath(WHITELIST) ? config.getString(WHITELIST).toLowerCase() : "",
-        config.hasPath(BLACKLIST) ? config.getString(BLACKLIST).toLowerCase() : "");
+    this(config.hasPath(WHITELIST) ? config.getString(WHITELIST) : "",
+        config.hasPath(BLACKLIST) ? config.getString(BLACKLIST) : "",
+        !config.hasPath(IGNORE_CASE) || config.getBoolean(IGNORE_CASE));
   }
 
   public WhitelistBlacklist(String whitelist, String blacklist) throws IOException {
+    this(whitelist, blacklist, true);
+  }
+
+  public WhitelistBlacklist(String whitelist, String blacklist, boolean ignoreCase) throws IOException {
     this.whitelistMultimap = HashMultimap.create();
     this.blacklistMultimap = HashMultimap.create();
 
-    populateMultimap(this.whitelistMultimap, whitelist.toLowerCase());
-    populateMultimap(this.blacklistMultimap, blacklist.toLowerCase());
+    this.ignoreCase = ignoreCase;
+    if (ignoreCase) {
+      populateMultimap(this.whitelistMultimap, whitelist.toLowerCase());
+      populateMultimap(this.blacklistMultimap, blacklist.toLowerCase());
+    } else {
+      populateMultimap(this.whitelistMultimap, whitelist);
+      populateMultimap(this.blacklistMultimap, blacklist);
+    }
   }
 
   /**
@@ -83,15 +96,20 @@ public class WhitelistBlacklist implements Serializable {
    * @return Whether the input table is accepted by this {@link WhitelistBlacklist}.
    */
   public boolean acceptTable(String db, String table) {
-    return accept(db.toLowerCase(), table==null? Optional.<String> absent(): Optional.fromNullable(table.toLowerCase()));
+    return accept(db, table == null? Optional.<String> absent(): Optional.fromNullable(table));
   }
 
   private boolean accept(String db, Optional<String> table) {
-    if (!this.blacklistMultimap.isEmpty() && multimapContains(this.blacklistMultimap, db, table, true)) {
+    String adjustedDb = ignoreCase ? db.toLowerCase() : db;
+    Optional<String> adjustedTable = ignoreCase && table.isPresent() ? Optional.of(table.get().toLowerCase()) : table;
+
+    if (!this.blacklistMultimap.isEmpty() &&
+        multimapContains(this.blacklistMultimap, adjustedDb, adjustedTable, true)) {
       return false;
     }
 
-    return this.whitelistMultimap.isEmpty() || multimapContains(this.whitelistMultimap, db, table, false);
+    return this.whitelistMultimap.isEmpty() ||
+        multimapContains(this.whitelistMultimap, adjustedDb, adjustedTable, false);
   }
 
   private static void populateMultimap(SetMultimap<Pattern, Pattern> multimap, String list) throws IOException {
