@@ -67,6 +67,7 @@ import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.request_allocation.PushDownRequestor;
 
+import static org.apache.gobblin.data.management.copy.hive.HiveTargetPathHelper.*;
 
 /**
  * Hive dataset implementing {@link CopyableDataset}.
@@ -86,7 +87,6 @@ public class HiveDataset implements PrioritizedCopyableDataset {
   public static final String DATABASE = "Database";
   public static final String TABLE = "Table";
   public static final String DATASET_STAGING_PATH = "dataset.staging.path";
-  public static final String DATASET_PREFIX_REPLACEMENT = "hive.dataset.copy.target.table.prefixReplacement";
 
   public static final String DATABASE_TOKEN = "$DB";
   public static final String TABLE_TOKEN = "$TABLE";
@@ -105,7 +105,6 @@ public class HiveDataset implements PrioritizedCopyableDataset {
 
   // Only set if table has exactly one location
   protected final Optional<Path> tableRootPath;
-  protected final Path tableLocation;
   protected final String tableIdentifier;
   protected final Optional<String> datasetNamePattern;
   protected final DbAndTable dbAndTable;
@@ -129,9 +128,9 @@ public class HiveDataset implements PrioritizedCopyableDataset {
         Optional.fromNullable(this.table.getDataLocation());
 
     this.tableIdentifier = this.table.getDbName() + "." + this.table.getTableName();
-    this.tableLocation = this.table.getPath();
+    Path tableLocation = this.table.getPath();
     if (!(this.properties.isEmpty())) {
-      String datasetStagingDir = properties.getProperty(DATASET_PREFIX_REPLACEMENT) + "/" + this.tableLocation.getName();
+      String datasetStagingDir = this.properties.getProperty(COPY_TARGET_TABLE_PREFIX_REPLACEMENT) + "/" + tableLocation.getName();
       properties.setProperty(DATASET_STAGING_PATH,datasetStagingDir);
     }
 

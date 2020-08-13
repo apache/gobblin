@@ -141,8 +141,6 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     URI uri = URI.create(uriStr);
     this.fs = FileSystem.get(uri, conf);
     this.fileContext = FileContext.getFileContext(uri, conf);
-    this.copyableDatasetMetadata =
-        CopyableDatasetMetadata.deserialize(state.getProp(CopySource.SERIALIZED_COPYABLE_DATASET));
 
     /**
      * The staging directory defines the path of staging folder.
@@ -162,6 +160,8 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
           : WriterUtils.getWriterStagingDir(state, numBranches, branchId);
     }
 
+    this.copyableDatasetMetadata =
+        CopyableDatasetMetadata.deserialize(state.getProp(CopySource.SERIALIZED_COPYABLE_DATASET));
     this.outputDir = getOutputDir(state);
     this.recoveryHelper = new RecoveryHelper(this.fs, state);
     this.actualProcessedCopyableFile = Optional.absent();
