@@ -25,6 +25,8 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import com.google.common.collect.Maps;
+
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.source.extractor.extract.AbstractSource;
 import org.apache.gobblin.source.workunit.WorkUnit;
@@ -64,6 +66,20 @@ public class KafkaWorkUnitPackerTest {
   public void testGetInstance() {
     KafkaWorkUnitPacker anotherPacker = KafkaWorkUnitPacker.getInstance(source, state);
     Assert.assertTrue(anotherPacker instanceof KafkaSingleLevelWorkUnitPacker);
+  }
+
+  @Test
+  public void testPackEmptyWorkUnit() {
+    SourceState sourceState = new SourceState(state);
+    Map<String, List<WorkUnit>> emptyWorkUnit = Maps.newHashMap();
+    // Test single level packer
+    KafkaWorkUnitPacker mypacker = KafkaWorkUnitPacker.getInstance(source, sourceState);
+    Assert.assertEquals(mypacker.pack(emptyWorkUnit, 1).size(), 0);
+    // Test bi level packer
+    sourceState.setProp(KAFKA_WORKUNIT_PACKER_CUSTOMIZED_TYPE,
+        "org.apache.gobblin.source.extractor.extract.kafka.workunit.packer.KafkaBiLevelWorkUnitPacker");
+    mypacker = KafkaWorkUnitPacker.getInstance(source, sourceState);
+    Assert.assertEquals(mypacker.pack(emptyWorkUnit, 1).size(), 0);
   }
 
   public class TestKafkaWorkUnitPacker extends KafkaWorkUnitPacker {
