@@ -329,13 +329,15 @@ public abstract class KafkaWorkUnitPacker {
       pQueue.add(lightestMultiWorkUnit);
     }
     LinkedList<MultiWorkUnit> pQueue_filtered = new LinkedList();
-    while(!pQueue.isEmpty())
-    {
+    while(!pQueue.isEmpty()) {
       MultiWorkUnit multiWorkUnit = pQueue.poll();
-      if(multiWorkUnit.getWorkUnits().size() != 0)
-      {
+      if(multiWorkUnit.getWorkUnits().size() != 0) {
         pQueue_filtered.offer(multiWorkUnit);
       }
+    }
+
+    if (pQueue_filtered.isEmpty()) {
+      return Lists.newArrayList();
     }
 
     logMultiWorkUnitInfo(pQueue_filtered);

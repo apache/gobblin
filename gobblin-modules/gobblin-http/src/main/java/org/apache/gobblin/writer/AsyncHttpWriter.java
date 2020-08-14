@@ -83,7 +83,7 @@ public class AsyncHttpWriter<D, RQ, RP> extends AbstractAsyncDataWriter<D> {
     while (attempt < maxAttempts) {
       try {
           response = httpClient.sendRequest(rawRequest);
-      } catch (IOException e) {
+      } catch (Exception e) {
         // Retry
         attempt++;
         if (attempt == maxAttempts) {

@@ -286,6 +286,7 @@ public class GobblinHelixJobLauncherTest {
     Assert.assertEquals(testListener.getCompletes().get() == 1, true);
   }
 
+  @Test(dependsOnMethods = {"testLaunchJob", "testLaunchMultipleJobs"})
   public void testJobCleanup() throws Exception {
     final ConcurrentHashMap<String, Boolean> runningMap = new ConcurrentHashMap<>();
 
