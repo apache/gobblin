@@ -42,6 +42,7 @@ dependencies {
     testCompile externalDependency.testng
     testCompile externalDependency.embeddedProcess
     testCompile externalDependency.testMysqlServer
+    testCompile externalDependency.slf4jToLog4j
 }
 
 // Begin HACK to get around POM being depenendent on the (empty) gobblin-rest-api instead of gobblin-rest-api-rest-client

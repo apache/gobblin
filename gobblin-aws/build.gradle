@@ -68,6 +68,7 @@ dependencies {
   testCompile externalDependency.curatorTest
   testCompile externalDependency.mockito
   testCompile externalDependency.powermock
+  testCompile externalDependency.slf4jToLog4j
 }
 
 task testJar(type: Jar, dependsOn: testClasses) {

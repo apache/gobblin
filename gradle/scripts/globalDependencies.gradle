@@ -44,6 +44,10 @@ subprojects {
         testCompile (files(((URLClassLoader) ToolProvider.getSystemToolClassLoader()).getURLs()))
       }
       all*.exclude group: 'org.apache.calcite', module: 'calcite-avatica' // replaced by org.apache.calcite.avatica:avatica-core
+      //exclude this jar because we introduce log4j-over-slf4j, these two jars cannot present at the same time
+      compileClasspath.exclude group: 'org.slf4j', module: 'slf4j-log4j12'
+      //exclude this jar in test class path because we are using log4j implementation to test
+      testCompile.exclude group: 'org.slf4j', module: 'log4j-over-slf4j'
     }
   }
 }

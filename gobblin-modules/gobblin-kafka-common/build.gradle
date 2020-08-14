@@ -47,6 +47,7 @@ dependencies {
   testCompile externalDependency.mockito
   testCompile externalDependency.testng
   testCompile externalDependency.jmh
+  testCompile externalDependency.slf4jToLog4j
 }
 
 configurations {
