@@ -33,20 +33,26 @@ import com.typesafe.config.Config;
 
 
 /**
- * A whitelist / blacklist implementation for filtering Hive tables. Parses input whitelist and blacklist of the form
+ * A whitelist / blacklist implementation for filtering Hive tables. It can be configured as
+ * case-insensitive({@code ignoreCase = true}) or case-sensitive({@code ignoreCase = false}). By default, it's
+ * case-insensitive. <br>
+ *
+ * <p></p>
+ * Parses input whitelist and blacklist of the form
  * [dbpattern.tablepattern1|tablepattern2|...],... and filters accordingly. The db and table patterns accept "*"
  * characters. Each of whitelist and blacklist is a list of patterns. For a table to be accepted, it must fail the
  * blacklist filter and pass the whitelist filter. Empty whitelist or blacklist are noops.
  *
+ * <p></p>
  * <p>
  *   Example whitelist and blacklist patterns:
- *   * db1.table1 -> only db1.table1 passes.
- *   * db1 -> any table under db1 passes.
- *   * db1.table* -> any table under db1 whose name satisfies the pattern table* passes.
- *   * db* -> all tables from all databases whose names satisfy the pattern db* pass.
- *   * db*.table* -> db and table must satisfy the patterns db* and table* respectively
- *   * db1.table1,db2.table2 -> combine expressions for different databases with comma.
- *   * db1.table1|table2 -> combine expressions for same database with "|".
+ *   <li> db1.table1 -> only db1.table1 passes.
+ *   <li> db1 -> any table under db1 passes.
+ *   <li> db1.table* -> any table under db1 whose name satisfies the pattern table* passes.
+ *   <li> db* -> all tables from all databases whose names satisfy the pattern db* pass.
+ *   <li> db*.table* -> db and table must satisfy the patterns db* and table* respectively
+ *   <li> db1.table1,db2.table2 -> combine expressions for different databases with comma.
+ *   <li> db1.table1|table2 -> combine expressions for same database with "|".
  * </p>
  */
 public class WhitelistBlacklist implements Serializable {
@@ -74,8 +80,8 @@ public class WhitelistBlacklist implements Serializable {
   public WhitelistBlacklist(String whitelist, String blacklist, boolean ignoreCase) throws IOException {
     this.whitelistMultimap = HashMultimap.create();
     this.blacklistMultimap = HashMultimap.create();
-
     this.ignoreCase = ignoreCase;
+
     if (ignoreCase) {
       populateMultimap(this.whitelistMultimap, whitelist.toLowerCase());
       populateMultimap(this.blacklistMultimap, blacklist.toLowerCase());
