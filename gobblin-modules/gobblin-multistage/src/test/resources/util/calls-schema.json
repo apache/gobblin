@@ -1,0 +1,29 @@
+{
+  "type": "array",
+  "items": {
+    "id": {
+      "type": "string"
+    },
+    "url": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "scheduled": {
+      "type": "string"
+    },
+    "started": {
+      "type": "string"
+    },
+    "duration": {
+      "type": "int"
+    },
+    "primaryUserId": {
+      "type": "string"
+    },
+    "flagged": {
+      "type": "boolean"
+    }
+  }
+}

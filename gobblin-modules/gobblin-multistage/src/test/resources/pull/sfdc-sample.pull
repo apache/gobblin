@@ -1,0 +1,36 @@
+job.name=testJob
+
+source.class=org.apache.gobblin.multistage.source.HttpSource
+converter.classes=org.apache.gobblin.converter.csv.CsvToJsonConverterV2,org.apache.gobblin.converter.avro.JsonIntermediateToAvroConverter,org.apache.gobblin.converter.LumosAttributesConverter
+converter.avro.timestamp.format=yyyy-MM-dd'T'HH:mm:ss.SSSZ
+ms.extractor.class=org.apache.gobblin.multistage.extractor.CsvExtractor
+ms.http.client.factory=org.apache.gobblin.multistage.factory.ApacheHttpClientFactory
+
+dataset.urn=test.salesforce
+extract.namespace=test
+extract.delta.fields=extractedDate
+extract.table.name=contact
+extract.table.type=SNAPSHOT_APPEND
+extract.is.full=false
+extract.primary.key.fields=Id
+
+ms.authentication={"method": "oauth", "encryption": "none", "header": "Authorization", "token": "REPLACEME"}
+ms.data.field=
+ms.enable.cleansing=true
+ms.derived.fields=[{"name": "extractedDate", "formula": {"type": "epoc", "source": "CURRENTDATE"}}]
+ms.http.request.method=GET
+ms.http.request.headers={"Content-Type": "application/json"}
+ms.output.schema=REPLACEME
+ms.pagination={"initialvalues": [0, 100]}
+ms.parameters=[{"name": "offset", "type": "session"}, {"name": "limit", "type": "pagesize"}]
+ms.source.uri=https://REPLACEME.my.salesforce.com//services/data/v49.0/jobs/query/REPLACEME/results?maxRecords={{limit}}
+ms.session.key.field={"name": "Sforce-Locator", "condition": {"regexp": "^null$"}}
+ms.total.count.field=
+ms.watermark=[{"name": "system","type": "datetime", "range": {"from": "2019-01-01", "to": "-"}}]
+
+fs.uri=file://localhost/
+state.store.fs.uri=file://localhost/
+data.publisher.final.dir=/tmp/gobblin/job-output
+
+writer.destination.type=HDFS
+writer.output.format=AVRO
