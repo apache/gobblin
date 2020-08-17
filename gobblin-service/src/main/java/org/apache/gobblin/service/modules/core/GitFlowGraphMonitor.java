@@ -68,7 +68,7 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
   public static final String GIT_FLOWGRAPH_MONITOR_PREFIX = "gobblin.service.gitFlowGraphMonitor";
 
   private static final String PROPERTIES_EXTENSIONS = "properties";
-  private static final String CONF_EXTENSIONS = StringUtils.EMPTY;
+  private static final String CONF_EXTENSIONS = "conf";
   private static final String FLOW_EDGE_LABEL_JOINER_CHAR = "_";
   private static final String DEFAULT_GIT_FLOWGRAPH_MONITOR_REPO_DIR = "git-flowgraph";
   private static final String DEFAULT_GIT_FLOWGRAPH_MONITOR_FLOWGRAPH_DIR = "gobblin-flowgraph";
@@ -184,10 +184,13 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
     if (checkFilePath(change.getNewPath(), NODE_FILE_DEPTH)) {
       Path nodeFilePath = new Path(this.repositoryDir, change.getNewPath());
       try {
-        Config config = loadNodeFileWithOverrides(nodeFilePath);
-        Class dataNodeClass = Class.forName(ConfigUtils.getString(config, FlowGraphConfigurationKeys.DATA_NODE_CLASS,
+        // Temporarily resolve the data node config when constructing it, but leave it unresolved after to allow overriding
+        Config unresolvedConfig = loadNodeFileWithOverrides(nodeFilePath);
+        Config resolvedConfig = unresolvedConfig.resolve();
+        Class dataNodeClass = Class.forName(ConfigUtils.getString(unresolvedConfig, FlowGraphConfigurationKeys.DATA_NODE_CLASS,
             FlowGraphConfigurationKeys.DEFAULT_DATA_NODE_CLASS));
-        DataNode dataNode = (DataNode) GobblinConstructorUtils.invokeLongestConstructor(dataNodeClass, config);
+        DataNode dataNode = (DataNode) GobblinConstructorUtils.invokeLongestConstructor(dataNodeClass, resolvedConfig);
+        dataNode.setRawConfig(unresolvedConfig);
         if (!this.flowGraph.addDataNode(dataNode)) {
           log.warn("Could not add DataNode {} to FlowGraph; skipping", dataNode.getId());
         } else {
@@ -283,7 +286,7 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
     Path filePath = new Path(file);
     String fileExtension = Files.getFileExtension(filePath.getName());
     if (filePath.depth() != depth || !checkFileLevelRelativeToRoot(filePath, depth)
-        || !(this.javaPropsExtensions.contains(fileExtension))) {
+        || !(this.javaPropsExtensions.contains(fileExtension) || this.hoconFileExtensions.contains(fileExtension))) {
       log.warn("Changed file does not conform to directory structure and file name format, skipping: "
           + filePath);
       return false;
@@ -364,7 +367,7 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
    * @throws IOException
    */
   private Config loadNodeFileWithOverrides(Path filePath) throws IOException {
-    Config nodeConfig = this.pullFileLoader.loadPullFile(filePath, emptyConfig, false);
+    Config nodeConfig = this.pullFileLoader.loadPullFile(filePath, emptyConfig, false, false);
     return getNodeConfigWithOverrides(nodeConfig, filePath);
   }
 
@@ -375,7 +378,7 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
    * @throws IOException
    */
   private Config loadEdgeFileWithOverrides(Path filePath) throws IOException {
-    Config edgeConfig = this.pullFileLoader.loadPullFile(filePath, emptyConfig, false);
+    Config edgeConfig = this.pullFileLoader.loadPullFile(filePath, emptyConfig, false, false);
     return getEdgeConfigWithOverrides(edgeConfig, filePath);
   }
 

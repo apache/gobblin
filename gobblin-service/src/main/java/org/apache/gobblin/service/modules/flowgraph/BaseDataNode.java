@@ -23,6 +23,7 @@ import com.typesafe.config.Config;
 import joptsimple.internal.Strings;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
@@ -39,6 +40,7 @@ public class BaseDataNode implements DataNode {
   @Getter
   private String id;
   @Getter
+  @Setter
   private Config rawConfig;
   @Getter
   private boolean active = true;

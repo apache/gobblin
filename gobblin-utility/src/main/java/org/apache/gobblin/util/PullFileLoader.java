@@ -134,19 +134,27 @@ public class PullFileLoader {
    * @param sysProps A {@link Config} used as fallback.
    * @param loadGlobalProperties if true, will also load at most one *.properties file per directory from the
    *          {@link #rootDirectory} to the pull file {@link Path}.
+   * @param resolve if true, call {@link Config#resolve()} on the config after loading it
    * @return The loaded {@link Config}.
    * @throws IOException
    */
-  public Config loadPullFile(Path path, Config sysProps, boolean loadGlobalProperties) throws IOException {
+  public Config loadPullFile(Path path, Config sysProps, boolean loadGlobalProperties, boolean resolve) throws IOException {
     Config fallback = loadGlobalProperties ? loadAncestorGlobalConfigs(path, sysProps) : sysProps;
+    Config loadedConfig;
 
     if (this.javaPropsPullFileFilter.accept(path)) {
-      return loadJavaPropsWithFallback(path, fallback).resolve();
+      loadedConfig = loadJavaPropsWithFallback(path, fallback);
     } else if (this.hoconPullFileFilter.accept(path)) {
-      return loadHoconConfigAtPath(path).withFallback(fallback).resolve();
+      loadedConfig = loadHoconConfigAtPath(path).withFallback(fallback);
     } else {
       throw new IOException(String.format("Cannot load pull file %s due to unrecognized extension.", path));
     }
+
+    return resolve ? loadedConfig.resolve() : loadedConfig;
+  }
+
+  public Config loadPullFile(Path path, Config sysProps, boolean loadGlobalProperties) throws IOException {
+    return loadPullFile(path, sysProps, loadGlobalProperties, true);
   }
 
   /**

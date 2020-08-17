@@ -39,6 +39,12 @@ public interface DataNode {
   Config getRawConfig();
 
   /**
+   * Set raw config. This should only be used in cases where the data node's actual config should be different from the
+   * config it is constructed with (e.g. constructing with a resolved config).
+   */
+  void setRawConfig(Config config);
+
+  /**
    * @return a default dataset descriptor class for this DataNode, or null if a default should not be used.
    */
   String getDefaultDatasetDescriptorClass();
