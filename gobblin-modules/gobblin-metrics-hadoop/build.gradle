@@ -37,7 +37,6 @@ dependencies {
   compile externalDependency.guava
   compile externalDependency.metricsCore
   compile externalDependency.slf4j
-  compile externalDependency.lombok
 
   testCompile externalDependency.testng
   testCompile externalDependency.mockito

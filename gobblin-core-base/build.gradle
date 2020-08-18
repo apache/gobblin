@@ -32,7 +32,6 @@ dependencies {
   compile externalDependency.avro
   compile externalDependency.guava
   compile externalDependency.slf4j
-  compile externalDependency.lombok
   compile externalDependency.typesafeConfig
   compile externalDependency.findBugsAnnotations
 

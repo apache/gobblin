@@ -24,7 +24,6 @@ dependencies {
     compile externalDependency.guava
     compile externalDependency.commonsLang3
     compile externalDependency.slf4j
-    compile externalDependency.lombok
     compile externalDependency.avro
     compile externalDependency.typesafeConfig
     compile externalDependency.reflections

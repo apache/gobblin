@@ -22,7 +22,6 @@ dependencies {
 
   compile externalDependency.avro
   compile externalDependency.slf4j
-  compile externalDependency.lombok
   compile externalDependency.typesafeConfig
 
   testCompile externalDependency.testng

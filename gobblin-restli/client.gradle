@@ -48,8 +48,6 @@ dependencies {
   compile project(path: apiProject.path, configuration: 'dataTemplate')
   compile project(path: apiProject.path, configuration: 'restClient')
 
-  compile externalDependency.lombok
-
   testCompile project(":gobblin-restli:gobblin-restli-utils")
   testCompile externalDependency.testng
   testCompile externalDependency.mockito

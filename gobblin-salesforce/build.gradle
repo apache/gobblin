@@ -25,7 +25,6 @@ dependencies {
 
     compile externalDependency.guava
     compile externalDependency.gson
-    compile externalDependency.lombok
     compile externalDependency.slf4j
     compile externalDependency.jodaTime
     compile externalDependency.jacksonCore

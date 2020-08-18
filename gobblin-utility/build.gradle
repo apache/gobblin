@@ -34,7 +34,6 @@ dependencies {
   compile externalDependency.jodaTime
   compile externalDependency.jacksonCore
   compile externalDependency.jasypt
-  compile externalDependency.lombok
   compile externalDependency.metricsCore
   compile externalDependency.guavaretrying
   compile externalDependency.guice

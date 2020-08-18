@@ -51,7 +51,6 @@ dependencies {
   compile externalDependency.httpasyncclient
   compile externalDependency.httpcore
   compile externalDependency.metricsCore
-  compile externalDependency.lombok
   compile externalDependency.typesafeConfig
   compile externalDependency.findBugsAnnotations
   compile externalDependency.oltu
