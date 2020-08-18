@@ -353,7 +353,7 @@ public class ConfigurationKeys {
   public static final String FORK_MAX_WAIT_MININUTES = "fork.max.wait.minutes";
   public static final long DEFAULT_FORK_MAX_WAIT_MININUTES = 60;
   public static final String FORK_CLOSE_WRITER_ON_COMPLETION = "fork.closeWriterOnCompletion";
-  public static final boolean DEFAULT_FORK_CLOSE_WRITER_ON_COMPLETION = true;
+  public static final boolean DEFAULT_FORK_CLOSE_WRITER_ON_COMPLETION = false;
 
 
   /**
