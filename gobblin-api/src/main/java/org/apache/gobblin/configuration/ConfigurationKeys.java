@@ -996,7 +996,6 @@ public class ConfigurationKeys {
   /***
    * Configuration properties related to Re-compaction
    */
-  public static String COMPACTION_DIRECTORY_FORMAT = "compaction_%s";
   public static String RECOMPACTION_WRITE_TO_NEW_FOLDER = "recompaction.write.to.new.folder";
 
 

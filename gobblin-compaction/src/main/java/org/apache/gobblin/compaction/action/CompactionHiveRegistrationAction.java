@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.gobblin.compaction.verify.InputRecordCountHelper;
+import org.apache.gobblin.util.PathUtils;
 import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Joiner;
@@ -65,7 +66,6 @@ public class CompactionHiveRegistrationAction implements CompactionCompleteActio
       throw new UnsupportedOperationException(this.getClass().getName() + " only supports workunit state");
     }
     this.state = state;
-    this.helper = new InputRecordCountHelper(state);
   }
 
   public void onCompactionJobComplete(FileSystemDataset dataset) throws IOException {
@@ -91,11 +91,13 @@ public class CompactionHiveRegistrationAction implements CompactionCompleteActio
       HiveRegistrationPolicy hiveRegistrationPolicy = HiveRegistrationPolicyBase.getPolicy(state);
 
       List<String> paths = new ArrayList<>();
-      long executeCount = helper.readExecutionCount(new Path(result.getDstAbsoluteDir()));
       Path dstPath = new Path(result.getDstAbsoluteDir());
       if (state.getPropAsBoolean(ConfigurationKeys.RECOMPACTION_WRITE_TO_NEW_FOLDER, false)) {
+        //Lazily initialize helper
+        this.helper = new InputRecordCountHelper(state);
+        long executionCount = helper.readExecutionCount(new Path(result.getDstAbsoluteDir()));
         // Use new output path to do registration
-        dstPath = new Path(dstPath, String.format(ConfigurationKeys.COMPACTION_DIRECTORY_FORMAT, executeCount));
+        dstPath = PathUtils.mergePaths(dstPath, new Path(String.format(CompactionCompleteFileOperationAction.COMPACTION_DIRECTORY_FORMAT, executionCount)));
       }
       for (HiveSpec spec : hiveRegistrationPolicy.getHiveSpecs(dstPath)) {
         hiveRegister.register(spec);
