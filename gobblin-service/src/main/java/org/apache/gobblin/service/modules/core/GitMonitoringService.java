@@ -101,6 +101,7 @@ public abstract class GitMonitoringService extends AbstractIdleService {
   final String folderName;
   final PullFileLoader pullFileLoader;
   final Set<String> javaPropsExtensions;
+  final Set<String> hoconFileExtensions;
 
   protected volatile boolean isActive = false;
 
@@ -169,11 +170,11 @@ public abstract class GitMonitoringService extends AbstractIdleService {
 
     Path folderPath = new Path(this.repositoryDir, this.folderName);
     this.javaPropsExtensions = Sets.newHashSet(config.getString(JAVA_PROPS_EXTENSIONS).split(","));
-    Set<String> hoconFileExtensions = Sets.newHashSet(config.getString(HOCON_FILE_EXTENSIONS).split(","));
+    this.hoconFileExtensions = Sets.newHashSet(config.getString(HOCON_FILE_EXTENSIONS).split(","));
     try {
       this.pullFileLoader = new PullFileLoader(folderPath,
           FileSystem.get(URI.create(ConfigurationKeys.LOCAL_FS_URI), new Configuration()),
-          this.javaPropsExtensions, hoconFileExtensions);
+          this.javaPropsExtensions, this.hoconFileExtensions);
     } catch (IOException e) {
       throw new RuntimeException("Could not create pull file loader", e);
     }

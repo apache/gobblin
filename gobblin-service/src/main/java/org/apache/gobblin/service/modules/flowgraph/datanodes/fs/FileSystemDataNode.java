@@ -52,7 +52,7 @@ public abstract class FileSystemDataNode extends BaseDataNode {
   public FileSystemDataNode(Config nodeProps) throws DataNodeCreationException {
     super(nodeProps);
     try {
-      this.fsUri = ConfigUtils.getString(nodeProps, FS_URI_KEY, "");
+      this.fsUri = ConfigUtils.getString(this.getResolvedConfig(), FS_URI_KEY, "");
       Preconditions.checkArgument(!Strings.isNullOrEmpty(this.fsUri), "fs.uri cannot be null or empty.");
 
       //Validate the srcFsUri and destFsUri of the DataNode.
