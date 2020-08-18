@@ -23,7 +23,6 @@ import com.typesafe.config.Config;
 import joptsimple.internal.Strings;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
@@ -40,20 +39,22 @@ public class BaseDataNode implements DataNode {
   @Getter
   private String id;
   @Getter
-  @Setter
   private Config rawConfig;
+  @Getter
+  private Config resolvedConfig;
   @Getter
   private boolean active = true;
 
   public BaseDataNode(Config nodeProps) throws DataNodeCreationException {
     try {
-      String nodeId = ConfigUtils.getString(nodeProps, FlowGraphConfigurationKeys.DATA_NODE_ID_KEY, "");
+      this.rawConfig = nodeProps;
+      this.resolvedConfig = nodeProps.resolve();
+      String nodeId = ConfigUtils.getString(this.resolvedConfig, FlowGraphConfigurationKeys.DATA_NODE_ID_KEY, "");
       Preconditions.checkArgument(!Strings.isNullOrEmpty(nodeId), "Node Id cannot be null or empty");
       this.id = nodeId;
-      if (nodeProps.hasPath(FlowGraphConfigurationKeys.DATA_NODE_IS_ACTIVE_KEY)) {
-        this.active = nodeProps.getBoolean(FlowGraphConfigurationKeys.DATA_NODE_IS_ACTIVE_KEY);
+      if (this.resolvedConfig.hasPath(FlowGraphConfigurationKeys.DATA_NODE_IS_ACTIVE_KEY)) {
+        this.active = this.resolvedConfig.getBoolean(FlowGraphConfigurationKeys.DATA_NODE_IS_ACTIVE_KEY);
       }
-      this.rawConfig = nodeProps;
     } catch (Exception e) {
       throw new DataNodeCreationException(e);
     }

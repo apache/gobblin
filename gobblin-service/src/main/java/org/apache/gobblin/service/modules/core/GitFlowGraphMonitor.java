@@ -184,13 +184,10 @@ public class GitFlowGraphMonitor extends GitMonitoringService {
     if (checkFilePath(change.getNewPath(), NODE_FILE_DEPTH)) {
       Path nodeFilePath = new Path(this.repositoryDir, change.getNewPath());
       try {
-        // Temporarily resolve the data node config when constructing it, but leave it unresolved after to allow overriding
-        Config unresolvedConfig = loadNodeFileWithOverrides(nodeFilePath);
-        Config resolvedConfig = unresolvedConfig.resolve();
-        Class dataNodeClass = Class.forName(ConfigUtils.getString(unresolvedConfig, FlowGraphConfigurationKeys.DATA_NODE_CLASS,
+        Config config = loadNodeFileWithOverrides(nodeFilePath);
+        Class dataNodeClass = Class.forName(ConfigUtils.getString(config, FlowGraphConfigurationKeys.DATA_NODE_CLASS,
             FlowGraphConfigurationKeys.DEFAULT_DATA_NODE_CLASS));
-        DataNode dataNode = (DataNode) GobblinConstructorUtils.invokeLongestConstructor(dataNodeClass, resolvedConfig);
-        dataNode.setRawConfig(unresolvedConfig);
+        DataNode dataNode = (DataNode) GobblinConstructorUtils.invokeLongestConstructor(dataNodeClass, config);
         if (!this.flowGraph.addDataNode(dataNode)) {
           log.warn("Could not add DataNode {} to FlowGraph; skipping", dataNode.getId());
         } else {
