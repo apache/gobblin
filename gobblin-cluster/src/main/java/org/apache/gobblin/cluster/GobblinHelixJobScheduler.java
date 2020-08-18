@@ -304,7 +304,8 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     String jobUri = newJobArrival.getJobName();
     LOGGER.info("Received new job configuration of job " + jobUri);
     try {
-      Properties jobProps = new Properties(this.commonJobProperties);
+      Properties jobProps = new Properties();
+      jobProps.putAll(this.commonJobProperties);
       jobProps.putAll(newJobArrival.getJobConfig());
 
       // set uri so that we can delete this job later
