@@ -34,7 +34,7 @@ import org.apache.gobblin.util.ConfigUtils;
  */
 @Alpha
 @Slf4j
-@EqualsAndHashCode (exclude = {"rawConfig", "active"})
+@EqualsAndHashCode (exclude = {"rawConfig", "resolvedConfig", "active"})
 public class BaseDataNode implements DataNode {
   @Getter
   private String id;
