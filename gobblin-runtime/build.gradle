@@ -102,13 +102,11 @@ dependencies {
 def installer = install.repositories.mavenInstaller
 [installer]*.pom*.whenConfigured {pom ->
     pom.dependencies.find {dep -> dep.groupId == project.group && dep.artifactId == 'gobblin-rest-api' }.artifactId = 'gobblin-rest-api-rest-client'
-    pom.dependencies.find {dep -> dep.groupId == project.group && dep.artifactId == 'gobblin-rest-api' }.artifactId = 'gobblin-rest-api-data-template'
 }
 if (rootProject.publishToMaven || rootProject.publishToNexus) {
     def deployer = uploadArchives.repositories.mavenDeployer
     [deployer]*.pom*.whenConfigured {pom ->
         pom.dependencies.find {dep -> dep.groupId == project.group && dep.artifactId == 'gobblin-rest-api' }.artifactId = 'gobblin-rest-api-rest-client'
-        pom.dependencies.find {dep -> dep.groupId == project.group && dep.artifactId == 'gobblin-rest-api' }.artifactId = 'gobblin-rest-api-data-template'
     }
 }
 // End HACK
