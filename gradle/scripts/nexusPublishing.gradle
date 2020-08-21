@@ -64,6 +64,27 @@ gradle.taskGraph.afterTask {
     }
 }
 
+ext.pomAttributes = {
+    packaging 'jar'
+    // optionally artifactId can be defined here
+    name 'Apache Gobblin (incubating)'
+    description 'A distributed data integration framework for streaming and batch data ecosystems.'
+    url 'https://gobblin.apache.org/'
+
+    scm {
+        url 'https://git-wip-us.apache.org/repos/asf?p=incubator-gobblin.git;a=tree'
+        connection 'scm:http://git-wip-us.apache.org/repos/asf/incubator-gobblin.git'
+        developerConnection 'scm:https://git-wip-us.apache.org/repos/asf/incubator-gobblin.git'
+    }
+
+    licenses {
+        license {
+            name 'The Apache License, Version 2.0'
+            url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+        }
+    }
+}
+
 subprojects {
     plugins.withType(JavaPlugin) {
         plugins.apply('maven')
