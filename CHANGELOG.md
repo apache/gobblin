@@ -389,6 +389,7 @@ GOBBLIN 0.15.0
 * [State Store] [GOBBLIN-1151] use gson in place of jackson for serialize/deserialize
 * [Config Store] [GOBBLIN-761] Only instantiate topic-specific configStore object when topic.name is available
 * [Embedded] [GOBBLIN-685] Add dump jstack for EmbeddedGobblin
+* [Apache] [GOBBLIN-1246] Modify build scripts to fix failures in Nexus artifact publishing
 * [Apache] [GOBBLIN-1244] Add new file patterns to rat exclusion list
 * [Apache] [GOBBLIN-1215] adding travis retry
 * [Apache] [GOBBLIN-1159] Added code to publish gobblin artifacts to bintray
