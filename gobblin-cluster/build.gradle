@@ -71,6 +71,7 @@ configurations {
 
 artifacts {
   tests testJar
+  archives testJar
 }
 
 configurations {
@@ -100,6 +101,33 @@ addPublicationToBintray("testsPub")
 test {
   workingDir rootProject.rootDir
   maxParallelForks = 1
+}
+
+install {
+  repositories {
+    mavenInstaller {
+      addFilter(testJar.baseName) { artifact, file ->
+        artifact.name == testJar.baseName
+      }.project(rootProject.pomAttributes).artifactId = testJar.baseName
+      addFilter('') { artifact, file ->
+        artifact.name == jar.baseName
+      }
+    }
+  }
+}
+if (rootProject.ext.publishToMaven || rootProject.ext.publishToNexus) {
+  uploadArchives {
+    repositories {
+      mavenDeployer {
+        addFilter(testJar.baseName) { artifact, file ->
+          artifact.name == testJar.baseName
+        }.project(rootProject.pomAttributes).artifactId = testJar.baseName
+        addFilter('') { artifact, file ->
+          artifact.name == jar.baseName
+        }
+      }
+    }
+  }
 }
 
 ext.classification="library"
