@@ -18,15 +18,23 @@
 apply plugin: 'java'
 
 dependencies {
-  compile project(':gobblin-core')
+  // Need to exclude storage-api (ColumnVector e.g.) brought in from Hive 1.0.1
+  // but to use HiveStorageAPI 2.x specified below.
+  compile (project(':gobblin-core')) {
+    exclude group: 'org.apache.hive', module: 'hive-exec'
+  }
 
+  // Cannot use compileOnly as it cannot cover testCompile
   compile externalDependency.avro
-  compileOnly externalDependency.hiveStorageApi
-  compileOnly externalDependency.orcCore
+  compile externalDependency.hiveStorageApi
+  compile externalDependency.orcCore
+
+  testCompile externalDependency.testng
+  testCompile externalDependency.mockito
+  testCompile externalDependency.hiveSerDe
 }
 
 configurations {
-  compile { transitive = false }
   // Remove xerces dependencies because of versioning issues. Standard JRE implementation should
   // work. See also http://stackoverflow.com/questions/11677572/dealing-with-xerces-hell-in-java-maven
   // HADOOP-5254 and MAPREDUCE-5664

@@ -1,0 +1,15 @@
+{
+  "namespace": "com.linkedin.orc",
+  "type": "record",
+  "name": "ORCTest",
+  "fields": [
+    {
+      "name": "id",
+      "type": "int"
+    },
+    {
+      "name": "name",
+      "type": "string"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "namespace": "com.linkedin.orc",
+  "type": "record",
+  "name": "ORCTest",
+  "fields": [
+    {
+      "name": "things",
+      "type": {
+        "type": "array",
+        "items": "string"
+      }
+    },
+    {
+      "name": "name",
+      "type": "string"
+    }
+  ]
+}
