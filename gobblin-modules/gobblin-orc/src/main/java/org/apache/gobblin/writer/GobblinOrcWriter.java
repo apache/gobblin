@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+package org.apache.gobblin.writer;
+
 import java.io.IOException;
 import java.util.Properties;
 
@@ -45,8 +47,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.state.ConstructState;
-import org.apache.gobblin.writer.FsDataWriter;
-import org.apache.gobblin.writer.FsDataWriterBuilder;
 
 
 /**

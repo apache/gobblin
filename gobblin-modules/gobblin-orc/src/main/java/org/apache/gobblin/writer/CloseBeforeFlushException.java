@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+package org.apache.gobblin.writer;
+
 public class CloseBeforeFlushException extends RuntimeException {
   String datasetName;
 

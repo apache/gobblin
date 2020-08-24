@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+package org.apache.gobblin.writer;
+
 import java.io.IOException;
 
 import org.apache.hadoop.hive.ql.exec.vector.VectorizedRowBatch;

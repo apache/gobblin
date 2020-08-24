@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+package org.apache.gobblin.writer;
+
 import java.io.IOException;
 
 import org.apache.avro.Schema;
@@ -22,9 +24,6 @@ import org.apache.avro.generic.GenericRecord;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-
-import org.apache.gobblin.writer.DataWriter;
-import org.apache.gobblin.writer.FsDataWriterBuilder;
 
 
 public class GobblinOrcWriterBuilder extends FsDataWriterBuilder<Schema, GenericRecord> {
