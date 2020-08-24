@@ -29,6 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.JobStatus;
 
 
 /**
@@ -115,9 +116,11 @@ public class MRTask extends BaseAbstractTask {
         this.onMRTaskComplete(true, null);
       } else {
         this.eventSubmitter.submit(Events.MR_JOB_FAILED, Events.JOB_URL, job.getTrackingURL());
+        JobStatus jobStatus = job.getStatus();
         this.onMRTaskComplete (false,
             new IOException(String.format("MR Job:%s is not successful, failure info: %s",
-                job.getTrackingURL(), job.getStatus().getFailureInfo())));
+                job.getTrackingURL(), jobStatus == null ? "Job status not available to inspect for this failing instance."
+                    : job.getStatus().getFailureInfo())));
       }
     } catch (Throwable t) {
       log.error("Failed to run MR job.", t);
