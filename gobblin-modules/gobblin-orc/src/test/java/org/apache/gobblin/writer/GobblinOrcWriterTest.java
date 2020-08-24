@@ -133,7 +133,7 @@ public class GobblinOrcWriterTest {
     List<Writable> orcRecords = deserializeOrcRecords(outputFilePath, fs);
     Assert.assertEquals(orcRecords.size(), 2);
 
-    // Double-close without protection of com.linkedin.gobblinkafka.writer.GobblinOrcWriter.closed
+    // Double-close without protection of org.apache.gobblinGobblinOrcWriter#closed
     // leads to NPE within org.apache.orc.impl.PhysicalFsWriter.writeFileMetadata. Try removing protection condition
     // in close method implementation if want to verify.
     try {
