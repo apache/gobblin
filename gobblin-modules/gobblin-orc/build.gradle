@@ -32,6 +32,7 @@ dependencies {
   testCompile externalDependency.testng
   testCompile externalDependency.mockito
   testCompile externalDependency.hiveSerDe
+  testCompile externalDependency.orcMapreduce
 }
 
 configurations {

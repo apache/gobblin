@@ -19,6 +19,7 @@ package org.apache.gobblin.writer;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -115,65 +116,65 @@ public class GenericRecordToOrcValueWriter implements OrcValueWriter<GenericReco
     }
   }
 
-  class BooleanConverter implements Converter {
+  static class BooleanConverter implements Converter {
     public void addValue(int rowId, int column, Object data, ColumnVector output) {
       ((LongColumnVector) output).vector[rowId] = (boolean) data ? 1 : 0;
     }
   }
 
-  class ByteConverter implements Converter {
+  static class ByteConverter implements Converter {
     public void addValue(int rowId, int column, Object data, ColumnVector output) {
       ((LongColumnVector) output).vector[rowId] = (byte) data;
     }
   }
 
-  class ShortConverter implements Converter {
+  static class ShortConverter implements Converter {
     public void addValue(int rowId, int column, Object data, ColumnVector output) {
       ((LongColumnVector) output).vector[rowId] = (short) data;
     }
   }
 
-  class IntConverter implements Converter {
+  static class IntConverter implements Converter {
     public void addValue(int rowId, int column, Object data, ColumnVector output) {
       ((LongColumnVector) output).vector[rowId] = (int) data;
     }
   }
 
-  class LongConverter implements Converter {
+  static class LongConverter implements Converter {
     public void addValue(int rowId, int column, Object data, ColumnVector output) {
       ((LongColumnVector) output).vector[rowId] = (long) data;
     }
   }
 
-  class FloatConverter implements Converter {
+  static class FloatConverter implements Converter {
     public void addValue(int rowId, int column, Object data, ColumnVector output) {
       ((DoubleColumnVector) output).vector[rowId] = (float) data;
     }
   }
 
-  class DoubleConverter implements Converter {
+  static class DoubleConverter implements Converter {
     public void addValue(int rowId, int column, Object data, ColumnVector output) {
       ((DoubleColumnVector) output).vector[rowId] = (double) data;
     }
   }
 
-  class StringConverter implements Converter {
+  static class StringConverter implements Converter {
     public void addValue(int rowId, int column, Object data, ColumnVector output) {
       final byte[] value;
       if (data instanceof GenericEnumSymbol) {
-        value = data.toString().getBytes();
+        value = data.toString().getBytes(StandardCharsets.UTF_8);
       } else if (data instanceof Enum) {
-        value = ((Enum) data).name().getBytes();
+        value = ((Enum) data).name().getBytes(StandardCharsets.UTF_8);
       } else if (data instanceof Utf8) {
         value = ((Utf8) data).getBytes();
       } else {
-        value = ((String) data).getBytes();
+        value = ((String) data).getBytes(StandardCharsets.UTF_8);
       }
       ((BytesColumnVector) output).setRef(rowId, value, 0, value.length);
     }
   }
 
-  class BytesConverter implements Converter {
+  static class BytesConverter implements Converter {
     public void addValue(int rowId, int column, Object data, ColumnVector output) {
       final byte[] value;
       if (data instanceof GenericFixed) {
@@ -187,7 +188,7 @@ public class GenericRecordToOrcValueWriter implements OrcValueWriter<GenericReco
     }
   }
 
-  class DecimalConverter implements Converter {
+  static class DecimalConverter implements Converter {
 
     public void addValue(int rowId, int column, Object data, ColumnVector output) {
       ((DecimalColumnVector) output).vector[rowId].set(HiveDecimal.create((BigDecimal) data));
@@ -224,7 +225,7 @@ public class GenericRecordToOrcValueWriter implements OrcValueWriter<GenericReco
     private final Converter[] children;
     private final Schema unionSchema;
 
-    public UnionConverter(TypeDescription schema, Schema avroSchema) {
+    UnionConverter(TypeDescription schema, Schema avroSchema) {
       children = new Converter[schema.getChildren().size()];
       for (int c = 0; c < children.length; ++c) {
         children[c] = buildConverter(schema.getChildren().get(c), avroSchema.getTypes().get(c));
