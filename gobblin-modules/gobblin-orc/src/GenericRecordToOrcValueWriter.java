@@ -48,10 +48,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.State;
 
-import static AvroOrcSchemaConverter.sanitizeNullableSchema;
-import static GobblinOrcWriter.ORC_WRITER_PREFIX;
-
-
 /**
  * A direct copy of the class with the same name in Dali2 project, other than added
  * UnionConverter implementation to support raw-ingestion for union usecase.
@@ -61,9 +57,9 @@ import static GobblinOrcWriter.ORC_WRITER_PREFIX;
  */
 @Slf4j
 public class GenericRecordToOrcValueWriter implements OrcValueWriter<GenericRecord> {
-  private static final String ENABLE_SMART_ARRAY_ENLARGE = ORC_WRITER_PREFIX + "enabledMulValueColumnVectorSmartSizing";
+  private static final String ENABLE_SMART_ARRAY_ENLARGE = GobblinOrcWriter.ORC_WRITER_PREFIX + "enabledMulValueColumnVectorSmartSizing";
   private static final boolean DEFAULT_ENABLE_SMART_ARRAY_ENLARGE = false;
-  private static final String ENLARGE_FACTOR_KEY = ORC_WRITER_PREFIX + "enlargeFactor";
+  private static final String ENLARGE_FACTOR_KEY = GobblinOrcWriter.ORC_WRITER_PREFIX + "enlargeFactor";
   private static final int DEFAULT_ENLARGE_FACTOR = 3;
 
   private boolean enabledSmartSizing;
@@ -388,13 +384,13 @@ public class GenericRecordToOrcValueWriter implements OrcValueWriter<GenericReco
       case DECIMAL:
         return new DecimalConverter();
       case STRUCT:
-        return new StructConverter(schema, sanitizeNullableSchema(avroSchema));
+        return new StructConverter(schema, AvroOrcSchemaConverter.sanitizeNullableSchema(avroSchema));
       case LIST:
-        return new ListConverter(schema, sanitizeNullableSchema(avroSchema));
+        return new ListConverter(schema, AvroOrcSchemaConverter.sanitizeNullableSchema(avroSchema));
       case MAP:
-        return new MapConverter(schema, sanitizeNullableSchema(avroSchema));
+        return new MapConverter(schema, AvroOrcSchemaConverter.sanitizeNullableSchema(avroSchema));
       case UNION:
-        return new UnionConverter(schema, sanitizeNullableSchema(avroSchema));
+        return new UnionConverter(schema, AvroOrcSchemaConverter.sanitizeNullableSchema(avroSchema));
       default:
         throw new IllegalArgumentException("Unhandled type " + schema);
     }

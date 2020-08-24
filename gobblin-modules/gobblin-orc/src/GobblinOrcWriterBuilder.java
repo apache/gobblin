@@ -23,6 +23,9 @@ import org.apache.avro.generic.GenericRecord;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
+import org.apache.gobblin.writer.DataWriter;
+import org.apache.gobblin.writer.FsDataWriterBuilder;
+
 
 public class GobblinOrcWriterBuilder extends FsDataWriterBuilder<Schema, GenericRecord> {
   public GobblinOrcWriterBuilder() {
@@ -36,7 +39,7 @@ public class GobblinOrcWriterBuilder extends FsDataWriterBuilder<Schema, Generic
     Preconditions.checkNotNull(this.schema);
 
     switch (this.destination.getType()) {
-      case DestinationType.HDFS:
+      case HDFS:
         return new GobblinOrcWriter(this, this.destination.getProperties());
       default:
         throw new RuntimeException("Unknown destination type: " + this.destination.getType());

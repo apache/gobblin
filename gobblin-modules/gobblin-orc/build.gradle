@@ -18,6 +18,8 @@
 apply plugin: 'java'
 
 dependencies {
+  compile project(':gobblin-core')
+
   compile externalDependency.avro
 
   compileOnly externalDependency.hiveStorageApi

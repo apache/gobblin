@@ -30,19 +30,19 @@ public class AvroOrcSchemaConverter {
 
     final Schema.Type type = avroSchema.getType();
     switch (type) {
-      case Type.NULL:
+      case NULL:
         // empty union represents null type
         final TypeDescription nullUnion = TypeDescription.createUnion();
         return nullUnion;
-      case Type.LONG:
+      case LONG:
         return TypeDescription.createLong();
-      case Type.INT:
+      case INT:
         return TypeDescription.createInt();
-      case Type.BYTES:
+      case BYTES:
         return TypeDescription.createBinary();
-      case Type.ARRAY:
+      case ARRAY:
         return TypeDescription.createList(getOrcSchema(avroSchema.getElementType()));
-      case Type.RECORD:
+      case RECORD:
         final TypeDescription recordStruct = TypeDescription.createStruct();
         for (Schema.Field field2 : avroSchema.getFields()) {
           final Schema fieldSchema = field2.schema();
@@ -54,11 +54,11 @@ public class AvroOrcSchemaConverter {
           }
         }
         return recordStruct;
-      case Type.MAP:
+      case MAP:
         return TypeDescription.createMap(
             // in Avro maps, keys are always strings
             TypeDescription.createString(), getOrcSchema(avroSchema.getValueType()));
-      case Type.UNION:
+      case UNION:
         final List<Schema> nonNullMembers = getNonNullMembersOfUnion(avroSchema);
         if (isNullableUnion(avroSchema, nonNullMembers)) {
           // a single non-null union member
@@ -73,18 +73,18 @@ public class AvroOrcSchemaConverter {
           }
           return union;
         }
-      case Type.STRING:
+      case STRING:
         return TypeDescription.createString();
-      case Type.FLOAT:
+      case FLOAT:
         return TypeDescription.createFloat();
-      case Type.DOUBLE:
+      case DOUBLE:
         return TypeDescription.createDouble();
-      case Type.BOOLEAN:
+      case BOOLEAN:
         return TypeDescription.createBoolean();
-      case Type.ENUM:
+      case ENUM:
         // represent as String for now
         return TypeDescription.createString();
-      case Type.FIXED:
+      case FIXED:
         return TypeDescription.createBinary();
       default:
         throw new IllegalStateException(String.format("Unrecognized Avro type: %s", type.getName()));
