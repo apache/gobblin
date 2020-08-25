@@ -200,7 +200,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
    * table schema to the writer's schema, else we will keep the table schema the same as schema of
    * existing table.
    * Note: If there is no schema specified in the table spec, we will directly update the schema to
-   * the latest schema fetched from schema registry
+   * the existing table schema
    * Note: We treat the creation time as version number of schema, since according to Kafka team,
    * schema registry allows "out of order registration" of schemas, this means chronological latest is
    * NOT what the registry considers latest.
@@ -213,26 +213,36 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
 
     if (this.schemaRegistry.isPresent()) {
       try (Timer.Context context = this.metricContext.timer(GET_AND_SET_LATEST_SCHEMA).time()) {
-        Schema latestSchema = (Schema) this.schemaRegistry.get().getLatestSchemaByTopic(topicName);
-        String latestSchemaCreationTime = AvroUtils.getSchemaCreationTime(latestSchema);
-        // If no schema set for the table spec, we fall back to schema fetched from schema registry
+        Schema existingTableSchema = new Schema.Parser().parse(existingTable.getSerDeProps().getProp(
+            AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName()));
+        String existingSchemaCreationTime = AvroUtils.getSchemaCreationTime(existingTableSchema);
+        // If no schema set for the table spec, we fall back to existing schema
         Schema writerSchema = new Schema.Parser().parse((
-            spec.getTable().getSerDeProps().getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), latestSchema.toString())));
+            spec.getTable().getSerDeProps().getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), existingTableSchema.toString())));
         String writerSchemaCreationTime = AvroUtils.getSchemaCreationTime(writerSchema);
-        if(writerSchemaCreationTime == null || latestSchemaCreationTime == null || latestSchemaCreationTime.equals(writerSchemaCreationTime)) {
+        if(existingSchemaCreationTime == null || existingSchemaCreationTime.equals(writerSchemaCreationTime)) {
           spec.getTable()
               .getSerDeProps()
               .setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), writerSchema);
         } else {
-          // If creation time of writer schema does not equal to the latest schema, we don't update the schema
-          spec.getTable()
-              .getSerDeProps()
-              .setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(),
-                  existingTable.getSerDeProps().getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName()));
+          // If creation time of writer schema does not equal to the existing schema, we compare with schema fetched from
+          // schema registry to determine whether to update the schema
+          Schema latestSchema = (Schema) this.schemaRegistry.get().getLatestSchemaByTopic(topicName);
+          String latestSchemaCreationTime = AvroUtils.getSchemaCreationTime(latestSchema);
+          if (latestSchemaCreationTime == null || latestSchemaCreationTime.equals(writerSchemaCreationTime)) {
+            // If latest schema creation time equals writer schema creation time, we do update
+            spec.getTable()
+                .getSerDeProps()
+                .setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), writerSchema);
+          } else {
+            spec.getTable()
+                .getSerDeProps()
+                .setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), existingTableSchema);
+          }
         }
         table.getSd().setSerdeInfo(HiveMetaStoreUtils.getSerDeInfo(spec.getTable()));
       } catch ( IOException e) {
-        log.error(String.format("Error when updating latest schema for topic %s", topicName), e);
+        log.error(String.format("Error when updating latest schema for topic %s", topicName));
         throw new IOException(e);
       }
     }
