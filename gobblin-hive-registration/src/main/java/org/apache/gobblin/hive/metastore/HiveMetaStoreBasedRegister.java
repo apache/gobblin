@@ -29,12 +29,13 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.avro.Schema;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.apache.gobblin.hive.AutoCloseableHiveLock;
-import org.apache.gobblin.kafka.schemareg.KafkaSchemaRegistry;
-import org.apache.gobblin.kafka.schemareg.KafkaSchemaRegistryFactory;
-import org.apache.gobblin.kafka.schemareg.SchemaRegistryException;
+import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistry;
+import org.apache.gobblin.metrics.kafka.SchemaRegistryException;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaSource;
+import org.apache.gobblin.util.AvroUtils;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
@@ -153,12 +154,12 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
     super(state);
     this.locks = new HiveLock(state.getProperties());
 
-    this.optimizedChecks = state.getPropAsBoolean(this.OPTIMIZED_CHECK_ENABLED, true);
-    this.skipDiffComputation = state.getPropAsBoolean(this.SKIP_PARTITION_DIFF_COMPUTATION, false);
-    this.shouldUpdateLatestSchema = state.getPropAsBoolean(this.FETCH_LATEST_SCHEMA, false);
-    this.registerPartitionWithPullMode = state.getPropAsBoolean(this.REGISTER_PARTITION_WITH_PULL_MODE, false);
-    if(state.getPropAsBoolean(this.FETCH_LATEST_SCHEMA, false)) {
-      this.schemaRegistry = Optional.of(KafkaSchemaRegistryFactory.getSchemaRegistry(state.getProperties()));
+    this.optimizedChecks = state.getPropAsBoolean(OPTIMIZED_CHECK_ENABLED, true);
+    this.skipDiffComputation = state.getPropAsBoolean(SKIP_PARTITION_DIFF_COMPUTATION, false);
+    this.shouldUpdateLatestSchema = state.getPropAsBoolean(FETCH_LATEST_SCHEMA, false);
+    this.registerPartitionWithPullMode = state.getPropAsBoolean(REGISTER_PARTITION_WITH_PULL_MODE, false);
+    if(this.shouldUpdateLatestSchema) {
+      this.schemaRegistry = Optional.of(KafkaSchemaRegistry.get(state.getProperties()));
       topicName = state.getProp(KafkaSource.TOPIC_NAME);
     }
 
@@ -192,15 +193,29 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
       throw new IOException(e);
     }
   }
-  //TODO: We need to find a better to get the latest schema
-  private void updateSchema(HiveSpec spec, Table table) throws IOException{
+  private void updateSchema(HiveSpec spec, Table table, HiveTable existingTable) throws IOException{
 
     if (this.schemaRegistry.isPresent()) {
       try (Timer.Context context = this.metricContext.timer(GET_AND_SET_LATEST_SCHEMA).time()) {
-        String latestSchema = this.schemaRegistry.get().getLatestSchema(topicName).toString();
-        spec.getTable().getSerDeProps().setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), latestSchema);
+        Schema latestSchema = (Schema) this.schemaRegistry.get().getLatestSchemaByTopic(topicName);
+        String latestSchemaCreationTime = AvroUtils.getSchemaCreationTime(latestSchema);
+        // If no schema set for the table spec, we fall back to schema fetched from schema registry
+        Schema writerSchema = new Schema.Parser().parse((
+            spec.getTable().getSerDeProps().getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), latestSchema.toString())));
+        String writerSchemaCreationTime = AvroUtils.getSchemaCreationTime(writerSchema);
+        if(writerSchemaCreationTime == null || latestSchemaCreationTime == null || latestSchemaCreationTime.equals(writerSchemaCreationTime)) {
+          spec.getTable()
+              .getSerDeProps()
+              .setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), writerSchema);
+        } else {
+          // If creation time of writer schema does not equal to the latest schema, we don't update the schema
+          spec.getTable()
+              .getSerDeProps()
+              .setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(),
+                  existingTable.getSerDeProps().getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName()));
+        }
         table.getSd().setSerdeInfo(HiveMetaStoreUtils.getSerDeInfo(spec.getTable()));
-      } catch (SchemaRegistryException | IOException e) {
+      } catch ( IOException e) {
         log.error(String.format("Error when fetch latest schema for topic %s", topicName), e);
         throw new IOException(e);
       }
@@ -236,7 +251,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
           existingTable = HiveMetaStoreUtils.getHiveTable(client.getTable(dbName, tableName));
         }
         if(shouldUpdateLatestSchema) {
-          updateSchema(spec, table);
+          updateSchema(spec, table, existingTable);
         }
         if (needToUpdateTable(existingTable, HiveMetaStoreUtils.getHiveTable(table))) {
           try (Timer.Context context = this.metricContext.timer(ALTER_TABLE).time()) {
