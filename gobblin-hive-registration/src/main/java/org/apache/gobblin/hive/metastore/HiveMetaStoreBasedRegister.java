@@ -33,7 +33,6 @@ import org.apache.avro.Schema;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.apache.gobblin.hive.AutoCloseableHiveLock;
 import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistry;
-import org.apache.gobblin.metrics.kafka.SchemaRegistryException;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaSource;
 import org.apache.gobblin.util.AvroUtils;
 import org.apache.hadoop.fs.Path;
@@ -193,6 +192,23 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
       throw new IOException(e);
     }
   }
+
+  /**
+   * This method is used to update the table schema to the latest schema
+   * It will fetch creation time of the latest schema from schema registry and compare that
+   * with the creation time of writer's schema. If they are the same, then we will update the
+   * table schema to the writer's schema, else we will keep the table schema the same as schema of
+   * existing table.
+   * Note: If there is no schema specified in the table spec, we will directly update the schema to
+   * the latest schema fetched from schema registry
+   * Note: We treat the creation time as version number of schema, since according to Kafka team,
+   * schema registry allows "out of order registration" of schemas, this means chronological latest is
+   * NOT what the registry considers latest.
+   * @param spec
+   * @param table
+   * @param existingTable
+   * @throws IOException
+   */
   private void updateSchema(HiveSpec spec, Table table, HiveTable existingTable) throws IOException{
 
     if (this.schemaRegistry.isPresent()) {
@@ -216,7 +232,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
         }
         table.getSd().setSerdeInfo(HiveMetaStoreUtils.getSerDeInfo(spec.getTable()));
       } catch ( IOException e) {
-        log.error(String.format("Error when update latest schema for topic %s", topicName), e);
+        log.error(String.format("Error when updating latest schema for topic %s", topicName), e);
         throw new IOException(e);
       }
     }
