@@ -216,7 +216,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
         }
         table.getSd().setSerdeInfo(HiveMetaStoreUtils.getSerDeInfo(spec.getTable()));
       } catch ( IOException e) {
-        log.error(String.format("Error when fetch latest schema for topic %s", topicName), e);
+        log.error(String.format("Error when update latest schema for topic %s", topicName), e);
         throw new IOException(e);
       }
     }
