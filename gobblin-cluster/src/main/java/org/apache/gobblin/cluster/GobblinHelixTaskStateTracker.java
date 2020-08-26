@@ -25,9 +25,9 @@ import java.util.concurrent.ScheduledFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Throwables;
 import com.google.common.collect.Maps;
 
-import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.runtime.AbstractTaskStateTracker;
 import org.apache.gobblin.runtime.Task;
@@ -42,7 +42,6 @@ import org.apache.gobblin.runtime.Task;
  *
  * @author Yinan Li
  */
-@Alpha
 public class GobblinHelixTaskStateTracker extends AbstractTaskStateTracker {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinHelixTaskStateTracker.class);
@@ -59,7 +58,11 @@ public class GobblinHelixTaskStateTracker extends AbstractTaskStateTracker {
     try {
       this.scheduledReporters.put(task.getTaskId(), scheduleTaskMetricsUpdater(new TaskMetricsUpdater(task), task));
     } catch (RejectedExecutionException ree) {
+      // Propagate the exception to caller that has full control of the life-cycle of a helix task.
       LOGGER.error(String.format("Scheduling of task state reporter for task %s was rejected", task.getTaskId()));
+      Throwables.propagate(ree);
+    } catch (Throwable t) {
+      throw new RuntimeException("Failure occurred for scheduling task state reporter, ", t);
     }
   }
 
