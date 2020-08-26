@@ -19,15 +19,19 @@ package org.apache.gobblin.runtime;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Properties;
 
 import org.junit.Assert;
 import org.mockito.Mockito;
+import org.slf4j.Logger;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
 import org.apache.gobblin.broker.SharedResourcesBrokerImpl;
@@ -39,8 +43,22 @@ import org.apache.gobblin.source.workunit.WorkUnit;
 import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_TIME_OUT_MS;
 
 
+@Slf4j
 public class GobblinMultiTaskAttemptTest {
   private GobblinMultiTaskAttempt taskAttempt;
+  private TaskExecutor taskExecutorMock;
+  private SharedResourcesBrokerImpl<GobblinScopeTypes> jobBroker;
+
+  public void setup() {
+    // Initializing jobBroker
+    Config config = ConfigFactory.empty();
+    SharedResourcesBrokerImpl<GobblinScopeTypes> topBroker = SharedResourcesBrokerFactory
+        .createDefaultTopLevelBroker(config, GobblinScopeTypes.GLOBAL.defaultScopeInstance());
+    this.jobBroker = topBroker.newSubscopedBuilder(new JobScopeInstance("testJob", "job123")).build();
+
+    // Mocking task executor
+    this.taskExecutorMock = Mockito.mock(TaskExecutor.class);
+  }
 
   @Test
   public void testRunWithTaskCreationFailure()
@@ -54,12 +72,7 @@ public class GobblinMultiTaskAttemptTest {
     // Limit the number of times of retry in task-creation.
     jobState.setProp(RETRY_TIME_OUT_MS, 1000);
     TaskStateTracker stateTrackerMock = Mockito.mock(TaskStateTracker.class);
-    TaskExecutor taskExecutorMock = Mockito.mock(TaskExecutor.class);
-    Config config = ConfigFactory.empty();
-    SharedResourcesBrokerImpl<GobblinScopeTypes> topBroker = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(config,
-        GobblinScopeTypes.GLOBAL.defaultScopeInstance());
-    SharedResourcesBrokerImpl<GobblinScopeTypes> jobBroker =
-        topBroker.newSubscopedBuilder(new JobScopeInstance("testJob", "job123")).build();
+
     taskAttempt =
         new GobblinMultiTaskAttempt(workUnit.iterator(), "testJob", jobState, stateTrackerMock, taskExecutorMock,
             Optional.absent(), Optional.absent(), jobBroker);
@@ -75,5 +88,55 @@ public class GobblinMultiTaskAttemptTest {
 
     // Should never reach here.
     Assert.fail();
+  }
+
+  @Test
+  public void testRunWithTaskStatsTrackerNotScheduledFailure()
+      throws Exception {
+    TaskStateTracker stateTracker = new FailingTestStateTracker(new Properties(), log);
+    // Preparing Instance of TaskAttempt with designed failure on task creation
+    WorkUnit tmpWU = new WorkUnit();
+    // Put necessary attributes in workunit
+    tmpWU.setProp(ConfigurationKeys.TASK_ID_KEY, "task_test");
+    List<WorkUnit> workUnit = ImmutableList.of(tmpWU);
+    JobState jobState = new JobState();
+    // Limit the number of times of retry in task-creation.
+    jobState.setProp(RETRY_TIME_OUT_MS, 1000);
+
+    taskAttempt = new GobblinMultiTaskAttempt(workUnit.iterator(), "testJob", jobState, stateTracker, taskExecutorMock,
+        Optional.absent(), Optional.absent(), jobBroker);
+
+    try {
+      // This attempt will automatically fail since the registerNewTask call will directly throw RuntimeException
+      // as a way to simulate the case when scheduling reporter is rejected.
+      taskAttempt.run();
+    } catch (Exception e) {
+      Assert.assertTrue(e instanceof RuntimeException);
+      return;
+    }
+
+    // Should never reach here.
+    Assert.fail();
+  }
+
+  public static class FailingTestStateTracker extends AbstractTaskStateTracker {
+    public FailingTestStateTracker(Properties properties, Logger logger) {
+      super(properties, logger);
+    }
+
+    @Override
+    public void registerNewTask(Task task) {
+      throw new RuntimeException("Failing registering new task on purpose");
+    }
+
+    @Override
+    public void onTaskRunCompletion(Task task) {
+
+    }
+
+    @Override
+    public void onTaskCommitCompletion(Task task) {
+
+    }
   }
 }

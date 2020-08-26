@@ -157,9 +157,11 @@ public class GobblinMultiTaskAttempt {
     Pair<List<Task>, Boolean> executionResult = runWorkUnits(countDownLatch);
     this.tasks = executionResult.getFirst();
 
-    // Indicating task creation failure, propagating exception as it should be noticeable to job launcher
+    // Indicating task submission failure, propagating exception as it should be noticeable to job launcher.
+    // Submission failure could be task-creation failure, or state-tracker failed to be scheduled so that the actual
+    // task isn't submitted into the executor.
     if (!executionResult.getSecond()) {
-      throw new TaskCreationException("Failing in creating task before execution.");
+      throw new TaskCreationException("Failing in submitting at least one task before execution.");
     }
 
     log.info("Waiting for submitted tasks of job {} to complete in container {}...", jobId, containerIdOptional.or(""));
@@ -385,7 +387,10 @@ public class GobblinMultiTaskAttempt {
   private Pair<List<Task>, Boolean> runWorkUnits(CountUpAndDownLatch countDownLatch) {
 
     List<Task> tasks = Lists.newArrayList();
-    boolean isTaskCreatedSuccessfully = true;
+
+    // A flag indicating if there are any tasks not submitted successfully.
+    // Caller of this method should handler un-submitted task accordingly.
+    boolean areAllTaskSubmitted = true;
     while (this.workUnits.hasNext()) {
       WorkUnit workUnit = this.workUnits.next();
       String taskId = workUnit.getProp(ConfigurationKeys.TASK_ID_KEY);
@@ -426,7 +431,7 @@ public class GobblinMultiTaskAttempt {
         if (task == null) {
           if (e instanceof RetryException) {
             // Indicating task being null due to failure in creation even after retrying.
-            isTaskCreatedSuccessfully = false;
+            areAllTaskSubmitted = false;
           }
           // task could not be created, so directly count down
           countDownLatch.countDown();
@@ -435,6 +440,7 @@ public class GobblinMultiTaskAttempt {
           // Task was created and may have been registered, but not submitted, so call the
           // task state tracker task run completion directly since the task cancel does nothing if not submitted
           this.taskStateTracker.onTaskRunCompletion(task);
+          areAllTaskSubmitted = false;
           log.error("Could not submit task for workunit {}", workUnit, e);
         } else {
           // task was created and submitted, but failed later, so cancel the task to decrement the CountDownLatch
@@ -449,7 +455,7 @@ public class GobblinMultiTaskAttempt {
     eventSubmitterBuilder.addMetadata(this.taskEventMetadataGenerator.getMetadata(jobState, JobEvent.TASKS_SUBMITTED));
     eventSubmitterBuilder.build().submit(JobEvent.TASKS_SUBMITTED, "tasksCount", Long.toString(countDownLatch.getRegisteredParties()));
 
-    return new Pair<>(tasks, isTaskCreatedSuccessfully);
+    return new Pair<>(tasks, areAllTaskSubmitted);
   }
 
   private void printMemoryUsage() {
