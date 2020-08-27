@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.hive.metastore;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -147,6 +148,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
   //for a partition is immutable
   private final boolean skipDiffComputation;
 
+  @VisibleForTesting
   protected Optional<KafkaSchemaRegistry> schemaRegistry = Optional.absent();
   private String topicName = "";
   public HiveMetaStoreBasedRegister(State state, Optional<String> metastoreURI) throws IOException {
@@ -208,6 +210,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
    * @param existingTable
    * @throws IOException
    */
+  @VisibleForTesting
   protected void updateSchema(HiveSpec spec, Table table, HiveTable existingTable) throws IOException{
 
     if (this.schemaRegistry.isPresent()) {
