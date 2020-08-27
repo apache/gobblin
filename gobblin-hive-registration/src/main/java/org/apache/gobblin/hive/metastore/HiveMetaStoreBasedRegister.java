@@ -220,27 +220,19 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
         Schema writerSchema = new Schema.Parser().parse((
             spec.getTable().getSerDeProps().getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), existingTableSchema.toString())));
         String writerSchemaCreationTime = AvroUtils.getSchemaCreationTime(writerSchema);
-        if(existingSchemaCreationTime == null || existingSchemaCreationTime.equals(writerSchemaCreationTime)) {
-          spec.getTable()
-              .getSerDeProps()
-              .setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), writerSchema);
-        } else {
+        if(existingSchemaCreationTime != null && !existingSchemaCreationTime.equals(writerSchemaCreationTime)) {
           // If creation time of writer schema does not equal to the existing schema, we compare with schema fetched from
           // schema registry to determine whether to update the schema
           Schema latestSchema = (Schema) this.schemaRegistry.get().getLatestSchemaByTopic(topicName);
           String latestSchemaCreationTime = AvroUtils.getSchemaCreationTime(latestSchema);
-          if (latestSchemaCreationTime == null || latestSchemaCreationTime.equals(writerSchemaCreationTime)) {
-            // If latest schema creation time equals writer schema creation time, we do update
-            spec.getTable()
-                .getSerDeProps()
-                .setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), writerSchema);
-          } else {
+          if (latestSchemaCreationTime != null && latestSchemaCreationTime.equals(existingSchemaCreationTime)) {
+            // If latest schema creation time equals to existing schema creation time, we keep the schema as existing table schema
             spec.getTable()
                 .getSerDeProps()
                 .setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), existingTableSchema);
+            table.getSd().setSerdeInfo(HiveMetaStoreUtils.getSerDeInfo(spec.getTable()));
           }
         }
-        table.getSd().setSerdeInfo(HiveMetaStoreUtils.getSerDeInfo(spec.getTable()));
       } catch ( IOException e) {
         log.error(String.format("Error when updating latest schema for topic %s", topicName));
         throw new IOException(e);
