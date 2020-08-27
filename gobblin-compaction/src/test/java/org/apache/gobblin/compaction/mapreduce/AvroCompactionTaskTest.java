@@ -173,9 +173,43 @@ public class AvroCompactionTaskTest {
     Assert.assertTrue(fs.exists(new Path (basePath, "Identity/MemberAccount/hourly/2017/04/03/10")));
   }
 
+  @Test
+  public void testAvroRecompactionWriteToNewPath() throws Exception {
+    FileSystem fs = getFileSystem();
+    String basePath = "/tmp/testRecompactionWriteToNewPath";
+    fs.delete(new Path(basePath), true);
+
+    File jobDir = new File(basePath, "Identity/MemberAccount/minutely/2017/04/03/10/20_30/run_2017-04-03-10-20");
+    Assert.assertTrue(jobDir.mkdirs());
+
+    GenericRecord r1 = createRandomRecord();
+    writeFileWithContent(jobDir, "file1", r1, 20);
+
+    EmbeddedGobblin embeddedGobblin = createEmbeddedGobblin ("Recompaction-First", basePath);
+    embeddedGobblin.setConfiguration(ConfigurationKeys.RECOMPACTION_WRITE_TO_NEW_FOLDER, "true");
+    JobExecutionResult result = embeddedGobblin.run();
+    long recordCount = InputRecordCountHelper.readRecordCount(fs, (new Path (basePath, new Path("Identity/MemberAccount/hourly/2017/04/03/10"))));
+    Assert.assertTrue(result.isSuccessful());
+    Assert.assertEquals(recordCount, 20);
+
+    // Now write more avro files to input dir
+    writeFileWithContent(jobDir, "file2", r1, 22);
+    EmbeddedGobblin embeddedGobblin_2 = createEmbeddedGobblin ("Recompaction-Second", basePath);
+    embeddedGobblin_2.setConfiguration(ConfigurationKeys.RECOMPACTION_WRITE_TO_NEW_FOLDER, "true");
+    embeddedGobblin_2.run();
+    Assert.assertTrue(result.isSuccessful());
+
+    // If recompaction is succeeded, a new record count should be written.
+    recordCount = InputRecordCountHelper.readRecordCount(fs, (new Path (basePath, new Path("Identity/MemberAccount/hourly/2017/04/03/10"))));
+    Assert.assertEquals(recordCount, 42);
+    //Assert both old output and new output exist
+    Assert.assertTrue(fs.exists(new Path (basePath, "Identity/MemberAccount/hourly/2017/04/03/10/compaction_1")));
+    Assert.assertTrue(fs.exists(new Path (basePath, "Identity/MemberAccount/hourly/2017/04/03/10/compaction_2")));
+  }
+
   public void testAvroRecompactionWithLimitation() throws Exception {
     FileSystem fs = getFileSystem();
-    String basePath = "/tmp/testRecompaction";
+    String basePath = "/tmp/testRecompactionWithLimitation";
     fs.delete(new Path(basePath), true);
 
     File jobDir = new File(basePath, "Identity/MemberAccount/minutely/2017/04/03/10/20_30/run_2017-04-03-10-20");

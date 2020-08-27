@@ -22,6 +22,9 @@ import java.io.IOException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.data.management.retention.DatasetCleaner;
 import org.apache.gobblin.runtime.TaskContext;
 import org.apache.gobblin.runtime.task.BaseAbstractTask;
@@ -30,6 +33,7 @@ import org.apache.gobblin.runtime.task.BaseAbstractTask;
 /**
  * A task that runs a DatasetCleaner job.
  */
+@Slf4j
 public class DatasetCleanerTask extends BaseAbstractTask {
 
   private static final String JOB_CONFIGURATION_PREFIX = "datasetCleaner";
@@ -47,8 +51,15 @@ public class DatasetCleanerTask extends BaseAbstractTask {
       DatasetCleaner datasetCleaner = new DatasetCleaner(FileSystem.get(new Configuration()),
           this.taskContext.getTaskState().getProperties());
       datasetCleaner.clean();
+      this.workingState = WorkUnitState.WorkingState.SUCCESSFUL;
     } catch (IOException e) {
+      this.workingState = WorkUnitState.WorkingState.FAILED;
       throw new RuntimeException(e);
     }
+  }
+
+  @Override
+  public void commit() {
+    log.info("task {} commits with state {}", this.taskContext.getTaskState().getTaskId(), this.workingState);
   }
 }

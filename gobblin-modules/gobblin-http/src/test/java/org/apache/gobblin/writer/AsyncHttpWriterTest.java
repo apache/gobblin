@@ -234,7 +234,7 @@ public class AsyncHttpWriterTest {
         // We won't consume the response anyway
         return null;
       }
-      throw new IOException("Send failed");
+      throw new RuntimeException("Send failed");
     }
 
     @Override

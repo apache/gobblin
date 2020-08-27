@@ -49,6 +49,10 @@ public class KafkaSingleLevelWorkUnitPacker extends KafkaWorkUnitPacker {
 
   @Override
   public List<WorkUnit> pack(Map<String, List<WorkUnit>> workUnitsByTopic, int numContainers) {
+    if (workUnitsByTopic == null || workUnitsByTopic.isEmpty()) {
+      return Lists.newArrayList();
+    }
+
     setWorkUnitEstSizes(workUnitsByTopic);
     List<WorkUnit> workUnits = Lists.newArrayList();
     for (List<WorkUnit> workUnitsForTopic : workUnitsByTopic.values()) {

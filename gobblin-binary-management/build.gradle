@@ -30,7 +30,6 @@ dependencies {
   runtimeOnly externalDependency.hadoopAuth
   compile externalDependency.hiveMetastore
   compile externalDependency.hiveExec
-  compile externalDependency.lombok
   compile externalDependency.orcMapreduce
   compile externalDependency.slf4j
 

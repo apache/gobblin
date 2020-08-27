@@ -99,15 +99,29 @@ dependencies {
 
 // Begin HACK to get around POM being depenendent on the (empty) gobblin-rest-api instead of gobblin-rest-api-rest-client
 def installer = install.repositories.mavenInstaller
+
 [installer]*.pom*.whenConfigured {pom ->
-    pom.dependencies.find {dep -> dep.groupId == project.group && dep.artifactId == 'gobblin-rest-api' }.artifactId = 'gobblin-rest-api-rest-client'
-    pom.dependencies.find {dep -> dep.groupId == project.group && dep.artifactId == 'gobblin-rest-api' }.artifactId = 'gobblin-rest-api-data-template'
+  def it = pom.dependencies
+  def s = it.find {dep -> dep.groupId == project.group && dep.artifactId == 'gobblin-rest-api' }
+  if (s != null) {
+    def t = s.clone()
+    t.artifactId = 'gobblin-rest-api-data-template'
+    it.add(t)
+    s.artifactId = 'gobblin-rest-api-rest-client'
+  }
 }
+
 if (rootProject.publishToMaven || rootProject.publishToNexus) {
     def deployer = uploadArchives.repositories.mavenDeployer
     [deployer]*.pom*.whenConfigured {pom ->
-        pom.dependencies.find {dep -> dep.groupId == project.group && dep.artifactId == 'gobblin-rest-api' }.artifactId = 'gobblin-rest-api-rest-client'
-        pom.dependencies.find {dep -> dep.groupId == project.group && dep.artifactId == 'gobblin-rest-api' }.artifactId = 'gobblin-rest-api-data-template'
+      def it = pom.dependencies
+      def s = it.find {dep -> dep.groupId == project.group && dep.artifactId == 'gobblin-rest-api' }
+      if (s != null) {
+        def t = s.clone()
+        t.artifactId = 'gobblin-rest-api-data-template'
+        it.add(t)
+        s.artifactId = 'gobblin-rest-api-rest-client'
+      }
     }
 }
 // End HACK

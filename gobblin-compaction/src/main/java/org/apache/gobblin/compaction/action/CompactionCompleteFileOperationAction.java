@@ -20,15 +20,11 @@ package org.apache.gobblin.compaction.action;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.gobblin.compaction.dataset.DatasetHelper;
 import org.apache.gobblin.compaction.event.CompactionSlaEventHelper;
 import org.apache.gobblin.compaction.mapreduce.CompactionJobConfigurator;
 import org.apache.gobblin.compaction.mapreduce.MRCompactor;
@@ -38,11 +34,13 @@ import org.apache.gobblin.compaction.mapreduce.RecordKeyMapperBase;
 import org.apache.gobblin.compaction.parser.CompactionPathParser;
 import org.apache.gobblin.compaction.source.CompactionSource;
 import org.apache.gobblin.compaction.verify.InputRecordCountHelper;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.dataset.FileSystemDataset;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.util.HadoopUtils;
+import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.WriterUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -59,6 +57,7 @@ import org.apache.hadoop.mapreduce.Job;
 @AllArgsConstructor
 public class CompactionCompleteFileOperationAction implements CompactionCompleteAction<FileSystemDataset> {
 
+  public final static String COMPACTION_DIRECTORY_FORMAT = "/compaction_%s";
   protected WorkUnitState state;
   private CompactionJobConfigurator configurator;
   private InputRecordCountHelper helper;
@@ -97,7 +96,7 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
 
       long newTotalRecords = 0;
       long oldTotalRecords = helper.readRecordCount(new Path(result.getDstAbsoluteDir()));
-      long executeCount = helper.readExecutionCount(new Path(result.getDstAbsoluteDir()));
+      long executionCount = helper.readExecutionCount(new Path(result.getDstAbsoluteDir()));
 
       List<Path> goodPaths = CompactionJobConfigurator.getGoodFiles(job, tmpPath, this.fs,
           ImmutableList.of(configurator.getFileExtension()));
@@ -125,9 +124,15 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
         // (all previous run + current run) is possible.
         newTotalRecords = this.configurator.getFileNameRecordCount();
       } else {
-        this.configurator.getOldFiles()
-            .add(this.fs.makeQualified(dstPath).toString());
-        this.fs.delete(dstPath, true);
+        if (state.getPropAsBoolean(ConfigurationKeys.RECOMPACTION_WRITE_TO_NEW_FOLDER, false)) {
+          Path oldFilePath = PathUtils.mergePaths(dstPath, new Path(String.format(COMPACTION_DIRECTORY_FORMAT, executionCount)));
+          dstPath = PathUtils.mergePaths(dstPath, new Path(String.format(COMPACTION_DIRECTORY_FORMAT, executionCount + 1)));
+          this.configurator.getOldFiles().add(this.fs.makeQualified(oldFilePath).toString());
+          //Write to a new path, no need to delete the old path
+        } else {
+          this.configurator.getOldFiles().add(this.fs.makeQualified(dstPath).toString());
+          this.fs.delete(dstPath, true);
+        }
         FsPermission permission =
             HadoopUtils.deserializeFsPermission(this.state, MRCompactorJobRunner.COMPACTION_JOB_OUTPUT_DIR_PERMISSION,
                 FsPermission.getDefault());
@@ -144,31 +149,35 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
         Counter counter = job.getCounters().findCounter(RecordKeyMapperBase.EVENT_COUNTER.RECORD_COUNT);
         newTotalRecords = counter.getValue();
       }
+      final Path finalDstPath = dstPath;
       goodPaths.stream().forEach(p -> {
         String fileName = p.getName();
-        outputFiles.add(new Path(dstPath, fileName));
+        outputFiles.add(new Path(finalDstPath, fileName));
       });
       this.configurator.setDstNewFiles(outputFiles);
 
-      State compactState = helper.loadState(new Path(result.getDstAbsoluteDir()));
-      if(executeCount!=0) {
-        compactState.setProp(CompactionSlaEventHelper.RECORD_COUNT_TOTAL + Long.toString(executeCount), Long.toString(helper.readRecordCount(new Path(result.getDstAbsoluteDir()))));
-        compactState.setProp(CompactionSlaEventHelper.EXEC_COUNT_TOTAL + Long.toString(executeCount), Long.toString(executeCount));
-        compactState.setProp("DuplicateRecordCount" + Long.toString(executeCount), compactState.getProp("DuplicateRecordCount", "null"));
+      State compactionState = helper.loadState(new Path(result.getDstAbsoluteDir()));
+      if (executionCount != 0) {
+        compactionState.setProp(CompactionSlaEventHelper.RECORD_COUNT_TOTAL + Long.toString(executionCount),
+            Long.toString(helper.readRecordCount(new Path(result.getDstAbsoluteDir()))));
+        compactionState.setProp(CompactionSlaEventHelper.EXEC_COUNT_TOTAL + Long.toString(executionCount),
+            Long.toString(executionCount));
+        compactionState.setProp("DuplicateRecordCount" + Long.toString(executionCount),
+            compactionState.getProp("DuplicateRecordCount", "null"));
       }
-      compactState.setProp(CompactionSlaEventHelper.RECORD_COUNT_TOTAL, Long.toString(newTotalRecords));
-      compactState.setProp(CompactionSlaEventHelper.EXEC_COUNT_TOTAL, Long.toString(executeCount + 1));
-      compactState.setProp(CompactionSlaEventHelper.MR_JOB_ID,
+      compactionState.setProp(CompactionSlaEventHelper.RECORD_COUNT_TOTAL, Long.toString(newTotalRecords));
+      compactionState.setProp(CompactionSlaEventHelper.EXEC_COUNT_TOTAL, Long.toString(executionCount + 1));
+      compactionState.setProp(CompactionSlaEventHelper.MR_JOB_ID,
           this.configurator.getConfiguredJob().getJobID().toString());
-      compactState.setProp("DuplicateRecordCount", job.getCounters().findCounter(
-          RecordKeyDedupReducerBase.EVENT_COUNTER.DEDUPED).getValue());
-      compactState.setProp(CompactionSlaEventHelper.LAST_RUN_START_TIME, this.state.getProp(CompactionSource.COMPACTION_INIT_TIME));
-      helper.saveState(new Path(result.getDstAbsoluteDir()), compactState);
-      log.info("duplicated records count for "+ dstPath + " : " + compactState.getProp("DuplicateRecordCount"));
-
+      compactionState.setProp("DuplicateRecordCount",
+          job.getCounters().findCounter(RecordKeyDedupReducerBase.EVENT_COUNTER.DEDUPED).getValue());
+      compactionState.setProp(CompactionSlaEventHelper.LAST_RUN_START_TIME,
+          this.state.getProp(CompactionSource.COMPACTION_INIT_TIME));
+      helper.saveState(new Path(result.getDstAbsoluteDir()), compactionState);
+      log.info("duplicated records count for " + dstPath + " : " + compactionState.getProp("DuplicateRecordCount"));
 
       log.info("Updating record count from {} to {} in {} [{}]", oldTotalRecords, newTotalRecords, dstPath,
-          executeCount + 1);
+          executionCount + 1);
 
       // submit events for record count
       if (eventSubmitter != null) {
@@ -176,7 +185,7 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
             ImmutableMap.of(CompactionSlaEventHelper.DATASET_URN, dataset.datasetURN(),
                 CompactionSlaEventHelper.RECORD_COUNT_TOTAL, Long.toString(newTotalRecords),
                 CompactionSlaEventHelper.PREV_RECORD_COUNT_TOTAL, Long.toString(oldTotalRecords),
-                CompactionSlaEventHelper.EXEC_COUNT_TOTAL, Long.toString(executeCount + 1),
+                CompactionSlaEventHelper.EXEC_COUNT_TOTAL, Long.toString(executionCount + 1),
                 CompactionSlaEventHelper.MR_JOB_ID, this.configurator.getConfiguredJob().getJobID().toString());
         this.eventSubmitter.submit(CompactionSlaEventHelper.COMPACTION_RECORD_COUNT_EVENT, eventMetadataMap);
       }

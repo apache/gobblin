@@ -38,6 +38,7 @@ dependencies {
   compile externalDependency.guava
   compile externalDependency.commonsLang
   compile externalDependency.slf4j
+
   compile externalDependency.commonsCli
   compile externalDependency.gson
   compile externalDependency.hiveCommon

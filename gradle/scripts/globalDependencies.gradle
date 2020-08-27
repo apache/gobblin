@@ -50,4 +50,9 @@ subprojects {
       testCompile.exclude group: 'org.slf4j', module: 'log4j-over-slf4j'
     }
   }
+
+  dependencies {
+    compileOnly externalDependency.lombok
+    testCompile externalDependency.lombok
+  }
 }

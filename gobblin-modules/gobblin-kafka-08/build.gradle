@@ -44,7 +44,6 @@ dependencies {
     exclude group: "javax.jms", module: "jms"
   }
   compile externalDependency.kafka08Client
-  compile externalDependency.lombok
   compile externalDependency.metricsCore
   compile externalDependency.slf4j
   compile externalDependency.typesafeConfig

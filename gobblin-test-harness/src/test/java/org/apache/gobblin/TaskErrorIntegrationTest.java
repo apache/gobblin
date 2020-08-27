@@ -24,6 +24,17 @@ import java.util.Properties;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.log4j.AppenderSkeleton;
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
+import org.apache.log4j.spi.LoggingEvent;
+import org.jboss.byteman.contrib.bmunit.BMNGRunner;
+import org.jboss.byteman.contrib.bmunit.BMRule;
+import org.testng.Assert;
+import org.testng.annotations.AfterTest;
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.Test;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.WorkUnitState;
@@ -42,16 +53,6 @@ import org.apache.gobblin.source.extractor.DataRecordException;
 import org.apache.gobblin.source.extractor.Extractor;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.retry.RetryerFactory;
-import org.apache.log4j.AppenderSkeleton;
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
-import org.apache.log4j.spi.LoggingEvent;
-import org.jboss.byteman.contrib.bmunit.BMNGRunner;
-import org.jboss.byteman.contrib.bmunit.BMRule;
-import org.testng.Assert;
-import org.testng.annotations.AfterTest;
-import org.testng.annotations.BeforeTest;
-import org.testng.annotations.Test;
 
 import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_TIMES;
 import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_TYPE;
@@ -131,7 +132,7 @@ public class TaskErrorIntegrationTest extends BMNGRunner {
    * and does not hang
    * @throws Exception
    */
-  @Test
+  @Test (enabled = false)
   @BMRule(name = "testErrorDuringSubmission", targetClass = "org.apache.gobblin.runtime.TaskExecutor",
       targetMethod = "submit(Task)", targetLocation = "AT ENTRY", condition = "true",
       action = "throw new RuntimeException(\"Exception for testErrorDuringSubmission\")")

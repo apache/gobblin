@@ -34,7 +34,6 @@ dependencies {
     compile externalDependency.httpclient
     compile externalDependency.flyway
     compile externalDependency.commonsConfiguration
-    compile externalDependency.lombok
     compile externalDependency.reflections
 
     runtimeOnly externalDependency.mysqlConnector

@@ -26,8 +26,6 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Properties;
 
-import javax.sql.DataSource;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,6 +38,8 @@ import com.typesafe.config.ConfigFactory;
 import com.wix.mysql.EmbeddedMysql;
 import com.wix.mysql.config.MysqldConfig;
 import com.wix.mysql.distribution.Version;
+
+import javax.sql.DataSource;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.MetaStoreModule;
@@ -94,6 +94,7 @@ class TestMetastoreDatabaseServer implements Closeable {
     config = MysqldConfig.aMysqldConfig(Version.v8_latest)
         .withPort(this.dbPort)
         .withUser(this.dbUserName, this.dbUserPassword)
+        .withServerVariable("explicit_defaults_for_timestamp", "off")
         .build();
     if (this.embeddedMysqlEnabled) {
       testingMySqlServer = EmbeddedMysql.anEmbeddedMysql(config).start();

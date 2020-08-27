@@ -353,7 +353,7 @@ public class ConfigurationKeys {
   public static final String FORK_MAX_WAIT_MININUTES = "fork.max.wait.minutes";
   public static final long DEFAULT_FORK_MAX_WAIT_MININUTES = 60;
   public static final String FORK_CLOSE_WRITER_ON_COMPLETION = "fork.closeWriterOnCompletion";
-  public static final boolean DEFAULT_FORK_CLOSE_WRITER_ON_COMPLETION = true;
+  public static final boolean DEFAULT_FORK_CLOSE_WRITER_ON_COMPLETION = false;
 
 
   /**
@@ -993,6 +993,12 @@ public class ConfigurationKeys {
   public static final String COMPACTION_PRIORITIZATION_PREFIX = COMPACTION_PREFIX + "prioritization.";
   public static final String COMPACTION_PRIORITIZER_ALIAS = COMPACTION_PRIORITIZATION_PREFIX + "prioritizerAlias";
   public static final String COMPACTION_ESTIMATOR = COMPACTION_PRIORITIZATION_PREFIX + "estimator";
+
+  /***
+   * Configuration properties related to Re-compaction
+   */
+  public static String RECOMPACTION_WRITE_TO_NEW_FOLDER = "recompaction.write.to.new.folder";
+
 
   /**
    * Configuration related to ConfigStore based copy/retention
