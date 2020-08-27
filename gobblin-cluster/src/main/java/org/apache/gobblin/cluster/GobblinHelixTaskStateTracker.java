@@ -45,7 +45,7 @@ import org.apache.gobblin.runtime.Task;
 @Slf4j
 public class GobblinHelixTaskStateTracker extends AbstractTaskStateTracker {
   @VisibleForTesting
-  static final String IS_TASK_METRICS_SCHEDULING_FAILURE_FATAl = "helixTaskTracker.isNewTaskRegFailureFatal";
+  static final String IS_TASK_METRICS_SCHEDULING_FAILURE_FATAL = "helixTaskTracker.isNewTaskRegFailureFatal";
   private static final String DEFAULT_TASK_METRICS_SCHEDULING_FAILURE_FATAL = "false";
 
   // Mapping between tasks and the task state reporters associated with them
@@ -54,7 +54,7 @@ public class GobblinHelixTaskStateTracker extends AbstractTaskStateTracker {
 
   public GobblinHelixTaskStateTracker(Properties properties) {
     super(properties, log);
-    isNewTaskRegFailureFatal = Boolean.parseBoolean(properties.getProperty(IS_TASK_METRICS_SCHEDULING_FAILURE_FATAl,
+    isNewTaskRegFailureFatal = Boolean.parseBoolean(properties.getProperty(IS_TASK_METRICS_SCHEDULING_FAILURE_FATAL,
         DEFAULT_TASK_METRICS_SCHEDULING_FAILURE_FATAL));
   }
 
