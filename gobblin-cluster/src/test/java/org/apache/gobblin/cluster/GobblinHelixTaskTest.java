@@ -68,6 +68,7 @@ import com.google.common.eventbus.Subscribe;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
+import static org.apache.gobblin.cluster.GobblinHelixTaskStateTracker.IS_TASK_METRICS_SCHEDULING_FAILURE_FATAl;
 import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_TIMES;
 import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_TYPE;
 import static org.mockito.Mockito.when;
@@ -112,7 +113,9 @@ public class GobblinHelixTaskTest {
 
     this.helixManager = Mockito.mock(HelixManager.class);
     when(this.helixManager.getInstanceName()).thenReturn(GobblinHelixTaskTest.class.getSimpleName());
-    this.taskStateTracker = new GobblinHelixTaskStateTracker(new Properties());
+    Properties stateTrackerProp = new Properties();
+    stateTrackerProp.setProperty(IS_TASK_METRICS_SCHEDULING_FAILURE_FATAl, "true");
+    this.taskStateTracker = new GobblinHelixTaskStateTracker(stateTrackerProp);
 
     this.localFs = FileSystem.getLocal(configuration);
     this.appWorkDir = new Path(GobblinHelixTaskTest.class.getSimpleName());
