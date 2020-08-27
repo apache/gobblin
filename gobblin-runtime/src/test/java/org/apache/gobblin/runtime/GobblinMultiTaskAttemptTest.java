@@ -24,6 +24,7 @@ import java.util.Properties;
 import org.junit.Assert;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
@@ -49,6 +50,7 @@ public class GobblinMultiTaskAttemptTest {
   private TaskExecutor taskExecutorMock;
   private SharedResourcesBrokerImpl<GobblinScopeTypes> jobBroker;
 
+  @BeforeClass
   public void setup() {
     // Initializing jobBroker
     Config config = ConfigFactory.empty();
@@ -71,6 +73,7 @@ public class GobblinMultiTaskAttemptTest {
     JobState jobState = new JobState();
     // Limit the number of times of retry in task-creation.
     jobState.setProp(RETRY_TIME_OUT_MS, 1000);
+    jobState.setProp(ConfigurationKeys.SOURCE_CLASS_KEY, DatasetStateStoreTest.DummySource.class.getName());
     TaskStateTracker stateTrackerMock = Mockito.mock(TaskStateTracker.class);
 
     taskAttempt =
@@ -82,7 +85,7 @@ public class GobblinMultiTaskAttemptTest {
       // org.apache.gobblin.runtime.TaskContext.getSource
       taskAttempt.run();
     } catch (Exception e) {
-      Assert.assertTrue(e instanceof IOException);
+      Assert.assertTrue(e instanceof TaskCreationException);
       return;
     }
 

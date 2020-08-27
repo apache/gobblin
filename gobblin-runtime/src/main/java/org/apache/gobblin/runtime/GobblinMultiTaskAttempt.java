@@ -389,8 +389,8 @@ public class GobblinMultiTaskAttempt {
     List<Task> tasks = Lists.newArrayList();
 
     // A flag indicating if there are any tasks not submitted successfully.
-    // Caller of this method should handler un-submitted task accordingly.
-    boolean areAllTaskSubmitted = true;
+    // Caller of this method should handle tasks with submission failures accordingly.
+    boolean areAllTasksSubmitted = true;
     while (this.workUnits.hasNext()) {
       WorkUnit workUnit = this.workUnits.next();
       String taskId = workUnit.getProp(ConfigurationKeys.TASK_ID_KEY);
@@ -431,7 +431,7 @@ public class GobblinMultiTaskAttempt {
         if (task == null) {
           if (e instanceof RetryException) {
             // Indicating task being null due to failure in creation even after retrying.
-            areAllTaskSubmitted = false;
+            areAllTasksSubmitted = false;
           }
           // task could not be created, so directly count down
           countDownLatch.countDown();
@@ -440,7 +440,7 @@ public class GobblinMultiTaskAttempt {
           // Task was created and may have been registered, but not submitted, so call the
           // task state tracker task run completion directly since the task cancel does nothing if not submitted
           this.taskStateTracker.onTaskRunCompletion(task);
-          areAllTaskSubmitted = false;
+          areAllTasksSubmitted = false;
           log.error("Could not submit task for workunit {}", workUnit, e);
         } else {
           // task was created and submitted, but failed later, so cancel the task to decrement the CountDownLatch
@@ -455,7 +455,7 @@ public class GobblinMultiTaskAttempt {
     eventSubmitterBuilder.addMetadata(this.taskEventMetadataGenerator.getMetadata(jobState, JobEvent.TASKS_SUBMITTED));
     eventSubmitterBuilder.build().submit(JobEvent.TASKS_SUBMITTED, "tasksCount", Long.toString(countDownLatch.getRegisteredParties()));
 
-    return new Pair<>(tasks, areAllTaskSubmitted);
+    return new Pair<>(tasks, areAllTasksSubmitted);
   }
 
   private void printMemoryUsage() {
