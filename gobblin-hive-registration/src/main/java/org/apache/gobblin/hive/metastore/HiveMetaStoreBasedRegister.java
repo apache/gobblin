@@ -147,7 +147,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
   //for a partition is immutable
   private final boolean skipDiffComputation;
 
-  private Optional<KafkaSchemaRegistry> schemaRegistry = Optional.absent();
+  protected Optional<KafkaSchemaRegistry> schemaRegistry = Optional.absent();
   private String topicName = "";
   public HiveMetaStoreBasedRegister(State state, Optional<String> metastoreURI) throws IOException {
     super(state);
@@ -201,15 +201,14 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
    * existing table.
    * Note: If there is no schema specified in the table spec, we will directly update the schema to
    * the existing table schema
-   * Note: We treat the creation time as version number of schema, since according to Kafka team,
-   * schema registry allows "out of order registration" of schemas, this means chronological latest is
-   * NOT what the registry considers latest.
+   * Note: We cannot treat the creation time as version number of schema, since schema registry allows
+   * "out of order registration" of schemas, this means chronological latest is NOT what the registry considers latest.
    * @param spec
    * @param table
    * @param existingTable
    * @throws IOException
    */
-  private void updateSchema(HiveSpec spec, Table table, HiveTable existingTable) throws IOException{
+  protected void updateSchema(HiveSpec spec, Table table, HiveTable existingTable) throws IOException{
 
     if (this.schemaRegistry.isPresent()) {
       try (Timer.Context context = this.metricContext.timer(GET_AND_SET_LATEST_SCHEMA).time()) {
