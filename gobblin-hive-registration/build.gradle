@@ -33,7 +33,6 @@ dependencies {
   compile externalDependency.hiveMetastore
   compile externalDependency.hiveSerDe
   compile externalDependency.libthrift
-  compile externalDependency.log4j
   compile externalDependency.slf4j
   compile externalDependency.commonsIo
   compile externalDependency.commonsLang3

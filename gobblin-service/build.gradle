@@ -60,7 +60,6 @@ dependencies {
   compile externalDependency.jgit
   compile externalDependency.jodaTime
   compile externalDependency.jgrapht
-  compile externalDependency.log4j
   compile externalDependency.metricsCore
   compile externalDependency.metricsJvm
   compile externalDependency.pegasus.data
