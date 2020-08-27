@@ -22,9 +22,6 @@ import java.util.Properties;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledFuture;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Maps;
@@ -49,7 +46,7 @@ import org.apache.gobblin.runtime.Task;
 public class GobblinHelixTaskStateTracker extends AbstractTaskStateTracker {
   @VisibleForTesting
   static final String IS_TASK_METRICS_SCHEDULING_FAILURE_FATAl = "helixTaskTracker.isNewTaskRegFailureFatal";
-  private static final String DEFAULT_TASK_METRICS_SCHEDULING_FAILURE_FATAl = "false";
+  private static final String DEFAULT_TASK_METRICS_SCHEDULING_FAILURE_FATAL = "false";
 
   // Mapping between tasks and the task state reporters associated with them
   private final Map<String, ScheduledFuture<?>> scheduledReporters = Maps.newHashMap();
@@ -58,7 +55,7 @@ public class GobblinHelixTaskStateTracker extends AbstractTaskStateTracker {
   public GobblinHelixTaskStateTracker(Properties properties) {
     super(properties, log);
     isNewTaskRegFailureFatal = Boolean.parseBoolean(properties.getProperty(IS_TASK_METRICS_SCHEDULING_FAILURE_FATAl,
-        DEFAULT_TASK_METRICS_SCHEDULING_FAILURE_FATAl));
+        DEFAULT_TASK_METRICS_SCHEDULING_FAILURE_FATAL));
   }
 
   @Override

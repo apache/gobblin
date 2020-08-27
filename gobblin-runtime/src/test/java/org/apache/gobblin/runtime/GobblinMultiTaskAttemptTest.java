@@ -73,7 +73,6 @@ public class GobblinMultiTaskAttemptTest {
     JobState jobState = new JobState();
     // Limit the number of times of retry in task-creation.
     jobState.setProp(RETRY_TIME_OUT_MS, 1000);
-    jobState.setProp(ConfigurationKeys.SOURCE_CLASS_KEY, DatasetStateStoreTest.DummySource.class.getName());
     TaskStateTracker stateTrackerMock = Mockito.mock(TaskStateTracker.class);
 
     taskAttempt =
@@ -105,6 +104,7 @@ public class GobblinMultiTaskAttemptTest {
     JobState jobState = new JobState();
     // Limit the number of times of retry in task-creation.
     jobState.setProp(RETRY_TIME_OUT_MS, 1000);
+    jobState.setProp(ConfigurationKeys.SOURCE_CLASS_KEY, DatasetStateStoreTest.DummySource.class.getName());
 
     taskAttempt = new GobblinMultiTaskAttempt(workUnit.iterator(), "testJob", jobState, stateTracker, taskExecutorMock,
         Optional.absent(), Optional.absent(), jobBroker);
@@ -114,7 +114,7 @@ public class GobblinMultiTaskAttemptTest {
       // as a way to simulate the case when scheduling reporter is rejected.
       taskAttempt.run();
     } catch (Exception e) {
-      Assert.assertTrue(e instanceof RuntimeException);
+      Assert.assertTrue(e instanceof TaskCreationException);
       return;
     }
 
