@@ -527,6 +527,8 @@ public class DagManager extends AbstractIdleService {
       for (DagNode<JobExecutionPlan> dagNode : dag.getNodes()) {
         if (DagManagerUtils.getExecutionStatus(dagNode) == RUNNING) {
           addJobState(dagId, dagNode);
+          //Update the running jobs counter.
+          getRunningJobsCounter(dagNode).inc();
           isDagRunning = true;
         }
       }
