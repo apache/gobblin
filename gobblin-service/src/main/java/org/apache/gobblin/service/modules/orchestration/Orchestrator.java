@@ -90,6 +90,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   protected final MetricContext metricContext;
 
   protected final Optional<EventSubmitter> eventSubmitter;
+  private final boolean flowConcurrencyFlag;
   @Getter
   private Optional<Meter> flowOrchestrationSuccessFulMeter;
   @Getter
@@ -141,6 +142,8 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       this.flowOrchestrationTimer = Optional.absent();
       this.eventSubmitter = Optional.absent();
     }
+    this.flowConcurrencyFlag = ConfigUtils.getBoolean(config, ServiceConfigKeys.FLOW_CONCURRENCY_ALLOWED,
+        ServiceConfigKeys.DEFAULT_FLOW_CONCURRENCY_ALLOWED);
   }
 
   public Orchestrator(Config config, Optional<TopologyCatalog> topologyCatalog, Optional<DagManager> dagManager, Optional<Logger> log) {
@@ -237,7 +240,8 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
       //If the FlowSpec disallows concurrent executions, then check if another instance of the flow is already
       //running. If so, return immediately.
-      boolean allowConcurrentExecution = ConfigUtils.getBoolean(flowConfig, ConfigurationKeys.FLOW_ALLOW_CONCURRENT_EXECUTION, true);
+      boolean allowConcurrentExecution = ConfigUtils
+          .getBoolean(flowConfig, ConfigurationKeys.FLOW_ALLOW_CONCURRENT_EXECUTION, this.flowConcurrencyFlag);
 
       if (!canRun(flowName, flowGroup, allowConcurrentExecution)) {
         _log.warn("Another instance of flowGroup: {}, flowName: {} running; Skipping flow execution since "

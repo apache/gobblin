@@ -118,4 +118,8 @@ public class ServiceConfigKeys {
 
   // Prefix for config to ServiceBasedAppLauncher that will only be used by GaaS and not orchestrated jobs
   public static final String GOBBLIN_SERVICE_APP_LAUNCHER_PREFIX = "gobblinServiceAppLauncher";
+
+  //Flow concurrency config key to control default service behavior.
+  public static final String FLOW_CONCURRENCY_ALLOWED = GOBBLIN_SERVICE_PREFIX + "flowConcurrencyAllowed";
+  public static final Boolean DEFAULT_FLOW_CONCURRENCY_ALLOWED = true;
 }

@@ -686,7 +686,7 @@ public class DagManager extends AbstractIdleService {
         dagToSLA.put(dagId, flowSla);
       }
 
-      if (flowSla != DagManagerUtils.NO_SLA && currentTime > flowStartTime + flowSla) {
+      if (currentTime > flowStartTime + flowSla) {
         log.info("Flow {} exceeded the SLA of {} ms. Killing the job {} now...",
             node.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY), flowSla,
             node.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.JOB_NAME_KEY));
