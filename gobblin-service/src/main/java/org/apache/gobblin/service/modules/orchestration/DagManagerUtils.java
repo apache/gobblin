@@ -45,7 +45,7 @@ import org.apache.gobblin.util.ConfigUtils;
 
 
 public class DagManagerUtils {
-  static long NO_SLA = -1L;
+  static long DEFAULT_FLOW_SLA_MILLIS = TimeUnit.HOURS.toMillis(24);
   static String QUOTA_KEY_SEPERATOR = ",";
 
   static FlowId getFlowId(Dag<JobExecutionPlan> dag) {
@@ -255,7 +255,7 @@ public class DagManagerUtils {
    * get the sla from the dag node config.
    * if time unit is not provided, it assumes time unit is minute.
    * @param dagNode dag node for which sla is to be retrieved
-   * @return sla if it is provided, {@value NO_SLA} otherwise
+   * @return sla if it is provided, DEFAULT_FLOW_SLA_MILLIS otherwise
    */
   static long getFlowSLA(DagNode<JobExecutionPlan> dagNode) {
     Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
@@ -264,7 +264,7 @@ public class DagManagerUtils {
 
     return jobConfig.hasPath(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME)
         ? slaTimeUnit.toMillis(jobConfig.getLong(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME))
-        : NO_SLA;
+        : DEFAULT_FLOW_SLA_MILLIS;
   }
 
   /**

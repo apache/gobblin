@@ -70,9 +70,13 @@ public class DagManagerFlowTest {
 
   @Test
   void testAddDeleteSpec() throws Exception {
-    Dag<JobExecutionPlan> dag1 = DagManagerTest.buildDag("0", 123456780L, "FINISH_RUNNING", 1);
-    Dag<JobExecutionPlan> dag2 = DagManagerTest.buildDag("1", 123456781L, "FINISH_RUNNING", 1);
-    Dag<JobExecutionPlan> dag3 = DagManagerTest.buildDag("2", 123456782L, "FINISH_RUNNING", 1);
+    Long flowExecutionId1 = System.currentTimeMillis();
+    Long flowExecutionId2 = flowExecutionId1 + 1;
+    Long flowExecutionId3 = flowExecutionId1 + 2;
+
+    Dag<JobExecutionPlan> dag1 = DagManagerTest.buildDag("0", flowExecutionId1, "FINISH_RUNNING", 1);
+    Dag<JobExecutionPlan> dag2 = DagManagerTest.buildDag("1", flowExecutionId2, "FINISH_RUNNING", 1);
+    Dag<JobExecutionPlan> dag3 = DagManagerTest.buildDag("2", flowExecutionId3, "FINISH_RUNNING", 1);
 
     String dagId1 = DagManagerUtils.generateDagId(dag1);
     String dagId2 = DagManagerUtils.generateDagId(dag2);
@@ -83,11 +87,11 @@ public class DagManagerFlowTest {
     int queue3 = DagManagerUtils.getDagQueueId(dag3, dagNumThreads);
 
     when(this.dagManager.getJobStatusRetriever().getLatestExecutionIdsForFlow(eq("flow0"), eq("group0"), anyInt()))
-        .thenReturn(Collections.singletonList(123456780L));
+        .thenReturn(Collections.singletonList(flowExecutionId1));
     when(this.dagManager.getJobStatusRetriever().getLatestExecutionIdsForFlow(eq("flow1"), eq("group1"), anyInt()))
-        .thenReturn(Collections.singletonList(123456781L));
+        .thenReturn(Collections.singletonList(flowExecutionId2));
     when(this.dagManager.getJobStatusRetriever().getLatestExecutionIdsForFlow(eq("flow2"), eq("group2"), anyInt()))
-        .thenReturn(Collections.singletonList(123456782L));
+        .thenReturn(Collections.singletonList(flowExecutionId3));
 
     // mock add spec
     dagManager.addDag(dag1, true);
@@ -113,20 +117,20 @@ public class DagManagerFlowTest {
     AssertWithBackoff.create().maxSleepMs(1000).backoffFactor(1).assertTrue(new DeletePredicate(dag3), ERROR_MESSAGE);
 
     // mock flow cancellation tracking event
-    Mockito.doReturn(DagManagerTest.getMockJobStatus("flow0", "group0", 123456780L,
+    Mockito.doReturn(DagManagerTest.getMockJobStatus("flow0", "group0", flowExecutionId1,
         "group0", "job0", String.valueOf(ExecutionStatus.CANCELLED)))
         .when(dagManager.getJobStatusRetriever()).getJobStatusesForFlowExecution("flow0", "group0",
-        123456780L, "job0", "group0");
+        flowExecutionId1, "job0", "group0");
 
-    Mockito.doReturn(DagManagerTest.getMockJobStatus("flow1", "group1", 123456781L,
+    Mockito.doReturn(DagManagerTest.getMockJobStatus("flow1", "group1", flowExecutionId2,
         "group1", "job0", String.valueOf(ExecutionStatus.CANCELLED)))
         .when(dagManager.getJobStatusRetriever()).getJobStatusesForFlowExecution("flow1", "group1",
-        123456781L, "job0", "group1");
+        flowExecutionId2, "job0", "group1");
 
-    Mockito.doReturn(DagManagerTest.getMockJobStatus("flow2", "group2", 123456782L,
+    Mockito.doReturn(DagManagerTest.getMockJobStatus("flow2", "group2", flowExecutionId3,
         "group2", "job0", String.valueOf(ExecutionStatus.CANCELLED)))
         .when(dagManager.getJobStatusRetriever()).getJobStatusesForFlowExecution("flow2", "group2",
-        123456782L, "job0", "group2");
+        flowExecutionId3, "job0", "group2");
 
     // check removal of dag in dagToJobs map
     AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).
@@ -159,7 +163,7 @@ public class DagManagerFlowTest {
         assertTrue(input -> dagManager.dagManagerThreads[queue].dagToSLA.containsKey(dagId), ERROR_MESSAGE);
 
     // check the SLA value
-    Assert.assertEquals(dagManager.dagManagerThreads[queue].dagToSLA.get(dagId).longValue(), DagManagerUtils.NO_SLA);
+    Assert.assertEquals(dagManager.dagManagerThreads[queue].dagToSLA.get(dagId).longValue(), DagManagerUtils.DEFAULT_FLOW_SLA_MILLIS);
 
     // verify deleteSpec() of the specProducer is not called once
     // which means job cancellation was triggered
@@ -216,12 +220,10 @@ public class DagManagerFlowTest {
 
   @Test()
   void testOrphanFlowKill() throws Exception {
-    Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("6", 234567891L, "FINISH_RUNNING", 1);
+    Long flowExecutionId = System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(10);
+    Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("6", flowExecutionId, "FINISH_RUNNING", 1);
     String dagId = DagManagerUtils.generateDagId(dag);
     int queue = DagManagerUtils.getDagQueueId(dag, dagNumThreads);
-
-    when(this.dagManager.getJobStatusRetriever().getLatestExecutionIdsForFlow(eq("flow4"), eq("group4"), anyInt()))
-        .thenReturn(Collections.singletonList(234567891L));
 
     // change config to set a small sla
     Config jobConfig = dag.getStartNodes().get(0).getValue().getJobSpec().getConfig();
@@ -237,10 +239,10 @@ public class DagManagerFlowTest {
     AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).
         assertTrue(input -> dagManager.dagManagerThreads[queue].dagToSLA.containsKey(dagId), ERROR_MESSAGE);
 
-    Mockito.doReturn(DagManagerTest.getMockJobStatus("flow6", "group6", 234567891L,
-        "group0", "job0", String.valueOf(ExecutionStatus.ORCHESTRATED)))
+    Mockito.doReturn(DagManagerTest.getMockJobStatus("flow6", "group6", flowExecutionId,
+        "group6", "job0", String.valueOf(ExecutionStatus.ORCHESTRATED)))
         .when(dagManager.getJobStatusRetriever()).getJobStatusesForFlowExecution("flow6", "group6",
-        234567891L, "job0", "group6");
+        flowExecutionId, "job0", "group6");
 
     // check existence of dag in dagToJobs map
     AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).
@@ -258,7 +260,7 @@ public class DagManagerFlowTest {
   @Test
   void slaConfigCheck() throws Exception {
     Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("5", 123456783L, "FINISH_RUNNING", 1);
-    Assert.assertEquals(DagManagerUtils.getFlowSLA(dag.getStartNodes().get(0)), -1L);
+    Assert.assertEquals(DagManagerUtils.getFlowSLA(dag.getStartNodes().get(0)), DagManagerUtils.DEFAULT_FLOW_SLA_MILLIS);
 
     Config jobConfig = dag.getStartNodes().get(0).getValue().getJobSpec().getConfig();
     jobConfig = jobConfig
