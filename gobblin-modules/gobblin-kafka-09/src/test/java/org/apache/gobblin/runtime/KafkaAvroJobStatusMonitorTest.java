@@ -18,6 +18,7 @@ package org.apache.gobblin.runtime;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -243,6 +244,15 @@ public class KafkaAvroJobStatusMonitorTest {
     ConsumerIterator<byte[], byte[]> iterator = this.kafkaTestHelper.getIteratorForTopic(TOPIC);
 
     MessageAndMetadata<byte[], byte[]> messageAndMetadata = iterator.next();
+    // Verify undecodeable message is skipped
+    byte[] undecodeableMessage = Arrays.copyOf(messageAndMetadata.message(),
+        messageAndMetadata.message().length - 1);
+    ConsumerRecord undecodeableRecord = new ConsumerRecord<>(TOPIC, messageAndMetadata.partition(),
+        messageAndMetadata.offset(), messageAndMetadata.key(), undecodeableMessage);
+    Assert.assertEquals(jobStatusMonitor.getMessageParseFailures().getCount(), 0L);
+    jobStatusMonitor.processMessage(new Kafka09ConsumerClient.Kafka09ConsumerRecord(undecodeableRecord));
+    Assert.assertEquals(jobStatusMonitor.getMessageParseFailures().getCount(), 1L);
+    // Test an normal event
     jobStatusMonitor.processMessage(convertMessageAndMetadataToDecodableKafkaRecord(messageAndMetadata));
 
     StateStore stateStore = jobStatusMonitor.getStateStore();
