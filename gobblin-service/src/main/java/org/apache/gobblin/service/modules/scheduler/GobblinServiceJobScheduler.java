@@ -144,6 +144,12 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
         Thread scheduleSpec = new Thread(new Runnable() {
           @Override
           public void run() {
+            // Ensure compiler is healthy before attempting to schedule flows
+            try {
+              GobblinServiceJobScheduler.this.orchestrator.getSpecCompiler().awaitHealthy();
+            } catch (InterruptedException e) {
+              throw new RuntimeException(e);
+            }
             scheduleSpecsFromCatalog();
           }
         });

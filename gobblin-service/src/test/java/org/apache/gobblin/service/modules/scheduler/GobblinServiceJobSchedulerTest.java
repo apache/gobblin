@@ -33,10 +33,14 @@ import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
 import org.apache.gobblin.scheduler.SchedulerService;
+import org.apache.gobblin.service.modules.flow.SpecCompiler;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalogTest;
 import org.apache.gobblin.testing.AssertWithBackoff;
 import org.apache.gobblin.util.ConfigUtils;
+
+import org.mockito.Mockito;
+import org.mockito.stubbing.Answer;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -73,9 +77,18 @@ public class GobblinServiceJobSchedulerTest {
 
     Assert.assertEquals(flowCatalog.getSpecs().size(), 2);
 
+    Orchestrator mockOrchestrator = Mockito.mock(Orchestrator.class);
+
     // Mock a GaaS scheduler.
     TestGobblinServiceJobScheduler scheduler = new TestGobblinServiceJobScheduler("testscheduler",
-        ConfigFactory.empty(), Optional.of(flowCatalog), null, null, null);
+        ConfigFactory.empty(), Optional.of(flowCatalog), null, mockOrchestrator, null);
+
+    SpecCompiler mockCompiler = Mockito.mock(SpecCompiler.class);
+    Mockito.when(mockOrchestrator.getSpecCompiler()).thenReturn(mockCompiler);
+    Mockito.doAnswer((Answer<Void>) a -> {
+      scheduler.isCompilerHealthy = true;
+      return null;
+    }).when(mockCompiler).awaitHealthy();
 
     scheduler.setActive(true);
 
@@ -117,6 +130,8 @@ public class GobblinServiceJobSchedulerTest {
   }
 
   class TestGobblinServiceJobScheduler extends GobblinServiceJobScheduler {
+    public boolean isCompilerHealthy = false;
+
     public TestGobblinServiceJobScheduler(String serviceName, Config config,
         Optional<FlowCatalog> flowCatalog, Optional<TopologyCatalog> topologyCatalog, Orchestrator orchestrator,
         SchedulerService schedulerService) throws Exception {
@@ -129,6 +144,8 @@ public class GobblinServiceJobSchedulerTest {
     @Override
     public AddSpecResponse onAddSpec(Spec addedSpec) {
       super.scheduledFlowSpecs.put(addedSpec.getUri().toString(), addedSpec);
+      // Check that compiler is healthy at time of scheduling flows
+      Assert.assertTrue(isCompilerHealthy);
       return new AddSpecResponse(addedSpec.getDescription());
     }
   }
