@@ -95,7 +95,7 @@ public class KafkaAvroJobStatusMonitor extends KafkaJobStatusMonitor {
     try {
       GobblinTrackingEvent decodedMessage = this.reader.get().read(null, decoder);
       return parseJobStatus(decodedMessage);
-    } catch (AvroRuntimeException | IOException exc) {
+    } catch (Exception exc) {
       this.messageParseFailures.mark();
       if (this.messageParseFailures.getFiveMinuteRate() < 1) {
         log.warn("Unable to decode input message.", exc);
