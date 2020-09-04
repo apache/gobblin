@@ -17,19 +17,13 @@
 
 package org.apache.gobblin.compaction.mapreduce;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.io.Files;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+
 import org.apache.commons.io.FilenameUtils;
-import org.apache.gobblin.compaction.mapreduce.orc.OrcTestUtils;
-import org.apache.gobblin.compaction.mapreduce.orc.OrcUtils;
-import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.runtime.api.JobExecutionResult;
-import org.apache.gobblin.runtime.embedded.EmbeddedGobblin;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -38,7 +32,6 @@ import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
 import org.apache.orc.OrcFile;
@@ -52,11 +45,21 @@ import org.apache.orc.mapreduce.OrcMapreduceRecordWriter;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import static org.apache.gobblin.compaction.mapreduce.AvroCompactionTaskTest.*;
+import com.google.common.collect.ImmutableList;
+import com.google.common.io.Files;
+
+import org.apache.gobblin.compaction.mapreduce.orc.OrcTestUtils;
+import org.apache.gobblin.compaction.mapreduce.orc.OrcUtils;
+import org.apache.gobblin.compaction.mapreduce.test.TestCompactionOrcJobConfigurator;
+import org.apache.gobblin.compaction.mapreduce.test.TestCompactionTaskUtils;
+import org.apache.gobblin.runtime.api.JobExecutionResult;
+import org.apache.gobblin.runtime.embedded.EmbeddedGobblin;
+
 import static org.apache.gobblin.compaction.mapreduce.CompactionOrcJobConfigurator.ORC_MAPPER_SHUFFLE_KEY_SCHEMA;
-import static org.apache.gobblin.compaction.mapreduce.CompactorOutputCommitter.*;
+import static org.apache.gobblin.compaction.mapreduce.CompactorOutputCommitter.COMPACTION_OUTPUT_EXTENSION;
 import static org.apache.gobblin.compaction.mapreduce.MRCompactor.COMPACTION_LATEDATA_THRESHOLD_FOR_RECOMPACT_PER_DATASET;
 import static org.apache.gobblin.compaction.mapreduce.MRCompactor.COMPACTION_SHOULD_DEDUPLICATE;
+import static org.apache.gobblin.compaction.mapreduce.test.TestCompactionTaskUtils.createEmbeddedGobblinCompactionJob;
 
 @Test(groups = {"gobblin.compaction"})
 public class OrcCompactionTaskTest {
@@ -103,7 +106,7 @@ public class OrcCompactionTaskTest {
     // Testing data is schema'ed with "struct<i:int,j:int>"
     createTestingData(jobDir);
 
-    EmbeddedGobblin embeddedGobblin = createEmbeddedGobblin("basic", basePath.getAbsolutePath().toString())
+    EmbeddedGobblin embeddedGobblin = TestCompactionTaskUtils.createEmbeddedGobblinCompactionJob("basic", basePath.getAbsolutePath())
         .setConfiguration(CompactionJobConfigurator.COMPACTION_JOB_CONFIGURATOR_FACTORY_CLASS_KEY,
             TestCompactionOrcJobConfigurator.Factory.class.getName())
         .setConfiguration(COMPACTION_OUTPUT_EXTENSION, extensionName)
@@ -157,7 +160,7 @@ public class OrcCompactionTaskTest {
 
     // Verify execution
     // Overwrite the job configurator factory key.
-    EmbeddedGobblin embeddedGobblin = createEmbeddedGobblin("basic", basePath.getAbsolutePath().toString())
+    EmbeddedGobblin embeddedGobblin = createEmbeddedGobblinCompactionJob("basic", basePath.getAbsolutePath())
         .setConfiguration(CompactionJobConfigurator.COMPACTION_JOB_CONFIGURATOR_FACTORY_CLASS_KEY,
         TestCompactionOrcJobConfigurator.Factory.class.getName())
         .setConfiguration(COMPACTION_OUTPUT_EXTENSION, extensionName)
@@ -239,7 +242,7 @@ public class OrcCompactionTaskTest {
     writeOrcRecordsInFile(new Path(file_0.getAbsolutePath()), nestedSchema, ImmutableList.of(nested_struct_1,
         nested_struct_2, nested_struct_3, nested_struct_4, nested_struct_5));
 
-    EmbeddedGobblin embeddedGobblin = createEmbeddedGobblin("basic", basePath.getAbsolutePath().toString())
+    EmbeddedGobblin embeddedGobblin = createEmbeddedGobblinCompactionJob("basic", basePath.getAbsolutePath().toString())
         .setConfiguration(CompactionJobConfigurator.COMPACTION_JOB_CONFIGURATOR_FACTORY_CLASS_KEY,
             TestCompactionOrcJobConfigurator.Factory.class.getName())
         .setConfiguration(COMPACTION_OUTPUT_EXTENSION, extensionName)
@@ -287,7 +290,7 @@ public class OrcCompactionTaskTest {
 
     createTestingData(jobDir);
 
-    EmbeddedGobblin embeddedGobblin_nondedup = createEmbeddedGobblin("basic", basePath.getAbsolutePath().toString())
+    EmbeddedGobblin embeddedGobblin_nondedup = createEmbeddedGobblinCompactionJob("basic", basePath.getAbsolutePath().toString())
         .setConfiguration(CompactionJobConfigurator.COMPACTION_JOB_CONFIGURATOR_FACTORY_CLASS_KEY,
             TestCompactionOrcJobConfigurator.Factory.class.getName())
         .setConfiguration(COMPACTION_OUTPUT_EXTENSION, "orc")
@@ -360,23 +363,5 @@ public class OrcCompactionTaskTest {
       recordWriter.write(NullWritable.get(), orcRecord);
     }
     recordWriter.close(new TaskAttemptContextImpl(configuration, new TaskAttemptID()));
-  }
-
-  private static class TestCompactionOrcJobConfigurator extends CompactionOrcJobConfigurator {
-    public static class Factory implements CompactionJobConfigurator.ConfiguratorFactory {
-      @Override
-      public TestCompactionOrcJobConfigurator createConfigurator(State state) throws IOException {
-        return new TestCompactionOrcJobConfigurator(state);
-      }
-    }
-
-    @Override
-    protected void setNumberOfReducers(Job job) throws IOException {
-      job.setNumReduceTasks(1);
-    }
-
-    public TestCompactionOrcJobConfigurator(State state) throws IOException {
-      super(state);
-    }
   }
 }

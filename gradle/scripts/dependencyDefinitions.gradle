@@ -171,6 +171,7 @@ ext.externalDependency = [
     "grok": "io.thekraken:grok:0.1.5",
     "hadoopAdl" : "org.apache.hadoop:hadoop-azure-datalake:3.0.0-alpha2",
     "orcMapreduce":"org.apache.orc:orc-mapreduce:1.6.3",
+    "orcTools":"org.apache.orc:orc-tools:1.6.3",
     'parquet': 'org.apache.parquet:parquet-hadoop:1.10.1',
     'parquetAvro': 'org.apache.parquet:parquet-avro:1.10.1',
     'parquetProto': 'org.apache.parquet:parquet-protobuf:1.10.1',
