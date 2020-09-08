@@ -50,12 +50,9 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.State;
 
+
 /**
- * A direct copy of the class with the same name in Dali2 project, other than added
- * UnionConverter implementation to support raw-ingestion for union usecase.
- *
- * Note that the implementation in Dali2 is likely to be changed to stay consistent with Iceberg's implementation for
- * other converter implementation. That change is unnecessary for Gobblin and justify this separated copy.
+ * The converter for buffering rows and forming columnar batch.
  */
 @Slf4j
 public class GenericRecordToOrcValueWriter implements OrcValueWriter<GenericRecord> {
@@ -67,7 +64,7 @@ public class GenericRecordToOrcValueWriter implements OrcValueWriter<GenericReco
   private boolean enabledSmartSizing;
   private int enlargeFactor;
 
-  // A rough measure on how much resize is triggered, helping on debugging and testing.
+  // A rough measure of how many times resize is triggered, helping on debugging and testing.
   @VisibleForTesting
   public int resizeCount = 0;
 

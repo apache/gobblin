@@ -17,10 +17,16 @@
 
 package org.apache.gobblin.writer;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.io.Decoder;
+import org.apache.avro.io.DecoderFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -38,12 +44,32 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.source.workunit.WorkUnit;
 
-import static org.apache.gobblin.writer.GenericRecordToOrcValueWriterTest.deserializeAvroRecords;
 import static org.apache.gobblin.writer.GenericRecordToOrcValueWriterTest.deserializeOrcRecords;
 import static org.mockito.Mockito.*;
 
 
 public class GobblinOrcWriterTest {
+
+  public static final List<GenericRecord> deserializeAvroRecords(Class clazz, Schema schema, String schemaPath)
+      throws IOException {
+    List<GenericRecord> records = new ArrayList<>();
+
+    GenericDatumReader<GenericRecord> reader = new GenericDatumReader<>(schema);
+
+    InputStream dataInputStream = clazz.getClassLoader().getResourceAsStream(schemaPath);
+    Decoder decoder = DecoderFactory.get().jsonDecoder(schema, dataInputStream);
+    GenericRecord recordContainer = reader.read(null, decoder);
+    ;
+    try {
+      while (recordContainer != null) {
+        records.add(recordContainer);
+        recordContainer = reader.read(null, decoder);
+      }
+    } catch (IOException ioe) {
+      dataInputStream.close();
+    }
+    return records;
+  }
 
   @Test
   public void testRowBatchDeepClean() throws Exception {

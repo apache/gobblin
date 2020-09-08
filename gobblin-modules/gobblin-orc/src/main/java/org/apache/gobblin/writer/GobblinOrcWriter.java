@@ -79,7 +79,6 @@ public class GobblinOrcWriter extends FsDataWriter<GenericRecord> {
       throws IOException {
     super(builder, properties);
 
-    log.info("Start to construct a ORC-Native Writer");
 
     // Create value-writer which is essentially a record-by-record-converter with buffering in batch.
     this.avroSchema = builder.getSchema();
@@ -88,6 +87,9 @@ public class GobblinOrcWriter extends FsDataWriter<GenericRecord> {
     this.batchSize = properties.getPropAsInt(ORC_WRITER_BATCH_SIZE, DEFAULT_ORC_WRITER_BATCH_SIZE);
     this.rowBatch = typeDescription.createRowBatch(this.batchSize);
     this.deepCleanBatch = properties.getPropAsBoolean(ORC_WRITER_DEEP_CLEAN_EVERY_BATCH, false);
+
+    log.info("Start to construct a ORC-Native Writer, with batchSize:" + batchSize + ", enable batchDeepClean:"
+        + deepCleanBatch + "\n, schema in avro format:" + this.avroSchema);
 
     // Create file-writer
     Configuration conf = new Configuration();

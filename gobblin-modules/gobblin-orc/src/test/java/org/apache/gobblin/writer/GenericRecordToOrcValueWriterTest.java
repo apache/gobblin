@@ -19,7 +19,6 @@ package org.apache.gobblin.writer;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
@@ -27,10 +26,7 @@ import java.util.Properties;
 import java.util.stream.Collectors;
 
 import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.io.Decoder;
-import org.apache.avro.io.DecoderFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -66,7 +62,8 @@ public class GenericRecordToOrcValueWriterTest {
     GenericRecordToOrcValueWriter valueWriter = new GenericRecordToOrcValueWriter(orcSchema, schema);
     VectorizedRowBatch rowBatch = orcSchema.createRowBatch();
 
-    List<GenericRecord> recordList = deserializeAvroRecords(this.getClass(), schema, "union_test/data.json");
+    List<GenericRecord> recordList = GobblinOrcWriterTest
+        .deserializeAvroRecords(this.getClass(), schema, "union_test/data.json");
     for (GenericRecord record : recordList) {
       valueWriter.write(record, rowBatch);
     }
@@ -128,7 +125,8 @@ public class GenericRecordToOrcValueWriterTest {
     // But this has to more than the number of records that we deserialized form data.json, as here we don't reset batch.
     VectorizedRowBatch rowBatch = orcSchema.createRowBatch(10);
 
-    List<GenericRecord> recordList = deserializeAvroRecords(this.getClass(), schema, "list_map_test/data.json");
+    List<GenericRecord> recordList = GobblinOrcWriterTest
+        .deserializeAvroRecords(this.getClass(), schema, "list_map_test/data.json");
     Assert.assertEquals(recordList.size(), 6);
     for (GenericRecord record : recordList) {
       valueWriter.write(record, rowBatch);
@@ -149,27 +147,6 @@ public class GenericRecordToOrcValueWriterTest {
     } catch (Exception e) {
       throw new RuntimeException("Cannot access with reflection", e);
     }
-  }
-
-  public static final List<GenericRecord> deserializeAvroRecords(Class clazz, Schema schema, String schemaPath)
-      throws IOException {
-    List<GenericRecord> records = new ArrayList<>();
-
-    GenericDatumReader<GenericRecord> reader = new GenericDatumReader<>(schema);
-
-    InputStream dataInputStream = clazz.getClassLoader().getResourceAsStream(schemaPath);
-    Decoder decoder = DecoderFactory.get().jsonDecoder(schema, dataInputStream);
-    GenericRecord recordContainer = reader.read(null, decoder);
-    ;
-    try {
-      while (recordContainer != null) {
-        records.add(recordContainer);
-        recordContainer = reader.read(null, decoder);
-      }
-    } catch (IOException ioe) {
-      dataInputStream.close();
-    }
-    return records;
   }
 
   public static final List<Writable> deserializeOrcRecords(Path orcFilePath, FileSystem fs)
