@@ -83,9 +83,9 @@ public class FlowConfigV2ResourceLocalHandler extends FlowConfigResourceLocalHan
     } else if (Boolean.parseBoolean(responseMap.getOrDefault(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>("false")).getValue().toString())) {
       httpStatus = HttpStatus.S_201_CREATED;
     } else {
-      String message = "Flow was not compiled successfully. It may be due to no path being found";
+      String message = "Flow was not compiled successfully.";
       if (!flowSpec.getCompilationErrors().isEmpty()) {
-        message = message + " or due to " + flowSpec.getCompilationErrors();
+        message = message + " Compilation errors encountered: " + flowSpec.getCompilationErrors();
       }
       throw new RestLiServiceException(HttpStatus.S_400_BAD_REQUEST, message);
     }
