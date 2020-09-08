@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -208,11 +207,10 @@ public class OrcUtils {
       OrcList castedList = (OrcList) w;
       OrcList targetList = (OrcList) v;
       TypeDescription elementType = targetSchema.getChildren().get(0);
-      WritableComparable targetListRecordContainer =
-          targetList.size() > 0 ? (WritableComparable) targetList.get(0) : createValueRecursively(elementType, 0);
       targetList.clear();
 
       for (int i = 0; i < castedList.size(); i++) {
+        WritableComparable targetListRecordContainer = createValueRecursively(elementType, 0);
         targetList.add(i,
             structConversionHelper((WritableComparable) castedList.get(i), targetListRecordContainer, elementType));
       }
@@ -220,19 +218,12 @@ public class OrcUtils {
       OrcMap castedMap = (OrcMap) w;
       OrcMap targetMap = (OrcMap) v;
       TypeDescription valueSchema = targetSchema.getChildren().get(1);
-
-      // Create recordContainer with the schema of value.
-      Iterator targetMapEntries = targetMap.values().iterator();
-      WritableComparable targetMapRecordContainer =
-          targetMapEntries.hasNext() ? (WritableComparable) targetMapEntries.next()
-              : createValueRecursively(valueSchema);
-
       targetMap.clear();
 
       for (Object entry : castedMap.entrySet()) {
         Map.Entry<WritableComparable, WritableComparable> castedEntry =
             (Map.Entry<WritableComparable, WritableComparable>) entry;
-
+        WritableComparable targetMapRecordContainer = createValueRecursively(valueSchema);
         targetMapRecordContainer =
             structConversionHelper(castedEntry.getValue(), targetMapRecordContainer, valueSchema);
         targetMap.put(castedEntry.getKey(), targetMapRecordContainer);
