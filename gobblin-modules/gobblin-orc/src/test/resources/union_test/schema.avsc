@@ -1,0 +1,15 @@
+{
+  "namespace": "com.linkedin.union",
+  "type": "record",
+  "name": "UnionTest",
+  "fields": [
+    {
+      "name": "id",
+      "type": [
+        "null",
+        "string",
+        "int"
+      ]
+    }
+  ]
+}

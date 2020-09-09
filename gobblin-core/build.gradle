@@ -56,7 +56,6 @@ dependencies {
   compile externalDependency.oltu
   compile externalDependency.opencsv
   compile externalDependency.hadoopHdfs
-
   runtimeOnly externalDependency.protobuf
 
   testRuntime externalDependency.hadoopAws
