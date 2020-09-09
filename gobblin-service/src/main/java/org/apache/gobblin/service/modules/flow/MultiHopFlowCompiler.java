@@ -204,8 +204,10 @@ public class MultiHopFlowCompiler extends BaseFlowToJobSpecCompiler {
           boolean authorized = this.dataMovementAuthorizer.isMovementAuthorized(flowSpec, sourceNode, destNode);
           Instrumented.updateTimer(dataAuthorizationTimer, System.nanoTime() - authStartTime, TimeUnit.NANOSECONDS);
           if (!authorized) {
-            log.error(String.format("Data movement is not authorized for flow: %s, source: %s, destination: %s",
-                flowSpec.getUri().toString(), source, destination));
+            String message = String.format("Data movement is not authorized for flow: %s, source: %s, destination: %s",
+                flowSpec.getUri().toString(), source, destination);
+            log.error(message);
+            datasetFlowSpec.getCompilationErrors().add(message);
             return null;
           }
         }

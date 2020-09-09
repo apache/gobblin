@@ -264,9 +264,9 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
         flowMetadata.putIfAbsent(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD,
             Long.toString(System.currentTimeMillis()));
 
-        String message = "Flow was not compiled successfully. It may be due to no path being found";
+        String message = "Flow was not compiled successfully.";
         if (!((FlowSpec) spec).getCompilationErrors().isEmpty()) {
-          message = message + " or due to " + ((FlowSpec) spec).getCompilationErrors();
+          message = message + " Compilation errors encountered: " + ((FlowSpec) spec).getCompilationErrors();
         }
         flowMetadata.put(TimingEvent.METADATA_MESSAGE, message);
 
