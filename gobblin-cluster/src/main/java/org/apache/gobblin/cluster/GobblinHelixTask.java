@@ -213,9 +213,17 @@ public class GobblinHelixTask implements Task {
 
   @Override
   public void cancel() {
-    log.info("Gobblin helix task cancellation invoked.");
+    log.info("Gobblin helix task cancellation invoked for jobId {}.", jobId);
     if (this.task != null ) {
-      this.task.cancel();
+      try {
+        this.task.cancel();
+        log.info("Gobblin helix task cancellation completed for jobId {}.", jobId);
+      } catch (Throwable t) {
+        log.info("Gobblin helix task cancellation for jobId {} failed with exception.", jobId, t);
+        throw t;
+      }
+    } else {
+      log.warn("Cancel called for an uninitialized Gobblin helix task for jobId {}.", jobId);
     }
   }
 }
