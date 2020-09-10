@@ -48,10 +48,11 @@ subprojects {
         testCompile (files(((URLClassLoader) ToolProvider.getSystemToolClassLoader()).getURLs()))
       }
       if (!project.name.contains('gobblin-aws')) {
-        //exclude this jar because we introduce log4j-over-slf4j, these two jars cannot present at the same time
         configurations.compile.dependencies*.each {
-          it.exclude group: 'log4j', module: 'log4j'
+          //exclude this jar because we introduce log4j-over-slf4j, these two jars cannot present at the same time
           it.exclude group: 'org.slf4j', module: 'slf4j-log4j12'
+          //exclude log4j related jars to provide a clean log environment
+          it.exclude group: 'log4j', module: 'log4j'
           it.exclude group: 'log4j', module: 'apache-log4j-extras'
         }
       }
