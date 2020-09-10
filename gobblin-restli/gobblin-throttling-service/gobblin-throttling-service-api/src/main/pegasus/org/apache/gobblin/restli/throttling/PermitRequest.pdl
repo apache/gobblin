@@ -1,0 +1,32 @@
+namespace org.apache.gobblin.restli.throttling
+
+/**
+ * Used to request permits from a gobblin-throttling-service.
+ */
+record PermitRequest {
+
+  /**
+   * Resource for which permits are needed.
+   */
+  resource: string
+
+  /**
+   * Number of permits needed.
+   */
+  permits: long
+
+  /**
+   * Minimum number of useful permits.
+   */
+  minPermits: optional long = 0
+
+  /**
+   * Identifier of the service requesting the permits.
+   */
+  requestorIdentifier: string
+
+  /**
+   * Protocol version, see ThrottlingProtocolVersion.java. Allows the server to avoid asking the client for unsupported operations.
+   */
+  version: optional int = 0
+}

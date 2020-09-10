@@ -1,0 +1,32 @@
+namespace org.apache.gobblin.restli.throttling
+
+/**
+ * A throttling policy for Gobblin throttling service.
+ */
+record Policy {
+
+  /**
+   * Resource for which this policy applied.
+   */
+  resource: string
+
+  /**
+   * The name of the policy.
+   */
+  policyName: string
+
+  /**
+   * Parameters for this policy.
+   */
+  parameters: map[string, string]
+
+  /**
+   * Metrics for this policy.
+   */
+  metrics: map[string, string]
+
+  /**
+   * Human readable policy details.
+   */
+  policyDetails: string
+}

@@ -133,6 +133,9 @@ buildscript {
     repositories {
         mavenCentral()
         mavenLocal()
+        maven {
+            url "https://linkedin.bintray.com/maven"
+        }
     }
 
     dependencies {

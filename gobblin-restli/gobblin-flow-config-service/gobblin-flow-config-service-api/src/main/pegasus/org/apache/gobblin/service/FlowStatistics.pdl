@@ -1,0 +1,17 @@
+namespace org.apache.gobblin.service
+
+/**
+ * Statistics from a flow execution
+ */
+record FlowStatistics {
+
+  /**
+   * Epoch time of when the execution began
+   */
+  executionStartTime: long
+
+  /**
+   * Epoch time of when the execution ended
+   */
+  executionEndTime: long
+}

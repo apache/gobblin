@@ -1,0 +1,84 @@
+namespace org.apache.gobblin.rest
+
+/**
+ * Gobblin job execution information
+ */
+record JobExecutionInfo {
+
+  /**
+   * Job name
+   */
+  jobName: string
+
+  /**
+   * Job ID
+   */
+  jobId: string
+
+  /**
+   * Job start time (epoch time)
+   */
+  startTime: optional long
+
+  /**
+   * Job end time (epoch time)
+   */
+  endTime: optional long
+
+  /**
+   * Job duration in milliseconds
+   */
+  duration: optional long
+
+  /**
+   * Job state
+   */
+  state: optional enum JobStateEnum {
+    PENDING
+    RUNNING
+    SUCCESSFUL
+    COMMITTED
+    FAILED
+    CANCELLED
+  }
+
+  /**
+   * Number of launched tasks
+   */
+  launchedTasks: optional int
+
+  /**
+   * Number of completed tasks
+   */
+  completedTasks: optional int
+
+  /**
+   * Job launcher type
+   */
+  launcherType: optional enum LauncherTypeEnum {
+    LOCAL
+    MAPREDUCE
+    CLUSTER
+    YARN
+  }
+
+  /**
+   * Job execution tracking URL
+   */
+  trackingUrl: optional string
+
+  /**
+   * An array of task execution information records
+   */
+  taskExecutions: array[TaskExecutionInfo]
+
+  /**
+   * Job properties
+   */
+  jobProperties: optional map[string, string]
+
+  /**
+   * Job metrics
+   */
+  metrics: array[Metric]
+}

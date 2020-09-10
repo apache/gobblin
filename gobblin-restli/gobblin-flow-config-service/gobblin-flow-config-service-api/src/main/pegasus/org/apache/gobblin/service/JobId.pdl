@@ -1,0 +1,25 @@
+namespace org.apache.gobblin.service
+
+/**
+ * Identifier for a Gobblin job
+ */
+record JobId {
+
+  /**
+   * Name of the job
+   */
+  @validate.strlen = {
+    "max" : 600,
+    "min" : 1
+  }
+  jobName: string
+
+  /**
+   * Group of the job. This defines the namespace for the job.
+   */
+  @validate.strlen = {
+    "max" : 128,
+    "min" : 1
+  }
+  jobGroup: string
+}

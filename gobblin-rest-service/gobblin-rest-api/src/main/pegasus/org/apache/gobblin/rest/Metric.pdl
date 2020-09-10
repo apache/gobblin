@@ -1,0 +1,31 @@
+namespace org.apache.gobblin.rest
+
+/**
+ * Gobblin metric
+ */
+record Metric {
+
+  /**
+   * Metric group
+   */
+  group: string
+
+  /**
+   * Metric name
+   */
+  name: string
+
+  /**
+   * Metric type
+   */
+  type: enum MetricTypeEnum {
+    COUNTER
+    METER
+    GAUGE
+  }
+
+  /**
+   * Metric value
+   */
+  value: string
+}

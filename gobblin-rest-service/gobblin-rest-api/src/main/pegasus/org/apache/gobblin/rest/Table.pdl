@@ -1,0 +1,26 @@
+namespace org.apache.gobblin.rest
+
+/**
+ * Gobblin table definition
+ */
+record Table {
+
+  /**
+   * Table namespace
+   */
+  `namespace`: optional string
+
+  /**
+   * Table name
+   */
+  name: string
+
+  /**
+   * Table type
+   */
+  type: optional enum TableTypeEnum {
+    SNAPSHOT_ONLY
+    SNAPSHOT_APPEND
+    APPEND_ONLY
+  }
+}

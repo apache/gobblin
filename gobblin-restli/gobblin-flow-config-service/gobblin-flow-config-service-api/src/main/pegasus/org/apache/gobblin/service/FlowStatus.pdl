@@ -1,0 +1,33 @@
+namespace org.apache.gobblin.service
+
+/**
+ * Status of a flow
+ */
+@deprecated = "Use FlowExecution instead"
+record FlowStatus {
+
+  /**
+   * Flow status identifier
+   */
+  id: FlowStatusId
+
+  /**
+   * Statistics for this execution of the flow
+   */
+  executionStatistics: FlowStatistics
+
+  /**
+   * Flow execution status
+   */
+  executionStatus: ExecutionStatus
+
+  /**
+   * Error or status message
+   */
+  message: string
+
+  /**
+   * Status of jobs belonging to the flow
+   */
+  jobStatuses: array[JobStatus]
+}
