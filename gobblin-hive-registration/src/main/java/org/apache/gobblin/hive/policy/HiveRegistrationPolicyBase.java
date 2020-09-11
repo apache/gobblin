@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
@@ -165,6 +166,8 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
    * Obtain Hive database names. The returned {@link Iterable} contains the database name returned by
    * {@link #getDatabaseName(Path)} (if present) plus additional database names specified in
    * {@link #ADDITIONAL_HIVE_DATABASE_NAMES}.
+   * Note that the dataset-specific configuration will overwrite job configuration for the value of
+   * {@link #ADDITIONAL_HIVE_DATABASE_NAMES}
    *
    */
   protected Iterable<String> getDatabaseNames(Path path) {
@@ -175,7 +178,10 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
       databaseNames.add(databaseName.get());
     }
 
-    if (!Strings.isNullOrEmpty(this.props.getProp(ADDITIONAL_HIVE_DATABASE_NAMES))) {
+    if (configForTopic.isPresent() && configForTopic.get().hasPath(ADDITIONAL_HIVE_DATABASE_NAMES)) {
+      databaseNames.addAll(getListOfValuesFromConfigStore(configForTopic.get(), ADDITIONAL_HIVE_DATABASE_NAMES).stream()
+          .map(x -> this.dbNamePrefix + x + this.dbNameSuffix).collect(Collectors.toList()));
+    } else if (!Strings.isNullOrEmpty(this.props.getProp(ADDITIONAL_HIVE_DATABASE_NAMES))) {
       for (String additionalDbName : this.props.getPropAsList(ADDITIONAL_HIVE_DATABASE_NAMES)) {
         databaseNames.add(this.dbNamePrefix + additionalDbName + this.dbNameSuffix);
       }
@@ -219,6 +225,12 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
     return tableNames;
   }
 
+  private static List<String> getListOfValuesFromConfigStore(Config config, String keyValue) {
+    return Splitter.on(",")
+        .trimResults()
+        .splitToList(config.getString(keyValue));
+  }
+
   /***
    * Obtain Hive table names filtered by <code>dbPrefix</code> (if present).
    *
@@ -255,9 +267,7 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
 
     // Searching additional table name from ConfigStore-returned object.
     if (primaryTableName.isPresent() && configForTopic.isPresent() && configForTopic.get().hasPath(additionalNamesProp)) {
-      for (String additionalTableName : Splitter.on(",")
-          .trimResults()
-          .splitToList(configForTopic.get().getString(additionalNamesProp))) {
+      for (String additionalTableName : getListOfValuesFromConfigStore(configForTopic.get(), additionalNamesProp)) {
         String resolvedTableName =
             StringUtils.replace(additionalTableName, PRIMARY_TABLE_TOKEN, primaryTableName.get());
         tableNames.add(this.tableNamePrefix + resolvedTableName + this.tableNameSuffix);
