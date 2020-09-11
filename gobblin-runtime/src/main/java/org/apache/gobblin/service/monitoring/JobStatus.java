@@ -21,13 +21,10 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 
-import org.apache.gobblin.annotation.Alpha;
-
 
 /**
  * Contains attributes that describe job status.
  */
-@Alpha
 @Builder
 @Getter
 public class JobStatus {

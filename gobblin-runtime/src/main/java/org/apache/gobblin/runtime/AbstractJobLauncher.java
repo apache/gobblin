@@ -64,7 +64,6 @@ import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.metrics.GobblinMetricsRegistry;
 import org.apache.gobblin.metrics.MetricContext;
-import org.apache.gobblin.metrics.MetricNames;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.metrics.event.EventName;
@@ -120,6 +119,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
   public static final String MULTI_WORK_UNIT_FILE_EXTENSION = ".mwu";
 
   public static final String GOBBLIN_JOB_TEMPLATE_KEY = "gobblin.template.uri";
+
+  public static final String NUM_WORKUNITS = "numWorkUnits";
 
   /** Making {@link AbstractJobLauncher} capable of loading multiple job templates.
    * Keep the original {@link #GOBBLIN_JOB_TEMPLATE_KEY} for backward-compatibility.
@@ -415,9 +416,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         workUnitsCreationTimer.stop(this.eventMetadataGenerator.getMetadata(this.jobContext,
             EventName.WORK_UNITS_CREATION));
 
-        this.jobContext.getJobState().setProp(
-            MetricNames.NUM_WORKUNITS, workUnitStream.getMaterializedWorkUnitCollection().size());
-
         if (this.runtimeMetricContext.isPresent()) {
           String workunitCreationGaugeName = MetricRegistry
               .name(ServiceMetricNames.GOBBLIN_JOB_METRICS_PREFIX, TimingEvent.LauncherTimings.WORK_UNITS_CREATION,
@@ -434,6 +432,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           jobState.setState(JobState.RunningState.FAILED);
           String errMsg = "Failed to get work units for job " + jobId;
           this.jobContext.getJobState().setJobFailureMessage(errMsg);
+          this.jobContext.getJobState().setProp(NUM_WORKUNITS, 0);
           throw new JobException(errMsg);
         }
 
@@ -443,8 +442,11 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           LOG.warn("No work units have been created for job " + jobId);
           jobState.setState(JobState.RunningState.COMMITTED);
           isWorkUnitsEmpty = true;
+          this.jobContext.getJobState().setProp(NUM_WORKUNITS, 0);
           return;
         }
+
+        this.jobContext.getJobState().setProp(NUM_WORKUNITS, workUnitStream.getMaterializedWorkUnitCollection().size());
 
         //Initialize writer and converter(s)
         closer.register(WriterInitializerFactory.newInstace(jobState, workUnitStream)).initialize();

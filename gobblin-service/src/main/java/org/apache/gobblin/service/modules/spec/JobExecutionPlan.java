@@ -83,9 +83,13 @@ public class JobExecutionPlan {
 
     /**
      * Given a resolved job config, this helper method converts the config to a {@link JobSpec}.
-     * @param jobConfig resolved job config.
      * @param flowSpec input FlowSpec.
+     * @param jobConfig resolved job config.
+     * @param flowExecutionId flow execution id for the flow
+     * @param sysConfig gobblin service level configs
+     * @param specExecutorConfig configs for the {@link SpecExecutor} of this {@link JobExecutionPlan}
      * @return a {@link JobSpec} corresponding to the resolved job config.
+     * @throws URISyntaxException if creation of {@link JobSpec} URI fails
      */
     private static JobSpec buildJobSpec(FlowSpec flowSpec, Config jobConfig, Long flowExecutionId, Config sysConfig, Config specExecutorConfig)
         throws URISyntaxException {
@@ -155,10 +159,11 @@ public class JobExecutionPlan {
 
     /**
      * A method to add any additional configurations to a JobSpec which need to be passed to the {@link SpecExecutor}.
-     * This enables {@link org.apache.gobblin.metrics.GobblinTrackingEvent}s
-     * to be emitted from each Gobblin job orchestrated by Gobblin-as-a-Service, which will then be used for tracking the
-     * execution status of the job.
+     * This enables {@link org.apache.gobblin.metrics.GobblinTrackingEvent}s to be emitted from each Gobblin job
+     * orchestrated by Gobblin-as-a-Service, which will then be used for tracking the execution status of the job.
      * @param jobSpec representing a fully resolved {@link JobSpec}.
+     * @param sysConfig gobblin service level configs
+     * @param specExecutorConfig configs for the {@link SpecExecutor} of this {@link JobExecutionPlan}
      */
     private static void addAdditionalConfig(JobSpec jobSpec, Config sysConfig, Config specExecutorConfig) {
       if (!(sysConfig.hasPath(ConfigurationKeys.SPECEXECUTOR_CONFIGS_PREFIX_KEY)

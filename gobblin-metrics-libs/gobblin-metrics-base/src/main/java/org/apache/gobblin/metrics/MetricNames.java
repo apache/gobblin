@@ -22,8 +22,6 @@ package org.apache.gobblin.metrics;
  */
 public class MetricNames {
 
-  public static final String NUM_WORKUNITS = "numWorkUnits";
-
   /**
    * Extractor metrics.
    */
