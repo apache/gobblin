@@ -35,7 +35,6 @@ import org.apache.hadoop.hive.metastore.TableType;
 import com.codahale.metrics.Timer;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
@@ -179,7 +178,8 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
     }
 
     if (configForTopic.isPresent() && configForTopic.get().hasPath(ADDITIONAL_HIVE_DATABASE_NAMES)) {
-      databaseNames.addAll(getListOfValuesFromConfigStore(configForTopic.get(), ADDITIONAL_HIVE_DATABASE_NAMES).stream()
+      databaseNames.addAll(
+          ConfigStoreUtils.getListOfValuesFromConfigStore(configForTopic.get(), ADDITIONAL_HIVE_DATABASE_NAMES).stream()
           .map(x -> this.dbNamePrefix + x + this.dbNameSuffix).collect(Collectors.toList()));
     } else if (!Strings.isNullOrEmpty(this.props.getProp(ADDITIONAL_HIVE_DATABASE_NAMES))) {
       for (String additionalDbName : this.props.getPropAsList(ADDITIONAL_HIVE_DATABASE_NAMES)) {
@@ -225,12 +225,6 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
     return tableNames;
   }
 
-  private static List<String> getListOfValuesFromConfigStore(Config config, String keyValue) {
-    return Splitter.on(",")
-        .trimResults()
-        .splitToList(config.getString(keyValue));
-  }
-
   /***
    * Obtain Hive table names filtered by <code>dbPrefix</code> (if present).
    *
@@ -267,7 +261,8 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
 
     // Searching additional table name from ConfigStore-returned object.
     if (primaryTableName.isPresent() && configForTopic.isPresent() && configForTopic.get().hasPath(additionalNamesProp)) {
-      for (String additionalTableName : getListOfValuesFromConfigStore(configForTopic.get(), additionalNamesProp)) {
+      for (String additionalTableName : ConfigStoreUtils
+          .getListOfValuesFromConfigStore(configForTopic.get(), additionalNamesProp)) {
         String resolvedTableName =
             StringUtils.replace(additionalTableName, PRIMARY_TABLE_TOKEN, primaryTableName.get());
         tableNames.add(this.tableNamePrefix + resolvedTableName + this.tableNameSuffix);
