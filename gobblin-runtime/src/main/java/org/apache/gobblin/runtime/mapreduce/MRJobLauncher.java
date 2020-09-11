@@ -153,7 +153,6 @@ public class MRJobLauncher extends AbstractJobLauncher {
   public static final String MAPPER_TASK_ATTEMPT_NUM_KEY = ConfigurationKeys.METRICS_CONFIGURATIONS_PREFIX + "reporting.mapper.task.attempt.num";
   public static final String REDUCER_TASK_NUM_KEY = ConfigurationKeys.METRICS_CONFIGURATIONS_PREFIX + "reporting.reducer.task.num";
   public static final String REDUCER_TASK_ATTEMPT_NUM_KEY = ConfigurationKeys.METRICS_CONFIGURATIONS_PREFIX + "reporting.reducer.task.attempt.num";
-  public static final String NUM_MAPPERS = "numMappers";
 
   private static final Splitter SPLITTER = Splitter.on(',').omitEmptyStrings().trimResults();
 
