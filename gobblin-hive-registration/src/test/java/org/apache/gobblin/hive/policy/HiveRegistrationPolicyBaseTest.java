@@ -17,9 +17,11 @@
 
 package org.apache.gobblin.hive.policy;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.Properties;
 import java.util.regex.Pattern;
 
 import org.apache.hadoop.fs.Path;
@@ -27,10 +29,16 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
+import com.google.common.io.Files;
+import com.typesafe.config.Config;
 
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.hive.spec.HiveSpec;
 import org.apache.gobblin.hive.spec.SimpleHiveSpec;
+import org.apache.gobblin.util.ConfigUtils;
+
+import static org.apache.gobblin.hive.policy.HiveRegistrationPolicyBase.ADDITIONAL_HIVE_DATABASE_NAMES;
+
 
 /**
  * Unit test for {@link HiveRegistrationPolicyBase}
@@ -46,7 +54,7 @@ public class HiveRegistrationPolicyBaseTest {
       throws IOException {
     State state = new State();
     state.appendToListProp(HiveRegistrationPolicyBase.HIVE_DATABASE_NAME, "db1");
-    state.appendToListProp(HiveRegistrationPolicyBase.ADDITIONAL_HIVE_DATABASE_NAMES, "db2");
+    state.appendToListProp(ADDITIONAL_HIVE_DATABASE_NAMES, "db2");
 
     state.appendToListProp(HiveRegistrationPolicyBase.HIVE_TABLE_NAME, "tbl1");
     state.appendToListProp(HiveRegistrationPolicyBase.ADDITIONAL_HIVE_TABLE_NAMES, "tbl2,tbl3");
@@ -71,12 +79,39 @@ public class HiveRegistrationPolicyBaseTest {
     examine(spec, "db2", "tbl3");
   }
 
+  // Testing fetching additional hive databases from config object. Specifically, we verifies if dataset-level DB
+  // config could overwrite the same configuration set in the job level.
+  public void testGetDatabasesNames() throws Exception {
+    State jobState = new State();
+    jobState.setProp(ADDITIONAL_HIVE_DATABASE_NAMES, "db1");
+
+    Properties properties = new Properties();
+    properties.setProperty(ADDITIONAL_HIVE_DATABASE_NAMES, "db2");
+    Config configObj = ConfigUtils.propertiesToConfig(properties);
+    HiveRegistrationPolicyBase policyBase = new HiveRegistrationPolicyBase(jobState);
+    // Setting the config object manually.
+    policyBase.configForTopic = Optional.fromNullable(configObj);
+
+    // Construct a random Path
+    File dir = Files.createTempDir();
+    dir.deleteOnExit();
+    Path dummyPath = new Path(dir.getAbsolutePath() + " /random");
+
+    int dbCount = 0 ;
+    for (String dbName : policyBase.getDatabaseNames(dummyPath)) {
+      Assert.assertEquals(dbName, "db2");
+      dbCount += 1;
+    }
+
+    Assert.assertEquals(dbCount, 1);
+  }
+
   @Test
   public void testGetHiveSpecsWithDBFilter()
       throws IOException {
     State state = new State();
     state.appendToListProp(HiveRegistrationPolicyBase.HIVE_DATABASE_NAME, "db1");
-    state.appendToListProp(HiveRegistrationPolicyBase.ADDITIONAL_HIVE_DATABASE_NAMES, "db2");
+    state.appendToListProp(ADDITIONAL_HIVE_DATABASE_NAMES, "db2");
 
     state.appendToListProp(HiveRegistrationPolicyBase.HIVE_TABLE_NAME, "tbl1");
     state.appendToListProp(HiveRegistrationPolicyBase.ADDITIONAL_HIVE_TABLE_NAMES, "tbl2,tbl3,$PRIMARY_TABLE_col");

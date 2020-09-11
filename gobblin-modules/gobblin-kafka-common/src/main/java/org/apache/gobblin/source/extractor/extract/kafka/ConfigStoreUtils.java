@@ -41,6 +41,7 @@ import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
 import com.typesafe.config.Config;
 
 import lombok.extern.slf4j.Slf4j;
@@ -256,5 +257,11 @@ public class ConfigStoreUtils {
     } else {
       log.warn("None of the blacklist or whitelist tags are provided");
     }
+  }
+
+  public static List<String> getListOfValuesFromConfigStore(Config config, String keyValue) {
+    return Splitter.on(",")
+        .trimResults()
+        .splitToList(config.getString(keyValue));
   }
 }
