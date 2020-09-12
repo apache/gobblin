@@ -220,7 +220,7 @@ public class GobblinHelixTask implements Task {
         log.info("Gobblin helix task cancellation completed for jobId {}.", jobId);
       } catch (Throwable t) {
         log.info("Gobblin helix task cancellation for jobId {} failed with exception.", jobId, t);
-        throw new RuntimeException("Gobblin helix task cancellation for jobId " + jobId + " failed with exception.", t);
+        Throwables.propagate(t);
       }
     } else {
       log.warn("Cancel called for an uninitialized Gobblin helix task for jobId {}.", jobId);
