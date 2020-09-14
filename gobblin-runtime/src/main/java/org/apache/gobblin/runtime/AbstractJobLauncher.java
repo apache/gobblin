@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.runtime;
 
-import avro.shaded.com.google.common.collect.Iterators;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
