@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.runtime;
 
+import avro.shaded.com.google.common.collect.Iterators;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -446,7 +447,9 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           return;
         }
 
-        this.jobContext.getJobState().setProp(NUM_WORKUNITS, workUnitStream.getMaterializedWorkUnitCollection().size());
+        // If it is a streaming source, workunits cannot be counted
+        this.jobContext.getJobState().setProp(NUM_WORKUNITS,
+            workUnitStream.isSafeToMaterialize() ? workUnitStream.getMaterializedWorkUnitCollection().size() : 0);
 
         //Initialize writer and converter(s)
         closer.register(WriterInitializerFactory.newInstace(jobState, workUnitStream)).initialize();
