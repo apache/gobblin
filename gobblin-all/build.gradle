@@ -68,6 +68,7 @@ dependencies {
   compile project(':gobblin-modules:gobblin-metrics-hadoop')
   compile project(':gobblin-modules:gobblin-metrics-influxdb')
   compile project(':gobblin-metrics-libs')
+  compile project(':gobblin-modules:gobblin-orc')
   compile project(':gobblin-modules:gobblin-orc-dep')
   compile project(':gobblin-modules:gobblin-parquet-apache')
   compile project(':gobblin-modules:gobblin-parquet-common')
