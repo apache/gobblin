@@ -1,0 +1,22 @@
+namespace org.apache.gobblin.rest
+
+/**
+ * Query time range
+ */
+record TimeRange {
+
+  /**
+   * Start time of the query range
+   */
+  startTime: optional string
+
+  /**
+   * End time of the query range
+   */
+  endTime: optional string
+
+  /**
+   * Date/time format used to parse the start time and end time
+   */
+  timeFormat: string
+}

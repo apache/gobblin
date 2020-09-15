@@ -1,0 +1,32 @@
+namespace org.apache.gobblin.restli.throttling
+
+/**
+ * Used by gobblin-throttling-service to allocate permits to a client.
+ */
+record PermitAllocation {
+
+  /**
+   * Number of permits allocated. This may be 0 if no permits are allocated, or the number of requested permits.
+   */
+  permits: long
+
+  /**
+   * Expiration time in Unix timestamp of the allocated permits.
+   */
+  expiration: long
+
+  /**
+   * Client should not try to acquire permits before this delay has passed.
+   */
+  minRetryDelayMillis: optional long
+
+  /**
+   * Client must wait this many millis before allocating provided permits.
+   */
+  waitForPermitUseMillis: optional long = 0
+
+  /**
+   * If larger than 0, specifies request larger than this number are impossible to satisfy by the policy.
+   */
+  unsatisfiablePermits: optional long = 0
+}

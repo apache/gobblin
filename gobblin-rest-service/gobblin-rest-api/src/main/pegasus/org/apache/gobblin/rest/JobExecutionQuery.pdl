@@ -1,0 +1,69 @@
+namespace org.apache.gobblin.rest
+
+/**
+ * Gobblin job execution query
+ */
+record JobExecutionQuery {
+
+  /**
+   * Query ID (a job ID, job name, table definition, or list type)
+   */
+  id: union[string, Table,
+    /**
+     * Listing distinct jobs fetches the most recent execution info for each job name in the database. Listing recent jobs fetches the most recent job executions, regardless of job name.
+     */
+    enum QueryListType {
+      DISTINCT
+      RECENT
+    }]
+
+  /**
+   * Query ID type
+   */
+  idType: enum QueryIdTypeEnum {
+    JOB_NAME
+    JOB_ID
+    TABLE
+    LIST_TYPE
+  }
+
+  /**
+   * Query time range
+   */
+  timeRange: optional TimeRange
+
+  /**
+   * Query limit
+   */
+  limit: optional int = 1
+
+  /**
+   * Comma-separated list of job properties to include in the query result
+   */
+  jobProperties: optional string
+
+  /**
+   * Comma-separated list of task properties to include in the query result
+   */
+  taskProperties: optional string
+
+  /**
+   * true/false if the response should include job metrics (default: true)
+   */
+  includeJobMetrics: optional boolean = true
+
+  /**
+   * true/false if the response should include task metrics (default: true)
+   */
+  includeTaskMetrics: optional boolean = true
+
+  /**
+   * true/false if the response should include task executions (default: true)
+   */
+  includeTaskExecutions: optional boolean = true
+
+  /**
+   * true/false if the response should include jobs that did not launch tasks (default: true)
+   */
+  includeJobsWithoutTasks: optional boolean = true
+}

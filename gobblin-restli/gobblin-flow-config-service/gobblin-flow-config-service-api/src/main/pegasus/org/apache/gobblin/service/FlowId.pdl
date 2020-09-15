@@ -1,0 +1,25 @@
+namespace org.apache.gobblin.service
+
+/**
+ * Identifier for a Gobblin as a Service flow
+ */
+record FlowId {
+
+  /**
+   * Name of the flow
+   */
+  @validate.strlen = {
+    "max" : 128,
+    "min" : 1
+  }
+  flowName: string
+
+  /**
+   * Group of the flow. This defines the namespace for the flow.
+   */
+  @validate.strlen = {
+    "max" : 128,
+    "min" : 1
+  }
+  flowGroup: string
+}

@@ -1,0 +1,22 @@
+namespace org.apache.gobblin.service
+
+/**
+ * Identifier for a specific execution of a flow
+ */
+record FlowStatusId {
+
+  /**
+   * Name of the flow
+   */
+  flowName: string
+
+  /**
+   * Group of the flow. This defines the namespace for the flow.
+   */
+  flowGroup: string
+
+  /**
+   * Execution id for the flow
+   */
+  flowExecutionId: long
+}
