@@ -120,6 +120,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
   public static final String GOBBLIN_JOB_TEMPLATE_KEY = "gobblin.template.uri";
 
+  public static final String NUM_WORKUNITS = "numWorkUnits";
+
   /** Making {@link AbstractJobLauncher} capable of loading multiple job templates.
    * Keep the original {@link #GOBBLIN_JOB_TEMPLATE_KEY} for backward-compatibility.
    * TODO: Expand support to Gobblin-as-a-Service in FlowTemplateCatalog.
@@ -430,6 +432,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           jobState.setState(JobState.RunningState.FAILED);
           String errMsg = "Failed to get work units for job " + jobId;
           this.jobContext.getJobState().setJobFailureMessage(errMsg);
+          this.jobContext.getJobState().setProp(NUM_WORKUNITS, 0);
           throw new JobException(errMsg);
         }
 
@@ -439,8 +442,13 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           LOG.warn("No work units have been created for job " + jobId);
           jobState.setState(JobState.RunningState.COMMITTED);
           isWorkUnitsEmpty = true;
+          this.jobContext.getJobState().setProp(NUM_WORKUNITS, 0);
           return;
         }
+
+        // If it is a streaming source, workunits cannot be counted
+        this.jobContext.getJobState().setProp(NUM_WORKUNITS,
+            workUnitStream.isSafeToMaterialize() ? workUnitStream.getMaterializedWorkUnitCollection().size() : 0);
 
         //Initialize writer and converter(s)
         closer.register(WriterInitializerFactory.newInstace(jobState, workUnitStream)).initialize();

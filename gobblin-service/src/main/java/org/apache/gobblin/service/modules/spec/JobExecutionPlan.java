@@ -19,6 +19,7 @@ package org.apache.gobblin.service.modules.spec;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 import org.apache.commons.lang3.StringUtils;
@@ -72,17 +73,26 @@ public class JobExecutionPlan {
 
     public JobExecutionPlan createPlan(FlowSpec flowSpec, Config jobConfig, SpecExecutor specExecutor, Long flowExecutionId, Config sysConfig)
         throws URISyntaxException {
-        JobSpec jobSpec = buildJobSpec(flowSpec, jobConfig, flowExecutionId, sysConfig);
-        return new JobExecutionPlan(jobSpec, specExecutor);
+        try {
+          JobSpec jobSpec = buildJobSpec(flowSpec, jobConfig, flowExecutionId, sysConfig, specExecutor.getConfig().get());
+          return new JobExecutionPlan(jobSpec, specExecutor);
+        } catch (InterruptedException | ExecutionException e) {
+          throw new RuntimeException(e);
+        }
     }
 
     /**
      * Given a resolved job config, this helper method converts the config to a {@link JobSpec}.
-     * @param jobConfig resolved job config.
      * @param flowSpec input FlowSpec.
+     * @param jobConfig resolved job config.
+     * @param flowExecutionId flow execution id for the flow
+     * @param sysConfig gobblin service level configs
+     * @param specExecutorConfig configs for the {@link SpecExecutor} of this {@link JobExecutionPlan}
      * @return a {@link JobSpec} corresponding to the resolved job config.
+     * @throws URISyntaxException if creation of {@link JobSpec} URI fails
      */
-    private static JobSpec buildJobSpec(FlowSpec flowSpec, Config jobConfig, Long flowExecutionId, Config sysConfig) throws URISyntaxException {
+    private static JobSpec buildJobSpec(FlowSpec flowSpec, Config jobConfig, Long flowExecutionId, Config sysConfig, Config specExecutorConfig)
+        throws URISyntaxException {
       Config flowConfig = flowSpec.getConfig();
 
       String flowName = ConfigUtils.getString(flowConfig, ConfigurationKeys.FLOW_NAME_KEY, "");
@@ -134,7 +144,7 @@ public class JobExecutionPlan {
       //Add tracking config to JobSpec.
       addTrackingEventConfig(jobSpec, sysConfig);
 
-      addAdditionalConfig(jobSpec, sysConfig);
+      addAdditionalConfig(jobSpec, sysConfig, specExecutorConfig);
 
       // Add dynamic config to jobSpec if a dynamic config generator is specified in sysConfig
       DynamicConfigGenerator dynamicConfigGenerator = DynamicConfigGeneratorFactory.createDynamicConfigGenerator(sysConfig);
@@ -149,12 +159,13 @@ public class JobExecutionPlan {
 
     /**
      * A method to add any additional configurations to a JobSpec which need to be passed to the {@link SpecExecutor}.
-     * This enables {@link org.apache.gobblin.metrics.GobblinTrackingEvent}s
-     * to be emitted from each Gobblin job orchestrated by Gobblin-as-a-Service, which will then be used for tracking the
-     * execution status of the job.
+     * This enables {@link org.apache.gobblin.metrics.GobblinTrackingEvent}s to be emitted from each Gobblin job
+     * orchestrated by Gobblin-as-a-Service, which will then be used for tracking the execution status of the job.
      * @param jobSpec representing a fully resolved {@link JobSpec}.
+     * @param sysConfig gobblin service level configs
+     * @param specExecutorConfig configs for the {@link SpecExecutor} of this {@link JobExecutionPlan}
      */
-    private static void addAdditionalConfig(JobSpec jobSpec, Config sysConfig) {
+    private static void addAdditionalConfig(JobSpec jobSpec, Config sysConfig, Config specExecutorConfig) {
       if (!(sysConfig.hasPath(ConfigurationKeys.SPECEXECUTOR_CONFIGS_PREFIX_KEY)
           && !Strings.isNullOrEmpty(ConfigUtils.getString(sysConfig, ConfigurationKeys.SPECEXECUTOR_CONFIGS_PREFIX_KEY, ""))
           && sysConfig.hasPath(sysConfig.getString(ConfigurationKeys.SPECEXECUTOR_CONFIGS_PREFIX_KEY)))) {
@@ -164,6 +175,8 @@ public class JobExecutionPlan {
       String additionalConfigsPrefix = sysConfig.getString(ConfigurationKeys.SPECEXECUTOR_CONFIGS_PREFIX_KEY);
 
       Config config = jobSpec.getConfig().withFallback(ConfigUtils.getConfigOrEmpty(sysConfig, additionalConfigsPrefix));
+
+      config = config.withFallback(ConfigUtils.getConfigOrEmpty(specExecutorConfig, additionalConfigsPrefix));
 
       if (!config.isEmpty()) {
         jobSpec.setConfig(config);
