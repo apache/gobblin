@@ -21,6 +21,7 @@ import javax.tools.ToolProvider
 subprojects {
   plugins.withType(JavaPlugin) {
     configurations {
+      customTestCompile
       compile
       dependencies {
         if (!project.name.contains('gobblin-elasticsearch-deps')) {
@@ -35,19 +36,35 @@ subprojects {
           compile(externalDependency.guava) {
               force = true
           }
-      }
-          compile(externalDependency.commonsCodec) {
-            force = true
-          }
+        }
+        compile(externalDependency.commonsCodec) {
+          force = true
+        }
+        //Since testCompile inherit from compile, so we cannot use testCompile to import dependency for log4j
+        customTestCompile externalDependency.log4j
+        customTestCompile externalDependency.slf4jToLog4j
 
         // Required to add JDK's tool jar, which is required to run byteman tests.
         testCompile (files(((URLClassLoader) ToolProvider.getSystemToolClassLoader()).getURLs()))
       }
+      if (!project.name.contains('gobblin-aws')) {
+        configurations.compile.dependencies*.each {
+          //exclude this jar because we introduce log4j-over-slf4j, these two jars cannot present at the same time
+          it.exclude group: 'org.slf4j', module: 'slf4j-log4j12'
+          //exclude log4j related jars to provide a clean log environment
+          it.exclude group: 'log4j', module: 'log4j'
+          it.exclude group: 'log4j', module: 'apache-log4j-extras'
+        }
+      }
       all*.exclude group: 'org.apache.calcite', module: 'calcite-avatica' // replaced by org.apache.calcite.avatica:avatica-core
-      //exclude this jar because we introduce log4j-over-slf4j, these two jars cannot present at the same time
-      compileClasspath.exclude group: 'org.slf4j', module: 'slf4j-log4j12'
       //exclude this jar in test class path because we are using log4j implementation to test
       testCompile.exclude group: 'org.slf4j', module: 'log4j-over-slf4j'
+    }
+    test{
+      //Add log4j into runtime path
+      classpath += configurations.customTestCompile
+      //Add log4j into compile path
+      sourceSets.test.compileClasspath += configurations.customTestCompile
     }
   }
 
