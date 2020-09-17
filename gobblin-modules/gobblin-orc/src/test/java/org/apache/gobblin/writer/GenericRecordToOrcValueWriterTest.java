@@ -30,7 +30,6 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hive.ql.exec.vector.VectorizedRowBatch;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
@@ -40,6 +39,7 @@ import org.apache.orc.TypeDescription;
 import org.apache.orc.Writer;
 import org.apache.orc.mapred.OrcStruct;
 import org.apache.orc.mapred.OrcUnion;
+import org.apache.orc.storage.ql.exec.vector.VectorizedRowBatch;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 

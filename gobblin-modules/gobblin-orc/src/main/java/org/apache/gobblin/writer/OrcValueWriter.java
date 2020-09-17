@@ -19,7 +19,7 @@ package org.apache.gobblin.writer;
 
 import java.io.IOException;
 
-import org.apache.hadoop.hive.ql.exec.vector.VectorizedRowBatch;
+import org.apache.orc.storage.ql.exec.vector.VectorizedRowBatch;
 
 
 /**
