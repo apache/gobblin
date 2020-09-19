@@ -56,6 +56,7 @@ import org.apache.gobblin.instrumented.writer.InstrumentedDataWriterDecorator;
 import org.apache.gobblin.instrumented.writer.InstrumentedPartitionedDataWriterDecorator;
 import org.apache.gobblin.records.ControlMessageHandler;
 import org.apache.gobblin.stream.ControlMessage;
+import org.apache.gobblin.stream.FlushControlMessage;
 import org.apache.gobblin.stream.MetadataUpdateControlMessage;
 import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.stream.StreamEntity;
@@ -395,6 +396,9 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
             .getGlobalMetadata().getSchema());
         state.setProp(WRITER_LATEST_SCHEMA, ((MetadataUpdateControlMessage) message)
             .getGlobalMetadata().getSchema());
+      } else if (message instanceof FlushControlMessage){
+        //Add Partition info to state to report partition level lineage events on Flush
+        serializePartitionInfoToState();
       }
 
       synchronized (PartitionedDataWriter.this) {
@@ -411,7 +415,7 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
   /**
    * Get the serialized key to partitions info in {@link #state}
    */
-  private static String getPartitionsKey(int branchId) {
+  public static String getPartitionsKey(int branchId) {
     return String.format("writer.%d.partitions", branchId);
   }
 
