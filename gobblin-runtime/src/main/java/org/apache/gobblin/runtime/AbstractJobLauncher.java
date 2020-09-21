@@ -446,10 +446,6 @@ public abstract class AbstractJobLauncher implements JobLauncher {
           return;
         }
 
-        // If it is a streaming source, workunits cannot be counted
-        this.jobContext.getJobState().setProp(NUM_WORKUNITS,
-            workUnitStream.isSafeToMaterialize() ? workUnitStream.getMaterializedWorkUnitCollection().size() : 0);
-
         //Initialize writer and converter(s)
         closer.register(WriterInitializerFactory.newInstace(jobState, workUnitStream)).initialize();
         closer.register(ConverterInitializerFactory.newInstance(jobState, workUnitStream)).initialize();
@@ -492,6 +488,10 @@ public abstract class AbstractJobLauncher implements JobLauncher {
               jobState.addTaskState(new TaskState(new WorkUnitState(workUnit, jobState)));
             }
           });
+
+          // If it is a streaming source, workunits cannot be counted
+          this.jobContext.getJobState().setProp(NUM_WORKUNITS,
+              workUnitStream.isSafeToMaterialize() ? workUnitStream.getMaterializedWorkUnitCollection().size() : 0);
 
           // dump the work unit if tracking logs are enabled
           if (jobState.getPropAsBoolean(ConfigurationKeys.WORK_UNIT_ENABLE_TRACKING_LOGS)) {
