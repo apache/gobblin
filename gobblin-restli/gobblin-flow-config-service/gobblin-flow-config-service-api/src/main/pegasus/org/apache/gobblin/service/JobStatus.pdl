@@ -31,6 +31,11 @@ record JobStatus {
   message: string
 
   /**
+   * metrics information
+   */
+  metrics: optional string
+
+  /**
    * Statistics from the job execution. The values may be updated during the run of a job.
    */
   executionStatistics: JobStatistics

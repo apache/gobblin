@@ -22,10 +22,10 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Strings;
 import com.google.inject.Inject;
 import com.linkedin.data.template.SetMode;
 import com.linkedin.restli.common.ComplexResourceKey;
@@ -169,6 +169,10 @@ public class FlowExecutionResource extends ComplexKeyResourceTemplate<FlowStatus
           .setMessage(queriedJobStatus.getMessage())
           .setJobState(new JobState().setLowWatermark(queriedJobStatus.getLowWatermark()).
               setHighWatermark(queriedJobStatus.getHighWatermark()));
+
+      if (!Strings.isNullOrEmpty(queriedJobStatus.getMetrics())) {
+        jobStatus.setMetrics(queriedJobStatus.getMetrics());
+      }
 
       jobStatusArray.add(jobStatus);
     }

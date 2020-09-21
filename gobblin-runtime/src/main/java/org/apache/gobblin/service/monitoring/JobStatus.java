@@ -40,7 +40,8 @@ public class JobStatus {
   private final long startTime;
   private final long endTime;
   @Setter
-  private String message;
+  private String metrics;
+  private final String message;
   private final long processedCount;
   private final String lowWatermark;
   private final String highWatermark;
