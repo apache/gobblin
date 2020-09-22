@@ -63,7 +63,7 @@ public class JobLauncherTestHelper {
     this.datasetStateStore = datasetStateStore;
   }
 
-  public void runTest(Properties jobProps) throws Exception {
+  public JobContext runTest(Properties jobProps) throws Exception {
     String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
     String jobId = JobLauncherUtils.newJobId(jobName);
     jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, jobId);
@@ -87,10 +87,17 @@ public class JobLauncherTestHelper {
     DatasetState datasetState = datasetStateList.get(0);
 
     Assert.assertEquals(datasetState.getState(), JobState.RunningState.COMMITTED);
-    Assert.assertEquals(datasetState.getCompletedTasks(), 4);
     Assert.assertEquals(datasetState.getJobFailures(), 0);
 
+    int skippedWorkunits = 0;
+
     for (TaskState taskState : datasetState.getTaskStates()) {
+      if (Boolean.parseBoolean(jobProps.getProperty(ConfigurationKeys.WORK_UNIT_SKIP_KEY, Boolean.FALSE.toString()))
+          && taskState.getWorkingState() == WorkUnitState.WorkingState.SKIPPED) {
+        skippedWorkunits++;
+        continue;
+      }
+
       Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
       Assert.assertEquals(taskState.getPropAsLong(ConfigurationKeys.WRITER_RECORDS_WRITTEN),
           TestExtractor.TOTAL_RECORDS);
@@ -115,6 +122,17 @@ public class JobLauncherTestHelper {
         Assert.assertTrue(Long.valueOf(m.group(2)) < currentTime);
       }
     }
+
+    if (Boolean.parseBoolean(jobProps.getProperty(ConfigurationKeys.WORK_UNIT_SKIP_KEY,
+        Boolean.FALSE.toString()))) {
+      Assert.assertEquals(skippedWorkunits, 2);
+      Assert.assertEquals(datasetState.getCompletedTasks(), 2);
+    } else {
+      Assert.assertEquals(skippedWorkunits, 0);
+      Assert.assertEquals(datasetState.getCompletedTasks(), 4);
+    }
+
+    return jobContext;
   }
 
   public void runTestWithPullLimit(Properties jobProps, long limit) throws Exception {

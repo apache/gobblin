@@ -61,6 +61,14 @@ public class TestSource extends AbstractSource<String, String> {
       workUnits.add(workUnit);
     }
 
+    if (state.getPropAsBoolean(ConfigurationKeys.WORK_UNIT_SKIP_KEY, false)) {
+      for (int i = 0; i < list.size(); i++) {
+        if (i % 2 == 0) {
+          workUnits.get(i).setProp(ConfigurationKeys.WORK_UNIT_SKIP_KEY, true);
+        }
+      }
+    }
+
     if (state.getPropAsBoolean("use.multiworkunit", false)) {
       MultiWorkUnit multiWorkUnit = MultiWorkUnit.createEmpty();
       multiWorkUnit.addWorkUnits(workUnits);
