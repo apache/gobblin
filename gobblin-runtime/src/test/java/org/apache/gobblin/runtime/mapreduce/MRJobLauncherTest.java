@@ -51,6 +51,8 @@ import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.publisher.DataPublisher;
+import org.apache.gobblin.runtime.AbstractJobLauncher;
+import org.apache.gobblin.runtime.JobContext;
 import org.apache.gobblin.runtime.JobLauncherTestHelper;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.util.limiter.BaseLimiterType;
@@ -113,6 +115,29 @@ public class MRJobLauncherTest extends BMNGRunner {
       this.jobLauncherTestHelper.deleteStateStore(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
     }
     log.info("out");
+  }
+
+  @Test
+  public void testNumOfWorkunits() throws Exception {
+    Properties jobProps = loadJobProps();
+    JobContext jobContext;
+    jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY,
+        jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY) + "-testNumOfWorkunits");
+    try {
+      jobContext = this.jobLauncherTestHelper.runTest(jobProps);
+    } finally {
+      this.jobLauncherTestHelper.deleteStateStore(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
+    }
+    Assert.assertEquals(jobContext.getJobState().getPropAsInt(AbstractJobLauncher.NUM_WORKUNITS), 4);
+
+    jobProps.setProperty(ConfigurationKeys.WORK_UNIT_SKIP_KEY, Boolean.TRUE.toString());
+    try {
+      jobContext = this.jobLauncherTestHelper.runTest(jobProps);
+    } finally {
+      this.jobLauncherTestHelper.deleteStateStore(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
+    }
+
+    Assert.assertEquals(jobContext.getJobState().getPropAsInt(AbstractJobLauncher.NUM_WORKUNITS), 2);
   }
 
   @Test
