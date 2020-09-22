@@ -48,6 +48,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.state.ConstructState;
 
+import static org.apache.gobblin.writer.AvroOrcSchemaConverter.getOrcSchema;
+
 
 /**
  * A wrapper for ORC-core writer without dependency on Hive SerDe library.
@@ -82,7 +84,7 @@ public class GobblinOrcWriter extends FsDataWriter<GenericRecord> {
 
     // Create value-writer which is essentially a record-by-record-converter with buffering in batch.
     this.avroSchema = builder.getSchema();
-    TypeDescription typeDescription = AvroOrcSchemaConverter.getOrcSchema(this.avroSchema);
+    TypeDescription typeDescription = getOrcSchema(this.avroSchema);
     this.valueWriter = new GenericRecordToOrcValueWriter(typeDescription, this.avroSchema, properties);
     this.batchSize = properties.getPropAsInt(ORC_WRITER_BATCH_SIZE, DEFAULT_ORC_WRITER_BATCH_SIZE);
     this.rowBatch = typeDescription.createRowBatch(this.batchSize);
@@ -118,8 +120,8 @@ public class GobblinOrcWriter extends FsDataWriter<GenericRecord> {
      */
     ConstructState state = new ConstructState(super.getFinalState());
     try {
-      state.addOverwriteProperties(new State(getOrcSchemaAttrs(this.avroSchema.toString())));
-    } catch (SerDeException | IOException e) {
+      state.addOverwriteProperties(new State(getPropsWithOrcSchema(this.avroSchema)));
+    } catch (SerDeException e) {
       throw new RuntimeException("Failure to set schema metadata in finalState properly which "
           + "could possible lead to incorrect data registration", e);
     }
@@ -250,13 +252,10 @@ public class GobblinOrcWriter extends FsDataWriter<GenericRecord> {
     return this.writerAttemptIdOptional.isPresent() && this.getClass() == GobblinOrcWriter.class;
   }
 
-  public static Properties getOrcSchemaAttrs(String avroSchemaString)
-      throws SerDeException, IOException {
+  public static Properties getPropsWithOrcSchema(Schema avroSchema) throws SerDeException {
     Properties properties = new Properties();
-    properties.setProperty(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), avroSchemaString);
-
-    AvroObjectInspectorGenerator aoig = new AvroObjectInspectorGenerator(
-        AvroSerdeUtils.determineSchemaOrThrowException(properties));
+    properties.setProperty(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), avroSchema.toString());
+    AvroObjectInspectorGenerator aoig = new AvroObjectInspectorGenerator(avroSchema);
 
     properties.setProperty("columns", StringUtils.join(aoig.getColumnNames(), ","));
     properties.setProperty("columns.types", StringUtils.join(aoig.getColumnTypes(), ","));
