@@ -31,16 +31,15 @@ import org.apache.gobblin.util.ClassAliasResolver;
 
 
 /**
- * A class to add metadata from multi {@link EventMetadataGenerator}.
+ * A class to add metadata from multiple {@link EventMetadataGenerator}s.
  * {@link EventMetadataGenerator}s are supposed to be provided by a comma separated string.
- * If multiple {@link EventMetadataGenerator}s add the same metadata, the one comes later will take precedence.
+ * If multiple {@link EventMetadataGenerator}s add the same metadata, the one that comes later will take precedence.
  */
 public class MultiEventMetadataGenerator {
   private final List<EventMetadataGenerator> eventMetadataGenerators = Lists.newArrayList();
 
-  public MultiEventMetadataGenerator(String multiEventMetadataGeneratorString) {
-    Splitter splitter = Splitter.on(",").omitEmptyStrings().trimResults();
-    for (String eventMetadatadataGeneratorClassName : splitter.split(multiEventMetadataGeneratorString)) {
+  public MultiEventMetadataGenerator(List<String> multiEventMetadataGeneratorList) {
+    for (String eventMetadatadataGeneratorClassName : multiEventMetadataGeneratorList) {
       try {
         ClassAliasResolver<EventMetadataGenerator> aliasResolver = new ClassAliasResolver<>(EventMetadataGenerator.class);
         this.eventMetadataGenerators.add(aliasResolver.resolveClass(eventMetadatadataGeneratorClassName).newInstance());

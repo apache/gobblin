@@ -17,17 +17,17 @@
 
 package org.apache.gobblin.runtime;
 
-import java.io.File;
-import java.lang.reflect.Method;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.util.Map;
 
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+
 import org.apache.gobblin.metrics.event.EventName;
+import org.apache.gobblin.runtime.api.EventMetadataGenerator;
 import org.apache.gobblin.runtime.api.MultiEventMetadataGenerator;
 
 
@@ -36,14 +36,30 @@ public class MultiEventMetadataGeneratorTest {
   @Test
   public void testInstantiate() {
     JobContext jobContext = Mockito.mock(JobContext.class);
-    MultiEventMetadataGenerator multiEventMetadataGenerator =
-        new MultiEventMetadataGenerator("org.apache.gobblin.runtime.DummyEventMetadataGenerator, "
-            + "org.apache.gobblin.runtime.DummyEventMetadataGenerator2");
+    MultiEventMetadataGenerator multiEventMetadataGenerator = new MultiEventMetadataGenerator(ImmutableList.of(
+        "org.apache.gobblin.runtime.MultiEventMetadataGeneratorTest$DummyEventMetadataGenerator",
+        "org.apache.gobblin.runtime.MultiEventMetadataGeneratorTest$DummyEventMetadataGenerator2"));
 
     Map<String, String> metadata = multiEventMetadataGenerator.getMetadata(jobContext, EventName.getEnumFromEventId("JobCompleteTimer"));
     Assert.assertEquals(metadata.size(), 3);
     Assert.assertEquals(metadata.get("dummyKey11"), "dummyValue11");
     Assert.assertEquals(metadata.get("dummyKey12"), "dummyValue22");
     Assert.assertEquals(metadata.get("dummyKey21"), "dummyValue21");
+  }
+
+  public static class DummyEventMetadataGenerator implements EventMetadataGenerator {
+
+    @Override
+    public Map<String, String> getMetadata(JobContext jobContext, EventName eventName) {
+      return ImmutableMap.of("dummyKey11", "dummyValue11", "dummyKey12", "dummyValue12");
+    }
+  }
+
+  public static class DummyEventMetadataGenerator2 implements EventMetadataGenerator {
+
+    @Override
+    public Map<String, String> getMetadata(JobContext jobContext, EventName eventName) {
+      return ImmutableMap.of("dummyKey21", "dummyValue21", "dummyKey12", "dummyValue22");
+    }
   }
 }

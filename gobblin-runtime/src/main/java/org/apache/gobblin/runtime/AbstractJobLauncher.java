@@ -97,6 +97,7 @@ import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.Id;
 import org.apache.gobblin.util.JobLauncherUtils;
 import org.apache.gobblin.util.ParallelRunner;
+import org.apache.gobblin.util.PropertiesUtils;
 import org.apache.gobblin.writer.initializer.WriterInitializerFactory;
 
 
@@ -221,7 +222,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
       this.mandatoryJobListeners.add(new JobExecutionEventSubmitterListener(jobExecutionEventSubmitter));
 
       this.multiEventMetadataGenerator = new MultiEventMetadataGenerator(
-          jobProps.getProperty(ConfigurationKeys.EVENT_METADATA_GENERATOR_CLASS_KEY,
+          PropertiesUtils.getPropAsList(jobProps, ConfigurationKeys.EVENT_METADATA_GENERATOR_CLASS_KEY,
               ConfigurationKeys.DEFAULT_EVENT_METADATA_GENERATOR_CLASS_KEY));
     } catch (Exception e) {
       unlockJob();

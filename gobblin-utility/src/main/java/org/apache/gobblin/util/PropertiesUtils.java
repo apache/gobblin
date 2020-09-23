@@ -20,6 +20,7 @@ package org.apache.gobblin.util;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
@@ -28,6 +29,7 @@ import org.apache.commons.lang3.StringUtils;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
 
 
@@ -35,6 +37,8 @@ import com.google.common.collect.ImmutableMap;
  * A utility class for {@link Properties} objects.
  */
 public class PropertiesUtils {
+
+  private static final Splitter LIST_SPLITTER = Splitter.on(",").trimResults().omitEmptyStrings();
 
   /**
    * Combine a variable number of {@link Properties} into a single {@link Properties}.
@@ -68,6 +72,27 @@ public class PropertiesUtils {
 
   public static long getPropAsLong(Properties properties, String key, long defaultValue) {
     return Long.parseLong(properties.getProperty(key, Long.toString(defaultValue)));
+  }
+
+  /**
+   * Get the value of a comma separated property as a {@link List} of strings.
+   *
+   * @param key property key
+   * @return value associated with the key as a {@link List} of strings
+   */
+  public static List<String> getPropAsList(Properties properties, String key) {
+    return LIST_SPLITTER.splitToList(properties.getProperty(key));
+  }
+
+  /**
+   * Get the value of a property as a list of strings, using the given default value if the property is not set.
+   *
+   * @param key property key
+   * @param def default value
+   * @return value (the default value if the property is not set) associated with the key as a list of strings
+   */
+  public static List<String> getPropAsList(Properties properties, String key, String def) {
+    return LIST_SPLITTER.splitToList(properties.getProperty(key, def));
   }
 
   /**
