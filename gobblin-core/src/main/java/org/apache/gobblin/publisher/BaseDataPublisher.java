@@ -371,7 +371,7 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
    * This method publishes task output data for the given {@link WorkUnitState}, but if there are output data of
    * other tasks in the same folder, it may also publish those data.
    */
-  private void publishMultiTaskData(WorkUnitState state, int branchId, Set<Path> writerOutputPathsMoved)
+  protected void publishMultiTaskData(WorkUnitState state, int branchId, Set<Path> writerOutputPathsMoved)
       throws IOException {
     publishData(state, branchId, false, writerOutputPathsMoved);
     addLineageInfo(state, branchId);

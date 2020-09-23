@@ -44,13 +44,16 @@ import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import org.apache.gobblin.broker.iface.NotConfiguredException;
 import org.apache.gobblin.broker.iface.SharedResourcesBroker;
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.gobblin.dataset.DatasetResolver;
 import org.apache.gobblin.dataset.DatasetResolverFactory;
 import org.apache.gobblin.dataset.Descriptor;
 import org.apache.gobblin.dataset.DescriptorResolver;
 import org.apache.gobblin.dataset.NoopDatasetResolver;
+import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.broker.LineageInfoFactory;
+import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -160,7 +163,7 @@ public final class LineageInfo {
         resolvedDescriptors.add(resolvedDescriptor);
       }
 
-      String destinationKey = getKey(BRANCH, branchId, LineageEventBuilder.DESTINATION);
+      String destinationKey = getDestinationKey(branchId);
       String currentDestinations = state.getProp(destinationKey);
       List<Descriptor> allDescriptors = Lists.newArrayList();
       if (StringUtils.isNotEmpty(currentDestinations)) {
@@ -302,5 +305,51 @@ public final class LineageInfo {
     args[0] = LineageEventBuilder.LIENAGE_EVENT_NAMESPACE;
     System.arraycopy(objects, 0, args, 1, objects.length);
     return LineageEventBuilder.getKey(args);
+  }
+
+  private static String getDestinationKey(int branchId) {
+    return getKey(BRANCH, branchId, LineageEventBuilder.DESTINATION);
+  }
+  /**
+   * Remove the destination property from the state object. Used in streaming mode, where we want to selectively purge
+   * lineage information from the state.
+   * @param state
+   * @param branchId
+   */
+  public static void removeDestinationProp(State state, int branchId) {
+    String destinationKey = getDestinationKey(branchId);
+    if (state.contains(destinationKey)) {
+      state.removeProp(destinationKey);
+    }
+  }
+
+  /**
+   * Group states by lineage event name (i.e the dataset name). Used for de-duping LineageEvents for a given dataset.
+   * @param states
+   * @return a map of {@link WorkUnitState}s keyed by dataset name.
+   */
+  public static Map<String, Collection<WorkUnitState>> aggregateByLineageEvent(Collection<? extends WorkUnitState> states) {
+    Map<String, Collection<WorkUnitState>> statesByEvents = Maps.newHashMap();
+    for (WorkUnitState state : states) {
+      String eventName = LineageInfo.getFullEventName(state);
+      Collection<WorkUnitState> statesForEvent = statesByEvents.computeIfAbsent(eventName, k -> Lists.newArrayList());
+      statesForEvent.add(state);
+    }
+
+    return statesByEvents;
+  }
+
+  /**
+   * Emit lineage events for a given dataset. This method de-dupes the LineageEvents before submitting to the Lineage
+   * Event reporter
+   * @param dataset dataset name
+   * @param states a set of {@link WorkUnitState}s associated with the dataset
+   * @param metricContext {@link MetricContext} to submit the events to, which then notifies the Lineage EventReporter.
+   */
+  public static void submitLineageEvent(String dataset, Collection<? extends WorkUnitState> states, MetricContext metricContext) {
+    Collection<LineageEventBuilder> events = LineageInfo.load(states);
+    // Send events
+    events.forEach(event -> EventSubmitter.submit(metricContext, event));
+    log.info(String.format("Submitted %d lineage events for dataset %s", events.size(), dataset));
   }
 }
