@@ -20,6 +20,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
@@ -42,6 +43,7 @@ import org.apache.hadoop.fs.Path;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
+import com.google.common.base.Strings;
 import com.typesafe.config.Config;
 
 import lombok.extern.slf4j.Slf4j;
@@ -260,8 +262,11 @@ public class ConfigStoreUtils {
   }
 
   public static List<String> getListOfValuesFromConfigStore(Config config, String keyValue) {
-    return Splitter.on(",")
-        .trimResults()
-        .splitToList(config.getString(keyValue));
+    String keyVal = config.getString(keyValue);
+    if (!Strings.isNullOrEmpty(keyVal)) {
+      return Splitter.on(",").trimResults().splitToList(keyVal);
+    } else {
+      return Collections.emptyList();
+    }
   }
 }
