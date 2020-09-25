@@ -27,6 +27,8 @@ import java.util.stream.Collectors;
 import org.apache.gobblin.config.client.ConfigClient;
 import org.apache.gobblin.config.client.api.VersionStabilityPolicy;
 import org.apache.gobblin.kafka.client.GobblinKafkaConsumerClient;
+import org.apache.gobblin.util.ConfigUtils;
+
 import org.apache.hadoop.fs.Path;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -69,6 +71,21 @@ public class ConfigStoreUtilsTest {
     URL url = this.getClass().getClassLoader().getResource("_CONFIG_STORE");
     configStoreUri = getStoreURI(new Path(url.getPath()).getParent().toString()).toString();
     mockClient = Mockito.mock(GobblinKafkaConsumerClient.class);
+  }
+
+  @Test
+  public void testGetStringListForTopic() throws Exception {
+    Properties properties = new Properties();
+    properties.put("key", "v1,v2,v3");
+    properties.put("emptyKey", "");
+    Config config = ConfigUtils.propertiesToConfig(properties);
+    List<String> l1 = ConfigStoreUtils.getListOfValuesFromConfigStore(config, "key");
+    Assert.assertEquals(l1.size(), 3);
+    Assert.assertTrue(l1.contains("v1"));
+    Assert.assertTrue(l1.contains("v2"));
+    Assert.assertTrue(l1.contains("v3"));
+    List<String> l2 = ConfigStoreUtils.getListOfValuesFromConfigStore(config, "emptyKey");
+    Assert.assertTrue(l2.isEmpty());
   }
 
   @Test
