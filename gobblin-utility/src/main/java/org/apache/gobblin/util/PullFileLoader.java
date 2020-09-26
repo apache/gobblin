@@ -26,13 +26,14 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.commons.configuration.ConfigurationConverter;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
-import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -47,6 +48,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigException;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigParseOptions;
 import com.typesafe.config.ConfigSyntax;
@@ -117,8 +119,7 @@ public class PullFileLoader {
   public PullFileLoader(Path rootDirectory, FileSystem fs, Collection<String> javaPropsPullFileExtensions,
       Collection<String> hoconPullFileExtensions) {
 
-    Set<String> commonExtensions = Sets.intersection(Sets.newHashSet(javaPropsPullFileExtensions),
-        Sets.newHashSet(hoconPullFileExtensions));
+    Set<String> commonExtensions = Sets.intersection(Sets.newHashSet(javaPropsPullFileExtensions), Sets.newHashSet(hoconPullFileExtensions));
     Preconditions.checkArgument(commonExtensions.isEmpty(),
         "Java props and HOCON pull file extensions intersect: " + Arrays.toString(commonExtensions.toArray()));
 
@@ -138,10 +139,10 @@ public class PullFileLoader {
    * @return The loaded {@link Config}.
    * @throws IOException
    */
-  public Config loadPullFile(Path path, Config sysProps, boolean loadGlobalProperties, boolean resolve) throws IOException {
+  public Config loadPullFile(Path path, Config sysProps, boolean loadGlobalProperties, boolean resolve)
+      throws IOException {
     Config fallback = loadGlobalProperties ? loadAncestorGlobalConfigs(path, sysProps) : sysProps;
     Config loadedConfig;
-
     if (this.javaPropsPullFileFilter.accept(path)) {
       loadedConfig = loadJavaPropsWithFallback(path, fallback);
     } else if (this.hoconPullFileFilter.accept(path)) {
@@ -153,7 +154,8 @@ public class PullFileLoader {
     return resolve ? loadedConfig.resolve() : loadedConfig;
   }
 
-  public Config loadPullFile(Path path, Config sysProps, boolean loadGlobalProperties) throws IOException {
+  public Config loadPullFile(Path path, Config sysProps, boolean loadGlobalProperties)
+      throws IOException {
     return loadPullFile(path, sysProps, loadGlobalProperties, true);
   }
 
@@ -163,7 +165,9 @@ public class PullFileLoader {
    * @param sysProps A {@link Config} used as fallback.
    * @param loadGlobalProperties if true, will also load at most one *.properties file per directory from the
    *          {@link #rootDirectory} to the pull file {@link Path} for each pull file.
-   * @return The loaded {@link Config}s.
+   * @return The loaded {@link Config}s. Files that fail to parse successfully will be logged,
+   *         but will not result in a Config object
+   *
    */
   public List<Config> loadPullFilesRecursively(Path path, Config sysProps, boolean loadGlobalProperties) {
     return Lists.transform(this.fetchJobFilesRecursively(path), new Function<Path, Config>() {
@@ -175,14 +179,14 @@ public class PullFileLoader {
         }
 
         try {
-          return PullFileLoader.this.loadPullFile(jobFile,
-              sysProps, loadGlobalProperties);
-        } catch (IOException e) {
-          log.error("Cannot load job from {} due to {}", jobFile, ExceptionUtils.getFullStackTrace(e));
+          return PullFileLoader.this.loadPullFile(jobFile, sysProps, loadGlobalProperties);
+        } catch (IOException ie) {
+          log.error("", ie);
           return null;
         }
       }
-    });
+    }).stream().filter(Objects::nonNull).collect(Collectors.toList());
+    // only return valid parsed configs
   }
 
   public List<Path> fetchJobFilesRecursively(Path path) {
@@ -231,12 +235,13 @@ public class PullFileLoader {
    * Higher directories will serve as fallback for lower directories, and sysProps will serve as fallback for all of them.
    * @throws IOException
    */
-  private Config loadAncestorGlobalConfigs(Path path, Config sysProps) throws IOException {
+  private Config loadAncestorGlobalConfigs(Path path, Config sysProps)
+      throws IOException {
     Config config = sysProps;
 
     if (!PathUtils.isAncestor(this.rootDirectory, path)) {
-      log.warn(String.format("Loaded path %s is not a descendant of root path %s. Cannot load global properties.",
-          path, this.rootDirectory));
+      log.warn(String.format("Loaded path %s is not a descendant of root path %s. Cannot load global properties.", path,
+          this.rootDirectory));
     } else {
 
       List<Path> ancestorPaths = Lists.newArrayList();
@@ -258,7 +263,8 @@ public class PullFileLoader {
    * @return The {@link Config} in path with sysProps as fallback.
    * @throws IOException
    */
-  private Config findAndLoadGlobalConfigInDirectory(Path path, Config fallback) throws IOException {
+  private Config findAndLoadGlobalConfigInDirectory(Path path, Config fallback)
+      throws IOException {
     FileStatus[] files = this.fs.listStatus(path, GLOBAL_PATH_FILTER);
     if (files == null) {
       log.warn("Could not list files at path " + path);
@@ -284,43 +290,62 @@ public class PullFileLoader {
    * @return The {@link Config} in path with fallback as fallback.
    * @throws IOException
    */
-  private Config loadJavaPropsWithFallback(Path propertiesPath, Config fallback) throws IOException {
+  private Config loadJavaPropsWithFallback(Path propertiesPath, Config fallback)
+      throws IOException {
 
     PropertiesConfiguration propertiesConfiguration = new PropertiesConfiguration();
-    try (InputStreamReader inputStreamReader = new InputStreamReader(this.fs.open(propertiesPath),
-        Charsets.UTF_8)) {
-      propertiesConfiguration.setDelimiterParsingDisabled(ConfigUtils.getBoolean(fallback,
-    		  PROPERTY_DELIMITER_PARSING_ENABLED_KEY, DEFAULT_PROPERTY_DELIMITER_PARSING_ENABLED_KEY));
+    try (InputStreamReader inputStreamReader = new InputStreamReader(this.fs.open(propertiesPath), Charsets.UTF_8)) {
+      propertiesConfiguration.setDelimiterParsingDisabled(ConfigUtils
+          .getBoolean(fallback, PROPERTY_DELIMITER_PARSING_ENABLED_KEY, DEFAULT_PROPERTY_DELIMITER_PARSING_ENABLED_KEY));
       propertiesConfiguration.load(inputStreamReader);
 
       Config configFromProps =
           ConfigUtils.propertiesToConfig(ConfigurationConverter.getProperties(propertiesConfiguration));
 
       return ConfigFactory.parseMap(ImmutableMap.of(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY,
-          PathUtils.getPathWithoutSchemeAndAuthority(propertiesPath).toString()))
-          .withFallback(configFromProps)
+          PathUtils.getPathWithoutSchemeAndAuthority(propertiesPath).toString())).withFallback(configFromProps)
           .withFallback(fallback);
     } catch (ConfigurationException ce) {
+      log.error("Failed to load Java properties from file at {} due to {}", propertiesPath, ce.getLocalizedMessage());
       throw new IOException(ce);
     }
   }
 
-  private Config loadHoconConfigAtPath(Path path) throws IOException {
-    try (InputStream is = fs.open(path);
-        Reader reader = new InputStreamReader(is, Charsets.UTF_8)) {
-        return ConfigFactory.parseMap(ImmutableMap.of(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY,
-            PathUtils.getPathWithoutSchemeAndAuthority(path).toString()))
-            .withFallback(ConfigFactory.parseReader(reader, ConfigParseOptions.defaults().setSyntax(ConfigSyntax.CONF)));
+  private Config loadHoconConfigAtPath(Path path)
+      throws IOException {
+    try (InputStream is = fs.open(path); Reader reader = new InputStreamReader(is, Charsets.UTF_8)) {
+      return ConfigFactory.parseMap(ImmutableMap
+          .of(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY, PathUtils.getPathWithoutSchemeAndAuthority(path).toString()))
+          .withFallback(ConfigFactory.parseReader(reader, ConfigParseOptions.defaults().setSyntax(ConfigSyntax.CONF)));
+    } catch (ConfigException configException) {
+      throw wrapConfigException(path, configException);
     }
   }
 
-  private Config loadHoconConfigWithFallback(Path path, Config fallback) throws IOException {
-    try (InputStream is = fs.open(path);
-         Reader reader = new InputStreamReader(is, Charsets.UTF_8)) {
-      return ConfigFactory.parseMap(ImmutableMap.of(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY,
-          PathUtils.getPathWithoutSchemeAndAuthority(path).toString()))
-          .withFallback(ConfigFactory.parseReader(reader, ConfigParseOptions.defaults().setSyntax(ConfigSyntax.CONF)))
-          .withFallback(fallback);
+  /**
+   * Wrap a {@link ConfigException} (which extends {@link RuntimeException} with an IOException,
+   * with a helpful message if possible
+   * @param path
+   * @param configException
+   * @return an {@link IOException} wrapping the passed in ConfigException.
+   */
+  private IOException wrapConfigException(Path path, ConfigException configException) {
+    if (configException.origin() != null) {
+      return new IOException("Failed to parse config file " + path.toString()
+          + " at lineNo:" + configException.origin().lineNumber(), configException);
+    } else {
+      return new IOException("Failed to parse config file " + path.toString(), configException);
+    }
+  }
+
+  private Config loadHoconConfigWithFallback(Path path, Config fallback)
+      throws IOException {
+    try (InputStream is = fs.open(path); Reader reader = new InputStreamReader(is, Charsets.UTF_8)) {
+      return ConfigFactory.parseMap(ImmutableMap
+          .of(ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY, PathUtils.getPathWithoutSchemeAndAuthority(path).toString()))
+          .withFallback(ConfigFactory.parseReader(reader, ConfigParseOptions.defaults().setSyntax(ConfigSyntax.CONF))).withFallback(fallback);
+    } catch (ConfigException configException) {
+      throw wrapConfigException(path, configException);
     }
   }
 

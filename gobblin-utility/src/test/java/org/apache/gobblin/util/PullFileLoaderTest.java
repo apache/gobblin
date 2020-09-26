@@ -118,6 +118,8 @@ public class PullFileLoaderTest {
     sysProps.put("key1", "sysProps1");
     Collection<Config> configs =
         loader.loadPullFilesRecursively(this.basePath, ConfigUtils.propertiesToConfig(sysProps), false);
+    // Only 4 files should generate configs (ajob.pull, bjob.pull, dir1/job.pull, dir1/job.conf)
+    Assert.assertEquals(configs.size(), 4);
 
     path = new Path(this.basePath, "ajob.pull");
     pullFile = pullFileFromPath(configs, path);
@@ -274,4 +276,16 @@ public class PullFileLoaderTest {
     throw new IOException("Not found.");
   }
 
+
+  @Test
+  public void testExceptionWrapping() throws Exception {
+    Path path = new Path(this.basePath, "dir2/badjob.conf");
+    try {
+      Config pullFile = loader.loadPullFile(path, ConfigFactory.empty(), true);
+      Assert.fail("Should throw exception");
+    } catch (IOException ie) {
+      String message = ie.getMessage();
+      Assert.assertEquals(message, "Failed to parse config file " + path.toString() + " at lineNo:18");
+    }
+  }
 }
