@@ -20,10 +20,8 @@ package org.apache.gobblin.runtime.api;
 import java.util.List;
 import java.util.Map;
 
-import com.google.common.base.Splitter;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-
-import avro.shaded.com.google.common.collect.Lists;
 
 import org.apache.gobblin.metrics.event.EventName;
 import org.apache.gobblin.runtime.JobContext;
