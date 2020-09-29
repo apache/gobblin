@@ -74,21 +74,6 @@ public class ConfigStoreUtilsTest {
   }
 
   @Test
-  public void testGetStringListForTopic() throws Exception {
-    Properties properties = new Properties();
-    properties.put("key", "v1,v2,v3");
-    properties.put("emptyKey", "");
-    Config config = ConfigUtils.propertiesToConfig(properties);
-    List<String> l1 = ConfigStoreUtils.getListOfValuesFromConfigStore(config, "key");
-    Assert.assertEquals(l1.size(), 3);
-    Assert.assertTrue(l1.contains("v1"));
-    Assert.assertTrue(l1.contains("v2"));
-    Assert.assertTrue(l1.contains("v3"));
-    List<String> l2 = ConfigStoreUtils.getListOfValuesFromConfigStore(config, "emptyKey");
-    Assert.assertTrue(l2.isEmpty());
-  }
-
-  @Test
   public void testGetUriStringForTopic() throws Exception {
     String commonPath = "/data/tracking";
     URI topic1URI = ConfigStoreUtils.getUriStringForTopic("Topic1", commonPath, configStoreUri);

@@ -260,13 +260,4 @@ public class ConfigStoreUtils {
       log.warn("None of the blacklist or whitelist tags are provided");
     }
   }
-
-  public static List<String> getListOfValuesFromConfigStore(Config config, String keyValue) {
-    String keyVal = config.getString(keyValue);
-    if (!Strings.isNullOrEmpty(keyVal)) {
-      return Splitter.on(",").trimResults().splitToList(keyVal);
-    } else {
-      return Collections.emptyList();
-    }
-  }
 }
