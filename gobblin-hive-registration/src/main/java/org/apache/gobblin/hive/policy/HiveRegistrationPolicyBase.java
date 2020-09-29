@@ -56,6 +56,7 @@ import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.source.extractor.extract.kafka.ConfigStoreUtils;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaSource;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
@@ -178,8 +179,7 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
     }
 
     if (configForTopic.isPresent() && configForTopic.get().hasPath(ADDITIONAL_HIVE_DATABASE_NAMES)) {
-      databaseNames.addAll(
-          ConfigStoreUtils.getListOfValuesFromConfigStore(configForTopic.get(), ADDITIONAL_HIVE_DATABASE_NAMES).stream()
+      databaseNames.addAll(ConfigUtils.getStringList(configForTopic.get(), ADDITIONAL_HIVE_DATABASE_NAMES).stream()
           .map(x -> this.dbNamePrefix + x + this.dbNameSuffix).collect(Collectors.toList()));
     } else if (!Strings.isNullOrEmpty(this.props.getProp(ADDITIONAL_HIVE_DATABASE_NAMES))) {
       for (String additionalDbName : this.props.getPropAsList(ADDITIONAL_HIVE_DATABASE_NAMES)) {
@@ -261,8 +261,7 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
 
     // Searching additional table name from ConfigStore-returned object.
     if (primaryTableName.isPresent() && configForTopic.isPresent() && configForTopic.get().hasPath(additionalNamesProp)) {
-      for (String additionalTableName : ConfigStoreUtils
-          .getListOfValuesFromConfigStore(configForTopic.get(), additionalNamesProp)) {
+      for (String additionalTableName : ConfigUtils.getStringList(configForTopic.get(), additionalNamesProp)) {
         String resolvedTableName =
             StringUtils.replace(additionalTableName, PRIMARY_TABLE_TOKEN, primaryTableName.get());
         tableNames.add(this.tableNamePrefix + resolvedTableName + this.tableNameSuffix);
