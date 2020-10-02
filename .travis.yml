@@ -47,7 +47,7 @@ jobs:
       env: RUN_TEST_GROUP=none
       install: skip
       script:
-        - ./travis/bintrayDeploy.sh
+        - travis_retry ./travis/bintrayDeploy.sh
 
 env:
   jobs:

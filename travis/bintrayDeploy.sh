@@ -35,5 +35,5 @@ echo "Pull request: [$TRAVIS_PULL_REQUEST], Travis branch: [$TRAVIS_BRANCH]"
 if [ "$TRAVIS_PULL_REQUEST" = "false" ]
 then
     echo "Uploading artifacts to bintray for version $BUILD_VERSION"
-    ./gradlew -i bintrayUpload -Pversion=$BUILD_VERSION
+    ./gradlew bintrayUpload -Pversion=$BUILD_VERSION -Pbintray.override
 fi
