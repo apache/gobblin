@@ -365,17 +365,16 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
   /**
    * Commit data of this {@link Fork}.
    *
-   * @throws Exception if there is anything wrong committing the data
    */
-  public boolean commit()
-      throws Exception {
+  public boolean commit() {
     try {
       if (checkDataQuality(this.convertedSchema)) {
         // Commit data if all quality checkers pass. Again, not to catch the exception
         // it may throw so the exception gets propagated to the caller of this method.
-        this.logger.debug(String.format("Committing data for fork %d of task %s", this.index, this.taskId));
+        this.logger.info(String.format("Committing data for fork %d of task %s", this.index, this.taskId));
         commitData();
         verifyAndSetForkState(ForkState.SUCCEEDED, ForkState.COMMITTED);
+        this.logger.info(String.format("Fork %d of task %s successfully committed data", this.index, this.taskId));
         return true;
       }
       this.logger.error(String.format("Fork %d of task %s failed to pass quality checking", this.index, this.taskId));
