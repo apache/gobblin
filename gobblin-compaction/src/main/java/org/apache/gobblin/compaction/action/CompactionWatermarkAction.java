@@ -81,25 +81,25 @@ public class CompactionWatermarkAction implements CompactionCompleteAction<FileS
     String hiveDb = dbAndTable.getDb();
     String hiveTable = dbAndTable.getTable();
 
-    HiveRegister hiveRegister = HiveRegister.get(state);
-    Optional<HiveTable> tableOptional = hiveRegister.getTable(hiveDb, hiveTable);
-    if (!tableOptional.isPresent()) {
-      log.info("Table {}.{} not found. Skip publishing compaction watermarks", hiveDb, hiveTable);
-      return;
-    }
+    try (HiveRegister hiveRegister = HiveRegister.get(state)) {
+      Optional<HiveTable> tableOptional = hiveRegister.getTable(hiveDb, hiveTable);
+      if (!tableOptional.isPresent()) {
+        log.info("Table {}.{} not found. Skip publishing compaction watermarks", hiveDb, hiveTable);
+        return;
+      }
 
-    HiveTable table = tableOptional.get();
-    State tableProps = table.getProps();
-    boolean shouldUpdate =
-        mayUpdateWatermark(dataset, tableProps, CompactionWatermarkChecker.COMPACTION_WATERMARK, compactionWatermark);
-    if (mayUpdateWatermark(dataset, tableProps, CompactionWatermarkChecker.COMPLETION_COMPACTION_WATERMARK,
-        completeCompactionWatermark)) {
-      shouldUpdate = true;
-    }
+      HiveTable table = tableOptional.get();
+      State tableProps = table.getProps();
+      boolean shouldUpdate = mayUpdateWatermark(dataset, tableProps, CompactionWatermarkChecker.COMPACTION_WATERMARK, compactionWatermark);
+      if (mayUpdateWatermark(dataset, tableProps, CompactionWatermarkChecker.COMPLETION_COMPACTION_WATERMARK,
+          completeCompactionWatermark)) {
+        shouldUpdate = true;
+      }
 
-    if (shouldUpdate) {
-      log.info("Alter table {}.{} to publish watermarks {}", hiveDb, hiveTable, tableProps);
-      hiveRegister.alterTable(table);
+      if (shouldUpdate) {
+        log.info("Alter table {}.{} to publish watermarks {}", hiveDb, hiveTable, tableProps);
+        hiveRegister.alterTable(table);
+      }
     }
   }
 
