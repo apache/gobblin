@@ -1,9 +1,10 @@
 GOBBLIN 0.15.0
 --------------
 
-###Created Date: 20/08/2020
+###Created Date: 07/10/2020
 
 ## HIGHLIGHTS
+* New and more performant Gobblin ORC Writer
 * Auto-scaling of Gobblin on Yarn.
 * New MySQL based DAG state store.
 * New FileSystem based Spec Producer and Job Status Retriever for GaaS. 
@@ -36,6 +37,7 @@ GOBBLIN 0.15.0
 * [Cluster] [GOBBLIN-742] Implement a FileSystem based JobConfigurationManager
 * [Cluster] [GOBBLIN-737] Add support for Helix quota-based task scheduling
 * [Cluster] [GOBBLIN-649] Add task driver cluster
+* [Writer] [GOBBLIN-1250] Open Sourcing ORC writer
 * [Salesforce] [GOBBLIN-865] Add feature that enables PK-chunking in partition
 * [Compaction] [GOBBLIN-699] Orc compaction impl.
 * [Core] [GOBBLIN-677] Allow early termination of Gobblin jobs based on a predicate on the job progress
@@ -47,6 +49,9 @@ GOBBLIN 0.15.0
 * [Hive Registration] [GOBBLIN-693] Add ORC hive serde manager
 
 ##IMPROVEMENTS
+* [Cluster] [GOBBLIN-1260] add some logs in GobblinHelixTask
+* [Cluster] [GOBBLIN-1251] Propagate exception in TaskStateTracker for caller to trigger Helix retry
+* [Cluster] [GOBBLIN-1213] add common job properties to jobProps using putAll
 * [Cluster] [GOBBLIN-1209] Provide an option to configure the java tmp dir to the Yarn cache location
 * [Cluster] [GOBBLIN-1199] convert seconds to ms because helix api take time in ms
 * [Cluster] [GOBBLIN-1192] Commit suicide if Helix Task creation failed after retry
@@ -113,9 +118,20 @@ GOBBLIN 0.15.0
 * [Cluster] [GOBBLIN-652] Add helix metrics
 * [Cluster] [GOBBLIN-649] Add task driver cluster
 * [Cluster] [GOBBLIN-647] Move early stop logic to task driver instance.
+* [Standalone] [GOBBLIN-1267] Gobblin cli: Add a quickApp called oneShot to run a single command in standalone and MR mode
 * [Standalone] [GOBBLIN-903] Initialize docker file for gobblin-standalone and fix docker compose
 * [Standalone] [GOBBLIN-707] rewrite gobblin script to combine all modes and command
 * [Standalone] [GOBBLIN-883] Add docker files and compose
+* [GaaS] [GOBBLIN-1258] Add error message in status for unauthorized flows
+* [GaaS] [GOBBLIN-1269] add metrics field in JobStatus schema
+* [GaaS] [GOBBLIN-1268] track WORK_UNITS_PREPARATION timer event also in gaas
+* [GaaS] [GOBBLIN-1262] Update flow execution as failed if it was skipped due to concurrently running flow
+* [GaaS] [GOBBLIN-1241] Allow nodes/edges in HOCON format and delay resolution to allow overriding
+* [GaaS] [GOBBLIN-1255] Wait for compiler to be healthy before scheduling flows on startup
+* [GaaS] [GOBBLIN-1254] Skip undecodeable message in KafkaAvroJobStatusMonitor
+* [GaaS] [GOBBLIN-1253] Update running jobs counter on Gobblin service restart
+* [GaaS] [GOBBLIN-1252] Provide a default flow SLA for Gobblin Service flows
+* [GaaS] [GOBBLIN-1230] add option to add spec executor configs to gaas job
 * [GaaS] [GOBBLIN-1198] status cleaner
 * [GaaS] [GOBBLIN-1168] add metrics in all SpecStore implementations
 * [GaaS] [GOBBLIN-1154] Improve gaas error messages
@@ -209,6 +225,8 @@ GOBBLIN 0.15.0
 * [GaaS] [GOBBLIN-639] Change method to static for RequesterService serder                                                                                                          
 * [GaaS] [GOBBLIN-638] Submit more timing events from GaaS to accurately track flow/job status.
 * [GaaS] [GOBBLIN-636] Use FS scheme and relative URIs for specifying job template locations in GaaS.
+* [Compaction] [GOBBLIN-1231] Make re-compaction be able to write to a new folder based on the executCount
+* [Compaction] [GOBBLIN-1223] Change the criteria for re-compaction, limit the time for re-compaction
 * [Compaction] [GOBBLIN-1214] Move the fallback of in-eligible shuffleKey to driver
 * [Compaction] [GOBBLIN-1201] Add datset.urn in GTE for MRCompactionTask
 * [Compaction] [GOBBLIN-1190] Fallback to full schema if configured shuffle schema is not available
@@ -224,6 +242,7 @@ GOBBLIN 0.15.0
 * [Compaction] [GOBBLIN-1158] Use input dir to document old files instead of file pathes to reduce memory cost in Compaction configurator
 * [Compaction] [GOBBLIN-1117] Enable record count verification for ORC format
 * [Compaction] [GOBBLIN-884] Support ORC schema evolution across mappers in MR mode
+* [Hive Registration] [GOBBLIN-1263] Dataset specific Database name for registration
 * [Hive Registration] [GOBBLIN-1206] Only populate path to dest-table if src-table has it as storageParam
 * [Hive Registration] [GOBBLIN-1145] add path in serde props
 * [Hive Registration] [GOBBLIN-1006] Enable configurable case-preserving and schema source-of-truth in table level properties
@@ -243,6 +262,8 @@ GOBBLIN 0.15.0
 * [Hive Registration] [GOBBLIN-1148] improve hive test coverage
 * [Hive Registration] [GOBBLIN-921] Make pull/push mode when registering partition to be configurable
 * [Hive Registration] [GOBBLIN-893] Make format-check in ORC-registration optional and by-default disabled
+* [Distcp] [GOBBLIN-1227] Treat AccessDeniedException in RenameRecursively as an existence indicator
+* [Distcp] [GOBBLIN-1221] Preserve source file's ModTime by configuration
 * [Distcp] [GOBBLIN-1216] Embedded Hive Distcp
 * [Distcp] [GOBBLIN-1203] Adding configurations for staging directory in Embedded Distcp template
 * [Distcp] [GOBBLIN-1142] Hive Distcp support filter on partitioned or snapshot tables
@@ -261,6 +282,7 @@ GOBBLIN 0.15.0
 * [Distcp] [GOBBLIN-712] Add version strategy pickup for ConfigBasedDataset distcp workflow
 * [Distcp] [GOBBLIN-697] Implementation of data file versioning and preservation in distcp.
 * [Distcp] [GOBBLIN-598] Add documentation on split enabled distcp (config glossary & gobblin distcp page)
+* [Kafka] [GOBBLIN-1229] Make topic specific state available to Kafka workunit packer[]
 * [Kafka] [GOBBLIN-1143] Add a generic wrapper producer client to communicate with Kafka
 * [Kafka] [GOBBLIN-1112] Implement a new HttpMethodRetryHandler that allows retrying a HTTP method on transient network errors
 * [Kafka] [GOBBLIN-1064] Make KafkaAvroSchemaRegistry extendable
@@ -357,6 +379,10 @@ GOBBLIN 0.15.0
 * [Core] [GOBBLIN-677] Allow early termination of Gobblin jobs based on a predicate on the job progress
 * [Core] [GOBBLIN-676] Add record metadata support to the RecordEnvelope
 * [Core] [GOBBLIN-653] Create JobSucceededTimer tracking event to accurately track successful Gobblin jobs.
+* [Runtime] [GOBBLIN-1249] More failure info when MRTask wrapped up
+* [Runtime] [GOBBLIN-1232] One liner: Enable verbose mode for waitForCompletion call
+* [Runtime] [GOBBLIN-1271] add MultiEventMetadataGenerator
+* [Runtime] [GOBBLIN-1266] Refactor dataset lineage code to allow Lineage event emission in streaming mode
 * [Runtime] [GOBBLIN-1041] send metrics for workunit creation time
 * [Runtime] [GOBBLIN-992] Make parallelRunner timeout configurable in MRJobLauncher
 * [Runtime] [GOBBLIN-976] Add dynamic config to the state before instantiating metrics reporter in MRJobLauncher
@@ -379,6 +405,9 @@ GOBBLIN 0.15.0
 * [Gobblin Metrics] [GOBBLIN-807] TimingEvent is now closeable, extends GobblinEventBuilder
 * [Util] [GOBBLIN-757] Adding utility functions to support decoration of Avro Generic Records
 * [Util] [GOBBLIN-695] Adding utility functions to generate Avro/ORC binary using json
+* [REST] [GOBBLIN-1261] Migrate .pdsc schemas to .pdl
+* [Data Management] [GOBBLIN-1233] Add case-aware support in WhitelistBlacklist and other small fixes
+* [Data Management] [GOBBLIN-1222] Create right abstraction to assemble dataset staging dir for Hive dataset finder
 * [Job Templates] [GOBBLIN-960] Resolving multiple templates in top-level
 * [Job Templates] [GOBBLIN-701] Add secure templates (duplicate of #2571)
 * [Retention] [GOBBLIN-1185] Enable dataset cleaner to emit kafka events
@@ -389,12 +418,25 @@ GOBBLIN 0.15.0
 * [State Store] [GOBBLIN-1151] use gson in place of jackson for serialize/deserialize
 * [Config Store] [GOBBLIN-761] Only instantiate topic-specific configStore object when topic.name is available
 * [Embedded] [GOBBLIN-685] Add dump jstack for EmbeddedGobblin
+* [Apache] [GOBBLIN-1245] Update CHANGELOG and NOTICE files in preparation for 0.…
+* [Apache] [GOBBLIN-1246] Modify build scripts to fix failures in Nexus artifact …
+* [Apache] [GOBBLIN-1244] Add new file patterns to rat exclusion list[]
+* [Apache] [GOBBLIN-1275] Changing gitter link to slack invite link
 * [Apache] [GOBBLIN-1246] Modify build scripts to fix failures in Nexus artifact publishing
 * [Apache] [GOBBLIN-1244] Add new file patterns to rat exclusion list
 * [Apache] [GOBBLIN-1215] adding travis retry
 * [Apache] [GOBBLIN-1159] Added code to publish gobblin artifacts to bintray
 * [Apache] [GOBBLIN-1172] Migrate to Ubuntu 18 with openjdk8 for Travis
 * [Apache] [GOBBLIN-641] Reserve version 0.15.0 for next release
+* [Build] [GOBBLIN-1235] Migrate Log4J to SLF4J to provide a clean log environment for downstream users
+* [Build] [GOBBLIN-1265] Switch the dependency of gobblin-orc with the shadow jar instead
+* [Build] [GOBBLIN-1256] Exclude log4j related jars in compile but include those in test
+* [Build] [GOBBLIN-1264] Add gobblin-orc as publishing module
+* [Build] [GOBBLIN-1247] Disable flaky unit tests causing intermittent build failures[]
+* [Build] [GOBBLIN-1226] remove lombok from runtime classpath
+* [Build] [GOBBLIN-1234] Fix unit tests that fail on local build after MySQL v8 bump up[]
+* [Build] [GOBBLIN-1279] Fix flaky unit tests involving REST.li calls to FlowConfig endpoint in Gobblin-as-a-Service
+* [Build] [GOBBLIN-1277] Added travis_retry function to deploy phase
 * [Build] [GOBBLIN-735] Relocate all google classes to cover protobuf and guava dependency in orc-dep jar
 * [Build] [GOBBLIN-1176] create gobblin-all module resolving full dependency tree
 * [Build] [GOBBLIN-829] Executing jacocReport before uploading to codecov
@@ -405,6 +447,13 @@ GOBBLIN 0.15.0
 * [Documentation] [GOBBLIN-598] Add documentation on split enabled distcp (config glossary & gobblin distcp page)
 
 ##BUG FIXES
+* [Bug] [GOBBLIN-1270] Fix reference to determineSchemaOrReturnErrorSchema which is backward incompatible
+* [Bug] [GOBBLIN-1248] Fix discrepancy between table schema and file schema
+* [Bug] [GOBBLIN-1228] Do not localize token file on new TaskRunner launch
+* [Bug] [GOBBLIN-1276] Emit additional logs from Gobblin task execution for improved debuggability
+* [Bug] [GOBBLIN-1272] Fixing bug in loading config-store when the entry is empty
+* [Bug] [GOBBLIN-1274] fix import
+* [Bug] [GOBBLIN-1257] Fix the handling of collection field types during ORC schema up-conversion in compaction
 * [Bug] [GOBBLIN-1234] Fix unit tests that fail on local build after MySQL v8 bump up
 * [Bug] [GOBBLIN-1220] Log improvement
 * [Bug] [GOBBLIN-1219] do not schedule flow spec from slave instance of GobblinServiceJobScheduler
