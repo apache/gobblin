@@ -38,6 +38,7 @@ import com.google.inject.Injector;
 import com.google.inject.Module;
 import com.google.inject.name.Names;
 import com.linkedin.data.template.StringMap;
+import com.linkedin.r2.transport.http.client.HttpClientFactory;
 import com.linkedin.restli.client.RestLiResponseException;
 import com.linkedin.restli.common.HttpStatus;
 import com.linkedin.restli.server.resources.BaseResource;
@@ -50,7 +51,7 @@ import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.runtime.spec_store.FSSpecStore;
 
 
-@Test(groups = { "gobblin.service" })
+@Test(groups = { "gobblin.service" }, singleThreaded = true)
 public class FlowConfigTest {
   private FlowConfigClient _client;
   private EmbeddedRestliServer _server;
@@ -102,8 +103,10 @@ public class FlowConfigTest {
     _server.startAsync();
     _server.awaitRunning();
 
+    Map<String, String> transportClientProperties = Maps.newHashMap();
+    transportClientProperties.put(HttpClientFactory.HTTP_REQUEST_TIMEOUT, "10000");
     _client =
-        new FlowConfigClient(String.format("http://localhost:%s/", _server.getPort()));
+        new FlowConfigClient(String.format("http://localhost:%s/", _server.getPort()), transportClientProperties);
   }
 
   private void cleanUpDir(String dir) throws Exception {

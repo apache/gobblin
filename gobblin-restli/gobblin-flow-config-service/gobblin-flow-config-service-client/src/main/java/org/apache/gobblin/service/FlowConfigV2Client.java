@@ -70,6 +70,10 @@ public class FlowConfigV2Client implements Closeable {
    * @param serverUri address and port of the REST server
    */
   public FlowConfigV2Client(String serverUri) {
+    this(serverUri, Collections.emptyMap());
+  }
+
+  public FlowConfigV2Client(String serverUri, Map<String, String> properties) {
     LOG.debug("FlowConfigClient with serverUri " + serverUri);
 
     _httpClientFactory = Optional.of(new HttpClientFactory());

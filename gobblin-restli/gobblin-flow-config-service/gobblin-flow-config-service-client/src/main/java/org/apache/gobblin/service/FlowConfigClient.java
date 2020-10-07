@@ -20,6 +20,7 @@ package org.apache.gobblin.service;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,10 +60,14 @@ public class FlowConfigClient implements Closeable {
    * @param serverUri address and port of the REST server
    */
   public FlowConfigClient(String serverUri) {
+    this(serverUri, Collections.<String, String>emptyMap());
+  }
+
+  public FlowConfigClient(String serverUri, Map<String, String> properties) {
     LOG.debug("FlowConfigClient with serverUri " + serverUri);
 
     _httpClientFactory = Optional.of(new HttpClientFactory());
-    Client r2Client = new TransportClientAdapter(_httpClientFactory.get().getClient(Collections.<String, String>emptyMap()));
+    Client r2Client = new TransportClientAdapter(_httpClientFactory.get().getClient(properties));
     _restClient = Optional.of(new RestClient(r2Client, serverUri));
 
     _flowconfigsRequestBuilders = createRequestBuilders();

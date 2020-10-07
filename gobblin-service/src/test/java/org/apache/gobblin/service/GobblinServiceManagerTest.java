@@ -47,6 +47,7 @@ import com.google.common.io.Files;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.linkedin.data.template.StringMap;
+import com.linkedin.r2.transport.http.client.HttpClientFactory;
 import com.linkedin.restli.client.RestLiResponseException;
 import com.typesafe.config.Config;
 
@@ -106,6 +107,7 @@ public class GobblinServiceManagerTest {
   private TestingServer testingServer;
   Properties serviceCoreProperties = new Properties();
   Map<String, String> flowProperties = Maps.newHashMap();
+  Map<String, String> transportClientProperties = Maps.newHashMap();
 
   public GobblinServiceManagerTest() throws Exception {
   }
@@ -153,6 +155,8 @@ public class GobblinServiceManagerTest {
 
     serviceCoreProperties.put(ServiceConfigKeys.GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY, MockedSpecCompiler.class.getCanonicalName());
 
+    transportClientProperties.put(HttpClientFactory.HTTP_REQUEST_TIMEOUT, "10000");
+
     // Create a bare repository
     RepositoryCache.FileKey fileKey = RepositoryCache.FileKey.exact(new File(GIT_REMOTE_REPO_DIR), FS.DETECTED);
     fileKey.open(false).create(true);
@@ -168,7 +172,7 @@ public class GobblinServiceManagerTest {
     this.gobblinServiceManager.start();
 
     this.flowConfigClient = new FlowConfigV2Client(String.format("http://127.0.0.1:%s/",
-        this.gobblinServiceManager.getRestLiServer().getListeningURI().getPort()));
+        this.gobblinServiceManager.getRestLiServer().getListeningURI().getPort()), transportClientProperties);
   }
 
   private void cleanUpDir(String dir) throws Exception {
@@ -499,7 +503,7 @@ null, null, null, null);
     this.gobblinServiceManager = new MockGobblinServiceManager("CoreService", "1",
         ConfigUtils.propertiesToConfig(serviceCoreProperties), Optional.of(new Path(SERVICE_WORK_DIR)));
     this.flowConfigClient = new FlowConfigV2Client(String.format("http://127.0.0.1:%s/",
-        this.gobblinServiceManager.getRestLiServer().getPort()));
+        this.gobblinServiceManager.getRestLiServer().getPort()), transportClientProperties);
     this.gobblinServiceManager.start();
   }
 
