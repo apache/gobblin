@@ -36,6 +36,10 @@ import org.testng.annotations.Test;
 import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
 import com.linkedin.data.template.StringMap;
+import com.linkedin.r2.transport.common.Client;
+import com.linkedin.r2.transport.common.bridge.client.TransportClientAdapter;
+import com.linkedin.r2.transport.http.client.HttpClientFactory;
+import com.linkedin.restli.client.RestClient;
 import com.linkedin.restli.client.RestLiResponseException;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -168,12 +172,14 @@ public class GobblinServiceHATest {
     this.node2GobblinServiceManager.start();
 
     // Initialize Node 1 Client
+    Map<String, String> transportClientProperties = Maps.newHashMap();
+    transportClientProperties.put(HttpClientFactory.HTTP_REQUEST_TIMEOUT, "10000");
     this.node1FlowConfigClient = new FlowConfigClient(String.format("http://localhost:%s/",
-        this.node1GobblinServiceManager.restliServer.getPort()));
+        this.node1GobblinServiceManager.restliServer.getPort()), transportClientProperties);
 
     // Initialize Node 2 Client
     this.node2FlowConfigClient = new FlowConfigClient(String.format("http://localhost:%s/",
-        this.node2GobblinServiceManager.restliServer.getPort()));
+        this.node2GobblinServiceManager.restliServer.getPort()), transportClientProperties);
   }
 
   private void cleanUpDir(String dir) throws Exception {
