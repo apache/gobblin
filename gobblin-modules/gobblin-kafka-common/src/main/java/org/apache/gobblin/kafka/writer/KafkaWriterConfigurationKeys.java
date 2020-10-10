@@ -70,6 +70,8 @@ public class KafkaWriterConfigurationKeys {
   static final int REPLICATION_COUNT_DEFAULT = 1;
   public static final String PARTITION_COUNT = KAFKA_TOPIC_CONFIG + "partitionCount";
   static final int PARTITION_COUNT_DEFAULT = 1;
+  public static final String DELETE_TOPIC_IF_EXISTS = KAFKA_TOPIC_CONFIG + "deleteTopicIfExists";
+  static final Boolean DEFAULT_DELETE_TOPIC_IF_EXISTS = false;
   public static final String ZOOKEEPER_SESSION_TIMEOUT = CLUSTER_ZOOKEEPER + ".sto";
   static final int ZOOKEEPER_SESSION_TIMEOUT_DEFAULT = 10000; // 10 seconds
   public static final String ZOOKEEPER_CONNECTION_TIMEOUT = CLUSTER_ZOOKEEPER + ".cto";

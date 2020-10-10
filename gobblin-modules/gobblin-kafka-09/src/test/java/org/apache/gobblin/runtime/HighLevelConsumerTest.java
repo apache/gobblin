@@ -50,11 +50,9 @@ import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.writer.AsyncDataWriter;
 import org.apache.gobblin.writer.WriteCallback;
 
-
 @Test
 @Slf4j
 public class HighLevelConsumerTest extends KafkaTestBase {
-
   private static final String BOOTSTRAP_SERVERS_KEY = "bootstrap.servers";
   private static final String KAFKA_AUTO_OFFSET_RESET_KEY = "auto.offset.reset";
   private static final String SOURCE_KAFKA_CONSUMERCONFIG_KEY_WITH_DOT = AbstractBaseKafkaConsumerClient.CONFIG_NAMESPACE + "." + AbstractBaseKafkaConsumerClient.CONSUMER_CONFIG + ".";
@@ -72,20 +70,25 @@ public class HighLevelConsumerTest extends KafkaTestBase {
   }
 
   @BeforeSuite
-  public void beforeSuite() throws Exception {
+  public void beforeSuite()
+      throws Exception {
     startServers();
     _closer = Closer.create();
     Properties producerProps = new Properties();
     producerProps.setProperty(KafkaWriterConfigurationKeys.KAFKA_TOPIC, TOPIC);
-    producerProps.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + BOOTSTRAP_SERVERS_KEY, _kafkaBrokers);
-    producerProps.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + KafkaWriterConfigurationKeys.VALUE_SERIALIZER_CONFIG, "org.apache.kafka.common.serialization.ByteArraySerializer");
+    producerProps
+        .setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + BOOTSTRAP_SERVERS_KEY, _kafkaBrokers);
+    producerProps.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX
+            + KafkaWriterConfigurationKeys.VALUE_SERIALIZER_CONFIG,
+        "org.apache.kafka.common.serialization.ByteArraySerializer");
     producerProps.setProperty(KafkaWriterConfigurationKeys.CLUSTER_ZOOKEEPER, this.getZkConnectString());
     producerProps.setProperty(KafkaWriterConfigurationKeys.PARTITION_COUNT, String.valueOf(NUM_PARTITIONS));
+    producerProps.setProperty(KafkaWriterConfigurationKeys.DELETE_TOPIC_IF_EXISTS, String.valueOf(true));
     AsyncDataWriter<byte[]> dataWriter = _closer.register(new Kafka09DataWriter<byte[], byte[]>(producerProps));
 
     List<byte[]> records = createByteArrayMessages();
     WriteCallback mock = Mockito.mock(WriteCallback.class);
-    for(byte[] record : records) {
+    for (byte[] record : records) {
       dataWriter.write(record, mock);
     }
     dataWriter.flush();
@@ -119,7 +122,7 @@ public class HighLevelConsumerTest extends KafkaTestBase {
     MockedHighLevelConsumer consumer = new MockedHighLevelConsumer(TOPIC, ConfigUtils.propertiesToConfig(consumerProps), NUM_PARTITIONS);
     consumer.startAsync().awaitRunning();
 
-    consumer.awaitExactlyNMessages(NUM_MSGS, 5000);
+    consumer.awaitExactlyNMessages(NUM_MSGS, 10000);
     consumer.shutDown();
   }
 

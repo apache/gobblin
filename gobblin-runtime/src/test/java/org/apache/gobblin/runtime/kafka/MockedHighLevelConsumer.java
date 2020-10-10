@@ -54,7 +54,7 @@ public class MockedHighLevelConsumer extends HighLevelConsumer<byte[], byte[]> {
       public boolean apply(@Nullable Void input) {
         return MockedHighLevelConsumer.this.messages.size() == n;
       }
-    }, timeoutMillis, n + " messages", log, 2, 1000);
+    }, timeoutMillis, "Expected: " + n + " messages, consumed: " + this.messages.size() , log, 2, 1000);
   }
 
   @Override

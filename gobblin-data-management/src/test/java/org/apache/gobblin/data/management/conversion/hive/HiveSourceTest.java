@@ -16,6 +16,7 @@
  */
 package org.apache.gobblin.data.management.conversion.hive;
 
+import java.io.File;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -31,6 +32,7 @@ import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.io.Files;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
@@ -45,28 +47,31 @@ import org.apache.gobblin.source.workunit.WorkUnit;
 
 @Test(groups = { "gobblin.data.management.conversion" })
 public class HiveSourceTest {
+  private static final String TEST_TABLE_1 = "testtable1";
+  private static final String TEST_TABLE_2 = "testtable2";
+  private static final String TEST_TABLE_3 = "testtable3";
 
   private LocalHiveMetastoreTestUtils hiveMetastoreTestUtils;
   private HiveSource hiveSource;
-
+  private File tmpDir;
   @BeforeClass
-  public void setup() throws Exception {
+  public void setup() {
     this.hiveMetastoreTestUtils = LocalHiveMetastoreTestUtils.getInstance();
     this.hiveSource = new HiveSource();
+    this.tmpDir = Files.createTempDir();
+    tmpDir.deleteOnExit();
   }
 
   @Test
   public void testGetWorkUnitsForTable() throws Exception {
-
     String dbName = "testdb2";
-    String tableName = "testtable2";
-    String tableSdLoc = "/tmp/testtable2";
+    String tableSdLoc = new File(this.tmpDir, TEST_TABLE_2).getAbsolutePath();
 
     this.hiveMetastoreTestUtils.getLocalMetastoreClient().dropDatabase(dbName, false, true, true);
 
     SourceState testState = getTestState(dbName);
 
-    this.hiveMetastoreTestUtils.createTestAvroTable(dbName, tableName, tableSdLoc, Optional.<String> absent());
+    this.hiveMetastoreTestUtils.createTestAvroTable(dbName, TEST_TABLE_2, tableSdLoc, Optional.<String> absent());
 
     List<WorkUnit> workUnits = hiveSource.getWorkunits(testState);
 
@@ -77,22 +82,20 @@ public class HiveSourceTest {
     HiveWorkUnit hwu = new HiveWorkUnit(wu);
 
     Assert.assertEquals(hwu.getHiveDataset().getDbAndTable().getDb(), dbName);
-    Assert.assertEquals(hwu.getHiveDataset().getDbAndTable().getTable(), tableName);
+    Assert.assertEquals(hwu.getHiveDataset().getDbAndTable().getTable(), TEST_TABLE_2);
     Assert.assertEquals(hwu.getTableSchemaUrl(), new Path("/tmp/dummy"));
   }
 
   @Test
   public void testGetWorkUnitsForPartitions() throws Exception {
-
     String dbName = "testdb3";
-    String tableName = "testtable3";
-    String tableSdLoc = "/tmp/testtable3";
+    String tableSdLoc = new File(this.tmpDir, TEST_TABLE_3).getAbsolutePath();
 
     this.hiveMetastoreTestUtils.getLocalMetastoreClient().dropDatabase(dbName, false, true, true);
 
     SourceState testState = getTestState(dbName);
 
-    Table tbl = this.hiveMetastoreTestUtils.createTestAvroTable(dbName, tableName, tableSdLoc, Optional.of("field"));
+    Table tbl = this.hiveMetastoreTestUtils.createTestAvroTable(dbName, TEST_TABLE_3, tableSdLoc, Optional.of("field"));
 
     this.hiveMetastoreTestUtils.addTestPartition(tbl, ImmutableList.of("f1"), (int) System.currentTimeMillis());
 
@@ -103,7 +106,7 @@ public class HiveSourceTest {
     WorkUnit wu = workUnits.get(0);
     WorkUnit wu2 = workUnits.get(1);
 
-    HiveWorkUnit hwu = null;
+    HiveWorkUnit hwu;
     if (!wu.contains(PartitionLevelWatermarker.IS_WATERMARK_WORKUNIT_KEY)) {
       hwu = new HiveWorkUnit(wu);
     } else {
@@ -111,29 +114,26 @@ public class HiveSourceTest {
     }
 
     Assert.assertEquals(hwu.getHiveDataset().getDbAndTable().getDb(), dbName);
-    Assert.assertEquals(hwu.getHiveDataset().getDbAndTable().getTable(), tableName);
+    Assert.assertEquals(hwu.getHiveDataset().getDbAndTable().getTable(), TEST_TABLE_3);
     Assert.assertEquals(hwu.getPartitionName().get(), "field=f1");
   }
 
   @Test
   public void testGetWorkunitsAfterWatermark() throws Exception {
-
     String dbName = "testdb4";
-    String tableName1 = "testtable1";
-    String tableSdLoc1 = "/tmp/testtable1";
-    String tableName2 = "testtable2";
-    String tableSdLoc2 = "/tmp/testtable2";
+    String tableSdLoc1 = new File(this.tmpDir, TEST_TABLE_1).getAbsolutePath();
+    String tableSdLoc2 = new File(this.tmpDir, TEST_TABLE_2).getAbsolutePath();
 
     this.hiveMetastoreTestUtils.getLocalMetastoreClient().dropDatabase(dbName, false, true, true);
 
-    this.hiveMetastoreTestUtils.createTestAvroTable(dbName, tableName1, tableSdLoc1, Optional.<String> absent());
-    this.hiveMetastoreTestUtils.createTestAvroTable(dbName, tableName2, tableSdLoc2, Optional.<String> absent(), true);
+    this.hiveMetastoreTestUtils.createTestAvroTable(dbName, TEST_TABLE_1, tableSdLoc1, Optional.<String> absent());
+    this.hiveMetastoreTestUtils.createTestAvroTable(dbName, TEST_TABLE_2, tableSdLoc2, Optional.<String> absent(), true);
 
     List<WorkUnitState> previousWorkUnitStates = Lists.newArrayList();
 
-    Table table1 = this.hiveMetastoreTestUtils.getLocalMetastoreClient().getTable(dbName, tableName1);
+    Table table1 = this.hiveMetastoreTestUtils.getLocalMetastoreClient().getTable(dbName, TEST_TABLE_1);
 
-    previousWorkUnitStates.add(ConversionHiveTestUtils.createWus(dbName, tableName1,
+    previousWorkUnitStates.add(ConversionHiveTestUtils.createWus(dbName, TEST_TABLE_1,
         TimeUnit.MILLISECONDS.convert(table1.getCreateTime(), TimeUnit.SECONDS)));
 
     SourceState testState = new SourceState(getTestState(dbName), previousWorkUnitStates);
@@ -147,12 +147,11 @@ public class HiveSourceTest {
     HiveWorkUnit hwu = new HiveWorkUnit(wu);
 
     Assert.assertEquals(hwu.getHiveDataset().getDbAndTable().getDb(), dbName);
-    Assert.assertEquals(hwu.getHiveDataset().getDbAndTable().getTable(), tableName2);
+    Assert.assertEquals(hwu.getHiveDataset().getDbAndTable().getTable(), TEST_TABLE_2);
   }
 
   @Test
   public void testShouldCreateWorkunitsOlderThanLookback() throws Exception {
-
     long currentTime = System.currentTimeMillis();
     long partitionCreateTime = new DateTime(currentTime).minusDays(35).getMillis();
 
@@ -170,7 +169,6 @@ public class HiveSourceTest {
 
   @Test
   public void testShouldCreateWorkunitsNewerThanLookback() throws Exception {
-
     long currentTime = System.currentTimeMillis();
     // Default lookback time is 3 days
     long partitionCreateTime = new DateTime(currentTime).minusDays(2).getMillis();
@@ -189,7 +187,6 @@ public class HiveSourceTest {
 
   @Test
   public void testIsOlderThanLookbackForDistcpGenerationTime() throws Exception {
-
     long currentTime = System.currentTimeMillis();
     // Default lookback time is 3 days
     long partitionCreateTime = new DateTime(currentTime).minusDays(2).getMillis();
