@@ -77,7 +77,7 @@ public class FlowConfigV2Client implements Closeable {
     LOG.debug("FlowConfigClient with serverUri " + serverUri);
 
     _httpClientFactory = Optional.of(new HttpClientFactory());
-    Client r2Client = new TransportClientAdapter(_httpClientFactory.get().getClient(Collections.<String, String>emptyMap()));
+    Client r2Client = new TransportClientAdapter(_httpClientFactory.get().getClient(properties));
     _restClient = Optional.of(new RestClient(r2Client, serverUri));
     _flowconfigsV2RequestBuilders = createRequestBuilders();
   }

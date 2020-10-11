@@ -60,7 +60,7 @@ public class FlowConfigClient implements Closeable {
    * @param serverUri address and port of the REST server
    */
   public FlowConfigClient(String serverUri) {
-    this(serverUri, Collections.<String, String>emptyMap());
+    this(serverUri, Collections.emptyMap());
   }
 
   public FlowConfigClient(String serverUri, Map<String, String> properties) {
