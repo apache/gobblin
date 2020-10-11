@@ -27,6 +27,7 @@ import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.Test;
 
 import com.google.api.client.util.Lists;
+import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.io.Closer;
 import com.google.common.io.Files;
@@ -117,8 +118,10 @@ public class HighLevelConsumerTest extends KafkaTestBase {
     consumerProps.setProperty(ConfigurationKeys.KAFKA_BROKERS, _kafkaBrokers);
     consumerProps.setProperty(Kafka09ConsumerClient.GOBBLIN_CONFIG_VALUE_DESERIALIZER_CLASS_KEY, "org.apache.kafka.common.serialization.ByteArrayDeserializer");
     consumerProps.setProperty(SOURCE_KAFKA_CONSUMERCONFIG_KEY_WITH_DOT + KAFKA_AUTO_OFFSET_RESET_KEY, "earliest");
+    //Generate a brand new consumer group id to ensure there are no previously committed offsets for this group id
+    String consumerGroupId = Joiner.on("-").join(TOPIC, "auto", System.currentTimeMillis());
+    consumerProps.setProperty(SOURCE_KAFKA_CONSUMERCONFIG_KEY_WITH_DOT + HighLevelConsumer.GROUP_ID_KEY, consumerGroupId);
     consumerProps.setProperty(HighLevelConsumer.ENABLE_AUTO_COMMIT_KEY, "true");
-
     MockedHighLevelConsumer consumer = new MockedHighLevelConsumer(TOPIC, ConfigUtils.propertiesToConfig(consumerProps), NUM_PARTITIONS);
     consumer.startAsync().awaitRunning();
 
@@ -132,7 +135,9 @@ public class HighLevelConsumerTest extends KafkaTestBase {
     consumerProps.setProperty(ConfigurationKeys.KAFKA_BROKERS, _kafkaBrokers);
     consumerProps.setProperty(Kafka09ConsumerClient.GOBBLIN_CONFIG_VALUE_DESERIALIZER_CLASS_KEY, "org.apache.kafka.common.serialization.ByteArrayDeserializer");
     consumerProps.setProperty(SOURCE_KAFKA_CONSUMERCONFIG_KEY_WITH_DOT + KAFKA_AUTO_OFFSET_RESET_KEY, "earliest");
-
+    //Generate a brand new consumer group id to ensure there are no previously committed offsets for this group id
+    String consumerGroupId = Joiner.on("-").join(TOPIC, "manual", System.currentTimeMillis());
+    consumerProps.setProperty(SOURCE_KAFKA_CONSUMERCONFIG_KEY_WITH_DOT + HighLevelConsumer.GROUP_ID_KEY, consumerGroupId);
     // Setting this to a second to make sure we are committing offsets frequently
     consumerProps.put(HighLevelConsumer.OFFSET_COMMIT_TIME_THRESHOLD_SECS_KEY, 1);
 
