@@ -25,6 +25,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +33,7 @@ import org.slf4j.LoggerFactory;
 import com.github.rholder.retry.Retryer;
 import com.github.rholder.retry.RetryerBuilder;
 import com.github.rholder.retry.StopStrategies;
+import com.github.rholder.retry.WaitStrategies;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Guice;
@@ -96,7 +98,8 @@ class TestMetastoreDatabaseServer implements Closeable {
     if (this.embeddedMysqlEnabled) {
       // Wrap the construction of a new Embedded MySQL server in a retryer to allow for re-attempts in case of port conflicts.
       Retryer<EmbeddedMysql> retryer = RetryerBuilder.<EmbeddedMysql>newBuilder().retryIfException()
-          .withStopStrategy(StopStrategies.stopAfterAttempt(5)).build();
+          .withStopStrategy(StopStrategies.stopAfterAttempt(5))
+          .withWaitStrategy(WaitStrategies.exponentialWait(10, TimeUnit.SECONDS)).build();
       testingMySqlServer = retryer.wrap(() -> {
         dbPort = chooseRandomPort();
         config = MysqldConfig.aMysqldConfig(Version.v8_latest).withPort(dbPort)
