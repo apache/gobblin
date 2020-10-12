@@ -399,7 +399,6 @@ public class HiveAvroORCQueryGenerator {
             } else {
               columns.append(", \n");
             }
-            convertFieldToSchemaWithProps(field.getJsonProps(), field.schema());
             String type = generateAvroToHiveColumnMapping(field.schema(), hiveColumns, false, datasetName);
             if (hiveColumns.isPresent()) {
               hiveColumns.get().put(field.name(), type);
@@ -419,7 +418,6 @@ public class HiveAvroORCQueryGenerator {
             } else {
               columns.append(",");
             }
-            convertFieldToSchemaWithProps(field.getJsonProps(), field.schema());
             String type = generateAvroToHiveColumnMapping(field.schema(), hiveColumns, false, datasetName);
             columns.append("`").append(field.name()).append("`").append(":").append(type);
           }
