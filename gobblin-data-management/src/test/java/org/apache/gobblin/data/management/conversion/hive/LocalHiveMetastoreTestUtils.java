@@ -42,6 +42,7 @@ import org.apache.thrift.TException;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.io.Files;
 
 import org.apache.gobblin.hive.HiveMetastoreClientPool;
 import org.apache.gobblin.hive.avro.HiveAvroSerDeManager;
@@ -62,6 +63,10 @@ public class LocalHiveMetastoreTestUtils {
     } catch (IOException e) {
       e.printStackTrace();
     }
+    File tmpDir = Files.createTempDir();
+    tmpDir.deleteOnExit();
+    Properties p = System.getProperties();
+    p.setProperty("derby.system.home", tmpDir.getAbsolutePath());
     this.localMetastoreClient =
         HiveMetastoreClientPool.get(new Properties(), Optional.<String>absent()).getClient().get();
   }
