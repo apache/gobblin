@@ -27,6 +27,7 @@ import org.testng.annotations.BeforeSuite;
 import org.testng.annotations.Test;
 
 import com.google.api.client.util.Lists;
+import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.io.Closer;
 import com.google.common.io.Files;
@@ -50,11 +51,9 @@ import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.writer.AsyncDataWriter;
 import org.apache.gobblin.writer.WriteCallback;
 
-
 @Test
 @Slf4j
 public class HighLevelConsumerTest extends KafkaTestBase {
-
   private static final String BOOTSTRAP_SERVERS_KEY = "bootstrap.servers";
   private static final String KAFKA_AUTO_OFFSET_RESET_KEY = "auto.offset.reset";
   private static final String SOURCE_KAFKA_CONSUMERCONFIG_KEY_WITH_DOT = AbstractBaseKafkaConsumerClient.CONFIG_NAMESPACE + "." + AbstractBaseKafkaConsumerClient.CONSUMER_CONFIG + ".";
@@ -72,20 +71,25 @@ public class HighLevelConsumerTest extends KafkaTestBase {
   }
 
   @BeforeSuite
-  public void beforeSuite() throws Exception {
+  public void beforeSuite()
+      throws Exception {
     startServers();
     _closer = Closer.create();
     Properties producerProps = new Properties();
     producerProps.setProperty(KafkaWriterConfigurationKeys.KAFKA_TOPIC, TOPIC);
-    producerProps.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + BOOTSTRAP_SERVERS_KEY, _kafkaBrokers);
-    producerProps.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + KafkaWriterConfigurationKeys.VALUE_SERIALIZER_CONFIG, "org.apache.kafka.common.serialization.ByteArraySerializer");
+    producerProps
+        .setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + BOOTSTRAP_SERVERS_KEY, _kafkaBrokers);
+    producerProps.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX
+            + KafkaWriterConfigurationKeys.VALUE_SERIALIZER_CONFIG,
+        "org.apache.kafka.common.serialization.ByteArraySerializer");
     producerProps.setProperty(KafkaWriterConfigurationKeys.CLUSTER_ZOOKEEPER, this.getZkConnectString());
     producerProps.setProperty(KafkaWriterConfigurationKeys.PARTITION_COUNT, String.valueOf(NUM_PARTITIONS));
+    producerProps.setProperty(KafkaWriterConfigurationKeys.DELETE_TOPIC_IF_EXISTS, String.valueOf(true));
     AsyncDataWriter<byte[]> dataWriter = _closer.register(new Kafka09DataWriter<byte[], byte[]>(producerProps));
 
     List<byte[]> records = createByteArrayMessages();
     WriteCallback mock = Mockito.mock(WriteCallback.class);
-    for(byte[] record : records) {
+    for (byte[] record : records) {
       dataWriter.write(record, mock);
     }
     dataWriter.flush();
@@ -114,12 +118,14 @@ public class HighLevelConsumerTest extends KafkaTestBase {
     consumerProps.setProperty(ConfigurationKeys.KAFKA_BROKERS, _kafkaBrokers);
     consumerProps.setProperty(Kafka09ConsumerClient.GOBBLIN_CONFIG_VALUE_DESERIALIZER_CLASS_KEY, "org.apache.kafka.common.serialization.ByteArrayDeserializer");
     consumerProps.setProperty(SOURCE_KAFKA_CONSUMERCONFIG_KEY_WITH_DOT + KAFKA_AUTO_OFFSET_RESET_KEY, "earliest");
+    //Generate a brand new consumer group id to ensure there are no previously committed offsets for this group id
+    String consumerGroupId = Joiner.on("-").join(TOPIC, "auto", System.currentTimeMillis());
+    consumerProps.setProperty(SOURCE_KAFKA_CONSUMERCONFIG_KEY_WITH_DOT + HighLevelConsumer.GROUP_ID_KEY, consumerGroupId);
     consumerProps.setProperty(HighLevelConsumer.ENABLE_AUTO_COMMIT_KEY, "true");
-
     MockedHighLevelConsumer consumer = new MockedHighLevelConsumer(TOPIC, ConfigUtils.propertiesToConfig(consumerProps), NUM_PARTITIONS);
     consumer.startAsync().awaitRunning();
 
-    consumer.awaitExactlyNMessages(NUM_MSGS, 5000);
+    consumer.awaitExactlyNMessages(NUM_MSGS, 10000);
     consumer.shutDown();
   }
 
@@ -129,7 +135,9 @@ public class HighLevelConsumerTest extends KafkaTestBase {
     consumerProps.setProperty(ConfigurationKeys.KAFKA_BROKERS, _kafkaBrokers);
     consumerProps.setProperty(Kafka09ConsumerClient.GOBBLIN_CONFIG_VALUE_DESERIALIZER_CLASS_KEY, "org.apache.kafka.common.serialization.ByteArrayDeserializer");
     consumerProps.setProperty(SOURCE_KAFKA_CONSUMERCONFIG_KEY_WITH_DOT + KAFKA_AUTO_OFFSET_RESET_KEY, "earliest");
-
+    //Generate a brand new consumer group id to ensure there are no previously committed offsets for this group id
+    String consumerGroupId = Joiner.on("-").join(TOPIC, "manual", System.currentTimeMillis());
+    consumerProps.setProperty(SOURCE_KAFKA_CONSUMERCONFIG_KEY_WITH_DOT + HighLevelConsumer.GROUP_ID_KEY, consumerGroupId);
     // Setting this to a second to make sure we are committing offsets frequently
     consumerProps.put(HighLevelConsumer.OFFSET_COMMIT_TIME_THRESHOLD_SECS_KEY, 1);
 

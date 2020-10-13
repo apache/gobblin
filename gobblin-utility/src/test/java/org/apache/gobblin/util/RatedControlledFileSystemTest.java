@@ -32,6 +32,8 @@ import org.testng.annotations.Test;
 import com.codahale.metrics.Meter;
 import com.google.common.math.DoubleMath;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.util.limiter.Limiter;
 import org.apache.gobblin.util.limiter.RateBasedLimiter;
 
@@ -39,6 +41,7 @@ import org.apache.gobblin.util.limiter.RateBasedLimiter;
 /**
  * Unit tests for {@link RatedControlledFileSystem}.
  */
+@Slf4j
 @Test(groups = { "gobblin.util" })
 public class RatedControlledFileSystemTest {
 
@@ -69,16 +72,15 @@ public class RatedControlledFileSystemTest {
   }
 
   @Test
-  public void testFsOperation() throws IOException, InterruptedException {
+  public void testFsOperation() throws IOException {
     Meter meter = new Meter();
     Path fakePath = new Path("fakePath");
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 500; i++) {
       Assert.assertFalse(this.rateControlledFs.exists(fakePath));
       meter.mark();
-      Thread.sleep((RANDOM.nextInt() & Integer.MAX_VALUE) % 10);
     }
     // Assert a fuzzy equal with 5% of tolerance
-    Assert.assertTrue(DoubleMath.fuzzyEquals(meter.getMeanRate(), 20d, 20d * 0.05));
+    Assert.assertTrue(DoubleMath.fuzzyEquals(meter.getMeanRate(), 20d, 20d * 0.10));
   }
 
   @AfterClass

@@ -4,10 +4,6 @@
     <value>org.apache.derby.jdbc.EmbeddedDriver</value>
   </property>
   <property>
-    <name>javax.jdo.option.ConnectionURL</name>
-    <value>jdbc:derby:;databaseName=/tmp/scratch/hive/metastore_db;create=true</value>
-  </property>
-  <property>
     <name>hive.metastore.warehouse.dir</name>
     <value>/tmp/scratch/hive/warehouse</value>
   </property>

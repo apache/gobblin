@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.data.management.conversion.hive.converter;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.List;
 
@@ -32,6 +33,7 @@ import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.google.common.io.Files;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
@@ -48,11 +50,15 @@ import org.apache.gobblin.data.management.copy.hive.WhitelistBlacklist;
 
 @Test(groups = { "gobblin.data.management.conversion" })
 public class HiveAvroToOrcConverterTest {
+  private static final String TEST_TABLE = "testtable";
 
   private static String resourceDir = "hiveConverterTest";
   private LocalHiveMetastoreTestUtils hiveMetastoreTestUtils;
+  private File tmpDir;
 
   public HiveAvroToOrcConverterTest() {
+    this.tmpDir = Files.createTempDir();
+    tmpDir.deleteOnExit();
     this.hiveMetastoreTestUtils = LocalHiveMetastoreTestUtils.getInstance();
   }
 
@@ -63,21 +69,20 @@ public class HiveAvroToOrcConverterTest {
   @Test
   public void testFlattenSchemaDDLandDML() throws Exception {
     String dbName = "testdb";
-    String tableName = "testtable";
-    String tableSdLoc = "/tmp/testtable";
+    String tableSdLoc = new File(this.tmpDir, TEST_TABLE).getAbsolutePath();
 
     this.hiveMetastoreTestUtils.getLocalMetastoreClient().dropDatabase(dbName, false, true, true);
 
-    Table table = this.hiveMetastoreTestUtils.createTestAvroTable(dbName, tableName, tableSdLoc, Optional.<String> absent());
+    Table table = this.hiveMetastoreTestUtils.createTestAvroTable(dbName, TEST_TABLE, tableSdLoc, Optional.<String> absent());
     Schema schema = ConversionHiveTestUtils.readSchemaFromJsonFile(resourceDir, "recordWithinRecordWithinRecord_nested.json");
-    WorkUnitState wus = ConversionHiveTestUtils.createWus(dbName, tableName, 0);
+    WorkUnitState wus = ConversionHiveTestUtils.createWus(dbName, TEST_TABLE, 0);
 
     try (HiveAvroToFlattenedOrcConverter converter = new HiveAvroToFlattenedOrcConverter();) {
 
       Config config = ConfigFactory.parseMap(
           ImmutableMap.<String, String>builder().put("destinationFormats", "flattenedOrc")
               .put("flattenedOrc.destination.dbName", dbName)
-              .put("flattenedOrc.destination.tableName", tableName + "_orc")
+              .put("flattenedOrc.destination.tableName", TEST_TABLE + "_orc")
               .put("flattenedOrc.destination.dataPath", "file:" + tableSdLoc + "_orc").build());
 
       ConvertibleHiveDataset cd = ConvertibleHiveDatasetTest.createTestConvertibleDataset(config);
@@ -115,14 +120,13 @@ public class HiveAvroToOrcConverterTest {
   @Test
   public void testNestedSchemaDDLandDML() throws Exception {
     String dbName = "testdb";
-    String tableName = "testtable";
-    String tableSdLoc = "/tmp/testtable";
+    String tableSdLoc = new File(this.tmpDir, TEST_TABLE).getAbsolutePath();
 
     this.hiveMetastoreTestUtils.getLocalMetastoreClient().dropDatabase(dbName, false, true, true);
 
-    Table table = this.hiveMetastoreTestUtils.createTestAvroTable(dbName, tableName, tableSdLoc, Optional.<String> absent());
+    Table table = this.hiveMetastoreTestUtils.createTestAvroTable(dbName, TEST_TABLE, tableSdLoc, Optional.<String> absent());
     Schema schema = ConversionHiveTestUtils.readSchemaFromJsonFile(resourceDir, "recordWithinRecordWithinRecord_nested.json");
-    WorkUnitState wus = ConversionHiveTestUtils.createWus(dbName, tableName, 0);
+    WorkUnitState wus = ConversionHiveTestUtils.createWus(dbName, TEST_TABLE, 0);
     wus.getJobState().setProp("orc.table.flatten.schema", "false");
 
     try (HiveAvroToNestedOrcConverter converter = new HiveAvroToNestedOrcConverter();) {
@@ -131,7 +135,7 @@ public class HiveAvroToOrcConverterTest {
           .put("destinationFormats", "nestedOrc")
           .put("nestedOrc.destination.tableName","testtable_orc_nested")
           .put("nestedOrc.destination.dbName",dbName)
-          .put("nestedOrc.destination.dataPath","file:/tmp/testtable_orc_nested")
+          .put("nestedOrc.destination.dataPath","file:" + tableSdLoc + "_orc_nested")
           .build());
 
       ConvertibleHiveDataset cd = ConvertibleHiveDatasetTest.createTestConvertibleDataset(config);
