@@ -1,7 +1,7 @@
 GOBBLIN 0.15.0
 --------------
 
-###Created Date: 07/10/2020
+###Created Date: 13/10/2020
 
 ## HIGHLIGHTS
 * New and more performant Gobblin ORC Writer
@@ -428,19 +428,21 @@ GOBBLIN 0.15.0
 * [Apache] [GOBBLIN-1159] Added code to publish gobblin artifacts to bintray
 * [Apache] [GOBBLIN-1172] Migrate to Ubuntu 18 with openjdk8 for Travis
 * [Apache] [GOBBLIN-641] Reserve version 0.15.0 for next release
-* [Build] [GOBBLIN-1235] Migrate Log4J to SLF4J to provide a clean log environment for downstream users
-* [Build] [GOBBLIN-1265] Switch the dependency of gobblin-orc with the shadow jar instead
-* [Build] [GOBBLIN-1256] Exclude log4j related jars in compile but include those in test
-* [Build] [GOBBLIN-1264] Add gobblin-orc as publishing module
-* [Build] [GOBBLIN-1247] Disable flaky unit tests causing intermittent build failures[]
-* [Build] [GOBBLIN-1226] remove lombok from runtime classpath
-* [Build] [GOBBLIN-1234] Fix unit tests that fail on local build after MySQL v8 bump up[]
+* [Build] [GOBBLIN-1287] Cleanup code duplication across tests that choose a random open port for spinning up an embedded mysql server
+* [Build] [GOBBLIN-1284] Fix flaky tests causing local build failures
 * [Build] [GOBBLIN-1279] Fix flaky unit tests involving REST.li calls to FlowConfig endpoint in Gobblin-as-a-Service
 * [Build] [GOBBLIN-1277] Added travis_retry function to deploy phase
-* [Build] [GOBBLIN-735] Relocate all google classes to cover protobuf and guava dependency in orc-dep jar
+* [Build] [GOBBLIN-1265] Switch the dependency of gobblin-orc with the shadow jar instead
+* [Build] [GOBBLIN-1264] Add gobblin-orc as publishing module
+* [Build] [GOBBLIN-1256] Exclude log4j related jars in compile but include those in test
+* [Build] [GOBBLIN-1247] Disable flaky unit tests causing intermittent build failures
+* [Build] [GOBBLIN-1235] Migrate Log4J to SLF4J to provide a clean log environment for downstream users
+* [Build] [GOBBLIN-1234] Fix unit tests that fail on local build after MySQL v8 bump up
+* [Build] [GOBBLIN-1226] remove lombok from runtime classpath
 * [Build] [GOBBLIN-1176] create gobblin-all module resolving full dependency tree
 * [Build] [GOBBLIN-829] Executing jacocReport before uploading to codecov
 * [Build] [GOBBLIN-821] Adding Codecov
+* [Build] [GOBBLIN-735] Relocate all google classes to cover protobuf and guava dependency in orc-dep jar
 * [Documentation] [GOBBLIN-1094] Added documentation of High level consumer
 * [Documentation] [GOBBLIN-1053] Update Readme with new badges and links
 * [Documentation] [GOBBLIN-669] Configuration Properties Glossary section of Docs hard to read
