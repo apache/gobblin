@@ -25,15 +25,10 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Properties;
-import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.github.rholder.retry.Retryer;
-import com.github.rholder.retry.RetryerBuilder;
-import com.github.rholder.retry.StopStrategies;
-import com.github.rholder.retry.WaitStrategies;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Guice;
@@ -74,13 +69,13 @@ class TestMetastoreDatabaseServer implements Closeable {
   public static final String DBPORT_FULL_KEY =  CONFIG_PREFIX + "." + DBPORT_KEY;
 
   private final Logger log = LoggerFactory.getLogger(TestMetastoreDatabaseServer.class);
-  private MysqldConfig config;
+  private final MysqldConfig config;
   private final EmbeddedMysql testingMySqlServer;
   private final boolean embeddedMysqlEnabled;
   private final String dbUserName;
   private final String dbUserPassword;
   private final String dbHost;
-  private int dbPort;
+  private final int dbPort;
 
   TestMetastoreDatabaseServer(Config dbConfig) throws Exception {
     Config realConfig = dbConfig.withFallback(getDefaultConfig()).getConfig(CONFIG_PREFIX);
@@ -88,6 +83,7 @@ class TestMetastoreDatabaseServer implements Closeable {
     this.dbUserName = realConfig.getString(DBUSER_NAME_KEY);
     this.dbUserPassword = realConfig.getString(DBUSER_PASSWORD_KEY);
     this.dbHost = this.embeddedMysqlEnabled ? "localhost" : realConfig.getString(DBHOST_KEY);
+    this.dbPort = this.embeddedMysqlEnabled ? chooseRandomPort() : realConfig.getInt(DBPORT_KEY);
 
     this.log.error("Starting with config: embeddedMysqlEnabled={} dbUserName={} dbHost={} dbPort={}",
                   this.embeddedMysqlEnabled,
@@ -95,19 +91,15 @@ class TestMetastoreDatabaseServer implements Closeable {
                   this.dbHost,
                   this.dbPort);
 
+    config = MysqldConfig.aMysqldConfig(Version.v8_latest)
+        .withPort(this.dbPort)
+        .withUser(this.dbUserName, this.dbUserPassword)
+        .withServerVariable("explicit_defaults_for_timestamp", "off")
+        .build();
     if (this.embeddedMysqlEnabled) {
-      // Wrap the construction of a new Embedded MySQL server in a retryer to allow for re-attempts in case of port conflicts.
-      Retryer<EmbeddedMysql> retryer = RetryerBuilder.<EmbeddedMysql>newBuilder().retryIfException()
-          .withStopStrategy(StopStrategies.stopAfterAttempt(5))
-          .withWaitStrategy(WaitStrategies.exponentialWait(10, TimeUnit.SECONDS)).build();
-      testingMySqlServer = retryer.wrap(() -> {
-        dbPort = chooseRandomPort();
-        config = MysqldConfig.aMysqldConfig(Version.v8_latest).withPort(dbPort)
-            .withUser(dbUserName, dbUserPassword)
-            .withServerVariable("explicit_defaults_for_timestamp", "off").build();
-        return EmbeddedMysql.anEmbeddedMysql(config).start();
-      }).call();
-    } else {
+      testingMySqlServer = EmbeddedMysql.anEmbeddedMysql(config).start();
+    }
+    else {
       testingMySqlServer = null;
     }
   }

@@ -17,13 +17,13 @@
 
 package org.apache.gobblin.runtime.kafka;
 
-import java.util.List;
 import java.util.Map;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
 
 import com.google.common.base.Predicate;
-import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
 import javax.annotation.Nullable;
@@ -38,13 +38,13 @@ import org.apache.gobblin.testing.AssertWithBackoff;
 public class MockedHighLevelConsumer extends HighLevelConsumer<byte[], byte[]> {
 
   @Getter
-  private final List<byte[]> messages;
+  private final BlockingQueue<byte[]> messages;
   @Getter
   private final Map<KafkaPartition, Long> committedOffsets;
 
   public MockedHighLevelConsumer(String topic, Config config, int numThreads) {
     super(topic, config, numThreads);
-    this.messages = Lists.newArrayList();
+    this.messages = new LinkedBlockingQueue<>();
     this.committedOffsets = new ConcurrentHashMap<>();
   }
 
@@ -54,12 +54,12 @@ public class MockedHighLevelConsumer extends HighLevelConsumer<byte[], byte[]> {
       public boolean apply(@Nullable Void input) {
         return MockedHighLevelConsumer.this.messages.size() == n;
       }
-    }, timeoutMillis, "Expected: " + n + " messages, consumed: " + this.messages.size() , log, 2, 1000);
+    }, timeoutMillis, n + " messages", log, 2, 1000);
   }
 
   @Override
   protected void processMessage(DecodeableKafkaRecord<byte[], byte[]> message) {
-    this.messages.add(message.getValue());
+    this.messages.offer(message.getValue());
   }
 
   @Override
