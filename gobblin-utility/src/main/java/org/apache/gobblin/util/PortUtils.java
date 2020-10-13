@@ -151,7 +151,7 @@ public class PortUtils {
     int specific(int port) throws Exception;
   }
 
-  private static class ServerSocketPortLocator implements PortLocator {
+  public static class ServerSocketPortLocator implements PortLocator {
     @Override
     public int random() throws Exception {
         try (ServerSocket serverSocket = new ServerSocket(0)) {
