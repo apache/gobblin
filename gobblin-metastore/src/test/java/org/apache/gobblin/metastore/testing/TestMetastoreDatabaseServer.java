@@ -45,6 +45,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.MetaStoreModule;
 import org.apache.gobblin.metastore.util.DatabaseJobHistoryStoreSchemaManager;
 import org.apache.gobblin.metastore.util.MySqlJdbcUrl;
+import org.apache.gobblin.util.PortUtils;
 
 
 class TestMetastoreDatabaseServer implements Closeable {
@@ -83,7 +84,7 @@ class TestMetastoreDatabaseServer implements Closeable {
     this.dbUserName = realConfig.getString(DBUSER_NAME_KEY);
     this.dbUserPassword = realConfig.getString(DBUSER_PASSWORD_KEY);
     this.dbHost = this.embeddedMysqlEnabled ? "localhost" : realConfig.getString(DBHOST_KEY);
-    this.dbPort = this.embeddedMysqlEnabled ? chooseRandomPort() : realConfig.getInt(DBPORT_KEY);
+    this.dbPort = this.embeddedMysqlEnabled ? new PortUtils.ServerSocketPortLocator().random() : realConfig.getInt(DBPORT_KEY);
 
     this.log.error("Starting with config: embeddedMysqlEnabled={} dbUserName={} dbHost={} dbPort={}",
                   this.embeddedMysqlEnabled,
@@ -131,18 +132,6 @@ class TestMetastoreDatabaseServer implements Closeable {
   public void close() throws IOException {
     if (testingMySqlServer != null) {
       testingMySqlServer.stop();
-    }
-  }
-
-  private int chooseRandomPort() throws IOException {
-    ServerSocket socket = null;
-    try {
-      socket = new ServerSocket(0);
-      return socket.getLocalPort();
-    } finally {
-      if (socket != null) {
-        socket.close();
-      }
     }
   }
 

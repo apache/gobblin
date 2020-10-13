@@ -329,16 +329,4 @@ public class FlowConfigTest {
     _testDirectory.delete();
     cleanUpDir(TEST_SPEC_STORE_DIR);
   }
-
-  private static int chooseRandomPort() throws IOException {
-    ServerSocket socket = null;
-    try {
-      socket = new ServerSocket(0);
-      return socket.getLocalPort();
-    } finally {
-      if (socket != null) {
-        socket.close();
-      }
-    }
-  }
 }
