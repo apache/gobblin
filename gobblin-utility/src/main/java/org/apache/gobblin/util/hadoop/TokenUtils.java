@@ -321,17 +321,15 @@ public class TokenUtils {
   private static void getHdfsToken(Configuration conf, Credentials cred) throws IOException {
     FileSystem fs = FileSystem.get(conf);
     LOG.info("Getting DFS token from " + fs.getUri());
-    Token<?> fsToken = fs.getDelegationToken(getMRTokenRenewerInternal(new JobConf()).toString());
-    if (fsToken == null) {
-      LOG.error("Failed to fetch DFS token for ");
-      throw new IOException("Failed to fetch DFS token.");
+    String renewer = getMRTokenRenewerInternal(new JobConf()).toString();
+    Token<?>[] fsTokens = fs.addDelegationTokens(renewer, cred);
+    for(int i = 0; i < fsTokens.length; i++) {
+      Token<?> token = fsTokens[i];
+      String message =
+          String.format("DFS token fetched from namenode, token kind: %s, token service %s", token.getKind(),
+              token.getService());
+      LOG.info(message);
     }
-    LOG.info("Created DFS token: " + fsToken.toString());
-    LOG.info("Token kind: " + fsToken.getKind());
-    LOG.info("Token id: " + Arrays.toString(fsToken.getIdentifier()));
-    LOG.info("Token service: " + fsToken.getService());
-
-    cred.addToken(fsToken.getService(), fsToken);
   }
 
   private static void getOtherNamenodesToken(List<String> otherNamenodes, Configuration conf, Credentials cred)
