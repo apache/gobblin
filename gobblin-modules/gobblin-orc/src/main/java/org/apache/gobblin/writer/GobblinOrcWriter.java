@@ -110,12 +110,13 @@ public class GobblinOrcWriter extends FsDataWriter<GenericRecord> {
     // Upstream constructs will need to set this value properly
     long estimatedRecordSize = getEstimatedRecordSize(properties);
     long rowsBetweenCheck = availableHeapPerWriter / estimatedRecordSize;
-    log.info("Tuned the parameter " + OrcConf.ROWS_BETWEEN_CHECKS.name() + " to be:" + rowsBetweenCheck);
-
     properties.setProp(OrcConf.ROWS_BETWEEN_CHECKS.name(),
         Math.min(rowsBetweenCheck, (long) OrcConf.ROWS_BETWEEN_CHECKS.getDefaultValue()));
     // Row batch size should be smaller than row_between_check, 4 is just a magic number picked here.
-    properties.setProp(ORC_WRITER_BATCH_SIZE, Math.min(rowsBetweenCheck / 4, DEFAULT_ORC_WRITER_BATCH_SIZE));
+    long batchSize = Math.min(rowsBetweenCheck / 4, DEFAULT_ORC_WRITER_BATCH_SIZE);
+    properties.setProp(ORC_WRITER_BATCH_SIZE, batchSize);
+    log.info("Tuned the parameter " + OrcConf.ROWS_BETWEEN_CHECKS.name() + " to be:" + rowsBetweenCheck + ","
+        + ORC_WRITER_BATCH_SIZE + " to be:" + batchSize);
   }
 
   protected long availableHeapSize(State Properties) {
