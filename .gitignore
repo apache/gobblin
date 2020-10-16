@@ -50,6 +50,7 @@ out/
 */bin/
 **/mainGeneratedDataTemplate
 **/mainGeneratedRest
+**/main/snapshot
 gobblin-dist/
 gobblin-distribution-*.tar.gz
 gobblin.tar.gz
