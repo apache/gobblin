@@ -27,6 +27,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.serde2.SerDeException;
 import org.apache.hadoop.hive.serde2.avro.AvroObjectInspectorGenerator;
 import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
+import org.apache.orc.OrcConf;
 import org.apache.orc.OrcFile;
 import org.apache.orc.TypeDescription;
 import org.apache.orc.Writer;
@@ -48,7 +49,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.state.ConstructState;
 
+import static org.apache.gobblin.source.extractor.extract.kafka.KafkaSource.AVG_RECORD_SIZE;
 import static org.apache.gobblin.writer.AvroOrcSchemaConverter.getOrcSchema;
+import static org.apache.gobblin.yarn.GobblinYarnConfigurationKeys.*;
 
 
 /**
@@ -59,6 +62,16 @@ public class GobblinOrcWriter extends FsDataWriter<GenericRecord> {
   static final String ORC_WRITER_PREFIX = "orcWriter.";
   private static final String ORC_WRITER_BATCH_SIZE = ORC_WRITER_PREFIX + "batchSize";
   private static final int DEFAULT_ORC_WRITER_BATCH_SIZE = 1000;
+  private static final String ORC_WRITER_AUTO_TUNE_ENABLED = ORC_WRITER_PREFIX + "autoTuneEnabled";
+  private static final boolean ORC_WRITER_AUTO_TUNE_DEFAULT = false;
+  private static final long EXEMPLIFIED_RECORD_SIZE_IN_BYTES = 1000;
+  private static final int PARALLELISM_WRITERS = 3;
+
+  // The serialized record size passed from AVG_RECORD_SIZE is smaller than the actual in-memory representation
+  // of a record. This is just the number represents how many times that the actual buffer storing record is larger
+  // than the serialized size passed down from upstream constructs.
+  private static final String RECORD_SIZE_SCALE_FACTOR = "recordSize.scaleFactor";
+  private static final int DEFAULT_RECORD_SIZE_SCALE_FACTOR = 6;
 
   /**
    * Check comment of {@link #deepCleanRowBatch} for the usage of this configuration.
@@ -77,10 +90,54 @@ public class GobblinOrcWriter extends FsDataWriter<GenericRecord> {
   private final int batchSize;
   private final Schema avroSchema;
 
+  /**
+   * There are couple of parameters in ORC writer that requires manual tuning based on record size given that executor
+   * for running these ORC writers has limited heap space. This helper function wrap them and has side effect for the
+   * argument {@param properties}.
+   *
+   * Assumption for current implementation:
+   * - Running in Gobblin-on-YARN mode to enable this feature as all the memory settings here are
+   * relevant to the resources requested from YARN.
+   * - Record size is provided by AVG_RECORD_SIZE which is a kafka related attribute. For other sources, upstream
+   * constructs should provide its representation of record size.
+   *
+   * One should overwrite the behavior if plugging into systems where assumptions above don't hold.
+   */
+  protected void autoTunedOrcWriterParams(State properties) {
+    double writerRatio = properties.getPropAsDouble(OrcConf.MEMORY_POOL.name(), (double) OrcConf.MEMORY_POOL.getDefaultValue());
+    long availableHeapPerWriter = Math.round(availableHeapSize(properties) * writerRatio / PARALLELISM_WRITERS);
+
+    // Upstream constructs will need to set this value properly
+    long estimatedRecordSize = getEstimatedRecordSize(properties);
+    long rowsBetweenCheck = availableHeapPerWriter / estimatedRecordSize;
+    log.info("Tuned the parameter " + OrcConf.ROWS_BETWEEN_CHECKS.name() + " to be:" + rowsBetweenCheck);
+
+    properties.setProp(OrcConf.ROWS_BETWEEN_CHECKS.name(),
+        Math.min(rowsBetweenCheck, (long) OrcConf.ROWS_BETWEEN_CHECKS.getDefaultValue()));
+    // Row batch size should be smaller than row_between_check, 4 is just a magic number picked here.
+    properties.setProp(ORC_WRITER_BATCH_SIZE, Math.min(rowsBetweenCheck / 4, DEFAULT_ORC_WRITER_BATCH_SIZE));
+  }
+
+  protected long availableHeapSize(State Properties) {
+    // Calculate the recommended size as the threshold for memory check
+    long physicalMem = Math.round(Properties.getPropAsLong(CONTAINER_MEMORY_MBS_KEY)
+        * properties.getPropAsDouble(CONTAINER_JVM_MEMORY_XMX_RATIO_KEY, DEFAULT_CONTAINER_JVM_MEMORY_XMX_RATIO));
+    long nonHeap = properties.getPropAsLong(CONTAINER_JVM_MEMORY_OVERHEAD_MBS_KEY, DEFAULT_CONTAINER_JVM_MEMORY_OVERHEAD_MBS);
+    return physicalMem - nonHeap;
+  }
+
+  protected long getEstimatedRecordSize(State properties) {
+    long estimatedRecordSizeScale = properties.getPropAsInt(RECORD_SIZE_SCALE_FACTOR, DEFAULT_RECORD_SIZE_SCALE_FACTOR);
+    return (properties.contains(AVG_RECORD_SIZE) ? properties.getPropAsLong(AVG_RECORD_SIZE)
+        : EXEMPLIFIED_RECORD_SIZE_IN_BYTES) * estimatedRecordSizeScale;
+  }
+
   public GobblinOrcWriter(FsDataWriterBuilder<Schema, GenericRecord> builder, State properties)
       throws IOException {
     super(builder, properties);
-
+    if (properties.getPropAsBoolean(ORC_WRITER_AUTO_TUNE_ENABLED, ORC_WRITER_AUTO_TUNE_DEFAULT)) {
+      autoTunedOrcWriterParams(properties);
+    }
 
     // Create value-writer which is essentially a record-by-record-converter with buffering in batch.
     this.avroSchema = builder.getSchema();

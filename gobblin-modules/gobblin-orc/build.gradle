@@ -29,6 +29,8 @@ dependencies {
   compile externalDependency.hiveStorageApi
   compile externalDependency.orcCore
 
+  compileOnly (project(':gobblin-yarn'))
+
   testCompile externalDependency.testng
   testCompile externalDependency.mockito
   testCompile externalDependency.hiveSerDe
