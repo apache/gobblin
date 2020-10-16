@@ -43,6 +43,7 @@ import org.apache.orc.storage.ql.exec.vector.UnionColumnVector;
 import org.apache.orc.storage.ql.exec.vector.VectorizedRowBatch;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -62,16 +63,18 @@ public class GobblinOrcWriter extends FsDataWriter<GenericRecord> {
   static final String ORC_WRITER_PREFIX = "orcWriter.";
   private static final String ORC_WRITER_BATCH_SIZE = ORC_WRITER_PREFIX + "batchSize";
   private static final int DEFAULT_ORC_WRITER_BATCH_SIZE = 1000;
-  private static final String ORC_WRITER_AUTO_TUNE_ENABLED = ORC_WRITER_PREFIX + "autoTuneEnabled";
+  @VisibleForTesting
+  static final String ORC_WRITER_AUTO_TUNE_ENABLED = ORC_WRITER_PREFIX + "autoTuneEnabled";
   private static final boolean ORC_WRITER_AUTO_TUNE_DEFAULT = false;
-  private static final long EXEMPLIFIED_RECORD_SIZE_IN_BYTES = 1000;
+  private static final long EXEMPLIFIED_RECORD_SIZE_IN_BYTES = 1024;
   private static final int PARALLELISM_WRITERS = 3;
 
   // The serialized record size passed from AVG_RECORD_SIZE is smaller than the actual in-memory representation
   // of a record. This is just the number represents how many times that the actual buffer storing record is larger
   // than the serialized size passed down from upstream constructs.
-  private static final String RECORD_SIZE_SCALE_FACTOR = "recordSize.scaleFactor";
-  private static final int DEFAULT_RECORD_SIZE_SCALE_FACTOR = 6;
+  @VisibleForTesting
+  static final String RECORD_SIZE_SCALE_FACTOR = "recordSize.scaleFactor";
+  static final int DEFAULT_RECORD_SIZE_SCALE_FACTOR = 6;
 
   /**
    * Check comment of {@link #deepCleanRowBatch} for the usage of this configuration.
@@ -109,9 +112,9 @@ public class GobblinOrcWriter extends FsDataWriter<GenericRecord> {
 
     // Upstream constructs will need to set this value properly
     long estimatedRecordSize = getEstimatedRecordSize(properties);
-    long rowsBetweenCheck = availableHeapPerWriter / estimatedRecordSize;
+    long rowsBetweenCheck = availableHeapPerWriter * 1024 / estimatedRecordSize;
     properties.setProp(OrcConf.ROWS_BETWEEN_CHECKS.name(),
-        Math.min(rowsBetweenCheck, (long) OrcConf.ROWS_BETWEEN_CHECKS.getDefaultValue()));
+        Math.min(rowsBetweenCheck, (int) OrcConf.ROWS_BETWEEN_CHECKS.getDefaultValue()));
     // Row batch size should be smaller than row_between_check, 4 is just a magic number picked here.
     long batchSize = Math.min(rowsBetweenCheck / 4, DEFAULT_ORC_WRITER_BATCH_SIZE);
     properties.setProp(ORC_WRITER_BATCH_SIZE, batchSize);
@@ -119,14 +122,20 @@ public class GobblinOrcWriter extends FsDataWriter<GenericRecord> {
         + ORC_WRITER_BATCH_SIZE + " to be:" + batchSize);
   }
 
+  /**
+   * Calculate the heap size in MB available for ORC writers.
+   */
   protected long availableHeapSize(State Properties) {
     // Calculate the recommended size as the threshold for memory check
-    long physicalMem = Math.round(Properties.getPropAsLong(CONTAINER_MEMORY_MBS_KEY)
+    long physicalMem = Math.round(Properties.getPropAsLong(CONTAINER_MEMORY_MBS_KEY, 4096)
         * properties.getPropAsDouble(CONTAINER_JVM_MEMORY_XMX_RATIO_KEY, DEFAULT_CONTAINER_JVM_MEMORY_XMX_RATIO));
     long nonHeap = properties.getPropAsLong(CONTAINER_JVM_MEMORY_OVERHEAD_MBS_KEY, DEFAULT_CONTAINER_JVM_MEMORY_OVERHEAD_MBS);
     return physicalMem - nonHeap;
   }
 
+  /**
+   * Calculate the estimated record size in bytes.
+   */
   protected long getEstimatedRecordSize(State properties) {
     long estimatedRecordSizeScale = properties.getPropAsInt(RECORD_SIZE_SCALE_FACTOR, DEFAULT_RECORD_SIZE_SCALE_FACTOR);
     return (properties.contains(AVG_RECORD_SIZE) ? properties.getPropAsLong(AVG_RECORD_SIZE)

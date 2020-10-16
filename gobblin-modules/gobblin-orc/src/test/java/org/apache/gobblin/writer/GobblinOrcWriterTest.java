@@ -31,6 +31,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Writable;
+import org.apache.orc.OrcConf;
 import org.apache.orc.storage.ql.exec.vector.BytesColumnVector;
 import org.apache.orc.storage.ql.exec.vector.ListColumnVector;
 import org.mockito.Mockito;
@@ -44,10 +45,19 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.source.workunit.WorkUnit;
 
+import static org.apache.gobblin.source.extractor.extract.kafka.KafkaSource.AVG_RECORD_SIZE;
 import static org.apache.gobblin.writer.GenericRecordToOrcValueWriterTest.deserializeOrcRecords;
+import static org.apache.gobblin.writer.GobblinOrcWriter.DEFAULT_RECORD_SIZE_SCALE_FACTOR;
+import static org.apache.gobblin.writer.GobblinOrcWriter.ORC_WRITER_AUTO_TUNE_ENABLED;
+import static org.apache.gobblin.writer.GobblinOrcWriter.RECORD_SIZE_SCALE_FACTOR;
+import static org.apache.gobblin.yarn.GobblinYarnConfigurationKeys.CONTAINER_JVM_MEMORY_OVERHEAD_MBS_KEY;
 import static org.mockito.Mockito.*;
 
 
+/**
+ * For running these tests in IDE, make sure all ORC libraries existed in the external library folder are specified
+ * with "nohive" classifier if they do (orc-core)
+ */
 public class GobblinOrcWriterTest {
 
   public static final List<GenericRecord> deserializeAvroRecords(Class clazz, Schema schema, String schemaPath)
@@ -69,6 +79,38 @@ public class GobblinOrcWriterTest {
       dataInputStream.close();
     }
     return records;
+  }
+
+  @Test
+  public void testAutoTuned() throws Exception {
+    Closer closer = Closer.create();
+    Schema schema =
+        new Schema.Parser().parse(this.getClass().getClassLoader().getResourceAsStream("orc_writer_test/schema.avsc"));
+
+    FsDataWriterBuilder<Schema, GenericRecord> mockBuilder =
+        (FsDataWriterBuilder<Schema, GenericRecord>) Mockito.mock(FsDataWriterBuilder.class);
+    when(mockBuilder.getSchema()).thenReturn(schema);
+    State properties = new WorkUnit();
+    String stagingDir = Files.createTempDir().getAbsolutePath();
+    String outputDir = Files.createTempDir().getAbsolutePath();
+    properties.setProp(ConfigurationKeys.WRITER_STAGING_DIR, stagingDir);
+    properties.setProp(ConfigurationKeys.WRITER_FILE_PATH, "simple");
+    properties.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, outputDir);
+    when(mockBuilder.getFileName(properties)).thenReturn("file");
+
+    properties.setProp(ORC_WRITER_AUTO_TUNE_ENABLED, true);
+    properties.setProp(CONTAINER_JVM_MEMORY_OVERHEAD_MBS_KEY, 2048);
+    closer.register(new GobblinOrcWriter(mockBuilder, properties));
+    // Verify the side effect within the properties object.
+    Assert.assertEquals(properties.getPropAsInt(OrcConf.ROWS_BETWEEN_CHECKS.name()),
+        Math.round((4096 - 2048) * 0.5 * 1024 / 3) / (1024 * properties.getPropAsInt(RECORD_SIZE_SCALE_FACTOR, DEFAULT_RECORD_SIZE_SCALE_FACTOR)));
+
+    // Will get to 5000
+    properties.setProp(AVG_RECORD_SIZE, 10);
+    closer.register(new GobblinOrcWriter(mockBuilder, properties));
+    Assert.assertEquals(properties.getPropAsInt(OrcConf.ROWS_BETWEEN_CHECKS.name()), 5000);
+
+    closer.close();
   }
 
   @Test
