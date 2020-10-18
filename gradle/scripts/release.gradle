@@ -107,6 +107,8 @@ task sourceRelease(type: Tar, dependsOn: prepare_release_config) {
         exclude 'package-lock.json'
         exclude '**/gen-java'
         exclude '**/generated-gobblin-cluster.conf'
+        exclude 'gobblin-modules/gobblin-couchbase/mock-couchbase'
+        exclude 'gobblin-modules/gobblin-elasticsearch/test-elasticsearch'
     }
 
     // rename gradle.properties.release to gradle.properties
