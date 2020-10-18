@@ -147,7 +147,9 @@ public class AvroCompactionTaskTest {
   @Test
   public void testAvroRecompaction() throws Exception {
     FileSystem fs = getFileSystem();
-    String basePath = "/tmp/testRecompaction";
+    File tmpDir = Files.createTempDir();
+    tmpDir.deleteOnExit();
+    String basePath = tmpDir.getAbsolutePath() + "/testRecompaction";
     fs.delete(new Path(basePath), true);
 
     File jobDir = new File(basePath, "Identity/MemberAccount/minutely/2017/04/03/10/20_30/run_2017-04-03-10-20");
@@ -177,7 +179,9 @@ public class AvroCompactionTaskTest {
   @Test
   public void testAvroRecompactionWriteToNewPath() throws Exception {
     FileSystem fs = getFileSystem();
-    String basePath = "/tmp/testRecompactionWriteToNewPath";
+    File tmpDir = Files.createTempDir();
+    tmpDir.deleteOnExit();
+    String basePath = tmpDir.getAbsolutePath() + "/testRecompactionWriteToNewPath";
     fs.delete(new Path(basePath), true);
 
     File jobDir = new File(basePath, "Identity/MemberAccount/minutely/2017/04/03/10/20_30/run_2017-04-03-10-20");
@@ -210,7 +214,9 @@ public class AvroCompactionTaskTest {
 
   public void testAvroRecompactionWithLimitation() throws Exception {
     FileSystem fs = getFileSystem();
-    String basePath = "/tmp/testRecompactionWithLimitation";
+    File tmpDir = Files.createTempDir();
+    tmpDir.deleteOnExit();
+    String basePath = tmpDir.getAbsolutePath() + "/testRecompactionWithLimitation";
     fs.delete(new Path(basePath), true);
 
     File jobDir = new File(basePath, "Identity/MemberAccount/minutely/2017/04/03/10/20_30/run_2017-04-03-10-20");

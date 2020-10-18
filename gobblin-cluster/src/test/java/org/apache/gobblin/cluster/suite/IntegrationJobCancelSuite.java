@@ -17,14 +17,22 @@
 
 package org.apache.gobblin.cluster.suite;
 
+import java.io.File;
+
 import org.junit.Assert;
 
+import com.google.common.io.Files;
 import com.typesafe.config.Config;
 
 
 public class IntegrationJobCancelSuite extends IntegrationBasicSuite {
   public static final String JOB_ID = "job_HelloWorldTestJob_1234";
-  public static final String TASK_STATE_FILE = "/tmp/IntegrationJobCancelSuite/taskState/_RUNNING";
+  public static final String TASK_STATE_FILE;
+  static {
+    File tmpDir = Files.createTempDir();
+    tmpDir.deleteOnExit();
+    TASK_STATE_FILE = tmpDir.getAbsolutePath() + "/IntegrationJobCancelSuite/taskState/_RUNNING";
+  }
   private int sleepingTime = 10;
 
   public IntegrationJobCancelSuite() {

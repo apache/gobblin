@@ -16,6 +16,7 @@
  */
 package org.apache.gobblin.util.logs;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Set;
 
@@ -31,6 +32,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
+import com.google.common.io.Files;
 
 
 public class LogCopierTest {
@@ -45,11 +47,13 @@ public class LogCopierTest {
   public void setUp() throws IOException {
     this.srcFs = FileSystem.getLocal(new Configuration());
     this.destFs = FileSystem.getLocal(new Configuration());
-    this.srcLogDir = new Path("/tmp/LogCopierTest/srcLogDir");
+    File tmpDir = Files.createTempDir();
+    tmpDir.deleteOnExit();
+    this.srcLogDir = new Path(tmpDir.getAbsolutePath() + "/LogCopierTest/srcLogDir");
     if (!srcFs.exists(srcLogDir)) {
       srcFs.mkdirs(srcLogDir);
     }
-    this.destLogDir = new Path("/tmp/LogCopierTest/destLogDir");
+    this.destLogDir = new Path(tmpDir.getAbsolutePath() + "/LogCopierTest/destLogDir");
     if (!destFs.exists(destLogDir)) {
       destFs.mkdirs(destLogDir);
     }

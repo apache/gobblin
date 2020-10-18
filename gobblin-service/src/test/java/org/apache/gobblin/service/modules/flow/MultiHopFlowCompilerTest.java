@@ -97,14 +97,16 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 public class MultiHopFlowCompilerTest {
   private FlowGraph flowGraph;
   private MultiHopFlowCompiler specCompiler;
-  private final String TESTDIR = "/tmp/mhCompiler/gitFlowGraphTestDir";
+  private String testDir;
 
   @BeforeClass
   public void setUp()
       throws URISyntaxException, IOException, ReflectiveOperationException, FlowEdgeFactory.FlowEdgeCreationException {
     //Create a FlowGraph
     this.flowGraph = new BaseFlowGraph();
-
+    File tmpDir = Files.createTempDir();
+    tmpDir.deleteOnExit();
+    this.testDir = tmpDir.getAbsolutePath() + "/mhCompiler/gitFlowGraphTestDir";
     //Add DataNodes to the graph from the node properties files
     URI dataNodesUri = MultiHopFlowCompilerTest.class.getClassLoader().getResource("flowgraph/datanodes").toURI();
     FileSystem fs = FileSystem.get(dataNodesUri, new Configuration());
@@ -655,12 +657,9 @@ public class MultiHopFlowCompilerTest {
   @Test (dependsOnMethods = "testUnresolvedFlow")
   public void testGitFlowGraphMonitorService()
       throws IOException, GitAPIException, URISyntaxException, InterruptedException {
-    File remoteDir = new File(TESTDIR + "/remote");
-    File cloneDir = new File(TESTDIR + "/clone");
+    File remoteDir = new File(this.testDir + "/remote");
+    File cloneDir = new File(this.testDir + "/clone");
     File flowGraphDir = new File(cloneDir, "/gobblin-flowgraph");
-
-    //Clean up
-    cleanUpDir(TESTDIR);
 
     // Create a bare repository
     RepositoryCache.FileKey fileKey = RepositoryCache.FileKey.exact(remoteDir, FS.DETECTED);
@@ -679,7 +678,7 @@ public class MultiHopFlowCompilerTest {
     Config config = ConfigBuilder.create()
         .addPrimitive(GitFlowGraphMonitor.GIT_FLOWGRAPH_MONITOR_PREFIX + "."
             + ConfigurationKeys.GIT_MONITOR_REPO_URI, remoteRepo.getDirectory().getAbsolutePath())
-        .addPrimitive(GitFlowGraphMonitor.GIT_FLOWGRAPH_MONITOR_PREFIX + "." + ConfigurationKeys.GIT_MONITOR_REPO_DIR, TESTDIR + "/git-flowgraph")
+        .addPrimitive(GitFlowGraphMonitor.GIT_FLOWGRAPH_MONITOR_PREFIX + "." + ConfigurationKeys.GIT_MONITOR_REPO_DIR, this.testDir + "/git-flowgraph")
         .addPrimitive(GitFlowGraphMonitor.GIT_FLOWGRAPH_MONITOR_PREFIX + "." + ConfigurationKeys.GIT_MONITOR_POLLING_INTERVAL, 5)
         .addPrimitive(ServiceConfigKeys.TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY, flowTemplateCatalogUri.toString())
         .build();
@@ -717,16 +716,8 @@ public class MultiHopFlowCompilerTest {
     return flowGraphDir.getName() + SystemUtils.FILE_SEPARATOR + groupDir + SystemUtils.FILE_SEPARATOR + fileName;
   }
 
-  private void cleanUpDir(String dir) throws IOException {
-    File dirToDelete = new File(dir);
-    if (dirToDelete.exists()) {
-      FileUtils.deleteDirectory(new File(dir));
-    }
-  }
-
   @AfterClass
   public void tearDown() throws IOException {
-    cleanUpDir(TESTDIR);
     try {
       this.specCompiler.getServiceManager().stopAsync().awaitStopped(5, TimeUnit.SECONDS);
     } catch (Exception e) {

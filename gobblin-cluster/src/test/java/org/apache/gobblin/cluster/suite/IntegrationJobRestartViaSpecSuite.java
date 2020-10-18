@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.cluster.suite;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -48,7 +49,12 @@ import org.apache.gobblin.runtime.api.SpecProducer;
 
 public class IntegrationJobRestartViaSpecSuite extends IntegrationJobCancelSuite {
   public static final String JOB_NAME = "HelloWorldTestJob";
-  public static final String FS_SPEC_CONSUMER_DIR = "/tmp/IntegrationJobCancelViaSpecSuite/jobSpecs";
+  public static final String FS_SPEC_CONSUMER_DIR;
+  static {
+    File tmpDir = Files.createTempDir();
+    tmpDir.deleteOnExit();
+    FS_SPEC_CONSUMER_DIR = tmpDir + "/IntegrationJobCancelViaSpecSuite/jobSpecs";
+  }
 
   private final SpecProducer _specProducer;
 
