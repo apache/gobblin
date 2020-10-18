@@ -32,7 +32,7 @@ buildscript {
     classpath 'gradle.plugin.org.inferred:gradle-processors:1.1.2'
     classpath 'org.kt3k.gradle.plugin:coveralls-gradle-plugin:1.0.2'
     classpath 'io.spring.gradle:dependency-management-plugin:0.6.0.RELEASE'
-    classpath 'me.champeau.gradle:jmh-gradle-plugin:0.4.4'
+    classpath 'me.champeau.gradle:jmh-gradle-plugin:0.4.8'
   }
 
   repositories {
@@ -137,21 +137,6 @@ apply from: 'gradle/scripts/javaVersionCheck.gradle'
 
 apply from: 'gradle/scripts/rat.gradle'
 apply from: 'gradle/scripts/release.gradle'
-
-task wrapper(type: Wrapper) { gradleVersion = '2.13' }
-
-/*
- * Hack for upgrading pegasus to version 11.0.0. For some reason, the gradle-plugins in
- * that version fails to bring in "tools.jar" into the classpath. The rest.li team is actively
- * seeking for a clean fix. This part will be removed later when the fix is ready
- */
-allprojects {
-  tasks.matching { it.name == 'generateRestModel' }.all {
-    doFirst {
-      it.codegenClasspath += files("${System.getProperty('java.home')}/../lib/tools.jar")
-    }
-  }
-}
 
 task printVersionName {
   doLast {

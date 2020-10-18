@@ -40,8 +40,10 @@ def BuildProperties BUILD_PROPERTIES = new BuildProperties(project)
     .register(new BuildProperty("publishToNexus", false, "Enable publishing of artifacts to Nexus"))
     .register(new BuildProperty("salesforceVersion", "42.0.0", "Salesforce dependencies version"))
 
-task buildProperties(description: 'Lists main properties that can be used to customize the build') << {
-  BUILD_PROPERTIES.printHelp();
+task buildProperties(description: 'Lists main properties that can be used to customize the build') {
+  doLast {
+    BUILD_PROPERTIES.printHelp();
+  }
 }
 
 // Gobblin build customization

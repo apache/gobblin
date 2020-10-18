@@ -26,7 +26,8 @@ buildscript {
         jcenter()
     }
     dependencies {
-        classpath 'com.github.jengelman.gradle.plugins:shadow:2.0.4'
+        // Bump up shadow version to support Gradle 5.x https://github.com/johnrengelman/shadow
+        classpath 'com.github.jengelman.gradle.plugins:shadow:5.2.0'
     }
 }
 

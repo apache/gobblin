@@ -21,20 +21,19 @@ task javadocTarball(type: Tar) {
   compression = Compression.GZIP
   extension = 'tgz'
   description = "Generates a tar-ball with all javadocs to ${destinationDir}/${archiveName}"
-}
+  doLast {
+    def indexFile = new File(destinationDir, "index.md")
+    def version = rootProject.ext.javadocVersion
+    indexFile << """----
+    layout: page
+    title: Gobblin Javadoc packages ${version}
+    permalink: /javadoc/${version}/
+    ----
 
-javadocTarball << {
-  def indexFile = new File(destinationDir, "index.md")
-  def version = rootProject.ext.javadocVersion
-  indexFile << """----
-layout: page
-title: Gobblin Javadoc packages ${version}
-permalink: /javadoc/${version}/
-----
-
-"""
-  rootProject.ext.javadocPackages.each {
-    indexFile << "* [${it}](${it})\n"
+    """
+    rootProject.ext.javadocPackages.each {
+      indexFile << "* [${it}](${it})\n"
+    }
   }
 }
 

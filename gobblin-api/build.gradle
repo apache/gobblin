@@ -29,7 +29,11 @@ dependencies {
     compile externalDependency.reflections
     compile externalDependency.typesafeConfig
     compile externalDependency.reactivex
-
+    // Modified to work with Gradle 5
+    compileOnly externalDependency.lombok
+    annotationProcessor externalDependency.lombok
+    testCompileOnly externalDependency.lombok
+    testAnnotationProcessor externalDependency.lombok
     testCompile externalDependency.testng
     testCompile externalDependency.mockito
     testCompile externalDependency.log4j

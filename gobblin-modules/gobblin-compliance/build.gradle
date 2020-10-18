@@ -21,6 +21,11 @@ dependencies {
   compile project(":gobblin-data-management")
   compile externalDependency.azkaban
   compile externalDependency.hiveJdbc
+  // Gradle 5 compatibility
+  compileOnly externalDependency.lombok
+  annotationProcessor externalDependency.lombok
+  testCompileOnly externalDependency.lombok
+  testAnnotationProcessor externalDependency.lombok
 }
 
 test {

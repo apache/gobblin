@@ -30,8 +30,8 @@ subprojects {
       // and "out/test/$MODULE_NAME". Changing it so IDEA and gradle share
       // the class output directory.
 
-      outputDir = sourceSets.main.output.classesDir
-      testOutputDir = sourceSets.test.output.classesDir
+      outputDir = file(sourceSets.main.output.classesDirs.getSingleFile())
+      testOutputDir = file(sourceSets.test.output.classesDirs.getSingleFile())
     }
 
   }

@@ -49,6 +49,12 @@ dependencies {
   compile externalDependency.findBugsAnnotations
   compile externalDependency.helix
 
+  // Gradle 5 compatibility
+  compileOnly externalDependency.lombok
+  annotationProcessor externalDependency.lombok
+  testCompileOnly externalDependency.lombok
+  testAnnotationProcessor externalDependency.lombok
+
   runtimeOnly project(":gobblin-modules:gobblin-service-kafka")
 
   testCompile project(":gobblin-example")

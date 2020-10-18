@@ -25,7 +25,11 @@ dependencies {
   compile externalDependency.hadoopAuth
   compile externalDependency.slf4j
   compile externalDependency.typesafeConfig
-
+  // Gradle 5 compatibility
+  compileOnly externalDependency.lombok
+  annotationProcessor externalDependency.lombok
+  testCompileOnly externalDependency.lombok
+  testAnnotationProcessor externalDependency.lombok
   testCompile externalDependency.testng
   testCompile externalDependency.mockito
 }

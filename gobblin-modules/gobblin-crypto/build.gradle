@@ -29,6 +29,11 @@ dependencies {
   compile externalDependency.bcpgJdk15on
   compile externalDependency.bcprovJdk15on
   compile externalDependency.slf4j
+  // Gradle 5 compatibility
+  compileOnly externalDependency.lombok
+  annotationProcessor externalDependency.lombok
+  testCompileOnly externalDependency.lombok
+  testAnnotationProcessor externalDependency.lombok
 
   testCompile project(":gobblin-core-base") // for EncryptionConfigParser
   testCompile project(":gobblin-test-utils")

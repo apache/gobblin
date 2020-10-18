@@ -33,6 +33,11 @@ dependencies {
   compile externalDependency.typesafeConfig
   compile externalDependency.findBugsAnnotations
 
+  // Gradle 5 compatibility
+  compileOnly externalDependency.lombok
+  annotationProcessor externalDependency.lombok
+  testCompileOnly externalDependency.lombok
+  testAnnotationProcessor externalDependency.lombok
   testCompile externalDependency.testng
   testCompile externalDependency.mockito
 }
