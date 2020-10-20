@@ -891,7 +891,8 @@ public class AvroUtils {
    * Therefore the escaping behavior won't cause correctness issues.
    */
   public static String sanitizeSchemaString(String schemaString) {
-    return schemaString.replaceAll(";",  "\\\\;").replaceAll("'", "\\\\'");
+    return schemaString.replace("\\\"", "\\\\\\\"").replace(";",  "\\;")
+        .replace("'", "\\'");
   }
 
   /**
