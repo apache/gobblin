@@ -272,6 +272,19 @@ public class AvroUtilsTest {
     Assert.assertEquals(actualString, expectedString);
     // Verify that there's only one slash being added.
     Assert.assertEquals(actualString.length(), invalidString.length() + 2);
+
+    // An instance of invalid string that contains a slash followed by a quote, both of which should be escaped.
+    String invalidStringWithSlash = "abc\\\"";
+    // Should have a slash before the actual slash, and a slash before the actual quote.
+    actualString = AvroUtils.sanitizeSchemaString(invalidStringWithSlash);
+    // Meaning for each slash:
+    // first two: escape in java and the actual escape the output string
+    // second pair: escape in java and the actual slash
+    // third pair: escape for the actual quote
+    // last pair: java escape slash with the actual quote.
+    expectedString = "abc\\\\\\\"";
+    Assert.assertEquals(actualString, expectedString);
+    Assert.assertEquals(actualString.length(), invalidStringWithSlash.length() + 2);
   }
 
   public static List<GenericRecord> getRecordFromFile(String path)
