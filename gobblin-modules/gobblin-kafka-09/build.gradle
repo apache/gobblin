@@ -49,6 +49,12 @@ dependencies {
   runtimeOnly externalDependency.confluentSchemaRegistryClient
   runtimeOnly externalDependency.protobuf
 
+  // Gradle 5 compatibility
+  compileOnly externalDependency.lombok
+  annotationProcessor externalDependency.lombok
+  testCompileOnly externalDependency.lombok
+  testAnnotationProcessor externalDependency.lombok
+
   testCompile project(":gobblin-service")
   testCompile project(":gobblin-modules:gobblin-service-kafka")
   testCompile project(path: ":gobblin-runtime", configuration: "tests")

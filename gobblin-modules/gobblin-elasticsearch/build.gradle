@@ -39,6 +39,12 @@ dependencies {
   compile externalDependency.typesafeConfig
   compile externalDependency.findBugsAnnotations
 
+  // Gradle 5 Compatibility
+  compileOnly externalDependency.lombok
+  annotationProcessor externalDependency.lombok
+  testCompileOnly externalDependency.lombok
+  testAnnotationProcessor externalDependency.lombok
+
   testCompile project(":gobblin-runtime")
   testCompile project(":gobblin-test-utils")
   testCompile externalDependency.jsonAssert
@@ -54,7 +60,7 @@ task installTestDependencies(type:Exec) {
 task uninstallTestDependencies(type: Exec) {
   workingDir "${project.rootDir}/gobblin-modules/gobblin-elasticsearch/"
   commandLine './scripts/uninstall_test_deps.sh'
-  
+
 }
 
 test.dependsOn installTestDependencies
@@ -62,7 +68,7 @@ test.finalizedBy uninstallTestDependencies
 
 configurations {
   compile {
-    transitive = false 
+    transitive = false
   }
 }
 

@@ -29,6 +29,11 @@ dependencies {
   testCompile externalDependency.jhyde
   testCompile externalDependency.testng
   testCompile externalDependency.twitterParquet
+  // Gradle 5 compatibility
+  compileOnly externalDependency.lombok
+  annotationProcessor externalDependency.lombok
+  testCompileOnly externalDependency.lombok
+  testAnnotationProcessor externalDependency.lombok
 }
 
 configurations { compile { transitive = false } }

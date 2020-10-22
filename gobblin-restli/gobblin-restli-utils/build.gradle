@@ -22,6 +22,10 @@ dependencies {
   compile externalDependency.pegasus.restliCommon
   compile externalDependency.pegasus.restliNettyStandalone
   compile externalDependency.pegasus.restliGuiceBridge
-
+  // Gradle 5 compatibility
+  compileOnly externalDependency.lombok
+  annotationProcessor externalDependency.lombok
+  testCompileOnly externalDependency.lombok
+  testAnnotationProcessor externalDependency.lombok
   testCompile externalDependency.testng
 }

@@ -71,6 +71,12 @@ dependencies {
 
   testCompile project(":gobblin-example")
 
+  // Gradle 5 compatibility
+  compileOnly externalDependency.lombok
+  annotationProcessor externalDependency.lombok
+  testCompileOnly externalDependency.lombok
+  testAnnotationProcessor externalDependency.lombok
+
   // Required for adding Test class into classpath
   testCompile project(":gobblin-runtime").sourceSets.test.output
   testCompile project(path: ":gobblin-metastore", configuration: "testFixtures")

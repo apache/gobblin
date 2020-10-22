@@ -35,6 +35,11 @@ dependencies {
     compile externalDependency.flyway
     compile externalDependency.commonsConfiguration
     compile externalDependency.reflections
+    // Gradle 5 compatibility
+    compileOnly externalDependency.lombok
+    annotationProcessor externalDependency.lombok
+    testCompileOnly externalDependency.lombok
+    testAnnotationProcessor externalDependency.lombok
 
     runtimeOnly externalDependency.mysqlConnector
 

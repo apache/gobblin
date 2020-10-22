@@ -56,8 +56,14 @@ dependencies {
   compile externalDependency.oltu
   compile externalDependency.opencsv
   compile externalDependency.hadoopHdfs
-  runtimeOnly externalDependency.protobuf
 
+  // Gradle 5 compatibility
+  compileOnly externalDependency.lombok
+  annotationProcessor externalDependency.lombok
+  testCompileOnly externalDependency.lombok
+  testAnnotationProcessor externalDependency.lombok
+
+  runtimeOnly externalDependency.protobuf
   testRuntime externalDependency.hadoopAws
   testCompile externalDependency.calciteCore
   testCompile externalDependency.calciteAvatica
