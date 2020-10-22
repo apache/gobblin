@@ -70,7 +70,6 @@ public class ResultChainingIterator implements Iterator<JsonElement> {
     if (!iter.hasNext()) {
       // `jsonElement` has last record, print out total and isDeleted=true records(soft deleted) total
       log.info("====Total records: [{}] isDeleted=true records: [{}]====", recordCount, isDeletedRecordCount);
-      return null;
     }
     return jsonElement;
   }
