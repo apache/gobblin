@@ -19,11 +19,7 @@ apply plugin: 'java'
 
 dependencies {
   compile project(":gobblin-api")
-  // Gradle 5 compatibility
-  compileOnly externalDependency.lombok
-  annotationProcessor externalDependency.lombok
-  testCompileOnly externalDependency.lombok
-  testAnnotationProcessor externalDependency.lombok
+
   testCompile externalDependency.testng
 }
 

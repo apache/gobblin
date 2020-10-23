@@ -63,12 +63,6 @@ dependencies {
   testCompile project(path: ':gobblin-cluster', configuration: 'tests')
   testCompile project(":gobblin-example")
 
-  // Gradle 5 compatibility
-  compileOnly externalDependency.lombok
-  annotationProcessor externalDependency.lombok
-  testCompileOnly externalDependency.lombok
-  testAnnotationProcessor externalDependency.lombok
-
   testCompile externalDependency.testng
   testCompile externalDependency.curatorFramework
   testCompile externalDependency.curatorTest

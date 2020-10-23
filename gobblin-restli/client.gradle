@@ -29,8 +29,7 @@ buildscript {
     jcenter()
   }
   dependencies {
-    // Bump up shadow version to support Gradle 5.x https://github.com/johnrengelman/shadow
-    classpath 'com.github.jengelman.gradle.plugins:shadow:5.2.0'
+    classpath 'com.github.jengelman.gradle.plugins:shadow:1.2.4'
   }
 
 }
@@ -48,11 +47,7 @@ if (file('extraDependencies.gradle').exists()) {
 dependencies {
   compile project(path: apiProject.path, configuration: 'dataTemplate')
   compile project(path: apiProject.path, configuration: 'restClient')
-  // Gradle 5 compatibility
-  compileOnly externalDependency.lombok
-  annotationProcessor externalDependency.lombok
-  testCompileOnly externalDependency.lombok
-  testAnnotationProcessor externalDependency.lombok
+
   testCompile project(":gobblin-restli:gobblin-restli-utils")
   testCompile externalDependency.testng
   testCompile externalDependency.mockito

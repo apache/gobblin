@@ -39,11 +39,6 @@ dependencies {
   compile externalDependency.commonsPool
   compile externalDependency.findBugsAnnotations
   compile externalDependency.avroMapredH2
-  // Gradle 5 compatibility
-  compileOnly externalDependency.lombok
-  annotationProcessor externalDependency.lombok
-  testCompileOnly externalDependency.lombok
-  testAnnotationProcessor externalDependency.lombok
 
   testCompile externalDependency.testng
   testCompile project(":gobblin-binary-management")

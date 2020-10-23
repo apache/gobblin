@@ -43,11 +43,7 @@ dependencies {
   compile externalDependency.findBugsAnnotations
   compile externalDependency.testng
   compile externalDependency.junit
-  // Gradle 5 compatibility
-  compileOnly externalDependency.lombok
-  annotationProcessor externalDependency.lombok
-  testCompileOnly externalDependency.lombok
-  testAnnotationProcessor externalDependency.lombok
+
   testCompile project(":gobblin-test-utils")
   testCompile project(path: ":gobblin-metastore", configuration: "testFixtures")
 

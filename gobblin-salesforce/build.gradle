@@ -35,11 +35,6 @@ dependencies {
     compile externalDependency.httpcore
     compile externalDependency.salesforceWsc
     compile externalDependency.salesforcePartner
-    // Gradle 5 compatibility
-    compileOnly externalDependency.lombok
-    annotationProcessor externalDependency.lombok
-    testCompileOnly externalDependency.lombok
-    testAnnotationProcessor externalDependency.lombok
 
     testCompile externalDependency.testng
 }

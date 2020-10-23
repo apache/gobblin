@@ -46,11 +46,6 @@ dependencies {
   compile externalDependency.opencsv
   compile externalDependency.hadoopHdfs
   compile externalDependency.groovy
-  // Gradle 5 compatibility
-  compileOnly externalDependency.lombok
-  annotationProcessor externalDependency.lombok
-  testCompileOnly externalDependency.lombok
-  testAnnotationProcessor externalDependency.lombok
 
   runtimeOnly externalDependency.hadoopCommon
   runtimeOnly externalDependency.hadoopClientCore

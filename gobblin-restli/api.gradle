@@ -41,11 +41,6 @@ dependencies {
   compile externalDependency.pegasus.restliClient
   compile externalDependency.pegasus.restliCommon
   compile externalDependency.pegasus.pegasusCommon
-  // Modified to work with Gradle 5
-  compileOnly externalDependency.lombok
-  annotationProcessor externalDependency.lombok
-  testCompileOnly externalDependency.lombok
-  testAnnotationProcessor externalDependency.lombok
 }
 
 // Configure sources and javadoc jars for the data template library

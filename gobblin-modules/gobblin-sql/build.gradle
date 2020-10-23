@@ -23,11 +23,6 @@ dependencies {
   compile externalDependency.calciteCore
   compile externalDependency.postgresConnector
 
-  // Gradle 5 compatibility
-  compileOnly externalDependency.lombok
-  annotationProcessor externalDependency.lombok
-  testCompileOnly externalDependency.lombok
-  testAnnotationProcessor externalDependency.lombok
   testCompile externalDependency.testng
   testCompile externalDependency.mockito
   testCompile externalDependency.mockRunnerJdbc

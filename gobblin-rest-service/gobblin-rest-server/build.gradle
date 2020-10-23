@@ -34,11 +34,7 @@ dependencies {
     compile externalDependency.pegasus.restliNettyStandalone
     compile externalDependency.guava
     compile externalDependency.javaxInject
-    // Gradle 5 compatibility
-    compileOnly externalDependency.lombok
-    annotationProcessor externalDependency.lombok
-    testCompileOnly externalDependency.lombok
-    testAnnotationProcessor externalDependency.lombok
+
     testCompile externalDependency.testng
 }
 
@@ -73,7 +69,6 @@ test {
     workingDir rootProject.rootDir
 }
 
-task compileTest(dependsOn: ['compileTestGeneratedDataTemplateJava', 'compileTestJava']) {
-    doLast{}
+task compileTest(dependsOn: ['compileTestGeneratedDataTemplateJava', 'compileTestJava']) << {
 }
 

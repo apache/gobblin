@@ -43,12 +43,6 @@ dependencies {
   compile externalDependency.hadoopYarnApi
   compile externalDependency.findBugsAnnotations
 
-  // Gradle 5 compatibility
-  compileOnly externalDependency.lombok
-  annotationProcessor externalDependency.lombok
-  testCompileOnly externalDependency.lombok
-  testAnnotationProcessor externalDependency.lombok
-
   testCompile externalDependency.mockito
   testCompile externalDependency.powermock
 }

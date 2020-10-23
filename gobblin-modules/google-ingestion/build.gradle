@@ -33,11 +33,6 @@ dependencies {
   compile externalDependency.gson
   compile externalDependency.slf4j
   compile externalDependency.junit
-  // Gradle 5 compatibility
-  compileOnly externalDependency.lombok
-  annotationProcessor externalDependency.lombok
-  testCompileOnly externalDependency.lombok
-  testAnnotationProcessor externalDependency.lombok
 
   testCompile externalDependency.mockito
   testCompile externalDependency.testng
