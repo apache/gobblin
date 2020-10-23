@@ -30,6 +30,7 @@ import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.specific.SpecificDatumReader;
 
 import com.codahale.metrics.Meter;
+import com.google.common.base.Charsets;
 import com.typesafe.config.Config;
 
 import lombok.Getter;
@@ -86,10 +87,15 @@ public class KafkaAvroJobStatusMonitor extends KafkaJobStatusMonitor {
   }
 
   @Override
-  public org.apache.gobblin.configuration.State parseJobStatus(byte[] message)
-      throws IOException {
+  public org.apache.gobblin.configuration.State parseJobStatus(byte[] message) {
     InputStream is = new ByteArrayInputStream(message);
-    schemaVersionWriter.readSchemaVersioningInformation(new DataInputStream(is));
+    try {
+      schemaVersionWriter.readSchemaVersioningInformation(new DataInputStream(is));
+    } catch (IOException e) {
+      String messageStr = new String(message.getValue(), Charsets.UTF_8);
+      log.error(String.format("Failed to parse kafka message with offset %d: %s.", message.getOffset(), messageStr), ioe);
+      return null;
+    }
 
     Decoder decoder = DecoderFactory.get().binaryDecoder(is, this.decoder.get());
     try {
