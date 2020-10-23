@@ -143,8 +143,6 @@ buildscript {
     }
 }
 
-task compileTest(dependsOn: ['compileTestGeneratedDataTemplateJava', 'compileTestJava']){
-    doLast {
-    }
+task compileTest(dependsOn: ['compileTestGeneratedDataTemplateJava', 'compileTestJava']) << {
 }
 

@@ -16,8 +16,7 @@
  */
 
 plugins {
-  // Bump up version to 0.9.1 in order for generateAvro task to work with Gradle 5
-  id "com.commercehub.gradle.plugin.avro-base" version "0.9.1"
+  id "com.commercehub.gradle.plugin.avro-base" version "0.9.0"
 }
 
 apply plugin: 'java'
@@ -41,11 +40,6 @@ dependencies {
 
   compile externalDependency.pegasus.d2
   compile externalDependency.pegasus.restliCommon
-  // Gradle 5 compatibility
-  compileOnly externalDependency.lombok
-  annotationProcessor externalDependency.lombok
-  testCompileOnly externalDependency.lombok
-  testAnnotationProcessor externalDependency.lombok
 
   testCompile externalDependency.curatorClient
   testCompile externalDependency.curatorTest

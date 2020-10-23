@@ -24,12 +24,6 @@ dependencies {
     compile externalDependency.pegasus.r2
     compile externalDependency.pegasus.d2
     compile externalDependency.guava
-
-    // Gradle 5 compatibility
-    compileOnly externalDependency.lombok
-    annotationProcessor externalDependency.lombok
-    testCompileOnly externalDependency.lombok
-    testAnnotationProcessor externalDependency.lombok
 }
 
 // Begin HACK to get around POM being depenendent on the (empty) gobblin-rest-api instead of gobblin-rest-api-rest-client

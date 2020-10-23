@@ -15,8 +15,7 @@
  * limitations under the License.
  */
 plugins {
-  // Bump up version to 0.9.1 in order for generateAvro task to work with Gradle 5
-  id "com.commercehub.gradle.plugin.avro-base" version "0.9.1"
+  id "com.commercehub.gradle.plugin.avro-base" version "0.9.0"
 }
 
 apply plugin: 'java'
@@ -84,11 +83,6 @@ dependencies {
   compile externalDependency.hiveExec
   compile externalDependency.parquet
   compile externalDependency.kryo
-  // Gradle 5 compatibility
-  compileOnly externalDependency.lombok
-  annotationProcessor externalDependency.lombok
-  testCompileOnly externalDependency.lombok
-  testAnnotationProcessor externalDependency.lombok
 
   testCompile project(path: ":gobblin-metastore", configuration: "testFixtures")
   testCompile externalDependency.jhyde

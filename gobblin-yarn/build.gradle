@@ -16,8 +16,7 @@
  */
 
 plugins {
-  // Bump up shadow version to support Gradle 5.x https://github.com/johnrengelman/shadow
-  id 'com.github.johnrengelman.shadow' version '5.2.0'
+  id 'com.github.johnrengelman.shadow' version '1.2.4'
 }
 
 apply plugin: 'java'
@@ -57,12 +56,6 @@ dependencies {
   compile externalDependency.avroMapredH2
   compile externalDependency.findBugsAnnotations
   compile externalDependency.helix
-
-  // Gradle 5 compatibility
-  compileOnly externalDependency.lombok
-  annotationProcessor externalDependency.lombok
-  testCompileOnly externalDependency.lombok
-  testAnnotationProcessor externalDependency.lombok
 
   testCompile project(path: ':gobblin-cluster', configuration: 'tests')
   testCompile project(":gobblin-example")

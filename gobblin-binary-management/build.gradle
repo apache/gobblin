@@ -32,11 +32,6 @@ dependencies {
   compile externalDependency.hiveExec
   compile externalDependency.orcMapreduce
   compile externalDependency.slf4j
-  // Gradle 5 compatibility
-  compileOnly externalDependency.lombok
-  annotationProcessor externalDependency.lombok
-  testCompileOnly externalDependency.lombok
-  testAnnotationProcessor externalDependency.lombok
 
   testCompile externalDependency.hamcrest
   testCompile externalDependency.testng

@@ -31,11 +31,6 @@ dependencies {
   compile externalDependency.jacksonCore
   compile externalDependency.jacksonMapper
   compile externalDependency.slf4j
-  // Gradle 5 compatibility
-  compileOnly externalDependency.lombok
-  annotationProcessor externalDependency.lombok
-  testCompileOnly externalDependency.lombok
-  testAnnotationProcessor externalDependency.lombok
 
   testCompile project(":gobblin-test-utils")
   testCompile externalDependency.testng
