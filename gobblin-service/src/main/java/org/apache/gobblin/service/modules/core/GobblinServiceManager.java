@@ -123,7 +123,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
 
   // An EventBus used for communications between services running in the ApplicationMaster
   @Getter
-  protected final EventBus eventBus = new EventBus(GobblinServiceManager.class.getSimpleName());
+  protected EventBus eventBus = new EventBus(GobblinServiceManager.class.getSimpleName());
 
   protected final FileSystem fs;
   protected final Path serviceWorkDir;
@@ -136,7 +136,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
   protected final boolean isRestLIServerEnabled;
   protected final boolean isTopologySpecFactoryEnabled;
   protected final boolean isGitConfigMonitorEnabled;
-  protected final boolean isDagManagerEnabled;
+  protected boolean isDagManagerEnabled;
   protected final boolean isJobStatusMonitorEnabled;
 
   protected TopologyCatalog topologyCatalog;
@@ -161,6 +161,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
 
   protected GitConfigMonitor gitConfigMonitor;
 
+  @Getter
   protected DagManager dagManager;
 
   protected KafkaJobStatusMonitor jobStatusMonitor;
@@ -417,6 +418,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
         //Activate DagManager only if TopologyCatalog is initialized. If not; skip activation.
         if (this.topologyCatalog.getInitComplete().getCount() == 0) {
           this.dagManager.setActive(true);
+          this.eventBus.register(this.dagManager);
         }
       }
     } else if (this.helixManager.isPresent()) {
@@ -438,6 +440,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
 
       if (this.isDagManagerEnabled) {
         this.dagManager.setActive(false);
+        this.eventBus.unregister(this.dagManager);
       }
     }
   }
