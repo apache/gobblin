@@ -85,6 +85,20 @@ public class PropertiesUtils {
   }
 
   /**
+   * Extract all the values whose keys start with a <code>prefix</code>
+   * @param properties the given {@link Properties} instance
+   * @param prefix of keys to be extracted
+   * @return a list of values in the properties
+   */
+  public static List<String> getValuesAsList(Properties properties, Optional<String> prefix) {
+    if (prefix.isPresent()) {
+      properties = extractPropertiesWithPrefix(properties, prefix);
+    }
+    Properties finalProperties = properties;
+    return properties.keySet().stream().map(key -> finalProperties.getProperty(key.toString())).collect(Collectors.toList());
+  }
+
+  /**
    * Get the value of a property as a list of strings, using the given default value if the property is not set.
    *
    * @param key property key
