@@ -40,6 +40,7 @@ import com.google.common.collect.Sets;
 
 import org.apache.gobblin.data.management.retention.DatasetCleaner;
 import org.apache.gobblin.data.management.version.DatasetVersion;
+import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.PropertiesUtils;
 
 
@@ -107,6 +108,7 @@ public class CombineRetentionPolicy<T extends DatasetVersion> implements Retenti
   private List<RetentionPolicy<T>> findRetentionPolicies(Properties props) {
     List<String> retentionPolicyClasses;
     ImmutableList.Builder<RetentionPolicy<T>> builder = ImmutableList.builder();
+    ClassAliasResolver<?> aliasResolver = new ClassAliasResolver<>(RetentionPolicy.class);
 
     if (props.containsKey(COMBINE_RETENTION_POLICIES)) {
       retentionPolicyClasses = COMMA_BASED_SPLITTER.splitToList(props.getProperty(COMBINE_RETENTION_POLICIES));
@@ -116,7 +118,8 @@ public class CombineRetentionPolicy<T extends DatasetVersion> implements Retenti
 
     for (String retentionPolicyClass : retentionPolicyClasses) {
       try {
-        builder.add((RetentionPolicy<T>) ConstructorUtils.invokeConstructor(Class.forName(retentionPolicyClass), props));
+        builder.add((RetentionPolicy<T>) ConstructorUtils.invokeConstructor(
+            Class.forName(aliasResolver.resolve(retentionPolicyClass)), props));
       } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
           | ClassNotFoundException e) {
         throw new IllegalArgumentException(e);

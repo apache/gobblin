@@ -46,9 +46,8 @@ public class CombineRetentionPolicyTest {
   public void testConfig() throws IOException {
     Properties props = new Properties();
 
-    props.setProperty(CombineRetentionPolicy.COMBINE_RETENTION_POLICIES,
-        ContainsARetentionPolicy.class.getCanonicalName() + "," + ContainsBRetentionPolicy.class.getCanonicalName()
-            + "," + ContainsCRetentionPolicy.class.getCanonicalName());
+    props.setProperty(CombineRetentionPolicy.COMBINE_RETENTION_POLICIES, "ContainsA,"
+        + ContainsBRetentionPolicy.class.getCanonicalName() + "," + ContainsCRetentionPolicy.class.getCanonicalName());
     props.setProperty(CombineRetentionPolicy.DELETE_SETS_COMBINE_OPERATION,
         CombineRetentionPolicy.DeletableCombineOperation.UNION.name());
 
