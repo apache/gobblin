@@ -23,12 +23,14 @@ import java.util.Properties;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
+import org.apache.gobblin.annotation.Alias;
 import org.apache.gobblin.data.management.retention.version.DatasetVersion;
 
 
 /**
  * A {@link RetentionPolicy} that does not delete any versions. Basically a pass through dummy policy.
  */
+@Alias("dummy")
 public class DeleteNothingRetentionPolicy implements RetentionPolicy<DatasetVersion> {
 
   public DeleteNothingRetentionPolicy(Properties properties) {}

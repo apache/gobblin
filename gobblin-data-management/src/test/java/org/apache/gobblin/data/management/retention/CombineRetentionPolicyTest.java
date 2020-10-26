@@ -26,23 +26,45 @@ import org.apache.gobblin.data.management.version.FileStatusDatasetVersion;
 import org.apache.gobblin.data.management.version.StringDatasetVersion;
 import org.apache.gobblin.data.management.version.TimestampedDatasetVersion;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Properties;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.hadoop.fs.Path;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.google.common.base.Function;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 
 public class CombineRetentionPolicyTest {
+
+  @Test
+  public void testConfig() throws IOException {
+    Properties props = new Properties();
+
+    props.setProperty(CombineRetentionPolicy.COMBINE_RETENTION_POLICIES, "ContainsA,"
+        + ContainsBRetentionPolicy.class.getCanonicalName() + "," + ContainsCRetentionPolicy.class.getCanonicalName());
+    props.setProperty(CombineRetentionPolicy.DELETE_SETS_COMBINE_OPERATION,
+        CombineRetentionPolicy.DeletableCombineOperation.UNION.name());
+
+    CombineRetentionPolicy<DatasetVersion> policy = new CombineRetentionPolicy<>(props);
+
+    Collection<DatasetVersion> deletableVersions = policy.listDeletableVersions(Lists
+        .newArrayList(new StringDatasetVersion("a", new Path("/")),
+            new StringDatasetVersion("abc", new Path("/")), new StringDatasetVersion("abcd", new Path("/")),
+            new StringDatasetVersion("bc", new Path("/")), new StringDatasetVersion("d", new Path("/"))));
+
+    Set<String> actualDeletableVersions =
+        deletableVersions.stream().map(input -> ((StringDatasetVersion) input).getVersion()).collect(Collectors.toSet());
+
+    Assert.assertEquals(policy.versionClass(), StringDatasetVersion.class);
+    Assert.assertEquals(deletableVersions.size(), 4);
+    Assert.assertEquals(actualDeletableVersions, Sets.newHashSet("abcd", "abc", "a", "bc"));
+  }
 
   @Test
   public void testIntersect() throws IOException {
@@ -57,19 +79,15 @@ public class CombineRetentionPolicyTest {
     props.setProperty(CombineRetentionPolicy.DELETE_SETS_COMBINE_OPERATION,
         CombineRetentionPolicy.DeletableCombineOperation.INTERSECT.name());
 
-    CombineRetentionPolicy policy = new CombineRetentionPolicy(props);
+    CombineRetentionPolicy<DatasetVersion> policy = new CombineRetentionPolicy<>(props);
 
     Collection<DatasetVersion> deletableVersions = policy.listDeletableVersions(Lists
-            .<DatasetVersion>newArrayList(new StringDatasetVersion("a", new Path("/")),
+            .newArrayList(new StringDatasetVersion("a", new Path("/")),
                 new StringDatasetVersion("abc", new Path("/")), new StringDatasetVersion("abcd", new Path("/")),
                 new StringDatasetVersion("bc", new Path("/")), new StringDatasetVersion("d", new Path("/"))));
 
-    Set<String> actualDeletableVersions = Sets
-        .newHashSet(Iterables.transform(deletableVersions, new Function<DatasetVersion, String>() {
-          @Nullable @Override public String apply(DatasetVersion input) {
-            return ((StringDatasetVersion) input).getVersion();
-          }
-        }));
+    Set<String> actualDeletableVersions =
+        deletableVersions.stream().map(input -> ((StringDatasetVersion) input).getVersion()).collect(Collectors.toSet());
 
     Assert.assertEquals(policy.versionClass(), StringDatasetVersion.class);
     Assert.assertEquals(deletableVersions.size(), 2);
@@ -90,19 +108,16 @@ public class CombineRetentionPolicyTest {
     props.setProperty(CombineRetentionPolicy.DELETE_SETS_COMBINE_OPERATION,
         CombineRetentionPolicy.DeletableCombineOperation.UNION.name());
 
-    CombineRetentionPolicy policy = new CombineRetentionPolicy(props);
+    CombineRetentionPolicy<DatasetVersion> policy = new CombineRetentionPolicy<>(props);
 
     Collection<DatasetVersion> deletableVersions = policy.listDeletableVersions(Lists
-        .<DatasetVersion>newArrayList(new StringDatasetVersion("a", new Path("/")),
+        .newArrayList(new StringDatasetVersion("a", new Path("/")),
             new StringDatasetVersion("abc", new Path("/")), new StringDatasetVersion("abcd", new Path("/")),
             new StringDatasetVersion("bc", new Path("/")), new StringDatasetVersion("d", new Path("/"))));
 
-    Set<String> actualDeletableVersions = Sets
-        .newHashSet(Iterables.transform(deletableVersions, new Function<DatasetVersion, String>() {
-          @Nullable @Override public String apply(DatasetVersion input) {
-            return ((StringDatasetVersion) input).getVersion();
-          }
-        }));
+    Set<String> actualDeletableVersions =
+        deletableVersions.stream().map(input -> ((StringDatasetVersion) input).getVersion())
+            .collect(Collectors.toSet());
 
     Assert.assertEquals(deletableVersions.size(), 4);
     Assert.assertEquals(actualDeletableVersions, Sets.newHashSet("abcd", "abc", "a", "bc"));

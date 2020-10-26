@@ -19,10 +19,13 @@ package org.apache.gobblin.data.management.retention.test;
 
 import java.util.Properties;
 
+import org.apache.gobblin.annotation.Alias;
+
 
 /**
  * RetentionPolivy that deletes versions containing the character "a" in its name.
  */
+@Alias("ContainsA")
 public class ContainsARetentionPolicy extends ContainsStringRetentionPolicy {
   public ContainsARetentionPolicy(Properties props) {
     super(props);
