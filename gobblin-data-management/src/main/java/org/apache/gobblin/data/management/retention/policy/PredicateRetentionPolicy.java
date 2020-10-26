@@ -27,6 +27,7 @@ import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
+import org.apache.gobblin.annotation.Alias;
 import org.apache.gobblin.data.management.retention.version.DatasetVersion;
 
 
@@ -35,6 +36,7 @@ import org.apache.gobblin.data.management.retention.version.DatasetVersion;
  * specified {@link Predicate}. The {@link Predicate} class is determined by the key
  * {@link #RETENTION_POLICY_PREDICATE_CLASS}.
  */
+@Alias("PredicateRetention")
 public class PredicateRetentionPolicy implements RetentionPolicy<DatasetVersion> {
 
   private final Predicate<DatasetVersion> predicate;

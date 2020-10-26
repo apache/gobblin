@@ -63,4 +63,15 @@ public class PropertiesUtilsTest {
     Assert.assertEquals(PropertiesUtils.getPropAsList(properties, "key"), ImmutableList.of("1", "2", "3"));
     Assert.assertEquals(PropertiesUtils.getPropAsList(properties, "key2", "default"), ImmutableList.of("default"));
   }
+
+  @Test
+  public void testGetValuesAsList() {
+    Properties properties = new Properties();
+    properties.put("k1", "v1");
+    properties.put("k2", "v2");
+    properties.put("k3", "v2");
+    properties.put("K3", "v4");
+
+    Assert.assertEqualsNoOrder(PropertiesUtils.getValuesAsList(properties, Optional.of("k")).toArray(), new String[]{"v1", "v2", "v2"});
+  }
 }

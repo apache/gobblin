@@ -120,8 +120,7 @@ public class CombineRetentionPolicy<T extends DatasetVersion> implements Retenti
       try {
         builder.add((RetentionPolicy<T>) ConstructorUtils.invokeConstructor(
             Class.forName(aliasResolver.resolve(retentionPolicyClass)), props));
-      } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
-          | ClassNotFoundException e) {
+      } catch (ReflectiveOperationException e) {
         throw new IllegalArgumentException(e);
       }
     }
