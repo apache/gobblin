@@ -35,6 +35,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.metrics.kafka.KafkaAvroSchemaRegistry;
@@ -85,9 +86,9 @@ public class KafkaAvroJobStatusMonitor extends KafkaJobStatusMonitor {
   }
 
   @Override
-  public org.apache.gobblin.configuration.State parseJobStatus(byte[] message) {
+  public org.apache.gobblin.configuration.State parseJobStatus(DecodeableKafkaRecord<byte[],byte[]> message) {
     try {
-      InputStream is = new ByteArrayInputStream(message);
+      InputStream is = new ByteArrayInputStream(message.getValue());
       schemaVersionWriter.readSchemaVersioningInformation(new DataInputStream(is));
       Decoder decoder = DecoderFactory.get().binaryDecoder(is, this.decoder.get());
       GobblinTrackingEvent decodedMessage = this.reader.get().read(null, decoder);
@@ -95,9 +96,9 @@ public class KafkaAvroJobStatusMonitor extends KafkaJobStatusMonitor {
     } catch (Exception exc) {
       this.messageParseFailures.mark();
       if (this.messageParseFailures.getFiveMinuteRate() < 1) {
-        log.warn("Unable to decode input message.", exc);
+        log.warn("Unable to decode input message at kafka offset" + message.getOffset(), exc);
       } else {
-        log.warn("Unable to decode input message.");
+        log.warn("Unable to decode input message at kafka offset" + message.getOffset());
       }
       return null;
     }
