@@ -176,7 +176,7 @@ public class KafkaAvroJobStatusMonitorTest {
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.COMPLETE.name());
 
     messageAndMetadata = iterator.next();
-    Assert.assertNull(jobStatusMonitor.parseJobStatus(messageAndMetadata.message()));
+    Assert.assertNull(jobStatusMonitor.parseJobStatus(convertMessageAndMetadataToDecodableKafkaRecord(messageAndMetadata)));
 
     // Check that state didn't get set to running since it was already complete
     messageAndMetadata = iterator.next();

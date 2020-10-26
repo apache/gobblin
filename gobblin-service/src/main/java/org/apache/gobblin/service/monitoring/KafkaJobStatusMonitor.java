@@ -130,15 +130,15 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   @Override
   protected void processMessage(DecodeableKafkaRecord<byte[],byte[]> message) {
     try {
-      org.apache.gobblin.configuration.State jobStatus = parseJobStatus(message.getValue());
+      org.apache.gobblin.configuration.State jobStatus = parseJobStatus(message);
       if (jobStatus != null) {
         try(Timer.Context context = getMetricContext().timer(GET_AND_SET_JOB_STATUS).time()) {
           addJobStatusToStateStore(jobStatus, this.stateStore);
         }
       }
     } catch (IOException ioe) {
-      String messageStr = new String(message.getValue(), Charsets.UTF_8);
-      log.error(String.format("Failed to parse kafka message with offset %d: %s.", message.getOffset(), messageStr), ioe);
+      // Throw RuntimeException to avoid advancing kafka offsets without updating state store
+      throw new RuntimeException("Failed to add job status to state store for kafka offset " + message.getOffset(), ioe);
     }
   }
 
@@ -232,6 +232,6 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
     return Long.parseLong(Splitter.on(STATE_STORE_KEY_SEPARATION_CHARACTER).splitToList(tableName).get(0));
   }
 
-  public abstract org.apache.gobblin.configuration.State parseJobStatus(byte[] message) throws IOException;
+  public abstract org.apache.gobblin.configuration.State parseJobStatus(DecodeableKafkaRecord<byte[],byte[]> message);
 
 }

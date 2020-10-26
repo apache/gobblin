@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
 
-import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.Decoder;
 import org.apache.avro.io.DecoderFactory;
@@ -36,6 +35,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.metrics.kafka.KafkaAvroSchemaRegistry;
@@ -86,21 +86,19 @@ public class KafkaAvroJobStatusMonitor extends KafkaJobStatusMonitor {
   }
 
   @Override
-  public org.apache.gobblin.configuration.State parseJobStatus(byte[] message)
-      throws IOException {
-    InputStream is = new ByteArrayInputStream(message);
-    schemaVersionWriter.readSchemaVersioningInformation(new DataInputStream(is));
-
-    Decoder decoder = DecoderFactory.get().binaryDecoder(is, this.decoder.get());
+  public org.apache.gobblin.configuration.State parseJobStatus(DecodeableKafkaRecord<byte[],byte[]> message) {
     try {
+      InputStream is = new ByteArrayInputStream(message.getValue());
+      schemaVersionWriter.readSchemaVersioningInformation(new DataInputStream(is));
+      Decoder decoder = DecoderFactory.get().binaryDecoder(is, this.decoder.get());
       GobblinTrackingEvent decodedMessage = this.reader.get().read(null, decoder);
       return parseJobStatus(decodedMessage);
     } catch (Exception exc) {
       this.messageParseFailures.mark();
       if (this.messageParseFailures.getFiveMinuteRate() < 1) {
-        log.warn("Unable to decode input message.", exc);
+        log.warn("Unable to decode input message at kafka offset" + message.getOffset(), exc);
       } else {
-        log.warn("Unable to decode input message.");
+        log.warn("Unable to decode input message at kafka offset" + message.getOffset());
       }
       return null;
     }
