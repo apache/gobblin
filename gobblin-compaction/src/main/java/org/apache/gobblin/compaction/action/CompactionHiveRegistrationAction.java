@@ -86,8 +86,12 @@ public class CompactionHiveRegistrationAction implements CompactionCompleteActio
       log.warn("Will not emit events in {} as EventSubmitter is null", getClass().getName());
     }
 
-    if (state.contains(ConfigurationKeys.HIVE_REGISTRATION_POLICY)) {
-      HiveRegister hiveRegister = HiveRegister.get(state);
+    if (!state.contains(ConfigurationKeys.HIVE_REGISTRATION_POLICY)) {
+      log.info("Will skip hive registration as {} is not configured.", ConfigurationKeys.HIVE_REGISTRATION_POLICY);
+      return;
+    }
+
+    try (HiveRegister hiveRegister = HiveRegister.get(state)) {
       HiveRegistrationPolicy hiveRegistrationPolicy = HiveRegistrationPolicyBase.getPolicy(state);
 
       List<String> paths = new ArrayList<>();
@@ -107,8 +111,8 @@ public class CompactionHiveRegistrationAction implements CompactionCompleteActio
 
       // submit events for hive registration
       if (eventSubmitter != null) {
-        Map<String, String> eventMetadataMap = ImmutableMap.of(CompactionSlaEventHelper.DATASET_URN, dataset.datasetURN(),
-            CompactionSlaEventHelper.HIVE_REGISTRATION_PATHS, Joiner.on(',').join(paths));
+        Map<String, String> eventMetadataMap = ImmutableMap
+            .of(CompactionSlaEventHelper.DATASET_URN, dataset.datasetURN(), CompactionSlaEventHelper.HIVE_REGISTRATION_PATHS, Joiner.on(',').join(paths));
         this.eventSubmitter.submit(CompactionSlaEventHelper.COMPACTION_HIVE_REGISTRATION_EVENT, eventMetadataMap);
       }
     }
