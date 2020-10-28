@@ -56,7 +56,6 @@ import com.google.inject.Module;
 import com.google.inject.name.Names;
 import com.linkedin.data.template.StringMap;
 import com.linkedin.r2.RemoteInvocationException;
-import com.linkedin.restli.server.resources.BaseResource;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
@@ -78,6 +77,9 @@ import org.apache.gobblin.runtime.app.ApplicationLauncher;
 import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
+import org.apache.gobblin.service.FlowExecutionResource;
+import org.apache.gobblin.service.FlowExecutionResourceHandler;
+import org.apache.gobblin.service.FlowExecutionResourceLocalHandler;
 import org.apache.gobblin.scheduler.SchedulerService;
 import org.apache.gobblin.service.FlowConfig;
 import org.apache.gobblin.service.FlowConfigClient;
@@ -94,6 +96,7 @@ import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.service.modules.restli.GobblinServiceFlowConfigResourceHandler;
+import org.apache.gobblin.service.modules.restli.GobblinServiceFlowExecutionResourceHandler;
 import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
 import org.apache.gobblin.service.modules.topology.TopologySpecFactory;
 import org.apache.gobblin.service.modules.utils.HelixUtils;
@@ -148,6 +151,10 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
   protected GobblinServiceFlowConfigResourceHandler resourceHandler;
   @Getter
   protected GobblinServiceFlowConfigResourceHandler v2ResourceHandler;
+  @Getter
+  protected GobblinServiceFlowExecutionResourceHandler flowExecutionResourceHandler;
+  @Getter
+  protected FlowStatusGenerator flowStatusGenerator;
 
   protected boolean flowCatalogLocalCommit;
   @Getter
@@ -256,11 +263,15 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
       this.serviceLauncher.addService(this.jobStatusMonitor);
     }
 
+    this.flowStatusGenerator = buildFlowStatusGenerator(this.config);
+
     // Initialize ServiceScheduler
     this.isSchedulerEnabled = ConfigUtils.getBoolean(config,
         ServiceConfigKeys.GOBBLIN_SERVICE_SCHEDULER_ENABLED_KEY, true);
     if (isSchedulerEnabled) {
       this.orchestrator = new Orchestrator(config, Optional.of(this.topologyCatalog), Optional.fromNullable(this.dagManager), Optional.of(LOGGER));
+      this.orchestrator.setFlowStatusGenerator(this.flowStatusGenerator);
+
       SchedulerService schedulerService = new SchedulerService(ConfigUtils.configToProperties(config));
 
       this.scheduler = new GobblinServiceJobScheduler(this.serviceName, config, this.helixManager,
@@ -271,17 +282,24 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     }
 
     // Initialize RestLI
+    boolean forceLeader = ConfigUtils.getBoolean(this.config, ServiceConfigKeys.FORCE_LEADER, ServiceConfigKeys.DEFAULT_FORCE_LEADER);
+
     this.resourceHandler = new GobblinServiceFlowConfigResourceHandler(serviceName,
         this.flowCatalogLocalCommit,
         new FlowConfigResourceLocalHandler(this.flowCatalog),
         this.helixManager,
-        this.scheduler);
+        this.scheduler,
+        forceLeader);
 
     this.v2ResourceHandler = new GobblinServiceFlowConfigResourceHandler(serviceName,
         this.flowCatalogLocalCommit,
         new FlowConfigV2ResourceLocalHandler(this.flowCatalog),
         this.helixManager,
-        this.scheduler);
+        this.scheduler,
+        forceLeader);
+
+    this.flowExecutionResourceHandler = new GobblinServiceFlowExecutionResourceHandler(new FlowExecutionResourceLocalHandler(this.flowStatusGenerator),
+        this.eventBus, this.helixManager, forceLeader);
 
     this.isRestLIServerEnabled = ConfigUtils.getBoolean(config,
         ServiceConfigKeys.GOBBLIN_SERVICE_RESTLI_SERVER_ENABLED_KEY, true);
@@ -296,6 +314,9 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
           binder.bind(FlowConfigsResourceHandler.class)
               .annotatedWith(Names.named(FlowConfigsV2Resource.FLOW_CONFIG_GENERATOR_INJECT_NAME))
               .toInstance(GobblinServiceManager.this.v2ResourceHandler);
+          binder.bind(FlowExecutionResourceHandler.class)
+              .annotatedWith(Names.named(FlowExecutionResource.FLOW_EXECUTION_GENERATOR_INJECT_NAME))
+              .toInstance(GobblinServiceManager.this.flowExecutionResourceHandler);
           binder.bindConstant()
               .annotatedWith(Names.named(FlowConfigsResource.INJECT_READY_TO_USE))
               .to(Boolean.TRUE);
@@ -359,8 +380,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
    */
   private HelixManager buildHelixManager(Config config, String zkConnectionString) {
     String helixClusterName = config.getString(ServiceConfigKeys.HELIX_CLUSTER_NAME_KEY);
-    String helixInstanceName = ConfigUtils.getString(config, ServiceConfigKeys.HELIX_INSTANCE_NAME_KEY,
-        GobblinServiceManager.class.getSimpleName());
+    String helixInstanceName = HelixUtils.buildHelixInstanceName(config, GobblinServiceManager.class.getSimpleName());
 
     LOGGER.info("Creating Helix cluster if not already present [overwrite = false]: " + zkConnectionString);
     HelixUtils.createGobblinHelixCluster(zkConnectionString, helixClusterName, false);
@@ -639,7 +659,6 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
       try (GobblinServiceManager gobblinServiceManager = new GobblinServiceManager(
           cmd.getOptionValue(SERVICE_NAME_OPTION_NAME), getServiceId(cmd),
           config, Optional.<Path>absent())) {
-        gobblinServiceManager.getOrchestrator().setFlowStatusGenerator(gobblinServiceManager.buildFlowStatusGenerator(config));
         gobblinServiceManager.start();
 
         if (isTestMode) {

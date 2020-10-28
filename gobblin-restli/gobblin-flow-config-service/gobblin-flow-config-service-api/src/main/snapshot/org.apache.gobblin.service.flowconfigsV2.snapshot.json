@@ -1,60 +1,58 @@
 {
   "models" : [ {
     "type" : "record",
-    "name" : "FlowId",
-    "namespace" : "org.apache.gobblin.service",
-    "doc" : "Identifier for a Gobblin as a Service flow",
-    "fields" : [ {
-      "name" : "flowName",
-      "type" : "string",
-      "doc" : "Name of the flow",
-      "validate" : {
-        "strlen" : {
-          "min" : 1,
-          "max" : 128
-        }
-      }
-    }, {
-      "name" : "flowGroup",
-      "type" : "string",
-      "doc" : "Group of the flow. This defines the namespace for the flow.",
-      "validate" : {
-        "strlen" : {
-          "min" : 1,
-          "max" : 128
-        }
-      }
-    } ]
-  }, {
-    "type" : "record",
-    "name" : "Schedule",
-    "namespace" : "org.apache.gobblin.service",
-    "doc" : "Attributes for defining a job schedule",
-    "fields" : [ {
-      "name" : "cronSchedule",
-      "type" : "string",
-      "doc" : "Schedule for flow in cron format",
-      "validate" : {
-        "org.apache.gobblin.service.validator.CronValidator" : { }
-      }
-    }, {
-      "name" : "runImmediately",
-      "type" : "boolean",
-      "doc" : "Set to true to request that a job with a schedule be run immediately in addition to being scheduled",
-      "default" : false
-    } ]
-  }, {
-    "type" : "record",
     "name" : "FlowConfig",
     "namespace" : "org.apache.gobblin.service",
     "doc" : "Defines a flow configuration that can be compiled into Gobblin jobs",
     "fields" : [ {
       "name" : "id",
-      "type" : "FlowId",
+      "type" : {
+        "type" : "record",
+        "name" : "FlowId",
+        "doc" : "Identifier for a Gobblin as a Service flow",
+        "fields" : [ {
+          "name" : "flowName",
+          "type" : "string",
+          "doc" : "Name of the flow",
+          "validate" : {
+            "strlen" : {
+              "max" : 128,
+              "min" : 1
+            }
+          }
+        }, {
+          "name" : "flowGroup",
+          "type" : "string",
+          "doc" : "Group of the flow. This defines the namespace for the flow.",
+          "validate" : {
+            "strlen" : {
+              "max" : 128,
+              "min" : 1
+            }
+          }
+        } ]
+      },
       "doc" : "Identifier for the flow"
     }, {
       "name" : "schedule",
-      "type" : "Schedule",
+      "type" : {
+        "type" : "record",
+        "name" : "Schedule",
+        "doc" : "Attributes for defining a job schedule",
+        "fields" : [ {
+          "name" : "cronSchedule",
+          "type" : "string",
+          "doc" : "Schedule for flow in cron format",
+          "validate" : {
+            "org.apache.gobblin.service.validator.CronValidator" : { }
+          }
+        }, {
+          "name" : "runImmediately",
+          "type" : "boolean",
+          "doc" : "Set to true to request that a job with a schedule be run immediately in addition to being scheduled",
+          "default" : false
+        } ]
+      },
       "doc" : "Optional schedule for when to execution the flow. If a schedule is not specified then the flow is executed immediately.",
       "optional" : true
     }, {
@@ -77,7 +75,7 @@
       },
       "doc" : "Properties for the flow. These properties are passed to the compiled Gobblin jobs."
     } ]
-  }, {
+  }, "org.apache.gobblin.service.FlowId", {
     "type" : "record",
     "name" : "FlowStatusId",
     "namespace" : "org.apache.gobblin.service",
@@ -95,7 +93,7 @@
       "type" : "long",
       "doc" : "Execution id for the flow"
     } ]
-  } ],
+  }, "org.apache.gobblin.service.Schedule" ],
   "schema" : {
     "name" : "flowconfigsV2",
     "namespace" : "org.apache.gobblin.service",

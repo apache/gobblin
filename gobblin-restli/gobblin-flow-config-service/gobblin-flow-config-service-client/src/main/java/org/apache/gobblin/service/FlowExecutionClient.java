@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.service;
 
+import com.linkedin.restli.client.DeleteRequest;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collections;
@@ -160,6 +161,21 @@ public class FlowExecutionClient implements Closeable {
     }
   }
 
+  /**
+   * Kill the flow with given FlowStatusId
+   * @param flowStatusId identifier of flow execution to kill
+   * @throws RemoteInvocationException
+   */
+  public void deleteFlowExecution(FlowStatusId flowStatusId)
+      throws RemoteInvocationException {
+    LOG.debug("deleteFlowExecution with groupName " + flowStatusId.getFlowGroup() + " flowName " +
+        flowStatusId.getFlowName() + " flowExecutionId " + flowStatusId.getFlowExecutionId());
+
+    DeleteRequest<FlowExecution> deleteRequest = _flowexecutionsRequestBuilders.delete()
+        .id(new ComplexResourceKey<>(flowStatusId, new EmptyRecord())).build();
+
+    FlowClientUtils.sendRequestWithRetry(_restClient.get(), deleteRequest, FlowexecutionsRequestBuilders.getPrimaryResource());
+  }
 
   @Override
   public void close()
