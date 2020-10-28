@@ -140,6 +140,7 @@ public class ConfigurationKeys {
   public static final String FLOW_ALLOW_CONCURRENT_EXECUTION = "flow.allowConcurrentExecution";
   public static final String FLOW_EXPLAIN_KEY = "flow.explain";
   public static final String FLOW_UNSCHEDULE_KEY = "flow.unschedule";
+  public static final String FLOW_OWNING_GROUP_KEY = "flow.owningGroup";
 
   /**
    * Common topology configuration properties.

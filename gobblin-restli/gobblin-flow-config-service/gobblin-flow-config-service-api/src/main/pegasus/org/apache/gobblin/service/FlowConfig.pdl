@@ -27,6 +27,11 @@ record FlowConfig {
   explain: boolean = false
 
   /**
+   * Optional string name of group that the requester belongs to for group ownership of flows.
+   */
+  owningGroup: optional string
+
+  /**
    * Properties for the flow. These properties are passed to the compiled Gobblin jobs.
    */
   properties: map[string, string]

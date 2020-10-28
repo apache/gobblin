@@ -83,8 +83,8 @@ public class MysqlSpecStore extends InstrumentedSpecStore {
           + "spec LONGBLOB, " + NEW_COLUMN + " JSON, PRIMARY KEY (spec_uri))";
   private static final String EXISTS_STATEMENT = "SELECT EXISTS(SELECT * FROM %s WHERE spec_uri = ?)";
   protected static final String INSERT_STATEMENT = "INSERT INTO %s (spec_uri, flow_group, flow_name, template_uri, "
-      + "user_to_proxy, source_identifier, destination_identifier, schedule, tag, isRunImmediately, spec, " + NEW_COLUMN + ") "
-      + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE spec = VALUES(spec), " + NEW_COLUMN + " = VALUES(" + NEW_COLUMN + ")";
+      + "user_to_proxy, source_identifier, destination_identifier, schedule, tag, isRunImmediately, owning_group, spec, " + NEW_COLUMN + ") "
+      + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE spec = VALUES(spec), " + NEW_COLUMN + " = VALUES(" + NEW_COLUMN + ")";
   private static final String DELETE_STATEMENT = "DELETE FROM %s WHERE spec_uri = ?";
   private static final String GET_STATEMENT = "SELECT spec_uri, spec, " + NEW_COLUMN + " FROM %s WHERE ";
   private static final String GET_ALL_STATEMENT = "SELECT spec_uri, spec, " + NEW_COLUMN + " FROM %s";
@@ -409,6 +409,7 @@ public class MysqlSpecStore extends InstrumentedSpecStore {
     String sourceIdentifier = flowConfig.getString(FLOW_SOURCE_IDENTIFIER_KEY);
     String destinationIdentifier = flowConfig.getString(FLOW_DESTINATION_IDENTIFIER_KEY);
     String schedule = ConfigUtils.getString(flowConfig, ConfigurationKeys.JOB_SCHEDULE_KEY, null);
+    String owningGroup = ConfigUtils.getString(flowConfig, ConfigurationKeys.FLOW_OWNING_GROUP_KEY, null);
     boolean isRunImmediately = ConfigUtils.getBoolean(flowConfig, ConfigurationKeys.FLOW_RUN_IMMEDIATELY, false);
 
     int i = 0;
@@ -422,6 +423,7 @@ public class MysqlSpecStore extends InstrumentedSpecStore {
     statement.setString(++i, schedule);
     statement.setString(++i, tagValue);
     statement.setBoolean(++i, isRunImmediately);
+    statement.setString(++i, owningGroup);
     statement.setBlob(++i, new ByteArrayInputStream(this.specSerDe.serialize(flowSpec)));
     statement.setString(++i, new String(this.specSerDe.serialize(flowSpec), Charsets.UTF_8));
   }

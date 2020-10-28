@@ -56,7 +56,7 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
   public static final String FLOW_CONFIG_GENERATOR_INJECT_NAME = "flowConfigsV2ResourceHandler";
   public static final String INJECT_REQUESTER_SERVICE = "v2RequesterService";
   public static final String INJECT_READY_TO_USE = "v2ReadyToUse";
-
+  public static final String INJECT_GROUP_OWNERSHIP_SERVICE = "v2GroupOwnershipService";
   private static final Set<String> ALLOWED_METADATA = ImmutableSet.of("delete.state.store");
 
 
@@ -76,6 +76,10 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
   @Inject
   @Named(INJECT_READY_TO_USE)
   private Boolean readyToUse;
+
+  @Inject
+  @Named(INJECT_GROUP_OWNERSHIP_SERVICE)
+  private GroupOwnershipService groupOwnershipService;
 
   public FlowConfigsV2Resource() {
   }
@@ -128,11 +132,14 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
   @ReturnEntity
   @Override
   public CreateKVResponse create(FlowConfig flowConfig) {
-    List<ServiceRequester> requestorList = this.requesterService.findRequesters(this);
+    List<ServiceRequester> requesterList = this.requesterService.findRequesters(this);
     try {
-      String serialized = RequesterService.serialize(requestorList);
+      String serialized = RequesterService.serialize(requesterList);
       flowConfig.getProperties().put(RequesterService.REQUESTER_LIST, serialized);
       LOG.info("Rest requester list is " + serialized);
+      if (flowConfig.hasOwningGroup() && !this.groupOwnershipService.isMemberOfGroup(requesterList, flowConfig.getOwningGroup())) {
+        throw new FlowConfigLoggedException(HttpStatus.S_401_UNAUTHORIZED, "Requester not part of owning group specified");
+      }
     } catch (IOException e) {
       throw new FlowConfigLoggedException(HttpStatus.S_401_UNAUTHORIZED, "cannot get who is the requester", e);
     }
@@ -148,7 +155,7 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
    */
   @Override
   public UpdateResponse update(ComplexResourceKey<FlowId, FlowStatusId> key, FlowConfig flowConfig) {
-    FlowConfigsResource.checkRequester(this.requesterService, get(key), this.requesterService.findRequesters(this));
+    checkRequester(this.requesterService, get(key), this.requesterService.findRequesters(this));
     String flowGroup = key.getKey().getFlowGroup();
     String flowName = key.getKey().getFlowName();
     FlowId flowId = new FlowId().setFlowGroup(flowGroup).setFlowName(flowName);
@@ -163,7 +170,7 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
    */
   @Override
   public UpdateResponse update(ComplexResourceKey<FlowId, FlowStatusId> key, PatchRequest<FlowConfig> flowConfigPatch) {
-    FlowConfigsResource.checkRequester(this.requesterService, get(key), this.requesterService.findRequesters(this));
+    checkRequester(this.requesterService, get(key), this.requesterService.findRequesters(this));
     String flowGroup = key.getKey().getFlowGroup();
     String flowName = key.getKey().getFlowName();
     FlowId flowId = new FlowId().setFlowGroup(flowGroup).setFlowName(flowName);
@@ -177,7 +184,7 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
    */
   @Override
   public UpdateResponse delete(ComplexResourceKey<FlowId, FlowStatusId> key) {
-    FlowConfigsResource.checkRequester(this.requesterService, get(key), this.requesterService.findRequesters(this));
+    checkRequester(this.requesterService, get(key), this.requesterService.findRequesters(this));
     String flowGroup = key.getKey().getFlowGroup();
     String flowName = key.getKey().getFlowName();
     FlowId flowId = new FlowId().setFlowGroup(flowGroup).setFlowName(flowName);
@@ -199,5 +206,38 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
       }
     }
     return headerProperties;
+  }
+
+  /**
+   * Check that all {@link ServiceRequester}s in this request are contained within the original service requester list
+   * or is part of the original requester's owning group when the flow was submitted. If they are not, throw a {@link FlowConfigLoggedException} with {@link HttpStatus#S_401_UNAUTHORIZED}.
+   * If there is a failure when deserializing the original requester list, throw a {@link FlowConfigLoggedException} with
+   * {@link HttpStatus#S_400_BAD_REQUEST}.
+   * @param requesterService the {@link RequesterService} used to verify the requester
+   * @param originalFlowConfig original flow config to find original requester
+   * @param requesterList list of requesters for this request
+   */
+  public void checkRequester(
+      RequesterService requesterService, FlowConfig originalFlowConfig, List<ServiceRequester> requesterList) {
+    if (requesterList == null) {
+      return;
+    }
+
+    try {
+      String serializedOriginalRequesterList = originalFlowConfig.getProperties().get(RequesterService.REQUESTER_LIST);
+      if (serializedOriginalRequesterList != null) {
+        List<ServiceRequester> originalRequesterList = RequesterService.deserialize(serializedOriginalRequesterList);
+        if (!requesterService.isRequesterAllowed(originalRequesterList, requesterList)) {
+          // if the requester is not whitelisted or the original requester, reject the requester if it is not part of the owning group
+          // of the original requester
+          if (!(originalFlowConfig.hasOwningGroup() && this.groupOwnershipService.isMemberOfGroup(
+              requesterList, originalFlowConfig.getOwningGroup()))) {
+            throw new FlowConfigLoggedException(HttpStatus.S_401_UNAUTHORIZED, "Requester not allowed to make this request");
+          }
+        }
+      }
+    } catch (IOException e) {
+      throw new FlowConfigLoggedException(HttpStatus.S_400_BAD_REQUEST, "Failed to get original requester list", e);
+    }
   }
 }

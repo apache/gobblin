@@ -248,6 +248,10 @@ public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandle
       configBuilder.addPrimitive(ConfigurationKeys.FLOW_EXPLAIN_KEY, flowConfig.isExplain());
     }
 
+    if (flowConfig.hasOwningGroup()) {
+      configBuilder.addPrimitive(ConfigurationKeys.FLOW_OWNING_GROUP_KEY, flowConfig.getOwningGroup());
+    }
+
     Config config = configBuilder.build();
 
     Config configWithFallback;
