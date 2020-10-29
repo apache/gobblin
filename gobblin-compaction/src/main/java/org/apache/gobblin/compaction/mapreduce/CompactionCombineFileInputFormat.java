@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.compaction.mapreduce;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import java.io.IOException;
@@ -37,9 +38,11 @@ public abstract class CompactionCombineFileInputFormat<KI, KO> extends CombineFi
   /**
    * Properties related to the input format of the compaction job of a dataset.
    */
-  private static final String COMPACTION_JOB_MAPRED_MAX_SPLIT_SIZE = COMPACTION_JOB_PREFIX + "mapred.max.split.size";
+  @VisibleForTesting
+  static final String COMPACTION_JOB_MAPRED_MAX_SPLIT_SIZE = COMPACTION_JOB_PREFIX + "mapred.max.split.size";
   private static final long DEFAULT_COMPACTION_JOB_MAPRED_MAX_SPLIT_SIZE = 268435456;
-  private static final String COMPACTION_JOB_MAPRED_MIN_SPLIT_SIZE = COMPACTION_JOB_PREFIX + "mapred.min.split.size";
+  @VisibleForTesting
+  static final String COMPACTION_JOB_MAPRED_MIN_SPLIT_SIZE = COMPACTION_JOB_PREFIX + "mapred.min.split.size";
   private static final long DEFAULT_COMPACTION_JOB_MAPRED_MIN_SPLIT_SIZE = 268435456;
 
   private static final int SPLIT_MAX_NUM_LOCATIONS = 10;

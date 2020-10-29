@@ -18,11 +18,13 @@
 package org.apache.gobblin.compaction.mapreduce.orc;
 
 import java.io.IOException;
+
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.input.CombineFileSplit;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
+import org.apache.orc.Reader;
 import org.apache.orc.RecordReader;
 import org.apache.orc.TypeDescription;
 import org.apache.orc.mapreduce.OrcMapreduceRecordReader;
@@ -38,7 +40,8 @@ public class OrcValueCombineFileRecordReader extends OrcMapreduceRecordReader {
   }
 
   public OrcValueCombineFileRecordReader(RecordReader reader, TypeDescription schema, CombineFileSplit split,
-      Integer splitIdx) throws IOException {
+      Integer splitIdx)
+      throws IOException {
     super(reader, schema);
     this.split = split;
     this.splitIdx = splitIdx;
@@ -59,6 +62,11 @@ public class OrcValueCombineFileRecordReader extends OrcMapreduceRecordReader {
   private static RecordReader getRecordReaderFromFile(CombineFileSplit split, TaskAttemptContext context, Integer idx)
       throws IOException {
     Path path = split.getPath(idx);
-    return OrcUtils.getRecordReaderFromFile(context.getConfiguration(), path).rows();
+
+    // One should avoid using rows() without passing Reader.Options object as the configuration for RecordReader.
+    // Note that it is different from OrcFile Reader that getFileReader returns.
+    Reader.Options options = new Reader.Options(context.getConfiguration());
+    return OrcUtils.getFileReader(context.getConfiguration(), path)
+        .rows(options.range(split.getOffset(idx), split.getLength(idx)));
   }
 }

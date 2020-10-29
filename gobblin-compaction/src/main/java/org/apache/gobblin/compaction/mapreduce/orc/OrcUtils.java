@@ -75,10 +75,10 @@ public class OrcUtils {
 
   public static TypeDescription getTypeDescriptionFromFile(Configuration conf, Path orcFilePath)
       throws IOException {
-    return getRecordReaderFromFile(conf, orcFilePath).getSchema();
+    return getFileReader(conf, orcFilePath).getSchema();
   }
 
-  public static Reader getRecordReaderFromFile(Configuration conf, Path orcFilePath)
+  public static Reader getFileReader(Configuration conf, Path orcFilePath)
       throws IOException {
     return OrcFile.createReader(orcFilePath, new OrcFile.ReaderOptions(conf));
   }
