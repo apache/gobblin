@@ -110,7 +110,7 @@ public class KafkaUtils {
    */
   public static boolean containsPartitionAvgRecordSize(State state, KafkaPartition partition) {
     return state.contains(
-        getPartitionPropName(partition.getTopicName(), partition.getId()) + "." + KafkaSource.AVG_RECORD_SIZE);
+        getPartitionPropName(partition.getTopicName(), partition.getId()) + "." + ConfigurationKeys.AVG_RECORD_SIZE);
   }
 
   /**
@@ -119,7 +119,7 @@ public class KafkaUtils {
    */
   public static long getPartitionAvgRecordSize(State state, KafkaPartition partition) {
     return state.getPropAsLong(
-        getPartitionPropName(partition.getTopicName(), partition.getId()) + "." + KafkaSource.AVG_RECORD_SIZE);
+        getPartitionPropName(partition.getTopicName(), partition.getId()) + "." + ConfigurationKeys.AVG_RECORD_SIZE);
   }
 
   /**
@@ -127,7 +127,7 @@ public class KafkaUtils {
    * "[topicname].[partitionid].avg.record.size".
    */
   public static void setPartitionAvgRecordSize(State state, KafkaPartition partition, long size) {
-    state.setProp(getPartitionPropName(partition.getTopicName(), partition.getId()) + "." + KafkaSource.AVG_RECORD_SIZE,
+    state.setProp(getPartitionPropName(partition.getTopicName(), partition.getId()) + "." + ConfigurationKeys.AVG_RECORD_SIZE,
         size);
   }
 

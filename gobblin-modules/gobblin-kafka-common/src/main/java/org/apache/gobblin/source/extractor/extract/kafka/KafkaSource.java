@@ -105,7 +105,6 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   //A workunit property that contains the number of topic partitions for a given topic. Useful for
   //workunit size estimation to assign weights to a given topic partition.
   public static final String NUM_TOPIC_PARTITIONS = "numTopicPartitions";
-  public static final String AVG_RECORD_SIZE = "avg.record.size";
   public static final String AVG_RECORD_MILLIS = "avg.record.millis";
   public static final String START_FETCH_EPOCH_TIME = "startFetchEpochTime";
   public static final String STOP_FETCH_EPOCH_TIME = "stopFetchEpochTime";

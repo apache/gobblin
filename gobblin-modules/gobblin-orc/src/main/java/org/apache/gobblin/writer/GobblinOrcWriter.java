@@ -43,16 +43,14 @@ import org.apache.orc.storage.ql.exec.vector.UnionColumnVector;
 import org.apache.orc.storage.ql.exec.vector.VectorizedRowBatch;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
 
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.state.ConstructState;
 
-import static org.apache.gobblin.source.extractor.extract.kafka.KafkaSource.AVG_RECORD_SIZE;
+import static org.apache.gobblin.configuration.ConfigurationKeys.AVG_RECORD_SIZE;
 import static org.apache.gobblin.writer.AvroOrcSchemaConverter.getOrcSchema;
-import static org.apache.gobblin.yarn.GobblinYarnConfigurationKeys.*;
 
 
 /**
@@ -63,11 +61,27 @@ public class GobblinOrcWriter extends FsDataWriter<GenericRecord> {
   static final String ORC_WRITER_PREFIX = "orcWriter.";
   private static final String ORC_WRITER_BATCH_SIZE = ORC_WRITER_PREFIX + "batchSize";
   private static final int DEFAULT_ORC_WRITER_BATCH_SIZE = 1000;
+
+  private static final String CONTAINER_MEMORY_MBS = ORC_WRITER_PREFIX + "jvm.memory.mbs";
+  private static final int DEFAULT_CONTAINER_MEMORY_MBS = 4096;
+
+  private static final String CONTAINER_JVM_MEMORY_XMX_RATIO_KEY = ORC_WRITER_PREFIX + "container.jvmMemoryXmxRatio";
+  private static final double DEFAULT_CONTAINER_JVM_MEMORY_XMX_RATIO_KEY = 1.0;
+
+  static final String CONTAINER_JVM_MEMORY_OVERHEAD_MBS = ORC_WRITER_PREFIX + "container.jvmMemoryOverheadMbs";
+  private static final int DEFAULT_CONTAINER_JVM_MEMORY_OVERHEAD_MBS = 0;
+
   @VisibleForTesting
   static final String ORC_WRITER_AUTO_TUNE_ENABLED = ORC_WRITER_PREFIX + "autoTuneEnabled";
   private static final boolean ORC_WRITER_AUTO_TUNE_DEFAULT = false;
   private static final long EXEMPLIFIED_RECORD_SIZE_IN_BYTES = 1024;
-  private static final int PARALLELISM_WRITERS = 3;
+
+  /**
+   * This value gives an estimation on how many writers are buffering records at the same time in a container.
+   * Since time-based partition scheme is a commonly used practice, plus the chances for late-arrival data,
+   * usually there would be 2-3 writers running during the hourly boundary. 3 is chosen here for being conservative.
+   */
+  private static final int ESTIMATED_PARALLELISM_WRITERS = 3;
 
   // The serialized record size passed from AVG_RECORD_SIZE is smaller than the actual in-memory representation
   // of a record. This is just the number represents how many times that the actual buffer storing record is larger
@@ -99,16 +113,11 @@ public class GobblinOrcWriter extends FsDataWriter<GenericRecord> {
    * argument {@param properties}.
    *
    * Assumption for current implementation:
-   * - Running in Gobblin-on-YARN mode to enable this feature as all the memory settings here are
-   * relevant to the resources requested from YARN.
-   * - Record size is provided by AVG_RECORD_SIZE which is a kafka related attribute. For other sources, upstream
-   * constructs should provide its representation of record size.
-   *
-   * One should overwrite the behavior if plugging into systems where assumptions above don't hold.
+   * The extractor or source class should set {@link org.apache.gobblin.configuration.ConfigurationKeys#AVG_RECORD_SIZE}
    */
   protected void autoTunedOrcWriterParams(State properties) {
     double writerRatio = properties.getPropAsDouble(OrcConf.MEMORY_POOL.name(), (double) OrcConf.MEMORY_POOL.getDefaultValue());
-    long availableHeapPerWriter = Math.round(availableHeapSize(properties) * writerRatio / PARALLELISM_WRITERS);
+    long availableHeapPerWriter = Math.round(availableHeapSize(properties) * writerRatio / ESTIMATED_PARALLELISM_WRITERS);
 
     // Upstream constructs will need to set this value properly
     long estimatedRecordSize = getEstimatedRecordSize(properties);
@@ -127,9 +136,9 @@ public class GobblinOrcWriter extends FsDataWriter<GenericRecord> {
    */
   protected long availableHeapSize(State Properties) {
     // Calculate the recommended size as the threshold for memory check
-    long physicalMem = Math.round(Properties.getPropAsLong(CONTAINER_MEMORY_MBS_KEY, 4096)
-        * properties.getPropAsDouble(CONTAINER_JVM_MEMORY_XMX_RATIO_KEY, DEFAULT_CONTAINER_JVM_MEMORY_XMX_RATIO));
-    long nonHeap = properties.getPropAsLong(CONTAINER_JVM_MEMORY_OVERHEAD_MBS_KEY, DEFAULT_CONTAINER_JVM_MEMORY_OVERHEAD_MBS);
+    long physicalMem = Math.round(Properties.getPropAsLong(CONTAINER_MEMORY_MBS, DEFAULT_CONTAINER_MEMORY_MBS)
+        * properties.getPropAsDouble(CONTAINER_JVM_MEMORY_XMX_RATIO_KEY, DEFAULT_CONTAINER_JVM_MEMORY_XMX_RATIO_KEY));
+    long nonHeap = properties.getPropAsLong(CONTAINER_JVM_MEMORY_OVERHEAD_MBS, DEFAULT_CONTAINER_JVM_MEMORY_OVERHEAD_MBS);
     return physicalMem - nonHeap;
   }
 

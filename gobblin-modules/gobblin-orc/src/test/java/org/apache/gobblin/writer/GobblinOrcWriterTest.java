@@ -45,12 +45,12 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.source.workunit.WorkUnit;
 
-import static org.apache.gobblin.source.extractor.extract.kafka.KafkaSource.AVG_RECORD_SIZE;
+import static org.apache.gobblin.configuration.ConfigurationKeys.AVG_RECORD_SIZE;
 import static org.apache.gobblin.writer.GenericRecordToOrcValueWriterTest.deserializeOrcRecords;
+import static org.apache.gobblin.writer.GobblinOrcWriter.CONTAINER_JVM_MEMORY_OVERHEAD_MBS;
 import static org.apache.gobblin.writer.GobblinOrcWriter.DEFAULT_RECORD_SIZE_SCALE_FACTOR;
 import static org.apache.gobblin.writer.GobblinOrcWriter.ORC_WRITER_AUTO_TUNE_ENABLED;
 import static org.apache.gobblin.writer.GobblinOrcWriter.RECORD_SIZE_SCALE_FACTOR;
-import static org.apache.gobblin.yarn.GobblinYarnConfigurationKeys.CONTAINER_JVM_MEMORY_OVERHEAD_MBS_KEY;
 import static org.mockito.Mockito.*;
 
 
@@ -99,7 +99,7 @@ public class GobblinOrcWriterTest {
     when(mockBuilder.getFileName(properties)).thenReturn("file");
 
     properties.setProp(ORC_WRITER_AUTO_TUNE_ENABLED, true);
-    properties.setProp(CONTAINER_JVM_MEMORY_OVERHEAD_MBS_KEY, 2048);
+    properties.setProp(CONTAINER_JVM_MEMORY_OVERHEAD_MBS, 2048);
     closer.register(new GobblinOrcWriter(mockBuilder, properties));
     // Verify the side effect within the properties object.
     Assert.assertEquals(properties.getPropAsInt(OrcConf.ROWS_BETWEEN_CHECKS.name()),
