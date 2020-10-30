@@ -225,7 +225,6 @@ class HelixRetriggeringJobCallable implements Callable {
   private void runJobExecutionLauncher() throws JobException {
     long startTime = 0;
     String newPlanningId;
-    String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
     Closer closer = Closer.create();
     try {
       HelixManager planningJobManager = this.taskDriverHelixManager.isPresent()?
@@ -235,10 +234,10 @@ class HelixRetriggeringJobCallable implements Callable {
           GobblinHelixDistributeJobExecutionLauncher.Builder.class.getName());
 
       // Check if any existing planning job is running
-      Optional<String> planningJobIdFromStore = jobsMapping.getPlanningJobId(jobName);
+      Optional<String> planningJobIdFromStore = jobsMapping.getPlanningJobId(this.jobUri);
       boolean nonblocking = false;
       // start of critical section to check if a job with same job name is running
-      Lock jobLock = locks.get(jobName);
+      Lock jobLock = locks.get(this.jobUri);
       jobLock.lock();
 
       try {
@@ -268,7 +267,7 @@ class HelixRetriggeringJobCallable implements Callable {
             }
           }
         } else {
-          log.info("Planning job for {} does not exist. First time run.", jobName);
+          log.info("Planning job for {} does not exist. First time run.", this.jobUri);
         }
 
         GobblinHelixDistributeJobExecutionLauncher.Builder builder = GobblinConstructorUtils.<GobblinHelixDistributeJobExecutionLauncher.Builder>invokeLongestConstructor(
@@ -303,7 +302,7 @@ class HelixRetriggeringJobCallable implements Callable {
         log.info("Planning job {} started.", newPlanningId);
         GobblinHelixDistributeJobExecutionLauncher launcher = builder.build();
         closer.register(launcher);
-        this.jobsMapping.setPlanningJobId(jobName, newPlanningId);
+        this.jobsMapping.setPlanningJobId(this.jobUri, newPlanningId);
         startTime = System.currentTimeMillis();
         this.currentJobMonitor = launcher.launchJob(null);
 
@@ -334,13 +333,13 @@ class HelixRetriggeringJobCallable implements Callable {
       if (startTime != 0) {
         this.planningJobLauncherMetrics.updateTimeForFailedPlanningJobs(startTime);
       }
-      log.error("Failed to run planning job {}", jobName, e);
-      throw new JobException("Failed to run planning job " + jobName, e);
+      log.error("Failed to run planning job for {}", this.jobUri, e);
+      throw new JobException("Failed to run planning job for " + this.jobUri, e);
     } finally {
       try {
         closer.close();
       } catch (IOException e) {
-        throw new JobException("Cannot properly close planning job " + jobName, e);
+        throw new JobException("Cannot properly close planning job for " + this.jobUri, e);
       }
     }
   }

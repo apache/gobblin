@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.cluster;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -50,6 +51,7 @@ import com.google.common.util.concurrent.Striped;
 import com.typesafe.config.Config;
 
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.cluster.event.CancelJobConfigArrivalEvent;
 import org.apache.gobblin.cluster.event.DeleteJobConfigArrivalEvent;
 import org.apache.gobblin.cluster.event.NewJobConfigArrivalEvent;
 import org.apache.gobblin.cluster.event.UpdateJobConfigArrivalEvent;
@@ -84,7 +86,7 @@ import org.apache.gobblin.util.PropertiesUtils;
  * <p> More details can be found at {@link HelixRetriggeringJobCallable}.
  */
 @Alpha
-public class GobblinHelixJobScheduler extends JobScheduler implements StandardMetricsBridge{
+public class GobblinHelixJobScheduler extends JobScheduler implements StandardMetricsBridge {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinHelixJobScheduler.class);
   private static final String COMMON_JOB_PROPS = "gobblin.common.job.props";
@@ -205,9 +207,9 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
 
     if (cleanAllDistJobs) {
       for (org.apache.gobblin.configuration.State state : this.jobsMapping.getAllStates()) {
-        String jobName = state.getId();
-        LOGGER.info("Delete mapping for job " + jobName);
-        this.jobsMapping.deleteMapping(jobName);
+        String jobUri = state.getId();
+        LOGGER.info("Delete mapping for job " + jobUri);
+        this.jobsMapping.deleteMapping(jobUri);
       }
     }
   }
@@ -346,7 +348,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
   }
 
   private void waitForJobCompletion(String jobName) {
-    while (this.jobRunningMap.getOrDefault(jobName, false) != false) {
+    while (this.jobRunningMap.getOrDefault(jobName, false)) {
       LOGGER.info("Waiting for job {} to stop...", jobName);
       try {
         Thread.sleep(1000);
@@ -364,6 +366,33 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
       cancelJobIfRequired(deleteJobArrival);
     } catch (JobException je) {
       LOGGER.error("Failed to unschedule job " + deleteJobArrival.getJobName());
+    }
+  }
+
+  @Subscribe
+  public void handleCancelJobConfigArrival(CancelJobConfigArrivalEvent cancelJobArrival)
+      throws InterruptedException {
+    String jobUri = cancelJobArrival.getJoburi();
+    LOGGER.info("Received cancel for job configuration of job " + jobUri);
+    Optional<String> planningJob = Optional.empty();
+    Optional<String> actualJob = Optional.empty();
+
+    try {
+      planningJob = this.jobsMapping.getPlanningJobId(jobUri);
+      actualJob = this.jobsMapping.getActualJobId(jobUri);
+    } catch (IOException e) {
+      LOGGER.warn("Planning and actual jobs could not be retrieved for job {}", jobUri);
+      return;
+    }
+
+    if (planningJob.isPresent()) {
+      LOGGER.info("Cancelling planning job helix workflow: {}", planningJob.get());
+      new TaskDriver(this.taskDriverHelixManager.get()).waitToStop(planningJob.get(), this.helixJobStopTimeoutMillis);
+    }
+
+    if (actualJob.isPresent()) {
+      LOGGER.info("Cancelling actual job helix workflow: {}", actualJob.get());
+      new TaskDriver(this.jobHelixManager).waitToStop(actualJob.get(), this.helixJobStopTimeoutMillis);
     }
   }
 

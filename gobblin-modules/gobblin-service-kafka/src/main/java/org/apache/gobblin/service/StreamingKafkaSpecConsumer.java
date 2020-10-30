@@ -179,6 +179,18 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
       }
     }
 
+    @Override
+    public void onCancelJob(URI cancelledJobURI) {
+      super.onCancelJob(cancelledJobURI);
+      try {
+        JobSpec.Builder jobSpecBuilder = JobSpec.builder(cancelledJobURI);
+        jobSpecBuilder.withConfigAsProperties(new Properties());
+        _jobSpecQueue.put(new ImmutablePair<>(SpecExecutor.Verb.CANCEL, jobSpecBuilder.build()));
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+    }
+
     @Override public void onUpdateJob(JobSpec updatedJob) {
       super.onUpdateJob(updatedJob);
 

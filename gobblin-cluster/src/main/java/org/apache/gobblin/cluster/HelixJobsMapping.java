@@ -116,27 +116,27 @@ public class HelixJobsMapping {
     this.stateStore.delete(this.distributedStateStoreName, jobName);
   }
 
-  public void setPlanningJobId (String jobName, String planningJobId) throws IOException {
-    State state = getOrCreate(distributedStateStoreName, jobName);
-    state.setId(jobName);
+  public void setPlanningJobId (String jobUri, String planningJobId) throws IOException {
+    State state = getOrCreate(distributedStateStoreName, jobUri);
+    state.setId(jobUri);
     state.setProp(GobblinClusterConfigurationKeys.PLANNING_ID_KEY, planningJobId);
     // fs state store use hdfs rename, which assumes the target file doesn't exist.
     if (stateStore instanceof FsStateStore) {
-      this.deleteMapping(jobName);
+      this.deleteMapping(jobUri);
     }
-    this.stateStore.put(distributedStateStoreName, jobName, state);
+    this.stateStore.put(distributedStateStoreName, jobUri, state);
   }
 
-  public void setActualJobId (String jobName, String planningJobId, String actualJobId) throws IOException {
-    State state = getOrCreate(distributedStateStoreName, jobName);
-    state.setId(jobName);
+  public void setActualJobId (String jobUri, String planningJobId, String actualJobId) throws IOException {
+    State state = getOrCreate(distributedStateStoreName, jobUri);
+    state.setId(jobUri);
     state.setProp(GobblinClusterConfigurationKeys.PLANNING_ID_KEY, planningJobId);
     state.setProp(ConfigurationKeys.JOB_ID_KEY, actualJobId);
     // fs state store use hdfs rename, which assumes the target file doesn't exist.
     if (stateStore instanceof FsStateStore) {
-      this.deleteMapping(jobName);
+      this.deleteMapping(jobUri);
     }
-    this.stateStore.put(distributedStateStoreName, jobName, state);
+    this.stateStore.put(distributedStateStoreName, jobUri, state);
   }
 
   private Optional<String> getId (String jobName, String idName) throws IOException {
@@ -154,8 +154,8 @@ public class HelixJobsMapping {
     return this.stateStore.getAll(distributedStateStoreName);
   }
 
-  public Optional<String> getActualJobId (String jobName) throws IOException {
-    return getId(jobName, ConfigurationKeys.JOB_ID_KEY);
+  public Optional<String> getActualJobId (String jobUri) throws IOException {
+    return getId(jobUri, ConfigurationKeys.JOB_ID_KEY);
   }
 
   public Optional<String> getPlanningJobId (String jobName) throws IOException {
