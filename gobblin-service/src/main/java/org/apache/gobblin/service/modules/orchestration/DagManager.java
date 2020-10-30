@@ -492,7 +492,7 @@ public class DagManager extends AbstractIdleService {
         props.put(ConfigurationKeys.SPEC_PRODUCER_SERIALIZED_FUTURE, serializedFuture);
         sendCancellationEvent(dagNodeToCancel.getValue());
       }
-      DagManagerUtils.getSpecProducer(dagNodeToCancel).deleteSpec(null, props);
+      DagManagerUtils.getSpecProducer(dagNodeToCancel).deleteSpec(dagNodeToCancel.getValue().getJobSpec().getUri(), props);
     }
 
     private void sendCancellationEvent(JobExecutionPlan jobExecutionPlan) {
