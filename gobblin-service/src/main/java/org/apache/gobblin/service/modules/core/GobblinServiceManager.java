@@ -34,9 +34,9 @@ import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.helix.ControllerChangeListener;
 import org.apache.helix.HelixManager;
 import org.apache.helix.NotificationContext;
+import org.apache.helix.api.listeners.ControllerChangeListener;
 import org.apache.helix.model.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -401,11 +401,6 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
       LOGGER.info("Leader notification for {} HM.isLeader {}", this.helixManager.get().getInstanceName(),
           this.helixManager.get().isLeader());
 
-      if (this.isSchedulerEnabled) {
-        LOGGER.info("Gobblin Service is now running in master instance mode, enabling Scheduler.");
-        this.scheduler.setActive(true);
-      }
-
       if (helixLeaderGauges.isPresent()) {
         helixLeaderGauges.get().setState(LeaderState.MASTER);
       }
@@ -420,6 +415,11 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
           this.dagManager.setActive(true);
           this.eventBus.register(this.dagManager);
         }
+      }
+
+      if (this.isSchedulerEnabled) {
+        LOGGER.info("Gobblin Service is now running in master instance mode, enabling Scheduler.");
+        this.scheduler.setActive(true);
       }
     } else if (this.helixManager.isPresent()) {
       LOGGER.info("Leader lost notification for {} HM.isLeader {}", this.helixManager.get().getInstanceName(),
@@ -457,22 +457,8 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     this.serviceLauncher.start();
 
     if (this.helixManager.isPresent()) {
-      // Subscribe to leadership changes
-      this.helixManager.get().addControllerListener(new ControllerChangeListener() {
-        @Override
-        public void onControllerChange(NotificationContext changeContext) {
-          handleLeadershipChange(changeContext);
-        }
-      });
-
-
       // Update for first time since there might be no notification
       if (helixManager.get().isLeader()) {
-        if (this.isSchedulerEnabled) {
-          LOGGER.info("[Init] Gobblin Service is running in master instance mode, enabling Scheduler.");
-          this.scheduler.setActive(true);
-        }
-
         if (this.isGitConfigMonitorEnabled) {
           this.gitConfigMonitor.setActive(true);
         }
@@ -490,11 +476,6 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
         }
       }
     } else {
-      // No Helix manager, hence standalone service instance
-      // .. designate scheduler to itself
-      LOGGER.info("[Init] Gobblin Service is running in single instance mode, enabling Scheduler.");
-      this.scheduler.setActive(true);
-
       if (this.isGitConfigMonitorEnabled) {
         this.gitConfigMonitor.setActive(true);
       }
@@ -527,6 +508,21 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
         this.dagManager.setActive(true);
         this.eventBus.register(this.dagManager);
       }
+    }
+
+    if (helixManager.isPresent()) {
+      // Subscribe to leadership changes
+      this.helixManager.get().addControllerListener((ControllerChangeListener) this::handleLeadershipChange);
+
+      if (helixManager.get().isLeader() && this.isSchedulerEnabled) {
+        LOGGER.info("[Init] Gobblin Service is running in master instance mode, enabling Scheduler.");
+        this.scheduler.setActive(true);
+      }
+    } else {
+      // No Helix manager, hence standalone service instance
+      // .. designate scheduler to itself
+      LOGGER.info("[Init] Gobblin Service is running in single instance mode, enabling Scheduler.");
+      this.scheduler.setActive(true);
     }
   }
 
