@@ -78,6 +78,15 @@ public class OrcUtils {
     return getFileReader(conf, orcFilePath).getSchema();
   }
 
+  /**
+   * @deprecated Since the method name isn't accurate. Please calling {@link this#getFileReader(Configuration, Path)}
+   * directly
+   */
+  @Deprecated
+  public static Reader getRecordReaderFromFile(Configuration conf, Path orcFilePath) throws IOException {
+    return getFileReader(conf, orcFilePath);
+  }
+
   public static Reader getFileReader(Configuration conf, Path orcFilePath)
       throws IOException {
     return OrcFile.createReader(orcFilePath, new OrcFile.ReaderOptions(conf));
