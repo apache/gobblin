@@ -1,21 +1,54 @@
 {
   "models" : [ {
     "type" : "record",
-    "name" : "FlowStatusId",
+    "name" : "EmptyRecord",
+    "namespace" : "com.linkedin.restli.common",
+    "doc" : "An literally empty record.  Intended as a marker to indicate the absence of content where a record type is required.  If used the underlying DataMap *must* be empty, EmptyRecordValidator is provided to help enforce this.  For example,  CreateRequest extends Request<EmptyRecord> to indicate it has no response body.   Also, a ComplexKeyResource implementation that has no ParamKey should have a signature like XyzResource implements ComplexKeyResource<XyzKey, EmptyRecord, Xyz>.",
+    "fields" : [ ],
+    "validate" : {
+      "com.linkedin.restli.common.EmptyRecordValidator" : { }
+    }
+  }, {
+    "type" : "enum",
+    "name" : "ExecutionStatus",
     "namespace" : "org.apache.gobblin.service",
-    "doc" : "Identifier for a specific execution of a flow",
+    "doc" : "Execution status for a flow or job",
+    "symbols" : [ "COMPILED", "PENDING", "PENDING_RETRY", "ORCHESTRATED", "RUNNING", "COMPLETE", "FAILED", "CANCELLED" ],
+    "symbolDocs" : {
+      "CANCELLED" : "Flow cancelled.",
+      "COMPILED" : "Flow compiled to jobs.",
+      "COMPLETE" : "Flow or job completed execution",
+      "FAILED" : "Flow or job failed",
+      "ORCHESTRATED" : "Job(s) orchestrated to spec executors.",
+      "PENDING" : "Flow or job is in pending state.",
+      "PENDING_RETRY" : "Flow or job is pending retry.",
+      "RUNNING" : "Flow or job is currently executing"
+    }
+  }, {
+    "type" : "record",
+    "name" : "FlowId",
+    "namespace" : "org.apache.gobblin.service",
+    "doc" : "Identifier for a Gobblin as a Service flow",
     "fields" : [ {
       "name" : "flowName",
       "type" : "string",
-      "doc" : "Name of the flow"
+      "doc" : "Name of the flow",
+      "validate" : {
+        "strlen" : {
+          "max" : 128,
+          "min" : 1
+        }
+      }
     }, {
       "name" : "flowGroup",
       "type" : "string",
-      "doc" : "Group of the flow. This defines the namespace for the flow."
-    }, {
-      "name" : "flowExecutionId",
-      "type" : "long",
-      "doc" : "Execution id for the flow"
+      "doc" : "Group of the flow. This defines the namespace for the flow.",
+      "validate" : {
+        "strlen" : {
+          "max" : 128,
+          "min" : 1
+        }
+      }
     } ]
   }, {
     "type" : "record",
@@ -32,148 +65,30 @@
       "doc" : "Epoch time of when the execution ended"
     } ]
   }, {
-    "type" : "enum",
-    "name" : "ExecutionStatus",
-    "namespace" : "org.apache.gobblin.service",
-    "doc" : "Execution status for a flow or job",
-    "symbols" : [ "COMPILED", "PENDING", "PENDING_RETRY", "ORCHESTRATED", "RUNNING", "COMPLETE", "FAILED", "CANCELLED" ],
-    "symbolDocs" : {
-      "COMPILED" : "Flow compiled to jobs.",
-      "PENDING" : "Flow or job is in pending state.",
-      "PENDING_RETRY" : "Flow or job is pending retry.",
-      "ORCHESTRATED" : "Job(s) orchestrated to spec executors.",
-      "RUNNING" : "Flow or job is currently executing",
-      "COMPLETE" : "Flow or job completed execution",
-      "FAILED" : "Flow or job failed",
-      "CANCELLED" : "Flow cancelled."
-    }
-  }, {
-    "type" : "record",
-    "name" : "FlowId",
-    "namespace" : "org.apache.gobblin.service",
-    "doc" : "Identifier for a Gobblin as a Service flow",
-    "fields" : [ {
-      "name" : "flowName",
-      "type" : "string",
-      "doc" : "Name of the flow",
-      "validate" : {
-        "strlen" : {
-          "min" : 1,
-          "max" : 128
-        }
-      }
-    }, {
-      "name" : "flowGroup",
-      "type" : "string",
-      "doc" : "Group of the flow. This defines the namespace for the flow.",
-      "validate" : {
-        "strlen" : {
-          "min" : 1,
-          "max" : 128
-        }
-      }
-    } ]
-  }, {
-    "type" : "record",
-    "name" : "JobId",
-    "namespace" : "org.apache.gobblin.service",
-    "doc" : "Identifier for a Gobblin job",
-    "fields" : [ {
-      "name" : "jobName",
-      "type" : "string",
-      "doc" : "Name of the job",
-      "validate" : {
-        "strlen" : {
-          "min" : 1,
-          "max" : 600
-        }
-      }
-    }, {
-      "name" : "jobGroup",
-      "type" : "string",
-      "doc" : "Group of the job. This defines the namespace for the job.",
-      "validate" : {
-        "strlen" : {
-          "min" : 1,
-          "max" : 128
-        }
-      }
-    } ]
-  }, {
-    "type" : "record",
-    "name" : "JobStatistics",
-    "namespace" : "org.apache.gobblin.service",
-    "doc" : "Statistics from a job execution",
-    "fields" : [ {
-      "name" : "executionStartTime",
-      "type" : "long",
-      "doc" : "Epoch time of when the execution began"
-    }, {
-      "name" : "executionEndTime",
-      "type" : "long",
-      "doc" : "Epoch time of when the execution ended"
-    }, {
-      "name" : "processedCount",
-      "type" : "long",
-      "doc" : "number of records processed in the last job execution"
-    } ]
-  }, {
-    "type" : "record",
-    "name" : "JobState",
-    "namespace" : "org.apache.gobblin.service",
-    "doc" : "Job state that is updated at the end of an execution",
-    "fields" : [ {
-      "name" : "lowWatermark",
-      "type" : "string",
-      "doc" : "Low watermark after last execution"
-    }, {
-      "name" : "highWatermark",
-      "type" : "string",
-      "doc" : "High watermark after last execution"
-    } ]
-  }, {
-    "type" : "record",
-    "name" : "JobStatus",
-    "namespace" : "org.apache.gobblin.service",
-    "doc" : "Execution status for a job",
-    "fields" : [ {
-      "name" : "flowId",
-      "type" : "FlowId",
-      "doc" : "Identifier of the flow the job belongs to"
-    }, {
-      "name" : "jobId",
-      "type" : "JobId",
-      "doc" : "Identifier of the job"
-    }, {
-      "name" : "jobTag",
-      "type" : "string",
-      "doc" : "Tag of the job",
-      "optional" : true
-    }, {
-      "name" : "executionStatus",
-      "type" : "ExecutionStatus",
-      "doc" : "Job execution status"
-    }, {
-      "name" : "message",
-      "type" : "string",
-      "doc" : "Error or status message"
-    }, {
-      "name" : "executionStatistics",
-      "type" : "JobStatistics",
-      "doc" : "Statistics from the job execution. The values may be updated during the run of a job."
-    }, {
-      "name" : "jobState",
-      "type" : "JobState",
-      "doc" : "Job state that is updated only at the start and end of a job execution."
-    } ]
-  }, {
     "type" : "record",
     "name" : "FlowStatus",
     "namespace" : "org.apache.gobblin.service",
     "doc" : "Status of a flow",
     "fields" : [ {
       "name" : "id",
-      "type" : "FlowStatusId",
+      "type" : {
+        "type" : "record",
+        "name" : "FlowStatusId",
+        "doc" : "Identifier for a specific execution of a flow",
+        "fields" : [ {
+          "name" : "flowName",
+          "type" : "string",
+          "doc" : "Name of the flow"
+        }, {
+          "name" : "flowGroup",
+          "type" : "string",
+          "doc" : "Group of the flow. This defines the namespace for the flow."
+        }, {
+          "name" : "flowExecutionId",
+          "type" : "long",
+          "doc" : "Execution id for the flow"
+        } ]
+      },
       "doc" : "Flow status identifier"
     }, {
       "name" : "executionStatistics",
@@ -191,21 +106,106 @@
       "name" : "jobStatuses",
       "type" : {
         "type" : "array",
-        "items" : "JobStatus"
+        "items" : {
+          "type" : "record",
+          "name" : "JobStatus",
+          "doc" : "Execution status for a job",
+          "fields" : [ {
+            "name" : "flowId",
+            "type" : "FlowId",
+            "doc" : "Identifier of the flow the job belongs to"
+          }, {
+            "name" : "jobId",
+            "type" : {
+              "type" : "record",
+              "name" : "JobId",
+              "doc" : "Identifier for a Gobblin job",
+              "fields" : [ {
+                "name" : "jobName",
+                "type" : "string",
+                "doc" : "Name of the job",
+                "validate" : {
+                  "strlen" : {
+                    "max" : 600,
+                    "min" : 1
+                  }
+                }
+              }, {
+                "name" : "jobGroup",
+                "type" : "string",
+                "doc" : "Group of the job. This defines the namespace for the job.",
+                "validate" : {
+                  "strlen" : {
+                    "max" : 128,
+                    "min" : 1
+                  }
+                }
+              } ]
+            },
+            "doc" : "Identifier of the job"
+          }, {
+            "name" : "jobTag",
+            "type" : "string",
+            "doc" : "Tag of the job",
+            "optional" : true
+          }, {
+            "name" : "executionStatus",
+            "type" : "ExecutionStatus",
+            "doc" : "Job execution status"
+          }, {
+            "name" : "message",
+            "type" : "string",
+            "doc" : "Error or status message"
+          }, {
+            "name" : "metrics",
+            "type" : "string",
+            "doc" : "metrics information",
+            "optional" : true
+          }, {
+            "name" : "executionStatistics",
+            "type" : {
+              "type" : "record",
+              "name" : "JobStatistics",
+              "doc" : "Statistics from a job execution",
+              "fields" : [ {
+                "name" : "executionStartTime",
+                "type" : "long",
+                "doc" : "Epoch time of when the execution began"
+              }, {
+                "name" : "executionEndTime",
+                "type" : "long",
+                "doc" : "Epoch time of when the execution ended"
+              }, {
+                "name" : "processedCount",
+                "type" : "long",
+                "doc" : "number of records processed in the last job execution"
+              } ]
+            },
+            "doc" : "Statistics from the job execution. The values may be updated during the run of a job."
+          }, {
+            "name" : "jobState",
+            "type" : {
+              "type" : "record",
+              "name" : "JobState",
+              "doc" : "Job state that is updated at the end of an execution",
+              "fields" : [ {
+                "name" : "lowWatermark",
+                "type" : "string",
+                "doc" : "Low watermark after last execution"
+              }, {
+                "name" : "highWatermark",
+                "type" : "string",
+                "doc" : "High watermark after last execution"
+              } ]
+            },
+            "doc" : "Job state that is updated only at the start and end of a job execution."
+          } ]
+        }
       },
       "doc" : "Status of jobs belonging to the flow"
     } ],
     "deprecated" : "Use FlowExecution instead"
-  }, {
-    "type" : "record",
-    "name" : "EmptyRecord",
-    "namespace" : "com.linkedin.restli.common",
-    "doc" : "An literally empty record.  Intended as a marker to indicate the absence of content where a record type is required.  If used the underlying DataMap *must* be empty, EmptyRecordValidator is provided to help enforce this.  For example,  CreateRequest extends Request<EmptyRecord> to indicate it has no response body.   Also, a ComplexKeyResource implementation that has no ParamKey should have a signature like XyzResource implements ComplexKeyResource<XyzKey, EmptyRecord, Xyz>.",
-    "fields" : [ ],
-    "validate" : {
-      "com.linkedin.restli.common.EmptyRecordValidator" : { }
-    }
-  } ],
+  }, "org.apache.gobblin.service.FlowStatusId", "org.apache.gobblin.service.JobId", "org.apache.gobblin.service.JobState", "org.apache.gobblin.service.JobStatistics", "org.apache.gobblin.service.JobStatus" ],
   "schema" : {
     "name" : "flowstatuses",
     "namespace" : "org.apache.gobblin.service",

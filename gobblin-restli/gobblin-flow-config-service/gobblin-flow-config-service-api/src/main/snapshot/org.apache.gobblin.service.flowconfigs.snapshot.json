@@ -1,48 +1,13 @@
 {
   "models" : [ {
     "type" : "record",
-    "name" : "FlowId",
-    "namespace" : "org.apache.gobblin.service",
-    "doc" : "Identifier for a Gobblin as a Service flow",
-    "fields" : [ {
-      "name" : "flowName",
-      "type" : "string",
-      "doc" : "Name of the flow",
-      "validate" : {
-        "strlen" : {
-          "min" : 1,
-          "max" : 128
-        }
-      }
-    }, {
-      "name" : "flowGroup",
-      "type" : "string",
-      "doc" : "Group of the flow. This defines the namespace for the flow.",
-      "validate" : {
-        "strlen" : {
-          "min" : 1,
-          "max" : 128
-        }
-      }
-    } ]
-  }, {
-    "type" : "record",
-    "name" : "Schedule",
-    "namespace" : "org.apache.gobblin.service",
-    "doc" : "Attributes for defining a job schedule",
-    "fields" : [ {
-      "name" : "cronSchedule",
-      "type" : "string",
-      "doc" : "Schedule for flow in cron format",
-      "validate" : {
-        "org.apache.gobblin.service.validator.CronValidator" : { }
-      }
-    }, {
-      "name" : "runImmediately",
-      "type" : "boolean",
-      "doc" : "Set to true to request that a job with a schedule be run immediately in addition to being scheduled",
-      "default" : false
-    } ]
+    "name" : "EmptyRecord",
+    "namespace" : "com.linkedin.restli.common",
+    "doc" : "An literally empty record.  Intended as a marker to indicate the absence of content where a record type is required.  If used the underlying DataMap *must* be empty, EmptyRecordValidator is provided to help enforce this.  For example,  CreateRequest extends Request<EmptyRecord> to indicate it has no response body.   Also, a ComplexKeyResource implementation that has no ParamKey should have a signature like XyzResource implements ComplexKeyResource<XyzKey, EmptyRecord, Xyz>.",
+    "fields" : [ ],
+    "validate" : {
+      "com.linkedin.restli.common.EmptyRecordValidator" : { }
+    }
   }, {
     "type" : "record",
     "name" : "FlowConfig",
@@ -50,11 +15,53 @@
     "doc" : "Defines a flow configuration that can be compiled into Gobblin jobs",
     "fields" : [ {
       "name" : "id",
-      "type" : "FlowId",
+      "type" : {
+        "type" : "record",
+        "name" : "FlowId",
+        "doc" : "Identifier for a Gobblin as a Service flow",
+        "fields" : [ {
+          "name" : "flowName",
+          "type" : "string",
+          "doc" : "Name of the flow",
+          "validate" : {
+            "strlen" : {
+              "max" : 128,
+              "min" : 1
+            }
+          }
+        }, {
+          "name" : "flowGroup",
+          "type" : "string",
+          "doc" : "Group of the flow. This defines the namespace for the flow.",
+          "validate" : {
+            "strlen" : {
+              "max" : 128,
+              "min" : 1
+            }
+          }
+        } ]
+      },
       "doc" : "Identifier for the flow"
     }, {
       "name" : "schedule",
-      "type" : "Schedule",
+      "type" : {
+        "type" : "record",
+        "name" : "Schedule",
+        "doc" : "Attributes for defining a job schedule",
+        "fields" : [ {
+          "name" : "cronSchedule",
+          "type" : "string",
+          "doc" : "Schedule for flow in cron format",
+          "validate" : {
+            "org.apache.gobblin.service.validator.CronValidator" : { }
+          }
+        }, {
+          "name" : "runImmediately",
+          "type" : "boolean",
+          "doc" : "Set to true to request that a job with a schedule be run immediately in addition to being scheduled",
+          "default" : false
+        } ]
+      },
       "doc" : "Optional schedule for when to execution the flow. If a schedule is not specified then the flow is executed immediately.",
       "optional" : true
     }, {
@@ -77,16 +84,7 @@
       },
       "doc" : "Properties for the flow. These properties are passed to the compiled Gobblin jobs."
     } ]
-  }, {
-    "type" : "record",
-    "name" : "EmptyRecord",
-    "namespace" : "com.linkedin.restli.common",
-    "doc" : "An literally empty record.  Intended as a marker to indicate the absence of content where a record type is required.  If used the underlying DataMap *must* be empty, EmptyRecordValidator is provided to help enforce this.  For example,  CreateRequest extends Request<EmptyRecord> to indicate it has no response body.   Also, a ComplexKeyResource implementation that has no ParamKey should have a signature like XyzResource implements ComplexKeyResource<XyzKey, EmptyRecord, Xyz>.",
-    "fields" : [ ],
-    "validate" : {
-      "com.linkedin.restli.common.EmptyRecordValidator" : { }
-    }
-  } ],
+  }, "org.apache.gobblin.service.FlowId", "org.apache.gobblin.service.Schedule" ],
   "schema" : {
     "name" : "flowconfigs",
     "namespace" : "org.apache.gobblin.service",
