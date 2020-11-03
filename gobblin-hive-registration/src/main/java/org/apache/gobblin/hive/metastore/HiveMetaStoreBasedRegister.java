@@ -38,6 +38,7 @@ import org.apache.gobblin.source.extractor.extract.kafka.KafkaSource;
 import org.apache.gobblin.util.AvroUtils;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
+import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.api.AlreadyExistsException;
 import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
@@ -180,6 +181,15 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
     try (Timer.Context context = this.metricContext.timer(PATH_REGISTER_TIMER).time();
         AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient()) {
       Table table = HiveMetaStoreUtils.getTable(spec.getTable());
+
+      // Abort the rest of operations if a view is seen.
+      if (table.getTableType().equals(TableType.VIRTUAL_VIEW.name())) {
+        String msg = "Cannot register paths against a view on Hive for:" + spec.getPath()
+            + " on table:" + spec.getTable().toString();
+        log.info(msg);
+        HiveMetaStoreEventHelper.submitFailedPathRegistration(eventSubmitter, spec,
+            new UnsupportedOperationException(msg));
+      }
 
       createDbIfNotExists(client.get(), table.getDbName());
       createOrAlterTable(client.get(), table, spec);
