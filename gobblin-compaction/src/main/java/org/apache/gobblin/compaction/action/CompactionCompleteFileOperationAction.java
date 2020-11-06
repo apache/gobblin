@@ -48,6 +48,8 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.mapreduce.Counter;
 import org.apache.hadoop.mapreduce.Job;
 
+import static org.apache.gobblin.compaction.event.CompactionSlaEventHelper.DUPLICATE_COUNT_TOTAL;
+
 
 /**
  * A type of post action {@link CompactionCompleteAction} which focus on the file operations
@@ -162,19 +164,19 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
             Long.toString(helper.readRecordCount(new Path(result.getDstAbsoluteDir()))));
         compactionState.setProp(CompactionSlaEventHelper.EXEC_COUNT_TOTAL + Long.toString(executionCount),
             Long.toString(executionCount));
-        compactionState.setProp("DuplicateRecordCount" + Long.toString(executionCount),
-            compactionState.getProp("DuplicateRecordCount", "null"));
+        compactionState.setProp(DUPLICATE_COUNT_TOTAL + Long.toString(executionCount),
+            compactionState.getProp(DUPLICATE_COUNT_TOTAL, "null"));
       }
       compactionState.setProp(CompactionSlaEventHelper.RECORD_COUNT_TOTAL, Long.toString(newTotalRecords));
       compactionState.setProp(CompactionSlaEventHelper.EXEC_COUNT_TOTAL, Long.toString(executionCount + 1));
       compactionState.setProp(CompactionSlaEventHelper.MR_JOB_ID,
           this.configurator.getConfiguredJob().getJobID().toString());
-      compactionState.setProp("DuplicateRecordCount",
+      compactionState.setProp(DUPLICATE_COUNT_TOTAL,
           job.getCounters().findCounter(RecordKeyDedupReducerBase.EVENT_COUNTER.DEDUPED).getValue());
       compactionState.setProp(CompactionSlaEventHelper.LAST_RUN_START_TIME,
           this.state.getProp(CompactionSource.COMPACTION_INIT_TIME));
       helper.saveState(new Path(result.getDstAbsoluteDir()), compactionState);
-      log.info("duplicated records count for " + dstPath + " : " + compactionState.getProp("DuplicateRecordCount"));
+      log.info("duplicated records count for " + dstPath + " : " + compactionState.getProp(DUPLICATE_COUNT_TOTAL));
 
       log.info("Updating record count from {} to {} in {} [{}]", oldTotalRecords, newTotalRecords, dstPath,
           executionCount + 1);

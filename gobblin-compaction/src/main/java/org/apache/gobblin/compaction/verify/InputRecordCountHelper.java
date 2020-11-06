@@ -40,6 +40,8 @@ import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
+import static org.apache.gobblin.compaction.event.CompactionSlaEventHelper.DUPLICATE_COUNT_TOTAL;
+import static org.apache.gobblin.compaction.event.CompactionSlaEventHelper.EXEC_COUNT_TOTAL;
 import static org.apache.gobblin.compaction.mapreduce.CompactorOutputCommitter.*;
 
 
@@ -176,8 +178,16 @@ public class InputRecordCountHelper {
    * @return record count
    */
   public long readExecutionCount(Path dir) throws IOException {
+    return readCountHelper(dir, EXEC_COUNT_TOTAL);
+  }
+
+  public long readDuplicationCount(Path dir) throws IOException {
+    return readCountHelper(dir, DUPLICATE_COUNT_TOTAL);
+  }
+
+  private long readCountHelper(Path dir, String countKeyName) throws IOException {
     State state = loadState(fs, dir);
-    return Long.parseLong(state.getProp(CompactionSlaEventHelper.EXEC_COUNT_TOTAL, "0"));
+    return Long.parseLong(state.getProp(countKeyName, "0"));
   }
 
   /**
