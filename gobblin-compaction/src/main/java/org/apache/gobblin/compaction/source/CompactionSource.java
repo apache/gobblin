@@ -501,7 +501,15 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
 
     // copy jar files to hdfs
     for (String jarFile : state.getPropAsList(ConfigurationKeys.JOB_JAR_FILES_KEY)) {
-      for (FileStatus status : lfs.globStatus(new Path(jarFile))) {
+      FileStatus[] statuses;
+      try {
+        // When jarFile is not existed, this API throws NPE which is unexpected.
+        // that's the reason why catch block chose to use non-specific Exception class.
+        statuses = lfs.globStatus(new Path(jarFile));
+      } catch (Exception e) {
+        throw new RuntimeException("Failure occurred while resolving glob pattern:" + jarFile, e);
+      }
+      for (FileStatus status : statuses) {
         Path tmpJarFile = new Path(this.fs.makeQualified(tmpJarFileDir), status.getPath().getName());
         this.fs.copyFromLocalFile(status.getPath(), tmpJarFile);
         log.info(String.format("%s will be added to classpath", tmpJarFile));
