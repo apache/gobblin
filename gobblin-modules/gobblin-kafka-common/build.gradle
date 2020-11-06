@@ -40,7 +40,7 @@ dependencies {
   compile externalDependency.slf4j
   compile externalDependency.typesafeConfig
   compile externalDependency.findBugsAnnotations
-
+  compile externalDependency.jollyday
 
   testCompile project(":gobblin-test-utils")
   testCompile externalDependency.mockito

@@ -99,7 +99,7 @@ public final class KafkaPartition {
 
   @Override
   public String toString() {
-    return this.getTopicName() + ":" + this.getId();
+    return this.getTopicName() + "-" + this.getId();
   }
 
   @Override
