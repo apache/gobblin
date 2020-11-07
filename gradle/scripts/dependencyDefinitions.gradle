@@ -180,9 +180,7 @@ ext.externalDependency = [
     'parquet': 'org.apache.parquet:parquet-hadoop:1.11.1',
     'parquetAvro': 'org.apache.parquet:parquet-avro:1.11.1',
     'parquetProto': 'org.apache.parquet:parquet-protobuf:1.11.1',
-    'twitterParquet': 'com.twitter:parquet-hadoop-bundle:1.5.0',
-    'twitterParquetAvro': 'com.twitter:parquet-avro:1.5.0',
-    'twitterParquetProto': 'com.twitter:parquet-protobuf:1.5.0',
+    'parquetHadoop': 'org.apache.parquet:parquet-hadoop-bundle:1.11.1',
     'reactivex': 'io.reactivex.rxjava2:rxjava:2.1.0',
     "slf4j": [
         "org.slf4j:slf4j-api:" + slf4jVersion,
