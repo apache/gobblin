@@ -10,7 +10,7 @@ on:
       - v*
 
 env:
-  IMAGE_NAME: ghcr.io/will-lo/incubator-gobblin
+  IMAGE_NAME: ghcr.io/incubator-gobblin/gobblin-standalone
 
 jobs:
   build_and_push_to_registry:
