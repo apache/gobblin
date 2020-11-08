@@ -451,6 +451,10 @@ public class FlowSpec implements Configurable, Spec {
         flowConfig.setSchedule(schedule);
       }
 
+      if (flowProps.containsKey(ConfigurationKeys.FLOW_OWNING_GROUP_KEY)) {
+        flowConfig.setOwningGroup(flowProps.getProperty(ConfigurationKeys.FLOW_OWNING_GROUP_KEY));
+      }
+
       // remove keys that were injected as part of flowSpec creation
       flowProps.remove(ConfigurationKeys.JOB_SCHEDULE_KEY);
       flowProps.remove(ConfigurationKeys.JOB_TEMPLATE_PATH);

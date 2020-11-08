@@ -18,11 +18,13 @@
 package org.apache.gobblin.service;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
+import org.mortbay.jetty.HttpStatus;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -62,12 +64,18 @@ public class FlowConfigV2Test {
   private EmbeddedRestliServer _server;
   private File _testDirectory;
   private TestRequesterService _requesterService;
+  private GroupOwnershipService groupOwnershipService;
+  private File groupConfigFile;
 
   private static final String TEST_SPEC_STORE_DIR = "/tmp/flowConfigV2Test/";
   private static final String TEST_GROUP_NAME = "testGroup1";
   private static final String TEST_FLOW_NAME = "testFlow1";
   private static final String TEST_FLOW_NAME_2 = "testFlow2";
   private static final String TEST_FLOW_NAME_3 = "testFlow3";
+  private static final String TEST_FLOW_NAME_4 = "testFlow4";
+  private static final String TEST_FLOW_NAME_5 = "testFlow5";
+  private static final String TEST_FLOW_NAME_6 = "testFlow6";
+  private static final String TEST_FLOW_NAME_7 = "testFlow7";
   private static final String TEST_SCHEDULE = "0 1/0 * ? * *";
   private static final String TEST_TEMPLATE_URI = "FS:///templates/test.template";
 
@@ -90,6 +98,15 @@ public class FlowConfigV2Test {
 
     _requesterService = new TestRequesterService(ConfigFactory.empty());
 
+    this.groupConfigFile = new File(_testDirectory + "/TestGroups.json");
+    String groups ="{\"testGroup\": \"testName,testName2\"}";
+    Files.write(groups.getBytes(), this.groupConfigFile);
+    Config groupServiceConfig = ConfigBuilder.create()
+        .addPrimitive(LocalGroupOwnershipService.GROUP_MEMBER_LIST, this.groupConfigFile.getAbsolutePath())
+        .build();
+
+    groupOwnershipService = new LocalGroupOwnershipService(groupServiceConfig);
+
     Injector injector = Guice.createInjector(new Module() {
       @Override
       public void configure(Binder binder) {
@@ -98,6 +115,7 @@ public class FlowConfigV2Test {
         // been made
         binder.bindConstant().annotatedWith(Names.named(FlowConfigsV2Resource.INJECT_READY_TO_USE)).to(Boolean.TRUE);
         binder.bind(RequesterService.class).annotatedWith(Names.named(FlowConfigsV2Resource.INJECT_REQUESTER_SERVICE)).toInstance(_requesterService);
+        binder.bind(GroupOwnershipService.class).annotatedWith(Names.named(FlowConfigsV2Resource.INJECT_GROUP_OWNERSHIP_SERVICE)).toInstance(groupOwnershipService);
       }
     });
 
@@ -185,20 +203,102 @@ public class FlowConfigV2Test {
     _client.partialUpdateFlowConfig(flowId, flowConfigPatch);
   }
 
-  @Test (expectedExceptions = RestLiResponseException.class)
+  @Test
   public void testDisallowedRequester() throws Exception {
-    ServiceRequester testRequester = new ServiceRequester("testName", "testType", "testFrom");
+    try {
+      ServiceRequester testRequester = new ServiceRequester("testName", "testType", "testFrom");
+      _requesterService.setRequester(testRequester);
+
+      Map<String, String> flowProperties = Maps.newHashMap();
+      flowProperties.put("param1", "value1");
+
+      FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_4))
+          .setTemplateUris(TEST_TEMPLATE_URI)
+          .setProperties(new StringMap(flowProperties));
+      _client.createFlowConfig(flowConfig);
+
+      testRequester.setName("testName2");
+      _client.deleteFlowConfig(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_4));
+    } catch (RestLiResponseException e) {
+      Assert.assertEquals(e.getStatus(), HttpStatus.ORDINAL_401_Unauthorized);
+    }
+  }
+
+  @Test
+  public void testGroupRequesterAllowed() throws Exception {
+    ServiceRequester testRequester = new ServiceRequester("testName", "USER_PRINCIPAL", "testFrom");
     _requesterService.setRequester(testRequester);
-
     Map<String, String> flowProperties = Maps.newHashMap();
-    flowProperties.put("param1", "value1");
 
-    FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME))
-        .setTemplateUris(TEST_TEMPLATE_URI).setProperties(new StringMap(flowProperties));
-    _client.createFlowConfig(flowConfig);
+    FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_5))
+        .setTemplateUris(TEST_TEMPLATE_URI)
+        .setProperties(new StringMap(flowProperties))
+        .setOwningGroup("testGroup");
+
+     _client.createFlowConfig(flowConfig);
 
     testRequester.setName("testName2");
-    _client.deleteFlowConfig(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME));
+    _client.deleteFlowConfig(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_5));
+  }
+
+  @Test
+  public void testGroupRequesterRejected() throws Exception {
+    try {
+      ServiceRequester testRequester = new ServiceRequester("testName", "USER_PRINCIPAL", "testFrom");
+      _requesterService.setRequester(testRequester);
+      Map<String, String> flowProperties = Maps.newHashMap();
+
+      FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_6))
+          .setTemplateUris(TEST_TEMPLATE_URI)
+          .setProperties(new StringMap(flowProperties))
+          .setOwningGroup("testGroup");
+
+      _client.createFlowConfig(flowConfig);
+
+      testRequester.setName("testName3");
+      _client.deleteFlowConfig(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_6));
+    } catch (RestLiResponseException e) {
+      Assert.assertEquals(e.getStatus(), HttpStatus.ORDINAL_401_Unauthorized);
+    }
+  }
+
+  @Test
+  public void testLocalGroupOwnershipUpdates() throws Exception {
+    try {
+      ServiceRequester testRequester = new ServiceRequester("testName", "USER_PRINCIPAL", "testFrom");
+      _requesterService.setRequester(testRequester);
+      Map<String, String> flowProperties = Maps.newHashMap();
+
+      FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_7))
+          .setTemplateUris(TEST_TEMPLATE_URI)
+          .setProperties(new StringMap(flowProperties))
+          .setOwningGroup("testGroup2");
+
+      _client.createFlowConfig(flowConfig);
+
+    } catch (RestLiResponseException e) {
+      Assert.assertEquals(e.getStatus(), HttpStatus.ORDINAL_401_Unauthorized);
+    }
+
+    String filePath = this.groupConfigFile.getAbsolutePath();
+    this.groupConfigFile.delete();
+    this.groupConfigFile = new File(filePath);
+    String groups ="{\"testGroup2\": \"testName,testName3\"}";
+    Files.write(groups.getBytes(), this.groupConfigFile);
+
+    ServiceRequester testRequester = new ServiceRequester("testName", "USER_PRINCIPAL", "testFrom");
+    _requesterService.setRequester(testRequester);
+    Map<String, String> flowProperties = Maps.newHashMap();
+
+    FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_7))
+        .setTemplateUris(TEST_TEMPLATE_URI)
+        .setProperties(new StringMap(flowProperties))
+        .setOwningGroup("testGroup2");
+
+    // this should no longer fail as the localGroupOwnership service should have updated as the file changed
+    _client.createFlowConfig(flowConfig);
+    testRequester.setName("testName3");
+    _client.deleteFlowConfig(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_7));
   }
 
   @AfterClass(alwaysRun = true)
@@ -225,6 +325,17 @@ public class FlowConfigV2Test {
     @Override
     public List<ServiceRequester> findRequesters(BaseResource resource) {
       return requester == null ? Lists.newArrayList() : Lists.newArrayList(requester);
+    }
+
+    @Override
+    public boolean isRequesterAllowed(
+        List<ServiceRequester> originalRequesterList, List<ServiceRequester> currentRequesterList) {
+      for (ServiceRequester s: currentRequesterList) {
+        if (originalRequesterList.contains(s)) {
+          return true;
+        }
+      }
+      return false;
     }
   }
 }

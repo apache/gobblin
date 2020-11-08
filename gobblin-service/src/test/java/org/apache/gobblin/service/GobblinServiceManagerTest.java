@@ -81,6 +81,7 @@ public class GobblinServiceManagerTest {
   private static final String GIT_REMOTE_REPO_DIR = "/tmp/serviceCore/remote";
   private static final String GIT_LOCAL_REPO_DIR = "/tmp/serviceCore/local";
   private static final String JOB_STATUS_STATE_STORE_DIR = "/tmp/serviceCore/fsJobStatusRetriever";
+  private static final String GROUP_OWNERSHIP_CONFIG_DIR = Files.createTempDir().getAbsolutePath();
 
   private static final String TEST_GROUP_NAME = "testGroup";
   private static final String TEST_FLOW_NAME = "testFlow";
@@ -202,6 +203,13 @@ public class GobblinServiceManagerTest {
     } catch (Exception e) {
       logger.warn("Could not completely cleanup Spec Store Parent Dir");
     }
+
+    try {
+      cleanUpDir(GROUP_OWNERSHIP_CONFIG_DIR);
+    } catch (Exception e) {
+      logger.warn("Could not completely cleanup Group Ownership Parent Dir");
+    }
+
     try {
       this.testingServer.close();
     } catch(Exception e) {

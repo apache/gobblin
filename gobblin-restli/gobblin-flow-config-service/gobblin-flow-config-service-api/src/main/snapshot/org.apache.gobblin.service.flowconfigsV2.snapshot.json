@@ -68,6 +68,11 @@
       "doc" : "Return the compiled flow as a string. If enabled, the flow is not added.",
       "default" : false
     }, {
+      "name" : "owningGroup",
+      "type" : "string",
+      "doc" : "Optional string name of group that the requester belongs to for group ownership of flows.",
+      "optional" : true
+    }, {
       "name" : "properties",
       "type" : {
         "type" : "map",

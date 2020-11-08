@@ -129,4 +129,7 @@ public class ServiceConfigKeys {
 
   public static final String FORCE_LEADER = GOBBLIN_SERVICE_PREFIX + "forceLeader";
   public static final boolean DEFAULT_FORCE_LEADER = false;
+  // Group Membership authentication service
+  public static final String GROUP_OWNERSHIP_SERVICE_CLASS = GOBBLIN_SERVICE_PREFIX + "groupOwnershipService.class";
+  public static final String DEFAULT_GROUP_OWNERSHIP_SERVICE = "org.apache.gobblin.service.NoopGroupOwnershipService";
 }

@@ -31,6 +31,8 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
+import org.apache.gobblin.service.GroupOwnershipService;
+import org.apache.gobblin.service.NoopGroupOwnershipService;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -155,6 +157,8 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
   protected GobblinServiceFlowExecutionResourceHandler flowExecutionResourceHandler;
   @Getter
   protected FlowStatusGenerator flowStatusGenerator;
+  @Getter
+  protected GroupOwnershipService groupOwnershipService;
 
   protected boolean flowCatalogLocalCommit;
   @Getter
@@ -304,6 +308,16 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     this.isRestLIServerEnabled = ConfigUtils.getBoolean(config,
         ServiceConfigKeys.GOBBLIN_SERVICE_RESTLI_SERVER_ENABLED_KEY, true);
 
+    ClassAliasResolver<GroupOwnershipService> groupOwnershipAliasResolver = new ClassAliasResolver<>(GroupOwnershipService.class);
+    String groupOwnershipServiceClass = ServiceConfigKeys.DEFAULT_GROUP_OWNERSHIP_SERVICE;
+    LOGGER.info("I am here " + groupOwnershipServiceClass);
+    if (config.hasPath(ServiceConfigKeys.GROUP_OWNERSHIP_SERVICE_CLASS)) {
+      groupOwnershipServiceClass = config.getString(ServiceConfigKeys.GROUP_OWNERSHIP_SERVICE_CLASS);
+      LOGGER.info("Initializing with group ownership service " + groupOwnershipServiceClass);
+    }
+     this.groupOwnershipService = GobblinConstructorUtils.invokeConstructor(GroupOwnershipService.class,
+          groupOwnershipAliasResolver.resolve(groupOwnershipServiceClass), config);
+
     if (isRestLIServerEnabled) {
       Injector injector = Guice.createInjector(new Module() {
         @Override
@@ -329,6 +343,9 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
           binder.bind(RequesterService.class)
               .annotatedWith(Names.named(FlowConfigsV2Resource.INJECT_REQUESTER_SERVICE))
               .toInstance(new NoopRequesterService(config));
+          binder.bind(GroupOwnershipService.class)
+              .annotatedWith(Names.named(FlowConfigsV2Resource.INJECT_GROUP_OWNERSHIP_SERVICE))
+              .toInstance(GobblinServiceManager.this.groupOwnershipService);
         }
       });
       this.restliServer = EmbeddedRestliServer.builder()
