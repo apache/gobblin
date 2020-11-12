@@ -51,12 +51,11 @@ import org.apache.hadoop.fs.Path;
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.node.ArrayNode;
-import org.codehaus.jackson.node.JsonNodeFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.beust.jcommander.internal.Lists;
 import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 import lombok.extern.slf4j.Slf4j;
@@ -237,8 +236,6 @@ public class AvroUtilsTest {
     String originalNamespace = "originalNamespace";
     String originalName = "originalName";
     String newNamespace = "newNamespace";
-    //Schema schema = SchemaBuilder.builder(originalNamespace).record(originalName).fields().
-    //    requiredDouble("double").optionalFloat("float").endRecord();
 
     Schema schema = Schema.createRecord(originalName, "", originalNamespace, false);
     schema.addProp("prop1", "val1");
