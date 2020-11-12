@@ -781,11 +781,19 @@ public class AvroUtils {
           for (Schema.Field oldField : schema.getFields()) {
             Field newField = new Field(oldField.name(), switchNamespace(oldField.schema(), namespaceOverride), oldField.doc(),
                 oldField.defaultValue(), oldField.order());
+            // Copy field level properties
+            for (Map.Entry<String, JsonNode> prop : oldField.getJsonProps().entrySet()) {
+              newField.addProp(prop.getKey(), prop.getValue());
+            }
             newFields.add(newField);
           }
         }
         newSchema = Schema.createRecord(schema.getName(), schema.getDoc(), newNamespace,
             schema.isError());
+        // Copy schema level properties
+        for (Map.Entry<String, JsonNode> prop : schema.getJsonProps().entrySet()) {
+          newSchema.addProp(prop.getKey(), prop.getValue());
+        }
         newSchema.setFields(newFields);
         break;
       case UNION:
