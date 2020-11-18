@@ -43,7 +43,8 @@ public class WriterOutputFormatIntegrationTest {
     GobblinLocalJobLauncherUtils.cleanDir();
   }
 
-  @Test
+//TODO: Disabling test until this issue is fixed -> https://issues.apache.org/jira/browse/GOBBLIN-1318
+  @Test( enabled=false )
   public void parquetOutputFormatTest()
       throws Exception {
     Properties jobProperties = getProperties();

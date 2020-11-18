@@ -20,19 +20,19 @@ import java.io.IOException;
 
 import org.apache.avro.Schema;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.parquet.avro.AvroParquetWriter;
+import org.apache.parquet.column.ParquetProperties;
+import org.apache.parquet.example.data.Group;
+import org.apache.parquet.hadoop.ParquetWriter;
+import org.apache.parquet.hadoop.api.WriteSupport;
+import org.apache.parquet.hadoop.example.GroupWriteSupport;
+import org.apache.parquet.hadoop.metadata.CompressionCodecName;
+import org.apache.parquet.proto.ProtoParquetWriter;
+import org.apache.parquet.schema.MessageType;
 
 import com.google.protobuf.Message;
 
 import lombok.extern.slf4j.Slf4j;
-import parquet.avro.AvroParquetWriter;
-import parquet.column.ParquetProperties;
-import parquet.example.data.Group;
-import parquet.hadoop.ParquetWriter;
-import parquet.hadoop.api.WriteSupport;
-import parquet.hadoop.example.GroupWriteSupport;
-import parquet.hadoop.metadata.CompressionCodecName;
-import parquet.proto.ProtoParquetWriter;
-import parquet.schema.MessageType;
 
 import org.apache.gobblin.parquet.writer.AbstractParquetDataWriterBuilder;
 import org.apache.gobblin.parquet.writer.ParquetWriterConfiguration;

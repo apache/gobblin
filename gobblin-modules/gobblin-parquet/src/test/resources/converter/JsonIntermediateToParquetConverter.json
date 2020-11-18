@@ -54,7 +54,7 @@
       }
     ],
     "expectedRecord": "a: 5 ; b: 5.0 ; c: 8.0 ; d: true ; e: somestring ; f: 2018-01-01 ; g: 1545083047 ;",
-    "expectedSchema": "message test_table{ ; required int32 a ;  ; required float b ;  ; required double c ;  ; required boolean d ;  ; required binary e (UTF8) ;  ; required binary f (UTF8) ;  ; required binary g (UTF8) ;  ; } ; "
+    "expectedSchema": "message test_table{ ; required int32 a ;  ; required float b ;  ; required double c ;  ; required boolean d ;  ; required binary e (STRING) ;  ; required binary f (STRING) ;  ; required binary g (STRING) ;  ; } ; "
   },
   "array": {
     "record": {
@@ -134,7 +134,7 @@
       }
     ],
     "expectedRecord": "somearray ;  item:1 ;  item:2 ;  item:3 ; somearray1 ;  item:1 ;  item:2 ;  item:3 ; somearray2 ;  item:1.0 ;  item:2.0 ;  item:3.0 ; somearray3 ;  item:1.0 ;  item:2.0 ;  item:3.0 ; somearray4 ;  item:true ;  item:false ;  item:true ; somearray5 ;  item:hello ;  item:world ; ",
-    "expectedSchema": "message test_table {  ;  optional group somearray {  ; repeated int32 item ;  ; } ;  required groupsomearray1 {  ; repeated int64 item ;  ; } ;  required groupsomearray2 {  ; repeated float item ;  ; } ;  required groupsomearray3 {  ; repeated double item ;  ; } ;  required groupsomearray4 {  ; repeated boolean item ;  ; } ;  required groupsomearray5 {  ; repeated binary item(UTF8) ;  ; } ; } ; "
+    "expectedSchema": "message test_table {  ;  optional group somearray {  ; repeated int32 item ;  ; } ;  required groupsomearray1 {  ; repeated int64 item ;  ; } ;  required groupsomearray2 {  ; repeated float item ;  ; } ;  required groupsomearray3 {  ; repeated double item ;  ; } ;  required groupsomearray4 {  ; repeated boolean item ;  ; } ;  required groupsomearray5 {  ; repeated binary item(STRING) ;  ; } ; } ; "
   },
   "enum": {
     "record": {
@@ -154,7 +154,7 @@
       }
     ],
     "expectedRecord": "some_enum : HELLO ;",
-    "expectedSchema": "message test_table { ; optional binary some_enum (UTF8) ;; } ;"
+    "expectedSchema": "message test_table { ; optional binary some_enum (STRING) ;; } ;"
   },
   "enum1": {
     "record": {
@@ -174,7 +174,7 @@
       }
     ],
     "expectedRecord": "some_enum : HELLO ;",
-    "expectedSchema": "message test_table { ; required binary some_enum (UTF8) ;; } ;"
+    "expectedSchema": "message test_table { ; required binary some_enum (STRING) ;; } ;"
   },
   "record": {
     "record": {
@@ -218,7 +218,7 @@
       }
     ],
     "expectedRecord": "some_record ; name:me ; age:22 ; some_array ; item:3 ; item:4 ; item:5 ;",
-    "expectedSchema": "message test_table {  ; required group some_record {  ; required binary name (UTF8) ;  ; required int64 age ;  ; required group some_array {  ; repeated int32 item ; ; } ; } ;  } ; "
+    "expectedSchema": "message test_table {  ; required group some_record {  ; required binary name (STRING) ;  ; required int64 age ;  ; required group some_array {  ; repeated int32 item ; ; } ; } ;  } ; "
   },
   "map": {
     "schema": [
@@ -238,7 +238,7 @@
       }
     },
     "expectedRecord": "cityToCountry; map; key:ny;value:US; map; key:london;value:UK; map; key:delhi;value:India;",
-    "expectedSchema": "message test_table {  ;   required groupcityToCountry {  ;  repeated group map {  ;   required binary key (UTF8) ;   ;   required binary value (UTF8) ;   ;  } ;  } ;  } ;"
+    "expectedSchema": "message test_table {  ;   required groupcityToCountry {  ;  repeated group map {  ;   required binary key (STRING) ;   ;   required binary value (STRING) ;   ;  } ;  } ;  } ;"
   },
   "nullValueInOptionalField": {
     "record": {
