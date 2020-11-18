@@ -28,7 +28,7 @@ dependencies {
   testCompile externalDependency.calciteAvatica
   testCompile externalDependency.jhyde
   testCompile externalDependency.testng
-  testCompile externalDependency.twitterParquet
+  testCompile externalDependency.parquetHadoop
 }
 
 configurations { compile { transitive = false } }

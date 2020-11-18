@@ -22,37 +22,37 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.parquet.example.data.Group;
+import org.apache.parquet.example.data.simple.BinaryValue;
+import org.apache.parquet.example.data.simple.BooleanValue;
+import org.apache.parquet.example.data.simple.DoubleValue;
+import org.apache.parquet.example.data.simple.FloatValue;
+import org.apache.parquet.example.data.simple.IntegerValue;
+import org.apache.parquet.example.data.simple.LongValue;
+import org.apache.parquet.io.api.Binary;
+import org.apache.parquet.schema.GroupType;
+import org.apache.parquet.schema.LogicalTypeAnnotation;
+import org.apache.parquet.schema.MessageType;
+import org.apache.parquet.schema.PrimitiveType;
+import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName;
+import org.apache.parquet.schema.Type;
+import org.apache.parquet.schema.Types;
+
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
-import parquet.example.data.Group;
-import parquet.example.data.simple.BinaryValue;
-import parquet.example.data.simple.BooleanValue;
-import parquet.example.data.simple.DoubleValue;
-import parquet.example.data.simple.FloatValue;
-import parquet.example.data.simple.IntegerValue;
-import parquet.example.data.simple.LongValue;
-import parquet.io.api.Binary;
-import parquet.schema.GroupType;
-import parquet.schema.MessageType;
-import parquet.schema.PrimitiveType;
-import parquet.schema.PrimitiveType.PrimitiveTypeName;
-import parquet.schema.Type;
-import parquet.schema.Types;
-
 import org.apache.gobblin.converter.parquet.JsonSchema.*;
 
+import static org.apache.gobblin.converter.parquet.JsonElementConversionFactory.RecordConverter.RecordType.CHILD;
 import static org.apache.gobblin.converter.parquet.JsonSchema.*;
 import static org.apache.gobblin.converter.parquet.JsonSchema.InputType.STRING;
-import static org.apache.gobblin.converter.parquet.JsonElementConversionFactory.RecordConverter.RecordType.CHILD;
-import static parquet.schema.OriginalType.UTF8;
-import static parquet.schema.PrimitiveType.PrimitiveTypeName.BINARY;
-import static parquet.schema.PrimitiveType.PrimitiveTypeName.INT32;
-import static parquet.schema.PrimitiveType.PrimitiveTypeName.INT64;
-import static parquet.schema.Type.Repetition.OPTIONAL;
-import static parquet.schema.Type.Repetition.REPEATED;
-import static parquet.schema.Type.Repetition.REQUIRED;
+import static org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.BINARY;
+import static org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.INT32;
+import static org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.INT64;
+import static org.apache.parquet.schema.Type.Repetition.OPTIONAL;
+import static org.apache.parquet.schema.Type.Repetition.REPEATED;
+import static org.apache.parquet.schema.Type.Repetition.REQUIRED;
 
 
 /**
@@ -293,13 +293,13 @@ public class JsonElementConversionFactory {
     protected Type buildSchema() {
       String columnName = this.jsonSchema.getColumnName();
       if (this.repeated) {
-        return Types.repeated(BINARY).as(UTF8).named(columnName);
+        return Types.repeated(BINARY).as(LogicalTypeAnnotation.StringLogicalTypeAnnotation.stringType()).named(columnName);
       }
       switch (optionalOrRequired(this.jsonSchema)) {
         case OPTIONAL:
-          return Types.optional(BINARY).as(UTF8).named(columnName);
+          return Types.optional(BINARY).as(LogicalTypeAnnotation.StringLogicalTypeAnnotation.stringType()).named(columnName);
         case REQUIRED:
-          return Types.required(BINARY).as(UTF8).named(columnName);
+          return Types.required(BINARY).as(LogicalTypeAnnotation.StringLogicalTypeAnnotation.stringType()).named(columnName);
         default:
           throw new RuntimeException("Unsupported Repetition type");
       }

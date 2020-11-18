@@ -19,23 +19,23 @@ package org.apache.gobblin.converter.parquet;
 import java.util.ArrayList;
 import java.util.List;
 
-import parquet.example.data.Group;
-import parquet.example.data.simple.BinaryValue;
-import parquet.example.data.simple.BooleanValue;
-import parquet.example.data.simple.DoubleValue;
-import parquet.example.data.simple.FloatValue;
-import parquet.example.data.simple.Int96Value;
-import parquet.example.data.simple.IntegerValue;
-import parquet.example.data.simple.LongValue;
-import parquet.example.data.simple.NanoTime;
-import parquet.example.data.simple.Primitive;
-import parquet.io.api.Binary;
-import parquet.io.api.RecordConsumer;
-import parquet.schema.GroupType;
-import parquet.schema.PrimitiveType;
-import parquet.schema.Type;
+import org.apache.parquet.example.data.Group;
+import org.apache.parquet.example.data.simple.BinaryValue;
+import org.apache.parquet.example.data.simple.BooleanValue;
+import org.apache.parquet.example.data.simple.DoubleValue;
+import org.apache.parquet.example.data.simple.FloatValue;
+import org.apache.parquet.example.data.simple.Int96Value;
+import org.apache.parquet.example.data.simple.IntegerValue;
+import org.apache.parquet.example.data.simple.LongValue;
+import org.apache.parquet.example.data.simple.NanoTime;
+import org.apache.parquet.example.data.simple.Primitive;
+import org.apache.parquet.io.api.Binary;
+import org.apache.parquet.io.api.RecordConsumer;
+import org.apache.parquet.schema.GroupType;
+import org.apache.parquet.schema.PrimitiveType;
+import org.apache.parquet.schema.Type;
 
-import static parquet.schema.Type.Repetition.REPEATED;
+import static org.apache.parquet.schema.Type.Repetition.REPEATED;
 
 
 /**
@@ -140,6 +140,22 @@ public class ParquetGroup extends Group {
     return ((IntegerValue) this.getValue(fieldIndex, index)).getInteger();
   }
 
+  @Override
+  public long getLong(int fieldIndex, int index) {
+    return ((LongValue) this.getValue(fieldIndex, index)).getLong();
+
+  }
+
+  @Override
+  public double getDouble(int fieldIndex, int index) {
+    return ((DoubleValue) this.getValue(fieldIndex, index)).getDouble();
+  }
+
+  @Override
+  public float getFloat(int fieldIndex, int index) {
+    return ((FloatValue) this.getValue(fieldIndex, index)).getFloat();
+  }
+
   public boolean getBoolean(int fieldIndex, int index) {
     return ((BooleanValue) this.getValue(fieldIndex, index)).getBoolean();
   }
@@ -192,6 +208,11 @@ public class ParquetGroup extends Group {
 
   public void add(int fieldIndex, double value) {
     this.add(fieldIndex, new DoubleValue(value));
+  }
+
+  @Override
+  public void add(int i, Group group) {
+    this.data[i].add(group);
   }
 
   public GroupType getType() {
