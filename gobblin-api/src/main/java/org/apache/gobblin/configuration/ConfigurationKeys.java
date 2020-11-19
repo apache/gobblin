@@ -502,6 +502,10 @@ public class ConfigurationKeys {
   public static final boolean DEFAULT_SCHEMA_IN_SOURCE_DIR = false;
   public static final String SCHEMA_FILENAME = "schema.filename";
   public static final String DEFAULT_SCHEMA_FILENAME = "metadata.json";
+  // An optional configuration for extractor's specific implementation to set, which helps data writer
+  // tune some parameters that are relevant to the record size.
+  // See the reference GobblinOrcWriter as an example.
+  public static final String AVG_RECORD_SIZE = "avg.record.size";
 
   // Comma-separated source entity names
   public static final String SOURCE_ENTITIES = "source.entities";

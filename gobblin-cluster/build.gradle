@@ -85,14 +85,12 @@ configurations {
   }
 }
 // Generates a maven test artifact (gobblin-cluster-test)
-project.publishing {
-  publications {
-    testsPub(MavenPublication) {
-      artifactId "${project.archivesBaseName}-test"
-      artifacts = [testJar]
-      pom pomAttributes
-      pom.withXml addRuntimeDependenciesToPom
-    }
+project.publishing.publications {
+  testsPub(MavenPublication) {
+    artifactId "${project.archivesBaseName}-test"
+    artifacts = [testJar]
+    pom pomAttributes
+    pom.withXml addRuntimeDependenciesToPom
   }
 }
 addPublicationToBintray("testsPub")

@@ -29,6 +29,7 @@ dependencies {
   compile externalDependency.hiveStorageApi
   compile externalDependency.orcCore
 
+
   testCompile externalDependency.testng
   testCompile externalDependency.mockito
   testCompile externalDependency.hiveSerDe
