@@ -90,9 +90,9 @@ import static org.apache.hadoop.security.UserGroupInformation.HADOOP_TOKEN_FILE_
  * </p>
  *
  * <p>
- *   If the Azkaban job type is not contained in {@link #JOB_TYPES_WITH_AUTOMATIC_TOKEN}, the launcher assumes that
- *   the job does not get authentication tokens from Azkaban and it will negotiate them itself.
- *   See {@link TokenUtils#getHadoopTokens} for more information.
+ *   The launcher will use Hadoop token provided in environment variable
+ *   {@link org.apache.hadoop.security.UserGroupInformation#HADOOP_TOKEN_FILE_LOCATION}.
+ *   If it is missing, the launcher will get a token using {@link TokenUtils#getHadoopTokens}.
  * </p>
  *
  * @author Yinan Li
@@ -111,12 +111,6 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
 
   private static final String AZKABAN_GOBBLIN_JOB_SLA_IN_SECONDS = "gobblin.azkaban.SLAInSeconds";
   private static final String DEFAULT_AZKABAN_GOBBLIN_JOB_SLA_IN_SECONDS = "-1"; // No SLA.
-
-  private static final String HADOOP_JAVA_JOB = "hadoopJava";
-  private static final String JAVA_JOB = "java";
-  private static final String GOBBLIN_JOB = "gobblin";
-  private static final Set<String> JOB_TYPES_WITH_AUTOMATIC_TOKEN =
-      Sets.newHashSet(HADOOP_JAVA_JOB, JAVA_JOB, GOBBLIN_JOB);
 
   private final Closer closer = Closer.create();
   private final JobLauncher jobLauncher;
@@ -175,18 +169,14 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
     this.props
         .setProperty(ConfigurationKeys.JOB_TRACKING_URL_KEY, Strings.nullToEmpty(conf.get(AZKABAN_LINK_JOBEXEC_URL)));
 
-    if (props.containsKey(JOB_TYPE) && JOB_TYPES_WITH_AUTOMATIC_TOKEN.contains(props.getProperty(JOB_TYPE))) {
-      // Necessary for compatibility with Azkaban's hadoopJava job type
-      // http://azkaban.github.io/azkaban/docs/2.5/#hadoopjava-type
-      LOG.info(
-          "Job type " + props.getProperty(JOB_TYPE) + " provides Hadoop tokens automatically. Using provided tokens.");
-      if (System.getenv(HADOOP_TOKEN_FILE_LOCATION) != null) {
-        this.props.setProperty(MAPREDUCE_JOB_CREDENTIALS_BINARY, System.getenv(HADOOP_TOKEN_FILE_LOCATION));
-      }
+    if (System.getenv(HADOOP_TOKEN_FILE_LOCATION) != null) {
+      LOG.info("Job type " + props.getProperty(JOB_TYPE) + " provided Hadoop token in the environment variable "
+          + HADOOP_TOKEN_FILE_LOCATION);
+      this.props.setProperty(MAPREDUCE_JOB_CREDENTIALS_BINARY, System.getenv(HADOOP_TOKEN_FILE_LOCATION));
     } else {
       // see javadoc for more information
-      LOG.info(String.format("Job type %s does not provide Hadoop tokens. Negotiating Hadoop tokens.",
-          props.getProperty(JOB_TYPE)));
+      LOG.info("Job type " + props.getProperty(JOB_TYPE) + " did not provide Hadoop token in the environment variable "
+          + HADOOP_TOKEN_FILE_LOCATION + ". Negotiating Hadoop tokens.");
 
       File tokenFile = File.createTempFile("mr-azkaban", ".token");
       TokenUtils.getHadoopTokens(new State(props), Optional.of(tokenFile), new Credentials());

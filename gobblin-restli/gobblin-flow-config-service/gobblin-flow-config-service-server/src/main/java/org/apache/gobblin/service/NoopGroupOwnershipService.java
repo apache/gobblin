@@ -14,27 +14,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.gobblin.service;
 
-apply plugin: 'java'
+import com.typesafe.config.Config;
+import java.util.List;
+import org.apache.gobblin.annotation.Alias;
 
-dependencies {
-  testCompile project(":gobblin-api")
-  testCompile project(":gobblin-core")
-  testCompile project(":gobblin-runtime")
-  testCompile project(":gobblin-data-management")
 
-  testCompile externalDependency.bytemanBmunit
-  testCompile externalDependency.calciteCore
-  testCompile externalDependency.calciteAvatica
-  testCompile externalDependency.jhyde
-  testCompile externalDependency.testng
-  testCompile externalDependency.parquetHadoop
+@Alias("noop")
+public class NoopGroupOwnershipService extends GroupOwnershipService{
+
+   public NoopGroupOwnershipService(Config config) {
+   }
+
+   public boolean isMemberOfGroup(List<ServiceRequester> serviceRequesters, String group) {
+      return true;
+   }
 }
-
-configurations { compile { transitive = false } }
-
-test {
-  workingDir rootProject.rootDir
-}
-
-ext.classification="library"

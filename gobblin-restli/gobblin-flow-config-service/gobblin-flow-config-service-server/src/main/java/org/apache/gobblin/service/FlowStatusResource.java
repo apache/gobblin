@@ -58,13 +58,14 @@ public class FlowStatusResource extends ComplexKeyResourceTemplate<FlowStatusId,
   @Override
   public FlowStatus get(ComplexResourceKey<FlowStatusId, EmptyRecord> key) {
     // this returns null to raise a 404 error if flowStatus is null
-    return convertFlowStatus(FlowExecutionResource.getFlowStatusFromGenerator(key, this._flowStatusGenerator));
+    return convertFlowStatus(FlowExecutionResourceLocalHandler.getFlowStatusFromGenerator(key, this._flowStatusGenerator));
   }
 
   @Finder("latestFlowStatus")
   public List<FlowStatus> getLatestFlowStatus(@Context PagingContext context,
       @QueryParam("flowId") FlowId flowId, @Optional @QueryParam("count") Integer count, @Optional @QueryParam("tag") String tag) {
-    List<org.apache.gobblin.service.monitoring.FlowStatus> flowStatuses = FlowExecutionResource.getLatestFlowStatusesFromGenerator(flowId, count, tag, null, this._flowStatusGenerator);
+    List<org.apache.gobblin.service.monitoring.FlowStatus> flowStatuses = FlowExecutionResourceLocalHandler
+        .getLatestFlowStatusesFromGenerator(flowId, count, tag, null, this._flowStatusGenerator);
 
     if (flowStatuses != null) {
       return flowStatuses.stream().map(this::convertFlowStatus).collect(Collectors.toList());
@@ -81,7 +82,7 @@ public class FlowStatusResource extends ComplexKeyResourceTemplate<FlowStatusId,
    * @return a {@link org.apache.gobblin.service.FlowStatus} converted from a {@link org.apache.gobblin.service.monitoring.FlowStatus}
    */
   private FlowStatus convertFlowStatus(org.apache.gobblin.service.monitoring.FlowStatus monitoringFlowStatus) {
-    FlowExecution flowExecution = FlowExecutionResource.convertFlowStatus(monitoringFlowStatus);
+    FlowExecution flowExecution = FlowExecutionResourceLocalHandler.convertFlowStatus(monitoringFlowStatus);
     return new FlowStatus()
         .setId(flowExecution.getId())
         .setExecutionStatistics(flowExecution.getExecutionStatistics())

@@ -22,6 +22,8 @@ import java.net.URISyntaxException;
 
 import org.apache.commons.cli.CommandLine;
 
+import com.google.common.base.Joiner;
+
 import org.apache.gobblin.annotation.Alias;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.publisher.BaseDataPublisher;
@@ -35,8 +37,6 @@ import org.apache.gobblin.runtime.template.ResourceBasedJobTemplate;
 import org.apache.gobblin.writer.AvroDataWriterBuilder;
 import org.apache.gobblin.writer.Destination;
 import org.apache.gobblin.writer.WriterOutputFormat;
-
-import avro.shaded.com.google.common.base.Joiner;
 
 
 /**

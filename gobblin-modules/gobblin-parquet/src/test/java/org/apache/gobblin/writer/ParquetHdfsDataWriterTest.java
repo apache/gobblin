@@ -29,15 +29,15 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import parquet.avro.AvroParquetReader;
-import parquet.example.data.Group;
-import parquet.example.data.simple.convert.GroupRecordConverter;
-import parquet.hadoop.ParquetReader;
-import parquet.hadoop.api.InitContext;
-import parquet.hadoop.api.ReadSupport;
-import parquet.io.api.RecordMaterializer;
-import parquet.proto.ProtoParquetReader;
-import parquet.schema.MessageType;
+import org.apache.parquet.avro.AvroParquetReader;
+import org.apache.parquet.example.data.Group;
+import org.apache.parquet.example.data.simple.convert.GroupRecordConverter;
+import org.apache.parquet.hadoop.ParquetReader;
+import org.apache.parquet.hadoop.api.InitContext;
+import org.apache.parquet.hadoop.api.ReadSupport;
+import org.apache.parquet.io.api.RecordMaterializer;
+import org.apache.parquet.proto.ProtoParquetReader;
+import org.apache.parquet.schema.MessageType;
 
 import org.apache.gobblin.parquet.writer.ParquetRecordFormat;
 import org.apache.gobblin.parquet.writer.test.ParquetHdfsDataWriterTestBase;

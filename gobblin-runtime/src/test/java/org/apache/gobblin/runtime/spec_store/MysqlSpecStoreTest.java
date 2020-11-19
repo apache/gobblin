@@ -62,7 +62,8 @@ public class MysqlSpecStoreTest {
   private final URI uri1 = FlowSpec.Utils.createFlowSpecUri(new FlowId().setFlowName("fg1").setFlowGroup("fn1"));
   private final URI uri2 = FlowSpec.Utils.createFlowSpecUri(new FlowId().setFlowName("fg2").setFlowGroup("fn2"));
   private final URI uri3 = FlowSpec.Utils.createFlowSpecUri(new FlowId().setFlowName("fg3").setFlowGroup("fn3"));
-  private FlowSpec flowSpec1, flowSpec2, flowSpec3;
+  private final URI uri4 = FlowSpec.Utils.createFlowSpecUri(new FlowId().setFlowName("fg4").setFlowGroup("fn4"));
+  private FlowSpec flowSpec1, flowSpec2, flowSpec3, flowSpec4;
 
   public MysqlSpecStoreTest()
       throws URISyntaxException {
@@ -113,6 +114,17 @@ public class MysqlSpecStoreTest {
         .withDescription("Test flow spec 3")
         .withVersion("Test version 3")
         .build();
+
+    flowSpec4 = FlowSpec.builder(this.uri4)
+        .withConfig(ConfigBuilder.create().addPrimitive("key4", "value4")
+            .addPrimitive(FLOW_SOURCE_IDENTIFIER_KEY, "source")
+            .addPrimitive(FLOW_DESTINATION_IDENTIFIER_KEY, "destination")
+            .addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, "fg4")
+            .addPrimitive(ConfigurationKeys.FLOW_NAME_KEY, "fn4")
+            .addPrimitive(ConfigurationKeys.FLOW_OWNING_GROUP_KEY, "owningGroup4").build())
+        .withDescription("Test flow spec 4")
+        .withVersion("Test version 4")
+        .build();
   }
 
   @Test(expectedExceptions = IOException.class)
@@ -126,9 +138,10 @@ public class MysqlSpecStoreTest {
   public void testAddSpec() throws Exception {
     this.specStore.addSpec(this.flowSpec1);
     this.specStore.addSpec(this.flowSpec2);
-
+    this.specStore.addSpec(this.flowSpec4);
     Assert.assertTrue(this.specStore.exists(this.uri1));
     Assert.assertTrue(this.specStore.exists(this.uri2));
+    Assert.assertTrue(this.specStore.exists(this.uri4));
     Assert.assertFalse(this.specStore.exists(URI.create("dummy")));
   }
 
@@ -138,7 +151,7 @@ public class MysqlSpecStoreTest {
     Assert.assertEquals(result, this.flowSpec1);
 
     Collection<Spec> specs = this.specStore.getSpecs();
-    Assert.assertEquals(specs.size(), 2);
+    Assert.assertEquals(specs.size(), 3);
     Assert.assertTrue(specs.contains(this.flowSpec1));
     Assert.assertTrue(specs.contains(this.flowSpec2));
 
@@ -180,24 +193,17 @@ public class MysqlSpecStoreTest {
     specs = this.specStore.getSpecs(flowSpecSearchObject);
     Assert.assertEquals(specs.size(), 1);
     Assert.assertTrue(specs.contains(this.flowSpec1));
+
+    flowSpecSearchObject = FlowSpecSearchObject.builder().owningGroup("owningGroup4").build();
+    specs = this.specStore.getSpecs(flowSpecSearchObject);
+    Assert.assertEquals(specs.size(), 1);
+    Assert.assertTrue(specs.contains(this.flowSpec4));
   }
 
   @Test  (dependsOnMethods = "testGetSpec")
   public void testGetSpecWithTag() throws Exception {
 
     //Creating and inserting flowspecs with tags
-    URI uri4 = URI.create("flowspec4");
-    FlowSpec flowSpec4 = FlowSpec.builder(uri4)
-        .withConfig(ConfigBuilder.create()
-            .addPrimitive(FLOW_SOURCE_IDENTIFIER_KEY, "source")
-            .addPrimitive(FLOW_DESTINATION_IDENTIFIER_KEY, "destination")
-            .addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, "fg4")
-            .addPrimitive(ConfigurationKeys.FLOW_NAME_KEY, "fn4")
-            .addPrimitive("key4", "value4").build())
-        .withDescription("Test flow spec 4")
-        .withVersion("Test version 4")
-        .build();
-
     URI uri5 = URI.create("flowspec5");
     FlowSpec flowSpec5 = FlowSpec.builder(uri5)
         .withConfig(ConfigBuilder.create()
@@ -210,11 +216,23 @@ public class MysqlSpecStoreTest {
         .withVersion("Test version 5")
         .build();
 
-    this.specStore.addSpec(flowSpec4, "dr");
-    this.specStore.addSpec(flowSpec5, "dr");
+    URI uri6 = URI.create("flowspec6");
+    FlowSpec flowSpec6 = FlowSpec.builder(uri6)
+        .withConfig(ConfigBuilder.create()
+            .addPrimitive(FLOW_SOURCE_IDENTIFIER_KEY, "source")
+            .addPrimitive(FLOW_DESTINATION_IDENTIFIER_KEY, "destination")
+            .addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, "fg6")
+            .addPrimitive(ConfigurationKeys.FLOW_NAME_KEY, "fn6")
+            .addPrimitive("key6", "value6").build())
+        .withDescription("Test flow spec 6")
+        .withVersion("Test version 6")
+        .build();
 
-    Assert.assertTrue(this.specStore.exists(uri4));
+    this.specStore.addSpec(flowSpec5, "dr");
+    this.specStore.addSpec(flowSpec6, "dr");
+
     Assert.assertTrue(this.specStore.exists(uri5));
+    Assert.assertTrue(this.specStore.exists(uri6));
     List<URI> result = new ArrayList<>();
     this.specStore.getSpecURIsWithTag("dr").forEachRemaining(result::add);
     Assert.assertEquals(result.size(), 2);

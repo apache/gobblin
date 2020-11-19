@@ -559,43 +559,43 @@ public abstract class AbstractJobLauncher implements JobLauncher {
               }
             });
           }
-        }
-      }
 
-      for (JobState.DatasetState datasetState : this.jobContext.getDatasetStatesByUrns().values()) {
-        // Set the overall job state to FAILED if the job failed to process any dataset
-        if (datasetState.getState() == JobState.RunningState.FAILED) {
-          jobState.setState(JobState.RunningState.FAILED);
-          LOG.warn("At least one dataset state is FAILED. Setting job state to FAILED.");
-          break;
-        }
-      }
-
-      notifyListeners(this.jobContext, jobListener, TimingEvent.LauncherTimings.JOB_COMPLETE, new JobListenerAction() {
-        @Override
-        public void apply(JobListener jobListener, JobContext jobContext)
-            throws Exception {
-          jobListener.onJobCompletion(jobContext);
-        }
-      });
-
-      if (jobState.getState() == JobState.RunningState.FAILED) {
-        notifyListeners(this.jobContext, jobListener, TimingEvent.LauncherTimings.JOB_FAILED, new JobListenerAction() {
-          @Override
-          public void apply(JobListener jobListener, JobContext jobContext)
-              throws Exception {
-            jobListener.onJobFailure(jobContext);
+          for (JobState.DatasetState datasetState : this.jobContext.getDatasetStatesByUrns().values()) {
+            // Set the overall job state to FAILED if the job failed to process any dataset
+            if (datasetState.getState() == JobState.RunningState.FAILED) {
+              jobState.setState(JobState.RunningState.FAILED);
+              LOG.warn("At least one dataset state is FAILED. Setting job state to FAILED.");
+              break;
+            }
           }
-        });
-        throw new JobException(String.format("Job %s failed", jobId));
-      } else {
-        notifyListeners(this.jobContext, jobListener, TimingEvent.LauncherTimings.JOB_SUCCEEDED, new JobListenerAction() {
-          @Override
-          public void apply(JobListener jobListener, JobContext jobContext)
-              throws Exception {
-            jobListener.onJobFailure(jobContext);
+
+          notifyListeners(this.jobContext, jobListener, TimingEvent.LauncherTimings.JOB_COMPLETE, new JobListenerAction() {
+            @Override
+            public void apply(JobListener jobListener, JobContext jobContext)
+                throws Exception {
+              jobListener.onJobCompletion(jobContext);
+            }
+          });
+
+          if (jobState.getState() == JobState.RunningState.FAILED) {
+            notifyListeners(this.jobContext, jobListener, TimingEvent.LauncherTimings.JOB_FAILED, new JobListenerAction() {
+              @Override
+              public void apply(JobListener jobListener, JobContext jobContext)
+                  throws Exception {
+                jobListener.onJobFailure(jobContext);
+              }
+            });
+            throw new JobException(String.format("Job %s failed", jobId));
+          } else {
+            notifyListeners(this.jobContext, jobListener, TimingEvent.LauncherTimings.JOB_SUCCEEDED, new JobListenerAction() {
+              @Override
+              public void apply(JobListener jobListener, JobContext jobContext)
+                  throws Exception {
+                jobListener.onJobFailure(jobContext);
+              }
+            });
           }
-        });
+        }
       }
     } finally {
       // Stop metrics reporting

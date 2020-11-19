@@ -15,26 +15,29 @@
  * limitations under the License.
  */
 
-apply plugin: 'java'
+package org.apache.gobblin.service;
 
-dependencies {
-  testCompile project(":gobblin-api")
-  testCompile project(":gobblin-core")
-  testCompile project(":gobblin-runtime")
-  testCompile project(":gobblin-data-management")
+import java.util.List;
+import java.util.stream.Collectors;
 
-  testCompile externalDependency.bytemanBmunit
-  testCompile externalDependency.calciteCore
-  testCompile externalDependency.calciteAvatica
-  testCompile externalDependency.jhyde
-  testCompile externalDependency.testng
-  testCompile externalDependency.parquetHadoop
+/**
+ * Service for handling group ownership of flows
+ */
+public abstract class GroupOwnershipService {
+
+   /**
+    * @return true if any of the serviceRequesters belong in the group
+    */
+   public abstract boolean isMemberOfGroup(List<ServiceRequester> serviceRequesters, String group);
+
+   /**
+    * Extracts ServiceRequester names
+    * @param requesterList
+    * @return a list of service requester names
+    */
+   protected static List<String> extractRequesterNames(List<ServiceRequester> requesterList) {
+      return requesterList.stream()
+          .map(requester -> requester.getName())
+          .collect(Collectors.toList());
+   }
 }
-
-configurations { compile { transitive = false } }
-
-test {
-  workingDir rootProject.rootDir
-}
-
-ext.classification="library"

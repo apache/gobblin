@@ -47,6 +47,9 @@ if (file('extraDependencies.gradle').exists()) {
 dependencies {
   compile project(path: apiProject.path, configuration: 'dataTemplate')
   compile project(path: apiProject.path, configuration: 'restClient')
+  compile(project(':gobblin-api')) {
+    transitive = false
+  }
 
   testCompile project(":gobblin-restli:gobblin-restli-utils")
   testCompile externalDependency.testng

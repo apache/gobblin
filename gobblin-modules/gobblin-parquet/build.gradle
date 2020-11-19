@@ -22,9 +22,9 @@ dependencies {
   compile project(":gobblin-modules:gobblin-parquet-common")
 
   compile externalDependency.gson
-  compile externalDependency.twitterParquet
-  compile externalDependency.twitterParquetAvro
-  compile externalDependency.twitterParquetProto
+  compile externalDependency.parquetHadoop
+  compile externalDependency.parquetAvro
+  compile externalDependency.parquetProto
 
   testCompile externalDependency.testng
   testCompile externalDependency.mockito

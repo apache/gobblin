@@ -28,9 +28,6 @@ subprojects {
     maven {
       url "http://conjars.org/repo"
     }
-    maven {
-      url "https://maven.twttr.com/"
-    }
   }
 
   project.buildDir = new File(project.rootProject.buildDir, project.name)
