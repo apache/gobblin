@@ -374,14 +374,21 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
       throws InterruptedException {
     String jobUri = cancelJobArrival.getJoburi();
     LOGGER.info("Received cancel for job configuration of job " + jobUri);
+    Optional<String> distributedJobMode;
     Optional<String> planningJob = Optional.empty();
     Optional<String> actualJob = Optional.empty();
 
+    this.jobSchedulerMetrics.numCancellationStart.incrementAndGet();
+
     try {
-      planningJob = this.jobsMapping.getPlanningJobId(jobUri);
-      actualJob = this.jobsMapping.getActualJobId(jobUri);
+      distributedJobMode = this.jobsMapping.getDistributedJobMode(jobUri);
+      if (distributedJobMode.isPresent() && Boolean.parseBoolean(distributedJobMode.get())) {
+        planningJob = this.jobsMapping.getPlanningJobId(jobUri);
+      } else {
+        actualJob = this.jobsMapping.getActualJobId(jobUri);
+      }
     } catch (IOException e) {
-      LOGGER.warn("Planning and actual jobs could not be retrieved for job {}", jobUri);
+      LOGGER.warn("jobsMapping could not be retrieved for job {}", jobUri);
       return;
     }
 
@@ -394,6 +401,8 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
       LOGGER.info("Cancelling actual job helix workflow: {}", actualJob.get());
       new TaskDriver(this.jobHelixManager).waitToStop(actualJob.get(), this.helixJobStopTimeoutMillis);
     }
+
+    this.jobSchedulerMetrics.numCancellationStart.decrementAndGet();
   }
 
   private void cancelJobIfRequired(DeleteJobConfigArrivalEvent deleteJobArrival) throws InterruptedException {
