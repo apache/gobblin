@@ -213,7 +213,7 @@ class HelixRetriggeringJobCallable implements Callable {
       jobLock.lock();
 
       try {
-        if (actualJobIdFromStore.isPresent() && !canRun(actualJobIdFromStore, this.jobHelixManager)) {
+        if (actualJobIdFromStore.isPresent() && !canRun(actualJobIdFromStore.get(), this.jobHelixManager)) {
           return;
         }
 
@@ -282,7 +282,7 @@ class HelixRetriggeringJobCallable implements Callable {
       jobLock.lock();
 
       try {
-        if (planningJobIdFromStore.isPresent() && !canRun(planningJobIdFromStore, planningJobManager)) {
+        if (planningJobIdFromStore.isPresent() && !canRun(planningJobIdFromStore.get(), planningJobManager)) {
           return;
         }
 
@@ -362,29 +362,38 @@ class HelixRetriggeringJobCallable implements Callable {
     }
   }
 
-  private boolean canRun(Optional<String> jobIdFromStore, HelixManager helixManager) throws JobException, InterruptedException {
-    String previousPlanningJobId = jobIdFromStore.get();
-
-    if (HelixUtils.isJobFinished(previousPlanningJobId, previousPlanningJobId, helixManager)) {
-      log.info("Previous planning job {} has reached to the final state. Start a new one.", previousPlanningJobId);
+    /**
+     * This method checks if a job can be submitted to helix for execution.
+     * A job can run, 1) if the previous job with the same job id is finished,
+     * 2) if the previous job is running but can be killed specified by property
+     * {@link GobblinClusterConfigurationKeys#KILL_DUPLICATE_PLANNING_JOB}, default being true
+     * @param previousJobId job id from the previous execution
+     * @param helixManager helix manager
+     * @return true if the job can run on Helix
+     * @throws JobException if previous job deletion fails
+     * @throws InterruptedException
+     */
+  private boolean canRun(String previousJobId, HelixManager helixManager) throws JobException, InterruptedException {
+    if (HelixUtils.isJobFinished(previousJobId, previousJobId, helixManager)) {
+      log.info("Previous planning job {} has reached to the final state. Start a new one.", previousJobId);
     } else {
       boolean killDuplicateJob = PropertiesUtils
           .getPropAsBoolean(this.jobProps, GobblinClusterConfigurationKeys.KILL_DUPLICATE_PLANNING_JOB, String.valueOf(GobblinClusterConfigurationKeys.DEFAULT_KILL_DUPLICATE_PLANNING_JOB));
 
       if (!killDuplicateJob) {
-        log.info("Previous planning job {} has not finished yet. Skip this job.", previousPlanningJobId);
+        log.info("Previous planning job {} has not finished yet. Skip this job.", previousJobId);
         return false;
       } else {
-        log.info("Previous planning job {} has not finished yet. Kill it.", previousPlanningJobId);
+        log.info("Previous planning job {} has not finished yet. Kill it.", previousJobId);
         long timeOut = PropertiesUtils
             .getPropAsLong(sysProps, GobblinClusterConfigurationKeys.HELIX_WORKFLOW_DELETE_TIMEOUT_SECONDS,
                 GobblinClusterConfigurationKeys.DEFAULT_HELIX_WORKFLOW_DELETE_TIMEOUT_SECONDS) * 1000;
         try {
-          HelixUtils.deleteWorkflow(previousPlanningJobId, helixManager, timeOut);
+          HelixUtils.deleteWorkflow(previousJobId, helixManager, timeOut);
         } catch (HelixException e) {
-          log.info("Helix cannot delete previous planning job id {} within {} seconds.", previousPlanningJobId,
+          log.info("Helix cannot delete previous planning job id {} within {} seconds.", previousJobId,
               timeOut / 1000);
-          throw new JobException("Helix cannot delete previous planning job id " + previousPlanningJobId, e);
+          throw new JobException("Helix cannot delete previous planning job id " + previousJobId, e);
         }
       }
     }
