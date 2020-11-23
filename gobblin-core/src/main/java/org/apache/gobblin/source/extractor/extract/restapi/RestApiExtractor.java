@@ -96,6 +96,10 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
     return dataQuery;
   }
 
+  protected List<String> extractColumnListInQuery(String query) {
+    return Utils.getColumnListFromQuery(query);
+  }
+
   @Override
   public void extractMetadata(String schema, String entity, WorkUnit workUnit) throws SchemaException {
     log.info("Extract Metadata using Rest Api");
@@ -104,7 +108,7 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
     List<String> columnListInQuery = null;
     JsonArray array = null;
     if (!Strings.isNullOrEmpty(inputQuery)) {
-      columnListInQuery = Utils.getColumnListFromQuery(inputQuery);
+      columnListInQuery = extractColumnListInQuery(inputQuery);
     }
 
     String excludedColumns = workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_EXCLUDED_COLUMNS);
