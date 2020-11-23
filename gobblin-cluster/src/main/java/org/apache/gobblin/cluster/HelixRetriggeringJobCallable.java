@@ -202,46 +202,36 @@ class HelixRetriggeringJobCallable implements Callable {
    * the job launcher determines it is safe to stop.
    */
   private void runJobLauncherLoop() throws JobException {
-    String actualJobId;
-    Lock jobLock = locks.get(this.jobUri);
-
     try {
       // Check if any existing planning job is running
       Optional<String> actualJobIdFromStore = jobsMapping.getActualJobId(this.jobUri);
-      // start of critical section to check if a job with same job name is running
 
-      jobLock.lock();
-
-      try {
-        if (actualJobIdFromStore.isPresent() && !canRun(actualJobIdFromStore.get(), this.jobHelixManager)) {
-          return;
-        }
-
-        actualJobId = jobProps.containsKey(ConfigurationKeys.JOB_ID_KEY)
-                ? jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY) : HelixJobsMapping.createActualJobId(jobProps);
-        log.info("Job {} creates actual job {}", this.jobUri, actualJobId);
-
-        jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, actualJobId);
-
-        /* create the job launcher after setting ConfigurationKeys.JOB_ID_KEY */
-        currentJobLauncher = this.jobScheduler.buildJobLauncher(jobProps);
-
-        this.jobsMapping.setActualJobId(this.jobUri, actualJobId);
-
-        while (true) {
-          // in "run once" case, job scheduler will remove current job from the scheduler
-          boolean isEarlyStopped = this.jobScheduler.runJob(jobProps, jobListener, currentJobLauncher);
-          boolean isRetriggerEnabled = this.isRetriggeringEnabled();
-          if (isEarlyStopped && isRetriggerEnabled) {
-            log.info("Job {} will be re-triggered.", jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
-          } else {
-            break;
-          }
-        }
-      } finally {
-        // end of the critical section to check if a job with same job name is running
-        jobLock.unlock();
+      if (actualJobIdFromStore.isPresent() && !canRun(actualJobIdFromStore.get(), this.jobHelixManager)) {
+        return;
       }
+
+      String actualJobId = jobProps.containsKey(ConfigurationKeys.JOB_ID_KEY)
+              ? jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY) : HelixJobsMapping.createActualJobId(jobProps);
+      log.info("Job {} creates actual job {}", this.jobUri, actualJobId);
+
+      jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, actualJobId);
+
+      /* create the job launcher after setting ConfigurationKeys.JOB_ID_KEY */
+      currentJobLauncher = this.jobScheduler.buildJobLauncher(jobProps);
+
+      this.jobsMapping.setActualJobId(this.jobUri, actualJobId);
+
+      while (true) {
+        // in "run once" case, job scheduler will remove current job from the scheduler
+        boolean isEarlyStopped = this.jobScheduler.runJob(jobProps, jobListener, currentJobLauncher);
+        boolean isRetriggerEnabled = this.isRetriggeringEnabled();
+        if (isEarlyStopped && isRetriggerEnabled) {
+          log.info("Job {} will be re-triggered.", jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
+        } else {
+          break;
+        }
+      }
+
     } catch (Exception e) {
       log.error("Failed to run job {}", jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
       throw new JobException("Failed to run job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
