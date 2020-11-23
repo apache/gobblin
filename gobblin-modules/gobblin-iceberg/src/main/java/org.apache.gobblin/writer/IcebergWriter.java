@@ -16,7 +16,23 @@
  */
 package org.apache.gobblin.writer;
 
+import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 
-public class IcebergWriter extends FsDataWriter<GenericRecord>{
+import org.apache.gobblin.configuration.State;
+
+import java.io.IOException;
+
+public class IcebergWriter<D> extends FsDataWriter<D>{
+
+    public IcebergWriter(IcebergDataWriterBuilder builder, State properties)
+            throws IOException {
+        super(builder, properties);
+
+    }
+
+    @Override
+    public long recordsWritten() {
+        return 0;
+    }
 }
