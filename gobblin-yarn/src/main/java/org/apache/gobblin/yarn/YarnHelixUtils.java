@@ -60,15 +60,19 @@ public class YarnHelixUtils {
   /**
    * Write a {@link Token} to a given file.
    *
-   * @param token the token to write
    * @param tokenFilePath the token file path
+   * @param credentials all tokens of this credentials to be written to given file
    * @param configuration a {@link Configuration} object carrying Hadoop configuration properties
    * @throws IOException
    */
-  public static void writeTokenToFile(Token<? extends TokenIdentifier> token, Path tokenFilePath,
-      Configuration configuration) throws IOException {
-    Credentials credentials = new Credentials();
-    credentials.addToken(token.getService(), token);
+  public static void writeTokenToFile(Path tokenFilePath, Credentials credentials, Configuration configuration) throws IOException {
+    if(credentials == null) {
+      LOGGER.warn("got empty credentials, creating default one as new.");
+      credentials = new Credentials();
+    }
+    // TODO: token needs to be removed from the function signature as well
+//    credentials.addToken(token.getService(), token);
+    LOGGER.debug(String.format("Writing all tokens %s to file %s",  credentials.getAllTokens(), tokenFilePath));
     credentials.writeTokenStorageFile(tokenFilePath, configuration);
   }
 
@@ -79,6 +83,7 @@ public class YarnHelixUtils {
    * @throws IOException
    */
   public static void updateToken(String tokenFileName) throws IOException{
+    LOGGER.info("reading token from file: "+ tokenFileName);
     URL tokenFileUrl = YarnHelixUtils.class.getClassLoader().getResource(tokenFileName);
     if (tokenFileUrl != null) {
       File tokenFile = new File(tokenFileUrl.getFile());

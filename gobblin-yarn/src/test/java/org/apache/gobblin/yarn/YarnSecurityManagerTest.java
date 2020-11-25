@@ -19,7 +19,9 @@ package org.apache.gobblin.yarn;
 
 import java.io.IOException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
@@ -36,6 +38,9 @@ import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
+import org.powermock.api.mockito.PowerMockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -54,6 +59,8 @@ import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
 import org.apache.gobblin.cluster.HelixUtils;
 import org.apache.gobblin.cluster.TestHelper;
 import org.apache.gobblin.testing.AssertWithBackoff;
+
+import static org.mockito.Matchers.any;
 
 
 /**
@@ -88,7 +95,8 @@ public class YarnSecurityManagerTest {
   private FileSystem localFs;
   private Path baseDir;
   private Path tokenFilePath;
-  private Token<?> token;
+  private Token<?> fsToken;
+  private List<Token<?>> allTokens;
 
   private YarnAppSecurityManagerWithKeytabs _yarnAppYarnAppSecurityManagerWithKeytabs;
   private YarnContainerSecurityManager yarnContainerSecurityManager;
@@ -130,21 +138,32 @@ public class YarnSecurityManagerTest {
     this.configuration = new Configuration();
     this.localFs = Mockito.spy(FileSystem.getLocal(this.configuration));
 
-    this.token = new Token<>();
-    this.token.setKind(new Text("test"));
-    this.token.setService(new Text("test"));
-    Mockito.<Token<?>>when(this.localFs.getDelegationToken(UserGroupInformation.getLoginUser().getShortUserName()))
-        .thenReturn(this.token);
+    this.fsToken = new Token<>();
+    this.fsToken.setKind(new Text("HDFS_DELEGATION_TOKEN"));
+    this.fsToken.setService(new Text("HDFS"));
+    this.allTokens = new ArrayList<>();
+    allTokens.add(fsToken);
+    Token<?>[] allTokenArray = new Token<?>[2];
+    allTokenArray[0]= fsToken;
+
+    Mockito.<Token<?>[]>when(localFs.addDelegationTokens(any(String.class), any(Credentials.class)))
+            .thenReturn(allTokenArray);
 
     this.baseDir = new Path(YarnSecurityManagerTest.class.getSimpleName());
     this.tokenFilePath = new Path(this.baseDir, GobblinYarnConfigurationKeys.TOKEN_FILE_NAME);
-    this._yarnAppYarnAppSecurityManagerWithKeytabs =
-        new YarnAppSecurityManagerWithKeytabs(config, this.helixManager, this.localFs, this.tokenFilePath);
+    this._yarnAppYarnAppSecurityManagerWithKeytabs = Mockito.spy(new YarnAppSecurityManagerWithKeytabs(config, this.helixManager, this.localFs, this.tokenFilePath));
     this.yarnContainerSecurityManager = new YarnContainerSecurityManager(config, this.localFs, new EventBus());
+
+    Mockito.doAnswer(new Answer<Void>() {
+      public Void answer(InvocationOnMock invocation) throws Throwable {
+        _yarnAppYarnAppSecurityManagerWithKeytabs.credentials.addToken(new Text("HDFS_DELEGATION_TOKEN"), fsToken);
+        return null;
+      }
+    }).when(_yarnAppYarnAppSecurityManagerWithKeytabs).getNewDelegationTokenForLoginUser();
   }
 
   @Test
-  public void testGetNewDelegationTokenForLoginUser() throws IOException {
+  public void testGetNewDelegationTokenForLoginUser() throws IOException, InterruptedException {
     this._yarnAppYarnAppSecurityManagerWithKeytabs.getNewDelegationTokenForLoginUser();
   }
 
@@ -235,8 +254,6 @@ public class YarnSecurityManagerTest {
   }
 
   private void assertToken(Collection<Token<?>> tokens) {
-    Assert.assertEquals(tokens.size(), 1);
-    Token<?> token = tokens.iterator().next();
-    Assert.assertEquals(token, this.token);
+    tokens.forEach( token -> org.junit.Assert.assertTrue(allTokens.contains(token)));
   }
 }

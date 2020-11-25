@@ -19,11 +19,15 @@ package org.apache.gobblin.yarn;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.concurrent.ScheduledFuture;
 
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.hadoop.TokenUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.helix.HelixManager;
 
@@ -31,6 +35,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Strings;
 import com.typesafe.config.Config;
+import static org.apache.hadoop.fs.CommonConfigurationKeysPublic.HADOOP_SECURITY_AUTHENTICATION;
 
 
 /**
@@ -62,7 +67,6 @@ public class YarnAppSecurityManagerWithKeytabs extends AbstractYarnAppSecurityMa
   // This flag is used to tell if this is the first login. If yes, no token updated message will be
   // sent to the controller and the participants as they may not be up running yet. The first login
   // happens after this class starts up so the token gets regularly refreshed before the next login.
-  private volatile boolean firstLogin = true;
 
   public YarnAppSecurityManagerWithKeytabs(Config config, HelixManager helixManager, FileSystem fs, Path tokenFilePath)
       throws IOException {
@@ -74,11 +78,29 @@ public class YarnAppSecurityManagerWithKeytabs extends AbstractYarnAppSecurityMa
    * Renew the existing delegation token.
    */
   protected synchronized void renewDelegationToken() throws IOException, InterruptedException {
-    this.token.renew(this.fs.getConf());
-    writeDelegationTokenToFile();
+    LOGGER.debug("renewing all tokens {}", credentials.getAllTokens());
+
+    credentials.getAllTokens().forEach(
+      existingToken -> {
+        try {
+          long expiryTime = existingToken.renew(this.fs.getConf());
+          LOGGER.info("renewed token: {}, expiryTime: {}, Id; {}", existingToken, expiryTime, Arrays.toString(existingToken.getIdentifier()));
+
+          // TODO: If token failed to get renewed in case its expired ( can be detected via the error text ),
+          //  it should call the login() to reissue the new tokens
+        } catch (IOException | InterruptedException e) {
+          LOGGER.error("Error renewing token: " + existingToken + " ,error: " + e, e);
+        }
+      }
+    );
+
+    writeDelegationTokenToFile(credentials);
 
     if (!this.firstLogin) {
+      LOGGER.info("This is not a first login, sending TokenFileUpdatedMessage.");
       sendTokenFileUpdatedMessage();
+    } else {
+      LOGGER.info("This is first login of the interval, so skipping sending TokenFileUpdatedMessage.");
     }
   }
 
@@ -86,14 +108,25 @@ public class YarnAppSecurityManagerWithKeytabs extends AbstractYarnAppSecurityMa
    * Get a new delegation token for the current logged-in user.
    */
   @VisibleForTesting
-  synchronized void getNewDelegationTokenForLoginUser() throws IOException {
-    this.token = this.fs.getDelegationToken(this.loginUser.getShortUserName());
+  synchronized void getNewDelegationTokenForLoginUser() throws IOException, InterruptedException {
+    final Configuration newConfig = new Configuration();
+    final Credentials allCreds = new Credentials();
+//    Text renewer = TokenUtils.getMRTokenRenewerInternal(new JobConf());
+    String renewer = UserGroupInformation.getLoginUser().getShortUserName();
+
+    LOGGER.info("creating new login tokens with renewer: {}", renewer);
+    TokenUtils.getAllFSTokens(newConfig, allCreds, renewer, Optional.absent(), ConfigUtils.getStringList(this.config, TokenUtils.OTHER_NAMENODES));
+    //TODO: Any other required tokens can be fetched here based on config or any other detection mechanism
+
+    LOGGER.debug("All new tokens in credential: {}", allCreds.getAllTokens());
+
+    this.credentials = allCreds;
   }
 
   /**
    * Login the user from a given keytab file.
    */
-  protected void login() throws IOException {
+  protected void login() throws IOException, InterruptedException {
     String keyTabFilePath = this.config.getString(GobblinYarnConfigurationKeys.KEYTAB_FILE_PATH);
     if (Strings.isNullOrEmpty(keyTabFilePath)) {
       throw new IOException("Keytab file path is not defined for Kerberos login");
@@ -107,21 +140,26 @@ public class YarnAppSecurityManagerWithKeytabs extends AbstractYarnAppSecurityMa
     if (Strings.isNullOrEmpty(principal)) {
       principal = this.loginUser.getShortUserName() + "/localhost@LOCALHOST";
     }
+    LOGGER.info("Login using kerberos principal : "+ principal);
 
     Configuration conf = new Configuration();
-    conf.set("hadoop.security.authentication",
-        UserGroupInformation.AuthenticationMethod.KERBEROS.toString().toLowerCase());
+    conf.set(HADOOP_SECURITY_AUTHENTICATION, UserGroupInformation.AuthenticationMethod.KERBEROS.toString().toLowerCase());
     UserGroupInformation.setConfiguration(conf);
     UserGroupInformation.loginUserFromKeytab(principal, keyTabFilePath);
-    LOGGER.info(String.format("Logged in from keytab file %s using principal %s", keyTabFilePath, principal));
 
-    this.loginUser = UserGroupInformation.getLoginUser();
+    LOGGER.info(String.format("Logged in from keytab file %s using principal %s for user: %s", keyTabFilePath, principal, this.loginUser));
 
     getNewDelegationTokenForLoginUser();
-    writeDelegationTokenToFile();
+
+    writeDelegationTokenToFile(this.credentials);
+
+    UserGroupInformation.getCurrentUser().addCredentials(this.credentials);
 
     if (!this.firstLogin) {
+      LOGGER.info("This is not a first login, sending TokenFileUpdatedMessage from Login().");
       sendTokenFileUpdatedMessage();
+    }else {
+      LOGGER.info("This is first login of the interval, so skipping sending TokenFileUpdatedMessage from Login().");
     }
   }
 }

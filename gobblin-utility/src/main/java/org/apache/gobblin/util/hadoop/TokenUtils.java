@@ -55,7 +55,9 @@ import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 import org.apache.hadoop.yarn.ipc.YarnRPC;
 import org.apache.hadoop.yarn.util.ConverterUtils;
-import org.apache.log4j.Logger;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
+import java.util.ArrayList;
 import org.apache.thrift.TException;
 
 
@@ -66,15 +68,15 @@ import org.apache.thrift.TException;
  *   This class is compatible with Hadoop 2.
  * </p>
  */
+@Slf4j
 public class TokenUtils {
-
-  private static final Logger LOG = Logger.getLogger(TokenUtils.class);
 
   private static final String USER_TO_PROXY = "tokens.user.to.proxy";
   private static final String KEYTAB_USER = "keytab.user";
   private static final String KEYTAB_LOCATION = "keytab.location";
   private static final String HADOOP_SECURITY_AUTHENTICATION = "hadoop.security.authentication";
-  private static final String OTHER_NAMENODES = "other_namenodes";
+  public static final String OTHER_NAMENODES = "other_namenodes";
+  public static final String TOKEN_RENEWER = "token_renewer";
   private static final String KERBEROS = "kerberos";
   private static final String YARN_RESOURCEMANAGER_PRINCIPAL = "yarn.resourcemanager.principal";
   private static final String YARN_RESOURCEMANAGER_ADDRESS = "yarn.resourcemanager.address";
@@ -132,6 +134,35 @@ public class TokenUtils {
     return ugi;
   }
 
+  public static void getHadoopFSTokens(final State state, Optional<File> tokenFile, final Credentials cred, final String renewer)
+          throws IOException, InterruptedException {
+
+    Preconditions.checkArgument(state.contains(KEYTAB_USER), "Missing required property " + KEYTAB_USER);
+    Preconditions.checkArgument(state.contains(KEYTAB_LOCATION), "Missing required property " + KEYTAB_LOCATION);
+
+    Configuration configuration = new Configuration();
+    configuration.set(HADOOP_SECURITY_AUTHENTICATION, KERBEROS);
+    UserGroupInformation.setConfiguration(configuration);
+    UserGroupInformation.loginUserFromKeytab(obtainKerberosPrincipal(state), state.getProp(KEYTAB_LOCATION));
+
+    final Optional<String> userToProxy = Strings.isNullOrEmpty(state.getProp(USER_TO_PROXY)) ? Optional.<String>absent()
+            : Optional.fromNullable(state.getProp(USER_TO_PROXY));
+    final Configuration conf = new Configuration();
+
+    log.info("Getting tokens for userToProxy " + userToProxy);
+
+    List<String> remoteFSURIList = new ArrayList<>();
+    if(state !=null && state.contains(OTHER_NAMENODES)){
+      remoteFSURIList = state.getPropAsList(OTHER_NAMENODES);
+    }
+
+    getAllFSTokens(conf, cred, renewer, userToProxy, remoteFSURIList);
+
+    if (tokenFile.isPresent()) {
+      persistTokens(cred, tokenFile.get());
+    }
+  }
+
   /**
    * Get Hadoop tokens (tokens for job history server, job tracker and HDFS) using Kerberos keytab.
    *
@@ -141,7 +172,7 @@ public class TokenUtils {
    * @param tokenFile If present, the file will store materialized credentials.
    * @param cred A im-memory representation of credentials.
    */
-  public static void getHadoopTokens(final State state, Optional<File> tokenFile, Credentials cred)
+  public static void getHadoopTokens(final State state, Optional<File> tokenFile, final Credentials cred)
       throws IOException, InterruptedException {
 
     Preconditions.checkArgument(state.contains(KEYTAB_USER), "Missing required property " + KEYTAB_USER);
@@ -156,10 +187,13 @@ public class TokenUtils {
         : Optional.fromNullable(state.getProp(USER_TO_PROXY));
     final Configuration conf = new Configuration();
 
-    LOG.info("Getting tokens for " + userToProxy);
+    List<String> remoteFSURIList = state.getPropAsList(OTHER_NAMENODES);
+    String renewer = state.getProp(TOKEN_RENEWER);
+    log.info("Getting tokens for {}, using renewer: {}, including remote FS: {}", userToProxy, renewer, remoteFSURIList.toString());
 
     getJhToken(conf, cred);
-    getFsAndJtTokens(state, conf, userToProxy, cred);
+    getJtTokens(conf, cred, userToProxy, state);
+    getAllFSTokens(conf, cred, renewer, userToProxy, remoteFSURIList);
 
     if (tokenFile.isPresent()) {
       persistTokens(cred, tokenFile.get());
@@ -204,11 +238,11 @@ public class TokenUtils {
           state.contains(USER_DEFINED_HIVE_LOCATIONS) ? state.getPropAsList(USER_DEFINED_HIVE_LOCATIONS)
               : Collections.EMPTY_LIST;
       if (!extraHcatLocations.isEmpty()) {
-        LOG.info("Need to fetch extra metaStore tokens from hive.");
+        log.info("Need to fetch extra metaStore tokens from hive.");
 
         // start to process the user inputs.
         for (final String thriftUrl : extraHcatLocations) {
-          LOG.info("Fetching metaStore token from : " + thriftUrl);
+          log.info("Fetching metaStore token from : " + thriftUrl);
 
           hiveConf = new HiveConf();
           hiveConf.set(HiveConf.ConfVars.METASTOREURIS.varname, thriftUrl);
@@ -216,12 +250,12 @@ public class TokenUtils {
           cred.addToken(hcatToken.getService(), hcatToken);
           ugi.addToken(hcatToken);
 
-          LOG.info("Successfully fetched token for:" + thriftUrl);
+          log.info("Successfully fetched token for:" + thriftUrl);
         }
       }
     } catch (final Throwable t) {
       final String message = "Failed to get hive metastore token." + t.getMessage() + t.getCause();
-      LOG.error(message, t);
+      log.error(message, t);
       throw new RuntimeException(message);
     }
   }
@@ -237,10 +271,10 @@ public class TokenUtils {
       final String tokenSignatureOverwrite, final IMetaStoreClient hiveClient)
       throws IOException, TException, InterruptedException {
 
-    LOG.info(HiveConf.ConfVars.METASTORE_USE_THRIFT_SASL.varname + ": " + hiveConf.get(
+    log.info(HiveConf.ConfVars.METASTORE_USE_THRIFT_SASL.varname + ": " + hiveConf.get(
         HiveConf.ConfVars.METASTORE_USE_THRIFT_SASL.varname));
 
-    LOG.info(HiveConf.ConfVars.METASTORE_KERBEROS_PRINCIPAL.varname + ": " + hiveConf.get(
+    log.info(HiveConf.ConfVars.METASTORE_KERBEROS_PRINCIPAL.varname + ": " + hiveConf.get(
         HiveConf.ConfVars.METASTORE_KERBEROS_PRINCIPAL.varname));
 
     final Token<DelegationTokenIdentifier> hcatToken = new Token<>();
@@ -255,10 +289,10 @@ public class TokenUtils {
         && tokenSignatureOverwrite.trim().length() > 0) {
       hcatToken.setService(new Text(tokenSignatureOverwrite.trim().toLowerCase()));
 
-      LOG.info(HIVE_TOKEN_SIGNATURE_KEY + ":" + tokenSignatureOverwrite);
+      log.info(HIVE_TOKEN_SIGNATURE_KEY + ":" + tokenSignatureOverwrite);
     }
 
-    LOG.info("Created hive metastore token for user:" + userToProxy + " with kind[" + hcatToken.getKind() + "]"
+    log.info("Created hive metastore token for user:" + userToProxy + " with kind[" + hcatToken.getKind() + "]"
         + " and service[" + hcatToken.getService() + "]");
     return hcatToken;
   }
@@ -267,10 +301,10 @@ public class TokenUtils {
     YarnRPC rpc = YarnRPC.create(conf);
     final String serviceAddr = conf.get(JHAdminConfig.MR_HISTORY_ADDRESS);
 
-    LOG.debug("Connecting to HistoryServer at: " + serviceAddr);
+    log.debug("Connecting to HistoryServer at: " + serviceAddr);
     HSClientProtocol hsProxy =
         (HSClientProtocol) rpc.getProxy(HSClientProtocol.class, NetUtils.createSocketAddr(serviceAddr), conf);
-    LOG.info("Pre-fetching JH token from job history server");
+    log.info("Pre-fetching JH token from job history server");
 
     Token<?> jhToken = null;
     try {
@@ -280,84 +314,122 @@ public class TokenUtils {
     }
 
     if (jhToken == null) {
-      LOG.error("getDelegationTokenFromHS() returned null");
+      log.error("getDelegationTokenFromHS() returned null");
       throw new IOException("Unable to fetch JH token.");
     }
 
-    LOG.info("Created JH token: " + jhToken.toString());
-    LOG.info("Token kind: " + jhToken.getKind());
-    LOG.info("Token id: " + Arrays.toString(jhToken.getIdentifier()));
-    LOG.info("Token service: " + jhToken.getService());
+    log.info("Created JH token: " + jhToken.toString());
+    log.info("Token kind: " + jhToken.getKind());
+    log.info("Token id: " + Arrays.toString(jhToken.getIdentifier()));
+    log.info("Token service: " + jhToken.getService());
 
     cred.addToken(jhToken.getService(), jhToken);
   }
 
-  private static void getFsAndJtTokens(final State state, final Configuration conf, final Optional<String> userToProxy,
-      final Credentials cred) throws IOException, InterruptedException {
+  private static void getJtTokens(final Configuration conf, final Credentials cred, final Optional<String> userToProxy,
+      final State state) throws IOException, InterruptedException {
 
     if (userToProxy.isPresent()) {
       UserGroupInformation.createProxyUser(userToProxy.get(), UserGroupInformation.getLoginUser())
           .doAs(new PrivilegedExceptionAction<Void>() {
             @Override
             public Void run() throws Exception {
-              getFsAndJtTokensImpl(state, conf, cred);
+              getJtTokensImpl(state, conf, cred);
               return null;
             }
           });
     } else {
-      getFsAndJtTokensImpl(state, conf, cred);
+      getJtTokensImpl(state, conf, cred);
     }
   }
 
-  private static void getFsAndJtTokensImpl(final State state, final Configuration conf, final Credentials cred)
+  private static void getJtTokensImpl(final State state, final Configuration conf, final Credentials cred)
       throws IOException {
-    getHdfsToken(conf, cred);
-    if (state.contains(OTHER_NAMENODES)) {
-      getOtherNamenodesToken(state.getPropAsList(OTHER_NAMENODES), conf, cred);
-    }
     getJtToken(cred);
   }
 
-  private static void getHdfsToken(Configuration conf, Credentials cred) throws IOException {
-    FileSystem fs = FileSystem.get(conf);
-    LOG.info("Getting DFS token from " + fs.getUri());
-    String renewer = getMRTokenRenewerInternal(new JobConf()).toString();
-    Token<?>[] fsTokens = fs.addDelegationTokens(renewer, cred);
-    for(int i = 0; i < fsTokens.length; i++) {
-      Token<?> token = fsTokens[i];
-      String message =
-          String.format("DFS token fetched from namenode, token kind: %s, token service %s", token.getKind(),
-              token.getService());
-      LOG.info(message);
+  public static void getAllFSTokens(final Configuration conf, final Credentials cred, final String renewer,
+                                    final Optional<String> userToProxy, final List<String> remoteFSURIList) throws IOException, InterruptedException {
+
+    if (userToProxy.isPresent()) {
+      UserGroupInformation.createProxyUser(userToProxy.get(), UserGroupInformation.getLoginUser())
+              .doAs(new PrivilegedExceptionAction<Void>() {
+                @Override
+                public Void run() throws Exception {
+                  getAllFSTokensImpl(conf, cred, renewer, remoteFSURIList);
+                  return null;
+                }
+              });
+    } else {
+      getAllFSTokensImpl(conf, cred, renewer, remoteFSURIList);
     }
   }
 
-  private static void getOtherNamenodesToken(List<String> otherNamenodes, Configuration conf, Credentials cred)
+  public static void getAllFSTokensImpl(Configuration conf, Credentials cred, String renewer, List<String> remoteFSURIList) {
+    try {
+      FileSystem fs = FileSystem.get(conf);
+      if (StringUtils.isEmpty(renewer)) {
+        renewer = getMRTokenRenewerInternal(new JobConf()).toString();
+        log.info("No renewer specified for FS: {}, taking default renewer: {}",  fs.getUri(), renewer);
+      }
+
+      log.debug("Getting HDFS token for" + fs.getUri() + " with renewer: " + renewer);
+      Token<?>[] fsTokens = fs.addDelegationTokens(renewer, cred);
+      if (fsTokens != null) {
+        for (Token<?> token : fsTokens) {
+          log.info("FS Uri: " + fs.getUri() + " token: " + token);
+        }
+      }
+
+      // Handle remote namenodes if any
+      if(remoteFSURIList !=null && remoteFSURIList.size() >0){
+        getRemoteFSTokenFromURI(conf, cred, remoteFSURIList, renewer);
+      }
+
+      log.debug("All credential tokens: " + cred.getAllTokens());
+    } catch (IOException e) {
+      log.error("Error getting or creating HDFS token with renewer: "+ renewer);
+    }
+
+  }
+
+  public static void getRemoteFSTokenFromURI(Configuration conf, Credentials cred, List<String> otherNamenodes, String renewer)
       throws IOException {
-    LOG.info(OTHER_NAMENODES + ": " + otherNamenodes);
+    log.debug("Getting tokens for other namenodes: " + otherNamenodes);
     Path[] ps = new Path[otherNamenodes.size()];
     for (int i = 0; i < ps.length; i++) {
       ps[i] = new Path(otherNamenodes.get(i).trim());
+      FileSystem otherNameNodeFS = ps[i].getFileSystem(conf);
+
+      if (StringUtils.isEmpty(renewer)) {
+        TokenCache.obtainTokensForNamenodes(cred, ps, conf);
+      } else {
+        final Token<?>[] tokens = otherNameNodeFS.addDelegationTokens(renewer, cred);
+        if (tokens != null) {
+          for (Token<?> token : tokens) {
+            log.info("Got dt token for " + otherNameNodeFS.getUri() + "; " + token);
+          }
+        }
+      }
     }
-    TokenCache.obtainTokensForNamenodes(cred, ps, conf);
-    LOG.info("Successfully fetched tokens for: " + otherNamenodes);
+    log.info("Successfully fetched tokens for: " + otherNamenodes);
   }
 
   private static void getJtToken(Credentials cred) throws IOException {
     try {
       JobConf jobConf = new JobConf();
       JobClient jobClient = new JobClient(jobConf);
-      LOG.info("Pre-fetching JT token from JobTracker");
+      log.info("Pre-fetching JT token from JobTracker");
 
       Token<DelegationTokenIdentifier> mrdt = jobClient.getDelegationToken(getMRTokenRenewerInternal(jobConf));
       if (mrdt == null) {
-        LOG.error("Failed to fetch JT token");
+        log.error("Failed to fetch JT token");
         throw new IOException("Failed to fetch JT token.");
       }
-      LOG.info("Created JT token: " + mrdt.toString());
-      LOG.info("Token kind: " + mrdt.getKind());
-      LOG.info("Token id: " + Arrays.toString(mrdt.getIdentifier()));
-      LOG.info("Token service: " + mrdt.getService());
+      log.info("Created JT token: " + mrdt.toString());
+      log.info("Token kind: " + mrdt.getKind());
+      log.info("Token id: " + Arrays.toString(mrdt.getIdentifier()));
+      log.info("Token service: " + mrdt.getService());
       cred.addToken(mrdt.getService(), mrdt);
     } catch (InterruptedException ie) {
       throw new IOException(ie);
@@ -368,7 +440,7 @@ public class TokenUtils {
     try (FileOutputStream fos = new FileOutputStream(tokenFile); DataOutputStream dos = new DataOutputStream(fos)) {
       cred.writeTokenStorageToStream(dos);
     }
-    LOG.info("Tokens loaded in " + tokenFile.getAbsolutePath());
+    log.info("Tokens loaded in " + tokenFile.getAbsolutePath());
   }
 
   private static Token<?> getDelegationTokenFromHS(HSClientProtocol hsProxy, Configuration conf) throws IOException {
@@ -380,7 +452,7 @@ public class TokenUtils {
     return ConverterUtils.convertFromYarn(mrDelegationToken, hsProxy.getConnectAddress());
   }
 
-  private static Text getMRTokenRenewerInternal(JobConf jobConf) throws IOException {
+  public static Text getMRTokenRenewerInternal(JobConf jobConf) throws IOException {
     String servicePrincipal = jobConf.get(YARN_RESOURCEMANAGER_PRINCIPAL, jobConf.get(JTConfig.JT_USER_NAME));
     Text renewer;
     if (servicePrincipal != null) {
