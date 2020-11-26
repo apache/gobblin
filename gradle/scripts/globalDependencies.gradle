@@ -69,7 +69,10 @@ subprojects {
   }
 
   dependencies {
+    // Gradle 5 compatibility
     compileOnly externalDependency.lombok
-    testCompile externalDependency.lombok
+    testCompileOnly externalDependency.lombok
+    annotationProcessor externalDependency.lombok
+    testAnnotationProcessor externalDependency.lombok
   }
 }
