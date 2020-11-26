@@ -22,8 +22,6 @@ import java.net.URISyntaxException;
 
 import org.apache.commons.cli.CommandLine;
 
-import com.google.common.base.Joiner;
-
 import org.apache.gobblin.annotation.Alias;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.publisher.BaseDataPublisher;
@@ -74,7 +72,7 @@ public class EmbeddedWikipediaExample extends EmbeddedGobblin {
     } catch (URISyntaxException | SpecNotFoundException exc) {
       throw new RuntimeException("Could not instantiate an " + EmbeddedWikipediaExample.class.getName(), exc);
     }
-    this.setConfiguration("titles", Joiner.on(",").join(topics));
+    this.setConfiguration("titles", String.join(",", topics));
   }
 
   /**
