@@ -10,11 +10,11 @@ on:
       - v*
 
 env:
-  IMAGE_NAME: gobblin/gobblin-standalone
+  IMAGE_NAME: apache/gobblin
 
 jobs:
   build_and_push_to_registry:
-    name: Build docker images and publish to Github Container Repository
+    name: Build docker images and publish to DockerHub
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repo
@@ -30,7 +30,7 @@ jobs:
       - name: Login to DockerHub
         uses: docker/login-action@v1
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          username: ${{ secrets.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 #      - name: Login to GitHub Container Registry
 #        if: github.event_name != 'pull_request'
