@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
 
+import org.apache.gobblin.cluster.event.CancelJobConfigArrivalEvent;
 import org.apache.gobblin.runtime.job_spec.JobSpecResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -131,5 +132,10 @@ public class JobConfigurationManager extends AbstractIdleService implements Stan
   protected void postDeleteJobConfigArrival(String jobName, @Nullable Properties jobConfig) {
     LOGGER.info(String.format("Posting delete JobConfig with name: %s and config: %s", jobName, jobConfig));
     this.eventBus.post(new DeleteJobConfigArrivalEvent(jobName, jobConfig));
+  }
+
+  protected void postCancelJobConfigArrival(String jobUri) {
+    LOGGER.info(String.format("Posting cancel JobConfig with name: %s", jobUri));
+    this.eventBus.post(new CancelJobConfigArrivalEvent(jobUri));
   }
 }

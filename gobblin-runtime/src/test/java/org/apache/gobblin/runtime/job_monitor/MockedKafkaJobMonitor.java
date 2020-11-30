@@ -90,7 +90,7 @@ public class MockedKafkaJobMonitor extends KafkaJobMonitor {
         jobSpecs.remove(uri);
         return null;
       }
-    }).when(jobCatalog).remove(Mockito.any(URI.class));
+    }).when(jobCatalog).remove(Mockito.any(URI.class), Mockito.anyBoolean());
 
     return jobCatalog;
   }

@@ -48,6 +48,10 @@ public interface MutableJobCatalog extends JobCatalog {
    * */
   public void put(JobSpec jobSpec);
 
+  default void remove(URI uri, boolean alwaysTriggerListeners) {
+    throw new UnsupportedOperationException("Method not implemented by " + this.getClass());
+  }
+
   /**
    * Removes an existing JobSpec with the given URI. A no-op if such JobSpec does not exist.
    */
