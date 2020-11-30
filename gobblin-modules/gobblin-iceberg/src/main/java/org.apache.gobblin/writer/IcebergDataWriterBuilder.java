@@ -3,13 +3,14 @@ package org.apache.gobblin.writer;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-
+import org.apache.iceberg.FileFormat;
+import org.apache.iceberg.Schema;
 import java.io.IOException;
 
-public class IcebergDataWriterBuilder<S,D> extends FsDataWriterBuilder<S, D> {
+public class IcebergDataWriterBuilder extends FsDataWriterBuilder<Schema, FileFormat> {
 
     @Override
-    public DataWriter<D> build()
+    public DataWriter<FileFormat> build()
             throws IOException {
         Preconditions.checkNotNull(this.destination);
         Preconditions.checkArgument(!Strings.isNullOrEmpty(this.writerId));
@@ -18,7 +19,7 @@ public class IcebergDataWriterBuilder<S,D> extends FsDataWriterBuilder<S, D> {
 
         switch (this.destination.getType()) {
             case HDFS:
-                return new IcebergWriter<D>(this, this.destination.getProperties());
+                return new IcebergWriter<FileFormat>(this, this.destination.getProperties());
             default:
                 throw new RuntimeException("Unknown destination type: " + this.destination.getType());
         }
