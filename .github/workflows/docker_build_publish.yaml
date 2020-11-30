@@ -42,6 +42,6 @@ jobs:
       - name: Build Images and Publish
         uses: docker/build-push-action@v2
         with:
-          tags: ${{ steps.docker_meta.outputs.tags }}, ${{ env.IMAGE_NAME }}:latest
+          tags: ${{ steps.docker_meta.outputs.tags }},${{ env.IMAGE_NAME }}:latest
           push: true
           file: ./gobblin-docker/gobblin-standalone/alpine-gobblin-latest/Dockerfile
