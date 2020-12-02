@@ -181,12 +181,11 @@ public class GobblinHelixTask implements Task {
       log.error("Actual task {} failed in creation due to {}, will request new container to schedule it",
           this.taskId, te.getMessage());
       this.taskMetrics.helixTaskTotalCancelled.incrementAndGet();
-      return new TaskResult(TaskResult.Status.FAILED, "Root cause:" + ExceptionUtils.getRootCauseMessage(te)
-          + ", refer to container log for the whole stacktrace");
+      return new TaskResult(TaskResult.Status.FAILED, "Root cause:" + ExceptionUtils.getRootCauseMessage(te));
     } catch (Throwable t) {
       log.error(String.format("Actual task %s failed due to:", this.taskId), t);
       this.taskMetrics.helixTaskTotalCancelled.incrementAndGet();
-      return new TaskResult(TaskResult.Status.FAILED, "Refer to container log for exception details.");
+      return new TaskResult(TaskResult.Status.FAILED, "");
     } finally {
       this.taskMetrics.helixTaskTotalRunning.decrementAndGet();
       this.taskMetrics.updateTimeForTaskExecution(startTime);
