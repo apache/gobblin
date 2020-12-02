@@ -31,6 +31,8 @@ import org.apache.gobblin.util.Id;
 import org.apache.gobblin.util.event.ContainerHealthCheckFailureEvent;
 import org.apache.gobblin.util.eventbus.EventBusFactory;
 import org.apache.gobblin.util.retry.RetryerFactory;
+
+import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.helix.task.JobContext;
@@ -179,11 +181,12 @@ public class GobblinHelixTask implements Task {
       log.error("Actual task {} failed in creation due to {}, will request new container to schedule it",
           this.taskId, te.getMessage());
       this.taskMetrics.helixTaskTotalCancelled.incrementAndGet();
-      return new TaskResult(TaskResult.Status.FAILED, Throwables.getStackTraceAsString(te));
+      return new TaskResult(TaskResult.Status.FAILED, "Root cause:" + ExceptionUtils.getRootCauseMessage(te)
+          + ", refer to container log for the whole stacktrace");
     } catch (Throwable t) {
-      log.error("Actual task {} failed due to {}", this.taskId, t.getMessage());
+      log.error(String.format("Actual task %s failed due to:", this.taskId), t);
       this.taskMetrics.helixTaskTotalCancelled.incrementAndGet();
-      return new TaskResult(TaskResult.Status.FAILED, Throwables.getStackTraceAsString(t));
+      return new TaskResult(TaskResult.Status.FAILED, "Refer to container log for exception details.");
     } finally {
       this.taskMetrics.helixTaskTotalRunning.decrementAndGet();
       this.taskMetrics.updateTimeForTaskExecution(startTime);
