@@ -3,7 +3,7 @@
 [![Documentation Status](https://readthedocs.org/projects/gobblin/badge/?version=latest)](https://gobblin.readthedocs.org/en/latest/?badge=latest)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/org.apache.gobblin/gobblin-api/badge.svg)](https://search.maven.org/search?q=g:org.apache.gobblin)
 [![Stack Overflow](http://img.shields.io/:stack%20overflow-gobblin-brightgreen.svg)](http://stackoverflow.com/questions/tagged/gobblin)
-[![Get on Slack](https://img.shields.io/badge/slack-join-orange.svg)](https://join.slack.com/t/apache-gobblin/shared_invite/zt-isebqjkx-o9zPBz25tZbVe624s8MqQA)
+[![Join us on Slack](https://img.shields.io/badge/slack-apache--gobblin-brightgreen.svg)](https://communityinviter.com/apps/apache-gobblin/apache-gobblin)
 [![codecov.io](https://codecov.io/github/apache/incubator-gobblin/branch/master/graph/badge.svg)](https://codecov.io/github/apache/incubator-gobblin)
 
 Apache Gobblin is a universal data ingestion framework for extracting, transforming, and loading large volume of data from a variety of data sources: databases, rest APIs, FTP/SFTP servers, filers, etc., onto Hadoop. 
