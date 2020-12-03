@@ -114,6 +114,42 @@ public class GenericRecordToOrcValueWriterTest {
   }
 
   @Test
+  public void testDecimalRecordConversionWriter()
+      throws Exception {
+    Schema schema =
+        new Schema.Parser().parse(this.getClass().getClassLoader().getResourceAsStream("decimal_test/schema.avsc"));
+
+    TypeDescription orcSchema = AvroOrcSchemaConverter.getOrcSchema(schema);
+    GenericRecordToOrcValueWriter valueWriter = new GenericRecordToOrcValueWriter(orcSchema, schema);
+    VectorizedRowBatch rowBatch = orcSchema.createRowBatch();
+
+    List<GenericRecord> recordList = GobblinOrcWriterTest
+        .deserializeAvroRecords(this.getClass(), schema, "decimal_test/data.json");
+    for (GenericRecord record : recordList) {
+      valueWriter.write(record, rowBatch);
+    }
+
+    // Flush RowBatch into disk.
+    File tempFile = new File(Files.createTempDir(), "orc");
+    tempFile.deleteOnExit();
+    Path filePath = new Path(tempFile.getAbsolutePath());
+
+    OrcFile.WriterOptions options = OrcFile.writerOptions(new Properties(), new Configuration());
+    options.setSchema(orcSchema);
+    Writer orcFileWriter = OrcFile.createWriter(filePath, options);
+    orcFileWriter.addRowBatch(rowBatch);
+    orcFileWriter.close();
+
+    // Load it back and compare.
+    FileSystem fs = FileSystem.get(new Configuration());
+    List<Writable> orcRecords = deserializeOrcRecords(filePath, fs);
+
+    Assert.assertEquals(orcRecords.size(), 2);
+    Assert.assertEquals(orcRecords.get(0).toString(), "{3.4}");
+    Assert.assertEquals(orcRecords.get(1).toString(), "{5.97}");
+  }
+
+  @Test
   public void testListResize()
       throws Exception {
     Schema schema =

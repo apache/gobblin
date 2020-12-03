@@ -40,7 +40,8 @@ public class AvroOrcSchemaConverter {
       case INT:
         return TypeDescription.createInt();
       case BYTES:
-        return TypeDescription.createBinary();
+      case FIXED:
+        return getTypeDescriptionForBinarySchema(avroSchema);
       case ARRAY:
         return TypeDescription.createList(getOrcSchema(avroSchema.getElementType()));
       case RECORD:
@@ -85,11 +86,29 @@ public class AvroOrcSchemaConverter {
       case ENUM:
         // represent as String for now
         return TypeDescription.createString();
-      case FIXED:
-        return TypeDescription.createBinary();
       default:
         throw new IllegalStateException(String.format("Unrecognized Avro type: %s", type.getName()));
     }
+  }
+
+  /**
+   * Get the {@link TypeDescription} for a binary schema type.
+   *
+   * This is based on logic from org.apache.hadoop.hive.serde2.avro.SchemaToTypeInfo#generateTypeInfo.
+   *
+   * @return If the logical type is decimal then return a decimal TypeDescription, otherwise return a binary
+   * TypeDescription.
+   *
+   */
+  private static TypeDescription getTypeDescriptionForBinarySchema(Schema avroSchema) {
+    if ("decimal".equalsIgnoreCase(avroSchema.getProp("logicalType"))) {
+      int scale = avroSchema.getJsonProp("scale").asInt(0);
+      int precision = avroSchema.getJsonProp("precision").asInt();
+
+      return TypeDescription.createDecimal().withScale(scale).withPrecision(precision);
+    }
+
+    return TypeDescription.createBinary();
   }
 
   /**

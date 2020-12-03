@@ -19,6 +19,7 @@ package org.apache.gobblin.writer;
 
 import java.util.List;
 
+import org.apache.avro.LogicalType;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.orc.TypeDescription;
@@ -73,6 +74,10 @@ public class AvroOrcSchemaConverterTest {
 
   @Test
   public void testTrivialAvroSchemaTranslation() throws Exception {
+    Schema decimalSchema = SchemaBuilder.builder().bytesType();
+    decimalSchema.addProp(LogicalType.LOGICAL_TYPE_PROP, "decimal");
+    decimalSchema.addProp("scale", 2);
+    decimalSchema.addProp("precision", 10);
 
     // Trivial cases
     Schema avroSchema = SchemaBuilder.record("test")
@@ -83,14 +88,20 @@ public class AvroOrcSchemaConverterTest {
         .name("int_type")
         .type(SchemaBuilder.builder().intType())
         .noDefault()
+        .name("decimal_type")
+        .type(decimalSchema)
+        .noDefault()
         .endRecord();
 
     TypeDescription orcSchema = TypeDescription.createStruct()
         .addField("string_type", TypeDescription.createString())
-        .addField("int_type", TypeDescription.createInt());
+        .addField("int_type", TypeDescription.createInt())
+        .addField("decimal_type", TypeDescription.createDecimal().withPrecision(10).withScale(2));
 
     // Top-level record name will not be replicated in conversion result.
     Assert.assertEquals(avroSchema.getFields(), getAvroSchema(orcSchema).getFields());
+
+    Assert.assertEquals(AvroOrcSchemaConverter.getOrcSchema(avroSchema), orcSchema);
   }
 
   @Test
@@ -148,8 +159,14 @@ public class AvroOrcSchemaConverterTest {
       case TIMESTAMP:
       case VARCHAR:
       case CHAR:
-      case DECIMAL:
         throw new UnsupportedOperationException("Types like BYTE and SHORT (and many more) are not supported in Avro");
+      case DECIMAL:
+        Schema bytesType = SchemaBuilder.builder().bytesType();
+        bytesType.addProp(LogicalType.LOGICAL_TYPE_PROP, "decimal");
+        bytesType.addProp("scale", schema.getScale());
+        bytesType.addProp("precision", schema.getPrecision());
+
+        return bytesType;
       case BOOLEAN:
         return SchemaBuilder.builder().booleanType();
       case INT:
