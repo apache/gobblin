@@ -37,6 +37,9 @@ public interface JobCatalogListener {
    */
   public void onDeleteJob(URI deletedJobURI, String deletedJobVersion);
 
+  default void onCancelJob(URI cancelledJobURI) {
+  }
+
   /**
    * Invoked when the contents of a JobSpec gets updated in the catalog.
    */
@@ -72,6 +75,21 @@ public interface JobCatalogListener {
 
     @Override public Void apply(JobCatalogListener listener) {
       listener.onDeleteJob(_deletedJobURI, _deletedJobVersion);
+      return null;
+    }
+  }
+
+  public static class CancelJobCallback extends Callback<JobCatalogListener, Void> {
+    private final URI _cancelledJobURI;
+
+    public CancelJobCallback(URI cancelledJobURI) {
+      super(Objects.toStringHelper("onCancelJob").add("cancelJob", cancelledJobURI).toString());
+      _cancelledJobURI = cancelledJobURI;
+    }
+
+    @Override
+    public Void apply(JobCatalogListener listener) {
+      listener.onCancelJob(_cancelledJobURI);
       return null;
     }
   }

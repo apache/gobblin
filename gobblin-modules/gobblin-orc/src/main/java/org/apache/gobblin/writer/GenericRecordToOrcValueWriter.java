@@ -18,6 +18,7 @@ package org.apache.gobblin.writer;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -187,9 +188,33 @@ public class GenericRecordToOrcValueWriter implements OrcValueWriter<GenericReco
   }
 
   static class DecimalConverter implements Converter {
+    private final int scale;
+
+    public DecimalConverter(int scale) {
+      this.scale = scale;
+    }
 
     public void addValue(int rowId, int column, Object data, ColumnVector output) {
-      ((DecimalColumnVector) output).vector[rowId].set(HiveDecimal.create((BigDecimal) data));
+      ((DecimalColumnVector) output).vector[rowId].set(getHiveDecimalFromByteBuffer((ByteBuffer) data));
+    }
+
+    /**
+     * Based on logic from org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils
+     */
+    private byte[] getBytesFromByteBuffer(ByteBuffer byteBuffer) {
+      byteBuffer.rewind();
+      byte[] result = new byte[byteBuffer.limit()];
+      byteBuffer.get(result);
+      return result;
+    }
+
+    /**
+     * Based on logic from org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils
+     */
+    private HiveDecimal getHiveDecimalFromByteBuffer(ByteBuffer byteBuffer) {
+      byte[] result = getBytesFromByteBuffer(byteBuffer);
+
+      return HiveDecimal.create(new BigInteger(result), this.scale);
     }
   }
 
@@ -382,7 +407,7 @@ public class GenericRecordToOrcValueWriter implements OrcValueWriter<GenericReco
       case VARCHAR:
         return new StringConverter();
       case DECIMAL:
-        return new DecimalConverter();
+        return new DecimalConverter(schema.getScale());
       case STRUCT:
         return new StructConverter(schema, AvroOrcSchemaConverter.sanitizeNullableSchema(avroSchema));
       case LIST:

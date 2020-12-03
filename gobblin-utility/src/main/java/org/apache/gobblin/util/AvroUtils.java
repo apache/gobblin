@@ -781,6 +781,8 @@ public class AvroUtils {
           for (Schema.Field oldField : schema.getFields()) {
             Field newField = new Field(oldField.name(), switchNamespace(oldField.schema(), namespaceOverride), oldField.doc(),
                 oldField.defaultValue(), oldField.order());
+            // Copy field level properties
+            copyFieldProperties(oldField, newField);
             newFields.add(newField);
           }
         }

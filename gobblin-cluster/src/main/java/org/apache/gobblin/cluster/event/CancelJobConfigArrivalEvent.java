@@ -15,18 +15,24 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.service;
+package org.apache.gobblin.cluster.event;
 
-import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Properties;
 
-/**
- * Service for handling group ownership of flows
- */
-public abstract class GroupOwnershipService {
 
-   /**
-    * @return true if any of the serviceRequesters belong in the group
-    */
-   public abstract boolean isMemberOfGroup(List<ServiceRequester> serviceRequesters, String group);
+public class CancelJobConfigArrivalEvent {
+  private final String jobUri;
+
+  public CancelJobConfigArrivalEvent(String jobUri) {
+    this.jobUri = jobUri;
+  }
+
+  /**
+   * Get the job uri.
+   *
+   * @return the job uri
+   */
+  public String getJoburi() {
+    return this.jobUri;
+  }
 }

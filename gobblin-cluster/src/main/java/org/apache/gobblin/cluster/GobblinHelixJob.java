@@ -44,7 +44,7 @@ import org.apache.gobblin.scheduler.JobScheduler;
 @Alpha
 @Slf4j
 public class GobblinHelixJob extends BaseGobblinJob implements InterruptableJob {
-  private Future cancellable = null;
+  private Future<?> cancellable = null;
 
   @Override
   public void executeImpl(JobExecutionContext context) throws JobExecutionException {
@@ -56,7 +56,7 @@ public class GobblinHelixJob extends BaseGobblinJob implements InterruptableJob 
     final JobListener jobListener = (JobListener) dataMap.get(JobScheduler.JOB_LISTENER_KEY);
 
     try {
-      if (Boolean.valueOf(jobProps.getProperty(GobblinClusterConfigurationKeys.JOB_EXECUTE_IN_SCHEDULING_THREAD,
+      if (Boolean.parseBoolean(jobProps.getProperty(GobblinClusterConfigurationKeys.JOB_EXECUTE_IN_SCHEDULING_THREAD,
               Boolean.toString(GobblinClusterConfigurationKeys.JOB_EXECUTE_IN_SCHEDULING_THREAD_DEFAULT)))) {
         jobScheduler.runJob(jobProps, jobListener);
       } else {

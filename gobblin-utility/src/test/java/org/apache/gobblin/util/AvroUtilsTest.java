@@ -55,6 +55,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 import lombok.extern.slf4j.Slf4j;
@@ -235,8 +236,19 @@ public class AvroUtilsTest {
     String originalNamespace = "originalNamespace";
     String originalName = "originalName";
     String newNamespace = "newNamespace";
-    Schema schema = SchemaBuilder.builder(originalNamespace).record(originalName).fields().
-        requiredDouble("double").optionalFloat("float").endRecord();
+
+    Schema schema = Schema.createRecord(originalName, "", originalNamespace, false);
+    schema.addProp("prop1", "val1");
+    schema.addProp("prop2", "val2");
+    List<Schema.Field> fieldList = Lists.newArrayList();
+    Schema.Field field1 =
+        new Schema.Field("key", Schema.create(Schema.Type.LONG), "", 0L);
+    field1.addProp("primaryKey", "true");
+    fieldList.add(field1);
+    Schema.Field field2 = new Schema.Field("double", Schema.create(Schema.Type.DOUBLE), "", 0.0);
+    fieldList.add(field2);
+
+    schema.setFields(Lists.newArrayList(fieldList));
 
     Map<String, String> map = Maps.newHashMap();
     map.put(originalNamespace, newNamespace);
@@ -247,6 +259,8 @@ public class AvroUtilsTest {
     for(Schema.Field field : newSchema.getFields()) {
       Assert.assertEquals(field, schema.getField(field.name()));
     }
+
+    Assert.assertTrue(schema.getObjectProps().equals(newSchema.getObjectProps()));
   }
 
   @Test public void testSerializeAsPath() throws Exception {

@@ -15,18 +15,30 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.service;
+package org.apache.gobblin.util;
 
-import java.util.List;
-import java.util.stream.Collectors;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
+import javax.net.ssl.X509TrustManager;
+
 
 /**
- * Service for handling group ownership of flows
+ * A default trust manager used by {@link: TrustManagerSocketFactory}
  */
-public abstract class GroupOwnershipService {
+class DummyTrustManager implements X509TrustManager {
 
-   /**
-    * @return true if any of the serviceRequesters belong in the group
-    */
-   public abstract boolean isMemberOfGroup(List<ServiceRequester> serviceRequesters, String group);
+  @Override
+  public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+    return;
+  }
+
+  @Override
+  public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+    return;
+  }
+
+  @Override
+  public X509Certificate[] getAcceptedIssuers() {
+    return null;
+  }
 }

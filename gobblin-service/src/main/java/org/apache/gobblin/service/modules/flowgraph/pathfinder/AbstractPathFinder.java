@@ -155,7 +155,7 @@ public abstract class AbstractPathFinder implements PathFinder {
     this.destDatasetDescriptor = DatasetDescriptorUtils.constructDatasetDescriptor(destDatasetDescriptorConfig);
   }
 
-  private Config getDefaultConfig(DataNode dataNode) {
+  public static Config getDefaultConfig(DataNode dataNode) {
     Config defaultConfig = ConfigFactory.empty();
 
     if (dataNode.getDefaultDatasetDescriptorClass() != null) {

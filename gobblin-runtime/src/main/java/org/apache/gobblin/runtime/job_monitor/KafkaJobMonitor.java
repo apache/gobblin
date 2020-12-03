@@ -108,7 +108,7 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
         } else if (parsedMessage instanceof Either.Right) {
           this.removedSpecs.inc();
           URI jobSpecUri = ((Either.Right<JobSpec, URI>) parsedMessage).getRight();
-          this.jobCatalog.remove(jobSpecUri);
+          this.jobCatalog.remove(jobSpecUri, true);
           // Delete the job state if it is a delete spec request
           deleteStateStore(jobSpecUri);
         }
