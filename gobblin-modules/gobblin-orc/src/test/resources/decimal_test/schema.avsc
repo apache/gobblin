@@ -1,0 +1,16 @@
+{
+  "namespace": "com.linkedin.decimal",
+  "type": "record",
+  "name": "DecimalTest",
+  "fields": [
+    {
+      "name": "id",
+      "type": {
+        "type": "bytes",
+        "logicalType": "decimal",
+        "precision": 10,
+        "scale": 2
+      }
+    }
+  ]
+}
