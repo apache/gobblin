@@ -78,6 +78,7 @@ ext.externalDependency = [
     "jgit": "org.eclipse.jgit:org.eclipse.jgit:5.1.1.201809181055-r",
     "jmh": "org.openjdk.jmh:jmh-core:1.17.3",
     "jmhAnnotations": "org.openjdk.jmh:jmh-generator-annprocess:1.17.3",
+    "jollyday": "de.jollyday:jollyday:0.4.9",
     "kafka08": "org.apache.kafka:kafka_2.11:" + kafka08Version,
     "kafka08Test": "org.apache.kafka:kafka_2.11:" + kafka08Version + ":test",
     "kafka08Client": "org.apache.kafka:kafka-clients:" + kafka08Version,
@@ -174,13 +175,13 @@ ext.externalDependency = [
     /**
      * Avoiding conflicts with Hive 1.x versions existed in the classpath
      */
-    "orcMapreduce":"org.apache.orc:orc-mapreduce:1.6.3:nohive",
-    "orcCore": "org.apache.orc:orc-core:1.6.3:nohive",
-    "orcTools":"org.apache.orc:orc-tools:1.6.3",
-    'parquet': 'org.apache.parquet:parquet-hadoop:1.11.0',
-    'parquetAvro': 'org.apache.parquet:parquet-avro:1.11.0',
-    'parquetProto': 'org.apache.parquet:parquet-protobuf:1.11.0',
-    'parquetHadoop': 'org.apache.parquet:parquet-hadoop-bundle:1.11.0',
+    "orcMapreduce":"org.apache.orc:orc-mapreduce:1.6.5:nohive",
+    "orcCore": "org.apache.orc:orc-core:1.6.5:nohive",
+    "orcTools":"org.apache.orc:orc-tools:1.6.5",
+    'parquet': 'org.apache.parquet:parquet-hadoop:1.11.1',
+    'parquetAvro': 'org.apache.parquet:parquet-avro:1.11.1',
+    'parquetProto': 'org.apache.parquet:parquet-protobuf:1.11.1',
+    'parquetHadoop': 'org.apache.parquet:parquet-hadoop-bundle:1.11.1',
     'reactivex': 'io.reactivex.rxjava2:rxjava:2.1.0',
     "slf4j": [
         "org.slf4j:slf4j-api:" + slf4jVersion,

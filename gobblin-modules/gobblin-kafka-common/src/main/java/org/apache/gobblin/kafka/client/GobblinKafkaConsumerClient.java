@@ -28,6 +28,7 @@ import com.codahale.metrics.Metric;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 
+import org.apache.gobblin.source.extractor.extract.LongWatermark;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaOffsetRetrievalFailureException;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaPartition;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaTopic;
@@ -165,6 +166,8 @@ public interface GobblinKafkaConsumerClient extends Closeable {
   default long committed(KafkaPartition partition) {
     return -1L;
   }
+
+  public default void assignAndSeek(List<KafkaPartition> topicPartitions, Map<KafkaPartition, LongWatermark> topicWatermarksMap) { return; }
 
   /**
    * A factory to create {@link GobblinKafkaConsumerClient}s

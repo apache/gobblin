@@ -18,10 +18,10 @@
 package org.apache.gobblin.couchbase.writer;
 
 import com.couchbase.client.java.env.CouchbaseEnvironment;
+import com.google.common.base.Preconditions;
 import com.typesafe.config.Config;
 import java.io.IOException;
 import java.util.Properties;
-import junit.framework.Assert;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.writer.AsyncDataWriter;
@@ -34,7 +34,7 @@ import org.apache.log4j.Logger;
 public class CouchbaseWriterBuilder extends DataWriterBuilder {
   private static final Logger LOG = Logger.getLogger(CouchbaseWriterBuilder.class);
   public DataWriter build(Config config) throws IOException {
-    Assert.assertNotNull("Config cannot be null", config);
+    Preconditions.checkArgument(config != null, "Config cannot be null");
     config.entrySet().stream().forEach(x -> String.format("Config passed to factory builder '%s':'%s'", x.getKey(), x.getValue().toString()));
     CouchbaseEnvironment couchbaseEnvironment = CouchbaseEnvironmentFactory.getInstance(config);
 
