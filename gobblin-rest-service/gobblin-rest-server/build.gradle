@@ -69,6 +69,7 @@ test {
     workingDir rootProject.rootDir
 }
 
-task compileTest(dependsOn: ['compileTestGeneratedDataTemplateJava', 'compileTestJava']) << {
+task compileTest(dependsOn: ['compileTestGeneratedDataTemplateJava', 'compileTestJava']) {
+    doLast{}
 }
 

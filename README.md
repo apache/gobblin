@@ -13,23 +13,10 @@ Apache Gobblin handles the common routine tasks required for all data ingestion 
 Gobblin ingests data from different data sources in the same execution framework, and manages metadata of different sources all in one place. This, combined with other features such as auto scalability, fault tolerance, data quality assurance, extensibility, and the ability of handling data model evolution, makes Gobblin an easy-to-use, self-serving, and efficient data ingestion framework.
 
 # Requirements
-* Java >= 1.8 
-* gradle-wrapper.jar version 2.13
+* Java >= 1.8
 
 If building the distribution with tests turned on:
 * Maven version 3.5.3 
-
-# Instructions to download gradle wrapper
-Run the following command for downloading the gradle-wrapper.jar from Gobblin git repository to gradle/wrapper directory.
-
-wget --no-check-certificate -P gradle/wrapper https://github.com/apache/incubator-gobblin/raw/0.12.0/gradle/wrapper/gradle-wrapper.jar
-(or)
-curl --insecure -L https://github.com/apache/incubator-gobblin/raw/0.12.0/gradle/wrapper/gradle-wrapper.jar > gradle/wrapper/gradle-wrapper.jar
-
-Alternatively, you can download it manually from: 
-https://github.com/apache/incubator-gobblin/blob/0.12.0/gradle/wrapper/gradle-wrapper.jar
-
-Make sure that you download it to gradle/wrapper directory. 
 
 # Instructions to run Apache RAT (Release Audit Tool)
 1. Extract the archive file to your local directory.
