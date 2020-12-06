@@ -36,11 +36,11 @@ The distribution will be created in build/gobblin-distribution/distributions dir
 
 # Quick Links
 
-  * [Gobblin documentation](http://gobblin.readthedocs.org/en/latest/)
-    * [Getting started guide](http://gobblin.readthedocs.org/en/latest/Getting-Started/)
-    * [Gobblin architecture](http://gobblin.readthedocs.io/en/latest/Gobblin-Architecture/)
+  * [Gobblin documentation](https://gobblin.apache.org/docs/)
+    * [Getting started guide](https://gobblin.apache.org/docs/Getting-Started/)
+    * [Gobblin architecture](https://gobblin.apache.org/docs/Gobblin-Architecture/)
   * Community Slack: [Sign up](https://join.slack.com/t/apache-gobblin/shared_invite/zt-hkwu51id-aVxL3bvtLdi778YHFV1b6A) or [login with existing account](https://apache-gobblin.slack.com) to `apache-gobblin` space on Slack
-  * [List of companies known to use Gobblin](http://gobblin.readthedocs.io/en/latest/Powered-By/) 
+  * [List of companies known to use Gobblin](https://gobblin.apache.org/docs/Powered-By/) 
   * [Sample project](https://github.com/apache/incubator-gobblin/tree/master/gobblin-example)
-  * [How to build Gobblin from source code](http://gobblin.readthedocs.io/en/latest/user-guide/Building-Gobblin/)
+  * [How to build Gobblin from source code](https://gobblin.apache.org/docs/user-guide/Building-Gobblin/)
   * [Issue tracker - Apache Jira](https://issues.apache.org/jira/projects/GOBBLIN/issues/)
