@@ -1,4 +1,4 @@
-Gobblin @ LinkedIn and beyond
+Gobblin Talks and Tech Blogs
 
 * QCon presentation <small><b>| [Presentation](http://www.slideshare.net/LinQiao1/gobblin-big-data-with-ease) | (Nov 5th, 2014)</b></small>
 * Engineering Blog Post <small><b>| [Presentation](http://engineering.linkedin.com/data-ingestion/gobblin-big-data-ease) | (Nov 25th, 2014)</b></small>
