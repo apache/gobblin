@@ -202,7 +202,7 @@ public class Kafka1ConsumerClient<K, V> extends AbstractBaseKafkaConsumerClient 
     public Kafka1ConsumerRecord(ConsumerRecord<K, V> consumerRecord) {
       // Kafka 09 consumerRecords do not provide value size.
       // Only 08 and 11 versions provide them.
-      super(consumerRecord.offset(), BaseKafkaConsumerRecord.VALUE_SIZE_UNAVAILABLE, consumerRecord.topic(), consumerRecord.partition());
+      super(consumerRecord.offset(), consumerRecord.serializedValueSize() , consumerRecord.topic(), consumerRecord.partition());
       this.consumerRecord = consumerRecord;
     }
 
