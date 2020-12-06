@@ -102,9 +102,8 @@ pages:
         - High Level Consumer: developer-guide/HighLevelConsumer.md
     - Project:
         - Feature List: project/Feature-List.md
-        - Contributors and Team: project/Team.md
+        - Contributors and Team: /people
         - Talks and Tech Blog Posts: project/Talks-and-Tech-Blogs.md
-        - News and Roadmap: project/News.md
         - Posts: project/Posts.md
     - Miscellaneous:
         - Camus to Gobblin Migration: miscellaneous/Camus-to-Gobblin-Migration.md
