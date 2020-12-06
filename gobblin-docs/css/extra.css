@@ -34,3 +34,7 @@ a.toctree-l5 {
 a.toctree-l6 {
   display: none;
 }
+
+.wy-side-nav-search {
+  background-color: #333333;
+}
