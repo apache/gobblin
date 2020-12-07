@@ -130,5 +130,6 @@ public class RegexBasedPartitionedRetrieverTest {
     Assert.assertTrue(fileInfo.getFilePath().startsWith(expectedStart.toString()));
     Assert.assertTrue(fileInfo.getFilePath().endsWith(expectedEnd));
     Assert.assertEquals(fileInfo.getFileSize(), 0);
+    Assert.assertEquals(fileInfo.getPartitionName(), String.format("%d-PT-123456", value));
    }
 }

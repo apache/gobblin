@@ -176,7 +176,7 @@ public class ConfigurableCleanableDataset<T extends FileSystemDatasetVersion>
       String versionFinderKey) {
     this.versionFindersAndPolicies
         .add(new VersionFinderAndPolicy<>(createRetentionPolicy(config.getString(retentionPolicyKey), config, jobProps),
-            createVersionFinder(config.getString(versionFinderKey), config, jobProps)));
+            createVersionFinder(config.getString(versionFinderKey), config, jobProps), config));
   }
 
   private void initWithSelectionPolicy(Config config, Properties jobProps) {
@@ -189,6 +189,7 @@ public class ConfigurableCleanableDataset<T extends FileSystemDatasetVersion>
             config.root().render(ConfigRenderOptions.concise())));
 
     VersionFinderAndPolicyBuilder<T> builder = VersionFinderAndPolicy.builder();
+    builder.config(config);
     builder.versionFinder(createVersionFinder(config.getString(versionFinderKey), config, jobProps));
     if (config.hasPath(selectionPolicyKey)) {
       builder.versionSelectionPolicy(createSelectionPolicy(

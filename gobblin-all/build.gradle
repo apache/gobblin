@@ -1,0 +1,102 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+apply plugin: 'java'
+
+dependencies {
+  compile project(':gobblin-admin')
+  compile project(':gobblin-api')
+  compile project(':gobblin-audit')
+  compile project(':gobblin-modules:gobblin-avro-json')
+  compile project(':gobblin-aws')
+  compile project(':gobblin-modules:gobblin-azkaban')
+  compile project(':gobblin-modules:gobblin-azure-datalake')
+  compile project(':gobblin-binary-management')
+  compile project(':gobblin-cluster')
+  compile project(path: ':gobblin-cluster', configuration: 'tests')
+  compile project(':gobblin-modules:gobblin-codecs')
+  compile project(':gobblin-compaction')
+  compile project(':gobblin-modules:gobblin-compliance')
+  compile project(':gobblin-config-management:gobblin-config-client')
+  compile project(':gobblin-config-management:gobblin-config-core')
+  compile project(':gobblin-config-management')
+  compile project(':gobblin-core')
+  compile project(':gobblin-core-base')
+  compile project(':gobblin-modules:gobblin-couchbase')
+  compile project(':gobblin-modules:gobblin-crypto')
+  compile project(':gobblin-modules:gobblin-crypto-provider')
+  compile project(':gobblin-data-management')
+  compile project(':gobblin-modules:gobblin-elasticsearch')
+  compile project(':gobblin-modules:gobblin-elasticsearch-deps')
+  compile project(':gobblin-modules:gobblin-eventhub')
+  compile project(':gobblin-example')
+  compile project(':gobblin-restli:gobblin-flow-config-service')
+  compile project(':gobblin-restli:gobblin-flow-config-service:gobblin-flow-config-service-api')
+  compile project(path: ':gobblin-restli:gobblin-flow-config-service:gobblin-flow-config-service-api', configuration: 'dataTemplate')
+  compile project(path: ':gobblin-restli:gobblin-flow-config-service:gobblin-flow-config-service-api', configuration: 'restClient')
+  compile project(':gobblin-restli:gobblin-flow-config-service:gobblin-flow-config-service-client')
+  compile project(':gobblin-restli:gobblin-flow-config-service:gobblin-flow-config-service-server')
+  compile project(':gobblin-modules:gobblin-grok')
+  compile project(':gobblin-modules:gobblin-helix')
+  compile project(':gobblin-hive-registration')
+  compile project(':gobblin-modules:gobblin-http')
+  compile project(':gobblin-modules:gobblin-kafka-08')
+  //gobblin-kafka-09 is blacklisted for jacocoBuilds. check settings.xml
+  if (System.getProperty('jacocoBuild') == null) {
+    compile project(':gobblin-modules:gobblin-kafka-09')
+  }
+  compile project(':gobblin-modules:gobblin-kafka-common')
+  compile project(':gobblin-modules:gobblin-metadata')
+  compile project(':gobblin-metastore')
+  compile project(':gobblin-metrics-libs:gobblin-metrics')
+  compile project(':gobblin-metrics-libs:gobblin-metrics-base')
+  compile project(':gobblin-modules:gobblin-metrics-graphite')
+  compile project(':gobblin-modules:gobblin-metrics-hadoop')
+  compile project(':gobblin-modules:gobblin-metrics-influxdb')
+  compile project(':gobblin-metrics-libs')
+  compile project(':gobblin-modules:gobblin-orc')
+  compile project(':gobblin-modules:gobblin-orc-dep')
+  compile project(':gobblin-modules:gobblin-parquet-apache')
+  compile project(':gobblin-modules:gobblin-parquet-common')
+  compile project(':gobblin-rest-service:gobblin-rest-api')
+  compile project(path: ':gobblin-rest-service:gobblin-rest-api', configuration: 'dataTemplate')
+  compile project(path: ':gobblin-rest-service:gobblin-rest-api', configuration: 'restClient')
+  compile project(':gobblin-rest-service:gobblin-rest-client')
+  compile project(':gobblin-rest-service:gobblin-rest-server')
+  compile project(':gobblin-rest-service')
+  compile project(':gobblin-restli')
+  compile project(':gobblin-restli:gobblin-restli-utils')
+  compile project(':gobblin-runtime')
+  compile project(':gobblin-runtime-hadoop')
+  compile project(':gobblin-salesforce')
+  compile project(':gobblin-service')
+  compile project(':gobblin-modules:gobblin-service-kafka')
+  compile project(':gobblin-modules:gobblin-sql')
+  compile project(':gobblin-test-harness')
+  compile project(':gobblin-test-utils')
+  compile project(':gobblin-restli:gobblin-throttling-service')
+  compile project(':gobblin-restli:gobblin-throttling-service:gobblin-throttling-service-api')
+  compile project(path: ':gobblin-restli:gobblin-throttling-service:gobblin-throttling-service-api', configuration: 'dataTemplate')
+  compile project(path: ':gobblin-restli:gobblin-throttling-service:gobblin-throttling-service-api', configuration: 'restClient')
+  compile project(':gobblin-restli:gobblin-throttling-service:gobblin-throttling-service-client')
+  compile project(':gobblin-restli:gobblin-throttling-service:gobblin-throttling-service-server')
+  compile project(':gobblin-tunnel')
+  compile project(':gobblin-utility')
+  compile project(':gobblin-yarn')
+  compile project(':gobblin-modules:gobblin-zuora')
+  compile project(':gobblin-modules:google-ingestion')
+}

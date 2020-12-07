@@ -17,8 +17,16 @@
 
 package org.apache.gobblin.compaction.event;
 
+import com.google.common.base.Optional;
 import java.io.IOException;
-
+import org.apache.gobblin.compaction.dataset.Dataset;
+import org.apache.gobblin.compaction.mapreduce.MRCompactor;
+import org.apache.gobblin.compaction.mapreduce.RecordKeyDedupReducerBase;
+import org.apache.gobblin.compaction.mapreduce.RecordKeyMapperBase;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.metrics.event.sla.SlaEventKeys;
+import org.apache.gobblin.metrics.event.sla.SlaEventSubmitter;
+import org.apache.gobblin.metrics.event.sla.SlaEventSubmitter.SlaEventSubmitterBuilder;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.Counter;
@@ -26,17 +34,6 @@ import org.apache.hadoop.mapreduce.Counters;
 import org.apache.hadoop.mapreduce.Job;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.base.Optional;
-
-import org.apache.gobblin.compaction.dataset.Dataset;
-import org.apache.gobblin.compaction.mapreduce.MRCompactor;
-import org.apache.gobblin.compaction.mapreduce.avro.AvroKeyDedupReducer;
-import org.apache.gobblin.compaction.mapreduce.avro.AvroKeyMapper;
-import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.metrics.event.sla.SlaEventKeys;
-import org.apache.gobblin.metrics.event.sla.SlaEventSubmitter;
-import org.apache.gobblin.metrics.event.sla.SlaEventSubmitter.SlaEventSubmitterBuilder;
 
 
 /**
@@ -52,9 +49,11 @@ public class CompactionSlaEventHelper {
   public static final String REGULAR_RECORD_COUNT = "regularRecordCount";
   public static final String NEED_RECOMPACT = "needRecompact";
   public static final String PREV_RECORD_COUNT_TOTAL = "prevRecordCountTotal";
+  public static final String LAST_RUN_START_TIME = "lastRunStartTime";
   public static final String EXEC_COUNT_TOTAL = "executionCountTotal";
   public static final String MR_JOB_ID = "mrJobId";
   public static final String RECORD_COUNT_TOTAL = "recordCountTotal";
+  public static final String DUPLICATE_COUNT_TOTAL = "DuplicateRecordCount";
   public static final String HIVE_REGISTRATION_PATHS = "hiveRegistrationPaths";
   public static final String RENAME_DIR_PATHS = "renameDirPaths";
 
@@ -142,13 +141,13 @@ public class CompactionSlaEventHelper {
       return -1l;
     }
 
-    Counter recordCounter = counters.findCounter(AvroKeyDedupReducer.EVENT_COUNTER.RECORD_COUNT);
+    Counter recordCounter = counters.findCounter(RecordKeyDedupReducerBase.EVENT_COUNTER.RECORD_COUNT);
 
     if (recordCounter != null && recordCounter.getValue() != 0) {
       return recordCounter.getValue();
     }
 
-    recordCounter = counters.findCounter(AvroKeyMapper.EVENT_COUNTER.RECORD_COUNT);
+    recordCounter = counters.findCounter(RecordKeyMapperBase.EVENT_COUNTER.RECORD_COUNT);
 
     if (recordCounter != null && recordCounter.getValue() != 0) {
       return recordCounter.getValue();

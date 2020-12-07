@@ -43,12 +43,16 @@ import org.apache.gobblin.source.workunit.WorkUnit;
  */
 public class KafkaSingleLevelWorkUnitPacker extends KafkaWorkUnitPacker {
 
-  protected KafkaSingleLevelWorkUnitPacker(AbstractSource<?, ?> source, SourceState state) {
+  public KafkaSingleLevelWorkUnitPacker(AbstractSource<?, ?> source, SourceState state) {
     super(source, state);
   }
 
   @Override
   public List<WorkUnit> pack(Map<String, List<WorkUnit>> workUnitsByTopic, int numContainers) {
+    if (workUnitsByTopic == null || workUnitsByTopic.isEmpty()) {
+      return Lists.newArrayList();
+    }
+
     setWorkUnitEstSizes(workUnitsByTopic);
     List<WorkUnit> workUnits = Lists.newArrayList();
     for (List<WorkUnit> workUnitsForTopic : workUnitsByTopic.values()) {

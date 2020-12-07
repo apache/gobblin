@@ -1,0 +1,2 @@
+gobblin.template.uri=resource:///template_catalog/templates/job3.template
+job.dependencies=job1

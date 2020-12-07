@@ -49,6 +49,7 @@ public class RestliLimiterFactory<S extends ScopeType<S>>
   public static final String FACTORY_NAME = "limiter.restli";
   public static final String RESTLI_SERVICE_NAME = "throttling";
   public static final String SERVICE_IDENTIFIER_KEY = "serviceId";
+  public static final String PERMIT_REQUEST_TIMEOUT = "permitRequestTimeoutMillis";
 
   @Override
   public String getName() {
@@ -72,12 +73,16 @@ public class RestliLimiterFactory<S extends ScopeType<S>>
         new SubTaggedMetricContextKey(RestliServiceBasedLimiter.class.getSimpleName() + "_" + resourceLimited,
         ImmutableMap.of("resourceLimited", resourceLimited));
 
+    long permitRequestTimeout = config.getConfig().hasPath(PERMIT_REQUEST_TIMEOUT)
+        ? config.getConfig().getLong(PERMIT_REQUEST_TIMEOUT) : 0L;
+
     return new ResourceInstance<>(
         RestliServiceBasedLimiter.builder()
             .resourceLimited(resourceLimited)
             .serviceIdentifier(serviceIdentifier)
             .metricContext(broker.getSharedResource(new MetricContextFactory<S>(), metricContextKey))
             .requestSender(broker.getSharedResource(new RedirectAwareRestClientRequestSender.Factory<S>(), new SharedRestClientKey(RESTLI_SERVICE_NAME)))
+            .permitRequestTimeoutMillis(permitRequestTimeout)
             .build()
     );
   }

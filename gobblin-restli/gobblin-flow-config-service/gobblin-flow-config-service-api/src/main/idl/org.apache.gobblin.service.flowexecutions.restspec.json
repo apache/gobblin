@@ -1,0 +1,44 @@
+{
+  "name" : "flowexecutions",
+  "namespace" : "org.apache.gobblin.service",
+  "path" : "/flowexecutions",
+  "schema" : "org.apache.gobblin.service.FlowExecution",
+  "doc" : "Resource for handling flow execution requests\n\ngenerated from: org.apache.gobblin.service.FlowExecutionResource",
+  "collection" : {
+    "identifier" : {
+      "name" : "id",
+      "type" : "org.apache.gobblin.service.FlowStatusId",
+      "params" : "com.linkedin.restli.common.EmptyRecord"
+    },
+    "supports" : [ "delete", "get" ],
+    "methods" : [ {
+      "method" : "get",
+      "doc" : "Retrieve the FlowExecution with the given key"
+    }, {
+      "method" : "delete",
+      "doc" : "Kill the FlowExecution with the given key"
+    } ],
+    "finders" : [ {
+      "name" : "latestFlowExecution",
+      "parameters" : [ {
+        "name" : "flowId",
+        "type" : "org.apache.gobblin.service.FlowId"
+      }, {
+        "name" : "count",
+        "type" : "int",
+        "optional" : true
+      }, {
+        "name" : "tag",
+        "type" : "string",
+        "optional" : true
+      }, {
+        "name" : "executionStatus",
+        "type" : "string",
+        "optional" : true
+      } ]
+    } ],
+    "entity" : {
+      "path" : "/flowexecutions/{id}"
+    }
+  }
+}

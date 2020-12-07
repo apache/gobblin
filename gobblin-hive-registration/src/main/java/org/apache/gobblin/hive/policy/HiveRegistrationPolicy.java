@@ -33,6 +33,7 @@ import org.apache.gobblin.hive.spec.HiveSpec;
  */
 @Alpha
 public interface HiveRegistrationPolicy {
+  public static final String MAPREDUCE_JOB_INPUT_PATH_EMPTY_KEY = "mapreduce.job.input.path.empty";
 
   /**
    * Get a collection of {@link HiveSpec}s for a {@link Path}, which can be used by {@link org.apache.gobblin.hive.HiveRegister}

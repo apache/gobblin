@@ -20,6 +20,7 @@ package org.apache.gobblin.metastore.metadata;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metastore.DatasetStateStore;
 
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
 
@@ -27,6 +28,7 @@ import lombok.Getter;
  * A {@link StateStoreEntryManager} in a {@link DatasetStateStore}.
  */
 @Getter
+@EqualsAndHashCode(exclude={"datasetStateStore"}, callSuper = true)
 public abstract class DatasetStateStoreEntryManager<T extends State> extends StateStoreEntryManager<T> {
 
   /**
@@ -41,12 +43,12 @@ public abstract class DatasetStateStoreEntryManager<T extends State> extends Sta
   private final DatasetStateStore datasetStateStore;
 
   public DatasetStateStoreEntryManager(String storeName, String tableName, long timestamp,
-      DatasetStateStore.TableNameParser tableNameParser, DatasetStateStore datasetStateStore) {
+      DatasetStateStore.TableNameParser tableNameParser, DatasetStateStore<T> datasetStateStore) {
     this(storeName, tableName, timestamp, tableNameParser.getSanitizedDatasetUrn(), tableNameParser.getStateId(), datasetStateStore);
   }
 
   public DatasetStateStoreEntryManager(String storeName, String tableName, long timestamp, String sanitizedDatasetUrn,
-      String stateId, DatasetStateStore datasetStateStore) {
+      String stateId, DatasetStateStore<T> datasetStateStore) {
     super(storeName, tableName, timestamp, datasetStateStore);
     this.sanitizedDatasetUrn = sanitizedDatasetUrn;
     this.stateId = stateId;

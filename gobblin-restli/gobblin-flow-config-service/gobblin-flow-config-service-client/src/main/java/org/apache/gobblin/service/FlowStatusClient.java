@@ -17,34 +17,36 @@
 
 package org.apache.gobblin.service;
 
-import com.google.common.base.Preconditions;
-import com.linkedin.restli.client.FindRequest;
-import com.linkedin.restli.common.CollectionResponse;
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.List;
 import java.util.Collections;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.linkedin.common.callback.FutureCallback;
 import com.linkedin.common.util.None;
 import com.linkedin.r2.RemoteInvocationException;
 import com.linkedin.r2.transport.common.Client;
 import com.linkedin.r2.transport.common.bridge.client.TransportClientAdapter;
 import com.linkedin.r2.transport.http.client.HttpClientFactory;
+import com.linkedin.restli.client.FindRequest;
 import com.linkedin.restli.client.GetRequest;
 import com.linkedin.restli.client.Response;
 import com.linkedin.restli.client.RestClient;
+import com.linkedin.restli.common.CollectionResponse;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
 
 
 /**
  * Flow status client for REST flow status server
+ * @deprecated Use {@link FlowExecutionClient}
  */
+@Deprecated
 public class FlowStatusClient implements Closeable {
   private static final Logger LOG = LoggerFactory.getLogger(FlowStatusClient.class);
 
@@ -57,13 +59,13 @@ public class FlowStatusClient implements Closeable {
    * @param serverUri address and port of the REST server
    */
   public FlowStatusClient(String serverUri) {
-    LOG.debug("FlowConfigClient with serverUri " + serverUri);
+    LOG.debug("FlowStatusClient with serverUri " + serverUri);
 
     _httpClientFactory = Optional.of(new HttpClientFactory());
     Client r2Client = new TransportClientAdapter(_httpClientFactory.get().getClient(Collections.<String, String>emptyMap()));
     _restClient = Optional.of(new RestClient(r2Client, serverUri));
 
-    _flowstatusesRequestBuilders = new FlowstatusesRequestBuilders();
+    _flowstatusesRequestBuilders = createRequestBuilders();
   }
 
   /**
@@ -71,12 +73,16 @@ public class FlowStatusClient implements Closeable {
    * @param restClient restClient to send restli request
    */
   public FlowStatusClient(RestClient restClient) {
-    LOG.debug("FlowConfigClient with restClient " + restClient);
+    LOG.debug("FlowStatusClient with restClient " + restClient);
 
     _httpClientFactory = Optional.absent();
     _restClient = Optional.of(restClient);
 
-    _flowstatusesRequestBuilders = new FlowstatusesRequestBuilders();
+    _flowstatusesRequestBuilders = createRequestBuilders();
+  }
+
+  protected FlowstatusesRequestBuilders createRequestBuilders() {
+    return new FlowstatusesRequestBuilders();
   }
 
   /**
@@ -87,7 +93,7 @@ public class FlowStatusClient implements Closeable {
    */
   public FlowStatus getFlowStatus(FlowStatusId flowStatusId)
       throws RemoteInvocationException {
-    LOG.debug("getFlowConfig with groupName " + flowStatusId.getFlowGroup() + " flowName " +
+    LOG.debug("getFlowStatus with groupName " + flowStatusId.getFlowGroup() + " flowName " +
         flowStatusId.getFlowName());
 
     GetRequest<FlowStatus> getRequest = _flowstatusesRequestBuilders.get()
@@ -106,7 +112,7 @@ public class FlowStatusClient implements Closeable {
    */
   public FlowStatus getLatestFlowStatus(FlowId flowId)
       throws RemoteInvocationException {
-    LOG.debug("getFlowConfig with groupName " + flowId.getFlowGroup() + " flowName " +
+    LOG.debug("getFlowStatus with groupName " + flowId.getFlowGroup() + " flowName " +
         flowId.getFlowName());
 
     FindRequest<FlowStatus> findRequest = _flowstatusesRequestBuilders.findByLatestFlowStatus().flowIdParam(flowId).build();
@@ -123,6 +129,34 @@ public class FlowStatusClient implements Closeable {
       return flowStatusList.get(0);
     }
   }
+
+  /**
+   * Get the latest k flow statuses
+   * @param flowId identifier of flow status to get
+   * @return a list of {@link FlowStatus}es corresponding to the latest <code>count</code> executions, containing only
+   * jobStatuses that match the given tag.
+   * @throws RemoteInvocationException
+   */
+  public List<FlowStatus> getLatestFlowStatus(FlowId flowId, Integer count, String tag)
+      throws RemoteInvocationException {
+    LOG.debug("getFlowStatus with groupName " + flowId.getFlowGroup() + " flowName " +
+        flowId.getFlowName() + " count " + Integer.toString(count));
+
+    FindRequest<FlowStatus> findRequest = _flowstatusesRequestBuilders.findByLatestFlowStatus().flowIdParam(flowId).
+        addReqParam("count", count, Integer.class).addParam("tag", tag, String.class).build();
+
+    Response<CollectionResponse<FlowStatus>> response =
+        _restClient.get().sendRequest(findRequest).getResponse();
+
+    List<FlowStatus> flowStatusList = response.getEntity().getElements();
+
+    if (flowStatusList.isEmpty()) {
+      return null;
+    } else {
+      return flowStatusList;
+    }
+  }
+
 
   @Override
   public void close()

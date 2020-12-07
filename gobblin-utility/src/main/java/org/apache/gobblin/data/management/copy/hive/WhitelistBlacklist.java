@@ -33,43 +33,62 @@ import com.typesafe.config.Config;
 
 
 /**
- * A whitelist / blacklist implementation for filtering Hive tables. Parses input whitelist and blacklist of the form
+ * A whitelist / blacklist implementation for filtering Hive tables. It can be configured as
+ * case-insensitive({@code ignoreCase = true}) or case-sensitive({@code ignoreCase = false}). By default, it's
+ * case-insensitive. <br>
+ *
+ * <p></p>
+ * Parses input whitelist and blacklist of the form
  * [dbpattern.tablepattern1|tablepattern2|...],... and filters accordingly. The db and table patterns accept "*"
  * characters. Each of whitelist and blacklist is a list of patterns. For a table to be accepted, it must fail the
  * blacklist filter and pass the whitelist filter. Empty whitelist or blacklist are noops.
  *
+ * <p></p>
  * <p>
  *   Example whitelist and blacklist patterns:
- *   * db1.table1 -> only db1.table1 passes.
- *   * db1 -> any table under db1 passes.
- *   * db1.table* -> any table under db1 whose name satisfies the pattern table* passes.
- *   * db* -> all tables from all databases whose names satisfy the pattern db* pass.
- *   * db*.table* -> db and table must satisfy the patterns db* and table* respectively
- *   * db1.table1,db2.table2 -> combine expressions for different databases with comma.
- *   * db1.table1|table2 -> combine expressions for same database with "|".
+ *   <li> db1.table1 -> only db1.table1 passes.
+ *   <li> db1 -> any table under db1 passes.
+ *   <li> db1.table* -> any table under db1 whose name satisfies the pattern table* passes.
+ *   <li> db* -> all tables from all databases whose names satisfy the pattern db* pass.
+ *   <li> db*.table* -> db and table must satisfy the patterns db* and table* respectively
+ *   <li> db1.table1,db2.table2 -> combine expressions for different databases with comma.
+ *   <li> db1.table1|table2 -> combine expressions for same database with "|".
  * </p>
  */
 public class WhitelistBlacklist implements Serializable {
 
   public static final String WHITELIST = "whitelist";
   public static final String BLACKLIST = "blacklist";
+  public static final String IGNORE_CASE = "whitelistBlacklist.ignoreCase";
 
   private static final Pattern ALL_TABLES = Pattern.compile(".*");
 
   private final SetMultimap<Pattern, Pattern> whitelistMultimap;
   private final SetMultimap<Pattern, Pattern> blacklistMultimap;
+  private final boolean ignoreCase;
 
   public WhitelistBlacklist(Config config) throws IOException {
-    this(config.hasPath(WHITELIST) ? config.getString(WHITELIST).toLowerCase() : "",
-        config.hasPath(BLACKLIST) ? config.getString(BLACKLIST).toLowerCase() : "");
+    this(config.hasPath(WHITELIST) ? config.getString(WHITELIST) : "",
+        config.hasPath(BLACKLIST) ? config.getString(BLACKLIST) : "",
+        !config.hasPath(IGNORE_CASE) || config.getBoolean(IGNORE_CASE));
   }
 
   public WhitelistBlacklist(String whitelist, String blacklist) throws IOException {
+    this(whitelist, blacklist, true);
+  }
+
+  public WhitelistBlacklist(String whitelist, String blacklist, boolean ignoreCase) throws IOException {
     this.whitelistMultimap = HashMultimap.create();
     this.blacklistMultimap = HashMultimap.create();
+    this.ignoreCase = ignoreCase;
 
-    populateMultimap(this.whitelistMultimap, whitelist.toLowerCase());
-    populateMultimap(this.blacklistMultimap, blacklist.toLowerCase());
+    if (ignoreCase) {
+      populateMultimap(this.whitelistMultimap, whitelist.toLowerCase());
+      populateMultimap(this.blacklistMultimap, blacklist.toLowerCase());
+    } else {
+      populateMultimap(this.whitelistMultimap, whitelist);
+      populateMultimap(this.blacklistMultimap, blacklist);
+    }
   }
 
   /**
@@ -83,15 +102,20 @@ public class WhitelistBlacklist implements Serializable {
    * @return Whether the input table is accepted by this {@link WhitelistBlacklist}.
    */
   public boolean acceptTable(String db, String table) {
-    return accept(db.toLowerCase(), table==null? Optional.<String> absent(): Optional.fromNullable(table.toLowerCase()));
+    return accept(db, table == null? Optional.<String> absent(): Optional.fromNullable(table));
   }
 
   private boolean accept(String db, Optional<String> table) {
-    if (!this.blacklistMultimap.isEmpty() && multimapContains(this.blacklistMultimap, db, table, true)) {
+    String adjustedDb = ignoreCase ? db.toLowerCase() : db;
+    Optional<String> adjustedTable = ignoreCase && table.isPresent() ? Optional.of(table.get().toLowerCase()) : table;
+
+    if (!this.blacklistMultimap.isEmpty() &&
+        multimapContains(this.blacklistMultimap, adjustedDb, adjustedTable, true)) {
       return false;
     }
 
-    return this.whitelistMultimap.isEmpty() || multimapContains(this.whitelistMultimap, db, table, false);
+    return this.whitelistMultimap.isEmpty() ||
+        multimapContains(this.whitelistMultimap, adjustedDb, adjustedTable, false);
   }
 
   private static void populateMultimap(SetMultimap<Pattern, Pattern> multimap, String list) throws IOException {

@@ -32,7 +32,7 @@ public class TestCompactionSuites {
   /**
    * Test hive registration failure
    */
-  public static class HiveRegistrationCompactionSuite extends CompactionAvroSuite {
+  public static class HiveRegistrationCompactionSuite extends CompactionSuiteBase {
 
     public HiveRegistrationCompactionSuite(State state) {
       super(state);

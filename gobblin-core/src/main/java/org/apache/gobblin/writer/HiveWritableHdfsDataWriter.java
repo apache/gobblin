@@ -42,8 +42,10 @@ import org.apache.gobblin.configuration.State;
  */
 public class HiveWritableHdfsDataWriter extends FsDataWriter<Writable> {
 
-  protected final RecordWriter writer;
+  protected RecordWriter writer;
   protected final AtomicLong count = new AtomicLong(0);
+  // the close method may be invoked multiple times, but the underlying writer only supports close being called once
+  private boolean closed = false;
 
   public HiveWritableHdfsDataWriter(HiveWritableHdfsDataWriterBuilder<?> builder, State properties) throws IOException {
     super(builder, properties);
@@ -62,7 +64,13 @@ public class HiveWritableHdfsDataWriter extends FsDataWriter<Writable> {
       Class<? extends Writable> writableClass = (Class<? extends Writable>) Class
           .forName(this.properties.getProp(HiveWritableHdfsDataWriterBuilder.WRITER_WRITABLE_CLASS));
 
-      return outputFormat.getHiveRecordWriter(new JobConf(), this.stagingFile, writableClass, true,
+      // Merging Job Properties into JobConf for easy tuning
+      JobConf loadedJobConf = new JobConf();
+      for (Object key : this.properties.getProperties().keySet()) {
+        loadedJobConf.set((String)key, this.properties.getProp((String)key));
+      }
+
+      return outputFormat.getHiveRecordWriter(loadedJobConf, this.stagingFile, writableClass, true,
           this.properties.getProperties(), null);
     } catch (Throwable t) {
       throw new IOException(String.format("Failed to create writer"), t);
@@ -92,8 +100,30 @@ public class HiveWritableHdfsDataWriter extends FsDataWriter<Writable> {
   }
 
   @Override
+  public void close() throws IOException {
+    closeInternal();
+    super.close();
+  }
+
+  @Override
   public void commit() throws IOException {
-    this.writer.close(false);
+    closeInternal();
     super.commit();
+  }
+
+  private void closeInternal() throws IOException {
+    // close the underlying writer if not already closed. The close can only be called once for the underlying writer,
+    // so remember the state
+    if (!this.closed) {
+      this.writer.close(false);
+      // release reference to allow GC since this writer can hold onto large buffers for some formats like ORC.
+      this.writer = null;
+      this.closed = true;
+    }
+  }
+
+  @Override
+  public boolean isSpeculativeAttemptSafe() {
+    return this.writerAttemptIdOptional.isPresent() && this.getClass() == HiveWritableHdfsDataWriter.class;
   }
 }

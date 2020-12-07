@@ -43,6 +43,10 @@ public class QPSPolicy implements ThrottlingPolicy {
 
   public static final String FACTORY_ALIAS = "qps";
 
+  /** Max time we will ask clients to wait for a new allocation. By default set to the Rest.li timeout because
+   * that is how we determine whether permists can be granted. */
+  public static final long MAX_WAIT_MILLIS = LimiterServerResource.TIMEOUT_MILLIS;
+
   /**
    * The qps the policy should enforce.
    */
@@ -91,13 +95,22 @@ public class QPSPolicy implements ThrottlingPolicy {
       minPermits = permitsRequested;
     }
 
-    long permitsGranted = this.tokenBucket.getPermits(permitsRequested, minPermits, LimiterServerResource.TIMEOUT_MILLIS);
+    DynamicTokenBucket.PermitsAndDelay permitsGranted =
+        this.tokenBucket.getPermitsAndDelay(permitsRequested, minPermits, LimiterServerResource.TIMEOUT_MILLIS);
 
     PermitAllocation allocation = new PermitAllocation();
-    allocation.setPermits(permitsGranted);
+    allocation.setPermits(permitsGranted.getPermits());
     allocation.setExpiration(Long.MAX_VALUE);
-    if (permitsGranted <= 0) {
-      allocation.setMinRetryDelayMillis(LimiterServerResource.TIMEOUT_MILLIS);
+    allocation.setWaitForPermitUseMillis(permitsGranted.getDelay());
+    if (!permitsGranted.isPossibleToSatisfy()) {
+      allocation.setUnsatisfiablePermits(request.getMinPermits(GetMode.DEFAULT));
+    }
+    if (permitsRequested > 0) {
+      // This heuristic asks clients to wait before making any requests
+      // for an amount of time based on the percentage of their requested permits that were granted
+      double fractionGranted = Math.min(1.0, ((double) permitsGranted.getPermits() / permitsRequested));
+      double wait = MAX_WAIT_MILLIS * (1 - fractionGranted);
+      allocation.setMinRetryDelayMillis((long) wait);
     }
     return allocation;
   }

@@ -35,6 +35,9 @@ import org.apache.gobblin.data.management.copy.CopyEntity;
 import org.apache.gobblin.data.management.copy.CopyableFile;
 import org.apache.gobblin.data.management.copy.entities.PostPublishStep;
 import org.apache.gobblin.data.management.copy.entities.PrePublishStep;
+import org.apache.gobblin.dataset.DatasetDescriptor;
+import org.apache.gobblin.dataset.PartitionDescriptor;
+import org.apache.gobblin.hive.HiveConstants;
 import org.apache.gobblin.hive.HiveRegisterStep;
 import org.apache.gobblin.hive.metastore.HiveMetaStoreUtils;
 import org.apache.gobblin.hive.spec.HiveSpec;
@@ -153,7 +156,18 @@ public class HivePartitionFileSet extends HiveFileSet {
         CopyableFile fileEntity =
             builder.fileSet(fileSet).checksum(new byte[0]).datasetOutputPath(desiredTargetLocation.location.toString())
                 .build();
-        this.hiveCopyEntityHelper.setCopyableFileDatasets(fileEntity);
+
+        DatasetDescriptor sourceDataset = this.hiveCopyEntityHelper.getSourceDataset();
+        PartitionDescriptor source = new PartitionDescriptor(partition.getName(), sourceDataset);
+        fileEntity.setSourceData(source);
+
+        DatasetDescriptor destinationDataset = this.hiveCopyEntityHelper.getDestinationDataset();
+        Partition destinationPartition =
+            this.existingTargetPartition.isPresent() ? this.existingTargetPartition.get() : partition;
+        PartitionDescriptor destination =
+            new PartitionDescriptor(destinationPartition.getName(), destinationDataset);
+        fileEntity.setDestinationData(destination);
+
         copyEntities.add(fileEntity);
       }
 
@@ -172,6 +186,11 @@ public class HivePartitionFileSet extends HiveFileSet {
       targetPartition.getTPartition().putToParameters(HiveDataset.REGISTRATION_GENERATION_TIME_MILLIS,
           Long.toString(this.hiveCopyEntityHelper.getStartTime()));
       targetPartition.setLocation(targetLocation.toString());
+      /**
+       * Only set the this constants when source partition has it.
+       */
+      targetPartition.getTPartition().getSd().getSerdeInfo().getParameters()
+          .computeIfPresent(HiveConstants.PATH, (k,v) -> targetLocation.toString());
       targetPartition.getTPartition().unsetCreateTime();
       return targetPartition;
     } catch (HiveException he) {

@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
+import java.nio.file.AccessDeniedException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map.Entry;
@@ -40,15 +41,17 @@ import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileAlreadyExistsException;
+import org.apache.hadoop.fs.FileContext;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.LocalFileSystem;
+import org.apache.hadoop.fs.Options;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.fs.RawLocalFileSystem;
 import org.apache.hadoop.fs.Trash;
 import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.hdfs.DistributedFileSystem;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.util.ReflectionUtils;
@@ -236,6 +239,22 @@ public class HadoopUtils {
   }
 
   /**
+   * A wrapper around {@link FileContext#rename(Path, Path, Options.Rename...)}.
+   */
+  public static void renamePath(FileContext fc, Path oldName, Path newName) throws IOException {
+    renamePath(fc, oldName, newName, false);
+  }
+
+  /**
+   * A wrapper around {@link FileContext#rename(Path, Path, Options.Rename...)}}.
+   */
+  public static void renamePath(FileContext fc, Path oldName, Path newName, boolean overwrite)
+      throws IOException {
+    Options.Rename renameOptions = (overwrite) ? Options.Rename.OVERWRITE : Options.Rename.NONE;
+    fc.rename(oldName, newName, renameOptions);
+  }
+
+  /**
    * A wrapper around {@link FileSystem#rename(Path, Path)} which throws {@link IOException} if
    * {@link FileSystem#rename(Path, Path)} returns False.
    */
@@ -248,19 +267,25 @@ public class HadoopUtils {
    * {@link FileSystem#rename(Path, Path)} returns False.
    */
   public static void renamePath(FileSystem fs, Path oldName, Path newName, boolean overwrite) throws IOException {
-    if (!fs.exists(oldName)) {
-      throw new FileNotFoundException(String.format("Failed to rename %s to %s: src not found", oldName, newName));
-    }
-    if (fs.exists(newName)) {
-      if (overwrite) {
-        HadoopUtils.moveToTrash(fs, newName);
-      } else {
-        throw new FileAlreadyExistsException(
-            String.format("Failed to rename %s to %s: dst already exists", oldName, newName));
+    //In default implementation of rename with rewrite option in FileSystem, if the parent dir of dst does not exist, it will throw exception,
+    //Which will fail some of our job unintentionally. So we only call that method when fs is an instance of DistributedFileSystem to avoid inconsistency problem
+    if(fs instanceof DistributedFileSystem) {
+      Options.Rename renameOptions = (overwrite) ? Options.Rename.OVERWRITE : Options.Rename.NONE;
+      ((DistributedFileSystem) fs).rename(oldName, newName, renameOptions);
+    } else {
+      if (!fs.exists(oldName)) {
+        throw new FileNotFoundException(String.format("Failed to rename %s to %s: src not found", oldName, newName));
       }
-    }
-    if (!fs.rename(oldName, newName)) {
-      throw new IOException(String.format("Failed to rename %s to %s", oldName, newName));
+      if (fs.exists(newName)) {
+        if (overwrite) {
+          HadoopUtils.moveToTrash(fs, newName);
+        } else {
+          throw new FileAlreadyExistsException(String.format("Failed to rename %s to %s: dst already exists", oldName, newName));
+        }
+      }
+      if (!fs.rename(oldName, newName)) {
+        throw new IOException(String.format("Failed to rename %s to %s", oldName, newName));
+      }
     }
   }
 
@@ -573,9 +598,20 @@ public class HadoopUtils {
       try {
 
         // Attempt to move safely if directory, unsafely if file (for performance, files are much less likely to collide on target)
-        boolean moveSucessful =
-            this.from.isDirectory() ? safeRenameIfNotExists(this.fileSystem, this.from.getPath(), this.to)
-                : unsafeRenameIfNotExists(this.fileSystem, this.from.getPath(), this.to);
+        boolean moveSucessful;
+
+        try {
+          moveSucessful = this.from.isDirectory() ? safeRenameIfNotExists(this.fileSystem, this.from.getPath(), this.to) : unsafeRenameIfNotExists(this.fileSystem, this.from.getPath(), this.to);
+        } catch (AccessDeniedException e) {
+          // If an AccessDeniedException occurs for a directory then assume that it exists and continue the
+          // recursive renaming. If the error occurs for a file then re-raise the exception since the existence check
+          // is required to determine whether to copy the file.
+          if (this.from.isDirectory()) {
+            moveSucessful = false;
+          } else {
+            throw e;
+          }
+        }
 
         if (!moveSucessful) {
           if (this.from.isDirectory()) {

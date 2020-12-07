@@ -23,6 +23,27 @@
       }
     },
     {
+      "name": "arrayFieldWithUnion",
+      "type": {
+        "type": "array",
+        "items": ["null","string","long"]
+      }
+    },
+    {
+      "name": "arrayFieldWithUnion2",
+      "type": {
+        "type": "array",
+        "items": ["string","null"]
+      }
+    },
+    {
+      "name": "nullArrayFieldWithUnion",
+      "type": {
+        "type": "array",
+        "items": ["null","string"]
+      }
+    },
+    {
       "name": "mapField",
       "type": {
         "type": "map",
@@ -45,6 +66,73 @@
           }
         ]
       }
+    },
+    {
+      "name": "emptyArrayOfRecords",
+      "type": {
+        "type": "array",
+        "items": {
+          "type": "record",
+          "name": "recordInEmptyArray",
+          "fields": [
+            {
+              "name": "field1",
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            {
+              "name": "field2",
+              "type": [
+                "null",
+                "string"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "arrayOfRecords",
+      "type": {
+        "type": "array",
+        "items": {
+          "type": "record",
+          "name": "recordInArray",
+          "fields": [
+            {
+              "name": "field1",
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            {
+              "name": "field2",
+              "type": [
+                "null",
+                "string"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "enumField",
+      "type": [
+        "null",
+        {
+          "name": "enum",
+          "symbols": [
+            "ENUM1",
+            "ENUM2",
+            "ENUM3"
+          ],
+          "type": "enum"
+        }
+      ]
     }
   ]
 }

@@ -252,6 +252,32 @@ public class ZkStateStore<T extends State> implements StateStore<T> {
 
     return names;
   }
+
+  /**
+   * Get store names in the state store
+   *
+   * @param predicate only returns names matching predicate
+   * @return (possibly empty) list of store names from the given store
+   * @throws IOException
+   */
+  public List<String> getStoreNames(Predicate<String> predicate)
+      throws IOException {
+    List<String> names = Lists.newArrayList();
+    String path = formPath("");
+
+    List<String> children = propStore.getChildNames(path, 0);
+
+    if (children != null) {
+      for (String c : children) {
+        if (predicate.apply(c)) {
+          names.add(c);
+        }
+      }
+    }
+
+    return names;
+  }
+
   @Override
   public void createAlias(String storeName, String original, String alias) throws IOException {
     String pathOriginal = formPath(storeName, original);
@@ -296,6 +322,7 @@ public class ZkStateStore<T extends State> implements StateStore<T> {
 
           key.readFields(dis);
           state.readFields(dis);
+          state.setId(key.toString());
           states.add(state);
 
           if (stateId != null && key.toString().equals(stateId)) {

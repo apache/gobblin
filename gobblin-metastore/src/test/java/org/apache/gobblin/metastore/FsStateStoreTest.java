@@ -17,13 +17,9 @@
 
 package org.apache.gobblin.metastore;
 
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
-import com.typesafe.config.ConfigValueFactory;
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.util.ClassAliasResolver;
 import java.io.IOException;
 import java.net.URL;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
@@ -34,9 +30,15 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import com.google.common.base.Predicates;
 import com.google.common.collect.Lists;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.util.ClassAliasResolver;
 
 
 /**
@@ -65,6 +67,7 @@ public class FsStateStoreTest {
 
     // cleanup in case files left behind by a prior run
     this.stateStore.delete("testStore");
+    this.stateStore.delete("testStore2");
   }
 
   @Test
@@ -89,6 +92,9 @@ public class FsStateStoreTest {
     Assert.assertFalse(this.stateStore.exists("testStore", "testTable"));
     this.stateStore.putAll("testStore", "testTable", states);
     Assert.assertTrue(this.stateStore.exists("testStore", "testTable"));
+
+    // for testing of getStoreNames
+    this.stateStore.putAll("testStore2", "testTable", states);
   }
 
   @Test(dependsOnMethods = { "testPut" })
@@ -97,8 +103,11 @@ public class FsStateStoreTest {
     Assert.assertEquals(states.size(), 3);
 
     Assert.assertEquals(states.get(0).getProp("k1"), "v1");
+    Assert.assertEquals(states.get(0).getId(),  "s1");
     Assert.assertEquals(states.get(1).getProp("k2"), "v2");
+    Assert.assertEquals(states.get(1).getId(),  "s2");
     Assert.assertEquals(states.get(2).getProp("k3"), "v3");
+    Assert.assertEquals(states.get(2).getId(),  "s3");
   }
 
   @Test(dependsOnMethods = { "testPut" })
@@ -113,8 +122,21 @@ public class FsStateStoreTest {
     Assert.assertEquals(states.size(), 3);
 
     Assert.assertEquals(states.get(0).getProp("k1"), "v1");
+    Assert.assertEquals(states.get(0).getId(),  "s1");
     Assert.assertEquals(states.get(1).getProp("k2"), "v2");
+    Assert.assertEquals(states.get(1).getId(),  "s2");
     Assert.assertEquals(states.get(2).getProp("k3"), "v3");
+    Assert.assertEquals(states.get(2).getId(),  "s3");
+  }
+
+  @Test(dependsOnMethods = { "testGetAlias" })
+  public void testGetStoreNames() throws IOException {
+    List<String> storeNames = this.stateStore.getStoreNames(Predicates.alwaysTrue());
+    Collections.sort(storeNames);
+
+    Assert.assertTrue(storeNames.size() == 2);
+    Assert.assertEquals(storeNames.get(0), "testStore");
+    Assert.assertEquals(storeNames.get(1), "testStore2");
   }
 
 //  Disable backwards compatibility change, since we are doing a major version upgrade
@@ -136,8 +158,11 @@ public class FsStateStoreTest {
     Assert.assertEquals(states.size(), 3);
 
     Assert.assertEquals(states.get(0).getProp("k1"), "v1");
+    Assert.assertEquals(states.get(0).getId(),  "s1");
     Assert.assertEquals(states.get(1).getProp("k2"), "v2");
+    Assert.assertEquals(states.get(1).getId(),  "s2");
     Assert.assertEquals(states.get(2).getProp("k3"), "v3");
+    Assert.assertEquals(states.get(2).getId(),  "s3");
   }
 
   @AfterClass

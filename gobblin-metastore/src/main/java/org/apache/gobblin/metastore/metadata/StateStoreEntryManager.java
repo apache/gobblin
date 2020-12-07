@@ -24,6 +24,7 @@ import org.apache.gobblin.metastore.StateStore;
 
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 
 /**
@@ -32,6 +33,7 @@ import lombok.Data;
  * @param <T> type of {@link State} that can be read from this entry.
  */
 @Data
+@EqualsAndHashCode(exclude={"stateStore"})
 public abstract class StateStoreEntryManager<T extends State> {
 
   private final String storeName;

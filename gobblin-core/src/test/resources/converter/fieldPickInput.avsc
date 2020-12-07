@@ -7,6 +7,7 @@
      {"name": "favorite_color", "type": ["string", "null"]},
      {"name": "date_of_birth", "type": "long"},
      {"name": "last_modified", "type": "long"},
-     {"name": "created", "type": "long"}
+     {"name": "created", "type": "long"},
+     {"name": "favorite_quotes", "type": [{ "type": "array", "items": "string"}, "null"], "default": null}
  ]
 }

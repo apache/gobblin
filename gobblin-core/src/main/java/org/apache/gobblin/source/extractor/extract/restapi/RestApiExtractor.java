@@ -96,6 +96,10 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
     return dataQuery;
   }
 
+  protected List<String> extractColumnListInQuery(String query) {
+    return Utils.getColumnListFromQuery(query);
+  }
+
   @Override
   public void extractMetadata(String schema, String entity, WorkUnit workUnit) throws SchemaException {
     log.info("Extract Metadata using Rest Api");
@@ -104,7 +108,7 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
     List<String> columnListInQuery = null;
     JsonArray array = null;
     if (!Strings.isNullOrEmpty(inputQuery)) {
-      columnListInQuery = Utils.getColumnListFromQuery(inputQuery);
+      columnListInQuery = extractColumnListInQuery(inputQuery);
     }
 
     String excludedColumns = workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_EXCLUDED_COLUMNS);
@@ -158,7 +162,7 @@ public abstract class RestApiExtractor extends QueryBasedExtractor<JsonArray, Js
       this.updatedQuery = buildDataQuery(inputQuery, entity);
       log.info("Schema:" + columnArray);
       this.setOutputSchema(columnArray);
-    } catch (RuntimeException | RestApiConnectionException | RestApiProcessingException | IOException
+    } catch (RuntimeException | RestApiProcessingException | RestApiConnectionException | IOException
         | SchemaException e) {
       throw new SchemaException("Failed to get schema using rest api; error - " + e.getMessage(), e);
     }

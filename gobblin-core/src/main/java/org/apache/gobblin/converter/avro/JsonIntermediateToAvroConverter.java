@@ -30,6 +30,7 @@ import org.apache.gobblin.converter.ToAvroConverterBase;
 import org.apache.gobblin.converter.avro.JsonElementConversionFactory.RecordConverter;
 import org.apache.gobblin.converter.json.JsonSchema;
 import org.apache.gobblin.util.AvroUtils;
+import org.apache.gobblin.util.EmptyIterable;
 import org.apache.gobblin.util.WriterUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -77,6 +78,10 @@ public class JsonIntermediateToAvroConverter extends ToAvroConverterBase<JsonArr
   public Iterable<GenericRecord> convertRecord(Schema outputSchema, JsonObject inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
 
+    Object record = recordConverter.convert(inputRecord);
+    if (record instanceof EmptyIterable) {
+      return (EmptyIterable<GenericRecord>) record;
+    }
     return new SingleRecordIterable<>((GenericRecord) recordConverter.convert(inputRecord));
   }
 

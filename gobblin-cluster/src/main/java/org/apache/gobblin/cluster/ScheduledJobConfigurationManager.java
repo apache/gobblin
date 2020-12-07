@@ -27,23 +27,24 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.lang3.reflect.ConstructorUtils;
+import org.apache.commons.lang3.tuple.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
 import com.google.common.eventbus.EventBus;
 import com.typesafe.config.Config;
 
-import org.apache.commons.lang3.reflect.ConstructorUtils;
-import org.apache.commons.lang3.tuple.Pair;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
+import org.apache.gobblin.runtime.api.SpecConsumer;
+import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.ExecutorsUtils;
-import org.apache.gobblin.runtime.api.SpecConsumer;
-import org.apache.gobblin.runtime.api.SpecExecutor;
 
 
 @Alpha
@@ -58,7 +59,7 @@ public class ScheduledJobConfigurationManager extends JobConfigurationManager {
 
   private final ScheduledExecutorService fetchJobSpecExecutor;
 
-  private final SpecConsumer _specConsumer;
+  protected final SpecConsumer _specConsumer;
 
   private final ClassAliasResolver<SpecConsumer> aliasResolver;
 
@@ -114,7 +115,7 @@ public class ScheduledJobConfigurationManager extends JobConfigurationManager {
    * @throws ExecutionException
    * @throws InterruptedException
    */
-  private void fetchJobSpecs() throws ExecutionException, InterruptedException {
+  protected void fetchJobSpecs() throws ExecutionException, InterruptedException {
     List<Pair<SpecExecutor.Verb, Spec>> changesSpecs =
         (List<Pair<SpecExecutor.Verb, Spec>>) this._specConsumer.changedSpecs().get();
 
@@ -139,7 +140,11 @@ public class ScheduledJobConfigurationManager extends JobConfigurationManager {
         Spec anonymousSpec = (Spec) entry.getValue();
         postDeleteJobConfigArrival(anonymousSpec.getUri().toString(), new Properties());
         jobSpecs.remove(entry.getValue().getUri());
-      }
+      } else if (verb.equals(SpecExecutor.Verb.CANCEL)) {
+        // Handle cancel
+        Spec anonymousSpec = entry.getValue();
+        postCancelJobConfigArrival(anonymousSpec.getUri().toString());
+        }
     }
   }
 

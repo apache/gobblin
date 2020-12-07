@@ -23,7 +23,7 @@ dependencies {
   compile project(":gobblin-utility")
   compile project(":gobblin-metrics-libs:gobblin-metrics")
 
-  compile "com.couchbase.client:java-client:2.3.5"
+  compile "com.couchbase.client:java-client:2.7.6"
   compile externalDependency.avro
   compile externalDependency.jacksonCore
   compile externalDependency.jacksonMapper
@@ -34,7 +34,6 @@ dependencies {
   compile externalDependency.slf4j
   compile externalDependency.httpclient
   compile externalDependency.httpcore
-  compile externalDependency.lombok
   compile externalDependency.metricsCore
   compile externalDependency.typesafeConfig
   compile externalDependency.findBugsAnnotations
@@ -44,6 +43,7 @@ dependencies {
   testCompile externalDependency.jsonAssert
   testCompile externalDependency.mockito
   testCompile externalDependency.testng
+  testCompile "com.couchbase.mock:CouchbaseMock:1.5.23"
 }
 
 

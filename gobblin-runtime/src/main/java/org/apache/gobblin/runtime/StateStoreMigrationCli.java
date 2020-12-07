@@ -17,26 +17,33 @@
 
 package org.apache.gobblin.runtime;
 
-import com.google.common.base.Preconditions;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
+import java.util.List;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.gobblin.annotation.Alias;
-import org.apache.gobblin.metastore.DatasetStateStore;
-import org.apache.gobblin.runtime.cli.CliApplication;
-import org.apache.gobblin.runtime.cli.CliObjectFactory;
-import org.apache.gobblin.runtime.cli.CliObjectSupport;
-import org.apache.gobblin.runtime.cli.ConstructorAndPublicMethodsCliObjectFactory;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
+import com.google.common.base.Preconditions;
+import com.google.common.base.Predicates;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.metastore.DatasetStateStore;
+import org.apache.gobblin.runtime.cli.CliApplication;
+import org.apache.gobblin.runtime.cli.CliObjectFactory;
+import org.apache.gobblin.runtime.cli.CliObjectOption;
+import org.apache.gobblin.runtime.cli.CliObjectSupport;
+import org.apache.gobblin.runtime.cli.ConstructorAndPublicMethodsCliObjectFactory;
+import org.apache.gobblin.util.ConfigUtils;
+
+import lombok.extern.slf4j.Slf4j;
 import static org.apache.gobblin.configuration.ConfigurationKeys.*;
 
 
@@ -53,13 +60,8 @@ public class StateStoreMigrationCli implements CliApplication {
   private static final String SOURCE_KEY = "source";
   private static final String DESTINATION_KEY = "destination";
   private static final String JOB_NAME_KEY = "jobName";
-
-  /**
-   * Assume that there's no additional '/' in the end of state.store.dir's value
-   */
-  private String extractStoreName(String dirPath) {
-    return dirPath.substring(dirPath.lastIndexOf('/') + 1);
-  }
+  private static final String MIGRATE_ALL_JOBS = "migrateAllJobs";
+  private static final String DEFAULT_MIGRATE_ALL_JOBS = "false";
 
   @Override
   public void run(String[] args) throws Exception {
@@ -69,26 +71,41 @@ public class StateStoreMigrationCli implements CliApplication {
     FileSystem fs = FileSystem.get(new Configuration());
     FSDataInputStream inputStream = fs.open(command.path);
     Config config = ConfigFactory.parseReader(new InputStreamReader(inputStream, Charset.defaultCharset()));
-    String storeName = this.extractStoreName(config.getConfig(SOURCE_KEY).getString(STATE_STORE_ROOT_DIR_KEY));
 
     Preconditions.checkNotNull(config.getObject(SOURCE_KEY));
     Preconditions.checkNotNull(config.getObject(DESTINATION_KEY));
-    Preconditions.checkNotNull(config.getString(JOB_NAME_KEY));
 
     DatasetStateStore dstDatasetStateStore =
         DatasetStateStore.buildDatasetStateStore(config.getConfig(DESTINATION_KEY));
     DatasetStateStore srcDatasetStateStore = DatasetStateStore.buildDatasetStateStore(config.getConfig(SOURCE_KEY));
+    Map<String, JobState.DatasetState> map;
 
-    Map<String, JobState.DatasetState> map =
-        srcDatasetStateStore.getLatestDatasetStatesByUrns(config.getString(JOB_NAME_KEY));
+    // if migrating state for all jobs then list the store names (job names) and copy the current jst files
+    if (ConfigUtils.getBoolean(config, MIGRATE_ALL_JOBS, Boolean.valueOf(DEFAULT_MIGRATE_ALL_JOBS))) {
+      List<String> jobNames = srcDatasetStateStore.getStoreNames(Predicates.alwaysTrue());
+
+      for (String jobName : jobNames) {
+        migrateStateForJob(srcDatasetStateStore, dstDatasetStateStore, jobName, command.deleteSourceStateStore);
+      }
+    } else {
+      Preconditions.checkNotNull(config.getString(JOB_NAME_KEY));
+      migrateStateForJob(srcDatasetStateStore, dstDatasetStateStore, config.getString(JOB_NAME_KEY),
+          command.deleteSourceStateStore);
+    }
+  }
+
+  private static void migrateStateForJob(DatasetStateStore srcDatasetStateStore, DatasetStateStore dstDatasetStateStore,
+      String jobName, boolean deleteFromSource) throws IOException {
+    Map<String, JobState.DatasetState> map = srcDatasetStateStore.getLatestDatasetStatesByUrns(jobName);
     for (Map.Entry<String, JobState.DatasetState> entry : map.entrySet()) {
       dstDatasetStateStore.persistDatasetState(entry.getKey(), entry.getValue());
     }
-    if (command.deleteSourceStateStore) {
+
+    if (deleteFromSource) {
       try {
-        srcDatasetStateStore.delete(storeName);
+        srcDatasetStateStore.delete(jobName);
       } catch (IOException ioe) {
-        log.warn("The source state store has been deleted.", ioe);
+        log.warn("The source state store has been deleted", ioe);
       }
     }
   }
@@ -107,6 +124,7 @@ public class StateStoreMigrationCli implements CliApplication {
       this.path = new Path(path);
     }
 
+    @CliObjectOption
     public void deleteSourceStateStore() {
       this.deleteSourceStateStore = true;
     }

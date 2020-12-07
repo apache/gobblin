@@ -97,4 +97,9 @@ public class BaseServiceNodeImpl implements ServiceNode {
   public int hashCode() {
     return nodeName.hashCode();
   }
+
+  @Override
+  public String toString() {
+    return nodeName;
+  }
 }

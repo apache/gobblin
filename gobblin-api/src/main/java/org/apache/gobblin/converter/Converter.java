@@ -81,6 +81,7 @@ public abstract class Converter<SI, SO, DI, DO> implements Closeable, FinalState
    *
    * <p>
    *   Schema conversion is limited to have a 1-to-1 mapping between the input and output schema.
+   *   When try to convert avro schema, please call {@link AvroUtils.addSchemaCreationTime to preserve schame creationTime}
    * </p>
    *
    * @param inputSchema input schema to be converted
@@ -109,6 +110,38 @@ public abstract class Converter<SI, SO, DI, DO> implements Closeable, FinalState
    */
   public abstract Iterable<DO> convertRecord(SO outputSchema, DI inputRecord, WorkUnitState workUnit)
       throws DataConversionException;
+
+  /**
+   * Converts a {@link RecordEnvelope}. This method can be overridden by implementations that need to manipulate the
+   * {@link RecordEnvelope}, such as to set watermarks or metadata.
+   * @param outputSchema output schema converted using the {@link Converter#convertSchema} method
+   * @param inputRecordEnvelope input record envelope with data record to be converted
+   * @param workUnitState a {@link WorkUnitState} object carrying configuration properties
+   * @return a {@link Flowable} emitting the converted {@link RecordEnvelope}s
+   * @throws DataConversionException
+   */
+  protected Flowable<RecordEnvelope<DO>> convertRecordEnvelope(SO outputSchema, RecordEnvelope<DI> inputRecordEnvelope,
+      WorkUnitState workUnitState) throws DataConversionException {
+    Iterator<DO> convertedIterable = convertRecord(outputSchema,
+        inputRecordEnvelope.getRecord(), workUnitState).iterator();
+
+    if (!convertedIterable.hasNext()) {
+      inputRecordEnvelope.ack();
+      // if the iterable is empty, ack the record, return an empty flowable
+      return Flowable.empty();
+    }
+
+    DO firstRecord = convertedIterable.next();
+    if (!convertedIterable.hasNext()) {
+      // if the iterable has only one element, use RecordEnvelope.withRecord, which is more efficient
+      return Flowable.just(inputRecordEnvelope.withRecord(firstRecord));
+    } else {
+      // if the iterable has multiple records, use a ForkRecordBuilder
+      RecordEnvelope<DI>.ForkRecordBuilder<DO> forkRecordBuilder = inputRecordEnvelope.forkRecordBuilder();
+      return Flowable.just(firstRecord).concatWith(Flowable.fromIterable(() -> convertedIterable))
+          .map(forkRecordBuilder::childRecord).doOnComplete(forkRecordBuilder::close);
+    }
+  }
 
   /**
    * Get final state for this object. By default this returns an empty {@link org.apache.gobblin.configuration.State}, but
@@ -149,26 +182,7 @@ public abstract class Converter<SI, SO, DI, DO> implements Closeable, FinalState
                 return Flowable.just(((ControlMessage<DO>) out));
               } else if (in instanceof RecordEnvelope) {
                 RecordEnvelope<DI> recordEnvelope = (RecordEnvelope<DI>) in;
-                Iterator<DO> convertedIterable = convertRecord(this.outputGlobalMetadata.getSchema(),
-                    recordEnvelope.getRecord(), workUnitState).iterator();
-
-                if (!convertedIterable.hasNext()) {
-                  // if the iterable is empty, ack the record, return an empty flowable
-                  in.ack();
-                  return Flowable.empty();
-                }
-
-                DO firstRecord = convertedIterable.next();
-                if (!convertedIterable.hasNext()) {
-                  // if the iterable has only one element, use RecordEnvelope.withRecord, which is more efficient
-                  return Flowable.just(recordEnvelope.withRecord(firstRecord));
-                } else {
-                  // if the iterable has multiple records, use a ForkRecordBuilder
-                  RecordEnvelope<DI>.ForkRecordBuilder<DO> forkRecordBuilder = recordEnvelope.forkRecordBuilder();
-                  return Flowable.just(firstRecord).concatWith(Flowable.fromIterable(() -> convertedIterable))
-                      .map(forkRecordBuilder::childRecord).doOnComplete(forkRecordBuilder::close);
-                }
-
+                return convertRecordEnvelope(this.outputGlobalMetadata.getSchema(), recordEnvelope, workUnitState);
               } else {
                 throw new UnsupportedOperationException();
               }

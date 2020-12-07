@@ -20,10 +20,10 @@ package org.apache.gobblin.compaction;
 import java.util.List;
 import java.util.Properties;
 
+import org.apache.commons.lang3.reflect.ConstructorUtils;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
-
-import org.apache.commons.lang3.reflect.ConstructorUtils;
 
 import org.apache.gobblin.compaction.listeners.CompactorListener;
 import org.apache.gobblin.metrics.Tag;
@@ -31,7 +31,13 @@ import org.apache.gobblin.metrics.Tag;
 
 /**
  * Implementation of {@link CompactorFactory} that creates a {@link Compactor} using reflection.
+ *
+ * @deprecated Please use {@link org.apache.gobblin.compaction.mapreduce.MRCompactionTask}
+ * and {@link org.apache.gobblin.compaction.source.CompactionSource} to launch MR instead.
+ * The new way enjoys simpler logic to trigger the compaction flow and more reliable verification criteria,
+ * instead of using timestamp only before.
  */
+@Deprecated
 public class ReflectionCompactorFactory implements CompactorFactory {
 
   @VisibleForTesting

@@ -18,12 +18,17 @@
 package org.apache.gobblin.runtime.embedded;
 
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadInfo;
+import java.lang.management.ThreadMXBean;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -58,6 +63,13 @@ import com.linkedin.data.template.DataTemplate;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import javassist.bytecode.ClassFile;
+import javax.annotation.Nullable;
+import lombok.AccessLevel;
+import lombok.Data;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.instrumented.extractor.InstrumentedExtractorBase;
@@ -76,15 +88,16 @@ import org.apache.gobblin.runtime.api.JobExecutionResult;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.JobTemplate;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
-import org.apache.gobblin.runtime.cli.ConstructorAndPublicMethodsGobblinCliFactory;
 import org.apache.gobblin.runtime.cli.CliObjectOption;
 import org.apache.gobblin.runtime.cli.CliObjectSupport;
+import org.apache.gobblin.runtime.cli.ConstructorAndPublicMethodsGobblinCliFactory;
 import org.apache.gobblin.runtime.cli.NotOnCli;
 import org.apache.gobblin.runtime.instance.SimpleGobblinInstanceEnvironment;
 import org.apache.gobblin.runtime.instance.StandardGobblinInstanceDriver;
 import org.apache.gobblin.runtime.job_catalog.ImmutableFSJobCatalog;
 import org.apache.gobblin.runtime.job_catalog.PackagedTemplatesJobCatalogDecorator;
 import org.apache.gobblin.runtime.job_catalog.StaticJobCatalog;
+import org.apache.gobblin.runtime.job_spec.JobSpecResolver;
 import org.apache.gobblin.runtime.job_spec.ResolvedJobSpec;
 import org.apache.gobblin.runtime.plugins.GobblinInstancePluginUtils;
 import org.apache.gobblin.runtime.plugins.PluginStaticKeys;
@@ -95,13 +108,6 @@ import org.apache.gobblin.state.ConstructState;
 import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.PullFileLoader;
-
-import javassist.bytecode.ClassFile;
-import javax.annotation.Nullable;
-import lombok.AccessLevel;
-import lombok.Data;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -136,10 +142,12 @@ public class EmbeddedGobblin {
   private Runnable distributeJarsFunction;
   private JobTemplate template;
   private Logger useLog = log;
-  private FullTimeout launchTimeout = new FullTimeout(10, TimeUnit.SECONDS);
-  private FullTimeout jobTimeout = new FullTimeout(10, TimeUnit.DAYS);
-  private FullTimeout shutdownTimeout = new FullTimeout(10, TimeUnit.SECONDS);
+  private FullTimeout launchTimeout = new FullTimeout(100, TimeUnit.SECONDS);
+  private FullTimeout jobTimeout = new FullTimeout(100, TimeUnit.DAYS);
+  private FullTimeout shutdownTimeout = new FullTimeout(100, TimeUnit.SECONDS);
+  private boolean dumpJStackOnTimeout = false;
   private List<GobblinInstancePluginFactory> plugins = Lists.newArrayList();
+  @Getter
   private Optional<Path> jobFile = Optional.absent();
 
   public EmbeddedGobblin() {
@@ -194,7 +202,12 @@ public class EmbeddedGobblin {
    * will appear first in the classpath. Default priority is 0.
    */
   public EmbeddedGobblin distributeJarByClassWithPriority(Class<?> klazz, int priority) {
-    return distributeJarWithPriority(ClassUtil.findContainingJar(klazz), priority);
+    String jar = ClassUtil.findContainingJar(klazz);
+    if (jar == null) {
+      log.warn(String.format("Could not find jar for class %s. This is normal in test runs.", klazz));
+      return this;
+    }
+    return distributeJarWithPriority(jar, priority);
   }
 
   /**
@@ -353,6 +366,14 @@ public class EmbeddedGobblin {
   }
 
   /**
+   * Enable dumping jstack when error happens.
+   */
+  public EmbeddedGobblin setDumpJStackOnTimeout(boolean dumpJStackOnTimeout) {
+    this.dumpJStackOnTimeout = dumpJStackOnTimeout;
+    return this;
+  }
+
+  /**
    * Enable state store.
    */
   public EmbeddedGobblin useStateStore(String rootDir) {
@@ -397,10 +418,14 @@ public class EmbeddedGobblin {
   public JobExecutionDriver runAsync() throws TimeoutException, InterruptedException {
     // Run function to distribute jars to workers in distributed mode
     this.distributeJarsFunction.run();
+    log.debug("BuiltConfigMap: {}", this.builtConfigMap);
+    log.debug("DefaultSysConfig: {}", this.defaultSysConfig);
 
     Config sysProps = ConfigFactory.parseMap(this.builtConfigMap)
         .withFallback(this.defaultSysConfig);
+    log.debug("Merged SysProps:{}", sysProps);
     Config userConfig = ConfigFactory.parseMap(this.userConfigMap);
+    log.debug("UserConfig: {}", userConfig);
 
     JobSpec jobSpec;
     if (this.jobFile.isPresent()) {
@@ -411,6 +436,8 @@ public class EmbeddedGobblin {
                 PullFileLoader.DEFAULT_JAVA_PROPS_PULL_FILE_EXTENSIONS,
                 PullFileLoader.DEFAULT_HOCON_PULL_FILE_EXTENSIONS);
         Config jobConfig = userConfig.withFallback(loader.loadPullFile(jobFilePath, sysProps, false));
+        log.debug("JobConfig: {}", jobConfig);
+
         ImmutableFSJobCatalog.JobSpecConverter converter =
             new ImmutableFSJobCatalog.JobSpecConverter(jobFilePath.getParent(), Optional.<String>absent());
         jobSpec = converter.apply(jobConfig);
@@ -420,19 +447,16 @@ public class EmbeddedGobblin {
     } else {
       Config finalConfig = userConfig.withFallback(sysProps);
       if (this.template != null) {
-        try {
-          finalConfig = this.template.getResolvedConfig(finalConfig);
-        } catch (SpecNotFoundException | JobTemplate.TemplateException exc) {
-          throw new RuntimeException(exc);
-        }
+        this.specBuilder.withTemplate(this.template);
       }
       jobSpec = this.specBuilder.withConfig(finalConfig).build();
     }
 
     ResolvedJobSpec resolvedJobSpec;
     try {
-      resolvedJobSpec = new ResolvedJobSpec(jobSpec);
-    } catch (SpecNotFoundException | JobTemplate.TemplateException exc) {
+      JobSpecResolver resolver = JobSpecResolver.builder(sysProps).build();
+      resolvedJobSpec = resolver.resolveJobSpec(jobSpec);
+    } catch (SpecNotFoundException | JobTemplate.TemplateException | IOException exc) {
       throw new RuntimeException("Failed to resolved template.", exc);
     }
     final JobCatalog jobCatalog = new StaticJobCatalog(Optional.of(this.useLog), Lists.<JobSpec>newArrayList(resolvedJobSpec));
@@ -458,6 +482,7 @@ public class EmbeddedGobblin {
 
     boolean started = listener.awaitStarted(this.launchTimeout.getTimeout(), this.launchTimeout.getTimeUnit());
     if (!started) {
+      dumpJStackOnTimeout("Launch");
       log.warn("Timeout waiting for job to start. Aborting.");
       driver.stopAsync();
       driver.awaitTerminated(this.shutdownTimeout.getTimeout(), this.shutdownTimeout.getTimeUnit());
@@ -484,6 +509,7 @@ public class EmbeddedGobblin {
           driver.awaitTerminated(EmbeddedGobblin.this.shutdownTimeout.getTimeout(), EmbeddedGobblin.this.shutdownTimeout
               .getTimeUnit());
         } catch (TimeoutException te) {
+          dumpJStackOnTimeout("stop gobblin instance driver");
           log.error("Failed to shutdown Gobblin instance driver.");
         }
       }
@@ -492,7 +518,29 @@ public class EmbeddedGobblin {
     return listener.getJobDriver();
   }
 
-  private Configurable getSysConfig() {
+  private void dumpJStackOnTimeout(String loc) {
+    if (this.dumpJStackOnTimeout) {
+      log.info("=== Dump jstack ({}) ===", loc);
+      ThreadMXBean bean = ManagementFactory.getThreadMXBean();
+      ThreadInfo[] infos = bean.dumpAllThreads(true, true);
+      Set<Thread> threadSet = Thread.getAllStackTraces().keySet();
+      Map<Long, Thread> threadMap = new HashMap<>();
+      for (Thread t : threadSet) {
+        threadMap.put(t.getId(), t);
+      }
+
+      for (ThreadInfo info : infos) {
+        Thread thread = threadMap.get(info.getThreadId());
+        log.info("({}) {}",
+            thread == null ? "Unknown" : thread.isDaemon() ? "Daemon" : "Non-Daemon", info.toString());
+      }
+    } else {
+      log.info("Dump jstack ({}) is disabled.", loc);
+    }
+  }
+
+  @VisibleForTesting
+  public Configurable getSysConfig() {
     return DefaultConfigurableImpl.createFromConfig(ConfigFactory.parseMap(this.sysConfigOverrides).withFallback(this.defaultSysConfig));
   }
 

@@ -295,7 +295,9 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
   public void extractMetadata(String schema, String entity, WorkUnit workUnit) throws SchemaException, IOException {
     this.log.info("Extract metadata using JDBC");
     String inputQuery = workUnitState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_QUERY);
-    if (hasJoinOperation(inputQuery)) {
+    if (workUnitState.getPropAsBoolean(ConfigurationKeys.SOURCE_QUERYBASED_IS_METADATA_COLUMN_CHECK_ENABLED,
+        Boolean.valueOf(ConfigurationKeys.DEFAULT_SOURCE_QUERYBASED_IS_METADATA_COLUMN_CHECK_ENABLED)) &&
+        hasJoinOperation(inputQuery)) {
       throw new RuntimeException("Query across multiple tables not supported");
     }
 
@@ -653,7 +655,9 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     ResultSet resultSet = null;
     try {
       this.jdbcSource = createJdbcSource();
-      this.dataConnection = this.jdbcSource.getConnection();
+      if (this.dataConnection == null) {
+        this.dataConnection = this.jdbcSource.getConnection();
+      }
       Statement statement = this.dataConnection.createStatement();
 
       if (fetchSize != 0 && this.getExpectedRecordCount() > 2000) {
@@ -710,7 +714,9 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
     ResultSet resultSet = null;
     try {
       this.jdbcSource = createJdbcSource();
-      this.dataConnection = this.jdbcSource.getConnection();
+      if (this.dataConnection == null) {
+        this.dataConnection = this.jdbcSource.getConnection();
+      }
 
       PreparedStatement statement =
           this.dataConnection.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);

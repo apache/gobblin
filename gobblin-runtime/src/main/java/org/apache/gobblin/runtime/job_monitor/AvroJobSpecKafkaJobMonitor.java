@@ -23,12 +23,14 @@ import java.net.URISyntaxException;
 import java.util.Collection;
 import java.util.Properties;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import org.apache.gobblin.kafka.client.GobblinKafkaConsumerClient;
 import org.apache.gobblin.metrics.reporter.util.FixedSchemaVersionWriter;
 import org.apache.gobblin.metrics.reporter.util.SchemaVersionWriter;
 import org.apache.gobblin.runtime.api.GobblinInstanceDriver;
@@ -37,9 +39,11 @@ import org.apache.gobblin.runtime.api.JobSpecMonitor;
 import org.apache.gobblin.runtime.api.JobSpecMonitorFactory;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
 import org.apache.gobblin.runtime.api.SpecExecutor.Verb;
+import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.job_spec.AvroJobSpec;
 import org.apache.gobblin.util.Either;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
+
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -55,7 +59,6 @@ public class AvroJobSpecKafkaJobMonitor extends KafkaAvroJobMonitor<AvroJobSpec>
   public static final String TOPIC_KEY = "topic";
   public static final String SCHEMA_VERSION_READER_CLASS = "versionReaderClass";
   protected static final String VERB_KEY = "Verb";
-
   private static final Config DEFAULTS = ConfigFactory.parseMap(ImmutableMap.of(
       SCHEMA_VERSION_READER_CLASS, FixedSchemaVersionWriter.class.getName()));
 
@@ -114,7 +117,7 @@ public class AvroJobSpecKafkaJobMonitor extends KafkaAvroJobMonitor<AvroJobSpec>
     Properties props = new Properties();
     props.putAll(record.getProperties());
     jobSpecBuilder.withJobCatalogURI(record.getUri()).withVersion(record.getVersion())
-        .withDescription(record.getDescription()).withConfigAsProperties(props);
+        .withDescription(record.getDescription()).withConfigAsProperties(props).withMetadata(record.getMetadata());
 
     if (!record.getTemplateUri().isEmpty()) {
       try {
@@ -125,16 +128,16 @@ public class AvroJobSpecKafkaJobMonitor extends KafkaAvroJobMonitor<AvroJobSpec>
     }
 
     String verbName = record.getMetadata().get(VERB_KEY);
-    Verb verb = Verb.valueOf(verbName);
+    SpecExecutor.Verb verb = SpecExecutor.Verb.valueOf(verbName);
 
     JobSpec jobSpec = jobSpecBuilder.build();
 
     log.info("Parsed job spec " + jobSpec.toString());
 
     if (verb == Verb.ADD || verb == Verb.UPDATE) {
-      return Lists.newArrayList(Either.<JobSpec, URI>left(jobSpec));
+      return Lists.newArrayList(Either.left(jobSpec));
     } else {
-      return Lists.newArrayList(Either.<JobSpec, URI>right(jobSpec.getUri()));
+      return Lists.newArrayList(Either.right(jobSpec.getUri()));
     }
   }
 }

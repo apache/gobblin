@@ -33,6 +33,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
+import org.apache.gobblin.runtime.job_spec.JobSpecResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -87,6 +88,7 @@ public class AWSJobConfigurationManager extends JobConfigurationManager {
   private final long refreshIntervalInSeconds;
 
   private final ScheduledExecutorService fetchJobConfExecutor;
+  private final JobSpecResolver jobSpecResolver;
 
   public AWSJobConfigurationManager(EventBus eventBus, Config config) {
     super(eventBus, config);
@@ -100,6 +102,11 @@ public class AWSJobConfigurationManager extends JobConfigurationManager {
 
     this.fetchJobConfExecutor = Executors.newSingleThreadScheduledExecutor(
         ExecutorsUtils.newThreadFactory(Optional.of(LOGGER), Optional.of("FetchJobConfExecutor")));
+    try {
+      this.jobSpecResolver = JobSpecResolver.builder(config).build();
+    } catch (IOException ioe) {
+      throw new RuntimeException(ioe);
+    }
   }
 
   private void fetchJobConfSettings() {
@@ -155,7 +162,7 @@ public class AWSJobConfigurationManager extends JobConfigurationManager {
         final Properties properties = ConfigUtils.configToProperties(this.config);
         properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, jobConfigDir.getAbsolutePath());
 
-        final List<Properties> jobConfigs = SchedulerUtils.loadGenericJobConfigs(properties);
+        final List<Properties> jobConfigs = SchedulerUtils.loadGenericJobConfigs(properties, this.jobSpecResolver);
         LOGGER.info("Loaded " + jobConfigs.size() + " job configuration(s)");
         for (Properties config : jobConfigs) {
           LOGGER.debug("Config value: " + config);
@@ -197,6 +204,10 @@ public class AWSJobConfigurationManager extends JobConfigurationManager {
       while (entries.hasMoreElements()) {
         final ZipEntry entry = entries.nextElement();
         final File entryDestination = new File(outputDir, entry.getName());
+        if (!org.apache.gobblin.util.FileUtils.isSubPath(outputDir, entryDestination)) {
+          throw new IOException(String.format("Extracted file: %s is trying to write outside of output directory: %s",
+              entryDestination, outputDir));
+        }
 
         if (entry.isDirectory()) {
           // If entry is directory, create directory

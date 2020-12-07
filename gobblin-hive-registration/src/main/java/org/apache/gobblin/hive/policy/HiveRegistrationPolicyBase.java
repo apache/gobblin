@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
@@ -34,7 +35,6 @@ import org.apache.hadoop.hive.metastore.TableType;
 import com.codahale.metrics.Timer;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
@@ -56,6 +56,7 @@ import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.source.extractor.extract.kafka.ConfigStoreUtils;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaSource;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
@@ -84,8 +85,11 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
   // {@value PRIMARY_TABLE_TOKEN} if present in {@value ADDITIONAL_HIVE_TABLE_NAMES} or dbPrefix.{@value HIVE_TABLE_NAME}
   // .. will be replaced by the table name determined via {@link #getTableName(Path)}
   public static final String PRIMARY_TABLE_TOKEN = "$PRIMARY_TABLE";
+
   protected static final ConfigClient configClient =
       org.apache.gobblin.config.client.ConfigClient.createConfigClient(VersionStabilityPolicy.WEAK_LOCAL_STABILITY);
+
+  protected Optional<Config> configForTopic = Optional.<Config>absent();
 
   /**
    * A valid db or table name should start with an alphanumeric character, and contains only
@@ -108,6 +112,7 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
   protected final String dbNameSuffix;
   protected final String tableNamePrefix;
   protected final String tableNameSuffix;
+  protected final boolean emptyInputPathFlag;
 
   protected final MetricContext metricContext;
 
@@ -128,8 +133,17 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
     this.dbNameSuffix = props.getProp(HIVE_DATABASE_NAME_SUFFIX, StringUtils.EMPTY);
     this.tableNamePrefix = props.getProp(HIVE_TABLE_NAME_PREFIX, StringUtils.EMPTY);
     this.tableNameSuffix = props.getProp(HIVE_TABLE_NAME_SUFFIX, StringUtils.EMPTY);
-
+    this.emptyInputPathFlag = props.getPropAsBoolean(MAPREDUCE_JOB_INPUT_PATH_EMPTY_KEY, false);
     this.metricContext = Instrumented.getMetricContext(props, HiveRegister.class);
+
+    // Get Topic-specific config object doesn't require any runtime-set properties in prop object, safe to initialize
+    // in constructor.
+    if (this.props.getProperties().containsKey(KafkaSource.TOPIC_NAME)) {
+      Timer.Context context = this.metricContext.timer(CONFIG_FOR_TOPIC_TIMER).time();
+      configForTopic =
+          ConfigStoreUtils.getConfigForTopic(this.props.getProperties(), KafkaSource.TOPIC_NAME, this.configClient);
+      context.close();
+    }
   }
 
   /**
@@ -152,6 +166,8 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
    * Obtain Hive database names. The returned {@link Iterable} contains the database name returned by
    * {@link #getDatabaseName(Path)} (if present) plus additional database names specified in
    * {@link #ADDITIONAL_HIVE_DATABASE_NAMES}.
+   * Note that the dataset-specific configuration will overwrite job configuration for the value of
+   * {@link #ADDITIONAL_HIVE_DATABASE_NAMES}
    *
    */
   protected Iterable<String> getDatabaseNames(Path path) {
@@ -162,7 +178,10 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
       databaseNames.add(databaseName.get());
     }
 
-    if (!Strings.isNullOrEmpty(this.props.getProp(ADDITIONAL_HIVE_DATABASE_NAMES))) {
+    if (configForTopic.isPresent() && configForTopic.get().hasPath(ADDITIONAL_HIVE_DATABASE_NAMES)) {
+      databaseNames.addAll(ConfigUtils.getStringList(configForTopic.get(), ADDITIONAL_HIVE_DATABASE_NAMES).stream()
+          .map(x -> this.dbNamePrefix + x + this.dbNameSuffix).collect(Collectors.toList()));
+    } else if (!Strings.isNullOrEmpty(this.props.getProp(ADDITIONAL_HIVE_DATABASE_NAMES))) {
       for (String additionalDbName : this.props.getPropAsList(ADDITIONAL_HIVE_DATABASE_NAMES)) {
         databaseNames.add(this.dbNamePrefix + additionalDbName + this.dbNameSuffix);
       }
@@ -173,8 +192,8 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
   }
 
   /**
-   * This method first tries to obtain the database name from {@link #HIVE_TABLE_NAME}.
-   * If this property is not specified, it then tries to obtain the database name using
+   * This method first tries to obtain the table name from {@link #HIVE_TABLE_NAME}.
+   * If this property is not specified, it then tries to obtain the table name using
    * the first group of {@link #HIVE_TABLE_REGEX}.
    */
   protected Optional<String> getTableName(Path path) {
@@ -232,13 +251,6 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
     if ((primaryTableName = getTableName(path)).isPresent() && !dbPrefix.isPresent()) {
       tableNames.add(primaryTableName.get());
     }
-    Optional<Config> configForTopic = Optional.<Config>absent();
-    if (primaryTableName.isPresent()) {
-      Timer.Context context = this.metricContext.timer(CONFIG_FOR_TOPIC_TIMER).time();
-      configForTopic =
-          ConfigStoreUtils.getConfigForTopic(this.props.getProperties(), KafkaSource.TOPIC_NAME, this.configClient);
-      context.close();
-    }
 
     String additionalNamesProp;
     if (dbPrefix.isPresent()) {
@@ -247,10 +259,9 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
       additionalNamesProp = ADDITIONAL_HIVE_TABLE_NAMES;
     }
 
-    if (configForTopic.isPresent() && configForTopic.get().hasPath(additionalNamesProp)) {
-      for (String additionalTableName : Splitter.on(",")
-          .trimResults()
-          .splitToList(configForTopic.get().getString(additionalNamesProp))) {
+    // Searching additional table name from ConfigStore-returned object.
+    if (primaryTableName.isPresent() && configForTopic.isPresent() && configForTopic.get().hasPath(additionalNamesProp)) {
+      for (String additionalTableName : ConfigUtils.getStringList(configForTopic.get(), additionalNamesProp)) {
         String resolvedTableName =
             StringUtils.replace(additionalTableName, PRIMARY_TABLE_TOKEN, primaryTableName.get());
         tableNames.add(this.tableNamePrefix + resolvedTableName + this.tableNameSuffix);
@@ -341,18 +352,21 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
    * @throws IOException
    */
   protected HiveTable getTable(Path path, String dbName, String tableName) throws IOException {
-    HiveTable table = new HiveTable.Builder().withDbName(dbName).withTableName(tableName)
-        .withSerdeManaager(HiveSerDeManager.get(this.props)).build();
 
+    HiveTable.Builder tableBuilder = new HiveTable.Builder().withDbName(dbName).withTableName(tableName);
+
+    if (!this.emptyInputPathFlag) {
+      tableBuilder = tableBuilder.withSerdeManaager(HiveSerDeManager.get(this.props));
+    }
+    HiveTable table = tableBuilder.build();
     table.setLocation(this.fs.makeQualified(getTableLocation(path)).toString());
-    table.setSerDeProps(path);
+
+    if (!this.emptyInputPathFlag) {
+      table.setSerDeProps(path);
+    }
 
     // Setting table-level props.
-    State tableProps = new State(this.props.getTablePartitionProps());
-    if (this.props.getRuntimeTableProps().isPresent()){
-      tableProps.setProp(HiveMetaStoreUtils.RUNTIME_PROPS, this.props.getRuntimeTableProps().get());
-    }
-    table.setProps(tableProps);
+    table.setProps(getRuntimePropsEnrichedTblProps());
 
     table.setStorageProps(this.props.getStorageProps());
     table.setSerDeProps(this.props.getSerdeProps());
@@ -360,6 +374,18 @@ public class HiveRegistrationPolicyBase implements HiveRegistrationPolicy {
     table.setBucketColumns(Lists.<String> newArrayList());
     table.setTableType(TableType.EXTERNAL_TABLE.toString());
     return table;
+  }
+
+  /**
+   * Enrich the table-level properties with properties carried over from ingestion runtime.
+   * Extend this class to add more runtime properties if required.
+   */
+  protected State getRuntimePropsEnrichedTblProps() {
+    State tableProps = new State(this.props.getTablePartitionProps());
+    if (this.props.getRuntimeTableProps().isPresent()){
+      tableProps.setProp(HiveMetaStoreUtils.RUNTIME_PROPS, this.props.getRuntimeTableProps().get());
+    }
+    return tableProps;
   }
 
   protected Optional<HivePartition> getPartition(Path path, HiveTable table) throws IOException {

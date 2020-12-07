@@ -62,7 +62,11 @@ public class BytesBoundedBatch<D> extends Batch<D>{
       records.add(record);
     }
 
-    boolean hasRoom (D record) {
+    boolean hasRoom (D record, LargeMessagePolicy largeMessagePolicy) {
+      if (records.isEmpty() && largeMessagePolicy == LargeMessagePolicy.ATTEMPT) {
+        // there is always space for one record, no matter how big :)
+          return true;
+      }
       long recordLen = BytesBoundedBatch.this.getInternalSize(record);
       return (byteSize + recordLen) <= BytesBoundedBatch.this.memSizeLimit;
     }
@@ -80,8 +84,8 @@ public class BytesBoundedBatch<D> extends Batch<D>{
     return memory.getRecords();
   }
 
-  public boolean hasRoom (D object) {
-    return memory.hasRoom(object);
+  public boolean hasRoom (D object, LargeMessagePolicy largeMessagePolicy) {
+    return memory.hasRoom(object, largeMessagePolicy);
   }
 
   public void append (D object) {

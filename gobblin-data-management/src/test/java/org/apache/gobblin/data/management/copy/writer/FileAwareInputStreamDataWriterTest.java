@@ -23,9 +23,12 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.RandomStringUtils;
+import org.apache.gobblin.data.management.copy.splitter.DistcpFileSplitter;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -43,6 +46,9 @@ import com.google.common.io.Files;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.crypto.EncryptionConfigParser;
+import org.apache.gobblin.crypto.GPGFileDecryptor;
+import org.apache.gobblin.crypto.GPGFileEncryptor;
+import org.apache.gobblin.crypto.GPGFileEncryptorTest;
 import org.apache.gobblin.data.management.copy.CopyConfiguration;
 import org.apache.gobblin.data.management.copy.CopySource;
 import org.apache.gobblin.data.management.copy.CopyableDatasetMetadata;
@@ -70,6 +76,53 @@ public class FileAwareInputStreamDataWriterTest {
 
   @Test
   public void testWrite() throws Exception {
+    String streamString1 = "testContents1";
+    String streamString2 = "testContents2";
+    String userDefStagingDir = System.getProperty("user.dir") + "/user_staging_dir";
+    FileStatus status = fs.getFileStatus(testTempPath);
+    OwnerAndPermission ownerAndPermission =
+        new OwnerAndPermission(status.getOwner(), status.getGroup(), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
+    CopyableFile cf = CopyableFileUtils.getTestCopyableFile(ownerAndPermission);
+    CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(new TestCopyableDataset(new Path("/source")));
+    WorkUnitState state = TestUtils.createTestWorkUnitState();
+    state.setProp(ConfigurationKeys.USER_DEFINED_STAGING_DIR_FLAG,false);
+    state.setProp(ConfigurationKeys.WRITER_STAGING_DIR, new Path(testTempPath, "staging").toString());
+    state.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, new Path(testTempPath, "output").toString());
+    state.setProp(ConfigurationKeys.WRITER_FILE_PATH, RandomStringUtils.randomAlphabetic(5));
+    CopySource.serializeCopyEntity(state, cf);
+    CopySource.serializeCopyableDataset(state, metadata);
+    FileAwareInputStreamDataWriter dataWriter = new FileAwareInputStreamDataWriter(state, 1, 0);
+    FileAwareInputStream fileAwareInputStream = FileAwareInputStream.builder().file(cf)
+        .inputStream(StreamUtils.convertStream(IOUtils.toInputStream(streamString1))).build();
+    Assert.assertNotEquals(dataWriter.stagingDir,userDefStagingDir);
+    dataWriter.write(fileAwareInputStream);
+    dataWriter.commit();
+    Path writtenFilePath = new Path(new Path(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR),
+        cf.getDatasetAndPartition(metadata).identifier()), cf.getDestination());
+    Assert.assertEquals(IOUtils.toString(new FileInputStream(writtenFilePath.toString())), streamString1);
+
+    //testing user defined staging directory
+    WorkUnitState state2 = TestUtils.createTestWorkUnitState();
+    state2.setProp(ConfigurationKeys.USER_DEFINED_STAGING_DIR_FLAG,true);
+    state2.setProp(ConfigurationKeys.WRITER_STAGING_DIR, new Path(testTempPath, "staging").toString());
+    state2.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, new Path(testTempPath, "output2").toString());
+    state2.setProp(ConfigurationKeys.USER_DEFINED_STATIC_STAGING_DIR,userDefStagingDir);
+    state2.setProp(ConfigurationKeys.WRITER_FILE_PATH, RandomStringUtils.randomAlphabetic(5));
+    CopySource.serializeCopyEntity(state2, cf);
+    CopySource.serializeCopyableDataset(state2, metadata);
+    dataWriter = new FileAwareInputStreamDataWriter(state2, 1, 0);
+    fileAwareInputStream = FileAwareInputStream.builder().file(cf)
+        .inputStream(StreamUtils.convertStream(IOUtils.toInputStream(streamString2))).build();
+    Assert.assertEquals(dataWriter.stagingDir.toUri().toString(),userDefStagingDir);
+    dataWriter.write(fileAwareInputStream);
+    dataWriter.commit();
+    writtenFilePath = new Path(new Path(state2.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR),
+        cf.getDatasetAndPartition(metadata).identifier()), cf.getDestination());
+    Assert.assertEquals(IOUtils.toString(new FileInputStream(writtenFilePath.toString())), streamString2);
+  }
+
+  @Test
+  public void testBlockWrite() throws Exception {
     String streamString = "testContents";
 
     FileStatus status = fs.getFileStatus(testTempPath);
@@ -83,17 +136,28 @@ public class FileAwareInputStreamDataWriterTest {
     state.setProp(ConfigurationKeys.WRITER_STAGING_DIR, new Path(testTempPath, "staging").toString());
     state.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, new Path(testTempPath, "output").toString());
     state.setProp(ConfigurationKeys.WRITER_FILE_PATH, RandomStringUtils.randomAlphabetic(5));
+    state.setProp(DistcpFileSplitter.SPLIT_ENABLED, true);
     CopySource.serializeCopyEntity(state, cf);
     CopySource.serializeCopyableDataset(state, metadata);
 
     FileAwareInputStreamDataWriter dataWriter = new FileAwareInputStreamDataWriter(state, 1, 0);
 
-    FileAwareInputStream fileAwareInputStream = new FileAwareInputStream(cf, StreamUtils.convertStream(IOUtils.toInputStream(streamString)));
+    long splitLen = 4;
+    int splits = (int) (streamString.length() / splitLen + 1);
+    DistcpFileSplitter.Split split = new DistcpFileSplitter.Split(0, splitLen, 0, splits,
+        String.format("%s.__PART%d__", cf.getDestination().getName(), 0));
+    FSDataInputStream dataInputStream = StreamUtils.convertStream(IOUtils.toInputStream(streamString));
+    dataInputStream.seek(split.getLowPosition());
+    FileAwareInputStream fileAwareInputStream = FileAwareInputStream.builder().file(cf)
+        .inputStream(dataInputStream)
+        .split(Optional.of(split))
+        .build();
     dataWriter.write(fileAwareInputStream);
     dataWriter.commit();
     Path writtenFilePath = new Path(new Path(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR),
         cf.getDatasetAndPartition(metadata).identifier()), cf.getDestination());
-    Assert.assertEquals(IOUtils.toString(new FileInputStream(writtenFilePath.toString())), streamString);
+    Assert.assertEquals(IOUtils.toString(new FileInputStream(writtenFilePath.toString())),
+        streamString.substring(0, (int) splitLen));
   }
 
   @Test
@@ -122,8 +186,8 @@ public class FileAwareInputStreamDataWriterTest {
 
     FileAwareInputStreamDataWriter dataWriter = new FileAwareInputStreamDataWriter(state, 1, 0);
 
-    FileAwareInputStream fileAwareInputStream = new FileAwareInputStream(cf, StreamUtils.convertStream(
-        new ByteArrayInputStream(streamString)));
+    FileAwareInputStream fileAwareInputStream = FileAwareInputStream.builder().file(cf)
+        .inputStream(StreamUtils.convertStream(new ByteArrayInputStream(streamString))).build();
     dataWriter.write(fileAwareInputStream);
     dataWriter.commit();
 
@@ -132,6 +196,109 @@ public class FileAwareInputStreamDataWriterTest {
     Assert.assertTrue(writtenFilePath.getName().endsWith("insecure_shift"),
         "Expected encryption name to be appended to destination");
     Assert.assertEquals(IOUtils.toByteArray(new FileInputStream(writtenFilePath.toString())), expectedContents);
+  }
+
+  @Test
+  public void testWriteWithGPGSymmetricEncryption() throws Exception {
+    byte[] streamString = "testEncryptedContents".getBytes("UTF-8");
+
+    FileStatus status = fs.getFileStatus(testTempPath);
+    OwnerAndPermission ownerAndPermission =
+        new OwnerAndPermission(status.getOwner(), status.getGroup(), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
+    CopyableFile cf = CopyableFileUtils.getTestCopyableFile(ownerAndPermission);
+
+    CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(new TestCopyableDataset(new Path("/source")));
+
+    WorkUnitState state = TestUtils.createTestWorkUnitState();
+    state.setProp(ConfigurationKeys.WRITER_STAGING_DIR, new Path(testTempPath, "staging").toString());
+    state.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, new Path(testTempPath, "output").toString());
+    state.setProp(ConfigurationKeys.WRITER_FILE_PATH, RandomStringUtils.randomAlphabetic(5));
+    state.setProp("writer.encrypt." + EncryptionConfigParser.ENCRYPTION_ALGORITHM_KEY, "gpg");
+    state.setProp("writer.encrypt." + EncryptionConfigParser.ENCRYPTION_KEYSTORE_PASSWORD_KEY, "testPassword");
+
+    CopySource.serializeCopyEntity(state, cf);
+    CopySource.serializeCopyableDataset(state, metadata);
+
+    FileAwareInputStreamDataWriter dataWriter = new FileAwareInputStreamDataWriter(state, 1, 0);
+
+    FileAwareInputStream fileAwareInputStream = FileAwareInputStream.builder().file(cf)
+        .inputStream(StreamUtils.convertStream(new ByteArrayInputStream(streamString))).build();
+    dataWriter.write(fileAwareInputStream);
+    dataWriter.commit();
+
+    Path writtenFilePath = new Path(new Path(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR),
+        cf.getDatasetAndPartition(metadata).identifier()), cf.getDestination());
+    Assert.assertTrue(writtenFilePath.getName().endsWith("gpg"),
+        "Expected encryption name to be appended to destination");
+    byte[] encryptedContent = IOUtils.toByteArray(new FileInputStream(writtenFilePath.toString()));
+    byte[] decryptedContent = new byte[streamString.length];
+    IOUtils.readFully(GPGFileDecryptor.decryptFile(new FileInputStream(writtenFilePath.toString()), "testPassword"),
+        decryptedContent);
+
+
+    // encrypted string should not be the same as the plaintext
+    Assert.assertNotEquals(encryptedContent, streamString);
+
+    // decrypted string should be the same as the plaintext
+    Assert.assertEquals(decryptedContent, streamString);
+
+  }
+
+  @Test
+  public void testWriteWithGPGAsymmetricEncryption() throws Exception {
+    byte[] streamString = "testEncryptedContents".getBytes("UTF-8");
+
+    FileStatus status = fs.getFileStatus(testTempPath);
+    OwnerAndPermission ownerAndPermission =
+        new OwnerAndPermission(status.getOwner(), status.getGroup(), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
+    CopyableFile cf = CopyableFileUtils.getTestCopyableFile(ownerAndPermission);
+
+    CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(new TestCopyableDataset(new Path("/source")));
+
+    WorkUnitState state = TestUtils.createTestWorkUnitState();
+    state.setProp(ConfigurationKeys.WRITER_STAGING_DIR, new Path(testTempPath, "staging").toString());
+    state.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, new Path(testTempPath, "output").toString());
+    state.setProp(ConfigurationKeys.WRITER_FILE_PATH, RandomStringUtils.randomAlphabetic(5));
+    state.setProp("writer.encrypt." + EncryptionConfigParser.ENCRYPTION_ALGORITHM_KEY, "gpg");
+
+    File publicKeyFile = new File(testTempPath.toString(), "public.key");
+
+    FileUtils.copyInputStreamToFile(GPGFileEncryptor.class.getResourceAsStream(GPGFileEncryptorTest.PUBLIC_KEY),
+        publicKeyFile);
+
+    state.setProp("writer.encrypt." + EncryptionConfigParser.ENCRYPTION_KEYSTORE_PATH_KEY, publicKeyFile.getAbsolutePath());
+    state.setProp("writer.encrypt." + EncryptionConfigParser.ENCRYPTION_KEYSTORE_PASSWORD_KEY,
+        GPGFileEncryptorTest.PASSPHRASE);
+    state.setProp("writer.encrypt." + EncryptionConfigParser.ENCRYPTION_KEY_NAME,
+        GPGFileEncryptorTest.KEY_ID);
+
+    CopySource.serializeCopyEntity(state, cf);
+    CopySource.serializeCopyableDataset(state, metadata);
+
+    FileAwareInputStreamDataWriter dataWriter = new FileAwareInputStreamDataWriter(state, 1, 0);
+
+    FileAwareInputStream fileAwareInputStream = FileAwareInputStream.builder().file(cf)
+        .inputStream(StreamUtils.convertStream(new ByteArrayInputStream(streamString))).build();
+    dataWriter.write(fileAwareInputStream);
+    dataWriter.commit();
+
+    Path writtenFilePath = new Path(new Path(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR),
+        cf.getDatasetAndPartition(metadata).identifier()), cf.getDestination());
+    Assert.assertTrue(writtenFilePath.getName().endsWith("gpg"),
+        "Expected encryption name to be appended to destination");
+    byte[] encryptedContent = IOUtils.toByteArray(new FileInputStream(writtenFilePath.toString()));
+    byte[] decryptedContent = new byte[streamString.length];
+    IOUtils.readFully(GPGFileDecryptor.decryptFile(new FileInputStream(writtenFilePath.toString()),
+        GPGFileEncryptor.class.getResourceAsStream(GPGFileEncryptorTest.PRIVATE_KEY),
+        GPGFileEncryptorTest.PASSPHRASE), decryptedContent);
+
+
+    // encrypted string should not be the same as the plaintext
+    Assert.assertNotEquals(encryptedContent, streamString);
+
+    // decrypted string should be the same as the plaintext
+    Assert.assertEquals(decryptedContent, streamString);
+
   }
 
   @Test

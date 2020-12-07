@@ -20,26 +20,25 @@ package org.apache.gobblin.compaction.mapreduce.conditions;
 import java.io.IOException;
 import java.util.Arrays;
 
-import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Period;
-import org.joda.time.format.PeriodFormatterBuilder;
 import org.joda.time.format.PeriodFormatter;
+import org.joda.time.format.PeriodFormatterBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
-
-
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Lists;
 import com.google.common.base.Optional;
-import org.apache.gobblin.compaction.conditions.RecompactionCondition;
+import com.google.common.collect.Lists;
+
 import org.apache.gobblin.compaction.conditions.RecompactionCombineCondition;
+import org.apache.gobblin.compaction.conditions.RecompactionCondition;
 import org.apache.gobblin.compaction.conditions.RecompactionConditionBasedOnDuration;
 import org.apache.gobblin.compaction.conditions.RecompactionConditionBasedOnFileCount;
 import org.apache.gobblin.compaction.conditions.RecompactionConditionBasedOnRatio;

@@ -21,11 +21,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
+import org.apache.commons.lang3.reflect.ConstructorUtils;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Strings;
-
-import org.apache.commons.lang3.reflect.ConstructorUtils;
 
 import org.apache.gobblin.configuration.State;
 

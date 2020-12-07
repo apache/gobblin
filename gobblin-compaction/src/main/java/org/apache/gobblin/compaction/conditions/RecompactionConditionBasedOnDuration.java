@@ -17,12 +17,6 @@
 
 package org.apache.gobblin.compaction.conditions;
 
-
-import org.apache.gobblin.annotation.Alias;
-import org.apache.gobblin.compaction.dataset.DatasetHelper;
-import org.apache.gobblin.compaction.dataset.Dataset;
-import org.apache.gobblin.compaction.mapreduce.MRCompactor;
-
 import org.joda.time.DateTime;
 import org.joda.time.Period;
 import org.joda.time.format.PeriodFormatter;
@@ -31,6 +25,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
+
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.compaction.dataset.Dataset;
+import org.apache.gobblin.compaction.dataset.DatasetHelper;
+import org.apache.gobblin.compaction.mapreduce.MRCompactor;
 
 
 

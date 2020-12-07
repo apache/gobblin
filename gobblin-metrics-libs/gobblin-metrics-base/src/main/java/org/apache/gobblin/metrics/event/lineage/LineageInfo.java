@@ -17,17 +17,22 @@
 
 package org.apache.gobblin.metrics.event.lineage;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import org.apache.commons.lang3.StringUtils;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.google.gson.Gson;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
@@ -39,11 +44,16 @@ import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import org.apache.gobblin.broker.iface.NotConfiguredException;
 import org.apache.gobblin.broker.iface.SharedResourcesBroker;
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.gobblin.dataset.DatasetResolver;
 import org.apache.gobblin.dataset.DatasetResolverFactory;
+import org.apache.gobblin.dataset.Descriptor;
+import org.apache.gobblin.dataset.DescriptorResolver;
 import org.apache.gobblin.dataset.NoopDatasetResolver;
+import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.broker.LineageInfoFactory;
+import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -78,7 +88,6 @@ public final class LineageInfo {
   private static final String DATASET_RESOLVER_CONFIG_NAMESPACE = "datasetResolver";
 
   private static final String BRANCH = "branch";
-  private static final Gson GSON = new Gson();
   private static final String NAME_KEY = "name";
 
   private static final Config FALLBACK =
@@ -86,7 +95,7 @@ public final class LineageInfo {
           .put(DATASET_RESOLVER_FACTORY, NoopDatasetResolver.FACTORY)
           .build());
 
-  private final DatasetResolver resolver;
+  private final DescriptorResolver resolver;
 
   public LineageInfo(Config config) {
     resolver = getResolver(config.withFallback(FALLBACK));
@@ -103,14 +112,14 @@ public final class LineageInfo {
    * @param state state about a {@link org.apache.gobblin.source.workunit.WorkUnit}
    *
    */
-  public void setSource(DatasetDescriptor source, State state) {
-    DatasetDescriptor descriptor = resolver.resolve(source, state);
+  public void setSource(Descriptor source, State state) {
+    Descriptor descriptor = resolver.resolve(source, state);
     if (descriptor == null) {
       return;
     }
 
     state.setProp(getKey(NAME_KEY), descriptor.getName());
-    state.setProp(getKey(LineageEventBuilder.SOURCE), GSON.toJson(descriptor));
+    state.setProp(getKey(LineageEventBuilder.SOURCE), Descriptor.toJson(descriptor));
   }
 
   /**
@@ -121,20 +130,48 @@ public final class LineageInfo {
    *   is supposed to put the destination dataset information. Since different branches may concurrently put,
    *   the method is implemented to be threadsafe
    * </p>
+   *
+   * @deprecated Use {@link #putDestination(List, int, State)}
    */
-  public void putDestination(DatasetDescriptor destination, int branchId, State state) {
+  @Deprecated
+  public void putDestination(Descriptor destination, int branchId, State state) {
+    putDestination(Lists.newArrayList(destination), branchId, state);
+  }
+
+  /**
+   * Put data {@link Descriptor}s of a destination dataset to a state
+   *
+   * @param descriptors It can be a single item list which just has the dataset descriptor or a list
+   *                    of dataset partition descriptors
+   */
+  public void putDestination(List<Descriptor> descriptors, int branchId, State state) {
+
     if (!hasLineageInfo(state)) {
-      log.warn("State has no lineage info but branch " + branchId + " puts a destination: " + GSON.toJson(destination));
+      log.warn("State has no lineage info but branch " + branchId + " puts {} descriptors", descriptors.size());
       return;
     }
-    log.debug(String.format("Put destination %s for branch %d", GSON.toJson(destination), branchId));
+
+    log.debug(String.format("Put destination %s for branch %d", Descriptor.toJson(descriptors), branchId));
+
     synchronized (state.getProp(getKey(NAME_KEY))) {
-      DatasetDescriptor descriptor = resolver.resolve(destination, state);
-      if (descriptor == null) {
-        return;
+      List<Descriptor> resolvedDescriptors = new ArrayList<>();
+      for (Descriptor descriptor : descriptors) {
+        Descriptor resolvedDescriptor = resolver.resolve(descriptor, state);
+        if (resolvedDescriptor == null) {
+          continue;
+        }
+        resolvedDescriptors.add(resolvedDescriptor);
       }
 
-      state.setProp(getKey(BRANCH, branchId, LineageEventBuilder.DESTINATION), GSON.toJson(descriptor));
+      String destinationKey = getDestinationKey(branchId);
+      String currentDestinations = state.getProp(destinationKey);
+      List<Descriptor> allDescriptors = Lists.newArrayList();
+      if (StringUtils.isNotEmpty(currentDestinations)) {
+        allDescriptors = Descriptor.fromJsonList(currentDestinations);
+      }
+      allDescriptors.addAll(resolvedDescriptors);
+
+      state.setProp(destinationKey, Descriptor.toJson(allDescriptors));
     }
   }
 
@@ -148,8 +185,8 @@ public final class LineageInfo {
     Preconditions.checkArgument(states != null && !states.isEmpty());
     Set<LineageEventBuilder> allEvents = Sets.newHashSet();
     for (State state : states) {
-      Map<String, LineageEventBuilder> branchedEvents = load(state);
-      allEvents.addAll(branchedEvents.values());
+      Map<String, Set<LineageEventBuilder>> branchedEvents = load(state);
+      branchedEvents.values().forEach(allEvents::addAll);
     }
     return allEvents;
   }
@@ -159,12 +196,16 @@ public final class LineageInfo {
    *
    * @return A map from branch to its lineage info. If there is no destination info, return an empty map
    */
-  static Map<String, LineageEventBuilder> load(State state) {
+  static Map<String, Set<LineageEventBuilder>> load(State state) {
     String name = state.getProp(getKey(NAME_KEY));
-    DatasetDescriptor source = GSON.fromJson(state.getProp(getKey(LineageEventBuilder.SOURCE)), DatasetDescriptor.class);
+    Descriptor source = Descriptor.fromJson(state.getProp(getKey(LineageEventBuilder.SOURCE)));
 
     String branchedPrefix = getKey(BRANCH, "");
-    Map<String, LineageEventBuilder> events = Maps.newHashMap();
+    Map<String, Set<LineageEventBuilder>> events = Maps.newHashMap();
+    if (source == null) {
+      return events;
+    }
+
     for (Map.Entry<Object, Object> entry : state.getProperties().entrySet()) {
       String key = entry.getKey().toString();
       if (!key.startsWith(branchedPrefix)) {
@@ -174,16 +215,17 @@ public final class LineageInfo {
       String[] parts = key.substring(branchedPrefix.length()).split("\\.");
       assert parts.length == 2;
       String branchId = parts[0];
-      LineageEventBuilder event = events.get(branchId);
-      if (event == null) {
-        event = new LineageEventBuilder(name);
-        event.setSource(new DatasetDescriptor(source));
-        events.put(parts[0], event);
-      }
+      Set<LineageEventBuilder> branchEvents = events.computeIfAbsent(branchId, k -> new HashSet<>());
+
       switch (parts[1]) {
         case LineageEventBuilder.DESTINATION:
-          DatasetDescriptor destination = GSON.fromJson(entry.getValue().toString(), DatasetDescriptor.class);
-          event.setDestination(destination);
+          List<Descriptor> descriptors = Descriptor.fromJsonList(entry.getValue().toString());
+          for (Descriptor descriptor : descriptors) {
+            LineageEventBuilder event = new LineageEventBuilder(name);
+            event.setSource(source);
+            event.setDestination(descriptor);
+            branchEvents.add(event);
+          }
           break;
         default:
           throw new RuntimeException("Unsupported lineage key: " + key);
@@ -237,8 +279,10 @@ public final class LineageInfo {
    * Get the configured {@link DatasetResolver} from {@link State}
    */
   public static DatasetResolver getResolver(Config config) {
+    // ConfigException.Missing will throw if DATASET_RESOLVER_FACTORY is absent
     String resolverFactory = config.getString(DATASET_RESOLVER_FACTORY);
-    if (resolverFactory.equals(NoopDatasetResolver.FACTORY)) {
+
+    if (resolverFactory.toUpperCase().equals(NoopDatasetResolver.FACTORY)) {
       return NoopDatasetResolver.INSTANCE;
     }
 
@@ -261,5 +305,51 @@ public final class LineageInfo {
     args[0] = LineageEventBuilder.LIENAGE_EVENT_NAMESPACE;
     System.arraycopy(objects, 0, args, 1, objects.length);
     return LineageEventBuilder.getKey(args);
+  }
+
+  private static String getDestinationKey(int branchId) {
+    return getKey(BRANCH, branchId, LineageEventBuilder.DESTINATION);
+  }
+  /**
+   * Remove the destination property from the state object. Used in streaming mode, where we want to selectively purge
+   * lineage information from the state.
+   * @param state
+   * @param branchId
+   */
+  public static void removeDestinationProp(State state, int branchId) {
+    String destinationKey = getDestinationKey(branchId);
+    if (state.contains(destinationKey)) {
+      state.removeProp(destinationKey);
+    }
+  }
+
+  /**
+   * Group states by lineage event name (i.e the dataset name). Used for de-duping LineageEvents for a given dataset.
+   * @param states
+   * @return a map of {@link WorkUnitState}s keyed by dataset name.
+   */
+  public static Map<String, Collection<WorkUnitState>> aggregateByLineageEvent(Collection<? extends WorkUnitState> states) {
+    Map<String, Collection<WorkUnitState>> statesByEvents = Maps.newHashMap();
+    for (WorkUnitState state : states) {
+      String eventName = LineageInfo.getFullEventName(state);
+      Collection<WorkUnitState> statesForEvent = statesByEvents.computeIfAbsent(eventName, k -> Lists.newArrayList());
+      statesForEvent.add(state);
+    }
+
+    return statesByEvents;
+  }
+
+  /**
+   * Emit lineage events for a given dataset. This method de-dupes the LineageEvents before submitting to the Lineage
+   * Event reporter
+   * @param dataset dataset name
+   * @param states a set of {@link WorkUnitState}s associated with the dataset
+   * @param metricContext {@link MetricContext} to submit the events to, which then notifies the Lineage EventReporter.
+   */
+  public static void submitLineageEvent(String dataset, Collection<? extends WorkUnitState> states, MetricContext metricContext) {
+    Collection<LineageEventBuilder> events = LineageInfo.load(states);
+    // Send events
+    events.forEach(event -> EventSubmitter.submit(metricContext, event));
+    log.info(String.format("Submitted %d lineage events for dataset %s", events.size(), dataset));
   }
 }

@@ -21,13 +21,18 @@ import java.io.Closeable;
 import java.io.Flushable;
 import java.io.IOException;
 
+import org.apache.gobblin.dataset.Descriptor;
 import org.apache.gobblin.records.ControlMessageHandler;
 import org.apache.gobblin.records.FlushControlMessageHandler;
 import org.apache.gobblin.stream.RecordEnvelope;
 
 
 /**
- * An interface for data writers.
+ * An interface for data writers
+ *
+ * <p>
+ *   Generally, one work unit has a dedicated {@link DataWriter} instance, which processes only one dataset
+ * </p>
  *
  * @param <D> data record type
  *
@@ -36,7 +41,7 @@ import org.apache.gobblin.stream.RecordEnvelope;
 public interface DataWriter<D> extends Closeable, Flushable {
 
   /**
-   * Write a source data record in Avro format using the given converter.
+   * Write a data record.
    *
    * @param record data record to write
    * @throws IOException if there is anything wrong writing the record
@@ -47,7 +52,7 @@ public interface DataWriter<D> extends Closeable, Flushable {
 
   /**
    * Commit the data written.
-   *
+   * This method is expected to be called at most once during the lifetime of a writer.
    * @throws IOException if there is anything wrong committing the output
    */
   public void commit()
@@ -77,7 +82,25 @@ public interface DataWriter<D> extends Closeable, Flushable {
       throws IOException;
 
   /**
+   * The method should return a {@link Descriptor} that represents what the writer is writing
+   *
+   * <p>
+   *   Note that, this information might be useless and discarded by a
+   *   {@link org.apache.gobblin.publisher.DataPublisher}, which determines the final form of dataset or partition
+   * </p>
+   *
+   * @return a {@link org.apache.gobblin.dataset.DatasetDescriptor} if it writes files of a dataset or
+   *         a {@link org.apache.gobblin.dataset.PartitionDescriptor} if it writes files of a dataset partition or
+   *         {@code null} if it is useless
+   */
+  default Descriptor getDataDescriptor() {
+    return null;
+  }
+
+  /**
    * Write the input {@link RecordEnvelope}. By default, just call {@link #write(Object)}.
+   * DataWriters that implement this method must acknowledge the recordEnvelope once the write has been acknowledged
+   * by the destination system.
    */
   default void writeEnvelope(RecordEnvelope<D> recordEnvelope) throws IOException {
     write(recordEnvelope.getRecord());
@@ -94,6 +117,7 @@ public interface DataWriter<D> extends Closeable, Flushable {
 
   /**
    * Flush data written by the writer. By default, does nothing.
+   * This method is expected to be called multiple times during the lifetime of a writer.
    * @throws IOException
    */
   default void flush() throws IOException {

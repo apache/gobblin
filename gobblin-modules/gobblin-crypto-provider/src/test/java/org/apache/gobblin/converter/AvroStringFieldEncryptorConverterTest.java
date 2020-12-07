@@ -17,6 +17,7 @@
 package org.apache.gobblin.converter;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -26,9 +27,14 @@ import java.util.List;
 
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileReader;
+import org.apache.avro.generic.GenericArray;
+import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.DatumReader;
+import org.apache.avro.io.Encoder;
+import org.apache.avro.io.EncoderFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -37,6 +43,7 @@ import com.google.common.collect.Maps;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.test.TestUtils;
 import org.apache.gobblin.test.crypto.InsecureShiftCodec;
+import org.testng.collections.Lists;
 
 
 public class AvroStringFieldEncryptorConverterTest {
@@ -83,10 +90,61 @@ public class AvroStringFieldEncryptorConverterTest {
     Assert.assertEquals(decryptedValues, origValues);
   }
 
-  private GenericRecord getRecordFromFile(String path) throws IOException {
+  @Test
+  @SuppressWarnings("unchecked")
+  public void testEncryptionOfArray()
+      throws SchemaConversionException, DataConversionException, IOException {
+    AvroStringFieldEncryptorConverter converter = new AvroStringFieldEncryptorConverter();
+    WorkUnitState wuState = new WorkUnitState();
+
+    wuState.getJobState().setProp("converter.fieldsToEncrypt", "favorite_quotes");
+    wuState.getJobState().setProp("converter.encrypt.algorithm", "insecure_shift");
+
+    converter.init(wuState);
+    GenericRecord inputRecord =
+        getRecordFromFile(getClass().getClassLoader().getResource("fieldPickInput_arrays.avro").getPath());
+    GenericArray origValues = (GenericArray) inputRecord.get("favorite_quotes");
+    for (int i = 0; i < origValues.size(); i++) {
+      origValues.set(i, origValues.get(i).toString());
+    }
+
+    Schema inputSchema = inputRecord.getSchema();
+    Schema outputSchema = converter.convertSchema(inputSchema, wuState);
+
+    Iterable<GenericRecord> recordIt = converter.convertRecord(outputSchema, inputRecord, wuState);
+    GenericRecord encryptedRecord = recordIt.iterator().next();
+
+    Assert.assertEquals(outputSchema, inputSchema);
+
+    GenericArray<String> encryptedVals = (GenericArray<String>) encryptedRecord.get("favorite_quotes");
+    List<String> decryptedValues = Lists.newArrayList();
+    for (String encryptedValue: encryptedVals) {
+      InsecureShiftCodec codec = new InsecureShiftCodec(Maps.<String, Object>newHashMap());
+      InputStream in =
+          codec.decodeInputStream(new ByteArrayInputStream(encryptedValue.getBytes(StandardCharsets.UTF_8)));
+      byte[] decryptedValue = new byte[in.available()];
+      in.read(decryptedValue);
+      decryptedValues.add(new String(decryptedValue, StandardCharsets.UTF_8));
+    }
+
+    Assert.assertEquals(decryptedValues, origValues);
+  }
+
+  private GenericArray<String> buildTestArray() {
+    Schema s = Schema.createArray(Schema.create(Schema.Type.STRING));
+    GenericArray<String> arr = new GenericData.Array<>(3, s);
+    arr.add("one");
+    arr.add("two");
+    arr.add("three");
+
+    return arr;
+  }
+
+  private GenericRecord getRecordFromFile(String path)
+      throws IOException {
     DatumReader<GenericRecord> reader = new GenericDatumReader<>();
     DataFileReader<GenericRecord> dataFileReader = new DataFileReader<GenericRecord>(new File(path), reader);
-    while (dataFileReader.hasNext()) {
+    if (dataFileReader.hasNext()) {
       return dataFileReader.next();
     }
 

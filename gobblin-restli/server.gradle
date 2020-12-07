@@ -44,11 +44,11 @@ dependencies {
     exclude module: "guice"
   }
 
+  compile externalDependency.gson
   compile externalDependency.pegasus.restliServer
   compile externalDependency.pegasus.restliCommon
   compile externalDependency.pegasus.restliNettyStandalone
   compile externalDependency.pegasus.restliGuiceBridge
-  compile externalDependency.lombok
 
   testCompile externalDependency.testng
 }

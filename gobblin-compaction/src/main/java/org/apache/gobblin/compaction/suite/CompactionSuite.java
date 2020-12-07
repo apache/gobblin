@@ -17,18 +17,18 @@
 
 package org.apache.gobblin.compaction.suite;
 
-import org.apache.gobblin.compaction.action.CompactionCompleteAction;
-import org.apache.gobblin.compaction.mapreduce.MRCompactionTask;
-import org.apache.gobblin.configuration.SourceState;
-import org.apache.gobblin.data.management.copy.replication.ConfigBasedDatasetsFinder;
-import org.apache.gobblin.dataset.Dataset;
-
-import org.apache.gobblin.compaction.verify.CompactionVerifier;
-import org.apache.gobblin.configuration.State;
-import org.apache.hadoop.mapreduce.Job;
-
 import java.io.IOException;
 import java.util.List;
+
+import org.apache.hadoop.mapreduce.Job;
+
+import org.apache.gobblin.compaction.action.CompactionCompleteAction;
+import org.apache.gobblin.compaction.mapreduce.MRCompactionTask;
+import org.apache.gobblin.compaction.verify.CompactionVerifier;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.data.management.copy.replication.ConfigBasedDatasetsFinder;
+import org.apache.gobblin.dataset.Dataset;
 
 /**
  * This interface provides major components required by {@link org.apache.gobblin.compaction.source.CompactionSource}
@@ -41,6 +41,10 @@ import java.util.List;
  *
  * The class also handles how to create a map-reduce job and how to serialized and deserialize a {@link Dataset}
  * to and from a {@link org.apache.gobblin.source.workunit.WorkUnit} properly.
+ *
+ * CompactionSuite should only be aware of verification methods and different definition of datasets,
+ * but unaware of data format, which is handled by different implementation of
+ * {@link org.apache.gobblin.compaction.mapreduce.CompactionJobConfigurator}
  */
 
 public interface CompactionSuite<D extends Dataset> {
@@ -75,6 +79,6 @@ public interface CompactionSuite<D extends Dataset> {
   /**
    * Get a list of completion actions after compaction is finished. Actions are listed in order
    */
-  List<CompactionCompleteAction<D>> getCompactionCompleteActions();
+  List<CompactionCompleteAction<D>> getCompactionCompleteActions() throws IOException;
 
 }

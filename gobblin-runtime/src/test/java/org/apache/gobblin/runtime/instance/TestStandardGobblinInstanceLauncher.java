@@ -33,10 +33,12 @@ import com.typesafe.config.ConfigFactory;
 import org.apache.gobblin.runtime.api.GobblinInstanceDriver;
 import org.apache.gobblin.runtime.api.JobExecutionDriver;
 import org.apache.gobblin.runtime.api.JobExecutionLauncher;
+import org.apache.gobblin.runtime.api.JobExecutionMonitor;
 import org.apache.gobblin.runtime.api.JobExecutionResult;
 import org.apache.gobblin.runtime.api.JobLifecycleListener;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.instance.DefaultGobblinInstanceDriverImpl.JobSpecRunnable;
+import org.apache.gobblin.runtime.job_exec.JobLauncherExecutionDriver;
 import org.apache.gobblin.runtime.job_spec.ResolvedJobSpec;
 import org.apache.gobblin.runtime.std.DefaultJobLifecycleListenerImpl;
 import org.apache.gobblin.runtime.std.FilteredJobLifecycleListener;
@@ -100,7 +102,12 @@ public class TestStandardGobblinInstanceLauncher {
 
   private void checkLaunchJob(StandardGobblinInstanceLauncher instanceLauncher, JobSpec js1,
       GobblinInstanceDriver instance) throws TimeoutException, InterruptedException, ExecutionException {
-    JobExecutionDriver jobDriver = instance.getJobLauncher().launchJob(js1);
+    JobExecutionDriver jobDriver = null;
+    JobExecutionMonitor monitor = instance.getJobLauncher().launchJob(js1);
+    if (monitor instanceof JobLauncherExecutionDriver.JobExecutionMonitorAndDriver) {
+      jobDriver = ((JobLauncherExecutionDriver.JobExecutionMonitorAndDriver) monitor).getDriver();
+    }
+
     new Thread(jobDriver).run();
     JobExecutionResult jobResult = jobDriver.get(5, TimeUnit.SECONDS);
 

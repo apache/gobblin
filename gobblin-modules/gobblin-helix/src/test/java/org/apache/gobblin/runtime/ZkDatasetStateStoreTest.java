@@ -17,6 +17,20 @@
 
 package org.apache.gobblin.runtime;
 
+import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+
+import org.apache.curator.test.TestingServer;
+import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
+
+import com.google.common.base.Predicates;
+
 import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
@@ -25,14 +39,6 @@ import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.metastore.ZkStateStore;
 import org.apache.gobblin.metastore.ZkStateStoreConfigurationKeys;
 import org.apache.gobblin.util.ClassAliasResolver;
-import java.io.IOException;
-import java.util.Map;
-import java.util.Properties;
-import org.apache.curator.test.TestingServer;
-import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
 
 
 /**
@@ -40,8 +46,10 @@ import org.testng.annotations.Test;
  **/
 @Test(groups = { "gobblin.runtime" })
 public class ZkDatasetStateStoreTest {
-  private static final String TEST_JOB_NAME = "TestJob";
-  private static final String TEST_JOB_ID = "TestJob1";
+  private static final String TEST_JOB_NAME = "TestJobName1";
+  private static final String TEST_JOB_NAME2 = "TestJobName2";
+
+  private static final String TEST_JOB_ID = "TestJobId1";
   private static final String TEST_TASK_ID_PREFIX = "TestTask-";
   private static final String TEST_DATASET_URN = "TestDataset";
   private static final String TEST_DATASET_URN2 = "TestDataset2";
@@ -73,6 +81,8 @@ public class ZkDatasetStateStoreTest {
     // clear data that may have been left behind by a prior test run
     zkJobStateStore.delete(TEST_JOB_NAME);
     zkDatasetStateStore.delete(TEST_JOB_NAME);
+    zkJobStateStore.delete(TEST_JOB_NAME2);
+    zkDatasetStateStore.delete(TEST_JOB_NAME2);
   }
 
   @Test
@@ -97,6 +107,12 @@ public class ZkDatasetStateStoreTest {
     zkJobStateStore.put(TEST_JOB_NAME,
         ZkDatasetStateStore.CURRENT_DATASET_STATE_FILE_SUFFIX + ZkDatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX,
         jobState);
+
+    // second job name for testing getting store names in a later test case
+    jobState.setJobName(TEST_JOB_NAME2);
+    zkJobStateStore.put(TEST_JOB_NAME2,
+        ZkDatasetStateStore.CURRENT_DATASET_STATE_FILE_SUFFIX + ZkDatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX,
+        jobState);
   }
 
   @Test(dependsOnMethods = "testPersistJobState")
@@ -105,6 +121,7 @@ public class ZkDatasetStateStoreTest {
         zkDatasetStateStore.CURRENT_DATASET_STATE_FILE_SUFFIX + zkDatasetStateStore.DATASET_STATE_STORE_TABLE_SUFFIX,
         TEST_JOB_ID);
 
+    Assert.assertEquals(jobState.getId(), TEST_JOB_ID);
     Assert.assertEquals(jobState.getJobName(), TEST_JOB_NAME);
     Assert.assertEquals(jobState.getJobId(), TEST_JOB_ID);
     Assert.assertEquals(jobState.getState(), JobState.RunningState.COMMITTED);
@@ -150,6 +167,10 @@ public class ZkDatasetStateStoreTest {
     datasetState.setDuration(2000);
 
     zkDatasetStateStore.persistDatasetState(TEST_DATASET_URN2, datasetState);
+
+    // second job name for testing getting store names in a later test case
+    datasetState.setJobName(TEST_JOB_NAME2);
+    zkDatasetStateStore.persistDatasetState(TEST_DATASET_URN2, datasetState);
   }
 
   @Test(dependsOnMethods = "testPersistDatasetState")
@@ -164,6 +185,7 @@ public class ZkDatasetStateStoreTest {
     Assert.assertEquals(datasetState.getStartTime(), this.startTime);
     Assert.assertEquals(datasetState.getEndTime(), this.startTime + 1000);
     Assert.assertEquals(datasetState.getDuration(), 1000);
+    Assert.assertEquals(datasetState.getId(), TEST_DATASET_URN);
 
     Assert.assertEquals(datasetState.getCompletedTasks(), 3);
     for (int i = 0; i < datasetState.getCompletedTasks(); i++) {
@@ -175,13 +197,31 @@ public class ZkDatasetStateStoreTest {
     }
   }
 
-  @Test(dependsOnMethods = "testGetDatasetState")
+  @Test(dependsOnMethods = { "testGetDatasetState" })
+  public void testGetStoreNames() throws IOException {
+    List<String> storeNames = this.zkJobStateStore.getStoreNames(Predicates.alwaysTrue());
+    Collections.sort(storeNames);
+
+    Assert.assertTrue(storeNames.size() == 2);
+    Assert.assertEquals(storeNames.get(0), TEST_JOB_NAME);
+    Assert.assertEquals(storeNames.get(1), TEST_JOB_NAME2);
+
+    storeNames = this.zkDatasetStateStore.getStoreNames(Predicates.alwaysTrue());
+    Collections.sort(storeNames);
+
+    Assert.assertTrue(storeNames.size() == 2);
+    Assert.assertEquals(storeNames.get(0), TEST_JOB_NAME);
+    Assert.assertEquals(storeNames.get(1), TEST_JOB_NAME2);
+  }
+
+  @Test(dependsOnMethods = "testGetStoreNames")
   public void testGetPreviousDatasetStatesByUrns() throws IOException {
     Map<String, JobState.DatasetState> datasetStatesByUrns =
         zkDatasetStateStore.getLatestDatasetStatesByUrns(TEST_JOB_NAME);
     Assert.assertEquals(datasetStatesByUrns.size(), 2);
 
     JobState.DatasetState datasetState = datasetStatesByUrns.get(TEST_DATASET_URN);
+    Assert.assertEquals(datasetState.getId(), TEST_DATASET_URN);
     Assert.assertEquals(datasetState.getDatasetUrn(), TEST_DATASET_URN);
     Assert.assertEquals(datasetState.getJobName(), TEST_JOB_NAME);
     Assert.assertEquals(datasetState.getJobId(), TEST_JOB_ID);
@@ -191,6 +231,7 @@ public class ZkDatasetStateStoreTest {
     Assert.assertEquals(datasetState.getDuration(), 1000);
 
     datasetState = datasetStatesByUrns.get(TEST_DATASET_URN2);
+    Assert.assertEquals(datasetState.getId(), TEST_DATASET_URN2);
     Assert.assertEquals(datasetState.getDatasetUrn(), TEST_DATASET_URN2);
     Assert.assertEquals(datasetState.getJobName(), TEST_JOB_NAME);
     Assert.assertEquals(datasetState.getJobId(), TEST_JOB_ID);
@@ -240,6 +281,8 @@ public class ZkDatasetStateStoreTest {
   public void tearDown() throws IOException {
     zkJobStateStore.delete(TEST_JOB_NAME);
     zkDatasetStateStore.delete(TEST_JOB_NAME);
+    zkJobStateStore.delete(TEST_JOB_NAME2);
+    zkDatasetStateStore.delete(TEST_JOB_NAME2);
 
     if (testingServer != null) {
       testingServer.close();

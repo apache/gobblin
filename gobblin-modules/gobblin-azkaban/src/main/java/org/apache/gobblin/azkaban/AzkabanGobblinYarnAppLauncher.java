@@ -18,18 +18,23 @@
 package org.apache.gobblin.azkaban;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeoutException;
 
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
+import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigValueFactory;
+
+import azkaban.jobExecutor.AbstractJob;
+import lombok.Getter;
 
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.yarn.GobblinYarnAppLauncher;
-
-import azkaban.jobExecutor.AbstractJob;
+import org.apache.gobblin.yarn.GobblinYarnConfigurationKeys;
 
 
 /**
@@ -48,15 +53,49 @@ import azkaban.jobExecutor.AbstractJob;
  * @author Yinan Li
  */
 public class AzkabanGobblinYarnAppLauncher extends AbstractJob {
-
-  private static final Logger LOGGER = Logger.getLogger(AzkabanJobLauncher.class);
+  private static final Logger LOGGER = Logger.getLogger(AzkabanGobblinYarnAppLauncher.class);
 
   private final GobblinYarnAppLauncher gobblinYarnAppLauncher;
 
-  public AzkabanGobblinYarnAppLauncher(String jobId, Properties props) throws IOException {
+  @Getter
+  private final YarnConfiguration yarnConfiguration;
+
+  public AzkabanGobblinYarnAppLauncher(String jobId, Properties gobblinProps)
+      throws IOException {
     super(jobId, LOGGER);
-    Config gobblinConfig = ConfigUtils.propertiesToConfig(props);
-    this.gobblinYarnAppLauncher = new GobblinYarnAppLauncher(gobblinConfig, new YarnConfiguration());
+
+    Config gobblinConfig = ConfigUtils.propertiesToConfig(gobblinProps);
+
+    //Suppress logs from classes that emit Yarn application Id that Azkaban uses to kill the application.
+    setLogLevelForClasses(gobblinConfig);
+
+    yarnConfiguration = initYarnConf(gobblinProps);
+
+    gobblinConfig = gobblinConfig.withValue(GobblinYarnAppLauncher.GOBBLIN_YARN_APP_LAUNCHER_MODE,
+        ConfigValueFactory.fromAnyRef(GobblinYarnAppLauncher.AZKABAN_APP_LAUNCHER_MODE_KEY));
+    this.gobblinYarnAppLauncher = new GobblinYarnAppLauncher(gobblinConfig, this.yarnConfiguration);
+  }
+
+  /**
+   * Set Log Level for each class specified in the config. Class name and the corresponding log level can be specified
+   * as "a:INFO,b:ERROR", where logs of class "a" are set to INFO and logs from class "b" are set to ERROR.
+   * @param config
+   */
+  private void setLogLevelForClasses(Config config) {
+    List<String> classLogLevels = ConfigUtils.getStringList(config, GobblinYarnConfigurationKeys.GOBBLIN_YARN_AZKABAN_CLASS_LOG_LEVELS);
+
+    for (String classLogLevel: classLogLevels) {
+      String className = classLogLevel.split(":")[0];
+      Level level = Level.toLevel(classLogLevel.split(":")[1], Level.INFO);
+      Logger.getLogger(className).setLevel(level);
+    }
+  }
+
+  /**
+   * Extended class can override this method by providing their own YARN configuration.
+   */
+  protected YarnConfiguration initYarnConf(Properties gobblinProps) {
+    return new YarnConfiguration();
   }
 
   @Override

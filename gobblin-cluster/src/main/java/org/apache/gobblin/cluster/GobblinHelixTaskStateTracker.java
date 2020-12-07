@@ -22,14 +22,12 @@ import java.util.Properties;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledFuture;
 
-import org.apache.helix.HelixManager;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Throwables;
 import com.google.common.collect.Maps;
 
-import org.apache.gobblin.annotation.Alpha;
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.runtime.AbstractTaskStateTracker;
 import org.apache.gobblin.runtime.Task;
@@ -44,16 +42,20 @@ import org.apache.gobblin.runtime.Task;
  *
  * @author Yinan Li
  */
-@Alpha
+@Slf4j
 public class GobblinHelixTaskStateTracker extends AbstractTaskStateTracker {
-
-  private static final Logger LOGGER = LoggerFactory.getLogger(GobblinHelixTaskStateTracker.class);
+  @VisibleForTesting
+  static final String IS_TASK_METRICS_SCHEDULING_FAILURE_FATAL = "helixTaskTracker.isNewTaskRegFailureFatal";
+  private static final String DEFAULT_TASK_METRICS_SCHEDULING_FAILURE_FATAL = "false";
 
   // Mapping between tasks and the task state reporters associated with them
   private final Map<String, ScheduledFuture<?>> scheduledReporters = Maps.newHashMap();
+  private boolean isNewTaskRegFailureFatal;
 
   public GobblinHelixTaskStateTracker(Properties properties) {
-    super(properties, LOGGER);
+    super(properties, log);
+    isNewTaskRegFailureFatal = Boolean.parseBoolean(properties.getProperty(IS_TASK_METRICS_SCHEDULING_FAILURE_FATAL,
+        DEFAULT_TASK_METRICS_SCHEDULING_FAILURE_FATAL));
   }
 
   @Override
@@ -61,7 +63,18 @@ public class GobblinHelixTaskStateTracker extends AbstractTaskStateTracker {
     try {
       this.scheduledReporters.put(task.getTaskId(), scheduleTaskMetricsUpdater(new TaskMetricsUpdater(task), task));
     } catch (RejectedExecutionException ree) {
-      LOGGER.error(String.format("Scheduling of task state reporter for task %s was rejected", task.getTaskId()));
+      // Propagate the exception to caller that has full control of the life-cycle of a helix task.
+      log.error(String.format("Scheduling of task state reporter for task %s was rejected", task.getTaskId()));
+      if (isNewTaskRegFailureFatal) {
+        Throwables.propagate(ree);
+      }
+    } catch (Throwable t) {
+      String errorMsg = "Failure occurred for scheduling task state reporter, ";
+      if (isNewTaskRegFailureFatal) {
+        throw new RuntimeException(errorMsg, t);
+      } else {
+        log.error(errorMsg, t);
+      }
     }
   }
 
@@ -85,7 +98,7 @@ public class GobblinHelixTaskStateTracker extends AbstractTaskStateTracker {
       this.scheduledReporters.remove(task.getTaskId()).cancel(false);
     }
 
-    LOGGER.info(String
+    log.info(String
         .format("Task %s completed in %dms with state %s", task.getTaskId(), task.getTaskState().getTaskDuration(),
             task.getTaskState().getWorkingState()));
   }

@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Properties;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
@@ -53,20 +54,22 @@ import org.apache.gobblin.runtime.JobException;
 import org.apache.gobblin.runtime.JobLauncher;
 import org.apache.gobblin.runtime.JobLauncherFactory;
 import org.apache.gobblin.runtime.JobLauncherFactory.JobLauncherType;
+import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.runtime.JobState.RunningState;
 import org.apache.gobblin.runtime.api.Configurable;
 import org.apache.gobblin.runtime.api.GobblinInstanceEnvironment;
 import org.apache.gobblin.runtime.api.JobExecution;
 import org.apache.gobblin.runtime.api.JobExecutionDriver;
 import org.apache.gobblin.runtime.api.JobExecutionLauncher;
+import org.apache.gobblin.runtime.api.JobExecutionMonitor;
 import org.apache.gobblin.runtime.api.JobExecutionResult;
 import org.apache.gobblin.runtime.api.JobExecutionState;
 import org.apache.gobblin.runtime.api.JobExecutionStateListener;
 import org.apache.gobblin.runtime.api.JobExecutionStatus;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.JobTemplate;
+import org.apache.gobblin.runtime.api.MonitoredObject;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
-import org.apache.gobblin.runtime.instance.StandardGobblinInstanceLauncher;
 import org.apache.gobblin.runtime.job_spec.ResolvedJobSpec;
 import org.apache.gobblin.runtime.listeners.AbstractJobListener;
 import org.apache.gobblin.runtime.std.DefaultConfigurableImpl;
@@ -95,16 +98,18 @@ public class JobLauncherExecutionDriver extends FutureTask<JobExecutionResult> i
 
   /**
    * Creates a new JobExecutionDriver which acts as an adapter to the legacy {@link JobLauncher} API.
-   * @param sysConfig             the system/environment config
-   * @param jobSpec               the JobSpec to be executed
-   * @param jobLauncherType       an optional jobLauncher type; the value follows the convention of
-   *        {@link JobLauncherFactory#newJobLauncher(java.util.Properties, java.util.Properties, String).
+   * @param sysConfig               the system/environment config
+   * @param jobSpec                 the JobSpec to be executed
+   * @param jobLauncherType         an optional jobLauncher type; the value follows the convention of
+   *        {@link JobLauncherFactory#newJobLauncher(Properties, Properties)}.
    *        If absent, {@link JobLauncherFactory#newJobLauncher(java.util.Properties, java.util.Properties)}
    *        will be used which looks for the {@link ConfigurationKeys#JOB_LAUNCHER_TYPE_KEY}
    *        in the system configuration.
-   * @param jobExecStateListener  an optional listener to listen for state changes in the execution.
-   * @param log                   an optional logger to be used; if none is specified, a default one
-   *                              will be instantiated.
+   * @param log                     an optional logger to be used; if none is specified, a default one
+   *                                will be instantiated.
+   * @param instrumentationEnabled  a flag to control if metrics should be enabled.
+   * @param launcherMetrics         an object to contain metrics related to jobLauncher.
+   * @param instanceBroker          a broker to create difference resources from the same instance scope.
    */
   public static JobLauncherExecutionDriver create(Configurable sysConfig, JobSpec jobSpec,
       Optional<JobLauncherFactory.JobLauncherType> jobLauncherType,
@@ -329,7 +334,7 @@ public class JobLauncherExecutionDriver extends FutureTask<JobExecutionResult> i
    * <p>Conventions
    * <ul>
    *  <li>If no jobLauncherType is specified, one will be determined by the JobSpec
-   *  (see {@link JobLauncherFactory).
+   *  (see {@link JobLauncherFactory}).
    *  <li> Convention for sysConfig: use the sysConfig of the gobblinInstance if specified,
    *       otherwise use empty config.
    *  <li> Convention for log: use gobblinInstance logger plus "." + jobSpec if specified, otherwise
@@ -441,7 +446,8 @@ public class JobLauncherExecutionDriver extends FutureTask<JobExecutionResult> i
       return res;
     }
 
-    @Override public JobExecutionDriver launchJob(JobSpec jobSpec) {
+    @Override
+    public JobExecutionMonitor launchJob(JobSpec jobSpec) {
       Preconditions.checkNotNull(jobSpec);
       if (!(jobSpec instanceof ResolvedJobSpec)) {
         try {
@@ -450,8 +456,10 @@ public class JobLauncherExecutionDriver extends FutureTask<JobExecutionResult> i
           throw new RuntimeException("Can't launch job " + jobSpec.getUri(), exc);
         }
       }
-      return JobLauncherExecutionDriver.create(getSysConfig(), jobSpec, _jobLauncherType,
+
+      JobLauncherExecutionDriver driver = JobLauncherExecutionDriver.create(getSysConfig(), jobSpec, _jobLauncherType,
           Optional.of(getLog(jobSpec)), isInstrumentationEnabled(), getMetrics(), getInstanceBroker());
+      return new JobExecutionMonitorAndDriver(driver);
     }
 
     @Override public List<Tag<?>> generateTags(org.apache.gobblin.configuration.State state) {
@@ -519,20 +527,75 @@ public class JobLauncherExecutionDriver extends FutureTask<JobExecutionResult> i
 
   }
 
+  /**
+   * Old {@link JobExecutionLauncher#launchJob(JobSpec)} returns a {@link JobExecutionDriver} but new API returns a {@link JobExecutionMonitor}.
+   * For backward compatibility we wraps {@link JobExecutionDriver} inside of a new {@link JobExecutionMonitorAndDriver}.
+   */
+  @AllArgsConstructor
+  public static class JobExecutionMonitorAndDriver implements JobExecutionMonitor {
+    @Getter
+    JobLauncherExecutionDriver driver;
+
+    @Override
+    public boolean cancel(boolean mayInterruptIfRunning) {
+      return this.driver.cancel(mayInterruptIfRunning);
+    }
+
+    @Override
+    public boolean isCancelled() {
+      return this.driver.isCancelled();
+    }
+
+    @Override
+    public boolean isDone() {
+      return this.driver.isDone();
+    }
+
+    @Override
+    public JobExecutionResult get()
+        throws InterruptedException, ExecutionException {
+      return this.driver.get();
+    }
+
+    @Override
+    public JobExecutionResult get(long timeout, TimeUnit unit)
+        throws InterruptedException, ExecutionException, TimeoutException {
+      return this.driver.get(timeout, unit);
+    }
+
+    @Override
+    public MonitoredObject getRunningState() {
+      return this.driver._jobState.getRunningState();
+    }
+  }
+
   @Override public void registerWeakStateListener(JobExecutionStateListener listener) {
     _callbackDispatcher.registerWeakStateListener(listener);
   }
 
   @Override public boolean isDone() {
-    RunningState runState = getJobExecutionStatus().getRunningState();
+    RunningState runState = fetchRunningState();
+
     return runState == null ? false : runState.isDone() ;
+  }
+
+  private RunningState fetchRunningState() {
+    MonitoredObject monitoredObject = getJobExecutionStatus().getRunningState();
+    if (monitoredObject == null) {
+      return null;
+    }
+    if (!(monitoredObject instanceof RunningState)) {
+      throw new UnsupportedOperationException("Cannot process monitored object other than " + JobState.RunningState.class.getName());
+    }
+
+    return (RunningState) monitoredObject;
   }
 
   @Override public boolean cancel(boolean mayInterruptIfRunning) {
     // FIXME there is a race condition here as the job may complete successfully before we
     // call cancelJob() below. There isn't an easy way to fix that right now.
+    RunningState runState = fetchRunningState();
 
-    RunningState runState = getJobExecutionStatus().getRunningState();
     if (runState.isCancelled()) {
       return true;
     }
@@ -549,7 +612,7 @@ public class JobLauncherExecutionDriver extends FutureTask<JobExecutionResult> i
   }
 
   @Override public boolean isCancelled() {
-    return getJobExecutionStatus().getRunningState().isCancelled();
+    return fetchRunningState().isCancelled();
   }
 
   @Override

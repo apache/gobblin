@@ -17,22 +17,29 @@
 
 package org.apache.gobblin.compaction.verify;
 
-import com.google.common.base.Splitter;
+import java.io.IOException;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Map;
 
 import org.apache.commons.lang.exception.ExceptionUtils;
+import org.joda.time.DateTime;
+
+import com.google.common.base.Splitter;
+
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.compaction.audit.AuditCountClient;
 import org.apache.gobblin.compaction.audit.AuditCountClientFactory;
 import org.apache.gobblin.compaction.mapreduce.MRCompactor;
 import org.apache.gobblin.compaction.parser.CompactionPathParser;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.dataset.FileSystemDataset;
+import org.apache.gobblin.time.TimeIterator;
 import org.apache.gobblin.util.ClassAliasResolver;
-import lombok.extern.slf4j.Slf4j;
-import org.joda.time.DateTime;
-import java.io.IOException;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Map;
 
 /**
  * Use {@link AuditCountClient} to retrieve all record count across different tiers
@@ -43,6 +50,8 @@ import java.util.Map;
 public class CompactionAuditCountVerifier implements CompactionVerifier<FileSystemDataset> {
 
   public static final String COMPACTION_COMPLETENESS_THRESHOLD = MRCompactor.COMPACTION_PREFIX + "completeness.threshold";
+  public static final String COMPACTION_COMMPLETENESS_ENABLED = MRCompactor.COMPACTION_PREFIX + "completeness.enabled";
+  public static final String COMPACTION_COMMPLETENESS_GRANULARITY = MRCompactor.COMPACTION_PREFIX + "completeness.granularity";
   public static final double DEFAULT_COMPACTION_COMPLETENESS_THRESHOLD = 0.99;
   public static final String PRODUCER_TIER = "producer.tier";
   public static final String ORIGIN_TIER = "origin.tier";
@@ -53,8 +62,12 @@ public class CompactionAuditCountVerifier implements CompactionVerifier<FileSyst
   private  String producerTier;
   private  String gobblinTier;
   private  double threshold;
-  private final State state;
+  protected final State state;
   private final AuditCountClient auditCountClient;
+
+  protected final boolean enabled;
+  protected final TimeIterator.Granularity granularity;
+  protected final ZoneId zone;
 
   /**
    * Constructor with default audit count client
@@ -69,6 +82,10 @@ public class CompactionAuditCountVerifier implements CompactionVerifier<FileSyst
   public CompactionAuditCountVerifier (State state, AuditCountClient client) {
     this.auditCountClient = client;
     this.state = state;
+    this.enabled = state.getPropAsBoolean(COMPACTION_COMMPLETENESS_ENABLED, true);
+    this.granularity = TimeIterator.Granularity.valueOf(
+        state.getProp(COMPACTION_COMMPLETENESS_GRANULARITY, "HOUR"));
+    this.zone = ZoneId.of(state.getProp(MRCompactor.COMPACTION_TIMEZONE, MRCompactor.DEFAULT_COMPACTION_TIMEZONE));
 
     // retrieve all tiers information
     if (client != null) {
@@ -90,7 +107,6 @@ public class CompactionAuditCountVerifier implements CompactionVerifier<FileSyst
    *         returned which creates a <code>null</code> {@link AuditCountClient}
    */
   private static AuditCountClientFactory getClientFactory (State state) {
-
     if (!state.contains(AuditCountClientFactory.AUDIT_COUNT_CLIENT_FACTORY)) {
       return new EmptyAuditCountClientFactory ();
     }
@@ -115,17 +131,21 @@ public class CompactionAuditCountVerifier implements CompactionVerifier<FileSyst
    * @return If verification is succeeded
    */
   public Result verify (FileSystemDataset dataset) {
+    if (!enabled) {
+      return new Result(true, "");
+    }
     if (auditCountClient == null) {
       log.debug("No audit count client specified, skipped");
       return new Result(true, "");
     }
 
-    CompactionPathParser.CompactionParserResult result = new CompactionPathParser(this.state).parse(dataset);
-    DateTime startTime = result.getTime();
-    DateTime endTime = startTime.plusHours(1);
+    CompactionPathParser.CompactionParserResult result = new CompactionPathParser(state).parse(dataset);
+    ZonedDateTime startTime = ZonedDateTime.ofInstant(Instant.ofEpochMilli(result.getTime().getMillis()), zone);
+    ZonedDateTime endTime = TimeIterator.inc(startTime, granularity, 1);
     String datasetName = result.getDatasetName();
     try {
-      Map<String, Long> countsByTier = auditCountClient.fetch (datasetName, startTime.getMillis(), endTime.getMillis());
+      Map<String, Long> countsByTier = auditCountClient.fetch(datasetName,
+          startTime.toInstant().toEpochMilli(), endTime.toInstant().toEpochMilli());
       for (String tier: referenceTiers) {
         Result rst = passed (datasetName, countsByTier, tier);
         if (rst.isSuccessful()) {
@@ -148,20 +168,23 @@ public class CompactionAuditCountVerifier implements CompactionVerifier<FileSyst
    */
   private Result passed (String datasetName, Map<String, Long> countsByTier, String referenceTier) {
     if (!countsByTier.containsKey(this.gobblinTier)) {
-      return new Result(false, String.format("Failed to get audit count for topic %s, tier %s", datasetName, this.gobblinTier));
+      log.info("Missing entry for dataset: " + datasetName + " in gobblin tier: " + this.gobblinTier + "; setting count to 0.");
     }
     if (!countsByTier.containsKey(referenceTier)) {
-      return new Result(false, String.format("Failed to get audit count for topic %s, tier %s", datasetName, referenceTier));
+      log.info("Missing entry for dataset: " + datasetName + " in reference tier: " + referenceTier + "; setting count to 0.");
     }
 
-    long refCount = countsByTier.get(referenceTier);
-    long gobblinCount = countsByTier.get(this.gobblinTier);
+    long refCount = countsByTier.getOrDefault(referenceTier, 0L);
+    long gobblinCount = countsByTier.getOrDefault(this.gobblinTier, 0L);
+
+    if (refCount == 0) {
+      return new Result(true, "");
+    }
 
     if ((double) gobblinCount / (double) refCount < this.threshold) {
       return new Result (false, String.format("%s failed for %s : gobblin count = %d, %s count = %d (%f < threshold %f)",
               this.getName(), datasetName, gobblinCount, referenceTier, refCount, (double) gobblinCount / (double) refCount, this.threshold));
     }
-
     return new Result(true, "");
   }
 

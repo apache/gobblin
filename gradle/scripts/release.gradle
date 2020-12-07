@@ -34,17 +34,19 @@ println String.format("Release Version: %s", releaseVersion)
 // Modify the gradle.properties to indicate whether this is a release.  This results in the
 // source releases generating artifacts without -SNAPSHOT appended to the version when they are
 // built.
-task prepare_release_config(type: Copy) {
-    from "$rootDir/gradle.properties"
-    into "$rootDir"
-    rename { filename ->
-        filename + ".release" }
-    filter { line ->
-        if (isRelease && line.startsWith("release=")) {
-            "release=true"
+task prepare_release_config() {
+    project.copy {
+        from "$rootDir/gradle.properties"
+        into "$rootDir"
+        rename { filename ->
+            filename + ".release"
         }
-        else {
-            line
+        filter { line ->
+            if (isRelease && line.startsWith("release=")) {
+                "release=true"
+            } else {
+                line
+            }
         }
     }
 }
@@ -105,6 +107,8 @@ task sourceRelease(type: Tar, dependsOn: prepare_release_config) {
         exclude 'package-lock.json'
         exclude '**/gen-java'
         exclude '**/generated-gobblin-cluster.conf'
+        exclude 'gobblin-modules/gobblin-couchbase/mock-couchbase'
+        exclude 'gobblin-modules/gobblin-elasticsearch/test-elasticsearch'
     }
 
     // rename gradle.properties.release to gradle.properties
@@ -124,7 +128,8 @@ task sourceRelease(type: Tar, dependsOn: prepare_release_config) {
 
     archiveName = "${baseName}.tgz"
     doLast {
-        ant.checksum file:"$destinationDir/$archiveName", algorithm: "MD5", fileext: ".md5"
+        // Disable md5, since Apache release policy has changed
+        // ant.checksum file:"$destinationDir/$archiveName", algorithm: "MD5", fileext: ".md5"
         ant.checksum file:"$destinationDir/$archiveName", algorithm: "SHA-512", fileext: ".sha512"
     }
 }

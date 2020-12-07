@@ -17,13 +17,6 @@
 
 package org.apache.gobblin.compaction.mapreduce;
 
-import static org.apache.gobblin.compaction.dataset.Dataset.DatasetState.COMPACTION_COMPLETE;
-import static org.apache.gobblin.compaction.dataset.Dataset.DatasetState.GIVEN_UP;
-import static org.apache.gobblin.compaction.dataset.Dataset.DatasetState.UNVERIFIED;
-import static org.apache.gobblin.compaction.dataset.Dataset.DatasetState.VERIFIED;
-import static org.apache.gobblin.compaction.mapreduce.MRCompactorJobRunner.Status.ABORTED;
-import static org.apache.gobblin.compaction.mapreduce.MRCompactorJobRunner.Status.COMMITTED;
-
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
@@ -36,9 +29,7 @@ import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
-import java.lang.reflect.InvocationTargetException;
 
-import org.joda.time.DateTime;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
@@ -66,37 +57,51 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 
 import org.apache.gobblin.compaction.Compactor;
-import org.apache.gobblin.compaction.listeners.CompactorCompletionListener;
-import org.apache.gobblin.compaction.listeners.CompactorCompletionListenerFactory;
-import org.apache.gobblin.compaction.listeners.CompactorListener;
 import org.apache.gobblin.compaction.dataset.Dataset;
 import org.apache.gobblin.compaction.dataset.DatasetsFinder;
 import org.apache.gobblin.compaction.dataset.TimeBasedSubDirDatasetsFinder;
 import org.apache.gobblin.compaction.event.CompactionSlaEventHelper;
+import org.apache.gobblin.compaction.listeners.CompactorCompletionListener;
+import org.apache.gobblin.compaction.listeners.CompactorCompletionListenerFactory;
+import org.apache.gobblin.compaction.listeners.CompactorListener;
 import org.apache.gobblin.compaction.verify.DataCompletenessVerifier;
 import org.apache.gobblin.compaction.verify.DataCompletenessVerifier.Results;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.MetricReporterException;
+import org.apache.gobblin.metrics.MultiReporterException;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.util.ClusterNameTags;
 import org.apache.gobblin.util.DatasetFilterUtils;
 import org.apache.gobblin.util.ExecutorsUtils;
-import org.apache.gobblin.util.HadoopUtils;
-import org.apache.gobblin.util.ClusterNameTags;
 import org.apache.gobblin.util.FileListUtils;
+import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.recordcount.CompactionRecordCountProvider;
 import org.apache.gobblin.util.recordcount.IngestionRecordCountProvider;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
+
+import static org.apache.gobblin.compaction.dataset.Dataset.DatasetState.COMPACTION_COMPLETE;
+import static org.apache.gobblin.compaction.dataset.Dataset.DatasetState.GIVEN_UP;
+import static org.apache.gobblin.compaction.dataset.Dataset.DatasetState.UNVERIFIED;
+import static org.apache.gobblin.compaction.dataset.Dataset.DatasetState.VERIFIED;
+import static org.apache.gobblin.compaction.mapreduce.MRCompactorJobRunner.Status.ABORTED;
+import static org.apache.gobblin.compaction.mapreduce.MRCompactorJobRunner.Status.COMMITTED;
 
 /**
  * MapReduce-based {@link org.apache.gobblin.compaction.Compactor}. Compaction will run on each qualified {@link Dataset}
  * under {@link #COMPACTION_INPUT_DIR}.
  *
  * @author Ziyang Liu
+ * @deprecated Please use {@link org.apache.gobblin.compaction.mapreduce.MRCompactionTask}
+ *  and {@link org.apache.gobblin.compaction.source.CompactionSource} to launch MR instead.
+ *  The new way enjoys simpler logic to trigger the compaction flow and more reliable verification criteria,
+ *  instead of using timestamp only before.
  */
 
+@Deprecated
 public class MRCompactor implements Compactor {
 
   private static final Logger LOG = LoggerFactory.getLogger(MRCompactor.class);
@@ -361,7 +366,13 @@ public class MRCompactor implements Compactor {
     tags.addAll(Tag.fromMap(ClusterNameTags.getClusterNameTags()));
     GobblinMetrics gobblinMetrics =
         GobblinMetrics.get(this.state.getProp(ConfigurationKeys.JOB_NAME_KEY), null, tags.build());
-    gobblinMetrics.startMetricReporting(this.state.getProperties());
+    try {
+      gobblinMetrics.startMetricReporting(this.state.getProperties());
+    } catch (MultiReporterException ex) {
+      for (MetricReporterException e: ex.getExceptions()) {
+        LOG.error("Failed to start {} {} reporter.", e.getSinkType().name(), e.getReporterType().name(), e);
+      }
+    }
     return gobblinMetrics;
   }
 

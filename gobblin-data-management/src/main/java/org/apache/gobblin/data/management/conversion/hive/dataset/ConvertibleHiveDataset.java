@@ -16,6 +16,9 @@
  */
 package org.apache.gobblin.data.management.conversion.hive.dataset;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -25,7 +28,11 @@ import lombok.ToString;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.dataset.DatasetConstants;
+import org.apache.gobblin.dataset.DatasetDescriptor;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.metadata.Table;
 
 import com.google.common.base.Optional;
@@ -39,6 +46,8 @@ import org.apache.gobblin.data.management.copy.hive.HiveDataset;
 import org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder;
 import org.apache.gobblin.hive.HiveMetastoreClientPool;
 import org.apache.gobblin.util.ConfigUtils;
+
+import static org.apache.gobblin.data.management.conversion.hive.task.HiveConverterUtils.getOutputDataLocation;
 
 
 /**
@@ -74,6 +83,14 @@ public class ConvertibleHiveDataset extends HiveDataset {
   // Mapping for destination format to it's Conversion config
   private final Map<String, ConversionConfig> destConversionConfigs;
 
+  // Source Dataset Descriptor
+  @Getter
+  private final DatasetDescriptor sourceDataset;
+
+  // List of destination Dataset Descriptor
+  @Getter
+  private final List<DatasetDescriptor> destDatasets;
+
   /**
    * <ul>
    *  <li> The constructor takes in a dataset {@link Config} which MUST have a comma separated list of destination formats at key,
@@ -92,9 +109,10 @@ public class ConvertibleHiveDataset extends HiveDataset {
     super(fs, clientPool, table, jobProps, config);
 
     Preconditions.checkArgument(config.hasPath(DESTINATION_CONVERSION_FORMATS_KEY), String.format(
-        "Atleast one destination format should be specified at %s.%s. If you do not intend to convert this dataset set %s.%s to true",
+        "At least one destination format should be specified at %s.%s. If you do not intend to convert dataset %s set %s.%s to true",
         super.properties.getProperty(HiveDatasetFinder.HIVE_DATASET_CONFIG_PREFIX_KEY, ""),
         DESTINATION_CONVERSION_FORMATS_KEY,
+        table.getCompleteName(),
         super.properties.getProperty(HiveDatasetFinder.HIVE_DATASET_CONFIG_PREFIX_KEY, ""),
         HiveDatasetFinder.HIVE_DATASET_IS_BLACKLISTED_KEY));
 
@@ -106,10 +124,48 @@ public class ConvertibleHiveDataset extends HiveDataset {
 
     for (String format : this.destFormats) {
       if (this.datasetConfig.hasPath(format)) {
-        log.debug("Found desination format: " + format);
+        log.debug("Found destination format: " + format);
         this.destConversionConfigs.put(format, new ConversionConfig(this.datasetConfig.getConfig(format), table, format));
 
       }
+    }
+    this.sourceDataset = createSourceDataset();
+    this.destDatasets = createDestDatasets();
+  }
+
+  private List<DatasetDescriptor> createDestDatasets() {
+    List<DatasetDescriptor> destDatasets = new ArrayList<>();
+    for (String format : getDestFormats()) {
+      Optional<ConversionConfig> conversionConfigForFormat = getConversionConfigForFormat(format);
+      if (!conversionConfigForFormat.isPresent()) {
+        continue;
+      }
+      String destTable = conversionConfigForFormat.get().getDestinationDbName() + "." + conversionConfigForFormat.get()
+          .getDestinationTableName();
+      DatasetDescriptor dest = new DatasetDescriptor(DatasetConstants.PLATFORM_HIVE, destTable);
+      String destLocation = conversionConfigForFormat.get().getDataDstPathUseSubdir()
+          ? getOutputDataLocation(conversionConfigForFormat.get().getDestinationDataPath())
+          : conversionConfigForFormat.get().getDestinationDataPath();
+      dest.addMetadata(DatasetConstants.FS_SCHEME, getSourceDataset().getMetadata().get(DatasetConstants.FS_SCHEME));
+      dest.addMetadata(DatasetConstants.FS_LOCATION, destLocation);
+      destDatasets.add(dest);
+    }
+    return destDatasets;
+  }
+
+  private DatasetDescriptor createSourceDataset() {
+    try {
+      String sourceTable = getTable().getDbName() + "." + getTable().getTableName();
+      DatasetDescriptor source = new DatasetDescriptor(DatasetConstants.PLATFORM_HIVE, sourceTable);
+      Path sourcePath = getTable().getDataLocation();
+      log.info(String.format("[%s]Source path %s being used in conversion", this.getClass().getName(), sourcePath));
+      String sourceLocation = Path.getPathWithoutSchemeAndAuthority(sourcePath).toString();
+      FileSystem sourceFs = sourcePath.getFileSystem(new Configuration());
+      source.addMetadata(DatasetConstants.FS_SCHEME, sourceFs.getScheme());
+      source.addMetadata(DatasetConstants.FS_LOCATION, sourceLocation);
+      return source;
+    } catch (IOException e) {
+      throw new RuntimeException(e);
     }
   }
 

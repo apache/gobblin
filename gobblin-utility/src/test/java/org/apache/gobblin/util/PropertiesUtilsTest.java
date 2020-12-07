@@ -22,6 +22,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
 
 
 public class PropertiesUtilsTest {
@@ -51,5 +52,26 @@ public class PropertiesUtilsTest {
     Assert.assertTrue(!extractedPropertiesK3.containsKey("k1.kk1"));
     Assert.assertTrue(!extractedPropertiesK3.containsKey("k1.kk1"));
     Assert.assertTrue(!extractedPropertiesK3.containsKey("k2.kk"));
+  }
+
+  @Test
+  public void testGetStringList() {
+    Properties properties = new Properties();
+    properties.put("key", "1,2, 3");
+
+    // values as comma separated strings
+    Assert.assertEquals(PropertiesUtils.getPropAsList(properties, "key"), ImmutableList.of("1", "2", "3"));
+    Assert.assertEquals(PropertiesUtils.getPropAsList(properties, "key2", "default"), ImmutableList.of("default"));
+  }
+
+  @Test
+  public void testGetValuesAsList() {
+    Properties properties = new Properties();
+    properties.put("k1", "v1");
+    properties.put("k2", "v2");
+    properties.put("k3", "v2");
+    properties.put("K3", "v4");
+
+    Assert.assertEqualsNoOrder(PropertiesUtils.getValuesAsList(properties, Optional.of("k")).toArray(), new String[]{"v1", "v2", "v2"});
   }
 }

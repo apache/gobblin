@@ -16,7 +16,8 @@
  */
 
 plugins {
-  id 'com.github.johnrengelman.shadow' version '1.2.4'
+  // Bump up shadow version to support Gradle 5.x https://github.com/johnrengelman/shadow
+  id 'com.github.johnrengelman.shadow' version '5.2.0'
 }
 
 apply plugin: 'java'
@@ -38,8 +39,7 @@ dependencies {
   compile externalDependency.guava
   compile externalDependency.commonsLang
   compile externalDependency.slf4j
-  compile externalDependency.log4j
-  compile externalDependency.lombok
+
   compile externalDependency.commonsCli
   compile externalDependency.gson
   compile externalDependency.hiveCommon
@@ -65,6 +65,10 @@ dependencies {
   testCompile externalDependency.hadoopYarnMiniCluster
   testCompile externalDependency.curatorFramework
   testCompile externalDependency.curatorTest
+
+  testCompile ('com.google.inject:guice:3.0') {
+    force = true
+  }
 }
 
 task testJar(type: Jar, dependsOn: testClasses) {
@@ -124,6 +128,7 @@ test {
   dependsOn shadowJar
   workingDir rootProject.rootDir
   maxParallelForks = 1
+  forkEvery = 1
 }
 
 clean {

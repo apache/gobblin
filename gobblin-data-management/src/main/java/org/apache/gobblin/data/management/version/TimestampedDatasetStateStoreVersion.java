@@ -42,11 +42,29 @@ public class TimestampedDatasetStateStoreVersion extends TimestampedDatasetVersi
 
   @Override
   public boolean equals(Object obj) {
-    return super.equals(obj);
+    if (this == obj) {
+      return true;
+    }
+
+    if (obj == null || getClass() != obj.getClass()) {
+      return false;
+    }
+
+    if (obj instanceof TimestampedDatasetStateStoreVersion) {
+      TimestampedDatasetStateStoreVersion other = (TimestampedDatasetStateStoreVersion)obj;
+
+      if (this.entry.equals(other.getEntry())) {
+        return super.equals(obj);
+      }
+    }
+
+    return false;
   }
 
   @Override
   public int hashCode() {
-    return this.version.hashCode();
+    int result = this.version.hashCode();
+    result = 31 * result + (entry != null ? entry.hashCode() : 0);
+    return result;
   }
 }

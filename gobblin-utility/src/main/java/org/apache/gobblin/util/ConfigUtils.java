@@ -17,9 +17,11 @@
 
 package org.apache.gobblin.util;
 
+import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.io.StringReader;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -30,6 +32,8 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
 
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 
 import com.google.common.base.Function;
@@ -39,6 +43,7 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.gson.Gson;
 import com.opencsv.CSVReader;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigException;
@@ -68,6 +73,13 @@ public class ConfigUtils {
    * typesafe config does not allow such properties. */
   public static final String STRIP_SUFFIX = ".ROOT_VALUE";
 
+  /**
+   * Available TimeUnit values that can be parsed from a given String
+   */
+  private static final Set<String> validTimeUnits = Arrays.stream(TimeUnit.values())
+      .map(TimeUnit::name)
+      .collect(Collectors.toSet());
+
   public ConfigUtils(FileUtils fileUtils) {
     this.fileUtils = fileUtils;
   }
@@ -90,6 +102,8 @@ public class ConfigUtils {
 
   /**
    * Convert a given {@link Config} instance to a {@link Properties} instance.
+   * If the config value is not of String type, it will try to get it as a generic Object type
+   * using {@see com.typesafe.config.Config#getAnyRef()} and then try to return its json representation as a string
    *
    * @param config the given {@link Config} instance
    * @param prefix an optional prefix; if present, only properties whose name starts with the prefix
@@ -103,7 +117,13 @@ public class ConfigUtils {
       for (Map.Entry<String, ConfigValue> entry : resolvedConfig.entrySet()) {
         if (!prefix.isPresent() || entry.getKey().startsWith(prefix.get())) {
           String propKey = desanitizeKey(entry.getKey());
-          properties.setProperty(propKey, resolvedConfig.getString(entry.getKey()));
+          String propVal;
+          try {
+            propVal = resolvedConfig.getString(entry.getKey());
+          } catch (ConfigException.WrongType wrongType) {
+            propVal = new Gson().toJson(resolvedConfig.getAnyRef(entry.getKey()));
+          }
+          properties.setProperty(propKey, propVal);
         }
       }
     }
@@ -224,7 +244,7 @@ public class ConfigUtils {
           !blacklistedKeys.contains(entryKey)) {
         if (fullPrefixKeys.contains(entryKey)) {
           entryKey = sanitizeFullPrefixKey(entryKey);
-        } else if (entryKey.endsWith(STRIP_SUFFIX)) {
+        } else if (sanitizedKey(entryKey)) {
           throw new RuntimeException("Properties are not allowed to end in " + STRIP_SUFFIX);
         }
         immutableMapBuilder.put(entryKey, entry.getValue());
@@ -237,8 +257,15 @@ public class ConfigUtils {
     return propKey + STRIP_SUFFIX;
   }
 
+  /**
+   * returns true if is it a sanitized key
+   */
+  public static boolean sanitizedKey(String propKey) {
+    return propKey.endsWith(STRIP_SUFFIX);
+  }
+
   public static String desanitizeKey(String propKey) {
-    propKey =  propKey.endsWith(STRIP_SUFFIX) ?
+    propKey =  sanitizedKey(propKey) ?
         propKey.substring(0, propKey.length() - STRIP_SUFFIX.length()) : propKey;
 
     // Also strip quotes that can get introduced by TypeSafe.Config
@@ -314,14 +341,38 @@ public class ConfigUtils {
 
   /**
    * Return string value at <code>path</code> if <code>config</code> has path. If not return <code>def</code>
-   *
+   * If the config value is not of String type, it will try to get it as a generic Object type
+   * using {@see com.typesafe.config.Config#getAnyRef()} and then try to return its json representation as a string
    * @param config in which the path may be present
    * @param path key to look for in the config object
    * @return string value at <code>path</code> if <code>config</code> has path. If not return <code>def</code>
    */
   public static String getString(Config config, String path, String def) {
     if (config.hasPath(path)) {
-      return config.getString(path);
+      String value;
+      try {
+        value = config.getString(path);
+      } catch (ConfigException.WrongType wrongType) {
+        value = new Gson().toJson(config.getAnyRef(path));
+      }
+      return value;
+    }
+    return def;
+  }
+
+  /**
+   * Return TimeUnit value at <code>path</code> if <code>config</code> has path. If not return <code>def</code>
+   *
+   * @param config in which the path may be present
+   * @param path key to look for in the config object
+   * @return TimeUnit value at <code>path</code> if <code>config</code> has path. If not return <code>def</code>
+   */
+  public static TimeUnit getTimeUnit(Config config, String path, TimeUnit def) {
+    if (config.hasPath(path)) {
+      String timeUnit = config.getString(path).toUpperCase();
+      Preconditions.checkArgument(validTimeUnits.contains(timeUnit),
+          "Passed invalid TimeUnit for documentTTLUnits: '%s'".format(timeUnit));
+      return TimeUnit.valueOf(timeUnit);
     }
     return def;
   }

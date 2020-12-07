@@ -1,0 +1,74 @@
+namespace org.apache.gobblin.rest
+
+/**
+ * Gobblin task execution information
+ */
+record TaskExecutionInfo {
+
+  /**
+   * Job ID
+   */
+  jobId: string
+
+  /**
+   * Task ID
+   */
+  taskId: string
+
+  /**
+   * Task start time (epoch time)
+   */
+  startTime: optional long
+
+  /**
+   * Task end time (epoch time)
+   */
+  endTime: optional long
+
+  /**
+   * Task duration in milliseconds
+   */
+  duration: optional long
+
+  /**
+   * Task state
+   */
+  state: optional enum TaskStateEnum {
+    PENDING
+    RUNNING
+    SUCCESSFUL
+    COMMITTED
+    FAILED
+    CANCELLED
+  }
+
+  /**
+   * Task failure exception message
+   */
+  failureException: optional string
+
+  /**
+   * Low watermark
+   */
+  lowWatermark: optional long
+
+  /**
+   * High watermark
+   */
+  highWatermark: optional long
+
+  /**
+   * Table definition
+   */
+  table: optional Table
+
+  /**
+   * Task properties
+   */
+  taskProperties: optional map[string, string]
+
+  /**
+   * Job metrics
+   */
+  metrics: array[Metric]
+}

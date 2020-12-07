@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.util;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -39,5 +40,33 @@ public class FileUtilsTest {
     assertThat(destPath).exists().isReadable().hasContent("foo\n");
 
     Files.deleteIfExists(destPath);
+  }
+
+  @Test
+  public void testIsSubFile() throws IOException {
+    File parentPath = new File("/tmp/foo/bar");
+
+    File childPath = new File("/tmp/foo/../tar/file.txt");
+    assertThat(false).isEqualTo(FileUtils.isSubPath(parentPath, childPath));
+
+    childPath = new File("/tmp/foo/tar/../bar/file.txt");
+    assertThat(true).isEqualTo(FileUtils.isSubPath(parentPath, childPath));
+
+    childPath = new File("/tmp/foo/bar/car/file.txt");
+    assertThat(true).isEqualTo(FileUtils.isSubPath(parentPath, childPath));
+  }
+
+  @Test
+  public void testIsSubPath() throws IOException {
+    org.apache.hadoop.fs.Path parentPath = new org.apache.hadoop.fs.Path("/tmp/foo/bar");
+
+    org.apache.hadoop.fs.Path childPath = new org.apache.hadoop.fs.Path("/tmp/foo/../tar/file.txt");
+    assertThat(false).isEqualTo(FileUtils.isSubPath(parentPath, childPath));
+
+    childPath = new org.apache.hadoop.fs.Path("/tmp/foo/tar/../bar/file.txt");
+    assertThat(true).isEqualTo(FileUtils.isSubPath(parentPath, childPath));
+
+    childPath = new org.apache.hadoop.fs.Path("/tmp/foo/bar/car/file.txt");
+    assertThat(true).isEqualTo(FileUtils.isSubPath(parentPath, childPath));
   }
 }

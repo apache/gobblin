@@ -67,6 +67,10 @@ public class EncryptionConfigParser {
 
   public static final String ENCRYPTION_TYPE_ANY = "any";
 
+  /**
+   * Some algorithms can be configured with an underlying cipher, like the symmetric cipher used with GPG
+   */
+  public static final String ENCRYPTION_CIPHER_KEY = "cipher";
 
   /**
    * Represents the entity we are trying to retrieve configuration for. Internally this
@@ -197,6 +201,15 @@ public class EncryptionConfigParser {
 
   public static String getKeystoreEncoding(Map<String, Object> parameters) {
     return (String)parameters.getOrDefault(ENCRYPTION_KEYSTORE_ENCODING_KEY, ENCRYPTION_KEYSTORE_ENCODING_DEFAULT);
+  }
+
+  /**
+   * Get the underlying cipher name
+   * @param parameters parameters map
+   * @return the cipher name
+   */
+  public static String getCipher(Map<String, Object> parameters) {
+    return (String)parameters.get(ENCRYPTION_CIPHER_KEY);
   }
 
   /**

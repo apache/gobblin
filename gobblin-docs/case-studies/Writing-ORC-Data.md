@@ -4,7 +4,7 @@
 
 # Introduction
 
-Gobblin is capable of writing data to ORC files by leveraging Hive's SerDe library. Gobblin has native integration with Hive SerDe's library via the [HiveSerDeWrapper](https://github.com/linkedin/gobblin/blob/master/gobblin-hive-registration/src/main/java/gobblin/hive/HiveSerDeManager.java) class.
+Gobblin is capable of writing data to ORC files by leveraging Hive's SerDe library. Gobblin has native integration with Hive SerDe's library via the [HiveSerDeWrapper](https://github.com/apache/incubator-gobblin/blob/master/gobblin-hive-registration/src/main/java/org/apache/gobblin/hive/HiveSerDeManager.java) class.
 
 This document will briefly explain how Gobblin integrates with Hive's SerDe library, and show an example of writing ORC files.
 
@@ -20,7 +20,7 @@ Gobblin integrates with the Hive SerDe's in a few different places. Here is a li
 
 # Writing to an ORC File
 
-An end-to-end example of writing to an ORC file is provided in the configuration found [here](https://github.com/linkedin/gobblin/tree/master/gobblin-example/src/main/resources/wikipedia-orc.pull). This `.pull` file is almost identical to the Wikipedia example discussed in the [Getting Started Guide](../Getting-Started.md). The only difference is that the output is written in ORC instead of Avro. The configuration file mentioned above can be directly used as a template for writing data to ORC files, below is a detailed explanation of the configuration options that need to be changed, and why they need to be changed.
+An end-to-end example of writing to an ORC file is provided in the configuration found [here](https://github.com/apache/incubator-gobblin/blob/master/gobblin-example/src/main/resources/wikipedia-orc.pull). This `.pull` file is almost identical to the Wikipedia example discussed in the [Getting Started Guide](../Getting-Started.md). The only difference is that the output is written in ORC instead of Avro. The configuration file mentioned above can be directly used as a template for writing data to ORC files, below is a detailed explanation of the configuration options that need to be changed, and why they need to be changed.
 
 * `converter.classes` requires two additional converters: `gobblin.converter.avro.AvroRecordToAvroWritableConverter` and `gobblin.converter.serde.HiveSerDeConverter`
     * The output of the first converter (the `WikipediaConverter`) returns Avro `GenericRecord`s

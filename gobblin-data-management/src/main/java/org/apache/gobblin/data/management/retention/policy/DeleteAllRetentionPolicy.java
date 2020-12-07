@@ -21,12 +21,14 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
 
+import org.apache.gobblin.annotation.Alias;
 import org.apache.gobblin.data.management.retention.version.DatasetVersion;
 
 
 /**
  * Implementation of {@link RetentionPolicy} that marks all {@link DatasetVersion}s as deletable.
  */
+@Alias("DeleteAll")
 public class DeleteAllRetentionPolicy implements RetentionPolicy<DatasetVersion> {
 
   public DeleteAllRetentionPolicy(Properties properties) {}

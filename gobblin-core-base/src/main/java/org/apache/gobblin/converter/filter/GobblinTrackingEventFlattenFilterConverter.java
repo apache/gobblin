@@ -34,6 +34,7 @@ import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 import com.typesafe.config.Config;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.converter.AvroToAvroConverterBase;
 import org.apache.gobblin.converter.Converter;
@@ -111,16 +112,17 @@ public class GobblinTrackingEventFlattenFilterConverter extends AvroToAvroConver
   @Override
   public Schema convertSchema(Schema inputSchema, WorkUnitState workUnit)
       throws SchemaConversionException {
-    Preconditions.checkArgument(inputSchema.getFields().equals(gobblinTrackingEventSchema.getFields()));
+    Preconditions.checkArgument(AvroUtils.checkReaderWriterCompatibility(gobblinTrackingEventSchema, inputSchema, true));
     Schema outputSchema = Schema
         .createRecord(ConfigUtils.getString(config, NEW_SCHEMA_NAME, inputSchema.getName()), inputSchema.getDoc(),
             inputSchema.getNamespace(), inputSchema.isError());
     outputSchema.setFields(newFields);
+    AvroUtils.addSchemaCreationTime(inputSchema, outputSchema);
     return outputSchema;
   }
 
   @Override
-  public Iterable<GenericRecord> convertRecord(Schema outputSchema, GenericRecord inputRecord, WorkUnitState workUnit)
+  public Iterable<GenericRecord> convertRecordImpl(Schema outputSchema, GenericRecord inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
     GenericRecord genericRecord = new GenericData.Record(outputSchema);
 

@@ -47,11 +47,23 @@ public interface JobTemplate extends Spec {
   Collection<String> getRequiredConfigList() throws SpecNotFoundException, TemplateException;
 
   /**
+   * Retrieve all job names that this job depends on. Useful for building a dag of
+   * JobTemplates.
+   */
+  Collection<String> getDependencies();
+
+  /**
    * Return the combine configuration of template and user customized attributes.
-   * @return
+   *
+   * Note, do not use this method directly, instead use {@link org.apache.gobblin.runtime.job_spec.ResolvedJobSpec}.
    */
   Config getResolvedConfig(Config userProps) throws SpecNotFoundException, TemplateException;
 
+  /**
+   * The Exception thrown while occurring error when loading/resolving a template.
+   * Note that the template here is not necessary to be a JobTemplate, it could be a FlowTemplate in the
+   * context of Gobblin Service.
+   */
   class TemplateException extends Exception {
     public TemplateException(String message, Throwable cause) {
       super(message, cause);

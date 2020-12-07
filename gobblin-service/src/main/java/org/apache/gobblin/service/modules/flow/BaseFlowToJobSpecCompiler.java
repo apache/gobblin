@@ -22,7 +22,11 @@ import java.net.URI;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nonnull;
+import java.util.Properties;
+
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
@@ -31,32 +35,32 @@ import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
 
-import org.apache.commons.lang3.StringUtils;
+import javax.annotation.Nonnull;
+import lombok.Getter;
+import lombok.Setter;
+
+import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
-import org.apache.gobblin.runtime.api.Spec;
-import org.apache.gobblin.runtime.api.SpecCompiler;
-import org.apache.gobblin.runtime.api.TopologySpec;
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.instrumented.Instrumented;
-import org.apache.gobblin.runtime.job_catalog.FSJobCatalog;
-import org.apache.gobblin.service.ServiceConfigKeys;
-import org.apache.gobblin.service.ServiceMetricNames;
-import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.JobTemplate;
-import org.apache.gobblin.runtime.api.SpecExecutor;
-import org.apache.gobblin.runtime.api.SpecProducer;
+import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
+import org.apache.gobblin.runtime.api.TopologySpec;
+import org.apache.gobblin.runtime.job_catalog.FSJobCatalog;
 import org.apache.gobblin.runtime.job_spec.ResolvedJobSpec;
+import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
+import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.metrics.ServiceMetricNames;
+import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.PropertiesUtils;
 
-import lombok.Getter;
-import lombok.Setter;
 
 // Provide base implementation for constructing multi-hops route.
 @Alpha
@@ -67,20 +71,6 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
   @Getter
   @Setter
   protected final Map<URI, TopologySpec> topologySpecMap;
-
-
-  /**
-   * Mapping between each FlowEdge and a list of applicable Templates.
-   * Compiler should obtain this Map info from higher level component.
-   * since {@link TopologySpec} doesn't contain Templates.
-   * Key: EdgeIdentifier from {@link org.apache.gobblin.runtime.api.FlowEdge#getEdgeIdentity()}
-   * Value: List of template URI.
-   */
-  // TODO: Define how template info are instantiated. ETL-6217
-  @Getter
-  @Setter
-  protected final Map<String, List<URI>> edgeTemplateMap;
-
 
   protected final Config config;
   protected final Logger log;
@@ -93,6 +83,11 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
   protected Optional<Meter> flowCompilationFailedMeter;
   @Getter
   protected Optional<Timer> flowCompilationTimer;
+  @Getter
+  protected Optional<Timer> dataAuthorizationTimer;
+  @Getter
+  @Setter
+  protected boolean active;
 
   public BaseFlowToJobSpecCompiler(Config config){
     this(config,true);
@@ -113,16 +108,17 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
       this.flowCompilationSuccessFulMeter = Optional.of(this.metricContext.meter(ServiceMetricNames.FLOW_COMPILATION_SUCCESSFUL_METER));
       this.flowCompilationFailedMeter = Optional.of(this.metricContext.meter(ServiceMetricNames.FLOW_COMPILATION_FAILED_METER));
       this.flowCompilationTimer = Optional.<Timer>of(this.metricContext.timer(ServiceMetricNames.FLOW_COMPILATION_TIMER));
+      this.dataAuthorizationTimer = Optional.<Timer>of(this.metricContext.timer(ServiceMetricNames.DATA_AUTHORIZATION_TIMER));
     }
     else {
       this.metricContext = null;
       this.flowCompilationSuccessFulMeter = Optional.absent();
       this.flowCompilationFailedMeter = Optional.absent();
       this.flowCompilationTimer = Optional.absent();
+      this.dataAuthorizationTimer = Optional.absent();
     }
 
     this.topologySpecMap = Maps.newConcurrentMap();
-    this.edgeTemplateMap = Maps.newConcurrentMap();
     this.config = config;
 
     /***
@@ -148,7 +144,13 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
   }
 
   @Override
-  public synchronized void onAddSpec(Spec addedSpec) {
+  public void awaitHealthy() throws InterruptedException {
+    //Do nothing
+    return;
+  }
+
+  @Override
+  public synchronized AddSpecResponse onAddSpec(Spec addedSpec) {
     TopologySpec spec = (TopologySpec) addedSpec;
     log.info ("Loading topology {}", spec.toLongString());
     for (Map.Entry entry: spec.getConfigAsProperties().entrySet()) {
@@ -156,10 +158,15 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
     }
 
     topologySpecMap.put(addedSpec.getUri(), (TopologySpec) addedSpec);
+    return new AddSpecResponse(null);
+  }
+
+  public void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion) {
+    onDeleteSpec(deletedSpecURI, deletedSpecVersion, new Properties());
   }
 
   @Override
-  public synchronized void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion) {
+  public synchronized void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion, Properties headers) {
     if (topologySpecMap.containsKey(deletedSpecURI)) {
       topologySpecMap.remove(deletedSpecURI);
     }
@@ -201,7 +208,7 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
     return this.topologySpecMap;
   }
 
-  public abstract Map<Spec, SpecExecutor> compileFlow(Spec spec);
+  public abstract Dag<JobExecutionPlan> compileFlow(Spec spec);
 
   /**
    * Naive implementation of generating jobSpec, which fetch the first available template,
@@ -221,7 +228,7 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
       jobSpecBuilder = jobSpecBuilder.withTemplate(flowSpec.getTemplateURIs().get().iterator().next());
       try {
         jobSpec = new ResolvedJobSpec(jobSpecBuilder.build(), templateCatalog.get());
-        log.info("Resolved JobSpec properties are: " + jobSpec.getConfigAsProperties());
+        log.info("Resolved JobSpec properties are: " + PropertiesUtils.prettyPrintProperties(jobSpec.getConfigAsProperties()));
       } catch (SpecNotFoundException | JobTemplate.TemplateException e) {
         throw new RuntimeException("Could not resolve template in JobSpec from TemplateCatalog", e);
       }
@@ -244,7 +251,7 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
     }
 
     // Add flow execution id for this compilation
-    long flowExecutionId = System.currentTimeMillis();
+    long flowExecutionId = FlowUtils.getOrCreateFlowExecutionId(flowSpec);
     jobSpec.setConfig(jobSpec.getConfig().withValue(ConfigurationKeys.FLOW_EXECUTION_ID_KEY,
         ConfigValueFactory.fromAnyRef(flowExecutionId)));
 
@@ -278,14 +285,4 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
     // For now only first template uri will be honored for Identity
     return flowSpec.getTemplateURIs().get().iterator().next();
   }
-
-  /**
-   * Ideally each edge has its own eligible template repository(Based on {@link SpecExecutor})
-   * to pick templates from.
-   *
-   * This function is to transform from all mixed templates ({@link #templateCatalog})
-   * into categorized {@link #edgeTemplateMap}.
-   *
-   */
-  abstract protected void populateEdgeTemplateMap();
 }

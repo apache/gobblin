@@ -26,12 +26,10 @@ dependencies {
   compile project(":gobblin-utility")
   compile project(":gobblin-config-management:gobblin-config-client")
   compile project(":gobblin-config-management:gobblin-config-core")
-  compile externalDependency.lombok
   compile externalDependency.commonsLang
   compile externalDependency.commonsLang3
   compile externalDependency.guava
   compile externalDependency.slf4j
-  compile externalDependency.log4j
   compile externalDependency.jodaTime
   compile externalDependency.metricsCore
   compile externalDependency.mockito
@@ -47,6 +45,7 @@ dependencies {
   compile externalDependency.junit
 
   testCompile project(":gobblin-test-utils")
+  testCompile project(path: ":gobblin-metastore", configuration: "testFixtures")
 
   testCompile externalDependency.calciteCore
   testCompile externalDependency.calciteAvatica
@@ -57,6 +56,8 @@ dependencies {
   testCompile externalDependency.hiveJdbc
 
   testRuntime project(":gobblin-modules:gobblin-crypto-provider") // for GPG
+  testCompile project(":gobblin-modules:gobblin-crypto") // for GPG
+  testCompile project(path: ":gobblin-modules:gobblin-crypto", configuration: "tests")
 }
 
 task testJar(type: Jar, dependsOn: testClasses) {

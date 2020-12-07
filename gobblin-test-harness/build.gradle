@@ -23,10 +23,12 @@ dependencies {
   testCompile project(":gobblin-runtime")
   testCompile project(":gobblin-data-management")
 
+  testCompile externalDependency.bytemanBmunit
   testCompile externalDependency.calciteCore
   testCompile externalDependency.calciteAvatica
   testCompile externalDependency.jhyde
   testCompile externalDependency.testng
+  testCompile externalDependency.parquetHadoop
 }
 
 configurations { compile { transitive = false } }

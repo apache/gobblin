@@ -68,7 +68,7 @@ public abstract class AbstractHiveDatasetVersionFinder implements VersionFinder<
     }
     final HiveDataset hiveDataset = (HiveDataset) dataset;
 
-    if (!HiveUtils.isPartitioned(hiveDataset.getTable())) {
+    if (!hiveDataset.getTable().isPartitioned()) {
       throw new IllegalArgumentException("HiveDatasetVersionFinder is only compatible with partitioned hive tables");
     }
 

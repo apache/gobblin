@@ -17,11 +17,6 @@
 
 package org.apache.gobblin.cluster;
 
-import com.google.common.base.Optional;
-import com.google.common.base.Predicate;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
-import com.typesafe.config.ConfigValueFactory;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -31,9 +26,9 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Iterator;
 import java.util.concurrent.TimeoutException;
+
 import org.apache.commons.io.FileUtils;
 import org.apache.curator.test.TestingServer;
-import org.apache.gobblin.testing.AssertWithBackoff;
 import org.apache.hadoop.fs.Path;
 import org.apache.helix.HelixManager;
 import org.slf4j.Logger;
@@ -42,6 +37,14 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
+import com.google.common.base.Optional;
+import com.google.common.base.Predicate;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
+
+import org.apache.gobblin.testing.AssertWithBackoff;
 
 
 /**
@@ -277,7 +280,7 @@ public class GobblinClusterKillTest {
     // need to reinitialize the heap manager and call handleLeadershipChange to shut down services in the test
     // since the leadership change is simulated
     _clusterManagers[0].initializeHelixManager();
-    _clusterManagers[0].handleLeadershipChange(null);
+    _clusterManagers[0].multiManager.handleLeadershipChange(null);
 
     // reconnect to get leadership role
     _clusterManagers[0].connectHelixManager();
@@ -315,7 +318,7 @@ public class GobblinClusterKillTest {
   public void tearDown() throws IOException, InterruptedException {
 
     for (int i = 0; i < NUM_MANAGERS; i++) {
-      _clusterManagers[i].connectHelixManager();
+      _clusterManagers[i].multiManager.connect();
       if (!_clusterManagers[i].isHelixManagerConnected()) {
         _clusterManagers[i].connectHelixManager();
       }

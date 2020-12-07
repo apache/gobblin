@@ -19,16 +19,17 @@ package org.apache.gobblin.yarn;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
+import java.net.URL;
 import java.util.Collection;
 import java.util.Map;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.security.Credentials;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
@@ -39,8 +40,13 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.util.Apps;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.Records;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Maps;
+import com.typesafe.config.Config;
+
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
@@ -49,6 +55,7 @@ import com.google.common.collect.Maps;
  * @author Yinan Li
  */
 public class YarnHelixUtils {
+  private static final Logger LOGGER = LoggerFactory.getLogger(YarnHelixUtils.class);
 
   /**
    * Write a {@link Token} to a given file.
@@ -63,6 +70,26 @@ public class YarnHelixUtils {
     Credentials credentials = new Credentials();
     credentials.addToken(token.getService(), token);
     credentials.writeTokenStorageFile(tokenFilePath, configuration);
+  }
+
+  /**
+   * Update {@link Token} with token file localized by NM.
+   *
+   * @param tokenFileName name of the token file
+   * @throws IOException
+   */
+  public static void updateToken(String tokenFileName) throws IOException{
+    URL tokenFileUrl = YarnHelixUtils.class.getClassLoader().getResource(tokenFileName);
+    if (tokenFileUrl != null) {
+      File tokenFile = new File(tokenFileUrl.getFile());
+      if (tokenFile.exists()) {
+        Credentials credentials = Credentials.readTokenStorageFile(tokenFile, new Configuration());
+        for (Token<? extends TokenIdentifier> token : credentials.getAllTokens()) {
+          LOGGER.info("updating " + token.getKind() + " " + token.getService());
+        }
+        UserGroupInformation.getCurrentUser().addCredentials(credentials);
+      }
+    }
   }
 
   /**
@@ -130,7 +157,31 @@ public class YarnHelixUtils {
             environmentVariableMap, ApplicationConstants.Environment.CLASSPATH.key(), classpath.trim());
       }
     }
+    String[] additionalClassPath = yarnConfiguration.getStrings(GobblinYarnConfigurationKeys.GOBBLIN_YARN_ADDITIONAL_CLASSPATHS);
+    if (additionalClassPath != null) {
+      for (String classpath : additionalClassPath) {
+        Apps.addToEnvironment(
+            environmentVariableMap, ApplicationConstants.Environment.CLASSPATH.key(), classpath.trim());
+      }
+    }
 
     return environmentVariableMap;
+  }
+
+  public static void setAdditionalYarnClassPath(Config config, Configuration yarnConfiguration) {
+    if (!ConfigUtils.emptyIfNotPresent(config, GobblinYarnConfigurationKeys.GOBBLIN_YARN_ADDITIONAL_CLASSPATHS).equals(
+        StringUtils.EMPTY)){
+      yarnConfiguration.setStrings(GobblinYarnConfigurationKeys.GOBBLIN_YARN_ADDITIONAL_CLASSPATHS, config.getString(GobblinYarnConfigurationKeys.GOBBLIN_YARN_ADDITIONAL_CLASSPATHS));
+    }
+  }
+
+  /**
+   * Return the identifier of the containerId. The identifier is the substring in the containerId representing
+   * the sequential number of the container.
+   * @param containerId e.g. "container_e94_1567552810874_2132400_01_000001"
+   * @return sequence number of the containerId e.g. "container-000001"
+   */
+  public static String getContainerNum(String containerId) {
+    return "container-" + containerId.substring(containerId.lastIndexOf("_") + 1);
   }
 }

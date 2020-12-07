@@ -23,10 +23,12 @@ import java.nio.charset.StandardCharsets;
 
 import com.google.gson.Gson;
 
+import org.apache.gobblin.annotation.Alias;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.kafka.client.ByteArrayBasedKafkaRecord;
 import org.apache.gobblin.source.extractor.Extractor;
 
+@Alias("KafkaSimpleJsonExtractor")
 public class KafkaSimpleJsonExtractor extends KafkaSimpleExtractor implements Extractor<String, byte[]> {
 
     private static final Gson gson = new Gson();

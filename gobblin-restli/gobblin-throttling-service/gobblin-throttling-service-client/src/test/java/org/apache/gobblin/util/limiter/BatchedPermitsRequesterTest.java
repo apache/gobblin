@@ -26,6 +26,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.gobblin.util.Sleeper;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.testng.Assert;
@@ -35,7 +36,6 @@ import com.google.common.base.Optional;
 import com.google.common.collect.Queues;
 import com.linkedin.common.callback.Callback;
 import com.linkedin.restli.client.Response;
-import com.linkedin.restli.client.RestClient;
 import com.linkedin.restli.client.RestLiResponseException;
 import com.linkedin.restli.common.HttpStatus;
 
@@ -119,7 +119,8 @@ public class BatchedPermitsRequesterTest {
     Queue<RequestAndCallback> queue = Queues.newArrayDeque();
 
     BatchedPermitsRequester container = BatchedPermitsRequester.builder().resourceId("resource")
-        .requestorIdentifier("requestor").requestSender(new TestRequestSender(queue, false)).build();
+        .requestorIdentifier("requestor").requestSender(new TestRequestSender(queue, false))
+        .maxTimeoutMillis(1000).build();
     try (ParallelRequester requester = new ParallelRequester(container)) {
 
       Future<Boolean> future = requester.request(10);
@@ -143,7 +144,8 @@ public class BatchedPermitsRequesterTest {
     Queue<RequestAndCallback> queue = Queues.newArrayDeque();
 
     BatchedPermitsRequester container = BatchedPermitsRequester.builder().resourceId("resource")
-        .requestorIdentifier("requestor").requestSender(new TestRequestSender(queue, false)).build();
+        .requestorIdentifier("requestor").requestSender(new TestRequestSender(queue, false))
+        .maxTimeoutMillis(1000).build();
     try (ParallelRequester requester = new ParallelRequester(container)) {
 
       Future<Boolean> future = requester.request(10);
@@ -156,6 +158,40 @@ public class BatchedPermitsRequesterTest {
       Assert.assertFalse(future.get());
       Assert.assertEquals(queue.size(), 0);
     }
+  }
+
+  @Test
+  public void testWaitToUsePermits() throws Exception {
+    Queue<RequestAndCallback> queue = Queues.newArrayDeque();
+
+    BatchedPermitsRequester container = BatchedPermitsRequester.builder().resourceId("resource")
+        .requestorIdentifier("requestor").requestSender(new TestRequestSender(queue, false)).build();
+
+    Sleeper.MockSleeper mockWaiter = new Sleeper.MockSleeper();
+    BatchedPermitsRequester.AllocationCallback callback = container.createAllocationCallback(mockWaiter);
+
+    PermitAllocation allocation = new PermitAllocation();
+    allocation.setPermits(10);
+    allocation.setWaitForPermitUseMillis(20);
+    allocation.setExpiration(Long.MAX_VALUE);
+
+    Response<PermitAllocation> response = Mockito.mock(Response.class);
+    Mockito.when(response.getEntity()).thenReturn(allocation);
+
+    // Normally the semaphore is reserved during a request. Since we're mocking a response without ever starting a request,
+    // manually reserve the semaphore
+    Assert.assertTrue(container.reserveSemaphore());
+
+    callback.onSuccess(response);
+    Assert.assertEquals((long) mockWaiter.getRequestedSleeps().peek(), 20);
+    Assert.assertEquals(container.getPermitBatchContainer().getTotalAvailablePermits(), 10);
+
+    // A zero wait will not trigger a wait in the requester
+    allocation.setWaitForPermitUseMillis(0);
+    mockWaiter.reset();
+    callback.onSuccess(response);
+    Assert.assertTrue(mockWaiter.getRequestedSleeps().isEmpty());
+    Assert.assertEquals(container.getPermitBatchContainer().getTotalAvailablePermits(), 20);
   }
 
   public static class TestRequestSender implements RequestSender {

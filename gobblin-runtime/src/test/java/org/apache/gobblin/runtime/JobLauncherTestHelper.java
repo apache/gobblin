@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -61,7 +63,7 @@ public class JobLauncherTestHelper {
     this.datasetStateStore = datasetStateStore;
   }
 
-  public void runTest(Properties jobProps) throws Exception {
+  public JobContext runTest(Properties jobProps) throws Exception {
     String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
     String jobId = JobLauncherUtils.newJobId(jobName);
     jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, jobId);
@@ -85,14 +87,52 @@ public class JobLauncherTestHelper {
     DatasetState datasetState = datasetStateList.get(0);
 
     Assert.assertEquals(datasetState.getState(), JobState.RunningState.COMMITTED);
-    Assert.assertEquals(datasetState.getCompletedTasks(), 4);
     Assert.assertEquals(datasetState.getJobFailures(), 0);
 
+    int skippedWorkunits = 0;
+
     for (TaskState taskState : datasetState.getTaskStates()) {
+      if (Boolean.parseBoolean(jobProps.getProperty(ConfigurationKeys.WORK_UNIT_SKIP_KEY, Boolean.FALSE.toString()))
+          && taskState.getWorkingState() == WorkUnitState.WorkingState.SKIPPED) {
+        skippedWorkunits++;
+        continue;
+      }
+
       Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
       Assert.assertEquals(taskState.getPropAsLong(ConfigurationKeys.WRITER_RECORDS_WRITTEN),
           TestExtractor.TOTAL_RECORDS);
+
+      // if the addition of the task timestamp is configured then validate that the file name has the expected format
+      if (Boolean.valueOf(taskState.getProp(ConfigurationKeys.WRITER_ADD_TASK_TIMESTAMP, "false"))) {
+        String pattern = ".*part.task_.*_(\\d+)_\\d+_(\\d+)_\\d+.avro";
+        String value = taskState.getProp(ConfigurationKeys.WRITER_FINAL_OUTPUT_FILE_PATHS);
+        Pattern r = Pattern.compile(pattern);
+        Matcher m = r.matcher(taskState.getProp(ConfigurationKeys.WRITER_FINAL_OUTPUT_FILE_PATHS));
+        long timeBuffer = 5 * 60 * 1000;
+        if (!m.matches()) {
+          Assert.fail("no matches for " + value);
+        }
+
+        Long currentTime = System.currentTimeMillis();
+        Assert.assertTrue(Long.valueOf(m.group(1)) > currentTime - timeBuffer);
+        Assert.assertTrue(Long.valueOf(m.group(1)) < currentTime);
+        // the task time should be after the job time
+        Assert.assertTrue(Long.valueOf(m.group(1)) < Long.valueOf(m.group(2)));
+        Assert.assertTrue(Long.valueOf(m.group(2)) > currentTime - timeBuffer);
+        Assert.assertTrue(Long.valueOf(m.group(2)) < currentTime);
+      }
     }
+
+    if (Boolean.parseBoolean(jobProps.getProperty(ConfigurationKeys.WORK_UNIT_SKIP_KEY,
+        Boolean.FALSE.toString()))) {
+      Assert.assertEquals(skippedWorkunits, 2);
+      Assert.assertEquals(datasetState.getCompletedTasks(), 2);
+    } else {
+      Assert.assertEquals(skippedWorkunits, 0);
+      Assert.assertEquals(datasetState.getCompletedTasks(), 4);
+    }
+
+    return jobContext;
   }
 
   public void runTestWithPullLimit(Properties jobProps, long limit) throws Exception {
@@ -323,8 +363,7 @@ public class JobLauncherTestHelper {
       Assert.assertEquals(datasetState.getState(), JobState.RunningState.COMMITTED);
       Assert.assertEquals(datasetState.getTaskCount(), 1);
       TaskState taskState = datasetState.getTaskStates().get(0);
-      // BaseDataPublisher will change the state to COMMITTED
-      Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.COMMITTED);
+      Assert.assertEquals(taskState.getWorkingState(), WorkUnitState.WorkingState.FAILED);
     } else {
       // Task 0 should have failed
       Assert.assertTrue(this.datasetStateStore.getAll(jobName, "Dataset0-current.jst").isEmpty());

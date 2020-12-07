@@ -34,7 +34,6 @@ dependencies {
   compile externalDependency.jodaTime
   compile externalDependency.jacksonCore
   compile externalDependency.jasypt
-  compile externalDependency.lombok
   compile externalDependency.metricsCore
   compile externalDependency.guavaretrying
   compile externalDependency.guice
@@ -46,10 +45,11 @@ dependencies {
   compile externalDependency.gson
   compile externalDependency.opencsv
   compile externalDependency.hadoopHdfs
+  compile externalDependency.groovy
 
-  runtime externalDependency.hadoopCommon
-  runtime externalDependency.hadoopClientCore
-  runtime externalDependency.hadoopAuth
+  runtimeOnly externalDependency.hadoopCommon
+  runtimeOnly externalDependency.hadoopClientCore
+  runtimeOnly externalDependency.hadoopAuth
 
   testCompile externalDependency.hamcrest
   testCompile externalDependency.testng
@@ -58,20 +58,17 @@ dependencies {
 }
 
 configurations {
-    compile {
-        transitive = true
-    }
-    archives
+  compile {
+    transitive = true
+  }
+  archives
 }
 
 test {
-    workingDir rootProject.rootDir
+  workingDir rootProject.rootDir
 }
 
-
-
-ext.classification="library"
-
+ext.classification = "library"
 
 task utilityTar(type: Tar) {
   //there seems to be a bug in the Gradle signing module where X.tar.gz will generate
@@ -82,8 +79,8 @@ task utilityTar(type: Tar) {
   compression = Compression.GZIP
 
   into("lib") { from configurations.runtime }
-  into("lib") { from "${project.rootDir}/build/${project.name}/libs/${project.name}.jar"}
-  into("lib") { from "${project.rootDir}/build/${project.name}/libs/${project.name}-${project.version}.jar"}
+  into("lib") { from "${project.rootDir}/build/${project.name}/libs/${project.name}.jar" }
+  into("lib") { from "${project.rootDir}/build/${project.name}/libs/${project.name}-${project.version}.jar" }
   into("bin") {
     from "src/main/bash"
     fileMode = 0755

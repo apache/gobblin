@@ -16,29 +16,29 @@
  */
 package org.apache.gobblin.cluster;
 
-import com.google.common.base.Strings;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 import java.util.UUID;
 import java.util.regex.Pattern;
+
 import org.apache.helix.Criteria;
 import org.apache.helix.HelixDataAccessor;
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixProperty;
 import org.apache.helix.InstanceType;
+import org.apache.helix.PropertyKey;
 import org.apache.helix.messaging.CriteriaEvaluator;
 import org.apache.helix.messaging.DefaultMessagingService;
 import org.apache.helix.messaging.ZNRecordRow;
-import org.apache.helix.PropertyKey;
-
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import org.apache.helix.model.LiveInstance;
 import org.apache.helix.model.Message;
+
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 
 
 /**
@@ -77,8 +77,6 @@ public class GobblinHelixMessagingService extends DefaultMessagingService {
     if (instanceType == InstanceType.CONTROLLER) {
       List<Message> messages = generateMessagesForController(message);
       messagesToSendMap.put(InstanceType.CONTROLLER, messages);
-      // _dataAccessor.setControllerProperty(PropertyType.MESSAGES,
-      // newMessage.getRecord(), CreateMode.PERSISTENT);
     } else if (instanceType == InstanceType.PARTICIPANT) {
       List<Message> messages = new ArrayList<Message>();
       List<Map<String, String>> matchedList =
@@ -173,13 +171,17 @@ public class GobblinHelixMessagingService extends DefaultMessagingService {
      * @param row row of currently persisted data
      * @return true if it matches, false otherwise
      */
+
     private boolean rowMatches(Criteria criteria, ZNRecordRow row) {
       String instanceName = normalizePattern(criteria.getInstanceName());
       String resourceName = normalizePattern(criteria.getResource());
       String partitionName = normalizePattern(criteria.getPartition());
       String partitionState = normalizePattern(criteria.getPartitionState());
-      return stringMatches(instanceName, row.getMapSubKey()) && stringMatches(resourceName, row.getRecordId())
-          && stringMatches(partitionName, row.getMapKey()) && stringMatches(partitionState, row.getMapValue());
+      return (stringMatches(instanceName, Strings.nullToEmpty(row.getMapSubKey())) ||
+          stringMatches(instanceName, Strings.nullToEmpty(row.getRecordId())))
+          && stringMatches(resourceName, Strings.nullToEmpty(row.getRecordId()))
+          && stringMatches(partitionName, Strings.nullToEmpty(row.getMapKey()))
+          && stringMatches(partitionState, Strings.nullToEmpty(row.getMapValue()));
     }
 
     /**

@@ -25,32 +25,32 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-
 import org.apache.hadoop.fs.Path;
-
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.util.ConverterUtils;
-
 import org.apache.helix.NotificationContext;
 import org.apache.helix.messaging.handling.HelixTaskResult;
 import org.apache.helix.messaging.handling.MessageHandler;
-import org.apache.helix.messaging.handling.MessageHandlerFactory;
+import org.apache.helix.messaging.handling.MultiTypeMessageHandlerFactory;
 import org.apache.helix.model.Message;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Strings;
 import com.google.common.util.concurrent.Service;
-
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 
-import org.apache.gobblin.cluster.GobblinTaskRunner;
 import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
+import org.apache.gobblin.cluster.GobblinClusterUtils;
+import org.apache.gobblin.cluster.GobblinTaskRunner;
 import org.apache.gobblin.util.JvmUtils;
 import org.apache.gobblin.util.logs.Log4jConfigurationHelper;
+import org.apache.gobblin.util.logs.LogCopier;
 import org.apache.gobblin.yarn.event.DelegationTokenUpdatedEvent;
 
 
@@ -58,32 +58,51 @@ public class GobblinYarnTaskRunner extends GobblinTaskRunner {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinTaskRunner.class);
 
-  public GobblinYarnTaskRunner(String applicationName, String helixInstanceName, ContainerId containerId, Config config,
+  public static final String HELIX_YARN_INSTANCE_NAME_PREFIX = GobblinYarnTaskRunner.class.getSimpleName();
+
+  public GobblinYarnTaskRunner(String applicationName, String applicationId, String helixInstanceName, ContainerId containerId, Config config,
       Optional<Path> appWorkDirOptional) throws Exception {
-    super(applicationName, helixInstanceName, getApplicationId(containerId), getTaskRunnerId(containerId), config,
-        appWorkDirOptional);
+    super(applicationName, helixInstanceName, applicationId, getTaskRunnerId(containerId), config
+        .withValue(GobblinYarnConfigurationKeys.CONTAINER_NUM_KEY,
+            ConfigValueFactory.fromAnyRef(YarnHelixUtils.getContainerNum(containerId.toString()))), appWorkDirOptional);
   }
 
   @Override
   public List<Service> getServices() {
     List<Service> services = new ArrayList<>();
-    if (this.config.hasPath(GobblinYarnConfigurationKeys.KEYTAB_FILE_PATH)) {
-      LOGGER.info("Adding YarnContainerSecurityManager since login is keytab based");
-      services.add(new YarnContainerSecurityManager(this.config, this.fs, this.eventBus));
+    services.addAll(super.getServices());
+    LogCopier logCopier = null;
+    if (clusterConfig.hasPath(GobblinYarnConfigurationKeys.LOGS_SINK_ROOT_DIR_KEY)) {
+      GobblinYarnLogSource gobblinYarnLogSource = new GobblinYarnLogSource();
+      String containerLogDir = clusterConfig.getString(GobblinYarnConfigurationKeys.LOGS_SINK_ROOT_DIR_KEY);
+
+      if (gobblinYarnLogSource.isLogSourcePresent()) {
+        try {
+          logCopier = gobblinYarnLogSource.buildLogCopier(this.clusterConfig, this.taskRunnerId, this.fs,
+              new Path(containerLogDir, GobblinClusterUtils.getAppWorkDirPath(this.applicationName, this.applicationId)));
+            services.add(logCopier);
+        } catch (Exception e) {
+          LOGGER.warn("Cannot add LogCopier service to the service manager due to", e);
+        }
+      }
+    }
+    if (UserGroupInformation.isSecurityEnabled()) {
+      LOGGER.info("Adding YarnContainerSecurityManager since security is enabled");
+      services.add(new YarnContainerSecurityManager(this.clusterConfig, this.fs, this.eventBus, logCopier));
     }
     return services;
   }
 
   @Override
-  public MessageHandlerFactory getUserDefinedMessageHandlerFactory() {
+  public MultiTypeMessageHandlerFactory getUserDefinedMessageHandlerFactory() {
     return new ParticipantUserDefinedMessageHandlerFactory();
   }
 
   /**
-   * A custom {@link MessageHandlerFactory} for {@link ParticipantUserDefinedMessageHandler}s that
+   * A custom {@link MultiTypeMessageHandlerFactory} for {@link ParticipantUserDefinedMessageHandler}s that
    * handle messages of type {@link org.apache.helix.model.Message.MessageType#USER_DEFINE_MSG}.
    */
-  private class ParticipantUserDefinedMessageHandlerFactory implements MessageHandlerFactory {
+  private class ParticipantUserDefinedMessageHandlerFactory implements MultiTypeMessageHandlerFactory {
 
     @Override
     public MessageHandler createHandler(Message message, NotificationContext context) {
@@ -122,7 +141,7 @@ public class GobblinYarnTaskRunner extends GobblinTaskRunner {
       }
 
       @Override
-      public HelixTaskResult handleMessage() throws InterruptedException {
+      public HelixTaskResult handleMessage() {
         String messageSubType = this._message.getMsgSubType();
 
         if (messageSubType.equalsIgnoreCase(org.apache.gobblin.cluster.HelixMessageSubTypes.TOKEN_FILE_UPDATED.toString())) {
@@ -154,12 +173,13 @@ public class GobblinYarnTaskRunner extends GobblinTaskRunner {
     return containerId.toString();
   }
 
-  public static void main(String[] args) throws Exception {
+  public static void main(String[] args) {
     Options options = buildOptions();
     try {
       CommandLine cmd = new DefaultParser().parse(options, args);
       if (!cmd.hasOption(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME) || !cmd
-          .hasOption(GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_OPTION_NAME)) {
+          .hasOption(GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_OPTION_NAME) || !cmd
+    .hasOption(GobblinClusterConfigurationKeys.APPLICATION_ID_OPTION_NAME)) {
         printUsage(options);
         System.exit(1);
       }
@@ -173,14 +193,27 @@ public class GobblinYarnTaskRunner extends GobblinTaskRunner {
       ContainerId containerId =
           ConverterUtils.toContainerId(System.getenv().get(ApplicationConstants.Environment.CONTAINER_ID.key()));
       String applicationName = cmd.getOptionValue(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME);
+      String applicationId = cmd.getOptionValue(GobblinClusterConfigurationKeys.APPLICATION_ID_OPTION_NAME);
       String helixInstanceName = cmd.getOptionValue(GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_OPTION_NAME);
+      String helixInstanceTags = cmd.getOptionValue(GobblinClusterConfigurationKeys.HELIX_INSTANCE_TAGS_OPTION_NAME);
+
+      Config config = ConfigFactory.load();
+      if (!Strings.isNullOrEmpty(helixInstanceTags)) {
+        config = config.withValue(GobblinClusterConfigurationKeys.HELIX_INSTANCE_TAGS_KEY, ConfigValueFactory.fromAnyRef(helixInstanceTags));
+      }
 
       GobblinTaskRunner gobblinTaskRunner =
-          new GobblinYarnTaskRunner(applicationName, helixInstanceName, containerId, ConfigFactory.load(),
+          new GobblinYarnTaskRunner(applicationName, applicationId, helixInstanceName, containerId, config,
               Optional.<Path>absent());
       gobblinTaskRunner.start();
     } catch (ParseException pe) {
       printUsage(options);
+      System.exit(1);
+    } catch (Throwable t) {
+      // Ideally, we should not be catching non-recoverable exceptions and errors. However,
+      // simply propagating the exception may prevent the container exit due to the presence of non-daemon threads present
+      // in the application. Hence, we catch this exception to invoke System.exit() which in turn ensures that all non-daemon threads are killed.
+      LOGGER.error("Exception encountered: {}", t);
       System.exit(1);
     }
   }

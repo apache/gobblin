@@ -25,6 +25,8 @@ import java.util.Properties;
 import java.util.Random;
 import static java.util.stream.Collectors.joining;
 
+import java.util.stream.Collectors;
+import org.apache.avro.Schema;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.ImmutablePair;
@@ -38,6 +40,8 @@ import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.metadata.Partition;
+import org.apache.hadoop.hive.serde2.SerDeException;
+import org.apache.hadoop.hive.serde2.avro.AvroObjectInspectorGenerator;
 import org.apache.thrift.TException;
 
 import com.google.common.base.Joiner;
@@ -149,6 +153,35 @@ public class HiveConverterUtils {
 
     return String.format("CREATE EXTERNAL TABLE IF NOT EXISTS `%s`.`%s` LIKE `%s`.`%s` LOCATION %n  '%s' %n",
         dbName, tblName, inputDbName, inputTblName, tblLocation);
+  }
+
+  public static String generateAlterTblPropsDML(
+      String tableName,
+      Optional<String> optionalDbName,
+      Schema schema
+      ) {
+    Preconditions.checkArgument(StringUtils.isNotBlank(tableName));
+    Preconditions.checkArgument(schema != null);
+
+    String dbName = optionalDbName.isPresent() ? optionalDbName.get() : "default";
+    try {
+      Pair<String, String> orcSchemaProps = getORCSchemaPropsFromAvroSchema(schema);
+      String dml = String.format("ALTER TABLE `%s`.`%s` SET TBLPROPERTIES ('columns'='%s', 'columns.types'='%s')", dbName, tableName,
+          orcSchemaProps.getLeft(), orcSchemaProps.getRight());
+    return dml;
+    } catch (Exception e) {
+      log.error("Cannot generate add partition DDL due to ", e);
+      throw new RuntimeException(e);
+    }
+  }
+
+  public static Pair<String, String> getORCSchemaPropsFromAvroSchema(Schema avroSchema) throws SerDeException {
+    AvroObjectInspectorGenerator objectInspectorGenerator = new AvroObjectInspectorGenerator(avroSchema);
+    String columns = Joiner.on(",").join(objectInspectorGenerator.getColumnNames());
+    String columnTypes = Joiner.on(",").join(
+        objectInspectorGenerator.getColumnTypes().stream().map(x -> x.getTypeName())
+            .collect(Collectors.toList()));
+    return new ImmutablePair<>(columns, columnTypes);
   }
 
   /**
@@ -435,7 +468,7 @@ public class HiveConverterUtils {
         table = Optional.of(client.get().getTable(dbName, tableName));
         if (table.isPresent()) {
           org.apache.hadoop.hive.ql.metadata.Table qlTable = new org.apache.hadoop.hive.ql.metadata.Table(table.get());
-          if (HiveUtils.isPartitioned(qlTable)) {
+          if (qlTable.isPartitioned()) {
             partitions = Optional.of(HiveUtils.getPartitions(client.get(), qlTable, Optional.<String>absent()));
           }
         }

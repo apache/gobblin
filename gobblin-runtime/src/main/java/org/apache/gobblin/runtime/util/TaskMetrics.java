@@ -27,6 +27,7 @@ import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.metrics.event.TaskEvent;
+import org.apache.gobblin.runtime.Task;
 import org.apache.gobblin.runtime.TaskState;
 
 
@@ -51,7 +52,7 @@ public class TaskMetrics extends GobblinMetrics {
    * @return a {@link TaskMetrics} instance
    */
   public static TaskMetrics get(final TaskState taskState) {
-    return (TaskMetrics) GOBBLIN_METRICS_REGISTRY.getOrDefault(name(taskState), new Callable<GobblinMetrics>() {
+    return (TaskMetrics) GOBBLIN_METRICS_REGISTRY.getOrCreate(name(taskState), new Callable<GobblinMetrics>() {
       @Override
       public GobblinMetrics call() throws Exception {
         return new TaskMetrics(taskState);
@@ -61,6 +62,8 @@ public class TaskMetrics extends GobblinMetrics {
 
   /**
    * Remove the {@link TaskMetrics} instance for the task with the given {@link TaskMetrics} instance.
+   * Please note this method is invoked by job driver so it won't delete any underlying {@link ForkMetrics}
+   * because the {@link org.apache.gobblin.runtime.fork.Fork} can be created on different nodes.
    *
    * @param taskState the given {@link TaskState} instance
    */
@@ -68,8 +71,26 @@ public class TaskMetrics extends GobblinMetrics {
     remove(name(taskState));
   }
 
-  private static String name(TaskState taskState) {
-    return "gobblin.metrics." + taskState.getJobId() + "." + taskState.getTaskId();
+  /**
+   * Remove the {@link TaskMetrics} instance for the task with the given {@link TaskMetrics} instance.
+   * Please note that this will also delete the underlying {@link ForkMetrics} related to this specific task.
+   *
+   * @param task the given task instance
+   */
+  public static void remove(Task task) {
+    task.getForks().forEach(forkOpt -> {
+      remove(ForkMetrics.name(task.getTaskState(), forkOpt.get().getIndex()));
+    });
+
+    remove(name(task));
+  }
+
+  public static String name(TaskState taskState) {
+    return METRICS_ID_PREFIX + taskState.getJobId() + "." + taskState.getTaskId();
+  }
+
+  private static String name(Task task) {
+    return name(task.getTaskState());
   }
 
   protected static List<Tag<?>> tagsForTask(TaskState taskState) {
@@ -83,7 +104,11 @@ public class TaskMetrics extends GobblinMetrics {
   }
 
   private static MetricContext parentContextForTask(TaskState taskState) {
-    return JobMetrics.get(taskState.getProp(ConfigurationKeys.JOB_NAME_KEY), taskState.getJobId()).getMetricContext();
+    return JobMetrics.get(
+        taskState.getProp(ConfigurationKeys.JOB_NAME_KEY),
+        taskState.getJobId(),
+        new JobMetrics.CreatorTag(taskState.getTaskId()))
+        .getMetricContext();
   }
 
   public static String taskInstanceRemoved(String metricName) {

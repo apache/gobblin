@@ -17,12 +17,9 @@
 
 package org.apache.gobblin.compaction.dataset;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Sets;
-import org.apache.gobblin.compaction.mapreduce.MRCompactor;
-import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.util.DatasetFilterUtils;
-import lombok.extern.slf4j.Slf4j;
+import java.io.IOException;
+import java.util.Set;
+
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -35,8 +32,14 @@ import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.PeriodFormatter;
 import org.joda.time.format.PeriodFormatterBuilder;
 
-import java.io.IOException;
-import java.util.Set;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Sets;
+
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.compaction.mapreduce.MRCompactor;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.util.DatasetFilterUtils;
 
 
 /**
@@ -72,6 +75,12 @@ public class TimeBasedSubDirDatasetsFinder extends DatasetsFinder {
   // The latest dataset timestamp to be processed. Format = ?m?d?h.
   public static final String COMPACTION_TIMEBASED_MIN_TIME_AGO = COMPACTION_TIMEBASED_PREFIX + "min.time.ago";
   public static final String DEFAULT_COMPACTION_TIMEBASED_MIN_TIME_AGO = "1d";
+
+  // The latest compaction run time to be processed. Format = ?m?d?h.
+  public static final String MIN_RECOMPACTION_DURATION =
+      COMPACTION_TIMEBASED_PREFIX + "min.recompaction.duration";
+  // By default we don't apply this limitation
+  public static final String DEFAULT_MIN_RECOMPACTION_DURATION = "0h";
 
   protected final String folderTimePattern;
   protected final String subDirPattern;

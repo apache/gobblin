@@ -35,28 +35,18 @@ public interface WatermarkAwareWriter<D> extends DataWriter<D> {
    *
    * @return true if the writer can support watermark-bearing record envelopes
    */
-  boolean isWatermarkCapable();
+  default boolean isWatermarkCapable() {
+    return true;
+  }
 
   /**
    * Write a record (possibly asynchronously), ack the envelope on success.
    * @param recordEnvelope: a container for the record and the acknowledgable watermark
    * @throws IOException: if this write (or preceding write failures) have caused a fatal exception.
    */
-  void writeEnvelope(RecordEnvelope<D> recordEnvelope) throws IOException;
-
-  /**
-   * @return A Watermark per source that can safely be committed because all records associated with it
-   * and earlier watermarks have been committed to the destination. Return empty if no such watermark exists.
-   *
-   */
-  @Deprecated
-  Map<String, CheckpointableWatermark> getCommittableWatermark();
-
-  /**
-   *
-   * @return The lowest watermark out of all pending write requests
-   */
-  @Deprecated
-  Map<String, CheckpointableWatermark> getUnacknowledgedWatermark();
+  default void writeEnvelope(RecordEnvelope<D> recordEnvelope) throws IOException {
+    write(recordEnvelope.getRecord());
+    recordEnvelope.ack();
+  }
 
 }

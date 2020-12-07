@@ -44,17 +44,19 @@ public class GobblinCli {
     } catch (ReflectiveOperationException roe) {
       System.err.println("Could not find an application with alias " + alias);
       printUsage(resolver);
+      System.exit(1);
     } catch (Throwable t) {
       System.out.println("Error: " + t.getMessage());
       t.printStackTrace();
+      System.exit(2);
     }
   }
 
   private static void printUsage(ClassAliasResolver<CliApplication> resolver) {
-    System.out.println("Usage: gobblin <command>");
+    System.out.println("Usage: gobblin cli <command>");
     System.out.println("Available commands:");
     for (Alias alias : resolver.getAliasObjects()) {
-      System.out.println("\t" + alias.value() + "\t" + alias.description());
+      System.out.println("\t" + alias.value() + "\t\t" + alias.description());
     }
   }
 

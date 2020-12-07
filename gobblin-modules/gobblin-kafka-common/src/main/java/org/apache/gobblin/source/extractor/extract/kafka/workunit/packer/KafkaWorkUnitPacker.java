@@ -19,6 +19,7 @@ package org.apache.gobblin.source.extractor.extract.kafka.workunit.packer;
 
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -35,6 +36,7 @@ import com.google.common.primitives.Doubles;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.metrics.GobblinMetrics;
+import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.source.extractor.WatermarkInterval;
 import org.apache.gobblin.source.extractor.extract.AbstractSource;
@@ -42,9 +44,9 @@ import org.apache.gobblin.source.extractor.extract.kafka.KafkaPartition;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaSource;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaUtils;
 import org.apache.gobblin.source.extractor.extract.kafka.MultiLongWatermark;
-import org.apache.gobblin.source.workunit.Extract;
 import org.apache.gobblin.source.workunit.MultiWorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**
@@ -57,20 +59,33 @@ public abstract class KafkaWorkUnitPacker {
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaWorkUnitPacker.class);
 
+  /**
+   * For customized type of the following enums, it will try to find declared class in classpath
+   * and fallback to exception if ClassNotFound. This way the sizeEstimator and packer could be easier to
+   * extend. The major purpose for keeping this enum instead of using reflection only to construct the instance
+   * of packer or sizeEstimator is to maintain backward-compatibility.
+   *
+   * The constructor of customized type needs to be annotated with public access-modifier as it is instantiated by
+   * {@link GobblinConstructorUtils} which reside in different package, and it needs to have the same signature
+   * as other implementation under the enum.
+   */
   public enum PackerType {
     SINGLE_LEVEL,
-    BI_LEVEL
+    BI_LEVEL,
+    CUSTOM
   }
 
   public enum SizeEstimatorType {
     AVG_RECORD_TIME,
-    AVG_RECORD_SIZE
+    AVG_RECORD_SIZE, CUSTOM
   }
 
   public static final String KAFKA_WORKUNIT_PACKER_TYPE = "kafka.workunit.packer.type";
+  public static final String KAFKA_WORKUNIT_PACKER_CUSTOMIZED_TYPE = "kafka.workunit.packer.customizedType";
   private static final PackerType DEFAULT_PACKER_TYPE = PackerType.SINGLE_LEVEL;
 
   public static final String KAFKA_WORKUNIT_SIZE_ESTIMATOR_TYPE = "kafka.workunit.size.estimator.type";
+  public static final String KAFKA_WORKUNIT_SIZE_ESTIMATOR_CUSTOMIZED_TYPE = "kafka.workunit.size.estimator.customizedType";
   private static final SizeEstimatorType DEFAULT_SIZE_ESTIMATOR_TYPE = SizeEstimatorType.AVG_RECORD_TIME;
 
   protected static final double EPS = 0.01;
@@ -103,22 +118,13 @@ public abstract class KafkaWorkUnitPacker {
     }
   };
 
-  protected double setWorkUnitEstSizes(Map<String, List<WorkUnit>> workUnitsByTopic) {
-    double totalEstDataSize = 0;
-    for (List<WorkUnit> workUnitsForTopic : workUnitsByTopic.values()) {
-      for (WorkUnit workUnit : workUnitsForTopic) {
-        setWorkUnitEstSize(workUnit);
-        totalEstDataSize += getWorkUnitEstSize(workUnit);
-      }
-    }
-    return totalEstDataSize;
-  }
 
   private void setWorkUnitEstSize(WorkUnit workUnit) {
     workUnit.setProp(ESTIMATED_WORKUNIT_SIZE, this.sizeEstimator.calcEstimatedSize(workUnit));
   }
 
-  private KafkaWorkUnitSizeEstimator getWorkUnitSizeEstimator() {
+  // Setting to package-private for unit-testing purpose.
+  KafkaWorkUnitSizeEstimator getWorkUnitSizeEstimator() {
     if (this.state.contains(KAFKA_WORKUNIT_SIZE_ESTIMATOR_TYPE)) {
       String sizeEstimatorTypeString = this.state.getProp(KAFKA_WORKUNIT_SIZE_ESTIMATOR_TYPE);
       Optional<SizeEstimatorType> sizeEstimatorType =
@@ -137,6 +143,10 @@ public abstract class KafkaWorkUnitPacker {
         return new KafkaAvgRecordTimeBasedWorkUnitSizeEstimator(this.state);
       case AVG_RECORD_SIZE:
         return new KafkaAvgRecordSizeBasedWorkUnitSizeEstimator(this.state);
+      case CUSTOM:
+        Preconditions.checkArgument(this.state.contains(KAFKA_WORKUNIT_SIZE_ESTIMATOR_CUSTOMIZED_TYPE));
+        String className = this.state.getProp(KAFKA_WORKUNIT_SIZE_ESTIMATOR_CUSTOMIZED_TYPE);
+        return GobblinConstructorUtils.invokeConstructor(KafkaWorkUnitSizeEstimator.class, className, this.state);
       default:
         throw new IllegalArgumentException("WorkUnit size estimator type " + sizeEstimatorType + " not found");
     }
@@ -144,6 +154,17 @@ public abstract class KafkaWorkUnitPacker {
 
   private static void setWorkUnitEstSize(WorkUnit workUnit, double estSize) {
     workUnit.setProp(ESTIMATED_WORKUNIT_SIZE, estSize);
+  }
+
+  /**
+   * Calculate estimated size for a topic from all {@link WorkUnit}s belong to it.
+   */
+  static double calcTotalEstSizeForTopic(List<WorkUnit> workUnitsForTopic) {
+    double totalSize = 0;
+    for (WorkUnit w : workUnitsForTopic) {
+      totalSize += getWorkUnitEstSize(w);
+    }
+    return totalSize;
   }
 
   protected static double getWorkUnitEstSize(WorkUnit workUnit) {
@@ -225,6 +246,14 @@ public abstract class KafkaWorkUnitPacker {
     // (current latest offset - previous latest offset)/(current epoch time - previous epoch time).
     int index = 0;
     for (WorkUnit wu : multiWorkUnit.getWorkUnits()) {
+      workUnit.setProp(KafkaUtils.getPartitionPropName(KafkaSource.PREVIOUS_START_FETCH_EPOCH_TIME, index),
+          wu.getProp(KafkaSource.PREVIOUS_START_FETCH_EPOCH_TIME));
+      workUnit.setProp(KafkaUtils.getPartitionPropName(KafkaSource.PREVIOUS_STOP_FETCH_EPOCH_TIME, index),
+          wu.getProp(KafkaSource.PREVIOUS_STOP_FETCH_EPOCH_TIME));
+      workUnit.setProp(KafkaUtils.getPartitionPropName(KafkaSource.PREVIOUS_LOW_WATERMARK, index),
+          wu.getProp(KafkaSource.PREVIOUS_LOW_WATERMARK));
+      workUnit.setProp(KafkaUtils.getPartitionPropName(KafkaSource.PREVIOUS_HIGH_WATERMARK, index),
+          wu.getProp(KafkaSource.PREVIOUS_HIGH_WATERMARK));
       workUnit.setProp(KafkaUtils.getPartitionPropName(KafkaSource.PREVIOUS_OFFSET_FETCH_EPOCH_TIME, index),
           wu.getProp(KafkaSource.PREVIOUS_OFFSET_FETCH_EPOCH_TIME));
       workUnit.setProp(KafkaUtils.getPartitionPropName(KafkaSource.OFFSET_FETCH_EPOCH_TIME, index),
@@ -233,6 +262,10 @@ public abstract class KafkaWorkUnitPacker {
           wu.getProp(KafkaSource.PREVIOUS_LATEST_OFFSET));
       index++;
     }
+    workUnit.removeProp(KafkaSource.PREVIOUS_START_FETCH_EPOCH_TIME);
+    workUnit.removeProp(KafkaSource.PREVIOUS_STOP_FETCH_EPOCH_TIME);
+    workUnit.removeProp(KafkaSource.PREVIOUS_LOW_WATERMARK);
+    workUnit.removeProp(KafkaSource.PREVIOUS_HIGH_WATERMARK);
     workUnit.removeProp(KafkaSource.PREVIOUS_OFFSET_FETCH_EPOCH_TIME);
     workUnit.removeProp(KafkaSource.OFFSET_FETCH_EPOCH_TIME);
     workUnit.removeProp(KafkaSource.PREVIOUS_LATEST_OFFSET);
@@ -250,7 +283,7 @@ public abstract class KafkaWorkUnitPacker {
   /**
    * Add a list of partitions of the same topic to a {@link WorkUnit}.
    */
-  private static void populateMultiPartitionWorkUnit(List<KafkaPartition> partitions, WorkUnit workUnit) {
+  static void populateMultiPartitionWorkUnit(List<KafkaPartition> partitions, WorkUnit workUnit) {
     Preconditions.checkArgument(!partitions.isEmpty(), "There should be at least one partition");
     GobblinMetrics.addCustomTagToState(workUnit, new Tag<>("kafkaTopic", partitions.get(0).getTopicName()));
     for (int i = 0; i < partitions.size(); i++) {
@@ -262,13 +295,12 @@ public abstract class KafkaWorkUnitPacker {
     }
   }
 
-  private static List<KafkaPartition> getPartitionsFromMultiWorkUnit(MultiWorkUnit multiWorkUnit) {
+  static List<KafkaPartition> getPartitionsFromMultiWorkUnit(MultiWorkUnit multiWorkUnit) {
     List<KafkaPartition> partitions = Lists.newArrayList();
 
     for (WorkUnit workUnit : multiWorkUnit.getWorkUnits()) {
       partitions.add(KafkaUtils.getPartition(workUnit));
     }
-
     return partitions;
   }
 
@@ -296,11 +328,21 @@ public abstract class KafkaWorkUnitPacker {
       addWorkUnitToMultiWorkUnit(group, lightestMultiWorkUnit);
       pQueue.add(lightestMultiWorkUnit);
     }
+    LinkedList<MultiWorkUnit> pQueue_filtered = new LinkedList();
+    while(!pQueue.isEmpty()) {
+      MultiWorkUnit multiWorkUnit = pQueue.poll();
+      if(multiWorkUnit.getWorkUnits().size() != 0) {
+        pQueue_filtered.offer(multiWorkUnit);
+      }
+    }
 
-    logMultiWorkUnitInfo(pQueue);
+    if (pQueue_filtered.isEmpty()) {
+      return Lists.newArrayList();
+    }
 
-    double minLoad = getWorkUnitEstLoad(pQueue.peekFirst());
-    double maxLoad = getWorkUnitEstLoad(pQueue.peekLast());
+    logMultiWorkUnitInfo(pQueue_filtered);
+    double minLoad = getWorkUnitEstLoad(pQueue_filtered.peekFirst());
+    double maxLoad = getWorkUnitEstLoad(pQueue_filtered.peekLast());
     LOG.info(String.format("Min load of multiWorkUnit = %f; Max load of multiWorkUnit = %f; Diff = %f%%", minLoad,
         maxLoad, (maxLoad - minLoad) / maxLoad * 100.0));
 
@@ -308,7 +350,7 @@ public abstract class KafkaWorkUnitPacker {
     this.state.setProp(MAX_MULTIWORKUNIT_LOAD, maxLoad);
 
     List<WorkUnit> multiWorkUnits = Lists.newArrayList();
-    multiWorkUnits.addAll(pQueue);
+    multiWorkUnits.addAll(pQueue_filtered);
     return multiWorkUnits;
   }
 
@@ -329,26 +371,55 @@ public abstract class KafkaWorkUnitPacker {
   }
 
   public static KafkaWorkUnitPacker getInstance(AbstractSource<?, ?> source, SourceState state) {
+    return getInstance(source, state, Optional.absent());
+  }
+
+  public static KafkaWorkUnitPacker getInstance(AbstractSource<?, ?> source, SourceState state,
+      Optional<MetricContext> metricContext) {
     if (state.contains(KAFKA_WORKUNIT_PACKER_TYPE)) {
       String packerTypeStr = state.getProp(KAFKA_WORKUNIT_PACKER_TYPE);
       Optional<PackerType> packerType = Enums.getIfPresent(PackerType.class, packerTypeStr);
       if (packerType.isPresent()) {
-        return getInstance(packerType.get(), source, state);
+        return getInstance(packerType.get(), source, state, metricContext);
       }
       throw new IllegalArgumentException("WorkUnit packer type " + packerTypeStr + " not found");
     }
-    return getInstance(DEFAULT_PACKER_TYPE, source, state);
+    return getInstance(DEFAULT_PACKER_TYPE, source, state, metricContext);
   }
 
-  public static KafkaWorkUnitPacker getInstance(PackerType packerType, AbstractSource<?, ?> source, SourceState state) {
+  public static KafkaWorkUnitPacker getInstance(PackerType packerType, AbstractSource<?, ?> source, SourceState state, Optional<MetricContext> metricContext) {
     switch (packerType) {
       case SINGLE_LEVEL:
         return new KafkaSingleLevelWorkUnitPacker(source, state);
       case BI_LEVEL:
         return new KafkaBiLevelWorkUnitPacker(source, state);
+      case CUSTOM:
+        Preconditions.checkArgument(state.contains(KAFKA_WORKUNIT_PACKER_CUSTOMIZED_TYPE));
+        String className = state.getProp(KAFKA_WORKUNIT_PACKER_CUSTOMIZED_TYPE);
+        try {
+          return (KafkaWorkUnitPacker) GobblinConstructorUtils.invokeLongestConstructor(Class.forName(className), source, state, metricContext);
+        } catch (ReflectiveOperationException e) {
+          throw new RuntimeException(e);
+        }
       default:
         throw new IllegalArgumentException("WorkUnit packer type " + packerType + " not found");
     }
+  }
+
+  /**
+   * Calculate the total size of the workUnits and set the estimated size for each workUnit
+   * @param workUnitsByTopic
+   * @return the total size of the input workUnits
+   */
+  public double setWorkUnitEstSizes(Map<String, List<WorkUnit>> workUnitsByTopic) {
+    double totalEstDataSize = 0;
+    for (List<WorkUnit> workUnitsForTopic : workUnitsByTopic.values()) {
+      for (WorkUnit workUnit : workUnitsForTopic) {
+        setWorkUnitEstSize(workUnit);
+        totalEstDataSize += getWorkUnitEstSize(workUnit);
+      }
+    }
+    return totalEstDataSize;
   }
 
   /**

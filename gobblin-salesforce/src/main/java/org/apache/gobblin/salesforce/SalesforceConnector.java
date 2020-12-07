@@ -23,6 +23,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
+import org.apache.http.client.HttpClient;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpRequestBase;
@@ -66,6 +67,11 @@ public class SalesforceConnector extends RestApiConnector {
     log.debug("Authenticating salesforce");
     String clientId = this.state.getProp(ConfigurationKeys.SOURCE_CONN_CLIENT_ID);
     String clientSecret = this.state.getProp(ConfigurationKeys.SOURCE_CONN_CLIENT_SECRET);
+    if (this.state.getPropAsBoolean(ConfigurationKeys.SOURCE_CONN_DECRYPT_CLIENT_SECRET, false)) {
+      PasswordManager passwordManager = PasswordManager.getInstance(this.state);
+      clientId = passwordManager.readPassword(clientId);
+      clientSecret = passwordManager.readPassword(clientSecret);
+    }
     String host = this.state.getProp(ConfigurationKeys.SOURCE_CONN_HOST_NAME);
 
     List<NameValuePair> formParams = Lists.newArrayList();
@@ -77,7 +83,8 @@ public class SalesforceConnector extends RestApiConnector {
       String userName = this.state.getProp(ConfigurationKeys.SOURCE_CONN_USERNAME);
       String password = PasswordManager.getInstance(this.state)
           .readPassword(this.state.getProp(ConfigurationKeys.SOURCE_CONN_PASSWORD));
-      String securityToken = this.state.getProp(ConfigurationKeys.SOURCE_CONN_SECURITY_TOKEN);
+      String securityToken = PasswordManager.getInstance(this.state)
+          .readPassword(this.state.getProp(ConfigurationKeys.SOURCE_CONN_SECURITY_TOKEN));
       formParams.add(new BasicNameValuePair("grant_type", "password"));
       formParams.add(new BasicNameValuePair("username", userName));
       formParams.add(new BasicNameValuePair("password", password + securityToken));
@@ -89,11 +96,7 @@ public class SalesforceConnector extends RestApiConnector {
     try {
       HttpPost post = new HttpPost(host + DEFAULT_AUTH_TOKEN_PATH);
       post.setEntity(new UrlEncodedFormEntity(formParams));
-
-      HttpResponse httpResponse = getHttpClient().execute(post);
-      HttpEntity httpEntity = httpResponse.getEntity();
-
-      return httpEntity;
+      return getHttpClient().execute(post).getEntity();
     } catch (Exception e) {
       throw new RestApiConnectionException("Failed to authenticate salesforce host:"
           + host + "; error-" + e.getMessage(), e);

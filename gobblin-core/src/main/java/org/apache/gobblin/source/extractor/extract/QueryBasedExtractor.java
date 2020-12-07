@@ -367,11 +367,11 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
   /**
    * if snapshot extract, get latest watermark else return work unit high watermark
    *
-   * @param watermark column
-   * @param low watermark value
-   * @param high watermark value
-   * @param column format
-   * @return letst watermark
+   * @param watermarkColumn watermark column
+   * @param lwmValue low watermark value
+   * @param hwmValue high watermark value
+   * @param watermarkType watermark type
+   * @return latest watermark
    * @throws IOException
    */
   private long getLatestWatermark(String watermarkColumn, WatermarkType watermarkType, long lwmValue, long hwmValue)
@@ -429,8 +429,7 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
 
   /**
    * add predicate to the predicate list
-   * @param Predicate(watermark column,type,format and condition)
-   * @return watermark list
+   * @param predicate watermark predicate(watermark column,type,format and condition)
    */
   private void addPredicates(Predicate predicate) {
     if (predicate != null) {
@@ -439,8 +438,8 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
   }
 
   /**
-   * @param given list of watermark columns
-   * @param column name to search for
+   * @param watermarkColumn list of watermark columns
+   * @param columnName name to search for
    * @return true, if column name is part of water mark columns. otherwise, return false
    */
   protected boolean isWatermarkColumn(String watermarkColumn, String columnName) {
@@ -458,7 +457,7 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
   }
 
   /**
-   * @param given list of watermark columns
+   * @param watermarkColumn list of watermark columns
    * @return true, if there are multiple water mark columns. otherwise, return false
    */
   protected boolean hasMultipleWatermarkColumns(String watermarkColumn) {
@@ -470,8 +469,8 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
   }
 
   /**
-   * @param given list of primary key columns
-   * @param column name to search for
+   * @param primarykeyColumn list of primary key columns
+   * @param columnName name to search for
    * @return index of the column if it exist in given list of primary key columns. otherwise, return 0
    */
   protected int getPrimarykeyIndex(String primarykeyColumn, String columnName) {
@@ -487,8 +486,8 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
   }
 
   /**
-   * @param column name to search for
-   * @param list of metadata columns
+   * @param columnName name to search for
+   * @param columnList list of metadata columns
    * @return true if column is part of metadata columns. otherwise, return false.
    */
   protected boolean isMetadataColumn(String columnName, List<String> columnList) {
@@ -508,10 +507,10 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
   }
 
   /**
-   * @param column name
-   * @param data type
-   * @param data type of elements
-   * @param elements
+   * @param columnName column name
+   * @param type data type
+   * @param elementType type of elements
+   * @param enumSymbols emum symbols
    * @return converted data type
    */
   protected JsonObject convertDataType(String columnName, String type, String elementType, List<String> enumSymbols) {
@@ -534,7 +533,7 @@ public abstract class QueryBasedExtractor<S, D> implements Extractor<S, D>, Prot
   }
 
   /**
-   * @param predicate list
+   * @param predicateList predicate list
    * @return true, if there are any predicates. otherwise, return false.
    */
   protected boolean isPredicateExists(List<Predicate> predicateList) {

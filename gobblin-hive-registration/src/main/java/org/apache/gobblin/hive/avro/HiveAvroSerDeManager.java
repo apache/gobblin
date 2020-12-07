@@ -56,6 +56,10 @@ public class HiveAvroSerDeManager extends HiveSerDeManager {
   public static final boolean DEFAULT_USE_SCHEMA_FILE = false;
   public static final String SCHEMA_FILE_NAME = "schema.file.name";
   public static final String DEFAULT_SCHEMA_FILE_NAME = "_schema.avsc";
+  public static final String SCHEMA_TEMP_FILE_NAME = "schema.temp.file.name";
+  public static final String DEFAULT_SCHEMA_TEMP_FILE_NAME = "_schema_temp.avsc";
+  public static final String USE_SCHEMA_TEMP_FILE = "use.schema.temp.file";
+  public static final boolean DEFAULT_USE_SCHEMA_TEMP_FILE = false;
   public static final String SCHEMA_LITERAL_LENGTH_LIMIT = "schema.literal.length.limit";
   public static final int DEFAULT_SCHEMA_LITERAL_LENGTH_LIMIT = 4000;
   public static final String HIVE_SPEC_SCHEMA_READING_TIMER = "hiveAvroSerdeManager.schemaReadTimer";
@@ -64,6 +68,8 @@ public class HiveAvroSerDeManager extends HiveSerDeManager {
   protected final FileSystem fs;
   protected final boolean useSchemaFile;
   protected final String schemaFileName;
+  protected final boolean useSchemaTempFile;
+  protected final String schemaTempFileName;
   protected final int schemaLiteralLengthLimit;
   protected final HiveSerDeWrapper serDeWrapper = HiveSerDeWrapper.get("AVRO");
 
@@ -79,7 +85,9 @@ public class HiveAvroSerDeManager extends HiveSerDeManager {
     }
 
     this.useSchemaFile = props.getPropAsBoolean(USE_SCHEMA_FILE, DEFAULT_USE_SCHEMA_FILE);
+    this.useSchemaTempFile = props.getPropAsBoolean(USE_SCHEMA_TEMP_FILE, DEFAULT_USE_SCHEMA_TEMP_FILE);
     this.schemaFileName = props.getProp(SCHEMA_FILE_NAME, DEFAULT_SCHEMA_FILE_NAME);
+    this.schemaTempFileName = props.getProp(SCHEMA_TEMP_FILE_NAME, DEFAULT_SCHEMA_TEMP_FILE_NAME);
     this.schemaLiteralLengthLimit =
         props.getPropAsInt(SCHEMA_LITERAL_LENGTH_LIMIT, DEFAULT_SCHEMA_LITERAL_LENGTH_LIMIT);
 
@@ -103,11 +111,18 @@ public class HiveAvroSerDeManager extends HiveSerDeManager {
    */
   @Override
   public void addSerDeProperties(Path path, HiveRegistrationUnit hiveUnit) throws IOException {
+    Preconditions.checkArgument(this.fs.getFileStatus(path).isDirectory(), path + " is not a directory.");
+    Schema schema;
+    try (Timer.Context context = metricContext.timer(HIVE_SPEC_SCHEMA_READING_TIMER).time()) {
+      schema = getDirectorySchema(path);
+    }
+    if (schema == null) {
+      return;
+    }
     hiveUnit.setSerDeType(this.serDeWrapper.getSerDe().getClass().getName());
     hiveUnit.setInputFormat(this.serDeWrapper.getInputFormatClassName());
     hiveUnit.setOutputFormat(this.serDeWrapper.getOutputFormatClassName());
-
-    addSchemaProperties(path, hiveUnit);
+    addSchemaPropertiesIfRequired(path, hiveUnit, schema);
   }
 
   @Override
@@ -129,19 +144,15 @@ public class HiveAvroSerDeManager extends HiveSerDeManager {
     }
   }
 
-  private void addSchemaProperties(Path path, HiveRegistrationUnit hiveUnit) throws IOException {
-    Preconditions.checkArgument(this.fs.getFileStatus(path).isDirectory(), path + " is not a directory.");
-
-    Path schemaFile = new Path(path, this.schemaFileName);
-    if (this.useSchemaFile) {
-      hiveUnit.setSerDeProp(SCHEMA_URL, schemaFile.toString());
-    } else {
-      Schema schema ;
-      try (Timer.Context context = metricContext.timer(HIVE_SPEC_SCHEMA_READING_TIMER).time()) {
-        schema = getDirectorySchema(path);
-      }
-      try (Timer.Context context = metricContext.timer(HIVE_SPEC_SCHEMA_WRITING_TIMER).time()) {
-        addSchemaFromAvroFile(schema, schemaFile, hiveUnit);
+  private void addSchemaPropertiesIfRequired(Path path, HiveRegistrationUnit hiveUnit, Schema schema) throws IOException {
+    if (hiveUnit.isRegisterSchema()) {
+      Path schemaFile = new Path(path, this.schemaFileName);
+      if (this.useSchemaFile) {
+        hiveUnit.setSerDeProp(SCHEMA_URL, schemaFile.toString());
+      } else {
+        try (Timer.Context context = metricContext.timer(HIVE_SPEC_SCHEMA_WRITING_TIMER).time()) {
+          addSchemaFromAvroFile(schema, schemaFile, hiveUnit);
+        }
       }
     }
   }
@@ -170,7 +181,13 @@ public class HiveAvroSerDeManager extends HiveSerDeManager {
     if (schemaStr.length() <= this.schemaLiteralLengthLimit) {
       hiveUnit.setSerDeProp(SCHEMA_LITERAL, schema.toString());
     } else {
-      AvroUtils.writeSchemaToFile(schema, schemaFile, this.fs, true);
+      Path schemaTempFile = null;
+
+      if (useSchemaTempFile) {
+        schemaTempFile = new Path(schemaFile.getParent(), this.schemaTempFileName);
+      }
+
+      AvroUtils.writeSchemaToFile(schema, schemaFile, schemaTempFile, this.fs, true);
       log.info("Using schema file " + schemaFile.toString());
       hiveUnit.setSerDeProp(SCHEMA_URL, schemaFile.toString());
     }

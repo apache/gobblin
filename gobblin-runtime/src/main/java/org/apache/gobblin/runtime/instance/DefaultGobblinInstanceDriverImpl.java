@@ -36,17 +36,20 @@ import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.runtime.JobState.RunningState;
 import org.apache.gobblin.runtime.api.Configurable;
+import org.apache.gobblin.runtime.api.ExecutionResult;
 import org.apache.gobblin.runtime.api.GobblinInstanceDriver;
 import org.apache.gobblin.runtime.api.GobblinInstanceLauncher.ConfigAccessor;
 import org.apache.gobblin.runtime.api.JobCatalog;
 import org.apache.gobblin.runtime.api.JobExecutionDriver;
 import org.apache.gobblin.runtime.api.JobExecutionLauncher;
+import org.apache.gobblin.runtime.api.JobExecutionMonitor;
 import org.apache.gobblin.runtime.api.JobExecutionState;
 import org.apache.gobblin.runtime.api.JobLifecycleListener;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.JobSpecMonitorFactory;
 import org.apache.gobblin.runtime.api.JobSpecScheduler;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
+import org.apache.gobblin.runtime.job_exec.JobLauncherExecutionDriver;
 import org.apache.gobblin.runtime.job_spec.ResolvedJobSpec;
 import org.apache.gobblin.runtime.std.DefaultJobCatalogListenerImpl;
 import org.apache.gobblin.runtime.std.DefaultJobExecutionStateListenerImpl;
@@ -206,9 +209,13 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
     @Override
     public void run() {
       try {
-         JobExecutionDriver driver = _jobLauncher.launchJob(new ResolvedJobSpec(_jobSpec, _instanceDriver));
-         _callbacksDispatcher.onJobLaunch(driver);
-         driver.registerStateListener(new JobStateTracker());
+        JobExecutionMonitor monitor = _jobLauncher.launchJob(new ResolvedJobSpec(_jobSpec, _instanceDriver));
+        if (!(monitor instanceof JobLauncherExecutionDriver.JobExecutionMonitorAndDriver)) {
+          throw new UnsupportedOperationException(JobLauncherExecutionDriver.JobExecutionMonitorAndDriver.class.getName() + " is expected.");
+        }
+        JobExecutionDriver driver = ((JobLauncherExecutionDriver.JobExecutionMonitorAndDriver) monitor).getDriver();
+        _callbacksDispatcher.onJobLaunch(driver);
+        driver.registerStateListener(new JobStateTracker());
         ExecutorsUtils.newThreadFactory(Optional.of(_log), Optional.of("gobblin-instance-driver")).newThread(driver).start();
       }
       catch (Throwable t) {

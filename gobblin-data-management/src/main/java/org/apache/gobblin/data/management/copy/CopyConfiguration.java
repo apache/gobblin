@@ -23,7 +23,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 
-import org.apache.gobblin.util.request_allocation.ConcurrentBoundedPriorityIterable;
+import org.apache.gobblin.util.PropertiesUtils;
 import org.apache.gobblin.util.request_allocation.RequestAllocatorConfig;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -59,6 +59,8 @@ public class CopyConfiguration {
   public static final String INCLUDE_EMPTY_DIRECTORIES = COPY_PREFIX + ".includeEmptyDirectories";
   public static final String APPLY_FILTER_TO_DIRECTORIES = COPY_PREFIX + ".applyFilterToDirectories";
 
+  public static final String ENFORCE_FILE_LENGTH_MATCH = COPY_PREFIX + "enforce.fileLength.match";
+  public static final String DEFAULT_ENFORCE_FILE_LENGTH_MATCH = "true";
   public static final String PRIORITIZER_ALIAS_KEY = PRIORITIZATION_PREFIX + ".prioritizerAlias";
   public static final String MAX_COPY_PREFIX = PRIORITIZATION_PREFIX + ".maxCopy";
 
@@ -95,7 +97,7 @@ public class CopyConfiguration {
   private final Config config;
 
   private final boolean abortOnSingleDatasetFailure;
-
+  private final boolean enforceFileLengthMatch;
   public static class CopyConfigurationBuilder {
 
     private PreserveAttributes preserve;
@@ -133,7 +135,7 @@ public class CopyConfiguration {
         this.prioritizer = Optional.absent();
       }
       this.maxToCopy = CopyResourcePool.fromConfig(ConfigUtils.getConfigOrEmpty(this.config, MAX_COPY_PREFIX));
-
+      this.enforceFileLengthMatch = PropertiesUtils.getPropAsBoolean(properties, ENFORCE_FILE_LENGTH_MATCH, DEFAULT_ENFORCE_FILE_LENGTH_MATCH);
       this.storeRejectedRequestsSetting =
           properties.getProperty(CopyConfiguration.STORE_REJECTED_REQUESTS_KEY, DEFAULT_STORE_REJECTED_REQUESTS);
 

@@ -18,20 +18,14 @@ package org.apache.gobblin.config.store.hdfs;
 
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
-import com.google.common.base.Strings;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import org.apache.gobblin.config.store.api.ConfigStoreCreationException;
 import org.apache.gobblin.config.store.api.ConfigStoreFactory;
 import org.apache.gobblin.util.ConfigUtils;
 
@@ -44,7 +38,7 @@ import org.apache.gobblin.util.ConfigUtils;
  */
 public class SimpleHDFSConfigStoreFactory extends SimpleHadoopFilesystemConfigStoreFactory {
 
-  protected static final String HDFS_SCHEME_NAME = "hdfs";
+  public static final String HDFS_SCHEME_NAME = "hdfs";
 
   /** Instantiates a new instance using standard typesafe config defaults:
    * {@link ConfigFactory#load()} */

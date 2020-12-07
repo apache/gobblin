@@ -22,6 +22,7 @@ import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,6 +35,9 @@ import org.apache.gobblin.util.WriterUtils;
 
 
 public class RowLevelPolicyCheckerBuilder {
+  public static final String ROW_LEVEL_POLICY_CHECKER_TYPE = "rowLevelPolicyCheckerType";
+  public static final String DEFAULT_ROW_LEVEL_POLICY_CHECKER_TYPE = RowLevelPolicyChecker.class.getName();
+
   private final State state;
   private final int index;
 
@@ -84,7 +88,9 @@ public class RowLevelPolicyCheckerBuilder {
 
   public RowLevelPolicyChecker build()
       throws Exception {
-    return new RowLevelPolicyChecker(createPolicyList(), this.state.getId(),
+    String klazz = this.state.contains(ROW_LEVEL_POLICY_CHECKER_TYPE)
+        ? this.state.getProp(ROW_LEVEL_POLICY_CHECKER_TYPE) : DEFAULT_ROW_LEVEL_POLICY_CHECKER_TYPE;
+    return GobblinConstructorUtils.invokeConstructor(RowLevelPolicyChecker.class, klazz, createPolicyList(), this.state.getId(),
         WriterUtils.getWriterFS(this.state, 1, 0), this.state);
   }
 }

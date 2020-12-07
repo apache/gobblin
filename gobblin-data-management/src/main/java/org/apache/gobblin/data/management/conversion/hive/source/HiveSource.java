@@ -27,13 +27,6 @@ import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.lang.StringUtils;
-import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
-import org.apache.gobblin.broker.iface.SharedResourcesBroker;
-import org.apache.gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset;
-import org.apache.gobblin.dataset.DatasetConstants;
-import org.apache.gobblin.dataset.DatasetDescriptor;
-import org.apache.gobblin.metrics.event.lineage.LineageInfo;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
@@ -68,6 +61,7 @@ import org.apache.gobblin.data.management.conversion.hive.watermarker.PartitionL
 import org.apache.gobblin.data.management.copy.hive.HiveDataset;
 import org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder;
 import org.apache.gobblin.data.management.copy.hive.HiveUtils;
+import org.apache.gobblin.data.management.copy.hive.PartitionFilterGenerator;
 import org.apache.gobblin.data.management.copy.hive.filter.LookbackPartitionFilterGenerator;
 import org.apache.gobblin.dataset.IterableDatasetFinder;
 import org.apache.gobblin.instrumented.Instrumented;
@@ -111,11 +105,16 @@ import org.apache.gobblin.data.management.conversion.hive.extractor.HiveConvertE
 @Alpha
 public class HiveSource implements Source {
 
+  public static final String DISABLE_AVRO_CHAECK = "hive.source.disable.avro.check";
+  public static final boolean DEFAULT_DISABLE_AVRO_CHAECK = false;
   public static final String HIVE_SOURCE_MAXIMUM_LOOKBACK_DAYS_KEY = "hive.source.maximum.lookbackDays";
   public static final int DEFAULT_HIVE_SOURCE_MAXIMUM_LOOKBACK_DAYS = 3;
 
   public static final String HIVE_SOURCE_DATASET_FINDER_CLASS_KEY = "hive.dataset.finder.class";
   public static final String DEFAULT_HIVE_SOURCE_DATASET_FINDER_CLASS = HiveDatasetFinder.class.getName();
+
+  public static final String HIVE_SOURCE_DATASET_FINDER_PARTITION_FILTER_KEY = "hive.dataset.finder.partitionfilter.class";
+  public static final String DEFAULT_HIVE_SOURCE_DATASET_FINDER_PARTITION_FILTER_CLASS = LookbackPartitionFilterGenerator.class.getName();
 
   public static final String DISTCP_REGISTRATION_GENERATION_TIME_KEY = "registrationGenerationTimeMillis";
   public static final String HIVE_SOURCE_WATERMARKER_FACTORY_CLASS_KEY = "hive.source.watermarker.factoryClass";
@@ -152,10 +151,10 @@ public class HiveSource implements Source {
   protected HiveSourceWatermarker watermarker;
   protected IterableDatasetFinder<HiveDataset> datasetFinder;
   protected List<WorkUnit> workunits;
+  protected PartitionFilterGenerator partitionFilterGenerator;
   protected long maxLookBackTime;
   protected long beginGetWorkunitsTime;
   protected List<String> ignoreDataPathIdentifierList;
-  protected SharedResourcesBroker<GobblinScopeTypes> sharedJobBroker;
 
   protected final ClassAliasResolver<HiveBaseExtractorFactory> classAliasResolver =
       new ClassAliasResolver<>(HiveBaseExtractorFactory.class);
@@ -169,7 +168,7 @@ public class HiveSource implements Source {
 
       EventSubmitter.submit(Optional.of(this.eventSubmitter), EventConstants.CONVERSION_FIND_HIVE_TABLES_EVENT);
       Iterator<HiveDataset> iterator = this.datasetFinder.getDatasetsIterator();
-
+      boolean disableAvroCheck = state.getPropAsBoolean(DISABLE_AVRO_CHAECK, DEFAULT_DISABLE_AVRO_CHAECK);
       while (iterator.hasNext()) {
         HiveDataset hiveDataset = iterator.next();
         try (AutoReturnableObject<IMetaStoreClient> client = hiveDataset.getClientPool().getClient()) {
@@ -177,12 +176,12 @@ public class HiveSource implements Source {
           log.debug(String.format("Processing dataset: %s", hiveDataset));
 
           // Create workunits for partitions
-          if (HiveUtils.isPartitioned(hiveDataset.getTable())
+          if (hiveDataset.getTable().isPartitioned()
               && state.getPropAsBoolean(HIVE_SOURCE_CREATE_WORKUNITS_FOR_PARTITIONS,
               DEFAULT_HIVE_SOURCE_CREATE_WORKUNITS_FOR_PARTITIONS)) {
-            createWorkunitsForPartitionedTable(hiveDataset, client);
+            createWorkunitsForPartitionedTable(hiveDataset, client, disableAvroCheck);
           } else {
-            createWorkunitForNonPartitionedTable(hiveDataset);
+            createWorkunitForNonPartitionedTable(hiveDataset, disableAvroCheck);
           }
         }
       }
@@ -222,13 +221,18 @@ public class HiveSource implements Source {
     this.maxLookBackTime = new DateTime().minusDays(maxLookBackDays).getMillis();
     this.ignoreDataPathIdentifierList = COMMA_BASED_SPLITTER.splitToList(state.getProp(HIVE_SOURCE_IGNORE_DATA_PATH_IDENTIFIER_KEY,
         DEFAULT_HIVE_SOURCE_IGNORE_DATA_PATH_IDENTIFIER));
-    this.sharedJobBroker = state.getBroker();
+    this.partitionFilterGenerator = GobblinConstructorUtils.invokeConstructor(PartitionFilterGenerator.class,
+        state.getProp(HIVE_SOURCE_DATASET_FINDER_PARTITION_FILTER_KEY,
+        DEFAULT_HIVE_SOURCE_DATASET_FINDER_PARTITION_FILTER_CLASS), state.getProperties());
 
     silenceHiveLoggers();
   }
 
-
+  @Deprecated
   protected void createWorkunitForNonPartitionedTable(HiveDataset hiveDataset) throws IOException {
+    this.createWorkunitForNonPartitionedTable(hiveDataset, false);
+  }
+  protected void createWorkunitForNonPartitionedTable(HiveDataset hiveDataset, boolean disableAvroCheck) throws IOException {
     // Create workunits for tables
     try {
 
@@ -253,7 +257,7 @@ public class HiveSource implements Source {
             "Creating workunit for table %s as updateTime %s or createTime %s is greater than low watermark %s",
             hiveDataset.getTable().getCompleteName(), updateTime, hiveDataset.getTable().getTTable().getCreateTime(),
             lowWatermark.getValue()));
-        HiveWorkUnit hiveWorkUnit = workUnitForTable(hiveDataset);
+        HiveWorkUnit hiveWorkUnit = workUnitForTable(hiveDataset, disableAvroCheck);
 
         LongWatermark expectedDatasetHighWatermark =
             this.watermarker.getExpectedHighWatermark(hiveDataset.getTable(), tableProcessTime);
@@ -261,10 +265,7 @@ public class HiveSource implements Source {
 
         EventWorkunitUtils.setTableSlaEventMetadata(hiveWorkUnit, hiveDataset.getTable(), updateTime, lowWatermark.getValue(),
             this.beginGetWorkunitsTime);
-        if (hiveDataset instanceof ConvertibleHiveDataset) {
-          setLineageInfo((ConvertibleHiveDataset) hiveDataset, hiveWorkUnit, this.sharedJobBroker);
-          log.info("Added lineage event for dataset " + hiveDataset.getUrn());
-        }
+
         this.workunits.add(hiveWorkUnit);
         log.debug(String.format("Workunit added for table: %s", hiveWorkUnit));
 
@@ -284,30 +285,30 @@ public class HiveSource implements Source {
     }
   }
 
+  @Deprecated
   protected HiveWorkUnit workUnitForTable(HiveDataset hiveDataset) throws IOException {
+    return this.workUnitForTable(hiveDataset, false);
+  }
+
+  protected HiveWorkUnit workUnitForTable(HiveDataset hiveDataset, boolean disableAvroCheck) throws IOException {
     HiveWorkUnit hiveWorkUnit = new HiveWorkUnit(hiveDataset);
-    if (isAvro(hiveDataset.getTable())) {
+    if (disableAvroCheck || isAvro(hiveDataset.getTable())) {
       hiveWorkUnit.setTableSchemaUrl(this.avroSchemaManager.getSchemaUrl(hiveDataset.getTable()));
     }
     return hiveWorkUnit;
   }
 
+  @Deprecated
   protected void createWorkunitsForPartitionedTable(HiveDataset hiveDataset, AutoReturnableObject<IMetaStoreClient> client) throws IOException {
-    boolean setLineageInfo = false;
+     this.createWorkunitsForPartitionedTable(hiveDataset, client, false);
+  }
+
+  protected void createWorkunitsForPartitionedTable(HiveDataset hiveDataset, AutoReturnableObject<IMetaStoreClient> client, boolean disableAvroCheck) throws IOException {
+
     long tableProcessTime = new DateTime().getMillis();
     this.watermarker.onTableProcessBegin(hiveDataset.getTable(), tableProcessTime);
 
-    Optional<String> partitionFilter = Optional.absent();
-
-    // If the table is date partitioned, use the partition name to filter partitions older than lookback
-    if (hiveDataset.getProperties().containsKey(LookbackPartitionFilterGenerator.PARTITION_COLUMN)
-        && hiveDataset.getProperties().containsKey(LookbackPartitionFilterGenerator.DATETIME_FORMAT)
-        && hiveDataset.getProperties().containsKey(LookbackPartitionFilterGenerator.LOOKBACK)) {
-      partitionFilter =
-          Optional.of(new LookbackPartitionFilterGenerator(hiveDataset.getProperties()).getFilter(hiveDataset));
-      log.info(String.format("Getting partitions for %s using partition filter %s", hiveDataset.getTable()
-          .getCompleteName(), partitionFilter.get()));
-    }
+    Optional<String> partitionFilter = Optional.fromNullable(this.partitionFilterGenerator.getFilter(hiveDataset));
 
     List<Partition> sourcePartitions = HiveUtils.getPartitions(client.get(), hiveDataset.getTable(), partitionFilter);
 
@@ -336,17 +337,12 @@ public class HiveSource implements Source {
           LongWatermark expectedPartitionHighWatermark = this.watermarker.getExpectedHighWatermark(sourcePartition,
               tableProcessTime, partitionProcessTime);
 
-          HiveWorkUnit hiveWorkUnit = workUnitForPartition(hiveDataset, sourcePartition);
+          HiveWorkUnit hiveWorkUnit = workUnitForPartition(hiveDataset, sourcePartition, disableAvroCheck);
           hiveWorkUnit.setWatermarkInterval(new WatermarkInterval(lowWatermark, expectedPartitionHighWatermark));
 
           EventWorkunitUtils.setPartitionSlaEventMetadata(hiveWorkUnit, hiveDataset.getTable(), sourcePartition, updateTime,
               lowWatermark.getValue(), this.beginGetWorkunitsTime);
-          if (hiveDataset instanceof ConvertibleHiveDataset && !setLineageInfo) {
-            setLineageInfo((ConvertibleHiveDataset) hiveDataset, hiveWorkUnit, this.sharedJobBroker);
-            log.info("Added lineage event for dataset " + hiveDataset.getUrn());
-            // Add lineage information only once per hive table
-            setLineageInfo = true;
-          }
+
           workunits.add(hiveWorkUnit);
           log.info(String.format("Creating workunit for partition %s as updateTime %s is greater than low watermark %s",
               sourcePartition.getCompleteName(), updateTime, lowWatermark.getValue()));
@@ -369,9 +365,14 @@ public class HiveSource implements Source {
     }
   }
 
+  @Deprecated
   protected HiveWorkUnit workUnitForPartition(HiveDataset hiveDataset, Partition partition) throws IOException {
+    return this.workUnitForPartition(hiveDataset, partition, false);
+  }
+
+  protected HiveWorkUnit workUnitForPartition(HiveDataset hiveDataset, Partition partition, boolean disableAvroCheck) throws IOException {
     HiveWorkUnit hiveWorkUnit = new HiveWorkUnit(hiveDataset, partition);
-    if (isAvro(hiveDataset.getTable())) {
+    if (disableAvroCheck || isAvro(hiveDataset.getTable())) {
       hiveWorkUnit.setTableSchemaUrl(this.avroSchemaManager.getSchemaUrl(hiveDataset.getTable()));
       hiveWorkUnit.setPartitionSchemaUrl(this.avroSchemaManager.getSchemaUrl(partition));
     }
@@ -425,7 +426,7 @@ public class HiveSource implements Source {
    */
   @VisibleForTesting
   public boolean isOlderThanLookback(Partition partition) {
-     return new DateTime(getCreateTime(partition)).isBefore(this.maxLookBackTime);
+    return new DateTime(getCreateTime(partition)).isBefore(this.maxLookBackTime);
   }
 
   @VisibleForTesting
@@ -490,36 +491,5 @@ public class HiveSource implements Source {
 
   private boolean isAvro(Table table) {
     return AvroSerDe.class.getName().equals(table.getSd().getSerdeInfo().getSerializationLib());
-  }
-
-  public static void setLineageInfo(ConvertibleHiveDataset convertibleHiveDataset, WorkUnit workUnit,
-      SharedResourcesBroker<GobblinScopeTypes> sharedJobBroker)
-      throws IOException {
-    String sourceTable =
-        convertibleHiveDataset.getTable().getDbName() + "." + convertibleHiveDataset.getTable().getTableName();
-    DatasetDescriptor source = new DatasetDescriptor(DatasetConstants.PLATFORM_HIVE, sourceTable);
-    source.addMetadata(DatasetConstants.FS_URI,
-        convertibleHiveDataset.getTable().getDataLocation().getFileSystem(new Configuration()).getUri().toString());
-
-    int virtualBranch = 0;
-    for (String format : convertibleHiveDataset.getDestFormats()) {
-      ++virtualBranch;
-      Optional<ConvertibleHiveDataset.ConversionConfig> conversionConfigForFormat =
-          convertibleHiveDataset.getConversionConfigForFormat(format);
-      Optional<LineageInfo> lineageInfo = LineageInfo.getLineageInfo(sharedJobBroker);
-      if (!lineageInfo.isPresent()) {
-        continue;
-      } else if (!conversionConfigForFormat.isPresent()) {
-        continue;
-      }
-      String destTable = conversionConfigForFormat.get().getDestinationDbName() + "." + conversionConfigForFormat.get()
-          .getDestinationTableName();
-      DatasetDescriptor dest = new DatasetDescriptor(DatasetConstants.PLATFORM_HIVE, destTable);
-      Path destPath = new Path(conversionConfigForFormat.get().getDestinationDataPath());
-      dest.addMetadata(DatasetConstants.FS_URI, destPath.getFileSystem(new Configuration()).getUri().toString());
-
-      lineageInfo.get().setSource(source, workUnit);
-      lineageInfo.get().putDestination(dest, virtualBranch, workUnit);
-    }
   }
 }

@@ -16,19 +16,24 @@
  */
 package org.apache.gobblin.compaction.verify;
 
+import java.util.Map;
+
+import org.apache.hadoop.fs.Path;
+import org.testng.Assert;
+import org.testng.annotations.Test;
+
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
+
+import lombok.Getter;
+import lombok.Setter;
+
 import org.apache.gobblin.compaction.audit.AuditCountClient;
 import org.apache.gobblin.compaction.dataset.TimeBasedSubDirDatasetsFinder;
 import org.apache.gobblin.compaction.mapreduce.MRCompactor;
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.data.management.dataset.SimpleFileSystemDataset;
 import org.apache.gobblin.dataset.FileSystemDataset;
-import lombok.Getter;
-import lombok.Setter;
-import org.apache.hadoop.fs.Path;
-import org.testng.Assert;
-import org.testng.annotations.Test;
-import java.util.Map;
 
 /**
  * Class to test audit count verification logic
@@ -47,17 +52,8 @@ public class PinotAuditCountVerifierTest {
     final String inputSub = "hourly";
     final String outputSub = "hourly";
     TestAuditCountClient client = new TestAuditCountClient();
-    FileSystemDataset dataset = new FileSystemDataset() {
-      @Override
-      public Path datasetRoot() {
-        return new Path (input + topic + inputSub + "/2017/04/03/10");
-      }
-
-      @Override
-      public String datasetURN() {
-        return input + topic + inputSub + "/2017/04/03/10";
-      }
-    };
+    FileSystemDataset dataset = new SimpleFileSystemDataset(
+        new Path(input + topic + inputSub + "/2017/04/03/10"));
 
     State props = new State();
     props.setProp (CompactionAuditCountVerifier.PRODUCER_TIER, PRODUCER_TIER);

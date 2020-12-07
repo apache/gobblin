@@ -17,15 +17,6 @@
 
 package org.apache.gobblin.metastore;
 
-import com.google.common.base.Predicate;
-import com.google.common.base.Strings;
-import com.google.common.collect.Lists;
-import com.typesafe.config.Config;
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.password.PasswordManager;
-import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.util.io.StreamUtils;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -40,14 +31,32 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
-import javax.sql.DataSource;
+
 import org.apache.commons.dbcp.BasicDataSource;
 import org.apache.hadoop.io.Text;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Predicate;
+import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.typesafe.config.Config;
+
+import javax.sql.DataSource;
+
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.metastore.metadata.StateStoreEntryManager;
+import org.apache.gobblin.metastore.predicates.StateStorePredicate;
+import org.apache.gobblin.metastore.predicates.StoreNamePredicate;
+import org.apache.gobblin.password.PasswordManager;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.io.StreamUtils;
 
 /**
  * An implementation of {@link StateStore} backed by MySQL.
@@ -68,7 +77,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
 
   // Class of the state objects to be put into the store
   private final Class<T> stateClass;
-  private final DataSource dataSource;
+  protected final DataSource dataSource;
   private final boolean compressedValues;
 
   private static final String UPSERT_JOB_STATE_TEMPLATE =
@@ -81,11 +90,16 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
   private static final String SELECT_JOB_STATE_WITH_LIKE_TEMPLATE =
       "SELECT state FROM $TABLE$ WHERE store_name = ? and table_name like ?";
 
+  private static final String SELECT_ALL_JOBS_STATE = "SELECT state FROM $TABLE$";
+
   private static final String SELECT_JOB_STATE_EXISTS_TEMPLATE =
       "SELECT 1 FROM $TABLE$ WHERE store_name = ? and table_name = ?";
 
   private static final String SELECT_JOB_STATE_NAMES_TEMPLATE =
       "SELECT table_name FROM $TABLE$ WHERE store_name = ?";
+
+  private static final String SELECT_STORE_NAMES_TEMPLATE =
+      "SELECT distinct store_name FROM $TABLE$";
 
   private static final String DELETE_JOB_STORE_TEMPLATE =
       "DELETE FROM $TABLE$ WHERE store_name = ?";
@@ -99,6 +113,9 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
           + " store_name = ? AND table_name = ?)"
           + " ON DUPLICATE KEY UPDATE state = s.state";
 
+  private static final String SELECT_METADATA_TEMPLATE =
+      "SELECT store_name, table_name, modified_time from $TABLE$ where store_name like ?";
+
   // MySQL key length limit is 767 bytes
   private static final String CREATE_JOB_STATE_TABLE_TEMPLATE =
       "CREATE TABLE IF NOT EXISTS $TABLE$ (store_name varchar(100) CHARACTER SET latin1 COLLATE latin1_bin not null,"
@@ -108,12 +125,15 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
 
   private final String UPSERT_JOB_STATE_SQL;
   private final String SELECT_JOB_STATE_SQL;
+  private final String SELECT_ALL_JOBS_STATE_SQL;
   private final String SELECT_JOB_STATE_WITH_LIKE_SQL;
   private final String SELECT_JOB_STATE_EXISTS_SQL;
   private final String SELECT_JOB_STATE_NAMES_SQL;
   private final String DELETE_JOB_STORE_SQL;
   private final String DELETE_JOB_STATE_SQL;
   private final String CLONE_JOB_STATE_SQL;
+  private final String SELECT_STORE_NAMES_SQL;
+  protected final String SELECT_METADATA_SQL;
 
   /**
    * Manages the persistence and retrieval of {@link State} in a MySQL database
@@ -132,11 +152,14 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
     UPSERT_JOB_STATE_SQL = UPSERT_JOB_STATE_TEMPLATE.replace("$TABLE$", stateStoreTableName);
     SELECT_JOB_STATE_SQL = SELECT_JOB_STATE_TEMPLATE.replace("$TABLE$", stateStoreTableName);
     SELECT_JOB_STATE_WITH_LIKE_SQL = SELECT_JOB_STATE_WITH_LIKE_TEMPLATE.replace("$TABLE$", stateStoreTableName);
+    SELECT_ALL_JOBS_STATE_SQL = SELECT_ALL_JOBS_STATE.replace("$TABLE$", stateStoreTableName);
     SELECT_JOB_STATE_EXISTS_SQL = SELECT_JOB_STATE_EXISTS_TEMPLATE.replace("$TABLE$", stateStoreTableName);
     SELECT_JOB_STATE_NAMES_SQL = SELECT_JOB_STATE_NAMES_TEMPLATE.replace("$TABLE$", stateStoreTableName);
     DELETE_JOB_STORE_SQL = DELETE_JOB_STORE_TEMPLATE.replace("$TABLE$", stateStoreTableName);
     DELETE_JOB_STATE_SQL = DELETE_JOB_STATE_TEMPLATE.replace("$TABLE$", stateStoreTableName);
     CLONE_JOB_STATE_SQL = CLONE_JOB_STATE_TEMPLATE.replace("$TABLE$", stateStoreTableName);
+    SELECT_STORE_NAMES_SQL = SELECT_STORE_NAMES_TEMPLATE.replace("$TABLE$", stateStoreTableName);
+    SELECT_METADATA_SQL = SELECT_METADATA_TEMPLATE.replace("$TABLE$", stateStoreTableName);
 
     // create table if it does not exist
     String createJobTable = CREATE_JOB_STATE_TABLE_TEMPLATE.replace("$TABLE$", stateStoreTableName);
@@ -289,7 +312,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
 
               key.readFields(dis);
               state.readFields(dis);
-
+              state.setId(key.toString());
               if (key.toString().equals(stateId)) {
                 return state;
               }
@@ -316,33 +339,30 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
             SELECT_JOB_STATE_WITH_LIKE_SQL : SELECT_JOB_STATE_SQL)) {
       queryStatement.setString(1, storeName);
       queryStatement.setString(2, tableName);
-
-      try (ResultSet rs = queryStatement.executeQuery()) {
-        while (rs.next()) {
-          Blob blob = rs.getBlob(1);
-          Text key = new Text();
-
-          try (InputStream is = StreamUtils.isCompressed(blob.getBytes(1, 2)) ?
-              new GZIPInputStream(blob.getBinaryStream()) : blob.getBinaryStream();
-              DataInputStream dis = new DataInputStream(is)) {
-            // keep deserializing while we have data
-            while (dis.available() > 0) {
-              T state = this.stateClass.newInstance();
-              key.readString(dis);
-              state.readFields(dis);
-              states.add(state);
-            }
-          } catch (EOFException e) {
-            // no more data. GZIPInputStream.available() doesn't return 0 until after EOF.
-          }
-        }
-      }
+      execGetAllStatement(queryStatement, states);
     } catch (RuntimeException re) {
       throw re;
     } catch (Exception e) {
       throw new IOException("failure retrieving state from storeName " + storeName + " tableName " + tableName, e);
     }
+    return states;
+  }
 
+  /**
+   * An additional {@link #getAll()} method to retrieve all entries in a table.
+   *
+   */
+  public List<T> getAll() throws IOException {
+    List<T> states = Lists.newArrayList();
+
+    try (Connection connection = dataSource.getConnection();
+        PreparedStatement queryStatement = connection.prepareStatement(SELECT_ALL_JOBS_STATE_SQL)) {
+      execGetAllStatement(queryStatement, states);
+    } catch (RuntimeException re) {
+      throw re;
+    } catch (Exception e) {
+      throw new IOException(String.format("failure retrieving all states with the SQL[%s]", SELECT_ALL_JOBS_STATE_SQL), e);
+    }
     return states;
   }
 
@@ -354,6 +374,37 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
   @Override
   public List<T> getAll(String storeName) throws IOException {
     return getAll(storeName, "%", true);
+  }
+
+  /**
+   * An helper function extracted from getAll method originally that has side effects:
+   * - Executing queryStatement
+   * - Put the result into List<state> object.
+   * @throws SQLException
+   * @throws Exception
+   */
+  private void execGetAllStatement(PreparedStatement queryStatement, List<T> states) throws SQLException, Exception {
+    try (ResultSet rs = queryStatement.executeQuery()) {
+      while (rs.next()) {
+        Blob blob = rs.getBlob(1);
+        Text key = new Text();
+
+        try (InputStream is = StreamUtils.isCompressed(blob.getBytes(1, 2)) ?
+            new GZIPInputStream(blob.getBinaryStream()) : blob.getBinaryStream();
+            DataInputStream dis = new DataInputStream(is)) {
+          // keep deserializing while we have data
+          while (dis.available() > 0) {
+            T state = this.stateClass.newInstance();
+            String stateId = key.readString(dis);
+            state.readFields(dis);
+            state.setId(stateId);
+            states.add(state);
+          }
+        } catch (EOFException e) {
+          // no more data. GZIPInputStream.available() doesn't return 0 until after EOF.
+        }
+      }
+    }
   }
 
   @Override
@@ -378,6 +429,36 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
 
     return names;
   }
+
+  /**
+   * Get store names in the state store
+   *
+   * @param predicate only returns names matching predicate
+   * @return (possibly empty) list of store names from the given store
+   * @throws IOException
+   */
+  public List<String> getStoreNames(Predicate<String> predicate)
+      throws IOException {
+    List<String> names = Lists.newArrayList();
+
+    try (Connection connection = dataSource.getConnection();
+        PreparedStatement queryStatement = connection.prepareStatement(SELECT_STORE_NAMES_SQL)) {
+
+      try (ResultSet rs = queryStatement.executeQuery()) {
+        while (rs.next()) {
+          String name = rs.getString(1);
+          if (predicate.apply(name)) {
+            names.add(name);
+          }
+        }
+      }
+    } catch (SQLException e) {
+      throw new IOException(String.format("Could not query store names"), e);
+    }
+
+    return names;
+  }
+
 
   @Override
   public void createAlias(String storeName, String original, String alias) throws IOException {
@@ -422,6 +503,68 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
       connection.commit();
     } catch (SQLException e) {
       throw new IOException("failure deleting storeName " + storeName, e);
+    }
+  }
+
+  /**
+   * Gets entry managers for all tables matching the predicate
+   * @param predicate Predicate used to filter tables. To allow state stores to push down predicates, use native extensions
+   *                  of {@link StateStorePredicate}.
+   * @throws IOException
+   */
+  @Override
+  public List<? extends StateStoreEntryManager> getMetadataForTables(StateStorePredicate predicate)
+      throws IOException {
+    List<MysqlStateStoreEntryManager> entryManagers = Lists.newArrayList();
+
+    try (Connection connection = dataSource.getConnection();
+        PreparedStatement queryStatement = connection.prepareStatement(SELECT_METADATA_SQL)) {
+      String storeName = predicate instanceof StoreNamePredicate ? ((StoreNamePredicate) predicate).getStoreName() : "%";
+      queryStatement.setString(1, storeName);
+
+      try (ResultSet rs = queryStatement.executeQuery()) {
+        while (rs.next()) {
+          String rsStoreName = rs.getString(1);
+          String rsTableName = rs.getString(2);
+          Timestamp timestamp = rs.getTimestamp(3);
+
+          StateStoreEntryManager entryManager =
+              new MysqlStateStoreEntryManager(rsStoreName, rsTableName, timestamp.getTime(), this);
+
+          if (predicate.apply(entryManager)) {
+            entryManagers.add(new MysqlStateStoreEntryManager(rsStoreName, rsTableName, timestamp.getTime(), this));
+          }
+        }
+      }
+    } catch (SQLException e) {
+      throw new IOException("failure getting metadata for tables", e);
+    }
+
+    return entryManagers;
+  }
+
+  /**
+   * For setting timestamps in tests
+   * @param timestamp 0 to set to default, non-zero to set an epoch time
+   * @throws SQLException
+   */
+  @VisibleForTesting
+  public void setTestTimestamp(long timestamp) throws IOException {
+    String statement = "SET TIMESTAMP =";
+
+    // 0 is used to reset to the default
+    if (timestamp > 0 ) {
+      statement += timestamp;
+    } else {
+      statement += " DEFAULT";
+    }
+
+    try (Connection connection = dataSource.getConnection();
+        PreparedStatement queryStatement =
+            connection.prepareStatement(statement)) {
+      queryStatement.execute();
+    } catch (SQLException e) {
+      throw new IOException("Could not set timestamp " + timestamp, e);
     }
   }
 }

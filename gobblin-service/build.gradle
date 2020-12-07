@@ -30,6 +30,7 @@ dependencies {
   compile project(":gobblin-restli:gobblin-flow-config-service:gobblin-flow-config-service-server")
   compile project(":gobblin-restli:gobblin-flow-config-service:gobblin-flow-config-service-client")
   compile project(":gobblin-restli:gobblin-restli-utils")
+  compile project(":gobblin-modules:gobblin-azkaban")
 
   compile externalDependency.avro
   compile externalDependency.avroMapredH2
@@ -59,19 +60,21 @@ dependencies {
   compile externalDependency.jgit
   compile externalDependency.jodaTime
   compile externalDependency.jgrapht
-  compile externalDependency.kafka08
-  compile externalDependency.log4j
-  compile externalDependency.lombok
   compile externalDependency.metricsCore
   compile externalDependency.metricsJvm
   compile externalDependency.pegasus.data
   compile externalDependency.quartz
-  compile externalDependency.scala
   compile externalDependency.slf4j
   compile externalDependency.typesafeConfig
   compile externalDependency.zkClient
+  compile externalDependency.joptSimple
 
   testCompile project(":gobblin-example")
+
+  // Required for adding Test class into classpath
+  testCompile project(":gobblin-runtime").sourceSets.test.output
+  testCompile project(path: ":gobblin-metastore", configuration: "testFixtures")
+  testCompile project(":gobblin-test-utils")
   testCompile externalDependency.byteman
   testCompile externalDependency.bytemanBmunit
   testCompile externalDependency.calciteCore
@@ -87,14 +90,27 @@ dependencies {
 // Begin HACK to get around POM being depenendent on the (empty) gobblin-rest-api instead of gobblin-rest-api-rest-client
 def installer = install.repositories.mavenInstaller
 [installer]*.pom*.whenConfigured {pom ->
-    pom.dependencies.find {dep -> dep.groupId == project.group && dep.artifactId == 'gobblin-flow-config-service-api' }.artifactId = 'gobblin-flow-config-service-api-rest-client'
-    pom.dependencies.find {dep -> dep.groupId == project.group && dep.artifactId == 'gobblin-flow-config-service-api' }.artifactId = 'gobblin-flow-config-service-api-data-template'
+  def it = pom.dependencies
+  def s = it.find {dep -> dep.groupId == project.group && dep.artifactId == 'gobblin-flow-config-service-api' }
+  if (s != null) {
+    def t = s.clone()
+    t.artifactId = 'gobblin-flow-config-service-api-data-template'
+    it.add(t)
+    s.artifactId = 'gobblin-flow-config-service-api-rest-client'
+  }
 }
+
 if (rootProject.publishToMaven || rootProject.publishToNexus) {
     def deployer = uploadArchives.repositories.mavenDeployer
     [deployer]*.pom*.whenConfigured {pom ->
-        pom.dependencies.find {dep -> dep.groupId == project.group && dep.artifactId == 'gobblin-flow-config-service-api' }.artifactId = 'gobblin-flow-config-service-api-rest-client'
-        pom.dependencies.find {dep -> dep.groupId == project.group && dep.artifactId == 'gobblin-flow-config-service-api' }.artifactId = 'gobblin-flow-config-service-api-data-template'
+      def it = pom.dependencies
+      def s = it.find {dep -> dep.groupId == project.group && dep.artifactId == 'gobblin-flow-config-service-api' }
+      if (s != null) {
+        def t = s.clone()
+        t.artifactId = 'gobblin-flow-config-service-api-data-template'
+        it.add(t)
+        s.artifactId = 'gobblin-flow-config-service-api-rest-client'
+      }
     }
 }
 // End HACK

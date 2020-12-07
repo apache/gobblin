@@ -1,0 +1,11 @@
+resources:
+  - deployment.yaml
+  - storage.yaml
+  - service.yaml
+  - ingress.yaml
+configMapGenerator:
+  # only used for development purposes to allow an easy way to expose template files to GaaS
+  # add flow templates here
+  - name: flowconfig-templates
+    files:
+      - flowconfig-templates/distcp.template

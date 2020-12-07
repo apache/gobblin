@@ -18,10 +18,12 @@
 package org.apache.gobblin.cluster;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
 
-import javax.annotation.Nullable;
+import org.apache.gobblin.cluster.event.CancelJobConfigArrivalEvent;
+import org.apache.gobblin.runtime.job_spec.JobSpecResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,11 +32,14 @@ import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
 
+import javax.annotation.Nullable;
+
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.cluster.event.DeleteJobConfigArrivalEvent;
 import org.apache.gobblin.cluster.event.NewJobConfigArrivalEvent;
 import org.apache.gobblin.cluster.event.UpdateJobConfigArrivalEvent;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.instrumented.StandardMetricsBridge;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.SchedulerUtils;
 
@@ -57,13 +62,14 @@ import org.apache.gobblin.util.SchedulerUtils;
  * @author Yinan Li
  */
 @Alpha
-public class JobConfigurationManager extends AbstractIdleService {
+public class JobConfigurationManager extends AbstractIdleService implements StandardMetricsBridge {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(JobConfigurationManager.class);
 
   protected final EventBus eventBus;
   protected final Config config;
   protected Optional<String> jobConfDirPath;
+  protected final JobSpecResolver jobSpecResolver;
 
   public JobConfigurationManager(EventBus eventBus, Config config) {
     this.eventBus = eventBus;
@@ -72,6 +78,11 @@ public class JobConfigurationManager extends AbstractIdleService {
     this.jobConfDirPath =
         config.hasPath(GobblinClusterConfigurationKeys.JOB_CONF_PATH_KEY) ? Optional
             .of(config.getString(GobblinClusterConfigurationKeys.JOB_CONF_PATH_KEY)) : Optional.<String>absent();
+    try {
+      this.jobSpecResolver = JobSpecResolver.builder(config).build();
+    } catch (IOException ioe) {
+      throw new RuntimeException(ioe);
+    }
   }
 
   @Override
@@ -92,7 +103,7 @@ public class JobConfigurationManager extends AbstractIdleService {
         LOGGER.info("Loading job configurations from " + jobConfigDir);
         Properties properties = ConfigUtils.configToProperties(this.config);
         properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, "file://" + jobConfigDir.getAbsolutePath());
-        List<Properties> jobConfigs = SchedulerUtils.loadGenericJobConfigs(properties);
+        List<Properties> jobConfigs = SchedulerUtils.loadGenericJobConfigs(properties, this.jobSpecResolver);
         LOGGER.info("Loaded " + jobConfigs.size() + " job configuration(s)");
         for (Properties config : jobConfigs) {
           postNewJobConfigArrival(config.getProperty(ConfigurationKeys.JOB_NAME_KEY), config);
@@ -121,5 +132,10 @@ public class JobConfigurationManager extends AbstractIdleService {
   protected void postDeleteJobConfigArrival(String jobName, @Nullable Properties jobConfig) {
     LOGGER.info(String.format("Posting delete JobConfig with name: %s and config: %s", jobName, jobConfig));
     this.eventBus.post(new DeleteJobConfigArrivalEvent(jobName, jobConfig));
+  }
+
+  protected void postCancelJobConfigArrival(String jobUri) {
+    LOGGER.info(String.format("Posting cancel JobConfig with name: %s", jobUri));
+    this.eventBus.post(new CancelJobConfigArrivalEvent(jobUri));
   }
 }

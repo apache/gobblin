@@ -1,0 +1,4 @@
+bases:
+  - ../mysql-cluster
+patchesStrategicMerge:
+  - ingress.yaml

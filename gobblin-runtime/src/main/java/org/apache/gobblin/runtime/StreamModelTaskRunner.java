@@ -44,6 +44,7 @@ import org.apache.gobblin.writer.FineGrainedWatermarkTracker;
 import org.apache.gobblin.writer.WatermarkManager;
 import org.apache.gobblin.writer.WatermarkStorage;
 
+import io.reactivex.Flowable;
 import io.reactivex.flowables.ConnectableFlowable;
 import io.reactivex.schedulers.Schedulers;
 import lombok.AllArgsConstructor;
@@ -72,15 +73,22 @@ public class StreamModelTaskRunner {
   private final Optional<WatermarkManager> watermarkManager;
   private final Optional<WatermarkStorage> watermarkStorage;
   private final Map<Optional<Fork>, Optional<Future<?>>> forks;
-  private final String watermarkingStrategy;
 
   protected void run() throws Exception {
+    long maxWaitInMinute = taskState.getPropAsLong(ConfigurationKeys.FORK_MAX_WAIT_MININUTES, ConfigurationKeys.DEFAULT_FORK_MAX_WAIT_MININUTES);
+
     // Get the fork operator. By default IdentityForkOperator is used with a single branch.
     ForkOperator forkOperator = closer.register(this.taskContext.getForkOperator());
 
     RecordStreamWithMetadata<?, ?> stream = this.extractor.recordStream(this.shutdownRequested);
+    // This prevents emitting records until a connect() call is made on the connectable stream
     ConnectableFlowable connectableStream = stream.getRecordStream().publish();
-    stream = stream.withRecordStream(connectableStream);
+
+    // The cancel is not propagated to the extractor's record generator when it has been turned into a hot Flowable
+    // by publish, so set the shutdownRequested flag on cancel to stop the extractor
+    Flowable streamWithShutdownOnCancel = connectableStream.doOnCancel(() -> this.shutdownRequested.set(true));
+
+    stream = stream.withRecordStream(streamWithShutdownOnCancel);
 
     stream = stream.mapRecords(r -> {
       this.task.onRecordExtract();
@@ -138,14 +146,14 @@ public class StreamModelTaskRunner {
         Fork fork = new Fork(this.taskContext, forkedStream.getGlobalMetadata().getSchema(), forkedStreams.getForkedStreams().size(), fidx, this.taskMode);
         fork.consumeRecordStream(forkedStream);
         this.forks.put(Optional.of(fork), Optional.of(Futures.immediateFuture(null)));
-        this.task.configureStreamingFork(fork, this.watermarkingStrategy);
+        this.task.configureStreamingFork(fork);
       }
     }
 
     connectableStream.connect();
 
     if (!ExponentialBackoff.awaitCondition().callable(() -> this.forks.keySet().stream().map(Optional::get).allMatch(Fork::isDone)).
-        initialDelay(1000L).maxDelay(1000L).maxWait(TimeUnit.MINUTES.toMillis(60)).await()) {
+        initialDelay(1000L).maxDelay(1000L).maxWait(TimeUnit.MINUTES.toMillis(maxWaitInMinute)).await()) {
       throw new TimeoutException("Forks did not finish withing specified timeout.");
     }
   }

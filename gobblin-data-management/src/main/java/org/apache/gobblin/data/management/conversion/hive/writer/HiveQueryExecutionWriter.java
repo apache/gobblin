@@ -61,11 +61,17 @@ public class HiveQueryExecutionWriter implements DataWriter<QueryBasedHiveConver
       addPropsForPublisher(hiveConversionEntity);
       EventWorkunitUtils.setEndConversionDDLExecuteTimeMetadata(this.workUnit, System.currentTimeMillis());
     } catch (SQLException e) {
-      log.warn("Failed to execute queries: ");
+      StringBuilder sb = new StringBuilder();
+      sb.append(String.format("Failed to execute queries for %s: ",
+          hiveConversionEntity.getPartition().isPresent() ? hiveConversionEntity.getPartition().get().getCompleteName()
+              : hiveConversionEntity.getTable().getCompleteName()));
       for (String conversionQuery : conversionQueries) {
-        log.warn("Conversion query attempted by Hive Query writer: " + conversionQuery);
+        sb.append("\nConversion query attempted by Hive Query writer: ");
+        sb.append(conversionQuery);
       }
-      throw new IOException(e);
+      String message = sb.toString();
+      log.warn(message);
+      throw new IOException(message, e);
     }
   }
 

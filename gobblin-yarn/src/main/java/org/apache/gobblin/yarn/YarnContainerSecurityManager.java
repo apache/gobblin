@@ -17,26 +17,23 @@
 
 package org.apache.gobblin.yarn;
 
-import java.io.IOException;
-import java.util.Collection;
-
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.hadoop.security.token.Token;
-import org.apache.hadoop.security.token.TokenIdentifier;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.typesafe.config.Config;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 import com.google.common.util.concurrent.AbstractIdleService;
-
+import com.typesafe.config.Config;
+import java.io.IOException;
+import org.apache.gobblin.util.logs.LogCopier;
 import org.apache.gobblin.yarn.event.DelegationTokenUpdatedEvent;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.security.Credentials;
+import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.security.token.Token;
+import org.apache.hadoop.security.token.TokenIdentifier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -58,20 +55,30 @@ public class YarnContainerSecurityManager extends AbstractIdleService {
   private final FileSystem fs;
   private final Path tokenFilePath;
   private final EventBus eventBus;
+  private final LogCopier logCopier;
 
   public YarnContainerSecurityManager(Config config, FileSystem fs, EventBus eventBus) {
+    this(config, fs, eventBus, null);
+  }
+
+  public YarnContainerSecurityManager(Config config, FileSystem fs, EventBus eventBus, LogCopier logCopier) {
     this.fs = fs;
     this.tokenFilePath = new Path(this.fs.getHomeDirectory(),
         config.getString(GobblinYarnConfigurationKeys.APPLICATION_NAME_KEY) + Path.SEPARATOR
             + GobblinYarnConfigurationKeys.TOKEN_FILE_NAME);
     this.eventBus = eventBus;
+    this.logCopier = logCopier;
   }
 
   @SuppressWarnings("unused")
   @Subscribe
   public void handleTokenFileUpdatedEvent(DelegationTokenUpdatedEvent delegationTokenUpdatedEvent) {
     try {
-      addDelegationTokens(readDelegationTokens(this.tokenFilePath));
+      addCredentials(readCredentials(this.tokenFilePath));
+      if (this.logCopier != null) {
+        this.logCopier.setNeedToUpdateDestFs(true);
+        this.logCopier.setNeedToUpdateSrcFs(true);
+      }
     } catch (IOException ioe) {
       throw Throwables.propagate(ioe);
     }
@@ -85,24 +92,23 @@ public class YarnContainerSecurityManager extends AbstractIdleService {
   @Override
   protected void shutDown() throws Exception {
     // Nothing to do
+    LOGGER.info("Attempt to shut down YarnContainerSecurityManager");
   }
 
   /**
    * Read the {@link Token}s stored in the token file.
    */
   @VisibleForTesting
-  Collection<Token<? extends TokenIdentifier>> readDelegationTokens(Path tokenFilePath) throws IOException {
-    LOGGER.info("Reading updated token from token file: " + tokenFilePath);
-    return YarnHelixUtils.readTokensFromFile(tokenFilePath, this.fs.getConf());
+  Credentials readCredentials(Path tokenFilePath) throws IOException {
+    LOGGER.info("Reading updated credentials from token file: " + tokenFilePath);
+    return Credentials.readTokenStorageFile(tokenFilePath, this.fs.getConf());
   }
 
   @VisibleForTesting
-  void addDelegationTokens(Collection<Token<? extends TokenIdentifier>> tokens) throws IOException {
-    for (Token<? extends TokenIdentifier> token : tokens) {
-      if (!UserGroupInformation.getCurrentUser().addToken(token)) {
-        LOGGER.error(String.format("Failed to add token %s to user %s",
-            token.toString(), UserGroupInformation.getLoginUser().getShortUserName()));
-      }
+  void addCredentials(Credentials credentials) throws IOException {
+    for (Token<? extends TokenIdentifier> token : credentials.getAllTokens()) {
+      LOGGER.info("updating " + token.toString());
     }
+    UserGroupInformation.getCurrentUser().addCredentials(credentials);
   }
 }

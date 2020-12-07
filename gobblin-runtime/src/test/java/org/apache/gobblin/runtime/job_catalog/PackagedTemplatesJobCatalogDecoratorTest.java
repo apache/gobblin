@@ -98,6 +98,9 @@ public class PackagedTemplatesJobCatalogDecoratorTest {
     public Config getResolvedConfig(Config userConfig) {
       return null;
     }
+
+    @Override
+    public Collection<String> getDependencies() { return null; }
   }
 
 }

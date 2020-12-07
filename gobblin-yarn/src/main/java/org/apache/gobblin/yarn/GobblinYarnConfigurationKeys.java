@@ -33,6 +33,10 @@ public class GobblinYarnConfigurationKeys {
   public static final String MAX_GET_APP_REPORT_FAILURES_KEY = GOBBLIN_YARN_PREFIX + "max.get.app.report.failures";
   public static final String EMAIL_NOTIFICATION_ON_SHUTDOWN_KEY =
       GOBBLIN_YARN_PREFIX + "email.notification.on.shutdown";
+  public static final String RELEASED_CONTAINERS_CACHE_EXPIRY_SECS = GOBBLIN_YARN_PREFIX + "releasedContainersCacheExpirySecs";
+  public static final int DEFAULT_RELEASED_CONTAINERS_CACHE_EXPIRY_SECS = 300;
+  public static final String APP_VIEW_ACL = GOBBLIN_YARN_PREFIX + "appViewAcl";
+  public static final String DEFAULT_APP_VIEW_ACL = "*";
 
   // Gobblin Yarn ApplicationMaster configuration properties.
   public static final String APP_MASTER_MEMORY_MBS_KEY = GOBBLIN_YARN_PREFIX + "app.master.memory.mbs";
@@ -42,6 +46,16 @@ public class GobblinYarnConfigurationKeys {
   public static final String APP_MASTER_FILES_REMOTE_KEY = GOBBLIN_YARN_PREFIX + "app.master.files.remote";
   public static final String APP_MASTER_WORK_DIR_NAME = "appmaster";
   public static final String APP_MASTER_JVM_ARGS_KEY = GOBBLIN_YARN_PREFIX + "app.master.jvm.args";
+  public static final String APP_MASTER_SERVICE_CLASSES = GOBBLIN_YARN_PREFIX + "app.master.serviceClasses";
+  public static final String APP_MASTER_MAX_ATTEMPTS_KEY = GOBBLIN_YARN_PREFIX + "app.master.max.attempts";
+  public static final int DEFAULT_APP_MASTER_MAX_ATTEMPTS_KEY = 10;
+  // Amount of overhead to subtract when computing the Xmx value. This is to account for non-heap memory, like metaspace
+  // and stack memory
+  public static final String APP_MASTER_JVM_MEMORY_OVERHEAD_MBS_KEY = GOBBLIN_YARN_PREFIX + "app.master.jvmMemoryOverheadMbs";
+  public static final int DEFAULT_APP_MASTER_JVM_MEMORY_OVERHEAD_MBS = 0;
+  // The ratio of the amount of Xmx to carve out of the container memory before adjusting for jvm memory overhead
+  public static final String APP_MASTER_JVM_MEMORY_XMX_RATIO_KEY = GOBBLIN_YARN_PREFIX + "app.master.jvmMemoryXmxRatio";
+  public static final double DEFAULT_APP_MASTER_JVM_MEMORY_XMX_RATIO = 1.0;
 
   // Gobblin Yarn container configuration properties.
   public static final String INITIAL_CONTAINERS_KEY = GOBBLIN_YARN_PREFIX + "initial.containers";
@@ -53,29 +67,61 @@ public class GobblinYarnConfigurationKeys {
   public static final String CONTAINER_WORK_DIR_NAME = "container";
   public static final String CONTAINER_JVM_ARGS_KEY = GOBBLIN_YARN_PREFIX + "container.jvm.args";
   public static final String CONTAINER_HOST_AFFINITY_ENABLED = GOBBLIN_YARN_PREFIX + "container.affinity.enabled";
+  // Amount of overhead to subtract when computing the Xmx value. This is to account for non-heap memory, like metaspace
+  // and stack memory
+  public static final String CONTAINER_JVM_MEMORY_OVERHEAD_MBS_KEY = GOBBLIN_YARN_PREFIX + "container.jvmMemoryOverheadMbs";
+  public static final int DEFAULT_CONTAINER_JVM_MEMORY_OVERHEAD_MBS = 0;
+  // The ratio of the amount of Xmx to carve out of the container memory before adjusting for jvm memory overhead
+  public static final String CONTAINER_JVM_MEMORY_XMX_RATIO_KEY = GOBBLIN_YARN_PREFIX + "container.jvmMemoryXmxRatio";
+  public static final double DEFAULT_CONTAINER_JVM_MEMORY_XMX_RATIO = 1.0;
 
   // Helix configuration properties.
   public static final String HELIX_INSTANCE_MAX_RETRIES = GOBBLIN_YARN_PREFIX + "helix.instance.max.retries";
 
   // Security and authentication configuration properties.
+  public static final String SECURITY_MANAGER_CLASS = GOBBLIN_YARN_PREFIX + "security.manager.class";
+  public static final String DEFAULT_SECURITY_MANAGER_CLASS = "org.apache.gobblin.yarn.YarnAppSecurityManagerWithKeytabs";
+  public static final String ENABLE_KEY_MANAGEMENT = GOBBLIN_YARN_PREFIX + "enable.key.management";
   public static final String KEYTAB_FILE_PATH = GOBBLIN_YARN_PREFIX + "keytab.file.path";
   public static final String KEYTAB_PRINCIPAL_NAME = GOBBLIN_YARN_PREFIX + "keytab.principal.name";
   public static final String TOKEN_FILE_NAME = ".token";
   public static final String LOGIN_INTERVAL_IN_MINUTES = GOBBLIN_YARN_PREFIX + "login.interval.minutes";
+  public static final Long DEFAULT_LOGIN_INTERVAL_IN_MINUTES = Long.MAX_VALUE;
   public static final String TOKEN_RENEW_INTERVAL_IN_MINUTES = GOBBLIN_YARN_PREFIX + "token.renew.interval.minutes";
-
+  public static final Long DEFAULT_TOKEN_RENEW_INTERVAL_IN_MINUTES = Long.MAX_VALUE;
   // Resource/dependencies configuration properties.
+  // Missing this configuration should throw fatal exceptions to avoid harder-to-debug situation from Yarn container side.
   public static final String LIB_JARS_DIR_KEY = GOBBLIN_YARN_PREFIX + "lib.jars.dir";
 
-  public static final String LOGS_SINK_ROOT_DIR_KEY = GOBBLIN_YARN_PREFIX + "logs.sink.root.dir";
   public static final String LIB_JARS_DIR_NAME = "_libjars";
   public static final String APP_JARS_DIR_NAME = "_appjars";
   public static final String APP_FILES_DIR_NAME = "_appfiles";
   public static final String APP_LOGS_DIR_NAME = "_applogs";
 
+  //Container Log location properties
+  public static final String GOBBLIN_YARN_CONTAINER_LOG_DIR_NAME = GobblinYarnConfigurationKeys.GOBBLIN_YARN_PREFIX + "app.container.log.dir";
+  public static final String GOBBLIN_YARN_CONTAINER_LOG_FILE_NAME = GobblinYarnConfigurationKeys.GOBBLIN_YARN_PREFIX + "app.container.log.file";
+
   // Other misc configuration properties.
-  public static final String LOG_COPIER_SCHEDULER = GOBBLIN_YARN_PREFIX + "log.copier.scheduler";
-  public static final String LOG_COPIER_MAX_FILE_SIZE = GOBBLIN_YARN_PREFIX + "log.copier.max.file.size";
-  public static final String GOBBLIN_YARN_LOG4J_CONFIGURATION_FILE = "log4j-yarn.properties";
+  public static final String LOGS_SINK_ROOT_DIR_KEY = GOBBLIN_YARN_PREFIX + "logs.sink.root.dir";
+  public static final String LOG_FILE_EXTENSIONS = GOBBLIN_YARN_PREFIX + "log.file.extensions" ;
   public static final String LOG_COPIER_DISABLE_DRIVER_COPY = GOBBLIN_YARN_PREFIX + "log.copier.disable.driver.copy";
+  public static final String GOBBLIN_YARN_CONTAINER_TIMEZONE = GOBBLIN_YARN_PREFIX + "container.timezone" ;
+  public static final String DEFAULT_GOBBLIN_YARN_CONTAINER_TIMEZONE = "America/Los_Angeles" ;
+
+  //Constant definitions
+  public static final String GOBBLIN_YARN_LOG4J_CONFIGURATION_FILE = "log4j-yarn.properties";
+  public static final String JVM_USER_TIMEZONE_CONFIG = "user.timezone";
+
+  //Configuration properties relating to container mode of execution e.g. Gobblin cluster runs on Yarn
+  public static final String CONTAINER_NUM_KEY = "container.num";
+
+  //Configuration to allow GobblinYarnAppLauncher to exit without killing the Gobblin-on-Yarn application
+  public static final String GOBBLIN_YARN_DETACH_ON_EXIT_ENABLED = GOBBLIN_YARN_PREFIX + "detach.on.exit.enabled";
+  public static final boolean DEFAULT_GOBBLIN_YARN_DETACH_ON_EXIT = false;
+
+  //Configuration to set log levels for classes in Azkaban mode
+  public static final String GOBBLIN_YARN_AZKABAN_CLASS_LOG_LEVELS = GOBBLIN_YARN_PREFIX + "azkaban.class.logLevels";
+  //Container classpaths properties
+  public static final String GOBBLIN_YARN_ADDITIONAL_CLASSPATHS = GOBBLIN_YARN_PREFIX + "additional.classpaths";
 }

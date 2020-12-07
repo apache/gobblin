@@ -17,11 +17,12 @@
 
 package org.apache.gobblin.metastore;
 
-import com.google.common.base.Predicate;
-import com.typesafe.config.Config;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
+
+import com.google.common.base.Predicate;
+import com.typesafe.config.Config;
 
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metastore.metadata.StateStoreEntryManager;
@@ -170,6 +171,18 @@ public interface StateStore<T extends State> {
    */
   public List<String> getTableNames(String storeName, Predicate<String> predicate)
       throws IOException;
+
+  /**
+   * Get store names in the state store
+   *
+   * @param predicate only returns names matching predicate
+   * @return (possibly empty) list of store names from the given store
+   * @throws IOException
+   */
+  public default List<String> getStoreNames(Predicate<String> predicate)
+      throws IOException {
+    throw new UnsupportedOperationException("Not implemented");
+  }
 
   /**
    * Create an alias for an existing table.

@@ -17,8 +17,13 @@
 
 package org.apache.gobblin.data.management.retention.dataset;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 import java.util.Properties;
+
+import com.google.common.collect.ImmutableList;
+import com.typesafe.config.Config;
+
 import org.apache.gobblin.data.management.policy.SelectBeforeTimeBasedPolicy;
 import org.apache.gobblin.data.management.policy.VersionSelectionPolicy;
 import org.apache.gobblin.data.management.version.TimestampedDatasetStateStoreVersion;
@@ -27,6 +32,8 @@ import org.apache.gobblin.data.management.version.finder.TimestampedDatasetState
 import org.apache.gobblin.data.management.version.finder.VersionFinder;
 import org.apache.gobblin.metastore.metadata.DatasetStateStoreEntryManager;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
+
 import lombok.Data;
 
 
@@ -35,6 +42,8 @@ import lombok.Data;
  */
 @Data
 public class TimeBasedDatasetStoreDataset extends CleanableDatasetStoreDataset<TimestampedDatasetVersion> {
+  private static final String SELECTION_POLICY_CLASS_KEY = "selection.policy.class";
+  private static final String DEFAULT_SELECTION_POLICY_CLASS = SelectBeforeTimeBasedPolicy.class.getName();
 
   private final VersionFinder<TimestampedDatasetStateStoreVersion> versionFinder;
   private final VersionSelectionPolicy<TimestampedDatasetVersion> versionSelectionPolicy;
@@ -42,7 +51,15 @@ public class TimeBasedDatasetStoreDataset extends CleanableDatasetStoreDataset<T
   public TimeBasedDatasetStoreDataset(Key key, List<DatasetStateStoreEntryManager> entries, Properties props) {
     super(key, entries);
     this.versionFinder = new TimestampedDatasetStateStoreVersionFinder();
-    this.versionSelectionPolicy = new SelectBeforeTimeBasedPolicy(ConfigUtils.propertiesToConfig(props));
+    Config propsAsConfig = ConfigUtils.propertiesToConfig(props);
+
+    // strip the retention config namespace since the selection policy looks for configuration without the namespace
+    Config retentionConfig = ConfigUtils.getConfigOrEmpty(propsAsConfig,
+        ConfigurableCleanableDataset.RETENTION_CONFIGURATION_KEY);
+    Config retentionConfigWithFallback = retentionConfig.withFallback(propsAsConfig);
+
+    this.versionSelectionPolicy = createSelectionPolicy(ConfigUtils.getString(retentionConfigWithFallback,
+        SELECTION_POLICY_CLASS_KEY, DEFAULT_SELECTION_POLICY_CLASS), retentionConfigWithFallback, props);
   }
 
   @Override
@@ -53,5 +70,19 @@ public class TimeBasedDatasetStoreDataset extends CleanableDatasetStoreDataset<T
   @Override
   public VersionSelectionPolicy<TimestampedDatasetVersion> getVersionSelectionPolicy() {
     return this.versionSelectionPolicy;
+  }
+
+  @SuppressWarnings("unchecked")
+  private VersionSelectionPolicy<TimestampedDatasetVersion> createSelectionPolicy(String className,
+      Config config, Properties jobProps) {
+    try {
+      return (VersionSelectionPolicy<TimestampedDatasetVersion>)
+          GobblinConstructorUtils.invokeFirstConstructor(Class.forName(className),
+          ImmutableList.<Object> of(config), ImmutableList.<Object> of(config, jobProps),
+          ImmutableList.<Object> of(jobProps));
+    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
+        | ClassNotFoundException e) {
+      throw new IllegalArgumentException(e);
+    }
   }
 }

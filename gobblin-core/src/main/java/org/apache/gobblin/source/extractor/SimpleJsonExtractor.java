@@ -45,7 +45,7 @@ import org.apache.gobblin.configuration.WorkUnitState;
  *   json documents confirming to a schema. Each line of the file is a json document.
  * </p>
  */
-public class SimpleJsonExtractor implements Extractor<String, JsonObject> {
+public class SimpleJsonExtractor implements Extractor<String, String> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(SimpleJsonExtractor.class);
   private final WorkUnitState workUnitState;
@@ -84,9 +84,8 @@ public class SimpleJsonExtractor implements Extractor<String, JsonObject> {
   }
 
   @Override
-  public JsonObject readRecord(@Deprecated JsonObject reuse) throws DataRecordException, IOException {
-    String jsonString = this.bufferedReader.readLine();
-    return GSON.fromJson(jsonString, JsonObject.class);
+  public String readRecord(@Deprecated String reuse) throws DataRecordException, IOException {
+    return this.bufferedReader.readLine();
   }
 
   @Override

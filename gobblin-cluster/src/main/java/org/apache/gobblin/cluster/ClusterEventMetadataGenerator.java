@@ -23,7 +23,6 @@ import java.util.Map;
 import com.google.common.collect.ImmutableMap;
 
 import org.apache.gobblin.annotation.Alias;
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.event.EventName;
 import org.apache.gobblin.runtime.EventMetadataUtils;
 import org.apache.gobblin.runtime.JobContext;
@@ -42,12 +41,14 @@ public class ClusterEventMetadataGenerator implements EventMetadataGenerator{
 
   public Map<String, String> getMetadata(JobContext jobContext, EventName eventName) {
     List<TaskState> taskStates = jobContext.getJobState().getTaskStates();
+    String taskException = EventMetadataUtils.getTaskFailureExceptions(taskStates);
+    String jobException = EventMetadataUtils.getJobFailureExceptions(jobContext.getJobState());
 
     switch (eventName) {
       case JOB_COMPLETE:
         return ImmutableMap.of(PROCESSED_COUNT_KEY, Long.toString(EventMetadataUtils.getProcessedCount(taskStates)));
       case JOB_FAILED:
-        return ImmutableMap.of(MESSAGE_KEY, EventMetadataUtils.getTaskFailureExceptions(taskStates));
+        return ImmutableMap.of(MESSAGE_KEY, taskException.length() != 0 ? taskException : jobException);
       default:
         break;
     }

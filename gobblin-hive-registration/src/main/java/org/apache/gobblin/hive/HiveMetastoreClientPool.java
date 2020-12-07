@@ -24,8 +24,10 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.pool2.impl.GenericObjectPool;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
+import org.apache.gobblin.util.PropertiesUtils;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 
@@ -41,11 +43,13 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.util.AutoReturnableObject;
 
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
  * A pool of {@link IMetaStoreClient} for querying the Hive metastore.
  */
+@Slf4j
 public class HiveMetastoreClientPool {
 
   private final GenericObjectPool<IMetaStoreClient> pool;
@@ -56,17 +60,50 @@ public class HiveMetastoreClientPool {
   private final HiveRegProps hiveRegProps;
 
   private static final long DEFAULT_POOL_CACHE_TTL_MINUTES = 30;
-  private static final Cache<Optional<String>, HiveMetastoreClientPool> poolCache =
-      CacheBuilder.newBuilder()
-          .expireAfterAccess(DEFAULT_POOL_CACHE_TTL_MINUTES, TimeUnit.MINUTES)
-          .removalListener(new RemovalListener<Optional<String>, HiveMetastoreClientPool>() {
-        @Override
-        public void onRemoval(RemovalNotification<Optional<String>, HiveMetastoreClientPool> notification) {
-          if (notification.getValue() != null) {
-            notification.getValue().close();
+
+  public static final String POOL_CACHE_TTL_MINUTES_KEY = "hive.metaStorePoolCache.ttl";
+
+  public static final String POOL_EVICTION_POLICY_CLASS_NAME = "pool.eviction.policy.class.name";
+
+  public static final String DEFAULT_POOL_EVICTION_POLICY_CLASS_NAME = "org.apache.commons.pool2.impl.DefaultEvictionPolicy";
+
+  public static final String POOL_MIN_EVICTABLE_IDLE_TIME_MILLIS = "pool.min.evictable.idle.time.millis";
+
+  /**
+   * To provide additional or override configuration of a certain hive metastore,
+   * <p> firstly, set {@code hive.additionalConfig.targetUri=<the target hive metastore uri>}
+   * <p> Then all configurations with {@value #POOL_HIVE_ADDITIONAL_CONFIG_PREFIX} prefix will be extracted
+   * out of the job configurations and applied on top. for example, if there is a job configuration
+   * {@code hive.additionalConfig.hive.metastore.sasl.enabled=false},
+   * {@code hive.metastore.sasl.enabled=false} will be extracted and applied
+   */
+  public static final String POOL_HIVE_ADDITIONAL_CONFIG_PREFIX = "hive.additionalConfig.";
+
+  public static final String POOL_HIVE_ADDITIONAL_CONFIG_TARGET = POOL_HIVE_ADDITIONAL_CONFIG_PREFIX + "targetUri";
+
+  public static final long DEFAULT_POOL_MIN_EVICTABLE_IDLE_TIME_MILLIS = 600000L;
+
+  public static final String POOL_TIME_BETWEEN_EVICTION_MILLIS = "pool.time.between eviction.millis";
+
+  public static final long DEFAULT_POOL_TIME_BETWEEN_EVICTION_MILLIS = 60000L;
+
+
+  private static Cache<Optional<String>, HiveMetastoreClientPool> poolCache = null;
+
+  private static final Cache<Optional<String>, HiveMetastoreClientPool> createPoolCache(final Properties properties) {
+    long duration = properties.containsKey(POOL_CACHE_TTL_MINUTES_KEY)
+        ? Long.parseLong(properties.getProperty(POOL_CACHE_TTL_MINUTES_KEY)) : DEFAULT_POOL_CACHE_TTL_MINUTES;
+    return CacheBuilder.newBuilder()
+        .expireAfterAccess(duration, TimeUnit.MINUTES)
+        .removalListener(new RemovalListener<Optional<String>, HiveMetastoreClientPool>() {
+          @Override
+          public void onRemoval(RemovalNotification<Optional<String>, HiveMetastoreClientPool> notification) {
+            if (notification.getValue() != null) {
+              notification.getValue().close();
+            }
           }
-        }
-      }).build();
+        }).build();
+  }
 
   /**
    * Get a {@link HiveMetastoreClientPool} for the requested metastore URI. Useful for using the same pools across
@@ -80,6 +117,11 @@ public class HiveMetastoreClientPool {
    */
   public static HiveMetastoreClientPool get(final Properties properties, final Optional<String> metastoreURI)
       throws IOException {
+    synchronized (HiveMetastoreClientPool.class) {
+      if (poolCache == null) {
+        poolCache = createPoolCache(properties);
+      }
+    }
     try {
       return poolCache.get(metastoreURI, new Callable<HiveMetastoreClientPool>() {
         @Override
@@ -94,6 +136,14 @@ public class HiveMetastoreClientPool {
 
   /**
    * Constructor for {@link HiveMetastoreClientPool}.
+   * By default we will using the default eviction strategy for the client pool. Client will be evicted if the following conditions are met:
+   *  * <ul>
+   *  * <li>the object has been idle longer than
+   *  *     {@link GenericObjectPool#getMinEvictableIdleTimeMillis()}</li>
+   *  * <li>there are more than {@link GenericObjectPool#getMinIdle()} idle objects in
+   *  *     the pool and the object has been idle for longer than
+   *  *     {@link GenericObjectPool#getSoftMinEvictableIdleTimeMillis()} </li>
+   *  * </ul>
    * @deprecated It is recommended to use the static {@link #get} method instead. Use this constructor only if you
    *             different pool configurations are required.
    */
@@ -104,8 +154,27 @@ public class HiveMetastoreClientPool {
     config.setMaxTotal(this.hiveRegProps.getNumThreads());
     config.setMaxIdle(this.hiveRegProps.getNumThreads());
 
+    String extraConfigTarget = properties.getProperty(POOL_HIVE_ADDITIONAL_CONFIG_TARGET, "");
+
     this.factory = new HiveMetaStoreClientFactory(metastoreURI);
+    if (metastoreURI.isPresent() && StringUtils.isNotEmpty(extraConfigTarget)
+        && metastoreURI.get().equals(extraConfigTarget)) {
+      log.info("Setting additional hive config for metastore {}", extraConfigTarget);
+      properties.forEach((key, value) -> {
+        String configKey = key.toString();
+        if (configKey.startsWith(POOL_HIVE_ADDITIONAL_CONFIG_PREFIX) && !configKey.equals(
+            POOL_HIVE_ADDITIONAL_CONFIG_TARGET)) {
+          log.info("Setting additional hive config {}={}", configKey.substring(POOL_HIVE_ADDITIONAL_CONFIG_PREFIX.length()),
+              value.toString());
+          this.factory.getHiveConf().set(configKey.substring(POOL_HIVE_ADDITIONAL_CONFIG_PREFIX.length()), value.toString());
+        }
+      });
+    }
     this.pool = new GenericObjectPool<>(this.factory, config);
+    //Set the eviction policy for the client pool
+    this.pool.setEvictionPolicyClassName(properties.getProperty(POOL_EVICTION_POLICY_CLASS_NAME, DEFAULT_POOL_EVICTION_POLICY_CLASS_NAME));
+    this.pool.setMinEvictableIdleTimeMillis(PropertiesUtils.getPropAsLong(properties, POOL_MIN_EVICTABLE_IDLE_TIME_MILLIS, DEFAULT_POOL_MIN_EVICTABLE_IDLE_TIME_MILLIS));
+    this.pool.setTimeBetweenEvictionRunsMillis(PropertiesUtils.getPropAsLong(properties, POOL_TIME_BETWEEN_EVICTION_MILLIS, DEFAULT_POOL_TIME_BETWEEN_EVICTION_MILLIS));
     this.hiveConf = this.factory.getHiveConf();
   }
 

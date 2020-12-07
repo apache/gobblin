@@ -47,6 +47,8 @@ public class HiveConstants {
    * Storage properties
    */
   public static final String LOCATION = "location";
+  // A storage parameter that is managed by Spark for Spark Datasource tables
+  public static final String PATH = "path";
   public static final String INPUT_FORMAT = "input.format";
   public static final String OUTPUT_FORMAT = "output.format";
   public static final String COMPRESSED = "compressed";

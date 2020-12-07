@@ -73,8 +73,11 @@ public class TaskIFaceWrapper extends Task {
 
   @Override
   public void run() {
-    this.underlyingTask.run();
-    this.taskStateTracker.onTaskRunCompletion(this);
+    try {
+      this.underlyingTask.run();
+    } finally {
+      this.taskStateTracker.onTaskRunCompletion(this);
+    }
   }
 
   @Override
@@ -166,5 +169,21 @@ public class TaskIFaceWrapper extends Task {
   @Override
   public boolean isSpeculativeExecutionSafe() {
     return this.underlyingTask.isSpeculativeExecutionSafe();
+  }
+
+  /**
+   * return true if the task is successfully cancelled.
+   * This method is a copy of the method in parent class.
+   * We need this copy so TaskIFaceWrapper variables are not shared between this class and its parent class
+   * @return
+   */
+  @Override
+  public synchronized boolean cancel() {
+    if (this.taskFuture != null && this.taskFuture.cancel(true)) {
+      this.taskStateTracker.onTaskRunCompletion(this);
+      return true;
+    } else {
+      return false;
+    }
   }
 }

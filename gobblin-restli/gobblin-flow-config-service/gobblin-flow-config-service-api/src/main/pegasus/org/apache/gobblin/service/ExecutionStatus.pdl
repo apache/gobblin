@@ -1,0 +1,47 @@
+namespace org.apache.gobblin.service
+
+/**
+ * Execution status for a flow or job
+ */
+enum ExecutionStatus {
+
+  /**
+   * Flow compiled to jobs.
+   */
+  COMPILED
+
+  /**
+   * Flow or job is in pending state.
+   */
+  PENDING
+
+  /**
+   * Flow or job is pending retry.
+   */
+  PENDING_RETRY
+
+  /**
+   * Job(s) orchestrated to spec executors.
+   */
+  ORCHESTRATED
+
+  /**
+   * Flow or job is currently executing
+   */
+  RUNNING
+
+  /**
+   * Flow or job completed execution
+   */
+  COMPLETE
+
+  /**
+   * Flow or job failed
+   */
+  FAILED
+
+  /**
+   * Flow cancelled.
+   */
+  CANCELLED
+}

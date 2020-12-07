@@ -18,28 +18,21 @@
 package org.apache.gobblin.writer;
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.Map;
+import java.util.List;
 
-import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericRecord;
-import org.apache.gobblin.ack.BasicAckableForTesting;
-import org.apache.gobblin.stream.FlushControlMessage;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+import org.testng.util.Strings;
 
+import org.apache.gobblin.ack.BasicAckableForTesting;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.source.extractor.CheckpointableWatermark;
-import org.apache.gobblin.source.extractor.DefaultCheckpointableWatermark;
+import org.apache.gobblin.dataset.DatasetDescriptor;
+import org.apache.gobblin.dataset.PartitionDescriptor;
+import org.apache.gobblin.stream.FlushControlMessage;
 import org.apache.gobblin.stream.RecordEnvelope;
-import org.apache.gobblin.source.extractor.extract.LongWatermark;
 import org.apache.gobblin.writer.test.TestPartitionAwareWriterBuilder;
 import org.apache.gobblin.writer.test.TestPartitioner;
-
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 
 /**
@@ -107,12 +100,26 @@ public class PartitionedWriterTest {
     action = builder.actions.poll();
     Assert.assertEquals(action.getType(), TestPartitionAwareWriterBuilder.Actions.CLEANUP);
 
+    // Before close, partitions info is not serialized
+    String partitionsKey = "writer.0.partitions";
+    Assert.assertTrue(state.getProp(partitionsKey) == null);
+
     writer.close();
     Assert.assertEquals(builder.actions.size(), 2);
     action = builder.actions.poll();
     Assert.assertEquals(action.getType(), TestPartitionAwareWriterBuilder.Actions.CLOSE);
     action = builder.actions.poll();
     Assert.assertEquals(action.getType(), TestPartitionAwareWriterBuilder.Actions.CLOSE);
+
+    // After close, partitions info is available
+    Assert.assertFalse(Strings.isNullOrEmpty(state.getProp(partitionsKey)));
+    List<PartitionDescriptor> partitions = PartitionedDataWriter.getPartitionInfoAndClean(state, 0);
+    Assert.assertTrue(state.getProp(partitionsKey) == null);
+    Assert.assertEquals(partitions.size(), 2);
+
+    DatasetDescriptor dataset = new DatasetDescriptor("testPlatform", "testDataset");
+    Assert.assertEquals(partitions.get(0), new PartitionDescriptor("a", dataset));
+    Assert.assertEquals(partitions.get(1), new PartitionDescriptor("1", dataset));
 
     writer.commit();
     Assert.assertEquals(builder.actions.size(), 2);
@@ -122,49 +129,6 @@ public class PartitionedWriterTest {
     Assert.assertEquals(action.getType(), TestPartitionAwareWriterBuilder.Actions.COMMIT);
   }
 
-  @Test
-  public void testWatermarkComputation() throws IOException {
-    testWatermarkComputation(0L, 1L, 0L);
-    testWatermarkComputation(1L, 0L, null);
-    testWatermarkComputation(0L, 0L, null);
-    testWatermarkComputation(20L, 1L, null);
-  }
-
-  public void testWatermarkComputation(Long committed, Long unacknowledged, Long expected) throws IOException {
-    State state = new State();
-    state.setProp(ConfigurationKeys.WRITER_PARTITIONER_CLASS, TestPartitioner.class.getCanonicalName());
-
-    String defaultSource = "default";
-
-    WatermarkAwareWriter mockDataWriter = mock(WatermarkAwareWriter.class);
-    when(mockDataWriter.isWatermarkCapable()).thenReturn(true);
-    when(mockDataWriter.getCommittableWatermark()).thenReturn(Collections.singletonMap(defaultSource,
-        new DefaultCheckpointableWatermark(defaultSource, new LongWatermark(committed))));
-    when(mockDataWriter.getUnacknowledgedWatermark()).thenReturn(Collections.singletonMap(defaultSource,
-        new DefaultCheckpointableWatermark(defaultSource, new LongWatermark(unacknowledged))));
-
-    PartitionAwareDataWriterBuilder builder = mock(PartitionAwareDataWriterBuilder.class);
-    when(builder.validatePartitionSchema(any(Schema.class))).thenReturn(true);
-    when(builder.forPartition(any(GenericRecord.class))).thenReturn(builder);
-    when(builder.withWriterId(any(String.class))).thenReturn(builder);
-    when(builder.build()).thenReturn(mockDataWriter);
-
-    PartitionedDataWriter writer = new PartitionedDataWriter<String, String>(builder, state);
-
-    RecordEnvelope<String> recordEnvelope = new RecordEnvelope<String>("0");
-    recordEnvelope.addCallBack(
-        new AcknowledgableWatermark(new DefaultCheckpointableWatermark(defaultSource, new LongWatermark(0))));
-    writer.writeEnvelope(recordEnvelope);
-
-    Map<String, CheckpointableWatermark> watermark = writer.getCommittableWatermark();
-    System.out.println(watermark.toString());
-    if (expected == null) {
-      Assert.assertTrue(watermark.isEmpty(), "Expected watermark to be absent");
-    } else {
-      Assert.assertTrue(watermark.size() == 1);
-      Assert.assertEquals((long) expected, ((LongWatermark) watermark.values().iterator().next().getWatermark()).getValue());
-    }
-  }
 
   @Test
   public void testControlMessageHandler() throws IOException {
@@ -200,5 +164,32 @@ public class PartitionedWriterTest {
     Assert.assertEquals(ackable.acked, 1);
 
     writer.close();
+  }
+
+  @Test
+  public void testPartitionWriterCacheRemovalListener()
+      throws IOException, InterruptedException {
+    State state = new State();
+    state.setProp(ConfigurationKeys.WRITER_PARTITIONER_CLASS, TestPartitioner.class.getCanonicalName());
+    state.setProp(PartitionedDataWriter.PARTITIONED_WRITER_CACHE_TTL_SECONDS, 1);
+    TestPartitionAwareWriterBuilder builder = new TestPartitionAwareWriterBuilder();
+
+    PartitionedDataWriter writer = new PartitionedDataWriter<String, String>(builder, state);
+
+    String record1 = "abc";
+    writer.writeEnvelope(new RecordEnvelope(record1));
+
+    String record2 = "123";
+    writer.writeEnvelope(new RecordEnvelope(record2));
+
+    //Sleep for more than cache expiration interval
+    Thread.sleep(1500);
+
+    //Call cache clean up to ensure removal of expired entries.
+    writer.getPartitionWriters().cleanUp();
+
+    //Ensure the removal listener updates counters.
+    Assert.assertEquals(writer.getTotalRecordsFromEvictedWriters(), 2L);
+    Assert.assertEquals(writer.getTotalBytesFromEvictedWriters(), 2L);
   }
 }

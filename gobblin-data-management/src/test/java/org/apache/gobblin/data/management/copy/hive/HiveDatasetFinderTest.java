@@ -24,6 +24,7 @@ import java.util.Properties;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.hive.metastore.IMetaStoreClient;
+import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.mockito.Mockito;
@@ -36,6 +37,7 @@ import com.google.common.collect.SetMultimap;
 import com.google.common.collect.Sets;
 import com.typesafe.config.Config;
 
+import org.apache.gobblin.data.management.copy.predicates.TableTypeFilter;
 import org.apache.gobblin.hive.HiveMetastoreClientPool;
 import org.apache.gobblin.util.AutoReturnableObject;
 
@@ -58,6 +60,36 @@ public class HiveDatasetFinderTest {
     List<HiveDataset> datasets = Lists.newArrayList(finder.getDatasetsIterator());
 
     Assert.assertEquals(datasets.size(), 3);
+  }
+
+  @Test
+  public void testTableFilter() throws Exception {
+    List<HiveDatasetFinder.DbAndTable> dbAndTables = Lists.newArrayList();
+    dbAndTables.add(new HiveDatasetFinder.DbAndTable("db1", "table1"));
+    dbAndTables.add(new HiveDatasetFinder.DbAndTable("db1", "table2"));
+    dbAndTables.add(new DatePartitionTable("db1", "table3"));
+    dbAndTables.add(new DatePartitionTable("db1", "table4"));
+    HiveMetastoreClientPool pool = getTestPool(dbAndTables);
+
+    Properties properties = new Properties();
+    properties.put(HiveDatasetFinder.HIVE_DATASET_PREFIX + "." + WhitelistBlacklist.WHITELIST, "");
+
+    // Test snapshot only
+    properties.put(HiveDatasetFinder.TABLE_FILTER, TableTypeFilter.class.getName());
+    properties.put(TableTypeFilter.FILTER_TYPE, "snapshot");
+    HiveDatasetFinder finder = new TestHiveDatasetFinder(FileSystem.getLocal(new Configuration()), properties, pool);
+    List<HiveDataset> datasets = Lists.newArrayList(finder.getDatasetsIterator());
+    Assert.assertEquals(datasets.size(), 2);
+    Assert.assertTrue(datasets.stream().anyMatch(dataset -> dataset.getDbAndTable().toString().equals("db1.table1")));
+    Assert.assertTrue(datasets.stream().anyMatch(dataset -> dataset.getDbAndTable().toString().equals("db1.table2")));
+
+    // Test partitioned table only
+    properties.put(TableTypeFilter.FILTER_TYPE, "partitioned");
+    finder = new TestHiveDatasetFinder(FileSystem.getLocal(new Configuration()), properties, pool);
+    datasets = Lists.newArrayList(finder.getDatasetsIterator());
+    Assert.assertEquals(datasets.size(), 2);
+    Assert.assertTrue(datasets.stream().anyMatch(dataset -> dataset.getDbAndTable().toString().equals("db1.table3")));
+    Assert.assertTrue(datasets.stream().anyMatch(dataset -> dataset.getDbAndTable().toString().equals("db1.table4")));
   }
 
   @Test
@@ -201,6 +233,9 @@ public class HiveDatasetFinderTest {
       Table table = new Table();
       table.setDbName(dbAndTable.getDb());
       table.setTableName(dbAndTable.getTable());
+      if (dbAndTable instanceof DatePartitionTable) {
+        table.setPartitionKeys(((DatePartitionTable) dbAndTable).getPartitionKeys());
+      }
       StorageDescriptor sd = new StorageDescriptor();
       sd.setLocation("/tmp/test");
       table.setSd(sd);
@@ -232,6 +267,19 @@ public class HiveDatasetFinderTest {
         throw new IOException("bad table");
       }
       return new HiveDataset(super.fs, super.clientPool, new org.apache.hadoop.hive.ql.metadata.Table(table), config);
+    }
+  }
+
+  private static class DatePartitionTable extends HiveDatasetFinder.DbAndTable {
+
+    static final FieldSchema DATE_PARTITION_KEY = new FieldSchema("datepartition", "String", "");
+
+    public DatePartitionTable(String db, String table) {
+      super(db, table);
+    }
+
+    public List<FieldSchema> getPartitionKeys() {
+      return Lists.newArrayList(DATE_PARTITION_KEY);
     }
   }
 

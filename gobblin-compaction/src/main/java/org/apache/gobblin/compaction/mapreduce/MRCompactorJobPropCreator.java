@@ -24,8 +24,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import com.google.common.collect.Lists;
-import org.apache.gobblin.compaction.dataset.DatasetHelper;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -38,19 +36,24 @@ import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 import org.apache.gobblin.compaction.dataset.Dataset;
+import org.apache.gobblin.compaction.dataset.DatasetHelper;
 import org.apache.gobblin.compaction.event.CompactionSlaEventHelper;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.util.FileListUtils;
-
 
 /**
  * This class creates the following properties for a single MapReduce job for compaction:
  * compaction.topic, compaction.job.input.dir, compaction.job.dest.dir, compaction.job.dest.dir.
  *
  * @author Ziyang Liu
+ * @deprecated Please use {@link org.apache.gobblin.compaction.mapreduce.MRCompactionTask}
+ *  and {@link org.apache.gobblin.compaction.source.CompactionSource} to launch MR instead.
+ *  The new way enjoys simpler logic to trigger the compaction flow and more reliable verification criteria,
+ *  instead of using timestamp only before.
  */
 public class MRCompactorJobPropCreator {
   private static final Logger LOG = LoggerFactory.getLogger(MRCompactorJobPropCreator.class);

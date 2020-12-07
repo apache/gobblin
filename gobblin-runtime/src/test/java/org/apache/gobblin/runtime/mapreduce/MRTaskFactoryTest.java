@@ -33,6 +33,7 @@ import org.apache.gobblin.source.extractor.Extractor;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.StringTokenizer;
@@ -46,6 +47,11 @@ import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.log4j.AppenderSkeleton;
+import org.apache.log4j.Level;
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
+import org.apache.log4j.spi.LoggingEvent;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -70,13 +76,22 @@ public class MRTaskFactoryTest {
     Assert.assertTrue(job2Dir.mkdir());
     writeFileWithContent(job2Dir, "file1", "word1 word2 word2");
 
+    TestAppender testAppender = new TestAppender();
+    Logger logger = LogManager.getLogger(MRTask.class.getName());
+    logger.setLevel(Level.INFO);
+    logger.addAppender(testAppender);
+
     EmbeddedGobblin embeddedGobblin = new EmbeddedGobblin("WordCounter")
         .setConfiguration(ConfigurationKeys.SOURCE_CLASS_KEY, MRWordCountSource.class.getName())
         .setConfiguration(MRWordCountSource.INPUT_DIRECTORIES_KEY, job1Dir.getAbsolutePath() + "," + job2Dir.getAbsolutePath())
         .setConfiguration(MRWordCountSource.OUTPUT_LOCATION, outputSuperPath.getAbsolutePath());
 
     JobExecutionResult result = embeddedGobblin.run();
+    logger.removeAppender(testAppender);
+
     Assert.assertTrue(result.isSuccessful());
+    Assert.assertTrue(testAppender.events.stream().anyMatch(e -> e.getRenderedMessage()
+        .startsWith("MR tracking URL http://localhost:8080/ for job WordCount_job1")));
 
     File output1 = new File(new File(outputSuperPath, "job1"), "part-r-00000");
     Assert.assertTrue(output1.exists());
@@ -193,4 +208,13 @@ public class MRTaskFactoryTest {
     }
   }
 
+  private class TestAppender extends AppenderSkeleton {
+    List<LoggingEvent> events = new ArrayList<>();
+    public void close() {}
+    public boolean requiresLayout() {return false;}
+    @Override
+    protected void append(LoggingEvent event) {
+      events.add(event);
+    }
+  }
 }

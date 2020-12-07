@@ -17,23 +17,43 @@
 
 package org.apache.gobblin.service.modules.utils;
 
-import com.google.common.annotations.VisibleForTesting;
-import java.util.UUID;
+import java.io.UnsupportedEncodingException;
+import java.net.InetAddress;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
+import java.net.UnknownHostException;
+
 import org.apache.helix.Criteria;
 import org.apache.helix.HelixManager;
 import org.apache.helix.HelixManagerFactory;
 import org.apache.helix.InstanceType;
+import org.apache.helix.PropertyKey;
 import org.apache.helix.manager.zk.ZKHelixManager;
 import org.apache.helix.model.HelixConfigScope;
+import org.apache.helix.model.LiveInstance;
 import org.apache.helix.model.Message;
 import org.apache.helix.tools.ClusterSetup;
+import org.slf4j.Logger;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableMap;
+import com.linkedin.data.DataMap;
+import com.linkedin.restli.common.HttpStatus;
+import com.linkedin.restli.server.RestLiServiceException;
+import com.typesafe.config.Config;
+
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
-import org.slf4j.Logger;
+import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 @Alpha
+@Slf4j
 public class HelixUtils {
+  public static final String HELIX_INSTANCE_NAME_SEPARATOR = "@";
 
   /***
    * Build a Helix Manager (Helix Controller instance).
@@ -106,5 +126,61 @@ public class HelixUtils {
     if (messagesSent == 0) {
       logger.error(String.format("Failed to send the %s message to the participants", message));
     }
+  }
+
+  private static String getUrlFromHelixInstanceName(String helixInstanceName) {
+    if (!helixInstanceName.contains(HELIX_INSTANCE_NAME_SEPARATOR)) {
+      return null;
+    } else {
+      String url = helixInstanceName.substring(helixInstanceName.indexOf(HELIX_INSTANCE_NAME_SEPARATOR) + 1);
+      try {
+        return URLDecoder.decode(url, "UTF-8");
+      } catch (UnsupportedEncodingException e) {
+        throw new RuntimeException("Failed to decode URL from helix instance name", e);
+      }
+    }
+  }
+
+  private static String getLeaderUrl(HelixManager helixManager) {
+    PropertyKey key = helixManager.getHelixDataAccessor().keyBuilder().controllerLeader();
+    LiveInstance leader = helixManager.getHelixDataAccessor().getProperty(key);
+    return getUrlFromHelixInstanceName(leader.getInstanceName());
+  }
+
+  /**
+   * If this host is not the leader, throw a {@link RestLiServiceException}, and include the URL of the leader host in
+   * the message and in the errorDetails under the key {@link ServiceConfigKeys#LEADER_URL}.
+   */
+  public static void throwErrorIfNotLeader(Optional<HelixManager> helixManager)  {
+    if (helixManager.isPresent() && !helixManager.get().isLeader()) {
+      String leaderUrl = getLeaderUrl(helixManager.get());
+      if (leaderUrl == null) {
+        throw new RuntimeException("Request sent to slave node but could not get leader node URL");
+      }
+      RestLiServiceException exception = new RestLiServiceException(HttpStatus.S_400_BAD_REQUEST, "Request must be sent to leader node at URL " + leaderUrl);
+      exception.setErrorDetails(new DataMap(ImmutableMap.of(ServiceConfigKeys.LEADER_URL, leaderUrl)));
+      throw exception;
+    }
+  }
+
+  /**
+   * Build helix instance name by getting {@link org.apache.gobblin.service.ServiceConfigKeys#HELIX_INSTANCE_NAME_KEY}
+   * and appending the host, port, and service name with a separator
+   */
+  public static String buildHelixInstanceName(Config config, String defaultInstanceName) {
+    String helixInstanceName = ConfigUtils
+        .getString(config, ServiceConfigKeys.HELIX_INSTANCE_NAME_KEY, defaultInstanceName);
+
+    String url = "";
+    try {
+      url = ConfigUtils.getString(config, ServiceConfigKeys.SERVICE_URL_PREFIX, "https://")
+          + InetAddress.getLocalHost().getHostName() + ":" + ConfigUtils.getString(config, ServiceConfigKeys.SERVICE_PORT, "")
+          + "/" + ConfigUtils.getString(config, ServiceConfigKeys.SERVICE_NAME, "");
+      url = HELIX_INSTANCE_NAME_SEPARATOR + URLEncoder.encode(url, "UTF-8");
+    } catch (UnknownHostException | UnsupportedEncodingException e) {
+      log.warn("Failed to construct helix instance name", e);
+    }
+
+    return helixInstanceName + url;
   }
 }

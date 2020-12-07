@@ -26,8 +26,12 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.typesafe.config.Config;
 
-import org.apache.gobblin.configuration.ConfigurationKeys;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
 import org.apache.gobblin.metastore.DatasetStateStore;
+import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.JobSpecMonitor;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
@@ -35,10 +39,6 @@ import org.apache.gobblin.runtime.kafka.HighLevelConsumer;
 import org.apache.gobblin.runtime.metrics.RuntimeMetrics;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.Either;
-
-import kafka.message.MessageAndMetadata;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -52,13 +52,13 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
   public static final String KAFKA_AUTO_OFFSET_RESET_KEY = KAFKA_JOB_MONITOR_PREFIX + ".auto.offset.reset";
   public static final String KAFKA_AUTO_OFFSET_RESET_SMALLEST = "smallest";
   public static final String KAFKA_AUTO_OFFSET_RESET_LARGEST = "largest";
-  private DatasetStateStore datasetStateStore;
-  private final MutableJobCatalog jobCatalog;
+  protected DatasetStateStore datasetStateStore;
+  protected final MutableJobCatalog jobCatalog;
 
   @Getter
-  private Counter newSpecs;
+  protected Counter newSpecs;
   @Getter
-  private Counter remmovedSpecs;
+  protected Counter removedSpecs;
 
   /**
    * @return A collection of either {@link JobSpec}s to add/update or {@link URI}s to remove from the catalog,
@@ -81,7 +81,7 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
   protected void createMetrics() {
     super.createMetrics();
     this.newSpecs = this.getMetricContext().counter(RuntimeMetrics.GOBBLIN_JOB_MONITOR_KAFKA_NEW_SPECS);
-    this.remmovedSpecs = this.getMetricContext().counter(RuntimeMetrics.GOBBLIN_JOB_MONITOR_KAFKA_REMOVED_SPECS);
+    this.removedSpecs = this.getMetricContext().counter(RuntimeMetrics.GOBBLIN_JOB_MONITOR_KAFKA_REMOVED_SPECS);
   }
 
   @VisibleForTesting
@@ -98,33 +98,49 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
   }
 
   @Override
-  protected void processMessage(MessageAndMetadata<byte[], byte[]> message) {
+  protected void processMessage(DecodeableKafkaRecord<byte[],byte[]> message) {
     try {
-      Collection<Either<JobSpec, URI>> parsedCollection = parseJobSpec(message.message());
+      Collection<Either<JobSpec, URI>> parsedCollection = parseJobSpec(message.getValue());
       for (Either<JobSpec, URI> parsedMessage : parsedCollection) {
         if (parsedMessage instanceof Either.Left) {
           this.newSpecs.inc();
           this.jobCatalog.put(((Either.Left<JobSpec, URI>) parsedMessage).getLeft());
         } else if (parsedMessage instanceof Either.Right) {
-          this.remmovedSpecs.inc();
-          this.jobCatalog.remove(((Either.Right<JobSpec, URI>) parsedMessage).getRight());
-
-          // Refer FlowConfigsResources:delete to understand the pattern of flow URI
-          // FlowToJobSpec Compilers use the flowSpecURI to derive jobSpecURI
-          String[] uriTokens = ((URI)(((Either.Right) parsedMessage).getRight())).getPath().split("/");
-          if (uriTokens.length == 3) {
-            String jobName = uriTokens[2];
-            // Delete the job state if it is a delete spec request
-            if (this.datasetStateStore != null) {
-              this.datasetStateStore.delete(jobName);
-            }
-          }
+          this.removedSpecs.inc();
+          URI jobSpecUri = ((Either.Right<JobSpec, URI>) parsedMessage).getRight();
+          this.jobCatalog.remove(jobSpecUri, true);
+          // Delete the job state if it is a delete spec request
+          deleteStateStore(jobSpecUri);
         }
       }
     } catch (IOException ioe) {
-      String messageStr = new String(message.message(), Charsets.UTF_8);
-      log.error(String.format("Failed to parse kafka message with offset %d: %s.", message.offset(), messageStr), ioe);
+      String messageStr = new String(message.getValue(), Charsets.UTF_8);
+      log.error(String.format("Failed to parse kafka message with offset %d: %s.", message.getOffset(), messageStr), ioe);
     }
   }
 
+  /**
+   * It fetches the job name from the given jobSpecUri
+   * and deletes its corresponding state store
+   * @param jobSpecUri jobSpecUri as created by
+   *                   {@link FlowSpec.Utils#createFlowSpecUri}
+   * @throws IOException
+   */
+  private void deleteStateStore(URI jobSpecUri) throws IOException {
+    int EXPECTED_NUM_URI_TOKENS = 3;
+    String[] uriTokens = jobSpecUri.getPath().split("/");
+
+    if (null == this.datasetStateStore) {
+      log.warn("Job state store deletion failed as datasetstore is not initialized.");
+      return;
+    }
+    if (uriTokens.length != EXPECTED_NUM_URI_TOKENS) {
+      log.error("Invalid URI {}.", jobSpecUri);
+      return;
+    }
+
+    String jobName = uriTokens[EXPECTED_NUM_URI_TOKENS - 1];
+    this.datasetStateStore.delete(jobName);
+    log.info("JobSpec {} deleted with statestore.", jobSpecUri);
+  }
 }

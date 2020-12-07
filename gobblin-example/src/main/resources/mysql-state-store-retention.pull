@@ -1,0 +1,41 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+job.name=state_cleanup
+job.group=state
+
+gobblin.retention.dataset.finder.class=org.apache.gobblin.data.management.retention.dataset.finder.TimeBasedDatasetStoreDatasetFinder
+
+gobblin.retention.selection.policy.class=org.apache.gobblin.data.management.policy.CombineSelectionPolicy
+gobblin.retention.selection.combine.operation=intersect
+gobblin.retention.selection.combine.policy.classes=org.apache.gobblin.data.management.policy.SelectBeforeTimeBasedPolicy,org.apache.gobblin.data.management.policy.NewestKSelectionPolicy
+gobblin.retention.selection.timeBased.lookbackTime=18h
+gobblin.retention.selection.newestK.versionsNotSelected=4
+
+encrypt.key.loc=/export/home/app/clusterMasterKey
+state.store.type=mysql
+state.store.db.url=jdbc:mysql://localhost:3306/gobblin
+state.store.db.user=gobblin
+state.store.db.password=ENC(56Dk1V2N5gZh07BVHMzHag==)
+
+# The example configuration above is without a config namespace prefix.
+# If cleanup of multiple state stores in a single job is desired then set the following key:
+# datasetCleanerSource.configurations=config1,config2
+# and then prefix any config overrides with datasetCleanerSource.<config namespace>
+#
+# Ex: datasetCleanerSource.config1.state.store.db.user=gobblin2
+

@@ -19,34 +19,38 @@ package org.apache.gobblin.runtime.template;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Properties;
 import java.util.Set;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.runtime.api.GobblinInstanceDriver;
-import org.apache.gobblin.runtime.api.JobCatalog;
 import org.apache.gobblin.runtime.api.JobCatalogWithTemplates;
 import org.apache.gobblin.runtime.api.JobTemplate;
+import org.apache.gobblin.runtime.api.SecureJobTemplate;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
+import org.apache.gobblin.util.ConfigUtils;
 
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 
 /**
  * A {@link JobTemplate} using a static {@link Config} as the raw configuration for the template.
  */
-public class StaticJobTemplate extends InheritingJobTemplate {
+@Slf4j
+public class StaticJobTemplate extends InheritingJobTemplate implements SecureJobTemplate {
 
   public static final String SUPER_TEMPLATE_KEY = "gobblin.template.inherit";
+  public static final String IS_SECURE_KEY = "gobblin.template.isSecure";
+  public static final String SECURE_OVERRIDABLE_PROPERTIES_KEYS = "gobblin.template.secure.overridableProperties";
 
   private Config rawConfig;
   private Set<String> requiredAttributes;
@@ -56,28 +60,44 @@ public class StaticJobTemplate extends InheritingJobTemplate {
   private final String version;
   @Getter
   private final String description;
+  @Getter
+  private Collection<String> dependencies;
 
   public StaticJobTemplate(URI uri, String version, String description, Config config, JobCatalogWithTemplates catalog)
-      throws SpecNotFoundException, TemplateException {
+      throws TemplateException {
     this(uri, version, description, config, getSuperTemplateUris(config), catalog);
   }
 
+  /** An constructor that materialize multiple templates into a single static template
+   * The constructor provided multiple in-memory templates as the input instead of templateURIs
+   * */
+  public StaticJobTemplate(URI uri, String version, String description, Config config, List<JobTemplate> templates) {
+    super(templates, false);
+    this.uri = uri;
+    this.version = version;
+    this.rawConfig = config;
+    this.description = description;
+  }
+
   protected StaticJobTemplate(URI uri, String version, String description, Config config, List<URI> superTemplateUris,
-      JobCatalogWithTemplates catalog) throws SpecNotFoundException, TemplateException {
+      JobCatalogWithTemplates catalog) {
     super(superTemplateUris, catalog);
     this.uri = uri;
     this.version = version;
     this.description = description;
     this.rawConfig = config;
-    this.requiredAttributes = config.hasPath(ConfigurationKeys.REQUIRED_ATRRIBUTES_LIST)
-        ? new HashSet<>(Arrays.asList(config.getString(ConfigurationKeys.REQUIRED_ATRRIBUTES_LIST).split(",")))
+    this.requiredAttributes = config.hasPath(ConfigurationKeys.REQUIRED_ATRRIBUTES_LIST) ? new HashSet<>(
+        Arrays.asList(config.getString(ConfigurationKeys.REQUIRED_ATRRIBUTES_LIST).split(",")))
         : Sets.<String>newHashSet();
+    this.dependencies = config.hasPath(ConfigurationKeys.JOB_DEPENDENCIES) ? Arrays
+        .asList(config.getString(ConfigurationKeys.JOB_DEPENDENCIES).split(",")) : new ArrayList<>();
   }
 
-  private static List<URI> getSuperTemplateUris(Config config) throws TemplateException {
+  private static List<URI> getSuperTemplateUris(Config config)
+      throws TemplateException {
     if (config.hasPath(SUPER_TEMPLATE_KEY)) {
       List<URI> uris = Lists.newArrayList();
-      for (String uriString : config.getString(SUPER_TEMPLATE_KEY).split(",")) {
+      for (String uriString : ConfigUtils.getStringList(config, SUPER_TEMPLATE_KEY)) {
         try {
           uris.add(new URI(uriString));
         } catch (URISyntaxException use) {
@@ -102,6 +122,17 @@ public class StaticJobTemplate extends InheritingJobTemplate {
 
   @Override
   protected Config getLocallyResolvedConfig(Config userConfig) {
-    return userConfig.withFallback(this.rawConfig);
+    Config filteredUserConfig = SecureJobTemplate.filterUserConfig(this, userConfig, log);
+    return filteredUserConfig.withFallback(this.rawConfig);
+  }
+
+  @Override
+  public boolean isSecure() {
+    return ConfigUtils.getBoolean(this.rawConfig, IS_SECURE_KEY, false);
+  }
+
+  @Override
+  public Collection<String> overridableProperties() {
+    return isSecure() ? ConfigUtils.getStringList(this.rawConfig, SECURE_OVERRIDABLE_PROPERTIES_KEYS) : Collections.emptyList();
   }
 }

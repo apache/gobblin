@@ -17,11 +17,16 @@
 
 package org.apache.gobblin.aws;
 
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.util.List;
+
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.io.IOUtils;
 import org.junit.BeforeClass;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+import org.testng.util.Strings;
 
 import com.google.common.base.Optional;
 
@@ -64,10 +69,8 @@ public class CloudInitScriptBuilderTest {
 
   @BeforeClass
   public void setup() throws Exception {
-    this.expectedMasterCloudInitScript = IOUtils.toString(GobblinAWSClusterLauncherTest.class.getClassLoader()
-        .getResourceAsStream(MASTER_CLOUD_INIT_SCRIPT), "UTF-8");
-    this.expectedWorkerCloudInitScript = IOUtils.toString(GobblinAWSClusterLauncherTest.class.getClassLoader()
-        .getResourceAsStream(WORKER_CLOUD_INIT_SCRIPT), "UTF-8");
+    this.expectedMasterCloudInitScript = loadFile(MASTER_CLOUD_INIT_SCRIPT);
+    this.expectedWorkerCloudInitScript = loadFile(WORKER_CLOUD_INIT_SCRIPT);
   }
 
   @Test
@@ -92,5 +95,25 @@ public class CloudInitScriptBuilderTest {
 
     Assert.assertEquals(decodedScript, this.expectedWorkerCloudInitScript,
         "Worker launcher cloud-init script not built as expected");
+  }
+
+  /**
+   * loads the given file into a string, ignoring the comments, but considering "#!/bin/bash"
+   * @param file file to read
+   * @return file content as a string
+   * @throws IOException
+   */
+  private String loadFile(String file) throws IOException {
+    StringBuilder sb = new StringBuilder();
+
+    List<String> lines = IOUtils
+        .readLines(new InputStreamReader(GobblinAWSClusterLauncherTest.class.getClassLoader().getResourceAsStream(file), "UTF-8"));
+
+    for (String line : lines) {
+      if (line.equals(CloudInitScriptBuilder.BASH) || (!line.startsWith("#") && !Strings.isNullOrEmpty(line))) {
+        sb.append(line).append("\n");
+      }
+    }
+    return sb.toString();
   }
 }

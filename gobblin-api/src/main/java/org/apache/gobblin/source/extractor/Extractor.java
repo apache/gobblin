@@ -23,8 +23,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.gobblin.metadata.GlobalMetadata;
 import org.apache.gobblin.records.RecordStreamWithMetadata;
+import org.apache.gobblin.runtime.JobShutdownException;
 import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.stream.StreamEntity;
+import org.apache.gobblin.util.Decorator;
 
 import edu.umd.cs.findbugs.annotations.SuppressWarnings;
 import io.reactivex.Emitter;
@@ -54,7 +56,7 @@ public interface Extractor<S, D> extends Closeable {
    * @return schema of the extracted data records
    * @throws java.io.IOException if there is problem getting the schema
    */
-  public S getSchema() throws IOException;
+  S getSchema() throws IOException;
 
   /**
    * Read the next data record from the data source.
@@ -78,17 +80,33 @@ public interface Extractor<S, D> extends Closeable {
    *
    * @return the expected source record count
    */
-  public long getExpectedRecordCount();
+  long getExpectedRecordCount();
 
   /**
    * Get the calculated high watermark up to which data records are to be extracted.
    *
    * @return the calculated high watermark
    * @deprecated there is no longer support for reporting the high watermark via this method, please see
-   * <a href="https://github.com/linkedin/gobblin/wiki/Watermarks">Watermarks</a> for more information.
+   * <a href="https://gobblin.readthedocs.io/en/latest/user-guide/State-Management-and-Watermarks/">Watermarks</a> for more information.
    */
   @Deprecated
-  public long getHighWatermark();
+  long getHighWatermark();
+
+  /**
+   * Called to notify the Extractor it should shut down as soon as possible. If this call returns successfully, the task
+   * will continue consuming records from the Extractor and continue execution normally. The extractor should only emit
+   * those records necessary to stop at a graceful committable state. Most job executors will eventually kill the task
+   * if the Extractor does not stop emitting records after a few seconds.
+   *
+   * @throws JobShutdownException if the extractor does not support early termination. This will cause the task to fail.
+   */
+  default void shutdown() throws JobShutdownException {
+    if (this instanceof Decorator && ((Decorator) this).getDecoratedObject() instanceof Extractor) {
+      ((Extractor) ((Decorator) this).getDecoratedObject()).shutdown();
+    } else {
+      throw new JobShutdownException(this.getClass().getName() + ": Extractor does not support shutdown.");
+    }
+  }
 
   /**
    * Read an {@link RecordEnvelope}. By default, just wrap {@link #readRecord(Object)} in a {@link RecordEnvelope}.
@@ -115,7 +133,12 @@ public interface Extractor<S, D> extends Closeable {
     S schema = getSchema();
     Flowable<StreamEntity<D>> recordStream = Flowable.generate(() -> shutdownRequest, (BiConsumer<AtomicBoolean, Emitter<StreamEntity<D>>>) (state, emitter) -> {
       if (state.get()) {
-        emitter.onComplete();
+        // shutdown requested
+        try {
+          shutdown();
+        } catch (JobShutdownException exc) {
+          emitter.onError(exc);
+        }
       }
       try {
         StreamEntity<D> record = readStreamEntity();

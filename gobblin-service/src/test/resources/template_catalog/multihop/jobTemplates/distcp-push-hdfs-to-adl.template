@@ -1,0 +1,56 @@
+# ====================================================================
+# Job configurations
+# ====================================================================
+job.name=DistcpToADL
+
+#team.name and dataset.name to be supplied via flowConfig
+from=/data/encrypted/${team.name}/${dataset.name}
+to=/data/encrypted/${team.name}/${dataset.name}
+
+#Will delete files in target(ADL) if not exist in source
+gobblin.copy.recursive.update=true
+gobblin.copy.recursive.delete=true
+gobblin.copy.recursive.deleteEmptyDirectories=true
+gobblin.trash.skip.trash=true
+
+#Will make the job fail if there's any failure
+gobblin.copy.abortOnSingleDatasetFailure=true
+
+#gobblin.copy.preserved.attributes=p
+
+#Job properties to be resolved from source and dest data node config.
+fs.uri=${source.data.node.fs.uri}
+source.filebased.fs.uri=${fs.uri}
+state.store.fs.uri=${fs.uri}
+target.filebased.fs.uri=${destination.data.node.fs.uri}
+writer.fs.uri=${target.filebased.fs.uri}
+
+#ADL parameters
+fs.AbstractFileSystem.adl.impl="org.apache.hadoop.fs.adl.Adl"
+dfs.adls.oauth2.access.token.provider.type=ClientCredential
+dfs.adls.oauth2.refresh.url="https://login.microsoftonline.com/67893-erty-1234-7678-123456/oauth2/token"
+dfs.adls.oauth2.client.id=${adls.oauth2.client.id}
+writer.encrypted.dfs.adls.oauth2.credential=${adls.ouath2.credential}
+
+encrypt.key.loc=/user/${user.to.proxy}/master.password
+work.dir=/tmp/${user.to.proxy}
+writer.user.to.proxy=${adls.user.to.proxy}
+
+# ====================================================================
+# Distcp configurations
+# ====================================================================
+extract.namespace="gobblin.copy"
+
+gobblin.dataset.profile.class="org.apache.gobblin.data.management.copy.CopyableGlobDatasetFinder"
+
+# target location for copy
+data.publisher.final.dir=${to}
+gobblin.dataset.pattern=${from}
+
+data.publisher.type="org.apache.gobblin.data.management.copy.publisher.CopyDataPublisher"
+source.class="org.apache.gobblin.data.management.copy.CopySource"
+writer.builder.class="org.apache.gobblin.data.management.copy.writer.FileAwareInputStreamDataWriterBuilder"
+converter.classes="org.apache.gobblin.converter.IdentityConverter"
+
+job.jars="lib/*"
+job.lock.enabled=false

@@ -107,7 +107,7 @@ public class Kafka09TopicProvisionTest {
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"bootstrap.servers", _kafkaTestHelper.getBootServersList());    
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
     
-    Kafka09DataWriter<String> kafka09DataWriter = new Kafka09DataWriter<String>(props);
+    Kafka09DataWriter<String, String> kafka09DataWriter = new Kafka09DataWriter<>(props);
     String zookeeperConnect = "localhost:"+_kafkaTestHelper.getZookeeperPort();
     int sessionTimeoutMs = 10 * 1000;
     int connectionTimeoutMs = 8 * 1000;
@@ -160,7 +160,7 @@ public class Kafka09TopicProvisionTest {
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"bootstrap.servers", liveBroker);    
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX+"value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
     
-    Kafka09DataWriter<String> kafka09DataWriter = new Kafka09DataWriter<String>(props);
+    Kafka09DataWriter<String, String> kafka09DataWriter = new Kafka09DataWriter<>(props);
     int sessionTimeoutMs = 10 * 1000;
     int connectionTimeoutMs = 8 * 1000;
     // Note: You must initialize the ZkClient with ZKStringSerializer.  If you don't, then

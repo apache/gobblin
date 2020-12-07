@@ -46,6 +46,7 @@ public class StageableTableMetadata {
   public static final String DESTINATION_TABLE_KEY = "destination.tableName";
   public static final String DESTINATION_DB_KEY = "destination.dbName";
   public static final String DESTINATION_DATA_PATH_KEY = "destination.dataPath";
+  public static final String DESTINATION_DATA_PATH_ADD_SUBDIR = "destination.dataPathAddSubDir";
   public static final String DESTINATION_TABLE_PROPERTIES_LIST_KEY = "destination.tableProperties";
   public static final String CLUSTER_BY_KEY = "clusterByList";
   public static final String NUM_BUCKETS_KEY = "numBuckets";
@@ -53,6 +54,12 @@ public class StageableTableMetadata {
   public static final String ROW_LIMIT_KEY = "rowLimit";
   public static final String HIVE_VERSION_KEY = "hiveVersion";
   public static final String HIVE_RUNTIME_PROPERTIES_LIST_KEY = "hiveRuntimeProperties";
+
+  /**
+   * The output of Hive-based conversion can preserve casing in ORC-writer if "columns" and "columns.types" are being set
+   * in table-level properties. Turning this off by-default as Hive engine itself doesn't preserve the case.
+   */
+  public static final String OUTPUT_FILE_CASE_PRESERVED = "casePreserved";
   /***
    * Comma separated list of string that should be used as a prefix for destination partition directory name
    * ... (if present in the location path string of source partition)
@@ -92,6 +99,12 @@ public class StageableTableMetadata {
    */
   public static final String SOURCE_DATA_PATH_IDENTIFIER_KEY = "source.dataPathIdentifier";
 
+  /**
+   * Attributes like "avro.schema.literal" are usually used in offline system as the source-of-truth of schema.
+   * This configuration's value should be the key name that users expects to preserve to schema string if necessary.
+   */
+  public static final String SCHEMA_SOURCE_OF_TRUTH = "schema.original";
+
 
   /** Table name of the destination table. */
   private final String destinationTableName;
@@ -101,6 +114,8 @@ public class StageableTableMetadata {
   private final String destinationDbName;
   /** Path where files of the destination table should be located. */
   private final String destinationDataPath;
+  /** Flag whether adding a subdirectory after destinationDataPath */
+  private final Boolean dataDstPathUseSubdir;
   /** Table properties of destination table. */
   private final Properties destinationTableProperties;
   /** List of columns to cluster by. */
@@ -109,6 +124,7 @@ public class StageableTableMetadata {
   private final Optional<Integer> numBuckets;
   private final Properties hiveRuntimeProperties;
   private final boolean evolutionEnabled;
+  private final boolean casePreserved;
   private final Optional<Integer> rowLimit;
   private final List<String> sourceDataPathIdentifier;
 
@@ -127,6 +143,9 @@ public class StageableTableMetadata {
     this.destinationDataPath = referenceTable == null ? config.getString(DESTINATION_DATA_PATH_KEY)
         : HiveDataset.resolveTemplate(config.getString(DESTINATION_DATA_PATH_KEY), referenceTable);
 
+    // By default, this value is true and subDir "/final" is being added into orc output location.
+    this.dataDstPathUseSubdir = !config.hasPath(DESTINATION_DATA_PATH_ADD_SUBDIR) || config.getBoolean(DESTINATION_DATA_PATH_ADD_SUBDIR);
+
     // Optional
     this.destinationTableProperties =
         convertKeyValueListToProperties(ConfigUtils.getStringList(config, DESTINATION_TABLE_PROPERTIES_LIST_KEY));
@@ -136,6 +155,7 @@ public class StageableTableMetadata {
     this.hiveRuntimeProperties =
         convertKeyValueListToProperties(ConfigUtils.getStringList(config, HIVE_RUNTIME_PROPERTIES_LIST_KEY));
     this.evolutionEnabled = ConfigUtils.getBoolean(config, EVOLUTION_ENABLED, false);
+    this.casePreserved = ConfigUtils.getBoolean(config, OUTPUT_FILE_CASE_PRESERVED, false);
     this.rowLimit = Optional.fromNullable(ConfigUtils.getInt(config, ROW_LIMIT_KEY, null));
     this.sourceDataPathIdentifier = ConfigUtils.getStringList(config, SOURCE_DATA_PATH_IDENTIFIER_KEY);
   }

@@ -160,6 +160,8 @@ public class FileBasedExtractor<S, D> extends InstrumentedExtractor<S, D> {
     if (this.currentFile != null && this.currentFileItr != null) {
       closeCurrentFile();
       incrementBytesReadCounter();
+      // release the reference to allow garbage collection
+      this.currentFileItr = null;
     }
 
     while (!this.hasNext && !this.filesToPull.isEmpty()) {

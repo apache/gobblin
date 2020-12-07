@@ -1,0 +1,12 @@
+namespace org.apache.gobblin.rest
+
+/**
+ * Gobblin job execution query result
+ */
+record JobExecutionQueryResult {
+
+  /**
+   * An array of job execution information records
+   */
+  jobExecutions: array[JobExecutionInfo]
+}

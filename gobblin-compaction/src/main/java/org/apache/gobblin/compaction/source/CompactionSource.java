@@ -16,9 +16,26 @@
  */
 
 package org.apache.gobblin.compaction.source;
+
+import java.io.IOException;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import org.apache.commons.lang.exception.ExceptionUtils;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocalFileSystem;
+import org.apache.hadoop.fs.Path;
+import org.joda.time.DateTimeUtils;
 
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
@@ -27,19 +44,23 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
-import org.apache.commons.lang.exception.ExceptionUtils;
-import org.apache.gobblin.compaction.mapreduce.MRCompactor;
-import org.apache.gobblin.compaction.suite.CompactionSuiteUtils;
-import org.apache.gobblin.config.ConfigBuilder;
-import org.apache.gobblin.data.management.dataset.DatasetUtils;
-import org.apache.gobblin.data.management.dataset.DefaultFileSystemGlobFinder;
-import org.apache.gobblin.compaction.suite.CompactionSuite;
-import org.apache.gobblin.compaction.verify.CompactionVerifier;
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.compaction.mapreduce.MRCompactionTaskFactory;
+import org.apache.gobblin.compaction.mapreduce.MRCompactor;
+import org.apache.gobblin.compaction.suite.CompactionSuite;
+import org.apache.gobblin.compaction.suite.CompactionSuiteUtils;
+import org.apache.gobblin.compaction.verify.CompactionVerifier;
+import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.data.management.dataset.DatasetUtils;
+import org.apache.gobblin.data.management.dataset.DefaultFileSystemGlobFinder;
+import org.apache.gobblin.data.management.dataset.SimpleDatasetRequest;
+import org.apache.gobblin.data.management.dataset.SimpleDatasetRequestor;
 import org.apache.gobblin.dataset.Dataset;
 import org.apache.gobblin.dataset.DatasetsFinder;
 import org.apache.gobblin.runtime.JobState;
@@ -63,30 +84,11 @@ import org.apache.gobblin.util.request_allocation.HierarchicalPrioritizer;
 import org.apache.gobblin.util.request_allocation.RequestAllocator;
 import org.apache.gobblin.util.request_allocation.RequestAllocatorConfig;
 import org.apache.gobblin.util.request_allocation.RequestAllocatorUtils;
-import org.apache.gobblin.data.management.dataset.SimpleDatasetRequest;
-import org.apache.gobblin.data.management.dataset.SimpleDatasetRequestor;
 import org.apache.gobblin.util.request_allocation.ResourceEstimator;
 import org.apache.gobblin.util.request_allocation.ResourcePool;
 
-import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.LocalFileSystem;
-import org.apache.hadoop.fs.Path;
-import org.joda.time.DateTimeUtils;
+import static org.apache.gobblin.util.HadoopUtils.getSourceFileSystem;
 
-import java.io.IOException;
-import java.net.URI;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.UUID;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * A compaction source derived from {@link Source} which uses {@link DefaultFileSystemGlobFinder} to find all
@@ -110,23 +112,22 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
   public WorkUnitStream getWorkunitStream(SourceState state) {
     try {
       fs = getSourceFileSystem(state);
-      state.setProp(COMPACTION_INIT_TIME, DateTimeUtils.currentTimeMillis());
-      suite = CompactionSuiteUtils.getCompactionSuiteFactory(state).createSuite(state);
-
-      initRequestAllocator(state);
-      initJobDir(state);
-      copyJarDependencies(state);
-      DatasetsFinder finder = DatasetUtils.instantiateDatasetFinder(state.getProperties(),
-              getSourceFileSystem(state),
-              DefaultFileSystemGlobFinder.class.getName());
+      DatasetsFinder<Dataset> finder = DatasetUtils.instantiateDatasetFinder(state.getProperties(),
+          fs, DefaultFileSystemGlobFinder.class.getName());
 
       List<Dataset> datasets = finder.findDatasets();
-      CompactionWorkUnitIterator workUnitIterator = new CompactionWorkUnitIterator ();
+      CompactionWorkUnitIterator workUnitIterator = new CompactionWorkUnitIterator();
+
+      if (datasets.size() == 0) {
+        return new BasicWorkUnitStream.Builder(workUnitIterator).build();
+      }
+
+      // initialize iff datasets are found
+      initCompactionSource(state);
 
       // Spawn a single thread to create work units
-      new Thread(new SingleWorkUnitGeneratorService (state, prioritize(datasets, state), workUnitIterator), "SingleWorkUnitGeneratorService").start();
-      return new BasicWorkUnitStream.Builder (workUnitIterator).build();
-
+      new Thread(new SingleWorkUnitGeneratorService(state, prioritize(datasets, state), workUnitIterator), "SingleWorkUnitGeneratorService").start();
+      return new BasicWorkUnitStream.Builder(workUnitIterator).build();
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -150,12 +151,12 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
       this.workUnitIterator = workUnitIterator;
     }
 
-    public void run () {
+    public void run() {
       try {
         Stopwatch stopwatch = Stopwatch.createStarted();
         int threads = this.state.getPropAsInt(CompactionVerifier.COMPACTION_VERIFICATION_THREADS, 5);
         long timeOutInMinute = this.state.getPropAsLong(CompactionVerifier.COMPACTION_VERIFICATION_TIMEOUT_MINUTES, 30);
-        long iterationCountLimit = this.state.getPropAsLong(CompactionVerifier.COMPACTION_VERIFICATION_ITERATION_COUNT_LIMIT, Integer.MAX_VALUE);
+        long iterationCountLimit = this.state.getPropAsLong(CompactionVerifier.COMPACTION_VERIFICATION_ITERATION_COUNT_LIMIT, 100);
         long iteration = 0;
         Map<String, String> failedReasonMap = null;
         while (datasets.size() > 0 && iteration++ < iterationCountLimit) {
@@ -204,7 +205,7 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
           for (Dataset dataset: datasets) {
             log.info ("{} is timed out and give up the verification, adding a failed task", dataset.datasetURN());
             // create failed task for these failed datasets
-            this.workUnitIterator.addWorkUnit (createWorkUnitForFailure(dataset, failedReasonMap.get(dataset.getUrn())));
+            this.workUnitIterator.addWorkUnit(createWorkUnitForFailure(dataset, failedReasonMap.get(dataset.getUrn())));
           }
         }
 
@@ -216,6 +217,28 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
       }
 
     }
+  }
+
+  /**
+   * An non-extensible init method for {@link CompactionSource}, while it leaves
+   * extensible {@link #optionalInit(SourceState)} to derived class to adding customized initialization.
+   *
+   * Comparing to make this method protected directly, this approach is less error-prone since all initialization
+   * happening inside {@link #initCompactionSource(SourceState)} is compulsory.
+   */
+  private void initCompactionSource(SourceState state) throws IOException {
+    state.setProp(COMPACTION_INIT_TIME, DateTimeUtils.currentTimeMillis());
+    suite = CompactionSuiteUtils.getCompactionSuiteFactory(state).createSuite(state);
+
+    initRequestAllocator(state);
+    initJobDir(state);
+    copyJarDependencies(state);
+
+    optionalInit(state);
+  }
+
+  protected void optionalInit(SourceState state) {
+    // do nothing.
   }
 
   private void initRequestAllocator (State state) {
@@ -293,11 +316,11 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
      * {@link VerifiedDataset} wraps original {@link Dataset} because if verification failed, we are able get original
      * datasets and restart the entire process of verification against those failed datasets.
      */
-    public VerifiedDataset call () throws DatasetVerificationException {
+    public VerifiedDataset call() throws DatasetVerificationException {
       try {
         VerifiedResult result = this.verify(dataset);
         if (result.allVerificationPassed) {
-          this.workUnitIterator.addWorkUnit (createWorkUnit(dataset));
+          this.workUnitIterator.addWorkUnit(createWorkUnit(dataset));
         }
         return new VerifiedDataset(dataset, result);
       } catch (Exception e) {
@@ -399,17 +422,19 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
     }
   }
 
-  protected WorkUnit createWorkUnit (Dataset dataset) throws IOException {
+  protected WorkUnit createWorkUnit(Dataset dataset) throws IOException {
     WorkUnit workUnit = new WorkUnit();
     TaskUtils.setTaskFactoryClass(workUnit, MRCompactionTaskFactory.class);
-    suite.save (dataset, workUnit);
+    suite.save(dataset, workUnit);
+    workUnit.setProp(ConfigurationKeys.DATASET_URN_KEY, dataset.getUrn());
     return workUnit;
   }
 
   protected WorkUnit createWorkUnitForFailure (Dataset dataset) throws IOException {
     WorkUnit workUnit = new FailedTask.FailedWorkUnit();
     TaskUtils.setTaskFactoryClass(workUnit, CompactionFailedTask.CompactionFailedTaskFactory.class);
-    suite.save (dataset, workUnit);
+    workUnit.setProp(ConfigurationKeys.DATASET_URN_KEY, dataset.getUrn());
+    suite.save(dataset, workUnit);
     return workUnit;
   }
 
@@ -417,7 +442,8 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
     WorkUnit workUnit = new FailedTask.FailedWorkUnit();
     workUnit.setProp(CompactionVerifier.COMPACTION_VERIFICATION_FAIL_REASON, reason);
     TaskUtils.setTaskFactoryClass(workUnit, CompactionFailedTask.CompactionFailedTaskFactory.class);
-    suite.save (dataset, workUnit);
+    workUnit.setProp(ConfigurationKeys.DATASET_URN_KEY, dataset.getUrn());
+    suite.save(dataset, workUnit);
     return workUnit;
   }
 
@@ -434,13 +460,6 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
-  }
-
-  public static FileSystem getSourceFileSystem(State state)
-          throws IOException {
-    Configuration conf = HadoopUtils.getConfFromState(state);
-    String uri = state.getProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI, ConfigurationKeys.LOCAL_FS_URI);
-    return HadoopUtils.getOptionallyThrottledFileSystem(FileSystem.get(URI.create(uri), conf), state);
   }
 
   /**
@@ -478,7 +497,7 @@ public class CompactionSource implements WorkUnitStreamSource<String, String> {
     LocalFileSystem lfs = FileSystem.getLocal(HadoopUtils.getConfFromState(state));
     Path tmpJarFileDir = new Path(this.tmpJobDir, MRCompactor.COMPACTION_JAR_SUBDIR);
     this.fs.mkdirs(tmpJarFileDir);
-    state.setProp (MRCompactor.COMPACTION_JARS, tmpJarFileDir.toString());
+    state.setProp(MRCompactor.COMPACTION_JARS, tmpJarFileDir.toString());
 
     // copy jar files to hdfs
     for (String jarFile : state.getPropAsList(ConfigurationKeys.JOB_JAR_FILES_KEY)) {

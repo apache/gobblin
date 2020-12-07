@@ -15,40 +15,6 @@
  * limitations under the License.
  */
 
-/*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-/*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package org.apache.gobblin.runtime.spec_catalog;
 
 import java.io.Closeable;
@@ -56,6 +22,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
+import java.util.Properties;
 
 import org.slf4j.Logger;
 
@@ -77,7 +44,7 @@ public class SpecCatalogListenersList implements SpecCatalogListener, SpecCatalo
   }
 
   public SpecCatalogListenersList(Optional<Logger> log) {
-    _disp = new CallbacksDispatcher<SpecCatalogListener>(Optional.<ExecutorService>absent(), log);
+    _disp = new CallbacksDispatcher<>(Optional.<ExecutorService>absent(), log);
   }
 
   public Logger getLog() {
@@ -99,21 +66,22 @@ public class SpecCatalogListenersList implements SpecCatalogListener, SpecCatalo
   }
 
   @Override
-  public synchronized void onAddSpec(Spec addedSpec) {
+  public synchronized AddSpecResponse onAddSpec(Spec addedSpec) {
     Preconditions.checkNotNull(addedSpec);
     try {
-      _disp.execCallbacks(new SpecCatalogListener.AddSpecCallback(addedSpec));
+      return new AddSpecResponse<>(_disp.execCallbacks(new AddSpecCallback(addedSpec)));
     } catch (InterruptedException e) {
       getLog().warn("onAddSpec interrupted.");
     }
+    return null;
   }
 
   @Override
-  public synchronized void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion) {
+  public synchronized void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion, Properties headers) {
     Preconditions.checkNotNull(deletedSpecURI);
 
     try {
-      _disp.execCallbacks(new SpecCatalogListener.DeleteSpecCallback(deletedSpecURI, deletedSpecVersion));
+      _disp.execCallbacks(new SpecCatalogListener.DeleteSpecCallback(deletedSpecURI, deletedSpecVersion, headers));
     } catch (InterruptedException e) {
       getLog().warn("onDeleteSpec interrupted.");
     }
@@ -135,7 +103,7 @@ public class SpecCatalogListenersList implements SpecCatalogListener, SpecCatalo
     _disp.close();
   }
 
-  public void callbackOneListener(Function<SpecCatalogListener, Void> callback,
+  public void callbackOneListener(Function<SpecCatalogListener, AddSpecResponse> callback,
       SpecCatalogListener listener) {
     try {
       _disp.execCallbacks(callback, listener);

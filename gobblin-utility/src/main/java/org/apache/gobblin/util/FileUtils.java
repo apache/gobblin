@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.util;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
@@ -32,5 +33,33 @@ public class FileUtils {
       out.println(text);
       out.flush();
     }
+  }
+
+  /***
+   * Check if child path is child of parent path.
+   * @param parent Expected parent path.
+   * @param child Expected child path.
+   * @return If child path is child of parent path.
+   * @throws IOException
+   */
+  public static boolean isSubPath(File parent, File child) throws IOException {
+    String childStr = child.getCanonicalPath();
+    String parentStr = parent.getCanonicalPath();
+
+    return childStr.startsWith(parentStr);
+  }
+
+  /***
+   * Check if child path is child of parent path.
+   * @param parent Expected parent path.
+   * @param child Expected child path.
+   * @return If child path is child of parent path.
+   * @throws IOException
+   */
+  public static boolean isSubPath(org.apache.hadoop.fs.Path parent, org.apache.hadoop.fs.Path child) throws IOException {
+    String childStr = child.toString();
+    String parentStr = parent.toString();
+
+    return childStr.startsWith(parentStr);
   }
 }

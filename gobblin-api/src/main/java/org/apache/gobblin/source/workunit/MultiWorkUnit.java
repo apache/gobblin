@@ -26,6 +26,8 @@ import java.util.List;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
+import lombok.ToString;
+
 
 /**
  * A class that wraps multiple {@link WorkUnit}s so they can executed within a single task.
@@ -40,6 +42,7 @@ import com.google.common.collect.Lists;
  *
  * @author Yinan Li
  */
+@ToString(callSuper = true)
 public class MultiWorkUnit extends WorkUnit {
 
   private final List<WorkUnit> workUnits = Lists.newArrayList();

@@ -22,6 +22,7 @@ import java.io.OutputStream;
 import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileContext;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -39,6 +40,10 @@ import org.apache.gobblin.codec.StreamCodec;
 import org.apache.gobblin.commit.SpeculativeAttemptAwareConstruct;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.dataset.DatasetConstants;
+import org.apache.gobblin.dataset.DatasetDescriptor;
+import org.apache.gobblin.dataset.Descriptor;
+import org.apache.gobblin.dataset.PartitionDescriptor;
 import org.apache.gobblin.metadata.types.GlobalMetadata;
 import org.apache.gobblin.util.FinalState;
 import org.apache.gobblin.util.ForkOperatorUtils;
@@ -68,6 +73,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
   protected final int branchId;
   protected final String fileName;
   protected final FileSystem fs;
+  protected final FileContext fileContext;
   protected final Path stagingFile;
   protected final String partitionKey;
   private final GlobalMetadata defaultMetadata;
@@ -98,6 +104,9 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
     // Add all job configuration properties so they are picked up by Hadoop
     JobConfigurationUtils.putStateIntoConfiguration(properties, conf);
     this.fs = WriterUtils.getWriterFS(properties, this.numBranches, this.branchId);
+    this.fileContext = FileContext.getFileContext(
+            WriterUtils.getWriterFsUri(properties, this.numBranches, this.branchId),
+            conf);
 
     // Initialize staging/output directory
     Path writerStagingDir = this.writerAttemptIdOptional.isPresent() ? WriterUtils
@@ -153,6 +162,19 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
     if (builder.getPartitionPath(properties) != null) {
       properties.setProp(ConfigurationKeys.WRITER_PARTITION_PATH_KEY + "_" + builder.getWriterId(), partitionKey);
     }
+  }
+
+  @Override
+  public Descriptor getDataDescriptor() {
+    // Dataset is resulted from WriterUtils.getWriterOutputDir(properties, this.numBranches, this.branchId)
+    // The writer dataset might not be same as the published dataset
+    DatasetDescriptor datasetDescriptor = new DatasetDescriptor(fs.getScheme(), outputFile.getParent().toString());
+
+    if (partitionKey == null) {
+      return datasetDescriptor;
+    }
+
+    return new PartitionDescriptor(partitionKey, datasetDescriptor);
   }
 
   /**
@@ -238,15 +260,24 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
     this.bytesWritten = Optional.of(Long.valueOf(stagingFileStatus.getLen()));
 
     LOG.info(String.format("Moving data from %s to %s", this.stagingFile, this.outputFile));
-    // For the same reason as deleting the staging file if it already exists, deleting
-    // the output file if it already exists prevents task retry from being blocked.
-    if (this.fs.exists(this.outputFile)) {
-      LOG.warn(String.format("Task output file %s already exists", this.outputFile));
-      HadoopUtils.deletePath(this.fs, this.outputFile, false);
+    // For the same reason as deleting the staging file if it already exists, overwrite
+    // the output file if it already exists to prevent task retry from being blocked.
+    HadoopUtils.renamePath(this.fs, this.stagingFile, this.outputFile, true);
+
+    // The staging file is moved to the output path in commit, so rename to add record count after that
+    if (this.shouldIncludeRecordCountInFileName) {
+      String filePathWithRecordCount = addRecordCountToFileName();
+      this.properties.appendToSetProp(this.allOutputFilesPropName, filePathWithRecordCount);
+    } else {
+      this.properties.appendToSetProp(this.allOutputFilesPropName, getOutputFilePath());
     }
 
-    HadoopUtils.renamePath(this.fs, this.stagingFile, this.outputFile);
-
+    FsWriterMetrics metrics = new FsWriterMetrics(
+        this.id,
+        new PartitionIdentifier(this.partitionKey, this.branchId),
+        ImmutableSet.of(new FsWriterMetrics.FileInfo(this.outputFile.getName(), recordsWritten()))
+    );
+    this.properties.setProp(FS_WRITER_METRICS_KEY, metrics.toJson());
  }
 
   /**
@@ -271,20 +302,6 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
   public void close()
       throws IOException {
     this.closer.close();
-
-    if (this.shouldIncludeRecordCountInFileName) {
-      String filePathWithRecordCount = addRecordCountToFileName();
-      this.properties.appendToSetProp(this.allOutputFilesPropName, filePathWithRecordCount);
-    } else {
-      this.properties.appendToSetProp(this.allOutputFilesPropName, getOutputFilePath());
-    }
-
-    FsWriterMetrics metrics = new FsWriterMetrics(
-        this.id,
-        new PartitionIdentifier(this.partitionKey, this.branchId),
-        ImmutableSet.of(new FsWriterMetrics.FileInfo(this.outputFile.getName(), recordsWritten()))
-    );
-    this.properties.setProp(FS_WRITER_METRICS_KEY, metrics.toJson());
   }
 
   private synchronized String addRecordCountToFileName()
@@ -292,7 +309,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
     String filePath = getOutputFilePath();
     String filePathWithRecordCount = IngestionRecordCountProvider.constructFilePath(filePath, recordsWritten());
     LOG.info("Renaming " + filePath + " to " + filePathWithRecordCount);
-    HadoopUtils.renamePath(this.fs, new Path(filePath), new Path(filePathWithRecordCount));
+    HadoopUtils.renamePath(this.fs, new Path(filePath), new Path(filePathWithRecordCount), true);
     this.outputFile = new Path(filePathWithRecordCount);
     return filePathWithRecordCount;
   }
@@ -330,6 +347,10 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
     return this.fs.makeQualified(this.outputFile).toString();
   }
 
+  /**
+   * Classes that extends this method needs to determine if writerAttemptIdOptional is present and to avoid
+   * problems of overriding, adding another checking on class type.
+   */
   @Override
   public boolean isSpeculativeAttemptSafe() {
     return this.writerAttemptIdOptional.isPresent() && this.getClass() == FsDataWriter.class;

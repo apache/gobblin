@@ -140,7 +140,7 @@ public class KafkaSimpleStreamingTest {
    * @throws InterruptedException
    * @throws DataRecordException
    */
-  @Test(timeOut = 10000)
+  @Test(timeOut = 30000)
   public void testExtractor()
       throws IOException, InterruptedException, DataRecordException {
     final String topic = "testSimpleStreamingExtractor";
@@ -213,7 +213,7 @@ public class KafkaSimpleStreamingTest {
    * original thread calls close on the extractor and verifies the waiting thread gets an expected exception and exits
    * as expected.
    */
-  @Test(timeOut = 10000)
+  @Test(timeOut = 30000)
   public void testThreadedExtractor() {
     final String topic = "testThreadedExtractor";
     final KafkaSimpleStreamingExtractor<String, byte[]> kSSE = getStreamingExtractor(topic);
@@ -247,7 +247,7 @@ public class KafkaSimpleStreamingTest {
   /**
    * Test that the extractor barfs on not calling start
    */
-  @Test(timeOut = 10000)
+  @Test(timeOut = 30000)
   public void testExtractorStart() {
 
     final String topic = "testExtractorStart";

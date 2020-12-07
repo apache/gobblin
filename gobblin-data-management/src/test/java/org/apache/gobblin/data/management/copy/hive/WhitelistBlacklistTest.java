@@ -17,9 +17,14 @@
 
 package org.apache.gobblin.data.management.copy.hive;
 
+import java.util.Map;
+
 import org.testng.annotations.Test;
 
 import org.testng.Assert;
+
+import com.google.common.collect.Maps;
+import com.typesafe.config.ConfigFactory;
 
 
 public class WhitelistBlacklistTest {
@@ -159,8 +164,25 @@ public class WhitelistBlacklistTest {
   }
 
   @Test
+  public void testCaseAware() throws Exception {
+    WhitelistBlacklist whitelistBlacklist = new WhitelistBlacklist("dB*.Table*", "*.Tablea", false);
+    Assert.assertTrue(whitelistBlacklist.acceptDb("dBa"));
+    Assert.assertTrue(whitelistBlacklist.acceptDb("dBb"));
+    Assert.assertFalse(whitelistBlacklist.acceptDb("dbb"));
+
+    Assert.assertFalse(whitelistBlacklist.acceptTable("dBa", "Tablea"));
+    Assert.assertTrue(whitelistBlacklist.acceptTable("dBa", "Tableb"));
+    Assert.assertFalse(whitelistBlacklist.acceptTable("dbb", "Tableb"));
+    Assert.assertFalse(whitelistBlacklist.acceptTable("dBb", "tableb"));
+  }
+
+  @Test
   public void testWhitelistBlacklist() throws Exception {
-    WhitelistBlacklist whitelistBlacklist = new WhitelistBlacklist("dba", "dba.tablea");
+    Map<String, String> configMap = Maps.newHashMap();
+    configMap.put("whitelist", "dba");
+    configMap.put("blacklist", "dba.tablea");
+    WhitelistBlacklist whitelistBlacklist = new WhitelistBlacklist(ConfigFactory.parseMap(configMap));
+
     Assert.assertTrue(whitelistBlacklist.acceptDb("dba"));
     Assert.assertFalse(whitelistBlacklist.acceptDb("dbb"));
 

@@ -21,15 +21,18 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+
 import org.apache.hadoop.fs.Path;
+
+import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Joiner;
+
 import org.apache.gobblin.compaction.listeners.CompactorListener;
 import org.apache.gobblin.compaction.mapreduce.MRCompactor;
+import org.apache.gobblin.compaction.mapreduce.avro.ConfBasedDeltaFieldProvider;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.writer.DataWriter;
-import org.apache.gobblin.compaction.mapreduce.avro.ConfBasedDeltaFieldProvider;
 
 
 /**

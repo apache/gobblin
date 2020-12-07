@@ -24,6 +24,9 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import org.apache.gobblin.metrics.event.CountEventBuilder;
+import org.apache.gobblin.metrics.event.JobEvent;
+import org.apache.gobblin.runtime.job.JobInterruptionPredicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,12 +72,18 @@ public class LocalJobLauncher extends AbstractJobLauncher {
   // Service manager to manage dependent services
   private final ServiceManager serviceManager;
 
+  private Integer workUnitCount;
+
   public LocalJobLauncher(Properties jobProps) throws Exception {
-    this(jobProps, null);
+    this(jobProps, null, ImmutableList.of());
   }
 
   public LocalJobLauncher(Properties jobProps, SharedResourcesBroker<GobblinScopeTypes> instanceBroker) throws Exception {
-    super(jobProps, ImmutableList.<Tag<?>> of(), instanceBroker);
+    this(jobProps, instanceBroker, ImmutableList.of());
+  }
+
+  public LocalJobLauncher(Properties jobProps, SharedResourcesBroker<GobblinScopeTypes> instanceBroker, List<? extends Tag<?>> metadataTags) throws Exception {
+    super(jobProps, metadataTags, instanceBroker);
     log.debug("Local job launched with properties: {}", jobProps);
 
     TimingEvent jobLocalSetupTimer = this.eventSubmitter.getTimingEvent(TimingEvent.RunJobTimings.JOB_LOCAL_SETUP);
@@ -119,18 +128,21 @@ public class LocalJobLauncher extends AbstractJobLauncher {
 
   @Override
   protected void runWorkUnitStream(WorkUnitStream workUnitStream) throws Exception {
+
     String jobId = this.jobContext.getJobId();
     final JobState jobState = this.jobContext.getJobState();
 
     Iterator<WorkUnit> workUnitIterator = workUnitStream.getWorkUnits();
     if (!workUnitIterator.hasNext()) {
       LOG.warn("No work units to run");
+      CountEventBuilder countEventBuilder = new CountEventBuilder(JobEvent.WORK_UNITS_EMPTY, 0);
+      this.eventSubmitter.submit(countEventBuilder);
       return;
     }
 
-
     TimingEvent workUnitsRunTimer = this.eventSubmitter.getTimingEvent(TimingEvent.RunJobTimings.WORK_UNITS_RUN);
     Iterator<WorkUnit> flattenedWorkUnits = new MultiWorkUnitUnpackingIterator(workUnitStream.getWorkUnits());
+
     Iterator<WorkUnit> workUnitsWithJobState = Iterators.transform(flattenedWorkUnits, new Function<WorkUnit, WorkUnit>() {
       @Override
       public WorkUnit apply(WorkUnit workUnit) {
@@ -138,9 +150,12 @@ public class LocalJobLauncher extends AbstractJobLauncher {
         return workUnit;
       }
     });
-
+    Thread thisThread = Thread.currentThread();
+    JobInterruptionPredicate jobInterruptionPredicate =
+        new JobInterruptionPredicate(jobState, () -> thisThread.interrupt(), true);
     GobblinMultiTaskAttempt.runWorkUnits(this.jobContext, workUnitsWithJobState, this.taskStateTracker,
         this.taskExecutor, GobblinMultiTaskAttempt.CommitPolicy.IMMEDIATE);
+    jobInterruptionPredicate.stopAsync();
 
     if (this.cancellationRequested) {
       // Wait for the cancellation execution if it has been requested

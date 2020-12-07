@@ -19,6 +19,7 @@ package org.apache.gobblin.data.management.source;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -110,9 +111,9 @@ public abstract class DatasetFinderSource<S, D> implements WorkUnitStreamSource<
         } else {
           return Stream.of(new DatasetWrapper(dataset));
         }
-      }).map(this::workUnitForPartitionInternal);
+      }).map(this::workUnitForPartitionInternal).filter(Objects::nonNull);
     } else {
-      return datasetStream.map(this::workUnitForDataset);
+      return datasetStream.map(this::workUnitForDataset).filter(Objects::nonNull);
     }
   }
 

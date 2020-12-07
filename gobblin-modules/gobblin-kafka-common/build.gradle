@@ -16,6 +16,7 @@
  */
 
 apply plugin: 'java'
+apply plugin: 'me.champeau.gradle.jmh'
 
 dependencies {
   compile project(":gobblin-api")
@@ -33,17 +34,19 @@ dependencies {
   compile externalDependency.commonsPool
   compile externalDependency.guava
   compile externalDependency.gson
+  compile externalDependency.hdrHistogram
   compile externalDependency.jacksonCore
   compile externalDependency.jacksonMapper
   compile externalDependency.slf4j
-  compile externalDependency.lombok
   compile externalDependency.typesafeConfig
   compile externalDependency.findBugsAnnotations
-
+  compile externalDependency.jollyday
 
   testCompile project(":gobblin-test-utils")
   testCompile externalDependency.mockito
   testCompile externalDependency.testng
+  testCompile externalDependency.jmh
+  testCompile externalDependency.slf4jToLog4j
 }
 
 configurations {
@@ -57,6 +60,12 @@ configurations {
 
 test {
   workingDir rootProject.rootDir
+}
+
+jmh {
+  include = ""
+  zip64 = true
+  duplicateClassesStrategy = "EXCLUDE"
 }
 
 ext.classification="library"

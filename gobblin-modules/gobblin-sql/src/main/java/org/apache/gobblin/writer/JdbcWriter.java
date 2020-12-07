@@ -67,6 +67,8 @@ import com.google.common.base.Preconditions;
 public class JdbcWriter implements DataWriter<JdbcEntryData> {
   private static final Logger LOG = LoggerFactory.getLogger(JdbcWriter.class);
 
+  public static final String ENABLE_AUTO_COMMIT = "jdbcWriter.enableAutoCommit";
+
   private final Connection conn;
   private final State state;
   private final JdbcWriterCommands commands;
@@ -91,6 +93,7 @@ public class JdbcWriter implements DataWriter<JdbcEntryData> {
         "Staging table is missing with key " + stagingTableKey);
     try {
       this.conn = createConnection();
+      this.conn.setAutoCommit(this.state.getPropAsBoolean(ENABLE_AUTO_COMMIT, false));
       this.commands = new JdbcWriterCommandsFactory().newInstance(this.state, this.conn);
       this.commands.setConnectionParameters(this.state.getProperties(), this.conn);
     } catch (SQLException e) {

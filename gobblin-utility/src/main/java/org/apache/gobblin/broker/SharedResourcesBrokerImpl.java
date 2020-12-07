@@ -260,7 +260,7 @@ public class SharedResourcesBrokerImpl<S extends ScopeType<S>> implements Shared
             parentScopes.add(createWrappedScope(tpe.defaultScopeInstance(), scopeMap, mainScopeType));
           } else {
             throw new IllegalArgumentException(String.format(
-                "Scope %s is an ancestor of %s, however it does not have a default id and is not provided as an acestor scope.",
+                "Scope %s is an ancestor of %s, however it does not have a default id and is not provided as an ancestor scope.",
                 tpe, mainScopeType));
           }
         }

@@ -1,0 +1,42 @@
+# ====================================================================
+# Job configurations (can be changed)
+# ====================================================================
+job.name=ConvertToJsonAndEncrypt
+job.description="Convert date partitioned avro files to json and encrypt"
+from=/data/out/${team.name}/${dataset.name}
+to=/data/encrypted/${team.name}/${dataset.name}
+
+# ====================================================================
+# Distcp configurations
+# ====================================================================
+
+source.class="org.apache.gobblin.source.DatePartitionedAvroFileSource"
+date.partitioned.source.partition.pattern=yyyy-MM-dd
+date.partitioned.source.min.watermark.value=2017-03-01
+source.filebased.data.directory=${from}
+source.entity=avro
+
+converter.classes="org.apache.gobblin.converter.avro.AvroToJsonStringConverter,org.apache.gobblin.converter.string.StringToBytesConverter"
+
+writer.builder.class="org.apache.gobblin.writer.SimpleDataWriterBuilder"
+writer.output.format=json
+writer.codec.type=gzip
+simple.writer.prepend.size=false
+writer.partitioner.class="org.apache.gobblin.writer.partitioner.WorkUnitStateWriterPartitioner"
+writer.partition.pattern=${date.partitioned.source.partition.pattern}
+
+writer.encrypt.algorithm=aes_rotating
+writer.encrypt.keystore_type=json
+writer.encrypt.keystore_path="hdfs://path/to/keystore/keystore.json"
+
+data.publisher.type="org.apache.gobblin.publisher.BaseDataPublisher"
+data.publisher.appendExtractToFinalDir=false
+data.publisher.metadata.output_file="metadata.json"
+data.publisher.metadata.publish.writer=true
+
+data.publisher.final.dir=${to}
+
+task.maxretries=0
+workunit.retry.enabled=false
+
+qualitychecker.task.policies="org.apache.gobblin.policies.count.RowCountPolicy"

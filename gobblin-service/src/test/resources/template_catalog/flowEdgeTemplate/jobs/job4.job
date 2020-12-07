@@ -1,0 +1,2 @@
+gobblin.template.uri="FS:///templates/job4.template"
+job.dependencies="job2,job3"

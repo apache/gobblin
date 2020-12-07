@@ -43,7 +43,9 @@ public class PreserveAttributes {
     BLOCK_SIZE('b'),
     OWNER('u'),
     GROUP('g'),
-    PERMISSION('p');
+    PERMISSION('p'),
+    VERSION('v'),
+    MOD_TIME('t');
 
     private final char token;
 
@@ -87,9 +89,11 @@ public class PreserveAttributes {
    * * u -> preserve owner
    * * g -> preserve group
    * * p -> preserve permissions
+   * * v -> preserve version
+   * * t -> preserve file's modTime
    * Characters not in this character set will be ignored.
    *
-   * @param s String of the form \[rbugp]*\
+   * @param s String of the form \[rbugpv]*\
    * @return Parsed {@link PreserveAttributes}
    */
   public static PreserveAttributes fromMnemonicString(String s) {

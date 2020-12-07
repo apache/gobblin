@@ -1,0 +1,84 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/**
+ * The motivation of having separated dependency module for orc-mapreduce is due to
+ * standalone orc-core libaray depends on much higher version of hive which could conflict
+ * with very lower version of hive-exec-core used by gobblin.
+ */
+
+buildscript {
+    repositories {
+        jcenter()
+    }
+    dependencies {
+        // Bump up shadow version to support Gradle 5.x https://github.com/johnrengelman/shadow
+        classpath 'com.github.jengelman.gradle.plugins:shadow:5.2.0'
+    }
+}
+
+apply plugin: 'com.github.johnrengelman.shadow'
+apply plugin: 'java'
+tasks.remove(tasks.uploadShadow)
+
+dependencies {
+  compile externalDependency.orcMapreduce
+}
+
+configurations {
+  compile {
+    transitive = true
+  }
+  compile {
+    exclude group: "commons-cli"
+    exclude group: "org.apache.avro"
+    exclude group: "org.apache.httpcomponents"
+    exclude group: "org.apache.hadoop"
+  }
+}
+// changed classifier of shadow Jar to ""
+// to make it the main jar since shadow jar is only used
+// This will override the main jar on ./gradlew build
+shadowJar {
+  zip64 true
+  classifier ""
+
+  dependencies {
+    exclude dependency('org.slf4j:.*')
+    exclude dependency('commons-lang:.*')
+  }
+
+  relocate 'org.apache.hadoop.hive', 'shadow.gobblin.orc.org.apache.hadoop.hive'
+  relocate 'com.google', 'shadow.gobblin.orc.com.google'
+}
+
+// assigning a differnet classifer to the main jar
+// so that it does not override the shadow jar
+jar {
+  classifier "thin"
+}
+
+publishing.publications {
+    shadowPub(MavenPublication) {
+      artifacts = [shadowJar]
+      pom pomAttributes
+      pom.withXml addRuntimeDependenciesToPom
+    }
+}
+project.bintray.publications = ["shadowPub"]
+
+ext.classification="library"

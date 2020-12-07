@@ -1,0 +1,11 @@
+syntax = "proto2";
+
+option java_package = "org.apache.gobblin.test.proto";
+option java_outer_classname = "TestRecordProtos";
+
+
+message TestRecord {
+  required int32 partition = 1;
+  required int64 sequence = 2;
+  required string payload = 3;
+}

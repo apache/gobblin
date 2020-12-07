@@ -20,20 +20,19 @@ package org.apache.gobblin.cluster;
 import java.util.Properties;
 import java.util.concurrent.Future;
 
-import lombok.extern.slf4j.Slf4j;
-
-
 import org.quartz.InterruptableJob;
 import org.quartz.Job;
 import org.quartz.JobDataMap;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
+import org.quartz.UnableToInterruptJobException;
+
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.runtime.listeners.JobListener;
 import org.apache.gobblin.scheduler.BaseGobblinJob;
 import org.apache.gobblin.scheduler.JobScheduler;
-import org.quartz.UnableToInterruptJobException;
 
 
 /**
@@ -45,7 +44,7 @@ import org.quartz.UnableToInterruptJobException;
 @Alpha
 @Slf4j
 public class GobblinHelixJob extends BaseGobblinJob implements InterruptableJob {
-  private Future cancellable = null;
+  private Future<?> cancellable = null;
 
   @Override
   public void executeImpl(JobExecutionContext context) throws JobExecutionException {
@@ -57,7 +56,7 @@ public class GobblinHelixJob extends BaseGobblinJob implements InterruptableJob 
     final JobListener jobListener = (JobListener) dataMap.get(JobScheduler.JOB_LISTENER_KEY);
 
     try {
-      if (Boolean.valueOf(jobProps.getProperty(GobblinClusterConfigurationKeys.JOB_EXECUTE_IN_SCHEDULING_THREAD,
+      if (Boolean.parseBoolean(jobProps.getProperty(GobblinClusterConfigurationKeys.JOB_EXECUTE_IN_SCHEDULING_THREAD,
               Boolean.toString(GobblinClusterConfigurationKeys.JOB_EXECUTE_IN_SCHEDULING_THREAD_DEFAULT)))) {
         jobScheduler.runJob(jobProps, jobListener);
       } else {

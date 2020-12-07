@@ -32,27 +32,41 @@ class CountUpAndDownLatch extends CountDownLatch {
 
   public CountUpAndDownLatch(int count) {
     super(0);
-    this.phaser = new Phaser(count);
+    this.phaser = new Phaser(count) {
+      @Override
+      protected boolean onAdvance(int phase, int registeredParties) {
+        // Need to override onAdvance because phaser by default terminates whenever registered parties reaches 0
+        return false;
+      }
+    };
   }
 
   @Override
   public void await() throws InterruptedException {
-    this.phaser.awaitAdvance(0);
+    int phase = getPhase();
+    this.phaser.awaitAdvance(phase);
   }
 
   @Override
   public boolean await(long timeout, TimeUnit unit) throws InterruptedException {
     try {
-      this.phaser.awaitAdvanceInterruptibly(0, timeout, unit);
+      int phase = getPhase();
+      this.phaser.awaitAdvanceInterruptibly(phase, timeout, unit);
       return true;
     } catch (TimeoutException te) {
       return false;
     }
   }
 
+  private int getPhase() {
+    int phase = this.phaser.register();
+    this.phaser.arriveAndDeregister();
+    return phase;
+  }
+
   @Override
   public void countDown() {
-    this.phaser.arrive();
+    this.phaser.arriveAndDeregister();
   }
 
   public void countUp() {

@@ -18,14 +18,17 @@ package org.apache.gobblin;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
 import java.util.Properties;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.runtime.JobException;
+import org.testng.Assert;
 import org.testng.annotations.AfterTest;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
+
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.JobException;
 
 
 @Test
@@ -70,7 +73,10 @@ public class TaskSkipErrRecordsIntegrationTest {
       throws IOException {
     Properties jobProperties =
         GobblinLocalJobLauncherUtils.getJobProperties("runtime_test/task_skip_err_records.properties");
-    FileUtils.copyFile(new File(GobblinLocalJobLauncherUtils.RESOURCE_DIR + SAMPLE_FILE),
+    URL resource = getClass().getClassLoader().getResource("runtime_test/" + SAMPLE_FILE);
+    Assert.assertNotNull(resource, "Sample file not found");
+    File sampleFile = new File(resource.getFile());
+    FileUtils.copyFile(sampleFile,
         new File(GobblinLocalJobLauncherUtils.RESOURCE_DIR + GobblinLocalJobLauncherUtils.SAMPLE_DIR + SAMPLE_FILE));
     jobProperties.setProperty(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL,
         GobblinLocalJobLauncherUtils.RESOURCE_DIR + GobblinLocalJobLauncherUtils.SAMPLE_DIR + SAMPLE_FILE);

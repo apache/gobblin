@@ -20,12 +20,11 @@ package org.apache.gobblin.data.management.copy.hive.filter;
 import java.util.Arrays;
 import java.util.Properties;
 
+import lombok.extern.slf4j.Slf4j;
 import org.joda.time.DateTime;
 import org.joda.time.Period;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
-
-import com.google.common.base.Preconditions;
 
 import org.apache.gobblin.data.management.copy.hive.HiveDataset;
 import org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder;
@@ -41,34 +40,44 @@ import org.apache.gobblin.data.management.copy.hive.PartitionFilterGenerator;
  *   must be such that lexycographical string and date ordering are compatible.
  * </p>
  */
+@Slf4j
 public class LookbackPartitionFilterGenerator implements PartitionFilterGenerator {
 
   public static final String PARTITION_COLUMN = HiveDatasetFinder.HIVE_DATASET_PREFIX + ".partition.filter.datetime.column";
   public static final String LOOKBACK = HiveDatasetFinder.HIVE_DATASET_PREFIX + ".partition.filter.datetime.lookback";
   public static final String DATETIME_FORMAT = HiveDatasetFinder.HIVE_DATASET_PREFIX + ".partition.filter.datetime.format";
-  private static final String ERROR_MESSAGE = LookbackPartitionFilterGenerator.class.getName()
-      + " requires the following properties " + Arrays.toString(new String[]{PARTITION_COLUMN, LOOKBACK, DATETIME_FORMAT});
 
-  private final String partitionColumn;
-  private final Period lookback;
-  private final DateTimeFormatter formatter;
-
+  private final Properties prop;
 
   public LookbackPartitionFilterGenerator(Properties properties) {
-    Preconditions.checkArgument(properties.containsKey(PARTITION_COLUMN), ERROR_MESSAGE);
-    Preconditions.checkArgument(properties.containsKey(LOOKBACK), ERROR_MESSAGE);
-    Preconditions.checkArgument(properties.containsKey(DATETIME_FORMAT), ERROR_MESSAGE);
-
-    this.partitionColumn = properties.getProperty(PARTITION_COLUMN);
-    this.lookback = Period.parse(properties.getProperty(LOOKBACK));
-    this.formatter = DateTimeFormat.forPattern(properties.getProperty(DATETIME_FORMAT));
+    this.prop = (properties == null) ? System.getProperties(): properties;
   }
 
   @Override
   public String getFilter(HiveDataset hiveDataset) {
 
-    DateTime limitDate = (new DateTime()).minus(this.lookback);
+    if (isValidConfig()) {
+      String partitionColumn = this.prop.getProperty(PARTITION_COLUMN);
+      Period lookback = Period.parse(this.prop.getProperty(LOOKBACK));
+      DateTimeFormatter formatter = DateTimeFormat.forPattern(this.prop.getProperty(DATETIME_FORMAT));
 
-    return String.format("%s >= \"%s\"", this.partitionColumn, this.formatter.print(limitDate));
+      DateTime limitDate = (new DateTime()).minus(lookback);
+
+      String partitionFilter = String.format("%s >= \"%s\"", partitionColumn, formatter.print(limitDate));
+      log.info(String.format("Getting partitions for %s using partition filter %s", ((hiveDataset == null) ? "null" :  hiveDataset.getTable()
+          .getCompleteName()), partitionFilter));
+      return partitionFilter;
+    } else {
+      log.error(LookbackPartitionFilterGenerator.class.getName()
+          + " requires the following properties " + Arrays.toString(new String[]{PARTITION_COLUMN, LOOKBACK, DATETIME_FORMAT}));
+
+      return null;
+    }
+  }
+
+  private boolean isValidConfig() {
+    return this.prop.containsKey(LookbackPartitionFilterGenerator.PARTITION_COLUMN)
+        && this.prop.containsKey(LookbackPartitionFilterGenerator.DATETIME_FORMAT)
+        && this.prop.containsKey(LookbackPartitionFilterGenerator.LOOKBACK);
   }
 }

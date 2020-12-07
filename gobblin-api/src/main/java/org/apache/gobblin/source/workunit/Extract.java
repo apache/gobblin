@@ -56,8 +56,6 @@ public class Extract extends State {
     APPEND_ONLY
   }
 
-  private static final DateTimeFormatter DTF =
-      DateTimeFormat.forPattern("yyyyMMddHHmmss").withLocale(Locale.US).withZone(DateTimeZone.UTC);
   private final State previousTableState = new State();
 
   /**
@@ -75,6 +73,11 @@ public class Extract extends State {
   public Extract(SourceState state, TableType type, String namespace, String table) {
     // Values should only be null for deserialization
     if (state != null && type != null && !Strings.isNullOrEmpty(namespace) && !Strings.isNullOrEmpty(table)) {
+      // Constructing DTF
+      DateTimeZone timeZone = getTimeZoneHelper(state);
+
+      DateTimeFormatter DTF = DateTimeFormat.forPattern("yyyyMMddHHmmss").withLocale(Locale.US).withZone(timeZone);
+
       String extractId = DTF.print(new DateTime());
       super.addAll(state);
       super.setProp(ConfigurationKeys.EXTRACT_TABLE_TYPE_KEY, type.toString());
@@ -95,6 +98,11 @@ public class Extract extends State {
         super.setProp(ConfigurationKeys.EXTRACT_FULL_RUN_TIME_KEY, System.currentTimeMillis());
       }
     }
+  }
+
+  DateTimeZone getTimeZoneHelper(SourceState state) {
+    return DateTimeZone.forID(state.getProp(ConfigurationKeys.EXTRACT_ID_TIME_ZONE,
+            ConfigurationKeys.DEFAULT_EXTRACT_ID_TIME_ZONE));
   }
 
   /**

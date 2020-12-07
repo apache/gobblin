@@ -19,9 +19,11 @@ package org.apache.gobblin.runtime.api;
 
 import java.net.URI;
 import java.util.List;
+import java.util.Properties;
 import java.util.concurrent.Future;
 
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.util.CompletedFuture;
 
 
 /**
@@ -38,9 +40,25 @@ public interface SpecProducer<V> {
   /** Update a {@link Spec} being executed on {@link SpecExecutor}. */
   Future<?> updateSpec(V updatedSpec);
 
+  default Future<?> deleteSpec(URI deletedSpecURI) {
+    return deleteSpec(deletedSpecURI, new Properties());
+  }
+
   /** Delete a {@link Spec} being executed on {@link SpecExecutor}. */
-  Future<?> deleteSpec(URI deletedSpecURI);
+  Future<?> deleteSpec(URI deletedSpecURI, Properties headers);
 
   /** List all {@link Spec} being executed on {@link SpecExecutor}. */
   Future<? extends List<V>> listSpecs();
+
+  default String getExecutionLink(Future<?> future, String specExecutorUri) {
+    return "";
+  }
+
+  default String serializeAddSpecResponse(Future<?> response) {
+    return "";
+  }
+
+  default Future<?> deserializeAddSpecResponse(String serializedResponse) {
+    return new CompletedFuture(serializedResponse, null);
+  }
 }

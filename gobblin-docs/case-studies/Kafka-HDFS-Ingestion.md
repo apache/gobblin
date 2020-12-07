@@ -34,7 +34,7 @@ data.publisher.type=org.apache.gobblin.publisher.BaseDataPublisher
 mr.job.max.mappers=1
 
 metrics.reporting.file.enabled=true
-metrics.log.dir=${env:GOBBLIN_WORK_DIR}/metrics
+metrics.log.dir=${gobblin.cluster.work.dir}/metrics
 metrics.reporting.file.suffix=txt
 
 bootstrap.with.offset=earliest
@@ -52,7 +52,7 @@ INFO Actual high watermark for partition test:0=2, expected=2
 INFO Task <task_id> completed in 31212ms with state SUCCESSFUL
 ```
 
-The output file will be in `GOBBLIN_WORK_DIR/job-output/test`, with the two messages you've just created in the Kafka broker. `GOBBLIN_WORK_DIR/metrics` will contain metrics collected from this run.
+The output file will be in `{gobblin.cluster.work.dir}/job-output/test`, with the two messages you've just created in the Kafka broker. `{gobblin.cluster.work.dir}/metrics` will contain metrics collected from this run.
 
 ## MapReduce
 
@@ -107,17 +107,17 @@ After the job finishes, the job output file will be in `/gobblintest/job-output/
 
 ## Source and Extractor
 
-Gobblin provides two abstract classes, [`KafkaSource`](https://github.com/linkedin/gobblin/blob/master/gobblin-core/src/main/java/gobblin/source/extractor/extract/kafka/KafkaSource.java) and [`KafkaExtractor`](https://github.com/linkedin/gobblin/blob/master/gobblin-core/src/main/java/gobblin/source/extractor/extract/kafka/KafkaExtractor.java). `KafkaSource` creates a workunit for each Kafka topic partition to be pulled, then merges and groups the workunits based on the desired number of workunits specified by property `mr.job.max.mappers` (this property is used in both standalone and MR mode). More details about how workunits are merged and grouped is available [here](#merging-and-grouping-workunits-in-kafkasource). `KafkaExtractor` extracts the partitions assigned to a workunit, based on the specified low watermark and high watermark.
+Gobblin provides two abstract classes, [`KafkaSource`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-modules/gobblin-kafka-common/src/main/java/org/apache/gobblin/source/extractor/extract/kafka/KafkaSource.java) and [`KafkaExtractor`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-modules/gobblin-kafka-common/src/main/java/org/apache/gobblin/source/extractor/extract/kafka/KafkaExtractor.java). `KafkaSource` creates a workunit for each Kafka topic partition to be pulled, then merges and groups the workunits based on the desired number of workunits specified by property `mr.job.max.mappers` (this property is used in both standalone and MR mode). More details about how workunits are merged and grouped is available [here](#merging-and-grouping-workunits-in-kafkasource). `KafkaExtractor` extracts the partitions assigned to a workunit, based on the specified low watermark and high watermark.
 
 To use them in a Kafka-HDFS ingestion job, one should subclass `KafkaExtractor` and implement method `decodeRecord(MessageAndOffset)`, which takes a `MessageAndOffset` object pulled from the Kafka broker and decodes it into a desired object. One should also subclass `KafkaSource` and implement `getExtractor(WorkUnitState)` which should return an instance of the Extractor class.
 
-As examples, take a look at [`KafkaSimpleSource`](https://github.com/linkedin/gobblin/blob/master/gobblin-core/src/main/java/gobblin/source/extractor/extract/kafka/KafkaSimpleSource.java), [`KafkaSimpleExtractor`](https://github.com/linkedin/gobblin/blob/master/gobblin-core/src/main/java/gobblin/source/extractor/extract/kafka/KafkaSimpleExtractor.java), and [`KafkaAvroExtractor`](https://github.com/linkedin/gobblin/blob/master/gobblin-core/src/main/java/gobblin/source/extractor/extract/kafka/KafkaExtractor.java).
+As examples, take a look at [`KafkaSimpleSource`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-modules/gobblin-kafka-common/src/main/java/org/apache/gobblin/source/extractor/extract/kafka/KafkaSimpleSource.java), [`KafkaSimpleExtractor`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-modules/gobblin-kafka-common/src/main/java/org/apache/gobblin/source/extractor/extract/kafka/KafkaSimpleExtractor.java), and [`KafkaAvroExtractor`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-modules/gobblin-kafka-common/src/main/java/org/apache/gobblin/source/extractor/extract/kafka/KafkaExtractor.java).
 
 `KafkaSimpleExtractor` simply returns the payload of the `MessageAndOffset` object as a byte array. A job that uses `KafkaSimpleExtractor` may use a `Converter` to convert the byte array to whatever format desired. For example, if the desired output format is JSON, one may implement an `ByteArrayToJsonConverter` to convert the byte array to JSON. Alternatively one may implement a `KafkaJsonExtractor`, which extends `KafkaExtractor` and convert the `MessageAndOffset` object into a JSON object in the `decodeRecord` method. Both approaches should work equally well. `KafkaAvroExtractor` decodes the payload of the `MessageAndOffset` object into an Avro [`GenericRecord`](http://avro.apache.org/docs/current/api/java/index.html?org/apache/avro/generic/GenericRecord.html) object.
 
 ## Writer and Publisher
 
-Any desired writer and publisher can be used, e.g., one may use the [`AvroHdfsDataWriter`](https://github.com/linkedin/gobblin/blob/master/gobblin-core/src/main/java/gobblin/writer/AvroHdfsDataWriter.java) and the [`BaseDataPublisher`](https://github.com/linkedin/gobblin/blob/master/gobblin-core/src/main/java/gobblin/publisher/BaseDataPublisher.java), similar as the [Wikipedia example job](../Getting-Started). If plain text output file is desired, one may use [`SimpleDataWriter`](https://github.com/linkedin/gobblin/blob/master/gobblin-core/src/main/java/gobblin/writer/SimpleDataWriter.java).
+Any desired writer and publisher can be used, e.g., one may use the [`AvroHdfsDataWriter`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/writer/AvroHdfsDataWriter.java) and the [`BaseDataPublisher`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/publisher/BaseDataPublisher.java), similar as the [Wikipedia example job](https://github.com/apache/incubator-gobblin/blob/master/gobblin-example/src/main/resources/wikipedia.pull). If plain text output file is desired, one may use [`SimpleDataWriter`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/writer/SimpleDataWriter.java).
 
 # Job Config Properties
 
@@ -145,7 +145,7 @@ extract.limit.timeLimitTimeunit=minutes
 
 ## Task Level Metrics
 
-Task level metrics can be created in `Extractor`, `Converter` and `Writer` by extending [`InstrumentedExtractor`](https://github.com/linkedin/gobblin/blob/master/gobblin-core/src/main/java/gobblin/instrumented/extractor/InstrumentedExtractor.java), [`InstrumentedConverter`](https://github.com/linkedin/gobblin/blob/master/gobblin-core/src/main/java/gobblin/instrumented/converter/InstrumentedConverter.java) and [`InstrumentedDataWriter`](https://github.com/linkedin/gobblin/blob/master/gobblin-core/src/main/java/gobblin/instrumented/writer/InstrumentedDataWriter.java).
+Task level metrics can be created in `Extractor`, `Converter` and `Writer` by extending [`InstrumentedExtractor`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core-base/src/main/java/org/apache/gobblin/instrumented/extractor/InstrumentedExtractor.java), [`InstrumentedConverter`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core-base/src/main/java/org/apache/gobblin/instrumented/converter/InstrumentedConverter.java) and [`InstrumentedDataWriter`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core-base/src/main/java/org/apache/gobblin/instrumented/writer/InstrumentedDataWriter.java).
 
 For example, `KafkaExtractor` extends `InstrumentedExtractor`. So you can do the following in subclasses of `KafkaExtractor`:
 
@@ -158,11 +158,11 @@ Besides Counter, Meter and Histogram are also supported.
 
 ## Task Level Events
 
-Task level events can be submitted by creating an [`EventSubmitter`](https://github.com/linkedin/gobblin/blob/master/gobblin-metrics/src/main/java/gobblin/metrics/event/EventSubmitter.java) instance and using `EventSubmitter.submit()` or `EventSubmitter.getTimingEvent()`.
+Task level events can be submitted by creating an [`EventSubmitter`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-metrics-libs/gobblin-metrics-base/src/main/java/org/apache/gobblin/metrics/event/EventSubmitter.java) instance and using `EventSubmitter.submit()` or `EventSubmitter.getTimingEvent()`.
 
 ## Job Level Metrics
 
-To create job level metrics, one may extend [`AbstractJobLauncher`](https://github.com/linkedin/gobblin/blob/master/gobblin-runtime/src/main/java/gobblin/runtime/AbstractJobLauncher.java) and create metrics there. For example:
+To create job level metrics, one may extend [`AbstractJobLauncher`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-runtime/src/main/java/org/apache/gobblin/runtime/AbstractJobLauncher.java) and create metrics there. For example:
 
 ```
 Optional<JobMetrics> jobMetrics = this.jobContext.getJobMetricsOptional();
@@ -186,7 +186,7 @@ For more details about metrics, events and reporting them, please see Gobblin Me
 
 For each topic partition that should be ingested, `KafkaSource` first retrieves the last offset pulled by the previous run, which should be the first offset of the current run. It also retrieves the earliest and latest offsets currently available from the Kafka cluster and verifies that the first offset is between the earliest and the latest offsets. The latest offset is the last offset to be pulled by the current workunit. Since new records may be constantly published to Kafka and old records are deleted based on retention policies, the earliest and latest offsets of a partition may change constantly.
 
-For each partition, after the first and last offsets are determined, a workunit is created. If the number of Kafka partitions exceeds the desired number of workunits specified by property `mr.job.max.mappers`, `KafkaSource` will merge and group them into `n` [`MultiWorkUnit`](https://github.com/linkedin/gobblin/blob/master/gobblin-api/src/main/java/gobblin/source/workunit/MultiWorkUnit.java)s where `n=mr.job.max.mappers`. This is done using [`KafkaWorkUnitPacker`](https://github.com/linkedin/gobblin/blob/master/gobblin-core/src/main/java/gobblin/source/extractor/extract/kafka/workunit/packer/KafkaWorkUnitPacker.java), which has two implementations: [`KafkaSingleLevelWorkUnitPacker`](https://github.com/linkedin/gobblin/blob/master/gobblin-core/src/main/java/gobblin/source/extractor/extract/kafka/workunit/packer/KafkaSingleLevelWorkUnitPacker.java) and [`KafkaBiLevelWorkUnitPacker`](https://github.com/linkedin/gobblin/blob/master/gobblin-core/src/main/java/gobblin/source/extractor/extract/kafka/workunit/packer/KafkaBiLevelWorkUnitPacker.java). The packer packs workunits based on the estimated size of each workunit, which is obtained from [`KafkaWorkUnitSizeEstimator`](https://github.com/linkedin/gobblin/blob/master/gobblin-core/src/main/java/gobblin/source/extractor/extract/kafka/workunit/packer/KafkaWorkUnitSizeEstimator.java), which also has two implementations, [`KafkaAvgRecordSizeBasedWorkUnitSizeEstimator`](https://github.com/linkedin/gobblin/blob/master/gobblin-core/src/main/java/gobblin/source/extractor/extract/kafka/workunit/packer/KafkaAvgRecordSizeBasedWorkUnitSizeEstimator.java) and [`KafkaAvgRecordTimeBasedWorkUnitSizeEstimator`](https://github.com/linkedin/gobblin/blob/master/gobblin-core/src/main/java/gobblin/source/extractor/extract/kafka/workunit/packer/KafkaAvgRecordTimeBasedWorkUnitSizeEstimator.java).
+For each partition, after the first and last offsets are determined, a workunit is created. If the number of Kafka partitions exceeds the desired number of workunits specified by property `mr.job.max.mappers`, `KafkaSource` will merge and group them into `n` [`MultiWorkUnit`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-api/src/main/java/org/apache/gobblin/source/workunit/MultiWorkUnit.java)s where `n=mr.job.max.mappers`. This is done using [`KafkaWorkUnitPacker`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-modules/gobblin-kafka-common/src/main/java/org/apache/gobblin/source/extractor/extract/kafka/workunit/packer/KafkaWorkUnitPacker.java), which has two implementations: [`KafkaSingleLevelWorkUnitPacker`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-modules/gobblin-kafka-common/src/main/java/org/apache/gobblin/source/extractor/extract/kafka/workunit/packer/KafkaSingleLevelWorkUnitPacker.java) and [`KafkaBiLevelWorkUnitPacker`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-modules/gobblin-kafka-common/src/main/java/org/apache/gobblin/source/extractor/extract/kafka/workunit/packer/KafkaBiLevelWorkUnitPacker.java). The packer packs workunits based on the estimated size of each workunit, which is obtained from [`KafkaWorkUnitSizeEstimator`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-modules/gobblin-kafka-common/src/main/java/org/apache/gobblin/source/extractor/extract/kafka/workunit/packer/KafkaWorkUnitSizeEstimator.java), which also has two implementations, [`KafkaAvgRecordSizeBasedWorkUnitSizeEstimator`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-modules/gobblin-kafka-common/src/main/java/org/apache/gobblin/source/extractor/extract/kafka/workunit/packer/KafkaAvgRecordSizeBasedWorkUnitSizeEstimator.java) and [`KafkaAvgRecordTimeBasedWorkUnitSizeEstimator`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-modules/gobblin-kafka-common/src/main/java/org/apache/gobblin/source/extractor/extract/kafka/workunit/packer/KafkaAvgRecordTimeBasedWorkUnitSizeEstimator.java).
 
 ## Single-Level Packing
 

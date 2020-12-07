@@ -17,8 +17,9 @@
 
 package org.apache.gobblin.data.management.copy;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import org.joda.time.LocalDateTime;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -29,28 +30,38 @@ public class DateRangeIteratorTest {
 
   @Test
   public void testIterator() {
-    LocalDateTime endDate = LocalDateTime.of(2017, 1, 1, 0, 0, 0);
+    LocalDateTime endDate = new LocalDateTime(2017, 1, 1, 0, 0, 0);
     LocalDateTime startDate = endDate.minusHours(2);
     String datePattern = "HH/yyyy/MM/dd";
-    DateTimeFormatter format = DateTimeFormatter.ofPattern(datePattern);
+    DateTimeFormatter format = DateTimeFormat.forPattern(datePattern);
     TimeAwareRecursiveCopyableDataset.DateRangeIterator dateRangeIterator =
-        new TimeAwareRecursiveCopyableDataset.DateRangeIterator(startDate, endDate, datePattern);
+        new TimeAwareRecursiveCopyableDataset.DateRangeIterator(startDate, endDate, TimeAwareRecursiveCopyableDataset.DatePattern.HOURLY);
     LocalDateTime dateTime = dateRangeIterator.next();
-    Assert.assertEquals(dateTime.format(format), "22/2016/12/31");
+    Assert.assertEquals(dateTime.toString(format), "22/2016/12/31");
     dateTime = dateRangeIterator.next();
-    Assert.assertEquals(dateTime.format(format), "23/2016/12/31");
+    Assert.assertEquals(dateTime.toString(format), "23/2016/12/31");
     dateTime = dateRangeIterator.next();
-    Assert.assertEquals(dateTime.format(format), "00/2017/01/01");
+    Assert.assertEquals(dateTime.toString(format), "00/2017/01/01");
     Assert.assertEquals(dateRangeIterator.hasNext(), false);
 
     datePattern = "yyyy/MM/dd";
-    format = DateTimeFormatter.ofPattern(datePattern);
+    format = DateTimeFormat.forPattern(datePattern);
     startDate = endDate.minusDays(1);
-    dateRangeIterator = new TimeAwareRecursiveCopyableDataset.DateRangeIterator(startDate, endDate, datePattern);
+    dateRangeIterator = new TimeAwareRecursiveCopyableDataset.DateRangeIterator(startDate, endDate, TimeAwareRecursiveCopyableDataset.DatePattern.DAILY);
     dateTime = dateRangeIterator.next();
-    Assert.assertEquals(dateTime.format(format), "2016/12/31");
+    Assert.assertEquals(dateTime.toString(format), "2016/12/31");
     dateTime = dateRangeIterator.next();
-    Assert.assertEquals(dateTime.format(format), "2017/01/01");
+    Assert.assertEquals(dateTime.toString(format), "2017/01/01");
     Assert.assertEquals(dateRangeIterator.hasNext(), false);
+
+    datePattern = "yyyy-MM-dd-HH-mm";
+    format = DateTimeFormat.forPattern(datePattern);
+    startDate = endDate.minusHours(1);
+    dateRangeIterator = new TimeAwareRecursiveCopyableDataset.DateRangeIterator(startDate, endDate, TimeAwareRecursiveCopyableDataset.DatePattern.MINUTELY);
+    dateTime = dateRangeIterator.next();
+    Assert.assertEquals(dateTime.toString(format), "2016-12-31-23-00");
+    dateTime = dateRangeIterator.next();
+    Assert.assertEquals(dateTime.toString(format), "2016-12-31-23-01");
+    Assert.assertEquals(dateRangeIterator.hasNext(), true);
   }
 }

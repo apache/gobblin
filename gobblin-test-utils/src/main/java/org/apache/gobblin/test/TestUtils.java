@@ -45,6 +45,27 @@ public class TestUtils {
     return messageBytes;
   }
 
+  private static final char[] alphas = new char[26];
+
+  public static Long generateRandomLong() {
+    return rng.nextLong();
+  }
+
+  static {
+    char ch = 'a';
+    for (int i = 0; i < 26; i++) {
+      alphas[i] = ch++;
+    }
+  }
+
+  public static String generateRandomAlphaString(int stringLength) {
+    char[] newString = new char[stringLength];
+    for (int i = 0; i < stringLength; ++i)
+    {
+      newString[i] = alphas[rng.nextInt(26)];
+    }
+    return new String(newString);
+  }
 
   /**
    * TODO: Currently generates a static schema avro record.
@@ -76,7 +97,7 @@ public class TestUtils {
    * @return a free port number on localhost
    * @throws IllegalStateException if unable to find a free port
    */
-  public static int findFreePort() {
+  public synchronized static int findFreePort() {
     ServerSocket socket = null;
     try {
       socket = new ServerSocket(0);

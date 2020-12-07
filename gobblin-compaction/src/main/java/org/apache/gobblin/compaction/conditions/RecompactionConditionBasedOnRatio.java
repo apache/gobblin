@@ -17,15 +17,8 @@
 
 package org.apache.gobblin.compaction.conditions;
 
-
 import java.util.List;
 import java.util.Map;
-
-import org.apache.gobblin.annotation.Alias;
-import org.apache.gobblin.compaction.dataset.DatasetHelper;
-import org.apache.gobblin.compaction.dataset.Dataset;
-import org.apache.gobblin.compaction.mapreduce.MRCompactor;
-import org.apache.gobblin.util.DatasetFilterUtils;
 
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
@@ -33,6 +26,12 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Splitter;
 import com.google.common.collect.Maps;
+
+import org.apache.gobblin.annotation.Alias;
+import org.apache.gobblin.compaction.dataset.Dataset;
+import org.apache.gobblin.compaction.dataset.DatasetHelper;
+import org.apache.gobblin.compaction.mapreduce.MRCompactor;
+import org.apache.gobblin.util.DatasetFilterUtils;
 
 
 /**

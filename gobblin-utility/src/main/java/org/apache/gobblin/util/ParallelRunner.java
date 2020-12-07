@@ -30,6 +30,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.Lock;
 
 import org.apache.hadoop.conf.Configuration;
@@ -354,7 +356,7 @@ public class ParallelRunner implements Closeable {
    * Wait for all submitted tasks to complete. The {@link ParallelRunner} can be reused after this call.
    * @throws IOException
    */
-  public void waitForTasks() throws IOException {
+  public void waitForTasks(long timeoutInMills) throws IOException {
     // Wait for all submitted tasks to complete
     boolean wasInterrupted = false;
     IOException exception = null;
@@ -363,7 +365,7 @@ public class ParallelRunner implements Closeable {
         if (wasInterrupted) {
           future.getFuture().cancel(true);
         } else {
-          future.getFuture().get();
+          future.getFuture().get(timeoutInMills, TimeUnit.MILLISECONDS);
         }
       } catch (InterruptedException ie) {
         LOGGER.warn("Task was interrupted: " + future.getName());
@@ -376,6 +378,11 @@ public class ParallelRunner implements Closeable {
         if (exception == null) {
           exception = new IOException(ee.getCause());
         }
+      } catch (TimeoutException te) {
+        LOGGER.warn("Tasks not fully finished before Parallel runner waiting until timeout due to:", te);
+        if (exception == null) {
+          exception = new IOException(te.getCause());
+        }
       }
     }
     if (wasInterrupted) {
@@ -387,6 +394,13 @@ public class ParallelRunner implements Closeable {
 
     // clear so that more tasks can be submitted to this ParallelRunner
     futures.clear();
+  }
+
+  /**
+   * Wait until default timeout(infinite long, if not specified) for all tasks under this parallel runner.
+   */
+  public void waitForTasks() throws IOException{
+    this.waitForTasks(Long.MAX_VALUE);
   }
 
   @Override

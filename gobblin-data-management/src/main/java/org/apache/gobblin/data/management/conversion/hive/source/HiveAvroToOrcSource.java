@@ -16,17 +16,24 @@
  */
 package org.apache.gobblin.data.management.conversion.hive.source;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
 import java.util.List;
-
 import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset;
 import org.apache.gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDatasetFinder;
+import org.apache.gobblin.data.management.conversion.hive.utils.LineageUtils;
 import org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder;
+import org.apache.gobblin.dataset.DatasetDescriptor;
+import org.apache.gobblin.metrics.event.lineage.LineageInfo;
 import org.apache.gobblin.source.workunit.WorkUnit;
+
 
 /**
  * An extension to {@link HiveSource} that is used for Avro to ORC conversion jobs.
  */
 public class HiveAvroToOrcSource extends HiveSource {
+  private Optional<LineageInfo> lineageInfo;
 
   @Override
   public List<WorkUnit> getWorkunits(SourceState state) {
@@ -36,8 +43,24 @@ public class HiveAvroToOrcSource extends HiveSource {
     if (!state.contains(HiveDatasetFinder.HIVE_DATASET_CONFIG_PREFIX_KEY)) {
       state.setProp(HiveDatasetFinder.HIVE_DATASET_CONFIG_PREFIX_KEY, "hive.conversion.avro");
     }
+    this.lineageInfo = LineageInfo.getLineageInfo(state.getBroker());
 
-    return super.getWorkunits(state);
+    List<WorkUnit> workunits = super.getWorkunits(state);
+    for (WorkUnit workUnit : workunits) {
+      if (LineageUtils.shouldSetLineageInfo(workUnit)) {
+        setSourceLineageInfo(workUnit, this.lineageInfo);
+      }
+    }
+    return workunits;
   }
 
+  @VisibleForTesting
+  public void setSourceLineageInfo(WorkUnit workUnit, Optional<LineageInfo> lineageInfo) {
+    HiveWorkUnit hiveWorkUnit = new HiveWorkUnit(workUnit);
+    ConvertibleHiveDataset convertibleHiveDataset = (ConvertibleHiveDataset) hiveWorkUnit.getHiveDataset();
+    DatasetDescriptor sourceDataset = convertibleHiveDataset.getSourceDataset();
+    if (lineageInfo.isPresent()) {
+      lineageInfo.get().setSource(sourceDataset, workUnit);
+    }
+  }
 }

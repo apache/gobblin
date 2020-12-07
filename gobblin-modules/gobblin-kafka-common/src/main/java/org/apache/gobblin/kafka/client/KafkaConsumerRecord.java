@@ -16,6 +16,9 @@
  */
 package org.apache.gobblin.kafka.client;
 
+import java.util.concurrent.TimeUnit;
+
+
 /**
  * A kafka message/record consumed from {@link GobblinKafkaConsumerClient}. This interface provides APIs to read message
  * metadata. Extension interfaces like {@link DecodeableKafkaRecord} or {@link ByteArrayBasedKafkaRecord} provide APIs
@@ -38,4 +41,33 @@ public interface KafkaConsumerRecord {
    * does not provide size (like Kafka 09 clients)
    */
   public long getValueSizeInBytes();
+
+  /**
+   * @return the timestamp of the underlying ConsumerRecord.
+   */
+  public default long getTimestamp() { return 0; }
+
+  /**
+   * @return true if the timestamp in the ConsumerRecord is the timestamp when the record is written to Kafka.
+   */
+  public default boolean isTimestampLogAppend() {
+    return false;
+  }
+
+  /**
+   * @return Partition id for this record
+   */
+  int getPartition();
+
+  /**
+   * @return topic for this record
+   */
+  String getTopic();
+
+  /**
+   * @param fieldName the field name containing the record creation time.
+   * @param timeUnit the timeunit for the timestamp field.
+   * @return the record creation timestamp, if it is available. Defaults to 0.
+   */
+  public default long getRecordCreationTimestamp(String fieldName, TimeUnit timeUnit) { return 0; }
 }

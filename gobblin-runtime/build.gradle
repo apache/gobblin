@@ -15,7 +15,8 @@
  * limitations under the License.
  */
 plugins {
-  id "com.commercehub.gradle.plugin.avro-base" version "0.9.0"
+  // Bump up version to 0.9.1 in order for generateAvro task to work with Gradle 5
+  id "com.commercehub.gradle.plugin.avro-base" version "0.9.1"
 }
 
 apply plugin: 'java'
@@ -38,17 +39,22 @@ compileJava {
 dependencies {
   compile project(":gobblin-api")
   compile project(":gobblin-core")
+  compile project(":gobblin-core-base")
   compile project(":gobblin-hive-registration")
   compile project(":gobblin-metrics-libs:gobblin-metrics")
   compile project(":gobblin-metastore")
   compile project(":gobblin-utility")
   compile project(path: ':gobblin-rest-service:gobblin-rest-api', configuration: 'restClient')
   compile project(path: ':gobblin-rest-service:gobblin-rest-api', configuration: 'dataTemplate')
+  compile project(path: ':gobblin-restli:gobblin-flow-config-service:gobblin-flow-config-service-api', configuration: 'restClient')
+  compile project(path: ':gobblin-restli:gobblin-flow-config-service:gobblin-flow-config-service-api', configuration: 'dataTemplate')
   compile project(":gobblin-rest-service:gobblin-rest-server")
   compile project(":gobblin-modules:google-ingestion")
 
   compile externalDependency.avro
   compile externalDependency.avroMapredH2
+  compile externalDependency.calciteCore
+  //compile externalDependency.calciteAvatica
   compile externalDependency.commonsCli
   compile externalDependency.commonsConfiguration
   compile externalDependency.commonsEmail
@@ -68,24 +74,19 @@ dependencies {
   compile externalDependency.jacksonMapper
   compile externalDependency.javaxInject
   compile externalDependency.jodaTime
-  compile externalDependency.log4j
-  compile externalDependency.lombok
   compile externalDependency.metricsCore
   compile externalDependency.metricsJvm
+  compile externalDependency.mockito
   compile externalDependency.pegasus.data
   compile externalDependency.quartz
   compile externalDependency.slf4j
   compile externalDependency.typesafeConfig
-  compile externalDependency.kafka08
-  compile externalDependency.scala
   compile externalDependency.guavaretrying
   compile externalDependency.hiveExec
   compile externalDependency.parquet
   compile externalDependency.kryo
 
   testCompile project(path: ":gobblin-metastore", configuration: "testFixtures")
-  testCompile externalDependency.calciteCore
-  testCompile externalDependency.calciteAvatica
   testCompile externalDependency.jhyde
   testCompile externalDependency.testng
   testCompile externalDependency.hamcrest
@@ -95,21 +96,34 @@ dependencies {
   testCompile externalDependency.curatorTest
   testCompile externalDependency.mockito
   testRuntime externalDependency.derby
-
-  jmh 'org.openjdk.jmh:jmh-core:1.17.3'
+  testCompile externalDependency.jmh
 }
 
 // Begin HACK to get around POM being depenendent on the (empty) gobblin-rest-api instead of gobblin-rest-api-rest-client
 def installer = install.repositories.mavenInstaller
+
 [installer]*.pom*.whenConfigured {pom ->
-    pom.dependencies.find {dep -> dep.groupId == project.group && dep.artifactId == 'gobblin-rest-api' }.artifactId = 'gobblin-rest-api-rest-client'
-    pom.dependencies.find {dep -> dep.groupId == project.group && dep.artifactId == 'gobblin-rest-api' }.artifactId = 'gobblin-rest-api-data-template'
+  def it = pom.dependencies
+  def s = it.find {dep -> dep.groupId == project.group && dep.artifactId == 'gobblin-rest-api' }
+  if (s != null) {
+    def t = s.clone()
+    t.artifactId = 'gobblin-rest-api-data-template'
+    it.add(t)
+    s.artifactId = 'gobblin-rest-api-rest-client'
+  }
 }
+
 if (rootProject.publishToMaven || rootProject.publishToNexus) {
     def deployer = uploadArchives.repositories.mavenDeployer
     [deployer]*.pom*.whenConfigured {pom ->
-        pom.dependencies.find {dep -> dep.groupId == project.group && dep.artifactId == 'gobblin-rest-api' }.artifactId = 'gobblin-rest-api-rest-client'
-        pom.dependencies.find {dep -> dep.groupId == project.group && dep.artifactId == 'gobblin-rest-api' }.artifactId = 'gobblin-rest-api-data-template'
+      def it = pom.dependencies
+      def s = it.find {dep -> dep.groupId == project.group && dep.artifactId == 'gobblin-rest-api' }
+      if (s != null) {
+        def t = s.clone()
+        t.artifactId = 'gobblin-rest-api-data-template'
+        it.add(t)
+        s.artifactId = 'gobblin-rest-api-rest-client'
+      }
     }
 }
 // End HACK
@@ -151,6 +165,7 @@ jmh {
 }
 
 test {
+    systemProperty "org.jboss.byteman.verbose", "true"
     workingDir rootProject.rootDir
     maxParallelForks = 1
 }

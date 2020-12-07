@@ -37,7 +37,8 @@ public abstract class BaseAbstractTask implements TaskIFace {
   }
 
   /**
-   * Overriding methods should call super at the end.
+   * Overriding methods should implement the logic of this task
+   * and update the {@link BaseAbstractTask#workingState} accordingly
    */
   @Override
   public void run() {
@@ -45,7 +46,8 @@ public abstract class BaseAbstractTask implements TaskIFace {
   }
 
   /**
-   * Overriding methods should call super at the end.
+   * The logic to run at committing phase.
+   * Overriding methods should update the {@link BaseAbstractTask#workingState} based on the execution state of the task
    */
   @Override
   public void commit() {
@@ -69,7 +71,8 @@ public abstract class BaseAbstractTask implements TaskIFace {
 
   @Override
   public void shutdown() {
-    if (getWorkingState() == WorkUnitState.WorkingState.PENDING || getWorkingState() == WorkUnitState.WorkingState.RUNNING) {
+    if (getWorkingState() == WorkUnitState.WorkingState.PENDING
+        || getWorkingState() == WorkUnitState.WorkingState.RUNNING) {
       this.workingState = WorkUnitState.WorkingState.CANCELLED;
     }
   }

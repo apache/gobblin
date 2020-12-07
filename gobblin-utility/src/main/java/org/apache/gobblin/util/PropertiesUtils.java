@@ -17,13 +17,19 @@
 
 package org.apache.gobblin.util;
 
+import java.io.IOException;
+import java.io.StringReader;
+import java.io.StringWriter;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 
-import com.google.common.base.Preconditions;
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
 
 
@@ -31,6 +37,8 @@ import com.google.common.collect.ImmutableMap;
  * A utility class for {@link Properties} objects.
  */
 public class PropertiesUtils {
+
+  private static final Splitter LIST_SPLITTER = Splitter.on(",").trimResults().omitEmptyStrings();
 
   /**
    * Combine a variable number of {@link Properties} into a single {@link Properties}.
@@ -58,6 +66,49 @@ public class PropertiesUtils {
     return Boolean.valueOf(properties.getProperty(key, defaultValue));
   }
 
+  public static int getPropAsInt(Properties properties, String key, int defaultValue) {
+    return Integer.parseInt(properties.getProperty(key, Integer.toString(defaultValue)));
+  }
+
+  public static long getPropAsLong(Properties properties, String key, long defaultValue) {
+    return Long.parseLong(properties.getProperty(key, Long.toString(defaultValue)));
+  }
+
+  /**
+   * Get the value of a comma separated property as a {@link List} of strings.
+   *
+   * @param key property key
+   * @return value associated with the key as a {@link List} of strings
+   */
+  public static List<String> getPropAsList(Properties properties, String key) {
+    return LIST_SPLITTER.splitToList(properties.getProperty(key));
+  }
+
+  /**
+   * Extract all the values whose keys start with a <code>prefix</code>
+   * @param properties the given {@link Properties} instance
+   * @param prefix of keys to be extracted
+   * @return a list of values in the properties
+   */
+  public static List<String> getValuesAsList(Properties properties, Optional<String> prefix) {
+    if (prefix.isPresent()) {
+      properties = extractPropertiesWithPrefix(properties, prefix);
+    }
+    Properties finalProperties = properties;
+    return properties.keySet().stream().map(key -> finalProperties.getProperty(key.toString())).collect(Collectors.toList());
+  }
+
+  /**
+   * Get the value of a property as a list of strings, using the given default value if the property is not set.
+   *
+   * @param key property key
+   * @param def default value
+   * @return value (the default value if the property is not set) associated with the key as a list of strings
+   */
+  public static List<String> getPropAsList(Properties properties, String key, String def) {
+    return LIST_SPLITTER.splitToList(properties.getProperty(key, def));
+  }
+
   /**
    * Extract all the keys that start with a <code>prefix</code> in {@link Properties} to a new {@link Properties}
    * instance.
@@ -78,5 +129,27 @@ public class PropertiesUtils {
     }
 
     return extractedProperties;
+  }
+
+  public static String serialize(Properties properties) throws IOException {
+    StringWriter outputWriter = new StringWriter();
+    properties.store(outputWriter, "");
+    String rst = outputWriter.toString();
+    outputWriter.close();
+    return rst;
+  }
+
+  public static Properties deserialize(String serialized) throws IOException {
+    StringReader reader = new StringReader(serialized);
+    Properties properties = new Properties();
+    properties.load(reader);
+    reader.close();
+    return properties;
+  }
+
+  public static String prettyPrintProperties(Properties properties) {
+    return properties.entrySet().stream()
+        .map(entry -> "\"" + entry.getKey() + "\"" + " : " + "\"" + entry.getValue() + "\"")
+        .collect(Collectors.joining(",\n"));
   }
 }

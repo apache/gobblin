@@ -51,15 +51,12 @@ dependencies {
   compile externalDependency.httpasyncclient
   compile externalDependency.httpcore
   compile externalDependency.metricsCore
-  compile externalDependency.scala
-  compile externalDependency.lombok
   compile externalDependency.typesafeConfig
   compile externalDependency.findBugsAnnotations
   compile externalDependency.oltu
   compile externalDependency.opencsv
   compile externalDependency.hadoopHdfs
-
-  runtime externalDependency.protobuf
+  runtimeOnly externalDependency.protobuf
 
   testRuntime externalDependency.hadoopAws
   testCompile externalDependency.calciteCore

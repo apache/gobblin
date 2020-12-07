@@ -51,7 +51,9 @@ public class DataWriterWrapperBuilder<D> extends DataWriterBuilder<Void, D> {
         && state.contains(ThrottleWriter.WRITER_THROTTLE_TYPE_KEY)) {
       wrapped = new ThrottleWriter<>(wrapped, state);
     }
-    wrapped = new RetryWriter<>(wrapped, state);
+    if (state.getPropAsBoolean(RetryWriter.RETRY_WRITER_ENABLED, true)) {
+      wrapped = new RetryWriter<>(wrapped, state);
+    }
     return wrapped;
   }
 }

@@ -61,7 +61,7 @@ public abstract class HadoopFsEndPoint implements EndPoint {
 
   /**
    * A helper utility for data/filesystem availability checking
-   * @param path The path to be checked. For fs availability checking, just use "/"
+   * @param path The path to be checked.
    * @return If the filesystem/path exists or not.
    */
   public boolean isPathAvailable(Path path) {
@@ -71,18 +71,24 @@ public abstract class HadoopFsEndPoint implements EndPoint {
       if (fs.exists(path)) {
         return true;
       } else {
-        log.warn("Skipped the problematic FileSystem " + this.getFsURI());
+        log.warn("The data path [" + path + "] is not available on FileSystem: " + this.getFsURI());
         return false;
       }
     } catch (IOException ioe) {
-      log.warn("Skipped the problematic FileSystem " + this.getFsURI());
+      log.warn("Errors occurred while checking path [" + path + "] existence " + this.getFsURI(), ioe);
       return false;
     }
   }
 
   @Override
   public boolean isFileSystemAvailable() {
-    return isPathAvailable(new Path("/"));
+    try {
+      FileSystem.get(this.getFsURI(), new Configuration());
+    } catch (IOException ioe){
+      log.error(String.format("FileSystem %s is not available", this.getFsURI()), ioe);
+      return false;
+    }
+    return true;
   }
 
   public boolean isDatasetAvailable(Path datasetPath) {

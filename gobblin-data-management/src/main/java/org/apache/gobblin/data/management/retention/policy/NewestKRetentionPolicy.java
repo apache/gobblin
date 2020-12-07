@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
+import org.apache.gobblin.annotation.Alias;
 import org.apache.gobblin.data.management.retention.DatasetCleaner;
 import org.apache.gobblin.data.management.version.DatasetVersion;
 
@@ -34,6 +35,7 @@ import org.apache.gobblin.data.management.version.DatasetVersion;
 /**
  * Retains the newest k versions of the dataset.
  */
+@Alias("NewestK")
 public class NewestKRetentionPolicy<T extends DatasetVersion> implements RetentionPolicy<T> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(NewestKRetentionPolicy.class);

@@ -19,9 +19,12 @@ apply plugin: 'java'
 
 dependencies {
   compile project(":gobblin-core")
+  compile project(":gobblin-modules:gobblin-parquet-common")
 
   compile externalDependency.gson
-  compile externalDependency.parquet
+  compile externalDependency.parquetHadoop
+  compile externalDependency.parquetAvro
+  compile externalDependency.parquetProto
 
   testCompile externalDependency.testng
   testCompile externalDependency.mockito

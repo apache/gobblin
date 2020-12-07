@@ -50,11 +50,12 @@ public class RestliServiceBasedLimiter implements Limiter {
 
   @Builder
   private RestliServiceBasedLimiter(String resourceLimited, String serviceIdentifier,
-      MetricContext metricContext, RequestSender requestSender) {
+      MetricContext metricContext, RequestSender requestSender, long permitRequestTimeoutMillis) {
     Preconditions.checkNotNull(requestSender, "Request sender cannot be null.");
 
     this.bachedPermitsContainer = BatchedPermitsRequester.builder()
-        .resourceId(resourceLimited).requestorIdentifier(serviceIdentifier).requestSender(requestSender).build();
+        .resourceId(resourceLimited).requestorIdentifier(serviceIdentifier).requestSender(requestSender)
+        .maxTimeoutMillis(permitRequestTimeoutMillis).build();
 
     this.metricContext = Optional.fromNullable(metricContext);
     if (this.metricContext.isPresent()) {

@@ -36,8 +36,6 @@ import org.apache.gobblin.writer.AvroDataWriterBuilder;
 import org.apache.gobblin.writer.Destination;
 import org.apache.gobblin.writer.WriterOutputFormat;
 
-import avro.shaded.com.google.common.base.Joiner;
-
 
 /**
  * Embedded Gobblin to run Wikipedia example.
@@ -74,7 +72,7 @@ public class EmbeddedWikipediaExample extends EmbeddedGobblin {
     } catch (URISyntaxException | SpecNotFoundException exc) {
       throw new RuntimeException("Could not instantiate an " + EmbeddedWikipediaExample.class.getName(), exc);
     }
-    this.setConfiguration("titles", Joiner.on(",").join(topics));
+    this.setConfiguration("titles", String.join(",", topics));
   }
 
   /**

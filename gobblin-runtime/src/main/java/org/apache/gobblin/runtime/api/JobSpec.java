@@ -19,23 +19,31 @@ package org.apache.gobblin.runtime.api;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.Properties;
-
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.JobState;
+import org.apache.gobblin.runtime.template.ResourceBasedJobTemplate;
+import org.apache.gobblin.runtime.template.StaticJobTemplate;
 import org.apache.gobblin.util.ConfigUtils;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 
 
+@Slf4j
 /**
  * Defines a Gobblin Job that can be run once, or multiple times. A {@link JobSpec} is
  * {@link Configurable} so it has an associated {@link Config}, along with other mandatory
@@ -63,6 +71,15 @@ public class JobSpec implements Configurable, Spec {
   Properties configAsProperties;
   /** URI of {@link org.apache.gobblin.runtime.api.JobTemplate} to use. */
   Optional<URI> templateURI;
+  /** Specific instance of template. */
+  transient Optional<JobTemplate> jobTemplate;
+
+  /** Metadata can contain properties which are not a part of config, e.g. Verb */
+  Map<String, String> metadata;
+
+  /** A Verb identifies if the Spec is for Insert/Update/Delete */
+  public static final String VERB_KEY = "Verb";
+  private static final String IN_MEMORY_TEMPLATE_URI = "inmemory";
 
   public static Builder builder(URI jobSpecUri) {
     return new Builder(jobSpecUri);
@@ -131,6 +148,8 @@ public class JobSpec implements Configurable, Spec {
     private Optional<String> description = Optional.absent();
     private Optional<URI> jobCatalogURI = Optional.absent();
     private Optional<URI> templateURI = Optional.absent();
+    private Optional<JobTemplate> jobTemplate = Optional.absent();
+    private Optional<Map> metadata = Optional.absent();
 
     public Builder(URI jobSpecUri) {
       Preconditions.checkNotNull(jobSpecUri);
@@ -156,7 +175,7 @@ public class JobSpec implements Configurable, Spec {
       Preconditions.checkNotNull(this.uri);
       Preconditions.checkNotNull(this.version);
       return new JobSpec(getURI(), getVersion(), getDescription(), getConfig(),
-                         getConfigAsProperties(), getTemplateURI());
+                         getConfigAsProperties(), getTemplateURI(), getTemplate(), getMetadata());
     }
 
     /** The scheme and authority of the job catalog URI are used to generate JobSpec URIs from
@@ -287,6 +306,57 @@ public class JobSpec implements Configurable, Spec {
     public Builder withTemplate(URI templateURI) {
       Preconditions.checkNotNull(templateURI);
       this.templateURI = Optional.of(templateURI);
+      return this;
+    }
+
+    /**
+     * As the public interface of {@link JobSpec} doesn't really support multiple templates,
+     * for incoming list of template uris we will consolidate them as well as resolving. The resolved Config
+     * will not be materialized but reside only in memory through the lifecycle.
+     *
+     * Restriction: This method assumes no customized jobTemplateCatalog and uses classpath resources as the input.
+     * Also, the order of list matters: The former one will be overwritten by the latter.
+     */
+    public Builder withResourceTemplates(List<URI> templateURIs) {
+      try {
+        List<JobTemplate> templates = new ArrayList<>();
+        for(URI uri : templateURIs) {
+          templates.add(ResourceBasedJobTemplate.forResourcePath(uri.getPath()));
+        }
+        this.jobTemplate = Optional.of(new StaticJobTemplate(new URI(IN_MEMORY_TEMPLATE_URI), "", "",
+            ConfigFactory.empty(), templates));
+
+      } catch (URISyntaxException | SpecNotFoundException | JobTemplate.TemplateException | IOException e) {
+        throw new RuntimeException("Fatal exception: Templates couldn't be resolved properly, ", e);
+      }
+      return this;
+    }
+
+    public Optional<JobTemplate> getTemplate() {
+      return this.jobTemplate;
+    }
+
+    public Builder withTemplate(JobTemplate template) {
+      Preconditions.checkNotNull(template);
+      this.jobTemplate = Optional.of(template);
+      return this;
+    }
+
+    public Map getDefaultMetadata() {
+      log.debug("Job Spec Verb is not provided, using type 'UNKNOWN'.");
+      return ImmutableMap.of(VERB_KEY, SpecExecutor.Verb.UNKNOWN.name());
+    }
+
+    public Map getMetadata() {
+      if (!this.metadata.isPresent()) {
+        this.metadata = Optional.of(getDefaultMetadata());
+      }
+      return this.metadata.get();
+    }
+
+    public Builder withMetadata(Map<String, String> metadata) {
+      Preconditions.checkNotNull(metadata);
+      this.metadata = Optional.of(metadata);
       return this;
     }
   }

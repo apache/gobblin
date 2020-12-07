@@ -23,7 +23,9 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Properties;
 
+import org.apache.gobblin.util.HadoopUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -167,9 +169,23 @@ public class GobblinWorkUnitsInputFormat extends InputFormat<LongWritable, Text>
    * Returns records containing the name of the work unit / multi work unit files to process.
    */
   public static class GobblinRecordReader extends RecordReader<LongWritable, Text> {
+
+    /**
+     * A factor value that would be used to multiply with "(float) this.currentIdx / (float) this.totalPaths"
+     * to reflect progress of the whole job.
+     * We used to use bare "(float) this.currentIdx / (float) this.totalPaths" value for progress, the problem of that is
+     * whenever deserialization of Gobblin-Workunit finished, the progress is reported as 1.
+     * We could customize the progress in mapper, but we still want to measure the progress of deserialization.
+     * The real progress multiplied with certain factor in (0,1) range could hopefully better represent the progress.
+     */
+    private static final String READER_PROGRESS_FACTOR = "mapper.readerProgressFactor" ;
+    private static final float DEFAULT_READER_PROGRESS_FACTOR = 0.1f;
+
     private int currentIdx = -1;
     private final List<String> paths;
     private final int totalPaths;
+    private Properties properties;
+
 
     public GobblinRecordReader(GobblinSplit split) {
       this.paths = split.getPaths();
@@ -179,6 +195,7 @@ public class GobblinWorkUnitsInputFormat extends InputFormat<LongWritable, Text>
     @Override
     public void initialize(InputSplit split, TaskAttemptContext context)
         throws IOException, InterruptedException {
+      this.properties = HadoopUtils.getStateFromConf(context.getConfiguration()).getProperties();
     }
 
     @Override
@@ -203,7 +220,13 @@ public class GobblinWorkUnitsInputFormat extends InputFormat<LongWritable, Text>
     @Override
     public float getProgress()
         throws IOException, InterruptedException {
-      return (float) this.currentIdx / (float) this.totalPaths;
+      if (MRJobLauncher.isCustomizedProgressReportEnabled(properties)) {
+        return 0.0f;
+      } else {
+        float factor = properties.containsKey(READER_PROGRESS_FACTOR) ?
+            Float.parseFloat(properties.getProperty(READER_PROGRESS_FACTOR)) : DEFAULT_READER_PROGRESS_FACTOR;
+        return factor * ((float) this.currentIdx / (float) this.totalPaths);
+      }
     }
 
     @Override

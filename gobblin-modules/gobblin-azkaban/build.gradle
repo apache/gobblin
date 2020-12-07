@@ -28,15 +28,16 @@ dependencies {
   compile project(":gobblin-metrics-libs:gobblin-metrics")
   compile project(":gobblin-utility")
   compile project(":gobblin-yarn")
+  compile externalDependency.curatorFramework
+  compile externalDependency.hadoopYarnMiniCluster
+  compile externalDependency.curatorTest
 
   compile externalDependency.azkaban
-  compile externalDependency.log4j
   compile externalDependency.guava
   compile externalDependency.commonsLang
   compile externalDependency.httpclient
   compile externalDependency.httpmime
   compile externalDependency.jodaTime
-  compile externalDependency.lombok
   compile externalDependency.slf4j
   compile externalDependency.typesafeConfig
   compile externalDependency.hadoopYarnApi

@@ -21,7 +21,7 @@ repositories {
     repositories {
         maven {
             // For gradle-nexus-plugin
-            url 'http://jcenter.bintray.com/'
+            url 'https://jcenter.bintray.com/'
         }
     }
 }

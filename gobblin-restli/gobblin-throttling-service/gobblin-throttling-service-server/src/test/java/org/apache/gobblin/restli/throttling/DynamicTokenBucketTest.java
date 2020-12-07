@@ -40,6 +40,23 @@ public class DynamicTokenBucketTest {
   }
 
   @Test
+  public void testDelegateSleep() throws Exception {
+    int qps = 10;
+    DynamicTokenBucket limiter = new DynamicTokenBucket(qps, 10, 0);
+
+    long startTime = System.currentTimeMillis();
+    // Requesting 10 seconds worth of permits with 20 second timeout
+    DynamicTokenBucket.PermitsAndDelay permitsAndDelay = limiter.getPermitsAndDelay(10 * qps, 10 * qps, 20000);
+    long elapsed = System.currentTimeMillis() - startTime;
+    // verify call returned immediately
+    Assert.assertTrue(elapsed < 1000);
+
+    // Verify we got expected tokens and delay is about 10 seconds
+    Assert.assertEquals(permitsAndDelay.getPermits(), 10 * qps);
+    Assert.assertTrue(permitsAndDelay.getDelay() > 9000 && permitsAndDelay.getDelay() < 11000);
+  }
+
+  @Test
   public void testEagerGrantingIfUnderused() throws Exception {
     int qps = 100;
     DynamicTokenBucket limiter = new DynamicTokenBucket(qps, 10, 100);

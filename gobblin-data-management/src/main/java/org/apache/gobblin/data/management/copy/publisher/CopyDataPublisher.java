@@ -17,10 +17,6 @@
 
 package org.apache.gobblin.data.management.copy.publisher;
 
-
-import org.apache.gobblin.configuration.SourceState;
-import org.apache.gobblin.metrics.event.lineage.LineageInfo;
-import org.apache.gobblin.metrics.event.sla.SlaEventKeys;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
@@ -29,18 +25,27 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.data.management.copy.PreserveAttributes;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.filesystem.DataFileVersionStrategy;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.commit.CommitStep;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.configuration.WorkUnitState.WorkingState;
@@ -53,18 +58,20 @@ import org.apache.gobblin.data.management.copy.entities.CommitStepCopyEntity;
 import org.apache.gobblin.data.management.copy.entities.PostPublishStep;
 import org.apache.gobblin.data.management.copy.entities.PrePublishStep;
 import org.apache.gobblin.data.management.copy.recovery.RecoveryHelper;
+import org.apache.gobblin.data.management.copy.splitter.DistcpFileSplitter;
 import org.apache.gobblin.data.management.copy.writer.FileAwareInputStreamDataWriter;
 import org.apache.gobblin.data.management.copy.writer.FileAwareInputStreamDataWriterBuilder;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.metrics.event.lineage.LineageInfo;
+import org.apache.gobblin.metrics.event.sla.SlaEventKeys;
 import org.apache.gobblin.publisher.DataPublisher;
 import org.apache.gobblin.publisher.UnpublishedHandling;
 import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.WriterUtils;
 
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * A {@link DataPublisher} to {@link org.apache.gobblin.data.management.copy.CopyEntity}s from task output to final destination.
@@ -78,11 +85,13 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
   public boolean isThreadSafe() {
     return this.getClass() == CopyDataPublisher.class;
   }
-
+  private final FileSystem srcFs;
   private final FileSystem fs;
   protected final EventSubmitter eventSubmitter;
   protected final RecoveryHelper recoveryHelper;
   protected final Optional<LineageInfo> lineageInfo;
+  protected final DataFileVersionStrategy srcDataFileVersionStrategy;
+  protected final DataFileVersionStrategy dstDataFileVersionStrategy;
 
   /**
    * Build a new {@link CopyDataPublisher} from {@link State}. The constructor expects the following to be set in the
@@ -118,6 +127,12 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
 
     this.recoveryHelper = new RecoveryHelper(this.fs, state);
     this.recoveryHelper.purgeOldPersistedFile();
+
+    Config config = ConfigUtils.propertiesToConfig(state.getProperties());
+
+    this.srcFs = HadoopUtils.getSourceFileSystem(state);
+    this.srcDataFileVersionStrategy = DataFileVersionStrategy.instantiateDataFileVersionStrategy(this.srcFs, config);
+    this.dstDataFileVersionStrategy = DataFileVersionStrategy.instantiateDataFileVersionStrategy(this.fs, config);
   }
 
   @Override
@@ -171,8 +186,37 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
   }
 
   /**
+   * Unlike other preserving attributes of files (ownership, group, etc.), which is preserved in writer,
+   * some of the attributes have to be set during publish phase like ModTime,
+   * and versionStrategy (usually relevant to modTime as well), since they are subject to change with Publish(rename)
+   */
+  private void preserveFileAttrInPublisher(CopyableFile copyableFile) throws IOException {
+    // Preserving File ModTime, and set the access time to an initializing value when ModTime is declared to be preserved.
+    if (copyableFile.getPreserve().preserve(PreserveAttributes.Option.MOD_TIME)) {
+      fs.setTimes(copyableFile.getDestination(), copyableFile.getOriginTimestamp(), -1);
+    }
+
+    // Preserving File Version.
+    DataFileVersionStrategy srcVS = this.srcDataFileVersionStrategy;
+    DataFileVersionStrategy dstVS = this.dstDataFileVersionStrategy;
+
+    // Prefer to use copyableFile's specific version strategy
+    if (copyableFile.getDataFileVersionStrategy() != null) {
+      Config versionStrategyConfig = ConfigFactory.parseMap(ImmutableMap.of(
+          DataFileVersionStrategy.DATA_FILE_VERSION_STRATEGY_KEY, copyableFile.getDataFileVersionStrategy()));
+      srcVS = DataFileVersionStrategy.instantiateDataFileVersionStrategy(this.srcFs, versionStrategyConfig);
+      dstVS = DataFileVersionStrategy.instantiateDataFileVersionStrategy(this.fs, versionStrategyConfig);
+    }
+
+    if (copyableFile.getPreserve().preserve(PreserveAttributes.Option.VERSION)
+        && dstVS.hasCharacteristic(DataFileVersionStrategy.Characteristic.SETTABLE)) {
+      dstVS.setVersion(copyableFile.getDestination(),
+          srcVS.getVersion(copyableFile.getOrigin().getPath()));
+    }
+  }
+
+  /**
    * Publish data for a {@link CopyableDataset}.
-   *
    */
   private void publishFileSet(CopyEntity.DatasetAndPartition datasetAndPartition,
       Collection<WorkUnitState> datasetWorkUnitStates) throws IOException {
@@ -184,6 +228,9 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
     CopyableDatasetMetadata metadata = CopyableDatasetMetadata
         .deserialize(datasetWorkUnitStates.iterator().next().getProp(CopySource.SERIALIZED_COPYABLE_DATASET));
     Path datasetWriterOutputPath = new Path(this.writerOutputDir, datasetAndPartition.identifier());
+
+    log.info("Merging all split work units.");
+    DistcpFileSplitter.mergeAllSplitWorkUnits(this.fs, datasetWorkUnitStates);
 
     log.info(String.format("[%s] Publishing fileSet from %s for dataset %s", datasetAndPartition.identifier(),
         datasetWriterOutputPath, metadata.getDatasetURN()));
@@ -215,6 +262,7 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
       CopyEntity copyEntity = CopySource.deserializeCopyEntity(wus);
       if (copyEntity instanceof CopyableFile) {
         CopyableFile copyableFile = (CopyableFile) copyEntity;
+        preserveFileAttrInPublisher(copyableFile);
         if (wus.getWorkingState() == WorkingState.COMMITTED) {
           CopyEventSubmitterHelper.submitSuccessfulFilePublish(this.eventSubmitter, copyableFile, wus);
           // Dataset Output path is injected in each copyableFile.
@@ -226,7 +274,7 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
             fileSetRoot = Optional.of(copyableFile.getDatasetOutputPath());
           }
           if (lineageInfo.isPresent()) {
-            lineageInfo.get().putDestination(copyableFile.getDestinationDataset(), 0, wus);
+            lineageInfo.get().putDestination(copyableFile.getDestinationData(), 0, wus);
           }
         }
         if (datasetOriginTimestamp > copyableFile.getOriginTimestamp()) {
@@ -252,7 +300,8 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
     additionalMetadata.put(SlaEventKeys.DATASET_OUTPUT_PATH, fileSetRoot.or("Unknown"));
     CopyEventSubmitterHelper.submitSuccessfulDatasetPublish(this.eventSubmitter, datasetAndPartition,
         Long.toString(datasetOriginTimestamp), Long.toString(datasetUpstreamTimestamp), additionalMetadata);
-    }
+  }
+
 
   private static boolean hasCopyableFiles(Collection<WorkUnitState> workUnits) throws IOException {
     for (WorkUnitState wus : workUnits) {

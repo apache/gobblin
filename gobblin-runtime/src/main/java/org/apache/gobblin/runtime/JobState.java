@@ -27,6 +27,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+import org.apache.gobblin.metastore.DatasetStateStore;
+import org.apache.gobblin.runtime.job.JobProgress;
+
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.io.Text;
 
 import com.codahale.metrics.Counter;
@@ -35,6 +39,7 @@ import com.codahale.metrics.Meter;
 import com.google.common.base.Enums;
 import com.google.common.base.Optional;
 import com.google.common.base.Strings;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
@@ -53,6 +58,7 @@ import org.apache.gobblin.rest.Metric;
 import org.apache.gobblin.rest.MetricArray;
 import org.apache.gobblin.rest.MetricTypeEnum;
 import org.apache.gobblin.rest.TaskExecutionInfoArray;
+import org.apache.gobblin.runtime.api.MonitoredObject;
 import org.apache.gobblin.runtime.util.JobMetrics;
 import org.apache.gobblin.runtime.util.MetricGroup;
 import org.apache.gobblin.source.extractor.JobCommitPolicy;
@@ -65,7 +71,7 @@ import org.apache.gobblin.util.ImmutableProperties;
  *
  * @author Yinan Li
  */
-public class JobState extends SourceState {
+public class JobState extends SourceState implements JobProgress {
 
   /**
    * An enumeration of possible job states, which are identical to
@@ -84,7 +90,7 @@ public class JobState extends SourceState {
    *    <li> SUCCESSFUL => CANCELLED  (cancelled before committing)
    * </ul>
    */
-  public enum RunningState {
+  public enum RunningState implements MonitoredObject {
     /** Pending creation of {@link WorkUnit}s. */
     PENDING,
     /** Starting the execution of {@link WorkUnit}s. */
@@ -131,12 +137,20 @@ public class JobState extends SourceState {
   private final Map<String, TaskState> taskStates = Maps.newLinkedHashMap();
   // Skipped task states shouldn't be exposed to publisher, but they need to be in JobState and DatasetState so that they can be written to StateStore.
   private final Map<String, TaskState> skippedTaskStates = Maps.newLinkedHashMap();
+  private DatasetStateStore datasetStateStore;
 
   // Necessary for serialization/deserialization
   public JobState() {
   }
 
   public JobState(String jobName, String jobId) {
+    this.jobName = jobName;
+    this.jobId = jobId;
+    this.setId(jobId);
+  }
+
+  public JobState(State properties,String jobName, String jobId) {
+    super(properties);
     this.jobName = jobName;
     this.jobId = jobId;
     this.setId(jobId);
@@ -238,6 +252,20 @@ public class JobState extends SourceState {
   }
 
   /**
+   * Get the currently elapsed time for this job.
+   * @return
+   */
+  public long getElapsedTime() {
+    if (this.endTime > 0) {
+      return  this.endTime - this.startTime;
+    }
+    if (this.startTime > 0) {
+      return System.currentTimeMillis() - this.startTime;
+    }
+    return 0;
+  }
+
+  /**
    * Set job end time.
    *
    * @param endTime job end time
@@ -298,6 +326,40 @@ public class JobState extends SourceState {
    */
   public void setTaskCount(int taskCount) {
     this.taskCount = taskCount;
+  }
+
+  /**
+   * If not already present, set the {@link ConfigurationKeys#JOB_FAILURE_EXCEPTION_KEY} to a {@link String}
+   * representation of the given {@link Throwable}.
+   */
+  public void setJobFailureException(Throwable jobFailureException) {
+    String previousExceptions = this.getProp(ConfigurationKeys.JOB_FAILURE_EXCEPTION_KEY);
+    String currentException = Throwables.getStackTraceAsString(jobFailureException);
+    String aggregatedExceptions;
+
+    if (StringUtils.isEmpty(previousExceptions)) {
+      aggregatedExceptions = currentException;
+    } else {
+      aggregatedExceptions = currentException + "\n\n" + previousExceptions;
+    }
+
+    this.setProp(ConfigurationKeys.JOB_FAILURE_EXCEPTION_KEY, aggregatedExceptions);
+  }
+
+  /**
+   * If not already present, set the {@link EventMetadataUtils#JOB_FAILURE_MESSAGE_KEY} to the given {@link String}.
+   */
+  public void setJobFailureMessage(String jobFailureMessage) {
+    String previousMessages = this.getProp(ConfigurationKeys.JOB_FAILURE_EXCEPTION_KEY);
+    String aggregatedMessages;
+
+    if (StringUtils.isEmpty(previousMessages)) {
+      aggregatedMessages = jobFailureMessage;
+    } else {
+      aggregatedMessages = jobFailureMessage + ", " + previousMessages;
+    }
+
+    this.setProp(EventMetadataUtils.JOB_FAILURE_MESSAGE_KEY, aggregatedMessages);
   }
 
   /**
@@ -381,6 +443,11 @@ public class JobState extends SourceState {
    */
   public List<TaskState> getTaskStates() {
     return ImmutableList.<TaskState>builder().addAll(this.taskStates.values()).build();
+  }
+
+  @Override
+  public List<TaskState> getTaskProgress() {
+    return getTaskStates();
   }
 
   /**
@@ -513,10 +580,10 @@ public class JobState extends SourceState {
   @Override
   public void write(DataOutput out)
       throws IOException {
-    write(out, true);
+    write(out, true, true);
   }
 
-  public void write(DataOutput out, boolean writeTasks)
+  public void write(DataOutput out, boolean writeTasks, boolean writePreviousWorkUnitStates)
       throws IOException {
     Text text = new Text();
     text.set(this.jobName);
@@ -540,7 +607,7 @@ public class JobState extends SourceState {
     } else {
       out.writeInt(0);
     }
-    super.write(out);
+    super.write(out, writePreviousWorkUnitStates);
   }
 
   /**
@@ -728,7 +795,7 @@ public class JobState extends SourceState {
     return datasetState;
   }
 
-  private static List<WorkUnitState> workUnitStatesFromDatasetStates(Iterable<JobState.DatasetState> datasetStates) {
+  public static List<WorkUnitState> workUnitStatesFromDatasetStates(Iterable<JobState.DatasetState> datasetStates) {
     ImmutableList.Builder<WorkUnitState> taskStateBuilder = ImmutableList.builder();
     for (JobState datasetState : datasetStates) {
       taskStateBuilder.addAll(datasetState.getTaskStatesAsWorkUnitStates());

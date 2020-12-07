@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.couchbase.writer;
 
+import com.google.gson.JsonObject;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
@@ -26,6 +27,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -40,6 +42,7 @@ import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.commons.math3.util.Pair;
+import org.apache.gobblin.writer.GenericWriteResponse;
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
@@ -135,9 +138,7 @@ public class CouchbaseWriterTest {
   @Test
   public void testTupleDocumentWrite()
       throws IOException, DataConversionException, ExecutionException, InterruptedException {
-    Properties props = new Properties();
-    props.setProperty(CouchbaseWriterConfigurationKeys.BUCKET, "default");
-    Config config = ConfigFactory.parseProperties(props);
+    Config config = getConfig("default", Optional.empty(), Optional.empty(), Optional.empty());
 
     CouchbaseWriter writer = new CouchbaseWriter(_couchbaseEnvironment, config);
     try {
@@ -178,6 +179,69 @@ public class CouchbaseWriterTest {
 
   }
 
+  private Config getConfig(String bucket, Optional<Integer> ttl, Optional<TimeUnit> ttlTimeUnit, Optional<String> ttlOriginField) {
+    Properties props = new Properties();
+    props.setProperty(CouchbaseWriterConfigurationKeys.BUCKET, bucket);
+    ttl.ifPresent(x -> props.setProperty(CouchbaseWriterConfigurationKeys.DOCUMENT_TTL, "" + x));
+    ttlTimeUnit.ifPresent(x ->  props.setProperty(CouchbaseWriterConfigurationKeys.DOCUMENT_TTL_UNIT, "" + x));
+    ttlOriginField.ifPresent(x ->  props.setProperty(CouchbaseWriterConfigurationKeys.DOCUMENT_TTL_ORIGIN_FIELD, "" + x));
+    return ConfigFactory.parseProperties(props);
+  }
+  /**
+   * Test that a single tuple document can be written successfully.
+   * @throws IOException
+   * @throws DataConversionException
+   * @throws ExecutionException
+   * @throws InterruptedException
+   */
+  @Test
+  public void testTupleDocumentWriteWithTtl()
+      throws IOException, DataConversionException, ExecutionException, InterruptedException {
+    int ttl = 10000;
+    long expiry = Math.toIntExact(System.currentTimeMillis() / 1000) + ttl;
+    Config config = getConfig("default", Optional.of(ttl), Optional.empty(), Optional.empty());
+
+    CouchbaseWriter writer = new CouchbaseWriter(_couchbaseEnvironment, config);
+    try {
+      Schema dataRecordSchema =
+          SchemaBuilder.record("Data").fields().name("data").type().bytesType().noDefault().name("flags").type().intType()
+              .noDefault().endRecord();
+
+      Schema schema = SchemaBuilder.record("TestRecord").fields().name("key").type().stringType().noDefault().name("data")
+          .type(dataRecordSchema).noDefault().endRecord();
+
+      GenericData.Record testRecord = new GenericData.Record(schema);
+
+      String testContent = "hello world";
+
+      GenericData.Record dataRecord = new GenericData.Record(dataRecordSchema);
+      dataRecord.put("data", ByteBuffer.wrap(testContent.getBytes(Charset.forName("UTF-8"))));
+      dataRecord.put("flags", 0);
+
+      testRecord.put("key", "hello");
+      testRecord.put("data", dataRecord);
+
+      Converter<Schema, String, GenericRecord, TupleDocument> recordConverter = new AvroToCouchbaseTupleConverter();
+
+      TupleDocument doc = recordConverter.convertRecord("", testRecord, null).iterator().next();
+      AbstractDocument storedDoc = ((GenericWriteResponse<AbstractDocument>) writer.write(doc, null).get()).getRawResponse();
+      TupleDocument returnDoc = writer.getBucket().get("hello", TupleDocument.class);
+
+      byte[] returnedBytes = new byte[returnDoc.content().value1().readableBytes()];
+      returnDoc.content().value1().readBytes(returnedBytes);
+      Assert.assertEquals(returnedBytes, testContent.getBytes(Charset.forName("UTF-8")));
+
+      int returnedFlags = returnDoc.content().value2();
+      Assert.assertEquals(returnedFlags, 0);
+
+      // Since get operations do not set the expiry meta, we need to rely
+      Assert.assertEquals(storedDoc.expiry() - expiry , 0, 50 );
+
+    } finally {
+      writer.close();
+    }
+
+  }
   /**
    * Test that a single Json document can be written successfully
    * @throws IOException
@@ -203,6 +267,153 @@ public class CouchbaseWriterTest {
 
       Map<String, String> returnedMap = gson.fromJson(returnDoc.content(), Map.class);
       Assert.assertEquals(testContent, returnedMap.get("value"));
+    } finally {
+      writer.close();
+    }
+  }
+
+  /**
+   * Test that a single Json document can be written successfully with TTL
+   * @throws IOException
+   * @throws DataConversionException
+   * @throws ExecutionException
+   * @throws InterruptedException
+   */
+  @Test(groups={"timeout"})
+  public void testJsonDocumentWriteTTL()
+      throws IOException, DataConversionException, ExecutionException, InterruptedException {
+    int ttl = 1000;
+    int expiry = Math.toIntExact(System.currentTimeMillis() / 1000) + ttl;
+    Config config = getConfig("default", Optional.of(ttl), Optional.empty(), Optional.empty());
+    CouchbaseWriter writer = new CouchbaseWriter(_couchbaseEnvironment, config);
+    try {
+
+      String key = "hello";
+      String testContent = "hello world";
+      HashMap<String, String> contentMap = new HashMap<>();
+      contentMap.put("value", testContent);
+      Gson gson = new Gson();
+      String jsonString = gson.toJson(contentMap);
+      RawJsonDocument jsonDocument = RawJsonDocument.create(key, jsonString);
+      AbstractDocument storedDoc = ((GenericWriteResponse<AbstractDocument>) writer.write(jsonDocument, null).get()).getRawResponse();
+      RawJsonDocument returnDoc = writer.getBucket().get(key, RawJsonDocument.class);
+
+      Map<String, String> returnedMap = gson.fromJson(returnDoc.content(), Map.class);
+      Assert.assertEquals(testContent, returnedMap.get("value"));
+      Assert.assertEquals(storedDoc.expiry(), expiry, 50);
+    } finally {
+      writer.close();
+    }
+  }
+
+
+  /**
+   * Test that a single Json document can be written successfully with TTL and timeunits
+   * @throws IOException
+   * @throws DataConversionException
+   * @throws ExecutionException
+   * @throws InterruptedException
+   */
+  @Test(groups={"timeout"})
+  public void testJsonDocumentWriteTTLWithTimeUnits()
+      throws IOException, DataConversionException, ExecutionException, InterruptedException {
+    int ttl = 1;
+    TimeUnit timeUnit = TimeUnit.DAYS;
+    int expiry = Math.toIntExact(System.currentTimeMillis() / 1000) + (int) TimeUnit.SECONDS.convert(ttl, timeUnit);
+    Config config = getConfig("default", Optional.of(ttl), Optional.of(timeUnit), Optional.empty());
+    CouchbaseWriter writer = new CouchbaseWriter(_couchbaseEnvironment, config);
+    try {
+
+      String key = "hello";
+      String testContent = "hello world";
+      HashMap<String, String> contentMap = new HashMap<>();
+      contentMap.put("value", testContent);
+      Gson gson = new Gson();
+      String jsonString = gson.toJson(contentMap);
+      RawJsonDocument jsonDocument = RawJsonDocument.create(key, jsonString);
+      AbstractDocument storedDoc = ((GenericWriteResponse<AbstractDocument>) writer.write(jsonDocument, null).get()).getRawResponse();
+      RawJsonDocument returnDoc = writer.getBucket().get(key, RawJsonDocument.class);
+
+      Map<String, String> returnedMap = gson.fromJson(returnDoc.content(), Map.class);
+      Assert.assertEquals(testContent, returnedMap.get("value"));
+      Assert.assertEquals(storedDoc.expiry() - expiry, 0, 50);
+    } finally {
+      writer.close();
+    }
+  }
+
+
+  /**
+   * Test that a single Json document can be written successfully with TTL and timeunits
+   * @throws IOException
+   * @throws DataConversionException
+   * @throws ExecutionException
+   * @throws InterruptedException
+   */
+  @Test(groups={"timeout"})
+  public void testJsonDocumentWriteTtlWithField()
+      throws ExecutionException, InterruptedException {
+    int ttl = 30;
+    int originDiffFromNow = 5;
+    TimeUnit timeUnit = TimeUnit.DAYS;
+    String ttlOriginField = "time";
+    long now = System.currentTimeMillis();
+    long originDelta =  TimeUnit.MILLISECONDS.convert(originDiffFromNow, TimeUnit.DAYS);
+    long origin = now - originDelta;
+    long expiry = TimeUnit.SECONDS.convert(now, TimeUnit.MILLISECONDS) + TimeUnit.SECONDS.convert(ttl, timeUnit) - TimeUnit.SECONDS.convert(originDiffFromNow, timeUnit) ;
+
+    Config config = getConfig("default", Optional.of(ttl), Optional.of(timeUnit), Optional.of(ttlOriginField));
+    CouchbaseWriter writer = new CouchbaseWriter(_couchbaseEnvironment, config);
+    try {
+
+      String key = "hello";
+      String testContent = "hello world";
+      HashMap<String, String> contentMap = new HashMap<>();
+      contentMap.put("value", testContent);
+      contentMap.put(ttlOriginField, "" + origin);
+      Gson gson = new Gson();
+      String jsonString = gson.toJson(contentMap);
+      RawJsonDocument jsonDocument = RawJsonDocument.create(key, jsonString);
+      AbstractDocument storedDoc = ((GenericWriteResponse<AbstractDocument>) writer.write(jsonDocument, null).get()).getRawResponse();
+      RawJsonDocument returnDoc = writer.getBucket().get(key, RawJsonDocument.class);
+
+      Map<String, String> returnedMap = gson.fromJson(returnDoc.content(), Map.class);
+      Assert.assertEquals(testContent, returnedMap.get("value"));
+      Assert.assertEquals(storedDoc.expiry() , expiry, 50);
+    } finally {
+      writer.close();
+    }
+  }
+
+  @Test(groups={"timeout"})
+  public void testJsonDocumentWriteTtlWithNestedField()
+      throws ExecutionException, InterruptedException {
+    int ttl = 30;
+    int originDiffFromNow = 5;
+    TimeUnit timeUnit = TimeUnit.DAYS;
+    String ttlOriginField = "a.b.time";
+    long now = System.currentTimeMillis();
+    long originDelta =  TimeUnit.MILLISECONDS.convert(originDiffFromNow, timeUnit);
+    long origin = now - originDelta;
+    long expiry = TimeUnit.SECONDS.convert(now, TimeUnit.MILLISECONDS) + TimeUnit.SECONDS.convert(ttl, timeUnit) - TimeUnit.SECONDS.convert(originDiffFromNow, timeUnit) ;
+
+    Config config = getConfig("default", Optional.of(ttl), Optional.of(timeUnit), Optional.of(ttlOriginField));
+    CouchbaseWriter writer = new CouchbaseWriter(_couchbaseEnvironment, config);
+    try {
+      JsonObject jsonRoot = new JsonObject();
+      String key = "keyValue";
+      String testContent = "hello world";
+      String valueKey = "value";
+      jsonRoot.addProperty(valueKey, testContent);
+      jsonRoot.addProperty(ttlOriginField, origin);
+
+      RawJsonDocument jsonDocument = RawJsonDocument.create(key, jsonRoot.toString());
+      AbstractDocument storedDoc = ((GenericWriteResponse<AbstractDocument>) writer.write(jsonDocument, null).get()).getRawResponse();
+      RawJsonDocument returnDoc = writer.getBucket().get(key, RawJsonDocument.class);
+
+      Map<String, String> returnedMap = new Gson().fromJson(returnDoc.content(), Map.class);
+      Assert.assertEquals(returnedMap.get(valueKey), testContent);
+      Assert.assertEquals(storedDoc.expiry() , expiry, 50);
     } finally {
       writer.close();
     }
@@ -367,10 +578,7 @@ public class CouchbaseWriterTest {
   private void writeRecordsWithAsyncWriter(Iterator<AbstractDocument> recordIterator)
       throws IOException {
     boolean verbose = false;
-    Properties props = new Properties();
-    props.setProperty(CouchbaseWriterConfigurationKeys.BUCKET, "default");
-    Config config = ConfigFactory.parseProperties(props);
-
+    Config config = getConfig("default", Optional.empty(), Optional.empty(), Optional.empty());
     CouchbaseWriter writer = new CouchbaseWriter(_couchbaseEnvironment, config);
 
     try {

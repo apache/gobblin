@@ -30,11 +30,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.apache.gobblin.metastore.predicates.StateStorePredicate;
-import org.apache.gobblin.metastore.predicates.StoreNamePredicate;
-import org.apache.gobblin.runtime.metastore.filesystem.FsDatasetStateStoreEntryManager;
-import org.apache.gobblin.util.filters.HiddenFilter;
-import org.apache.gobblin.util.hadoop.GobblinSequenceFileReader;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -58,17 +53,22 @@ import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValue;
 
-import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metastore.predicates.StateStorePredicate;
+import org.apache.gobblin.metastore.predicates.StoreNamePredicate;
 import org.apache.gobblin.metastore.DatasetStateStore;
 import org.apache.gobblin.metastore.FsStateStore;
 import org.apache.gobblin.metastore.nameParser.DatasetUrnStateStoreNameParser;
 import org.apache.gobblin.metastore.nameParser.SimpleDatasetUrnStateStoreNameParser;
+import org.apache.gobblin.runtime.metastore.filesystem.FsDatasetStateStoreEntryManager;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.Either;
 import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.WritableShimSerialization;
 import org.apache.gobblin.util.executors.IteratorExecutor;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
+import org.apache.gobblin.util.filters.HiddenFilter;
+import org.apache.gobblin.util.hadoop.GobblinSequenceFileReader;
 
 
 /**
@@ -187,7 +187,8 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> imp
     return getInternal(storeName, tableName, stateId, false);
   }
 
-  public JobState.DatasetState getInternal(String storeName, String tableName, String stateId, boolean sanitizeKeyForComparison)
+  public JobState.DatasetState getInternal(String storeName, String tableName, String stateId,
+      boolean sanitizeKeyForComparison)
       throws IOException {
     Path tablePath = new Path(new Path(this.storeRootDir, storeName), tableName);
 
@@ -206,8 +207,9 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> imp
         Text key = new Text();
 
         while (reader.next(key)) {
-          String stringKey = sanitizeKeyForComparison ?
-              sanitizeDatasetStatestoreNameFromDatasetURN(storeName, key.toString()) : key.toString();
+          String stringKey =
+              sanitizeKeyForComparison ? sanitizeDatasetStatestoreNameFromDatasetURN(storeName, key.toString())
+                  : key.toString();
           writable = reader.getCurrentValue(writable);
           if (stringKey.equals(stateId)) {
             if (writable instanceof JobState.DatasetState) {
@@ -235,19 +237,19 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> imp
 
     Configuration deserializeConfig = new Configuration(this.conf);
     WritableShimSerialization.addToHadoopConfiguration(deserializeConfig);
-    try (@SuppressWarnings("deprecation") GobblinSequenceFileReader reader = new GobblinSequenceFileReader(this.fs, tablePath,
-        deserializeConfig)) {
+    try (@SuppressWarnings("deprecation") GobblinSequenceFileReader reader = new GobblinSequenceFileReader(this.fs,
+        tablePath, deserializeConfig)) {
 
       /**
        * Add this change so that all stateful flow will have back compatibility.
        * Shim layer of state store is therefore avoided because of this change.
        * Keep the implementation of Shim layer temporarily.
        */
-     String className = reader.getValueClassName();
-     if (className.startsWith("gobblin")) {
-       LOGGER.warn("There's old JobState with no apache package name being read while we cast them at runtime");
-       className = "org.apache." + className;
-     }
+      String className = reader.getValueClassName();
+      if (className.startsWith("gobblin")) {
+        LOGGER.warn("There's old JobState with no apache package name being read while we cast them at runtime");
+        className = "org.apache." + className;
+      }
 
       if (!className.equals(JobState.class.getName()) && !className.equals(JobState.DatasetState.class.getName())) {
         throw new RuntimeException("There is a mismatch in the Class Type of state in state-store and that in runtime");
@@ -363,8 +365,8 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> imp
 
     String alias =
         Strings.isNullOrEmpty(datasetUrn) ? CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX
-            : sanitizeDatasetStatestoreNameFromDatasetURN(storeName, datasetUrn) + "-"
-                + CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX;
+            : sanitizeDatasetStatestoreNameFromDatasetURN(storeName, CharMatcher.is(':').replaceFrom(datasetUrn, '.'))
+                + "-" + CURRENT_DATASET_STATE_FILE_SUFFIX + DATASET_STATE_STORE_TABLE_SUFFIX;
     return get(storeName, alias, datasetUrn);
   }
 
@@ -424,9 +426,9 @@ public class FsDatasetStateStore extends FsStateStore<JobState.DatasetState> imp
   public List<FsDatasetStateStoreEntryManager> getMetadataForTables(StateStorePredicate predicate)
       throws IOException {
 
-    Stream<Path> stores = predicate instanceof StoreNamePredicate ?
-        Stream.of(new Path(this.storeRootDir, ((StoreNamePredicate) predicate).getStoreName())) :
-        lsStream(new Path(this.storeRootDir)).map(FileStatus::getPath);
+    Stream<Path> stores = predicate instanceof StoreNamePredicate ? Stream
+        .of(new Path(this.storeRootDir, ((StoreNamePredicate) predicate).getStoreName()))
+        : lsStream(new Path(this.storeRootDir)).map(FileStatus::getPath);
 
     if (stores == null) {
       return Lists.newArrayList();

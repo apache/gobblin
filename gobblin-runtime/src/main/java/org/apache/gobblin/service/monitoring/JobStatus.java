@@ -17,30 +17,35 @@
 
 package org.apache.gobblin.service.monitoring;
 
-import org.apache.gobblin.annotation.Alpha;
-
 import lombok.Builder;
 import lombok.Getter;
+import lombok.Setter;
 
 
 /**
  * Contains attributes that describe job status.
  */
-@Alpha
 @Builder
 @Getter
 public class JobStatus {
   private final String jobName;
   private final String jobGroup;
+  private final String jobTag;
   private final long jobExecutionId;
   private final long flowExecutionId;
   private final String flowName;
   private final String flowGroup;
   private final String eventName;
+  private final long orchestratedTime;
   private final long startTime;
   private final long endTime;
+  @Setter
+  private String metrics;
   private final String message;
   private final long processedCount;
   private final String lowWatermark;
   private final String highWatermark;
+  private final int maxAttempts;
+  private final int currentAttempts;
+  private final boolean shouldRetry;
 }

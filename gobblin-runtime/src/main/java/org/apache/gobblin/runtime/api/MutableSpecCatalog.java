@@ -18,21 +18,20 @@
 package org.apache.gobblin.runtime.api;
 
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.TimeUnit;
-
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.instrumented.Instrumented;
-import org.apache.gobblin.metrics.ContextAwareMetric;
-import org.apache.gobblin.metrics.ContextAwareTimer;
-import org.apache.gobblin.util.ConfigUtils;
 
 import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.metrics.ContextAwareTimer;
+import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 
 
 /**
@@ -44,17 +43,21 @@ public interface MutableSpecCatalog extends SpecCatalog {
   /**
    * Registers a new {@link Spec}. If a {@link Spec} with the same {@link Spec#getUri()} exists,
    * it will be replaced.
+   * @param spec
+   * @return a map containing an entry for each {@link SpecCatalogListener} of the {@link SpecCatalog}, for which an action is triggered
+   * on adding a {@link Spec} to the {@link SpecCatalog}. The key for each entry is the name of the {@link SpecCatalogListener}
+   * and the value is the result of the the action taken by the listener returned as an instance of {@link AddSpecResponse}.
    * */
-  public void put(Spec spec);
+  Map<String, AddSpecResponse> put(Spec spec);
 
   /**
    * Removes an existing {@link Spec} with the given URI.
    * Throws SpecNotFoundException if such {@link Spec} does not exist.
    */
-  void remove(URI uri) throws SpecNotFoundException;
+  void remove(URI uri, Properties headers) throws SpecNotFoundException;
 
   @Slf4j
-  public static class MutableStandardMetrics extends StandardMetrics {
+  class MutableStandardMetrics extends StandardMetrics {
     public static final String TIME_FOR_SPEC_CATALOG_REMOVE = "timeForSpecCatalogRemove";
     public static final String TIME_FOR_SPEC_CATALOG_PUT = "timeForSpecCatalogPut";
     @Getter private final ContextAwareTimer timeForSpecCatalogPut;

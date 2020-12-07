@@ -20,6 +20,10 @@ package org.apache.gobblin.runtime.util;
 import org.apache.gobblin.runtime.fork.Fork;
 
 
+/**
+ * @deprecated due to non essential usage within this repository.
+ */
+@Deprecated
 public enum RuntimeConstructs {
 
   FORK("Fork", Fork.class);

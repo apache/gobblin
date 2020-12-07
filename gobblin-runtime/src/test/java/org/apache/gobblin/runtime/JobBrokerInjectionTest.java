@@ -155,15 +155,6 @@ public class JobBrokerInjectionTest {
     Assert.assertEquals(seenTaskObjectIds.size(), 10);
   }
 
-  private void launchJob(StandardGobblinInstanceLauncher instanceLauncher, JobSpec js1,
-      GobblinInstanceDriver instance) throws TimeoutException, InterruptedException, ExecutionException {
-    JobExecutionDriver jobDriver = instance.getJobLauncher().launchJob(js1);
-    new Thread(jobDriver).run();
-    JobExecutionResult jobResult = jobDriver.get(5, TimeUnit.SECONDS);
-
-    Assert.assertTrue(jobResult.isSuccessful());
-  }
-
   public static class JobBrokerConverter extends Converter<String, String, String, MyRecord> {
 
     private MySharedObject instanceSharedObject;

@@ -33,7 +33,6 @@ dependencies {
   compile externalDependency.guava
   compile externalDependency.commonsLang
   compile externalDependency.slf4j
-  compile externalDependency.log4j
   compile externalDependency.commonsCli
   compile externalDependency.gson
   compile externalDependency.hiveCommon
@@ -50,7 +49,7 @@ dependencies {
   compile externalDependency.findBugsAnnotations
   compile externalDependency.helix
 
-  runtime project(":gobblin-modules:gobblin-service-kafka")
+  runtimeOnly project(":gobblin-modules:gobblin-service-kafka")
 
   testCompile project(":gobblin-example")
 
@@ -61,7 +60,7 @@ dependencies {
 }
 
 task testJar(type: Jar, dependsOn: testClasses) {
-  baseName = "test-${project.archivesBaseName}"
+  baseName = "${project.archivesBaseName}-test"
   from sourceSets.test.output
 }
 
@@ -71,6 +70,7 @@ configurations {
 
 artifacts {
   tests testJar
+  archives testJar
 }
 
 configurations {
@@ -84,10 +84,47 @@ configurations {
     }
   }
 }
+// Generates a maven test artifact (gobblin-cluster-test)
+project.publishing.publications {
+  testsPub(MavenPublication) {
+    artifactId "${project.archivesBaseName}-test"
+    artifacts = [testJar]
+    pom pomAttributes
+    pom.withXml addRuntimeDependenciesToPom
+  }
+}
+addPublicationToBintray("testsPub")
 
 test {
   workingDir rootProject.rootDir
   maxParallelForks = 1
+}
+
+install {
+  repositories {
+    mavenInstaller {
+      addFilter(testJar.baseName) { artifact, file ->
+        artifact.name == testJar.baseName
+      }.project(rootProject.pomAttributes).artifactId = testJar.baseName
+      addFilter('') { artifact, file ->
+        artifact.name == jar.baseName
+      }
+    }
+  }
+}
+if (rootProject.ext.publishToMaven || rootProject.ext.publishToNexus) {
+  uploadArchives {
+    repositories {
+      mavenDeployer {
+        addFilter(testJar.baseName) { artifact, file ->
+          artifact.name == testJar.baseName
+        }.project(rootProject.pomAttributes).artifactId = testJar.baseName
+        addFilter('') { artifact, file ->
+          artifact.name == jar.baseName
+        }
+      }
+    }
+  }
 }
 
 ext.classification="library"

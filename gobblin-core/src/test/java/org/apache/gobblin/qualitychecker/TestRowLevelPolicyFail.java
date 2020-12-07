@@ -28,6 +28,6 @@ public class TestRowLevelPolicyFail extends RowLevelPolicy {
 
   @Override
   public Result executePolicy(Object record) {
-    return RowLevelPolicy.Result.PASSED;
+    return RowLevelPolicy.Result.FAILED;
   }
 }

@@ -42,6 +42,7 @@ import org.apache.gobblin.util.AvroUtils;
 public class AvroProjectionConverter extends AvroToAvroConverterBase {
 
   public static final String REMOVE_FIELDS = ".remove.fields";
+  public static final String USE_NAMESPACE = "avroProjectionConverter.useNamespace";
 
   private Optional<AvroSchemaFieldRemover> fieldRemover;
 
@@ -55,6 +56,10 @@ public class AvroProjectionConverter extends AvroToAvroConverterBase {
   public AvroProjectionConverter init(WorkUnitState workUnit) {
     if (workUnit.contains(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY)) {
       String removeFieldsPropName = workUnit.getProp(ConfigurationKeys.EXTRACT_TABLE_NAME_KEY) + REMOVE_FIELDS;
+      if (workUnit.getPropAsBoolean(USE_NAMESPACE)) {
+        removeFieldsPropName = String.format("%s.%s",
+            workUnit.getProp(ConfigurationKeys.EXTRACT_NAMESPACE_NAME_KEY), removeFieldsPropName);
+      }
       if (workUnit.contains(removeFieldsPropName)) {
         this.fieldRemover = Optional.of(new AvroSchemaFieldRemover(workUnit.getProp(removeFieldsPropName)));
       } else {
@@ -69,17 +74,19 @@ public class AvroProjectionConverter extends AvroToAvroConverterBase {
    */
   @Override
   public Schema convertSchema(Schema inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
+    Schema outputSchema = inputSchema;
     if (this.fieldRemover.isPresent()) {
-      return this.fieldRemover.get().removeFields(inputSchema);
+      outputSchema = this.fieldRemover.get().removeFields(inputSchema);
     }
-    return inputSchema;
+    AvroUtils.addSchemaCreationTime(inputSchema, outputSchema);
+    return outputSchema;
   }
 
   /**
    * Convert the schema of inputRecord to outputSchema.
    */
   @Override
-  public Iterable<GenericRecord> convertRecord(Schema outputSchema, GenericRecord inputRecord, WorkUnitState workUnit)
+  public Iterable<GenericRecord> convertRecordImpl(Schema outputSchema, GenericRecord inputRecord, WorkUnitState workUnit)
       throws DataConversionException {
     try {
       return new SingleRecordIterable<>(AvroUtils.convertRecordSchema(inputRecord, outputSchema));

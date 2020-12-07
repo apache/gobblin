@@ -67,7 +67,7 @@ public class OracleExtractor extends JdbcExtractor {
   private static final String METADATA_SCHEMA_PSTMT_FORMAT =
       "SELECT " +
         "column_name, " +
-        "UPPER(data_type), " +
+        "LOWER(data_type), " +
         "NVL(data_length, 0) as length, " +
         "NVL(data_precision, 0) as precesion, " +
         "NVL(data_scale, 0) as scale, " +

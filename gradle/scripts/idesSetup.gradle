@@ -17,11 +17,6 @@
 
 apply plugin: 'idea'
 
-idea.project {
-  ext.languageLevel = javaVersion
-  languageLevel = javaVersion
-}
-
 subprojects {
   plugins.withType(JavaPlugin) {
     plugins.apply('idea')
@@ -29,18 +24,15 @@ subprojects {
 
     // Configure the IDEA plugin to (1) add the codegen as source dirs and (2) work around
     // an apparent bug in the plugin which doesn't set the outputDir/testOutputDir as documented
-    idea.project {
-      ext.languageLevel = javaVersion
-      languageLevel = javaVersion
-    }
     idea.module {
       // Gradle docs claim the two settings below are the default, but
       // the actual defaults appear to be "out/production/$MODULE_NAME"
       // and "out/test/$MODULE_NAME". Changing it so IDEA and gradle share
       // the class output directory.
 
-      outputDir = sourceSets.main.output.classesDir
-      testOutputDir = sourceSets.test.output.classesDir
+      outputDir = file(sourceSets.main.output.classesDirs.getSingleFile())
+      testOutputDir = file(sourceSets.test.output.classesDirs.getSingleFile())
     }
+
   }
 }

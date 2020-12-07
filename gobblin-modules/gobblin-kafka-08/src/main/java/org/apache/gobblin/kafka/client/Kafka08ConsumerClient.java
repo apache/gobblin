@@ -24,7 +24,14 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
-import java.util.regex.Pattern;
+
+import com.google.common.base.Function;
+import com.google.common.base.Splitter;
+import com.google.common.collect.Iterators;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.net.HostAndPort;
+import com.typesafe.config.Config;
 
 import kafka.api.PartitionFetchInfo;
 import kafka.api.PartitionOffsetRequestInfo;
@@ -41,19 +48,10 @@ import kafka.javaapi.message.ByteBufferMessageSet;
 import kafka.message.MessageAndOffset;
 import lombok.extern.slf4j.Slf4j;
 
-import com.google.common.base.Function;
-import com.google.common.base.Splitter;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.net.HostAndPort;
-import com.typesafe.config.Config;
-
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaOffsetRetrievalFailureException;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaPartition;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaTopic;
 import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.util.DatasetFilterUtils;
 
 /**
  * A {@link GobblinKafkaConsumerClient} that uses kafka 08 scala consumer client. All the code has been moved from the
@@ -249,6 +247,11 @@ public class Kafka08ConsumerClient extends AbstractBaseKafkaConsumerClient {
     }
   }
 
+  @Override
+  public Iterator<KafkaConsumerRecord> consume() {
+    throw new UnsupportedOperationException("consume() not supported by " + this.getClass().getSimpleName() + " Please use Kafka09ConsumerClient or above");
+  }
+
   private synchronized FetchResponse getFetchResponseForFetchRequest(FetchRequest fetchRequest, KafkaPartition partition) {
     SimpleConsumer consumer = getSimpleConsumer(partition.getLeader().getHostAndPort());
 
@@ -267,7 +270,7 @@ public class Kafka08ConsumerClient extends AbstractBaseKafkaConsumerClient {
           new Function<kafka.message.MessageAndOffset, KafkaConsumerRecord>() {
             @Override
             public KafkaConsumerRecord apply(kafka.message.MessageAndOffset input) {
-              return new Kafka08ConsumerRecord(input);
+              return new Kafka08ConsumerRecord(input, partition.getTopicName(), partition.getId());
             }
           });
     } catch (Exception e) {
@@ -347,8 +350,8 @@ public class Kafka08ConsumerClient extends AbstractBaseKafkaConsumerClient {
 
     private final MessageAndOffset messageAndOffset;
 
-    public Kafka08ConsumerRecord(MessageAndOffset messageAndOffset) {
-      super(messageAndOffset.offset(), messageAndOffset.message().size());
+    public Kafka08ConsumerRecord(MessageAndOffset messageAndOffset, String topic, int partition) {
+      super(messageAndOffset.offset(), messageAndOffset.message().size(), topic, partition);
       this.messageAndOffset = messageAndOffset;
     }
 

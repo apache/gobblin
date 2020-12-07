@@ -24,6 +24,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.dataset.Descriptor;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.records.ControlMessageHandler;
@@ -127,6 +128,11 @@ public class InstrumentedDataWriterDecorator<D> extends InstrumentedDataWriterBa
   }
 
   @Override
+  public Descriptor getDataDescriptor() {
+    return this.embeddedWriter.getDataDescriptor();
+  }
+
+  @Override
   public Object getDecoratedObject() {
     return this.embeddedWriter;
   }
@@ -134,18 +140,6 @@ public class InstrumentedDataWriterDecorator<D> extends InstrumentedDataWriterBa
   @Override
   public boolean isWatermarkCapable() {
     return watermarkAwareWriter.isPresent() && watermarkAwareWriter.get().isWatermarkCapable();
-  }
-
-  @Override
-  public Map<String, CheckpointableWatermark> getCommittableWatermark() {
-    Preconditions.checkState(isWatermarkCapable());
-    return watermarkAwareWriter.get().getCommittableWatermark();
-  }
-
-  @Override
-  public Map<String, CheckpointableWatermark> getUnacknowledgedWatermark() {
-    Preconditions.checkState(isWatermarkCapable());
-    return watermarkAwareWriter.get().getUnacknowledgedWatermark();
   }
 
   @Override

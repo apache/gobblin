@@ -1,0 +1,18 @@
+namespace org.apache.gobblin.service
+
+/**
+ * Attributes for defining a job schedule
+ */
+record Schedule {
+
+  /**
+   * Schedule for flow in cron format
+   */
+  @validate.`org.apache.gobblin.service.validator.CronValidator` = { }
+  cronSchedule: string
+
+  /**
+   * Set to true to request that a job with a schedule be run immediately in addition to being scheduled
+   */
+  runImmediately: boolean = false
+}

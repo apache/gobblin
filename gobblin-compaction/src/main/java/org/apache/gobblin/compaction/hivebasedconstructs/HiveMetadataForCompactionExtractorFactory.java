@@ -17,13 +17,14 @@
 
 package org.apache.gobblin.compaction.hivebasedconstructs;
 
+import java.io.IOException;
+
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.thrift.TException;
+
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.data.management.conversion.hive.extractor.HiveBaseExtractor;
 import org.apache.gobblin.data.management.conversion.hive.extractor.HiveBaseExtractorFactory;
-import java.io.IOException;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.hive.ql.metadata.HiveException;
-import org.apache.thrift.TException;
 
 
 /**
@@ -31,7 +32,7 @@ import org.apache.thrift.TException;
  */
 public class HiveMetadataForCompactionExtractorFactory implements HiveBaseExtractorFactory {
   public HiveBaseExtractor createExtractor(WorkUnitState state, FileSystem sourceFs)
-      throws IOException, TException, HiveException {
+      throws IOException, TException {
     return new HiveMetadataForCompactionExtractor(state, sourceFs);
   }
 }

@@ -71,7 +71,7 @@ public class TestExtractor implements Extractor<String, String> {
       FileSystem fs = FileSystem
           .get(URI.create(workUnitState.getProp(ConfigurationKeys.FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI)),
               new Configuration());
-      fs.makeQualified(sourceFile);
+      sourceFile = new Path(fs.makeQualified(sourceFile).toUri().getRawPath());
       this.dataFileReader =
           new DataFileReader<GenericRecord>(new FsInput(sourceFile, new Configuration()), datumReader);
     } catch (IOException ioe) {

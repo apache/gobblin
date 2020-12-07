@@ -40,6 +40,7 @@ import org.apache.gobblin.metastore.JobHistoryStore;
 import org.apache.gobblin.metastore.MetaStoreModule;
 import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
+import org.apache.gobblin.util.PortUtils;
 
 
 /**
@@ -70,7 +71,8 @@ public class JobExecutionInfoServerTest {
     Properties properties = new Properties();
     properties.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY, testMetastoreDatabase.getJdbcUrl());
 
-    int randomPort = chooseRandomPort();
+    int randomPort = new PortUtils.ServerSocketPortLocator().random();
+
     properties.setProperty(ConfigurationKeys.REST_SERVER_PORT_KEY, Integer.toString(randomPort));
 
     Injector injector = Guice.createInjector(new MetaStoreModule(properties));
@@ -150,18 +152,6 @@ public class JobExecutionInfoServerTest {
     }
     if (this.testMetastoreDatabase != null) {
       this.testMetastoreDatabase.close();
-    }
-  }
-
-  private static int chooseRandomPort() throws IOException {
-    ServerSocket socket = null;
-    try {
-      socket = new ServerSocket(0);
-      return socket.getLocalPort();
-    } finally {
-      if (socket != null) {
-        socket.close();
-      }
     }
   }
 

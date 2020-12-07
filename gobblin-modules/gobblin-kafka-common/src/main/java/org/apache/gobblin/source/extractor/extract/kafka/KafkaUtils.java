@@ -19,6 +19,7 @@ package org.apache.gobblin.source.extractor.extract.kafka;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.configuration.WorkUnitState;
 
 import java.util.List;
 
@@ -109,7 +110,7 @@ public class KafkaUtils {
    */
   public static boolean containsPartitionAvgRecordSize(State state, KafkaPartition partition) {
     return state.contains(
-        getPartitionPropName(partition.getTopicName(), partition.getId()) + "." + KafkaSource.AVG_RECORD_SIZE);
+        getPartitionPropName(partition.getTopicName(), partition.getId()) + "." + ConfigurationKeys.AVG_RECORD_SIZE);
   }
 
   /**
@@ -118,7 +119,7 @@ public class KafkaUtils {
    */
   public static long getPartitionAvgRecordSize(State state, KafkaPartition partition) {
     return state.getPropAsLong(
-        getPartitionPropName(partition.getTopicName(), partition.getId()) + "." + KafkaSource.AVG_RECORD_SIZE);
+        getPartitionPropName(partition.getTopicName(), partition.getId()) + "." + ConfigurationKeys.AVG_RECORD_SIZE);
   }
 
   /**
@@ -126,7 +127,7 @@ public class KafkaUtils {
    * "[topicname].[partitionid].avg.record.size".
    */
   public static void setPartitionAvgRecordSize(State state, KafkaPartition partition, long size) {
-    state.setProp(getPartitionPropName(partition.getTopicName(), partition.getId()) + "." + KafkaSource.AVG_RECORD_SIZE,
+    state.setProp(getPartitionPropName(partition.getTopicName(), partition.getId()) + "." + ConfigurationKeys.AVG_RECORD_SIZE,
         size);
   }
 
@@ -167,5 +168,18 @@ public class KafkaUtils {
     state.setProp(
         getPartitionPropName(partition.getTopicName(), partition.getId()) + "." + KafkaSource.AVG_RECORD_MILLIS,
         millis);
+  }
+
+  /**
+   * Get a property as long from a work unit that may or may not be a multiworkunit.
+   * This method is needed because the SingleLevelWorkUnitPacker does not squeeze work units
+   * into a multiworkunit, and thus does not append the partitionId to property keys, while
+   * the BiLevelWorkUnitPacker does.
+   * Return 0 as default if key not found in either form.
+   */
+  public static long getPropAsLongFromSingleOrMultiWorkUnitState(WorkUnitState workUnitState,
+                                                                 String key, int partitionId) {
+    return Long.parseLong(workUnitState.contains(key) ? workUnitState.getProp(key)
+        : workUnitState.getProp(KafkaUtils.getPartitionPropName(key, partitionId), "0"));
   }
 }

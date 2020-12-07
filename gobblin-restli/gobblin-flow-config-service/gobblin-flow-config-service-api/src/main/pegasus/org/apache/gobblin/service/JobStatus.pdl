@@ -1,0 +1,47 @@
+namespace org.apache.gobblin.service
+
+/**
+ * Execution status for a job
+ */
+record JobStatus {
+
+  /**
+   * Identifier of the flow the job belongs to
+   */
+  flowId: FlowId
+
+  /**
+   * Identifier of the job
+   */
+  jobId: JobId
+
+  /**
+   * Tag of the job
+   */
+  jobTag: optional string
+
+  /**
+   * Job execution status
+   */
+  executionStatus: ExecutionStatus
+
+  /**
+   * Error or status message
+   */
+  message: string
+
+  /**
+   * metrics information
+   */
+  metrics: optional string
+
+  /**
+   * Statistics from the job execution. The values may be updated during the run of a job.
+   */
+  executionStatistics: JobStatistics
+
+  /**
+   * Job state that is updated only at the start and end of a job execution.
+   */
+  jobState: JobState
+}

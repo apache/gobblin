@@ -25,7 +25,6 @@ import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -33,25 +32,32 @@ import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.util.ConverterUtils;
-
 import org.apache.helix.NotificationContext;
 import org.apache.helix.messaging.handling.HelixTaskResult;
 import org.apache.helix.messaging.handling.MessageHandler;
 import org.apache.helix.messaging.handling.MessageHandlerFactory;
 import org.apache.helix.model.Message;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
+import com.google.common.util.concurrent.Service;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
+
+import lombok.Getter;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
 import org.apache.gobblin.cluster.GobblinClusterManager;
+import org.apache.gobblin.cluster.GobblinClusterUtils;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.JvmUtils;
+import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.logs.Log4jConfigurationHelper;
+import org.apache.gobblin.util.logs.LogCopier;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.apache.gobblin.yarn.event.DelegationTokenUpdatedEvent;
 
 
@@ -67,43 +73,60 @@ import org.apache.gobblin.yarn.event.DelegationTokenUpdatedEvent;
  */
 @Alpha
 public class GobblinApplicationMaster extends GobblinClusterManager {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinApplicationMaster.class);
 
-  public GobblinApplicationMaster(String applicationName, ContainerId containerId, Config config,
+  @Getter
+  private final YarnService yarnService;
+  private LogCopier logCopier;
+
+  public GobblinApplicationMaster(String applicationName, String applicationId, ContainerId containerId, Config config,
       YarnConfiguration yarnConfiguration) throws Exception {
-    super(applicationName, containerId.getApplicationAttemptId().getApplicationId().toString(), config,
+    super(applicationName, applicationId, config.withValue(GobblinYarnConfigurationKeys.CONTAINER_NUM_KEY,
+        ConfigValueFactory.fromAnyRef(YarnHelixUtils.getContainerNum(containerId.toString()))),
         Optional.<Path>absent());
 
+    String containerLogDir = config.getString(GobblinYarnConfigurationKeys.LOGS_SINK_ROOT_DIR_KEY);
     GobblinYarnLogSource gobblinYarnLogSource = new GobblinYarnLogSource();
     if (gobblinYarnLogSource.isLogSourcePresent()) {
+      Path appWorkDir = PathUtils.combinePaths(containerLogDir, GobblinClusterUtils.getAppWorkDirPath(this.clusterName, this.applicationId), "AppMaster");
+      logCopier = gobblinYarnLogSource.buildLogCopier(this.config, containerId.toString(), this.fs, appWorkDir);
       this.applicationLauncher
-          .addService(gobblinYarnLogSource.buildLogCopier(config, containerId, this.fs, this.appWorkDir));
+          .addService(logCopier);
     }
-
-    this.applicationLauncher
-        .addService(buildYarnService(config, applicationName, this.applicationId, yarnConfiguration, this.fs));
+    YarnHelixUtils.setAdditionalYarnClassPath(config, yarnConfiguration);
+    this.yarnService = buildYarnService(this.config, applicationName, this.applicationId, yarnConfiguration, this.fs);
+    this.applicationLauncher.addService(this.yarnService);
 
     if (UserGroupInformation.isSecurityEnabled()) {
       LOGGER.info("Adding YarnContainerSecurityManager since security is enabled");
-      this.applicationLauncher.addService(buildYarnContainerSecurityManager(config, this.fs));
+      this.applicationLauncher.addService(buildYarnContainerSecurityManager(this.config, this.fs));
+    }
+
+    // Add additional services
+    List<String> serviceClassNames = ConfigUtils.getStringList(this.config,
+        GobblinYarnConfigurationKeys.APP_MASTER_SERVICE_CLASSES);
+
+    for (String serviceClassName : serviceClassNames) {
+      Class<?> serviceClass = Class.forName(serviceClassName);
+      this.applicationLauncher.addService((Service) GobblinConstructorUtils.invokeLongestConstructor(serviceClass, this));
     }
   }
 
   /**
    * Build the {@link YarnService} for the Application Master.
    */
-  private YarnService buildYarnService(Config config, String applicationName, String applicationId,
+  protected YarnService buildYarnService(Config config, String applicationName, String applicationId,
       YarnConfiguration yarnConfiguration, FileSystem fs)
       throws Exception {
-    return new YarnService(config, applicationName, applicationId, yarnConfiguration, fs, this.eventBus);
+    return new YarnService(config, applicationName, applicationId, yarnConfiguration, fs, this.eventBus,
+        this.getMultiManager().getJobClusterHelixManager());
   }
 
   /**
-   * Build the {@link YarnContainerSecurityManager} for the Application Master.
+   * Build the {@link YarnAppMasterSecurityManager} for the Application Master.
    */
   private YarnContainerSecurityManager buildYarnContainerSecurityManager(Config config, FileSystem fs) {
-    return new YarnContainerSecurityManager(config, fs, this.eventBus);
+    return new YarnAppMasterSecurityManager(config, fs, this.eventBus, this.logCopier, this.yarnService);
   }
 
   @Override
@@ -181,6 +204,7 @@ public class GobblinApplicationMaster extends GobblinClusterManager {
   private static Options buildOptions() {
     Options options = new Options();
     options.addOption("a", GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME, true, "Yarn application name");
+    options.addOption("d", GobblinClusterConfigurationKeys.APPLICATION_ID_OPTION_NAME, true, "Yarn application id");
     return options;
   }
 
@@ -193,10 +217,15 @@ public class GobblinApplicationMaster extends GobblinClusterManager {
     Options options = buildOptions();
     try {
       CommandLine cmd = new DefaultParser().parse(options, args);
-      if (!cmd.hasOption(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME)) {
+      if (!cmd.hasOption(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME) ||
+          (!cmd.hasOption(GobblinClusterConfigurationKeys.APPLICATION_ID_OPTION_NAME))) {
         printUsage(options);
         System.exit(1);
       }
+
+      //Because AM is restarted with the original AppSubmissionContext, it may have outdated delegation tokens.
+      //So the refreshed tokens should be added into the container's UGI before any HDFS/Hive/RM access is performed.
+      YarnHelixUtils.updateToken(GobblinYarnConfigurationKeys.TOKEN_FILE_NAME);
 
       Log4jConfigurationHelper.updateLog4jConfiguration(GobblinApplicationMaster.class,
           GobblinYarnConfigurationKeys.GOBBLIN_YARN_LOG4J_CONFIGURATION_FILE,
@@ -208,7 +237,8 @@ public class GobblinApplicationMaster extends GobblinClusterManager {
           ConverterUtils.toContainerId(System.getenv().get(ApplicationConstants.Environment.CONTAINER_ID.key()));
 
       try (GobblinApplicationMaster applicationMaster = new GobblinApplicationMaster(
-          cmd.getOptionValue(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME), containerId,
+          cmd.getOptionValue(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME),
+          cmd.getOptionValue(GobblinClusterConfigurationKeys.APPLICATION_ID_OPTION_NAME), containerId,
           ConfigFactory.load(), new YarnConfiguration())) {
 
         applicationMaster.start();

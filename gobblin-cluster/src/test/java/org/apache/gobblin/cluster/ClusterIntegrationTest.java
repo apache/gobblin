@@ -15,222 +15,278 @@
  * limitations under the License.
  */
 
-/*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package org.apache.gobblin.cluster;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Collection;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.FutureTask;
 
-import org.apache.commons.io.FileUtils;
-import org.apache.curator.test.TestingServer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.helix.HelixManager;
+import org.apache.helix.HelixManagerFactory;
+import org.apache.helix.InstanceType;
+import org.apache.helix.ZNRecord;
+import org.apache.helix.manager.zk.ChainedPathZkSerializer;
+import org.apache.helix.manager.zk.PathBasedZkSerializer;
+import org.apache.helix.manager.zk.ZNRecordStreamingSerializer;
+import org.apache.helix.manager.zk.ZkClient;
+import org.apache.helix.task.TargetState;
+import org.apache.helix.task.TaskDriver;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
-import com.google.common.base.Optional;
-import com.google.common.io.Resources;
+import com.google.common.base.Predicate;
 import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.cluster.suite.IntegrationBasicSuite;
+import org.apache.gobblin.cluster.suite.IntegrationDedicatedManagerClusterSuite;
+import org.apache.gobblin.cluster.suite.IntegrationDedicatedTaskDriverClusterSuite;
+import org.apache.gobblin.cluster.suite.IntegrationJobCancelSuite;
+import org.apache.gobblin.cluster.suite.IntegrationJobFactorySuite;
+import org.apache.gobblin.cluster.suite.IntegrationJobRestartViaSpecSuite;
+import org.apache.gobblin.cluster.suite.IntegrationJobTagSuite;
+import org.apache.gobblin.cluster.suite.IntegrationSeparateProcessSuite;
+import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.testing.AssertWithBackoff;
+import org.apache.gobblin.util.ConfigUtils;
 
 
+@Slf4j
+@Test
 public class ClusterIntegrationTest {
 
-  public final static Logger _logger = LoggerFactory.getLogger(ClusterIntegrationTest.class);
-  public static final String JOB_CONF_NAME = "HelloWorldJob.conf";
-  Config _config;
-  private Path _workPath;
-  private Path _jobConfigPath;
-  private Path _jobOutputBasePath;
-  private URL _jobConfResourceUrl;
-  private TestingServer _testingZKServer;
-  private GobblinTaskRunner _worker;
-  private GobblinClusterManager _manager;
-  private boolean _runTaskInSeparateProcess;
-
+  private IntegrationBasicSuite suite;
+  private String zkConnectString;
 
   @Test
-  public void simpleJobShouldComplete() throws Exception {
-    runSimpleJobAndVerifyResult();
+  public void testJobShouldComplete()
+      throws Exception {
+    this.suite = new IntegrationBasicSuite();
+    runAndVerify();
+  }
+
+  private HelixManager getHelixManager() {
+    Config helixConfig = this.suite.getManagerConfig();
+    String clusterName = helixConfig.getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
+    String instanceName = ConfigUtils.getString(helixConfig, GobblinClusterConfigurationKeys.HELIX_INSTANCE_NAME_KEY,
+        GobblinClusterManager.class.getSimpleName());
+    this.zkConnectString = helixConfig.getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
+    HelixManager helixManager = HelixManagerFactory.getZKHelixManager(clusterName, instanceName, InstanceType.CONTROLLER, zkConnectString);
+    return helixManager;
   }
 
   @Test
-  public void simpleJobShouldCompleteInTaskIsolationMode()
+  void testJobShouldGetCancelled() throws Exception {
+    // Cancellation usually needs long time to successfully be executed, therefore setting the sleeping time to 100.
+    Config jobConfigOverrides = ClusterIntegrationTestUtils.buildSleepingJob(IntegrationJobCancelSuite.JOB_ID,
+        IntegrationJobCancelSuite.TASK_STATE_FILE)
+        .withValue(SleepingTask.SLEEP_TIME_IN_SECONDS, ConfigValueFactory.fromAnyRef(100));
+    this.suite = new IntegrationJobCancelSuite(jobConfigOverrides);
+    HelixManager helixManager = getHelixManager();
+    suite.startCluster();
+    helixManager.connect();
+
+    ExecutorService executor = Executors.newSingleThreadExecutor();
+    Runnable cancelAfterTaskInit = () -> {
+      try {
+        TaskDriver taskDriver = new TaskDriver(helixManager);
+        // The actual cancellation needs to be executed in separated thread to make the cancel of helix is not blocked by
+        // SleepingTask's thread in its own thread.
+        // Issue the cancel after ensuring the workflow is created and the SleepingTask is running
+        AssertWithBackoff.create().maxSleepMs(1000).backoffFactor(1).
+            assertTrue(isTaskStarted(helixManager, IntegrationJobCancelSuite.JOB_ID), "Waiting for the job to start...");
+
+        AssertWithBackoff.create().maxSleepMs(100).timeoutMs(2000).backoffFactor(1).
+            assertTrue(isTaskRunning(IntegrationJobCancelSuite.TASK_STATE_FILE),
+                "Waiting for the task to enter running state");
+
+        log.info("Stopping the job");
+        taskDriver.stop(IntegrationJobCancelSuite.JOB_ID);
+        suite.shutdownCluster();
+      } catch (Exception e) {
+        throw new RuntimeException("Failure in canceling tasks");
+      }
+    };
+
+    FutureTask<String> futureTask = new FutureTask<String>( cancelAfterTaskInit, "cancelled");
+    executor.submit(futureTask);
+
+    AssertWithBackoff assertWithBackoff = AssertWithBackoff.create().backoffFactor(1).maxSleepMs(1000).timeoutMs(500000);
+    assertWithBackoff.assertTrue(new Predicate<Void>() {
+      @Override
+      public boolean apply(Void input) {
+        return futureTask.isDone();
+      }
+    }, "waiting for future to complete");
+
+    Assert.assertEquals(futureTask.get(), "cancelled");
+    suite.waitForAndVerifyOutputFiles();
+  }
+
+  /**
+   * An integration test for restarting a Helix workflow via a JobSpec. This test case starts a Helix cluster with
+   * a {@link FsJobConfigurationManager}. The test case does the following:
+   * <ul>
+   *   <li> add a {@link org.apache.gobblin.runtime.api.JobSpec} that uses a {@link org.apache.gobblin.cluster.SleepingCustomTaskSource})
+   *   to {@link IntegrationJobRestartViaSpecSuite#FS_SPEC_CONSUMER_DIR}.  which is picked by the JobConfigurationManager. </li>
+   *   <li> the JobConfigurationManager sends a notification to the GobblinHelixJobScheduler which schedules the job for execution. The JobSpec is
+   *   also added to the JobCatalog for persistence. Helix starts a Workflow for this JobSpec. </li>
+   *   <li> We then add a {@link org.apache.gobblin.runtime.api.JobSpec} with UPDATE Verb to {@link IntegrationJobRestartViaSpecSuite#FS_SPEC_CONSUMER_DIR}.
+   *   This signals GobblinHelixJobScheduler (and, Helix) to first cancel the running job (i.e., Helix Workflow) started in the previous step.
+   *   <li> We inspect the state of the zNode corresponding to the Workflow resource in Zookeeper to ensure that its {@link org.apache.helix.task.TargetState}
+   *   is STOP. </li>
+   *   <li> Once the cancelled job from the previous steps is completed, the job will be re-launched for execution by the GobblinHelixJobScheduler.
+   *   We confirm the execution by again inspecting the zNode and ensuring its TargetState is START. </li>
+   * </ul>
+   */
+  @Test (enabled = false, dependsOnMethods = { "testJobShouldGetCancelled" }, groups = {"disabledOnTravis"})
+  public void testJobRestartViaSpec() throws Exception {
+    Config jobConfigOverrides = ClusterIntegrationTestUtils.buildSleepingJob(IntegrationJobCancelSuite.JOB_ID,
+        IntegrationJobCancelSuite.TASK_STATE_FILE);
+    this.suite = new IntegrationJobRestartViaSpecSuite(jobConfigOverrides);
+    HelixManager helixManager = getHelixManager();
+
+    IntegrationJobRestartViaSpecSuite restartViaSpecSuite = (IntegrationJobRestartViaSpecSuite) this.suite;
+
+    //Start the cluster
+    restartViaSpecSuite.startCluster();
+
+    helixManager.connect();
+
+    AssertWithBackoff.create().timeoutMs(30000).maxSleepMs(1000).backoffFactor(1).
+        assertTrue(isTaskStarted(helixManager, IntegrationJobRestartViaSpecSuite.JOB_ID), "Waiting for the job to start...");
+
+    AssertWithBackoff.create().maxSleepMs(100).timeoutMs(2000).backoffFactor(1).
+        assertTrue(isTaskRunning(IntegrationJobRestartViaSpecSuite.TASK_STATE_FILE), "Waiting for the task to enter running state");
+
+    ZkClient zkClient = new ZkClient(this.zkConnectString);
+    PathBasedZkSerializer zkSerializer = ChainedPathZkSerializer.builder(new ZNRecordStreamingSerializer()).build();
+    zkClient.setZkSerializer(zkSerializer);
+
+    String clusterName = getHelixManager().getClusterName();
+    String zNodePath = Paths.get("/", clusterName, "CONFIGS", "RESOURCE", IntegrationJobCancelSuite.JOB_ID).toString();
+
+    //Ensure that the Workflow is started
+    ZNRecord record = zkClient.readData(zNodePath);
+    String targetState = record.getSimpleField("TargetState");
+    Assert.assertEquals(targetState, TargetState.START.name());
+
+    //Add a JobSpec with UPDATE verb signalling the Helix cluster to restart the workflow
+    restartViaSpecSuite.addJobSpec(IntegrationJobRestartViaSpecSuite.JOB_NAME, SpecExecutor.Verb.UPDATE.name());
+
+    AssertWithBackoff.create().maxSleepMs(1000).timeoutMs(12000).backoffFactor(1).assertTrue(input -> {
+      //Inspect the zNode at the path corresponding to the Workflow resource. Ensure the target state of the resource is in
+      // the STOP state or that the zNode has been deleted.
+      ZNRecord recordNew = zkClient.readData(zNodePath, true);
+      String targetStateNew = null;
+      if (recordNew != null) {
+        targetStateNew = recordNew.getSimpleField("TargetState");
+      }
+      return recordNew == null || targetStateNew.equals(TargetState.STOP.name());
+    }, "Waiting for Workflow TargetState to be STOP");
+
+    //Ensure that the SleepingTask did not terminate normally i.e. it was interrupted. We check this by ensuring
+    // that the line "Hello World!" is not present in the logged output.
+    suite.waitForAndVerifyOutputFiles();
+
+    AssertWithBackoff.create().maxSleepMs(1000).timeoutMs(120000).backoffFactor(1).assertTrue(input -> {
+      //Inspect the zNode at the path corresponding to the Workflow resource. Ensure the target state of the resource is in
+      // the START state.
+      ZNRecord recordNew = zkClient.readData(zNodePath, true);
+      String targetStateNew = null;
+      if (recordNew != null) {
+        targetStateNew = recordNew.getSimpleField("TargetState");
+        return targetStateNew.equals(TargetState.START.name());
+      }
+      return false;
+    }, "Waiting for Workflow TargetState to be START");
+  }
+
+  public static Predicate<Void> isTaskStarted(HelixManager helixManager, String jobId) {
+    return input -> TaskDriver.getWorkflowContext(helixManager, jobId) != null;
+  }
+
+  public static Predicate<Void> isTaskRunning(String taskStateFileName) {
+    return input -> {
+      File taskStateFile = new File(taskStateFileName);
+      return taskStateFile.exists();
+    };
+  }
+
+  @Test
+  public void testSeparateProcessMode()
       throws Exception {
-    _runTaskInSeparateProcess = true;
-    runSimpleJobAndVerifyResult();
+    this.suite = new IntegrationSeparateProcessSuite();
+    runAndVerify();
   }
 
-  private void runSimpleJobAndVerifyResult()
+  @Test
+  public void testDedicatedManagerCluster()
       throws Exception {
-    init();
-    startCluster();
-    waitForAndVerifyOutputFiles();
-    shutdownCluster();
+    this.suite = new IntegrationDedicatedManagerClusterSuite();
+    runAndVerify();
   }
 
-  private void init() throws Exception {
-    initWorkDir();
-    initZooKeeper();
-    initConfig();
-    initJobConfDir();
-    initJobOutputDir();
+  @Test(enabled = false)
+  public void testDedicatedTaskDriverCluster()
+      throws Exception {
+    this.suite = new IntegrationDedicatedTaskDriverClusterSuite();
+    runAndVerify();
   }
 
-  private void initWorkDir() throws IOException {
-    // Relative to the current directory
-    _workPath = Paths.get("gobblin-integration-test-work-dir");
-    _logger.info("Created a new work directory: " + _workPath.toAbsolutePath());
-
-    // Delete the working directory in case the previous test fails to delete the directory
-    // e.g. when the test was killed forcefully under a debugger.
-    deleteWorkDir();
-    Files.createDirectory(_workPath);
+  @Test(enabled = false)
+  public void testJobWithTag()
+      throws Exception {
+    this.suite = new IntegrationJobTagSuite();
+    runAndVerify();
   }
 
-  private void initJobConfDir() throws IOException {
-    String jobConfigDir = _config.getString(GobblinClusterConfigurationKeys.JOB_CONF_PATH_KEY);
-    _jobConfigPath = Paths.get(jobConfigDir);
-    Files.createDirectories(_jobConfigPath);
-    _jobConfResourceUrl = Resources.getResource(JOB_CONF_NAME);
-    copyJobConfFromResource();
+  @Test
+  public void testPlanningJobFactory()
+      throws Exception {
+    this.suite = new IntegrationJobFactorySuite();
+    runAndVerify();
   }
 
-  private void initJobOutputDir() throws IOException {
-    _jobOutputBasePath = Paths.get(_workPath + "/job-output");
-    Files.createDirectory(_jobOutputBasePath);
+  private void runAndVerify()
+      throws Exception {
+    suite.startCluster();
+    suite.waitForAndVerifyOutputFiles();
+    ensureJobLauncherFinished();
+    suite.verifyMetricsCleaned();
+    suite.shutdownCluster();
   }
 
-  private void copyJobConfFromResource() throws IOException {
-    try (InputStream resourceStream = _jobConfResourceUrl.openStream()) {
-      File targetFile = new File(_jobConfigPath + "/" + JOB_CONF_NAME);
-      FileUtils.copyInputStreamToFile(resourceStream, targetFile);
+  private void ensureJobLauncherFinished() throws Exception {
+    AssertWithBackoff asserter = AssertWithBackoff.create().logger(log).timeoutMs(120_000)
+       .maxSleepMs(100).backoffFactor(1.5);
+
+    asserter.assertTrue(this::isJobLauncherFinished, "Waiting for job launcher completion");
+  }
+
+  protected boolean isJobLauncherFinished(Void input) {
+    Map<Thread, StackTraceElement[]> map = Thread.getAllStackTraces();
+    for (Map.Entry<Thread, StackTraceElement[]> entry: map.entrySet()) {
+      for (StackTraceElement ste: entry.getValue()) {
+        if (ste.toString().contains(HelixRetriggeringJobCallable.class.getSimpleName())) {
+          return false;
+        }
+      }
     }
+
+    return true;
   }
 
-  private void initZooKeeper() throws Exception {
-    _testingZKServer = new TestingServer(false);
-    _logger.info(
-        "Created testing ZK Server. Connection string : " + _testingZKServer.getConnectString());
-  }
-
-  private void initConfig() {
-    Config configFromResource = getConfigFromResource();
-    Config configOverride = getConfigOverride();
-    _config = configOverride.withFallback(configFromResource).resolve();
-  }
-
-  private Config getConfigOverride() {
-    Map<String, String> configMap = new HashMap<>();
-    String zkConnectionString = _testingZKServer.getConnectString();
-    configMap.put(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY, zkConnectionString);
-    configMap.put(GobblinClusterConfigurationKeys.CLUSTER_WORK_DIR, _workPath.toString());
-    if (_runTaskInSeparateProcess) {
-      configMap.put(GobblinClusterConfigurationKeys.ENABLE_TASK_IN_SEPARATE_PROCESS, "true");
-    }
-    Config config = ConfigFactory.parseMap(configMap);
-    return config;
-  }
-
-  private Config getConfigFromResource() {
-    URL url = Resources.getResource("BasicCluster.conf");
-    Config config = ConfigFactory.parseURL(url);
-    return config;
-  }
 
   @AfterMethod
   public void tearDown() throws IOException {
-    deleteWorkDir();
-  }
-
-  private void deleteWorkDir() throws IOException {
-    if ((_workPath != null) && Files.exists(_workPath)) {
-      FileUtils.deleteDirectory(_workPath.toFile());
-    }
-  }
-
-  private void createHelixCluster() {
-    String zkConnectionString = _config
-        .getString(GobblinClusterConfigurationKeys.ZK_CONNECTION_STRING_KEY);
-    String helix_cluster_name = _config
-        .getString(GobblinClusterConfigurationKeys.HELIX_CLUSTER_NAME_KEY);
-    HelixUtils.createGobblinHelixCluster(zkConnectionString, helix_cluster_name);
-  }
-
-  private void startCluster() throws Exception {
-    _testingZKServer.start();
-    createHelixCluster();
-    startWorker();
-    startManager();
-  }
-
-  private void startWorker() throws Exception {
-    _worker = new GobblinTaskRunner(TestHelper.TEST_APPLICATION_NAME, "Worker",
-        TestHelper.TEST_APPLICATION_ID, "1",
-        _config, Optional.absent());
-
-    // Need to run in another thread since the start call will not return until the stop method
-    // is called.
-    Thread workerThread = new Thread(_worker::start);
-    workerThread.start();
-  }
-
-  private void startManager() throws Exception {
-    _manager = new GobblinClusterManager(TestHelper.TEST_APPLICATION_NAME,
-        TestHelper.TEST_APPLICATION_ID,
-        _config, Optional.absent());
-
-    _manager.start();
-  }
-
-  private void shutdownCluster() throws InterruptedException, IOException {
-    _worker.stop();
-    _manager.stop();
-    _testingZKServer.close();
-  }
-
-  private void waitForAndVerifyOutputFiles() throws Exception {
-
-    AssertWithBackoff asserter = AssertWithBackoff.create().logger(_logger).timeoutMs(60_000)
-        .maxSleepMs(100).backoffFactor(1.5);
-
-    asserter.assertTrue(this::hasExpectedFilesBeenCreated, "Waiting for job-completion");
-  }
-
-  private boolean hasExpectedFilesBeenCreated(Void input) {
-    int numOfFiles = getNumOfOutputFiles(_jobOutputBasePath);
-    return numOfFiles == 1;
-  }
-
-  private int getNumOfOutputFiles(Path jobOutputDir) {
-    Collection<File> outputFiles = FileUtils
-        .listFiles(jobOutputDir.toFile(), new String[]{"txt"}, true);
-    return outputFiles.size();
+    this.suite.deleteWorkDir();
   }
 }

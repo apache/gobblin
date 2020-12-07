@@ -30,7 +30,11 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
+import org.apache.gobblin.data.management.copy.CopyConfiguration;
 import org.apache.gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.filesystem.DataFileVersionStrategy;
+
 import lombok.Getter;
 
 
@@ -68,6 +72,10 @@ public class ReplicationConfiguration {
   public static final String REPLICATION_DATA_CATETORY_TYPE = "replicationDataCategoryType";
   public static final String REPLICATION_DATA_FINITE_INSTANCE = "replicationDataFiniteInstance";
 
+  public static final String COPY_SCHEMA_CHECK_ENABLED = "gobblin.copy.schemaCheck.enabled";
+
+  public static final boolean DEFAULT_COPY_SCHEMA_CHECK_ENABLED = true;
+
   //copy route generator
   public static final String DELETE_TARGET_IFNOT_ON_SOURCE = "deleteTarget";
 
@@ -95,6 +103,9 @@ public class ReplicationConfiguration {
   private final ReplicationCopyMode copyMode;
 
   @Getter
+  private final boolean schemaCheckEnabled;
+
+  @Getter
   private final Config selectionConfig;
 
   @Getter
@@ -115,6 +126,12 @@ public class ReplicationConfiguration {
   @Getter
   private final boolean deleteTargetIfNotExistOnSource;
 
+  @Getter
+  private final Optional<String> versionStrategyFromConfigStore;
+
+  @Getter
+  private final Optional<Boolean> enforceFileSizeMatchFromConfigStore;
+
   public static ReplicationConfiguration buildFromConfig(Config input)
       throws InstantiationException, IllegalAccessException, ClassNotFoundException {
     Preconditions.checkArgument(input != null, "can not build ReplicationConfig from null");
@@ -131,6 +148,9 @@ public class ReplicationConfiguration {
         .withDataFlowTopologyConfig(config)
         .withCopyRouteGenerator(config)
         .withDeleteTarget(config)
+        .withVersionStrategyFromConfigStore(config)
+        .withEnforceFileSizeMatchFromConfigStore(config)
+        .withSchemaCheckEnabled(config)
         .build();
   }
 
@@ -143,9 +163,13 @@ public class ReplicationConfiguration {
     this.dataFlowToplogy = builder.dataFlowTopology;
     this.copyRouteGenerator = builder.copyRouteGenerator;
     this.deleteTargetIfNotExistOnSource = builder.deleteTargetIfNotExistOnSource;
+    this.versionStrategyFromConfigStore = builder.versionStrategyFromConfigStore;
+    this.enforceFileSizeMatchFromConfigStore = builder.enforceFileMatchFromConfigStore;
+    this.schemaCheckEnabled = builder.schemaCheckEnabled;
   }
 
   private static class Builder {
+    private boolean schemaCheckEnabled;
 
     private ReplicationMetaData metaData;
 
@@ -168,6 +192,29 @@ public class ReplicationConfiguration {
     private CopyRouteGenerator copyRouteGenerator;
 
     private boolean deleteTargetIfNotExistOnSource = false;
+
+    private Optional<String> versionStrategyFromConfigStore = Optional.absent();
+
+    private Optional<Boolean> enforceFileMatchFromConfigStore = Optional.absent();
+
+    public Builder withEnforceFileSizeMatchFromConfigStore(Config config) {
+      this.enforceFileMatchFromConfigStore = config.hasPath(CopyConfiguration.ENFORCE_FILE_LENGTH_MATCH)?
+          Optional.of(config.getBoolean(CopyConfiguration.ENFORCE_FILE_LENGTH_MATCH)) :
+          Optional.absent();
+      return this;
+    }
+
+    public Builder withSchemaCheckEnabled(Config config) {
+      this.schemaCheckEnabled = ConfigUtils.getBoolean(config, COPY_SCHEMA_CHECK_ENABLED, DEFAULT_COPY_SCHEMA_CHECK_ENABLED);
+      return this;
+    }
+
+    public Builder withVersionStrategyFromConfigStore(Config config) {
+      this.versionStrategyFromConfigStore = config.hasPath(DataFileVersionStrategy.DATA_FILE_VERSION_STRATEGY_KEY)?
+          Optional.of(config.getString(DataFileVersionStrategy.DATA_FILE_VERSION_STRATEGY_KEY)) :
+          Optional.absent();
+      return this;
+    }
 
     public Builder withReplicationMetaData(ReplicationMetaData metaData) {
       this.metaData = metaData;

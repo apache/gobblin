@@ -31,6 +31,7 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import com.google.common.base.Charsets;
+import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
@@ -38,19 +39,18 @@ import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import org.apache.gobblin.kafka.client.GobblinKafkaConsumerClient;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
 import org.apache.gobblin.testing.AssertWithBackoff;
 import org.apache.gobblin.util.Either;
 
-import kafka.consumer.KafkaStream;
-import kafka.javaapi.consumer.ConsumerConnector;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 
 @Slf4j
-class MockedKafkaJobMonitor extends KafkaJobMonitor {
+public class MockedKafkaJobMonitor extends KafkaJobMonitor {
 
   private static final Splitter SPLITTER_COMMA = Splitter.on(",");
   private static final Splitter SPLITTER_COLON = Splitter.on(":");
@@ -58,18 +58,15 @@ class MockedKafkaJobMonitor extends KafkaJobMonitor {
 
   @Getter
   private final Map<URI, JobSpec> jobSpecs;
-  @Getter
-  private final MockKafkaStream mockKafkaStream;
 
-  public static MockedKafkaJobMonitor create(Config config) {
-    return new MockedKafkaJobMonitor(config, Maps.<URI, JobSpec>newConcurrentMap());
+  public static MockedKafkaJobMonitor create(String topic, Config config) {
+    return new MockedKafkaJobMonitor(topic, config, Maps.<URI, JobSpec>newConcurrentMap());
   }
 
-  private MockedKafkaJobMonitor(Config config, Map<URI, JobSpec> jobSpecs) {
-    super("topic", createMockCatalog(jobSpecs), config);
+  private MockedKafkaJobMonitor(String topic, Config config, Map<URI, JobSpec> jobSpecs) {
+    super(topic, createMockCatalog(jobSpecs), config);
 
     this.jobSpecs = jobSpecs;
-    this.mockKafkaStream = new MockKafkaStream(1);
   }
 
   private static MutableJobCatalog createMockCatalog(final Map<URI, JobSpec> jobSpecs) {
@@ -93,10 +90,11 @@ class MockedKafkaJobMonitor extends KafkaJobMonitor {
         jobSpecs.remove(uri);
         return null;
       }
-    }).when(jobCatalog).remove(Mockito.any(URI.class));
+    }).when(jobCatalog).remove(Mockito.any(URI.class), Mockito.anyBoolean());
 
     return jobCatalog;
   }
+
 
   @Override
   public Collection<Either<JobSpec, URI>> parseJobSpec(byte[] message)
@@ -126,18 +124,7 @@ class MockedKafkaJobMonitor extends KafkaJobMonitor {
   }
 
   @Override
-  protected List<KafkaStream<byte[], byte[]>> createStreams() {
-    return this.mockKafkaStream.getMockStreams();
-  }
-
-  @Override
-  protected ConsumerConnector createConsumerConnector() {
-    return Mockito.mock(ConsumerConnector.class);
-  }
-
-  @Override
   public void shutDown() {
-    this.mockKafkaStream.shutdown();
     super.shutDown();
   }
 

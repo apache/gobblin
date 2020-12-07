@@ -33,6 +33,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import org.apache.commons.configuration.ConfigurationException;
+import org.apache.gobblin.runtime.job_spec.JobSpecResolver;
+import org.apache.gobblin.source.Source;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.hadoop.fs.Path;
 
 import org.quartz.CronScheduleBuilder;
@@ -136,6 +139,9 @@ public class JobScheduler extends AbstractIdleService {
   private final Closer closer = Closer.create();
 
   @Getter
+  private final JobSpecResolver jobSpecResolver;
+
+  @Getter
   private volatile boolean cancelRequested = false;
 
   public JobScheduler(Properties properties, SchedulerService scheduler)
@@ -162,6 +168,8 @@ public class JobScheduler extends AbstractIdleService {
         this.properties.getProperty(ConfigurationKeys.SCHEDULER_WAIT_FOR_JOB_COMPLETION_KEY,
             ConfigurationKeys.DEFAULT_SCHEDULER_WAIT_FOR_JOB_COMPLETION));
 
+    this.jobSpecResolver = JobSpecResolver.builder(ConfigUtils.propertiesToConfig(properties)).build();
+
     if (this.properties.containsKey(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY)) {
       this.jobConfigFileDirPath = new Path(this.properties.getProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY));
       this.listener = new PathAlterationListenerAdaptorForMonitor(jobConfigFileDirPath, this);
@@ -170,6 +178,7 @@ public class JobScheduler extends AbstractIdleService {
       this.jobConfigFileDirPath = null;
       this.listener = null;
     }
+
   }
 
   @Override
@@ -350,8 +359,8 @@ public class JobScheduler extends AbstractIdleService {
     String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
 
     if (this.scheduledJobs.containsKey(jobName)) {
-      LOG.warn("Job " + jobName + " has already been scheduled");
-      return;
+      LOG.info("Job " + jobName + " was already scheduled, un-scheduling it now.");
+      unscheduleJob(jobName);
     }
 
     // Check if the job has been disabled
@@ -457,7 +466,7 @@ public class JobScheduler extends AbstractIdleService {
    * @param jobProps Job configuration properties
    * @param jobListener {@link JobListener} used for callback, can be <em>null</em> if no callback is needed.
    * @param jobLauncher a {@link JobLauncher} object used to launch the job to run
-   * @return If current job needs retriggering
+   * @return If current job is a stop-early job based on {@link Source#isEarlyStopped()}
    * @throws JobException when there is anything wrong with running the job
    */
   public boolean runJob(Properties jobProps, JobListener jobListener, JobLauncher jobLauncher)
@@ -522,7 +531,7 @@ public class JobScheduler extends AbstractIdleService {
    */
   private List<Properties> loadGeneralJobConfigs()
       throws ConfigurationException, IOException {
-    List<Properties> jobConfigs = SchedulerUtils.loadGenericJobConfigs(this.properties);
+    List<Properties> jobConfigs = SchedulerUtils.loadGenericJobConfigs(this.properties, this.jobSpecResolver);
     LOG.info(String.format("Loaded %d job configurations", jobConfigs.size()));
     return jobConfigs;
   }

@@ -27,7 +27,7 @@ import org.apache.gobblin.stream.FlushControlMessage;
  * Flush control message handler that will flush a {@link Flushable} when handling a {@link FlushControlMessage}
  */
 public class FlushControlMessageHandler implements ControlMessageHandler {
-  Flushable flushable;
+  protected Flushable flushable;
 
   /**
    * Create a flush control message that will flush the given {@link Flushable}

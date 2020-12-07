@@ -29,8 +29,11 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
+
+import lombok.Data;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.commit.CommitSequence;
 import org.apache.gobblin.commit.CommitStep;
@@ -38,7 +41,6 @@ import org.apache.gobblin.commit.DeliverySemantics;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.instrumented.Instrumented;
-import org.apache.gobblin.metrics.event.lineage.LineageEventBuilder;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.FailureEventBuilder;
 import org.apache.gobblin.metrics.event.lineage.LineageInfo;
@@ -50,10 +52,6 @@ import org.apache.gobblin.runtime.commit.DatasetStateCommitStep;
 import org.apache.gobblin.runtime.task.TaskFactory;
 import org.apache.gobblin.runtime.task.TaskUtils;
 import org.apache.gobblin.source.extractor.JobCommitPolicy;
-
-import lombok.Data;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -227,11 +225,11 @@ final class SafeDatasetCommit implements Callable<Void> {
     try {
       if (StringUtils.isEmpty(datasetUrn)) {
         // This dataset may contain different kinds of LineageEvent
-        for (Map.Entry<String, Collection<TaskState>> entry : aggregateByLineageEvent(states).entrySet()) {
-          submitLineageEvent(entry.getKey(), entry.getValue());
+        for (Map.Entry<String, Collection<WorkUnitState>> entry : LineageInfo.aggregateByLineageEvent(states).entrySet()) {
+          LineageInfo.submitLineageEvent(entry.getKey(), entry.getValue(), metricContext);
         }
       } else {
-        submitLineageEvent(datasetUrn, states);
+        LineageInfo.submitLineageEvent(datasetUrn, states, metricContext);
       }
     } finally {
       // Purge lineage info from all states
@@ -239,13 +237,6 @@ final class SafeDatasetCommit implements Callable<Void> {
         LineageInfo.purgeLineageInfo(taskState);
       }
     }
-  }
-
-  private void submitLineageEvent(String dataset, Collection<TaskState> states) {
-    Collection<LineageEventBuilder> events = LineageInfo.load(states);
-    // Send events
-    events.forEach(event -> event.submit(metricContext));
-    log.info(String.format("Submitted %d lineage events for dataset %s", events.size(), dataset));
   }
 
   /**
@@ -325,6 +316,9 @@ final class SafeDatasetCommit implements Callable<Void> {
         // The dataset state is set to FAILED if any task failed and COMMIT_ON_FULL_SUCCESS is used
         datasetState.setState(JobState.RunningState.FAILED);
         datasetState.incrementJobFailures();
+        Optional<String> taskStateException = taskState.getTaskFailureException();
+        log.warn("At least one task did not committed successfully. Setting dataset state to FAILED. "
+            + (taskStateException.isPresent() ? taskStateException.get() : "Exception not set."));
         return;
       }
     }
@@ -400,7 +394,7 @@ final class SafeDatasetCommit implements Callable<Void> {
           //    dataset failed to be committed.
           datasetState.setState(JobState.RunningState.FAILED);
           Optional<String> taskStateException = taskState.getTaskFailureException();
-          log.warn("At least one task did not committed successfully. Setting dataset state to FAILED.",
+          log.warn("At least one task did not committed successfully. Setting dataset state to FAILED. {}",
               taskStateException.isPresent() ? taskStateException.get() : "Exception not set.");
         }
       }
@@ -438,14 +432,4 @@ final class SafeDatasetCommit implements Callable<Void> {
         .withDatasetState(datasetState).build());
   }
 
-  private static Map<String, Collection<TaskState>> aggregateByLineageEvent(Collection<TaskState> states) {
-    Map<String, Collection<TaskState>> statesByEvents = Maps.newHashMap();
-    for (TaskState state : states) {
-      String eventName = LineageInfo.getFullEventName(state);
-      Collection<TaskState> statesForEvent = statesByEvents.computeIfAbsent(eventName, k -> Lists.newArrayList());
-      statesForEvent.add(state);
-    }
-
-    return statesByEvents;
-  }
 }

@@ -83,7 +83,7 @@ public class JsonElementConversionFactoryTest {
     JsonSchema jsonSchema = new JsonSchema(schema);
     jsonSchema.setColumnName("dummy");
 
-    ArrayConverter converter = new ArrayConverter(jsonSchema, state);
+    ArrayConverter converter = new ArrayConverter(jsonSchema, state, null);
     Assert.assertEquals(avroSchemaToJsonElement(converter), expected);
   }
 
@@ -96,7 +96,7 @@ public class JsonElementConversionFactoryTest {
     JsonSchema jsonSchema = new JsonSchema(schema);
     jsonSchema.setColumnName("dummy1");
 
-    ArrayConverter converter = new ArrayConverter(jsonSchema, state);
+    ArrayConverter converter = new ArrayConverter(jsonSchema, state, null);
 
     Assert.assertEquals(avroSchemaToJsonElement(converter), expected);
   }
@@ -123,7 +123,7 @@ public class JsonElementConversionFactoryTest {
     JsonObject schema = getSchemaData(testName).getAsJsonObject();
     JsonObject expected = getExpectedSchema(testName).getAsJsonObject();
 
-    ArrayConverter converter = new ArrayConverter(new JsonSchema(schema), state);
+    ArrayConverter converter = new ArrayConverter(new JsonSchema(schema), state, null);
 
     Assert.assertEquals(avroSchemaToJsonElement(converter), expected);
   }
@@ -145,7 +145,7 @@ public class JsonElementConversionFactoryTest {
     JsonObject schema = getSchemaData(testName).getAsJsonObject();
     JsonObject expected = getExpectedSchema(testName).getAsJsonObject();
 
-    ArrayConverter converter = new ArrayConverter(new JsonSchema(schema), state);
+    ArrayConverter converter = new ArrayConverter(new JsonSchema(schema), state, null);
 
     Assert.assertEquals(avroSchemaToJsonElement(converter), expected);
   }
@@ -378,7 +378,7 @@ public class JsonElementConversionFactoryTest {
     JsonObject schema = getSchemaData(testName).getAsJsonObject();
     JsonArray expected = getExpectedSchema(testName).getAsJsonArray();
 
-    ArrayConverter converter = new ArrayConverter(new JsonSchema(schema), state);
+    ArrayConverter converter = new ArrayConverter(new JsonSchema(schema), state, null);
 
     Assert.assertEquals(avroSchemaToJsonElement(converter), expected);
   }

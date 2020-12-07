@@ -441,9 +441,10 @@ public class TaskExecutor extends AbstractIdleService {
       onStart(startTime);
       try {
         this.underlyingTask.run();
-        successfulTaskCount.mark();;
+        successfulTaskCount.mark();
       } catch (Exception e) {
         failedTaskCount.mark();
+        LOG.error(String.format("Task %s failed", underlyingTask.getTaskId()), e);
         throw e;
       } finally {
         runningTaskCount.dec();

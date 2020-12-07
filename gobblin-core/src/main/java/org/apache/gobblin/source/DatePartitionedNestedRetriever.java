@@ -68,12 +68,13 @@ public class DatePartitionedNestedRetriever implements PartitionAwareFileRetriev
   private String sourcePartitionPrefix;
   private String sourcePartitionSuffix;
   private Path sourceDir;
-  private FileSystem fs;
   private HadoopFsHelper helper;
   private final String expectedExtension;
   private Duration leadTimeDuration;
   private boolean schemaInSourceDir;
   private String schemaFile;
+
+  protected FileSystem fs;
 
   public DatePartitionedNestedRetriever(String expectedExtension) {
     this.expectedExtension = expectedExtension;
@@ -116,18 +117,29 @@ public class DatePartitionedNestedRetriever implements PartitionAwareFileRetriev
     for (DateTime date = lowWaterMarkDate; !date.isAfter(currentDay) && filesToProcess.size() < maxFilesToReturn;
         date = date.withFieldAdded(incrementalUnit, 1)) {
 
+      // Constructs the partition path - e.g. prefix/2015/01/01/suffix
+      String partitionPath = constructPartitionPath(date);
       // Constructs the path folder - e.g. /my/data/prefix/2015/01/01/suffix
-      Path sourcePath = constructSourcePath(date);
+      Path sourcePath = new Path(sourceDir, partitionPath);
 
       if (this.fs.exists(sourcePath)) {
-        for (FileStatus fileStatus : this.fs.listStatus(sourcePath, getFileFilter())) {
+        for (FileStatus fileStatus : getFilteredFileStatuses(sourcePath, getFileFilter())) {
           LOG.info("Will process file " + fileStatus.getPath());
-          filesToProcess.add(new FileInfo(fileStatus.getPath().toString(), fileStatus.getLen(), date.getMillis()));
+          filesToProcess.add(
+              new FileInfo(fileStatus.getPath().toString(), fileStatus.getLen(), date.getMillis(), partitionPath));
         }
       }
     }
 
     return filesToProcess;
+  }
+
+  /**
+   * This method could be overwritten to support more complicated file-loading scheme,
+   * e.g. recursively browsing of the source path.
+   */
+  protected FileStatus[] getFilteredFileStatuses(Path sourcePath, PathFilter pathFilter) throws IOException {
+    return this.fs.listStatus(sourcePath, pathFilter);
   }
 
   @Override
@@ -177,7 +189,7 @@ public class DatePartitionedNestedRetriever implements PartitionAwareFileRetriev
     this.incrementalUnit = partitionType.getDateTimeFieldType().getDurationType();
   }
 
-  private Path constructSourcePath(DateTime date) {
+  private String constructPartitionPath(DateTime date) {
     StringBuilder pathBuilder = new StringBuilder();
 
     if (!this.sourcePartitionPrefix.isEmpty()) {
@@ -192,7 +204,7 @@ public class DatePartitionedNestedRetriever implements PartitionAwareFileRetriev
       pathBuilder.append(this.sourcePartitionSuffix);
     }
 
-    return new Path(this.sourceDir, pathBuilder.toString());
+    return pathBuilder.toString();
   }
 
   /**

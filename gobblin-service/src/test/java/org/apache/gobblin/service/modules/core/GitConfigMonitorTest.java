@@ -93,10 +93,11 @@ public class GitConfigMonitorTest {
     this.gitForPush.push().setRemote("origin").setRefSpecs(this.masterRefSpec).call();
 
     this.config = ConfigBuilder.create()
-        .addPrimitive(ConfigurationKeys.GIT_CONFIG_MONITOR_REPO_URI, this.remoteRepo.getDirectory().getAbsolutePath())
-        .addPrimitive(ConfigurationKeys.GIT_CONFIG_MONITOR_REPO_DIR, TEST_DIR + "/jobConfig")
-        .addPrimitive(ConfigurationKeys.FLOWSPEC_STORE_DIR_KEY, TEST_DIR + "flowCatalog")
-        .addPrimitive(ConfigurationKeys.GIT_CONFIG_MONITOR_POLLING_INTERVAL, 5)
+        .addPrimitive(GitConfigMonitor.GIT_CONFIG_MONITOR_PREFIX + "." + ConfigurationKeys.GIT_MONITOR_REPO_URI,
+            this.remoteRepo.getDirectory().getAbsolutePath())
+        .addPrimitive(GitConfigMonitor.GIT_CONFIG_MONITOR_PREFIX + "." + ConfigurationKeys.GIT_MONITOR_REPO_DIR, TEST_DIR + "/jobConfig")
+        .addPrimitive(FlowCatalog.FLOWSPEC_STORE_DIR_KEY, TEST_DIR + "flowCatalog")
+        .addPrimitive(ConfigurationKeys.GIT_MONITOR_POLLING_INTERVAL, 5)
         .build();
 
     this.flowCatalog = new FlowCatalog(config);
@@ -153,7 +154,7 @@ public class GitConfigMonitorTest {
     Collection<Spec> specs = this.flowCatalog.getSpecs();
 
     Assert.assertTrue(specs.size() == 1);
-    FlowSpec spec = (FlowSpec)(specs.iterator().next());
+    FlowSpec spec = (FlowSpec) (specs.iterator().next());
     Assert.assertEquals(spec.getUri(), new URI("gobblin-flow:/testGroup/testFlow"));
     Assert.assertEquals(spec.getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY), "testFlow");
     Assert.assertEquals(spec.getConfig().getString(ConfigurationKeys.FLOW_GROUP_KEY), "testGroup");
@@ -176,7 +177,7 @@ public class GitConfigMonitorTest {
     Collection<Spec> specs = this.flowCatalog.getSpecs();
 
     Assert.assertTrue(specs.size() == 1);
-    FlowSpec spec = (FlowSpec)(specs.iterator().next());
+    FlowSpec spec = (FlowSpec) (specs.iterator().next());
     Assert.assertEquals(spec.getUri(), new URI("gobblin-flow:/testGroup/testFlow"));
     Assert.assertEquals(spec.getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY), "testFlow");
     Assert.assertEquals(spec.getConfig().getString(ConfigurationKeys.FLOW_GROUP_KEY), "testGroup");
@@ -234,13 +235,13 @@ public class GitConfigMonitorTest {
       }
     });
 
-    FlowSpec spec = (FlowSpec)specList.get(0);
+    FlowSpec spec = (FlowSpec) specList.get(0);
     Assert.assertEquals(spec.getUri(), new URI("gobblin-flow:/testGroup/testFlow"));
     Assert.assertEquals(spec.getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY), "testFlow");
     Assert.assertEquals(spec.getConfig().getString(ConfigurationKeys.FLOW_GROUP_KEY), "testGroup");
     Assert.assertEquals(spec.getConfig().getString("param1"), "value1");
 
-    spec = (FlowSpec)specList.get(1);
+    spec = (FlowSpec) specList.get(1);
     Assert.assertEquals(spec.getUri(), new URI("gobblin-flow:/testGroup/testFlow2"));
     Assert.assertEquals(spec.getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY), "testFlow2");
     Assert.assertEquals(spec.getConfig().getString(ConfigurationKeys.FLOW_GROUP_KEY), "testGroup");
@@ -279,13 +280,13 @@ public class GitConfigMonitorTest {
       }
     });
 
-    spec = (FlowSpec)specList.get(0);
+    spec = (FlowSpec) specList.get(0);
     Assert.assertEquals(spec.getUri(), new URI("gobblin-flow:/testGroup/testFlow2"));
     Assert.assertEquals(spec.getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY), "testFlow2");
     Assert.assertEquals(spec.getConfig().getString(ConfigurationKeys.FLOW_GROUP_KEY), "testGroup");
     Assert.assertEquals(spec.getConfig().getString("param1"), "value4");
 
-    spec = (FlowSpec)specList.get(1);
+    spec = (FlowSpec) specList.get(1);
     Assert.assertEquals(spec.getUri(), new URI("gobblin-flow:/testGroup/testFlow3"));
     Assert.assertEquals(spec.getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY), "testFlow3");
     Assert.assertEquals(spec.getConfig().getString(ConfigurationKeys.FLOW_GROUP_KEY), "testGroup");
@@ -325,7 +326,7 @@ public class GitConfigMonitorTest {
     specs = this.flowCatalog.getSpecs();
     Assert.assertTrue(specs.size() == 1);
 
-    FlowSpec spec = (FlowSpec)(specs.iterator().next());
+    FlowSpec spec = (FlowSpec) (specs.iterator().next());
     Assert.assertEquals(spec.getUri(), new URI("gobblin-flow:/testGroup/testFlow"));
     Assert.assertEquals(spec.getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY), "testFlow");
     Assert.assertEquals(spec.getConfig().getString(ConfigurationKeys.FLOW_GROUP_KEY), "testGroup");

@@ -26,10 +26,13 @@ import org.apache.avro.Schema;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 
-import com.google.common.base.Optional;
+import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
+
+import javax.annotation.Nullable;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.metrics.kafka.KafkaAvroSchemaRegistry;
 import org.apache.gobblin.metrics.kafka.SchemaRegistryException;
@@ -41,50 +44,46 @@ import org.apache.gobblin.util.ConfigUtils;
  * {@link org.apache.gobblin.metrics.kafka.KafkaAvroSchemaRegistry} to get Schema version identifier and write it to
  * {@link java.io.DataOutputStream}.
  */
+@Slf4j
 public class SchemaRegistryVersionWriter implements SchemaVersionWriter<Schema> {
 
   private final KafkaAvroSchemaRegistry registry;
   private Map<Schema, String> registrySchemaIds;
-  private final Optional<String> overrideName;
-  private final Optional<Schema> schema;
-  private final Optional<String> schemaId;
+  private final String overrideName;
+  private final Schema schema;
+  private final String schemaId;
   private final int schemaIdLengthBytes;
 
   public SchemaRegistryVersionWriter(Config config)
-      throws IOException {
-    this(new KafkaAvroSchemaRegistry(ConfigUtils.configToProperties(config)), Optional.<String>absent(),
-        Optional.<Schema>absent());
+      throws SchemaRegistryException {
+    this(new KafkaAvroSchemaRegistry(ConfigUtils.configToProperties(config)), null, null, null);
   }
 
-  public SchemaRegistryVersionWriter(KafkaAvroSchemaRegistry registry, String overrideName)
-      throws IOException {
-    this(registry, overrideName, Optional.<Schema>absent());
+  public SchemaRegistryVersionWriter(KafkaAvroSchemaRegistry registry, @Nullable String overrideName) throws SchemaRegistryException {
+    this(registry, overrideName, null);
   }
 
-  public SchemaRegistryVersionWriter(KafkaAvroSchemaRegistry registry, String overrideName,
-      Optional<Schema> singleSchema)
-      throws IOException {
-    this(registry, Optional.of(overrideName), singleSchema);
+  public SchemaRegistryVersionWriter(KafkaAvroSchemaRegistry registry, @Nullable String overrideName, @Nullable Schema singleSchema)
+      throws SchemaRegistryException {
+    this(registry, overrideName, singleSchema, null);
   }
 
-  public SchemaRegistryVersionWriter(KafkaAvroSchemaRegistry registry, Optional<String> overrideName,
-      Optional<Schema> singleSchema)
-      throws IOException {
+  public SchemaRegistryVersionWriter(KafkaAvroSchemaRegistry registry, @Nullable String overrideName, @Nullable Schema singleSchema, @Nullable String schemaId)
+      throws SchemaRegistryException {
     this.registry = registry;
     this.registrySchemaIds = Maps.newConcurrentMap();
     this.overrideName = overrideName;
     this.schema = singleSchema;
     this.schemaIdLengthBytes = registry.getSchemaIdLengthByte();
-    if (this.schema.isPresent()) {
-      try {
-        this.schemaId = this.overrideName.isPresent() ? Optional
-            .of(this.registry.register(this.schema.get(), this.overrideName.get()))
-            : Optional.of(this.registry.register(this.schema.get()));
-      } catch (SchemaRegistryException e) {
-        throw Throwables.propagate(e);
-      }
+    if ((this.schema != null) && (schemaId == null)) {
+      this.schemaId =
+          (!Strings.isNullOrEmpty(this.overrideName)) ? this.registry.register(this.schema, this.overrideName)
+              : this.registry.register(this.schema);
     } else {
-      this.schemaId = Optional.absent();
+      if (schemaId != null) {
+        log.info("Skipping registering schema with schema registry. Using schema with id: {}", schemaId);
+      }
+      this.schemaId = schemaId;
     }
   }
 
@@ -92,7 +91,7 @@ public class SchemaRegistryVersionWriter implements SchemaVersionWriter<Schema> 
   public void writeSchemaVersioningInformation(Schema schema, DataOutputStream outputStream)
       throws IOException {
 
-    String schemaId = this.schemaId.isPresent() ? this.schemaId.get() : this.getIdForSchema(schema);
+    String schemaId = this.schemaId != null ? this.schemaId : this.getIdForSchema(schema);
 
     outputStream.writeByte(KafkaAvroSchemaRegistry.MAGIC_BYTE);
     try {
@@ -105,7 +104,7 @@ public class SchemaRegistryVersionWriter implements SchemaVersionWriter<Schema> 
   private String getIdForSchema(Schema schema) {
     if (!this.registrySchemaIds.containsKey(schema)) {
       try {
-        String schemaId = this.overrideName.isPresent() ? this.registry.register(schema, this.overrideName.get())
+        String schemaId = !Strings.isNullOrEmpty(this.overrideName) ? this.registry.register(schema, this.overrideName)
             : this.registry.register(schema);
         this.registrySchemaIds.put(schema, schemaId);
       } catch (SchemaRegistryException e) {

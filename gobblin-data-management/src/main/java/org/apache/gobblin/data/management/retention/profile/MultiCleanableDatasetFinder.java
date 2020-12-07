@@ -16,11 +16,13 @@
  */
 package org.apache.gobblin.data.management.retention.profile;
 
+import com.google.common.base.Optional;
 import org.apache.gobblin.data.management.retention.DatasetCleaner;
 
 import java.net.URI;
 import java.util.Properties;
 
+import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.hadoop.fs.FileSystem;
 
 import com.typesafe.config.Config;
@@ -49,7 +51,11 @@ public class MultiCleanableDatasetFinder extends MultiDatasetFinder {
 
 
   public MultiCleanableDatasetFinder(FileSystem fs, Properties jobProps) {
-    super(fs, jobProps);
+    this(fs,jobProps,new EventSubmitter.Builder(Optional.absent(),"noMessage").build());
+  }
+
+  public MultiCleanableDatasetFinder(FileSystem fs, Properties jobProps, EventSubmitter eventSubmitter) {
+    super(fs, jobProps, eventSubmitter);
   }
 
   @Override

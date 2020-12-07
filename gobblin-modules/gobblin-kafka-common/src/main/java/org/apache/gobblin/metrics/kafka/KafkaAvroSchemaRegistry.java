@@ -37,12 +37,12 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.kafka.schemareg.HttpClientFactory;
-import org.apache.gobblin.metrics.reporter.util.KafkaAvroReporterUtil;
+import org.apache.gobblin.metrics.reporter.util.KafkaReporterUtils;
 import org.apache.gobblin.util.AvroUtils;
-
-import lombok.extern.slf4j.Slf4j;
 
 
 /**
@@ -63,12 +63,12 @@ public class KafkaAvroSchemaRegistry extends KafkaSchemaRegistry<String, Schema>
   public static final int SCHEMA_ID_LENGTH_BYTE = 16;
   public static final byte MAGIC_BYTE = 0x0;
 
-  private final GenericObjectPool<HttpClient> httpClientPool;
+  protected final GenericObjectPool<HttpClient> httpClientPool;
   private final String url;
   private final Optional<Map<String, String>> namespaceOverride;
 
   /**
-   * @param properties properties should contain property "kafka.schema.registry.url", and optionally
+   * @param props properties should contain property "kafka.schema.registry.url", and optionally
    * "kafka.schema.registry.max.cache.size" (default = 1000) and
    * "kafka.schema.registry.cache.expire.after.write.min" (default = 10).
    */
@@ -78,7 +78,7 @@ public class KafkaAvroSchemaRegistry extends KafkaSchemaRegistry<String, Schema>
         String.format("Property %s not provided.", KAFKA_SCHEMA_REGISTRY_URL));
 
     this.url = props.getProperty(KAFKA_SCHEMA_REGISTRY_URL);
-    this.namespaceOverride = KafkaAvroReporterUtil.extractOverrideNamespace(props);
+    this.namespaceOverride = KafkaReporterUtils.extractOverrideNamespace(props);
 
     int objPoolSize =
         Integer.parseInt(props.getProperty(ConfigurationKeys.KAFKA_SOURCE_WORK_UNITS_CREATION_THREADS,
@@ -101,6 +101,20 @@ public class KafkaAvroSchemaRegistry extends KafkaSchemaRegistry<String, Schema>
       factory.setConnTimeout(Integer.parseInt(connTimeout));
     }
 
+    if (this.props.containsKey(ConfigurationKeys.KAFKA_SCHEMA_REGISTRY_HTTPCLIENT_METHOD_RETRY_COUNT)) {
+      String retryCount = this.props.getProperty(ConfigurationKeys.KAFKA_SCHEMA_REGISTRY_HTTPCLIENT_METHOD_RETRY_COUNT);
+      factory.setHttpMethodRetryCount(Integer.parseInt(retryCount));
+    }
+
+    if (this.props.containsKey(ConfigurationKeys.KAFKA_SCHEMA_REGISTRY_HTTPCLIENT_REQUEST_RETRY_ENABLED)) {
+      String requestRetryEnabled = this.props.getProperty(ConfigurationKeys.KAFKA_SCHEMA_REGISTRY_HTTPCLIENT_REQUEST_RETRY_ENABLED);
+      factory.setHttpRequestSentRetryEnabled(Boolean.parseBoolean(requestRetryEnabled));
+    }
+
+    if (this.props.containsKey(ConfigurationKeys.KAFKA_SCHEMA_REGISTRY_HTTPCLIENT_METHOD_RETRY_HANDLER_CLASS)) {
+      String httpMethodRetryHandlerClass = this.props.getProperty(ConfigurationKeys.KAFKA_SCHEMA_REGISTRY_HTTPCLIENT_METHOD_RETRY_HANDLER_CLASS);
+      factory.setHttpMethodRetryHandlerClass(httpMethodRetryHandlerClass);
+    }
     this.httpClientPool = new GenericObjectPool<>(factory, config);
   }
 

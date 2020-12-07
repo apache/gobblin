@@ -1,0 +1,47 @@
+# ====================================================================
+# Job configurations
+# ====================================================================
+job.name=Distcp
+
+# Source and destination paths to be obtained from flow config.
+from=${gobblin.flow.edge.input.dataset.descriptor.path}
+to=${gobblin.flow.edge.output.dataset.descriptor.path}
+
+#Will delete files in target if not exist in source
+gobblin.copy.recursive.update=true
+gobblin.copy.recursive.delete=true
+gobblin.copy.recursive.deleteEmptyDirectories=true
+gobblin.trash.skip.trash=true
+
+#Will make the job fail if there's any failure
+gobblin.copy.abortOnSingleDatasetFailure=true
+
+#gobblin.copy.preserved.attributes=p
+
+#Job properties to be resolved from source and dest data node config.
+fs.uri=${source.data.node.fs.uri}
+source.filebased.fs.uri=${fs.uri}
+state.store.fs.uri=${fs.uri}
+target.filebased.fs.uri=${destination.data.node.fs.uri}
+writer.fs.uri=${target.filebased.fs.uri}
+
+work.dir=/tmp/${user.to.proxy}/${flow.executionId}
+
+# ====================================================================
+# Distcp configurations
+# ====================================================================
+extract.namespace="gobblin.copy"
+
+gobblin.dataset.profile.class="org.apache.gobblin.data.management.copy.CopyableGlobDatasetFinder"
+
+# target location for copy
+data.publisher.final.dir=${to}
+gobblin.dataset.pattern=${from}/${?gobblin.flow.edge.input.dataset.descriptor.subPaths}
+
+data.publisher.type="org.apache.gobblin.data.management.copy.publisher.CopyDataPublisher"
+source.class="org.apache.gobblin.data.management.copy.CopySource"
+writer.builder.class="org.apache.gobblin.data.management.copy.writer.FileAwareInputStreamDataWriterBuilder"
+converter.classes="org.apache.gobblin.converter.IdentityConverter"
+
+job.jars="lib/*"
+job.lock.enabled=false

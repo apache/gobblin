@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.util;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.Set;
@@ -245,6 +246,35 @@ public class FileListUtilsTest {
         fileNames.add(testFileStatus.getPath().getName());
       }
       Assert.assertTrue(fileNames.contains(TEST_FILE_NAME1) && fileNames.contains(TEST_FILE_NAME2));
+    } finally {
+      localFs.delete(baseDir, true);
+    }
+  }
+
+  @Test
+  public void testGetAnyNonHiddenFile() throws IOException {
+    final String file1 = "test1";
+
+    FileSystem localFs = FileSystem.getLocal(new Configuration());
+    Path baseDir = new Path(FILE_UTILS_TEST_DIR, "anyFileDir");
+    try {
+      if (localFs.exists(baseDir)) {
+        localFs.delete(baseDir, true);
+      }
+      localFs.mkdirs(baseDir);
+      Path emptySubDir = new Path(baseDir, "emptySubDir");
+      localFs.mkdirs(emptySubDir);
+
+      Path hiddenDir = new Path(baseDir, "_hidden");
+      localFs.mkdirs(hiddenDir);
+      localFs.create(new Path(hiddenDir, file1));
+
+      Path dataDir = new Path(baseDir, "dataDir");
+      localFs.mkdirs(dataDir);
+      File dataFile = new File(dataDir.toString(), file1);
+      localFs.create(new Path(dataDir, file1));
+      FileStatus file = FileListUtils.getAnyNonHiddenFile(localFs, baseDir);
+      Assert.assertEquals(file.getPath().toString(), dataFile.toURI().toString());
     } finally {
       localFs.delete(baseDir, true);
     }

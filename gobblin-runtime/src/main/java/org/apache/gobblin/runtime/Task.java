@@ -28,13 +28,15 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.BooleanUtils;
-import org.apache.gobblin.metrics.event.FailureEventBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
@@ -45,7 +47,13 @@ import com.google.common.io.Closer;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import lombok.NoArgsConstructor;
+
 import org.apache.gobblin.Constructs;
+import org.apache.gobblin.broker.EmptyKey;
+import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import org.apache.gobblin.broker.iface.NotConfiguredException;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
 import org.apache.gobblin.commit.SpeculativeAttemptAwareConstruct;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
@@ -60,12 +68,14 @@ import org.apache.gobblin.instrumented.extractor.InstrumentedExtractorBase;
 import org.apache.gobblin.instrumented.extractor.InstrumentedExtractorDecorator;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.metrics.event.FailureEventBuilder;
 import org.apache.gobblin.metrics.event.TaskEvent;
 import org.apache.gobblin.publisher.DataPublisher;
 import org.apache.gobblin.publisher.SingleTaskDataPublisher;
 import org.apache.gobblin.qualitychecker.row.RowLevelPolicyCheckResults;
 import org.apache.gobblin.qualitychecker.row.RowLevelPolicyChecker;
 import org.apache.gobblin.records.RecordStreamProcessor;
+import org.apache.gobblin.runtime.api.TaskEventMetadataGenerator;
 import org.apache.gobblin.runtime.fork.AsynchronousFork;
 import org.apache.gobblin.runtime.fork.Fork;
 import org.apache.gobblin.runtime.fork.SynchronousFork;
@@ -77,9 +87,14 @@ import org.apache.gobblin.source.extractor.StreamingExtractor;
 import org.apache.gobblin.state.ConstructState;
 import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.writer.*;
-
-import lombok.NoArgsConstructor;
+import org.apache.gobblin.util.TaskEventMetadataUtils;
+import org.apache.gobblin.writer.AcknowledgableWatermark;
+import org.apache.gobblin.writer.DataWriter;
+import org.apache.gobblin.writer.FineGrainedWatermarkTracker;
+import org.apache.gobblin.writer.TrackerBasedWatermarkManager;
+import org.apache.gobblin.writer.WatermarkAwareWriter;
+import org.apache.gobblin.writer.WatermarkManager;
+import org.apache.gobblin.writer.WatermarkStorage;
 
 
 /**
@@ -121,6 +136,8 @@ public class Task implements TaskIFace {
   private final String jobId;
   private final String taskId;
   private final String taskKey;
+  private final boolean isIgnoreCloseFailures;
+
   private final TaskContext taskContext;
   private final TaskState taskState;
   private final TaskStateTracker taskStateTracker;
@@ -135,13 +152,13 @@ public class Task implements TaskIFace {
   private final InstrumentedExtractorBase extractor;
   private final RowLevelPolicyChecker rowChecker;
   private final ExecutionModel taskMode;
-  private final String watermarkingStrategy;
   private final Optional<WatermarkManager> watermarkManager;
   private final Optional<FineGrainedWatermarkTracker> watermarkTracker;
   private final Optional<WatermarkStorage> watermarkStorage;
   private final List<RecordStreamProcessor<?,?,?,?>> recordStreamProcessors;
 
   private final Closer closer;
+  private final TaskEventMetadataGenerator taskEventMetadataGenerator;
 
   private long startTime;
   private volatile long lastRecordPulledTimestampMillis;
@@ -150,7 +167,7 @@ public class Task implements TaskIFace {
   private final AtomicBoolean shutdownRequested;
   private volatile long shutdownRequestedTime = Long.MAX_VALUE;
   private final CountDownLatch shutdownLatch;
-  private Future<?> taskFuture;
+  protected Future<?> taskFuture;
 
   /**
    * Instantiate a new {@link Task}.
@@ -167,6 +184,7 @@ public class Task implements TaskIFace {
     this.jobId = this.taskState.getJobId();
     this.taskId = this.taskState.getTaskId();
     this.taskKey = this.taskState.getTaskKey();
+    this.isIgnoreCloseFailures = this.taskState.getJobState().getPropAsBoolean(ConfigurationKeys.TASK_IGNORE_CLOSE_FAILURES, false);
     this.taskStateTracker = taskStateTracker;
     this.taskExecutor = taskExecutor;
     this.countDownLatch = countDownLatch;
@@ -219,9 +237,6 @@ public class Task implements TaskIFace {
     this.shutdownLatch = new CountDownLatch(1);
 
     // Setup Streaming constructs
-
-    this.watermarkingStrategy = "FineGrain"; // TODO: Configure
-
     if (isStreamingTask()) {
       Extractor underlyingExtractor = this.taskContext.getRawSourceExtractor();
       if (!(underlyingExtractor instanceof StreamingExtractor)) {
@@ -244,25 +259,30 @@ public class Task implements TaskIFace {
       long commitIntervalMillis = ConfigUtils.getLong(config,
           TaskConfigurationKeys.STREAMING_WATERMARK_COMMIT_INTERVAL_MILLIS,
           TaskConfigurationKeys.DEFAULT_STREAMING_WATERMARK_COMMIT_INTERVAL_MILLIS);
-      if (watermarkingStrategy.equals("FineGrain")) { // TODO: Configure
-        this.watermarkTracker = Optional.of(this.closer.register(new FineGrainedWatermarkTracker(config)));
-        this.watermarkManager = Optional.of((WatermarkManager) this.closer.register(
-            new TrackerBasedWatermarkManager(this.watermarkStorage.get(), this.watermarkTracker.get(),
-                commitIntervalMillis, Optional.of(this.LOG))));
+      this.watermarkTracker = Optional.of(this.closer.register(new FineGrainedWatermarkTracker(config)));
+      this.watermarkManager = Optional.of((WatermarkManager) this.closer.register(
+          new TrackerBasedWatermarkManager(this.watermarkStorage.get(), this.watermarkTracker.get(),
+              commitIntervalMillis, Optional.of(this.LOG))));
 
-      } else {
-        // writer-based watermarking
-        this.watermarkManager = Optional.of((WatermarkManager) this.closer.register(
-            new MultiWriterWatermarkManager(this.watermarkStorage.get(), commitIntervalMillis, Optional.of(this.LOG))));
-        this.watermarkTracker = Optional.absent();
-      }
     } else {
       this.watermarkManager = Optional.absent();
       this.watermarkTracker = Optional.absent();
       this.watermarkStorage = Optional.absent();
     }
+    this.taskEventMetadataGenerator = TaskEventMetadataUtils.getTaskEventMetadataGenerator(taskState);
   }
 
+  /**
+   * Try to get a {@link ForkThrowableHolder} instance from the given {@link SharedResourcesBroker}
+   */
+  public static ForkThrowableHolder getForkThrowableHolder(SharedResourcesBroker<GobblinScopeTypes> broker) {
+    try {
+      return broker.getSharedResource(new ForkThrowableHolderFactory(), EmptyKey.INSTANCE);
+    } catch (NotConfiguredException e) {
+      LOG.error("Fail to get fork throwable holder instance from broker. Will not track fork exception.", e);
+      throw new RuntimeException(e);
+    }
+  }
 
   public static ExecutionModel getExecutionModel(State state) {
     String mode = state
@@ -342,7 +362,7 @@ public class Task implements TaskIFace {
       } else {
         new StreamModelTaskRunner(this, this.taskState, this.closer, this.taskContext, this.extractor,
             this.converter, this.recordStreamProcessors, this.rowChecker, this.taskExecutor, this.taskMode, this.shutdownRequested,
-            this.watermarkTracker, this.watermarkManager, this.watermarkStorage, this.forks, this.watermarkingStrategy).run();
+            this.watermarkTracker, this.watermarkManager, this.watermarkStorage, this.forks).run();
       }
 
       LOG.info("Extracted " + this.recordsPulled + " data records");
@@ -351,8 +371,17 @@ public class Task implements TaskIFace {
       this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXTRACTED, this.recordsPulled);
       this.taskState.setProp(ConfigurationKeys.EXTRACTOR_ROWS_EXPECTED, extractor.getExpectedRecordCount());
 
+      // If there are folks not successfully being executed, get the aggregated exceptions and throw RuntimeException.
       if (!this.forks.keySet().stream().map(Optional::get).allMatch(Fork::isSucceeded)) {
-        throw new RuntimeException("Some forks failed.");
+        List<Integer> failedForksId = this.forks.keySet().stream().map(Optional::get).
+            filter(not(Fork::isSucceeded)).map(x -> x.getIndex()).collect(Collectors.toList());
+        ForkThrowableHolder holder = Task.getForkThrowableHolder(this.taskState.getTaskBroker());
+
+        Exception e = null;
+        if (!holder.isEmpty()) {
+          e = holder.getAggregatedException(failedForksId, this.taskId);
+        }
+        throw e == null ? new RuntimeException("Some forks failed") : new RuntimeException("Forks failed with exception:", e);
       }
 
       //TODO: Move these to explicit shutdown phase
@@ -375,6 +404,13 @@ public class Task implements TaskIFace {
         }
       }
     }
+  }
+
+  /**
+   * TODO: Remove this method after Java-11 as JDK offers similar built-in solution.
+   */
+  public static <T> Predicate<T> not(Predicate<T> t) {
+    return t.negate();
   }
 
   @Deprecated
@@ -408,7 +444,7 @@ public class Task implements TaskIFace {
           AsynchronousFork fork = closer.register(
               new AsynchronousFork(this.taskContext, schema instanceof Copyable ? ((Copyable) schema).copy() : schema,
                   branches, i, this.taskMode));
-          configureStreamingFork(fork, watermarkingStrategy);
+          configureStreamingFork(fork);
           // Run the Fork
           this.forks.put(Optional.<Fork>of(fork), Optional.<Future<?>>of(this.taskExecutor.submit(fork)));
         } else {
@@ -419,10 +455,11 @@ public class Task implements TaskIFace {
       SynchronousFork fork = closer.register(
           new SynchronousFork(this.taskContext, schema instanceof Copyable ? ((Copyable) schema).copy() : schema,
               branches, 0, this.taskMode));
-      configureStreamingFork(fork, watermarkingStrategy);
+      configureStreamingFork(fork);
       this.forks.put(Optional.<Fork>of(fork), Optional.<Future<?>> of(this.taskExecutor.submit(fork)));
     }
 
+    LOG.info("Task mode streaming = " + isStreamingTask());
     if (isStreamingTask()) {
 
       // Start watermark manager and tracker
@@ -436,7 +473,7 @@ public class Task implements TaskIFace {
 
       RecordEnvelope recordEnvelope;
       // Extract, convert, and fork one source record at a time.
-      while (!shutdownRequested() && (recordEnvelope = extractor.readRecordEnvelope()) != null) {
+      while ((recordEnvelope = extractor.readRecordEnvelope()) != null) {
         onRecordExtract();
         AcknowledgableWatermark ackableWatermark = new AcknowledgableWatermark(recordEnvelope.getWatermark());
         if (watermarkTracker.isPresent()) {
@@ -447,6 +484,9 @@ public class Task implements TaskIFace {
               ackableWatermark.incrementAck());
         }
         ackableWatermark.ack();
+        if (shutdownRequested()) {
+          extractor.shutdown();
+        }
       }
     } else {
       RecordEnvelope record;
@@ -468,6 +508,9 @@ public class Task implements TaskIFace {
               TaskConfigurationKeys.DEFAULT_TASK_SKIP_ERROR_RECORDS)) {
             throw new RuntimeException(e);
           }
+        }
+        if (shutdownRequested()) {
+          extractor.shutdown();
         }
       }
     }
@@ -499,14 +542,13 @@ public class Task implements TaskIFace {
     }
   }
 
-  protected void configureStreamingFork(Fork fork, String watermarkingStrategy) throws IOException {
+  protected void configureStreamingFork(Fork fork) throws IOException {
     if (isStreamingTask()) {
       DataWriter forkWriter = fork.getWriter();
-      if (forkWriter instanceof WatermarkAwareWriter) {
-        if (watermarkingStrategy.equals("WriterBased")) {
-          ((MultiWriterWatermarkManager) this.watermarkManager.get()).registerWriter((WatermarkAwareWriter) forkWriter);
-        }
-      } else {
+      boolean isWaterMarkAwareWriter = (forkWriter instanceof WatermarkAwareWriter)
+          && ((WatermarkAwareWriter) forkWriter).isWatermarkCapable();
+
+      if (!isWaterMarkAwareWriter) {
         String errorMessage = String.format("The Task is configured to run in continuous mode, "
             + "but the writer %s is not a WatermarkAwareWriter", forkWriter.getClass().getName());
         LOG.error(errorMessage);
@@ -529,6 +571,7 @@ public class Task implements TaskIFace {
     FailureEventBuilder failureEvent = new FailureEventBuilder(FAILED_TASK_EVENT);
     failureEvent.setRootCause(t);
     failureEvent.addMetadata(TASK_STATE, this.taskState.toString());
+    failureEvent.addAdditionalMetadata(this.taskEventMetadataGenerator.getMetadata(this.taskState, failureEvent.getName()));
     failureEvent.submit(taskContext.getTaskMetrics().getMetricContext());
   }
 
@@ -859,6 +902,8 @@ public class Task implements TaskIFace {
    * 3. Check whether to publish data in task.
    */
   public void commit() {
+    boolean isTaskFailed = false;
+
     try {
       // Check if all forks succeeded
       List<Integer> failedForkIds = new ArrayList<>();
@@ -881,10 +926,18 @@ public class Task implements TaskIFace {
           this.taskState.setWorkingState(WorkUnitState.WorkingState.SUCCESSFUL);
         }
       } else {
-        failTask(new ForkException("Fork branches " + failedForkIds + " failed for task " + this.taskId));
+        ForkThrowableHolder holder = Task.getForkThrowableHolder(this.taskState.getTaskBroker());
+        LOG.info("Holder for this task {} is {}", this.taskId, holder);
+        if (!holder.isEmpty()) {
+          failTask(holder.getAggregatedException(failedForkIds, this.taskId));
+        } else {
+          // just in case there are some corner cases where Fork throw an exception but doesn't add into holder
+          failTask(new ForkException("Fork branches " + failedForkIds + " failed for task " + this.taskId));
+        }
       }
     } catch (Throwable t) {
       failTask(t);
+      isTaskFailed = true;
     } finally {
       addConstructsFinalStateToTaskState(extractor, converter, rowChecker);
 
@@ -897,6 +950,10 @@ public class Task implements TaskIFace {
         closer.close();
       } catch (Throwable t) {
         LOG.error("Failed to close all open resources", t);
+        if ((!isIgnoreCloseFailures) && (!isTaskFailed)) {
+          LOG.error("Setting the task state to failed.");
+          failTask(t);
+        }
       }
 
       for (Map.Entry<Optional<Fork>, Optional<Future<?>>> forkAndFuture : this.forks.entrySet()) {
@@ -932,9 +989,12 @@ public class Task implements TaskIFace {
   protected void submitTaskCommittedEvent() {
     MetricContext taskMetricContext = TaskMetrics.get(this.taskState).getMetricContext();
     EventSubmitter eventSubmitter = new EventSubmitter.Builder(taskMetricContext, "gobblin.runtime.task").build();
-    eventSubmitter.submit(TaskEvent.TASK_COMMITTED_EVENT_NAME, ImmutableMap
+    Map<String, String> metadataMap = Maps.newHashMap();
+    metadataMap.putAll(this.taskEventMetadataGenerator.getMetadata(this.taskState, TaskEvent.TASK_COMMITTED_EVENT_NAME));
+    metadataMap.putAll(ImmutableMap
         .of(TaskEvent.METADATA_TASK_ID, this.taskId, TaskEvent.METADATA_TASK_ATTEMPT_ID,
             this.taskState.getTaskAttemptId().or("")));
+    eventSubmitter.submit(TaskEvent.TASK_COMMITTED_EVENT_NAME, metadataMap);
   }
 
   /**
@@ -963,6 +1023,11 @@ public class Task implements TaskIFace {
 
   public synchronized void setTaskFuture(Future<?> taskFuture) {
     this.taskFuture = taskFuture;
+  }
+
+  @VisibleForTesting
+  boolean hasTaskFuture() {
+    return this.taskFuture != null;
   }
 
   /**

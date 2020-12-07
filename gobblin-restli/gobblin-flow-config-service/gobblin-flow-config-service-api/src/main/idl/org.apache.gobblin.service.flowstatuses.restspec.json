@@ -20,6 +20,14 @@
       "parameters" : [ {
         "name" : "flowId",
         "type" : "org.apache.gobblin.service.FlowId"
+      }, {
+        "name" : "count",
+        "type" : "int",
+        "optional" : true
+      }, {
+        "name" : "tag",
+        "type" : "string",
+        "optional" : true
       } ]
     } ],
     "entity" : {

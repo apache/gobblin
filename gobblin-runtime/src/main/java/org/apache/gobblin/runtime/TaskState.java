@@ -22,6 +22,7 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.util.Map;
 
+import org.apache.gobblin.runtime.job.TaskProgress;
 import org.apache.hadoop.io.Text;
 
 import com.codahale.metrics.Counter;
@@ -59,7 +60,7 @@ import lombok.Getter;
  *
  * @author Yinan Li
  */
-public class TaskState extends WorkUnitState {
+public class TaskState extends WorkUnitState implements TaskProgress {
 
   // Built-in metric names
 
@@ -88,6 +89,7 @@ public class TaskState extends WorkUnitState {
   private String taskKey;
   @Getter
   private Optional<String> taskAttemptId;
+
   private long startTime = 0;
   private long endTime = 0;
   private long duration;
@@ -309,6 +311,7 @@ public class TaskState extends WorkUnitState {
     this.jobId = text.toString().intern();
     text.readFields(in);
     this.taskId = text.toString().intern();
+    this.taskAttemptId = Optional.absent();
     this.setId(this.taskId);
     this.startTime = in.readLong();
     this.endTime = in.readLong();

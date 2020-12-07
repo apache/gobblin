@@ -19,7 +19,6 @@ package org.apache.gobblin.runtime;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +31,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.gobblin.runtime.util.TaskMetrics;
+import org.apache.gobblin.util.TestUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.testng.Assert;
@@ -58,8 +58,6 @@ import org.apache.gobblin.source.extractor.Extractor;
 import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.source.extractor.StreamingExtractor;
 import org.apache.gobblin.source.extractor.extract.LongWatermark;
-import org.apache.gobblin.source.workunit.Extract;
-import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.writer.DataWriter;
 import org.apache.gobblin.writer.WatermarkAwareWriter;
@@ -220,6 +218,15 @@ public class TaskContinuousTest {
     public void start(WatermarkStorage watermarkStorage) {
 
     }
+
+    @Override
+    public void shutdown() throws JobShutdownException {
+      try {
+        this.close();
+      } catch (Exception e) {
+        throw new JobShutdownException("Failed to close extractor during shutdown");
+      }
+    }
   }
 
 
@@ -252,90 +259,88 @@ public class TaskContinuousTest {
   public void testContinuousTaskOneRecord()
       throws Exception {
 
-    ArrayList<Object> recordCollector = new ArrayList<>(100);
+    for (Boolean taskExecutionSync: new Boolean[]{true, false}) {
 
-    String testRecord = "hello";
+      ArrayList<Object> recordCollector = new ArrayList<>(100);
 
-    OneRecordExtractor oneRecordExtractor =
-        new OneRecordExtractor(testRecord);
+      String testRecord = "hello";
 
+      OneRecordExtractor oneRecordExtractor = new OneRecordExtractor(testRecord);
 
-    TaskContext mockTaskContext =
-        getMockTaskContext(recordCollector, oneRecordExtractor);
+      TaskContext mockTaskContext = getMockTaskContext(recordCollector, oneRecordExtractor, taskExecutionSync,
+          Integer.MAX_VALUE);
 
-    // Create a mock TaskPublisher
-    TaskPublisher mockTaskPublisher = mock(TaskPublisher.class);
-    when(mockTaskPublisher.canPublish()).thenReturn(TaskPublisher.PublisherState.SUCCESS);
-    when(mockTaskContext.getTaskPublisher(any(TaskState.class), any(TaskLevelPolicyCheckResults.class))).thenReturn(mockTaskPublisher);
+      // Create a mock TaskPublisher
+      TaskPublisher mockTaskPublisher = mock(TaskPublisher.class);
+      when(mockTaskPublisher.canPublish()).thenReturn(TaskPublisher.PublisherState.SUCCESS);
+      when(mockTaskContext.getTaskPublisher(any(TaskState.class), any(TaskLevelPolicyCheckResults.class))).thenReturn(mockTaskPublisher);
 
-    // Create a mock TaskStateTracker
-    TaskStateTracker mockTaskStateTracker = mock(TaskStateTracker.class);
+      // Create a mock TaskStateTracker
+      TaskStateTracker mockTaskStateTracker = mock(TaskStateTracker.class);
 
-    // Create a TaskExecutor - a real TaskExecutor must be created so a Fork is run in a separate thread
-    TaskExecutor taskExecutor = new TaskExecutor(new Properties());
+      // Create a TaskExecutor - a real TaskExecutor must be created so a Fork is run in a separate thread
+      TaskExecutor taskExecutor = new TaskExecutor(new Properties());
 
-    // Create the Task
-    Task task = new Task(mockTaskContext, mockTaskStateTracker, taskExecutor, Optional.<CountDownLatch>absent());
+      // Create the Task
+      Task task = new Task(mockTaskContext, mockTaskStateTracker, taskExecutor, Optional.<CountDownLatch>absent());
 
-    ScheduledExecutorService taskRunner = new ScheduledThreadPoolExecutor(1, ExecutorsUtils.newThreadFactory(Optional.of(log)));
+      ScheduledExecutorService taskRunner = new ScheduledThreadPoolExecutor(1, ExecutorsUtils.newThreadFactory(Optional.of(log)));
 
-    taskRunner.execute(task);
+      taskRunner.execute(task);
 
-
-    // Let the task run for 2 seconds
-    int sleepIterations = 2;
-    int currentIteration = 0;
-    WatermarkStorage mockWatermarkStorage = mockTaskContext.getWatermarkStorage();
-    Map<String, CheckpointableWatermark> externalWatermarkStorage;
-    while (currentIteration < sleepIterations) {
-      Thread.sleep(1000);
-      currentIteration++;
-      externalWatermarkStorage =
-          mockWatermarkStorage.getCommittedWatermarks(CheckpointableWatermark.class, ImmutableList
-          .of("default"));
-      if (!externalWatermarkStorage.isEmpty()) {
-        for (CheckpointableWatermark watermark : externalWatermarkStorage.values()) {
-          log.info("Observed committed watermark: {}", watermark);
+      // Let the task run for 2 seconds
+      int sleepIterations = 2;
+      int currentIteration = 0;
+      WatermarkStorage mockWatermarkStorage = mockTaskContext.getWatermarkStorage();
+      Map<String, CheckpointableWatermark> externalWatermarkStorage;
+      while (currentIteration < sleepIterations) {
+        Thread.sleep(1000);
+        currentIteration++;
+        externalWatermarkStorage =
+            mockWatermarkStorage.getCommittedWatermarks(CheckpointableWatermark.class, ImmutableList.of("default"));
+        if (!externalWatermarkStorage.isEmpty()) {
+          for (CheckpointableWatermark watermark : externalWatermarkStorage.values()) {
+            log.info("Observed committed watermark: {}", watermark);
+          }
+          log.info("Task progress: {}", task.getProgress());
+          // Ensure that watermarks seem reasonable at each step
+          Assert.assertTrue(oneRecordExtractor.validateWatermarks(false, externalWatermarkStorage));
         }
-        log.info("Task progress: {}", task.getProgress());
-        // Ensure that watermarks seem reasonable at each step
-        Assert.assertTrue(oneRecordExtractor.validateWatermarks(false, externalWatermarkStorage));
       }
+
+      // Let's try to shutdown the task
+      task.shutdown();
+      log.info("Shutting down task now");
+      boolean success = task.awaitShutdown(3000);
+      Assert.assertTrue(success, "Task should shutdown in 3 seconds");
+      log.info("Task done waiting to shutdown {}", success);
+
+      externalWatermarkStorage =
+          mockWatermarkStorage.getCommittedWatermarks(CheckpointableWatermark.class, ImmutableList.of("0"));
+
+      // Ensure that committed watermarks match exactly the input rows because we shutdown in an orderly manner.
+      Assert.assertTrue(oneRecordExtractor.validateWatermarks(true, externalWatermarkStorage));
+
+      // Ensure that the record made it to the writer correctly
+      Assert.assertEquals(recordCollector.size(), 1);
+      Assert.assertEquals(recordCollector.get(0), testRecord);
+
+      task.commit();
+      Assert.assertTrue(mockTaskContext.getTaskState().getWorkingState() == WorkUnitState.WorkingState.SUCCESSFUL);
+
+      // Shutdown the executor
+      taskRunner.shutdown();
+      taskRunner.awaitTermination(100, TimeUnit.MILLISECONDS);
     }
-
-    // Let's try to shutdown the task
-    task.shutdown();
-    log.info("Shutting down task now");
-    boolean success = task.awaitShutdown(3000);
-    Assert.assertTrue(success, "Task should shutdown in 3 seconds");
-    log.info("Task done waiting to shutdown {}", success);
-
-    externalWatermarkStorage =
-        mockWatermarkStorage.getCommittedWatermarks(CheckpointableWatermark.class, ImmutableList
-            .of("0"));
-
-    // Ensure that committed watermarks match exactly the input rows because we shutdown in an orderly manner.
-    Assert.assertTrue(oneRecordExtractor.validateWatermarks(true, externalWatermarkStorage));
-
-    // Ensure that the record made it to the writer correctly
-    Assert.assertEquals(recordCollector.size(), 1);
-    Assert.assertEquals(recordCollector.get(0), testRecord);
-
-
-    task.commit();
-
-    // Shutdown the executor
-    taskRunner.shutdown();
-    taskRunner.awaitTermination(100, TimeUnit.MILLISECONDS);
 
 
   }
 
   private TaskContext getMockTaskContext(ArrayList<Object> recordCollector,
-      Extractor mockExtractor)
+      Extractor mockExtractor, Boolean taskExecutionSync, int errorAtCount)
       throws Exception {
 
-    TaskState taskState = getStreamingTaskState();
+    TaskState taskState = getStreamingTaskState(taskExecutionSync);
     // Create a mock RowLevelPolicyChecker
     RowLevelPolicyChecker mockRowLevelPolicyChecker =
         new RowLevelPolicyChecker(Lists.newArrayList(), "stateId", FileSystem.getLocal(new Configuration()));
@@ -360,18 +365,20 @@ public class TaskContinuousTest {
     when(mockTaskContext.getRowLevelPolicyChecker()).thenReturn(mockRowLevelPolicyChecker);
     when(mockTaskContext.getRowLevelPolicyChecker(anyInt())).thenReturn(mockRowLevelPolicyChecker);
     when(mockTaskContext.getTaskLevelPolicyChecker(any(TaskState.class), anyInt())).thenReturn(mock(TaskLevelPolicyChecker.class));
-    when(mockTaskContext.getDataWriterBuilder(anyInt(), anyInt())).thenReturn(new TestStreamingDataWriterBuilder(recordCollector));
+    when(mockTaskContext.getDataWriterBuilder(anyInt(), anyInt())).thenReturn(new TestStreamingDataWriterBuilder(recordCollector,
+        errorAtCount));
     return mockTaskContext;
   }
 
-  private TaskState getStreamingTaskState() {
-    WorkUnitState workUnitState = new WorkUnitState(WorkUnit.create(
-        new Extract(Extract.TableType.SNAPSHOT_ONLY, this.getClass().getName(), this.getClass().getSimpleName())));
+  private TaskState getStreamingTaskState(Boolean taskExecutionSync) {
+    WorkUnitState workUnitState = TestUtils.createTestWorkUnitState();
+
     workUnitState.setProp(ConfigurationKeys.TASK_KEY_KEY, "1234");
 
     TaskState taskState = new TaskState(workUnitState);
     taskState.setProp(ConfigurationKeys.METRICS_ENABLED_KEY, Boolean.toString(false));
     taskState.setProp(TaskConfigurationKeys.TASK_EXECUTION_MODE, ExecutionModel.STREAMING.name());
+    taskState.setProp(ConfigurationKeys.TASK_SYNCHRONOUS_EXECUTION_MODEL_KEY, Boolean.toString(taskExecutionSync));
     taskState.setJobId("1234");
     taskState.setTaskId("testContinuousTaskId");
     return taskState;
@@ -387,79 +394,152 @@ public class TaskContinuousTest {
   @Test
   public void testContinuousTask()
       throws Exception {
-    // Create a TaskState
-    TaskState taskState = getStreamingTaskState();
 
-    ArrayList<Object> recordCollector = new ArrayList<>(100);
-    long perRecordExtractLatencyMillis = 1000; // 1 second per record
+    for (Boolean taskExecutionSync: new Boolean[]{true, false}) {
+      ArrayList<Object> recordCollector = new ArrayList<>(100);
+      long perRecordExtractLatencyMillis = 1000; // 1 second per record
 
+      ContinuousExtractor continuousExtractor = new ContinuousExtractor(perRecordExtractLatencyMillis);
 
+      TaskContext mockTaskContext = getMockTaskContext(recordCollector, continuousExtractor, taskExecutionSync,
+          Integer.MAX_VALUE);
 
-    ContinuousExtractor continuousExtractor =
-        new ContinuousExtractor(perRecordExtractLatencyMillis);
+      // Create a mock TaskStateTracker
+      TaskStateTracker mockTaskStateTracker = mock(TaskStateTracker.class);
 
-    TaskContext mockTaskContext = getMockTaskContext(recordCollector, continuousExtractor);
+      // Create a TaskExecutor - a real TaskExecutor must be created so a Fork is run in a separate thread
+      TaskExecutor taskExecutor = new TaskExecutor(new Properties());
 
+      // Create the Task
+      Task task = new Task(mockTaskContext, mockTaskStateTracker, taskExecutor, Optional.<CountDownLatch>absent());
 
-    // Create a mock TaskStateTracker
-    TaskStateTracker mockTaskStateTracker = mock(TaskStateTracker.class);
+      ScheduledExecutorService taskRunner = new ScheduledThreadPoolExecutor(1, ExecutorsUtils.newThreadFactory(Optional.of(log)));
 
-    // Create a TaskExecutor - a real TaskExecutor must be created so a Fork is run in a separate thread
-    TaskExecutor taskExecutor = new TaskExecutor(new Properties());
+      taskRunner.execute(task);
 
-    // Create the Task
-    Task task = new Task(mockTaskContext, mockTaskStateTracker, taskExecutor, Optional.<CountDownLatch>absent());
+      // Let the task run for 10 seconds
+      int sleepIterations = 10;
+      int currentIteration = 0;
 
-    ScheduledExecutorService taskRunner = new ScheduledThreadPoolExecutor(1, ExecutorsUtils.newThreadFactory(Optional.of(log)));
-
-    taskRunner.execute(task);
-
-
-    // Let the task run for 10 seconds
-    int sleepIterations = 10;
-    int currentIteration = 0;
-
-    while (currentIteration < sleepIterations) {
-      Thread.sleep(1000);
-      currentIteration++;
-      Map<String, CheckpointableWatermark> externalWatermarkStorage = mockTaskContext.getWatermarkStorage()
-          .getCommittedWatermarks(CheckpointableWatermark.class, ImmutableList.of("default"));
-      if (!externalWatermarkStorage.isEmpty()) {
-        for (CheckpointableWatermark watermark : externalWatermarkStorage.values()) {
-          log.info("Observed committed watermark: {}", watermark);
+      while (currentIteration < sleepIterations) {
+        Thread.sleep(1000);
+        currentIteration++;
+        Map<String, CheckpointableWatermark> externalWatermarkStorage = mockTaskContext.getWatermarkStorage()
+            .getCommittedWatermarks(CheckpointableWatermark.class, ImmutableList.of("default"));
+        if (!externalWatermarkStorage.isEmpty()) {
+          for (CheckpointableWatermark watermark : externalWatermarkStorage.values()) {
+            log.info("Observed committed watermark: {}", watermark);
+          }
+          log.info("Task progress: {}", task.getProgress());
+          // Ensure that watermarks seem reasonable at each step
+          Assert.assertTrue(continuousExtractor.validateWatermarks(false, externalWatermarkStorage));
         }
-        log.info("Task progress: {}", task.getProgress());
-        // Ensure that watermarks seem reasonable at each step
-        Assert.assertTrue(continuousExtractor.validateWatermarks(false, externalWatermarkStorage));
       }
+
+      // Let's try to shutdown the task
+      task.shutdown();
+      log.info("Shutting down task now");
+      boolean success = task.awaitShutdown(30000);
+      Assert.assertTrue(success, "Task should shutdown in 3 seconds");
+      log.info("Task done waiting to shutdown {}", success);
+
+      // Ensure that committed watermarks match exactly the input rows because we shutdown in an orderly manner.
+      Assert.assertTrue(continuousExtractor.validateWatermarks(true, mockTaskContext.getWatermarkStorage()
+          .getCommittedWatermarks(CheckpointableWatermark.class, ImmutableList.of("default"))));
+
+      task.commit();
+
+      Assert.assertTrue(mockTaskContext.getTaskState().getWorkingState() == WorkUnitState.WorkingState.SUCCESSFUL);
+      // Shutdown the executor
+      taskRunner.shutdown();
+      taskRunner.awaitTermination(100, TimeUnit.MILLISECONDS);
     }
 
-    // Let's try to shutdown the task
-    task.shutdown();
-    log.info("Shutting down task now");
-    boolean success = task.awaitShutdown(30000);
-    Assert.assertTrue(success, "Task should shutdown in 3 seconds");
-    log.info("Task done waiting to shutdown {}", success);
-
-    // Ensure that committed watermarks match exactly the input rows because we shutdown in an orderly manner.
-    Assert.assertTrue(continuousExtractor.validateWatermarks(true, mockTaskContext.getWatermarkStorage()
-        .getCommittedWatermarks(CheckpointableWatermark.class, ImmutableList.of("default"))));
-
-    task.commit();
-
-    // Shutdown the executor
-    taskRunner.shutdown();
-    taskRunner.awaitTermination(100, TimeUnit.MILLISECONDS);
-
-
   }
+
+  /**
+   * Test that a streaming task will work correctly when an extractor is continuously producing records and encounters
+   * an error in the writer.
+   *
+   * The task should exit in a failed state.
+   *
+   * No converters
+   * Identity fork
+   * One writer
+   * @throws Exception
+   */
+  @Test
+  public void testContinuousTaskError()
+      throws Exception {
+
+    for (Boolean taskExecutionSync: new Boolean[]{true, false}) {
+      ArrayList<Object> recordCollector = new ArrayList<>(100);
+      long perRecordExtractLatencyMillis = 1000; // 1 second per record
+
+      ContinuousExtractor continuousExtractor = new ContinuousExtractor(perRecordExtractLatencyMillis);
+
+      TaskContext mockTaskContext = getMockTaskContext(recordCollector, continuousExtractor, taskExecutionSync, 5);
+
+      // Create a mock TaskStateTracker
+      TaskStateTracker mockTaskStateTracker = mock(TaskStateTracker.class);
+
+      // Create a TaskExecutor - a real TaskExecutor must be created so a Fork is run in a separate thread
+      TaskExecutor taskExecutor = new TaskExecutor(new Properties());
+
+      // Create the Task
+      Task task = new Task(mockTaskContext, mockTaskStateTracker, taskExecutor, Optional.<CountDownLatch>absent());
+
+      ScheduledExecutorService taskRunner = new ScheduledThreadPoolExecutor(1, ExecutorsUtils.newThreadFactory(Optional.of(log)));
+
+      taskRunner.execute(task);
+
+      // Let the task run for 10 seconds
+      int sleepIterations = 10;
+      int currentIteration = 0;
+
+      while (currentIteration < sleepIterations) {
+        Thread.sleep(1000);
+        currentIteration++;
+        Map<String, CheckpointableWatermark> externalWatermarkStorage = mockTaskContext.getWatermarkStorage()
+            .getCommittedWatermarks(CheckpointableWatermark.class, ImmutableList.of("default"));
+        if (!externalWatermarkStorage.isEmpty()) {
+          for (CheckpointableWatermark watermark : externalWatermarkStorage.values()) {
+            log.info("Observed committed watermark: {}", watermark);
+          }
+          log.info("Task progress: {}", task.getProgress());
+          // Ensure that watermarks seem reasonable at each step
+          Assert.assertTrue(continuousExtractor.validateWatermarks(false, externalWatermarkStorage));
+        }
+      }
+
+      boolean success = task.awaitShutdown(30000);
+      Assert.assertTrue(success, "Task should shutdown in 30 seconds");
+      log.info("Task done waiting to shutdown {}", success);
+
+      // Shutdown on error, so don't check for the exact watermark
+      Assert.assertTrue(continuousExtractor.validateWatermarks(false, mockTaskContext.getWatermarkStorage()
+          .getCommittedWatermarks(CheckpointableWatermark.class, ImmutableList.of("default"))));
+
+      task.commit();
+
+      // Task should be in failed state from extractor error
+      Assert.assertEquals(mockTaskContext.getTaskState().getWorkingState(), WorkUnitState.WorkingState.FAILED);
+      // Shutdown the executor
+      taskRunner.shutdown();
+      taskRunner.awaitTermination(100, TimeUnit.MILLISECONDS);
+    }
+  }
+
 
   private class TestStreamingDataWriterBuilder extends org.apache.gobblin.writer.DataWriterBuilder {
 
     private final List<Object> _recordCollector;
+    private final int _errorAtCount;
+    private int _recordCount = 0;
 
-    TestStreamingDataWriterBuilder(List<Object> recordCollector) {
+    TestStreamingDataWriterBuilder(List<Object> recordCollector, int errorAtCount) {
       _recordCollector = recordCollector;
+      _errorAtCount = errorAtCount;
     }
 
     @Override
@@ -478,6 +558,11 @@ public class TaskContinuousTest {
         @Override
         public void writeEnvelope(RecordEnvelope<Object> recordEnvelope)
             throws IOException {
+          _recordCount++;
+
+          if (_recordCount >= _errorAtCount) {
+            throw new IOException("Errored after record count " + _errorAtCount);
+          }
           _recordCollector.add(recordEnvelope.getRecord());
           String source = recordEnvelope.getWatermark().getSource();
           if (this.source.get() != null) {
@@ -488,23 +573,7 @@ public class TaskContinuousTest {
           this.lastWatermark.set(recordEnvelope.getWatermark());
           recordEnvelope.ack();
           this.source.set(source);
-        }
 
-        @Override
-        public Map<String, CheckpointableWatermark> getCommittableWatermark() {
-          CheckpointableWatermark committable = lastWatermark.get();
-          if (committable != null) {
-            Map<String, CheckpointableWatermark> singletonMap = new HashMap<>();
-            singletonMap.put(source.get(), committable);
-            return singletonMap;
-          } else {
-            return Collections.EMPTY_MAP;
-          }
-        }
-
-        @Override
-        public Map<String, CheckpointableWatermark> getUnacknowledgedWatermark() {
-          return Collections.EMPTY_MAP;
         }
 
         @Override

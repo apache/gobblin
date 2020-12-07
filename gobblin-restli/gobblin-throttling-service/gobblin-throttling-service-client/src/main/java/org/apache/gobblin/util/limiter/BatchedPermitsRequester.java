@@ -26,6 +26,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
@@ -50,8 +51,10 @@ import com.linkedin.restli.common.HttpStatus;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.restli.throttling.PermitAllocation;
 import org.apache.gobblin.restli.throttling.PermitRequest;
+import org.apache.gobblin.restli.throttling.ThrottlingProtocolVersion;
 import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.NoopCloseable;
+import org.apache.gobblin.util.Sleeper;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import javax.annotation.Nullable;
@@ -59,7 +62,6 @@ import javax.annotation.concurrent.NotThreadSafe;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -86,6 +88,7 @@ class BatchedPermitsRequester {
   private static final long RETRY_DELAY_ON_NON_RETRIABLE_EXCEPTION = 60000; // 10 minutes
   private static final double MAX_DEPLETION_RATE = 1e20;
   public static final int MAX_GROWTH_REQUEST = 2;
+  private static final long GET_PERMITS_MAX_SLEEP_MILLIS = 1000;
 
   private static final ScheduledExecutorService SCHEDULE_EXECUTOR_SERVICE =
       Executors.newScheduledThreadPool(1, ExecutorsUtils.newDaemonThreadFactory(Optional.of(log),
@@ -101,15 +104,21 @@ class BatchedPermitsRequester {
   private final Timer restRequestTimer;
   private final Histogram restRequestHistogram;
 
-  private volatile int retries = 0;
+  private volatile AtomicInteger retries = new AtomicInteger(0);
   private final RetryStatus retryStatus;
   private final SynchronizedAverager permitsOutstanding;
   private final long targetMillisBetweenRequests;
   private final AtomicLong callbackCounter;
+  /** Permit requests will timeout after this many millis. */
+  private final long maxTimeout;
+  /** Any request larger than this is known to be impossible to satisfy. */
+  private long knownUnsatisfiablePermits;
+
+  private volatile AllocationCallback currentCallback;
 
   @Builder
   private BatchedPermitsRequester(String resourceId, String requestorIdentifier,
-      long targetMillisBetweenRequests, RequestSender requestSender, MetricContext metricContext) {
+      long targetMillisBetweenRequests, RequestSender requestSender, MetricContext metricContext, long maxTimeoutMillis) {
 
     Preconditions.checkArgument(!Strings.isNullOrEmpty(resourceId), "Must provide a resource id.");
     Preconditions.checkArgument(!Strings.isNullOrEmpty(requestorIdentifier), "Must provide a requestor identifier.");
@@ -133,6 +142,8 @@ class BatchedPermitsRequester {
     this.restRequestTimer = metricContext == null ? null : metricContext.timer(REST_REQUEST_TIMER);
     this.restRequestHistogram = metricContext == null ? null : metricContext.histogram(REST_REQUEST_PERMITS_HISTOGRAM);
     this.callbackCounter = new AtomicLong();
+    this.maxTimeout = maxTimeoutMillis > 0 ? maxTimeoutMillis : 120000;
+    this.knownUnsatisfiablePermits = Long.MAX_VALUE;
   }
 
   /**
@@ -143,21 +154,34 @@ class BatchedPermitsRequester {
     if (permits <= 0) {
       return true;
     }
+    long startTimeNanos = System.nanoTime();
     this.permitsOutstanding.addEntryWithWeight(permits);
     this.lock.lock();
     try {
       while (true) {
+        if (permits >= this.knownUnsatisfiablePermits) {
+          // We are requesting more permits than the remote policy will ever be able to satisfy, return immediately with no permits
+          log.warn(String.format("Server has indicated number of permits is unsatisfiable. "
+              + "Permits requested: %d, known unsatisfiable permits: %d ", permits, this.knownUnsatisfiablePermits));
+          break;
+        }
+        if (elapsedMillis(startTimeNanos) > this.maxTimeout) {
+          // Max timeout reached, break
+          log.warn("Reached timeout waiting for permits. Timeout: " + this.maxTimeout);
+          break;
+        }
         if (this.permitBatchContainer.tryTake(permits)) {
           this.permitsOutstanding.removeEntryWithWeight(permits);
           return true;
         }
-        if (this.retryStatus.canRetryWithinMillis(10000)) {
+        if (this.retryStatus.canRetryWithinMillis(remainingTime(startTimeNanos, this.maxTimeout))) {
           long callbackCounterSnap = this.callbackCounter.get();
           maybeSendNewPermitRequest();
           if (this.callbackCounter.get() == callbackCounterSnap) {
             // If a callback has happened since we tried to send the new permit request, don't await
             // Since some request senders may be synchronous, we would have missed the notification
-            this.newPermitsAvailable.await();
+            boolean ignore = this.newPermitsAvailable.await(
+                Math.min(GET_PERMITS_MAX_SLEEP_MILLIS, remainingTime(startTimeNanos, this.maxTimeout)), TimeUnit.MILLISECONDS);
           }
         } else {
           break;
@@ -166,44 +190,79 @@ class BatchedPermitsRequester {
     } finally {
       this.lock.unlock();
     }
+    this.permitsOutstanding.removeEntryWithWeight(permits);
     return false;
+  }
+
+  private long remainingTime(long startTimeNanos, long timeout) {
+    return Math.max(timeout - elapsedMillis(startTimeNanos), 0);
+  }
+
+  private long elapsedMillis(long startTimeNanos) {
+    return (System.nanoTime() - startTimeNanos)/1000000;
   }
 
   /**
    * Send a new permit request to the server.
    */
-  private void maybeSendNewPermitRequest() {
-    if (!this.requestSemaphore.tryAcquire()) {
-      return;
+  private synchronized void maybeSendNewPermitRequest() {
+    while (!this.requestSemaphore.tryAcquire()) {
+      if (this.currentCallback == null) {
+        throw new IllegalStateException("Semaphore is unavailable while callback is null!");
+      }
+      if (this.currentCallback.elapsedTime() > 30000) {
+        // If the previous callback has not returned after 30s, we consider the call lost and try again
+        // Note we expect Rest.li to call onError for most failure situations, this logic just handles the edge
+        // case were Rest.li fails somehow and we don't want to just hang.
+        log.warn("Last request did not return after 30s, considering it lost and retrying.");
+        this.currentCallback.clearCallback();
+      } else {
+        return;
+      }
     }
     if (!this.retryStatus.canRetryNow()) {
-      this.requestSemaphore.release();
+      clearSemaphore();
       return;
     }
     try {
       long permits = computeNextPermitRequest();
       if (permits <= 0) {
-        this.requestSemaphore.release();
+        clearSemaphore();
         return;
       }
 
       PermitRequest permitRequest = this.basePermitRequest.copy();
       permitRequest.setPermits(permits);
       permitRequest.setMinPermits((long) this.permitsOutstanding.getAverageWeightOrZero());
+      permitRequest.setVersion(ThrottlingProtocolVersion.WAIT_ON_CLIENT.ordinal());
       if (BatchedPermitsRequester.this.restRequestHistogram != null) {
         BatchedPermitsRequester.this.restRequestHistogram.update(permits);
       }
 
       log.debug("Sending permit request " + permitRequest);
 
-      this.requestSender.sendRequest(permitRequest, new AllocationCallback(
+      this.currentCallback = new AllocationCallback(
           BatchedPermitsRequester.this.restRequestTimer == null ? NoopCloseable.INSTANCE :
-              BatchedPermitsRequester.this.restRequestTimer.time()));
+              BatchedPermitsRequester.this.restRequestTimer.time(), new Sleeper());
+      this.requestSender.sendRequest(permitRequest, currentCallback);
     } catch (CloneNotSupportedException cnse) {
       // This should never happen.
-      this.requestSemaphore.release();
+      clearSemaphore();
       throw new RuntimeException(cnse);
     }
+  }
+
+  @VisibleForTesting
+  synchronized boolean reserveSemaphore() {
+    return this.requestSemaphore.tryAcquire();
+  }
+
+  private synchronized void clearSemaphore() {
+    if (this.requestSemaphore.availablePermits() > 0) {
+      throw new IllegalStateException("Semaphore should have 0 permits!");
+    }
+    BatchedPermitsRequester.this.requestSemaphore.release();
+    BatchedPermitsRequester.this.currentCallback = null;
   }
 
   /**
@@ -240,12 +299,26 @@ class BatchedPermitsRequester {
     }
   }
 
+  @VisibleForTesting
+  AllocationCallback createAllocationCallback(Sleeper sleeper) {
+    return new AllocationCallback(new NoopCloseable(), sleeper);
+  }
+
   /**
    * Callback for Rest request.
    */
-  @RequiredArgsConstructor
-  private class AllocationCallback implements Callback<Response<PermitAllocation>> {
+  @VisibleForTesting
+  class AllocationCallback implements Callback<Response<PermitAllocation>> {
     private final Closeable timerContext;
+    private final Sleeper sleeper;
+    private final long startTime = System.currentTimeMillis();
+
+    private volatile boolean callbackCleared = false;
+
+    public AllocationCallback(Closeable timerContext, Sleeper sleeper) {
+      this.timerContext = timerContext;
+      this.sleeper = sleeper;
+    }
 
     @Override
     public void onError(Throwable exc) {
@@ -262,12 +335,12 @@ class BatchedPermitsRequester {
           }
         }
 
-        BatchedPermitsRequester.this.retries++;
+        BatchedPermitsRequester.this.retries.incrementAndGet();
 
-        if (BatchedPermitsRequester.this.retries >= MAX_RETRIES) {
+        if (BatchedPermitsRequester.this.retries.get() >= MAX_RETRIES) {
           nonRetriableFail(exc, "Too many failures trying to communicate with throttling service.");
         } else {
-          BatchedPermitsRequester.this.requestSemaphore.release();
+          clearCallback();
           // retry
           maybeSendNewPermitRequest();
         }
@@ -285,7 +358,7 @@ class BatchedPermitsRequester {
 
     @Override
     public void onSuccess(Response<PermitAllocation> result) {
-      BatchedPermitsRequester.this.retries = 0;
+      BatchedPermitsRequester.this.retries.set(0);
       BatchedPermitsRequester.this.callbackCounter.incrementAndGet();
       BatchedPermitsRequester.this.lock.lock();
       try {
@@ -298,13 +371,26 @@ class BatchedPermitsRequester {
           BatchedPermitsRequester.this.retryStatus.blockRetries(retryDelay, null);
         }
 
+        long waitForUse = allocation.getWaitForPermitUseMillis(GetMode.DEFAULT);
+        if (waitForUse > 0) {
+          this.sleeper.sleep(waitForUse);
+        }
+
+        if (allocation.getUnsatisfiablePermits(GetMode.DEFAULT) > 0) {
+          BatchedPermitsRequester.this.knownUnsatisfiablePermits = allocation.getUnsatisfiablePermits(GetMode.DEFAULT);
+        }
+
         if (allocation.getPermits() > 0) {
           BatchedPermitsRequester.this.permitBatchContainer.addPermitAllocation(allocation);
         }
-        BatchedPermitsRequester.this.requestSemaphore.release();
+
+        clearCallback();
         if (allocation.getPermits() > 0) {
           BatchedPermitsRequester.this.newPermitsAvailable.signalAll();
         }
+      } catch (InterruptedException ie) {
+        // Thread was interrupted while waiting for permits to be usable. Permits are not yet usable, so will not
+        // add permits to container
       } finally {
         try {
           this.timerContext.close();
@@ -315,10 +401,22 @@ class BatchedPermitsRequester {
       }
     }
 
+    public long elapsedTime() {
+      return System.currentTimeMillis() - this.startTime;
+    }
+
+    public synchronized void clearCallback() {
+      if (this.callbackCleared) {
+        return;
+      }
+      clearSemaphore();
+      this.callbackCleared = true;
+    }
+
     private void nonRetriableFail(Throwable exc, String msg) {
       BatchedPermitsRequester.this.retryStatus.blockRetries(RETRY_DELAY_ON_NON_RETRIABLE_EXCEPTION, exc);
       BatchedPermitsRequester.this.callbackCounter.incrementAndGet();
-      BatchedPermitsRequester.this.requestSemaphore.release();
+      clearCallback();
       log.error(msg, exc);
 
       // Wake up all threads so they can return false

@@ -17,9 +17,26 @@
 
 package org.apache.gobblin.salesforce;
 
-public class SalesforceConfigurationKeys {
+/**
+ * SalesforceConfigurationKeys
+ */
+public final class SalesforceConfigurationKeys {
+  private SalesforceConfigurationKeys() {
+  }
   public static final String SOURCE_QUERYBASED_SALESFORCE_IS_SOFT_DELETES_PULL_DISABLED =
       "source.querybased.salesforce.is.soft.deletes.pull.disabled";
-  public static final int DEFAULT_SALESFORCE_MAX_CHARS_IN_FILE = 200000000;
-  public static final int DEFAULT_SALESFORCE_MAX_ROWS_IN_FILE = 1000000;
+
+  // bulk api retry sleep duration for avoid resource consuming peak.
+  public static final String RETRY_EXCEED_QUOTA_INTERVAL = "salesforce.retry.exceedQuotaInterval";
+  public static final long RETRY_EXCEED_QUOTA_INTERVAL_DEFAULT = 5 * 60 * 1000;
+
+  public static final String RETRY_INTERVAL = "salesforce.retry.interval";
+  public static final long RETRY_INTERVAL_DEFAULT = 1 * 60 * 1000;
+
+  // pk-chunking
+  public static final String BULK_TEST_JOB_ID = "salesforce.bulk.testJobId";
+  public static final String BULK_TEST_BATCH_ID_LIST = "salesforce.bulk.testBatchIds";
+  public static final String SALESFORCE_PARTITION_TYPE = "salesforce.partitionType";
+  public static final String PK_CHUNKING_JOB_ID = "__salesforce.job.id"; // don't use in ini config
+  public static final String PK_CHUNKING_BATCH_RESULT_ID_PAIRS = "__salesforce.batch.result.id.pairs"; // don't use in ini config
 }

@@ -42,7 +42,7 @@ public class R2ClientFactory {
   public static final String SSL_ENABLED = "ssl";
   public static final String PROPERTIES = "properties";
   public static final String CLIENT_SERVICES_CONFIG = "clientServicesConfig";
-  private static final String ZOOKEEPER_HOSTS = "zkHosts";
+  public static final String ZOOKEEPER_HOSTS = "zkHosts";
 
   private static final Config FALLBACK =
       ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()

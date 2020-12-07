@@ -29,10 +29,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.avro.Schema;
 import org.apache.curator.test.TestingServer;
-import org.apache.gobblin.metastore.DatasetStateStore;
-import org.apache.gobblin.runtime.JobContext;
-import org.apache.gobblin.runtime.listeners.AbstractJobListener;
-import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -56,15 +52,19 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
+import lombok.Getter;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.metastore.DatasetStateStore;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.runtime.FsDatasetStateStore;
+import org.apache.gobblin.runtime.JobContext;
 import org.apache.gobblin.runtime.JobException;
 import org.apache.gobblin.runtime.JobState;
+import org.apache.gobblin.runtime.listeners.AbstractJobListener;
+import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
-
-import lombok.Getter;
 
 
 /**
@@ -186,6 +186,10 @@ public class GobblinHelixJobLauncherTest {
 
     properties.setProperty(ConfigurationKeys.WRITER_FILE_PATH, jobName);
 
+    // expiry time should be more than the time needed for the job to complete
+    // otherwise JobContext will become null. This is how Helix work flow works.
+    properties.setProperty(GobblinClusterConfigurationKeys.HELIX_WORKFLOW_EXPIRY_TIME_SECONDS, "5");
+
     return properties;
   }
 
@@ -201,7 +205,8 @@ public class GobblinHelixJobLauncherTest {
     // Normal job launcher
     final Properties properties = generateJobProperties(this.baseConfig, "1", "_1504201348470");
     final GobblinHelixJobLauncher gobblinHelixJobLauncher = this.closer.register(
-        new GobblinHelixJobLauncher(properties, this.helixManager, this.appWorkDir, ImmutableList.<Tag<?>>of(), runningMap));
+        new GobblinHelixJobLauncher(properties, this.helixManager, this.appWorkDir, ImmutableList.<Tag<?>>of(), runningMap,
+            java.util.Optional.empty()));
 
     gobblinHelixJobLauncher.launchJob(null);
 
@@ -250,12 +255,14 @@ public class GobblinHelixJobLauncherTest {
     // Job launcher(1) to test parallel job running
     final Properties properties1 = generateJobProperties(this.baseConfig, "2", "_1504201348471");
     final GobblinHelixJobLauncher gobblinHelixJobLauncher1 = this.closer.register(
-        new GobblinHelixJobLauncher(properties1, this.helixManager, this.appWorkDir, ImmutableList.<Tag<?>>of(), runningMap));
+        new GobblinHelixJobLauncher(properties1, this.helixManager, this.appWorkDir, ImmutableList.<Tag<?>>of(), runningMap,
+            java.util.Optional.empty()));
 
     // Job launcher(2) to test parallel job running
     final Properties properties2 = generateJobProperties(this.baseConfig, "2", "_1504201348472");
     final GobblinHelixJobLauncher gobblinHelixJobLauncher2 = this.closer.register(
-        new GobblinHelixJobLauncher(properties2, this.helixManager, this.appWorkDir, ImmutableList.<Tag<?>>of(), runningMap));
+        new GobblinHelixJobLauncher(properties2, this.helixManager, this.appWorkDir, ImmutableList.<Tag<?>>of(), runningMap,
+            java.util.Optional.empty()));
 
     CountDownLatch stg1 = new CountDownLatch(1);
     CountDownLatch stg2 = new CountDownLatch(1);
@@ -279,75 +286,81 @@ public class GobblinHelixJobLauncherTest {
     Assert.assertEquals(testListener.getCompletes().get() == 1, true);
   }
 
+  @Test(enabled = false, dependsOnMethods = {"testLaunchJob", "testLaunchMultipleJobs"})
   public void testJobCleanup() throws Exception {
     final ConcurrentHashMap<String, Boolean> runningMap = new ConcurrentHashMap<>();
 
     final Properties properties = generateJobProperties(this.baseConfig, "3", "_1504201348473");
     final GobblinHelixJobLauncher gobblinHelixJobLauncher =
-        new GobblinHelixJobLauncher(properties, this.helixManager, this.appWorkDir, ImmutableList.<Tag<?>>of(), runningMap);
+        new GobblinHelixJobLauncher(properties, this.helixManager, this.appWorkDir, ImmutableList.<Tag<?>>of(), runningMap,
+            java.util.Optional.empty());
 
     final Properties properties2 = generateJobProperties(this.baseConfig, "33", "_1504201348474");
     final GobblinHelixJobLauncher gobblinHelixJobLauncher2 =
-        new GobblinHelixJobLauncher(properties2, this.helixManager, this.appWorkDir, ImmutableList.<Tag<?>>of(), runningMap);
+        new GobblinHelixJobLauncher(properties2, this.helixManager, this.appWorkDir, ImmutableList.<Tag<?>>of(), runningMap,
+            java.util.Optional.empty());
 
     gobblinHelixJobLauncher.launchJob(null);
     gobblinHelixJobLauncher2.launchJob(null);
 
     final TaskDriver taskDriver = new TaskDriver(this.helixManager);
 
-    final String jobName = properties.getProperty(ConfigurationKeys.JOB_NAME_KEY);
-    final String jobIdKey = properties.getProperty(ConfigurationKeys.JOB_ID_KEY);
-    final String jobContextName = jobName + "_" + jobIdKey;
-    final String jobName2 = properties2.getProperty(ConfigurationKeys.JOB_NAME_KEY);
+    final String jobIdKey1 = properties.getProperty(ConfigurationKeys.JOB_ID_KEY);
+    final String jobIdKey2 = properties2.getProperty(ConfigurationKeys.JOB_ID_KEY);
 
-    org.apache.helix.task.JobContext jobContext = taskDriver.getJobContext(jobContextName);
+    org.apache.helix.task.JobContext jobContext1 = taskDriver.getJobContext(jobIdKey1);
+    org.apache.helix.task.JobContext jobContext2 = taskDriver.getJobContext(jobIdKey2);
+
+    waitForWorkFlowStartup(taskDriver, jobIdKey1);
+    waitForWorkFlowStartup(taskDriver, jobIdKey2);
 
     // job context should be present until close
-    Assert.assertNotNull(jobContext);
+    Assert.assertNotNull(jobContext1);
+    Assert.assertNotNull(jobContext2);
 
     gobblinHelixJobLauncher.close();
 
-    // job queue deleted asynchronously after close
-    waitForQueueCleanup(taskDriver, jobName);
+    // workflow deleted asynchronously after close
+    waitForWorkFlowCleanup(taskDriver, jobIdKey1);
 
-    jobContext = taskDriver.getJobContext(jobContextName);
+    jobContext1 = taskDriver.getJobContext(jobIdKey1);
 
     // job context should have been deleted
-    Assert.assertNull(jobContext);
+    Assert.assertNull(jobContext1);
 
-    // job queue should have been deleted
-    WorkflowConfig workflowConfig  = taskDriver.getWorkflowConfig(jobName);
+    // workflow should have been deleted
+    WorkflowConfig workflowConfig  = taskDriver.getWorkflowConfig(jobIdKey1);
     Assert.assertNull(workflowConfig);
 
-    WorkflowContext workflowContext = taskDriver.getWorkflowContext(jobName);
+    WorkflowContext workflowContext = taskDriver.getWorkflowContext(jobIdKey1);
     Assert.assertNull(workflowContext);
 
-    // second job queue with shared prefix should not be deleted when the first job queue is cleaned up
-    workflowConfig  = taskDriver.getWorkflowConfig(jobName2);
+    // second workflow with shared prefix should not be deleted when the first workflow is cleaned up
+    workflowConfig  = taskDriver.getWorkflowConfig(jobIdKey2);
     Assert.assertNotNull(workflowConfig);
 
     gobblinHelixJobLauncher2.close();
 
-    // job queue deleted asynchronously after close
-    waitForQueueCleanup(taskDriver, jobName2);
+    // workflow deleted asynchronously after close
+    waitForWorkFlowCleanup(taskDriver, jobIdKey2);
 
-    workflowConfig  = taskDriver.getWorkflowConfig(jobName2);
+    workflowConfig  = taskDriver.getWorkflowConfig(jobIdKey2);
     Assert.assertNull(workflowConfig);
 
     // check that workunit and taskstate directory for the job are cleaned up
     final File workunitsDir =
         new File(this.appWorkDir + File.separator + GobblinClusterConfigurationKeys.INPUT_WORK_UNIT_DIR_NAME
-        + File.separator + jobIdKey);
+        + File.separator + jobIdKey1);
 
     final File taskstatesDir =
         new File(this.appWorkDir + File.separator + GobblinClusterConfigurationKeys.OUTPUT_TASK_STATE_DIR_NAME
-            + File.separator + jobIdKey);
+            + File.separator + jobIdKey1);
 
     Assert.assertFalse(workunitsDir.exists());
     Assert.assertFalse(taskstatesDir.exists());
 
     // check that job.state file is cleaned up
-    final File jobStateFile = new File(GobblinClusterUtils.getJobStateFilePath(true, this.appWorkDir, jobIdKey).toString());
+    final File jobStateFile = new File(GobblinClusterUtils.getJobStateFilePath(true, this.appWorkDir, jobIdKey1).toString());
 
     Assert.assertFalse(jobStateFile.exists());
   }
@@ -364,7 +377,7 @@ public class GobblinHelixJobLauncherTest {
     }
   }
 
-   private void waitForQueueCleanup(TaskDriver taskDriver, String queueName) {
+   private void waitForWorkFlowCleanup(TaskDriver taskDriver, String queueName) {
      for (int i = 0; i < 60; i++) {
        WorkflowConfig workflowConfig  = taskDriver.getWorkflowConfig(queueName);
 
@@ -377,5 +390,20 @@ public class GobblinHelixJobLauncherTest {
        } catch (InterruptedException e) {
        }
      }
+  }
+
+  private void waitForWorkFlowStartup(TaskDriver taskDriver, String workflow) {
+    for (int i = 0; i < 5; i++) {
+      WorkflowConfig workflowConfig  = taskDriver.getWorkflowConfig(workflow);
+
+      if (workflowConfig != null) {
+        break;
+      }
+
+      try {
+        Thread.sleep(1000);
+      } catch (InterruptedException e) {
+      }
+    }
   }
 }

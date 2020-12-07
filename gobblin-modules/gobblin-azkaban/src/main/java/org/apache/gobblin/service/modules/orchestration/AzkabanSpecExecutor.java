@@ -18,15 +18,18 @@ package org.apache.gobblin.service.modules.orchestration;
 
 import java.util.concurrent.Future;
 
-import org.apache.gobblin.runtime.api.Spec;
-import org.apache.gobblin.runtime.api.SpecProducer;
-import org.apache.gobblin.runtime.spec_executorInstance.AbstractSpecExecutor;
-import org.apache.gobblin.util.CompletedFuture;
 import org.slf4j.Logger;
 
 import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+
+import org.apache.gobblin.runtime.api.Spec;
+import org.apache.gobblin.runtime.api.SpecProducer;
+import org.apache.gobblin.runtime.spec_executorInstance.AbstractSpecExecutor;
+import org.apache.gobblin.util.CompletedFuture;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 public class AzkabanSpecExecutor extends AbstractSpecExecutor {
@@ -44,7 +47,20 @@ public class AzkabanSpecExecutor extends AbstractSpecExecutor {
     super(config, log);
     Config defaultConfig = ConfigFactory.load(ServiceAzkabanConfigKeys.DEFAULT_AZKABAN_PROJECT_CONFIG_FILE);
     _config = config.withFallback(defaultConfig);
-    azkabanSpecProducer = new AzkabanSpecProducer(_config, log);
+
+    try {
+      Class<?> producerClass = Class.forName(ConfigUtils.getString(_config,
+          ServiceAzkabanConfigKeys.AZKABAN_PRODUCER_CLASS,
+          AzkabanSpecProducer.class.getName()));
+      azkabanSpecProducer = (SpecProducer<Spec>) GobblinConstructorUtils
+          .invokeLongestConstructor(producerClass, _config);
+    } catch (ReflectiveOperationException e) {
+      if (e.getCause() != null) {
+        throw new RuntimeException("Could not instantiate spec producer", e.getCause());
+      } else {
+        throw new RuntimeException("Could not instantiate spec producer", e);
+      }
+    }
   }
 
   @Override
@@ -54,7 +70,7 @@ public class AzkabanSpecExecutor extends AbstractSpecExecutor {
 
 
   @Override
-  public Future<? extends SpecProducer> getProducer() {
+  public Future<? extends SpecProducer<Spec>> getProducer() {
     return new CompletedFuture<>(this.azkabanSpecProducer, null);
   }
 

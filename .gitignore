@@ -1,6 +1,8 @@
 .classpath*
 .project*
 .settings
+.DS_Store
+*.tar.gz
 
 # Intellij related
 **/.idea
@@ -8,6 +10,10 @@
 **/*.iws
 **/*.ipr
 .shelf/
+.ideaDataSources/
+
+# VS Code related 
+.vscode
 
 **/.classpath
 **/.project
@@ -21,6 +27,7 @@
 **/build/
 .gradle
 **/.gradle
+gradle.properties.release
 test-output
 **/test-output
 dist
@@ -43,6 +50,7 @@ out/
 */bin/
 **/mainGeneratedDataTemplate
 **/mainGeneratedRest
+**/main/snapshot
 gobblin-dist/
 gobblin-distribution-*.tar.gz
 gobblin.tar.gz
@@ -61,5 +69,22 @@ package-lock.json
 
 # generated config files by tests
 **/generated-gobblin-cluster.conf
+ligradle/findbugs/findbugsInclude.xml
+ligradle/checkstyle/linkedin-checkstyle.xml
+ligradle/checkstyle/suppressions.xml
+gobblin-core/src/test/resources/serde/output-staging/
+gobblin-integration-test-log-dir/
+gobblin-modules/gobblin-elasticsearch/test-elasticsearch/
 
 temp/
+ligradle/*
+FsDatasetStateStoreTest/
+GobblinHelixTaskTest/
+commit-sequence-store-test/
+gobblin-test-harness/src/test/resources/runtime_test/state_store/
+
+gobblin-integration-test-work-dir/
+
+gobblin-test-utils/src/main/gen-avro/
+gobblin-test-utils/src/main/gen-proto/
+

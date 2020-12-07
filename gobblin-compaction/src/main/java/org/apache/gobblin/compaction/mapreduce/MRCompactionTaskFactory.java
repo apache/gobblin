@@ -18,7 +18,6 @@ package org.apache.gobblin.compaction.mapreduce;
 
 import java.io.IOException;
 
-
 import org.apache.gobblin.runtime.TaskContext;
 import org.apache.gobblin.runtime.mapreduce.MRTaskFactory;
 import org.apache.gobblin.runtime.task.TaskIFace;

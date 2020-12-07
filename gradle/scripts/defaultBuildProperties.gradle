@@ -25,7 +25,7 @@ def BuildProperties BUILD_PROPERTIES = new BuildProperties(project)
     .register(new BuildProperty("nexusArtifactSnapshotRepository", "https://repository.apache.org/content/repositories/snapshots", "Maven repository to publish artifacts"))
     .register(new BuildProperty("avroVersion", "1.8.1", "Avro dependencies version"))
     .register(new BuildProperty("awsVersion", "1.11.8", "AWS dependencies version"))
-    .register(new BuildProperty("bytemanVersion", "2.2.1", "Byteman dependencies version"))
+    .register(new BuildProperty("bytemanVersion", "4.0.5", "Byteman dependencies version"))
     .register(new BuildProperty("confluentVersion", "2.0.1", "confluent dependencies version"))
     .register(new BuildProperty("doNotSignArtifacts", false, "Do not sight Maven artifacts"))
     .register(new BuildProperty("gobblinFlavor", "standard", "Build flavor (see http://gobblin.readthedocs.io/en/latest/developer-guide/GobblinModules/)"))
@@ -35,13 +35,15 @@ def BuildProperties BUILD_PROPERTIES = new BuildProperties(project)
     "Java languange compatibility; supported versions: " + JavaVersion.VERSION_1_8))
     .register(new BuildProperty("kafka08Version", "0.8.2.2", "Kafka 0.8 dependencies version"))
     .register(new BuildProperty("kafka09Version", "0.9.0.1", "Kafka 0.9 dependencies version"))
-    .register(new BuildProperty("pegasusVersion", "11.0.0", "Pegasus dependencies version"))
+    .register(new BuildProperty("pegasusVersion", "29.6.4", "Pegasus dependencies version"))
     .register(new BuildProperty("publishToMaven", false, "Enable publishing of artifacts to a central Maven repository"))
     .register(new BuildProperty("publishToNexus", false, "Enable publishing of artifacts to Nexus"))
-    .register(new BuildProperty("salesforceVersion", "37.0.3", "Salesforce dependencies version"))
+    .register(new BuildProperty("salesforceVersion", "42.0.0", "Salesforce dependencies version"))
 
-task buildProperties(description: 'Lists main properties that can be used to customize the build') << {
-  BUILD_PROPERTIES.printHelp();
+task buildProperties(description: 'Lists main properties that can be used to customize the build') {
+  doLast {
+    BUILD_PROPERTIES.printHelp();
+  }
 }
 
 // Gobblin build customization

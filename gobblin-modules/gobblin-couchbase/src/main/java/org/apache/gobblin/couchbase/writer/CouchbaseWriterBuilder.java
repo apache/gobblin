@@ -17,38 +17,55 @@
 
 package org.apache.gobblin.couchbase.writer;
 
+import com.couchbase.client.java.env.CouchbaseEnvironment;
+import com.google.common.base.Preconditions;
+import com.typesafe.config.Config;
 import java.io.IOException;
 import java.util.Properties;
-
-import com.couchbase.client.java.env.CouchbaseEnvironment;
-import com.typesafe.config.Config;
-
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.writer.AsyncWriterManager;
 import org.apache.gobblin.writer.AsyncDataWriter;
+import org.apache.gobblin.writer.AsyncWriterManager;
 import org.apache.gobblin.writer.DataWriter;
 import org.apache.gobblin.writer.DataWriterBuilder;
-
-
+import org.apache.log4j.Logger;
 
 
 public class CouchbaseWriterBuilder extends DataWriterBuilder {
-  @Override
-  public DataWriter build()
-      throws IOException {
-    State state = this.destination.getProperties();
-    Properties taskProps = state.getProperties();
-    Config config = ConfigUtils.propertiesToConfig(taskProps);
+  private static final Logger LOG = Logger.getLogger(CouchbaseWriterBuilder.class);
+  public DataWriter build(Config config) throws IOException {
+    Preconditions.checkArgument(config != null, "Config cannot be null");
+    config.entrySet().stream().forEach(x -> String.format("Config passed to factory builder '%s':'%s'", x.getKey(), x.getValue().toString()));
     CouchbaseEnvironment couchbaseEnvironment = CouchbaseEnvironmentFactory.getInstance(config);
+
     //TODO: Read config to decide whether to build a blocking writer or an async writer
+
+    double failureAllowance =
+        ConfigUtils.getDouble(config, CouchbaseWriterConfigurationKeys.FAILURE_ALLOWANCE_PCT_CONFIG,
+            CouchbaseWriterConfigurationKeys.FAILURE_ALLOWANCE_PCT_DEFAULT) / 100.0;
+
+    boolean retriesEnabled = ConfigUtils.getBoolean(config, CouchbaseWriterConfigurationKeys.RETRIES_ENABLED,
+        CouchbaseWriterConfigurationKeys.RETRIES_ENABLED_DEFAULT);
+
+    int maxRetries = ConfigUtils.getInt(config, CouchbaseWriterConfigurationKeys.MAX_RETRIES,
+        CouchbaseWriterConfigurationKeys.MAX_RETRIES_DEFAULT);
+
     // build an async couchbase writer
     AsyncDataWriter couchbaseWriter = new CouchbaseWriter(couchbaseEnvironment, config);
     return AsyncWriterManager.builder()
         .asyncDataWriter(couchbaseWriter)
-        .failureAllowanceRatio(0.0)
-        .retriesEnabled(false)
+        .failureAllowanceRatio(failureAllowance)
+        .retriesEnabled(retriesEnabled)
+        .numRetries(maxRetries)
         .config(config)
         .build();
+  }
+
+  @Override
+  public DataWriter build() throws IOException {
+    State state = this.destination.getProperties();
+    Properties taskProps = state.getProperties();
+    Config config = ConfigUtils.propertiesToConfig(taskProps);
+    return build(config);
   }
 }

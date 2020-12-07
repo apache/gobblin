@@ -1,0 +1,20 @@
+bases:
+  - ../base-cluster
+resources:
+  - mysql-deployment.yaml
+  - mysql-pv.yaml
+patchesStrategicMerge:
+  - deployment.yaml
+configMapGenerator:
+  - name: gaas-config
+    files:
+      - ./gaas-application.conf
+  - name: standalone-config
+    files:
+      - ./standalone-application.conf
+secretGenerator:
+  # this should be replaced with references to files/vars stored securely
+  - name: mysql-credentials
+    literals:
+      - username=default-user
+      - password=default-password

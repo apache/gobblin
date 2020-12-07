@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.gobblin.runtime.util.TaskMetrics;
@@ -317,6 +318,84 @@ public class TaskTest {
     task.run();
     task.commit();
     return recordCollectors;
+  }
+
+  /**
+   * Test the addition of a task timestamp to the file name
+   */
+  @Test
+  public void testTimestampInFilename()
+      throws Exception {
+    // Create a TaskState
+    TaskState taskState = getEmptyTestTaskState("testTimestampInFilename");
+    taskState.setProp(ConfigurationKeys.TASK_START_TIME_MILLIS_KEY, "12345");
+    taskState.setProp(ConfigurationKeys.WRITER_ADD_TASK_TIMESTAMP, "true");
+
+    int numRecords = 1;
+    int numForks = 1;
+    ForkOperator mockForkOperator = new RoundRobinForkOperator(numForks);
+
+    ArrayList<ArrayList<Object>> recordCollectors = new ArrayList<>(numForks);
+    for (int i=0; i < numForks; ++i) {
+      recordCollectors.add(new ArrayList<>());
+    }
+
+    TaskContext mockTaskContext = getMockTaskContext(taskState,
+        new StringExtractor(numRecords), recordCollectors, mockForkOperator);
+
+    // Create a mock TaskStateTracker
+    TaskStateTracker mockTaskStateTracker = mock(TaskStateTracker.class);
+
+    // Create a TaskExecutor - a real TaskExecutor must be created so a Fork is run in a separate thread
+    TaskExecutor taskExecutor = new TaskExecutor(new Properties());
+
+    // Create the Task
+    Task task = new Task(mockTaskContext, mockTaskStateTracker, taskExecutor, Optional.<CountDownLatch>absent());
+
+    // Run and commit
+    task.run();
+    task.commit();
+
+    DataWriterBuilder writerBuilder = mockTaskContext.getDataWriterBuilder(numForks, 0);
+
+    // writer id should have the expected name with the timestamp
+    Assert.assertEquals(writerBuilder.getWriterId(), "testTimestampInFilename_12345_0");
+  }
+
+  /**
+   * Test the addition of a task timestamp to the file name fails if the task start time is not present
+   */
+  @Test(expectedExceptions = {ExecutionException.class, NullPointerException.class})
+  public void testTimestampInFilenameError()
+      throws Exception {
+    // Create a TaskState
+    TaskState taskState = getEmptyTestTaskState("testTimestampInFilenameError");
+    taskState.setProp(ConfigurationKeys.WRITER_ADD_TASK_TIMESTAMP, "true");
+
+    int numRecords = 1;
+    int numForks = 1;
+    ForkOperator mockForkOperator = new RoundRobinForkOperator(numForks);
+
+    ArrayList<ArrayList<Object>> recordCollectors = new ArrayList<>(numForks);
+    for (int i=0; i < numForks; ++i) {
+      recordCollectors.add(new ArrayList<>());
+    }
+
+    TaskContext mockTaskContext = getMockTaskContext(taskState,
+        new StringExtractor(numRecords), recordCollectors, mockForkOperator);
+
+    // Create a mock TaskStateTracker
+    TaskStateTracker mockTaskStateTracker = mock(TaskStateTracker.class);
+
+    // Create a TaskExecutor - a real TaskExecutor must be created so a Fork is run in a separate thread
+    TaskExecutor taskExecutor = new TaskExecutor(new Properties());
+
+    // Create the Task
+    Task task = new Task(mockTaskContext, mockTaskStateTracker, taskExecutor, Optional.<CountDownLatch>absent());
+
+    // Run and commit
+    task.run();
+    task.commit();
   }
 
   /**

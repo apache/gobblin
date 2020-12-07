@@ -123,6 +123,33 @@ public class ConverterTest {
     Assert.assertTrue(outputRecords.get(1) instanceof MyControlMessage);
   }
 
+  @Test
+  public void testAddRecordMetadata() throws Exception {
+    MyConverter2 converter = new MyConverter2();
+    BasicAckableForTesting ackable = new BasicAckableForTesting();
+
+    RecordStreamWithMetadata<Integer, String> stream =
+        new RecordStreamWithMetadata<>(Flowable.just(new RecordEnvelope<>(1), new RecordEnvelope<>(2)),
+            GlobalMetadata.<String>builder().schema("schema").build()).mapRecords(r -> {
+          r.addCallBack(ackable);
+          return r;
+        });
+
+    List<StreamEntity<Integer>> outputRecords = Lists.newArrayList();
+    converter.processStream(stream, new WorkUnitState()).getRecordStream().subscribe(outputRecords::add);
+
+    Assert.assertEquals(outputRecords.size(), 2);
+
+    RecordEnvelope<Integer> envelope = (RecordEnvelope<Integer>)outputRecords.get(0);
+    Assert.assertEquals(envelope.getRecord().intValue(), 2);
+    Assert.assertEquals(((Integer)envelope.getRecordMetadata("original_value")).intValue(), 1);
+
+    envelope = (RecordEnvelope<Integer>)outputRecords.get(1);
+    Assert.assertEquals(envelope.getRecord().intValue(), 3);
+    Assert.assertEquals(((Integer)envelope.getRecordMetadata("original_value")).intValue(), 2);
+
+  }
+
   public static class MyConverter extends Converter<String, String, Integer, Integer> {
     @Override
     public String convertSchema(String inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
@@ -137,6 +164,32 @@ public class ConverterTest {
         output.add(0);
       }
       return output;
+    }
+  }
+
+  // for testing the overriding of convertRecordEnvelope to add record metadata
+  public static class MyConverter2 extends Converter<String, String, Integer, Integer> {
+    @Override
+    public String convertSchema(String inputSchema, WorkUnitState workUnit) throws SchemaConversionException {
+      return inputSchema;
+    }
+
+    @Override
+    public Iterable<Integer> convertRecord(String outputSchema, Integer inputRecord, WorkUnitState workUnit)
+        throws DataConversionException {
+      throw new UnsupportedOperationException("not supported");
+    }
+
+    @Override
+    public Flowable<RecordEnvelope<Integer>> convertRecordEnvelope(String outputSchema,
+        RecordEnvelope<Integer> inputRecordEnvelope, WorkUnitState workUnitState)
+        throws DataConversionException {
+
+      RecordEnvelope<Integer> outputRecord =
+          inputRecordEnvelope.withRecord(Integer.valueOf(inputRecordEnvelope.getRecord() + 1));
+      outputRecord.setRecordMetadata("original_value", inputRecordEnvelope.getRecord());
+
+      return Flowable.just(outputRecord);
     }
   }
 

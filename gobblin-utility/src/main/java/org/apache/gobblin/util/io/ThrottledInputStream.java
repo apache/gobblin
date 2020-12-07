@@ -85,6 +85,9 @@ public class ThrottledInputStream extends FilterInputStream {
       long currentCount = this.meter.getBytesProcessedMeter().getCount();
       long permitsNeeded = currentCount - this.prevCount;
       this.prevCount = currentCount;
+      if (permitsNeeded == 0L) {
+        return;
+      }
       Closeable permit = this.limiter.acquirePermits(permitsNeeded);
       if (permit == null) {
         throw new RuntimeException("Could not acquire permits.");

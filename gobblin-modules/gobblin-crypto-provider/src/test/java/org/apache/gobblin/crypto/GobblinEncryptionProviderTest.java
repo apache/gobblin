@@ -16,20 +16,27 @@
  */
 package org.apache.gobblin.crypto;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.junit.Assert;
+import org.apache.commons.io.IOUtils;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import org.apache.gobblin.codec.StreamCodec;
 
 
 public class GobblinEncryptionProviderTest {
+  private static final long KEY_ID = -4435883136602571409L;
+  private static final String PRIVATE_KEY = "/testPrivate.key";
+  private static final String PUBLIC_KEY = "/testPublic.key";
+
   @Test
   public void testCanBuildAes() throws IOException {
     Map<String, Object> properties = new HashMap<>();
@@ -48,6 +55,69 @@ public class GobblinEncryptionProviderTest {
     cipherStream.write(toEncrypt);
     cipherStream.close();
 
-    Assert.assertTrue("Expected to be able to write ciphertext!", cipherOut.size() > 0);
+    Assert.assertTrue(cipherOut.size() > 0, "Expected to be able to write ciphertext!");
+  }
+
+  @Test
+  public void testCanBuildGPG() throws IOException {
+    Map<String, Object> encryptionProperties = new HashMap<>();
+    encryptionProperties.put(EncryptionConfigParser.ENCRYPTION_ALGORITHM_KEY, GPGCodec.TAG);
+    encryptionProperties.put(EncryptionConfigParser.ENCRYPTION_KEYSTORE_PATH_KEY, GPGFileEncryptor.class.getResource(
+        PUBLIC_KEY).toString());
+    encryptionProperties.put(EncryptionConfigParser.ENCRYPTION_KEY_NAME, String.valueOf(GPGFileEncryptorTest.KEY_ID));
+
+    testGPG(encryptionProperties);
+  }
+
+  @Test
+  public void testBuildGPGGoodCipher() throws IOException {
+    Map<String, Object> encryptionProperties = new HashMap<>();
+    encryptionProperties.put(EncryptionConfigParser.ENCRYPTION_ALGORITHM_KEY, GPGCodec.TAG);
+    encryptionProperties.put(EncryptionConfigParser.ENCRYPTION_KEYSTORE_PATH_KEY, GPGFileEncryptor.class.getResource(
+        PUBLIC_KEY).toString());
+    encryptionProperties.put(EncryptionConfigParser.ENCRYPTION_KEY_NAME, String.valueOf(GPGFileEncryptorTest.KEY_ID));
+    encryptionProperties.put(EncryptionConfigParser.ENCRYPTION_CIPHER_KEY, "CAST5");
+
+    testGPG(encryptionProperties);
+  }
+
+  @Test(expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = ".*BadCipher.*")
+  public void testBuildGPGBadCipher() throws IOException {
+    Map<String, Object> encryptionProperties = new HashMap<>();
+    encryptionProperties.put(EncryptionConfigParser.ENCRYPTION_ALGORITHM_KEY, GPGCodec.TAG);
+    encryptionProperties.put(EncryptionConfigParser.ENCRYPTION_KEYSTORE_PATH_KEY, GPGFileEncryptor.class.getResource(
+        PUBLIC_KEY).toString());
+    encryptionProperties.put(EncryptionConfigParser.ENCRYPTION_KEY_NAME, String.valueOf(GPGFileEncryptorTest.KEY_ID));
+    encryptionProperties.put(EncryptionConfigParser.ENCRYPTION_CIPHER_KEY, "BadCipher");
+
+    testGPG(encryptionProperties);
+  }
+
+  private void testGPG(Map<String, Object> encryptionProperties) throws IOException {
+    StreamCodec encryptor = EncryptionFactory.buildStreamCryptoProvider(encryptionProperties);
+    Assert.assertNotNull(encryptor);
+
+    Map<String, Object> decryptionProperties = new HashMap<>();
+    decryptionProperties.put(EncryptionConfigParser.ENCRYPTION_ALGORITHM_KEY, GPGCodec.TAG);
+    decryptionProperties.put(EncryptionConfigParser.ENCRYPTION_KEYSTORE_PATH_KEY, GPGFileEncryptor.class.getResource(
+        PRIVATE_KEY).toString());
+    decryptionProperties.put(EncryptionConfigParser.ENCRYPTION_KEYSTORE_PASSWORD_KEY, GPGFileEncryptorTest.PASSPHRASE);
+    StreamCodec decryptor = EncryptionFactory.buildStreamCryptoProvider(decryptionProperties);
+    Assert.assertNotNull(decryptor);
+
+    ByteArrayOutputStream cipherOut = new ByteArrayOutputStream();
+    OutputStream cipherStream = encryptor.encodeOutputStream(cipherOut);
+    cipherStream.write(GPGFileEncryptorTest.EXPECTED_FILE_CONTENT_BYTES);
+    cipherStream.close();
+
+    byte[] encryptedBytes = cipherOut.toByteArray();
+    Assert.assertTrue(encryptedBytes.length > 0, "Expected to be able to write ciphertext!");
+
+    try (InputStream is = decryptor.decodeInputStream(new ByteArrayInputStream(encryptedBytes))) {
+      byte[] decryptedBytes = IOUtils.toByteArray(is);
+
+      Assert.assertNotEquals(GPGFileEncryptorTest.EXPECTED_FILE_CONTENT_BYTES, encryptedBytes);
+      Assert.assertEquals(GPGFileEncryptorTest.EXPECTED_FILE_CONTENT_BYTES, decryptedBytes);
+    }
   }
 }

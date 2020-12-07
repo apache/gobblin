@@ -16,13 +16,12 @@
  */
 package org.apache.gobblin.runtime.api;
 
-import org.apache.gobblin.runtime.JobState;
-
 public interface JobExecutionStatus {
   public static final String UKNOWN_STAGE = "unkown";
-
   JobExecution getJobExecution();
-  JobState.RunningState getRunningState();
+
+  MonitoredObject getRunningState();
+
   /** Arbitrary execution stage, e.g. setup, workUnitGeneration, taskExecution, publishing */
   String getStage();
 }

@@ -18,6 +18,7 @@
 package org.apache.gobblin.cluster;
 
 import java.lang.reflect.InvocationTargetException;
+import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
@@ -25,27 +26,29 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.lang3.tuple.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.Service;
 import com.typesafe.config.Config;
 
-import org.apache.commons.lang3.tuple.Pair;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.Getter;
+
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.instrumented.StandardMetricsBridge;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
 import org.apache.gobblin.runtime.api.Spec;
+import org.apache.gobblin.runtime.api.SpecConsumer;
 import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
-import org.apache.gobblin.runtime.api.SpecConsumer;
-
-import lombok.Getter;
 
 
 /**
@@ -91,6 +94,15 @@ public class StreamingJobConfigurationManager extends JobConfigurationManager {
         | ClassNotFoundException e) {
       throw new RuntimeException("Could not construct SpecConsumer " +
           specExecutorInstanceConsumerClassName, e);
+    }
+  }
+
+  @Override
+  public Collection<StandardMetrics> getStandardMetricsCollection() {
+    if (this.specConsumer instanceof StandardMetricsBridge) {
+      return ((StandardMetricsBridge)specConsumer).getStandardMetricsCollection();
+    } else {
+      return ImmutableList.of();
     }
   }
 
@@ -146,8 +158,11 @@ public class StreamingJobConfigurationManager extends JobConfigurationManager {
         postUpdateJobConfigArrival(jobSpec.getUri().toString(), jobSpec.getConfigAsProperties());
       } else if (verb.equals(SpecExecutor.Verb.DELETE)) {
         // Handle delete
-        Spec anonymousSpec = (Spec) entry.getValue();
+        Spec anonymousSpec = entry.getValue();
         postDeleteJobConfigArrival(anonymousSpec.getUri().toString(), new Properties());
+      } else if (verb.equals(SpecExecutor.Verb.CANCEL)) {
+        Spec anonymousSpec = entry.getValue();
+        postCancelJobConfigArrival(anonymousSpec.getUri().toString());
       }
     }
   }

@@ -16,13 +16,11 @@
  */
 package org.apache.gobblin.service.modules.core;
 
-
 import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 
 import org.apache.commons.io.FileUtils;
@@ -40,14 +38,15 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
+import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.api.TopologySpec;
+import org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutor;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flow.IdentityFlowToJobSpecCompiler;
+import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PathUtils;
-import org.apache.gobblin.runtime.api.SpecExecutor;
-import org.apache.gobblin.runtime.api.SpecProducer;
-import org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutor;
 
 public class IdentityFlowToJobSpecCompilerTest {
   private static final Logger logger = LoggerFactory.getLogger(IdentityFlowToJobSpecCompilerTest.class);
@@ -187,14 +186,15 @@ public class IdentityFlowToJobSpecCompilerTest {
     FlowSpec flowSpec = initFlowSpec();
 
     // Run compiler on flowSpec
-    Map<Spec, SpecExecutor> specExecutorMapping = this.compilerWithTemplateCalague.compileFlow(flowSpec);
+    Dag<JobExecutionPlan> jobExecutionPlanDag = this.compilerWithTemplateCalague.compileFlow(flowSpec);
 
     // Assert pre-requisites
-    Assert.assertNotNull(specExecutorMapping, "Expected non null mapping.");
-    Assert.assertTrue(specExecutorMapping.size() == 1, "Exepected 1 executor for FlowSpec.");
+    Assert.assertNotNull(jobExecutionPlanDag, "Expected non null dag.");
+    Assert.assertTrue(jobExecutionPlanDag.getNodes().size() == 1, "Exepected 1 executor for FlowSpec.");
 
     // Assert FlowSpec compilation
-    Spec spec = specExecutorMapping.keySet().iterator().next();
+    Dag.DagNode<JobExecutionPlan> dagNode = jobExecutionPlanDag.getStartNodes().get(0);
+    Spec spec = dagNode.getValue().getJobSpec();
     Assert.assertTrue(spec instanceof JobSpec, "Expected JobSpec compiled from FlowSpec.");
 
     // Assert JobSpec properties
@@ -209,6 +209,9 @@ public class IdentityFlowToJobSpecCompilerTest {
     Assert.assertEquals(jobSpec.getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY), TEST_FLOW_NAME);
     Assert.assertEquals(jobSpec.getConfig().getString(ConfigurationKeys.FLOW_GROUP_KEY), TEST_FLOW_GROUP);
     Assert.assertTrue(jobSpec.getConfig().hasPath(ConfigurationKeys.FLOW_EXECUTION_ID_KEY));
+
+    //Assert the start node has no children.
+    Assert.assertEquals(jobExecutionPlanDag.getChildren(dagNode).size(), 0);
   }
 
   @Test
@@ -216,14 +219,16 @@ public class IdentityFlowToJobSpecCompilerTest {
     FlowSpec flowSpec = initFlowSpec();
 
     // Run compiler on flowSpec
-    Map<Spec, SpecExecutor> specExecutorMapping = this.compilerWithoutTemplateCalague.compileFlow(flowSpec);
+    Dag<JobExecutionPlan> jobExecutionPlanDag = this.compilerWithoutTemplateCalague.compileFlow(flowSpec);
 
     // Assert pre-requisites
-    Assert.assertNotNull(specExecutorMapping, "Expected non null mapping.");
-    Assert.assertTrue(specExecutorMapping.size() == 1, "Exepected 1 executor for FlowSpec.");
+    Assert.assertNotNull(jobExecutionPlanDag, "Expected non null dag.");
+    Assert.assertTrue(jobExecutionPlanDag.getNodes().size() == 1, "Exepected 1 executor for FlowSpec.");
 
     // Assert FlowSpec compilation
-    Spec spec = specExecutorMapping.keySet().iterator().next();
+    Assert.assertEquals(jobExecutionPlanDag.getStartNodes().size(), 1);
+    Dag.DagNode<JobExecutionPlan> dagNode = jobExecutionPlanDag.getStartNodes().get(0);
+    Spec spec = dagNode.getValue().getJobSpec();
     Assert.assertTrue(spec instanceof JobSpec, "Expected JobSpec compiled from FlowSpec.");
 
     // Assert JobSpec properties
@@ -238,6 +243,9 @@ public class IdentityFlowToJobSpecCompilerTest {
     Assert.assertEquals(jobSpec.getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY), TEST_FLOW_NAME);
     Assert.assertEquals(jobSpec.getConfig().getString(ConfigurationKeys.FLOW_GROUP_KEY), TEST_FLOW_GROUP);
     Assert.assertTrue(jobSpec.getConfig().hasPath(ConfigurationKeys.FLOW_EXECUTION_ID_KEY));
+
+    //Assert the start node has no children.
+    Assert.assertEquals(jobExecutionPlanDag.getChildren(dagNode).size(), 0);
   }
 
   @Test
@@ -245,10 +253,10 @@ public class IdentityFlowToJobSpecCompilerTest {
     FlowSpec flowSpec = initFlowSpec(TEST_FLOW_GROUP, TEST_FLOW_NAME, "unsupportedSource", "unsupportedSink");
 
     // Run compiler on flowSpec
-    Map<Spec, SpecExecutor> specExecutorMapping = this.compilerWithTemplateCalague.compileFlow(flowSpec);
+    Dag<JobExecutionPlan> jobExecutionPlanDag = this.compilerWithTemplateCalague.compileFlow(flowSpec);
 
     // Assert pre-requisites
-    Assert.assertNotNull(specExecutorMapping, "Expected non null mapping.");
-    Assert.assertTrue(specExecutorMapping.size() == 0, "Exepected 1 executor for FlowSpec.");
+    Assert.assertNotNull(jobExecutionPlanDag, "Expected non null dag.");
+    Assert.assertTrue(jobExecutionPlanDag.getNodes().size() == 0, "Exepected 1 executor for FlowSpec.");
   }
 }

@@ -111,7 +111,7 @@ public class CliEmbeddedGobblin implements CliApplication {
 
   private void listQuickApps() {
     List<Alias> aliases = getAllAliases();
-    System.out.println("Usage: gobblin run <quick-app-name> [OPTIONS]");
+    System.out.println("Usage: gobblin cli run <quick-app-name> [OPTIONS]");
     System.out.println("Available quick apps:");
     for (Alias thisAlias : aliases) {
       System.out.println(String.format("\t%s\t-\t%s", thisAlias.value(), thisAlias.description()));

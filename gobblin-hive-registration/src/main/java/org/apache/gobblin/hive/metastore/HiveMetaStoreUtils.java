@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.hive.metastore;
 
-import com.google.common.base.Splitter;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -37,6 +36,7 @@ import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.SerDeInfo;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.ql.io.avro.AvroContainerInputFormat;
 import org.apache.hadoop.hive.serde2.Deserializer;
 import org.apache.hadoop.hive.serde2.SerDeException;
 import org.apache.hadoop.hive.serde2.SerDeUtils;
@@ -49,17 +49,23 @@ import org.slf4j.LoggerFactory;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
 
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.broker.EmptyKey;
+import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
+import org.apache.gobblin.broker.iface.NotConfiguredException;
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.hive.HiveConfFactory;
 import org.apache.gobblin.hive.HiveConstants;
 import org.apache.gobblin.hive.HivePartition;
 import org.apache.gobblin.hive.HiveRegistrationUnit;
 import org.apache.gobblin.hive.HiveRegistrationUnit.Column;
 import org.apache.gobblin.hive.HiveTable;
+import org.apache.gobblin.hive.SharedHiveConfKey;
 
 
 /**
@@ -183,7 +189,7 @@ public class HiveMetaStoreUtils {
     return hivePartition;
   }
 
-  private static Map<String, String> getParameters(State props) {
+  public static Map<String, String> getParameters(State props) {
     Map<String, String> parameters = Maps.newHashMap();
     if (props.contains(RUNTIME_PROPS)) {
       String runtimePropsString = props.getProp(RUNTIME_PROPS);
@@ -206,7 +212,11 @@ public class HiveMetaStoreUtils {
     State props = unit.getStorageProps();
     StorageDescriptor sd = new StorageDescriptor();
     sd.setParameters(getParameters(props));
-    sd.setCols(getFieldSchemas(unit));
+    //Treat AVRO and other formats differently. Details can be found in GOBBLIN-877
+    if (unit.isRegisterSchema() ||
+        (unit.getInputFormat().isPresent() && !unit.getInputFormat().get().equals(AvroContainerInputFormat.class.getName()))) {
+      sd.setCols(getFieldSchemas(unit));
+    }
     if (unit.getLocation().isPresent()) {
       sd.setLocation(unit.getLocation().get());
     }
@@ -232,7 +242,7 @@ public class HiveMetaStoreUtils {
     return sd;
   }
 
-  private static SerDeInfo getSerDeInfo(HiveRegistrationUnit unit) {
+  public static SerDeInfo getSerDeInfo(HiveRegistrationUnit unit) {
     State props = unit.getSerDeProps();
     SerDeInfo si = new SerDeInfo();
     si.setParameters(getParameters(props));
@@ -243,7 +253,7 @@ public class HiveMetaStoreUtils {
     return si;
   }
 
-  private static State getTableProps(Table table) {
+  public static State getTableProps(Table table) {
     State tableProps = new State();
     for (Map.Entry<String, String> entry : table.getParameters().entrySet()) {
       tableProps.setProp(entry.getKey(), entry.getValue());
@@ -370,14 +380,18 @@ public class HiveMetaStoreUtils {
     }
 
     String serde = serdeClass.get();
-    HiveConf hiveConf = new HiveConf();
-
+    HiveConf hiveConf;
     Deserializer deserializer;
     try {
+      hiveConf = SharedResourcesBrokerFactory
+        .getImplicitBroker().getSharedResource(new HiveConfFactory<>(), SharedHiveConfKey.INSTANCE);
       deserializer =
           ReflectionUtils.newInstance(hiveConf.getClassByName(serde).asSubclass(Deserializer.class), hiveConf);
     } catch (ClassNotFoundException e) {
       LOG.warn("Serde class " + serde + " not found!", e);
+      return null;
+    } catch (NotConfiguredException nce) {
+      LOG.error("Implicit broker is not configured properly", nce);
       return null;
     }
 

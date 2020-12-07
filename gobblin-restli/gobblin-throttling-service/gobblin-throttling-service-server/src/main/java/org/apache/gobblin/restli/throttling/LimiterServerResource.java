@@ -29,6 +29,7 @@ import com.google.common.collect.ImmutableMap;
 import com.linkedin.common.callback.Callback;
 import com.linkedin.common.callback.FutureCallback;
 import com.linkedin.data.DataMap;
+import com.linkedin.data.template.GetMode;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
 import com.linkedin.restli.common.HttpStatus;
@@ -45,6 +46,7 @@ import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.broker.MetricContextFactory;
 import org.apache.gobblin.metrics.broker.SubTaggedMetricContextKey;
 import org.apache.gobblin.util.NoopCloseable;
+import org.apache.gobblin.util.Sleeper;
 import org.apache.gobblin.util.limiter.Limiter;
 import org.apache.gobblin.util.limiter.broker.SharedLimiterKey;
 
@@ -87,6 +89,9 @@ public class LimiterServerResource extends ComplexKeyResourceAsyncTemplate<Permi
   @Inject @Named(LEADER_FINDER_INJECT_NAME)
   Optional<LeaderFinder<URIMetadata>> leaderFinderOpt;
 
+  @Inject
+  Sleeper sleeper;
+
   /**
    * Request permits from the limiter server. The returned {@link PermitAllocation} specifies the number of permits
    * that the client can use.
@@ -97,6 +102,7 @@ public class LimiterServerResource extends ComplexKeyResourceAsyncTemplate<Permi
       ComplexResourceKey<PermitRequest, EmptyRecord> key,
       @CallbackParam final Callback<PermitAllocation> callback) {
     try (Closeable context = this.requestTimer == null ? NoopCloseable.INSTANCE : this.requestTimer.time()) {
+      long startNanos = System.nanoTime();
 
       PermitRequest request = key.getKey();
       String resourceId = request.getResource();
@@ -124,7 +130,24 @@ public class LimiterServerResource extends ComplexKeyResourceAsyncTemplate<Permi
         try (Closeable thisContext = limiterTimer.time()) {
           allocation = policy.computePermitAllocation(request);
         }
+
+        if (request.getVersion(GetMode.DEFAULT) < ThrottlingProtocolVersion.WAIT_ON_CLIENT.ordinal()) {
+          // If the client does not understand "waitForPermitsUse", delay the response at the server side.
+          // This has a detrimental effect to server performance
+          long wait = allocation.getWaitForPermitUseMillis(GetMode.DEFAULT);
+          allocation.setWaitForPermitUseMillis(0);
+          if (wait > 0) {
+            try {
+              this.sleeper.sleep(wait);
+            } catch (InterruptedException ie) {
+              allocation.setPermits(0);
+            }
+          }
+        }
+
         permitsGrantedMeter.mark(allocation.getPermits());
+
+        log.debug("Request: {}, allocation: {}, elapsedTime: {} ns", request, allocation, System.nanoTime() - startNanos);
 
         callback.onSuccess(allocation);
       }

@@ -22,11 +22,13 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
 import javax.annotation.Nullable;
 
+import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -37,6 +39,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
@@ -49,6 +52,7 @@ import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.JobSpecNotFoundException;
 import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.PullFileLoader;
+import org.apache.gobblin.util.filesystem.PathAlterationListener;
 import org.apache.gobblin.util.filesystem.PathAlterationObserverScheduler;
 import org.apache.gobblin.util.filesystem.PathAlterationObserver;
 
@@ -124,11 +128,13 @@ public class ImmutableFSJobCatalog extends JobCatalogBase implements JobCatalog 
 
       // If absent, the Optional object will be created automatically by addPathAlterationObserver
       Optional<PathAlterationObserver> observerOptional = Optional.fromNullable(observer);
-      FSPathAlterationListenerAdaptor configFilelistener =
-          new FSPathAlterationListenerAdaptor(this.jobConfDirPath, this.loader, this.sysConfig, this.listeners,
-              this.converter);
-      this.pathAlterationDetector.addPathAlterationObserver(configFilelistener, observerOptional, this.jobConfDirPath);
+      this.pathAlterationDetector.addPathAlterationObserver(getListener(), observerOptional, this.jobConfDirPath);
     }
+  }
+
+  protected PathAlterationListener getListener() {
+    return new FSPathAlterationListenerAdaptor(this.jobConfDirPath, this.loader, this.sysConfig, this.listeners,
+        this.converter);
   }
 
   @Override
@@ -163,6 +169,41 @@ public class ImmutableFSJobCatalog extends JobCatalogBase implements JobCatalog 
     return Lists.transform(Lists.newArrayList(
         loader.loadPullFilesRecursively(loader.getRootDirectory(), this.sysConfig, shouldLoadGlobalConf())),
         this.converter);
+  }
+
+  /**
+   * Return an iterator that can fetch all the job specifications.
+   * Different than {@link #getJobs()}, this method prevents loading
+   * all the job configs into memory in the very beginning. Instead it
+   * only loads file paths initially and creates the JobSpec and the
+   * underlying {@link Config} during the iteration.
+   *
+   * @return an iterator that contains job specs (job specs can be null).
+   */
+  @Override
+  public synchronized Iterator<JobSpec> getJobSpecIterator() {
+    List<Path> jobFiles = loader.fetchJobFilesRecursively(loader.getRootDirectory());
+    Iterator<JobSpec> jobSpecIterator = Iterators.transform(jobFiles.iterator(), new Function<Path, JobSpec>() {
+      @Nullable
+      @Override
+      public JobSpec apply(@Nullable Path jobFile) {
+        if (jobFile == null) {
+          return null;
+        }
+
+        try {
+          Config config = ImmutableFSJobCatalog.this.loader.loadPullFile(jobFile,
+            ImmutableFSJobCatalog.this.sysConfig, ImmutableFSJobCatalog.this.shouldLoadGlobalConf());
+
+          return ImmutableFSJobCatalog.this.converter.apply(config);
+        } catch (IOException e) {
+          log.error("Cannot load job from {} due to {}", jobFile, ExceptionUtils.getFullStackTrace(e));
+          return null;
+        }
+      }
+    });
+
+    return jobSpecIterator;
   }
 
   /**

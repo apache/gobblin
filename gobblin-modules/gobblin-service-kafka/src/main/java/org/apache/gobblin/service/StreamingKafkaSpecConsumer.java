@@ -31,24 +31,21 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.gobblin.instrumented.Instrumented;
-import org.apache.gobblin.instrumented.StandardMetricsBridge;
-import org.apache.gobblin.metrics.ContextAwareGauge;
-import org.apache.gobblin.metrics.ContextAwareMetric;
-import org.apache.gobblin.metrics.GobblinMetrics;
-import org.apache.gobblin.metrics.MetricContext;
-import org.apache.gobblin.metrics.Tag;
-
 import org.slf4j.Logger;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.instrumented.Instrumented;
+import org.apache.gobblin.instrumented.StandardMetricsBridge;
+import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
 import org.apache.gobblin.runtime.api.Spec;
@@ -62,17 +59,12 @@ import org.apache.gobblin.util.ConfigUtils;
 
 import static org.apache.gobblin.service.SimpleKafkaSpecExecutor.SPEC_KAFKA_TOPICS_KEY;
 
-import javax.annotation.Nonnull;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
-
 @Slf4j
 /**
  * SpecConsumer that consumes from kafka in a streaming manner
  * Implemented {@link AbstractIdleService} for starting up and shutting down.
  */
 public class StreamingKafkaSpecConsumer extends AbstractIdleService implements SpecConsumer<Spec>, Closeable, StandardMetricsBridge {
-  public static final String SPEC_STREAMING_BLOCKING_QUEUE_SIZE = "spec.StreamingBlockingQueueSize";
   private static final int DEFAULT_SPEC_STREAMING_BLOCKING_QUEUE_SIZE = 100;
   @Getter
   private final AvroJobSpecKafkaJobMonitor _jobMonitor;
@@ -80,7 +72,7 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
   private final MutableJobCatalog _jobCatalog;
   private final MetricContext _metricContext;
   private final Metrics _metrics;
-  private final boolean _isInstrumentedEnabled;
+
   public StreamingKafkaSpecConsumer(Config config, MutableJobCatalog jobCatalog, Optional<Logger> log) {
     String topic = config.getString(SPEC_KAFKA_TOPICS_KEY);
     Config defaults = ConfigFactory.parseMap(ImmutableMap.of(AvroJobSpecKafkaJobMonitor.TOPIC_KEY, topic,
@@ -92,7 +84,7 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
     } catch (IOException e) {
       throw new RuntimeException("Could not create job monitor", e);
     }
-    _isInstrumentedEnabled = GobblinMetrics.isEnabled(ConfigUtils.configToProperties(config));
+
     _jobCatalog = jobCatalog;
     _jobSpecQueue = new LinkedBlockingQueue<>(ConfigUtils.getInt(config, "SPEC_STREAMING_BLOCKING_QUEUE_SIZE",
         DEFAULT_SPEC_STREAMING_BLOCKING_QUEUE_SIZE));
@@ -187,6 +179,18 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
       }
     }
 
+    @Override
+    public void onCancelJob(URI cancelledJobURI) {
+      super.onCancelJob(cancelledJobURI);
+      try {
+        JobSpec.Builder jobSpecBuilder = JobSpec.builder(cancelledJobURI);
+        jobSpecBuilder.withConfigAsProperties(new Properties());
+        _jobSpecQueue.put(new ImmutablePair<>(SpecExecutor.Verb.CANCEL, jobSpecBuilder.build()));
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+    }
+
     @Override public void onUpdateJob(JobSpec updatedJob) {
       super.onUpdateJob(updatedJob);
 
@@ -224,8 +228,8 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
     }
 
     private long getRemovedSpecs() {
-      return StreamingKafkaSpecConsumer.this._jobMonitor.getRemmovedSpecs() != null?
-          StreamingKafkaSpecConsumer.this._jobMonitor.getRemmovedSpecs().getCount() : 0;
+      return StreamingKafkaSpecConsumer.this._jobMonitor.getRemovedSpecs() != null?
+          StreamingKafkaSpecConsumer.this._jobMonitor.getRemovedSpecs().getCount() : 0;
     }
 
     private long getMessageParseFailures() {
@@ -235,18 +239,7 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
   }
 
   @Override
-  public StandardMetrics getStandardMetrics() {
-    return this._metrics;
-  }
-
-  @Nonnull
-  @Override
-  public MetricContext getMetricContext() {
-    return _metricContext;
-  }
-
-  @Override
-  public boolean isInstrumentationEnabled() {
-    return _isInstrumentedEnabled;
+  public Collection<StandardMetrics> getStandardMetricsCollection() {
+    return ImmutableList.of(this._metrics);
   }
 }

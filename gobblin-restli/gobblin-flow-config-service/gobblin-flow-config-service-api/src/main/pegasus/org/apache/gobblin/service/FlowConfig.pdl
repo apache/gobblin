@@ -1,0 +1,38 @@
+namespace org.apache.gobblin.service
+
+/**
+ * Defines a flow configuration that can be compiled into Gobblin jobs
+ */
+record FlowConfig {
+
+  /**
+   * Identifier for the flow
+   */
+  id: FlowId
+
+  /**
+   * Optional schedule for when to execution the flow. If a schedule is not specified then the flow is executed immediately.
+   */
+  schedule: optional Schedule
+
+  /**
+   * Comma separated list of URIs for templates used in the flow. The template location is defined by the multiproduct that packages the template.
+   */
+  @validate.`org.apache.gobblin.service.validator.TemplateUriValidator` = { }
+  templateUris: string
+
+  /**
+   * Return the compiled flow as a string. If enabled, the flow is not added.
+   */
+  explain: boolean = false
+
+  /**
+   * Optional string name of group that the requester belongs to for group ownership of flows.
+   */
+  owningGroup: optional string
+
+  /**
+   * Properties for the flow. These properties are passed to the compiled Gobblin jobs.
+   */
+  properties: map[string, string]
+}

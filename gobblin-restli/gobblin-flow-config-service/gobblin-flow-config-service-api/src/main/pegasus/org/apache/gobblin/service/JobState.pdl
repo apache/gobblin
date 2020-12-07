@@ -1,0 +1,17 @@
+namespace org.apache.gobblin.service
+
+/**
+ * Job state that is updated at the end of an execution
+ */
+record JobState {
+
+  /**
+   * Low watermark after last execution
+   */
+  lowWatermark: string
+
+  /**
+   * High watermark after last execution
+   */
+  highWatermark: string
+}
