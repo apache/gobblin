@@ -1,0 +1,87 @@
+{
+  "name": "Message",
+  "type": "record",
+  "namespace": "org.apache.gobblin.gitter",
+  "fields": [
+    {
+      "name": "id",
+      "doc": "ID of the message.",
+      "type": "string"
+    },
+    {
+      "name": "text",
+      "doc": "Original message in plain-text/markdown.",
+      "type": "string"
+    },
+    {
+      "name": "html",
+      "doc": "HTML formatted message.",
+      "type": "string"
+    },
+    {
+      "name": "sent",
+      "doc": "ISO formatted date of the message.",
+      "type": "string"
+    },
+    {
+      "name": "fromUser",
+      "type": {
+        "name": "fromUserInner",
+        "type": "record",
+        "doc": "User that sent the message.",
+        "fields": [
+          {
+            "name": "avatarUrl",
+            "type": "string",
+            "doc": "Avatar Url of User."
+          },
+          {
+            "name": "avatarUrlMedium",
+            "type": "string",
+            "doc": "Medium size Avatar Url of User."
+          },
+          {
+            "name": "avatarUrlSmall",
+            "type": "string",
+            "doc": "Small size Avatar Url of User."
+          },
+          {
+            "name": "displayName",
+            "type": "string",
+            "doc": "Display name of User."
+          },
+          {
+            "name": "id",
+            "type": "string",
+            "doc": "User ID."
+          },
+          {
+            "name": "username",
+            "type": "string",
+            "doc": "User name of User."
+          },
+           {
+             "name": "url",
+             "type": "string",
+             "doc": "Url of User."
+           }
+        ]
+      }
+    },
+    {
+      "name": "unread",
+      "doc": "Boolean that indicates if the current user has read the message.Boolean that indicates if the current user has read the message.",
+      "type": "boolean"
+    },
+    {
+      "name": "readBy",
+      "doc": "Number of users that have read the message.",
+      "type": "int"
+    },
+    {
+      "name": "v",
+      "doc": "Version.",
+      "type": "int"
+    }
+  ]
+}

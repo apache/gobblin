@@ -1,0 +1,37 @@
+{
+  "name": "MessagesSummary",
+  "type": "record",
+  "namespace": "org.apache.gobblin.gitter",
+  "fields": [
+    {
+      "name": "startId",
+      "doc": "Starting ID of the messages.",
+      "type": "string"
+    },
+    {
+      "name": "endId",
+      "doc": "Ending ID of the messages.",
+      "type": "string"
+    },
+    {
+      "name": "title",
+      "doc": "Title for all messages.",
+      "type": "string"
+    },
+    {
+      "name": "text",
+      "doc": "Original messages summary in plain-text/markdown.",
+      "type": "string"
+    },
+    {
+      "name": "html",
+      "doc": "HTML formatted messages summary.",
+      "type": "string"
+    },
+    {
+      "name": "v",
+      "doc": "Version.",
+      "type": "int"
+    }
+  ]
+}
