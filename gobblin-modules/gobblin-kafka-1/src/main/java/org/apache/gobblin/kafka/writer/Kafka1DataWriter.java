@@ -27,6 +27,8 @@ import kafka.utils.ZkUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.I0Itec.zkclient.ZkClient;
 import org.I0Itec.zkclient.ZkConnection;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.gobblin.configuration.ConfigurationException;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.writer.*;
 import org.apache.kafka.clients.producer.RecordMetadata;
@@ -43,10 +45,9 @@ import java.util.concurrent.Future;
  * Applications should expect data to be possibly written to Kafka even if the overall Gobblin job fails.
  */
 @Slf4j
-public class Kafka1DataWriter<D> implements AsyncDataWriter<D> {
+public class Kafka1DataWriter<K, V> implements KafkaDataWriter<K, V> {
 
-
-  private static final WriteResponseMapper<RecordMetadata> WRITE_RESPONSE_WRAPPER =
+  public static final WriteResponseMapper<RecordMetadata> WRITE_RESPONSE_WRAPPER =
       new WriteResponseMapper<RecordMetadata>() {
 
         @Override
@@ -70,8 +71,9 @@ public class Kafka1DataWriter<D> implements AsyncDataWriter<D> {
         }
       };
 
-  private final Producer<String, D> producer;
+  private final Producer<K, V> producer;
   private final String topic;
+  private final KafkaWriterCommonConfig commonConfig;
 
   public static Producer getKafkaProducer(Properties props) {
     Object producerObject = KafkaWriterHelper.getKafkaProducer(props);
@@ -85,14 +87,17 @@ public class Kafka1DataWriter<D> implements AsyncDataWriter<D> {
     }
   }
 
-  public Kafka1DataWriter(Properties props) {
+  public Kafka1DataWriter(Properties props)
+      throws ConfigurationException {
     this(getKafkaProducer(props), ConfigFactory.parseProperties(props));
   }
 
-  public Kafka1DataWriter(Producer producer, Config config) {
+  public Kafka1DataWriter(Producer producer, Config config)
+      throws ConfigurationException {
     this.topic = config.getString(KafkaWriterConfigurationKeys.KAFKA_TOPIC);
     provisionTopic(topic, config);
     this.producer = producer;
+    this.commonConfig = new KafkaWriterCommonConfig(config);
   }
 
   @Override
@@ -103,17 +108,31 @@ public class Kafka1DataWriter<D> implements AsyncDataWriter<D> {
   }
 
   @Override
-  public Future<WriteResponse> write(final D record, final WriteCallback callback) {
-    return new WriteResponseFuture<>(this.producer.send(new ProducerRecord<String, D>(topic, record), new Callback() {
-      @Override
-      public void onCompletion(final RecordMetadata metadata, Exception exception) {
-        if (exception != null) {
-          callback.onFailure(exception);
-        } else {
-          callback.onSuccess(WRITE_RESPONSE_WRAPPER.wrap(metadata));
-        }
-      }
-    }), WRITE_RESPONSE_WRAPPER);
+  public Future<WriteResponse> write(final V record, final WriteCallback callback) {
+    try {
+      Pair<K, V> keyValuePair = KafkaWriterHelper.getKeyValuePair(record, this.commonConfig);
+      return write(keyValuePair, callback);
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to create a Kafka write request", e);
+    }
+  }
+
+  public Future<WriteResponse> write(Pair<K, V> keyValuePair, final WriteCallback callback) {
+    try {
+      return new WriteResponseFuture<>(this.producer
+          .send(new ProducerRecord<>(topic, keyValuePair.getKey(), keyValuePair.getValue()), new Callback() {
+            @Override
+            public void onCompletion(final RecordMetadata metadata, Exception exception) {
+              if (exception != null) {
+                callback.onFailure(exception);
+              } else {
+                callback.onSuccess(WRITE_RESPONSE_WRAPPER.wrap(metadata));
+              }
+            }
+          }), WRITE_RESPONSE_WRAPPER);
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to create a Kafka write request", e);
+    }
   }
 
   @Override
@@ -129,27 +148,40 @@ public class Kafka1DataWriter<D> implements AsyncDataWriter<D> {
       return;
     }
     String zookeeperConnect = config.getString(zooKeeperPropKey);
-    int sessionTimeoutMs = ConfigUtils.getInt(config, KafkaWriterConfigurationKeys.ZOOKEEPER_SESSION_TIMEOUT, KafkaWriterConfigurationKeys.ZOOKEEPER_SESSION_TIMEOUT_DEFAULT);
-    int connectionTimeoutMs = ConfigUtils.getInt(config, KafkaWriterConfigurationKeys.ZOOKEEPER_CONNECTION_TIMEOUT, KafkaWriterConfigurationKeys.ZOOKEEPER_CONNECTION_TIMEOUT_DEFAULT);
+    int sessionTimeoutMs = ConfigUtils.getInt(config,
+        KafkaWriterConfigurationKeys.ZOOKEEPER_SESSION_TIMEOUT,
+        KafkaWriterConfigurationKeys.ZOOKEEPER_SESSION_TIMEOUT_DEFAULT);
+    int connectionTimeoutMs = ConfigUtils.getInt(config,
+        KafkaWriterConfigurationKeys.ZOOKEEPER_CONNECTION_TIMEOUT,
+        KafkaWriterConfigurationKeys.ZOOKEEPER_CONNECTION_TIMEOUT_DEFAULT);
+
     // Note: You must initialize the ZkClient with ZKStringSerializer.  If you don't, then
     // createTopic() will only seem to work (it will return without error).  The topic will exist in
     // only ZooKeeper and will be returned when listing topics, but Kafka itself does not create the
     // topic.
-    ZkClient zkClient = new ZkClient(zookeeperConnect, sessionTimeoutMs, connectionTimeoutMs, ZKStringSerializer$.MODULE$);
+    ZkClient zkClient =
+        new ZkClient(zookeeperConnect, sessionTimeoutMs, connectionTimeoutMs, ZKStringSerializer$.MODULE$);
     // Security for Kafka was added in Kafka 0.9.0.0
     ZkUtils zkUtils = new ZkUtils(zkClient, new ZkConnection(zookeeperConnect), false);
-    int partitions = ConfigUtils.getInt(config, KafkaWriterConfigurationKeys.PARTITION_COUNT, KafkaWriterConfigurationKeys.PARTITION_COUNT_DEFAULT);
-    int replication = ConfigUtils.getInt(config, KafkaWriterConfigurationKeys.REPLICATION_COUNT, KafkaWriterConfigurationKeys.PARTITION_COUNT_DEFAULT);
+    int partitions = ConfigUtils.getInt(config,
+        KafkaWriterConfigurationKeys.PARTITION_COUNT,
+        KafkaWriterConfigurationKeys.PARTITION_COUNT_DEFAULT);
+    int replication = ConfigUtils.getInt(config,
+        KafkaWriterConfigurationKeys.REPLICATION_COUNT,
+        KafkaWriterConfigurationKeys.PARTITION_COUNT_DEFAULT);
     Properties topicConfig = new Properties();
     if (AdminUtils.topicExists(zkUtils, topicName)) {
-      log.debug("Topic" + topicName + " already Exists with replication: " + replication + " and partitions :" + partitions);
-      return;
+      log.debug("Topic {} already exists with replication: {} and partitions: {}", topicName, replication, partitions);
+      boolean deleteTopicIfExists = ConfigUtils.getBoolean(config, KafkaWriterConfigurationKeys.DELETE_TOPIC_IF_EXISTS,
+          KafkaWriterConfigurationKeys.DEFAULT_DELETE_TOPIC_IF_EXISTS);
+      if (!deleteTopicIfExists) {
+        return;
+      } else {
+        log.debug("Deleting topic {}", topicName);
+        AdminUtils.deleteTopic(zkUtils, topicName);
+      }
     }
-    try {
-      AdminUtils.createTopic(zkUtils, topicName, partitions, replication, topicConfig, RackAwareMode.Disabled$.MODULE$);
-    } catch (RuntimeException e) {
-      throw new RuntimeException(e);
-    }
-    log.info("Created Topic " + topicName + " with replication: " + replication + " and partitions :" + partitions);
+    AdminUtils.createTopic(zkUtils, topicName, partitions, replication, topicConfig, RackAwareMode.Disabled$.MODULE$);
+    log.info("Created topic {} with replication: {} and partitions : {}", topicName, replication, partitions);
   }
 }

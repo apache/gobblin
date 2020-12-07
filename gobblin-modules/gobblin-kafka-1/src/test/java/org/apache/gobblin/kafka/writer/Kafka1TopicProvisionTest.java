@@ -25,6 +25,7 @@ import org.I0Itec.zkclient.ZkConnection;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.gobblin.kafka.KafkaClusterTestBase;
 import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.DescribeTopicsResult;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooKeeper;
@@ -54,13 +55,13 @@ public class Kafka1TopicProvisionTest {
     _kafkaTestHelper = new KafkaClusterTestBase(testClusterCount);
   }
 
-  @BeforeSuite
+  @BeforeSuite(alwaysRun = true)
   public void beforeSuite() {
     log.info("Process id = " + ManagementFactory.getRuntimeMXBean().getName());
     _kafkaTestHelper.startCluster();
   }
 
-  @AfterSuite
+  @AfterSuite(alwaysRun = true)
   public void afterSuite()
       throws IOException {
     _kafkaTestHelper.stopCluster();
@@ -101,13 +102,13 @@ public class Kafka1TopicProvisionTest {
     props.setProperty(KafkaWriterConfigurationKeys.REPLICATION_COUNT, String.valueOf(clusterCount));
     props.setProperty(KafkaWriterConfigurationKeys.PARTITION_COUNT, String.valueOf(partionCount));
     props.setProperty(KafkaWriterConfigurationKeys.CLUSTER_ZOOKEEPER, "localhost:" + zkPort);
-    System.out.println(_kafkaTestHelper.getBootServersList());
 
     // Setting Producer Properties
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + "bootstrap.servers", _kafkaTestHelper.getBootServersList());
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + "value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
 
-    Kafka1DataWriter<String> kafka09DataWriter = new Kafka1DataWriter<String>(props);
+    Kafka1DataWriter<String, String> kafka1DataWriter = new Kafka1DataWriter<>(props);
+
     String zookeeperConnect = "localhost:" + _kafkaTestHelper.getZookeeperPort();
     int sessionTimeoutMs = 10 * 1000;
     int connectionTimeoutMs = 8 * 1000;
@@ -123,13 +124,8 @@ public class Kafka1TopicProvisionTest {
     boolean isSecureKafkaCluster = false;
     ZkUtils zkUtils = new ZkUtils(zkClient, new ZkConnection(zookeeperConnect), isSecureKafkaCluster);
 
-
-    AdminClient adminClient = AdminClient.create(props);
-    DescribeTopicsResult describer = adminClient.describeTopics(Collections.singletonList(topic));
-
-    //MetadataResponse.TopicMetadata metaData =adminClient.describeTopics(topic)
-    //AdminUtils.fetchTopicMetadataFromZk(topic,zkUtils);
-    Assert.assertEquals(describer.values().get(topic).get().partitions().size(), partionCount);
+    Integer partitionCount = (Integer) zkUtils.getTopicPartitionCount(topic).get();
+    Assert.assertEquals(partitionCount.intValue(), partionCount);
 
   }
 
@@ -164,7 +160,7 @@ public class Kafka1TopicProvisionTest {
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + "bootstrap.servers", liveBroker);
     props.setProperty(KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + "value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
 
-    Kafka1DataWriter<String> kafka1DataWriter = new Kafka1DataWriter<String>(props);
+    Kafka1DataWriter<String, String> kafka1DataWriter = new Kafka1DataWriter<>(props);
     int sessionTimeoutMs = 10 * 1000;
     int connectionTimeoutMs = 8 * 1000;
     // Note: You must initialize the ZkClient with ZKStringSerializer.  If you don't, then
@@ -179,11 +175,13 @@ public class Kafka1TopicProvisionTest {
     boolean isSecureKafkaCluster = false;
     ZkUtils zkUtils = new ZkUtils(zkClient, new ZkConnection(liveZookeeper), isSecureKafkaCluster);
 
-    AdminClient adminClient = AdminClient.create(props);
+    Properties config = new Properties();
+    config.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, _kafkaTestHelper.getBootServersList());
+    AdminClient adminClient = AdminClient.create(config);
     DescribeTopicsResult describer = adminClient.describeTopics(Collections.singletonList(topic));
 
-    //MetadataResponse.TopicMetadata metaData =adminClient.describeTopics(topic)
-    //AdminUtils.fetchTopicMetadataFromZk(topic,zkUtils);
+    // Note: AdminUtils.fetchTopicMetadataFromZk is deprecated after 0.10.0. Please consider using AdminClient
+    // to fetch topic config, or using ZKUtils.
     Assert.assertEquals(describer.values().get(topic).get().partitions().size(), Integer.parseInt(topicPartitionCount));
 
   }

@@ -19,6 +19,7 @@ package org.apache.gobblin.kafka.writer;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import org.apache.gobblin.configuration.ConfigurationException;
 import org.apache.gobblin.kafka.serialize.GsonSerializerBase;
 import org.apache.gobblin.writer.AsyncDataWriter;
 import org.apache.kafka.common.serialization.Serializer;
@@ -35,7 +36,8 @@ public class Kafka1JsonObjectWriterBuilder extends AbstractKafkaDataWriterBuilde
       KafkaWriterConfigurationKeys.KAFKA_PRODUCER_CONFIG_PREFIX + KafkaWriterConfigurationKeys.VALUE_SERIALIZER_CONFIG;
 
   @Override
-  protected AsyncDataWriter<JsonObject> getAsyncDataWriter(Properties props) {
+  protected AsyncDataWriter<JsonObject> getAsyncDataWriter(Properties props)
+      throws ConfigurationException {
     props.setProperty(VALUE_SERIALIZER_KEY, KafkaGsonObjectSerializer.class.getName());
     return new Kafka1DataWriter<>(props);
   }

@@ -50,6 +50,18 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Slf4j
 class KafkaServerSuite {
   static KafkaServerSuite _instance;
+  private final int _kafkaServerPort;
+  private final AtomicInteger _numStarted;
+  private int _brokerId = 0;
+  private EmbeddedZookeeper _zkServer;
+  private ZkClient _zkClient;
+  private KafkaServer _kafkaServer;
+  private String _zkConnectString;
+  private KafkaServerSuite() {
+    _kafkaServerPort = TestUtils.findFreePort();
+    _zkConnectString = "UNINITIALIZED_HOST_PORT";
+    _numStarted = new AtomicInteger(0);
+  }
 
   static KafkaServerSuite getInstance() {
     if (null == _instance) {
@@ -59,15 +71,6 @@ class KafkaServerSuite {
       return _instance;
     }
   }
-
-  private int _brokerId = 0;
-  private EmbeddedZookeeper _zkServer;
-  private ZkClient _zkClient;
-  private KafkaServer _kafkaServer;
-  private final int _kafkaServerPort;
-  private String _zkConnectString;
-  private final AtomicInteger _numStarted;
-
 
   public ZkClient getZkClient() {
     return _zkClient;
@@ -84,13 +87,6 @@ class KafkaServerSuite {
   public String getZkConnectString() {
     return _zkConnectString;
   }
-
-  private KafkaServerSuite() {
-    _kafkaServerPort = TestUtils.findFreePort();
-    _zkConnectString = "UNINITIALIZED_HOST_PORT";
-    _numStarted = new AtomicInteger(0);
-  }
-
 
   void start()
       throws RuntimeException {
@@ -248,4 +244,9 @@ public class KafkaTestBase implements Closeable {
   public int getKafkaServerPort() {
     return _kafkaServerSuite.getKafkaServerPort();
   }
+
+  public String getZkConnectString() {
+    return this._kafkaServerSuite.getZkConnectString();
+  }
+
 }

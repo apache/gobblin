@@ -16,9 +16,12 @@
  */
 package org.apache.gobblin.kafka.client;
 
+import com.codahale.metrics.Gauge;
+import com.codahale.metrics.Metric;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
@@ -27,25 +30,24 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaOffsetRetrievalFailureException;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaPartition;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaTopic;
 import org.apache.gobblin.util.ConfigUtils;
-import org.apache.kafka.clients.consumer.Consumer;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.consumer.*;
+import org.apache.kafka.clients.consumer.internals.NoOpConsumerRebalanceListener;
+import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.metrics.KafkaMetric;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Properties;
+import java.util.stream.Collectors;
 
 
 /**
@@ -55,6 +57,7 @@ import java.util.Properties;
  * @param <K> Message key type
  * @param <V> Message value type
  */
+@Slf4j
 public class Kafka1ConsumerClient<K, V> extends AbstractBaseKafkaConsumerClient {
 
   private static final String CLIENT_BOOTSTRAP_SERVERS_KEY = "bootstrap.servers";
@@ -65,7 +68,7 @@ public class Kafka1ConsumerClient<K, V> extends AbstractBaseKafkaConsumerClient 
   private static final String CLIENT_GROUP_ID = "group.id";
 
   private static final String DEFAULT_ENABLE_AUTO_COMMIT = Boolean.toString(false);
-  private static final String DEFAULT_KEY_DESERIALIZER =
+  public static final String DEFAULT_KEY_DESERIALIZER =
       "org.apache.kafka.common.serialization.StringDeserializer";
   private static final String DEFAULT_GROUP_ID = "kafka1";
 
@@ -123,7 +126,7 @@ public class Kafka1ConsumerClient<K, V> extends AbstractBaseKafkaConsumerClient 
   }
 
   @Override
-  public long getEarliestOffset(KafkaPartition partition) throws KafkaOffsetRetrievalFailureException {
+  public long getEarliestOffset(KafkaPartition partition) {
     TopicPartition topicPartition = new TopicPartition(partition.getTopicName(), partition.getId());
     List<TopicPartition> topicPartitionList = Collections.singletonList(topicPartition);
     this.consumer.assign(topicPartitionList);
@@ -151,14 +154,120 @@ public class Kafka1ConsumerClient<K, V> extends AbstractBaseKafkaConsumerClient 
 
     this.consumer.assign(Lists.newArrayList(new TopicPartition(partition.getTopicName(), partition.getId())));
     this.consumer.seek(new TopicPartition(partition.getTopicName(), partition.getId()), nextOffset);
-    ConsumerRecords<K, V> consumerRecords = consumer.poll(super.fetchTimeoutMillis);
-    return Iterators.transform(consumerRecords.iterator(), new Function<ConsumerRecord<K, V>, KafkaConsumerRecord>() {
+    return consume();
+  }
+
+  @Override
+  public Iterator<KafkaConsumerRecord> consume() {
+    try {
+      ConsumerRecords<K, V> consumerRecords = consumer.poll(super.fetchTimeoutMillis);
+
+      return Iterators.transform(consumerRecords.iterator(), input -> {
+        try {
+          return new Kafka1ConsumerRecord(input);
+        } catch (Throwable t) {
+          throw Throwables.propagate(t);
+        }
+      });
+    } catch (Exception e) {
+      log.error("Exception on polling records", e);
+      throw new RuntimeException(e);
+    }
+  }
+
+  /**
+   * Subscribe to a kafka topic
+   * TODO Add multi topic support
+   * @param topic
+   */
+  @Override
+  public void subscribe(String topic) {
+    this.consumer.subscribe(Lists.newArrayList(topic), new NoOpConsumerRebalanceListener());
+  }
+
+  /**
+   * Subscribe to a kafka topic with a {#GobblinConsumerRebalanceListener}
+   * TODO Add multi topic support
+   * @param topic
+   */
+  @Override
+  public void subscribe(String topic, GobblinConsumerRebalanceListener listener) {
+    this.consumer.subscribe(Lists.newArrayList(topic), new ConsumerRebalanceListener() {
+      @Override
+      public void onPartitionsRevoked(Collection<TopicPartition> partitions) {
+        listener.onPartitionsRevoked(partitions.stream().map(a -> new KafkaPartition.Builder().withTopicName(a.topic()).withId(a.partition()).build()).collect(Collectors.toList()));
+      }
 
       @Override
-      public KafkaConsumerRecord apply(ConsumerRecord<K, V> input) {
-        return new Kafka1ConsumerRecord<>(input);
+      public void onPartitionsAssigned(Collection<TopicPartition> partitions) {
+        listener.onPartitionsAssigned(partitions.stream().map(a -> new KafkaPartition.Builder().withTopicName(a.topic()).withId(a.partition()).build()).collect(Collectors.toList()));
       }
     });
+  }
+
+  @Override
+  public Map<String, Metric> getMetrics() {
+    Map<MetricName, KafkaMetric> kafkaMetrics = (Map<MetricName, KafkaMetric>) this.consumer.metrics();
+    Map<String, Metric> codaHaleMetricMap = new HashMap<>();
+
+    kafkaMetrics
+        .forEach((key, value) -> codaHaleMetricMap.put(canonicalMetricName(value), kafkaToCodaHaleMetric(value)));
+    return codaHaleMetricMap;
+  }
+
+  /**
+   * Commit offsets to Kafka asynchronously
+   */
+  @Override
+  public void commitOffsetsAsync(Map<KafkaPartition, Long> partitionOffsets) {
+    Map<TopicPartition, OffsetAndMetadata> offsets = partitionOffsets.entrySet().stream().collect(Collectors.toMap(e -> new TopicPartition(e.getKey().getTopicName(),e.getKey().getId()), e -> new OffsetAndMetadata(e.getValue())));
+    consumer.commitAsync(offsets, new OffsetCommitCallback() {
+      @Override
+      public void onComplete(Map<TopicPartition, OffsetAndMetadata> offsets, Exception exception) {
+        if(exception != null) {
+          log.error("Exception while committing offsets " + offsets, exception);
+          return;
+        }
+      }
+    });
+  }
+
+  /**
+   * Commit offsets to Kafka synchronously
+   */
+  @Override
+  public void commitOffsetsSync(Map<KafkaPartition, Long> partitionOffsets) {
+    Map<TopicPartition, OffsetAndMetadata> offsets = partitionOffsets.entrySet().stream().collect(Collectors.toMap(e -> new TopicPartition(e.getKey().getTopicName(),e.getKey().getId()), e -> new OffsetAndMetadata(e.getValue())));
+    consumer.commitSync(offsets);
+  }
+
+  /**
+   * returns the last committed offset for a KafkaPartition
+   * @param partition
+   * @return last committed offset or -1 for invalid KafkaPartition
+   */
+  @Override
+  public long committed(KafkaPartition partition) {
+    OffsetAndMetadata offsetAndMetadata =  consumer.committed(new TopicPartition(partition.getTopicName(), partition.getId()));
+    return offsetAndMetadata != null ? offsetAndMetadata.offset() : -1l;
+  }
+
+  /**
+   * Convert a {@link KafkaMetric} instance to a {@link Metric}.
+   * @param kafkaMetric
+   * @return
+   */
+  private Metric kafkaToCodaHaleMetric(final KafkaMetric kafkaMetric) {
+    if (log.isDebugEnabled()) {
+      log.debug("Processing a metric change for {}", kafkaMetric.metricName().toString());
+    }
+    Gauge<Object> gauge = kafkaMetric::metricValue;
+    return gauge;
+  }
+
+  private String canonicalMetricName(KafkaMetric kafkaMetric) {
+    MetricName name = kafkaMetric.metricName();
+    return canonicalMetricName(name.group(), name.tags().values(), name.name());
   }
 
   @Override

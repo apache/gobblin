@@ -49,8 +49,11 @@ dependencies {
     runtime externalDependency.confluentSchemaRegistryClient
     runtime externalDependency.protobuf
 
-    testCompile project(":gobblin-runtime")
+    testCompile project(":gobblin-service")
+    testCompile project(":gobblin-modules:gobblin-service-kafka")
+    testCompile project(path: ":gobblin-runtime", configuration: "tests")
     testCompile project(":gobblin-test-utils")
+    testCompile externalDependency.confluentAvroSerializer
     testCompile externalDependency.jsonAssert
     testCompile externalDependency.mockito
     testCompile externalDependency.testng
