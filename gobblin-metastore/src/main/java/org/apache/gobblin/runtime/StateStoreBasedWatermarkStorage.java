@@ -137,6 +137,10 @@ public class StateStoreBasedWatermarkStorage implements WatermarkStorage {
     return committed;
   }
 
+  public void removeAllJobWatermark() throws IOException {
+    this._stateStore.delete(_storeName);
+  }
+
   public Iterable<CheckpointableWatermarkState> getAllCommittedWatermarks() throws IOException {
     return _stateStore.getAll(_storeName);
   }

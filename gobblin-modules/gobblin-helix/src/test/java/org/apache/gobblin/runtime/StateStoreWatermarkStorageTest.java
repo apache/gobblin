@@ -17,9 +17,9 @@
 
 package org.apache.gobblin.runtime;
 
+import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.util.Map;
-import java.util.Properties;
 
 import org.apache.curator.test.TestingServer;
 import org.testng.Assert;
@@ -29,10 +29,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.ImmutableList;
 
-import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.metastore.DatasetStateStore;
-import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.metastore.ZkStateStoreConfigurationKeys;
 import org.apache.gobblin.source.extractor.CheckpointableWatermark;
 import org.apache.gobblin.source.extractor.DefaultCheckpointableWatermark;
@@ -74,6 +71,28 @@ public class StateStoreWatermarkStorageTest {
 
     Assert.assertEquals(watermarkMap.size(), 1);
     Assert.assertEquals(((LongWatermark) watermarkMap.get("source").getWatermark()).getValue(), startTime);
+  }
+
+  @Test(dependsOnMethods = "testPersistWatermarkStateToZk")
+  public void testDeleteWatermarks() throws IOException {
+    CheckpointableWatermark watermark = new DefaultCheckpointableWatermark("source", new LongWatermark(startTime));
+
+    TaskState taskState = new TaskState();
+    taskState.setJobId(TEST_JOB_ID);
+    taskState.setProp(ConfigurationKeys.JOB_NAME_KEY, "JobName-" + startTime);
+    // watermark storage configuration
+    taskState.setProp(StateStoreBasedWatermarkStorage.WATERMARK_STORAGE_TYPE_KEY, "zk");
+    taskState.setProp(StateStoreBasedWatermarkStorage.WATERMARK_STORAGE_CONFIG_PREFIX +
+        ZkStateStoreConfigurationKeys.STATE_STORE_ZK_CONNECT_STRING_KEY, testingServer.getConnectString());
+
+    StateStoreBasedWatermarkStorage watermarkStorage = new StateStoreBasedWatermarkStorage(taskState);
+
+    Iterable<CheckpointableWatermarkState> watermarks  = watermarkStorage.getAllCommittedWatermarks();
+    Assert.assertEquals(Iterables.size(watermarks), 1);
+
+    watermarkStorage.removeAllJobWatermark();
+    watermarks  = watermarkStorage.getAllCommittedWatermarks();
+    Assert.assertEquals(Iterables.size(watermarks), 0);
   }
 
   @AfterClass

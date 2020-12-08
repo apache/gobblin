@@ -30,7 +30,6 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
-import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 
 import lombok.extern.slf4j.Slf4j;
@@ -38,7 +37,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.annotation.Alias;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.cli.CliApplication;
-import org.apache.gobblin.runtime.cli.EmbeddedGobblinCliFactory;
 
 
 /**
@@ -57,45 +55,25 @@ public class StateStoreBasedWatermarkStorageCli implements CliApplication {
       .desc("The State Store Root Directory").hasArg().build();
   private static final Option WATCH = Option.builder("w").longOpt("watch")
       .desc("Watch the watermarks").build();
+  private static final Option DELETE = Option.builder("d").longOpt("delete")
+      .desc("Delete the watermarks associated with a job").build();
+
+  private CommandLine cli;
 
   @Override
   public void run(String[] args) {
-    Options options = new Options();
-    options.addOption(HELP);
-    options.addOption(ZK);
-    options.addOption(JOB_NAME);
-    options.addOption(ROOT_DIR);
-    options.addOption(WATCH);
+    this.cli = initializeAndVerifyOptions(args);
 
-    CommandLine cli;
-    try {
-      CommandLineParser parser = new DefaultParser();
-      cli = parser.parse(options, Arrays.copyOfRange(args, 1, args.length));
-    } catch (ParseException pe) {
-      System.out.println( "Command line parse exception: " + pe.getMessage() );
+    // Option is missing or help option called
+    if (this.cli == null) {
       return;
     }
-
-
-    if (cli.hasOption(HELP.getOpt())) {
-      printUsage(options);
-      return;
-    }
-
-
 
     TaskState taskState = new TaskState();
 
-    String jobName;
-    if (!cli.hasOption(JOB_NAME.getOpt())) {
-      log.error("Need Job Name to be specified --", JOB_NAME.getLongOpt());
-      throw new RuntimeException("Need Job Name to be specified");
-    } else {
-      jobName = cli.getOptionValue(JOB_NAME.getOpt());
-      log.info("Using job name: {}", jobName);
-    }
+    String jobName = this.cli.getOptionValue(JOB_NAME.getOpt());
+    log.info("Using job name: {}", jobName);
     taskState.setProp(ConfigurationKeys.JOB_NAME_KEY, jobName);
-
 
     String zkAddress = "locahost:2181";
     if (cli.hasOption(ZK.getOpt())) {
@@ -107,27 +85,92 @@ public class StateStoreBasedWatermarkStorageCli implements CliApplication {
     taskState.setProp(StateStoreBasedWatermarkStorage.WATERMARK_STORAGE_TYPE_KEY, "zk");
     taskState.setProp("state.store.zk.connectString", zkAddress);
 
-    if (cli.hasOption(ROOT_DIR.getOpt())) {
-      String rootDir = cli.getOptionValue(ROOT_DIR.getOpt());
-      taskState.setProp(StateStoreBasedWatermarkStorage.WATERMARK_STORAGE_CONFIG_PREFIX
-          + ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, rootDir);
-      log.info("Setting root dir to {}", rootDir);
-    } else {
-      log.error("Need root directory specified");
-      printUsage(options);
-      return;
-    }
+    String rootDir = cli.getOptionValue(ROOT_DIR.getOpt());
+    taskState.setProp(StateStoreBasedWatermarkStorage.WATERMARK_STORAGE_CONFIG_PREFIX
+        + ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, rootDir);
+    log.info("Setting root dir to {}", rootDir);
 
     StateStoreBasedWatermarkStorage stateStoreBasedWatermarkStorage = new StateStoreBasedWatermarkStorage(taskState);
 
-    final AtomicBoolean stop = new AtomicBoolean(true);
+    if (cli.hasOption(DELETE.getOpt())) {
+      try {
+        stateStoreBasedWatermarkStorage.removeAllJobWatermark();
+      } catch (IOException e) {
+        System.out.println("Job " + jobName + " not found in state store");
+        return;
+      }
+    }
 
-    if (cli.hasOption(WATCH.getOpt())) {
+    this.displayWatermarks(stateStoreBasedWatermarkStorage);
+  }
+
+  private CommandLine initializeAndVerifyOptions(String[] args) {
+    Options options = new Options();
+    options.addOption(HELP);
+    options.addOption(ZK);
+    options.addOption(JOB_NAME);
+    options.addOption(ROOT_DIR);
+    options.addOption(WATCH);
+    options.addOption(DELETE);
+
+    CommandLine commandLine;
+    try {
+      CommandLineParser parser = new DefaultParser();
+      commandLine = parser.parse(options, Arrays.copyOfRange(args, 1, args.length));
+    } catch (ParseException pe) {
+      System.out.println( "Command line parse exception: " + pe.getMessage() );
+      throw new RuntimeException(pe);
+    }
+
+    if (commandLine.hasOption(HELP.getOpt())) {
+      printUsage(options);
+      return null;
+    }
+
+    if (!commandLine.hasOption(JOB_NAME.getOpt())) {
+      System.out.println("Need Job Name to be specified --" + JOB_NAME.getLongOpt());
+      printUsage(options);
+      return null;
+    }
+
+    if (!commandLine.hasOption(ROOT_DIR.getOpt())) {
+      System.out.println("Need root directory specified");
+      printUsage(options);
+      return null;
+    }
+
+    return commandLine;
+  }
+
+
+
+  private void printUsage(Options options) {
+
+    HelpFormatter formatter = new HelpFormatter();
+    formatter.setOptionComparator(new Comparator<Option>() {
+      @Override
+      public int compare(Option o1, Option o2) {
+        if (o1.isRequired() && !o2.isRequired()) {
+          return -1;
+        }
+        if (!o1.isRequired() && o2.isRequired()) {
+          return 1;
+        }
+        return o1.getOpt().compareTo(o2.getOpt());
+      }
+    });
+
+    String usage = "gobblin watermarks ";
+    formatter.printHelp(usage, options);
+  }
+
+  private void displayWatermarks(StateStoreBasedWatermarkStorage stateStoreBasedWatermarkStorage) {
+    final AtomicBoolean stop = new AtomicBoolean(true);
+    if (this.cli.hasOption(WATCH.getOpt())) {
       stop.set(false);
     }
+
     try {
-
-
       if (!stop.get()) {
         Runtime.getRuntime().addShutdownHook(new Thread() {
           public void run() {
@@ -154,29 +197,8 @@ public class StateStoreBasedWatermarkStorageCli implements CliApplication {
         }
       } while (!stop.get());
     } catch (Exception e) {
-      Throwables.propagate(e);
+      throw new RuntimeException(e);
     }
-  }
-
-
-  private void printUsage(Options options) {
-
-    HelpFormatter formatter = new HelpFormatter();
-    formatter.setOptionComparator(new Comparator<Option>() {
-      @Override
-      public int compare(Option o1, Option o2) {
-        if (o1.isRequired() && !o2.isRequired()) {
-          return -1;
-        }
-        if (!o1.isRequired() && o2.isRequired()) {
-          return 1;
-        }
-        return o1.getOpt().compareTo(o2.getOpt());
-      }
-    });
-
-    String usage = "gobblin watermarks ";
-    formatter.printHelp(usage, options);
   }
 
 }

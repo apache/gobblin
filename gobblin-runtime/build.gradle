@@ -87,6 +87,7 @@ dependencies {
   compile externalDependency.kryo
 
   testCompile project(path: ":gobblin-metastore", configuration: "testFixtures")
+  testCompile project(":gobblin-modules:gobblin-helix")
   testCompile externalDependency.jhyde
   testCompile externalDependency.testng
   testCompile externalDependency.hamcrest
