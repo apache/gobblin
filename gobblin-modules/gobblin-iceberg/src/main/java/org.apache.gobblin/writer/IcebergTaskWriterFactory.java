@@ -10,7 +10,9 @@ import org.apache.iceberg.relocated.com.google.common.base.Preconditions;
 import java.util.Map;
 
 /**
- * Factory to create {@link TaskWriter}.
+ * Factory to create {@link TaskWriter} that is.
+ * responsible for writing generic data
+ * into Iceberg table.
  *
  */
 public class IcebergTaskWriterFactory {
@@ -22,7 +24,7 @@ public class IcebergTaskWriterFactory {
     private final EncryptionManager encryptionManager;
     private final long targetFileSizeBytes;
     private final FileFormat format;
-    private final GenericAppenderFactory appenderFactory;
+    private final IcebergFileAppenderFactory appenderFactory;
 
     private transient OutputFileFactory outputFileFactory;
 
@@ -41,7 +43,7 @@ public class IcebergTaskWriterFactory {
         this.encryptionManager = encryptionManager;
         this.targetFileSizeBytes = targetFileSizeBytes;
         this.format = format;
-        this.appenderFactory = new GenericAppenderFactory(schema);
+        this.appenderFactory = new IcebergFileAppenderFactory(schema);
     }
 
     public void initialize(int taskId, int attemptId) {
@@ -53,7 +55,7 @@ public class IcebergTaskWriterFactory {
                 "The outputFileFactory shouldn't be null if we have invoked the initialize().");
 
         if (spec.fields().isEmpty()) {
-            return new UnpartitionedWriter<>(spec, format, appenderFactory, outputFileFactory, io, targetFileSizeBytes);
+            return new UnpartitionedWriter(spec, format, appenderFactory, outputFileFactory, io, targetFileSizeBytes);
         } else {
             return null;
         }

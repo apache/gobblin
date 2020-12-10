@@ -2,7 +2,6 @@ package org.apache.gobblin.writer;
 
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.Table;
-import org.apache.iceberg.flink.sink.RowDataTaskWriterFactory;
 import org.apache.iceberg.io.TaskWriter;
 
 public class TestIcebergWriter {

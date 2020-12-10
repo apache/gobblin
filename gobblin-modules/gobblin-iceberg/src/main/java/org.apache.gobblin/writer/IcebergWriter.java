@@ -33,7 +33,7 @@ import java.util.Map;
  *
  * <p>
  *   This implementation allows users to specify different formats
- *   through {@link TaskWriter} to write data. The {@link TaskWriter} will
+ *   through {@link TaskWriter} to write data into Iceberg table. The {@link TaskWriter} will
  *   be created through {@link IcebergTaskWriterFactory}.
  * </p>
  *
@@ -46,9 +46,9 @@ public class IcebergWriter<D> extends FsDataWriter<D>{
             throws IOException {
         super(builder, properties);
 
-        Table table = createTable(outputFile.toUri().toString(), (Map)properties.getProperties(), builder.partition.isPresent(), builder.schema);
+        Table table = IcebergUtil.createTable(outputFile.toUri().toString(), (Map)properties.getProperties(), builder.partition.isPresent(), builder.schema);
         IcebergTaskWriterFactory taskWriterFactory = new IcebergTaskWriterFactory(builder.schema, table.spec(), table.locationProvider(), table.io(), table.encryption(),
-                this.blockSize, formatConvertor(builder.format), table.properties());
+                this.blockSize, IcebergUtil.formatConvertor(builder.format), table.properties());
         taskWriterFactory.initialize(Integer.parseInt(builder.writerId), 0);
         this.writer = taskWriterFactory.create();
     }
@@ -64,27 +64,4 @@ public class IcebergWriter<D> extends FsDataWriter<D>{
         this.writer.write(record);
     }
 
-    public static Table createTable(String path, Map<String, String> properties, boolean partitioned, Schema schema) {
-        PartitionSpec spec;
-        if (partitioned) {
-            spec = PartitionSpec.builderFor(schema).identity("data").build();
-        } else {
-            spec = PartitionSpec.unpartitioned();
-        }
-        return new HadoopTables().create(schema, spec, properties, path);
-    }
-
-    public static FileFormat formatConvertor(WriterOutputFormat format) {
-        switch (format) {
-            case AVRO:
-                return FileFormat.AVRO;
-            case ORC:
-                return FileFormat.ORC;
-            case PARQUET:
-                return FileFormat.PARQUET;
-            default:
-                throw new RuntimeException("Unknown File format : " + format);
-
-        }
-    }
 }
