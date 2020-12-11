@@ -23,6 +23,7 @@ dependencies {
     compile project(":gobblin-hive-registration")
     compile project(":gobblin-metrics-libs:gobblin-metrics")
     compile project(":gobblin-modules:gobblin-kafka-common")
+    compile project(":gobblin-modules:gobblin-orc")
     compile project(":gobblin-utility")
 
     compile externalDependency.azkaban
@@ -51,7 +52,7 @@ dependencies {
     compile externalDependency.avroMapredH2
 
     testCompile externalDependency.testng
-    testCompile project(":gobblin-binary-management")
+    testCompile externalDependency.mockito
 }
 
 ext.classification="library"
