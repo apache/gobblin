@@ -1,7 +1,23 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.gobblin.iceberg;
 
 import azkaban.jobExecutor.AbstractJob;
-import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -52,20 +68,11 @@ public abstract class GobblinMCEProducer<D> implements Closeable {
   public static final String DATASET_DIR = "dataset.dir";
   public static final String GMCE_TOPIC_NAME = "GobblinMetadataChangeEvent.topic.name";
   public static final String HIVE_PARTITION_NAME = "hive.partition.name";
-  private static final String GMCE_PUBLISH_CONFIG = "GobblinMetadataChangeEvent.publish.config";
-  private static final String GMCE_BROKER_LIST = "GobblinMetadataChangeEvent.broker.list";
-  private static final String KAFKA_CLIENT_ID_KEY = "client.id";
-  private static final String DEFAULT_CLIENT_ID = "GMCEProducer";
-  private static final String GMCE_PRODUCER_TTL = "gmce.producer.ttl";
-  private static final long DEFAULT_GMCE_PRODUCER_TTL = 30L;
   private static final String DEFAULT_GMCE_TOPIC_NAME = "GobblinMetadataChangeEvent";
   private static final String METRICS_NAMESPACE_GMCE_PRODUCER = "GobblinMCE.producer";
-  private static final String GMCE_PRODUCER_FAILED_EVENT_NAME = "GobblinMCE.producer.failure";
-  private static final String FAILED_EVENT_CONTENT = "failed.sent.GMCE";
   private static final String HDFS_PLATFORM_URN = "urn:li:dataPlatform:hdfs";
   private static final String DATASET_ORIGIN_KEY = "dataset.origin";
   private static final String DEFAULT_DATASET_ORIGIN = "PROD";
-  private static final Joiner OFFSET_JOINER = Joiner.on("/");
 
   @Setter
   private State state;
