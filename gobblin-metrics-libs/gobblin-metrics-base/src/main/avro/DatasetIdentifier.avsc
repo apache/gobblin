@@ -1,0 +1,39 @@
+[
+  {
+    "type": "enum",
+    "name": "DataOrigin",
+    "namespace": "org.apache.gobblin.metadata",
+    "doc": "Where the record was originally produced. When we copy EI data to PROD database, the origin = EI. When we copy PROD data to DEV database, the origin = PROD",
+    "symbols": ["PROD", "CORP", "EI", "DEV"],
+    "symbolDocs": {
+      "PROD": "data are generated in production tier or by services in PROD",
+      "CORP": "data are generated in corporate tier or by services in CORP",
+      "EI": "data are generated in engineering integration tier or by service in EI",
+      "DEV": "data are generated in development tier or by service in DEV"
+    }
+  },
+  {
+    "type": "record",
+    "name": "DatasetIdentifier",
+    "namespace": "org.apache.gobblin.metadata",
+    "doc": "This is the unique identifier of a dataset, which contains three parts: dataPlatform, name, origin/fabric",
+    "fields": [
+      {
+        "name": "dataPlatformUrn",
+        "type": "string",
+        "doc": "The platform or type of the metadata object: espresso,kafka,oracle,voldemort,hdfs,hive,dalids,teradata,... for example, urn:li:dataPlatform:espresso, urn:li:dataPlatform:dalids"
+      },
+      {
+        "name": "nativeName",
+        "type": "string",
+        "doc": "The native name: <db>.<table>, /dir/subdir/<name>, or <name>"
+      },
+      {
+        "name": "dataOrigin",
+        "type": "DataOrigin",
+        "doc": "Origin/Source tier where the record is generated? This can be different from Deployment. For example, PROD data can be copied to a TEST server, then DataOrigin=PROD while the dataset instance belongs to TEST",
+        "default": "PROD"
+      }
+    ]
+  }
+]

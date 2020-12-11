@@ -1,0 +1,281 @@
+[
+  {
+    "namespace": "org.apache.gobblin.metadata",
+    "type": "record",
+    "name": "IntegerLongPair",
+    "fields": [
+      {
+        "name": "key",
+        "type": "int"
+      },
+      {
+        "name": "value",
+        "type": "long"
+      }
+    ]
+  },
+  {
+    "namespace": "org.apache.gobblin.metadata",
+    "type": "record",
+    "name": "IntegerBytesPair",
+    "fields": [
+      {
+        "name": "key",
+        "type": "int"
+      },
+      {
+        "name": "value",
+        "type": "bytes"
+      }
+    ]
+  },
+  {
+    "namespace": "org.apache.gobblin.metadata",
+    "type": "record",
+    "name": "DataMetrics",
+    "fields": [
+      {
+        "name": "record_count",
+        "type": "long"
+      },
+      {
+        "name": "column_sizes",
+        "type": [
+          "null",
+          {
+            "type": "array",
+            "items": "org.apache.gobblin.metadata.IntegerLongPair",
+            "logicalType": "map"
+          }
+        ],
+        "default": null,
+        "doc": "Map from column id to the total size on disk of all regions that store the column. Does not include bytes necessary to read other columns, like footers. Leave null for row-oriented formats (Avro)."
+      },
+      {
+        "name": "value_counts",
+        "type": [
+          "null",
+          {
+            "type": "array",
+            "items": "org.apache.gobblin.metadata.IntegerLongPair",
+            "logicalType": "map"
+          }
+        ],
+        "default": null,
+        "doc": "Map from column id to number of values in the column (including null values)."
+      },
+      {
+        "name": "null_value_counts",
+        "type": [
+          "null",
+          {
+            "type": "array",
+            "items": "org.apache.gobblin.metadata.IntegerLongPair",
+            "logicalType": "map"
+          }
+        ],
+        "default": null,
+        "doc": "Map from column id to number of null values in the column."
+      },
+      {
+        "name": "lower_bounds",
+        "type": [
+          "null",
+          {
+            "type": "array",
+            "items": "org.apache.gobblin.metadata.IntegerBytesPair",
+            "logicalType": "map"
+          }
+        ],
+        "default": null,
+        "doc": "Map from column id to lower bound in the column serialized as binary. Each value must be less than or equal to all values in the column for the file."
+      },
+      {
+        "name": "upper_bounds",
+        "type": [
+          "null",
+          {
+            "type": "array",
+            "items": "org.apache.gobblin.metadata.IntegerBytesPair",
+            "logicalType": "map"
+          }
+        ],
+        "default": null,
+        "doc": "Map from column id to upper bound in the column serialized as binary. Each value must be greater than or equal to all values in the column for the file."
+      }
+    ]
+  },
+  {
+    "type": "record",
+    "name": "GobblinMetadataChangeEvent",
+    "namespace": "org.apache.gobblin.metadata",
+    "doc": "Schema for GMCE",
+    "fields": [
+      {
+        "name": "datasetIdentifier",
+        "type": "org.apache.gobblin.metadata.DatasetIdentifier",
+        "doc": "The dataset for this metadata change event",
+        "optional": false
+      },
+      {
+        "name": "GMCEmittedTime",
+        "type": "long",
+        "doc": "This is emitted timestamp of this event",
+        "default": 0
+      },
+      {
+        "name": "minLogAppendTimestampForData",
+        "type": "long",
+        "doc": "This is min log_append time for the data message (used to track end-end lag)",
+        "default": 0
+      },
+      {
+        "name": "minHeaderTimestampForData",
+        "type": "long",
+        "doc": "This is min audit.header timeStamp for the data message (used to track end-end lag)",
+        "default": 0
+      },
+      {
+        "name": "operationType",
+        "type": {
+          "type":"enum",
+          "name":"OperationType",
+          "symbols": [
+            "add_files",
+            "drop_files",
+            "rewrite_files"
+          ]
+        },
+        "doc": "This is the operation type which indicates change for the specific files, for purger we don't need to do hive registration",
+        "optional": false
+      },
+      {
+        "name": "newFiles",
+        "type": ["null",{
+          "type": "array",
+          "items": {
+            "type": "record",
+            "name": "DataFile",
+            "fields": [
+              {
+                "name": "file_path",
+                "type": "string"
+              },
+              {
+                "name": "file_format",
+                "type": "string"
+              },
+              {
+                "name": "file_metrics",
+                "type": "org.apache.gobblin.metadata.DataMetrics"
+              }
+            ]
+          }
+        }],
+        "default": null,
+        "doc": " This is an array of the new files to be added, key is the path to the file, and value is the attributes i.e. min/max value of the new adding files",
+        "optional": true
+      },
+      {
+        "name": "oldFiles",
+        "type": ["null", {
+          "type":"array",
+          "items": "string"
+        }],
+        "default": null,
+        "doc": " This is an array of paths to the old files to be deleted",
+        "optional": true
+      },
+      {
+        "name": "registrationPolicy",
+        "type": ["null","string"],
+        "doc": "The class name for hive registration policy which we are using to compute the HiveSpec. For now, the most common policy we used in gobblin is LiHiveHourlyRegistrationPolicy, LiHiveDailyRegistrationPolicy, etc",
+        "default": null,
+        "optional": true
+      },
+      {
+        "name": "registrationPolicyForOldData",
+        "type": ["null","string"],
+        "doc": "Define the class to calculate the partition value for old data files",
+        "default": null,
+        "optional": true
+      },
+      {
+        "name": "topicPartitionOffsetsRange",
+        "type": ["null",{
+          "type":"map",
+          "values": "string"
+        }],
+        "default": null,
+        "doc": "a map for the topic partition offset range of the data, will be used for audit",
+        "optional": true
+      },
+      {
+        "name": "partitionColumns",
+        "type": {
+          "type":"array",
+          "items": "string"
+        },
+        "doc": "The name of the partition column.",
+        "default": ["datepartition"],
+        "optional": true
+      },
+      {
+        "name": "schemaSource",
+        "type": {
+          "type":"enum",
+          "name": "SchemaSource",
+          "symbols": ["EVENT", "SCHEMAREGISTRY","NONE"]
+        },
+        "doc": "This defines where the table schema comes from, the event or the schema registry, or don't need to register the schema",
+        "optional": false
+      },
+      {
+        "name": "tableSchema",
+        "type": ["null","string"],
+        "doc": "The avro schema for the data",
+        "default": null,
+        "optional": true
+      },
+      {
+        "name": "cluster",
+        "type": "string",
+        "doc": "The cluster from where this event is emitted",
+        "optional": false
+      },
+      {
+        "name": "registrationProperties",
+        "type": ["null",{
+          "type":"map",
+          "values": "string"
+        }],
+        "default": null,
+        "doc": "Properties needed for hive registration",
+        "optional": true
+      },
+      {
+        "name": "flowId",
+        "type": "string",
+        "doc": "The flow id of the pipeline which emit the record",
+        "optional": false
+      },
+      {
+        "name": "oldFilePrefixes",
+        "type": ["null",{
+          "type":"array",
+          "items": "string"
+        }],
+        "doc": "The prefixes for old files, used to find the old file to be deleted. If this field is defined, oldFiles will not be used",
+        "default": null,
+        "optional": true
+      },
+      {
+        "name": "avroSchemaWithIcebergSchemaID",
+        "type": ["null","string"],
+        "doc": "The avro schema with iceberg schema id for the data, this is used to match the field id in the file metrics to the field name",
+        "default": null,
+        "optional": true
+      }
+    ]
+  }
+]
