@@ -355,7 +355,7 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
       state.setProp("RecordsWritten", recordsWritten());
       state.setProp("BytesWritten", bytesWritten());
     } catch (Exception exception) {
-      log.warn("Failed to get final state." + exception.getMessage());
+      log.warn("Failed to get final state.", exception);
       // If Writer fails to return bytesWritten, it might not be implemented, or implemented incorrectly.
       // Omit property instead of failing.
     }
