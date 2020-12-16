@@ -17,9 +17,7 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
-import java.util.ArrayList;
-import java.util.List;
-
+import com.google.gson.JsonObject;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.NameValuePair;
@@ -29,6 +27,10 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 /**
  * A helper class which can get session id using Azkaban authentication mechanism.
@@ -69,7 +71,9 @@ public class SessionHelper {
 
         // retrieve session id from entity
         String jsonResponseString = IOUtils.toString(entity.getContent(), "UTF-8");
-        String sessionId = AzkabanClient.parseResponse(jsonResponseString).get(AzkabanClientParams.SESSION_ID);
+        JsonObject jsonObject = AzkabanClient.parseResponse(jsonResponseString);
+        Map<String, String> responseMap = AzkabanClient.getFlatMap(jsonObject);
+        String sessionId = responseMap.get(AzkabanClientParams.SESSION_ID);
         EntityUtils.consume(entity);
         return sessionId;
       } catch (Exception e) {
