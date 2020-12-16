@@ -27,6 +27,7 @@ public class DescriptorTest {
   public void testDatasetDescriptor() {
     DatasetDescriptor dataset = new DatasetDescriptor("hdfs", "/data/tracking/PageViewEvent");
     dataset.addMetadata("fsUri", "hdfs://test.com:2018");
+    Assert.assertNull(dataset.getClusterName());
 
     DatasetDescriptor copy = dataset.copy();
     Assert.assertEquals(copy.getName(), dataset.getName());
@@ -34,6 +35,28 @@ public class DescriptorTest {
     Assert.assertEquals(copy.getMetadata(), dataset.getMetadata());
     Assert.assertEquals(dataset, copy);
     Assert.assertEquals(dataset.hashCode(), copy.hashCode());
+
+    //noinspection deprecation
+    Assert.assertEquals(dataset, DatasetDescriptor.fromDataMap(copy.toDataMap()));
+  }
+
+  @Test
+  public void testDatasetDescriptorWithCluster() {
+    DatasetDescriptor dataset = new DatasetDescriptor("hdfs","hadoop.test", "/data/tracking/PageViewEvent");
+    dataset.addMetadata("fsUri", "hdfs://test.com:2018");
+
+    Assert.assertEquals(dataset.getClusterName(),"hadoop.test");
+
+    DatasetDescriptor copy = dataset.copy();
+    Assert.assertEquals(copy.getName(), dataset.getName());
+    Assert.assertEquals(copy.getPlatform(), dataset.getPlatform());
+    Assert.assertEquals(copy.getMetadata(), dataset.getMetadata());
+    Assert.assertEquals(copy.getClusterName(), dataset.getClusterName());
+    Assert.assertEquals(dataset, copy);
+    Assert.assertEquals(dataset.hashCode(), copy.hashCode());
+
+    //noinspection deprecation
+    Assert.assertEquals(dataset, DatasetDescriptor.fromDataMap(copy.toDataMap()));
   }
 
   @Test

@@ -17,20 +17,45 @@
 
 package org.apache.gobblin.data.management.copy.hive;
 
-import java.io.IOException;
-import java.net.URI;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterators;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.io.Closer;
+import com.google.gson.Gson;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import lombok.*;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-
-import org.apache.gobblin.hive.HiveConstants;
+import org.apache.gobblin.commit.CommitStep;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.data.management.copy.CopyConfiguration;
+import org.apache.gobblin.data.management.copy.CopyEntity;
+import org.apache.gobblin.data.management.copy.CopyableFile;
+import org.apache.gobblin.data.management.copy.OwnerAndPermission;
+import org.apache.gobblin.data.management.copy.entities.PostPublishStep;
+import org.apache.gobblin.data.management.copy.hive.avro.HiveAvroCopyEntityHelper;
+import org.apache.gobblin.data.management.partition.FileSet;
+import org.apache.gobblin.dataset.DatasetConstants;
+import org.apache.gobblin.dataset.DatasetDescriptor;
+import org.apache.gobblin.hive.*;
+import org.apache.gobblin.hive.metastore.HiveMetaStoreUtils;
+import org.apache.gobblin.hive.spec.HiveSpec;
+import org.apache.gobblin.hive.spec.SimpleHiveSpec;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.metrics.event.MultiTimingEvent;
+import org.apache.gobblin.util.ClassAliasResolver;
+import org.apache.gobblin.util.ClustersNames;
+import org.apache.gobblin.util.PathUtils;
+import org.apache.gobblin.util.commit.DeleteFileCommitStep;
 import org.apache.gobblin.util.filesystem.ModTimeDataFileVersionStrategy;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
+import org.apache.gobblin.util.request_allocation.PushDownRequestor;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -44,52 +69,9 @@ import org.apache.hadoop.mapred.InvalidInputException;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.thrift.TException;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.typesafe.config.ConfigFactory;
-import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.io.Closer;
-import com.google.gson.Gson;
-import com.typesafe.config.Config;
-
-import org.apache.gobblin.commit.CommitStep;
-import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.dataset.DatasetConstants;
-import org.apache.gobblin.dataset.DatasetDescriptor;
-import org.apache.gobblin.util.ClassAliasResolver;
-import org.apache.gobblin.data.management.copy.CopyConfiguration;
-import org.apache.gobblin.data.management.copy.CopyEntity;
-import org.apache.gobblin.data.management.copy.CopyableFile;
-import org.apache.gobblin.data.management.copy.OwnerAndPermission;
-import org.apache.gobblin.data.management.copy.entities.PostPublishStep;
-import org.apache.gobblin.data.management.copy.hive.avro.HiveAvroCopyEntityHelper;
-import org.apache.gobblin.data.management.partition.FileSet;
-import org.apache.gobblin.hive.HiveMetastoreClientPool;
-import org.apache.gobblin.hive.HiveRegProps;
-import org.apache.gobblin.hive.HiveRegisterStep;
-import org.apache.gobblin.hive.PartitionDeregisterStep;
-import org.apache.gobblin.hive.TableDeregisterStep;
-import org.apache.gobblin.hive.metastore.HiveMetaStoreUtils;
-import org.apache.gobblin.hive.spec.HiveSpec;
-import org.apache.gobblin.hive.spec.SimpleHiveSpec;
-import org.apache.gobblin.metrics.event.EventSubmitter;
-import org.apache.gobblin.metrics.event.MultiTimingEvent;
-import org.apache.gobblin.util.PathUtils;
-import org.apache.gobblin.util.commit.DeleteFileCommitStep;
-import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
-import org.apache.gobblin.util.request_allocation.PushDownRequestor;
-
-import lombok.Builder;
-import lombok.Data;
-import lombok.Getter;
-import lombok.Singular;
-import lombok.ToString;
-import lombok.extern.slf4j.Slf4j;
+import java.io.IOException;
+import java.net.URI;
+import java.util.*;
 
 
 /**
@@ -817,14 +799,17 @@ public class HiveCopyEntityHelper {
 
   DatasetDescriptor getSourceDataset() {
     String sourceTable = dataset.getTable().getDbName() + "." + dataset.getTable().getTableName();
-    DatasetDescriptor sourceDataset = new DatasetDescriptor(DatasetConstants.PLATFORM_HIVE, sourceTable);
+    String clusterName = ClustersNames.getInstance().getClusterName(dataset.getFs().getUri().toString());
+    DatasetDescriptor sourceDataset = new DatasetDescriptor(DatasetConstants.PLATFORM_HIVE, clusterName, sourceTable);
     sourceDataset.addMetadata(DatasetConstants.FS_URI, dataset.getFs().getUri().toString());
     return sourceDataset;
   }
 
   DatasetDescriptor getDestinationDataset() {
     String destinationTable = this.getTargetDatabase() + "." + this.getTargetTable();
-    DatasetDescriptor destinationDataset = new DatasetDescriptor(DatasetConstants.PLATFORM_HIVE, destinationTable);
+    String clusterName = ClustersNames.getInstance().getClusterName(this.getTargetFs().getUri().toString());
+    DatasetDescriptor destinationDataset =
+        new DatasetDescriptor(DatasetConstants.PLATFORM_HIVE, clusterName, destinationTable);
     destinationDataset.addMetadata(DatasetConstants.FS_URI, this.getTargetFs().getUri().toString());
     return destinationDataset;
   }

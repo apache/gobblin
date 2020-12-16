@@ -17,10 +17,21 @@
 
 package org.apache.gobblin.writer;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.util.List;
-
+import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Lists;
+import com.google.common.io.Closer;
+import org.apache.gobblin.codec.StreamCodec;
+import org.apache.gobblin.commit.SpeculativeAttemptAwareConstruct;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.dataset.DatasetDescriptor;
+import org.apache.gobblin.dataset.Descriptor;
+import org.apache.gobblin.dataset.PartitionDescriptor;
+import org.apache.gobblin.metadata.types.GlobalMetadata;
+import org.apache.gobblin.util.*;
+import org.apache.gobblin.util.recordcount.IngestionRecordCountProvider;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileContext;
 import org.apache.hadoop.fs.FileStatus;
@@ -30,27 +41,9 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Lists;
-import com.google.common.io.Closer;
-
-import org.apache.gobblin.codec.StreamCodec;
-import org.apache.gobblin.commit.SpeculativeAttemptAwareConstruct;
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.dataset.DatasetConstants;
-import org.apache.gobblin.dataset.DatasetDescriptor;
-import org.apache.gobblin.dataset.Descriptor;
-import org.apache.gobblin.dataset.PartitionDescriptor;
-import org.apache.gobblin.metadata.types.GlobalMetadata;
-import org.apache.gobblin.util.FinalState;
-import org.apache.gobblin.util.ForkOperatorUtils;
-import org.apache.gobblin.util.HadoopUtils;
-import org.apache.gobblin.util.JobConfigurationUtils;
-import org.apache.gobblin.util.WriterUtils;
-import org.apache.gobblin.util.recordcount.IngestionRecordCountProvider;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.List;
 
 
 /**
@@ -168,7 +161,9 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
   public Descriptor getDataDescriptor() {
     // Dataset is resulted from WriterUtils.getWriterOutputDir(properties, this.numBranches, this.branchId)
     // The writer dataset might not be same as the published dataset
-    DatasetDescriptor datasetDescriptor = new DatasetDescriptor(fs.getScheme(), outputFile.getParent().toString());
+    String clusterName = ClustersNames.getInstance().getClusterName(outputFile.getParent().toString());
+    DatasetDescriptor datasetDescriptor = new DatasetDescriptor(fs.getScheme(), clusterName,
+            outputFile.getParent().toString());
 
     if (partitionKey == null) {
       return datasetDescriptor;

@@ -17,42 +17,13 @@
 
 package org.apache.gobblin.publisher;
 
-import java.io.IOException;
-import java.net.URI;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.commons.io.IOUtils;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FSDataOutputStream;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.permission.FsPermission;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
+import com.google.common.collect.*;
 import com.google.common.io.Closer;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigRenderOptions;
-
+import org.apache.commons.io.IOUtils;
 import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
@@ -65,15 +36,23 @@ import org.apache.gobblin.dataset.PartitionDescriptor;
 import org.apache.gobblin.metadata.MetadataMerger;
 import org.apache.gobblin.metadata.types.StaticStringMetadataMerger;
 import org.apache.gobblin.metrics.event.lineage.LineageInfo;
-import org.apache.gobblin.util.ForkOperatorUtils;
-import org.apache.gobblin.util.HadoopUtils;
-import org.apache.gobblin.util.ParallelRunner;
-import org.apache.gobblin.util.WriterUtils;
+import org.apache.gobblin.util.*;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.apache.gobblin.writer.FsDataWriter;
 import org.apache.gobblin.writer.FsWriterMetrics;
 import org.apache.gobblin.writer.PartitionIdentifier;
 import org.apache.gobblin.writer.PartitionedDataWriter;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.*;
+import org.apache.hadoop.fs.permission.FsPermission;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.gobblin.util.retry.RetryerFactory.*;
 
@@ -325,7 +304,8 @@ public class BaseDataPublisher extends SingleTaskDataPublisher {
   protected DatasetDescriptor createDestinationDescriptor(WorkUnitState state, int branchId) {
     Path publisherOutputDir = getPublisherOutputDir(state, branchId);
     FileSystem fs = this.publisherFileSystemByBranches.get(branchId);
-    DatasetDescriptor destination = new DatasetDescriptor(fs.getScheme(), publisherOutputDir.toString());
+    String clusterName = ClustersNames.getInstance().getClusterName(publisherOutputDir.toString());
+    DatasetDescriptor destination = new DatasetDescriptor(fs.getScheme(), clusterName, publisherOutputDir.toString());
     destination.addMetadata(DatasetConstants.FS_URI, fs.getUri().toString());
     destination.addMetadata(DatasetConstants.BRANCH, String.valueOf(branchId));
     return destination;

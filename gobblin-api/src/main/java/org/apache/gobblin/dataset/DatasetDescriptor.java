@@ -17,12 +17,13 @@
 
 package org.apache.gobblin.dataset;
 
-import java.util.Map;
-
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
-
 import lombok.Getter;
+
+import javax.annotation.Nullable;
+import java.util.Map;
+import java.util.Objects;
 
 
 /**
@@ -31,6 +32,7 @@ import lombok.Getter;
 public class DatasetDescriptor extends Descriptor {
   private static final String PLATFORM_KEY = "platform";
   private static final String NAME_KEY = "name";
+  private static final String CLUSTER_NAME_KEY = "clusterName";
 
   /**
    * which platform the dataset is stored, for example: local, hdfs, oracle, mysql, kafka
@@ -39,12 +41,28 @@ public class DatasetDescriptor extends Descriptor {
   private final String platform;
 
   /**
+   * Human-readeable cluster name.
+   *
+   * @see org.apache.gobblin.util.ClustersNames
+   */
+  @Getter
+  @Nullable
+  private final String clusterName;
+
+  /**
    * metadata about the dataset
    */
   private final Map<String, String> metadata = Maps.newHashMap();
 
   public DatasetDescriptor(String platform, String name) {
     super(name);
+    this.clusterName = null;
+    this.platform = platform;
+  }
+
+  public DatasetDescriptor(String platform, String clusterName, String name) {
+    super(name);
+    this.clusterName = clusterName;
     this.platform = platform;
   }
 
@@ -55,6 +73,7 @@ public class DatasetDescriptor extends Descriptor {
   public DatasetDescriptor(DatasetDescriptor copy) {
     super(copy.getName());
     platform = copy.getPlatform();
+    clusterName = copy.getClusterName();
     metadata.putAll(copy.getMetadata());
   }
 
@@ -83,29 +102,26 @@ public class DatasetDescriptor extends Descriptor {
     Map<String, String> map = Maps.newHashMap();
     map.put(PLATFORM_KEY, platform);
     map.put(NAME_KEY, getName());
+    if (getClusterName() != null) {
+      map.put(CLUSTER_NAME_KEY, getClusterName());
+    }
     map.putAll(metadata);
     return map;
   }
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
     DatasetDescriptor that = (DatasetDescriptor) o;
-    return platform.equals(that.platform) && getName().equals(that.getName()) && metadata.equals(that.metadata);
+    return platform.equals(that.platform) &&
+            Objects.equals(clusterName, that.clusterName) &&
+            metadata.equals(that.metadata);
   }
 
   @Override
   public int hashCode() {
-    int result = platform.hashCode();
-    result = 31 * result + getName().hashCode();
-    result = 31 * result + metadata.hashCode();
-    return result;
+    return Objects.hash(platform, clusterName, metadata);
   }
 
   /**
@@ -115,9 +131,10 @@ public class DatasetDescriptor extends Descriptor {
    */
   @Deprecated
   public static DatasetDescriptor fromDataMap(Map<String, String> dataMap) {
-    DatasetDescriptor descriptor = new DatasetDescriptor(dataMap.get(PLATFORM_KEY), dataMap.get(NAME_KEY));
+    DatasetDescriptor descriptor = new DatasetDescriptor(dataMap.get(PLATFORM_KEY),
+            dataMap.getOrDefault(CLUSTER_NAME_KEY, null), dataMap.get(NAME_KEY));
     dataMap.forEach((key, value) -> {
-      if (!key.equals(PLATFORM_KEY) && !key.equals(NAME_KEY)) {
+      if (!key.equals(PLATFORM_KEY) && !key.equals(NAME_KEY) && !key.equals(CLUSTER_NAME_KEY)) {
         descriptor.addMetadata(key, value);
       }
     });
