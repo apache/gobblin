@@ -21,6 +21,11 @@ enum ExecutionStatus {
   PENDING_RETRY
 
   /**
+   * Flow or job is currently resuming.
+   */
+  PENDING_RESUME
+
+  /**
    * Job(s) orchestrated to spec executors.
    */
   ORCHESTRATED

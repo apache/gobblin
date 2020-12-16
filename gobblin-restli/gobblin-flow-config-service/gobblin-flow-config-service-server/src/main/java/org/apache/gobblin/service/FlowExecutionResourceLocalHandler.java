@@ -15,39 +15,26 @@
  * limitations under the License.
  */
 package org.apache.gobblin.service;
+
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
-
-import org.apache.commons.lang3.StringEscapeUtils;
 
 import com.google.common.base.Strings;
 import com.linkedin.data.template.SetMode;
-import com.linkedin.data.template.StringMap;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
 import com.linkedin.restli.common.HttpStatus;
-import com.linkedin.restli.common.PatchRequest;
-import com.linkedin.restli.server.CreateKVResponse;
 import com.linkedin.restli.server.PagingContext;
 import com.linkedin.restli.server.RestLiServiceException;
 import com.linkedin.restli.server.UpdateResponse;
-import com.linkedin.restli.server.annotations.Context;
-import com.linkedin.restli.server.annotations.Optional;
-import com.linkedin.restli.server.annotations.QueryParam;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.runtime.api.FlowSpec;
-import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
-import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.monitoring.FlowStatus;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
-import org.apache.gobblin.service.monitoring.KillFlowEvent;
 
 
 @Slf4j
@@ -79,6 +66,11 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
 
     throw new RestLiServiceException(HttpStatus.S_404_NOT_FOUND, "No flow execution found for flowId " + flowId
         + ". The flowId may be incorrect, or the flow execution may have been cleaned up.");
+  }
+
+  @Override
+  public UpdateResponse resume(ComplexResourceKey<FlowStatusId, EmptyRecord> key) {
+    throw new UnsupportedOperationException("Resume should be handled in GobblinServiceFlowConfigResourceHandler");
   }
 
   @Override

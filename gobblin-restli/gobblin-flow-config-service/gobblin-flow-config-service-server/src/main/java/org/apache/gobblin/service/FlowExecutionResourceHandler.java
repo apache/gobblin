@@ -46,6 +46,11 @@ public interface FlowExecutionResourceHandler {
   public List<FlowExecution> getLatestFlowExecution(PagingContext context, FlowId flowId, Integer count, String tag, String executionStatus);
 
   /**
+   * Resume a failed {@link FlowExecution} from the point before failure
+   */
+  public UpdateResponse resume(ComplexResourceKey<FlowStatusId, EmptyRecord> key);
+
+  /**
    * Kill a running {@link FlowExecution}
    */
   public UpdateResponse delete(ComplexResourceKey<FlowStatusId, EmptyRecord> key);

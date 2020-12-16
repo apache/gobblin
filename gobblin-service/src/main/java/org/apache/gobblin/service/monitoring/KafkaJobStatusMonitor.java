@@ -84,7 +84,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
       KAFKA_AUTO_OFFSET_RESET_KEY, KAFKA_AUTO_OFFSET_RESET_SMALLEST));
 
   private static final List<ExecutionStatus> ORDERED_EXECUTION_STATUSES = ImmutableList
-      .of(ExecutionStatus.COMPILED, ExecutionStatus.PENDING, ExecutionStatus.PENDING_RETRY,
+      .of(ExecutionStatus.COMPILED, ExecutionStatus.PENDING, ExecutionStatus.PENDING_RESUME, ExecutionStatus.PENDING_RETRY,
           ExecutionStatus.ORCHESTRATED, ExecutionStatus.RUNNING, ExecutionStatus.COMPLETE,
           ExecutionStatus.FAILED, ExecutionStatus.CANCELLED);
 
@@ -173,8 +173,9 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
       String previousStatus = states.get(states.size() - 1).getProp(JobStatusRetriever.EVENT_NAME_FIELD);
       String currentStatus = jobStatus.getProp(JobStatusRetriever.EVENT_NAME_FIELD);
 
-      if (previousStatus != null && currentStatus != null && ORDERED_EXECUTION_STATUSES.indexOf(ExecutionStatus.valueOf(currentStatus))
-          < ORDERED_EXECUTION_STATUSES.indexOf(ExecutionStatus.valueOf(previousStatus))) {
+      // PENDING_RESUME is allowed to override, because it happens when a flow is being resumed from previously being failed
+      if (previousStatus != null && currentStatus != null && !currentStatus.equals(ExecutionStatus.PENDING_RESUME.name())
+        && ORDERED_EXECUTION_STATUSES.indexOf(ExecutionStatus.valueOf(currentStatus)) < ORDERED_EXECUTION_STATUSES.indexOf(ExecutionStatus.valueOf(previousStatus))) {
         log.warn(String.format("Received status %s when status is already %s for flow (%s, %s, %s), job (%s, %s)",
             currentStatus, previousStatus, flowGroup, flowName, flowExecutionId, jobGroup, jobName));
         jobStatus = mergeState(states.get(states.size() - 1), jobStatus);

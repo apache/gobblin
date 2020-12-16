@@ -20,8 +20,10 @@ package org.apache.gobblin.service;
 import java.util.List;
 
 import com.google.inject.Inject;
+import com.linkedin.data.DataMap;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
+import com.linkedin.restli.common.PatchRequest;
 import com.linkedin.restli.server.PagingContext;
 import com.linkedin.restli.server.UpdateResponse;
 import com.linkedin.restli.server.annotations.Context;
@@ -58,6 +60,27 @@ public class FlowExecutionResource extends ComplexKeyResourceTemplate<FlowStatus
   public List<FlowExecution> getLatestFlowExecution(@Context PagingContext context, @QueryParam("flowId") FlowId flowId,
       @Optional @QueryParam("count") Integer count, @Optional @QueryParam("tag") String tag, @Optional @QueryParam("executionStatus") String executionStatus) {
     return this.flowExecutionResourceHandler.getLatestFlowExecution(context, flowId, count, tag, executionStatus);
+  }
+
+  /**
+   * Resume a failed {@link FlowExecution} from the point before failure. This is specified by a partial update patch which
+   * sets executionStatus to RUNNING.
+   * @param key {@link FlowStatusId} of flow to resume
+   * @param flowExecutionPatch {@link PatchRequest} which is expected to set executionStatus to RUNNING
+   * @return {@link UpdateResponse}
+   */
+  @Override
+  public UpdateResponse update(ComplexResourceKey<FlowStatusId, EmptyRecord> key, PatchRequest<FlowExecution> flowExecutionPatch) {
+    DataMap dataMap = flowExecutionPatch.getPatchDocument().getDataMap("$set");
+    if (dataMap != null) {
+      String status = dataMap.getString("executionStatus");
+      if (status != null && status.equalsIgnoreCase(ExecutionStatus.RUNNING.name())) {
+        return this.flowExecutionResourceHandler.resume(key);
+      }
+    }
+
+    throw new UnsupportedOperationException("Only flow resume is supported for FlowExecution update, which is specified by "
+        + "setting executionStatus field to RUNNING");
   }
 
   /**
