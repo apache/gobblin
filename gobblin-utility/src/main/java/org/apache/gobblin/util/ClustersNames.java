@@ -17,22 +17,19 @@
 
 package org.apache.gobblin.util;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.InetAddress;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.net.UnknownHostException;
-import java.util.Properties;
-
+import com.google.common.base.Preconditions;
+import com.google.common.io.Closer;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Preconditions;
-import com.google.common.io.Closer;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Properties;
 
 
 /**
@@ -78,11 +75,27 @@ public class ClustersNames {
     }
   }
 
+  /**
+   * Returns human-readable name of the cluster.
+   *
+   * Method first checks config for exact cluster url match. If nothing is found,
+   * it will also check host:port and just hostname match.
+   * If it still could not find a match, hostname from the url will be returned.
+   * */
   public String getClusterName(String clusterUrl) {
-    if (null == clusterUrl)
+    if (null == clusterUrl) {
       return null;
-    String res = this.urlToNameMap.getProperty(clusterUrl);
-    return null != res ? res : normalizeClusterUrl(clusterUrl);
+    }
+
+    List<String> candidates = generateUrlMatchCandidates(clusterUrl);
+    for (String candidate : candidates) {
+      String name = this.urlToNameMap.getProperty(candidate);
+      if (name != null) {
+        return name;
+      }
+    }
+
+    return candidates.get(candidates.size() - 1);
   }
 
   public void addClusterMapping(String clusterUrl, String clusterName) {
@@ -97,21 +110,26 @@ public class ClustersNames {
     this.urlToNameMap.put(clusterUrl.toString(), clusterName);
   }
 
-  // Strip out the port number if it is a valid URI
-  private static String normalizeClusterUrl(String clusterIdentifier) {
+  private static List<String> generateUrlMatchCandidates(String clusterIdentifier) {
+    ArrayList<String> candidates = new ArrayList<>();
+    candidates.add(clusterIdentifier);
+
     try {
       URI uri = new URI(clusterIdentifier.trim());
-      // URIs without protocol prefix
-      if (!uri.isOpaque() && null != uri.getHost()) {
-        clusterIdentifier = uri.getHost();
+      if (uri.getHost() != null) {
+        if (uri.getPort() != -1) {
+          candidates.add(uri.getHost() + ":" + uri.getPort());
+        }
+
+        candidates.add(uri.getHost());
       } else {
-        clusterIdentifier = uri.toString().replaceAll("[/:]"," ").trim().replaceAll(" ", "_");
+        candidates.add(clusterIdentifier.replaceAll("[/:]", " ").trim().replaceAll(" ", "_"));
       }
     } catch (URISyntaxException e) {
       //leave ID as is
     }
 
-    return clusterIdentifier;
+    return candidates;
   }
 
   /**

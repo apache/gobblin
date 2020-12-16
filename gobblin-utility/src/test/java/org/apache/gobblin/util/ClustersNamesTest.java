@@ -33,11 +33,19 @@ public class ClustersNamesTest {
                         "cluster2");
     Assert.assertEquals(clustersNames.getClusterName("cluster1-rm.some.company.com"),
                         "cluster1-rm.some.company.com");
-    Assert.assertEquals(clustersNames.getClusterName("http://cluster3-rm.some.company.com:12345"),
-        "cluster3-rm.some.company.com");
+    Assert.assertEquals(clustersNames.getClusterName("http://nonexistent-cluster-rm.some.company.com:12345"),
+        "nonexistent-cluster-rm.some.company.com");
     Assert.assertEquals(clustersNames.getClusterName("file:///"),
         "file");
     Assert.assertEquals(clustersNames.getClusterName("uri:fancy-uri"),
         "uri_fancy-uri");
+    Assert.assertEquals(clustersNames.getClusterName("cluster-host-name-4.some.company.com"),
+        "cluster4");
+    Assert.assertEquals(clustersNames.getClusterName("http://cluster-host-name-4.some.company.com/"),
+        "cluster4");
+    Assert.assertEquals(clustersNames.getClusterName("http://cluster-host-name-4.some.company.com:12345"),
+        "cluster4");
+    Assert.assertEquals(clustersNames.getClusterName("http://cluster-host-name-4.some.company.com:789"),
+        "cluster4-custom-port");
   }
 }
