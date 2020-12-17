@@ -101,6 +101,7 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
   private final ControlMessageHandler controlMessageHandler;
   private boolean isSpeculativeAttemptSafe;
   private boolean isWatermarkCapable;
+  private long cacheExpiryInterval;
 
   private ScheduledExecutorService cacheCleanUpExecutor;
 
@@ -127,7 +128,7 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
     if(builder.schema != null) {
       this.state.setProp(WRITER_LATEST_SCHEMA, builder.getSchema());
     }
-    long cacheExpiryInterval = this.state.getPropAsLong(PARTITIONED_WRITER_CACHE_TTL_SECONDS, DEFAULT_PARTITIONED_WRITER_CACHE_TTL_SECONDS);
+    this.cacheExpiryInterval = this.state.getPropAsLong(PARTITIONED_WRITER_CACHE_TTL_SECONDS, DEFAULT_PARTITIONED_WRITER_CACHE_TTL_SECONDS);
     log.debug("PartitionedDataWriter: Setting cache expiry interval to {} seconds", cacheExpiryInterval);
 
     this.partitionWriters = CacheBuilder.newBuilder()
@@ -235,18 +236,23 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
   @Override
   public void writeEnvelope(RecordEnvelope<D> recordEnvelope) throws IOException {
     try {
-      DataWriter<D> writer = getDataWriterForRecord(recordEnvelope.getRecord());
+      GenericRecord partition = getPartitionForRecord(recordEnvelope.getRecord());
+      DataWriter<D> writer = this.partitionWriters.get(partition);
+      long startTime = System.currentTimeMillis();
       writer.writeEnvelope(recordEnvelope);
+      long timeForWriting = System.currentTimeMillis() - startTime;
+      // If the write take a long time, which is 1/3 of cache expiration time, we manually add the writer back to cache
+      // to avoid data loss caused by cache expiration
+      if (timeForWriting > this.cacheExpiryInterval * 1000 / 3 ) {
+        partitionWriters.put(partition, writer);
+      }
     } catch (ExecutionException ee) {
       throw new IOException(ee);
     }
   }
 
-  private DataWriter<D> getDataWriterForRecord(D record)
-      throws ExecutionException {
-    GenericRecord partition =
-        this.shouldPartition ? this.partitioner.get().partitionForRecord(record) : NON_PARTITIONED_WRITER_KEY;
-    return this.partitionWriters.get(partition);
+  private GenericRecord getPartitionForRecord(D record) {
+     return this.shouldPartition ? this.partitioner.get().partitionForRecord(record) : NON_PARTITIONED_WRITER_KEY;
   }
 
   @Override
