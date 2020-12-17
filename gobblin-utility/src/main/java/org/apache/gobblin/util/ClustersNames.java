@@ -81,6 +81,9 @@ public class ClustersNames {
    * Method first checks config for exact cluster url match. If nothing is found,
    * it will also check host:port and just hostname match.
    * If it still could not find a match, hostname from the url will be returned.
+   *
+   * For incomplete or invalid urls, we'll return a name based on clusterUrl,
+   * that will have only alphanumeric characters, dashes, underscores and dots.
    * */
   public String getClusterName(String clusterUrl) {
     if (null == clusterUrl) {
@@ -110,6 +113,9 @@ public class ClustersNames {
     this.urlToNameMap.put(clusterUrl.toString(), clusterName);
   }
 
+  /**
+   * @see #getClusterName(String) for logic description.
+   */
   private static List<String> generateUrlMatchCandidates(String clusterIdentifier) {
     ArrayList<String> candidates = new ArrayList<>();
     candidates.add(clusterIdentifier);
@@ -121,22 +127,24 @@ public class ClustersNames {
           candidates.add(uri.getHost() + ":" + uri.getPort());
         }
 
+        // we prefer a config entry with 'host:port', but if it's missing
+        // we'll consider just 'host' config entry
         candidates.add(uri.getHost());
       } else if (uri.getScheme() != null && uri.getPath() != null) {
         // we have a scheme and a path, but not the host name
         // assuming local host
         candidates.add("localhost");
       } else {
-        candidates.add(getNormalizedName(clusterIdentifier));
+        candidates.add(getSafeFallbackName(clusterIdentifier));
       }
     } catch (URISyntaxException e) {
-      candidates.add(getNormalizedName(clusterIdentifier));
+      candidates.add(getSafeFallbackName(clusterIdentifier));
     }
 
     return candidates;
   }
 
-  private static String getNormalizedName(String clusterIdentifier) {
+  private static String getSafeFallbackName(String clusterIdentifier) {
     return clusterIdentifier.replaceAll("[^\\w-\\.]", "_");
   }
 
