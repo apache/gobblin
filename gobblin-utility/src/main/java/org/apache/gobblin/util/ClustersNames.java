@@ -122,14 +122,22 @@ public class ClustersNames {
         }
 
         candidates.add(uri.getHost());
+      } else if (uri.getScheme() != null && uri.getPath() != null) {
+        // we have a scheme and a path, but not the host name
+        // assuming local host
+        candidates.add("localhost");
       } else {
-        candidates.add(clusterIdentifier.replaceAll("[/:]", " ").trim().replaceAll(" ", "_"));
+        candidates.add(getNormalizedName(clusterIdentifier));
       }
     } catch (URISyntaxException e) {
-      //leave ID as is
+      candidates.add(getNormalizedName(clusterIdentifier));
     }
 
     return candidates;
+  }
+
+  private static String getNormalizedName(String clusterIdentifier) {
+    return clusterIdentifier.replaceAll("[^\\w-\\.]", "_");
   }
 
   /**

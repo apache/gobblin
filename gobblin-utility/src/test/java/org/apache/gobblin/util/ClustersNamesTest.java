@@ -21,31 +21,60 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 
-/** Unit tests for {@link ClustersNames}. This test relies on the ClustersNames.properties file */
+/**
+ * Unit tests for {@link ClustersNames}. This test relies on the ClustersNames.properties file
+ */
 public class ClustersNamesTest {
-
-  @Test
-  public void testClustersNames() {
     ClustersNames clustersNames = ClustersNames.getInstance();
-    Assert.assertEquals(clustersNames.getClusterName("http://cluster1-rm.some.company.com"),
-                        "cluster1");
-    Assert.assertEquals(clustersNames.getClusterName("http://cluster2-rm.some.company.com:12345"),
-                        "cluster2");
-    Assert.assertEquals(clustersNames.getClusterName("cluster1-rm.some.company.com"),
-                        "cluster1-rm.some.company.com");
-    Assert.assertEquals(clustersNames.getClusterName("http://nonexistent-cluster-rm.some.company.com:12345"),
-        "nonexistent-cluster-rm.some.company.com");
-    Assert.assertEquals(clustersNames.getClusterName("file:///"),
-        "file");
-    Assert.assertEquals(clustersNames.getClusterName("uri:fancy-uri"),
-        "uri_fancy-uri");
-    Assert.assertEquals(clustersNames.getClusterName("cluster-host-name-4.some.company.com"),
-        "cluster4");
-    Assert.assertEquals(clustersNames.getClusterName("http://cluster-host-name-4.some.company.com/"),
-        "cluster4");
-    Assert.assertEquals(clustersNames.getClusterName("http://cluster-host-name-4.some.company.com:12345"),
-        "cluster4");
-    Assert.assertEquals(clustersNames.getClusterName("http://cluster-host-name-4.some.company.com:789"),
-        "cluster4-custom-port");
-  }
+
+    @Test
+    public void testRegisteredUrls() {
+        Assert.assertEquals(clustersNames.getClusterName("http://cluster1-rm.some.company.com"),
+                "cluster1");
+        Assert.assertEquals(clustersNames.getClusterName("http://cluster2-rm.some.company.com:12345"),
+                "cluster2");
+    }
+
+    @Test
+    public void testHostNameWithoutScheme() {
+        Assert.assertEquals(clustersNames.getClusterName("cluster1-rm.some.company.com"),
+                "cluster1-rm.some.company.com");
+        Assert.assertEquals(clustersNames.getClusterName("cluster-host-name-4.some.company.com"),
+                "cluster4");
+    }
+
+    @Test
+    public void testUnregisteredUrl() {
+        Assert.assertEquals(clustersNames.getClusterName("http://nonexistent-cluster-rm.some.company.com:12345"),
+                "nonexistent-cluster-rm.some.company.com");
+    }
+
+    @Test
+    public void testPortSpecificOverrides() {
+        Assert.assertEquals(clustersNames.getClusterName("http://cluster-host-name-4.some.company.com/"),
+                "cluster4");
+        Assert.assertEquals(clustersNames.getClusterName("http://cluster-host-name-4.some.company.com:12345"),
+                "cluster4");
+        Assert.assertEquals(clustersNames.getClusterName("http://cluster-host-name-4.some.company.com:789"),
+                "cluster4-custom-port");
+    }
+
+    @Test
+    public void testLocalPaths() {
+        Assert.assertEquals(clustersNames.getClusterName("file:///"), "localhost");
+        Assert.assertEquals(clustersNames.getClusterName("file:/home/test"), "localhost");
+    }
+
+    @Test
+    public void testEmptyNames() {
+        Assert.assertEquals(clustersNames.getClusterName(""), "");
+        Assert.assertNull(clustersNames.getClusterName((String) null));
+    }
+
+    @Test
+    public void testInvalidUrls() {
+        Assert.assertEquals(clustersNames.getClusterName("uri:fancy-uri"), "uri_fancy-uri");
+        Assert.assertEquals(clustersNames.getClusterName("test/path"), "test_path");
+        Assert.assertEquals(clustersNames.getClusterName("http://host/?s=^test"), "http___host__s__test");
+    }
 }
