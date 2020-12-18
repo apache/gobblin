@@ -241,8 +241,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
           return;
         }
         Schema writerSchema = new Schema.Parser().parse((
-            spec.getTable().getSerDeProps().getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), existingTableSchema.toString())));
-        spec.getTable().getSerDeProps().getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName());
+            spec.getTable().getSerDeProps().getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName())));
         String writerSchemaCreationTime = AvroUtils.getSchemaCreationTime(writerSchema);
         if(existingSchemaCreationTime != null && !existingSchemaCreationTime.equals(writerSchemaCreationTime)) {
           // If creation time of writer schema does not equal to the existing schema, we compare with schema fetched from
