@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.writer;
 
+import com.sun.javafx.binding.StringFormatter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,6 +26,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 
 import org.apache.avro.SchemaBuilder;
@@ -101,7 +103,7 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
   private final ControlMessageHandler controlMessageHandler;
   private boolean isSpeculativeAttemptSafe;
   private boolean isWatermarkCapable;
-  private long cacheExpiryInterval;
+  private long writeTimeoutInterval;
 
   private ScheduledExecutorService cacheCleanUpExecutor;
 
@@ -128,7 +130,8 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
     if(builder.schema != null) {
       this.state.setProp(WRITER_LATEST_SCHEMA, builder.getSchema());
     }
-    this.cacheExpiryInterval = this.state.getPropAsLong(PARTITIONED_WRITER_CACHE_TTL_SECONDS, DEFAULT_PARTITIONED_WRITER_CACHE_TTL_SECONDS);
+    long cacheExpiryInterval = this.state.getPropAsLong(PARTITIONED_WRITER_CACHE_TTL_SECONDS, DEFAULT_PARTITIONED_WRITER_CACHE_TTL_SECONDS);
+    this.writeTimeoutInterval = cacheExpiryInterval * 1000 / 3;
     log.debug("PartitionedDataWriter: Setting cache expiry interval to {} seconds", cacheExpiryInterval);
 
     this.partitionWriters = CacheBuilder.newBuilder()
@@ -241,12 +244,13 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
       long startTime = System.currentTimeMillis();
       writer.writeEnvelope(recordEnvelope);
       long timeForWriting = System.currentTimeMillis() - startTime;
-      // If the write take a long time, which is 1/3 of cache expiration time, we manually add the writer back to cache
-      // to avoid data loss caused by cache expiration
-      if (timeForWriting > this.cacheExpiryInterval * 1000 / 3 ) {
-        partitionWriters.put(partition, writer);
+      // If the write take a long time, which is 1/3 of cache expiration time, we fail the writer to avoid data loss
+      // and further slowness on the same HDFS block
+      if (timeForWriting > this.writeTimeoutInterval ) {
+        throw new TimeoutException(StringFormatter.format("Write record took %s ms, but threshold is %s ms",
+            timeForWriting, writeTimeoutInterval).getValue());
       }
-    } catch (ExecutionException ee) {
+    } catch (ExecutionException | TimeoutException ee) {
       throw new IOException(ee);
     }
   }
