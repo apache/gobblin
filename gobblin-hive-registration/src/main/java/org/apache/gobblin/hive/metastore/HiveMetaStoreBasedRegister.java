@@ -299,7 +299,6 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
           }
         }
         if(shouldUpdateLatestSchema) {
-          updateSchema(spec, table, existingTable);
           updateSchema(spec, table, schemaSourceTable);
         }
         if (needToUpdateTable(existingTable, HiveMetaStoreUtils.getHiveTable(table))) {
