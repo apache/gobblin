@@ -122,7 +122,7 @@ public class StateStoreCleaner implements Closeable {
       }
     }
 
-    ExecutorsUtils.shutdownExecutorService(cleanerRunnerExecutor, Optional.of(LOGGER), 60, TimeUnit.SECONDS);
+    ExecutorsUtils.shutdownExecutorService(cleanerRunnerExecutor, 60, TimeUnit.SECONDS);
   }
 
   @Override

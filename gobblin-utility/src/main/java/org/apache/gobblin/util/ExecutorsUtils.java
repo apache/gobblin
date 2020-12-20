@@ -17,31 +17,23 @@
 
 package org.apache.gobblin.util;
 
-import java.util.List;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-
-import com.google.common.util.concurrent.ListeningScheduledExecutorService;
-import org.apache.gobblin.util.executors.MDCPropagatingCallable;
-import org.apache.gobblin.util.executors.MDCPropagatingRunnable;
-import org.apache.gobblin.util.executors.MDCPropagatingScheduledExecutorService;
-import org.slf4j.Logger;
-
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ListeningExecutorService;
+import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.gobblin.util.executors.MDCPropagatingCallable;
 import org.apache.gobblin.util.executors.MDCPropagatingExecutorService;
+import org.apache.gobblin.util.executors.MDCPropagatingRunnable;
+import org.apache.gobblin.util.executors.MDCPropagatingScheduledExecutorService;
+import org.slf4j.Logger;
+
+import java.util.List;
+import java.util.concurrent.*;
 
 
 /**
@@ -49,6 +41,7 @@ import org.apache.gobblin.util.executors.MDCPropagatingExecutorService;
  *
  * @author Yinan Li
  */
+@Slf4j
 public class ExecutorsUtils {
 
   private static final ThreadFactory DEFAULT_THREAD_FACTORY = newThreadFactory(Optional.<Logger>absent());
@@ -171,20 +164,15 @@ public class ExecutorsUtils {
    * </p>
    *
    * @param executorService the {@link ExecutorService} to shutdown
-   * @param logger an {@link Optional} wrapping the {@link Logger} that is used to log metadata of the executorService
-   *               if it cannot shutdown all its threads
    * @param timeout the maximum time to wait for the {@code ExecutorService} to terminate
    * @param unit the time unit of the timeout argument
    */
-  public static void shutdownExecutorService(ExecutorService executorService, Optional<Logger> logger, long timeout,
+  public static void shutdownExecutorService(ExecutorService executorService, long timeout,
       TimeUnit unit) {
     Preconditions.checkNotNull(unit);
     // Disable new tasks from being submitted
     executorService.shutdown();
-
-    if (logger.isPresent()) {
-      logger.get().info("Attempting to shutdown ExecutorService: " + executorService);
-    }
+    log.info("Attempting to shutdown ExecutorService: " + executorService);
 
     try {
       long halfTimeoutNanos = TimeUnit.NANOSECONDS.convert(timeout, unit) / 2;
@@ -193,16 +181,16 @@ public class ExecutorsUtils {
         // Cancel currently executing tasks
         executorService.shutdownNow();
 
-        if (logger.isPresent()) {
-          logger.get().info("Shutdown un-successful, attempting shutdownNow of ExecutorService: " + executorService);
-        }
+
+        log.info("Shutdown un-successful, attempting shutdownNow of ExecutorService: " + executorService);
+
 
         // Wait the other half of the timeout for tasks to respond to being cancelled
-        if (!executorService.awaitTermination(halfTimeoutNanos, TimeUnit.NANOSECONDS) && logger.isPresent()) {
-          logger.get().error("Could not shutdown all threads in ExecutorService: " + executorService);
+        if (!executorService.awaitTermination(halfTimeoutNanos, TimeUnit.NANOSECONDS)) {
+          log.error("Could not shutdown all threads in ExecutorService: " + executorService);
         }
-      } else if (logger.isPresent()) {
-        logger.get().info("Successfully shutdown ExecutorService: " + executorService);
+      } else  {
+        log.info("Successfully shutdown ExecutorService: " + executorService);
       }
     } catch (InterruptedException ie) {
       // Preserve interrupt status
@@ -210,9 +198,8 @@ public class ExecutorsUtils {
       // (Re-)Cancel if current thread also interrupted
       executorService.shutdownNow();
 
-      if (logger.isPresent()) {
-        logger.get().info("Attempting to shutdownNow ExecutorService: " + executorService);
-      }
+      log.info("Attempting to shutdownNow ExecutorService: " + executorService);
+
     }
   }
 
@@ -227,10 +214,9 @@ public class ExecutorsUtils {
    * </p>
    *
    * @param executorService the {@link ExecutorService} to shutdown
-   * @param logger an {@link Optional} wrapping a {@link Logger} to be used during shutdown
    */
-  public static void shutdownExecutorService(ExecutorService executorService, Optional<Logger> logger) {
-    shutdownExecutorService(executorService, logger, EXECUTOR_SERVICE_SHUTDOWN_TIMEOUT,
+  public static void shutdownExecutorService(ExecutorService executorService) {
+    shutdownExecutorService(executorService, EXECUTOR_SERVICE_SHUTDOWN_TIMEOUT,
         EXECUTOR_SERVICE_SHUTDOWN_TIMEOUT_TIMEUNIT);
   }
 
@@ -290,7 +276,7 @@ public class ExecutorsUtils {
       }));
     }
 
-    ExecutorsUtils.shutdownExecutorService(executorService, logger, timeoutInSecs, TimeUnit.SECONDS);
+    ExecutorsUtils.shutdownExecutorService(executorService, timeoutInSecs, TimeUnit.SECONDS);
 
     for (Future<T> future : futures) {
       try {

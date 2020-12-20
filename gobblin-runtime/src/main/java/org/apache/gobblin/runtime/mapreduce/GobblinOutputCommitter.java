@@ -17,12 +17,16 @@
 
 package org.apache.gobblin.runtime.mapreduce;
 
-import java.io.DataInputStream;
-import java.io.IOException;
-import java.net.URI;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
+import com.google.common.io.Closer;
+import lombok.Getter;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.runtime.AbstractJobLauncher;
+import org.apache.gobblin.runtime.GobblinMultiTaskAttempt;
+import org.apache.gobblin.runtime.listeners.JobListener;
+import org.apache.gobblin.source.workunit.MultiWorkUnit;
+import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.util.JobLauncherUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -32,22 +36,14 @@ import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.JobStatus;
 import org.apache.hadoop.mapreduce.OutputCommitter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.io.Closer;
-
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.configuration.WorkUnitState;
-import org.apache.gobblin.runtime.AbstractJobLauncher;
-import org.apache.gobblin.runtime.GobblinMultiTaskAttempt;
-import org.apache.gobblin.runtime.listeners.JobListener;
-import org.apache.gobblin.source.workunit.MultiWorkUnit;
-import org.apache.gobblin.source.workunit.WorkUnit;
-import org.apache.gobblin.util.JobLauncherUtils;
-
-import lombok.Getter;
+import java.io.DataInputStream;
+import java.io.IOException;
+import java.net.URI;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 
 /**
@@ -97,7 +93,7 @@ public class GobblinOutputCommitter extends OutputCommitter {
           } finally {
             workUnitFileCloser.close();
           }
-          JobLauncherUtils.cleanTaskStagingData(new WorkUnitState(wu), LOG);
+          JobLauncherUtils.cleanTaskStagingData(new WorkUnitState(wu));
         }
 
         // If the file ends with ".mwu" de-serialize it into a MultiWorkUnit
@@ -109,7 +105,7 @@ public class GobblinOutputCommitter extends OutputCommitter {
             workUnitFileCloser.close();
           }
           for (WorkUnit wu : mwu.getWorkUnits()) {
-            JobLauncherUtils.cleanTaskStagingData(new WorkUnitState(wu), LOG);
+            JobLauncherUtils.cleanTaskStagingData(new WorkUnitState(wu));
           }
         }
       }

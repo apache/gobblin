@@ -17,34 +17,27 @@
 
 package org.apache.gobblin.util;
 
-import java.io.IOException;
-import java.net.URI;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-
-import lombok.extern.slf4j.Slf4j;
-
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.slf4j.Logger;
-
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
-
+import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.source.workunit.MultiWorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.slf4j.Logger;
+
+import java.io.IOException;
+import java.net.URI;
+import java.util.*;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 
 
 /**
@@ -115,13 +108,13 @@ public class JobLauncherUtils {
 
   /**
    * Cleanup the staging data for a list of Gobblin tasks. This method calls the
-   * {@link #cleanTaskStagingData(State, Logger)} method.
+   * {@link #cleanTaskStagingData(State)} method.
    *
    * @param states a {@link List} of {@link State}s that need their staging data cleaned
    */
-  public static void cleanStagingData(List<? extends State> states, Logger logger) throws IOException {
+  public static void cleanStagingData(List<? extends State> states) throws IOException {
     for (State state : states) {
-      JobLauncherUtils.cleanTaskStagingData(state, logger);
+      JobLauncherUtils.cleanTaskStagingData(state);
     }
   }
 
@@ -129,9 +122,8 @@ public class JobLauncherUtils {
    * Cleanup staging data of all tasks of a job.
    *
    * @param state a {@link State} instance storing job configuration properties
-   * @param logger a {@link Logger} used for logging
    */
-  public static void cleanJobStagingData(State state, Logger logger) throws IOException {
+  public static void cleanJobStagingData(State state) throws IOException {
     Preconditions.checkArgument(state.contains(ConfigurationKeys.WRITER_STAGING_DIR),
         "Missing required property " + ConfigurationKeys.WRITER_STAGING_DIR);
     Preconditions.checkArgument(state.contains(ConfigurationKeys.WRITER_OUTPUT_DIR),
@@ -141,20 +133,20 @@ public class JobLauncherUtils {
     FileSystem fs = getFsWithProxy(state, writerFsUri, WriterUtils.getFsConfiguration(state));
 
     Path jobStagingPath = new Path(state.getProp(ConfigurationKeys.WRITER_STAGING_DIR));
-    logger.info("Cleaning up staging directory " + jobStagingPath);
+    log.info("Cleaning up staging directory " + jobStagingPath);
     HadoopUtils.deletePath(fs, jobStagingPath, true);
 
     if (fs.exists(jobStagingPath.getParent()) && fs.listStatus(jobStagingPath.getParent()).length == 0) {
-      logger.info("Deleting directory " + jobStagingPath.getParent());
+      log.info("Deleting directory " + jobStagingPath.getParent());
       HadoopUtils.deletePath(fs, jobStagingPath.getParent(), true);
     }
 
     Path jobOutputPath = new Path(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR));
-    logger.info("Cleaning up output directory " + jobOutputPath);
+    log.info("Cleaning up output directory " + jobOutputPath);
     HadoopUtils.deletePath(fs, jobOutputPath, true);
 
     if (fs.exists(jobOutputPath.getParent()) && fs.listStatus(jobOutputPath.getParent()).length == 0) {
-      logger.info("Deleting directory " + jobOutputPath.getParent());
+      log.info("Deleting directory " + jobOutputPath.getParent());
       HadoopUtils.deletePath(fs, jobOutputPath.getParent(), true);
     }
 
@@ -171,9 +163,8 @@ public class JobLauncherUtils {
    * Cleanup staging data of a Gobblin task.
    *
    * @param state a {@link State} instance storing task configuration properties
-   * @param logger a {@link Logger} used for logging
    */
-  public static void cleanTaskStagingData(State state, Logger logger) throws IOException {
+  public static void cleanTaskStagingData(State state) throws IOException {
     int numBranches = state.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
 
     for (int branchId = 0; branchId < numBranches; branchId++) {
@@ -184,7 +175,7 @@ public class JobLauncherUtils {
 
       Path stagingPath = WriterUtils.getWriterStagingDir(state, numBranches, branchId);
       if (fs.exists(stagingPath)) {
-        logger.info("Cleaning up staging directory " + stagingPath.toUri().getPath());
+        log.info("Cleaning up staging directory " + stagingPath.toUri().getPath());
         if (!fs.delete(stagingPath, true)) {
           throw new IOException("Clean up staging directory " + stagingPath.toUri().getPath() + " failed");
         }
@@ -192,7 +183,7 @@ public class JobLauncherUtils {
 
       Path outputPath = WriterUtils.getWriterOutputDir(state, numBranches, branchId);
       if (fs.exists(outputPath)) {
-        logger.info("Cleaning up output directory " + outputPath.toUri().getPath());
+        log.info("Cleaning up output directory " + outputPath.toUri().getPath());
         if (!fs.delete(outputPath, true)) {
           throw new IOException("Clean up output directory " + outputPath.toUri().getPath() + " failed");
         }
@@ -238,7 +229,7 @@ public class JobLauncherUtils {
     }
   }
 
-  public static void cleanUpOldJobData(State state, Logger logger, boolean stagingDirProvided, boolean outputDirProvided) throws IOException {
+  public static void cleanUpOldJobData(State state, boolean stagingDirProvided, boolean outputDirProvided) throws IOException {
     Set<Path> jobPaths = new HashSet<>();
     String writerFsUri = state.getProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, ConfigurationKeys.LOCAL_FS_URI);
     FileSystem fs = FileSystem.get(URI.create(writerFsUri), WriterUtils.getFsConfiguration(state));
@@ -257,7 +248,7 @@ public class JobLauncherUtils {
     }
     jobPaths.add(jobPath);
     for (Path jobPathToDelete : jobPaths) {
-      logger.info("Cleaning up old job directory " + jobPathToDelete);
+      log.info("Cleaning up old job directory " + jobPathToDelete);
       HadoopUtils.deletePath(fs, jobPathToDelete, true);
     }
   }

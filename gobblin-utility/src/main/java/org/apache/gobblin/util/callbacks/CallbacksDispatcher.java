@@ -16,30 +16,19 @@
  */
 package org.apache.gobblin.util.callbacks;
 
-import java.io.Closeable;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.IdentityHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.WeakHashMap;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-
-import org.apache.gobblin.util.ExecutorsUtils;
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import org.apache.gobblin.util.ExecutorsUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.Closeable;
+import java.io.IOException;
+import java.util.*;
+import java.util.concurrent.*;
 
 /**
  * A helper to dispatch callbacks to a set of listeners. The CallbacksDispatcher is responsible for
@@ -89,7 +78,7 @@ public class CallbacksDispatcher<L> implements Closeable {
   @Override
   public void close()
       throws IOException {
-    ExecutorsUtils.shutdownExecutorService(_execService, Optional.of(_log), 5, TimeUnit.SECONDS);
+    ExecutorsUtils.shutdownExecutorService(_execService, 5, TimeUnit.SECONDS);
   }
 
   public synchronized List<L> getListeners() {

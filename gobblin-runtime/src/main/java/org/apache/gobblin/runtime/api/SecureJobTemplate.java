@@ -17,26 +17,29 @@
 
 package org.apache.gobblin.runtime.api;
 
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.Collection;
 import java.util.Map;
 import java.util.stream.Collectors;
-
-import org.slf4j.Logger;
-
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
 
 
 /**
  * A secure template is a {@link JobTemplate} which only allows the user configuration to specify a static set of
  * keys. This allows most of the template to be non overridable to tightly control how a job executes.
  */
+
 public interface SecureJobTemplate extends JobTemplate {
+
+	Logger logger = LoggerFactory.getLogger(SecureJobTemplate.class);
 
 	/**
 	 * Filter the user config to only preserve the keys allowed by a secure template.
 	 */
-	static Config filterUserConfig(SecureJobTemplate template, Config userConfig, Logger logger) {
+	static Config filterUserConfig(SecureJobTemplate template, Config userConfig) {
 		if (!template.isSecure()) {
 			return userConfig;
 		}

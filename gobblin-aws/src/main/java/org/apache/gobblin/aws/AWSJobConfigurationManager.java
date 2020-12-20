@@ -242,7 +242,7 @@ public class AWSJobConfigurationManager extends JobConfigurationManager {
 
   @Override
   protected void shutDown() throws Exception {
-    GobblinAWSUtils.shutdownExecutorService(this.getClass(), this.fetchJobConfExecutor, LOGGER);
+    GobblinAWSUtils.shutdownExecutorService(this.getClass(), this.fetchJobConfExecutor);
   }
 
   private Optional<JobArchiveRetriever> getJobArchiveRetriever(Config config) {

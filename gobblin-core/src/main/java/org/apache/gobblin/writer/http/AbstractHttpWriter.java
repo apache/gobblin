@@ -101,7 +101,7 @@ public abstract class AbstractHttpWriter<D> extends InstrumentedDataWriter<D> im
   @Override
   public void cleanup() throws IOException {
     this.client.close();
-    ExecutorsUtils.shutdownExecutorService(this.singleThreadPool, Optional.of(log));
+    ExecutorsUtils.shutdownExecutorService(this.singleThreadPool);
   }
 
   /**

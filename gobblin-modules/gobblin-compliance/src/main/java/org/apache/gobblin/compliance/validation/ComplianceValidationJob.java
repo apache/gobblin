@@ -127,7 +127,7 @@ public class ComplianceValidationJob extends ComplianceJob {
       Thread.currentThread().interrupt();
       throw new IOException("Not all datasets finish validation job", e);
     } finally {
-      ExecutorsUtils.shutdownExecutorService(this.service, Optional.of(log));
+      ExecutorsUtils.shutdownExecutorService(this.service);
       this.closer.close();
     }
   }

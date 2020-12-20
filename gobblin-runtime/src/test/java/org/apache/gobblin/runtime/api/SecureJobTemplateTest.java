@@ -17,18 +17,16 @@
 
 package org.apache.gobblin.runtime.api;
 
-import java.net.URI;
-
-import org.mockito.Mockito;
-import org.testng.Assert;
-import org.testng.annotations.Test;
-
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-
 import lombok.extern.slf4j.Slf4j;
+import org.mockito.Mockito;
+import org.testng.Assert;
+import org.testng.annotations.Test;
+
+import java.net.URI;
 
 
 @Slf4j
@@ -47,7 +45,7 @@ public class SecureJobTemplateTest {
 				"someProperty", "foo",
 				"my.overridable.property1", "bar"
 		));
-		Config result = SecureJobTemplate.filterUserConfig(template, config, log);
+		Config result = SecureJobTemplate.filterUserConfig(template, config);
 		Assert.assertEquals(result.entrySet().size(), 1);
 		Assert.assertEquals(result.getString("my.overridable.property1"), "bar");
 		Assert.assertFalse(result.hasPath("someProperty"));
@@ -59,7 +57,7 @@ public class SecureJobTemplateTest {
 				"my.overridable.property1.key1", "bar",
 				"my.overridable.property1.key2", "baz"
 		));
-		result = SecureJobTemplate.filterUserConfig(template, config, log);
+		result = SecureJobTemplate.filterUserConfig(template, config);
 		Assert.assertEquals(result.entrySet().size(), 2);
 		Assert.assertEquals(result.getString("my.overridable.property1.key1"), "bar");
 		Assert.assertEquals(result.getString("my.overridable.property1.key2"), "baz");
@@ -70,7 +68,7 @@ public class SecureJobTemplateTest {
 				"my.overridable.property1", "bar",
 				"my.overridable.property2", "baz"
 		));
-		result = SecureJobTemplate.filterUserConfig(template, config, log);
+		result = SecureJobTemplate.filterUserConfig(template, config);
 		Assert.assertEquals(result.entrySet().size(), 2);
 		Assert.assertEquals(result.getString("my.overridable.property1"), "bar");
 		Assert.assertEquals(result.getString("my.overridable.property2"), "baz");

@@ -172,7 +172,7 @@ public class JobListeners {
           throw exception;
         }
       } finally {
-        ExecutorsUtils.shutdownExecutorService(this.executor, Optional.of(LOGGER));
+        ExecutorsUtils.shutdownExecutorService(this.executor);
         closeJobListeners();
       }
     }

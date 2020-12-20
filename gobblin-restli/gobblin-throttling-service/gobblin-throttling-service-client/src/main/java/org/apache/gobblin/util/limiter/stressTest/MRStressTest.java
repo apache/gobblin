@@ -183,7 +183,7 @@ public class MRStressTest {
         limiter.stop();
 
         future.cancel(false);
-        ExecutorsUtils.shutdownExecutorService(executor, Optional.<Logger>absent(), 10, TimeUnit.SECONDS);
+        ExecutorsUtils.shutdownExecutorService(executor, 10, TimeUnit.SECONDS);
       } catch (ReflectiveOperationException roe) {
         throw new IOException(roe);
       }

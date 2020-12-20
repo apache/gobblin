@@ -16,18 +16,10 @@
  */
 package org.apache.gobblin.runtime.instance;
 
-import java.net.URI;
-import java.util.Collections;
-import java.util.List;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.AbstractIdleService;
-
 import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import org.apache.gobblin.broker.iface.SharedResourcesBroker;
 import org.apache.gobblin.instrumented.Instrumented;
@@ -35,26 +27,20 @@ import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.runtime.JobState.RunningState;
-import org.apache.gobblin.runtime.api.Configurable;
-import org.apache.gobblin.runtime.api.ExecutionResult;
-import org.apache.gobblin.runtime.api.GobblinInstanceDriver;
+import org.apache.gobblin.runtime.api.*;
 import org.apache.gobblin.runtime.api.GobblinInstanceLauncher.ConfigAccessor;
-import org.apache.gobblin.runtime.api.JobCatalog;
-import org.apache.gobblin.runtime.api.JobExecutionDriver;
-import org.apache.gobblin.runtime.api.JobExecutionLauncher;
-import org.apache.gobblin.runtime.api.JobExecutionMonitor;
-import org.apache.gobblin.runtime.api.JobExecutionState;
-import org.apache.gobblin.runtime.api.JobLifecycleListener;
-import org.apache.gobblin.runtime.api.JobSpec;
-import org.apache.gobblin.runtime.api.JobSpecMonitorFactory;
-import org.apache.gobblin.runtime.api.JobSpecScheduler;
-import org.apache.gobblin.runtime.api.MutableJobCatalog;
 import org.apache.gobblin.runtime.job_exec.JobLauncherExecutionDriver;
 import org.apache.gobblin.runtime.job_spec.ResolvedJobSpec;
 import org.apache.gobblin.runtime.std.DefaultJobCatalogListenerImpl;
 import org.apache.gobblin.runtime.std.DefaultJobExecutionStateListenerImpl;
 import org.apache.gobblin.runtime.std.JobLifecycleListenersList;
 import org.apache.gobblin.util.ExecutorsUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.net.URI;
+import java.util.Collections;
+import java.util.List;
 
 
 /**
@@ -94,7 +80,7 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
 
     _instanceName = instanceName;
     _log = log.or(LoggerFactory.getLogger(getClass()));
-    _metricCtx = baseMetricContext.or(constructMetricContext(sysConfig, _log));
+    _metricCtx = baseMetricContext.or(constructMetricContext(sysConfig));
     _instrumentationEnabled = null != _metricCtx && GobblinMetrics.isEnabled(sysConfig.getConfig());
     _jobCatalog = jobCatalog;
     _jobScheduler = jobScheduler;
@@ -107,7 +93,7 @@ public class DefaultGobblinInstanceDriverImpl extends AbstractIdleService
     _metrics = new StandardMetrics(this);
   }
 
-  private MetricContext constructMetricContext(Configurable sysConfig, Logger log) {
+  private MetricContext constructMetricContext(Configurable sysConfig) {
     org.apache.gobblin.configuration.State tmpState = new org.apache.gobblin.configuration.State(sysConfig.getConfigAsProperties());
     return GobblinMetrics.isEnabled(sysConfig.getConfig()) ?
           Instrumented.getMetricContext(tmpState, getClass())

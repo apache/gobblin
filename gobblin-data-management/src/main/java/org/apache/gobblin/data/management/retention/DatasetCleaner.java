@@ -191,7 +191,7 @@ public class DatasetCleaner implements Instrumentable, Closeable {
       Thread.currentThread().interrupt();
       throw new IOException("Not all datasets finish cleanning", e);
     } finally {
-      ExecutorsUtils.shutdownExecutorService(this.service, Optional.of(LOG));
+      ExecutorsUtils.shutdownExecutorService(this.service);
       this.closer.close();
     }
   }

@@ -178,7 +178,7 @@ public class ComplianceRetentionJob extends ComplianceJob {
       Thread.currentThread().interrupt();
       throw new IOException("Not all datasets finish retention", e);
     } finally {
-      ExecutorsUtils.shutdownExecutorService(this.service, Optional.of(log));
+      ExecutorsUtils.shutdownExecutorService(this.service);
       this.closer.close();
     }
   }

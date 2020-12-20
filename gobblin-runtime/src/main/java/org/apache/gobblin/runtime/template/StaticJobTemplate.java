@@ -17,29 +17,20 @@
 
 package org.apache.gobblin.runtime.template;
 
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.typesafe.config.Config;
-
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.JobCatalogWithTemplates;
 import org.apache.gobblin.runtime.api.JobTemplate;
 import org.apache.gobblin.runtime.api.SecureJobTemplate;
-import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.util.ConfigUtils;
 
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.*;
 
 
 /**
@@ -122,7 +113,7 @@ public class StaticJobTemplate extends InheritingJobTemplate implements SecureJo
 
   @Override
   protected Config getLocallyResolvedConfig(Config userConfig) {
-    Config filteredUserConfig = SecureJobTemplate.filterUserConfig(this, userConfig, log);
+    Config filteredUserConfig = SecureJobTemplate.filterUserConfig(this, userConfig);
     return filteredUserConfig.withFallback(this.rawConfig);
   }
 

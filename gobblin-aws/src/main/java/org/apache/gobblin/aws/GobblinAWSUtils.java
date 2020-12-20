@@ -17,21 +17,19 @@
 
 package org.apache.gobblin.aws;
 
-import java.io.File;
-import java.util.List;
-import java.util.concurrent.ExecutorService;
-
-import java.util.concurrent.TimeUnit;
+import com.google.common.base.Joiner;
+import com.google.common.base.Preconditions;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.io.filefilter.FileFileFilter;
 import org.apache.commons.lang.StringUtils;
-import org.quartz.utils.FindbugsSuppressWarnings;
-import org.slf4j.Logger;
-
-import com.google.common.base.Joiner;
-import com.google.common.base.Preconditions;
-
 import org.apache.gobblin.annotation.Alpha;
+import org.quartz.utils.FindbugsSuppressWarnings;
+
+import java.io.File;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 
 
 /**
@@ -40,6 +38,7 @@ import org.apache.gobblin.annotation.Alpha;
  * @author Abhishek Tiwari
  */
 @Alpha
+@Slf4j
 public class GobblinAWSUtils {
   private static final long DEFAULT_EXECUTOR_SERVICE_SHUTDOWN_TIME_IN_MINUTES = 2;
 
@@ -120,16 +119,15 @@ public class GobblinAWSUtils {
    * interrupted, whichever happens first.
    * @param clazz {@link Class} that invokes shutdown on the {@link ExecutorService}.
    * @param executorService {@link ExecutorService} to shutdown.
-   * @param logger {@link Logger} to log shutdown for invoking class.
    * @throws InterruptedException if shutdown is interrupted.
    */
   public static void shutdownExecutorService(Class clazz,
-      ExecutorService executorService, Logger logger) throws InterruptedException{
+      ExecutorService executorService) throws InterruptedException{
     executorService.shutdown();
     if (!executorService.awaitTermination(DEFAULT_EXECUTOR_SERVICE_SHUTDOWN_TIME_IN_MINUTES, TimeUnit.MINUTES)) {
-      logger.warn("Executor service shutdown timed out.");
+      log.warn("Executor service shutdown timed out.");
       List<Runnable> pendingTasks = executorService.shutdownNow();
-      logger.warn(String
+      log.warn(String
           .format("%s was shutdown instantly. %s tasks were not executed: %s", clazz.getName(), pendingTasks.size(),
               StringUtils.join(pendingTasks, ",")));
     }

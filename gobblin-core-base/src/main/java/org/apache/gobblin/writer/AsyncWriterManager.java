@@ -418,7 +418,7 @@ public class AsyncWriterManager<D> implements WatermarkAwareWriter<D>, DataWrite
     this.closer.close();
     if (this.retryThreadPool.isPresent()) {
       // Shutdown the retry thread pool immediately, no use waiting for in-progress retries
-      ExecutorsUtils.shutdownExecutorService(this.retryThreadPool.get(), Optional.of(log), 1, TimeUnit.MILLISECONDS);
+      ExecutorsUtils.shutdownExecutorService(this.retryThreadPool.get(), 1, TimeUnit.MILLISECONDS);
     }
     log.info("Successfully done closing");
   }
