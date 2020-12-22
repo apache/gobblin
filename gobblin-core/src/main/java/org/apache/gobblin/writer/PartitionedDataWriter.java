@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.writer;
 
-import com.sun.javafx.binding.StringFormatter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -26,7 +25,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 
 import org.apache.avro.SchemaBuilder;
@@ -131,7 +129,7 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
       this.state.setProp(WRITER_LATEST_SCHEMA, builder.getSchema());
     }
     long cacheExpiryInterval = this.state.getPropAsLong(PARTITIONED_WRITER_CACHE_TTL_SECONDS, DEFAULT_PARTITIONED_WRITER_CACHE_TTL_SECONDS);
-    this.writeTimeoutInterval = cacheExpiryInterval * 1000 / 3;
+    this.writeTimeoutInterval = cacheExpiryInterval / 3;
     log.debug("PartitionedDataWriter: Setting cache expiry interval to {} seconds", cacheExpiryInterval);
 
     this.partitionWriters = CacheBuilder.newBuilder()
@@ -246,11 +244,11 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
       long timeForWriting = System.currentTimeMillis() - startTime;
       // If the write take a long time, which is 1/3 of cache expiration time, we fail the writer to avoid data loss
       // and further slowness on the same HDFS block
-      if (timeForWriting > this.writeTimeoutInterval ) {
-        throw new TimeoutException(StringFormatter.format("Write record took %s ms, but threshold is %s ms",
-            timeForWriting, writeTimeoutInterval).getValue());
+      if (timeForWriting / 1000 > this.writeTimeoutInterval ) {
+        throw new IOException(String.format("Write record took %s s, but threshold is %s s",
+            timeForWriting / 1000, writeTimeoutInterval));
       }
-    } catch (ExecutionException | TimeoutException ee) {
+    } catch (ExecutionException ee) {
       throw new IOException(ee);
     }
   }
