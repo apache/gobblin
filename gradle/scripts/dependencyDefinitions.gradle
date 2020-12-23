@@ -78,6 +78,7 @@ ext.externalDependency = [
     "icebergAPI": "org.apache.iceberg:iceberg-api:" + "0.10.0",
     "icebergCore": "org.apache.iceberg:iceberg-core:" + "0.10.0",
     "icebergORC": "org.apache.iceberg:iceberg-orc:" + "0.10.0",
+    "icebergHive": "org.apache.iceberg:iceberg-hive-runtime:" + "0.10.0",
     "jgit": "org.eclipse.jgit:org.eclipse.jgit:5.1.1.201809181055-r",
     "jmh": "org.openjdk.jmh:jmh-core:1.17.3",
     "jmhAnnotations": "org.openjdk.jmh:jmh-generator-annprocess:1.17.3",

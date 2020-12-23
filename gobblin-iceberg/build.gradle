@@ -35,11 +35,7 @@ dependencies {
 
     compile externalDependency.hiveMetastore
     compile externalDependency.hiveSerDe
-    compile externalDependency.icebergAPI
-    compile (externalDependency.icebergORC) {
-        exclude group:'org.apache.avro', module:'avro'
-    }
-    compile (externalDependency.icebergCore) {
+    compile (externalDependency.icebergHive) {
         exclude group:'org.apache.avro', module:'avro'
     }
     compile externalDependency.avro
@@ -51,6 +47,10 @@ dependencies {
     compile externalDependency.findBugsAnnotations
     compile externalDependency.avroMapredH2
 
+    testCompile(group: 'org.apache.iceberg', name: 'iceberg-hive-metastore', version: '0.10.0', classifier: 'tests') {
+        transitive = false
+    }
+    testCompile project(path: ':gobblin-modules:gobblin-kafka-common', configuration: 'tests')
     testCompile externalDependency.testng
     testCompile externalDependency.mockito
 }

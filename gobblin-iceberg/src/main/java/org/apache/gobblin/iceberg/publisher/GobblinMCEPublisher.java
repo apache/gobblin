@@ -135,8 +135,8 @@ public class GobblinMCEPublisher extends DataPublisher {
     if (writerSchema == null) {
       return null;
     }
-    org.apache.avro.Schema avroSchema =
-        new org.apache.avro.Schema.Parser().parse(writerSchema);
+    org.apache.iceberg.shaded.org.apache.avro.Schema avroSchema =
+        new org.apache.iceberg.shaded.org.apache.avro.Schema.Parser().parse(writerSchema);
     Schema icebergSchema = AvroSchemaUtil.toIceberg(avroSchema);
     //This convert is to make sure the schema has the iceberg id setup
     state.setProp(AVRO_SCHEMA_WITH_ICEBERG_ID, AvroSchemaUtil.convert(icebergSchema.asStruct()).toString());
