@@ -159,7 +159,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
   private final ParallelRunner parallelRunner;
   private final boolean useDataLoacationAsTableLocation;
 
-  IcebergMetadataWriter(State state) throws IOException {
+  public IcebergMetadataWriter(State state) throws IOException {
     this.schemaRegistry = KafkaSchemaRegistry.get(state.getProperties());
     conf = HadoopUtils.getConfFromState(state);
     initializeCatalog();

@@ -98,7 +98,7 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
     oldSpecsMaps = new HashMap<>();
     metadataWriters = new ArrayList<>();
     state = properties;
-    for (String className : state.getPropAsList(GMCE_METADATA_WRITER_CLASSES)) {
+    for (String className : state.getPropAsList(GMCE_METADATA_WRITER_CLASSES, IcebergMetadataWriter.class.getName())) {
       metadataWriters.add(closer.register(GobblinConstructorUtils.invokeConstructor(MetadataWriter.class, className, state)));
     }
     tableOperationTypeMap = new HashMap<>();

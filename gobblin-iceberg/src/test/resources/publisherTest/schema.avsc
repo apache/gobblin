@@ -1,5 +1,5 @@
 {
-  "namespace": "com.linkedin.orc",
+  "namespace": "org.apache.gobblin.orc",
   "type": "record",
   "name": "ORCTest",
   "fields": [

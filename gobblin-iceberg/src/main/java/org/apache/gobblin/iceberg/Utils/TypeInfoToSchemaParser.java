@@ -40,9 +40,7 @@ import org.codehaus.jackson.node.JsonNodeFactory;
 import org.codehaus.jackson.node.NullNode;
 
 
-/**
- * Copy this class from dali since it's a private calss in dali and also help to reduce the dependency
- */
+
 public final class TypeInfoToSchemaParser {
   private static final String DECIMAL_TYPE_NAME = "decimal";
   private static final String CHAR_TYPE_NAME = "char";

@@ -18,11 +18,8 @@
 package org.apache.gobblin.iceberg;
 
 import azkaban.jobExecutor.AbstractJob;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -46,7 +43,6 @@ import org.apache.gobblin.metadata.IntegerLongPair;
 import org.apache.gobblin.metadata.OperationType;
 import org.apache.gobblin.metadata.SchemaSource;
 import org.apache.gobblin.metrics.MetricContext;
-import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.util.ClustersNames;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.apache.gobblin.writer.PartitionedDataWriter;
@@ -57,7 +53,9 @@ import org.apache.iceberg.Metrics;
 
 
 /**
- * A class for emitting GobblinMCE
+ * A class for emitting GobblinMCE (Gobblin Metadata Change Event that includes the information of the file metadata change,
+ * i.e., add or delete file, and the column min/max value of the added file.
+ * GMCE will be consumed by metadata pipeline to register/de-register hive/iceberg metadata)
  */
 @Slf4j
 public abstract class GobblinMCEProducer<D> implements Closeable {
@@ -66,10 +64,7 @@ public abstract class GobblinMCEProducer<D> implements Closeable {
   public static final String OLD_FILES_HIVE_REGISTRATION_KEY = "old.files.hive.registration.policy";
   public static final String FORMAT_KEY = "writer.output.format";
   public static final String DATASET_DIR = "dataset.dir";
-  public static final String GMCE_TOPIC_NAME = "GobblinMetadataChangeEvent.topic.name";
   public static final String HIVE_PARTITION_NAME = "hive.partition.name";
-  private static final String DEFAULT_GMCE_TOPIC_NAME = "GobblinMetadataChangeEvent";
-  private static final String METRICS_NAMESPACE_GMCE_PRODUCER = "GobblinMCE.producer";
   private static final String HDFS_PLATFORM_URN = "urn:li:dataPlatform:hdfs";
   private static final String DATASET_ORIGIN_KEY = "dataset.origin";
   private static final String DEFAULT_DATASET_ORIGIN = "PROD";
@@ -77,30 +72,12 @@ public abstract class GobblinMCEProducer<D> implements Closeable {
   @Setter
   private State state;
   private MetricContext metricContext;
-  private EventSubmitter eventSubmitter;
-  private final D producer;
-  private final String topicName;
-
-  private static final Config DEFAULT_FALLBACK = ConfigFactory.parseMap(
-      ImmutableMap.<String, Object>builder().put("retries", 30)
-          .put("largeMessageEnabled", false)
-          .put("requestRequiredAcks", "all")
-          .build());
 
   public GobblinMCEProducer(State state) {
     this.state = state;
-    this.producer = getProducer();
-    this.topicName = state.getProp(GMCE_TOPIC_NAME, DEFAULT_GMCE_TOPIC_NAME);
     this.metricContext = Instrumented.getMetricContext(state, this.getClass());
-    this.eventSubmitter = new EventSubmitter.Builder(this.metricContext, METRICS_NAMESPACE_GMCE_PRODUCER).build();
   }
 
-  /**
-   * This method is used to get the producer to send out GMCE, the implementation need to make sure the producer
-   * is at-least once in-order delivery
-   * @return a at-least once in-order delivery producer (i.e. kafka producer)
-   */
-  protected abstract D getProducer();
 
   /**
    * This method will use the files to compute the table name and dataset name, for each table it will generate one GMCE and send that to kafka so
@@ -119,7 +96,8 @@ public abstract class GobblinMCEProducer<D> implements Closeable {
   }
 
   /**
-   * Use the producer to send GMCE
+   * Use the producer to send GMCE, the implementation need to make sure the emitting is at-least once in-order delivery
+   * (i.e. use kafka producer to send event and config it to be at-least once delivery)
    * @param gmce GMCE that contains information of the metadata change
    */
   public abstract void underlyingSendGMCE(GobblinMetadataChangeEvent gmce);

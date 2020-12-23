@@ -52,7 +52,7 @@ public class HiveSnapshotRegistrationPolicy extends HiveRegistrationPolicyBase {
 
   protected final Optional<Pattern> snapshotPathPattern;
 
-  public HiveSnapshotRegistrationPolicy(State props) throws IOException {
+  protected HiveSnapshotRegistrationPolicy(State props) throws IOException {
     super(props);
     this.snapshotPathPattern = props.contains(SNAPSHOT_PATH_PATTERN)
         ? Optional.of(Pattern.compile(props.getProp(SNAPSHOT_PATH_PATTERN))) : Optional.<Pattern> absent();

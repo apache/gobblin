@@ -55,7 +55,7 @@ public class IcebergUtils {
   private static final String AVRO_SCHEMA_URL = "avro.schema.url";
   private static final String AVRO_SCHEMA_LITERAL = "avro.schema.literal";
   private static final String[] RESTRICTED_PROPERTIES =
-      new String[]{AVRO_SCHEMA_URL, AVRO_SCHEMA_LITERAL, "dali.row.schema"};
+      new String[]{AVRO_SCHEMA_URL, AVRO_SCHEMA_LITERAL};
 
   private IcebergUtils() {
   }
