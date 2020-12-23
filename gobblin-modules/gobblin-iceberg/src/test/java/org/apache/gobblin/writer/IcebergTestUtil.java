@@ -90,21 +90,7 @@ public class IcebergTestUtil {
 
   public static List<org.apache.avro.generic.GenericRecord> genericAvroRecords() throws IOException {
     List<org.apache.avro.generic.GenericRecord> list = new ArrayList<>();
-    org.apache.avro.Schema avroSchema = (new org.apache.avro.Schema.Parser()).parse("{\n" +
-        "  \"namespace\": \"com.linkedin.orc\",\n" +
-        "  \"type\": \"record\",\n" +
-        "  \"name\": \"IcebergTest\",\n" +
-        "  \"fields\": [\n" +
-        "    {\n" +
-        "      \"name\": \"id\",\n" +
-        "      \"type\": \"int\"\n" +
-        "    },\n" +
-        "    {\n" +
-        "      \"name\": \"data\",\n" +
-        "      \"type\": \"string\"\n" +
-        "    }\n" +
-        "  ]\n" +
-        "}\n");
+    org.apache.avro.Schema avroSchema = generateAvroSchema();
 
     GenericRecordBuilder builder_0 = new GenericRecordBuilder(avroSchema);
     builder_0.set("id", 1);

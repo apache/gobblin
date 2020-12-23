@@ -41,6 +41,7 @@ import java.util.Map;
 public class IcebergWriter<D> extends FsDataWriter<D>{
 
     private final TaskWriter<D> writer;
+    private long recordCount = 0;
 
     public IcebergWriter(IcebergDataWriterBuilder builder, State properties)
             throws IOException {
@@ -55,13 +56,14 @@ public class IcebergWriter<D> extends FsDataWriter<D>{
 
     @Override
     public long recordsWritten() {
-        return 0;
+        return this.recordCount;
     }
 
     @Override
     public void write(D record)
             throws IOException {
         this.writer.write(record);
+        this.recordCount++;
     }
 
 }

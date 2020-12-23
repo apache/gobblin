@@ -3,7 +3,6 @@ package org.apache.gobblin.writer;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
-import org.apache.iceberg.data.GenericAppenderFactory;
 import org.apache.iceberg.encryption.EncryptionManager;
 import org.apache.iceberg.io.*;
 import org.apache.iceberg.relocated.com.google.common.base.Preconditions;
@@ -18,7 +17,7 @@ import java.util.Map;
 public class IcebergTaskWriterFactory {
 
     private final Schema schema;
-    private final PartitionSpec spec;
+    private final PartitionSpec partitionSpec;
     private final LocationProvider locations;
     private final FileIO io;
     private final EncryptionManager encryptionManager;
@@ -29,7 +28,7 @@ public class IcebergTaskWriterFactory {
     private transient OutputFileFactory outputFileFactory;
 
     public IcebergTaskWriterFactory(Schema schema,
-                                    PartitionSpec spec,
+                                    PartitionSpec partitionSpec,
                                     LocationProvider locations,
                                     FileIO io,
                                     EncryptionManager encryptionManager,
@@ -37,7 +36,7 @@ public class IcebergTaskWriterFactory {
                                     FileFormat format,
                                     Map<String, String> tableProperties) {
         this.schema = schema;
-        this.spec = spec;
+        this.partitionSpec = partitionSpec;
         this.locations = locations;
         this.io = io;
         this.encryptionManager = encryptionManager;
@@ -47,17 +46,18 @@ public class IcebergTaskWriterFactory {
     }
 
     public void initialize(int taskId, int attemptId) {
-        this.outputFileFactory = new OutputFileFactory(spec, format, locations, io, encryptionManager, taskId, attemptId);
+        this.outputFileFactory = new OutputFileFactory(partitionSpec, format, locations, io, encryptionManager, taskId, attemptId);
     }
 
     public TaskWriter create() {
         Preconditions.checkNotNull(outputFileFactory,
                 "The outputFileFactory shouldn't be null if we have invoked the initialize().");
 
-        if (spec.fields().isEmpty()) {
-            return new UnpartitionedWriter(spec, format, appenderFactory, outputFileFactory, io, targetFileSizeBytes);
+        if (partitionSpec.fields().isEmpty()) {
+            return new UnpartitionedWriter(partitionSpec, format, appenderFactory, outputFileFactory, io, targetFileSizeBytes);
         } else {
-            return null;
+            // Also use unpartitioned writer, since the partition should be done in source
+            return new UnpartitionedWriter(partitionSpec, format, appenderFactory, outputFileFactory, io, targetFileSizeBytes);
         }
     }
 

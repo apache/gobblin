@@ -81,7 +81,6 @@ public class TestIcebergTaskWriter {
       Schema schema = new Schema(
           required(0, "id", Types.LongType.get()),
           required(1, "data", Types.StringType.get()));
-      List<GenericData.Record> expected = RandomAvroData.generate(schema, 100, 0L);
       for (GenericRecord genericRecord : recordList) {
         taskWriter.write(genericRecord);
       }
