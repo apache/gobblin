@@ -141,7 +141,6 @@ public class IcebergMetadataWriter implements MetadataWriter {
   private static final String DEFAULT_CREATION_TIME = "0";
   private static final String SNAPSHOT_EXPIRE_THREADS = "snapshot.expire.threads";
   private static final long DEFAULT_WATERMARK = -1L;
-  private final Configuration conf;
   private final WhitelistBlacklist whiteistBlacklist;
   private final Closer closer = Closer.create();
   private final Map<TableIdentifier, Long> tableCurrentWaterMarkMap;
@@ -154,6 +153,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
   private final Map<TableIdentifier, TableMetadata> tableMetadataMap;
   @Setter
   private HiveCatalog catalog;
+  protected final Configuration conf;
   protected final ReadWriteLock readWriteLock;
   private final HiveLock locks;
   private final ParallelRunner parallelRunner;
@@ -162,7 +162,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
   IcebergMetadataWriter(State state) throws IOException {
     this.schemaRegistry = KafkaSchemaRegistry.get(state.getProperties());
     conf = HadoopUtils.getConfFromState(state);
-    catalog = HiveCatalogs.loadCatalog(conf);
+    initializeCatalog();
     tableTopicpartitionMap = new HashMap<>();
     tableMetadataMap = new HashMap<>();
     tableCurrentWaterMarkMap = new HashMap<>();
@@ -181,6 +181,10 @@ public class IcebergMetadataWriter implements MetadataWriter {
     parallelRunner = closer.register(new ParallelRunner(state.getPropAsInt(SNAPSHOT_EXPIRE_THREADS, 20),
         FileSystem.get(HadoopUtils.getConfFromState(state))));
     useDataLoacationAsTableLocation = state.getPropAsBoolean(USE_DATA_PATH_AS_TABLE_LOCATION, false);
+  }
+
+  protected void initializeCatalog() {
+    catalog = HiveCatalogs.loadCatalog(conf);
   }
 
   private org.apache.iceberg.Table getIcebergTable(TableIdentifier tid) throws NoSuchTableException {

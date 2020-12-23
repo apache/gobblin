@@ -23,7 +23,6 @@ import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 import java.io.File;
 import java.io.IOException;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import org.apache.avro.SchemaBuilder;
@@ -38,7 +37,6 @@ import org.apache.gobblin.hive.HiveMetastoreClientPool;
 import org.apache.gobblin.hive.HivePartition;
 import org.apache.gobblin.hive.HiveRegister;
 import org.apache.gobblin.hive.HiveTable;
-import org.apache.gobblin.hive.metastore.HiveMetaStoreUtils;
 import org.apache.gobblin.hive.policy.HiveRegistrationPolicyBase;
 import org.apache.gobblin.metadata.DataFile;
 import org.apache.gobblin.metadata.DataMetrics;
@@ -58,15 +56,11 @@ import org.apache.gobblin.util.ConfigUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hive.metastore.IMetaStoreClient;
-import org.apache.hadoop.hive.metastore.api.Database;
-import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.iceberg.FindFiles;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.expressions.Expressions;
 import org.apache.iceberg.hive.HiveMetastoreTest;
-import org.apache.thrift.TException;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -124,8 +118,6 @@ public class GobblinMCEWriterTest extends HiveMetastoreTest {
     writeRecord(hourlyDataFile_1);
     writeRecord(hourlyDataFile_2);
     writeRecord(dailyDataFile);
-    //createDatabase(hc.getClient().get(), dbName);
-    //createTable(hc.getClient().get(), dbName, tableName);
     gmce = GobblinMetadataChangeEvent.newBuilder()
         .setDatasetIdentifier(DatasetIdentifier.newBuilder()
             .setDataOrigin(DataOrigin.EI)
@@ -156,25 +148,6 @@ public class GobblinMCEWriterTest extends HiveMetastoreTest {
         HiveMetastoreTest.catalog);
     _avroPartitionSchema =
         SchemaBuilder.record("partitionTest").fields().name("ds").type().optional().stringType().endRecord();
-  }
-
-  private static void createDatabase(IMetaStoreClient client, String db) throws TException {
-    try {
-      client.getDatabase(db);
-    } catch (NoSuchObjectException e) {
-      client.createDatabase(
-          new Database(db, "database", tmpDir.getAbsolutePath() + "/metastore", Collections.emptyMap()));
-    }
-  }
-
-  private void createTable(IMetaStoreClient client, String db, String table) throws TException {
-    try {
-      client.getTable(db, table);
-    } catch (NoSuchObjectException e) {
-      HiveTable.Builder tableBuilder = new HiveTable.Builder().withDbName(db)
-          .withTableName(table);
-      client.createTable(HiveMetaStoreUtils.getTable(tableBuilder.build()));
-    }
   }
 
   @Test
