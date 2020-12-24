@@ -18,7 +18,8 @@
 version: '3'
 services:
   gobblin-standalone:
-    image: apache/gobblin:latest
+    image: apache/gobblin:master
+    command: --mode "standalone"
     volumes:
       - "${LOCAL_JOB_DIR}:/tmp/gobblin-standalone/jobs"
   zookeeper:

@@ -1,5 +1,3 @@
-#!/bin/bash
-
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -15,6 +13,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-GOBBLIN_HOME="$(cd `dirname $0`/..; pwd)"
 
-./bin/gobblin.sh service gobblin-as-service start --log-to-stdout "$@"
+FROM gradle:5.6.4-jdk8 as build
+WORKDIR /home/gobblin
+ARG GOBBLIN_FLAVOR=standard
+
+# copy the entire project folder
+COPY . .
+RUN gradle build -x findbugsMain -x test -x rat -x checkstyleMain -x javadoc -x checkstyleTest -PgobblinFlavor=${GOBBLIN_FLAVOR} --no-daemon && \
+    tar -xvf ./build/gobblin-distribution/distributions/*.tar.gz && \
+    rm *.tar.gz
+
+FROM openjdk:8-jre-alpine
+WORKDIR /home/gobblin/
+COPY ./gobblin-docker/gobblin/alpine-gobblin-latest/entrypoint.sh ./bin/entrypoint.sh
+COPY --from=build /home/gobblin/gobblin-dist .
+RUN apk add --no-cache bash && \
+    mkdir /tmp/gobblin && \
+    mkdir /tmp/gobblin/jobs && \
+    chmod +x ./bin/entrypoint.sh
+
+ENV GOBBLIN_WORK_DIR=/tmp/gobblin/
+ENV GOBBLIN_JOB_CONFIG_DIR=/tmp/gobblin/jobs
+
+ENTRYPOINT ["./bin/entrypoint.sh"]
