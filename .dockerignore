@@ -9,7 +9,6 @@
 *.md
 
 build/
-gobblin-docker/
 gobblin-docs/
 gobblin-dist/
 
@@ -22,6 +21,3 @@ gobblin-dist/
 
 travis/
 temp/
-
-# allow entrypoint scripts
-!/gobblin-docker/**/*.sh

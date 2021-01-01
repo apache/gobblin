@@ -12,21 +12,25 @@ For more information on Docker, including how to install it, check out the docum
 
 # Docker Repositories
 
-Gobblin currently has four different repositories, and all are on Docker Hub [here](https://hub.docker.com/u/gobblin/). We are also starting to use [Apache's repository](https://hub.docker.com/r/apache/gobblin/tags?page=1&ordering=last_updated) for our images. 
+Github Actions pushes the latest docker image to the Apache DockerHub repository [here](https://hub.docker.com/r/apache/gobblin) from `gobblin-docker/gobblin/alpine-gobblin-latest/Dockerfile`
 
-The `gobblin/gobblin-wikipedia` repository contains images that run the Gobblin Wikipedia job found in the [getting started guide](../Getting-Started). These images are useful for users new to Docker or Gobblin, they primarily act as a "Hello World" example for the Gobblin Docker integration.
+To run this image, you will need to pass in the corresponding execution mode. The execution modes can be found [here](https://gobblin.readthedocs.io/en/latest/user-guide/Gobblin-Deployment/)
 
-The `gobblin/gobblin-standalone` repository contains images that run a [Gobblin standalone service](Gobblin-Deployment#standalone-architecture) inside a Docker container. These images provide an easy and simple way to setup a Gobblin standalone service on any Docker compatible machine.
+```
+docker pull apache/gobblin
+docker run apache/gobblin --mode <execution mode> <additional args>
+```
 
-The `gobblin/gobblin-service` repository contains images that run [Gobblin as a service](Building-Gobblin-as-a-Service#running-gobblin-as-a-service-with-docker), which is a service that takes in a user request (a logical flow) and converts it into a series of Gobblin Jobs, and monitors these jobs in a distributed manner.
+For example, to run Gobblin in standalone mode
+```
+docker run apache/gobblin --mode standalone
+```
 
-The `gobblin/gobblin-base` and `gobblin/gobblin-distributions` repositories are for internal use only, and are primarily useful for Gobblin developers.
-
-# Run Gobblin Standalone
-
-The Docker images for this repository can be found on Docker Hub [here](https://hub.docker.com/r/gobblin/gobblin-standalone/). These images run a Gobblin standalone service inside a Docker container. The Gobblin standalone service is a long running process that can run Gobblin jobs defined in a `.job` or `.pull` file. The job / pull files are submitted to the standalone service by placing them in a directory on the local filesystem. The standalone service monitors this directory for any new job / pull files and runs them either immediately or on a scheduled basis (more information on how this works can be found [here](Working-with-Job-Configuration-Files#adding-or-changing-job-configuration-files)). Running the Gobblin standalone service inside a Docker container allows Gobblin to pick up job / pull files from a directory on the host filesystem, run the job, and write the output back the host filesystem. All the heavy lifting is done inside a Docker container, the user just needs to worry about defining and submitting job / pull files. The goal is to provide a easy to setup environment for the Gobblin standalone service.
-
-### Set working directory
+To pass your own configuration to Gobblin standalone, use a docker volume. Due to the nature of the startup script, the volumes
+will need to be declared before the arguments are passed to the execution mode. E.g.
+```
+docker run -v <path to local configuration files>:/home/gobblin/conf/standalone apache/gobblin --mode standalone
+```
 
 Before running docker containers, set a working directory for Gobblin jobs:
 
@@ -40,7 +44,7 @@ Run these commands to start the docker image:
 
 `docker pull apache/gobblin:latest`
 
-`docker run -v $LOCAL_JOB_DIR:/tmp/gobblin-standalone/jobs apache/gobblin:latest`
+`docker run -v $LOCAL_JOB_DIR:/tmp/gobblin-standalone/jobs apache/gobblin:latest --mode standalone`
 
 After the container spins up, put the [wikipedia.pull](https://github.com/apache/incubator-gobblin/blob/master/gobblin-example/src/main/resources/wikipedia.pull) in ${LOCAL_JOB_DIR}. You will see the Gobblin daemon pick up the job, and the result output is in ${LOCAL_JOB_DIR}/job-output/.
 
@@ -94,9 +98,7 @@ Similar to standalone working directory settings:
 
 Run these commands to start the docker image:
 
-`docker pull gobblin/gobblin-service:alpine-gaas-latest`
-
-`docker run -p 6956:6956 -v GAAS_JOB_DIR:/tmp/gobblin-as-service/jobs -v LOCAL_DATAPACK_DIR:/tmp/templateCatalog gobblin/gobblin-service:alpine-gaas-latest`
+`docker run -p 6956:6956 -v $GAAS_JOB_DIR:/tmp/gobblin-as-service/jobs -v $LOCAL_DATAPACK_DIR:/tmp/templateCatalog apache/gobblin --mode gobblin-as-service`
 
 The GaaS will be started, and the service can now be accessed on localhost:6956.
 
