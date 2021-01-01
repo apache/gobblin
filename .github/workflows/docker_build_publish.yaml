@@ -27,7 +27,7 @@ on:
       - 'v*'
 
 env:
-  IMAGE_NAME: apache/gobblin
+  IMAGE_NAME: abti/testos
 
 jobs:
   build_and_push_to_registry:
