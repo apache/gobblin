@@ -251,7 +251,7 @@ public class KafkaTopicGroupingWorkUnitPacker extends KafkaWorkUnitPacker {
       List<WorkUnit> workUnits = entry.getValue();
       for (WorkUnit workUnit : workUnits) {
         int partitionId = Integer.parseInt(workUnit.getProp(KafkaSource.PARTITION_ID));
-        String topicPartition = new KafkaPartition.Builder().withTopicName(topic).withId(partitionId).toString();
+        String topicPartition = new KafkaPartition.Builder().withTopicName(topic).withId(partitionId).build().toString();
         KafkaStreamingExtractor.KafkaWatermark watermark = lastCommittedWatermarks.get(topicPartition);
         workUnit.setProp(PARTITION_WATERMARK, GSON.toJson(watermark));
         workUnit.setProp(PACKING_START_TIME_MILLIS, this.packingStartTimeMillis);

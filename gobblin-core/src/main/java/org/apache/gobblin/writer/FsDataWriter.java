@@ -318,12 +318,20 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
   public State getFinalState() {
     State state = new State();
 
-    state.setProp("RecordsWritten", recordsWritten());
+    try {
+      state.setProp("RecordsWritten", recordsWritten());
+    } catch (Exception exception) {
+      // If Writer fails to return recordsWritten, it might not be implemented, or implemented incorrectly.
+      // Omit property instead of failing.
+      LOG.warn("Failed to get final state recordsWritten", exception);
+    }
+
     try {
       state.setProp("BytesWritten", bytesWritten());
     } catch (Exception exception) {
       // If Writer fails to return bytesWritten, it might not be implemented, or implemented incorrectly.
       // Omit property instead of failing.
+      LOG.warn("Failed to get final state bytesWritten", exception);
     }
 
     return state;
