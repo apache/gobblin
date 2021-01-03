@@ -69,5 +69,5 @@ jobs:
       - name: Build Images and Publish
         uses: docker/build-push-action@v2
         with:
-          push: ${{ github.event_name != 'pull_request' }}
+          push: ${{ github.event_name == 'release' }}
           file: ./gobblin-docker/gobblin/alpine-gobblin-latest/Dockerfile
