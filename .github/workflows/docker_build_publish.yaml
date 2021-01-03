@@ -21,10 +21,14 @@ on:
     # Publish only on `master`
     branches:
       - master
-
+  pull_request:
+    branches:
+      - master
+    paths:
+      - 'gobblin-docker/**'
+      - '.github/workflows/docker_build_publish.yaml'
   release:
-    tags:
-      - 'v*'
+    types: [published, edited]
 
 env:
   IMAGE_NAME: abti/testos
@@ -36,29 +40,34 @@ jobs:
     steps:
       - name: Check out the repo
         uses: actions/checkout@v2
+      - name: Build Docker Tag
+        id: build_tag
+        run: |
+          SHA=`echo ${{ github.sha }} | head -c 7`
+          if [[ ${{ github.event_name }} == 'release' ]]; then
+            TAG="${{ env.IMAGE_NAME }}:sha-$SHA, ${{ env.IMAGE_NAME }}:${{ github.event.release.tag_name }}, ${{ env.IMAGE_NAME }}:latest"
+          else
+            TAG="${{ env.IMAGE_NAME }}:sha-$SHA"
+          fi
+          echo "tag=$TAG"
+          echo "::set-output name=tag::$TAG"
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
-      - name: Docker meta
-        id: docker_meta
-        uses: crazy-max/ghaction-docker-meta@v1
-        with:
-          images: ${{ env.IMAGE_NAME }} # list of Docker images to use as base name for tags
-          tag-sha: true # add git short SHA as Docker tag
       - name: Login to DockerHub
         uses: docker/login-action@v1
+        if: github.event_name != 'pull_request'
         with:
           username: ${{ secrets.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-#      - name: Login to GitHub Container Registry
-#        if: github.event_name != 'pull_request'
-#        uses: docker/login-action@v1
-#        with:
-#          registry: ghcr.io
-#          username: ${{ github.repository_owner }}
-#          password: ${{ secrets.CR_PAT }}
+      #      - name: Login to GitHub Container Registry
+      #        if: github.event_name != 'pull_request'
+      #        uses: docker/login-action@v1
+      #        with:
+      #          registry: ghcr.io
+      #          username: ${{ github.repository_owner }}
+      #          password: ${{ secrets.CR_PAT }}
       - name: Build Images and Publish
         uses: docker/build-push-action@v2
         with:
-          tags: ${{ steps.docker_meta.outputs.tags }}
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
           file: ./gobblin-docker/gobblin/alpine-gobblin-latest/Dockerfile
