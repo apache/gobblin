@@ -31,7 +31,7 @@ on:
     types: [published, edited]
 
 env:
-  IMAGE_NAME: abti/testos
+  IMAGE_NAME: apache/gobblin
 
 jobs:
   build_and_push_to_registry:
