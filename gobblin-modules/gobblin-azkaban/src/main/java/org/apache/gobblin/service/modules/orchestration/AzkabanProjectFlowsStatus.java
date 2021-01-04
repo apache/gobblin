@@ -16,20 +16,20 @@
  */
 package org.apache.gobblin.service.modules.orchestration;
 
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-
-import java.util.List;
 
 public class AzkabanProjectFlowsStatus extends AzkabanClientStatus<AzkabanProjectFlowsStatus.Project> {
     public AzkabanProjectFlowsStatus(AzkabanProjectFlowsStatus.Project project) {
         super(project);
     }
 
+    // Those classes represent Azkaban API response
+    // For more details, see: https://azkaban.readthedocs.io/en/latest/ajaxApi.html#fetch-flows-of-a-project
     @Getter
     @AllArgsConstructor
     public static class Project {
-        // Azkaban API docs: https://azkaban.readthedocs.io/en/latest/ajaxApi.html#fetch-flows-of-a-project
         long projectId;
         List<Flow> flows;
     }

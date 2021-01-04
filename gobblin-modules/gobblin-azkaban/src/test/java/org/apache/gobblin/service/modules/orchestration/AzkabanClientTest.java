@@ -20,18 +20,26 @@ package org.apache.gobblin.service.modules.orchestration;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.FileUtils;
-import org.junit.Assert;
-import org.testng.annotations.*;
-
-import java.io.*;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.FileUtils;
+import org.junit.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 
 
@@ -95,6 +103,8 @@ public class AzkabanClientTest {
     String execId = execStatus.getResponse().getExecId();
 
     ByteArrayOutputStream logStream = null;
+
+    // Logs are not instantly available. Retrying several times until the job has started, and logs are present.
     int maxTries = 10;
     for (int i = 0; i < maxTries; i++) {
       logStream = new ByteArrayOutputStream();
@@ -104,7 +114,6 @@ public class AzkabanClientTest {
         this.client.fetchExecutionLog(execId, jobId, 0, 100000000, logStream);
         break;
       } catch (Exception ex) {
-        // log is not instantly available, waiting for job to start and produce output
         if (i == maxTries - 1) {
           throw ex;
         }
