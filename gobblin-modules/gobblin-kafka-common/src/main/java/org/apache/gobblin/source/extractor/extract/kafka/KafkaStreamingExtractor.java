@@ -119,6 +119,15 @@ public class KafkaStreamingExtractor<S> extends FlushingExtractor<S, DecodeableK
 
   @Override
   public void shutdown() {
+    this.scheduledExecutorService.shutdownNow();
+    try {
+      boolean shutdown = this.scheduledExecutorService.awaitTermination(5, TimeUnit.SECONDS);
+      if (!shutdown) {
+        log.error("Could not shutdown metrics collection threads in 5 seconds.");
+      }
+    } catch (InterruptedException e) {
+      log.error("Interrupted when attempting to shutdown metrics collection threads.");
+    }
     this.shutdownRequested.set(true);
   }
 
