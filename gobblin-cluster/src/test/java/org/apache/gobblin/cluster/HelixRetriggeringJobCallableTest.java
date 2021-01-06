@@ -18,7 +18,6 @@
 package org.apache.gobblin.cluster;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.Optional;
 import java.util.Properties;
 
@@ -30,7 +29,6 @@ import org.mockito.Mockito;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import com.google.common.eventbus.EventBus;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
@@ -39,8 +37,6 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
 import org.apache.gobblin.runtime.job_catalog.NonObservingFSJobCatalog;
 import org.apache.gobblin.scheduler.SchedulerService;
-
-import static org.testng.Assert.*;
 
 
 public class HelixRetriggeringJobCallableTest {
@@ -52,6 +48,7 @@ public class HelixRetriggeringJobCallableTest {
     if (!tmpDir.exists()) {
       tmpDir.mkdirs();
     }
+    tmpDir.deleteOnExit();
   }
 
   @Test
@@ -64,13 +61,30 @@ public class HelixRetriggeringJobCallableTest {
     //HelixManager helixManager = Mockito.mock(HelixManager.class);
     //EventBus eventBus = Mockito.mock(EventBus.class);
     Path appWorkDir = new Path(TMP_DIR);
-    GobblinHelixJobScheduler jobScheduler = new GobblinHelixJobScheduler(ConfigFactory.empty(), null, Optional.empty(), null,
+    GobblinHelixJobScheduler jobScheduler = new GobblinHelixJobScheduler(ConfigFactory.empty(), getMockHelixManager(), Optional.empty(), null,
         appWorkDir, Lists.emptyList(), schedulerService, jobCatalog);
-    Properties jobProps = new Properties();
-    jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY, "dummyJob");
-    GobblinHelixJobLauncher jobLauncher = jobScheduler.buildJobLauncher(jobProps);
+    GobblinHelixJobLauncher jobLauncher = HelixRetriggeringJobCallable.buildJobLauncherForCentralizedMode(jobScheduler, getDummyJob());
     String jobId = jobLauncher.getJobId();
     Assert.assertNotNull(jobId);
     Assert.assertFalse(jobId.contains(GobblinClusterConfigurationKeys.ACTUAL_JOB_NAME_PREFIX));
+  }
+
+  private Properties getDummyJob() {
+    Properties jobProps = new Properties();
+    jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY, "dummyJob");
+    jobProps.setProperty(ConfigurationKeys.JOB_LOCK_ENABLED_KEY, "false");
+    jobProps.setProperty(ConfigurationKeys.STATE_STORE_ENABLED, "false");
+    jobProps.setProperty(ConfigurationKeys.SOURCE_CLASS_KEY, DummySource.class.getName());
+    return jobProps;
+  }
+
+  private HelixManager getMockHelixManager() {
+    HelixManager helixManager = Mockito.mock(HelixManager.class);
+    Mockito.when(helixManager.getClusterManagmentTool()).thenReturn(null);
+    Mockito.when(helixManager.getClusterName()).thenReturn(null);
+    Mockito.when(helixManager.getHelixDataAccessor()).thenReturn(null);
+    Mockito.when(helixManager.getHelixPropertyStore()).thenReturn(null);
+
+    return helixManager;
   }
 }

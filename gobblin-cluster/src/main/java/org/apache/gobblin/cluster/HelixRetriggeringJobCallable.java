@@ -198,7 +198,7 @@ class HelixRetriggeringJobCallable implements Callable {
   }
 
   @VisibleForTesting
-  static GobblinHelixJobLauncher buildJobLauncher(GobblinHelixJobScheduler jobScheduler, Properties jobProps) throws Exception {
+  static GobblinHelixJobLauncher buildJobLauncherForCentralizedMode(GobblinHelixJobScheduler jobScheduler, Properties jobProps) throws Exception {
     //In centralized job launcher mode, the JOB_ID_KEY should be null and should be set as part of
     //job launcher instantiation. This ensures that workflows in centralized mode are cleaned up properly
     // when cluster is restarted.
@@ -215,7 +215,7 @@ class HelixRetriggeringJobCallable implements Callable {
    private void runJobLauncherLoop() throws JobException {
     try {
       while (true) {
-        currentJobLauncher = buildJobLauncher(jobScheduler, jobProps);
+        currentJobLauncher = buildJobLauncherForCentralizedMode(jobScheduler, jobProps);
         // in "run once" case, job scheduler will remove current job from the scheduler
         boolean isEarlyStopped = this.jobScheduler.runJob(jobProps, jobListener, currentJobLauncher);
         boolean isRetriggerEnabled = this.isRetriggeringEnabled();
