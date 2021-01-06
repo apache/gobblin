@@ -27,12 +27,14 @@ spec:
             name: flowconfig-templates
       containers:
         - name: gobblin-service
-          image: will97/gobblin-as-a-service:latest
+          image: apache/gobblin:latest
+          args: ["--mode", "gobblin-as-service", "--jvmopts", "-XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap"]
           volumeMounts:
             - name: shared-jobs
-              mountPath: /tmp/gobblin-as-service/jobs
+              mountPath: /etc/gobblin-as-service/jobs
             - name: flowconfig-templates
-              mountPath: /tmp/templateCatalog
+              mountPath: /etc/templateCatalog
+          imagePullPolicy: Never # TODO: Remove this once docker images are deployed to Apache DockerHub post-graduation
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -57,7 +59,12 @@ spec:
             claimName: shared-jobs-claim
       containers:
         - name: gobblin-standalone
-          image: will97/gobblin-standalone:latest
+          image: apache/gobblin:latest
+          args: ["--mode", "standalone", "--jvmopts", "-XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap"]
           volumeMounts:
             - name: shared-jobs
-              mountPath: /tmp/gobblin-standalone/jobs
+              mountPath: /etc/gobblin-standalone/jobs
+          env:
+            - name: GOBBLIN_JOB_CONFIG_DIR
+              value: /etc/gobblin-standalone/jobs
+          imagePullPolicy: Never # TODO: Remove this once docker images are deployed to Apache DockerHub post-graduation
