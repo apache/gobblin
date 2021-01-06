@@ -17,13 +17,8 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
-import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.Callable;
-
-import org.apache.commons.io.FileUtils;
+import com.google.common.io.Closer;
+import lombok.Builder;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
@@ -39,14 +34,15 @@ import org.apache.http.entity.mime.MultipartEntityBuilder;
 import org.apache.http.message.BasicHeader;
 import org.apache.http.message.BasicNameValuePair;
 
-import com.google.common.base.Charsets;
-import com.google.common.io.Closer;
-
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
+import java.io.File;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.Callable;
 
 
 /**
@@ -130,7 +126,8 @@ class AzkabanMultiCallables {
 
         CloseableHttpResponse response = client.httpClient.execute(httpGet);
         closer.register(response);
-        AzkabanClient.handleResponse(response);
+        AzkabanClient.verifyStatusCode(response);
+
         return new AzkabanSuccess();
       } catch (InvalidSessionException e) {
         this.invalidSession = true;
@@ -329,6 +326,47 @@ class AzkabanMultiCallables {
     }
   }
 
+
+  /**
+   * A callable that will fetch a flow status on Azkaban.
+   */
+  @Builder
+  static class FetchProjectFlowsCallable implements Callable<AzkabanProjectFlowsStatus> {
+    private AzkabanClient client;
+    private boolean invalidSession = false;
+    private String projectName;
+
+    @Override
+    public AzkabanProjectFlowsStatus call()
+            throws AzkabanClientException {
+      try (Closer closer = Closer.create()) {
+        client.refreshSession(this.invalidSession);
+        List<NameValuePair> nvps = new ArrayList<>();
+        nvps.add(new BasicNameValuePair(AzkabanClientParams.AJAX, "fetchprojectflows"));
+        nvps.add(new BasicNameValuePair(AzkabanClientParams.PROJECT, projectName));
+        nvps.add(new BasicNameValuePair(AzkabanClientParams.SESSION_ID, client.sessionId));
+
+        Header contentType = new BasicHeader(HttpHeaders.CONTENT_TYPE, "application/x-www-form-urlencoded");
+        Header requestType = new BasicHeader("X-Requested-With", "XMLHttpRequest");
+
+        HttpGet httpGet = new HttpGet(client.url + "/manager?" + URLEncodedUtils.format(nvps, "UTF-8"));
+        httpGet.setHeaders(new Header[]{contentType, requestType});
+
+        CloseableHttpResponse response = client.httpClient.execute(httpGet);
+        closer.register(response);
+
+        AzkabanProjectFlowsStatus.Project project =
+                AzkabanClient.handleResponse(response, AzkabanProjectFlowsStatus.Project.class);
+        return new AzkabanProjectFlowsStatus(project);
+      } catch (InvalidSessionException e) {
+        this.invalidSession = true;
+        throw e;
+      } catch (Exception e) {
+        throw new AzkabanClientException("Azkaban client cannot fetch project flows", e);
+      }
+    }
+  }
+
   /**
    * A callable that will fetch a flow log on Azkaban.
    */
@@ -337,9 +375,9 @@ class AzkabanMultiCallables {
     private AzkabanClient client;
     private String execId;
     private String jobId;
-    private String offset;
-    private String length;
-    private File output;
+    private long offset;
+    private long length;
+    private OutputStream output;
     private boolean invalidSession = false;
 
     @Override
@@ -352,8 +390,8 @@ class AzkabanMultiCallables {
         nvps.add(new BasicNameValuePair(AzkabanClientParams.SESSION_ID, client.sessionId));
         nvps.add(new BasicNameValuePair(AzkabanClientParams.EXECID, execId));
         nvps.add(new BasicNameValuePair(AzkabanClientParams.JOBID, jobId));
-        nvps.add(new BasicNameValuePair(AzkabanClientParams.OFFSET, offset));
-        nvps.add(new BasicNameValuePair(AzkabanClientParams.LENGTH, length));
+        nvps.add(new BasicNameValuePair(AzkabanClientParams.OFFSET, String.valueOf(offset)));
+        nvps.add(new BasicNameValuePair(AzkabanClientParams.LENGTH, String.valueOf(length)));
 
         Header contentType = new BasicHeader(HttpHeaders.CONTENT_TYPE, "application/x-www-form-urlencoded");
         Header requestType = new BasicHeader("X-Requested-With", "XMLHttpRequest");
@@ -364,7 +402,11 @@ class AzkabanMultiCallables {
         CloseableHttpResponse response = client.httpClient.execute(httpGet);
         closer.register(response);
         Map<String, String> map = AzkabanClient.handleResponse(response);
-        FileUtils.writeStringToFile(output, map.get(AzkabanClientParams.DATA), Charsets.UTF_8);
+
+        try (Writer logWriter = new OutputStreamWriter(output, StandardCharsets.UTF_8)) {
+          logWriter.write(map.get(AzkabanClientParams.DATA));
+        }
+
         return new AzkabanSuccess();
       } catch (InvalidSessionException e) {
         this.invalidSession = true;
