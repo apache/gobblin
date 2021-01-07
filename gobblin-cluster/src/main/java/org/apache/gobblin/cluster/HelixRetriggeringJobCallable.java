@@ -199,10 +199,14 @@ class HelixRetriggeringJobCallable implements Callable {
 
   @VisibleForTesting
   static GobblinHelixJobLauncher buildJobLauncherForCentralizedMode(GobblinHelixJobScheduler jobScheduler, Properties jobProps) throws Exception {
-    //In centralized job launcher mode, the JOB_ID_KEY should be null and should be set as part of
-    //job launcher instantiation. This ensures that workflows in centralized mode are cleaned up properly
-    // when cluster is restarted.
-    Preconditions.checkArgument(jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY) == null);
+    //In centralized job launcher mode, the JOB_ID_KEY should be null or should not contain the
+    //"ActualJob" substring, which is intended for the distributed job launcher mode.
+    //This ensures that workflows in centralized mode are cleaned up properly when cluster is restarted.
+    String jobId = jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY);
+    if (jobId != null) {
+      Preconditions.checkArgument(!jobId.contains(GobblinClusterConfigurationKeys.ACTUAL_JOB_NAME_PREFIX),
+          "Job Id should not contain ActualJob in centralized mode.");
+    }
     return jobScheduler.buildJobLauncher(jobProps);
   }
 
