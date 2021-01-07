@@ -39,7 +39,7 @@ The distribution will be created in build/gobblin-distribution/distributions dir
   * [Gobblin documentation](https://gobblin.apache.org/docs/)
     * [Getting started guide](https://gobblin.apache.org/docs/Getting-Started/)
     * [Gobblin architecture](https://gobblin.apache.org/docs/Gobblin-Architecture/)
-  * Community Slack: [Sign up](https://join.slack.com/t/apache-gobblin/shared_invite/zt-hkwu51id-aVxL3bvtLdi778YHFV1b6A) or [login with existing account](https://apache-gobblin.slack.com) to `apache-gobblin` space on Slack
+  * Community Slack: [Get your invite](https://communityinviter.com/apps/apache-gobblin/apache-gobblin)
   * [List of companies known to use Gobblin](https://gobblin.apache.org/docs/Powered-By/) 
   * [Sample project](https://github.com/apache/incubator-gobblin/tree/master/gobblin-example)
   * [How to build Gobblin from source code](https://gobblin.apache.org/docs/user-guide/Building-Gobblin/)
