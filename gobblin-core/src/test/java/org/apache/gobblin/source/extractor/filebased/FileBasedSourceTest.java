@@ -17,6 +17,12 @@
 
 package org.apache.gobblin.source.extractor.filebased;
 
+import com.google.common.collect.Sets;
+import com.typesafe.config.ConfigFactory;
+import java.io.IOException;
+import java.net.URI;
+import java.util.List;
+import java.util.Set;
 import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
 import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import org.apache.gobblin.broker.gobblin_scopes.JobScopeInstance;
@@ -37,20 +43,12 @@ import org.apache.gobblin.source.extractor.hadoop.AvroFileSource;
 import org.apache.gobblin.source.workunit.Extract;
 import org.apache.gobblin.source.workunit.MultiWorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnit;
-
 import org.apache.hadoop.fs.Path;
 import org.junit.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 import org.testng.collections.Lists;
-
-import java.io.IOException;
-import java.util.List;
-import java.util.Set;
-
-import com.google.common.collect.Sets;
-import com.typesafe.config.ConfigFactory;
 
 
 @Test
@@ -126,7 +124,7 @@ public class FileBasedSourceTest {
     // Avro file based source
     AvroFileSource fileSource = new AvroFileSource();
     List<WorkUnit> workUnits = fileSource.getWorkunits(sourceState);
-    DatasetDescriptor datasetDescriptor = new DatasetDescriptor("hdfs", dataset);
+    DatasetDescriptor datasetDescriptor = new DatasetDescriptor("hdfs", URI.create("file:///"), dataset);
     for (WorkUnit workUnit : workUnits) {
       Assert.assertEquals(workUnit.getProp(SOURCE_LINEAGE_KEY), Descriptor.toJson(datasetDescriptor));
     }
@@ -136,7 +134,7 @@ public class FileBasedSourceTest {
     sourceState.setProp(ConfigurationKeys.SOURCE_FILEBASED_PLATFORM, DatasetConstants.PLATFORM_FILE);
     DatePartitionedJsonFileSource partitionedFileSource = new DatePartitionedJsonFileSource();
     workUnits = partitionedFileSource.getWorkunits(sourceState);
-    datasetDescriptor = new DatasetDescriptor("file", dataset);
+    datasetDescriptor = new DatasetDescriptor("file", URI.create("file:///"), dataset);
 
     Set<String> partitions = Sets.newHashSet("2017-12", "2018-01");
     for (WorkUnit workUnit : workUnits) {

@@ -17,6 +17,9 @@
 
 package org.apache.gobblin.data.management.copy.hive;
 
+import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -24,7 +27,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-
+import lombok.AllArgsConstructor;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.data.management.copy.CopyEntity;
+import org.apache.gobblin.data.management.copy.entities.PostPublishStep;
+import org.apache.gobblin.data.management.copy.hive.HiveCopyEntityHelper.DeregisterFileDeleteMethod;
+import org.apache.gobblin.hive.HiveRegProps;
+import org.apache.gobblin.metrics.event.MultiTimingEvent;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocalFileSystem;
@@ -36,19 +45,6 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import com.google.common.base.Optional;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-
-import lombok.AllArgsConstructor;
-
-import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.data.management.copy.CopyEntity;
-import org.apache.gobblin.data.management.copy.entities.PostPublishStep;
-import org.apache.gobblin.data.management.copy.hive.HiveCopyEntityHelper.DeregisterFileDeleteMethod;
-import org.apache.gobblin.hive.HiveRegProps;
-import org.apache.gobblin.metrics.event.MultiTimingEvent;
 
 
 public class HiveCopyEntityHelperTest {
@@ -313,7 +309,7 @@ public class HiveCopyEntityHelperTest {
 
     HiveCopyEntityHelper helper = Mockito.mock(HiveCopyEntityHelper.class);
     Mockito.when(helper.getDeleteMethod()).thenReturn(DeregisterFileDeleteMethod.NO_DELETE);
-    Mockito.when(helper.getTargetURI()).thenReturn(Optional.of("/targetURI"));
+    Mockito.when(helper.getTargetMetastoreURI()).thenReturn(Optional.of("/targetURI"));
     Mockito.when(helper.getHiveRegProps()).thenReturn(new HiveRegProps(new State()));
     Mockito.when(helper.getDataset()).thenReturn(dataset);
 

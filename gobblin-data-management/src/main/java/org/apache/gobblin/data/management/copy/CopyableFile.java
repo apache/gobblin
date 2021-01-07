@@ -19,13 +19,19 @@ package org.apache.gobblin.data.management.copy;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
-import lombok.*;
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+import lombok.AccessLevel;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.apache.gobblin.data.management.copy.PreserveAttributes.Option;
 import org.apache.gobblin.data.management.partition.File;
 import org.apache.gobblin.dataset.DatasetConstants;
 import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.gobblin.dataset.Descriptor;
-import org.apache.gobblin.util.ClustersNames;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.guid.Guid;
@@ -34,10 +40,6 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
-
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
 
 
 /**
@@ -133,15 +135,13 @@ public class CopyableFile extends CopyEntity implements File {
 
     Path fullSourcePath = Path.getPathWithoutSchemeAndAuthority(origin.getPath());
     String sourceDatasetName = isDir ? fullSourcePath.toString() : fullSourcePath.getParent().toString();
-    String sourceClusterName = ClustersNames.getInstance().getClusterName(fullSourcePath.toString());
-    DatasetDescriptor sourceDataset = new DatasetDescriptor(originFs.getScheme(), sourceClusterName, sourceDatasetName);
+    DatasetDescriptor sourceDataset = new DatasetDescriptor(originFs.getScheme(), originFs.getUri(), sourceDatasetName);
     sourceDataset.addMetadata(DatasetConstants.FS_URI, originFs.getUri().toString());
     sourceData = sourceDataset;
 
     Path fullDestinationPath = Path.getPathWithoutSchemeAndAuthority(destination);
     String destinationDatasetName = isDir ? fullDestinationPath.toString() : fullDestinationPath.getParent().toString();
-    String destinationClusterName = ClustersNames.getInstance().getClusterName(fullDestinationPath.toString());
-    DatasetDescriptor destinationDataset = new DatasetDescriptor(targetFs.getScheme(), destinationClusterName,
+    DatasetDescriptor destinationDataset = new DatasetDescriptor(targetFs.getScheme(), targetFs.getUri(),
             destinationDatasetName);
     destinationDataset.addMetadata(DatasetConstants.FS_URI, targetFs.getUri().toString());
     destinationData = destinationDataset;

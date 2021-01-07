@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.dataset;
 
+import java.net.URI;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -27,7 +28,7 @@ public class DescriptorTest {
   public void testDatasetDescriptor() {
     DatasetDescriptor dataset = new DatasetDescriptor("hdfs", "/data/tracking/PageViewEvent");
     dataset.addMetadata("fsUri", "hdfs://test.com:2018");
-    Assert.assertNull(dataset.getClusterName());
+    Assert.assertNull(dataset.getStorageUrl());
 
     DatasetDescriptor copy = dataset.copy();
     Assert.assertEquals(copy.getName(), dataset.getName());
@@ -42,16 +43,17 @@ public class DescriptorTest {
 
   @Test
   public void testDatasetDescriptorWithCluster() {
-    DatasetDescriptor dataset = new DatasetDescriptor("hdfs","hadoop.test", "/data/tracking/PageViewEvent");
+    DatasetDescriptor dataset =
+        new DatasetDescriptor("hdfs", URI.create("hdfs://hadoop.test"), "/data/tracking/PageViewEvent");
     dataset.addMetadata("fsUri", "hdfs://test.com:2018");
 
-    Assert.assertEquals(dataset.getClusterName(),"hadoop.test");
+    Assert.assertEquals(dataset.getStorageUrl().toString(),"hdfs://hadoop.test");
 
     DatasetDescriptor copy = dataset.copy();
     Assert.assertEquals(copy.getName(), dataset.getName());
     Assert.assertEquals(copy.getPlatform(), dataset.getPlatform());
     Assert.assertEquals(copy.getMetadata(), dataset.getMetadata());
-    Assert.assertEquals(copy.getClusterName(), dataset.getClusterName());
+    Assert.assertEquals(copy.getStorageUrl(), dataset.getStorageUrl());
     Assert.assertEquals(dataset, copy);
     Assert.assertEquals(dataset.hashCode(), copy.hashCode());
 

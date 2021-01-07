@@ -22,6 +22,14 @@ import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import java.io.File;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
@@ -35,20 +43,10 @@ import org.apache.gobblin.source.workunit.Extract;
 import org.apache.gobblin.source.workunit.Extract.TableType;
 import org.apache.gobblin.source.workunit.MultiWorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnit;
-import org.apache.gobblin.util.ClustersNames;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
-
-import java.io.File;
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
 
 
 /**
@@ -249,8 +247,9 @@ public abstract class FileBasedSource<S, D> extends AbstractSource<S, D> {
     String platform = state.getProp(ConfigurationKeys.SOURCE_FILEBASED_PLATFORM, DatasetConstants.PLATFORM_HDFS);
     Path dataDir = new Path(state.getProp(ConfigurationKeys.SOURCE_FILEBASED_DATA_DIRECTORY));
     String dataset = Path.getPathWithoutSchemeAndAuthority(dataDir).toString();
-    String clusterName = ClustersNames.getInstance().getClusterName(dataDir.toString());
-    DatasetDescriptor source = new DatasetDescriptor(platform, clusterName, dataset);
+    URI fileSystemUrl =
+        URI.create(state.getProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI, ConfigurationKeys.LOCAL_FS_URI));
+    DatasetDescriptor source = new DatasetDescriptor(platform, fileSystemUrl, dataset);
     lineageInfo.get().setSource(source, workUnit);
   }
 
