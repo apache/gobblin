@@ -15,7 +15,7 @@ extra_javascript: [js/extra.js]
 site_dir: docs
 
 pages:
-    - Home: /
+    - Home: https://gobblin.apache.org
     - Companies Powered By Gobblin: Powered-By.md
     - Getting Started: Getting-Started.md
     - Architecture: Gobblin-Architecture.md
