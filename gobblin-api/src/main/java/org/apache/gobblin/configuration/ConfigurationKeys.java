@@ -17,10 +17,10 @@
 
 package org.apache.gobblin.configuration;
 
+import com.google.common.base.Charsets;
+
 import java.nio.charset.Charset;
 import java.util.concurrent.TimeUnit;
-
-import com.google.common.base.Charsets;
 
 
 /**
@@ -928,6 +928,7 @@ public class ConfigurationKeys {
   public static final String AZKABAN_FLOW_URL = "azkaban.link.workflow.url";
   public static final String AZKABAN_JOB_URL = "azkaban.link.job.url";
   public static final String AZKABAN_JOB_EXEC_URL = "azkaban.link.jobexec.url";
+  public static final String AZKABAN_WEBSERVERHOST = "azkaban.webserverhost";
 
   /**
    * Hive registration properties

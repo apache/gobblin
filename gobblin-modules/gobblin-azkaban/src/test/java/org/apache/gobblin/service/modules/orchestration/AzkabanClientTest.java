@@ -17,28 +17,29 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
-
+import com.google.common.collect.Maps;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.UUID;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
-
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.junit.Assert;
 import org.testng.annotations.AfterClass;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Maps;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
-
-import lombok.extern.slf4j.Slf4j;
 
 
 
@@ -48,9 +49,14 @@ import lombok.extern.slf4j.Slf4j;
  * Please check https://azkaban.github.io/azkaban/docs/latest/ for how to setup Azkaban-solo-server.
  */
 @Slf4j
+@Test(enabled = false)
 public class AzkabanClientTest {
   private AzkabanClient client = null;
   private long sessionExpireInMin = 1;
+
+  String projectName;
+  String description;
+
   @BeforeClass
   public void setup() throws Exception {
     Config azkConfig = ConfigFactory.load("local-azkaban-service.conf");
@@ -65,55 +71,74 @@ public class AzkabanClientTest {
         .build();
   }
 
+  @BeforeMethod
+  public void testSetup() {
+    projectName = "test-project-" + System.currentTimeMillis() + "-" + UUID.randomUUID().toString().substring(0, 4);
+    description = "This is test project.";
+  }
+
+  @AfterMethod
+  public void testCleanup() throws AzkabanClientException {
+    this.client.deleteProject(projectName);
+  }
+
   @AfterClass
   public void cleanup() throws IOException {
     this.client.close();
   }
 
   private void ensureProjectExist(String projectName, String description) throws AzkabanClientException {
-    // make sure it is in a clean state
-    this.client.deleteProject(projectName);
-
-    // make sure the project is created successfully
     this.client.createProject(projectName, description);
   }
 
-  @Test(enabled = false)
-  public void testFetchLog() throws AzkabanClientException {
-    String execId = "11211956";
-    String jobId = "tracking-hourly-bucket1";
-
-    // fetch log
-    this.client.fetchExecutionLog(execId, jobId, "0", "100000000", new File("/tmp/sample.log"));
-  }
-
-
-  @Test(enabled = false)
-  public void testCreateProject() throws AzkabanClientException {
-    String projectName = "project-create";
-    String description = "This is a create project test.";
+  public void testFetchLog() throws Exception {
+    String flowName = "test-exec-flow";
+    String jobId = "test-exec-flow";
 
     ensureProjectExist(projectName, description);
+    File zipFile = createAzkabanZip(flowName);
+    this.client.uploadProjectZip(projectName, zipFile);
 
-    // the second time creation should fail
+    AzkabanExecuteFlowStatus execStatus = this.client.executeFlow(projectName, flowName, Maps.newHashMap());
+    String execId = execStatus.getResponse().getExecId();
+
+    ByteArrayOutputStream logStream = null;
+
+    // Logs are not instantly available. Retrying several times until the job has started, and logs are present.
+    int maxTries = 10;
+    for (int i = 0; i < maxTries; i++) {
+      logStream = new ByteArrayOutputStream();
+
+      Thread.sleep(1000);
+      try {
+        this.client.fetchExecutionLog(execId, jobId, 0, 100000000, logStream);
+        break;
+      } catch (Exception ex) {
+        if (i == maxTries - 1) {
+          throw ex;
+        }
+      }
+    }
+
+    Assert.assertTrue(logStream.size() > 0);
+  }
+
+  public void testProjectCreateAndDelete() throws AzkabanClientException {
     this.client.createProject(projectName, description);
-  }
-
-  @Test(enabled = false)
-  public void testDeleteProject() throws AzkabanClientException {
-    String projectName = "project-delete";
-    String description = "This is a delete project test.";
-
-    ensureProjectExist(projectName, description);
-
-    // delete the new project
     this.client.deleteProject(projectName);
   }
 
-  @Test(enabled = false)
+  public void testProjectExistenceCheck() throws AzkabanClientException {
+    Assert.assertFalse(this.client.projectExists(projectName));
+
+    this.client.createProject(projectName, description);
+    Assert.assertTrue(this.client.projectExists(projectName));
+
+    this.client.deleteProject(projectName);
+    Assert.assertFalse(this.client.projectExists(projectName));
+  }
+
   public void testUploadZip() throws IOException {
-    String projectName = "project-upload";
-    String description = "This is a upload project test.";
     String flowName = "test-upload";
 
     ensureProjectExist(projectName, description);
@@ -131,10 +156,7 @@ public class AzkabanClientTest {
     }
   }
 
-  @Test(enabled = false)
   public void testExecuteFlow() throws IOException {
-    String projectName = "project-execFlow";
-    String description = "This is a flow execution test.";
     String flowName = "test-exec-flow";
 
     ensureProjectExist(projectName, description);
@@ -148,10 +170,7 @@ public class AzkabanClientTest {
     log.info("Execid: {}", execStatus.getResponse().execId);
   }
 
-  @Test(enabled = false)
   public void testExecuteFlowWithParams() throws IOException {
-    String projectName = "project-execFlow-Param";
-    String description = "This is a flow execution test.";
     String flowName = "test-exec-flow-param";
 
     ensureProjectExist(projectName, description);
@@ -169,10 +188,7 @@ public class AzkabanClientTest {
     log.info("Execid: {}", execStatus.getResponse().execId);
   }
 
-  @Test(enabled = false)
   public void testExecuteFlowWithOptions() throws IOException {
-    String projectName = "project-execFlow-Option";
-    String description = "This is a flow execution test.";
     String flowName = "test-exec-flow-options";
 
     ensureProjectExist(projectName, description);
@@ -188,10 +204,7 @@ public class AzkabanClientTest {
     log.info("Execid: {}", execStatus.getResponse().execId);
   }
 
-  @Test(enabled = false)
   public void testFetchFlowExecution() throws Exception {
-    String projectName = "project-fetch-flow-exec";
-    String description = "This is a flow execution fetch test.";
     String flowName = "test-fetch-flow-executions";
 
     ensureProjectExist(projectName, description);
@@ -218,10 +231,25 @@ public class AzkabanClientTest {
 
   @Test(enabled = false)
   public void testSessionExpiration() throws Exception {
-    String projectName = "project-session-expiration-test";
-    String description = "This is a session expiration test.";
     Thread.sleep(sessionExpireInMin * 60 * 1000);
     ensureProjectExist(projectName, description);
+  }
+
+  public void testGettingProjectFlows() throws IOException {
+    String flowName = "test-exec-flow";
+
+    ensureProjectExist(projectName, description);
+
+    AzkabanProjectFlowsStatus status = this.client.fetchProjectFlows(projectName);
+    Assert.assertTrue(status.getResponse().getFlows().isEmpty());
+
+    File zipFile = createAzkabanZip(flowName);
+    this.client.uploadProjectZip(projectName, zipFile);
+
+    status = this.client.fetchProjectFlows(projectName);
+    List<AzkabanProjectFlowsStatus.Flow> flows = status.getResponse().getFlows();
+    Assert.assertEquals(1, flows.size());
+    Assert.assertEquals(flowName, flows.get(0).flowId);
   }
 
   private File createAzkabanZip(String flowName) throws IOException {

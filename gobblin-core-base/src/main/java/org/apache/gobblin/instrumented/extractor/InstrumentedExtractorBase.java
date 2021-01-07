@@ -40,6 +40,7 @@ import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.MetricNames;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.records.RecordStreamWithMetadata;
+import org.apache.gobblin.runtime.JobShutdownException;
 import org.apache.gobblin.source.extractor.DataRecordException;
 import org.apache.gobblin.source.extractor.Extractor;
 import org.apache.gobblin.stream.RecordEnvelope;
@@ -156,7 +157,12 @@ public abstract class InstrumentedExtractorBase<S, D>
     S schema = getSchema();
     Flowable<StreamEntity<D>> recordStream = Flowable.generate(() -> shutdownRequest, (BiConsumer<AtomicBoolean, Emitter<StreamEntity<D>>>) (state, emitter) -> {
       if (state.get()) {
-        emitter.onComplete();
+        // shutdown requested
+        try {
+          shutdown();
+        } catch (JobShutdownException exc) {
+          emitter.onError(exc);
+        }
       }
       try {
         long startTimeNanos = 0;

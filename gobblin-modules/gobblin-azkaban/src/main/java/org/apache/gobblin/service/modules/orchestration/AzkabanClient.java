@@ -17,9 +17,23 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
+import com.github.rholder.retry.AttemptTimeLimiters;
+import com.github.rholder.retry.RetryException;
+import com.github.rholder.retry.Retryer;
+import com.github.rholder.retry.RetryerBuilder;
+import com.github.rholder.retry.StopStrategies;
+import com.github.rholder.retry.WaitStrategies;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
+import com.google.common.io.Closer;
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
@@ -28,8 +42,9 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-
+import lombok.Builder;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -45,25 +60,6 @@ import org.apache.http.ssl.TrustStrategy;
 import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.github.rholder.retry.AttemptTimeLimiters;
-import com.github.rholder.retry.RetryException;
-import com.github.rholder.retry.Retryer;
-import com.github.rholder.retry.RetryerBuilder;
-import com.github.rholder.retry.StopStrategies;
-import com.github.rholder.retry.WaitStrategies;
-import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
-import com.google.common.io.Closer;
-import com.google.common.util.concurrent.SimpleTimeLimiter;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-
-import lombok.Builder;
-
-import org.apache.gobblin.util.ExecutorsUtils;
 
 
 /**
@@ -86,6 +82,7 @@ public class AzkabanClient implements Closeable {
   private Closer closer = Closer.create();
   private Retryer<AzkabanClientStatus> retryer;
   private static Logger log = LoggerFactory.getLogger(AzkabanClient.class);
+  private Duration requestTimeout;
 
   /**
    * Child class should have a different builderMethodName.
@@ -97,7 +94,8 @@ public class AzkabanClient implements Closeable {
                           long sessionExpireInMin,
                           CloseableHttpClient httpClient,
                           SessionManager sessionManager,
-                          ExecutorService executorService)
+                          ExecutorService executorService,
+                          Duration requestTimeout)
       throws AzkabanClientException {
     this.username = username;
     this.password = password;
@@ -106,12 +104,16 @@ public class AzkabanClient implements Closeable {
     this.httpClient = httpClient;
     this.sessionManager = sessionManager;
     this.executorService = executorService;
+    this.requestTimeout = ObjectUtils.defaultIfNull(requestTimeout, Duration.ofSeconds(10));
+
     this.initializeClient();
     this.initializeSessionManager();
     this.intializeExecutorService();
+
     this.retryer = RetryerBuilder.<AzkabanClientStatus>newBuilder()
         .retryIfExceptionOfType(InvalidSessionException.class)
-        .withAttemptTimeLimiter(AttemptTimeLimiters.fixedTimeLimit(10, TimeUnit.SECONDS, this.executorService))
+        .withAttemptTimeLimiter(AttemptTimeLimiters.fixedTimeLimit(this.requestTimeout.toMillis(), TimeUnit.MILLISECONDS,
+            this.executorService))
         .withWaitStrategy(WaitStrategies.exponentialWait(60, TimeUnit.SECONDS))
         .withStopStrategy(StopStrategies.stopAfterAttempt(3))
         .build();
@@ -157,9 +159,9 @@ public class AzkabanClient implements Closeable {
 
     HttpClientBuilder builder = HttpClientBuilder.create();
     RequestConfig requestConfig = RequestConfig.copy(RequestConfig.DEFAULT)
-          .setSocketTimeout(10000)
-          .setConnectTimeout(10000)
-          .setConnectionRequestTimeout(10000)
+          .setSocketTimeout((int) this.requestTimeout.toMillis())
+          .setConnectTimeout((int) this.requestTimeout.toMillis())
+          .setConnectionRequestTimeout((int) this.requestTimeout.toMillis())
           .build();
 
       builder.disableCookieManagement()
@@ -184,7 +186,7 @@ public class AzkabanClient implements Closeable {
         .toNanos();
 
     if (expired) {
-      log.info("Session expired. Generating a new session.");
+      log.debug("Session expired. Generating a new session.");
     } else if (forceRefresh) {
       log.info("Force to refresh session. Generating a new session.");
     }
@@ -204,20 +206,27 @@ public class AzkabanClient implements Closeable {
    * @return A map composed by the first level of KV pair of json object
    */
   protected static Map<String, String> handleResponse(HttpResponse response) throws IOException {
-    int code = response.getStatusLine().getStatusCode();
-    if (code != HttpStatus.SC_CREATED && code != HttpStatus.SC_OK) {
-      log.error("Failed : HTTP error code : " + response.getStatusLine().getStatusCode());
-      throw new AzkabanClientException("Failed : HTTP error code : " + response.getStatusLine().getStatusCode());
-    }
+    verifyStatusCode(response);
+    JsonObject json = getResponseJson(response);
+    return getFlatMap(json);
+  }
 
-    // Get response in string
+  protected static <T> T handleResponse(HttpResponse response, Class<T> responseClass) throws IOException {
+    verifyStatusCode(response);
+    JsonObject json = getResponseJson(response);
+
+    Gson gson = new Gson();
+    return gson.fromJson(json, responseClass);
+  }
+
+  private static JsonObject getResponseJson(HttpResponse response) throws IOException {
     HttpEntity entity = null;
     String jsonResponseString;
 
     try {
       entity = response.getEntity();
       jsonResponseString = IOUtils.toString(entity.getContent(), "UTF-8");
-      log.info("Response string: " + jsonResponseString);
+      log.debug("Response string: {}", jsonResponseString);
     } catch (Exception e) {
       throw new AzkabanClientException("Cannot convert response to a string", e);
     } finally {
@@ -225,25 +234,35 @@ public class AzkabanClient implements Closeable {
         EntityUtils.consume(entity);
       }
     }
-
-    return AzkabanClient.parseResponse(jsonResponseString);
+    return parseResponse(jsonResponseString);
   }
 
-  static Map<String, String> parseResponse(String jsonResponseString) throws IOException {
-    // Parse Json
+  protected static void verifyStatusCode(HttpResponse response) throws AzkabanClientException {
+    int code = response.getStatusLine().getStatusCode();
+    if (code != HttpStatus.SC_CREATED && code != HttpStatus.SC_OK) {
+      log.error("Failed : HTTP error code : " + response.getStatusLine().getStatusCode());
+      throw new AzkabanClientException("Failed : HTTP error code : " + response.getStatusLine().getStatusCode());
+    }
+  }
+
+  static Map<String, String> getFlatMap(JsonObject jsonObject) {
+    if (jsonObject == null) {
+      return null;
+    }
     Map<String, String> responseMap = new HashMap<>();
-    if (StringUtils.isNotBlank(jsonResponseString)) {
-      JsonObject jsonObject = new JsonParser().parse(jsonResponseString).getAsJsonObject();
-
-      // Handle error if any
-      handleResponseError(jsonObject);
-
-      // Get all responseKeys
-      for (Map.Entry<String, JsonElement> entry : jsonObject.entrySet()) {
-        responseMap.put(entry.getKey(), entry.getValue().toString().replaceAll("\"", ""));
-      }
+    for (Map.Entry<String, JsonElement> entry : jsonObject.entrySet()) {
+      responseMap.put(entry.getKey(), entry.getValue().toString().replaceAll("\"", ""));
     }
     return responseMap;
+  }
+
+  static JsonObject parseResponse(String jsonResponseString) throws IOException {
+    if (!StringUtils.isNotBlank(jsonResponseString)) {
+      return null;
+    }
+    JsonObject jsonObject = new JsonParser().parse(jsonResponseString).getAsJsonObject();
+    handleResponseError(jsonObject);
+    return jsonObject;
   }
 
   private static void handleResponseError(JsonObject jsonObject) throws IOException {
@@ -306,6 +325,22 @@ public class AzkabanClient implements Closeable {
     return runWithRetry(callable, AzkabanClientStatus.class);
   }
 
+  /**
+   * Checks if the project with specified name exists in Azkaban
+   */
+  public Boolean projectExists(String projectName) throws AzkabanClientException {
+    try {
+      fetchProjectFlows(projectName);
+      return true;
+    } catch (AzkabanClientException e) {
+      // Azkaban does not return a strongly typed error code, so we are checking the message
+      if (e.getCause().getMessage().contains("doesn't exist")) {
+        return false;
+      } else {
+        throw e;
+      }
+    }
+  }
   /**
    * Updates a project by uploading a new zip file. Before uploading any project zip files,
    * the project should be created first.
@@ -387,9 +422,9 @@ public class AzkabanClient implements Closeable {
    */
   public AzkabanClientStatus fetchExecutionLog(String execId,
                                                String jobId,
-                                               String offset,
-                                               String length,
-                                               File ouf) throws AzkabanClientException {
+                                               long offset,
+                                               long length,
+                                               OutputStream logStream) throws AzkabanClientException {
     AzkabanMultiCallables.FetchExecLogCallable callable =
         AzkabanMultiCallables.FetchExecLogCallable.builder()
             .client(this)
@@ -397,7 +432,7 @@ public class AzkabanClient implements Closeable {
             .jobId(jobId)
             .offset(offset)
             .length(length)
-            .output(ouf)
+            .output(logStream)
             .build();
 
     return runWithRetry(callable, AzkabanClientStatus.class);
@@ -420,6 +455,21 @@ public class AzkabanClient implements Closeable {
             .build();
 
     return runWithRetry(callable, AzkabanFetchExecuteFlowStatus.class);
+  }
+
+  /**
+   * Returns a list of flow ids in a specified project.
+   *
+   * @param projectName name of the project.
+   */
+  public AzkabanProjectFlowsStatus fetchProjectFlows(String projectName) throws AzkabanClientException {
+    AzkabanMultiCallables.FetchProjectFlowsCallable callable =
+            AzkabanMultiCallables.FetchProjectFlowsCallable.builder()
+                    .client(this)
+                    .projectName(projectName)
+                    .build();
+
+    return runWithRetry(callable, AzkabanProjectFlowsStatus.class);
   }
 
   /**
