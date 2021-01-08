@@ -540,22 +540,26 @@ public class DagManager extends AbstractIdleService {
     private void finishResumingDags() throws IOException {
       for (Map.Entry<String, Dag<JobExecutionPlan>> dag : this.resumingDags.entrySet()) {
         JobStatus flowStatus = pollFlowStatus(dag.getValue());
-        if (!flowStatus.getEventName().equals(PENDING_RESUME.name())) {
-          return;
+        if (flowStatus == null || !flowStatus.getEventName().equals(PENDING_RESUME.name())) {
+          continue;
         }
 
+        boolean dagReady = true;
         for (DagNode<JobExecutionPlan> node : dag.getValue().getNodes()) {
           JobStatus jobStatus = pollJobStatus(node);
           if (jobStatus == null || jobStatus.getEventName().equals(FAILED.name()) || jobStatus.getEventName().equals(CANCELLED.name())) {
-            return;
+            dagReady = false;
+            break;
           }
         }
 
-        this.dagStateStore.writeCheckpoint(dag.getValue());
-        this.failedDagStateStore.cleanUp(dag.getValue());
-        this.failedDags.remove(dag.getKey());
-        this.resumingDags.remove(dag.getKey());
-        initialize(dag.getValue());
+        if (dagReady) {
+          this.dagStateStore.writeCheckpoint(dag.getValue());
+          this.failedDagStateStore.cleanUp(dag.getValue());
+          this.failedDags.remove(dag.getKey());
+          this.resumingDags.remove(dag.getKey());
+          initialize(dag.getValue());
+        }
       }
     }
 
