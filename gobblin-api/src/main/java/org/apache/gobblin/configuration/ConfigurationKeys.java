@@ -251,6 +251,9 @@ public class ConfigurationKeys {
   public static final String JOB_FAILURE_EXCEPTION_KEY = "job.failure.exception";
   public static final String TASK_RETRIES_KEY = "task.retries";
   public static final String TASK_IGNORE_CLOSE_FAILURES = "task.ignoreCloseFailures";
+  //A boolean config to allow skipping task interrupt on cancellation. Useful for example when thread manages
+  // a Kafka consumer which when interrupted during a poll() leaves the consumer in a corrupt state that prevents
+  // the consumer being closed subsequently, leading to a potential resource leak.
   public static final String TASK_INTERRUPT_ON_CANCEL = "task.interruptOnCancel";
   public static final String JOB_FAILURES_KEY = "job.failures";
   public static final String JOB_TRACKING_URL_KEY = "job.tracking.url";
