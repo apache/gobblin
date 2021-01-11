@@ -17,6 +17,10 @@
 
 package org.apache.gobblin.source.extractor.extract.jdbc;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.SourceState;
+import org.apache.gobblin.dataset.DatasetConstants;
+import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.gobblin.source.extractor.Extractor;
 import org.apache.gobblin.source.extractor.exception.ExtractPrepareException;
 import java.io.IOException;
@@ -29,6 +33,7 @@ import com.google.gson.JsonElement;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.source.extractor.extract.QueryBasedSource;
 import org.apache.gobblin.source.jdbc.SqlServerExtractor;
+import org.apache.gobblin.source.workunit.WorkUnit;
 
 
 /**
@@ -49,5 +54,14 @@ public class SqlServerSource extends QueryBasedSource<JsonArray, JsonElement> {
       throw new IOException(e);
     }
     return extractor;
+  }
+
+  protected void addLineageSourceInfo(SourceState sourceState, SourceEntity entity, WorkUnit workUnit) {
+    String database = sourceState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SCHEMA);
+    DatasetDescriptor source =
+        new DatasetDescriptor(DatasetConstants.PLATFORM_SQLSERVER, database + "." + entity.getSourceEntityName());
+    if (lineageInfo.isPresent()) {
+      lineageInfo.get().setSource(source, workUnit);
+    }
   }
 }

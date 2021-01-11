@@ -25,6 +25,8 @@ public class DatasetConstants {
   public static final String PLATFORM_HIVE = "hive";
   public static final String PLATFORM_SALESFORCE = "salesforce";
   public static final String PLATFORM_MYSQL = "mysql";
+  public static final String PLATFORM_SQLSERVER = "sqlserver";
+  public static final String PLATFORM_POSTGRESQL = "postgresql";
 
   /** Common metadata */
   public static final String BRANCH = "branch";
