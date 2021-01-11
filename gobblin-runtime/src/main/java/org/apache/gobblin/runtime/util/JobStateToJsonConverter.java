@@ -24,19 +24,14 @@ import java.io.OutputStreamWriter;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.util.List;
-import java.util.Properties;
 
+import java.util.Properties;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Option;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
 import org.apache.commons.lang.StringUtils;
-import org.apache.gobblin.annotation.Alias;
-import org.apache.gobblin.runtime.cli.CliApplication;
+import org.apache.gobblin.metastore.DatasetStateStore;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.JobConfigurationUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,11 +40,8 @@ import com.google.common.io.Closer;
 import com.google.gson.stream.JsonWriter;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.metastore.DatasetStateStore;
 import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.runtime.JobState;
-import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.util.JobConfigurationUtils;
 
 
 /**
@@ -58,8 +50,7 @@ import org.apache.gobblin.util.JobConfigurationUtils;
  * @author Yinan Li
  */
 @Slf4j
-@Alias(value = "job-state-to-json", description = "To convert Job state to JSON")
-public class JobStateToJsonConverter implements CliApplication {
+public class JobStateToJsonConverter {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(JobStateToJsonConverter.class);
 
@@ -68,6 +59,12 @@ public class JobStateToJsonConverter implements CliApplication {
   private final StateStore<? extends JobState> jobStateStore;
   private final boolean keepConfig;
 
+  public JobStateToJsonConverter(StateStore stateStore, boolean keepConfig) {
+    this.keepConfig = keepConfig;
+    this.jobStateStore = stateStore;
+  }
+
+  // Constructor for backwards compatibility
   public JobStateToJsonConverter(Properties props, String storeUrl, boolean keepConfig) throws IOException {
     Configuration conf = new Configuration();
     JobConfigurationUtils.putPropertiesIntoConfiguration(props, conf);
@@ -76,8 +73,8 @@ public class JobStateToJsonConverter implements CliApplication {
       props.setProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, storeUrl);
     }
 
-    this.keepConfig = keepConfig;
     this.jobStateStore = (StateStore) DatasetStateStore.buildDatasetStateStore(ConfigUtils.propertiesToConfig(props));
+    this.keepConfig = keepConfig;
   }
 
   /**
@@ -158,64 +155,15 @@ public class JobStateToJsonConverter implements CliApplication {
     jsonWriter.endArray();
   }
 
-  @SuppressWarnings("all")
-  @Override
-  public void run(String[] args) throws Exception {
-    Option sysConfigOption = Option.builder("sc").argName("system configuration file")
-        .desc("Gobblin system configuration file (required if no state store URL specified)").longOpt("sysconfig").hasArg().build();
-    Option storeUrlOption = Option.builder("u").argName("gobblin state store URL")
-        .desc("Gobblin state store root path URL (required if no sysconfig specified)").longOpt("storeurl").hasArg().build();
-    Option jobNameOption = Option.builder("n").argName("gobblin job name").desc("Gobblin job name (required)").longOpt("name")
-        .hasArg().required().build();
-    Option jobIdOption =
-        Option.builder("i").argName("gobblin job id").desc("Gobblin job id").longOpt("id").hasArg().build();
-    Option convertAllOption =
-        Option.builder("a").desc("Whether to convert all past job states of the given job").longOpt("all").build();
-    Option keepConfigOption =
-        Option.builder("kc").desc("Whether to keep all configuration properties").longOpt("keepConfig").build();
-    Option outputToFile =
-        Option.builder("t").argName("output file name").desc("Output file name").longOpt("toFile").hasArg().build();
-
-    Options options = new Options();
-    options.addOption(sysConfigOption);
-    options.addOption(storeUrlOption);
-    options.addOption(jobNameOption);
-    options.addOption(jobIdOption);
-    options.addOption(convertAllOption);
-    options.addOption(keepConfigOption);
-    options.addOption(outputToFile);
-
-    CommandLine cmd = null;
-    try {
-      CommandLineParser parser = new DefaultParser();
-      cmd = parser.parse(options, args);
-    } catch (ParseException pe) {
-      HelpFormatter formatter = new HelpFormatter();
-      formatter.printHelp("JobStateToJsonConverter", options);
-      return;
-    }
-
-    if (!cmd.hasOption(sysConfigOption.getLongOpt()) && !cmd.hasOption(storeUrlOption.getLongOpt()) ){
-      HelpFormatter formatter = new HelpFormatter();
-      formatter.printHelp("JobStateToJsonConverter", options);
-      return;
-    }
-
-    Properties sysConfig = new Properties();
-    if (cmd.hasOption(sysConfigOption.getLongOpt())) {
-      sysConfig = JobConfigurationUtils.fileToProperties(cmd.getOptionValue(sysConfigOption.getLongOpt()));
-    }
-
-    JobStateToJsonConverter converter =
-        new JobStateToJsonConverter(sysConfig, cmd.getOptionValue('u'), cmd.hasOption("kc"));
+  public void outputToJson(CommandLine cmd) throws IOException {
     StringWriter stringWriter = new StringWriter();
     if (cmd.hasOption('i')) {
-      converter.convert(cmd.getOptionValue('n'), cmd.getOptionValue('i'), stringWriter);
+      this.convert(cmd.getOptionValue('n'), cmd.getOptionValue('i'), stringWriter);
     } else {
       if (cmd.hasOption('a')) {
-        converter.convertAll(cmd.getOptionValue('n'), stringWriter);
+        this.convertAll(cmd.getOptionValue('n'), stringWriter);
       } else {
-        converter.convert(cmd.getOptionValue('n'), stringWriter);
+        this.convert(cmd.getOptionValue('n'), stringWriter);
       }
     }
 
@@ -223,8 +171,7 @@ public class JobStateToJsonConverter implements CliApplication {
       Closer closer = Closer.create();
       try {
         FileOutputStream fileOutputStream = closer.register(new FileOutputStream(cmd.getOptionValue('t')));
-        OutputStreamWriter outputStreamWriter =
-            closer.register(new OutputStreamWriter(fileOutputStream, ConfigurationKeys.DEFAULT_CHARSET_ENCODING));
+        OutputStreamWriter outputStreamWriter = closer.register(new OutputStreamWriter(fileOutputStream, ConfigurationKeys.DEFAULT_CHARSET_ENCODING));
         BufferedWriter bufferedWriter = closer.register(new BufferedWriter(outputStreamWriter));
         bufferedWriter.write(stringWriter.toString());
       } catch (Throwable t) {
