@@ -165,6 +165,7 @@ public class Task implements TaskIFace {
   private final AtomicLong recordsPulled;
 
   private final AtomicBoolean shutdownRequested;
+  private final boolean shouldInterruptTaskOnCancel;
   private volatile long shutdownRequestedTime = Long.MAX_VALUE;
   private final CountDownLatch shutdownLatch;
   protected Future<?> taskFuture;
@@ -185,6 +186,7 @@ public class Task implements TaskIFace {
     this.taskId = this.taskState.getTaskId();
     this.taskKey = this.taskState.getTaskKey();
     this.isIgnoreCloseFailures = this.taskState.getJobState().getPropAsBoolean(ConfigurationKeys.TASK_IGNORE_CLOSE_FAILURES, false);
+    this.shouldInterruptTaskOnCancel = this.taskState.getJobState().getPropAsBoolean(ConfigurationKeys.TASK_INTERRUPT_ON_CANCEL, true);
     this.taskStateTracker = taskStateTracker;
     this.taskExecutor = taskExecutor;
     this.countDownLatch = countDownLatch;
@@ -1035,7 +1037,8 @@ public class Task implements TaskIFace {
    * @return
    */
   public synchronized boolean cancel() {
-    if (this.taskFuture != null && this.taskFuture.cancel(true)) {
+    LOG.info("Calling task cancel with interrupt flag: {}", this.shouldInterruptTaskOnCancel);
+    if (this.taskFuture != null && this.taskFuture.cancel(this.shouldInterruptTaskOnCancel)) {
       this.taskStateTracker.onTaskRunCompletion(this);
       this.completeShutdown();
       return true;
