@@ -17,24 +17,22 @@
 
 package org.apache.gobblin.source.extractor.extract.jdbc;
 
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.configuration.SourceState;
-import org.apache.gobblin.dataset.DatasetConstants;
-import org.apache.gobblin.dataset.DatasetDescriptor;
-import org.apache.gobblin.metrics.event.lineage.LineageInfo;
-import org.apache.gobblin.source.extractor.Extractor;
-import org.apache.gobblin.source.extractor.exception.ExtractPrepareException;
-import java.io.IOException;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
+import java.io.IOException;
+import java.net.URI;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.dataset.DatasetConstants;
+import org.apache.gobblin.dataset.DatasetDescriptor;
+import org.apache.gobblin.source.extractor.Extractor;
+import org.apache.gobblin.source.extractor.exception.ExtractPrepareException;
 import org.apache.gobblin.source.extractor.extract.QueryBasedSource;
 import org.apache.gobblin.source.jdbc.MysqlExtractor;
 import org.apache.gobblin.source.workunit.WorkUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -61,9 +59,10 @@ public class MysqlSource extends QueryBasedSource<JsonArray, JsonElement> {
     String host = sourceState.getProp(ConfigurationKeys.SOURCE_CONN_HOST_NAME);
     String port = sourceState.getProp(ConfigurationKeys.SOURCE_CONN_PORT);
     String database = sourceState.getProp(ConfigurationKeys.SOURCE_QUERYBASED_SCHEMA);
-    String connectionUrl = "jdbc:mysql://" + host.trim() + ":" + port + "/" + database.trim();
-    DatasetDescriptor source =
-        new DatasetDescriptor(DatasetConstants.PLATFORM_MYSQL, database + "." + entity.getSourceEntityName());
+    String serverUrl = "mysql://" + host.trim() + ":" + port;
+    String connectionUrl = "jdbc:" + serverUrl + "/" + database.trim();
+    DatasetDescriptor source = new DatasetDescriptor(DatasetConstants.PLATFORM_MYSQL, URI.create(serverUrl),
+        database + "." + entity.getSourceEntityName());
     source.addMetadata(DatasetConstants.CONNECTION_URL, connectionUrl);
     if (lineageInfo.isPresent()) {
       lineageInfo.get().setSource(source, workUnit);

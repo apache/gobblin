@@ -17,11 +17,12 @@
 
 package org.apache.gobblin.dataset;
 
-import java.util.Map;
-
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
-
+import java.net.URI;
+import java.util.Map;
+import java.util.Objects;
+import javax.annotation.Nullable;
 import lombok.Getter;
 
 
@@ -31,6 +32,7 @@ import lombok.Getter;
 public class DatasetDescriptor extends Descriptor {
   private static final String PLATFORM_KEY = "platform";
   private static final String NAME_KEY = "name";
+  private static final String STORAGE_URL = "storageUrl";
 
   /**
    * which platform the dataset is stored, for example: local, hdfs, oracle, mysql, kafka
@@ -39,12 +41,35 @@ public class DatasetDescriptor extends Descriptor {
   private final String platform;
 
   /**
+   * URL of system that stores the dataset. It does not include the dataset name.
+   *
+   * Examples: hdfs://storage.corp.com, https://api.service.test, mysql://mysql-db.test:3306, thrift://hive-server:4567
+   *
+   * Using URI instead of URL class to allow for schemas that are not known by URL class
+   * (https://stackoverflow.com/q/2406518/258737)
+   */
+  @Getter
+  @Nullable
+  private final URI storageUrl;
+
+  /**
    * metadata about the dataset
    */
   private final Map<String, String> metadata = Maps.newHashMap();
 
+  /**
+   * @deprecated use {@link #DatasetDescriptor(String, URI, String)} to provide storage system url.
+   */
+  @Deprecated
   public DatasetDescriptor(String platform, String name) {
     super(name);
+    this.storageUrl = null;
+    this.platform = platform;
+  }
+
+  public DatasetDescriptor(String platform, URI storageUrl, String name) {
+    super(name);
+    this.storageUrl = storageUrl;
     this.platform = platform;
   }
 
@@ -55,13 +80,35 @@ public class DatasetDescriptor extends Descriptor {
   public DatasetDescriptor(DatasetDescriptor copy) {
     super(copy.getName());
     platform = copy.getPlatform();
+    storageUrl = copy.getStorageUrl();
     metadata.putAll(copy.getMetadata());
   }
 
+  /**
+   * Deserialize a {@link DatasetDescriptor} from a string map
+   *
+   * @deprecated use {@link Descriptor#deserialize(String)}
+   */
+  @Deprecated
+  public static DatasetDescriptor fromDataMap(Map<String, String> dataMap) {
+    String storageUrlString = dataMap.getOrDefault(STORAGE_URL, null);
+    URI storageUrl = null;
+    if (storageUrlString != null) {
+      storageUrl = URI.create(storageUrlString);
+    }
+
+    DatasetDescriptor descriptor =
+        new DatasetDescriptor(dataMap.get(PLATFORM_KEY), storageUrl, dataMap.get(NAME_KEY));
+    dataMap.forEach((key, value) -> {
+      if (!key.equals(PLATFORM_KEY) && !key.equals(NAME_KEY) && !key.equals(STORAGE_URL)) {
+        descriptor.addMetadata(key, value);
+      }
+    });
+    return descriptor;
+  }
+
   public ImmutableMap<String, String> getMetadata() {
-    return ImmutableMap.<String, String>builder()
-        .putAll(metadata)
-        .build();
+    return ImmutableMap.<String, String>builder().putAll(metadata).build();
   }
 
   @Override
@@ -83,6 +130,9 @@ public class DatasetDescriptor extends Descriptor {
     Map<String, String> map = Maps.newHashMap();
     map.put(PLATFORM_KEY, platform);
     map.put(NAME_KEY, getName());
+    if (getStorageUrl() != null) {
+      map.put(STORAGE_URL, getStorageUrl().toString());
+    }
     map.putAll(metadata);
     return map;
   }
@@ -95,32 +145,13 @@ public class DatasetDescriptor extends Descriptor {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-
     DatasetDescriptor that = (DatasetDescriptor) o;
-    return platform.equals(that.platform) && getName().equals(that.getName()) && metadata.equals(that.metadata);
+    return platform.equals(that.platform) && Objects.equals(storageUrl, that.storageUrl)
+        && metadata.equals(that.metadata);
   }
 
   @Override
   public int hashCode() {
-    int result = platform.hashCode();
-    result = 31 * result + getName().hashCode();
-    result = 31 * result + metadata.hashCode();
-    return result;
-  }
-
-  /**
-   * Deserialize a {@link DatasetDescriptor} from a string map
-   *
-   * @deprecated use {@link Descriptor#deserialize(String)}
-   */
-  @Deprecated
-  public static DatasetDescriptor fromDataMap(Map<String, String> dataMap) {
-    DatasetDescriptor descriptor = new DatasetDescriptor(dataMap.get(PLATFORM_KEY), dataMap.get(NAME_KEY));
-    dataMap.forEach((key, value) -> {
-      if (!key.equals(PLATFORM_KEY) && !key.equals(NAME_KEY)) {
-        descriptor.addMetadata(key, value);
-      }
-    });
-    return descriptor;
+    return Objects.hash(platform, storageUrl, metadata);
   }
 }
