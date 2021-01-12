@@ -20,17 +20,8 @@ package org.apache.gobblin.util.hadoop;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import java.io.DataOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.security.PrivilegedExceptionAction;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.regex.Pattern;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.gobblin.configuration.State;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -55,10 +46,20 @@ import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.yarn.factory.providers.RecordFactoryProvider;
 import org.apache.hadoop.yarn.ipc.YarnRPC;
 import org.apache.hadoop.yarn.util.ConverterUtils;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
-import java.util.ArrayList;
 import org.apache.thrift.TException;
+
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.security.PrivilegedExceptionAction;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.regex.Pattern;
 
 
 /**
@@ -384,38 +385,45 @@ public class TokenUtils {
 
   public static void getAllFSTokensImpl(Configuration conf, Credentials cred, String renewer, List<String> remoteFSURIList) {
     try {
-      FileSystem fs = FileSystem.get(conf);
-      if (StringUtils.isEmpty(renewer)) {
-        renewer = getMRTokenRenewerInternal(new JobConf()).toString();
-        log.info("No renewer specified for FS: {}, taking default renewer: {}",  fs.getUri(), renewer);
-      }
+      // Handles token for local namenode
+      getLocalFSToken(conf, cred, renewer);
 
-      log.debug("Getting HDFS token for" + fs.getUri() + " with renewer: " + renewer);
-      Token<?>[] fsTokens = fs.addDelegationTokens(renewer, cred);
-      if (fsTokens != null) {
-        for (Token<?> token : fsTokens) {
-          log.info("FS Uri: " + fs.getUri() + " token: " + token);
-        }
-      }
-
-      // Handle remote namenodes if any
-      if(remoteFSURIList !=null && remoteFSURIList.size() >0){
-        getRemoteFSTokenFromURI(conf, cred, remoteFSURIList, renewer);
-      }
+      // Handle token for remote namenodes if any
+      getRemoteFSTokenFromURI(conf, cred, renewer, remoteFSURIList);
 
       log.debug("All credential tokens: " + cred.getAllTokens());
     } catch (IOException e) {
-      log.error("Error getting or creating HDFS token with renewer: "+ renewer);
+      log.error("Error getting or creating HDFS token with renewer: " + renewer, e);
     }
-
   }
 
-  public static void getRemoteFSTokenFromURI(Configuration conf, Credentials cred, List<String> otherNamenodes, String renewer)
-      throws IOException {
-    log.debug("Getting tokens for other namenodes: " + otherNamenodes);
-    Path[] ps = new Path[otherNamenodes.size()];
+  public static void getLocalFSToken(Configuration conf, Credentials cred, String renewer) throws IOException {
+    FileSystem fs = FileSystem.get(conf);
+    if (StringUtils.isEmpty(renewer)) {
+      renewer = getMRTokenRenewerInternal(new JobConf()).toString();
+      log.info("No renewer specified for FS: {}, taking default renewer: {}", fs.getUri(), renewer);
+    }
+
+    log.debug("Getting HDFS token for" + fs.getUri() + " with renewer: " + renewer);
+    Token<?>[] fsTokens = fs.addDelegationTokens(renewer, cred);
+    if (fsTokens != null) {
+      for (Token<?> token : fsTokens) {
+        log.info("FS Uri: " + fs.getUri() + " token: " + token);
+      }
+    }
+  }
+
+  public static void getRemoteFSTokenFromURI(Configuration conf, Credentials cred, String renewer, List<String> remoteNamenodesList)
+          throws IOException {
+    if (remoteNamenodesList == null || remoteNamenodesList.size() == 0) {
+      log.debug("no remote namenode URI specified, not getting any tokens for remote namenodes: " + remoteNamenodesList);
+      return;
+    }
+
+    log.debug("Getting tokens for remote namenodes: " + remoteNamenodesList);
+    Path[] ps = new Path[remoteNamenodesList.size()];
     for (int i = 0; i < ps.length; i++) {
-      ps[i] = new Path(otherNamenodes.get(i).trim());
+      ps[i] = new Path(remoteNamenodesList.get(i).trim());
       FileSystem otherNameNodeFS = ps[i].getFileSystem(conf);
 
       if (StringUtils.isEmpty(renewer)) {
@@ -429,7 +437,7 @@ public class TokenUtils {
         }
       }
     }
-    log.info("Successfully fetched tokens for: " + otherNamenodes);
+    log.info("Successfully fetched tokens for: " + remoteNamenodesList);
   }
 
   private static void persistTokens(Credentials cred, File tokenFile) throws IOException {
