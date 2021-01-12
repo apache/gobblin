@@ -181,6 +181,11 @@ ext.externalDependency = [
     ],
     "postgresConnector": "org.postgresql:postgresql:42.1.4",
     "assertj": 'org.assertj:assertj-core:3.8.0',
+    "jmockit": "org.jmockit:jmockit:1.30",
+    "powermockApiMockito": "org.powermock:powermock-api-mockito:1.6.5",
+    "powermockModuleTestng": "org.powermock:powermock-module-testng:1.6.5",
+    "okhttp3": "com.squareup.okhttp3:okhttp:4.8.1",
+    "commonsValidator": "commons-validator:commons-validator:1.6"
 ]
 
 if (!isDefaultEnvironment)

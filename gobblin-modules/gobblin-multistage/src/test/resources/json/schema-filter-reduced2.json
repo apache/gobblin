@@ -1,0 +1,135 @@
+[
+  {
+    "columnName": "id",
+    "isNullable": "true",
+    "dataType": {
+      "type": "string"
+    }
+  },
+  {
+    "columnName": "emailAddress",
+    "isNullable": "true",
+    "dataType": {
+      "type": "string"
+    }
+  },
+  {
+    "columnName": "created",
+    "isNullable": "true",
+    "dataType": {
+      "type": "string"
+    }
+  },
+  {
+    "columnName": "active",
+    "isNullable": "true",
+    "dataType": {
+      "type": "boolean"
+    }
+  },
+  {
+    "columnName": "emailAliases",
+    "isNullable": "true",
+    "dataType": {
+      "type": "array",
+      "isNullable": "true",
+      "items": "string"
+    }
+  },
+  {
+    "columnName": "firstName",
+    "isNullable": "true",
+    "dataType": {
+      "type": "string"
+    }
+  },
+  {
+    "columnName": "lastName",
+    "isNullable": "true",
+    "dataType": {
+      "type": "string"
+    }
+  },
+  {
+    "columnName": "title",
+    "isNullable": "true",
+    "dataType": {
+      "type": "string"
+    }
+  },
+  {
+    "columnName": "phoneNumber",
+    "isNullable": "true",
+    "dataType": {
+      "type": "string"
+    }
+  },
+  {
+    "columnName": "extension",
+    "isNullable": "true",
+    "dataType": {
+      "type": "string"
+    }
+  },
+  {
+    "columnName": "personalMeetingUrls",
+    "isNullable": "true",
+    "dataType": {
+      "type": "array",
+      "isNullable": "true",
+      "items": "string"
+    }
+  },
+  {
+    "columnName": "settings",
+    "isNullable": "false",
+    "dataType": {
+      "type": "record",
+      "name": "settings",
+      "values": [
+        {
+          "columnName": "preventWebConferenceRecording",
+          "isNullable": "true",
+          "dataType": {
+            "type": "boolean"
+          }
+        },
+        {
+          "columnName": "telephonyCallsImported",
+          "isNullable": "true",
+          "dataType": {
+            "type": "boolean"
+          }
+        },
+        {
+          "columnName": "emailsImported",
+          "isNullable": "true",
+          "dataType": {
+            "type": "boolean"
+          }
+        },
+        {
+          "columnName": "preventEmailImport",
+          "isNullable": "true",
+          "dataType": {
+            "type": "boolean"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "columnName": "managerId",
+    "isNullable": "true",
+    "dataType": {
+      "type": "string"
+    }
+  },
+  {
+    "columnName": "meetingConsentPageUrl",
+    "isNullable": "true",
+    "dataType": {
+      "type": "string"
+    }
+  }
+]
