@@ -70,8 +70,6 @@ public class YarnHelixUtils {
       LOGGER.warn("got empty credentials, creating default one as new.");
       credentials = new Credentials();
     }
-    // TODO: token needs to be removed from the function signature as well
-//    credentials.addToken(token.getService(), token);
     LOGGER.debug(String.format("Writing all tokens %s to file %s",  credentials.getAllTokens(), tokenFilePath));
     credentials.writeTokenStorageFile(tokenFilePath, configuration);
   }

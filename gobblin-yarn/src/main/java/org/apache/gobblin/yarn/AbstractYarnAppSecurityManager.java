@@ -121,7 +121,7 @@ public abstract class AbstractYarnAppSecurityManager extends AbstractIdleService
         try {
           loginAndScheduleTokenRenewal();
         }catch(Exception e){
-          LOGGER.error("Error login using keytab, will continue the thread and try next time.");
+          LOGGER.error("Error during login, will continue the thread and try next time.");
         }
       }
     }, this.loginIntervalInMinutes, this.loginIntervalInMinutes, TimeUnit.MINUTES);

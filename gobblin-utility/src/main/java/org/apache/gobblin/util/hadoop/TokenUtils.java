@@ -345,7 +345,24 @@ public class TokenUtils {
 
   private static void getJtTokensImpl(final State state, final Configuration conf, final Credentials cred)
       throws IOException {
-    getJtToken(cred);
+    try {
+      JobConf jobConf = new JobConf();
+      JobClient jobClient = new JobClient(jobConf);
+      log.info("Pre-fetching JT token from JobTracker");
+
+      Token<DelegationTokenIdentifier> mrdt = jobClient.getDelegationToken(getMRTokenRenewerInternal(jobConf));
+      if (mrdt == null) {
+        log.error("Failed to fetch JT token");
+        throw new IOException("Failed to fetch JT token.");
+      }
+      log.info("Created JT token: " + mrdt.toString());
+      log.info("Token kind: " + mrdt.getKind());
+      log.info("Token id: " + Arrays.toString(mrdt.getIdentifier()));
+      log.info("Token service: " + mrdt.getService());
+      cred.addToken(mrdt.getService(), mrdt);
+    } catch (InterruptedException ie) {
+      throw new IOException(ie);
+    }
   }
 
   public static void getAllFSTokens(final Configuration conf, final Credentials cred, final String renewer,
@@ -413,27 +430,6 @@ public class TokenUtils {
       }
     }
     log.info("Successfully fetched tokens for: " + otherNamenodes);
-  }
-
-  private static void getJtToken(Credentials cred) throws IOException {
-    try {
-      JobConf jobConf = new JobConf();
-      JobClient jobClient = new JobClient(jobConf);
-      log.info("Pre-fetching JT token from JobTracker");
-
-      Token<DelegationTokenIdentifier> mrdt = jobClient.getDelegationToken(getMRTokenRenewerInternal(jobConf));
-      if (mrdt == null) {
-        log.error("Failed to fetch JT token");
-        throw new IOException("Failed to fetch JT token.");
-      }
-      log.info("Created JT token: " + mrdt.toString());
-      log.info("Token kind: " + mrdt.getKind());
-      log.info("Token id: " + Arrays.toString(mrdt.getIdentifier()));
-      log.info("Token service: " + mrdt.getService());
-      cred.addToken(mrdt.getService(), mrdt);
-    } catch (InterruptedException ie) {
-      throw new IOException(ie);
-    }
   }
 
   private static void persistTokens(Credentials cred, File tokenFile) throws IOException {
