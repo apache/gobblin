@@ -12,7 +12,7 @@
 .shelf/
 .ideaDataSources/
 
-# VS Code related 
+# VS Code related
 .vscode
 
 **/.classpath
@@ -22,8 +22,7 @@
 **/*.swp
 **/*.swo
 **/*.log
-*/bin
-**/bin
+
 **/build/
 .gradle
 **/.gradle
