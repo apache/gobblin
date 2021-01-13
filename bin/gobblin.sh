@@ -99,7 +99,7 @@ function print_gobblin_cli_usage() {
                 config                      Query the config library
                 jobs                        Command line job info and operations
                 stateMigration              Command line tools for migrating state store
-                job-state-to-json           To convert Job state to JSON
+                job-state-store             View and delete job states
                 cleaner                     Data retention utility
                 keystore                    Examine JCE Keystore files
                 watermarks                  Inspect streaming watermarks
