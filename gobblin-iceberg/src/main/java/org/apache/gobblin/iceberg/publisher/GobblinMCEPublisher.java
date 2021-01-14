@@ -19,6 +19,7 @@ package org.apache.gobblin.iceberg.publisher;
 
 import com.google.common.io.Closer;
 import org.apache.gobblin.iceberg.GobblinMCEProducer;
+import org.apache.gobblin.iceberg.Utils.IcebergUtils;
 import org.apache.gobblin.metadata.OperationType;
 import org.apache.gobblin.metadata.SchemaSource;
 import java.io.IOException;
@@ -33,6 +34,7 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.publisher.DataPublisher;
 import org.apache.gobblin.util.HadoopUtils;
+import org.apache.gobblin.util.filters.HiddenFilter;
 import org.apache.gobblin.writer.PartitionedDataWriter;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -70,10 +72,7 @@ public class GobblinMCEPublisher extends DataPublisher {
 
   private final Closer closer = Closer.create();
   private final Configuration conf;
-  private static final PathFilter HIDDEN_FILES_FILTER = p -> {
-    String name = p.getName();
-    return !name.startsWith("_") && !name.startsWith(".");
-  };
+  private static final PathFilter HIDDEN_FILES_FILTER = new HiddenFilter();
 
   public GobblinMCEPublisher(State state) throws IOException {
 
@@ -109,10 +108,9 @@ public class GobblinMCEPublisher extends DataPublisher {
   private Map<Path, Metrics> computeFileMetrics(State state) throws IOException {
     Map<Path, Metrics> newFiles = new HashMap<>();
     NameMapping mapping = getNameMapping();
-
+    FileSystem fs = FileSystem.get(conf);
     for (final String pathString : state.getPropAsList(NEW_FILES_LIST, "")) {
       Path path = new Path(pathString);
-      FileSystem fs = path.getFileSystem(conf);
       LinkedList<FileStatus> fileStatuses = new LinkedList<>();
       fileStatuses.add(fs.getFileStatus(path));
       // Only register files
@@ -144,7 +142,7 @@ public class GobblinMCEPublisher extends DataPublisher {
   }
 
   public static Metrics getMetrics(State state, Path path, Configuration conf, NameMapping mapping) {
-    switch (GobblinMCEProducer.getIcebergFormat(state)) {
+    switch (IcebergUtils.getIcebergFormat(state)) {
       case ORC: {
         return OrcMetrics.fromInputFile(HadoopInputFile.fromPath(path, conf), MetricsConfig.getDefault(), mapping);
       }

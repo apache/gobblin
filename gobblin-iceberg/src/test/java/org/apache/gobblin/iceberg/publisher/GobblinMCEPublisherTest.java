@@ -233,7 +233,7 @@ public class GobblinMCEPublisherTest {
 
   private void setGMCEPublisherStateForOrcFile(WorkUnitState state) {
     state.setProp(GobblinMCEPublisher.NEW_FILES_LIST, orcFilePath.toString());
-    state.setProp(GobblinMCEProducer.FORMAT_KEY, "ORC");
+    state.setProp(ConfigurationKeys.WRITER_OUTPUT_FORMAT_KEY, "ORC");
     state.setProp(GobblinMCEPublisher.OFFSET_RANGE_KEY, "testTopic-1:0-1000");
     state.setProp(ConfigurationKeys.HIVE_REGISTRATION_POLICY,
         HiveSnapshotRegistrationPolicy.class.getCanonicalName());
@@ -244,7 +244,7 @@ public class GobblinMCEPublisherTest {
 
   private void setGMCEPublisherStateForAvroFile(WorkUnitState state) {
     state.setProp(GobblinMCEPublisher.NEW_FILES_LIST, dataFile.toString());
-    state.setProp(GobblinMCEProducer.FORMAT_KEY, "AVRO");
+    state.setProp(ConfigurationKeys.WRITER_OUTPUT_FORMAT_KEY, "AVRO");
     state.setProp(GobblinMCEPublisher.OFFSET_RANGE_KEY, "testTopic-1:0-1000");
     state.setProp(ConfigurationKeys.HIVE_REGISTRATION_POLICY,
         HiveSnapshotRegistrationPolicy.class.getCanonicalName());

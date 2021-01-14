@@ -31,6 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.hive.policy.HiveRegistrationPolicyBase;
+import org.apache.gobblin.iceberg.Utils.IcebergUtils;
 import org.apache.gobblin.iceberg.publisher.GobblinMCEPublisher;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metadata.DataFile;
@@ -53,9 +54,11 @@ import org.apache.iceberg.Metrics;
 
 
 /**
- * A class for emitting GobblinMCE (Gobblin Metadata Change Event that includes the information of the file metadata change,
- * i.e., add or delete file, and the column min/max value of the added file.
- * GMCE will be consumed by metadata pipeline to register/de-register hive/iceberg metadata)
+ * A class running along with data ingestion pipeline for emitting GobblinMCE (Gobblin Metadata Change Event
+ * that includes the information of the file metadata change, i.e., add or delete file, and the column min/max value of the added file.
+ * GMCE will be consumed by another metadata ingestion pipeline to register/de-register hive/iceberg metadata)
+ *
+ * This is an abstract class, we need a sub system like Kakfa, which support at least once delivery, to emit the event
  */
 @Slf4j
 public abstract class GobblinMCEProducer<D> implements Closeable {
@@ -84,14 +87,14 @@ public abstract class GobblinMCEProducer<D> implements Closeable {
    * the metadata ingestion pipeline can use the information to register metadata
    * @param newFiles The map of new files' path and metrics
    * @param oldFiles the list of old file to be dropped
-   * @param offsetRange offset rang of the new data, can be null
+   * @param offsetRange offset range of the new data, can be null
    * @param operationType The opcode of gmce emitted by this method.
    * @throws IOException
    */
-  public void sendGMCE(Map<Path, Metrics> newFiles, List<String> oldFiles, List<String> oldFilePrefixs,
+  public void sendGMCE(Map<Path, Metrics> newFiles, List<String> oldFiles, List<String> oldFilePrefixes,
       Map<String, String> offsetRange, OperationType operationType, SchemaSource schemaSource) throws IOException {
     GobblinMetadataChangeEvent gmce =
-        getGobblinMetadataChangeEvent(newFiles, oldFiles, oldFilePrefixs, offsetRange, operationType, schemaSource);
+        getGobblinMetadataChangeEvent(newFiles, oldFiles, oldFilePrefixes, offsetRange, operationType, schemaSource);
     underlyingSendGMCE(gmce);
   }
 
@@ -179,44 +182,39 @@ public abstract class GobblinMCEProducer<D> implements Closeable {
       case rewrite_files: {
         if (newFiles == null || ((oldFiles == null || oldFiles.isEmpty()) && (oldFilePrefixes == null || oldFilePrefixes
             .isEmpty())) || newFiles.isEmpty()) {
+          log.error("Rewrite files operation must contain newFiles to be added and oldFiles to be deleted");
           return false;
         }
         break;
       }
       case add_files: {
         if (newFiles == null || newFiles.isEmpty()) {
+          log.error("Add files operation must contain newFiles to be added");
           return false;
         }
         break;
       }
       case drop_files: {
         if ((oldFiles == null || oldFiles.isEmpty()) && (oldFilePrefixes == null || oldFilePrefixes.isEmpty())) {
+          log.error("Drop files operation must contain old files to be deleted");
           return false;
         }
         break;
       }
       default: {
         //unsupported operation
+        log.error("Unsupported operation type {}", operationType);
         return false;
       }
     }
     return true;
   }
 
-  public static FileFormat getIcebergFormat(State state) {
-    if (state.getProp(FORMAT_KEY).equalsIgnoreCase("AVRO")) {
-      return FileFormat.AVRO;
-    } else if (state.getProp(FORMAT_KEY).equalsIgnoreCase("ORC")) {
-      return FileFormat.ORC;
-    }
-
-    throw new IllegalArgumentException("Unsupported data format: " + state.getProp(FORMAT_KEY));
-  }
 
   private List<DataFile> toGobblinDataFileList(Map<Path, Metrics> files) {
     return Lists.newArrayList(Iterables.transform(files.entrySet(), file -> DataFile.newBuilder()
         .setFilePath(file.getKey().toString())
-        .setFileFormat(getIcebergFormat(state).toString())
+        .setFileFormat(IcebergUtils.getIcebergFormat(state).toString())
         .setFileMetrics(DataMetrics.newBuilder()
             .setRecordCount(file.getValue().recordCount())
             .setColumnSizes(getIntegerLongPairsFromMap(file.getValue().columnSizes()))

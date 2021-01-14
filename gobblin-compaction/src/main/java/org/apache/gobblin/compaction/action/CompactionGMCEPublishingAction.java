@@ -28,6 +28,7 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.dataset.FileSystemDataset;
 import org.apache.gobblin.iceberg.GobblinMCEProducer;
+import org.apache.gobblin.iceberg.Utils.IcebergUtils;
 import org.apache.gobblin.iceberg.publisher.GobblinMCEPublisher;
 import org.apache.gobblin.metadata.OperationType;
 import org.apache.gobblin.metadata.SchemaSource;
@@ -43,7 +44,7 @@ import org.apache.iceberg.avro.AvroSchemaUtil;
 import org.apache.iceberg.mapping.MappingUtil;
 import org.apache.iceberg.mapping.NameMapping;
 import org.apache.iceberg.orc.ORCSchemaUtil;
-import org.apache.orc.TypeDescription;
+import org.apache.iceberg.shaded.org.apache.orc.TypeDescription;
 import org.apache.orc.OrcConf;
 
 
@@ -90,7 +91,7 @@ public class CompactionGMCEPublishingAction implements CompactionCompleteAction<
 
   private Map<Path, Metrics> getNewFileMetrics() {
     NameMapping mapping = null;
-    if (GobblinMCEProducer.getIcebergFormat(state) == FileFormat.ORC) {
+    if (IcebergUtils.getIcebergFormat(state) == FileFormat.ORC) {
       String s = this.configurator.getConfiguredJob().getConfiguration().get(OrcConf.MAPRED_OUTPUT_SCHEMA.getAttribute());
       TypeDescription orcSchema = TypeDescription.fromString(s);
       for (int i = 0; i <= orcSchema.getMaximumId(); i++) {

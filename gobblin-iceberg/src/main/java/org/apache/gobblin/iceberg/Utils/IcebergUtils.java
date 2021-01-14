@@ -29,6 +29,8 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metadata.IntegerBytesPair;
 import org.apache.gobblin.metadata.IntegerLongPair;
 import org.apache.hadoop.conf.Configuration;
@@ -38,6 +40,7 @@ import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DataFiles;
+import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.Metrics;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
@@ -266,6 +269,19 @@ public class IcebergUtils {
       }
     }
     return map;
+  }
+
+  /**
+   * Method to get Iceberg format from state, the format is determined by {@Link ConfigurationKeys.WRITER_OUTPUT_FORMAT_KEY}
+   */
+  public static FileFormat getIcebergFormat(State state) {
+    if (state.getProp(ConfigurationKeys.WRITER_OUTPUT_FORMAT_KEY).equalsIgnoreCase("AVRO")) {
+      return FileFormat.AVRO;
+    } else if (state.getProp(ConfigurationKeys.WRITER_OUTPUT_FORMAT_KEY).equalsIgnoreCase("ORC")) {
+      return FileFormat.ORC;
+    }
+
+    throw new IllegalArgumentException("Unsupported data format: " + state.getProp(ConfigurationKeys.WRITER_OUTPUT_FORMAT_KEY));
   }
 
 
