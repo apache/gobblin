@@ -81,6 +81,7 @@ public class ProduceRateAndLagBasedWorkUnitSizeEstimatorTest {
 
     //WorkUnit with Kafka watermark and previous avg produce rates
     watermark = new KafkaStreamingExtractor.KafkaWatermark(new KafkaPartition.Builder().withTopicName(TEST_TOPIC).withId(0).build(), new LongWatermark(0L));
+    workUnit.setProp(KafkaTopicGroupingWorkUnitPacker.MIN_WORKUNIT_SIZE_KEY, 2.0);
     watermark.setAvgRecordSize(AVG_RECORD_SIZE);
     watermark.setAvgProduceRates(avgProduceRates);
     workUnit.setProp(KafkaTopicGroupingWorkUnitPacker.PARTITION_WATERMARK, GSON.toJson(watermark));
@@ -90,5 +91,15 @@ public class ProduceRateAndLagBasedWorkUnitSizeEstimatorTest {
     workUnit.setProp(KafkaTopicGroupingWorkUnitPacker.PACKING_START_TIME_MILLIS, format.parse(BINPACKING_TIME_2).getTime());
     workUnit.setProp(KafkaTopicGroupingWorkUnitPacker.DEFAULT_WORKUNIT_SIZE_KEY, 2.0);
     Assert.assertEquals(new Double(this.estimator.calcEstimatedSize(workUnit)).longValue(), 4L);
+
+    //Create a new workunit with minimum workunit size = 5.0
+    workUnit = WorkUnit.createEmpty();
+    workUnit.setProp(KafkaTopicGroupingWorkUnitPacker.PARTITION_WATERMARK, GSON.toJson(watermark));
+    workUnit.setProp(KafkaTopicGroupingWorkUnitPacker.DEFAULT_WORKUNIT_SIZE_KEY, 1.0);
+    workUnit.setProp(KafkaTopicGroupingWorkUnitPacker.MIN_WORKUNIT_SIZE_KEY, 5.0);
+    workUnit.setProp(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY, Long.toString(6 * 3600 * 1024));
+    workUnit.setProp(KafkaTopicGroupingWorkUnitPacker.PACKING_START_TIME_MILLIS, format.parse(BINPACKING_TIME_2).getTime());
+    workUnit.setProp(KafkaTopicGroupingWorkUnitPacker.DEFAULT_WORKUNIT_SIZE_KEY, 2.0);
+    Assert.assertEquals(new Double(this.estimator.calcEstimatedSize(workUnit)).longValue(), 5L);
   }
 }
