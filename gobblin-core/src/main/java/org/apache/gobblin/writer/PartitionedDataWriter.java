@@ -246,6 +246,7 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
       // If the write take a long time, which is 1/3 of cache expiration time, we fail the writer to avoid data loss
       // and further slowness on the same HDFS block
       if (timeForWriting / 1000 > this.writeTimeoutInterval ) {
+        //Use NonTransientException to avoid writer retry, in this case, retry will also cause data loss
         throw new NonTransientException(String.format("Write record took %s s, but threshold is %s s",
             timeForWriting / 1000, writeTimeoutInterval));
       }
