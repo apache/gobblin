@@ -229,7 +229,7 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
         }
       }, e -> {
           logger.error("Failed to process record.", e);
-          throw(new RuntimeException(e));
+          throw((Exception) e);
           },
         () -> {
           if (this.writer.isPresent()) {

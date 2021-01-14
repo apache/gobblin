@@ -52,6 +52,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.dataset.Descriptor;
 import org.apache.gobblin.dataset.PartitionDescriptor;
+import org.apache.gobblin.exception.NonTransientException;
 import org.apache.gobblin.instrumented.writer.InstrumentedDataWriterDecorator;
 import org.apache.gobblin.instrumented.writer.InstrumentedPartitionedDataWriterDecorator;
 import org.apache.gobblin.records.ControlMessageHandler;
@@ -245,7 +246,7 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
       // If the write take a long time, which is 1/3 of cache expiration time, we fail the writer to avoid data loss
       // and further slowness on the same HDFS block
       if (timeForWriting / 1000 > this.writeTimeoutInterval ) {
-        throw new IOException(String.format("Write record took %s s, but threshold is %s s",
+        throw new NonTransientException(String.format("Write record took %s s, but threshold is %s s",
             timeForWriting / 1000, writeTimeoutInterval));
       }
     } catch (ExecutionException ee) {
