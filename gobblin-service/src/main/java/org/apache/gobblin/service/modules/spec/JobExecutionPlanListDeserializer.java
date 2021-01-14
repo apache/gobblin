@@ -111,6 +111,11 @@ public class JobExecutionPlanListDeserializer implements JsonDeserializer<List<J
       JobExecutionPlan jobExecutionPlan = new JobExecutionPlan(jobSpec, specExecutor);
       jobExecutionPlan.setExecutionStatus(executionStatus);
 
+      JsonElement flowStartTime = serializedJobExecutionPlan.get(SerializationConstants.FLOW_START_TIME_KEY);
+      if (flowStartTime != null) {
+        jobExecutionPlan.setFlowStartTime(flowStartTime.getAsLong());
+      }
+
       try {
         String jobExecutionFuture = serializedJobExecutionPlan.get(SerializationConstants.JOB_EXECUTION_FUTURE).getAsString();
         Future future = specExecutor.getProducer().get().deserializeAddSpecResponse(jobExecutionFuture);

@@ -185,7 +185,8 @@ public class DagManagerUtils {
       DagNode<JobExecutionPlan> node = nodesToExpand.poll();
       ExecutionStatus executionStatus = getExecutionStatus(node);
       boolean addFlag = true;
-      if (executionStatus == ExecutionStatus.PENDING || executionStatus == ExecutionStatus.PENDING_RETRY) {
+      if (executionStatus == ExecutionStatus.PENDING || executionStatus == ExecutionStatus.PENDING_RETRY
+          || executionStatus == ExecutionStatus.PENDING_RESUME) {
         //Add a node to be executed next, only if all of its parent nodes are COMPLETE.
         List<DagNode<JobExecutionPlan>> parentNodes = dag.getParents(node);
         for (DagNode<JobExecutionPlan> parentNode : parentNodes) {
@@ -243,12 +244,14 @@ public class DagManagerUtils {
   }
 
   /**
-   * flow start time is assumed to be same the flow execution id which is timestamp flow request was received
+   * Flow start time is the same as the flow execution id which is the timestamp flow request was received, unless it
+   * is a resumed flow, in which case it is {@link JobExecutionPlan#getFlowStartTime()}
    * @param dagNode dag node in context
-   * @return flow execution id
+   * @return flow start time
    */
   static long getFlowStartTime(DagNode<JobExecutionPlan> dagNode) {
-    return getFlowExecId(dagNode);
+    long flowStartTime = dagNode.getValue().getFlowStartTime();
+    return flowStartTime == 0L ? getFlowExecId(dagNode) : flowStartTime;
   }
 
   /**

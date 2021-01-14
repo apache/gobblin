@@ -17,12 +17,14 @@
 
 package org.apache.gobblin.service;
 
+import com.linkedin.data.DataMap;
 import com.linkedin.restli.client.DeleteRequest;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,11 +38,15 @@ import com.linkedin.r2.transport.common.bridge.client.TransportClientAdapter;
 import com.linkedin.r2.transport.http.client.HttpClientFactory;
 import com.linkedin.restli.client.FindRequest;
 import com.linkedin.restli.client.GetRequest;
+import com.linkedin.restli.client.PartialUpdateRequest;
 import com.linkedin.restli.client.Response;
 import com.linkedin.restli.client.RestClient;
+import com.linkedin.restli.client.UpdateRequest;
 import com.linkedin.restli.common.CollectionResponse;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
+import com.linkedin.restli.common.PatchRequest;
+import com.linkedin.restli.internal.server.util.DataMapUtils;
 
 
 /**
@@ -159,6 +165,27 @@ public class FlowExecutionClient implements Closeable {
     } else {
       return flowExecutionList;
     }
+  }
+
+  /**
+   * Resume the flow with given FlowStatusId from it's state before failure
+   * @param flowStatusId identifier of flow execution to resume
+   * @throws RemoteInvocationException
+   */
+  public void resumeFlowExecution(FlowStatusId flowStatusId)
+      throws RemoteInvocationException {
+    LOG.debug("resumeFlowExecution with groupName " + flowStatusId.getFlowGroup() + " flowName " +
+        flowStatusId.getFlowName() + " flowExecutionId " + flowStatusId.getFlowExecutionId());
+
+    String patchJson = "{\"$set\":{\"executionStatus\":\"RUNNING\"}}";
+    DataMap dataMap = DataMapUtils.readMap(IOUtils.toInputStream(patchJson));
+    PatchRequest<FlowExecution> flowExecutionPatch = PatchRequest.createFromPatchDocument(dataMap);
+
+    PartialUpdateRequest<FlowExecution> partialUpdateRequest =
+        _flowexecutionsRequestBuilders.partialUpdate().id(new ComplexResourceKey<>(flowStatusId, new EmptyRecord()))
+            .input(flowExecutionPatch).build();
+
+    FlowClientUtils.sendRequestWithRetry(_restClient.get(), partialUpdateRequest, FlowexecutionsRequestBuilders.getPrimaryResource());
   }
 
   /**

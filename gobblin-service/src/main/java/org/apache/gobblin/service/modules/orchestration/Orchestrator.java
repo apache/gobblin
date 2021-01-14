@@ -302,7 +302,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
       if (this.dagManager.isPresent()) {
         //Send the dag to the DagManager.
-        this.dagManager.get().addDag(jobExecutionPlanDag, true);
+        this.dagManager.get().addDag(jobExecutionPlanDag, true, true);
       } else {
         // Schedule all compiled JobSpecs on their respective Executor
         for (Dag.DagNode<JobExecutionPlan> dagNode : jobExecutionPlanDag.getNodes()) {
