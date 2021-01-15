@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.gobblin.compaction.verify.InputRecordCountHelper;
+import org.apache.gobblin.source.extractor.extract.kafka.KafkaSource;
 import org.apache.gobblin.util.PathUtils;
 import org.apache.hadoop.fs.Path;
 
@@ -92,6 +93,7 @@ public class CompactionHiveRegistrationAction implements CompactionCompleteActio
     }
 
     try (HiveRegister hiveRegister = HiveRegister.get(state)) {
+      state.setProp(KafkaSource.TOPIC_NAME, result.getDatasetName());
       HiveRegistrationPolicy hiveRegistrationPolicy = HiveRegistrationPolicyBase.getPolicy(state);
 
       List<String> paths = new ArrayList<>();
