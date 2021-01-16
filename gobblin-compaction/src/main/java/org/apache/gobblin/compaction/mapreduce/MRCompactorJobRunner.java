@@ -416,7 +416,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
     } catch (ExecutionException | InterruptedException e) {
       throw new IOException("Failed to copy file.", e);
     } finally {
-      ExecutorsUtils.shutdownExecutorService(executor, Optional.of(LOG));
+      ExecutorsUtils.shutdownExecutorService(executor);
     }
   }
 

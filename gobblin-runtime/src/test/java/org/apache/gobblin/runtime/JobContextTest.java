@@ -17,42 +17,34 @@
 
 package org.apache.gobblin.runtime;
 
-import java.io.IOException;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Queue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.gobblin.util.JobLauncherUtils;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import org.slf4j.Logger;
-import org.testng.Assert;
-import org.testng.annotations.Test;
-
 import com.google.common.base.Joiner;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
 import com.google.common.io.Files;
-
+import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.commit.DeliverySemantics;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.util.Either;
 import org.apache.gobblin.util.Id;
+import org.apache.gobblin.util.JobLauncherUtils;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.slf4j.Logger;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
 import javax.annotation.Nullable;
-import lombok.extern.slf4j.Slf4j;
+import java.io.IOException;
+import java.util.Map;
+import java.util.Properties;
+import java.util.Queue;
+import java.util.concurrent.*;
+
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 
 @Slf4j
@@ -257,7 +249,7 @@ public class JobContextTest {
     when(jobContext.getOutputDirProvided()).thenReturn(false);
     when(jobContext.getJobId()).thenReturn(currentJobPath.getName().toString());
 
-    JobLauncherUtils.cleanUpOldJobData(jobState, log, jobContext.getStagingDirProvided(), jobContext.getOutputDirProvided());
+    JobLauncherUtils.cleanUpOldJobData(jobState, jobContext.getStagingDirProvided(), jobContext.getOutputDirProvided());
 
     Assert.assertFalse(fs.exists(oldJobPath1));
     Assert.assertTrue(fs.exists(oldJobPath2));

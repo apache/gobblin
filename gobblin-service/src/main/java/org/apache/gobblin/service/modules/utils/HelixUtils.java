@@ -17,24 +17,6 @@
 
 package org.apache.gobblin.service.modules.utils;
 
-import java.io.UnsupportedEncodingException;
-import java.net.InetAddress;
-import java.net.URLDecoder;
-import java.net.URLEncoder;
-import java.net.UnknownHostException;
-
-import org.apache.helix.Criteria;
-import org.apache.helix.HelixManager;
-import org.apache.helix.HelixManagerFactory;
-import org.apache.helix.InstanceType;
-import org.apache.helix.PropertyKey;
-import org.apache.helix.manager.zk.ZKHelixManager;
-import org.apache.helix.model.HelixConfigScope;
-import org.apache.helix.model.LiveInstance;
-import org.apache.helix.model.Message;
-import org.apache.helix.tools.ClusterSetup;
-import org.slf4j.Logger;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
@@ -42,12 +24,22 @@ import com.linkedin.data.DataMap;
 import com.linkedin.restli.common.HttpStatus;
 import com.linkedin.restli.server.RestLiServiceException;
 import com.typesafe.config.Config;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.helix.*;
+import org.apache.helix.manager.zk.ZKHelixManager;
+import org.apache.helix.model.HelixConfigScope;
+import org.apache.helix.model.LiveInstance;
+import org.apache.helix.model.Message;
+import org.apache.helix.tools.ClusterSetup;
+
+import java.io.UnsupportedEncodingException;
+import java.net.InetAddress;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
+import java.net.UnknownHostException;
 
 
 @Alpha
@@ -107,7 +99,7 @@ public class HelixUtils {
 
   @VisibleForTesting
   public static void sendUserDefinedMessage(String messageSubType, String messageVal, String messageId,
-      InstanceType instanceType, HelixManager helixManager, Logger logger) {
+      InstanceType instanceType, HelixManager helixManager) {
     Criteria criteria = new Criteria();
     criteria.setInstanceName("%");
     criteria.setResource("%");
@@ -124,7 +116,7 @@ public class HelixUtils {
 
     int messagesSent = helixManager.getMessagingService().send(criteria, message);
     if (messagesSent == 0) {
-      logger.error(String.format("Failed to send the %s message to the participants", message));
+      log.error(String.format("Failed to send the %s message to the participants", message));
     }
   }
 

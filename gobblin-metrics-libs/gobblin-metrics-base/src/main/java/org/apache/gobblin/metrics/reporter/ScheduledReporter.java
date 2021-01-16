@@ -151,7 +151,7 @@ public abstract class ScheduledReporter extends ContextAwareReporter {
       this.scheduledTask.get().cancel(false);
     }
     this.scheduledTask = Optional.absent();
-    ExecutorsUtils.shutdownExecutorService(this.executor, Optional.of(log), 10, TimeUnit.SECONDS);
+    ExecutorsUtils.shutdownExecutorService(this.executor, 10, TimeUnit.SECONDS);
 
     // Report metrics one last time - this ensures any metrics values updated between intervals are reported
     report(true);

@@ -17,23 +17,13 @@
 
 package org.apache.gobblin.util;
 
+import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.Striped;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
-
-import java.io.Closeable;
-import java.io.IOException;
-import java.util.Collection;
-import java.util.List;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.locks.Lock;
-
+import org.apache.gobblin.configuration.State;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileAlreadyExistsException;
 import org.apache.hadoop.fs.FileSystem;
@@ -43,11 +33,12 @@ import org.apache.hadoop.io.Writable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Optional;
-import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.Striped;
-
-import org.apache.gobblin.configuration.State;
+import java.io.Closeable;
+import java.io.IOException;
+import java.util.Collection;
+import java.util.List;
+import java.util.concurrent.*;
+import java.util.concurrent.locks.Lock;
 
 
 /**
@@ -408,7 +399,7 @@ public class ParallelRunner implements Closeable {
     try {
       waitForTasks();
     } finally {
-      ExecutorsUtils.shutdownExecutorService(this.executor, Optional.of(LOGGER));
+      ExecutorsUtils.shutdownExecutorService(this.executor);
     }
   }
 }

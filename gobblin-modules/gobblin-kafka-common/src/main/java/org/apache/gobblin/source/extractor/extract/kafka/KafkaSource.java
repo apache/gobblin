@@ -260,7 +260,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
                 workUnits));
       }
 
-      ExecutorsUtils.shutdownExecutorService(threadPool, Optional.of(LOG), 1L, TimeUnit.HOURS);
+      ExecutorsUtils.shutdownExecutorService(threadPool, 1L, TimeUnit.HOURS);
       LOG.info(String.format("Created workunits for %d topics in %d seconds", workUnits.size(),
           createWorkUnitStopwatch.elapsed(TimeUnit.SECONDS)));
 

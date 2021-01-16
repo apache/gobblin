@@ -132,7 +132,7 @@ public class TimestampBasedCopyableDataset implements CopyableDataset, FileSyste
     } catch (ExecutionException | InterruptedException e) {
       throw new IOException("Failed to generate copyable files.", e);
     } finally {
-      ExecutorsUtils.shutdownExecutorService(executor, Optional.of(log));
+      ExecutorsUtils.shutdownExecutorService(executor);
     }
     return copyableFileList;
   }

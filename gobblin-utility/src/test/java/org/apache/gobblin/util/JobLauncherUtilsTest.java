@@ -17,18 +17,6 @@
 
 package org.apache.gobblin.util;
 
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
-import java.util.regex.Pattern;
-
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.slf4j.LoggerFactory;
-import org.testng.Assert;
-import org.testng.annotations.Test;
-
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.WorkUnitState;
@@ -36,6 +24,16 @@ import org.apache.gobblin.source.workunit.Extract;
 import org.apache.gobblin.source.workunit.Extract.TableType;
 import org.apache.gobblin.source.workunit.MultiWorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.testng.Assert;
+import org.testng.annotations.Test;
+
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
+import java.util.regex.Pattern;
 
 
 /**
@@ -127,7 +125,7 @@ public class JobLauncherUtilsTest {
       Path writerOutputPath1 = new Path(writerOutputDir1, writerPath1);
       fs.mkdirs(writerOutputPath1);
 
-      JobLauncherUtils.cleanTaskStagingData(state, LoggerFactory.getLogger(JobLauncherUtilsTest.class));
+      JobLauncherUtils.cleanTaskStagingData(state);
 
       Assert.assertFalse(fs.exists(writerStagingPath0));
       Assert.assertFalse(fs.exists(writerStagingPath1));
@@ -195,7 +193,7 @@ public class JobLauncherUtilsTest {
           ForkOperatorUtils.getPathForBranch(state, state.getExtract().getOutputFilePath(), 2, 1));
       fs.mkdirs(writerOutputPath1);
 
-      JobLauncherUtils.cleanTaskStagingData(state, LoggerFactory.getLogger(JobLauncherUtilsTest.class));
+      JobLauncherUtils.cleanTaskStagingData(state);
 
       Assert.assertFalse(fs.exists(writerStagingPath0));
       Assert.assertFalse(fs.exists(writerStagingPath1));

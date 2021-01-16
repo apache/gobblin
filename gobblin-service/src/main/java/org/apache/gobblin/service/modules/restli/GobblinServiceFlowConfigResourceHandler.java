@@ -17,14 +17,6 @@
 
 package org.apache.gobblin.service.modules.restli;
 
-import java.io.IOException;
-import java.util.Collection;
-import java.util.Properties;
-import java.util.UUID;
-
-import org.apache.helix.HelixManager;
-import org.apache.helix.InstanceType;
-
 import com.google.common.base.Optional;
 import com.linkedin.data.transform.DataProcessingException;
 import com.linkedin.restli.common.ComplexResourceKey;
@@ -34,20 +26,20 @@ import com.linkedin.restli.common.PatchRequest;
 import com.linkedin.restli.server.CreateResponse;
 import com.linkedin.restli.server.UpdateResponse;
 import com.linkedin.restli.server.util.PatchApplier;
-
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.FlowSpecSearchObject;
-import org.apache.gobblin.service.FlowConfig;
-import org.apache.gobblin.service.FlowConfigLoggedException;
-import org.apache.gobblin.service.FlowConfigResourceLocalHandler;
-import org.apache.gobblin.service.FlowConfigsResourceHandler;
-import org.apache.gobblin.service.FlowId;
-import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.service.*;
 import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
 import org.apache.gobblin.service.modules.utils.HelixUtils;
+import org.apache.helix.HelixManager;
+import org.apache.helix.InstanceType;
+
+import java.io.IOException;
+import java.util.Collection;
+import java.util.Properties;
+import java.util.UUID;
 
 
 /**
@@ -270,7 +262,7 @@ public class GobblinServiceFlowConfigResourceHandler implements FlowConfigsResou
 
   private void forwardMessage(String msgSubType, String val, String flowName, String flowGroup) {
     HelixUtils.sendUserDefinedMessage(msgSubType, val, UUID.randomUUID().toString(), InstanceType.CONTROLLER,
-        helixManager.get(), log);
+        helixManager.get());
     log.info("{} Forwarding {} flowConfig [flowName={} flowGroup={}", serviceName, msgSubType, flowName, flowGroup + "]");
   }
 }

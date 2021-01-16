@@ -150,6 +150,6 @@ public class ScheduledJobConfigurationManager extends JobConfigurationManager {
 
   @Override
   protected void shutDown() throws Exception {
-    ExecutorsUtils.shutdownExecutorService(this.fetchJobSpecExecutor, Optional.of(LOGGER));
+    ExecutorsUtils.shutdownExecutorService(this.fetchJobSpecExecutor);
   }
 }

@@ -121,7 +121,7 @@ public class HiveRegistrationPublisher extends DataPublisher {
   public void close()
       throws IOException {
     try {
-      ExecutorsUtils.shutdownExecutorService(this.hivePolicyExecutor, Optional.of(log));
+      ExecutorsUtils.shutdownExecutorService(this.hivePolicyExecutor);
     } finally {
       this.closer.close();
     }

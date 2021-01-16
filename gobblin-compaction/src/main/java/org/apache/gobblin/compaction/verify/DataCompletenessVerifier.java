@@ -127,11 +127,11 @@ public class DataCompletenessVerifier implements Closeable {
 
   @Override
   public void close() throws IOException {
-    ExecutorsUtils.shutdownExecutorService(this.exeSvc, Optional.of(LOG));
+    ExecutorsUtils.shutdownExecutorService(this.exeSvc);
   }
 
   public void closeNow() {
-    ExecutorsUtils.shutdownExecutorService(this.exeSvc, Optional.of(LOG), 0, TimeUnit.NANOSECONDS);
+    ExecutorsUtils.shutdownExecutorService(this.exeSvc, 0, TimeUnit.NANOSECONDS);
   }
 
   /**

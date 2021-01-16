@@ -17,31 +17,19 @@
 
 package org.apache.gobblin.util.executors;
 
-import java.util.Iterator;
-import java.util.List;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CompletionService;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorCompletionService;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
-
-import org.slf4j.Logger;
-
-import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Futures;
-
+import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.util.Either;
 import org.apache.gobblin.util.ExecutorsUtils;
+import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
-import lombok.extern.slf4j.Slf4j;
+import java.util.Iterator;
+import java.util.List;
+import java.util.concurrent.*;
 
 
 /**
@@ -105,7 +93,7 @@ public class IteratorExecutor<T> {
         activeTasks--;
       }
     } finally {
-      ExecutorsUtils.shutdownExecutorService(this.executor, Optional.of(log), 10, TimeUnit.SECONDS);
+      ExecutorsUtils.shutdownExecutorService(this.executor, 10, TimeUnit.SECONDS);
       this.executed = true;
     }
 

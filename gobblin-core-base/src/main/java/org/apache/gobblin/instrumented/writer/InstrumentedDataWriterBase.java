@@ -215,7 +215,7 @@ abstract class InstrumentedDataWriterBase<D> implements DataWriter<D>, Instrumen
       this.closer.close();
     } finally {
       if (this.writerMetricsUpdater.isPresent()) {
-        ExecutorsUtils.shutdownExecutorService(this.writerMetricsUpdater.get(), Optional.of(log));
+        ExecutorsUtils.shutdownExecutorService(this.writerMetricsUpdater.get());
       }
     }
   }

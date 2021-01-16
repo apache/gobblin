@@ -174,6 +174,6 @@ public class StreamingJobConfigurationManager extends JobConfigurationManager {
           TimeUnit.SECONDS);
     }
 
-    ExecutorsUtils.shutdownExecutorService(this.fetchJobSpecExecutor, Optional.of(LOGGER));
+    ExecutorsUtils.shutdownExecutorService(this.fetchJobSpecExecutor);
   }
 }

@@ -17,18 +17,16 @@
 
 package org.apache.gobblin.util.concurrent;
 
+import com.google.common.base.Optional;
+import org.apache.gobblin.util.ExecutorsUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.common.base.Optional;
-
-import org.apache.gobblin.util.ExecutorsUtils;
 
 
 /**
@@ -82,7 +80,7 @@ class ScheduledExecutorServiceTaskScheduler<K, T extends ScheduledTask<K>> exten
    */
   @Override
   final void closeImpl() throws IOException {
-    ExecutorsUtils.shutdownExecutorService(this.executorService, Optional.of(LOGGER));
+    ExecutorsUtils.shutdownExecutorService(this.executorService);
   }
 
   /**

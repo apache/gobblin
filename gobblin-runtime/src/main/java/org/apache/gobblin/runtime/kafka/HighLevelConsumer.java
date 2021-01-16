@@ -277,8 +277,8 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
 
   @Override
   public void shutDown() {
-    ExecutorsUtils.shutdownExecutorService(this.consumerExecutor, Optional.of(log), 5000, TimeUnit.MILLISECONDS);
-    ExecutorsUtils.shutdownExecutorService(this.queueExecutor, Optional.of(log), 5000, TimeUnit.MILLISECONDS);
+    ExecutorsUtils.shutdownExecutorService(this.consumerExecutor, 5000, TimeUnit.MILLISECONDS);
+    ExecutorsUtils.shutdownExecutorService(this.queueExecutor, 5000, TimeUnit.MILLISECONDS);
     try {
       this.gobblinKafkaConsumerClient.close();
       this.shutdownMetrics();

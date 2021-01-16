@@ -354,7 +354,7 @@ public abstract class HiveRegister implements Closeable {
     try {
       waitOnFuturesToFinish();
     } finally {
-      ExecutorsUtils.shutdownExecutorService(this.executor, Optional.of(log));
+      ExecutorsUtils.shutdownExecutorService(this.executor);
     }
   }
 

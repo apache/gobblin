@@ -16,35 +16,35 @@
  */
 package org.apache.gobblin.runtime.api;
 
-import static org.apache.gobblin.configuration.ConfigurationKeys.JOB_NAME_KEY;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
+import com.google.common.base.Optional;
+import com.google.common.base.Predicate;
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.JobState.RunningState;
+import org.apache.gobblin.runtime.std.JobExecutionUpdatable;
+import org.apache.gobblin.testing.AssertWithBackoff;
+import org.apache.gobblin.util.ExecutorsUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
 import java.util.Properties;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.testng.Assert;
-import org.testng.annotations.Test;
-
-import com.google.common.base.Optional;
-import com.google.common.base.Predicate;
-import com.typesafe.config.ConfigFactory;
-import com.typesafe.config.ConfigValueFactory;
-
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.runtime.JobState.RunningState;
-import org.apache.gobblin.runtime.std.JobExecutionUpdatable;
-import org.apache.gobblin.testing.AssertWithBackoff;
-import org.apache.gobblin.util.ExecutorsUtils;
+import static org.apache.gobblin.configuration.ConfigurationKeys.JOB_NAME_KEY;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 /**
  * Unit tests for {@link JobExecutionState}
  */
+@Slf4j
 public class TestJobExecutionState {
 
   @Test public void testStateTransitionsSuccess() throws TimeoutException, InterruptedException {
@@ -68,28 +68,28 @@ public class TestJobExecutionState {
     assertFailedStateTransition(jes1, RunningState.RUNNING);
     assertFailedStateTransition(jes1, RunningState.CANCELLED);
 
-    assertTransition(jes1, listener, null, RunningState.PENDING, log);
+    assertTransition(jes1, listener, null, RunningState.PENDING);
 
     // Current state is PENDING
     assertFailedStateTransition(jes1, RunningState.PENDING);
     assertFailedStateTransition(jes1, RunningState.COMMITTED);
     assertFailedStateTransition(jes1, RunningState.SUCCESSFUL);
 
-    assertTransition(jes1, listener, RunningState.PENDING, RunningState.RUNNING, log);
+    assertTransition(jes1, listener, RunningState.PENDING, RunningState.RUNNING);
 
     // Current state is RUNNING
     assertFailedStateTransition(jes1, RunningState.PENDING);
     assertFailedStateTransition(jes1, RunningState.COMMITTED);
     assertFailedStateTransition(jes1, RunningState.RUNNING);
 
-    assertTransition(jes1, listener, RunningState.RUNNING, RunningState.SUCCESSFUL, log);
+    assertTransition(jes1, listener, RunningState.RUNNING, RunningState.SUCCESSFUL);
 
     // Current state is SUCCESSFUL
     assertFailedStateTransition(jes1, RunningState.PENDING);
     assertFailedStateTransition(jes1, RunningState.RUNNING);
     assertFailedStateTransition(jes1, RunningState.SUCCESSFUL);
 
-    assertTransition(jes1, listener, RunningState.SUCCESSFUL, RunningState.COMMITTED, log);
+    assertTransition(jes1, listener, RunningState.SUCCESSFUL, RunningState.COMMITTED);
 
     // Current state is COMMITTED (final)
     assertFailedStateTransition(jes1, RunningState.RUNNING);
@@ -114,8 +114,8 @@ public class TestJobExecutionState {
     final JobExecutionState jes1 =
         new JobExecutionState(js1, je1, Optional.<JobExecutionStateListener>absent());
 
-    assertTransition(jes1, listener, null, RunningState.PENDING, log);
-    assertTransition(jes1, listener, RunningState.PENDING, RunningState.FAILED, log);
+    assertTransition(jes1, listener, null, RunningState.PENDING);
+    assertTransition(jes1, listener, RunningState.PENDING, RunningState.FAILED);
 
     // Current state is FAILED (final)
     assertFailedStateTransition(jes1, RunningState.RUNNING);
@@ -128,17 +128,17 @@ public class TestJobExecutionState {
     final JobExecutionState jes2 =
         new JobExecutionState(js1, je1, Optional.<JobExecutionStateListener>absent());
 
-    assertTransition(jes2, listener, null, RunningState.PENDING, log);
-    assertTransition(jes2, listener, RunningState.PENDING, RunningState.RUNNING, log);
-    assertTransition(jes2, listener, RunningState.RUNNING, RunningState.FAILED, log);
+    assertTransition(jes2, listener, null, RunningState.PENDING);
+    assertTransition(jes2, listener, RunningState.PENDING, RunningState.RUNNING);
+    assertTransition(jes2, listener, RunningState.RUNNING, RunningState.FAILED);
 
     final JobExecutionState je3 =
         new JobExecutionState(js1, je1, Optional.<JobExecutionStateListener>absent());
 
-    assertTransition(je3, listener, null, RunningState.PENDING, log);
-    assertTransition(je3, listener, RunningState.PENDING, RunningState.RUNNING, log);
-    assertTransition(je3, listener, RunningState.RUNNING, RunningState.SUCCESSFUL, log);
-    assertTransition(je3, listener, RunningState.SUCCESSFUL, RunningState.FAILED, log);
+    assertTransition(je3, listener, null, RunningState.PENDING);
+    assertTransition(je3, listener, RunningState.PENDING, RunningState.RUNNING);
+    assertTransition(je3, listener, RunningState.RUNNING, RunningState.SUCCESSFUL);
+    assertTransition(je3, listener, RunningState.SUCCESSFUL, RunningState.FAILED);
   }
 
   @Test public void testStateTransitionsCancel() throws TimeoutException, InterruptedException {
@@ -154,8 +154,8 @@ public class TestJobExecutionState {
     final JobExecutionState jes1 =
         new JobExecutionState(js1, je1, Optional.<JobExecutionStateListener>absent());
 
-    assertTransition(jes1, listener, null, RunningState.PENDING, log);
-    assertTransition(jes1, listener, RunningState.PENDING, RunningState.CANCELLED, log);
+    assertTransition(jes1, listener, null, RunningState.PENDING);
+    assertTransition(jes1, listener, RunningState.PENDING, RunningState.CANCELLED);
 
     // Current state is CANCELLED (final)
     assertFailedStateTransition(jes1, RunningState.RUNNING);
@@ -168,17 +168,17 @@ public class TestJobExecutionState {
     final JobExecutionState jes2 =
         new JobExecutionState(js1, je1, Optional.<JobExecutionStateListener>absent());
 
-    assertTransition(jes2, listener, null, RunningState.PENDING, log);
-    assertTransition(jes2, listener, RunningState.PENDING, RunningState.RUNNING, log);
-    assertTransition(jes2, listener, RunningState.RUNNING, RunningState.CANCELLED, log);
+    assertTransition(jes2, listener, null, RunningState.PENDING);
+    assertTransition(jes2, listener, RunningState.PENDING, RunningState.RUNNING);
+    assertTransition(jes2, listener, RunningState.RUNNING, RunningState.CANCELLED);
 
     final JobExecutionState je3 =
         new JobExecutionState(js1, je1, Optional.<JobExecutionStateListener>absent());
 
-    assertTransition(je3, listener, null, RunningState.PENDING, log);
-    assertTransition(je3, listener, RunningState.PENDING, RunningState.RUNNING, log);
-    assertTransition(je3, listener, RunningState.RUNNING, RunningState.SUCCESSFUL, log);
-    assertTransition(je3, listener, RunningState.SUCCESSFUL, RunningState.CANCELLED, log);
+    assertTransition(je3, listener, null, RunningState.PENDING);
+    assertTransition(je3, listener, RunningState.PENDING, RunningState.RUNNING);
+    assertTransition(je3, listener, RunningState.RUNNING, RunningState.SUCCESSFUL);
+    assertTransition(je3, listener, RunningState.SUCCESSFUL, RunningState.CANCELLED);
   }
 
   private void assertFailedStateTransition(final JobExecutionState jes1, RunningState newState) {
@@ -193,8 +193,7 @@ public class TestJobExecutionState {
 
   private void assertTransition(final JobExecutionState jes1,
       final JobExecutionStateListener listener,
-      final RunningState fromState,  final RunningState toState,
-      final Logger log) throws TimeoutException, InterruptedException {
+      final RunningState fromState,  final RunningState toState) throws TimeoutException, InterruptedException {
 
     jes1.setRunningState(toState);
     Assert.assertEquals(jes1.getRunningState(), toState);

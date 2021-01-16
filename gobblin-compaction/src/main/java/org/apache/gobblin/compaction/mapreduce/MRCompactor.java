@@ -887,7 +887,7 @@ public class MRCompactor implements Compactor {
 
   private void shutdownExecutors() {
     LOG.info("Shutting down Executors");
-    ExecutorsUtils.shutdownExecutorService(this.jobExecutor, Optional.of(LOG));
+    ExecutorsUtils.shutdownExecutorService(this.jobExecutor);
   }
 
   @Override
@@ -902,7 +902,7 @@ public class MRCompactor implements Compactor {
       }
     } finally {
       try {
-        ExecutorsUtils.shutdownExecutorService(this.jobExecutor, Optional.of(LOG), 0, TimeUnit.NANOSECONDS);
+        ExecutorsUtils.shutdownExecutorService(this.jobExecutor, 0, TimeUnit.NANOSECONDS);
       } finally {
         if (this.verifier.isPresent()) {
           this.verifier.get().closeNow();

@@ -17,29 +17,9 @@
 
 package org.apache.gobblin.runtime;
 
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.commons.lang.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
-
 import com.codahale.metrics.MetricRegistry;
-import com.google.common.base.CaseFormat;
-import com.google.common.base.Function;
 import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
+import com.google.common.base.*;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -47,10 +27,8 @@ import com.google.common.eventbus.EventBus;
 import com.google.common.io.Closer;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-
-import javax.annotation.Nullable;
 import lombok.RequiredArgsConstructor;
-
+import org.apache.commons.lang.StringUtils;
 import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
 import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import org.apache.gobblin.broker.iface.SharedResourcesBroker;
@@ -60,12 +38,7 @@ import org.apache.gobblin.commit.DeliverySemantics;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.converter.initializer.ConverterInitializerFactory;
-import org.apache.gobblin.metrics.ContextAwareGauge;
-import org.apache.gobblin.metrics.GobblinMetrics;
-import org.apache.gobblin.metrics.GobblinMetricsRegistry;
-import org.apache.gobblin.metrics.MetricContext;
-import org.apache.gobblin.metrics.ServiceMetricNames;
-import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.metrics.*;
 import org.apache.gobblin.metrics.event.EventName;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.JobEvent;
@@ -91,14 +64,20 @@ import org.apache.gobblin.source.workunit.BasicWorkUnitStream;
 import org.apache.gobblin.source.workunit.MultiWorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnitStream;
-import org.apache.gobblin.util.ClusterNameTags;
-import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.util.ExecutorsUtils;
-import org.apache.gobblin.util.Id;
-import org.apache.gobblin.util.JobLauncherUtils;
-import org.apache.gobblin.util.ParallelRunner;
-import org.apache.gobblin.util.PropertiesUtils;
+import org.apache.gobblin.util.*;
 import org.apache.gobblin.writer.initializer.WriterInitializerFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
+
+import javax.annotation.Nullable;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 
 
@@ -930,9 +909,9 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         }
       } else {
         if (jobState.getPropAsBoolean(ConfigurationKeys.CLEANUP_OLD_JOBS_DATA, ConfigurationKeys.DEFAULT_CLEANUP_OLD_JOBS_DATA)) {
-          JobLauncherUtils.cleanUpOldJobData(jobState, LOG, jobContext.getStagingDirProvided(), jobContext.getOutputDirProvided());
+          JobLauncherUtils.cleanUpOldJobData(jobState, jobContext.getStagingDirProvided(), jobContext.getOutputDirProvided());
         }
-        JobLauncherUtils.cleanJobStagingData(jobState, LOG);
+        JobLauncherUtils.cleanJobStagingData(jobState);
       }
     } catch (Throwable t) {
       // Catch Throwable instead of just IOException to make sure failure of this won't affect the current run
@@ -1015,7 +994,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
   private static void cleanupStagingDataForEntireJob(JobState jobState) {
     try {
-      JobLauncherUtils.cleanJobStagingData(jobState, LOG);
+      JobLauncherUtils.cleanJobStagingData(jobState);
     } catch (IOException e) {
       LOG.error("Failed to clean staging data for job " + jobState.getJobId(), e);
     }
