@@ -126,7 +126,7 @@ public class YarnAppSecurityManagerWithKeytabs extends AbstractYarnAppSecurityMa
   /**
    * Login the user from a given keytab file.
    */
-  protected void login() throws IOException, InterruptedException {
+  protected synchronized void login() throws IOException, InterruptedException {
     String keyTabFilePath = this.config.getString(GobblinYarnConfigurationKeys.KEYTAB_FILE_PATH);
     if (Strings.isNullOrEmpty(keyTabFilePath)) {
       throw new IOException("Keytab file path is not defined for Kerberos login");

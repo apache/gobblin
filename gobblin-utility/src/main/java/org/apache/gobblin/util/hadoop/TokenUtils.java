@@ -153,7 +153,7 @@ public class TokenUtils {
     log.info("Getting tokens for userToProxy " + userToProxy);
 
     List<String> remoteFSURIList = new ArrayList<>();
-    if(state !=null && state.contains(OTHER_NAMENODES)){
+    if(state.contains(OTHER_NAMENODES)){
       remoteFSURIList = state.getPropAsList(OTHER_NAMENODES);
     }
 
