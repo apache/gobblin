@@ -33,7 +33,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.io.Files;
 
-@Test(enabled=false, groups = {"disabledOnTravis"} )
+@Test(enabled=false, groups = {"disabledOnCI"} )
 public class PasswordManagerTest {
 
   @Test (enabled=false)

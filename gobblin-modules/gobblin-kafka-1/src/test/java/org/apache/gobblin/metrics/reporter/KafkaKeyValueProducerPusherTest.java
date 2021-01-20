@@ -39,6 +39,7 @@ import java.io.IOException;
 /**
  * Test {@link KafkaKeyValueProducerPusher}.
  */
+@Test( groups = {"disabledOnCI"} )
 public class KafkaKeyValueProducerPusherTest {
   public static final String TOPIC = KafkaKeyValueProducerPusherTest.class.getSimpleName();
 

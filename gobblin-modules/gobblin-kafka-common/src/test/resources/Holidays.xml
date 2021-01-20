@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tns:Configuration hierarchy="ca" description="Canada" xmlns:tns="http://www.example.org/Holiday" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.example.org/Holiday /Holiday.xsd">
+  <tns:Holidays>
+    <tns:Fixed month="JANUARY" day="1" descriptionPropertiesKey="NEW_YEAR"/>
+    <tns:Fixed month="JULY" day="1" descriptionPropertiesKey="NATIONAL_DAY"/>
+    <tns:Fixed month="DECEMBER" day="25" descriptionPropertiesKey="CHRISTMAS"/>
+    <tns:FixedWeekday which="FIRST" weekday="MONDAY" month="SEPTEMBER" descriptionPropertiesKey="LABOUR_DAY"/>
+    <tns:ChristianHoliday type="GOOD_FRIDAY"/>
+    <tns:ChristianHoliday type="EASTER" />
+  </tns:Holidays>
+  <tns:SubConfigurations hierarchy="on" description="Ontario">
+    <tns:Holidays>
+      <tns:Fixed month="DECEMBER" day="26" descriptionPropertiesKey="BOXING_DAY"/>
+      <tns:RelativeToFixed descriptionPropertiesKey="VICTORIA_DAY">
+        <tns:Weekday>MONDAY</tns:Weekday>
+        <tns:When>BEFORE</tns:When>
+        <tns:Date month="MAY" day="24"/>
+      </tns:RelativeToFixed>
+      <tns:FixedWeekday which="THIRD" weekday="MONDAY" month="FEBRUARY" descriptionPropertiesKey="FAMILY_DAY"/>
+      <tns:FixedWeekday which="SECOND" weekday="MONDAY" month="OCTOBER" descriptionPropertiesKey="THANKSGIVING"/>
+    </tns:Holidays>
+  </tns:SubConfigurations>
+  <tns:SubConfigurations hierarchy="yt" description="Yukon">
+    <tns:Holidays>
+      <tns:Fixed month="NOVEMBER" day="11" descriptionPropertiesKey="REMEMBRANCE"/>
+      <tns:RelativeToFixed descriptionPropertiesKey="VICTORIA_DAY">
+        <tns:Weekday>MONDAY</tns:Weekday>
+        <tns:When>BEFORE</tns:When>
+        <tns:Date month="MAY" day="24"/>
+      </tns:RelativeToFixed>
+      <tns:FixedWeekday which="SECOND" weekday="MONDAY" month="OCTOBER" descriptionPropertiesKey="THANKSGIVING"/>
+    </tns:Holidays>
+  </tns:SubConfigurations>
+  <tns:SubConfigurations hierarchy="qc" description="Quebec">
+    <tns:Holidays>
+      <tns:RelativeToFixed descriptionPropertiesKey="VICTORIA_DAY">
+        <tns:Weekday>MONDAY</tns:Weekday>
+        <tns:When>BEFORE</tns:When>
+        <tns:Date month="MAY" day="24"/>
+      </tns:RelativeToFixed>
+      <tns:FixedWeekday which="SECOND" weekday="MONDAY" month="OCTOBER" descriptionPropertiesKey="THANKSGIVING"/>
+      <tns:ChristianHoliday type="EASTER_MONDAY"/>
+    </tns:Holidays>
+  </tns:SubConfigurations>
+  <tns:SubConfigurations hierarchy="ns" description="Nova Scotia">
+    <tns:Holidays>
+      <tns:Fixed month="NOVEMBER" day="11" descriptionPropertiesKey="REMEMBRANCE"/>
+    </tns:Holidays>
+  </tns:SubConfigurations>
+  <tns:SubConfigurations hierarchy="nb" description="New Brunswick">
+    <tns:Holidays>
+      <tns:Fixed month="NOVEMBER" day="11" descriptionPropertiesKey="REMEMBRANCE"/>
+      <tns:FixedWeekday which="FIRST" weekday="MONDAY" month="AUGUST" descriptionPropertiesKey="NATIONAL_DAY"/>
+    </tns:Holidays>
+  </tns:SubConfigurations>
+  <tns:SubConfigurations hierarchy="mb" description="Manitoba">
+    <tns:Holidays>
+      <tns:Fixed month="NOVEMBER" day="11" descriptionPropertiesKey="REMEMBRANCE"/>
+      <tns:RelativeToFixed descriptionPropertiesKey="VICTORIA_DAY">
+        <tns:Weekday>MONDAY</tns:Weekday>
+        <tns:When>BEFORE</tns:When>
+        <tns:Date month="MAY" day="24"/>
+      </tns:RelativeToFixed>
+      <tns:FixedWeekday which="SECOND" weekday="MONDAY" month="OCTOBER" descriptionPropertiesKey="THANKSGIVING"/>
+      <tns:FixedWeekday which="THIRD" weekday="MONDAY" month="FEBRUARY" descriptionPropertiesKey="FAMILY_DAY"/>
+    </tns:Holidays>
+  </tns:SubConfigurations>
+  <tns:SubConfigurations hierarchy="nt" description="Northwest Territories">
+    <tns:Holidays>
+      <tns:Fixed month="NOVEMBER" day="11" descriptionPropertiesKey="REMEMBRANCE"/>
+      <tns:RelativeToFixed descriptionPropertiesKey="VICTORIA_DAY">
+        <tns:Weekday>MONDAY</tns:Weekday>
+        <tns:When>BEFORE</tns:When>
+        <tns:Date month="MAY" day="24"/>
+      </tns:RelativeToFixed>
+      <tns:FixedWeekday which="SECOND" weekday="MONDAY" month="OCTOBER" descriptionPropertiesKey="THANKSGIVING"/>
+      <tns:FixedWeekday which="FIRST" weekday="MONDAY" month="AUGUST" descriptionPropertiesKey="CIVIC"/>
+    </tns:Holidays>
+  </tns:SubConfigurations>
+  <tns:SubConfigurations hierarchy="nu" description="Nunavut">
+    <tns:Holidays>
+      <tns:Fixed month="NOVEMBER" day="11" descriptionPropertiesKey="REMEMBRANCE"/>
+      <tns:RelativeToFixed descriptionPropertiesKey="VICTORIA_DAY">
+        <tns:Weekday>MONDAY</tns:Weekday>
+        <tns:When>BEFORE</tns:When>
+        <tns:Date month="MAY" day="24"/>
+      </tns:RelativeToFixed>
+      <tns:FixedWeekday which="SECOND" weekday="MONDAY" month="OCTOBER" descriptionPropertiesKey="THANKSGIVING"/>
+      <tns:FixedWeekday which="FIRST" weekday="MONDAY" month="AUGUST" descriptionPropertiesKey="CIVIC"/>
+    </tns:Holidays>
+  </tns:SubConfigurations>
+  <tns:SubConfigurations hierarchy="bc" description="British Columbia">
+    <tns:Holidays>
+      <tns:Fixed month="NOVEMBER" day="11" descriptionPropertiesKey="REMEMBRANCE"/>
+      <tns:RelativeToFixed descriptionPropertiesKey="VICTORIA_DAY">
+        <tns:Weekday>MONDAY</tns:Weekday>
+        <tns:When>BEFORE</tns:When>
+        <tns:Date month="MAY" day="24"/>
+      </tns:RelativeToFixed>
+      <tns:FixedWeekday which="FIRST" weekday="MONDAY" month="AUGUST" descriptionPropertiesKey="CIVIC"/>
+      <tns:FixedWeekday which="SECOND" weekday="MONDAY" month="OCTOBER" descriptionPropertiesKey="THANKSGIVING"/>
+    </tns:Holidays>
+  </tns:SubConfigurations>
+  <tns:SubConfigurations hierarchy="pe" description="Prince Edward Island">
+    <tns:Holidays>
+      <tns:Fixed month="NOVEMBER" day="11" descriptionPropertiesKey="REMEMBRANCE"/>
+    </tns:Holidays>
+  </tns:SubConfigurations>
+  <tns:SubConfigurations hierarchy="sk" description="Saskatchewan">
+    <tns:Holidays>
+      <tns:Fixed month="NOVEMBER" day="11" descriptionPropertiesKey="REMEMBRANCE"/>
+      <tns:RelativeToFixed descriptionPropertiesKey="VICTORIA_DAY">
+        <tns:Weekday>MONDAY</tns:Weekday>
+        <tns:When>BEFORE</tns:When>
+        <tns:Date month="MAY" day="24"/>
+      </tns:RelativeToFixed>
+      <tns:FixedWeekday which="THIRD" weekday="MONDAY" month="FEBRUARY" descriptionPropertiesKey="FAMILY_DAY"/>
+      <tns:FixedWeekday which="SECOND" weekday="MONDAY" month="OCTOBER" descriptionPropertiesKey="THANKSGIVING"/>
+      <tns:FixedWeekday which="FIRST" weekday="MONDAY" month="AUGUST" descriptionPropertiesKey="NATIONAL_DAY"/>
+    </tns:Holidays>
+  </tns:SubConfigurations>
+  <tns:SubConfigurations hierarchy="ab" description="Alberta">
+    <tns:Holidays>
+      <tns:Fixed month="NOVEMBER" day="11" descriptionPropertiesKey="REMEMBRANCE"/>
+      <tns:RelativeToFixed descriptionPropertiesKey="VICTORIA_DAY">
+        <tns:Weekday>MONDAY</tns:Weekday>
+        <tns:When>BEFORE</tns:When>
+        <tns:Date month="MAY" day="24"/>
+      </tns:RelativeToFixed>
+      <tns:FixedWeekday which="FIRST" weekday="MONDAY" month="AUGUST" descriptionPropertiesKey="HERITAGE"/>
+      <tns:FixedWeekday which="THIRD" weekday="MONDAY" month="FEBRUARY" descriptionPropertiesKey="FAMILY_DAY"/>
+      <tns:FixedWeekday which="SECOND" weekday="MONDAY" month="OCTOBER" descriptionPropertiesKey="THANKSGIVING"/>
+    </tns:Holidays>
+  </tns:SubConfigurations>
+  <tns:SubConfigurations hierarchy="nl" description="Newfoundland and Labrador">
+    <tns:Holidays>
+      <tns:Fixed month="NOVEMBER" day="11" descriptionPropertiesKey="REMEMBRANCE"/>
+    </tns:Holidays>
+  </tns:SubConfigurations>
+</tns:Configuration>
