@@ -44,6 +44,15 @@
     <appender-ref ref="console" />
   </root>
 
+  <!-- Set log level for Helix/ZK logs to ERROR to avoid Travis build failures due to exceeding maximum log length. -->
+  <logger name="org.apache.helix">
+    <level value="ERROR"/>
+  </logger>
+
+  <logger name="org.apache.zookeeper">
+    <level value="ERROR"/>
+  </logger>
+
   <!-- Swallow annoying exceptions when creating a configuration. -->
   <logger name="org.apache.hadoop.conf.Configuration">
     <level value="FATAL"/>

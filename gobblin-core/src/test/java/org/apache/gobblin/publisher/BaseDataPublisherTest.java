@@ -16,12 +16,19 @@
  */
 package org.apache.gobblin.publisher;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.io.Files;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
+import com.typesafe.config.ConfigFactory;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Type;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -31,19 +38,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
-
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
-import org.testng.Assert;
-import org.testng.annotations.Test;
-
-import com.google.common.collect.ImmutableList;
-import com.google.common.io.Files;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.reflect.TypeToken;
-import com.typesafe.config.ConfigFactory;
-
 import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
 import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import org.apache.gobblin.broker.gobblin_scopes.JobScopeInstance;
@@ -65,6 +61,8 @@ import org.apache.gobblin.util.io.GsonInterfaceAdapter;
 import org.apache.gobblin.writer.FsDataWriter;
 import org.apache.gobblin.writer.FsWriterMetrics;
 import org.apache.gobblin.writer.PartitionIdentifier;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
 
 /**
@@ -615,7 +613,7 @@ public class BaseDataPublisherTest {
     // Find the partition lineage and assert
     for (int i = 0; i < numBranches; i++) {
       String outputPath = String.format("/data/output/branch%d/namespace/table", i);
-      DatasetDescriptor destinationDataset = new DatasetDescriptor("file", outputPath);
+      DatasetDescriptor destinationDataset = new DatasetDescriptor("file", URI.create("file:///"), outputPath);
       destinationDataset.addMetadata("fsUri", "file:///");
       destinationDataset.addMetadata("branch", "" + i);
 

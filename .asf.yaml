@@ -2,7 +2,7 @@ github:
   description: "A distributed data integration framework that simplifies common aspects of big data integration such as data ingestion, replication, organization and lifecycle management for both streaming and batch data ecosystems."
   homepage: https://gobblin.apache.org/
   labels:
-    - data integration
+    - data
     - ingestion
     - replication
     - management

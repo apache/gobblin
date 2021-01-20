@@ -29,6 +29,8 @@ import org.apache.hadoop.fs.Path;
 import org.apache.helix.HelixException;
 import org.apache.helix.HelixManager;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.Striped;
 import com.typesafe.config.Config;
@@ -195,33 +197,29 @@ class HelixRetriggeringJobCallable implements Callable {
     }
   }
 
+  @VisibleForTesting
+  static GobblinHelixJobLauncher buildJobLauncherForCentralizedMode(GobblinHelixJobScheduler jobScheduler, Properties jobProps) throws Exception {
+    //In centralized job launcher mode, the JOB_ID_KEY should be null or should not contain the
+    //"ActualJob" substring, which is intended for the distributed job launcher mode.
+    //This ensures that workflows in centralized mode are cleaned up properly when cluster is restarted.
+    String jobId = jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY);
+    if (jobId != null) {
+      Preconditions.checkArgument(!jobId.contains(GobblinClusterConfigurationKeys.ACTUAL_JOB_NAME_PREFIX),
+          "Job Id should not contain ActualJob in centralized mode.");
+    }
+    return jobScheduler.buildJobLauncher(jobProps);
+  }
+
   /**
-   * <p> In some cases, the job launcher will be early stopped.
-   * It can be due to the large volume of input source data.
-   * In such case, we need to re-launch the same job until
-   * the job launcher determines it is safe to stop.
+   * A method to run a Gobblin job with ability to re-trigger the job if neeeded. This method instantiates a
+   * {@link GobblinHelixJobLauncher} and submits the underlying Gobblin job to a {link GobblinHelixJobScheduler}.
+   * The method will re-submit the job if it has been terminated "early" e.g. before all data has been pulled.
+   * This method should be called only when distributed job launcher mode is disabled.
    */
-  private void runJobLauncherLoop() throws JobException {
+   private void runJobLauncherLoop() throws JobException {
     try {
-      // Check if any existing planning job is running
-      Optional<String> actualJobIdFromStore = jobsMapping.getActualJobId(this.jobUri);
-
-      if (actualJobIdFromStore.isPresent() && !canRun(actualJobIdFromStore.get(), this.jobHelixManager)) {
-        return;
-      }
-
-      String actualJobId = jobProps.containsKey(ConfigurationKeys.JOB_ID_KEY)
-              ? jobProps.getProperty(ConfigurationKeys.JOB_ID_KEY) : HelixJobsMapping.createActualJobId(jobProps);
-      log.info("Job {} creates actual job {}", this.jobUri, actualJobId);
-
-      jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, actualJobId);
-
-      /* create the job launcher after setting ConfigurationKeys.JOB_ID_KEY */
-      currentJobLauncher = this.jobScheduler.buildJobLauncher(jobProps);
-
-      this.jobsMapping.setActualJobId(this.jobUri, actualJobId);
-
       while (true) {
+        currentJobLauncher = buildJobLauncherForCentralizedMode(jobScheduler, jobProps);
         // in "run once" case, job scheduler will remove current job from the scheduler
         boolean isEarlyStopped = this.jobScheduler.runJob(jobProps, jobListener, currentJobLauncher);
         boolean isRetriggerEnabled = this.isRetriggeringEnabled();
@@ -231,18 +229,11 @@ class HelixRetriggeringJobCallable implements Callable {
           break;
         }
       }
-
     } catch (Exception e) {
       log.error("Failed to run job {}", jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
       throw new JobException("Failed to run job " + jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY), e);
     } finally {
       currentJobLauncher = null;
-      // always cleanup the job mapping for current job name.
-      try {
-        this.jobsMapping.deleteMapping(jobUri);
-      } catch (Exception e) {
-        throw new JobException("Cannot delete jobs mapping for job : " + jobUri);
-      }
     }
   }
 

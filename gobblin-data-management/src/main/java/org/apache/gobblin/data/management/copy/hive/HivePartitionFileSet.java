@@ -17,20 +17,16 @@
 
 package org.apache.gobblin.data.management.copy.hive;
 
-import java.io.IOException;
-import java.util.Collection;
-import java.util.List;
-import java.util.Properties;
-
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hive.ql.metadata.HiveException;
-import org.apache.hadoop.hive.ql.metadata.Partition;
-
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.Closer;
-
+import java.io.IOException;
+import java.util.Collection;
+import java.util.List;
+import java.util.Properties;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.data.management.copy.CopyEntity;
 import org.apache.gobblin.data.management.copy.CopyableFile;
 import org.apache.gobblin.data.management.copy.entities.PostPublishStep;
@@ -45,9 +41,9 @@ import org.apache.gobblin.hive.spec.SimpleHiveSpec;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.MultiTimingEvent;
 import org.apache.gobblin.util.commit.DeleteFileCommitStep;
-
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.ql.metadata.HiveException;
+import org.apache.hadoop.hive.ql.metadata.Partition;
 
 
 /**
@@ -124,7 +120,7 @@ public class HivePartitionFileSet extends HiveFileSet {
       HiveSpec partitionHiveSpec = new SimpleHiveSpec.Builder<>(targetPath)
           .withTable(HiveMetaStoreUtils.getHiveTable(hiveCopyEntityHelper.getTargetTable().getTTable()))
           .withPartition(Optional.of(HiveMetaStoreUtils.getHivePartition(targetPartition.getTPartition()))).build();
-      HiveRegisterStep register = new HiveRegisterStep(hiveCopyEntityHelper.getTargetURI(), partitionHiveSpec,
+      HiveRegisterStep register = new HiveRegisterStep(hiveCopyEntityHelper.getTargetMetastoreURI(), partitionHiveSpec,
           hiveCopyEntityHelper.getHiveRegProps());
       copyEntities.add(new PostPublishStep(fileSet, Maps.<String, String> newHashMap(), register, stepPriority++));
 
