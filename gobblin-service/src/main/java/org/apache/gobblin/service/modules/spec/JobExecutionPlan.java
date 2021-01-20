@@ -57,7 +57,7 @@ import static org.apache.gobblin.runtime.AbstractJobLauncher.GOBBLIN_JOB_TEMPLAT
  * where the {@link JobSpec} will be executed.
  */
 @Data
-@EqualsAndHashCode(exclude = {"executionStatus", "currentAttempts", "jobFuture"})
+@EqualsAndHashCode(exclude = {"executionStatus", "currentAttempts", "jobFuture", "flowStartTime"})
 public class JobExecutionPlan {
   public static final String JOB_MAX_ATTEMPTS = "job.maxAttempts";
 
@@ -67,6 +67,7 @@ public class JobExecutionPlan {
   private final int maxAttempts;
   private int currentAttempts = 0;
   private Optional<Future> jobFuture = Optional.absent();
+  private long flowStartTime = 0L;
 
   public static class Factory {
     public static final String JOB_NAME_COMPONENT_SEPARATION_CHAR = "_";

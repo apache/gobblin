@@ -83,6 +83,8 @@ public class JobExecutionPlanListSerializer implements JsonSerializer<List<JobEx
       String executionStatus = jobExecutionPlan.getExecutionStatus().name();
       jobExecutionPlanJson.addProperty(SerializationConstants.EXECUTION_STATUS_KEY, executionStatus);
 
+      jobExecutionPlanJson.addProperty(SerializationConstants.FLOW_START_TIME_KEY, jobExecutionPlan.getFlowStartTime());
+
       try {
         String jobExecutionFuture = jobExecutionPlan.getSpecExecutor().getProducer().get()
             .serializeAddSpecResponse(jobExecutionPlan.getJobFuture().orNull());

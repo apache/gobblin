@@ -37,6 +37,7 @@ import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.FlowStatusId;
 import org.apache.gobblin.service.modules.utils.HelixUtils;
 import org.apache.gobblin.service.monitoring.KillFlowEvent;
+import org.apache.gobblin.service.monitoring.ResumeFlowEvent;
 
 
 /**
@@ -67,6 +68,18 @@ public class GobblinServiceFlowExecutionResourceHandler implements FlowExecution
   @Override
   public List<FlowExecution> getLatestFlowExecution(PagingContext context, FlowId flowId, Integer count, String tag, String executionStatus) {
     return this.localHandler.getLatestFlowExecution(context, flowId, count, tag, executionStatus);
+  }
+
+  @Override
+  public UpdateResponse resume(ComplexResourceKey<FlowStatusId, EmptyRecord> key) {
+    String flowGroup = key.getKey().getFlowGroup();
+    String flowName = key.getKey().getFlowName();
+    Long flowExecutionId = key.getKey().getFlowExecutionId();
+    if (this.forceLeader) {
+      HelixUtils.throwErrorIfNotLeader(this.helixManager);
+    }
+    this.eventBus.post(new ResumeFlowEvent(flowGroup, flowName, flowExecutionId));
+    return new UpdateResponse(HttpStatus.S_200_OK);
   }
 
   @Override

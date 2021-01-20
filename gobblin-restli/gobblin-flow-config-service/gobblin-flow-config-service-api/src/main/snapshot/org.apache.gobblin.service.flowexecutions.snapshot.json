@@ -13,7 +13,7 @@
     "name" : "ExecutionStatus",
     "namespace" : "org.apache.gobblin.service",
     "doc" : "Execution status for a flow or job",
-    "symbols" : [ "COMPILED", "PENDING", "PENDING_RETRY", "ORCHESTRATED", "RUNNING", "COMPLETE", "FAILED", "CANCELLED" ],
+    "symbols" : [ "COMPILED", "PENDING", "PENDING_RETRY", "PENDING_RESUME", "ORCHESTRATED", "RUNNING", "COMPLETE", "FAILED", "CANCELLED" ],
     "symbolDocs" : {
       "CANCELLED" : "Flow cancelled.",
       "COMPILED" : "Flow compiled to jobs.",
@@ -21,6 +21,7 @@
       "FAILED" : "Flow or job failed",
       "ORCHESTRATED" : "Job(s) orchestrated to spec executors.",
       "PENDING" : "Flow or job is in pending state.",
+      "PENDING_RESUME" : "Flow or job is currently resuming.",
       "PENDING_RETRY" : "Flow or job is pending retry.",
       "RUNNING" : "Flow or job is currently executing"
     }
@@ -215,10 +216,13 @@
         "type" : "org.apache.gobblin.service.FlowStatusId",
         "params" : "com.linkedin.restli.common.EmptyRecord"
       },
-      "supports" : [ "delete", "get" ],
+      "supports" : [ "delete", "get", "partial_update" ],
       "methods" : [ {
         "method" : "get",
         "doc" : "Retrieve the FlowExecution with the given key"
+      }, {
+        "method" : "partial_update",
+        "doc" : "Resume a failed {@link FlowExecution} from the point before failure. This is specified by a partial update patch which\n sets executionStatus to RUNNING."
       }, {
         "method" : "delete",
         "doc" : "Kill the FlowExecution with the given key"

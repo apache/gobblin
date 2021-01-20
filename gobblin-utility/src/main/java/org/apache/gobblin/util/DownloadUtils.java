@@ -27,19 +27,28 @@ import java.net.URL;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Map;
+import java.util.logging.Logger;
 
 import com.google.common.collect.Maps;
 import com.google.common.io.Resources;
 
 import groovy.grape.Grape;
 import groovy.lang.GroovyClassLoader;
+import lombok.NonNull;
 
 
 /**
  * Utility class for downloads using grape
  */
 public class DownloadUtils {
+  private DownloadUtils() {
+    // Utility class's constructor do nothing
+  }
+
   public static final String IVY_SETTINGS_FILE_NAME = "ivysettings.xml";
+  // This will be useful when there's already `ivysettings.xml` existed in the classpath.
+  private static final String CLIENT_IVY_SETTINGS_FILE_NAME = "client_ivysettings.xml";
+  private static final Logger logger = Logger.getLogger(DownloadUtils.class.getName());
 
   /**
    * Download jar through {@link Grape} given an org, module and version
@@ -67,14 +76,29 @@ public class DownloadUtils {
     return Grape.resolve(args, artifactMap);
   }
 
+  @NonNull
+  private static URL getSettingsUrl() throws IOException {
+    URL clientSettingsUrl = Thread.currentThread().getContextClassLoader().getResource(CLIENT_IVY_SETTINGS_FILE_NAME);
+    if (clientSettingsUrl == null) {
+      URL settingsUrl = Thread.currentThread().getContextClassLoader().getResource(IVY_SETTINGS_FILE_NAME);
+      if (settingsUrl == null) {
+        throw new IOException("Failed to find " + IVY_SETTINGS_FILE_NAME + "and "
+            + CLIENT_IVY_SETTINGS_FILE_NAME +" from class path");
+      } else {
+        logger.info("Fallback to ivysettings.xml in the classpath");
+        return settingsUrl;
+      }
+    } else {
+      logger.info("Using customized client_ivysettings.xml file");
+      return clientSettingsUrl;
+    }
+  }
+
   /**
    * Get ivy settings file from classpath
    */
   public static File getIvySettingsFile() throws IOException {
-    URL settingsUrl = Thread.currentThread().getContextClassLoader().getResource(IVY_SETTINGS_FILE_NAME);
-    if (settingsUrl == null) {
-      throw new IOException("Failed to find " + IVY_SETTINGS_FILE_NAME + " from class path");
-    }
+    URL settingsUrl = getSettingsUrl();
 
     // Check if settingsUrl is file on classpath
     File ivySettingsFile = new File(settingsUrl.getFile());
