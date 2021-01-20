@@ -28,8 +28,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
-import org.apache.hadoop.security.token.Token;
-import org.apache.hadoop.security.token.TokenIdentifier;
+import org.apache.hadoop.security.Credentials;
 import org.apache.helix.Criteria;
 import org.apache.helix.HelixManager;
 import org.apache.helix.InstanceType;
@@ -49,6 +48,8 @@ import org.apache.gobblin.cluster.GobblinClusterManager;
 import org.apache.gobblin.cluster.GobblinHelixMessagingService;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.ExecutorsUtils;
+
+import static org.apache.hadoop.security.UserGroupInformation.HADOOP_TOKEN_FILE_LOCATION;
 
 /**
  * <p>
@@ -70,7 +71,7 @@ public abstract class AbstractYarnAppSecurityManager extends AbstractIdleService
   protected final FileSystem fs;
   protected final Path tokenFilePath;
 
-  protected Token<? extends TokenIdentifier> token;
+  protected Credentials credentials = new Credentials();
   private final long loginIntervalInMinutes;
   private final long tokenRenewIntervalInMinutes;
   private final boolean isHelixClusterManaged;
@@ -117,7 +118,11 @@ public abstract class AbstractYarnAppSecurityManager extends AbstractIdleService
     this.loginExecutor.scheduleAtFixedRate(new Runnable() {
       @Override
       public void run() {
-        loginAndScheduleTokenRenewal();
+        try {
+          loginAndScheduleTokenRenewal();
+        }catch(Exception e){
+          LOGGER.error("Error during login, will continue the thread and try next time.");
+        }
       }
     }, this.loginIntervalInMinutes, this.loginIntervalInMinutes, TimeUnit.MINUTES);
   }
@@ -228,19 +233,31 @@ public abstract class AbstractYarnAppSecurityManager extends AbstractIdleService
   }
 
   /**
-   * Write the current delegation token to the token file.
+   * Write the current credentials to the token file.
    */
-  @VisibleForTesting
-  protected synchronized void writeDelegationTokenToFile() throws IOException {
+  protected synchronized void writeDelegationTokenToFile(Credentials cred) throws IOException {
+
     if (this.fs.exists(this.tokenFilePath)) {
       LOGGER.info("Deleting existing token file " + this.tokenFilePath);
       this.fs.delete(this.tokenFilePath, false);
     }
 
-    LOGGER.info("Writing new or renewed token to token file " + this.tokenFilePath);
-    YarnHelixUtils.writeTokenToFile(token, this.tokenFilePath, this.fs.getConf());
+    LOGGER.debug("creating new token file {} with 644 permission.", this.tokenFilePath);
+
+    YarnHelixUtils.writeTokenToFile(this.tokenFilePath, cred, this.fs.getConf());
     // Only grand access to the token file to the login user
     this.fs.setPermission(this.tokenFilePath, new FsPermission(FsAction.READ_WRITE, FsAction.NONE, FsAction.NONE));
+
+    System.setProperty(HADOOP_TOKEN_FILE_LOCATION, tokenFilePath.toUri().getPath());
+    LOGGER.info("set HADOOP_TOKEN_FILE_LOCATION = {}", this.tokenFilePath);
+  }
+
+  /**
+   * Write the current delegation token to the token file. Should be only for testing
+   */
+  @VisibleForTesting
+  protected synchronized void writeDelegationTokenToFile() throws IOException {
+    writeDelegationTokenToFile(this.credentials);
   }
 
   /**
