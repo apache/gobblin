@@ -125,6 +125,8 @@ public class YarnService extends AbstractIdleService {
 
   private static final Splitter SPLITTER = Splitter.on(',').omitEmptyStrings().trimResults();
 
+  private static final Splitter ZIP_SPLITTER = Splitter.on('#').omitEmptyStrings().trimResults();
+
   private static final String UNKNOWN_HELIX_INSTANCE = "UNKNOWN";
 
   private final String applicationName;
@@ -516,7 +518,13 @@ public class YarnService extends AbstractIdleService {
     if (this.config.hasPath(GobblinYarnConfigurationKeys.CONTAINER_FILES_REMOTE_KEY)) {
       addRemoteAppFiles(this.config.getString(GobblinYarnConfigurationKeys.CONTAINER_FILES_REMOTE_KEY), resourceMap);
     }
-
+    if (this.config.hasPath(GobblinYarnConfigurationKeys.CONTAINER_FILES_REMOTE_KEY)) {
+      addRemoteAppFiles(this.config.getString(GobblinYarnConfigurationKeys.CONTAINER_FILES_REMOTE_KEY), resourceMap);
+    }
+    if (this.config.hasPath(GobblinYarnConfigurationKeys.APP_MASTER_ZIPS_REMOTE_KEY)) {
+      addAppRemoteZips(this.config.getString(GobblinYarnConfigurationKeys.APP_MASTER_ZIPS_REMOTE_KEY),
+          resourceMap);
+    }
     ContainerLaunchContext containerLaunchContext = Records.newRecord(ContainerLaunchContext.class);
     containerLaunchContext.setLocalResources(resourceMap);
     containerLaunchContext.setEnvironment(YarnHelixUtils.getEnvironmentVariables(this.yarnConfiguration));
@@ -552,6 +560,21 @@ public class YarnService extends AbstractIdleService {
       Path srcFilePath = new Path(hdfsFilePath);
       YarnHelixUtils.addFileAsLocalResource(
           srcFilePath.getFileSystem(this.yarnConfiguration), srcFilePath, LocalResourceType.FILE, resourceMap);
+    }
+  }
+
+  private void addAppRemoteZips(String hdfsFileList, Map<String, LocalResource> resourceMap)
+      throws IOException {
+    for (String zipFileWithName : SPLITTER.split(hdfsFileList)) {
+      Iterator<String> zipFileAndName =  ZIP_SPLITTER.split(zipFileWithName).iterator();
+      Path srcFilePath = new Path(zipFileAndName.next());
+      try {
+        YarnHelixUtils.addFileAsLocalResource(srcFilePath.getFileSystem(this.yarnConfiguration), srcFilePath, LocalResourceType.ARCHIVE,
+            resourceMap, zipFileAndName.next());
+      } catch (Exception e) {
+        throw new IOException(String.format("Fail to extract %s as local resources, maybe a wrong pattern, "
+            + "correct pattern should be {zipPath}#{targetUnzippedName}", zipFileAndName), e);
+      }
     }
   }
 

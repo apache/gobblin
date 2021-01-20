@@ -23,6 +23,7 @@ import java.net.URL;
 import java.util.Collection;
 import java.util.Map;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -54,6 +55,7 @@ import org.apache.gobblin.util.ConfigUtils;
  *
  * @author Yinan Li
  */
+@Slf4j
 public class YarnHelixUtils {
   private static final Logger LOGGER = LoggerFactory.getLogger(YarnHelixUtils.class);
 
@@ -118,6 +120,12 @@ public class YarnHelixUtils {
    */
   public static void addFileAsLocalResource(FileSystem fs, Path destFilePath, LocalResourceType resourceType,
       Map<String, LocalResource> resourceMap) throws IOException {
+    addFileAsLocalResource(fs, destFilePath, resourceType, resourceMap, destFilePath.getName());
+  }
+
+
+  public static void addFileAsLocalResource(FileSystem fs, Path destFilePath, LocalResourceType resourceType,
+      Map<String, LocalResource> resourceMap, String resourceName) throws IOException {
     LocalResource fileResource = Records.newRecord(LocalResource.class);
     FileStatus fileStatus = fs.getFileStatus(destFilePath);
     fileResource.setResource(ConverterUtils.getYarnUrlFromPath(destFilePath));
@@ -125,7 +133,7 @@ public class YarnHelixUtils {
     fileResource.setTimestamp(fileStatus.getModificationTime());
     fileResource.setType(resourceType);
     fileResource.setVisibility(LocalResourceVisibility.APPLICATION);
-    resourceMap.put(destFilePath.getName(), fileResource);
+    resourceMap.put(resourceName, fileResource);
   }
 
   /**
@@ -172,6 +180,13 @@ public class YarnHelixUtils {
     if (!ConfigUtils.emptyIfNotPresent(config, GobblinYarnConfigurationKeys.GOBBLIN_YARN_ADDITIONAL_CLASSPATHS).equals(
         StringUtils.EMPTY)){
       yarnConfiguration.setStrings(GobblinYarnConfigurationKeys.GOBBLIN_YARN_ADDITIONAL_CLASSPATHS, config.getString(GobblinYarnConfigurationKeys.GOBBLIN_YARN_ADDITIONAL_CLASSPATHS));
+    }
+  }
+
+  public static void setYarnClassPath(Config config, Configuration yarnConfiguration) {
+    if (!ConfigUtils.emptyIfNotPresent(config, GobblinYarnConfigurationKeys.GOBBLIN_YARN_CLASSPATHS).equals(
+        StringUtils.EMPTY)){
+      yarnConfiguration.setStrings(YarnConfiguration.YARN_APPLICATION_CLASSPATH, config.getString(GobblinYarnConfigurationKeys.GOBBLIN_YARN_CLASSPATHS));
     }
   }
 

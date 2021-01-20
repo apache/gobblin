@@ -24,6 +24,7 @@ import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -169,6 +170,7 @@ public class GobblinYarnAppLauncher {
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinYarnAppLauncher.class);
 
   private static final Splitter SPLITTER = Splitter.on(',').omitEmptyStrings().trimResults();
+  private static final Splitter ZIP_SPLITTER = Splitter.on('#').omitEmptyStrings().trimResults();
 
   private static final String GOBBLIN_YARN_APPLICATION_TYPE = "GOBBLIN_YARN";
 
@@ -253,6 +255,7 @@ public class GobblinYarnAppLauncher {
         InstanceType.SPECTATOR, zkConnectionString);
 
     this.yarnConfiguration = yarnConfiguration;
+    YarnHelixUtils.setYarnClassPath(config, this.yarnConfiguration);
     YarnHelixUtils.setAdditionalYarnClassPath(config, this.yarnConfiguration);
     this.yarnConfiguration.set("fs.automatic.close", "false");
     this.yarnClient = YarnClient.createYarnClient();
@@ -700,6 +703,10 @@ public class GobblinYarnAppLauncher {
       addAppRemoteFiles(this.config.getString(GobblinYarnConfigurationKeys.APP_MASTER_FILES_REMOTE_KEY),
           appMasterResources);
     }
+    if (this.config.hasPath(GobblinYarnConfigurationKeys.APP_MASTER_ZIPS_REMOTE_KEY)) {
+      addAppRemoteZips(this.config.getString(GobblinYarnConfigurationKeys.APP_MASTER_ZIPS_REMOTE_KEY),
+          appMasterResources);
+    }
     if (this.config.hasPath(GobblinClusterConfigurationKeys.JOB_CONF_PATH_KEY)) {
       Path appFilesDestDir = new Path(appMasterWorkDir, GobblinYarnConfigurationKeys.APP_FILES_DIR_NAME);
       addJobConfPackage(this.config.getString(GobblinClusterConfigurationKeys.JOB_CONF_PATH_KEY), appFilesDestDir,
@@ -788,6 +795,20 @@ public class GobblinYarnAppLauncher {
       throws IOException {
     for (String hdfsFilePath : SPLITTER.split(hdfsFileList)) {
       YarnHelixUtils.addFileAsLocalResource(this.fs, new Path(hdfsFilePath), LocalResourceType.FILE, resourceMap);
+    }
+  }
+
+  private void addAppRemoteZips(String hdfsFileList, Map<String, LocalResource> resourceMap)
+      throws IOException {
+    for (String zipFileWithName : SPLITTER.split(hdfsFileList)) {
+      Iterator<String> zipFileAndName =  ZIP_SPLITTER.split(zipFileWithName).iterator();
+      try {
+        YarnHelixUtils.addFileAsLocalResource(this.fs, new Path(zipFileAndName.next()), LocalResourceType.ARCHIVE,
+            resourceMap, zipFileAndName.next());
+      } catch (Exception e) {
+        throw new IOException(String.format("Fail to extract %s as local resources, maybe a wrong pattern, "
+            + "correct pattern should be {zipPath}#{targetUnzippedName}", zipFileAndName), e);
+      }
     }
   }
 
