@@ -17,21 +17,12 @@
 
 package org.apache.gobblin.service;
 
-import java.util.Collection;
 import java.util.List;
-import java.util.Properties;
 
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
-import com.linkedin.restli.common.PatchRequest;
-import com.linkedin.restli.server.CreateResponse;
 import com.linkedin.restli.server.PagingContext;
 import com.linkedin.restli.server.UpdateResponse;
-import com.linkedin.restli.server.annotations.Context;
-import com.linkedin.restli.server.annotations.Optional;
-import com.linkedin.restli.server.annotations.QueryParam;
-
-import org.apache.gobblin.runtime.api.FlowSpecSearchObject;
 
 
 public interface FlowExecutionResourceHandler {
@@ -48,7 +39,7 @@ public interface FlowExecutionResourceHandler {
   /**
    * Resume a failed {@link FlowExecution} from the point before failure
    */
-  public UpdateResponse resume(ComplexResourceKey<FlowStatusId, EmptyRecord> key);
+  public void resume(ComplexResourceKey<FlowStatusId, EmptyRecord> key);
 
   /**
    * Kill a running {@link FlowExecution}
