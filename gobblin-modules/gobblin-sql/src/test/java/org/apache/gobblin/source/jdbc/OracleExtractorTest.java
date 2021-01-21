@@ -94,12 +94,12 @@ public class OracleExtractorTest {
 
   @Test
   public void testExractSampleRecordCountFromQuery() {
-    long res1 = oracleExtractor.exractSampleRecordCountFromQuery(QUERY_1);
-    long res2 = oracleExtractor.exractSampleRecordCountFromQuery(QUERY_2);
-    long res3 = oracleExtractor.exractSampleRecordCountFromQuery(QUERY_3);
-    long res4 = oracleExtractor.exractSampleRecordCountFromQuery(QUERY_4);
-    long res5 = oracleExtractor.exractSampleRecordCountFromQuery(QUERY_EMPTY);
-    long res6 = oracleExtractor.exractSampleRecordCountFromQuery(QUERY_REG);
+    long res1 = oracleExtractor.extractSampleRecordCountFromQuery(QUERY_1);
+    long res2 = oracleExtractor.extractSampleRecordCountFromQuery(QUERY_2);
+    long res3 = oracleExtractor.extractSampleRecordCountFromQuery(QUERY_3);
+    long res4 = oracleExtractor.extractSampleRecordCountFromQuery(QUERY_4);
+    long res5 = oracleExtractor.extractSampleRecordCountFromQuery(QUERY_EMPTY);
+    long res6 = oracleExtractor.extractSampleRecordCountFromQuery(QUERY_REG);
 
     assertEquals(res1, (long) 532);
     assertEquals(res2, (long) 5);
