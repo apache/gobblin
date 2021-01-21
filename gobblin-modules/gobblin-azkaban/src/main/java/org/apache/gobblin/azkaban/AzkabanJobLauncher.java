@@ -112,8 +112,8 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
   private static final String AZKABAN_GOBBLIN_JOB_SLA_IN_SECONDS = "gobblin.azkaban.SLAInSeconds";
   private static final String DEFAULT_AZKABAN_GOBBLIN_JOB_SLA_IN_SECONDS = "-1"; // No SLA.
 
-  public static final String GOBBLIN_INITIALIZE_HADOOP_TOKENS = "gobblin.initializeHadoopTokens";
-  public static final String DEFAULT_GOBBLIN_INITIALIZE_HADOOP_TOKENS = "true";
+  public static final String GOBBLIN_AZKABAN_INITIALIZE_HADOOP_TOKENS = "gobblin.azkaban.initializeHadoopTokens";
+  public static final String DEFAULT_GOBBLIN_AZKABAN_INITIALIZE_HADOOP_TOKENS = "true";
 
   private final Closer closer = Closer.create();
   private final JobLauncher jobLauncher;
@@ -172,8 +172,8 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
     this.props
         .setProperty(ConfigurationKeys.JOB_TRACKING_URL_KEY, Strings.nullToEmpty(conf.get(AZKABAN_LINK_JOBEXEC_URL)));
 
-    if (Boolean.parseBoolean(this.props.getProperty(GOBBLIN_INITIALIZE_HADOOP_TOKENS,
-        DEFAULT_GOBBLIN_INITIALIZE_HADOOP_TOKENS))) {
+    if (Boolean.parseBoolean(this.props.getProperty(GOBBLIN_AZKABAN_INITIALIZE_HADOOP_TOKENS,
+        DEFAULT_GOBBLIN_AZKABAN_INITIALIZE_HADOOP_TOKENS))) {
       if (System.getenv(HADOOP_TOKEN_FILE_LOCATION) != null) {
         LOG.info("Job type " + props.getProperty(JOB_TYPE) + " provided Hadoop token in the environment variable " + HADOOP_TOKEN_FILE_LOCATION);
         this.props.setProperty(MAPREDUCE_JOB_CREDENTIALS_BINARY, System.getenv(HADOOP_TOKEN_FILE_LOCATION));

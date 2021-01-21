@@ -55,7 +55,7 @@ public class AzkabanJobLauncherTest {
     }
 
     // No error expected since initialization is skipped
-    props.setProperty(AzkabanJobLauncher.GOBBLIN_INITIALIZE_HADOOP_TOKENS, "false");
+    props.setProperty(AzkabanJobLauncher.GOBBLIN_AZKABAN_INITIALIZE_HADOOP_TOKENS, "false");
     new AzkabanJobLauncher("test", props);
   }
 
