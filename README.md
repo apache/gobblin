@@ -6,11 +6,32 @@
 [![Join us on Slack](https://img.shields.io/badge/slack-apache--gobblin-brightgreen.svg)](https://communityinviter.com/apps/apache-gobblin/apache-gobblin)
 [![codecov.io](https://codecov.io/github/apache/incubator-gobblin/branch/master/graph/badge.svg)](https://codecov.io/github/apache/incubator-gobblin)
 
-Apache Gobblin is a universal data ingestion framework for extracting, transforming, and loading large volume of data from a variety of data sources: databases, rest APIs, FTP/SFTP servers, filers, etc., onto Hadoop. 
+Apache Gobblin is a highly scalable data management solution for structured and byte-oriented data in heterogeneous data ecosystems. 
 
-Apache Gobblin handles the common routine tasks required for all data ingestion ETLs, including job/task scheduling, task partitioning, error handling, state management, data quality checking, data publishing, etc. 
+It offers the following capabilities:
+- Ingestion and export of data from a variety of sources and sinks into and out of the data lake. Gobblin is optimized and designed for ELT patterns with inline transformations on ingest (small t).
+- Data Organization within the lake (e.g. compaction, partitioning, deduplication)
+- Lifecycle Management of data within the lake (e.g. data retention)
+- Compliance Management of data across the ecosystem (e.g. fine-grain data deletions)
 
-Gobblin ingests data from different data sources in the same execution framework, and manages metadata of different sources all in one place. This, combined with other features such as auto scalability, fault tolerance, data quality assurance, extensibility, and the ability of handling data model evolution, makes Gobblin an easy-to-use, self-serving, and efficient data ingestion framework.
+Common Patterns used in production
+- Stream / Batch ingestion of Kafka to Data Lake (HDFS, S3, ADLS)
+- Bulk-loading serving stores from the Data Lake (e.g. HDFS -> Couchbase)
+- Support for data sync across Federated Data Lake (HDFS <-> HDFS, HDFS <-> S3, S3 <-> ADLS)
+- Integrate external vendor API-s (e.g. Salesforce, Dynamics etc.) with data store (HDFS, Couchbase etc)
+- Enforcing Data retention policies and GDPR deletion on HDFS / ADLS
+
+Highlights
+- Battle tested at scale: Runs in production at petabyte-scale at companies like LinkedIn, PayPal, Verizon etc.
+- Feature rich: Supports job/task scheduling, task partitioning, fault tolerance, error handling, state management for incremental processing, data quality checking, atomic data publishing etc.
+- Supports stream and batch execution modes 
+- Control Plane (Gobblin-as-a-service) supports programmatic triggering and orchestration of data plane operations. 
+
+Apache Gobblin is NOT
+- A general purpose data transformation engine like Spark or Flink. Gobblin can delegate complex-data processing tasks to Spark, Hive etc. 
+- A data storage system like Apache Kafka or HDFS. Gobblin integrates with these systems as sources or sinks. 
+- A general-purpose workflow execution system like Airflow, Azkaban, Dagster, Luigi. You can use these systems to kick-off Gobblin jobs or use Gobblin’s in-built Quartz based scheduler. 
+
 
 # Requirements
 * Java >= 1.8
