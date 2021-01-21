@@ -17,10 +17,12 @@
 
 package org.apache.gobblin.yarn;
 
+import com.google.common.base.Splitter;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.Map;
 
 import lombok.extern.slf4j.Slf4j;
@@ -55,9 +57,12 @@ import org.apache.gobblin.util.ConfigUtils;
  *
  * @author Yinan Li
  */
-@Slf4j
 public class YarnHelixUtils {
   private static final Logger LOGGER = LoggerFactory.getLogger(YarnHelixUtils.class);
+
+  private static final Splitter SPLITTER = Splitter.on(',').omitEmptyStrings().trimResults();
+
+  private static final Splitter ZIP_SPLITTER = Splitter.on('#').omitEmptyStrings().trimResults();
 
   /**
    * Write a {@link Token} to a given file.
@@ -187,6 +192,29 @@ public class YarnHelixUtils {
     if (!ConfigUtils.emptyIfNotPresent(config, GobblinYarnConfigurationKeys.GOBBLIN_YARN_CLASSPATHS).equals(
         StringUtils.EMPTY)){
       yarnConfiguration.setStrings(YarnConfiguration.YARN_APPLICATION_CLASSPATH, config.getString(GobblinYarnConfigurationKeys.GOBBLIN_YARN_CLASSPATHS));
+    }
+  }
+
+  public static void addRemoteFilesToLocalResources(String hdfsFileList, Map<String, LocalResource> resourceMap, Configuration yarnConfiguration) throws IOException {
+    for (String hdfsFilePath : SPLITTER.split(hdfsFileList)) {
+      Path srcFilePath = new Path(hdfsFilePath);
+      YarnHelixUtils.addFileAsLocalResource(
+          srcFilePath.getFileSystem(yarnConfiguration), srcFilePath, LocalResourceType.FILE, resourceMap);
+    }
+  }
+
+  public static void addRemoteZipsToLocalResources(String hdfsFileList, Map<String, LocalResource> resourceMap, Configuration yarnConfiguration)
+      throws IOException {
+    for (String zipFileWithName : SPLITTER.split(hdfsFileList)) {
+      Iterator<String> zipFileAndName =  ZIP_SPLITTER.split(zipFileWithName).iterator();
+      Path srcFilePath = new Path(zipFileAndName.next());
+      try {
+        YarnHelixUtils.addFileAsLocalResource(srcFilePath.getFileSystem(yarnConfiguration), srcFilePath, LocalResourceType.ARCHIVE,
+            resourceMap, zipFileAndName.next());
+      } catch (Exception e) {
+        throw new IOException(String.format("Fail to extract %s as local resources, maybe a wrong pattern, "
+            + "correct pattern should be {zipPath}#{targetUnzippedName}", zipFileAndName), e);
+      }
     }
   }
 
