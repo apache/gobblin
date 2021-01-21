@@ -209,7 +209,7 @@ public class TeradataExtractor extends JdbcExtractor {
   }
 
   @Override
-  public long exractSampleRecordCountFromQuery(String query) {
+  public long extractSampleRecordCountFromQuery(String query) {
     if (isNullOrEmpty(query)) {
       return SAMPLE_RECORD_COUNT;
     }

@@ -36,7 +36,7 @@ public interface JdbcSpecificLayer {
    * @param query
    * @return record count
    */
-  public long exractSampleRecordCountFromQuery(String query);
+  public long extractSampleRecordCountFromQuery(String query);
 
   /**
    * Remove sample clause in input query

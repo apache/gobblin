@@ -306,7 +306,7 @@ public abstract class JdbcExtractor extends QueryBasedExtractor<JsonArray, JsonE
         ConfigurationKeys.ENABLE_DELIMITED_IDENTIFIER, ConfigurationKeys.DEFAULT_ENABLE_DELIMITED_IDENTIFIER);
     JsonObject defaultWatermark = this.getDefaultWatermark();
     String derivedWatermarkColumnName = defaultWatermark.get("columnName").getAsString();
-    this.setSampleRecordCount(this.exractSampleRecordCountFromQuery(inputQuery));
+    this.setSampleRecordCount(this.extractSampleRecordCountFromQuery(inputQuery));
     inputQuery = this.removeSampleClauseFromQuery(inputQuery);
     JsonArray targetSchema = new JsonArray();
     List<String> headerColumns = new ArrayList<>();

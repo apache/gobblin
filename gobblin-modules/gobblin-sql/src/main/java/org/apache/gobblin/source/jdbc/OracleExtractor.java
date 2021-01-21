@@ -205,7 +205,7 @@ public class OracleExtractor extends JdbcExtractor {
   }
 
   @Override
-  public long exractSampleRecordCountFromQuery(String query) {
+  public long extractSampleRecordCountFromQuery(String query) {
     if (StringUtils.isBlank(query)) {
       return SAMPLERECORDCOUNT;
     }
