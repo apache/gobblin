@@ -281,7 +281,7 @@ After Gobblin is successfully built, a tarball named `gobblin-dist-[project-vers
 
 ```
 cd gobblin-dist
-bin/gobblin-yarn.sh
+bin/gobblin.sh service yarn start
 ```
 
 Note that for the above commands to work, the Hadoop/Yarn configuration directory must be on the classpath and the configuration must be pointing to the right Yarn cluster, or specifically the right ResourceManager and NameNode URLs. This is defined like the following in `gobblin-yarn.sh`:

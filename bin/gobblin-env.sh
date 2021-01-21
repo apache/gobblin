@@ -17,4 +17,6 @@
 # limitations under the License.
 #
 
-# Set Gobblin specific environment variables here.
+# export environment variables here to be used in gobblin.sh scripts and gobblin platform configs.
+GOBBLIN_WORK_DIR=$GOBBLIN_HOME/work
+GOBBLIN_JOB_CONFIG_DIR=$GOBBLIN_HOME/jobs
