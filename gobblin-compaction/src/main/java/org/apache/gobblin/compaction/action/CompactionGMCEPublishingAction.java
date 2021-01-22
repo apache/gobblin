@@ -22,6 +22,7 @@ import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.compaction.mapreduce.CompactionJobConfigurator;
 import org.apache.gobblin.compaction.parser.CompactionPathParser;
 import org.apache.gobblin.configuration.State;
@@ -51,6 +52,7 @@ import org.apache.orc.OrcConf;
 /**
  * Class responsible for emitting GMCE after compaction is complete
  */
+@Slf4j
 public class CompactionGMCEPublishingAction implements CompactionCompleteAction<FileSystemDataset> {
 
   public static final String GMCE_PRODUCER_CLASS = "gmce.producer.class";
@@ -82,26 +84,33 @@ public class CompactionGMCEPublishingAction implements CompactionCompleteAction<
       CompactionPathParser.CompactionParserResult result = new CompactionPathParser(state).parse(dataset);
       String datasetDir = Joiner.on("/").join(result.getDstBaseDir(), result.getDatasetName());
       state.setProp(GobblinMCEProducer.DATASET_DIR, datasetDir);
-      producer.sendGMCE(getNewFileMetrics(), null, Lists.newArrayList(this.configurator.getOldFiles()), null,
+      producer.sendGMCE(getNewFileMetrics(result), null, Lists.newArrayList(this.configurator.getOldFiles()), null,
           OperationType.rewrite_files, SchemaSource.NONE);
     }
     //clear old files to release memory
     this.configurator.getOldFiles().clear();
   }
 
-  private Map<Path, Metrics> getNewFileMetrics() {
+  private Map<Path, Metrics> getNewFileMetrics(CompactionPathParser.CompactionParserResult result) {
     NameMapping mapping = null;
-    if (IcebergUtils.getIcebergFormat(state) == FileFormat.ORC) {
-      String s = this.configurator.getConfiguredJob().getConfiguration().get(OrcConf.MAPRED_OUTPUT_SCHEMA.getAttribute());
-      TypeDescription orcSchema = TypeDescription.fromString(s);
-      for (int i = 0; i <= orcSchema.getMaximumId(); i++) {
-        orcSchema.findSubtype(i).setAttribute(ICEBERG_ID_ATTRIBUTE, Integer.toString(i));
-        orcSchema.findSubtype(i).setAttribute(ICEBERG_REQUIRED_ATTRIBUTE, Boolean.toString(true));
+    try {
+      if (IcebergUtils.getIcebergFormat(state) == FileFormat.ORC) {
+        String s =
+            this.configurator.getConfiguredJob().getConfiguration().get(OrcConf.MAPRED_OUTPUT_SCHEMA.getAttribute());
+        TypeDescription orcSchema = TypeDescription.fromString(s);
+        for (int i = 0; i <= orcSchema.getMaximumId(); i++) {
+          orcSchema.findSubtype(i).setAttribute(ICEBERG_ID_ATTRIBUTE, Integer.toString(i));
+          orcSchema.findSubtype(i).setAttribute(ICEBERG_REQUIRED_ATTRIBUTE, Boolean.toString(true));
+        }
+        Schema icebergSchema = ORCSchemaUtil.convert(orcSchema);
+        state.setProp(GobblinMCEPublisher.AVRO_SCHEMA_WITH_ICEBERG_ID,
+            AvroSchemaUtil.convert(icebergSchema.asStruct()).toString());
+        mapping = MappingUtil.create(icebergSchema);
       }
-      Schema icebergSchema = ORCSchemaUtil.convert(orcSchema);
-      state.setProp(GobblinMCEPublisher.AVRO_SCHEMA_WITH_ICEBERG_ID,
-          AvroSchemaUtil.convert(icebergSchema.asStruct()).toString());
-      mapping = MappingUtil.create(icebergSchema);
+    } catch (Exception e) {
+      log.warn(
+          "Table {} contains complex union type which is not compatible with iceberg, will not calculate the metrics for it",
+          result.getDatasetName());
     }
     Map<Path, Metrics> newFiles = new HashMap<>();
     for (Path filePath : this.configurator.getDstNewFiles()) {

@@ -138,8 +138,9 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
             if (!isPrefix) {
               regPath = regPath.getParent();
             }
-            Path finalRegPath = regPath;
-            cache.get(regPath.toString(), () -> policy.getHiveSpecs(finalRegPath));
+            //Use raw path for federation purpose
+            Path rawPath = new Path(regPath.toUri().getRawPath());
+            cache.get(regPath.toString(), () -> policy.getHiveSpecs(rawPath));
             specsMap.put(regPath.toString(), cache.getIfPresent(regPath.toString()));
           } catch (Exception e) {
             log.warn("Cannot get Hive Spec for {} using policy {}", file, policy.toString());

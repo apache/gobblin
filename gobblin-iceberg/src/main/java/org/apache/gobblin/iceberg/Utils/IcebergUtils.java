@@ -177,8 +177,10 @@ public class IcebergUtils {
       return null;
     }
     try {
-      return list.stream().collect(Collectors.toMap(t -> schemaIdMap.get(t.getKey()), IntegerLongPair::getValue));
+      return list.stream().filter(t -> schemaIdMap.containsKey(t.getKey()))
+          .collect(Collectors.toMap(t -> schemaIdMap.get(t.getKey()), IntegerLongPair::getValue));
     } catch (Exception e) {
+      log.warn("get exception {} when calculate metrics", e);
       return null;
     }
   }
@@ -197,8 +199,10 @@ public class IcebergUtils {
       return null;
     }
     try {
-      return list.stream().collect(Collectors.toMap(t -> schemaIdMap.get(t.getKey()), IntegerBytesPair::getValue));
+      return list.stream().filter(t -> schemaIdMap.containsKey(t.getKey()))
+          .collect(Collectors.toMap(t -> schemaIdMap.get(t.getKey()), IntegerBytesPair::getValue));
     } catch (Exception e) {
+      log.warn("get exception {} when calculate metrics", e);
       return null;
     }
   }

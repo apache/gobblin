@@ -90,6 +90,9 @@ public class GobblinMCEPublisher extends DataPublisher {
     for (State state : states) {
       Map<Path, Metrics> newFiles = computeFileMetrics(state);
       Map<String, String> offsetRange = getPartitionOffsetRange(OFFSET_RANGE_KEY);
+      if (newFiles.isEmpty()) {
+        return;
+      }
       this.producer.sendGMCE(newFiles, null, null, offsetRange, OperationType.add_files, SchemaSource.SCHEMAREGISTRY);
     }
   }
@@ -133,17 +136,27 @@ public class GobblinMCEPublisher extends DataPublisher {
     if (writerSchema == null) {
       return null;
     }
-    org.apache.iceberg.shaded.org.apache.avro.Schema avroSchema =
-        new org.apache.iceberg.shaded.org.apache.avro.Schema.Parser().parse(writerSchema);
-    Schema icebergSchema = AvroSchemaUtil.toIceberg(avroSchema);
-    //This convert is to make sure the schema has the iceberg id setup
-    state.setProp(AVRO_SCHEMA_WITH_ICEBERG_ID, AvroSchemaUtil.convert(icebergSchema.asStruct()).toString());
-    return MappingUtil.create(icebergSchema);
+    try {
+      org.apache.iceberg.shaded.org.apache.avro.Schema avroSchema = new org.apache.iceberg.shaded.org.apache.avro.Schema.Parser().parse(writerSchema);
+      Schema icebergSchema = AvroSchemaUtil.toIceberg(avroSchema);
+      //This conversion is to make sure the schema has the iceberg id setup
+      state.setProp(AVRO_SCHEMA_WITH_ICEBERG_ID, AvroSchemaUtil.convert(icebergSchema.asStruct()).toString());
+      return MappingUtil.create(icebergSchema);
+    } catch (Exception e) {
+      //This means table schema is not compatible with iceberg, so directly return null
+      log.warn("Dataset {} contains schema that does not compatible with iceberg, will not emit file metrics for it",
+          state.getProp(GobblinMCEProducer.DATASET_DIR));
+      return null;
+    }
   }
 
   public static Metrics getMetrics(State state, Path path, Configuration conf, NameMapping mapping) {
     switch (IcebergUtils.getIcebergFormat(state)) {
       case ORC: {
+        if (mapping == null) {
+          //This means the table is not compatible with iceberg, so return a dummy metric
+          return new Metrics(100000000L, null, null, null);
+        }
         return OrcMetrics.fromInputFile(HadoopInputFile.fromPath(path, conf), MetricsConfig.getDefault(), mapping);
       }
       case AVRO: {

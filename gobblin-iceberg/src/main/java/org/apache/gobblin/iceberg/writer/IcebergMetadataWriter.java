@@ -58,10 +58,7 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.data.management.copy.hive.WhitelistBlacklist;
 import org.apache.gobblin.hive.AutoCloseableHiveLock;
 import org.apache.gobblin.hive.HiveLock;
-import org.apache.gobblin.hive.HiveMetastoreClientPool;
 import org.apache.gobblin.hive.HivePartition;
-import org.apache.gobblin.hive.HiveRegister;
-import org.apache.gobblin.hive.HiveTable;
 import org.apache.gobblin.hive.metastore.HiveMetaStoreUtils;
 import org.apache.gobblin.hive.spec.HiveSpec;
 import org.apache.gobblin.iceberg.Utils.IcebergUtils;
@@ -76,16 +73,15 @@ import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistry;
 import org.apache.gobblin.metrics.kafka.SchemaRegistryException;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaStreamingExtractor;
 import org.apache.gobblin.stream.RecordEnvelope;
-import org.apache.gobblin.util.AutoReturnableObject;
 import org.apache.gobblin.util.AvroUtils;
 import org.apache.gobblin.util.ClustersNames;
 import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.ParallelRunner;
+import org.apache.gobblin.util.WriterUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hive.metastore.IMetaStoreClient;
-import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
+import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.iceberg.AppendFiles;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DeleteFiles;
@@ -131,6 +127,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
   private final static String DEFAULT_EXPIRE_SNAPSHOTS_LOOKBACK_TIME = "3d";
   public static final String ICEBERG_REGISTRATION_BLACKLIST = "iceberg.registration.blacklist";
   public static final String ICEBERG_REGISTRATION_WHITELIST = "iceberg.registration.whitelist";
+  public static final String ICEBERG_METADATA_FILE_PERMISSION = "iceberg.metadata.file.permission";
   private static final String CLUSTER_IDENTIFIER_KEY_NAME = "clusterIdentifier";
   private static final String CREATE_TABLE_TIME = "iceberg.create.table.time";
   private static final String SCHEMA_CREATION_TIME_KEY = "schema.creation.time";
@@ -159,6 +156,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
   private final HiveLock locks;
   private final ParallelRunner parallelRunner;
   private final boolean useDataLoacationAsTableLocation;
+  private FsPermission permission;
 
   public IcebergMetadataWriter(State state) throws IOException {
     this.schemaRegistry = KafkaSchemaRegistry.get(state.getProperties());
@@ -182,6 +180,11 @@ public class IcebergMetadataWriter implements MetadataWriter {
     parallelRunner = closer.register(new ParallelRunner(state.getPropAsInt(SNAPSHOT_EXPIRE_THREADS, 20),
         FileSystem.get(HadoopUtils.getConfFromState(state))));
     useDataLoacationAsTableLocation = state.getPropAsBoolean(USE_DATA_PATH_AS_TABLE_LOCATION, false);
+    if (useDataLoacationAsTableLocation) {
+      permission =
+          HadoopUtils.deserializeFsPermission(state, ICEBERG_METADATA_FILE_PERMISSION,
+              FsPermission.getDefault());
+    }
   }
 
   protected void initializeCatalog() {
@@ -385,7 +388,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
     }
   }
 
-  protected Table createTable(GobblinMetadataChangeEvent gmce, HiveSpec spec) {
+  protected Table createTable(GobblinMetadataChangeEvent gmce, HiveSpec spec) throws IOException {
     String schema = gmce.getTableSchema();
     org.apache.hadoop.hive.metastore.api.Table table = HiveMetaStoreUtils.getTable(spec.getTable());
     IcebergUtils.IcebergDataAndPartitionSchema schemas = IcebergUtils.getIcebergSchema(schema, table);
@@ -397,6 +400,9 @@ public class IcebergMetadataWriter implements MetadataWriter {
     String tableLocation = null;
     if (useDataLoacationAsTableLocation) {
       tableLocation = gmce.getDatasetIdentifier().getNativeName() + TABLE_LOCATION_SUFFIX;
+      //Set the path permission
+      Path tablePath = new Path(tableLocation);
+      WriterUtils.mkdirsWithRecursivePermission(tablePath.getFileSystem(conf), tablePath, permission);
     }
     try (Timer.Context context = metricContext.timer(CREATE_TABLE_TIME).time()) {
       icebergTable =
@@ -659,6 +665,10 @@ public class IcebergMetadataWriter implements MetadataWriter {
         tableMetadata.reset(currentProps, highWatermark);
         log.info(String.format("Finish flushing for table %s", tid.toString()));
       }
+    } catch (RuntimeException e) {
+      throw new RuntimeException(String.format("Fail to flush table %s %s", dbName, tableName), e);
+    } catch (Exception e) {
+      throw new IOException(String.format("Fail to flush table %s %s", dbName, tableName), e);
     } finally {
       writeLock.unlock();
     }
