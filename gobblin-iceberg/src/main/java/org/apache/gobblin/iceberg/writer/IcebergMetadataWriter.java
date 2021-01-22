@@ -47,6 +47,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -226,12 +227,10 @@ public class IcebergMetadataWriter implements MetadataWriter {
    * 1. Check whether a table exists, if not then create the iceberg table
    * 2. Compute schema from the gmce and update the cache for candidate schemas
    * 3. Do the required operation of the gmce, i.e. addFile, rewriteFile or dropFile
-   * Note: this method only aggregate the metadata in cache without doing commitment. The actual commit will be done in flush method
+   * Note: this method only aggregate the metadata in cache without committing. The actual commit will be done in flush method
    */
-  @SuppressWarnings("checkstyle:WhitespaceAround")
   public void write(GobblinMetadataChangeEvent gmce, Map<String, Collection<HiveSpec>> newSpecsMap,
       Map<String, Collection<HiveSpec>> oldSpecsMap, HiveSpec tableSpec) throws IOException {
-    System.out.println("$$here");
     TableIdentifier tid = TableIdentifier.of(tableSpec.getTable().getDbName(), tableSpec.getTable().getTableName());
     TableMetadata tableMetadata = tableMetadataMap.computeIfAbsent(tid, t -> new TableMetadata());
     Table table;
@@ -287,9 +286,9 @@ public class IcebergMetadataWriter implements MetadataWriter {
         if (entry.getKey().startsWith(OFFSET_RANGE_KEY_PREFIX)) {
           List<Range> ranges = Arrays.asList(entry.getValue().split(ConfigurationKeys.LIST_DELIMITER_KEY))
               .stream()
-              .map(s -> Range.openClosed(
-                  Long.parseLong(Splitter.on(ConfigurationKeys.RANGE_DELIMITER_KEY).splitToList(s).get(0)),
-                  Long.parseLong(Splitter.on(ConfigurationKeys.RANGE_DELIMITER_KEY).splitToList(s).get(1))))
+              .map(s -> {
+                List<String> rangePair = Splitter.on(ConfigurationKeys.RANGE_DELIMITER_KEY).splitToList(s);
+                return Range.openClosed(Long.parseLong(rangePair.get(0)), Long.parseLong(rangePair.get(1)));})
               .collect(Collectors.toList());
           offsets.put(entry.getKey().substring(OFFSET_RANGE_KEY_PREFIX.length()), ranges);
         }
@@ -303,10 +302,8 @@ public class IcebergMetadataWriter implements MetadataWriter {
     tableMetadata.dataOffsetRange = Optional.of(tableMetadata.dataOffsetRange.or(() -> getLastOffset(tableMetadata)));
     Map<String, List<Range>> offsets = tableMetadata.dataOffsetRange.get();
     for (Map.Entry<String, String> entry : gmce.getTopicPartitionOffsetsRange().entrySet()) {
-      Range range = Range.openClosed(
-          Long.parseLong(Splitter.on(ConfigurationKeys.RANGE_DELIMITER_KEY).splitToList(entry.getValue()).get(0)),
-          Long.parseLong(
-              Splitter.on(ConfigurationKeys.RANGE_DELIMITER_KEY).splitToList(entry.getValue()).get(1)));
+      List<String> rangePair = Splitter.on(ConfigurationKeys.RANGE_DELIMITER_KEY).splitToList(entry.getValue());
+      Range range = Range.openClosed(Long.parseLong(rangePair.get(0)), Long.parseLong(rangePair.get(1)));
       List<Range> existRanges = offsets.getOrDefault(entry.getKey(), new ArrayList<>());
       List<Range> newRanges = new ArrayList<>();
       for (Range r : existRanges) {
@@ -414,11 +411,10 @@ public class IcebergMetadataWriter implements MetadataWriter {
   protected void rewriteFiles(GobblinMetadataChangeEvent gmce, Map<String, Collection<HiveSpec>> newSpecsMap,
       Map<String, Collection<HiveSpec>> oldSpecsMap, Table table, TableMetadata tableMetadata) throws IOException {
     PartitionSpec partitionSpec = table.spec();
+    tableMetadata.transaction = Optional.of(tableMetadata.transaction.or(table::newTransaction));
     Transaction transaction = tableMetadata.transaction.get();
     Set<DataFile> newDataFiles = new HashSet<>();
-    getIcebergDataFilesToBeAdded(gmce.getNewFiles(), partitionSpec, newSpecsMap,
-        IcebergUtils.getSchemaIdMap(getSchemaWithOriginId(gmce), table.schema())).stream()
-        .filter(dataFile -> tableMetadata.addedFiles.getIfPresent(dataFile.path()) == null)
+    getIcebergDataFilesToBeAddedHelper(gmce, table, newSpecsMap, tableMetadata)
         .forEach(dataFile -> {
           newDataFiles.add(dataFile);
           tableMetadata.addedFiles.put(dataFile.path(), "");
@@ -432,8 +428,8 @@ public class IcebergMetadataWriter implements MetadataWriter {
         //This means this re-write event is duplicated with the one we already handled, so directly return
         return;
       }
-      //This is the case we register daily partition to additional database
-      //So we directly call addFiles interface to add file into the table.
+      //This is the case when the files to be deleted do not exist in table
+      //So we directly call addFiles interface to add new files into the table.
       tableMetadata.appendFiles = Optional.of(tableMetadata.appendFiles.or(transaction::newAppend));
       AppendFiles appendFiles = tableMetadata.appendFiles.get();
       newDataFiles.forEach(appendFiles::appendFile);
@@ -514,17 +510,21 @@ public class IcebergMetadataWriter implements MetadataWriter {
 
   protected void addFiles(GobblinMetadataChangeEvent gmce, Map<String, Collection<HiveSpec>> newSpecsMap, Table table,
       TableMetadata tableMetadata) throws IOException {
-    PartitionSpec partitionSpec = table.spec();
     Transaction transaction = tableMetadata.transaction.get();
     tableMetadata.appendFiles = Optional.of(tableMetadata.appendFiles.or(transaction::newAppend));
     AppendFiles appendFiles = tableMetadata.appendFiles.get();
-    getIcebergDataFilesToBeAdded(gmce.getNewFiles(), partitionSpec, newSpecsMap,
-        IcebergUtils.getSchemaIdMap(getSchemaWithOriginId(gmce), table.schema())).stream()
-        .filter(dataFile -> tableMetadata.addedFiles.getIfPresent(dataFile.path()) == null)
+    getIcebergDataFilesToBeAddedHelper(gmce, table, newSpecsMap, tableMetadata)
         .forEach(dataFile -> {
           appendFiles.appendFile(dataFile);
           tableMetadata.addedFiles.put(dataFile.path(), "");
         });
+  }
+
+  private Stream<DataFile> getIcebergDataFilesToBeAddedHelper(GobblinMetadataChangeEvent gmce, Table table, Map<String, Collection<HiveSpec>> newSpecsMap,
+      TableMetadata tableMetadata) throws IOException {
+    return getIcebergDataFilesToBeAdded(gmce.getNewFiles(), table.spec(), newSpecsMap,
+        IcebergUtils.getSchemaIdMap(getSchemaWithOriginId(gmce), table.schema())).stream()
+        .filter(dataFile -> tableMetadata.addedFiles.getIfPresent(dataFile.path()) == null);
   }
 
   /**
@@ -601,7 +601,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
    * 2. Update the new table property: high watermark of GMCE, data offset range, schema versions
    * 3. Update the schema
    * 4. Commit the transaction
-   * 5. Clear cache
+   * 5. reset tableMetadata
    * @param dbName
    * @param tableName
    */
@@ -743,8 +743,8 @@ public class IcebergMetadataWriter implements MetadataWriter {
 
   private void updateSchemaHelper(String schemaCreationTime, Schema schema, Map<String, String> props, Table table) {
     try {
-      props.put(SCHEMA_CREATION_TIME_KEY, schemaCreationTime);
       table.updateSchema().unionByNameWith(schema).commit();
+      props.put(SCHEMA_CREATION_TIME_KEY, schemaCreationTime);
     } catch (Exception e) {
       log.error("Cannot update schema to " + schema.toString() + "for table " + table.location(), e);
     }
@@ -780,7 +780,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
           log.warn(String.format("Skip processing record %s since it has lower watermark", genericRecord.toString()));
         }
       } else {
-        log.debug(String.format("Skip table %s.%s since it's blacklisted", tableSpec.getTable().getDbName(),
+        log.info(String.format("Skip table %s.%s since it's blacklisted", tableSpec.getTable().getDbName(),
             tableSpec.getTable().getTableName()));
       }
     } finally {
