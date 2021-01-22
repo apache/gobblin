@@ -18,10 +18,10 @@
 version: '3'
 services:
   gobblin-standalone:
-    image: apache/gobblin:master
+    image: apache/gobblin:latest
     command: --mode "standalone"
     volumes:
-      - "${LOCAL_JOB_DIR}:/tmp/gobblin-standalone/jobs"
+      - "${LOCAL_JOB_DIR}:/etc/gobblin-standalone/jobs"
   zookeeper:
     image: wurstmeister/zookeeper
     ports:

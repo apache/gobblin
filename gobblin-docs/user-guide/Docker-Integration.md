@@ -44,7 +44,7 @@ Run these commands to start the docker image:
 
 `docker pull apache/gobblin:latest`
 
-`docker run -v $LOCAL_JOB_DIR:/tmp/gobblin-standalone/jobs apache/gobblin:latest --mode standalone`
+`docker run -v $LOCAL_JOB_DIR:/etc/gobblin-standalone/jobs apache/gobblin:latest --mode standalone`
 
 After the container spins up, put the [wikipedia.pull](https://github.com/apache/incubator-gobblin/blob/master/gobblin-example/src/main/resources/wikipedia.pull) in ${LOCAL_JOB_DIR}. You will see the Gobblin daemon pick up the job, and the result output is in ${LOCAL_JOB_DIR}/job-output/.
 
@@ -98,7 +98,7 @@ Similar to standalone working directory settings:
 
 Run these commands to start the docker image:
 
-`docker run -p 6956:6956 -v $GAAS_JOB_DIR:/tmp/gobblin-as-service/jobs -v $LOCAL_DATAPACK_DIR:/tmp/templateCatalog apache/gobblin --mode gobblin-as-service`
+`docker run -p 6956:6956 -v $GAAS_JOB_DIR:/etc/gobblin-as-service/jobs -v $LOCAL_DATAPACK_DIR:/etc/templateCatalog apache/gobblin --mode gobblin-as-service`
 
 The GaaS will be started, and the service can now be accessed on localhost:6956.
 
