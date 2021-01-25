@@ -146,7 +146,7 @@ public class ClusterIntegrationTest {
    *   We confirm the execution by again inspecting the zNode and ensuring its TargetState is START. </li>
    * </ul>
    */
-  @Test (enabled = false, dependsOnMethods = { "testJobShouldGetCancelled" }, groups = {"disabledOnTravis"})
+  @Test (enabled = false, dependsOnMethods = { "testJobShouldGetCancelled" }, groups = {"disabledOnCI"})
   public void testJobRestartViaSpec() throws Exception {
     Config jobConfigOverrides = ClusterIntegrationTestUtils.buildSleepingJob(IntegrationJobCancelSuite.JOB_ID,
         IntegrationJobCancelSuite.TASK_STATE_FILE);

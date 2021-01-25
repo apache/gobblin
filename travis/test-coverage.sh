@@ -28,4 +28,4 @@ script_dir=$(dirname $0)
 source ${script_dir}/test-groups.inc
 
 echo "Starting $0 at " $(date)
-time ./gradlew -PskipTestGroup=disabledOnTravis -Dorg.gradle.parallel=false -DjacocoBuild=1 $GOBBLIN_GRADLE_OPTS jacocoTestCoverage
+time ./gradlew -PskipTestGroup=disabledOnCI -Dorg.gradle.parallel=false -DjacocoBuild=1 $GOBBLIN_GRADLE_OPTS jacocoTestCoverage

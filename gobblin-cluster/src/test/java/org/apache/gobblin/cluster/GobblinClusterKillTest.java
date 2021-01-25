@@ -59,7 +59,7 @@ import org.apache.gobblin.testing.AssertWithBackoff;
  */
 // The kill tests are unreliable on Travis
 // Disabled GobblinClusterKillTest until reliability improves
-@Test(enabled=false, groups = {"disabledOnTravis"}, singleThreaded = true)
+@Test(enabled=false, groups = {"disabledOnCI"}, singleThreaded = true)
 public class GobblinClusterKillTest {
   public final static Logger LOG = LoggerFactory.getLogger(GobblinClusterKillTest.class);
   public static final String CLASS_NAME_BASED_PATH = "org/apache/gobblin/util/test/HelloWorldSource";
@@ -227,7 +227,7 @@ public class GobblinClusterKillTest {
 
   // The kill tests are unreliable on Travis
   // Disabled GobblinClusterKillTest until reliability improves
-  // @Test(groups = { "disabledOnTravis" }, dependsOnMethods = "testKillWorker")
+  // @Test(groups = { "disabledOnCI" }, dependsOnMethods = "testKillWorker")
   public void testKillManager() throws IOException, TimeoutException, InterruptedException {
     // kill a manager to cause leader election. New leader will schedule a new job.
     _clusterManagers[0].disconnectHelixManager();
@@ -268,7 +268,7 @@ public class GobblinClusterKillTest {
 
   // The kill tests are unreliable on Travis
   // Disabled GobblinClusterKillTest until reliability improves
-  // @Test(groups = { "disabledOnTravis" }, enabled=true, dependsOnMethods = "testKillManager")
+  // @Test(groups = { "disabledOnCI" }, enabled=true, dependsOnMethods = "testKillManager")
   public void testRestartManager() throws IOException, TimeoutException, InterruptedException {
     _clusterManagers[0].disconnectHelixManager();
 

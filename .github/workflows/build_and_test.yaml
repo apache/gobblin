@@ -1,0 +1,164 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+name: Build and Run Tests
+
+on:
+  push:
+    # Publish only on `master`
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  release:
+    types: [published, edited]
+
+jobs:
+  build:
+    name: Build repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v2
+      - name: Set up JDK 1.8
+        uses: actions/setup-java@v1
+        with:
+          java-version: 1.8
+      # Stores external dependencies, can be further improved with Gradle 6.1
+      - name: Cache Gradle Dependencies
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          # Only rebuild cache if build.gradle is changed
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle') }}
+          restore-keys: ${{ runner.os }}-gradle
+      - name: Build repository
+        run: |
+          ./gradlew --no-daemon clean build -x test -x javadoc -x findbugsMain -x findbugsTest -x checkstyleMain -x checkstyleJmh -x checkstyleTest -Dorg.gradle.parallel=true
+
+  test_coverage:
+    runs-on: ubuntu-latest
+    name: Generate test coverage
+    needs: build
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v2
+      - name: Set up JDK 1.8
+        uses: actions/setup-java@v1
+        with:
+          java-version: 1.8
+      - name: Cache Gradle Dependencies
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          # Only rebuild cache if build.gradle is changed
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle') }}
+          restore-keys: ${{ runner.os }}-gradle
+      - name: Generate code coverage
+        run: |
+          ./gradlew -PskipTestGroup=disabledOnCI -Dorg.gradle.parallel=false -DjacocoBuild=1 $GOBBLIN_GRADLE_OPTS jacocoTestCoverage
+
+  static_checks:
+    name: Run static checks
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v2
+      - name: Set up JDK 1.8
+        uses: actions/setup-java@v1
+        with:
+          java-version: 1.8
+      # Stores external dependencies, can be further improved with Gradle 6.1
+      - name: Cache Gradle Dependencies
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          # Only rebuild cache if build.gradle is changed
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle') }}
+          restore-keys: ${{ runner.os }}-gradle
+      - name: Run CheckStyle and FindBugs
+        run: |
+          ./gradlew --no-daemon -x javadoc findbugsMain checkstyleMain checkstyleTest checkstyleJmh
+
+  run_tests:
+    timeout-minutes: 60
+    env:
+      GOBBLIN_GRADLE_OPTS: "--no-daemon -Dgobblin.metastore.testing.embeddedMysqlEnabled=false -PusePreinstalledMysql=true"
+    strategy:
+      matrix:
+        test-group: ["Core Tests", "Service Tests", "Module Tests", "Other Tests"]
+      fail-fast: false
+    runs-on: ubuntu-latest
+    needs: build
+    services:
+      mysql:
+        image: mysql:5.7.32
+        env:
+          MYSQL_USER: testUser
+          MYSQL_PASSWORD: testPassword
+          MYSQL_DATABASE: test
+          MYSQL_ROOT_PASSWORD: password
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=5
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v2
+      - name: Set up JDK 1.8
+        uses: actions/setup-java@v1
+        with:
+          java-version: 1.8
+      - name: Verify mysql connection
+        run: |
+            sudo apt-get install -y mysql-client
+            mysql --host 127.0.0.1 --port 3306 -uroot -ppassword -e "SHOW DATABASES"
+      - name: Cache Gradle Dependencies
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          # Only rebuild cache if build.gradle is changed
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle') }}
+          restore-keys: ${{ runner.os }}-gradle
+      - name: Run test group ${{ matrix.test-group }}
+        # Write retry logic as integration tests can fail due to timing out or network problems
+        run: |
+          ./gradlew getGroupedTests -PgroupName="${{matrix.test-group}}" > temp.txt
+          TASKS=$(sed -n 's/CI Task: //p' temp.txt)
+          echo $TASKS
+
+          n=0
+          until [ "$n" -ge 3 ]
+          do
+            ./gradlew -PskipTestGroup=disabledOnCI $GOBBLIN_GRADLE_OPTS $TASKS -Dorg.gradle.parallel=false && break
+            n=$((n+1))
+            if [[ $n -lt 3 ]]; then
+              echo "Tests failed, retry attempt number $n"
+            else
+              exit 1
+            fi
+            sleep 10
+          done
