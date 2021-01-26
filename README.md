@@ -8,26 +8,26 @@
 
 Apache Gobblin is a highly scalable data management solution for structured and byte-oriented data in heterogeneous data ecosystems. 
 
-It offers the following capabilities:
+### Capabilities
 - Ingestion and export of data from a variety of sources and sinks into and out of the data lake. Gobblin is optimized and designed for ELT patterns with inline transformations on ingest (small t).
 - Data Organization within the lake (e.g. compaction, partitioning, deduplication)
 - Lifecycle Management of data within the lake (e.g. data retention)
 - Compliance Management of data across the ecosystem (e.g. fine-grain data deletions)
 
-Common Patterns used in production
+### Common Patterns used in production
 - Stream / Batch ingestion of Kafka to Data Lake (HDFS, S3, ADLS)
 - Bulk-loading serving stores from the Data Lake (e.g. HDFS -> Couchbase)
 - Support for data sync across Federated Data Lake (HDFS <-> HDFS, HDFS <-> S3, S3 <-> ADLS)
 - Integrate external vendor API-s (e.g. Salesforce, Dynamics etc.) with data store (HDFS, Couchbase etc)
 - Enforcing Data retention policies and GDPR deletion on HDFS / ADLS
 
-Highlights
+### Highlights
 - Battle tested at scale: Runs in production at petabyte-scale at companies like LinkedIn, PayPal, Verizon etc.
 - Feature rich: Supports job/task scheduling, task partitioning, fault tolerance, error handling, state management for incremental processing, data quality checking, atomic data publishing etc.
 - Supports stream and batch execution modes 
 - Control Plane (Gobblin-as-a-service) supports programmatic triggering and orchestration of data plane operations. 
 
-Apache Gobblin is NOT
+### Apache Gobblin is NOT
 - A general purpose data transformation engine like Spark or Flink. Gobblin can delegate complex-data processing tasks to Spark, Hive etc. 
 - A data storage system like Apache Kafka or HDFS. Gobblin integrates with these systems as sources or sinks. 
 - A general-purpose workflow execution system like Airflow, Azkaban, Dagster, Luigi. You can use these systems to kick-off Gobblin jobs or use Gobblin’s in-built Quartz based scheduler. 
