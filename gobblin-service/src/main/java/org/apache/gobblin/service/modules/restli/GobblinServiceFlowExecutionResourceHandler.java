@@ -71,7 +71,7 @@ public class GobblinServiceFlowExecutionResourceHandler implements FlowExecution
   }
 
   @Override
-  public UpdateResponse resume(ComplexResourceKey<FlowStatusId, EmptyRecord> key) {
+  public void resume(ComplexResourceKey<FlowStatusId, EmptyRecord> key) {
     String flowGroup = key.getKey().getFlowGroup();
     String flowName = key.getKey().getFlowName();
     Long flowExecutionId = key.getKey().getFlowExecutionId();
@@ -79,7 +79,6 @@ public class GobblinServiceFlowExecutionResourceHandler implements FlowExecution
       HelixUtils.throwErrorIfNotLeader(this.helixManager);
     }
     this.eventBus.post(new ResumeFlowEvent(flowGroup, flowName, flowExecutionId));
-    return new UpdateResponse(HttpStatus.S_200_OK);
   }
 
   @Override

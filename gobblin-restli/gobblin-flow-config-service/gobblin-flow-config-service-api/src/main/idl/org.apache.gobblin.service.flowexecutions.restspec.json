@@ -10,13 +10,10 @@
       "type" : "org.apache.gobblin.service.FlowStatusId",
       "params" : "com.linkedin.restli.common.EmptyRecord"
     },
-    "supports" : [ "delete", "get", "partial_update" ],
+    "supports" : [ "delete", "get" ],
     "methods" : [ {
       "method" : "get",
       "doc" : "Retrieve the FlowExecution with the given key"
-    }, {
-      "method" : "partial_update",
-      "doc" : "Resume a failed {@link FlowExecution} from the point before failure. This is specified by a partial update patch which\n sets executionStatus to RUNNING."
     }, {
       "method" : "delete",
       "doc" : "Kill the FlowExecution with the given key"
@@ -41,7 +38,11 @@
       } ]
     } ],
     "entity" : {
-      "path" : "/flowexecutions/{id}"
+      "path" : "/flowexecutions/{id}",
+      "actions" : [ {
+        "name" : "resume",
+        "doc" : "Resume a failed {@link FlowExecution} from the point before failure."
+      } ]
     }
   }
 }

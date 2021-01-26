@@ -69,7 +69,7 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
   }
 
   @Override
-  public UpdateResponse resume(ComplexResourceKey<FlowStatusId, EmptyRecord> key) {
+  public void resume(ComplexResourceKey<FlowStatusId, EmptyRecord> key) {
     throw new UnsupportedOperationException("Resume should be handled in GobblinServiceFlowConfigResourceHandler");
   }
 
