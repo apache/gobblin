@@ -14,6 +14,12 @@ Apache Gobblin is a highly scalable data management solution for structured and 
 - Lifecycle Management of data within the lake (e.g. data retention)
 - Compliance Management of data across the ecosystem (e.g. fine-grain data deletions)
 
+### Highlights
+- Battle tested at scale: Runs in production at petabyte-scale at companies like LinkedIn, PayPal, Verizon etc.
+- Feature rich: Supports task partitioning, state management for incremental processing, atomic data publishing, data quality checking, job scheduling, fault tolerance etc.
+- Supports stream and batch execution modes 
+- Control Plane (Gobblin-as-a-service) supports programmatic triggering and orchestration of data plane operations. 
+
 ### Common Patterns used in production
 - Stream / Batch ingestion of Kafka to Data Lake (HDFS, S3, ADLS)
 - Bulk-loading serving stores from the Data Lake (e.g. HDFS -> Couchbase)
@@ -21,16 +27,11 @@ Apache Gobblin is a highly scalable data management solution for structured and 
 - Integrate external vendor API-s (e.g. Salesforce, Dynamics etc.) with data store (HDFS, Couchbase etc)
 - Enforcing Data retention policies and GDPR deletion on HDFS / ADLS
 
-### Highlights
-- Battle tested at scale: Runs in production at petabyte-scale at companies like LinkedIn, PayPal, Verizon etc.
-- Feature rich: Supports job/task scheduling, task partitioning, fault tolerance, error handling, state management for incremental processing, data quality checking, atomic data publishing etc.
-- Supports stream and batch execution modes 
-- Control Plane (Gobblin-as-a-service) supports programmatic triggering and orchestration of data plane operations. 
 
 ### Apache Gobblin is NOT
 - A general purpose data transformation engine like Spark or Flink. Gobblin can delegate complex-data processing tasks to Spark, Hive etc. 
 - A data storage system like Apache Kafka or HDFS. Gobblin integrates with these systems as sources or sinks. 
-- A general-purpose workflow execution system like Airflow, Azkaban, Dagster, Luigi. You can use these systems to kick-off Gobblin jobs or use Gobblin’s in-built Quartz based scheduler. 
+- A general-purpose workflow execution system like Airflow, Azkaban, Dagster, Luigi. 
 
 
 # Requirements
