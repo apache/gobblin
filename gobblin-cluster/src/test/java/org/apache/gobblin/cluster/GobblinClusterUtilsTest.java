@@ -31,6 +31,7 @@ import com.typesafe.config.ConfigValueFactory;
 
 import org.apache.gobblin.util.PathUtils;
 
+import static org.apache.gobblin.cluster.GobblinClusterUtils.JAVA_TMP_DIR_KEY;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -77,6 +78,25 @@ public class GobblinClusterUtilsTest {
     Assert.assertEquals(System.getProperty("prop1"), "val1");
     Assert.assertEquals(System.getProperty("prop2"), "val2");
     Assert.assertEquals(System.getProperty("prop3"), "val3");
+
+    // Test specifically for key resolution using YARN_CACHE as the example.
+    config = config.withValue(GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_SYSTEM_PROPERTY_PREFIX + "." +
+        JAVA_TMP_DIR_KEY, ConfigValueFactory.fromAnyRef(GobblinClusterUtils.JVM_ARG_VALUE_RESOLVER.YARN_CACHE.name()))
+        .withValue(GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_SYSTEM_PROPERTY_PREFIX + ".randomKey1",
+            ConfigValueFactory.fromAnyRef(GobblinClusterUtils.JVM_ARG_VALUE_RESOLVER.YARN_CACHE.name()))
+        .withValue(GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_SYSTEM_PROPERTY_PREFIX + ".randomKey2",
+            ConfigValueFactory.fromAnyRef(GobblinClusterUtils.JVM_ARG_VALUE_RESOLVER.YARN_CACHE.name()))
+        .withValue(GobblinClusterConfigurationKeys.GOBBLIN_CLUSTER_SYSTEM_PROPERTY_PREFIX + ".rejectedKey",
+            ConfigValueFactory.fromAnyRef(GobblinClusterUtils.JVM_ARG_VALUE_RESOLVER.YARN_CACHE.name()))
+        .withValue("gobblin.cluster.systemPropertiesList.YARN_CACHE", ConfigValueFactory.fromAnyRef("randomKey1,randomKey2"));
+    GobblinClusterUtils.setSystemProperties(config);
+    Assert.assertEquals(System.getProperty(JAVA_TMP_DIR_KEY), GobblinClusterUtils.JVM_ARG_VALUE_RESOLVER.YARN_CACHE.getResolution());
+    Assert.assertEquals(System.getProperty("randomKey1"), GobblinClusterUtils.JVM_ARG_VALUE_RESOLVER.YARN_CACHE.getResolution());
+    Assert.assertEquals(System.getProperty("randomKey2"), GobblinClusterUtils.JVM_ARG_VALUE_RESOLVER.YARN_CACHE.getResolution());
+    // For keys not being added in the list of `gobblin.cluster.systemPropertiesList.YARN_CACHE`, the value wont'
+    // be resolved.
+    Assert.assertEquals(System.getProperty("rejectedKey"), GobblinClusterUtils.JVM_ARG_VALUE_RESOLVER.YARN_CACHE.name());
+
   }
 
 }

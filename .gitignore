@@ -74,6 +74,13 @@ ligradle/checkstyle/suppressions.xml
 gobblin-core/src/test/resources/serde/output-staging/
 gobblin-integration-test-log-dir/
 gobblin-modules/gobblin-elasticsearch/test-elasticsearch/
+gobblin-modules/*/bin/
+gobblin-metrics-libs/*/bin/
+gobblin-config-management/*/bin/
+gobblin-cluster/GobblinHelixJobLauncherTest/
+gobblin-restli/gobblin-restli-utils/bin/
+gobblin-test-harness/gobblin-test-harness/
+
 
 temp/
 ligradle/*
@@ -87,3 +94,4 @@ gobblin-integration-test-work-dir/
 gobblin-test-utils/src/main/gen-avro/
 gobblin-test-utils/src/main/gen-proto/
 
+gobblin_config/
