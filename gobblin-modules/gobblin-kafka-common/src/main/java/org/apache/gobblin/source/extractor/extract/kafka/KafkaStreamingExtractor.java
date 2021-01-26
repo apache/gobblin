@@ -17,9 +17,6 @@
 
 package org.apache.gobblin.source.extractor.extract.kafka;
 
-import io.reactivex.Emitter;
-import io.reactivex.Flowable;
-import io.reactivex.functions.BiConsumer;
 import java.io.IOException;
 import java.util.AbstractMap;
 import java.util.ArrayList;
@@ -33,8 +30,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -61,16 +56,12 @@ import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
 import org.apache.gobblin.kafka.client.GobblinKafkaConsumerClient;
 import org.apache.gobblin.kafka.client.KafkaConsumerRecord;
-import org.apache.gobblin.metadata.GlobalMetadata;
 import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistry;
 import org.apache.gobblin.metrics.kafka.SchemaRegistryException;
-import org.apache.gobblin.records.RecordStreamWithMetadata;
-import org.apache.gobblin.runtime.JobShutdownException;
 import org.apache.gobblin.source.extractor.CheckpointableWatermark;
 import org.apache.gobblin.source.extractor.ComparableWatermark;
-import org.apache.gobblin.source.extractor.DataRecordException;
 import org.apache.gobblin.source.extractor.Watermark;
 import org.apache.gobblin.source.extractor.WatermarkSerializerHelper;
 import org.apache.gobblin.source.extractor.extract.FlushingExtractor;
@@ -78,7 +69,6 @@ import org.apache.gobblin.source.extractor.extract.LongWatermark;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.stream.FlushRecordEnvelope;
 import org.apache.gobblin.stream.RecordEnvelope;
-import org.apache.gobblin.stream.StreamEntity;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ClustersNames;
 import org.apache.gobblin.util.ConfigUtils;
