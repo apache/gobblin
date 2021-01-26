@@ -835,7 +835,8 @@ public class GobblinYarnAppLauncher {
       LOGGER.debug("All containerLaunchContext tokens: {} present in file {} ", credentials.getAllTokens(), System.getenv(HADOOP_TOKEN_FILE_LOCATION));
     }
 
-    TokenUtils.getAllFSTokens(new Configuration(), credentials, renewerName, null, ConfigUtils.getStringList(this.config, TokenUtils.OTHER_NAMENODES));
+    TokenUtils.getAllFSTokens(new Configuration(), credentials, renewerName,
+        Optional.absent(), ConfigUtils.getStringList(this.config, TokenUtils.OTHER_NAMENODES));
 
     Closer closer = Closer.create();
     try {
