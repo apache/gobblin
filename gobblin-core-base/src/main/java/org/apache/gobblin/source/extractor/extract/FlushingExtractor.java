@@ -40,7 +40,6 @@ import org.apache.gobblin.commit.CommitStep;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.metrics.MetricContextUtils;
 import org.apache.gobblin.publisher.DataPublisher;
-import org.apache.gobblin.runtime.JobShutdownException;
 import org.apache.gobblin.runtime.StateStoreBasedWatermarkStorage;
 import org.apache.gobblin.source.extractor.CheckpointableWatermark;
 import org.apache.gobblin.source.extractor.DataRecordException;
