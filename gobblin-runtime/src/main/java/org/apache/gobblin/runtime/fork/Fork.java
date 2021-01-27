@@ -227,6 +227,10 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
           r.ack();
         }
       }, e -> {
+          // Handle writer close in error case since onComplete will not call when exception happens
+          if (this.writer.isPresent()) {
+            this.writer.get().close();
+          }
           logger.error("Failed to process record.", e);
           verifyAndSetForkState(ForkState.RUNNING, ForkState.FAILED);
           },

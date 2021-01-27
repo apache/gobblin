@@ -108,8 +108,8 @@ public abstract class FlushingExtractor<S, D> extends EventBasedExtractor<S, D> 
   protected Long flushIntervalMillis;
 
   protected Long timeOfLastFlush = System.currentTimeMillis();
-  private FlushAckable lastFlushAckable;
-  private boolean hasOutstandingFlush = false;
+  protected FlushAckable lastFlushAckable;
+  protected boolean hasOutstandingFlush = false;
   private Optional<DataPublisher> flushPublisher = Optional.absent();
   protected WorkUnitState workUnitState;
 
@@ -332,7 +332,7 @@ public abstract class FlushingExtractor<S, D> extends EventBasedExtractor<S, D> 
   /**
    * {@link Ackable} for waiting for the flush control message to be processed
    */
-  private static class FlushAckable implements Ackable {
+  protected static class FlushAckable implements Ackable {
     private Throwable error;
     private final CountDownLatch processed;
 
