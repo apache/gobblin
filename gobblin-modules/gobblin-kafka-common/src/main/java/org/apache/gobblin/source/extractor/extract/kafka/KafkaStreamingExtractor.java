@@ -129,10 +129,7 @@ public class KafkaStreamingExtractor<S> extends FlushingExtractor<S, DecodeableK
       log.error("Interrupted when attempting to shutdown metrics collection threads.");
     }
     this.shutdownRequested.set(true);
-    // In case hasOutstandingFlush, we need to manually nack the ackable to make sure the CountDownLatch not hang
-    if (this.hasOutstandingFlush) {
-      this.lastFlushAckable.nack(new IOException("Extractor already shutdown"));
-    }
+    super.shutdown();
   }
 
   @ToString

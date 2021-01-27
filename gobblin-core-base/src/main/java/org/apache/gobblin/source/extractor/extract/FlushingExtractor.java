@@ -40,6 +40,7 @@ import org.apache.gobblin.commit.CommitStep;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.metrics.MetricContextUtils;
 import org.apache.gobblin.publisher.DataPublisher;
+import org.apache.gobblin.runtime.JobShutdownException;
 import org.apache.gobblin.runtime.StateStoreBasedWatermarkStorage;
 import org.apache.gobblin.source.extractor.CheckpointableWatermark;
 import org.apache.gobblin.source.extractor.DataRecordException;
@@ -108,8 +109,8 @@ public abstract class FlushingExtractor<S, D> extends EventBasedExtractor<S, D> 
   protected Long flushIntervalMillis;
 
   protected Long timeOfLastFlush = System.currentTimeMillis();
-  protected FlushAckable lastFlushAckable;
-  protected boolean hasOutstandingFlush = false;
+  private FlushAckable lastFlushAckable;
+  private boolean hasOutstandingFlush = false;
   private Optional<DataPublisher> flushPublisher = Optional.absent();
   protected WorkUnitState workUnitState;
 
@@ -298,6 +299,14 @@ public abstract class FlushingExtractor<S, D> extends EventBasedExtractor<S, D> 
     this.flushPublisher.get().publish(Collections.singletonList(workUnitState));
   }
 
+  @Override
+  public void shutdown() {
+    // In case hasOutstandingFlush, we need to manually nack the ackable to make sure the CountDownLatch not hang
+    if (this.hasOutstandingFlush) {
+      this.lastFlushAckable.nack(new IOException("Extractor already shutdown"));
+    }
+  }
+
   /**
    * Persist the watermarks in {@link WatermarkTracker#unacknowledgedWatermarks(Map)} to {@link WatermarkStorage}.
    * The method is called when after a {@link FlushControlMessage} has been acknowledged. To make retrieval of
@@ -332,7 +341,7 @@ public abstract class FlushingExtractor<S, D> extends EventBasedExtractor<S, D> 
   /**
    * {@link Ackable} for waiting for the flush control message to be processed
    */
-  protected static class FlushAckable implements Ackable {
+  private static class FlushAckable implements Ackable {
     private Throwable error;
     private final CountDownLatch processed;
 
