@@ -89,7 +89,7 @@ public class StreamModelTaskRunner {
     // by publish, so set the shutdownRequested flag on cancel to stop the extractor
     Flowable streamWithShutdownOnCancel = connectableStream.doOnCancel(() -> {
       this.shutdownRequested.set(true);
-      // In the case that extractor sucks in reading record when cancel get called, we call shutdown again to force it
+      // In the case that extractor stuck in reading record when cancel get called, we call shutdown again to force it
       this.extractor.shutdown();
     });
 
