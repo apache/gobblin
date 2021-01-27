@@ -21,6 +21,7 @@ import java.io.OutputStream;
 import java.net.URI;
 import java.util.List;
 import java.util.Properties;
+import java.util.UUID;
 import java.util.concurrent.Future;
 
 import org.apache.avro.file.DataFileWriter;
@@ -140,7 +141,7 @@ public class FsSpecProducer implements SpecProducer<Spec> {
     Path jobSpecPath = new Path(this.specConsumerPath, jobSpec.getUri());
 
     //Write the new JobSpec to a temporary path first.
-    Path tmpDir = new Path(this.specConsumerPath, "_tmp");
+    Path tmpDir = new Path(this.specConsumerPath, UUID.randomUUID().toString());
     if (!fs.exists(tmpDir)) {
       fs.mkdirs(tmpDir);
     }
@@ -155,6 +156,10 @@ public class FsSpecProducer implements SpecProducer<Spec> {
 
     //Rename the JobSpec from temporary to final location.
     HadoopUtils.renamePath(fs, tmpJobSpecPath, jobSpecPath, true);
+
+    //Delete the temporary path once the jobspec has been moved to its final publish location.
+    log.info("Deleting {}", tmpJobSpecPath.getParent().toString());
+    fs.delete(tmpJobSpecPath.getParent(), true);
   }
 
 }
