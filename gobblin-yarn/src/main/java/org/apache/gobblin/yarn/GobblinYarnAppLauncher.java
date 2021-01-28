@@ -250,6 +250,7 @@ public class GobblinYarnAppLauncher {
         InstanceType.SPECTATOR, zkConnectionString);
 
     this.yarnConfiguration = yarnConfiguration;
+    YarnHelixUtils.setYarnClassPath(config, this.yarnConfiguration);
     YarnHelixUtils.setAdditionalYarnClassPath(config, this.yarnConfiguration);
     this.yarnConfiguration.set("fs.automatic.close", "false");
     this.yarnClient = YarnClient.createYarnClient();
@@ -696,8 +697,12 @@ public class GobblinYarnAppLauncher {
           Optional.of(appMasterResources), appFilesDestDir, localFs);
     }
     if (this.config.hasPath(GobblinYarnConfigurationKeys.APP_MASTER_FILES_REMOTE_KEY)) {
-      addAppRemoteFiles(this.config.getString(GobblinYarnConfigurationKeys.APP_MASTER_FILES_REMOTE_KEY),
-          appMasterResources);
+      YarnHelixUtils.addRemoteFilesToLocalResources(this.config.getString(GobblinYarnConfigurationKeys.APP_MASTER_FILES_REMOTE_KEY),
+          appMasterResources, yarnConfiguration);
+    }
+    if (this.config.hasPath(GobblinYarnConfigurationKeys.APP_MASTER_ZIPS_REMOTE_KEY)) {
+      YarnHelixUtils.addRemoteZipsToLocalResources(this.config.getString(GobblinYarnConfigurationKeys.APP_MASTER_ZIPS_REMOTE_KEY),
+          appMasterResources, yarnConfiguration);
     }
     if (this.config.hasPath(GobblinClusterConfigurationKeys.JOB_CONF_PATH_KEY)) {
       Path appFilesDestDir = new Path(appMasterWorkDir, GobblinYarnConfigurationKeys.APP_FILES_DIR_NAME);
@@ -780,13 +785,6 @@ public class GobblinYarnAppLauncher {
       } else {
         LOGGER.warn(String.format("The request file %s doesn't exist", srcFilePath));
       }
-    }
-  }
-
-  private void addAppRemoteFiles(String hdfsFileList, Map<String, LocalResource> resourceMap)
-      throws IOException {
-    for (String hdfsFilePath : SPLITTER.split(hdfsFileList)) {
-      YarnHelixUtils.addFileAsLocalResource(this.fs, new Path(hdfsFilePath), LocalResourceType.FILE, resourceMap);
     }
   }
 
