@@ -59,6 +59,7 @@ The distribution will be created in build/gobblin-distribution/distributions dir
 # Quick Links
 
   * [Gobblin documentation](https://gobblin.apache.org/docs/)
+    * [Running Gobblin on Docker from your laptop](https://github.com/apache/incubator-gobblin/blob/master/gobblin-docs/user-guide/Docker-Integration.md)
     * [Getting started guide](https://gobblin.apache.org/docs/Getting-Started/)
     * [Gobblin architecture](https://gobblin.apache.org/docs/Gobblin-Architecture/)
   * Community Slack: [Get your invite](https://communityinviter.com/apps/apache-gobblin/apache-gobblin)
