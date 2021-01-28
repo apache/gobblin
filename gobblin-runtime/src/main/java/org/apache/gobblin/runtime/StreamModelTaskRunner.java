@@ -86,12 +86,9 @@ public class StreamModelTaskRunner {
     ConnectableFlowable connectableStream = stream.getRecordStream().publish();
 
     // The cancel is not propagated to the extractor's record generator when it has been turned into a hot Flowable
-    // by publish, so set the shutdownRequested flag on cancel to stop the extractor
-    Flowable streamWithShutdownOnCancel = connectableStream.doOnCancel(() -> {
-      this.shutdownRequested.set(true);
-      // In the case that extractor stuck in reading record when cancel get called, we call shutdown again to force it
-      this.extractor.shutdown();
-    });
+    // by publish, and in the case that extractor stuck in reading record when cancel get called,
+    // we directly call shutdown to force it instead of setting the shutdownRequested flag on cancel to stop the extractor
+    Flowable streamWithShutdownOnCancel = connectableStream.doOnCancel(this.extractor::shutdown);
 
     stream = stream.withRecordStream(streamWithShutdownOnCancel);
 
