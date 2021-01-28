@@ -129,6 +129,7 @@ public class KafkaStreamingExtractor<S> extends FlushingExtractor<S, DecodeableK
       log.error("Interrupted when attempting to shutdown metrics collection threads.");
     }
     this.shutdownRequested.set(true);
+    super.shutdown();
   }
 
   @ToString

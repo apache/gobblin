@@ -76,6 +76,7 @@ public class StreamModelTaskRunner {
 
   protected void run() throws Exception {
     long maxWaitInMinute = taskState.getPropAsLong(ConfigurationKeys.FORK_MAX_WAIT_MININUTES, ConfigurationKeys.DEFAULT_FORK_MAX_WAIT_MININUTES);
+    long initialDelay = taskState.getPropAsLong(ConfigurationKeys.FORK_FINISHED_CHECK_INTERVAL, ConfigurationKeys.DEFAULT_FORK_FINISHED_CHECK_INTERVAL);
 
     // Get the fork operator. By default IdentityForkOperator is used with a single branch.
     ForkOperator forkOperator = closer.register(this.taskContext.getForkOperator());
@@ -85,8 +86,9 @@ public class StreamModelTaskRunner {
     ConnectableFlowable connectableStream = stream.getRecordStream().publish();
 
     // The cancel is not propagated to the extractor's record generator when it has been turned into a hot Flowable
-    // by publish, so set the shutdownRequested flag on cancel to stop the extractor
-    Flowable streamWithShutdownOnCancel = connectableStream.doOnCancel(() -> this.shutdownRequested.set(true));
+    // by publish, and in the case that extractor stuck in reading record when cancel get called,
+    // we directly call shutdown to force it instead of setting the shutdownRequested flag on cancel to stop the extractor
+    Flowable streamWithShutdownOnCancel = connectableStream.doOnCancel(this.extractor::shutdown);
 
     stream = stream.withRecordStream(streamWithShutdownOnCancel);
 
@@ -149,11 +151,12 @@ public class StreamModelTaskRunner {
         this.task.configureStreamingFork(fork);
       }
     }
-
-    connectableStream.connect();
+    new Thread(() -> {
+      connectableStream.connect();
+    }).start();
 
     if (!ExponentialBackoff.awaitCondition().callable(() -> this.forks.keySet().stream().map(Optional::get).allMatch(Fork::isDone)).
-        initialDelay(1000L).maxDelay(1000L).maxWait(TimeUnit.MINUTES.toMillis(maxWaitInMinute)).await()) {
+        initialDelay(initialDelay).maxDelay(initialDelay).maxWait(TimeUnit.MINUTES.toMillis(maxWaitInMinute)).await()) {
       throw new TimeoutException("Forks did not finish withing specified timeout.");
     }
   }
