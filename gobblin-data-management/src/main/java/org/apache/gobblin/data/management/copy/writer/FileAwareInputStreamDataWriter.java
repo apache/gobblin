@@ -17,6 +17,11 @@
 
 package org.apache.gobblin.data.management.copy.writer;
 
+import com.codahale.metrics.Meter;
+import com.google.common.base.Optional;
+import com.google.common.base.Predicate;
+import com.google.common.base.Strings;
+import com.google.common.collect.Iterators;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -26,25 +31,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
-
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FileContext;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Options;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.permission.FsAction;
-import org.apache.hadoop.fs.permission.FsPermission;
-
-import com.codahale.metrics.Meter;
-import com.google.common.base.Optional;
-import com.google.common.base.Predicate;
-import com.google.common.base.Strings;
-import com.google.common.collect.Iterators;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.gobblin.broker.EmptyKey;
 import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import org.apache.gobblin.broker.iface.NotConfiguredException;
@@ -75,6 +62,15 @@ import org.apache.gobblin.util.io.StreamCopier;
 import org.apache.gobblin.util.io.StreamThrottler;
 import org.apache.gobblin.util.io.ThrottledInputStream;
 import org.apache.gobblin.writer.DataWriter;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FileContext;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Options;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsAction;
+import org.apache.hadoop.fs.permission.FsPermission;
 
 
 /**
@@ -118,6 +114,11 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
 
   public FileAwareInputStreamDataWriter(State state, int numBranches, int branchId, String writerAttemptId)
       throws IOException {
+    this(state, null, numBranches, branchId, writerAttemptId);
+  }
+
+  public FileAwareInputStreamDataWriter(State state, FileSystem fileSystem, int numBranches, int branchId, String writerAttemptId)
+      throws IOException {
     super(state);
 
     if (numBranches > 1) {
@@ -139,7 +140,11 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
 
     Configuration conf = WriterUtils.getFsConfiguration(state);
     URI uri = URI.create(uriStr);
-    this.fs = FileSystem.get(uri, conf);
+    if (fileSystem != null) {
+      this.fs = fileSystem;
+    } else {
+      this.fs = FileSystem.get(uri, conf);
+    }
     this.fileContext = FileContext.getFileContext(uri, conf);
 
     /**
@@ -196,11 +201,13 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     }
     Path stagingFile = getStagingFilePath(copyableFile);
     if (this.actualProcessedCopyableFile.isPresent()) {
-      throw new IOException(this.getClass().getCanonicalName() + " can only process one file.");
+      throw new IOException(this.getClass().getCanonicalName() + " can only process one file and cannot be reused.");
     }
-    this.actualProcessedCopyableFile = Optional.of(copyableFile);
+
     this.fs.mkdirs(stagingFile.getParent());
     writeImpl(fileAwareInputStream.getInputStream(), stagingFile, copyableFile, fileAwareInputStream);
+
+    this.actualProcessedCopyableFile = Optional.of(copyableFile);
     this.filesWritten.incrementAndGet();
   }
 

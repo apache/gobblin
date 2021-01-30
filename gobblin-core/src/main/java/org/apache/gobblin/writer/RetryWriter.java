@@ -16,14 +16,6 @@
  */
 package org.apache.gobblin.writer;
 
-import java.io.IOException;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.codahale.metrics.Meter;
 import com.github.rholder.retry.Attempt;
 import com.github.rholder.retry.RetryException;
@@ -34,7 +26,10 @@ import com.github.rholder.retry.StopStrategies;
 import com.github.rholder.retry.WaitStrategies;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
-
+import java.io.IOException;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import org.apache.gobblin.commit.SpeculativeAttemptAwareConstruct;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.exception.NonTransientException;
@@ -43,6 +38,8 @@ import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.records.ControlMessageHandler;
 import org.apache.gobblin.stream.RecordEnvelope;
 import org.apache.gobblin.util.FinalState;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Retry writer follows decorator pattern that retries on inner writer's failure.
@@ -95,7 +92,6 @@ public class RetryWriter<D> extends WatermarkAwareWriterWrapper<D> implements Da
         @Override
         public <V> void onRetry(Attempt<V> attempt) {
           if (attempt.hasException()) {
-            LOG.warn("Caught exception. This may be retried.", attempt.getExceptionCause());
             Instrumented.markMeter(retryMeter);
             failedWrites++;
           }
@@ -177,7 +173,19 @@ public class RetryWriter<D> extends WatermarkAwareWriterWrapper<D> implements Da
     return RetryerBuilder.<Void> newBuilder()
         .retryIfException(transients)
         .withWaitStrategy(WaitStrategies.exponentialWait(multiplier, maxWaitMsPerInterval, TimeUnit.MILLISECONDS)) //1, 2, 4, 8, 16 seconds delay
-        .withStopStrategy(StopStrategies.stopAfterAttempt(maxAttempts)); //Total 5 attempts and fail.
+        .withStopStrategy(StopStrategies.stopAfterAttempt(maxAttempts)) //Total 5 attempts and fail.
+        .withRetryListener(new RetryListener() {
+          @Override
+          public <V> void onRetry(Attempt<V> attempt) {
+            // We can get different exceptions on each attempt. The first one can be meaningful, and follow up
+            // exceptions can come from incorrect state of the system, and hide the real problem. Logging all of them
+            // to simplify troubleshooting
+            if (attempt.hasException() && attempt.getAttemptNumber() < maxAttempts) {
+              LOG.warn("Caught exception. Operation will be retried. Attempt #" + attempt.getAttemptNumber(),
+                  attempt.getExceptionCause());
+            }
+          }
+        });
   }
 
   @Override
