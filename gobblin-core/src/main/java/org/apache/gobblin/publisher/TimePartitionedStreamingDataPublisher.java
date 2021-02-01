@@ -55,6 +55,7 @@ public class TimePartitionedStreamingDataPublisher extends TimePartitionedDataPu
    */
   protected void publishMultiTaskData(WorkUnitState state, int branchId, Set<Path> writerOutputPathsMoved)
       throws IOException {
+    state.setProp(ConfigurationKeys.DATA_PUBLISHER_DATASET_DIR, this.getPublisherOutputDir(state, branchId).toString());
     super.publishMultiTaskData(state, branchId, writerOutputPathsMoved);
   }
 

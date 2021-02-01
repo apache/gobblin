@@ -495,6 +495,12 @@ public class ConfigurationKeys {
       DATA_PUBLISHER_PREFIX + ".latest.file.arrival.timestamp";
 
   /**
+   * Dynamically configured Publisher properties used internally
+   */
+  //Dataset-specific final publish location
+  public static final String DATA_PUBLISHER_DATASET_DIR = DATA_PUBLISHER_PREFIX + ".dataset.dir";
+
+  /**
    * Configuration properties used by the extractor.
    */
   public static final String SOURCE_ENTITY = "source.entity";
