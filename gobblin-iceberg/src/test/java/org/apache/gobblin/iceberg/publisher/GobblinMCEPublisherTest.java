@@ -237,7 +237,7 @@ public class GobblinMCEPublisherTest {
     state.setProp(GobblinMCEPublisher.OFFSET_RANGE_KEY, "testTopic-1:0-1000");
     state.setProp(ConfigurationKeys.HIVE_REGISTRATION_POLICY,
         HiveSnapshotRegistrationPolicy.class.getCanonicalName());
-    state.setProp(GobblinMCEProducer.DATASET_DIR, datasetDir.toString());
+    state.setProp(ConfigurationKeys.DATA_PUBLISHER_DATASET_DIR, datasetDir.toString());
     state.setProp(AbstractJob.JOB_ID, "testFlow");
     state.setProp(PartitionedDataWriter.WRITER_LATEST_SCHEMA, orcSchema);
   }
@@ -248,7 +248,7 @@ public class GobblinMCEPublisherTest {
     state.setProp(GobblinMCEPublisher.OFFSET_RANGE_KEY, "testTopic-1:0-1000");
     state.setProp(ConfigurationKeys.HIVE_REGISTRATION_POLICY,
         HiveSnapshotRegistrationPolicy.class.getCanonicalName());
-    state.setProp(GobblinMCEProducer.DATASET_DIR, datasetDir.toString());
+    state.setProp(ConfigurationKeys.DATA_PUBLISHER_DATASET_DIR, datasetDir.toString());
     state.setProp(AbstractJob.JOB_ID, "testFlow");
     state.setProp(PartitionedDataWriter.WRITER_LATEST_SCHEMA, _avroPartitionSchema);
   }

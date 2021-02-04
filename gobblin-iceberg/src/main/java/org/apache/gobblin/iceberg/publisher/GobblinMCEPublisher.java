@@ -18,6 +18,7 @@
 package org.apache.gobblin.iceberg.publisher;
 
 import com.google.common.io.Closer;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.iceberg.GobblinMCEProducer;
 import org.apache.gobblin.iceberg.Utils.IcebergUtils;
 import org.apache.gobblin.metadata.OperationType;
@@ -145,7 +146,7 @@ public class GobblinMCEPublisher extends DataPublisher {
     } catch (Exception e) {
       //This means table schema is not compatible with iceberg, so directly return null
       log.warn("Dataset {} contains schema that does not compatible with iceberg, will not emit file metrics for it",
-          state.getProp(GobblinMCEProducer.DATASET_DIR));
+          state.getProp(ConfigurationKeys.DATA_PUBLISHER_DATASET_DIR));
       return null;
     }
   }

@@ -25,6 +25,7 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.compaction.mapreduce.CompactionJobConfigurator;
 import org.apache.gobblin.compaction.parser.CompactionPathParser;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.dataset.FileSystemDataset;
@@ -35,7 +36,6 @@ import org.apache.gobblin.metadata.OperationType;
 import org.apache.gobblin.metadata.SchemaSource;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.util.HadoopUtils;
-import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.iceberg.FileFormat;
@@ -55,7 +55,6 @@ import org.apache.orc.OrcConf;
 @Slf4j
 public class CompactionGMCEPublishingAction implements CompactionCompleteAction<FileSystemDataset> {
 
-  public static final String GMCE_PRODUCER_CLASS = "gmce.producer.class";
   public static final String ICEBERG_ID_ATTRIBUTE = "iceberg.id";
   public static final String ICEBERG_REQUIRED_ATTRIBUTE = "iceberg.required";
   private final State state;
@@ -76,14 +75,11 @@ public class CompactionGMCEPublishingAction implements CompactionCompleteAction<
     if (dataset.isVirtual()) {
       return;
     }
-    String producerClass = state.getProp(GMCE_PRODUCER_CLASS, GobblinMCEProducer.class.getName());
-    try (
-        GobblinMCEProducer producer = GobblinConstructorUtils.invokeConstructor(GobblinMCEProducer.class, producerClass,
-            state)) {
+    try (GobblinMCEProducer producer = GobblinMCEProducer.getGobblinMCEProducer(state)) {
 
       CompactionPathParser.CompactionParserResult result = new CompactionPathParser(state).parse(dataset);
       String datasetDir = Joiner.on("/").join(result.getDstBaseDir(), result.getDatasetName());
-      state.setProp(GobblinMCEProducer.DATASET_DIR, datasetDir);
+      state.setProp(ConfigurationKeys.DATA_PUBLISHER_DATASET_DIR, datasetDir);
       producer.sendGMCE(getNewFileMetrics(result), null, Lists.newArrayList(this.configurator.getOldFiles()), null,
           OperationType.rewrite_files, SchemaSource.NONE);
     }

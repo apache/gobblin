@@ -49,7 +49,6 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.apache.gobblin.writer.PartitionedDataWriter;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
-import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.Metrics;
 
 
@@ -61,20 +60,18 @@ import org.apache.iceberg.Metrics;
  * This is an abstract class, we need a sub system like Kakfa, which support at least once delivery, to emit the event
  */
 @Slf4j
-public abstract class GobblinMCEProducer<D> implements Closeable {
+public abstract class GobblinMCEProducer implements Closeable {
 
   public static final String GMCE_PRODUCER_CLASS = "GobblinMCEProducer.class.name";
   public static final String OLD_FILES_HIVE_REGISTRATION_KEY = "old.files.hive.registration.policy";
-  public static final String FORMAT_KEY = "writer.output.format";
-  public static final String DATASET_DIR = "dataset.dir";
   public static final String HIVE_PARTITION_NAME = "hive.partition.name";
   private static final String HDFS_PLATFORM_URN = "urn:li:dataPlatform:hdfs";
   private static final String DATASET_ORIGIN_KEY = "dataset.origin";
   private static final String DEFAULT_DATASET_ORIGIN = "PROD";
 
   @Setter
-  private State state;
-  private MetricContext metricContext;
+  protected State state;
+  protected MetricContext metricContext;
 
   public GobblinMCEProducer(State state) {
     this.state = state;
@@ -111,7 +108,7 @@ public abstract class GobblinMCEProducer<D> implements Closeable {
     gmceBuilder.setDatasetIdentifier(DatasetIdentifier.newBuilder()
         .setDataPlatformUrn(HDFS_PLATFORM_URN)
         .setDataOrigin(DataOrigin.valueOf(origin))
-        .setNativeName(state.getProp(DATASET_DIR))
+        .setNativeName(state.getProp(ConfigurationKeys.DATA_PUBLISHER_DATASET_DIR))
         .build());
     gmceBuilder.setCluster(ClustersNames.getInstance().getClusterName());
     //retention job does not have job.id

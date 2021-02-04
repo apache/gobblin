@@ -139,18 +139,18 @@ public class IcebergMetadataWriter implements MetadataWriter {
   private static final String DEFAULT_CREATION_TIME = "0";
   private static final String SNAPSHOT_EXPIRE_THREADS = "snapshot.expire.threads";
   private static final long DEFAULT_WATERMARK = -1L;
+  protected final MetricContext metricContext;
+  protected EventSubmitter eventSubmitter;
   private final WhitelistBlacklist whiteistBlacklist;
   private final Closer closer = Closer.create();
   private final Map<TableIdentifier, Long> tableCurrentWaterMarkMap;
   //Used to store the relationship between table and the gmce topicPartition
   private final Map<TableIdentifier, String> tableTopicpartitionMap;
-  private final MetricContext metricContext;
-  private EventSubmitter eventSubmitter;
   @Getter
   private final KafkaSchemaRegistry schemaRegistry;
   private final Map<TableIdentifier, TableMetadata> tableMetadataMap;
   @Setter
-  private HiveCatalog catalog;
+  protected HiveCatalog catalog;
   protected final Configuration conf;
   protected final ReadWriteLock readWriteLock;
   private final HiveLock locks;

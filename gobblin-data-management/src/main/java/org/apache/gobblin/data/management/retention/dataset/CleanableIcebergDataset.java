@@ -151,7 +151,7 @@ public class CleanableIcebergDataset<T extends FileSystemDatasetVersion> extends
       producerState.setProp(HiveRegistrationPolicyBase.ADDITIONAL_HIVE_DATABASE_NAMES,
           retentionConfig.getString(HiveRegistrationPolicyBase.ADDITIONAL_HIVE_DATABASE_NAMES));
     }
-    producerState.setProp(GobblinMCEProducer.DATASET_DIR, this.datasetURN());
+    producerState.setProp(ConfigurationKeys.DATA_PUBLISHER_DATASET_DIR, this.datasetURN());
     if (!this.simulate) {
       try (GobblinMCEProducer producer = GobblinMCEProducer.getGobblinMCEProducer(producerState)) {
         producer.sendGMCE(null, null, deletablePrefix, null, OperationType.drop_files, SchemaSource.NONE);
