@@ -4,7 +4,7 @@
 
 # Introduction
 
-Gobblin integrates with Docker by running a Gobblin standalone service inside a Docker container. The Gobblin service inside the container can monitor the host filesystem for new job configuration files, run the jobs, and write the resulting data to the host filesystem. The Gobblin Docker images can be found on Docker Hub at: https://hub.docker.com/u/gobblin/
+Gobblin integrates with Docker by running a Gobblin standalone service inside a Docker container. The Gobblin service inside the container can monitor the host filesystem for new job configuration files, run the jobs, and write the resulting data to the host filesystem. The Gobblin Docker images can be found on Docker Hub at: https://hub.docker.com/r/apache/gobblin
 
 # Docker
 
@@ -102,9 +102,6 @@ Run these commands to start the docker image:
 
 The GaaS will be started, and the service can now be accessed on localhost:6956.
 
-### Interact with GaaS
-
-##### TODO: Add an end-to-end workflow example in GaaS.
 
 # Future Work
 
