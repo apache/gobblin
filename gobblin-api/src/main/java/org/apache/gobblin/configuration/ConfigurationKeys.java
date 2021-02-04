@@ -1052,6 +1052,12 @@ public class ConfigurationKeys {
       "org.apache.gobblin.util.schema_check.AvroSchemaCheckDefaultStrategy";
 
   /**
+   * Configuration and constant vale for GobblinMetadataChangeEvent
+   */
+  public static final String LIST_DELIMITER_KEY = ",";
+  public static final String RANGE_DELIMITER_KEY = "-";
+
+  /**
    * Configuration for emitting task events
    */
   public static final String TASK_EVENT_METADATA_GENERATOR_CLASS_KEY = "gobblin.task.event.metadata.generator.class";

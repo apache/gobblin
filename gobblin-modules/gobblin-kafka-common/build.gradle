@@ -56,6 +56,17 @@ configurations {
   // HADOOP-5254 and MAPREDUCE-5664
   all*.exclude group: 'xml-apis'
   all*.exclude group: 'xerces'
+  tests
+}
+
+task testJar(type: Jar, dependsOn: testClasses) {
+  baseName = "${project.archivesBaseName}-test"
+  from sourceSets.test.output
+}
+
+artifacts {
+  tests testJar
+  archives testJar
 }
 
 test {
