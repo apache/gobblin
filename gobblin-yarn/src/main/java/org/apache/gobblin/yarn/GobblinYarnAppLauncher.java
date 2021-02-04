@@ -19,7 +19,6 @@ package org.apache.gobblin.yarn;
 
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.EnumSet;
@@ -37,9 +36,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.avro.Schema;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.apache.commons.mail.EmailException;
+import org.apache.gobblin.util.hadoop.TokenUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -49,7 +47,6 @@ import org.apache.hadoop.fs.RawLocalFileSystem;
 import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.protocolrecords.GetNewApplicationResponse;
 import org.apache.hadoop.yarn.api.records.ApplicationAccessType;
@@ -253,6 +250,7 @@ public class GobblinYarnAppLauncher {
         InstanceType.SPECTATOR, zkConnectionString);
 
     this.yarnConfiguration = yarnConfiguration;
+    YarnHelixUtils.setYarnClassPath(config, this.yarnConfiguration);
     YarnHelixUtils.setAdditionalYarnClassPath(config, this.yarnConfiguration);
     this.yarnConfiguration.set("fs.automatic.close", "false");
     this.yarnClient = YarnClient.createYarnClient();
@@ -325,7 +323,7 @@ public class GobblinYarnAppLauncher {
    * @throws IOException if there's something wrong launching the application
    * @throws YarnException if there's something wrong launching the application
    */
-  public void launch() throws IOException, YarnException {
+  public void launch() throws IOException, YarnException, InterruptedException {
     this.eventBus.register(this);
 
     if (this.isHelixClusterManaged) {
@@ -602,12 +600,14 @@ public class GobblinYarnAppLauncher {
    * @throws YarnException if there's anything wrong setting up and submitting the Yarn application
    */
   @VisibleForTesting
-  ApplicationId setupAndSubmitApplication() throws IOException, YarnException {
+  ApplicationId setupAndSubmitApplication() throws IOException, YarnException, InterruptedException {
+    LOGGER.info("creating new yarn application");
     YarnClientApplication gobblinYarnApp = this.yarnClient.createApplication();
     ApplicationSubmissionContext appSubmissionContext = gobblinYarnApp.getApplicationSubmissionContext();
     appSubmissionContext.setApplicationType(GOBBLIN_YARN_APPLICATION_TYPE);
     appSubmissionContext.setMaxAppAttempts(ConfigUtils.getInt(config, GobblinYarnConfigurationKeys.APP_MASTER_MAX_ATTEMPTS_KEY, GobblinYarnConfigurationKeys.DEFAULT_APP_MASTER_MAX_ATTEMPTS_KEY));
     ApplicationId applicationId = appSubmissionContext.getApplicationId();
+    LOGGER.info("created new yarn application: "+ applicationId.getId());
 
     GetNewApplicationResponse newApplicationResponse = gobblinYarnApp.getNewApplicationResponse();
     // Set up resource type requirements for ApplicationMaster
@@ -697,8 +697,12 @@ public class GobblinYarnAppLauncher {
           Optional.of(appMasterResources), appFilesDestDir, localFs);
     }
     if (this.config.hasPath(GobblinYarnConfigurationKeys.APP_MASTER_FILES_REMOTE_KEY)) {
-      addAppRemoteFiles(this.config.getString(GobblinYarnConfigurationKeys.APP_MASTER_FILES_REMOTE_KEY),
-          appMasterResources);
+      YarnHelixUtils.addRemoteFilesToLocalResources(this.config.getString(GobblinYarnConfigurationKeys.APP_MASTER_FILES_REMOTE_KEY),
+          appMasterResources, yarnConfiguration);
+    }
+    if (this.config.hasPath(GobblinYarnConfigurationKeys.APP_MASTER_ZIPS_REMOTE_KEY)) {
+      YarnHelixUtils.addRemoteZipsToLocalResources(this.config.getString(GobblinYarnConfigurationKeys.APP_MASTER_ZIPS_REMOTE_KEY),
+          appMasterResources, yarnConfiguration);
     }
     if (this.config.hasPath(GobblinClusterConfigurationKeys.JOB_CONF_PATH_KEY)) {
       Path appFilesDestDir = new Path(appMasterWorkDir, GobblinYarnConfigurationKeys.APP_FILES_DIR_NAME);
@@ -784,13 +788,6 @@ public class GobblinYarnAppLauncher {
     }
   }
 
-  private void addAppRemoteFiles(String hdfsFileList, Map<String, LocalResource> resourceMap)
-      throws IOException {
-    for (String hdfsFilePath : SPLITTER.split(hdfsFileList)) {
-      YarnHelixUtils.addFileAsLocalResource(this.fs, new Path(hdfsFilePath), LocalResourceType.FILE, resourceMap);
-    }
-  }
-
   private void addJobConfPackage(String jobConfPackagePath, Path destDir, Map<String, LocalResource> resourceMap)
       throws IOException {
     Path srcFilePath = new Path(jobConfPackagePath);
@@ -821,29 +818,23 @@ public class GobblinYarnAppLauncher {
         .toString();
   }
 
-  private void setupSecurityTokens(ContainerLaunchContext containerLaunchContext) throws IOException {
+  private void setupSecurityTokens(ContainerLaunchContext containerLaunchContext) throws IOException, InterruptedException {
+    LOGGER.info("setting up SecurityTokens for containerLaunchContext.");
     Credentials credentials = UserGroupInformation.getCurrentUser().getCredentials();
+    String renewerName = this.yarnConfiguration.get(YarnConfiguration.RM_PRINCIPAL);
 
     // Pass on the credentials from the hadoop token file if present.
     // The value in the token file takes precedence.
     if (System.getenv(HADOOP_TOKEN_FILE_LOCATION) != null) {
+      LOGGER.info("HADOOP_TOKEN_FILE_LOCATION is set to {} reading tokens from it for containerLaunchContext.", System.getenv(HADOOP_TOKEN_FILE_LOCATION));
       Credentials tokenFileCredentials = Credentials.readTokenStorageFile(new File(System.getenv(HADOOP_TOKEN_FILE_LOCATION)),
-          new Configuration());
+              new Configuration());
       credentials.addAll(tokenFileCredentials);
+      LOGGER.debug("All containerLaunchContext tokens: {} present in file {} ", credentials.getAllTokens(), System.getenv(HADOOP_TOKEN_FILE_LOCATION));
     }
 
-    String tokenRenewer = this.yarnConfiguration.get(YarnConfiguration.RM_PRINCIPAL);
-    if (tokenRenewer == null || tokenRenewer.length() == 0) {
-      throw new IOException("Failed to get master Kerberos principal for the RM to use as renewer");
-    }
-
-    // For now, only getting tokens for the default file-system.
-    Token<?> tokens[] = this.fs.addDelegationTokens(tokenRenewer, credentials);
-    if (tokens != null) {
-      for (Token<?> token : tokens) {
-        LOGGER.info("Got delegation token for " + this.fs.getUri() + "; " + token);
-      }
-    }
+    TokenUtils.getAllFSTokens(new Configuration(), credentials, renewerName,
+        Optional.absent(), ConfigUtils.getStringList(this.config, TokenUtils.OTHER_NAMENODES));
 
     Closer closer = Closer.create();
     try {
@@ -851,6 +842,7 @@ public class GobblinYarnAppLauncher {
       credentials.writeTokenStorageToStream(dataOutputBuffer);
       ByteBuffer fsTokens = ByteBuffer.wrap(dataOutputBuffer.getData(), 0, dataOutputBuffer.getLength());
       containerLaunchContext.setTokens(fsTokens);
+      LOGGER.info("Setting containerLaunchContext with All credential tokens: " + credentials.getAllTokens());
     } catch (Throwable t) {
       throw closer.rethrow(t);
     } finally {

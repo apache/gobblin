@@ -15,17 +15,20 @@
 # limitations under the License.
 #
 
-#
-# Test script used by Travis to test the
-# hadoop1 or hadoop2 versions of gobblin.
-#
-
-#!/bin/bash
-set -e
-
-script_dir=$(dirname $0)
-
-source ${script_dir}/test-groups.inc
-
-echo "Starting $0 at " $(date)
-time ./gradlew -PskipTestGroup=disabledOnCI -Dorg.gradle.parallel=false -DjacocoBuild=1 $GOBBLIN_GRADLE_OPTS jacocoTestCoverage
+version: '3'
+services:
+  gobblin-service:
+    image: apache/gobblin:latest
+    command: --mode "gobblin-as-service"
+    volumes:
+      - "${LOCAL_DATAPACK_DIR}:/etc/templateCatalog"
+      - "${LOCAL_JOB_DIR}:/etc/gobblin-as-service/jobs"
+    ports:
+      - 6956:6956
+  gobblin-standalone:
+    image: apache/gobblin:latest
+    command: --mode "standalone"
+    volumes:
+      - "${LOCAL_JOB_DIR}:/etc/gobblin-standalone/jobs"
+    environment:
+      - GOBBLIN_JOB_CONFIG_DIR=/etc/gobblin-standalone/jobs

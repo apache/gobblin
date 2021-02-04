@@ -298,6 +298,14 @@ public abstract class FlushingExtractor<S, D> extends EventBasedExtractor<S, D> 
     this.flushPublisher.get().publish(Collections.singletonList(workUnitState));
   }
 
+  @Override
+  public void shutdown() {
+    // In case hasOutstandingFlush, we need to manually nack the ackable to make sure the CountDownLatch not hang
+    if (this.hasOutstandingFlush) {
+      this.lastFlushAckable.nack(new IOException("Extractor already shutdown"));
+    }
+  }
+
   /**
    * Persist the watermarks in {@link WatermarkTracker#unacknowledgedWatermarks(Map)} to {@link WatermarkStorage}.
    * The method is called when after a {@link FlushControlMessage} has been acknowledged. To make retrieval of

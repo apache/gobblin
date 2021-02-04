@@ -30,9 +30,8 @@ spec:
             name: gaas-config
       containers:
         - name: gobblin-service
-          image: will97/gobblin-as-a-service:latest
-          command: ["./bin/entrypoint.sh"]
-          args: ["--jvmopts", "-DmysqlCredentials.user=$(MYSQL_USERNAME) -DmysqlCredentials.password=$(MYSQL_PASSWORD)"]
+          image: apache/gobblin:latest
+          args: ["--mode", "gobblin-as-service", "--jvmopts", "-DmysqlCredentials.user=$(MYSQL_USERNAME) -DmysqlCredentials.password=$(MYSQL_PASSWORD) -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap"]
           env:
             - name: MYSQL_USERNAME
               valueFrom:
@@ -46,9 +45,9 @@ spec:
                   key: password
           volumeMounts:
             - name: shared-jobs
-              mountPath: /tmp/gobblin-as-service/jobs
+              mountPath: /etc/gobblin-as-service/jobs
             - name: flowconfig-templates
-              mountPath: /tmp/templateCatalog
+              mountPath: /etc/templateCatalog
             - name: gaas-config
               mountPath: /home/gobblin/conf/gobblin-as-service/application.conf
               subPath: gaas-application.conf
@@ -86,10 +85,14 @@ spec:
             name: standalone-config
       containers:
         - name: gobblin-standalone
-          image: will97/gobblin-standalone:latest
+          image: apache/gobblin:latest
+          args: ["--mode", "standalone"]
           volumeMounts:
             - name: shared-jobs
-              mountPath: /tmp/gobblin-standalone/jobs
+              mountPath: /etc/gobblin-standalone/jobs
             - name: standalone-config
               mountPath: /home/gobblin/conf/standalone/application.conf
               subPath: standalone-application.conf
+          env:
+            - name: GOBBLIN_JOB_CONFIG_DIR
+              value: /etc/gobblin-standalone/jobs

@@ -112,6 +112,9 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
   private static final String AZKABAN_GOBBLIN_JOB_SLA_IN_SECONDS = "gobblin.azkaban.SLAInSeconds";
   private static final String DEFAULT_AZKABAN_GOBBLIN_JOB_SLA_IN_SECONDS = "-1"; // No SLA.
 
+  public static final String GOBBLIN_AZKABAN_INITIALIZE_HADOOP_TOKENS = "gobblin.azkaban.initializeHadoopTokens";
+  public static final String DEFAULT_GOBBLIN_AZKABAN_INITIALIZE_HADOOP_TOKENS = "true";
+
   private final Closer closer = Closer.create();
   private final JobLauncher jobLauncher;
   private final JobListener jobListener;
@@ -169,22 +172,24 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
     this.props
         .setProperty(ConfigurationKeys.JOB_TRACKING_URL_KEY, Strings.nullToEmpty(conf.get(AZKABAN_LINK_JOBEXEC_URL)));
 
-    if (System.getenv(HADOOP_TOKEN_FILE_LOCATION) != null) {
-      LOG.info("Job type " + props.getProperty(JOB_TYPE) + " provided Hadoop token in the environment variable "
-          + HADOOP_TOKEN_FILE_LOCATION);
-      this.props.setProperty(MAPREDUCE_JOB_CREDENTIALS_BINARY, System.getenv(HADOOP_TOKEN_FILE_LOCATION));
-    } else {
-      // see javadoc for more information
-      LOG.info("Job type " + props.getProperty(JOB_TYPE) + " did not provide Hadoop token in the environment variable "
-          + HADOOP_TOKEN_FILE_LOCATION + ". Negotiating Hadoop tokens.");
+    if (Boolean.parseBoolean(this.props.getProperty(GOBBLIN_AZKABAN_INITIALIZE_HADOOP_TOKENS,
+        DEFAULT_GOBBLIN_AZKABAN_INITIALIZE_HADOOP_TOKENS))) {
+      if (System.getenv(HADOOP_TOKEN_FILE_LOCATION) != null) {
+        LOG.info("Job type " + props.getProperty(JOB_TYPE) + " provided Hadoop token in the environment variable " + HADOOP_TOKEN_FILE_LOCATION);
+        this.props.setProperty(MAPREDUCE_JOB_CREDENTIALS_BINARY, System.getenv(HADOOP_TOKEN_FILE_LOCATION));
+      } else {
+        // see javadoc for more information
+        LOG.info(
+            "Job type " + props.getProperty(JOB_TYPE) + " did not provide Hadoop token in the environment variable " + HADOOP_TOKEN_FILE_LOCATION + ". Negotiating Hadoop tokens.");
 
-      File tokenFile = File.createTempFile("mr-azkaban", ".token");
-      TokenUtils.getHadoopTokens(new State(props), Optional.of(tokenFile), new Credentials());
+        File tokenFile = File.createTempFile("mr-azkaban", ".token");
+        TokenUtils.getHadoopTokens(new State(props), Optional.of(tokenFile), new Credentials());
 
-      System.setProperty(HADOOP_TOKEN_FILE_LOCATION, tokenFile.getAbsolutePath());
-      System.setProperty(MAPREDUCE_JOB_CREDENTIALS_BINARY, tokenFile.getAbsolutePath());
-      this.props.setProperty(MAPREDUCE_JOB_CREDENTIALS_BINARY, tokenFile.getAbsolutePath());
-      this.props.setProperty("env." + HADOOP_TOKEN_FILE_LOCATION, tokenFile.getAbsolutePath());
+        System.setProperty(HADOOP_TOKEN_FILE_LOCATION, tokenFile.getAbsolutePath());
+        System.setProperty(MAPREDUCE_JOB_CREDENTIALS_BINARY, tokenFile.getAbsolutePath());
+        this.props.setProperty(MAPREDUCE_JOB_CREDENTIALS_BINARY, tokenFile.getAbsolutePath());
+        this.props.setProperty("env." + HADOOP_TOKEN_FILE_LOCATION, tokenFile.getAbsolutePath());
+      }
     }
 
     Properties jobProps = this.props;

@@ -76,7 +76,7 @@ import org.apache.gobblin.testing.AssertWithBackoff;
 /**
  * Tests for {@link YarnService}.
  */
-@Test(groups = {"gobblin.yarn", "disabledOnTravis"}, singleThreaded=true)
+@Test(groups = {"gobblin.yarn", "disabledOnCI"}, singleThreaded=true)
 public class YarnServiceTest {
   final Logger LOG = LoggerFactory.getLogger(YarnServiceTest.class);
 
@@ -205,7 +205,7 @@ public class YarnServiceTest {
    * Test that the dynamic config is added to the config specified when the {@link GobblinApplicationMaster}
    * is instantiated.
    */
-  @Test(groups = {"gobblin.yarn", "disabledOnTravis"})
+  @Test(groups = {"gobblin.yarn", "disabledOnCI"})
   public void testScaleUp() {
     this.yarnService.requestTargetNumberOfContainers(10, Collections.EMPTY_SET);
 
@@ -217,7 +217,7 @@ public class YarnServiceTest {
     Assert.assertEquals(this.yarnService.getMatchingRequestsList(64, 1).size(), 0);
   }
 
-  @Test(groups = {"gobblin.yarn", "disabledOnTravis"}, dependsOnMethods = "testScaleUp")
+  @Test(groups = {"gobblin.yarn", "disabledOnCI"}, dependsOnMethods = "testScaleUp")
   public void testScaleDownWithInUseInstances() {
     Set<String> inUseInstances = new HashSet<>();
 
@@ -237,7 +237,7 @@ public class YarnServiceTest {
 
   }
 
-  @Test(groups = {"gobblin.yarn", "disabledOnTravis"}, dependsOnMethods = "testScaleDownWithInUseInstances")
+  @Test(groups = {"gobblin.yarn", "disabledOnCI"}, dependsOnMethods = "testScaleDownWithInUseInstances")
   public void testScaleDown() throws Exception {
     this.yarnService.requestTargetNumberOfContainers(4, Collections.EMPTY_SET);
 
@@ -246,7 +246,7 @@ public class YarnServiceTest {
   }
 
   // Keep this test last since it interferes with the container counts in the prior tests.
-  @Test(groups = {"gobblin.yarn", "disabledOnTravis"}, dependsOnMethods = "testScaleDown")
+  @Test(groups = {"gobblin.yarn", "disabledOnCI"}, dependsOnMethods = "testScaleDown")
   public void testReleasedContainerCache() throws Exception {
     Config modifiedConfig = this.config
         .withValue(GobblinYarnConfigurationKeys.RELEASED_CONTAINERS_CACHE_EXPIRY_SECS, ConfigValueFactory.fromAnyRef("2"));
@@ -266,7 +266,7 @@ public class YarnServiceTest {
     Assert.assertTrue(yarnService.getReleasedContainerCache().getIfPresent(containerId1) == null);
   }
 
-  @Test(groups = {"gobblin.yarn", "disabledOnTravis"}, dependsOnMethods = "testReleasedContainerCache")
+  @Test(groups = {"gobblin.yarn", "disabledOnCI"}, dependsOnMethods = "testReleasedContainerCache")
   public void testBuildContainerCommand() throws Exception {
     Config modifiedConfig = this.config
         .withValue(GobblinYarnConfigurationKeys.CONTAINER_JVM_MEMORY_OVERHEAD_MBS_KEY, ConfigValueFactory.fromAnyRef("10"))

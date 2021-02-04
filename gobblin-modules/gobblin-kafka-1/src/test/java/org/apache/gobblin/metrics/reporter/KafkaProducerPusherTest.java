@@ -37,6 +37,7 @@ import java.io.IOException;
 /**
  * Test {@link org.apache.gobblin.metrics.kafka.KafkaProducerPusher}.
  */
+@Test( groups = {"disabledOnCI"} )
 public class KafkaProducerPusherTest {
   public static final String TOPIC = KafkaProducerPusherTest.class.getSimpleName();
 

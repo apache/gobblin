@@ -27,7 +27,6 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableList;
 import com.google.common.io.Closer;
 
 import edu.umd.cs.findbugs.annotations.SuppressWarnings;
@@ -228,8 +227,12 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
           r.ack();
         }
       }, e -> {
+          // Handle writer close in error case since onComplete will not call when exception happens
+          if (this.writer.isPresent()) {
+            this.writer.get().close();
+          }
           logger.error("Failed to process record.", e);
-          throw(new RuntimeException(e));
+          verifyAndSetForkState(ForkState.RUNNING, ForkState.FAILED);
           },
         () -> {
           if (this.writer.isPresent()) {

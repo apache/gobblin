@@ -70,7 +70,7 @@ import org.testng.annotations.Test;
 /**
  * Tests for {@link YarnService}.
  */
-@Test(groups = {"gobblin.yarn", "disabledOnTravis"})
+@Test(groups = {"gobblin.yarn", "disabledOnCI"})
 public class YarnServiceTestWithExpiration {
   final Logger LOG = LoggerFactory.getLogger(YarnServiceTest.class);
 
@@ -201,7 +201,7 @@ public class YarnServiceTestWithExpiration {
    * Test that the yarn service can handle onStartContainerError right
    */
 
-  @Test(groups = {"gobblin.yarn", "disabledOnTravis"})
+  @Test(groups = {"gobblin.yarn", "disabledOnCI"})
   public void testStartError() throws Exception{
     this.expiredYarnService.requestTargetNumberOfContainers(10, Collections.EMPTY_SET);
 

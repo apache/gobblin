@@ -22,6 +22,7 @@ buildscript {
   apply from: 'gradle/scripts/repositories.gradle'
   apply from: 'gradle/scripts/defaultBuildProperties.gradle'
   apply from: 'gradle/scripts/computeVersions.gradle'
+  apply from: 'gradle/scripts/ci-support.gradle'
 
   apply from: file('gradle/scripts/buildscript.gradle'), to: buildscript
 

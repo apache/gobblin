@@ -17,12 +17,15 @@
 
 package org.apache.gobblin.yarn;
 
+import com.google.common.base.Splitter;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.Map;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -57,18 +60,24 @@ import org.apache.gobblin.util.ConfigUtils;
 public class YarnHelixUtils {
   private static final Logger LOGGER = LoggerFactory.getLogger(YarnHelixUtils.class);
 
+  private static final Splitter SPLITTER = Splitter.on(',').omitEmptyStrings().trimResults();
+
+  private static final Splitter ZIP_SPLITTER = Splitter.on('#').omitEmptyStrings().trimResults();
+
   /**
    * Write a {@link Token} to a given file.
    *
-   * @param token the token to write
    * @param tokenFilePath the token file path
+   * @param credentials all tokens of this credentials to be written to given file
    * @param configuration a {@link Configuration} object carrying Hadoop configuration properties
    * @throws IOException
    */
-  public static void writeTokenToFile(Token<? extends TokenIdentifier> token, Path tokenFilePath,
-      Configuration configuration) throws IOException {
-    Credentials credentials = new Credentials();
-    credentials.addToken(token.getService(), token);
+  public static void writeTokenToFile(Path tokenFilePath, Credentials credentials, Configuration configuration) throws IOException {
+    if(credentials == null) {
+      LOGGER.warn("got empty credentials, creating default one as new.");
+      credentials = new Credentials();
+    }
+    LOGGER.debug(String.format("Writing all tokens %s to file %s",  credentials.getAllTokens(), tokenFilePath));
     credentials.writeTokenStorageFile(tokenFilePath, configuration);
   }
 
@@ -79,6 +88,7 @@ public class YarnHelixUtils {
    * @throws IOException
    */
   public static void updateToken(String tokenFileName) throws IOException{
+    LOGGER.info("reading token from file: "+ tokenFileName);
     URL tokenFileUrl = YarnHelixUtils.class.getClassLoader().getResource(tokenFileName);
     if (tokenFileUrl != null) {
       File tokenFile = new File(tokenFileUrl.getFile());
@@ -118,6 +128,12 @@ public class YarnHelixUtils {
    */
   public static void addFileAsLocalResource(FileSystem fs, Path destFilePath, LocalResourceType resourceType,
       Map<String, LocalResource> resourceMap) throws IOException {
+    addFileAsLocalResource(fs, destFilePath, resourceType, resourceMap, destFilePath.getName());
+  }
+
+
+  public static void addFileAsLocalResource(FileSystem fs, Path destFilePath, LocalResourceType resourceType,
+      Map<String, LocalResource> resourceMap, String resourceName) throws IOException {
     LocalResource fileResource = Records.newRecord(LocalResource.class);
     FileStatus fileStatus = fs.getFileStatus(destFilePath);
     fileResource.setResource(ConverterUtils.getYarnUrlFromPath(destFilePath));
@@ -125,7 +141,7 @@ public class YarnHelixUtils {
     fileResource.setTimestamp(fileStatus.getModificationTime());
     fileResource.setType(resourceType);
     fileResource.setVisibility(LocalResourceVisibility.APPLICATION);
-    resourceMap.put(destFilePath.getName(), fileResource);
+    resourceMap.put(resourceName, fileResource);
   }
 
   /**
@@ -172,6 +188,36 @@ public class YarnHelixUtils {
     if (!ConfigUtils.emptyIfNotPresent(config, GobblinYarnConfigurationKeys.GOBBLIN_YARN_ADDITIONAL_CLASSPATHS).equals(
         StringUtils.EMPTY)){
       yarnConfiguration.setStrings(GobblinYarnConfigurationKeys.GOBBLIN_YARN_ADDITIONAL_CLASSPATHS, config.getString(GobblinYarnConfigurationKeys.GOBBLIN_YARN_ADDITIONAL_CLASSPATHS));
+    }
+  }
+
+  public static void setYarnClassPath(Config config, Configuration yarnConfiguration) {
+    if (!ConfigUtils.emptyIfNotPresent(config, GobblinYarnConfigurationKeys.GOBBLIN_YARN_CLASSPATHS).equals(
+        StringUtils.EMPTY)){
+      yarnConfiguration.setStrings(YarnConfiguration.YARN_APPLICATION_CLASSPATH, config.getString(GobblinYarnConfigurationKeys.GOBBLIN_YARN_CLASSPATHS));
+    }
+  }
+
+  public static void addRemoteFilesToLocalResources(String hdfsFileList, Map<String, LocalResource> resourceMap, Configuration yarnConfiguration) throws IOException {
+    for (String hdfsFilePath : SPLITTER.split(hdfsFileList)) {
+      Path srcFilePath = new Path(hdfsFilePath);
+      YarnHelixUtils.addFileAsLocalResource(
+          srcFilePath.getFileSystem(yarnConfiguration), srcFilePath, LocalResourceType.FILE, resourceMap);
+    }
+  }
+
+  public static void addRemoteZipsToLocalResources(String hdfsFileList, Map<String, LocalResource> resourceMap, Configuration yarnConfiguration)
+      throws IOException {
+    for (String zipFileWithName : SPLITTER.split(hdfsFileList)) {
+      Iterator<String> zipFileAndName =  ZIP_SPLITTER.split(zipFileWithName).iterator();
+      Path srcFilePath = new Path(zipFileAndName.next());
+      try {
+        YarnHelixUtils.addFileAsLocalResource(srcFilePath.getFileSystem(yarnConfiguration), srcFilePath, LocalResourceType.ARCHIVE,
+            resourceMap, zipFileAndName.next());
+      } catch (Exception e) {
+        throw new IOException(String.format("Fail to extract %s as local resources, maybe a wrong pattern, "
+            + "correct pattern should be {zipPath}#{targetUnzippedName}", zipFileAndName), e);
+      }
     }
   }
 

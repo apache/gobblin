@@ -56,7 +56,7 @@ public class HelixAssignedParticipantCheckTest {
         InstanceType.SPECTATOR, zkConnectString);
   }
 
-  @Test (groups = {"disabledOnTravis"})
+  @Test (groups = {"disabledOnCI"})
   //Test disabled on Travis because cluster integration tests are generally flaky on Travis.
   public void testExecute() throws Exception {
     suite.startCluster();

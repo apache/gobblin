@@ -35,6 +35,7 @@ subprojects {
       }
       testLogging {
         events "started","skipped","passed","failed"
+        exceptionFormat "full"
       }
       // Some tests require MySQL we can either download an embedded Wix image or use a pre-installed version
       if (rootProject.hasProperty('usePreinstalledMysql') && Boolean.parseBoolean(rootProject.usePreinstalledMysql)) {
@@ -72,6 +73,32 @@ subprojects {
       reports {
         html.enabled = true
         xml.enabled = false
+      }
+    }
+  }
+
+  tasks.withType(Test) {
+
+    // a collection to track failedTests
+    ext.failedTests = []
+
+    afterTest { descriptor, result ->
+      if (result.resultType == TestResult.ResultType.FAILURE) {
+        String failedTest = "${descriptor.className}::${descriptor.name}"
+        logger.debug("Adding " + failedTest + " to failedTests...")
+        failedTests << [failedTest]
+      }
+    }
+
+    afterSuite { suite, result ->
+      if (!suite.parent) { // will match the outermost suite
+        // logs each failed test
+        if (!failedTests.empty) {
+          logger.lifecycle("Failed tests:")
+          failedTests.each { failedTest ->
+            logger.lifecycle("${failedTest}")
+          }
+        }
       }
     }
   }

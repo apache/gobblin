@@ -91,11 +91,11 @@ public class PostgresqlExtractorTest {
   @Test
   public void testExractSampleRecordCountFromQuery()
       throws Exception {
-    long res1 = postgresqlExtractor.exractSampleRecordCountFromQuery(QUERY_1);
-    long res2 = postgresqlExtractor.exractSampleRecordCountFromQuery(QUERY_2);
-    long res3 = postgresqlExtractor.exractSampleRecordCountFromQuery(QUERY_3);
-    long res4 = postgresqlExtractor.exractSampleRecordCountFromQuery(QUERY_EMPTY);
-    long res5 = postgresqlExtractor.exractSampleRecordCountFromQuery(QUERY_REG);
+    long res1 = postgresqlExtractor.extractSampleRecordCountFromQuery(QUERY_1);
+    long res2 = postgresqlExtractor.extractSampleRecordCountFromQuery(QUERY_2);
+    long res3 = postgresqlExtractor.extractSampleRecordCountFromQuery(QUERY_3);
+    long res4 = postgresqlExtractor.extractSampleRecordCountFromQuery(QUERY_EMPTY);
+    long res5 = postgresqlExtractor.extractSampleRecordCountFromQuery(QUERY_REG);
 
     assertEquals(res1, (long) 532);
     assertEquals(res2, (long) 50);

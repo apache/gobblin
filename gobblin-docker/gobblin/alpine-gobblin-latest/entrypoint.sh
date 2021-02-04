@@ -30,18 +30,17 @@ GOBBLIN_HOME="$(cd `dirname $0`/..; pwd)"
 
 EXECUTION_MODE=''
 CONF_PATH=''
-ARGS="$@"
+JVM_OPTS=''
+ARGS=("$@")
 
 shopt -s nocasematch
-for i in $ARGS
+for i in "${!ARGS[@]}"
   do
-    case "$1" in
+    case "${ARGS[$i]}" in
       --mode )
-        EXECUTION_MODE="$2"
-        shift
+        EXECUTION_MODE="${ARGS[$i+1]}"
       ;;
   esac
-  shift
 done
 
 if [[ -z "$EXECUTION_MODE" ]]; then
@@ -50,4 +49,4 @@ if [[ -z "$EXECUTION_MODE" ]]; then
   exit 1
 fi
 
-./bin/gobblin.sh service $EXECUTION_MODE start --log-to-stdout $ARGS
+./bin/gobblin.sh service $EXECUTION_MODE start --log-to-stdout "$@"

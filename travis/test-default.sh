@@ -29,4 +29,4 @@ source ${script_dir}/test-groups.inc
 
 echo "Starting $0 at " $(date)
 echo "GOBBLIN_GRADLE_OPTS=$GOBBLIN_GRADLE_OPTS"
-time ./gradlew -PskipTestGroup=disabledOnTravis,$TEST_GROUP1 -Dorg.gradle.parallel=false $GOBBLIN_GRADLE_OPTS test
+time ./gradlew -PskipTestGroup=disabledOnCI,$TEST_GROUP1 -Dorg.gradle.parallel=false $GOBBLIN_GRADLE_OPTS test

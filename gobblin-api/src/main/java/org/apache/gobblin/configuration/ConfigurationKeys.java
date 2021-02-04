@@ -357,6 +357,8 @@ public class ConfigurationKeys {
   public static final String DEFAULT_FORK_RECORD_QUEUE_TIMEOUT_UNIT = TimeUnit.MILLISECONDS.name();
   public static final String FORK_MAX_WAIT_MININUTES = "fork.max.wait.minutes";
   public static final long DEFAULT_FORK_MAX_WAIT_MININUTES = 60;
+  public static final String FORK_FINISHED_CHECK_INTERVAL = "fork.finished.check.interval";
+  public static final long DEFAULT_FORK_FINISHED_CHECK_INTERVAL = 1000;
   public static final String FORK_CLOSE_WRITER_ON_COMPLETION = "fork.closeWriterOnCompletion";
   public static final boolean DEFAULT_FORK_CLOSE_WRITER_ON_COMPLETION = false;
 
