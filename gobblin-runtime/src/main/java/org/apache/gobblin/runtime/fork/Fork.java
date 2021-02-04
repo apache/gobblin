@@ -434,7 +434,8 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
   }
 
   public boolean isDone() {
-    return this.forkState.get() == ForkState.SUCCEEDED || this.forkState.get() == ForkState.FAILED;
+    return this.forkState.get() == ForkState.SUCCEEDED || this.forkState.get() == ForkState.FAILED
+        || this.forkState.get() == ForkState.COMMITTED;
   }
 
   @Override

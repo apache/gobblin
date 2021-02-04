@@ -116,7 +116,7 @@ public abstract class MRCompactorJobRunner implements Runnable, Comparable<MRCom
       COMPACTION_JOB_PREFIX + "target.output.file.size";
   public static final long DEFAULT_COMPACTION_JOB_TARGET_OUTPUT_FILE_SIZE = 536870912;
   public static final String COMPACTION_JOB_MAX_NUM_REDUCERS = COMPACTION_JOB_PREFIX + "max.num.reducers";
-  public static final int DEFAULT_COMPACTION_JOB_MAX_NUM_REDUCERS = 900;
+  public static final int DEFAULT_COMPACTION_JOB_MAX_NUM_REDUCERS = 3600;
   private static final String COMPACTION_JOB_OVERWRITE_OUTPUT_DIR = COMPACTION_JOB_PREFIX + "overwrite.output.dir";
   private static final boolean DEFAULT_COMPACTION_JOB_OVERWRITE_OUTPUT_DIR = false;
   private static final String COMPACTION_JOB_ABORT_UPON_NEW_DATA = COMPACTION_JOB_PREFIX + "abort.upon.new.data";
