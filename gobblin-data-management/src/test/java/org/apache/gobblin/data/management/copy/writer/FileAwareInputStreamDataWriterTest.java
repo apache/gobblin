@@ -16,33 +16,21 @@
  */
 package org.apache.gobblin.data.management.copy.writer;
 
+import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
+import com.google.common.io.Files;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.AccessDeniedException;
 import java.util.List;
 import java.util.Properties;
-
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.RandomStringUtils;
-import org.apache.gobblin.data.management.copy.splitter.DistcpFileSplitter;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.permission.FsAction;
-import org.apache.hadoop.fs.permission.FsPermission;
-import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
-
-import com.google.common.base.Optional;
-import com.google.common.collect.Lists;
-import com.google.common.io.Files;
-
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.crypto.EncryptionConfigParser;
@@ -58,8 +46,23 @@ import org.apache.gobblin.data.management.copy.FileAwareInputStream;
 import org.apache.gobblin.data.management.copy.OwnerAndPermission;
 import org.apache.gobblin.data.management.copy.PreserveAttributes;
 import org.apache.gobblin.data.management.copy.TestCopyableDataset;
+import org.apache.gobblin.data.management.copy.splitter.DistcpFileSplitter;
 import org.apache.gobblin.util.TestUtils;
+import org.apache.gobblin.util.WriterUtils;
 import org.apache.gobblin.util.io.StreamUtils;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsAction;
+import org.apache.hadoop.fs.permission.FsPermission;
+import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
+
+import static org.mockito.Mockito.*;
 
 
 public class FileAwareInputStreamDataWriterTest {
@@ -418,6 +421,52 @@ public class FileAwareInputStreamDataWriterTest {
         new FsPermission("311"));
     Assert.assertEquals(FileAwareInputStreamDataWriter.addExecutePermissionToOwner(new FsPermission("250")),
         new FsPermission("350"));
+  }
+
+  @Test
+  public void testRetryingAfterFailure() throws Exception {
+    String streamString1 = "testContents1";
+    FileStatus status = fs.getFileStatus(testTempPath);
+    OwnerAndPermission ownerAndPermission = new OwnerAndPermission(status.getOwner(), status.getGroup(),
+        new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
+    CopyableFile cf = CopyableFileUtils.getTestCopyableFile(ownerAndPermission);
+    CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(new TestCopyableDataset(new Path("/source")));
+    WorkUnitState state = TestUtils.createTestWorkUnitState();
+    state.setProp(ConfigurationKeys.USER_DEFINED_STAGING_DIR_FLAG, false);
+    state.setProp(ConfigurationKeys.WRITER_STAGING_DIR, new Path(testTempPath, "staging").toString());
+    state.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, new Path(testTempPath, "output").toString());
+    state.setProp(ConfigurationKeys.WRITER_FILE_PATH, RandomStringUtils.randomAlphabetic(5));
+    CopySource.serializeCopyEntity(state, cf);
+    CopySource.serializeCopyableDataset(state, metadata);
+
+    FileSystem fileSystem = spy(FileSystem.get(URI.create("file:///"), WriterUtils.getFsConfiguration(state)));
+
+    FileAwareInputStreamDataWriter dataWriter = new FileAwareInputStreamDataWriter(state, fileSystem, 1, 0, null);
+    FileAwareInputStream fileAwareInputStream = FileAwareInputStream.builder()
+        .file(cf)
+        .inputStream(StreamUtils.convertStream(IOUtils.toInputStream(streamString1, StandardCharsets.UTF_8)))
+        .build();
+
+    doThrow(new AccessDeniedException("Test")).when(fileSystem).mkdirs(any());
+
+    for (int i = 1; i <= 3; i++) {
+      try {
+        dataWriter.write(fileAwareInputStream);
+        Assert.fail("Expected method to throw AccessDeniedException on call #" + i);
+      } catch (AccessDeniedException e) {
+        // expected exception
+      }
+    }
+
+    doCallRealMethod().when(fileSystem).mkdirs(any());
+    dataWriter.write(fileAwareInputStream);
+
+    dataWriter.commit();
+    Path writtenFilePath = new Path(
+        new Path(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR), cf.getDatasetAndPartition(metadata).identifier()),
+        cf.getDestination());
+    Assert.assertEquals(IOUtils.toString(new FileInputStream(writtenFilePath.toString()), StandardCharsets.UTF_8),
+        streamString1);
   }
 
   @AfterClass
