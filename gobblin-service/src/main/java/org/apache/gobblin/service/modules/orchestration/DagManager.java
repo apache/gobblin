@@ -178,7 +178,7 @@ public class DagManager extends AbstractIdleService {
   @Getter
   private final Integer numThreads;
   private final Integer pollingInterval;
-  private final Integer retentionInterval;
+  private final Integer retentionPollingInterval;
   @Getter
   private final JobStatusRetriever jobStatusRetriever;
   private final Config config;
@@ -198,7 +198,7 @@ public class DagManager extends AbstractIdleService {
     this.resumeQueue = initializeDagQueue(this.numThreads);
     this.scheduledExecutorPool = Executors.newScheduledThreadPool(numThreads);
     this.pollingInterval = ConfigUtils.getInt(config, JOB_STATUS_POLLING_INTERVAL_KEY, DEFAULT_JOB_STATUS_POLLING_INTERVAL);
-    this.retentionInterval = ConfigUtils.getInt(config, FAILED_DAG_POLLING_INTERVAL, DEFAULT_FAILED_DAG_POLLING_INTERVAL);
+    this.retentionPollingInterval = ConfigUtils.getInt(config, FAILED_DAG_POLLING_INTERVAL, DEFAULT_FAILED_DAG_POLLING_INTERVAL);
     this.instrumentationEnabled = instrumentationEnabled;
     if (instrumentationEnabled) {
       MetricContext metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
@@ -380,7 +380,7 @@ public class DagManager extends AbstractIdleService {
           this.scheduledExecutorPool.scheduleAtFixedRate(dagManagerThread, 0, this.pollingInterval, TimeUnit.SECONDS);
         }
         FailedDagRetentionThread failedDagRetentionThread = new FailedDagRetentionThread(failedDagStateStore, failedDags, failedDagRetentionTime);
-        this.scheduledExecutorPool.scheduleAtFixedRate(failedDagRetentionThread, 0, retentionInterval, TimeUnit.MINUTES);
+        this.scheduledExecutorPool.scheduleAtFixedRate(failedDagRetentionThread, 0, retentionPollingInterval, TimeUnit.MINUTES);
         List<Dag<JobExecutionPlan>> dags = dagStateStore.getDags();
         log.info("Loading " + dags.size() + " dags from dag state store");
         for (Dag<JobExecutionPlan> dag : dags) {
