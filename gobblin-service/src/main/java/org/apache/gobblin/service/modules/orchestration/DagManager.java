@@ -1193,7 +1193,7 @@ public class DagManager extends AbstractIdleService {
   }
 
   /**
-   * Thread that runs retention on failed dags based on their original start time (from flow execution ID).
+   * Thread that runs retention on failed dags based on their original start time (which is the flow execution ID).
    */
   public static class FailedDagRetentionThread implements Runnable {
     private final DagStateStore failedDagStateStore;
@@ -1209,16 +1209,22 @@ public class DagManager extends AbstractIdleService {
     @Override
     public void run() {
       try {
-        log.info("start clean");
-        for (Iterator<Map.Entry<String, Dag<JobExecutionPlan>>> iter = this.failedDags.entrySet().iterator(); iter.hasNext();) {
-          Map.Entry<String, Dag<JobExecutionPlan>> entry = iter.next();
-          if (this.failedDagRetentionTime > 0L
-              && System.currentTimeMillis() > DagManagerUtils.getFlowExecId(entry.getValue()) + this.failedDagRetentionTime) {
-            log.info("cleaning");
+        log.info("Cleaning failed dag state store");
+        long startTime = System.currentTimeMillis();
+        List<String> dagKeysToClean = new ArrayList<>();
+
+        for (Map.Entry<String, Dag<JobExecutionPlan>> entry : this.failedDags.entrySet()) {
+          if (this.failedDagRetentionTime > 0L && startTime > DagManagerUtils.getFlowExecId(entry.getValue()) + this.failedDagRetentionTime) {
             this.failedDagStateStore.cleanUp(entry.getValue());
-            this.failedDags.remove(entry.getKey());
+            dagKeysToClean.add(entry.getKey());
           }
         }
+
+        for (String key : dagKeysToClean) {
+          this.failedDags.remove(key);
+        }
+
+      log.info("Cleaned " + dagKeysToClean.size() + " from the failed dag state store");
       } catch (Exception e) {
         log.error("Failed to run retention on failed dag state store", e);
       }
