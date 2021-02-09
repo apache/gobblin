@@ -9,7 +9,7 @@ Gobblin as a service is a service that takes in a user request (a logical flow) 
 The design of the service can be found here: https://cwiki.apache.org/confluence/display/GOBBLIN/Gobblin+as+a+Service
 
 # Running Gobblin as a Service
-1. [Build Gobblin] (./Building-Gobblin.md) or use one of the [provided distributions] (https://github.com/apache/incubator-gobblin/releases)
+1. [Build Gobblin] (./Building-Gobblin.md) or use one of the [provided distributions] (https://github.com/apache/gobblin/releases)
 2. Untar the build file `tar -xvf apache-gobblin-incubating-bin-${GOBBLIN_VERSION}.tar.gz`
 3. Execute the start script `./gobblin-dist/bin/gobblin-service.sh`
 4. View output in `service.out`

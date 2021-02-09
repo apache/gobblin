@@ -3,7 +3,7 @@
 # Introduction
 A RestApiSource is a [QueryBasedSource](../sources/QueryBasedSource.md) which uses [RESTful](https://en.wikipedia.org/wiki/Representational_state_transfer)
 Api for query. `RestApiExtractor` is a `QueryBasedExtractor` that uses REST to communicate with the source. To establish the communication,
-a [`RestApiConnector`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/source/extractor/extract/restapi/RestApiConnector.java) is
+a [`RestApiConnector`](https://github.com/apache/gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/source/extractor/extract/restapi/RestApiConnector.java) is
 required.
 
 # Constructs
@@ -36,7 +36,7 @@ Depends on the routines, [getX], [constructGetXQuery], [extractXFromResponse] ar
 
 There are other interactions between the `RestApiExtractor` layer and `SourceSpecificLayer`. The key points are:
 
-- A [`ProtocolSpecificLayer`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/source/extractor/extract/ProtocolSpecificLayer.java), such as
+- A [`ProtocolSpecificLayer`](https://github.com/apache/gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/source/extractor/extract/ProtocolSpecificLayer.java), such as
 `RestApiExtractor`, understands the protocol and sets up a routine to communicate with the source
 - A `SourceSpecificLayer`, such as `SalesforceExtractor`, knows the source and fits into the routine by providing and analyzing source specific information
 

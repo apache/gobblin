@@ -46,15 +46,15 @@ Run these commands to start the docker image:
 
 `docker run -v $LOCAL_JOB_DIR:/etc/gobblin-standalone/jobs apache/gobblin:latest --mode standalone`
 
-After the container spins up, put the [wikipedia.pull](https://github.com/apache/incubator-gobblin/blob/master/gobblin-example/src/main/resources/wikipedia.pull) in ${LOCAL_JOB_DIR}. You will see the Gobblin daemon pick up the job, and the result output is in ${LOCAL_JOB_DIR}/job-output/.
+After the container spins up, put the [wikipedia.pull](https://github.com/apache/gobblin/blob/master/gobblin-example/src/main/resources/wikipedia.pull) in ${LOCAL_JOB_DIR}. You will see the Gobblin daemon pick up the job, and the result output is in ${LOCAL_JOB_DIR}/job-output/.
 
 This example job is correspondent to the [getting started guide](https://gobblin.readthedocs.io/en/latest/Getting-Started/). With the docker image, you can focus on the Gobblin functionalities, avoiding the hassle of building a distribution.
 
 ### Use Gobblin Standalone on Docker for Kafka and HDFS Ingestion 
 
-* To ingest from/to Kafka and HDFS by Gobblin, you need to start services for Zookeeper, Kafka and HDFS along with Gobblin. We use docker [compose](https://docs.docker.com/compose/) with images contributed to docker hub. Firstly, you need to create a [docker-compose.yml](https://github.com/apache/incubator-gobblin/blob/master/gobblin-docker/gobblin-recipes/kafka-hdfs/docker-compose.yml) file.
+* To ingest from/to Kafka and HDFS by Gobblin, you need to start services for Zookeeper, Kafka and HDFS along with Gobblin. We use docker [compose](https://docs.docker.com/compose/) with images contributed to docker hub. Firstly, you need to create a [docker-compose.yml](https://github.com/apache/gobblin/blob/master/gobblin-docker/gobblin-recipes/kafka-hdfs/docker-compose.yml) file.
 
-* Second, in the same folder of the yml file, create a [hadoop.env](https://github.com/apache/incubator-gobblin/blob/master/gobblin-docker/gobblin-recipes/kafka-hdfs/hadoop.env) file to specify all HDFS related config(copy the content into your .env file).
+* Second, in the same folder of the yml file, create a [hadoop.env](https://github.com/apache/gobblin/blob/master/gobblin-docker/gobblin-recipes/kafka-hdfs/hadoop.env) file to specify all HDFS related config(copy the content into your .env file).
 
 * Open a terminal in the same folder, pull and run these docker services:
 
@@ -72,7 +72,7 @@ This example job is correspondent to the [getting started guide](https://gobblin
 
     You can type messages for the topic “test”, and press ctrl+c to exit.
 
-* Put the [kafka-hdfs.pull](https://github.com/apache/incubator-gobblin/blob/master/gobblin-example/src/main/resources/kafka-hdfs.pull) in ${LOCAL_JOB_DIR}, so that the Gobblin daemon will pick up this job and write the result to HDFS. You will see the Gobblin daemon pick up the job.
+* Put the [kafka-hdfs.pull](https://github.com/apache/gobblin/blob/master/gobblin-example/src/main/resources/kafka-hdfs.pull) in ${LOCAL_JOB_DIR}, so that the Gobblin daemon will pick up this job and write the result to HDFS. You will see the Gobblin daemon pick up the job.
 
 After the job finished, open a terminal in the HDFS namenode container:
 

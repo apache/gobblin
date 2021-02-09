@@ -2,7 +2,7 @@ site_name: Apache Gobblin
 site_description: Documentation for Gobblin, a universal data integration framework
 site_author: Apache Software Foundation
 
-repo_url: https://github.com/apache/incubator-gobblin
+repo_url: https://github.com/apache/gobblin
 repo_name: Gobblin
 
 docs_dir: gobblin-docs

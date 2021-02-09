@@ -141,7 +141,7 @@ $ gobblin cli run oneShot -baseConf <base-config-file> -appConf <path-to-job-con
 # e.g file:///gobblin-conf/my-job/wikipedia.pull or hdfs:///gobblin-conf/my-job/kafka-hdfs.pull
 ```
 
-The **oneShot** app comes with certain hardcoded defaults (that it inherits from EmbeddedGobblin [here](https://github.com/apache/incubator-gobblin/blob/master/gobblin-runtime/src/main/resources/embedded/embedded.conf)), that you may not be expecting. Make sure you understand what they do and override them in your baseConf or appConf files if needed.
+The **oneShot** app comes with certain hardcoded defaults (that it inherits from EmbeddedGobblin [here](https://github.com/apache/gobblin/blob/master/gobblin-runtime/src/main/resources/embedded/embedded.conf)), that you may not be expecting. Make sure you understand what they do and override them in your baseConf or appConf files if needed.
 
 Notable differences at the time of this writing include:
 

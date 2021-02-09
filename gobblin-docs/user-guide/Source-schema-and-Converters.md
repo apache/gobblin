@@ -7,7 +7,7 @@ Table of Contents
 A source schema has to be declared before extracting the data from the source. 
 To define the source schema `source.schema` property is available which takes a JSON value defining the source schema. 
 This schema is used by Converters to perform data type or data format conversions. 
-The java class representation of a source schema can be found here [Schema.java](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/source/extractor/schema/Schema.java).
+The java class representation of a source schema can be found here [Schema.java](https://github.com/apache/gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/source/extractor/schema/Schema.java).
 
 ## Converters
 In Gobblin library a Converter is an interface for classes that implement data transformations, e.g., data type conversions,
@@ -66,32 +66,32 @@ Avro. By using the following property in your .pull file.
 ```converter.classes="org.apache.gobblin.converter.json.JsonStringToJsonIntermediateConverter,org.apache.gobblin.converter.avro.JsonIntermediateToAvroConverter"```
 
 ## Converters available in Gobblin
-- [AvroFieldRetrieverConverter.java](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/avro/AvroFieldRetrieverConverter.java)
-- [AvroRecordToAvroWritableConverter.java](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/avro/AvroRecordToAvroWritableConverter.java)
-- [AvroToAvroCopyableConverter.java](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/avro/AvroToAvroCopyableConverter.java)
-- [AvroToBytesConverter.java](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/avro/AvroToBytesConverter.java)
-- [BytesToAvroConverter.java](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/avro/BytesToAvroConverter.java)
-- [FlattenNestedKeyConverter.java](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/avro/FlattenNestedKeyConverter.java)
-- [JsonIntermediateToAvroConverter.java](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/avro/JsonIntermediateToAvroConverter.java)
-- [JsonRecordAvroSchemaToAvroConverter.java](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/avro/JsonRecordAvroSchemaToAvroConverter.java)
-- [CsvToJsonConverter.java](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/csv/CsvToJsonConverter.java)
-- [CsvToJsonConverterV2.java](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/csv/CsvToJsonConverterV2.java)
-- [AvroFieldsPickConverter.java](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/filter/AvroFieldsPickConverter.java)
-- [AvroFilterConverter.java](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/filter/AvroFilterConverter.java)
-- [AvroToRestJsonEntryConverter.java](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/http/AvroToRestJsonEntryConverter.java)
-- [BytesToJsonConverter.java](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/json/BytesToJsonConverter.java)
-- [JsonStringToJsonIntermediateConverter.java](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/json/JsonStringToJsonIntermediateConverter.java)
-- [JsonToStringConverter.java](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/json/JsonToStringConverter.java)
-- [ObjectStoreConverter.java](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/objectstore/ObjectStoreConverter.java)
-- [ObjectStoreDeleteConverter.java](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/objectstore/ObjectStoreDeleteConverter.java)
-- [HiveSerDeConverter.java](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/serde/HiveSerDeConverter.java)
-- [ObjectToStringConverter.java](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/string/ObjectToStringConverter.java)
-- [StringFilterConverter.java](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/string/StringFilterConverter.java)
-- [StringSplitterConverter.java](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/string/StringSplitterConverter.java)
-- [StringSplitterToListConverter.java](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/string/StringSplitterToListConverter.java)
-- [StringToBytesConverter.java](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/string/StringToBytesConverter.java)
-- [TextToStringConverter.java](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/string/TextToStringConverter.java)
-- [GobblinMetricsPinotFlattenerConverter.java](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/GobblinMetricsPinotFlattenerConverter.java)
+- [AvroFieldRetrieverConverter.java](https://github.com/apache/gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/avro/AvroFieldRetrieverConverter.java)
+- [AvroRecordToAvroWritableConverter.java](https://github.com/apache/gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/avro/AvroRecordToAvroWritableConverter.java)
+- [AvroToAvroCopyableConverter.java](https://github.com/apache/gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/avro/AvroToAvroCopyableConverter.java)
+- [AvroToBytesConverter.java](https://github.com/apache/gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/avro/AvroToBytesConverter.java)
+- [BytesToAvroConverter.java](https://github.com/apache/gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/avro/BytesToAvroConverter.java)
+- [FlattenNestedKeyConverter.java](https://github.com/apache/gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/avro/FlattenNestedKeyConverter.java)
+- [JsonIntermediateToAvroConverter.java](https://github.com/apache/gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/avro/JsonIntermediateToAvroConverter.java)
+- [JsonRecordAvroSchemaToAvroConverter.java](https://github.com/apache/gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/avro/JsonRecordAvroSchemaToAvroConverter.java)
+- [CsvToJsonConverter.java](https://github.com/apache/gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/csv/CsvToJsonConverter.java)
+- [CsvToJsonConverterV2.java](https://github.com/apache/gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/csv/CsvToJsonConverterV2.java)
+- [AvroFieldsPickConverter.java](https://github.com/apache/gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/filter/AvroFieldsPickConverter.java)
+- [AvroFilterConverter.java](https://github.com/apache/gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/filter/AvroFilterConverter.java)
+- [AvroToRestJsonEntryConverter.java](https://github.com/apache/gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/http/AvroToRestJsonEntryConverter.java)
+- [BytesToJsonConverter.java](https://github.com/apache/gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/json/BytesToJsonConverter.java)
+- [JsonStringToJsonIntermediateConverter.java](https://github.com/apache/gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/json/JsonStringToJsonIntermediateConverter.java)
+- [JsonToStringConverter.java](https://github.com/apache/gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/json/JsonToStringConverter.java)
+- [ObjectStoreConverter.java](https://github.com/apache/gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/objectstore/ObjectStoreConverter.java)
+- [ObjectStoreDeleteConverter.java](https://github.com/apache/gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/objectstore/ObjectStoreDeleteConverter.java)
+- [HiveSerDeConverter.java](https://github.com/apache/gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/serde/HiveSerDeConverter.java)
+- [ObjectToStringConverter.java](https://github.com/apache/gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/string/ObjectToStringConverter.java)
+- [StringFilterConverter.java](https://github.com/apache/gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/string/StringFilterConverter.java)
+- [StringSplitterConverter.java](https://github.com/apache/gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/string/StringSplitterConverter.java)
+- [StringSplitterToListConverter.java](https://github.com/apache/gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/string/StringSplitterToListConverter.java)
+- [StringToBytesConverter.java](https://github.com/apache/gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/string/StringToBytesConverter.java)
+- [TextToStringConverter.java](https://github.com/apache/gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/string/TextToStringConverter.java)
+- [GobblinMetricsPinotFlattenerConverter.java](https://github.com/apache/gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/GobblinMetricsPinotFlattenerConverter.java)
 
 
 ## Schema specification
@@ -117,8 +117,8 @@ The converters which perform data format conversions such as CSV to JSON, JSON t
 
 | Converter  | Data types  |
 |---|---|
-| [JsonIntermediateToAvroConverter.java](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/avro/JsonIntermediateToAvroConverter.java)  | <ul><li>DATE</li><li>TIMESTAMP</li><li>TIME</li><li>STRING</li><li>BYTES</li><li>INT</li><li>LONG</li><li>FLOAT</li><li>DOUBLE</li><li>BOOLEAN</li><li>ARRAY</li><li>MAP</li><li>ENUM</li></ul>|
-| [JsonIntermediateToParquetGroupConverter.java](https://github.com/apache/incubator-gobblin/blob/master/gobblin-modules/gobblin-parquet/src/main/java/org/apache/gobblin/converter/parquet/JsonIntermediateToParquetGroupConverter.java)  | <ul><li>DATE</li><li>TIMESTAMP</li><li>TIME</li><li>STRING</li><li>BYTES</li><li>INT</li><li>LONG</li><li>FLOAT</li><li>DOUBLE</li><li>BOOLEAN</li><li>ARRAY</li><li>MAP</li><li>ENUM</li></ul>|
+| [JsonIntermediateToAvroConverter.java](https://github.com/apache/gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/converter/avro/JsonIntermediateToAvroConverter.java)  | <ul><li>DATE</li><li>TIMESTAMP</li><li>TIME</li><li>STRING</li><li>BYTES</li><li>INT</li><li>LONG</li><li>FLOAT</li><li>DOUBLE</li><li>BOOLEAN</li><li>ARRAY</li><li>MAP</li><li>ENUM</li></ul>|
+| [JsonIntermediateToParquetGroupConverter.java](https://github.com/apache/gobblin/blob/master/gobblin-modules/gobblin-parquet/src/main/java/org/apache/gobblin/converter/parquet/JsonIntermediateToParquetGroupConverter.java)  | <ul><li>DATE</li><li>TIMESTAMP</li><li>TIME</li><li>STRING</li><li>BYTES</li><li>INT</li><li>LONG</li><li>FLOAT</li><li>DOUBLE</li><li>BOOLEAN</li><li>ARRAY</li><li>MAP</li><li>ENUM</li></ul>|
 
 
 ### Primitive types 
