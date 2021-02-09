@@ -397,13 +397,9 @@ public class Task implements TaskIFace {
       failTask(t);
     } finally {
       synchronized (this) {
-        if (this.taskFuture == null || !this.taskFuture.isCancelled()) {
-          this.taskStateTracker.onTaskRunCompletion(this);
-          completeShutdown();
-          this.taskFuture = null;
-        } else {
-          LOG.info("will not decrease count down latch as this task is cancelled");
-        }
+        this.taskStateTracker.onTaskRunCompletion(this);
+        completeShutdown();
+        this.taskFuture = null;
       }
     }
   }
@@ -564,7 +560,7 @@ public class Task implements TaskIFace {
     this.lastRecordPulledTimestampMillis = System.currentTimeMillis();
   }
 
-  private void failTask(Throwable t) {
+  protected void failTask(Throwable t) {
     LOG.error(String.format("Task %s failed", this.taskId), t);
     this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
     this.taskState.setProp(ConfigurationKeys.TASK_FAILURE_EXCEPTION_KEY, Throwables.getStackTraceAsString(t));
@@ -1039,8 +1035,6 @@ public class Task implements TaskIFace {
   public synchronized boolean cancel() {
     LOG.info("Calling task cancel with interrupt flag: {}", this.shouldInterruptTaskOnCancel);
     if (this.taskFuture != null && this.taskFuture.cancel(this.shouldInterruptTaskOnCancel)) {
-      this.taskStateTracker.onTaskRunCompletion(this);
-      this.completeShutdown();
       return true;
     } else {
       return false;
