@@ -11,8 +11,8 @@ builds a http or rest request from multiple http records, sends the request with
 and handles the response.
 
 ## Note
-The old http write framework under [`AbstractHttpWriter`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/writer/http/AbstractHttpWriter.java)
-and [`AbstractHttpWriterBuilder`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/writer/http/AbstractHttpWriterBuilder.java)
+The old http write framework under [`AbstractHttpWriter`](https://github.com/apache/gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/writer/http/AbstractHttpWriter.java)
+and [`AbstractHttpWriterBuilder`](https://github.com/apache/gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/writer/http/AbstractHttpWriterBuilder.java)
 is deprecated (Deprecation date: 05/15/2018)! Use `AsyncHttpWriter` and `AsyncHttpWriterBuilder` instead
 
 # Constructs

@@ -23,7 +23,7 @@ In the next run, the `Source` will call `SourceState.getPreviousWorkUnitStates()
 
 **watermark type**
 
-A watermark can be of any custom type by implementing the [`Watermark`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-api/src/main/java/org/apache/gobblin/source/extractor/Watermark.java) interface. For example, for Kafka-HDFS ingestion, if each `WorkUnit` is responsible for pulling a single Kafka topic partition, a watermark is a single `long` value representing a Kafka offset. If each `WorkUnit` is responsible for pulling multiple Kafka topic partitions, a watermark can be a list of `long` values, such as [`MultiLongWatermark`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-modules/gobblin-kafka-common/src/main/java/org/apache/gobblin/source/extractor/extract/kafka/MultiLongWatermark.java).
+A watermark can be of any custom type by implementing the [`Watermark`](https://github.com/apache/gobblin/blob/master/gobblin-api/src/main/java/org/apache/gobblin/source/extractor/Watermark.java) interface. For example, for Kafka-HDFS ingestion, if each `WorkUnit` is responsible for pulling a single Kafka topic partition, a watermark is a single `long` value representing a Kafka offset. If each `WorkUnit` is responsible for pulling multiple Kafka topic partitions, a watermark can be a list of `long` values, such as [`MultiLongWatermark`](https://github.com/apache/gobblin/blob/master/gobblin-modules/gobblin-kafka-common/src/main/java/org/apache/gobblin/source/extractor/extract/kafka/MultiLongWatermark.java).
 
 ### Task Failures
 
@@ -31,7 +31,7 @@ A task may pull some data and then fail. If a task fails and job commit policy s
 
 ### Multi-Dataset Jobs
 
-Currently the only state store implementation Gobblin provides is [`FsStateStore`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-metastore/src/main/java/org/apache/gobblin/metastore/FsStateStore.java) which uses Hadoop SequenceFiles to store the states. By default, each job run reads the SequenceFile created by the previous run, and generates a new SequenceFile. This creates a pitfall when a job pulls data from multiple datasets: if a data set is skipped in a job run for whatever reason (e.g., it is blacklisted), its watermark will be unavailable for the next run.
+Currently the only state store implementation Gobblin provides is [`FsStateStore`](https://github.com/apache/gobblin/blob/master/gobblin-metastore/src/main/java/org/apache/gobblin/metastore/FsStateStore.java) which uses Hadoop SequenceFiles to store the states. By default, each job run reads the SequenceFile created by the previous run, and generates a new SequenceFile. This creates a pitfall when a job pulls data from multiple datasets: if a data set is skipped in a job run for whatever reason (e.g., it is blacklisted), its watermark will be unavailable for the next run.
 
 **Example**: suppose we schedule a Gobblin job to pull a Kafka topic from a Kafka broker, which has 10 partitions. In this case each partition is a dataset. In one of the job runs, a partition is skipped due to either being blacklisted or some failure. If no `WorkUnit` is created for this partition, this partition's watermark will not be checked in to the state store, and will not be available for the next run.
 
@@ -47,7 +47,7 @@ Note that when using Dataset URNs, **each `WorkUnit` can only have one `dataset.
 
 ## Gobblin State Deep Dive
 
-Gobblin involves several types of states during a job run, such as `JobState`, `TaskState`, `WorkUnit`, etc. They all extend the [`State`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-api/src/main/java/org/apache/gobblin/configuration/State.java) class, which is a wrapper around [`Properties`](https://docs.oracle.com/javase/8/docs/api/java/util/Properties.html) and provides some useful utility functions. 
+Gobblin involves several types of states during a job run, such as `JobState`, `TaskState`, `WorkUnit`, etc. They all extend the [`State`](https://github.com/apache/gobblin/blob/master/gobblin-api/src/main/java/org/apache/gobblin/configuration/State.java) class, which is a wrapper around [`Properties`](https://docs.oracle.com/javase/8/docs/api/java/util/Properties.html) and provides some useful utility functions. 
 
 ### `State` class hierarchy
 
@@ -78,7 +78,7 @@ The `MultiWorkUnit` is useful for finer-grained control and load balancing. With
 * The job launcher then passes the `JobState` (as a `SourceState` object) to the `Source`, based on which the `Source` will create a set of `WorkUnit`s. Note that when creating `WorkUnit`s, the `Source` should not add properties in `SourceState` into the `WorkUnit`s, which will be done when each `WorkUnit` is executed in a `Task`. The reason is that since the job launcher runs in a single JVM, creating a large number of `WorkUnit`s, each containing a copy of the `SourceState`, may cause OOM.
 
 * The job launcher prepares to run the `WorkUnit`s.
- * In standalone mode, the job launcher will add properties in the `JobState` into each `WorkUnit` (if a property in `JobState` already exists in the `WorkUnit`, it will NOT be overwritten, i.e., the value in the `WorkUnit` takes precedence). Then for each `WorkUnit` it creates a `Task` to run the `WorkUnit`, and submits all these Tasks to a [`TaskExecutor`](https://github.com/apache/incubator-gobblin/blob/master/gobblin-runtime/src/main/java/org/apache/gobblin/runtime/TaskExecutor.java) which will run these `Task`s in a thread pool.
+ * In standalone mode, the job launcher will add properties in the `JobState` into each `WorkUnit` (if a property in `JobState` already exists in the `WorkUnit`, it will NOT be overwritten, i.e., the value in the `WorkUnit` takes precedence). Then for each `WorkUnit` it creates a `Task` to run the `WorkUnit`, and submits all these Tasks to a [`TaskExecutor`](https://github.com/apache/gobblin/blob/master/gobblin-runtime/src/main/java/org/apache/gobblin/runtime/TaskExecutor.java) which will run these `Task`s in a thread pool.
  * In MR mode, the job launcher will serialize the `JobState` and each `WorkUnit` into a file, which will be picked up by the mappers. It then creates, configures and submits a Hadoop job.
 
 After this step, the job launcher will be waiting till all tasks finish.

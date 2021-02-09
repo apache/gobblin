@@ -21,4 +21,4 @@ ReadTheDocs is an open source, free tool that can build documentation in a GitHu
 
 # Additional Information
 
-For more information on how this architecture was decided and the different tradeoffs between other documentation services, check out the original PR: https://github.com/apache/incubator-gobblin/pull/788
+For more information on how this architecture was decided and the different tradeoffs between other documentation services, check out the original PR: https://github.com/apache/gobblin/pull/788

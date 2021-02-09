@@ -1,7 +1,7 @@
 [TOC]
 
 # Introduction
-The [CouchbaseWriter](https://github.com/apache/incubator-gobblin/blob/master/gobblin-modules/gobblin-couchbase/src/main/java/org/apache/gobblin/couchbase/writer/CouchbaseWriter.java) supports writing documents to a Couchbase bucket though the [Couchbase Java SDK](https://docs.couchbase.com/java-sdk/current/start-using-sdk.html). Note that CouchbaseWriter only supports writing to a single bucket as there should be only 1 CouchbaseEnvironment per JVM.
+The [CouchbaseWriter](https://github.com/apache/gobblin/blob/master/gobblin-modules/gobblin-couchbase/src/main/java/org/apache/gobblin/couchbase/writer/CouchbaseWriter.java) supports writing documents to a Couchbase bucket though the [Couchbase Java SDK](https://docs.couchbase.com/java-sdk/current/start-using-sdk.html). Note that CouchbaseWriter only supports writing to a single bucket as there should be only 1 CouchbaseEnvironment per JVM.
 
 
 # Record format

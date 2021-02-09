@@ -1,10 +1,10 @@
 # Apache Gobblin 
-[![Build Status](https://api.travis-ci.org/apache/incubator-gobblin.svg?branch=master)](https://travis-ci.org/apache/incubator-gobblin)
+[![Build Status](https://api.travis-ci.org/apache/gobblin.svg?branch=master)](https://travis-ci.org/apache/gobblin)
 [![Documentation Status](https://readthedocs.org/projects/gobblin/badge/?version=latest)](https://gobblin.readthedocs.org/en/latest/?badge=latest)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/org.apache.gobblin/gobblin-api/badge.svg)](https://search.maven.org/search?q=g:org.apache.gobblin)
 [![Stack Overflow](http://img.shields.io/:stack%20overflow-gobblin-brightgreen.svg)](http://stackoverflow.com/questions/tagged/gobblin)
 [![Join us on Slack](https://img.shields.io/badge/slack-apache--gobblin-brightgreen.svg)](https://communityinviter.com/apps/apache-gobblin/apache-gobblin)
-[![codecov.io](https://codecov.io/github/apache/incubator-gobblin/branch/master/graph/badge.svg)](https://codecov.io/github/apache/incubator-gobblin)
+[![codecov.io](https://codecov.io/github/apache/gobblin/branch/master/graph/badge.svg)](https://codecov.io/github/apache/gobblin)
 
 Apache Gobblin is a highly scalable data management solution for structured and byte-oriented data in heterogeneous data ecosystems. 
 
@@ -59,11 +59,11 @@ The distribution will be created in build/gobblin-distribution/distributions dir
 # Quick Links
 
   * [Gobblin documentation](https://gobblin.apache.org/docs/)
-    * [Running Gobblin on Docker from your laptop](https://github.com/apache/incubator-gobblin/blob/master/gobblin-docs/user-guide/Docker-Integration.md)
+    * [Running Gobblin on Docker from your laptop](https://github.com/apache/gobblin/blob/master/gobblin-docs/user-guide/Docker-Integration.md)
     * [Getting started guide](https://gobblin.apache.org/docs/Getting-Started/)
     * [Gobblin architecture](https://gobblin.apache.org/docs/Gobblin-Architecture/)
   * Community Slack: [Get your invite](https://communityinviter.com/apps/apache-gobblin/apache-gobblin)
   * [List of companies known to use Gobblin](https://gobblin.apache.org/docs/Powered-By/) 
-  * [Sample project](https://github.com/apache/incubator-gobblin/tree/master/gobblin-example)
+  * [Sample project](https://github.com/apache/gobblin/tree/master/gobblin-example)
   * [How to build Gobblin from source code](https://gobblin.apache.org/docs/user-guide/Building-Gobblin/)
   * [Issue tracker - Apache Jira](https://issues.apache.org/jira/projects/GOBBLIN/issues/)

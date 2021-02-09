@@ -5,7 +5,7 @@ Table of Contents
 
 Job Configuration Basics
 --------------------
-A Job configuration file is a text file with extension `.pull` or `.job` that defines the job properties that can be loaded into a Java [Properties](http://docs.oracle.com/javase/7/docs/api/java/util/Properties.html) object. Gobblin uses [commons-configuration](http://commons.apache.org/proper/commons-configuration/) to allow variable substitutions in job configuration files. You can find some example Gobblin job configuration files [here](https://github.com/apache/incubator-gobblin/tree/master/gobblin-core/src/main/resources). 
+A Job configuration file is a text file with extension `.pull` or `.job` that defines the job properties that can be loaded into a Java [Properties](http://docs.oracle.com/javase/7/docs/api/java/util/Properties.html) object. Gobblin uses [commons-configuration](http://commons.apache.org/proper/commons-configuration/) to allow variable substitutions in job configuration files. You can find some example Gobblin job configuration files [here](https://github.com/apache/gobblin/tree/master/gobblin-core/src/main/resources). 
 
 A Job configuration file typically includes the following properties, in additional to any mandatory configuration properties required by the custom [Gobblin Constructs](Gobblin-Architecture#gobblin-constructs) classes. For a complete reference of all configuration properties supported by Gobblin, please refer to [Configuration Properties Glossary](Configuration-Properties-Glossary).
 

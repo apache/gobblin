@@ -63,10 +63,10 @@ Users can configure this automatically by running `gobblin-pr setup_git_remotes`
 
 ```bash
 $ git remote -v
-apache	https://git-wip-us.apache.org/repos/asf/incubator-gobblin.git (fetch)
-apache	https://git-wip-us.apache.org/repos/asf/incubator-gobblin.git (push)
-github	https://github.com/apache/incubator-gobblin.git (fetch)
-github	https://github.com/apache/incubator-gobblin.git (push)
+apache	https://git-wip-us.apache.org/repos/asf/gobblin.git (fetch)
+apache	https://git-wip-us.apache.org/repos/asf/gobblin.git (push)
+github	https://github.com/apache/gobblin.git (fetch)
+github	https://github.com/apache/gobblin.git (push)
 origin	https://github.com/<USER>/gobblin (fetch)
 origin	https://github.com/<USER>/gobblin (push)
 ```
