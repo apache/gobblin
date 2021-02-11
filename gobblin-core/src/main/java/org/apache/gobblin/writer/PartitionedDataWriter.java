@@ -82,8 +82,8 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
   // in incorrect behavior.
   public static final String PARTITIONED_WRITER_CACHE_TTL_SECONDS = "partitionedDataWriter.cache.ttl.seconds";
   public static final Long DEFAULT_PARTITIONED_WRITER_CACHE_TTL_SECONDS = Long.MAX_VALUE;
-  public static final String PARTITIONED_WRITER_WRITER_TIMEOUT_SECONDS = "partitionedDataWriter.write.timeout.seconds";
-  public static final Long DEFAULT_PARTITIONED_WRITER_WRITER_TIMEOUT_SECONDS = 480L;
+  public static final String PARTITIONED_WRITER_WRITE_TIMEOUT_SECONDS = "partitionedDataWriter.write.timeout.seconds";
+  public static final Long DEFAULT_PARTITIONED_WRITER_WRITE_TIMEOUT_SECONDS = 480L;
 
   private static final GenericRecord NON_PARTITIONED_WRITER_KEY =
       new GenericData.Record(SchemaBuilder.record("Dummy").fields().endRecord());
@@ -132,7 +132,8 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
       this.state.setProp(WRITER_LATEST_SCHEMA, builder.getSchema());
     }
     long cacheExpiryInterval = this.state.getPropAsLong(PARTITIONED_WRITER_CACHE_TTL_SECONDS, DEFAULT_PARTITIONED_WRITER_CACHE_TTL_SECONDS);
-    this.writeTimeoutInterval = this.state.getPropAsLong(PARTITIONED_WRITER_WRITER_TIMEOUT_SECONDS, DEFAULT_PARTITIONED_WRITER_WRITER_TIMEOUT_SECONDS);
+    this.writeTimeoutInterval = this.state.getPropAsLong(PARTITIONED_WRITER_WRITE_TIMEOUT_SECONDS,
+        DEFAULT_PARTITIONED_WRITER_WRITE_TIMEOUT_SECONDS);
     // Bound the timeout value to avoid data loss when slow write happening
     this.writeTimeoutInterval = Math.min(this.writeTimeoutInterval, cacheExpiryInterval / 3 * 2);
     log.debug("PartitionedDataWriter: Setting cache expiry interval to {} seconds", cacheExpiryInterval);
