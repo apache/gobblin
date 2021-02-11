@@ -23,6 +23,7 @@ import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 
@@ -546,5 +547,19 @@ public class JobContext implements Closeable {
   public String toString() {
     return Objects.toStringHelper(JobContext.class.getSimpleName()).add("jobName", getJobName())
         .add("jobId", getJobId()).add("jobState", getJobState()).toString();
+  }
+
+  /**
+   * Get all of the failures from the datasetStates stored in the jobContext to determine if
+   * email notification should be sent or not. Previously job context only looked at jobStates, where
+   * failures from datasetStates were not propagated from
+   * Failures are tracked using {@link ConfigurationKeys#JOB_FAILURES_KEY}
+   */
+  public int getDatasetStateFailures() {
+    int totalFailures = 0;
+    for (Map.Entry<String, JobState.DatasetState> datasetState: this.getDatasetStatesByUrns().entrySet()) {
+      totalFailures += datasetState.getValue().getJobFailures();
+    }
+    return totalFailures;
   }
 }

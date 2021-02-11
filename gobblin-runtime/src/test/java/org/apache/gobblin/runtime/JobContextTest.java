@@ -264,6 +264,86 @@ public class JobContextTest {
     Assert.assertFalse(fs.exists(currentJobPath));
   }
 
+  @Test
+  public void testDatasetStateFailure() throws Exception {
+    Properties jobProps = new Properties();
+
+    jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY, "test");
+    jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, "job_id_12345");
+    jobProps.setProperty(ConfigurationKeys.METRICS_ENABLED_KEY, "false");
+
+    Map<String, JobState.DatasetState> datasetStateMap = Maps.newHashMap();
+    JobState.DatasetState failingDatasetState = new JobState.DatasetState("DatasetState", "DatasetState-1");
+    // mark dataset state as a failing job
+    failingDatasetState.incrementJobFailures();
+    JobState.DatasetState failingDatasetState2 = new JobState.DatasetState("DatasetState2", "DatasetState-2");
+    failingDatasetState2.incrementJobFailures();
+    failingDatasetState2.incrementJobFailures();
+
+    datasetStateMap.put("0", failingDatasetState);
+    datasetStateMap.put("1", failingDatasetState2);
+
+    final BlockingQueue<ControllableCallable<Void>> callables = Queues.newLinkedBlockingQueue();
+
+    JobContext jobContext = new ControllableCommitJobContext(jobProps, log, datasetStateMap, new Predicate<String>() {
+      @Override
+      public boolean apply(@Nullable String input) {
+        return !input.equals("1");
+      }
+    }, callables);
+
+    ExecutorService executorService = Executors.newSingleThreadExecutor();
+    Future future = executorService.submit(new Runnable() {
+      @Override
+      public void run() {
+        try {
+          jobContext.commit();
+        } catch (IOException ioe) {
+          throw new RuntimeException(ioe);
+        }
+      }
+    });
+    callables.poll(1, TimeUnit.SECONDS).unblock();
+    callables.poll(1, TimeUnit.SECONDS).unblock();
+
+    // when checking the number of failures, this should detect the failing dataset state
+    Assert.assertEquals(jobContext.getDatasetStateFailures(), 3);
+  }
+
+  @Test
+  public void testNoDatasetStates() throws Exception {
+    Properties jobProps = new Properties();
+
+    jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY, "test");
+    jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, "job_id_12345");
+    jobProps.setProperty(ConfigurationKeys.METRICS_ENABLED_KEY, "false");
+
+    Map<String, JobState.DatasetState> datasetStateMap = Maps.newHashMap();
+
+    final BlockingQueue<ControllableCallable<Void>> callables = Queues.newLinkedBlockingQueue();
+
+    JobContext jobContext = new ControllableCommitJobContext(jobProps, log, datasetStateMap, new Predicate<String>() {
+      @Override
+      public boolean apply(@Nullable String input) {
+        return !input.equals("1");
+      }
+    }, callables);
+
+    ExecutorService executorService = Executors.newSingleThreadExecutor();
+    Future future = executorService.submit(new Runnable() {
+      @Override
+      public void run() {
+        try {
+          jobContext.commit();
+        } catch (IOException ioe) {
+          throw new RuntimeException(ioe);
+        }
+      }
+    });
+    // when checking the number of failures, this should detect the failing dataset state
+    Assert.assertEquals(jobContext.getDatasetStateFailures(), 0);
+  }
+
   /**
    * A {@link Callable} that blocks until a different thread calls {@link #unblock()}.
    */
