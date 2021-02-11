@@ -130,7 +130,8 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
       this.state.setProp(WRITER_LATEST_SCHEMA, builder.getSchema());
     }
     long cacheExpiryInterval = this.state.getPropAsLong(PARTITIONED_WRITER_CACHE_TTL_SECONDS, DEFAULT_PARTITIONED_WRITER_CACHE_TTL_SECONDS);
-    this.writeTimeoutInterval = cacheExpiryInterval / 3;
+    // Increase the timeout value to make it less sensitive to HDFS slow writer
+    this.writeTimeoutInterval = cacheExpiryInterval / 3 * 2;
     log.debug("PartitionedDataWriter: Setting cache expiry interval to {} seconds", cacheExpiryInterval);
 
     this.partitionWriters = CacheBuilder.newBuilder()
