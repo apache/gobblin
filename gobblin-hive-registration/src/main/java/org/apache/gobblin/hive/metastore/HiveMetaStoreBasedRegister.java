@@ -278,6 +278,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
           log.info(String.format("Created Hive table %s in db %s", tableName, dbName));
           return true;
         } catch (AlreadyExistsException e) {
+          log.debug("Table {}.{} already existed", table.getDbName(), table.getTableName());
         }
       }catch (TException e) {
         log.error(
@@ -377,7 +378,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
           }
         });
       } catch (ExecutionException ee) {
-        throw new IOException("Database existence checking throwing execution exception.");
+        throw new IOException("Database existence checking throwing execution exception.", ee);
       }
       return retVal;
     } else {
@@ -476,7 +477,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
           }
         });
       } catch (ExecutionException ee) {
-        throw new IOException("Table existence checking throwing execution exception.");
+        throw new IOException("Table existence checking throwing execution exception.", ee);
       }
     } else {
       this.ensureHiveTableExistenceBeforeAlternation(tableName, dbName, client, table, spec);
