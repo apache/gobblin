@@ -133,7 +133,7 @@ public class FSDatasetPartitionConfig {
       return false;
     }
     return ((DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(getPartitionType())
-        || this.getPartitionType().equalsIgnoreCase(partitionType)))
+        || this.getPartitionType().equalsIgnoreCase(other.getPartitionType())))
         && ((DatasetDescriptorConfigKeys.DATASET_DESCRIPTOR_CONFIG_ANY.equalsIgnoreCase(getPartitionPattern())
         || this.getPartitionPattern().equalsIgnoreCase(other.getPartitionPattern())));
   }
