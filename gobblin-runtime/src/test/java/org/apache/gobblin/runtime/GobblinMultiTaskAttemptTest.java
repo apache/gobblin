@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.runtime;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
 
@@ -95,7 +94,7 @@ public class GobblinMultiTaskAttemptTest {
   @Test
   public void testRunWithTaskStatsTrackerNotScheduledFailure()
       throws Exception {
-    TaskStateTracker stateTracker = new FailingTestStateTracker(new Properties(), log);
+    TaskStateTracker stateTracker = new DummyTestStateTracker(new Properties(), log);
     // Preparing Instance of TaskAttempt with designed failure on task creation
     WorkUnit tmpWU = new WorkUnit();
     // Put necessary attributes in workunit
@@ -122,8 +121,8 @@ public class GobblinMultiTaskAttemptTest {
     Assert.fail();
   }
 
-  public static class FailingTestStateTracker extends AbstractTaskStateTracker {
-    public FailingTestStateTracker(Properties properties, Logger logger) {
+  public static class DummyTestStateTracker extends AbstractTaskStateTracker {
+    public DummyTestStateTracker(Properties properties, Logger logger) {
       super(properties, logger);
     }
 
@@ -134,7 +133,7 @@ public class GobblinMultiTaskAttemptTest {
 
     @Override
     public void onTaskRunCompletion(Task task) {
-
+      task.markTaskCompletion();
     }
 
     @Override
