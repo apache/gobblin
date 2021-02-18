@@ -23,6 +23,8 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.commons.io.FileUtils;
 import org.testng.Assert;
@@ -67,6 +69,10 @@ public class JobConfigurationManagerTest {
   public void setUp() throws IOException {
     this.eventBus.register(this);
 
+    if (this.jobConfigFileDir.exists()) {
+      FileUtils.deleteDirectory(this.jobConfigFileDir);
+    }
+
     // Prepare the test job configuration files
     Assert.assertTrue(this.jobConfigFileDir.mkdirs(), "Failed to create " + this.jobConfigFileDir);
     Closer closer = Closer.create();
@@ -106,6 +112,18 @@ public class JobConfigurationManagerTest {
     }
 
     Assert.assertEquals(actual, expected);
+  }
+
+  @Test
+  public void testShouldRun() {
+    Pattern pattern = Pattern.compile("testJob1|testJob2");
+    Properties jobConfig = new Properties();
+    jobConfig.setProperty(ConfigurationKeys.JOB_NAME_KEY, "testJob1");
+    Assert.assertTrue(JobConfigurationManager.shouldRun(pattern, jobConfig));
+    jobConfig.setProperty(ConfigurationKeys.JOB_NAME_KEY, "testJob2");
+    Assert.assertTrue(JobConfigurationManager.shouldRun(pattern, jobConfig));
+    jobConfig.setProperty(ConfigurationKeys.JOB_NAME_KEY, "job1");
+    Assert.assertFalse(JobConfigurationManager.shouldRun(pattern, jobConfig));
   }
 
   @AfterClass
