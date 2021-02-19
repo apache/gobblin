@@ -60,6 +60,7 @@ public abstract class AbstractBaseKafkaConsumerClient implements GobblinKafkaCon
   protected final int fetchMinBytes;
   protected final int socketTimeoutMillis;
   protected final Config config;
+  protected Optional<KafkaSchemaRegistry> schemaRegistry;
 
   public AbstractBaseKafkaConsumerClient(Config config) {
     this.config = config;
@@ -81,19 +82,25 @@ public abstract class AbstractBaseKafkaConsumerClient implements GobblinKafkaCon
 
   @Override
   public List<KafkaTopic> getFilteredTopics(final List<Pattern> blacklist, final List<Pattern> whitelist) {
-    final Optional<KafkaSchemaRegistry> schemaRegistry = (config.hasPath(KafkaSchemaRegistry.KAFKA_SCHEMA_REGISTRY_CLASS) && config.hasPath(KafkaSchemaRegistry.KAFKA_SCHEMA_REGISTRY_URL)) ? Optional.of(KafkaSchemaRegistry.get(ConfigUtils.configToProperties(this.config))) : Optional.absent();
     return Lists.newArrayList(Iterables.filter(getTopics(), new Predicate<KafkaTopic>() {
       @Override
       public boolean apply(@Nonnull KafkaTopic kafkaTopic) {
-        return DatasetFilterUtils.survived(kafkaTopic.getName(), blacklist, whitelist) && isSchemaPresent(schemaRegistry, kafkaTopic.getName());
+        return DatasetFilterUtils.survived(kafkaTopic.getName(), blacklist, whitelist) && isSchemaPresent(kafkaTopic.getName());
       }
     }));
   }
 
-  private boolean isSchemaPresent(Optional<KafkaSchemaRegistry> schemaRegistry, String topic) {
-    if(schemaRegistry.isPresent()) {
+  private boolean isSchemaRegistryPresent() {
+    if(this.schemaRegistry == null) {
+      this.schemaRegistry = (config.hasPath(KafkaSchemaRegistry.KAFKA_SCHEMA_REGISTRY_CLASS) && config.hasPath(KafkaSchemaRegistry.KAFKA_SCHEMA_REGISTRY_URL)) ? Optional.of(KafkaSchemaRegistry.get(ConfigUtils.configToProperties(this.config))) : Optional.absent();
+    }
+    return this.schemaRegistry.isPresent();
+  }
+
+  private boolean isSchemaPresent(String topic) {
+    if(isSchemaRegistryPresent()) {
       try {
-        if(schemaRegistry.get().getLatestSchemaByTopic(topic) == null) {
+        if(this.schemaRegistry.get().getLatestSchemaByTopic(topic) == null) {
           log.warn(String.format("Schema not found for topic %s skipping.", topic));
           return false;
         }
