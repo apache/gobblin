@@ -21,6 +21,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.regex.Pattern;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
@@ -58,14 +59,14 @@ public abstract class AbstractBaseKafkaConsumerClient implements GobblinKafkaCon
   protected final int fetchTimeoutMillis;
   protected final int fetchMinBytes;
   protected final int socketTimeoutMillis;
-  protected final KafkaSchemaRegistry schemaRegistry;
+  protected final Config config;
 
   public AbstractBaseKafkaConsumerClient(Config config) {
+    this.config = config;
     this.brokers = ConfigUtils.getStringList(config, ConfigurationKeys.KAFKA_BROKERS);
     if (this.brokers.isEmpty()) {
       throw new IllegalArgumentException("Need to specify at least one Kafka broker.");
     }
-    this.schemaRegistry = KafkaSchemaRegistry.get(ConfigUtils.configToProperties(config));
     this.socketTimeoutMillis =
         ConfigUtils.getInt(config, CONFIG_KAFKA_SOCKET_TIMEOUT_VALUE, CONFIG_KAFKA_SOCKET_TIMEOUT_VALUE_DEFAULT);
     this.fetchTimeoutMillis =
@@ -80,23 +81,26 @@ public abstract class AbstractBaseKafkaConsumerClient implements GobblinKafkaCon
 
   @Override
   public List<KafkaTopic> getFilteredTopics(final List<Pattern> blacklist, final List<Pattern> whitelist) {
+    final Optional<KafkaSchemaRegistry> schemaRegistry = (config.hasPath(KafkaSchemaRegistry.KAFKA_SCHEMA_REGISTRY_CLASS) && config.hasPath(KafkaSchemaRegistry.KAFKA_SCHEMA_REGISTRY_URL)) ? Optional.of(KafkaSchemaRegistry.get(ConfigUtils.configToProperties(this.config))) : Optional.absent();
     return Lists.newArrayList(Iterables.filter(getTopics(), new Predicate<KafkaTopic>() {
       @Override
       public boolean apply(@Nonnull KafkaTopic kafkaTopic) {
-        return DatasetFilterUtils.survived(kafkaTopic.getName(), blacklist, whitelist) && isSchemaPresent(kafkaTopic.getName());
+        return DatasetFilterUtils.survived(kafkaTopic.getName(), blacklist, whitelist) && isSchemaPresent(schemaRegistry, kafkaTopic.getName());
       }
     }));
   }
 
-  private boolean isSchemaPresent(String topic) {
-    try {
-      if(schemaRegistry.getLatestSchemaByTopic(topic) == null) {
+  private boolean isSchemaPresent(Optional<KafkaSchemaRegistry> schemaRegistry, String topic) {
+    if(schemaRegistry.isPresent()) {
+      try {
+        if(schemaRegistry.get().getLatestSchemaByTopic(topic) == null) {
+          log.warn(String.format("Schema not found for topic %s skipping.", topic));
+          return false;
+        }
+      } catch (SchemaRegistryException e) {
         log.warn(String.format("Schema not found for topic %s skipping.", topic));
         return false;
       }
-    } catch (SchemaRegistryException e) {
-      log.warn(String.format("Schema not found for topic %s skipping.", topic));
-      return false;
     }
     return true;
   }
