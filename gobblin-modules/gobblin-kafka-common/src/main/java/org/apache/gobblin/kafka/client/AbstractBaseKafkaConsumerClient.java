@@ -28,8 +28,11 @@ import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
 import javax.annotation.Nonnull;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metrics.kafka.KafkaSchemaRegistry;
+import org.apache.gobblin.metrics.kafka.SchemaRegistryException;
 import org.apache.gobblin.source.extractor.extract.kafka.KafkaTopic;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.DatasetFilterUtils;
@@ -38,6 +41,7 @@ import org.apache.gobblin.util.DatasetFilterUtils;
 /**
  * A base {@link GobblinKafkaConsumerClient} that sets configurations shared by all {@link GobblinKafkaConsumerClient}s
  */
+@Slf4j
 public abstract class AbstractBaseKafkaConsumerClient implements GobblinKafkaConsumerClient {
 
   public static final String CONFIG_NAMESPACE = "source.kafka";
@@ -54,13 +58,14 @@ public abstract class AbstractBaseKafkaConsumerClient implements GobblinKafkaCon
   protected final int fetchTimeoutMillis;
   protected final int fetchMinBytes;
   protected final int socketTimeoutMillis;
+  protected final KafkaSchemaRegistry schemaRegistry;
 
   public AbstractBaseKafkaConsumerClient(Config config) {
     this.brokers = ConfigUtils.getStringList(config, ConfigurationKeys.KAFKA_BROKERS);
     if (this.brokers.isEmpty()) {
       throw new IllegalArgumentException("Need to specify at least one Kafka broker.");
     }
-
+    this.schemaRegistry = KafkaSchemaRegistry.get(ConfigUtils.configToProperties(config));
     this.socketTimeoutMillis =
         ConfigUtils.getInt(config, CONFIG_KAFKA_SOCKET_TIMEOUT_VALUE, CONFIG_KAFKA_SOCKET_TIMEOUT_VALUE_DEFAULT);
     this.fetchTimeoutMillis =
@@ -78,9 +83,22 @@ public abstract class AbstractBaseKafkaConsumerClient implements GobblinKafkaCon
     return Lists.newArrayList(Iterables.filter(getTopics(), new Predicate<KafkaTopic>() {
       @Override
       public boolean apply(@Nonnull KafkaTopic kafkaTopic) {
-        return DatasetFilterUtils.survived(kafkaTopic.getName(), blacklist, whitelist);
+        return DatasetFilterUtils.survived(kafkaTopic.getName(), blacklist, whitelist) && isSchemaPresent(kafkaTopic.getName());
       }
     }));
+  }
+
+  private boolean isSchemaPresent(String topic) {
+    try {
+      if(schemaRegistry.getLatestSchemaByTopic(topic) == null) {
+        log.warn(String.format("Schema not found for topic %s skipping.", topic));
+        return false;
+      }
+    } catch (SchemaRegistryException e) {
+      log.warn(String.format("Schema not found for topic %s skipping.", topic));
+      return false;
+    }
+    return true;
   }
 
   /**
