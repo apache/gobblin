@@ -90,7 +90,7 @@ public abstract class AbstractBaseKafkaConsumerClient implements GobblinKafkaCon
     }));
   }
 
-  private boolean isSchemaRegistryPresent() {
+  private boolean isSchemaRegistryConfigured() {
     if(this.schemaRegistry == null) {
       this.schemaRegistry = (config.hasPath(KafkaSchemaRegistry.KAFKA_SCHEMA_REGISTRY_CLASS) && config.hasPath(KafkaSchemaRegistry.KAFKA_SCHEMA_REGISTRY_URL)) ? Optional.of(KafkaSchemaRegistry.get(ConfigUtils.configToProperties(this.config))) : Optional.absent();
     }
@@ -98,7 +98,7 @@ public abstract class AbstractBaseKafkaConsumerClient implements GobblinKafkaCon
   }
 
   private boolean isSchemaPresent(String topic) {
-    if(isSchemaRegistryPresent()) {
+    if(isSchemaRegistryConfigured()) {
       try {
         if(this.schemaRegistry.get().getLatestSchemaByTopic(topic) == null) {
           log.warn(String.format("Schema not found for topic %s skipping.", topic));
