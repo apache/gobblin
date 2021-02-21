@@ -102,6 +102,8 @@ public class ProduceRateAndLagBasedWorkUnitSizeEstimator implements KafkaWorkUni
       avgProduceRates = watermark.getAvgProduceRates();
       avgRecordSize = watermark.getAvgRecordSize();
       offsetLag = offsetLag - watermark.getLwm().getValue();
+    } else {
+      offsetLag = 0L;
     }
 
     double maxProduceRate = getMaxProduceRateUntilNextReplan(avgProduceRates,
@@ -120,7 +122,7 @@ public class ProduceRateAndLagBasedWorkUnitSizeEstimator implements KafkaWorkUni
         ((double) (offsetLag * avgRecordSize) / (catchUpSlaInHours * 3600 * ONE_MEGA_BYTE)) + (maxProduceRate
             * produceRateScalingFactor);
 
-    log.debug("TopicPartiton: {}, Max produce rate: {}, Offset lag: {}, Avg Record size: {}, Target Consume Rate: {}, Min Workunit size: {}",
+    log.info("TopicPartiton: {}, Max produce rate: {}, Offset lag: {}, Avg Record size: {}, Target Consume Rate: {}, Min Workunit size: {}",
         topic + ":" + partition, maxProduceRate, offsetLag, avgRecordSize, targetConsumeRate, minWorkUnitSize);
     //Return the target consumption rate to catch up with incoming traffic and current lag, as the workunit size.
     return Math.max(targetConsumeRate, minWorkUnitSize);
