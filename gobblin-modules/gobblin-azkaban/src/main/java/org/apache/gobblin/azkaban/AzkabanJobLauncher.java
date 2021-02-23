@@ -19,10 +19,10 @@ package org.apache.gobblin.azkaban;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -43,7 +43,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import com.google.common.io.Closer;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValue;
@@ -182,7 +181,7 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
         LOG.info(
             "Job type " + props.getProperty(JOB_TYPE) + " did not provide Hadoop token in the environment variable " + HADOOP_TOKEN_FILE_LOCATION + ". Negotiating Hadoop tokens.");
 
-        File tokenFile = File.createTempFile("mr-azkaban", ".token");
+        File tokenFile = Files.createTempFile("mr-azkaban", ".token").toFile();
         TokenUtils.getHadoopTokens(new State(props), Optional.of(tokenFile), new Credentials());
 
         System.setProperty(HADOOP_TOKEN_FILE_LOCATION, tokenFile.getAbsolutePath());
