@@ -171,7 +171,7 @@ public class CallbacksDispatcher<L> implements Closeable {
         res.cancellations.put(listener, cr);
       }
       else if (cr.hasFailed()) {
-        _log.error("Callback error: " + callbacks.get(i) + " on " + listener + ":" + cr.getError());
+        _log.error("Callback error: " + callbacks.get(i) + " on " + listener + ":" + cr.getError(), cr.getError());
         res.failures.put(listener, cr);
       }
       else {
