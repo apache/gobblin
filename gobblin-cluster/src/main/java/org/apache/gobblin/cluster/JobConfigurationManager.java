@@ -21,13 +21,19 @@ import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 import org.apache.gobblin.cluster.event.CancelJobConfigArrivalEvent;
 import org.apache.gobblin.runtime.job_spec.JobSpecResolver;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
+import com.google.common.base.Strings;
 import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
@@ -66,6 +72,7 @@ public class JobConfigurationManager extends AbstractIdleService implements Stan
 
   private static final Logger LOGGER = LoggerFactory.getLogger(JobConfigurationManager.class);
 
+  private Optional<Pattern> jobsToRun;
   protected final EventBus eventBus;
   protected final Config config;
   protected Optional<String> jobConfDirPath;
@@ -78,6 +85,13 @@ public class JobConfigurationManager extends AbstractIdleService implements Stan
     this.jobConfDirPath =
         config.hasPath(GobblinClusterConfigurationKeys.JOB_CONF_PATH_KEY) ? Optional
             .of(config.getString(GobblinClusterConfigurationKeys.JOB_CONF_PATH_KEY)) : Optional.<String>absent();
+    String jobsToRunRegex = ConfigUtils.getString(config, GobblinClusterConfigurationKeys.JOBS_TO_RUN, "");
+    try {
+      this.jobsToRun = !Strings.isNullOrEmpty(jobsToRunRegex) ? Optional.of(Pattern.compile(config.getString(GobblinClusterConfigurationKeys.JOBS_TO_RUN))) : Optional.absent();
+    } catch (PatternSyntaxException e) {
+      LOGGER.error("Invalid regex pattern: {}, Exception: {}", jobsToRunRegex, e);
+      this.jobsToRun = Optional.absent();
+    }
     try {
       this.jobSpecResolver = JobSpecResolver.builder(config).build();
     } catch (IOException ioe) {
@@ -106,12 +120,26 @@ public class JobConfigurationManager extends AbstractIdleService implements Stan
         List<Properties> jobConfigs = SchedulerUtils.loadGenericJobConfigs(properties, this.jobSpecResolver);
         LOGGER.info("Loaded " + jobConfigs.size() + " job configuration(s)");
         for (Properties config : jobConfigs) {
-          postNewJobConfigArrival(config.getProperty(ConfigurationKeys.JOB_NAME_KEY), config);
+          if (!jobsToRun.isPresent() || shouldRun(jobsToRun.get(), config)) {
+            postNewJobConfigArrival(config.getProperty(ConfigurationKeys.JOB_NAME_KEY), config);
+          } else {
+            LOGGER.warn("Job {} has been filtered and will not be run in the cluster.", config.getProperty(ConfigurationKeys.JOB_NAME_KEY));
+          }
         }
       } else {
         LOGGER.warn("Job configuration directory " + jobConfigDir + " not found");
       }
     }
+  }
+
+  @VisibleForTesting
+  /**
+   * A helper method to determine if a given job should be submitted to cluster for execution based on the
+   * regex defining the jobs to run.
+   */
+  protected static boolean shouldRun(Pattern jobsToRun, Properties jobConfig) {
+    Matcher matcher = jobsToRun.matcher(jobConfig.getProperty(ConfigurationKeys.JOB_NAME_KEY));
+    return matcher.matches();
   }
 
   @Override
