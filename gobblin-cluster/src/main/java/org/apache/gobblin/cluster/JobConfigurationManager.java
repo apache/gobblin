@@ -123,7 +123,7 @@ public class JobConfigurationManager extends AbstractIdleService implements Stan
           if (!jobsToRun.isPresent() || shouldRun(jobsToRun.get(), config)) {
             postNewJobConfigArrival(config.getProperty(ConfigurationKeys.JOB_NAME_KEY), config);
           } else {
-            LOGGER.error("Job {} has been filtered and will not be run in the cluster.", config.getProperty(ConfigurationKeys.JOB_NAME_KEY));
+            LOGGER.warn("Job {} has been filtered and will not be run in the cluster.", config.getProperty(ConfigurationKeys.JOB_NAME_KEY));
           }
         }
       } else {
@@ -139,10 +139,7 @@ public class JobConfigurationManager extends AbstractIdleService implements Stan
    */
   protected static boolean shouldRun(Pattern jobsToRun, Properties jobConfig) {
     Matcher matcher = jobsToRun.matcher(jobConfig.getProperty(ConfigurationKeys.JOB_NAME_KEY));
-    if (matcher.matches()) {
-      return true;
-    }
-    return false;
+    return matcher.matches();
   }
 
   @Override
