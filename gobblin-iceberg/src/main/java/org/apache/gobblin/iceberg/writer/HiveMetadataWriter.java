@@ -113,7 +113,7 @@ public class HiveMetadataWriter implements MetadataWriter {
   }
 
   public void write(GobblinMetadataChangeEvent gmce, Map<String, Collection<HiveSpec>> newSpecsMap,
-      Map<String, Collection<HiveSpec>> oldSpecsMap, HiveSpec tableSpec) throws IOException, ExecutionException {
+      Map<String, Collection<HiveSpec>> oldSpecsMap, HiveSpec tableSpec) throws IOException {
 
     String dbName = tableSpec.getTable().getDbName();
     String tableName = tableSpec.getTable().getTableName();
@@ -122,7 +122,7 @@ public class HiveMetadataWriter implements MetadataWriter {
     this.hiveRegister.createTableIfNotExists(tableSpec.getTable());
     String tableKey = tableNameJoiner.join(dbName, tableName);
     if (!lastestSchemaMap.containsKey(tableKey)) {
-      Optional<HiveTable> existingTable = this.hiveRegister.getTable(dbName, tableName);
+      HiveTable existingTable = this.hiveRegister.getTable(dbName, tableName).get();
       lastestSchemaMap.put(tableKey, existingTable.getSerDeProps().getProp(
           AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName()));
     }
@@ -147,7 +147,7 @@ public class HiveMetadataWriter implements MetadataWriter {
     String tableKey = tableNameJoiner.join(dbName, tableName);
     for (Collection<HiveSpec> specs : newSpecsMap.values()) {
       for (HiveSpec spec: specs) {
-         if (spec.getTable().getDbName.equals(dbName) && spec.getTable().getTableName().equals(tableName)) {
+         if (spec.getTable().getDbName().equals(dbName) && spec.getTable().getTableName().equals(tableName)) {
            List<String> partitionValue = spec.getPartition().isPresent()? spec.getPartition().get().getValues() : Lists.newArrayList();
            Cache<List<String>, HiveSpec> hiveSpecCache = specMaps.computeIfAbsent(tableKey, s -> CacheBuilder.newBuilder()
                .expireAfterAccess(state.getPropAsInt(GobblinMCEWriter.CACHE_EXPIRING_TIME,
