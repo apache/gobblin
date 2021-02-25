@@ -90,12 +90,6 @@ public class HiveMetadataWriter implements MetadataWriter {
     this.lastestSchemaMap = new HashMap<>();
   }
 
-  /**
-   *
-   * @param dbName
-   * @param tableName
-   * @throws IOException
-   */
   @Override
   public void flush(String dbName, String tableName) throws IOException {
     String tableKey = tableNameJoiner.join(dbName, tableName);
@@ -138,6 +132,11 @@ public class HiveMetadataWriter implements MetadataWriter {
     switch (gmce.getOperationType()) {
       case add_files: {
         addFiles(gmce, newSpecsMap, dbName, tableName, topicName);
+        break;
+      }
+      default: {
+        log.error("unsupported operation {}", gmce.getOperationType().toString());
+        return;
       }
     }
   }
