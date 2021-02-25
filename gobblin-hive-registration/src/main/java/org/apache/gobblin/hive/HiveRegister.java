@@ -322,7 +322,7 @@ public abstract class HiveRegister implements Closeable {
     }
   }
 
-  protected boolean needToUpdateTable(HiveTable existingTable, HiveTable newTable) {
+  public boolean needToUpdateTable(HiveTable existingTable, HiveTable newTable) {
     return getTableComparator(existingTable, newTable).compareAll().result();
   }
 
@@ -339,7 +339,7 @@ public abstract class HiveRegister implements Closeable {
     }
   }
 
-  protected boolean needToUpdatePartition(HivePartition existingPartition, HivePartition newPartition) {
+  public boolean needToUpdatePartition(HivePartition existingPartition, HivePartition newPartition) {
     return getPartitionComparator(existingPartition, newPartition).compareAll().result();
   }
 
