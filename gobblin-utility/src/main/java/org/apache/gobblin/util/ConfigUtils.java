@@ -34,6 +34,9 @@ import java.util.TreeSet;
 
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+
+import com.google.common.collect.*;
+import com.typesafe.config.*;
 import org.apache.commons.lang3.StringUtils;
 
 import com.google.common.base.Function;
@@ -68,10 +71,46 @@ public class ConfigUtils {
   private static final String GOBBLIN_CONFIG_BLACKLIST_KEYS = "gobblin.config.blacklistKeys";
 
   /**
+   * Gobblin sync system specific config
+   */
+  public static final String GOBBLIN_SYNC_SYSTEMS_KEY = "gobblin_sync_systems";
+  public static final String GOBBLIN_SYNC_SYSTEM_CONFIG_FILES_KEY = "config_files";
+  public static final String GOBBLIN_SYNC_SYSTEM_METASTORE_URI_KEY = "metastore.uris";
+  public static final String IS_SECURE_KEY = "is_secure";
+  public static final String IS_TOKEN_MGMT_ENABLED_KEY = "is_token_management_enabled";
+  public static final String CONFIG_FILES_LIST_KEY = "config_files";
+  public static final String HIVE_SYSTEM_KEY = "hive";
+  public static final String HIVE_METASTORE_URI_KEY = "metastore.uris";
+
+
+  /**
    * A suffix that is automatically appended to property keys that are prefixes of other
    * property keys. This is used during Properties -> Config -> Properties conversion since
    * typesafe config does not allow such properties. */
   public static final String STRIP_SUFFIX = ".ROOT_VALUE";
+
+  private static volatile Config instance;
+  public static Config getInstance() {
+    if (instance == null) {
+      synchronized (Config.class) {
+        if (instance == null) {
+          instance = ConfigFactory.load();
+        }
+      }
+    }
+    return instance;
+  }
+
+  public static Config getInstance(boolean notFromCache) {
+    synchronized (Config.class) {
+      if(notFromCache){
+        ConfigFactory.invalidateCaches();
+        instance = ConfigFactory.load();
+      }
+    }
+    return instance;
+  }
+
 
   /**
    * Available TimeUnit values that can be parsed from a given String
@@ -569,4 +608,124 @@ public class ConfigUtils {
     }
     return ConfigFactory.parseMap(tmpMap).withFallback(config);
   }
+
+  /**
+   *
+   * @param config
+   * @return ConfigObject ( config in tree ) of the {@link ConfigUtils#GOBBLIN_SYNC_SYSTEMS_KEY}
+   */
+  public static ConfigObject getAllSystemConfig(Config config) {
+    return (config.hasPath(GOBBLIN_SYNC_SYSTEMS_KEY) ? config.getObject(GOBBLIN_SYNC_SYSTEMS_KEY) : getInstance().root() );
+  }
+
+  /**
+   *
+   * @param config at path: {@link ConfigUtils#GOBBLIN_SYNC_SYSTEMS_KEY}
+   * @return map of system name to that system's config tree for all the systems that has security enabled
+   */
+  public static Map<String, ConfigObject> getAllSecureSystems(Config config) {
+    ConfigObject allSysConfig = getAllSystemConfig(config);
+    Map<String, ConfigObject> secureSystems = new HashMap<>();
+
+    if (allSysConfig == null) return secureSystems;
+
+    for (String systemName : allSysConfig.keySet()) {
+      ConfigObject sysConfig = allSysConfig.atPath(systemName).root();
+      sysConfig.get(IS_SECURE_KEY);
+      if (ConfigUtils.getBoolean(sysConfig.toConfig(), IS_SECURE_KEY, false)) {
+        secureSystems.put(systemName, sysConfig);
+      }
+    }
+    return secureSystems;
+  }
+
+  /**
+   *
+   * @param config at path: {@link ConfigUtils#GOBBLIN_SYNC_SYSTEMS_KEY}
+   * @return multiple map of system name and its all config files regardless of the component.
+   */
+  public static Multimap<String, String> getAllSystemConfigFiles(Config config) {
+
+    Multimap<String, String> allSysConfFiles = LinkedHashMultimap.create();
+
+    getAllSystemConfig(config).entrySet();
+    ConfigObject allSysConfig = getAllSystemConfig(config);
+
+    if (allSysConfig == null) return allSysConfFiles;
+
+    for (Map.Entry<String, ConfigValue> sysConfig : allSysConfig.entrySet()) {
+
+      if (sysConfig.getValue().valueType().equals(ConfigValueType.OBJECT)) {
+        ConfigObject allComponentConfigs = (ConfigObject) sysConfig.getValue();
+        for (Map.Entry<String, ConfigValue> componentConfig : allComponentConfigs.entrySet()) {
+          if (componentConfig.getValue().valueType().equals(ConfigValueType.OBJECT)) {
+            ConfigObject componentConfigValue = (ConfigObject) componentConfig.getValue();
+            Config configValue = componentConfigValue.toConfig();
+            if (configValue.hasPath(GOBBLIN_SYNC_SYSTEM_CONFIG_FILES_KEY)) {
+              configValue.getList(GOBBLIN_SYNC_SYSTEM_CONFIG_FILES_KEY).forEach(item -> allSysConfFiles.put(sysConfig.getKey(), item.unwrapped().toString()));
+            }
+          }
+        }
+      }
+    }
+    return allSysConfFiles;
+  }
+
+  /**
+   *
+   * @param config at path: {@link ConfigUtils#GOBBLIN_SYNC_SYSTEMS_KEY}
+   * @return map of all system -> config for which the token management {@link ConfigUtils#IS_TOKEN_MGMT_ENABLED_KEY} is enabled.
+   */
+  public static Map<String, Config> getAllSecureHiveSystems(Config config){
+    Map<String, Config> secureSystems = new HashMap<>();
+
+    for (String systemName : config.getObject(GOBBLIN_SYNC_SYSTEMS_KEY).keySet()){
+      Config sysConfig = config.getConfig(GOBBLIN_SYNC_SYSTEMS_KEY).getConfig(systemName);
+      if(ConfigUtils.getBoolean(sysConfig, IS_SECURE_KEY, false) && ConfigUtils.getBoolean(sysConfig, IS_TOKEN_MGMT_ENABLED_KEY, false) && sysConfig.hasPath(HIVE_SYSTEM_KEY)){
+        secureSystems.put(systemName, sysConfig);
+      }
+    }
+    return secureSystems;
+  }
+
+  /**
+   *
+   * @param metastoreURI for which we need to find system and its config
+   * @param config at path: {@link ConfigUtils#GOBBLIN_SYNC_SYSTEMS_KEY}
+   * @return map of system name -> config paths for the given metastoreURI
+   */
+  public static Multimap<String, String> getSystemConfigForMetastore(String metastoreURI, Config config) {
+    if (config == null) {
+      config = getInstance();
+    }
+
+    Multimap<String, String> sysConfFiles = LinkedHashMultimap.create();
+
+    ConfigObject allSysConfig = getAllSystemConfig(config);
+
+    if (allSysConfig == null) return sysConfFiles;
+
+    for (Map.Entry<String, ConfigValue> sysConfig : allSysConfig.entrySet()) {
+
+      if (sysConfig.getValue().valueType().equals(ConfigValueType.OBJECT)) {
+        ConfigObject allComponentConfigs = (ConfigObject) sysConfig.getValue();
+        for (Map.Entry<String, ConfigValue> componentConfig : allComponentConfigs.entrySet()) {
+          if (componentConfig.getValue().valueType().equals(ConfigValueType.OBJECT)) {
+            ConfigObject componentConfigValue = (ConfigObject) componentConfig.getValue();
+            Config configValue = componentConfigValue.toConfig();
+            if (configValue.hasPath(GOBBLIN_SYNC_SYSTEM_METASTORE_URI_KEY)) {
+              if (configValue.getString(GOBBLIN_SYNC_SYSTEM_METASTORE_URI_KEY).contains(metastoreURI)) {
+                if (configValue.hasPath(GOBBLIN_SYNC_SYSTEM_CONFIG_FILES_KEY)) {
+                  configValue.getList(GOBBLIN_SYNC_SYSTEM_CONFIG_FILES_KEY).forEach(item -> sysConfFiles.put(sysConfig.getKey(), item.unwrapped().toString()));
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return sysConfFiles;
+  }
+
 }

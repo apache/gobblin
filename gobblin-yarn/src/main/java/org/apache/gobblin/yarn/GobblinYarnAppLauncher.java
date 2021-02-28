@@ -34,6 +34,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.google.common.collect.Multimap;
 import org.apache.avro.Schema;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.mail.EmailException;
@@ -710,6 +711,26 @@ public class GobblinYarnAppLauncher {
           appMasterResources);
     }
 
+    // handles all system configs files automatically, so it does not has to be mentioned explicitly as values of CONTAINER_FILES_LOCAL_KEY
+    if (this.config.hasPath(GobblinYarnConfigurationKeys.CONTAINER_COPY_SYSTEM_CONFIGS) && this.config.getBoolean(GobblinYarnConfigurationKeys.CONTAINER_COPY_SYSTEM_CONFIGS)) {
+      Path appFilesDestDir = new Path(appMasterWorkDir, GobblinYarnConfigurationKeys.APP_FILES_DIR_NAME);
+
+      Multimap<String, String> allSysConfigFiles = ConfigUtils.getAllSystemConfigFiles(this.config);
+      allSysConfigFiles.entries().forEach(
+        e ->
+          {
+            try {
+              // value is the config file full path, key is the system name which we want to prefix with to differentiate same name file.
+              LOGGER.debug("adding sync system {}'s config files {} to container local as {}", e.getKey(), e.getValue(), e.getKey()+"-<file-name>");
+              addAppLocalFiles(e.getValue(), e.getKey()+"-", appFilesDestDir,
+                      Optional.<Map<String, LocalResource>>absent(), localFs);
+            } catch (IOException ioException) {
+              ioException.printStackTrace();
+            }
+          }
+      );
+    }
+
     return appMasterResources;
   }
 
@@ -730,6 +751,25 @@ public class GobblinYarnAppLauncher {
       Path appFilesDestDir = new Path(containerWorkDir, GobblinYarnConfigurationKeys.APP_FILES_DIR_NAME);
       addAppLocalFiles(this.config.getString(GobblinYarnConfigurationKeys.CONTAINER_FILES_LOCAL_KEY),
           Optional.<Map<String, LocalResource>>absent(), appFilesDestDir, localFs);
+    }
+
+    // handles all system configs files automatically, so it does not has to be mentioned explicitly as values of CONTAINER_FILES_LOCAL_KEY
+    if (this.config.hasPath(GobblinYarnConfigurationKeys.CONTAINER_COPY_SYSTEM_CONFIGS) && this.config.getBoolean(GobblinYarnConfigurationKeys.CONTAINER_COPY_SYSTEM_CONFIGS)) {
+      Path appFilesDestDir = new Path(containerWorkDir, GobblinYarnConfigurationKeys.APP_FILES_DIR_NAME);
+
+      Multimap<String, String> allSysConfigFiles = ConfigUtils.getAllSystemConfigFiles(this.config);
+      LOGGER.debug("adding all sync system's config files to container local.");
+      allSysConfigFiles.entries().forEach( e ->
+        {
+          try {
+            // value is the config file full path, key is the system name which we want to prefix with to differentiate same name file.
+            addAppLocalFiles(e.getValue(), e.getKey()+"-", appFilesDestDir,
+                    Optional.<Map<String, LocalResource>>absent(), localFs);
+          } catch (IOException ioException) {
+            ioException.printStackTrace();
+          }
+        }
+      );
     }
   }
 
@@ -771,20 +811,33 @@ public class GobblinYarnAppLauncher {
     }
   }
 
-  private void addAppLocalFiles(String localFilePathList, Optional<Map<String, LocalResource>> resourceMap,
-      Path destDir, FileSystem localFs) throws IOException {
+  private void addAppLocalFiles(String localFilePath, String prefix, Path destDir,
+                                Optional<Map<String, LocalResource>> resourceMap, FileSystem localFs) throws IOException {
+    try {
+      if(prefix == null)  prefix = "";
 
-    for (String localFilePath : SPLITTER.split(localFilePathList)) {
       Path srcFilePath = new Path(localFilePath);
-      Path destFilePath = new Path(destDir, srcFilePath.getName());
+      Path destFilePath = new Path(destDir, prefix + srcFilePath.getName());
       if (localFs.exists(srcFilePath)) {
         this.fs.copyFromLocalFile(srcFilePath, destFilePath);
         if (resourceMap.isPresent()) {
           YarnHelixUtils.addFileAsLocalResource(this.fs, destFilePath, LocalResourceType.FILE, resourceMap.get());
+          LOGGER.debug("The request file {} added as container local file for {}", srcFilePath, prefix);
         }
       } else {
-        LOGGER.warn(String.format("The request file %s doesn't exist", srcFilePath));
+        LOGGER.warn("The request file {} doesn't exist for {}", srcFilePath, prefix);
       }
+    }catch (IOException e){
+      LOGGER.error("Error copying app local files.", e);
+      throw e;
+    }
+  }
+
+  private void addAppLocalFiles(String localFilePathList, Optional<Map<String, LocalResource>> resourceMap,
+      Path destDir, FileSystem localFs) throws IOException {
+
+    for (String localFilePath : SPLITTER.split(localFilePathList)) {
+      addAppLocalFiles(localFilePath, null, destDir, resourceMap, localFs);
     }
   }
 

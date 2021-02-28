@@ -18,8 +18,13 @@
 package org.apache.gobblin.hive;
 
 import java.io.IOException;
+import java.util.Map;
 
+import com.google.common.collect.Multimap;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
 
 import com.google.common.base.Optional;
@@ -41,6 +46,7 @@ import static org.apache.gobblin.hive.HiveMetaStoreClientFactory.HIVE_METASTORE_
  * The factory that creates a {@link HiveConf} as shared resource.
  * {@link EmptyKey} is fair since {@link HiveConf} seems to be read-only.
  */
+@Slf4j
 public class HiveConfFactory<S extends ScopeType<S>> implements SharedResourceFactory<HiveConf, SharedHiveConfKey, S> {
   static final String FACTORY_NAME = "hiveConfFactory";
 
@@ -57,6 +63,22 @@ public class HiveConfFactory<S extends ScopeType<S>> implements SharedResourceFa
     HiveConf rawConf = new HiveConf();
     if (!sharedHiveConfKey.hiveConfUri.equals(SharedHiveConfKey.INSTANCE.toConfigurationKey()) && StringUtils
         .isNotEmpty(sharedHiveConfKey.hiveConfUri)) {
+      // match the uri with gobblin_sync_system config and load appropriate config
+      Multimap<String, String> sysConfigFiles = ConfigUtils.getSystemConfigForMetastore(sharedHiveConfKey.hiveConfUri, null);
+      if (sysConfigFiles.size() == 0) {
+        log.warn("no additional config specified for metastore {} to load as HiveConf()", sharedHiveConfKey.hiveConfUri);
+      } else {
+        sysConfigFiles.entries().forEach(
+          e ->
+            {
+              String localResourceName = e.getKey() + "-" + new Path(e.getValue()).getName();
+              rawConf.addResource(localResourceName);
+              log.debug("adding resource {} for hive metastore: {}", localResourceName, sharedHiveConfKey.hiveConfUri);
+              rawConf.getAllProperties().forEach((key, value) -> log.debug(key + "-" + value));
+            }
+        );
+      }
+
       rawConf.setVar(HiveConf.ConfVars.METASTOREURIS, sharedHiveConfKey.hiveConfUri);
       rawConf.set(HIVE_METASTORE_TOKEN_SIGNATURE, sharedHiveConfKey.hiveConfUri);
     }
