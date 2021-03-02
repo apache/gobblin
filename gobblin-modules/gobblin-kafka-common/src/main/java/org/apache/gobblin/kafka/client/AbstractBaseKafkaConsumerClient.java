@@ -84,6 +84,14 @@ public abstract class AbstractBaseKafkaConsumerClient implements GobblinKafkaCon
     this.schemaCheckEnabled = ConfigUtils.getBoolean(config, CONFIG_ENABLE_SCHEMA_CHECK, ENABLE_SCHEMA_CHECK_DEFAULT);
   }
 
+  /**
+   * Filter topics based on whitelist and blacklist patterns
+   * and if {@link #schemaCheckEnabled}, also filter on whether schema is present in schema registry
+   * @param blacklist - List of regex patterns that need to be blacklisted
+   * @param whitelist - List of regex patterns that need to be whitelisted
+   *
+   * @return
+   */
   @Override
   public List<KafkaTopic> getFilteredTopics(final List<Pattern> blacklist, final List<Pattern> whitelist) {
     return Lists.newArrayList(Iterables.filter(getTopics(), new Predicate<KafkaTopic>() {
@@ -101,6 +109,11 @@ public abstract class AbstractBaseKafkaConsumerClient implements GobblinKafkaCon
     return this.schemaRegistry.isPresent();
   }
 
+  /**
+   * accept topic if {@link #schemaCheckEnabled} and schema registry is configured
+   * @param topic
+   * @return
+   */
   private boolean isSchemaPresent(String topic) {
     if(this.schemaCheckEnabled && isSchemaRegistryConfigured()) {
       try {
