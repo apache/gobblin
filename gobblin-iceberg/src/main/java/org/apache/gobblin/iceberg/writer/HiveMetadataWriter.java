@@ -93,6 +93,7 @@ public class HiveMetadataWriter implements MetadataWriter {
   @Override
   public void flush(String dbName, String tableName) throws IOException {
     String tableKey = tableNameJoiner.join(dbName, tableName);
+    log.info("start to flush table: " + tableKey);
     HashMap<List<String>, ListenableFuture<Void>> executionMap = this.currentExecutionMap.computeIfAbsent(tableKey, s -> new HashMap<>());
     //iterator all execution to get the result to make sure they all succeeded
     for (HashMap.Entry<List<String>, ListenableFuture<Void>> execution: executionMap.entrySet()) {
@@ -104,17 +105,19 @@ public class HiveMetadataWriter implements MetadataWriter {
         throw new RuntimeException(e);
       }
     }
+    log.info("finish flushing table: " + tableKey);
   }
 
   public void write(GobblinMetadataChangeEvent gmce, Map<String, Collection<HiveSpec>> newSpecsMap,
       Map<String, Collection<HiveSpec>> oldSpecsMap, HiveSpec tableSpec) throws IOException {
-
+    long startTime = System.currentTimeMillis();
     String dbName = tableSpec.getTable().getDbName();
     String tableName = tableSpec.getTable().getTableName();
-
-    //Try to create table first to make sure table existed
-    this.hiveRegister.createTableIfNotExists(tableSpec.getTable());
     String tableKey = tableNameJoiner.join(dbName, tableName);
+    if( !specMaps.containsKey(tableKey) || specMaps.get(tableKey).size() == 0) {
+      //Try to create table first to make sure table existed
+      this.hiveRegister.createTableIfNotExists(tableSpec.getTable());
+    }
     if (!lastestSchemaMap.containsKey(tableKey)) {
       HiveTable existingTable = this.hiveRegister.getTable(dbName, tableName).get();
       lastestSchemaMap.put(tableKey, existingTable.getSerDeProps().getProp(
@@ -160,13 +163,15 @@ public class HiveMetadataWriter implements MetadataWriter {
                schemaUpdateHelper(spec, topicName);
              }
              if (this.hiveRegister.needToUpdateTable(existedSpec.getTable(), spec.getTable())) {
-                registerSpec(tableKey, partitionValue, spec);
+                registerSpec(tableKey, partitionValue, spec, hiveSpecCache);
                 return;
              }
              if (spec.getPartition().isPresent() &&
                  this.hiveRegister.needToUpdatePartition(existedSpec.getPartition().get(), spec.getPartition().get())) {
-               registerSpec(tableKey, partitionValue, spec);
+               registerSpec(tableKey, partitionValue, spec, hiveSpecCache);
              }
+           } else {
+             registerSpec(tableKey, partitionValue, spec, hiveSpecCache);
            }
          }
       }
@@ -174,17 +179,19 @@ public class HiveMetadataWriter implements MetadataWriter {
 
   }
 
-  private void registerSpec(String tableKey, List<String> partitionValue, HiveSpec spec) {
+  private void registerSpec(String tableKey, List<String> partitionValue, HiveSpec spec, Cache<List<String>, HiveSpec> hiveSpecCache) {
     HashMap<List<String>, ListenableFuture<Void>> executionMap = this.currentExecutionMap.computeIfAbsent(tableKey, s -> new HashMap<>());
     if (executionMap.containsKey(partitionValue)) {
       try {
+        //todo: add timeout
         executionMap.get(partitionValue).get();
       } catch (InterruptedException | ExecutionException e) {
         log.error("Error when getting the result of registration for table" + tableKey);
         throw new RuntimeException(e);
       }
-      executionMap.put(partitionValue, this.hiveRegister.register(spec));
     }
+    executionMap.put(partitionValue, this.hiveRegister.register(spec));
+    hiveSpecCache.put(partitionValue, spec);
   }
 
   private void schemaUpdateHelper(HiveSpec spec, String topicName) throws SchemaRegistryException {
