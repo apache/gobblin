@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.iceberg.writer;
+package org.apache.gobblin.hive.writer;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -30,6 +30,9 @@ import org.apache.gobblin.stream.RecordEnvelope;
  * This is the interface of the writer which is used to calculate and accumulate the desired metadata and register to the metadata store
  */
 public interface MetadataWriter extends Closeable {
+  String CACHE_EXPIRING_TIME = "GMCEWriter.cache.expiring.time.hours";
+  int DEFAULT_CACHE_EXPIRING_TIME = 1;
+
   /*
   Register the metadata of specific table to the metadata store
    */

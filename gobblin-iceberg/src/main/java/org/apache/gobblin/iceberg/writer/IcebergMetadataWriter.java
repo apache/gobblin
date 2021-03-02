@@ -78,6 +78,7 @@ import org.apache.gobblin.util.ClustersNames;
 import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.ParallelRunner;
 import org.apache.gobblin.util.WriterUtils;
+import org.apache.gobblin.hive.writer.MetadataWriter;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -103,7 +104,6 @@ import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.expressions.Expressions;
 import org.apache.iceberg.hive.HiveCatalog;
 import org.apache.iceberg.hive.HiveCatalogs;
-import org.apache.thrift.TException;
 import org.joda.time.DateTime;
 import org.joda.time.format.PeriodFormatter;
 import org.joda.time.format.PeriodFormatterBuilder;
@@ -353,8 +353,8 @@ public class IcebergMetadataWriter implements MetadataWriter {
         tableMetadata.lastSchemaVersion.or(() -> props.getOrDefault(SCHEMA_CREATION_TIME_KEY, DEFAULT_CREATION_TIME)));
     String lastSchemaVersion = tableMetadata.lastSchemaVersion.get();
     tableMetadata.candidateSchemas = Optional.of(tableMetadata.candidateSchemas.or(() -> CacheBuilder.newBuilder()
-        .expireAfterAccess(conf.getInt(GobblinMCEWriter.CACHE_EXPIRING_TIME,
-            GobblinMCEWriter.DEFAULT_CACHE_EXPIRING_TIME), TimeUnit.HOURS)
+        .expireAfterAccess(conf.getInt(MetadataWriter.CACHE_EXPIRING_TIME,
+            MetadataWriter.DEFAULT_CACHE_EXPIRING_TIME), TimeUnit.HOURS)
         .build()));
     Cache<String, Schema> candidate = tableMetadata.candidateSchemas.get();
     try {
