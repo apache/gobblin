@@ -162,12 +162,9 @@ public class HiveMetadataWriter implements MetadataWriter {
               // Only in this case, we need to update the schema to the latest schema in schemaRegistry
               schemaUpdateHelper(spec, topicName);
             }
-            if (this.hiveRegister.needToUpdateTable(existedSpec.getTable(), spec.getTable())) {
-              registerSpec(tableKey, partitionValue, spec, hiveSpecCache);
-              return;
-            }
-            if (spec.getPartition().isPresent() && this.hiveRegister.needToUpdatePartition(
-                existedSpec.getPartition().get(), spec.getPartition().get())) {
+            if ((this.hiveRegister.needToUpdateTable(existedSpec.getTable(), spec.getTable())) ||
+                (spec.getPartition().isPresent() && this.hiveRegister.needToUpdatePartition(
+                    existedSpec.getPartition().get(), spec.getPartition().get()))) {
               registerSpec(tableKey, partitionValue, spec, hiveSpecCache);
             }
           } else {
