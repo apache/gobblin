@@ -18,7 +18,6 @@
 package org.apache.gobblin.service;
 
 import java.io.File;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
@@ -76,6 +75,8 @@ public class FlowConfigV2Test {
   private static final String TEST_FLOW_NAME_5 = "testFlow5";
   private static final String TEST_FLOW_NAME_6 = "testFlow6";
   private static final String TEST_FLOW_NAME_7 = "testFlow7";
+  private static final String TEST_FLOW_NAME_8 = "testFlow8";
+  private static final String TEST_FLOW_NAME_9 = "testFlow9";
   private static final String TEST_SCHEDULE = "0 1/0 * ? * *";
   private static final String TEST_TEMPLATE_URI = "FS:///templates/test.template";
 
@@ -299,6 +300,42 @@ public class FlowConfigV2Test {
     _client.createFlowConfig(flowConfig);
     testRequester.setName("testName3");
     _client.deleteFlowConfig(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_7));
+  }
+
+
+  @Test (expectedExceptions = RestLiResponseException.class)
+  public void testGroupUpdateRejected() throws Exception {
+   ServiceRequester testRequester = new ServiceRequester("testName", "USER_PRINCIPAL", "testFrom");
+   _requesterService.setRequester(testRequester);
+   Map<String, String> flowProperties = Maps.newHashMap();
+
+   FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_8))
+       .setTemplateUris(TEST_TEMPLATE_URI)
+       .setProperties(new StringMap(flowProperties))
+       .setOwningGroup("testGroup");
+
+   _client.createFlowConfig(flowConfig);
+
+   flowConfig.setOwningGroup("testGroup2");
+   _client.updateFlowConfig(flowConfig);
+  }
+
+  @Test (expectedExceptions = RestLiResponseException.class)
+  public void testRequesterUpdateRejected() throws Exception {
+    ServiceRequester testRequester = new ServiceRequester("testName", "USER_PRINCIPAL", "testFrom");
+    ServiceRequester testRequester2 = new ServiceRequester("testName2", "USER_PRINCIPAL", "testFrom");
+    _requesterService.setRequester(testRequester);
+    Map<String, String> flowProperties = Maps.newHashMap();
+
+    FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_9))
+        .setTemplateUris(TEST_TEMPLATE_URI)
+        .setProperties(new StringMap(flowProperties));
+
+    _client.createFlowConfig(flowConfig);
+
+    flowProperties.put(RequesterService.REQUESTER_LIST, RequesterService.serialize(Lists.newArrayList(testRequester2)));
+    flowConfig.setProperties(new StringMap(flowProperties));
+    _client.updateFlowConfig(flowConfig);
   }
 
   @AfterClass(alwaysRun = true)

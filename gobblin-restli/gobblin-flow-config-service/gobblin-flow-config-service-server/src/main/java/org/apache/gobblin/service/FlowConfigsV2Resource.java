@@ -26,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableSet;
+import com.linkedin.data.transform.DataProcessingException;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.HttpStatus;
 import com.linkedin.restli.common.PatchRequest;
@@ -40,6 +41,7 @@ import com.linkedin.restli.server.annotations.QueryParam;
 import com.linkedin.restli.server.annotations.RestLiCollection;
 import com.linkedin.restli.server.annotations.ReturnEntity;
 import com.linkedin.restli.server.resources.ComplexKeyResourceTemplate;
+import com.linkedin.restli.server.util.PatchApplier;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -155,7 +157,7 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
    */
   @Override
   public UpdateResponse update(ComplexResourceKey<FlowId, FlowStatusId> key, FlowConfig flowConfig) {
-    checkRequester(this.requesterService, get(key), this.requesterService.findRequesters(this));
+    checkUpdateDeleteAllowed(get(key), flowConfig);
     String flowGroup = key.getKey().getFlowGroup();
     String flowName = key.getKey().getFlowName();
     FlowId flowId = new FlowId().setFlowGroup(flowGroup).setFlowName(flowName);
@@ -170,7 +172,14 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
    */
   @Override
   public UpdateResponse update(ComplexResourceKey<FlowId, FlowStatusId> key, PatchRequest<FlowConfig> flowConfigPatch) {
-    checkRequester(this.requesterService, get(key), this.requesterService.findRequesters(this));
+    // Apply patch to an empty FlowConfig just to check which properties are being set
+    FlowConfig flowConfig = new FlowConfig();
+    try {
+      PatchApplier.applyPatch(flowConfig, flowConfigPatch);
+    } catch (DataProcessingException e) {
+      throw new FlowConfigLoggedException(HttpStatus.S_400_BAD_REQUEST, "Failed to apply patch", e);
+    }
+    checkUpdateDeleteAllowed(get(key), flowConfig);
     String flowGroup = key.getKey().getFlowGroup();
     String flowName = key.getKey().getFlowName();
     FlowId flowId = new FlowId().setFlowGroup(flowGroup).setFlowName(flowName);
@@ -184,7 +193,7 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
    */
   @Override
   public UpdateResponse delete(ComplexResourceKey<FlowId, FlowStatusId> key) {
-    checkRequester(this.requesterService, get(key), this.requesterService.findRequesters(this));
+    checkUpdateDeleteAllowed(get(key), null);
     String flowGroup = key.getKey().getFlowGroup();
     String flowName = key.getKey().getFlowName();
     FlowId flowId = new FlowId().setFlowGroup(flowGroup).setFlowName(flowName);
@@ -209,17 +218,58 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
   }
 
   /**
+   * Check that this update or delete operation is allowed, throw a {@link FlowConfigLoggedException} if not.
+   */
+  public void checkUpdateDeleteAllowed(FlowConfig originalFlowConfig, FlowConfig updatedFlowConfig) {
+    List<ServiceRequester> requesterList = this.requesterService.findRequesters(this);
+    if (updatedFlowConfig != null) {
+      checkPropertyUpdatesAllowed(requesterList, updatedFlowConfig);
+    }
+    checkRequester(originalFlowConfig, requesterList);
+  }
+
+  /**
+   * Check that the properties being updated are allowed to be updated. This includes:
+   * 1. Checking that the requester is part of the owningGroup if it is being modified
+   * 2. Checking if the {@link RequesterService#REQUESTER_LIST} is being modified, and only allow it if a user is changing
+   *    it to themselves.
+   */
+  public void checkPropertyUpdatesAllowed(List<ServiceRequester> requesterList, FlowConfig updatedFlowConfig) {
+    if (requesterList == null || this.requesterService.isRequesterWhitelisted(requesterList)) {
+      return;
+    }
+
+    // Check that requester is part of owning group if owning group is being updated
+    if (updatedFlowConfig.hasOwningGroup() && !this.groupOwnershipService.isMemberOfGroup(requesterList, updatedFlowConfig.getOwningGroup())) {
+      throw new FlowConfigLoggedException(HttpStatus.S_401_UNAUTHORIZED, "Requester not part of owning group specified");
+    }
+
+    if (updatedFlowConfig.hasProperties() && updatedFlowConfig.getProperties().containsKey(RequesterService.REQUESTER_LIST)) {
+      List<ServiceRequester> updatedRequesterList;
+      try {
+        updatedRequesterList = RequesterService.deserialize(updatedFlowConfig.getProperties().get(RequesterService.REQUESTER_LIST));
+      } catch (Exception e) {
+        throw new FlowConfigLoggedException(HttpStatus.S_400_BAD_REQUEST, RequesterService.REQUESTER_LIST + " property was "
+            + "provided but could not be deserialized", e);
+      }
+
+      if (!updatedRequesterList.equals(requesterList)) {
+        throw new FlowConfigLoggedException(HttpStatus.S_401_UNAUTHORIZED, RequesterService.REQUESTER_LIST + " property may "
+            + "only be updated to yourself. Requesting user: " + requesterList + ", updated requester: " + updatedRequesterList);
+      }
+    }
+  }
+
+  /**
    * Check that all {@link ServiceRequester}s in this request are contained within the original service requester list
    * or is part of the original requester's owning group when the flow was submitted. If they are not, throw a {@link FlowConfigLoggedException} with {@link HttpStatus#S_401_UNAUTHORIZED}.
    * If there is a failure when deserializing the original requester list, throw a {@link FlowConfigLoggedException} with
    * {@link HttpStatus#S_400_BAD_REQUEST}.
-   * @param requesterService the {@link RequesterService} used to verify the requester
    * @param originalFlowConfig original flow config to find original requester
    * @param requesterList list of requesters for this request
    */
-  public void checkRequester(
-      RequesterService requesterService, FlowConfig originalFlowConfig, List<ServiceRequester> requesterList) {
-    if (requesterList == null) {
+  public void checkRequester(FlowConfig originalFlowConfig, List<ServiceRequester> requesterList) {
+    if (requesterList == null || this.requesterService.isRequesterWhitelisted(requesterList)) {
       return;
     }
 

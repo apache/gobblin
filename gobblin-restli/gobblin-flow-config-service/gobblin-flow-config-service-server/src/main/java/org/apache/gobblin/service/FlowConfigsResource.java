@@ -88,6 +88,11 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, Empt
    */
   @Override
   public CreateResponse create(FlowConfig flowConfig) {
+    if (flowConfig.hasOwningGroup()) {
+      throw new FlowConfigLoggedException(HttpStatus.S_401_UNAUTHORIZED, "Owning group property may "
+          + "not be set through flowconfigs API, use flowconfigsV2");
+    }
+
     List<ServiceRequester> requesterList = this.requesterService.findRequesters(this);
 
     try {
@@ -109,6 +114,14 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, Empt
    */
   @Override
   public UpdateResponse update(ComplexResourceKey<FlowId, EmptyRecord> key, FlowConfig flowConfig) {
+    if (flowConfig.hasOwningGroup()) {
+      throw new FlowConfigLoggedException(HttpStatus.S_401_UNAUTHORIZED, "Owning group property may "
+          + "not be set through flowconfigs API, use flowconfigsV2");
+    }
+    if (flowConfig.getProperties().containsKey(RequesterService.REQUESTER_LIST)) {
+      throw new FlowConfigLoggedException(HttpStatus.S_401_UNAUTHORIZED, RequesterService.REQUESTER_LIST + " property may "
+          + "not be set through flowconfigs API, use flowconfigsV2");
+    }
     checkRequester(this.requesterService, get(key), this.requesterService.findRequesters(this));
     String flowGroup = key.getKey().getFlowGroup();
     String flowName = key.getKey().getFlowName();
@@ -142,7 +155,7 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, Empt
    */
   public static void checkRequester(
       RequesterService requesterService, FlowConfig originalFlowConfig, List<ServiceRequester> requesterList) {
-    if (requesterList == null) {
+    if (requesterList == null || requesterService.isRequesterWhitelisted(requesterList)) {
       return;
     }
 
