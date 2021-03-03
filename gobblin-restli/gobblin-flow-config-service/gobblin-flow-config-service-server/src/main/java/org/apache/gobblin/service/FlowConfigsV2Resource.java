@@ -235,7 +235,7 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
    *    it to themselves.
    */
   public void checkPropertyUpdatesAllowed(List<ServiceRequester> requesterList, FlowConfig updatedFlowConfig) {
-    if (requesterList == null || this.requesterService.isRequesterWhitelisted(requesterList)) {
+    if (this.requesterService.isRequesterWhitelisted(requesterList)) {
       return;
     }
 
@@ -269,7 +269,7 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
    * @param requesterList list of requesters for this request
    */
   public void checkRequester(FlowConfig originalFlowConfig, List<ServiceRequester> requesterList) {
-    if (requesterList == null || this.requesterService.isRequesterWhitelisted(requesterList)) {
+    if (this.requesterService.isRequesterWhitelisted(requesterList)) {
       return;
     }
 

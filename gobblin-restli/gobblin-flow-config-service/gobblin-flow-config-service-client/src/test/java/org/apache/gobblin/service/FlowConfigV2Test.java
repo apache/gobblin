@@ -55,6 +55,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.restli.EmbeddedRestliServer;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.runtime.spec_store.FSSpecStore;
+import org.apache.gobblin.util.request_allocation.Request;
 
 
 @Test(groups = { "gobblin.service" }, singleThreaded = true)
@@ -77,6 +78,7 @@ public class FlowConfigV2Test {
   private static final String TEST_FLOW_NAME_7 = "testFlow7";
   private static final String TEST_FLOW_NAME_8 = "testFlow8";
   private static final String TEST_FLOW_NAME_9 = "testFlow9";
+  private static final String TEST_FLOW_NAME_10 = "testFlow10";
   private static final String TEST_SCHEDULE = "0 1/0 * ? * *";
   private static final String TEST_TEMPLATE_URI = "FS:///templates/test.template";
 
@@ -263,7 +265,7 @@ public class FlowConfigV2Test {
     }
   }
 
-  @Test
+  @Test(dependsOnMethods = {"testGroupRequesterRejected", "testGroupRequesterAllowed", "testGroupUpdateRejected", "testRequesterUpdate"})
   public void testLocalGroupOwnershipUpdates() throws Exception {
     try {
       ServiceRequester testRequester = new ServiceRequester("testName", "USER_PRINCIPAL", "testFrom");
@@ -303,7 +305,7 @@ public class FlowConfigV2Test {
   }
 
 
-  @Test (expectedExceptions = RestLiResponseException.class)
+  @Test
   public void testGroupUpdateRejected() throws Exception {
    ServiceRequester testRequester = new ServiceRequester("testName", "USER_PRINCIPAL", "testFrom");
    _requesterService.setRequester(testRequester);
@@ -316,26 +318,65 @@ public class FlowConfigV2Test {
 
    _client.createFlowConfig(flowConfig);
 
-   flowConfig.setOwningGroup("testGroup2");
-   _client.updateFlowConfig(flowConfig);
+   // Update should be rejected because testName is not part of dummyGroup
+   flowConfig.setOwningGroup("dummyGroup");
+   try {
+     _client.updateFlowConfig(flowConfig);
+     Assert.fail("Expected update to be rejected");
+   } catch (RestLiResponseException e) {
+     Assert.assertEquals(e.getStatus(), HttpStatus.ORDINAL_401_Unauthorized);
+   }
   }
 
-  @Test (expectedExceptions = RestLiResponseException.class)
+  @Test
+  public void testRequesterUpdate() throws Exception {
+    ServiceRequester testRequester = new ServiceRequester("testName", "USER_PRINCIPAL", "testFrom");
+    ServiceRequester testRequester2 = new ServiceRequester("testName2", "USER_PRINCIPAL", "testFrom");
+    _requesterService.setRequester(testRequester);
+    Map<String, String> flowProperties = Maps.newHashMap();
+
+    FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_9);
+    FlowConfig flowConfig = new FlowConfig().setId(flowId)
+        .setTemplateUris(TEST_TEMPLATE_URI)
+        .setProperties(new StringMap(flowProperties))
+        .setOwningGroup("testGroup");
+
+    _client.createFlowConfig(flowConfig);
+
+    // testName2 takes ownership of the flow
+    flowProperties.put(RequesterService.REQUESTER_LIST, RequesterService.serialize(Lists.newArrayList(testRequester2)));
+    flowConfig.setProperties(new StringMap(flowProperties));
+    _requesterService.setRequester(testRequester2);
+    _client.updateFlowConfig(flowConfig);
+
+    // Check that the requester list was actually updated
+    FlowConfig updatedFlowConfig = _client.getFlowConfig(flowId);
+    Assert.assertEquals(RequesterService.deserialize(updatedFlowConfig.getProperties().get(RequesterService.REQUESTER_LIST)),
+        Lists.newArrayList(testRequester2));
+  }
+
+  @Test
   public void testRequesterUpdateRejected() throws Exception {
     ServiceRequester testRequester = new ServiceRequester("testName", "USER_PRINCIPAL", "testFrom");
     ServiceRequester testRequester2 = new ServiceRequester("testName2", "USER_PRINCIPAL", "testFrom");
     _requesterService.setRequester(testRequester);
     Map<String, String> flowProperties = Maps.newHashMap();
 
-    FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_9))
+    FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_10))
         .setTemplateUris(TEST_TEMPLATE_URI)
         .setProperties(new StringMap(flowProperties));
 
     _client.createFlowConfig(flowConfig);
 
+    // Update should be rejected because testName is not allowed to update the owner to testName2
     flowProperties.put(RequesterService.REQUESTER_LIST, RequesterService.serialize(Lists.newArrayList(testRequester2)));
     flowConfig.setProperties(new StringMap(flowProperties));
-    _client.updateFlowConfig(flowConfig);
+    try {
+      _client.updateFlowConfig(flowConfig);
+      Assert.fail("Expected update to be rejected");
+    } catch (RestLiResponseException e) {
+      Assert.assertEquals(e.getStatus(), HttpStatus.ORDINAL_401_Unauthorized);
+    }
   }
 
   @AfterClass(alwaysRun = true)
