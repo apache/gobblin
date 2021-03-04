@@ -155,7 +155,7 @@ public class FlowConfigsResource extends ComplexKeyResourceTemplate<FlowId, Empt
    */
   public static void checkRequester(
       RequesterService requesterService, FlowConfig originalFlowConfig, List<ServiceRequester> requesterList) {
-    if (requesterList == null || requesterService.isRequesterWhitelisted(requesterList)) {
+    if (requesterService.isRequesterWhitelisted(requesterList)) {
       return;
     }
 

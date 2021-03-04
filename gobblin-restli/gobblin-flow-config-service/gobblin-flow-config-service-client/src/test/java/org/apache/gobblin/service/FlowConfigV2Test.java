@@ -55,7 +55,6 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.restli.EmbeddedRestliServer;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.runtime.spec_store.FSSpecStore;
-import org.apache.gobblin.util.request_allocation.Request;
 
 
 @Test(groups = { "gobblin.service" }, singleThreaded = true)
@@ -78,7 +77,6 @@ public class FlowConfigV2Test {
   private static final String TEST_FLOW_NAME_7 = "testFlow7";
   private static final String TEST_FLOW_NAME_8 = "testFlow8";
   private static final String TEST_FLOW_NAME_9 = "testFlow9";
-  private static final String TEST_FLOW_NAME_10 = "testFlow10";
   private static final String TEST_SCHEDULE = "0 1/0 * ? * *";
   private static final String TEST_TEMPLATE_URI = "FS:///templates/test.template";
 
@@ -265,53 +263,13 @@ public class FlowConfigV2Test {
     }
   }
 
-  @Test(dependsOnMethods = {"testGroupRequesterRejected", "testGroupRequesterAllowed", "testGroupUpdateRejected", "testRequesterUpdate"})
-  public void testLocalGroupOwnershipUpdates() throws Exception {
-    try {
-      ServiceRequester testRequester = new ServiceRequester("testName", "USER_PRINCIPAL", "testFrom");
-      _requesterService.setRequester(testRequester);
-      Map<String, String> flowProperties = Maps.newHashMap();
-
-      FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_7))
-          .setTemplateUris(TEST_TEMPLATE_URI)
-          .setProperties(new StringMap(flowProperties))
-          .setOwningGroup("testGroup2");
-
-      _client.createFlowConfig(flowConfig);
-
-    } catch (RestLiResponseException e) {
-      Assert.assertEquals(e.getStatus(), HttpStatus.ORDINAL_401_Unauthorized);
-    }
-
-    String filePath = this.groupConfigFile.getAbsolutePath();
-    this.groupConfigFile.delete();
-    this.groupConfigFile = new File(filePath);
-    String groups ="{\"testGroup2\": \"testName,testName3\"}";
-    Files.write(groups.getBytes(), this.groupConfigFile);
-
-    ServiceRequester testRequester = new ServiceRequester("testName", "USER_PRINCIPAL", "testFrom");
-    _requesterService.setRequester(testRequester);
-    Map<String, String> flowProperties = Maps.newHashMap();
-
-    FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_7))
-        .setTemplateUris(TEST_TEMPLATE_URI)
-        .setProperties(new StringMap(flowProperties))
-        .setOwningGroup("testGroup2");
-
-    // this should no longer fail as the localGroupOwnership service should have updated as the file changed
-    _client.createFlowConfig(flowConfig);
-    testRequester.setName("testName3");
-    _client.deleteFlowConfig(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_7));
-  }
-
-
   @Test
   public void testGroupUpdateRejected() throws Exception {
    ServiceRequester testRequester = new ServiceRequester("testName", "USER_PRINCIPAL", "testFrom");
    _requesterService.setRequester(testRequester);
    Map<String, String> flowProperties = Maps.newHashMap();
 
-   FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_8))
+   FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_7))
        .setTemplateUris(TEST_TEMPLATE_URI)
        .setProperties(new StringMap(flowProperties))
        .setOwningGroup("testGroup");
@@ -335,7 +293,7 @@ public class FlowConfigV2Test {
     _requesterService.setRequester(testRequester);
     Map<String, String> flowProperties = Maps.newHashMap();
 
-    FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_9);
+    FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_8);
     FlowConfig flowConfig = new FlowConfig().setId(flowId)
         .setTemplateUris(TEST_TEMPLATE_URI)
         .setProperties(new StringMap(flowProperties))
@@ -362,7 +320,7 @@ public class FlowConfigV2Test {
     _requesterService.setRequester(testRequester);
     Map<String, String> flowProperties = Maps.newHashMap();
 
-    FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_10))
+    FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_9))
         .setTemplateUris(TEST_TEMPLATE_URI)
         .setProperties(new StringMap(flowProperties));
 

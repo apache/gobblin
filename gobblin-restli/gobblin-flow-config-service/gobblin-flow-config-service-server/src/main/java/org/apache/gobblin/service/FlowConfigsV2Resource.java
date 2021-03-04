@@ -17,6 +17,7 @@
 package org.apache.gobblin.service;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -45,6 +46,7 @@ import com.linkedin.restli.server.util.PatchApplier;
 
 import javax.inject.Inject;
 import javax.inject.Named;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.runtime.api.FlowSpecSearchObject;
 
@@ -52,6 +54,7 @@ import org.apache.gobblin.runtime.api.FlowSpecSearchObject;
 /**
  * Resource for handling flow configuration requests
  */
+@Slf4j
 @RestLiCollection(name = "flowconfigsV2", namespace = "org.apache.gobblin.service", keyName = "id")
 public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, FlowStatusId, FlowConfig> {
   private static final Logger LOG = LoggerFactory.getLogger(FlowConfigsV2Resource.class);
@@ -241,7 +244,8 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
 
     // Check that requester is part of owning group if owning group is being updated
     if (updatedFlowConfig.hasOwningGroup() && !this.groupOwnershipService.isMemberOfGroup(requesterList, updatedFlowConfig.getOwningGroup())) {
-      throw new FlowConfigLoggedException(HttpStatus.S_401_UNAUTHORIZED, "Requester not part of owning group specified");
+      throw new FlowConfigLoggedException(HttpStatus.S_401_UNAUTHORIZED, "Requester not part of owning group specified. Requester " + requesterList
+      + " should join group " + updatedFlowConfig.getOwningGroup() + " and retry.");
     }
 
     if (updatedFlowConfig.hasProperties() && updatedFlowConfig.getProperties().containsKey(RequesterService.REQUESTER_LIST)) {
@@ -249,8 +253,16 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
       try {
         updatedRequesterList = RequesterService.deserialize(updatedFlowConfig.getProperties().get(RequesterService.REQUESTER_LIST));
       } catch (Exception e) {
+        String exampleRequester = "";
+        try {
+          List<ServiceRequester> exampleRequesterList = new ArrayList<>();
+          exampleRequesterList.add(new ServiceRequester("name", "type", "from"));
+          exampleRequester = " An example requester is " + RequesterService.serialize(exampleRequesterList);
+        } catch (IOException ioe) {
+          log.error("Failed to serialize example requester list", e);
+        }
         throw new FlowConfigLoggedException(HttpStatus.S_400_BAD_REQUEST, RequesterService.REQUESTER_LIST + " property was "
-            + "provided but could not be deserialized", e);
+            + "provided but could not be deserialized." + exampleRequester, e);
       }
 
       if (!updatedRequesterList.equals(requesterList)) {
