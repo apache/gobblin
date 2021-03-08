@@ -18,7 +18,6 @@
 package org.apache.gobblin.service;
 
 import java.io.File;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
@@ -76,6 +75,8 @@ public class FlowConfigV2Test {
   private static final String TEST_FLOW_NAME_5 = "testFlow5";
   private static final String TEST_FLOW_NAME_6 = "testFlow6";
   private static final String TEST_FLOW_NAME_7 = "testFlow7";
+  private static final String TEST_FLOW_NAME_8 = "testFlow8";
+  private static final String TEST_FLOW_NAME_9 = "testFlow9";
   private static final String TEST_SCHEDULE = "0 1/0 * ? * *";
   private static final String TEST_TEMPLATE_URI = "FS:///templates/test.template";
 
@@ -263,42 +264,77 @@ public class FlowConfigV2Test {
   }
 
   @Test
-  public void testLocalGroupOwnershipUpdates() throws Exception {
-    try {
-      ServiceRequester testRequester = new ServiceRequester("testName", "USER_PRINCIPAL", "testFrom");
-      _requesterService.setRequester(testRequester);
-      Map<String, String> flowProperties = Maps.newHashMap();
+  public void testGroupUpdateRejected() throws Exception {
+   ServiceRequester testRequester = new ServiceRequester("testName", "USER_PRINCIPAL", "testFrom");
+   _requesterService.setRequester(testRequester);
+   Map<String, String> flowProperties = Maps.newHashMap();
 
-      FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_7))
-          .setTemplateUris(TEST_TEMPLATE_URI)
-          .setProperties(new StringMap(flowProperties))
-          .setOwningGroup("testGroup2");
+   FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_7))
+       .setTemplateUris(TEST_TEMPLATE_URI)
+       .setProperties(new StringMap(flowProperties))
+       .setOwningGroup("testGroup");
 
-      _client.createFlowConfig(flowConfig);
+   _client.createFlowConfig(flowConfig);
 
-    } catch (RestLiResponseException e) {
-      Assert.assertEquals(e.getStatus(), HttpStatus.ORDINAL_401_Unauthorized);
-    }
+   // Update should be rejected because testName is not part of dummyGroup
+   flowConfig.setOwningGroup("dummyGroup");
+   try {
+     _client.updateFlowConfig(flowConfig);
+     Assert.fail("Expected update to be rejected");
+   } catch (RestLiResponseException e) {
+     Assert.assertEquals(e.getStatus(), HttpStatus.ORDINAL_401_Unauthorized);
+   }
+  }
 
-    String filePath = this.groupConfigFile.getAbsolutePath();
-    this.groupConfigFile.delete();
-    this.groupConfigFile = new File(filePath);
-    String groups ="{\"testGroup2\": \"testName,testName3\"}";
-    Files.write(groups.getBytes(), this.groupConfigFile);
-
+  @Test
+  public void testRequesterUpdate() throws Exception {
     ServiceRequester testRequester = new ServiceRequester("testName", "USER_PRINCIPAL", "testFrom");
+    ServiceRequester testRequester2 = new ServiceRequester("testName2", "USER_PRINCIPAL", "testFrom");
     _requesterService.setRequester(testRequester);
     Map<String, String> flowProperties = Maps.newHashMap();
 
-    FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_7))
+    FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_8);
+    FlowConfig flowConfig = new FlowConfig().setId(flowId)
         .setTemplateUris(TEST_TEMPLATE_URI)
         .setProperties(new StringMap(flowProperties))
-        .setOwningGroup("testGroup2");
+        .setOwningGroup("testGroup");
 
-    // this should no longer fail as the localGroupOwnership service should have updated as the file changed
     _client.createFlowConfig(flowConfig);
-    testRequester.setName("testName3");
-    _client.deleteFlowConfig(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_7));
+
+    // testName2 takes ownership of the flow
+    flowProperties.put(RequesterService.REQUESTER_LIST, RequesterService.serialize(Lists.newArrayList(testRequester2)));
+    flowConfig.setProperties(new StringMap(flowProperties));
+    _requesterService.setRequester(testRequester2);
+    _client.updateFlowConfig(flowConfig);
+
+    // Check that the requester list was actually updated
+    FlowConfig updatedFlowConfig = _client.getFlowConfig(flowId);
+    Assert.assertEquals(RequesterService.deserialize(updatedFlowConfig.getProperties().get(RequesterService.REQUESTER_LIST)),
+        Lists.newArrayList(testRequester2));
+  }
+
+  @Test
+  public void testRequesterUpdateRejected() throws Exception {
+    ServiceRequester testRequester = new ServiceRequester("testName", "USER_PRINCIPAL", "testFrom");
+    ServiceRequester testRequester2 = new ServiceRequester("testName2", "USER_PRINCIPAL", "testFrom");
+    _requesterService.setRequester(testRequester);
+    Map<String, String> flowProperties = Maps.newHashMap();
+
+    FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_9))
+        .setTemplateUris(TEST_TEMPLATE_URI)
+        .setProperties(new StringMap(flowProperties));
+
+    _client.createFlowConfig(flowConfig);
+
+    // Update should be rejected because testName is not allowed to update the owner to testName2
+    flowProperties.put(RequesterService.REQUESTER_LIST, RequesterService.serialize(Lists.newArrayList(testRequester2)));
+    flowConfig.setProperties(new StringMap(flowProperties));
+    try {
+      _client.updateFlowConfig(flowConfig);
+      Assert.fail("Expected update to be rejected");
+    } catch (RestLiResponseException e) {
+      Assert.assertEquals(e.getStatus(), HttpStatus.ORDINAL_401_Unauthorized);
+    }
   }
 
   @AfterClass(alwaysRun = true)

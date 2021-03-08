@@ -80,6 +80,13 @@ public abstract class RequesterService {
   protected abstract List<ServiceRequester> findRequesters(BaseResource resource);
 
   /**
+   * Return true if the requester is whitelisted to always be accepted
+   */
+  public boolean isRequesterWhitelisted(List<ServiceRequester> requesterList) {
+    return false;
+  }
+
+  /**
    * returns true if the requester is allowed to make this request.
    * This default implementation accepts all requesters.
    * @param originalRequesterList original requester list
@@ -87,7 +94,7 @@ public abstract class RequesterService {
    * @return true if the requester is allowed to make this request, false otherwise
    */
   protected boolean isRequesterAllowed(
-      List<ServiceRequester> originalRequesterList, List<ServiceRequester> currentRequesterList){
+      List<ServiceRequester> originalRequesterList, List<ServiceRequester> currentRequesterList) {
     return true;
   }
 }
