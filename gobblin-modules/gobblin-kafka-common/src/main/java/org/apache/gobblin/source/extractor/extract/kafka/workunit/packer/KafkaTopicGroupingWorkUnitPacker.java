@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Consumer;
 
 import org.apache.hadoop.fs.Path;
 
@@ -269,16 +268,6 @@ public class KafkaTopicGroupingWorkUnitPacker extends KafkaWorkUnitPacker {
         }
       }
     }
-  }
-
-  /**
-   * A helper method to populate {@value CONTAINER_CAPACITY_KEY} into each workunit. Useful in scenarios
-   * where {@link org.apache.gobblin.source.extractor.extract.kafka.KafkaIngestionHealthCheck} is enabled.
-   * @param workUnitsForTopic
-   * @param containerCapacity
-   */
-  private void addContainerCapacityToWorkunits(List<WorkUnit> workUnitsForTopic, Double containerCapacity) {
-    workUnitsForTopic.forEach(workUnit -> workUnit.setProp(CONTAINER_CAPACITY_KEY, containerCapacity));
   }
 
   private Double getDefaultWorkUnitSize() {
