@@ -42,13 +42,11 @@ If building the distribution with tests turned on:
 
 # Instructions to run Apache RAT (Release Audit Tool)
 1. Extract the archive file to your local directory.
-2. Download gradle-wrapper.jar (version 2.13) and place it in the gradle/wrapper folder. See 'Instructions to download gradle wrapper' above.
-3. Run `./gradlew rat`. Report will be generated under build/rat/rat-report.html
+2. Run `./gradlew rat`. Report will be generated under build/rat/rat-report.html
 
 # Instructions to build the distribution
 1. Extract the archive file to your local directory.
-2. Download gradle-wrapper.jar (version 2.13) and place it in the gradle/wrapper folder. See 'Instructions to download gradle wrapper' above.
-3. Skip tests and build the distribution: 
+2. Skip tests and build the distribution: 
 Run `./gradlew build -x findbugsMain -x test -x rat -x checkstyleMain` 
 The distribution will be created in build/gobblin-distribution/distributions directory.
 (or)

@@ -64,6 +64,8 @@ This exception usually just means that a Hadoop Map Task running Gobblin Tasks t
 
 Add `-x test` to build the project without running the tests; this will make the exception go away. If one needs to run the tests then make sure [Java Cryptography Extension](https://en.wikipedia.org/wiki/Java_Cryptography_Extension) is installed.
 
+This exception also occurs when $JAVE_HOME not properly set, especially trying to build in Intellij/Eclipse. Try to execute `export JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk1.8.{your JDK version}.jdk/Contents/Home` in your IDE terminal.
+
 # Gradle
 
 ## Technical Questions
