@@ -152,10 +152,12 @@ class TestMetastoreDatabaseServer implements Closeable {
   }
 
   private MySqlJdbcUrl getInformationSchemaJdbcUrl() throws URISyntaxException {
+    // embedded mysql has an empty password by default
+    String password =  this.embeddedMysqlEnabled ? "" : ROOT_PASSWORD;
     return getBaseJdbcUrl()
         .setPath(INFORMATION_SCHEMA)
         .setUser(ROOT_USER)
-        .setPassword(ROOT_PASSWORD);
+        .setPassword(password);
   }
 
   private Optional<Connection> getConnector(MySqlJdbcUrl jdbcUrl) throws SQLException {
