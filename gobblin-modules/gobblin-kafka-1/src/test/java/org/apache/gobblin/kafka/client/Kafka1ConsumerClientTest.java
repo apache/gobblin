@@ -66,7 +66,8 @@ public class Kafka1ConsumerClientTest {
           ImmutableSet.of(new Kafka1ConsumerClient.Kafka1ConsumerRecord<>(record0),
               new Kafka1ConsumerClient.Kafka1ConsumerRecord<>(record1), new Kafka1ConsumerClient.Kafka1ConsumerRecord<>(record2));
       Assert.assertEquals(consumedRecords, expected);
-
+      Assert.assertEquals(-1, expected.iterator().next().getTimestamp());
+      Assert.assertEquals(false, expected.iterator().next().isTimestampLogAppend());
     }
 
   }

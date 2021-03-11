@@ -42,6 +42,7 @@ import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.metrics.KafkaMetric;
+import org.apache.kafka.common.record.TimestampType;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
@@ -313,6 +314,21 @@ public class Kafka1ConsumerClient<K, V> extends AbstractBaseKafkaConsumerClient 
       // Only 08 and 11 versions provide them.
       super(consumerRecord.offset(), consumerRecord.serializedValueSize() , consumerRecord.topic(), consumerRecord.partition());
       this.consumerRecord = consumerRecord;
+    }
+
+    /**
+     * @return true if the timestamp in the ConsumerRecord is the timestamp when the record is written to Kafka.
+     */
+    public boolean isTimestampLogAppend() {
+      return this.consumerRecord.timestampType() == TimestampType.LOG_APPEND_TIME;
+    }
+
+    @Override
+    /**
+     * @return the timestamp of the underlying ConsumerRecord.  NOTE: check TimestampType
+     */
+    public long getTimestamp() {
+      return this.consumerRecord.timestamp();
     }
 
     @Override
