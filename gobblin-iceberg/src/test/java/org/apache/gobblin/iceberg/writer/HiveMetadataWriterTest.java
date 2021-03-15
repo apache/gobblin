@@ -18,11 +18,13 @@
 package org.apache.gobblin.iceberg.writer;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 import java.io.File;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import org.apache.avro.SchemaBuilder;
@@ -32,10 +34,12 @@ import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumWriter;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.hive.HiveMetastoreClientPool;
 import org.apache.gobblin.hive.HivePartition;
 import org.apache.gobblin.hive.HiveRegister;
+import org.apache.gobblin.hive.HiveRegistrationUnit;
 import org.apache.gobblin.hive.HiveTable;
 import org.apache.gobblin.hive.policy.HiveRegistrationPolicyBase;
 import org.apache.gobblin.metadata.DataFile;
@@ -56,18 +60,24 @@ import org.apache.gobblin.util.ConfigUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.metastore.IMetaStoreClient;
+import org.apache.hadoop.hive.metastore.api.Database;
+import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
+import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.iceberg.FindFiles;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.expressions.Expressions;
 import org.apache.iceberg.hive.HiveMetastoreTest;
+import org.apache.iceberg.hive.TestHiveMetastore;
+import org.apache.thrift.TException;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 
-public class GobblinMCEWriterTest extends HiveMetastoreTest {
+public class HiveMetadataWriterTest extends HiveMetastoreTest {
 
   org.apache.avro.Schema avroDataSchema = SchemaBuilder.record("test")
       .fields()
@@ -92,9 +102,13 @@ public class GobblinMCEWriterTest extends HiveMetastoreTest {
   static File hourlyDataFile_2;
   static File hourlyDataFile_1;
   static File dailyDataFile;
+  HiveMetastoreClientPool hc;
+  IMetaStoreClient client;
+  private static TestHiveMetastore testHiveMetastore;
 
   @AfterClass
   public void clean() throws Exception {
+    //Finally stop the metaStore
     stopMetastore();
     gobblinMCEWriter.close();
     FileUtils.forceDeleteOnExit(tmpDir);
@@ -105,8 +119,15 @@ public class GobblinMCEWriterTest extends HiveMetastoreTest {
     startMetastore();
     State state = ConfigUtils.configToState(ConfigUtils.propertiesToConfig(hiveConf.getAllProperties()));
     Optional<String> metastoreUri = Optional.fromNullable(state.getProperties().getProperty(HiveRegister.HIVE_METASTORE_URI_KEY));
-    HiveMetastoreClientPool hc = HiveMetastoreClientPool.get(state.getProperties(), metastoreUri);
+    hc = HiveMetastoreClientPool.get(state.getProperties(), metastoreUri);
+    client = hc.getClient().get();
     tmpDir = Files.createTempDir();
+    try {
+      client.getDatabase(dbName);
+    } catch (NoSuchObjectException e) {
+      client.createDatabase(
+          new Database(dbName, "database", tmpDir.getAbsolutePath() + "/metastore", Collections.emptyMap()));
+    }
     hourlyDataFile_1 = new File(tmpDir, "data/tracking/testTable/hourly/2020/03/17/08/data.avro");
     Files.createParentDirs(hourlyDataFile_1);
     hourlyDataFile_2 = new File(tmpDir, "data/tracking/testTable/hourly/2020/03/17/09/data.avro");
@@ -143,34 +164,22 @@ public class GobblinMCEWriterTest extends HiveMetastoreTest {
         KafkaStreamTestUtils.MockSchemaRegistry.class.getName());
     state.setProp("default.hive.registration.policy",
         TestHiveRegistrationPolicy.class.getName());
+    state.setProp("gmce.metadata.writer.classes", "org.apache.gobblin.hive.writer.HiveMetadataWriter");
     gobblinMCEWriter = new GobblinMCEWriter(new GobblinMCEWriterBuilder(), state);
-    ((IcebergMetadataWriter) gobblinMCEWriter.getMetadataWriters().iterator().next()).setCatalog(
-        HiveMetastoreTest.catalog);
-    _avroPartitionSchema =
-        SchemaBuilder.record("partitionTest").fields().name("ds").type().optional().stringType().endRecord();
   }
 
-  @Test
-  public void testWriteAddFileGMCE() throws IOException {
+  @Test( priority = 3 )
+  public void testHiveWriteAddFileGMCE() throws IOException {
     gobblinMCEWriter.writeEnvelope(new RecordEnvelope<>(gmce,
         new KafkaStreamingExtractor.KafkaWatermark(
             new KafkaPartition.Builder().withTopicName("GobblinMetadataChangeEvent_test").withId(1).build(),
             new LongWatermark(10L))));
-    Assert.assertEquals(catalog.listTables(Namespace.of(dbName)).size(), 1);
-    Table table = catalog.loadTable(catalog.listTables(Namespace.of(dbName)).get(0));
-    Assert.assertFalse(table.properties().containsKey("offset.range.testTopic-1"));
-    gmce.setTopicPartitionOffsetsRange(ImmutableMap.<String, String>builder().put("testTopic-1", "1000-2000").build());
     gobblinMCEWriter.writeEnvelope(new RecordEnvelope<>(gmce,
         new KafkaStreamingExtractor.KafkaWatermark(
             new KafkaPartition.Builder().withTopicName("GobblinMetadataChangeEvent_test").withId(1).build(),
             new LongWatermark(20L))));
     gobblinMCEWriter.flush();
-    table = catalog.loadTable(catalog.listTables(Namespace.of(dbName)).get(0));
-    Assert.assertEquals(table.properties().get("offset.range.testTopic-1"), "0-2000");
-    Assert.assertEquals(table.currentSnapshot().allManifests().size(), 1);
-    // Assert low watermark and high watermark set properly
-    Assert.assertEquals(table.properties().get("gmce.low.watermark.GobblinMetadataChangeEvent_test-1"), "9");
-    Assert.assertEquals(table.properties().get("gmce.high.watermark.GobblinMetadataChangeEvent_test-1"), "20");
+
 
     /*test flush twice*/
     gmce.setTopicPartitionOffsetsRange(ImmutableMap.<String, String>builder().put("testTopic-1", "2000-3000").build());
@@ -184,26 +193,20 @@ public class GobblinMCEWriterTest extends HiveMetastoreTest {
             new KafkaPartition.Builder().withTopicName("GobblinMetadataChangeEvent_test").withId(1).build(),
             new LongWatermark(30L))));
     gobblinMCEWriter.flush();
-    table = catalog.loadTable(catalog.listTables(Namespace.of(dbName)).get(0));
-    Assert.assertEquals(table.properties().get("offset.range.testTopic-1"), "0-3000");
-    Assert.assertEquals(table.currentSnapshot().allManifests().size(), 2);
-    Assert.assertEquals(table.properties().get("gmce.low.watermark.GobblinMetadataChangeEvent_test-1"), "20");
-    Assert.assertEquals(table.properties().get("gmce.high.watermark.GobblinMetadataChangeEvent_test-1"), "30");
 
-    /* Test it will skip event with lower watermark*/
-    gmce.setTopicPartitionOffsetsRange(ImmutableMap.<String, String>builder().put("testTopic-1", "3000-4000").build());
-    gobblinMCEWriter.writeEnvelope(new RecordEnvelope<>(gmce,
-        new KafkaStreamingExtractor.KafkaWatermark(
-            new KafkaPartition.Builder().withTopicName("GobblinMetadataChangeEvent_test").withId(1).build(),
-            new LongWatermark(30L))));
-    gobblinMCEWriter.flush();
-    table = catalog.loadTable(catalog.listTables(Namespace.of(dbName)).get(0));
-    Assert.assertEquals(table.properties().get("offset.range.testTopic-1"), "0-3000");
-    Assert.assertEquals(table.currentSnapshot().allManifests().size(), 2);
+    //Test Hive writer can register partition
+    try {
+      Assert.assertTrue(client.tableExists("hivedb", "testTable"));
+      Assert.assertTrue(client.getPartition("hivedb", "testTable",Lists.newArrayList("2020-03-17-09")) != null);
+      Assert.assertTrue(client.getPartition("hivedb", "testTable",Lists.newArrayList("2020-03-17-08")) != null);
+    } catch (TException e) {
+      throw new IOException(e);
+    }
+
   }
 
-  @Test(dependsOnMethods = {"testWriteAddFileGMCE"})
-  public void testWriteRewriteFileGMCE() throws IOException {
+  @Test(dependsOnMethods = {"testHiveWriteAddFileGMCE"})
+  public void testHiveWriteRewriteFileGMCE() throws IOException {
     gmce.setTopicPartitionOffsetsRange(null);
     FileSystem fs = FileSystem.get(new Configuration());
     String filePath = new Path(hourlyDataFile_1.getParentFile().getAbsolutePath()).toString();
@@ -216,25 +219,23 @@ public class GobblinMCEWriterTest extends HiveMetastoreTest {
     gmce.setNewFiles(Lists.newArrayList(dailyFile));
     gmce.setOldFilePrefixes(Lists.newArrayList(filePath, filePath_1));
     gmce.setOperationType(OperationType.rewrite_files);
-    Table table = catalog.loadTable(catalog.listTables(Namespace.of(dbName)).get(0));
-    Iterator<org.apache.iceberg.DataFile>
-        result = FindFiles.in(table).withMetadataMatching(Expressions.startsWith("file_path", filePath_1)).collect().iterator();
-    Assert.assertEquals(table.currentSnapshot().allManifests().size(), 2);
-    Assert.assertTrue(result.hasNext());
     gobblinMCEWriter.writeEnvelope(new RecordEnvelope<>(gmce,
         new KafkaStreamingExtractor.KafkaWatermark(
             new KafkaPartition.Builder().withTopicName("GobblinMetadataChangeEvent_test").withId(1).build(),
             new LongWatermark(40L))));
     gobblinMCEWriter.flush();
-    table = catalog.loadTable(catalog.listTables(Namespace.of(dbName)).get(0));
-    String dailyFilePath = new Path(dailyDataFile.toString()).toString();
-    result = FindFiles.in(table).withMetadataMatching(Expressions.startsWith("file_path", dailyFilePath)).collect().iterator();
-    Assert.assertEquals(result.next().path(), dailyFilePath);
-    Assert.assertFalse(result.hasNext());
-    result = FindFiles.in(table).withMetadataMatching(Expressions.startsWith("file_path", filePath)).collect().iterator();
-    Assert.assertFalse(result.hasNext());
-    result = FindFiles.in(table).withMetadataMatching(Expressions.startsWith("file_path", filePath_1)).collect().iterator();
-    Assert.assertFalse(result.hasNext());
+
+    //Test hive writer re-write operation can de-register old partitions and register new one
+    try {
+       Assert.assertTrue(client.getPartition("hivedb", "testTable",Lists.newArrayList("2020-03-17-00")) != null);
+    } catch (TException e) {
+      throw new IOException(e);
+    }
+    Assert.assertThrows(new Assert.ThrowingRunnable() {
+      @Override public void run() throws Throwable {
+        client.getPartition("hivedb", "testTable",Lists.newArrayList("2020-03-17-08"));
+      }
+    });
   }
 
   private String writeRecord(File file) throws IOException {
@@ -256,8 +257,28 @@ public class GobblinMCEWriterTest extends HiveMetastoreTest {
       super(props);
     }
     protected Optional<HivePartition> getPartition(Path path, HiveTable table) throws IOException {
-      return Optional.of(new HivePartition.Builder().withPartitionValues(Lists.newArrayList("2020-03-17-03"))
-          .withDbName("hivedb").withTableName("testTable").build());
+      String partitionValue = "";
+      if (path.toString().contains("hourly/2020/03/17/08")) {
+        partitionValue = "2020-03-17-08";
+      } else if (path.toString().contains("hourly/2020/03/17/09")) {
+        partitionValue = "2020-03-17-09";
+      } else if (path.toString().contains("daily/2020/03/17")) {
+        partitionValue = "2020-03-17-00";
+      }
+      HivePartition partition = new HivePartition.Builder().withPartitionValues(Lists.newArrayList(partitionValue))
+          .withDbName("hivedb").withTableName("testTable").build();
+      partition.setLocation(path.toString());
+      return Optional.of(partition);
+    }
+    @Override
+    protected List<HiveTable> getTables(Path path) throws IOException {
+      List<HiveTable> tables = super.getTables(path);
+      for (HiveTable table : tables) {
+        table.setPartitionKeys(ImmutableList.<HiveRegistrationUnit.Column>of(
+            new HiveRegistrationUnit.Column("testpartition", serdeConstants.STRING_TYPE_NAME, StringUtils.EMPTY)));
+        table.setLocation(tmpDir.getAbsolutePath());
+      }
+      return tables;
     }
     protected Iterable<String> getDatabaseNames(Path path) {
       return Lists.newArrayList("hivedb");

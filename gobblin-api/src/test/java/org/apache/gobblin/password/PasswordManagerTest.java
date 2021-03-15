@@ -55,10 +55,10 @@ public class PasswordManagerTest {
     Assert.assertEquals(PasswordManager.getInstance(state).readPassword(password), password);
   }
 
-  @Test (enabled=false)
+  @Test (enabled=true)
   public void testBasicEncryptionAndDecryption() throws IOException {
-    String password = UUID.randomUUID().toString();
-    String masterPassword = UUID.randomUUID().toString();
+    String password = "3MVG9yZ.WNe6byQBhyn4d2xwaM5f1.4.JTjDZV748G8M2O.SX1LjuA2Qn1c8EGMzC3zso.2JwTrJIfOpGn4WA";
+    String masterPassword = "9NA4ffM9zw";
     File masterPwdFile = getMasterPwdFile(masterPassword);
     State state = new State();
     state.setProp(ConfigurationKeys.ENCRYPT_KEY_LOC, masterPwdFile.toString());
