@@ -32,6 +32,7 @@ import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
 import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
+import org.apache.gobblin.source.extractor.extract.kafka.workunit.packer.KafkaTopicGroupingWorkUnitPacker;
 import org.apache.gobblin.util.event.ContainerHealthCheckFailureEvent;
 import org.apache.gobblin.util.eventbus.EventBusFactory;
 
@@ -56,7 +57,7 @@ public class KafkaIngestionHealthCheckTest {
   public void testExecuteIncreasingLatencyCheckEnabled()
       throws InterruptedException {
     this.countDownLatch = new CountDownLatch(1);
-    Config config = ConfigFactory.empty().withValue(KafkaIngestionHealthCheck.KAFKA_INGESTION_HEALTH_CHECK_EXPECTED_CONSUMPTION_RATE_MBPS_KEY,
+    Config config = ConfigFactory.empty().withValue(KafkaTopicGroupingWorkUnitPacker.CONTAINER_CAPACITY_KEY,
         ConfigValueFactory.fromAnyRef(5))
         .withValue(KafkaIngestionHealthCheck.KAFKA_INGESTION_HEALTH_CHECK_LATENCY_THRESHOLD_MINUTES_KEY, ConfigValueFactory.fromAnyRef(5));
 
@@ -114,7 +115,7 @@ public class KafkaIngestionHealthCheckTest {
       throws InterruptedException {
     this.countDownLatch = new CountDownLatch(1);
 
-    Config config = ConfigFactory.empty().withValue(KafkaIngestionHealthCheck.KAFKA_INGESTION_HEALTH_CHECK_EXPECTED_CONSUMPTION_RATE_MBPS_KEY,
+    Config config = ConfigFactory.empty().withValue(KafkaTopicGroupingWorkUnitPacker.CONTAINER_CAPACITY_KEY,
         ConfigValueFactory.fromAnyRef(5))
         .withValue(KafkaIngestionHealthCheck.KAFKA_INGESTION_HEALTH_CHECK_LATENCY_THRESHOLD_MINUTES_KEY, ConfigValueFactory.fromAnyRef(5))
         .withValue(KafkaIngestionHealthCheck.KAFKA_INGESTION_HEALTH_CHECK_INCREASING_LATENCY_CHECK_ENABLED_KEY, ConfigValueFactory.fromAnyRef(false));

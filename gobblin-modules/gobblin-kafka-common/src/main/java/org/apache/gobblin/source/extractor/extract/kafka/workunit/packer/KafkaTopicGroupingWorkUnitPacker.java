@@ -187,6 +187,10 @@ public class KafkaTopicGroupingWorkUnitPacker extends KafkaWorkUnitPacker {
         containerCapacity = getContainerCapacityForTopic(capacitiesByTopic.get(topic), this.containerCapacityComputationStrategy);
         log.info("Container capacity for topic {}: {}", topic, containerCapacity);
       }
+      //Add CONTAINER_CAPACITY into each workunit. Useful when KafkaIngestionHealthCheck is enabled.
+      for (WorkUnit workUnit: workUnitsForTopic) {
+        workUnit.setProp(CONTAINER_CAPACITY_KEY, containerCapacity);
+      }
       double estimatedDataSizeForTopic = calcTotalEstSizeForTopic(workUnitsForTopic);
       int previousSize = mwuGroups.size();
       if (estimatedDataSizeForTopic < containerCapacity) {
