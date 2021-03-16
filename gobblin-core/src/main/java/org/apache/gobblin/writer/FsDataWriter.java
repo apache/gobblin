@@ -19,21 +19,14 @@ package org.apache.gobblin.writer;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
-import com.typesafe.config.ConfigRenderOptions;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import org.apache.gobblin.codec.StreamCodec;
 import org.apache.gobblin.commit.SpeculativeAttemptAwareConstruct;
-import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.dataset.DatasetDescriptor;
@@ -55,8 +48,6 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.apache.gobblin.util.retry.RetryerFactory.*;
-
 
 /**
  * An implementation of {@link DataWriter} does the work of setting the output/staging dir
@@ -70,8 +61,6 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
 
   public static final String WRITER_INCLUDE_RECORD_COUNT_IN_FILE_NAMES =
       ConfigurationKeys.WRITER_PREFIX + ".include.record.count.in.file.names";
-  public static final String WRITER_RETRY_PREFIX = ConfigurationKeys.WRITER_PREFIX + ".retry.";
-  public static final String WRITER_RETRY_ENABLED = WRITER_RETRY_PREFIX + "enabled";
   public static final String FS_WRITER_METRICS_KEY = "fs_writer_metrics";
 
   protected final State properties;
@@ -97,17 +86,6 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
   protected final Optional<String> writerAttemptIdOptional;
   protected Optional<Long> bytesWritten;
   private final List<StreamCodec> encoders;
-  static final Config WRITER_RETRY_DEFAULTS;
-  static {
-    Map<String, Object> configMap =
-        ImmutableMap.<String, Object>builder()
-            .put(RETRY_TIME_OUT_MS, TimeUnit.MINUTES.toMillis(2L))   //Overall retry for 2 minutes
-            .put(RETRY_INTERVAL_MS, TimeUnit.SECONDS.toMillis(5L)) //Try to retry 5 seconds
-            .put(RETRY_MULTIPLIER, 2L) // Muliply by 2 every attempt
-            .put(RETRY_TYPE, RetryType.EXPONENTIAL.name())
-            .build();
-    WRITER_RETRY_DEFAULTS = ConfigFactory.parseMap(configMap);
-  };
 
   public FsDataWriter(FsDataWriterBuilder<?, ?> builder, State properties) throws IOException {
     this.properties = properties;
@@ -123,8 +101,8 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
     JobConfigurationUtils.putStateIntoConfiguration(properties, conf);
     this.fs = WriterUtils.getWriterFS(properties, this.numBranches, this.branchId);
     this.fileContext = FileContext.getFileContext(
-            WriterUtils.getWriterFsUri(properties, this.numBranches, this.branchId),
-            conf);
+        WriterUtils.getWriterFsUri(properties, this.numBranches, this.branchId),
+        conf);
 
     // Initialize staging/output directory
     Path writerStagingDir = this.writerAttemptIdOptional.isPresent() ? WriterUtils
@@ -153,7 +131,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
         ConfigurationKeys.DEFAULT_BUFFER_SIZE);
 
     this.replicationFactor = properties.getPropAsShort(ForkOperatorUtils
-        .getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_REPLICATION_FACTOR, this.numBranches, this.branchId),
+            .getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_REPLICATION_FACTOR, this.numBranches, this.branchId),
         this.fs.getDefaultReplication(this.outputFile));
 
     this.blockSize = properties.getPropAsLong(ForkOperatorUtils
@@ -168,20 +146,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
         .getPropertyNameForBranch(ConfigurationKeys.WRITER_GROUP_NAME, this.numBranches, this.branchId)));
 
     // Create the parent directory of the output file if it does not exist
-    boolean shouldRetry = properties.getPropAsBoolean(WRITER_RETRY_ENABLED, false);
-    Config retrierConfig;
-    if (shouldRetry) {
-      retrierConfig = ConfigBuilder.create()
-          .loadProps(properties.getProperties(), WRITER_RETRY_PREFIX)
-          .build()
-          .withFallback(WRITER_RETRY_DEFAULTS);
-      LOG.info("Retry enabled for writer with config : "+ retrierConfig.root().render(ConfigRenderOptions.concise()));
-
-    }else {
-      LOG.info("Retry disabled for writer.");
-      retrierConfig = WriterUtils.NO_RETRY_CONFIG;
-    }
-    WriterUtils.mkdirsWithRecursivePermissionWithRetry(this.fs, this.outputFile.getParent(), this.dirPermission, retrierConfig);
+    WriterUtils.mkdirsWithRecursivePermission(this.fs, this.outputFile.getParent(), this.dirPermission);
     this.bytesWritten = Optional.absent();
 
     this.defaultMetadata = new GlobalMetadata();
@@ -310,7 +275,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
         ImmutableSet.of(new FsWriterMetrics.FileInfo(this.outputFile.getName(), recordsWritten()))
     );
     this.properties.setProp(FS_WRITER_METRICS_KEY, metrics.toJson());
- }
+  }
 
   /**
    * {@inheritDoc}.
