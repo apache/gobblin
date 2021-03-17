@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Properties;
 
 import lombok.Getter;
+import lombok.Setter;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
@@ -93,6 +94,8 @@ public class HiveDataset implements PrioritizedCopyableDataset {
   public static final String LOGICAL_DB_TOKEN = "$LOGICAL_DB";
   public static final String LOGICAL_TABLE_TOKEN = "$LOGICAL_TABLE";
 
+  @Getter
+  @Setter
   private String datasetPath;
 
   // Will not be serialized/de-serialized
@@ -335,12 +338,4 @@ public class HiveDataset implements PrioritizedCopyableDataset {
     return true;
   }
 
-  @Override
-  public String getDatasetPath() {
-    return datasetPath;
-  }
-
-  public void setDatasetPath(String path) {
-    this.datasetPath = path;
-  }
 }
