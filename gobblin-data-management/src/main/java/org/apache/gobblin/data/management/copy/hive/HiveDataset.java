@@ -93,7 +93,7 @@ public class HiveDataset implements PrioritizedCopyableDataset {
   public static final String LOGICAL_DB_TOKEN = "$LOGICAL_DB";
   public static final String LOGICAL_TABLE_TOKEN = "$LOGICAL_TABLE";
 
-  public String datasetPath;
+  private String datasetPath;
 
   // Will not be serialized/de-serialized
   @Getter
