@@ -41,9 +41,7 @@ public class DestinationDatasetHandlerService implements Closeable {
   public DestinationDatasetHandlerService(SourceState jobState, Boolean canCleanUp, EventSubmitter eventSubmitter) {
     this.handlers = new ArrayList<>();
     if (jobState.contains(ConfigurationKeys.DESTINATION_DATASET_HANDLER_CLASS)) {
-      String[] handlerList = jobState.getProp(ConfigurationKeys.DESTINATION_DATASET_HANDLER_CLASS)
-          .replaceAll("\\s", "") // cleans out whitespace
-          .split(",");
+      List<String> handlerList = jobState.getPropAsList(ConfigurationKeys.DESTINATION_DATASET_HANDLER_CLASS);
       for (String handlerClass : handlerList) {
         this.handlers.add(DestinationDatasetHandlerFactory.newInstance(handlerClass, jobState, canCleanUp));
       }

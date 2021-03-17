@@ -142,12 +142,6 @@ public class HiveCopyEntityHelper {
    * partitions with Path containing '/Hourly/' will be kept.
    */
   public static final String HIVE_PARTITION_EXTENDED_FILTER_TYPE = HiveDatasetFinder.HIVE_DATASET_PREFIX + ".extendedFilterType";
-
-
-  /**
-   * Config to specify class for ensuring that the target directory exists, generally for cloud providers
-   * */
-
   static final Gson gson = new Gson();
 
   private static final String source_client = "source_client";
@@ -315,9 +309,7 @@ public class HiveCopyEntityHelper {
         }
 
         Path targetPath = getTargetLocation(this.targetFs, this.dataset.table.getDataLocation(), Optional.<Partition>absent());
-        if (MapUtils.getBoolean(this.dataset.getProperties(), ConfigurationKeys.USE_DATASET_LOCAL_WORK_DIR, false)) {
-          this.dataset.datasetPath = targetPath.toUri().getRawPath();
-        }
+        this.dataset.setDatasetPath(targetPath.toUri().getRawPath());
 
         this.targetTable = getTargetTable(this.dataset.table, targetPath);
         HiveSpec tableHiveSpec = new SimpleHiveSpec.Builder<>(targetPath)

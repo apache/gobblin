@@ -18,7 +18,6 @@
 package org.apache.gobblin.data.management.copy;
 
 import org.apache.gobblin.dataset.Dataset;
-import org.apache.hadoop.fs.Path;
 
 
 /**

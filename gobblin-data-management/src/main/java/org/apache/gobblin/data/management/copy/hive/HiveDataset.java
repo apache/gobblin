@@ -339,4 +339,8 @@ public class HiveDataset implements PrioritizedCopyableDataset {
   public String getDatasetPath() {
     return datasetPath;
   }
+
+  public void setDatasetPath(String path) {
+    this.datasetPath = path;
+  }
 }
