@@ -406,7 +406,7 @@ public class HiveCopyEntityHelperTest {
         new LocalFileSystem()
     );
 
-    Assert.assertEquals(helper.getDataset().datasetPath, "/testPath/db/table");
+    Assert.assertEquals(helper.getDataset().getDatasetPath(), "/testPath/db/table");
   }
 
   @Test
@@ -429,7 +429,7 @@ public class HiveCopyEntityHelperTest {
         new LocalFileSystem()
     );
 
-    Assert.assertEquals(helper.getDataset().datasetPath, "/targetPath/db/table");
+    Assert.assertEquals(helper.getDataset().getDatasetPath(), "/targetPath/db/table");
   }
 
   private boolean containsPath(Collection<FileStatus> statuses, Path path) {
