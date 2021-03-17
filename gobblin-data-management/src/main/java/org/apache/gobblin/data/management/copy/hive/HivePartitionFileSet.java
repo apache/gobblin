@@ -85,7 +85,7 @@ public class HivePartitionFileSet extends HiveFileSet {
       stepPriority = hiveCopyEntityHelper.addSharedSteps(copyEntities, fileSet, stepPriority);
 
       multiTimer.nextStage(HiveCopyEntityHelper.Stages.COMPUTE_TARGETS);
-      Path targetPath = hiveCopyEntityHelper.getTargetLocation(hiveCopyEntityHelper.getDataset().fs, hiveCopyEntityHelper.getTargetFs(),
+      Path targetPath = hiveCopyEntityHelper.getTargetLocation(hiveCopyEntityHelper.getTargetFs(),
           this.partition.getDataLocation(), Optional.of(this.partition));
       Partition targetPartition = getTargetPartition(this.partition, targetPath);
 

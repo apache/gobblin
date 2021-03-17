@@ -79,8 +79,6 @@ import org.apache.gobblin.util.WriterUtils;
 @Slf4j
 public class CopyDataPublisher extends DataPublisher implements UnpublishedHandling {
 
-  private final Path writerOutputDir;
-
   @Override
   public boolean isThreadSafe() {
     return this.getClass() == CopyDataPublisher.class;
@@ -115,10 +113,6 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
 
     String uri = this.state.getProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, ConfigurationKeys.LOCAL_FS_URI);
     this.fs = FileSystem.get(URI.create(uri), WriterUtils.getFsConfiguration(state));
-
-    FileAwareInputStreamDataWriterBuilder.setJobSpecificOutputPaths(state);
-
-    this.writerOutputDir = new Path(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR));
 
     MetricContext metricContext =
         Instrumented.getMetricContext(state, CopyDataPublisher.class, GobblinMetrics.getCustomTagsFromState(state));
@@ -225,9 +219,16 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
     Preconditions.checkArgument(!datasetWorkUnitStates.isEmpty(),
         "publishFileSet received an empty collection work units. This is an error in code.");
 
-    CopyableDatasetMetadata metadata = CopyableDatasetMetadata
-        .deserialize(datasetWorkUnitStates.iterator().next().getProp(CopySource.SERIALIZED_COPYABLE_DATASET));
-    Path datasetWriterOutputPath = new Path(this.writerOutputDir, datasetAndPartition.identifier());
+    WorkUnitState sampledWorkUnitState =  datasetWorkUnitStates.iterator().next();
+
+    CopyableDatasetMetadata metadata = CopyableDatasetMetadata.deserialize(
+        sampledWorkUnitState.getProp(CopySource.SERIALIZED_COPYABLE_DATASET));
+
+    // If not already done, ensure that the writer outputs have the job ID appended to avoid corruption from previous runs
+    FileAwareInputStreamDataWriterBuilder.setJobSpecificOutputPaths(sampledWorkUnitState);
+    Path writerOutputDir = new Path(sampledWorkUnitState.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR));
+
+    Path datasetWriterOutputPath = new Path(writerOutputDir, datasetAndPartition.identifier());
 
     log.info("Merging all split work units.");
     DistcpFileSplitter.mergeAllSplitWorkUnits(this.fs, datasetWorkUnitStates);

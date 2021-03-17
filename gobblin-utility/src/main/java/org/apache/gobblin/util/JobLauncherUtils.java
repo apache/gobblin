@@ -132,10 +132,9 @@ public class JobLauncherUtils {
    * @param logger a {@link Logger} used for logging
    */
   public static void cleanJobStagingData(State state, Logger logger) throws IOException {
-    Preconditions.checkArgument(state.contains(ConfigurationKeys.WRITER_STAGING_DIR),
-        "Missing required property " + ConfigurationKeys.WRITER_STAGING_DIR);
-    Preconditions.checkArgument(state.contains(ConfigurationKeys.WRITER_OUTPUT_DIR),
-        "Missing required property " + ConfigurationKeys.WRITER_OUTPUT_DIR);
+    if (!state.contains(ConfigurationKeys.WRITER_STAGING_DIR) || !state.contains(ConfigurationKeys.WRITER_OUTPUT_DIR)) {
+      return;
+    }
 
     String writerFsUri = state.getProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, ConfigurationKeys.LOCAL_FS_URI);
     FileSystem fs = getFsWithProxy(state, writerFsUri, WriterUtils.getFsConfiguration(state));
@@ -267,7 +266,7 @@ public class JobLauncherUtils {
    * @return
    * @throws IOException
    */
-  private static FileSystem getFsWithProxy(final State state, final String fsUri, final Configuration conf) throws IOException {
+  public static FileSystem getFsWithProxy(final State state, final String fsUri, final Configuration conf) throws IOException {
     if (!state.getPropAsBoolean(ConfigurationKeys.SHOULD_FS_PROXY_AS_USER,
         ConfigurationKeys.DEFAULT_SHOULD_FS_PROXY_AS_USER)) {
       return FileSystem.get(URI.create(fsUri), conf);

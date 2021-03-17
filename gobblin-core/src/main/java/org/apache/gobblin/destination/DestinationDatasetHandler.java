@@ -15,16 +15,27 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.data.management.copy;
+package org.apache.gobblin.destination;
 
-import org.apache.gobblin.dataset.Dataset;
-import org.apache.hadoop.fs.Path;
-
+import java.io.Closeable;
+import java.io.IOException;
+import java.util.Collection;
+import org.apache.gobblin.source.workunit.WorkUnit;
 
 /**
- * A common superinterface for {@link Dataset}s that can be operated on by distcp.
- * Concrete classes must implement a subinterface of this interface ({@link CopyableDataset} or {@link IterableCopyableDataset}).
+ * Performs work related to initializing the target environment before the files are written and published
  */
-public interface CopyableDatasetBase extends Dataset {
-  default String getDatasetPath() { return ""; }
+public interface DestinationDatasetHandler extends Closeable {
+
+  /**
+   * Handle destination setup before workunits are sent to writer and publisher
+   * @param workUnits
+   */
+  void handle(Collection<WorkUnit> workUnits) throws IOException;
+
+  /**
+   * Perform cleanup if needed
+   * @throws IOException
+   */
+  void close() throws IOException;
 }
