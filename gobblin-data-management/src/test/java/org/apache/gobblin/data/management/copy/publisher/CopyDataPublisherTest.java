@@ -236,11 +236,12 @@ public class CopyDataPublisherTest {
     private Path targetPath;
     private FileSystem fs;
     private CopyEntity copyEntity;
+    State state;
 
     private void createDatasetFiles() throws IOException {
       // Create writer output files
       Path datasetWriterOutputPath =
-          new Path(writerOutputPath, copyEntity.getDatasetAndPartition(this.metadata).identifier());
+          new Path(writerOutputPath + "/" + state.getProp(ConfigurationKeys.JOB_ID_KEY), copyEntity.getDatasetAndPartition(this.metadata).identifier());
       Path outputPathWithCurrentDirectory = new Path(datasetWriterOutputPath,
           PathUtils.withoutLeadingSeparator(this.targetPath));
       for (String path : relativeFilePaths) {
@@ -259,7 +260,7 @@ public class CopyDataPublisherTest {
       this.metadata = new CopyableDatasetMetadata(this.copyableDataset);
       this.relativeFilePaths = relativeFilePaths;
       this.writerOutputPath = new Path(state.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR));
-
+      this.state = state;
       this.targetPath = new Path(testMethodTempPath, datasetTargetPath);
 
       FileStatus file = new FileStatus(0, false, 0, 0, 0, new Path("/file"));
@@ -277,6 +278,7 @@ public class CopyDataPublisherTest {
       List<WorkUnitState> workUnitStates =
           Lists.newArrayList(new WorkUnitState(), new WorkUnitState(), new WorkUnitState());
       for (WorkUnitState wus : workUnitStates) {
+        wus.addAll(this.state); // propagate job state into work unit state, this is always done in copysource workunit generation
         CopySource.serializeCopyableDataset(wus, metadata);
         CopySource.serializeCopyEntity(wus, this.copyEntity);
       }

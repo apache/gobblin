@@ -16,13 +16,16 @@
  */
 
 package org.apache.gobblin.data.management.copy;
-
+import com.google.common.io.Files;
+import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Iterator;
 import java.util.List;
-
+import java.util.Properties;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.util.request_allocation.RequestAllocatorConfig;
@@ -189,5 +192,41 @@ public class CopySourceTest {
     Assert.assertEquals(fileSet.getDataset().getUrn(), "/test");
     Assert.assertEquals(fileSet.getTotalEntities(), 5);
     Assert.assertEquals(fileSet.getTotalSizeInBytes(), 50);
+  }
+
+  @Test
+  public void testDefaultHiveDatasetShardTempPaths()
+      throws IOException, NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+    SourceState state = new SourceState();
+    Properties copyProperties = new Properties();
+    copyProperties.put(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, "/target");
+    File tempDir = Files.createTempDir();
+    String tempDirRoot = tempDir.getPath();
+    tempDir.deleteOnExit();
+
+    state.setProp(ConfigurationKeys.SOURCE_FILEBASED_FS_URI, "file:///");
+    state.setProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, "file:///");
+    state.setProp("hive.dataset.whitelist", "testDB.table*"); // using a mock class so the finder will always find 3 tables regardless of this setting
+    state.setProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, "/target/dir");
+    state.setProp(DatasetUtils.DATASET_PROFILE_CLASS_KEY, MockHiveDatasetFinder.class.getName());
+    state.setProp(ConfigurationKeys.USE_DATASET_LOCAL_WORK_DIR, "true");
+    state.setProp("tempDirRoot", tempDirRoot);
+    state.setProp(CopyConfiguration.STORE_REJECTED_REQUESTS_KEY,
+        RequestAllocatorConfig.StoreRejectedRequestsConfig.ALL.name().toLowerCase());
+    state.setProp(ConfigurationKeys.JOB_NAME_KEY, "jobName");
+    state.setProp(ConfigurationKeys.JOB_ID_KEY, "jobId");
+    CopySource source = new CopySource();
+
+    List<WorkUnit> workunits = source.getWorkunits(state);
+    workunits = JobLauncherUtils.flattenWorkUnits(workunits);
+    Assert.assertEquals(workunits.size(), 6); // workunits are created for pre and post publish steps
+
+    // workunits are not guaranteed to be created in any order, remove duplicate paths
+    Set<String> datasetPaths = workunits.stream().map(w -> w.getProp(ConfigurationKeys.DATASET_DESTINATION_PATH)).collect(
+        Collectors.toSet());
+
+    for (int i = 0; i < 3; i++) {
+      Assert.assertEquals(datasetPaths.contains(tempDirRoot + "/targetPath/testDB/table" + i), true);
+    }
   }
 }

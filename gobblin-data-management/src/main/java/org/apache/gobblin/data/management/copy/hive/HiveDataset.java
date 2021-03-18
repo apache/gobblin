@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Properties;
 
 import lombok.Getter;
+import lombok.Setter;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
@@ -86,13 +87,16 @@ public class HiveDataset implements PrioritizedCopyableDataset {
   public static final String DATASET_NAME_PATTERN_KEY = "hive.datasetNamePattern";
   public static final String DATABASE = "Database";
   public static final String TABLE = "Table";
-  public static final String DATASET_STAGING_PATH = "dataset.staging.path";
 
   public static final String DATABASE_TOKEN = "$DB";
   public static final String TABLE_TOKEN = "$TABLE";
 
   public static final String LOGICAL_DB_TOKEN = "$LOGICAL_DB";
   public static final String LOGICAL_TABLE_TOKEN = "$LOGICAL_TABLE";
+
+  @Getter
+  @Setter
+  private String datasetPath;
 
   // Will not be serialized/de-serialized
   @Getter
@@ -128,11 +132,6 @@ public class HiveDataset implements PrioritizedCopyableDataset {
         Optional.fromNullable(this.table.getDataLocation());
 
     this.tableIdentifier = this.table.getDbName() + "." + this.table.getTableName();
-    Path tableLocation = this.table.getPath();
-    if (!(this.properties.isEmpty())) {
-      String datasetStagingDir = this.properties.getProperty(COPY_TARGET_TABLE_PREFIX_REPLACEMENT) + "/" + tableLocation.getName();
-      properties.setProperty(DATASET_STAGING_PATH,datasetStagingDir);
-    }
 
     this.datasetNamePattern = Optional.fromNullable(ConfigUtils.getString(datasetConfig, DATASET_NAME_PATTERN_KEY, null));
     this.dbAndTable = new DbAndTable(table.getDbName(), table.getTableName());
@@ -338,4 +337,5 @@ public class HiveDataset implements PrioritizedCopyableDataset {
     }
     return true;
   }
+
 }

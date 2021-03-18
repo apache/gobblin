@@ -210,7 +210,6 @@ public class ConfigurationKeys {
   public static final String MAXIMUM_JAR_COPY_RETRY_TIMES_KEY = JOB_JAR_FILES_KEY + ".uploading.retry.maximum";
   public static final String USER_DEFINED_STATIC_STAGING_DIR = "user.defined.static.staging.dir";
   public static final String USER_DEFINED_STAGING_DIR_FLAG = "user.defined.staging.dir.flag";
-  public static final String IS_DATASET_STAGING_DIR_USED = "dataset.staging.dir.used";
 
   public static final String QUEUED_TASK_TIME_MAX_SIZE = "taskexecutor.queued_task_time.history.max_size";
   public static final int DEFAULT_QUEUED_TASK_TIME_MAX_SIZE = 2048;
@@ -1062,4 +1061,14 @@ public class ConfigurationKeys {
    */
   public static final String TASK_EVENT_METADATA_GENERATOR_CLASS_KEY = "gobblin.task.event.metadata.generator.class";
   public static final String DEFAULT_TASK_EVENT_METADATA_GENERATOR_CLASS_KEY = "nooptask";
+
+  /**
+   * Configuration for sharded directory files
+   */
+  public static final String USE_DATASET_LOCAL_WORK_DIR = "gobblin.useDatasetLocalWorkDir";
+  public static final String DESTINATION_DATASET_HANDLER_CLASS = "gobblin.destination.datasetHandlerClass";
+  public static final String DATASET_DESTINATION_PATH = "gobblin.dataset.destination.path";
+  public static final String STAGING_DIR_DEFAULT_SUFFIX = "/.temp/taskStaging";
+  public static final String OUTPUT_DIR_DEFAULT_SUFFIX = "/.temp/taskOutput";
+  public static final String ROW_LEVEL_ERR_FILE_DEFAULT_SUFFIX = "/err";
 }
