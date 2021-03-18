@@ -48,7 +48,31 @@ public class TestUtils {
   private static final char[] alphas = new char[26];
 
   public static Long generateRandomLong() {
-    return rng.nextLong();
+    int choice = rng.nextInt(20);
+    switch (choice) {
+      case 0: return Long.MIN_VALUE;
+      case 1: return Long.MAX_VALUE;
+      case 2: return 0L;
+      default: return rng.nextLong();
+    }
+  }
+
+  public static Integer generateRandomInteger() {
+    int choice = rng.nextInt(20);
+    switch (choice) {
+      case 0: return Integer.MIN_VALUE;
+      case 1: return Integer.MAX_VALUE;
+      case 2: return 0;
+      default: return rng.nextInt();
+    }
+  }
+
+  public static Boolean generateRandomBool() {
+    return rng.nextBoolean();
+  }
+
+  public static Integer generateRandomInteger(int bound) {
+    return rng.nextInt(bound);
   }
 
   static {
@@ -56,6 +80,10 @@ public class TestUtils {
     for (int i = 0; i < 26; i++) {
       alphas[i] = ch++;
     }
+  }
+
+  public static String generateRandomString() {
+    return generateRandomAlphaString(20);
   }
 
   public static String generateRandomAlphaString(int stringLength) {
