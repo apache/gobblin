@@ -231,44 +231,42 @@ public class HiveMetadataWriter implements MetadataWriter {
 
   private void schemaUpdateHelper(GobblinMetadataChangeEvent gmce, HiveSpec spec, String topicName, String tableKey)
       throws SchemaRegistryException {
-    if (gmce.getSchemaSource() == SchemaSource.NONE) {
-      return;
-    }
-    String newSchemaString =
-        spec.getTable().getSerDeProps().getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName());
-    if (newSchemaString != null) {
-      Schema newSchema = new Schema.Parser().parse(newSchemaString);
-      String newSchemaCreationTime = AvroUtils.getSchemaCreationTime(newSchema);
-      Cache<String, String> existedSchemaCreationTimes = schemaCreationTimeMap.computeIfAbsent(tableKey,
-          s -> CacheBuilder.newBuilder()
-              .expireAfterAccess(
-                  state.getPropAsInt(MetadataWriter.CACHE_EXPIRING_TIME, MetadataWriter.DEFAULT_CACHE_EXPIRING_TIME),
-                  TimeUnit.HOURS)
-              .build());
-      if (gmce.getSchemaSource() == SchemaSource.EVENT) {
-        // Schema source is Event, update schema anyway
-        lastestSchemaMap.put(tableKey, newSchemaString);
-        // Clear the schema versions cache so next time if we see schema source is schemaRegistry, we will contact schemaRegistry and update
-        existedSchemaCreationTimes.cleanUp();
-      } else if (gmce.getSchemaSource() == SchemaSource.SCHEMAREGISTRY && newSchemaCreationTime != null
-          && existedSchemaCreationTimes.getIfPresent(newSchemaCreationTime) == null) {
-        // We haven't seen this schema before, so we query schemaRegistry to get latest schema
-        if (topicName == null || topicName.isEmpty()) {
-          // directly return when there is no topic name information
-          return;
-        }
-        Schema latestSchema = (Schema) this.schemaRegistry.getLatestSchemaByTopic(topicName);
-        String latestCreationTime = AvroUtils.getSchemaCreationTime(latestSchema);
-        if (latestCreationTime.equals(newSchemaCreationTime)) {
-          //new schema is the latest schema, we update our record
+    if (gmce.getSchemaSource() != SchemaSource.NONE) {
+      String newSchemaString =
+          spec.getTable().getSerDeProps().getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName());
+      if (newSchemaString != null) {
+        Schema newSchema = new Schema.Parser().parse(newSchemaString);
+        String newSchemaCreationTime = AvroUtils.getSchemaCreationTime(newSchema);
+        Cache<String, String> existedSchemaCreationTimes = schemaCreationTimeMap.computeIfAbsent(tableKey,
+            s -> CacheBuilder.newBuilder()
+                .expireAfterAccess(
+                    state.getPropAsInt(MetadataWriter.CACHE_EXPIRING_TIME, MetadataWriter.DEFAULT_CACHE_EXPIRING_TIME),
+                    TimeUnit.HOURS)
+                .build());
+        if (gmce.getSchemaSource() == SchemaSource.EVENT) {
+          // Schema source is Event, update schema anyway
           lastestSchemaMap.put(tableKey, newSchemaString);
+          // Clear the schema versions cache so next time if we see schema source is schemaRegistry, we will contact schemaRegistry and update
+          existedSchemaCreationTimes.cleanUp();
+        } else if (gmce.getSchemaSource() == SchemaSource.SCHEMAREGISTRY && newSchemaCreationTime != null
+            && existedSchemaCreationTimes.getIfPresent(newSchemaCreationTime) == null) {
+          // We haven't seen this schema before, so we query schemaRegistry to get latest schema
+          if (topicName != null && !topicName.isEmpty()) {
+            Schema latestSchema = (Schema) this.schemaRegistry.getLatestSchemaByTopic(topicName);
+            String latestCreationTime = AvroUtils.getSchemaCreationTime(latestSchema);
+            if (latestCreationTime.equals(newSchemaCreationTime)) {
+              //new schema is the latest schema, we update our record
+              lastestSchemaMap.put(tableKey, newSchemaString);
+            }
+            existedSchemaCreationTimes.put(newSchemaCreationTime, "");
+          }
         }
-        existedSchemaCreationTimes.put(newSchemaCreationTime, "");
       }
-      spec.getTable()
-          .getSerDeProps()
-          .setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), lastestSchemaMap.get(tableKey));
     }
+    //Force to set the schema even there is no schema literal defined in the spec
+    spec.getTable()
+        .getSerDeProps()
+        .setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), lastestSchemaMap.get(tableKey));
   }
 
   @Override
