@@ -26,10 +26,8 @@ import com.google.common.util.concurrent.ListenableFuture;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -62,10 +60,10 @@ import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
 @Slf4j
 public class HiveMetadataWriter implements MetadataWriter {
 
-  public static final String HIVE_REGISTRATION_WHITELIST = "hive.registration.whitelist";
-  public static final String HIVE_REGISTRATION_BLACKLIST = "hive.registration.blacklist";
-  public static final String HIVE_REGISTRATION_TIMEOUT_IN_SECONDS = "hive.registration.timeout.seconds";
-  public static final long DEFAULT_HIVE_REGISTRATION_TIMEOUT_IN_SECONDS = 60;
+  private static final String HIVE_REGISTRATION_WHITELIST = "hive.registration.whitelist";
+  private static final String HIVE_REGISTRATION_BLACKLIST = "hive.registration.blacklist";
+  private static final String HIVE_REGISTRATION_TIMEOUT_IN_SECONDS = "hive.registration.timeout.seconds";
+  private static final long DEFAULT_HIVE_REGISTRATION_TIMEOUT_IN_SECONDS = 60;
   private final Joiner tableNameJoiner = Joiner.on('.');
   private final Closer closer = Closer.create();
   protected final HiveRegister hiveRegister;
@@ -74,7 +72,7 @@ public class HiveMetadataWriter implements MetadataWriter {
   private final KafkaSchemaRegistry schemaRegistry;
   private final HashMap<String, HashMap<List<String>, ListenableFuture<Void>>> currentExecutionMap;
 
-  private final HashMap<String, Set<String>> schemaCreationTimeMap;
+  private final HashMap<String, Cache<String, String>> schemaCreationTimeMap;
   private final HashMap<String, Cache<List<String>, HiveSpec>> specMaps;
   private final HashMap<String, String> lastestSchemaMap;
   private final long timeOutSeconds;
@@ -90,7 +88,8 @@ public class HiveMetadataWriter implements MetadataWriter {
     this.schemaCreationTimeMap = new HashMap<>();
     this.specMaps = new HashMap<>();
     this.lastestSchemaMap = new HashMap<>();
-    this.timeOutSeconds = state.getPropAsLong(HIVE_REGISTRATION_TIMEOUT_IN_SECONDS, DEFAULT_HIVE_REGISTRATION_TIMEOUT_IN_SECONDS);
+    this.timeOutSeconds =
+        state.getPropAsLong(HIVE_REGISTRATION_TIMEOUT_IN_SECONDS, DEFAULT_HIVE_REGISTRATION_TIMEOUT_IN_SECONDS);
   }
 
   @Override
@@ -142,11 +141,11 @@ public class HiveMetadataWriter implements MetadataWriter {
         addFiles(gmce, newSpecsMap, dbName, tableName, topicName);
         break;
       }
-      case drop_files:{
+      case drop_files: {
         deleteFiles(gmce, oldSpecsMap, dbName, tableName);
         break;
       }
-      case rewrite_files:{
+      case rewrite_files: {
         //de-register old partitions
         deleteFiles(gmce, oldSpecsMap, dbName, tableName);
         //register new partitions
@@ -169,19 +168,19 @@ public class HiveMetadataWriter implements MetadataWriter {
     for (Collection<HiveSpec> specs : oldSpecsMap.values()) {
       for (HiveSpec spec : specs) {
         if (spec.getTable().getDbName().equals(dbName) && spec.getTable().getTableName().equals(tableName)) {
-             if (spec.getPartition().isPresent()) {
-              deRegisterPartitionHelper(dbName, tableName, spec);
-             }
+          if (spec.getPartition().isPresent()) {
+            deRegisterPartitionHelper(dbName, tableName, spec);
+          }
         }
       }
     }
-    //TODO: De-register table if table location does not exist
+    //TODO: De-register table if table location does not exist (Configurable)
 
   }
 
   protected void deRegisterPartitionHelper(String dbName, String tableName, HiveSpec spec) throws IOException {
-    hiveRegister.dropPartitionIfExists(dbName, tableName,
-        spec.getTable().getPartitionKeys(), spec.getPartition().get().getValues());
+    hiveRegister.dropPartitionIfExists(dbName, tableName, spec.getTable().getPartitionKeys(),
+        spec.getPartition().get().getValues());
   }
 
   public void addFiles(GobblinMetadataChangeEvent gmce, Map<String, Collection<HiveSpec>> newSpecsMap, String dbName,
@@ -200,12 +199,9 @@ public class HiveMetadataWriter implements MetadataWriter {
           HiveSpec existedSpec = hiveSpecCache.getIfPresent(partitionValue);
           if (existedSpec != null) {
             //if existedSpec is not null, it means we already registered this partition, so check whether we need to update the table/partition
-            if (gmce.getSchemaSource() == SchemaSource.SCHEMAREGISTRY) {
-              // Only in this case, we need to update the schema to the latest schema in schemaRegistry
-              schemaUpdateHelper(spec, topicName, tableKey);
-            }
-            if ((this.hiveRegister.needToUpdateTable(existedSpec.getTable(), spec.getTable())) ||
-                (spec.getPartition().isPresent() && this.hiveRegister.needToUpdatePartition(
+            schemaUpdateHelper(gmce, spec, topicName, tableKey);
+            if ((this.hiveRegister.needToUpdateTable(existedSpec.getTable(), spec.getTable())) || (
+                spec.getPartition().isPresent() && this.hiveRegister.needToUpdatePartition(
                     existedSpec.getPartition().get(), spec.getPartition().get()))) {
               registerSpec(tableKey, partitionValue, spec, hiveSpecCache);
             }
@@ -233,19 +229,29 @@ public class HiveMetadataWriter implements MetadataWriter {
     hiveSpecCache.put(partitionValue, spec);
   }
 
-  private void schemaUpdateHelper(HiveSpec spec, String topicName, String tableKey) throws SchemaRegistryException {
+  private void schemaUpdateHelper(GobblinMetadataChangeEvent gmce, HiveSpec spec, String topicName, String tableKey)
+      throws SchemaRegistryException {
+    if (gmce.getSchemaSource() == SchemaSource.NONE) {
+      return;
+    }
     String newSchemaString =
         spec.getTable().getSerDeProps().getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName());
     if (newSchemaString != null) {
       Schema newSchema = new Schema.Parser().parse(newSchemaString);
       String newSchemaCreationTime = AvroUtils.getSchemaCreationTime(newSchema);
-      Set<String> existedSchemaCreationTimes = schemaCreationTimeMap.computeIfAbsent(tableKey, s -> new HashSet<>());
-      if (newSchemaCreationTime == null) {
-        // If it's null, then schema version is not enabled, update schema anyway
+      Cache<String, String> existedSchemaCreationTimes = schemaCreationTimeMap.computeIfAbsent(tableKey,
+          s -> CacheBuilder.newBuilder()
+              .expireAfterAccess(
+                  state.getPropAsInt(MetadataWriter.CACHE_EXPIRING_TIME, MetadataWriter.DEFAULT_CACHE_EXPIRING_TIME),
+                  TimeUnit.HOURS)
+              .build());
+      if (gmce.getSchemaSource() == SchemaSource.EVENT) {
+        // Schema source is Event, update schema anyway
         lastestSchemaMap.put(tableKey, newSchemaString);
-        // Clear the schema versions cache if we meet a null schema version to avoid not updating schema anymore
-        existedSchemaCreationTimes.clear();
-      } else if (!existedSchemaCreationTimes.contains(newSchemaCreationTime)) {
+        // Clear the schema versions cache so next time if we see schema source is schemaRegistry, we will contact schemaRegistry and update
+        existedSchemaCreationTimes.cleanUp();
+      } else if (gmce.getSchemaSource() == SchemaSource.SCHEMAREGISTRY && newSchemaCreationTime != null
+          && existedSchemaCreationTimes.getIfPresent(newSchemaCreationTime) == null) {
         // We haven't seen this schema before, so we query schemaRegistry to get latest schema
         if (topicName == null || topicName.isEmpty()) {
           // directly return when there is no topic name information
@@ -257,7 +263,7 @@ public class HiveMetadataWriter implements MetadataWriter {
           //new schema is the latest schema, we update our record
           lastestSchemaMap.put(tableKey, newSchemaString);
         }
-        existedSchemaCreationTimes.add(newSchemaCreationTime);
+        existedSchemaCreationTimes.put(newSchemaCreationTime, "");
       }
       spec.getTable()
           .getSerDeProps()
@@ -272,7 +278,6 @@ public class HiveMetadataWriter implements MetadataWriter {
     GobblinMetadataChangeEvent gmce =
         (GobblinMetadataChangeEvent) SpecificData.get().deepCopy(genericRecord.getSchema(), genericRecord);
     if (whiteistBlacklist.acceptTable(tableSpec.getTable().getDbName(), tableSpec.getTable().getTableName())) {
-
       write(gmce, newSpecsMap, oldSpecsMap, tableSpec);
     } else {
       log.info(String.format("Skip table %s.%s since it's blacklisted", tableSpec.getTable().getDbName(),
