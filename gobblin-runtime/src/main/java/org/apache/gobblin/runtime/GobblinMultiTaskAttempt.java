@@ -29,6 +29,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 
@@ -46,6 +47,7 @@ import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
 import javax.annotation.Nullable;
+import lombok.Getter;
 import lombok.Setter;
 
 import org.apache.gobblin.annotation.Alpha;
@@ -115,6 +117,8 @@ public class GobblinMultiTaskAttempt {
   @Setter
   private Predicate<GobblinMultiTaskAttempt> interruptionPredicate = (gmta) -> false;
   private List<Task> tasks;
+  @Getter
+  private volatile AtomicBoolean stopped = new AtomicBoolean(false);
 
   /**
    * Additional commit steps that may be added by different launcher, and can be environment specific.
@@ -156,6 +160,11 @@ public class GobblinMultiTaskAttempt {
     CountUpAndDownLatch countDownLatch = new CountUpAndDownLatch(0);
     Pair<List<Task>, Boolean> executionResult = runWorkUnits(countDownLatch);
     this.tasks = executionResult.getFirst();
+
+    if (this.tasks.isEmpty() && this.stopped.get()) {
+      //The task attempt has already been stopped.
+      return;
+    }
 
     // Indicating task submission failure, propagating exception as it should be noticeable to job launcher.
     // Submission failure could be task-creation failure, or state-tracker failed to be scheduled so that the actual
@@ -250,7 +259,7 @@ public class GobblinMultiTaskAttempt {
    * A method that shuts down all running tasks managed by this instance.
    * TODO: Call this from the right place.
    */
-  public void shutdownTasks()
+  public synchronized void shutdownTasks()
       throws InterruptedException {
     log.info("Shutting down tasks");
     for (Task task : this.tasks) {
@@ -268,6 +277,7 @@ public class GobblinMultiTaskAttempt {
         log.info("Task {} could not be cancelled.", task.getTaskId());
       }
     }
+    this.stopped.set(true);
   }
 
   private void persistTaskStateStore()
@@ -384,10 +394,14 @@ public class GobblinMultiTaskAttempt {
    * @return a list of {@link Task}s from the {@link WorkUnit}s, as well as if there's a failure in task creation
    * which should be handled separately to avoid silently starving on certain workunit.
    */
-  private Pair<List<Task>, Boolean> runWorkUnits(CountUpAndDownLatch countDownLatch) {
-
+  private synchronized Pair<List<Task>, Boolean> runWorkUnits(CountUpAndDownLatch countDownLatch) {
     List<Task> tasks = Lists.newArrayList();
-
+    //Has the task-attempt already been cancelled? This can happen for instance when a cancellation has been invoked on
+    // the GobblinMultiTaskAttempt instance (e.g. in the case of Helix task cancellation) before the Gobblin tasks
+    // have been submitted to the underlying task executor.
+    if (this.stopped.get()) {
+      return new Pair<>(tasks, false);
+    }
     // A flag indicating if there are any tasks not submitted successfully.
     // Caller of this method should handle tasks with submission failures accordingly.
     boolean areAllTasksSubmitted = true;
@@ -599,5 +613,9 @@ public class GobblinMultiTaskAttempt {
 
     multiTaskAttempt.runAndOptionallyCommitTaskAttempt(multiTaskAttemptCommitPolicy);
     return multiTaskAttempt;
+  }
+
+  public int getNumTasksCreated() {
+    return this.tasks.size();
   }
 }
