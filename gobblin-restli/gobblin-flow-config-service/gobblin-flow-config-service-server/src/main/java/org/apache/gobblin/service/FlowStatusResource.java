@@ -82,6 +82,9 @@ public class FlowStatusResource extends ComplexKeyResourceTemplate<FlowStatusId,
    * @return a {@link org.apache.gobblin.service.FlowStatus} converted from a {@link org.apache.gobblin.service.monitoring.FlowStatus}
    */
   private FlowStatus convertFlowStatus(org.apache.gobblin.service.monitoring.FlowStatus monitoringFlowStatus) {
+    if (monitoringFlowStatus == null) {
+      return null;
+    }
     FlowExecution flowExecution = FlowExecutionResourceLocalHandler.convertFlowStatus(monitoringFlowStatus);
     return new FlowStatus()
         .setId(flowExecution.getId())
