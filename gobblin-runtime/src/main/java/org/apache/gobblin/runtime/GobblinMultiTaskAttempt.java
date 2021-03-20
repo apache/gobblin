@@ -161,8 +161,10 @@ public class GobblinMultiTaskAttempt {
     Pair<List<Task>, Boolean> executionResult = runWorkUnits(countDownLatch);
     this.tasks = executionResult.getFirst();
 
+    // The task attempt has already been stopped and the task list is empty. This indicates that a cancel has been
+    // invoked prior to creation of underlying Gobblin tasks. In a normal scenario, where a cancel is invoked after
+    // successful task creation, the task list is guaranteed to be non-empty and we shouldn't enter the following block.
     if (this.tasks.isEmpty() && this.stopped.get()) {
-      //The task attempt has already been stopped.
       return;
     }
 
