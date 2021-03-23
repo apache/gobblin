@@ -402,8 +402,7 @@ public class HiveMetaStoreBasedRegister extends HiveRegister {
   @Deprecated
   @Override
   public boolean createTableIfNotExists(HiveTable table) throws IOException {
-    try (AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient();
-        AutoCloseableHiveLock lock = this.locks.getTableLock(table.getDbName(), table.getTableName())) {
+    try (AutoReturnableObject<IMetaStoreClient> client = this.clientPool.getClient()) {
       return createTableIfNotExists(client.get(), HiveMetaStoreUtils.getTable(table), table);
     }
   }

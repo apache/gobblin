@@ -101,8 +101,8 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
     JobConfigurationUtils.putStateIntoConfiguration(properties, conf);
     this.fs = WriterUtils.getWriterFS(properties, this.numBranches, this.branchId);
     this.fileContext = FileContext.getFileContext(
-            WriterUtils.getWriterFsUri(properties, this.numBranches, this.branchId),
-            conf);
+        WriterUtils.getWriterFsUri(properties, this.numBranches, this.branchId),
+        conf);
 
     // Initialize staging/output directory
     Path writerStagingDir = this.writerAttemptIdOptional.isPresent() ? WriterUtils
@@ -131,7 +131,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
         ConfigurationKeys.DEFAULT_BUFFER_SIZE);
 
     this.replicationFactor = properties.getPropAsShort(ForkOperatorUtils
-        .getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_REPLICATION_FACTOR, this.numBranches, this.branchId),
+            .getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_REPLICATION_FACTOR, this.numBranches, this.branchId),
         this.fs.getDefaultReplication(this.outputFile));
 
     this.blockSize = properties.getPropAsLong(ForkOperatorUtils
@@ -275,7 +275,7 @@ public abstract class FsDataWriter<D> implements DataWriter<D>, FinalState, Meta
         ImmutableSet.of(new FsWriterMetrics.FileInfo(this.outputFile.getName(), recordsWritten()))
     );
     this.properties.setProp(FS_WRITER_METRICS_KEY, metrics.toJson());
- }
+  }
 
   /**
    * {@inheritDoc}.

@@ -55,6 +55,7 @@ import org.apache.gobblin.util.ParallelRunner;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.apache.gobblin.writer.DataWriter;
 import org.apache.gobblin.writer.DataWriterBuilder;
+import org.apache.gobblin.hive.writer.MetadataWriter;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.serde2.avro.AvroSerdeUtils;
@@ -76,9 +77,7 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
   public static final String METADATA_REGISTRATION_THREADS = "metadata.registration.threads";
   public static final String METADATA_PARALLEL_RUNNER_TIMEOUT_MILLS = "metadata.parallel.runner.timeout.mills";
   public static final String HIVE_PARTITION_NAME = "hive.partition.name";
-  public static final String CACHE_EXPIRING_TIME = "GMCEWriter.cache.expiring.time.hours";
   public static final String GMCE_METADATA_WRITER_CLASSES = "gmce.metadata.writer.classes";
-  public static final int DEFAULT_CACHE_EXPIRING_TIME = 1;
   public static final int DEFAULT_ICEBERG_PARALLEL_TIMEOUT_MILLS = 60000;
   public static final String TABLE_NAME_DELIMITER = ".";
   @Getter
@@ -205,23 +204,23 @@ public class GobblinMCEWriter implements DataWriter<GenericRecord> {
       State registerState = setHiveRegProperties(state, gmce, true);
       computeSpecMap(Lists.newArrayList(Iterables.transform(gmce.getNewFiles(), dataFile -> dataFile.getFilePath())),
           newSpecsMap, newSpecsMaps.computeIfAbsent(datasetName, t -> CacheBuilder.newBuilder()
-              .expireAfterAccess(state.getPropAsInt(CACHE_EXPIRING_TIME,
-                  DEFAULT_CACHE_EXPIRING_TIME), TimeUnit.HOURS)
+              .expireAfterAccess(state.getPropAsInt(MetadataWriter.CACHE_EXPIRING_TIME,
+                  MetadataWriter.DEFAULT_CACHE_EXPIRING_TIME), TimeUnit.HOURS)
               .build()), registerState, false);
     }
     if (gmce.getOldFilePrefixes() != null) {
       State registerState = setHiveRegProperties(state, gmce, false);
       computeSpecMap(gmce.getOldFilePrefixes(), oldSpecsMap, oldSpecsMaps.computeIfAbsent(datasetName, t -> CacheBuilder
           .newBuilder()
-          .expireAfterAccess(state.getPropAsInt(CACHE_EXPIRING_TIME,
-              DEFAULT_CACHE_EXPIRING_TIME), TimeUnit.HOURS)
+          .expireAfterAccess(state.getPropAsInt(MetadataWriter.CACHE_EXPIRING_TIME,
+              MetadataWriter.DEFAULT_CACHE_EXPIRING_TIME), TimeUnit.HOURS)
           .build()), registerState, true);
     } else if (gmce.getOldFiles() != null) {
       State registerState = setHiveRegProperties(state, gmce, false);
       computeSpecMap(gmce.getOldFiles(), oldSpecsMap, oldSpecsMaps.computeIfAbsent(datasetName,
           t -> CacheBuilder.newBuilder()
-              .expireAfterAccess(state.getPropAsInt(CACHE_EXPIRING_TIME,
-                  DEFAULT_CACHE_EXPIRING_TIME), TimeUnit.HOURS)
+              .expireAfterAccess(state.getPropAsInt(MetadataWriter.CACHE_EXPIRING_TIME,
+                  MetadataWriter.DEFAULT_CACHE_EXPIRING_TIME), TimeUnit.HOURS)
               .build()), registerState, false);
     }
     if (newSpecsMap.isEmpty() && oldSpecsMap.isEmpty()) {
