@@ -231,6 +231,35 @@ public class GobblinMCEPublisherTest {
     publisher.publishData(Arrays.asList(state));
   }
 
+  @Test (dependsOnMethods = {"testPublishGMCEForAvro"})
+  public void testPublishGMCEWithoutFile() throws IOException {
+    GobblinMCEProducer producer = Mockito.mock(GobblinMCEProducer.class);
+    Mockito.doCallRealMethod()
+        .when(producer)
+        .getGobblinMetadataChangeEvent(anyMap(), anyList(), anyList(), anyMap(), any(), any());
+    Mockito.doAnswer(new Answer() {
+      @Override
+      public Object answer(InvocationOnMock invocation) throws Throwable {
+        Object[] args = invocation.getArguments();
+        GobblinMetadataChangeEvent gmce =
+            producer.getGobblinMetadataChangeEvent((Map<Path, Metrics>) args[0], null, null,
+                (Map<String, String>) args[1], OperationType.change_property, SchemaSource.NONE);
+        Assert.assertEquals(gmce.getNewFiles().size(), 1);
+        Assert.assertNull(gmce.getOldFiles());
+        Assert.assertNull(gmce.getOldFilePrefixes());
+        Assert.assertEquals(gmce.getOperationType(), OperationType.change_property);
+        return null;
+      }
+    }).when(producer).sendGMCE(anyMap(), anyList(), anyList(), anyMap(), any(), any());
+
+    WorkUnitState state = new WorkUnitState();
+    setGMCEPublisherStateWithoutNewFile(state);
+    Mockito.doCallRealMethod().when(producer).setState(state);
+    producer.setState(state);
+    GobblinMCEPublisher publisher = new GobblinMCEPublisher(state, producer);
+    publisher.publishData(Arrays.asList(state));
+  }
+
   private void setGMCEPublisherStateForOrcFile(WorkUnitState state) {
     state.setProp(GobblinMCEPublisher.NEW_FILES_LIST, orcFilePath.toString());
     state.setProp(ConfigurationKeys.WRITER_OUTPUT_FORMAT_KEY, "ORC");
@@ -240,6 +269,17 @@ public class GobblinMCEPublisherTest {
     state.setProp(ConfigurationKeys.DATA_PUBLISHER_DATASET_DIR, datasetDir.toString());
     state.setProp(AbstractJob.JOB_ID, "testFlow");
     state.setProp(PartitionedDataWriter.WRITER_LATEST_SCHEMA, orcSchema);
+  }
+
+  private void setGMCEPublisherStateWithoutNewFile(WorkUnitState state) {
+    //state.setProp(GobblinMCEPublisher.NEW_FILES_LIST, dataFile.toString());
+    state.setProp(ConfigurationKeys.WRITER_OUTPUT_FORMAT_KEY, "AVRO");
+    state.setProp(GobblinMCEPublisher.OFFSET_RANGE_KEY, "testTopic-1:0-1000");
+    state.setProp(ConfigurationKeys.HIVE_REGISTRATION_POLICY,
+        HiveSnapshotRegistrationPolicy.class.getCanonicalName());
+    state.setProp(ConfigurationKeys.DATA_PUBLISHER_DATASET_DIR, datasetDir.toString());
+    state.setProp(AbstractJob.JOB_ID, "testFlow");
+    state.setProp(PartitionedDataWriter.WRITER_LATEST_SCHEMA, _avroPartitionSchema);
   }
 
   private void setGMCEPublisherStateForAvroFile(WorkUnitState state) {
