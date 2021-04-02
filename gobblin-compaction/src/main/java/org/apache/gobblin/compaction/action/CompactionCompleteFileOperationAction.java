@@ -167,6 +167,10 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
         compactionState.setProp(DUPLICATE_COUNT_TOTAL + Long.toString(executionCount),
             compactionState.getProp(DUPLICATE_COUNT_TOTAL, "null"));
       }
+      if(state.getPropAsBoolean(ConfigurationKeys.GOBBLIN_METADATA_CHANGE_EVENT_ENABLED, false)) {
+        //GMCE enabled, set the key to be false to indicate that GMCE has not been sent yet
+        compactionState.setProp(CompactionGMCEPublishingAction.GMCE_EMITTED_KEY, false);
+      }
       compactionState.setProp(CompactionSlaEventHelper.RECORD_COUNT_TOTAL, Long.toString(newTotalRecords));
       compactionState.setProp(CompactionSlaEventHelper.EXEC_COUNT_TOTAL, Long.toString(executionCount + 1));
       compactionState.setProp(CompactionSlaEventHelper.MR_JOB_ID,

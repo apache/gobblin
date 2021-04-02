@@ -22,6 +22,8 @@ import java.util.Map;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.exception.ExceptionUtils;
+import org.apache.gobblin.compaction.action.CompactionGMCEPublishingAction;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.hadoop.fs.Path;
 
 import com.google.common.collect.Lists;
@@ -60,7 +62,8 @@ public class CompactionThresholdVerifier implements CompactionVerifier<FileSyste
    * dataset. To avoid scalability issue, we choose a stateless approach where each dataset tracks
    * record count by themselves and persist it in the file system)
    *
-   * @return true iff the difference exceeds the threshold or this is the first time compaction
+   * @return true if the difference exceeds the threshold or this is the first time compaction or
+   * GMCE is enabled but last run there is something wrong when emitting GMCE
    */
   public Result verify(FileSystemDataset dataset) {
 
@@ -81,9 +84,14 @@ public class CompactionThresholdVerifier implements CompactionVerifier<FileSyste
         newRecords = helper.calculateRecordCount(Lists.newArrayList(new Path(dataset.datasetURN())));
       }
       double oldRecords = helper.readRecordCount(new Path(result.getDstAbsoluteDir()));
-
+      State datasetState = helper.loadState(new Path(result.getDstAbsoluteDir()));
       if (oldRecords == 0) {
         return new Result(true, "");
+      }
+      if(state.getPropAsBoolean(ConfigurationKeys.GOBBLIN_METADATA_CHANGE_EVENT_ENABLED, false)) {
+        if (!datasetState.getPropAsBoolean(CompactionGMCEPublishingAction.GMCE_EMITTED_KEY, true)) {
+          return new Result(true, "GMCE has not sent, need re-compact");
+        }
       }
       if (newRecords < oldRecords) {
         return new Result(false, "Illegal state: Current records count should old be smaller.");
