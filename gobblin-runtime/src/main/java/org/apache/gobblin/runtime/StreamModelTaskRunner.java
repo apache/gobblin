@@ -39,6 +39,7 @@ import org.apache.gobblin.runtime.fork.Fork;
 import org.apache.gobblin.source.extractor.Extractor;
 import org.apache.gobblin.source.extractor.StreamingExtractor;
 import org.apache.gobblin.util.ExponentialBackoff;
+import org.apache.gobblin.util.LoggingUncaughtExceptionHandler;
 import org.apache.gobblin.writer.AcknowledgableWatermark;
 import org.apache.gobblin.writer.FineGrainedWatermarkTracker;
 import org.apache.gobblin.writer.WatermarkManager;
@@ -151,9 +152,11 @@ public class StreamModelTaskRunner {
         this.task.configureStreamingFork(fork);
       }
     }
-    new Thread(() -> {
-      connectableStream.connect();
-    }).start();
+    Thread thread = new Thread(() -> connectableStream.connect());
+    thread.setName(this.getClass().getSimpleName());
+    //Log uncaught exceptions (e.g.OOMEs) to prevent threads from dying silently
+    thread.setUncaughtExceptionHandler(new LoggingUncaughtExceptionHandler(Optional.absent()));
+    thread.start();
 
     if (!ExponentialBackoff.awaitCondition().callable(() -> this.forks.keySet().stream().map(Optional::get).allMatch(Fork::isDone)).
         initialDelay(initialDelay).maxDelay(initialDelay).maxWait(TimeUnit.MINUTES.toMillis(maxWaitInMinute)).await()) {
