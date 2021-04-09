@@ -26,6 +26,9 @@ repositories {
   maven {
     url "https://linkedin.bintray.com/maven"
   }
+  maven {
+    url "https://repository.apache.org/content/repositories/snapshots"
+  }
   jcenter()
 }
 

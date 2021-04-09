@@ -59,8 +59,8 @@ import static org.apache.gobblin.writer.AvroOrcSchemaConverter.getOrcSchema;
 @Slf4j
 public class GobblinOrcWriter extends FsDataWriter<GenericRecord> {
   static final String ORC_WRITER_PREFIX = "orcWriter.";
-  private static final String ORC_WRITER_BATCH_SIZE = ORC_WRITER_PREFIX + "batchSize";
-  private static final int DEFAULT_ORC_WRITER_BATCH_SIZE = 1000;
+  public static final String ORC_WRITER_BATCH_SIZE = ORC_WRITER_PREFIX + "batchSize";
+  public static final int DEFAULT_ORC_WRITER_BATCH_SIZE = 1000;
 
   private static final String CONTAINER_MEMORY_MBS = ORC_WRITER_PREFIX + "jvm.memory.mbs";
   private static final int DEFAULT_CONTAINER_MEMORY_MBS = 4096;
