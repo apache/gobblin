@@ -57,6 +57,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.iceberg.FindFiles;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Namespace;
+import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.expressions.Expressions;
 import org.apache.iceberg.hive.HiveMetastoreTest;
 import org.testng.Assert;
@@ -144,7 +145,7 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
         SchemaBuilder.record("partitionTest").fields().name("ds").type().optional().stringType().endRecord();
   }
 
-  @Test ( priority = 1 )
+  @Test ( priority = 0 )
   public void testWriteAddFileGMCE() throws IOException {
     gobblinMCEWriter.writeEnvelope(new RecordEnvelope<>(gmce,
         new KafkaStreamingExtractor.KafkaWatermark(
@@ -197,7 +198,7 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
   }
 
   //Make sure hive test execute later and close the metastore
-  @Test( priority = 2 )
+  @Test( priority = 1 )
   public void testWriteRewriteFileGMCE() throws IOException {
     gmce.setTopicPartitionOffsetsRange(null);
     FileSystem fs = FileSystem.get(new Configuration());
@@ -230,6 +231,37 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
     Assert.assertFalse(result.hasNext());
     result = FindFiles.in(table).withMetadataMatching(Expressions.startsWith("file_path", filePath_1)).collect().iterator();
     Assert.assertFalse(result.hasNext());
+  }
+
+  @Test( priority = 2 )
+  public void testChangeProperty() throws IOException {
+    Table table = catalog.loadTable(catalog.listTables(Namespace.of(dbName)).get(0));
+    Assert.assertEquals(table.properties().get("offset.range.testTopic-1"), "0-3000");
+    Assert.assertEquals(table.currentSnapshot().allManifests().size(), 3);
+    Assert.assertEquals(table.properties().get("gmce.low.watermark.GobblinMetadataChangeEvent_test-1"), "30");
+    Assert.assertEquals(table.properties().get("gmce.high.watermark.GobblinMetadataChangeEvent_test-1"), "40");
+
+    gmce.setOldFilePrefixes(null);
+    DataFile dailyFile = DataFile.newBuilder()
+        .setFilePath(dailyDataFile.toString())
+        .setFileFormat("avro")
+        .setFileMetrics(DataMetrics.newBuilder().setRecordCount(0L).build())
+        .build();
+    gmce.setNewFiles(Lists.newArrayList(dailyFile));
+    gmce.setOperationType(OperationType.change_property);
+    gmce.setTopicPartitionOffsetsRange(ImmutableMap.<String, String>builder().put("testTopic-1", "2000-4000").build());
+    gobblinMCEWriter.writeEnvelope(new RecordEnvelope<>(gmce,
+        new KafkaStreamingExtractor.KafkaWatermark(
+            new KafkaPartition.Builder().withTopicName("GobblinMetadataChangeEvent_test").withId(1).build(),
+            new LongWatermark(45L))));
+    gobblinMCEWriter.flush();
+    table = catalog.loadTable(catalog.listTables(Namespace.of(dbName)).get(0));
+    // Assert the offset has been updated
+    Assert.assertEquals(table.properties().get("offset.range.testTopic-1"), "0-4000");
+    Assert.assertEquals(table.currentSnapshot().allManifests().size(), 3);
+    // Assert low watermark and high watermark set properly
+    Assert.assertEquals(table.properties().get("gmce.low.watermark.GobblinMetadataChangeEvent_test-1"), "40");
+    Assert.assertEquals(table.properties().get("gmce.high.watermark.GobblinMetadataChangeEvent_test-1"), "45");
   }
 
   private String writeRecord(File file) throws IOException {

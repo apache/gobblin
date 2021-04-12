@@ -229,7 +229,8 @@ public class IcebergMetadataWriter implements MetadataWriter {
    * The logic of this function will be:
    * 1. Check whether a table exists, if not then create the iceberg table
    * 2. Compute schema from the gmce and update the cache for candidate schemas
-   * 3. Do the required operation of the gmce, i.e. addFile, rewriteFile or dropFile
+   * 3. Do the required operation of the gmce, i.e. addFile, rewriteFile or dropFile. change_property means only
+   * update the table level property but no data modification.
    * Note: this method only aggregate the metadata in cache without committing. The actual commit will be done in flush method
    */
   public void write(GobblinMetadataChangeEvent gmce, Map<String, Collection<HiveSpec>> newSpecsMap,
@@ -241,8 +242,9 @@ public class IcebergMetadataWriter implements MetadataWriter {
       table = getIcebergTable(tid);
     } catch (NoSuchTableException e) {
       try {
-        if (gmce.getOperationType() == OperationType.drop_files) {
-          log.warn("Table {} does not exist, skip processing this drop_file event", tid.toString());
+        if (gmce.getOperationType() == OperationType.drop_files ||
+            gmce.getOperationType() == OperationType.change_property) {
+          log.warn("Table {} does not exist, skip processing this {} event", tid.toString(), gmce.getOperationType());
           return;
         }
         table = createTable(gmce, tableSpec);
@@ -273,6 +275,14 @@ public class IcebergMetadataWriter implements MetadataWriter {
       }
       case drop_files: {
         dropFiles(gmce, oldSpecsMap, table, tableMetadata, tid);
+        break;
+      }
+      case change_property: {
+        updateTableProperty(tableSpec, tid);
+        if (gmce.getTopicPartitionOffsetsRange() != null) {
+          mergeOffsets(gmce, tid);
+        }
+        log.info("No file operation need to be performed by Iceberg Metadata Writer at this point.");
         break;
       }
       default: {
