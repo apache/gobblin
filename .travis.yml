@@ -49,7 +49,7 @@ jobs:
       env: RUN_TEST_GROUP=none
       install: skip
       script:
-        - travis_retry ./travis/bintrayDeploy.sh
+        - travis_retry ./travis/artifactoryDeploy.sh
 
 env:
   jobs:

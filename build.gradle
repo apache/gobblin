@@ -32,10 +32,10 @@ buildscript {
     classpath 'org.apache.ant:ant:1.9.4'
     classpath 'gradle.plugin.org.inferred:gradle-processors:1.1.2'
     classpath 'org.kt3k.gradle.plugin:coveralls-gradle-plugin:1.0.2'
-    classpath 'io.spring.gradle:dependency-management-plugin:0.6.0.RELEASE'
+    classpath 'io.spring.gradle:dependency-management-plugin:1.0.11.RELEASE'
     classpath 'me.champeau.gradle:jmh-gradle-plugin:0.4.8'
     classpath "gradle.plugin.nl.javadude.gradle.plugins:license-gradle-plugin:0.14.0"
-    classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.+'
+    classpath 'org.jfrog.buildinfo:build-info-extractor-gradle:4.20.0'
   }
 
   repositories {
@@ -132,7 +132,7 @@ apply from: 'gradle/scripts/sourcesJar.gradle'
 
 apply from: 'gradle/scripts/mavenPublishing.gradle'
 apply from: 'gradle/scripts/nexusPublishing.gradle'
-apply from: 'gradle/scripts/bintrayPublishing.gradle'
+apply from: 'gradle/scripts/artifactoryPublishing.gradle'
 apply from: 'gradle/scripts/javaVersionCheck.gradle'
 
 apply from: 'gradle/scripts/rat.gradle'
