@@ -43,6 +43,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -242,7 +243,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
    */
   public static void setDefaultAuthenticator(Properties properties) {
     String authenticatorClass = properties.getProperty(ConfigurationKeys.DEFAULT_AUTHENTICATOR_CLASS);
-    if (authenticatorClass != null) {
+    if (!Strings.isNullOrEmpty(authenticatorClass)) {
       Authenticator authenticator = GobblinConstructorUtils.invokeConstructor(Authenticator.class, authenticatorClass, properties);
       Authenticator.setDefault(authenticator);
     }
