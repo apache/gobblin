@@ -33,7 +33,6 @@ import org.apache.gobblin.metrics.reporter.util.AvroSerializer;
 import org.apache.gobblin.metrics.reporter.util.FixedSchemaVersionWriter;
 import org.apache.gobblin.metrics.reporter.util.SchemaVersionWriter;
 
-
 /**
  * Reports {@link GobblinTrackingEvent} to a Kafka topic serialized as JSON.
  */
