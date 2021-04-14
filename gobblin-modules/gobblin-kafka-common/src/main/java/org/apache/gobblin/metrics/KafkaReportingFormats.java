@@ -82,12 +82,13 @@ public enum KafkaReportingFormats {
       builder.withPusherClassName(pusherClassName);
 
       Config allConfig = ConfigUtils.propertiesToConfig(properties);
+      builder.withConfig(allConfig);
       // the kafka configuration is composed of the metrics reporting specific keys with a fallback to the shared
       // kafka config
       Config kafkaConfig = ConfigUtils.getConfigOrEmpty(allConfig, PusherUtils.METRICS_REPORTING_KAFKA_CONFIG_PREFIX)
           .withFallback(ConfigUtils.getConfigOrEmpty(allConfig, ConfigurationKeys.SHARED_KAFKA_CONFIG_PREFIX));
 
-      builder.withConfig(kafkaConfig);
+      builder.withKafkaConfig(kafkaConfig);
 
       return builder.build(brokers, topic);
     }
@@ -124,12 +125,13 @@ public enum KafkaReportingFormats {
       builder.withPusherClassName(pusherClassName);
 
       Config allConfig = ConfigUtils.propertiesToConfig(properties);
+      builder.withConfig(allConfig);
       // the kafka configuration is composed of the metrics reporting specific keys with a fallback to the shared
       // kafka config
       Config kafkaConfig = ConfigUtils.getConfigOrEmpty(allConfig, PusherUtils.METRICS_REPORTING_KAFKA_CONFIG_PREFIX)
           .withFallback(ConfigUtils.getConfigOrEmpty(allConfig, ConfigurationKeys.SHARED_KAFKA_CONFIG_PREFIX));
 
-      builder.withConfig(kafkaConfig);
+      builder.withKafkaConfig(kafkaConfig);
 
       return builder.build(brokers, topic);
     }
@@ -153,12 +155,13 @@ public enum KafkaReportingFormats {
       builder.withPusherClassName(pusherClassName);
 
       Config allConfig = ConfigUtils.propertiesToConfig(properties);
+      builder.withConfig(allConfig);
       // the kafka configuration is composed of the metrics reporting specific keys with a fallback to the shared
       // kafka config
       Config kafkaConfig = ConfigUtils.getConfigOrEmpty(allConfig, PusherUtils.METRICS_REPORTING_KAFKA_CONFIG_PREFIX)
           .withFallback(ConfigUtils.getConfigOrEmpty(allConfig, ConfigurationKeys.SHARED_KAFKA_CONFIG_PREFIX));
 
-      builder.withConfig(kafkaConfig);
+      builder.withKafkaConfig(kafkaConfig);
 
       return builder.build(brokers, topic);
     }
