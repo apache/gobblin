@@ -17,24 +17,20 @@
 
 package org.apache.gobblin.compaction.verify;
 
+import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.util.Map;
-
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.gobblin.compaction.action.CompactionGMCEPublishingAction;
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.hadoop.fs.Path;
-
-import com.google.common.collect.Lists;
-
-import lombok.extern.slf4j.Slf4j;
-
 import org.apache.gobblin.compaction.conditions.RecompactionConditionBasedOnRatio;
 import org.apache.gobblin.compaction.mapreduce.MRCompactor;
 import org.apache.gobblin.compaction.parser.CompactionPathParser;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.dataset.FileSystemDataset;
+import org.apache.hadoop.fs.Path;
 
 
 /**
@@ -88,10 +84,9 @@ public class CompactionThresholdVerifier implements CompactionVerifier<FileSyste
       if (oldRecords == 0) {
         return new Result(true, "");
       }
-      if(state.getPropAsBoolean(ConfigurationKeys.GOBBLIN_METADATA_CHANGE_EVENT_ENABLED, false)) {
-        if (!datasetState.getPropAsBoolean(CompactionGMCEPublishingAction.GMCE_EMITTED_KEY, true)) {
-          return new Result(true, "GMCE has not sent, need re-compact");
-        }
+      if (state.getPropAsBoolean(ConfigurationKeys.GOBBLIN_METADATA_CHANGE_EVENT_ENABLED, false)
+          && !datasetState.getPropAsBoolean(CompactionGMCEPublishingAction.GMCE_EMITTED_KEY, true)) {
+        return new Result(true, "GMCE has not sent, need re-compact");
       }
       if (newRecords < oldRecords) {
         return new Result(false, "Illegal state: Current records count should old be smaller.");
@@ -102,8 +97,8 @@ public class CompactionThresholdVerifier implements CompactionVerifier<FileSyste
         return new Result(true, "");
       }
 
-      return new Result(false, String
-          .format("%s is failed for dataset %s. Prev=%f, Cur=%f, not reaching to threshold %f", this.getName(),
+      return new Result(false,
+          String.format("%s is failed for dataset %s. Prev=%f, Cur=%f, not reaching to threshold %f", this.getName(),
               result.getDatasetName(), oldRecords, newRecords, threshold));
     } catch (IOException e) {
       return new Result(false, ExceptionUtils.getFullStackTrace(e));

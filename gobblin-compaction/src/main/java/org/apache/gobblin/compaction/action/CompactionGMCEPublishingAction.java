@@ -65,14 +65,18 @@ public class CompactionGMCEPublishingAction implements CompactionCompleteAction<
   private InputRecordCountHelper helper;
   private EventSubmitter eventSubmitter;
 
-  public CompactionGMCEPublishingAction(State state, CompactionJobConfigurator configurator) {
+  public CompactionGMCEPublishingAction(State state, CompactionJobConfigurator configurator, InputRecordCountHelper helper) {
     if (!(state instanceof WorkUnitState)) {
       throw new UnsupportedOperationException(this.getClass().getName() + " only supports workunit state");
     }
     this.state = state;
     this.configurator = configurator;
     this.conf = HadoopUtils.getConfFromState(state);
-    this.helper = new InputRecordCountHelper(state);
+    this.helper = helper;
+  }
+
+  public CompactionGMCEPublishingAction(State state, CompactionJobConfigurator configurator) {
+    this(state, configurator, new InputRecordCountHelper(state));
   }
 
   public void onCompactionJobComplete(FileSystemDataset dataset) throws IOException {
