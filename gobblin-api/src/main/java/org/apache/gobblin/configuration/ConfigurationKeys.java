@@ -216,6 +216,11 @@ public class ConfigurationKeys {
   public static final String QUEUED_TASK_TIME_MAX_AGE = "taskexecutor.queued_task_time.history.max_age";
   public static final long DEFAULT_QUEUED_TASK_TIME_MAX_AGE = TimeUnit.HOURS.toMillis(1);
 
+  /**
+   * Optional property to specify a default Authenticator class for a job
+   */
+  public static final String DEFAULT_AUTHENTICATOR_CLASS = "job.default.authenticator.class";
+
   /** Optional, for user to specified which template to use, inside .job file */
   public static final String JOB_TEMPLATE_PATH = "job.template";
 

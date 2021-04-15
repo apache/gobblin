@@ -18,6 +18,7 @@
 package org.apache.gobblin.runtime;
 
 import java.io.IOException;
+import java.net.Authenticator;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -31,6 +32,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.gobblin.destination.DestinationDatasetHandlerService;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -41,6 +43,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -99,6 +102,7 @@ import org.apache.gobblin.util.Id;
 import org.apache.gobblin.util.JobLauncherUtils;
 import org.apache.gobblin.util.ParallelRunner;
 import org.apache.gobblin.util.PropertiesUtils;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.apache.gobblin.writer.initializer.WriterInitializerFactory;
 
 
@@ -196,6 +200,8 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     }
 
     try {
+      setDefaultAuthenticator(this.jobProps);
+
       if (instanceBroker == null) {
         instanceBroker = createDefaultInstanceBroker(jobProps);
       }
@@ -231,6 +237,17 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     }
   }
 
+  /**
+   * Set default {@link Authenticator} to the one provided in {@link ConfigurationKeys#DEFAULT_AUTHENTICATOR_CLASS},
+   * calling the constructor using the provided {@link Properties}
+   */
+  public static void setDefaultAuthenticator(Properties properties) {
+    String authenticatorClass = properties.getProperty(ConfigurationKeys.DEFAULT_AUTHENTICATOR_CLASS);
+    if (!Strings.isNullOrEmpty(authenticatorClass)) {
+      Authenticator authenticator = GobblinConstructorUtils.invokeConstructor(Authenticator.class, authenticatorClass, properties);
+      Authenticator.setDefault(authenticator);
+    }
+  }
 
   /**
    * To supporting 'gobblin.template.uri' in any types of jobLauncher, place this resolution as a public-static method
