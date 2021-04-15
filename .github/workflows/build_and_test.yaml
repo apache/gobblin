@@ -103,7 +103,7 @@ jobs:
           ./gradlew --no-daemon -x javadoc findbugsMain checkstyleMain checkstyleTest checkstyleJmh
 
   run_tests:
-    timeout-minutes: 60
+    timeout-minutes: 120
     env:
       GOBBLIN_GRADLE_OPTS: "--no-daemon -Dgobblin.metastore.testing.embeddedMysqlEnabled=false -PusePreinstalledMysql=true"
     strategy:
@@ -130,6 +130,10 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: 1.8
+      # Fix for bug where Github tests are failing port address binding.
+      - name: Add the current IP address, long hostname and short hostname record to /etc/hosts file
+        run: |
+          echo -e "$(ip addr show eth0 | grep "inet\b" | awk '{print $2}' | cut -d/ -f1)\t$(hostname -f) $(hostname -s)" | sudo tee -a /etc/hosts
       - name: Verify mysql connection
         run: |
             sudo apt-get install -y mysql-client
@@ -160,5 +164,5 @@ jobs:
             else
               exit 1
             fi
-            sleep 10
+            sleep 30
           done
