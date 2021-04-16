@@ -179,7 +179,7 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
     try {
       return FileListUtils
           .listFilesToCopyAtPath(fs, path, fileFilter, applyFilterToDirectories, includeEmptyDirectories);
-    } catch (FileNotFoundException fnfe) {
+    } catch (IOException e) {
       return Lists.newArrayList();
     }
   }
