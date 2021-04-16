@@ -104,7 +104,7 @@ subprojects{
     }
   }
 
-  // Using gradle bintray plugin to publish artifacts to Jfrog bintray
+  // Using gradle artifactory plugin to publish artifacts to Jfrog Artifactory
   artifactory {
     contextUrl = 'https://linkedin.jfrog.io/artifactory/'
     publish {
