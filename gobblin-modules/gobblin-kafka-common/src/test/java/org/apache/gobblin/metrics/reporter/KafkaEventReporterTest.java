@@ -24,7 +24,10 @@ import java.util.Map;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.MetricContext;
@@ -54,7 +57,6 @@ public class KafkaEventReporterTest {
 
     MockKafkaPusher pusher = new MockKafkaPusher();
     KafkaEventReporter kafkaReporter = getBuilder(context, pusher).build("localhost:0000", "topic");
-
     String namespace = "gobblin.metrics.test";
     String eventName = "testEvent";
 
@@ -134,6 +136,27 @@ public class KafkaEventReporterTest {
     Assert.assertEquals(retrievedEvent.getMetadata().size(), 4);
     Assert.assertEquals(retrievedEvent.getMetadata().get(tag1), metadataValue1);
     Assert.assertEquals(retrievedEvent.getMetadata().get(tag2), value2);
+  }
+
+  @Test
+  public void testEventReporterConfigs() throws IOException {
+
+    MetricContext context = MetricContext.builder("context").build();
+
+    MockKafkaPusher pusher = new MockKafkaPusher();
+    KafkaEventReporter kafkaReporter = getBuilder(context, pusher).build("localhost:0000", "topic");
+    Assert.assertEquals(kafkaReporter.getQueueCapacity(), EventReporter.DEFAULT_QUEUE_CAPACITY);
+    Assert.assertEquals(kafkaReporter.getQueueOfferTimeoutSecs(), EventReporter.DEFAULT_QUEUE_OFFER_TIMEOUT_SECS);
+
+    Config config = ConfigFactory.parseMap(
+        ImmutableMap.<String, Object>builder()
+            .put(EventReporter.QUEUE_CAPACITY_KEY, 200)
+            .put(EventReporter.QUEUE_OFFER_TIMOUT_SECS_KEY, 5)
+            .build());
+
+    kafkaReporter = getBuilder(context, pusher).withConfig(config).build("localhost:0000", "topic");
+    Assert.assertEquals(kafkaReporter.getQueueCapacity(), 200);
+    Assert.assertEquals(kafkaReporter.getQueueOfferTimeoutSecs(), 5);
   }
 
   /**

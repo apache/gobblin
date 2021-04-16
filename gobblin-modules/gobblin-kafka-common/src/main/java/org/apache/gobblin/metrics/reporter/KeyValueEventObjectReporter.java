@@ -63,7 +63,7 @@ public class KeyValueEventObjectReporter extends EventReporter {
   public KeyValueEventObjectReporter(Builder builder) {
     super(builder);
 
-    Config config = builder.config.get();
+    Config config = builder.config;
     Config pusherConfig = ConfigUtils.getConfigOrEmpty(config, PUSHER_CONFIG).withFallback(config);
     String pusherClassName =
         ConfigUtils.getString(config, PUSHER_CLASS, PusherUtils.DEFAULT_KEY_VALUE_PUSHER_CLASS_NAME);
@@ -132,7 +132,6 @@ public class KeyValueEventObjectReporter extends EventReporter {
 
     protected String brokers;
     protected String topic;
-    protected Optional<Config> config = Optional.absent();
     protected Optional<Map<String, String>> namespaceOverride = Optional.absent();
 
     public Builder(MetricContext context) {
@@ -142,14 +141,6 @@ public class KeyValueEventObjectReporter extends EventReporter {
     @Override
     protected Builder self() {
       return this;
-    }
-
-    /**
-     * Set additional configuration.
-     */
-    public Builder withConfig(Config config) {
-      this.config = Optional.of(config);
-      return self();
     }
 
     public Builder namespaceOverride(Optional<Map<String, String>> namespaceOverride) {
