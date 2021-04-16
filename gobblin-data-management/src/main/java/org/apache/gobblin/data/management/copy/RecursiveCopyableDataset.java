@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.data.management.copy;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.commit.CommitStep;
 import org.apache.gobblin.data.management.copy.entities.PrePublishStep;
 import org.apache.gobblin.data.management.dataset.DatasetUtils;
@@ -47,6 +48,7 @@ import com.google.common.collect.Maps;
  * Implementation of {@link CopyableDataset} that creates a {@link CopyableFile} for every file that is a descendant if
  * the root directory.
  */
+@Slf4j
 public class RecursiveCopyableDataset implements CopyableDataset, FileSystemDataset {
 
   private static final String CONFIG_PREFIX = CopyConfiguration.COPY_PREFIX + ".recursive";
@@ -180,6 +182,7 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
       return FileListUtils
           .listFilesToCopyAtPath(fs, path, fileFilter, applyFilterToDirectories, includeEmptyDirectories);
     } catch (IOException e) {
+      log.info(String.format("Could not find any files on target path due to %s. Returning an empty list of files.", e.getClass().getCanonicalName()));
       return Lists.newArrayList();
     }
   }
