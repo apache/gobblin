@@ -58,8 +58,6 @@ env:
     - RUN_TEST_GROUP=group1
     - RUN_TEST_GROUP=coverage
   global:
-    - secure: U72nmzXq7kXcIabiwvrTF+WkNFQxov2ACd8oPxWSHsyzRsfVJN42vT7gS3dLbH5G5claXG2p+rur4ueVffzYSwJ8B9OP6gTB8sNJnGr9zyxni4OJchyKqOYuj+UBpEQC/7qXKMCKnuJndsf1OvndDh/V1SH0DSSUuA6mDtgO/eM=
-    - secure: WiK7tyFV68xdkIfUlWreUHgEGGjaCBd73O4SbjE9AsbqqF7D+Iu8iRo1OhKQj+6eajUH9Eoev9rVN74FQgUfeNzrOkYsgDysXmyZ7+UxFokijFcATJmIBompA3dySGU2qXeKbJMNuUjXgrRIludaV6h2ahL6Fji42cgK4I3s2qs=
     - secure: TihDMhhcX3K1BXV1zCgHYfAa/wxpVOxnMZXbvAoCiA6vbUCd/94bPQaAhABKkZdWUqsgto9YxYyqcQM2XntDXs2K3A8AdW2PUgb9ynf782zFsfG8O2fasW1UQxg4QQ5TQw+P34s7HjUNz0dDfRyl1gurN9yPOPvAxv+paB9FDfE=
     - secure: K/d6ce/NOHkcNfQvFopU5jVkCPwbj8xWTu1vgZiHMOeIB3cU9lZzxQESOZw5zd1aqYDMmTYXU62I/fn0CWTUvfL1TdKFQ4iN0OW31uFr2cFtnCRhxALsRoXYHvApHmssOxuQdp76jAavoHt+CLxcwG/FGZ3GEaczbZC1ZU/pjbQ=
 jdk:
