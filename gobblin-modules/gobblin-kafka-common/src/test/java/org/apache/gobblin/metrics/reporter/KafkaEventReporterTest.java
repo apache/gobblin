@@ -57,7 +57,6 @@ public class KafkaEventReporterTest {
 
     MockKafkaPusher pusher = new MockKafkaPusher();
     KafkaEventReporter kafkaReporter = getBuilder(context, pusher).build("localhost:0000", "topic");
-    kafkaReporter.getQueueCapacity();
     String namespace = "gobblin.metrics.test";
     String eventName = "testEvent";
 
