@@ -93,7 +93,14 @@ project.publishing.publications {
     pom.withXml addRuntimeDependenciesToPom
   }
 }
-addPublicationToBintray("testsPub")
+
+artifactory {
+  publish {
+    defaults {
+      publications('mavenJava', 'testsPub')
+    }
+  }
+}
 
 test {
   workingDir rootProject.rootDir

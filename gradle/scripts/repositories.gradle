@@ -26,6 +26,9 @@ repositories {
   maven {
     url "https://linkedin.bintray.com/maven"
   }
+  maven {
+    url "https://linkedin.jfrog.com/artifactory/"
+  }
   jcenter()
 }
 
