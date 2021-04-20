@@ -20,14 +20,15 @@ package org.apache.gobblin.cluster;
 import java.io.IOException;
 import java.util.List;
 
+import com.google.common.collect.Lists;
+
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.runtime.JobShutdownException;
 import org.apache.gobblin.source.extractor.DataRecordException;
 import org.apache.gobblin.source.extractor.Extractor;
 import org.apache.gobblin.source.extractor.extract.AbstractSource;
 import org.apache.gobblin.source.workunit.WorkUnit;
-
-import com.google.common.collect.Lists;
 
 
 /**
@@ -98,5 +99,11 @@ public class DummySource extends AbstractSource<String, Integer> {
         throws IOException {
       // Nothing to do
     }
+
+//    @Override
+//    public void shutdown()
+//        throws JobShutdownException {
+//      // Nothing to do but overwrite unnecessary checking in the base interface.
+//    }
   }
 }
