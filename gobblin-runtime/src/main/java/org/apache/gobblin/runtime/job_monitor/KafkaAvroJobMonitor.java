@@ -21,7 +21,6 @@ import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URI;
 import java.util.Collection;
 import java.util.List;
 
@@ -35,15 +34,14 @@ import org.apache.avro.specific.SpecificDatumReader;
 import com.codahale.metrics.Meter;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
+import com.google.common.eventbus.EventBus;
 import com.typesafe.config.Config;
 
-import org.apache.gobblin.kafka.client.GobblinKafkaConsumerClient;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.metrics.reporter.util.SchemaVersionWriter;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
 import org.apache.gobblin.runtime.metrics.RuntimeMetrics;
-import org.apache.gobblin.util.Either;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -68,7 +66,12 @@ public abstract class KafkaAvroJobMonitor<T> extends KafkaJobMonitor {
 
   public KafkaAvroJobMonitor(String topic, MutableJobCatalog catalog, Config config, Schema schema,
       SchemaVersionWriter<?> versionWriter) {
-    super(topic, catalog, config);
+    this(topic, catalog, config, schema, versionWriter, Optional.absent());
+  }
+
+  public KafkaAvroJobMonitor(String topic, MutableJobCatalog catalog, Config config, Schema schema,
+        SchemaVersionWriter<?> versionWriter, Optional<EventBus> eventBus) {
+    super(topic, catalog, eventBus, config);
 
     this.schema = schema;
     this.decoder = new ThreadLocal<BinaryDecoder>() {
@@ -102,7 +105,7 @@ public abstract class KafkaAvroJobMonitor<T> extends KafkaJobMonitor {
   }
 
   @Override
-  public Collection<Either<JobSpec, URI>> parseJobSpec(byte[] message)
+  public Collection<JobSpec> parseJobSpec(byte[] message)
       throws IOException {
 
     InputStream is = new ByteArrayInputStream(message);
@@ -126,5 +129,5 @@ public abstract class KafkaAvroJobMonitor<T> extends KafkaJobMonitor {
   /**
    * Extract {@link JobSpec}s from the Kafka message.
    */
-  public abstract Collection<Either<JobSpec, URI>> parseJobSpec(T message);
+  public abstract Collection<JobSpec> parseJobSpec(T message);
 }

@@ -99,17 +99,6 @@ public class JobCatalogListenersList implements JobCatalogListener, JobCatalogLi
   }
 
   @Override
-  public synchronized void onCancelJob(URI cancelledJobURI) {
-    Preconditions.checkNotNull(cancelledJobURI);
-
-    try {
-      _disp.execCallbacks(new CancelJobCallback(cancelledJobURI));
-    } catch (InterruptedException e) {
-      getLog().warn("onCancelJob interrupted.");
-    }
-  }
-
-  @Override
   public void close()
       throws IOException {
     _disp.close();

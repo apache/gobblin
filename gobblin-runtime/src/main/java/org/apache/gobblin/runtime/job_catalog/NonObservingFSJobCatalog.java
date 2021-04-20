@@ -102,10 +102,6 @@ public class NonObservingFSJobCatalog extends FSJobCatalog {
    */
   @Override
   public synchronized void remove(URI jobURI) {
-      remove(jobURI, false);
-  }
-
-  public synchronized void remove(URI jobURI, boolean alwaysTriggerListeners) {
     Preconditions.checkState(state() == State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
     try {
       long startTime = System.currentTimeMillis();
@@ -123,12 +119,6 @@ public class NonObservingFSJobCatalog extends FSJobCatalog {
       throw new RuntimeException("When removing a JobConf. file, issues unexpected happen:" + e.getMessage());
     } catch (SpecNotFoundException e) {
       LOGGER.warn("No file with URI:" + jobURI + " is found. Deletion failed.");
-    } finally {
-      // HelixRetriggeringJobCallable deletes the job file after submitting it to helix,
-      // so we will have to trigger listeners regardless the existence of job file to cancel the job
-      if (alwaysTriggerListeners) {
-        this.listeners.onCancelJob(jobURI);
-      }
     }
   }
 }

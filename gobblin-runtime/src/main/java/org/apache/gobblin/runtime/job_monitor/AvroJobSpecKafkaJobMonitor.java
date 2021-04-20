@@ -27,10 +27,10 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.google.common.eventbus.EventBus;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import org.apache.gobblin.kafka.client.GobblinKafkaConsumerClient;
 import org.apache.gobblin.metrics.reporter.util.FixedSchemaVersionWriter;
 import org.apache.gobblin.metrics.reporter.util.SchemaVersionWriter;
 import org.apache.gobblin.runtime.api.GobblinInstanceDriver;
@@ -38,10 +38,7 @@ import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.JobSpecMonitor;
 import org.apache.gobblin.runtime.api.JobSpecMonitorFactory;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
-import org.apache.gobblin.runtime.api.SpecExecutor.Verb;
-import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.job_spec.AvroJobSpec;
-import org.apache.gobblin.util.Either;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 import lombok.Getter;
@@ -58,7 +55,6 @@ public class AvroJobSpecKafkaJobMonitor extends KafkaAvroJobMonitor<AvroJobSpec>
   public static final String CONFIG_PREFIX = "gobblin.jobMonitor.avroJobSpec";
   public static final String TOPIC_KEY = "topic";
   public static final String SCHEMA_VERSION_READER_CLASS = "versionReaderClass";
-  protected static final String VERB_KEY = "Verb";
   private static final Config DEFAULTS = ConfigFactory.parseMap(ImmutableMap.of(
       SCHEMA_VERSION_READER_CLASS, FixedSchemaVersionWriter.class.getName()));
 
@@ -78,6 +74,10 @@ public class AvroJobSpecKafkaJobMonitor extends KafkaAvroJobMonitor<AvroJobSpec>
      * @throws IOException
      */
     public JobSpecMonitor forConfig(Config localScopeConfig, MutableJobCatalog jobCatalog) throws IOException {
+      return forConfig(localScopeConfig, jobCatalog, Optional.absent());
+    }
+
+    public JobSpecMonitor forConfig(Config localScopeConfig, MutableJobCatalog jobCatalog, Optional<EventBus> eventBus) throws IOException {
       Preconditions.checkArgument(localScopeConfig.hasPath(TOPIC_KEY));
       Config config = localScopeConfig.withFallback(DEFAULTS);
 
@@ -91,13 +91,18 @@ public class AvroJobSpecKafkaJobMonitor extends KafkaAvroJobMonitor<AvroJobSpec>
         throw new IllegalArgumentException(roe);
       }
 
-      return new AvroJobSpecKafkaJobMonitor(topic, jobCatalog, config, versionWriter);
+      return new AvroJobSpecKafkaJobMonitor(topic, jobCatalog, config, versionWriter, eventBus);
     }
   }
 
   protected AvroJobSpecKafkaJobMonitor(String topic, MutableJobCatalog catalog, Config limitedScopeConfig,
       SchemaVersionWriter<?> versionWriter) throws IOException {
-    super(topic, catalog, limitedScopeConfig, AvroJobSpec.SCHEMA$, versionWriter);
+    this(topic, catalog, limitedScopeConfig, versionWriter, Optional.absent());
+  }
+
+  protected AvroJobSpecKafkaJobMonitor(String topic, MutableJobCatalog catalog, Config limitedScopeConfig,
+      SchemaVersionWriter<?> versionWriter, Optional<EventBus> eventBus) throws IOException {
+    super(topic, catalog, limitedScopeConfig, AvroJobSpec.SCHEMA$, versionWriter, eventBus);
   }
 
   @Override
@@ -108,10 +113,10 @@ public class AvroJobSpecKafkaJobMonitor extends KafkaAvroJobMonitor<AvroJobSpec>
   /**
    * Creates a {@link JobSpec} or {@link URI} from the {@link AvroJobSpec} record.
    * @param record the record as an {@link AvroJobSpec}
-   * @return a {@link JobSpec} or {@link URI} wrapped in a {@link Collection} of {@link Either}
+   * @return a {@link JobSpec}
    */
   @Override
-  public Collection<Either<JobSpec, URI>> parseJobSpec(AvroJobSpec record) {
+  public Collection<JobSpec> parseJobSpec(AvroJobSpec record) {
     JobSpec.Builder jobSpecBuilder = JobSpec.builder(record.getUri());
 
     Properties props = new Properties();
@@ -127,17 +132,10 @@ public class AvroJobSpecKafkaJobMonitor extends KafkaAvroJobMonitor<AvroJobSpec>
       }
     }
 
-    String verbName = record.getMetadata().get(VERB_KEY);
-    SpecExecutor.Verb verb = SpecExecutor.Verb.valueOf(verbName);
-
     JobSpec jobSpec = jobSpecBuilder.build();
 
     log.info("Parsed job spec " + jobSpec.toString());
 
-    if (verb == Verb.ADD || verb == Verb.UPDATE) {
-      return Lists.newArrayList(Either.left(jobSpec));
-    } else {
-      return Lists.newArrayList(Either.right(jobSpec.getUri()));
-    }
+    return Lists.newArrayList(jobSpec);
   }
 }

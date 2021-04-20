@@ -62,7 +62,6 @@ import org.apache.gobblin.source.extractor.extract.kafka.KafkaTopic;
 import org.apache.gobblin.util.CompletedFuture;
 import org.apache.gobblin.util.ConfigUtils;
 
-import static org.apache.gobblin.service.SimpleKafkaSpecExecutor.VERB_KEY;
 import lombok.extern.slf4j.Slf4j;
 
 
@@ -193,10 +192,10 @@ public class SimpleKafkaSpecConsumer implements SpecConsumer<Spec>, Closeable {
             jobSpecBuilder.withTemplate(new URI(record.getTemplateUri()));
           }
 
-          String verbName = record.getMetadata().get(VERB_KEY);
+          String verbName = record.getMetadata().get(SpecExecutor.VERB_KEY);
           SpecExecutor.Verb verb = SpecExecutor.Verb.valueOf(verbName);
 
-          changesSpecs.add(new ImmutablePair<SpecExecutor.Verb, Spec>(verb, jobSpecBuilder.build()));
+          changesSpecs.add(new ImmutablePair<>(verb, jobSpecBuilder.build()));
         } catch (Throwable t) {
           log.error("Could not decode record at partition " + this.currentPartitionIdx +
               " offset " + nextValidMessage.getOffset());
@@ -204,7 +203,7 @@ public class SimpleKafkaSpecConsumer implements SpecConsumer<Spec>, Closeable {
       }
     }
 
-    return new CompletedFuture(changesSpecs, null);
+    return new CompletedFuture<>(changesSpecs, null);
   }
 
   private void initializeWatermarks() {

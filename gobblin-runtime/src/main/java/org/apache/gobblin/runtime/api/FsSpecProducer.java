@@ -52,8 +52,6 @@ import org.apache.gobblin.util.HadoopUtils;
  */
 @Slf4j
 public class FsSpecProducer implements SpecProducer<Spec> {
-  protected static final String VERB_KEY = "Verb";
-
   private Path specConsumerPath;
   private FileSystem fs;
 
@@ -107,7 +105,7 @@ public class FsSpecProducer implements SpecProducer<Spec> {
   @Override
   public Future<?> deleteSpec(URI deletedSpecURI, Properties headers) {
     AvroJobSpec avroJobSpec = AvroJobSpec.newBuilder().setUri(deletedSpecURI.toString())
-        .setMetadata(ImmutableMap.of(VERB_KEY, SpecExecutor.Verb.DELETE.name()))
+        .setMetadata(ImmutableMap.of(SpecExecutor.VERB_KEY, SpecExecutor.Verb.DELETE.name()))
         .setProperties(Maps.fromProperties(headers)).build();
     try {
       writeAvroJobSpec(avroJobSpec);
@@ -131,7 +129,7 @@ public class FsSpecProducer implements SpecProducer<Spec> {
         setTemplateUri("FS:///").
         setDescription(jobSpec.getDescription()).
         setVersion(jobSpec.getVersion()).
-        setMetadata(ImmutableMap.of(VERB_KEY, verb.name())).build();
+        setMetadata(ImmutableMap.of(SpecExecutor.VERB_KEY, verb.name())).build();
   }
 
   private void writeAvroJobSpec(AvroJobSpec jobSpec) throws IOException {

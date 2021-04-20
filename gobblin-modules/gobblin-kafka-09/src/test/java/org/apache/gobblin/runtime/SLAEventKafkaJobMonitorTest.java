@@ -68,10 +68,10 @@ public class SLAEventKafkaJobMonitorTest {
 
     GobblinTrackingEvent event = createSLAEvent("DatasetPublish", new URI("/data/myDataset"),
         ImmutableMap.of("metadataKey1","value1","key1","value2"));
-    Collection<Either<JobSpec, URI>> jobSpecs = monitor.parseJobSpec(event);
+    Collection<JobSpec> jobSpecs = monitor.parseJobSpec(event);
 
     Assert.assertEquals(jobSpecs.size(), 1);
-    JobSpec jobSpec = (JobSpec) jobSpecs.iterator().next().get();
+    JobSpec jobSpec = jobSpecs.iterator().next();
     Assert.assertEquals(jobSpec.getUri(), new URI("/base/URI/data/myDataset"));
     Assert.assertEquals(jobSpec.getTemplateURI().get(), templateURI);
     // should insert configuration from metadata
@@ -92,7 +92,7 @@ public class SLAEventKafkaJobMonitorTest {
     monitor.buildMetricsContextAndMetrics();
 
     GobblinTrackingEvent event;
-    Collection<Either<JobSpec, URI>> jobSpecs;
+    Collection<JobSpec> jobSpecs;
 
     event = createSLAEvent("acceptthis", new URI("/data/myDataset"), Maps.<String, String>newHashMap());
     jobSpecs = monitor.parseJobSpec(event);
@@ -123,7 +123,7 @@ public class SLAEventKafkaJobMonitorTest {
     monitor.buildMetricsContextAndMetrics();
 
     GobblinTrackingEvent event;
-    Collection<Either<JobSpec, URI>> jobSpecs;
+    Collection<JobSpec> jobSpecs;
 
     event = createSLAEvent("event", new URI("/accept/myDataset"), Maps.<String, String>newHashMap());
     jobSpecs = monitor.parseJobSpec(event);
