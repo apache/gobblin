@@ -78,7 +78,6 @@ public class JobSpec implements Configurable, Spec {
   Map<String, String> metadata;
 
   /** A Verb identifies if the Spec is for Insert/Update/Delete */
-  public static final String VERB_KEY = "Verb";
   private static final String IN_MEMORY_TEMPLATE_URI = "inmemory";
 
   public static Builder builder(URI jobSpecUri) {
@@ -344,7 +343,7 @@ public class JobSpec implements Configurable, Spec {
 
     public Map getDefaultMetadata() {
       log.debug("Job Spec Verb is not provided, using type 'UNKNOWN'.");
-      return ImmutableMap.of(VERB_KEY, SpecExecutor.Verb.UNKNOWN.name());
+      return ImmutableMap.of(SpecExecutor.VERB_KEY, SpecExecutor.Verb.UNKNOWN.name());
     }
 
     public Map getMetadata() {

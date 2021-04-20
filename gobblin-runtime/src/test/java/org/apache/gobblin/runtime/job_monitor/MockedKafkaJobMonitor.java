@@ -24,6 +24,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
+import avro.shaded.com.google.common.collect.ImmutableMap;
 import javax.annotation.Nullable;
 
 import org.mockito.Mockito;
@@ -31,7 +32,6 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import com.google.common.base.Charsets;
-import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
@@ -39,11 +39,10 @@ import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import org.apache.gobblin.kafka.client.GobblinKafkaConsumerClient;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
+import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.testing.AssertWithBackoff;
-import org.apache.gobblin.util.Either;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -97,11 +96,11 @@ public class MockedKafkaJobMonitor extends KafkaJobMonitor {
 
 
   @Override
-  public Collection<Either<JobSpec, URI>> parseJobSpec(byte[] message)
+  public Collection<JobSpec> parseJobSpec(byte[] message)
       throws IOException {
     try {
       String messageString = new String(message, Charsets.UTF_8);
-      List<Either<JobSpec, URI>> jobSpecs = Lists.newArrayList();
+      List<JobSpec> jobSpecs = Lists.newArrayList();
 
       for (String oneInstruction : SPLITTER_COMMA.split(messageString)) {
 
@@ -109,12 +108,15 @@ public class MockedKafkaJobMonitor extends KafkaJobMonitor {
 
         if (tokens.get(0).equals(REMOVE)) {
           URI uri = new URI(tokens.get(1));
-          jobSpecs.add(Either.<JobSpec, URI>right(uri));
+          JobSpec jobSpec = new JobSpec.Builder(uri).withConfig(ConfigFactory.empty())
+              .withMetadata(ImmutableMap.of(SpecExecutor.VERB_KEY, SpecExecutor.Verb.DELETE.name())).build();
+          jobSpecs.add(jobSpec);
         } else {
           URI uri = new URI(tokens.get(0));
           String version = tokens.get(1);
-          JobSpec jobSpec = new JobSpec.Builder(uri).withConfig(ConfigFactory.empty()).withVersion(version).build();
-          jobSpecs.add(Either.<JobSpec, URI>left(jobSpec));
+          JobSpec jobSpec = new JobSpec.Builder(uri).withConfig(ConfigFactory.empty()).withVersion(version)
+              .withMetadata(ImmutableMap.of(SpecExecutor.VERB_KEY, SpecExecutor.Verb.ADD.name())).build();
+          jobSpecs.add(jobSpec);
         }
       }
       return jobSpecs;

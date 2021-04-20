@@ -45,7 +45,6 @@ import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.writer.AsyncDataWriter;
 import org.apache.gobblin.writer.WriteCallback;
 
-import static org.apache.gobblin.service.SimpleKafkaSpecExecutor.VERB_KEY;
 import javax.annotation.concurrent.NotThreadSafe;
 import lombok.extern.slf4j.Slf4j;
 
@@ -105,10 +104,21 @@ public class SimpleKafkaSpecProducer implements SpecProducer<Spec>, Closeable  {
   public Future<?> deleteSpec(URI deletedSpecURI, Properties headers) {
 
     AvroJobSpec avroJobSpec = AvroJobSpec.newBuilder().setUri(deletedSpecURI.toString())
-        .setMetadata(ImmutableMap.of(VERB_KEY, SpecExecutor.Verb.DELETE.name()))
+        .setMetadata(ImmutableMap.of(SpecExecutor.VERB_KEY, SpecExecutor.Verb.DELETE.name()))
         .setProperties(Maps.fromProperties(headers)).build();
 
     log.info("Deleting Spec: " + deletedSpecURI + " using Kafka.");
+
+    return getKafkaProducer().write(_serializer.serializeRecord(avroJobSpec), new KafkaWriteCallback(avroJobSpec));
+  }
+
+  @Override
+  public Future<?> cancelJob(URI deletedSpecURI, Properties properties) {
+    AvroJobSpec avroJobSpec = AvroJobSpec.newBuilder().setUri(deletedSpecURI.toString())
+        .setMetadata(ImmutableMap.of(SpecExecutor.VERB_KEY, SpecExecutor.Verb.CANCEL.name()))
+        .setProperties(Maps.fromProperties(properties)).build();
+
+    log.info("Cancelling job: " + deletedSpecURI + " using Kafka.");
 
     return getKafkaProducer().write(_serializer.serializeRecord(avroJobSpec), new KafkaWriteCallback(avroJobSpec));
   }
@@ -144,7 +154,7 @@ public class SimpleKafkaSpecProducer implements SpecProducer<Spec>, Closeable  {
 
       avroJobSpecBuilder.setUri(jobSpec.getUri().toString()).setVersion(jobSpec.getVersion())
           .setDescription(jobSpec.getDescription()).setProperties(Maps.fromProperties(jobSpec.getConfigAsProperties()))
-          .setMetadata(ImmutableMap.of(VERB_KEY, verb.name()));
+          .setMetadata(ImmutableMap.of(SpecExecutor.VERB_KEY, verb.name()));
 
       if (jobSpec.getTemplateURI().isPresent()) {
         avroJobSpecBuilder.setTemplateUri(jobSpec.getTemplateURI().get().toString());

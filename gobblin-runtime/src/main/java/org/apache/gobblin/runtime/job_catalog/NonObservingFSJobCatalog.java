@@ -105,6 +105,14 @@ public class NonObservingFSJobCatalog extends FSJobCatalog {
       remove(jobURI, false);
   }
 
+  /**
+   * Removes a job from job catalog.
+   * If it is a flow delete request from service side, then alwaysTriggerListeners should be set to true so that a
+   * running job will also be cancelled. If it is a remove request because a job finishes or has been submitted to helix,
+   * then alwaysTriggerListeners should be set to false so that job cancellation is not triggered.
+   * @param jobURI job uri
+   * @param alwaysTriggerListeners if it is true, a running job will be cancelled.
+   */
   public synchronized void remove(URI jobURI, boolean alwaysTriggerListeners) {
     Preconditions.checkState(state() == State.RUNNING, String.format("%s is not running.", this.getClass().getName()));
     try {

@@ -39,9 +39,6 @@ import org.apache.gobblin.util.CompletedFuture;
 public class SimpleKafkaSpecExecutor extends AbstractSpecExecutor {
   public static final String SPEC_KAFKA_TOPICS_KEY = "spec.kafka.topics";
 
-
-  protected static final String VERB_KEY = "Verb";
-
   private SpecProducer<Spec> specProducer;
 
   public SimpleKafkaSpecExecutor(Config config, Optional<Logger> log) {

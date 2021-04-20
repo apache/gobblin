@@ -51,7 +51,6 @@ import org.apache.gobblin.util.filters.HiddenFilter;
 @Slf4j
 public class FsSpecConsumer implements SpecConsumer<Spec> {
   public static final String SPEC_PATH_KEY = "gobblin.cluster.specConsumer.path";
-  public static final String VERB_KEY = "Verb";
 
   private final Path specDirPath;
   private final FileSystem fs;
@@ -125,7 +124,7 @@ public class FsSpecConsumer implements SpecConsumer<Spec> {
           continue;
         }
 
-        String verbName = avroJobSpec.getMetadata().get(VERB_KEY);
+        String verbName = avroJobSpec.getMetadata().get(SpecExecutor.VERB_KEY);
         SpecExecutor.Verb verb = SpecExecutor.Verb.valueOf(verbName);
 
         JobSpec jobSpec = jobSpecBuilder.build();

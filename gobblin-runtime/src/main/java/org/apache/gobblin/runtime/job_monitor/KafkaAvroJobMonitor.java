@@ -102,7 +102,7 @@ public abstract class KafkaAvroJobMonitor<T> extends KafkaJobMonitor {
   }
 
   @Override
-  public Collection<Either<JobSpec, URI>> parseJobSpec(byte[] message)
+  public Collection<JobSpec> parseJobSpec(byte[] message)
       throws IOException {
 
     InputStream is = new ByteArrayInputStream(message);
@@ -126,5 +126,5 @@ public abstract class KafkaAvroJobMonitor<T> extends KafkaJobMonitor {
   /**
    * Extract {@link JobSpec}s from the Kafka message.
    */
-  public abstract Collection<Either<JobSpec, URI>> parseJobSpec(T message);
+  public abstract Collection<JobSpec> parseJobSpec(T message);
 }
