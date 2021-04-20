@@ -62,6 +62,8 @@ import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.runtime.JobException;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
+import org.apache.gobblin.runtime.api.SpecExecutor;
+import org.apache.gobblin.runtime.job_catalog.JobConfigArrivalEvent;
 import org.apache.gobblin.runtime.listeners.JobListener;
 import org.apache.gobblin.scheduler.JobScheduler;
 import org.apache.gobblin.scheduler.SchedulerService;
@@ -370,9 +372,15 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
   }
 
   @Subscribe
-  public void handleCancelJobConfigArrival(CancelJobConfigArrivalEvent cancelJobArrival)
+  public void handleJobConfigArrival(JobConfigArrivalEvent jobArrival)
       throws InterruptedException {
-    String jobUri = cancelJobArrival.getJoburi();
+    String jobUri = jobArrival.uri.toString();
+
+    if (jobArrival.verb != SpecExecutor.Verb.CANCEL) {
+      LOGGER.info("Received {} event for job uri {}. Taking no action.", jobArrival.verb, jobUri);
+      return;
+    }
+
     LOGGER.info("Received cancel for job configuration of job " + jobUri);
     Optional<String> distributedJobMode;
     Optional<String> planningJob = Optional.empty();

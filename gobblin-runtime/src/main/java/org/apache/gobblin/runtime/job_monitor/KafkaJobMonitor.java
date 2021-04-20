@@ -38,6 +38,7 @@ import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.JobSpecMonitor;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
 import org.apache.gobblin.runtime.api.SpecExecutor;
+import org.apache.gobblin.runtime.job_catalog.JobConfigArrivalEvent;
 import org.apache.gobblin.runtime.kafka.HighLevelConsumer;
 import org.apache.gobblin.runtime.metrics.RuntimeMetrics;
 import org.apache.gobblin.util.ConfigUtils;
@@ -56,6 +57,7 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
   public static final String KAFKA_AUTO_OFFSET_RESET_LARGEST = "largest";
   protected DatasetStateStore datasetStateStore;
   protected final MutableJobCatalog jobCatalog;
+  protected final Optional<EventBus> eventBus;
 
   @Getter
   protected Counter newSpecs;
@@ -70,8 +72,13 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
   public abstract Collection<JobSpec> parseJobSpec(byte[] message) throws IOException;
 
   public KafkaJobMonitor(String topic, MutableJobCatalog catalog, Config config) {
+    this(topic, catalog, Optional.absent(), config);
+  }
+
+  public KafkaJobMonitor(String topic, MutableJobCatalog catalog, Optional<EventBus> eventBus, Config config) {
     super(topic, ConfigUtils.getConfigOrEmpty(config, KAFKA_JOB_MONITOR_PREFIX), 1);
     this.jobCatalog = catalog;
+    this.eventBus = eventBus;
     try {
       this.datasetStateStore = DatasetStateStore.buildDatasetStateStore(config);
     } catch (Exception e) {
@@ -105,6 +112,7 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
       Collection<JobSpec> parsedCollection = parseJobSpec(message.getValue());
       for (JobSpec parsedMessage : parsedCollection) {
         SpecExecutor.Verb verb;
+        URI jobUri = parsedMessage.getUri();
 
         try {
           verb = SpecExecutor.Verb.valueOf(parsedMessage.getMetadata().get(SpecExecutor.VERB_KEY));
@@ -131,7 +139,7 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
             deleteStateStore(jobSpecUri);
             break;
           case CANCEL:
-            this.jobCatalog.remove(parsedMessage.getUri(), true);
+            sendCancelTrigger(jobUri);
             break;
           default:
             log.error("Cannot process spec {} with verb {}", parsedMessage.getUri(), verb);
@@ -140,6 +148,15 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
     } catch (IOException ioe) {
       String messageStr = new String(message.getValue(), Charsets.UTF_8);
       log.error(String.format("Failed to parse kafka message with offset %d: %s.", message.getOffset(), messageStr), ioe);
+    }
+  }
+
+  private void sendCancelTrigger(URI jobUri) {
+    if (this.eventBus.isPresent()) {
+      log.info(String.format("Posting cancel JobConfig with name: %s", jobUri));
+      this.eventBus.get().post(new JobConfigArrivalEvent(jobUri, SpecExecutor.Verb.CANCEL));
+    } else {
+      log.warn("EventBus is not initialized, skipping cancellation request for job {}.", jobUri);
     }
   }
 

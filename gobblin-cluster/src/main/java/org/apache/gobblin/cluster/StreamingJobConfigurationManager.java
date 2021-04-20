@@ -88,6 +88,7 @@ public class StreamingJobConfigurationManager extends JobConfigurationManager {
 
       this.specConsumer = (SpecConsumer) GobblinConstructorUtils.invokeFirstConstructor(
           Class.forName(aliasResolver.resolve(specExecutorInstanceConsumerClassName)),
+          ImmutableList.<Object>of(config, jobCatalog, Optional.of(eventBus)),
           ImmutableList.<Object>of(config, jobCatalog),
           ImmutableList.<Object>of(config));
     } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
@@ -160,9 +161,6 @@ public class StreamingJobConfigurationManager extends JobConfigurationManager {
         // Handle delete
         Spec anonymousSpec = entry.getValue();
         postDeleteJobConfigArrival(anonymousSpec.getUri().toString(), new Properties());
-      } else if (verb.equals(SpecExecutor.Verb.CANCEL)) {
-        Spec anonymousSpec = entry.getValue();
-        postCancelJobConfigArrival(anonymousSpec.getUri().toString());
       }
     }
   }

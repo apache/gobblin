@@ -34,6 +34,7 @@ import org.apache.avro.specific.SpecificDatumReader;
 import com.codahale.metrics.Meter;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
+import com.google.common.eventbus.EventBus;
 import com.typesafe.config.Config;
 
 import org.apache.gobblin.metrics.Tag;
@@ -65,7 +66,12 @@ public abstract class KafkaAvroJobMonitor<T> extends KafkaJobMonitor {
 
   public KafkaAvroJobMonitor(String topic, MutableJobCatalog catalog, Config config, Schema schema,
       SchemaVersionWriter<?> versionWriter) {
-    super(topic, catalog, config);
+    this(topic, catalog, config, schema, versionWriter, Optional.absent());
+  }
+
+  public KafkaAvroJobMonitor(String topic, MutableJobCatalog catalog, Config config, Schema schema,
+        SchemaVersionWriter<?> versionWriter, Optional<EventBus> eventBus) {
+    super(topic, catalog, eventBus, config);
 
     this.schema = schema;
     this.decoder = new ThreadLocal<BinaryDecoder>() {
