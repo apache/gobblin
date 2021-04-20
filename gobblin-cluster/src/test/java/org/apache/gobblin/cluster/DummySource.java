@@ -100,10 +100,10 @@ public class DummySource extends AbstractSource<String, Integer> {
       // Nothing to do
     }
 
-//    @Override
-//    public void shutdown()
-//        throws JobShutdownException {
-//      // Nothing to do but overwrite unnecessary checking in the base interface.
-//    }
+    @Override
+    public void shutdown()
+        throws JobShutdownException {
+      // Nothing to do but overwrite unnecessary checking in the base interface.
+    }
   }
 }
