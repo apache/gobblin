@@ -1187,6 +1187,7 @@ public class DagManager extends AbstractIdleService {
       } catch (IOException e) {
         log.error("Failed to add dag " + dagId + " to failed dag state store", e);
       }
+      this.dags.get(dagId).setFlowEvent(null);
       this.failedDags.put(dagId, this.dags.get(dagId));
     }
 
