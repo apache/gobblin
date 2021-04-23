@@ -1058,6 +1058,7 @@ public class ConfigurationKeys {
   /**
    * Configuration and constant vale for GobblinMetadataChangeEvent
    */
+  public static final String GOBBLIN_METADATA_CHANGE_EVENT_ENABLED = "GobblinMetadataChangeEvent.enabled";
   public static final String LIST_DELIMITER_KEY = ",";
   public static final String RANGE_DELIMITER_KEY = "-";
 
