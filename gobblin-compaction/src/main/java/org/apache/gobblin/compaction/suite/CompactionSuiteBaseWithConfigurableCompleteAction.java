@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.gobblin.compaction.action.CompactionCompleteAction;
+import org.apache.gobblin.compaction.verify.InputRecordCountHelper;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.dataset.FileSystemDataset;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
@@ -54,7 +55,7 @@ public class CompactionSuiteBaseWithConfigurableCompleteAction extends Compactio
     try {
       for (String s : state.getPropAsList(COMPACTION_COMPLETE_ACTIONS)) {
         compactionCompleteActionsList.add((CompactionCompleteAction<FileSystemDataset>) GobblinConstructorUtils.invokeLongestConstructor(
-            Class.forName(s), state, getConfigurator()));
+            Class.forName(s), state, getConfigurator(), new InputRecordCountHelper(state)));
       }
     } catch (ReflectiveOperationException e) {
       throw new IOException(e);

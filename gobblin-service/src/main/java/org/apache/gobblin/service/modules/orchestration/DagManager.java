@@ -69,6 +69,7 @@ import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.service.ExecutionStatus;
+import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.RequesterService;
 import org.apache.gobblin.service.ServiceRequester;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
@@ -652,12 +653,13 @@ public class DagManager extends AbstractIdleService {
         }
       }
 
-      String flowId = DagManagerUtils.getFlowId(dag).toString();
-      if (!flowGauges.containsKey(flowId)) {
-        String flowStateGaugeName = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, flowId, ServiceMetricNames.RUNNING_STATUS);
-        flowGauges.put(flowId, FlowState.RUNNING);
+      FlowId flowId = DagManagerUtils.getFlowId(dag);
+      if (!flowGauges.containsKey(flowId.toString())) {
+        String flowStateGaugeName = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, flowId.getFlowGroup(),
+            flowId.getFlowName(), ServiceMetricNames.RUNNING_STATUS);
+        flowGauges.put(flowId.toString(), FlowState.RUNNING);
         ContextAwareGauge<Integer> gauge = RootMetricContext
-            .get().newContextAwareGauge(flowStateGaugeName, () -> flowGauges.get(flowId).value);
+            .get().newContextAwareGauge(flowStateGaugeName, () -> flowGauges.get(flowId.toString()).value);
         RootMetricContext.get().register(flowStateGaugeName, gauge);
       }
 
@@ -670,6 +672,7 @@ public class DagManager extends AbstractIdleService {
 
       // Set flow status to running
       DagManagerUtils.emitFlowEvent(this.eventSubmitter, dag, TimingEvent.FlowTimings.FLOW_RUNNING);
+      flowGauges.put(flowId.toString(), FlowState.RUNNING);
 
       // Report the orchestration delay the first time the Dag is initialized. Orchestration delay is defined as
       // the time difference between the instant when a flow first transitions to the running state and the instant
