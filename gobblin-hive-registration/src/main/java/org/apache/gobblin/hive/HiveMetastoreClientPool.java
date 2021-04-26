@@ -153,6 +153,7 @@ public class HiveMetastoreClientPool {
     GenericObjectPoolConfig config = new GenericObjectPoolConfig();
     config.setMaxTotal(this.hiveRegProps.getNumThreads());
     config.setMaxIdle(this.hiveRegProps.getNumThreads());
+    config.setMaxWaitMillis(this.hiveRegProps.getMaxWaitMillisBorrowingClient());
 
     String extraConfigTarget = properties.getProperty(POOL_HIVE_ADDITIONAL_CONFIG_TARGET, "");
 

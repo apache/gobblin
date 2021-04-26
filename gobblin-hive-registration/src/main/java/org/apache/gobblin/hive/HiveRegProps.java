@@ -44,6 +44,8 @@ public class HiveRegProps extends State {
 
   public static final String HIVE_DB_ROOT_DIR = "hive.db.root.dir";
   public static final String HIVE_REGISTER_THREADS = "hive.register.threads";
+  public static final String HIVE_MAX_WAIT_MILLS_BORROW_CLIENT = "hive.register.maxWaitMills.borrow.client";
+  public static final long DEFAULT_HIVE_MAX_WAIT_MILLS_BORROW_CLIENT = -1L;
   public static final int DEFAULT_HIVE_REGISTER_THREADS = 20;
   public static final String HIVE_TABLE_PARTITION_PROPS = "hive.table.partition.props";
   public static final String HIVE_STORAGE_PROPS = "hive.storage.props";
@@ -149,5 +151,12 @@ public class HiveRegProps extends State {
    */
   public int getNumThreads() {
     return getPropAsInt(HIVE_REGISTER_THREADS, DEFAULT_HIVE_REGISTER_THREADS);
+  }
+  /**
+   * Get max wait mills when borrow a hive client from pool from {@link #HIVE_MAX_WAIT_MILLS_BORROW_CLIENT}, with a default value of
+   * {@link #DEFAULT_HIVE_MAX_WAIT_MILLS_BORROW_CLIENT}.
+   */
+  public long getMaxWaitMillisBorrowingClient() {
+    return getPropAsLong(HIVE_MAX_WAIT_MILLS_BORROW_CLIENT, DEFAULT_HIVE_MAX_WAIT_MILLS_BORROW_CLIENT);
   }
 }
