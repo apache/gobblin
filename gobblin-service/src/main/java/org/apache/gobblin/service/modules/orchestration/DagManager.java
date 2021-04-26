@@ -1200,6 +1200,7 @@ public class DagManager extends AbstractIdleService {
      * @param dagId
      */
     private synchronized void cleanUpDag(String dagId) {
+      // clears flow event after cancelled job to allow resume event status to be set
       this.dags.get(dagId).setFlowEvent(null);
        try {
          this.dagStateStore.cleanUp(dags.get(dagId));
