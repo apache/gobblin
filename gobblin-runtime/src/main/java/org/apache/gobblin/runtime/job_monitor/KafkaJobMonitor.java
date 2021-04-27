@@ -102,12 +102,20 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
     try {
       Collection<JobSpec> parsedCollection = parseJobSpec(message.getValue());
       for (JobSpec parsedMessage : parsedCollection) {
-        SpecExecutor.Verb verb = SpecExecutor.Verb.valueOf(parsedMessage.getMetadata().get(SpecExecutor.VERB_KEY));
+        SpecExecutor.Verb verb;
+
+        try {
+          verb = SpecExecutor.Verb.valueOf(parsedMessage.getMetadata().get(SpecExecutor.VERB_KEY));
+        } catch (IllegalArgumentException | NullPointerException e) {
+          log.error("Unknown verb {} for spec {}", parsedMessage.getMetadata().get(SpecExecutor.VERB_KEY), parsedMessage.getUri());
+          continue;
+        }
 
         switch (verb) {
+          case UNKNOWN: // unknown are considered as add request to maintain backward compatibility
+            log.warn("Job Spec Verb is 'UNKNOWN', putting this spec in job catalog anyway.");
           case ADD:
           case UPDATE:
-          case UNKNOWN: // unknown are considered as add request to maintain backward compatibility
             this.newSpecs.inc();
             this.jobCatalog.put(parsedMessage);
             break;
@@ -122,7 +130,7 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
             this.jobCatalog.remove(parsedMessage.getUri(), true);
             break;
           default:
-            log.error("Unknown verb {} for spec {}", verb, parsedMessage.getUri());
+            log.error("Cannot process spec {} with verb {}", parsedMessage.getUri(), verb);
         }
       }
     } catch (IOException ioe) {

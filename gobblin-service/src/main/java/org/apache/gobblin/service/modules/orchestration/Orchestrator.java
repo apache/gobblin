@@ -372,7 +372,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
         this.dagManager.get().stopDag(spec.getUri());
       }
       // We need to recompile the flow to find the spec producer,
-      // If compilation results is different, it remove request can go to some different spec producer
+      // If compilation result is different, its remove request can go to some different spec producer
       deleteFromExecutor(spec, headers);
     } else {
       throw new RuntimeException("Spec not of type FlowSpec, cannot delete: " + spec);
