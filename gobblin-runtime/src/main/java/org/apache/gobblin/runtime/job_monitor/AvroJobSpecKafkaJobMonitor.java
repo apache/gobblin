@@ -27,10 +27,10 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.google.common.eventbus.EventBus;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import org.apache.gobblin.kafka.client.GobblinKafkaConsumerClient;
 import org.apache.gobblin.metrics.reporter.util.FixedSchemaVersionWriter;
 import org.apache.gobblin.metrics.reporter.util.SchemaVersionWriter;
 import org.apache.gobblin.runtime.api.GobblinInstanceDriver;
@@ -38,10 +38,7 @@ import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.JobSpecMonitor;
 import org.apache.gobblin.runtime.api.JobSpecMonitorFactory;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
-import org.apache.gobblin.runtime.api.SpecExecutor.Verb;
-import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.job_spec.AvroJobSpec;
-import org.apache.gobblin.util.Either;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 import lombok.Getter;
@@ -77,6 +74,10 @@ public class AvroJobSpecKafkaJobMonitor extends KafkaAvroJobMonitor<AvroJobSpec>
      * @throws IOException
      */
     public JobSpecMonitor forConfig(Config localScopeConfig, MutableJobCatalog jobCatalog) throws IOException {
+      return forConfig(localScopeConfig, jobCatalog, Optional.absent());
+    }
+
+    public JobSpecMonitor forConfig(Config localScopeConfig, MutableJobCatalog jobCatalog, Optional<EventBus> eventBus) throws IOException {
       Preconditions.checkArgument(localScopeConfig.hasPath(TOPIC_KEY));
       Config config = localScopeConfig.withFallback(DEFAULTS);
 
@@ -90,13 +91,18 @@ public class AvroJobSpecKafkaJobMonitor extends KafkaAvroJobMonitor<AvroJobSpec>
         throw new IllegalArgumentException(roe);
       }
 
-      return new AvroJobSpecKafkaJobMonitor(topic, jobCatalog, config, versionWriter);
+      return new AvroJobSpecKafkaJobMonitor(topic, jobCatalog, config, versionWriter, eventBus);
     }
   }
 
   protected AvroJobSpecKafkaJobMonitor(String topic, MutableJobCatalog catalog, Config limitedScopeConfig,
       SchemaVersionWriter<?> versionWriter) throws IOException {
-    super(topic, catalog, limitedScopeConfig, AvroJobSpec.SCHEMA$, versionWriter);
+    this(topic, catalog, limitedScopeConfig, versionWriter, Optional.absent());
+  }
+
+  protected AvroJobSpecKafkaJobMonitor(String topic, MutableJobCatalog catalog, Config limitedScopeConfig,
+      SchemaVersionWriter<?> versionWriter, Optional<EventBus> eventBus) throws IOException {
+    super(topic, catalog, limitedScopeConfig, AvroJobSpec.SCHEMA$, versionWriter, eventBus);
   }
 
   @Override

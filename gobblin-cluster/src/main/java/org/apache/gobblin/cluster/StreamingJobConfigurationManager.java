@@ -88,6 +88,7 @@ public class StreamingJobConfigurationManager extends JobConfigurationManager {
 
       this.specConsumer = (SpecConsumer) GobblinConstructorUtils.invokeFirstConstructor(
           Class.forName(aliasResolver.resolve(specExecutorInstanceConsumerClassName)),
+          ImmutableList.<Object>of(config, jobCatalog, Optional.of(eventBus)),
           ImmutableList.<Object>of(config, jobCatalog),
           ImmutableList.<Object>of(config));
     } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException

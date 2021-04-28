@@ -17,16 +17,12 @@
 package org.apache.gobblin.runtime.api;
 
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.gobblin.annotation.Alpha;
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.Instrumented;
-import org.apache.gobblin.metrics.ContextAwareMetric;
 import org.apache.gobblin.metrics.ContextAwareTimer;
-import org.apache.gobblin.util.ConfigUtils;
 
 import com.google.common.base.Optional;
 import com.typesafe.config.Config;
@@ -47,10 +43,6 @@ public interface MutableJobCatalog extends JobCatalog {
    * it will be replaced.
    * */
   public void put(JobSpec jobSpec);
-
-  default void remove(URI uri, boolean alwaysTriggerListeners) {
-    throw new UnsupportedOperationException("Method not implemented by " + this.getClass());
-  }
 
   /**
    * Removes an existing JobSpec with the given URI. A no-op if such JobSpec does not exist.

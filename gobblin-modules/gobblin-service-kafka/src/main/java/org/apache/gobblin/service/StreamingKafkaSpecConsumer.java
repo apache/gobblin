@@ -36,6 +36,7 @@ import org.slf4j.Logger;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.eventbus.EventBus;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -74,13 +75,17 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
   private final Metrics _metrics;
 
   public StreamingKafkaSpecConsumer(Config config, MutableJobCatalog jobCatalog, Optional<Logger> log) {
+    this(config, jobCatalog, Optional.absent(), log);
+  }
+
+  public StreamingKafkaSpecConsumer(Config config, MutableJobCatalog jobCatalog, Optional<EventBus> eventBus, Optional<Logger> log) {
     String topic = config.getString(SPEC_KAFKA_TOPICS_KEY);
     Config defaults = ConfigFactory.parseMap(ImmutableMap.of(AvroJobSpecKafkaJobMonitor.TOPIC_KEY, topic,
         KafkaJobMonitor.KAFKA_AUTO_OFFSET_RESET_KEY, KafkaJobMonitor.KAFKA_AUTO_OFFSET_RESET_SMALLEST));
 
     try {
-      _jobMonitor = (AvroJobSpecKafkaJobMonitor)(new AvroJobSpecKafkaJobMonitor.Factory())
-          .forConfig(config.withFallback(defaults), jobCatalog);
+      _jobMonitor = (AvroJobSpecKafkaJobMonitor) (new AvroJobSpecKafkaJobMonitor.Factory())
+            .forConfig(config.withFallback(defaults), jobCatalog, eventBus);
     } catch (IOException e) {
       throw new RuntimeException("Could not create job monitor", e);
     }

@@ -24,7 +24,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-import avro.shaded.com.google.common.collect.ImmutableMap;
 import javax.annotation.Nullable;
 
 import org.mockito.Mockito;
@@ -34,6 +33,7 @@ import org.mockito.stubbing.Answer;
 import com.google.common.base.Charsets;
 import com.google.common.base.Predicate;
 import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
@@ -89,7 +89,7 @@ public class MockedKafkaJobMonitor extends KafkaJobMonitor {
         jobSpecs.remove(uri);
         return null;
       }
-    }).when(jobCatalog).remove(Mockito.any(URI.class), Mockito.anyBoolean());
+    }).when(jobCatalog).remove(Mockito.any(URI.class));
 
     return jobCatalog;
   }

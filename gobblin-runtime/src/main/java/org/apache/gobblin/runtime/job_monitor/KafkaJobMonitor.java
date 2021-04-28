@@ -24,6 +24,8 @@ import java.util.Collection;
 import com.codahale.metrics.Counter;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
+import com.google.common.base.Optional;
+import com.google.common.eventbus.EventBus;
 import com.typesafe.config.Config;
 
 import lombok.Getter;
@@ -36,6 +38,7 @@ import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.JobSpecMonitor;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
 import org.apache.gobblin.runtime.api.SpecExecutor;
+import org.apache.gobblin.runtime.job_catalog.JobConfigArrivalEvent;
 import org.apache.gobblin.runtime.kafka.HighLevelConsumer;
 import org.apache.gobblin.runtime.metrics.RuntimeMetrics;
 import org.apache.gobblin.util.ConfigUtils;
@@ -54,6 +57,7 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
   public static final String KAFKA_AUTO_OFFSET_RESET_LARGEST = "largest";
   protected DatasetStateStore datasetStateStore;
   protected final MutableJobCatalog jobCatalog;
+  protected final Optional<EventBus> eventBus;
 
   @Getter
   protected Counter newSpecs;
@@ -68,8 +72,13 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
   public abstract Collection<JobSpec> parseJobSpec(byte[] message) throws IOException;
 
   public KafkaJobMonitor(String topic, MutableJobCatalog catalog, Config config) {
+    this(topic, catalog, Optional.absent(), config);
+  }
+
+  public KafkaJobMonitor(String topic, MutableJobCatalog catalog, Optional<EventBus> eventBus, Config config) {
     super(topic, ConfigUtils.getConfigOrEmpty(config, KAFKA_JOB_MONITOR_PREFIX), 1);
     this.jobCatalog = catalog;
+    this.eventBus = eventBus;
     try {
       this.datasetStateStore = DatasetStateStore.buildDatasetStateStore(config);
     } catch (Exception e) {
@@ -112,22 +121,28 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
         }
 
         switch (verb) {
-          case UNKNOWN: // unknown are considered as add request to maintain backward compatibility
-            log.warn("Job Spec Verb is 'UNKNOWN', putting this spec in job catalog anyway.");
           case ADD:
           case UPDATE:
             this.newSpecs.inc();
             this.jobCatalog.put(parsedMessage);
             break;
+          case UNKNOWN: // unknown are considered as add request to maintain backward compatibility
+            log.warn("Job Spec Verb is 'UNKNOWN', putting this spec in job catalog anyway.");
+            this.jobCatalog.put(parsedMessage);
+            break;
           case DELETE:
             this.removedSpecs.inc();
             URI jobSpecUri = parsedMessage.getUri();
-            this.jobCatalog.remove(jobSpecUri, true);
+            this.jobCatalog.remove(jobSpecUri);
             // Delete the job state if it is a delete spec request
             deleteStateStore(jobSpecUri);
             break;
           case CANCEL:
-            this.jobCatalog.remove(parsedMessage.getUri(), true);
+            URI jobUri = parsedMessage.getUri();
+            if (this.eventBus.isPresent()) {
+              log.info(String.format("Posting cancel JobConfig with name: %s", jobUri));
+              this.eventBus.get().post(new JobConfigArrivalEvent(jobUri, SpecExecutor.Verb.CANCEL));
+            }
             break;
           default:
             log.error("Cannot process spec {} with verb {}", parsedMessage.getUri(), verb);
