@@ -25,6 +25,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.StringUtils;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
@@ -97,7 +99,15 @@ public class FSDagStateStore implements DagStateStore {
    */
   @Override
   public synchronized void cleanUp(Dag<JobExecutionPlan> dag) {
-    String fileName = DagManagerUtils.generateDagId(dag) + DAG_FILE_EXTENSION;
+    cleanUp(DagManagerUtils.generateDagId(dag));
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public synchronized void cleanUp(String dagId) {
+    String fileName = dagId + DAG_FILE_EXTENSION;
 
     //Delete the dag checkpoint file from the checkpoint directory
     File checkpointFile = new File(this.dagCheckpointDir, fileName);
@@ -121,6 +131,18 @@ public class FSDagStateStore implements DagStateStore {
   }
 
   /**
+   * {@inheritDoc}
+   */
+  @Override
+  public Dag<JobExecutionPlan> getDag(String dagId) throws IOException {
+    File file = new File(this.dagCheckpointDir, dagId + DAG_FILE_EXTENSION);
+    if (!file.exists()) {
+      return null;
+    }
+    return getDag(file);
+  }
+
+  /**
    * Return a {@link Dag} given a file name.
    * @param dagFile
    * @return the {@link Dag} associated with the dagFile.
@@ -129,6 +151,20 @@ public class FSDagStateStore implements DagStateStore {
   public Dag<JobExecutionPlan> getDag(File dagFile) throws IOException {
     String serializedDag = Files.toString(dagFile, Charsets.UTF_8);
     return deserializeDag(serializedDag);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public List<String> getDagIds() {
+    List<String> dagIds = Lists.newArrayList();
+    File dagCheckpointFolder = new File(this.dagCheckpointDir);
+
+    for (File file : dagCheckpointFolder.listFiles((dir, name) -> name.endsWith(DAG_FILE_EXTENSION))) {
+      dagIds.add(StringUtils.removeEnd(file.getName(), DAG_FILE_EXTENSION));
+    }
+    return dagIds;
   }
 
   /**

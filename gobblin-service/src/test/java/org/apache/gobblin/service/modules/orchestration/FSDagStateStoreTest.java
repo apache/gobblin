@@ -108,6 +108,11 @@ public class FSDagStateStoreTest {
     Assert.assertTrue(dagFile.exists());
     this._dagStateStore.cleanUp(dag);
     Assert.assertFalse(dagFile.exists());
+
+    this._dagStateStore.writeCheckpoint(dag);
+    Assert.assertTrue(dagFile.exists());
+    this._dagStateStore.cleanUp(DagManagerUtils.generateDagId(dag));
+    Assert.assertFalse(dagFile.exists());
   }
 
   @Test (dependsOnMethods = "testCleanUp")
@@ -123,6 +128,8 @@ public class FSDagStateStoreTest {
 
     List<Dag<JobExecutionPlan>> dags = this._dagStateStore.getDags();
     Assert.assertEquals(dags.size(), 2);
+    Dag<JobExecutionPlan> singleDag = this._dagStateStore.getDag(DagManagerUtils.generateDagId(dags.get(0)));
+    dags.add(singleDag);
     for (Dag<JobExecutionPlan> dag: dags) {
       Assert.assertEquals(dag.getNodes().size(), 2);
       Assert.assertEquals(dag.getStartNodes().size(), 1);
@@ -132,6 +139,12 @@ public class FSDagStateStoreTest {
       Assert.assertEquals(dag.getNodes().get(1).getValue().getSpecExecutor().getUri(), specExecURI);
       Assert.assertTrue(Boolean.parseBoolean(dag.getNodes().get(0).getValue().getJobFuture().get().get().toString()));
       Assert.assertTrue(Boolean.parseBoolean(dag.getNodes().get(1).getValue().getJobFuture().get().get().toString()));
+    }
+
+    List<String> dagIds = this._dagStateStore.getDagIds();
+    Assert.assertEquals(dagIds.size(), 2);
+    for (Dag<JobExecutionPlan> dag: dags) {
+      Assert.assertTrue(dagIds.contains(DagManagerUtils.generateDagId(dag)));
     }
   }
 

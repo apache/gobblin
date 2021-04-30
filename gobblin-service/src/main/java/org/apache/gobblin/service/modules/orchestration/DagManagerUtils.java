@@ -26,6 +26,7 @@ import java.util.concurrent.TimeUnit;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
+import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 
@@ -59,6 +60,14 @@ public class DagManagerUtils {
     return new FlowId().setFlowGroup(flowGroup).setFlowName(flowName);
   }
 
+  static FlowId getFlowId(String dagId) {
+    List<String> splitDagId = Splitter.on("_").splitToList(dagId);
+    if (splitDagId.size() != 3) {
+      throw new IllegalArgumentException(dagId + " is not a valid dagId, expected format group_name_id");
+    }
+    return new FlowId().setFlowGroup(splitDagId.get(0)).setFlowName(splitDagId.get(1));
+  }
+
   static long getFlowExecId(Dag<JobExecutionPlan> dag) {
     return getFlowExecId(dag.getStartNodes().get(0));
   }
@@ -69,6 +78,14 @@ public class DagManagerUtils {
 
   static long getFlowExecId(JobSpec jobSpec) {
     return jobSpec.getConfig().getLong(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
+  }
+
+  static long getFlowExecId(String dagId) {
+    List<String> splitDagId = Splitter.on("_").splitToList(dagId);
+    if (splitDagId.size() != 3) {
+      throw new IllegalArgumentException(dagId + " is not a valid dagId, expected format group_name_id");
+    }
+    return Long.parseLong(splitDagId.get(2));
   }
 
   /**
@@ -94,18 +111,6 @@ public class DagManagerUtils {
 
   static String generateDagId(String flowGroup, String flowName, long flowExecutionId) {
     return Joiner.on("_").join(flowGroup, flowName, flowExecutionId);
-  }
-
-  /**
-   * Generate a FlowId from the given {@link Dag} instance.
-   * FlowId, comparing to DagId, doesn't contain FlowExecutionId so different {@link Dag} could possibly have same
-   * {@link FlowId}.
-   * @param dag
-   * @return
-   */
-  static String generateFlowIdInString(Dag<JobExecutionPlan> dag) {
-    FlowId flowId = getFlowId(dag);
-    return Joiner.on("_").join(flowId.getFlowGroup(), flowId.getFlowName());
   }
 
   /**

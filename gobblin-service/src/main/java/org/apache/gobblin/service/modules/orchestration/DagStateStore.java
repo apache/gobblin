@@ -47,9 +47,26 @@ public interface DagStateStore {
   void cleanUp(Dag<JobExecutionPlan> dag) throws IOException;
 
   /**
+   * Delete the {@link Dag} from the backing store, typically upon completion of execution.
+   * @param dagId The ID of the dag to clean up.
+   */
+  void cleanUp(String dagId) throws IOException;
+
+  /**
    * Load all currently running {@link Dag}s from the underlying store. Typically, invoked when a new {@link DagManager}
    * takes over or on restart of service.
    * @return a {@link List} of currently running {@link Dag}s.
    */
   List<Dag<JobExecutionPlan>> getDags() throws IOException;
+
+  /**
+   * Return a single dag from the dag state store.
+   * @param dagId The ID of the dag to load.
+   */
+  Dag<JobExecutionPlan> getDag(String dagId) throws IOException;
+
+  /**
+   * Return a list of all dag IDs contained in the dag state store.
+   */
+  List<String> getDagIds() throws IOException;
 }

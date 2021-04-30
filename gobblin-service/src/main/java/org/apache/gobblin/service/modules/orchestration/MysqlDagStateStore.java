@@ -26,23 +26,30 @@ import java.util.stream.Collectors;
 
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metastore.MysqlStateStore;
+import org.apache.gobblin.metastore.MysqlStateStoreEntryManager;
 import org.apache.gobblin.metastore.MysqlStateStoreFactory;
 import org.apache.gobblin.metastore.StateStore;
+import org.apache.gobblin.metastore.predicates.StateStorePredicate;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.runtime.spec_serde.GsonSerDe;
+import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlanDagFactory;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlanListDeserializer;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlanListSerializer;
 
+import com.google.common.base.Joiner;
+import com.google.common.base.Predicates;
+import com.google.common.base.Splitter;
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonSerializer;
 import com.google.gson.reflect.TypeToken;
 import com.typesafe.config.Config;
 
 import static org.apache.gobblin.service.ServiceConfigKeys.GOBBLIN_SERVICE_PREFIX;
-import static org.apache.gobblin.service.modules.orchestration.DagManagerUtils.generateFlowIdInString;
+import static org.apache.gobblin.service.modules.orchestration.DagManagerUtils.generateDagId;
+import static org.apache.gobblin.service.modules.orchestration.DagManagerUtils.getFlowId;
 import static org.apache.gobblin.service.modules.orchestration.DagManagerUtils.getFlowExecId;
 
 
@@ -102,19 +109,59 @@ public class MysqlDagStateStore implements DagStateStore {
   @Override
   public void writeCheckpoint(Dag<JobExecutionPlan> dag)
       throws IOException {
-    mysqlStateStore.put(generateFlowIdInString(dag), getFlowExecId(dag) + "", convertDagIntoState(dag));
+    mysqlStateStore.put(flowIdToStoreName(getFlowId(dag)), getFlowExecId(dag) + "", convertDagIntoState(dag));
   }
 
   @Override
   public void cleanUp(Dag<JobExecutionPlan> dag)
       throws IOException {
-    mysqlStateStore.delete(generateFlowIdInString(dag), getFlowExecId(dag) + "");
+    cleanUp(generateDagId(dag));
+  }
+
+  @Override
+  public void cleanUp(String dagId)
+      throws IOException {
+    mysqlStateStore.delete(flowIdToStoreName(getFlowId(dagId)), getFlowExecId(dagId) + "");
   }
 
   @Override
   public List<Dag<JobExecutionPlan>> getDags()
       throws IOException {
     return mysqlStateStore.getAll().stream().map(this::convertStateObjIntoDag).collect(Collectors.toList());
+  }
+
+  @Override
+  public Dag<JobExecutionPlan> getDag(String dagId) throws IOException {
+    List<State> states = mysqlStateStore.getAll(flowIdToStoreName(DagManagerUtils.getFlowId(dagId)),
+        DagManagerUtils.getFlowExecId(dagId) + "");
+    if (states.isEmpty()) {
+      return null;
+    }
+    return convertStateObjIntoDag(states.get(0));
+  }
+
+  @Override
+  public List<String> getDagIds() throws IOException {
+    List<MysqlStateStoreEntryManager> entries = (List<MysqlStateStoreEntryManager>) mysqlStateStore
+        .getMetadataForTables(new StateStorePredicate(Predicates.alwaysTrue()));
+    return entries.stream().map(entry -> entryToDagId(entry.getStoreName(), entry.getTableName())).collect(Collectors.toList());
+  }
+
+  private String entryToDagId(String storeName, String tableName) {
+    FlowId flowId = storeNameToFlowId(storeName);
+    return DagManagerUtils.generateDagId(flowId.getFlowGroup(), flowId.getFlowName(), Long.parseLong(tableName));
+  }
+
+  private String flowIdToStoreName(FlowId flowId) {
+    return Joiner.on("_").join(flowId.getFlowGroup(), flowId.getFlowName());
+  }
+
+  private FlowId storeNameToFlowId(String storeName) {
+    List<String> splitFlowId = Splitter.on("_").splitToList(storeName);
+    if (splitFlowId.size() != 2) {
+      throw new IllegalArgumentException(storeName + " is not a valid storeName, expected format group_name");
+    }
+    return new FlowId().setFlowGroup(splitFlowId.get(0)).setFlowName(splitFlowId.get(1));
   }
 
   /**

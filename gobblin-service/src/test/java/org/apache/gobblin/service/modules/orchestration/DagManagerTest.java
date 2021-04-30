@@ -83,7 +83,7 @@ public class DagManagerTest {
     this.cancelQueue = new LinkedBlockingQueue<>();
     this.resumeQueue = new LinkedBlockingQueue<>();
     this._dagManagerThread = new DagManager.DagManagerThread(_jobStatusRetriever, _dagStateStore, _dagStateStore, queue, cancelQueue,
-        resumeQueue, true, 5, new HashMap<>(), new ConcurrentHashMap<>());
+        resumeQueue, true, 5, new HashMap<>(), new ArrayList<>());
 
     Field jobToDagField = DagManager.DagManagerThread.class.getDeclaredField("jobToDag");
     jobToDagField.setAccessible(true);
