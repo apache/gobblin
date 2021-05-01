@@ -24,9 +24,12 @@ import com.typesafe.config.Config;
 import java.io.File;
 import java.net.URI;
 import java.util.Collection;
+import java.util.Map;
 import java.util.Properties;
 import org.apache.commons.io.FileUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.FlowSpec;
+import org.apache.gobblin.runtime.api.MockSpecCatalogListener;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
@@ -71,6 +74,7 @@ public class FlowCatalogTest {
 
     this.flowCatalog = new FlowCatalog(ConfigUtils.propertiesToConfig(properties),
         Optional.of(logger));
+    this.flowCatalog.addListener(new MockSpecCatalogListener());
     this.serviceLauncher.addService(flowCatalog);
 
     // Start Catalog
@@ -84,14 +88,19 @@ public class FlowCatalogTest {
    * Create FlowSpec with default URI
    */
   public static FlowSpec initFlowSpec(String specStore) {
-    return initFlowSpec(specStore, computeFlowSpecURI());
+    return initFlowSpec(specStore, computeFlowSpecURI(), "flowName");
+  }
+
+  public static FlowSpec initFlowSpec(String specStore, URI uri){
+    return initFlowSpec(specStore, uri, "flowName");
   }
 
   /**
    * Create FLowSpec with specified URI and SpecStore location.
    */
-  public static FlowSpec initFlowSpec(String specStore, URI uri){
+  public static FlowSpec initFlowSpec(String specStore, URI uri, String flowName){
     Properties properties = new Properties();
+    properties.put(ConfigurationKeys.FLOW_NAME_KEY, flowName);
     properties.put("specStore.fs.dir", specStore);
     properties.put("specExecInstance.capabilities", "source:destination");
     Config config = ConfigUtils.propertiesToConfig(properties);
@@ -172,6 +181,29 @@ public class FlowCatalogTest {
       logger.info("[After Delete] Spec " + i++ + ": " + gson.toJson(flowSpec));
     }
     Assert.assertTrue(specs.size() == 0, "Spec store should be empty after deletion");
+  }
+
+  @Test (dependsOnMethods = "deleteFlowSpec")
+  public void testRejectBadFlow() {
+    Collection<Spec> specs = flowCatalog.getSpecs();
+    logger.info("[Before Create] Number of specs: " + specs.size());
+    int i=0;
+    for (Spec spec : specs) {
+      FlowSpec flowSpec = (FlowSpec) spec;
+      logger.info("[Before Create] Spec " + i++ + ": " + gson.toJson(flowSpec));
+    }
+    Assert.assertTrue(specs.size() == 0, "Spec store should be empty before addition");
+
+    // Create and add Spec
+    FlowSpec badSpec = initFlowSpec(SPEC_STORE_DIR, computeFlowSpecURI(), MockSpecCatalogListener.UNCOMPILABLE_FLOW);
+    Map<String, AddSpecResponse> response = this.flowCatalog.put(badSpec);
+
+    // Spec should be rejected from being stored
+    specs = flowCatalog.getSpecs();
+    Assert.assertEquals(specs.size(), 0);
+
+    // Add compilation errors to spec so that it will print it back to user
+    Assert.assertEquals(badSpec.getCompilationErrors().size(), 1);
   }
 
   public static URI computeFlowSpecURI() {
