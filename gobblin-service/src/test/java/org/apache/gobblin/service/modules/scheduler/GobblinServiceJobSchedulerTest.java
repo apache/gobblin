@@ -93,7 +93,7 @@ public class GobblinServiceJobSchedulerTest {
 
     scheduler.setActive(true);
 
-    AssertWithBackoff.create().timeoutMs(6000).maxSleepMs(2000).backoffFactor(2)
+    AssertWithBackoff.create().timeoutMs(20000).maxSleepMs(2000).backoffFactor(2)
         .assertTrue(new Predicate<Void>() {
           @Override
           public boolean apply(Void input) {
@@ -174,7 +174,7 @@ public class GobblinServiceJobSchedulerTest {
 
     scheduler.setActive(true);
 
-    AssertWithBackoff.create().timeoutMs(6000).maxSleepMs(2000).backoffFactor(2)
+    AssertWithBackoff.create().timeoutMs(20000).maxSleepMs(2000).backoffFactor(2)
         .assertTrue(new Predicate<Void>() {
           @Override
           public boolean apply(Void input) {

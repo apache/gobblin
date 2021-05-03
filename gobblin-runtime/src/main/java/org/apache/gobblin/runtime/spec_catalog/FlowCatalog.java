@@ -376,17 +376,10 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     return responseMap;
   }
 
-  public boolean isCompileSuccessful(Map<String, AddSpecResponse> responseMap) {
-    for (SpecCatalogListener listener: this.listeners.getListeners()) {
-      String listenerClass = listener.getClass().getCanonicalName();
-      AddSpecResponse<String> addSpecResponse =
-          responseMap.getOrDefault(listenerClass, new AddSpecResponse<>(""));
-      // If there are exceptions in any of the listeners we should avoid marking as successful
-      if (!isCompileSuccessful(addSpecResponse.getValue())) {
-        return false;
-      }
-    }
-    return true;
+  public static boolean isCompileSuccessful(Map<String, AddSpecResponse> responseMap) {
+    AddSpecResponse<String> addSpecResponse = responseMap.getOrDefault(
+        ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS, new AddSpecResponse<>(""));
+    return isCompileSuccessful(addSpecResponse.getValue());
   }
 
   public static boolean isCompileSuccessful(String dag) {

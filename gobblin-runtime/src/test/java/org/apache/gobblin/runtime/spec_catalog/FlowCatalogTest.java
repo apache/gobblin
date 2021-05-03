@@ -29,15 +29,17 @@ import java.util.Properties;
 import org.apache.commons.io.FileUtils;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.FlowSpec;
-import org.apache.gobblin.runtime.api.MockSpecCatalogListener;
 import org.apache.gobblin.runtime.api.Spec;
+import org.apache.gobblin.runtime.api.SpecCatalogListener;
 import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
 import org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutor;
+import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PathUtils;
 import org.apache.hadoop.fs.Path;
+import static org.mockito.Mockito.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -55,10 +57,12 @@ public class FlowCatalogTest {
   private static final String SPEC_GROUP_DIR = "/tmp/flowTestSpecStore/flowTestGroupDir";
   private static final String SPEC_DESCRIPTION = "Test Flow Spec";
   private static final String SPEC_VERSION = FlowSpec.Builder.DEFAULT_VERSION;
+  private static final String UNCOMPILABLE_FLOW = "uncompilableFlow";
 
   private ServiceBasedAppLauncher serviceLauncher;
   private FlowCatalog flowCatalog;
   private FlowSpec flowSpec;
+  private SpecCatalogListener mockListener;
 
   @BeforeClass
   public void setup() throws Exception {
@@ -74,7 +78,13 @@ public class FlowCatalogTest {
 
     this.flowCatalog = new FlowCatalog(ConfigUtils.propertiesToConfig(properties),
         Optional.of(logger));
-    this.flowCatalog.addListener(new MockSpecCatalogListener());
+
+    this.mockListener = mock(SpecCatalogListener.class);
+    when(mockListener.getName()).thenReturn(ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS);
+    when(mockListener.onAddSpec(any())).thenReturn(new AddSpecResponse(""));
+
+    this.flowCatalog.addListener(mockListener);
+
     this.serviceLauncher.addService(flowCatalog);
 
     // Start Catalog
@@ -195,7 +205,10 @@ public class FlowCatalogTest {
     Assert.assertTrue(specs.size() == 0, "Spec store should be empty before addition");
 
     // Create and add Spec
-    FlowSpec badSpec = initFlowSpec(SPEC_STORE_DIR, computeFlowSpecURI(), MockSpecCatalogListener.UNCOMPILABLE_FLOW);
+    FlowSpec badSpec = initFlowSpec(SPEC_STORE_DIR, computeFlowSpecURI(), "badFlow");
+
+    // Assume that spec is rejected
+    when(this.mockListener.onAddSpec(any())).thenThrow(new RuntimeException("Could not compile flow"));
     Map<String, AddSpecResponse> response = this.flowCatalog.put(badSpec);
 
     // Spec should be rejected from being stored
