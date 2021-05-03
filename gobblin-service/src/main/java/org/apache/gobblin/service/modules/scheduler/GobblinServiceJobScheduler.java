@@ -189,25 +189,22 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       throw new RuntimeException("Failed to get the iterator of all Spec URIS", e);
     }
 
-    try {
-      while (specUris.hasNext()) {
-        Spec spec = this.flowCatalog.get().getSpecWrapper(specUris.next());
-        try {
-          // Disable FLOW_RUN_IMMEDIATELY on service startup or leadership change
-          if (spec instanceof FlowSpec) {
-            Spec modifiedSpec = disableFlowRunImmediatelyOnStart((FlowSpec) spec);
-            onAddSpec(modifiedSpec);
-          } else {
-            onAddSpec(spec);
-          }
-        } catch (Exception e) {
-          // If there is an uncaught error thrown during compilation, log it and continue adding flows
-          _log.error("Could not schedule spec {} from flowCatalog due to ", spec, e);
+    while (specUris.hasNext()) {
+      Spec spec = this.flowCatalog.get().getSpecWrapper(specUris.next());
+      try {
+        // Disable FLOW_RUN_IMMEDIATELY on service startup or leadership change
+        if (spec instanceof FlowSpec) {
+          Spec modifiedSpec = disableFlowRunImmediatelyOnStart((FlowSpec) spec);
+          onAddSpec(modifiedSpec);
+        } else {
+          onAddSpec(spec);
         }
+      } catch (Exception e) {
+        // If there is an uncaught error thrown during compilation, log it and continue adding flows
+        _log.error("Could not schedule spec {} from flowCatalog due to ", spec, e);
       }
-    } finally {
-      this.flowCatalog.get().getMetrics().updateGetSpecTime(startTime);
     }
+    this.flowCatalog.get().getMetrics().updateGetSpecTime(startTime);
   }
 
   /**

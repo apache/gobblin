@@ -120,6 +120,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     }
 
     this.aliasResolver = new ClassAliasResolver<>(SpecStore.class);
+
     try {
       Config newConfig = config;
       if (config.hasPath(FLOWSPEC_STORE_DIR_KEY)) {
@@ -343,12 +344,12 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
       if (!response.getValue().getFailures().isEmpty()) {
         for (Map.Entry<SpecCatalogListener, CallbackResult<AddSpecResponse>> entry: response.getValue().getFailures().entrySet()) {
           flowSpec.getCompilationErrors().add(ExceptionUtils.getStackTrace(entry.getValue().getError()));
+          responseMap.put(entry.getKey().getName(), new AddSpecResponse(entry.getValue().getResult()));
         }
-        responseMap.put(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>("false"));
-        return responseMap;
-      }
-      for (Map.Entry<SpecCatalogListener, CallbackResult<AddSpecResponse>> entry: response.getValue().getSuccesses().entrySet()) {
-        responseMap.put(entry.getKey().getName(), entry.getValue().getResult());
+      } else {
+        for (Map.Entry<SpecCatalogListener, CallbackResult<AddSpecResponse>> entry : response.getValue().getSuccesses().entrySet()) {
+          responseMap.put(entry.getKey().getName(), entry.getValue().getResult());
+        }
       }
     }
 
@@ -375,11 +376,17 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     return responseMap;
   }
 
-  public static boolean isCompileSuccessful(Map<String, AddSpecResponse> responseMap) {
-    AddSpecResponse<String> addSpecResponse = responseMap.getOrDefault(
-        ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS, new AddSpecResponse<>(""));
-
-    return isCompileSuccessful(addSpecResponse.getValue());
+  public boolean isCompileSuccessful(Map<String, AddSpecResponse> responseMap) {
+    for (SpecCatalogListener listener: this.listeners.getListeners()) {
+      String listenerClass = listener.getClass().getCanonicalName();
+      AddSpecResponse<String> addSpecResponse =
+          responseMap.getOrDefault(listenerClass, new AddSpecResponse<>(""));
+      // If there are exceptions in any of the listeners we should avoid marking as successful
+      if (!isCompileSuccessful(addSpecResponse.getValue())) {
+        return false;
+      }
+    }
+    return true;
   }
 
   public static boolean isCompileSuccessful(String dag) {

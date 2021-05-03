@@ -31,7 +31,7 @@ public class MockSpecCatalogListener implements SpecCatalogListener {
     if (flowName.equals(UNCOMPILABLE_FLOW)) {
       throw new RuntimeException("Could not compile flow");
     }
-    return new AddSpecResponse(null);
+    return new AddSpecResponse("");
   }
 
 
