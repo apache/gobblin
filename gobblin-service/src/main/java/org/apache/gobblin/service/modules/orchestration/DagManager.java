@@ -372,7 +372,7 @@ public class DagManager extends AbstractIdleService {
         //Initializing state store for persisting Dags.
         this.dagStateStore = createDagStateStore(config, topologySpecMap);
         this.failedDagStateStore = createDagStateStore(ConfigUtils.getConfigOrEmpty(config, FAILED_DAG_STATESTORE_PREFIX).withFallback(config), topologySpecMap);
-        List<String> failedDagIds = Collections.synchronizedList(this.failedDagStateStore.getDagIds());
+        Set<String> failedDagIds = Collections.synchronizedSet(this.failedDagStateStore.getDagIds());
 
         //On startup, the service creates DagManagerThreads that are scheduled at a fixed rate.
         this.dagManagerThreads = new DagManagerThread[numThreads];
@@ -417,7 +417,7 @@ public class DagManager extends AbstractIdleService {
     private static final Map<String, Integer> proxyUserToJobCount = new ConcurrentHashMap<>();
     private static final Map<String, Integer> requesterToJobCount = new ConcurrentHashMap<>();
     private final Map<String, Dag<JobExecutionPlan>> dags = new HashMap<>();
-    private List<String> failedDagIds;
+    private Set<String> failedDagIds;
     private final Map<String, Dag<JobExecutionPlan>> resumingDags = new HashMap<>();
     // dagToJobs holds a map of dagId to running jobs of that dag
     final Map<String, LinkedList<DagNode<JobExecutionPlan>>> dagToJobs = new HashMap<>();
@@ -444,7 +444,7 @@ public class DagManager extends AbstractIdleService {
      */
     DagManagerThread(JobStatusRetriever jobStatusRetriever, DagStateStore dagStateStore, DagStateStore failedDagStateStore,
         BlockingQueue<Dag<JobExecutionPlan>> queue, BlockingQueue<String> cancelQueue, BlockingQueue<String> resumeQueue,
-        boolean instrumentationEnabled, int defaultQuota, Map<String, Integer> perUserQuota, List<String> failedDagIds) {
+        boolean instrumentationEnabled, int defaultQuota, Map<String, Integer> perUserQuota, Set<String> failedDagIds) {
       this.jobStatusRetriever = jobStatusRetriever;
       this.dagStateStore = dagStateStore;
       this.failedDagStateStore = failedDagStateStore;
@@ -1227,10 +1227,10 @@ public class DagManager extends AbstractIdleService {
    */
   public static class FailedDagRetentionThread implements Runnable {
     private final DagStateStore failedDagStateStore;
-    private final List<String> failedDagIds;
+    private final Set<String> failedDagIds;
     private final long failedDagRetentionTime;
 
-    FailedDagRetentionThread(DagStateStore failedDagStateStore, List<String> failedDagIds, long failedDagRetentionTime) {
+    FailedDagRetentionThread(DagStateStore failedDagStateStore, Set<String> failedDagIds, long failedDagRetentionTime) {
       this.failedDagStateStore = failedDagStateStore;
       this.failedDagIds = failedDagIds;
       this.failedDagRetentionTime = failedDagRetentionTime;

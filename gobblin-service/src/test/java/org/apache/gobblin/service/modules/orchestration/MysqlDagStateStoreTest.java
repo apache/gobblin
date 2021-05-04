@@ -21,6 +21,7 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.commons.dbcp.BasicDataSource;
 import org.testng.Assert;
@@ -80,10 +81,11 @@ public class MysqlDagStateStoreTest {
 
     // Verify get one dag
     Dag<JobExecutionPlan> dag = _dagStateStore.getDag(DagManagerUtils.generateDagId(dag_0));
-    Assert.assertEquals(dag, dag_0);
+    Assert.assertEquals(dag.getNodes().get(0), dag_0.getNodes().get(0));
+    Assert.assertEquals(dag.getNodes().get(1), dag_0.getNodes().get(1));
 
     // Verify get dagIds
-    List<String> dagIds = _dagStateStore.getDagIds();
+    Set<String> dagIds = _dagStateStore.getDagIds();
     Assert.assertEquals(dagIds.size(), 2);
     Assert.assertTrue(dagIds.contains(DagManagerUtils.generateDagId(dag_0)));
     Assert.assertTrue(dagIds.contains(DagManagerUtils.generateDagId(dag_1)));
@@ -132,7 +134,7 @@ public class MysqlDagStateStoreTest {
     }
   }
 
-  @Test (dependsOnMethods = "testWriteCheckpointAndGetAll")
+  @Test (dependsOnMethods = "testWriteCheckpointAndGet")
   public void testCleanUp() throws Exception {
     Dag<JobExecutionPlan> dag_0 = DagTestUtils.buildDag("random_0", 123L);
     Dag<JobExecutionPlan> dag_1 = DagTestUtils.buildDag("random_1", 456L);

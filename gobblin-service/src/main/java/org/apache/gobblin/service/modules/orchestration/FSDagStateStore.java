@@ -21,8 +21,10 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.net.URI;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
@@ -157,8 +159,8 @@ public class FSDagStateStore implements DagStateStore {
    * {@inheritDoc}
    */
   @Override
-  public List<String> getDagIds() {
-    List<String> dagIds = Lists.newArrayList();
+  public Set<String> getDagIds() {
+    Set<String> dagIds = new HashSet<>();
     File dagCheckpointFolder = new File(this.dagCheckpointDir);
 
     for (File file : dagCheckpointFolder.listFiles((dir, name) -> name.endsWith(DAG_FILE_EXTENSION))) {

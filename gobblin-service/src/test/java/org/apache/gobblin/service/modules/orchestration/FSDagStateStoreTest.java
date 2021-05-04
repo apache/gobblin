@@ -23,6 +23,7 @@ import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
 import org.apache.commons.io.FileUtils;
@@ -141,7 +142,7 @@ public class FSDagStateStoreTest {
       Assert.assertTrue(Boolean.parseBoolean(dag.getNodes().get(1).getValue().getJobFuture().get().get().toString()));
     }
 
-    List<String> dagIds = this._dagStateStore.getDagIds();
+    Set<String> dagIds = this._dagStateStore.getDagIds();
     Assert.assertEquals(dagIds.size(), 2);
     for (Dag<JobExecutionPlan> dag: dags) {
       Assert.assertTrue(dagIds.contains(DagManagerUtils.generateDagId(dag)));

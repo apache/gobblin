@@ -19,6 +19,7 @@ package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Set;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
@@ -68,5 +69,5 @@ public interface DagStateStore {
   /**
    * Return a list of all dag IDs contained in the dag state store.
    */
-  List<String> getDagIds() throws IOException;
+  Set<String> getDagIds() throws IOException;
 }
