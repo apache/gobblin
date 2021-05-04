@@ -161,9 +161,4 @@ public class JobConfigurationManager extends AbstractIdleService implements Stan
     LOGGER.info(String.format("Posting delete JobConfig with name: %s and config: %s", jobName, jobConfig));
     this.eventBus.post(new DeleteJobConfigArrivalEvent(jobName, jobConfig));
   }
-
-  protected void postCancelJobConfigArrival(String jobUri) {
-    LOGGER.info(String.format("Posting cancel JobConfig with name: %s", jobUri));
-    this.eventBus.post(new CancelJobConfigArrivalEvent(jobUri));
-  }
 }

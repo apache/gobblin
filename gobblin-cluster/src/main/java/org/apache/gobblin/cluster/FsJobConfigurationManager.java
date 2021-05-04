@@ -114,9 +114,6 @@ public class FsJobConfigurationManager extends JobConfigurationManager {
           this.jobCatalogOptional.get().remove(jobSpec.getUri());
         }
         postDeleteJobConfigArrival(jobSpec.getUri().toString(), jobSpec.getConfigAsProperties());
-      } else if (verb.equals(SpecExecutor.Verb.CANCEL)) {
-          // Handle cancel
-          postCancelJobConfigArrival(jobSpec.getUri().toString());
       }
 
       try {

@@ -112,6 +112,7 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
       Collection<JobSpec> parsedCollection = parseJobSpec(message.getValue());
       for (JobSpec parsedMessage : parsedCollection) {
         SpecExecutor.Verb verb;
+        URI jobUri = parsedMessage.getUri();
 
         try {
           verb = SpecExecutor.Verb.valueOf(parsedMessage.getMetadata().get(SpecExecutor.VERB_KEY));
@@ -136,13 +137,11 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
             this.jobCatalog.remove(jobSpecUri);
             // Delete the job state if it is a delete spec request
             deleteStateStore(jobSpecUri);
+            // also Cancel the running job if it is a delete spec request
+            sendCancelTrigger(jobUri);
             break;
           case CANCEL:
-            URI jobUri = parsedMessage.getUri();
-            if (this.eventBus.isPresent()) {
-              log.info(String.format("Posting cancel JobConfig with name: %s", jobUri));
-              this.eventBus.get().post(new JobConfigArrivalEvent(jobUri, SpecExecutor.Verb.CANCEL));
-            }
+            sendCancelTrigger(jobUri);
             break;
           default:
             log.error("Cannot process spec {} with verb {}", parsedMessage.getUri(), verb);
@@ -151,6 +150,15 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
     } catch (IOException ioe) {
       String messageStr = new String(message.getValue(), Charsets.UTF_8);
       log.error(String.format("Failed to parse kafka message with offset %d: %s.", message.getOffset(), messageStr), ioe);
+    }
+  }
+
+  private void sendCancelTrigger(URI jobUri) {
+    if (this.eventBus.isPresent()) {
+      log.info(String.format("Posting cancel JobConfig with name: %s", jobUri));
+      this.eventBus.get().post(new JobConfigArrivalEvent(jobUri, SpecExecutor.Verb.CANCEL));
+    } else {
+      log.warn("EventBus is not initialized, skipping cancellation request for job {}.", jobUri);
     }
   }
 

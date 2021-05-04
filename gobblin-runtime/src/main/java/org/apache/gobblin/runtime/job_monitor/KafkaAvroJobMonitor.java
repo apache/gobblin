@@ -71,7 +71,7 @@ public abstract class KafkaAvroJobMonitor<T> extends KafkaJobMonitor {
 
   public KafkaAvroJobMonitor(String topic, MutableJobCatalog catalog, Config config, Schema schema,
         SchemaVersionWriter<?> versionWriter, Optional<EventBus> eventBus) {
-    super(topic, catalog, config);
+    super(topic, catalog, eventBus, config);
 
     this.schema = schema;
     this.decoder = new ThreadLocal<BinaryDecoder>() {

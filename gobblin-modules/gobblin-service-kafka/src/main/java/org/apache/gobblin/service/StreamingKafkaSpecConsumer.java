@@ -74,8 +74,8 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
   private final MetricContext _metricContext;
   private final Metrics _metrics;
 
-  public StreamingKafkaSpecConsumer(Config config, MutableJobCatalog jobCatalog, Optional<Logger> log) {
-    this(config, jobCatalog, Optional.absent(), log);
+  public StreamingKafkaSpecConsumer(Config config, MutableJobCatalog jobCatalog, Optional<EventBus> eventBus) {
+    this(config, jobCatalog, eventBus, Optional.absent());
   }
 
   public StreamingKafkaSpecConsumer(Config config, MutableJobCatalog jobCatalog, Optional<EventBus> eventBus, Optional<Logger> log) {
@@ -98,12 +98,12 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
   }
 
   public StreamingKafkaSpecConsumer(Config config, MutableJobCatalog jobCatalog, Logger log) {
-    this(config, jobCatalog, Optional.of(log));
+    this(config, jobCatalog, Optional.absent(), Optional.of(log));
   }
 
   /** Constructor with no logging */
   public StreamingKafkaSpecConsumer(Config config, MutableJobCatalog jobCatalog) {
-    this(config, jobCatalog, Optional.<Logger>absent());
+      this(config, jobCatalog, Optional.absent(), Optional.absent());
   }
 
   /**
@@ -179,18 +179,6 @@ public class StreamingKafkaSpecConsumer extends AbstractIdleService implements S
 
         _jobSpecQueue.put(new ImmutablePair<SpecExecutor.Verb, Spec>(SpecExecutor.Verb.DELETE, jobSpecBuilder.build()));
         _metrics.jobSpecEnqCount.incrementAndGet();
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-      }
-    }
-
-    @Override
-    public void onCancelJob(URI cancelledJobURI) {
-      super.onCancelJob(cancelledJobURI);
-      try {
-        JobSpec.Builder jobSpecBuilder = JobSpec.builder(cancelledJobURI);
-        jobSpecBuilder.withConfigAsProperties(new Properties());
-        _jobSpecQueue.put(new ImmutablePair<>(SpecExecutor.Verb.CANCEL, jobSpecBuilder.build()));
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
       }

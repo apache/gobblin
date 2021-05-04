@@ -140,11 +140,7 @@ public class ScheduledJobConfigurationManager extends JobConfigurationManager {
         Spec anonymousSpec = (Spec) entry.getValue();
         postDeleteJobConfigArrival(anonymousSpec.getUri().toString(), new Properties());
         jobSpecs.remove(entry.getValue().getUri());
-      } else if (verb.equals(SpecExecutor.Verb.CANCEL)) {
-        // Handle cancel
-        Spec anonymousSpec = entry.getValue();
-        postCancelJobConfigArrival(anonymousSpec.getUri().toString());
-        }
+      }
     }
   }
 
