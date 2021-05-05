@@ -67,14 +67,14 @@ public class HiveMetadataWriter implements MetadataWriter {
   private final Joiner tableNameJoiner = Joiner.on('.');
   private final Closer closer = Closer.create();
   protected final HiveRegister hiveRegister;
-  private final WhitelistBlacklist whiteistBlacklist;
+  protected final WhitelistBlacklist whiteistBlacklist;
   @Getter
   private final KafkaSchemaRegistry schemaRegistry;
   private final HashMap<String, HashMap<List<String>, ListenableFuture<Void>>> currentExecutionMap;
 
-  private final HashMap<String, Cache<String, String>> schemaCreationTimeMap;
-  private final HashMap<String, Cache<List<String>, HiveSpec>> specMaps;
-  private final HashMap<String, String> lastestSchemaMap;
+  protected final HashMap<String, Cache<String, String>> schemaCreationTimeMap;
+  protected final HashMap<String, Cache<List<String>, HiveSpec>> specMaps;
+  protected final HashMap<String, String> latestSchemaMap;
   private final long timeOutSeconds;
   private State state;
 
@@ -87,7 +87,7 @@ public class HiveMetadataWriter implements MetadataWriter {
     this.currentExecutionMap = new HashMap<>();
     this.schemaCreationTimeMap = new HashMap<>();
     this.specMaps = new HashMap<>();
-    this.lastestSchemaMap = new HashMap<>();
+    this.latestSchemaMap = new HashMap<>();
     this.timeOutSeconds =
         state.getPropAsLong(HIVE_REGISTRATION_TIMEOUT_IN_SECONDS, DEFAULT_HIVE_REGISTRATION_TIMEOUT_IN_SECONDS);
   }
@@ -122,9 +122,9 @@ public class HiveMetadataWriter implements MetadataWriter {
     }
 
     //ToDo: after making sure all spec has topic.name set, we should use topicName as key for schema
-    if (!lastestSchemaMap.containsKey(tableKey)) {
+    if (!latestSchemaMap.containsKey(tableKey)) {
       HiveTable existingTable = this.hiveRegister.getTable(dbName, tableName).get();
-      lastestSchemaMap.put(tableKey,
+      latestSchemaMap.put(tableKey,
           existingTable.getSerDeProps().getProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName()));
     }
 
@@ -245,7 +245,7 @@ public class HiveMetadataWriter implements MetadataWriter {
                 .build());
         if (gmce.getSchemaSource() == SchemaSource.EVENT) {
           // Schema source is Event, update schema anyway
-          lastestSchemaMap.put(tableKey, newSchemaString);
+          latestSchemaMap.put(tableKey, newSchemaString);
           // Clear the schema versions cache so next time if we see schema source is schemaRegistry, we will contact schemaRegistry and update
           existedSchemaCreationTimes.cleanUp();
         } else if (gmce.getSchemaSource() == SchemaSource.SCHEMAREGISTRY && newSchemaCreationTime != null
@@ -256,7 +256,7 @@ public class HiveMetadataWriter implements MetadataWriter {
             String latestCreationTime = AvroUtils.getSchemaCreationTime(latestSchema);
             if (latestCreationTime.equals(newSchemaCreationTime)) {
               //new schema is the latest schema, we update our record
-              lastestSchemaMap.put(tableKey, newSchemaString);
+              latestSchemaMap.put(tableKey, newSchemaString);
             }
             existedSchemaCreationTimes.put(newSchemaCreationTime, "");
           }
@@ -266,7 +266,7 @@ public class HiveMetadataWriter implements MetadataWriter {
     //Force to set the schema even there is no schema literal defined in the spec
     spec.getTable()
         .getSerDeProps()
-        .setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), lastestSchemaMap.get(tableKey));
+        .setProp(AvroSerdeUtils.AvroTableProperties.SCHEMA_LITERAL.getPropName(), latestSchemaMap.get(tableKey));
   }
 
   @Override
