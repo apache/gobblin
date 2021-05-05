@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.runtime.spec_catalog;
 
+import com.google.common.base.Throwables;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
@@ -343,7 +344,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
       // If flow fails callbacks, need to prevent adding the flow to the catalog
       if (!response.getValue().getFailures().isEmpty()) {
         for (Map.Entry<SpecCatalogListener, CallbackResult<AddSpecResponse>> entry: response.getValue().getFailures().entrySet()) {
-          flowSpec.getCompilationErrors().add(ExceptionUtils.getStackTrace(entry.getValue().getError()));
+          flowSpec.getCompilationErrors().add(Throwables.getStackTraceAsString(entry.getValue().getError()));
           responseMap.put(entry.getKey().getName(), new AddSpecResponse(entry.getValue().getResult()));
         }
       } else {
