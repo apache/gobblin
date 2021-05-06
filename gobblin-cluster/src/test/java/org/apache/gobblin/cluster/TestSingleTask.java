@@ -25,9 +25,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.FutureTask;
 
-import org.apache.gobblin.testing.AssertWithBackoff;
-import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.util.FileUtils;
 import org.junit.Assert;
 import org.testng.annotations.Test;
 
@@ -39,6 +36,11 @@ import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
 import javax.annotation.Nullable;
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.testing.AssertWithBackoff;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.FileUtils;
 
 import static org.apache.gobblin.cluster.SingleTask.MAX_RETRY_WAITING_FOR_INIT_KEY;
 
@@ -49,7 +51,9 @@ import static org.apache.gobblin.cluster.SingleTask.MAX_RETRY_WAITING_FOR_INIT_K
  * 1. The workunit is being created in {@link InMemoryWuFailedSingleTask}.
  * 2. When needed to reproduce certain errors, replace org.apache.gobblin.cluster.DummySource.DummyExtractor or
  * {@link DummySource} to plug in required logic.
+ * 3. Some of this tests simulate the Helix scenarios where run() and cancel() coule be assigned to run in different threads.
  */
+@Slf4j
 public class TestSingleTask {
 
   private InMemorySingleTaskRunner createInMemoryTaskRunner()
@@ -160,6 +164,10 @@ public class TestSingleTask {
     inMemorySingleTaskRunner.startServices();
     inMemorySingleTaskRunner.initClusterSingleTask(false);
     final SingleTask task = inMemorySingleTaskRunner.task;
+
+    // The task.cancel() method has the logic to block on taskAttempt object to be initialized before calling
+    // taskAttempt.shutdownTasks(). Here there has to be at least 2 threads running concurrently, the run() method
+    // is meant to create the taskAttempt object so that the waiting thread (cancel thread) got unblocked after that.
     ExecutorService executor = Executors.newFixedThreadPool(2);
 
     Runnable cancelRunnable = () -> {

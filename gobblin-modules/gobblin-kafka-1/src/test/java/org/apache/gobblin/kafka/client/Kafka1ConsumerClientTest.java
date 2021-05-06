@@ -27,6 +27,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.MockConsumer;
 import org.apache.kafka.clients.consumer.OffsetResetStrategy;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.record.TimestampType;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -47,9 +48,10 @@ public class Kafka1ConsumerClientTest {
     beginningOffsets.put(new TopicPartition("test_topic", 0), 0L);
     consumer.updateBeginningOffsets(beginningOffsets);
 
-    ConsumerRecord<String, String> record0 = new ConsumerRecord<>("test_topic", 0, 0L, "key", "value0");
-    ConsumerRecord<String, String> record1 = new ConsumerRecord<>("test_topic", 0, 1L, "key", "value1");
-    ConsumerRecord<String, String> record2 = new ConsumerRecord<>("test_topic", 0, 2L, "key", "value2");
+
+    ConsumerRecord<String, String> record0 = new ConsumerRecord<>("test_topic", 0, 0L, 10L, TimestampType.CREATE_TIME, 0L, 3, 6, "key", "value0");
+    ConsumerRecord<String, String> record1 = new ConsumerRecord<>("test_topic", 0, 1L, 11L, TimestampType.LOG_APPEND_TIME, 1L, 3, 6, "key", "value1");
+    ConsumerRecord<String, String> record2 = new ConsumerRecord<>("test_topic", 0, 2L, 12L, TimestampType.LOG_APPEND_TIME, 2L, 3, 6, "key", "value2");
 
     consumer.addRecord(record0);
     consumer.addRecord(record1);
@@ -67,6 +69,10 @@ public class Kafka1ConsumerClientTest {
               new Kafka1ConsumerClient.Kafka1ConsumerRecord<>(record1), new Kafka1ConsumerClient.Kafka1ConsumerRecord<>(record2));
       Assert.assertEquals(consumedRecords, expected);
 
+      Kafka1ConsumerClient.Kafka1ConsumerRecord expected0 = expected.iterator().next();
+      Assert.assertEquals(record0.timestamp(), expected0.getTimestamp());
+      Assert.assertEquals(record0.timestampType() == TimestampType.LOG_APPEND_TIME, expected0.isTimestampLogAppend());
+      Assert.assertEquals(record0.timestampType(), expected0.getTimestampType());
     }
 
   }

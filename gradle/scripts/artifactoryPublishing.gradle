@@ -42,6 +42,7 @@ ext.pomAttributes = {
 // Uses maven-publish plugin and generates the default jar, sources, javadoc
 // and pom file (https://docs.gradle.org/current/userguide/publishing_maven.html)
 subprojects{
+  apply plugin: "com.jfrog.artifactory"
   plugins.withType(JavaPlugin) {
     plugins.apply('maven-publish')
     publishing {
@@ -103,46 +104,23 @@ subprojects{
     }
   }
 
-  // Using gradle bintray plugin to publish artifacts to Jfrog bintray
-  plugins.apply('com.jfrog.bintray')
-  bintray {
-    user = project.hasProperty('bintrayUser') ? project.property('bintrayUser') : System.getenv('BINTRAY_USER')
-    key = project.hasProperty('bintrayApiKey') ? project.property('bintrayApiKey') : System.getenv('BINTRAY_API_KEY')
-    publications = ["mavenJava"]
-    publish = true
-    override = project.hasProperty("bintray.override") //[Default: false]
-    dryRun = project.hasProperty("bintray.dryRun") //[Default: false]
-    pkg {
-      repo = 'maven'
-      name = 'gobblin-github'
-      userOrg = 'linkedin'
-      licenses = ['Apache-2.0']
-      vcsUrl = 'https://github.com/apache/incubator-gobblin.git'
-      version {
-        name = project.version
-        desc = 'Apache Gobblin'
-        released = new Date()
-        // disable gpg signing to speed up publishing
-        gpg {
-          sign = false
-        }
-        // disable upload to maven central
-        mavenCentralSync {
-          sync = false
-        }
+  // Using gradle artifactory plugin to publish artifacts to Jfrog Artifactory
+  artifactory {
+    contextUrl = 'https://linkedin.jfrog.io/artifactory/'
+    publish {
+      repository {
+        repoKey = 'gobblin-github'
+        username = project.hasProperty('artifactoryUser') ? project.property('artifactoryUser') : System.getenv('ARTIFACTORY_USER')
+        password = project.hasProperty('artifactoryApiKey') ? project.property('artifactoryApiKey') : System.getenv('ARTIFACTORY_API_KEY')
+      }
+      defaults {
+        publications ('mavenJava')
       }
     }
   }
 
-  tasks.bintrayUpload {
-    doFirst {
-      println "Running bintrayUpload for $project.name, publications: $project.bintray.publications"
-    }
-    dependsOn publishToMavenLocal
-  }
-
-  ext.addPublicationToBintray = { pubName ->
-    project.bintray.publications += pubName
+  tasks.artifactoryPublish {
+      dependsOn publishToMavenLocal
   }
 
   ext.addRuntimeDependenciesToPom = {

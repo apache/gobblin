@@ -216,6 +216,11 @@ public class ConfigurationKeys {
   public static final String QUEUED_TASK_TIME_MAX_AGE = "taskexecutor.queued_task_time.history.max_age";
   public static final long DEFAULT_QUEUED_TASK_TIME_MAX_AGE = TimeUnit.HOURS.toMillis(1);
 
+  /**
+   * Optional property to specify a default Authenticator class for a job
+   */
+  public static final String DEFAULT_AUTHENTICATOR_CLASS = "job.default.authenticator.class";
+
   /** Optional, for user to specified which template to use, inside .job file */
   public static final String JOB_TEMPLATE_PATH = "job.template";
 
@@ -1053,6 +1058,7 @@ public class ConfigurationKeys {
   /**
    * Configuration and constant vale for GobblinMetadataChangeEvent
    */
+  public static final String GOBBLIN_METADATA_CHANGE_EVENT_ENABLED = "GobblinMetadataChangeEvent.enabled";
   public static final String LIST_DELIMITER_KEY = ",";
   public static final String RANGE_DELIMITER_KEY = "-";
 

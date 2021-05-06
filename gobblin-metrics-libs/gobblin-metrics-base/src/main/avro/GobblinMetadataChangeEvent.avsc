@@ -143,7 +143,8 @@
           "symbols": [
             "add_files",
             "drop_files",
-            "rewrite_files"
+            "rewrite_files",
+            "change_property"
           ]
         },
         "doc": "This is the operation type which indicates change for the specific files, for purger we don't need to do hive registration",

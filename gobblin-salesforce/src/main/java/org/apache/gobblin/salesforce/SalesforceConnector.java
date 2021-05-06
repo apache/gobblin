@@ -115,7 +115,7 @@ public class SalesforceConnector extends RestApiConnector {
     }
   }
 
-  static boolean isPasswordGrant(State state) {
+  protected static boolean isPasswordGrant(State state) {
     String userName = state.getProp(ConfigurationKeys.SOURCE_CONN_USERNAME);
     String securityToken = state.getProp(ConfigurationKeys.SOURCE_CONN_SECURITY_TOKEN);
     return (userName != null &&  securityToken != null);

@@ -198,6 +198,13 @@ public abstract class GobblinMCEProducer implements Closeable {
         }
         break;
       }
+      case change_property: {
+        if(oldFiles != null) {
+          log.warn("{} old files detected while no file alteration is performed", oldFiles.size());
+        }
+        log.info("Setting GMCE while no file changes need to be performed.");
+        break;
+      }
       default: {
         //unsupported operation
         log.error("Unsupported operation type {}", operationType);
@@ -209,18 +216,37 @@ public abstract class GobblinMCEProducer implements Closeable {
 
 
   private List<DataFile> toGobblinDataFileList(Map<Path, Metrics> files) {
-    return Lists.newArrayList(Iterables.transform(files.entrySet(), file -> DataFile.newBuilder()
-        .setFilePath(file.getKey().toString())
-        .setFileFormat(IcebergUtils.getIcebergFormat(state).toString())
-        .setFileMetrics(DataMetrics.newBuilder()
-            .setRecordCount(file.getValue().recordCount())
-            .setColumnSizes(getIntegerLongPairsFromMap(file.getValue().columnSizes()))
-            .setValueCounts(getIntegerLongPairsFromMap(file.getValue().valueCounts()))
-            .setNullValueCounts(getIntegerLongPairsFromMap(file.getValue().nullValueCounts()))
-            .setLowerBounds(getIntegerBytesPairsFromMap(file.getValue().lowerBounds()))
-            .setUpperBounds(getIntegerBytesPairsFromMap(file.getValue().upperBounds()))
-            .build())
-        .build()));
+    return Lists.newArrayList(Iterables.transform(files.entrySet(), file ->
+        {
+          DataFile.Builder builder = createBuilderWithFilePath(file.getKey());
+          addMetricsToFileBuilder(builder, file.getValue());
+          return builder.build();
+        }
+    ));
+  }
+
+  private DataFile.Builder createBuilderWithFilePath(Path filePath) {
+    return DataFile.newBuilder()
+        .setFilePath(filePath.toString())
+        .setFileFormat(IcebergUtils.getIcebergFormat(state).toString());
+  }
+
+  private void addMetricsToFileBuilder(DataFile.Builder builder, Metrics metrics) {
+    // If metrics is null or empty, set FileMetrics a dummy one
+    if(metrics == null || metrics.recordCount() == null) {
+      builder.setFileMetrics(DataMetrics.newBuilder().setRecordCount(0)
+          .build());
+      return;
+    }
+    // If metrics is concrete, fill all fields
+    builder.setFileMetrics(DataMetrics.newBuilder()
+        .setRecordCount(metrics.recordCount())
+        .setColumnSizes(getIntegerLongPairsFromMap(metrics.columnSizes()))
+        .setValueCounts(getIntegerLongPairsFromMap(metrics.valueCounts()))
+        .setNullValueCounts(getIntegerLongPairsFromMap(metrics.nullValueCounts()))
+        .setLowerBounds(getIntegerBytesPairsFromMap(metrics.lowerBounds()))
+        .setUpperBounds(getIntegerBytesPairsFromMap(metrics.upperBounds()))
+        .build());
   }
 
   private List<IntegerLongPair> getIntegerLongPairsFromMap(Map<Integer, Long> map) {

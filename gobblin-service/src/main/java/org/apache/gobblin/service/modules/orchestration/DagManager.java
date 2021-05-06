@@ -59,6 +59,7 @@ import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.ContextAwareCounter;
 import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.RootMetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.TimingEvent;
@@ -68,6 +69,7 @@ import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.service.ExecutionStatus;
+import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.RequesterService;
 import org.apache.gobblin.service.ServiceRequester;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
@@ -427,6 +429,7 @@ public class DagManager extends AbstractIdleService {
     private final int defaultQuota;
     private final Map<String, Integer> perUserQuota;
     private final AtomicLong orchestrationDelay = new AtomicLong(0);
+    private static Map<String, FlowState> flowGauges = Maps.newHashMap();
 
     private JobStatusRetriever jobStatusRetriever;
     private DagStateStore dagStateStore;
@@ -650,6 +653,16 @@ public class DagManager extends AbstractIdleService {
         }
       }
 
+      FlowId flowId = DagManagerUtils.getFlowId(dag);
+      if (!flowGauges.containsKey(flowId.toString())) {
+        String flowStateGaugeName = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, flowId.getFlowGroup(),
+            flowId.getFlowName(), ServiceMetricNames.RUNNING_STATUS);
+        flowGauges.put(flowId.toString(), FlowState.RUNNING);
+        ContextAwareGauge<Integer> gauge = RootMetricContext
+            .get().newContextAwareGauge(flowStateGaugeName, () -> flowGauges.get(flowId.toString()).value);
+        RootMetricContext.get().register(flowStateGaugeName, gauge);
+      }
+
       log.debug("Dag {} submitting jobs ready for execution.", DagManagerUtils.getFullyQualifiedDagName(dag));
       //Determine the next set of jobs to run and submit them for execution
       Map<String, Set<DagNode<JobExecutionPlan>>> nextSubmitted = submitNext(dagId);
@@ -659,6 +672,7 @@ public class DagManager extends AbstractIdleService {
 
       // Set flow status to running
       DagManagerUtils.emitFlowEvent(this.eventSubmitter, dag, TimingEvent.FlowTimings.FLOW_RUNNING);
+      flowGauges.put(flowId.toString(), FlowState.RUNNING);
 
       // Report the orchestration delay the first time the Dag is initialized. Orchestration delay is defined as
       // the time difference between the instant when a flow first transitions to the running state and the instant
@@ -1136,6 +1150,7 @@ public class DagManager extends AbstractIdleService {
           deleteJobState(dagId, dagNode);
         }
         log.info("Dag {} has finished with status FAILED; Cleaning up dag from the state store.", dagId);
+        flowGauges.put(DagManagerUtils.getFlowId(this.dags.get(dagId)).toString(), FlowState.FAILED);
         // send an event before cleaning up dag
         DagManagerUtils.emitFlowEvent(this.eventSubmitter, this.dags.get(dagId), TimingEvent.FlowTimings.FLOW_FAILED);
         dagIdstoClean.add(dagId);
@@ -1149,6 +1164,9 @@ public class DagManager extends AbstractIdleService {
             addFailedDag(dagId);
             status = TimingEvent.FlowTimings.FLOW_FAILED;
             this.failedDagIdsFinishAllPossible.remove(dagId);
+            flowGauges.put(DagManagerUtils.getFlowId(this.dags.get(dagId)).toString(), FlowState.FAILED);
+          } else {
+            flowGauges.put(DagManagerUtils.getFlowId(this.dags.get(dagId)).toString(), FlowState.SUCCESSFUL);
           }
           log.info("Dag {} has finished with status {}; Cleaning up dag from the state store.", dagId, status);
           // send an event before cleaning up dag
@@ -1182,6 +1200,8 @@ public class DagManager extends AbstractIdleService {
      * @param dagId
      */
     private synchronized void cleanUpDag(String dagId) {
+      // clears flow event after cancelled job to allow resume event status to be set
+      this.dags.get(dagId).setFlowEvent(null);
        try {
          this.dagStateStore.cleanUp(dags.get(dagId));
        } catch (IOException ioe) {
@@ -1189,6 +1209,18 @@ public class DagManager extends AbstractIdleService {
        }
       this.dags.remove(dagId);
       this.dagToJobs.remove(dagId);
+    }
+  }
+
+  private enum FlowState {
+    FAILED(-1),
+    RUNNING(0),
+    SUCCESSFUL(1);
+
+    public int value;
+
+    FlowState(int value) {
+      this.value = value;
     }
   }
 

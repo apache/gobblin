@@ -65,5 +65,13 @@ publishing.publications {
     pom.withXml addRuntimeDependenciesToPom
   }
 }
-project.bintray.publications = ["shadowPub"]
+
+artifactory {
+    publish {
+        defaults {
+            publications('shadowPub')
+        }
+    }
+}
+
 ext.classification="library"

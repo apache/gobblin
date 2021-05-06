@@ -68,7 +68,9 @@ artifacts {
   archives mainDataTemplateJar, dataTemplateSourcesJar, dataTemplateJavadocJar
 }
 
-if (file("${project.projectDir}/src/main/idl").exists()) {
+def generateRestClient = file("${project.projectDir}/src/main/idl").exists()
+
+if (generateRestClient) {
 
   // Configure sources and javadoc jars for the rest client  library
   def restClientName = project.name + "-rest-client"
@@ -103,7 +105,6 @@ if (file("${project.projectDir}/src/main/idl").exists()) {
         pom.withXml addRuntimeDependenciesToPom
       }
   }
-  addPublicationToBintray("restClient")
 }
 
 install {
@@ -142,4 +143,15 @@ publishing.publications {
       pom.withXml addRuntimeDependenciesToPom
     }
 }
-addPublicationToBintray("dataTemplate")
+
+artifactory {
+  publish {
+    defaults {
+      if (generateRestClient) {
+        publications('mavenJava', 'restClient', 'dataTemplate')
+      } else {
+        publications('mavenJava', 'dataTemplate')
+      }
+    }
+  }
+}

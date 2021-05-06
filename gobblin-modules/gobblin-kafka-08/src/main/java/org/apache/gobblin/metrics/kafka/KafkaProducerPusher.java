@@ -24,6 +24,9 @@ import java.util.Queue;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingDeque;
 
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import org.apache.gobblin.KafkaCommonUtil;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -134,7 +137,18 @@ public class KafkaProducerPusher implements Pusher<byte[]> {
   public void close()
       throws IOException {
     log.info("Flushing records before close");
-    flush(Long.MAX_VALUE);
+    //Call flush() before invoking close() to ensure any buffered messages are immediately sent. This is required
+    //since close() only guarantees delivery of in-flight messages. Set a timeout to prevent GOBBLIN-1432 issue.
+    //This issue shouldn't exits in later version, as native flush function has a timeout setting offset.flush.timeout.ms
+    try {
+      KafkaCommonUtil.runWithTimeout(
+          () -> flush(Long.MAX_VALUE), KafkaCommonUtil.KAFKA_FLUSH_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+    } catch (TimeoutException e) {
+      log.warn("Flush records before close was interrupted! Reached {} seconds timeout!",
+          KafkaCommonUtil.KAFKA_FLUSH_TIMEOUT_SECONDS);
+    } catch (Exception e) {
+      log.error("Exception encountered when flushing record before close", e);
+    }
     this.closer.close();
   }
 

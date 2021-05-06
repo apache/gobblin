@@ -25,6 +25,7 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.compaction.mapreduce.CompactionJobConfigurator;
 import org.apache.gobblin.compaction.parser.CompactionPathParser;
+import org.apache.gobblin.compaction.verify.InputRecordCountHelper;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
@@ -57,32 +58,42 @@ public class CompactionGMCEPublishingAction implements CompactionCompleteAction<
 
   public static final String ICEBERG_ID_ATTRIBUTE = "iceberg.id";
   public static final String ICEBERG_REQUIRED_ATTRIBUTE = "iceberg.required";
+  public final static String GMCE_EMITTED_KEY = "GMCE.emitted";
   private final State state;
   private final CompactionJobConfigurator configurator;
   private final Configuration conf;
+  private InputRecordCountHelper helper;
   private EventSubmitter eventSubmitter;
 
-  public CompactionGMCEPublishingAction(State state, CompactionJobConfigurator configurator) {
+  public CompactionGMCEPublishingAction(State state, CompactionJobConfigurator configurator, InputRecordCountHelper helper) {
     if (!(state instanceof WorkUnitState)) {
       throw new UnsupportedOperationException(this.getClass().getName() + " only supports workunit state");
     }
     this.state = state;
     this.configurator = configurator;
     this.conf = HadoopUtils.getConfFromState(state);
+    this.helper = helper;
+  }
+
+  public CompactionGMCEPublishingAction(State state, CompactionJobConfigurator configurator) {
+    this(state, configurator, new InputRecordCountHelper(state));
   }
 
   public void onCompactionJobComplete(FileSystemDataset dataset) throws IOException {
     if (dataset.isVirtual()) {
       return;
     }
+    CompactionPathParser.CompactionParserResult result = new CompactionPathParser(state).parse(dataset);
+    String datasetDir = Joiner.on("/").join(result.getDstBaseDir(), result.getDatasetName());
+    state.setProp(ConfigurationKeys.DATA_PUBLISHER_DATASET_DIR, datasetDir);
     try (GobblinMCEProducer producer = GobblinMCEProducer.getGobblinMCEProducer(state)) {
-
-      CompactionPathParser.CompactionParserResult result = new CompactionPathParser(state).parse(dataset);
-      String datasetDir = Joiner.on("/").join(result.getDstBaseDir(), result.getDatasetName());
-      state.setProp(ConfigurationKeys.DATA_PUBLISHER_DATASET_DIR, datasetDir);
       producer.sendGMCE(getNewFileMetrics(result), null, Lists.newArrayList(this.configurator.getOldFiles()), null,
           OperationType.rewrite_files, SchemaSource.NONE);
     }
+    State compactionState = helper.loadState(new Path(result.getDstAbsoluteDir()));
+    //Set the prop to be true to indicate that gmce has been emitted
+    compactionState.setProp(GMCE_EMITTED_KEY, true);
+    helper.saveState(new Path(result.getDstAbsoluteDir()), compactionState);
     //clear old files to release memory
     this.configurator.getOldFiles().clear();
   }
