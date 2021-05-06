@@ -33,6 +33,7 @@ import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
 import org.apache.gobblin.scheduler.SchedulerService;
+import org.apache.gobblin.service.modules.flow.MockedSpecCompiler;
 import org.apache.gobblin.service.modules.flow.SpecCompiler;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalogTest;
@@ -92,7 +93,7 @@ public class GobblinServiceJobSchedulerTest {
 
     scheduler.setActive(true);
 
-    AssertWithBackoff.create().timeoutMs(6000).maxSleepMs(2000).backoffFactor(2)
+    AssertWithBackoff.create().timeoutMs(20000).maxSleepMs(2000).backoffFactor(2)
         .assertTrue(new Predicate<Void>() {
           @Override
           public boolean apply(Void input) {
@@ -129,6 +130,65 @@ public class GobblinServiceJobSchedulerTest {
     Assert.assertEquals(modifiedConfig.getString(ConfigurationKeys.JOB_NAME_KEY), TEST_FLOW_NAME);
   }
 
+  /**
+   * Test that flowSpecs that throw compilation errors do not block the scheduling of other flowSpecs
+   */
+  @Test
+  public void testJobSchedulerInitWithFailedSpec() throws Exception {
+    // Mock a FlowCatalog.
+    File specDir = Files.createTempDir();
+
+    Properties properties = new Properties();
+    properties.setProperty(FLOWSPEC_STORE_DIR_KEY, specDir.getAbsolutePath());
+    FlowCatalog flowCatalog = new FlowCatalog(ConfigUtils.propertiesToConfig(properties));
+    ServiceBasedAppLauncher serviceLauncher = new ServiceBasedAppLauncher(properties, "GaaSJobSchedulerTest");
+
+    serviceLauncher.addService(flowCatalog);
+    serviceLauncher.start();
+
+    FlowSpec flowSpec0 = FlowCatalogTest.initFlowSpec(specDir.getAbsolutePath(), URI.create("spec0"),
+        MockedSpecCompiler.UNCOMPILABLE_FLOW);
+    FlowSpec flowSpec1 = FlowCatalogTest.initFlowSpec(specDir.getAbsolutePath(), URI.create("spec1"));
+    FlowSpec flowSpec2 = FlowCatalogTest.initFlowSpec(specDir.getAbsolutePath(), URI.create("spec2"));
+
+    // Assume that the catalog can store corrupted flows
+    flowCatalog.put(flowSpec0, false);
+    // Ensure that these flows are scheduled
+    flowCatalog.put(flowSpec1, false);
+    flowCatalog.put(flowSpec2, false);
+
+    Assert.assertEquals(flowCatalog.getSpecs().size(), 3);
+
+    Orchestrator mockOrchestrator = Mockito.mock(Orchestrator.class);
+
+    // Mock a GaaS scheduler.
+    TestGobblinServiceJobScheduler scheduler = new TestGobblinServiceJobScheduler("testscheduler",
+        ConfigFactory.empty(), Optional.of(flowCatalog), null, mockOrchestrator, null);
+
+    SpecCompiler mockCompiler = Mockito.mock(SpecCompiler.class);
+    Mockito.when(mockOrchestrator.getSpecCompiler()).thenReturn(mockCompiler);
+    Mockito.doAnswer((Answer<Void>) a -> {
+      scheduler.isCompilerHealthy = true;
+      return null;
+    }).when(mockCompiler).awaitHealthy();
+
+    scheduler.setActive(true);
+
+    AssertWithBackoff.create().timeoutMs(20000).maxSleepMs(2000).backoffFactor(2)
+        .assertTrue(new Predicate<Void>() {
+          @Override
+          public boolean apply(Void input) {
+            Map<String, Spec> scheduledFlowSpecs = scheduler.scheduledFlowSpecs;
+            if (scheduledFlowSpecs != null && scheduledFlowSpecs.size() == 2) {
+              return scheduler.scheduledFlowSpecs.containsKey("spec1") &&
+                  scheduler.scheduledFlowSpecs.containsKey("spec2");
+            } else {
+              return false;
+            }
+          }
+        }, "Waiting all flowSpecs to be scheduled");
+  }
+
   class TestGobblinServiceJobScheduler extends GobblinServiceJobScheduler {
     public boolean isCompilerHealthy = false;
 
@@ -143,6 +203,10 @@ public class GobblinServiceJobSchedulerTest {
      */
     @Override
     public AddSpecResponse onAddSpec(Spec addedSpec) {
+      String flowName = (String) ((FlowSpec) addedSpec).getConfigAsProperties().get(ConfigurationKeys.FLOW_NAME_KEY);
+      if (flowName.equals(MockedSpecCompiler.UNCOMPILABLE_FLOW)) {
+        throw new RuntimeException("Could not compile flow");
+      }
       super.scheduledFlowSpecs.put(addedSpec.getUri().toString(), addedSpec);
       // Check that compiler is healthy at time of scheduling flows
       Assert.assertTrue(isCompilerHealthy);

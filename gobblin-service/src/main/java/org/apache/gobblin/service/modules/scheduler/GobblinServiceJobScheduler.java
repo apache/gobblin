@@ -185,25 +185,26 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
         Iterator<URI> drUris = this.flowCatalog.get().getSpecURISWithTag(DR_FILTER_TAG);
         clearRunningFlowState(drUris);
       }
-
     } catch (IOException e) {
       throw new RuntimeException("Failed to get the iterator of all Spec URIS", e);
     }
 
-    try {
-      while (specUris.hasNext()) {
-        Spec spec = this.flowCatalog.get().getSpecWrapper(specUris.next());
-        //Disable FLOW_RUN_IMMEDIATELY on service startup or leadership change
+    while (specUris.hasNext()) {
+      Spec spec = this.flowCatalog.get().getSpecWrapper(specUris.next());
+      try {
+        // Disable FLOW_RUN_IMMEDIATELY on service startup or leadership change
         if (spec instanceof FlowSpec) {
           Spec modifiedSpec = disableFlowRunImmediatelyOnStart((FlowSpec) spec);
           onAddSpec(modifiedSpec);
         } else {
           onAddSpec(spec);
         }
+      } catch (Exception e) {
+        // If there is an uncaught error thrown during compilation, log it and continue adding flows
+        _log.error("Could not schedule spec {} from flowCatalog due to ", spec, e);
       }
-    } finally {
-      this.flowCatalog.get().getMetrics().updateGetSpecTime(startTime);
     }
+    this.flowCatalog.get().getMetrics().updateGetSpecTime(startTime);
   }
 
   /**
@@ -297,7 +298,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     boolean compileSuccess = FlowCatalog.isCompileSuccessful(response);
 
     if (isExplain || !compileSuccess || !this.isActive) {
-      // todo: in case of a scheudled job, we should also check if the job schedule is a valid cron schedule
+      // todo: in case of a scheduled job, we should also check if the job schedule is a valid cron schedule
       //  so it can be scheduled
       _log.info("Ignoring the spec {}. isExplain: {}, compileSuccess: {}, master: {}",
           addedSpec, isExplain, compileSuccess, this.isActive);

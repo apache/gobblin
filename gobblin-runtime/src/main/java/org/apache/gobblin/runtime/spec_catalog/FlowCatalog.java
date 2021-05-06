@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.runtime.spec_catalog;
 
+import com.google.common.base.Throwables;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
@@ -28,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -119,6 +121,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     }
 
     this.aliasResolver = new ClassAliasResolver<>(SpecStore.class);
+
     try {
       Config newConfig = config;
       if (config.hasPath(FLOWSPEC_STORE_DIR_KEY)) {
@@ -338,8 +341,16 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
 
     if (triggerListener) {
       AddSpecResponse<CallbacksDispatcher.CallbackResults<SpecCatalogListener, AddSpecResponse>> response = this.listeners.onAddSpec(flowSpec);
-      for (Map.Entry<SpecCatalogListener, CallbackResult<AddSpecResponse>> entry: response.getValue().getSuccesses().entrySet()) {
-        responseMap.put(entry.getKey().getName(), entry.getValue().getResult());
+      // If flow fails callbacks, need to prevent adding the flow to the catalog
+      if (!response.getValue().getFailures().isEmpty()) {
+        for (Map.Entry<SpecCatalogListener, CallbackResult<AddSpecResponse>> entry: response.getValue().getFailures().entrySet()) {
+          flowSpec.getCompilationErrors().add(Throwables.getStackTraceAsString(entry.getValue().getError()));
+          responseMap.put(entry.getKey().getName(), new AddSpecResponse(entry.getValue().getResult()));
+        }
+      } else {
+        for (Map.Entry<SpecCatalogListener, CallbackResult<AddSpecResponse>> entry : response.getValue().getSuccesses().entrySet()) {
+          responseMap.put(entry.getKey().getName(), entry.getValue().getResult());
+        }
       }
     }
 
@@ -369,7 +380,6 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
   public static boolean isCompileSuccessful(Map<String, AddSpecResponse> responseMap) {
     AddSpecResponse<String> addSpecResponse = responseMap.getOrDefault(
         ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS, new AddSpecResponse<>(""));
-
     return isCompileSuccessful(addSpecResponse.getValue());
   }
 
