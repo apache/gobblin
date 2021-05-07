@@ -23,15 +23,16 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.gobblin.metrics.event.TimingEvent;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -69,7 +70,7 @@ public class DagManagerTest {
   private Map<DagNode<JobExecutionPlan>, Dag<JobExecutionPlan>> jobToDag;
   private Map<String, LinkedList<DagNode<JobExecutionPlan>>> dagToJobs;
   private Map<String, Dag<JobExecutionPlan>> dags;
-  private Map<String, Dag<JobExecutionPlan>> failedDags;
+  private Set<String> failedDagIds;
 
   @BeforeClass
   public void setUp() throws Exception {
@@ -78,12 +79,13 @@ public class DagManagerTest {
         .withValue(FSDagStateStore.DAG_STATESTORE_DIR, ConfigValueFactory.fromAnyRef(this.dagStateStoreDir));
 
     this._dagStateStore = new FSDagStateStore(config, new HashMap<>());
+    DagStateStore failedDagStateStore = new InMemoryDagStateStore();
     this._jobStatusRetriever = Mockito.mock(JobStatusRetriever.class);
     this.queue = new LinkedBlockingQueue<>();
     this.cancelQueue = new LinkedBlockingQueue<>();
     this.resumeQueue = new LinkedBlockingQueue<>();
-    this._dagManagerThread = new DagManager.DagManagerThread(_jobStatusRetriever, _dagStateStore, _dagStateStore, queue, cancelQueue,
-        resumeQueue, true, 5, new HashMap<>(), new ConcurrentHashMap<>());
+    this._dagManagerThread = new DagManager.DagManagerThread(_jobStatusRetriever, _dagStateStore, failedDagStateStore, queue, cancelQueue,
+        resumeQueue, true, 5, new HashMap<>(), new HashSet<>());
 
     Field jobToDagField = DagManager.DagManagerThread.class.getDeclaredField("jobToDag");
     jobToDagField.setAccessible(true);
@@ -97,9 +99,9 @@ public class DagManagerTest {
     dagsField.setAccessible(true);
     this.dags = (Map<String, Dag<JobExecutionPlan>>) dagsField.get(this._dagManagerThread);
 
-    Field failedDagsField = DagManager.DagManagerThread.class.getDeclaredField("failedDags");
-    failedDagsField.setAccessible(true);
-    this.failedDags = (Map<String, Dag<JobExecutionPlan>>) failedDagsField.get(this._dagManagerThread);
+    Field failedDagIdsField = DagManager.DagManagerThread.class.getDeclaredField("failedDagIds");
+    failedDagIdsField.setAccessible(true);
+    this.failedDagIds = (Set<String>) failedDagIdsField.get(this._dagManagerThread);
   }
 
   /**
@@ -335,7 +337,7 @@ public class DagManagerTest {
   }
 
   @Test (dependsOnMethods = "testFailedDag")
-  public void testResumeDag() throws URISyntaxException, IOException {
+  public void testResumeDag() throws URISyntaxException {
     long flowExecutionId = System.currentTimeMillis();
     String flowGroupId = "0";
     String flowGroup = "group" + flowGroupId;
@@ -394,19 +396,19 @@ public class DagManagerTest {
       this._dagManagerThread.run();
     }
 
-    Assert.assertTrue(this.failedDags.containsKey(dagId));
+    Assert.assertTrue(this.failedDagIds.contains(dagId));
 
     // Resume dag
     this.resumeQueue.offer(dagId);
 
     // Job2 rerunning
     this._dagManagerThread.run();
-    Assert.assertFalse(this.failedDags.containsKey(dagId));
+    Assert.assertFalse(this.failedDagIds.contains(dagId));
     Assert.assertTrue(this.dags.containsKey(dagId));
 
     // Job2 complete
     this._dagManagerThread.run();
-    Assert.assertFalse(this.failedDags.containsKey(dagId));
+    Assert.assertFalse(this.failedDagIds.contains(dagId));
     Assert.assertFalse(this.dags.containsKey(dagId));
   }
 
@@ -618,25 +620,52 @@ public class DagManagerTest {
     this.cancelQueue.offer(dagId);
 
     this._dagManagerThread.run();
-    Assert.assertTrue(this.failedDags.containsKey(dagId));
-    Assert.assertTrue((this.failedDags.get(dagId).getFlowEvent() == null));
+    Assert.assertTrue(this.failedDagIds.contains(dagId));
 
     // Resume dag
     this.resumeQueue.offer(dagId);
 
     // Job2 rerunning
     this._dagManagerThread.run();
-    Assert.assertFalse(this.failedDags.containsKey(dagId));
+    Assert.assertFalse(this.failedDagIds.contains(dagId));
     Assert.assertTrue(this.dags.containsKey(dagId));
 
     // Job2 complete
     this._dagManagerThread.run();
-    Assert.assertFalse(this.failedDags.containsKey(dagId));
+    Assert.assertFalse(this.failedDagIds.contains(dagId));
     Assert.assertFalse(this.dags.containsKey(dagId));
   }
 
   @AfterClass
   public void cleanUp() throws Exception {
     FileUtils.deleteDirectory(new File(this.dagStateStoreDir));
+  }
+
+  public static class InMemoryDagStateStore implements DagStateStore {
+    private final Map<String, Dag<JobExecutionPlan>> dags = new ConcurrentHashMap<>();
+
+    public void writeCheckpoint(Dag<JobExecutionPlan> dag) {
+      dags.put(DagManagerUtils.generateDagId(dag), dag);
+    }
+
+    public void cleanUp(Dag<JobExecutionPlan> dag) {
+      cleanUp(DagManagerUtils.generateDagId(dag));
+    }
+
+    public void cleanUp(String dagId) {
+      dags.remove(dagId);
+    }
+
+    public List<Dag<JobExecutionPlan>> getDags() {
+      return new ArrayList<>(dags.values());
+    }
+
+    public Dag<JobExecutionPlan> getDag(String dagId) {
+      return dags.get(dagId);
+    }
+
+    public Set<String> getDagIds() {
+      return dags.keySet();
+    }
   }
 }

@@ -20,6 +20,7 @@ package org.apache.gobblin.service.modules.orchestration;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -188,7 +189,6 @@ public class DagManager extends AbstractIdleService {
   private final int defaultQuota;
   private final Map<String, Integer> perUserQuota;
   private final long failedDagRetentionTime;
-  private final Map<String, Dag<JobExecutionPlan>> failedDags = new ConcurrentHashMap<>();
 
   private volatile boolean isActive = false;
 
@@ -372,16 +372,17 @@ public class DagManager extends AbstractIdleService {
         //Initializing state store for persisting Dags.
         this.dagStateStore = createDagStateStore(config, topologySpecMap);
         this.failedDagStateStore = createDagStateStore(ConfigUtils.getConfigOrEmpty(config, FAILED_DAG_STATESTORE_PREFIX).withFallback(config), topologySpecMap);
+        Set<String> failedDagIds = Collections.synchronizedSet(this.failedDagStateStore.getDagIds());
 
         //On startup, the service creates DagManagerThreads that are scheduled at a fixed rate.
         this.dagManagerThreads = new DagManagerThread[numThreads];
         for (int i = 0; i < numThreads; i++) {
           DagManagerThread dagManagerThread = new DagManagerThread(jobStatusRetriever, dagStateStore, failedDagStateStore,
-              queue[i], cancelQueue[i], resumeQueue[i], instrumentationEnabled, defaultQuota, perUserQuota, failedDags);
+              queue[i], cancelQueue[i], resumeQueue[i], instrumentationEnabled, defaultQuota, perUserQuota, failedDagIds);
           this.dagManagerThreads[i] = dagManagerThread;
           this.scheduledExecutorPool.scheduleAtFixedRate(dagManagerThread, 0, this.pollingInterval, TimeUnit.SECONDS);
         }
-        FailedDagRetentionThread failedDagRetentionThread = new FailedDagRetentionThread(failedDagStateStore, failedDags, failedDagRetentionTime);
+        FailedDagRetentionThread failedDagRetentionThread = new FailedDagRetentionThread(failedDagStateStore, failedDagIds, failedDagRetentionTime);
         this.scheduledExecutorPool.scheduleAtFixedRate(failedDagRetentionThread, 0, retentionPollingInterval, TimeUnit.MINUTES);
         List<Dag<JobExecutionPlan>> dags = dagStateStore.getDags();
         log.info("Loading " + dags.size() + " dags from dag state store");
@@ -416,7 +417,7 @@ public class DagManager extends AbstractIdleService {
     private static final Map<String, Integer> proxyUserToJobCount = new ConcurrentHashMap<>();
     private static final Map<String, Integer> requesterToJobCount = new ConcurrentHashMap<>();
     private final Map<String, Dag<JobExecutionPlan>> dags = new HashMap<>();
-    private Map<String, Dag<JobExecutionPlan>> failedDags;
+    private Set<String> failedDagIds;
     private final Map<String, Dag<JobExecutionPlan>> resumingDags = new HashMap<>();
     // dagToJobs holds a map of dagId to running jobs of that dag
     final Map<String, LinkedList<DagNode<JobExecutionPlan>>> dagToJobs = new HashMap<>();
@@ -443,18 +444,11 @@ public class DagManager extends AbstractIdleService {
      */
     DagManagerThread(JobStatusRetriever jobStatusRetriever, DagStateStore dagStateStore, DagStateStore failedDagStateStore,
         BlockingQueue<Dag<JobExecutionPlan>> queue, BlockingQueue<String> cancelQueue, BlockingQueue<String> resumeQueue,
-        boolean instrumentationEnabled, int defaultQuota, Map<String, Integer> perUserQuota, Map<String, Dag<JobExecutionPlan>> failedDags) {
+        boolean instrumentationEnabled, int defaultQuota, Map<String, Integer> perUserQuota, Set<String> failedDagIds) {
       this.jobStatusRetriever = jobStatusRetriever;
       this.dagStateStore = dagStateStore;
       this.failedDagStateStore = failedDagStateStore;
-      try {
-        this.failedDags = failedDags;
-        for (Dag<JobExecutionPlan> dag : failedDagStateStore.getDags()) {
-          this.failedDags.put(DagManagerUtils.generateDagId(dag), dag);
-        }
-      } catch (IOException e) {
-        log.error("Failed to load previously failed dags into memory", e);
-      }
+      this.failedDagIds = failedDagIds;
       this.queue = queue;
       this.cancelQueue = cancelQueue;
       this.resumeQueue = resumeQueue;
@@ -524,10 +518,14 @@ public class DagManager extends AbstractIdleService {
      * Begin resuming a dag by setting the status of both the dag and the failed/cancelled dag nodes to {@link ExecutionStatus#PENDING_RESUME},
      * and also sending events so that this status will be reflected in the job status state store.
      */
-    private void beginResumingDag(String dagId) {
-      Dag<JobExecutionPlan> dag = this.failedDags.get(dagId);
-      if (dag == null) {
+    private void beginResumingDag(String dagId) throws IOException {
+      if (!this.failedDagIds.contains(dagId)) {
         log.warn("No dag found with dagId " + dagId + ", so cannot resume flow");
+        return;
+      }
+      Dag<JobExecutionPlan> dag = this.failedDagStateStore.getDag(dagId);
+      if (dag == null) {
+        log.error("Dag " + dagId + " was found in memory but not found in failed dag state store");
         return;
       }
 
@@ -575,7 +573,7 @@ public class DagManager extends AbstractIdleService {
         if (dagReady) {
           this.dagStateStore.writeCheckpoint(dag.getValue());
           this.failedDagStateStore.cleanUp(dag.getValue());
-          this.failedDags.remove(dag.getKey());
+          this.failedDagIds.remove(dag.getKey());
           this.resumingDags.remove(dag.getKey());
           initialize(dag.getValue());
         }
@@ -1190,7 +1188,7 @@ public class DagManager extends AbstractIdleService {
       } catch (IOException e) {
         log.error("Failed to add dag " + dagId + " to failed dag state store", e);
       }
-      this.failedDags.put(dagId, this.dags.get(dagId));
+      this.failedDagIds.add(dagId);
     }
 
     /**
@@ -1229,12 +1227,12 @@ public class DagManager extends AbstractIdleService {
    */
   public static class FailedDagRetentionThread implements Runnable {
     private final DagStateStore failedDagStateStore;
-    private final Map<String, Dag<JobExecutionPlan>> failedDags;
+    private final Set<String> failedDagIds;
     private final long failedDagRetentionTime;
 
-    FailedDagRetentionThread(DagStateStore failedDagStateStore, Map<String, Dag<JobExecutionPlan>> failedDags, long failedDagRetentionTime) {
+    FailedDagRetentionThread(DagStateStore failedDagStateStore, Set<String> failedDagIds, long failedDagRetentionTime) {
       this.failedDagStateStore = failedDagStateStore;
-      this.failedDags = failedDags;
+      this.failedDagIds = failedDagIds;
       this.failedDagRetentionTime = failedDagRetentionTime;
     }
 
@@ -1243,20 +1241,20 @@ public class DagManager extends AbstractIdleService {
       try {
         log.info("Cleaning failed dag state store");
         long startTime = System.currentTimeMillis();
-        List<String> dagKeysToClean = new ArrayList<>();
+        List<String> dagIdsToClean = new ArrayList<>();
 
-        for (Map.Entry<String, Dag<JobExecutionPlan>> entry : this.failedDags.entrySet()) {
-          if (this.failedDagRetentionTime > 0L && startTime > DagManagerUtils.getFlowExecId(entry.getValue()) + this.failedDagRetentionTime) {
-            this.failedDagStateStore.cleanUp(entry.getValue());
-            dagKeysToClean.add(entry.getKey());
+        for (String dagId : this.failedDagIds) {
+          if (this.failedDagRetentionTime > 0L && startTime > DagManagerUtils.getFlowExecId(dagId) + this.failedDagRetentionTime) {
+            this.failedDagStateStore.cleanUp(dagId);
+            dagIdsToClean.add(dagId);
           }
         }
 
-        for (String key : dagKeysToClean) {
-          this.failedDags.remove(key);
+        for (String dagId : dagIdsToClean) {
+          this.failedDagIds.remove(dagId);
         }
 
-      log.info("Cleaned " + dagKeysToClean.size() + " from the failed dag state store");
+      log.info("Cleaned " + dagIdsToClean.size() + " dags from the failed dag state store");
       } catch (Exception e) {
         log.error("Failed to run retention on failed dag state store", e);
       }
