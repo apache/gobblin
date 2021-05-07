@@ -18,8 +18,7 @@
 package org.apache.gobblin.compaction.mapreduce.orc;
 
 import java.io.IOException;
-import org.apache.gobblin.compaction.mapreduce.CompactionJobConfigurator;
-import org.apache.gobblin.compaction.mapreduce.CompactorOutputCommitter;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.OutputCommitter;
@@ -32,14 +31,19 @@ import org.apache.orc.Writer;
 import org.apache.orc.mapreduce.OrcMapreduceRecordWriter;
 import org.apache.orc.mapreduce.OrcOutputFormat;
 
-import static org.apache.gobblin.compaction.mapreduce.CompactorOutputCommitter.*;
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.compaction.mapreduce.CompactorOutputCommitter;
+import org.apache.gobblin.writer.GobblinOrcWriter;
+
+import static org.apache.gobblin.compaction.mapreduce.CompactorOutputCommitter.COMPACTION_OUTPUT_EXTENSION;
 
 
 /**
  * Extension of {@link OrcOutputFormat} for customized {@link CompactorOutputCommitter}
  */
+@Slf4j
 public class OrcKeyCompactorOutputFormat extends OrcOutputFormat {
-
   private FileOutputCommitter committer = null;
 
   @Override
@@ -65,6 +69,8 @@ public class OrcKeyCompactorOutputFormat extends OrcOutputFormat {
     Path filename = getDefaultWorkFile(taskAttemptContext, extension);
     Writer writer = OrcFile.createWriter(filename,
         org.apache.orc.mapred.OrcOutputFormat.buildOptions(conf));
-    return new OrcMapreduceRecordWriter(writer);
+    int rowBatchSize = conf.getInt(GobblinOrcWriter.ORC_WRITER_BATCH_SIZE, GobblinOrcWriter.DEFAULT_ORC_WRITER_BATCH_SIZE);
+    log.info("Creating OrcMapreduceRecordWriter with row batch size = {}", rowBatchSize);
+    return new OrcMapreduceRecordWriter(writer, rowBatchSize);
   }
 }
