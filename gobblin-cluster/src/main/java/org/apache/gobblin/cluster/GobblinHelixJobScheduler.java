@@ -377,7 +377,7 @@ public class GobblinHelixJobScheduler extends JobScheduler implements StandardMe
     String jobUri = jobArrival.uri.toString();
 
     if (jobArrival.verb != SpecExecutor.Verb.CANCEL) {
-      LOGGER.info("Received {} event for job uri {}. Taking no action.", jobArrival.verb, jobUri);
+      LOGGER.warn("Received unexpected event {} for job uri {}. Ignoring event.", jobArrival.verb, jobUri);
       return;
     }
 
