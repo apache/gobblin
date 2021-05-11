@@ -55,6 +55,8 @@ public interface SpecExecutor {
    * a consumer on the physical executor side. */
   Future<? extends SpecProducer<Spec>> getProducer();
 
+  String VERB_KEY = "Verb";
+
   public static enum Verb {
     ADD(1, "add"),
     UPDATE(2, "update"),
