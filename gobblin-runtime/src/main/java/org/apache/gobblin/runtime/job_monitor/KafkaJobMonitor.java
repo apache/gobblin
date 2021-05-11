@@ -24,6 +24,8 @@ import java.util.Collection;
 import com.codahale.metrics.Counter;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
+import com.google.common.base.Optional;
+import com.google.common.eventbus.EventBus;
 import com.typesafe.config.Config;
 
 import lombok.Getter;
@@ -35,10 +37,10 @@ import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.JobSpecMonitor;
 import org.apache.gobblin.runtime.api.MutableJobCatalog;
+import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.kafka.HighLevelConsumer;
 import org.apache.gobblin.runtime.metrics.RuntimeMetrics;
 import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.util.Either;
 
 
 /**
@@ -61,11 +63,11 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
   protected Counter removedSpecs;
 
   /**
-   * @return A collection of either {@link JobSpec}s to add/update or {@link URI}s to remove from the catalog,
+   * @return A collection of {@link JobSpec}s to add/update/remove from the catalog,
    *        parsed from the Kafka message.
    * @throws IOException
    */
-  public abstract Collection<Either<JobSpec, URI>> parseJobSpec(byte[] message) throws IOException;
+  public abstract Collection<JobSpec> parseJobSpec(byte[] message) throws IOException;
 
   public KafkaJobMonitor(String topic, MutableJobCatalog catalog, Config config) {
     super(topic, ConfigUtils.getConfigOrEmpty(config, KAFKA_JOB_MONITOR_PREFIX), 1);
@@ -100,17 +102,39 @@ public abstract class KafkaJobMonitor extends HighLevelConsumer<byte[], byte[]> 
   @Override
   protected void processMessage(DecodeableKafkaRecord<byte[],byte[]> message) {
     try {
-      Collection<Either<JobSpec, URI>> parsedCollection = parseJobSpec(message.getValue());
-      for (Either<JobSpec, URI> parsedMessage : parsedCollection) {
-        if (parsedMessage instanceof Either.Left) {
-          this.newSpecs.inc();
-          this.jobCatalog.put(((Either.Left<JobSpec, URI>) parsedMessage).getLeft());
-        } else if (parsedMessage instanceof Either.Right) {
-          this.removedSpecs.inc();
-          URI jobSpecUri = ((Either.Right<JobSpec, URI>) parsedMessage).getRight();
-          this.jobCatalog.remove(jobSpecUri, true);
-          // Delete the job state if it is a delete spec request
-          deleteStateStore(jobSpecUri);
+      Collection<JobSpec> parsedCollection = parseJobSpec(message.getValue());
+      for (JobSpec parsedMessage : parsedCollection) {
+        SpecExecutor.Verb verb;
+
+        try {
+          verb = SpecExecutor.Verb.valueOf(parsedMessage.getMetadata().get(SpecExecutor.VERB_KEY));
+        } catch (IllegalArgumentException | NullPointerException e) {
+          log.error("Unknown verb {} for spec {}", parsedMessage.getMetadata().get(SpecExecutor.VERB_KEY), parsedMessage.getUri());
+          continue;
+        }
+
+        switch (verb) {
+          case ADD:
+          case UPDATE:
+            this.newSpecs.inc();
+            this.jobCatalog.put(parsedMessage);
+            break;
+          case UNKNOWN: // unknown are considered as add request to maintain backward compatibility
+            log.warn("Job Spec Verb is 'UNKNOWN', putting this spec in job catalog anyway.");
+            this.jobCatalog.put(parsedMessage);
+            break;
+          case DELETE:
+            this.removedSpecs.inc();
+            URI jobSpecUri = parsedMessage.getUri();
+            this.jobCatalog.remove(jobSpecUri);
+            // Delete the job state if it is a delete spec request
+            deleteStateStore(jobSpecUri);
+            break;
+          case CANCEL:
+            this.jobCatalog.remove(parsedMessage.getUri(), true);
+            break;
+          default:
+            log.error("Cannot process spec {} with verb {}", parsedMessage.getUri(), verb);
         }
       }
     } catch (IOException ioe) {
