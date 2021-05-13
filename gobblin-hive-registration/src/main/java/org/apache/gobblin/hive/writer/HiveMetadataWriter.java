@@ -103,8 +103,7 @@ public class HiveMetadataWriter implements MetadataWriter {
         try {
           execution.getValue().get(timeOutSeconds, TimeUnit.SECONDS);
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
-          log.error("Error when getting the result of registration for table" + tableKey);
-          throw new RuntimeException(e);
+          throw new RuntimeException("Error when getting the result of registration for table" + tableKey, e);
         }
       }
       executionMap.clear();
