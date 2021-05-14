@@ -120,7 +120,7 @@ import org.joda.time.format.PeriodFormatterBuilder;
 public class IcebergMetadataWriter implements MetadataWriter {
 
   public static final String USE_DATA_PATH_AS_TABLE_LOCATION = "use.data.path.as.table.location";
-  public static final String TABLE_LOCATION_SUFFIX = "/_iceberg_metadata";
+  public static final String TABLE_LOCATION_SUFFIX = "/_iceberg_metadata/%s";
   public static final String GMCE_HIGH_WATERMARK_KEY = "gmce.high.watermark.%s";
   public static final String GMCE_LOW_WATERMARK_KEY = "gmce.low.watermark.%s";
   private final static String EXPIRE_SNAPSHOTS_LOOKBACK_TIME = "gobblin.iceberg.dataset.expire.snapshots.lookBackTime";
@@ -409,7 +409,7 @@ public class IcebergMetadataWriter implements MetadataWriter {
     Table icebergTable = null;
     String tableLocation = null;
     if (useDataLoacationAsTableLocation) {
-      tableLocation = gmce.getDatasetIdentifier().getNativeName() + TABLE_LOCATION_SUFFIX;
+      tableLocation = gmce.getDatasetIdentifier().getNativeName() + String.format(TABLE_LOCATION_SUFFIX, table.getDbName());
       //Set the path permission
       Path tablePath = new Path(tableLocation);
       WriterUtils.mkdirsWithRecursivePermission(tablePath.getFileSystem(conf), tablePath, permission);
