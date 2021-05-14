@@ -96,7 +96,9 @@ public class GobblinMCEPublisher extends DataPublisher {
       if (newFiles.isEmpty()) {
         // There'll be only one dummy file here. This file is parsed for DB and table name calculation.
         newFiles = computeDummyFile(state);
-        this.producer.sendGMCE(newFiles, null, null, offsetRange, OperationType.change_property, SchemaSource.NONE);
+        if (!newFiles.isEmpty()) {
+          this.producer.sendGMCE(newFiles, null, null, offsetRange, OperationType.change_property, SchemaSource.NONE);
+        }
       } else {
         this.producer.sendGMCE(newFiles, null, null, offsetRange, OperationType.add_files, SchemaSource.SCHEMAREGISTRY);
       }
@@ -150,7 +152,9 @@ public class GobblinMCEPublisher extends DataPublisher {
       //
       PriorityQueue<FileStatus> fileStatuses =
           new PriorityQueue<>((x, y) -> Long.compare(y.getModificationTime(), x.getModificationTime()));
-      fileStatuses.add(fs.getFileStatus(path));
+      if (fs.exists(path)) {
+        fileStatuses.add(fs.getFileStatus(path));
+      }
       // Only register files
       while (!fileStatuses.isEmpty()) {
         FileStatus fileStatus = fileStatuses.poll();
