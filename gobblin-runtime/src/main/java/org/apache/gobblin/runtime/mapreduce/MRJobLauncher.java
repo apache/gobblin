@@ -127,7 +127,41 @@ import org.apache.gobblin.util.reflection.RestrictedFieldAccessingUtils;
  * @author Yinan Li
  */
 @Slf4j
-public class MRJobLauncher extends AbstractJobLauncher {
+public class MRJobLauncher extends org.apache.gobblin.runtime.mapreduce.kubernetes.KuberJobLauncher {
+
+  public static final String INPUT_DIR_NAME = "input";
+
+  private static final String ENABLED_CUSTOMIZED_PROGRESS = "MRJobLauncher.enabledCustomizedProgress";
+
+  public MRJobLauncher(Properties jobProps,
+                       Configuration conf,
+                       SharedResourcesBroker<GobblinScopeTypes> instanceBroker,
+                       List<? extends Tag<?>> metadataTags) throws Exception {
+    super(jobProps, conf, metadataTags);
+  }
+
+  public MRJobLauncher(Properties jobProps,
+                       SharedResourcesBroker<GobblinScopeTypes> instanceBroker,
+                       List<? extends Tag<?>> metadataTags) throws Exception {
+    super(jobProps, new Configuration(), metadataTags);
+  }
+
+  public MRJobLauncher(Properties jobProperties,
+                       Configuration conf,
+                       List<? extends Tag<?>> metadataTags) throws Exception {
+    super(jobProperties, conf, metadataTags);
+  }
+
+  static boolean isCustomizedProgressReportEnabled(Properties properties) {
+    return properties.containsKey(ENABLED_CUSTOMIZED_PROGRESS)
+            && Boolean.parseBoolean(properties.getProperty(ENABLED_CUSTOMIZED_PROGRESS));
+  }
+
+}
+
+
+@Slf4j
+final class Dummy extends AbstractJobLauncher {
 
   private static final String INTERRUPT_JOB_FILE_NAME = "_INTERRUPT_JOB";
   private static final String GOBBLIN_JOB_INTERRUPT_PATH_KEY = "gobblin.jobInterruptPath";
@@ -183,24 +217,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
   private final Path interruptPath;
   private final GobblinJobFiniteStateMachine fsm;
 
-  public MRJobLauncher(Properties jobProps) throws Exception {
-    this(jobProps, null);
-  }
-
-  public MRJobLauncher(Properties jobProps, SharedResourcesBroker<GobblinScopeTypes> instanceBroker) throws Exception {
-    this(jobProps, new Configuration(), instanceBroker);
-  }
-
-  public MRJobLauncher(Properties jobProps, Configuration conf, SharedResourcesBroker<GobblinScopeTypes> instanceBroker) throws Exception {
-    this(jobProps, conf, instanceBroker, ImmutableList.of());
-  }
-
-  public MRJobLauncher(Properties jobProps, SharedResourcesBroker<GobblinScopeTypes> instanceBroker, List<? extends Tag<?>> metadataTags) throws Exception {
-    this(jobProps, new Configuration(), instanceBroker, metadataTags);
-  }
-
-
-  public MRJobLauncher(Properties jobProps, Configuration conf, SharedResourcesBroker<GobblinScopeTypes> instanceBroker,List<? extends Tag<?>> metadataTags)
+  public Dummy(Properties jobProps, Configuration conf, SharedResourcesBroker<GobblinScopeTypes> instanceBroker, List<? extends Tag<?>> metadataTags)
       throws Exception {
     super(jobProps, metadataTags);
 

@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: runner-pod
+  labels:
+    gobblin: runner
+spec:
+  restartPolicy: Never
+  volumes:
+    - name: workspace
+      persistentVolumeClaim:
+        claimName: workspace
+  containers:
+      - name: my-runner
+        image: k3d-default-registry.localhost:5000/trv-local-java-runner:v0.2
+        imagePullPolicy: Always
+        command: ["/start.sh", "/workspace", "org.apache.gobblin.runtime.mapreduce.kubernetes.KubeTaskRunner", "/workspace"]
+        volumeMounts:
+          - mountPath: "/workspace"
+            name: workspace
+

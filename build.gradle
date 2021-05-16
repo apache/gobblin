@@ -269,3 +269,12 @@ rat {
     'LICENSE'
   ]
 }
+
+// Somebody (azure?) is forcing dependency to version 3
+configurations.all {
+  resolutionStrategy {
+    force "org.apache.hadoop:hadoop-common:2.3.0"
+    force "org.apache.hadoop:hadoop-auth:2.3.0"
+    force "org.apache.hadoop:hadoop-hdfs:2.3.0"
+  }
+}
