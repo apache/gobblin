@@ -117,7 +117,7 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
         .setDatasetIdentifier(DatasetIdentifier.newBuilder()
             .setDataOrigin(DataOrigin.EI)
             .setDataPlatformUrn("urn:li:dataPlatform:hdfs")
-            .setNativeName("/data/tracking/testIcebergTable")
+            .setNativeName(new File(tmpDir, "data/tracking/testIcebergTable").getAbsolutePath())
             .build())
         .setTopicPartitionOffsetsRange(ImmutableMap.<String, String>builder().put("testTopic-1", "0-1000").build())
         .setFlowId("testFlow")
@@ -138,6 +138,7 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
         KafkaStreamTestUtils.MockSchemaRegistry.class.getName());
     state.setProp("default.hive.registration.policy",
         TestHiveRegistrationPolicyForIceberg.class.getName());
+    state.setProp("use.data.path.as.table.location", true);
     gobblinMCEWriter = new GobblinMCEWriter(new GobblinMCEWriterBuilder(), state);
     ((IcebergMetadataWriter) gobblinMCEWriter.getMetadataWriters().iterator().next()).setCatalog(
         HiveMetastoreTest.catalog);
@@ -154,6 +155,8 @@ public class IcebergMetadataWriterTest extends HiveMetastoreTest {
     Assert.assertEquals(catalog.listTables(Namespace.of(dbName)).size(), 1);
     Table table = catalog.loadTable(catalog.listTables(Namespace.of(dbName)).get(0));
     Assert.assertFalse(table.properties().containsKey("offset.range.testTopic-1"));
+    Assert.assertEquals(table.location(),
+        new File(tmpDir, "data/tracking/testIcebergTable/_iceberg_metadata/").getAbsolutePath() + "/" + dbName);
     gmce.setTopicPartitionOffsetsRange(ImmutableMap.<String, String>builder().put("testTopic-1", "1000-2000").build());
     gobblinMCEWriter.writeEnvelope(new RecordEnvelope<>(gmce,
         new KafkaStreamingExtractor.KafkaWatermark(
