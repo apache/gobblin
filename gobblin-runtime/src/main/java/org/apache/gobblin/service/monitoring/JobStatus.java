@@ -17,9 +17,13 @@
 
 package org.apache.gobblin.service.monitoring;
 
+import java.util.List;
+
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
+
+import org.apache.gobblin.runtime.troubleshooter.Issue;
 
 
 /**
@@ -48,4 +52,5 @@ public class JobStatus {
   private final int maxAttempts;
   private final int currentAttempts;
   private final boolean shouldRetry;
+  private final List<Issue> issues;
 }
