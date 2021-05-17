@@ -43,7 +43,7 @@ public class JobIssueEventHandlerTest {
 
     eventHandler.processEvent(eventBuilder.build());
 
-    verify(issueRepository).put(any(), any());
+    verify(issueRepository).put(any(), (Issue) any());
   }
 
   private Issue getTestIssue(String summary, String code) {

@@ -19,47 +19,42 @@ package org.apache.gobblin.runtime.troubleshooter;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 import org.apache.commons.collections4.map.LRUMap;
 
+import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
-import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.service.ServiceConfigKeys;
+
 
 /**
  * Stores issues from multiple jobs, flows or other contexts in memory.
  *
- * To limit the memory consumption, it will keep only the last {@link #MAX_CONTEXT_COUNT} contexts,
+ * To limit the memory consumption, it will keep only the last {@link Configuration#maxContextCount} contexts,
  * and older ones will be discarded.
  * */
 @Singleton
-public class InMemoryMultiContextIssueRepository implements MultiContextIssueRepository {
-  public static final int DEFAULT_MAX_CONTEXT_COUNT = 100;
-
-  public static final String CONFIG_PREFIX = "gobblin.troubleshooter.inMemoryIssueRepository.";
-  public static final String MAX_CONTEXT_COUNT = CONFIG_PREFIX + "maxContextCount";
-  public static final String MAX_ISSUE_PER_CONTEXT = CONFIG_PREFIX + "maxIssuesPerContext";
-
+public class InMemoryMultiContextIssueRepository extends AbstractIdleService implements MultiContextIssueRepository {
   private final LRUMap<String, InMemoryIssueRepository> contextIssues;
-  private final int maxIssuesPerContext;
+  private final Configuration configuration;
 
   public InMemoryMultiContextIssueRepository() {
-    this(ConfigFactory.empty());
+    this(Configuration.builder().build());
   }
 
   @Inject
-  public InMemoryMultiContextIssueRepository(Config config) {
-    this(ConfigUtils.getInt(config, MAX_CONTEXT_COUNT, DEFAULT_MAX_CONTEXT_COUNT),
-         ConfigUtils.getInt(config, MAX_ISSUE_PER_CONTEXT, InMemoryIssueRepository.DEFAULT_MAX_SIZE));
-  }
-
-  public InMemoryMultiContextIssueRepository(int maxContextCount, int maxIssuesPerContext) {
-    contextIssues = new LRUMap<>(maxContextCount);
-    this.maxIssuesPerContext = maxIssuesPerContext;
+  public InMemoryMultiContextIssueRepository(Configuration configuration) {
+    this.configuration = Objects.requireNonNull(configuration);
+    contextIssues = new LRUMap<>(configuration.getMaxContextCount());
   }
 
   @Override
@@ -78,11 +73,20 @@ public class InMemoryMultiContextIssueRepository implements MultiContextIssueRep
   @Override
   public synchronized void put(String contextId, Issue issue)
       throws TroubleshooterException {
-
-    InMemoryIssueRepository issueRepository =
-        contextIssues.computeIfAbsent(contextId, s -> new InMemoryIssueRepository(maxIssuesPerContext));
+    InMemoryIssueRepository issueRepository = contextIssues
+        .computeIfAbsent(contextId, s -> new InMemoryIssueRepository(configuration.getMaxIssuesPerContext()));
 
     issueRepository.put(issue);
+  }
+
+  @Override
+  public synchronized void put(String contextId, List<Issue> issues)
+      throws TroubleshooterException {
+
+    InMemoryIssueRepository issueRepository = contextIssues
+        .computeIfAbsent(contextId, s -> new InMemoryIssueRepository(configuration.getMaxIssuesPerContext()));
+
+    issueRepository.put(issues);
   }
 
   @Override
@@ -93,6 +97,41 @@ public class InMemoryMultiContextIssueRepository implements MultiContextIssueRep
 
     if (issueRepository != null) {
       issueRepository.remove(issueCode);
+    }
+  }
+
+  @Override
+  protected void startUp()
+      throws Exception {
+  }
+
+  @Override
+  protected void shutDown()
+      throws Exception {
+  }
+
+  @Builder
+  @Getter
+  @AllArgsConstructor
+  @NoArgsConstructor
+  public static class Configuration {
+
+    @Builder.Default
+    private int maxContextCount = ServiceConfigKeys.DEFAULT_MEMORY_ISSUE_REPO_MAX_CONTEXT_COUNT;
+
+    @Builder.Default
+    private int maxIssuesPerContext = ServiceConfigKeys.DEFAULT_MEMORY_ISSUE_REPO_MAX_ISSUE_PER_CONTEXT;
+
+    @Inject
+    public Configuration(Config innerConfig) {
+      this();
+      if (innerConfig.hasPath(ServiceConfigKeys.MEMORY_ISSUE_REPO_MAX_CONTEXT_COUNT)) {
+        maxContextCount = innerConfig.getInt(ServiceConfigKeys.MEMORY_ISSUE_REPO_MAX_CONTEXT_COUNT);
+      }
+
+      if (innerConfig.hasPath(ServiceConfigKeys.MEMORY_ISSUE_REPO_MAX_ISSUE_PER_CONTEXT)) {
+        maxIssuesPerContext = innerConfig.getInt(ServiceConfigKeys.MEMORY_ISSUE_REPO_MAX_ISSUE_PER_CONTEXT);
+      }
     }
   }
 }

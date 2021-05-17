@@ -101,7 +101,8 @@ public class ClassAliasResolver<T> {
    * and is also a subclass of {@link #subtypeOf}, if it fails it returns a class object for name
    * <code>aliasOrClassName</code>.
    */
-  public Class<? extends T> resolveClass(final String aliasOrClassName) throws ClassNotFoundException {
+  public Class<? extends T> resolveClass(final String aliasOrClassName)
+      throws ClassNotFoundException {
     if (this.aliasToClassCache.containsKey(aliasOrClassName.toUpperCase())) {
       return this.aliasToClassCache.get(aliasOrClassName.toUpperCase());
     }

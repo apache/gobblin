@@ -45,22 +45,22 @@ import org.apache.gobblin.util.ConfigUtils;
 public class JobIssueEventHandler {
 
   public static final String CONFIG_PREFIX = "gobblin.troubleshooter.jobIssueEventHandler.";
-  public static final String LOG_RECEIVED_EVENTS = CONFIG_PREFIX + "logReceiveEvents";
+  public static final String LOG_RECEIVED_EVENTS = CONFIG_PREFIX + "logReceivedEvents";
 
   private static final Logger issueLogger =
       LoggerFactory.getLogger("org.apache.gobblin.runtime.troubleshooter.JobIssueLogger");
 
   private final MultiContextIssueRepository issueRepository;
-  private final boolean logReceiveEvents;
+  private final boolean logReceivedEvents;
 
   @Inject
   public JobIssueEventHandler(MultiContextIssueRepository issueRepository, Config config) {
     this(issueRepository, ConfigUtils.getBoolean(config, LOG_RECEIVED_EVENTS, true));
   }
 
-  public JobIssueEventHandler(MultiContextIssueRepository issueRepository, boolean logReceiveEvents) {
+  public JobIssueEventHandler(MultiContextIssueRepository issueRepository, boolean logReceivedEvents) {
     this.issueRepository = Objects.requireNonNull(issueRepository);
-    this.logReceiveEvents = logReceiveEvents;
+    this.logReceivedEvents = logReceivedEvents;
   }
 
   public void processEvent(GobblinTrackingEvent event) {
@@ -83,10 +83,11 @@ public class JobIssueEventHandler {
     try {
       issueRepository.put(contextId, issueEvent.getIssue());
     } catch (TroubleshooterException e) {
-      log.warn("Failed to save issue to repository. Issue code: " + issueEvent.getIssue().getCode(), e);
+      log.warn(String.format("Failed to save issue to repository. Issue time: %s, code: %s",
+                             issueEvent.getIssue().getTime(), issueEvent.getIssue().getCode()), e);
     }
 
-    if (logReceiveEvents) {
+    if (logReceivedEvents) {
       logEvent(issueEvent);
     }
   }

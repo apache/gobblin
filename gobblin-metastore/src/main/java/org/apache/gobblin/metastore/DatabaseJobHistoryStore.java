@@ -88,8 +88,7 @@ public class DatabaseJobHistoryStore implements JobHistoryStore {
   }
 
   private static MigrationVersion getDatabaseVersion(DataSource dataSource) throws FlywayException {
-    Flyway flyway = new Flyway();
-    flyway.setDataSource(dataSource);
+    Flyway flyway = Flyway.configure().dataSource(dataSource).load();
     MigrationInfoService info = flyway.info();
     MigrationVersion currentVersion = MigrationVersion.EMPTY;
     if (info.current() != null) {
