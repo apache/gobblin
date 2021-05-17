@@ -41,7 +41,6 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Charsets;
-import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
 import com.google.common.io.Files;
 import com.google.gson.Gson;
@@ -49,13 +48,11 @@ import com.google.gson.GsonBuilder;
 import com.linkedin.data.template.StringMap;
 import com.linkedin.r2.transport.http.client.HttpClientFactory;
 import com.linkedin.restli.client.RestLiResponseException;
-import com.typesafe.config.Config;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.MysqlJobStatusStateStoreFactory;
 import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
-import org.apache.gobblin.restli.EmbeddedRestliServer;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
@@ -101,7 +98,7 @@ public class GobblinServiceManagerTest {
 
   private final URI TEST_URI = FlowSpec.Utils.createFlowSpecUri(TEST_FLOW_ID);
 
-  private MockGobblinServiceManager gobblinServiceManager;
+  private GobblinServiceManager gobblinServiceManager;
   private FlowConfigV2Client flowConfigClient;
 
   private Git gitForPush;
@@ -168,12 +165,12 @@ public class GobblinServiceManagerTest {
     this.gitForPush.commit().setMessage("First commit").call();
     this.gitForPush.push().setRemote("origin").setRefSpecs(new RefSpec("master")).call();
 
-    this.gobblinServiceManager = new MockGobblinServiceManager("CoreService", "1",
-        ConfigUtils.propertiesToConfig(serviceCoreProperties), Optional.of(new Path(SERVICE_WORK_DIR)));
+    this.gobblinServiceManager = GobblinServiceManager.create("CoreService", "1",
+        ConfigUtils.propertiesToConfig(serviceCoreProperties), new Path(SERVICE_WORK_DIR));
     this.gobblinServiceManager.start();
 
     this.flowConfigClient = new FlowConfigV2Client(String.format("http://127.0.0.1:%s/",
-        this.gobblinServiceManager.getRestLiServer().getListeningURI().getPort()), transportClientProperties);
+        this.gobblinServiceManager.getRestLiServerListeningURI().getPort()), transportClientProperties);
   }
 
   private void cleanUpDir(String dir) throws Exception {
@@ -508,23 +505,10 @@ null, null, null, null);
 
   private void serviceReboot() throws Exception {
     this.gobblinServiceManager.stop();
-    this.gobblinServiceManager = new MockGobblinServiceManager("CoreService", "1",
-        ConfigUtils.propertiesToConfig(serviceCoreProperties), Optional.of(new Path(SERVICE_WORK_DIR)));
-    this.flowConfigClient = new FlowConfigV2Client(String.format("http://127.0.0.1:%s/",
-        this.gobblinServiceManager.getRestLiServer().getPort()), transportClientProperties);
+    this.gobblinServiceManager = GobblinServiceManager.create("CoreService", "1",
+        ConfigUtils.propertiesToConfig(serviceCoreProperties), new Path(SERVICE_WORK_DIR));
     this.gobblinServiceManager.start();
-  }
-
-  class MockGobblinServiceManager extends GobblinServiceManager {
-
-    public MockGobblinServiceManager(String serviceName, String serviceId, Config config,
-        Optional<Path> serviceWorkDirOptional)
-        throws Exception {
-      super(serviceName, serviceId, config, serviceWorkDirOptional);
-    }
-
-    protected EmbeddedRestliServer getRestLiServer() {
-      return this.restliServer;
-    }
+    this.flowConfigClient = new FlowConfigV2Client(String.format("http://127.0.0.1:%s/",
+        this.gobblinServiceManager.getRestLiServerListeningURI().getPort()), transportClientProperties);
   }
 }

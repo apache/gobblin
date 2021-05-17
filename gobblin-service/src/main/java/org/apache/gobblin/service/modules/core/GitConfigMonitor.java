@@ -27,6 +27,8 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
+import javax.inject.Inject;
+import javax.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.config.ConfigBuilder;
@@ -45,6 +47,7 @@ import org.apache.gobblin.util.PullFileLoader;
  * The <flowGroup> and <flowName> is used to generate the URI used to store the config in the {@link FlowCatalog}
  */
 @Slf4j
+@Singleton
 public class GitConfigMonitor extends GitMonitoringService {
   public static final String GIT_CONFIG_MONITOR_PREFIX = "gobblin.service.gitConfigMonitor";
 
@@ -72,6 +75,7 @@ public class GitConfigMonitor extends GitMonitoringService {
   private final FlowCatalog flowCatalog;
   private final Config emptyConfig = ConfigFactory.empty();
 
+  @Inject
   GitConfigMonitor(Config config, FlowCatalog flowCatalog) {
     super(config.getConfig(GIT_CONFIG_MONITOR_PREFIX).withFallback(DEFAULT_FALLBACK));
     this.flowCatalog = flowCatalog;

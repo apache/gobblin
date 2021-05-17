@@ -15,29 +15,14 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.service;
-
-import java.util.List;
-
-import com.google.common.collect.Lists;
-import com.linkedin.restli.server.resources.BaseResource;
-import com.typesafe.config.Config;
-
-import javax.inject.Inject;
-
+package org.apache.gobblin.service.modules.utils;
 
 /**
- * Default requester service which does not track any requester information.
- */
-public class NoopRequesterService extends RequesterService {
-
-  @Inject
-  public NoopRequesterService(Config config) {
-    super(config);
-  }
-
-  @Override
-  public List<ServiceRequester> findRequesters(BaseResource resource) {
-    return Lists.newArrayList();
-  }
+ * These names are used for dependency injection, when we need to inject different instances of the same type,
+ * or inject constants.
+ * */
+public final class InjectionNames {
+  public static final String SERVICE_NAME = "serviceName";
+  public static final String FORCE_LEADER = "forceLeader";
+  public static final String FLOW_CATALOG_LOCAL_COMMIT = "flowCatalogLocalCommit";
 }

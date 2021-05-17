@@ -39,6 +39,8 @@ import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 
 import javax.annotation.Nonnull;
+import javax.inject.Inject;
+import javax.inject.Singleton;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -67,11 +69,8 @@ import org.apache.gobblin.service.modules.flow.SpecCompiler;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
-import org.apache.gobblin.service.monitoring.FsJobStatusRetriever;
-import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**
@@ -79,8 +78,8 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
  * to {@link TopologyCatalog} and updates {@link SpecCompiler} state.
  */
 @Alpha
+@Singleton
 public class Orchestrator implements SpecCatalogListener, Instrumentable {
-  private static final String JOB_STATUS_RETRIEVER_CLASS_KEY = "jobStatusRetriever.class";
 
   protected final Logger _log;
   protected final SpecCompiler specCompiler;
@@ -104,12 +103,15 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
   private Map<String, FlowCompiledState> flowGauges = Maps.newHashMap();
 
-  public Orchestrator(Config config, Optional<TopologyCatalog> topologyCatalog, Optional<DagManager> dagManager, Optional<Logger> log,
-      boolean instrumentationEnabled) {
+
+  public Orchestrator(Config config, FlowStatusGenerator flowStatusGenerator, Optional<TopologyCatalog> topologyCatalog,
+      Optional<DagManager> dagManager, Optional<Logger> log, boolean instrumentationEnabled) {
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
     this.aliasResolver = new ClassAliasResolver<>(SpecCompiler.class);
     this.topologyCatalog = topologyCatalog;
     this.dagManager = dagManager;
+    this.flowStatusGenerator = flowStatusGenerator;
+
     try {
       String specCompilerClassName = ServiceConfigKeys.DEFAULT_GOBBLIN_SERVICE_FLOWCOMPILER_CLASS;
       if (config.hasPath(ServiceConfigKeys.GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY)) {
@@ -146,26 +148,12 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
         ServiceConfigKeys.DEFAULT_FLOW_CONCURRENCY_ALLOWED);
   }
 
-  public Orchestrator(Config config, Optional<TopologyCatalog> topologyCatalog, Optional<DagManager> dagManager, Optional<Logger> log) {
-    this(config, topologyCatalog, dagManager, log, true);
+  @Inject
+  public Orchestrator(Config config, FlowStatusGenerator flowStatusGenerator, Optional<TopologyCatalog> topologyCatalog,
+      Optional<DagManager> dagManager, Optional<Logger> log) {
+    this(config, flowStatusGenerator, topologyCatalog, dagManager, log, true);
   }
 
-  public Orchestrator(Config config, Optional<TopologyCatalog> topologyCatalog, Optional<DagManager> dagManager, Logger log) {
-    this(config, topologyCatalog, dagManager, Optional.of(log));
-  }
-
-  public Orchestrator(Config config, Logger log) {
-    this(config, Optional.<TopologyCatalog>absent(), Optional.<DagManager>absent(), Optional.of(log));
-  }
-
-  /** Constructor with no logging */
-  public Orchestrator(Config config, Optional<TopologyCatalog> topologyCatalog) {
-    this(config, topologyCatalog, Optional.<DagManager>absent(), Optional.<Logger>absent());
-  }
-
-  public Orchestrator(Config config) {
-    this(config, Optional.<TopologyCatalog>absent(), Optional.<DagManager>absent(), Optional.<Logger>absent());
-  }
 
   @VisibleForTesting
   public SpecCompiler getSpecCompiler() {
@@ -401,18 +389,6 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     }
   }
 
-  private FlowStatusGenerator buildFlowStatusGenerator(Config config) {
-    JobStatusRetriever jobStatusRetriever;
-    try {
-      Class jobStatusRetrieverClass = Class.forName(ConfigUtils.getString(config, JOB_STATUS_RETRIEVER_CLASS_KEY, FsJobStatusRetriever.class.getName()));
-      jobStatusRetriever =
-          (JobStatusRetriever) GobblinConstructorUtils.invokeLongestConstructor(jobStatusRetrieverClass, config);
-    } catch (ReflectiveOperationException e) {
-      _log.error("Exception encountered when instantiating JobStatusRetriever");
-      throw new RuntimeException(e);
-    }
-    return FlowStatusGenerator.builder().jobStatusRetriever(jobStatusRetriever).build();
-  }
 
   @Nonnull
   @Override

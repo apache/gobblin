@@ -16,14 +16,21 @@
  */
 package org.apache.gobblin.service;
 
-import com.typesafe.config.Config;
 import java.util.List;
+
+import com.typesafe.config.Config;
+
+import javax.inject.Inject;
+import javax.inject.Singleton;
+
 import org.apache.gobblin.annotation.Alias;
 
 
 @Alias("noop")
+@Singleton
 public class NoopGroupOwnershipService extends GroupOwnershipService{
 
+   @Inject
    public NoopGroupOwnershipService(Config config) {
    }
 

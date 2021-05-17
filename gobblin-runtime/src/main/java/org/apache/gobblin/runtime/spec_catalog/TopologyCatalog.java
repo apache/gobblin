@@ -39,6 +39,8 @@ import com.google.common.util.concurrent.Service;
 import com.typesafe.config.Config;
 
 import javax.annotation.Nonnull;
+import javax.inject.Inject;
+import javax.inject.Singleton;
 import lombok.Getter;
 
 import org.apache.gobblin.annotation.Alpha;
@@ -65,6 +67,7 @@ import org.apache.gobblin.util.callbacks.CallbacksDispatcher;
 
 
 @Alpha
+@Singleton
 public class TopologyCatalog extends AbstractIdleService implements SpecCatalog, MutableSpecCatalog {
 
   public static final String DEFAULT_TOPOLOGYSPEC_STORE_CLASS = FSSpecStore.class.getCanonicalName();
@@ -88,6 +91,7 @@ public class TopologyCatalog extends AbstractIdleService implements SpecCatalog,
     this(config, log, Optional.<MetricContext>absent(), true);
   }
 
+  @Inject
   public TopologyCatalog(Config config, GobblinInstanceEnvironment env) {
     this(config, Optional.of(env.getLog()), Optional.of(env.getMetricContext()),
         env.isInstrumentationEnabled());

@@ -19,8 +19,6 @@ package org.apache.gobblin.util;
 import java.util.List;
 import java.util.Map;
 
-import lombok.extern.slf4j.Slf4j;
-
 import org.reflections.Reflections;
 import org.reflections.util.ConfigurationBuilder;
 
@@ -28,6 +26,9 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+
+import javax.annotation.concurrent.ThreadSafe;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alias;
 
@@ -49,16 +50,16 @@ import org.apache.gobblin.annotation.Alias;
  * </b>
  */
 @Slf4j
+@ThreadSafe
 public class ClassAliasResolver<T> {
 
   // Scan all packages in the classpath with prefix gobblin, com.linkedin.gobblin when class is loaded.
   // Since scan is expensive we do it only once when class is loaded.
-  private static final Reflections REFLECTIONS = new Reflections(new ConfigurationBuilder().forPackages("gobblin",
-      "com.linkedin.gobblin", "org.apache.gobblin"));
-
-  Map<String, Class<? extends T>> aliasToClassCache;
+  private static final Reflections REFLECTIONS =
+      new Reflections(new ConfigurationBuilder().forPackages("gobblin", "com.linkedin.gobblin", "org.apache.gobblin"));
   private final List<Alias> aliasObjects;
   private final Class<T> subtypeOf;
+  ImmutableMap<String, Class<? extends T>> aliasToClassCache;
 
   public ClassAliasResolver(Class<T> subTypeOf) {
     Map<String, Class<? extends T>> cache = Maps.newHashMap();
@@ -108,7 +109,8 @@ public class ClassAliasResolver<T> {
       return Class.forName(aliasOrClassName).asSubclass(this.subtypeOf);
     } catch (ClassCastException cce) {
       throw new ClassNotFoundException(
-          String.format("Found class %s but it cannot be cast to %s.", aliasOrClassName, this.subtypeOf.getName()), cce);
+          String.format("Found class %s but it cannot be cast to %s.", aliasOrClassName, this.subtypeOf.getName()),
+          cce);
     }
   }
 

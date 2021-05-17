@@ -30,6 +30,7 @@ import com.linkedin.restli.server.PagingContext;
 import com.linkedin.restli.server.RestLiServiceException;
 import com.linkedin.restli.server.UpdateResponse;
 
+import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.service.monitoring.FlowStatus;
@@ -42,6 +43,7 @@ public class FlowExecutionResourceLocalHandler implements FlowExecutionResourceH
 
   private final FlowStatusGenerator flowStatusGenerator;
 
+  @Inject
   public FlowExecutionResourceLocalHandler(FlowStatusGenerator flowStatusGenerator) {
     this.flowStatusGenerator = flowStatusGenerator;
   }

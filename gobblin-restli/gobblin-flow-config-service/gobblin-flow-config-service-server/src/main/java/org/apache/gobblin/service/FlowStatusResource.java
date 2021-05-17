@@ -20,10 +20,6 @@ package org.apache.gobblin.service;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.inject.Inject;
 import com.linkedin.restli.common.ComplexResourceKey;
 import com.linkedin.restli.common.EmptyRecord;
 import com.linkedin.restli.server.PagingContext;
@@ -34,6 +30,8 @@ import com.linkedin.restli.server.annotations.QueryParam;
 import com.linkedin.restli.server.annotations.RestLiCollection;
 import com.linkedin.restli.server.resources.ComplexKeyResourceTemplate;
 
+import javax.inject.Inject;
+
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 
 
@@ -42,10 +40,9 @@ import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
  */
 @RestLiCollection(name = "flowstatuses", namespace = "org.apache.gobblin.service", keyName = "id")
 public class FlowStatusResource extends ComplexKeyResourceTemplate<FlowStatusId, EmptyRecord, FlowStatus> {
-  public static final String FLOW_STATUS_GENERATOR_INJECT_NAME = "FlowStatusGenerator";
   public static final String MESSAGE_SEPARATOR = ", ";
 
-  @Inject @javax.inject.Inject @javax.inject.Named(FLOW_STATUS_GENERATOR_INJECT_NAME)
+  @Inject
   FlowStatusGenerator _flowStatusGenerator;
 
   public FlowStatusResource() {}

@@ -27,17 +27,20 @@ import com.google.common.base.Optional;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.typesafe.config.Config;
 
+import javax.inject.Inject;
+import javax.inject.Singleton;
+import lombok.Getter;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PropertiesUtils;
-
-import lombok.Getter;
 
 
 /**
  * A {@link com.google.common.util.concurrent.Service} wrapping a Quartz {@link Scheduler} allowing correct shutdown
  * of the scheduler when {@link JobScheduler} fails to initialize.
  */
+@Singleton
 public class SchedulerService extends AbstractIdleService {
 
   @Getter
@@ -57,6 +60,7 @@ public class SchedulerService extends AbstractIdleService {
         Optional.of(PropertiesUtils.extractPropertiesWithPrefix(props, Optional.of("org.quartz."))));
   }
 
+  @Inject
   public SchedulerService(Config cfg) {
     this(cfg.hasPath(ConfigurationKeys.SCHEDULER_WAIT_FOR_JOB_COMPLETION_KEY) ?
          cfg.getBoolean(ConfigurationKeys.SCHEDULER_WAIT_FOR_JOB_COMPLETION_KEY) :

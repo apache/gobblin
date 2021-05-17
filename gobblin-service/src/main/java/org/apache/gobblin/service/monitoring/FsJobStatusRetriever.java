@@ -25,15 +25,14 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
-import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
-import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.typesafe.config.Config;
 
+import javax.inject.Inject;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -41,7 +40,6 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metastore.FileContextBasedFsStateStore;
 import org.apache.gobblin.metastore.FileContextBasedFsStateStoreFactory;
 import org.apache.gobblin.metastore.FsStateStore;
-import org.apache.gobblin.metrics.event.TimingEvent;
 
 
 /**
@@ -56,6 +54,7 @@ public class FsJobStatusRetriever extends JobStatusRetriever {
   @Getter
   private final FileContextBasedFsStateStore<State> stateStore;
 
+  @Inject
   public FsJobStatusRetriever(Config config) {
     this.stateStore = (FileContextBasedFsStateStore<State>) new FileContextBasedFsStateStoreFactory().
         createStateStore(config.getConfig(CONF_PREFIX), State.class);
