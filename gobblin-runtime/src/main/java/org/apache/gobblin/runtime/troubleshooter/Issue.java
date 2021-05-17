@@ -24,6 +24,7 @@ import java.util.Map;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.ToString;
 
 
 /**
@@ -36,7 +37,10 @@ import lombok.Getter;
 @Builder
 @Getter
 @EqualsAndHashCode
+@ToString
 public class Issue {
+  public static final int MAX_ISSUE_CODE_LENGTH = 100;
+  public static final int MAX_CLASSNAME_LENGTH = 1000;
 
   private final ZonedDateTime time;
   private final IssueSeverity severity;
@@ -45,6 +49,8 @@ public class Issue {
    * Unique code that identifies a specific problem.
    *
    * It can be used for making programmatic decisions on how to handle and recover from this issue.
+   *
+   * The code length should be less than {@link Issue.MAX_ISSUE_CODE_LENGTH}
    * */
   private final String code;
 
@@ -64,11 +70,15 @@ public class Issue {
    * Unique name of the component that produced the issue.
    *
    * This is a full name of the class that logged the error or generated the issue.
+   *
+   * The class name length should be less than {@link Issue.MAX_CLASSNAME_LENGTH}
    * */
   private final String sourceClass;
 
   /**
    * If the issue was generated from an exception, then a full exception class name should be stored here.
+   *
+   * The class name length should be less than {@link Issue.MAX_CLASSNAME_LENGTH}
    */
   private final String exceptionClass;
 

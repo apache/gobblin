@@ -43,7 +43,9 @@ dependencies {
   compile externalDependency.curatorFramework
   compile externalDependency.curatorClient
   compile externalDependency.curatorRecipes
+  compile externalDependency.commonsDbcp2
   compile externalDependency.findBugsAnnotations
+  compile externalDependency.flyway
   compile externalDependency.gson
   compile externalDependency.guava
   compile externalDependency.guavaretrying
@@ -76,6 +78,7 @@ dependencies {
   testCompile project(":gobblin-runtime").sourceSets.test.output
   testCompile project(path: ":gobblin-metastore", configuration: "testFixtures")
   testCompile project(":gobblin-test-utils")
+  testCompile externalDependency.assertj
   testCompile externalDependency.byteman
   testCompile externalDependency.bytemanBmunit
   testCompile externalDependency.calciteCore
@@ -86,6 +89,8 @@ dependencies {
   testCompile externalDependency.hamcrest
   testCompile externalDependency.jhyde
   testCompile externalDependency.mockito
+  testCompile externalDependency.testContainers
+  testCompile externalDependency.testContainersMysql
 }
 
 // Begin HACK to get around POM being depenendent on the (empty) gobblin-rest-api instead of gobblin-rest-api-rest-client

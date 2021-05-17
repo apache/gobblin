@@ -78,6 +78,7 @@ import org.apache.gobblin.runtime.app.ApplicationLauncher;
 import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
+import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
 import org.apache.gobblin.scheduler.SchedulerService;
 import org.apache.gobblin.service.FlowConfig;
 import org.apache.gobblin.service.FlowConfigClient;
@@ -90,6 +91,7 @@ import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.GroupOwnershipService;
 import org.apache.gobblin.service.Schedule;
 import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.service.modules.db.ServiceDatabaseManager;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
@@ -188,6 +190,12 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
 
   @Inject(optional = true)
   protected KafkaJobStatusMonitor jobStatusMonitor;
+
+  @Inject
+  protected MultiContextIssueRepository issueRepository;
+
+  @Inject
+  protected ServiceDatabaseManager databaseManager;
 
   protected Optional<HelixLeaderState> helixLeaderGauges;
 
@@ -347,6 +355,9 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     if (configuration.isDagManagerEnabled()) {
       this.serviceLauncher.addService(dagManager);
     }
+
+    this.serviceLauncher.addService(databaseManager);
+    this.serviceLauncher.addService(issueRepository);
 
     if (configuration.isJobStatusMonitorEnabled()) {
       this.serviceLauncher.addService(jobStatusMonitor);

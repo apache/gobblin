@@ -105,8 +105,8 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   private Map<String, FlowCompiledState> flowGauges = Maps.newHashMap();
 
 
-  public Orchestrator(Config config, FlowStatusGenerator flowStatusGenerator, Optional<TopologyCatalog> topologyCatalog,
-      Optional<DagManager> dagManager, Optional<Logger> log, boolean instrumentationEnabled) {
+  public Orchestrator(Config config, Optional<TopologyCatalog> topologyCatalog, Optional<DagManager> dagManager, Optional<Logger> log,
+      FlowStatusGenerator flowStatusGenerator, boolean instrumentationEnabled) {
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
     this.aliasResolver = new ClassAliasResolver<>(SpecCompiler.class);
     this.topologyCatalog = topologyCatalog;
@@ -154,7 +154,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   @Inject
   public Orchestrator(Config config, FlowStatusGenerator flowStatusGenerator, Optional<TopologyCatalog> topologyCatalog,
       Optional<DagManager> dagManager, Optional<Logger> log) {
-    this(config, flowStatusGenerator, topologyCatalog, dagManager, log, true);
+    this(config, topologyCatalog, dagManager, log, flowStatusGenerator, true);
   }
 
 
